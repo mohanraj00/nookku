@@ -10,7 +10,12 @@ class AdapterError(ValueError):
     """The adapter cannot find the message or the reply."""
 
 
+# One earlier turn of the session: (tester message, agent reply).
+History = list[tuple[str, str]]
+
+
 class Adapter(Protocol):
+    def request(self, message: str, history: History) -> bytes: ...
     def accepts(self, method: str, path: str) -> bool: ...
     def refuse(self, body: bytes) -> str | None: ...
     def message(self, body: bytes) -> str: ...
@@ -48,6 +53,12 @@ class JsonAdapter:
     def __init__(self, message_field: str = "text", reply_field: str = "reply") -> None:
         self.message_field, self.reply_field = message_field, reply_field
 
+    def request(self, message: str, history: History) -> bytes:
+        body: Any = message
+        for key in reversed(self.message_field.split(".")):
+            body = {key: body}
+        return json.dumps(body, ensure_ascii=False).encode()
+
     def accepts(self, method: str, path: str) -> bool:
         return method == "POST"
 
@@ -63,6 +74,19 @@ class JsonAdapter:
 
 class OpenAIAdapter:
     """A POST to an OpenAI-compatible `/chat/completions` endpoint, without streaming."""
+
+    def __init__(self, model: str = "") -> None:
+        self.model = model
+
+    def request(self, message: str, history: History) -> bytes:
+        messages = []
+        for said, reply in history:
+            messages += [{"role": "user", "content": said}, {"role": "assistant", "content": reply}]
+        messages.append({"role": "user", "content": message})
+        body: dict[str, Any] = {"messages": messages, "stream": False}
+        if self.model:
+            body["model"] = self.model
+        return json.dumps(body, ensure_ascii=False).encode()
 
     def accepts(self, method: str, path: str) -> bool:
         return method == "POST" and path.split("?")[0].rstrip("/").endswith("/chat/completions")
@@ -96,9 +120,11 @@ class OpenAIAdapter:
         return _text(pick(_json(body, "response"), path), path)
 
 
-def make(name: str, message_field: str = "text", reply_field: str = "reply") -> Adapter:
+def make(
+    name: str, message_field: str = "text", reply_field: str = "reply", model: str = ""
+) -> Adapter:
     if name == "json":
         return JsonAdapter(message_field, reply_field)
     if name == "openai":
-        return OpenAIAdapter()
+        return OpenAIAdapter(model)
     raise ValueError(f"unknown adapter {name!r}")

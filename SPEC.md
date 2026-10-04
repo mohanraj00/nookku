@@ -37,6 +37,8 @@ Each record is a UTF-8 JSONL file. Each line is one JSON object. Each object has
 | `harness` | string | For example `claude-code` or `codex`. |
 | `said` | string | The exact text that the tester submitted. |
 | `shown` | string or null | The exact text that the relay showed to the tester. `null` if the relay showed no reply. |
+| `ok` | boolean | Optional. `true` if `shown` is the agent's reply, `false` if it is an error from the relay. |
+| `session` | string | Optional. The harness session id. |
 
 `blocked_call`: the relay denied a model tool call that targeted the agent or the tap. Fields: `harness`, `tool`, `detail`. The audit counts these rows and does not match them.
 
@@ -103,3 +105,13 @@ Each break has `relay_line` and `tap_line` (1-based line numbers, or `null`) and
 
 - **`json`:** the input is at a field path in the request body, and the reply is at a field path in the response body. The defaults are `text` and `reply`. A path uses dots, and a list index is a number, for example `choices.0.message.content`.
 - **`openai`:** for a `POST` to a path that ends in `/chat/completions`. The input is the `content` of the last message with role `user`. The content must be a string, or a list with exactly one part of type `text`. The reply is `choices.0.message.content`.
+
+## 5. Relays
+
+A relay is the Claude Code plugin or the hook kit. The hook kit uses the classic hook format that Codex and Claude Code share. Both relays obey these rules.
+
+- **Relay mode.** If relay mode is on, each prompt that the tester submits goes to the tap, and the model does not receive it. If relay mode is off, the relay does nothing to prompts.
+- **Fail closed.** If relay mode is on and the relay cannot send the message, it still stops the prompt from reaching the model. It shows the error to the tester and writes the error as `shown` with `ok: false`.
+- **Display.** The plugin shows the reply as a transcript row that the model does not receive. The hook kit writes the relay record, and `verbatim-relay view` prints each turn from it.
+- **Deny.** The relay denies a model tool call if its input contains the host and port of the tap or the agent. File tools (read, write, edit, search) are not denied, because a file that names an address does not call it. Every other tool is denied, including tools that the relay does not know. The deny is best effort. The audit is the proof.
+- **History.** For the `openai` adapter, the relay sends the turns of the current session that have `ok: true`, then the new message.

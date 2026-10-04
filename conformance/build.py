@@ -186,6 +186,16 @@ CASES_BY_NAME: dict[str, tuple[list | None, list | None, dict]] = {
             ],
         },
     ),
+    "optional_turn_fields": (
+        CLEAN_TAP,
+        [{**t, "ok": True, "session": "s1"} for t in CLEAN_RELAY],
+        {"exit": 0, "breaks": []},
+    ),
+    "optional_field_wrong_type": (
+        CLEAN_TAP,
+        [{**CLEAN_RELAY[0], "ok": "yes"}, *CLEAN_RELAY[1:]],
+        {"exit": 2, "errors": ["record_invalid"]},
+    ),
     "relay_record_missing": (CLEAN_TAP, None, {"exit": 2, "errors": ["record_missing"]}),
     "tap_record_missing": (None, CLEAN_RELAY, {"exit": 2, "errors": ["record_missing"]}),
     "invalid_json_line": (

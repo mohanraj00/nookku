@@ -100,6 +100,9 @@ def _validate(kind: str, path: Path, n: int, raw: str) -> dict[str, Any]:
         ok = row["status"] is not None and 200 <= row["status"] < 300
         if ok != (row["reply"] is not None):
             raise bad("'reply' must be a string for a 2xx status and null for any other status")
+    for name, want in (("ok", bool), ("session", str)):
+        if row["type"] == "turn" and name in row and not isinstance(row[name], want):
+            raise bad(f"field {name!r} has the wrong type")
     if "error" in row and not isinstance(row["error"], str):
         raise bad("field 'error' has the wrong type")
     return row

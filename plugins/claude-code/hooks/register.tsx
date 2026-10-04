@@ -6,7 +6,7 @@ import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
 
 import type { VerbatimRelayState } from '../types'
-import { blockedRow, denyPattern, isNetworkTool, replyText, requestBody, turnRow } from './core'
+import { blockedRow, denyPattern, isChecked, replyText, requestBody, turnRow } from './core'
 import type { Options } from './core'
 
 const PANE = 'verbatim-relay'
@@ -118,7 +118,7 @@ export const register: Register = (on, options) => {
     $.ui.log(shown)
     await update($, state, st => ({ ...st, turns: [...st.turns, { said, shown, ok }] }))
     try {
-      await append($, o, await turnRow(said, shown))
+      await append($, o, await turnRow(said, shown, ok))
     } catch (err) {
       $.ui.log(`verbatim-relay: cannot write the record ${o.record}: ${(err as Error).message}`)
     }
@@ -132,7 +132,7 @@ export const register: Register = (on, options) => {
 
   // The model may read the conversation. It must not take part in it.
   on('tool.call', async ($, e, next) => {
-    if (deny && isNetworkTool(e.tool) && deny.test(JSON.stringify(e))) {
+    if (deny && isChecked(e.tool) && deny.test(JSON.stringify(e))) {
       try {
         await append($, o, blockedRow(e.tool, JSON.stringify(e).slice(0, 300)))
       } catch {

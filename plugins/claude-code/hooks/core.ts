@@ -89,13 +89,15 @@ export function denyPattern(urls: readonly string[]): RegExp | null {
   return parts.length ? new RegExp(parts.join('|'), 'i') : null
 }
 
-// Tools that can reach the network. File tools are left alone: a file that names the agent's
-// address is not a call to the agent.
-export function isNetworkTool(tool: string): boolean {
-  return ['Bash', 'PowerShell', 'WebFetch'].includes(tool) || (tool.startsWith('mcp__') && !tool.startsWith('mcp__verbatim-relay__'))
+// Tools that only read, write or search files (SPEC.md section 5). Every other tool is checked,
+// so a tool that the plugin does not know is denied when its input names the tap or the agent.
+const FILE_TOOLS = ['Read', 'Write', 'Edit', 'MultiEdit', 'NotebookEdit', 'Glob', 'Grep', 'LS', 'TodoWrite']
+
+export function isChecked(tool: string): boolean {
+  return !FILE_TOOLS.includes(tool) && !tool.startsWith('mcp__verbatim-relay__')
 }
 
-export async function turnRow(said: string, shown: string | null): Promise<string> {
+export async function turnRow(said: string, shown: string | null, ok: boolean): Promise<string> {
   const row = {
     v: '0.1',
     type: 'turn',
@@ -105,6 +107,7 @@ export async function turnRow(said: string, shown: string | null): Promise<strin
     said_sha256: await sha256(said),
     shown,
     shown_sha256: await sha256(shown),
+    ok,
   }
   return JSON.stringify(row) + '\n'
 }

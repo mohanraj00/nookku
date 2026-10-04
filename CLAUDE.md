@@ -25,4 +25,7 @@ claude plugin validate plugins/claude-code && claude plugin test plugins/claude-
 
 ## Proofs (local only)
 
-`scripts/proofs_claude_code.py` runs P1 to P4 headless with `claude -p` and writes `proofs/claude-code/`. Run it after each change to the plugin or to a new Claude Code version, and commit the results with the version that it records.
+- `scripts/proofs_claude_code.py` runs P1 to P4 for the plugin with `claude -p` and writes `proofs/claude-code/`.
+- `scripts/proofs_hooks.py codex|claude-code` runs P1 to P4 for the hook kit and writes `proofs/hooks-<harness>/`. Codex runs project hooks only after a person trusts them. The maintainer trusts `.proof/codex/.codex/hooks.json` once. Never try to skip the trust step.
+
+Run the proofs after each change to a relay or to a new harness version. Commit the results with the version that they record.

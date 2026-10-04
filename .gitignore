@@ -15,3 +15,4 @@ htmlcov/
 .env
 CLAUDE.local.md
 .verbatim-relay/
+.proof/

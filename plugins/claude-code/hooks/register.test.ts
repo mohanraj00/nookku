@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { denyPattern, isNetworkTool, pick, requestBody, sha256 } from './core'
+import { denyPattern, isChecked, pick, requestBody, sha256 } from './core'
 
 const TRICKY = 'Hi, I want to return order #4471.  \n\nÜnïcödé € ₹\t| a | b |\n'
 const REPLY = '## Toy shop  \nYou wrote it.\n\n| item | price |\n|---|---|\n| mug | € 8 |\n'
@@ -47,7 +47,7 @@ test('relay mode sends the exact bytes, shows the exact reply, and keeps the mod
   expect(f.sent[0].url).toBe('http://127.0.0.1:8800/')
   expect(f.logs).toEqual([REPLY])
   const [row] = rows(f.files['/virtual/relay.jsonl'])
-  expect(row).toMatchObject({ v: '0.1', type: 'turn', harness: 'claude-code', said: TRICKY, shown: REPLY })
+  expect(row).toMatchObject({ v: '0.1', type: 'turn', harness: 'claude-code', said: TRICKY, shown: REPLY, ok: true })
   expect(row.said_sha256).toBe(await sha256(TRICKY))
   expect(row.shown_sha256).toBe(await sha256(REPLY))
 })
@@ -103,8 +103,9 @@ test('pure parts', async () => {
   expect(p.test('curl http://127.0.0.1:88001/')).toBe(false)
   expect(p.test('wget https://agent.example.com/x')).toBe(true)
   expect(p.test('agent.example.community')).toBe(false)
-  expect(isNetworkTool('mcp__fetch__get')).toBe(true)
-  expect(isNetworkTool('mcp__verbatim-relay__transcript')).toBe(false)
-  expect(isNetworkTool('Edit')).toBe(false)
+  expect(isChecked('mcp__fetch__get')).toBe(true)
+  expect(isChecked('SomeNewTool')).toBe(true)
+  expect(isChecked('mcp__verbatim-relay__transcript')).toBe(false)
+  expect(isChecked('Edit')).toBe(false)
   expect(await sha256('é')).toBe('4a99557e4033c3539de2eb65472017cad5f9557f7a0625a09f1c3f6e2ba69c4c')
 })

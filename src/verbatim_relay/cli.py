@@ -8,7 +8,7 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
-from verbatim_relay import __version__
+from verbatim_relay import __version__, kit
 from verbatim_relay.adapters import make
 from verbatim_relay.audit import audit, render
 from verbatim_relay.tap import Tap, serve
@@ -44,6 +44,24 @@ def main(argv: Sequence[str] | None = None) -> int:
     aud.add_argument("--relay", required=True, type=Path, help="the relay record")
     aud.add_argument("--json", action="store_true", help="print the report as JSON")
 
+    ini = sub.add_parser("init", help="install the hook kit for Codex or Claude Code")
+    ini.add_argument("harness", choices=["codex", "claude-code"])
+    ini.add_argument("--root", type=Path, default=Path.cwd(), help="the project (default: here)")
+    for name, default in vars(kit.Config()).items():
+        ini.add_argument(f"--{name.replace('_', '-')}", default=default)
+
+    mode = sub.add_parser("mode", help="switch relay mode on or off for the hook kit")
+    mode.add_argument("state", choices=["on", "off", "status"])
+    mode.add_argument("--root", type=Path, default=Path.cwd())
+
+    view = sub.add_parser("view", help="print each relayed turn (the hook kit's display)")
+    view.add_argument("--root", type=Path, default=Path.cwd())
+    view.add_argument("--no-follow", action="store_true", help="print the turns so far and stop")
+
+    hook = sub.add_parser("hook", help="the hook command that init installs")
+    hook.add_argument("--root", type=Path, required=True)
+    hook.add_argument("--harness", required=True)
+
     args = parser.parse_args(argv)
     if args.command == "tap":
         adapter = make(args.adapter, args.message_field, args.reply_field)
@@ -56,5 +74,44 @@ def main(argv: Sequence[str] | None = None) -> int:
         else:
             print(render(report))
         return report.exit
+    if args.command == "init":
+        root = args.root.resolve()
+        config = kit.Config(**{k: getattr(args, k) for k in vars(kit.Config())})
+        for path in kit.init(root, args.harness, config):
+            print(f"wrote {path}")
+        print(
+            f"Relay mode is {'on' if kit.is_on(root) else 'off'}. "
+            "Switch it with: verbatim-relay mode on"
+        )
+        if args.harness == "codex":
+            print(
+                "Codex runs project hooks only after you trust them. Start codex in this "
+                "project and accept the hooks prompt."
+            )
+        else:
+            print(
+                "Do not also enable the verbatim-relay Claude Code plugin in this project, "
+                "or each message is sent two times."
+            )
+        return 0
+    if args.command == "mode":
+        root = args.root.resolve()
+        if args.state != "status":
+            kit.set_mode(root, args.state == "on")
+        print(f"Relay mode is {'on' if kit.is_on(root) else 'off'}.")
+        return 0
+    if args.command == "view":
+        root = args.root.resolve()
+        try:
+            record = kit.Config.load(root).record_path(root)
+        except (OSError, ValueError, TypeError) as e:
+            print(f"verbatim-relay: cannot read the config: {e}", file=sys.stderr)
+            return 2
+        try:
+            return kit.view(record, not args.no_follow, sys.stdout)
+        except KeyboardInterrupt:
+            return 0
+    if args.command == "hook":
+        return kit.run_hook(args.root, args.harness, sys.stdin, sys.stdout)
     parser.print_help(sys.stderr)
     return 2
