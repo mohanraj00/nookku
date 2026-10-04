@@ -1,0 +1,5 @@
+# salted SHA-256 of banned terms; add with scripts/stealth.py add
+194f98dc3cdd1634e0824996b64830cd0f4edfa28ffbd9dbf0fde8df82aa3efc
+967fb02eabbce91162a075daf301ee362de1f1223d5c15f218257c166fb7f449
+a1c456938f02f17cade3c0e783d70f706a2c8c7fdc1e0073f3ff9a3007f3b431
+bfd8df7cdf2678a339e632df9179ff926b29a70cebfeb318ac1b038bd4a75bf1

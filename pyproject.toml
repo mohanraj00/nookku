@@ -1,0 +1,63 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "verbatim-relay"
+dynamic = ["version"]
+description = "Test a chat agent through Claude Code or Codex without the model retyping the conversation, and audit that it held."
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{ name = "Mohan Raj" }]
+requires-python = ">=3.10"
+dependencies = []
+classifiers = [
+  "Development Status :: 2 - Pre-Alpha",
+  "Intended Audience :: Developers",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Software Development :: Testing",
+  "Typing :: Typed",
+]
+keywords = ["llm", "agents", "testing", "claude-code", "codex", "audit"]
+
+[project.scripts]
+verbatim-relay = "verbatim_relay.cli:main"
+
+[project.urls]
+Repository = "https://github.com/mohanraj00/verbatim-relay"
+
+[dependency-groups]
+dev = ["pytest>=8", "pytest-cov>=5", "mypy>=1.10", "ruff>=0.6"]
+
+[tool.hatch.version]
+path = "src/verbatim_relay/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/verbatim_relay"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
+
+[tool.mypy]
+strict = true
+python_version = "3.10"
+files = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.coverage.run]
+source = ["verbatim_relay"]
+branch = true
