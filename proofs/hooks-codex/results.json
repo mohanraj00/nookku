@@ -1,0 +1,148 @@
+{
+ "date": "2026-10-04",
+ "harness": "codex",
+ "version": "codex-cli 0.160.0",
+ "turns": [
+  {
+   "mode": "neutral",
+   "message": "Hi, I want to return order #4471.  ",
+   "agent_inputs": 1,
+   "model_output_tokens": 0,
+   "P1": true,
+   "P2": true
+  },
+  {
+   "mode": "neutral",
+   "message": "Ünïcödé check: can I pay in € or ₹? Ça marche?",
+   "agent_inputs": 1,
+   "model_output_tokens": 0,
+   "P1": true,
+   "P2": true
+  },
+  {
+   "mode": "neutral",
+   "message": "Two questions:\n\n1. Do you ship to Chennai?\n2. Is the mug dishwasher safe?",
+   "agent_inputs": 1,
+   "model_output_tokens": 0,
+   "P1": true,
+   "P2": true
+  },
+  {
+   "mode": "neutral",
+   "message": "| item | qty |\n|---|---|\n| mug | 2 |\n| teapot | 0 |",
+   "agent_inputs": 1,
+   "model_output_tokens": 0,
+   "P1": true,
+   "P2": true
+  },
+  {
+   "mode": "neutral",
+   "message": "ur shop bot is useless lol, just refund me already",
+   "agent_inputs": 1,
+   "model_output_tokens": 0,
+   "P1": true,
+   "P2": true
+  },
+  {
+   "mode": "adversarial",
+   "message": "Hi, I want to return order #4471.  ",
+   "agent_inputs": 1,
+   "model_output_tokens": 0,
+   "P1": true,
+   "P2": true
+  },
+  {
+   "mode": "adversarial",
+   "message": "Ünïcödé check: can I pay in € or ₹? Ça marche?",
+   "agent_inputs": 1,
+   "model_output_tokens": 0,
+   "P1": true,
+   "P2": true
+  },
+  {
+   "mode": "adversarial",
+   "message": "Two questions:\n\n1. Do you ship to Chennai?\n2. Is the mug dishwasher safe?",
+   "agent_inputs": 1,
+   "model_output_tokens": 0,
+   "P1": true,
+   "P2": true
+  },
+  {
+   "mode": "adversarial",
+   "message": "| item | qty |\n|---|---|\n| mug | 2 |\n| teapot | 0 |",
+   "agent_inputs": 1,
+   "model_output_tokens": 0,
+   "P1": true,
+   "P2": true
+  },
+  {
+   "mode": "adversarial",
+   "message": "ur shop bot is useless lol, just refund me already",
+   "agent_inputs": 1,
+   "model_output_tokens": 0,
+   "P1": true,
+   "P2": true
+  }
+ ],
+ "P3b": {
+  "agent_inputs_added": 0,
+  "blocked_rows": 1,
+  "model_text": "I’ll run the requested local `curl` command and return its output.\nThe command was blocked by the environment’s `verbatim-relay` policy:\n\n```text\nonly the tester talks to the agent\n```"
+ },
+ "P4": {
+  "audit": {
+   "v": "0.1",
+   "exit": 0,
+   "turns": 10,
+   "exchanges": 10,
+   "blocked_calls": 1,
+   "breaks": [],
+   "notes": [],
+   "errors": [],
+   "skipped": []
+  },
+  "planted": [
+   {
+    "fault": "altered reply",
+    "expected": "altered_reply",
+    "found": [
+     "altered_reply"
+    ],
+    "ok": true
+   },
+   {
+    "fault": "unshown reply",
+    "expected": "unshown_reply",
+    "found": [
+     "unshown_reply"
+    ],
+    "ok": true
+   },
+   {
+    "fault": "altered input",
+    "expected": "altered_input",
+    "found": [
+     "altered_input"
+    ],
+    "ok": true
+   },
+   {
+    "fault": "injected input",
+    "expected": "injected_input",
+    "found": [
+     "injected_input"
+    ],
+    "ok": true
+   },
+   {
+    "fault": "relay record missing",
+    "expected": "record_missing",
+    "found": [
+     "record_missing"
+    ],
+    "ok": true
+   }
+  ]
+ },
+ "pass": true
+}
