@@ -43,6 +43,8 @@ For each session, the tap writes the tap record. The relay record comes from:
 - **Prompt-only:** `said` is the scripted message. `shown` is the text between the lines `<<<AGENT` and `AGENT>>>` in the model's final message for that turn. If the markers are missing, `shown` is the whole final message.
 - **Mechanism:** the relay writes its own record.
 
+A known limit of the markers: if a reply ends in a line end, an operator that writes `AGENT>>>` directly after the reply loses that line end. Such a break gets the label `whitespace_only`, and the post reports `whitespace_only` breaks apart from the others.
+
 `verbatim-relay audit` compares the two records. A turn is **broken** if a break names its relay line. An `injected_input` or `duplicate_send` break counts for the session, with no turn.
 
 ## Measures
