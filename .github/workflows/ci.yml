@@ -36,3 +36,12 @@ jobs:
       - uses: astral-sh/setup-uv@v6
       - run: uv sync --python ${{ matrix.python }}
       - run: uv run pytest --cov --cov-report=term-missing
+
+  claude-code-plugin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install the tested Claude Code version
+        run: npm install -g @anthropic-ai/claude-code@2.1.288
+      - run: claude plugin validate plugins/claude-code
+      - run: claude plugin test plugins/claude-code

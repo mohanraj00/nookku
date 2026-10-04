@@ -12,10 +12,17 @@ A person tests a chat agent through a coding harness (Claude Code or Codex). The
 - **Dependencies.** Use the standard library first. Do not add a GPL or AGPL dependency. Ask the maintainer before you add any runtime dependency.
 - **Claims.** Each number in a doc must link to its data and its method. If the measurement does not exist, do not make the claim.
 - **Harness versions.** Record the tested versions of Claude Code and Codex with each result.
+- **Plugin API.** The Claude Code plugin uses function hooks, which are early access and can change between releases. CI pins the tested version.
+- **Plugin helpers.** In `plugins/claude-code/hooks/register.tsx`, a function that takes `$` must be a top-level function declaration. `claude plugin validate` refuses other forms.
 - **Outward steps.** Do not push, tag, publish or open issues without the maintainer's approval for that step. Tags publish to PyPI and you cannot undo them.
 
 ## Before every commit
 
 ```bash
 uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pytest && uv run python scripts/stealth.py check
+claude plugin validate plugins/claude-code && claude plugin test plugins/claude-code
 ```
+
+## Proofs (local only)
+
+`scripts/proofs_claude_code.py` runs P1 to P4 headless with `claude -p` and writes `proofs/claude-code/`. Run it after each change to the plugin or to a new Claude Code version, and commit the results with the version that it records.

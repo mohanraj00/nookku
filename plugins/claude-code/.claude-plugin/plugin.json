@@ -1,0 +1,65 @@
+{
+  "name": "verbatim-relay",
+  "version": "0.0.0",
+  "description": "Relay a test conversation to a chat agent byte for byte. The model never writes either direction.",
+  "author": {
+    "name": "Mohan Raj"
+  },
+  "license": "Apache-2.0",
+  "repository": "https://github.com/mohanraj00/verbatim-relay",
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "tap_url": {
+      "type": "string",
+      "title": "Tap URL",
+      "description": "The URL that receives each message: the verbatim-relay tap in front of the agent.",
+      "default": "http://127.0.0.1:8800/"
+    },
+    "agent_url": {
+      "type": "string",
+      "title": "Agent URL",
+      "description": "Optional. The agent's own URL. Model tool calls to it are denied, the same as calls to the tap.",
+      "default": ""
+    },
+    "adapter": {
+      "type": "string",
+      "title": "Adapter",
+      "description": "json: a JSON body with one message field. openai: an OpenAI-compatible chat completions endpoint.",
+      "options": [
+        "json",
+        "openai"
+      ],
+      "default": "json"
+    },
+    "message_field": {
+      "type": "string",
+      "title": "Message field",
+      "description": "json adapter: the dot path of the message in the request body.",
+      "default": "text"
+    },
+    "reply_field": {
+      "type": "string",
+      "title": "Reply field",
+      "description": "json adapter: the dot path of the reply in the response body.",
+      "default": "reply"
+    },
+    "openai_model": {
+      "type": "string",
+      "title": "Model name",
+      "description": "openai adapter: the model field of each request. Empty means no model field.",
+      "default": ""
+    },
+    "record": {
+      "type": "string",
+      "title": "Relay record",
+      "description": "The relay record (JSONL), relative to the working directory or absolute.",
+      "default": ".verbatim-relay/relay.jsonl"
+    },
+    "start_on": {
+      "type": "boolean",
+      "title": "Start in relay mode",
+      "description": "Start each session with relay mode on.",
+      "default": false
+    }
+  }
+}
