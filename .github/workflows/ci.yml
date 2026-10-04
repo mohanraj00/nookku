@@ -17,6 +17,8 @@ jobs:
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run mypy
+      - name: Conformance cases are up to date
+        run: uv run python conformance/build.py && git diff --exit-code conformance/
       - name: No banned term in files, paths or commit messages
         run: uv run python scripts/stealth.py check
 

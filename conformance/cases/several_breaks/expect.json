@@ -1,0 +1,25 @@
+{
+ "exit": 1,
+ "breaks": [
+  [
+   "altered_input",
+   1,
+   1
+  ],
+  [
+   "altered_reply",
+   2,
+   2
+  ],
+  [
+   "altered_input",
+   3,
+   3
+  ],
+  [
+   "unshown_reply",
+   3,
+   3
+  ]
+ ]
+}

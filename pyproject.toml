@@ -49,6 +49,9 @@ target-version = "py310"
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
 
+[tool.ruff.lint.per-file-ignores]
+"conformance/build.py" = ["E501"]  # case texts read better unwrapped
+
 [tool.mypy]
 strict = true
 python_version = "3.10"
@@ -56,6 +59,7 @@ files = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["tests"]
 addopts = "-q"
 
 [tool.coverage.run]
