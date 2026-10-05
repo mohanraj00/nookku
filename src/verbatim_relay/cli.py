@@ -11,6 +11,7 @@ from pathlib import Path
 from verbatim_relay import __version__, kit
 from verbatim_relay.adapters import make
 from verbatim_relay.audit import audit, render
+from verbatim_relay.record import RecordError
 from verbatim_relay.tap import Tap, serve
 
 
@@ -58,6 +59,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     view.add_argument("--root", type=Path, default=Path.cwd())
     view.add_argument("--no-follow", action="store_true", help="print the turns so far and stop")
 
+    tr = sub.add_parser("transcript", help="print the exact conversation for the model to evaluate")
+    tr.add_argument("--root", type=Path, default=Path.cwd())
+    tr.add_argument("--all", action="store_true", help="all sessions, not only the latest one")
+
     hook = sub.add_parser("hook", help="the hook command that init installs")
     hook.add_argument("--root", type=Path, required=True)
     hook.add_argument("--harness", required=True)
@@ -100,13 +105,19 @@ def main(argv: Sequence[str] | None = None) -> int:
             kit.set_mode(root, args.state == "on")
         print(f"Relay mode is {'on' if kit.is_on(root) else 'off'}.")
         return 0
-    if args.command == "view":
+    if args.command in ("view", "transcript"):
         root = args.root.resolve()
         try:
             record = kit.Config.load(root).record_path(root)
         except (OSError, ValueError, TypeError) as e:
             print(f"verbatim-relay: cannot read the config: {e}", file=sys.stderr)
             return 2
+        if args.command == "transcript":
+            try:
+                return kit.transcript(record, args.all, sys.stdout)
+            except RecordError as e:
+                print(f"verbatim-relay: {e}", file=sys.stderr)
+                return 2
         try:
             return kit.view(record, not args.no_follow, sys.stdout)
         except KeyboardInterrupt:

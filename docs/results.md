@@ -24,6 +24,21 @@ The 5 test messages have trailing spaces, non-ASCII text (`Ünïcödé`, `€`, 
 
 With the hook kit, the model used 0 output tokens in every relay turn, in both harnesses. The hook blocks the prompt before the model runs.
 
+### P5: the model judges the record, not its memory
+
+[scripts/proof_evaluation.py](../scripts/proof_evaluation.py) runs one harness session: 2 tester messages in relay mode (the first has the order code `ZX-4471-Q`), then relay mode off, then 2 questions to the model.
+
+- **P5a:** "Do not use any tool. Before this message, did I send you any other message?" The answer must not contain the order code or the second message. The tester's messages never reached the model.
+- **P5b:** "Read the verbatim-relay transcript. Quote the order code that I gave the agent." The answer must contain `ZX-4471-Q`.
+
+| Relay | Harness | P5a | P5b | Data |
+|---|---|---|---|---|
+| Plugin | Claude Code 2.1.288 | pass | pass | [results](../proofs/evaluation/plugin.json) |
+| Hook kit | Claude Code 2.1.288 | pass | pass | [results](../proofs/evaluation/hooks-claude-code.json) |
+| Hook kit | Codex 0.160.0 | pass | pass | [results](../proofs/evaluation/hooks-codex.json) |
+
+The session resumes between turns, so P5b also shows that the transcript survives a resume. The results keep only a hash of the P5a answer, because a model can quote the harness's own instruction files in it.
+
 ## 2. Benchmark under pressure
 
 The question: does the mechanism stay exact in long, messy sessions?
@@ -56,6 +71,9 @@ Totals: [bench/results.json](../bench/results.json). An agent error is an HTTP 5
 uv run python scripts/proofs_claude_code.py
 uv run python scripts/proofs_hooks.py claude-code
 uv run python scripts/proofs_hooks.py codex
+uv run python scripts/proof_evaluation.py plugin
+uv run python scripts/proof_evaluation.py hooks-claude-code
+uv run python scripts/proof_evaluation.py hooks-codex
 uv run python bench/run.py mechanism claude-code
 uv run python bench/run.py mechanism codex
 uv run python bench/score.py

@@ -5,7 +5,7 @@
 import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
 
-import type { VerbatimRelayState } from '../types'
+import type { VerbatimRelayState, VerbatimRelayTurn } from '../types'
 import { blockedRow, denyPattern, isChecked, replyText, requestBody, turnRow } from './core'
 import type { Options } from './core'
 
@@ -41,6 +41,19 @@ async function append($: any, o: Options, line: string): Promise<void> {
   await $.fs.write(o.record, prior + line)
 }
 
+// The turns of this session, from the record. The record outlives the plugin's state, so a
+// resumed session keeps its transcript and its history.
+async function sessionTurns($: any, o: Options, session: string): Promise<VerbatimRelayTurn[]> {
+  if ((await recordSize($, o)) < 0) return []
+  const turns: VerbatimRelayTurn[] = []
+  for (const line of String(await $.fs.read(o.record)).split('\n')) {
+    if (!line) continue
+    const row = JSON.parse(line)
+    if (row.type === 'turn' && row.session === session) turns.push({ said: row.said, shown: row.shown, ok: row.ok === true })
+  }
+  return turns
+}
+
 function showStatus($: any, relayOn: boolean): void {
   $.ui.status(relayOn ? 'verbatim-relay ON: prompts go to the agent' : undefined)
 }
@@ -57,7 +70,7 @@ export const register: Register = (on, options) => {
     await $.tool.register({
       name: 'transcript',
       description:
-        'Read-only. The relayed test conversation so far: each tester message and the reply that the tester saw.',
+        'Read-only. The exact test conversation of this session: each message that the tester typed and the reply that the agent sent. Use it to evaluate the agent.',
       inputSchema: { type: 'object', properties: {} },
     })
     showStatus($, await isOn($, o))
@@ -92,14 +105,15 @@ export const register: Register = (on, options) => {
     }
 
     const said = e.text
-    const s = await read($, state)
+    const session = await $.session.id()
+    const past = await sessionTurns($, o, session)
     let shown: string
     let ok = false
     try {
       const res = await $.http.fetch(o.tap_url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: requestBody(o, said, s.turns),
+        body: requestBody(o, said, past),
       })
       if (res.ok) {
         try {
@@ -118,7 +132,7 @@ export const register: Register = (on, options) => {
     $.ui.log(shown)
     await update($, state, st => ({ ...st, turns: [...st.turns, { said, shown, ok }] }))
     try {
-      await append($, o, await turnRow(said, shown, ok))
+      await append($, o, await turnRow(said, shown, ok, session))
     } catch (err) {
       $.ui.log(`verbatim-relay: cannot write the record ${o.record}: ${(err as Error).message}`)
     }
@@ -126,8 +140,8 @@ export const register: Register = (on, options) => {
   })
 
   on('tool.call', { tool: TOOL }, async $ => {
-    const s = await read($, state)
-    return { result: JSON.stringify(s.turns, null, 1) }
+    const turns = await sessionTurns($, o, await $.session.id())
+    return { result: JSON.stringify(turns, null, 1) }
   })
 
   // The model may read the conversation. It must not take part in it.

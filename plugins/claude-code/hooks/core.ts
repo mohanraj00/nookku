@@ -97,7 +97,7 @@ export function isChecked(tool: string): boolean {
   return !FILE_TOOLS.includes(tool) && !tool.startsWith('mcp__verbatim-relay__')
 }
 
-export async function turnRow(said: string, shown: string | null, ok: boolean): Promise<string> {
+export async function turnRow(said: string, shown: string | null, ok: boolean, session: string): Promise<string> {
   const row = {
     v: '0.1',
     type: 'turn',
@@ -108,6 +108,7 @@ export async function turnRow(said: string, shown: string | null, ok: boolean): 
     shown,
     shown_sha256: await sha256(shown),
     ok,
+    session,
   }
   return JSON.stringify(row) + '\n'
 }

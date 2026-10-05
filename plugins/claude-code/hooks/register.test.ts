@@ -32,6 +32,7 @@ function fakes(on: any, reply: (body: string) => { status: number; text: string 
     return { value: undefined }
   })
   on('ui.status', async () => ({ value: undefined }))
+  on('session.id', async () => ({ value: 's1' }))
   return { files, sent, logs }
 }
 
@@ -47,7 +48,7 @@ test('relay mode sends the exact bytes, shows the exact reply, and keeps the mod
   expect(f.sent[0].url).toBe('http://127.0.0.1:8800/')
   expect(f.logs).toEqual([REPLY])
   const [row] = rows(f.files['/virtual/relay.jsonl'])
-  expect(row).toMatchObject({ v: '0.1', type: 'turn', harness: 'claude-code', said: TRICKY, shown: REPLY, ok: true })
+  expect(row).toMatchObject({ v: '0.1', type: 'turn', harness: 'claude-code', said: TRICKY, shown: REPLY, ok: true, session: 's1' })
   expect(row.said_sha256).toBe(await sha256(TRICKY))
   expect(row.shown_sha256).toBe(await sha256(REPLY))
 })
@@ -108,4 +109,12 @@ test('pure parts', async () => {
   expect(isChecked('mcp__verbatim-relay__transcript')).toBe(false)
   expect(isChecked('Edit')).toBe(false)
   expect(await sha256('é')).toBe('4a99557e4033c3539de2eb65472017cad5f9557f7a0625a09f1c3f6e2ba69c4c')
+})
+
+test('the transcript tool reads this session from the record', { options: OPTIONS }, async ($, on) => {
+  const f = fakes(on, () => ({ status: 200, text: JSON.stringify({ reply: REPLY }) }))
+  f.files['/virtual/relay.jsonl'] = JSON.stringify({ type: 'turn', said: 'other', shown: 'x', ok: true, session: 's0' }) + '\n'
+  await $.prompt.submit({ text: TRICKY })
+  const out: any = await $.tool.call({ tool: 'mcp__verbatim-relay__transcript' } as any)
+  expect(JSON.parse(out.result)).toEqual([{ said: TRICKY, shown: REPLY, ok: true }])
 })

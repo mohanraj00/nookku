@@ -37,6 +37,9 @@ Tested with codex-cli 0.160.0.
 
 4. Start `codex` in the project and type your test messages. Codex shows that the hook blocked the prompt. The reply shows in the viewer. The model does not run in a relay turn: the proofs record 0 output tokens for each one.
 5. Switch relay mode off with `verbatim-relay mode off`.
+6. Ask Codex to evaluate the agent, for example: "Run `verbatim-relay transcript` and evaluate the agent's business logic, tone, language and accuracy. Quote the turns that you judge."
+
+`verbatim-relay transcript` prints the exact turns of the latest session. Add `--all` for every session in the record. The model did not see the conversation while you talked, so it judges the record, not its memory.
 
 In relay mode, the kit fails closed: if it cannot send a message, the message still does not go to the model.
 

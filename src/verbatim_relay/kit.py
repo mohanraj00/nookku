@@ -274,6 +274,34 @@ def render_turn(turn: Turn, n: int) -> str:
     return f"──── tester, turn {n} ────\n{turn.said}\n──── agent ────\n{shown}\n"
 
 
+def latest_session(record: Path) -> list[Turn]:
+    """The turns of the session of the last turn. Turns without a session id are one session."""
+    turns = [r for r in read_relay(record) if isinstance(r, Turn)]
+    if not turns:
+        return []
+    lines = record.read_text(encoding="utf-8").splitlines()
+    session = {t.line: json.loads(lines[t.line - 1]).get("session") for t in turns}
+    last = session[turns[-1].line]
+    return [t for t in turns if session[t.line] == last]
+
+
+def transcript(record: Path, every_session: bool, out: TextIO) -> int:
+    """Print the exact conversation for the harness model to evaluate."""
+    turns = (
+        [r for r in read_relay(record) if isinstance(r, Turn)]
+        if every_session
+        else latest_session(record)
+    )
+    scope = "all sessions" if every_session else "the latest session"
+    out.write(
+        f"verbatim-relay transcript, {scope}: {len(turns)} turns. The text is exact: the "
+        "tester typed each tester block, and the agent sent each agent block.\n\n"
+    )
+    for n, turn in enumerate(turns, 1):
+        out.write(render_turn(turn, n))
+    return 0
+
+
 def view(record: Path, follow: bool, out: TextIO, poll: float = 0.3) -> int:
     """Print each turn of the relay record. With follow, wait for new turns."""
     seen = 0

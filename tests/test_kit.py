@@ -178,3 +178,28 @@ def test_the_installed_hook_command_runs(setup):
     assert json.loads(p.stdout)["decision"] == "block"
     assert read_relay(record(root))[0].said == TRICKY
     assert sys.executable in line
+
+
+def test_transcript_prints_the_latest_session(setup):
+    root, _, _ = setup
+    kit.set_mode(root, True)
+    for text, session in (("old one", "a"), (TRICKY, "b"), ("second", "b")):
+        kit.handle(prompt(text, session), root, "codex")
+    out = io.StringIO()
+    kit.transcript(record(root), every_session=False, out=out)
+    text = out.getvalue()
+    assert "2 turns" in text and "old one" not in text
+    assert f"──── tester, turn 1 ────\n{TRICKY}\n" in text
+    out = io.StringIO()
+    kit.transcript(record(root), every_session=True, out=out)
+    assert "3 turns" in out.getvalue()
+
+
+def test_the_model_may_run_the_transcript_command(setup):
+    root, _, _ = setup
+    event = {
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Bash",
+        "tool_input": {"command": "verbatim-relay transcript"},
+    }
+    assert kit.handle(event, root, "codex") is None

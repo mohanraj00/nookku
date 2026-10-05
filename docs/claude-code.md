@@ -35,8 +35,9 @@ Tested with Claude Code 2.1.288.
 4. Type `/verbatim-relay on`. The status line shows that relay mode is on.
 5. Type your test messages. Each reply shows as a row in the chat and in the verbatim-relay pane.
 6. Type `/verbatim-relay off` to talk to the model again.
+7. Ask the model to evaluate the agent, for example: "Read the verbatim-relay transcript. Evaluate the agent's business logic, tone, language and accuracy. Quote the turns that you judge."
 
-The model can read the conversation with the read-only `transcript` tool, for example to write a bug report. It cannot send a message to the agent: the plugin denies any model tool call that names the tap or the agent, except file tools.
+The model reads the exact conversation of this session with the read-only `transcript` tool. It did not see the conversation while you talked, so it judges the record, not its memory. It cannot send a message to the agent: the plugin denies any model tool call that names the tap or the agent, except file tools.
 
 If the agent returns an error, or the tap is not running, the plugin shows the error and records it. The message never goes to the model.
 
@@ -65,6 +66,9 @@ If the agent returns an error, or the tap is not running, the plugin shows the e
 
 5. Start Claude Code in the project and type your test messages. Claude Code shows "relayed to the agent". The reply shows in the viewer.
 6. Switch relay mode off with `verbatim-relay mode off`.
+7. Ask Claude Code to evaluate the agent, for example: "Run `verbatim-relay transcript` and evaluate the agent's business logic, tone, language and accuracy. Quote the turns that you judge."
+
+`verbatim-relay transcript` prints the exact turns of the latest session. Add `--all` for every session in the record.
 
 In relay mode, the kit fails closed: if it cannot send a message, the message still does not go to the model.
 
