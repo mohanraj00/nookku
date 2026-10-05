@@ -58,10 +58,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     view = sub.add_parser("view", help="print each relayed turn (the hook kit's display)")
     view.add_argument("--root", type=Path, default=Path.cwd())
     view.add_argument("--no-follow", action="store_true", help="print the turns so far and stop")
+    view.add_argument("--record", type=Path, help="the relay record (default: from the config)")
 
     tr = sub.add_parser("transcript", help="print the exact conversation for the model to evaluate")
     tr.add_argument("--root", type=Path, default=Path.cwd())
     tr.add_argument("--all", action="store_true", help="all sessions, not only the latest one")
+    tr.add_argument("--record", type=Path, help="the relay record (default: from the config)")
 
     hook = sub.add_parser("hook", help="the hook command that init installs")
     hook.add_argument("--root", type=Path, required=True)
@@ -107,11 +109,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
     if args.command in ("view", "transcript"):
         root = args.root.resolve()
+        # The plugin has no config file. Without one, use the default record path.
+        has_config = (root / kit.STATE_DIR / "config.json").exists()
         try:
-            record = kit.Config.load(root).record_path(root)
+            config = kit.Config.load(root) if has_config else kit.Config()
         except (OSError, ValueError, TypeError) as e:
             print(f"verbatim-relay: cannot read the config: {e}", file=sys.stderr)
             return 2
+        record = args.record or config.record_path(root)
         if args.command == "transcript":
             try:
                 return kit.transcript(record, args.all, sys.stdout)

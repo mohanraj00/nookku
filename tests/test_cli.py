@@ -99,3 +99,20 @@ def test_tap_command_end_to_end(tmp_path):
     relay = Writer(tmp_path / "relay.jsonl")
     relay.append({"type": "turn", "harness": "codex", "said": said, "shown": shown})
     assert main(["audit", "--tap", str(record), "--relay", str(relay.path)]) == 0
+
+
+def test_transcript_without_a_config_uses_the_default_record(tmp_path, capsys):
+    relay = Writer(tmp_path / ".verbatim-relay" / "relay.jsonl")
+    relay.path.parent.mkdir()
+    relay.append(
+        {
+            "type": "turn",
+            "harness": "claude-code",
+            "said": "hi ",
+            "shown": "yo\n",
+            "ok": True,
+            "session": "s",
+        }
+    )
+    assert main(["transcript", "--root", str(tmp_path)]) == 0
+    assert "──── tester, turn 1 ────\nhi \n──── agent ────\nyo\n" in capsys.readouterr().out
