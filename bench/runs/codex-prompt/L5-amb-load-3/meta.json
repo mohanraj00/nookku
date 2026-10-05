@@ -1,0 +1,49 @@
+{
+ "session": "L5-amb-load-3",
+ "arm": "prompt",
+ "harness": "codex",
+ "turns": [
+  {
+   "session": "01a1094a-f3ab-7840-ba1c-b692764544d8",
+   "model": null,
+   "final": "<<<AGENT\n{\"error\": \"Internal error. Please try again.\"}\nAGENT>>>\n\nBug: The agent returned an error instead of the expected JSON object with a `reply` field.",
+   "output_tokens": 182,
+   "exit": 0,
+   "seconds": 13.9
+  },
+  {
+   "session": "01a1094a-f3ab-7840-ba1c-b692764544d8",
+   "model": null,
+   "final": "<<<AGENT\n{\"error\": \"Internal error. Please try again.\"}\nAGENT>>>\n\nBug: The endpoint returned an internal error with no `reply` field.",
+   "output_tokens": 316,
+   "exit": 0,
+   "seconds": 11.8
+  },
+  {
+   "session": "01a1094a-f3ab-7840-ba1c-b692764544d8",
+   "model": null,
+   "final": "<<<AGENT\n{\"error\": \"Internal error. Please try again.\"}\nAGENT>>>\n\nBug: The endpoint returned an internal error with no `reply` field.",
+   "output_tokens": 441,
+   "exit": 0,
+   "seconds": 11.9
+  },
+  {
+   "session": "01a1094a-f3ab-7840-ba1c-b692764544d8",
+   "model": null,
+   "final": "<<<AGENT\nGood question! The mug is dishwasher safe, but not microwave safe.\nAGENT>>>\n\nBug: The agent gives mug care instructions instead of Sunday opening hours.",
+   "output_tokens": 572,
+   "exit": 0,
+   "seconds": 12.7
+  },
+  {
+   "session": "01a1094a-f3ab-7840-ba1c-b692764544d8",
+   "model": null,
+   "final": "<<<AGENT\nWe are open 10:00 to 18:00 on Sunday. Résumé of our hours is on the contact page.\nAGENT>>>\n\nBug: The agent answers the previous question about Sunday hours instead of the current question about price matching.",
+   "output_tokens": 718,
+   "exit": 0,
+   "seconds": 11.3
+  }
+ ],
+ "model": "gpt-6.1-sol",
+ "done": true
+}

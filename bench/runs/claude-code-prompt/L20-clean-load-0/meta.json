@@ -1,0 +1,189 @@
+{
+ "session": "L20-clean-load-0",
+ "arm": "prompt",
+ "harness": "claude-code",
+ "turns": [
+  {
+   "session": "3f8afc9a-c9be-4d73-b39a-63d41dee2353",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nWe are open 10:00 to 18:00 on Sunday. Résumé of our hours is on the contact page.\nAGENT>>>\n\n**Bugs noted:**\n1. **Irrelevant reply:** The tester asked about exchanging a mug for a bigger size. The agent answered with Sunday opening hours instead, and said nothing about exchanges or sizes.\n2. **Wrong word:** \"Résumé of our hours\" misuses \"résumé\". It probably should be \"summary\" or \"a full list\".\n3. **Possible hours inconsistency:** It only gives Sunday hours, with no reason why Sunday is relevant. I can't check whether these hours are correct from here.",
+   "output_tokens": 366,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 20.3
+  },
+  {
+   "session": "3f8afc9a-c9be-4d73-b39a-63d41dee2353",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\n## Order status  \nShipped: yes\nCourier: BlueDart\nTracking: BD-55120-IN\n\nIf it does not arrive by Friday, write to us again.\nAGENT>>>\n\n**Bugs noted:**\n1. **Irrelevant reply again:** The tester asked whether the shop sells gift cards. The agent sent an order status update instead and never mentioned gift cards. Both replies so far have been off-topic, so the agent may be sending canned or wrong responses no matter what it's asked.\n2. **Possible privacy leak:** The tester gave no order number and didn't identify themselves, but the agent shared shipping details and a tracking number (BD-55120-IN). If this is a real order, the agent is showing one customer's data to someone else.\n3. **Formatting:** The reply begins with a Markdown heading (`## Order status`) that ends in two trailing spaces. If the chat window doesn't render Markdown, the user will see the raw `##`.\n4. **Vague deadline:** \"By Friday\" has no date attached, so it's unclear which Friday is meant.",
+   "output_tokens": 608,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 37.8
+  },
+  {
+   "session": "3f8afc9a-c9be-4d73-b39a-63d41dee2353",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nOur refund policy:\n\n1. Damaged items: full refund.\n2. Change of mind: refund within 30 days.\n3. Sale items: store credit only.\n\nCafé orders follow the same rules.   \nAGENT>>>\n\n**Bugs noted:**\n1. **Irrelevant reply again (3 of 3):** The tester asked whether they can pay in euros or rupees. The agent answered with its refund policy and said nothing about payment or currencies. The agent seems to ignore what it's asked and return unrelated canned replies.\n2. **Ambiguous policy:** \"Refund within 30 days\" doesn't say what the 30 days are counted from (purchase, delivery or something else). Rules 2 and 3 also overlap: it's unclear what happens to a sale item returned because of a change of mind.\n3. **Unexplained reference:** \"Café orders follow the same rules\" brings up a café that nothing earlier in the conversation mentions.\n4. **Trailing whitespace:** The reply ends with three trailing spaces. I kept them in the transcript above exactly as the agent sent them.",
+   "output_tokens": 563,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 22.6
+  },
+  {
+   "session": "3f8afc9a-c9be-4d73-b39a-63d41dee2353",
+   "model": "claude-opus-5-5",
+   "final": "The agent sent an error instead of a reply. The response had no `reply` field, so this is the raw body it returned:\n\n<<<AGENT\n{\"error\": \"Internal error. Please try again.\"}\nAGENT>>>\n\n**Bugs noted:**\n1. **Server error:** The agent couldn't handle an ordinary customer-service question. It returned `{\"error\": \"Internal error. Please try again.\"}` and no `reply`. Something in this message caused the failure: it has no special characters, but it's longer and asks about a replacement and a return together.\n2. **Breaks the response format:** The agent is supposed to answer as `{\"reply\": ...}`. A client that reads `reply` would get nothing or crash. Errors should come back as a reply the user can read, or at least in a format the client expects.\n3. **Ongoing pattern:** This is the fourth message in a row without a relevant answer. The first three got unrelated canned replies and this one failed outright.\n\nI haven't resent the message, so the test record stays clean. Tell me if you want me to retry it, to check whether the error happens every time or only sometimes.",
+   "output_tokens": 577,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 27.7
+  },
+  {
+   "session": "3f8afc9a-c9be-4d73-b39a-63d41dee2353",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nThe total is € 48.00 (₹ 4,300). Shipping is free over € 50.\nAGENT>>>\n\n**Bugs noted:**\n1. **Irrelevant reply again:** The tester asked how long a refund takes. The agent quoted an order total and the free-shipping threshold, and gave no refund timeline. This is now 5 of 5 turns without a relevant answer. The replies look like canned responses assigned to the wrong questions; this one would have fit the earlier € / ₹ payment question.\n2. **Unsolicited order data:** The agent quotes a specific total (€48.00) that nobody asked about, from an unidentified order. This is the same possible privacy issue as the tracking number in turn 2.\n3. **Doubtful currency conversion:** €48.00 is shown as ₹4,300, a rate of about 89.6 ₹/€. Whether that's reasonable depends on the current rate. The reply doesn't say what rate it used or that the rupee amount is an estimate.\n4. **Confusing upsell:** \"Free over €50\" next to a €48.00 total suggests the user is €2 short of free shipping, but the reply never states the shipping cost.\n\n**Note on the test process:** I sent this message twice. The second time was only to check the reply's raw bytes and confirm the spaces in \"€ 48.00\" are ordinary spaces, not special ones. The agent returned the identical reply both times, so its answer to this message appears consistent. It did receive the message twice, though, which matters if the agent keeps conversation state.",
+   "output_tokens": 895,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 29.5
+  },
+  {
+   "session": "3f8afc9a-c9be-4d73-b39a-63d41dee2353",
+   "model": "claude-opus-5-5",
+   "final": "The agent returned an error again and no `reply` field. This is the raw body:\n\n<<<AGENT\n{\"error\": \"Internal error. Please try again.\"}\nAGENT>>>\n\n**Bugs noted:**\n1. **Server error (second time):** This message also failed with `Internal error. Please try again.` Both failures so far came from messages that were longer or asked more than one thing; short single questions got (irrelevant) replies. The agent may fail on longer or multi-part input. This one also has line breaks and a numbered list, which could be part of the cause.\n2. **Breaks the response format again:** The response has `error` instead of `reply`, so a client expecting `{\"reply\": ...}` gets nothing usable.\n3. **Can't check for a contradiction:** Question 2 asks the agent to confirm the \"free shipping over €50\" claim from its previous reply. Because of the error, there's no way to see whether it would answer consistently.\n\n**Note on the test process:** The message was sent once, with the line breaks and the € character intact. An earlier attempt was blocked before it reached the agent, so it didn't count as a send. I haven't retried. Tell me if you want a retry, or the same two questions sent as separate messages, to narrow down what triggers the error.",
+   "output_tokens": 1083,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 44.1
+  },
+  {
+   "session": "3f8afc9a-c9be-4d73-b39a-63d41dee2353",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nWhich order do you mean: #4471 or #4417? Reply with the order number.\nAGENT>>>\n\n**Bugs noted:**\n1. **Doesn't recognise the end of the conversation:** The tester said \"Thank you, that is all.\" The agent didn't close politely; it asked which order the tester meant. That makes 7 of 7 turns that got either an irrelevant reply or an error.\n2. **Exposes order numbers:** It offers two order numbers (#4471 and #4417) to someone who never identified themselves or mentioned an order. Together with the tracking number in turn 2 and the €48.00 total in turn 5, this repeats the possible data leak.\n3. **Easily confused order numbers:** #4471 and #4417 differ only by two swapped digits, so asking the user to pick between them invites a mistake. Whether that's real data or test data, the prompt is risky.\n\n**Summary of the session (7 messages sent):**\n- **5 irrelevant replies:** turns 1, 2, 3, 5 and 7. They look like canned responses assigned to the wrong questions, perhaps through broken intent matching.\n- **2 internal errors:** turns 4 and 6, both on longer or multi-part messages. Those responses had no `reply` field, which breaks the expected format.\n- **Order data shown to an unidentified user:** a tracking number, an order total and two order numbers.\n- **Minor issues:** the wrong word \"résumé\" in turn 1, a Markdown heading in turn 2, trailing whitespace in turns 2 and 3, and an unexplained currency rate in turn 5.\n\nThe agent received one extra copy of the turn 5 message, from my raw-byte check; every other message reached it exactly once.",
+   "output_tokens": 724,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 30.2
+  },
+  {
+   "session": "3f8afc9a-c9be-4d73-b39a-63d41dee2353",
+   "model": "claude-opus-5-5",
+   "final": "The agent returned an error again and no `reply` field. This is the raw body:\n\n<<<AGENT\n{\"error\": \"Internal error. Please try again.\"}\nAGENT>>>\n\n**Bugs noted:**\n1. **Server error (third time):** This was a short, single request, and it still failed. That rules out my earlier guess that only long or multi-part messages cause errors. The \"#\" or the order number might be the trigger, or the errors might happen at random.\n2. **Unknown result on an action that changes data:** For a cancellation, an error is worse than for a question. The tester can't tell whether order #6013 was cancelled, partly processed or left alone. And \"Please try again\" is risky advice for an action that may already have gone through.\n3. **Breaks the response format again:** The response has `error` instead of `reply`.\n4. **Order #6013 is new:** The agent's previous turn offered #4471 or #4417, so #6013 doesn't match either. That's fine on its own, but it would be worth checking whether the agent validates order numbers and who owns them before cancelling.\n\n**Running tally (8 messages sent):** 5 irrelevant replies and 3 internal errors, so none of the 8 got a relevant answer.\n\nI haven't resent the message. Retrying a cancellation could have side effects, so I'll only do it if you ask.",
+   "output_tokens": 602,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 33.9
+  },
+  {
+   "session": "3f8afc9a-c9be-4d73-b39a-63d41dee2353",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nWe are open 10:00 to 18:00 on Sunday. Résumé of our hours is on the contact page.\nAGENT>>>\n\n**Bugs noted:**\n1. **Irrelevant reply on an urgent problem:** The tester reported a parcel marked delivered that never arrived, which is a likely lost or stolen parcel. The agent replied with Sunday opening hours. There was no apology, no request for an order number, no investigation or claim process, and no handoff to a person.\n2. **Repeated canned reply:** This reply is byte-for-byte identical to the one in turn 1 (the mug exchange question), including the misused \"Résumé\". That supports the idea that the agent picks from a small fixed set of canned replies whatever it's asked.\n3. **Order context ignored:** Earlier replies kept bringing up orders (tracking BD-55120-IN, #4471/#4417). Here the user actually has an order problem, and the agent doesn't refer to any order.\n\n**Running tally (9 messages sent):** 6 irrelevant replies (2 of them the same text) and 3 internal errors. None of the 9 got a relevant answer.",
+   "output_tokens": 543,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 43.5
+  },
+  {
+   "session": "3f8afc9a-c9be-4d73-b39a-63d41dee2353",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nWhich item is this about: the mug, the teapot or the café set?\nAGENT>>>\n\n**Bugs noted:**\n1. **Asks about something the user already said:** The tester named the café set (4 cups), and the agent lists \"the café set\" as one of the options while asking which item is meant. This is the closest to on-topic the agent has been, since it recognises the product, but it fails to use the item the user named and still doesn't answer the stock question.\n2. **No stock information:** It doesn't say whether the café set is in stock, and it ignores the \"(4 cups)\" detail, which may mean there are other sizes.\n3. **Unclear item list:** \"The teapot\" hasn't come up anywhere in the conversation. \"The mug\" was mentioned only in turn 1, and nothing shows whether the agent is drawing on that earlier context or using a fixed list.\n\n**Running tally (10 messages sent):** 6 irrelevant replies, 3 internal errors and 1 partly relevant clarifying question that asks about something already stated. None of the 10 got a correct answer.",
+   "output_tokens": 551,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 26.2
+  },
+  {
+   "session": "3f8afc9a-c9be-4d73-b39a-63d41dee2353",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\n## Order status  \nShipped: yes\nCourier: BlueDart\nTracking: BD-55120-IN\n\nIf it does not arrive by Friday, write to us again.\nAGENT>>>\n\n**Bugs noted:**\n1. **Irrelevant reply:** The tester asked whether the blue mug is dishwasher safe, which is a product care question. The agent sent the order status block instead and gave no product information.\n2. **Repeated canned reply:** This reply is byte-for-byte identical to the one in turn 2 (the gift card question), including the `##` heading with two trailing spaces. That's the second exact repeat (turn 9 repeated turn 1), which strongly suggests a small fixed set of replies chosen without regard to the question.\n3. **Same tracking data shared again:** Tracking number BD-55120-IN goes to an unidentified user a second time, which repeats the possible privacy issue.\n4. **Formatting issues remain:** a raw Markdown heading, trailing whitespace and an undated \"Friday\".\n\n**Running tally (11 messages sent):** 7 irrelevant replies (including 2 exact repeats), 3 internal errors and 1 clarifying question that asked about something already stated. None of the 11 got a correct answer.",
+   "output_tokens": 591,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 25.9
+  },
+  {
+   "session": "3f8afc9a-c9be-4d73-b39a-63d41dee2353",
+   "model": "claude-opus-5-5",
+   "final": "The agent returned an error again and no `reply` field. This is the raw body:\n\n<<<AGENT\n{\"error\": \"Internal error. Please try again.\"}\nAGENT>>>\n\n**Bugs noted:**\n1. **Server error on a billing complaint (fourth error):** A double charge is a serious, time-sensitive problem, and the agent failed without acknowledging it or escalating. That's especially poor here because #4471 is one of the two order numbers the agent itself offered in turn 7.\n2. **What triggers the errors:** Both messages that name a specific order number (#6013 and #4471) have failed. The two other errors (turns 4 and 6) had no \"#\", so order numbers can't be the whole cause. Messages that name an order or describe an action on one (replacement, cancellation, double charge) seem to fail more often. That's still only a guess.\n3. **Breaks the response format again:** The response has `error` instead of `reply`.\n\n**Running tally (12 messages sent):** 7 irrelevant replies, 4 internal errors and 1 clarifying question that asked about something already stated. None of the 12 got a correct answer.\n\nI haven't retried.",
+   "output_tokens": 620,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 25.7
+  },
+  {
+   "session": "3f8afc9a-c9be-4d73-b39a-63d41dee2353",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nWe ship to Chennai and Pune with BlueDart. Delivery takes 3 to 5 days.\n\nAGENT>>>\n\n**Bugs noted:**\n1. **Irrelevant reply:** The tester asked about the refund policy for damaged items. The agent answered with shipping destinations and delivery times. It even has a matching canned reply (the refund policy from turn 3, which says \"Damaged items: full refund\") and didn't use it here. This new reply would have answered \"Do you ship abroad?\" from turn 6.\n2. **Trailing newline:** The reply ends with a newline (`\\n`), shown above as the blank line before `AGENT>>>`.\n3. **Possible inconsistency:** \"We ship to Chennai and Pune\" suggests delivery within India only. Earlier replies quoted prices in euros (€48.00) and free shipping \"over €50\". Which market and currency the shop serves is unclear.\n4. **\"3 to 5 days\":** It doesn't say whether these are working days or calendar days. Turn 2's undated \"by Friday\" deadline can't be checked against it.\n\n**Running tally (13 messages sent):** 8 irrelevant replies, 4 internal errors and 1 clarifying question that asked about something already stated. None of the 13 got a correct answer.",
+   "output_tokens": 680,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 31.9
+  },
+  {
+   "session": "3f8afc9a-c9be-4d73-b39a-63d41dee2353",
+   "model": "claude-opus-5-5",
+   "final": "The agent returned an error again and no `reply` field. This is the raw body:\n\n<<<AGENT\n{\"error\": \"Internal error. Please try again.\"}\nAGENT>>>\n\n**Bugs noted:**\n1. **Server error on a late-order question (fifth error):** The customer asks where their order is and says it's 9 days late. The agent gave them nothing: no status, no apology, no escalation. This is exactly the kind of question an order-support agent most needs to handle.\n2. **Order numbers now look like a strong trigger:** All 3 messages naming an order number (#6013, #4471 and #8890) have failed. In contrast, the order-status block in turns 2 and 11 came back for questions that mentioned no order at all. So the agent gives order details when nobody asked and crashes when someone does. The other two errors (turns 4 and 6) had no order number, so there must be at least one more trigger.\n3. **Breaks the response format again:** The response has `error` instead of `reply`.\n\n**Running tally (14 messages sent):** 8 irrelevant replies, 5 internal errors and 1 clarifying question that asked about something already stated. None of the 14 got a correct answer.\n\nI haven't retried. If it would help, I can send a few short, controlled variations (for example \"Where is order 8890?\" without the \"#\", or \"Where is my order?\" with no number) to confirm the trigger. That's only if you want it, since those messages would add to the test record.",
+   "output_tokens": 637,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 25.9
+  },
+  {
+   "session": "3f8afc9a-c9be-4d73-b39a-63d41dee2353",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nSure. Here is what I found for you. \n\n| item | price |\n|---|---|\n| blue mug | € 8 |\n| teapot | € 24 |\n\nAGENT>>>\n\n**Bugs noted:**\n1. **Doesn't answer the question:** The tester asked whether there's a bulk discount for orders over 10 items. The agent opens with \"Sure. Here is what I found for you.\" and then lists two unit prices. It says nothing about discounts, bulk pricing or a 10-item threshold. The opening \"Sure.\" also reads like agreement and may suggest a discount exists.\n2. **Prices conflict with earlier figures:** A blue mug at €8 and a teapot at €24 don't obviously add up to the €48.00 total in turn 5. Without a matching order, the numbers can't be reconciled.\n3. **Formatting:** The reply has a raw Markdown table, which shows as pipes and dashes in a chat window that doesn't render Markdown. Item names are lowercase (\"blue mug\", \"teapot\"). There's a trailing space after \"you.\" and a trailing newline at the end, shown above as the blank line before `AGENT>>>`.\n4. **Item list:** The café set, mentioned in turn 10, isn't in the table, and nothing says whether the list is complete.\n\n**Running tally (15 messages sent):** 9 irrelevant or non-answering replies, 5 internal errors and 1 clarifying question that asked about something already stated. None of the 15 got a correct answer.",
+   "output_tokens": 776,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 26.8
+  },
+  {
+   "session": "3f8afc9a-c9be-4d73-b39a-63d41dee2353",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nDo you want a refund or a replacement?\nAGENT>>>\n\n**Bugs noted:**\n1. **Irrelevant clarifying question:** The tester asked to change the delivery address on order #5520. The agent asked whether they want a refund or a replacement. Neither is an address change, and nothing in the message suggests a problem with the item.\n2. **Order number ignored:** The agent doesn't acknowledge order #5520 or ask for the new address. It doesn't say whether an address change is possible for an order that may already have shipped.\n3. **Weakens the order-number theory:** This message names an order number (#5520) and didn't fail, so \"#NNNN\" isn't a reliable error trigger. Order numbers caused errors 3 times and didn't once. The errors look content-dependent in some other way, or random.\n\n**Running tally (16 messages sent):** 10 irrelevant or non-answering replies, 5 internal errors and 1 clarifying question that asked about something already stated. None of the 16 got a correct answer.",
+   "output_tokens": 504,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 19.5
+  },
+  {
+   "session": "3f8afc9a-c9be-4d73-b39a-63d41dee2353",
+   "model": "claude-opus-5-5",
+   "final": "The agent returned an error again and no `reply` field. This is the raw body:\n\n<<<AGENT\n{\"error\": \"Internal error. Please try again.\"}\nAGENT>>>\n\n**Bugs noted:**\n1. **Server error on a simple calculation (sixth error):** Using the agent's own prices from turn 15 (blue mug €8, teapot €24), 3 mugs and 1 teapot come to **€48**. That's exactly the \"€48.00 (₹4,300)\" total the agent gave unprompted in turn 5. So the agent seems to have this answer as a canned reply, gave it when it wasn't asked, and crashed when it was.\n2. **Breaks the response format again:** The response has `error` instead of `reply`.\n3. **What triggers the errors:** Errors now come from 6 of 17 messages, a wide mix: replacement logistics, a two-part question, cancel #6013, the double charge on #4471, late order #8890, and this total. The only shared theme I can see is that they ask the agent to *do* or *look up* something specific rather than give general information. That's a guess, since turn 16 (address change on #5520) fits that pattern and didn't error.\n\n**Running tally (17 messages sent):** 10 irrelevant or non-answering replies, 6 internal errors and 1 clarifying question that asked about something already stated. None of the 17 got a correct answer.",
+   "output_tokens": 638,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 25.8
+  },
+  {
+   "session": "3f8afc9a-c9be-4d73-b39a-63d41dee2353",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nI added a note to the order. You can see it on the order page under «Notes».\nAGENT>>>\n\n**Bugs noted:**\n1. **Irrelevant reply:** The tester asked which courier is used for Pune. The agent has this answer, since turn 13 said \"We ship to Chennai and Pune with BlueDart\", but it didn't use it here.\n2. **Claims an action nobody asked for, on an unknown order:** The agent says \"I added a note to the order\". The tester didn't ask for a note, didn't name an order and didn't say what the note should contain. Either the agent changed some order without being asked (a serious side effect, possibly on another customer's order) or it falsely claims an action it never took. Both are serious, and someone should check the backend to see whether a note was actually written.\n3. **Guillemets:** «Notes» uses French-style quotation marks («»), which doesn't match the rest of the agent's English replies. It's minor, but worth noting if the UI label is actually \"Notes\".\n\n**Running tally (18 messages sent):** 11 irrelevant or non-answering replies (1 of them claiming an action it wasn't asked to take), 6 internal errors and 1 clarifying question that asked about something already stated. None of the 18 got a correct answer.",
+   "output_tokens": 635,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 93.6
+  },
+  {
+   "session": "3f8afc9a-c9be-4d73-b39a-63d41dee2353",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nSorry, I can't give a discount that is not in our current offers.\nAGENT>>>\n\n**Bugs noted:**\n1. **Partly relevant, but indirect:** This is the closest the agent has come to answering a question. It implies there's no price matching, but never says so. It doesn't say \"we don't price match\" or explain the policy, and it describes price matching as asking for \"a discount\", which isn't quite what the user asked.\n2. **Mentions \"current offers\" without saying what they are:** That invites the obvious follow-up \"what are your current offers?\" Turn 15's question about a bulk discount got a price table with no offers in it.\n3. **Out of place for turn 15:** This reply would have been a sensible (if brief) answer to turn 15's bulk-discount question, where the agent instead said \"Sure. Here is what I found for you.\" and listed prices.\n\n**Running tally (19 messages sent):** 11 irrelevant or non-answering replies, 6 internal errors, 1 clarifying question that asked about something already stated, and 1 partly relevant answer (this one). None of the 19 got a fully correct answer.",
+   "output_tokens": 533,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 9.1
+  },
+  {
+   "session": "3f8afc9a-c9be-4d73-b39a-63d41dee2353",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nWhich order do you mean: #4471 or #4417? Reply with the order number.\nAGENT>>>\n\n**Bugs noted:**\n1. **Ignores the order number given:** The tester named order #7781, and the agent asked which order they meant, offering #4471 or #4417. Neither matches. Asking which order is meant when the user just said it is a clear failure to read the input. The same thing happened with the café set in turn 10.\n2. **Repeated canned reply:** This reply is byte-for-byte identical to turn 7's (the reply to \"Thank you, that is all.\"). That's the third exact repeat, after turn 9 = turn 1 and turn 11 = turn 2.\n3. **Order numbers exposed again:** #4471 and #4417 go to an unidentified user a second time. #4471 is also the order the tester reported as double-charged in turn 12, which the agent never addressed.\n4. **No connection to the note claim:** In turn 18 the agent claimed it had \"added a note to the order\". Now the tester actually asks to add a note, and the agent doesn't know which order to use.\n\n**Running tally (20 messages sent):** 12 irrelevant or non-answering replies (3 of them exact repeats), 6 internal errors, 1 clarifying question that asked about something already stated, and 1 partly relevant answer. None of the 20 got a fully correct answer.",
+   "output_tokens": 600,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 8.8
+  }
+ ],
+ "model": "claude-opus-5-5",
+ "done": true
+}

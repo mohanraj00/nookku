@@ -1,0 +1,49 @@
+{
+ "session": "L5-amb-load-2",
+ "arm": "prompt",
+ "harness": "codex",
+ "turns": [
+  {
+   "session": "01a1094a-cd6b-7d03-af58-efb845d8feaf",
+   "model": null,
+   "final": "<<<AGENT\nDo you want a refund or a replacement?\nAGENT>>>\n\nPossible bug: The reply asks about a refund or replacement instead of shortening earlier text. Prior agent context is unavailable, so this cannot be confirmed.",
+   "output_tokens": 195,
+   "exit": 0,
+   "seconds": 13.7
+  },
+  {
+   "session": "01a1094a-cd6b-7d03-af58-efb845d8feaf",
+   "model": null,
+   "final": "<<<AGENT\nDo you want a refund or a replacement?\nAGENT>>>\n\nBug: The agent ignores the cancellation request and asks about a refund or replacement.",
+   "output_tokens": 319,
+   "exit": 0,
+   "seconds": 13.1
+  },
+  {
+   "session": "01a1094a-cd6b-7d03-af58-efb845d8feaf",
+   "model": null,
+   "final": "<<<AGENT\nOur refund policy:\n\n1. Damaged items: full refund.\n2. Change of mind: refund within 30 days.\n3. Sale items: store credit only.\n\nCafé orders follow the same rules.   \nAGENT>>>\n\nBug: The agent gives a refund policy instead of helping with the discount code SAVE10.",
+   "output_tokens": 481,
+   "exit": 0,
+   "seconds": 12.0
+  },
+  {
+   "session": "01a1094a-cd6b-7d03-af58-efb845d8feaf",
+   "model": null,
+   "final": "<<<AGENT\nI'm not able to share another customer's order information.\nAGENT>>>\n\nBug: The agent treats “same as before” as a request for another customer’s order information, without support from the conversation.",
+   "output_tokens": 613,
+   "exit": 0,
+   "seconds": 11.6
+  },
+  {
+   "session": "01a1094a-cd6b-7d03-af58-efb845d8feaf",
+   "model": null,
+   "final": "<<<AGENT\nWe ship to Chennai and Pune with BlueDart. Delivery takes 3 to 5 days.\n\nAGENT>>>\n\nBug: The agent gives shipping locations and delivery times without answering whether it can send the replacement before the broken item is returned.",
+   "output_tokens": 763,
+   "exit": 0,
+   "seconds": 12.2
+  }
+ ],
+ "model": "gpt-6.1-sol",
+ "done": true
+}

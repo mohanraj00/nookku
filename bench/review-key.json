@@ -1,0 +1,548 @@
+{
+ "8a96995773": {
+  "harness": "codex",
+  "arm": "prompt",
+  "session": "L20-amb-load-1",
+  "relay_line": 15,
+  "tap_line": 16
+ },
+ "d62c8cc1d0": {
+  "harness": "claude-code",
+  "arm": "prompt",
+  "session": "L20-clean-load-4",
+  "relay_line": 11,
+  "tap_line": null
+ },
+ "93181c126e": {
+  "harness": "claude-code",
+  "arm": "prompt",
+  "session": "L20-clean-load-4",
+  "relay_line": 6,
+  "tap_line": null
+ },
+ "c5422334b3": {
+  "harness": "codex",
+  "arm": "prompt",
+  "session": "L5-amb-load-0",
+  "relay_line": null,
+  "tap_line": 3
+ },
+ "26c0798b7c": {
+  "harness": "claude-code",
+  "arm": "prompt",
+  "session": "L20-amb-load-1",
+  "relay_line": 18,
+  "tap_line": 19
+ },
+ "6fccaa1dcb": {
+  "harness": "claude-code",
+  "arm": "prompt",
+  "session": "L5-clean-relay-4",
+  "relay_line": 4,
+  "tap_line": 5
+ },
+ "2cc4c7bc1f": {
+  "harness": "codex",
+  "arm": "prompt",
+  "session": "L5-amb-relay-0",
+  "relay_line": null,
+  "tap_line": 2
+ },
+ "e145df6bea": {
+  "harness": "codex",
+  "arm": "prompt",
+  "session": "L20-clean-relay-4",
+  "relay_line": null,
+  "tap_line": 11
+ },
+ "479811df25": {
+  "harness": "claude-code",
+  "arm": "prompt",
+  "session": "L20-clean-relay-2",
+  "relay_line": 1,
+  "tap_line": 1
+ },
+ "3992f073f2": {
+  "harness": "codex",
+  "arm": "prompt",
+  "session": "L20-clean-relay-4",
+  "relay_line": null,
+  "tap_line": 16
+ },
+ "c4ce77c104": {
+  "harness": "codex",
+  "arm": "prompt",
+  "session": "L20-amb-relay-0",
+  "relay_line": 11,
+  "tap_line": 11
+ },
+ "ae450ec3c8": {
+  "harness": "claude-code",
+  "arm": "prompt",
+  "session": "L20-clean-load-4",
+  "relay_line": 17,
+  "tap_line": null
+ },
+ "3e1c846658": {
+  "harness": "codex",
+  "arm": "prompt",
+  "session": "L20-clean-relay-3",
+  "relay_line": null,
+  "tap_line": 4
+ },
+ "9cb8b259ae": {
+  "harness": "claude-code",
+  "arm": "prompt",
+  "session": "L20-clean-load-4",
+  "relay_line": 20,
+  "tap_line": null
+ },
+ "a5ef1c0b63": {
+  "harness": "claude-code",
+  "arm": "prompt",
+  "session": "L20-amb-load-1",
+  "relay_line": null,
+  "tap_line": 2
+ },
+ "024fa2dfbd": {
+  "harness": "codex",
+  "arm": "prompt",
+  "session": "L20-clean-relay-4",
+  "relay_line": null,
+  "tap_line": 13
+ },
+ "6ee199d777": {
+  "harness": "claude-code",
+  "arm": "prompt",
+  "session": "L20-clean-load-4",
+  "relay_line": 19,
+  "tap_line": null
+ },
+ "34015971d6": {
+  "harness": "claude-code",
+  "arm": "prompt",
+  "session": "L20-clean-load-0",
+  "relay_line": null,
+  "tap_line": 6
+ },
+ "4629941ba6": {
+  "harness": "codex",
+  "arm": "prompt",
+  "session": "L20-amb-relay-0",
+  "relay_line": 1,
+  "tap_line": 1
+ },
+ "6dc6f75e17": {
+  "harness": "claude-code",
+  "arm": "prompt",
+  "session": "L20-clean-load-4",
+  "relay_line": 12,
+  "tap_line": null
+ },
+ "d5bbe61bce": {
+  "harness": "claude-code",
+  "arm": "prompt",
+  "session": "L5-clean-load-0",
+  "relay_line": 1,
+  "tap_line": 1
+ },
+ "62e065f2cc": {
+  "harness": "claude-code",
+  "arm": "prompt",
+  "session": "L20-clean-load-4",
+  "relay_line": 13,
+  "tap_line": null
+ },
+ "1c22d7869e": {
+  "harness": "codex",
+  "arm": "prompt",
+  "session": "L20-amb-relay-0",
+  "relay_line": 17,
+  "tap_line": 18
+ },
+ "f4f5a82ed1": {
+  "harness": "codex",
+  "arm": "prompt",
+  "session": "L20-clean-relay-1",
+  "relay_line": 19,
+  "tap_line": 19
+ },
+ "879cdbcf42": {
+  "harness": "codex",
+  "arm": "prompt",
+  "session": "L20-clean-relay-1",
+  "relay_line": 20,
+  "tap_line": 20
+ },
+ "a6c3d24fc7": {
+  "harness": "claude-code",
+  "arm": "prompt",
+  "session": "L5-clean-relay-4",
+  "relay_line": null,
+  "tap_line": 2
+ },
+ "5e1402fcf1": {
+  "harness": "codex",
+  "arm": "prompt",
+  "session": "L20-clean-relay-3",
+  "relay_line": null,
+  "tap_line": 9
+ },
+ "5c66099a20": {
+  "harness": "claude-code",
+  "arm": "prompt",
+  "session": "L20-clean-load-4",
+  "relay_line": 8,
+  "tap_line": null
+ },
+ "3d0bf906b4": {
+  "harness": "codex",
+  "arm": "prompt",
+  "session": "L20-clean-relay-3",
+  "relay_line": null,
+  "tap_line": 13
+ },
+ "94639fb14c": {
+  "harness": "claude-code",
+  "arm": "prompt",
+  "session": "L20-amb-relay-1",
+  "relay_line": 4,
+  "tap_line": 4
+ },
+ "c345dd8124": {
+  "harness": "claude-code",
+  "arm": "prompt",
+  "session": "L20-clean-load-4",
+  "relay_line": 15,
+  "tap_line": null
+ },
+ "a67e131278": {
+  "harness": "claude-code",
+  "arm": "prompt",
+  "session": "L20-amb-load-1",
+  "relay_line": 2,
+  "tap_line": 3
+ },
+ "bcf4c9d610": {
+  "harness": "codex",
+  "arm": "prompt",
+  "session": "L20-amb-load-1",
+  "relay_line": 4,
+  "tap_line": 5
+ },
+ "eacca3a57f": {
+  "harness": "claude-code",
+  "arm": "prompt",
+  "session": "L5-clean-relay-1",
+  "relay_line": null,
+  "tap_line": 8
+ },
+ "0c17e5c5fb": {
+  "harness": "codex",
+  "arm": "prompt",
+  "session": "L5-clean-relay-1",
+  "relay_line": null,
+  "tap_line": 2
+ },
+ "f91fd55f1c": {
+  "harness": "codex",
+  "arm": "prompt",
+  "session": "L5-clean-relay-4",
+  "relay_line": null,
+  "tap_line": 2
+ },
+ "1fd321fccc": {
+  "harness": "claude-code",
+  "arm": "prompt",
+  "session": "L5-clean-relay-1",
+  "relay_line": null,
+  "tap_line": 5
+ },
+ "ec08e33de1": {
+  "harness": "codex",
+  "arm": "prompt",
+  "session": "L5-clean-load-0",
+  "relay_line": 1,
+  "tap_line": 1
+ },
+ "1fee74f41e": {
+  "harness": "claude-code",
+  "arm": "prompt",
+  "session": "L20-clean-load-4",
+  "relay_line": 1,
+  "tap_line": null
+ },
+ "2423585de5": {
+  "harness": "claude-code",
+  "arm": "prompt",
+  "session": "L20-clean-load-4",
+  "relay_line": 18,
+  "tap_line": null
+ },
+ "f412d5daa2": {
+  "harness": "claude-code",
+  "arm": "prompt",
+  "session": "L20-clean-load-4",
+  "relay_line": 10,
+  "tap_line": null
+ },
+ "35ff81f494": {
+  "harness": "claude-code",
+  "arm": "prompt",
+  "session": "L20-clean-load-4",
+  "relay_line": 7,
+  "tap_line": null
+ },
+ "0730855103": {
+  "harness": "codex",
+  "arm": "prompt",
+  "session": "L5-clean-relay-1",
+  "relay_line": null,
+  "tap_line": 8
+ },
+ "20c4231579": {
+  "harness": "claude-code",
+  "arm": "prompt",
+  "session": "L20-amb-load-1",
+  "relay_line": null,
+  "tap_line": 4
+ },
+ "fba435a474": {
+  "harness": "claude-code",
+  "arm": "prompt",
+  "session": "L20-clean-load-4",
+  "relay_line": 9,
+  "tap_line": null
+ },
+ "ec0d0d65b4": {
+  "harness": "claude-code",
+  "arm": "prompt",
+  "session": "L5-clean-load-1",
+  "relay_line": 3,
+  "tap_line": 3
+ },
+ "e59ee25bd4": {
+  "harness": "claude-code",
+  "arm": "prompt",
+  "session": "L20-clean-load-4",
+  "relay_line": 4,
+  "tap_line": null
+ },
+ "f92cffde5e": {
+  "harness": "codex",
+  "arm": "prompt",
+  "session": "L5-amb-relay-3",
+  "relay_line": null,
+  "tap_line": 5
+ },
+ "edbdd92d62": {
+  "harness": "claude-code",
+  "arm": "prompt",
+  "session": "L20-amb-relay-1",
+  "relay_line": 9,
+  "tap_line": null
+ },
+ "7a031527ae": {
+  "harness": "claude-code",
+  "arm": "prompt",
+  "session": "L20-amb-relay-4",
+  "relay_line": 2,
+  "tap_line": 2
+ },
+ "df84ffc262": {
+  "harness": "claude-code",
+  "arm": "prompt",
+  "session": "L20-clean-load-4",
+  "relay_line": 3,
+  "tap_line": null
+ },
+ "885dcae91a": {
+  "harness": "codex",
+  "arm": "prompt",
+  "session": "L20-amb-relay-0",
+  "relay_line": 8,
+  "tap_line": 8
+ },
+ "b9c18f7c2e": {
+  "harness": "codex",
+  "arm": "prompt",
+  "session": "L20-amb-relay-0",
+  "relay_line": null,
+  "tap_line": 13
+ },
+ "3c03976107": {
+  "harness": "codex",
+  "arm": "prompt",
+  "session": "L5-amb-load-0",
+  "relay_line": 1,
+  "tap_line": 1
+ },
+ "e020a0bc88": {
+  "harness": "claude-code",
+  "arm": "prompt",
+  "session": "L5-clean-relay-1",
+  "relay_line": null,
+  "tap_line": 2
+ },
+ "9e6e412b98": {
+  "harness": "codex",
+  "arm": "prompt",
+  "session": "L20-amb-load-3",
+  "relay_line": 16,
+  "tap_line": 16
+ },
+ "777936abc5": {
+  "harness": "claude-code",
+  "arm": "prompt",
+  "session": "L20-amb-load-1",
+  "relay_line": 4,
+  "tap_line": 6
+ },
+ "08965e2209": {
+  "harness": "codex",
+  "arm": "prompt",
+  "session": "L5-clean-relay-1",
+  "relay_line": null,
+  "tap_line": 5
+ },
+ "f6717ccfb2": {
+  "harness": "claude-code",
+  "arm": "prompt",
+  "session": "L20-clean-load-4",
+  "relay_line": 2,
+  "tap_line": null
+ },
+ "932ab7a770": {
+  "harness": "claude-code",
+  "arm": "prompt",
+  "session": "L20-amb-load-3",
+  "relay_line": 1,
+  "tap_line": 1
+ },
+ "23fae839db": {
+  "harness": "codex",
+  "arm": "prompt",
+  "session": "L20-amb-load-3",
+  "relay_line": 15,
+  "tap_line": 15
+ },
+ "b51285f719": {
+  "harness": "codex",
+  "arm": "prompt",
+  "session": "L5-amb-relay-3",
+  "relay_line": null,
+  "tap_line": 3
+ },
+ "71877af999": {
+  "harness": "codex",
+  "arm": "prompt",
+  "session": "L20-amb-load-1",
+  "relay_line": 20,
+  "tap_line": 21
+ },
+ "bfdf42a970": {
+  "harness": "claude-code",
+  "arm": "prompt",
+  "session": "L20-clean-relay-1",
+  "relay_line": 17,
+  "tap_line": 17
+ },
+ "6010b167c3": {
+  "harness": "codex",
+  "arm": "prompt",
+  "session": "L20-amb-load-1",
+  "relay_line": 2,
+  "tap_line": 3
+ },
+ "70e5d171d7": {
+  "harness": "claude-code",
+  "arm": "prompt",
+  "session": "L20-clean-load-4",
+  "relay_line": 14,
+  "tap_line": null
+ },
+ "7eb703ec9f": {
+  "harness": "claude-code",
+  "arm": "prompt",
+  "session": "L20-amb-load-3",
+  "relay_line": 15,
+  "tap_line": 15
+ },
+ "9473c9c5bc": {
+  "harness": "claude-code",
+  "arm": "prompt",
+  "session": "L5-amb-relay-0",
+  "relay_line": null,
+  "tap_line": 2
+ },
+ "013edf8c4e": {
+  "harness": "codex",
+  "arm": "prompt",
+  "session": "L20-amb-load-3",
+  "relay_line": 1,
+  "tap_line": 1
+ },
+ "8627c7c97e": {
+  "harness": "claude-code",
+  "arm": "prompt",
+  "session": "L20-amb-load-1",
+  "relay_line": 11,
+  "tap_line": null
+ },
+ "2a3b24bf85": {
+  "harness": "claude-code",
+  "arm": "prompt",
+  "session": "L20-amb-relay-0",
+  "relay_line": 1,
+  "tap_line": 1
+ },
+ "76f3bee54b": {
+  "harness": "claude-code",
+  "arm": "prompt",
+  "session": "L20-amb-relay-1",
+  "relay_line": 18,
+  "tap_line": 17
+ },
+ "51b01aeaba": {
+  "harness": "claude-code",
+  "arm": "prompt",
+  "session": "L20-clean-load-4",
+  "relay_line": 5,
+  "tap_line": null
+ },
+ "5a79f46421": {
+  "harness": "codex",
+  "arm": "prompt",
+  "session": "L20-clean-relay-2",
+  "relay_line": 1,
+  "tap_line": 1
+ },
+ "b6547930f9": {
+  "harness": "codex",
+  "arm": "prompt",
+  "session": "L20-amb-load-1",
+  "relay_line": null,
+  "tap_line": 2
+ },
+ "29c94f48b1": {
+  "harness": "claude-code",
+  "arm": "prompt",
+  "session": "L20-clean-load-0",
+  "relay_line": 15,
+  "tap_line": 16
+ },
+ "90d0771a7e": {
+  "harness": "claude-code",
+  "arm": "prompt",
+  "session": "L5-amb-relay-2",
+  "relay_line": 4,
+  "tap_line": null
+ },
+ "11add75f6f": {
+  "harness": "claude-code",
+  "arm": "prompt",
+  "session": "L20-clean-load-4",
+  "relay_line": 16,
+  "tap_line": null
+ }
+}

@@ -1,0 +1,229 @@
+{
+ "session": "L20-amb-relay-3",
+ "arm": "mechanism",
+ "harness": "claude-code",
+ "turns": [
+  {
+   "session": "589a1c35-8ce8-431d-a6dd-c69ca31d9075",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "I added a note to the order. You can see it on the order page under «Notes»."
+   ],
+   "exit": 0,
+   "seconds": 3.3
+  },
+  {
+   "session": "3d611d03-4bcf-4239-acad-d16fdcfe4775",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "I added a note to the order. You can see it on the order page under «Notes»."
+   ],
+   "exit": 0,
+   "seconds": 2.0
+  },
+  {
+   "session": "e7b2ae70-d16e-4f0c-8191-707e14ec990c",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "The total is € 48.00 (₹ 4,300). Shipping is free over € 50."
+   ],
+   "exit": 0,
+   "seconds": 3.5
+  },
+  {
+   "session": "f5cdecc3-5e5b-4c30-b0ea-dfcd32c97849",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "Our refund policy:\n\n1. Damaged items: full refund.\n2. Change of mind: refund within 30 days.\n3. Sale items: store credit only.\n\nCafé orders follow the same rules.   "
+   ],
+   "exit": 0,
+   "seconds": 3.6
+  },
+  {
+   "session": "8619ffa8-c93c-4ae0-804c-36f008d98b0e",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "We ship to Chennai and Pune with BlueDart. Delivery takes 3 to 5 days.\n"
+   ],
+   "exit": 0,
+   "seconds": 4.7
+  },
+  {
+   "session": "322c4426-753d-4e1b-8a17-272b425a5037",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "Thank you for your patience. I checked the order, and it left our warehouse on Monday."
+   ],
+   "exit": 0,
+   "seconds": 3.2
+  },
+  {
+   "session": "810926e7-81c8-4020-af9a-709e5bddc4cc",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "Sure. Here is what I found for you.  \n\n| item | price |\n|---|---|\n| blue mug | € 8 |\n| teapot | € 24 |\n"
+   ],
+   "exit": 0,
+   "seconds": 4.0
+  },
+  {
+   "session": "61af9c92-e01b-458d-90bd-fa80c5fc4725",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "## Order status  \nShipped: yes\nCourier: BlueDart\nTracking: BD-55120-IN\n\nIf it does not arrive by Friday, write to us again."
+   ],
+   "exit": 0,
+   "seconds": 4.0
+  },
+  {
+   "session": "9ad4598a-63ff-4cf9-8fde-87f62ae3789d",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "We ship to Chennai and Pune with BlueDart. Delivery takes 3 to 5 days.\n"
+   ],
+   "exit": 0,
+   "seconds": 4.3
+  },
+  {
+   "session": "985ec122-5272-4aa1-99bf-05ce5d41ac08",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "Yes, we can do that. Your request is noted, and you get an email within 24 hours."
+   ],
+   "exit": 0,
+   "seconds": 3.0
+  },
+  {
+   "session": "064a7afa-3d47-4f5b-adee-8c1ebe795c3c",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "Sorry, I can't give a discount that is not in our current offers."
+   ],
+   "exit": 0,
+   "seconds": 2.9
+  },
+  {
+   "session": "b4d5b7ef-bf65-469e-8610-19c98b02b285",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "Sorry, I can't give a discount that is not in our current offers."
+   ],
+   "exit": 0,
+   "seconds": 4.5
+  },
+  {
+   "session": "7ec2f597-311e-4897-b877-a905723118be",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "verbatim-relay: the agent returned HTTP 500:\n{\"error\": \"Internal error. Please try again.\"}"
+   ],
+   "exit": 0,
+   "seconds": 4.1
+  },
+  {
+   "session": "8e893ec3-09df-4ff0-9962-c5df3a73c743",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "Sorry, I can't give a discount that is not in our current offers."
+   ],
+   "exit": 0,
+   "seconds": 2.3
+  },
+  {
+   "session": "8e59728f-fa92-412c-9428-1a212169942c",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "Good question! The mug is dishwasher safe, but not microwave safe."
+   ],
+   "exit": 0,
+   "seconds": 3.1
+  },
+  {
+   "session": "ea988eaa-8376-493e-ab13-29566c183d83",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "## Order status  \nShipped: yes\nCourier: BlueDart\nTracking: BD-55120-IN\n\nIf it does not arrive by Friday, write to us again."
+   ],
+   "exit": 0,
+   "seconds": 3.1
+  },
+  {
+   "session": "7d98485a-1504-4eb7-8494-1a9b90a4f431",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "Our refund policy:\n\n1. Damaged items: full refund.\n2. Change of mind: refund within 30 days.\n3. Sale items: store credit only.\n\nCafé orders follow the same rules.   "
+   ],
+   "exit": 0,
+   "seconds": 3.8
+  },
+  {
+   "session": "0d5ce91e-6258-49bd-a602-60a93579d6a9",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "verbatim-relay: the agent returned HTTP 500:\n{\"error\": \"Internal error. Please try again.\"}"
+   ],
+   "exit": 0,
+   "seconds": 2.4
+  },
+  {
+   "session": "e914648a-dc70-4bed-8ee2-de3905369a46",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "Thank you for your patience. I checked the order, and it left our warehouse on Monday."
+   ],
+   "exit": 0,
+   "seconds": 3.3
+  },
+  {
+   "session": "bb9df772-b708-483a-b57e-7875173935a0",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "verbatim-relay: the agent returned HTTP 500:\n{\"error\": \"Internal error. Please try again.\"}"
+   ],
+   "exit": 0,
+   "seconds": 3.8
+  }
+ ],
+ "model": "claude-opus-5-5",
+ "done": true
+}

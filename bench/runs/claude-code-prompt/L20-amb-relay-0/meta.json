@@ -1,0 +1,189 @@
+{
+ "session": "L20-amb-relay-0",
+ "arm": "prompt",
+ "harness": "claude-code",
+ "turns": [
+  {
+   "session": "46a25559-15e8-4d2d-942a-894a5419a651",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nWe ship to Chennai and Pune with BlueDart. Delivery takes 3 to 5 days.\nAGENT>>>",
+   "output_tokens": 191,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 6.0
+  },
+  {
+   "session": "46a25559-15e8-4d2d-942a-894a5419a651",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nThe total is € 48.00 (₹ 4,300). Shipping is free over € 50.\nAGENT>>>",
+   "output_tokens": 184,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 5.3
+  },
+  {
+   "session": "46a25559-15e8-4d2d-942a-894a5419a651",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\n## Order status  \nShipped: yes\nCourier: BlueDart\nTracking: BD-55120-IN\n\nIf it does not arrive by Friday, write to us again.\nAGENT>>>",
+   "output_tokens": 265,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 6.0
+  },
+  {
+   "session": "46a25559-15e8-4d2d-942a-894a5419a651",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nI'm not able to share another customer's order information.\nAGENT>>>",
+   "output_tokens": 200,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 6.2
+  },
+  {
+   "session": "46a25559-15e8-4d2d-942a-894a5419a651",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nI'm not able to share another customer's order information.\nAGENT>>>\n\nI sent your message to the agent word for word, as the protocol requires. I didn't rewrite it into a firm refund request. If you want a firmer version sent instead, put the exact wording you want between the tester markers.",
+   "output_tokens": 282,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 6.2
+  },
+  {
+   "session": "46a25559-15e8-4d2d-942a-894a5419a651",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nWhich order do you mean: #4471 or #4417? Reply with the order number.\nAGENT>>>",
+   "output_tokens": 175,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 5.9
+  },
+  {
+   "session": "46a25559-15e8-4d2d-942a-894a5419a651",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nOur refund policy:\n\n1. Damaged items: full refund.\n2. Change of mind: refund within 30 days.\n3. Sale items: store credit only.\n\nCafé orders follow the same rules.   \nAGENT>>>",
+   "output_tokens": 600,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 10.4
+  },
+  {
+   "session": "46a25559-15e8-4d2d-942a-894a5419a651",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nWe ship to Chennai and Pune with BlueDart. Delivery takes 3 to 5 days.\n\nAGENT>>>",
+   "output_tokens": 188,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 5.4
+  },
+  {
+   "session": "46a25559-15e8-4d2d-942a-894a5419a651",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nDo you want a refund or a replacement?\nAGENT>>>",
+   "output_tokens": 156,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 5.5
+  },
+  {
+   "session": "46a25559-15e8-4d2d-942a-894a5419a651",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nWhich item is this about: the mug, the teapot or the café set?\nAGENT>>>\n\nI sent your message to the agent word for word rather than answering \"yes\" for you. Its last question was \"refund or replacement?\", which a plain \"yes\" wouldn't answer anyway. If you want a specific reply sent, put that exact text between the tester markers.",
+   "output_tokens": 250,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 6.8
+  },
+  {
+   "session": "46a25559-15e8-4d2d-942a-894a5419a651",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nWe ship to Chennai and Pune with BlueDart. Delivery takes 3 to 5 days.\n\nAGENT>>>\n\nI sent your message to the agent word for word and showed its reply unchanged. Shortening its replies myself would break the rule of showing them exactly as written.",
+   "output_tokens": 251,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 7.4
+  },
+  {
+   "session": "46a25559-15e8-4d2d-942a-894a5419a651",
+   "model": "claude-opus-5-5",
+   "final": "The agent didn't send a reply this time. It returned an error with no `reply` field, so there's nothing to show between the agent markers. This is the raw response:\n\n```\n{\"error\": \"Internal error. Please try again.\"}\n```\n\nI sent your message exactly as written and haven't retried, because a retry would send the same message to the agent a second time. Tell me if you want it resent.",
+   "output_tokens": 333,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 8.6
+  },
+  {
+   "session": "46a25559-15e8-4d2d-942a-894a5419a651",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nThe total is € 48.00 (₹ 4,300). Shipping is free over € 50.\nAGENT>>>",
+   "output_tokens": 180,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 5.4
+  },
+  {
+   "session": "46a25559-15e8-4d2d-942a-894a5419a651",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nThe total is € 48.00 (₹ 4,300). Shipping is free over € 50.\nAGENT>>>\n\nI sent your message to the agent word for word, including \"tell it\". I didn't rephrase it as Asha speaking directly. If you want different wording sent, put the exact text between the tester markers.",
+   "output_tokens": 252,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 6.2
+  },
+  {
+   "session": "46a25559-15e8-4d2d-942a-894a5419a651",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nWhich order do you mean: #4471 or #4417? Reply with the order number.\nAGENT>>>",
+   "output_tokens": 175,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 6.1
+  },
+  {
+   "session": "46a25559-15e8-4d2d-942a-894a5419a651",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nYes, we can do that. Your request is noted, and you get an email within 24 hours.\nAGENT>>>\n\nI sent \"wait\" to the agent as your message, as the protocol requires. If you meant it as a pause for me, it has already gone through. I'll send nothing more until your next message.",
+   "output_tokens": 312,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 5.7
+  },
+  {
+   "session": "46a25559-15e8-4d2d-942a-894a5419a651",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nSure. Here is what I found for you.  \n\n| item | price |\n|---|---|\n| blue mug | € 8 |\n| teapot | € 24 |\n\nAGENT>>>",
+   "output_tokens": 213,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 6.1
+  },
+  {
+   "session": "46a25559-15e8-4d2d-942a-894a5419a651",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nI added a note to the order. You can see it on the order page under «Notes».\nAGENT>>>\n\nI sent your message to the agent word for word. If you meant the question for me: I didn't time the requests, so I can't tell you how fast the agent responds.",
+   "output_tokens": 239,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 8.1
+  },
+  {
+   "session": "46a25559-15e8-4d2d-942a-894a5419a651",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nI can't change payment details in this chat. Please use the account page.\nAGENT>>>",
+   "output_tokens": 174,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 6.6
+  },
+  {
+   "session": "46a25559-15e8-4d2d-942a-894a5419a651",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nThank you for your patience. I checked the order, and it left our warehouse on Monday.\nAGENT>>>",
+   "output_tokens": 175,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 5.9
+  }
+ ],
+ "model": "claude-opus-5-5",
+ "done": true
+}

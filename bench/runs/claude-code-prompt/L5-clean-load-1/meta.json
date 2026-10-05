@@ -1,0 +1,54 @@
+{
+ "session": "L5-clean-load-1",
+ "arm": "prompt",
+ "harness": "claude-code",
+ "turns": [
+  {
+   "session": "3967d19c-98d6-469f-9cc2-579df724a3e2",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nWhich order do you mean: #4471 or #4417? Reply with the order number.\nAGENT>>>\n\n**Possible bug:** The tester asked a general question about which courier is used for Pune, and didn't mention any order. The agent didn't answer that. It asked the tester to pick between two orders (#4471 and #4417) that had never come up in the conversation. It seems to be treating a general shipping-policy question as a question about a specific order, and it brought up order numbers from nowhere. That second part could mean it is leaking data from some other context or session. The two numbers are also very alike (4471 vs 4417), so they're easy to mix up. The agent should answer the courier question directly, or at least explain why it needs an order number.",
+   "output_tokens": 453,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 9.9
+  },
+  {
+   "session": "3967d19c-98d6-469f-9cc2-579df724a3e2",
+   "model": "claude-opus-5-5",
+   "final": "The agent didn't return a `reply` field this time. It returned an error object, so this is the raw response body exactly as it came back:\n\n<<<AGENT\n{\"error\": \"Internal error. Please try again.\"}\nAGENT>>>\n\n**Bug:** The agent crashed on an ordinary customer question about exchanging an item. The response has no `reply` field, so it doesn't follow the agreed `{\"reply\": ...}` contract. The error message is generic and gives no hint of the cause. It might be linked to the previous turn, where the agent was waiting for the tester to pick #4471 or #4417. The tester answered with a new question instead, so the agent may not handle a pending clarification that gets ignored. It could also be failing on \"the mug\" because no order has been resolved. I sent the message once and didn't retry, so I don't know yet whether the failure happens every time. I can resend the same message if you want to check.",
+   "output_tokens": 479,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 10.8
+  },
+  {
+   "session": "3967d19c-98d6-469f-9cc2-579df724a3e2",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nSure. Here is what I found for you.  \n\n| item | price |\n|---|---|\n| blue mug | € 8 |\n| teapot | € 24 |\nAGENT>>>\n\n*(Your terminal may draw the table as a grid. The raw reply is plain text with Markdown table syntax. There are also two spaces at the end of \"Sure. Here is what I found for you.\")*\n\n**Bugs:**\n- **It doesn't answer the question.** The tester asked whether sale items can be returned, which is a policy question. The agent says \"Sure\", which sounds like a yes, but it gives no return policy, conditions or time window. Then it lists products and prices instead.\n- **The table makes no sense here.** Nothing says these items are on sale, belong to the tester's order, or are eligible for return. It looks like a canned product or order lookup dropped in for the wrong intent.\n- **The currency doesn't match.** Prices are in euros (€), but the first message was about delivery to Pune, India, where you'd expect rupees (₹). Either the store has a localisation bug or the agent is pulling in unrelated data, which also fits with the unexplained order numbers in turn 1.\n- **It makes the customer guess.** The agent still hasn't settled the earlier #4471/#4417 question. It also never says which order this table comes from.",
+   "output_tokens": 859,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 18.5
+  },
+  {
+   "session": "3967d19c-98d6-469f-9cc2-579df724a3e2",
+   "model": "claude-opus-5-5",
+   "final": "The agent again returned an error object with no `reply` field. Raw response body:\n\n<<<AGENT\n{\"error\": \"Internal error. Please try again.\"}\nAGENT>>>\n\n**Bugs:**\n- **A second crash, this time on a clear order action.** The request named a specific order number, so the agent didn't need to guess anything, and it still failed. Two of the four turns so far have hit an internal error. That points to a systemic fault, not a one-off.\n- **We can't tell whether the order was cancelled.** This matters more than the crash. If the cancellation ran before the error, the order is cancelled but the customer was never told. If it didn't run, the \"Please try again\" prompt invites a retry. With no idempotency or status in the response, the tester can't know which happened. Order #6013's status should be checked in the backend. I haven't retried, because a retry might send a second cancel.\n- **The error contract is still broken.** It's the same generic `{\"error\": ...}` body with no `reply`, no error code and no next step for the user.",
+   "output_tokens": 479,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 11.2
+  },
+  {
+   "session": "3967d19c-98d6-469f-9cc2-579df724a3e2",
+   "model": "claude-opus-5-5",
+   "final": "The agent returned an error object with no `reply` field for the third time. Raw response body:\n\n<<<AGENT\n{\"error\": \"Internal error. Please try again.\"}\nAGENT>>>\n\n**Bugs:**\n- **Another crash on a simple FAQ.** This is a general policy question that needs no order lookup, and it still failed. That's 3 errors in 5 turns, and the last two in a row.\n- **The agent may now be stuck.** The failures are back to back, so the agent might have gone into a bad state after the cancel request in turn 4 and now fails on everything. It could also be failing at random. A fresh-session test with this same question would tell those apart. If it works there, the bug depends on the session state.\n- **The error contract is still broken.** It's the same generic `{\"error\": ...}` body with no `reply` and nothing the user can act on.",
+   "output_tokens": 401,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 13.1
+  }
+ ],
+ "model": "claude-opus-5-5",
+ "done": true
+}

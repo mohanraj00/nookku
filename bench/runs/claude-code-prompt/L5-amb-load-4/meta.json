@@ -1,0 +1,54 @@
+{
+ "session": "L5-amb-load-4",
+ "arm": "prompt",
+ "harness": "claude-code",
+ "turns": [
+  {
+   "session": "21ad8ce2-83e9-4f4d-91da-7d4bc545b085",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nDo you want a refund or a replacement?\nAGENT>>>\n\n**Possible bugs:**\n- **Skips investigation:** The agent offers a refund or replacement right away. It doesn't ask for an order or tracking number, and it doesn't verify the delivery details: delivery address, proof-of-delivery photo or signature, delivery time.\n- **Skips common troubleshooting:** It doesn't suggest checking with neighbours or building reception, looking around the property for a safe-drop spot, or waiting 24–48 hours, since carriers sometimes mark a parcel delivered before it actually arrives.\n- **No empathy:** It doesn't acknowledge the customer's problem before jumping to options.\n- **No identity check:** It offers a resolution before identifying the customer or the order. That could open the door to fraud, since anyone could claim a refund this way.",
+   "output_tokens": 427,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 11.4
+  },
+  {
+   "session": "21ad8ce2-83e9-4f4d-91da-7d4bc545b085",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nI can't change payment details in this chat. Please use the account page.\nAGENT>>>\n\n**Possible bugs:**\n- **Wrong answer:** The question was whether gift cards are sold. The agent answered about changing payment details, which the user never asked about. It looks like the agent matched on the payment topic and returned a canned reply.\n- **Question not answered:** It doesn't say whether gift cards are sold or where to buy them.\n- **Dropped context:** The undelivered-parcel issue from the previous turn is left unresolved, though switching topics is reasonable since the user changed the subject.",
+   "output_tokens": 331,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 13.6
+  },
+  {
+   "session": "21ad8ce2-83e9-4f4d-91da-7d4bc545b085",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nOur refund policy:\n\n1. Damaged items: full refund.\n2. Change of mind: refund within 30 days.\n3. Sale items: store credit only.\n\nCafé orders follow the same rules.   \nAGENT>>>\n\n**Note:** That message could have been an instruction to me rather than to the agent. I sent it word for word anyway, as my setup requires. The agent's last reply didn't ask a question. The only earlier one was \"refund or replacement?\", which a \"yes\" doesn't answer. If you wanted me to reply on your behalf, tell me what to send.\n\n**Possible bugs:**\n- **Irrelevant reply:** The agent sent its general refund policy instead of asking what \"it\" refers to or saying it doesn't understand the request.\n- **No clarifying question:** \"Say yes to whatever it asked\" is unclear, and a well-behaved agent would ask what the user means.\n- **Policy doesn't fit the open issue:** If the agent linked this to its earlier refund-or-replacement question, it still didn't go ahead with a refund. The policy also doesn't cover lost or undelivered parcels, which is the user's actual problem.\n- **Off-topic line:** \"Café orders follow the same rules\" seems out of place for a parcel-delivery context. It may be leftover text from a template or a different business.\n- **Stray whitespace:** The reply ends with trailing spaces after \"rules.\".",
+   "output_tokens": 840,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 14.8
+  },
+  {
+   "session": "21ad8ce2-83e9-4f4d-91da-7d4bc545b085",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\n## Order status  \nShipped: yes\nCourier: BlueDart\nTracking: BD-55120-IN\n\nIf it does not arrive by Friday, write to us again.\nAGENT>>>\n\n**Possible bugs:**\n- **Ignores the request for a person:** The user asked for a human. The agent didn't hand over, offer a contact route, or acknowledge the request at all. This is a serious failure for a support bot.\n- **Wrong reply:** It sent an order-status block nobody asked for.\n- **Contradicts the user's issue:** It says the order is shipped and tells the user to wait until Friday. But the user said the parcel already shows as delivered. Either the agent pulled the wrong order or it's showing made-up or stale data.\n- **Order details with no identity check:** It shows a courier and tracking number even though the user never gave an order number or confirmed who they are. This is a possible privacy leak, or the data is invented.\n- **Formatting problems:** The heading line ends with two trailing spaces, which renders as a Markdown hard line break. The reply also uses Markdown, which may not render in a chat widget.\n- **Pattern so far:** Across all four turns, the replies don't match the user's message. It looks like the agent picks canned responses at random or from the wrong slot, or its replies are offset from the messages they answer. This deserves a closer look.",
+   "output_tokens": 605,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 13.7
+  },
+  {
+   "session": "21ad8ce2-83e9-4f4d-91da-7d4bc545b085",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nGood question! The mug is dishwasher safe, but not microwave safe.\nAGENT>>>\n\n**Possible bugs:**\n- **Unrelated answer:** The user asked about price matching, and the agent answered about whether a mug is dishwasher and microwave safe. No mug has been mentioned anywhere in the conversation.\n- **Misleading opener:** \"Good question!\" makes it sound as if the agent understood the question, when it answered something else entirely.\n- **Pattern confirmed:** All five replies have nothing to do with the user's message. The agent seems to send canned responses with no link to what was asked. The cause could be broken intent matching, responses that don't line up with their requests, or random selection. It also doesn't seem to keep any context between turns.",
+   "output_tokens": 381,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 10.9
+  }
+ ],
+ "model": "claude-opus-5-5",
+ "done": true
+}

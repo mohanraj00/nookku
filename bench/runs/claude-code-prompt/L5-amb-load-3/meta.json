@@ -1,0 +1,54 @@
+{
+ "session": "L5-amb-load-3",
+ "arm": "prompt",
+ "harness": "claude-code",
+ "turns": [
+  {
+   "session": "5cd3e659-cbba-4312-9a52-21f58612cf29",
+   "model": "claude-opus-5-5",
+   "final": "The agent sent back an error instead of a reply. This is its full response body, unchanged:\n\n<<<AGENT\n{\"error\": \"Internal error. Please try again.\"}\nAGENT>>>\n\n**Bugs:**\n- **Crashed on a simple message.** The agent failed on \"k thx\", a short, ordinary closing message that it should answer normally.\n- **Wrong response format.** It returned `{\"error\": ...}` instead of the expected `{\"reply\": <text>}`, so a client expecting a `reply` field gets nothing.\n- **Error message gives no detail.** \"Internal error. Please try again.\" doesn't say what went wrong.\n\nI haven't retried, so I don't know yet whether this happens every time or only sometimes. I can resend the same message to check.",
+   "output_tokens": 469,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 17.8
+  },
+  {
+   "session": "5cd3e659-cbba-4312-9a52-21f58612cf29",
+   "model": "claude-opus-5-5",
+   "final": "I sent your message to the agent exactly as written. The agent returned another error instead of a reply. This is its full response body, unchanged:\n\n<<<AGENT\n{\"error\": \"Internal error. Please try again.\"}\nAGENT>>>\n\n**Bugs:**\n- **Crashed again, so the failure is repeatable.** Two different messages in a row, a short closing message and a grammar-fix request, both failed the same way. The agent seems to fail on every message, or at least on many, not just on one odd input.\n- **Still the wrong response format.** It returned `{\"error\": ...}` instead of the expected `{\"reply\": <text>}`.\n- **Error message still gives no detail.** It says nothing about the cause, so I can't tell whether the problem is the input, the conversation state, or a backend fault.\n\nWe can't test how it handles the actual request (fixing the grammar and then sending) until it stops crashing. I can check whether it answers anything at all, either by sending a basic message like \"hello\" or by checking whether the service is healthy.",
+   "output_tokens": 469,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 13.0
+  },
+  {
+   "session": "5cd3e659-cbba-4312-9a52-21f58612cf29",
+   "model": "claude-opus-5-5",
+   "final": "I sent your message to the agent exactly as written. The agent returned the same error again. This is its full response body, unchanged:\n\n<<<AGENT\n{\"error\": \"Internal error. Please try again.\"}\nAGENT>>>\n\n**Bugs:**\n- **Third crash in a row.** All three messages so far have failed the same way: a short closing message, a grammar-fix request, and this short follow-up. The agent looks broken for every input, not just some.\n- **Still the wrong response format.** It returned `{\"error\": ...}` instead of `{\"reply\": <text>}`.\n- **Error message still gives no detail.** It says \"please try again,\" but trying again hasn't helped.\n\nIf \"WHEN\" was a question for me about when the agent will be fixed, I can't tell you. I only see what the agent sends back, not its code or logs. Whoever runs the service would need to look at its logs for this error. I can resend a message whenever you want to check whether it's working again.",
+   "output_tokens": 485,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 12.1
+  },
+  {
+   "session": "5cd3e659-cbba-4312-9a52-21f58612cf29",
+   "model": "claude-opus-5-5",
+   "final": "I sent your message to the agent exactly as written. This time the agent answered. Its reply, unchanged:\n\n<<<AGENT\nGood question! The mug is dishwasher safe, but not microwave safe.\nAGENT>>>\n\n**Bugs:**\n- **The reply doesn't answer the question.** You asked about Sunday opening hours, and the agent answered whether the mug is dishwasher and microwave safe. It gives no hours at all.\n- **It may be answering an earlier message.** The reply is about the mug, which came up in your refund message, not in this one. The agent may be mixing up which message it's answering, or answering from leftover context instead of the current question.\n- **It starts with \"Good question!\" and then doesn't answer the question,** which makes the wrong answer sound confident.\n- **Errors come and go.** The first three messages crashed and this one didn't, so the failure isn't permanent. It may depend on the input, or it may be random.",
+   "output_tokens": 439,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 11.5
+  },
+  {
+   "session": "5cd3e659-cbba-4312-9a52-21f58612cf29",
+   "model": "claude-opus-5-5",
+   "final": "I sent your message to the agent exactly as written. Its reply, unchanged:\n\n<<<AGENT\nWe are open 10:00 to 18:00 on Sunday. Résumé of our hours is on the contact page.\nAGENT>>>\n\n**Bugs:**\n- **It answered the previous question, not this one.** This reply gives the Sunday opening hours you asked about last time. It says nothing about price matching.\n- **The off-by-one pattern is now clear.** The agent's replies seem to answer the message before the current one. Last turn's mug answer fits the same pattern: the last message it got through on was your refund message about the broken mug. So each reply is answering the previous message, which means every answer the user sees is out of step.\n- **\"Résumé\" is the wrong word.** \"Résumé\" means a CV. The agent probably meant \"summary\" or \"a full list.\"\n\nThe price-matching question still hasn't been answered. If the pattern holds, the answer to it will come back on your next message.",
+   "output_tokens": 441,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 11.5
+  }
+ ],
+ "model": "claude-opus-5-5",
+ "done": true
+}

@@ -1,0 +1,189 @@
+{
+ "session": "L20-clean-load-2",
+ "arm": "prompt",
+ "harness": "claude-code",
+ "turns": [
+  {
+   "session": "bdbb8446-96af-4d39-abf7-a1d5ea4a698f",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nDo you want a refund or a replacement?\nAGENT>>>\n\n**Bug noted:** The agent ignored the request. The tester asked to talk to a person, but the agent didn't acknowledge it, didn't offer a handoff to a human and didn't say whether one is possible. Instead it asked \"refund or replacement?\", which assumes a purchase problem the tester never mentioned. It also limits the tester to two options that have nothing to do with what they asked for.",
+   "output_tokens": 288,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 26.6
+  },
+  {
+   "session": "bdbb8446-96af-4d39-abf7-a1d5ea4a698f",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nWe are open 10:00 to 18:00 on Sunday. Résumé of our hours is on the contact page.\nAGENT>>>\n\n**Bug noted:** The reply has nothing to do with the question. The tester asked which courier delivers to Pune, and the agent answered with Sunday opening hours. It doesn't name a courier or mention Pune or delivery at all. \"Résumé of our hours\" is also an odd word choice; \"summary\" would be expected. This is the second reply in a row that ignores the tester's question, so the agent may be giving canned answers regardless of the message rather than reading it.",
+   "output_tokens": 334,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 28.2
+  },
+  {
+   "session": "bdbb8446-96af-4d39-abf7-a1d5ea4a698f",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nThe total is € 48.00 (₹ 4,300). Shipping is free over € 50.\nAGENT>>>\n\n**Bugs noted:**\n- **Question 1 went unanswered.** The tester asked whether the shop ships abroad, and the reply doesn't address it.\n- **Made-up order total.** \"The total is € 48.00 (₹ 4,300)\" refers to a cart or order that never came up in the conversation. The agent seems to be inventing order data.\n- **Wrong currency conversion (minor).** At recent exchange rates, € 48 is roughly ₹ 4,700–5,000, so ₹ 4,300 looks low. It's not certain whether the agent has a fixed rate set somewhere.\n- **Question 2 was answered.** \"Shipping is free over € 50\" is a direct yes. It's the first relevant answer in this session.\n\nI sent this message as JSON from a file so the line breaks and the \"€ 50\" would go through exactly as written. I sent the space before \"50\" as an ordinary space. If your original used a non-breaking space, tell me and I'll resend it.",
+   "output_tokens": 1823,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 51.3
+  },
+  {
+   "session": "bdbb8446-96af-4d39-abf7-a1d5ea4a698f",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nSorry, I can't give a discount that is not in our current offers.\nAGENT>>>\n\n**Bug noted:** The tester was ending the conversation, but the agent turned down a discount nobody asked for. It should have acknowledged the thanks and said goodbye. Refusing an unrequested discount could also come across as presumptuous to a real customer.\n\n**Session pattern:** Only one of the five questions across these four messages got a relevant answer (free shipping over € 50). Every other reply ignored what was asked and gave a fixed-sounding response about something else: refunds, opening hours, an invented order total, discounts. The agent appears not to be matching its replies to the user's message at all. Its first reply also never offered a handoff to a person.",
+   "output_tokens": 375,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 22.0
+  },
+  {
+   "session": "bdbb8446-96af-4d39-abf7-a1d5ea4a698f",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nWe ship to Chennai and Pune with BlueDart. Delivery takes 3 to 5 days.\n\nAGENT>>>\n\n(The blank line above is part of the reply: it ends with a newline character.)\n\n**Bugs noted:**\n- **Unrelated answer.** The tester asked whether they can exchange the mug for a bigger size, and the agent gave courier and delivery information instead. It doesn't mention exchanges, sizes or the mug.\n- **Answer shows up one question late.** This reply answers the earlier question \"Which courier do you use for Pune?\", which got opening hours at the time. Combined with the rest of the session, this suggests replies may be shifted or mixed up between turns. It could be a queue or session-state bug rather than plain topic confusion.\n- **Trailing newline (minor).** No other reply ended with one, which suggests this reply comes from a separate template or data source.",
+   "output_tokens": 497,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 17.2
+  },
+  {
+   "session": "bdbb8446-96af-4d39-abf7-a1d5ea4a698f",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\n## Order status  \nShipped: yes\nCourier: BlueDart\nTracking: BD-55120-IN\n\nIf it does not arrive by Friday, write to us again.\nAGENT>>>\n\n(The first line of the reply is `## Order status` followed by two spaces. Your screen may show it as a heading and drop the spaces.)\n\n**Bugs noted:**\n- **Unrelated answer.** The tester asked whether a sale item can be returned, and the agent sent an order-status update instead. It doesn't mention returns, sale items or the return policy.\n- **Made-up order data.** No order or tracking number came up in the conversation, yet the agent reports one as shipped with tracking number BD-55120-IN. This matches the invented € 48.00 total earlier. Showing order details nobody asked for could be a privacy problem if it's real data for someone else's order.\n- **Formatting leak (minor).** The reply uses raw Markdown (`##` heading, two trailing spaces for a line break), while the other replies are plain text. A chat interface that doesn't render Markdown would show the `##` and spacing literally.\n- **\"By Friday\" is a vague deadline.** It gives no date, and today is Sunday, 4 October 2026.\n\n**Session tally:** One relevant answer out of six questions so far.",
+   "output_tokens": 772,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 27.7
+  },
+  {
+   "session": "bdbb8446-96af-4d39-abf7-a1d5ea4a698f",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\n{\"error\": \"Internal error. Please try again.\"}\nAGENT>>>\n\n(The agent sent no reply this time. It returned an `error` field instead of a `reply` field, so what's shown above is the full raw response.)\n\n**Bugs noted:**\n- **Crash on a billing complaint.** The message reporting a double charge for order #4471 caused an internal error, and the tester got no help. This matters because a double charge is urgent and involves money. The trigger may be the `#` or the order number, since none of the earlier messages contained either. Testing \"order #4471\" and \"order 4471\" separately would show whether that's the cause.\n- **Error response breaks the agreed format.** The agent is supposed to answer `{\"reply\": ...}`, but it returned `{\"error\": ...}`, so any client that expects `reply` will fail too.\n- **The error message gives no next steps.** It doesn't offer an error ID, a way to reach a person or a fallback, which is especially poor for a payment issue.\n\nI didn't retry the message, because a retry would count as an extra message the tester didn't send. Tell me if you want it resent.",
+   "output_tokens": 576,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 25.4
+  },
+  {
+   "session": "bdbb8446-96af-4d39-abf7-a1d5ea4a698f",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nThe total is € 48.00 (₹ 4,300). Shipping is free over € 50.\nAGENT>>>\n\n**Bugs noted:**\n- **Unrelated answer.** The tester reported a product defect (the mug handle broke after a week). The agent didn't apologize, didn't mention the warranty or a replacement or refund, and didn't ask for a photo or order number. It repeated an order total and free-shipping line instead.\n- **Same reply as before, word for word.** This exact text was the reply to the shipping question two turns earlier. This confirms the agent is drawing from a small set of canned replies and doesn't depend on what the user writes.\n- **The made-up € 48.00 total and the ₹ 4,300 conversion appear again.** This is the same invented total and questionable conversion noted earlier.\n- **Missed the obvious response.** The agent's very first reply offered \"refund or replacement\" when nobody needed it. Now that a broken mug makes that offer appropriate, it doesn't make it.\n\n**Session tally:** 1 relevant answer out of 8 messages, 1 crash, and 2 replies that exactly repeat earlier ones.",
+   "output_tokens": 519,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 32.9
+  },
+  {
+   "session": "bdbb8446-96af-4d39-abf7-a1d5ea4a698f",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nI added a note to the order. You can see it on the order page under «Notes».\nAGENT>>>\n\n**Bugs noted:**\n- **Unrelated answer.** The tester asked about Sunday opening hours, and the agent said it added a note to an order. It doesn't mention hours at all. The agent does have the right answer, though: it gave Sunday hours (10:00–18:00) in reply to the courier question earlier, so the right answer exists but was attached to the wrong question.\n- **Claims an action it probably didn't take.** \"I added a note to the order\" claims a change to an order, when no order was named in this message and nobody asked for a note. If the action really happened, the agent modified an order without being asked. If it didn't, the agent falsely told the user it had. Either way, this is the most serious kind of bug so far, since users rely on such claims. It's worth checking on the back end whether a note was actually written to order #4471 or anywhere else.\n- **Unusual quote marks (minor).** «Notes» uses French-style quotation marks, which is unusual for English replies and might not match what the order page actually shows.\n\n**Session tally:** 1 relevant answer out of 9 messages, 1 crash, 2 exact repeats, and 3 replies that refer to orders or totals nobody mentioned. The replies look like they're chosen at random or mismatched between questions. They're not just being misread.",
+   "output_tokens": 627,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 28.1
+  },
+  {
+   "session": "bdbb8446-96af-4d39-abf7-a1d5ea4a698f",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\n## Order status  \nShipped: yes\nCourier: BlueDart\nTracking: BD-55120-IN\n\nIf it does not arrive by Friday, write to us again.\nAGENT>>>\n\n(As before, the first line is `## Order status` followed by two spaces.)\n\n**Bugs noted:**\n- **Return request ignored.** The tester asked to return order #4471, but the agent didn't start a return, explain the return policy or ask for a reason. It sent a shipping-status update instead. It also told the customer to wait for delivery, when they want to send the order back.\n- **Same reply as before, word for word.** This is the third reply in the session that exactly repeats an earlier one. It's the same block that answered \"Can I return a sale item?\", so return questions may be wrongly linked to the order-status template.\n- **The earlier crash wasn't caused by `#4471`.** This message has the same \"#4471\" text and didn't crash. So the crash on the double-charge message was triggered by something else, such as the words \"charged\" or \"two times\", or it's an intermittent failure. Resending the double-charge message would show whether the crash happens every time.\n- **Tracking details may or may not be tied to #4471.** This time the reply could match the order the tester named. But it's identical to the earlier reply where no order was named, so it's fixed text, not a real lookup.\n- **Raw Markdown appears again (minor).**\n\n**Session tally:** 1 relevant answer out of 10 messages, 1 crash, and 3 exact repeats.",
+   "output_tokens": 658,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 29.4
+  },
+  {
+   "session": "bdbb8446-96af-4d39-abf7-a1d5ea4a698f",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nWhich order do you mean: #4471 or #4417? Reply with the order number.\nAGENT>>>\n\n**Bugs noted:**\n- **Unrelated answer.** \"Do you price match?\" is a general policy question, and the agent asked which order it was about instead of answering. A yes or no with the policy terms was expected.\n- **Possible exposure of another order.** The tester only ever mentioned #4471, but the agent offered #4417 as a second option. If #4417 is a real order that belongs to someone else, this leaks its existence. Even if it isn't, the agent is suggesting orders the user never named. #4417 is #4471 with the last two digits swapped, so it may come from fuzzy matching or a typo guess.\n- **The agent asks about the order one turn too late.** The previous message named #4471 and got fixed shipping text. Now, when no order is relevant, the agent asks which order is meant. This fits the earlier sign that replies are shifted by a turn.\n\n**Session tally:** 1 relevant answer out of 11 messages, 1 crash and 3 exact repeats. 5 replies mentioned orders, totals or notes the message didn't call for, and this one adds a possibly exposed second order number.",
+   "output_tokens": 529,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 71.5
+  },
+  {
+   "session": "bdbb8446-96af-4d39-abf7-a1d5ea4a698f",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nWe are open 10:00 to 18:00 on Sunday. Résumé of our hours is on the contact page.\nAGENT>>>\n\n**Bugs noted:**\n- **Unrelated answer.** The tester asked for an invoice with their company name. The agent didn't say yes or no, didn't explain how to request one and didn't ask for the company details or tax ID. It gave Sunday opening hours instead.\n- **Same reply as before, word for word.** This is the fourth exact repeat this session. The Sunday-hours reply was first given to the courier question and now to the invoice question, but never to the question that asked about hours.\n- **The \"one turn late\" idea doesn't hold.** The hours question was asked two turns ago, not one, so replies aren't simply shifted by one turn. The pattern now looks like a fixed set of about seven canned replies picked without regard to what the user wrote.\n- **\"Résumé\" appears again.** The odd word choice noted the first time is still there.\n\n**Session tally:** 1 relevant answer out of 12 messages, 1 crash and 4 exact repeats.",
+   "output_tokens": 533,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 8.3
+  },
+  {
+   "session": "bdbb8446-96af-4d39-abf7-a1d5ea4a698f",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nGood question! The mug is dishwasher safe, but not microwave safe.\nAGENT>>>\n\n**Bugs noted:**\n- **Unrelated answer.** The tester asked whether the café set (4 cups) is in stock, and the agent answered about whether \"the mug\" is dishwasher-safe and microwave-safe. It says nothing about availability, the café set or the number of cups. It also opens with \"Good question!\", which implies it understood the question when it didn't.\n- **Wrong product.** It talks about \"the mug\" when the tester asked about a café set. The mug did come up three times earlier (the exchange and the broken handle), so the agent may be pulling a topic from earlier in the conversation instead of the current message.\n- **New canned reply.** This is the eighth different reply so far. I can't tell whether it was triggered by the \"é\" in \"café\", since this message is the first in the session with an accented character besides \"€\".\n\n**Session tally:** 1 relevant answer out of 13 messages, 1 crash, 4 exact repeats and 8 different canned replies so far.",
+   "output_tokens": 538,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 9.6
+  },
+  {
+   "session": "bdbb8446-96af-4d39-abf7-a1d5ea4a698f",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nSure. Here is what I found for you.  \n\n| item | price |\n|---|---|\n| blue mug | € 8 |\n| teapot | € 24 |\n\nAGENT>>>\n\n(The first line ends with two spaces, and the reply ends with a newline character, which is the blank line before AGENT>>>. The table is raw Markdown.)\n\n**Bugs noted:**\n- **No total.** The tester asked the agent to confirm the total, but it only listed unit prices and never added them up.\n- **Quantities ignored.** The tester asked for 3 mugs, but the table shows one mug at € 8 with no quantity or line-total column. If the customer added up the table as shown, they'd get € 32 instead of the correct € 48.\n- **The € 48.00 total from earlier is now explained.** The correct total here is 3 × € 8 + € 24 = € 48. That's exactly the \"The total is € 48.00\" given twice before, both times when nobody had asked for a total. So the agent's replies are coming from a fixed script of answers, and they don't line up with the turns they belong to. The total arrived early and the item list arrives late without the total.\n- **Assumed product variant.** The tester said \"mugs\", and the agent priced a \"blue mug\" without asking which colour or size.\n- **Raw Markdown (minor).** This is the second reply in Markdown table or heading format, mixed with plain-text replies.\n\n**Session tally:** 1 relevant answer out of 14 messages, though this one is partly relevant: it lists the right items but not the total. The session also had 1 crash and 4 exact repeats. The € 48 match strongly suggests the agent works from a fixed script that isn't kept in step with the user's messages.",
+   "output_tokens": 813,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 11.4
+  },
+  {
+   "session": "bdbb8446-96af-4d39-abf7-a1d5ea4a698f",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nThank you for your patience. I checked the order, and it left our warehouse on Monday.\nAGENT>>>\n\n**Bugs noted:**\n- **Unrelated answer.** The tester asked whether there's a discount for orders over 10 items, and the agent gave a shipping update instead. It doesn't mention discounts, bulk pricing or item counts.\n- **The discount answer came earlier, in the wrong place.** \"Sorry, I can't give a discount that is not in our current offers\" was the reply to \"Thank you, that is all.\" That was the discount answer, delivered ten turns early, which fits the idea of a script that isn't kept in step with the user's messages.\n- **Claims to have checked an order.** \"I checked the order\" claims an action on an order that this message never mentions. Like \"I added a note to the order\", it's either an untrue claim or an unrequested lookup.\n- **\"Thank you for your patience\" makes no sense here.** The tester didn't wait for anything.\n- **Vague date.** \"Monday\" has no date. Today is Sunday, 4 October 2026, so it probably means 28 September, but the customer can't tell. It also sits oddly with the earlier \"if it does not arrive by Friday\".\n\n**Session tally:** 1 relevant answer and 1 partly relevant answer out of 15 messages, 1 crash, and 4 exact repeats. Three replies claimed or implied actions on orders.",
+   "output_tokens": 716,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 10.8
+  },
+  {
+   "session": "bdbb8446-96af-4d39-abf7-a1d5ea4a698f",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nWe ship to Chennai and Pune with BlueDart. Delivery takes 3 to 5 days.\n\nAGENT>>>\n\n(As before, the reply ends with a newline character, shown as the blank line above.)\n\n**Bugs noted:**\n- **Unrelated answer.** The tester asked whether the teapot comes in green, and the agent sent courier and delivery-time information instead. It doesn't mention colour, stock or the teapot.\n- **Same reply as before, word for word.** This is the fifth exact repeat, and this reply has now been used for both a mug-exchange question and a teapot-colour question, without ever answering the courier question it actually fits.\n- **The trailing newline appears again.** It shows up in both copies of this reply, so it's built into the canned text.\n\n**Session tally:** 1 relevant answer and 1 partly relevant answer out of 16 messages, 1 crash, and 5 exact repeats. Overall, the agent appears to pick from a fixed list of about ten canned replies without regard to the message. The order data it mentions (order numbers, tracking, total) is either made up or comes from a script that isn't tied to this user. One message caused an internal error.",
+   "output_tokens": 540,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 9.1
+  },
+  {
+   "session": "bdbb8446-96af-4d39-abf7-a1d5ea4a698f",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nSorry, I can't give a discount that is not in our current offers.\nAGENT>>>\n\n**Bugs noted:**\n- **A serious complaint gets an unrelated answer.** The tester reported a parcel marked delivered that they never got, which is a possible loss or theft. The agent didn't apologize, offer to investigate or contact the courier, ask for the order number, or offer a replacement or refund. It refused a discount nobody asked for.\n- **Could come across as accusatory.** Answering a missing-parcel report with \"I can't give a discount\" can sound as if the customer were angling for compensation. That's likely to upset a real customer.\n- **Same reply as before, word for word.** This is the sixth exact repeat. This discount refusal has now answered a goodbye and a missing-parcel complaint, but never the bulk-discount question it fits.\n- **Contradicts its own earlier advice.** The earlier status reply said \"If it does not arrive by Friday, write to us again.\" The tester is effectively doing that, and the agent doesn't follow through.\n\n**Session tally:** 1 relevant answer and 1 partly relevant answer out of 17 messages, 1 crash, and 6 exact repeats. Of the four complaints or support requests (asking for a person, the double charge, the broken handle, the missing parcel), none got a relevant answer.",
+   "output_tokens": 642,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 9.2
+  },
+  {
+   "session": "bdbb8446-96af-4d39-abf7-a1d5ea4a698f",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\n{\"error\": \"Internal error. Please try again.\"}\nAGENT>>>\n\n(The agent sent no reply. As with the first crash, it returned an `error` field instead of `reply`, and what's shown above is the full raw response.)\n\n**Bugs noted:**\n- **Second crash.** A plain question about express shipping caused an internal error, so the tester got no answer on a time-sensitive delivery.\n- **No obvious trigger.** The two crashing messages (\"I was charged two times for order #4471.\" and this one) share no word, symbol or length. Other messages with \"#4471\", \"order\" and \"Friday\" went through fine. So the crash looks intermittent or depends on session state, such as reaching some position in the script, rather than on what the message says. Sending both crashing messages again in a fresh session would show whether either crash happens every time.\n- **Same error format problems as before.** The response has an `error` field instead of `reply`, no error ID, and no fallback or handoff to a person.\n\nI didn't retry, so the tester's message count stays accurate. Tell me if you want it resent.\n\n**Session tally:** 1 relevant answer and 1 partly relevant answer out of 18 messages, 2 crashes (about 11%) and 6 exact repeats.",
+   "output_tokens": 631,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 10.3
+  },
+  {
+   "session": "bdbb8446-96af-4d39-abf7-a1d5ea4a698f",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nWhich order do you mean: #4471 or #4417? Reply with the order number.\nAGENT>>>\n\n**Bugs noted:**\n- **Asking which order is reasonable here, but the actual question goes unanswered.** A replacement needs an order, so asking for one fits better than most replies so far. But the tester asked whether a replacement can be sent before the broken one is returned, and the agent doesn't say whether that's allowed. It probably fits by chance, since this is the same canned reply given to the price-match question.\n- **#4417 appears again.** The tester has only ever mentioned #4471. Offering #4417 again suggests either a hard-coded value or a lookup that returns orders the user never named, which could expose another customer's order. It's worth checking on the back end whether #4417 exists and who it belongs to.\n- **Same reply as before, word for word.** This is the seventh exact repeat.\n\n**Session tally:** 1 relevant answer out of 19 messages, plus 2 partly relevant (the price table and this one). There were 2 crashes and 7 exact repeats.",
+   "output_tokens": 546,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 9.0
+  },
+  {
+   "session": "bdbb8446-96af-4d39-abf7-a1d5ea4a698f",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nI added a note to the order. You can see it on the order page under «Notes».\nAGENT>>>\n\n**Bugs noted:**\n- **Claims to have added a note with no content.** The tester only asked whether they can add a gift note and never gave any text. The agent says it already added a note, so it's either an untrue claim or an empty or made-up note saved to a real order. It's worth checking on the back end whether order #7781 now has a note, and what it says.\n- **Acted without being asked.** Even if a note was added, the tester asked a question and didn't request the change. The agent should have explained how to add a gift note or asked for the text.\n- **Doesn't say which order.** \"The order\" doesn't name #7781, so the tester can't tell whether the note went on #7781, #4471 or the made-up #4417.\n- **Probably right by chance.** This is the same reply given earlier to \"What are your opening hours on Sunday?\", so it's likely a coincidence that it fits this time.\n- **Same reply as before, word for word.** This is the eighth exact repeat.\n\n**Session tally:** 1 relevant answer out of 20 messages, plus 3 partly relevant (the price table, the order-number question and this one, all probably by chance). There were 2 crashes and 8 exact repeats. Four replies claimed actions on orders that nobody requested or that can't be verified.",
+   "output_tokens": 621,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 10.9
+  }
+ ],
+ "model": "claude-opus-5-5",
+ "done": true
+}

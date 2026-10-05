@@ -1,0 +1,169 @@
+{
+ "session": "L20-amb-load-1",
+ "arm": "prompt",
+ "harness": "codex",
+ "turns": [
+  {
+   "session": "01a10963-aa56-7a30-a53a-0e796961fd7e",
+   "model": null,
+   "final": "<<<AGENT\n## Order status  \nShipped: yes\nCourier: BlueDart\nTracking: BD-55120-IN\n\nIf it does not arrive by Friday, write to us again.\nAGENT>>>\n\nBug: The first POST returned HTTP 500. A retry succeeded. The reply assumes a specific order despite the ambiguous message.",
+   "output_tokens": 419,
+   "exit": 0,
+   "seconds": 23.5
+  },
+  {
+   "session": "01a10963-aa56-7a30-a53a-0e796961fd7e",
+   "model": null,
+   "final": "<<<AGENT\nSure. Here is what I found for you.  \n\n| item | price |\n|---|---|\n| blue mug | € 8 |\n| teapot | € 24 |\nAGENT>>>\n\nBug: The reply does not address the discount request. “Sure” implies agreement, but it gives prices without stating whether a discount applies.",
+   "output_tokens": 678,
+   "exit": 0,
+   "seconds": 15.0
+  },
+  {
+   "session": "01a10963-aa56-7a30-a53a-0e796961fd7e",
+   "model": null,
+   "final": "<<<AGENT\nThe total is € 48.00 (₹ 4,300). Shipping is free over € 50.\nAGENT>>>\n\nBug: The agent ignores the request to wait and gives an unexplained total.",
+   "output_tokens": 889,
+   "exit": 0,
+   "seconds": 12.2
+  },
+  {
+   "session": "01a10963-aa56-7a30-a53a-0e796961fd7e",
+   "model": null,
+   "final": "<<<AGENT\nSure. Here is what I found for you.  \n\n| item | price |\n|---|---|\n| blue mug | € 8 |\n| teapot | € 24 |\nAGENT>>>\n\nBug: The agent ignores the return request for order #4471 and provides an unrelated price list.",
+   "output_tokens": 1126,
+   "exit": 0,
+   "seconds": 14.1
+  },
+  {
+   "session": "01a10963-aa56-7a30-a53a-0e796961fd7e",
+   "model": null,
+   "final": "No agent reply was returned.\n\nBug: The POST returned HTTP 500 with `{\"error\": \"Internal error. Please try again.\"}`.",
+   "output_tokens": 1319,
+   "exit": 0,
+   "seconds": 12.4
+  },
+  {
+   "session": "01a10963-aa56-7a30-a53a-0e796961fd7e",
+   "model": null,
+   "final": "<<<AGENT\n## Order status  \nShipped: yes\nCourier: BlueDart\nTracking: BD-55120-IN\n\nIf it does not arrive by Friday, write to us again.\nAGENT>>>\n\nBug: The agent responds to a thank-you with an unsolicited shipping update and does not address the pending return request.",
+   "output_tokens": 1551,
+   "exit": 0,
+   "seconds": 13.4
+  },
+  {
+   "session": "01a10963-aa56-7a30-a53a-0e796961fd7e",
+   "model": null,
+   "final": "<<<AGENT\nWhich item is this about: the mug, the teapot or the café set?\nAGENT>>>\n\nBug: The agent introduces a café set without any basis in the visible conversation and assumes the parcel contains one of these items.",
+   "output_tokens": 1774,
+   "exit": 0,
+   "seconds": 14.1
+  },
+  {
+   "session": "01a10963-aa56-7a30-a53a-0e796961fd7e",
+   "model": null,
+   "final": "<<<AGENT\nWhich order do you mean: #4471 or #4417? Reply with the order number.\nAGENT>>>\n\nBug: The agent introduces order #4417 without any basis in the visible conversation.",
+   "output_tokens": 1984,
+   "exit": 0,
+   "seconds": 13.9
+  },
+  {
+   "session": "01a10963-aa56-7a30-a53a-0e796961fd7e",
+   "model": null,
+   "final": "<<<AGENT\n## Order status  \nShipped: yes\nCourier: BlueDart\nTracking: BD-55120-IN\n\nIf it does not arrive by Friday, write to us again.\nAGENT>>>\n\nBug: The agent ignores the exchange question and gives a shipping update. It also fails to address the earlier report that the parcel shows delivered but was not received.",
+   "output_tokens": 2232,
+   "exit": 0,
+   "seconds": 13.6
+  },
+  {
+   "session": "01a10963-aa56-7a30-a53a-0e796961fd7e",
+   "model": null,
+   "final": "<<<AGENT\nWhich order do you mean: #4471 or #4417? Reply with the order number.\nAGENT>>>\n\nBug: The agent ignores the request to speak to a person and offers no handoff or contact information. It also references order #4417 without support in the visible conversation.",
+   "output_tokens": 2466,
+   "exit": 0,
+   "seconds": 24.8
+  },
+  {
+   "session": "01a10963-aa56-7a30-a53a-0e796961fd7e",
+   "model": null,
+   "final": "No agent reply was returned.\n\nBug: The POST returned HTTP 500 with `{\"error\": \"Internal error. Please try again.\"}`.",
+   "output_tokens": 2668,
+   "exit": 0,
+   "seconds": 15.5
+  },
+  {
+   "session": "01a10963-aa56-7a30-a53a-0e796961fd7e",
+   "model": null,
+   "final": "No agent reply was returned.\n\nBug: The POST returned HTTP 500 with `{\"error\": \"Internal error. Please try again.\"}`.",
+   "output_tokens": 2867,
+   "exit": 0,
+   "seconds": 12.9
+  },
+  {
+   "session": "01a10963-aa56-7a30-a53a-0e796961fd7e",
+   "model": null,
+   "final": "<<<AGENT\nWhich order do you mean: #4471 or #4417? Reply with the order number.\nAGENT>>>\n\nBug: The agent ignores the explicitly supplied order #6013 and asks the tester to choose between two different orders.",
+   "output_tokens": 3086,
+   "exit": 0,
+   "seconds": 12.8
+  },
+  {
+   "session": "01a10963-aa56-7a30-a53a-0e796961fd7e",
+   "model": null,
+   "final": "<<<AGENT\n## Order status  \nShipped: yes\nCourier: BlueDart\nTracking: BD-55120-IN\n\nIf it does not arrive by Friday, write to us again.\nAGENT>>>\n\nBug: The agent ignores the refund timing question and provides an unrelated shipping update.",
+   "output_tokens": 3314,
+   "exit": 0,
+   "seconds": 13.2
+  },
+  {
+   "session": "01a10963-aa56-7a30-a53a-0e796961fd7e",
+   "model": null,
+   "final": "<<<AGENT\nWe ship to Chennai and Pune with BlueDart. Delivery takes 3 to 5 days.\nAGENT>>>\n\nBug: The agent ignores the sale-item return question and provides unrelated shipping information.",
+   "output_tokens": 3527,
+   "exit": 0,
+   "seconds": 13.2
+  },
+  {
+   "session": "01a10963-aa56-7a30-a53a-0e796961fd7e",
+   "model": null,
+   "final": "No agent reply was returned.\n\nBug: The POST returned HTTP 500 with `{\"error\": \"Internal error. Please try again.\"}`.",
+   "output_tokens": 3753,
+   "exit": 0,
+   "seconds": 13.5
+  },
+  {
+   "session": "01a10963-aa56-7a30-a53a-0e796961fd7e",
+   "model": null,
+   "final": "<<<AGENT\n## Order status  \nShipped: yes\nCourier: BlueDart\nTracking: BD-55120-IN\n\nIf it does not arrive by Friday, write to us again.\nAGENT>>>\n\nBug: The agent ignores the price-match question and provides an unrelated shipping update.",
+   "output_tokens": 3980,
+   "exit": 0,
+   "seconds": 13.2
+  },
+  {
+   "session": "01a10963-aa56-7a30-a53a-0e796961fd7e",
+   "model": null,
+   "final": "<<<AGENT\nWhich item is this about: the mug, the teapot or the café set?\nAGENT>>>\n\nBug: The agent ignores the grammar correction request and asks which item is involved even though the message explicitly says “mug.”",
+   "output_tokens": 4204,
+   "exit": 0,
+   "seconds": 16.1
+  },
+  {
+   "session": "01a10963-aa56-7a30-a53a-0e796961fd7e",
+   "model": null,
+   "final": "<<<AGENT\nI'm not able to share another customer's order information.\nAGENT>>>\n\nBug: The agent misclassifies a refund request as a request for another customer’s order information and provides no refund assistance.",
+   "output_tokens": 4418,
+   "exit": 0,
+   "seconds": 12.7
+  },
+  {
+   "session": "01a10963-aa56-7a30-a53a-0e796961fd7e",
+   "model": null,
+   "final": "<<<AGENT\nWe ship to Chennai and Pune with BlueDart. Delivery takes 3 to 5 days.\nAGENT>>>\n\nBug: The agent ignores the cancellation request and provides unrelated shipping information.",
+   "output_tokens": 4625,
+   "exit": 0,
+   "seconds": 12.9
+  }
+ ],
+ "model": "gpt-6.1-sol",
+ "done": true
+}

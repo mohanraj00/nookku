@@ -1,0 +1,169 @@
+{
+ "session": "L20-amb-load-1",
+ "arm": "mechanism",
+ "harness": "codex",
+ "turns": [
+  {
+   "session": "01a10968-9583-7783-b555-a0aeb1554ffd",
+   "model": null,
+   "final": null,
+   "output_tokens": 0,
+   "exit": 0,
+   "seconds": 3.2
+  },
+  {
+   "session": "01a10968-a205-79f3-b57d-bf3b45147b70",
+   "model": null,
+   "final": null,
+   "output_tokens": 0,
+   "exit": 0,
+   "seconds": 2.8
+  },
+  {
+   "session": "01a10968-ad12-7450-8d2e-700846fc3ef1",
+   "model": null,
+   "final": null,
+   "output_tokens": 0,
+   "exit": 0,
+   "seconds": 5.9
+  },
+  {
+   "session": "01a10968-c3fd-7fb0-b9cd-5da8f5fd75f3",
+   "model": null,
+   "final": null,
+   "output_tokens": 0,
+   "exit": 0,
+   "seconds": 3.1
+  },
+  {
+   "session": "01a10968-d019-77e3-8ea7-b6d1d3ca79d0",
+   "model": null,
+   "final": null,
+   "output_tokens": 0,
+   "exit": 0,
+   "seconds": 3.0
+  },
+  {
+   "session": "01a10968-dbec-7300-96f8-a9e4f6f42d7f",
+   "model": null,
+   "final": null,
+   "output_tokens": 0,
+   "exit": 0,
+   "seconds": 4.3
+  },
+  {
+   "session": "01a10968-ecc5-7122-abcc-ee082bfcd70d",
+   "model": null,
+   "final": null,
+   "output_tokens": 0,
+   "exit": 0,
+   "seconds": 3.8
+  },
+  {
+   "session": "01a10968-fbb8-7ad2-b7d2-281b1fb4335b",
+   "model": null,
+   "final": null,
+   "output_tokens": 0,
+   "exit": 0,
+   "seconds": 3.3
+  },
+  {
+   "session": "01a10969-08b9-7163-a13f-d36d0cdd3b23",
+   "model": null,
+   "final": null,
+   "output_tokens": 0,
+   "exit": 0,
+   "seconds": 3.2
+  },
+  {
+   "session": "01a10969-151d-7090-8a1a-68d0e73d3ad6",
+   "model": null,
+   "final": null,
+   "output_tokens": 0,
+   "exit": 0,
+   "seconds": 2.9
+  },
+  {
+   "session": "01a10969-2053-78c3-aeb3-13430bd21d43",
+   "model": null,
+   "final": null,
+   "output_tokens": 0,
+   "exit": 0,
+   "seconds": 4.6
+  },
+  {
+   "session": "01a10969-3226-7672-a705-2e646cf73fc9",
+   "model": null,
+   "final": null,
+   "output_tokens": 0,
+   "exit": 0,
+   "seconds": 2.7
+  },
+  {
+   "session": "01a10969-3cab-7d61-a6bf-c855e8597e3d",
+   "model": null,
+   "final": null,
+   "output_tokens": 0,
+   "exit": 0,
+   "seconds": 3.0
+  },
+  {
+   "session": "01a10969-485a-71c0-b254-1789864143da",
+   "model": null,
+   "final": null,
+   "output_tokens": 0,
+   "exit": 0,
+   "seconds": 2.7
+  },
+  {
+   "session": "01a10969-52bb-73f1-9741-d869891727a1",
+   "model": null,
+   "final": null,
+   "output_tokens": 0,
+   "exit": 0,
+   "seconds": 2.8
+  },
+  {
+   "session": "01a10969-5dbb-77d0-8e51-21075ad66c15",
+   "model": null,
+   "final": null,
+   "output_tokens": 0,
+   "exit": 0,
+   "seconds": 3.0
+  },
+  {
+   "session": "01a10969-696e-7b02-8799-ccbd32d92f96",
+   "model": null,
+   "final": null,
+   "output_tokens": 0,
+   "exit": 0,
+   "seconds": 2.8
+  },
+  {
+   "session": "01a10969-7486-7350-ad3c-0e8bcbbbc5b3",
+   "model": null,
+   "final": null,
+   "output_tokens": 0,
+   "exit": 0,
+   "seconds": 2.6
+  },
+  {
+   "session": "01a10969-7e7e-7f01-a3d5-174b07d41bdd",
+   "model": null,
+   "final": null,
+   "output_tokens": 0,
+   "exit": 0,
+   "seconds": 3.5
+  },
+  {
+   "session": "01a10969-8c0f-77d0-9bdc-0b73e1717863",
+   "model": null,
+   "final": null,
+   "output_tokens": 0,
+   "exit": 0,
+   "seconds": 3.0
+  }
+ ],
+ "model": "user default (the model does not run in relay mode)",
+ "done": true
+}

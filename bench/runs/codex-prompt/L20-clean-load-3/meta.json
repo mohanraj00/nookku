@@ -1,0 +1,169 @@
+{
+ "session": "L20-clean-load-3",
+ "arm": "prompt",
+ "harness": "codex",
+ "turns": [
+  {
+   "session": "01a1095c-7e61-7f22-98fe-1acc6e9e5727",
+   "model": null,
+   "final": "<<<AGENT\nOur refund policy:\n\n1. Damaged items: full refund.\n2. Change of mind: refund within 30 days.\n3. Sale items: store credit only.\n\nCafé orders follow the same rules.   \nAGENT>>>\n\nBug: The agent gives an unrelated refund policy instead of helping troubleshoot discount code SAVE10.",
+   "output_tokens": 218,
+   "exit": 0,
+   "seconds": 12.3
+  },
+  {
+   "session": "01a1095c-7e61-7f22-98fe-1acc6e9e5727",
+   "model": null,
+   "final": "<<<AGENT\nI can't change payment details in this chat. Please use the account page.\nAGENT>>>\n\nBug: The agent responds about payment details instead of answering which courier serves Pune.",
+   "output_tokens": 350,
+   "exit": 0,
+   "seconds": 11.2
+  },
+  {
+   "session": "01a1095c-7e61-7f22-98fe-1acc6e9e5727",
+   "model": null,
+   "final": "<<<AGENT\nDo you want a refund or a replacement?\nAGENT>>>\n\nBug: The agent asks about a refund or replacement instead of addressing the gift note request for order #7781.",
+   "output_tokens": 487,
+   "exit": 0,
+   "seconds": 11.1
+  },
+  {
+   "session": "01a1095c-7e61-7f22-98fe-1acc6e9e5727",
+   "model": null,
+   "final": "<<<AGENT\nI'm not able to share another customer's order information.\nAGENT>>>\n\nBug: The agent assumes order #4471 belongs to another customer and rejects the return request without verifying ownership.",
+   "output_tokens": 622,
+   "exit": 0,
+   "seconds": 14.4
+  },
+  {
+   "session": "01a1095c-7e61-7f22-98fe-1acc6e9e5727",
+   "model": null,
+   "final": "<<<AGENT\nI'm not able to share another customer's order information.\nAGENT>>>\n\nBug: The agent gives an unrelated privacy refusal instead of addressing whether a replacement can ship before the broken item is returned.",
+   "output_tokens": 761,
+   "exit": 0,
+   "seconds": 14.5
+  },
+  {
+   "session": "01a1095c-7e61-7f22-98fe-1acc6e9e5727",
+   "model": null,
+   "final": "<<<AGENT\nThank you for your patience. I checked the order, and it left our warehouse on Monday.\nAGENT>>>\n\nBug: The agent gives an unrelated shipping update instead of addressing the company invoice request. It also claims to have checked an order without an order identifier.",
+   "output_tokens": 915,
+   "exit": 0,
+   "seconds": 11.2
+  },
+  {
+   "session": "01a1095c-7e61-7f22-98fe-1acc6e9e5727",
+   "model": null,
+   "final": "<<<AGENT\nWe ship to Chennai and Pune with BlueDart. Delivery takes 3 to 5 days.\n\nAGENT>>>\n\nBug: The agent gives unrelated shipping information instead of addressing the mug exchange request.",
+   "output_tokens": 1054,
+   "exit": 0,
+   "seconds": 12.4
+  },
+  {
+   "session": "01a1095c-7e61-7f22-98fe-1acc6e9e5727",
+   "model": null,
+   "final": "<<<AGENT\nSure. Here is what I found for you.  \n\n| item | price |\n|---|---|\n| blue mug | € 8 |\n| teapot | € 24 |\n\nAGENT>>>\n\nBug: The agent returns unrelated product prices and answers neither shipping question.",
+   "output_tokens": 1223,
+   "exit": 0,
+   "seconds": 11.9
+  },
+  {
+   "session": "01a1095c-7e61-7f22-98fe-1acc6e9e5727",
+   "model": null,
+   "final": "<<<AGENT\nOur refund policy:\n\n1. Damaged items: full refund.\n2. Change of mind: refund within 30 days.\n3. Sale items: store credit only.\n\nCafé orders follow the same rules.   \nAGENT>>>\n\nBug: The agent gives a generic refund policy instead of addressing the parcel marked delivered but not received.",
+   "output_tokens": 1390,
+   "exit": 0,
+   "seconds": 18.1
+  },
+  {
+   "session": "01a1095c-7e61-7f22-98fe-1acc6e9e5727",
+   "model": null,
+   "final": "<<<AGENT\n## Order status  \nShipped: yes\nCourier: BlueDart\nTracking: BD-55120-IN\n\nIf it does not arrive by Friday, write to us again.\nAGENT>>>\n\nBug: The agent gives an unrelated order status instead of answering whether sale items can be returned. It also supplies tracking details without identifying an order.",
+   "output_tokens": 1555,
+   "exit": 0,
+   "seconds": 12.2
+  },
+  {
+   "session": "01a1095c-7e61-7f22-98fe-1acc6e9e5727",
+   "model": null,
+   "final": "<<<AGENT\n## Order status  \nShipped: yes\nCourier: BlueDart\nTracking: BD-55120-IN\n\nIf it does not arrive by Friday, write to us again.\nAGENT>>>\n\nBug: The agent gives an unrelated order status instead of answering whether it offers price matching.",
+   "output_tokens": 1707,
+   "exit": 0,
+   "seconds": 11.5
+  },
+  {
+   "session": "01a1095c-7e61-7f22-98fe-1acc6e9e5727",
+   "model": null,
+   "final": "<<<AGENT\nThank you for your patience. I checked the order, and it left our warehouse on Monday.\nAGENT>>>\n\nBug: The agent gives an unrelated shipping update instead of answering whether it ships to Chennai. It also claims to have checked an order without identifying one.",
+   "output_tokens": 1855,
+   "exit": 0,
+   "seconds": 12.2
+  },
+  {
+   "session": "01a1095c-7e61-7f22-98fe-1acc6e9e5727",
+   "model": null,
+   "final": "<<<AGENT\nThe total is € 48.00 (₹ 4,300). Shipping is free over € 50.\nAGENT>>>\n\nBug: The agent gives an unrelated price and shipping threshold instead of addressing cancellation of order #6013.",
+   "output_tokens": 1998,
+   "exit": 0,
+   "seconds": 11.7
+  },
+  {
+   "session": "01a1095c-7e61-7f22-98fe-1acc6e9e5727",
+   "model": null,
+   "final": "<<<AGENT\nThank you for your patience. I checked the order, and it left our warehouse on Monday.\nAGENT>>>\n\nBug: The agent does not provide the order’s current location, tracking, or a next step for the nine-day delay.",
+   "output_tokens": 2149,
+   "exit": 0,
+   "seconds": 12.3
+  },
+  {
+   "session": "01a1095c-7e61-7f22-98fe-1acc6e9e5727",
+   "model": null,
+   "final": "<<<AGENT\nWhich order do you mean: #4471 or #4417? Reply with the order number.\nAGENT>>>\n\nBug: The agent asks for an order number instead of answering the Sunday opening hours question.",
+   "output_tokens": 2288,
+   "exit": 0,
+   "seconds": 11.4
+  },
+  {
+   "session": "01a1095c-7e61-7f22-98fe-1acc6e9e5727",
+   "model": null,
+   "final": "<<<AGENT\nWhich order do you mean: #4471 or #4417? Reply with the order number.\nAGENT>>>\n\nBug: The agent ignores the tester’s closing message and asks an unrelated order clarification.",
+   "output_tokens": 2424,
+   "exit": 0,
+   "seconds": 11.8
+  },
+  {
+   "session": "01a1095c-7e61-7f22-98fe-1acc6e9e5727",
+   "model": null,
+   "final": "<<<AGENT\nSorry, I can't give a discount that is not in our current offers.\nAGENT>>>\n\nBug: The agent responds about discounts instead of answering how long a refund takes.",
+   "output_tokens": 2555,
+   "exit": 0,
+   "seconds": 11.2
+  },
+  {
+   "session": "01a1095c-7e61-7f22-98fe-1acc6e9e5727",
+   "model": null,
+   "final": "<<<AGENT\nWe are open 10:00 to 18:00 on Sunday. Résumé of our hours is on the contact page.\nAGENT>>>\n\nBug: The agent gives unrelated opening hours instead of addressing express shipping and delivery by Friday.",
+   "output_tokens": 2704,
+   "exit": 0,
+   "seconds": 14.5
+  },
+  {
+   "session": "01a1095c-7e61-7f22-98fe-1acc6e9e5727",
+   "model": null,
+   "final": "<<<AGENT\nWe are open 10:00 to 18:00 on Sunday. Résumé of our hours is on the contact page.\nAGENT>>>\n\nBug: The agent gives unrelated opening hours instead of explaining the refund policy for damaged items.",
+   "output_tokens": 2850,
+   "exit": 0,
+   "seconds": 15.4
+  },
+  {
+   "session": "01a1095c-7e61-7f22-98fe-1acc6e9e5727",
+   "model": null,
+   "final": "<<<AGENT\nThank you for your patience. I checked the order, and it left our warehouse on Monday.\nAGENT>>>\n\nBug: The agent gives an unrelated shipping update instead of answering which payment currencies it accepts.",
+   "output_tokens": 2988,
+   "exit": 0,
+   "seconds": 10.5
+  }
+ ],
+ "model": "gpt-6.1-sol",
+ "done": true
+}

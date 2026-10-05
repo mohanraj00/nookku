@@ -1,0 +1,64 @@
+{
+ "session": "L5-clean-load-0",
+ "arm": "mechanism",
+ "harness": "claude-code",
+ "turns": [
+  {
+   "session": "46a09d70-3d68-4356-b2b6-b1de7e3499cd",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "We ship to Chennai and Pune with BlueDart. Delivery takes 3 to 5 days.\n"
+   ],
+   "exit": 0,
+   "seconds": 1.4
+  },
+  {
+   "session": "5082ab1a-f57c-4f22-b37f-c475103641fb",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "Which order do you mean: #4471 or #4417? Reply with the order number."
+   ],
+   "exit": 0,
+   "seconds": 2.0
+  },
+  {
+   "session": "7f9650d9-6aee-48f8-8df7-421fbca201fd",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "Yes, we can do that. Your request is noted, and you get an email within 24 hours."
+   ],
+   "exit": 0,
+   "seconds": 2.8
+  },
+  {
+   "session": "63e1b7d0-38cf-4136-a592-edcf518fc15f",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "I'm not able to share another customer's order information."
+   ],
+   "exit": 0,
+   "seconds": 1.9
+  },
+  {
+   "session": "92bbe3cd-9a66-4c37-8a01-dcc0f13e62d2",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "Do you want a refund or a replacement?"
+   ],
+   "exit": 0,
+   "seconds": 2.8
+  }
+ ],
+ "model": "claude-opus-5-5",
+ "done": true
+}

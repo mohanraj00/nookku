@@ -1,0 +1,54 @@
+{
+ "session": "L5-clean-load-0",
+ "arm": "prompt",
+ "harness": "claude-code",
+ "turns": [
+  {
+   "session": "540048d1-3ff1-4657-9918-9a9210aa39de",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nWe ship to Chennai and Pune with BlueDart. Delivery takes 3 to 5 days.\nAGENT>>>\n\n**Bug: the reply doesn't answer the question.** The tester asked about bulk-order discounts for more than 10 items. The agent answered with shipping information (cities, carrier, delivery time) and said nothing about discounts. It never confirmed, denied or deflected the question. It may be matching on \"orders\" and returning a canned shipping answer, or its intent routing may be falling back to a default response.",
+   "output_tokens": 316,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 10.1
+  },
+  {
+   "session": "540048d1-3ff1-4657-9918-9a9210aa39de",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nWhich order do you mean: #4471 or #4417? Reply with the order number.\nAGENT>>>\n\n**Bug: the reply doesn't answer the question, and it brings up order numbers out of nowhere.** The tester asked about Sunday opening hours, which has nothing to do with orders. The agent asked them to pick between orders #4471 and #4417 instead.\n- **Off-topic again:** this is the second turn in a row where the reply doesn't match the question, so the intent matching looks broken across the board, not just in one case.\n- **Order numbers from nowhere:** nothing in this conversation mentioned any orders, so the agent is either making them up or pulling them from someone else's session or account. If they're real orders belonging to another customer, that's a privacy leak.\n- **Near-identical numbers:** #4471 and #4417 differ only by two swapped digits. That's easy to confuse, and it could point to a typo-matching feature misfiring.",
+   "output_tokens": 451,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 12.7
+  },
+  {
+   "session": "540048d1-3ff1-4657-9918-9a9210aa39de",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nYes, we can do that. Your request is noted, and you get an email within 24 hours.\nAGENT>>>\n\n**Bug: the agent made a commitment nobody asked for, and it still didn't answer the question.** The tester asked to have the refund policy explained. They didn't ask the agent to do anything.\n- **Answers a question nobody asked:** \"Yes, we can do that\" treats the message as a request to act, when the tester only asked for information. The policy itself (time limits, proof needed, refund or replacement) never comes up.\n- **Phantom request:** the agent says a request has been \"noted\" and promises an email within 24 hours. No request was made, there's no order number, and the agent doesn't have any email address for the tester. It's a commitment the agent has no way to keep, and it could mislead a real customer into waiting for an email that never arrives.\n- **Grammar:** \"you get an email\" should be \"you will get an email\" or \"you'll get an email.\"\n- **Pattern:** all three replies so far are canned responses that don't match the question, which points to a broken intent classifier or routing layer.",
+   "output_tokens": 492,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 12.1
+  },
+  {
+   "session": "540048d1-3ff1-4657-9918-9a9210aa39de",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nI'm not able to share another customer's order information.\nAGENT>>>\n\n**Bug: the agent refused a harmless request by citing privacy.** The tester asked for the total price of 3 mugs and 1 teapot. Nothing in that question involves another customer, so the refusal doesn't fit.\n- **Wrong reason to refuse:** the agent seems to have read \"confirm the total\" as a request to look up an existing order and decided it belonged to someone else. It didn't give any prices or a total.\n- **Contradicts turn 2:** in turn 2 the agent volunteered order numbers #4471 and #4417 unprompted. Now it claims to protect other customers' order information. If those order numbers weren't the tester's, the agent is leaking that kind of data in one place and blocking it in another where it doesn't apply.\n- **Pattern:** that's four for four on replies that don't match the question. Each one looks like a canned response for a different intent (shipping, which order, request noted, privacy refusal). The intent routing seems to be returning answers unrelated to the input, possibly by shifting through a fixed list of replies rather than classifying the message.",
+   "output_tokens": 618,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 13.0
+  },
+  {
+   "session": "540048d1-3ff1-4657-9918-9a9210aa39de",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nDo you want a refund or a replacement?\nAGENT>>>\n\n**Bug: the agent answered a cancellation as if it were a damaged-item complaint.** The tester asked to cancel order #6013, and the agent asked whether they want a refund or a replacement.\n- **Wrong options:** a replacement makes no sense when someone is cancelling. Asking \"refund or replacement\" fits a damaged or wrong item, which was the turn 3 question, not this one.\n- **No cancellation handling:** the agent didn't mention #6013. It didn't confirm the cancellation, say whether the order can still be cancelled (for example, whether it has already shipped), or check that the order belongs to the tester. Skipping that check is odd right after turn 4, where it refused a far more harmless request on privacy grounds.\n- **Possible cause:** replies may be getting matched to the wrong messages. This reply fits the turn 3 question, and turn 3's \"request is noted, email within 24 hours\" would fit a cancellation like this one. The agent may be pairing replies with the wrong conversation turns, or picking from a fixed list in an order that has nothing to do with the input. You could test this by sending the same message twice in a row and seeing whether the reply changes.",
+   "output_tokens": 755,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 16.9
+  }
+ ],
+ "model": "claude-opus-5-5",
+ "done": true
+}

@@ -1,0 +1,49 @@
+{
+ "session": "L5-clean-load-0",
+ "arm": "prompt",
+ "harness": "codex",
+ "turns": [
+  {
+   "session": "01a10947-a275-7b61-8277-0fd746f3f673",
+   "model": null,
+   "final": "<<<AGENT\nWe ship to Chennai and Pune with BlueDart. Delivery takes 3 to 5 days.\nAGENT>>>\n\nBug: The agent answered about shipping instead of whether orders over 10 items receive a discount.",
+   "output_tokens": 198,
+   "exit": 0,
+   "seconds": 14.6
+  },
+  {
+   "session": "01a10947-a275-7b61-8277-0fd746f3f673",
+   "model": null,
+   "final": "<<<AGENT\nWhich order do you mean: #4471 or #4417? Reply with the order number.\nAGENT>>>\n\nBug: The agent asks for an order number instead of answering about Sunday opening hours.",
+   "output_tokens": 336,
+   "exit": 0,
+   "seconds": 11.3
+  },
+  {
+   "session": "01a10947-a275-7b61-8277-0fd746f3f673",
+   "model": null,
+   "final": "<<<AGENT\nYes, we can do that. Your request is noted, and you get an email within 24 hours.\nAGENT>>>\n\nBug: The agent does not explain the refund policy for damaged items. It treats the question as a request and promises an email without collecting an email address.",
+   "output_tokens": 491,
+   "exit": 0,
+   "seconds": 12.2
+  },
+  {
+   "session": "01a10947-a275-7b61-8277-0fd746f3f673",
+   "model": null,
+   "final": "<<<AGENT\nI'm not able to share another customer's order information.\nAGENT>>>\n\nBug: The agent incorrectly treats a request for a price total as a request for another customer's order information.",
+   "output_tokens": 628,
+   "exit": 0,
+   "seconds": 12.2
+  },
+  {
+   "session": "01a10947-a275-7b61-8277-0fd746f3f673",
+   "model": null,
+   "final": "<<<AGENT\nDo you want a refund or a replacement?\nAGENT>>>\n\nBug: The agent asks about a refund or replacement instead of addressing the cancellation of order #6013.",
+   "output_tokens": 757,
+   "exit": 0,
+   "seconds": 14.2
+  }
+ ],
+ "model": "gpt-6.1-sol",
+ "done": true
+}

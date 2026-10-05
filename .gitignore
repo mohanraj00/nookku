@@ -17,3 +17,4 @@ CLAUDE.local.md
 .verbatim-relay/
 .proof/
 bench/smoke/
+bench/logs/

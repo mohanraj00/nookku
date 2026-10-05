@@ -1,0 +1,54 @@
+{
+ "session": "L5-clean-load-4",
+ "arm": "prompt",
+ "harness": "claude-code",
+ "turns": [
+  {
+   "session": "dad90a86-f344-47a8-a1c8-10d627618543",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nWe are open 10:00 to 18:00 on Sunday. Résumé of our hours is on the contact page.\nAGENT>>>\n\n**Bugs I noticed:**\n- **It ignored the request.** The tester asked to speak to a person, but the agent didn't offer a handoff or explain how to reach someone. It talked about opening hours instead.\n- **The hours are incomplete.** It gave hours for Sunday only, without saying why Sunday matters or what the other days are. Today (2026-10-04) is a Sunday, so it may be answering for today without saying so.\n- **Wrong word.** \"Résumé of our hours\" is an odd use of the word, probably a mistranslation of \"summary.\" The reply reads a bit like a canned or template answer.",
+   "output_tokens": 384,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 12.2
+  },
+  {
+   "session": "dad90a86-f344-47a8-a1c8-10d627618543",
+   "model": "claude-opus-5-5",
+   "final": "The agent sent back an error instead of a reply. It had no `reply` field, so below is the raw response body, unchanged:\n\n<<<AGENT\n{\"error\": \"Internal error. Please try again.\"}\nAGENT>>>\n\n**Bugs I noticed:**\n- **It crashed on a normal complaint.** A plain product-defect message caused an internal error, and the response didn't match the documented `{\"reply\": ...}` format. Something in this input, maybe the word \"broke\" or the complaint intent, seems to break the agent.\n- **The error message doesn't help.** It doesn't acknowledge the problem or offer a fallback such as contact details or a handoff to a person. A customer would be stuck.\n\nI didn't resend the message, so I don't know if the error happens every time. I can resend it if you want to check.",
+   "output_tokens": 487,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 16.2
+  },
+  {
+   "session": "dad90a86-f344-47a8-a1c8-10d627618543",
+   "model": "claude-opus-5-5",
+   "final": "The agent failed again. The response had no `reply` field, so here is the raw body, unchanged:\n\n<<<AGENT\n{\"error\": \"Internal error. Please try again.\"}\nAGENT>>>\n\n**Bugs I noticed:**\n- **Second crash in a row.** This was a simple order question with nothing in common with the mug complaint, and it got the same internal error. The problem probably isn't tied to one kind of input. The agent may now fail on every request, possibly because of something left over from the last message.\n- **Same non-standard error format.** The response again skipped the documented `{\"reply\": ...}` format and gave no way forward.\n\nI didn't resend the message. If you want to know whether the agent is down entirely, I can send a simple message like \"Hello\" or resend the first message, which worked before.",
+   "output_tokens": 387,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 15.1
+  },
+  {
+   "session": "dad90a86-f344-47a8-a1c8-10d627618543",
+   "model": "claude-opus-5-5",
+   "final": "The agent failed for the third time in a row. The response had no `reply` field, so here is the raw body, unchanged:\n\n<<<AGENT\n{\"error\": \"Internal error. Please try again.\"}\nAGENT>>>\n\n**Bugs I noticed:**\n- **It's failing on every message since the first.** Three unrelated messages (a defect complaint, an order question and a discount code problem) all got the same internal error. That points to the agent itself being broken, not to anything in the messages. Only the first message has worked so far, so it may have broken after its first reply, for example by mishandling conversation state.\n- **Same non-standard error format.** The response again ignores the documented `{\"reply\": ...}` format.\n\nUntil the agent is fixed or restarted, more test messages will probably just repeat this error. If you want, I can send the first message again (\"I want to talk to a person, please.\") to see whether any request works now.",
+   "output_tokens": 431,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 15.3
+  },
+  {
+   "session": "dad90a86-f344-47a8-a1c8-10d627618543",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nDo you want a refund or a replacement?\nAGENT>>>\n\n**Bugs I noticed:**\n- **It's working again, but the answer misses the question.** The tester asked to exchange the mug for a bigger size. The agent offered a refund or a replacement instead. \"Replacement\" usually means the same item, so it doesn't clearly cover a size change, and it never answers whether a larger size exists or whether exchanges are allowed.\n- **It may be using context it never acknowledged.** \"Refund or replacement\" sounds like a reply to the broken-handle message, which errored out. The agent might have kept that earlier message even though it failed. Or it might just be matching on the word \"mug\" to give a canned answer, which is consistent with the template-style first reply.\n- **The errors came and went.** The last three requests failed and this one worked, with no restart from me. Either something changed on the agent's side, or the failures depend on the message content in a way that isn't obvious yet.",
+   "output_tokens": 454,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 17.9
+  }
+ ],
+ "model": "claude-opus-5-5",
+ "done": true
+}

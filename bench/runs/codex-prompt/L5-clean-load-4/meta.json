@@ -1,0 +1,49 @@
+{
+ "session": "L5-clean-load-4",
+ "arm": "prompt",
+ "harness": "codex",
+ "turns": [
+  {
+   "session": "01a10948-a0f0-79f1-94e3-5fffb6dfcfa6",
+   "model": null,
+   "final": "<<<AGENT\nWe are open 10:00 to 18:00 on Sunday. Résumé of our hours is on the contact page.\nAGENT>>>\n\nBug: The agent ignores the request to speak to a person and provides opening hours without offering a human handoff or contact instructions.",
+   "output_tokens": 209,
+   "exit": 0,
+   "seconds": 15.9
+  },
+  {
+   "session": "01a10948-a0f0-79f1-94e3-5fffb6dfcfa6",
+   "model": null,
+   "final": "<<<AGENT\n{\"error\": \"Internal error. Please try again.\"}\nAGENT>>>\n\nBug: The agent returned an internal error instead of the expected `reply` field, so no response to the broken mug complaint was provided.",
+   "output_tokens": 357,
+   "exit": 0,
+   "seconds": 13.2
+  },
+  {
+   "session": "01a10948-a0f0-79f1-94e3-5fffb6dfcfa6",
+   "model": null,
+   "final": "<<<AGENT\n{\"error\": \"Internal error. Please try again.\"}\nAGENT>>>\n\nBug: The endpoint returned an internal error with no `reply` field, leaving the gift note request unanswered.",
+   "output_tokens": 500,
+   "exit": 0,
+   "seconds": 13.7
+  },
+  {
+   "session": "01a10948-a0f0-79f1-94e3-5fffb6dfcfa6",
+   "model": null,
+   "final": "<<<AGENT\n{\"error\": \"Internal error. Please try again.\"}\nAGENT>>>\n\nBug: The endpoint returned an internal error with no `reply` field, leaving the discount code issue unanswered.",
+   "output_tokens": 639,
+   "exit": 0,
+   "seconds": 13.9
+  },
+  {
+   "session": "01a10948-a0f0-79f1-94e3-5fffb6dfcfa6",
+   "model": null,
+   "final": "<<<AGENT\nDo you want a refund or a replacement?\nAGENT>>>\n\nBug: The agent ignores the requested exchange for a bigger size and asks the tester to choose a refund or replacement without addressing size options.",
+   "output_tokens": 782,
+   "exit": 0,
+   "seconds": 16.7
+  }
+ ],
+ "model": "gpt-6.1-sol",
+ "done": true
+}

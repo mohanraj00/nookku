@@ -1,0 +1,189 @@
+{
+ "session": "L20-clean-load-3",
+ "arm": "prompt",
+ "harness": "claude-code",
+ "turns": [
+  {
+   "session": "c3c3db32-2a05-4353-bedb-03df547e4611",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nOur refund policy:\n\n1. Damaged items: full refund.\n2. Change of mind: refund within 30 days.\n3. Sale items: store credit only.\n\nCafé orders follow the same rules.   \nAGENT>>>\n\n**Bug:** The reply doesn't answer the question. The tester said the discount code SAVE10 isn't working, and the agent replied with its refund policy instead. It didn't mention SAVE10 or discount codes at all, and it didn't offer any troubleshooting, such as checking whether the code has expired, meets a minimum spend or applies to the items in the cart. It looks like the agent matched the message to the wrong intent or sent a canned fallback. A smaller issue is that the reply ends with three spaces, which I've kept above exactly as sent.",
+   "output_tokens": 394,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 22.5
+  },
+  {
+   "session": "c3c3db32-2a05-4353-bedb-03df547e4611",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nI can't change payment details in this chat. Please use the account page.\nAGENT>>>\n\n**Bug:** The reply doesn't answer the question. The tester asked which courier is used for Pune, and the agent answered about changing payment details, which nobody asked about. It didn't mention couriers, shipping or Pune. This is the second unrelated canned answer in a row (the first was the refund policy for a discount-code question), so the agent seems to be matching messages to the wrong intent rather than failing just once.",
+   "output_tokens": 302,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 25.1
+  },
+  {
+   "session": "c3c3db32-2a05-4353-bedb-03df547e4611",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nDo you want a refund or a replacement?\nAGENT>>>\n\n**Bug:** The reply doesn't answer the question. The tester asked whether they can add a gift note to order #7781, and the agent asked whether they want a refund or a replacement. Nothing in the message suggests a problem with the order. The agent didn't mention gift notes and didn't acknowledge the order number. That makes three unrelated answers out of three messages (discount code → refund policy, courier → payment details, gift note → refund or replacement). The agent seems to be consistently matching messages to the wrong intent, possibly leaning towards refunds and returns.",
+   "output_tokens": 371,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 21.1
+  },
+  {
+   "session": "c3c3db32-2a05-4353-bedb-03df547e4611",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nI'm not able to share another customer's order information.\nAGENT>>>\n\n**Bug:** The reply doesn't answer the question. The tester asked to return order #4471, and the agent refused as if they had asked to see another customer's order. Nothing in the message suggests the order belongs to someone else, and the agent gave no return steps or eligibility check and didn't offer to look up the order. It also wrongly treats an ordinary request as a privacy problem, which would block a legitimate customer.\n\nThat makes four unrelated replies out of four messages. My earlier guess that the agent leans towards refunds doesn't hold: when the tester actually asked for a return, it gave a privacy refusal instead. The replies look like random picks from a set of canned answers, unrelated to what the message says.",
+   "output_tokens": 591,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 28.4
+  },
+  {
+   "session": "c3c3db32-2a05-4353-bedb-03df547e4611",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nI'm not able to share another customer's order information.\nAGENT>>>\n\n**Bug:** The reply doesn't answer the question. The tester asked whether a replacement can be sent before they return the broken item, and the agent repeated the privacy refusal from the last message word for word. The message doesn't involve another customer's order. The agent didn't say yes or no to sending the replacement first, didn't mention a replacement or return process, and didn't acknowledge that the item is broken.\n\nThat makes five unrelated replies out of five messages, and this is the first time the agent has repeated an earlier reply exactly. That fits the pattern of canned answers chosen without regard to what the message says. It's also possible the agent remembers earlier turns and got stuck on the refusal, but I can't tell that from outside.",
+   "output_tokens": 417,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 57.0
+  },
+  {
+   "session": "c3c3db32-2a05-4353-bedb-03df547e4611",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nThank you for your patience. I checked the order, and it left our warehouse on Monday.\nAGENT>>>\n\n**Bug:** The reply doesn't answer the question. The tester asked for an invoice with their company name on it, and the agent gave a shipping update instead. It didn't mention invoices or company details.\n\nA more serious problem is that the agent says it \"checked the order\", but this message doesn't mention any order. Earlier messages mentioned two different orders (#7781 and #4471), so it isn't clear which one it means, if any. Its claim that the order \"left our warehouse on Monday\" looks made up. Telling a customer a check was done, and giving a specific status, when nothing was checked is misleading. That is worse than a merely irrelevant reply.\n\nThat makes six unrelated replies out of six messages.",
+   "output_tokens": 438,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 8.0
+  },
+  {
+   "session": "c3c3db32-2a05-4353-bedb-03df547e4611",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nWe ship to Chennai and Pune with BlueDart. Delivery takes 3 to 5 days.\n\nAGENT>>>\n\n**Bug:** The reply doesn't answer the question. The tester asked whether they can exchange the mug for a bigger size, and the agent gave shipping information instead. It didn't mention exchanges, mugs or sizes.\n\nThis is in fact the answer to the tester's second message (\"Which courier do you use for Pune?\"), five messages late. So the agent can produce a relevant answer, but it attaches answers to the wrong messages. It may be mixing up responses between turns or pulling from a shared pool, not simply always picking the wrong intent.\n\nThat makes seven unrelated replies out of seven messages. A smaller issue is that the reply ends with a newline, which I've kept above exactly as sent.",
+   "output_tokens": 446,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 10.2
+  },
+  {
+   "session": "c3c3db32-2a05-4353-bedb-03df547e4611",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nSure. Here is what I found for you.  \n\n| item | price |\n|---|---|\n| blue mug | € 8 |\n| teapot | € 24 |\n\nAGENT>>>\n\n**Bug:** The reply doesn't answer either question. The tester asked whether you ship abroad and whether shipping is free over €50. The agent sent a price table for a blue mug and a teapot instead, with no mention of international shipping, shipping costs or the €50 threshold. It also opens with \"Here is what I found for you\", as if it had run a search the tester asked for, which it hadn't.\n\nThat makes eight unrelated replies out of eight messages. The two-question format didn't help: the agent answered neither question. Two smaller issues: there are two spaces after \"for you.\" and a newline at the end, both kept above exactly as sent. I sent the message with its line breaks and the € sign exactly as written.",
+   "output_tokens": 1135,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 14.7
+  },
+  {
+   "session": "c3c3db32-2a05-4353-bedb-03df547e4611",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nOur refund policy:\n\n1. Damaged items: full refund.\n2. Change of mind: refund within 30 days.\n3. Sale items: store credit only.\n\nCafé orders follow the same rules.   \nAGENT>>>\n\n**Bug:** The reply doesn't deal with the problem. The tester says their parcel is marked delivered but never arrived, and the agent posted its refund policy, word for word the same as its reply to the first message. It didn't acknowledge the missing parcel and didn't offer to open a courier investigation, ask for the order number or suggest checking with neighbours or a safe place. None of the three policy points covers a parcel that never arrived, so the reply doesn't even half-answer the question.\n\nThat makes nine unrelated replies out of nine messages. This is the second exact repeat (after the privacy refusal), so the agent appears to draw from a small fixed set of canned answers. The three spaces at the end are still there, kept above exactly as sent.",
+   "output_tokens": 455,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 9.2
+  },
+  {
+   "session": "c3c3db32-2a05-4353-bedb-03df547e4611",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\n## Order status  \nShipped: yes\nCourier: BlueDart\nTracking: BD-55120-IN\n\nIf it does not arrive by Friday, write to us again.\nAGENT>>>\n\n**Bug:** The reply doesn't answer the question. The tester asked whether they can return a sale item, and the agent gave an order status instead. It didn't mention returns or sale items.\n\nIt also gave a specific tracking number (BD-55120-IN) and a delivery deadline without the tester naming any order. Like the earlier \"I checked the order\" reply, this status looks made up, and a customer could act on it as if it were real.\n\nThe refund policy the agent sent last time (\"Sale items: store credit only\") would have answered this question. So once again the right answer turned up one message too early. Taken with the courier answer that came five messages late, this suggests the agent matches answers to the wrong messages, not that it lacks the answers.\n\nThat makes ten unrelated replies out of ten messages. A smaller issue is that the heading \"## Order status\" has two spaces at the end, kept above exactly as sent.",
+   "output_tokens": 561,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 9.4
+  },
+  {
+   "session": "c3c3db32-2a05-4353-bedb-03df547e4611",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\n## Order status  \nShipped: yes\nCourier: BlueDart\nTracking: BD-55120-IN\n\nIf it does not arrive by Friday, write to us again.\nAGENT>>>\n\n**Bug:** The reply doesn't answer the question. The tester asked whether you price match, and the agent repeated the order-status block from its last reply word for word. It said nothing about price matching. It also gave the same tracking number (BD-55120-IN) and Friday deadline again, with no order named. That is now the second time it has stated this order information as fact without any basis.\n\nThat makes eleven unrelated replies out of eleven messages. This is the second time the agent has sent the same reply to two messages in a row (the privacy refusal was the first), which supports the idea that it gets stuck on its last answer or picks from a small fixed set. The two spaces after the heading are still there, kept above exactly as sent.",
+   "output_tokens": 441,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 9.6
+  },
+  {
+   "session": "c3c3db32-2a05-4353-bedb-03df547e4611",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nThank you for your patience. I checked the order, and it left our warehouse on Monday.\nAGENT>>>\n\n**Bug:** The reply doesn't answer the question. The tester asked whether you ship to Chennai, and the agent repeated its earlier \"I checked the order\" reply word for word. It didn't mention Chennai or shipping areas. It also claims again to have checked an order the tester never named and gives a made-up departure day. That is the third reply stating order details with no basis.\n\nThe right answer (\"We ship to Chennai and Pune with BlueDart\") was sent five messages ago, in reply to the mug exchange question, so the agent has the information but gave it to the wrong message again.\n\nThat makes twelve unrelated replies out of twelve messages. The agent has now repeated four of its replies word for word: the refund policy, the privacy refusal, the order status and this one. So far it has used only a fixed set of about eight canned answers, and I've seen no sign that it reads the message.",
+   "output_tokens": 479,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 8.6
+  },
+  {
+   "session": "c3c3db32-2a05-4353-bedb-03df547e4611",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nThe total is € 48.00 (₹ 4,300). Shipping is free over € 50.\nAGENT>>>\n\n**Bug:** The reply doesn't do what was asked. The tester asked to cancel order #6013, and the agent quoted an order total and the free-shipping threshold instead. It didn't confirm the cancellation, refuse it, explain how to cancel or even mention order #6013. That is risky, because the customer may think the cancellation went through when nothing happened.\n\nThe €48.00 total also looks made up, since no basket or order details were given. It's another case of the agent stating order details it has no basis for.\n\n\"Shipping is free over €50\" answers the second half of the two-question message from five messages ago. That's a third answer that turned up for the wrong message. The first half of that message, about shipping abroad, still hasn't been answered.\n\nThat makes thirteen unrelated replies out of thirteen messages.",
+   "output_tokens": 521,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 9.6
+  },
+  {
+   "session": "c3c3db32-2a05-4353-bedb-03df547e4611",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nThank you for your patience. I checked the order, and it left our warehouse on Monday.\nAGENT>>>\n\n**Bug:** This is the first reply that is roughly on topic, but it is the same canned text the agent sent to the invoice question and the Chennai question. The agent has used this \"I checked the order\" reply for three unrelated messages, so it almost certainly didn't look up order #8890. Here the made-up status is more harmful, because the customer will take it as a real answer about their own order.\n\nThe reply also falls short in other ways:\n- It doesn't mention order #8890.\n- It ignores that the order is 9 days late: it gives no apology, escalation, new delivery estimate or offer of a refund or replacement.\n- \"Left our warehouse on Monday\" doesn't fit with an order that is 9 days late. Either the order shipped late, which should be acknowledged, or the status is wrong.\n- It gives no tracking number or courier.\n\nCounting this one as a match by chance, that's thirteen unrelated replies and one loose match out of fourteen messages.",
+   "output_tokens": 586,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 11.2
+  },
+  {
+   "session": "c3c3db32-2a05-4353-bedb-03df547e4611",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nWhich order do you mean: #4471 or #4417? Reply with the order number.\nAGENT>>>\n\n**Bug:** The reply doesn't answer the question. The tester asked about Sunday opening hours, and the agent asked which order they mean. The question has nothing to do with an order, and it didn't mention opening hours, Sunday or the store at all.\n\nThe order numbers are a further problem:\n- **#4417 has never come up in this conversation.** The tester mentioned #4471 (the return request) but never #4417. Either the agent invented the number, or it is showing a real order number from another account. If it's the second, that's a privacy leak, and it contradicts the agent's earlier refusal: \"I'm not able to share another customer's order information.\" This is worth checking in the backend.\n- **The two numbers differ only by swapped digits** (#4471 and #4417). If this prompt is meant to settle which order the customer means, the near-identical numbers make it easy to pick the wrong one.\n- **It ignores more recent orders.** The tester has since mentioned #6013 and #8890, so the order context is out of date even on its own terms.\n\nThat makes fourteen unrelated replies and one loose match out of fifteen messages.",
+   "output_tokens": 587,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 11.8
+  },
+  {
+   "session": "c3c3db32-2a05-4353-bedb-03df547e4611",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nWhich order do you mean: #4471 or #4417? Reply with the order number.\nAGENT>>>\n\n**Bug:** The reply ignores the sign-off. The tester said \"Thank you, that is all\", which ends the conversation, and the agent repeated the question from its last reply word for word, asking them to pick an order. It gave no acknowledgement, no goodbye and no wrap-up. It also repeats the unexplained #4417 again, along with the #4471/#4417 mix-up.\n\n**Summary of the session:** Across 16 messages, the agent answered only one roughly on topic (order #8890), and that was a canned reply it had already sent to unrelated questions. The main problems were:\n1. **The replies don't follow the messages.** They come from a fixed set of about nine canned answers, often repeated word for word, sometimes two turns in a row.\n2. **Answers go to the wrong messages.** The answers about the Pune courier, sale-item returns, Chennai shipping and the €50 free-shipping threshold all exist, but they were sent several messages too early or too late.\n3. **It states order details with no basis.** It claimed to have checked orders and gave a departure day, tracking number BD-55120-IN, a Friday deadline and a €48 total, none of it tied to anything the tester gave.\n4. **Some requests were silently ignored.** The cancellation of #6013 and the return of #4471 were never acted on or refused, so a customer could think they had gone through.\n5. **Possible privacy leak.** It showed order #4417, which the tester never mentioned, even though it earlier refused to share other customers' order information.\n6. **Formatting.** Some replies have spaces or a newline at the end.",
+   "output_tokens": 700,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 13.1
+  },
+  {
+   "session": "c3c3db32-2a05-4353-bedb-03df547e4611",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nSorry, I can't give a discount that is not in our current offers.\nAGENT>>>\n\n**Bug:** The reply doesn't answer the question. The tester asked how long a refund takes, and the agent said it can't give a discount outside its current offers. Nobody asked for a discount. It gave no refund timeline and didn't mention refunds at all, even though it has a canned refund policy that it has already sent twice.\n\nThis reply roughly fits the very first message (\"My discount code SAVE10 does not work\"), sixteen messages ago. That's the fifth answer to turn up for the wrong message. It would still have been a weak answer there, because it treats SAVE10 as an invalid request without checking the code.\n\nThe agent also has no sense that the conversation ended. The tester signed off last turn, and the agent carried on with an answer that doesn't follow from anything.\n\nThat makes sixteen unrelated replies and one loose match out of seventeen messages.",
+   "output_tokens": 477,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 9.6
+  },
+  {
+   "session": "c3c3db32-2a05-4353-bedb-03df547e4611",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nWe are open 10:00 to 18:00 on Sunday. Résumé of our hours is on the contact page.\nAGENT>>>\n\n**Bug:** The reply doesn't answer the question. The tester asked whether express shipping is possible so the order arrives by Friday, and the agent gave its Sunday opening hours instead. It didn't mention express shipping, delivery times or Friday, and didn't ask which order is meant.\n\nThis is the answer to \"What are your opening hours on Sunday?\" from three messages ago. That's the sixth answer to turn up for the wrong message.\n\nA smaller wording problem: \"Résumé of our hours\" uses \"résumé\" where \"summary\" was meant. In English a résumé is a CV, so the sentence reads oddly and looks like a translation or wording slip.\n\nThat makes seventeen unrelated replies and one loose match out of eighteen messages.",
+   "output_tokens": 489,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 8.7
+  },
+  {
+   "session": "c3c3db32-2a05-4353-bedb-03df547e4611",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nWe are open 10:00 to 18:00 on Sunday. Résumé of our hours is on the contact page.\nAGENT>>>\n\n**Bug:** The reply doesn't answer the question. The tester asked about the refund policy for damaged items, and the agent repeated its Sunday opening hours word for word from the last reply. It didn't mention refunds or damaged items.\n\nThe agent has a canned refund policy that answers this exactly (\"Damaged items: full refund\"), and it sent that policy twice earlier to messages where it didn't fit. Now that someone asks for it directly, it doesn't send it.\n\nThis is the third time the agent has sent the same reply to two messages in a row, after the privacy refusal and the order-status block. The \"Résumé\" wording slip is repeated too.\n\nThat makes eighteen unrelated replies and one loose match out of nineteen messages.",
+   "output_tokens": 422,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 8.2
+  },
+  {
+   "session": "c3c3db32-2a05-4353-bedb-03df547e4611",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nThank you for your patience. I checked the order, and it left our warehouse on Monday.\nAGENT>>>\n\n**Bug:** The reply doesn't answer the question. The tester asked whether they can pay in euros or rupees, and the agent sent its \"I checked the order\" reply again, word for word. It didn't mention payment or currencies.\n\nThis is the fifth time it has sent this reply, and it again claims to have checked an order when no order was mentioned. Earlier the agent quoted a total in both currencies (\"€ 48.00 (₹ 4,300)\"), so it may have some currency information, but it didn't use it here.\n\nI sent the € and ₹ symbols as UTF-8, exactly as written.\n\nThat makes nineteen unrelated replies and one loose match out of twenty messages.",
+   "output_tokens": 483,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 9.6
+  }
+ ],
+ "model": "claude-opus-5-5",
+ "done": true
+}

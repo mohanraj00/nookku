@@ -1,0 +1,49 @@
+{
+ "session": "L5-amb-load-4",
+ "arm": "prompt",
+ "harness": "codex",
+ "turns": [
+  {
+   "session": "01a1094b-78e7-77e2-bb6b-823fea818105",
+   "model": null,
+   "final": "<<<AGENT\nDo you want a refund or a replacement?\nAGENT>>>\n\nPotential bug: The agent offers a refund or replacement before checking the delivery details or eligibility.",
+   "output_tokens": 139,
+   "exit": 0,
+   "seconds": 11.4
+  },
+  {
+   "session": "01a1094b-78e7-77e2-bb6b-823fea818105",
+   "model": null,
+   "final": "<<<AGENT\nI can't change payment details in this chat. Please use the account page.\nAGENT>>>\n\nBug: The agent misinterprets a gift card availability question as a request to change payment details and does not answer it.",
+   "output_tokens": 280,
+   "exit": 0,
+   "seconds": 11.7
+  },
+  {
+   "session": "01a1094b-78e7-77e2-bb6b-823fea818105",
+   "model": null,
+   "final": "<<<AGENT\nOur refund policy:\n\n1. Damaged items: full refund.\n2. Change of mind: refund within 30 days.\n3. Sale items: store credit only.\n\nCafé orders follow the same rules.   \nAGENT>>>\n\nBug: The agent gives an unrelated refund policy instead of clarifying what “yes” refers to; its previous reply asked no question.",
+   "output_tokens": 451,
+   "exit": 0,
+   "seconds": 14.5
+  },
+  {
+   "session": "01a1094b-78e7-77e2-bb6b-823fea818105",
+   "model": null,
+   "final": "<<<AGENT\n## Order status  \nShipped: yes\nCourier: BlueDart\nTracking: BD-55120-IN\n\nIf it does not arrive by Friday, write to us again.\nAGENT>>>\n\nBug: The agent ignores the request to speak to a person and returns unrelated order tracking information.",
+   "output_tokens": 610,
+   "exit": 0,
+   "seconds": 13.0
+  },
+  {
+   "session": "01a1094b-78e7-77e2-bb6b-823fea818105",
+   "model": null,
+   "final": "<<<AGENT\nGood question! The mug is dishwasher safe, but not microwave safe.\nAGENT>>>\n\nBug: The agent answers with unrelated mug care instructions and does not address price matching.",
+   "output_tokens": 741,
+   "exit": 0,
+   "seconds": 13.3
+  }
+ ],
+ "model": "gpt-6.1-sol",
+ "done": true
+}

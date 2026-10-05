@@ -1,0 +1,49 @@
+{
+ "session": "L5-amb-load-1",
+ "arm": "prompt",
+ "harness": "codex",
+ "turns": [
+  {
+   "session": "01a1094a-cd5d-76b1-a38e-9c33f6262844",
+   "model": null,
+   "final": "<<<AGENT\nWe are open 10:00 to 18:00 on Sunday. Résumé of our hours is on the contact page.\nAGENT>>>\n\nBug: The agent returned unrelated opening hours instead of correcting the grammar and handling the request to send a refund message.",
+   "output_tokens": 210,
+   "exit": 0,
+   "seconds": 13.8
+  },
+  {
+   "session": "01a1094a-cd5d-76b1-a38e-9c33f6262844",
+   "model": null,
+   "final": "<<<AGENT\nI can't change payment details in this chat. Please use the account page.\nAGENT>>>\n\nBug: The agent responds about payment details instead of addressing the status of order #8890 and its nine-day delay.",
+   "output_tokens": 360,
+   "exit": 0,
+   "seconds": 14.9
+  },
+  {
+   "session": "01a1094a-cd5d-76b1-a38e-9c33f6262844",
+   "model": null,
+   "final": "<<<AGENT\nWe are open 10:00 to 18:00 on Sunday. Résumé of our hours is on the contact page.\nAGENT>>>\n\nBug: The agent gives opening hours instead of answering how long a refund takes.",
+   "output_tokens": 506,
+   "exit": 0,
+   "seconds": 11.3
+  },
+  {
+   "session": "01a1094a-cd5d-76b1-a38e-9c33f6262844",
+   "model": null,
+   "final": "<<<AGENT\nYes, we can do that. Your request is noted, and you get an email within 24 hours.\nAGENT>>>\n\nBug: The agent treats an ambiguous follow-up as an actionable request and promises an email without clarifying what the tester means.",
+   "output_tokens": 653,
+   "exit": 0,
+   "seconds": 13.6
+  },
+  {
+   "session": "01a1094a-cd5d-76b1-a38e-9c33f6262844",
+   "model": null,
+   "final": "<<<AGENT\nThank you for your patience. I checked the order, and it left our warehouse on Monday.\nAGENT>>>\n\nBug: The agent responds about an order shipment instead of answering whether the teapot is available in green.",
+   "output_tokens": 799,
+   "exit": 0,
+   "seconds": 13.4
+  }
+ ],
+ "model": "gpt-6.1-sol",
+ "done": true
+}

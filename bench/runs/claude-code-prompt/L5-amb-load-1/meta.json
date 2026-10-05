@@ -1,0 +1,54 @@
+{
+ "session": "L5-amb-load-1",
+ "arm": "prompt",
+ "harness": "claude-code",
+ "turns": [
+  {
+   "session": "a1dd5644-5bce-40fb-9594-2b0d272e4346",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nWe are open 10:00 to 18:00 on Sunday. Résumé of our hours is on the contact page.\nAGENT>>>\n\n**Bugs noticed:**\n1. **Reply doesn't match the request.** The tester asked for a grammar fix and a refund request to be sent. The agent answered with store hours and did neither. It didn't correct the sentence (for example, \"I want a refund for a broken mug.\"), didn't send anything or confirm sending, and didn't acknowledge the refund request at all.\n2. **Wrong word.** \"Résumé of our hours\" misuses \"résumé\", which means a CV. The intended word is probably \"summary\".\n3. **Possible fallback problem.** Giving a canned store-hours answer to an unrelated request suggests the agent misclassified the intent, or falls back to a default answer when it doesn't understand. A refund request should be routed to the refund flow.",
+   "output_tokens": 439,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 13.9
+  },
+  {
+   "session": "a1dd5644-5bce-40fb-9594-2b0d272e4346",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nI can't change payment details in this chat. Please use the account page.\nAGENT>>>\n\n**Bugs noticed:**\n1. **Reply doesn't match the request.** The tester asked where order #8890 is and said it's 9 days late. The agent answered about changing payment details, which the tester never mentioned. It didn't look up the order, give a status, or acknowledge the delay.\n2. **Intent misclassification keeps happening.** This is the second unrelated canned reply in a row (store hours last time, payment details now). The agent seems to pick replies that have nothing to do with the input, possibly at random or from a broken intent mapping.\n3. **No escalation.** A 9-day delay is a complaint and should get an apology, a status lookup, or a hand-off to a person. The agent offered none of these.",
+   "output_tokens": 404,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 18.9
+  },
+  {
+   "session": "a1dd5644-5bce-40fb-9594-2b0d272e4346",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nWe are open 10:00 to 18:00 on Sunday. Résumé of our hours is on the contact page.\nAGENT>>>\n\n**Bugs noticed:**\n1. **Reply doesn't match the request.** The tester asked how long a refund takes. The agent gave store hours again and no refund timeline.\n2. **Same canned reply as message 1.** The agent returned the identical store-hours text for a different refund-related question. So refund questions may be mapped to the hours reply, or the agent cycles through a small set of fixed replies whatever the input. Three for three replies have been off-topic.\n3. **Same wrong word.** \"Résumé of our hours\" still misuses \"résumé\".",
+   "output_tokens": 361,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 11.7
+  },
+  {
+   "session": "a1dd5644-5bce-40fb-9594-2b0d272e4346",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nYes, we can do that. Your request is noted, and you get an email within 24 hours.\nAGENT>>>\n\n**Bugs noticed:**\n1. **Agrees to an unclear request.** \"same as before\" is ambiguous: it could mean the refund question, the late order, or the first message. The agent said \"Yes, we can do that\" and \"Your request is noted\" without asking which one or saying what it noted. That sets the customer up to expect something that may never happen.\n2. **No context is kept between messages, but it acts as if there is.** Each earlier reply ignored what the tester said, so there's no sign the agent remembers anything. Yet it confirms \"same as before\" as if it knew what that referred to. Either it has no memory and is bluffing, or it has memory that its earlier replies didn't use.\n3. **Grammar error.** \"you get an email\" should be \"you will get an email\" or \"you'll get an email\". It's the same kind of slip as the \"résumé\" misuse.\n4. **The one confirmation went to the vaguest message.** Of four messages, the only one the agent said it would act on is the one with no clear request. The three concrete requests (send a refund request, find order #8890, give the refund timeline) got unrelated canned replies.",
+   "output_tokens": 563,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 13.1
+  },
+  {
+   "session": "a1dd5644-5bce-40fb-9594-2b0d272e4346",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nThank you for your patience. I checked the order, and it left our warehouse on Monday.\nAGENT>>>\n\n**Bugs noticed:**\n1. **Reply doesn't match the request.** The tester asked whether the teapot comes in green. The agent answered about an order shipping and gave no product or stock information.\n2. **Possibly a delayed answer to message 2.** This reads like the reply that belonged to \"Where is my order #8890?\" It could mean replies are offset or queued, so the agent answers an earlier message. It could also be one more unrelated canned reply. Worth a follow-up test to tell the two apart.\n3. **Claims an action it probably didn't take.** \"I checked the order\" says the agent looked something up, but no order was named in this message and it gave no order number. If it never checked, the reply invents a lookup and a shipping date (\"Monday\").\n4. **The pattern now covers every message.** Five for five replies have been off-topic: hours, payment, hours, a vague confirmation, and shipping. The agent's mapping from questions to replies looks broken in general, not just for certain intents.",
+   "output_tokens": 497,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 11.3
+  }
+ ],
+ "model": "claude-opus-5-5",
+ "done": true
+}

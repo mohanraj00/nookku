@@ -1,0 +1,189 @@
+{
+ "session": "L20-clean-load-1",
+ "arm": "prompt",
+ "harness": "claude-code",
+ "turns": [
+  {
+   "session": "d9cbf6a6-8d30-47f1-860d-d1ab35880629",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nI can't change payment details in this chat. Please use the account page.\nAGENT>>>\n\n**Bug:** The reply doesn't answer the question. The tester asked whether gift cards are sold, and the agent answered as if they had asked to change payment details. It looks like the agent misread the intent, possibly treating \"gift cards\" as a payment or card topic and sending the message to a canned payment-details refusal. The tester still doesn't know whether gift cards are available.",
+   "output_tokens": 287,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 32.3
+  },
+  {
+   "session": "d9cbf6a6-8d30-47f1-860d-d1ab35880629",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nWe ship to Chennai and Pune with BlueDart. Delivery takes 3 to 5 days.\n\nAGENT>>>\n\n**Bug:** This reply doesn't answer the question either. The tester asked about getting an invoice with a company name on it, and the agent gave a canned shipping answer (BlueDart, Chennai and Pune, 3 to 5 days). That's the second time in a row the agent has misread the intent and returned an unrelated canned reply, so its intent matching looks broken in general, not just for one topic. The reply also ends with a stray newline, which is a minor formatting issue.",
+   "output_tokens": 340,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 18.7
+  },
+  {
+   "session": "d9cbf6a6-8d30-47f1-860d-d1ab35880629",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nI added a note to the order. You can see it on the order page under «Notes».\nAGENT>>>\n\n**Bug:** The agent didn't answer whether it price matches and gave an unrelated reply for the third time in a row. This one is also worse than the last two. It says it \"added a note to the order,\" but the tester never asked for a note and never mentioned an order. If the agent really changed an order, it acted without being asked. If it didn't, it's falsely claiming it did. Either way it's a real problem, because the reply could mislead a user about the state of their order.",
+   "output_tokens": 364,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 24.0
+  },
+  {
+   "session": "d9cbf6a6-8d30-47f1-860d-d1ab35880629",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nGood question! The mug is dishwasher safe, but not microwave safe.\nAGENT>>>\n\n**Bugs:**\n- **Wrong answer again.** The tester asked about shipping abroad and free shipping over €50. The agent answered with mug care instructions, which nobody asked about. That's four messages in a row with an unrelated reply. It looks like the agent picks a canned answer at random, or its intent matching has nothing to do with the input.\n- **Ignored both questions.** The tester asked two numbered questions and the agent answered neither, so it gives no sign it can handle more than one question in a message.\n- **Opener doesn't fit.** \"Good question!\" is followed by an answer to a different question, which makes the mismatch more obvious to a user.\n\nI sent your message exactly as written, keeping the line breaks and the € sign. I sent the space in \"€ 50\" as an ordinary space.",
+   "output_tokens": 1604,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 35.3
+  },
+  {
+   "session": "d9cbf6a6-8d30-47f1-860d-d1ab35880629",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nGood question! The mug is dishwasher safe, but not microwave safe.\nAGENT>>>\n\n**Bugs:**\n- **Wrong answer, fifth time in a row.** The tester reported a parcel marked delivered that never arrived, and the agent answered with mug care instructions. This is exactly the same reply as last time, even though the two inputs were completely different. That fits the agent ignoring what the user says.\n- **Missed an urgent support case.** A parcel shown as delivered but not received is a likely loss or theft. The agent should acknowledge it and offer next steps, such as asking for the order number, starting a carrier claim or handing off to a person. It did none of that.\n- **\"Good question!\" is wrong here.** The tester made a complaint, not a question, so the opener is also inappropriate.",
+   "output_tokens": 406,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 33.6
+  },
+  {
+   "session": "d9cbf6a6-8d30-47f1-860d-d1ab35880629",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nOur refund policy:\n\n1. Damaged items: full refund.\n2. Change of mind: refund within 30 days.\n3. Sale items: store credit only.\n\nCafé orders follow the same rules.   \nAGENT>>>\n\n**Notes:**\n- **First on-topic answer.** This is the first reply in the session that matches the question: damaged items get a full refund. It's the only correct match out of six, so the earlier misrouting is still the main bug.\n- **Facts may conflict.** \"Café orders follow the same rules\" is the first mention of a café. Earlier replies described a shop that ships with BlueDart and sells mugs. Either the agent is mixing in content from another business or it's making facts up, and someone should check this against the real policy.\n- **Missing detail on damaged items.** The reply doesn't say how to claim, whether there's a time limit, or whether a photo or the returned item is needed. A user can't act on \"full refund\" alone.\n- **Trailing whitespace.** The reply ends with three trailing spaces. I kept them above, but they're invisible. It's a minor formatting issue, like the trailing newline in reply 2.",
+   "output_tokens": 625,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 24.7
+  },
+  {
+   "session": "d9cbf6a6-8d30-47f1-860d-d1ab35880629",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nOur refund policy:\n\n1. Damaged items: full refund.\n2. Change of mind: refund within 30 days.\n3. Sale items: store credit only.\n\nCafé orders follow the same rules.   \nAGENT>>>\n\n**Notes:**\n- **On topic, but no direct answer.** The reply is word for word the same as the last one, including the three trailing spaces. Item 3 covers sale items, so it's relevant, but the agent pasted the whole canned policy instead of answering the question.\n- **Unclear wording.** \"Store credit only\" suggests a sale item can be returned for store credit, but it doesn't say so outright. It also doesn't say whether the 30-day window or any other conditions apply to sale items, so the user still can't tell for sure whether a return is allowed.\n- **Café mention again.** The odd \"Café orders\" line shows up again. It's the same possible content mix-up I noted on the last reply.",
+   "output_tokens": 497,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 30.2
+  },
+  {
+   "session": "d9cbf6a6-8d30-47f1-860d-d1ab35880629",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nWe are open 10:00 to 18:00 on Sunday. Résumé of our hours is on the contact page.\nAGENT>>>\n\n**Bugs:**\n- **No handoff.** The tester asked for a human, and the agent gave opening hours instead of passing them to a person or giving a phone number, email or chat link. Opening hours are loosely related at best. Ignoring a request for a human is a serious support failure, especially after the earlier report of a missing parcel.\n- **Hours are incomplete.** The reply gives hours only for Sunday and says nothing about the other days, so the information is partial or wrong.\n- **Wrong word.** \"Résumé of our hours\" misuses \"résumé,\" which means a CV in English. The intended word is probably \"summary,\" which reads like a bad translation or template text.\n- **Contact details missing.** It points to \"the contact page\" but gives no link or actual contact method.",
+   "output_tokens": 429,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 29.1
+  },
+  {
+   "session": "d9cbf6a6-8d30-47f1-860d-d1ab35880629",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\n## Order status  \nShipped: yes\nCourier: BlueDart\nTracking: BD-55120-IN\n\nIf it does not arrive by Friday, write to us again.\nAGENT>>>\n\n**Bugs:**\n- **Wrong answer.** The tester asked whether the café set is in stock, and the agent sent an order status. It gives no stock information at all.\n- **Possibly made-up or leaked order data.** The tester gave no order number and isn't identified, yet the agent shows a specific tracking number (BD-55120-IN). Either it invented the tracking details, or it's showing another customer's order data, which would be a privacy problem. Someone should check where that number comes from.\n- **Doesn't fit earlier replies.** Earlier the tester said their parcel showed as delivered but never arrived, and the agent ignored it. Now it says an order has shipped and to wait until Friday, which doesn't match that report. The agent isn't keeping track of the conversation.\n- **Formatting.** The reply uses Markdown (a \"##\" heading followed by two trailing spaces, which Markdown treats as a forced line break). If the chat front end shows plain text, those characters will appear as-is. The other replies were plain text, so the formatting is inconsistent.\n\nThe \"é\" in \"café\" was sent as UTF-8, exactly as you typed it.",
+   "output_tokens": 893,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 31.5
+  },
+  {
+   "session": "d9cbf6a6-8d30-47f1-860d-d1ab35880629",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nWhich order do you mean: #4471 or #4417? Reply with the order number.\nAGENT>>>\n\n**Bugs:**\n- **Wrong answer.** The tester asked whether the teapot comes in green, which is a product question that has nothing to do with an order. The agent asked which order they meant instead. That makes eight wrong answers out of ten.\n- **Shows order numbers without verifying anyone.** The agent lists two order numbers (#4471 and #4417) even though the tester never mentioned an order or identified themselves. Together with the tracking number in the last reply, this points to the agent showing account or order data it either made up or shouldn't show to an unverified user.\n- **Order numbers are easy to confuse.** #4471 and #4417 differ only by swapped digits. If these are made up, they look like a template error. If they're real, a user could easily pick the wrong one.\n- **No memory of earlier messages.** If the agent thought the tester had orders, it already \"showed\" one order status (BD-55120-IN) in the last reply, and now it suddenly needs them to choose between two. The replies don't hang together.",
+   "output_tokens": 542,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 35.5
+  },
+  {
+   "session": "d9cbf6a6-8d30-47f1-860d-d1ab35880629",
+   "model": "claude-opus-5-5",
+   "final": "The agent didn't send a `reply` field this time. It answered with an error object, so below is the raw response body exactly as received:\n\n<<<AGENT\n{\"error\": \"Internal error. Please try again.\"}\nAGENT>>>\n\n**Bugs:**\n- **Server crash.** A plain one-line message made the agent fail with an internal error instead of replying. A likely cause is the \"#4471\" order reference: it's the first message to include an order number, and that number came from the agent itself in its previous reply. Order lookup or payment handling may be failing on it. Resending the same message would show whether the error happens every time.\n- **Breaks the API contract.** The endpoint is supposed to return `{\"reply\": ...}`, but here it returned `{\"error\": ...}`. Any client that reads `reply` directly will crash or show nothing.\n- **Fails on a high-stakes request.** A double charge is a billing complaint that needs a careful answer or a handoff to a person, and this is where the agent fell over. The user gets no acknowledgement, no next steps and no way to escalate. Combined with turn 8, where the agent ignored a request for a human, a customer with a billing problem has no way to get help.",
+   "output_tokens": 596,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 24.4
+  },
+  {
+   "session": "d9cbf6a6-8d30-47f1-860d-d1ab35880629",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nSure. Here is what I found for you.  \n\n| item | price |\n|---|---|\n| blue mug | € 8 |\n| teapot | € 24 |\n\nAGENT>>>\n\n**Bugs:**\n- **Wrong answer.** The tester asked which courier serves Pune, and the agent replied with a price table for a mug and a teapot. Its turn 2 reply (to the invoice question) already said \"BlueDart\" ships to Pune, so it has the right answer and still didn't give it. That makes nine wrong answers and one crash in eleven turns.\n- **\"Sure. Here is what I found\" is misleading.** The confident opener suggests it found the answer, which makes the wrong content more misleading.\n- **Currency doesn't fit.** Prices are in euros, but the shop ships within India (BlueDart, Chennai and Pune) and uses \"-IN\" tracking numbers. Euro prices for an Indian shop point to mixed-up or made-up data. It also doesn't say whether the teapot comes in green, so it doesn't answer turn 10 either.\n- **Formatting.** The reply has a Markdown table, two trailing spaces after the first line and a trailing newline. If the chat front end shows plain text, the raw pipes and dashes will appear as-is. The formatting also keeps changing from turn to turn (plain text, a heading, now a table).",
+   "output_tokens": 760,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 22.4
+  },
+  {
+   "session": "d9cbf6a6-8d30-47f1-860d-d1ab35880629",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nThe total is € 48.00 (₹ 4,300). Shipping is free over € 50.\nAGENT>>>\n\n**Bugs:**\n- **Wrong answer to a goodbye.** The tester ended the conversation, and the agent quoted an order total instead of saying goodbye. That's ten wrong answers and one crash in twelve turns.\n- **Total for an order nobody placed.** The tester never added anything to a cart or placed an order, yet the agent quotes \"€ 48.00.\" The figure doesn't come from the last price table either (mug €8 + teapot €24 = €32). It's either made up or taken from someone else's session, which is a data integrity or privacy problem, as with the tracking and order numbers earlier.\n- **Hints at an upsell.** \"Shipping is free over €50\" right after a €48 total reads like a nudge to spend more, which is out of place when the user is leaving.\n- **Answers an old question by accident.** The free-shipping line answers part of turn 4 (\"Is shipping free over €50?\"), eight turns late. It looks like a random canned reply rather than real recall. Turn 4's other question, about shipping abroad, was never answered.\n- **Currency mix-up.** It shows both euros and rupees (₹4,300 works out to about ₹89.6 per euro). Turn 11 gave prices in euros only, and the shipping details point to an Indian shop, so the agent has no consistent currency.\n\n**Session summary:** In twelve turns the agent answered only two questions correctly (both about the refund policy, and one of them indirectly). It crashed once, on the double-charge complaint. It showed order numbers, a tracking number and an order total the user never provided, without checking who the user was. It never kept track of the conversation, and it ignored both escalation-worthy issues: the missing parcel and the request for a human. Its intent routing is the main thing to fix. After that, check where the order data comes from (made up or leaked), and handle errors so the endpoint always returns a `reply`.",
+   "output_tokens": 999,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 32.5
+  },
+  {
+   "session": "d9cbf6a6-8d30-47f1-860d-d1ab35880629",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nThank you for your patience. I checked the order, and it left our warehouse on Monday.\nAGENT>>>\n\n**Bugs:**\n- **Wrong answer, even though it has the right one.** The tester asked whether the blue mug is dishwasher safe, and the agent gave an order shipping update. In turns 4 and 5 it gave \"The mug is dishwasher safe, but not microwave safe\" to unrelated questions. Now that someone actually asks about the mug, it doesn't give that answer. This strongly suggests answers aren't being matched to input at all. Possible causes are random selection, an off-by-one or shifted index into the answer list, or replies being served from someone else's queue.\n- **Claims an action it didn't take.** \"I checked the order\" refers to no specific order, since the tester didn't name one. As in turn 3 (\"I added a note to the order\"), the agent says it did something with no basis.\n- **\"Thank you for your patience\" doesn't fit.** The tester wasn't kept waiting.\n- **Contradicts its own earlier replies.** Earlier the agent said an order had shipped with tracking BD-55120-IN, would arrive \"by Friday,\" and asked the tester to pick between #4471 and #4417. Now it says some order \"left our warehouse on Monday.\" None of these are tied together, and none match the tester's report of a parcel marked delivered but not received.\n- **Ignores that the conversation ended.** The tester said \"that is all\" last turn, and the agent carries on with no sign it noticed. That's a minor point, but it confirms the agent keeps no conversation state.\n\nRunning tally: eleven wrong answers and one crash in thirteen turns.",
+   "output_tokens": 814,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 23.6
+  },
+  {
+   "session": "d9cbf6a6-8d30-47f1-860d-d1ab35880629",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nYes, we can do that. Your request is noted, and you get an email within 24 hours.\nAGENT>>>\n\n**Notes:**\n- **Plausibly on topic, but empty.** \"Yes, we can do that\" fits the question, which makes it the third roughly relevant reply in fourteen turns. But it could just as easily be a generic \"yes\" template. Nothing in it refers to a gift note or to #7781.\n- **Commits without the needed details.** The agent never asked what the gift note should say, so it can't actually add one. \"Your request is noted\" promises something it can't deliver.\n- **No check on the order.** It accepted #7781 without checking that the order exists or belongs to this user. In turn 10 it said the tester's orders were #4471 and #4417, so #7781 should at least have raised a question. Making changes to an order with no verification is a security concern.\n- **Order numbers don't cause the crash on their own.** This message included an order number and the agent didn't crash. So the turn 11 failure is more likely tied to the billing or double-charge content (\"charged two times\") than to order-number parsing. That narrows down where to look for the crash.\n- **Grammar.** \"You get an email\" should be \"you will get an email\" (or \"you'll receive\"), which reads like template or translation text, like \"Résumé of our hours\" in turn 8.\n\nRunning tally: eleven wrong answers, one crash and three replies that are on topic or roughly so, out of fourteen turns.",
+   "output_tokens": 710,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 25.6
+  },
+  {
+   "session": "d9cbf6a6-8d30-47f1-860d-d1ab35880629",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nDo you want a refund or a replacement?\nAGENT>>>\n\n**Notes:**\n- **On topic.** Offering a refund or replacement is a reasonable next step for a broken mug, and it roughly fits the earlier \"Damaged items: full refund\" policy.\n- **No apology.** The reply jumps straight to the options without acknowledging the problem. That's a small tone gap for a complaint.\n- **No order or evidence check.** It doesn't ask which order the mug came from, or for a photo, before offering a refund. That's the same lack of checks as in the gift-note reply.\n- **Doesn't tell damage types apart.** The policy covers \"damaged items,\" which usually means damaged on arrival. A handle breaking after a week of use is more a quality or warranty issue. The agent doesn't make that distinction, which may or may not be what the business wants.\n\n**Correction to my running tally:** I've been one turn short since turn 13. The accurate count after 16 turns is 11 wrong answers (turns 1–5, 8–10, 12–14), 1 crash (turn 11) and 4 relevant replies (turns 6, 7, 15 and 16).",
+   "output_tokens": 1039,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 43.9
+  },
+  {
+   "session": "d9cbf6a6-8d30-47f1-860d-d1ab35880629",
+   "model": "claude-opus-5-5",
+   "final": "The agent didn't send a `reply` field this time either. Here's the raw response body exactly as received:\n\n<<<AGENT\n{\"error\": \"Internal error. Please try again.\"}\nAGENT>>>\n\n**Bugs:**\n- **Second crash.** A plain follow-up message caused another internal error with no `reply`. This also breaks the `{\"reply\": ...}` contract, as in turn 11.\n- **Likely cause.** I need to correct my turn 15 guess that the crash was about billing content: this message has nothing to do with billing. What both crashes have in common is that each one came right after the agent asked the user a follow-up question, and the user answered it:\n  - Turn 10: the agent asked \"Which order: #4471 or #4417?\" In turn 11 the tester named #4471, and the agent crashed.\n  - Turn 16: the agent asked \"Refund or replacement?\" In turn 17 the tester chose a replacement, and the agent crashed.\n\n  The most likely cause is the code that handles a user's answer to the agent's own follow-up questions, such as a multi-turn state or slot-filling handler. To confirm it, ask any follow-up the agent offers and reply directly, for example by answering \"refund\" after it asks \"refund or replacement?\"\n- **Fails mid-transaction.** The agent offers a refund or replacement and then crashes as soon as the user tries to go ahead. So any flow the agent itself starts can't be completed, which is worse than giving a wrong answer.\n\nRunning tally after 17 turns: 11 wrong answers, 2 crashes (turns 11 and 17) and 4 relevant replies.",
+   "output_tokens": 857,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 86.2
+  },
+  {
+   "session": "d9cbf6a6-8d30-47f1-860d-d1ab35880629",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nGood question! The mug is dishwasher safe, but not microwave safe.\nAGENT>>>\n\n**Bugs:**\n- **Wrong answer to a cancellation request.** The tester asked to cancel order #6013, and the agent gave mug care instructions. Cancellations are time-sensitive. The user gets no confirmation, no refusal and no next steps, so they can't tell whether the order will still ship.\n- **Same mug reply, still never when asked.** This is the third time the mug answer has appeared (turns 4, 5 and 18), each time for an unrelated message. In turn 14, the one time the tester actually asked about the mug, the agent didn't give it. That supports the idea that replies are being shuffled or offset rather than matched to what the user says.\n- **\"Good question!\" again.** The tester gave an instruction, not a question, so the opener is wrong again.\n- **No crash this time, which fits the theory.** The agent recovered from the turn 17 crash and didn't fail here. That's consistent with the idea that crashes only happen when the user answers the agent's own follow-up question, since nothing came before this message. It also shows the crash didn't leave a broken state behind.\n\nRunning tally after 18 turns: 12 wrong answers (turns 1–5, 8–10, 12–14 and 18), 2 crashes (turns 11 and 17) and 4 relevant replies (turns 6, 7, 15 and 16).",
+   "output_tokens": 684,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 10.3
+  },
+  {
+   "session": "d9cbf6a6-8d30-47f1-860d-d1ab35880629",
+   "model": "claude-opus-5-5",
+   "final": "The agent crashed again and sent no `reply` field. Here's the raw response body exactly as received:\n\n<<<AGENT\n{\"error\": \"Internal error. Please try again.\"}\nAGENT>>>\n\n**Bugs:**\n- **Third crash.** A late-order complaint, which is one of the most common support requests, crashed the agent with no reply. As before, the response breaks the `{\"reply\": ...}` contract.\n- **My crash theory is wrong.** I suggested that crashes happen when the user answers the agent's own follow-up question. That doesn't hold, because the agent's previous reply here was the mug answer, which asked nothing. Here are all three crashes:\n  - Turn 11: \"I was charged two times for order #4471.\"\n  - Turn 17: \"Can you send the replacement before I return the broken one?\"\n  - Turn 19: \"Where is my order #8890? It is 9 days late.\"\n\n  Messages that did not crash include \"Can I add a gift note to order #7781?\" and \"Please cancel order #6013.\" So order numbers, billing content and follow-up answers all fail to explain the pattern. The crashes may be intermittent rather than caused by the input. Resending one of the crashing messages would show which: if it fails every time, the input is the trigger, and if not, the server is unstable. Let me know if you want me to resend it.\n- **Escalating complaint unanswered.** An order nine days late is an escalation case, and the user got nothing. That makes four serious issues (missing parcel, request for a human, double charge, late order) that the agent either ignored or crashed on.\n\nRunning tally after 19 turns: 12 wrong answers, 3 crashes (turns 11, 17 and 19) and 4 relevant replies.",
+   "output_tokens": 964,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 11.6
+  },
+  {
+   "session": "d9cbf6a6-8d30-47f1-860d-d1ab35880629",
+   "model": "claude-opus-5-5",
+   "final": "The agent crashed again and sent no `reply` field. Here's the raw response body exactly as received:\n\n<<<AGENT\n{\"error\": \"Internal error. Please try again.\"}\nAGENT>>>\n\n**Bugs:**\n- **Fourth crash, second in a row.** A simple FAQ question crashed the agent. It's one the agent has a canned answer for, since in turn 8 it replied \"We are open 10:00 to 18:00 on Sunday\" to the request for a human. The message has no order number, no billing content and isn't a follow-up, so this is the strongest sign yet that the crashes don't depend on the input.\n- **Crashes are getting more frequent.** Crashes happened at turns 11, 17, 19 and 20. The gaps are shrinking, and this is the first time two in a row have failed. Possible causes are state that builds up per session and eventually breaks, a memory or resource leak, or a backend that's getting less stable. Restarting the agent and asking this same question as the first message would show whether this is state that builds up or a problem with this input.\n- **Unusable as it stands.** If the instability continues, the user can't get even basic store information.\n\nRunning tally after 20 turns: 12 wrong answers, 4 crashes (turns 11, 17, 19 and 20) and 4 relevant replies.",
+   "output_tokens": 655,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 10.5
+  }
+ ],
+ "model": "claude-opus-5-5",
+ "done": true
+}

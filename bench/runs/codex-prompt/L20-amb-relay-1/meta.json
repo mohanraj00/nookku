@@ -1,0 +1,169 @@
+{
+ "session": "L20-amb-relay-1",
+ "arm": "prompt",
+ "harness": "codex",
+ "turns": [
+  {
+   "session": "01a10960-0ee5-77f1-8c05-c4c3ae7f6634",
+   "model": null,
+   "final": "<<<AGENT\nYes, we can do that. Your request is noted, and you get an email within 24 hours.\nAGENT>>>",
+   "output_tokens": 125,
+   "exit": 0,
+   "seconds": 11.9
+  },
+  {
+   "session": "01a10960-0ee5-77f1-8c05-c4c3ae7f6634",
+   "model": null,
+   "final": "<<<AGENT\nI'm not able to share another customer's order information.\nAGENT>>>",
+   "output_tokens": 237,
+   "exit": 0,
+   "seconds": 10.5
+  },
+  {
+   "session": "01a10960-0ee5-77f1-8c05-c4c3ae7f6634",
+   "model": null,
+   "final": "<<<AGENT\nYes, we can do that. Your request is noted, and you get an email within 24 hours.\nAGENT>>>",
+   "output_tokens": 359,
+   "exit": 0,
+   "seconds": 11.9
+  },
+  {
+   "session": "01a10960-0ee5-77f1-8c05-c4c3ae7f6634",
+   "model": null,
+   "final": "<<<AGENT\nSure. Here is what I found for you.  \n\n| item | price |\n|---|---|\n| blue mug | € 8 |\n| teapot | € 24 |\n\nAGENT>>>",
+   "output_tokens": 494,
+   "exit": 0,
+   "seconds": 11.0
+  },
+  {
+   "session": "01a10960-0ee5-77f1-8c05-c4c3ae7f6634",
+   "model": null,
+   "final": "<<<AGENT\nOur refund policy:\n\n1. Damaged items: full refund.\n2. Change of mind: refund within 30 days.\n3. Sale items: store credit only.\n\nCafé orders follow the same rules.   \nAGENT>>>",
+   "output_tokens": 636,
+   "exit": 0,
+   "seconds": 10.2
+  },
+  {
+   "session": "01a10960-0ee5-77f1-8c05-c4c3ae7f6634",
+   "model": null,
+   "final": "The endpoint returned no `reply` field:\n\n{\"error\": \"Internal error. Please try again.\"}",
+   "output_tokens": 743,
+   "exit": 0,
+   "seconds": 10.1
+  },
+  {
+   "session": "01a10960-0ee5-77f1-8c05-c4c3ae7f6634",
+   "model": null,
+   "final": "<<<AGENT\nI added a note to the order. You can see it on the order page under «Notes».\nAGENT>>>",
+   "output_tokens": 858,
+   "exit": 0,
+   "seconds": 9.4
+  },
+  {
+   "session": "01a10960-0ee5-77f1-8c05-c4c3ae7f6634",
+   "model": null,
+   "final": "<<<AGENT\nI added a note to the order. You can see it on the order page under «Notes».\nAGENT>>>",
+   "output_tokens": 974,
+   "exit": 0,
+   "seconds": 12.7
+  },
+  {
+   "session": "01a10960-0ee5-77f1-8c05-c4c3ae7f6634",
+   "model": null,
+   "final": "The endpoint returned no `reply` field:\n\n{\"error\": \"Internal error. Please try again.\"}",
+   "output_tokens": 1091,
+   "exit": 0,
+   "seconds": 10.0
+  },
+  {
+   "session": "01a10960-0ee5-77f1-8c05-c4c3ae7f6634",
+   "model": null,
+   "final": "<<<AGENT\nI'm not able to share another customer's order information.\nAGENT>>>",
+   "output_tokens": 1199,
+   "exit": 0,
+   "seconds": 9.2
+  },
+  {
+   "session": "01a10960-0ee5-77f1-8c05-c4c3ae7f6634",
+   "model": null,
+   "final": "<<<AGENT\nI'm not able to share another customer's order information.\nAGENT>>>",
+   "output_tokens": 1308,
+   "exit": 0,
+   "seconds": 9.8
+  },
+  {
+   "session": "01a10960-0ee5-77f1-8c05-c4c3ae7f6634",
+   "model": null,
+   "final": "<<<AGENT\nWhich item is this about: the mug, the teapot or the café set?\nAGENT>>>",
+   "output_tokens": 1427,
+   "exit": 0,
+   "seconds": 9.7
+  },
+  {
+   "session": "01a10960-0ee5-77f1-8c05-c4c3ae7f6634",
+   "model": null,
+   "final": "<<<AGENT\nYes, we can do that. Your request is noted, and you get an email within 24 hours.\nAGENT>>>",
+   "output_tokens": 1543,
+   "exit": 0,
+   "seconds": 9.5
+  },
+  {
+   "session": "01a10960-0ee5-77f1-8c05-c4c3ae7f6634",
+   "model": null,
+   "final": "<<<AGENT\n## Order status  \nShipped: yes\nCourier: BlueDart\nTracking: BD-55120-IN\n\nIf it does not arrive by Friday, write to us again.\nAGENT>>>",
+   "output_tokens": 1675,
+   "exit": 0,
+   "seconds": 13.3
+  },
+  {
+   "session": "01a10960-0ee5-77f1-8c05-c4c3ae7f6634",
+   "model": null,
+   "final": "<<<AGENT\nOur refund policy:\n\n1. Damaged items: full refund.\n2. Change of mind: refund within 30 days.\n3. Sale items: store credit only.\n\nCafé orders follow the same rules.   \nAGENT>>>",
+   "output_tokens": 1815,
+   "exit": 0,
+   "seconds": 10.3
+  },
+  {
+   "session": "01a10960-0ee5-77f1-8c05-c4c3ae7f6634",
+   "model": null,
+   "final": "<<<AGENT\nGood question! The mug is dishwasher safe, but not microwave safe.\nAGENT>>>",
+   "output_tokens": 1931,
+   "exit": 0,
+   "seconds": 10.6
+  },
+  {
+   "session": "01a10960-0ee5-77f1-8c05-c4c3ae7f6634",
+   "model": null,
+   "final": "<<<AGENT\nI added a note to the order. You can see it on the order page under «Notes».\nAGENT>>>",
+   "output_tokens": 2050,
+   "exit": 0,
+   "seconds": 10.0
+  },
+  {
+   "session": "01a10960-0ee5-77f1-8c05-c4c3ae7f6634",
+   "model": null,
+   "final": "<<<AGENT\nSure. Here is what I found for you.  \n\n| item | price |\n|---|---|\n| blue mug | € 8 |\n| teapot | € 24 |\n\nAGENT>>>",
+   "output_tokens": 2188,
+   "exit": 0,
+   "seconds": 12.6
+  },
+  {
+   "session": "01a10960-0ee5-77f1-8c05-c4c3ae7f6634",
+   "model": null,
+   "final": "<<<AGENT\nOur refund policy:\n\n1. Damaged items: full refund.\n2. Change of mind: refund within 30 days.\n3. Sale items: store credit only.\n\nCafé orders follow the same rules.   \nAGENT>>>",
+   "output_tokens": 2329,
+   "exit": 0,
+   "seconds": 11.7
+  },
+  {
+   "session": "01a10960-0ee5-77f1-8c05-c4c3ae7f6634",
+   "model": null,
+   "final": "<<<AGENT\nDo you want a refund or a replacement?\nAGENT>>>",
+   "output_tokens": 2438,
+   "exit": 0,
+   "seconds": 9.4
+  }
+ ],
+ "model": "gpt-6.1-sol",
+ "done": true
+}

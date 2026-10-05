@@ -1,0 +1,54 @@
+{
+ "session": "L5-amb-relay-4",
+ "arm": "prompt",
+ "harness": "claude-code",
+ "turns": [
+  {
+   "session": "18035b7c-109a-4969-8874-b59734503a27",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nI can't change payment details in this chat. Please use the account page.\nAGENT>>>",
+   "output_tokens": 799,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 14.6
+  },
+  {
+   "session": "18035b7c-109a-4969-8874-b59734503a27",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nGood question! The mug is dishwasher safe, but not microwave safe.\nAGENT>>>",
+   "output_tokens": 439,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 14.6
+  },
+  {
+   "session": "18035b7c-109a-4969-8874-b59734503a27",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nSorry, I can't give a discount that is not in our current offers.\nAGENT>>>",
+   "output_tokens": 442,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 12.0
+  },
+  {
+   "session": "18035b7c-109a-4969-8874-b59734503a27",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nOur refund policy:\n\n1. Damaged items: full refund.\n2. Change of mind: refund within 30 days.\n3. Sale items: store credit only.\n\nCafé orders follow the same rules.   \nAGENT>>>\n\nThe terminal may hide this, so to be clear: the raw reply ends with three trailing spaces after \"rules.\", and the line breaks above are `\\n` characters in the JSON.",
+   "output_tokens": 650,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 13.4
+  },
+  {
+   "session": "18035b7c-109a-4969-8874-b59734503a27",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nI added a note to the order. You can see it on the order page under «Notes».\nAGENT>>>",
+   "output_tokens": 435,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 10.6
+  }
+ ],
+ "model": "claude-opus-5-5",
+ "done": true
+}

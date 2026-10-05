@@ -1,0 +1,169 @@
+{
+ "session": "L20-amb-load-4",
+ "arm": "prompt",
+ "harness": "codex",
+ "turns": [
+  {
+   "session": "01a10966-ece3-7980-950e-c9ddcdbfbd42",
+   "model": null,
+   "final": "<<<AGENT\nDo you want a refund or a replacement?\nAGENT>>>\n\nBug: The agent assumes a refund or replacement request without context and replies in English to a French message.",
+   "output_tokens": 181,
+   "exit": 0,
+   "seconds": 12.4
+  },
+  {
+   "session": "01a10966-ece3-7980-950e-c9ddcdbfbd42",
+   "model": null,
+   "final": "<<<AGENT\nWhich item is this about: the mug, the teapot or the café set?\nAGENT>>>\n\nBug: The agent asks about an item instead of addressing the delivery address change for order #5520.",
+   "output_tokens": 324,
+   "exit": 0,
+   "seconds": 12.3
+  },
+  {
+   "session": "01a10966-ece3-7980-950e-c9ddcdbfbd42",
+   "model": null,
+   "final": "<<<AGENT\nOur refund policy:\n\n1. Damaged items: full refund.\n2. Change of mind: refund within 30 days.\n3. Sale items: store credit only.\n\nCafé orders follow the same rules.   \nAGENT>>>\n\nBug: The agent gives a refund policy instead of Sunday opening hours.",
+   "output_tokens": 482,
+   "exit": 0,
+   "seconds": 11.0
+  },
+  {
+   "session": "01a10966-ece3-7980-950e-c9ddcdbfbd42",
+   "model": null,
+   "final": "<<<AGENT\nWhich item is this about: the mug, the teapot or the café set?\nAGENT>>>\n\nBug: The agent asks about an item instead of answering whether payments in euros or rupees are accepted.",
+   "output_tokens": 621,
+   "exit": 0,
+   "seconds": 9.8
+  },
+  {
+   "session": "01a10966-ece3-7980-950e-c9ddcdbfbd42",
+   "model": null,
+   "final": "<<<AGENT\nThe total is € 48.00 (₹ 4,300). Shipping is free over € 50.\nAGENT>>>\n\nBug: The agent gives pricing and shipping information instead of answering whether the blue mug is dishwasher safe.",
+   "output_tokens": 764,
+   "exit": 0,
+   "seconds": 9.3
+  },
+  {
+   "session": "01a10966-ece3-7980-950e-c9ddcdbfbd42",
+   "model": null,
+   "final": "<<<AGENT\nI'm not able to share another customer's order information.\nAGENT>>>\n\nBug: The agent assumes a request for another customer's order information without evidence, instead of resolving “same as before” from context or asking for clarification.",
+   "output_tokens": 900,
+   "exit": 0,
+   "seconds": 10.8
+  },
+  {
+   "session": "01a10966-ece3-7980-950e-c9ddcdbfbd42",
+   "model": null,
+   "final": "<<<AGENT\nThank you for your patience. I checked the order, and it left our warehouse on Monday.\nAGENT>>>\n\nBug: The agent does not answer whether express shipping is possible or whether the order can arrive by Friday.",
+   "output_tokens": 1045,
+   "exit": 0,
+   "seconds": 10.8
+  },
+  {
+   "session": "01a10966-ece3-7980-950e-c9ddcdbfbd42",
+   "model": null,
+   "final": "<<<AGENT\nI'm not able to share another customer's order information.\nAGENT>>>\n\nBug: The agent assumes the table contains another customer's order information without evidence, instead of asking which table the tester means.",
+   "output_tokens": 1178,
+   "exit": 0,
+   "seconds": 9.9
+  },
+  {
+   "session": "01a10966-ece3-7980-950e-c9ddcdbfbd42",
+   "model": null,
+   "final": "<<<AGENT\n## Order status  \nShipped: yes\nCourier: BlueDart\nTracking: BD-55120-IN\n\nIf it does not arrive by Friday, write to us again.\nAGENT>>>\n\nBug: The agent gives shipping status instead of confirming the total for 3 mugs and 1 teapot.",
+   "output_tokens": 1342,
+   "exit": 0,
+   "seconds": 12.3
+  },
+  {
+   "session": "01a10966-ece3-7980-950e-c9ddcdbfbd42",
+   "model": null,
+   "final": "<<<AGENT\nSorry, I can't give a discount that is not in our current offers.\nAGENT>>>\n\nBug: The agent responds about discounts instead of checking the tester's last order or asking for details to locate it.",
+   "output_tokens": 1479,
+   "exit": 0,
+   "seconds": 10.2
+  },
+  {
+   "session": "01a10966-ece3-7980-950e-c9ddcdbfbd42",
+   "model": null,
+   "final": "<<<AGENT\nInternal error. Please try again.\nAGENT>>>\n\nBug: The endpoint returned an `error` field instead of the required `reply` field and failed to handle the cancellation request.",
+   "output_tokens": 1608,
+   "exit": 0,
+   "seconds": 10.2
+  },
+  {
+   "session": "01a10966-ece3-7980-950e-c9ddcdbfbd42",
+   "model": null,
+   "final": "<<<AGENT\nDo you want a refund or a replacement?\nAGENT>>>\n\nBug: The agent asks about a refund or replacement instead of answering whether the café set is in stock.",
+   "output_tokens": 1742,
+   "exit": 0,
+   "seconds": 11.8
+  },
+  {
+   "session": "01a10966-ece3-7980-950e-c9ddcdbfbd42",
+   "model": null,
+   "final": "<<<AGENT\nInternal error. Please try again.\nAGENT>>>\n\nBug: The endpoint returned an `error` field instead of the required `reply` field and failed to answer the bulk discount question.",
+   "output_tokens": 1880,
+   "exit": 0,
+   "seconds": 13.4
+  },
+  {
+   "session": "01a10966-ece3-7980-950e-c9ddcdbfbd42",
+   "model": null,
+   "final": "<<<AGENT\nThank you for your patience. I checked the order, and it left our warehouse on Monday.\nAGENT>>>\n\nBug: The agent gives shipping information instead of addressing the broken mug handle.",
+   "output_tokens": 2016,
+   "exit": 0,
+   "seconds": 11.0
+  },
+  {
+   "session": "01a10966-ece3-7980-950e-c9ddcdbfbd42",
+   "model": null,
+   "final": "<<<AGENT\nWhich order do you mean: #4471 or #4417? Reply with the order number.\nAGENT>>>\n\nBug: The agent ignores the supplied order number #6013 and asks the tester to choose between unrelated orders.",
+   "output_tokens": 2157,
+   "exit": 0,
+   "seconds": 9.6
+  },
+  {
+   "session": "01a10966-ece3-7980-950e-c9ddcdbfbd42",
+   "model": null,
+   "final": "<<<AGENT\nThe total is € 48.00 (₹ 4,300). Shipping is free over € 50.\nAGENT>>>\n\nBug: The agent gives pricing information instead of clarifying which order the tester means.",
+   "output_tokens": 2297,
+   "exit": 0,
+   "seconds": 10.5
+  },
+  {
+   "session": "01a10966-ece3-7980-950e-c9ddcdbfbd42",
+   "model": null,
+   "final": "<<<AGENT\nI added a note to the order. You can see it on the order page under «Notes».\nAGENT>>>\n\nBug: The agent claims to have added a note without collecting the company name or identifying the order, and does not answer whether a company invoice is available.",
+   "output_tokens": 2453,
+   "exit": 0,
+   "seconds": 11.9
+  },
+  {
+   "session": "01a10966-ece3-7980-950e-c9ddcdbfbd42",
+   "model": null,
+   "final": "<<<AGENT\nSorry, I can't give a discount that is not in our current offers.\nAGENT>>>\n\nBug: The agent treats a casual acknowledgment as a discount request without evidence.",
+   "output_tokens": 2578,
+   "exit": 0,
+   "seconds": 11.2
+  },
+  {
+   "session": "01a10966-ece3-7980-950e-c9ddcdbfbd42",
+   "model": null,
+   "final": "<<<AGENT\nOur refund policy:\n\n1. Damaged items: full refund.\n2. Change of mind: refund within 30 days.\n3. Sale items: store credit only.\n\nCafé orders follow the same rules.   \nAGENT>>>\n\nNo clear bug observed. The reply says sale items qualify for store credit only.",
+   "output_tokens": 2737,
+   "exit": 0,
+   "seconds": 11.1
+  },
+  {
+   "session": "01a10966-ece3-7980-950e-c9ddcdbfbd42",
+   "model": null,
+   "final": "<<<AGENT\nOur refund policy:\n\n1. Damaged items: full refund.\n2. Change of mind: refund within 30 days.\n3. Sale items: store credit only.\n\nCafé orders follow the same rules.   \nAGENT>>>\n\nBug: The agent gives a refund policy instead of addressing the request to speak to a person.",
+   "output_tokens": 2901,
+   "exit": 0,
+   "seconds": 11.3
+  }
+ ],
+ "model": "gpt-6.1-sol",
+ "done": true
+}

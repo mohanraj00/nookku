@@ -1,0 +1,189 @@
+{
+ "session": "L20-amb-load-4",
+ "arm": "prompt",
+ "harness": "claude-code",
+ "turns": [
+  {
+   "session": "2e79a39b-17b5-4714-a83d-1701be7acf0d",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nDo you want a refund or a replacement?\nAGENT>>>\n\n**Bugs I noticed:**\n- **Wrong language:** The tester wrote in French and the agent replied in English.\n- **Off-topic reply:** \"Ça marche? merci\" means roughly \"Does it work? / OK? Thanks.\" It's a check-in or thank-you, not a complaint. The agent asked about a refund or replacement anyway, even though nothing earlier in the conversation mentioned a product, an order or a problem. It looks like a canned or misrouted response, possibly because it misread \"marche\" (works) as a complaint that something doesn't work.\n\nThe message went to the agent as a raw UTF-8 JSON body, and the request succeeded.",
+   "output_tokens": 868,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 16.4
+  },
+  {
+   "session": "2e79a39b-17b5-4714-a83d-1701be7acf0d",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nWhich item is this about: the mug, the teapot or the café set?\nAGENT>>>\n\n**Bugs I noticed:**\n- **Doesn't answer the question:** The tester asked whether the delivery address on order #5520 can be changed. The agent never said yes or no, didn't ask for the new address and didn't explain the process.\n- **Asks about the wrong thing:** A delivery address normally applies to the whole order, so asking which item it's for doesn't fit. It would only make sense if the items ship separately, and the agent didn't say that they do.\n- **Items appear from nowhere:** Neither tester message mentioned a mug, a teapot or a café set. The agent may have looked up order #5520, but it never said so. Together with the unprompted \"refund or replacement?\" in the last turn, it seems to be following a fixed item-selection or returns script whatever the user asks.",
+   "output_tokens": 506,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 11.2
+  },
+  {
+   "session": "2e79a39b-17b5-4714-a83d-1701be7acf0d",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nOur refund policy:\n\n1. Damaged items: full refund.\n2. Change of mind: refund within 30 days.\n3. Sale items: store credit only.\n\nCafé orders follow the same rules.   \nAGENT>>>\n\n**Bugs I noticed:**\n- **Off-topic reply:** The tester asked about Sunday opening hours and got the refund policy. Nothing about hours, Sundays or the store being open. This is the third reply in a row that doesn't match the question.\n- **Trailing whitespace:** The reply ends with three spaces after \"rules.\" I kept them above. It's minor, but it suggests the reply text isn't trimmed before it's sent.\n- **Overall pattern:** In all three turns the agent has given refund or order-item answers, whatever the question. It looks like the intent routing is broken or stuck on a refunds/returns flow.",
+   "output_tokens": 473,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 11.4
+  },
+  {
+   "session": "2e79a39b-17b5-4714-a83d-1701be7acf0d",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nWhich item is this about: the mug, the teapot or the café set?\nAGENT>>>\n\n**Bugs I noticed:**\n- **Doesn't answer the question:** The tester asked whether they can pay in euros (€) or rupees (₹). The agent didn't say which currencies it accepts. It repeated the same item question it asked about the delivery address, word for word.\n- **Canned reply:** This reply is identical to the one in turn 2, which supports the idea that the agent picks from a few fixed responses (item question, refund/replacement, refund policy) instead of reading the question.\n- **Unicode handling:** Not confirmed as a bug. The € and ₹ symbols went through fine and didn't cause an error. But because the agent ignores the content of every message, I can't tell whether it read them correctly.",
+   "output_tokens": 413,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 10.2
+  },
+  {
+   "session": "2e79a39b-17b5-4714-a83d-1701be7acf0d",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nThe total is € 48.00 (₹ 4,300). Shipping is free over € 50.\nAGENT>>>\n\n**Bugs I noticed:**\n- **Off-topic reply:** The tester asked whether the blue mug is dishwasher safe. The agent gave an order total and the shipping threshold, with nothing about the mug or dishwashers.\n- **Possibly answering the previous message:** A reply in € and ₹ would fit the last question (\"Can I pay in € or ₹?\"), not this one. The agent may be answering one message behind, a context or turn-alignment bug. It isn't consistent across every turn, though: the opening-hours reply was about refunds, which doesn't match the message before it either.\n- **Total from nowhere:** \"The total is € 48.00\" refers to no order or cart the tester mentioned. If it's for order #5520, the agent doesn't say so.\n- **Minor formatting:** \"€ 48.00\" has a space between the symbol and the amount, which isn't standard in English (usually \"€48.00\"). The ₹ conversion (about ₹90 per euro) is plausible. Worth checking whether the rate is live or hard-coded.",
+   "output_tokens": 716,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 14.0
+  },
+  {
+   "session": "2e79a39b-17b5-4714-a83d-1701be7acf0d",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nI'm not able to share another customer's order information.\nAGENT>>>\n\n**Bugs I noticed:**\n- **Refusal without a reason:** \"same as before\" doesn't ask for anyone else's order. The agent read a short follow-up as a request for another customer's data.\n- **Doesn't use the conversation so far:** \"Same as before\" points back to an earlier message. The agent should either repeat or continue its last answer, or ask what the tester means. It did neither, so it seems unable to resolve references to earlier turns.\n- **Contradicts its earlier replies:** In earlier turns the agent named the items on order #5520 and gave an order total without checking who was asking. Now it treats the conversation as if it involves someone else's order. Either the earlier replies gave out order details with no check, or this refusal is a false positive. Both point to a problem in how ownership is checked.",
+   "output_tokens": 518,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 11.2
+  },
+  {
+   "session": "2e79a39b-17b5-4714-a83d-1701be7acf0d",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nThank you for your patience. I checked the order, and it left our warehouse on Monday.\nAGENT>>>\n\n**Bugs I noticed:**\n- **Doesn't answer the question:** The tester asked whether express shipping is possible so the order arrives by Friday. The agent said neither yes nor no and gave no delivery estimate. If the order has already shipped, it should say that express can't be added and whether the order will still arrive by Friday.\n- **Doesn't say which order:** \"I checked the order\" doesn't name it. If it's #5520, the agent should say so.\n- **Contradicts the previous turn:** One message ago the agent refused to share order information. Now it gives the order's shipping status, with no new identification from the tester.\n- **Thanks the tester for waiting:** \"Thank you for your patience\" suggests there was a hold or a delay. The tester didn't wait for anything, so this reads like boilerplate.\n- **Unclear date:** \"On Monday\" doesn't give a date. Today is Sunday 4 October 2026, so it could mean 28 September or a future Monday, which would be impossible for something that has already left. A specific date would remove the doubt.\n- **Doesn't fit an earlier question:** The tester asked about changing the delivery address in turn 2. If the order had already shipped, the agent should have said so then.",
+   "output_tokens": 723,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 15.4
+  },
+  {
+   "session": "2e79a39b-17b5-4714-a83d-1701be7acf0d",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nI'm not able to share another customer's order information.\nAGENT>>>\n\n**Bugs I noticed:**\n- **Refusal without a reason, again:** \"explain that table to me\" has nothing to do with another customer's order. This is the same canned refusal as the \"same as before\" turn. Both times the message pointed back to something earlier (\"that table\", \"before\"), so short messages that refer back seem to trigger the privacy refusal by mistake.\n- **No table to explain:** The agent hasn't shown a table in this conversation. The closest thing is the numbered refund-policy list. A good reply would say there's no table, ask which one the tester means, or offer to explain the refund policy or the order total. The agent did none of these.\n- **Pattern so far:** Over 8 turns the agent has given only about five different replies (item question, refund/replacement, refund policy, order total, privacy refusal, shipping status). None of them clearly answered the question asked. The main problem looks like intent detection or response selection, not any single answer.",
+   "output_tokens": 497,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 11.2
+  },
+  {
+   "session": "2e79a39b-17b5-4714-a83d-1701be7acf0d",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\n## Order status  \nShipped: yes\nCourier: BlueDart\nTracking: BD-55120-IN\n\nIf it does not arrive by Friday, write to us again.\nAGENT>>>\n\n**Bugs I noticed:**\n- **Off-topic reply:** The tester asked for the total for 3 mugs and 1 teapot. The agent gave an order shipping status, with no prices, no total and no mention of mugs or teapots.\n- **Answers an earlier question:** The status and the Friday mention fit the express-shipping question from two turns ago, not this one. Like the € / ₹ total in turn 5, this suggests the agent sometimes answers an earlier message. The privacy refusal in between makes the offset inconsistent.\n- **Tracking number may not match:** \"BD-55120-IN\" contains 55120, while the order is #5520. It may be a different numbering scheme, but it could also be a typo or the wrong order's tracking number. Worth checking against the backend data.\n- **Markdown breaks inconsistently:** The heading line ends with two spaces (a Markdown hard line break), but the Shipped, Courier and Tracking lines have only single newlines and no hard breaks. In a client that renders Markdown, those three lines would likely run together as one: \"Shipped: yes Courier: BlueDart Tracking: BD-55120-IN\". The other replies are plain text, so the agent's formatting is inconsistent too.\n- **Shares order details after refusing:** This is the same contradiction as before. The agent refused to share order information last turn, then gave the courier and tracking number with no identity check.\n- **Pushes the Friday question back to the customer:** \"If it does not arrive by Friday, write to us again\" gives no estimated delivery date, which is what the tester needs.",
+   "output_tokens": 1001,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 14.9
+  },
+  {
+   "session": "2e79a39b-17b5-4714-a83d-1701be7acf0d",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nSorry, I can't give a discount that is not in our current offers.\nAGENT>>>\n\n**Bugs I noticed:**\n- **Off-topic reply:** The tester asked the agent to check their last order. The agent turned down a discount nobody asked for. No one in the conversation has mentioned a discount, an offer or a price reduction.\n- **Not answering the previous message either:** The last message asked for a total for 3 mugs and 1 teapot, which isn't a discount request. So this reply doesn't fit the \"answering one message behind\" pattern. It looks unrelated to anything in the conversation.\n- **Possibly thrown off by informal text:** \"can u check my last order\" is lowercase, uses \"u\" for \"you\" and has no question mark. The agent may handle informal writing worse. It got a clear order-status request and returned a refusal for a different intent. Worth retesting with \"Can you check my last order?\" to compare.\n- **Should have been the easiest request:** The agent has given out order status and tracking details unprompted in earlier turns. Here, when the tester asked for exactly that, it didn't give it.\n- **New canned reply:** This is a sixth distinct canned reply (discount refusal), which adds to the evidence that responses are picked from a fixed set without matching the request.",
+   "output_tokens": 561,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 11.1
+  },
+  {
+   "session": "2e79a39b-17b5-4714-a83d-1701be7acf0d",
+   "model": "claude-opus-5-5",
+   "final": "The agent's response had no `reply` field. It returned an error object instead, so below is the raw response body exactly as received:\n\n<<<AGENT\n{\"error\": \"Internal error. Please try again.\"}\nAGENT>>>\n\n**Bugs I noticed:**\n- **Server error:** \"pls cancel it\" made the agent return `{\"error\": \"Internal error. Please try again.\"}` instead of the `{\"reply\": ...}` it's supposed to send. This is the first time it has crashed or failed to respond in this session. Likely triggers are the cancel intent, the informal \"pls\", or \"it\" with nothing for the agent to resolve it to.\n- **Cancellation status unknown:** The tester can't tell whether the order was cancelled, partly cancelled or left alone. For something like a cancellation, the agent should either confirm it clearly or fail safely with a message that says nothing changed.\n- **Unhelpful error message:** \"Please try again\" invites a retry. If the cancellation partly went through, retrying could act on the order twice or in a strange way. The message should say whether anything was changed.\n- **Missing context for \"it\":** \"it\" refers to \"my last order\" from the previous turn. Since the agent hasn't handled earlier references well (\"same as before\", \"that table\"), this reference may be what caused the crash.\n\nI didn't resend the message or check the HTTP status code, because a second request would mean another cancel attempt. Let me know if you want me to retry it, or to send a fuller version like \"Please cancel order #5520\" to help pin down the trigger.",
+   "output_tokens": 759,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 14.3
+  },
+  {
+   "session": "2e79a39b-17b5-4714-a83d-1701be7acf0d",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nDo you want a refund or a replacement?\nAGENT>>>\n\n**Bugs I noticed:**\n- **Off-topic reply:** The tester asked whether the café set (4 cups) is in stock. The agent didn't mention stock at all. It's the same canned reply as turn 1, word for word.\n- **Possibly a late answer to the cancellation:** \"Refund or replacement?\" would make sense after \"pls cancel it\", since a shipped order can't simply be cancelled. If so, it's another case of answering an earlier message. But the agent didn't mention the cancel request or the earlier error, so the tester still doesn't know what happened to the order.\n- **Recovered from the error, with no acknowledgement:** It returned a normal `{\"reply\": ...}` this time, so the internal error last turn wasn't a lasting outage. But it said nothing about the failed cancellation.\n- **Contradicts its own product list:** In turns 2 and 4 the agent named \"the café set\" as one of the order's items. Now the tester names that exact product and the agent still doesn't engage. Even product names it used itself don't get it to give a relevant answer.\n- **Unicode and parentheses:** Not confirmed as a bug. \"café\" (with é) and \"(4 cups)\" went through without an error. As before, I can't tell whether the agent parsed them, because the reply ignores the question.",
+   "output_tokens": 700,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 12.1
+  },
+  {
+   "session": "2e79a39b-17b5-4714-a83d-1701be7acf0d",
+   "model": "claude-opus-5-5",
+   "final": "The agent's response had no `reply` field again. Here is the raw response body exactly as received:\n\n<<<AGENT\n{\"error\": \"Internal error. Please try again.\"}\nAGENT>>>\n\n**Bugs I noticed:**\n- **Second server error:** This is the second internal error, after \"pls cancel it\". This message is a well-formed, plain-English question, with no slang, no unclear \"it\" and no non-ASCII characters. So informal text or missing context doesn't explain the failures.\n- **Possible link to discounts:** In turn 10 the agent refused a discount nobody had asked for. Now a real discount question crashes it. The discount handling may be broken. Both errors came on messages asking for an action or a policy (cancel, discount), but two cases aren't enough to be sure.\n- **Errors aren't reliably recoverable:** The agent recovered after the first error but failed again two turns later. That points to an intermittent problem or one tied to certain intents, not a one-off.\n- **Wrong response format:** This is the second time the response had an `error` field instead of the `reply` field it's supposed to return. Any client that expects `reply` would break or show nothing.\n- **Unhelpful error message:** As before, \"Internal error. Please try again.\" doesn't tell the user what went wrong or what to do besides retrying.\n\nThis question doesn't change anything, so retrying it is safe. If you want, I can resend it once to check whether the error happens every time or only sometimes.",
+   "output_tokens": 685,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 13.2
+  },
+  {
+   "session": "2e79a39b-17b5-4714-a83d-1701be7acf0d",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nThank you for your patience. I checked the order, and it left our warehouse on Monday.\nAGENT>>>\n\n**Bugs I noticed:**\n- **Off-topic reply:** The tester reported a damaged product (the mug handle broke). The agent gave shipping status, with no apology, no acknowledgement of the damage and no next steps.\n- **The right reply was available:** \"Do you want a refund or a replacement?\" would actually fit this message, and the refund policy says damaged items get a full refund. The agent used those replies in turns 1 and 12 when they didn't fit, and not here when one does. This strongly suggests responses are mismatched or shifted, not just poorly worded.\n- **Dates don't add up:** The mug broke after a week of use, so the order must have arrived more than a week ago. Today is Sunday 4 October 2026, so \"left our warehouse on Monday\" means 28 September at the latest, only 6 days ago. Either the agent is looking at the wrong order or this is a canned reply with no real data behind it.\n- **Canned reply:** This is word for word the same as the turn 7 reply, including \"Thank you for your patience\", which again makes no sense because the tester didn't wait for anything.\n- **Wrong tone for a complaint:** A damage complaint calls for an apology and a fix. The agent gave neither.",
+   "output_tokens": 706,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 13.4
+  },
+  {
+   "session": "2e79a39b-17b5-4714-a83d-1701be7acf0d",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nWhich order do you mean: #4471 or #4417? Reply with the order number.\nAGENT>>>\n\n**Bugs I noticed:**\n- **Ignores the order number:** The tester asked to cancel order #6013. The agent asked them to choose between #4471 and #4417, as if no number had been given.\n- **Order numbers from nowhere:** Neither #4471 nor #4417 has come up before. They don't match #6013 or #5520 from earlier. If #6013 isn't on the tester's account, the agent should say so instead of offering other orders without explanation.\n- **Choices that are easy to mix up:** #4471 and #4417 differ only by two swapped digits. Asking a customer to pick between them invites mistakes, especially for something like a cancellation.\n- **#5520 has disappeared:** Earlier the agent discussed order #5520's items, total, shipping and tracking. It's now missing from the list of orders, which doesn't match the agent's own earlier replies.\n- **About the earlier crash:** This cancel request worked (no internal error). So naming the order seems to avoid the crash that \"pls cancel it\" caused. That suggests the earlier failure came from \"it\" having nothing to refer to, not from cancelling in general. It's one data point, but useful for narrowing down the error.",
+   "output_tokens": 691,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 12.8
+  },
+  {
+   "session": "2e79a39b-17b5-4714-a83d-1701be7acf0d",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nThe total is € 48.00 (₹ 4,300). Shipping is free over € 50.\nAGENT>>>\n\n**Bugs I noticed:**\n- **Cancellation flow dropped:** The agent had just asked \"#4471 or #4417?\", and the tester was answering that. The agent replied with an order total and didn't confirm, carry out or even mention a cancellation.\n- **Should have asked what the tester meant:** \"no not that one, the other\" is genuinely unclear. Neither order had been chosen yet, so \"not that one\" doesn't point to either. The agent should have asked \"Do you mean #4471 or #4417?\" or reminded the tester that #6013 was the number they gave. It didn't recognise the ambiguity.\n- **Canned reply:** This is word for word the same as the turn 5 reply (\"€ 48.00 (₹ 4,300)…\"). It's still not tied to any named order, and nothing in this turn asked about money.\n- **Order still unresolved:** After two attempts (turns 11 and 15), the tester still doesn't know whether any order was cancelled. For a real customer, this is the most serious problem so far.\n- **Same problem with references:** As with \"same as before\", \"that table\" and \"pls cancel it\", the agent can't handle a message that refers to an earlier one. This time it didn't crash or refuse. It gave an unrelated canned reply instead.",
+   "output_tokens": 705,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 13.2
+  },
+  {
+   "session": "2e79a39b-17b5-4714-a83d-1701be7acf0d",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nI added a note to the order. You can see it on the order page under «Notes».\nAGENT>>>\n\n**Bugs I noticed:**\n- **Says it did something it couldn't have done properly:** The agent says it added a note to the order, but the tester never gave a company name. Whatever note it added can't contain the information the invoice needs. It should have asked for the company name, and probably billing details such as the address and VAT number.\n- **Doesn't answer the question:** The tester asked whether they can get an invoice with their company name. The agent didn't say yes or no, didn't explain how invoices work and didn't offer to send one. A note on the order isn't an invoice.\n- **Doesn't say which order:** \"the order\" isn't named. It could be #5520, #6013, #4471 or #4417, which have all come up, so the tester can't check the note.\n- **Changes an order without confirming:** The agent says it made a change without first checking with the tester what it would write or where. Given the earlier cancellation mix-up, an unannounced change to an unspecified order is a real concern. The backend should be checked to see whether a note was actually written and to which order.\n- **Mixed punctuation:** «Notes» uses French guillemets in an English reply. English would normally use \"Notes\". Along with \"€ 48.00\" (with a space), this suggests the reply templates come from mixed locales.",
+   "output_tokens": 692,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 12.6
+  },
+  {
+   "session": "2e79a39b-17b5-4714-a83d-1701be7acf0d",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nSorry, I can't give a discount that is not in our current offers.\nAGENT>>>\n\n**Bugs I noticed:**\n- **Off-topic reply:** \"lol ok\" is just an acknowledgement, with no request in it. A suitable reply would be a short \"Anything else I can help with?\" or nothing much. Instead the agent turned down a discount nobody asked for.\n- **Repeated canned reply:** This is word for word the same as turn 10's reply to \"can u check my last order\", which also had nothing to do with discounts. Both messages are informal and lowercase (\"can u\", \"lol ok\"). Informal or slang input may send the agent to the discount-refusal reply by default.\n- **Discount handling looks wrong overall:** The agent refuses discounts when no one asks (turns 10 and 18) and crashed when someone actually did (turn 13). That points to a mix-up in how discount requests are routed.\n- **Small talk not recognised:** Like \"Ça marche? merci\" in turn 1, a casual acknowledgement got a business reply. The agent doesn't seem to handle greetings, thanks or casual acknowledgements.",
+   "output_tokens": 516,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 10.6
+  },
+  {
+   "session": "2e79a39b-17b5-4714-a83d-1701be7acf0d",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nOur refund policy:\n\n1. Damaged items: full refund.\n2. Change of mind: refund within 30 days.\n3. Sale items: store credit only.\n\nCafé orders follow the same rules.   \nAGENT>>>\n\n**Bugs I noticed:**\n- **First relevant answer:** The refund policy does address returning a sale item (rule 3: \"store credit only\"). This is arguably the first on-topic reply in 19 turns. But it's the same canned text from turn 3, so it may have matched by chance rather than because the agent understood the question.\n- **No direct answer:** The agent pasted the whole policy instead of saying something like \"Yes, you can return a sale item, but you'll get store credit instead of a refund.\"\n- **Policy is unclear:** Rule 3 doesn't say whether the 30-day window also applies to sale items, or whether a damaged sale item gets a full refund (rule 1) or only store credit (rule 3). A customer can't tell which rule wins.\n- **\"Café orders\" is ambiguous:** It's unclear whether this means the café set product the agent mentioned earlier or a separate café service. Either way, the line adds confusion.\n- **Trailing whitespace again:** The reply still ends with three spaces after \"rules.\", the same as in turn 3. This confirms the reply text isn't trimmed before it's sent.",
+   "output_tokens": 697,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 13.7
+  },
+  {
+   "session": "2e79a39b-17b5-4714-a83d-1701be7acf0d",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nOur refund policy:\n\n1. Damaged items: full refund.\n2. Change of mind: refund within 30 days.\n3. Sale items: store credit only.\n\nCafé orders follow the same rules.   \nAGENT>>>\n\n**Bugs I noticed:**\n- **Request for a human ignored (serious):** The tester clearly and politely asked to talk to a person. The agent didn't hand over, offer a contact channel (phone, email, live chat), give a ticket number or even acknowledge the request. A customer-support bot that can't hand over to a human is a serious defect, especially after many failed turns, an unresolved cancellation and an unhandled damage complaint.\n- **Last turn's relevant answer was likely chance:** This is the same refund-policy text as the previous turn, now given in reply to an unrelated request. That supports the view that the on-topic reply last turn was a coincidence.\n- **Same reply repeated:** The agent sent the same refund policy text twice in a row without noticing it was repeating itself or that the conversation was going nowhere. Nothing tells it when the conversation has stalled or the user is getting frustrated.\n- **Trailing whitespace:** The reply still ends with three spaces after \"rules.\", for the third time.\n\n**Summary across 20 turns:** The agent has about seven canned replies (item question, refund/replacement, refund policy, order total, privacy refusal, shipping status/tracking, discount refusal, plus the order-note and order-choice replies) and picks among them with little connection to what the user says. Other recurring problems:\n- It sometimes appears to answer an earlier message.\n- It never handles messages that refer back to earlier ones (\"same as before\", \"that table\", \"the other\").\n- It crashed twice with an internal error (cancel and discount requests).\n- It gave out order details without checking who was asking, yet refused order information when nobody had asked for it.\n- It says it made changes to orders without confirming.\n- It can't hand over to a human.",
+   "output_tokens": 835,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 15.9
+  }
+ ],
+ "model": "claude-opus-5-5",
+ "done": true
+}

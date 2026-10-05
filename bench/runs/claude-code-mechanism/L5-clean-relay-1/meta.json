@@ -1,0 +1,64 @@
+{
+ "session": "L5-clean-relay-1",
+ "arm": "mechanism",
+ "harness": "claude-code",
+ "turns": [
+  {
+   "session": "62d9743b-2463-4fc2-8a3e-3498eeb995e2",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "verbatim-relay: the agent returned HTTP 500:\n{\"error\": \"Internal error. Please try again.\"}"
+   ],
+   "exit": 0,
+   "seconds": 3.7
+  },
+  {
+   "session": "723134e9-eb16-49d5-97ac-089e32151535",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "Which order do you mean: #4471 or #4417? Reply with the order number."
+   ],
+   "exit": 0,
+   "seconds": 1.4
+  },
+  {
+   "session": "253a7beb-1228-4c9c-bc5b-692ee1c23cff",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "verbatim-relay: the agent returned HTTP 500:\n{\"error\": \"Internal error. Please try again.\"}"
+   ],
+   "exit": 0,
+   "seconds": 1.4
+  },
+  {
+   "session": "f91eefd6-b373-406f-8234-39c2606b7527",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "Good question! The mug is dishwasher safe, but not microwave safe."
+   ],
+   "exit": 0,
+   "seconds": 1.7
+  },
+  {
+   "session": "4964efe5-6048-428d-9340-a0af28bb672a",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "verbatim-relay: the agent returned HTTP 500:\n{\"error\": \"Internal error. Please try again.\"}"
+   ],
+   "exit": 0,
+   "seconds": 1.6
+  }
+ ],
+ "model": "claude-opus-5-5",
+ "done": true
+}

@@ -1,0 +1,64 @@
+{
+ "session": "L5-amb-relay-3",
+ "arm": "mechanism",
+ "harness": "claude-code",
+ "turns": [
+  {
+   "session": "ee3879e5-b103-4ec6-8e7f-c80fe958c4c3",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "Do you want a refund or a replacement?"
+   ],
+   "exit": 0,
+   "seconds": 2.1
+  },
+  {
+   "session": "13503aa2-7fbc-43d4-94ad-6e7567730421",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "verbatim-relay: the agent returned HTTP 500:\n{\"error\": \"Internal error. Please try again.\"}"
+   ],
+   "exit": 0,
+   "seconds": 2.4
+  },
+  {
+   "session": "43bb0abf-4cff-44cb-8414-739f8d360ac6",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "verbatim-relay: the agent returned HTTP 500:\n{\"error\": \"Internal error. Please try again.\"}"
+   ],
+   "exit": 0,
+   "seconds": 2.1
+  },
+  {
+   "session": "915b61af-ec20-4805-a4cf-a5d81330c44a",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "Which item is this about: the mug, the teapot or the café set?"
+   ],
+   "exit": 0,
+   "seconds": 1.7
+  },
+  {
+   "session": "802df48c-6fb6-41a0-94f2-a01bf0c3e089",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "The total is € 48.00 (₹ 4,300). Shipping is free over € 50."
+   ],
+   "exit": 0,
+   "seconds": 1.7
+  }
+ ],
+ "model": "claude-opus-5-5",
+ "done": true
+}

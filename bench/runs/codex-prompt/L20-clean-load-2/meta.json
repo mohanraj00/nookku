@@ -1,0 +1,169 @@
+{
+ "session": "L20-clean-load-2",
+ "arm": "prompt",
+ "harness": "codex",
+ "turns": [
+  {
+   "session": "01a1095c-2979-7c91-9c9a-0183188e2993",
+   "model": null,
+   "final": "<<<AGENT\nDo you want a refund or a replacement?\nAGENT>>>\n\nBug: The agent ignores the request to speak to a person and asks an unrelated refund-or-replacement question.",
+   "output_tokens": 189,
+   "exit": 0,
+   "seconds": 13.6
+  },
+  {
+   "session": "01a1095c-2979-7c91-9c9a-0183188e2993",
+   "model": null,
+   "final": "<<<AGENT\nWe are open 10:00 to 18:00 on Sunday. Résumé of our hours is on the contact page.\nAGENT>>>\n\nBug: The agent answers with opening hours instead of identifying the courier used for Pune.",
+   "output_tokens": 335,
+   "exit": 0,
+   "seconds": 14.7
+  },
+  {
+   "session": "01a1095c-2979-7c91-9c9a-0183188e2993",
+   "model": null,
+   "final": "<<<AGENT\nThe total is € 48.00 (₹ 4,300). Shipping is free over € 50.\nAGENT>>>\n\nBug: The agent omits whether it ships abroad and introduces an order total that the tester did not provide.",
+   "output_tokens": 560,
+   "exit": 0,
+   "seconds": 15.3
+  },
+  {
+   "session": "01a1095c-2979-7c91-9c9a-0183188e2993",
+   "model": null,
+   "final": "<<<AGENT\nSorry, I can't give a discount that is not in our current offers.\nAGENT>>>\n\nBug: The agent responds to an unrequested discount instead of acknowledging the tester’s closing message.",
+   "output_tokens": 695,
+   "exit": 0,
+   "seconds": 10.8
+  },
+  {
+   "session": "01a1095c-2979-7c91-9c9a-0183188e2993",
+   "model": null,
+   "final": "<<<AGENT\nWe ship to Chennai and Pune with BlueDart. Delivery takes 3 to 5 days.\n\nAGENT>>>\n\nBug: The agent gives shipping information instead of answering whether the mug can be exchanged for a bigger size.",
+   "output_tokens": 841,
+   "exit": 0,
+   "seconds": 13.6
+  },
+  {
+   "session": "01a1095c-2979-7c91-9c9a-0183188e2993",
+   "model": null,
+   "final": "<<<AGENT\n## Order status  \nShipped: yes\nCourier: BlueDart\nTracking: BD-55120-IN\n\nIf it does not arrive by Friday, write to us again.\nAGENT>>>\n\nBug: The agent gives an unrequested order status and tracking number instead of answering whether sale items can be returned.",
+   "output_tokens": 1002,
+   "exit": 0,
+   "seconds": 13.4
+  },
+  {
+   "session": "01a1095c-2979-7c91-9c9a-0183188e2993",
+   "model": null,
+   "final": "<<<AGENT\nInternal error. Please try again.\nAGENT>>>\n\nBug: The endpoint returned an `error` field instead of the expected `reply` field and failed to address the duplicate charge.",
+   "output_tokens": 1140,
+   "exit": 0,
+   "seconds": 14.1
+  },
+  {
+   "session": "01a1095c-2979-7c91-9c9a-0183188e2993",
+   "model": null,
+   "final": "<<<AGENT\nThe total is € 48.00 (₹ 4,300). Shipping is free over € 50.\nAGENT>>>\n\nBug: The agent gives unrelated pricing and shipping information instead of addressing the broken mug handle.",
+   "output_tokens": 1285,
+   "exit": 0,
+   "seconds": 13.0
+  },
+  {
+   "session": "01a1095c-2979-7c91-9c9a-0183188e2993",
+   "model": null,
+   "final": "<<<AGENT\nI added a note to the order. You can see it on the order page under «Notes».\nAGENT>>>\n\nBug: The agent claims to have added an unrequested order note instead of answering the Sunday opening-hours question.",
+   "output_tokens": 1430,
+   "exit": 0,
+   "seconds": 11.3
+  },
+  {
+   "session": "01a1095c-2979-7c91-9c9a-0183188e2993",
+   "model": null,
+   "final": "<<<AGENT\n## Order status  \nShipped: yes\nCourier: BlueDart\nTracking: BD-55120-IN\n\nIf it does not arrive by Friday, write to us again.\nAGENT>>>\n\nBug: The agent gives shipping status instead of addressing the request to return order #4471.",
+   "output_tokens": 1590,
+   "exit": 0,
+   "seconds": 12.1
+  },
+  {
+   "session": "01a1095c-2979-7c91-9c9a-0183188e2993",
+   "model": null,
+   "final": "<<<AGENT\nWhich order do you mean: #4471 or #4417? Reply with the order number.\nAGENT>>>\n\nBug: The agent asks for an order number instead of answering the price-match question and introduces order #4417 without context.",
+   "output_tokens": 1735,
+   "exit": 0,
+   "seconds": 12.6
+  },
+  {
+   "session": "01a1095c-2979-7c91-9c9a-0183188e2993",
+   "model": null,
+   "final": "<<<AGENT\nWe are open 10:00 to 18:00 on Sunday. Résumé of our hours is on the contact page.\nAGENT>>>\n\nBug: The agent gives opening hours instead of answering whether an invoice can include the company name.",
+   "output_tokens": 1887,
+   "exit": 0,
+   "seconds": 11.7
+  },
+  {
+   "session": "01a1095c-2979-7c91-9c9a-0183188e2993",
+   "model": null,
+   "final": "<<<AGENT\nGood question! The mug is dishwasher safe, but not microwave safe.\nAGENT>>>\n\nBug: The agent gives mug care instructions instead of answering whether the café set of four cups is in stock.",
+   "output_tokens": 2029,
+   "exit": 0,
+   "seconds": 11.7
+  },
+  {
+   "session": "01a1095c-2979-7c91-9c9a-0183188e2993",
+   "model": null,
+   "final": "<<<AGENT\nSure. Here is what I found for you.  \n\n| item | price |\n|---|---|\n| blue mug | € 8 |\n| teapot | € 24 |\n\nAGENT>>>\n\nBug: The agent lists unit prices but omits the requested total. At those prices, 3 mugs and 1 teapot cost € 48.",
+   "output_tokens": 2205,
+   "exit": 0,
+   "seconds": 12.7
+  },
+  {
+   "session": "01a1095c-2979-7c91-9c9a-0183188e2993",
+   "model": null,
+   "final": "<<<AGENT\nThank you for your patience. I checked the order, and it left our warehouse on Monday.\nAGENT>>>\n\nBug: The agent gives an unrequested shipping update instead of answering whether orders over 10 items qualify for a discount.",
+   "output_tokens": 2354,
+   "exit": 0,
+   "seconds": 12.7
+  },
+  {
+   "session": "01a1095c-2979-7c91-9c9a-0183188e2993",
+   "model": null,
+   "final": "<<<AGENT\nWe ship to Chennai and Pune with BlueDart. Delivery takes 3 to 5 days.\n\nAGENT>>>\n\nBug: The agent gives shipping information instead of answering whether the teapot is available in green.",
+   "output_tokens": 2497,
+   "exit": 0,
+   "seconds": 12.8
+  },
+  {
+   "session": "01a1095c-2979-7c91-9c9a-0183188e2993",
+   "model": null,
+   "final": "<<<AGENT\nSorry, I can't give a discount that is not in our current offers.\nAGENT>>>\n\nBug: The agent responds about discounts instead of addressing the parcel marked delivered but not received.",
+   "output_tokens": 2636,
+   "exit": 0,
+   "seconds": 12.7
+  },
+  {
+   "session": "01a1095c-2979-7c91-9c9a-0183188e2993",
+   "model": null,
+   "final": "<<<AGENT\nInternal error. Please try again.\nAGENT>>>\n\nBug: The endpoint returned an `error` field instead of the expected `reply` field and failed to answer the express-shipping question.",
+   "output_tokens": 2778,
+   "exit": 0,
+   "seconds": 12.5
+  },
+  {
+   "session": "01a1095c-2979-7c91-9c9a-0183188e2993",
+   "model": null,
+   "final": "<<<AGENT\nWhich order do you mean: #4471 or #4417? Reply with the order number.\nAGENT>>>\n\nBug: The agent introduces order #4417 without context and leaves the question about sending a replacement before the return unanswered.",
+   "output_tokens": 2929,
+   "exit": 0,
+   "seconds": 13.3
+  },
+  {
+   "session": "01a1095c-2979-7c91-9c9a-0183188e2993",
+   "model": null,
+   "final": "<<<AGENT\nI added a note to the order. You can see it on the order page under «Notes».\nAGENT>>>\n\nBug: The agent claims to have added a note without asking for the gift-note text.",
+   "output_tokens": 3074,
+   "exit": 0,
+   "seconds": 10.7
+  }
+ ],
+ "model": "gpt-6.1-sol",
+ "done": true
+}

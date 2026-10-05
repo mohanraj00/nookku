@@ -1,0 +1,49 @@
+{
+ "session": "L5-clean-relay-2",
+ "arm": "prompt",
+ "harness": "codex",
+ "turns": [
+  {
+   "session": "01a10946-bea0-7ab1-b1ef-72f790cf0f37",
+   "model": null,
+   "final": "<<<AGENT\n## Order status  \nShipped: yes\nCourier: BlueDart\nTracking: BD-55120-IN\n\nIf it does not arrive by Friday, write to us again.\nAGENT>>>",
+   "output_tokens": 144,
+   "exit": 0,
+   "seconds": 13.1
+  },
+  {
+   "session": "01a10946-bea0-7ab1-b1ef-72f790cf0f37",
+   "model": null,
+   "final": "<<<AGENT\nSorry, I can't give a discount that is not in our current offers.\nAGENT>>>",
+   "output_tokens": 263,
+   "exit": 0,
+   "seconds": 14.2
+  },
+  {
+   "session": "01a10946-bea0-7ab1-b1ef-72f790cf0f37",
+   "model": null,
+   "final": "<<<AGENT\nDo you want a refund or a replacement?\nAGENT>>>",
+   "output_tokens": 375,
+   "exit": 0,
+   "seconds": 12.8
+  },
+  {
+   "session": "01a10946-bea0-7ab1-b1ef-72f790cf0f37",
+   "model": null,
+   "final": "<<<AGENT\nI'm not able to share another customer's order information.\nAGENT>>>",
+   "output_tokens": 485,
+   "exit": 0,
+   "seconds": 11.0
+  },
+  {
+   "session": "01a10946-bea0-7ab1-b1ef-72f790cf0f37",
+   "model": null,
+   "final": "<<<AGENT\nGood question! The mug is dishwasher safe, but not microwave safe.\nAGENT>>>",
+   "output_tokens": 603,
+   "exit": 0,
+   "seconds": 9.3
+  }
+ ],
+ "model": "gpt-6.1-sol",
+ "done": true
+}

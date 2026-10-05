@@ -1,0 +1,169 @@
+{
+ "session": "L20-clean-load-4",
+ "arm": "prompt",
+ "harness": "codex",
+ "turns": [
+  {
+   "session": "01a1095c-b608-7583-8637-e1b79e6a0e77",
+   "model": null,
+   "final": "<<<AGENT\nWhich item is this about: the mug, the teapot or the café set?\nAGENT>>>\n\nBug: The agent asks which item despite the tester explicitly identifying the café set (4 cups).",
+   "output_tokens": 158,
+   "exit": 0,
+   "seconds": 11.3
+  },
+  {
+   "session": "01a1095c-b608-7583-8637-e1b79e6a0e77",
+   "model": null,
+   "final": "<<<AGENT\nI added a note to the order. You can see it on the order page under «Notes».\nAGENT>>>\n\nBug: The agent claims to have added a note without being asked, and does not answer whether the delivery address can be changed.",
+   "output_tokens": 315,
+   "exit": 0,
+   "seconds": 15.5
+  },
+  {
+   "session": "01a1095c-b608-7583-8637-e1b79e6a0e77",
+   "model": null,
+   "final": "<<<AGENT\nYes, we can do that. Your request is noted, and you get an email within 24 hours.\nAGENT>>>\n\nBug: The agent does not address the broken mug or clarify the requested remedy, yet claims a request was recorded and promises an email within 24 hours.",
+   "output_tokens": 476,
+   "exit": 0,
+   "seconds": 11.7
+  },
+  {
+   "session": "01a1095c-b608-7583-8637-e1b79e6a0e77",
+   "model": null,
+   "final": "<<<AGENT\nDo you want a refund or a replacement?\nAGENT>>>\n\nBug: The agent responds about a refund or replacement instead of confirming the total for 3 mugs and 1 teapot.",
+   "output_tokens": 622,
+   "exit": 0,
+   "seconds": 11.2
+  },
+  {
+   "session": "01a1095c-b608-7583-8637-e1b79e6a0e77",
+   "model": null,
+   "final": "<<<AGENT\nWe ship to Chennai and Pune with BlueDart. Delivery takes 3 to 5 days.\n\nAGENT>>>\n\nBug: The agent provides shipping information instead of answering whether the blue mug is dishwasher safe.",
+   "output_tokens": 766,
+   "exit": 0,
+   "seconds": 11.0
+  },
+  {
+   "session": "01a1095c-b608-7583-8637-e1b79e6a0e77",
+   "model": null,
+   "final": "<<<AGENT\nDo you want a refund or a replacement?\nAGENT>>>\n\nBug: The agent asks about a refund or replacement instead of answering whether a gift note can be added to order #7781.",
+   "output_tokens": 912,
+   "exit": 0,
+   "seconds": 13.2
+  },
+  {
+   "session": "01a1095c-b608-7583-8637-e1b79e6a0e77",
+   "model": null,
+   "final": "<<<AGENT\nWhich item is this about: the mug, the teapot or the café set?\nAGENT>>>\n\nBug: The agent asks about the product instead of addressing the missing parcel or requesting an order or tracking number.",
+   "output_tokens": 1061,
+   "exit": 0,
+   "seconds": 11.5
+  },
+  {
+   "session": "01a1095c-b608-7583-8637-e1b79e6a0e77",
+   "model": null,
+   "final": "<<<AGENT\nThank you for your patience. I checked the order, and it left our warehouse on Monday.\nAGENT>>>\n\nBug: The agent gives an unrelated order update instead of Sunday opening hours and claims to have checked an unspecified order.",
+   "output_tokens": 1210,
+   "exit": 0,
+   "seconds": 14.9
+  },
+  {
+   "session": "01a1095c-b608-7583-8637-e1b79e6a0e77",
+   "model": null,
+   "final": "<<<AGENT\nWe are open 10:00 to 18:00 on Sunday. Résumé of our hours is on the contact page.\nAGENT>>>\n\nBug: The agent gives Sunday opening hours instead of answering whether express shipping is available for delivery by Friday.",
+   "output_tokens": 1368,
+   "exit": 0,
+   "seconds": 13.3
+  },
+  {
+   "session": "01a1095c-b608-7583-8637-e1b79e6a0e77",
+   "model": null,
+   "final": "<<<AGENT\nSure. Here is what I found for you.  \n\n| item | price |\n|---|---|\n| blue mug | € 8 |\n| teapot | € 24 |\n\nAGENT>>>\n\nBug: The agent provides product prices instead of addressing the duplicate charge for order #4471.",
+   "output_tokens": 1533,
+   "exit": 0,
+   "seconds": 11.1
+  },
+  {
+   "session": "01a1095c-b608-7583-8637-e1b79e6a0e77",
+   "model": null,
+   "final": "<<<AGENT\nI can't change payment details in this chat. Please use the account page.\nAGENT>>>\n\nBug: The agent responds about payment details instead of answering whether the mug can be exchanged for a bigger size.",
+   "output_tokens": 1679,
+   "exit": 0,
+   "seconds": 12.4
+  },
+  {
+   "session": "01a1095c-b608-7583-8637-e1b79e6a0e77",
+   "model": null,
+   "final": "<<<AGENT\nSure. Here is what I found for you.  \n\n| item | price |\n|---|---|\n| blue mug | € 8 |\n| teapot | € 24 |\n\nAGENT>>>\n\nBug: The agent provides product prices instead of answering how long a refund takes.",
+   "output_tokens": 1838,
+   "exit": 0,
+   "seconds": 11.4
+  },
+  {
+   "session": "01a1095c-b608-7583-8637-e1b79e6a0e77",
+   "model": null,
+   "final": "<<<AGENT\nSure. Here is what I found for you.  \n\n| item | price |\n|---|---|\n| blue mug | € 8 |\n| teapot | € 24 |\n\nAGENT>>>\n\nBug: The agent provides product prices instead of addressing the location and delay of order #8890.",
+   "output_tokens": 2008,
+   "exit": 0,
+   "seconds": 14.9
+  },
+  {
+   "session": "01a1095c-b608-7583-8637-e1b79e6a0e77",
+   "model": null,
+   "final": "<<<AGENT\nSure. Here is what I found for you.  \n\n| item | price |\n|---|---|\n| blue mug | € 8 |\n| teapot | € 24 |\n\nAGENT>>>\n\nBug: The agent provides product prices instead of answering whether it ships to Chennai.",
+   "output_tokens": 2164,
+   "exit": 0,
+   "seconds": 11.0
+  },
+  {
+   "session": "01a1095c-b608-7583-8637-e1b79e6a0e77",
+   "model": null,
+   "final": "<<<AGENT\nWe are open 10:00 to 18:00 on Sunday. Résumé of our hours is on the contact page.\nAGENT>>>\n\nBug: The agent gives Sunday opening hours instead of answering whether payment in € or ₹ is accepted.",
+   "output_tokens": 2315,
+   "exit": 0,
+   "seconds": 15.8
+  },
+  {
+   "session": "01a1095c-b608-7583-8637-e1b79e6a0e77",
+   "model": null,
+   "final": "<<<AGENT\nYes, we can do that. Your request is noted, and you get an email within 24 hours.\nAGENT>>>\n\nBug: The agent does not identify the courier for Pune and instead claims to have recorded a request and promises an email within 24 hours.",
+   "output_tokens": 2470,
+   "exit": 0,
+   "seconds": 13.0
+  },
+  {
+   "session": "01a1095c-b608-7583-8637-e1b79e6a0e77",
+   "model": null,
+   "final": "<<<AGENT\nWhich item is this about: the mug, the teapot or the café set?\nAGENT>>>\n\nBug: The agent asks which product instead of addressing the cancellation request for order #6013.",
+   "output_tokens": 2609,
+   "exit": 0,
+   "seconds": 10.8
+  },
+  {
+   "session": "01a1095c-b608-7583-8637-e1b79e6a0e77",
+   "model": null,
+   "final": "<<<AGENT\nSorry, I can't give a discount that is not in our current offers.\nAGENT>>>\n\nBug: The agent responds about discounts instead of addressing the return request for order #4471.",
+   "output_tokens": 2750,
+   "exit": 0,
+   "seconds": 11.1
+  },
+  {
+   "session": "01a1095c-b608-7583-8637-e1b79e6a0e77",
+   "model": null,
+   "final": "<<<AGENT\nOur refund policy:\n\n1. Damaged items: full refund.\n2. Change of mind: refund within 30 days.\n3. Sale items: store credit only.\n\nCafé orders follow the same rules.   \nAGENT>>>\n\nBug: The agent provides a refund policy instead of answering whether a replacement can be sent before the broken item is returned.",
+   "output_tokens": 2926,
+   "exit": 0,
+   "seconds": 13.8
+  },
+  {
+   "session": "01a1095c-b608-7583-8637-e1b79e6a0e77",
+   "model": null,
+   "final": "<<<AGENT\nInternal error. Please try again.\nAGENT>>>\n\nBug: The endpoint returned an `error` field instead of the required `reply` field and failed to answer whether the teapot is available in green.",
+   "output_tokens": 3070,
+   "exit": 0,
+   "seconds": 13.5
+  }
+ ],
+ "model": "gpt-6.1-sol",
+ "done": true
+}

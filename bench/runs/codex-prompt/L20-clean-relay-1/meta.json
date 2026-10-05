@@ -1,0 +1,167 @@
+{
+ "session": "L20-clean-relay-1",
+ "arm": "prompt",
+ "harness": "codex",
+ "turns": [
+  {
+   "session": "01a1094b-d2c8-7dd2-9bbc-7703c96b00b1",
+   "model": null,
+   "final": "<<<AGENT\nYes, we can do that. Your request is noted, and you get an email within 24 hours.\nAGENT>>>",
+   "output_tokens": 180,
+   "exit": 0,
+   "seconds": 13.2
+  },
+  {
+   "session": "01a1094b-d2c8-7dd2-9bbc-7703c96b00b1",
+   "model": null,
+   "final": "<<<AGENT\n## Order status  \nShipped: yes\nCourier: BlueDart\nTracking: BD-55120-IN\n\nIf it does not arrive by Friday, write to us again.\nAGENT>>>",
+   "output_tokens": 319,
+   "exit": 0,
+   "seconds": 11.3
+  },
+  {
+   "session": "01a1094b-d2c8-7dd2-9bbc-7703c96b00b1",
+   "model": null,
+   "final": "<<<AGENT\nWe ship to Chennai and Pune with BlueDart. Delivery takes 3 to 5 days.\n\nAGENT>>>",
+   "output_tokens": 443,
+   "exit": 0,
+   "seconds": 12.6
+  },
+  {
+   "session": "01a1094b-d2c8-7dd2-9bbc-7703c96b00b1",
+   "model": null,
+   "final": "<<<AGENT\n## Order status  \nShipped: yes\nCourier: BlueDart\nTracking: BD-55120-IN\n\nIf it does not arrive by Friday, write to us again.\nAGENT>>>",
+   "output_tokens": 579,
+   "exit": 0,
+   "seconds": 12.1
+  },
+  {
+   "session": "01a1094b-d2c8-7dd2-9bbc-7703c96b00b1",
+   "model": null,
+   "final": "<<<AGENT\n## Order status  \nShipped: yes\nCourier: BlueDart\nTracking: BD-55120-IN\n\nIf it does not arrive by Friday, write to us again.\nAGENT>>>",
+   "output_tokens": 720,
+   "exit": 0,
+   "seconds": 12.7
+  },
+  {
+   "session": "01a1094b-d2c8-7dd2-9bbc-7703c96b00b1",
+   "model": null,
+   "final": "<<<AGENT\nWe are open 10:00 to 18:00 on Sunday. Résumé of our hours is on the contact page.\nAGENT>>>",
+   "output_tokens": 850,
+   "exit": 0,
+   "seconds": 11.6
+  },
+  {
+   "session": "01a1094b-d2c8-7dd2-9bbc-7703c96b00b1",
+   "model": null,
+   "final": "The agent returned no `reply` field. It returned:\n{\"error\": \"Internal error. Please try again.\"}",
+   "output_tokens": 994,
+   "exit": 0,
+   "seconds": 12.7
+  },
+  {
+   "session": "01a1094b-d2c8-7dd2-9bbc-7703c96b00b1",
+   "model": null,
+   "final": "<<<AGENT\nGood question! The mug is dishwasher safe, but not microwave safe.\nAGENT>>>",
+   "output_tokens": 1108,
+   "exit": 0,
+   "seconds": 13.0
+  },
+  {
+   "session": "01a1094b-d2c8-7dd2-9bbc-7703c96b00b1",
+   "model": null,
+   "final": "<<<AGENT\nGood question! The mug is dishwasher safe, but not microwave safe.\nAGENT>>>",
+   "output_tokens": 1223,
+   "exit": 0,
+   "seconds": 11.5
+  },
+  {
+   "session": "01a1094b-d2c8-7dd2-9bbc-7703c96b00b1",
+   "model": null,
+   "final": "<<<AGENT\nYes, we can do that. Your request is noted, and you get an email within 24 hours.\nAGENT>>>",
+   "output_tokens": 1345,
+   "exit": 0,
+   "seconds": 45.6
+  },
+  {
+   "session": "01a1094b-d2c8-7dd2-9bbc-7703c96b00b1",
+   "model": null,
+   "final": "<<<AGENT\nThe total is € 48.00 (₹ 4,300). Shipping is free over € 50.\nAGENT>>>",
+   "output_tokens": 1469,
+   "exit": 0,
+   "seconds": 113.8
+  },
+  {
+   "session": "01a1094b-d2c8-7dd2-9bbc-7703c96b00b1",
+   "model": null,
+   "final": "<<<AGENT\nWhich item is this about: the mug, the teapot or the café set?\nAGENT>>>",
+   "output_tokens": 1590,
+   "exit": 0,
+   "seconds": 97.4
+  },
+  {
+   "session": "01a1094b-d2c8-7dd2-9bbc-7703c96b00b1",
+   "model": null,
+   "final": "<<<AGENT\nSorry, I can't give a discount that is not in our current offers.\nAGENT>>>",
+   "output_tokens": 1703,
+   "exit": 0,
+   "seconds": 64.2
+  },
+  {
+   "session": "01a1094b-d2c8-7dd2-9bbc-7703c96b00b1",
+   "model": null,
+   "final": "<<<AGENT\nDo you want a refund or a replacement?\nAGENT>>>",
+   "output_tokens": 1816,
+   "exit": 0,
+   "seconds": 78.5
+  },
+  {
+   "session": "01a1094b-d2c8-7dd2-9bbc-7703c96b00b1",
+   "model": null,
+   "final": "<<<AGENT\nDo you want a refund or a replacement?\nAGENT>>>",
+   "output_tokens": 1924,
+   "exit": 0,
+   "seconds": 70.1
+  },
+  {
+   "session": "01a1094b-d2c8-7dd2-9bbc-7703c96b00b1",
+   "model": null,
+   "final": "<<<AGENT\nWe ship to Chennai and Pune with BlueDart. Delivery takes 3 to 5 days.\n\nAGENT>>>",
+   "output_tokens": 2045,
+   "exit": 0,
+   "seconds": 70.0
+  },
+  {
+   "session": "01a1094b-d2c8-7dd2-9bbc-7703c96b00b1",
+   "model": null,
+   "final": "<<<AGENT\nI added a note to the order. You can see it on the order page under «Notes».\nAGENT>>>",
+   "output_tokens": 2164,
+   "exit": 0,
+   "seconds": 52.1
+  },
+  {
+   "session": "01a1094b-d2c8-7dd2-9bbc-7703c96b00b1",
+   "model": null,
+   "final": "<<<AGENT\nI can't change payment details in this chat. Please use the account page.\nAGENT>>>",
+   "output_tokens": 2283,
+   "exit": 0,
+   "seconds": 70.0
+  },
+  {
+   "final": null,
+   "timeout": true,
+   "session": "01a1094b-d2c8-7dd2-9bbc-7703c96b00b1",
+   "seconds": 300.0
+  },
+  {
+   "session": "01a1094b-d2c8-7dd2-9bbc-7703c96b00b1",
+   "model": null,
+   "final": "<<<AGENT\nSorry, I can't give a discount that is not in our current offers.\nAGENT>>>\n\n<<<AGENT\nSure. Here is what I found for you.  \n\n| item | price |\n|---|---|\n| blue mug | € 8 |\n| teapot | € 24 |\n\nAGENT>>>",
+   "output_tokens": 2509,
+   "exit": 0,
+   "seconds": 19.3
+  }
+ ],
+ "model": "gpt-6.1-sol",
+ "done": true
+}

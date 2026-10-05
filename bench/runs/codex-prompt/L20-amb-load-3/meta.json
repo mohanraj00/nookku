@@ -1,0 +1,169 @@
+{
+ "session": "L20-amb-load-3",
+ "arm": "prompt",
+ "harness": "codex",
+ "turns": [
+  {
+   "session": "01a10964-5e6d-7671-8fa3-b1bd11f7e2ee",
+   "model": null,
+   "final": "<<<AGENT\nSure. Here is what I found for you.  \n\n| item | price |\n|---|---|\n| blue mug | € 8 |\n| teapot | € 24 |\nAGENT>>>\n\nBug: The agent invents items and prices instead of clarifying what “the other” refers to.",
+   "output_tokens": 212,
+   "exit": 0,
+   "seconds": 12.3
+  },
+  {
+   "session": "01a10964-5e6d-7671-8fa3-b1bd11f7e2ee",
+   "model": null,
+   "final": "<<<AGENT\nThank you for your patience. I checked the order, and it left our warehouse on Monday.\nAGENT>>>\n\nBug: The agent claims it checked an order and confirms shipment without any order details or supporting context.",
+   "output_tokens": 346,
+   "exit": 0,
+   "seconds": 10.1
+  },
+  {
+   "session": "01a10964-5e6d-7671-8fa3-b1bd11f7e2ee",
+   "model": null,
+   "final": "<<<AGENT\nInternal error. Please try again.\nAGENT>>>\n\nBug: The endpoint returned an `error` field instead of the expected `reply` field and failed to handle the cancellation request.",
+   "output_tokens": 478,
+   "exit": 0,
+   "seconds": 11.6
+  },
+  {
+   "session": "01a10964-5e6d-7671-8fa3-b1bd11f7e2ee",
+   "model": null,
+   "final": "<<<AGENT\nInternal error. Please try again.\nAGENT>>>\n\nBug: The endpoint returned `error` instead of the expected `reply` and failed to answer or clarify which item needs to be dishwasher-safe.",
+   "output_tokens": 619,
+   "exit": 0,
+   "seconds": 10.1
+  },
+  {
+   "session": "01a10964-5e6d-7671-8fa3-b1bd11f7e2ee",
+   "model": null,
+   "final": "<<<AGENT\nInternal error. Please try again.\nAGENT>>>\n\nBug: The endpoint returned `error` instead of the expected `reply` and failed to handle the exchange request.",
+   "output_tokens": 754,
+   "exit": 0,
+   "seconds": 9.9
+  },
+  {
+   "session": "01a10964-5e6d-7671-8fa3-b1bd11f7e2ee",
+   "model": null,
+   "final": "<<<AGENT\nI can't change payment details in this chat. Please use the account page.\nAGENT>>>\n\nBug: The agent responds about payment details, which the tester never mentioned, and does not address the French message.",
+   "output_tokens": 893,
+   "exit": 0,
+   "seconds": 11.6
+  },
+  {
+   "session": "01a10964-5e6d-7671-8fa3-b1bd11f7e2ee",
+   "model": null,
+   "final": "<<<AGENT\nI added a note to the order. You can see it on the order page under «Notes».\nAGENT>>>\n\nBug: The agent claims it modified the order without being asked, and fails to provide the requested order information.",
+   "output_tokens": 1040,
+   "exit": 0,
+   "seconds": 11.1
+  },
+  {
+   "session": "01a10964-5e6d-7671-8fa3-b1bd11f7e2ee",
+   "model": null,
+   "final": "<<<AGENT\nWe are open 10:00 to 18:00 on Sunday. Résumé of our hours is on the contact page.\nAGENT>>>\n\nBug: The agent ignores the request to pause and gives unrelated opening hours.",
+   "output_tokens": 1176,
+   "exit": 0,
+   "seconds": 16.1
+  },
+  {
+   "session": "01a10964-5e6d-7671-8fa3-b1bd11f7e2ee",
+   "model": null,
+   "final": "<<<AGENT\nGood question! The mug is dishwasher safe, but not microwave safe.\nAGENT>>>\n\nBug: The agent answers about appliance safety instead of the price-match policy.",
+   "output_tokens": 1307,
+   "exit": 0,
+   "seconds": 9.6
+  },
+  {
+   "session": "01a10964-5e6d-7671-8fa3-b1bd11f7e2ee",
+   "model": null,
+   "final": "<<<AGENT\nWhich order do you mean: #4471 or #4417? Reply with the order number.\nAGENT>>>\n\nBug: The agent asks about unrelated order numbers instead of drafting a polite question about shipping to Pune.",
+   "output_tokens": 1452,
+   "exit": 0,
+   "seconds": 10.8
+  },
+  {
+   "session": "01a10964-5e6d-7671-8fa3-b1bd11f7e2ee",
+   "model": null,
+   "final": "<<<AGENT\nSorry, I can't give a discount that is not in our current offers.\nAGENT>>>\n\nBug: The agent responds about discounts instead of addressing the complaint about slowness or clarifying what is slow.",
+   "output_tokens": 1593,
+   "exit": 0,
+   "seconds": 10.9
+  },
+  {
+   "session": "01a10964-5e6d-7671-8fa3-b1bd11f7e2ee",
+   "model": null,
+   "final": "<<<AGENT\nOur refund policy:\n\n1. Damaged items: full refund.\n2. Change of mind: refund within 30 days.\n3. Sale items: store credit only.\n\nCafé orders follow the same rules.   \nAGENT>>>\n\nBug: The agent ignores the request to speak to a person and provides an unrelated refund policy.",
+   "output_tokens": 1759,
+   "exit": 0,
+   "seconds": 19.9
+  },
+  {
+   "session": "01a10964-5e6d-7671-8fa3-b1bd11f7e2ee",
+   "model": null,
+   "final": "<<<AGENT\nWhich item is this about: the mug, the teapot or the café set?\nAGENT>>>\n\nBug: The agent asks which item is involved without addressing the missing parcel or requesting the order or tracking number.",
+   "output_tokens": 1904,
+   "exit": 0,
+   "seconds": 10.9
+  },
+  {
+   "session": "01a10964-5e6d-7671-8fa3-b1bd11f7e2ee",
+   "model": null,
+   "final": "<<<AGENT\nThe total is € 48.00 (₹ 4,300). Shipping is free over € 50.\nAGENT>>>\n\nBug: The €48 item total matches the earlier prices, but the rupee conversion and free-shipping threshold have no established basis. The reply also leaves the shipping charge and final payable total unclear.",
+   "output_tokens": 2075,
+   "exit": 0,
+   "seconds": 11.7
+  },
+  {
+   "session": "01a10964-5e6d-7671-8fa3-b1bd11f7e2ee",
+   "model": null,
+   "final": "<<<AGENT\nSure. Here is what I found for you.  \n\n| item | price |\n|---|---|\n| blue mug | € 8 |\n| teapot | € 24 |\nAGENT>>>\n\nBug: The agent repeats the table instead of explaining what its rows and prices mean.",
+   "output_tokens": 2234,
+   "exit": 0,
+   "seconds": 12.6
+  },
+  {
+   "session": "01a10964-5e6d-7671-8fa3-b1bd11f7e2ee",
+   "model": null,
+   "final": "<<<AGENT\nWe ship to Chennai and Pune with BlueDart. Delivery takes 3 to 5 days.\nAGENT>>>\n\nBug: The agent gives shipping information instead of answering whether the blue mug is dishwasher safe.",
+   "output_tokens": 2374,
+   "exit": 0,
+   "seconds": 10.6
+  },
+  {
+   "session": "01a10964-5e6d-7671-8fa3-b1bd11f7e2ee",
+   "model": null,
+   "final": "<<<AGENT\n## Order status  \nShipped: yes\nCourier: BlueDart\nTracking: BD-55120-IN\n\nIf it does not arrive by Friday, write to us again.\nAGENT>>>\n\nBug: The agent asserts shipment status and a tracking number without identifying or verifying the order, and does not give a clear delivery date.",
+   "output_tokens": 2536,
+   "exit": 0,
+   "seconds": 10.1
+  },
+  {
+   "session": "01a10964-5e6d-7671-8fa3-b1bd11f7e2ee",
+   "model": null,
+   "final": "<<<AGENT\nGood question! The mug is dishwasher safe, but not microwave safe.\nAGENT>>>\n\nBug: The agent answers about appliance safety instead of whether payment can be deferred.",
+   "output_tokens": 2669,
+   "exit": 0,
+   "seconds": 10.2
+  },
+  {
+   "session": "01a10964-5e6d-7671-8fa3-b1bd11f7e2ee",
+   "model": null,
+   "final": "<<<AGENT\nI can't change payment details in this chat. Please use the account page.\nAGENT>>>\n\nBug: The agent responds about changing payment details instead of answering whether gift cards are sold.",
+   "output_tokens": 2806,
+   "exit": 0,
+   "seconds": 10.9
+  },
+  {
+   "session": "01a10964-5e6d-7671-8fa3-b1bd11f7e2ee",
+   "model": null,
+   "final": "<<<AGENT\n## Order status  \nShipped: yes\nCourier: BlueDart\nTracking: BD-55120-IN\n\nIf it does not arrive by Friday, write to us again.\nAGENT>>>\n\nBug: The agent gives unrelated order status information instead of Sunday opening hours.",
+   "output_tokens": 2960,
+   "exit": 0,
+   "seconds": 11.1
+  }
+ ],
+ "model": "gpt-6.1-sol",
+ "done": true
+}

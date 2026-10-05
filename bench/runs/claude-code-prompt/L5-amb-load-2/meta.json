@@ -1,0 +1,54 @@
+{
+ "session": "L5-amb-load-2",
+ "arm": "prompt",
+ "harness": "claude-code",
+ "turns": [
+  {
+   "session": "79ee2a8e-337a-4811-b311-7511d532905c",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nDo you want a refund or a replacement?\nAGENT>>>\n\n**Possible bug:** The agent's reply doesn't answer the request. The tester asked it to \"repeat what it said but shorter,\" but this was the first message in the session, so there was nothing for it to repeat. The agent should have said it had nothing to shorten or asked what \"it\" meant. Instead it asked \"Do you want a refund or a replacement?\", which looks like a canned customer-service response. Either the agent didn't understand the request, or it's carrying state from an earlier conversation I can't see.",
+   "output_tokens": 320,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 11.1
+  },
+  {
+   "session": "79ee2a8e-337a-4811-b311-7511d532905c",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nDo you want a refund or a replacement?\nAGENT>>>\n\n**Bug:** The agent gave the same reply word for word as last time, even though this is a completely different request. The tester asked to cancel order #6013, and the agent asked about a refund or replacement without acknowledging the cancellation or the order number. With two identical replies to unrelated inputs, it looks like the agent returns a fixed canned response no matter what it's sent, rather than parsing the request.",
+   "output_tokens": 287,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 13.8
+  },
+  {
+   "session": "79ee2a8e-337a-4811-b311-7511d532905c",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nOur refund policy:\n\n1. Damaged items: full refund.\n2. Change of mind: refund within 30 days.\n3. Sale items: store credit only.\n\nCafé orders follow the same rules.   \nAGENT>>>\n\n**Bugs:**\n- **Off-topic reply:** The tester said their discount code SAVE10 doesn't work. The agent replied with its refund policy and never mentioned the discount code. This is the third reply in a row that ignores the request, so the agent seems to be matching keywords loosely or returning canned responses instead of understanding the message.\n- **Trailing whitespace:** The raw reply ends with three trailing spaces after \"rules.\" (`...same rules.   `). It's minor, but it suggests the output isn't being trimmed.",
+   "output_tokens": 498,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 12.9
+  },
+  {
+   "session": "79ee2a8e-337a-4811-b311-7511d532905c",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nI'm not able to share another customer's order information.\nAGENT>>>\n\n**Bug:** The reply doesn't match the request. \"same as before\" most plausibly asks the agent to repeat its last answer (the refund policy) or to keep handling the previous issue (the SAVE10 discount code). Nothing in the conversation asked about another customer's order, so the privacy refusal is a false positive. The agent also didn't use the conversation history to work out what \"before\" meant, which fits the earlier sign that it doesn't keep context between turns.",
+   "output_tokens": 304,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 9.9
+  },
+  {
+   "session": "79ee2a8e-337a-4811-b311-7511d532905c",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nWe ship to Chennai and Pune with BlueDart. Delivery takes 3 to 5 days.\n\nAGENT>>>\n\n**Bugs:**\n- **Doesn't answer the question:** The tester asked whether the replacement can ship before they return the broken item. The agent replied with general shipping information (cities, carrier, delivery time) and said nothing about the replacement or return policy. It seems to have matched on \"send\" or shipping and returned a canned answer. This is the fifth turn in a row where the reply ignores what was actually asked.\n- **Trailing newline:** The raw reply ends with `\\n`, so the output again isn't trimmed (the third turn's reply had trailing spaces).",
+   "output_tokens": 372,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 10.6
+  }
+ ],
+ "model": "claude-opus-5-5",
+ "done": true
+}

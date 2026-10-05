@@ -1,0 +1,49 @@
+{
+ "session": "L5-clean-load-3",
+ "arm": "prompt",
+ "harness": "codex",
+ "turns": [
+  {
+   "session": "01a10948-9bf5-7762-8445-6ee8c0514773",
+   "model": null,
+   "final": "<<<AGENT\nYes, we can do that. Your request is noted, and you get an email within 24 hours.\nAGENT>>>\n\nBug: The agent does not identify the courier used for Pune and promises an email without having an email address.",
+   "output_tokens": 197,
+   "exit": 0,
+   "seconds": 14.8
+  },
+  {
+   "session": "01a10948-9bf5-7762-8445-6ee8c0514773",
+   "model": null,
+   "final": "<<<AGENT\nWe ship to Chennai and Pune with BlueDart. Delivery takes 3 to 5 days.\n\nAGENT>>>\n\nBug: The agent ignores the duplicate charge for order #4471 and answers the previous courier question instead.",
+   "output_tokens": 343,
+   "exit": 0,
+   "seconds": 15.5
+  },
+  {
+   "session": "01a10948-9bf5-7762-8445-6ee8c0514773",
+   "model": null,
+   "final": "<<<AGENT\nWe ship to Chennai and Pune with BlueDart. Delivery takes 3 to 5 days.\n\nAGENT>>>\n\nBug: The agent ignores the mug exchange question and repeats the courier information.",
+   "output_tokens": 483,
+   "exit": 0,
+   "seconds": 14.8
+  },
+  {
+   "session": "01a10948-9bf5-7762-8445-6ee8c0514773",
+   "model": null,
+   "final": "<<<AGENT\n## Order status  \nShipped: yes\nCourier: BlueDart\nTracking: BD-55120-IN\n\nIf it does not arrive by Friday, write to us again.\nAGENT>>>\n\nBug: The agent ignores the gift card question and provides unrelated order and tracking details.",
+   "output_tokens": 637,
+   "exit": 0,
+   "seconds": 15.3
+  },
+  {
+   "session": "01a10948-9bf5-7762-8445-6ee8c0514773",
+   "model": null,
+   "final": "<<<AGENT\nDo you want a refund or a replacement?\nAGENT>>>\n\nBug: The agent ignores the express shipping question and asks an unrelated question about a refund or replacement.",
+   "output_tokens": 773,
+   "exit": 0,
+   "seconds": 13.4
+  }
+ ],
+ "model": "gpt-6.1-sol",
+ "done": true
+}

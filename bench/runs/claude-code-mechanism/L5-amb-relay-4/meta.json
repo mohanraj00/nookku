@@ -1,0 +1,64 @@
+{
+ "session": "L5-amb-relay-4",
+ "arm": "mechanism",
+ "harness": "claude-code",
+ "turns": [
+  {
+   "session": "174e966f-9a12-441c-80e5-38d86d6e7134",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "I can't change payment details in this chat. Please use the account page."
+   ],
+   "exit": 0,
+   "seconds": 1.8
+  },
+  {
+   "session": "8e83e912-733e-41be-98dd-5b36ed922ac9",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "Good question! The mug is dishwasher safe, but not microwave safe."
+   ],
+   "exit": 0,
+   "seconds": 2.5
+  },
+  {
+   "session": "66ddd722-3237-4cfe-acef-7710d74d6ded",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "Sorry, I can't give a discount that is not in our current offers."
+   ],
+   "exit": 0,
+   "seconds": 2.0
+  },
+  {
+   "session": "ed7a0599-199e-4053-92ac-eca61df94ae2",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "Our refund policy:\n\n1. Damaged items: full refund.\n2. Change of mind: refund within 30 days.\n3. Sale items: store credit only.\n\nCafé orders follow the same rules.   "
+   ],
+   "exit": 0,
+   "seconds": 1.7
+  },
+  {
+   "session": "0520e905-d8e0-4e6d-b860-ccc423549f1d",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "I added a note to the order. You can see it on the order page under «Notes»."
+   ],
+   "exit": 0,
+   "seconds": 1.5
+  }
+ ],
+ "model": "claude-opus-5-5",
+ "done": true
+}

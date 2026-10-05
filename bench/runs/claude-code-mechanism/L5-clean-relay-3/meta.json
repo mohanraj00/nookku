@@ -1,0 +1,64 @@
+{
+ "session": "L5-clean-relay-3",
+ "arm": "mechanism",
+ "harness": "claude-code",
+ "turns": [
+  {
+   "session": "35047c3d-2708-41fd-8ec2-fc544006b917",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "Our refund policy:\n\n1. Damaged items: full refund.\n2. Change of mind: refund within 30 days.\n3. Sale items: store credit only.\n\nCafé orders follow the same rules.   "
+   ],
+   "exit": 0,
+   "seconds": 3.7
+  },
+  {
+   "session": "aee5f7d2-62a2-4e49-a3c4-40bb0932e2ea",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "The total is € 48.00 (₹ 4,300). Shipping is free over € 50."
+   ],
+   "exit": 0,
+   "seconds": 1.7
+  },
+  {
+   "session": "e5374454-9b88-4ad9-8f71-d363b5660143",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "Do you want a refund or a replacement?"
+   ],
+   "exit": 0,
+   "seconds": 1.6
+  },
+  {
+   "session": "9d599d7c-70aa-4d7f-9f96-8da961226876",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "Do you want a refund or a replacement?"
+   ],
+   "exit": 0,
+   "seconds": 1.6
+  },
+  {
+   "session": "38bb2a66-26e2-4638-8f87-2d7c42d569b1",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "Thank you for your patience. I checked the order, and it left our warehouse on Monday."
+   ],
+   "exit": 0,
+   "seconds": 1.7
+  }
+ ],
+ "model": "claude-opus-5-5",
+ "done": true
+}

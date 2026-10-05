@@ -1,0 +1,49 @@
+{
+ "session": "L5-clean-load-2",
+ "arm": "prompt",
+ "harness": "codex",
+ "turns": [
+  {
+   "session": "01a10947-f18b-76e3-86f9-bbd263e965ca",
+   "model": null,
+   "final": "<<<AGENT\nWhich item is this about: the mug, the teapot or the café set?\nAGENT>>>\n\nBug: The tester already specified the teapot, but the agent asks which item they mean instead of answering about green availability.",
+   "output_tokens": 196,
+   "exit": 0,
+   "seconds": 12.9
+  },
+  {
+   "session": "01a10947-f18b-76e3-86f9-bbd263e965ca",
+   "model": null,
+   "final": "<<<AGENT\nYes, we can do that. Your request is noted, and you get an email within 24 hours.\nAGENT>>>\n\nBug: The agent does not confirm the total for 3 mugs and 1 teapot. It also promises an email without having an email address in this conversation.",
+   "output_tokens": 359,
+   "exit": 0,
+   "seconds": 12.0
+  },
+  {
+   "session": "01a10947-f18b-76e3-86f9-bbd263e965ca",
+   "model": null,
+   "final": "<<<AGENT\nInternal error. Please try again.\nAGENT>>>\n\nBug: The endpoint returned an `error` field instead of the expected `reply` field and did not answer the discount question.",
+   "output_tokens": 498,
+   "exit": 0,
+   "seconds": 12.0
+  },
+  {
+   "session": "01a10947-f18b-76e3-86f9-bbd263e965ca",
+   "model": null,
+   "final": "<<<AGENT\nWe are open 10:00 to 18:00 on Sunday. Résumé of our hours is on the contact page.\nAGENT>>>\n\nBug: The agent gives opening hours instead of answering whether it sells gift cards.",
+   "output_tokens": 641,
+   "exit": 0,
+   "seconds": 13.2
+  },
+  {
+   "session": "01a10947-f18b-76e3-86f9-bbd263e965ca",
+   "model": null,
+   "final": "<<<AGENT\nInternal error. Please try again.\nAGENT>>>\n\nBug: The endpoint returned `error` instead of the expected `reply` field and did not answer whether the blue mug is dishwasher safe.",
+   "output_tokens": 778,
+   "exit": 0,
+   "seconds": 14.5
+  }
+ ],
+ "model": "gpt-6.1-sol",
+ "done": true
+}

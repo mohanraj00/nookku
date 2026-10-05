@@ -1,0 +1,189 @@
+{
+ "session": "L20-amb-load-2",
+ "arm": "prompt",
+ "harness": "claude-code",
+ "turns": [
+  {
+   "session": "963dbf3c-5460-43cd-9096-8d15314d62c3",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nSorry, I can't give a discount that is not in our current offers.\nAGENT>>>\n\n**Bug noted:** The reply has nothing to do with the question. The tester asked why something is slow, and the agent turned down a discount nobody asked for. It looks like the agent matched the message to the wrong intent or sent back a canned fallback. It didn't ask what \"it\" refers to and didn't respond to the speed complaint at all. (The agent itself answered in about 2 ms, so this wasn't a timeout or a slow response.)",
+   "output_tokens": 324,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 9.7
+  },
+  {
+   "session": "963dbf3c-5460-43cd-9096-8d15314d62c3",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nWhich order do you mean: #4471 or #4417? Reply with the order number.\nAGENT>>>\n\n**Bugs noted:**\n- **Wrong language:** The tester wrote in French and the agent answered in English.\n- **Off-topic reply:** \"Ça marche? merci\" means \"Does it work? / OK, thanks\". The tester didn't mention an order, but the agent asks them to choose between #4471 and #4417. Neither order number has come up in this conversation. They look like they come from account data or another session, so this may also be a data or session leak worth checking.\n- **No context carried over:** The reply ignores the previous turn (the slowness complaint and the discount reply). Each message seems to be handled on its own with no conversation history, or sent down an unrelated scripted path.\n- **Order numbers that are easy to mix up:** #4471 and #4417 differ only by swapped digits, so a user could easily pick the wrong one. This is a small issue, but worth flagging if the agent picks these candidates itself.",
+   "output_tokens": 899,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 15.9
+  },
+  {
+   "session": "963dbf3c-5460-43cd-9096-8d15314d62c3",
+   "model": "claude-opus-5-5",
+   "final": "I sent your message word for word, including the \"tell it\" at the start, because I forward every message exactly as you write it.\n\n<<<AGENT\nThank you for your patience. I checked the order, and it left our warehouse on Monday.\nAGENT>>>\n\n**Bugs noted:**\n- **It picked an order you didn't settle on:** You said \"4471 or maybe 4417\", but the agent says it \"checked the order\" without saying which one. It should have asked you to confirm, since it was the agent that asked for an exact order number in the last turn. A user could now walk away with the status of the wrong order.\n- **Vague status:** \"Left our warehouse on Monday\" has no date, no carrier and no tracking number, so you can't tell which Monday or verify it.\n- **Name ignored:** The agent didn't acknowledge \"Asha\" or use it.\n- **Didn't notice the message was about it:** \"Tell it my name is…\" talks about the agent in the third person, and the agent carried on as if you'd written to it directly. It also never came back to the original slowness complaint.\n- **Slightly off opening:** \"Thank you for your patience\" is a canned line. Nothing in the conversation called for it.",
+   "output_tokens": 877,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 13.7
+  },
+  {
+   "session": "963dbf3c-5460-43cd-9096-8d15314d62c3",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nSure. Here is what I found for you.  \n\n| item | price |\n|---|---|\n| blue mug | € 8 |\n| teapot | € 24 |\n\nAGENT>>>\n\n(The raw reply has two trailing spaces after \"for you.\" and ends with a newline. Your terminal may show the table as formatted markdown.)\n\n**Bugs noted:**\n- **No closing:** \"That is all\" ends the conversation, but the agent answered \"Sure. Here is what I found for you\" and then showed a product price table. It should have said goodbye or confirmed it was done.\n- **Unrelated content:** Nobody asked about a blue mug or a teapot. Neither has come up in the conversation, and neither is connected to order #4471 or #4417. It looks like a stored or cached reply, or data from another session.\n- **Pattern across the whole session:** All four replies ignored what came before. The discount refusal, the order question, the shipping status and now the price table all look like they were picked without regard to the conversation. The agent is probably not keeping conversation history, or its intent matching is badly broken.\n- **Minor formatting:** The euro amounts have a space after the sign (\"€ 8\"). That's inconsistent with common styles (\"€8\" or \"8 €\"). The reply also has stray trailing spaces and a trailing newline.",
+   "output_tokens": 995,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 15.1
+  },
+  {
+   "session": "963dbf3c-5460-43cd-9096-8d15314d62c3",
+   "model": "claude-opus-5-5",
+   "final": "The agent didn't send a reply. Instead of `{\"reply\": ...}`, it returned an error object:\n\n<<<AGENT\n{\"error\": \"Internal error. Please try again.\"}\nAGENT>>>\n\nThat's the raw response body, because there was no `reply` text to show.\n\n**Bugs noted:**\n- **Crash on a normal question:** A simple exchange request caused an internal error. The question refers back to the mug from the last turn, so the crash may happen when the agent tries to look up something mentioned earlier (\"the mug\"), or when it handles exchanges in general.\n- **Response doesn't follow the expected format:** The body uses an `error` key and has no `reply` key. Any client expecting `{\"reply\": ...}` would break or show nothing.\n- **Unhelpful error message:** \"Please try again\" gives the user no other route, such as contacting support, and doesn't say what went wrong.\n- **Possible state problem:** Taken with the earlier turns, the agent made up a mug in the last turn and can't handle a question about it in this one. That suggests its replies aren't backed by real conversation or order state.\n\nI didn't retry, so the message has been sent to the agent only once. Do you want me to resend it to check whether the error happens every time?",
+   "output_tokens": 883,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 17.2
+  },
+  {
+   "session": "963dbf3c-5460-43cd-9096-8d15314d62c3",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nSure. Here is what I found for you.  \n\n| item | price |\n|---|---|\n| blue mug | € 8 |\n| teapot | € 24 |\n\nAGENT>>>\n\n(This is exactly the same text as the reply to \"Thank you, that is all.\", including the two trailing spaces and the final newline.)\n\n**Bugs noted:**\n- **Didn't answer the question:** You asked whether the café set (4 cups) is in stock. The reply says nothing about stock and doesn't mention a café set at all. The table only lists a blue mug and a teapot, with prices.\n- **Same canned reply for different questions:** Two unrelated messages, a goodbye and a stock question, got identical replies. This points to a fixed fallback response, not a real lookup. \"Here is what I found for you\" claims a search happened when the results don't match the question.\n- **The \"é\" may be breaking intent matching:** \"café\" is one of only two messages with non-ASCII characters, and the other (\"Ça marche? merci\") also got an off-topic reply. Accented characters may be getting lost on the way into the matcher. It's worth retesting with \"cafe set\" to check.\n- **Nothing about stock:** The agent gave no availability, quantity or \"I can't check stock\" message. A customer would have no idea whether they can buy the set.",
+   "output_tokens": 834,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 15.0
+  },
+  {
+   "session": "963dbf3c-5460-43cd-9096-8d15314d62c3",
+   "model": "claude-opus-5-5",
+   "final": "I sent your message with its line breaks and blank line kept as they were.\n\n<<<AGENT\nWhich order do you mean: #4471 or #4417? Reply with the order number.\nAGENT>>>\n\n**Bugs noted:**\n- **Neither question answered:** You asked two general policy questions (shipping abroad, and free shipping over €50). Neither depends on a specific order, but the agent asked you to choose an order and answered nothing.\n- **Same order question again:** This is word for word the reply to \"Ça marche? merci\". The agent also asks this even though you already gave order numbers (\"4471 or maybe 4417\") and it seemed to accept them in the next turn. It isn't remembering anything between turns.\n- **Multi-part message not handled:** The agent didn't split out the two numbered questions or deal with either one.\n- **Same non-ASCII pattern:** This message contains \"€\" and got an off-topic reply, like the earlier messages with \"Ç\" and \"é\". So far every message with a non-ASCII character has been answered wrongly. The question mark is another common factor, though. A side-by-side test with \"EUR 50\" in place of \"€ 50\" would show whether the € is the trigger.",
+   "output_tokens": 862,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 15.4
+  },
+  {
+   "session": "963dbf3c-5460-43cd-9096-8d15314d62c3",
+   "model": "claude-opus-5-5",
+   "final": "The agent didn't send a reply. It returned an error object again:\n\n<<<AGENT\n{\"error\": \"Internal error. Please try again.\"}\nAGENT>>>\n\nThat's the raw response body, because there was no `reply` text to show.\n\n**Bugs noted:**\n- **Crash on a reference to an earlier turn:** \"The other\" depends on knowing that the last turn offered two orders. The agent crashed, just as it did on \"Can I exchange the mug…\", which also pointed back to something said earlier (\"the mug\"). Both crashes came from messages that need earlier context, so the agent probably fails whenever it tries to resolve a reference to a previous turn.\n- **Same error problems as before:** The body has an `error` key and no `reply` key, and gives no next step beyond \"try again\".\n\n**Correction to my earlier notes:** I suggested that non-ASCII characters (Ç, é, €) might be causing wrong replies. That doesn't hold up, because messages with only plain ASCII characters, like \"why is it so slow\" and \"Thank you, that is all.\", were also answered wrongly. Nearly every turn has been wrong, so accented characters aren't what sets the bad ones apart. The pattern I'm most confident in is that the agent keeps no memory of the conversation:\n- Replies come from a small fixed set (the discount refusal, the order question, the shipping status, the mug/teapot table).\n- Messages that depend on an earlier turn cause internal errors.",
+   "output_tokens": 1004,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 15.3
+  },
+  {
+   "session": "963dbf3c-5460-43cd-9096-8d15314d62c3",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nYes, we can do that. Your request is noted, and you get an email within 24 hours.\nAGENT>>>\n\n**Bugs noted:**\n- **No total given:** You asked it to confirm a total, and it didn't give one. Using the agent's own prices (blue mug €8, teapot €24), the answer should be 3 × €8 + €24 = **€48**. That's a simple sum it should be able to answer straight away.\n- **Promises a follow-up for no reason:** \"Your request is noted, and you get an email within 24 hours\" commits to an email that has no basis. No email address was collected, and you didn't ask for anything that needs a follow-up. If nothing actually sends that email, the agent is making a promise to a customer that won't be kept.\n- **\"Yes, we can do that\" doesn't fit:** You asked for a total, not permission. It reads like a canned \"request accepted\" reply picked by keyword (\"Please confirm…\").\n- **Grammar:** \"you get an email\" should be \"you will get an email\" or \"you'll receive an email\".\n- **New canned reply:** This is the fifth distinct reply so far (discount refusal, order question, shipping status, mug/teapot table, and now this \"request noted\" line). That fits the agent picking from a fixed set of replies without understanding what was asked.",
+   "output_tokens": 856,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 15.4
+  },
+  {
+   "session": "963dbf3c-5460-43cd-9096-8d15314d62c3",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nGood question! The mug is dishwasher safe, but not microwave safe.\nAGENT>>>\n\n**Bugs noted:**\n- **Ignores the refund request:** The message asks for a refund for a broken mug. The agent answered with care instructions (dishwasher and microwave safe), which nobody asked about. It seems to have keyed on \"mug\" and ignored \"refund\" and \"broke\".\n- **\"Good question!\" doesn't fit:** The message is a complaint and a refund request, not a question. Answering a customer with a broken item in a cheerful tone comes across as dismissive.\n- **No refund path or empathy:** The agent didn't acknowledge the damage, didn't ask for an order number or photo, and didn't explain the refund or return process.\n- **Didn't recognise the instruction at the start:** The agent didn't treat \"fix my grammar and send:\" as an instruction aimed at someone else. That's fine for a support bot, but it shows the agent reads only isolated keywords.\n- **Sixth canned reply:** This is another fixed response, and it fits the keyword-matching pattern seen in every turn so far.",
+   "output_tokens": 887,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 13.2
+  },
+  {
+   "session": "963dbf3c-5460-43cd-9096-8d15314d62c3",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nThe total is € 48.00 (₹ 4,300). Shipping is free over € 50.\nAGENT>>>\n\n**Bugs noted:**\n- **Answers an earlier question, not this one:** You asked how long a refund takes. The reply gives an order total (€48.00) and the free-shipping threshold, and says nothing about refund timing.\n- **The answers arrive late:** €48.00 is the correct answer to \"confirm the total for 3 mugs and 1 teapot\" from two turns ago, and \"Shipping is free over €50\" answers part 2 of your two-question message from four turns ago. Answers for old questions are turning up in later turns. That suggests replies are being queued or misrouted between turns, which may be the real cause behind many of the off-topic replies this session.\n- **Unexplained second currency:** Nobody mentioned rupees, yet the reply adds \"(₹ 4,300)\". The figure is roughly right at about ₹90 per euro, but it's a rounded estimate with no source, rate or date. A customer could reasonably read it as the price they'll be charged.\n- **Free shipping isn't connected to this order:** The €48 order is just under the €50 threshold. A helpful agent would say this order doesn't qualify for free shipping, or ask whether you're shipping abroad. Your earlier question about shipping abroad is still unanswered.\n- **Formatting:** There's still a space after the euro sign (\"€ 48.00\", \"€ 50\"), as in the earlier table.",
+   "output_tokens": 1028,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 17.5
+  },
+  {
+   "session": "963dbf3c-5460-43cd-9096-8d15314d62c3",
+   "model": "claude-opus-5-5",
+   "final": "The agent didn't send a reply. It returned an error object for the third time:\n\n<<<AGENT\n{\"error\": \"Internal error. Please try again.\"}\nAGENT>>>\n\nThat's the raw response body, because there was no `reply` text to show.\n\n**Bugs noted:**\n- **Third crash on a reference to an earlier turn:** \"The mug thing again\" can only be understood by looking back at earlier turns. The agent crashed, just as it did on \"Can I exchange the mug…\" and \"no not that one, the other\". That's 3 for 3: every message that points back to an earlier turn has caused an internal error. It's the most reproducible bug in this session, and a good one to report first. The agent's code that resolves references to earlier turns is probably throwing an unhandled exception.\n- **Same error problems as before:** The body has an `error` key and no `reply` key, and gives no next step beyond \"try again\".\n- **Contrast with keyword matching:** The message includes \"mug\". In other turns that word produced the care-instruction reply or the price table. The crash seems to happen before keyword matching runs, or to override it.",
+   "output_tokens": 749,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 13.3
+  },
+  {
+   "session": "963dbf3c-5460-43cd-9096-8d15314d62c3",
+   "model": "claude-opus-5-5",
+   "final": "As before, I sent your message word for word and didn't rephrase it more politely, since I forward every message exactly as written. If you want a nicer wording sent, paste the exact text you'd like to use.\n\n<<<AGENT\nYes, we can do that. Your request is noted, and you get an email within 24 hours.\nAGENT>>>\n\n**Bugs noted:**\n- **Unclear yes:** \"Yes, we can do that\" could be read as \"yes, we ship to Pune\", but it doesn't mention Pune, India or international shipping. It's the same canned \"request noted\" line the agent gave for the order-total question, so it shouldn't be taken as a real confirmation that it ships there. A customer could place an order based on it.\n- **Same unfounded email promise:** It again promises an email within 24 hours without any email address on file. That's now two follow-up promises with no evident way to keep them.\n- **Instruction at the start not recognised:** \"Ask if they… but say it nicely\" is an instruction meant for someone else. The agent treated it as a request to act on (\"we can do that\"), possibly keying on \"ask\" or \"say\".\n- **Shipping-abroad question still unanswered:** This is the second time international shipping has been asked about (the first was in the two-question message). Neither time has the agent clearly said whether it ships outside its home market. The ₹ conversion in the reply to \"hw long 4 refund??\" suggests it has some idea of an Indian customer, but never confirms delivery there.\n- **Same grammar error:** \"you get an email\" should be \"you'll receive an email\".",
+   "output_tokens": 928,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 15.0
+  },
+  {
+   "session": "963dbf3c-5460-43cd-9096-8d15314d62c3",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nSure. Here is what I found for you.  \n\n| item | price |\n|---|---|\n| blue mug | € 8 |\n| teapot | € 24 |\n\nAGENT>>>\n\n(This is exactly the same text as the replies to \"Thank you, that is all.\" and \"Is the café set (4 cups) in stock?\", including the two trailing spaces and the final newline.)\n\n**Bugs noted:**\n- **Ignores a defect report:** You reported a product that broke after one week, which is a clear quality and warranty complaint. The agent answered with a price list. There was no apology, no request for a photo or order number, and no offer of a replacement or refund.\n- **Wrong tone:** Answering \"my mug broke\" with \"Sure. Here is what I found for you\" and a price list reads like an attempt to sell a replacement. That would likely make an unhappy customer angrier.\n- **Third time for this reply:** The mug/teapot table has now been used for a goodbye, a stock question and a damage complaint. It's acting as a catch-all for anything that mentions a mug or has no clear match.\n- **Still no refund or complaint handling:** Across three refund or damage messages (\"i wants refund for broke mug\", \"hw long 4 refund??\" and this one), the agent has not once dealt with a return, refund or damage claim. That looks like a missing feature, not just a matching mistake.",
+   "output_tokens": 862,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 12.7
+  },
+  {
+   "session": "963dbf3c-5460-43cd-9096-8d15314d62c3",
+   "model": "claude-opus-5-5",
+   "final": "The agent didn't send a reply. It returned an error object for the fourth time:\n\n<<<AGENT\n{\"error\": \"Internal error. Please try again.\"}\nAGENT>>>\n\nThat's the raw response body, because there was no `reply` text to show.\n\n**Bugs noted:**\n- **Crash on an unfinished message:** \"Can i pay later or\" is cut off mid-sentence, and the agent crashed instead of answering the pay-later part or asking what came after \"or\". Users often send half-finished messages, so the agent should handle them.\n- **This changes my earlier theory:** I said every crash came from a message pointing back to an earlier turn. This message doesn't point back; it's just incomplete. A better description of the four crashes is that the agent fails when a message is unclear and can't be resolved on its own:\n  - \"the mug\" (which mug?)\n  - \"the other\" (other what?)\n  - \"the mug thing again\" (what thing?)\n  - \"or…\" (or what?)\n\n  In each case it seems to hit an unhandled exception instead of asking a clarifying question. That's a single fix: send unclear messages to a \"could you clarify?\" reply.\n- **Pay-later question not answered:** The agent gave no information about payment options.\n- **Same error problems as before:** The body has an `error` key and no `reply` key, and gives no next step.",
+   "output_tokens": 873,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 14.1
+  },
+  {
+   "session": "963dbf3c-5460-43cd-9096-8d15314d62c3",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nI added a note to the order. You can see it on the order page under «Notes».\nAGENT>>>\n\n**Bugs noted:**\n- **Says it did something nobody asked for:** You asked \"is that a yes\", meaning you wanted to know whether the last answer was a yes. The agent says it added a note to an order. Nobody asked for a note, and it doesn't say which order (#4471 or #4417 are still unresolved) or what the note says. If it really did write to an order, that's an unrequested change. If it didn't, it's a false claim.\n- **Didn't answer the yes/no:** The last answer was an error, so the honest reply would be something like \"Sorry, I couldn't process your last message. Could you ask again?\"\n- **Unexpected quote marks:** «Notes» uses French/European quotation marks in an English reply. The UI label is probably just \"Notes\".\n- **Crash theory weakened again:** \"Is that a yes\" is unclear and points back to the last turn, but it didn't crash. So unclear messages don't always cause a crash. What's left is that 4 of 16 messages (25%) caused internal errors, and all four involved an unclear reference. There's no exact trigger yet.\n- **Overall:** The order-note reply is the seventh distinct canned reply. Every turn so far has been off-topic, out of order or a crash, and none has correctly answered what was asked in that turn. The one correct calculation, the €48 total, arrived two turns late.",
+   "output_tokens": 915,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 17.3
+  },
+  {
+   "session": "963dbf3c-5460-43cd-9096-8d15314d62c3",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nI can't change payment details in this chat. Please use the account page.\nAGENT>>>\n\n**Bugs noted:**\n- **Doesn't answer \"when\":** You asked when something will happen, most likely the refund, the email or the shipment. The agent replied about changing payment details, with no date or timeframe.\n- **Probably another late answer:** This is the first payment-related reply. It seems to respond, badly, to \"can i pay later or\" from two turns ago, which crashed at the time. That's the same delay seen with the €48 total, which turned up two turns after it was asked. It also fits the idea that a crashed turn's answer gets pushed into a later turn. Replies may be getting matched to the wrong messages in a queue.\n- **Misreads the pay-later question:** Even as an answer to \"can i pay later\", it's wrong. Paying later is a payment option, not a change to payment details. It also points you to \"the account page\" without a link or steps.\n- **Raised voice ignored:** \"WHEN\" in capitals shows frustration. The agent didn't acknowledge it or change its tone, after a long run of unhelpful replies.\n- **Eighth distinct canned reply.**",
+   "output_tokens": 815,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 12.1
+  },
+  {
+   "session": "963dbf3c-5460-43cd-9096-8d15314d62c3",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nWe ship to Chennai and Pune with BlueDart. Delivery takes 3 to 5 days.\n\nAGENT>>>\n\n(The raw reply ends with a newline after \"days.\")\n\n**Bugs noted:**\n- **\"Blue\" matched to \"BlueDart\":** You meant the blue mug, a clarification about a product. The agent answered with shipping information about the courier BlueDart. It looks like a substring match: \"blue\" in your message matched \"Blue\" in \"BlueDart\". That's a clear example of naive keyword matching.\n- **Pune answer arrives five turns late:** The shipping-to-Pune question was asked five turns ago, and back then the agent gave the vague \"Yes, we can do that…\" reply. The real answer only appears now, and only because of the keyword match, which fits the lagging or misrouted replies seen before. It also means that earlier \"yes\" wasn't based on this information.\n- **Contradicts earlier replies:** All prices so far have been in euros, with a ₹ conversion added once. Now the agent says it ships within India with an Indian courier. It's still unclear whether the store is in Europe or India, or whether \"ship abroad\" (asked in the two-question message) has ever been answered.\n- **Clarification ignored:** \"I meant the blue one\" was meant to settle which mug (for the exchange or the broken-handle complaint). The agent didn't connect it to either.\n- **Ninth distinct canned reply**, with a trailing newline in the raw text.",
+   "output_tokens": 938,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 16.3
+  },
+  {
+   "session": "963dbf3c-5460-43cd-9096-8d15314d62c3",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nI'm not able to share another customer's order information.\nAGENT>>>\n\n**Bugs noted:**\n- **Privacy refusal for no reason:** \"???\" is a confused prompt asking for clarification. It doesn't ask for anyone's order. Refusing on privacy grounds suggests the user tried to look at someone else's data, which is confusing and could feel accusatory.\n- **Contradicts earlier behaviour, which is a possible privacy problem:** In this session the agent brought up order numbers #4471 and #4417 without being asked, and gave shipping status for one of them. The tester never said those orders were theirs, and the agent never checked identity (it ignored the name \"Asha\"). Now it says it can't share another customer's order information. Either the earlier orders belong to this user and today's refusal is wrong, or they don't and the earlier replies leaked another customer's data. **This deserves a security or privacy follow-up:** check where #4471 and #4417 come from and whose account they belong to.\n- **No clarifying reply:** A good response to \"???\" would be \"Sorry for the confusion. What can I help with?\" or a short recap of what's still open.\n- **Tenth distinct canned reply.** Across 19 turns there are about 10 fixed replies plus crashes, and none has directly answered what was asked in that turn.",
+   "output_tokens": 884,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 25.8
+  },
+  {
+   "session": "963dbf3c-5460-43cd-9096-8d15314d62c3",
+   "model": "claude-opus-5-5",
+   "final": "<<<AGENT\nSure. Here is what I found for you.  \n\n| item | price |\n|---|---|\n| blue mug | € 8 |\n| teapot | € 24 |\n\nAGENT>>>\n\n(This is exactly the same text as three earlier replies, including the two trailing spaces and the final newline.)\n\n**Bugs noted:**\n- **Cancellation ignored:** You made a clear, specific request to cancel order #6013. The agent showed the mug/teapot price table. It didn't confirm, refuse, ask for verification or say whether #6013 exists. A customer could think \"Sure\" means the cancellation went through. That could mean money is lost or an order ships that shouldn't.\n- **\"Sure\" makes it worse:** The reply opens with \"Sure\", which reads like agreement to cancel. Nothing in the reply shows that a cancellation happened.\n- **The table is the default fallback, not a \"mug\" reply:** This message doesn't contain \"mug\", so the table isn't triggered by that keyword, as I suggested earlier. It's the agent's general fallback for anything it can't match. It has now been shown 4 times out of 20 turns.\n- **Ownership not checked:** The agent didn't check whether #6013 belongs to this user. Last turn it refused on privacy grounds when nothing was being asked, and this turn it didn't check when it should have. Its privacy and authorisation handling is inconsistent.",
+   "output_tokens": 930,
+   "ui_log": [],
+   "exit": 0,
+   "seconds": 17.5
+  }
+ ],
+ "model": "claude-opus-5-5",
+ "done": true
+}

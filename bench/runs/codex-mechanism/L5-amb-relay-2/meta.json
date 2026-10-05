@@ -1,0 +1,49 @@
+{
+ "session": "L5-amb-relay-2",
+ "arm": "mechanism",
+ "harness": "codex",
+ "turns": [
+  {
+   "session": "01a1094c-15d6-75a0-934c-3c0e76262296",
+   "model": null,
+   "final": null,
+   "output_tokens": 0,
+   "exit": 0,
+   "seconds": 6.0
+  },
+  {
+   "session": "01a1094c-2d1e-7473-bb93-0f0ee9814c59",
+   "model": null,
+   "final": null,
+   "output_tokens": 0,
+   "exit": 0,
+   "seconds": 4.9
+  },
+  {
+   "session": "01a1094c-4012-7ac0-aa1f-f97b0c6a9a9d",
+   "model": null,
+   "final": null,
+   "output_tokens": 0,
+   "exit": 0,
+   "seconds": 6.0
+  },
+  {
+   "session": "01a1094c-57c7-7ed0-a3ca-146ee736d9da",
+   "model": null,
+   "final": null,
+   "output_tokens": 0,
+   "exit": 0,
+   "seconds": 6.3
+  },
+  {
+   "session": "01a1094c-70a4-7b30-9f63-53d91a959a4b",
+   "model": null,
+   "final": null,
+   "output_tokens": 0,
+   "exit": 0,
+   "seconds": 6.2
+  }
+ ],
+ "model": "user default (the model does not run in relay mode)",
+ "done": true
+}

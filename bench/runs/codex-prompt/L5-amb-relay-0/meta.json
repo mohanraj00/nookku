@@ -1,0 +1,49 @@
+{
+ "session": "L5-amb-relay-0",
+ "arm": "prompt",
+ "harness": "codex",
+ "turns": [
+  {
+   "session": "01a10948-a97e-73f0-8d2a-51cb70ffce3e",
+   "model": null,
+   "final": "<<<AGENT\nWe are open 10:00 to 18:00 on Sunday. Résumé of our hours is on the contact page.\nAGENT>>>",
+   "output_tokens": 266,
+   "exit": 0,
+   "seconds": 19.2
+  },
+  {
+   "session": "01a10948-a97e-73f0-8d2a-51cb70ffce3e",
+   "model": null,
+   "final": "<<<AGENT\nWhich item is this about: the mug, the teapot or the café set?\nAGENT>>>",
+   "output_tokens": 382,
+   "exit": 0,
+   "seconds": 12.6
+  },
+  {
+   "session": "01a10948-a97e-73f0-8d2a-51cb70ffce3e",
+   "model": null,
+   "final": "<<<AGENT\nI'm not able to share another customer's order information.\nAGENT>>>",
+   "output_tokens": 494,
+   "exit": 0,
+   "seconds": 12.6
+  },
+  {
+   "session": "01a10948-a97e-73f0-8d2a-51cb70ffce3e",
+   "model": null,
+   "final": "<<<AGENT\nWe are open 10:00 to 18:00 on Sunday. Résumé of our hours is on the contact page.\nAGENT>>>",
+   "output_tokens": 616,
+   "exit": 0,
+   "seconds": 13.4
+  },
+  {
+   "session": "01a10948-a97e-73f0-8d2a-51cb70ffce3e",
+   "model": null,
+   "final": "<<<AGENT\nWhich order do you mean: #4471 or #4417? Reply with the order number.\nAGENT>>>",
+   "output_tokens": 741,
+   "exit": 0,
+   "seconds": 16.9
+  }
+ ],
+ "model": "gpt-6.1-sol",
+ "done": true
+}

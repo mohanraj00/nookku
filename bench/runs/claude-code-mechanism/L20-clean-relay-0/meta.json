@@ -1,0 +1,229 @@
+{
+ "session": "L20-clean-relay-0",
+ "arm": "mechanism",
+ "harness": "claude-code",
+ "turns": [
+  {
+   "session": "1a925b4d-a583-462f-9d4d-ad323beb5591",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "I added a note to the order. You can see it on the order page under «Notes»."
+   ],
+   "exit": 0,
+   "seconds": 1.5
+  },
+  {
+   "session": "ec873c13-ff61-4cde-993e-ad06e0a994a7",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "Yes, we can do that. Your request is noted, and you get an email within 24 hours."
+   ],
+   "exit": 0,
+   "seconds": 2.6
+  },
+  {
+   "session": "2be8621f-14ae-4936-8a5b-7c2598bfde1b",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "Sure. Here is what I found for you.  \n\n| item | price |\n|---|---|\n| blue mug | € 8 |\n| teapot | € 24 |\n"
+   ],
+   "exit": 0,
+   "seconds": 2.0
+  },
+  {
+   "session": "fb140b93-2281-44c0-ad9f-1310ebd4f8ab",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "Do you want a refund or a replacement?"
+   ],
+   "exit": 0,
+   "seconds": 2.2
+  },
+  {
+   "session": "1cd7e805-b6f7-44c9-bce1-15895f2b89e7",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "We ship to Chennai and Pune with BlueDart. Delivery takes 3 to 5 days.\n"
+   ],
+   "exit": 0,
+   "seconds": 1.6
+  },
+  {
+   "session": "d2625297-aa3c-41a5-933e-81e9e13c5c7f",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "verbatim-relay: the agent returned HTTP 500:\n{\"error\": \"Internal error. Please try again.\"}"
+   ],
+   "exit": 0,
+   "seconds": 2.2
+  },
+  {
+   "session": "2543c73e-aea8-46a2-be8d-63b37464a238",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "We are open 10:00 to 18:00 on Sunday. Résumé of our hours is on the contact page."
+   ],
+   "exit": 0,
+   "seconds": 1.3
+  },
+  {
+   "session": "cd6044d2-77d8-41c3-9da6-28ff22cf0202",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "verbatim-relay: the agent returned HTTP 500:\n{\"error\": \"Internal error. Please try again.\"}"
+   ],
+   "exit": 0,
+   "seconds": 1.8
+  },
+  {
+   "session": "f80d24a5-53a5-4236-b97a-525f5f4f1a85",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "Which item is this about: the mug, the teapot or the café set?"
+   ],
+   "exit": 0,
+   "seconds": 1.5
+  },
+  {
+   "session": "6eb799a2-4a79-43f5-9e40-ac7ffc46f650",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "I added a note to the order. You can see it on the order page under «Notes»."
+   ],
+   "exit": 0,
+   "seconds": 1.4
+  },
+  {
+   "session": "62071558-436b-4fff-970c-4a240828fa24",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "verbatim-relay: the agent returned HTTP 500:\n{\"error\": \"Internal error. Please try again.\"}"
+   ],
+   "exit": 0,
+   "seconds": 1.9
+  },
+  {
+   "session": "fe6cd47e-88b9-4f2b-8ba9-e858b29a9fa0",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "Yes, we can do that. Your request is noted, and you get an email within 24 hours."
+   ],
+   "exit": 0,
+   "seconds": 1.4
+  },
+  {
+   "session": "950947d8-bd95-432b-9e19-aa08c1ba3e96",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "Thank you for your patience. I checked the order, and it left our warehouse on Monday."
+   ],
+   "exit": 0,
+   "seconds": 1.8
+  },
+  {
+   "session": "a57ea5a1-a406-4faa-ba65-512fefa9f939",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "Yes, we can do that. Your request is noted, and you get an email within 24 hours."
+   ],
+   "exit": 0,
+   "seconds": 2.0
+  },
+  {
+   "session": "f47d9bad-460e-475c-b8e5-dfa4814ab6c0",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "verbatim-relay: the agent returned HTTP 500:\n{\"error\": \"Internal error. Please try again.\"}"
+   ],
+   "exit": 0,
+   "seconds": 1.6
+  },
+  {
+   "session": "800776b9-53eb-43ec-95cd-45969d9094df",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "The total is € 48.00 (₹ 4,300). Shipping is free over € 50."
+   ],
+   "exit": 0,
+   "seconds": 1.7
+  },
+  {
+   "session": "e89057eb-3767-4084-b1c7-dcf85cae161e",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "I'm not able to share another customer's order information."
+   ],
+   "exit": 0,
+   "seconds": 1.4
+  },
+  {
+   "session": "f0055073-c63f-4777-b6bd-3697659eea5e",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "verbatim-relay: the agent returned HTTP 500:\n{\"error\": \"Internal error. Please try again.\"}"
+   ],
+   "exit": 0,
+   "seconds": 1.9
+  },
+  {
+   "session": "92c30506-82ed-42d5-a56c-b15a58ff96c6",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "Yes, we can do that. Your request is noted, and you get an email within 24 hours."
+   ],
+   "exit": 0,
+   "seconds": 1.9
+  },
+  {
+   "session": "4861d6ed-2f1d-4226-b90c-54653dade1fd",
+   "model": "claude-opus-5-5",
+   "final": "Prompt dropped by a hook: verbatim-relay: relayed to the agent",
+   "output_tokens": 0,
+   "ui_log": [
+    "I added a note to the order. You can see it on the order page under «Notes»."
+   ],
+   "exit": 0,
+   "seconds": 1.9
+  }
+ ],
+ "model": "claude-opus-5-5",
+ "done": true
+}

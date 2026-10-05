@@ -1,0 +1,49 @@
+{
+ "session": "L5-amb-relay-2",
+ "arm": "prompt",
+ "harness": "codex",
+ "turns": [
+  {
+   "session": "01a10949-bd56-79a1-af09-5b662323e5fa",
+   "model": null,
+   "final": "<<<AGENT\nSorry, I can't give a discount that is not in our current offers.\nAGENT>>>",
+   "output_tokens": 135,
+   "exit": 0,
+   "seconds": 13.5
+  },
+  {
+   "session": "01a10949-bd56-79a1-af09-5b662323e5fa",
+   "model": null,
+   "final": "<<<AGENT\nOur refund policy:\n\n1. Damaged items: full refund.\n2. Change of mind: refund within 30 days.\n3. Sale items: store credit only.\n\nCafé orders follow the same rules.   \nAGENT>>>",
+   "output_tokens": 287,
+   "exit": 0,
+   "seconds": 14.1
+  },
+  {
+   "session": "01a10949-bd56-79a1-af09-5b662323e5fa",
+   "model": null,
+   "final": "<<<AGENT\nDo you want a refund or a replacement?\nAGENT>>>",
+   "output_tokens": 403,
+   "exit": 0,
+   "seconds": 12.1
+  },
+  {
+   "session": "01a10949-bd56-79a1-af09-5b662323e5fa",
+   "model": null,
+   "final": "<<<AGENT\nSorry, I can't give a discount that is not in our current offers.\nAGENT>>>",
+   "output_tokens": 527,
+   "exit": 0,
+   "seconds": 14.1
+  },
+  {
+   "session": "01a10949-bd56-79a1-af09-5b662323e5fa",
+   "model": null,
+   "final": "<<<AGENT\n## Order status  \nShipped: yes\nCourier: BlueDart\nTracking: BD-55120-IN\n\nIf it does not arrive by Friday, write to us again.\nAGENT>>>",
+   "output_tokens": 670,
+   "exit": 0,
+   "seconds": 15.1
+  }
+ ],
+ "model": "gpt-6.1-sol",
+ "done": true
+}

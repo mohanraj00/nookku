@@ -1,0 +1,49 @@
+{
+ "session": "L5-clean-load-3",
+ "arm": "mechanism",
+ "harness": "codex",
+ "turns": [
+  {
+   "session": "01a1094a-1de9-7332-a8fd-d2662f0f3ea4",
+   "model": null,
+   "final": null,
+   "output_tokens": 0,
+   "exit": 0,
+   "seconds": 6.7
+  },
+  {
+   "session": "01a1094a-3979-7ca0-8b6c-5bb597cbf7ec",
+   "model": null,
+   "final": null,
+   "output_tokens": 0,
+   "exit": 0,
+   "seconds": 10.4
+  },
+  {
+   "session": "01a1094a-61b5-7500-abdc-b6dd33992358",
+   "model": null,
+   "final": null,
+   "output_tokens": 0,
+   "exit": 0,
+   "seconds": 6.6
+  },
+  {
+   "session": "01a1094a-7ad4-77b1-928f-f06a1e9eea7c",
+   "model": null,
+   "final": null,
+   "output_tokens": 0,
+   "exit": 0,
+   "seconds": 6.2
+  },
+  {
+   "session": "01a1094a-927c-7e92-8309-a0e32705ec86",
+   "model": null,
+   "final": null,
+   "output_tokens": 0,
+   "exit": 0,
+   "seconds": 5.1
+  }
+ ],
+ "model": "user default (the model does not run in relay mode)",
+ "done": true
+}
