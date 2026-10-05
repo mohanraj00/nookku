@@ -19,7 +19,7 @@ Tested with Claude Code 2.1.288.
    ```
 
 2. Start the tap in front of your agent (see the [README](../README.md#quick-start)).
-3. Open `/config` and set the verbatim-relay options. The defaults fit the quick start.
+3. Set the options with `/plugin configure verbatim-relay@verbatim-relay` in Claude Code, or with `--config KEY=VALUE` at install. The defaults fit the quick start.
 
    | Option | Default | Meaning |
    |---|---|---|
