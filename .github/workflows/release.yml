@@ -14,7 +14,8 @@ jobs:
       - name: The tag matches the package version
         run: test -f "dist/verbatim_relay-${GITHUB_REF_NAME#v}-py3-none-any.whl"
       - name: The tag matches the plugin version
-        run: grep -q "\"version\": \"${GITHUB_REF_NAME#v}\"" plugins/claude-code/.claude-plugin/plugin.json
+        run: |
+          grep -q "\"version\": \"${GITHUB_REF_NAME#v}\"" plugins/claude-code/.claude-plugin/plugin.json
       - run: uvx twine check --strict dist/*
       - uses: actions/upload-artifact@v4
         with:
