@@ -1,0 +1,14 @@
+{
+  "name": "verbatim-relay",
+  "description": "verbatim-relay: test a chat agent through Claude Code without the model in the conversation.",
+  "owner": {
+    "name": "Mohan Raj"
+  },
+  "plugins": [
+    {
+      "name": "verbatim-relay",
+      "source": "./plugins/claude-code",
+      "description": "Relay a test conversation to a chat agent byte for byte. The model never writes either direction."
+    }
+  ]
+}

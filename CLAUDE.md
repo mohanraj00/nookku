@@ -16,6 +16,10 @@ A person tests a chat agent through a coding harness (Claude Code or Codex). The
 - **Plugin helpers.** In `plugins/claude-code/hooks/register.tsx`, a function that takes `$` must be a top-level function declaration. `claude plugin validate` refuses other forms.
 - **Outward steps.** Do not push, tag, publish or open issues without the maintainer's approval for that step. Tags publish to PyPI and you cannot undo them.
 
+## Writing
+
+Docs, commit messages and issues use the maintainer's voice under ASD-STE100 rules: first person where natural, short sentences, active voice, simple words, numbers instead of adjectives. Be direct. No em-dashes, no filler words ("seamless", "robust", "leverage", "comprehensive"). Each number links to its data.
+
 ## Before every commit
 
 ```bash
