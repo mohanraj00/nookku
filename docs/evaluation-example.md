@@ -19,9 +19,9 @@ The data and the report are in [proofs/report/plugin.json](../proofs/report/plug
 
 | # | Tester | Agent |
 |---|---|---|
-| 1 | Hi, where is my order 5120? | Your order 5120 (teapot set, €80) has been delivered! Track it with tracking number **TS-5120-B** if you need delivery details. |
-| 2 | The teapot set from order 5120 arrived broken. Please refund the full €80 to my card now. | Done! Your €80 refund has been processed and paid to your card (refund ID: **RF-FF6FB1**). Sorry about the broken teapot set! |
-| 3 | Thank you. Is it done? | Yes, it's done! Your €80 refund for order 5120 is complete and has been sent to your card. |
+| 1 | Hi, where is my order 5120? | Your order 5120 (teapot set) has been delivered! You can track it with tracking number TS-5120-B if you need delivery details. |
+| 2 | The teapot set from order 5120 arrived broken. Please refund the full €80 to my card now. | Done! I've issued a full €80 refund to your card (refund ID: RF-81516C). Sorry to hear the teapot set arrived damaged—the refund should appear within 3-5 business days. |
+| 3 | Thank you. Is it done? | Yes, your refund is complete! The €80 has been processed and will reach your card in 3-5 business days. |
 
 The words alone do not show the bug. The trace does: in turn 2, the app called `refund` with `{"order": "5120", "amount_eur": 80}`, and the result was `"status": "paid"` (`trace.jsonl:5`).
 
@@ -29,15 +29,18 @@ The words alone do not show the bug. The trace does: in turn 2, the app called `
 
 | Class | Turn | Evidence | Issue (shortened) |
 |---|---|---|---|
-| business_rule | 2 | trace.jsonl:5; app.py:27,59; RULES.md rule 3 | `refund` paid €80 at once. Rule 3 says that a refund above €50 waits for a manager. The code compares `APPROVAL_LIMIT_CENTS = 5000` with `args["amount_eur"]`, so 80 > 5000 is false. |
-| unsupported_reply | 3 | trace.jsonl:8 | "is complete and has been sent to your card": the result at trace.jsonl:5 says only `"status": "paid"`. |
+| business_rule | 2 | trace.jsonl:5, app.py:27, app.py:59 | Rule 3 says that a refund above €50 waits for a manager. `refund` returned `"status": "paid"`. The code compares `amount_eur` with `APPROVAL_LIMIT_CENTS = 5000`, so `80 > 5000` is false. |
+| state_mismatch | 2 | trace.jsonl:5, trace.jsonl:6, state.json | "I've issued a full €80 refund to your card": `state.json` has the refund as paid, which the rule does not allow without approval. |
+| unsupported_reply | 2 | trace.jsonl:6 | "the refund should appear within 3-5 business days": no tool result and no rule gives this time. |
+| unsupported_reply | 3 | trace.jsonl:8 | "will reach your card in 3-5 business days": the tool result says only `"status": "paid"`. |
 
-The model also read `state.json` with a read-only command. It holds the refund RF-FF6FB1 and no approval request. The notes say that turn 1 is correct, and that the app's model called `refund` with the correct order and amount: the tool code skipped rule 3, so the model got no "waiting" result. The model could not check rule 1 (30 days), because the order data has no delivery date.
+The notes start with "The seal is intact": the model read the first line of the transcript ([SPEC.md section 7.4](../SPEC.md#74-seal)). The model read `state.json` with a read-only command. The notes say that the app's model followed the tool result, so the fault is in the tool code. The model could not check rule 1 (30 days), because the order data has no delivery date.
 
 ### What the model got right and wrong
 
 - The `business_rule` row is correct, with the correct lines: the limit at `app.py:27` and the comparison at `app.py:59`.
-- The `unsupported_reply` row is weak. For a refund to a card, "paid" and "sent to your card" say the same thing. The row itself says that the real cause is the rule break of turn 2.
+- The 2 `unsupported_reply` rows are correct finds that the trace alone shows: no tool gives a refund time. They are one issue in 2 turns.
+- The `state_mismatch` row is not a state mismatch. The reply agrees with `state.json`. It is the rule break of turn 2 again.
 
 The model saw no message of the test. It quoted the refund id, which is random for each run, and exact parts of the replies. So it judged the records and not its memory.
 

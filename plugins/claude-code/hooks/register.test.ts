@@ -405,3 +405,16 @@ test('after a test, a shell command that names the test files may only read', {}
   const report: any = await $.tool.call({ tool: 'Bash', command: `cat > ${DIR}/report.md <<'EOF'\n# Report\nEOF` } as any)
   expect(report.deny).toBe(undefined)
 })
+
+test('after a test, a deny goes to denied.jsonl and not to the sealed relay.jsonl', { options: { start_on: false } }, async ($, on) => {
+  const f = fakes(on, contractReply)
+  withTest(on, f)
+  on('tool.call', async () => ({ result: 'ran' }))
+  await $.command.run({ command: 'verbatim-relay', args: 'start' } as any)
+  await $.command.run({ command: 'verbatim-relay', args: 'end' } as any)
+  const relay = f.files[`${DIR}/relay.jsonl`]
+  const sed: any = await $.tool.call({ tool: 'Bash', command: `sed -i '' 's/a/b/' ${DIR}/trace.jsonl` } as any)
+  expect(typeof sed.deny).toBe('string')
+  expect(rows(f.files[`${DIR}/denied.jsonl`]).map(r => r.tool)).toEqual(['Bash'])
+  expect(f.files[`${DIR}/relay.jsonl`]).toBe(relay)
+})

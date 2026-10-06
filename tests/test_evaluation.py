@@ -41,6 +41,8 @@ def test_no_evaluation_if_the_config_turns_it_off_or_the_test_runs(tmp_path: Pat
 def test_the_transcript_shows_each_turn_with_its_trace(tmp_path: Path) -> None:
     root = project(tmp_path)
     text = evaluation.transcript(root / ".verbatim-relay" / "tests" / TEST)
+    seal_line, text = text.split("\n", 1)
+    assert seal_line == "Seal: none. The records of this test have no seal."
     assert text.startswith(f"verbatim-relay transcript with trace, test {TEST}: 3 turns, 11 ")
     turn1 = text.split("════ turn 1 ════")[1].split("════ turn 2 ════")[0]
     assert "[trace.jsonl:5] claude-code tool_call: shop.lookup_order\n" in turn1

@@ -1,0 +1,15 @@
+{
+ "copy": true,
+ "files": {
+  "audit.json": "5bc232b82de377a5655a39a2af9d7ae0fc868de5b9df957e18905cb914606c88",
+  "findings.json": "b8adad3852f196db84ad05c2affa3855c7e15d1c9d24c62c8d32165e34a82c39",
+  "manifest.json": "7d1866faf42885bb2e90e265835dcff23cc7536d3da294ffbd6ede47fcd42754",
+  "relay.jsonl": "271dc12f13a9041980838097a54f3d48fea4ebb1a6ae801809fe929a3a9dd131",
+  "sessions/claude-code/s1.jsonl": "172da4a540646f7c852b2b9611c31d0d7f17b697369b8e2c5c5ad274d6f77489",
+  "tap.jsonl": "0762682d6596b3cf424acbe47bf03fab4526fca80db23afa60e1a5a4b9d49a3d",
+  "trace.jsonl": "cfdb2d6921c5969668f1139dbda62f3fffc7bde4a5882c42de52839428cb0700"
+ },
+ "sealed": 1791316800.0,
+ "test": "20261006-120000-se01",
+ "v": 1
+}

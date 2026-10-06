@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any, TextIO
 from urllib.parse import urlsplit
 
-from verbatim_relay import bridge, commands, evaluation
+from verbatim_relay import bridge, commands, evaluation, seal
 from verbatim_relay.adapters import AdapterError, History, make
 from verbatim_relay.record import RecordError, Turn, Writer, read_relay
 
@@ -303,8 +303,9 @@ def handle(event: dict[str, Any], root: Path, harness: str) -> dict[str, Any] | 
 
 
 def _last_record(root: Path) -> Path:
+    """After a test, a deny goes to denied.jsonl, so that the sealed relay.jsonl does not change."""
     last = bridge.latest_test(root)
-    return last / "relay.jsonl" if last else root / STATE_DIR / "relay.jsonl"
+    return last / seal.DENIED if last else root / STATE_DIR / "relay.jsonl"
 
 
 def touches_records(text: str) -> bool:

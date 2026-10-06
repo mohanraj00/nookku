@@ -59,6 +59,8 @@ Each test is a new conversation, with a new test id and a new entry process. The
 | `trace.jsonl` | Each message, tool call and command of those sessions, with its result, its turn and its line in the session file. |
 | `audit.json` | The audit of the two records, as `verbatim-relay audit --json` prints it. |
 | `report.md` | The model's evaluation, if it ran. |
+| `seal.json` | The SHA-256 of each other file at the end of the test. `verbatim-relay verify` shows if a file changed after the end ([SPEC.md section 7.4](../SPEC.md#74-seal)). |
+| `denied.jsonl` | The model tool calls that the relay denied after the end. |
 | `findings.json` | The checks of the trace: failed tools and commands, agent errors, turns with no model item, and more ([SPEC.md section 8](../SPEC.md#8-trace)). |
 
 Options. Set them with `/plugin configure verbatim-relay@verbatim-relay` in Claude Code, or with `--config KEY=VALUE` at install. The defaults fit the quick start.

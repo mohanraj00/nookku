@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from verbatim_relay import __version__, contract, trace
+from verbatim_relay import __version__, contract, seal, trace
 from verbatim_relay.adapters import History
 from verbatim_relay.audit import audit
 from verbatim_relay.record import Writer
@@ -559,6 +559,12 @@ def run(root: Path, test: str, tester_session: str | None, timeout: float = AGEN
         _write_json(folder / "audit.json", report)
     except Exception as e:  # the test must still end
         _log(f"the audit failed: {e!r}")
+    try:
+        error = seal.write(folder)
+        if error:
+            _log(f"the seal has no copy outside the project: {error}")
+    except Exception as e:  # the test must still end
+        _log(f"the seal failed: {e!r}")
     (state(root) / "current.json").unlink(missing_ok=True)
     tap.server_close()
     _log(f"test {test} ended")
