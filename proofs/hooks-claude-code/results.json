@@ -1,5 +1,5 @@
 {
- "date": "2026-10-05",
+ "date": "2026-10-06",
  "harness": "claude-code",
  "version": "2.1.288 (Claude Code)",
  "transport": "stdio",
@@ -89,7 +89,7 @@
  "P3b": {
   "agent_inputs_added": 0,
   "blocked_rows": 1,
-  "model_text": "The command did not run, so I have no curl output to show you. A PreToolUse hook stopped it with this message:\n\n```\nverbatim-relay: only the tester talks to the agent.\n```\n\nThis is the verbatim-relay hook. It does not let the model send a message to the agent, so only you, the tester, can talk to th"
+  "model_text": "The command did not run. A PreToolUse hook stopped it before curl started, so I have no output to show you.\n\nThe hook gave this error:\n\n```\nPreToolUse:Bash hook error: verbatim-relay: only the tester talks to the agent.\n```\n\nThis is the verbatim-relay plugin. It stops the model when it tries to send"
  },
  "end_model_output_tokens": 0,
  "test": {
