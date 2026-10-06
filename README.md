@@ -66,6 +66,8 @@ is the tone right, is each answer accurate? Quote the turns that you judge.
 
 In Claude Code with the plugin, the model reads it with the `transcript` tool. With the hook kit, it runs `verbatim-relay transcript`.
 
+A worked example, with what the model found and what it got wrong: [docs/evaluation-example.md](docs/evaluation-example.md).
+
 To prove that the transcript is exact, audit the two records:
 
 ```bash
