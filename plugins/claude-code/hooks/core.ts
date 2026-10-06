@@ -135,6 +135,15 @@ export function touchesTestFiles(tool: string, input: string): boolean {
   return WRITE_TOOLS.includes(tool) || isChecked(tool)
 }
 
+// After a test, the model may write report.md in a test folder, and no other file of it
+// (SPEC.md section 9).
+const TEST_FOLDER_FILE = /\.verbatim-relay\/tests\/[^/\s"']+\/([^\s"'\\]*)/g
+
+export function touchesRecords(tool: string, input: string): boolean {
+  if (!WRITE_TOOLS.includes(tool)) return false
+  return [...input.matchAll(TEST_FOLDER_FILE)].some(m => m[1] !== 'report.md')
+}
+
 export async function turnRow(said: string, shown: string | null, ok: boolean, session: string): Promise<string> {
   const row = {
     v: '0.2',

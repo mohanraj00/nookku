@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { contractBody, contractShown, denyPattern, isChecked, pick, requestBody, sha256, touchesTestFiles } from './core'
+import { contractBody, contractShown, denyPattern, isChecked, pick, requestBody, sha256, touchesRecords, touchesTestFiles } from './core'
 
 const TRICKY = 'Hi, I want to return order #4471.  \n\nÜnïcödé € ₹\t| a | b |\n'
 const REPLY = '## Toy shop  \nYou wrote it.\n\n| item | price |\n|---|---|\n| mug | € 8 |\n'
@@ -127,7 +127,7 @@ test('the transcript tool reads this session from the record', { options: OPTION
 const DIR = '.verbatim-relay/tests/20261005-120000-ab12'
 const CURRENT = { v: 1, test: '20261005-120000-ab12', dir: DIR, tap_url: 'http://127.0.0.1:8811/', pid: 4471 }
 
-function withTest(on: any, f: ReturnType<typeof fakes>) {
+function withTest(on: any, f: ReturnType<typeof fakes>, evaluation: string | null = 'Evaluate the test.') {
   const runs: string[][] = []
   f.files['.verbatim-relay/config.json'] = JSON.stringify({ entry: ['python', 'examples/toy-shop/agent.py'], models: [] })
   on('process.run', async (_$: any, e: any) => {
@@ -139,6 +139,10 @@ function withTest(on: any, f: ReturnType<typeof fakes>) {
     }
     delete f.files['.verbatim-relay/current.json']
     f.files['.verbatim-relay/mode'] = 'off\n'
+    if (e.argv.includes('--evaluation')) {
+      const out = { text: 'Test 20261005-120000-ab12 ended: 1 turns, 0 model sessions.', evaluation }
+      return { value: { exitCode: 0, stdout: JSON.stringify(out) + '\n', stderr: '' } }
+    }
     return { value: { exitCode: 0, stdout: 'Test 20261005-120000-ab12 ended: 1 turns, 0 model sessions.\n', stderr: '' } }
   })
   return runs
@@ -253,4 +257,53 @@ test('contract parts', async () => {
   expect(touchesTestFiles('Write', '{"file_path": ".verbatim-relay/entry.py"}')).toBe(true)
   expect(touchesTestFiles('Read', '{"file_path": ".verbatim-relay/entry.py"}')).toBe(false)
   expect(touchesTestFiles('Bash', '{"command": "verbatim-relay transcript"}')).toBe(false)
+})
+
+test('the prompt verbatim-relay end ends the test and gives the model the evaluation', { options: { start_on: false } }, async ($, on) => {
+  const f = fakes(on, contractReply)
+  const runs = withTest(on, f)
+  on('prompt.submit', async (_$: any, e: any) => ({ text: e.text, context: e.context }))
+  await $.command.run({ command: 'verbatim-relay', args: 'start' } as any)
+  const result: any = await $.prompt.submit({ text: 'verbatim-relay end' })
+  expect(runs[1]).toEqual(['verbatim-relay', 'end', '--evaluation'])
+  expect(result.text).toBe('verbatim-relay end')
+  expect(result.context.at(-1)).toContain('Evaluate the test.')
+  expect(result.context.at(-1)).toContain('ended: 1 turns')
+  expect(f.sent.length).toBe(0)
+})
+
+test('with no evaluation, the prompt verbatim-relay end does not reach the model', {}, async ($, on) => {
+  const f = fakes(on, contractReply)
+  withTest(on, f, null)
+  on('prompt.submit', async (_$: any, e: any) => ({ text: e.text }))
+  const result: any = await $.prompt.submit({ text: 'verbatim-relay end' })
+  expect('drop' in result).toBe(true)
+  expect(f.logs[0]).toContain('Relay mode is off.')
+})
+
+test('the prompts verbatim-relay start and status run and are never relayed', {}, async ($, on) => {
+  const f = fakes(on, contractReply)
+  const runs = withTest(on, f)
+  const started: any = await $.prompt.submit({ text: 'verbatim-relay start' })
+  expect('drop' in started).toBe(true)
+  expect(runs[0][1]).toBe('start')
+  const status: any = await $.prompt.submit({ text: 'verbatim-relay status' })
+  expect('drop' in status).toBe(true)
+  expect(f.logs.at(-1)).toContain(`Test ${CURRENT.test} runs`)
+  expect(f.sent.length).toBe(0)
+})
+
+test('after a test, the model can write report.md and no other test file', {}, async ($, on) => {
+  const f = fakes(on, contractReply)
+  withTest(on, f)
+  on('tool.call', async () => ({ result: 'ran' }))
+  const folder = '.verbatim-relay/tests/20261005-120000-ab12'
+  const report: any = await $.tool.call({ tool: 'Write', file_path: `${folder}/report.md`, content: '# Report' } as any)
+  expect(report.deny).toBe(undefined)
+  const tap: any = await $.tool.call({ tool: 'Edit', file_path: `${folder}/tap.jsonl`, old_string: 'a', new_string: 'b' } as any)
+  expect(typeof tap.deny).toBe('string')
+  const config: any = await $.tool.call({ tool: 'Write', file_path: '.verbatim-relay/config.json', content: '{}' } as any)
+  expect(config.deny).toBe(undefined)
+  expect(touchesRecords('Write', `"${folder}/sessions/codex/r.jsonl"`)).toBe(true)
+  expect(touchesRecords('Read', `"${folder}/tap.jsonl"`)).toBe(false)
 })
