@@ -7,6 +7,7 @@ import json
 import os
 import queue
 import signal
+import socketserver
 import subprocess
 import sys
 import threading
@@ -131,6 +132,14 @@ class StdioTap(ThreadingHTTPServer):
         self.agent, self.writer = agent, Writer(record)
         self.lock = threading.Lock()
         super().__init__(listen, _Handler)
+
+    def server_bind(self) -> None:
+        # HTTPServer.server_bind() calls socket.getfqdn(), a DNS lookup that can block for many
+        # seconds on some hosts. The tap needs no host name.
+        socketserver.TCPServer.server_bind(self)
+        host, port = self.server_address[:2]
+        self.server_name = host.decode() if isinstance(host, bytes) else str(host)
+        self.server_port = port
 
     @property
     def url(self) -> str:

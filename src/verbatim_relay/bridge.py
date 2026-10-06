@@ -407,6 +407,11 @@ def codex_sessions(
     return out
 
 
+def _log(message: str) -> None:
+    """One progress line in bridge.log, so that a test that does not start shows its last step."""
+    print(f"verbatim-relay bridge: {message}", file=sys.stderr, flush=True)
+
+
 def _write_json(path: Path, data: dict[str, Any]) -> None:
     tmp = path.with_name(path.name + ".tmp")
     tmp.write_text(json.dumps(data, indent=1, ensure_ascii=False) + "\n")
@@ -434,6 +439,7 @@ def run(root: Path, test: str, tester_session: str | None, timeout: float = AGEN
         "model_sessions": [],
     }
     _write_json(folder / "manifest.json", manifest)
+    _log("manifest written")
     # A `--version` call can take seconds. The test must not wait for it to start.
     versions: dict[str, str | None] = {}
     lookup = threading.Thread(
@@ -444,11 +450,13 @@ def run(root: Path, test: str, tester_session: str | None, timeout: float = AGEN
 
     agent = Agent(config.entry, root, folder / "app.log", timeout=timeout)
     tap = StdioTap(("127.0.0.1", 0), agent, folder / "tap.jsonl")
+    _log(f"tap bound to {tap.url}")
     try:
         agent.start()
     except OSError as e:
         print(f"verbatim-relay bridge: cannot start the entry {config.entry}: {e}", file=sys.stderr)
         return 1
+    _log(f"entry started: {config.entry}")
     time.sleep(0.3)
     assert agent.proc is not None
     if agent.proc.poll() is not None:
@@ -464,10 +472,10 @@ def run(root: Path, test: str, tester_session: str | None, timeout: float = AGEN
         state(root) / "current.json",
         {"v": 1, "test": test, "dir": str(folder), "tap_url": tap.url, "pid": os.getpid()},
     )
-    print(f"verbatim-relay bridge: test {test} on {tap.url}", file=sys.stderr, flush=True)
+    _log(f"test {test} on {tap.url}")
     stop.wait()
 
-    print("verbatim-relay bridge: ending", file=sys.stderr, flush=True)
+    _log("ending")
     tap.shutdown()
     watcher.stop()
     watcher.poll()
@@ -516,7 +524,7 @@ def run(root: Path, test: str, tester_session: str | None, timeout: float = AGEN
     _write_json(folder / "manifest.json", manifest)
     (state(root) / "current.json").unlink(missing_ok=True)
     tap.server_close()
-    print(f"verbatim-relay bridge: test {test} ended", file=sys.stderr, flush=True)
+    _log(f"test {test} ended")
     return 0
 
 
