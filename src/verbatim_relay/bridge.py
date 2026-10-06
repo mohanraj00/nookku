@@ -428,16 +428,19 @@ def run(root: Path, test: str, tester_session: str | None, timeout: float = AGEN
         "models": config.models,
         "started": started,
         "ended": None,
-        "versions": {
-            "verbatim-relay": __version__,
-            "claude-code": _version("claude"),
-            "codex": _version("codex"),
-        },
+        "versions": {"verbatim-relay": __version__, "claude-code": None, "codex": None},
         "config_sha256": config_hashes(root),
         "tester_sessions": [tester_session] if tester_session else [],
         "model_sessions": [],
     }
     _write_json(folder / "manifest.json", manifest)
+    # A `--version` call can take seconds. The test must not wait for it to start.
+    versions: dict[str, str | None] = {}
+    lookup = threading.Thread(
+        target=lambda: versions.update(claude=_version("claude"), codex=_version("codex")),
+        daemon=True,
+    )
+    lookup.start()
 
     agent = Agent(config.entry, root, folder / "app.log", timeout=timeout)
     tap = StdioTap(("127.0.0.1", 0), agent, folder / "tap.jsonl")
@@ -505,6 +508,10 @@ def run(root: Path, test: str, tester_session: str | None, timeout: float = AGEN
         sessions.append(
             {**{k: v for k, v in row.items() if k != "type"}, "file": f"sessions/codex/{f.name}"}
         )
+    lookup.join(timeout=40)
+    manifest["versions"].update(
+        {"claude-code": versions.get("claude"), "codex": versions.get("codex")}
+    )
     manifest.update(ended=ended, tester_sessions=sorted(tester), model_sessions=sessions)
     _write_json(folder / "manifest.json", manifest)
     (state(root) / "current.json").unlink(missing_ok=True)
