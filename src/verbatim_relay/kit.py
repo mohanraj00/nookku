@@ -62,6 +62,8 @@ class Config:
     record: str = f"{STATE_DIR}/relay.jsonl"
     entry: list[str] = field(default_factory=list)
     models: list[str] = field(default_factory=list)
+    # False stops the evaluation at the end of a test (SPEC.md section 9).
+    evaluate: bool = True
 
     @classmethod
     def load(cls, root: Path) -> Config:

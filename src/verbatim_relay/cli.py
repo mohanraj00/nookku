@@ -16,7 +16,8 @@ from verbatim_relay.audit import audit, render
 from verbatim_relay.record import RecordError
 from verbatim_relay.tap import Tap, serve
 
-LIST_KEYS = {"entry", "models"}
+# Config keys that are not a plain string flag of init.
+LIST_KEYS = {"entry", "models", "evaluate"}
 
 
 def _listen(value: str) -> tuple[str, int]:

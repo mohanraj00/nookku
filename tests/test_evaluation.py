@@ -113,3 +113,12 @@ def test_cli_end_evaluation_and_transcript_trace(
     assert main(["transcript", "--trace", "--root", str(root)]) == 0
     assert "════ turn 3 ════" in capsys.readouterr().out
     assert main(["transcript", "--trace", "--test", "nope", "--root", str(root)]) == 2
+
+
+def test_the_kit_config_takes_the_evaluate_key(tmp_path: Path) -> None:
+    root = project(tmp_path, {"evaluate": False})
+    assert kit.Config.load(root).evaluate is False
+    # A prompt in relay mode with no test still gets the kit's own answer, not a config error.
+    kit.set_mode(root, True)
+    answer = kit.handle(event(root, "hello"), root, "codex")
+    assert "no test runs" in answer["reason"]
