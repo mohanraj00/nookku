@@ -224,6 +224,7 @@ A test runs the entry from `start` to `end`. A new conversation is a new test: e
 | `entry` | list of strings | The entry command, as an argument vector. It runs in the project root. |
 | `models` | list of strings | The harnesses that the app uses for its model sessions: `claude-code`, `codex`, both or none. |
 | `evaluate` | boolean | Optional. `false` stops the evaluation at the end of a test (section 9). The default is `true`. |
+| `otel` | boolean | Optional. `false` stops the OTLP receiver of a test (section 7.5). The default is `true`. |
 
 `verbatim-relay check` runs a short test with one message. It passes if the entry sends a reply, and if the tap identifies at least one model session and finds its session file for each harness in `models`.
 
@@ -233,7 +234,7 @@ A test runs the entry from `start` to `end`. A new conversation is a new test: e
 
 `end` switches relay mode off and stops the bridge. If a harness session sends the prompt that ends the test, `end` writes its id to `.verbatim-relay/ending.json`. The bridge adds that id to the tester's sessions, so it never takes the session that ends the test, and then evaluates it, as a session of the app. The bridge then:
 
-1. Closes the entry's stdin and waits 5 seconds. Then it stops the process group, first with SIGTERM and after 5 more seconds with SIGKILL.
+1. Closes the entry's stdin and waits 5 seconds. Then it stops the process group, first with SIGTERM and after 5 more seconds with SIGKILL. Then it stops the OTLP receiver (section 7.5), after no request came for 0.5 seconds or after 2 seconds.
 2. Identifies the Codex sessions (section 7.3).
 3. Copies the session file of each identified model session into `sessions/` in the test folder.
 4. Writes the end time and the tester's harness sessions into the manifest.
@@ -247,7 +248,7 @@ The test folder:
 ```text
 .verbatim-relay/tests/<test-id>/
   manifest.json  relay.jsonl  tap.jsonl  app.log  bridge.log
-  trace.jsonl  findings.json  audit.json  seal.json  report.md  denied.jsonl
+  otel.jsonl  trace.jsonl  findings.json  audit.json  seal.json  report.md  denied.jsonl
   sessions/claude-code/<session>.jsonl
   sessions/codex/<rollout file>
 ```
@@ -297,6 +298,37 @@ The seal shows if a file of the test folder changed after the end of the test. I
 
 The conformance cases in `conformance/seal/` test `verify`.
 
+### 7.5 OTLP receiver
+
+During a test, the bridge runs an OTLP/HTTP receiver on `127.0.0.1` at a free port, before it starts the entry. It gives the entry these environment variables, and they replace the values that the entry has:
+
+| Variable | Value |
+|---|---|
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | The URL of the receiver. |
+| `OTEL_EXPORTER_OTLP_PROTOCOL` | `http/protobuf` |
+| `OTEL_TRACES_EXPORTER`, `OTEL_LOGS_EXPORTER` | `otlp` |
+| `OTEL_METRICS_EXPORTER` | `none` |
+| `OTEL_BSP_SCHEDULE_DELAY`, `OTEL_BLRP_SCHEDULE_DELAY`, `OTEL_LOGS_EXPORT_INTERVAL`, `OTEL_TRACES_EXPORT_INTERVAL` | `500` |
+| `CLAUDE_CODE_ENABLE_TELEMETRY`, `OTEL_LOG_USER_PROMPTS`, `OTEL_LOG_TOOL_DETAILS` | `1` |
+
+The config key `otel: false` stops the receiver and these variables.
+
+The receiver takes `POST /v1/traces` and `POST /v1/logs` with `application/json` or `application/x-protobuf`, also with `Content-Encoding: gzip`. It reads the protobuf messages of opentelemetry-proto v1, and skips the fields that it does not know. It answers `POST /v1/metrics` with 200 and drops the body. It answers other paths with 404, and a body that it cannot read with 400.
+
+The receiver writes `otel.jsonl` in the test folder: one JSON object on each line, in the order of the requests.
+
+- **`span`**: `v` (`1`), `type`, `received` (Unix time), `service` (the `service.name` of the resource), `resource` (its attributes), `scope` (the scope name), `trace_id`, `span_id` and `parent_span_id` (lowercase hex, or `null`), `name`, `start` and `end` (Unix time), `attributes`, `events` (each with `time`, `name` and `attributes`), and `status` (`code`: 0 unset, 1 ok, 2 error; `message`).
+- **`log`**: `v`, `type`, `received`, `service`, `resource`, `scope`, `time` (the record time, or the observed time if the record time is 0), `event_name` (the `event.name` attribute, or the `eventName` field), `severity`, `body`, `attributes`, `trace_id` and `span_id`.
+- **`error`**: `v`, `type`, `received`, `path` and `detail`, for a body that the receiver could not read.
+
+An attribute value is a string, a boolean, an integer, a number, a list, an object (a key-value list) or a base64 string (bytes). Before it writes a row, the receiver:
+
+- removes each attribute whose key starts with `user.` or `organization.`, or contains `email` (in any case), at each level;
+- drops each span of a harness: a resource with the `service.name` `claude-code`, or a `service.name` that starts with `codex`;
+- keeps a log record of a harness only if the last part of its event name (after the last `.`) is `user_prompt`, `tool_decision`, `tool_result`, `assistant_response` or `api_error`.
+
+The conformance cases in `conformance/otlp/` test the receiver.
+
 ## 8. Trace
 
 The trace is one record of the model items of the app in a test. It ties each item to a turn. `verbatim-relay trace [TEST]` builds it again from the files in the test folder.
@@ -309,32 +341,34 @@ A test has 3 sources. Each one is independent of the others in a different way:
 |---|---|---|
 | `tap.jsonl` | the tap | the app and the model of the tester's harness. It records the words only. |
 | `sessions/` | the harness binary that the app uses | the app's code. It is not independent of the harness. |
+| `otel.jsonl` | the OTLP receiver, from the spans and logs that the app and its harness send | the session files. It is not independent of the app's code, because the app sends it. |
 | The app's state | the app | nothing. The evaluating session reads it and judges it. |
 
-The trace reads the first 2 sources. It does not read the app's state.
+The trace reads `tap.jsonl`, `sessions/` and `otel.jsonl`. It does not read the app's state.
 
 ### 8.2 Trace record
 
-`trace.jsonl` is a UTF-8 JSONL file, sorted by `ts`. Each line is a `model_item` row (0.2). Each row has all of these fields:
+`trace.jsonl` is a UTF-8 JSONL file, sorted by `ts`. Each line is a `model_item` row (0.3). Each row has all of these fields:
 
 | Field | Type | Meaning |
 |---|---|---|
-| `v` | string | `"0.2"` |
+| `v` | string | `"0.3"` |
 | `type` | string | `"model_item"` |
 | `turn` | integer or null | The number of the turn (section 8.3), or `null`. |
-| `harness` | string | `claude-code` or `codex`. |
-| `session` | string | The session id from the manifest. |
+| `harness` | string | `claude-code` or `codex`. For a row of `otel.jsonl`: the harness of its `service` (section 7.5), or `otel` for the app. |
+| `session` | string | The session id from the manifest. For a span: its `trace_id`. For a log: its `session.id` or `conversation.id` attribute, else its `trace_id`, else `""`. |
 | `ts` | number or null | The Unix time of the item. |
-| `kind` | string | `message`, `tool_call` or `command`. |
+| `kind` | string | `message`, `tool_call` or `command`. From `otel.jsonl`: `span` or `log`. |
 | `role` | string or null | For a message: `user` (the app to the model) or `assistant` (the model to the app). |
 | `server` | string or null | For a tool call: the MCP server or the dynamic tool namespace. |
-| `name` | string or null | For a tool call: the tool name, without the MCP prefix. |
-| `input` | any | For a tool call: its input object. For a command: its argv. |
-| `output` | string or null | For a message: its text. For a tool call or a command: its output text. |
-| `error` | string or null | For a tool call: the error text if the call failed. `output` is then `null`. |
+| `name` | string or null | For a tool call: the tool name, without the MCP prefix. For a span: its name. For a log: its event name, without the harness prefix for a harness log. |
+| `input` | any | For a tool call: its input object. For a command: its argv. For a span or a log: its attributes. |
+| `output` | string or null | For a message: its text. For a tool call or a command: its output text. For a log: its body, as JSON if it is not a string, or `null` if the body is the event name. |
+| `error` | string or null | For a tool call: the error text if the call failed. `output` is then `null`. For a span with status code 2: the status message, else the `exception.message` of its first `exception` event, else `status error`. For a harness `tool_result` log with `success` `false`: its `error` attribute. |
 | `exit_code` | integer or null | For a command: its exit code. |
 | `harness_internal` | boolean | `true` for a tool that the harness gives to the model, not the app (section 8.5). |
-| `source` | object | `file`: the session file, relative to the test folder. `line`: the 1-based line of the item. For a Claude Code tool call, `result_line`: the line of its result. |
+| `service` | string or null | For a row from `otel.jsonl`: its `service`. Else `null`. |
+| `source` | object | `file`: the session file or `otel.jsonl`, relative to the test folder. `line`: the 1-based line of the item. For a Claude Code tool call, `result_line`: the line of its result. |
 
 The trace has no `<field>_sha256` fields. The session files hold the original bytes.
 
@@ -367,21 +401,25 @@ The reader takes the version from the first line that has a `version` field.
 
 The reader takes the version from `cli_version` of the `session_meta` line.
 
+**OpenTelemetry** (`otel.jsonl`). The reader keeps each `span` and `log` row, and counts each other row by its type. `ts` is `start` for a span and `time` for a log.
+
 ### 8.5 Harness tools
 
 These tools come from the harness, not from the app: `ToolSearch` in Claude Code. The trace keeps their items and marks them `harness_internal: true`.
 
 ### 8.6 Findings
 
-`findings.json` holds the test id, the number of turns and items, one entry for each model session (its version, its item count and its counts of lines not kept), a count for each check, and the findings. The findings do not change the exit code of the audit. The audit measures the words only.
+`findings.json` holds the test id, the number of turns and items, one entry for each model session (its version, its item count and its counts of lines not kept), `otel` (the file, its row count, its item count and its counts of rows not kept, or `null` if the test has no `otel.jsonl`), a count for each check, and the findings. The findings do not change the exit code of the audit. The audit measures the words only.
 
 | Check | Finding |
 |---|---|
 | `agent_error` | An exchange with a `status` that is not 200. |
 | `tool_error` | A tool call with an `error`. |
 | `command_failed` | A command with an exit code that is not 0, or with an `error`. |
-| `turn_without_model` | A turn with no model item. This check runs only if a reader kept at least 1 item. |
+| `span_error` | A span with an `error`. |
+| `turn_without_model` | A turn with no `message`, `tool_call` or `command` item. This check runs only if a session reader kept at least 1 item. |
 | `item_between_turns` | An item with `turn: null` and a `ts` at or after the start of turn 1. An item before turn 1, for example a model call when the app starts, is not a finding. |
+| `otel_tool_not_in_session` | A harness `tool_result` log with no tool call of its tool in the session items of the same harness and turn. The tool is the `mcp_tool_name` of `tool_parameters`, or `tool_name` (Claude Code), or `tool_name` (Codex). If the event and the tool call both have an input object, the inputs must be equal. For a Codex `exec_command`, `shell` or `local_shell`, any `command` item matches. |
 | `session_inferred` | A model session with `inferred: true`. |
 | `version_untested` | A session file from a harness version that `proofs/trace/` does not cover. The tested versions are Claude Code 2.1.286 and codex-cli 0.160.0. If a reader finds no version in the file, the version is `unknown`. If the file is not in the test folder, the version is `null`, and this check does not run. |
 

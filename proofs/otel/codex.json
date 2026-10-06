@@ -1,0 +1,33 @@
+{
+ "date": "2026-10-06",
+ "codex": "codex-cli 0.160.0",
+ "command": [
+  "codex",
+  "exec",
+  "--json",
+  "--skip-git-repo-check",
+  "-s",
+  "read-only",
+  "-C",
+  "<temporary folder>",
+  "Reply with one word: done."
+ ],
+ "variables": {
+  "OTEL_EXPORTER_OTLP_ENDPOINT": "<receiver URL>",
+  "OTEL_EXPORTER_OTLP_PROTOCOL": "http/protobuf",
+  "OTEL_TRACES_EXPORTER": "otlp",
+  "OTEL_LOGS_EXPORTER": "otlp",
+  "OTEL_METRICS_EXPORTER": "none",
+  "OTEL_BSP_SCHEDULE_DELAY": "500",
+  "OTEL_BLRP_SCHEDULE_DELAY": "500",
+  "OTEL_LOGS_EXPORT_INTERVAL": "500",
+  "OTEL_TRACES_EXPORT_INTERVAL": "500",
+  "CLAUDE_CODE_ENABLE_TELEMETRY": "1",
+  "OTEL_LOG_USER_PROMPTS": "1",
+  "OTEL_LOG_TOOL_DETAILS": "1"
+ },
+ "exit_code": 0,
+ "turn_completed": true,
+ "receiver_rows": 0,
+ "codex_reads_the_variables": false
+}

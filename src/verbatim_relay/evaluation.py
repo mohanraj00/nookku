@@ -71,6 +71,15 @@ def render_item(it: dict[str, Any], line: int) -> str:
     head = f"[trace.jsonl:{line}] {it['harness']} {it['kind']}"
     if it["kind"] == "message":
         return f"{head}, {it['role']}:\n{_cut(it['output'] or '', line)}\n"
+    if it["kind"] in ("span", "log"):
+        who = it["service"] or "a service"
+        out = f"{head}: {who} {it['kind']} {it['name'] or '(no name)'}\n"
+        out += f"attributes: {_cut(_value(it['input']), line)}\n"
+        if it["output"] is not None:
+            out += f"body:\n{_cut(it['output'], line)}\n"
+        if it["error"] is not None:
+            out += f"error:\n{_cut(it['error'], line)}\n"
+        return out
     if it["kind"] == "command":
         out = f"{head}: {_value(it['input'])}, exit code {it['exit_code']}\n"
         if it["error"]:
@@ -108,7 +117,8 @@ def transcript(folder: Path) -> str:
         seal.summary(seal.verify(folder)) + "\n",
         f"verbatim-relay transcript with trace, test {folder.name}: {len(exchanges)} turns, "
         f"{len(items)} model items. The tester and agent blocks are exact: they come from "
-        "tap.jsonl. A model item comes from the app's own model sessions. [trace.jsonl:N] is "
+        "tap.jsonl. A model item comes from the app's own model sessions, or from the "
+        "OpenTelemetry spans and logs of the app (otel.jsonl). [trace.jsonl:N] is "
         f"line N of {folder / 'trace.jsonl'}.\n",
     ]
     loose = [f for f in findings if f["turn"] is None]

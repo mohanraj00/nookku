@@ -1,0 +1,5 @@
+{
+ "path": "/v1/metrics",
+ "type": "application/json",
+ "encoding": null
+}

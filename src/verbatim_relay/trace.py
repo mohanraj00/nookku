@@ -1,8 +1,8 @@
 """The trace of SPEC.md section 8: read the app's model sessions, tie each item to a turn, check.
 
-The readers take the copied session files of a test folder. Each reader keeps the messages, the
-tool calls and the commands, and counts each other line type. A reader never fails on a line that
-it does not know.
+The readers take the copied session files of a test folder and its otel.jsonl. Each session reader
+keeps the messages, the tool calls and the commands, and counts each other line type. A reader
+never fails on a line that it does not know.
 """
 
 from __future__ import annotations
@@ -14,7 +14,11 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
+from . import otlp
 from .record import VERSION
+
+# The version of a trace row. 0.3 adds the kinds span and log, and the field service.
+TRACE_VERSION = "0.3"
 
 # The versions that the conformance cases and proofs/trace/ cover.
 TESTED = {"claude-code": ("2.1.286",), "codex": ("0.160.0",)}
@@ -24,11 +28,17 @@ CHECKS = (
     "agent_error",
     "tool_error",
     "command_failed",
+    "span_error",
     "turn_without_model",
     "item_between_turns",
+    "otel_tool_not_in_session",
     "session_inferred",
     "version_untested",
 )
+# The kinds that a model session file gives.
+SESSION_KINDS = ("message", "tool_call", "command")
+# Codex tools that run a command. The session file has a command item for them.
+CODEX_COMMANDS = {"exec_command", "shell", "local_shell"}
 
 
 def _lines(path: Path) -> Iterator[tuple[int, Any]]:
@@ -54,7 +64,7 @@ def _time(value: Any) -> float | None:
 
 def _item(harness: str, session: str, file: str, line: int, ts: float | None) -> dict[str, Any]:
     return {
-        "v": VERSION,
+        "v": TRACE_VERSION,
         "type": "model_item",
         "turn": None,
         "harness": harness,
@@ -69,6 +79,7 @@ def _item(harness: str, session: str, file: str, line: int, ts: float | None) ->
         "error": None,
         "exit_code": None,
         "harness_internal": False,
+        "service": None,
         "source": {"file": file, "line": line},
     }
 
@@ -215,6 +226,86 @@ def read_codex(path: Path, session: str, file: str) -> tuple[list[dict[str, Any]
 READERS = {"claude-code": read_claude, "codex": read_codex}
 
 
+def _json(text: Any) -> Any:
+    """A JSON text of an attribute as its value, or None."""
+    if not isinstance(text, str):
+        return None
+    try:
+        return json.loads(text)
+    except ValueError:
+        return None
+
+
+def read_otel(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """The span and log rows of otel.jsonl (SPEC.md section 8.4)."""
+    items: list[dict[str, Any]] = []
+    ignored: Counter[str] = Counter()
+    rows = 0
+    for n, row in _lines(path):
+        rows += 1
+        kind = row.get("type") if isinstance(row, dict) else None
+        if kind not in ("span", "log"):
+            ignored[str(kind) if isinstance(row, dict) else "invalid_json"] += 1
+            continue
+        service = row.get("service")
+        harness = otlp.harness_of(service) or "otel"
+        attrs = row.get("attributes") if isinstance(row.get("attributes"), dict) else {}
+        if kind == "span":
+            it = _item(harness, str(row.get("trace_id") or ""), otlp.FILE, n, row.get("start"))
+            status = row.get("status") or {}
+            error = None
+            if status.get("code") == 2:
+                raised = [
+                    e.get("attributes", {}).get("exception.message")
+                    for e in row.get("events") or []
+                    if e.get("name") == "exception"
+                ]
+                error = status.get("message") or next((x for x in raised if x), "status error")
+            it.update(kind="span", name=row.get("name"), input=attrs, error=error)
+        else:
+            session = attrs.get("session.id") or attrs.get("conversation.id") or row.get("trace_id")
+            it = _item(harness, str(session or ""), otlp.FILE, n, row.get("time"))
+            name = row.get("event_name")
+            body = row.get("body")
+            if body == name or body is None:
+                output = None
+            else:
+                output = body if isinstance(body, str) else json.dumps(body, ensure_ascii=False)
+            name = otlp.short(name) if harness != "otel" else name
+            it.update(kind="log", name=name, input=attrs, output=output)
+            if name == "tool_result" and str(attrs.get("success", "true")).lower() == "false":
+                it["error"] = str(attrs.get("error") or "the event has success: false")
+        it["service"] = service
+        items.append(it)
+    return items, {"file": otlp.FILE, "rows": rows, "items": len(items), "ignored": dict(ignored)}
+
+
+def _event_tool(it: dict[str, Any]) -> tuple[str | None, Any]:
+    """The tool name and input of a harness tool_result event."""
+    attrs = it["input"]
+    if it["harness"] == "codex":
+        return attrs.get("tool_name"), _json(attrs.get("arguments"))
+    params = _json(attrs.get("tool_parameters")) or {}
+    name = params.get("mcp_tool_name") if isinstance(params, dict) else None
+    return name or attrs.get("tool_name"), _json(attrs.get("tool_input"))
+
+
+def _in_session(event: dict[str, Any], items: list[dict[str, Any]]) -> bool:
+    """True if the session items of the event's turn have its tool call."""
+    name, args = _event_tool(event)
+    command = event["harness"] == "codex" and name in CODEX_COMMANDS
+    for it in items:
+        if it["harness"] != event["harness"] or it["turn"] != event["turn"]:
+            continue
+        if command and it["kind"] == "command":
+            return True
+        same_input = not isinstance(args, dict) or not isinstance(it["input"], dict)
+        same_input = same_input or it["input"] == args
+        if not command and it["kind"] == "tool_call" and it["name"] == name and same_input:
+            return True
+    return False
+
+
 def _exchanges(tap: Path) -> list[dict[str, Any]]:
     if not tap.exists():
         return []
@@ -257,6 +348,7 @@ def check(
 ) -> list[dict[str, Any]]:
     """The findings of SPEC.md section 8.4. They do not change the audit's exit code."""
     out: list[dict[str, Any]] = []
+    session_items = [it for it in items if it["kind"] in SESSION_KINDS]
     for i, r in enumerate(exchanges, 1):
         if r.get("status") != 200:
             what = "a timeout or a crash" if r.get("status") is None else f"status {r['status']}"
@@ -269,11 +361,19 @@ def check(
         if it["kind"] == "command" and (it["exit_code"] not in (0, None) or it["error"]):
             what = f"exit code {it['exit_code']}" if it["exit_code"] is not None else it["error"]
             out.append(_finding("command_failed", it["turn"], what, **where))
+        if it["kind"] == "span" and it["error"] is not None:
+            detail = f"{it['service'] or 'a service'}: {it['name']}: {it['error']}"
+            out.append(_finding("span_error", it["turn"], detail, **where))
+        harness_event = it["kind"] == "log" and it["harness"] in ("claude-code", "codex")
+        if harness_event and it["name"] == "tool_result" and not _in_session(it, session_items):
+            name = _event_tool(it)[0]
+            detail = f"{name}: a tool_result event with no tool call in the session file"
+            out.append(_finding("otel_tool_not_in_session", it["turn"], detail, **where))
         first = spans[0][0] if spans else None
         if it["turn"] is None and first is not None and it["ts"] is not None and it["ts"] >= first:
             out.append(_finding("item_between_turns", None, f"a {it['kind']} item", **where))
     if any(s.get("items") for s in sessions):
-        used = {it["turn"] for it in items}
+        used = {it["turn"] for it in session_items}
         for i in range(1, len(exchanges) + 1):
             if i not in used:
                 out.append(_finding("turn_without_model", i, "no model item in this turn"))
@@ -315,6 +415,10 @@ def build(folder: Path) -> dict[str, Any]:
             info["version"] = info["version"] or "unknown"
             items += found
         sessions.append(info)
+    otel = None
+    if (folder / otlp.FILE).exists():
+        found, otel = read_otel(folder / otlp.FILE)
+        items += found
     items.sort(key=lambda it: it["ts"] if it["ts"] is not None else float("inf"))
     assign(items, spans)
     findings = check(exchanges, spans, items, sessions)
@@ -327,6 +431,7 @@ def build(folder: Path) -> dict[str, Any]:
         "turns": len(exchanges),
         "items": len(items),
         "sessions": sessions,
+        "otel": otel,
         "counts": {c: counts[c] for c in CHECKS},
         "findings": findings,
     }

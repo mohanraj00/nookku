@@ -304,3 +304,64 @@ def test_the_latest_test_is_the_one_that_started_last(tmp_path: Path) -> None:
     # A folder with no manifest yet is a test that starts now.
     (tests / "20261006-075959-aaaa").mkdir()
     assert bridge.latest_test(tmp_path) == tests / "20261006-075959-aaaa"
+
+
+# A toy shop app with OpenTelemetry: for each message, it sends one span to the endpoint that the
+# bridge gives it, with a personal attribute that the receiver must remove.
+OTEL_APP = """
+import json, os, sys, time, urllib.request
+
+url = os.environ["OTEL_EXPORTER_OTLP_ENDPOINT"] + "/v1/traces"
+for raw in sys.stdin.buffer:
+    request = json.loads(raw)
+    now = time.time_ns()
+    attrs = [
+        {"key": "shop.sku", "value": {"stringValue": "teapot-set"}},
+        {"key": "user.email", "value": {"stringValue": "tester@example.com"}},
+    ]
+    span = {"traceId": "0af7651916cd43dd8448eb211c80319c", "spanId": "b7ad6b7169203331",
+            "name": "check_stock", "startTimeUnixNano": str(now), "endTimeUnixNano": str(now),
+            "attributes": attrs}
+    res = {"attributes": [{"key": "service.name", "value": {"stringValue": "toy-shop"}}]}
+    body = {"resourceSpans": [{"resource": res, "scopeSpans": [{"spans": [span]}]}]}
+    req = urllib.request.Request(url, json.dumps(body).encode(),
+                                 {"Content-Type": "application/json"}, method="POST")
+    urllib.request.urlopen(req, timeout=5).read()
+    out = {"v": 1, "id": request["id"], "reply": "3 teapot sets left."}
+    sys.stdout.write(json.dumps(out) + "\\n")
+    sys.stdout.flush()
+"""
+
+
+def test_the_receiver_records_the_app_spans(tmp_path: Path, homes: tuple) -> None:
+    root = project(tmp_path, [sys.executable, "-c", OTEL_APP])
+    cur = bridge.start(root, "tester-1")
+    try:
+        shown, ok = bridge.send(cur, "Do you have the teapot set?")
+    finally:
+        bridge.end(root)
+    assert ok and shown == "3 teapot sets left."
+    folder = Path(cur["dir"])
+    rows = [json.loads(x) for x in (folder / "otel.jsonl").read_text().splitlines()]
+    assert [(r["type"], r["service"], r["name"]) for r in rows] == [
+        ("span", "toy-shop", "check_stock")
+    ]
+    assert "example.com" not in (folder / "otel.jsonl").read_text()
+    items = [json.loads(x) for x in (folder / "trace.jsonl").read_text().splitlines()]
+    assert [(it["kind"], it["turn"], it["source"]["file"]) for it in items] == [
+        ("span", 1, "otel.jsonl")
+    ]
+    assert seal.verify(folder)["intact"]
+
+
+def test_otel_false_starts_no_receiver(tmp_path: Path, homes: tuple) -> None:
+    root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
+    config = root / ".verbatim-relay" / "config.json"
+    config.write_text(json.dumps({**json.loads(config.read_text()), "otel": False}))
+    cur = bridge.start(root, "tester-1")
+    try:
+        bridge.send(cur, "Hi")
+    finally:
+        bridge.end(root)
+    assert not (Path(cur["dir"]) / "otel.jsonl").exists()
+    assert "OTLP receiver" not in (Path(cur["dir"]) / "bridge.log").read_text()

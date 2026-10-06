@@ -68,6 +68,8 @@ class Config:
     models: list[str] = field(default_factory=list)
     # False stops the evaluation at the end of a test (SPEC.md section 9).
     evaluate: bool = True
+    # False stops the OTLP receiver of a test (SPEC.md section 7.5).
+    otel: bool = True
 
     @classmethod
     def load(cls, root: Path) -> Config:

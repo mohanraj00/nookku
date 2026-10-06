@@ -1,0 +1,66 @@
+{
+ "received": 1791273700.0,
+ "rows": [
+  {
+   "v": 1,
+   "type": "log",
+   "received": 1791273700.0,
+   "service": "claude-code",
+   "resource": {
+    "service.name": "claude-code",
+    "service.version": "2.1.286"
+   },
+   "scope": "com.anthropic.claude_code.events",
+   "time": 1791273612.6,
+   "event_name": "tool_result",
+   "severity": "INFO",
+   "body": "claude_code.tool_result",
+   "attributes": {
+    "event.name": "tool_result",
+    "session.id": "4f1c2a7e-0d3b-4c55-9a61-2b8e5d7c9f10"
+   },
+   "trace_id": null,
+   "span_id": null
+  },
+  {
+   "v": 1,
+   "type": "log",
+   "received": 1791273700.0,
+   "service": "codex_app_server",
+   "resource": {
+    "service.name": "codex_app_server"
+   },
+   "scope": null,
+   "time": 1791273613.0,
+   "event_name": "codex.tool_result",
+   "severity": "INFO",
+   "body": null,
+   "attributes": {
+    "event.name": "codex.tool_result",
+    "conversation.id": "019a0b1c-2d3e-7f40-8a5b-6c7d8e9f0a1b"
+   },
+   "trace_id": null,
+   "span_id": null
+  },
+  {
+   "v": 1,
+   "type": "log",
+   "received": 1791273700.0,
+   "service": "toy-shop",
+   "resource": {
+    "service.name": "toy-shop"
+   },
+   "scope": null,
+   "time": 1791273611.6,
+   "event_name": null,
+   "severity": "INFO",
+   "body": "stock checked: 3 left",
+   "attributes": {
+    "shop.sku": "teapot-set"
+   },
+   "trace_id": null,
+   "span_id": null
+  }
+ ],
+ "error": null
+}

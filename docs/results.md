@@ -72,13 +72,14 @@ The session resumes between turns, so P5b also shows that the transcript survive
 - **P6:** `report.md` has a `business_rule` row for turn 2, with the `trace.jsonl` line of the refund call as its evidence.
 - **P5, extended:** `report.md` holds a fact that only the records of the test and the app's state hold: the random refund id, or an exact quote of 20 or more characters from a reply of the agent. The model saw no message of the test.
 - **P7:** after the evaluation, `verbatim-relay verify` finds the test folder intact. The evaluating model changed no record ([SPEC.md section 7.4](../SPEC.md#74-seal)).
+- **P8:** the trace has the Agent SDK `tool_result` event of the refund in turn 2, from the OTLP receiver (`otel.jsonl`), and the cross-check `otel_tool_not_in_session` finds 0 differences from the session file ([SPEC.md section 7.5](../SPEC.md#75-otlp-receiver)).
 - **Isolation:** the evaluating model must not read this page or the proof script, which describe the bug. So each project is outside the repo. The plugin and the Claude Code kit run in a temporary folder. Codex runs only hooks that a person trusted, so its project is `~/.verbatim-relay-proof/codex`, where I trusted the hooks of `verbatim-relay init codex`. For Codex, the proof also fails if a command of the evaluation names a parent folder or a path of the repo.
 
-| Relay | Harness | Issues in the report | P6 | P5 | P7 | Isolation | Result | Data |
-|---|---|---|---|---|---|---|---|---|
-| Plugin | Claude Code 2.1.290 | 4 | pass | pass | pass | temporary project | pass | [results](../proofs/report/plugin.json) |
-| Hook kit | Claude Code 2.1.290 | 3 | pass | pass | pass | temporary project | pass | [results](../proofs/report/hooks-claude-code.json) |
-| Hook kit | Codex 0.160.0 | 3 | pass | pass | pass | trusted project, 0 commands outside it | pass | [results](../proofs/report/hooks-codex.json) |
+| Relay | Harness | Issues in the report | P6 | P5 | P7 | P8 | Isolation | Result | Data |
+|---|---|---|---|---|---|---|---|---|---|
+| Plugin | Claude Code 2.1.290 | 4 | pass | pass | pass | pass | temporary project | pass | [results](../proofs/report/plugin.json) |
+| Hook kit | Claude Code 2.1.290 | 6 | pass | pass | pass | pass | temporary project | pass | [results](../proofs/report/hooks-claude-code.json) |
+| Hook kit | Codex 0.160.0 | 3 | pass | pass | pass | pass | trusted project, 0 commands outside it | pass | [results](../proofs/report/hooks-codex.json) |
 
 The app's session files are from Claude Code 2.1.286, bundled in the Agent SDK. In an earlier run, the relay denied a command of the evaluating model that started with a variable assignment, `T=.verbatim-relay/tests/...`. So the read check now passes a part with only variable assignments. A report is a model answer, and it changes on each run. Before the script stores a report or an answer, it checks that the text shares no 8 words in a row with an instruction file on this machine, and it removes the local paths. [docs/evaluation-example.md](evaluation-example.md#a-test-with-an-automatic-report) shows one report and what the model got wrong.
 

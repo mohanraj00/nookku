@@ -52,7 +52,8 @@ claude plugin validate plugins/claude-code && claude plugin test plugins/claude-
 
 - `scripts/proofs_claude_code.py` runs P1 to P4 for the plugin with `claude -p` and writes `proofs/claude-code/`.
 - `scripts/proofs_hooks.py codex|claude-code` runs P1 to P4 for the hook kit and writes `proofs/hooks-<harness>/`.
-- `scripts/proof_report.py plugin|hooks-claude-code|hooks-codex` runs a test of `examples/toy-shop-models/` and the evaluation at its end (P5 extended, P6 and P7), and writes `proofs/report/`.
+- `scripts/proof_report.py plugin|hooks-claude-code|hooks-codex` runs a test of `examples/toy-shop-models/` and the evaluation at its end (P5 extended, P6, P7 and P8), and writes `proofs/report/`.
+- `scripts/proof_codex_otel.py` checks if Codex sends OpenTelemetry data from the `OTEL_*` variables of a test, and writes `proofs/otel/codex.json`.
 - `scripts/proof_evaluation.py plugin|hooks-claude-code|hooks-codex` runs P5 (the model judges the record, not its memory) and writes `proofs/evaluation/`. Never store a model answer that can quote the harness's own instruction files. Codex runs project hooks only after a person trusts them. The maintainer trusts `.proof/codex/.codex/hooks.json` once. Never try to skip the trust step.
 
 `scripts/example_evaluation.py` runs the worked evaluation in `docs/evaluation-example.md` and writes `examples/toy-shop/evaluation.json`. The model's answer changes on each run, so update the doc with the data.
