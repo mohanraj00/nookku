@@ -71,15 +71,13 @@ The session resumes between turns, so P5b also shows that the transcript survive
 
 - **P6:** `report.md` has a `business_rule` row for turn 2, with the `trace.jsonl` line of the refund call as its evidence.
 - **P5, extended:** `report.md` holds a fact that only the records of the test and the app's state hold: the random refund id, or an exact quote of 20 or more characters from a reply of the agent. The model saw no message of the test.
-- **Isolation:** the evaluating model must not read this page or the proof script, which describe the bug. The plugin and the Claude Code kit run in a temporary project outside the repo. Codex runs only hooks that a person trusted, and its trusted proof project is `.proof/codex`, inside the repo. So for Codex, the proof fails if a command of the evaluation names a path outside the project.
+- **Isolation:** the evaluating model must not read this page or the proof script, which describe the bug. So each project is outside the repo. The plugin and the Claude Code kit run in a temporary folder. Codex runs only hooks that a person trusted, so its project is `~/.verbatim-relay-proof/codex`, where I trusted the hooks of `verbatim-relay init codex`. For Codex, the proof also fails if a command of the evaluation names a parent folder or a path of the repo.
 
 | Relay | Harness | Issues in the report | P6 | P5 | Isolation | Result | Data |
 |---|---|---|---|---|---|---|---|
 | Plugin | Claude Code 2.1.290 | 3 | pass | pass | temporary project | pass | [results](../proofs/report/plugin.json) |
 | Hook kit | Claude Code 2.1.290 | 3 | pass | pass | temporary project | pass | [results](../proofs/report/hooks-claude-code.json) |
-| Hook kit | Codex 0.160.0 | 3 | pass | pass | **fail**: it searched `../../docs` and `../../examples` | **fail** | [results](../proofs/report/hooks-codex.json) |
-
-The Codex result does not count. Its report found the bug, but the model also searched the files of this repo that describe the bug. A clean Codex run needs a trusted project outside the repo.
+| Hook kit | Codex 0.160.0 | 5 | pass | pass | trusted project, 0 commands outside it | pass | [results](../proofs/report/hooks-codex.json) |
 
 The app's session files are from Claude Code 2.1.286, bundled in the Agent SDK. A report is a model answer, and it changes on each run. Before the script stores a report or an answer, it checks that the text shares no 8 words in a row with an instruction file on this machine, and it removes the local paths. [docs/evaluation-example.md](evaluation-example.md#a-test-with-an-automatic-report) shows one report and what the model got wrong.
 
@@ -87,7 +85,7 @@ The app's session files are from Claude Code 2.1.286, bundled in the Agent SDK. 
 
 1. The first app had a separate `request_approval` tool, and the bug was in the model's choice. With all tools loaded, the app's model chose `request_approval`, and the bug did not happen. I moved the bug into the code of `refund`, so that it happens on each run.
 2. P5 was "the report quotes the refund id". One correct report quoted the replies exactly but not the id. An exact quote of a reply is also a fact that only the records hold, so P5 now takes either.
-3. In one run, the plugin's evaluating model read `examples/toy-shop-models/` in this repo. So I moved the Claude Code projects out of the repo and added the Codex command check.
+3. In one run, the plugin's evaluating model read `examples/toy-shop-models/` in this repo. In another, the Codex model searched `../../docs` and `../../examples` from `.proof/codex`. So I moved each project out of the repo and added the Codex command check.
 
 ## 2. Benchmark under pressure
 

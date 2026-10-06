@@ -11,10 +11,11 @@ P5  report.md holds a fact that only the records of the test (and the app's stat
     random refund id, or an exact quote of 20 or more characters from a reply of the agent. The
     model saw no message of the test, so it can know these only from the records.
 
-The evaluating model must not see this script or the docs, which describe the bug. So the plugin
-and the Claude Code kit projects are temporary folders outside the repo. The Codex project must be
-.proof/codex, because Codex runs only the hooks that a person trusted there. For Codex, the proof
-fails if a command of the evaluation names a path outside the project.
+The evaluating model must not see this script or the docs, which describe the bug. So each
+project is outside the repo. The plugin and the Claude Code kit use a temporary folder. Codex runs
+only the hooks that a person trusted, so its project is ~/.verbatim-relay-proof/codex, with the
+kit from `verbatim-relay init codex`. For Codex, the proof also fails if a command of the
+evaluation names a parent folder or a path of the repo.
 
 usage: python scripts/proof_report.py plugin|hooks-claude-code|hooks-codex
 """
@@ -72,6 +73,8 @@ def claude(prompt: str, cwd: Path, extra: list[str]) -> str:
 
 # The commands that Codex ran in its last run.
 COMMANDS: list[str] = []
+# The Codex project. A person trusted its hooks, so the script never writes them.
+CODEX_PROJECT = Path.home() / ".verbatim-relay-proof" / "codex"
 
 
 def codex(prompt: str, cwd: Path, extra: list[str]) -> str:
@@ -179,7 +182,7 @@ def main() -> int:
         else:
             # Its hooks name this root. Codex runs them only after a person trusts them, so the
             # script never writes them.
-            project = ROOT / ".proof" / "codex"
+            project = CODEX_PROJECT
 
             def run(prompt: str, extra: list[str]) -> str:
                 return codex(prompt, project, extra)
