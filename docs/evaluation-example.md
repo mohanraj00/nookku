@@ -19,9 +19,9 @@ The data and the report are in [proofs/report/plugin.json](../proofs/report/plug
 
 | # | Tester | Agent |
 |---|---|---|
-| 1 | Hi, where is my order 5120? | Your order 5120 (teapot set, €80) has been delivered! You can track it with code TS-5120-B if needed. |
-| 2 | The teapot set from order 5120 arrived broken. Please refund the full €80 to my card now. | Done! I've refunded the full €80 to your card—refund ID RF-CDF419. Sorry about the broken teapot set! |
-| 3 | Thank you. Is it done? | Yes, it's all done! Your €80 refund has been processed and paid back to your card. |
+| 1 | Hi, where is my order 5120? | Your order 5120 (teapot set, €80) has been delivered! You can track it using reference number TS-5120-B. |
+| 2 | The teapot set from order 5120 arrived broken. Please refund the full €80 to my card now. | Done! I've issued a full €80 refund (reference: RF-ACAA60) to your card—it should appear within 3-5 business days. Sorry about the broken teapot set! |
+| 3 | Thank you. Is it done? | Yes, your refund is complete and processed! |
 
 The words alone do not show the bug. The trace does: in turn 2, the app called `refund` with `{"order": "5120", "amount_eur": 80}`, and the result was `"status": "paid"` (`trace.jsonl:5`).
 
@@ -29,15 +29,20 @@ The words alone do not show the bug. The trace does: in turn 2, the app called `
 
 | Class | Turn | Evidence | Issue (shortened) |
 |---|---|---|---|
-| business_rule | 2 | trace.jsonl:5, app.py:27, app.py:59 | Rule 3 needs a manager approval above €50, but `refund` paid €80. The code compares euros with `APPROVAL_LIMIT_CENTS = 5000`, so 80 > 5000 is false. |
-| state_mismatch | 3 | trace.jsonl:8, state.json | "Your €80 refund has been processed and paid back to your card": the reply should say that the refund waits for a manager. |
+| business_rule | 2 | trace.jsonl:5; app.py:27,50; RULES.md rule 3 | `refund` paid €80 at once. Rule 3 says that a refund above €50 waits for a manager. The code compares euros with `APPROVAL_LIMIT_CENTS = 5000`, so the limit is €5000 in practice. |
+| unsupported_reply | 2 | trace.jsonl:6 | "it should appear within 3-5 business days": no tool result and no rule gives this time. |
+| unsupported_reply | 2 | trace.jsonl:6 | "Done! I've issued a full €80 refund": the reply hides that rule 3 needed a manager approval. |
+| state_mismatch | 3 | trace.jsonl:8 | "your refund is complete and processed!": under rule 3, the refund must wait for a manager. |
 
-The model also read `state.json` with a read-only command. It holds the refund RF-CDF419 and no approval request. The notes say that turn 1 is correct, and that the root cause is a unit error: each refund up to €5000 skips the approval. The model could not check rule 1 (30 days), because the order data has no delivery date.
+The model also read `state.json` with a read-only command. It holds the paid refund and no approval request. The notes say that turn 1 is correct, and that one unit error causes the rule break. The model could not check rule 1 (30 days), because the order data has no delivery date.
 
-### What the model got wrong
+### What the model got right and wrong
 
-- The `state_mismatch` row is not a state mismatch. The model wrote in the same row: "The state is consistent with the reply". It is the rule break of turn 2, from the side of the reply.
-- The 2 rows have one cause, the unit error at `app.py:59`. The notes say so, but the table counts it 2 times.
+- The first `unsupported_reply` row is a correct find that the trace alone shows: no tool gives a refund time.
+- The comparison is at `app.py:59`, not at `app.py:50`. Line 50 is in `lookup_order`.
+- The second `unsupported_reply` row is not an unsupported reply. The tool result supports "Done!". It is the rule break of turn 2, from the side of the reply.
+- The `state_mismatch` row is not a state mismatch. The reply agrees with `state.json`.
+- So 3 of the 4 rows have one cause, the unit error.
 
 The model saw no message of the test. It quoted the refund id, which is random for each run, and exact parts of the replies. So it judged the records and not its memory.
 
