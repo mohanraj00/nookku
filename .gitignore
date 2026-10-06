@@ -19,3 +19,4 @@ CLAUDE.local.md
 bench/smoke/
 bench/logs/
 tap.jsonl
+.gstack/
