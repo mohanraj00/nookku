@@ -161,5 +161,9 @@ def test_init_start_and_end_a_test(tmp_path: Path, capsys: pytest.CaptureFixture
     assert main(["mode", "off", "--root", str(tmp_path)]) == 0
     out = capsys.readouterr().out
     assert f"Test {started['test']} ended: 0 turns, 0 model sessions." in out
+    assert "Trace: 0 model items in 0 turns, no findings." in out
+    assert main(["trace", "--root", str(tmp_path)]) == 0
+    assert "Trace: 0 model items in 0 turns, no findings." in capsys.readouterr().out
+    assert main(["trace", "no-such-test", "--root", str(tmp_path)]) == 2
     assert main(["end", "--root", str(tmp_path)]) == 0
     assert "No test runs. Relay mode is off." in capsys.readouterr().out

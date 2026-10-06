@@ -1,0 +1,113 @@
+{
+ "v": "0.2",
+ "test": "20261006-080000-cx01",
+ "turns": 3,
+ "items": 12,
+ "sessions": [
+  {
+   "harness": "codex",
+   "session": "019a0b1c-2d3e-7f40-8a5b-6c7d8e9f0a1b",
+   "file": "sessions/codex/rollout-2026-10-06T08-00-00-019a0b1c-2d3e-7f40-8a5b-6c7d8e9f0a1b.jsonl",
+   "inferred": true,
+   "version": "0.160.0",
+   "items": 12,
+   "ignored": {
+    "event_msg.task_started": 1,
+    "item_completed.FileChange": 1,
+    "item_completed.Reasoning": 1,
+    "response_item.message": 1,
+    "session_meta": 1,
+    "world_state": 1
+   }
+  }
+ ],
+ "counts": {
+  "agent_error": 0,
+  "tool_error": 3,
+  "command_failed": 2,
+  "turn_without_model": 1,
+  "item_between_turns": 1,
+  "session_inferred": 1,
+  "version_untested": 0
+ },
+ "findings": [
+  {
+   "check": "tool_error",
+   "turn": 2,
+   "detail": "check_stock: MCP tool call requires approval, but approval policy is never",
+   "harness": "codex",
+   "session": "019a0b1c-2d3e-7f40-8a5b-6c7d8e9f0a1b",
+   "source": {
+    "file": "sessions/codex/rollout-2026-10-06T08-00-00-019a0b1c-2d3e-7f40-8a5b-6c7d8e9f0a1b.jsonl",
+    "line": 11
+   }
+  },
+  {
+   "check": "tool_error",
+   "turn": 2,
+   "detail": "lookup_order: no such order",
+   "harness": "codex",
+   "session": "019a0b1c-2d3e-7f40-8a5b-6c7d8e9f0a1b",
+   "source": {
+    "file": "sessions/codex/rollout-2026-10-06T08-00-00-019a0b1c-2d3e-7f40-8a5b-6c7d8e9f0a1b.jsonl",
+    "line": 12
+   }
+  },
+  {
+   "check": "tool_error",
+   "turn": 2,
+   "detail": "check_stock: no such product",
+   "harness": "codex",
+   "session": "019a0b1c-2d3e-7f40-8a5b-6c7d8e9f0a1b",
+   "source": {
+    "file": "sessions/codex/rollout-2026-10-06T08-00-00-019a0b1c-2d3e-7f40-8a5b-6c7d8e9f0a1b.jsonl",
+    "line": 13
+   }
+  },
+  {
+   "check": "command_failed",
+   "turn": 2,
+   "detail": "exit code 1",
+   "harness": "codex",
+   "session": "019a0b1c-2d3e-7f40-8a5b-6c7d8e9f0a1b",
+   "source": {
+    "file": "sessions/codex/rollout-2026-10-06T08-00-00-019a0b1c-2d3e-7f40-8a5b-6c7d8e9f0a1b.jsonl",
+    "line": 10
+   }
+  },
+  {
+   "check": "command_failed",
+   "turn": 2,
+   "detail": "status declined",
+   "harness": "codex",
+   "session": "019a0b1c-2d3e-7f40-8a5b-6c7d8e9f0a1b",
+   "source": {
+    "file": "sessions/codex/rollout-2026-10-06T08-00-00-019a0b1c-2d3e-7f40-8a5b-6c7d8e9f0a1b.jsonl",
+    "line": 14
+   }
+  },
+  {
+   "check": "turn_without_model",
+   "turn": 3,
+   "detail": "no model item in this turn"
+  },
+  {
+   "check": "item_between_turns",
+   "turn": null,
+   "detail": "a message item",
+   "harness": "codex",
+   "session": "019a0b1c-2d3e-7f40-8a5b-6c7d8e9f0a1b",
+   "source": {
+    "file": "sessions/codex/rollout-2026-10-06T08-00-00-019a0b1c-2d3e-7f40-8a5b-6c7d8e9f0a1b.jsonl",
+    "line": 17
+   }
+  },
+  {
+   "check": "session_inferred",
+   "turn": null,
+   "detail": "found by directory and time",
+   "harness": "codex",
+   "session": "019a0b1c-2d3e-7f40-8a5b-6c7d8e9f0a1b"
+  }
+ ]
+}

@@ -10,7 +10,7 @@ from collections.abc import Sequence
 from importlib import resources
 from pathlib import Path
 
-from verbatim_relay import __version__, bridge, kit, stdio
+from verbatim_relay import __version__, bridge, kit, stdio, trace
 from verbatim_relay.adapters import make
 from verbatim_relay.audit import audit, render
 from verbatim_relay.record import RecordError
@@ -82,6 +82,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         if name == "start":
             cmd.add_argument("--tester-session", help="the tester's harness session id")
 
+    trc = sub.add_parser("trace", help="build the trace of a test again, and show its findings")
+    trc.add_argument("test", nargs="?", help="the test id (default: the latest test)")
+    trc.add_argument("--root", type=Path, default=Path.cwd())
+    trc.add_argument("--json", action="store_true", help="print findings.json")
+
     sub.add_parser("setup", help="print the guide that connects a test to the app")
 
     br = sub.add_parser("bridge", help=argparse.SUPPRESS)
@@ -127,6 +132,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return bridge.run(args.root, args.test, args.tester_session)
     if args.command in ("start", "end", "status", "check"):
         return _test_command(args)
+    if args.command == "trace":
+        return _trace_command(args.root.resolve(), args.test, args.json)
     if args.command == "audit":
         report = audit(args.tap, args.relay)
         if args.json:
@@ -193,6 +200,24 @@ def main(argv: Sequence[str] | None = None) -> int:
         return kit.run_hook(args.root, args.harness, sys.stdin, sys.stdout)
     parser.print_help(sys.stderr)
     return 2
+
+
+def _trace_command(root: Path, test: str | None, as_json: bool) -> int:
+    folder = root / bridge.STATE_DIR / "tests" / test if test else bridge.latest_test(root)
+    if folder is None or not (folder / "manifest.json").exists():
+        print("verbatim-relay: no test folder with a manifest.", file=sys.stderr)
+        return 2
+    report = trace.build(folder)
+    if as_json:
+        print(json.dumps(report, indent=1, ensure_ascii=False))
+        return 0
+    print(trace.summary(report))
+    for f in report["findings"]:
+        where = [f"turn {f['turn']}" if f["turn"] is not None else "no turn"]
+        where += [f["harness"]] if f.get("harness") else []
+        print(f"  {f['check']} ({', '.join(where)}): {f['detail']}")
+    print(f"File: {folder / 'trace.jsonl'}")
+    return 0
 
 
 def _test_command(args: argparse.Namespace) -> int:

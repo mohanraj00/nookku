@@ -1,0 +1,17 @@
+{
+ "v": "0.2",
+ "test": "20261006-080000-nm01",
+ "turns": 2,
+ "items": 0,
+ "sessions": [],
+ "counts": {
+  "agent_error": 0,
+  "tool_error": 0,
+  "command_failed": 0,
+  "turn_without_model": 0,
+  "item_between_turns": 0,
+  "session_inferred": 0,
+  "version_untested": 0
+ },
+ "findings": []
+}

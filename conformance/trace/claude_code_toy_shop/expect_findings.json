@@ -1,0 +1,101 @@
+{
+ "v": "0.2",
+ "test": "20261006-080000-cc01",
+ "turns": 3,
+ "items": 11,
+ "sessions": [
+  {
+   "harness": "claude-code",
+   "session": "4f1c2a7e-0d3b-4c55-9a61-2b8e5d7c9f10",
+   "file": "sessions/claude-code/4f1c2a7e-0d3b-4c55-9a61-2b8e5d7c9f10.jsonl",
+   "inferred": false,
+   "version": "2.1.286",
+   "items": 11,
+   "ignored": {
+    "assistant.thinking": 1,
+    "cost-state": 1,
+    "invalid_json": 1,
+    "queue-operation": 1,
+    "user.meta": 1
+   }
+  }
+ ],
+ "counts": {
+  "agent_error": 1,
+  "tool_error": 3,
+  "command_failed": 0,
+  "turn_without_model": 1,
+  "item_between_turns": 2,
+  "session_inferred": 0,
+  "version_untested": 0
+ },
+ "findings": [
+  {
+   "check": "agent_error",
+   "turn": 2,
+   "detail": "the agent gave status 500"
+  },
+  {
+   "check": "tool_error",
+   "turn": 2,
+   "detail": "lookup_order: no such order",
+   "harness": "claude-code",
+   "session": "4f1c2a7e-0d3b-4c55-9a61-2b8e5d7c9f10",
+   "source": {
+    "file": "sessions/claude-code/4f1c2a7e-0d3b-4c55-9a61-2b8e5d7c9f10.jsonl",
+    "line": 13,
+    "result_line": 14
+   }
+  },
+  {
+   "check": "tool_error",
+   "turn": 2,
+   "detail": "Bash: cat: returns.txt: No such file",
+   "harness": "claude-code",
+   "session": "4f1c2a7e-0d3b-4c55-9a61-2b8e5d7c9f10",
+   "source": {
+    "file": "sessions/claude-code/4f1c2a7e-0d3b-4c55-9a61-2b8e5d7c9f10.jsonl",
+    "line": 15,
+    "result_line": 16
+   }
+  },
+  {
+   "check": "tool_error",
+   "turn": null,
+   "detail": "lookup_order: no tool_result in the session file",
+   "harness": "claude-code",
+   "session": "4f1c2a7e-0d3b-4c55-9a61-2b8e5d7c9f10",
+   "source": {
+    "file": "sessions/claude-code/4f1c2a7e-0d3b-4c55-9a61-2b8e5d7c9f10.jsonl",
+    "line": 20
+   }
+  },
+  {
+   "check": "turn_without_model",
+   "turn": 3,
+   "detail": "no model item in this turn"
+  },
+  {
+   "check": "item_between_turns",
+   "turn": null,
+   "detail": "a message item",
+   "harness": "claude-code",
+   "session": "4f1c2a7e-0d3b-4c55-9a61-2b8e5d7c9f10",
+   "source": {
+    "file": "sessions/claude-code/4f1c2a7e-0d3b-4c55-9a61-2b8e5d7c9f10.jsonl",
+    "line": 17
+   }
+  },
+  {
+   "check": "item_between_turns",
+   "turn": null,
+   "detail": "a tool_call item",
+   "harness": "claude-code",
+   "session": "4f1c2a7e-0d3b-4c55-9a61-2b8e5d7c9f10",
+   "source": {
+    "file": "sessions/claude-code/4f1c2a7e-0d3b-4c55-9a61-2b8e5d7c9f10.jsonl",
+    "line": 20
+   }
+  }
+ ]
+}

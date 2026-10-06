@@ -137,6 +137,15 @@ def test_check_finds_the_model_sessions_of_the_app(tmp_path: Path, homes: tuple)
     rows = [json.loads(x) for x in (folder / "tap.jsonl").read_text().split("\n") if x]
     assert sum(r["type"] == "model_session" for r in rows) >= 2
     assert audit(folder / "tap.jsonl", folder / "relay.jsonl").exit == 0
+    # The fixture files have no items and no version (SPEC.md section 8). `check` has no tester
+    # session, so it also takes the tester rollout of the fixture.
+    assert (folder / "trace.jsonl").read_text() == ""
+    findings = json.loads((folder / "findings.json").read_text())
+    assert findings["turns"] == 1
+    assert {s["version"] for s in findings["sessions"]} == {"unknown"}
+    assert findings["counts"]["version_untested"] == len(manifest["model_sessions"])
+    assert findings["counts"]["session_inferred"] == len(manifest["model_sessions"]) - 1
+    assert findings["counts"]["turn_without_model"] == 0
 
 
 def test_the_tester_thread_is_not_an_app_session(tmp_path: Path, homes: tuple) -> None:
