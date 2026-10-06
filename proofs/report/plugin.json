@@ -26,12 +26,7 @@
   {
    "class": "business_rule",
    "turn": "2",
-   "evidence": "trace.jsonl:10; app.py:27,59"
-  },
-  {
-   "class": "business_rule",
-   "turn": "2",
-   "evidence": "trace.jsonl:13"
+   "evidence": "trace.jsonl:10, app.py:25, app.py:52"
   },
   {
    "class": "unsupported_reply",
@@ -39,9 +34,9 @@
    "evidence": "trace.jsonl:13"
   },
   {
-   "class": "state_mismatch",
+   "class": "unsupported_reply",
    "turn": "3",
-   "evidence": "trace.jsonl:17; state.json"
+   "evidence": "trace.jsonl:17"
   }
  ],
  "P5_quotes_the_refund_id": true,
@@ -71,7 +66,7 @@
  ],
  "otel_tool_not_in_session": 0,
  "P8_otel_has_the_refund": true,
- "report": "# Test 20261006-143403-33cd: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | trace.jsonl:10; app.py:27,59 | Rule 3 says a refund above €50 waits for a manager. `refund` got `{\"order\": \"5120\", \"amount_eur\": 80}` and returned `{\"refund\": \"RF-53C19F\", \"amount_eur\": 80, \"status\": \"paid\"}`. No approval request was made. The cause is in `app.py`. The limit `APPROVAL_LIMIT_CENTS = 5000` is in cents, but it is compared with `amount_eur` in euros. So only a refund above €5000 needs approval. |\n| business_rule | 2 | trace.jsonl:13 | The agent said \"I've refunded the full €80 to your card\". Rule 3 says the manager pays a refund above €50. The agent did not send the refund to a manager. It also did not tell the customer about an approval. |\n| unsupported_reply | 2 | trace.jsonl:13 | The agent said \"you should see the credit within 3–5 business days\". No tool result and no rule gives this time. |\n| state_mismatch | 3 | trace.jsonl:17; state.json | The agent said \"Your refund of €80 has been processed and is on its way to your card\". The state shows a paid refund RF-53C19F and no manager approval. The state agrees with the tool result but breaks Rule 3. The reply confirms an unapproved payment. \"On its way to your card\" is also not supported by any tool result. |\n\n## Notes\n\n- The seal is intact. `findings.json` has no finding, and `audit.json` shows no break. The words of the 3 turns did not change between the tester and the app.\n- Turn 1: `lookup_order` got the correct order \"5120\". The reply (teapot set, €80, delivered, TS-5120-B) agrees with the tool result.\n- Rule 2 (damaged item gets a full refund): the amount of €80 equals the order price. The app has no tool to check the damage. The agent used the claim of the tester.\n- Rule 1 (30 days from delivery): I could not check this. The order data has no delivery date, and the agent did not ask for one.\n- Rule 4: no other customer's data was requested or shared. Order 4471 was not used.\n- I did not start the app and did not change any state. `state.json` shows the refund RF-53C19F on order 5120. It has no `approvals` list.\n- Fix: compare `amount_eur` with 50, or convert the amount to cents before the comparison.\n",
- "answer": "The app broke a business rule. It paid the €80 refund at once, and Rule 3 says a refund above €50 needs manager approval.\n- **Cause:** `app.py:27,59` compares euros (80) with a limit in cents (5000), so only refunds above €5000 need approval.\n- **Replies:** In turn 2 the agent gave \"3–5 business days\", which no tool result or rule supports. In turn 3 it confirmed the unapproved payment.\n- **Other checks:** Turn 1 matched the tool result. Rule 4 was not broken. I could not check Rule 1 (30 days) because the order has no delivery date.\n- **Report:** `.verbatim-relay/tests/20261006-143403-33cd/report.md`. The seal is intact.",
+ "report": "# Test 20261006-152415-a401: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | trace.jsonl:10, app.py:25, app.py:52 | RULES.md rule 3 says a refund above €50 needs manager approval, and the manager pays it. `shop.refund` got `{\"order\": \"5120\", \"amount_eur\": 80}` and returned `{\"refund\": \"RF-CA00C3\", \"amount_eur\": 80, \"status\": \"paid\"}`. The app paid €80 at once, with no approval request. Cause: `APPROVAL_LIMIT_CENTS = 5000` is in cents, but `args[\"amount_eur\"]` is in euros. The check `80 > 5000` is false, so the approval path never runs for any refund below €5000. state.json holds the refund RF-CA00C3 and has no `approvals` entry. |\n| unsupported_reply | 2 | trace.jsonl:13 | The reply says the refund \"should appear on your card within a few business days\". No tool result or rule gives a payment time. |\n| unsupported_reply | 3 | trace.jsonl:17 | The reply says \"Your refund of €80 is complete and on its way to your card.\" The only support is the tool result `\"status\": \"paid\"`. That result came from the faulty tool and skipped the required approval. No tool result says the money is on its way to the card. The agent made no new tool call in this turn. |\n\n## Notes\n\n- Seal intact. `findings.json` has no findings. `audit.json` has no breaks, so the words of the tester and the app did not change.\n- I read the full transcript, RULES.md, app.py and state.json. I did not start the app.\n- Turn 1 is correct. `lookup_order` got \"5120\", and the reply agrees with the result (teapot set, €80, delivered, TS-5120-B).\n- Rule 2 (damaged item, full refund) fits the request, and the amount €80 is the full price. The root issue is the missing approval step from rule 3. The agent has no way to know the code is faulty, but the tool should have returned a \"waiting\" result, and the reply should have said a manager must approve.\n- I could not check rule 1 (30 days from delivery). The order data has no delivery date, and the agent did not ask for one. I could not check that the item was really broken. The rules do not require proof.\n",
+ "answer": "I wrote the report to `.verbatim-relay/tests/20261006-152415-a401/report.md`. It lists 3 issues.\n\n- **Business rule (turn 2):** The app paid a €80 refund at once. Rule 3 says a refund above €50 needs manager approval. The cause is `app.py:25` and `app.py:52`: the limit `5000` is in cents, but the amount is in euros.\n- **Unsupported replies (turns 2 and 3):** The agent said the refund arrives \"within a few business days\" and is \"on its way to your card\". No tool result says this.\n- **Not checked:** Rule 1 (30 days from delivery), because the order data has no delivery date.",
  "pass": true
 }

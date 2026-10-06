@@ -22,11 +22,13 @@
   }
  ],
  "otel": null,
+ "backend": null,
  "counts": {
   "agent_error": 0,
   "tool_error": 3,
   "command_failed": 2,
   "span_error": 0,
+  "backend_error": 0,
   "turn_without_model": 1,
   "item_between_turns": 1,
   "otel_tool_not_in_session": 0,

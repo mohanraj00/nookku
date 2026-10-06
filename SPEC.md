@@ -225,6 +225,7 @@ A test runs the entry from `start` to `end`. A new conversation is a new test: e
 | `models` | list of strings | The harnesses that the app uses for its model sessions: `claude-code`, `codex`, both or none. |
 | `evaluate` | boolean | Optional. `false` stops the evaluation at the end of a test (section 9). The default is `true`. |
 | `otel` | boolean | Optional. `false` stops the OTLP receiver of a test (section 7.5). The default is `true`. |
+| `backends` | list of objects | Optional. The backends of the app, each with the strings `name`, `env` and `url` (section 7.6). Each `name` and each `env` is used only once. |
 
 `verbatim-relay check` runs a short test with one message. It passes if the entry sends a reply, and if the tap identifies at least one model session and finds its session file for each harness in `models`.
 
@@ -234,7 +235,7 @@ A test runs the entry from `start` to `end`. A new conversation is a new test: e
 
 `end` switches relay mode off and stops the bridge. If a harness session sends the prompt that ends the test, `end` writes its id to `.verbatim-relay/ending.json`. The bridge adds that id to the tester's sessions, so it never takes the session that ends the test, and then evaluates it, as a session of the app. The bridge then:
 
-1. Closes the entry's stdin and waits 5 seconds. Then it stops the process group, first with SIGTERM and after 5 more seconds with SIGKILL. Then it stops the OTLP receiver (section 7.5), after no request came for 0.5 seconds or after 2 seconds.
+1. Closes the entry's stdin and waits 5 seconds. Then it stops the process group, first with SIGTERM and after 5 more seconds with SIGKILL. Then it stops the OTLP receiver (section 7.5), after no request came for 0.5 seconds or after 2 seconds, and the backend proxies (section 7.6).
 2. Identifies the Codex sessions (section 7.3).
 3. Copies the session file of each identified model session into `sessions/` in the test folder.
 4. Writes the end time and the tester's harness sessions into the manifest.
@@ -248,7 +249,7 @@ The test folder:
 ```text
 .verbatim-relay/tests/<test-id>/
   manifest.json  relay.jsonl  tap.jsonl  app.log  bridge.log
-  otel.jsonl  trace.jsonl  findings.json  audit.json  seal.json  report.md  denied.jsonl
+  otel.jsonl  backend.jsonl  trace.jsonl  findings.json  audit.json  seal.json  report.md  denied.jsonl
   sessions/claude-code/<session>.jsonl
   sessions/codex/<rollout file>
 ```
@@ -329,6 +330,33 @@ An attribute value is a string, a boolean, an integer, a number, a list, an obje
 
 The conformance cases in `conformance/otlp/` test the receiver.
 
+### 7.6 Backend proxies
+
+A backend is a service that the app calls over HTTP, for example a stock service. The app reads the URL of the backend from the environment variable `env`. The entry can also give that URL to an app that reads it from a file.
+
+During a test, the bridge runs one proxy for each backend in `backends`, on `127.0.0.1` at a free port, before it starts the entry. It gives the entry the URL of the proxy in the variable `env`, in place of the value that the entry has.
+
+- The proxy forwards each request to `url`: the method, the path and the query after the path of `url`, the headers, and the body. It sends each header of the app once, in its order, except `Host` and the hop-by-hop headers. The app does not know that it speaks to a proxy, so `Proxy-Authorization` goes to the backend. The proxy adds only `Host` and `Content-Length`. A request body with `Transfer-Encoding: chunked` goes to the backend with a `Content-Length`.
+- It sends the response of the backend back to the app with no change: the status, the headers except the hop-by-hop headers (`Proxy-Authenticate` goes through), and the body. It reads the whole response before it sends it.
+- If the backend does not answer, the proxy sends status 502 to the app.
+- At the end of the test, the bridge stops the proxies after it stops the entry. It waits up to 10 seconds for each call that did not end. For each call that is still open after that time, the proxy writes a row with the error `the test ended before the backend answered`. After that, the proxy writes no row and sends status 503 for each new request. Thus each call has its row before the trace and the seal.
+- The proxy speaks HTTP to the app. It speaks HTTP or HTTPS to the backend, as `url` says.
+
+The proxy writes one row to `backend.jsonl` for each call:
+
+| Field | Meaning |
+|---|---|
+| `v`, `type` | `1`, `"call"` |
+| `backend` | The `name` of the backend. |
+| `started`, `ts` | The Unix times when the request came and when the call ended. |
+| `method`, `path`, `query` | The request line from the app. `query` is `null` if the path has no `?`. |
+| `request_headers`, `response_headers` | The headers as a list of `[name, value]`, in their order. `response_headers` is `null` if the backend did not answer. |
+| `request_body`, `response_body` | An object: `size`, `sha256` (of the bytes), `cut`, and `text` (UTF-8) or `base64`. For a `gzip` or `deflate` body, `text` is the decoded body, and `decoded` names the encoding. If the body is longer than 1 MiB, `text` or `base64` holds the first 1 MiB, and `cut` is `true`. `size` and `sha256` are always of all the bytes that went to the app or the backend. `response_body` is `null` if the backend did not answer. |
+| `status` | The status of the backend, or `null`. |
+| `error` | `the backend did not answer: <reason>`, `the test ended before the backend answered`, or `null`. |
+
+Before it writes a row, the proxy replaces the value of each secret header with `<removed>`: `Authorization`, `Proxy-Authorization`, `Cookie`, `Set-Cookie`, and each header whose name contains `key`, `token` or `secret`. The secret headers still go to the backend and to the app. The proxy does not change the bodies in the record.
+
 ## 8. Trace
 
 The trace is one record of the model items of the app in a test. It ties each item to a turn. `verbatim-relay trace [TEST]` builds it again from the files in the test folder.
@@ -341,10 +369,11 @@ A test has 3 sources. Each one is independent of the others in a different way:
 |---|---|---|
 | `tap.jsonl` | the tap | the app and the model of the tester's harness. It records the words only. |
 | `sessions/` | the harness binary that the app uses | the app's code. It is not independent of the harness. |
+| `backend.jsonl` | the backend proxies, from the calls of the app to its backends | the app's code. It records the bytes on the wire. |
 | `otel.jsonl` | the OTLP receiver, from the spans and logs that the app and its harness send | the session files. It is not independent of the app's code, because the app sends it. |
 | The app's state | the app | nothing. The evaluating session reads it and judges it. |
 
-The trace reads `tap.jsonl`, `sessions/` and `otel.jsonl`. It does not read the app's state.
+The trace reads `tap.jsonl`, `sessions/`, `otel.jsonl` and `backend.jsonl`. It does not read the app's state.
 
 ### 8.2 Trace record
 
@@ -355,20 +384,20 @@ The trace reads `tap.jsonl`, `sessions/` and `otel.jsonl`. It does not read the 
 | `v` | string | `"0.3"` |
 | `type` | string | `"model_item"` |
 | `turn` | integer or null | The number of the turn (section 8.3), or `null`. |
-| `harness` | string | `claude-code` or `codex`. For a row of `otel.jsonl`: the harness of its `service` (section 7.5), or `otel` for the app. |
-| `session` | string | The session id from the manifest. For a span: its `trace_id`. For a log: its `session.id` or `conversation.id` attribute, else its `trace_id`, else `""`. |
+| `harness` | string | `claude-code` or `codex`. For a row of `otel.jsonl`: the harness of its `service` (section 7.5), or `otel` for the app. For a row of `backend.jsonl`: `backend`. |
+| `session` | string | The session id from the manifest. For a span: its `trace_id`. For a log: its `session.id` or `conversation.id` attribute, else its `trace_id`, else `""`. For an `http` item: the backend name. |
 | `ts` | number or null | The Unix time of the item. |
-| `kind` | string | `message`, `tool_call` or `command`. From `otel.jsonl`: `span` or `log`. |
+| `kind` | string | `message`, `tool_call` or `command`. From `otel.jsonl`: `span` or `log`. From `backend.jsonl`: `http`. |
 | `role` | string or null | For a message: `user` (the app to the model) or `assistant` (the model to the app). |
 | `server` | string or null | For a tool call: the MCP server or the dynamic tool namespace. |
-| `name` | string or null | For a tool call: the tool name, without the MCP prefix. For a span: its name. For a log: its event name, without the harness prefix for a harness log. |
-| `input` | any | For a tool call: its input object. For a command: its argv. For a span or a log: its attributes. |
-| `output` | string or null | For a message: its text. For a tool call or a command: its output text. For a log: its body, as JSON if it is not a string, or `null` if the body is the event name. |
-| `error` | string or null | For a tool call: the error text if the call failed. `output` is then `null`. For a span with status code 2: the status message, else the `exception.message` of its first `exception` event, else `status error`. For a harness `tool_result` log with `success` `false`: its `error` attribute. |
-| `exit_code` | integer or null | For a command: its exit code. |
+| `name` | string or null | For a tool call: the tool name, without the MCP prefix. For a span: its name. For a log: its event name, without the harness prefix for a harness log. For an `http` item: the method and the path, for example `GET /stock`. |
+| `input` | any | For a tool call: its input object. For a command: its argv. For a span or a log: its attributes. For an `http` item: an object with `query`, `headers` (the request headers of the row) and `body` (the request body, as for `output`). |
+| `output` | string or null | For a message: its text. For a tool call or a command: its output text. For a log: its body, as JSON if it is not a string, or `null` if the body is the event name. For an `http` item: the `text` of the response body, with the note `(cut: the record holds the first 1 MiB)` if it is cut; `(<size> bytes that are not UTF-8: base64 in backend.jsonl)` for a binary body; `null` for an empty body or no answer. |
+| `error` | string or null | For a tool call: the error text if the call failed. `output` is then `null`. For a span with status code 2: the status message, else the `exception.message` of its first `exception` event, else `status error`. For a harness `tool_result` log with `success` `false`: its `error` attribute. For an `http` item: the `error` of the row. |
+| `exit_code` | integer or null | For a command: its exit code. For an `http` item: the status of the backend. |
 | `harness_internal` | boolean | `true` for a tool that the harness gives to the model, not the app (section 8.5). |
 | `service` | string or null | For a row from `otel.jsonl`: its `service`. Else `null`. |
-| `source` | object | `file`: the session file or `otel.jsonl`, relative to the test folder. `line`: the 1-based line of the item. For a Claude Code tool call, `result_line`: the line of its result. |
+| `source` | object | `file`: the session file, `otel.jsonl` or `backend.jsonl`, relative to the test folder. `line`: the 1-based line of the item. For a Claude Code tool call, `result_line`: the line of its result. |
 
 The trace has no `<field>_sha256` fields. The session files hold the original bytes.
 
@@ -403,13 +432,15 @@ The reader takes the version from `cli_version` of the `session_meta` line.
 
 **OpenTelemetry** (`otel.jsonl`). The reader keeps each `span` and `log` row, and counts each other row by its type. `ts` is `start` for a span and `time` for a log.
 
+**Backend calls** (`backend.jsonl`). The reader keeps each `call` row, and counts each other row by its type. `ts` is `started`.
+
 ### 8.5 Harness tools
 
 These tools come from the harness, not from the app: `ToolSearch` in Claude Code. The trace keeps their items and marks them `harness_internal: true`.
 
 ### 8.6 Findings
 
-`findings.json` holds the test id, the number of turns and items, one entry for each model session (its version, its item count and its counts of lines not kept), `otel` (the file, its row count, its item count and its counts of rows not kept, or `null` if the test has no `otel.jsonl`), a count for each check, and the findings. The findings do not change the exit code of the audit. The audit measures the words only.
+`findings.json` holds the test id, the number of turns and items, one entry for each model session (its version, its item count and its counts of lines not kept), `otel` and `backend` (the file, its row count, its item count and its counts of rows not kept, or `null` if the test has no such file), a count for each check, and the findings. The findings do not change the exit code of the audit. The audit measures the words only.
 
 | Check | Finding |
 |---|---|
@@ -417,6 +448,7 @@ These tools come from the harness, not from the app: `ToolSearch` in Claude Code
 | `tool_error` | A tool call with an `error`. |
 | `command_failed` | A command with an exit code that is not 0, or with an `error`. |
 | `span_error` | A span with an `error`. |
+| `backend_error` | An `http` item with an `error`, or with a status of 500 or more. |
 | `turn_without_model` | A turn with no `message`, `tool_call` or `command` item. This check runs only if a session reader kept at least 1 item. |
 | `item_between_turns` | An item with `turn: null` and a `ts` at or after the start of turn 1. An item before turn 1, for example a model call when the app starts, is not a finding. |
 | `otel_tool_not_in_session` | A harness `tool_result` log with no tool call of its tool in the session items of the same harness and turn. The tool is the `mcp_tool_name` of `tool_parameters`, or `tool_name` (Claude Code), or `tool_name` (Codex). If the event and the tool call both have an input object, the inputs must be equal. For a Codex `exec_command`, `shell` or `local_shell`, any `command` item matches. |

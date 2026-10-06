@@ -1,0 +1,63 @@
+{
+ "v": "0.2",
+ "test": "20261006-080000-bk01",
+ "turns": 2,
+ "items": 4,
+ "sessions": [],
+ "otel": null,
+ "backend": {
+  "file": "backend.jsonl",
+  "rows": 5,
+  "items": 4,
+  "ignored": {
+   "note": 1
+  }
+ },
+ "counts": {
+  "agent_error": 0,
+  "tool_error": 0,
+  "command_failed": 0,
+  "span_error": 0,
+  "backend_error": 2,
+  "turn_without_model": 0,
+  "item_between_turns": 1,
+  "otel_tool_not_in_session": 0,
+  "session_inferred": 0,
+  "version_untested": 0
+ },
+ "findings": [
+  {
+   "check": "backend_error",
+   "turn": 2,
+   "detail": "payments: POST /payments: status 500",
+   "harness": "backend",
+   "session": "payments",
+   "source": {
+    "file": "backend.jsonl",
+    "line": 2
+   }
+  },
+  {
+   "check": "backend_error",
+   "turn": 2,
+   "detail": "payments: POST /payments: the backend did not answer: [Errno 61] Connection refused",
+   "harness": "backend",
+   "session": "payments",
+   "source": {
+    "file": "backend.jsonl",
+    "line": 3
+   }
+  },
+  {
+   "check": "item_between_turns",
+   "turn": null,
+   "detail": "a http item",
+   "harness": "backend",
+   "session": "stock",
+   "source": {
+    "file": "backend.jsonl",
+    "line": 4
+   }
+  }
+ ]
+}

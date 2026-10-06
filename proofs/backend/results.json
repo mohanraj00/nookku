@@ -1,0 +1,39 @@
+{
+ "date": "2026-10-06",
+ "versions": {
+  "verbatim-relay": "0.1.0",
+  "python": "3.12.13",
+  "os": "Darwin"
+ },
+ "calls": [
+  {
+   "call": 1,
+   "path": "/scan",
+   "request_size": 1026,
+   "response_size": 2059,
+   "request_same": true,
+   "response_same": true,
+   "record_cut": false
+  },
+  {
+   "call": 2,
+   "path": "/stock?sku=teapot-set&note=%E2%82%AC",
+   "request_size": 0,
+   "response_size": 2059,
+   "request_same": true,
+   "response_same": true,
+   "record_cut": false
+  },
+  {
+   "call": 3,
+   "path": "/import",
+   "request_size": 2320000,
+   "response_size": 2059,
+   "request_same": true,
+   "response_same": true,
+   "record_cut": true
+  }
+ ],
+ "seal_intact": true,
+ "pass": true
+}
