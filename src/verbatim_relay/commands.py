@@ -7,6 +7,7 @@ parse, so the deny fails closed. The plugin has the same check in plugins/claude
 
 from __future__ import annotations
 
+import fnmatch
 import re
 import shlex
 from collections.abc import Callable
@@ -16,11 +17,16 @@ SHELL_TOOLS = {"Bash", "shell", "local_shell", "exec_command"}
 SHELLS = {"bash", "sh", "zsh"}
 OPS = set("();<>|&")
 HEREDOC = re.compile(r"(?<!<)<<(?!<)(-?)\s*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\2")
-# A sed command that writes a file (w, W) or runs a command (e).
-SED_WRITE = re.compile(r"(^|[0-9$/;}\s])[wWe](\s|$)")
+# A sed script reads only if, without its /regex/ addresses, it has only these characters: line
+# addresses and the commands p, P, =, q, Q, d and n. So s, w, W, e and r fail.
+SED_ADDRESS = re.compile(r"/(?:\\.|[^/\\])*/I?")
+SED_READS = re.compile(r"[0-9$,;!\s/pP=qQdn{}+~]*")
+# sed short options with no value, and with a value.
+SED_FLAGS, SED_VALUES = set("nErsuz"), set("el")
 FIND_ACTIONS = {"-delete", "-exec", "-execdir", "-ok", "-okdir", "-fls", "-fprint", "-fprint0"}
 FIND_ACTIONS |= {"-fprintf"}
-VIEWS = {"transcript", "trace", "audit", "check", "status", "view"}
+# trace writes trace.jsonl and findings.json, and check starts a test, so they are not here.
+VIEWS = {"transcript", "audit", "status", "view"}
 # The file types of an entry argument that names a program file (SPEC.md section 5).
 CODE = {".py", ".js", ".mjs", ".cjs", ".ts", ".sh", ".rb"}
 
@@ -31,9 +37,53 @@ def _short(args: list[str], letter: str) -> bool:
 
 
 def _sed(args: list[str]) -> bool:
-    quiet = _short(args, "n") or "--quiet" in args or "--silent" in args
-    edit = _short(args, "i") or any(a.startswith("--in-place") for a in args)
-    return quiet and not edit and not any(SED_WRITE.search(a) for a in args)
+    """True for sed -n with scripts that only print. An unknown option fails."""
+    quiet, scripts, rest = False, [], []
+    i = 0
+    while i < len(args):
+        a = args[i]
+        if a in ("--quiet", "--silent"):
+            quiet = True
+        elif a.startswith("--expression="):
+            scripts.append(a.split("=", 1)[1])
+        elif a == "--expression":
+            if i + 1 >= len(args):
+                return False
+            scripts.append(args[i + 1])
+            i += 1
+        elif a.startswith("--"):
+            if a not in (
+                "--regexp-extended",
+                "--null-data",
+                "--separate",
+                "--unbuffered",
+                "--posix",
+            ):
+                return False
+        elif a.startswith("-") and len(a) > 1:
+            for k, ch in enumerate(a[1:], 1):
+                if ch == "n":
+                    quiet = True
+                elif ch in SED_VALUES:
+                    value = a[k + 1 :]
+                    if not value:
+                        if i + 1 >= len(args):
+                            return False
+                        value = args[i + 1]
+                        i += 1
+                    if ch == "e":
+                        scripts.append(value)
+                    break
+                elif ch not in SED_FLAGS:
+                    return False
+        else:
+            rest.append(a)
+        i += 1
+    if not scripts:
+        if not rest:
+            return False
+        scripts.append(rest[0])
+    return quiet and all(SED_READS.fullmatch(SED_ADDRESS.sub("", x)) for x in scripts)
 
 
 def _sort(args: list[str]) -> bool:
@@ -202,6 +252,20 @@ def entry_names(entry: list[str]) -> list[str]:
     return names
 
 
-def names_entry(text: str, names: list[str]) -> bool:
-    """True if the text names a program file or the module of the entry."""
-    return any(re.search(rf"(?<![\w.-]){re.escape(x)}(?![\w-])", text) for x in names)
+def names_entry(text: str, names: list[str], command: str | None = None) -> bool:
+    """True if the text, or a word of the shell command, names a program file or the module of
+    the entry. A word is compared after the shell removes its quotes and escapes, and a word with
+    a glob character is compared as a glob."""
+    if any(re.search(rf"(?<![\w.-]){re.escape(x)}(?![\w-])", text) for x in names):
+        return True
+    for word, op in tokens(_strip_heredocs(command)) or [] if command is not None else []:
+        if op:
+            continue
+        base = word.rsplit("/", 1)[-1]
+        for x in names:
+            if x in (word, base):
+                return True
+            glob = any(c in word for c in "*?[")
+            if glob and (fnmatch.fnmatchcase(x, base) or fnmatch.fnmatchcase(x, word)):
+                return True
+    return False

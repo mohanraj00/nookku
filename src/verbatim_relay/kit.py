@@ -290,7 +290,9 @@ def handle(event: dict[str, Any], root: Path, harness: str) -> dict[str, Any] | 
         if (
             cur is not None
             and not reads
-            and commands.names_entry(text, commands.entry_names(config.entry))
+            and commands.names_entry(
+                text, commands.entry_names(config.entry), commands.command_of(tool, tool_input)
+            )
         ):
             return _deny(Path(cur["dir"]) / "relay.jsonl", harness, tool, text, ENTRY_REASON)
         if pattern is None or not pattern.search(text):

@@ -172,10 +172,16 @@ const SHELL_TOOLS = ['Bash', 'shell', 'local_shell', 'exec_command']
 const SHELLS = ['bash', 'sh', 'zsh']
 const OPS = '();<>|&'
 const HEREDOC = /(?<!<)<<(?!<)(-?)\s*(['"]?)([A-Za-z_][A-Za-z0-9_]*)\2/g
-// A sed command that writes a file (w, W) or runs a command (e).
-const SED_WRITE = /(^|[0-9$/;}\s])[wWe](\s|$)/
+// A sed script reads only if, without its /regex/ addresses, it has only these characters: line
+// addresses and the commands p, P, =, q, Q, d and n. So s, w, W, e and r fail.
+const SED_ADDRESS = /\/(?:\\.|[^/\\])*\/I?/g
+const SED_READS = /^[0-9$,;!\s/pP=qQdn{}+~]*$/
+const SED_FLAGS = 'nErsuz'
+const SED_VALUES = 'el'
+const SED_LONG = ['--regexp-extended', '--null-data', '--separate', '--unbuffered', '--posix']
 const FIND_ACTIONS = ['-delete', '-exec', '-execdir', '-ok', '-okdir', '-fls', '-fprint', '-fprint0', '-fprintf']
-const VIEWS = ['transcript', 'trace', 'audit', 'check', 'status', 'view']
+// trace writes trace.jsonl and findings.json, and check starts a test, so they are not here.
+const VIEWS = ['transcript', 'audit', 'status', 'view']
 // The file types of an entry argument that names a program file.
 const CODE = ['.py', '.js', '.mjs', '.cjs', '.ts', '.sh', '.rb']
 
@@ -183,10 +189,48 @@ function short(args: string[], letter: string): boolean {
   return args.some(a => a.startsWith('-') && !a.startsWith('--') && a.slice(1).includes(letter))
 }
 
+// True for sed -n with scripts that only print. An unknown option fails.
 function sedReads(args: string[]): boolean {
-  const quiet = short(args, 'n') || args.includes('--quiet') || args.includes('--silent')
-  const edit = short(args, 'i') || args.some(a => a.startsWith('--in-place'))
-  return quiet && !edit && !args.some(a => SED_WRITE.test(a))
+  let quiet = false
+  const scripts: string[] = []
+  const rest: string[] = []
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i]
+    if (a === '--quiet' || a === '--silent') {
+      quiet = true
+    } else if (a.startsWith('--expression=')) {
+      scripts.push(a.slice(a.indexOf('=') + 1))
+    } else if (a === '--expression') {
+      if (i + 1 >= args.length) return false
+      scripts.push(args[++i])
+    } else if (a.startsWith('--')) {
+      if (!SED_LONG.includes(a)) return false
+    } else if (a.startsWith('-') && a.length > 1) {
+      for (let k = 1; k < a.length; k++) {
+        const ch = a[k]
+        if (ch === 'n') {
+          quiet = true
+        } else if (SED_VALUES.includes(ch)) {
+          let value = a.slice(k + 1)
+          if (!value) {
+            if (i + 1 >= args.length) return false
+            value = args[++i]
+          }
+          if (ch === 'e') scripts.push(value)
+          break
+        } else if (!SED_FLAGS.includes(ch)) {
+          return false
+        }
+      }
+    } else {
+      rest.push(a)
+    }
+  }
+  if (!scripts.length) {
+    if (!rest.length) return false
+    scripts.push(rest[0])
+  }
+  return quiet && scripts.every(x => SED_READS.test(x.replace(SED_ADDRESS, '')))
 }
 
 const ANY = (): boolean => true
@@ -328,6 +372,35 @@ export function entryNames(entry: readonly string[]): string[] {
   return names
 }
 
-export function namesEntry(text: string, names: readonly string[]): boolean {
-  return names.some(x => new RegExp(`(?<![\\w.-])${escape(x)}(?![\\w-])`).test(text))
+function globMatch(glob: string, name: string): boolean {
+  let re = ''
+  for (let i = 0; i < glob.length; i++) {
+    const c = glob[i]
+    const end = c === '[' ? glob.indexOf(']', i + 2) : -1
+    if (c === '*') re += '.*'
+    else if (c === '?') re += '.'
+    else if (end > 0) {
+      const body = glob.slice(i + 1, end)
+      re += `[${body.startsWith('!') ? '^' + body.slice(1) : body}]`
+      i = end
+    } else re += escape(c)
+  }
+  return new RegExp(`^${re}$`, 's').test(name)
+}
+
+// True if the text, or a word of the shell command, names a program file or the module of the
+// entry. A word is compared after the shell removes its quotes and escapes, and a word with a
+// glob character is compared as a glob.
+export function namesEntry(text: string, names: readonly string[], command: string | null = null): boolean {
+  if (names.some(x => new RegExp(`(?<![\\w.-])${escape(x)}(?![\\w-])`).test(text))) return true
+  const toks = command === null ? [] : (tokens(stripHeredocs(command)) ?? [])
+  for (const [word, op] of toks) {
+    if (op) continue
+    const base = word.split('/').pop()!
+    for (const x of names) {
+      if (x === word || x === base) return true
+      if (/[*?[]/.test(word) && (globMatch(base, x) || globMatch(word, x))) return true
+    }
+  }
+  return false
 }

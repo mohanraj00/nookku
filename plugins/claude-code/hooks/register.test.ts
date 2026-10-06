@@ -314,6 +314,8 @@ const READS = [
   "cat {F}/findings.json",
   "sed -n '1,200p' {F}/trace.jsonl",
   "sed -n '/refund/p' {F}/trace.jsonl",
+  "sed -n -e '1,5p' -e '/a\\/w/p' {F}/trace.jsonl",
+  "verbatim-relay audit --json",
   "jq '.findings[] | .check' {F}/findings.json",
   "ls -la {F} && wc -l {F}/tap.jsonl",
   "grep -n refund {F}/trace.jsonl | head -5",
@@ -329,6 +331,9 @@ const WRITES = [
   "sed -i '' 's/a/b/' {F}/trace.jsonl",
   "sed -ni 's/a/b/p' {F}/trace.jsonl",
   "sed -n '1w {F}/x' {F}/trace.jsonl",
+  "sed -n 's/a/b/w{F}/tap.jsonl' {F}/trace.jsonl",
+  "sed -n -e p -f script.sed {F}/trace.jsonl",
+  "sed -n --in-place p {F}/trace.jsonl",
   "cat {F}/a > {F}/trace.jsonl",
   "echo x >> {F}/findings.json",
   "rm {F}/trace.jsonl",
@@ -344,6 +349,8 @@ const WRITES = [
   "X=1 cat {F}/tap.jsonl",
   "cat '{F}/tap.jsonl",
   "verbatim-relay end",
+  "verbatim-relay trace --root {F}/../../..",
+  "verbatim-relay check",
   "python entry.py",
 ].map(c => c.replaceAll('{F}', F))
 
@@ -362,6 +369,11 @@ test('the shell command check', async () => {
   expect(namesEntry('{"command": "python -m shop.entry"}', names)).toBe(true)
   expect(namesEntry('{"command": "python my_entry.py"}', names)).toBe(false)
   expect(namesEntry('{"command": "cat entry.pyc"}', names)).toBe(false)
+  // The shell removes quotes and escapes, and expands a glob.
+  for (const c of ['python entry\\.py', "python 'entr'y.py", 'python entr?.py', 'python e*.py']) {
+    expect([c, namesEntry('{}', names, c)]).toEqual([c, true])
+  }
+  expect(namesEntry('{}', names, 'python other.py')).toBe(false)
 })
 
 test('during a test, the model cannot run the entry around the tap', { options: { start_on: true } }, async ($, on) => {

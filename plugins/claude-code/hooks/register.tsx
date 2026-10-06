@@ -11,7 +11,7 @@ import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
 
 import type { VerbatimRelayState, VerbatimRelayTurn } from '../types'
-import { blockedRow, contractBody, contractShown, denyPattern, entryNames, isChecked, namesEntry, replyText, requestBody, toolReadsOnly, touchesRecords, touchesTestFiles, turnRow } from './core'
+import { blockedRow, contractBody, commandOf, contractShown, denyPattern, entryNames, isChecked, namesEntry, replyText, requestBody, toolReadsOnly, touchesRecords, touchesTestFiles, turnRow } from './core'
 import type { Current, Options } from './core'
 
 const PANE = 'verbatim-relay'
@@ -324,7 +324,7 @@ export const register: Register = (on, options) => {
       return { deny: RECORDS_REASON }
     }
     const entry = cur !== null && isChecked(e.tool) && !reads ? (await readJson($, CONFIG))?.entry : null
-    if (Array.isArray(entry) && namesEntry(input, entryNames(entry.map(String)))) {
+    if (Array.isArray(entry) && namesEntry(input, entryNames(entry.map(String)), commandOf(e.tool, e))) {
       try {
         await append($, `${cur!.dir}/relay.jsonl`, blockedRow(e.tool, input.slice(0, 300)))
       } catch {
