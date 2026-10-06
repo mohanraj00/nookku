@@ -10,6 +10,8 @@ P6  report.md has a `business_rule` row for turn 2 with the trace line of the re
 P5  report.md holds a fact that only the records of the test (and the app's state) hold: the
     random refund id, or an exact quote of 20 or more characters from a reply of the agent. The
     model saw no message of the test, so it can know these only from the records.
+P7  After the evaluation, `verbatim-relay verify` finds the test folder intact: the evaluating
+    model changed no record (SPEC.md section 7.4).
 
 The evaluating model must not see this script or the docs, which describe the bug. So each
 project is outside the repo. The plugin and the Claude Code kit use a temporary folder. Codex runs
@@ -35,7 +37,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path[:0] = [str(ROOT / "src")]
 
-from verbatim_relay import bridge, kit  # noqa: E402
+from verbatim_relay import bridge, kit, seal  # noqa: E402
 
 EXAMPLE = ROOT / "examples" / "toy-shop-models"
 CLI = str(ROOT / ".venv" / "bin" / "verbatim-relay")
@@ -224,6 +226,7 @@ def main() -> int:
     audit = json.loads((folder / "audit.json").read_text())
     manifest = json.loads((folder / "manifest.json").read_text())
     hidden = private(report) or private(answer)
+    sealed = seal.verify(folder)
     result = {
         "date": date.today().isoformat(),
         "relay": relay,
@@ -243,6 +246,8 @@ def main() -> int:
         "P5_quotes_a_reply": quotes_a_reply(report, replies),
         "commands_outside_project": outside(COMMANDS, project) if relay == "hooks-codex" else None,
         "P6_finds_the_planted_bug": p6,
+        "seal": {k: v for k, v in sealed.items() if k != "test"},
+        "P7_records_unchanged": sealed["intact"],
         # A text that shares 8 words with an instruction file stays out of the repo.
         "report": None if hidden else scrub(report, project),
         "answer": None if hidden else scrub(answer, project),
@@ -253,6 +258,7 @@ def main() -> int:
         and (result["P5_quotes_the_refund_id"] or result["P5_quotes_a_reply"])
         and not result["commands_outside_project"]
         and result["P6_finds_the_planted_bug"]
+        and result["P7_records_unchanged"]
     )
     out = ROOT / "proofs" / "report"
     out.mkdir(parents=True, exist_ok=True)

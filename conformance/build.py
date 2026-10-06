@@ -2,7 +2,8 @@
 
 `cases/` holds the audit cases (SPEC.md section 3). `contract/` holds the stdio cases (sections 4.2
 and 6): the requests that the relay posts, what a scripted agent does with each one, and the rows
-and HTTP statuses that the tap must give. `trace/` holds the trace cases (section 8).
+and HTTP statuses that the tap must give. `trace/` holds the trace cases (section 8). `seal/` holds
+the seal cases (section 7.4).
 
 Never fill an expectation by running the audit. CI runs this script and fails if the files change.
 
@@ -22,6 +23,7 @@ from typing import Any
 CASES = Path(__file__).parent / "cases"
 CONTRACT = Path(__file__).parent / "contract"
 TRACE = Path(__file__).parent / "trace"
+SEAL = Path(__file__).parent / "seal"
 
 
 def sha(text: str | None) -> str | None:
@@ -1179,6 +1181,93 @@ TRACE_CASES = {
 }
 
 
+# Seal cases (SPEC.md section 7.4). Each case is a test folder after its end, the copy of the seal in
+# `home/seals/`, and the result that `verbatim-relay verify --json` must give.
+SEAL_TEST = "20261006-120000-se01"
+SEALED_AT = 1791316800.0
+SEAL_FILES = {
+    "manifest.json": '{"test": "20261006-120000-se01", "ended": 1791316800.0}\n',
+    "tap.jsonl": '{"v": "0.2", "type": "exchange", "input": "Hi, where is my order 5120?"}\n',
+    "relay.jsonl": '{"v": "0.2", "type": "turn", "said": "Hi, where is my order 5120?"}\n',
+    "trace.jsonl": '{"v": "0.1", "type": "model_item", "name": "lookup_order"}\n',
+    "findings.json": '{"findings": []}\n',
+    "audit.json": '{"exit": 0}\n',
+    "sessions/claude-code/s1.jsonl": '{"type": "user"}\n',
+    "report.md": "# Test 20261006-120000-se01: evaluation\n",
+    "bridge.log": "test 20261006-120000-se01 ended\n",
+}
+UNSEALED_FILES = {"report.md", "bridge.log"}
+
+
+def seal_of(files: dict[str, str], copy: bool) -> dict:
+    sealed = {k: sha(v) for k, v in sorted(files.items()) if k not in UNSEALED_FILES}
+    return {"v": 1, "test": SEAL_TEST, "sealed": SEALED_AT, "files": sealed, "copy": copy}
+
+
+def verified(intact: bool, copy: str, sealed: bool = True, **lists: list[str]) -> dict:
+    out = {"test": SEAL_TEST, "sealed": sealed, "intact": intact, "copy": copy}
+    return {**out, **{k: lists.get(k, []) for k in ("changed", "missing", "added")}}
+
+
+SEAL_CASES: dict[str, dict] = {
+    "intact": {"verify": verified(True, "same")},
+    # report.md, bridge.log and denied.jsonl change after the end. They are not in the seal.
+    "files_that_change_after_the_end": {
+        "after": {
+            "report.md": "# Test 20261006-120000-se01: evaluation\n\nNo issue.\n",
+            "bridge.log": "test 20261006-120000-se01 ended\ntrace rebuilt\n",
+            "denied.jsonl": '{"v": "0.2", "type": "blocked_call", "tool": "Bash"}\n',
+        },
+        "verify": verified(True, "same"),
+    },
+    "changed_record": {
+        "after": {"trace.jsonl": '{"v": "0.1", "type": "model_item", "name": "refund"}\n'},
+        "verify": verified(False, "same", changed=["trace.jsonl"]),
+    },
+    "missing_record": {
+        "remove": ["findings.json"],
+        "verify": verified(False, "same", missing=["findings.json"]),
+    },
+    "new_file": {
+        "after": {"sessions/codex/extra.jsonl": '{"type": "session_meta"}\n'},
+        "verify": verified(False, "same", added=["sessions/codex/extra.jsonl"]),
+    },
+    "copies_differ": {
+        "copy_files": {"tap.jsonl": '{"v": "0.2", "type": "exchange", "input": "Hi"}\n'},
+        "verify": verified(False, "different"),
+    },
+    "copy_missing": {"no_copy_file": True, "verify": verified(False, "missing")},
+    # The bridge could not write the copy, for example in a sandbox. The seal says so.
+    "no_copy": {"copy": False, "no_copy_file": True, "verify": verified(True, "none")},
+    "seal_missing": {"no_seal_file": True, "verify": verified(False, "same", sealed=False)},
+    "no_seal": {
+        "no_seal_file": True,
+        "no_copy_file": True,
+        "verify": verified(False, "none", sealed=False),
+    },
+}
+
+
+def write_seal_case(d: Path, case: dict) -> None:
+    folder = d / "test" / SEAL_TEST
+    files = {**SEAL_FILES, **case.get("after", {})}
+    for name in case.get("remove", []):
+        del files[name]
+    for rel, text in files.items():
+        (folder / rel).parent.mkdir(parents=True, exist_ok=True)
+        (folder / rel).write_text(text, encoding="utf-8")
+    seal = seal_of(SEAL_FILES, case.get("copy", True))
+    if not case.get("no_seal_file"):
+        (folder / "seal.json").write_text(json.dumps(seal, indent=1, sort_keys=True) + "\n")
+    if not case.get("no_copy_file"):
+        copy = seal_of({**SEAL_FILES, **case.get("copy_files", {})}, True)
+        (d / "home" / "seals").mkdir(parents=True)
+        (d / "home" / "seals" / f"{SEAL_TEST}.json").write_text(
+            json.dumps(copy, indent=1, sort_keys=True) + "\n"
+        )
+    (d / "expect_verify.json").write_text(json.dumps(case["verify"], indent=1) + "\n")
+
+
 def write(path: Path, rows: list | None) -> None:
     if rows is None:
         return
@@ -1211,9 +1300,12 @@ def main() -> None:
         write(d / "expect_trace.jsonl", case["trace"])
         text = json.dumps(case["findings"], indent=1, ensure_ascii=False)
         (d / "expect_findings.json").write_text(text + "\n")
+    shutil.rmtree(SEAL, ignore_errors=True)
+    for name, case in SEAL_CASES.items():
+        write_seal_case(SEAL / name, case)
     print(
-        f"{len(CASES_BY_NAME)} audit cases, {len(CONTRACT_CASES)} contract cases and "
-        f"{len(TRACE_CASES)} trace cases written"
+        f"{len(CASES_BY_NAME)} audit cases, {len(CONTRACT_CASES)} contract cases, "
+        f"{len(TRACE_CASES)} trace cases and {len(SEAL_CASES)} seal cases written"
     )
 
 

@@ -10,7 +10,7 @@ from collections.abc import Sequence
 from importlib import resources
 from pathlib import Path
 
-from verbatim_relay import __version__, bridge, evaluation, kit, stdio, trace
+from verbatim_relay import __version__, bridge, evaluation, kit, seal, stdio, trace
 from verbatim_relay.adapters import make
 from verbatim_relay.audit import audit, render
 from verbatim_relay.record import RecordError
@@ -110,6 +110,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     view.add_argument("--no-follow", action="store_true", help="print the turns so far and stop")
     view.add_argument("--record", type=Path, help="the relay record (default: from the config)")
 
+    ver = sub.add_parser("verify", help="check that no record of a test changed after its end")
+    ver.add_argument("test", nargs="?", help="the test id (default: the latest test)")
+    ver.add_argument("--root", type=Path, default=Path.cwd())
+    ver.add_argument("--json", action="store_true")
+
     tr = sub.add_parser("transcript", help="print the exact conversation for the model to evaluate")
     tr.add_argument("--root", type=Path, default=Path.cwd())
     tr.add_argument("--all", action="store_true", help="all sessions, not only the latest one")
@@ -145,6 +150,17 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _test_command(args)
     if args.command == "trace":
         return _trace_command(args.root.resolve(), args.test, args.json)
+    if args.command == "verify":
+        root = args.root.resolve()
+        folder = (
+            root / bridge.STATE_DIR / "tests" / args.test if args.test else bridge.latest_test(root)
+        )
+        if folder is None or not folder.is_dir():
+            print("verbatim-relay: no test folder.", file=sys.stderr)
+            return 2
+        result = seal.verify(folder)
+        print(json.dumps(result, indent=1) if args.json else seal.summary(result))
+        return 0 if result["intact"] else 2
     if args.command == "audit":
         report = audit(args.tap, args.relay)
         if args.json:
@@ -227,7 +243,16 @@ def _trace_command(root: Path, test: str | None, as_json: bool) -> int:
     if folder is None or not (folder / "manifest.json").exists():
         print("verbatim-relay: no test folder with a manifest.", file=sys.stderr)
         return 2
+    check = seal.verify(folder)
+    rebuilt = ("trace.jsonl", "findings.json")
+    sources = [x for k in ("changed", "missing", "added") for x in check[k] if x not in rebuilt]
+    # A rebuild changes only the trace files. It needs sources that agree with an intact seal.
+    broken = sources or check["copy"] in ("different", "missing") or not check["sealed"]
+    if (check["sealed"] or check["copy"] != "none") and broken:
+        print(f"verbatim-relay: the trace was not rebuilt. {seal.summary(check)}", file=sys.stderr)
+        return 2
     report = trace.build(folder)
+    seal.update(folder, list(rebuilt))
     if as_json:
         print(json.dumps(report, indent=1, ensure_ascii=False))
         return 0

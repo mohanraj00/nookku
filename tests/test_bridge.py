@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from verbatim_relay import bridge, kit
+from verbatim_relay import bridge, kit, seal
 from verbatim_relay.audit import audit
 from verbatim_relay.record import Writer
 
@@ -86,6 +86,8 @@ def test_a_test_relays_and_records_both_sides(tmp_path: Path, homes: tuple) -> N
     assert "toy shop agent: ready" in (folder / "app.log").read_text()
     report = audit(folder / "tap.jsonl", folder / "relay.jsonl")
     assert (report.exit, report.turns, report.exchanges) == (0, 1, 1)
+    # The last step of the end seals the folder, with a copy outside the project.
+    assert seal.verify(folder)["intact"] and seal.verify(folder)["copy"] == "same"
     assert bridge.end(root) is None
 
 

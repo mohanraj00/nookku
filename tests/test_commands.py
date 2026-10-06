@@ -133,3 +133,7 @@ def test_after_a_test_the_kit_denies_a_shell_write_to_the_records(tmp_path: Path
     assert reason(kit.handle(tool, tmp_path, "claude-code")) == kit.RECORDS_REASON
     for command in (f"cat {F}/trace.jsonl", f"cat > {F}/report.md <<'EOF'\n# Report\nEOF"):
         assert kit.handle(pre("Bash", {"command": command}), tmp_path, "codex") is None
+    # The denies after a test go to denied.jsonl, so that the sealed relay.jsonl does not change.
+    folder = tmp_path / F
+    assert [r.tool for r in read_relay(folder / "denied.jsonl")] == ["Bash", "mcp__files__write"]
+    assert not (folder / "relay.jsonl").exists()

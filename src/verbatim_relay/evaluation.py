@@ -11,7 +11,7 @@ from importlib import resources
 from pathlib import Path
 from typing import Any
 
-from . import bridge
+from . import bridge, seal
 
 REPORT = "report.md"
 # A longer text shows its start, and the trace line holds all of it.
@@ -105,10 +105,11 @@ def transcript(folder: Path) -> str:
         findings = []
     lines = {(it["source"]["file"], it["source"]["line"]): n for n, it in enumerate(items, 1)}
     out = [
+        seal.summary(seal.verify(folder)) + "\n",
         f"verbatim-relay transcript with trace, test {folder.name}: {len(exchanges)} turns, "
         f"{len(items)} model items. The tester and agent blocks are exact: they come from "
         "tap.jsonl. A model item comes from the app's own model sessions. [trace.jsonl:N] is "
-        f"line N of {folder / 'trace.jsonl'}.\n"
+        f"line N of {folder / 'trace.jsonl'}.\n",
     ]
     loose = [f for f in findings if f["turn"] is None]
     if loose:

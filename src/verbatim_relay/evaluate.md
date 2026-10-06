@@ -6,7 +6,7 @@ The test folder is `{folder}`.
 
 ## Read
 
-1. Run `verbatim-relay transcript --trace --test {test}`. It shows each turn as the app received it and sent it. Under each turn, it shows the model items of the app: the messages, the tool calls with their input and result, and the commands.
+1. Run `verbatim-relay transcript --trace --test {test}`. Its first line says if a record changed after the end of the test. If the seal is broken, say so in the notes, and do not trust the changed files. Then the transcript shows each turn as the app received it and sent it. Under each turn, it shows the model items of the app: the messages, the tool calls with their input and result, and the commands.
 2. Read `findings.json` and `audit.json` in the test folder. A finding is a fact, not yet an issue. The audit shows if the words of a turn changed between the tester and the app.
    To read a file of the test folder in a shell, use `cat`, `sed -n`, `jq` or `grep`. The relay denies other commands that name `.verbatim-relay`.
 3. Read the code of the app and its business rules: for example a rules document, the docs, the specs, the comments and the tests.

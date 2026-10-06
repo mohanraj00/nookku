@@ -317,7 +317,7 @@ export const register: Register = (on, options) => {
     if (cur === null && (touchesRecords(e.tool, input) || (isChecked(e.tool) && TEST_FILES.test(input) && !reads))) {
       const s = await read($, state)
       try {
-        await append($, s.test ? `${s.test}/relay.jsonl` : o.record, blockedRow(e.tool, input.slice(0, 300)))
+        await append($, s.test ? `${s.test}/denied.jsonl` : o.record, blockedRow(e.tool, input.slice(0, 300)))
       } catch {
         // The deny holds even if the record cannot take the row.
       }

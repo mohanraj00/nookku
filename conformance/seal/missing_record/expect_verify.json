@@ -1,0 +1,11 @@
+{
+ "test": "20261006-120000-se01",
+ "sealed": true,
+ "intact": false,
+ "copy": "same",
+ "changed": [],
+ "missing": [
+  "findings.json"
+ ],
+ "added": []
+}

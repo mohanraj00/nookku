@@ -169,6 +169,8 @@ A relay is the Claude Code plugin or the hook kit. The hook kit uses the classic
 - **Test files.** During a test, the relay denies a model tool call that writes into `.verbatim-relay/`, and each other tool call except file reads whose input names `.verbatim-relay`. When no test runs, the relay denies:
   - a write tool call (a file write or edit, or a patch) that names a file in `.verbatim-relay/tests/<test-id>/` other than `report.md`;
   - each other tool call, except file tools, whose input names `.verbatim-relay` and that does not pass the read check.
+
+  The relay writes the `blocked_call` row of a deny after a test to `denied.jsonl` in the latest test folder, so that the sealed `relay.jsonl` does not change (section 7.4).
 - **Entry.** During a test, the relay denies a model tool call, except file tools, that names the entry and does not pass the read check. The names of the entry are the base name of each entry argument with the file type `.py`, `.js`, `.mjs`, `.cjs`, `.ts`, `.sh` or `.rb`, and the argument after `-m`. The relay looks for each name in the input, and in each word of a shell command after it removes the quotes and escapes. A word with `*`, `?` or `[` matches a name as a glob. An entry with no such argument, for example `npm run agent`, has no names.
 - **Read check.** A tool call passes the read check only if it is a shell tool call (`Bash`, `shell`, `local_shell` or `exec_command`) and its command obeys these rules. Each other tool call fails, so the deny fails closed.
   - The relay removes the body of each here-document, then splits the command at `;`, `&`, `|` and new lines.
@@ -237,14 +239,15 @@ A test runs the entry from `start` to `end`. A new conversation is a new test: e
 4. Writes the end time and the tester's harness sessions into the manifest.
 5. Builds the trace (section 8): `trace.jsonl` and `findings.json`. If the trace fails, the bridge writes the error to `bridge.log`, and the test still ends.
 6. Writes `audit.json`: the audit of `tap.jsonl` against `relay.jsonl` (section 3), in the form of `verbatim-relay audit --json`. If the audit fails, the bridge writes the error to `bridge.log`.
-7. Removes `current.json`.
+7. Writes the seal (section 7.4). If the seal fails, the bridge writes the error to `bridge.log`.
+8. Removes `current.json`.
 
 The test folder:
 
 ```text
 .verbatim-relay/tests/<test-id>/
   manifest.json  relay.jsonl  tap.jsonl  app.log  bridge.log
-  trace.jsonl  findings.json  audit.json  report.md
+  trace.jsonl  findings.json  audit.json  seal.json  report.md  denied.jsonl
   sessions/claude-code/<session>.jsonl
   sessions/codex/<rollout file>
 ```
@@ -259,6 +262,40 @@ The harness binary writes each model session of the app to a session file. The t
 - **Codex.** At the end, the tap reads the first line of each rollout file in `~/.codex/sessions/` (under `CODEX_HOME` if it is set) that changed during the test. If its `cwd` is the project root or a folder in it, and its id is not a session of the tester, the tap writes a `model_session` row with `inferred: true`.
 
 The harness binary writes the session files, and their format can change between harness versions. The record is independent of the app, but not of the harness.
+
+### 7.4 Seal
+
+The seal shows if a file of the test folder changed after the end of the test. It does not stop the change.
+
+`seal.json` is a JSON object:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `v` | integer | The seal version, `1`. |
+| `test` | string | The test id. |
+| `sealed` | number | The Unix time of the seal. |
+| `files` | object | For each file in the test folder and its subfolders, its path in the folder (with `/`) and the SHA-256 of its bytes (lowercase hex). |
+| `copy` | boolean | True if the bridge wrote the copy. |
+
+- The seal does not contain `report.md`, `bridge.log`, `seal.json` and `denied.jsonl`, because these files change after the end.
+- The bridge also writes a copy, with the same fields and `copy: true`, to `~/.verbatim-relay/seals/<test-id>.json` (under `VERBATIM_RELAY_HOME` if it is set). If it cannot write the copy, for example in a sandbox, `seal.json` has `copy: false`.
+
+`verbatim-relay verify [TEST] [--json]` compares the folder with the seal, and the seal with the copy. If `seal.json` does not exist, the copy is the seal. The result:
+
+| Field | Meaning |
+|---|---|
+| `sealed` | `seal.json` exists and is valid. |
+| `changed` | The sealed files with a different SHA-256. |
+| `missing` | The sealed files that do not exist. |
+| `added` | The files that are not in the seal and not in the list of files that change after the end. |
+| `copy` | `same` or `different`: the copy has, or does not have, the same `v`, `test`, `sealed` and `files`. `missing`: the seal says that a copy exists, and it does not. `none`: no copy, because `seal.json` has `copy: false` or no seal exists. |
+| `intact` | `sealed` is true, the 3 lists are empty, and `copy` is `same` or `none`. |
+
+`verify` exits with 0 if `intact` is true, and with 2 if it is false. `verbatim-relay transcript --trace` shows the result in its first line.
+
+`verbatim-relay trace` rebuilds `trace.jsonl` and `findings.json`. If a seal or a copy exists, it rebuilds them only if each other sealed file agrees with the seal, `seal.json` exists, and the copy is not `different` or `missing`. Then it writes the new SHA-256 of the 2 files to the seal and to the copy.
+
+The conformance cases in `conformance/seal/` test `verify`.
 
 ## 8. Trace
 
