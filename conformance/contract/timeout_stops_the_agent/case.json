@@ -1,0 +1,32 @@
+{
+ "requests": [
+  "{\"v\": 1, \"id\": \"m-1\", \"session\": \"t-1\", \"message\": \"Hi, return order #4471 please.  \\r\\nLine two line three\\t€ ₹  \", \"history\": []}",
+  "{\"v\": 1, \"id\": \"m-2\", \"session\": \"t-1\", \"message\": \"Ünïcödé check: can I pay in € or ₹? Ça marche?\", \"history\": []}"
+ ],
+ "agent": [
+  {
+   "sleep": 5
+  }
+ ],
+ "forwarded": [
+  0
+ ],
+ "http": [
+  504,
+  502
+ ],
+ "rows": [
+  {
+   "type": "exchange",
+   "input": "Hi, return order #4471 please.  \r\nLine two line three\t€ ₹  ",
+   "status": null,
+   "reply": null
+  },
+  {
+   "type": "exchange",
+   "input": "Ünïcödé check: can I pay in € or ₹? Ça marche?",
+   "status": null,
+   "reply": null
+  }
+ ]
+}

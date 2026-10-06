@@ -11,7 +11,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-VERSION = "0.1"
+VERSION = "0.2"
+VERSIONS = ("0.1", "0.2")
 
 
 def sha256(text: str | None) -> str | None:
@@ -32,6 +33,15 @@ class Unparsed:
     method: str
     path: str
     error: str
+
+
+@dataclass(frozen=True)
+class ModelSession:
+    line: int
+    harness: str
+    session: str
+    pid: int | None
+    inferred: bool
 
 
 @dataclass(frozen=True)
@@ -58,16 +68,33 @@ class RecordError(Exception):
 
 # type name -> {field: allowed types}; a text field also requires its hash field
 _STR, _NUM, _INT_OR_NONE, _STR_OR_NONE = (str,), (int, float), (int, type(None)), (str, type(None))
+_BOOL = (bool,)
 _TEXT_FIELDS = {"input", "reply", "said", "shown"}
 _SCHEMA: dict[str, dict[str, dict[str, tuple[type, ...]]]] = {
     "tap": {
         "exchange": {"ts": _NUM, "input": _STR, "status": _INT_OR_NONE, "reply": _STR_OR_NONE},
         "unparsed": {"ts": _NUM, "method": _STR, "path": _STR, "error": _STR},
+        "model_session": {
+            "ts": _NUM,
+            "harness": _STR,
+            "session": _STR,
+            "pid": _INT_OR_NONE,
+            "inferred": _BOOL,
+        },
     },
     "relay": {
         "turn": {"ts": _NUM, "harness": _STR, "said": _STR, "shown": _STR_OR_NONE},
         "blocked_call": {"ts": _NUM, "harness": _STR, "tool": _STR, "detail": _STR},
     },
+}
+# Types and optional fields that a "0.1" row must not have.
+_SINCE_02 = {"model_session", "started", "originator"}
+# Optional fields: (row type, field) -> allowed types
+_OPTIONAL: dict[tuple[str, str], tuple[type, ...]] = {
+    ("exchange", "started"): _NUM,
+    ("model_session", "originator"): _STR,
+    ("turn", "ok"): _BOOL,
+    ("turn", "session"): _STR,
 }
 
 
@@ -81,8 +108,8 @@ def _validate(kind: str, path: Path, n: int, raw: str) -> dict[str, Any]:
         raise bad(f"not JSON ({e.msg})") from None
     if not isinstance(row, dict):
         raise bad("not a JSON object")
-    if row.get("v") != VERSION:
-        raise bad(f"version {row.get('v')!r}, expected {VERSION!r}")
+    if row.get("v") not in VERSIONS:
+        raise bad(f"version {row.get('v')!r}, expected one of {', '.join(VERSIONS)}")
     fields = _SCHEMA[kind].get(row.get("type"))  # type: ignore[arg-type]
     if fields is None:
         raise bad(f"unknown type {row.get('type')!r} in a {kind} record")
@@ -90,7 +117,7 @@ def _validate(kind: str, path: Path, n: int, raw: str) -> dict[str, Any]:
         if name not in row:
             raise bad(f"missing field {name!r}")
         value = row[name]
-        if not isinstance(value, types) or isinstance(value, bool):
+        if not isinstance(value, types) or (isinstance(value, bool) and bool not in types):
             raise bad(f"field {name!r} has the wrong type")
         if name in _TEXT_FIELDS and row.get(f"{name}_sha256", "absent") != sha256(
             value if isinstance(value, str) else None
@@ -100,9 +127,14 @@ def _validate(kind: str, path: Path, n: int, raw: str) -> dict[str, Any]:
         ok = row["status"] is not None and 200 <= row["status"] < 300
         if ok != (row["reply"] is not None):
             raise bad("'reply' must be a string for a 2xx status and null for any other status")
-    for name, want in (("ok", bool), ("session", str)):
-        if row["type"] == "turn" and name in row and not isinstance(row[name], want):
+    for (kind_, name), types in _OPTIONAL.items():
+        value = row.get(name)
+        if row["type"] != kind_ or name not in row:
+            continue
+        if not isinstance(value, types) or (isinstance(value, bool) and bool not in types):
             raise bad(f"field {name!r} has the wrong type")
+    if row["v"] == "0.1" and ({row["type"]} | set(row)) & _SINCE_02:
+        raise bad("a field or a type of version 0.2 in a version 0.1 row")
     if "error" in row and not isinstance(row["error"], str):
         raise bad("field 'error' has the wrong type")
     return row
@@ -123,11 +155,13 @@ def _read(kind: str, path: Path) -> list[tuple[int, dict[str, Any]]]:
     return [(n, _validate(kind, path, n, raw)) for n, raw in enumerate(lines, 1)]
 
 
-def read_tap(path: Path) -> list[Exchange | Unparsed]:
-    rows: list[Exchange | Unparsed] = []
+def read_tap(path: Path) -> list[Exchange | Unparsed | ModelSession]:
+    rows: list[Exchange | Unparsed | ModelSession] = []
     for n, r in _read("tap", path):
         if r["type"] == "exchange":
             rows.append(Exchange(n, r["input"], r["status"], r["reply"]))
+        elif r["type"] == "model_session":
+            rows.append(ModelSession(n, r["harness"], r["session"], r["pid"], r["inferred"]))
         else:
             rows.append(Unparsed(n, r["method"], r["path"], r["error"]))
     return rows

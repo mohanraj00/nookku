@@ -1,5 +1,9 @@
 """Write the conformance cases. Each expectation here is written by hand from SPEC.md.
 
+`cases/` holds the audit cases (SPEC.md section 3). `contract/` holds the stdio cases (sections 4.2
+and 6): the requests that the relay posts, what a scripted agent does with each one, and the rows
+and HTTP statuses that the tap must give.
+
 Never fill an expectation by running the audit. CI runs this script and fails if the files change.
 
 usage: python conformance/build.py
@@ -15,15 +19,18 @@ from pathlib import Path
 from typing import Any
 
 CASES = Path(__file__).parent / "cases"
+CONTRACT = Path(__file__).parent / "contract"
 
 
 def sha(text: str | None) -> str | None:
     return None if text is None else hashlib.sha256(text.encode()).hexdigest()
 
 
-def ex(text: str, reply: str | None, status: int | None = 200, error: str | None = None) -> dict:
+def ex(
+    text: str, reply: str | None, status: int | None = 200, error: str | None = None, v: str = "0.1"
+) -> dict:
     row: dict[str, Any] = {
-        "v": "0.1",
+        "v": v,
         "type": "exchange",
         "ts": 1.0,
         "input": text,
@@ -37,9 +44,9 @@ def ex(text: str, reply: str | None, status: int | None = 200, error: str | None
     return row
 
 
-def turn(said: str, shown: str | None) -> dict:
+def turn(said: str, shown: str | None, v: str = "0.1") -> dict:
     return {
-        "v": "0.1",
+        "v": v,
         "type": "turn",
         "ts": 1.0,
         "harness": "claude-code",
@@ -67,6 +74,20 @@ UNPARSED = {
     "error": "the request body is not JSON",
 }
 
+
+def model_session(session: str, pid: int | None, inferred: bool, v: str = "0.2") -> dict:
+    harness = "codex" if inferred else "claude-code"
+    return {
+        "v": v,
+        "type": "model_session",
+        "ts": 1.0,
+        "harness": harness,
+        "session": session,
+        "pid": pid,
+        "inferred": inferred,
+    }
+
+
 # A toy shop. The texts carry what a retype breaks: trailing spaces, non-ASCII text,
 # empty lines, a markdown table.
 M1 = "Hi, I want to return order #4471.  "
@@ -80,6 +101,10 @@ RX = "I cannot change your plan in this chat."
 
 CLEAN_TAP = [ex(M1, R1), ex(M2, R2), ex(M3, R3)]
 CLEAN_RELAY = [turn(M1, R1), turn(M2, R2), turn(M3, R3)]
+TAP_02 = [{**ex(m, r, v="0.2"), "started": 0.5} for m, r in ((M1, R1), (M2, R2), (M3, R3))]
+RELAY_02 = [turn(m, r, v="0.2") for m, r in ((M1, R1), (M2, R2), (M3, R3))]
+SESSION_A = model_session("4f1c2a7e-0d3b-4c55-9a61-2b8e5d7c9f10", 4471, False)
+SESSION_B = model_session("019a0b1c-2d3e-7f40-8a5b-6c7d8e9f0a1b", None, True)
 
 # name: (tap rows or None for a missing file, relay rows or None, expectation)
 # A row can be a raw string, written as the line itself.
@@ -215,7 +240,43 @@ CASES_BY_NAME: dict[str, tuple[list | None, list | None, dict]] = {
     ),
     "wrong_version": (
         CLEAN_TAP,
-        [{**CLEAN_RELAY[0], "v": "0.2"}, *CLEAN_RELAY[1:]],
+        [{**CLEAN_RELAY[0], "v": "0.3"}, *CLEAN_RELAY[1:]],
+        {"exit": 2, "errors": ["record_invalid"]},
+    ),
+    # Version 0.2: a test adds `started` and `model_session` rows. The matching does not change.
+    "v02_model_sessions_are_counted": (
+        [TAP_02[0], SESSION_A, *TAP_02[1:], SESSION_B],
+        RELAY_02,
+        {"exit": 0, "breaks": [], "model_sessions": 2},
+    ),
+    "v02_breaks_are_the_same": (
+        [{**TAP_02[0], **ex(M1.rstrip(), R1, v="0.2"), "started": 0.5}, SESSION_A, *TAP_02[1:]],
+        RELAY_02,
+        {"exit": 1, "breaks": [["altered_input", 1, 1]], "model_sessions": 1},
+    ),
+    "v01_and_v02_rows_mix": (
+        [*CLEAN_TAP[:2], TAP_02[2], SESSION_A],
+        CLEAN_RELAY,
+        {"exit": 0, "breaks": [], "model_sessions": 1},
+    ),
+    "model_session_in_a_v01_row": (
+        [*CLEAN_TAP, model_session("s-1", 4471, False, v="0.1")],
+        CLEAN_RELAY,
+        {"exit": 2, "errors": ["record_invalid"]},
+    ),
+    "started_in_a_v01_row": (
+        [{**CLEAN_TAP[0], "started": 0.5}, *CLEAN_TAP[1:]],
+        CLEAN_RELAY,
+        {"exit": 2, "errors": ["record_invalid"]},
+    ),
+    "model_session_wrong_field_type": (
+        [*TAP_02, {**SESSION_A, "inferred": "no"}],
+        RELAY_02,
+        {"exit": 2, "errors": ["record_invalid"]},
+    ),
+    "model_session_in_the_relay_record": (
+        TAP_02,
+        [*RELAY_02, SESSION_A],
         {"exit": 2, "errors": ["record_invalid"]},
     ),
     "unknown_type": (
@@ -242,6 +303,144 @@ CASES_BY_NAME: dict[str, tuple[list | None, list | None, dict]] = {
 }
 
 
+# The stdio cases. Each request is the body that the relay posts. Each agent step says what the
+# scripted agent does with one input line: write `lines`, `exit` with a code, or `sleep` seconds.
+# `forwarded` is the index of each request that the agent must receive, byte for byte.
+# A row lists only the fields to compare. The tap's timeout is 1 second in these cases.
+def req(message: str, history: list | None = None, rid: str = "m-1") -> str:
+    body = {"v": 1, "id": rid, "session": "t-1", "message": message, "history": history or []}
+    return json.dumps(body, ensure_ascii=False)
+
+
+def out(rid: str = "m-1", **fields: Any) -> str:
+    return json.dumps({"v": 1, "id": rid, **fields}, ensure_ascii=False)
+
+
+# A message with what a line protocol breaks: CR LF, U+2028 (a line end for some readers),
+# a tab, trailing spaces and text that is not ASCII.
+TRICKY = "Hi, return order #4471 please.  \r\nLine two\u2028line three\t€ ₹  "
+HISTORY = [{"message": M1, "reply": R1}]
+EXCHANGE_OK = {"type": "exchange", "input": TRICKY, "status": 200, "reply": R1}
+UNPARSED_POST = {"type": "unparsed", "method": "POST", "path": "/"}
+
+CONTRACT_CASES: dict[str, dict] = {
+    "reply_is_exact": {
+        "requests": [req(TRICKY, HISTORY)],
+        "agent": [{"lines": [out(reply=R1)]}],
+        "forwarded": [0],
+        "http": [200],
+        "rows": [EXCHANGE_OK],
+    },
+    "error_is_status_500": {
+        "requests": [req(TRICKY)],
+        "agent": [{"lines": [out(error="The order service is down.")]}],
+        "forwarded": [0],
+        "http": [500],
+        "rows": [
+            {
+                "type": "exchange",
+                "input": TRICKY,
+                "status": 500,
+                "reply": None,
+                "error": "The order service is down.",
+            }
+        ],
+    },
+    "other_fields_are_ignored": {
+        "requests": [req(TRICKY)],
+        "agent": [{"lines": [out(reply=R1, latency_ms=12)]}],
+        "forwarded": [0],
+        "http": [200],
+        "rows": [EXCHANGE_OK],
+    },
+    "reply_not_json": {
+        "requests": [req(TRICKY)],
+        "agent": [{"lines": ["Loading the toy shop catalog..."]}],
+        "forwarded": [0],
+        "http": [502],
+        "rows": [UNPARSED_POST],
+    },
+    "reply_wrong_id": {
+        "requests": [req(TRICKY)],
+        "agent": [{"lines": [out("m-0", reply=R1)]}],
+        "forwarded": [0],
+        "http": [502],
+        "rows": [UNPARSED_POST],
+    },
+    "reply_and_error": {
+        "requests": [req(TRICKY)],
+        "agent": [{"lines": [out(reply=R1, error="also an error")]}],
+        "forwarded": [0],
+        "http": [502],
+        "rows": [UNPARSED_POST],
+    },
+    "reply_not_a_string": {
+        "requests": [req(TRICKY)],
+        "agent": [{"lines": [out(reply=4471)]}],
+        "forwarded": [0],
+        "http": [502],
+        "rows": [UNPARSED_POST],
+    },
+    "reply_wrong_contract_version": {
+        "requests": [req(TRICKY)],
+        "agent": [{"lines": [json.dumps({"v": 2, "id": "m-1", "reply": R1})]}],
+        "forwarded": [0],
+        "http": [502],
+        "rows": [UNPARSED_POST],
+    },
+    # The tap does not restart the agent. The next request gets the same error.
+    "crash_is_not_restarted": {
+        "requests": [req(TRICKY), req(M2, rid="m-2")],
+        "agent": [{"exit": 3}],
+        "forwarded": [0],
+        "http": [502, 502],
+        "rows": [
+            {"type": "exchange", "input": TRICKY, "status": None, "reply": None},
+            {"type": "exchange", "input": M2, "status": None, "reply": None},
+        ],
+    },
+    "timeout_stops_the_agent": {
+        "requests": [req(TRICKY), req(M2, rid="m-2")],
+        "agent": [{"sleep": 5}],
+        "forwarded": [0],
+        "http": [504, 502],
+        "rows": [
+            {"type": "exchange", "input": TRICKY, "status": None, "reply": None},
+            {"type": "exchange", "input": M2, "status": None, "reply": None},
+        ],
+    },
+    "request_not_a_contract_input": {
+        "requests": [json.dumps({"text": M1})],
+        "agent": [],
+        "forwarded": [],
+        "http": [400],
+        "rows": [UNPARSED_POST],
+    },
+    "request_with_a_raw_line_end": {
+        "requests": [req(TRICKY).replace(", ", ",\n", 1)],
+        "agent": [],
+        "forwarded": [],
+        "http": [400],
+        "rows": [UNPARSED_POST],
+    },
+    # A line that arrives after its request is done belongs to no request.
+    "stray_line_is_unparsed": {
+        "requests": [req(TRICKY), req(M2, rid="m-2")],
+        "agent": [
+            {"lines": [out(reply=R1), "debug: cache warm"]},
+            {"lines": [out("m-2", reply=R2)]},
+        ],
+        "forwarded": [0, 1],
+        "http": [200, 200],
+        "rows": [
+            EXCHANGE_OK,
+            {"type": "unparsed", "method": "STDIO", "path": "stdout"},
+            {"type": "exchange", "input": M2, "status": 200, "reply": R2},
+        ],
+    },
+}
+
+
 def write(path: Path, rows: list | None) -> None:
     if rows is None:
         return
@@ -257,7 +456,12 @@ def main() -> None:
         write(d / "tap.jsonl", tap)
         write(d / "relay.jsonl", relay)
         (d / "expect.json").write_text(json.dumps(expect, indent=1) + "\n")
-    print(f"{len(CASES_BY_NAME)} cases written")
+    shutil.rmtree(CONTRACT, ignore_errors=True)
+    for name, case in CONTRACT_CASES.items():
+        d = CONTRACT / name
+        d.mkdir(parents=True)
+        (d / "case.json").write_text(json.dumps(case, indent=1, ensure_ascii=False) + "\n")
+    print(f"{len(CASES_BY_NAME)} audit cases and {len(CONTRACT_CASES)} contract cases written")
 
 
 if __name__ == "__main__":
