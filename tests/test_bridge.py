@@ -137,6 +137,7 @@ def test_check_finds_the_model_sessions_of_the_app(tmp_path: Path, homes: tuple)
     rows = [json.loads(x) for x in (folder / "tap.jsonl").read_text().split("\n") if x]
     assert sum(r["type"] == "model_session" for r in rows) >= 2
     assert audit(folder / "tap.jsonl", folder / "relay.jsonl").exit == 0
+    assert json.loads((folder / "audit.json").read_text())["exit"] == 0
     # The fixture files have no items and no version (SPEC.md section 8). `check` has no tester
     # session, so it also takes the tester rollout of the fixture.
     assert (folder / "trace.jsonl").read_text() == ""
@@ -152,13 +153,22 @@ def test_the_tester_thread_is_not_an_app_session(tmp_path: Path, homes: tuple) -
     script = tmp_path / "app.py"
     script.write_text(FIXTURE_APP)
     root = project(tmp_path, [sys.executable, str(script)], ["codex"])
+    # As with codex exec, the prompt that ends the test is a new session: the tester thread of
+    # the fixture. The kit passes it to the bridge (SPEC.md section 7.2).
     events = [
-        {"hook_event_name": "UserPromptSubmit", "prompt": p, "session_id": TESTER_THREAD}
-        for p in ("verbatim-relay start", "Is the teapot in stock?", "verbatim-relay end")
+        {"hook_event_name": "UserPromptSubmit", "prompt": p, "session_id": sid}
+        for p, sid in (
+            ("verbatim-relay start", "tester-start"),
+            ("Is the teapot in stock?", "tester-start"),
+            ("verbatim-relay end", TESTER_THREAD),
+        )
     ]
     answers = [kit.handle(e, root, "codex") for e in events]
-    assert all(a and a["decision"] == "block" for a in answers)
+    assert all(a and a["decision"] == "block" for a in answers[:2])
     assert "started" in answers[0]["reason"]
+    # The end prompt goes on to the model, with the evaluation.
+    assert "Evaluate test" in answers[2]["hookSpecificOutput"]["additionalContext"]
+    assert not (root / ".verbatim-relay" / bridge.ENDING).exists()
     folder = bridge.latest_test(root)
     assert folder is not None
     manifest = json.loads((folder / "manifest.json").read_text())

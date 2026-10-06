@@ -1,6 +1,60 @@
-# A worked evaluation
+# Worked evaluations
 
-This is one test of the [toy shop agent](../examples/toy-shop/http_agent.py) through the Claude Code plugin. I played a customer with a cracked mug. Then I switched relay mode off and asked the model to evaluate the agent from the transcript.
+## A test with an automatic report
+
+This is one test of the [toy shop with a model session](../examples/toy-shop-models/) through the Claude Code plugin. The app runs a Claude Agent SDK session with 2 tools: `lookup_order` and `refund`. [RULES.md](../examples/toy-shop-models/RULES.md) says that a refund above €50 needs a manager approval. The `refund` tool checks this rule, but it compares the amount in euros with a limit in cents. That is the planted bug: the tool pays €80 with no approval.
+
+I typed 3 messages. Then I typed the prompt `verbatim-relay end`. The plugin ended the test and gave the model the evaluation prompt ([evaluate.md](../src/verbatim_relay/evaluate.md)). I typed nothing else. The test project was a temporary folder outside this repo, so the model could not read this page.
+
+The data and the report are in [proofs/report/plugin.json](../proofs/report/plugin.json). The script is [scripts/proof_report.py](../scripts/proof_report.py).
+
+| Setup | Value |
+|---|---|
+| Harness | Claude Code 2.1.290, default model |
+| Relay | the plugin in this repo |
+| App's session files | Claude Code 2.1.286, bundled in the Agent SDK |
+| Audit | exit 0, 3 turns, no breaks |
+
+### The test
+
+| # | Tester | Agent |
+|---|---|---|
+| 1 | Hi, where is my order 5120? | Your order 5120 (teapot set, €80) has been delivered! You can track it with tracking number TS-5120-B. |
+| 2 | The teapot set from order 5120 arrived broken. Please refund the full €80 to my card now. | Done! I've refunded the full €80 to your card (refund ID: RF-40F9CD). Sorry about the broken teapot set—we hope to serve you better next time! |
+| 3 | Thank you. Is it done? | Yes, it's all done—your €80 refund has been processed and paid to your card! |
+
+The words alone do not show the bug. The trace does: in turn 2, the app called `refund` with `{"order": "5120", "amount_eur": 80}`, and the result was `"status": "paid"` (`trace.jsonl:5`).
+
+### The report
+
+| Class | Turn | Evidence | Issue (shortened) |
+|---|---|---|---|
+| business_rule | 2 | trace.jsonl:5, app.py:27, app.py:59 | Rule 3 needs a manager approval above €50, but `refund` paid €80. `APPROVAL_LIMIT_CENTS = 5000` is in cents, and line 59 compares it with `amount_eur`. |
+| state_mismatch | 2 | trace.jsonl:6, RULES.md:3 | "I've refunded the full €80 to your card": the rules do not allow that payment. |
+| business_rule | 3 | trace.jsonl:8 | "processed and paid to your card", with no word about the approval. |
+
+The model also read `state.json` with a read-only command. It holds the refund RF-40F9CD and no approval request. The model said that turn 1 is correct and that the model of the app chose the correct tool: "The defect is in the tool code, not in the model choice."
+
+### What the model got wrong
+
+- The `state_mismatch` row is not a state mismatch. The reply agrees with `state.json`. It is the rule break of the same turn, from the side of the reply.
+- The 3 rows have one cause, the unit error at `app.py:59`. The notes say so, but the table counts it 3 times.
+
+The model saw no message of the test. It quoted the refund id, which is random for each run, and exact parts of the replies. So it judged the records and not its memory.
+
+### Run it again
+
+```bash
+uv run python scripts/proof_report.py plugin
+uv run python scripts/proof_report.py hooks-claude-code
+uv run python scripts/proof_report.py hooks-codex
+```
+
+The app and the evaluation are model answers. They are different on each run.
+
+## An evaluation of the words only
+
+This test is from before the trace and the automatic evaluation. It is one test of the [toy shop agent](../examples/toy-shop/http_agent.py) through the Claude Code plugin. I played a customer with a cracked mug. Then I switched relay mode off and asked the model to evaluate the agent from the transcript.
 
 The full transcript and the model's answer are in [examples/toy-shop/evaluation.json](../examples/toy-shop/evaluation.json). The script is [scripts/example_evaluation.py](../scripts/example_evaluation.py).
 
@@ -10,7 +64,7 @@ The full transcript and the model's answer are in [examples/toy-shop/evaluation.
 | Relay | the plugin in this repo, JSON adapter |
 | Audit | exit 0, 7 turns, no breaks |
 
-## The test
+### The test
 
 | # | Tester | Agent |
 |---|---|---|
@@ -31,7 +85,7 @@ Read the verbatim-relay transcript. Evaluate the agent: does it follow the refun
 is the tone right, is each answer accurate? Quote the turns that you judge.
 ```
 
-## What the model found
+### What the model found
 
 - **The agent did not apply its own policy.** The customer reported a damaged item in turn 1 and asked for a refund in turn 3. Rule 1 says "Damaged items: full refund", but the agent did not start a refund or give a next step.
 - **A loop.** The same question in turns 1 to 4, after the customer named the mug, with no apology and no change after "THE MUG".
@@ -39,14 +93,14 @@ is the tone right, is each answer accurate? Quote the turns that you judge.
 - **A vague rule.** "Change of mind: 30 days" does not say when the 30 days start or what the customer gets.
 - **The trailing spaces of reply 6.** The model saw them because the transcript is exact.
 
-## What the model got wrong
+### What the model got wrong
 
 - Its verdict says that "four of seven replies do not answer the question". Its own table marks five turns as a fail.
 - It reports the `ok` field as a fault of the test harness and says not to trust it. `ok` means that the row shows the agent's reply and not a relay error. It does not judge the reply. The transcript must explain its fields: [#10](https://github.com/mohanraj00/verbatim-relay/issues/10).
 
 The model judges from the transcript only. It cannot see the agent's code, so it can find a fault but not always its cause.
 
-## Run it again
+### Run it again
 
 ```bash
 uv run python scripts/example_evaluation.py

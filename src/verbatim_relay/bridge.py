@@ -23,17 +23,20 @@ from typing import Any
 
 from verbatim_relay import __version__, contract, trace
 from verbatim_relay.adapters import History
+from verbatim_relay.audit import audit
 from verbatim_relay.record import Writer
 from verbatim_relay.stdio import TIMEOUT as AGENT_TIMEOUT
 from verbatim_relay.stdio import Agent, StdioTap, start_in_thread
 
 STATE_DIR = ".verbatim-relay"
+# The harness session that ends a test, for the bridge (SPEC.md section 7.2).
+ENDING = "ending.json"
 HARNESSES = ("claude-code", "codex")
 # Longer than the tap's wait for the agent, shorter than the hook deadline (kit.HOOK_DEADLINE).
 TIMEOUT = 270
 POLL = 0.5
 # Files in the state folder that a test writes or that switch a mode. They are not configuration.
-NOT_CONFIG = {"tests", "current.json", "mode", "relay.jsonl", "tap.jsonl"}
+NOT_CONFIG = {"tests", "current.json", "mode", "relay.jsonl", "tap.jsonl", ENDING}
 SKIP_DIRS = {"node_modules", ".venv", "__pycache__", ".git"}
 CHECK_MESSAGE = "Hello from verbatim-relay check. What can you help me with?"
 
@@ -160,11 +163,18 @@ def start(root: Path, tester_session: str | None = None, wait: float = 30.0) -> 
     raise BridgeError(f"the test did not start in {wait:g} s:\n{_tail(folder / 'bridge.log')}")
 
 
-def end(root: Path, wait: float = 120.0) -> dict[str, Any] | None:
-    """Stop the running test and wait for the bridge to collect. Return the manifest."""
+def end(
+    root: Path, wait: float = 120.0, tester_session: str | None = None
+) -> dict[str, Any] | None:
+    """Stop the running test and wait for the bridge to collect. Return the manifest.
+
+    `tester_session` is the harness session that ends the test. It is not a session of the app,
+    also if it starts after the last turn."""
     cur = current(root)
     if cur is None:
         return None
+    if tester_session:
+        _write_json(state(root) / ENDING, {"test": cur["test"], "tester_session": tester_session})
     pid = cur["pid"]
     os.kill(pid, signal.SIGTERM)
     deadline = time.monotonic() + wait
@@ -495,6 +505,12 @@ def run(root: Path, test: str, tester_session: str | None, timeout: float = AGEN
     ended = time.time()
     relay = folder / "relay.jsonl"
     tester = set(manifest["tester_sessions"])
+    ending = state(root) / ENDING
+    with contextlib.suppress(OSError, ValueError):
+        data = json.loads(ending.read_text())
+        if data.get("test") == test and isinstance(data.get("tester_session"), str):
+            tester.add(data["tester_session"])
+    ending.unlink(missing_ok=True)
     tester |= {r["session"] for r in _rows(relay, "turn") if isinstance(r.get("session"), str)}
     sessions: list[dict[str, Any]] = []
     copies = folder / "sessions"
@@ -538,6 +554,11 @@ def run(root: Path, test: str, tester_session: str | None, timeout: float = AGEN
         _log(trace.summary(trace.build(folder)))
     except Exception as e:  # the test must still end
         _log(f"the trace failed: {e!r}")
+    try:
+        report = audit(folder / "tap.jsonl", relay).as_dict()
+        _write_json(folder / "audit.json", report)
+    except Exception as e:  # the test must still end
+        _log(f"the audit failed: {e!r}")
     (state(root) / "current.json").unlink(missing_ok=True)
     tap.server_close()
     _log(f"test {test} ended")

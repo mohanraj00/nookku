@@ -10,13 +10,14 @@ from collections.abc import Sequence
 from importlib import resources
 from pathlib import Path
 
-from verbatim_relay import __version__, bridge, kit, stdio, trace
+from verbatim_relay import __version__, bridge, evaluation, kit, stdio, trace
 from verbatim_relay.adapters import make
 from verbatim_relay.audit import audit, render
 from verbatim_relay.record import RecordError
 from verbatim_relay.tap import Tap, serve
 
-LIST_KEYS = {"entry", "models"}
+# Config keys that are not a plain string flag of init.
+LIST_KEYS = {"entry", "models", "evaluate"}
 
 
 def _listen(value: str) -> tuple[str, int]:
@@ -81,6 +82,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         cmd.add_argument("--json", action="store_true", help="print the result as JSON")
         if name == "start":
             cmd.add_argument("--tester-session", help="the tester's harness session id")
+        if name == "end":
+            cmd.add_argument(
+                "--evaluation",
+                action="store_true",
+                help="print JSON with the end text and the evaluation prompt (for a relay)",
+            )
 
     trc = sub.add_parser("trace", help="build the trace of a test again, and show its findings")
     trc.add_argument("test", nargs="?", help="the test id (default: the latest test)")
@@ -107,6 +114,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     tr.add_argument("--root", type=Path, default=Path.cwd())
     tr.add_argument("--all", action="store_true", help="all sessions, not only the latest one")
     tr.add_argument("--record", type=Path, help="the relay record (default: from the config)")
+    tr.add_argument(
+        "--trace", action="store_true", help="each turn as the app got it, with its model items"
+    )
+    tr.add_argument("--test", help="with --trace: the test id (default: the latest test)")
 
     hook = sub.add_parser("hook", help="the hook command that init installs")
     hook.add_argument("--root", type=Path, required=True)
@@ -171,6 +182,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.state != "status":
             kit.set_mode(root, args.state == "on")
         print(f"Relay mode is {'on' if kit.is_on(root) else 'off'}.")
+        return 0
+    if args.command == "transcript" and args.trace:
+        root = args.root.resolve()
+        tests = root / bridge.STATE_DIR / "tests"
+        folder = tests / args.test if args.test else bridge.latest_test(root)
+        if folder is None or not folder.is_dir():
+            print("verbatim-relay: no test folder.", file=sys.stderr)
+            return 2
+        print(evaluation.transcript(folder), end="")
         return 0
     if args.command in ("view", "transcript"):
         root = args.root.resolve()
@@ -238,10 +258,17 @@ def _test_command(args: argparse.Namespace) -> int:
     if args.command == "end":
         kit.set_mode(root, False)
         ended = bridge.end(root)
-        if args.json:
+        text = bridge.summary(ended) if ended else "No test runs. Relay mode is off."
+        if args.evaluation:
+            folder = evaluation.pending(root)
+            prompt = evaluation.prompt(folder) if folder else None
+            print(json.dumps({"text": text, "evaluation": prompt}, ensure_ascii=False))
+        elif args.json:
             print(json.dumps(ended))
         else:
-            print(bridge.summary(ended) if ended else "No test runs. Relay mode is off.")
+            print(text)
+            if ended and evaluation.pending(root):
+                print("To evaluate the test, type this prompt in your harness: verbatim-relay end")
         return 0
     if args.command == "status":
         running = bridge.current(root)

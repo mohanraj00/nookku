@@ -162,11 +162,11 @@ Each adapter maps onto the agent contract (section 6):
 A relay is the Claude Code plugin or the hook kit. The hook kit uses the classic hook format that Codex and Claude Code share. Both relays obey these rules.
 
 - **Relay mode.** If relay mode is on, each prompt that the tester submits goes to the tap, and the model does not receive it. If relay mode is off, the relay does nothing to prompts. If an entry is configured, `start` switches relay mode on and `end` switches it off (section 7). `on` and `off` are aliases of `start` and `end`.
-- **Control prompts.** The hook kit does not relay the exact prompts `verbatim-relay start`, `verbatim-relay end` and `verbatim-relay status`. It runs the command and blocks the prompt. The plugin uses its `/verbatim-relay` command.
+- **Control prompts.** With an entry, a relay never relays the exact prompts `verbatim-relay start`, `verbatim-relay end` and `verbatim-relay status`, also in relay mode. It runs the command and blocks the prompt. There is one exception: if `verbatim-relay end` leaves a test to evaluate (section 9), the relay lets the prompt go to the model, with the evaluation prompt added as context. The plugin also has the `/verbatim-relay` command, which never starts an evaluation.
 - **Fail closed.** If relay mode is on and the relay cannot send the message, it still stops the prompt from reaching the model. It shows the error to the tester and writes the error as `shown` with `ok: false`.
 - **Display.** The plugin shows the reply as a transcript row that the model does not receive. The hook kit writes the relay record, and `verbatim-relay view` prints each turn from it.
 - **Deny.** The relay denies a model tool call if its input contains the host and port of the tap or the agent. File tools (read, write, edit, search) are not denied, because a file that names an address does not call it. Every other tool is denied, including tools that the relay does not know. The deny is best effort. The audit finds each message that goes through the tap. A call to the agent around the tap is in neither record.
-- **Test files.** During a test, the relay denies a model tool call that writes into `.verbatim-relay/`, and each other tool call except file reads whose input names `.verbatim-relay`.
+- **Test files.** During a test, the relay denies a model tool call that writes into `.verbatim-relay/`, and each other tool call except file reads whose input names `.verbatim-relay`. When no test runs, the relay denies a write tool call (a file write or edit, or a patch) that names a file in `.verbatim-relay/tests/<test-id>/` other than `report.md`. This deny does not cover shell commands.
 - **History.** For the `openai` adapter, the relay sends the turns of the current session that have `ok: true`, then the new message. In a test, the relay sends the turns of the test that have `ok: true` as `history`.
 
 ## 6. Agent contract, version 1
@@ -211,6 +211,7 @@ A test runs the entry from `start` to `end`. A new conversation is a new test: e
 |---|---|---|
 | `entry` | list of strings | The entry command, as an argument vector. It runs in the project root. |
 | `models` | list of strings | The harnesses that the app uses for its model sessions: `claude-code`, `codex`, both or none. |
+| `evaluate` | boolean | Optional. `false` stops the evaluation at the end of a test (section 9). The default is `true`. |
 
 `verbatim-relay check` runs a short test with one message. It passes if the entry sends a reply, and if the tap identifies at least one model session and finds its session file for each harness in `models`.
 
@@ -218,21 +219,22 @@ A test runs the entry from `start` to `end`. A new conversation is a new test: e
 
 `start` creates the test folder and starts the bridge, a background process that runs the tap in stdio mode. The bridge writes `.verbatim-relay/current.json` with the test id, the test folder, the tap URL and its own pid. Then `start` switches relay mode on. With an entry, relay mode is the file `.verbatim-relay/mode` for both relays, so it survives a restart of the harness or a reload of the plugin. If `current.json` names a process that does not run, `start` removes the file.
 
-`end` switches relay mode off and stops the bridge. The bridge then:
+`end` switches relay mode off and stops the bridge. If a harness session sends the prompt that ends the test, `end` writes its id to `.verbatim-relay/ending.json`. The bridge adds that id to the tester's sessions, so it never takes the session that ends the test, and then evaluates it, as a session of the app. The bridge then:
 
 1. Closes the entry's stdin and waits 5 seconds. Then it stops the process group, first with SIGTERM and after 5 more seconds with SIGKILL.
 2. Identifies the Codex sessions (section 7.3).
 3. Copies the session file of each identified model session into `sessions/` in the test folder.
 4. Writes the end time and the tester's harness sessions into the manifest.
 5. Builds the trace (section 8): `trace.jsonl` and `findings.json`. If the trace fails, the bridge writes the error to `bridge.log`, and the test still ends.
-6. Removes `current.json`.
+6. Writes `audit.json`: the audit of `tap.jsonl` against `relay.jsonl` (section 3), in the form of `verbatim-relay audit --json`. If the audit fails, the bridge writes the error to `bridge.log`.
+7. Removes `current.json`.
 
 The test folder:
 
 ```text
 .verbatim-relay/tests/<test-id>/
   manifest.json  relay.jsonl  tap.jsonl  app.log  bridge.log
-  trace.jsonl  findings.json
+  trace.jsonl  findings.json  audit.json  report.md
   sessions/claude-code/<session>.jsonl
   sessions/codex/<rollout file>
 ```
@@ -337,3 +339,47 @@ These tools come from the harness, not from the app: `ToolSearch` in Claude Code
 | `version_untested` | A session file from a harness version that `proofs/trace/` does not cover. The tested versions are Claude Code 2.1.286 and codex-cli 0.160.0. If a reader finds no version in the file, the version is `unknown`. If the file is not in the test folder, the version is `null`, and this check does not run. |
 
 Each finding has `check`, `turn` and `detail`. A finding about an item also has `harness`, `session` and `source`. The findings are sorted by check, in the order of the table, then by turn, and then in the order of the items. A finding with no turn comes after the findings with a turn.
+
+## 9. Evaluation
+
+At the end of a test, the harness model evaluates the app. It writes `report.md` in the test folder.
+
+### 9.1 Start
+
+A test needs an evaluation if all of these are true:
+
+- `evaluate` in the configuration is not `false`;
+- no test runs;
+- the latest test (the one with the greatest `started` in its manifest) has an `ended` time;
+- its folder has no `report.md`.
+
+The prompt `verbatim-relay end` ends the running test, if one runs. Then, if a test needs an evaluation, the relay lets the prompt go to the model with this context: the end text and the evaluation prompt for that test. So the prompt also starts the evaluation of a test that ended in another way, for example with `verbatim-relay end` in a shell. Otherwise, the relay blocks the prompt (section 5).
+
+`verbatim-relay end --evaluation` ends the test and prints one JSON object: `text`, the end text, and `evaluation`, the evaluation prompt or `null`. The plugin uses it.
+
+### 9.2 Evaluation prompt
+
+The evaluation prompt is `src/verbatim_relay/evaluate.md`, with the test id and the test folder filled in. It tells the model to:
+
+1. read the transcript with the trace: `verbatim-relay transcript --trace --test <test-id>`;
+2. read `findings.json` and `audit.json`;
+3. read the code of the app and its business rules;
+4. check the state of the app with read-only commands only;
+5. write `report.md`, and no other file.
+
+`verbatim-relay transcript --trace` shows each turn of a test as the app received it and sent it (from `tap.jsonl`). Under each turn, it shows the model items of that turn and the findings of that turn. Each item names its line in `trace.jsonl` as `[trace.jsonl:N]`. A text longer than 2,000 characters shows its start and names its line. Items with `turn: null` come after the last turn.
+
+### 9.3 Report
+
+`report.md` has one table with the columns Class, Turn, Evidence and Issue, and one row for each issue. The classes:
+
+| Class | The app ... |
+|---|---|
+| `business_rule` | broke a rule of the business. |
+| `wrong_tool` | called a tool that does not fit the request. |
+| `wrong_arguments` | called the correct tool with incorrect arguments. |
+| `unsupported_reply` | said a fact that no tool result and no rule supports. |
+| `missing_action` | did not do an action that the request or a rule needs. |
+| `state_mismatch` | gave a reply or a trace that does not agree with its state. |
+
+Turn is the number of the turn, or `-`. Evidence is a `trace.jsonl:N` line, a turn, or a source line. The report is a model answer: the proofs check it, but no code reads it.

@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any, TextIO
 from urllib.parse import urlsplit
 
-from verbatim_relay import bridge
+from verbatim_relay import bridge, evaluation
 from verbatim_relay.adapters import AdapterError, History, make
 from verbatim_relay.record import RecordError, Turn, Writer, read_relay
 
@@ -44,6 +44,9 @@ FILE_TOOLS = {
 WRITE_TOOLS = {"Write", "Edit", "MultiEdit", "NotebookEdit", "apply_patch"}
 DENY_REASON = "verbatim-relay: only the tester talks to the agent."
 TEST_FILES = re.compile(r"\.verbatim-relay")
+# A file in a test folder. After a test, only report.md may change (SPEC.md section 9).
+TEST_FOLDER_FILE = re.compile(r"\.verbatim-relay/tests/[^/\s\"']+/([^\s\"'\\]*)")
+RECORDS_REASON = "verbatim-relay: the records of a test do not change. Write only report.md."
 # Prompts that the kit runs and never relays (SPEC.md section 5).
 CONTROL = {"verbatim-relay start", "verbatim-relay end", "verbatim-relay status"}
 
@@ -59,6 +62,8 @@ class Config:
     record: str = f"{STATE_DIR}/relay.jsonl"
     entry: list[str] = field(default_factory=list)
     models: list[str] = field(default_factory=list)
+    # False stops the evaluation at the end of a test (SPEC.md section 9).
+    evaluate: bool = True
 
     @classmethod
     def load(cls, root: Path) -> Config:
@@ -150,6 +155,11 @@ def _block(reason: str) -> dict[str, Any]:
     return {"decision": "block", "reason": reason}
 
 
+def _context(text: str) -> dict[str, Any]:
+    """Let the prompt go to the model, with the text added as context."""
+    return {"hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": text}}
+
+
 def start_test(root: Path, tester_session: str | None = None) -> str:
     """Start a test and switch relay mode on. Return the text to show."""
     try:
@@ -163,10 +173,10 @@ def start_test(root: Path, tester_session: str | None = None) -> str:
     )
 
 
-def end_test(root: Path) -> str:
+def end_test(root: Path, tester_session: str | None = None) -> str:
     """Switch relay mode off and end the running test. Return the text to show."""
     set_mode(root, False)
-    manifest = bridge.end(root)
+    manifest = bridge.end(root, tester_session=tester_session)
     if manifest is None:
         return "verbatim-relay: no test runs. Relay mode is off."
     return "verbatim-relay: relay mode is off.\n" + bridge.summary(manifest)
@@ -183,7 +193,7 @@ def _control(said: str, root: Path, session: str | None) -> str:
     if word == "start":
         return start_test(root, session)
     if word == "end":
-        return end_test(root)
+        return end_test(root, session)
     return status(root)
 
 
@@ -213,7 +223,12 @@ def handle(event: dict[str, Any], root: Path, harness: str) -> dict[str, Any] | 
         said = event.get("prompt")
         session = event.get("session_id") if isinstance(event.get("session_id"), str) else None
         if isinstance(said, str) and said.strip() in CONTROL:
-            return _block(_control(said, root, session))
+            text = _control(said, root, session)
+            folder = evaluation.pending(root) if said.strip() == "verbatim-relay end" else None
+            if folder is None:
+                return _block(text)
+            # The prompt goes on to the model, which evaluates the test (SPEC.md section 9).
+            return _context(f"{text}\n\n{evaluation.prompt(folder)}")
         if not is_on(root):
             return None
         try:
@@ -253,6 +268,10 @@ def handle(event: dict[str, Any], root: Path, harness: str) -> dict[str, Any] | 
         cur = bridge.current(root)
         if cur is not None and tool in WRITE_TOOLS and TEST_FILES.search(text):
             return _deny(Path(cur["dir"]) / "relay.jsonl", harness, tool, text)
+        if cur is None and tool in WRITE_TOOLS and touches_records(text):
+            last = bridge.latest_test(root)
+            record = last / "relay.jsonl" if last else root / STATE_DIR / "relay.jsonl"
+            return _deny(record, harness, tool, text, RECORDS_REASON)
         if tool in FILE_TOOLS:
             return None
         try:
@@ -269,7 +288,14 @@ def handle(event: dict[str, Any], root: Path, harness: str) -> dict[str, Any] | 
     return None
 
 
-def _deny(record: Path, harness: str, tool: str, text: str) -> dict[str, Any]:
+def touches_records(text: str) -> bool:
+    """True if the text names a file of a test folder other than report.md."""
+    return any(m.group(1) != "report.md" for m in TEST_FOLDER_FILE.finditer(text))
+
+
+def _deny(
+    record: Path, harness: str, tool: str, text: str, reason: str = DENY_REASON
+) -> dict[str, Any]:
     record.parent.mkdir(parents=True, exist_ok=True)
     Writer(record).append(
         {"type": "blocked_call", "harness": harness, "tool": tool, "detail": text[:300]}
@@ -278,7 +304,7 @@ def _deny(record: Path, harness: str, tool: str, text: str) -> dict[str, Any]:
         "hookSpecificOutput": {
             "hookEventName": "PreToolUse",
             "permissionDecision": "deny",
-            "permissionDecisionReason": DENY_REASON,
+            "permissionDecisionReason": reason,
         }
     }
 
