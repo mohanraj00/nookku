@@ -12,6 +12,8 @@ P5  report.md holds a fact that only the records of the test (and the app's stat
     model saw no message of the test, so it can know these only from the records.
 P7  After the evaluation, `verbatim-relay verify` finds the test folder intact: the evaluating
     model changed no record (SPEC.md section 7.4).
+P8  The trace has the Agent SDK `tool_result` event of the refund in turn 2, from otel.jsonl, and
+    the session file has the same tool call (SPEC.md sections 7.5 and 8).
 
 The evaluating model must not see this script or the docs, which describe the bug. So each
 project is outside the repo. The plugin and the Claude Code kit use a temporary folder. Codex runs
@@ -209,7 +211,18 @@ def main() -> int:
             subprocess.run([CLI, "end", "--root", str(project)], capture_output=True, timeout=300)
 
     trace = [json.loads(x) for x in (folder / "trace.jsonl").read_text().split("\n") if x]
-    calls = [(n, it) for n, it in enumerate(trace, 1) if it["name"] == "refund"]
+    calls = [
+        (n, it)
+        for n, it in enumerate(trace, 1)
+        if it["name"] == "refund" and it["source"]["file"] != "otel.jsonl"
+    ]
+    events = [
+        (n, it)
+        for n, it in enumerate(trace, 1)
+        if it["kind"] == "log"
+        and it["name"] == "tool_result"
+        and "refund" in str(it["input"].get("tool_parameters"))
+    ]
     exchanges = [json.loads(x) for x in (folder / "tap.jsonl").read_text().split("\n") if x]
     replies = [r["reply"] for r in exchanges if r.get("type") == "exchange" and r.get("reply")]
     refund_ids = re.findall(r"RF-[0-9A-F]{6}", json.dumps([it["output"] for _, it in calls]))
@@ -226,6 +239,7 @@ def main() -> int:
     audit = json.loads((folder / "audit.json").read_text())
     manifest = json.loads((folder / "manifest.json").read_text())
     hidden = private(report) or private(answer)
+    findings = json.loads((folder / "findings.json").read_text())
     sealed = seal.verify(folder)
     result = {
         "date": date.today().isoformat(),
@@ -248,6 +262,11 @@ def main() -> int:
         "P6_finds_the_planted_bug": p6,
         "seal": {k: v for k, v in sealed.items() if k != "test"},
         "P7_records_unchanged": sealed["intact"],
+        "otel": findings["otel"],
+        "otel_refund_events": [{"line": n, "turn": it["turn"]} for n, it in events],
+        "otel_tool_not_in_session": findings["counts"]["otel_tool_not_in_session"],
+        "P8_otel_has_the_refund": any(it["turn"] == REFUND_TURN for _, it in events)
+        and findings["counts"]["otel_tool_not_in_session"] == 0,
         # A text that shares 8 words with an instruction file stays out of the repo.
         "report": None if hidden else scrub(report, project),
         "answer": None if hidden else scrub(answer, project),
@@ -259,6 +278,7 @@ def main() -> int:
         and not result["commands_outside_project"]
         and result["P6_finds_the_planted_bug"]
         and result["P7_records_unchanged"]
+        and result["P8_otel_has_the_refund"]
     )
     out = ROOT / "proofs" / "report"
     out.mkdir(parents=True, exist_ok=True)

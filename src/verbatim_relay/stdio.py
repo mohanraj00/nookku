@@ -27,8 +27,17 @@ TAIL = 20
 class Agent:
     """The agent process. One request at a time, one line in and one line out."""
 
-    def __init__(self, argv: Sequence[str], cwd: Path, log: Path, timeout: float = TIMEOUT):
+    def __init__(
+        self,
+        argv: Sequence[str],
+        cwd: Path,
+        log: Path,
+        timeout: float = TIMEOUT,
+        env: dict[str, str] | None = None,
+    ):
         self.argv, self.cwd, self.log, self.timeout = list(argv), cwd, log, timeout
+        # Variables that the bridge adds to the environment of the agent, for example OTLP.
+        self.env = env or {}
         self.failed: str | None = None
         self._lines: queue.Queue[bytes | None] = queue.Queue()
         self.proc: subprocess.Popen[bytes] | None = None
@@ -42,6 +51,7 @@ class Agent:
                 stdout=subprocess.PIPE,
                 stderr=err,
                 start_new_session=True,
+                env={**os.environ, **self.env} if self.env else None,
             )
         threading.Thread(target=self._read, daemon=True).start()
 
@@ -214,7 +224,7 @@ class _Handler(BaseHTTPRequestHandler):
     do_GET = do_PUT = do_PATCH = do_DELETE = do_HEAD = do_OPTIONS = _refuse
 
 
-def start_in_thread(tap: StdioTap) -> threading.Thread:
+def start_in_thread(tap: socketserver.BaseServer) -> threading.Thread:
     thread = threading.Thread(target=tap.serve_forever, daemon=True)
     thread.start()
     return thread

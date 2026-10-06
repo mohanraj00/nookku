@@ -1,0 +1,82 @@
+{
+ "v": "0.2",
+ "test": "20261006-080000-ot01",
+ "turns": 2,
+ "items": 11,
+ "sessions": [
+  {
+   "harness": "claude-code",
+   "session": "4f1c2a7e-0d3b-4c55-9a61-2b8e5d7c9f10",
+   "file": "sessions/claude-code/4f1c2a7e-0d3b-4c55-9a61-2b8e5d7c9f10.jsonl",
+   "inferred": false,
+   "version": "2.1.286",
+   "items": 5,
+   "ignored": {}
+  }
+ ],
+ "otel": {
+  "file": "otel.jsonl",
+  "rows": 7,
+  "items": 6,
+  "ignored": {
+   "error": 1
+  }
+ },
+ "counts": {
+  "agent_error": 0,
+  "tool_error": 0,
+  "command_failed": 0,
+  "span_error": 2,
+  "turn_without_model": 0,
+  "item_between_turns": 1,
+  "otel_tool_not_in_session": 1,
+  "session_inferred": 0,
+  "version_untested": 0
+ },
+ "findings": [
+  {
+   "check": "span_error",
+   "turn": 2,
+   "detail": "toy-shop: POST /payments: card declined",
+   "harness": "otel",
+   "session": "0af7651916cd43dd8448eb211c80319c",
+   "source": {
+    "file": "otel.jsonl",
+    "line": 4
+   }
+  },
+  {
+   "check": "span_error",
+   "turn": null,
+   "detail": "toy-shop: GET /stock: timeout",
+   "harness": "otel",
+   "session": "0af7651916cd43dd8448eb211c80319c",
+   "source": {
+    "file": "otel.jsonl",
+    "line": 7
+   }
+  },
+  {
+   "check": "item_between_turns",
+   "turn": null,
+   "detail": "a span item",
+   "harness": "otel",
+   "session": "0af7651916cd43dd8448eb211c80319c",
+   "source": {
+    "file": "otel.jsonl",
+    "line": 7
+   }
+  },
+  {
+   "check": "otel_tool_not_in_session",
+   "turn": 2,
+   "detail": "refund: a tool_result event with no tool call in the session file",
+   "harness": "claude-code",
+   "session": "4f1c2a7e-0d3b-4c55-9a61-2b8e5d7c9f10",
+   "source": {
+    "file": "otel.jsonl",
+    "line": 2
+   }
+  }
+ ]
+}

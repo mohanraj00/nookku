@@ -25,6 +25,10 @@ For the toy shop agent of the [quick start](../README.md#quick-start), the confi
 
 `models` lists the harnesses that your app uses for its own model sessions: `claude-code`, `codex` or both. `verbatim-relay check` fails if it does not find a session for each one.
 
+### OpenTelemetry
+
+During a test, the bridge runs an OTLP/HTTP receiver and gives your app its address in the standard `OTEL_*` variables. These replace your app's own `OTEL_*` values for the test. If your app uses the OpenTelemetry SDK, its spans and logs go to `otel.jsonl` in the test folder and into the trace. An Agent SDK session also sends its prompts, tool calls and replies, because the bridge sets `CLAUDE_CODE_ENABLE_TELEMETRY=1`. The trace checks each tool call of these events against the session file. The receiver removes each `user.*`, `organization.*` and e-mail attribute before it writes a row. To stop the receiver, add `"otel": false` to `.verbatim-relay/config.json`. [SPEC.md section 7.5](../SPEC.md#75-otlp-receiver) defines the receiver.
+
 ## Plugin
 
 1. Add the marketplace and install the plugin:
@@ -61,6 +65,7 @@ Each test is a new conversation, with a new test id and a new entry process. The
 | `report.md` | The model's evaluation, if it ran. |
 | `seal.json` | The SHA-256 of each other file at the end of the test. `verbatim-relay verify` shows if a file changed after the end ([SPEC.md section 7.4](../SPEC.md#74-seal)). |
 | `denied.jsonl` | The model tool calls that the relay denied after the end. |
+| `otel.jsonl` | The OpenTelemetry spans and logs of your app, if it sent any (see [OpenTelemetry](#opentelemetry)). |
 | `findings.json` | The checks of the trace: failed tools and commands, agent errors, turns with no model item, and more ([SPEC.md section 8](../SPEC.md#8-trace)). |
 
 Options. Set them with `/plugin configure verbatim-relay@verbatim-relay` in Claude Code, or with `--config KEY=VALUE` at install. The defaults fit the quick start.

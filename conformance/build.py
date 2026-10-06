@@ -3,7 +3,7 @@
 `cases/` holds the audit cases (SPEC.md section 3). `contract/` holds the stdio cases (sections 4.2
 and 6): the requests that the relay posts, what a scripted agent does with each one, and the rows
 and HTTP statuses that the tap must give. `trace/` holds the trace cases (section 8). `seal/` holds
-the seal cases (section 7.4).
+the seal cases (section 7.4). `otlp/` holds the receiver cases (section 7.5).
 
 Never fill an expectation by running the audit. CI runs this script and fails if the files change.
 
@@ -13,9 +13,11 @@ usage: python conformance/build.py
 from __future__ import annotations
 
 import datetime
+import gzip
 import hashlib
 import json
 import shutil
+import struct
 import unicodedata
 from pathlib import Path
 from typing import Any
@@ -24,6 +26,7 @@ CASES = Path(__file__).parent / "cases"
 CONTRACT = Path(__file__).parent / "contract"
 TRACE = Path(__file__).parent / "trace"
 SEAL = Path(__file__).parent / "seal"
+OTLP = Path(__file__).parent / "otlp"
 
 
 def sha(text: str | None) -> str | None:
@@ -516,7 +519,7 @@ def item(turn: int | None, harness: str, ts: float, kind: str, line: int, **fiel
     """An expected trace row. Each field that `fields` does not set has its SPEC.md default."""
     session, file = (CC, CC_FILE) if harness == "claude-code" else (CX, CX_FILE)
     row: dict[str, Any] = {
-        "v": "0.2",
+        "v": "0.3",
         "type": "model_item",
         "turn": turn,
         "harness": harness,
@@ -531,6 +534,7 @@ def item(turn: int | None, harness: str, ts: float, kind: str, line: int, **fiel
         "error": None,
         "exit_code": None,
         "harness_internal": False,
+        "service": None,
         "source": {"file": file, "line": line},
     }
     if "result_line" in fields:
@@ -551,8 +555,10 @@ def counts(**n: int) -> dict:
         "agent_error",
         "tool_error",
         "command_failed",
+        "span_error",
         "turn_without_model",
         "item_between_turns",
+        "otel_tool_not_in_session",
         "session_inferred",
         "version_untested",
     )
@@ -705,6 +711,7 @@ CLAUDE_CASE = {
                 },
             }
         ],
+        "otel": None,
         "counts": counts(agent_error=1, tool_error=3, turn_without_model=1, item_between_turns=2),
         "findings": [
             {"check": "agent_error", "turn": 2, "detail": "the agent gave status 500"},
@@ -1014,6 +1021,7 @@ CODEX_CASE = {
                 },
             }
         ],
+        "otel": None,
         "counts": counts(
             tool_error=3,
             command_failed=2,
@@ -1135,6 +1143,7 @@ VERSION_CASE = {
                 "ignored": {},
             },
         ],
+        "otel": None,
         "counts": counts(version_untested=2),
         "findings": [
             {
@@ -1168,8 +1177,268 @@ NO_MODEL_CASE = {
         "turns": 2,
         "items": 0,
         "sessions": [],
+        "otel": None,
         "counts": counts(),
         "findings": [],
+    },
+}
+
+# OpenTelemetry (SPEC.md sections 7.5 and 8.4): the rows of otel.jsonl as the receiver writes them.
+# A harness tool_result that the session file has, one that it does not have, app spans with and
+# without an error, an app log, a receiver error row, and a span after the last turn.
+TRACE_ID = "0af7651916cd43dd8448eb211c80319c"
+CC_RESOURCE = {"service.name": "claude-code", "service.version": "2.1.286"}
+APP_RESOURCE = {"service.name": "toy-shop"}
+
+
+def tool_event(t: float, tool: str, args: dict) -> dict:
+    """A tool_result event of the Agent SDK, as otel.jsonl holds it."""
+    attrs = {
+        "session.id": CC,
+        "event.name": "tool_result",
+        "tool_name": "mcp_tool",
+        "tool_parameters": json.dumps({"mcp_server_name": "shop", "mcp_tool_name": tool}),
+        "tool_input": json.dumps(args),
+        "success": "true",
+    }
+    return {
+        "v": 1,
+        "type": "log",
+        "received": T0 + t + 0.4,
+        "service": "claude-code",
+        "resource": CC_RESOURCE,
+        "scope": "com.anthropic.claude_code.events",
+        "time": T0 + t,
+        "event_name": "claude_code.tool_result",
+        "severity": None,
+        "body": "claude_code.tool_result",
+        "attributes": attrs,
+        "trace_id": None,
+        "span_id": None,
+    }
+
+
+def app_span(
+    t: float, name: str, attrs: dict, code: int = 0, message: str | None = None, **more: Any
+) -> dict:
+    return {
+        "v": 1,
+        "type": "span",
+        "received": T0 + t + 0.5,
+        "service": "toy-shop",
+        "resource": APP_RESOURCE,
+        "scope": "toy-shop",
+        "trace_id": TRACE_ID,
+        "span_id": "b7ad6b7169203331",
+        "parent_span_id": None,
+        "name": name,
+        "start": T0 + t,
+        "end": T0 + t + 0.1,
+        "attributes": attrs,
+        "events": more.pop("events", []),
+        "status": {"code": code, "message": message},
+    }
+
+
+def oitem(
+    turn: int | None, harness: str, session: str, ts: float, kind: str, line: int, **fields: Any
+) -> dict:
+    """An expected trace row from otel.jsonl."""
+    row = item(turn, "claude-code", ts, kind, line)
+    row.update(harness=harness, session=session, source={"file": "otel.jsonl", "line": line})
+    return {**row, **fields}
+
+
+LOOKUP_EVENT = tool_event(12.6, "lookup_order", {"order": "4471"})
+REFUND_EVENT = tool_event(32, "refund", {"order": "5120", "amount_eur": 80})
+TIMEOUT = {"name": "exception", "time": T0 + 45.1, "attributes": {"exception.message": "timeout"}}
+APP_LOG = {
+    "v": 1,
+    "type": "log",
+    "received": T0 + 12,
+    "service": "toy-shop",
+    "resource": APP_RESOURCE,
+    "scope": "toy-shop",
+    "time": T0 + 11.6,
+    "event_name": None,
+    "severity": "INFO",
+    "body": "stock checked: 3 left",
+    "attributes": {"shop.sku": "teapot-set"},
+    "trace_id": None,
+    "span_id": None,
+}
+OTEL_CASE = {
+    "tap": [window(10, 20), window(30, 40)],
+    "manifest": {"test": "20261006-080000-ot01", "model_sessions": [CC_SESSION]},
+    "sessions": {
+        CC_FILE: [
+            cc_line("user", 11, "Where is my order 4471?"),
+            cc_line("assistant", 12, [use("t1", "mcp__shop__lookup_order", {"order": "4471"})]),
+            cc_line(
+                "user", 12.5, [result("t1", [{"type": "text", "text": '{"status": "delivered"}'}])]
+            ),
+            cc_line("assistant", 13, [{"type": "text", "text": "Order 4471 was delivered."}]),
+            cc_line("user", 31, "Refund my teapot set from order 5120."),
+            cc_line("assistant", 33, [{"type": "text", "text": "Your refund is done."}]),
+        ]
+    },
+    "otel": [
+        LOOKUP_EVENT,
+        REFUND_EVENT,
+        app_span(11.5, "check_stock", {"shop.sku": "teapot-set"}, code=1),
+        app_span(32.2, "POST /payments", {"http.response.status_code": 402}, 2, "card declined"),
+        {"v": 1, "type": "error", "received": T0 + 33, "path": "/v1/traces", "detail": "JSON: x"},
+        APP_LOG,
+        app_span(45, "GET /stock", {}, 2, None, events=[TIMEOUT]),
+    ],
+    "trace": [
+        item(1, "claude-code", 11, "message", 1, role="user", output="Where is my order 4471?"),
+        oitem(
+            1,
+            "otel",
+            TRACE_ID,
+            11.5,
+            "span",
+            3,
+            name="check_stock",
+            input={"shop.sku": "teapot-set"},
+            service="toy-shop",
+        ),
+        oitem(
+            1,
+            "otel",
+            "",
+            11.6,
+            "log",
+            6,
+            input={"shop.sku": "teapot-set"},
+            output="stock checked: 3 left",
+            service="toy-shop",
+        ),
+        item(
+            1,
+            "claude-code",
+            12,
+            "tool_call",
+            2,
+            server="shop",
+            name="lookup_order",
+            input={"order": "4471"},
+            output='{"status": "delivered"}',
+            result_line=3,
+        ),
+        oitem(
+            1,
+            "claude-code",
+            CC,
+            12.6,
+            "log",
+            1,
+            name="tool_result",
+            input=LOOKUP_EVENT["attributes"],
+            service="claude-code",
+        ),
+        item(
+            1, "claude-code", 13, "message", 4, role="assistant", output="Order 4471 was delivered."
+        ),
+        item(
+            2,
+            "claude-code",
+            31,
+            "message",
+            5,
+            role="user",
+            output="Refund my teapot set from order 5120.",
+        ),
+        oitem(
+            2,
+            "claude-code",
+            CC,
+            32,
+            "log",
+            2,
+            name="tool_result",
+            input=REFUND_EVENT["attributes"],
+            service="claude-code",
+        ),
+        oitem(
+            2,
+            "otel",
+            TRACE_ID,
+            32.2,
+            "span",
+            4,
+            name="POST /payments",
+            input={"http.response.status_code": 402},
+            error="card declined",
+            service="toy-shop",
+        ),
+        item(2, "claude-code", 33, "message", 6, role="assistant", output="Your refund is done."),
+        oitem(
+            None,
+            "otel",
+            TRACE_ID,
+            45,
+            "span",
+            7,
+            name="GET /stock",
+            input={},
+            error="timeout",
+            service="toy-shop",
+        ),
+    ],
+    "findings": {
+        "v": "0.2",
+        "test": "20261006-080000-ot01",
+        "turns": 2,
+        "items": 11,
+        "sessions": [
+            {
+                "harness": "claude-code",
+                "session": CC,
+                "file": CC_FILE,
+                "inferred": False,
+                "version": "2.1.286",
+                "items": 5,
+                "ignored": {},
+            }
+        ],
+        "otel": {"file": "otel.jsonl", "rows": 7, "items": 6, "ignored": {"error": 1}},
+        "counts": counts(span_error=2, item_between_turns=1, otel_tool_not_in_session=1),
+        "findings": [
+            {
+                "check": "span_error",
+                "turn": 2,
+                "detail": "toy-shop: POST /payments: card declined",
+                "harness": "otel",
+                "session": TRACE_ID,
+                "source": {"file": "otel.jsonl", "line": 4},
+            },
+            {
+                "check": "span_error",
+                "turn": None,
+                "detail": "toy-shop: GET /stock: timeout",
+                "harness": "otel",
+                "session": TRACE_ID,
+                "source": {"file": "otel.jsonl", "line": 7},
+            },
+            {
+                "check": "item_between_turns",
+                "turn": None,
+                "detail": "a span item",
+                "harness": "otel",
+                "session": TRACE_ID,
+                "source": {"file": "otel.jsonl", "line": 7},
+            },
+            {
+                "check": "otel_tool_not_in_session",
+                "turn": 2,
+                "detail": "refund: a tool_result event with no tool call in the session file",
+                "harness": "claude-code",
+                "session": CC,
+                "source": {"file": "otel.jsonl", "line": 2},
+            },
+        ],
     },
 }
 
@@ -1178,6 +1447,7 @@ TRACE_CASES = {
     "codex_toy_shop": CODEX_CASE,
     "untested_versions": VERSION_CASE,
     "no_model_sessions": NO_MODEL_CASE,
+    "otel_toy_shop": OTEL_CASE,
 }
 
 
@@ -1276,6 +1546,380 @@ def write_seal_case(d: Path, case: dict) -> None:
     (d / "expect_verify.json").write_text(json.dumps(case["verify"], indent=1) + "\n")
 
 
+# Receiver cases (SPEC.md section 7.5). This small protobuf writer follows the public OTLP .proto
+# files. Each case is a request body and the otel.jsonl rows that the receiver must write for it.
+def pb_varint(n: int) -> bytes:
+    out = b""
+    while True:
+        b, n = n & 0x7F, n >> 7
+        out += bytes([b | (0x80 if n else 0)])
+        if not n:
+            return out
+
+
+def pb(number: int, value: Any) -> bytes:
+    """One field: an int or a bool is a varint, a float is a double, bytes or str are
+    length-delimited."""
+    if isinstance(value, int):
+        return pb_varint(number << 3) + pb_varint(int(value) & ((1 << 64) - 1))
+    if isinstance(value, float):
+        return pb_varint(number << 3 | 1) + struct.pack("<d", value)
+    data = value.encode() if isinstance(value, str) else value
+    return pb_varint(number << 3 | 2) + pb_varint(len(data)) + data
+
+
+def pb_fixed64(number: int, n: int) -> bytes:
+    return pb_varint(number << 3 | 1) + struct.pack("<Q", n)
+
+
+def pb_kv(key: str, any_value: bytes) -> bytes:
+    return pb(1, key) + pb(2, any_value)
+
+
+RECEIVED = T0 + 100
+NS = 1_000_000_000
+
+
+def ns(t: float) -> int:
+    """T0 + t in nanoseconds, with no float error."""
+    return int(T0) * NS + round(t * NS)
+
+
+SPAN_ATTRS = [
+    pb_kv("shop.sku", pb(1, "teapot-set")),
+    pb_kv("shop.count", pb(3, -2)),
+    pb_kv("shop.gift", pb(2, True)),
+    pb_kv("shop.price", pb(4, 80.5)),
+    pb_kv("shop.tags", pb(5, pb(1, pb(1, "fragile")) + pb(1, pb(3, 3)))),
+    pb_kv(
+        "shop.box", pb(6, pb(1, pb_kv("size", pb(1, "M"))) + pb(1, pb_kv("user.id", pb(1, "u-1"))))
+    ),
+    pb_kv("shop.raw", pb(7, b"\x01\x02")),
+    pb_kv("user.email", pb(1, "tester@example.com")),
+    pb_kv("customer_email", pb(1, "buyer@example.com")),
+]
+SPAN_PB = (
+    pb(1, bytes.fromhex(TRACE_ID))
+    + pb(2, bytes.fromhex("b7ad6b7169203331"))
+    + pb(4, bytes.fromhex("00f067aa0ba902b7"))
+    + pb(5, "POST /payments")
+    + pb(6, 3)
+    + pb_fixed64(7, ns(32))
+    + pb_fixed64(8, ns(32.25))
+    + b"".join(pb(9, kv) for kv in SPAN_ATTRS)
+    + pb(
+        11,
+        pb_fixed64(1, ns(32.2))
+        + pb(2, "exception")
+        + pb(3, pb_kv("exception.message", pb(1, "card declined"))),
+    )
+    + pb(15, pb(2, "payment failed") + pb(3, 2))
+    + pb(99, "a field that the receiver does not know")
+)
+APP_RESOURCE_PB = pb(1, pb_kv("service.name", pb(1, "toy-shop"))) + pb(
+    1, pb_kv("user.account_id", pb(1, "a-1"))
+)
+TRACES_PB = pb(
+    1, pb(1, APP_RESOURCE_PB) + pb(2, pb(1, pb(1, "toy-shop") + pb(2, "1.0")) + pb(2, SPAN_PB))
+)
+SPAN_ROW = {
+    "v": 1,
+    "type": "span",
+    "received": RECEIVED,
+    "service": "toy-shop",
+    "resource": {"service.name": "toy-shop"},
+    "scope": "toy-shop",
+    "trace_id": TRACE_ID,
+    "span_id": "b7ad6b7169203331",
+    "parent_span_id": "00f067aa0ba902b7",
+    "name": "POST /payments",
+    "start": T0 + 32,
+    "end": T0 + 32.25,
+    "attributes": {
+        "shop.sku": "teapot-set",
+        "shop.count": -2,
+        "shop.gift": True,
+        "shop.price": 80.5,
+        "shop.tags": ["fragile", 3],
+        "shop.box": {"size": "M"},
+        "shop.raw": "AQI=",
+    },
+    "events": [
+        {
+            "time": T0 + 32.2,
+            "name": "exception",
+            "attributes": {"exception.message": "card declined"},
+        }
+    ],
+    "status": {"code": 2, "message": "payment failed"},
+}
+
+
+def js_kv(key: str, v: dict) -> dict:
+    return {"key": key, "value": v}
+
+
+TRACES_JSON = {
+    "resourceSpans": [
+        {
+            "resource": {
+                "attributes": [
+                    js_kv("service.name", {"stringValue": "toy-shop"}),
+                    js_kv("user.account_id", {"stringValue": "a-1"}),
+                ]
+            },
+            "scopeSpans": [
+                {
+                    "scope": {"name": "toy-shop", "version": "1.0"},
+                    "spans": [
+                        {
+                            "traceId": TRACE_ID,
+                            "spanId": "b7ad6b7169203331",
+                            "parentSpanId": "00f067aa0ba902b7",
+                            "name": "POST /payments",
+                            "kind": 3,
+                            "startTimeUnixNano": str(ns(32)),
+                            "endTimeUnixNano": str(ns(32.25)),
+                            "attributes": [
+                                js_kv("shop.sku", {"stringValue": "teapot-set"}),
+                                js_kv("shop.count", {"intValue": "-2"}),
+                                js_kv("shop.gift", {"boolValue": True}),
+                                js_kv("shop.price", {"doubleValue": 80.5}),
+                                js_kv(
+                                    "shop.tags",
+                                    {
+                                        "arrayValue": {
+                                            "values": [
+                                                {"stringValue": "fragile"},
+                                                {"intValue": "3"},
+                                            ]
+                                        }
+                                    },
+                                ),
+                                js_kv(
+                                    "shop.box",
+                                    {
+                                        "kvlistValue": {
+                                            "values": [
+                                                js_kv("size", {"stringValue": "M"}),
+                                                js_kv("user.id", {"stringValue": "u-1"}),
+                                            ]
+                                        }
+                                    },
+                                ),
+                                js_kv("shop.raw", {"bytesValue": "AQI="}),
+                                js_kv("user.email", {"stringValue": "tester@example.com"}),
+                                js_kv("customer_email", {"stringValue": "buyer@example.com"}),
+                            ],
+                            "events": [
+                                {
+                                    "timeUnixNano": str(ns(32.2)),
+                                    "name": "exception",
+                                    "attributes": [
+                                        js_kv("exception.message", {"stringValue": "card declined"})
+                                    ],
+                                }
+                            ],
+                            "status": {"code": "STATUS_CODE_ERROR", "message": "payment failed"},
+                        }
+                    ],
+                }
+            ],
+        }
+    ]
+}
+
+
+def log_pb(
+    t: float, name: str, attrs: list[bytes], body: str | None = None, observed: bool = False
+) -> bytes:
+    nanos = ns(t)
+    out = pb_fixed64(11, nanos) if observed else pb_fixed64(1, nanos)
+    out += pb(3, "INFO") + b"".join(pb(6, kv) for kv in attrs)
+    return out + (pb(5, pb(1, body)) if body is not None else b"") + pb(12, name)
+
+
+CC_RESOURCE_PB = pb(1, pb_kv("service.name", pb(1, "claude-code"))) + pb(
+    1, pb_kv("service.version", pb(1, "2.1.286"))
+)
+CX_RESOURCE_PB = pb(1, pb_kv("service.name", pb(1, "codex_app_server")))
+LOGS_PB = (
+    pb(
+        1,
+        pb(1, CC_RESOURCE_PB)
+        + pb(
+            2,
+            pb(1, pb(1, "com.anthropic.claude_code.events"))
+            + pb(
+                2,
+                log_pb(
+                    12.6,
+                    "",
+                    [
+                        pb_kv("event.name", pb(1, "tool_result")),
+                        pb_kv("session.id", pb(1, CC)),
+                        pb_kv("user.email", pb(1, "tester@example.com")),
+                    ],
+                    "claude_code.tool_result",
+                ),
+            )
+            + pb(
+                2,
+                log_pb(
+                    5,
+                    "",
+                    [pb_kv("event.name", pb(1, "plugin_loaded"))],
+                    "claude_code.plugin_loaded",
+                ),
+            ),
+        ),
+    )
+    + pb(
+        1,
+        pb(1, CX_RESOURCE_PB)
+        + pb(
+            2,
+            pb(
+                2,
+                log_pb(
+                    13,
+                    "event core/src/x.rs:1",
+                    [
+                        pb_kv("event.name", pb(1, "codex.tool_result")),
+                        pb_kv("conversation.id", pb(1, CX)),
+                    ],
+                    observed=True,
+                ),
+            ),
+        ),
+    )
+    + pb(
+        1,
+        pb(1, APP_RESOURCE_PB)
+        + pb(
+            2,
+            pb(
+                2,
+                log_pb(11.6, "", [pb_kv("shop.sku", pb(1, "teapot-set"))], "stock checked: 3 left"),
+            ),
+        ),
+    )
+)
+
+
+def log_row(
+    service: str,
+    resource: dict,
+    scope: str | None,
+    t: float,
+    name: str | None,
+    body: Any,
+    attrs: dict,
+    severity: str = "INFO",
+) -> dict:
+    return {
+        "v": 1,
+        "type": "log",
+        "received": RECEIVED,
+        "service": service,
+        "resource": resource,
+        "scope": scope,
+        "time": T0 + t,
+        "event_name": name,
+        "severity": severity,
+        "body": body,
+        "attributes": attrs,
+        "trace_id": None,
+        "span_id": None,
+    }
+
+
+LOG_ROWS = [
+    log_row(
+        "claude-code",
+        {"service.name": "claude-code", "service.version": "2.1.286"},
+        "com.anthropic.claude_code.events",
+        12.6,
+        "tool_result",
+        "claude_code.tool_result",
+        {"event.name": "tool_result", "session.id": CC},
+    ),
+    log_row(
+        "codex_app_server",
+        {"service.name": "codex_app_server"},
+        None,
+        13,
+        "codex.tool_result",
+        None,
+        {"event.name": "codex.tool_result", "conversation.id": CX},
+    ),
+    log_row(
+        "toy-shop",
+        {"service.name": "toy-shop"},
+        None,
+        11.6,
+        None,
+        "stock checked: 3 left",
+        {"shop.sku": "teapot-set"},
+    ),
+]
+HARNESS_SPANS_PB = pb(
+    1, pb(1, CX_RESOURCE_PB) + pb(2, pb(2, pb(5, "fs.read_file") + pb_fixed64(7, ns(0))))
+)
+OTLP_CASES: dict[str, dict] = {
+    "traces_protobuf": {
+        "path": "/v1/traces",
+        "type": "application/x-protobuf",
+        "body": TRACES_PB,
+        "rows": [SPAN_ROW],
+    },
+    "traces_json": {
+        "path": "/v1/traces",
+        "type": "application/json",
+        "body": json.dumps(TRACES_JSON).encode(),
+        "rows": [SPAN_ROW],
+    },
+    # The harness events that the receiver keeps, a harness event that it drops, an app log, gzip.
+    "logs_protobuf_gzip": {
+        "path": "/v1/logs",
+        "type": "application/x-protobuf",
+        "encoding": "gzip",
+        "body": LOGS_PB,
+        "rows": LOG_ROWS,
+    },
+    "harness_spans_dropped": {
+        "path": "/v1/traces",
+        "type": "application/x-protobuf",
+        "body": HARNESS_SPANS_PB,
+        "rows": [],
+    },
+    "metrics_dropped": {
+        "path": "/v1/metrics",
+        "type": "application/json",
+        "body": b'{"resourceMetrics": []}',
+        "rows": None,
+    },
+    "truncated_protobuf": {
+        "path": "/v1/traces",
+        "type": "application/x-protobuf",
+        "body": TRACES_PB[:-5],
+        "error": "a length-delimited field ends early",
+    },
+}
+
+
+def write_otlp_case(d: Path, case: dict) -> None:
+    d.mkdir(parents=True)
+    body = case["body"]
+    if case.get("encoding") == "gzip":
+        body = gzip.compress(body, mtime=0)
+    (d / "body.bin").write_bytes(body)
+    request = {k: case.get(k) for k in ("path", "type", "encoding")}
+    expect = {"received": RECEIVED, "rows": case.get("rows"), "error": case.get("error")}
+    (d / "request.json").write_text(json.dumps(request, indent=1) + "\n")
+    (d / "expect.json").write_text(json.dumps(expect, indent=1, ensure_ascii=False) + "\n")
+
+
 def write(path: Path, rows: list | None) -> None:
     if rows is None:
         return
@@ -1305,15 +1949,20 @@ def main() -> None:
         for rel, lines in case["sessions"].items():
             (d / rel).parent.mkdir(parents=True, exist_ok=True)
             write(d / rel, lines)
+        write(d / "otel.jsonl", case.get("otel"))
         write(d / "expect_trace.jsonl", case["trace"])
         text = json.dumps(case["findings"], indent=1, ensure_ascii=False)
         (d / "expect_findings.json").write_text(text + "\n")
+    shutil.rmtree(OTLP, ignore_errors=True)
+    for name, case in OTLP_CASES.items():
+        write_otlp_case(OTLP / name, case)
     shutil.rmtree(SEAL, ignore_errors=True)
     for name, case in SEAL_CASES.items():
         write_seal_case(SEAL / name, case)
     print(
         f"{len(CASES_BY_NAME)} audit cases, {len(CONTRACT_CASES)} contract cases, "
-        f"{len(TRACE_CASES)} trace cases and {len(SEAL_CASES)} seal cases written"
+        f"{len(TRACE_CASES)} trace cases, {len(SEAL_CASES)} seal cases and "
+        f"{len(OTLP_CASES)} receiver cases written"
     )
 
 

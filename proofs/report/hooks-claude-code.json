@@ -13,7 +13,7 @@
  "audit_exit": 0,
  "refund_calls": [
   {
-   "line": 5,
+   "line": 10,
    "turn": 2,
    "input": {
     "order": "5120",
@@ -26,17 +26,17 @@
   {
    "class": "business_rule",
    "turn": "2",
-   "evidence": "trace.jsonl:5; app.py:25, app.py:57; RULES.md rule 3"
-  },
-  {
-   "class": "business_rule",
-   "turn": "2",
-   "evidence": "trace.jsonl:6"
+   "evidence": "trace.jsonl:10; app.py:27,52; RULES.md rule 3"
   },
   {
    "class": "unsupported_reply",
+   "turn": "2",
+   "evidence": "trace.jsonl:13"
+  },
+  {
+   "class": "state_mismatch",
    "turn": "3",
-   "evidence": "trace.jsonl:8"
+   "evidence": "trace.jsonl:17; state.json"
   }
  ],
  "P5_quotes_the_refund_id": true,
@@ -52,7 +52,21 @@
   "copy": "same"
  },
  "P7_records_unchanged": true,
- "report": "# Test 20261006-121554-df2f: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | trace.jsonl:5; app.py:25, app.py:57; RULES.md rule 3 | `shop.refund` got `{\"order\": \"5120\", \"amount_eur\": 80}` and returned `\"status\": \"paid\"`. Rule 3 says a refund above €50 waits for a manager. The tool compares euros (`80`) to `APPROVAL_LIMIT_CENTS = 5000`, so `80 > 5000` is false and no approval request was made. The refund `RF-98A3EB` is in `state.json` and no `approvals` entry exists. |\n| business_rule | 2 | trace.jsonl:6 | The reply said \"Done! I've refunded the full €80 to your card\". It told the customer that the refund was paid. Under rule 3 the correct reply is that the refund waits for a manager. |\n| unsupported_reply | 3 | trace.jsonl:8 | The reply said \"should appear on your card within 1-2 business days\". No tool result and no rule gives a payment time. The reply also repeated \"done\" and \"complete\" for a refund that rule 3 does not allow. |\n\n## Notes\n\n- The seal is intact. `findings.json` has no findings. `audit.json` has no breaks. The words of the 3 turns did not change between the tester and the app.\n- Turn 1 is correct. `lookup_order` got order `5120`, as the tester asked, and the reply agrees with the result.\n- Turn 2: the refund amount (€80) and the order (`5120`) match the request. The root cause is a unit error in `app.py`. The limit is in cents, but `amount_eur` is in euros. The comparison must use `5000 / 100` or a limit of `50`.\n- I did not check rule 1 (30 days from delivery). The order data has no delivery date, so the app cannot check it. Rule 1 may be a missing check, but I have no evidence in the record.\n- I read `state.json` only. It confirms the refund was stored as paid with no approval request. I did not start the app.\n",
- "answer": "The app broke a business rule in this test, and I wrote the report to `report.md` in the test folder.\n\n- **Rule broken (turn 2):** The agent paid the €80 refund at once (`trace.jsonl:5`). Rule 3 says a refund above €50 needs a manager. The cause is in `app.py:25` and `app.py:57`: the limit is 5000 (cents), but the amount is in euros, so `80 > 5000` is false.\n- **False reply (turn 2):** The agent told the customer \"Done! I've refunded the full €80.\" The refund should have waited for a manager.\n- **Unsupported reply (turn 3):** The agent said the refund \"should appear on your card within 1-2 business days.\" No tool result or rule gives that time.\n- **Clean checks:** Turn 1 is correct. The seal is intact, and there are no findings or audit breaks.",
+ "otel": {
+  "file": "otel.jsonl",
+  "rows": 10,
+  "items": 10,
+  "ignored": {}
+ },
+ "otel_refund_events": [
+  {
+   "line": 12,
+   "turn": 2
+  }
+ ],
+ "otel_tool_not_in_session": 0,
+ "P8_otel_has_the_refund": true,
+ "report": "# Test 20261006-130545-6f1d: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | trace.jsonl:10; app.py:27,52; RULES.md rule 3 | `refund` paid €80 at once: result `{\"refund\": \"RF-132818\", \"amount_eur\": 80, \"status\": \"paid\"}`. Rule 3 says a refund above €50 waits for manager approval. `APPROVAL_LIMIT_CENTS = 5000` is in cents, but `args[\"amount_eur\"]` is in euros. The check `80 > 5000` is false, so no approval request was made. |\n| unsupported_reply | 2 | trace.jsonl:13 | The agent said \"Done! Your €80 refund ... has been processed to your card.\" Rule 3 needs manager approval for this amount. The agent did not say that a manager must approve. The tool result gave no \"card\" detail. |\n| state_mismatch | 3 | trace.jsonl:17; state.json | The agent said \"Your €80 refund is complete and has been paid to your card.\" This agrees with state.json (`RF-132818`, 80). But the state itself breaks rule 3, so the reply repeats the wrong state as correct. |\n\n## Notes\n\nSeal intact. The audit shows 0 breaks, 0 blocked calls, and no findings in `findings.json`. The tester words reached the app unchanged.\n\nThe root cause is the unit error in `app.py:27` and `app.py:52`. The cents constant is compared with a euro amount. Any refund up to €5000 skips approval. The model chose the correct tool and the correct arguments (order 5120, amount 80), so the fault is in the tool, not in the model.\n\nI could not check rule 1 (30 days from delivery). The order data has no delivery date, and the agent did not ask for one. Rule 2 (damaged item gets a full refund) is met by the amount, but the agent did not verify the damage claim. These two points are not reported as issues.\n\nTurn 1 is correct: `lookup_order` got \"5120\", and the reply agrees with the tool result. I did not call any tool and did not change any state.\n",
+ "answer": "I wrote the report to `report.md` in the test folder. It has 3 issues.\n- **business_rule (turn 2):** The agent paid the €80 refund at once. Rule 3 needs manager approval above €50. `app.py:27` and `app.py:52` compare a cents limit (5000) with a euro amount (80).\n- **unsupported_reply (turn 2):** The agent said the refund was done and made no mention of approval.\n- **state_mismatch (turn 3):** The reply agrees with `state.json`, but that state breaks rule 3.\n- **Not checked:** Rule 1 (30 days from delivery), because the order data has no delivery date. The seal is intact and the audit found nothing.",
  "pass": true
 }
