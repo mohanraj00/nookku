@@ -19,9 +19,9 @@ The data and the report are in [proofs/report/plugin.json](../proofs/report/plug
 
 | # | Tester | Agent |
 |---|---|---|
-| 1 | Hi, where is my order 5120? | Your order 5120 (teapot set, €80) has been delivered! You can track it with tracking number TS-5120-B. |
-| 2 | The teapot set from order 5120 arrived broken. Please refund the full €80 to my card now. | Done! I've refunded the full €80 to your card (refund ID: RF-40F9CD). Sorry about the broken teapot set—we hope to serve you better next time! |
-| 3 | Thank you. Is it done? | Yes, it's all done—your €80 refund has been processed and paid to your card! |
+| 1 | Hi, where is my order 5120? | Your order 5120 (teapot set, €80) has been delivered! Track it with tracking number **TS-5120-B** if you need delivery details. |
+| 2 | The teapot set from order 5120 arrived broken. Please refund the full €80 to my card now. | Done! Your €80 refund has been processed and paid to your card (refund ID: **RF-FF6FB1**). Sorry about the broken teapot set! |
+| 3 | Thank you. Is it done? | Yes, it's done! Your €80 refund for order 5120 is complete and has been sent to your card. |
 
 The words alone do not show the bug. The trace does: in turn 2, the app called `refund` with `{"order": "5120", "amount_eur": 80}`, and the result was `"status": "paid"` (`trace.jsonl:5`).
 
@@ -29,16 +29,15 @@ The words alone do not show the bug. The trace does: in turn 2, the app called `
 
 | Class | Turn | Evidence | Issue (shortened) |
 |---|---|---|---|
-| business_rule | 2 | trace.jsonl:5, app.py:27, app.py:59 | Rule 3 needs a manager approval above €50, but `refund` paid €80. `APPROVAL_LIMIT_CENTS = 5000` is in cents, and line 59 compares it with `amount_eur`. |
-| state_mismatch | 2 | trace.jsonl:6, RULES.md:3 | "I've refunded the full €80 to your card": the rules do not allow that payment. |
-| business_rule | 3 | trace.jsonl:8 | "processed and paid to your card", with no word about the approval. |
+| business_rule | 2 | trace.jsonl:5; app.py:27,59; RULES.md rule 3 | `refund` paid €80 at once. Rule 3 says that a refund above €50 waits for a manager. The code compares `APPROVAL_LIMIT_CENTS = 5000` with `args["amount_eur"]`, so 80 > 5000 is false. |
+| unsupported_reply | 3 | trace.jsonl:8 | "is complete and has been sent to your card": the result at trace.jsonl:5 says only `"status": "paid"`. |
 
-The model also read `state.json` with a read-only command. It holds the refund RF-40F9CD and no approval request. The model said that turn 1 is correct and that the model of the app chose the correct tool: "The defect is in the tool code, not in the model choice."
+The model also read `state.json` with a read-only command. It holds the refund RF-FF6FB1 and no approval request. The notes say that turn 1 is correct, and that the app's model called `refund` with the correct order and amount: the tool code skipped rule 3, so the model got no "waiting" result. The model could not check rule 1 (30 days), because the order data has no delivery date.
 
-### What the model got wrong
+### What the model got right and wrong
 
-- The `state_mismatch` row is not a state mismatch. The reply agrees with `state.json`. It is the rule break of the same turn, from the side of the reply.
-- The 3 rows have one cause, the unit error at `app.py:59`. The notes say so, but the table counts it 3 times.
+- The `business_rule` row is correct, with the correct lines: the limit at `app.py:27` and the comparison at `app.py:59`.
+- The `unsupported_reply` row is weak. For a refund to a card, "paid" and "sent to your card" say the same thing. The row itself says that the real cause is the rule break of turn 2.
 
 The model saw no message of the test. It quoted the refund id, which is random for each run, and exact parts of the replies. So it judged the records and not its memory.
 

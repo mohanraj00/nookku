@@ -16,7 +16,7 @@ Tested with codex-cli 0.160.0.
 
    `init` writes `.verbatim-relay/config.json` and `.codex/hooks.json`, with two hooks:
    - `UserPromptSubmit`: in relay mode, it sends the prompt to the tap and blocks it from the model. It also runs the prompts `verbatim-relay start`, `verbatim-relay end` and `verbatim-relay status`.
-   - `PreToolUse`: it denies any model tool call that names the tap or the agent, except file tools. During a test, it also denies model changes to `.verbatim-relay/`.
+   - `PreToolUse`: it denies any model tool call that names the tap or the agent, except file tools. During a test, it also denies model changes to `.verbatim-relay/` and model commands that run the entry. After a test, a command that names `.verbatim-relay` can only read, or write `report.md`.
 
    Add `--models codex` (or `claude-code,codex`) if your app runs its own model sessions. Other options are for an agent that runs as an HTTP server: `--tap-url`, `--agent-url`, `--adapter`, `--message-field`, `--reply-field`, `--openai-model` and `--record`. The [Claude Code page](claude-code.md#an-agent-that-runs-as-an-http-server) explains each one.
 

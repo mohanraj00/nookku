@@ -11,7 +11,7 @@ import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
 
 import type { VerbatimRelayState, VerbatimRelayTurn } from '../types'
-import { blockedRow, contractBody, contractShown, denyPattern, isChecked, replyText, requestBody, touchesRecords, touchesTestFiles, turnRow } from './core'
+import { blockedRow, contractBody, commandOf, contractShown, denyPattern, entryNames, isChecked, namesEntry, replyText, requestBody, toolReadsOnly, touchesRecords, touchesTestFiles, turnRow } from './core'
 import type { Current, Options } from './core'
 
 const PANE = 'verbatim-relay'
@@ -20,6 +20,8 @@ const PERSON = ['composer', 'bridge', 'sdk']
 const CONFIG = '.verbatim-relay/config.json'
 const CURRENT = '.verbatim-relay/current.json'
 const MODE = '.verbatim-relay/mode'
+const TEST_FILES = /\.verbatim-relay/
+const RECORDS_REASON = 'verbatim-relay: the records of a test do not change. Write only report.md. A command that names .verbatim-relay may only read.'
 // Prompts that run the test and are never relayed (SPEC.md section 5).
 const CONTROL = ['verbatim-relay start', 'verbatim-relay end', 'verbatim-relay status']
 // $.fs.read copies at most 4 MiB. Stop before the record reaches it.
@@ -311,14 +313,24 @@ export const register: Register = (on, options) => {
         deny: 'verbatim-relay: only the tester talks to the agent, and the test files do not change during a test. Use the transcript tool to read the conversation.',
       }
     }
-    if (cur === null && touchesRecords(e.tool, input)) {
+    const reads = toolReadsOnly(e.tool, e)
+    if (cur === null && (touchesRecords(e.tool, input) || (isChecked(e.tool) && TEST_FILES.test(input) && !reads))) {
       const s = await read($, state)
       try {
         await append($, s.test ? `${s.test}/relay.jsonl` : o.record, blockedRow(e.tool, input.slice(0, 300)))
       } catch {
         // The deny holds even if the record cannot take the row.
       }
-      return { deny: 'verbatim-relay: the records of a test do not change. Write only report.md.' }
+      return { deny: RECORDS_REASON }
+    }
+    const entry = cur !== null && isChecked(e.tool) && !reads ? (await readJson($, CONFIG))?.entry : null
+    if (Array.isArray(entry) && namesEntry(input, entryNames(entry.map(String)), commandOf(e.tool, e))) {
+      try {
+        await append($, `${cur!.dir}/relay.jsonl`, blockedRow(e.tool, input.slice(0, 300)))
+      } catch {
+        // The deny holds even if the record cannot take the row.
+      }
+      return { deny: 'verbatim-relay: during a test, only the tap runs the entry.' }
     }
     return next(e)
   })

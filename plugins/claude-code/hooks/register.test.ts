@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { contractBody, contractShown, denyPattern, isChecked, pick, requestBody, sha256, touchesRecords, touchesTestFiles } from './core'
+import { contractBody, contractShown, denyPattern, entryNames, isChecked, namesEntry, pick, readsOnly, requestBody, sha256, toolReadsOnly, touchesRecords, touchesTestFiles } from './core'
 
 const TRICKY = 'Hi, I want to return order #4471.  \n\nÜnïcödé € ₹\t| a | b |\n'
 const REPLY = '## Toy shop  \nYou wrote it.\n\n| item | price |\n|---|---|\n| mug | € 8 |\n'
@@ -306,4 +306,102 @@ test('after a test, the model can write report.md and no other test file', {}, a
   expect(config.deny).toBe(undefined)
   expect(touchesRecords('Write', `"${folder}/sessions/codex/r.jsonl"`)).toBe(true)
   expect(touchesRecords('Read', `"${folder}/tap.jsonl"`)).toBe(false)
+})
+
+// The same table as tests/test_commands.py.
+const F = '.verbatim-relay/tests/20261006-080000-cc01'
+const READS = [
+  "cat {F}/findings.json",
+  "sed -n '1,200p' {F}/trace.jsonl",
+  "sed -n '/refund/p' {F}/trace.jsonl",
+  "sed -n -e '1,5p' -e '/a\\/w/p' {F}/trace.jsonl",
+  "verbatim-relay audit --json",
+  "T={F}; ls $T; cat $T/findings.json",
+  "jq '.findings[] | .check' {F}/findings.json",
+  "ls -la {F} && wc -l {F}/tap.jsonl",
+  "grep -n refund {F}/trace.jsonl | head -5",
+  "cat {F}/audit.json 2>/dev/null",
+  "cat {F}/audit.json 2>&1 | tail -n 3",
+  "cat > {F}/report.md <<'EOF'\n# Test: evaluation\nIt's done; rm -rf $(x) > a\nEOF",
+  "cd {F}\nsort -n tap.jsonl",
+  "verbatim-relay transcript --trace --test 20261006-080000-cc01",
+  "find {F} -name '*.jsonl'",
+  "cat \"{F}/manifest.json\"",
+].map(c => c.replaceAll('{F}', F))
+const WRITES = [
+  "sed -i '' 's/a/b/' {F}/trace.jsonl",
+  "sed -ni 's/a/b/p' {F}/trace.jsonl",
+  "sed -n '1w {F}/x' {F}/trace.jsonl",
+  "sed -n 's/a/b/w{F}/tap.jsonl' {F}/trace.jsonl",
+  "sed -n -e p -f script.sed {F}/trace.jsonl",
+  "sed -n --in-place p {F}/trace.jsonl",
+  "cat {F}/a > {F}/trace.jsonl",
+  "echo x >> {F}/findings.json",
+  "rm {F}/trace.jsonl",
+  "cd {F} && rm trace.jsonl",
+  "cat {F}/tap.jsonl | tee {F}/copy",
+  "cat {F}/tap.jsonl | python3 -m json.tool",
+  "sort -o {F}/tap.jsonl {F}/tap.jsonl",
+  "find {F} -delete",
+  "cat $(rm {F}/tap.jsonl)",
+  "cat \"$(rm {F}/tap.jsonl)\"",
+  "cat `rm {F}/tap.jsonl`",
+  "(cat {F}/tap.jsonl)",
+  "X=1 cat {F}/tap.jsonl",
+  "PATH=.; cat {F}/tap.jsonl",
+  "LD_PRELOAD=x.so; cat {F}/tap.jsonl",
+  "T=$(rm {F}/tap.jsonl)",
+  "cat '{F}/tap.jsonl",
+  "verbatim-relay end",
+  "verbatim-relay trace --root {F}/../../..",
+  "verbatim-relay check",
+  "python entry.py",
+].map(c => c.replaceAll('{F}', F))
+
+test('the shell command check', async () => {
+  for (const c of READS) expect([c, readsOnly(c)]).toEqual([c, true])
+  for (const c of WRITES) expect([c, readsOnly(c)]).toEqual([c, false])
+  expect(toolReadsOnly('shell', { command: ['bash', '-lc', 'cat a | head'] })).toBe(true)
+  expect(toolReadsOnly('shell', { command: ['cat', 'a b'] })).toBe(true)
+  expect(toolReadsOnly('shell', { command: ['rm', 'a'] })).toBe(false)
+  expect(toolReadsOnly('mcp__files__read', { path: 'a' })).toBe(false)
+  expect(entryNames(['uv', 'run', '--project', '/srv/shop', 'python', '/srv/shop/entry.py'])).toEqual(['entry.py'])
+  expect(entryNames(['python', '-m', 'shop.entry'])).toEqual(['shop.entry'])
+  expect(entryNames(['npm', 'run', 'agent'])).toEqual([])
+  const names = ['entry.py', 'shop.entry']
+  expect(namesEntry('{"command": "python ./entry.py"}', names)).toBe(true)
+  expect(namesEntry('{"command": "python -m shop.entry"}', names)).toBe(true)
+  expect(namesEntry('{"command": "python my_entry.py"}', names)).toBe(false)
+  expect(namesEntry('{"command": "cat entry.pyc"}', names)).toBe(false)
+  // The shell removes quotes and escapes, and expands a glob.
+  for (const c of ['python entry\\.py', "python 'entr'y.py", 'python entr?.py', 'python e*.py']) {
+    expect([c, namesEntry('{}', names, c)]).toEqual([c, true])
+  }
+  expect(namesEntry('{}', names, 'python other.py')).toBe(false)
+})
+
+test('during a test, the model cannot run the entry around the tap', { options: { start_on: true } }, async ($, on) => {
+  const f = fakes(on, contractReply)
+  withTest(on, f)
+  f.files['.verbatim-relay/current.json'] = JSON.stringify(CURRENT)
+  on('tool.call', async () => ({ result: 'ran' }))
+  const run: any = await $.tool.call({ tool: 'Bash', command: 'cd examples/toy-shop && python agent.py' } as any)
+  expect(run.deny).toBe('verbatim-relay: during a test, only the tap runs the entry.')
+  const cat: any = await $.tool.call({ tool: 'Bash', command: 'cat examples/toy-shop/agent.py' } as any)
+  expect(cat.deny).toBe(undefined)
+  expect(rows(f.files[`${DIR}/relay.jsonl`]).map(r => r.tool)).toEqual(['Bash'])
+})
+
+test('after a test, a shell command that names the test files may only read', {}, async ($, on) => {
+  const f = fakes(on, contractReply)
+  withTest(on, f)
+  on('tool.call', async () => ({ result: 'ran' }))
+  const sed: any = await $.tool.call({ tool: 'Bash', command: `sed -i '' 's/4471/4417/' ${DIR}/trace.jsonl` } as any)
+  expect(sed.deny).toContain('may only read')
+  const mcp: any = await $.tool.call({ tool: 'mcp__files__write', path: `${DIR}/tap.jsonl` } as any)
+  expect(typeof mcp.deny).toBe('string')
+  const cat: any = await $.tool.call({ tool: 'Bash', command: `cat ${DIR}/trace.jsonl` } as any)
+  expect(cat.deny).toBe(undefined)
+  const report: any = await $.tool.call({ tool: 'Bash', command: `cat > ${DIR}/report.md <<'EOF'\n# Report\nEOF` } as any)
+  expect(report.deny).toBe(undefined)
 })
