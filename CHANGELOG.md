@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- **Docs.** A worked evaluation of the toy shop agent, with what the model found and what it got wrong: `docs/evaluation-example.md`.
+
 ## 0.1.0
 
 The first release.
