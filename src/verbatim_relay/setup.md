@@ -12,7 +12,8 @@ Do not change the app's code. Write only files in `.verbatim-relay/`.
    - the Claude Agent SDK, `claude -p` or another use of Claude Code: `claude-code`;
    - the Codex SDK, `codex app-server` or `codex exec`: `codex`;
    - both, or none.
-4. Check that the app keeps its session files. If the app sets `persistSession: false` (Agent SDK) or `ephemeral: true` (Codex `thread/start`), tell the tester. The test then has no trace of the model sessions. Do not change the app.
+4. Find the backends of the app: the HTTP services that it calls, for example a stock or payment service. For each one, find the environment variable that holds its URL.
+5. Check that the app keeps its session files. If the app sets `persistSession: false` (Agent SDK) or `ephemeral: true` (Codex `thread/start`), tell the tester. The test then has no trace of the model sessions. Do not change the app.
 
 ## 2. Write the entry
 
@@ -55,6 +56,7 @@ Write the test keys into `.verbatim-relay/config.json`. Keep the other keys of t
 
 - `entry` is the command as a list of arguments. It runs in the project root. Use the app's own interpreter or virtual environment.
 - `models` lists the harnesses from step 1.3.
+- `backends` lists the backends from step 1.4: `{"name": "stock", "env": "STOCK_URL", "url": "<the real URL>"}`. During a test, the app gets the URL of a recording proxy in `env`. If the app reads the URL from a file and not from the environment, the entry gives the app the URL from `env`, for example with a copy of the app's configuration for the test. Do not change the app's own files.
 
 ## 4. Check
 

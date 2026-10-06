@@ -14,7 +14,7 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
-from . import otlp
+from . import backend, otlp
 from .record import VERSION
 
 # The version of a trace row. 0.3 adds the kinds span and log, and the field service.
@@ -29,6 +29,7 @@ CHECKS = (
     "tool_error",
     "command_failed",
     "span_error",
+    "backend_error",
     "turn_without_model",
     "item_between_turns",
     "otel_tool_not_in_session",
@@ -280,6 +281,50 @@ def read_otel(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     return items, {"file": otlp.FILE, "rows": rows, "items": len(items), "ignored": dict(ignored)}
 
 
+def _body(body: Any) -> str | None:
+    """The text of a body in backend.jsonl, or a note for a binary body."""
+    if not isinstance(body, dict) or not body.get("size"):
+        return None
+    if isinstance(body.get("text"), str):
+        return str(body["text"]) + (
+            "\n(cut: the record holds the first 1 MiB)" if body.get("cut") else ""
+        )
+    return f"({body['size']} bytes that are not UTF-8: base64 in backend.jsonl)"
+
+
+def read_backend(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """The call rows of backend.jsonl (SPEC.md section 8.4)."""
+    items: list[dict[str, Any]] = []
+    ignored: Counter[str] = Counter()
+    rows = 0
+    for n, row in _lines(path):
+        rows += 1
+        if not isinstance(row, dict) or row.get("type") != "call":
+            ignored[str(row.get("type")) if isinstance(row, dict) else "invalid_json"] += 1
+            continue
+        it = _item("backend", str(row.get("backend") or ""), backend.FILE, n, row.get("started"))
+        call = {
+            "query": row.get("query"),
+            "headers": row.get("request_headers"),
+            "body": _body(row.get("request_body")),
+        }
+        it.update(
+            kind="http",
+            name=f"{row.get('method')} {row.get('path')}",
+            input=call,
+            output=_body(row.get("response_body")),
+            error=row.get("error"),
+            exit_code=row.get("status"),
+        )
+        items.append(it)
+    return items, {
+        "file": backend.FILE,
+        "rows": rows,
+        "items": len(items),
+        "ignored": dict(ignored),
+    }
+
+
 def _event_tool(it: dict[str, Any]) -> tuple[str | None, Any]:
     """The tool name and input of a harness tool_result event."""
     attrs = it["input"]
@@ -361,6 +406,11 @@ def check(
         if it["kind"] == "command" and (it["exit_code"] not in (0, None) or it["error"]):
             what = f"exit code {it['exit_code']}" if it["exit_code"] is not None else it["error"]
             out.append(_finding("command_failed", it["turn"], what, **where))
+        failed = it["error"] is not None or (it["exit_code"] or 0) >= 500
+        if it["kind"] == "http" and failed:
+            what = it["error"] or f"status {it['exit_code']}"
+            detail = f"{it['session']}: {it['name']}: {what}"
+            out.append(_finding("backend_error", it["turn"], detail, **where))
         if it["kind"] == "span" and it["error"] is not None:
             detail = f"{it['service'] or 'a service'}: {it['name']}: {it['error']}"
             out.append(_finding("span_error", it["turn"], detail, **where))
@@ -419,6 +469,10 @@ def build(folder: Path) -> dict[str, Any]:
     if (folder / otlp.FILE).exists():
         found, otel = read_otel(folder / otlp.FILE)
         items += found
+    calls = None
+    if (folder / backend.FILE).exists():
+        found, calls = read_backend(folder / backend.FILE)
+        items += found
     items.sort(key=lambda it: it["ts"] if it["ts"] is not None else float("inf"))
     assign(items, spans)
     findings = check(exchanges, spans, items, sessions)
@@ -432,6 +486,7 @@ def build(folder: Path) -> dict[str, Any]:
         "items": len(items),
         "sessions": sessions,
         "otel": otel,
+        "backend": calls,
         "counts": {c: counts[c] for c in CHECKS},
         "findings": findings,
     }

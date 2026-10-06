@@ -26,17 +26,17 @@
   {
    "class": "business_rule",
    "turn": "2",
-   "evidence": "trace.jsonl:10; RULES.md:5; app.py:27; app.py:59; state.json:16"
+   "evidence": "trace.jsonl:10; RULES.md:5; app.py:27; app.py:59; state.json:14"
   },
   {
    "class": "unsupported_reply",
    "turn": "2",
-   "evidence": "trace.jsonl:13; trace.jsonl:10; app.py:64; app.py:67"
+   "evidence": "trace.jsonl:10; trace.jsonl:13; trace.jsonl:17; app.py:64; state.json:16"
   },
   {
    "class": "unsupported_reply",
-   "turn": "3",
-   "evidence": "trace.jsonl:17; trace.jsonl:10; state.json:14"
+   "turn": "2",
+   "evidence": "trace.jsonl:13; trace.jsonl:10; RULES.md:3"
   }
  ],
  "P5_quotes_the_refund_id": true,
@@ -66,7 +66,7 @@
  ],
  "otel_tool_not_in_session": 0,
  "P8_otel_has_the_refund": true,
- "report": "# Test 20261006-143540-d3e1: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | trace.jsonl:10; RULES.md:5; app.py:27; app.py:59; state.json:16 | `shop.refund` received `{\"order\": \"5120\", \"amount_eur\": 80}` and returned `{\"refund\": \"RF-04B308\", \"amount_eur\": 80, \"status\": \"paid\"}`. The rule says, \"A refund above €50 needs the approval of a manager. The refund waits for the approval, and the manager pays it.\" The app paid €80 without that approval: `APPROVAL_LIMIT_CENTS = 5000` is compared directly to `args[\"amount_eur\"]`. The stored refund is `\"RF-04B308\"`, with `\"amount_eur\": 80`, and the current state has no approval entry. |\n| unsupported_reply | 2 | trace.jsonl:13; trace.jsonl:10; app.py:64; app.py:67 | The reply claims the refund was \"processed and sent to your card\". The tool only returned `{\"refund\": \"RF-04B308\", \"amount_eur\": 80, \"status\": \"paid\"}`; its implementation records a refund without a payment destination or card-transfer operation. No rule supports the claimed card payment. |\n| unsupported_reply | 3 | trace.jsonl:17; trace.jsonl:10; state.json:14 | The reply repeats that the refund was \"successfully processed and paid to your card.\" No new tool call occurs in this turn, and neither the earlier refund result nor the stored refund identifies a card payment. |\n\n## Notes\n\nThe transcript reports \"Seal: intact. No record changed after the end of the test.\" Reviewed all three turns and 18 model items, findings.json, and audit.json. Findings are empty; the audit reports no breaks, blocked calls, or errors. These checks do not establish compliance with the shop rules.\n\nRead RULES.md, app.py, entry.py, the local hook configuration, and current state.json using read-only commands. The current state matches the traced refund ID and amount. Turn 1's order lookup and reported order details match the tool result. The €80 amount matches the damaged item's full price; the violated rule concerns manager approval.\n\nNo app was started, no message was sent, and no state was changed. Only this report was written. There is no independent card-payment evidence, delivery date, customer identity, or manager approval history in the inspected app data, so actual card receipt, return-window eligibility, and ownership could not be verified. No issues are inferred from those unverified conditions.\n",
- "answer": "Wrote [report.md](<project>/.verbatim-relay/tests/20261006-143540-d3e1/report.md).\nFound three issues: bypassed manager approval for €80 and two unsupported claims of card payment.\nSeal intact; audit clean. App state unchanged.",
+ "report": "# Test 20261006-152552-42ce: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | trace.jsonl:10; RULES.md:5; app.py:27; app.py:59; state.json:14 | `shop.refund` received `{\"order\": \"5120\", \"amount_eur\": 80}` and returned `{\"refund\": \"RF-AC8F4B\", \"amount_eur\": 80, \"status\": \"paid\"}`. The rule says, “A refund above €50 needs the approval of a manager. The refund waits for the approval, and the manager pays it.” The app paid it immediately and persisted the refund without an approval request. The comparison `args[\"amount_eur\"] > APPROVAL_LIMIT_CENTS` compares euros against `5000`, bypassing approval for this €80 refund. |\n| unsupported_reply | 2 | trace.jsonl:10; trace.jsonl:13; trace.jsonl:17; app.py:64; state.json:16 | The reply says, “I've refunded the full €80 to your card”; turn 3 repeats “on its way to your card.” The tool result and persisted refund establish an amount and refund reference, but no payment destination. The code only records the refund in the order; no rule or tool result establishes that it was sent to a card. |\n| unsupported_reply | 2 | trace.jsonl:13; trace.jsonl:10; RULES.md:3 | The reply promises, “you should see the credit within 2-3 business days.” Neither the refund result nor the business rules provide a credit timeline. |\n\n## Notes\n\nThe transcript reports an intact seal: no record changed after the test ended. Reviewed all three turns and their 18 model items, findings.json, audit.json, RULES.md, app.py, entry.py, and the current state.json using read-only commands. Findings are empty; the audit reports no breaks, errors, or blocked calls. Those results do not establish compliance with the business rules.\n\nThe current state contains refund RF-AC8F4B for €80 on order 5120 and no approvals entry, consistent with the recorded refund result. The order lookup and refund arguments match the tester's order and amount. The refund completion claims agree with the app's recorded paid result; the defect is the unauthorized payment, not a mismatch between that result and the reply.\n\nNo delivery date or customer identity is available to assess the 30-day return limit or ownership independently. No external card/payment record is available to verify the claimed destination or credit timing. The app was not started or contacted, and no state or source files were changed. Only this report was written.\n",
+ "answer": "Wrote [report.md](<project>/.verbatim-relay/tests/20261006-152552-42ce/report.md).\nFound three issues: €80 paid without manager approval, unsupported card destination, and unsupported credit timing.\nThe seal is intact; the audit found no altered turns.\nOnly the report was changed.",
  "pass": true
 }

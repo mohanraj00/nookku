@@ -365,3 +365,47 @@ def test_otel_false_starts_no_receiver(tmp_path: Path, homes: tuple) -> None:
         bridge.end(root)
     assert not (Path(cur["dir"]) / "otel.jsonl").exists()
     assert "OTLP receiver" not in (Path(cur["dir"]) / "bridge.log").read_text()
+
+
+# A toy shop app that asks its stock service for each message. It reads the URL from STOCK_URL.
+STOCK_APP = """
+import json, os, sys, urllib.request
+
+for raw in sys.stdin.buffer:
+    request = json.loads(raw)
+    with urllib.request.urlopen(os.environ["STOCK_URL"] + "/stock?sku=teapot-set", timeout=5) as r:
+        left = json.loads(r.read())["left"]
+    out = {"v": 1, "id": request["id"], "reply": f"{left} teapot sets left."}
+    sys.stdout.write(json.dumps(out) + "\\n")
+    sys.stdout.flush()
+"""
+
+
+def test_the_proxy_records_the_backend_calls(tmp_path: Path, homes: tuple) -> None:
+    from toy_stock_server import StockServer
+
+    root = project(tmp_path, [sys.executable, "-c", STOCK_APP])
+    config = root / ".verbatim-relay" / "config.json"
+    with StockServer() as stock:
+        backends = [{"name": "stock", "env": "STOCK_URL", "url": stock.url}]
+        config.write_text(json.dumps({**json.loads(config.read_text()), "backends": backends}))
+        cur = bridge.start(root, "tester-1")
+        try:
+            shown, ok = bridge.send(cur, "Do you have the teapot set?")
+        finally:
+            bridge.end(root)
+    assert ok and shown == "3 teapot sets left."
+    folder = Path(cur["dir"])
+    items = [json.loads(x) for x in (folder / "trace.jsonl").read_text().splitlines()]
+    assert [(it["kind"], it["turn"], it["name"], it["exit_code"]) for it in items] == [
+        ("http", 1, "GET /stock", 200)
+    ]
+    assert seal.verify(folder)["intact"]
+
+
+def test_a_bad_backend_config_stops_the_start(tmp_path: Path) -> None:
+    root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
+    config = root / ".verbatim-relay" / "config.json"
+    config.write_text(json.dumps({**json.loads(config.read_text()), "backends": [{"name": "x"}]}))
+    with pytest.raises(bridge.BridgeError, match="'name', 'env' and 'url'"):
+        bridge.start(root)

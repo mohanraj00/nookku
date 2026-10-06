@@ -12,6 +12,7 @@ usage: python conformance/build.py
 
 from __future__ import annotations
 
+import base64
 import datetime
 import hashlib
 import json
@@ -555,6 +556,7 @@ def counts(**n: int) -> dict:
         "tool_error",
         "command_failed",
         "span_error",
+        "backend_error",
         "turn_without_model",
         "item_between_turns",
         "otel_tool_not_in_session",
@@ -711,6 +713,7 @@ CLAUDE_CASE = {
             }
         ],
         "otel": None,
+        "backend": None,
         "counts": counts(agent_error=1, tool_error=3, turn_without_model=1, item_between_turns=2),
         "findings": [
             {"check": "agent_error", "turn": 2, "detail": "the agent gave status 500"},
@@ -1021,6 +1024,7 @@ CODEX_CASE = {
             }
         ],
         "otel": None,
+        "backend": None,
         "counts": counts(
             tool_error=3,
             command_failed=2,
@@ -1143,6 +1147,7 @@ VERSION_CASE = {
             },
         ],
         "otel": None,
+        "backend": None,
         "counts": counts(version_untested=2),
         "findings": [
             {
@@ -1177,6 +1182,7 @@ NO_MODEL_CASE = {
         "items": 0,
         "sessions": [],
         "otel": None,
+        "backend": None,
         "counts": counts(),
         "findings": [],
     },
@@ -1403,6 +1409,7 @@ OTEL_CASE = {
             }
         ],
         "otel": {"file": "otel.jsonl", "rows": 7, "items": 6, "ignored": {"error": 1}},
+        "backend": None,
         "counts": counts(span_error=2, item_between_turns=1, otel_tool_not_in_session=1),
         "findings": [
             {
@@ -1441,12 +1448,173 @@ OTEL_CASE = {
     },
 }
 
+
+# Backend calls (SPEC.md sections 7.6 and 8.4): the rows of backend.jsonl as the proxy writes them.
+# A call in turn 1, a 500 status and a call with no answer in turn 2, a binary response between
+# the turns, and a row that is not a call.
+def body(text: str | None = None, data: bytes | None = None) -> dict:
+    raw = data if data is not None else (text or "").encode()
+    out: dict[str, Any] = {
+        "size": len(raw),
+        "sha256": hashlib.sha256(raw).hexdigest(),
+        "cut": False,
+    }
+    if data is not None:
+        out["base64"] = base64.b64encode(data).decode()
+    else:
+        out["text"] = text
+    return out
+
+
+SENT = [["Content-Type", "application/json"], ["X-Api-Key", "<removed>"]]
+
+
+def call(t: float, name: str, method: str, path: str, status: int | None, **more: Any) -> dict:
+    return {
+        "v": 1,
+        "type": "call",
+        "backend": name,
+        "started": T0 + t,
+        "ts": T0 + t + 0.2,
+        "method": method,
+        "path": path,
+        "query": more.get("query"),
+        "request_headers": SENT,
+        "request_body": more.get("request", body()),
+        "status": status,
+        "response_headers": None if status is None else [["Content-Type", "application/json"]],
+        "response_body": more.get("response"),
+        "error": more.get("error"),
+    }
+
+
+def bitem(turn: int | None, name: str, ts: float, line: int, call_name: str, **fields: Any) -> dict:
+    """An expected trace row from backend.jsonl."""
+    row = item(turn, "claude-code", ts, "http", line)
+    row.update(
+        harness="backend",
+        session=name,
+        name=call_name,
+        source={"file": "backend.jsonl", "line": line},
+    )
+    return {**row, **fields}
+
+
+REFUSED = "the backend did not answer: [Errno 61] Connection refused"
+PAY = '{"order": "5120", "amount_eur": 80}'
+BACKEND_CASE = {
+    "tap": [window(10, 20), window(30, 40)],
+    "manifest": {"test": "20261006-080000-bk01", "model_sessions": []},
+    "sessions": {},
+    "backend": [
+        call(
+            12,
+            "stock",
+            "GET",
+            "/stock",
+            200,
+            query="sku=teapot-set",
+            response=body('{"sku": "teapot-set", "left": 3}'),
+        ),
+        call(
+            32,
+            "payments",
+            "POST",
+            "/payments",
+            500,
+            request=body(PAY),
+            response=body('{"error": "card service down"}'),
+        ),
+        call(33, "payments", "POST", "/payments", None, request=body(PAY), error=REFUSED),
+        call(45, "stock", "GET", "/stock/image", 200, response=body(data=b"\x89PNG\x00\xff")),
+        {"v": 1, "type": "note", "detail": "a row that is not a call"},
+    ],
+    "trace": [
+        bitem(
+            1,
+            "stock",
+            12,
+            1,
+            "GET /stock",
+            input={"query": "sku=teapot-set", "headers": SENT, "body": None},
+            output='{"sku": "teapot-set", "left": 3}',
+            exit_code=200,
+        ),
+        bitem(
+            2,
+            "payments",
+            32,
+            2,
+            "POST /payments",
+            input={"query": None, "headers": SENT, "body": PAY},
+            output='{"error": "card service down"}',
+            exit_code=500,
+        ),
+        bitem(
+            2,
+            "payments",
+            33,
+            3,
+            "POST /payments",
+            input={"query": None, "headers": SENT, "body": PAY},
+            error=REFUSED,
+        ),
+        bitem(
+            None,
+            "stock",
+            45,
+            4,
+            "GET /stock/image",
+            input={"query": None, "headers": SENT, "body": None},
+            output="(6 bytes that are not UTF-8: base64 in backend.jsonl)",
+            exit_code=200,
+        ),
+    ],
+    "findings": {
+        "v": "0.2",
+        "test": "20261006-080000-bk01",
+        "turns": 2,
+        "items": 4,
+        "sessions": [],
+        "otel": None,
+        "backend": {"file": "backend.jsonl", "rows": 5, "items": 4, "ignored": {"note": 1}},
+        "counts": counts(backend_error=2, item_between_turns=1),
+        "findings": [
+            {
+                "check": "backend_error",
+                "turn": 2,
+                "detail": "payments: POST /payments: status 500",
+                "harness": "backend",
+                "session": "payments",
+                "source": {"file": "backend.jsonl", "line": 2},
+            },
+            {
+                "check": "backend_error",
+                "turn": 2,
+                "detail": f"payments: POST /payments: {REFUSED}",
+                "harness": "backend",
+                "session": "payments",
+                "source": {"file": "backend.jsonl", "line": 3},
+            },
+            {
+                "check": "item_between_turns",
+                "turn": None,
+                "detail": "a http item",
+                "harness": "backend",
+                "session": "stock",
+                "source": {"file": "backend.jsonl", "line": 4},
+            },
+        ],
+    },
+}
+
 TRACE_CASES = {
     "claude_code_toy_shop": CLAUDE_CASE,
     "codex_toy_shop": CODEX_CASE,
     "untested_versions": VERSION_CASE,
     "no_model_sessions": NO_MODEL_CASE,
     "otel_toy_shop": OTEL_CASE,
+    "backend_toy_shop": BACKEND_CASE,
 }
 
 
@@ -1948,6 +2116,7 @@ def main() -> None:
             (d / rel).parent.mkdir(parents=True, exist_ok=True)
             write(d / rel, lines)
         write(d / "otel.jsonl", case.get("otel"))
+        write(d / "backend.jsonl", case.get("backend"))
         write(d / "expect_trace.jsonl", case["trace"])
         text = json.dumps(case["findings"], indent=1, ensure_ascii=False)
         (d / "expect_findings.json").write_text(text + "\n")

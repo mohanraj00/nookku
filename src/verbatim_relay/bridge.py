@@ -17,11 +17,11 @@ import time
 import urllib.error
 import urllib.request
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from verbatim_relay import __version__, contract, otlp, seal, trace
+from verbatim_relay import __version__, backend, contract, otlp, seal, trace
 from verbatim_relay.adapters import History
 from verbatim_relay.audit import audit
 from verbatim_relay.record import Writer
@@ -51,6 +51,8 @@ class TestConfig:
     models: list[str]
     # False stops the OTLP receiver (SPEC.md section 7.5).
     otel: bool = True
+    # The backend proxies (SPEC.md section 7.6).
+    backends: list[backend.Backend] = field(default_factory=list)
 
 
 def state(root: Path) -> Path:
@@ -68,7 +70,11 @@ def load_config(root: Path) -> TestConfig:
         raise BridgeError(f"{STATE_DIR}/config.json has no 'entry' command")
     if not (isinstance(models, list) and all(m in HARNESSES for m in models)):
         raise BridgeError(f"'models' must be a list of {', '.join(HARNESSES)}")
-    return TestConfig(entry, models, data.get("otel", True) is not False)
+    try:
+        backends = backend.parse(data.get("backends"))
+    except ValueError as e:
+        raise BridgeError(f"{STATE_DIR}/config.json: {e}") from None
+    return TestConfig(entry, models, data.get("otel", True) is not False, backends)
 
 
 def has_entry(root: Path) -> bool:
@@ -473,10 +479,14 @@ def run(root: Path, test: str, tester_session: str | None, timeout: float = AGEN
     lookup.start()
 
     receiver = otlp.Receiver(("127.0.0.1", 0), folder / otlp.FILE) if config.otel else None
-    env = otlp.environment(receiver.url) if receiver else None
+    env = otlp.environment(receiver.url) if receiver else {}
     if receiver:
         start_in_thread(receiver)
         _log(f"OTLP receiver on {receiver.url}")
+    proxies = backend.Proxies(config.backends, folder / backend.FILE)
+    env.update(proxies.start())
+    for p in proxies.proxies:
+        _log(f"backend {p.backend.name}: {p.backend.env}={p.url} -> {p.backend.url}")
     agent = Agent(config.entry, root, folder / "app.log", timeout=timeout, env=env)
     tap = StdioTap(("127.0.0.1", 0), agent, folder / "tap.jsonl")
     _log(f"tap bound to {tap.url}")
@@ -514,6 +524,7 @@ def run(root: Path, test: str, tester_session: str | None, timeout: float = AGEN
         receiver.quiet()
         receiver.shutdown()
         receiver.server_close()
+    proxies.stop()
     ended = time.time()
     relay = folder / "relay.jsonl"
     tester = set(manifest["tester_sessions"])

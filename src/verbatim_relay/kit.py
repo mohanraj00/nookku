@@ -70,6 +70,8 @@ class Config:
     evaluate: bool = True
     # False stops the OTLP receiver of a test (SPEC.md section 7.5).
     otel: bool = True
+    # The backend proxies of a test (SPEC.md section 7.6).
+    backends: list[dict[str, str]] = field(default_factory=list)
 
     @classmethod
     def load(cls, root: Path) -> Config:
