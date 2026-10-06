@@ -1,0 +1,25 @@
+{
+ "date": "2026-10-05",
+ "versions": {
+  "verbatim-relay": "0.1.0",
+  "claude-code": "2.1.290 (Claude Code)",
+  "codex": "codex-cli 0.160.0",
+  "claude-agent-sdk": "0.2.163"
+ },
+ "check_passed": true,
+ "sessions": [
+  {
+   "harness": "claude-code",
+   "inferred": false,
+   "originator": null,
+   "session_file": true
+  },
+  {
+   "harness": "codex",
+   "inferred": true,
+   "originator": "toy-shop",
+   "session_file": true
+  }
+ ],
+ "pass": true
+}

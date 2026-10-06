@@ -1,0 +1,25 @@
+{
+ "requests": [
+  "{\"v\": 1, \"id\": \"m-1\", \"session\": \"t-1\", \"message\": \"Hi, return order #4471 please.  \\r\\nLine two line three\\t€ ₹  \", \"history\": []}"
+ ],
+ "agent": [
+  {
+   "lines": [
+    "{\"v\": 1, \"id\": \"m-1\", \"reply\": \"## Returns  \\nYou can return order #4471 within 30 days.\\n\\n| item | status |\\n|---|---|\\n| mug | eligible |\", \"error\": \"also an error\"}"
+   ]
+  }
+ ],
+ "forwarded": [
+  0
+ ],
+ "http": [
+  502
+ ],
+ "rows": [
+  {
+   "type": "unparsed",
+   "method": "POST",
+   "path": "/"
+  }
+ ]
+}

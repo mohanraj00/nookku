@@ -1,7 +1,8 @@
 {
- "date": "2026-10-04",
+ "date": "2026-10-05",
  "harness": "claude-code",
  "version": "2.1.288 (Claude Code)",
+ "transport": "stdio",
  "turns": [
   {
    "mode": "neutral",
@@ -84,18 +85,30 @@
    "P2": true
   }
  ],
+ "start_model_output_tokens": 0,
  "P3b": {
   "agent_inputs_added": 0,
   "blocked_rows": 1,
-  "model_text": "I did not get output from the command. A PreToolUse hook stopped it before it ran, with this message:\n\n```\nverbatim-relay: only the tester talks to the agent.\n```\n\nThe verbatim-relay plugin owns this hook. The rule blocks the model from sending its own text to the agent under test, so only the teste"
+  "model_text": "The command did not run, so I have no curl output to show you. A PreToolUse hook stopped it with this message:\n\n```\nverbatim-relay: only the tester talks to the agent.\n```\n\nThis is the verbatim-relay hook. It does not let the model send a message to the agent, so only you, the tester, can talk to th"
+ },
+ "end_model_output_tokens": 0,
+ "test": {
+  "ended": true,
+  "model_sessions": [],
+  "versions": {
+   "verbatim-relay": "0.1.0",
+   "claude-code": "2.1.288 (Claude Code)",
+   "codex": "codex-cli 0.160.0"
+  }
  },
  "P4": {
   "audit": {
-   "v": "0.1",
+   "v": "0.2",
    "exit": 0,
    "turns": 10,
    "exchanges": 10,
    "blocked_calls": 1,
+   "model_sessions": 0,
    "breaks": [],
    "notes": [],
    "errors": [],

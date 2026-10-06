@@ -1,0 +1,273 @@
+import io
+import json
+import os
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+import pytest
+
+from verbatim_relay import bridge, kit
+from verbatim_relay.audit import audit
+from verbatim_relay.record import Writer
+
+ROOT = Path(__file__).resolve().parent.parent
+TOY_SHOP = ROOT / "examples" / "toy-shop" / "agent.py"
+CLAUDE_SID = "4f1c2a7e-0d3b-4c55-9a61-2b8e5d7c9f10"
+APP_THREAD = "019a0b1c-2d3e-7f40-8a5b-6c7d8e9f0a1b"
+TESTER_THREAD = "019a0b1c-0000-7000-8000-000000004471"
+
+# A toy shop app that runs one Claude Code session and one Codex thread. It writes the files that
+# the harness binaries write: the pid file and the transcript of Claude Code, and a Codex rollout.
+# It also writes a rollout for the tester's own thread, which the bridge must not take.
+FIXTURE_APP = f"""
+import json, os, sys, time
+from pathlib import Path
+
+claude, codex = Path(os.environ["CLAUDE_CONFIG_DIR"]), Path(os.environ["CODEX_HOME"])
+(claude / "sessions").mkdir(parents=True, exist_ok=True)
+project = claude / "projects" / "-toy-shop"
+project.mkdir(parents=True, exist_ok=True)
+(project / "{CLAUDE_SID}.jsonl").write_text('{{"type": "user"}}\\n')
+pid_file = claude / "sessions" / f"{{os.getpid()}}.json"
+pid_file.write_text(json.dumps({{"pid": os.getpid(), "sessionId": "{CLAUDE_SID}"}}))
+day = codex / "sessions" / time.strftime("%Y/%m/%d")
+day.mkdir(parents=True, exist_ok=True)
+for name, sid in (("app", "{APP_THREAD}"), ("tester", "{TESTER_THREAD}")):
+    meta = {{"id": sid, "cwd": os.getcwd(), "originator": "toy-shop-" + name}}
+    line = json.dumps({{"type": "session_meta", "payload": meta}})
+    (day / f"rollout-{{name}}-{{sid}}.jsonl").write_text(line + "\\n")
+for raw in sys.stdin.buffer:
+    request = json.loads(raw)
+    out = {{"v": 1, "id": request["id"], "reply": "Toy shop: " + request["message"]}}
+    sys.stdout.write(json.dumps(out, ensure_ascii=False) + "\\n")
+    sys.stdout.flush()
+"""
+
+
+def project(tmp_path: Path, entry: list[str], models: list[str] | None = None) -> Path:
+    root = tmp_path / "shop"
+    (root / ".verbatim-relay").mkdir(parents=True)
+    conf = {"entry": entry, "models": models or []}
+    (root / ".verbatim-relay" / "config.json").write_text(json.dumps(conf))
+    return root
+
+
+@pytest.fixture
+def homes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, Path]:
+    claude, codex = tmp_path / "claude-home", tmp_path / "codex-home"
+    monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(claude))
+    monkeypatch.setenv("CODEX_HOME", str(codex))
+    return claude, codex
+
+
+def test_a_test_relays_and_records_both_sides(tmp_path: Path, homes: tuple) -> None:
+    root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
+    cur = bridge.start(root, "tester-1")
+    try:
+        assert (root / ".verbatim-relay" / "current.json").exists()
+        said = "Do you ship to Chennai?\u2028Line two  "
+        shown, ok = bridge.send(cur, said)
+        Writer(Path(cur["dir"]) / "relay.jsonl").append(
+            {"type": "turn", "harness": "codex", "said": said, "shown": shown, "ok": ok}
+        )
+        with pytest.raises(bridge.BridgeError, match="runs already"):
+            bridge.start(root)
+    finally:
+        manifest = bridge.end(root)
+    assert ok and shown.startswith("We ship to Chennai")
+    assert manifest is not None and manifest["ended"] >= manifest["started"]
+    assert manifest["tester_sessions"] == ["tester-1"]
+    assert manifest["model_sessions"] == []
+    assert "config.json" in manifest["config_sha256"]
+    folder = Path(cur["dir"])
+    assert not (root / ".verbatim-relay" / "current.json").exists()
+    assert "toy shop agent: ready" in (folder / "app.log").read_text()
+    report = audit(folder / "tap.jsonl", folder / "relay.jsonl")
+    assert (report.exit, report.turns, report.exchanges) == (0, 1, 1)
+    assert bridge.end(root) is None
+
+
+def test_history_is_the_ok_turns_of_the_test(tmp_path: Path) -> None:
+    relay = tmp_path / "relay.jsonl"
+    w = Writer(relay)
+    w.append({"type": "turn", "harness": "codex", "said": "a\u2028", "shown": "b", "ok": True})
+    w.append({"type": "turn", "harness": "codex", "said": "c", "shown": "error", "ok": False})
+    assert bridge.history(relay) == [("a\u2028", "b")]
+
+
+def test_a_stale_current_file_is_removed(tmp_path: Path) -> None:
+    root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
+    dead = subprocess.Popen([sys.executable, "-c", "pass"])
+    dead.wait()
+    current = root / ".verbatim-relay" / "current.json"
+    current.write_text(json.dumps({"test": "x", "pid": dead.pid, "dir": "", "tap_url": ""}))
+    assert bridge.current(root) is None
+    assert not current.exists()
+
+
+def test_an_entry_that_exits_at_start_is_reported(tmp_path: Path, homes: tuple) -> None:
+    script = "import sys; print('no toy shop database', file=sys.stderr); sys.exit(1)"
+    root = project(tmp_path, [sys.executable, "-c", script])
+    with pytest.raises(bridge.BridgeError, match="no toy shop database"):
+        bridge.start(root)
+    assert bridge.current(root) is None
+
+
+def test_no_entry_is_an_error(tmp_path: Path) -> None:
+    root = project(tmp_path, [])
+    with pytest.raises(bridge.BridgeError, match="no 'entry'"):
+        bridge.start(root)
+
+
+def test_check_finds_the_model_sessions_of_the_app(tmp_path: Path, homes: tuple) -> None:
+    script = tmp_path / "app.py"
+    script.write_text(FIXTURE_APP)
+    root = project(tmp_path, [sys.executable, str(script)], ["claude-code", "codex"])
+    passed, lines = bridge.check(root)
+    assert passed, lines
+    folder = bridge.latest_test(root)
+    assert folder is not None
+    manifest = json.loads((folder / "manifest.json").read_text())
+    found = {(s["harness"], s["session"], s["inferred"]) for s in manifest["model_sessions"]}
+    assert ("claude-code", CLAUDE_SID, False) in found
+    assert ("codex", APP_THREAD, True) in found
+    assert (folder / "sessions" / "claude-code" / f"{CLAUDE_SID}.jsonl").exists()
+    rows = [json.loads(x) for x in (folder / "tap.jsonl").read_text().split("\n") if x]
+    assert sum(r["type"] == "model_session" for r in rows) >= 2
+    assert audit(folder / "tap.jsonl", folder / "relay.jsonl").exit == 0
+
+
+def test_the_tester_thread_is_not_an_app_session(tmp_path: Path, homes: tuple) -> None:
+    script = tmp_path / "app.py"
+    script.write_text(FIXTURE_APP)
+    root = project(tmp_path, [sys.executable, str(script)], ["codex"])
+    events = [
+        {"hook_event_name": "UserPromptSubmit", "prompt": p, "session_id": TESTER_THREAD}
+        for p in ("verbatim-relay start", "Is the teapot in stock?", "verbatim-relay end")
+    ]
+    answers = [kit.handle(e, root, "codex") for e in events]
+    assert all(a and a["decision"] == "block" for a in answers)
+    assert "started" in answers[0]["reason"]
+    folder = bridge.latest_test(root)
+    assert folder is not None
+    manifest = json.loads((folder / "manifest.json").read_text())
+    assert TESTER_THREAD in manifest["tester_sessions"]
+    threads = [s["session"] for s in manifest["model_sessions"] if s["harness"] == "codex"]
+    assert threads == [APP_THREAD]
+
+
+def test_check_fails_without_a_model_session(tmp_path: Path, homes: tuple) -> None:
+    root = project(tmp_path, [sys.executable, str(TOY_SHOP)], ["claude-code"])
+    passed, lines = bridge.check(root)
+    assert not passed
+    assert any("No claude-code model session" in line for line in lines)
+
+
+def test_the_watcher_takes_only_processes_of_the_entry(tmp_path: Path) -> None:
+    sessions = tmp_path / "sessions"
+    sessions.mkdir()
+    parent = subprocess.Popen(
+        [sys.executable, "-c", "import subprocess, sys; subprocess.run(['sleep', '30'])"]
+    )
+    try:
+        child = None
+        for _ in range(50):
+            child = next(iter(bridge.descendants(parent.pid) - {parent.pid}), None)
+            if child:
+                break
+            time.sleep(0.1)
+        assert child is not None
+        (sessions / f"{child}.json").write_text(json.dumps({"pid": child, "sessionId": "app"}))
+        other = os.getpid()
+        (sessions / f"{other}.json").write_text(json.dumps({"pid": other, "sessionId": "tester"}))
+        (sessions / "partial.json").write_text('{"pid": ')
+        watcher = bridge.ClaudeWatcher(parent.pid, Writer(tmp_path / "tap.jsonl"), sessions)
+        watcher.poll()
+        watcher.poll()
+    finally:
+        parent.kill()
+    assert watcher.found == {"app": child}
+    rows = (tmp_path / "tap.jsonl").read_text().split("\n")
+    assert len([r for r in rows if r]) == 1
+
+
+def test_codex_sessions_match_project_time_and_tester(tmp_path: Path) -> None:
+    root = tmp_path / "shop"
+    (root / "api").mkdir(parents=True)
+    base = tmp_path / "sessions"
+    day = base / time.strftime("%Y/%m/%d")
+    day.mkdir(parents=True)
+
+    def rollout(name: str, sid: str, cwd: Path, old: bool = False) -> None:
+        f = day / f"rollout-{name}.jsonl"
+        meta = {"type": "session_meta", "payload": {"id": sid, "cwd": str(cwd)}}
+        f.write_text(json.dumps(meta) + "\n")
+        if old:
+            os.utime(f, (time.time() - 3600, time.time() - 3600))
+
+    rollout("app", "app", root / "api")
+    rollout("tester", "tester", root)
+    rollout("elsewhere", "elsewhere", tmp_path)
+    rollout("old", "old", root, old=True)
+    (day / "rollout-broken.jsonl").write_text("not json\n")
+    now = time.time()
+    found = bridge.codex_sessions(root, now - 60, now + 1, {"tester"}, base)
+    assert [meta["id"] for _, meta in found] == ["app"]
+
+
+def test_kit_without_a_test_fails_closed(tmp_path: Path) -> None:
+    root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
+    kit.set_mode(root, True)
+    event = {"hook_event_name": "UserPromptSubmit", "prompt": "Hi", "session_id": "s1"}
+    answer = kit.handle(event, root, "claude-code")
+    assert answer is not None and answer["decision"] == "block"
+    assert "no test runs" in answer["reason"]
+
+
+@pytest.mark.parametrize(
+    ("tool", "tool_input", "denied"),
+    [
+        ("Write", {"file_path": ".verbatim-relay/entry.py", "content": "x"}, True),
+        ("apply_patch", {"input": "*** Update File: .verbatim-relay/config.json"}, True),
+        ("Bash", {"command": "cat .verbatim-relay/config.json"}, True),
+        ("Read", {"file_path": ".verbatim-relay/config.json"}, False),
+        ("Write", {"file_path": "shop/orders.py", "content": "x"}, False),
+        ("Bash", {"command": "curl -s {tap_url}"}, True),
+        ("Bash", {"command": "ls"}, False),
+    ],
+)
+def test_kit_protects_the_test(
+    tmp_path: Path, homes: tuple, tool: str, tool_input: dict, denied: bool
+) -> None:
+    root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
+    kit.init(root, "claude-code", kit.Config(entry=[sys.executable, str(TOY_SHOP)]))
+    cur = bridge.start(root)
+    try:
+        text = json.loads(json.dumps(tool_input).replace("{tap_url}", cur["tap_url"]))
+        event = {"hook_event_name": "PreToolUse", "tool_name": tool, "tool_input": text}
+        answer = kit.handle(event, root, "claude-code")
+    finally:
+        bridge.end(root)
+    assert (answer is not None) == denied
+
+
+def test_view_follows_the_latest_test(tmp_path: Path, homes: tuple) -> None:
+    root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
+    kit.init(root, "claude-code", kit.Config(entry=[sys.executable, str(TOY_SHOP)]))
+    for prompt in ("verbatim-relay start", "Refund policy?", "verbatim-relay end"):
+        event = {"hook_event_name": "UserPromptSubmit", "prompt": prompt, "session_id": "s1"}
+        kit.handle(event, root, "claude-code")
+    out = io.StringIO()
+    kit.view_tests(root, False, out)
+    text = out.getvalue()
+    assert text.startswith("════ test ")
+    assert "Refund policy?\n──── agent ────\nOur refund policy:" in text
+
+
+def test_each_relay_timeout_ends_before_the_hook_deadline() -> None:
+    from verbatim_relay import stdio
+
+    assert stdio.TIMEOUT < bridge.TIMEOUT < kit.HOOK_DEADLINE
+    assert kit.TIMEOUT < kit.HOOK_DEADLINE

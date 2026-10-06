@@ -4,15 +4,17 @@ Two kinds of evidence: proofs that each relay is exact, and a benchmark under pr
 
 ## 1. Proofs
 
-Each proof runs the harness headless against a toy agent, with the tap in front of it. Scripts: [scripts/proofs_claude_code.py](../scripts/proofs_claude_code.py) for the plugin, [scripts/proofs_hooks.py](../scripts/proofs_hooks.py) for the hook kit.
+Each proof runs the harness headless in a test (SPEC.md section 7). The tester starts the test from the harness: `/verbatim-relay start` in the plugin, the prompt `verbatim-relay start` in the hook kit. The entry is the toy shop agent of the tests over stdio ([tests/toy_entry.py](../tests/toy_entry.py)), which uses `verbatim_relay.agent.serve`. Scripts: [scripts/proofs_claude_code.py](../scripts/proofs_claude_code.py) for the plugin, [scripts/proofs_hooks.py](../scripts/proofs_hooks.py) for the hook kit.
 
 | # | Proof |
 |---|---|
 | P1 | Each tester message reaches the agent byte for byte (the tap record). |
 | P2 | Each reply reaches the tester byte for byte (the plugin's chat row, or the viewer for the hook kit). |
 | P3 | A system prompt that tells the model to fix the tester's grammar and summarize each reply changes nothing. |
-| P3b | With relay mode off, the model tries to call the agent with `curl`. The relay denies it, and the agent receives nothing. |
+| P3b | With relay mode off and the test still on, the model tries to call the tap with `curl`. The relay denies it, and the agent receives nothing. |
 | P4 | The audit finds 0 breaks in the proof records, and finds each of 5 planted faults: altered reply, unshown reply, altered input, injected input, missing record. |
+
+Each proof also checks that the test ends, and that the tap finds no model session: the toy entry has no model, and the tester's own harness session must not count as one.
 
 The 5 test messages have trailing spaces, non-ASCII text (`Ünïcödé`, `€`, `₹`), a message with an empty line, a markdown table and slang. Each runs once without and once with the hostile system prompt.
 
@@ -23,6 +25,19 @@ The 5 test messages have trailing spaces, non-ASCII text (`Ünïcödé`, `€`, 
 | Hook kit | Codex 0.160.0 | 10/10 | 10/10 | 5/5 | pass | 5/5 | [results](../proofs/hooks-codex/results.json) |
 
 With the hook kit, the model used 0 output tokens in every relay turn, in both harnesses. The hook blocks the prompt before the model runs.
+
+Each results file has the records of the test next to it: `tap.jsonl` and `relay.jsonl`. The P5 proofs below and the benchmark ran before tests existed, with the tap in front of an HTTP agent.
+
+### Model sessions of the app
+
+[scripts/proof_sessions.py](../scripts/proof_sessions.py) runs `verbatim-relay check` on a toy shop app with real model sessions ([tests/toy_models_entry.py](../tests/toy_models_entry.py)). For one message, the app runs one Claude Agent SDK session with an in-process `lookup_order` tool, and one `codex app-server` thread. The check must find each session and copy its session file.
+
+| Harness of the app | Found by | Session file copied | Data |
+|---|---|---|---|
+| Claude Agent SDK 0.2.163 | its process | yes | [results](../proofs/sessions/results.json) |
+| codex-cli 0.160.0, app-server | its folder and time | yes | [results](../proofs/sessions/results.json) |
+
+The Agent SDK runs its own bundled Claude Code. The `claude-code` version in the results is the `claude` command on `PATH`, not the bundled one. The results keep no model reply.
 
 ### P5: the model judges the record, not its memory
 
@@ -62,7 +77,8 @@ Totals: [bench/results.json](../bench/results.json). An agent error is an HTTP 5
 ## 3. What this does not prove
 
 - **The deny is best effort.** The proofs show that the relay denies a direct `curl` to the tap. A model can try another way, for example an address alias. If that call goes through the tap, the audit finds it. A call that goes to the agent directly, around the tap, is in neither record.
-- **Toy agents only.** The agents here are scripted. A real agent changes the replies, not the relay path.
+- **Toy agents only.** The agents here are scripted. A real agent changes the replies, not the relay path. The session proof uses real model sessions, but a toy app.
+- **The entry is not audited.** The tap records what goes in and out of the entry. A wrong entry can change a message before the app sees it, and the audit cannot see that.
 - **Two harness versions.** Function hooks in Claude Code are early access. Each new version needs the proofs again.
 
 ## Run it again
@@ -71,6 +87,7 @@ Totals: [bench/results.json](../bench/results.json). An agent error is an HTTP 5
 uv run python scripts/proofs_claude_code.py
 uv run python scripts/proofs_hooks.py claude-code
 uv run python scripts/proofs_hooks.py codex
+uv run python scripts/proof_sessions.py
 uv run python scripts/proof_evaluation.py plugin
 uv run python scripts/proof_evaluation.py hooks-claude-code
 uv run python scripts/proof_evaluation.py hooks-codex

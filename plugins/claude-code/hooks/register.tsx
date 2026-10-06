@@ -1,55 +1,98 @@
 // verbatim-relay for Claude Code. In relay mode, each prompt that the tester types goes to the
 // agent (through the tap) and never to the model. The agent's reply is shown as a transcript row,
 // which the model does not receive.
+//
+// If .verbatim-relay/config.json has an entry, relay mode is a test (SPEC.md section 7): the
+// verbatim-relay command starts the entry through the tap, and each prompt goes to that test.
+// Relay mode is then the file .verbatim-relay/mode, which `start` and `end` write. It survives a
+// reload of the plugin, so a running test never loses relay mode.
 
 import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
 
 import type { VerbatimRelayState, VerbatimRelayTurn } from '../types'
-import { blockedRow, denyPattern, isChecked, replyText, requestBody, turnRow } from './core'
-import type { Options } from './core'
+import { blockedRow, contractBody, contractShown, denyPattern, isChecked, replyText, requestBody, touchesTestFiles, turnRow } from './core'
+import type { Current, Options } from './core'
 
 const PANE = 'verbatim-relay'
 const TOOL = 'mcp__verbatim-relay__transcript'
 const PERSON = ['composer', 'bridge', 'sdk']
+const CONFIG = '.verbatim-relay/config.json'
+const CURRENT = '.verbatim-relay/current.json'
+const MODE = '.verbatim-relay/mode'
 // $.fs.read copies at most 4 MiB. Stop before the record reaches it.
 const RECORD_LIMIT = 3.5 * 1024 * 1024
+// The end of a test stops the entry and copies its session files.
+const CLI_TIMEOUT_MS = 180_000
 
 const state = atom({ plugin: 'verbatim-relay', key: 'state' } as const, {
   on: null,
   turns: [],
+  test: null,
 } as VerbatimRelayState)
 
 async function isOn($: any, o: Options): Promise<boolean> {
+  if (await hasEntry($)) return modeOn($)
   const s = await read($, state)
   return s.on ?? o.start_on
 }
 
-// The record's size, or -1 if it does not exist yet. Any other error rejects.
-async function recordSize($: any, o: Options): Promise<number> {
+async function modeOn($: any): Promise<boolean> {
   try {
-    return (await $.fs.stat(o.record)).size
+    if ((await fileSize($, MODE)) < 0) return false
+    return String(await $.fs.read(MODE)).trim() === 'on'
+  } catch {
+    return false
+  }
+}
+
+// A file's size, or -1 if it does not exist yet. Any other error rejects.
+async function fileSize($: any, path: string): Promise<number> {
+  try {
+    return (await $.fs.stat(path)).size
   } catch (err) {
     if (String((err as any)?.code ?? err).includes('ENOENT')) return -1
     throw err
   }
 }
 
-// $.fs has no append, so read the record and write it back whole.
-async function append($: any, o: Options, line: string): Promise<void> {
-  const prior = (await recordSize($, o)) < 0 ? '' : await $.fs.read(o.record)
-  await $.fs.write(o.record, prior + line)
+// A JSON file, or null if it does not exist or is not JSON.
+async function readJson($: any, path: string): Promise<any> {
+  try {
+    if ((await fileSize($, path)) < 0) return null
+    return JSON.parse(String(await $.fs.read(path)))
+  } catch {
+    return null
+  }
 }
 
-// The turns of this session, from the record. The record outlives the plugin's state, so a
-// resumed session keeps its transcript and its history.
-async function sessionTurns($: any, o: Options, session: string): Promise<VerbatimRelayTurn[]> {
-  if ((await recordSize($, o)) < 0) return []
+async function hasEntry($: any): Promise<boolean> {
+  const config = await readJson($, CONFIG)
+  return Array.isArray(config?.entry) && config.entry.length > 0
+}
+
+async function currentTest($: any): Promise<Current | null> {
+  const cur = await readJson($, CURRENT)
+  return cur && typeof cur.tap_url === 'string' && typeof cur.dir === 'string' ? (cur as Current) : null
+}
+
+// $.fs has no append, so read the record and write it back whole.
+async function append($: any, path: string, line: string): Promise<void> {
+  const prior = (await fileSize($, path)) < 0 ? '' : await $.fs.read(path)
+  await $.fs.write(path, prior + line)
+}
+
+// The turns of a record, of one session or (with null) of all sessions. The record outlives the
+// plugin's state, so a resumed session keeps its transcript and its history.
+async function recordTurns($: any, path: string, session: string | null): Promise<VerbatimRelayTurn[]> {
+  if ((await fileSize($, path)) < 0) return []
   const turns: VerbatimRelayTurn[] = []
-  for (const line of String(await $.fs.read(o.record)).split('\n')) {
+  for (const line of String(await $.fs.read(path)).split('\n')) {
     if (!line) continue
     const row = JSON.parse(line)
-    if (row.type === 'turn' && row.session === session) turns.push({ said: row.said, shown: row.shown, ok: row.ok === true })
+    if (row.type === 'turn' && (session === null || row.session === session)) {
+      turns.push({ said: row.said, shown: row.shown, ok: row.ok === true })
+    }
   }
   return turns
 }
@@ -58,19 +101,84 @@ function showStatus($: any, relayOn: boolean): void {
   $.ui.status(relayOn ? 'verbatim-relay ON: prompts go to the agent' : undefined)
 }
 
+// Run the verbatim-relay command. Resolve its exit code and its output.
+async function runCli($: any, o: Options, args: string[]): Promise<{ ok: boolean; out: string }> {
+  try {
+    const r = await $.process.run([o.cli, ...args], { timeoutMs: CLI_TIMEOUT_MS })
+    return { ok: r.exitCode === 0, out: (r.stdout || r.stderr || '').trim() }
+  } catch (err) {
+    return { ok: false, out: `cannot run '${o.cli}': ${(err as Error).message}` }
+  }
+}
+
+async function startTest($: any, o: Options): Promise<string> {
+  const r = await runCli($, o, ['start', '--json', '--tester-session', await $.session.id()])
+  let cur: any = null
+  try {
+    cur = JSON.parse(r.out)
+  } catch {
+    // not JSON: the command failed before it could answer
+  }
+  if (!r.ok || !cur?.test) return `The test did not start: ${cur?.error ?? r.out}`
+  await update($, state, s => ({ ...s, on: true, turns: [], test: cur.dir }))
+  showStatus($, true)
+  void $.ui.open({ id: PANE, title: 'verbatim-relay' })
+  return `Test ${cur.test} started. Relay mode is on. Type /verbatim-relay end to end it.`
+}
+
+async function endTest($: any, o: Options): Promise<string> {
+  await update($, state, s => ({ ...s, on: false }))
+  showStatus($, false)
+  const r = await runCli($, o, ['end'])
+  return r.ok ? `Relay mode is off.\n${r.out}` : `The test did not end: ${r.out}`
+}
+
+// Send one prompt to the running test. Resolve the text to show, whether it is the reply, and the
+// record that takes the turn.
+async function relayToTest($: any, cur: Current, said: string): Promise<{ shown: string; ok: boolean; record: string }> {
+  const record = `${cur.dir}/relay.jsonl`
+  const id = crypto.randomUUID()
+  const body = contractBody(id, cur.test, said, await recordTurns($, record, null))
+  try {
+    const res = await $.http.fetch(cur.tap_url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body })
+    return { ...contractShown(res.status, res.text, id), record }
+  } catch (err) {
+    return { shown: `verbatim-relay: cannot reach the tap at ${cur.tap_url}: ${(err as Error).message}`, ok: false, record }
+  }
+}
+
+// Send one prompt to the tap of SPEC.md section 4.1, with the configured adapter.
+async function relayToTap($: any, o: Options, said: string, session: string): Promise<{ shown: string; ok: boolean; record: string }> {
+  const past = await recordTurns($, o.record, session)
+  try {
+    const res = await $.http.fetch(o.tap_url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: requestBody(o, said, past),
+    })
+    if (!res.ok) return { shown: `verbatim-relay: the agent returned HTTP ${res.status}:\n${res.text}`, ok: false, record: o.record }
+    try {
+      return { shown: replyText(o, res.text), ok: true, record: o.record }
+    } catch (err) {
+      return { shown: `verbatim-relay: cannot read the reply: ${(err as Error).message}`, ok: false, record: o.record }
+    }
+  } catch (err) {
+    return { shown: `verbatim-relay: cannot reach the tap at ${o.tap_url}: ${(err as Error).message}`, ok: false, record: o.record }
+  }
+}
+
 export const register: Register = (on, options) => {
   const o = options as unknown as Options
-  const deny = denyPattern([o.tap_url, o.agent_url])
 
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: 'verbatim-relay',
-      description: 'verbatim-relay on|off|status: send each prompt to the agent, not to the model',
+      description: 'verbatim-relay start|end|status (on|off): send each prompt to the agent, not to the model',
     })
     await $.tool.register({
       name: 'transcript',
       description:
-        'Read-only. The exact test conversation of this session: each message that the tester typed and the reply that the agent sent. Use it to evaluate the agent.',
+        'Read-only. The exact test conversation: each message that the tester typed and the reply that the agent sent. Use it to evaluate the agent.',
       inputSchema: { type: 'object', properties: {} },
     })
     showStatus($, await isOn($, o))
@@ -79,12 +187,22 @@ export const register: Register = (on, options) => {
 
   on('command.run', { command: 'verbatim-relay' }, async ($, e) => {
     const arg = e.args.trim()
+    const known = ['', 'status', 'on', 'off', 'start', 'end']
+    if (!known.includes(arg)) return { text: 'Usage: /verbatim-relay start|end|status (on and off are the same as start and end)' }
+    if (await hasEntry($)) {
+      if (arg === 'start' || arg === 'on') return { text: await startTest($, o) }
+      if (arg === 'end' || arg === 'off') return { text: await endTest($, o) }
+      const cur = await currentTest($)
+      const test = cur ? ` Test ${cur.test} runs on ${cur.tap_url}.` : ' No test runs.'
+      return { text: `Relay mode is ${(await isOn($, o)) ? 'on' : 'off'}.${test}` }
+    }
+    if (arg === 'start' || arg === 'end') {
+      return { text: `A test needs an entry in ${CONFIG}. Without one, use /verbatim-relay on|off.` }
+    }
     if (arg === 'on' || arg === 'off') {
       await update($, state, s => ({ ...s, on: arg === 'on' }))
       showStatus($, arg === 'on')
       if (arg === 'on') void $.ui.open({ id: PANE, title: 'verbatim-relay' })
-    } else if (arg !== '' && arg !== 'status') {
-      return { text: 'Usage: /verbatim-relay on|off|status' }
     }
     const relayOn = await isOn($, o)
     return {
@@ -96,64 +214,54 @@ export const register: Register = (on, options) => {
     const fromPerson = !e.origin || PERSON.includes(e.origin.kind)
     if (!fromPerson || !(await isOn($, o))) return next(e)
     if (e.attachments?.length) {
-      $.ui.log('verbatim-relay: v0.1 does not relay attachments. Nothing was sent.')
+      $.ui.log('verbatim-relay: the relay does not send attachments. Nothing was sent.')
       return { drop: 'verbatim-relay: nothing was sent' }
     }
-    if ((await recordSize($, o)) > RECORD_LIMIT) {
-      $.ui.log(`verbatim-relay: the record ${o.record} is full. Move it, then send again. Nothing was sent.`)
+    const cur = await currentTest($)
+    if (!cur && (await hasEntry($))) {
+      $.ui.log('verbatim-relay: relay mode is on, but no test runs. Type /verbatim-relay start. Nothing was sent.')
+      return { drop: 'verbatim-relay: nothing was sent' }
+    }
+    const recordPath = cur ? `${cur.dir}/relay.jsonl` : o.record
+    if ((await fileSize($, recordPath)) > RECORD_LIMIT) {
+      $.ui.log(`verbatim-relay: the record ${recordPath} is full. Move it, then send again. Nothing was sent.`)
       return { drop: 'verbatim-relay: nothing was sent' }
     }
 
     const said = e.text
     const session = await $.session.id()
-    const past = await sessionTurns($, o, session)
-    let shown: string
-    let ok = false
-    try {
-      const res = await $.http.fetch(o.tap_url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: requestBody(o, said, past),
-      })
-      if (res.ok) {
-        try {
-          shown = replyText(o, res.text)
-          ok = true
-        } catch (err) {
-          shown = `verbatim-relay: cannot read the reply: ${(err as Error).message}`
-        }
-      } else {
-        shown = `verbatim-relay: the agent returned HTTP ${res.status}:\n${res.text}`
-      }
-    } catch (err) {
-      shown = `verbatim-relay: cannot reach the tap at ${o.tap_url}: ${(err as Error).message}`
-    }
-
+    const { shown, ok, record } = cur ? await relayToTest($, cur, said) : await relayToTap($, o, said, session)
     $.ui.log(shown)
     await update($, state, st => ({ ...st, turns: [...st.turns, { said, shown, ok }] }))
     try {
-      await append($, o, await turnRow(said, shown, ok, session))
+      await append($, record, await turnRow(said, shown, ok, session))
     } catch (err) {
-      $.ui.log(`verbatim-relay: cannot write the record ${o.record}: ${(err as Error).message}`)
+      $.ui.log(`verbatim-relay: cannot write the record ${record}: ${(err as Error).message}`)
     }
     return { drop: 'verbatim-relay: relayed to the agent' }
   })
 
   on('tool.call', { tool: TOOL }, async $ => {
-    const turns = await sessionTurns($, o, await $.session.id())
+    const s = await read($, state)
+    const turns = s.test ? await recordTurns($, `${s.test}/relay.jsonl`, null) : await recordTurns($, o.record, await $.session.id())
     return { result: JSON.stringify(turns, null, 1) }
   })
 
-  // The model may read the conversation. It must not take part in it.
+  // The model may read the conversation. It must not take part in it, and during a test it must
+  // not change the entry or the test files.
   on('tool.call', async ($, e, next) => {
-    if (deny && isChecked(e.tool) && deny.test(JSON.stringify(e))) {
+    const cur = await currentTest($)
+    const input = JSON.stringify(e)
+    const deny = denyPattern([o.tap_url, o.agent_url, cur?.tap_url ?? ''])
+    const toTap = deny !== null && isChecked(e.tool) && deny.test(input)
+    if (toTap || (cur !== null && touchesTestFiles(e.tool, input))) {
       try {
-        await append($, o, blockedRow(e.tool, JSON.stringify(e).slice(0, 300)))
+        await append($, cur ? `${cur.dir}/relay.jsonl` : o.record, blockedRow(e.tool, input.slice(0, 300)))
       } catch {
         // The deny holds even if the record cannot take the row.
       }
       return {
-        deny: 'verbatim-relay: only the tester talks to the agent. Use the transcript tool to read the conversation.',
+        deny: 'verbatim-relay: only the tester talks to the agent, and the test files do not change during a test. Use the transcript tool to read the conversation.',
       }
     }
     return next(e)
@@ -164,7 +272,7 @@ export const register: Register = (on, options) => {
     const s = await read($, state)
     return (
       <Box flexDirection="column">
-        {s.turns.length === 0 && <Text dimColor>No relayed turns yet. Type /verbatim-relay on, then a message.</Text>}
+        {s.turns.length === 0 && <Text dimColor>No relayed turns yet. Type /verbatim-relay start, then a message.</Text>}
         {s.turns.slice(-6).map((t, i) => (
           <Box key={String(i)} flexDirection="column">
             <Text bold>tester:</Text>

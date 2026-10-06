@@ -21,3 +21,4 @@ def test_case(case: Path) -> None:
     notes = [[n.kind, n.relay_line, n.tap_line] for n in report.notes]
     assert notes == expect.get("notes", [])
     assert report.blocked_calls == expect.get("blocked_calls", 0)
+    assert report.model_sessions == expect.get("model_sessions", 0)

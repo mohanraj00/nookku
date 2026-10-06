@@ -10,6 +10,7 @@ from typing import Any
 from verbatim_relay.record import (
     BlockedCall,
     Exchange,
+    ModelSession,
     RecordError,
     Turn,
     Unparsed,
@@ -51,6 +52,7 @@ class Report:
     turns: int = 0
     exchanges: int = 0
     blocked_calls: int = 0
+    model_sessions: int = 0
     breaks: list[Finding] = field(default_factory=list)
     notes: list[Finding] = field(default_factory=list)
     errors: list[dict[str, str]] = field(default_factory=list)
@@ -58,11 +60,12 @@ class Report:
 
     def as_dict(self) -> dict[str, Any]:
         return {
-            "v": "0.1",
+            "v": "0.2",
             "exit": self.exit,
             "turns": self.turns,
             "exchanges": self.exchanges,
             "blocked_calls": self.blocked_calls,
+            "model_sessions": self.model_sessions,
             "breaks": [b.as_dict() for b in self.breaks],
             "notes": [n.as_dict() for n in self.notes],
             "errors": self.errors,
@@ -208,6 +211,7 @@ def audit(tap_path: Path, relay_path: Path) -> Report:
         turns=len(turns),
         exchanges=len(exchanges),
         blocked_calls=sum(isinstance(r, BlockedCall) for r in relay_rows),
+        model_sessions=sum(isinstance(r, ModelSession) for r in tap_rows),
         breaks=breaks,
         notes=notes,
     )
@@ -235,7 +239,8 @@ def render(report: Report) -> str:
         out.append(f"NOTE  {n.kind:<15} relay line {n.relay_line}, tap line {n.tap_line}")
     out.append(
         f"{report.turns} turns, {report.exchanges} exchanges, "
-        f"{report.blocked_calls} blocked model calls, {len(report.breaks)} breaks"
+        f"{report.blocked_calls} blocked model calls, {report.model_sessions} model sessions, "
+        f"{len(report.breaks)} breaks"
     )
     out.append("Result: " + ("clean (exit 0)" if report.exit == 0 else "breaks found (exit 1)"))
     return "\n".join(out)

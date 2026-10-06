@@ -1,15 +1,18 @@
-"""A toy shop chat agent for the quick start. Standard library only.
+"""The toy shop chat agent for the quick start. Standard library only.
 
-POST {"text": "<message>"} to http://127.0.0.1:8700/ and it answers {"reply": "<text>"}.
+It speaks the verbatim-relay agent contract (SPEC.md section 6): one JSON line in on stdin for
+each message, and one JSON line out on stdout with the reply. The tap starts it as the entry of a
+test:
 
-usage: python examples/toy-shop/agent.py [PORT]
+    verbatim-relay init claude-code --entry "python examples/toy-shop/agent.py"
+
+usage: python examples/toy-shop/agent.py
 """
 
 from __future__ import annotations
 
 import json
 import sys
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 REPLIES = {
     "refund": "Our refund policy:\n\n1. Damaged items: full refund.\n2. Change of mind: 30 days.\n",
@@ -19,23 +22,18 @@ REPLIES = {
 FALLBACK = "Which item is this about: the mug or the teapot?"
 
 
-class Handler(BaseHTTPRequestHandler):
-    def log_message(self, format: str, *args: object) -> None:
-        pass
+def answer(text: str) -> str:
+    return next((r for k, r in REPLIES.items() if k in text.lower()), FALLBACK)
 
-    def do_POST(self) -> None:
-        body = self.rfile.read(int(self.headers.get("Content-Length") or 0))
-        text = json.loads(body).get("text", "")
-        reply = next((r for k, r in REPLIES.items() if k in text.lower()), FALLBACK)
-        out = json.dumps({"reply": reply}, ensure_ascii=False).encode()
-        self.send_response(200)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Content-Length", str(len(out)))
-        self.end_headers()
-        self.wfile.write(out)
+
+def main() -> None:
+    print("toy shop agent: ready", file=sys.stderr, flush=True)
+    for raw in sys.stdin.buffer:
+        request = json.loads(raw)
+        out = {"v": 1, "id": request["id"], "reply": answer(request["message"])}
+        sys.stdout.buffer.write(json.dumps(out, ensure_ascii=False).encode() + b"\n")
+        sys.stdout.buffer.flush()
 
 
 if __name__ == "__main__":
-    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8700
-    print(f"toy shop agent on http://127.0.0.1:{port}/", file=sys.stderr)
-    ThreadingHTTPServer(("127.0.0.1", port), Handler).serve_forever()
+    main()

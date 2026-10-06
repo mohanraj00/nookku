@@ -1,0 +1,27 @@
+{
+ "requests": [
+  "{\"v\": 1, \"id\": \"m-1\", \"session\": \"t-1\", \"message\": \"Hi, return order #4471 please.  \\r\\nLine two line three\\t€ ₹  \", \"history\": []}"
+ ],
+ "agent": [
+  {
+   "lines": [
+    "{\"v\": 1, \"id\": \"m-1\", \"error\": \"The order service is down.\"}"
+   ]
+  }
+ ],
+ "forwarded": [
+  0
+ ],
+ "http": [
+  500
+ ],
+ "rows": [
+  {
+   "type": "exchange",
+   "input": "Hi, return order #4471 please.  \r\nLine two line three\t€ ₹  ",
+   "status": 500,
+   "reply": null,
+   "error": "The order service is down."
+  }
+ ]
+}
