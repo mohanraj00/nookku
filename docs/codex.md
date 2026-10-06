@@ -39,6 +39,8 @@ Tested with codex-cli 0.160.0.
 
 Each test is a new conversation, with a new app process. The test folder is `.verbatim-relay/tests/<test-id>/`. The [Claude Code page](claude-code.md#plugin) lists its files.
 
+At the end, the kit also builds the trace of the app's model sessions: `trace.jsonl` and `findings.json`. `verbatim-relay trace` builds it again and shows the findings.
+
 If your app runs Codex sessions, the kit finds them at the end of the test: each rollout file that changed during the test, ran in the project folder or below it, and is not your own session. If your app starts its threads with `ephemeral: true`, Codex writes no rollout file, and the test has no copy.
 
 In relay mode, the kit fails closed: if it cannot send a message, the message still does not go to the model.

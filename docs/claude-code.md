@@ -42,6 +42,8 @@ For the toy shop agent of the [quick start](../README.md#quick-start), the confi
 
 The model reads the exact conversation of the latest test with the read-only `transcript` tool. It did not see the conversation while you talked, so it judges the record, not its memory. During a test, it cannot send a message to the agent, and it cannot change the files in `.verbatim-relay/`: the plugin denies these tool calls, except file reads.
 
+`verbatim-relay trace` builds the trace of the latest test again and shows its findings.
+
 If the entry returns an error, crashes or does not answer in 240 seconds, the plugin shows the error and records it. The message never goes to the model. After a crash, each later message gets the same error, with the last lines of `app.log`. End the test and start a new one.
 
 Each test is a new conversation, with a new test id and a new entry process. The test folder is `.verbatim-relay/tests/<test-id>/`:
@@ -53,6 +55,8 @@ Each test is a new conversation, with a new test id and a new entry process. The
 | `app.log` | The stderr of the entry and your app. |
 | `manifest.json` | The test id, the times, the harness versions and the SHA-256 of each configuration file. |
 | `sessions/` | A copy of each session file of your app's model sessions. |
+| `trace.jsonl` | Each message, tool call and command of those sessions, with its result, its turn and its line in the session file. |
+| `findings.json` | The checks of the trace: failed tools and commands, agent errors, turns with no model item, and more ([SPEC.md section 8](../SPEC.md#8-trace)). |
 
 Options. Set them with `/plugin configure verbatim-relay@verbatim-relay` in Claude Code, or with `--config KEY=VALUE` at install. The defaults fit the quick start.
 

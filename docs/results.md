@@ -39,6 +39,17 @@ Each results file has the records of the test next to it: `tap.jsonl` and `relay
 
 The Agent SDK runs its own bundled Claude Code. The `claude-code` version in the results is the `claude` command on `PATH`, not the bundled one. The results keep no model reply.
 
+### Trace of the model sessions
+
+[scripts/proof_trace.py](../scripts/proof_trace.py) runs a test of the same toy shop app with 4 messages. Now the Codex thread also has `lookup_order` as a dynamic tool, the toy MCP server `check_stock` ([tests/toy_mcp_server.py](../tests/toy_mcp_server.py)) and a shell. The trace must show 6 tool calls and commands, each with its result or its error, in the correct turn.
+
+| Session file | Items | Expected calls found | Data |
+|---|---|---|---|
+| Claude Code 2.1.286, bundled in Claude Agent SDK 0.2.163 | 11 | 2/2 | [results](../proofs/trace/results.json) |
+| codex-cli 0.160.0, app-server | 12 | 4/4 | [results](../proofs/trace/results.json) |
+
+The findings are 2 `tool_error` (order 9999, one in each harness), 1 `command_failed` (`cat returns.txt`) and 1 `session_inferred` (the Codex session). The results keep no model text: each message shows only its SHA-256 and its length.
+
 ### P5: the model judges the record, not its memory
 
 [scripts/proof_evaluation.py](../scripts/proof_evaluation.py) runs one harness session: 2 tester messages in relay mode (the first has the order code `ZX-4471-Q`), then relay mode off, then 2 questions to the model.
@@ -88,6 +99,7 @@ uv run python scripts/proofs_claude_code.py
 uv run python scripts/proofs_hooks.py claude-code
 uv run python scripts/proofs_hooks.py codex
 uv run python scripts/proof_sessions.py
+uv run python scripts/proof_trace.py
 uv run python scripts/proof_evaluation.py plugin
 uv run python scripts/proof_evaluation.py hooks-claude-code
 uv run python scripts/proof_evaluation.py hooks-codex
