@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any, TextIO
 from urllib.parse import urlsplit
 
-from verbatim_relay import bridge, evaluation
+from verbatim_relay import bridge, commands, evaluation
 from verbatim_relay.adapters import AdapterError, History, make
 from verbatim_relay.record import RecordError, Turn, Writer, read_relay
 
@@ -46,7 +46,11 @@ DENY_REASON = "verbatim-relay: only the tester talks to the agent."
 TEST_FILES = re.compile(r"\.verbatim-relay")
 # A file in a test folder. After a test, only report.md may change (SPEC.md section 9).
 TEST_FOLDER_FILE = re.compile(r"\.verbatim-relay/tests/[^/\s\"']+/([^\s\"'\\]*)")
-RECORDS_REASON = "verbatim-relay: the records of a test do not change. Write only report.md."
+RECORDS_REASON = (
+    "verbatim-relay: the records of a test do not change. Write only report.md. "
+    "A command that names .verbatim-relay may only read."
+)
+ENTRY_REASON = "verbatim-relay: during a test, only the tap runs the entry."
 # Prompts that the kit runs and never relays (SPEC.md section 5).
 CONTROL = {"verbatim-relay start", "verbatim-relay end", "verbatim-relay status"}
 
@@ -264,16 +268,18 @@ def handle(event: dict[str, Any], root: Path, harness: str) -> dict[str, Any] | 
         )
     if name == "PreToolUse":
         tool = str(event.get("tool_name", ""))
-        text = json.dumps(event.get("tool_input", event), ensure_ascii=False)
+        tool_input = event.get("tool_input", event)
+        text = json.dumps(tool_input, ensure_ascii=False)
         cur = bridge.current(root)
         if cur is not None and tool in WRITE_TOOLS and TEST_FILES.search(text):
             return _deny(Path(cur["dir"]) / "relay.jsonl", harness, tool, text)
         if cur is None and tool in WRITE_TOOLS and touches_records(text):
-            last = bridge.latest_test(root)
-            record = last / "relay.jsonl" if last else root / STATE_DIR / "relay.jsonl"
-            return _deny(record, harness, tool, text, RECORDS_REASON)
+            return _deny(_last_record(root), harness, tool, text, RECORDS_REASON)
         if tool in FILE_TOOLS:
             return None
+        reads = commands.tool_reads_only(tool, tool_input)
+        if cur is None and TEST_FILES.search(text) and not reads:
+            return _deny(_last_record(root), harness, tool, text, RECORDS_REASON)
         try:
             config = Config.load(root)
         except (OSError, ValueError, TypeError):
@@ -281,11 +287,22 @@ def handle(event: dict[str, Any], root: Path, harness: str) -> dict[str, Any] | 
         pattern = deny_pattern([config.tap_url, config.agent_url, cur["tap_url"] if cur else ""])
         if cur is not None and TEST_FILES.search(text):
             return _deny(Path(cur["dir"]) / "relay.jsonl", harness, tool, text)
+        if (
+            cur is not None
+            and not reads
+            and commands.names_entry(text, commands.entry_names(config.entry))
+        ):
+            return _deny(Path(cur["dir"]) / "relay.jsonl", harness, tool, text, ENTRY_REASON)
         if pattern is None or not pattern.search(text):
             return None
         record = Path(cur["dir"]) / "relay.jsonl" if cur else config.record_path(root)
         return _deny(record, harness, tool, text)
     return None
+
+
+def _last_record(root: Path) -> Path:
+    last = bridge.latest_test(root)
+    return last / "relay.jsonl" if last else root / STATE_DIR / "relay.jsonl"
 
 
 def touches_records(text: str) -> bool:

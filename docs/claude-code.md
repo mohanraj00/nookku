@@ -41,7 +41,7 @@ For the toy shop agent of the [quick start](../README.md#quick-start), the confi
 
 `/verbatim-relay end` ends the test with no evaluation. To evaluate that test later, type the prompt `verbatim-relay end`. `/verbatim-relay on` and `/verbatim-relay off` do the same as `start` and `end`. The prompts `verbatim-relay start` and `verbatim-relay status` also work.
 
-The model reads the exact conversation of the latest test with the read-only `transcript` tool. It did not see the conversation while you talked, so it judges the record, not its memory. During a test, it cannot send a message to the agent, and it cannot change the files in `.verbatim-relay/`: the plugin denies these tool calls, except file reads.
+The model reads the exact conversation of the latest test with the read-only `transcript` tool. It did not see the conversation while you talked, so it judges the record, not its memory. During a test, it cannot send a message to the agent, and it cannot change the files in `.verbatim-relay/`: the plugin denies these tool calls, except file reads. It also denies a model command that runs the entry, for example `python entry.py`. A command that only reads the entry, for example `cat entry.py`, can run.
 
 `verbatim-relay trace` builds the trace of the latest test again and shows its findings.
 
@@ -79,7 +79,7 @@ The evaluation prompt ([evaluate.md](../src/verbatim_relay/evaluate.md)) tells t
 4. check your app's state with read-only commands;
 5. write `report.md`: one row for each issue, with its class, its turn and its evidence.
 
-The model did not see the conversation while you talked, so it judges the record, not its memory. After a test, the relay denies model writes to the test folder, except `report.md`. To stop the evaluation, add `"evaluate": false` to `.verbatim-relay/config.json`. [docs/evaluation-example.md](evaluation-example.md) shows a test and its report.
+The model did not see the conversation while you talked, so it judges the record, not its memory. After a test, the relay denies model writes to the test folder, except `report.md`. A shell command that names `.verbatim-relay` can only read, or write `report.md` ([SPEC.md section 5](../SPEC.md#5-relays) lists the read programs). To stop the evaluation, add `"evaluate": false` to `.verbatim-relay/config.json`. [docs/evaluation-example.md](evaluation-example.md) shows a test and its report.
 
 ## Hook kit
 

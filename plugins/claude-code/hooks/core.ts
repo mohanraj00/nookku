@@ -164,3 +164,170 @@ export function blockedRow(tool: string, detail: string): string {
   const row = { v: '0.2', type: 'blocked_call', ts: Date.now() / 1000, harness: HARNESS, tool, detail }
   return JSON.stringify(row) + '\n'
 }
+
+// The shell command check of the deny rules (SPEC.md section 5), the same as
+// src/verbatim_relay/commands.py. A command passes if each of its commands is a read program and
+// each output redirect writes /dev/null or report.md. Input that does not parse fails.
+const SHELL_TOOLS = ['Bash', 'shell', 'local_shell', 'exec_command']
+const SHELLS = ['bash', 'sh', 'zsh']
+const OPS = '();<>|&'
+const HEREDOC = /(?<!<)<<(?!<)(-?)\s*(['"]?)([A-Za-z_][A-Za-z0-9_]*)\2/g
+// A sed command that writes a file (w, W) or runs a command (e).
+const SED_WRITE = /(^|[0-9$/;}\s])[wWe](\s|$)/
+const FIND_ACTIONS = ['-delete', '-exec', '-execdir', '-ok', '-okdir', '-fls', '-fprint', '-fprint0', '-fprintf']
+const VIEWS = ['transcript', 'trace', 'audit', 'check', 'status', 'view']
+// The file types of an entry argument that names a program file.
+const CODE = ['.py', '.js', '.mjs', '.cjs', '.ts', '.sh', '.rb']
+
+function short(args: string[], letter: string): boolean {
+  return args.some(a => a.startsWith('-') && !a.startsWith('--') && a.slice(1).includes(letter))
+}
+
+function sedReads(args: string[]): boolean {
+  const quiet = short(args, 'n') || args.includes('--quiet') || args.includes('--silent')
+  const edit = short(args, 'i') || args.some(a => a.startsWith('--in-place'))
+  return quiet && !edit && !args.some(a => SED_WRITE.test(a))
+}
+
+const ANY = (): boolean => true
+const READS: Record<string, (args: string[]) => boolean> = {
+  ...Object.fromEntries(['cat', 'head', 'tail', 'grep', 'egrep', 'fgrep', 'jq', 'wc', 'ls', 'nl', 'cut'].map(p => [p, ANY])),
+  ...Object.fromEntries(['diff', 'cmp', 'stat', 'sha256sum', 'shasum', 'echo', 'printf', 'pwd', 'cd'].map(p => [p, ANY])),
+  rg: args => !args.some(a => a.startsWith('--pre')),
+  sed: sedReads,
+  sort: args => !short(args, 'o') && !args.some(a => a.startsWith('--output')),
+  find: args => !args.some(a => FIND_ACTIONS.includes(a)),
+  'verbatim-relay': args => args.length > 0 && VIEWS.includes(args[0]),
+}
+
+function stripHeredocs(text: string): string {
+  const out: string[] = []
+  const ends: [string, boolean][] = []
+  for (const line of text.split('\n')) {
+    if (ends.length) {
+      const [end, dash] = ends[0]
+      if ((dash ? line.replace(/^\t+/, '') : line) === end) ends.shift()
+      continue
+    }
+    out.push(line)
+    for (const m of line.matchAll(HEREDOC)) ends.push([m[3], m[1] === '-'])
+  }
+  return out.join('\n')
+}
+
+// The words and operators of a command, as [text, isOperator], or null if it does not parse.
+export function tokens(text: string): [string, boolean][] | null {
+  const out: [string, boolean][] = []
+  let word: string | null = null
+  const flush = (): void => {
+    if (word !== null) out.push([word, false])
+    word = null
+  }
+  const n = text.length
+  for (let i = 0; i < n; i++) {
+    const c = text[i]
+    if (c === '\n') {
+      flush()
+      out.push([';', true])
+    } else if (c === ' ' || c === '\t') {
+      flush()
+    } else if (c === "'") {
+      const j = text.indexOf("'", i + 1)
+      if (j < 0) return null
+      word = (word ?? '') + text.slice(i + 1, j)
+      i = j
+    } else if (c === '"') {
+      let j = i + 1
+      let part = ''
+      while (j < n && text[j] !== '"') {
+        if (text[j] === '`' || text.startsWith('$(', j)) return null
+        if (text[j] === '\\' && j + 1 < n) j++
+        part += text[j]
+        j++
+      }
+      if (j >= n) return null
+      word = (word ?? '') + part
+      i = j
+    } else if (c === '\\') {
+      if (i + 1 >= n) return null
+      if (text[i + 1] !== '\n') word = (word ?? '') + text[i + 1]
+      i++
+    } else if (c === '`') {
+      return null
+    } else if (OPS.includes(c)) {
+      flush()
+      let j = i
+      while (j < n && OPS.includes(text[j])) j++
+      out.push([text.slice(i, j), true])
+      i = j - 1
+    } else {
+      word = (word ?? '') + c
+    }
+  }
+  flush()
+  return out
+}
+
+function writesOnlyReport(target: string): boolean {
+  return target === '/dev/null' || target.split('/').pop() === 'report.md'
+}
+
+export function readsOnly(command: string): boolean {
+  const toks = tokens(stripHeredocs(command))
+  if (toks === null) return false
+  const segments: string[][] = [[]]
+  for (let i = 0; i < toks.length; i++) {
+    const [text, op] = toks[i]
+    if (!op) {
+      segments[segments.length - 1].push(text)
+    } else if (text.includes('(') || text.includes(')')) {
+      return false
+    } else if ([...text].every(ch => ';&|'.includes(ch))) {
+      segments.push([])
+    } else {
+      const next = toks[i + 1]
+      if (next === undefined || next[1]) return false
+      const dup = text.endsWith('&') && (/^\d+$/.test(next[0]) || next[0] === '-')
+      if (text.includes('>') && !dup && !writesOnlyReport(next[0])) return false
+      i++
+    }
+  }
+  return segments.every(words => {
+    if (!words.length) return true
+    const check = READS[words[0].split('/').pop()!]
+    return check !== undefined && check(words.slice(1))
+  })
+}
+
+// The command of a shell tool call, or null if the tool is not a shell.
+export function commandOf(tool: string, input: any): string | null {
+  if (!SHELL_TOOLS.includes(tool) || input === null || typeof input !== 'object') return null
+  const cmd = input.command ?? input.cmd ?? input.input?.command
+  if (typeof cmd === 'string') return cmd
+  if (Array.isArray(cmd) && cmd.every(x => typeof x === 'string')) {
+    if (cmd.length >= 3 && SHELLS.includes(cmd[0].split('/').pop()) && ['-c', '-lc'].includes(cmd[1])) return cmd[2]
+    return cmd.map(x => (/^[\w@%+=:,./-]+$/.test(x) ? x : `'${x.replace(/'/g, `'"'"'`)}'`)).join(' ')
+  }
+  return null
+}
+
+export function toolReadsOnly(tool: string, input: any): boolean {
+  const cmd = commandOf(tool, input)
+  return cmd !== null && readsOnly(cmd)
+}
+
+// The names that mark a run of the entry: its program files, and the module after -m.
+export function entryNames(entry: readonly string[]): string[] {
+  const names: string[] = []
+  entry.forEach((arg, k) => {
+    const base = arg.split('/').pop()!
+    const dot = base.lastIndexOf('.')
+    if (dot >= 0 && CODE.includes(base.slice(dot))) names.push(base)
+    else if (k > 0 && entry[k - 1] === '-m') names.push(arg)
+  })
+  return names
+}
+
+export function namesEntry(text: string, names: readonly string[]): boolean {
+  return names.some(x => new RegExp(`(?<![\\w.-])${escape(x)}(?![\\w-])`).test(text))
+}

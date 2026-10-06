@@ -75,9 +75,9 @@ The session resumes between turns, so P5b also shows that the transcript survive
 
 | Relay | Harness | Issues in the report | P6 | P5 | Isolation | Result | Data |
 |---|---|---|---|---|---|---|---|
-| Plugin | Claude Code 2.1.290 | 3 | pass | pass | temporary project | pass | [results](../proofs/report/plugin.json) |
-| Hook kit | Claude Code 2.1.290 | 3 | pass | pass | temporary project | pass | [results](../proofs/report/hooks-claude-code.json) |
-| Hook kit | Codex 0.160.0 | 5 | pass | pass | trusted project, 0 commands outside it | pass | [results](../proofs/report/hooks-codex.json) |
+| Plugin | Claude Code 2.1.290 | 2 | pass | pass | temporary project | pass | [results](../proofs/report/plugin.json) |
+| Hook kit | Claude Code 2.1.290 | 4 | pass | pass | temporary project | pass | [results](../proofs/report/hooks-claude-code.json) |
+| Hook kit | Codex 0.160.0 | 2 | pass | pass | trusted project, 0 commands outside it | pass | [results](../proofs/report/hooks-codex.json) |
 
 The app's session files are from Claude Code 2.1.286, bundled in the Agent SDK. A report is a model answer, and it changes on each run. Before the script stores a report or an answer, it checks that the text shares no 8 words in a row with an instruction file on this machine, and it removes the local paths. [docs/evaluation-example.md](evaluation-example.md#a-test-with-an-automatic-report) shows one report and what the model got wrong.
 
