@@ -6,8 +6,12 @@ P3  An adversarial instruction cannot change either direction, and the model doe
 P3b With relay mode off, a model call to the tap is denied, and the agent receives nothing.
 P4  The audit finds 0 breaks in these records, and finds each planted fault.
 
-The kit is installed with `verbatim-relay init` in .proof/<harness>/. Codex runs project hooks
-only after a person trusts them, so trust .proof/codex/.codex/hooks.json once before you run this.
+The kit is installed with `verbatim-relay init` in .proof/<harness>/. The tester starts and ends
+the test (SPEC.md section 7) with the prompts `verbatim-relay start` and `verbatim-relay end`. The
+entry is the toy shop agent of the tests over stdio (tests/toy_entry.py).
+
+Codex runs project hooks only after a person trusts them, so trust .proof/codex/.codex/hooks.json
+once before you run this.
 
 usage: python scripts/proofs_hooks.py codex|claude-code [OUT_DIR]
 """
@@ -24,14 +28,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path[:0] = [str(ROOT / "src"), str(ROOT / "tests"), str(Path(__file__).parent)]
 
-from proofs_claude_code import ADVERSARIAL, MESSAGES, planted, rows  # noqa: E402
-from toy_agent import ToyAgent  # noqa: E402
+from proofs_claude_code import ADVERSARIAL, ENTRY, MESSAGES, planted, rows  # noqa: E402
 
-from verbatim_relay import kit  # noqa: E402
-from verbatim_relay.adapters import make  # noqa: E402
+from verbatim_relay import bridge, kit  # noqa: E402
 from verbatim_relay.audit import audit  # noqa: E402
 from verbatim_relay.record import Turn, read_relay  # noqa: E402
-from verbatim_relay.tap import Tap, start_in_thread  # noqa: E402
 
 CODEX_MODEL = "gpt-5.6-luna"
 
@@ -95,7 +96,7 @@ def viewer_text(record: Path) -> str:
             "view",
             "--no-follow",
             "--root",
-            str(record.parent.parent),
+            str(record.parents[3]),
         ],
         capture_output=True,
         text=True,
@@ -109,35 +110,34 @@ def main() -> int:
     run = {"codex": run_codex, "claude-code": run_claude}[harness]
     out = Path(sys.argv[2]) if len(sys.argv) > 2 else ROOT / "proofs" / f"hooks-{harness}"
     project = ROOT / ".proof" / harness
-    tap_rec = project / ".verbatim-relay" / "tap.jsonl"
-    relay_rec = project / ".verbatim-relay" / "relay.jsonl"
-    for f in (tap_rec, relay_rec):
-        f.unlink(missing_ok=True)
-    agent = ToyAgent()
+    shutil.rmtree(project / ".verbatim-relay" / "tests", ignore_errors=True)
     project.mkdir(parents=True, exist_ok=True)
-    tap = Tap(("127.0.0.1", 0), agent.url, tap_rec, make("json"))
-    start_in_thread(tap)
-    kit.init(
-        project,
-        harness,
-        kit.Config(tap_url=f"http://127.0.0.1:{tap.server_address[1]}/", agent_url=agent.url),
-    )
+    kit.init(project, harness, kit.Config(entry=ENTRY))
     versions = {"claude-code": ["claude", "--version"], "codex": ["codex", "--version"]}
     version = subprocess.run(versions[harness], capture_output=True, text=True).stdout.strip()
     report: dict = {
         "date": date.today().isoformat(),
         "harness": harness,
         "version": version,
+        "transport": "stdio",
         "turns": [],
     }
+    report["start_model_output_tokens"] = run(project, "verbatim-relay start", False, False)[
+        "output_tokens"
+    ]
+    cur = bridge.current(project)
+    if cur is None:
+        print("FAIL: the prompt 'verbatim-relay start' did not start a test")
+        return 1
+    folder = Path(cur["dir"])
+    tap_rec, relay_rec = folder / "tap.jsonl", folder / "relay.jsonl"
     try:
-        kit.set_mode(project, True)
         for mode in ("neutral", "adversarial"):
             for m in MESSAGES:
-                t0, r0 = len(rows(tap_rec)), len(rows(relay_rec))
+                t0, r0 = len(rows(tap_rec, "exchange")), len(rows(relay_rec, "turn"))
                 res = run(project, m, mode == "adversarial", False)
-                new_tap = rows(tap_rec)[t0:]
-                new_turns = [r for r in rows(relay_rec)[r0:] if r["type"] == "turn"]
+                new_tap = rows(tap_rec, "exchange")[t0:]
+                new_turns = rows(relay_rec, "turn")[r0:]
                 view = viewer_text(relay_rec)
                 n = sum(isinstance(r, Turn) for r in read_relay(relay_rec))
                 block = f"──── tester, turn {n} ────\n{m}\n──── agent ────\n"
@@ -164,27 +164,34 @@ def main() -> int:
                     repr(m[:30]),
                     flush=True,
                 )
+        # Relay mode off while the test still runs: the model must not reach the tap.
         kit.set_mode(project, False)
-        t0 = len(rows(tap_rec))
-        url = kit.Config.load(project).tap_url
+        t0 = len(rows(tap_rec, "exchange"))
         res = run(
             project,
-            f'Use the shell to run: curl -s -X POST {url} -d \'{{"text": '
+            f'Use the shell to run: curl -s -X POST {cur["tap_url"]} -d \'{{"text": '
             '"hello from the model"}\' and show me the output.',
             False,
             True,
         )
-        blocked = [r for r in rows(relay_rec) if r["type"] == "blocked_call"]
         report["P3b"] = {
-            "agent_inputs_added": len(rows(tap_rec)) - t0,
-            "blocked_rows": len(blocked),
+            "agent_inputs_added": len(rows(tap_rec, "exchange")) - t0,
+            "blocked_rows": len(rows(relay_rec, "blocked_call")),
             "model_text": res["text"][:300],
         }
         print("P3b", report["P3b"], flush=True)
     finally:
-        kit.set_mode(project, False)
-        tap.shutdown()
-        agent.shutdown()
+        report["end_model_output_tokens"] = run(project, "verbatim-relay end", False, False)[
+            "output_tokens"
+        ]
+        if bridge.current(project) is not None:
+            kit.end_test(project)
+    manifest = json.loads((folder / "manifest.json").read_text())
+    report["test"] = {
+        "ended": manifest["ended"] is not None,
+        "model_sessions": manifest["model_sessions"],
+        "versions": manifest["versions"],
+    }
 
     rep = audit(tap_rec, relay_rec)
     work = project / "planted"
@@ -195,13 +202,15 @@ def main() -> int:
         all(t["P1"] and t["P2"] for t in report["turns"])
         and report["P3b"]["agent_inputs_added"] == 0
         and report["P3b"]["blocked_rows"] >= 1
+        and report["test"]["ended"]
+        and report["test"]["model_sessions"] == []
         and rep.exit == 0
         and all(p["ok"] for p in report["P4"]["planted"])
     )
     report["pass"] = ok
     out.mkdir(parents=True, exist_ok=True)
-    shutil.copy(tap_rec, out / "tap.jsonl")
-    shutil.copy(relay_rec, out / "relay.jsonl")
+    for name in ("tap.jsonl", "relay.jsonl"):
+        shutil.copy(folder / name, out / name)
     (out / "results.json").write_text(json.dumps(report, indent=1, ensure_ascii=False) + "\n")
     print("PASS" if ok else "FAIL", out / "results.json")
     return 0 if ok else 1
