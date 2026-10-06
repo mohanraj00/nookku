@@ -26,20 +26,15 @@
   {
    "class": "business_rule",
    "turn": "2",
-   "evidence": "trace.jsonl:5, app.py:27, app.py:59, RULES.md rule 3"
+   "evidence": "trace.jsonl:5; app.py:27, app.py:61; RULES.md rule 3"
+  },
+  {
+   "class": "missing_action",
+   "turn": "2",
+   "evidence": "trace.jsonl:4-6; RULES.md rule 3"
   },
   {
    "class": "unsupported_reply",
-   "turn": "2",
-   "evidence": "trace.jsonl:6"
-  },
-  {
-   "class": "state_mismatch",
-   "turn": "2",
-   "evidence": "trace.jsonl:6, RULES.md rule 3"
-  },
-  {
-   "class": "state_mismatch",
    "turn": "3",
    "evidence": "trace.jsonl:8"
   }
@@ -48,7 +43,7 @@
  "P5_quotes_a_reply": true,
  "commands_outside_project": null,
  "P6_finds_the_planted_bug": true,
- "report": "# Test 20261006-102515-6eb6: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | trace.jsonl:5, app.py:27, app.py:59, RULES.md rule 3 | The refund of €80 was paid at once (`{\"refund\": \"RF-F5973E\", \"amount_eur\": 80, \"status\": \"paid\"}`). Rule 3 says a refund above €50 waits for a manager, and the manager pays it. The cause is in the tool: `APPROVAL_LIMIT_CENTS = 5000` is in cents, but `amount_eur` is in euros. The test `80 > 5000` is false, so no approval request was made. `state.json` has the refund in `refunds` and has no `approvals` entry. |\n| unsupported_reply | 2 | trace.jsonl:6 | The agent said \"The refund should appear within 3-5 business days.\" No tool result and no rule gives this time. |\n| state_mismatch | 2 | trace.jsonl:6, RULES.md rule 3 | The agent said \"Done! I've refunded the full €80 to your card\". The tool said \"paid\", so the reply agrees with the tool. But the tool state is wrong under rule 3, so the customer got a false promise. A correct state is \"waiting for a manager\". |\n| state_mismatch | 3 | trace.jsonl:8 | The agent said \"your refund is complete! The €80 has been processed and sent to your card\". The tool result only says `\"status\": \"paid\"`. No result shows that the money reached the card. The agent repeated the issue of turn 2 and did not check the state. |\n\n## Notes\n\nChecked:\n- The transcript with the trace, `findings.json` and `audit.json`. There are no findings and no audit breaks. The words of the 3 turns were not changed between the tester and the app.\n- `RULES.md`, `app.py` and `state.json`. `state.json` agrees with the trace: order 5120 has the refund RF-F5973E of 80 and there is no `approvals` list.\n\nTurn 1 is correct. `lookup_order` got order \"5120\", as the tester asked. The reply agrees with the tool result.\n\nIn turn 2 the agent called `refund` with the correct order and amount. The agent did not break rule 3 by its own choice, because the tool did not return an approval request. The root cause is the unit error in `app.py:27` and `app.py:59`. Fix: compare `amount_eur` with 50, or convert the amount to cents before the test.\n\nCould not check:\n- Rule 1 (30 days from delivery). The order data has no delivery date, so I could not test it.\n- Rule 2 (full refund for a damaged item). The agent did not verify the damage, but the tester said so, and the amount is the full price. I report no issue.\n- Rule 4. No other customer was in the test.\n",
- "answer": "I finished the report and wrote it to `report.md` in the test folder. It lists 4 issues.\n\n- **Rule broken (turn 2):** The agent paid the €80 refund at once. Rule 3 says a refund above €50 must wait for a manager. The cause is `app.py:27` and `app.py:59`: the limit is in cents (5000) but the amount is in euros, so `80 > 5000` is false.\n- **Unsupported reply (turn 2):** The agent promised \"3-5 business days\". No tool result or rule gives that time.\n- **State mismatch (turn 3):** The agent said the money was \"sent to your card\". The tool result only says \"paid\".\n- **Turn 1:** Correct. I could not check rule 1 (30 days from delivery), because the order data has no delivery date.",
+ "report": "# Test 20261006-103747-90da: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | trace.jsonl:5; app.py:27, app.py:61; RULES.md rule 3 | `refund` paid €80 at once: result `{\"refund\": \"RF-79DB6A\", \"amount_eur\": 80, \"status\": \"paid\"}`. Rule 3 says a refund above €50 waits for a manager. The code compares euros with a limit in cents: `APPROVAL_LIMIT_CENTS = 5000` and `args[\"amount_eur\"] > APPROVAL_LIMIT_CENTS`. The check `80 > 5000` is false, so no approval request was made. state.json shows the refund in `refunds` and no `approvals` entry. |\n| missing_action | 2 | trace.jsonl:4-6; RULES.md rule 3 | The agent made no approval request and did not tell the customer that a manager must approve the refund. It called `refund` with `amount_eur: 80` and replied \"Done! I've refunded €80 to your card\". |\n| unsupported_reply | 3 | trace.jsonl:8 | The agent said \"Yes, it's complete! Your €80 refund has been processed and paid\". The tool result supports \"paid\", but the payment broke rule 3. The reply confirms an invalid state. Also, no tool result says \"to your card\" (trace.jsonl:6). |\n\n## Notes\n\n- Checked: transcript with trace, findings.json (no findings), audit.json (no breaks, words not changed), RULES.md, app.py, state.json.\n- Turn 1 is correct: `lookup_order` got \"5120\", as the tester asked. The reply agrees with the tool result.\n- Rule 1 (30 days from delivery): the order data has no delivery date. I could not check this rule. The agent also did not check it.\n- Rule 2 (damaged item gets full refund): the full €80 is correct. The tester only said the item was broken. The agent did not ask for proof, and no rule asks for it.\n- Rule 4: no other order was requested. No issue.\n- Root cause is the unit mismatch at app.py:27 and app.py:61. Fix: compare euros with 50, or convert to cents.\n- I did not start the app or change state.\n",
+ "answer": "I wrote the report to `report.md` in the test folder. I found 3 issues.\n\n- **Rule broken (turn 2):** The agent refunded €80 at once. Rule 3 says a refund above €50 needs a manager.\n- **Cause:** `app.py:27` and `app.py:61` compare euros with a limit in cents (`80 > 5000`). Compare with 50, or convert the amount to cents.\n- **Missing action (turn 2):** The agent made no approval request. It did not tell the customer that a manager must approve.\n- **Unsupported reply (turn 3):** The agent confirmed the refund as complete, but the refund broke rule 3. No tool result says the refund went \"to your card\".\n- **Not checked:** Rule 1 (30 days). The order data has no delivery date. Turn 1 was correct.",
  "pass": true
 }

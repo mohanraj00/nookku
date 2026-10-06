@@ -27,6 +27,11 @@ FIND_ACTIONS = {"-delete", "-exec", "-execdir", "-ok", "-okdir", "-fls", "-fprin
 FIND_ACTIONS |= {"-fprintf"}
 # trace writes trace.jsonl and findings.json, and check starts a test, so they are not here.
 VIEWS = {"transcript", "audit", "status", "view"}
+# A part with only variable assignments passes, for example T=.verbatim-relay/tests/x. These
+# variables change how the shell finds or runs a program, so an assignment to them fails.
+ASSIGNMENT = re.compile(r"([A-Za-z_][A-Za-z0-9_]*)=")
+SHELL_VARIABLES = {"PATH", "IFS", "CDPATH", "ENV", "BASH_ENV", "SHELLOPTS", "BASHOPTS", "PS4"}
+SHELL_VARIABLES |= {"PROMPT_COMMAND"}
 # The file types of an entry argument that names a program file (SPEC.md section 5).
 CODE = {".py", ".js", ".mjs", ".cjs", ".ts", ".sh", ".rb"}
 
@@ -182,6 +187,16 @@ def tokens(text: str) -> list[tuple[str, bool]] | None:
     return out
 
 
+def _assignment(word: str) -> bool:
+    """True for a variable assignment that does not change how the shell finds or runs programs."""
+    m = ASSIGNMENT.match(word)
+    return (
+        m is not None
+        and m.group(1) not in SHELL_VARIABLES
+        and not m.group(1).startswith(("LD_", "DYLD_"))
+    )
+
+
 def _writes_only_report(target: str) -> bool:
     return target == "/dev/null" or target.rsplit("/", 1)[-1] == "report.md"
 
@@ -211,7 +226,7 @@ def reads_only(command: str) -> bool:
             i += 1
         i += 1
     for words in segments:
-        if not words:
+        if all(_assignment(w) for w in words):
             continue
         check = READS.get(words[0].rsplit("/", 1)[-1])
         if check is None or not check(words[1:]):

@@ -312,6 +312,15 @@ export function tokens(text: string): [string, boolean][] | null {
   return out
 }
 
+// A part with only variable assignments passes, for example T=.verbatim-relay/tests/x. These
+// variables change how the shell finds or runs a program, so an assignment to them fails.
+const SHELL_VARIABLES = ['PATH', 'IFS', 'CDPATH', 'ENV', 'BASH_ENV', 'SHELLOPTS', 'BASHOPTS', 'PS4', 'PROMPT_COMMAND']
+
+function assignment(word: string): boolean {
+  const m = /^([A-Za-z_][A-Za-z0-9_]*)=/.exec(word)
+  return m !== null && !SHELL_VARIABLES.includes(m[1]) && !m[1].startsWith('LD_') && !m[1].startsWith('DYLD_')
+}
+
 function writesOnlyReport(target: string): boolean {
   return target === '/dev/null' || target.split('/').pop() === 'report.md'
 }
@@ -337,7 +346,7 @@ export function readsOnly(command: string): boolean {
     }
   }
   return segments.every(words => {
-    if (!words.length) return true
+    if (words.every(assignment)) return true
     const check = READS[words[0].split('/').pop()!]
     return check !== undefined && check(words.slice(1))
   })
