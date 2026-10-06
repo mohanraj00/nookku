@@ -37,8 +37,9 @@ For the toy shop agent of the [quick start](../README.md#quick-start), the confi
 2. Connect a test to your app (see above).
 3. Type `/verbatim-relay start`. The plugin starts the entry through the tap, and relay mode goes on. The status line shows it.
 4. Type your test messages. Each reply shows as a row in the chat and in the verbatim-relay pane.
-5. Type `/verbatim-relay end`. The plugin stops the entry, copies the app's session files into the test folder, and switches relay mode off. `/verbatim-relay on` and `/verbatim-relay off` do the same as `start` and `end`.
-6. Ask the model to evaluate the agent, for example: "Read the verbatim-relay transcript. Evaluate the agent's business logic, tone, language and accuracy. Quote the turns that you judge."
+5. Type the prompt `verbatim-relay end`, with no slash. The plugin stops the entry, copies the app's session files into the test folder, builds the trace and switches relay mode off. Then the prompt goes to the model with the evaluation prompt, and the model writes `report.md` in the test folder (see [Evaluation](#evaluation)).
+
+`/verbatim-relay end` ends the test with no evaluation. To evaluate that test later, type the prompt `verbatim-relay end`. `/verbatim-relay on` and `/verbatim-relay off` do the same as `start` and `end`. The prompts `verbatim-relay start` and `verbatim-relay status` also work.
 
 The model reads the exact conversation of the latest test with the read-only `transcript` tool. It did not see the conversation while you talked, so it judges the record, not its memory. During a test, it cannot send a message to the agent, and it cannot change the files in `.verbatim-relay/`: the plugin denies these tool calls, except file reads.
 
@@ -56,6 +57,8 @@ Each test is a new conversation, with a new test id and a new entry process. The
 | `manifest.json` | The test id, the times, the harness versions and the SHA-256 of each configuration file. |
 | `sessions/` | A copy of each session file of your app's model sessions. |
 | `trace.jsonl` | Each message, tool call and command of those sessions, with its result, its turn and its line in the session file. |
+| `audit.json` | The audit of the two records, as `verbatim-relay audit --json` prints it. |
+| `report.md` | The model's evaluation, if it ran. |
 | `findings.json` | The checks of the trace: failed tools and commands, agent errors, turns with no model item, and more ([SPEC.md section 8](../SPEC.md#8-trace)). |
 
 Options. Set them with `/plugin configure verbatim-relay@verbatim-relay` in Claude Code, or with `--config KEY=VALUE` at install. The defaults fit the quick start.
@@ -65,6 +68,18 @@ Options. Set them with `/plugin configure verbatim-relay@verbatim-relay` in Clau
 | `cli` | `verbatim-relay` | The command that starts and ends a test. Give a full path if it is not on `PATH`. |
 | `start_on` | `false` | Without an entry: start each session in relay mode. With an entry, relay mode is on while a test runs, also after a restart of Claude Code. |
 | `tap_url`, `agent_url`, `adapter`, `message_field`, `reply_field`, `openai_model`, `record` | | For an agent that runs as an HTTP server (see below). |
+
+## Evaluation
+
+The evaluation prompt ([evaluate.md](../src/verbatim_relay/evaluate.md)) tells the model to:
+
+1. read the transcript with the trace: `verbatim-relay transcript --trace`, or the `transcript` tool with `trace: true`;
+2. read `findings.json` and `audit.json`;
+3. read your app's code and its business rules;
+4. check your app's state with read-only commands;
+5. write `report.md`: one row for each issue, with its class, its turn and its evidence.
+
+The model did not see the conversation while you talked, so it judges the record, not its memory. After a test, the relay denies model writes to the test folder, except `report.md`. To stop the evaluation, add `"evaluate": false` to `.verbatim-relay/config.json`. [docs/evaluation-example.md](evaluation-example.md) shows a test and its report.
 
 ## Hook kit
 
@@ -86,8 +101,7 @@ Options. Set them with `/plugin configure verbatim-relay@verbatim-relay` in Clau
 
 3. Start Claude Code in the project and type the prompt `verbatim-relay start`. The kit starts the test and does not send this prompt to the model.
 4. Type your test messages. Claude Code shows "relayed to the agent". The reply shows in the viewer.
-5. Type the prompt `verbatim-relay end`. The prompt `verbatim-relay status` shows the running test.
-6. Ask Claude Code to evaluate the agent, for example: "Run `verbatim-relay transcript` and evaluate the agent's business logic, tone, language and accuracy. Quote the turns that you judge."
+5. Type the prompt `verbatim-relay end`. The kit ends the test, and the model evaluates it and writes `report.md` (see [Evaluation](#evaluation)). The prompt `verbatim-relay status` shows the running test.
 
 `verbatim-relay transcript` prints the exact turns of the latest test. You can also start and end a test from a shell: `verbatim-relay start` and `verbatim-relay end`.
 

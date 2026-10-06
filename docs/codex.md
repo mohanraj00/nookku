@@ -32,8 +32,7 @@ Tested with codex-cli 0.160.0.
 
 2. Start `codex` in the project and type the prompt `verbatim-relay start`. The kit starts your app through the tap and switches relay mode on. It does not send this prompt to the model.
 3. Type your test messages. Codex shows that the hook blocked the prompt. The reply shows in the viewer. The model does not run in a relay turn: the proofs record 0 output tokens for each one.
-4. Type the prompt `verbatim-relay end`. The kit stops your app, copies its session files into the test folder and switches relay mode off.
-5. Ask Codex to evaluate the agent, for example: "Run `verbatim-relay transcript` and evaluate the agent's business logic, tone, language and accuracy. Quote the turns that you judge."
+4. Type the prompt `verbatim-relay end`. The kit stops your app, copies its session files into the test folder, builds the trace and switches relay mode off. Then the prompt goes to Codex with the evaluation prompt, and Codex writes `report.md` in the test folder. The [Claude Code page](claude-code.md#evaluation) explains the evaluation. Codex needs a sandbox that can write in the project to write the report, for example `workspace-write`.
 
 `verbatim-relay transcript` prints the exact turns of the latest test. The model did not see the conversation while you talked, so it judges the record, not its memory.
 

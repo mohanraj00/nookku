@@ -51,7 +51,7 @@ mkdir -p .verbatim-relay
 echo '{"entry": ["python", "examples/toy-shop/agent.py"]}' > .verbatim-relay/config.json
 ```
 
-In Claude Code, type `/verbatim-relay start`, then your test messages, then `/verbatim-relay end`.
+In Claude Code, type `/verbatim-relay start`, then your test messages, then the prompt `verbatim-relay end`, with no slash.
 
 **Codex or Claude Code, with the hook kit.** Install the kit with the same entry:
 
@@ -63,16 +63,9 @@ In the harness, type the prompt `verbatim-relay start`, then your test messages,
 
 **Your own app.** Ask the harness model: "Run `verbatim-relay setup` and connect a test to this app." The model reads the app and writes a thin entry in `.verbatim-relay/`. Your app's code does not change. Then `verbatim-relay check` sends one message and checks the reply and the app's model sessions. Review the entry before your first test.
 
-After the test, ask the model to evaluate the agent, for example:
+At `verbatim-relay end`, the model evaluates the app with no other prompt. It reads the transcript with the trace of the app's model sessions, the findings and the audit. It reads your app's code and its business rules, and it checks the app's state with read-only commands. Then it writes `report.md` in the test folder: one row for each issue, with its class, its turn and its evidence. To stop this, add `"evaluate": false` to the configuration.
 
-```text
-Read the verbatim-relay transcript. Evaluate the agent: does it follow the refund policy,
-is the tone right, is each answer accurate? Quote the turns that you judge.
-```
-
-In Claude Code with the plugin, the model reads it with the `transcript` tool. With the hook kit, it runs `verbatim-relay transcript`.
-
-A worked example, with what the model found and what it got wrong: [docs/evaluation-example.md](docs/evaluation-example.md).
+A worked example, with the report and what the model got wrong: [docs/evaluation-example.md](docs/evaluation-example.md).
 
 Each test has a folder, `.verbatim-relay/tests/<test-id>/`. To prove that the transcript is exact, audit its two records:
 
@@ -95,7 +88,7 @@ tester ──> harness ──> relay hook ──> tap ──stdin/stdout──> 
 
 The entry is a thin wrapper that starts your app and speaks the agent contract. The tap starts it at `start` and stops it at `end`. During the test, the tap finds each Claude Code session that a process of the entry runs. At the end, it finds each Codex session that ran in the project. Then it copies their session files into the test folder ([SPEC.md section 7](SPEC.md#7-tests)).
 
-From these files, the bridge builds the trace, `trace.jsonl`: each message, tool call and command of the app's model sessions, with its result and its turn. Each item points to its line in the session file. 7 checks write their findings to `findings.json`, for example a tool call that failed or a turn in which no model ran ([SPEC.md section 8](SPEC.md#8-trace)). The findings do not change the exit code of the audit.
+From these files, the bridge builds the trace, `trace.jsonl`: each message, tool call and command of the app's model sessions, with its result and its turn. Each item points to its line in the session file. 7 checks write their findings to `findings.json`, for example a tool call that failed or a turn in which no model ran ([SPEC.md section 8](SPEC.md#8-trace)). The findings do not change the exit code of the audit. At the end, the harness model evaluates the test from these files and writes `report.md` ([SPEC.md section 9](SPEC.md#9-evaluation)).
 
 The audit aligns the two records and reports 7 break classes: `altered_input`, `injected_input`, `duplicate_send`, `out_of_order`, `not_delivered`, `altered_reply` and `unshown_reply`. It compares bytes. It does not normalize whitespace, line ends or Unicode. [SPEC.md](SPEC.md) defines the records, the audit and the agent contract. 40 audit cases, 13 contract cases and 4 trace cases in [conformance/](conformance/) test them.
 
