@@ -1,4 +1,5 @@
 import json
+import sys
 from pathlib import Path
 
 import pytest
@@ -116,3 +117,49 @@ def test_transcript_without_a_config_uses_the_default_record(tmp_path, capsys):
     )
     assert main(["transcript", "--root", str(tmp_path)]) == 0
     assert "──── tester, turn 1 ────\nhi \n──── agent ────\nyo\n" in capsys.readouterr().out
+
+
+TOY_SHOP = Path(__file__).resolve().parent.parent / "examples" / "toy-shop" / "agent.py"
+
+
+def test_setup_prints_the_guide(capsys: pytest.CaptureFixture[str]) -> None:
+    assert main(["setup"]) == 0
+    out = capsys.readouterr().out
+    assert out.startswith("# verbatim-relay setup")
+    assert "verbatim-relay check" in out
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["tap", "--record", "t.jsonl"],
+        ["tap", "--cmd", "--record", "t.jsonl"],
+        ["tap", "--cmd", "--agent", "http://127.0.0.1:9/", "--record", "t.jsonl", "--", "x"],
+    ],
+)
+def test_tap_needs_one_agent(argv: list[str]) -> None:
+    with pytest.raises(SystemExit) as e:
+        main(argv)
+    assert e.value.code == 2
+
+
+def test_init_start_and_end_a_test(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    entry = f"{sys.executable} {TOY_SHOP}"
+    assert (
+        main(["init", "codex", "--root", str(tmp_path), "--entry", entry, "--models", "codex"]) == 0
+    )
+    conf = json.loads((tmp_path / ".verbatim-relay" / "config.json").read_text())
+    assert conf["entry"] == [sys.executable, str(TOY_SHOP)]
+    assert conf["models"] == ["codex"]
+    capsys.readouterr()
+    assert main(["start", "--root", str(tmp_path), "--json"]) == 0
+    started = json.loads(capsys.readouterr().out)
+    assert main(["status", "--root", str(tmp_path), "--json"]) == 0
+    assert json.loads(capsys.readouterr().out) == {"on": True, "test": started}
+    assert main(["start", "--root", str(tmp_path)]) == 1
+    assert "runs already" in capsys.readouterr().out
+    assert main(["mode", "off", "--root", str(tmp_path)]) == 0
+    out = capsys.readouterr().out
+    assert f"Test {started['test']} ended: 0 turns, 0 model sessions." in out
+    assert main(["end", "--root", str(tmp_path)]) == 0
+    assert "No test runs. Relay mode is off." in capsys.readouterr().out

@@ -1,8 +1,8 @@
-"""A toy shop chat agent for the quick start. Standard library only.
+"""The toy shop chat agent as an HTTP server, for the tap in HTTP mode. Standard library only.
 
 POST {"text": "<message>"} to http://127.0.0.1:8700/ and it answers {"reply": "<text>"}.
 
-usage: python examples/toy-shop/agent.py [PORT]
+usage: python examples/toy-shop/http_agent.py [PORT]
 """
 
 from __future__ import annotations
@@ -11,12 +11,7 @@ import json
 import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-REPLIES = {
-    "refund": "Our refund policy:\n\n1. Damaged items: full refund.\n2. Change of mind: 30 days.\n",
-    "ship": "We ship to Chennai and Pune. Delivery takes 3 to 5 days.  ",
-    "price": "| item | price |\n|---|---|\n| blue mug | € 8 |\n| teapot | € 24 |",
-}
-FALLBACK = "Which item is this about: the mug or the teapot?"
+from agent import answer
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -26,8 +21,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         body = self.rfile.read(int(self.headers.get("Content-Length") or 0))
         text = json.loads(body).get("text", "")
-        reply = next((r for k, r in REPLIES.items() if k in text.lower()), FALLBACK)
-        out = json.dumps({"reply": reply}, ensure_ascii=False).encode()
+        out = json.dumps({"reply": answer(text)}, ensure_ascii=False).encode()
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(out)))

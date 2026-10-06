@@ -55,6 +55,12 @@
       "description": "The relay record (JSONL), relative to the working directory or absolute.",
       "default": ".verbatim-relay/relay.jsonl"
     },
+    "cli": {
+      "type": "string",
+      "title": "verbatim-relay command",
+      "description": "The verbatim-relay command that starts and ends a test. Give a full path if it is not on PATH.",
+      "default": "verbatim-relay"
+    },
     "start_on": {
       "type": "boolean",
       "title": "Start in relay mode",

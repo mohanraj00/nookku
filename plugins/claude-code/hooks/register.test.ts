@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { denyPattern, isChecked, pick, requestBody, sha256 } from './core'
+import { contractBody, contractShown, denyPattern, isChecked, pick, requestBody, sha256, touchesTestFiles } from './core'
 
 const TRICKY = 'Hi, I want to return order #4471.  \n\nÜnïcödé € ₹\t| a | b |\n'
 const REPLY = '## Toy shop  \nYou wrote it.\n\n| item | price |\n|---|---|\n| mug | € 8 |\n'
@@ -17,14 +17,17 @@ function fakes(on: any, reply: (body: string) => { status: number; text: string 
     const r = reply(e.init.body)
     return { value: { status: r.status, ok: r.status >= 200 && r.status < 300, headers: {}, text: r.text } }
   })
+  // $.fs resolves a relative path against the working directory. Key the files by the path
+  // from .verbatim-relay/ on, as the plugin wrote it.
+  const key = (path: string) => path.replace(/^.*?(?=\.verbatim-relay\/)/, '')
   on('fs.stat', async (_$: any, e: any) =>
-    e.path in files
-      ? { value: { kind: 'file', size: files[e.path].length, mtimeMs: 0, isLink: false } }
+    key(e.path) in files
+      ? { value: { kind: 'file', size: files[key(e.path)].length, mtimeMs: 0, isLink: false } }
       : { deny: `ENOENT: no such file: ${e.path}` },
   )
-  on('fs.read', async (_$: any, e: any) => ({ value: files[e.path] }))
+  on('fs.read', async (_$: any, e: any) => ({ value: files[key(e.path)] }))
   on('fs.write', async (_$: any, e: any) => {
-    files[e.path] = e.text
+    files[key(e.path)] = e.text
     return { value: undefined }
   })
   on('ui.log', async (_$: any, e: any) => {
@@ -32,6 +35,7 @@ function fakes(on: any, reply: (body: string) => { status: number; text: string 
     return { value: undefined }
   })
   on('ui.status', async () => ({ value: undefined }))
+  on('ui.open', async () => ({ value: undefined }))
   on('session.id', async () => ({ value: 's1' }))
   return { files, sent, logs }
 }
@@ -48,7 +52,7 @@ test('relay mode sends the exact bytes, shows the exact reply, and keeps the mod
   expect(f.sent[0].url).toBe('http://127.0.0.1:8800/')
   expect(f.logs).toEqual([REPLY])
   const [row] = rows(f.files['/virtual/relay.jsonl'])
-  expect(row).toMatchObject({ v: '0.1', type: 'turn', harness: 'claude-code', said: TRICKY, shown: REPLY, ok: true, session: 's1' })
+  expect(row).toMatchObject({ v: '0.2', type: 'turn', harness: 'claude-code', said: TRICKY, shown: REPLY, ok: true, session: 's1' })
   expect(row.said_sha256).toBe(await sha256(TRICKY))
   expect(row.shown_sha256).toBe(await sha256(REPLY))
 })
@@ -117,4 +121,113 @@ test('the transcript tool reads this session from the record', { options: OPTION
   await $.prompt.submit({ text: TRICKY })
   const out: any = await $.tool.call({ tool: 'mcp__verbatim-relay__transcript' } as any)
   expect(JSON.parse(out.result)).toEqual([{ said: TRICKY, shown: REPLY, ok: true }])
+})
+
+// A test (SPEC.md section 7). The fake verbatim-relay command writes current.json, as the bridge does.
+const DIR = '.verbatim-relay/tests/20261005-120000-ab12'
+const CURRENT = { v: 1, test: '20261005-120000-ab12', dir: DIR, tap_url: 'http://127.0.0.1:8811/', pid: 4471 }
+
+function withTest(on: any, f: ReturnType<typeof fakes>) {
+  const runs: string[][] = []
+  f.files['.verbatim-relay/config.json'] = JSON.stringify({ entry: ['python', 'examples/toy-shop/agent.py'], models: [] })
+  on('process.run', async (_$: any, e: any) => {
+    runs.push(e.argv)
+    if (e.argv[1] === 'start') {
+      f.files['.verbatim-relay/current.json'] = JSON.stringify(CURRENT)
+      return { value: { exitCode: 0, stdout: JSON.stringify(CURRENT) + '\n', stderr: '' } }
+    }
+    delete f.files['.verbatim-relay/current.json']
+    return { value: { exitCode: 0, stdout: 'Test 20261005-120000-ab12 ended: 1 turns, 0 model sessions.\n', stderr: '' } }
+  })
+  return runs
+}
+
+function contractReply(body: string) {
+  const { id } = JSON.parse(body)
+  return { status: 200, text: JSON.stringify({ v: 1, id, reply: REPLY }) }
+}
+
+test('a test starts, relays with the contract, records in its folder and ends', { options: { record: '/virtual/relay.jsonl' } }, async ($, on) => {
+  const f = fakes(on, contractReply)
+  const runs = withTest(on, f)
+  on('prompt.submit', async (_$: any, e: any) => ({ text: e.text }))
+  const started: any = await $.command.run({ command: 'verbatim-relay', args: 'start' } as any)
+  expect(started.text).toContain('Test 20261005-120000-ab12 started')
+  expect(runs[0]).toEqual(['verbatim-relay', 'start', '--json', '--tester-session', 's1'])
+  await $.prompt.submit({ text: TRICKY })
+  await $.prompt.submit({ text: 'second' })
+  expect(f.sent[0].url).toBe(CURRENT.tap_url)
+  const first = JSON.parse(f.sent[0].body)
+  expect(first).toMatchObject({ v: 1, session: CURRENT.test, message: TRICKY, history: [] })
+  expect(JSON.parse(f.sent[1].body).history).toEqual([{ message: TRICKY, reply: REPLY }])
+  expect(f.logs).toEqual([REPLY, REPLY])
+  const turns = rows(f.files[`${DIR}/relay.jsonl`])
+  expect(turns[0]).toMatchObject({ v: '0.2', type: 'turn', said: TRICKY, shown: REPLY, ok: true, session: 's1' })
+  expect(f.files['/virtual/relay.jsonl']).toBe(undefined)
+  const transcript: any = await $.tool.call({ tool: 'mcp__verbatim-relay__transcript' } as any)
+  expect(JSON.parse(transcript.result).length).toBe(2)
+  const ended: any = await $.command.run({ command: 'verbatim-relay', args: 'end' } as any)
+  expect(runs[1]).toEqual(['verbatim-relay', 'end'])
+  expect(ended.text).toContain('Relay mode is off.')
+  const after: any = await $.prompt.submit({ text: 'to the model' })
+  expect(after.drop).toBe(undefined)
+})
+
+test('relay mode with an entry and no test fails closed', { options: { start_on: true } }, async ($, on) => {
+  const f = fakes(on, contractReply)
+  f.files['.verbatim-relay/config.json'] = JSON.stringify({ entry: ['python', 'agent.py'] })
+  const result: any = await $.prompt.submit({ text: 'hi' })
+  expect('drop' in result).toBe(true)
+  expect(f.sent.length).toBe(0)
+  expect(f.logs[0]).toContain('no test runs')
+})
+
+test('a test that does not start leaves relay mode off', {}, async ($, on) => {
+  const f = fakes(on, contractReply)
+  f.files['.verbatim-relay/config.json'] = JSON.stringify({ entry: ['python', 'agent.py'] })
+  on('process.run', async () => ({ value: { exitCode: 1, stdout: '{"error": "the entry exited at start"}\n', stderr: '' } }))
+  on('prompt.submit', async (_$: any, e: any) => ({ text: e.text }))
+  const started: any = await $.command.run({ command: 'verbatim-relay', args: 'on' } as any)
+  expect(started.text).toBe('The test did not start: the entry exited at start')
+  const result: any = await $.prompt.submit({ text: 'hello' })
+  expect(result.text).toBe('hello')
+})
+
+test('during a test, the model cannot change the test files or call the tap', { options: { start_on: true } }, async ($, on) => {
+  const f = fakes(on, contractReply)
+  withTest(on, f)
+  f.files['.verbatim-relay/current.json'] = JSON.stringify(CURRENT)
+  on('tool.call', async () => ({ result: 'ran' }))
+  const write: any = await $.tool.call({ tool: 'Edit', file_path: '.verbatim-relay/entry.py', old_string: 'a', new_string: 'b' } as any)
+  expect(typeof write.deny).toBe('string')
+  const curl: any = await $.tool.call({ tool: 'Bash', command: 'curl -s http://127.0.0.1:8811/' } as any)
+  expect(typeof curl.deny).toBe('string')
+  const read: any = await $.tool.call({ tool: 'Read', file_path: '.verbatim-relay/config.json' } as any)
+  expect(read.deny).toBe(undefined)
+  expect(rows(f.files[`${DIR}/relay.jsonl`]).map(r => r.tool)).toEqual(['Edit', 'Bash'])
+})
+
+test('contract parts', async () => {
+  const turns = [
+    { said: 'a', shown: 'b', ok: true },
+    { said: 'c', shown: 'verbatim-relay: HTTP 502: x', ok: false },
+  ]
+  expect(JSON.parse(contractBody('m-1', 't-1', 'd', turns))).toEqual({
+    v: 1,
+    id: 'm-1',
+    session: 't-1',
+    message: 'd',
+    history: [{ message: 'a', reply: 'b' }],
+  })
+  expect(contractBody('m-1', 't-1', 'x\u2028y', [])).not.toContain('\n')
+  expect(contractShown(200, '{"v": 1, "id": "m-1", "reply": "Hi  "}', 'm-1')).toEqual({ shown: 'Hi  ', ok: true })
+  expect(contractShown(200, '{"v": 1, "id": "m-0", "reply": "Hi"}', 'm-1').ok).toBe(false)
+  expect(contractShown(500, '{"v": 1, "id": "m-1", "error": "down"}', 'm-1')).toEqual({
+    shown: 'verbatim-relay: the agent sent an error:\ndown',
+    ok: false,
+  })
+  expect(contractShown(502, '{"error": "the agent exited (code 3)"}', 'm-1').shown).toBe('verbatim-relay: HTTP 502: the agent exited (code 3)')
+  expect(touchesTestFiles('Write', '{"file_path": ".verbatim-relay/entry.py"}')).toBe(true)
+  expect(touchesTestFiles('Read', '{"file_path": ".verbatim-relay/entry.py"}')).toBe(false)
+  expect(touchesTestFiles('Bash', '{"command": "verbatim-relay transcript"}')).toBe(false)
 })

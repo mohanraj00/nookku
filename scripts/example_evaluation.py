@@ -67,7 +67,7 @@ def claude(prompt: str, session: str | None, cwd: Path, extra: list[str]) -> tup
 def main() -> int:
     work = Path(tempfile.mkdtemp())
     agent = subprocess.Popen(
-        [sys.executable, str(ROOT / "examples" / "toy-shop" / "agent.py"), str(AGENT_PORT)]
+        [sys.executable, str(ROOT / "examples" / "toy-shop" / "http_agent.py"), str(AGENT_PORT)]
     )
     time.sleep(1)
     tap = Tap(("127.0.0.1", 0), f"http://127.0.0.1:{AGENT_PORT}/", work / "tap.jsonl", make("json"))
