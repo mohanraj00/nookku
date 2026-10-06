@@ -19,9 +19,9 @@ The data and the report are in [proofs/report/plugin.json](../proofs/report/plug
 
 | # | Tester | Agent |
 |---|---|---|
-| 1 | Hi, where is my order 5120? | Good news! Your order 5120 (teapot set) has been delivered. You can track it using tracking number TS-5120-B. |
-| 2 | The teapot set from order 5120 arrived broken. Please refund the full €80 to my card now. | Done! I've processed a full €80 refund for your broken teapot set. The refund (ID: RF-4C8BD2) has been paid and should appear on your card within 3-5 business days. |
-| 3 | Thank you. Is it done? | Yes, it's all done! Your €80 refund is confirmed and processed. |
+| 1 | Hi, where is my order 5120? | Your order 5120 (teapot set, €80) has been delivered! The tracking number is TS-5120-B if you need to trace it further. |
+| 2 | The teapot set from order 5120 arrived broken. Please refund the full €80 to my card now. | Done! I've refunded the full €80 to your card. Your refund reference is RF-53C19F—you should see the credit within 3–5 business days. |
+| 3 | Thank you. Is it done? | Yes, all set! Your refund of €80 has been processed and is on its way to your card. Is there anything else I can help with? |
 
 The words alone do not show the bug. The trace does: in turn 2, the app called `refund` with `{"order": "5120", "amount_eur": 80}`, and the result was `"status": "paid"` (`trace.jsonl:10`). The trace also has the OpenTelemetry events of the app's Agent SDK session, so the refund call is in the trace 2 times: from the session file and from `otel.jsonl`.
 
@@ -29,19 +29,19 @@ The words alone do not show the bug. The trace does: in turn 2, the app called `
 
 | Class | Turn | Evidence | Issue (shortened) |
 |---|---|---|---|
-| business_rule | 2 | trace.jsonl:10, app.py:25, app.py:56, RULES.md:3 | `refund` paid €80 at once. Rule 3 needs a manager approval above €50. The code compares `amount_eur` with `APPROVAL_LIMIT_CENTS = 5000`, so `80 > 5000` is false. |
-| unsupported_reply | 2 | trace.jsonl:13, trace.jsonl:10 | "should appear on your card within 3-5 business days": no tool result and no rule gives this time. |
-| state_mismatch | 3 | trace.jsonl:17, RULES.md:3 | "Your €80 refund is confirmed and processed": this agrees with the tool result, but the tool result broke rule 3. |
-| missing_action | 2 | trace.jsonl:10, RULES.md:1 | The agent refunded with no check of the 30-day window. The order data has no delivery date. |
+| business_rule | 2 | trace.jsonl:10; app.py:27,59 | `refund` paid €80 with no approval request. The limit `APPROVAL_LIMIT_CENTS = 5000` is in cents, but the code compares it with `amount_eur`. So only a refund above €5000 needs approval. |
+| business_rule | 2 | trace.jsonl:13 | "I've refunded the full €80 to your card": the agent did not send the refund to a manager, and did not tell the customer about an approval. |
+| unsupported_reply | 2 | trace.jsonl:13 | "you should see the credit within 3–5 business days": no tool result and no rule gives this time. |
+| state_mismatch | 3 | trace.jsonl:17; state.json | "Your refund of €80 has been processed and is on its way to your card": the reply confirms a payment that broke rule 3. |
 
-The notes start with "The seal is intact". The model read `state.json` with a read-only command: it holds the refund RF-4C8BD2 and no approval request.
+The notes start with "The seal is intact". The model read `state.json` with a read-only command: it holds the refund RF-53C19F and no approval.
 
 ### What the model got right and wrong
 
-- The `business_rule` row finds the planted bug and its cause, but it cites the wrong lines. The limit is at `app.py:27`, and the comparison is at `app.py:59`. Line 25 sets `STATE`, and line 56 reads the order from the state.
+- The first `business_rule` row finds the planted bug, its cause and the correct lines: the limit at `app.py:27` and the comparison at `app.py:59`.
 - The `unsupported_reply` row is a correct find that the trace alone shows: no tool gives a refund time.
-- The `state_mismatch` row is not a state mismatch. The row itself says that the reply agrees with the tool result. It is the rule break of turn 2 again.
-- The `missing_action` row is weak. The notes say that it has lower confidence, because the app has no data for rule 1.
+- The second `business_rule` row is the same rule break, from the side of the reply.
+- The `state_mismatch` row is not a state mismatch. The row itself says that the state agrees with the tool result.
 
 The model saw no message of the test. It quoted the refund id, which is random for each run, and exact parts of the replies. So it judged the records and not its memory.
 
