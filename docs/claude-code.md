@@ -35,6 +35,12 @@ If your app calls HTTP services, for example a stock service, list them in `back
 
 During a test, the bridge runs a recording proxy for each one, and gives your app the proxy URL in `env`. The proxy forwards each byte to `url` and back, and writes each call to `backend.jsonl`: the method, the path, the headers, the bodies and the status. It removes the values of secret headers, for example `Authorization`, from the record. The trace shows each call in its turn, and the check `backend_error` finds each call with no answer or a status of 500 or more. The proxy reads the whole response before it sends it, so a streamed response arrives at your app in 1 piece. [SPEC.md section 7.6](../SPEC.md#76-backend-proxies) defines the proxy.
 
+### Direct model calls
+
+If your app calls the Anthropic or the OpenAI API with an SDK, the bridge records these calls. During a test, it runs a recording proxy for each API, and gives your app the proxy URL in `ANTHROPIC_BASE_URL` and `OPENAI_BASE_URL`. The proxy forwards to the value that you had in the variable, else to the public API. It sends each part of a streamed response to your app when the part comes. It writes each call to `model_api.jsonl`, with the text, the tool calls and the stop reason, and without the API key. The trace shows each call in its turn, and the check `model_api_error` finds each call with an error or a status of 400 or more.
+
+An Agent SDK session in your app also reads `ANTHROPIC_BASE_URL`, so its calls also go through the proxy. The record keeps only the size and the SHA-256 of these calls, because they hold the instructions of Claude Code. The session file already gives their turns. If your app uses Codex with a ChatGPT login, `OPENAI_BASE_URL` can send Codex to the public API. Then add `"model_api": ["anthropic"]` or `"model_api": false` to `.verbatim-relay/config.json`. [SPEC.md section 7.7](../SPEC.md#77-model-api-proxies) defines the proxy.
+
 ### OpenTelemetry
 
 During a test, the bridge runs an OTLP/HTTP receiver and gives your app its address in the standard `OTEL_*` variables. These replace your app's own `OTEL_*` values for the test. If your app uses the OpenTelemetry SDK, its spans and logs go to `otel.jsonl` in the test folder and into the trace. An Agent SDK session also sends its prompts, tool calls and replies, because the bridge sets `CLAUDE_CODE_ENABLE_TELEMETRY=1`. The trace checks each tool call of these events against the session file. The receiver removes each `user.*`, `organization.*` and e-mail attribute before it writes a row. To stop the receiver, add `"otel": false` to `.verbatim-relay/config.json`. [SPEC.md section 7.5](../SPEC.md#75-otlp-receiver) defines the receiver.
@@ -76,6 +82,7 @@ Each test is a new conversation, with a new test id and a new entry process. The
 | `seal.json` | The SHA-256 of each other file at the end of the test. `verbatim-relay verify` shows if a file changed after the end ([SPEC.md section 7.4](../SPEC.md#74-seal)). |
 | `denied.jsonl` | The model tool calls that the relay denied after the end. |
 | `backend.jsonl` | The calls of your app to its backends (see [Backends](#backends)). |
+| `model_api.jsonl` | The direct calls of your app to a model API (see [Direct model calls](#direct-model-calls)). |
 | `otel.jsonl` | The OpenTelemetry spans and logs of your app, if it sent any (see [OpenTelemetry](#opentelemetry)). |
 | `findings.json` | The checks of the trace: failed tools and commands, agent errors, turns with no model item, and more ([SPEC.md section 8](../SPEC.md#8-trace)). |
 

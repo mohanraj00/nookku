@@ -14,7 +14,7 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
-from . import backend, otlp
+from . import backend, model_api, otlp
 from .record import VERSION
 
 # The version of a trace row. 0.3 adds the kinds span and log, and the field service.
@@ -30,6 +30,7 @@ CHECKS = (
     "command_failed",
     "span_error",
     "backend_error",
+    "model_api_error",
     "turn_without_model",
     "item_between_turns",
     "otel_tool_not_in_session",
@@ -325,6 +326,101 @@ def read_backend(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     }
 
 
+def _request(row: dict[str, Any]) -> dict[str, Any]:
+    """The JSON of the request body of a model_api.jsonl row, or {} if the record has no JSON."""
+    body = row.get("request_body")
+    text = body.get("text") if isinstance(body, dict) and not body.get("cut") else None
+    data = _json(text) if isinstance(text, str) else None
+    return data if isinstance(data, dict) else {}
+
+
+def _said(request: dict[str, Any]) -> str | None:
+    """The text of the last message of a request, if it is a user message with text."""
+    messages = request.get("messages")
+    last = messages[-1] if isinstance(messages, list) and messages else None
+    if not isinstance(last, dict) or last.get("role") != "user":
+        return None
+    content = last.get("content")
+    if isinstance(content, str):
+        return content
+    parts = [b for b in content if isinstance(b, dict)] if isinstance(content, list) else []
+    texts = [str(b.get("text")) for b in parts if b.get("type") == "text" and "text" in b]
+    return "\n".join(texts) if texts else None
+
+
+def _results(api: str, request: dict[str, Any]) -> dict[str, tuple[str, bool]]:
+    """The tool results in the messages of a request: (text, is_error) by tool call id."""
+    out: dict[str, tuple[str, bool]] = {}
+    messages = request.get("messages")
+    for m in messages if isinstance(messages, list) else []:
+        if not isinstance(m, dict):
+            continue
+        if api == "openai" and m.get("role") == "tool" and m.get("tool_call_id"):
+            out.setdefault(str(m["tool_call_id"]), (_text(m.get("content"), ("text",)), False))
+        content = m.get("content") if api == "anthropic" else None
+        for b in content if isinstance(content, list) else []:
+            if isinstance(b, dict) and b.get("type") == "tool_result" and b.get("tool_use_id"):
+                text = _text(b.get("content"), ("text",))
+                out.setdefault(str(b["tool_use_id"]), (text, b.get("is_error") is True))
+    return out
+
+
+def read_model_api(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """The call rows of model_api.jsonl (SPEC.md section 8.4). The calls of a harness are only
+    counted, because its session file has them."""
+    items: list[dict[str, Any]] = []
+    ignored: Counter[str] = Counter()
+    harness_calls: Counter[str] = Counter()
+    other_calls = 0
+    calls: list[tuple[int, dict[str, Any], dict[str, Any]]] = []
+    rows = 0
+    for n, row in _lines(path):
+        rows += 1
+        if not isinstance(row, dict) or row.get("type") != "call":
+            ignored[str(row.get("type")) if isinstance(row, dict) else "invalid_json"] += 1
+        elif row.get("harness"):
+            harness_calls[str(row["harness"])] += 1
+        elif not model_api.model_call(str(row.get("api")), str(row.get("path"))):
+            other_calls += 1
+        else:
+            calls.append((n, row, _request(row)))
+    for i, (n, row, request) in enumerate(calls):
+        api = str(row.get("api") or "")
+        said = _said(request)
+        if said is not None:
+            it = _item("model_api", api, model_api.FILE, n, row.get("started"))
+            it.update(kind="message", role="user", output=said)
+            items.append(it)
+        result: dict[str, Any] = row["result"] if isinstance(row.get("result"), dict) else {}
+        it = _item("model_api", api, model_api.FILE, n, row.get("ts"))
+        info = {k: result.get(k) for k in ("model", "stop_reason", "usage")}
+        it.update(
+            kind="message",
+            role="assistant",
+            input={"path": row.get("path"), **info},
+            output=result.get("text") or None,
+            error=row.get("error") or result.get("error"),
+            exit_code=row.get("status"),
+        )
+        items.append(it)
+        later = [_results(api, r) for _, _, r in calls[i + 1 :]]
+        for call in result.get("tool_calls") or []:
+            it = _item("model_api", api, model_api.FILE, n, row.get("ts"))
+            it.update(kind="tool_call", name=call.get("name"), input=call.get("input"))
+            found = next((r[str(call.get("id"))] for r in later if str(call.get("id")) in r), None)
+            if found is not None:
+                it["error" if found[1] else "output"] = found[0]
+            items.append(it)
+    return items, {
+        "file": model_api.FILE,
+        "rows": rows,
+        "items": len(items),
+        "ignored": dict(ignored),
+        "harness_calls": dict(harness_calls),
+        "other_calls": other_calls,
+    }
+
+
 def _event_tool(it: dict[str, Any]) -> tuple[str | None, Any]:
     """The tool name and input of a harness tool_result event."""
     attrs = it["input"]
@@ -411,6 +507,11 @@ def check(
             what = it["error"] or f"status {it['exit_code']}"
             detail = f"{it['session']}: {it['name']}: {what}"
             out.append(_finding("backend_error", it["turn"], detail, **where))
+        model_call = it["harness"] == "model_api" and it["role"] == "assistant"
+        if model_call and (it["error"] is not None or (it["exit_code"] or 0) >= 400):
+            what = it["error"] or f"status {it['exit_code']}"
+            detail = f"{it['session']}: {it['input']['path']}: {what}"
+            out.append(_finding("model_api_error", it["turn"], detail, **where))
         if it["kind"] == "span" and it["error"] is not None:
             detail = f"{it['service'] or 'a service'}: {it['name']}: {it['error']}"
             out.append(_finding("span_error", it["turn"], detail, **where))
@@ -473,6 +574,10 @@ def build(folder: Path) -> dict[str, Any]:
     if (folder / backend.FILE).exists():
         found, calls = read_backend(folder / backend.FILE)
         items += found
+    direct = None
+    if (folder / model_api.FILE).exists():
+        found, direct = read_model_api(folder / model_api.FILE)
+        items += found
     items.sort(key=lambda it: it["ts"] if it["ts"] is not None else float("inf"))
     assign(items, spans)
     findings = check(exchanges, spans, items, sessions)
@@ -487,6 +592,7 @@ def build(folder: Path) -> dict[str, Any]:
         "sessions": sessions,
         "otel": otel,
         "backend": calls,
+        "model_api": direct,
         "counts": {c: counts[c] for c in CHECKS},
         "findings": findings,
     }

@@ -31,12 +31,7 @@
   {
    "class": "unsupported_reply",
    "turn": "2",
-   "evidence": "trace.jsonl:10; trace.jsonl:13; trace.jsonl:17; app.py:64; state.json:16"
-  },
-  {
-   "class": "unsupported_reply",
-   "turn": "2",
-   "evidence": "trace.jsonl:13; trace.jsonl:10; RULES.md:3"
+   "evidence": "trace.jsonl:10; trace.jsonl:13; trace.jsonl:17; state.json:16"
   }
  ],
  "P5_quotes_the_refund_id": true,
@@ -66,7 +61,17 @@
  ],
  "otel_tool_not_in_session": 0,
  "P8_otel_has_the_refund": true,
- "report": "# Test 20261006-152552-42ce: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | trace.jsonl:10; RULES.md:5; app.py:27; app.py:59; state.json:14 | `shop.refund` received `{\"order\": \"5120\", \"amount_eur\": 80}` and returned `{\"refund\": \"RF-AC8F4B\", \"amount_eur\": 80, \"status\": \"paid\"}`. The rule says, “A refund above €50 needs the approval of a manager. The refund waits for the approval, and the manager pays it.” The app paid it immediately and persisted the refund without an approval request. The comparison `args[\"amount_eur\"] > APPROVAL_LIMIT_CENTS` compares euros against `5000`, bypassing approval for this €80 refund. |\n| unsupported_reply | 2 | trace.jsonl:10; trace.jsonl:13; trace.jsonl:17; app.py:64; state.json:16 | The reply says, “I've refunded the full €80 to your card”; turn 3 repeats “on its way to your card.” The tool result and persisted refund establish an amount and refund reference, but no payment destination. The code only records the refund in the order; no rule or tool result establishes that it was sent to a card. |\n| unsupported_reply | 2 | trace.jsonl:13; trace.jsonl:10; RULES.md:3 | The reply promises, “you should see the credit within 2-3 business days.” Neither the refund result nor the business rules provide a credit timeline. |\n\n## Notes\n\nThe transcript reports an intact seal: no record changed after the test ended. Reviewed all three turns and their 18 model items, findings.json, audit.json, RULES.md, app.py, entry.py, and the current state.json using read-only commands. Findings are empty; the audit reports no breaks, errors, or blocked calls. Those results do not establish compliance with the business rules.\n\nThe current state contains refund RF-AC8F4B for €80 on order 5120 and no approvals entry, consistent with the recorded refund result. The order lookup and refund arguments match the tester's order and amount. The refund completion claims agree with the app's recorded paid result; the defect is the unauthorized payment, not a mismatch between that result and the reply.\n\nNo delivery date or customer identity is available to assess the 30-day return limit or ownership independently. No external card/payment record is available to verify the claimed destination or credit timing. The app was not started or contacted, and no state or source files were changed. Only this report was written.\n",
- "answer": "Wrote [report.md](<project>/.verbatim-relay/tests/20261006-152552-42ce/report.md).\nFound three issues: €80 paid without manager approval, unsupported card destination, and unsupported credit timing.\nThe seal is intact; the audit found no altered turns.\nOnly the report was changed.",
+ "model_api": {
+  "file": "model_api.jsonl",
+  "rows": 9,
+  "items": 0,
+  "ignored": {},
+  "harness_calls": {
+   "claude-code": 8
+  },
+  "other_calls": 1
+ },
+ "report": "# Test 20261006-165102-d6e7: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | trace.jsonl:10; RULES.md:5; app.py:27; app.py:59; state.json:14 | `shop.refund` received `{\"order\": \"5120\", \"amount_eur\": 80}` and returned `{\"refund\": \"RF-C3E5A9\", \"amount_eur\": 80, \"status\": \"paid\"}`. The rule says, “A refund above €50 needs the approval of a manager. The refund waits for the approval, and the manager pays it.” The code compares `args[\"amount_eur\"] > APPROVAL_LIMIT_CENTS`, where `APPROVAL_LIMIT_CENTS = 5000`, so this €80 refund bypassed approval. The saved order contains the paid refund and no approval request. |\n| unsupported_reply | 2 | trace.jsonl:10; trace.jsonl:13; trace.jsonl:17; state.json:16 | The reply claims “the amount has been paid back to your card.” The tool result reports only the refund ID, amount and `\"status\": \"paid\"`; neither the rules nor the saved refund identifies a card or payment destination. Turn 3 repeats the unsupported destination claim: “has been processed and sent to your card.” |\n\n## Notes\n\nThe transcript reports: “Seal: intact. No record changed after the end of the test.” Reviewed all three turns and all 18 model items, findings.json, audit.json, RULES.md, app.py, entry.py, and the current state.json using read-only commands. Findings contains no findings; the audit reports no breaks, errors, or blocked calls. The order lookup and refund amount match the tester's requests. The current state contains refund RF-C3E5A9 for €80 on order 5120, consistent with the tool's paid result, but inconsistent with the manager-approval rule.\n\nNo app was started, no message was sent to it, and no state was changed. Only this report was written. No project tests or additional business-rule documents were found. Actual card settlement, delivery dates, customer identity, and any external manager activity cannot be verified from the available records and project state; no additional violations are inferred from those gaps.\n",
+ "answer": "Wrote [report.md](<project>/.verbatim-relay/tests/20261006-165102-d6e7/report.md).\nFound two issues: the €80 refund bypassed required manager approval, and replies claimed card payment without supporting evidence.\nThe seal is intact; the audit found no altered turns.\nOnly the report was written; app state was unchanged.",
  "pass": true
 }

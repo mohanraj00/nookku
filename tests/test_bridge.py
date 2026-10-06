@@ -403,6 +403,60 @@ def test_the_proxy_records_the_backend_calls(tmp_path: Path, homes: tuple) -> No
     assert seal.verify(folder)["intact"]
 
 
+MODEL_APP = """
+import json, os, sys, urllib.request
+
+for raw in sys.stdin.buffer:
+    request = json.loads(raw)
+    ask = {"model": "claude-toy", "stream": True, "messages": [
+        {"role": "user", "content": request["message"]}]}
+    call = urllib.request.Request(
+        os.environ["ANTHROPIC_BASE_URL"] + "/v1/messages", data=json.dumps(ask).encode(),
+        headers={"x-api-key": "sk-toy-k3y", "content-type": "application/json"})
+    with urllib.request.urlopen(call, timeout=5) as r:
+        lines = r.read().decode().split("\\n")
+    events = [json.loads(x[6:]) for x in lines if x.startswith("data: ")]
+    deltas = [e["delta"] for e in events if e["type"] == "content_block_delta"]
+    text = "".join(d.get("text", "") for d in deltas)
+    sys.stdout.write(json.dumps({"v": 1, "id": request["id"], "reply": text}) + "\\n")
+    sys.stdout.flush()
+"""
+
+
+def test_the_proxy_records_the_direct_model_calls(
+    tmp_path: Path, homes: tuple, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from test_model_api import STREAM
+    from toy_model_server import ModelServer
+
+    root = project(tmp_path, [sys.executable, "-c", MODEL_APP])
+    with ModelServer() as model:
+        model.parts = STREAM
+        monkeypatch.setenv("ANTHROPIC_BASE_URL", model.url)
+        cur = bridge.start(root, "tester-1")
+        try:
+            shown, ok = bridge.send(cur, "Do you have the teapot set?")
+        finally:
+            bridge.end(root)
+    assert ok and shown == "3 teapot sets € left."
+    folder = Path(cur["dir"])
+    assert "k3y" not in (folder / "model_api.jsonl").read_text()
+    items = [json.loads(x) for x in (folder / "trace.jsonl").read_text().split("\n") if x]
+    assert [(it["kind"], it["turn"], it["role"], it["output"]) for it in items] == [
+        ("message", 1, "user", "Do you have the teapot set?"),
+        ("message", 1, "assistant", "3 teapot sets € left."),
+    ]
+    assert seal.verify(folder)["intact"]
+
+
+def test_a_bad_model_api_config_stops_the_start(tmp_path: Path) -> None:
+    root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
+    config = root / ".verbatim-relay" / "config.json"
+    config.write_text(json.dumps({**json.loads(config.read_text()), "model_api": ["toy"]}))
+    with pytest.raises(bridge.BridgeError, match="'model_api' must be"):
+        bridge.start(root)
+
+
 def test_a_bad_backend_config_stops_the_start(tmp_path: Path) -> None:
     root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
     config = root / ".verbatim-relay" / "config.json"

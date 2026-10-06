@@ -1,0 +1,46 @@
+{
+ "date": "2026-10-06",
+ "versions": {
+  "verbatim-relay": "0.1.0",
+  "python": "3.12.13",
+  "os": "Darwin"
+ },
+ "calls": [
+  {
+   "call": 1,
+   "api": "anthropic",
+   "path": "/v1/messages",
+   "stream": true,
+   "response_size": 6549,
+   "request_same": true,
+   "response_same": true,
+   "first_part_before_the_end": true,
+   "text_in_record": true
+  },
+  {
+   "call": 2,
+   "api": "openai",
+   "path": "/v1/chat/completions",
+   "stream": true,
+   "response_size": 3564,
+   "request_same": true,
+   "response_same": true,
+   "first_part_before_the_end": true,
+   "text_in_record": true
+  },
+  {
+   "call": 3,
+   "api": "anthropic",
+   "path": "/v1/messages",
+   "stream": false,
+   "response_size": 122,
+   "request_same": true,
+   "response_same": true,
+   "first_part_before_the_end": null,
+   "text_in_record": true
+  }
+ ],
+ "key_in_record": false,
+ "seal_intact": true,
+ "pass": true
+}

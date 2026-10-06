@@ -62,6 +62,18 @@ The findings are 2 `tool_error` (order 9999, one in each harness), 1 `command_fa
 
 The record cuts the third request body at 1 MiB, but the stock service got all of its bytes. The seal of the test folder was intact.
 
+### Direct model calls
+
+[scripts/proof_model_api.py](../scripts/proof_model_api.py) runs a test with an entry that makes 3 calls to a toy model API through the model API proxies: a streamed Anthropic call, a streamed OpenAI call and an Anthropic call with a JSON answer. For a streamed call, the toy API sends the first event and then waits until the entry says that it has that event. The proof compares the SHA-256 of each body at 3 places: the entry, the toy API and `model_api.jsonl`. It also compares the text in the record with the text that the toy API sent. It needs no model.
+
+| Call | Response | Same at all 3 places | First part before the end | Text in the record | Data |
+|---|---|---|---|---|---|
+| Anthropic, stream | 6,549 bytes | yes | yes | yes | [results](../proofs/model-api/results.json) |
+| OpenAI, stream | 3,564 bytes | yes | yes | yes | [results](../proofs/model-api/results.json) |
+| Anthropic, JSON | 122 bytes | yes | not a stream | yes | [results](../proofs/model-api/results.json) |
+
+The API key was not in the record. The seal of the test folder was intact.
+
 ### P5: the model judges the record, not its memory
 
 [scripts/proof_evaluation.py](../scripts/proof_evaluation.py) runs one harness session: 2 tester messages in relay mode (the first has the order code `ZX-4471-Q`), then relay mode off, then 2 questions to the model.
@@ -91,9 +103,9 @@ The session resumes between turns, so P5b also shows that the transcript survive
 |---|---|---|---|---|---|---|---|---|---|
 | Plugin | Claude Code 2.1.290 | 3 | pass | pass | pass | pass | temporary project | pass | [results](../proofs/report/plugin.json) |
 | Hook kit | Claude Code 2.1.290 | 3 | pass | pass | pass | pass | temporary project | pass | [results](../proofs/report/hooks-claude-code.json) |
-| Hook kit | Codex 0.160.0 | 3 | pass | pass | pass | pass | trusted project, 0 commands outside it | pass | [results](../proofs/report/hooks-codex.json) |
+| Hook kit | Codex 0.160.0 | 2 | pass | pass | pass | pass | trusted project, 0 commands outside it | pass | [results](../proofs/report/hooks-codex.json) |
 
-The app's session files are from Claude Code 2.1.286, bundled in the Agent SDK. In an earlier run, the relay denied a command of the evaluating model that started with a variable assignment, `T=.verbatim-relay/tests/...`. So the read check now passes a part with only variable assignments. A report is a model answer, and it changes on each run. Before the script stores a report or an answer, it checks that the text shares no 8 words in a row with an instruction file on this machine, and it removes the local paths. [docs/evaluation-example.md](evaluation-example.md#a-test-with-an-automatic-report) shows one report and what the model got wrong.
+The app's session files are from Claude Code 2.1.286, bundled in the Agent SDK. The Agent SDK session reads `ANTHROPIC_BASE_URL`, so its calls went through the model API proxy ([SPEC.md section 7.7](../SPEC.md#77-model-api-proxies)). In each of the 3 runs, the proxy marked 8 calls as harness calls and kept no text of them. 1 other call, `HEAD /api/hello`, was not a model call. The trace kept 0 items from `model_api.jsonl` (`model_api` in each results file). In an earlier run, the relay denied a command of the evaluating model that started with a variable assignment, `T=.verbatim-relay/tests/...`. So the read check now passes a part with only variable assignments. A report is a model answer, and it changes on each run. Before the script stores a report or an answer, it checks that the text shares no 8 words in a row with an instruction file on this machine, and it removes the local paths. [docs/evaluation-example.md](evaluation-example.md#a-test-with-an-automatic-report) shows one report and what the model got wrong.
 
 **Changes to the method after the first runs.** I changed 3 things after I saw results. All runs before these changes are not in the data.
 
@@ -137,6 +149,7 @@ uv run python scripts/proofs_hooks.py codex
 uv run python scripts/proof_sessions.py
 uv run python scripts/proof_trace.py
 uv run python scripts/proof_backend.py
+uv run python scripts/proof_model_api.py
 uv run python scripts/proof_report.py plugin
 uv run python scripts/proof_report.py hooks-claude-code
 uv run python scripts/proof_report.py hooks-codex

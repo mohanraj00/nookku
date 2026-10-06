@@ -70,7 +70,14 @@ def render_item(it: dict[str, Any], line: int) -> str:
     """One trace item, with its line in trace.jsonl as its evidence."""
     head = f"[trace.jsonl:{line}] {it['harness']} {it['kind']}"
     if it["kind"] == "message":
-        return f"{head}, {it['role']}:\n{_cut(it['output'] or '', line)}\n"
+        out = f"{head}, {it['role']}:\n{_cut(it['output'] or '', line)}\n"
+        if it["harness"] == "model_api" and it["role"] == "assistant":
+            status = it["exit_code"] if it["exit_code"] is not None else "no answer"
+            out = f"{head}, assistant: {it['session']} {it['input']['path']}, status {status}:\n"
+            out += f"{_cut(it['output'] or '', line)}\n"
+        if it.get("error") is not None:
+            out += f"error:\n{_cut(it['error'], line)}\n"
+        return out
     if it["kind"] == "http":
         status = it["exit_code"] if it["exit_code"] is not None else "no answer"
         out = f"{head}: backend {it['session']}: {it['name']}, status {status}\n"
@@ -126,7 +133,8 @@ def transcript(folder: Path) -> str:
         f"{len(items)} model items. The tester and agent blocks are exact: they come from "
         "tap.jsonl. A model item comes from the app's own model sessions, or from the "
         "OpenTelemetry spans and logs of the app (otel.jsonl), or from the calls of the app to "
-        "its backends (backend.jsonl). [trace.jsonl:N] is "
+        "its backends (backend.jsonl), or from its direct calls to a model API "
+        "(model_api.jsonl). [trace.jsonl:N] is "
         f"line N of {folder / 'trace.jsonl'}.\n",
     ]
     loose = [f for f in findings if f["turn"] is None]
