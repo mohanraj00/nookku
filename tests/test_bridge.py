@@ -280,3 +280,15 @@ def test_each_relay_timeout_ends_before_the_hook_deadline() -> None:
 
     assert stdio.TIMEOUT < bridge.TIMEOUT < kit.HOOK_DEADLINE
     assert kit.TIMEOUT < kit.HOOK_DEADLINE
+
+
+def test_the_latest_test_is_the_one_that_started_last(tmp_path: Path) -> None:
+    tests = tmp_path / ".verbatim-relay" / "tests"
+    # The same second: the random part puts the older test last by name.
+    for name, started in (("20261006-080000-ffff", 1.0), ("20261006-080000-0000", 2.0)):
+        (tests / name).mkdir(parents=True)
+        (tests / name / "manifest.json").write_text(json.dumps({"started": started}))
+    assert bridge.latest_test(tmp_path) == tests / "20261006-080000-0000"
+    # A folder with no manifest yet is a test that starts now.
+    (tests / "20261006-075959-aaaa").mkdir()
+    assert bridge.latest_test(tmp_path) == tests / "20261006-075959-aaaa"

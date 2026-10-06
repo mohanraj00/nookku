@@ -103,10 +103,19 @@ def current(root: Path) -> dict[str, Any] | None:
     return cur
 
 
+def _started(folder: Path) -> float:
+    """The start time in the manifest. A folder with no manifest yet is a test that starts now."""
+    try:
+        return float(json.loads((folder / "manifest.json").read_text())["started"])
+    except (OSError, ValueError, KeyError, TypeError):
+        return float("inf")
+
+
 def latest_test(root: Path) -> Path | None:
+    """The test that started last. 2 test ids of the same second differ only by a random part."""
     tests = state(root) / "tests"
-    dirs = sorted(p for p in tests.iterdir() if p.is_dir()) if tests.is_dir() else []
-    return dirs[-1] if dirs else None
+    dirs = [p for p in tests.iterdir() if p.is_dir()] if tests.is_dir() else []
+    return max(dirs, key=lambda d: (_started(d), d.name), default=None)
 
 
 def _tail(path: Path, n: int = 20) -> str:
