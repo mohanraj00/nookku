@@ -23,11 +23,13 @@ from typing import Any
 from verbatim_relay import __version__, contract
 from verbatim_relay.adapters import History
 from verbatim_relay.record import Writer
+from verbatim_relay.stdio import TIMEOUT as AGENT_TIMEOUT
 from verbatim_relay.stdio import Agent, StdioTap, start_in_thread
 
 STATE_DIR = ".verbatim-relay"
 HARNESSES = ("claude-code", "codex")
-TIMEOUT = 310
+# Longer than the tap's wait for the agent, shorter than the hook deadline (kit.HOOK_DEADLINE).
+TIMEOUT = 270
 POLL = 0.5
 # Files in the state folder that a test writes or that switch a mode. They are not configuration.
 NOT_CONFIG = {"tests", "current.json", "mode", "relay.jsonl", "tap.jsonl"}
@@ -411,7 +413,7 @@ def _write_json(path: Path, data: dict[str, Any]) -> None:
     tmp.replace(path)
 
 
-def run(root: Path, test: str, tester_session: str | None, timeout: float = 300.0) -> int:
+def run(root: Path, test: str, tester_session: str | None, timeout: float = AGENT_TIMEOUT) -> int:
     """The bridge process: run the tap and the entry until SIGTERM, then collect."""
     root = root.resolve()
     folder = state(root) / "tests" / test

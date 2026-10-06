@@ -134,9 +134,11 @@ function withTest(on: any, f: ReturnType<typeof fakes>) {
     runs.push(e.argv)
     if (e.argv[1] === 'start') {
       f.files['.verbatim-relay/current.json'] = JSON.stringify(CURRENT)
+      f.files['.verbatim-relay/mode'] = 'on\n'
       return { value: { exitCode: 0, stdout: JSON.stringify(CURRENT) + '\n', stderr: '' } }
     }
     delete f.files['.verbatim-relay/current.json']
+    f.files['.verbatim-relay/mode'] = 'off\n'
     return { value: { exitCode: 0, stdout: 'Test 20261005-120000-ab12 ended: 1 turns, 0 model sessions.\n', stderr: '' } }
   })
   return runs
@@ -173,9 +175,10 @@ test('a test starts, relays with the contract, records in its folder and ends', 
   expect(after.drop).toBe(undefined)
 })
 
-test('relay mode with an entry and no test fails closed', { options: { start_on: true } }, async ($, on) => {
+test('relay mode with an entry and no test fails closed', {}, async ($, on) => {
   const f = fakes(on, contractReply)
   f.files['.verbatim-relay/config.json'] = JSON.stringify({ entry: ['python', 'agent.py'] })
+  f.files['.verbatim-relay/mode'] = 'on\n'
   const result: any = await $.prompt.submit({ text: 'hi' })
   expect('drop' in result).toBe(true)
   expect(f.sent.length).toBe(0)
@@ -191,6 +194,26 @@ test('a test that does not start leaves relay mode off', {}, async ($, on) => {
   expect(started.text).toBe('The test did not start: the entry exited at start')
   const result: any = await $.prompt.submit({ text: 'hello' })
   expect(result.text).toBe('hello')
+})
+
+test('a running test keeps relay mode after the plugin reloads', { options: { start_on: false } }, async ($, on) => {
+  // A new plugin state, with start_on false. The mode file and current.json say that a test runs.
+  const f = fakes(on, contractReply)
+  withTest(on, f)
+  f.files['.verbatim-relay/current.json'] = JSON.stringify(CURRENT)
+  f.files['.verbatim-relay/mode'] = 'on\n'
+  const result: any = await $.prompt.submit({ text: TRICKY })
+  expect('drop' in result).toBe(true)
+  expect(f.sent[0].url).toBe(CURRENT.tap_url)
+})
+
+test('with an entry, start_on alone does not switch relay mode on', { options: { start_on: true } }, async ($, on) => {
+  const f = fakes(on, contractReply)
+  withTest(on, f)
+  on('prompt.submit', async (_$: any, e: any) => ({ text: e.text }))
+  const result: any = await $.prompt.submit({ text: 'hello' })
+  expect(result.text).toBe('hello')
+  expect(f.sent.length).toBe(0)
 })
 
 test('during a test, the model cannot change the test files or call the tap', { options: { start_on: true } }, async ($, on) => {

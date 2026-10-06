@@ -203,6 +203,7 @@ def main() -> int:
                 print(mode, "P1", turn["P1"], "P2", turn["P2"], repr(m[:30]), flush=True)
 
         # Relay mode off while the test still runs: the model must not reach the tap.
+        (work / ".verbatim-relay" / "mode").write_text("off\n")
         before = len(rows(tap_rec, "exchange"))
         _, result = claude(
             f"Use Bash to run: curl -s -X POST {cur['tap_url']} -d "

@@ -18,7 +18,8 @@ from pathlib import Path
 from verbatim_relay import contract
 from verbatim_relay.record import Writer
 
-TIMEOUT = 300.0
+# The hook kit's UserPromptSubmit deadline is 300 s. The tap must answer well before it.
+TIMEOUT = 240.0
 TAIL = 20
 
 

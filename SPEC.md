@@ -152,7 +152,7 @@ Each adapter maps onto the agent contract (section 6):
 - The tap sends one request at a time. It waits for one line on the agent's stdout.
 - If the line is a valid output with the same `id`, the tap returns status 200 for a `reply` and 500 for an `error`, with the line as the body. It writes an `exchange` row. For an `error` line, the row's `error` is the agent's error text.
 - If the line is not valid, or has a different `id`, the tap returns status 502 and writes an `unparsed` row.
-- If the agent sends no line in 300 seconds, the tap stops the agent's process group. It returns status 504 and writes an `exchange` row with `status: null`.
+- If the agent sends no line in 240 seconds, the tap stops the agent's process group. It returns status 504 and writes an `exchange` row with `status: null`.
 - If the agent exits, the tap returns status 502 and writes an `exchange` row with `status: null` and the exit code in `error`.
 - The tap does not restart the agent. After a crash or a timeout, it answers each later request with the same error. The error body includes the last 20 lines of `app.log`.
 - Before each request, the tap reads each line that waits on stdout. Each such line becomes an `unparsed` row with `method: STDIO`.
@@ -216,7 +216,7 @@ A test runs the entry from `start` to `end`. A new conversation is a new test: e
 
 ### 7.2 Start and end
 
-`start` creates the test folder and starts the bridge, a background process that runs the tap in stdio mode. The bridge writes `.verbatim-relay/current.json` with the test id, the test folder, the tap URL and its own pid. Then `start` switches relay mode on. If `current.json` names a process that does not run, `start` removes the file.
+`start` creates the test folder and starts the bridge, a background process that runs the tap in stdio mode. The bridge writes `.verbatim-relay/current.json` with the test id, the test folder, the tap URL and its own pid. Then `start` switches relay mode on. With an entry, relay mode is the file `.verbatim-relay/mode` for both relays, so it survives a restart of the harness or a reload of the plugin. If `current.json` names a process that does not run, `start` removes the file.
 
 `end` switches relay mode off and stops the bridge. The bridge then:
 

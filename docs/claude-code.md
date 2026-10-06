@@ -42,7 +42,7 @@ For the toy shop agent of the [quick start](../README.md#quick-start), the confi
 
 The model reads the exact conversation of the latest test with the read-only `transcript` tool. It did not see the conversation while you talked, so it judges the record, not its memory. During a test, it cannot send a message to the agent, and it cannot change the files in `.verbatim-relay/`: the plugin denies these tool calls, except file reads.
 
-If the entry returns an error, crashes or does not answer in 300 seconds, the plugin shows the error and records it. The message never goes to the model. After a crash, each later message gets the same error, with the last lines of `app.log`. End the test and start a new one.
+If the entry returns an error, crashes or does not answer in 240 seconds, the plugin shows the error and records it. The message never goes to the model. After a crash, each later message gets the same error, with the last lines of `app.log`. End the test and start a new one.
 
 Each test is a new conversation, with a new test id and a new entry process. The test folder is `.verbatim-relay/tests/<test-id>/`:
 
@@ -59,7 +59,7 @@ Options. Set them with `/plugin configure verbatim-relay@verbatim-relay` in Clau
 | Option | Default | Meaning |
 |---|---|---|
 | `cli` | `verbatim-relay` | The command that starts and ends a test. Give a full path if it is not on `PATH`. |
-| `start_on` | `false` | Start each session in relay mode. |
+| `start_on` | `false` | Without an entry: start each session in relay mode. With an entry, relay mode is on while a test runs, also after a restart of Claude Code. |
 | `tap_url`, `agent_url`, `adapter`, `message_field`, `reply_field`, `openai_model`, `record` | | For an agent that runs as an HTTP server (see below). |
 
 ## Hook kit

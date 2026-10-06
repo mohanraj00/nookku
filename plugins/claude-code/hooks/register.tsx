@@ -4,6 +4,8 @@
 //
 // If .verbatim-relay/config.json has an entry, relay mode is a test (SPEC.md section 7): the
 // verbatim-relay command starts the entry through the tap, and each prompt goes to that test.
+// Relay mode is then the file .verbatim-relay/mode, which `start` and `end` write. It survives a
+// reload of the plugin, so a running test never loses relay mode.
 
 import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
@@ -17,6 +19,7 @@ const TOOL = 'mcp__verbatim-relay__transcript'
 const PERSON = ['composer', 'bridge', 'sdk']
 const CONFIG = '.verbatim-relay/config.json'
 const CURRENT = '.verbatim-relay/current.json'
+const MODE = '.verbatim-relay/mode'
 // $.fs.read copies at most 4 MiB. Stop before the record reaches it.
 const RECORD_LIMIT = 3.5 * 1024 * 1024
 // The end of a test stops the entry and copies its session files.
@@ -29,8 +32,18 @@ const state = atom({ plugin: 'verbatim-relay', key: 'state' } as const, {
 } as VerbatimRelayState)
 
 async function isOn($: any, o: Options): Promise<boolean> {
+  if (await hasEntry($)) return modeOn($)
   const s = await read($, state)
   return s.on ?? o.start_on
+}
+
+async function modeOn($: any): Promise<boolean> {
+  try {
+    if ((await fileSize($, MODE)) < 0) return false
+    return String(await $.fs.read(MODE)).trim() === 'on'
+  } catch {
+    return false
+  }
 }
 
 // A file's size, or -1 if it does not exist yet. Any other error rejects.

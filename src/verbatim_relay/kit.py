@@ -21,6 +21,9 @@ from verbatim_relay.record import RecordError, Turn, Writer, read_relay
 
 STATE_DIR = bridge.STATE_DIR
 TIMEOUT = 280
+# The UserPromptSubmit hook deadline. Each relay timeout must end before it, so that the hook
+# can still block the prompt.
+HOOK_DEADLINE = 300
 LOOPBACK = ["127.0.0.1", "localhost", "0.0.0.0", "[::1]"]
 # Tools that only read, write or search files. Every other tool is denied when its input names
 # the tap or the agent, so a tool that the kit does not know is denied too.
@@ -315,7 +318,7 @@ def hook_command(root: Path, harness: str) -> str:
 
 def _merge_hooks(settings: dict[str, Any], command: str) -> dict[str, Any]:
     hooks = settings.setdefault("hooks", {})
-    wanted = {"UserPromptSubmit": ({}, 300), "PreToolUse": ({"matcher": ".*"}, 30)}
+    wanted = {"UserPromptSubmit": ({}, HOOK_DEADLINE), "PreToolUse": ({"matcher": ".*"}, 30)}
     for event, (matcher, timeout) in wanted.items():
         groups = hooks.setdefault(event, [])
         groups[:] = [

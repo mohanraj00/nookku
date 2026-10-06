@@ -264,3 +264,10 @@ def test_view_follows_the_latest_test(tmp_path: Path, homes: tuple) -> None:
     text = out.getvalue()
     assert text.startswith("════ test ")
     assert "Refund policy?\n──── agent ────\nOur refund policy:" in text
+
+
+def test_each_relay_timeout_ends_before_the_hook_deadline() -> None:
+    from verbatim_relay import stdio
+
+    assert stdio.TIMEOUT < bridge.TIMEOUT < kit.HOOK_DEADLINE
+    assert kit.TIMEOUT < kit.HOOK_DEADLINE
