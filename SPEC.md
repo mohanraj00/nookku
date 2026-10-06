@@ -288,7 +288,7 @@ The seal shows if a file of the test folder changed after the end of the test. I
 | `changed` | The sealed files with a different SHA-256. |
 | `missing` | The sealed files that do not exist. |
 | `added` | The files that are not in the seal and not in the list of files that change after the end. |
-| `copy` | `same` or `different`: the copy has, or does not have, the same `v`, `test`, `sealed` and `files`. `missing`: the seal says that a copy exists, and it does not. `none`: no copy, because `seal.json` has `copy: false` or no seal exists. |
+| `copy` | `same` or `different`: a copy exists, and it has, or does not have, the same `v`, `test`, `sealed` and `files`. `verify` always compares an existing copy, also when `seal.json` has `copy: false`. `missing`: no copy exists, and `seal.json` has `copy: true` or does not exist. `none`: no copy exists, and `seal.json` has `copy: false`, or no seal exists. |
 | `intact` | `sealed` is true, the 3 lists are empty, and `copy` is `same` or `none`. |
 
 `verify` exits with 0 if `intact` is true, and with 2 if it is false. `verbatim-relay transcript --trace` shows the result in its first line.

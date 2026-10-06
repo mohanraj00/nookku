@@ -1239,6 +1239,14 @@ SEAL_CASES: dict[str, dict] = {
     "copy_missing": {"no_copy_file": True, "verify": verified(False, "missing")},
     # The bridge could not write the copy, for example in a sandbox. The seal says so.
     "no_copy": {"copy": False, "no_copy_file": True, "verify": verified(True, "none")},
+    # A changed record, with a seal.json that has the new hash and says `copy: false`. The copy
+    # outside the project still exists, so verify compares it.
+    "copy_flag_cleared": {
+        "after": {"trace.jsonl": '{"v": "0.1", "type": "model_item", "name": "refund"}\n'},
+        "seal_files": {"trace.jsonl": '{"v": "0.1", "type": "model_item", "name": "refund"}\n'},
+        "copy": False,
+        "verify": verified(False, "different"),
+    },
     "seal_missing": {"no_seal_file": True, "verify": verified(False, "same", sealed=False)},
     "no_seal": {
         "no_seal_file": True,
@@ -1256,7 +1264,7 @@ def write_seal_case(d: Path, case: dict) -> None:
     for rel, text in files.items():
         (folder / rel).parent.mkdir(parents=True, exist_ok=True)
         (folder / rel).write_text(text, encoding="utf-8")
-    seal = seal_of(SEAL_FILES, case.get("copy", True))
+    seal = seal_of({**SEAL_FILES, **case.get("seal_files", {})}, case.get("copy", True))
     if not case.get("no_seal_file"):
         (folder / "seal.json").write_text(json.dumps(seal, indent=1, sort_keys=True) + "\n")
     if not case.get("no_copy_file"):

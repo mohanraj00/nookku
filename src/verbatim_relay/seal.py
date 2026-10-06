@@ -88,7 +88,9 @@ def verify(folder: Path, base: Path | None = None) -> dict[str, Any]:
     """Compare the folder with its seal and the seal with its copy.
 
     `copy` is "same", "different", "missing" (the seal names a copy that does not exist) or
-    "none" (the bridge could not write a copy). Without seal.json, the copy is the seal.
+    "none" (no copy exists, and the seal says that the bridge could not write one). An existing copy
+    is always compared, because a changed seal.json can also say `copy: false`. Without seal.json,
+    the copy is the seal.
     """
     seal = _read(folder / SEAL)
     copy = _read(copy_path(folder.name, base))
@@ -104,8 +106,10 @@ def verify(folder: Path, base: Path | None = None) -> dict[str, Any]:
     }
     if ref is None:
         return out
-    if seal is None or seal.get("copy"):
-        out["copy"] = "missing" if copy is None else "same" if _same(ref, copy) else "different"
+    if copy is not None:
+        out["copy"] = "same" if _same(ref, copy) else "different"
+    elif seal is None or seal.get("copy"):
+        out["copy"] = "missing"
     now = hashes(folder)
     files: dict[str, Any] = ref["files"]
     out["changed"] = sorted(k for k in files if k in now and now[k] != files[k])
@@ -127,7 +131,7 @@ def update(folder: Path, names: list[str], base: Path | None = None) -> None:
         if path.is_file():
             files[name] = _sha256(path)
     data = {**seal, "files": files}
-    if seal.get("copy"):
+    if seal.get("copy") or copy_path(folder.name, base).exists():
         _write(copy_path(folder.name, base), {**data, "copy": True})
     _write(folder / SEAL, data)
 
