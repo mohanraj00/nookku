@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import datetime
 import hashlib
 import json
@@ -20,7 +21,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from verbatim_relay import __version__, contract
+from verbatim_relay import __version__, contract, trace
 from verbatim_relay.adapters import History
 from verbatim_relay.record import Writer
 from verbatim_relay.stdio import TIMEOUT as AGENT_TIMEOUT
@@ -102,10 +103,19 @@ def current(root: Path) -> dict[str, Any] | None:
     return cur
 
 
+def _started(folder: Path) -> float:
+    """The start time in the manifest. A folder with no manifest yet is a test that starts now."""
+    try:
+        return float(json.loads((folder / "manifest.json").read_text())["started"])
+    except (OSError, ValueError, KeyError, TypeError):
+        return float("inf")
+
+
 def latest_test(root: Path) -> Path | None:
+    """The test that started last. 2 test ids of the same second differ only by a random part."""
     tests = state(root) / "tests"
-    dirs = sorted(p for p in tests.iterdir() if p.is_dir()) if tests.is_dir() else []
-    return dirs[-1] if dirs else None
+    dirs = [p for p in tests.iterdir() if p.is_dir()] if tests.is_dir() else []
+    return max(dirs, key=lambda d: (_started(d), d.name), default=None)
 
 
 def _tail(path: Path, n: int = 20) -> str:
@@ -181,6 +191,8 @@ def summary(manifest: dict[str, Any]) -> str:
     ]
     if manifest.get("ended") is None:
         lines.append("The bridge did not finish its collection. See bridge.log in the folder.")
+    with contextlib.suppress(OSError, ValueError, KeyError):
+        lines.append(trace.summary(json.loads((folder / "findings.json").read_text())))
     lines.append(
         f"Audit: verbatim-relay audit --tap {folder / 'tap.jsonl'} --relay {folder / 'relay.jsonl'}"
     )
@@ -522,6 +534,10 @@ def run(root: Path, test: str, tester_session: str | None, timeout: float = AGEN
     )
     manifest.update(ended=ended, tester_sessions=sorted(tester), model_sessions=sessions)
     _write_json(folder / "manifest.json", manifest)
+    try:
+        _log(trace.summary(trace.build(folder)))
+    except Exception as e:  # the test must still end
+        _log(f"the trace failed: {e!r}")
     (state(root) / "current.json").unlink(missing_ok=True)
     tap.server_close()
     _log(f"test {test} ended")

@@ -137,6 +137,15 @@ def test_check_finds_the_model_sessions_of_the_app(tmp_path: Path, homes: tuple)
     rows = [json.loads(x) for x in (folder / "tap.jsonl").read_text().split("\n") if x]
     assert sum(r["type"] == "model_session" for r in rows) >= 2
     assert audit(folder / "tap.jsonl", folder / "relay.jsonl").exit == 0
+    # The fixture files have no items and no version (SPEC.md section 8). `check` has no tester
+    # session, so it also takes the tester rollout of the fixture.
+    assert (folder / "trace.jsonl").read_text() == ""
+    findings = json.loads((folder / "findings.json").read_text())
+    assert findings["turns"] == 1
+    assert {s["version"] for s in findings["sessions"]} == {"unknown"}
+    assert findings["counts"]["version_untested"] == len(manifest["model_sessions"])
+    assert findings["counts"]["session_inferred"] == len(manifest["model_sessions"]) - 1
+    assert findings["counts"]["turn_without_model"] == 0
 
 
 def test_the_tester_thread_is_not_an_app_session(tmp_path: Path, homes: tuple) -> None:
@@ -271,3 +280,15 @@ def test_each_relay_timeout_ends_before_the_hook_deadline() -> None:
 
     assert stdio.TIMEOUT < bridge.TIMEOUT < kit.HOOK_DEADLINE
     assert kit.TIMEOUT < kit.HOOK_DEADLINE
+
+
+def test_the_latest_test_is_the_one_that_started_last(tmp_path: Path) -> None:
+    tests = tmp_path / ".verbatim-relay" / "tests"
+    # The same second: the random part puts the older test last by name.
+    for name, started in (("20261006-080000-ffff", 1.0), ("20261006-080000-0000", 2.0)):
+        (tests / name).mkdir(parents=True)
+        (tests / name / "manifest.json").write_text(json.dumps({"started": started}))
+    assert bridge.latest_test(tmp_path) == tests / "20261006-080000-0000"
+    # A folder with no manifest yet is a test that starts now.
+    (tests / "20261006-075959-aaaa").mkdir()
+    assert bridge.latest_test(tmp_path) == tests / "20261006-075959-aaaa"

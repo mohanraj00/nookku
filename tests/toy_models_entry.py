@@ -1,7 +1,9 @@
 """A toy shop app with real model sessions, for scripts/proof_sessions.py. Local only.
 
 Each message goes to one Claude Agent SDK session (with an in-process `lookup_order` tool) and to
-one `codex app-server` thread. The entry speaks the agent contract. It needs claude-agent-sdk:
+one `codex app-server` thread. The Codex thread has `lookup_order` as a dynamic tool, the toy MCP
+server `check_stock` (tests/toy_mcp_server.py) and a shell for returns questions. The entry speaks
+the agent contract. It needs claude-agent-sdk:
 
     uv run --with claude-agent-sdk python tests/toy_models_entry.py
 """
@@ -13,6 +15,7 @@ import json
 import os
 import subprocess
 import sys
+from pathlib import Path
 from typing import Any
 
 from claude_agent_sdk import (  # type: ignore[import-not-found]
@@ -27,12 +30,36 @@ from verbatim_relay import contract
 
 ORDERS = {"4471": {"item": "blue mug", "status": "delivered", "price_eur": 8}}
 SYSTEM = "You are the toy shop support agent. Use lookup_order for order questions. One sentence."
+CODEX_SYSTEM = SYSTEM + (
+    " For a stock question, use check_stock."
+    " For a returns question, run the shell command `cat returns.txt`."
+)
+STOCK_SERVER = {
+    "command": sys.executable,
+    "args": [str(Path(__file__).with_name("toy_mcp_server.py"))],
+}
+LOOKUP = {
+    "type": "function",
+    "name": "lookup_order",
+    "description": "Look up a toy shop order by its number",
+    "inputSchema": {
+        "type": "object",
+        "properties": {"order": {"type": "string"}},
+        "required": ["order"],
+    },
+}
+
+
+def lookup(order: str) -> tuple[str, bool]:
+    """The order as JSON text, and False if the order does not exist."""
+    found = ORDERS.get(order)
+    return json.dumps(found or {"error": "no such order"}), found is not None
 
 
 @tool("lookup_order", "Look up a toy shop order by its number", {"order": str})
 async def lookup_order(args: dict[str, Any]) -> dict[str, Any]:
-    found = ORDERS.get(args["order"], {"error": "no such order"})
-    return {"content": [{"type": "text", "text": json.dumps(found)}]}
+    text, ok = lookup(args["order"])
+    return {"content": [{"type": "text", "text": text}], "is_error": not ok}
 
 
 class CodexThread:
@@ -43,12 +70,14 @@ class CodexThread:
             ["codex", "app-server"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True
         )
         self.n = 0
-        self.call("initialize", {"clientInfo": {"name": "toy-shop", "version": "0"}})
+        client = {"name": "toy-shop", "version": "0"}
+        self.call("initialize", {"clientInfo": client, "capabilities": {"experimentalApi": True}})
         self.send({"jsonrpc": "2.0", "method": "initialized"})
         params = {"cwd": cwd, "sandbox": "read-only", "approvalPolicy": "never"}
-        self.thread = self.call("thread/start", {**params, "developerInstructions": SYSTEM})[
-            "thread"
-        ]["id"]
+        params |= {"developerInstructions": CODEX_SYSTEM, "dynamicTools": [LOOKUP]}
+        stock = {**STOCK_SERVER, "default_tools_approval_mode": "approve"}
+        params["config"] = {"mcp_servers": {"stock": stock}}
+        self.thread = self.call("thread/start", params)["thread"]["id"]
 
     def send(self, msg: dict[str, Any]) -> None:
         assert self.p.stdin is not None
@@ -56,8 +85,15 @@ class CodexThread:
         self.p.stdin.flush()
 
     def read(self) -> dict[str, Any]:
+        """The next message from the server. It answers each lookup_order call on the way."""
         assert self.p.stdout is not None
-        return json.loads(self.p.stdout.readline())
+        while True:
+            msg = json.loads(self.p.stdout.readline())
+            if msg.get("method") != "item/tool/call" or "id" not in msg:
+                return msg
+            text, ok = lookup(str((msg["params"].get("arguments") or {}).get("order", "")))
+            result = {"contentItems": [{"type": "inputText", "text": text}], "success": ok}
+            self.send({"jsonrpc": "2.0", "id": msg["id"], "result": result})
 
     def call(self, method: str, params: dict[str, Any]) -> dict[str, Any]:
         self.n += 1

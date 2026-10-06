@@ -1,0 +1,27 @@
+{
+ "test": "20261006-080000-vv01",
+ "model_sessions": [
+  {
+   "harness": "claude-code",
+   "session": "4f1c2a7e-0d3b-4c55-9a61-2b8e5d7c9f10",
+   "pid": 4471,
+   "inferred": false,
+   "file": "sessions/claude-code/4f1c2a7e-0d3b-4c55-9a61-2b8e5d7c9f10.jsonl"
+  },
+  {
+   "harness": "codex",
+   "session": "019a0b1c-2d3e-7f40-8a5b-6c7d8e9f0a1b",
+   "pid": 4472,
+   "inferred": false,
+   "originator": "toy-shop",
+   "file": "sessions/codex/rollout-2026-10-06T08-00-00-019a0b1c-2d3e-7f40-8a5b-6c7d8e9f0a1b.jsonl"
+  },
+  {
+   "harness": "claude-code",
+   "session": "gone",
+   "pid": 4473,
+   "inferred": false,
+   "file": null
+  }
+ ]
+}

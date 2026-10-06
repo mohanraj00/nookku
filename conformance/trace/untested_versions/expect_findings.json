@@ -1,0 +1,62 @@
+{
+ "v": "0.2",
+ "test": "20261006-080000-vv01",
+ "turns": 1,
+ "items": 2,
+ "sessions": [
+  {
+   "harness": "claude-code",
+   "session": "4f1c2a7e-0d3b-4c55-9a61-2b8e5d7c9f10",
+   "file": "sessions/claude-code/4f1c2a7e-0d3b-4c55-9a61-2b8e5d7c9f10.jsonl",
+   "inferred": false,
+   "version": "2.1.999",
+   "items": 2,
+   "ignored": {}
+  },
+  {
+   "harness": "codex",
+   "session": "019a0b1c-2d3e-7f40-8a5b-6c7d8e9f0a1b",
+   "file": "sessions/codex/rollout-2026-10-06T08-00-00-019a0b1c-2d3e-7f40-8a5b-6c7d8e9f0a1b.jsonl",
+   "inferred": false,
+   "version": "0.161.0",
+   "items": 0,
+   "ignored": {
+    "session_meta": 1
+   }
+  },
+  {
+   "harness": "claude-code",
+   "session": "gone",
+   "file": null,
+   "inferred": false,
+   "version": null,
+   "items": 0,
+   "ignored": {}
+  }
+ ],
+ "counts": {
+  "agent_error": 0,
+  "tool_error": 0,
+  "command_failed": 0,
+  "turn_without_model": 0,
+  "item_between_turns": 0,
+  "session_inferred": 0,
+  "version_untested": 2
+ },
+ "findings": [
+  {
+   "check": "version_untested",
+   "turn": null,
+   "detail": "version 2.1.999, tested: 2.1.286",
+   "harness": "claude-code",
+   "session": "4f1c2a7e-0d3b-4c55-9a61-2b8e5d7c9f10"
+  },
+  {
+   "check": "version_untested",
+   "turn": null,
+   "detail": "version 0.161.0, tested: 0.160.0",
+   "harness": "codex",
+   "session": "019a0b1c-2d3e-7f40-8a5b-6c7d8e9f0a1b"
+  }
+ ]
+}

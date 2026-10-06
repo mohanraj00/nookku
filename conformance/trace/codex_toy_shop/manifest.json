@@ -1,0 +1,13 @@
+{
+ "test": "20261006-080000-cx01",
+ "model_sessions": [
+  {
+   "harness": "codex",
+   "session": "019a0b1c-2d3e-7f40-8a5b-6c7d8e9f0a1b",
+   "pid": null,
+   "inferred": true,
+   "originator": "toy-shop",
+   "file": "sessions/codex/rollout-2026-10-06T08-00-00-019a0b1c-2d3e-7f40-8a5b-6c7d8e9f0a1b.jsonl"
+  }
+ ]
+}

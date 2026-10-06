@@ -2,7 +2,7 @@
 
 `cases/` holds the audit cases (SPEC.md section 3). `contract/` holds the stdio cases (sections 4.2
 and 6): the requests that the relay posts, what a scripted agent does with each one, and the rows
-and HTTP statuses that the tap must give.
+and HTTP statuses that the tap must give. `trace/` holds the trace cases (section 8).
 
 Never fill an expectation by running the audit. CI runs this script and fails if the files change.
 
@@ -11,6 +11,7 @@ usage: python conformance/build.py
 
 from __future__ import annotations
 
+import datetime
 import hashlib
 import json
 import shutil
@@ -20,6 +21,7 @@ from typing import Any
 
 CASES = Path(__file__).parent / "cases"
 CONTRACT = Path(__file__).parent / "contract"
+TRACE = Path(__file__).parent / "trace"
 
 
 def sha(text: str | None) -> str | None:
@@ -441,6 +443,742 @@ CONTRACT_CASES: dict[str, dict] = {
 }
 
 
+# Trace cases (SPEC.md section 8). Each case has a tap record, a manifest, the session files and
+# the expected trace.jsonl and findings.json. The session lines copy the shapes of real session
+# files of Claude Code 2.1.286 and codex-cli 0.160.0, with toy shop content.
+T0 = 1791273600.0  # 2026-10-06T08:00:00Z
+CC = "4f1c2a7e-0d3b-4c55-9a61-2b8e5d7c9f10"
+CX = "019a0b1c-2d3e-7f40-8a5b-6c7d8e9f0a1b"
+CC_FILE = f"sessions/claude-code/{CC}.jsonl"
+CX_FILE = f"sessions/codex/rollout-2026-10-06T08-00-00-{CX}.jsonl"
+
+
+def iso(t: float) -> str:
+    stamp = datetime.datetime.fromtimestamp(t, tz=datetime.timezone.utc)
+    return stamp.isoformat(timespec="milliseconds").replace("+00:00", "Z")
+
+
+def window(started: float | None, ts: float, status: int | None = 200, v: str = "0.2") -> dict:
+    """An exchange of a trace case: only its times and its status matter."""
+    row = ex("toy shop message", "toy shop reply" if status == 200 else None, status, v=v)
+    row["ts"] = T0 + ts
+    if started is not None:
+        row["started"] = T0 + started
+    if status != 200:
+        row["error"] = "the agent failed"
+    return row
+
+
+def cc_line(kind: str, t: float, content: Any, **more: Any) -> dict:
+    """One user or assistant line of a Claude Code session file."""
+    row = {
+        "type": kind,
+        "sessionId": CC,
+        "timestamp": iso(T0 + t),
+        "version": more.pop("version", "2.1.286"),
+        "isSidechain": False,
+        "message": {"role": kind, "content": content},
+    }
+    return {**row, **more}
+
+
+def use(tid: str, name: str, args: dict) -> dict:
+    return {
+        "type": "tool_use",
+        "id": tid,
+        "name": name,
+        "input": args,
+        "caller": {"type": "direct"},
+    }
+
+
+def result(tid: str, content: Any, error: bool = False) -> dict:
+    row = {"type": "tool_result", "tool_use_id": tid, "content": content}
+    return {**row, "is_error": True} if error else row
+
+
+def cx_line(t: float, item: dict, at: bool = True) -> dict:
+    """One item_completed line of a Codex rollout file."""
+    payload: dict[str, Any] = {
+        "type": "item_completed",
+        "thread_id": CX,
+        "turn_id": "t",
+        "item": item,
+    }
+    if at:
+        payload |= {"started_at_ms": int((T0 + t) * 1000), "completed_at_ms": int((T0 + t) * 1000)}
+    return {"timestamp": iso(T0 + t), "type": "event_msg", "payload": payload}
+
+
+def item(turn: int | None, harness: str, ts: float, kind: str, line: int, **fields: Any) -> dict:
+    """An expected trace row. Each field that `fields` does not set has its SPEC.md default."""
+    session, file = (CC, CC_FILE) if harness == "claude-code" else (CX, CX_FILE)
+    row: dict[str, Any] = {
+        "v": "0.2",
+        "type": "model_item",
+        "turn": turn,
+        "harness": harness,
+        "session": session,
+        "ts": T0 + ts,
+        "kind": kind,
+        "role": None,
+        "server": None,
+        "name": None,
+        "input": None,
+        "output": None,
+        "error": None,
+        "exit_code": None,
+        "harness_internal": False,
+        "source": {"file": file, "line": line},
+    }
+    if "result_line" in fields:
+        row["source"]["result_line"] = fields.pop("result_line")
+    return {**row, **fields}
+
+
+def where(harness: str, line: int, result_line: int | None = None) -> dict:
+    session, file = (CC, CC_FILE) if harness == "claude-code" else (CX, CX_FILE)
+    source: dict[str, Any] = {"file": file, "line": line}
+    if result_line is not None:
+        source["result_line"] = result_line
+    return {"harness": harness, "session": session, "source": source}
+
+
+def counts(**n: int) -> dict:
+    checks = (
+        "agent_error",
+        "tool_error",
+        "command_failed",
+        "turn_without_model",
+        "item_between_turns",
+        "session_inferred",
+        "version_untested",
+    )
+    return {c: n.get(c, 0) for c in checks}
+
+
+CC_SESSION = {
+    "harness": "claude-code",
+    "session": CC,
+    "pid": 4471,
+    "inferred": False,
+    "file": CC_FILE,
+}
+CX_SESSION = {
+    "harness": "codex",
+    "session": CX,
+    "pid": None,
+    "inferred": True,
+    "originator": "toy-shop",
+    "file": CX_FILE,
+}
+NO_RESULT = "no tool_result in the session file"
+TOOL_REFERENCE = {"type": "tool_reference", "tool_name": "mcp__shop__lookup_order"}
+
+# Claude Code: an app start before turn 1, a harness tool, an MCP tool with a result, an agent
+# error, 2 failed tools, a thinking block, a meta line, items between turns, a tool call with no
+# result, a line that is not JSON and a turn with no model item.
+CLAUDE_CASE = {
+    "tap": [window(10, 20), window(30, 40, status=500), window(50, 60)],
+    "manifest": {"test": "20261006-080000-cc01", "model_sessions": [CC_SESSION]},
+    "sessions": {
+        CC_FILE: [
+            {"type": "queue-operation", "operation": "enqueue", "sessionId": CC},
+            cc_line("user", 5, "Warm up."),
+            cc_line("assistant", 6, [{"type": "text", "text": "Ready."}]),
+            cc_line("user", 11, "Where is my order 4471?"),
+            cc_line("assistant", 12, [{"type": "thinking", "thinking": "", "signature": "x"}]),
+            cc_line("assistant", 12.5, [use("t1", "ToolSearch", {"query": "select:shop"})]),
+            cc_line("user", 12.6, [result("t1", [TOOL_REFERENCE])]),
+            cc_line("assistant", 13, [use("t2", "mcp__shop__lookup_order", {"order": "4471"})]),
+            cc_line(
+                "user", 13.5, [result("t2", [{"type": "text", "text": '{"status": "delivered"}'}])]
+            ),
+            cc_line("assistant", 14, [{"type": "text", "text": "Order 4471 was delivered."}]),
+            cc_line("user", 15, "A line that the harness adds.", isMeta=True),
+            cc_line("user", 31, [{"type": "text", "text": "Where is my order 9999?"}]),
+            cc_line("assistant", 32, [use("t3", "mcp__shop__lookup_order", {"order": "9999"})]),
+            cc_line("user", 32.5, [result("t3", "no such order", error=True)]),
+            cc_line("assistant", 33, [use("t4", "Bash", {"command": "cat returns.txt"})]),
+            cc_line("user", 33.5, [result("t4", "cat: returns.txt: No such file", error=True)]),
+            cc_line("assistant", 45, [{"type": "text", "text": "Anything else?"}]),
+            "this line is not JSON",
+            {"type": "cost-state", "sessionId": CC},
+            cc_line("assistant", 46, [use("t5", "mcp__shop__lookup_order", {"order": "1"})]),
+        ]
+    },
+    "trace": [
+        item(None, "claude-code", 5, "message", 2, role="user", output="Warm up."),
+        item(None, "claude-code", 6, "message", 3, role="assistant", output="Ready."),
+        item(1, "claude-code", 11, "message", 4, role="user", output="Where is my order 4471?"),
+        item(
+            1,
+            "claude-code",
+            12.5,
+            "tool_call",
+            6,
+            name="ToolSearch",
+            input={"query": "select:shop"},
+            output=json.dumps(TOOL_REFERENCE),
+            harness_internal=True,
+            result_line=7,
+        ),
+        item(
+            1,
+            "claude-code",
+            13,
+            "tool_call",
+            8,
+            server="shop",
+            name="lookup_order",
+            input={"order": "4471"},
+            output='{"status": "delivered"}',
+            result_line=9,
+        ),
+        item(
+            1,
+            "claude-code",
+            14,
+            "message",
+            10,
+            role="assistant",
+            output="Order 4471 was delivered.",
+        ),
+        item(2, "claude-code", 31, "message", 12, role="user", output="Where is my order 9999?"),
+        item(
+            2,
+            "claude-code",
+            32,
+            "tool_call",
+            13,
+            server="shop",
+            name="lookup_order",
+            input={"order": "9999"},
+            error="no such order",
+            result_line=14,
+        ),
+        item(
+            2,
+            "claude-code",
+            33,
+            "tool_call",
+            15,
+            name="Bash",
+            input={"command": "cat returns.txt"},
+            error="cat: returns.txt: No such file",
+            result_line=16,
+        ),
+        item(None, "claude-code", 45, "message", 17, role="assistant", output="Anything else?"),
+        item(
+            None,
+            "claude-code",
+            46,
+            "tool_call",
+            20,
+            server="shop",
+            name="lookup_order",
+            input={"order": "1"},
+            error=NO_RESULT,
+        ),
+    ],
+    "findings": {
+        "v": "0.2",
+        "test": "20261006-080000-cc01",
+        "turns": 3,
+        "items": 11,
+        "sessions": [
+            {
+                "harness": "claude-code",
+                "session": CC,
+                "file": CC_FILE,
+                "inferred": False,
+                "version": "2.1.286",
+                "items": 11,
+                "ignored": {
+                    "assistant.thinking": 1,
+                    "cost-state": 1,
+                    "invalid_json": 1,
+                    "queue-operation": 1,
+                    "user.meta": 1,
+                },
+            }
+        ],
+        "counts": counts(agent_error=1, tool_error=3, turn_without_model=1, item_between_turns=2),
+        "findings": [
+            {"check": "agent_error", "turn": 2, "detail": "the agent gave status 500"},
+            {
+                "check": "tool_error",
+                "turn": 2,
+                "detail": "lookup_order: no such order",
+                **where("claude-code", 13, 14),
+            },
+            {
+                "check": "tool_error",
+                "turn": 2,
+                "detail": "Bash: cat: returns.txt: No such file",
+                **where("claude-code", 15, 16),
+            },
+            {
+                "check": "tool_error",
+                "turn": None,
+                "detail": f"lookup_order: {NO_RESULT}",
+                **where("claude-code", 20),
+            },
+            {"check": "turn_without_model", "turn": 3, "detail": "no model item in this turn"},
+            {
+                "check": "item_between_turns",
+                "turn": None,
+                "detail": "a message item",
+                **where("claude-code", 17),
+            },
+            {
+                "check": "item_between_turns",
+                "turn": None,
+                "detail": "a tool_call item",
+                **where("claude-code", 20),
+            },
+        ],
+    },
+}
+
+APPROVAL = "MCP tool call requires approval, but approval policy is never"
+NO_FILE = "cat: returns.txt: No such file or directory\n"
+
+# Codex: 0.1 exchanges without `started`, a dynamic tool, an MCP tool with no completed_at_ms, a
+# failed command, an MCP error, a failed dynamic tool, an MCP result with isError, a declined
+# command, item types that the trace skips, an item after the last turn and a turn with no item.
+CODEX_CASE = {
+    "tap": [window(None, 20, v="0.1"), window(None, 40, v="0.1"), window(50, 60)],
+    "manifest": {"test": "20261006-080000-cx01", "model_sessions": [CX_SESSION]},
+    "sessions": {
+        CX_FILE: [
+            {
+                "timestamp": iso(T0 + 1),
+                "type": "session_meta",
+                "payload": {
+                    "id": CX,
+                    "cwd": "/toy-shop",
+                    "originator": "toy-shop",
+                    "cli_version": "0.160.0",
+                },
+            },
+            {"timestamp": iso(T0 + 10), "type": "event_msg", "payload": {"type": "task_started"}},
+            {"timestamp": iso(T0 + 10), "type": "response_item", "payload": {"type": "message"}},
+            cx_line(
+                11,
+                {
+                    "type": "UserMessage",
+                    "id": "u1",
+                    "content": [
+                        {"type": "text", "text": "Where is my order 4471?", "text_elements": []}
+                    ],
+                },
+            ),
+            cx_line(
+                12,
+                {
+                    "type": "DynamicToolCall",
+                    "id": "d1",
+                    "tool": "lookup_order",
+                    "arguments": {"order": "4471"},
+                    "status": "completed",
+                    "content_items": [{"type": "inputText", "text": '{"status": "delivered"}'}],
+                    "success": True,
+                },
+            ),
+            cx_line(
+                13,
+                {
+                    "type": "McpToolCall",
+                    "id": "m1",
+                    "server": "stock",
+                    "tool": "check_stock",
+                    "arguments": {"product": "mug"},
+                    "status": "completed",
+                    "result": {"content": [{"type": "text", "text": '{"in_stock": 12}'}]},
+                },
+                at=False,
+            ),
+            cx_line(
+                14,
+                {
+                    "type": "AgentMessage",
+                    "id": "a1",
+                    "content": [{"type": "Text", "text": "Delivered, and 12 mugs are in stock."}],
+                    "phase": "final_answer",
+                },
+            ),
+            cx_line(15, {"type": "Reasoning", "id": "r1", "summary_text": [], "raw_content": []}),
+            cx_line(
+                31,
+                {
+                    "type": "UserMessage",
+                    "id": "u2",
+                    "content": [
+                        {"type": "text", "text": "Can I return a mug?", "text_elements": []}
+                    ],
+                },
+            ),
+            cx_line(
+                32,
+                {
+                    "type": "CommandExecution",
+                    "id": "c1",
+                    "command": ["/bin/zsh", "-lc", "cat returns.txt"],
+                    "status": "failed",
+                    "aggregated_output": NO_FILE,
+                    "exit_code": 1,
+                },
+            ),
+            cx_line(
+                33,
+                {
+                    "type": "McpToolCall",
+                    "id": "m2",
+                    "server": "stock",
+                    "tool": "check_stock",
+                    "arguments": {"product": "kite"},
+                    "status": "failed",
+                    "error": {"message": APPROVAL},
+                },
+            ),
+            cx_line(
+                34,
+                {
+                    "type": "DynamicToolCall",
+                    "id": "d2",
+                    "tool": "lookup_order",
+                    "arguments": {"order": "9999"},
+                    "status": "failed",
+                    "content_items": [{"type": "inputText", "text": "no such order"}],
+                    "success": False,
+                },
+            ),
+            cx_line(
+                35,
+                {
+                    "type": "McpToolCall",
+                    "id": "m3",
+                    "server": "stock",
+                    "tool": "check_stock",
+                    "arguments": {"product": "kite"},
+                    "status": "completed",
+                    "result": {
+                        "content": [{"type": "text", "text": "no such product"}],
+                        "isError": True,
+                    },
+                },
+            ),
+            cx_line(
+                36,
+                {
+                    "type": "CommandExecution",
+                    "id": "c2",
+                    "command": ["/bin/zsh", "-lc", "rm stock.txt"],
+                    "status": "declined",
+                    "aggregated_output": None,
+                    "exit_code": None,
+                },
+            ),
+            cx_line(
+                37,
+                {
+                    "type": "AgentMessage",
+                    "id": "a2",
+                    "content": [{"type": "Text", "text": "I cannot check that."}],
+                    "phase": "final_answer",
+                },
+            ),
+            cx_line(38, {"type": "FileChange", "id": "f1", "changes": [], "status": "completed"}),
+            cx_line(
+                70,
+                {
+                    "type": "AgentMessage",
+                    "id": "a3",
+                    "content": [{"type": "Text", "text": "Goodbye."}],
+                    "phase": "final_answer",
+                },
+            ),
+            {"timestamp": iso(T0 + 71), "type": "world_state", "payload": {}},
+        ]
+    },
+    "trace": [
+        item(1, "codex", 11, "message", 4, role="user", output="Where is my order 4471?"),
+        item(
+            1,
+            "codex",
+            12,
+            "tool_call",
+            5,
+            name="lookup_order",
+            input={"order": "4471"},
+            output='{"status": "delivered"}',
+        ),
+        item(
+            1,
+            "codex",
+            13,
+            "tool_call",
+            6,
+            server="stock",
+            name="check_stock",
+            input={"product": "mug"},
+            output='{"in_stock": 12}',
+        ),
+        item(
+            1,
+            "codex",
+            14,
+            "message",
+            7,
+            role="assistant",
+            output="Delivered, and 12 mugs are in stock.",
+        ),
+        item(2, "codex", 31, "message", 9, role="user", output="Can I return a mug?"),
+        item(
+            2,
+            "codex",
+            32,
+            "command",
+            10,
+            input=["/bin/zsh", "-lc", "cat returns.txt"],
+            output=NO_FILE,
+            exit_code=1,
+        ),
+        item(
+            2,
+            "codex",
+            33,
+            "tool_call",
+            11,
+            server="stock",
+            name="check_stock",
+            input={"product": "kite"},
+            error=APPROVAL,
+        ),
+        item(
+            2,
+            "codex",
+            34,
+            "tool_call",
+            12,
+            name="lookup_order",
+            input={"order": "9999"},
+            error="no such order",
+        ),
+        item(
+            2,
+            "codex",
+            35,
+            "tool_call",
+            13,
+            server="stock",
+            name="check_stock",
+            input={"product": "kite"},
+            error="no such product",
+        ),
+        item(
+            2,
+            "codex",
+            36,
+            "command",
+            14,
+            input=["/bin/zsh", "-lc", "rm stock.txt"],
+            error="status declined",
+        ),
+        item(2, "codex", 37, "message", 15, role="assistant", output="I cannot check that."),
+        item(None, "codex", 70, "message", 17, role="assistant", output="Goodbye."),
+    ],
+    "findings": {
+        "v": "0.2",
+        "test": "20261006-080000-cx01",
+        "turns": 3,
+        "items": 12,
+        "sessions": [
+            {
+                "harness": "codex",
+                "session": CX,
+                "file": CX_FILE,
+                "inferred": True,
+                "version": "0.160.0",
+                "items": 12,
+                "ignored": {
+                    "event_msg.task_started": 1,
+                    "item_completed.FileChange": 1,
+                    "item_completed.Reasoning": 1,
+                    "response_item.message": 1,
+                    "session_meta": 1,
+                    "world_state": 1,
+                },
+            }
+        ],
+        "counts": counts(
+            tool_error=3,
+            command_failed=2,
+            turn_without_model=1,
+            item_between_turns=1,
+            session_inferred=1,
+        ),
+        "findings": [
+            {
+                "check": "tool_error",
+                "turn": 2,
+                "detail": f"check_stock: {APPROVAL}",
+                **where("codex", 11),
+            },
+            {
+                "check": "tool_error",
+                "turn": 2,
+                "detail": "lookup_order: no such order",
+                **where("codex", 12),
+            },
+            {
+                "check": "tool_error",
+                "turn": 2,
+                "detail": "check_stock: no such product",
+                **where("codex", 13),
+            },
+            {"check": "command_failed", "turn": 2, "detail": "exit code 1", **where("codex", 10)},
+            {
+                "check": "command_failed",
+                "turn": 2,
+                "detail": "status declined",
+                **where("codex", 14),
+            },
+            {"check": "turn_without_model", "turn": 3, "detail": "no model item in this turn"},
+            {
+                "check": "item_between_turns",
+                "turn": None,
+                "detail": "a message item",
+                **where("codex", 17),
+            },
+            {
+                "check": "session_inferred",
+                "turn": None,
+                "detail": "found by directory and time",
+                "harness": "codex",
+                "session": CX,
+            },
+        ],
+    },
+}
+
+# Versions: a Claude Code file from an untested version, a Codex file from an untested version
+# with no items, and a session that has no file. Turn 1 has items, so no turn_without_model.
+UNTESTED_FILE = f"sessions/codex/rollout-2026-10-06T08-00-00-{CX}.jsonl"
+VERSION_CASE = {
+    "tap": [window(10, 20)],
+    "manifest": {
+        "test": "20261006-080000-vv01",
+        "model_sessions": [
+            CC_SESSION,
+            {**CX_SESSION, "inferred": False, "pid": 4472},
+            {
+                "harness": "claude-code",
+                "session": "gone",
+                "pid": 4473,
+                "inferred": False,
+                "file": None,
+            },
+        ],
+    },
+    "sessions": {
+        CC_FILE: [
+            cc_line("user", 11, "Hi.", version="2.1.999"),
+            cc_line("assistant", 12, [{"type": "text", "text": "Hello."}], version="2.1.999"),
+        ],
+        UNTESTED_FILE: [
+            {
+                "timestamp": iso(T0 + 1),
+                "type": "session_meta",
+                "payload": {"id": CX, "cwd": "/toy-shop", "cli_version": "0.161.0"},
+            }
+        ],
+    },
+    "trace": [
+        item(1, "claude-code", 11, "message", 1, role="user", output="Hi."),
+        item(1, "claude-code", 12, "message", 2, role="assistant", output="Hello."),
+    ],
+    "findings": {
+        "v": "0.2",
+        "test": "20261006-080000-vv01",
+        "turns": 1,
+        "items": 2,
+        "sessions": [
+            {
+                "harness": "claude-code",
+                "session": CC,
+                "file": CC_FILE,
+                "inferred": False,
+                "version": "2.1.999",
+                "items": 2,
+                "ignored": {},
+            },
+            {
+                "harness": "codex",
+                "session": CX,
+                "file": CX_FILE,
+                "inferred": False,
+                "version": "0.161.0",
+                "items": 0,
+                "ignored": {"session_meta": 1},
+            },
+            {
+                "harness": "claude-code",
+                "session": "gone",
+                "file": None,
+                "inferred": False,
+                "version": None,
+                "items": 0,
+                "ignored": {},
+            },
+        ],
+        "counts": counts(version_untested=2),
+        "findings": [
+            {
+                "check": "version_untested",
+                "turn": None,
+                "detail": "version 2.1.999, tested: 2.1.286",
+                "harness": "claude-code",
+                "session": CC,
+            },
+            {
+                "check": "version_untested",
+                "turn": None,
+                "detail": "version 0.161.0, tested: 0.160.0",
+                "harness": "codex",
+                "session": CX,
+            },
+        ],
+    },
+}
+
+# No model sessions, as with an agent that calls no model: an empty trace and no
+# turn_without_model findings.
+NO_MODEL_CASE = {
+    "tap": [window(10, 20), window(30, 40)],
+    "manifest": {"test": "20261006-080000-nm01", "model_sessions": []},
+    "sessions": {},
+    "trace": [],
+    "findings": {
+        "v": "0.2",
+        "test": "20261006-080000-nm01",
+        "turns": 2,
+        "items": 0,
+        "sessions": [],
+        "counts": counts(),
+        "findings": [],
+    },
+}
+
+TRACE_CASES = {
+    "claude_code_toy_shop": CLAUDE_CASE,
+    "codex_toy_shop": CODEX_CASE,
+    "untested_versions": VERSION_CASE,
+    "no_model_sessions": NO_MODEL_CASE,
+}
+
+
 def write(path: Path, rows: list | None) -> None:
     if rows is None:
         return
@@ -461,7 +1199,22 @@ def main() -> None:
         d = CONTRACT / name
         d.mkdir(parents=True)
         (d / "case.json").write_text(json.dumps(case, indent=1, ensure_ascii=False) + "\n")
-    print(f"{len(CASES_BY_NAME)} audit cases and {len(CONTRACT_CASES)} contract cases written")
+    shutil.rmtree(TRACE, ignore_errors=True)
+    for name, case in TRACE_CASES.items():
+        d = TRACE / name
+        d.mkdir(parents=True)
+        write(d / "tap.jsonl", case["tap"])
+        (d / "manifest.json").write_text(json.dumps(case["manifest"], indent=1) + "\n")
+        for rel, lines in case["sessions"].items():
+            (d / rel).parent.mkdir(parents=True, exist_ok=True)
+            write(d / rel, lines)
+        write(d / "expect_trace.jsonl", case["trace"])
+        text = json.dumps(case["findings"], indent=1, ensure_ascii=False)
+        (d / "expect_findings.json").write_text(text + "\n")
+    print(
+        f"{len(CASES_BY_NAME)} audit cases, {len(CONTRACT_CASES)} contract cases and "
+        f"{len(TRACE_CASES)} trace cases written"
+    )
 
 
 if __name__ == "__main__":

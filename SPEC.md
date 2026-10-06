@@ -223,13 +223,16 @@ A test runs the entry from `start` to `end`. A new conversation is a new test: e
 1. Closes the entry's stdin and waits 5 seconds. Then it stops the process group, first with SIGTERM and after 5 more seconds with SIGKILL.
 2. Identifies the Codex sessions (section 7.3).
 3. Copies the session file of each identified model session into `sessions/` in the test folder.
-4. Writes the end time and the tester's harness sessions into the manifest, and removes `current.json`.
+4. Writes the end time and the tester's harness sessions into the manifest.
+5. Builds the trace (section 8): `trace.jsonl` and `findings.json`. If the trace fails, the bridge writes the error to `bridge.log`, and the test still ends.
+6. Removes `current.json`.
 
 The test folder:
 
 ```text
 .verbatim-relay/tests/<test-id>/
   manifest.json  relay.jsonl  tap.jsonl  app.log  bridge.log
+  trace.jsonl  findings.json
   sessions/claude-code/<session>.jsonl
   sessions/codex/<rollout file>
 ```
@@ -244,3 +247,93 @@ The harness binary writes each model session of the app to a session file. The t
 - **Codex.** At the end, the tap reads the first line of each rollout file in `~/.codex/sessions/` (under `CODEX_HOME` if it is set) that changed during the test. If its `cwd` is the project root or a folder in it, and its id is not a session of the tester, the tap writes a `model_session` row with `inferred: true`.
 
 The harness binary writes the session files, and their format can change between harness versions. The record is independent of the app, but not of the harness.
+
+## 8. Trace
+
+The trace is one record of the model items of the app in a test. It ties each item to a turn. `verbatim-relay trace [TEST]` builds it again from the files in the test folder.
+
+### 8.1 Sources
+
+A test has 3 sources. Each one is independent of the others in a different way:
+
+| Source | Writer | Independent of |
+|---|---|---|
+| `tap.jsonl` | the tap | the app and the model of the tester's harness. It records the words only. |
+| `sessions/` | the harness binary that the app uses | the app's code. It is not independent of the harness. |
+| The app's state | the app | nothing. The evaluating session reads it and judges it. |
+
+The trace reads the first 2 sources. It does not read the app's state.
+
+### 8.2 Trace record
+
+`trace.jsonl` is a UTF-8 JSONL file, sorted by `ts`. Each line is a `model_item` row (0.2). Each row has all of these fields:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `v` | string | `"0.2"` |
+| `type` | string | `"model_item"` |
+| `turn` | integer or null | The number of the turn (section 8.3), or `null`. |
+| `harness` | string | `claude-code` or `codex`. |
+| `session` | string | The session id from the manifest. |
+| `ts` | number or null | The Unix time of the item. |
+| `kind` | string | `message`, `tool_call` or `command`. |
+| `role` | string or null | For a message: `user` (the app to the model) or `assistant` (the model to the app). |
+| `server` | string or null | For a tool call: the MCP server or the dynamic tool namespace. |
+| `name` | string or null | For a tool call: the tool name, without the MCP prefix. |
+| `input` | any | For a tool call: its input object. For a command: its argv. |
+| `output` | string or null | For a message: its text. For a tool call or a command: its output text. |
+| `error` | string or null | For a tool call: the error text if the call failed. `output` is then `null`. |
+| `exit_code` | integer or null | For a command: its exit code. |
+| `harness_internal` | boolean | `true` for a tool that the harness gives to the model, not the app (section 8.5). |
+| `source` | object | `file`: the session file, relative to the test folder. `line`: the 1-based line of the item. For a Claude Code tool call, `result_line`: the line of its result. |
+
+The trace has no `<field>_sha256` fields. The session files hold the original bytes.
+
+### 8.3 Turns
+
+Turn `n` is the `n`-th `exchange` row of `tap.jsonl`. Its window is from `started` to `ts` of that row. If a row has no `started` (0.1), its window starts at the `ts` of the row before it. An item is in turn `n` if its `ts` is in the window of turn `n`, both ends included. Otherwise `turn` is `null`.
+
+### 8.4 Readers
+
+Each reader reads the copied session file of one model session in the manifest. It never fails on a line. It counts each line that it does not keep, by type, in `findings.json`.
+
+**Claude Code** (`sessions/claude-code/<session>.jsonl`). The reader keeps the lines of type `user` and `assistant` that have no `isMeta`. `ts` is the line's `timestamp`. From the `message.content` of each line:
+
+- a string or a `text` block: a `message` item;
+- a `tool_use` block of an `assistant` line: a `tool_call` item. A tool name `mcp__<server>__<tool>` gives `server` and `name`;
+- a `tool_result` block of a `user` line: the result of the `tool_call` with the same id. The text of its `text` blocks is `output`, or `error` if `is_error` is `true`. A tool call with no result gets the error `no tool_result in the session file`;
+- a `thinking` block or another block: counted, not kept.
+
+The reader takes the version from the first line that has a `version` field.
+
+**Codex** (`sessions/codex/<rollout file>`). The reader keeps the lines of type `event_msg` with a payload of type `item_completed`. `ts` is the item's `completed_at_ms` divided by 1000, or the line's `timestamp`. By item type:
+
+| Item | Trace item |
+|---|---|
+| `UserMessage`, `AgentMessage` | `message`. `output` is the text of its `text` or `Text` content. |
+| `CommandExecution` | `command`. `input` is `command`, `output` is `aggregated_output`, `exit_code` is `exit_code`. Without an exit code and with a `status` that is not `completed`, `error` is `status <status>`. |
+| `DynamicToolCall` | `tool_call`. `name` is `tool`, `server` is `namespace`, `input` is `arguments`. The text of `content_items` is `output` if `success` is `true`, else `error`. |
+| `McpToolCall` | `tool_call`. `name` is `tool`, `server` is `server`, `input` is `arguments`. An `error` object gives `error` from its `message`. Else, the text of `result.content` is `output`, or `error` if `result.isError` is `true`. |
+| Other types | Counted, not kept. |
+
+The reader takes the version from `cli_version` of the `session_meta` line.
+
+### 8.5 Harness tools
+
+These tools come from the harness, not from the app: `ToolSearch` in Claude Code. The trace keeps their items and marks them `harness_internal: true`.
+
+### 8.6 Findings
+
+`findings.json` holds the test id, the number of turns and items, one entry for each model session (its version, its item count and its counts of lines not kept), a count for each check, and the findings. The findings do not change the exit code of the audit. The audit measures the words only.
+
+| Check | Finding |
+|---|---|
+| `agent_error` | An exchange with a `status` that is not 200. |
+| `tool_error` | A tool call with an `error`. |
+| `command_failed` | A command with an exit code that is not 0, or with an `error`. |
+| `turn_without_model` | A turn with no model item. This check runs only if a reader kept at least 1 item. |
+| `item_between_turns` | An item with `turn: null` and a `ts` at or after the start of turn 1. An item before turn 1, for example a model call when the app starts, is not a finding. |
+| `session_inferred` | A model session with `inferred: true`. |
+| `version_untested` | A session file from a harness version that `proofs/trace/` does not cover. The tested versions are Claude Code 2.1.286 and codex-cli 0.160.0. If a reader finds no version in the file, the version is `unknown`. If the file is not in the test folder, the version is `null`, and this check does not run. |
+
+Each finding has `check`, `turn` and `detail`. A finding about an item also has `harness`, `session` and `source`. The findings are sorted by check, in the order of the table, then by turn, and then in the order of the items. A finding with no turn comes after the findings with a turn.
