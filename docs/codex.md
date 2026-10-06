@@ -42,7 +42,7 @@ At the end, the kit also builds the trace of the app's model sessions: `trace.js
 
 If your app runs Codex sessions, the kit finds them at the end of the test: each rollout file that changed during the test, ran in the project folder or below it, and is not your own session. If your app starts its threads with `ephemeral: true`, Codex writes no rollout file, and the test has no copy.
 
-The OTLP receiver of a test ([Claude Code page](claude-code.md#opentelemetry)) also runs with the kit. Codex does not read the `OTEL_*` variables: in my test with codex-cli 0.160.0, `codex exec` with these variables sent nothing to the receiver. Codex reads its OpenTelemetry settings from the `[otel]` table of its configuration. So the receiver gets no events from your app's Codex threads, unless your app configures that table.
+The OTLP receiver of a test ([Claude Code page](claude-code.md#opentelemetry)) also runs with the kit. Codex does not read the `OTEL_*` variables: with codex-cli 0.160.0, `codex exec` with these variables completed its turn and sent 0 rows to the receiver ([data](../proofs/otel/codex.json), [method](../scripts/proof_codex_otel.py)). Codex reads its OpenTelemetry settings from the `[otel]` table of its configuration. So the receiver gets no events from your app's Codex threads, unless your app configures that table.
 
 In relay mode, the kit fails closed: if it cannot send a message, the message still does not go to the model.
 

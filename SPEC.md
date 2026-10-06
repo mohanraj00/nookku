@@ -305,7 +305,7 @@ During a test, the bridge runs an OTLP/HTTP receiver on `127.0.0.1` at a free po
 | Variable | Value |
 |---|---|
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | The URL of the receiver. |
-| `OTEL_EXPORTER_OTLP_PROTOCOL` | `http/json` |
+| `OTEL_EXPORTER_OTLP_PROTOCOL` | `http/protobuf` |
 | `OTEL_TRACES_EXPORTER`, `OTEL_LOGS_EXPORTER` | `otlp` |
 | `OTEL_METRICS_EXPORTER` | `none` |
 | `OTEL_BSP_SCHEDULE_DELAY`, `OTEL_BLRP_SCHEDULE_DELAY`, `OTEL_LOGS_EXPORT_INTERVAL`, `OTEL_TRACES_EXPORT_INTERVAL` | `500` |

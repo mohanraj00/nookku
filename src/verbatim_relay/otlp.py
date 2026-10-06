@@ -22,6 +22,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
+from . import stdio
+
 FILE = "otel.jsonl"
 VERSION = 1
 MAX_BODY = 16 * 1024 * 1024
@@ -392,6 +394,9 @@ class Receiver(ThreadingHTTPServer):
         self.lock = threading.Lock()
         self.last = time.time()
 
+    def server_bind(self) -> None:
+        stdio.bind(self)
+
     @property
     def url(self) -> str:
         host, port = self.server_address[:2]
@@ -468,7 +473,8 @@ def environment(url: str) -> dict[str, str]:
     """The variables that send the entry's OpenTelemetry data to the receiver (SPEC.md 7.5)."""
     return {
         "OTEL_EXPORTER_OTLP_ENDPOINT": url,
-        "OTEL_EXPORTER_OTLP_PROTOCOL": "http/json",
+        # Each OTLP/HTTP SDK can send protobuf. Some cannot send JSON.
+        "OTEL_EXPORTER_OTLP_PROTOCOL": "http/protobuf",
         "OTEL_TRACES_EXPORTER": "otlp",
         "OTEL_LOGS_EXPORTER": "otlp",
         "OTEL_METRICS_EXPORTER": "none",

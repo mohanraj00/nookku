@@ -13,7 +13,6 @@ usage: python conformance/build.py
 from __future__ import annotations
 
 import datetime
-import gzip
 import hashlib
 import json
 import shutil
@@ -1910,10 +1909,9 @@ OTLP_CASES: dict[str, dict] = {
 
 def write_otlp_case(d: Path, case: dict) -> None:
     d.mkdir(parents=True)
-    body = case["body"]
-    if case.get("encoding") == "gzip":
-        body = gzip.compress(body, mtime=0)
-    (d / "body.bin").write_bytes(body)
+    # body.bin is the body before gzip, because gzip output is not the same on each platform. The
+    # test compresses it when `encoding` is gzip.
+    (d / "body.bin").write_bytes(case["body"])
     request = {k: case.get(k) for k in ("path", "type", "encoding")}
     expect = {"received": RECEIVED, "rows": case.get("rows"), "error": case.get("error")}
     (d / "request.json").write_text(json.dumps(request, indent=1) + "\n")

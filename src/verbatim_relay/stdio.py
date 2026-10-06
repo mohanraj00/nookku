@@ -13,7 +13,7 @@ import sys
 import threading
 import time
 from collections.abc import Sequence
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.server import BaseHTTPRequestHandler, HTTPServer, ThreadingHTTPServer
 from pathlib import Path
 
 from verbatim_relay import contract
@@ -144,12 +144,7 @@ class StdioTap(ThreadingHTTPServer):
         super().__init__(listen, _Handler)
 
     def server_bind(self) -> None:
-        # HTTPServer.server_bind() calls socket.getfqdn(), a DNS lookup that can block for many
-        # seconds on some hosts. The tap needs no host name.
-        socketserver.TCPServer.server_bind(self)
-        host, port = self.server_address[:2]
-        self.server_name = host.decode() if isinstance(host, bytes) else str(host)
-        self.server_port = port
+        bind(self)
 
     @property
     def url(self) -> str:
@@ -222,6 +217,18 @@ class _Handler(BaseHTTPRequestHandler):
         self._error(405, "verbatim-relay tap: send each message as a POST")
 
     do_GET = do_PUT = do_PATCH = do_DELETE = do_HEAD = do_OPTIONS = _refuse
+
+
+def bind(server: HTTPServer) -> None:
+    """Bind an HTTP server with no host name lookup.
+
+    HTTPServer.server_bind() calls socket.getfqdn(), a DNS lookup that can block for many seconds
+    on some hosts. The tap and the receiver need no host name.
+    """
+    socketserver.TCPServer.server_bind(server)
+    host, port = server.server_address[:2]
+    server.server_name = host.decode() if isinstance(host, bytes) else str(host)
+    server.server_port = port
 
 
 def start_in_thread(tap: socketserver.BaseServer) -> threading.Thread:

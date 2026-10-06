@@ -16,6 +16,8 @@ def test_conformance(case: Path) -> None:
     request = json.loads((case / "request.json").read_text())
     expect = json.loads((case / "expect.json").read_text())
     body = (case / "body.bin").read_bytes()
+    if request["encoding"] == "gzip":
+        body = gzip.compress(body)
     args = (request["path"], request["type"], request["encoding"] or "", body)
     if expect["error"]:
         with pytest.raises(otlp.DecodeError, match=expect["error"]):
@@ -47,7 +49,7 @@ def test_the_receiver_writes_rows_and_errors(tmp_path: Path) -> None:
     start_in_thread(receiver)
     try:
         case = Path(CASES[0].parent / "logs_protobuf_gzip")
-        body = (case / "body.bin").read_bytes()
+        body = gzip.compress((case / "body.bin").read_bytes())
         assert post(receiver.url, "/v1/logs", body, "application/x-protobuf", "gzip") == 200
         assert post(receiver.url, "/v1/metrics", b"{}", "application/json") == 200
         assert post(receiver.url, "/v1/traces", b"{", "application/json") == 400
