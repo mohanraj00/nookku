@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 
@@ -21,6 +22,8 @@ class StockServer(ThreadingHTTPServer):
         self.answer_body = json.dumps({"sku": "teapot-set", "left": 3}).encode()
         self.answer_headers = [("Content-Type", "application/json"), ("X-Stock-Trace", "a b  c")]
         self.status = 200
+        # The seconds to wait before each answer.
+        self.delay = 0.0
         self.thread = threading.Thread(target=self.serve_forever, daemon=True)
 
     def server_bind(self) -> None:
@@ -56,6 +59,7 @@ class _Handler(BaseHTTPRequestHandler):
                 "body": body,
             }
         )
+        time.sleep(self.server.delay)
         self.send_response_only(self.server.status)
         for k, v in self.server.answer_headers:
             self.send_header(k, v)

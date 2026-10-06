@@ -3,6 +3,7 @@ import http.client
 import json
 import os
 import threading
+import time
 from pathlib import Path
 
 import pytest
@@ -65,13 +66,19 @@ def test_secret_headers_reach_the_backend_but_not_the_record(tmp_path: Path) -> 
         proxies = proxy_for(stock, tmp_path)
         env = proxies.start()
         try:
-            headers = {"Authorization": "Bearer t0k3n", "X-Api-Key": "k3y", "X-Order": "5120"}
+            headers = {
+                "Authorization": "Bearer t0k3n",
+                "Proxy-Authorization": "Basic cHIweHk=",
+                "X-Api-Key": "k3y",
+                "X-Order": "5120",
+            }
             request(env["STOCK_URL"], "GET", "/stock", None, headers)
         finally:
             proxies.stop()
     assert ("Authorization", "Bearer t0k3n") in stock.seen[0]["headers"]
+    assert ("Proxy-Authorization", "Basic cHIweHk=") in stock.seen[0]["headers"]
     text = (tmp_path / backend.FILE).read_text()
-    assert all(s not in text for s in ("t0k3n", "k3y", "s3cr3t"))
+    assert all(s not in text for s in ("t0k3n", "cHIweHk", "k3y", "s3cr3t"))
     row = rows(tmp_path)[0]
     assert ["X-Order", "5120"] in row["request_headers"]
     assert ["Authorization", backend.REMOVED] in row["request_headers"]
@@ -158,3 +165,65 @@ def test_https_uses_tls_and_the_config_is_checked() -> None:
         )
     with pytest.raises(ValueError, match="http or https"):
         backend.parse([{"name": "a", "env": "A", "url": "ftp://x"}])
+
+
+def test_repeated_headers_go_through_and_no_header_is_added(tmp_path: Path) -> None:
+    with StockServer() as stock:
+        proxies = proxy_for(stock, tmp_path)
+        env = proxies.start()
+        try:
+            host, port = env["STOCK_URL"].removeprefix("http://").split(":")
+            conn = http.client.HTTPConnection(host, int(port), timeout=10)
+            conn.putrequest("GET", "/stock", skip_accept_encoding=True)
+            conn.putheader("X-Shop-Tag", "teapot")
+            conn.putheader("X-Shop-Tag", "mug")
+            conn.endheaders()
+            conn.getresponse().read()
+            conn.close()
+        finally:
+            proxies.stop()
+    seen = stock.seen[0]["headers"]
+    assert [v for k, v in seen if k == "X-Shop-Tag"] == ["teapot", "mug"]
+    assert not any(k.lower() == "accept-encoding" for k, _ in seen)
+
+
+def call_in_thread(url: str) -> threading.Thread:
+    t = threading.Thread(target=request, args=(url, "GET", "/stock", None, {}))
+    t.start()
+    return t
+
+
+def wait_for_call(stock: StockServer) -> None:
+    for _ in range(200):
+        if stock.seen:
+            return
+        time.sleep(0.01)
+    raise AssertionError("the backend got no call")
+
+
+def test_stop_waits_for_an_open_call(tmp_path: Path) -> None:
+    with StockServer() as stock:
+        stock.delay = 0.5
+        proxies = proxy_for(stock, tmp_path)
+        env = proxies.start()
+        t = call_in_thread(env["STOCK_URL"])
+        wait_for_call(stock)
+        proxies.stop()
+        assert [r["status"] for r in rows(tmp_path)] == [200]
+        t.join()
+
+
+def test_a_call_that_does_not_end_gets_a_row_and_no_second_row(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(backend, "DRAIN", 0.2)
+    with StockServer() as stock:
+        stock.delay = 1.0
+        proxies = proxy_for(stock, tmp_path)
+        env = proxies.start()
+        t = call_in_thread(env["STOCK_URL"])
+        wait_for_call(stock)
+        proxies.stop()
+        assert [(r["status"], r["error"]) for r in rows(tmp_path)] == [(None, backend.ENDED)]
+        t.join()
+    assert len(rows(tmp_path)) == 1

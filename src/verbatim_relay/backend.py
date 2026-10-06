@@ -33,8 +33,12 @@ RECORD_LIMIT = 1024 * 1024
 SECRET_HEADERS = {"authorization", "proxy-authorization", "cookie", "set-cookie"}
 SECRET_PARTS = ("key", "token", "secret")
 REMOVED = "<removed>"
-NOT_FORWARDED = HOP_BY_HOP | {"host", "content-length"}
-NOT_RETURNED = HOP_BY_HOP | {"content-length"}
+# The app does not know that it speaks to a proxy, so the proxy headers go through.
+NOT_FORWARDED = (HOP_BY_HOP - {"proxy-authorization"}) | {"host", "content-length"}
+NOT_RETURNED = (HOP_BY_HOP - {"proxy-authenticate"}) | {"content-length"}
+# At the end of the test, the time to wait for the calls that did not end.
+DRAIN = 10.0
+ENDED = "the test ended before the backend answered"
 
 
 @dataclass
@@ -116,11 +120,14 @@ class Proxy(ThreadingHTTPServer):
 
     daemon_threads = True
 
-    def __init__(self, backend: Backend, record: Path, lock: threading.Lock) -> None:
+    def __init__(self, backend: Backend, record: Path, lock: threading.Condition) -> None:
         super().__init__(("127.0.0.1", 0), Handler)
         self.backend = backend
         self.record = record
         self.lock = lock
+        # The rows of the calls that did not end, by their id.
+        self.open: dict[int, dict[str, Any]] = {}
+        self.closed = False
         target = urlsplit(backend.url)
         self.scheme = target.scheme
         self.host = target.hostname or ""
@@ -141,8 +148,31 @@ class Proxy(ThreadingHTTPServer):
             return http.client.HTTPSConnection(self.host, self.port, timeout=TIMEOUT)
         return http.client.HTTPConnection(self.host, self.port, timeout=TIMEOUT)
 
-    def write(self, row: dict[str, Any]) -> None:
-        with self.lock, self.record.open("a", encoding="utf-8") as fh:
+    def begin(self, row: dict[str, Any]) -> bool:
+        """Add the call to the open calls. Return False if the proxy is closed."""
+        with self.lock:
+            if self.closed:
+                return False
+            self.open[id(row)] = row
+            return True
+
+    def end(self, row: dict[str, Any]) -> None:
+        """Write the row of the call, if the proxy did not write it at the end of the test."""
+        with self.lock:
+            if self.open.pop(id(row), None) is not None:
+                self._write(row)
+            self.lock.notify_all()
+
+    def close(self) -> None:
+        """Write a row for each open call, then write no more rows. Hold the lock."""
+        for row in self.open.values():
+            row.update(ts=time.time(), error=ENDED)
+            self._write(row)
+        self.open.clear()
+        self.closed = True
+
+    def _write(self, row: dict[str, Any]) -> None:
+        with self.record.open("a", encoding="utf-8") as fh:
             fh.write(json.dumps(row, ensure_ascii=False) + "\n")
 
 
@@ -183,22 +213,28 @@ class Handler(BaseHTTPRequestHandler):
             "response_body": None,
             "error": None,
         }
+        if not proxy.begin(row):
+            data = json.dumps({"error": "verbatim-relay backend proxy: the test ended"}).encode()
+            self._send(503, [("Content-Type", "application/json")], data)
+            return
         conn = proxy.connect()
         try:
-            headers = dict(sent)
-            headers["Host"] = proxy.host_header
-            target = proxy.base_path + self.path
-            conn.request(
-                method,
-                target,
-                body=body if body or method in ("POST", "PUT", "PATCH") else None,
-                headers=headers,
+            # The low-level calls send each header of the app once, in its order, and add no
+            # Accept-Encoding header.
+            conn.putrequest(
+                method, proxy.base_path + self.path, skip_host=True, skip_accept_encoding=True
             )
+            conn.putheader("Host", proxy.host_header)
+            for name, value in sent:
+                conn.putheader(name, value)
+            if body or method in ("POST", "PUT", "PATCH"):
+                conn.putheader("Content-Length", str(len(body)))
+            conn.endheaders(body or None)
             resp = conn.getresponse()
             status, out_headers, out = resp.status, resp.getheaders(), resp.read()
         except (OSError, http.client.HTTPException) as e:
             row.update(ts=time.time(), error=f"the backend did not answer: {e}")
-            proxy.write(row)
+            proxy.end(row)
             data = json.dumps({"error": f"verbatim-relay backend proxy: {e}"}).encode()
             self._send(502, [("Content-Type", "application/json")], data)
             return
@@ -212,7 +248,7 @@ class Handler(BaseHTTPRequestHandler):
             response_headers=headers_row(returned),
             response_body=body_row(out, encoding),
         )
-        proxy.write(row)
+        proxy.end(row)
         length = next((v for k, v in out_headers if k.lower() == "content-length"), None)
         self._send(status, returned, out, length if method == "HEAD" else None)
 
@@ -233,8 +269,8 @@ class Proxies:
     """The proxies of a test, with one record file."""
 
     def __init__(self, backends: list[Backend], record: Path) -> None:
-        lock = threading.Lock()
-        self.proxies = [Proxy(b, record, lock) for b in backends]
+        self.lock = threading.Condition()
+        self.proxies = [Proxy(b, record, self.lock) for b in backends]
 
     def start(self) -> dict[str, str]:
         """Start each proxy. Return the variables that give the entry the proxy URLs."""
@@ -243,6 +279,16 @@ class Proxies:
         return {p.backend.env: p.url for p in self.proxies}
 
     def stop(self) -> None:
+        """Stop each proxy. Wait up to DRAIN seconds for the open calls, so that each call has
+        its row before the trace and the seal. Then write a row with the error ENDED for each
+        call that did not end."""
         for p in self.proxies:
             p.shutdown()
+        deadline = time.monotonic() + DRAIN
+        with self.lock:
+            while any(p.open for p in self.proxies) and time.monotonic() < deadline:
+                self.lock.wait(deadline - time.monotonic())
+            for p in self.proxies:
+                p.close()
+        for p in self.proxies:
             p.server_close()

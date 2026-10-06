@@ -336,9 +336,10 @@ A backend is a service that the app calls over HTTP, for example a stock service
 
 During a test, the bridge runs one proxy for each backend in `backends`, on `127.0.0.1` at a free port, before it starts the entry. It gives the entry the URL of the proxy in the variable `env`, in place of the value that the entry has.
 
-- The proxy forwards each request to `url`: the method, the path and the query after the path of `url`, the headers except the hop-by-hop headers and `Host`, and the body. A request body with `Transfer-Encoding: chunked` goes to the backend with a `Content-Length`.
-- It sends the response of the backend back to the app with no change: the status, the headers except the hop-by-hop headers, and the body. It reads the whole response before it sends it.
+- The proxy forwards each request to `url`: the method, the path and the query after the path of `url`, the headers, and the body. It sends each header of the app once, in its order, except `Host` and the hop-by-hop headers. The app does not know that it speaks to a proxy, so `Proxy-Authorization` goes to the backend. The proxy adds only `Host` and `Content-Length`. A request body with `Transfer-Encoding: chunked` goes to the backend with a `Content-Length`.
+- It sends the response of the backend back to the app with no change: the status, the headers except the hop-by-hop headers (`Proxy-Authenticate` goes through), and the body. It reads the whole response before it sends it.
 - If the backend does not answer, the proxy sends status 502 to the app.
+- At the end of the test, the bridge stops the proxies after it stops the entry. It waits up to 10 seconds for each call that did not end. For each call that is still open after that time, the proxy writes a row with the error `the test ended before the backend answered`. After that, the proxy writes no row and sends status 503 for each new request. Thus each call has its row before the trace and the seal.
 - The proxy speaks HTTP to the app. It speaks HTTP or HTTPS to the backend, as `url` says.
 
 The proxy writes one row to `backend.jsonl` for each call:
@@ -352,7 +353,7 @@ The proxy writes one row to `backend.jsonl` for each call:
 | `request_headers`, `response_headers` | The headers as a list of `[name, value]`, in their order. `response_headers` is `null` if the backend did not answer. |
 | `request_body`, `response_body` | An object: `size`, `sha256` (of the bytes), `cut`, and `text` (UTF-8) or `base64`. For a `gzip` or `deflate` body, `text` is the decoded body, and `decoded` names the encoding. If the body is longer than 1 MiB, `text` or `base64` holds the first 1 MiB, and `cut` is `true`. `size` and `sha256` are always of all the bytes that went to the app or the backend. `response_body` is `null` if the backend did not answer. |
 | `status` | The status of the backend, or `null`. |
-| `error` | `the backend did not answer: <reason>`, or `null`. |
+| `error` | `the backend did not answer: <reason>`, `the test ended before the backend answered`, or `null`. |
 
 Before it writes a row, the proxy replaces the value of each secret header with `<removed>`: `Authorization`, `Proxy-Authorization`, `Cookie`, `Set-Cookie`, and each header whose name contains `key`, `token` or `secret`. The secret headers still go to the backend and to the app. The proxy does not change the bodies in the record.
 
