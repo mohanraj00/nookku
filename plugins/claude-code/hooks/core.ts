@@ -192,7 +192,12 @@ export function denyPattern(urls: readonly string[]): RegExp | null {
     const port = url.port || (url.protocol === 'https:' ? '443' : '80')
     const hosts = LOOPBACK.includes(url.hostname) || url.hostname === '[::1]' ? LOOPBACK : [url.hostname]
     for (const host of hosts) {
-      parts.push(`${escape(host)}:${port}(?!\\d)`)
+      // A port can have leading zeros: a shell and curl read 08800 as 8800.
+      parts.push(`${escape(host)}:0*${port}(?!\\d)`)
+      // A shell opens /dev/tcp/<host>/<port> and /dev/udp/<host>/<port> as a socket.
+      for (const d of new Set([host, host.replace(/^\[(.*)\]$/, '$1')])) {
+        parts.push(`/dev/(?:tcp|udp)/${escape(d)}/0*${port}(?!\\d)`)
+      }
       if (!url.port) parts.push(`${escape(host)}(?![\\w.:-])`)
     }
   }
