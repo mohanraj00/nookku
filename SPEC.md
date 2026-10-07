@@ -17,6 +17,8 @@ Two processes write two records. The relay writes the **relay record**: what the
 
 Each record is a UTF-8 JSONL file. Each line is one JSON object. Each object has a version `v` and a `type`. A writer writes `"v": "0.2"`. A reader accepts `"0.1"` and `"0.2"`. A type or a field that this section marks as 0.2 is not valid in a `"0.1"` row. Each text field has a `<field>_sha256` field: the SHA-256 of the UTF-8 bytes of the text, in lower-case hex. If the text is `null`, its hash is `null`. `ts` is a Unix time in seconds.
 
+Each string in a row, as a field name or as a value, holds only Unicode scalar values. JSON can escape a lone UTF-16 surrogate, for example `"\ud83d"`, but UTF-8 cannot encode it. A row with a lone surrogate is not valid.
+
 ### 2.1 Tap record
 
 `exchange`: one request that the adapter parsed, and its response.
@@ -24,7 +26,7 @@ Each record is a UTF-8 JSONL file. Each line is one JSON object. Each object has
 | Field | Type | Meaning |
 |---|---|---|
 | `input` | string | The message that the agent received, as the adapter extracts it. |
-| `status` | integer or null | The HTTP status of the agent's response. `null` if the agent did not respond. |
+| `status` | integer or null | The HTTP status of the agent's response. `null` if the agent did not respond, or if its reply or its error has a lone surrogate (section 4). |
 | `reply` | string or null | The reply that the agent sent, as the adapter extracts it. It is `null` if, and only if, the status is not 2xx or is `null`. |
 | `error` | string | Optional. Why `reply` is `null`. |
 | `started` | number | Optional, 0.2. The Unix time when the tap sent the request to the agent. `ts` is the time when the tap wrote the row. |
@@ -36,6 +38,7 @@ In stdio mode, the tap writes these `status` values:
 | A `reply` line | 200 |
 | An `error` line | 500 |
 | No line: the agent exited, or the tap stopped it after a timeout | `null` |
+| A `reply` or an `error` line with a lone surrogate | `null` |
 
 `unparsed`: a request or a 2xx response that the tap forwarded but that the adapter cannot parse. Fields: `method`, `path`, `error`. The tap forwards this request without change, but the audit cannot check it. In stdio mode, the tap also writes `unparsed` for a request that is not a contract input, for an agent line that is not a valid contract output, and for an agent line that arrives when no request waits for it. For the last kind, `method` is `STDIO` and `path` is `stdout`.
 
@@ -72,7 +75,7 @@ In a test (section 7), the relay record is `relay.jsonl` in the test folder.
 The audit stops with exit code 2 and does not report breaks if one of these conditions occurs:
 
 - `record_missing`: a record file does not exist or cannot be read.
-- `record_invalid`: a line is not a JSON object, has a wrong `v` or an unknown `type`, has a missing or wrongly typed field, or has a hash that does not match its text.
+- `record_invalid`: a line is not a JSON object, has a wrong `v` or an unknown `type`, has a missing or wrongly typed field, has a hash that does not match its text, or has a lone surrogate (section 2).
 - `tap_unparsed`: the tap record has an `unparsed` row. The audit cannot check that exchange.
 
 The report names each check that it skipped.
@@ -126,6 +129,8 @@ The audit counts `blocked_call` rows and `model_session` rows. It does not match
 - The tap returns the agent's status, headers and body without change, except hop-by-hop headers and `Content-Length`.
 - If the agent does not respond, the tap returns status 502 and writes an `exchange` row with `status: null`.
 - The tap writes rows only for `POST` requests that the adapter accepts. It forwards other requests without a row.
+- If the message that the adapter extracts has a lone surrogate (section 2), the tap writes an `unparsed` row. It still forwards the request without change.
+- If the reply of a 2xx response has a lone surrogate, the tap returns status 502 and not the agent's response. It writes an `exchange` row with `status: null`, `reply: null` and an `error` that names the lone surrogate.
 - The tap does not support streamed responses in v0.1. If an OpenAI-style request has `"stream": true`, the tap returns status 501 and does not forward it.
 
 #### Adapters
@@ -152,6 +157,8 @@ Each adapter maps onto the agent contract (section 6):
 - The tap sends one request at a time. It waits for one line on the agent's stdout.
 - If the line is a valid output with the same `id`, the tap returns status 200 for a `reply` and 500 for an `error`, with the line as the body. It writes an `exchange` row. For an `error` line, the row's `error` is the agent's error text.
 - If the line is not valid, or has a different `id`, the tap returns status 502 and writes an `unparsed` row.
+- If the `message` of an input has a lone surrogate (section 2), the tap returns status 400, writes an `unparsed` row and does not send the body.
+- If the `reply` or the `error` of an output has a lone surrogate, the tap returns status 502. It writes an `exchange` row with `status: null`, `reply: null` and an `error` that names the lone surrogate.
 - If the agent sends no line in 240 seconds, the tap stops the agent's process group. It returns status 504 and writes an `exchange` row with `status: null`.
 - If the agent exits, the tap returns status 502 and writes an `exchange` row with `status: null` and the exit code in `error`.
 - The tap does not restart the agent. After a crash or a timeout, it answers each later request with the same error. The error body includes the last 20 lines of `app.log`.
@@ -165,7 +172,8 @@ A relay is the Claude Code plugin or the hook kit. The hook kit uses the classic
 - **Control prompts.** With an entry, a relay never relays the exact prompts `verbatim-relay start`, `verbatim-relay end` and `verbatim-relay status`, also in relay mode. It runs the command and blocks the prompt. There is one exception: if `verbatim-relay end` leaves a test to evaluate (section 9), the relay lets the prompt go to the model, with the evaluation prompt added as context. The plugin also has the `/verbatim-relay` command, which never starts an evaluation.
 - **Fail closed.** If relay mode is on and the relay cannot send the message, it still stops the prompt from reaching the model. It shows the error to the tester and writes the error as `shown` with `ok: false`.
 - **Display.** The plugin shows the reply as a transcript row that the model does not receive. The hook kit writes the relay record, and `verbatim-relay view` prints each turn from it.
-- **Deny.** The relay denies a model tool call if its input contains the host and port of the tap or the agent, as `<host>:<port>` or as the shell socket path `/dev/tcp/<host>/<port>` or `/dev/udp/<host>/<port>`. A port followed by more digits does not match. File tools (read, write, edit, search) are not denied, because a file that names an address does not call it. Every other tool is denied, including tools that the relay does not know. The deny is best effort. The audit finds each message that goes through the tap. A call to the agent around the tap is in neither record.
+- **Transcript.** `verbatim-relay transcript` prints the turns of the relay record for the model. Its first line gives the scope and the number of turns. Its second line is this legend: "Legend: ok (an agent block): the agent answered and the relay showed its reply. It does not judge the reply. Not ok (a relay error block): the relay got no reply and shows its own error text." Each turn has a tester block with `said`. Then it has an agent block with `shown`, or a relay error block with `shown` if `ok` is `false`. The turns show no hashes and no session ids. With an entry, the scope is each session of the latest test, or of `--test <test-id>`. With no entry, the scope is the session of the last turn, or `--session <id>`. The plugin's `transcript` tool runs this command and returns its output with no change, so both relays give the model the same text. With `trace: true`, the tool runs `verbatim-relay transcript --trace` (section 9.2).
+- **Deny.** The relay denies a model tool call if its input contains the host and port of the tap or the agent, as `<host>:<port>` or as the shell socket path `/dev/tcp/<host>/<port>` or `/dev/udp/<host>/<port>`. A port can have leading zeros, and a port followed by more digits does not match. File tools (read, write, edit, search) are not denied, because a file that names an address does not call it. Every other tool is denied, including tools that the relay does not know. The deny is best effort. The audit finds each message that goes through the tap. A call to the agent around the tap is in neither record.
 - **Test files.** During a test, the relay denies a model tool call that writes into `.verbatim-relay/`, and each other tool call except file reads whose input names `.verbatim-relay`. When no test runs, the relay denies:
   - a write tool call (a file write or edit, or a patch) that names a file in `.verbatim-relay/tests/<test-id>/` other than `report.md`;
   - each other tool call, except file tools, whose input names `.verbatim-relay` and that does not pass the read check.
@@ -240,7 +248,11 @@ A test runs the entry from `start` to `end`. A new conversation is a new test: e
 
 ### 7.2 Start and end
 
-`start` creates the test folder and starts the bridge, a background process that runs the tap in stdio mode. The bridge writes `.verbatim-relay/current.json` with the test id, the test folder, the tap URL and its own pid. Then `start` switches relay mode on. With an entry, relay mode is the file `.verbatim-relay/mode` for both relays, so it survives a restart of the harness or a reload of the plugin. If `current.json` names a process that does not run, `start` removes the file.
+`start` creates the test folder and starts the bridge, a background process that runs the tap in stdio mode. The bridge writes `.verbatim-relay/current.json` with the test id, the test folder, the tap URL, its own pid and the string `pid_start`. Then `start` switches relay mode on. With an entry, relay mode is the file `.verbatim-relay/mode` for both relays, so it survives a restart of the harness or a reload of the plugin.
+
+`pid_start` is the start time of the bridge process. The OS can give the pid of a stopped process to a new process, so the pid and `pid_start` together identify the bridge. On Linux, `pid_start` is `proc:` and field 22 of `/proc/<pid>/stat`. On other systems, it is `ps:` and the output of `ps -o lstart= -p <pid>` with `TZ=UTC0` and `LC_ALL=C`, with each run of spaces as one space. A reader compares the value only for equality. If the bridge cannot read its start time, it does not start.
+
+If no process with the pid runs, or if the start time of that process is not `pid_start`, the test does not run. Then `start`, `end` and `status` remove `current.json`, and `end` sends no signal to the process.
 
 `end` switches relay mode off and stops the bridge. If a harness session sends the prompt that ends the test, `end` writes its id to `.verbatim-relay/ending.json`. The bridge adds that id to the tester's sessions, so it never takes the session that ends the test, and then evaluates it, as a session of the app. The bridge then:
 
@@ -468,6 +480,14 @@ Each reader reads the copied session file of one model session in the manifest. 
 
 The reader takes the version from the first line that has a `version` field.
 
+The reader also finds the MCP servers that the file names, for the check `server_not_from_app` (section 8.6). It does not make items from them. A server name comes from:
+
+- each name in `attachment.addedNames` of a line of type `attachment` with an `attachment.type` of `mcp_instructions_delta`, for example `claude.ai Toy Docs`;
+- the `<server>` part of each name `mcp__<server>__<tool>` in `attachment.addedNames` of a line with an `attachment.type` of `deferred_tools_delta`, for example `claude_ai_Toy_Mail`;
+- the `<server>` part of the name of each `tool_use` block of an `assistant` line.
+
+The reader keeps each name once, with the first line that has it. It still counts the `attachment` lines as lines that it does not keep.
+
 **Codex** (`sessions/codex/<rollout file>`). The reader keeps the lines of type `event_msg` with a payload of type `item_completed`. `ts` is the item's `completed_at_ms` divided by 1000, or the line's `timestamp`. By item type:
 
 | Item | Trace item |
@@ -509,6 +529,7 @@ These tools come from the harness, not from the app: `ToolSearch` in Claude Code
 | `turn_without_model` | A turn with no `message`, `tool_call` or `command` item. This check runs only if a session reader kept at least 1 item. |
 | `item_between_turns` | An item with `turn: null` and a `ts` at or after the start of turn 1. An item before turn 1, for example a model call when the app starts, is not a finding. |
 | `otel_tool_not_in_session` | A harness `tool_result` log with no tool call of its tool in the session items of the same harness and turn. The tool is the `mcp_tool_name` of `tool_parameters`, or `tool_name` (Claude Code), or `tool_name` (Codex). If the event and the tool call both have an input object, the inputs must be equal. For a Codex `exec_command`, `shell` or `local_shell`, any `command` item matches. |
+| `server_not_from_app` | An MCP server in a Claude Code session file (section 8.4) that the MCP configuration of the app cannot give: a claude.ai connector of the account (a name that starts with `claude.ai ` or `claude_ai_`), or a server of a plugin (a name that starts with `plugin:` or `plugin_`). An app that loads a plugin itself also gets this finding for the servers of that plugin. The check does not find a server from a settings file or from `.mcp.json`, because its name does not show where it comes from. The finding has `harness`, `session` and `source` (the file and the first line that names the server). |
 | `session_inferred` | A model session with `inferred: true`. |
 | `version_untested` | A session file from a harness version that `proofs/trace/` does not cover. The tested versions are Claude Code 2.1.286 and 2.1.292, and codex-cli 0.160.0. If a reader finds no version in the file, the version is `unknown`. If the file is not in the test folder, the version is `null`, and this check does not run. |
 

@@ -34,6 +34,7 @@ CHECKS = (
     "turn_without_model",
     "item_between_turns",
     "otel_tool_not_in_session",
+    "server_not_from_app",
     "session_inferred",
     "version_untested",
 )
@@ -41,6 +42,15 @@ CHECKS = (
 SESSION_KINDS = ("message", "tool_call", "command")
 # Codex tools that run a command. The session file has a command item for them.
 CODEX_COMMANDS = {"exec_command", "shell", "local_shell"}
+# MCP servers that the MCP configuration of an app cannot give: the claude.ai connectors of the
+# account and the servers of plugins. A session file names a server in one of 2 forms: as it
+# is (`claude.ai Toy Mail`) or as the server part of a tool name (`claude_ai_Toy_Mail`).
+NOT_FROM_APP = {
+    "claude.ai ": "a claude.ai connector",
+    "claude_ai_": "a claude.ai connector",
+    "plugin:": "a plugin server",
+    "plugin_": "a plugin server",
+}
 
 
 def _lines(path: Path) -> Iterator[tuple[int, Any]]:
@@ -157,6 +167,35 @@ def read_claude(path: Path, session: str, file: str) -> tuple[list[dict[str, Any
             else:
                 ignored[f"{kind}.{btype}"] += 1
     return items, {"version": version, "ignored": dict(sorted(ignored.items()))}
+
+
+def read_claude_servers(path: Path) -> list[dict[str, Any]]:
+    """The MCP servers that a Claude Code session file names, each with its first line. An
+    attachment line names the servers and the tools that the session loaded, and a tool call
+    names the server of its tool."""
+    found: dict[str, dict[str, Any]] = {}
+    for n, row in _lines(path):
+        if not isinstance(row, dict):
+            continue
+        names: list[str] = []
+        att = row.get("attachment")
+        message = row.get("message")
+        if row.get("type") == "attachment" and isinstance(att, dict):
+            raw = att.get("addedNames")
+            added: list[Any] = raw if isinstance(raw, list) else []
+            if att.get("type") == "mcp_instructions_delta":
+                names = [str(x) for x in added]
+            elif att.get("type") == "deferred_tools_delta":
+                names = [s for s in (_tool("claude-code", str(x))[0] for x in added) if s]
+        elif row.get("type") == "assistant" and isinstance(message, dict):
+            content = message.get("content")
+            for b in content if isinstance(content, list) else []:
+                if isinstance(b, dict) and b.get("type") == "tool_use":
+                    server = _tool("claude-code", str(b.get("name")))[0]
+                    names += [server] if server else []
+        for name in names:
+            found.setdefault(name, {"server": name, "line": n})
+    return list(found.values())
 
 
 def _codex_item(it: dict[str, Any], item: dict[str, Any]) -> bool:
@@ -506,8 +545,10 @@ def check(
     spans: list[tuple[float, float]],
     items: list[dict[str, Any]],
     sessions: list[dict[str, Any]],
+    servers: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
-    """The findings of SPEC.md section 8.4. They do not change the audit's exit code."""
+    """The findings of SPEC.md section 8.6. They do not change the audit's exit code. `servers`
+    holds the MCP servers that the Claude Code session files name (read_claude_servers)."""
     out: list[dict[str, Any]] = []
     session_items = [it for it in items if it["kind"] in SESSION_KINDS]
     for i, r in enumerate(exchanges, 1):
@@ -548,6 +589,14 @@ def check(
         for i in range(1, len(exchanges) + 1):
             if i not in used:
                 out.append(_finding("turn_without_model", i, "no model item in this turn"))
+    for srv in servers or []:
+        name = str(srv["server"])
+        origin = next((v for start, v in NOT_FROM_APP.items() if name.startswith(start)), None)
+        if origin is not None:
+            where = {"harness": srv["harness"], "session": srv["session"]}
+            where["source"] = {"file": srv["file"], "line": srv["line"]}
+            detail = f"{srv['server']}: {origin}, not a server of the app"
+            out.append(_finding("server_not_from_app", None, detail, **where))
     for s in sessions:
         where = {"harness": s["harness"], "session": s["session"]}
         if s.get("inferred"):
@@ -569,6 +618,7 @@ def build(folder: Path) -> dict[str, Any]:
     spans = windows(exchanges)
     items: list[dict[str, Any]] = []
     sessions: list[dict[str, Any]] = []
+    servers: list[dict[str, Any]] = []
     for s in manifest.get("model_sessions", []):
         info: dict[str, Any] = {
             "harness": s["harness"],
@@ -585,6 +635,9 @@ def build(folder: Path) -> dict[str, Any]:
             info.update(more, items=len(found))
             info["version"] = info["version"] or "unknown"
             items += found
+            if s["harness"] == "claude-code":
+                where = {"harness": s["harness"], "session": s["session"], "file": s["file"]}
+                servers += [{**where, **x} for x in read_claude_servers(folder / s["file"])]
         sessions.append(info)
     otel = None
     if (folder / otlp.FILE).exists():
@@ -600,7 +653,7 @@ def build(folder: Path) -> dict[str, Any]:
         items += found
     items.sort(key=lambda it: it["ts"] if it["ts"] is not None else float("inf"))
     assign(items, spans)
-    findings = check(exchanges, spans, items, sessions)
+    findings = check(exchanges, spans, items, sessions, servers)
     lines = [json.dumps(it, ensure_ascii=False) + "\n" for it in items]
     (folder / "trace.jsonl").write_text("".join(lines), encoding="utf-8")
     counts = Counter(f["check"] for f in findings)

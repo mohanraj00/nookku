@@ -1,8 +1,8 @@
 {
- "date": "2026-10-06",
+ "date": "2026-10-07",
  "relay": "hooks-codex",
  "versions": {
-  "verbatim-relay": "0.1.0",
+  "verbatim-relay": "0.2.0",
   "claude-code": "2.1.290 (Claude Code)",
   "codex": "codex-cli 0.160.0",
   "agent sdk": "claude-agent-sdk==0.2.164",
@@ -50,12 +50,12 @@
   {
    "class": "business_rule",
    "turn": "2",
-   "evidence": "trace.jsonl:11, trace.jsonl:15, trace.jsonl:16; RULES.md:5; services.py:44; stock.json:6"
+   "evidence": "transcript turn 2; trace.jsonl:15; trace.jsonl:16; RULES.md:5; services.py:44; stock.json:6"
   },
   {
    "class": "state_mismatch",
    "turn": "2",
-   "evidence": "trace.jsonl:18; trace.jsonl:15, trace.jsonl:16; stock.json:6, stock.json:11; RULES.md:6"
+   "evidence": "trace.jsonl:13; trace.jsonl:18; trace.jsonl:15; trace.jsonl:16; stock.json:6; stock.json:11; app.py:72"
   }
  ],
  "T2_cites_both_reserve_calls": true,
@@ -79,11 +79,11 @@
  },
  "model_api": {
   "file": "model_api.jsonl",
-  "rows": 13,
+  "rows": 10,
   "items": 6,
   "ignored": {},
   "harness_calls": {
-   "claude-code": 9
+   "claude-code": 6
   },
   "other_calls": 1
  },
@@ -94,7 +94,7 @@
   "ignored": {}
  },
  "counts": {},
- "report": "# Test 20261006-224659-27b3: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | trace.jsonl:11, trace.jsonl:15, trace.jsonl:16; RULES.md:5; services.py:44; stock.json:6 | The tester asked, \"Please reserve 1 teapot set for my order 6210.\" The app sent two successful `POST /reserve` requests with `{\"order\": \"6210\", \"sku\": \"teapot-set\", \"qty\": 1}`, creating `RS-85C679` and `RS-575AA5` and reducing stock from 3 to 1. This holds 2 items, violating \"A reservation holds the number of items that the customer asked for, and no more.\" The retry loop sends the second request even after the first succeeds. |\n| state_mismatch | 2 | trace.jsonl:18; trace.jsonl:15, trace.jsonl:16; stock.json:6, stock.json:11; RULES.md:6 | The reply said, \"I've reserved 1 teapot set for your order 6210 (Reservation #RS-575AA5).\" The stock service actually persisted two reservations for order `6210`, each with `\"qty\": 1`. The reply understates the total reserved quantity and omits reservation `RS-85C679`. |\n\n## Notes\n\nThe transcript reported an intact seal: no record changed after the test ended. Reviewed all 3 turns and 31 trace items, findings.json, and audit.json. Findings were empty; the audit reported no breaks, errors, or blocked calls. These results do not rule out the application issues above.\n\nRead RULES.md and all six Python source files, and checked current stock.json and state.json without changing app state. Both persisted reservation IDs match the recorded backend responses. The stock replies in turns 1 and 3 match their GET results, and all three case notes are present in state.json. The two issues above share the duplicate reservation as their cause.\n\nThe evaluation covers this recorded conversation and the current local state. No app or service was started, and no message or mutating request was sent. Git status could not be checked because this directory is not a Git repository. A broader file inventory command was blocked by the relay's record protection; the project files returned by the initial inventory were all reviewed. Only this report was written.\n",
- "answer": "Wrote [report.md](<project>/.verbatim-relay/tests/20261006-224659-27b3/report.md).\nFound two issues: reserving 2 items when 1 was requested, and reporting only 1 reserved.\nThe seal is intact; the audit found no relay changes. App state was left unchanged.",
+ "report": "# Test 20261007-094554-47c9: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | transcript turn 2; trace.jsonl:15; trace.jsonl:16; RULES.md:5; services.py:44; stock.json:6 | The tester asked, `Please reserve 1 teapot set for my order 6210.` The app sent two successful `POST /reserve` requests with identical arguments `{\"order\": \"6210\", \"sku\": \"teapot-set\", \"qty\": 1}`, creating `RS-C488D3` with `\"left\": 2` and `RS-1CF1A5` with `\"left\": 1`. It held two sets instead of one, violating the rule, `A reservation holds the number of items that the customer asked for, and no more.` The retry loop at services.py:44–49 continues after success; stock.py:76–84 decrements stock and saves a new reservation on each request. |\n| state_mismatch | 2 | trace.jsonl:13; trace.jsonl:18; trace.jsonl:15; trace.jsonl:16; stock.json:6; stock.json:11; app.py:72 | The reply said, `Perfect! I've reserved 1 teapot set for order 6210 (Reservation ID: RS-1CF1A5).` The tool result likewise reported `{\"reservation\": \"RS-1CF1A5\", \"sku\": \"teapot-set\", \"qty\": 1}`. However, the backend responses and saved state show two reservations for order `6210`, each with `\"qty\": 1`. The tool returns the requested quantity and only the last reservation, hiding the extra hold and understating the total reserved. |\n\n## Notes\n\n- The transcript reported `Seal: intact. No record changed after the end of the test.` The audit reports three turns, three exchanges, no breaks, no blocked calls, and no errors. The tester's words and app replies were preserved. findings.json contains no findings; that does not rule out the issues above.\n- Reviewed all three transcript turns and their 31 model items, findings.json, audit.json, RULES.md, and all seven project files: app.py, entry.py, services.py, stock.py, toy_model.py, stock.json, and state.json. Read-only inspection of stock.json confirms one set remains and both reservations exist; state.json contains the three recorded case notes.\n- Turns 1 and 3 use the correct stock tool and report the stock values returned by the service (`3` and `1`). The reservation tool's arguments match the tester's request; the duplicate action occurs inside the service wrapper, not through a second model tool call.\n- No app or service was started, no message was sent, and no state-changing request or test was run. Runtime behavior beyond this recorded conversation was not checked. Only this report was written.\n",
+ "answer": "Wrote [report.md](<project>/.verbatim-relay/tests/20261007-094554-47c9/report.md).\nFound two issues: reserving two sets when one was requested, and reporting only one reserved.\nThe retry loop repeats successful requests.\nThe seal is intact; app state was unchanged.",
  "pass": true
 }

@@ -67,6 +67,7 @@ def test_a_test_relays_and_records_both_sides(tmp_path: Path, homes: tuple) -> N
     cur = bridge.start(root, "tester-1")
     try:
         assert (root / ".verbatim-relay" / "current.json").exists()
+        assert cur["pid_start"] == bridge.process_start(cur["pid"])
         said = "Do you ship to Chennai?\u2028Line two  "
         shown, ok = bridge.send(cur, said)
         Writer(Path(cur["dir"]) / "relay.jsonl").append(
@@ -107,6 +108,48 @@ def test_a_stale_current_file_is_removed(tmp_path: Path) -> None:
     current.write_text(json.dumps({"test": "x", "pid": dead.pid, "dir": "", "tap_url": ""}))
     assert bridge.current(root) is None
     assert not current.exists()
+
+
+def test_a_live_process_that_is_not_the_bridge_gets_no_signal(tmp_path: Path) -> None:
+    root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
+    other = subprocess.Popen(["sleep", "60"])
+    try:
+        current = root / ".verbatim-relay" / "current.json"
+        real = bridge.process_start(other.pid)
+        assert real
+        cur = {"test": "x", "pid": other.pid, "dir": str(tmp_path), "tap_url": ""}
+        # A file of an earlier version has no pid_start. A pid that the OS gave again has a
+        # different start time.
+        for start in ({}, {"pid_start": "ps:Thu Jan 1 00:00:00 1970"}):
+            current.write_text(json.dumps({**cur, **start}))
+            assert bridge.end(root, wait=1) is None
+            assert not current.exists()
+            current.write_text(json.dumps({**cur, **start}))
+            assert bridge.current(root) is None
+            assert not current.exists()
+        assert other.poll() is None
+        # The same process with its own start time is a bridge for current().
+        current.write_text(json.dumps({**cur, "pid_start": real}))
+        assert bridge.current(root) is not None
+    finally:
+        other.kill()
+        other.wait()
+
+
+def test_a_pid_that_changes_owner_after_the_check_gets_no_signal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
+    other = subprocess.Popen(["sleep", "60"])
+    try:
+        # current() saw the bridge, and then the OS gave its pid to another process.
+        cur = {"test": "x", "pid": other.pid, "pid_start": "ps:old", "dir": str(tmp_path)}
+        monkeypatch.setattr(bridge, "current", lambda root: cur)
+        bridge.end(root, wait=1)
+        assert other.poll() is None
+    finally:
+        other.kill()
+        other.wait()
 
 
 def test_an_entry_that_exits_at_start_is_reported(tmp_path: Path, homes: tuple) -> None:

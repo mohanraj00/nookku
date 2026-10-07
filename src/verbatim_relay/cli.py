@@ -122,7 +122,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     tr.add_argument(
         "--trace", action="store_true", help="each turn as the app got it, with its model items"
     )
-    tr.add_argument("--test", help="with --trace: the test id (default: the latest test)")
+    tr.add_argument("--test", help="the test id (default: the latest test)")
+    tr.add_argument("--session", help="only the turns of this harness session")
 
     hook = sub.add_parser("hook", help="the hook command that init installs")
     hook.add_argument("--root", type=Path, required=True)
@@ -218,11 +219,14 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(f"verbatim-relay: cannot read the config: {e}", file=sys.stderr)
             return 2
         test = bridge.latest_test(root) if config.entry and not args.record else None
+        if args.command == "transcript" and args.test and not args.record:
+            test = root / bridge.STATE_DIR / "tests" / args.test
         record = args.record or (test / "relay.jsonl" if test else config.record_path(root))
         if args.command == "transcript":
             scope = f"test {test.name}" if test else ""
+            every = args.all or test is not None
             try:
-                return kit.transcript(record, args.all or test is not None, sys.stdout, scope)
+                return kit.transcript(record, every, sys.stdout, scope, args.session)
             except RecordError as e:
                 print(f"verbatim-relay: {e}", file=sys.stderr)
                 return 2
