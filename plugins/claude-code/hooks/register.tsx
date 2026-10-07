@@ -209,6 +209,101 @@ async function relayToTap($: any, o: Options, said: string, session: string): Pr
   }
 }
 
+// The name and the message of a thrown value, as the hook kit shows them.
+function failure(err: unknown): string {
+  const message = (err as any)?.message
+  return typeof message === 'string' ? `${(err as any)?.name ?? 'Error'}: ${message}` : String(err)
+}
+
+// A failed relay path blocks the prompt. If the handler rejects, the engine skips it and gives
+// the prompt to the model, so the handler must never reject in relay mode.
+function blockFailed($: any, err: unknown): any {
+  try {
+    $.ui.log(`verbatim-relay: the hook failed (${failure(err)}). Nothing reached the model.`)
+  } catch {
+    // The block holds even if the log fails.
+  }
+  return { drop: 'verbatim-relay: nothing reached the model' }
+}
+
+// Relay mode is on, or a test runs. If the check fails, assume that it is on.
+async function guardOn($: any, o: Options): Promise<boolean> {
+  try {
+    return (await currentTest($)) !== null || (await isOn($, o))
+  } catch {
+    return true
+  }
+}
+
+// Send one prompt in relay mode. Resolve the answer of the prompt.submit hook. It never calls
+// next, so the prompt never reaches the model.
+async function relayPrompt($: any, o: Options, e: any): Promise<any> {
+  if (e.attachments?.length) {
+    $.ui.log('verbatim-relay: the relay does not send attachments. Nothing was sent.')
+    return { drop: 'verbatim-relay: nothing was sent' }
+  }
+  const cur = await currentTest($)
+  if (!cur && (await hasEntry($))) {
+    $.ui.log('verbatim-relay: relay mode is on, but no test runs. Type /verbatim-relay start. Nothing was sent.')
+    return { drop: 'verbatim-relay: nothing was sent' }
+  }
+  const recordPath = cur ? `${cur.dir}/relay.jsonl` : o.record
+  if ((await fileSize($, recordPath)) > RECORD_LIMIT) {
+    $.ui.log(`verbatim-relay: the record ${recordPath} is full. Move it, then send again. Nothing was sent.`)
+    return { drop: 'verbatim-relay: nothing was sent' }
+  }
+
+  const said = e.text
+  const session = await $.session.id()
+  const { shown, ok, record } = cur ? await relayToTest($, cur, said) : await relayToTap($, o, said, session)
+  $.ui.log(shown)
+  await update($, state, st => ({ ...st, turns: [...st.turns, { said, shown, ok }] }))
+  try {
+    await append($, record, await turnRow(said, shown, ok, session))
+  } catch (err) {
+    $.ui.log(`verbatim-relay: cannot write the record ${record}: ${(err as Error).message}`)
+  }
+  return { drop: 'verbatim-relay: relayed to the agent' }
+}
+
+// The deny of a model tool call, or null if the call may run. It never calls next.
+async function guardTool($: any, o: Options, e: any): Promise<{ deny: string } | null> {
+  const cur = await currentTest($)
+  const input = JSON.stringify(e)
+  const deny = denyPattern([o.tap_url, o.agent_url, cur?.tap_url ?? ''])
+  const toTap = deny !== null && isChecked(e.tool) && deny.test(input)
+  if (toTap || (cur !== null && touchesTestFiles(e.tool, input))) {
+    try {
+      await append($, cur ? `${cur.dir}/relay.jsonl` : o.record, blockedRow(e.tool, input.slice(0, 300)))
+    } catch {
+      // The deny holds even if the record cannot take the row.
+    }
+    return {
+      deny: 'verbatim-relay: only the tester talks to the agent, and the test files do not change during a test. Use the transcript tool to read the conversation.',
+    }
+  }
+  const reads = toolReadsOnly(e.tool, e)
+  if (cur === null && (touchesRecords(e.tool, input) || (isChecked(e.tool) && TEST_FILES.test(input) && !reads))) {
+    const s = await read($, state)
+    try {
+      await append($, s.test ? `${s.test}/denied.jsonl` : o.record, blockedRow(e.tool, input.slice(0, 300)))
+    } catch {
+      // The deny holds even if the record cannot take the row.
+    }
+    return { deny: RECORDS_REASON }
+  }
+  const entry = cur !== null && isChecked(e.tool) && !reads ? (await readJson($, CONFIG))?.entry : null
+  if (Array.isArray(entry) && namesEntry(input, entryNames(entry.map(String)), commandOf(e.tool, e))) {
+    try {
+      await append($, `${cur!.dir}/relay.jsonl`, blockedRow(e.tool, input.slice(0, 300)))
+    } catch {
+      // The deny holds even if the record cannot take the row.
+    }
+    return { deny: 'verbatim-relay: during a test, only the tap runs the entry.' }
+  }
+  return null
+}
+
 export const register: Register = (on, options) => {
   const o = options as unknown as Options
 
@@ -258,32 +353,11 @@ export const register: Register = (on, options) => {
     const control = e.text.trim()
     if (fromPerson && CONTROL.includes(control) && (await hasEntry($))) return runControl($, o, e, next, control)
     if (!fromPerson || !(await isOn($, o))) return next(e)
-    if (e.attachments?.length) {
-      $.ui.log('verbatim-relay: the relay does not send attachments. Nothing was sent.')
-      return { drop: 'verbatim-relay: nothing was sent' }
-    }
-    const cur = await currentTest($)
-    if (!cur && (await hasEntry($))) {
-      $.ui.log('verbatim-relay: relay mode is on, but no test runs. Type /verbatim-relay start. Nothing was sent.')
-      return { drop: 'verbatim-relay: nothing was sent' }
-    }
-    const recordPath = cur ? `${cur.dir}/relay.jsonl` : o.record
-    if ((await fileSize($, recordPath)) > RECORD_LIMIT) {
-      $.ui.log(`verbatim-relay: the record ${recordPath} is full. Move it, then send again. Nothing was sent.`)
-      return { drop: 'verbatim-relay: nothing was sent' }
-    }
-
-    const said = e.text
-    const session = await $.session.id()
-    const { shown, ok, record } = cur ? await relayToTest($, cur, said) : await relayToTap($, o, said, session)
-    $.ui.log(shown)
-    await update($, state, st => ({ ...st, turns: [...st.turns, { said, shown, ok }] }))
     try {
-      await append($, record, await turnRow(said, shown, ok, session))
+      return await relayPrompt($, o, e)
     } catch (err) {
-      $.ui.log(`verbatim-relay: cannot write the record ${record}: ${(err as Error).message}`)
+      return blockFailed($, err)
     }
-    return { drop: 'verbatim-relay: relayed to the agent' }
   })
 
   on('tool.call', { tool: TOOL }, async ($, e) => {
@@ -299,40 +373,15 @@ export const register: Register = (on, options) => {
   // The model may read the conversation. It must not take part in it, and during a test it must
   // not change the entry or the test files.
   on('tool.call', async ($, e, next) => {
-    const cur = await currentTest($)
-    const input = JSON.stringify(e)
-    const deny = denyPattern([o.tap_url, o.agent_url, cur?.tap_url ?? ''])
-    const toTap = deny !== null && isChecked(e.tool) && deny.test(input)
-    if (toTap || (cur !== null && touchesTestFiles(e.tool, input))) {
-      try {
-        await append($, cur ? `${cur.dir}/relay.jsonl` : o.record, blockedRow(e.tool, input.slice(0, 300)))
-      } catch {
-        // The deny holds even if the record cannot take the row.
-      }
-      return {
-        deny: 'verbatim-relay: only the tester talks to the agent, and the test files do not change during a test. Use the transcript tool to read the conversation.',
-      }
+    let denied: { deny: string } | null
+    try {
+      denied = await guardTool($, o, e)
+    } catch (err) {
+      // A failed guard denies the call in relay mode or during a test, as the hook kit does.
+      if (!(await guardOn($, o))) throw err
+      denied = { deny: `verbatim-relay: the hook failed (${failure(err)}). The tool call did not run.` }
     }
-    const reads = toolReadsOnly(e.tool, e)
-    if (cur === null && (touchesRecords(e.tool, input) || (isChecked(e.tool) && TEST_FILES.test(input) && !reads))) {
-      const s = await read($, state)
-      try {
-        await append($, s.test ? `${s.test}/denied.jsonl` : o.record, blockedRow(e.tool, input.slice(0, 300)))
-      } catch {
-        // The deny holds even if the record cannot take the row.
-      }
-      return { deny: RECORDS_REASON }
-    }
-    const entry = cur !== null && isChecked(e.tool) && !reads ? (await readJson($, CONFIG))?.entry : null
-    if (Array.isArray(entry) && namesEntry(input, entryNames(entry.map(String)), commandOf(e.tool, e))) {
-      try {
-        await append($, `${cur!.dir}/relay.jsonl`, blockedRow(e.tool, input.slice(0, 300)))
-      } catch {
-        // The deny holds even if the record cannot take the row.
-      }
-      return { deny: 'verbatim-relay: during a test, only the tap runs the entry.' }
-    }
-    return next(e)
+    return denied ?? next(e)
   })
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
