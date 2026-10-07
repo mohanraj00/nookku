@@ -507,3 +507,60 @@ test('in relay mode, a failed tool guard denies the call', { options: { ...OPTIO
   expect(call.deny).toContain('verbatim-relay: the hook failed (TypeError')
   expect(ran).toEqual([])
 })
+
+// The .catch handlers. The test kit cannot make a hook run past its time budget: the budget
+// counts only the plugin's own code, and the plugin waits on no clock. It also cannot make the
+// plugin return a value that the engine refuses: the kit refuses that value at the test's own
+// hook. So these tests make the hook throw outside its own try.
+
+test('a control prompt whose hook fails does not reach the model', { options: { start_on: false } }, async ($, on) => {
+  const f = fakes(on, contractReply)
+  withTest(on, f)
+  f.broken.session = true
+  const model: string[] = []
+  on('prompt.submit', async (_$: any, e: any) => {
+    model.push(e.text)
+    return { text: e.text }
+  })
+  const result: any = await $.prompt.submit({ text: 'verbatim-relay start' })
+  expect(result.drop).toBe('verbatim-relay: nothing reached the model')
+  expect(model).toEqual([])
+  expect(f.logs.length).toBe(1)
+  expect(f.logs[0].startsWith('verbatim-relay: the hook failed (throw: ')).toBe(true)
+  expect(f.logs[0]).toContain('the session is not bound')
+  expect(f.logs[0]).toContain('Nothing reached the model.')
+})
+
+test('in relay mode, a failed transcript tool denies the call', { options: OPTIONS }, async ($, on) => {
+  const f = fakes(on, () => ({ status: 200, text: '{}' }))
+  f.files['/virtual/relay.jsonl'] = 'not json\n'
+  const ran: string[] = []
+  on('tool.call', async (_$: any, e: any) => {
+    ran.push(e.tool)
+    return { result: 'ran' }
+  })
+  const call: any = await $.tool.call({ tool: 'mcp__verbatim-relay__transcript' } as any)
+  expect(call.deny).toContain('verbatim-relay: the hook failed (throw: ')
+  expect(ran).toEqual([])
+})
+
+test('with relay mode off, a failed tool guard keeps the call', { options: { ...OPTIONS, start_on: false, agent_url: 'not a url' } }, async ($, on) => {
+  fakes(on, () => ({ status: 200, text: '{}' }))
+  on('tool.call', async () => ({ result: 'ran' }))
+  const call: any = await $.tool.call({ tool: 'Bash', command: 'echo hi' } as any)
+  expect(call.deny).toBe(undefined)
+})
+
+test('if the mode cannot be read, a failed tool guard denies the call', { options: { start_on: false, agent_url: 'not a url' } }, async ($, on) => {
+  const f = fakes(on, contractReply)
+  withTest(on, f)
+  f.broken.stat = '.verbatim-relay/mode'
+  const ran: string[] = []
+  on('tool.call', async (_$: any, e: any) => {
+    ran.push(e.tool)
+    return { result: 'ran' }
+  })
+  const call: any = await $.tool.call({ tool: 'Bash', command: 'echo hi' } as any)
+  expect(call.deny).toContain('verbatim-relay: the hook failed (TypeError')
+  expect(ran).toEqual([])
+})
