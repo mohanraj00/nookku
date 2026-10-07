@@ -1971,6 +1971,257 @@ MODEL_API_CASE = {
     },
 }
 
+
+# A trace case of the OpenAI Responses API (SPEC.md sections 7.7 and 8.4). In turn 1, a streamed
+# call to /responses with a text and a function call, and a JSON call to /v1/responses with the
+# function call output. In turn 2, a streamed call that ends with response.failed, and a GET of a
+# stored response, which is not a model call.
+def revent(kind: str, **fields: Any) -> dict:
+    return {"type": kind, **fields}
+
+
+def response(status: str, output: list, usage: Any = None, **more: Any) -> dict:
+    return {
+        "id": "resp_1",
+        "object": "response",
+        "status": status,
+        "model": "gpt-toy",
+        "output": output,
+        "usage": usage,
+        "error": None,
+        **more,
+    }
+
+
+def said(text: str, mid: str = "msg_1") -> dict:
+    part = {"type": "output_text", "text": text, "annotations": []}
+    return {
+        "id": mid,
+        "type": "message",
+        "role": "assistant",
+        "status": "completed",
+        "content": [part],
+    }
+
+
+def text_event(kind: str, seq: int, **fields: Any) -> dict:
+    return revent(
+        kind, item_id="msg_1", output_index=0, content_index=0, sequence_number=seq, **fields
+    )
+
+
+def args_event(kind: str, seq: int, **fields: Any) -> dict:
+    return revent(kind, item_id="fc_1", output_index=1, sequence_number=seq, **fields)
+
+
+RTOOLS = [{"type": "function", "name": "check_stock", "parameters": {"type": "object"}}]
+STOCK_ARGS = '{"sku": "teapot-set"}'
+RCALL = {
+    "id": "fc_1",
+    "type": "function_call",
+    "call_id": "call_7",
+    "name": "check_stock",
+    "arguments": STOCK_ARGS,
+    "status": "completed",
+}
+RUSAGE = {"input_tokens": 45, "output_tokens": 18, "total_tokens": 63}
+RUSAGE_JSON = {"input_tokens": 80, "output_tokens": 11, "total_tokens": 91}
+FAILED = "The model failed to generate a response."
+OPEN_MESSAGE = {"id": "msg_1", "type": "message", "role": "assistant", "content": []}
+RESPONSES_STREAM = sse(
+    [
+        revent("response.created", response=response("in_progress", []), sequence_number=0),
+        revent("response.output_item.added", output_index=0, item=OPEN_MESSAGE, sequence_number=1),
+        text_event("response.content_part.added", 2, part={"type": "output_text", "text": ""}),
+        text_event("response.output_text.delta", 3, delta="Let me "),
+        text_event("response.output_text.delta", 4, delta="check."),
+        text_event("response.output_text.done", 5, text="Let me check."),
+        revent(
+            "response.output_item.done",
+            output_index=0,
+            item=said("Let me check."),
+            sequence_number=6,
+        ),
+        revent(
+            "response.output_item.added",
+            output_index=1,
+            item={**RCALL, "arguments": "", "status": "in_progress"},
+            sequence_number=7,
+        ),
+        args_event("response.function_call_arguments.delta", 8, delta='{"sku": "tea'),
+        args_event("response.function_call_arguments.delta", 9, delta='pot-set"}'),
+        args_event("response.function_call_arguments.done", 10, arguments=STOCK_ARGS),
+        revent("response.output_item.done", output_index=1, item=RCALL, sequence_number=11),
+        revent(
+            "response.completed",
+            response=response("completed", [said("Let me check."), RCALL], RUSAGE),
+            sequence_number=12,
+        ),
+    ]
+)
+RESPONSES_JSON = json.dumps(
+    response("completed", [said("Yes, 3 teapot sets are in stock.", "msg_2")], RUSAGE_JSON)
+)
+FAILED_STREAM = sse(
+    [
+        revent("response.created", response=response("in_progress", []), sequence_number=0),
+        revent(
+            "response.failed",
+            response=response("failed", [], error={"code": "server_error", "message": FAILED}),
+            sequence_number=1,
+        ),
+    ]
+)
+RESPONSES = "/responses"
+V1_RESPONSES = "/v1/responses"
+RASKED = [{"role": "user", "content": [{"type": "input_text", "text": ASK}]}]
+RANSWERED = [
+    {"role": "user", "content": ASK},
+    {k: v for k, v in RCALL.items() if k != "status"},
+    {
+        "type": "function_call_output",
+        "call_id": "call_7",
+        "output": [{"type": "input_text", "text": "3 left"}],
+    },
+]
+RSTOCK_CALL = {"id": "call_7", "name": "check_stock", "input": {"sku": "teapot-set"}}
+RESPONSES_CASE = {
+    "tap": [window(10, 20), window(30, 40)],
+    "manifest": {"test": "20261007-080000-rs01", "model_sessions": []},
+    "sessions": {},
+    "model_api": [
+        mcall(
+            11,
+            "openai",
+            RESPONSES,
+            200,
+            {
+                "model": "gpt-toy",
+                "stream": True,
+                "instructions": "You are the toy shop agent.",
+                "tools": RTOOLS,
+                "input": RASKED,
+            },
+            stream=True,
+            took=2,
+            response=RESPONSES_STREAM,
+            result=result(
+                model="gpt-toy",
+                text="Let me check.",
+                tool_calls=[RSTOCK_CALL],
+                stop_reason="completed",
+                usage=RUSAGE,
+            ),
+        ),
+        mcall(
+            14,
+            "openai",
+            V1_RESPONSES,
+            200,
+            {"model": "gpt-toy", "tools": RTOOLS, "input": RANSWERED},
+            took=2,
+            response=RESPONSES_JSON,
+            result=result(
+                model="gpt-toy",
+                text="Yes, 3 teapot sets are in stock.",
+                stop_reason="completed",
+                usage=RUSAGE_JSON,
+            ),
+        ),
+        mcall(
+            31,
+            "openai",
+            RESPONSES,
+            200,
+            {"model": "gpt-toy", "stream": True, "input": REFUND_ASK},
+            stream=True,
+            response=FAILED_STREAM,
+            result=result(model="gpt-toy", stop_reason="failed", error=FAILED),
+        ),
+        {
+            **mcall(34, "openai", "/responses/resp_1", 200, None, response=RESPONSES_JSON),
+            "method": "GET",
+            "request_body": body(),
+            "result": None,
+        },
+    ],
+    "trace": [
+        mitem(1, "openai", 11, 1, "message", role="user", output=ASK),
+        mitem(
+            1,
+            "openai",
+            13,
+            1,
+            "message",
+            role="assistant",
+            input=info(RESPONSES, "gpt-toy", "completed", RUSAGE),
+            output="Let me check.",
+            exit_code=200,
+        ),
+        mitem(
+            1,
+            "openai",
+            13,
+            1,
+            "tool_call",
+            name="check_stock",
+            input={"sku": "teapot-set"},
+            output="3 left",
+        ),
+        mitem(
+            1,
+            "openai",
+            16,
+            2,
+            "message",
+            role="assistant",
+            input=info(V1_RESPONSES, "gpt-toy", "completed", RUSAGE_JSON),
+            output="Yes, 3 teapot sets are in stock.",
+            exit_code=200,
+        ),
+        mitem(2, "openai", 31, 3, "message", role="user", output=REFUND_ASK),
+        mitem(
+            2,
+            "openai",
+            32,
+            3,
+            "message",
+            role="assistant",
+            input=info(RESPONSES, "gpt-toy", "failed", None),
+            error=FAILED,
+            exit_code=200,
+        ),
+    ],
+    "findings": {
+        "v": "0.2",
+        "test": "20261007-080000-rs01",
+        "turns": 2,
+        "items": 6,
+        "sessions": [],
+        "otel": None,
+        "backend": None,
+        "model_api": {
+            "file": "model_api.jsonl",
+            "rows": 4,
+            "items": 6,
+            "ignored": {},
+            "harness_calls": {},
+            "other_calls": 1,
+        },
+        "counts": counts(model_api_error=1),
+        "findings": [
+            {
+                "check": "model_api_error",
+                "turn": 2,
+                "detail": f"openai: /responses: {FAILED}",
+                "harness": "model_api",
+                "session": "openai",
+                "source": {"file": "model_api.jsonl", "line": 3},
+            },
+        ],
+    },
+}
+
 TRACE_CASES = {
     "claude_code_toy_shop": CLAUDE_CASE,
     "codex_toy_shop": CODEX_CASE,
@@ -1979,6 +2230,7 @@ TRACE_CASES = {
     "otel_toy_shop": OTEL_CASE,
     "backend_toy_shop": BACKEND_CASE,
     "model_api_toy_shop": MODEL_API_CASE,
+    "model_api_responses": RESPONSES_CASE,
 }
 
 

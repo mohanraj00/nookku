@@ -7,7 +7,7 @@ from toy_model_server import ModelServer
 
 from verbatim_relay import backend, model_api
 
-CASE = Path(__file__).resolve().parent.parent / "conformance" / "trace" / "model_api_toy_shop"
+TRACE = Path(__file__).resolve().parent.parent / "conformance" / "trace"
 STREAM = [
     b"event: message_start\n"
     b'data: {"type": "message_start", "message": {"model": "claude-toy"}}\n\n',
@@ -42,10 +42,11 @@ def post(url: str, path: str, body: bytes, headers: dict) -> tuple[int, bytes]:
     return out
 
 
-def test_the_parsers_give_the_results_of_the_conformance_case() -> None:
-    lines = (CASE / model_api.FILE).read_text().split("\n")
+@pytest.mark.parametrize(("case", "count"), [("model_api_toy_shop", 4), ("model_api_responses", 3)])
+def test_the_parsers_give_the_results_of_the_conformance_case(case: str, count: int) -> None:
+    lines = (TRACE / case / model_api.FILE).read_text().split("\n")
     calls = [json.loads(x) for x in lines if x and '"result": {' in x]
-    assert len(calls) == 4
+    assert len(calls) == count
     for row in calls:
         data = row["response_body"]["text"].encode()
         got = model_api.result(row["api"], row["path"], data, row["stream"])
@@ -168,6 +169,66 @@ def test_a_harness_call_keeps_no_text(tmp_path: Path) -> None:
     assert (row["harness"], row["result"]) == ("claude-code", None)
     assert row["request_body"]["omitted"] and row["response_body"]["omitted"]
     assert row["response_body"]["size"] == len(b"".join(STREAM))
+
+
+def event(kind: str, **fields: object) -> bytes:
+    return f"event: {kind}\ndata: {json.dumps({'type': kind, **fields})}\n\n".encode()
+
+
+def test_a_responses_stream_reaches_the_app_and_gives_its_result(tmp_path: Path) -> None:
+    item = {"type": "message", "role": "assistant", "content": []}
+    parts = [
+        event("response.created", response={"model": "gpt-toy", "status": "in_progress"}),
+        event("response.output_item.added", output_index=0, item=item),
+        event("response.output_text.delta", output_index=0, content_index=0, delta="2 mugs "),
+        event("response.output_text.delta", output_index=0, content_index=0, delta="€ left."),
+        event("response.completed", response={"status": "completed", "usage": {"x": 1}}),
+    ]
+    with ModelServer() as model:
+        model.parts = parts
+        model.release.clear()
+        proxies = proxy_for(model, tmp_path, "openai")
+        env = proxies.start()
+        try:
+            conn = connect(env["OPENAI_BASE_URL"])
+            conn.request("POST", "/responses", body=b'{"stream": true}', headers={})
+            resp = conn.getresponse()
+            first = resp.read1(65536)
+            model.release.set()
+            got = first + resp.read()
+            conn.close()
+        finally:
+            proxies.stop()
+    assert first == parts[0] and got == b"".join(parts)
+    assert model.seen[0]["path"] == "/responses"
+    result = rows(tmp_path)[0]["result"]
+    assert (result["model"], result["text"]) == ("gpt-toy", "2 mugs € left.")
+    assert (result["stop_reason"], result["usage"]) == ("completed", {"x": 1})
+
+
+def test_a_responses_stream_that_stops_keeps_its_deltas() -> None:
+    call = {"type": "function_call", "call_id": "call_2", "name": "refund", "arguments": ""}
+    data = b"".join(
+        [
+            event("response.output_item.added", output_index=0, item=call),
+            event("response.function_call_arguments.delta", output_index=0, delta='{"order": '),
+            event("response.function_call_arguments.delta", output_index=0, delta='"5120"}'),
+            event("error", code="server_error", message="The server stopped.", param=None),
+        ]
+    )
+    got = model_api.result("openai", "/v1/responses/", data, True)
+    assert got is not None
+    assert got["tool_calls"] == [{"id": "call_2", "name": "refund", "input": {"order": "5120"}}]
+    assert (got["stop_reason"], got["error"]) == (None, "The server stopped.")
+
+
+def test_an_incomplete_response_and_the_paths_of_the_responses_api() -> None:
+    body = {"model": "gpt-toy", "status": "incomplete", "output": [], "error": None}
+    got = model_api.result("openai", "/responses", json.dumps(body).encode(), False)
+    assert got is not None and (got["stop_reason"], got["error"]) == ("incomplete", None)
+    assert model_api.call_format("openai", "/v1/responses") == "responses"
+    assert model_api.call_format("openai", "/v1/responses/resp_1") is None
+    assert model_api.call_format("anthropic", "/v1/responses") is None
 
 
 def test_the_config_and_the_urls() -> None:

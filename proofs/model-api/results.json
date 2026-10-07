@@ -1,8 +1,8 @@
 {
- "date": "2026-10-06",
+ "date": "2026-10-07",
  "versions": {
-  "verbatim-relay": "0.1.0",
-  "python": "3.12.13",
+  "verbatim-relay": "0.2.0",
+  "python": "3.13.12",
   "os": "Darwin"
  },
  "calls": [
@@ -37,6 +37,17 @@
    "request_same": true,
    "response_same": true,
    "first_part_before_the_end": null,
+   "text_in_record": true
+  },
+  {
+   "call": 4,
+   "api": "openai",
+   "path": "/v1/responses",
+   "stream": true,
+   "response_size": 8531,
+   "request_same": true,
+   "response_same": true,
+   "first_part_before_the_end": true,
    "text_in_record": true
   }
  ],
