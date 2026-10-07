@@ -1,7 +1,7 @@
 {
- "date": "2026-10-06",
+ "date": "2026-10-07",
  "versions": {
-  "verbatim-relay": "0.1.0",
+  "verbatim-relay": "0.2.0",
   "claude-code": "2.1.290 (Claude Code)",
   "codex": "codex-cli 0.160.0",
   "claude-agent-sdk": "0.2.164"
