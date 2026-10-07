@@ -426,6 +426,8 @@ TRICKY = "Hi, return order #4471 please.  \r\nLine two\u2028line three\t€ ₹ 
 HISTORY = [{"message": M1, "reply": R1}]
 EXCHANGE_OK = {"type": "exchange", "input": TRICKY, "status": 200, "reply": R1}
 UNPARSED_POST = {"type": "unparsed", "method": "POST", "path": "/"}
+STRAY = {"type": "unparsed", "method": "STDIO", "path": "stdout"}
+TIMED_OUT = {"type": "exchange", "input": TRICKY, "status": None, "reply": None}
 
 CONTRACT_CASES: dict[str, dict] = {
     "reply_is_exact": {
@@ -457,19 +459,30 @@ CONTRACT_CASES: dict[str, dict] = {
         "http": [200],
         "rows": [EXCHANGE_OK],
     },
+    # A line with no id or with a different id is a stray line, not the reply. The tap waits for
+    # the reply until the timeout.
     "reply_not_json": {
         "requests": [req(TRICKY)],
         "agent": [{"lines": ["Loading the toy shop catalog..."]}],
         "forwarded": [0],
-        "http": [502],
-        "rows": [UNPARSED_POST],
+        "http": [504],
+        "rows": [STRAY, TIMED_OUT],
     },
     "reply_wrong_id": {
         "requests": [req(TRICKY)],
         "agent": [{"lines": [out("m-0", reply=R1)]}],
         "forwarded": [0],
-        "http": [502],
-        "rows": [UNPARSED_POST],
+        "http": [504],
+        "rows": [STRAY, TIMED_OUT],
+    },
+    "stray_lines_before_the_reply": {
+        "requests": [req(TRICKY)],
+        "agent": [
+            {"lines": ["Loading the toy shop catalog...", out("m-0", reply=R2), out(reply=R1)]}
+        ],
+        "forwarded": [0],
+        "http": [200],
+        "rows": [STRAY, STRAY, EXCHANGE_OK],
     },
     "reply_and_error": {
         "requests": [req(TRICKY)],
@@ -585,7 +598,7 @@ CONTRACT_CASES: dict[str, dict] = {
         "http": [200, 200],
         "rows": [
             EXCHANGE_OK,
-            {"type": "unparsed", "method": "STDIO", "path": "stdout"},
+            STRAY,
             {"type": "exchange", "input": M2, "status": 200, "reply": R2},
         ],
     },

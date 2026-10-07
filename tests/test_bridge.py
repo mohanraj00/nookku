@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from verbatim_relay import bridge, kit, seal
+from verbatim_relay import bridge, kit, seal, stdio
 from verbatim_relay.audit import audit
 from verbatim_relay.record import RecordError, Writer
 
@@ -240,6 +240,28 @@ def test_check_fails_without_a_model_session(tmp_path: Path, homes: tuple) -> No
     passed, lines = bridge.check(root)
     assert not passed
     assert any("No claude-code model session" in line for line in lines)
+
+
+def test_check_gives_the_fix_for_logs_on_stdout(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The tap error of an entry that writes its logs on stdout (tests/test_contract.py makes it).
+    error = (
+        "the agent printed 3 lines on stdout but no reply line for m-1 in 240 s, so the tap "
+        f"stopped it. {stdio.STRAY_HINT} The first line: 'toy shop: loading catalog'"
+    )
+    root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
+    folder = tmp_path / "test"
+    folder.mkdir()
+    monkeypatch.setattr(bridge, "start", lambda root: {"test": "t-1", "dir": str(folder)})
+    monkeypatch.setattr(
+        bridge, "send", lambda cur, said: (f"verbatim-relay: HTTP 504: {error}", False)
+    )
+    monkeypatch.setattr(bridge, "end", lambda root: {})
+    passed, lines = bridge.check(root)
+    assert not passed
+    want = "FAIL: The entry printed lines on stdout, but no reply line. " + stdio.STRAY_HINT
+    assert lines[-1] == want
 
 
 def test_the_watcher_takes_only_processes_of_the_entry(tmp_path: Path) -> None:
