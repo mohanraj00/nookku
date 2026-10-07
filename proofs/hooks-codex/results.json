@@ -1,5 +1,5 @@
 {
- "date": "2026-10-06",
+ "date": "2026-10-07",
  "harness": "codex",
  "version": "codex-cli 0.160.0",
  "transport": "stdio",
@@ -89,14 +89,14 @@
  "P3b": {
   "agent_inputs_added": 0,
   "blocked_rows": 1,
-  "model_text": "I’ll run the requested local POST and return the response exactly as received.\nThe command was blocked by the local `verbatim-relay` hook:\n\n```text\nCommand blocked by PreToolUse hook: verbatim-relay: only the tester talks to the agent.\n```"
+  "model_text": "I’ll run the requested local `curl` command and show you its output.\nThe command was blocked by the project hook:\n\n```text\nCommand blocked by PreToolUse hook: verbatim-relay: only the tester talks to the agent.\n```"
  },
- "end_model_output_tokens": 3625,
+ "end_model_output_tokens": 5121,
  "test": {
   "ended": true,
   "model_sessions": [],
   "versions": {
-   "verbatim-relay": "0.1.0",
+   "verbatim-relay": "0.2.0",
    "claude-code": "2.1.290 (Claude Code)",
    "codex": "codex-cli 0.160.0"
   }

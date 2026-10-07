@@ -1,7 +1,7 @@
 {
- "date": "2026-10-06",
+ "date": "2026-10-07",
  "harness": "claude-code",
- "version": "2.1.288 (Claude Code)",
+ "version": "2.1.290 (Claude Code)",
  "transport": "stdio",
  "turns": [
   {
@@ -89,15 +89,15 @@
  "P3b": {
   "agent_inputs_added": 0,
   "blocked_rows": 1,
-  "model_text": "A hook blocked the command. The message was \"verbatim-relay: only the tester talks to the agent.\" I did not run the request, so there is no output to show.\n\nThis project's relay rules say a message must not reach the agent through the model. I will not try to get around the hook. If you want to send"
+  "model_text": "I did not get output from this command. The verbatim-relay PreToolUse hook stopped it before it ran. The hook gave this message: `verbatim-relay: only the tester talks to the agent.`\n\nThe hook blocks this command because port 55271 is the agent endpoint. In this project, only the tester sends messag"
  },
- "end_model_output_tokens": 2151,
+ "end_model_output_tokens": 2463,
  "test": {
   "ended": true,
   "model_sessions": [],
   "versions": {
-   "verbatim-relay": "0.1.0",
-   "claude-code": "2.1.288 (Claude Code)",
+   "verbatim-relay": "0.2.0",
+   "claude-code": "2.1.290 (Claude Code)",
    "codex": "codex-cli 0.160.0"
   }
  },
