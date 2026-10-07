@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import http.client
 import json
 import re
 import shlex
@@ -16,7 +17,7 @@ from typing import Any, TextIO
 from urllib.parse import urlsplit
 
 from verbatim_relay import bridge, commands, evaluation, seal
-from verbatim_relay.adapters import AdapterError, History, make
+from verbatim_relay.adapters import AdapterError, History, StreamError, is_stream, make
 from verbatim_relay.record import RecordError, Turn, Writer, lone_surrogate, read_relay
 
 STATE_DIR = bridge.STATE_DIR
@@ -140,15 +141,17 @@ def relay(config: Config, said: str, past: History) -> tuple[str, bool]:
     )
     try:
         with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
+            stream = is_stream(resp.headers.get("Content-Type"))
             body = resp.read()
     except urllib.error.HTTPError as e:
         text = e.read().decode("utf-8", errors="replace")
         return f"verbatim-relay: the agent returned HTTP {e.code}:\n{text}", False
-    except (OSError, ValueError) as e:
+    except (OSError, ValueError, http.client.HTTPException) as e:
         return f"verbatim-relay: cannot reach the tap at {config.tap_url}: {e}", False
     try:
-        return adapter.reply(body), True
-    except AdapterError as e:
+        # The relay shows a streamed reply only when the stream is complete (SPEC.md section 5).
+        return (adapter.stream_reply(body) if stream else adapter.reply(body)), True
+    except (AdapterError, StreamError) as e:
         return f"verbatim-relay: cannot read the reply: {e}", False
 
 
@@ -277,26 +280,46 @@ def handle(event: dict[str, Any], root: Path, harness: str) -> dict[str, Any] | 
         reads = commands.tool_reads_only(tool, tool_input)
         if cur is None and TEST_FILES.search(text) and not reads:
             return _deny(_last_record(root), harness, tool, text, RECORDS_REASON)
-        try:
-            config = Config.load(root)
-        except (OSError, ValueError, TypeError):
-            return None
-        pattern = deny_pattern([config.tap_url, config.agent_url, cur["tap_url"] if cur else ""])
+        # These denies need only the state folder, so a broken config does not stop them.
         if cur is not None and TEST_FILES.search(text):
             return _deny(Path(cur["dir"]) / "relay.jsonl", harness, tool, text)
+        if cur is not None and not reads and _names_entry(_test_entry(cur), text, tool, tool_input):
+            return _deny(Path(cur["dir"]) / "relay.jsonl", harness, tool, text, ENTRY_REASON)
+        try:
+            loaded: Config | None = Config.load(root)
+        except (OSError, ValueError, TypeError):
+            loaded = None
         if (
             cur is not None
+            and loaded is not None
             and not reads
-            and commands.names_entry(
-                text, commands.entry_names(config.entry), commands.command_of(tool, tool_input)
-            )
+            and _names_entry(loaded.entry, text, tool, tool_input)
         ):
             return _deny(Path(cur["dir"]) / "relay.jsonl", harness, tool, text, ENTRY_REASON)
+        urls = [loaded.tap_url, loaded.agent_url] if loaded else []
+        pattern = deny_pattern([*urls, cur["tap_url"] if cur else ""])
         if pattern is None or not pattern.search(text):
             return None
-        record = Path(cur["dir"]) / "relay.jsonl" if cur else config.record_path(root)
-        return _deny(record, harness, tool, text)
+        if cur is not None:
+            return _deny(Path(cur["dir"]) / "relay.jsonl", harness, tool, text)
+        if loaded is not None:
+            return _deny(loaded.record_path(root), harness, tool, text)
     return None
+
+
+def _test_entry(cur: dict[str, Any]) -> list[str]:
+    """The entry of the running test, from its manifest. Return [] if the manifest has none."""
+    try:
+        entry = json.loads((Path(cur["dir"]) / "manifest.json").read_text()).get("entry")
+    except (OSError, ValueError, AttributeError):
+        return []
+    ok = isinstance(entry, list) and all(isinstance(a, str) for a in entry)
+    return entry if ok else []
+
+
+def _names_entry(entry: list[str], text: str, tool: str, tool_input: Any) -> bool:
+    names = commands.entry_names(entry)
+    return commands.names_entry(text, names, commands.command_of(tool, tool_input))
 
 
 def _last_record(root: Path) -> Path:
@@ -335,16 +358,26 @@ def _deny(
 
 
 def run_hook(root: Path, harness: str, stdin: TextIO, stdout: TextIO) -> int:
-    """The hook command. In relay mode, any failure still blocks the prompt."""
+    """The hook command. In relay mode, any failure still blocks the prompt. If the state folder
+    exists, any failure of a PreToolUse event denies the tool call."""
+    event: Any = None
     try:
         event = json.loads(stdin.read())
         answer = handle(event, root, harness)
     except Exception as e:  # fail closed: a crash must not hand the prompt to the model
-        if is_on(root):
-            answer = _block(
-                f"verbatim-relay: the hook failed ({type(e).__name__}: {e}). "
-                "Nothing reached the model."
-            )
+        failed = f"verbatim-relay: the hook failed ({type(e).__name__}: {e})."
+        tool_call = isinstance(event, dict) and event.get("hook_event_name") == "PreToolUse"
+        if tool_call and (root / STATE_DIR).is_dir():
+            # Each deny of section 5 needs a file in the state folder. With no folder, none applies.
+            answer = {
+                "hookSpecificOutput": {
+                    "hookEventName": "PreToolUse",
+                    "permissionDecision": "deny",
+                    "permissionDecisionReason": f"{failed} The tool call is denied.",
+                }
+            }
+        elif is_on(root):
+            answer = _block(f"{failed} Nothing reached the model.")
         else:
             print(f"verbatim-relay hook: {type(e).__name__}: {e}", file=sys.stderr)
             return 0

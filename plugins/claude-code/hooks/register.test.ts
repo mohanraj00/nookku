@@ -1,27 +1,31 @@
 import { expect, test } from 'claude-code/testing'
 
-import { contractBody, contractShown, denyPattern, entryNames, isChecked, namesEntry, pick, readsOnly, relayTurns, requestBody, sha256, toolReadsOnly, touchesRecords, touchesTestFiles } from './core'
+import { contractBody, contractShown, denyPattern, entryNames, isChecked, isStream, namesEntry, pick, readsOnly, relayTurns, replyText, requestBody, sha256, sseEvents, streamText, toolReadsOnly, touchesRecords, touchesTestFiles } from './core'
 
 const TRICKY = 'Hi, I want to return order #4471.  \n\nÜnïcödé € ₹\t| a | b |\n'
 const REPLY = '## Toy shop  \nYou wrote it.\n\n| item | price |\n|---|---|\n| mug | € 8 |\n'
 const OPTIONS = { start_on: true, record: '/virtual/relay.jsonl' }
 
 // Fakes for the tap and the file system, under the plugin. A file system hook answers
-// { value }, or { deny } for a call that rejects.
-function fakes(on: any, reply: (body: string) => { status: number; text: string }) {
+// { value }, or { deny } for a call that rejects. Set broken.stat to a path, or broken.session
+// to true, and that call rejects.
+function fakes(on: any, reply: (body: string) => { status: number; text: string; headers?: Record<string, string> }) {
   const files: Record<string, string> = {}
+  const broken = { stat: '', session: false }
   const sent: { url: string; body: string }[] = []
   const logs: string[] = []
   on('http.fetch', async (_$: any, e: any) => {
     sent.push({ url: e.url, body: e.init.body })
     const r = reply(e.init.body)
-    return { value: { status: r.status, ok: r.status >= 200 && r.status < 300, headers: {}, text: r.text } }
+    return { value: { status: r.status, ok: r.status >= 200 && r.status < 300, headers: r.headers ?? {}, text: r.text } }
   })
   // $.fs resolves a relative path against the working directory. Key the files by the path
   // from .verbatim-relay/ on, as the plugin wrote it.
   const key = (path: string) => path.replace(/^.*?(?=\.verbatim-relay\/)/, '')
   on('fs.stat', async (_$: any, e: any) =>
-    key(e.path) in files
+    broken.stat !== '' && key(e.path) === broken.stat
+      ? { deny: `EACCES: permission denied: ${e.path}` }
+      : key(e.path) in files
       ? { value: { kind: 'file', size: files[key(e.path)].length, mtimeMs: 0, isLink: false } }
       : { deny: `ENOENT: no such file: ${e.path}` },
   )
@@ -36,8 +40,8 @@ function fakes(on: any, reply: (body: string) => { status: number; text: string 
   })
   on('ui.status', async () => ({ value: undefined }))
   on('ui.open', async () => ({ value: undefined }))
-  on('session.id', async () => ({ value: 's1' }))
-  return { files, sent, logs }
+  on('session.id', async () => (broken.session ? { deny: 'the session is not bound' } : { value: 's1' }))
+  return { files, sent, logs, broken }
 }
 
 function rows(text: string | undefined) {
@@ -86,6 +90,58 @@ test('the openai adapter sends the conversation so far', { options: { ...OPTIONS
       { role: 'user', content: 'second' },
     ],
   })
+})
+
+// An OpenAI-style SSE body with 5 characters of the reply in each chunk.
+function sse(reply: string, done = true): string {
+  let body = ': the toy shop streams\n\n'
+  for (let i = 0; i < reply.length; i += 5) body += `data: ${JSON.stringify({ choices: [{ index: 0, delta: { content: reply.slice(i, i + 5) } }] })}\n\n`
+  return body + (done ? 'data: [DONE]\n\n' : '')
+}
+const SSE = { 'content-type': 'text/event-stream; charset=utf-8' }
+
+test('the openai adapter shows a streamed reply when the stream is complete', { options: { ...OPTIONS, adapter: 'openai' } }, async ($, on) => {
+  const f = fakes(on, () => ({ status: 200, text: sse(REPLY), headers: SSE }))
+  await $.prompt.submit({ text: TRICKY })
+  expect(f.logs).toEqual([REPLY])
+  expect(rows(f.files['/virtual/relay.jsonl'])[0]).toMatchObject({ shown: REPLY, ok: true })
+})
+
+test('a stream that ends early is an error, not a part of the reply', { options: { ...OPTIONS, adapter: 'openai' } }, async ($, on) => {
+  const f = fakes(on, () => ({ status: 200, text: sse(REPLY, false), headers: SSE }))
+  await $.prompt.submit({ text: TRICKY })
+  expect(f.logs).toEqual(['verbatim-relay: cannot read the reply: the stream ended before data: [DONE]'])
+  expect(rows(f.files['/virtual/relay.jsonl'])[0]).toMatchObject({ shown: f.logs[0], ok: false })
+})
+
+test('stream parts', async () => {
+  expect(sseEvents('﻿: c\r\nevent: note\r\ndata: a\r\ndata:b\r\n\r\ndata: c\rdata: d\n\n\nevent: x\n\ndata: last')).toEqual([
+    { name: 'note', data: 'a\nb' },
+    { name: 'message', data: 'c\nd' },
+    { name: 'message', data: 'last' },
+  ])
+  const chunk = (content: unknown, index = 0) => `data: ${JSON.stringify({ choices: [{ index, delta: { content } }] })}\n\n`
+  const done = 'data: [DONE]\n\n'
+  expect(streamText(chunk('## Toy') + chunk('other', 1) + 'data: {"choices": []}\n\n' + chunk(' shop') + done)).toBe('## Toy shop')
+  const failures: [string, string][] = [
+    [chunk('a'), 'ended before data: [DONE]'],
+    [chunk('a') + done + chunk('b'), 'after data: [DONE]'],
+    [chunk('a') + 'data: {"error": {"message": "down"}}\n\n' + done, 'an error:'],
+    [chunk('a') + 'event: error\ndata: down\n\n' + done, 'error event'],
+    ['data: {"choices": [{"delta": {"con\n\n' + done, 'not JSON'],
+    ['data: [1, 2]\n\n' + done, 'not a JSON object'],
+    ['data: {"choices": {}}\n\n' + done, 'not a list'],
+    ['data: {"choices": [{"delta": "a"}]}\n\n' + done, "no 'delta' object"],
+    [chunk(4471) + done, 'not a string'],
+    ['data: {"choices": [{"delta": {"tool_calls": []}}]}\n\n' + done, "no chunk of the stream has a 'delta.content' text"],
+  ]
+  for (const [body, error] of failures) expect(() => streamText(body)).toThrow(error)
+  // A chunk can end in the middle of a surrogate pair. JSON.stringify escapes each half.
+  expect(streamText(chunk('mug \ud83d') + chunk('\ude00') + done)).toBe('mug \u{1F600}')
+  expect(() => streamText(chunk('mug \ud83d') + done)).toThrow('the stream reply has a lone surrogate')
+  expect(isStream('Text/Event-Stream; charset=utf-8')).toBe(true)
+  expect(isStream('application/json')).toBe(false)
+  expect(() => replyText({ adapter: 'json', reply_field: 'reply' } as any, sse('hi'), 'text/event-stream')).toThrow('does not read a streamed response')
 })
 
 test('a model call to the tap is denied and recorded; a file write is not', { options: OPTIONS }, async ($, on) => {
@@ -314,7 +370,7 @@ const RELAY_LINES: [string, boolean][] = [
   ["{\"v\": \"0.1\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"Hi, I want to return order #4471.  \", \"said_sha256\": \"1ef5984361673b46e8871bb201a8340501f8b192637dada66fe7830deb6f1c80\", \"shown\": \"## Returns  \\nYou can return order #4471 within 30 days.\\n\\n| item | status |\\n|---|---|\\n| mug | eligible |\", \"shown_sha256\": \"b28e6e6e5f429d58765d7a29dfda83a9f02db6cd91702a60aa4cf4606cb7b47a\"}", true],
   ["{\"v\": \"0.1\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"Hi, I want to return order #4471.  \", \"said_sha256\": \"1ef5984361673b46e8871bb201a8340501f8b192637dada66fe7830deb6f1c80\", \"shown\": \"## Returns  \\nYou can return order #4471 within 30 days.\\n\\n| item | status |\\n|---|---|\\n| mug | eligible |\\n\", \"shown_sha256\": \"587f9ea21b2366fe62e43ec12cfc3fdc28c6b9d4155052eddda4ad78ac2792b1\"}", true],
   ["{\"v\": \"0.1\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"Hi, I want to return order #4471.  \", \"said_sha256\": \"1ef5984361673b46e8871bb201a8340501f8b192637dada66fe7830deb6f1c80\", \"shown\": \"## Returns  \\nYou can return order #4471 within 30 days.\\n\\n| item | status |\\n|---|---|\\n| mug | eligible |\\ud83d\", \"shown_sha256\": \"ed17c70b981183c55831abc1105f82a43b9fb9fb9386dbfeac69603bd7b8f1d3\"}", false],
-  ["{\"v\": \"0.1\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"Hi, I want to return order #4471.  \", \"said_sha256\": \"1ef5984361673b46e8871bb201a8340501f8b192637dada66fe7830deb6f1c80\", \"shown\": \"## Returns  \\nYou can return order #4471 within 30 days.\\n\\n| item | status |\\n|---|---|\\n| mug | eligible |\ufffd\", \"shown_sha256\": \"ed17c70b981183c55831abc1105f82a43b9fb9fb9386dbfeac69603bd7b8f1d3\"}", true],
+  ["{\"v\": \"0.1\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"Hi, I want to return order #4471.  \", \"said_sha256\": \"1ef5984361673b46e8871bb201a8340501f8b192637dada66fe7830deb6f1c80\", \"shown\": \"## Returns  \\nYou can return order #4471 within 30 days.\\n\\n| item | status |\\n|---|---|\\n| mug | eligible |�\", \"shown_sha256\": \"ed17c70b981183c55831abc1105f82a43b9fb9fb9386dbfeac69603bd7b8f1d3\"}", true],
   ["{\"v\": \"0.1\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"Hi, I want to return order #4471.  \", \"said_sha256\": \"1ef5984361673b46e8871bb201a8340501f8b192637dada66fe7830deb6f1c80\", \"shown\": \"## Returns  \\nYou can return order #4471 within 31 days.\\n\\n| item | status |\\n|---|---|\\n| mug | eligible |\", \"shown_sha256\": \"b28e6e6e5f429d58765d7a29dfda83a9f02db6cd91702a60aa4cf4606cb7b47a\"}", false],
   ["{\"v\": \"0.1\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"Hi, I want to return order #4471.  \", \"said_sha256\": \"1ef5984361673b46e8871bb201a8340501f8b192637dada66fe7830deb6f1c80\", \"shown\": \"The agent returned an error.\", \"shown_sha256\": \"bee7e3658e9dcf2e9817c9a86e45c7e85a8dac78c78e536f62470dd20be84b68\"}", true],
   ["{\"v\": \"0.1\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"Hi, I want to return order #4471.  \", \"said_sha256\": \"1ef5984361673b46e8871bb201a8340501f8b192637dada66fe7830deb6f1c80\", \"shown\": null, \"shown_sha256\": null}", true],
@@ -323,13 +379,15 @@ const RELAY_LINES: [string, boolean][] = [
   ["{\"v\": \"0.1\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"Two questions:\\n\\n1. Do you ship to Chennai?\\n2. Is the mug dishwasher safe?\", \"said_sha256\": \"9cfec17ff2654186bdfda6011942e259c57f77f16c89550e20351725a090c6fc\", \"shown\": \"1. Yes, we ship to Chennai.\\n\\n2. Yes.   \", \"shown_sha256\": \"0f84387363da9a5fefb6dc923874883389ac8aa548422360f78da5526e882c03\"}", true],
   ["{\"v\": \"0.1\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"Two questions:\\n\\n1. Do you ship to Chennai?\\n2. Is the mug dishwasher safe?\", \"said_sha256\": \"9cfec17ff2654186bdfda6011942e259c57f77f16c89550e20351725a090c6fc\", \"shown\": \"1. Yes, we ship to Chennai.\\n\\n2. Yes.\", \"shown_sha256\": \"2138f4e2bd63c65c14522632d3513b146ba68b658fcd04b9ceb1bfd4bb88f0ad\"}", true],
   ["{\"v\": \"0.1\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"Two questions:\\n\\n1. Do you ship to Chennai?\\n2. Is the mug dishwasher safe?\", \"said_sha256\": \"9cfec17ff2654186bdfda6011942e259c57f77f16c89550e20351725a090c6fc\", \"shown\": null, \"shown_sha256\": null}", true],
-  ["{\"v\": \"0.1\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"\u00dcn\u00efc\u00f6d\u00e9 check: can I pay in \u20ac or \u20b9? \u00c7a marche?\", \"said_sha256\": \"a80c2f3530fd028aa513e5e34214643ae75b1e02f80fa3580a356ee6e5224877\", \"shown\": \"Caf\u00e9 policy: we accept \u20ac and \u20b9. R\u00e9sum\u00e9 of fees: none.\", \"shown_sha256\": \"65d02e898525f6bdd5cebfc4818c9088f86358fefc7adc90f95e3d7e810dc423\", \"ok\": true, \"session\": \"s1\"}", true],
-  ["{\"v\": \"0.1\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"\u00dcn\u00efc\u00f6d\u00e9 check: can I pay in \u20ac or \u20b9? \u00c7a marche?\", \"said_sha256\": \"a80c2f3530fd028aa513e5e34214643ae75b1e02f80fa3580a356ee6e5224877\", \"shown\": \"Caf\u00e9 policy: we accept \u20ac and \u20b9. R\u00e9sum\u00e9 of fees: none.\", \"shown_sha256\": \"65d02e898525f6bdd5cebfc4818c9088f86358fefc7adc90f95e3d7e810dc423\"}", true],
-  ["{\"v\": \"0.1\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"\u00dcn\u00efc\u00f6d\u00e9 check: can I pay in \u20ac or \u20b9? \u00c7a marche?\", \"said_sha256\": \"a80c2f3530fd028aa513e5e34214643ae75b1e02f80fa3580a356ee6e5224877\", \"shown\": \"Care policy: we accept \u20ac and \u20b9. R\u00e9sum\u00e9 of fees: none.\", \"shown_sha256\": \"6b29bcbedee17c9b0ccf24465822b5b33d5bd6fddb3fc50462efaa58bc0dbb53\"}", true],
+  ["{\"v\": \"0.1\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"Ünïcödé check: can I pay in € or ₹? Ça marche?\", \"said_sha256\": \"a80c2f3530fd028aa513e5e34214643ae75b1e02f80fa3580a356ee6e5224877\", \"shown\": \"Café policy: we accept € and ₹. Résumé of fees: none.\", \"shown_sha256\": \"65d02e898525f6bdd5cebfc4818c9088f86358fefc7adc90f95e3d7e810dc423\", \"ok\": true, \"session\": \"s1\"}", true],
+  ["{\"v\": \"0.1\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"Ünïcödé check: can I pay in € or ₹? Ça marche?\", \"said_sha256\": \"a80c2f3530fd028aa513e5e34214643ae75b1e02f80fa3580a356ee6e5224877\", \"shown\": \"Café policy: we accept € and ₹. Résumé of fees: none.\", \"shown_sha256\": \"65d02e898525f6bdd5cebfc4818c9088f86358fefc7adc90f95e3d7e810dc423\"}", true],
+  ["{\"v\": \"0.1\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"Ünïcödé check: can I pay in € or ₹? Ça marche?\", \"said_sha256\": \"a80c2f3530fd028aa513e5e34214643ae75b1e02f80fa3580a356ee6e5224877\", \"shown\": \"Care policy: we accept € and ₹. Résumé of fees: none.\", \"shown_sha256\": \"6b29bcbedee17c9b0ccf24465822b5b33d5bd6fddb3fc50462efaa58bc0dbb53\"}", true],
   ["{\"v\": \"0.2\", \"type\": \"model_session\", \"ts\": 1.0, \"harness\": \"claude-code\", \"session\": \"4f1c2a7e-0d3b-4c55-9a61-2b8e5d7c9f10\", \"pid\": 4471, \"inferred\": false}", false],
   ["{\"v\": \"0.2\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"Hi, I want to return order #4471.  \", \"said_sha256\": \"1ef5984361673b46e8871bb201a8340501f8b192637dada66fe7830deb6f1c80\", \"shown\": \"## Returns  \\nYou can return order #4471 within 30 days.\\n\\n| item | status |\\n|---|---|\\n| mug | eligible |\", \"shown_sha256\": \"b28e6e6e5f429d58765d7a29dfda83a9f02db6cd91702a60aa4cf4606cb7b47a\"}", true],
   ["{\"v\": \"0.2\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"Two questions:\\n\\n1. Do you ship to Chennai?\\n2. Is the mug dishwasher safe?\", \"said_sha256\": \"9cfec17ff2654186bdfda6011942e259c57f77f16c89550e20351725a090c6fc\", \"shown\": \"1. Yes, we ship to Chennai.\\n\\n2. Yes.   \", \"shown_sha256\": \"0f84387363da9a5fefb6dc923874883389ac8aa548422360f78da5526e882c03\"}", true],
-  ["{\"v\": \"0.2\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"\u00dcn\u00efc\u00f6d\u00e9 check: can I pay in \u20ac or \u20b9? \u00c7a marche?\", \"said_sha256\": \"a80c2f3530fd028aa513e5e34214643ae75b1e02f80fa3580a356ee6e5224877\", \"shown\": \"Caf\u00e9 policy: we accept \u20ac and \u20b9. R\u00e9sum\u00e9 of fees: none.\", \"shown_sha256\": \"65d02e898525f6bdd5cebfc4818c9088f86358fefc7adc90f95e3d7e810dc423\"}", true],
+  ["{\"v\": \"0.2\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"Ünïcödé check: can I pay in € or ₹? Ça marche?\", \"said_sha256\": \"a80c2f3530fd028aa513e5e34214643ae75b1e02f80fa3580a356ee6e5224877\", \"shown\": \"Café policy: we ac\", \"shown_sha256\": \"352f303b4c94c27c1354a7614822d4cd2c7d1392f39c9734679495a3d9095681\"}", true],
+  ["{\"v\": \"0.2\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"Ünïcödé check: can I pay in € or ₹? Ça marche?\", \"said_sha256\": \"a80c2f3530fd028aa513e5e34214643ae75b1e02f80fa3580a356ee6e5224877\", \"shown\": \"Café policy: we accept € and ₹. Résumé of fees: none.\", \"shown_sha256\": \"65d02e898525f6bdd5cebfc4818c9088f86358fefc7adc90f95e3d7e810dc423\"}", true],
+  ["{\"v\": \"0.2\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"Ünïcödé check: can I pay in € or ₹? Ça marche?\", \"said_sha256\": \"a80c2f3530fd028aa513e5e34214643ae75b1e02f80fa3580a356ee6e5224877\", \"shown\": \"verbatim-relay: cannot read the reply: the stream ended before data: [DONE]\", \"shown_sha256\": \"ee0b7d5d389e587d3f7aa14f301a0fb5a9b82659df4628c5c9776108358bcb0f\"}", true],
   ["{\"v\": \"0.3\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"Hi, I want to return order #4471.  \", \"said_sha256\": \"1ef5984361673b46e8871bb201a8340501f8b192637dada66fe7830deb6f1c80\", \"shown\": \"## Returns  \\nYou can return order #4471 within 30 days.\\n\\n| item | status |\\n|---|---|\\n| mug | eligible |\", \"shown_sha256\": \"b28e6e6e5f429d58765d7a29dfda83a9f02db6cd91702a60aa4cf4606cb7b47a\"}", false],
 ]
 
@@ -524,4 +582,118 @@ test('after a test, a deny goes to denied.jsonl and not to the sealed relay.json
   expect(typeof sed.deny).toBe('string')
   expect(rows(f.files[`${DIR}/denied.jsonl`]).map(r => r.tool)).toEqual(['Bash'])
   expect(f.files[`${DIR}/relay.jsonl`]).toBe(relay)
+})
+
+// Each failure of the relay path blocks the prompt: the hook beneath, which stands for the model,
+// never gets it, and the tester sees the error.
+async function expectBlocked($: any, on: any, f: ReturnType<typeof fakes>, error: string) {
+  const model: string[] = []
+  on('prompt.submit', async (_$: any, e: any) => {
+    model.push(e.text)
+    return { text: e.text }
+  })
+  const result: any = await $.prompt.submit({ text: 'hi' })
+  expect(result.drop).toBe('verbatim-relay: nothing reached the model')
+  expect(model).toEqual([])
+  expect(f.sent.length).toBe(0)
+  expect(f.logs.length).toBe(1)
+  expect(f.logs[0].startsWith('verbatim-relay: the hook failed (')).toBe(true)
+  expect(f.logs[0]).toContain(error)
+  expect(f.logs[0]).toContain('Nothing reached the model.')
+}
+
+test('a record line that is not JSON blocks the prompt', { options: OPTIONS }, async ($, on) => {
+  const f = fakes(on, () => ({ status: 200, text: JSON.stringify({ reply: REPLY }) }))
+  f.files['/virtual/relay.jsonl'] = 'not json\n'
+  await expectBlocked($, on, f, 'relay.jsonl: line 1: not JSON')
+})
+
+test('a record that cannot be read blocks the prompt', { options: OPTIONS }, async ($, on) => {
+  const f = fakes(on, () => ({ status: 200, text: JSON.stringify({ reply: REPLY }) }))
+  f.broken.stat = '/virtual/relay.jsonl'
+  await expectBlocked($, on, f, 'EACCES')
+})
+
+test('a failed session id blocks the prompt', { options: OPTIONS }, async ($, on) => {
+  const f = fakes(on, () => ({ status: 200, text: JSON.stringify({ reply: REPLY }) }))
+  f.broken.session = true
+  await expectBlocked($, on, f, 'the session is not bound')
+})
+
+test('during a test, a record line that is not JSON blocks the prompt', { options: { start_on: false } }, async ($, on) => {
+  const f = fakes(on, contractReply)
+  withTest(on, f)
+  f.files['.verbatim-relay/current.json'] = JSON.stringify(CURRENT)
+  f.files['.verbatim-relay/mode'] = 'on\n'
+  f.files[`${DIR}/relay.jsonl`] = 'not json\n'
+  await expectBlocked($, on, f, 'relay.jsonl: line 1: not JSON')
+})
+
+test('in relay mode, a failed tool guard denies the call', { options: { ...OPTIONS, agent_url: 'not a url' } }, async ($, on) => {
+  fakes(on, () => ({ status: 200, text: '{}' }))
+  const ran: string[] = []
+  on('tool.call', async (_$: any, e: any) => {
+    ran.push(e.tool)
+    return { result: 'ran' }
+  })
+  const call: any = await $.tool.call({ tool: 'Bash', command: 'echo hi' } as any)
+  expect(call.deny).toContain('verbatim-relay: the hook failed (TypeError')
+  expect(ran).toEqual([])
+})
+
+// The .catch handlers. The test kit cannot make a hook run past its time budget: the budget
+// counts only the plugin's own code, and the plugin waits on no clock. It also cannot make the
+// plugin return a value that the engine refuses: the kit refuses that value at the test's own
+// hook. So these tests make the hook throw outside its own try.
+
+test('a control prompt whose hook fails does not reach the model', { options: { start_on: false } }, async ($, on) => {
+  const f = fakes(on, contractReply)
+  withTest(on, f)
+  f.broken.session = true
+  const model: string[] = []
+  on('prompt.submit', async (_$: any, e: any) => {
+    model.push(e.text)
+    return { text: e.text }
+  })
+  const result: any = await $.prompt.submit({ text: 'verbatim-relay start' })
+  expect(result.drop).toBe('verbatim-relay: nothing reached the model')
+  expect(model).toEqual([])
+  expect(f.logs.length).toBe(1)
+  expect(f.logs[0].startsWith('verbatim-relay: the hook failed (throw: ')).toBe(true)
+  expect(f.logs[0]).toContain('the session is not bound')
+  expect(f.logs[0]).toContain('Nothing reached the model.')
+})
+
+test('a failed transcript tool denies the call', { options: OPTIONS }, async ($, on) => {
+  const f = fakes(on, () => ({ status: 200, text: '{}' }))
+  f.broken.session = true
+  const ran: string[] = []
+  on('tool.call', async (_$: any, e: any) => {
+    ran.push(e.tool)
+    return { result: 'ran' }
+  })
+  const call: any = await $.tool.call({ tool: 'mcp__verbatim-relay__transcript' } as any)
+  expect(call.deny).toContain('verbatim-relay: the hook failed (throw: ')
+  expect(ran).toEqual([])
+})
+
+test('with relay mode off, a failed tool guard keeps the call', { options: { ...OPTIONS, start_on: false, agent_url: 'not a url' } }, async ($, on) => {
+  fakes(on, () => ({ status: 200, text: '{}' }))
+  on('tool.call', async () => ({ result: 'ran' }))
+  const call: any = await $.tool.call({ tool: 'Bash', command: 'echo hi' } as any)
+  expect(call.deny).toBe(undefined)
+})
+
+test('if the mode cannot be read, a failed tool guard denies the call', { options: { start_on: false, agent_url: 'not a url' } }, async ($, on) => {
+  const f = fakes(on, contractReply)
+  withTest(on, f)
+  f.broken.stat = '.verbatim-relay/mode'
+  const ran: string[] = []
+  on('tool.call', async (_$: any, e: any) => {
+    ran.push(e.tool)
+    return { result: 'ran' }
+  })
+  const call: any = await $.tool.call({ tool: 'Bash', command: 'echo hi' } as any)
+  expect(call.deny).toContain('verbatim-relay: the hook failed (TypeError')
+  expect(ran).toEqual([])
 })

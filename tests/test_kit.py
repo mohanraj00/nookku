@@ -1,12 +1,13 @@
 import io
 import json
+import os
 import subprocess
 import sys
 
 import pytest
 from toy_agent import ToyAgent, shop_reply
 
-from verbatim_relay import kit
+from verbatim_relay import bridge, kit
 from verbatim_relay.adapters import make
 from verbatim_relay.audit import audit
 from verbatim_relay.record import BlockedCall, RecordError, Turn, read_relay, read_tap
@@ -169,6 +170,51 @@ def test_the_agent_url_is_denied_too(setup):
     assert kit.handle(event, root, "codex") is not None
 
 
+def pre(tool_input, tool="Bash"):
+    return {"hook_event_name": "PreToolUse", "tool_name": tool, "tool_input": tool_input}
+
+
+def running_test(root):
+    """A running test with the entry in its manifest. The pid of this process is alive."""
+    folder = root / ".verbatim-relay" / "tests" / "20261007-090000-ab12"
+    folder.mkdir(parents=True)
+    (folder / "manifest.json").write_text(json.dumps({"entry": ["python", "shop/entry.py"]}))
+    cur = {"test": folder.name, "pid": os.getpid(), "dir": str(folder), "tap_url": ""}
+    cur["pid_start"] = bridge.process_start(os.getpid())
+    (root / ".verbatim-relay" / "current.json").write_text(json.dumps(cur))
+    return folder
+
+
+@pytest.mark.parametrize("config", ["not json", '{"tap": 1}', "[[]]"])
+def test_a_broken_config_still_denies_test_files_and_the_entry(tmp_path, config):
+    folder = running_test(tmp_path)
+    (tmp_path / ".verbatim-relay" / "config.json").write_text(config)
+    for command in ("cat .verbatim-relay/tests/x/tap.jsonl", "cd shop && python entry.py"):
+        answer = kit.handle(pre({"command": command}), tmp_path, "codex")
+        assert answer["hookSpecificOutput"]["permissionDecision"] == "deny"
+    reason = kit.handle(pre({"command": "python entry.py"}), tmp_path, "codex")
+    assert reason["hookSpecificOutput"]["permissionDecisionReason"] == kit.ENTRY_REASON
+    assert kit.handle(pre({"command": "ls"}), tmp_path, "codex") is None
+    assert [r.tool for r in read_relay(folder / "relay.jsonl")] == ["Bash"] * 3
+
+
+def test_a_failed_deny_path_denies_with_relay_mode_off(tmp_path, monkeypatch):
+    def fail(*_):
+        raise RuntimeError("disk gone")
+
+    monkeypatch.setattr(kit.bridge, "current", fail)
+    event = json.dumps(pre({"command": "ls"}))
+    out = io.StringIO()
+    # With no state folder, no deny applies, so the call goes on.
+    assert kit.run_hook(tmp_path, "codex", io.StringIO(event), out) == 0
+    assert out.getvalue() == ""
+    kit.set_mode(tmp_path, False)
+    assert kit.run_hook(tmp_path, "codex", io.StringIO(event), out) == 0
+    answer = json.loads(out.getvalue())["hookSpecificOutput"]
+    assert answer["permissionDecision"] == "deny"
+    assert "RuntimeError: disk gone" in answer["permissionDecisionReason"]
+
+
 def test_openai_history_is_per_session(tmp_path):
     agent = ToyAgent()
     tap = Tap(("127.0.0.1", 0), agent.url, tmp_path / "tap.jsonl", make("openai"))
@@ -186,6 +232,31 @@ def test_openai_history_is_per_session(tmp_path):
     assert [m["content"] for m in bodies[2]["messages"]] == ["other"]
     assert bodies[0]["model"] == "toy"
     assert audit(tmp_path / "tap.jsonl", record(root)).exit == 0
+
+
+@pytest.mark.parametrize("path", ["/v1/chat/completions", "/v1/cut/chat/completions"])
+def test_a_streamed_reply_is_shown_only_when_complete(tmp_path, path):
+    agent = ToyAgent(stream=True)
+    tap = Tap(("127.0.0.1", 0), agent.url, tmp_path / "tap.jsonl", make("openai"))
+    start_in_thread(tap)
+    root = tmp_path / "p"
+    url = f"http://127.0.0.1:{tap.server_address[1]}{path}"
+    kit.init(root, "codex", kit.Config(tap_url=url, adapter="openai"))
+    kit.set_mode(root, True)
+    assert kit.handle(prompt(TRICKY), root, "codex")["decision"] == "block"
+    tap.shutdown()
+    agent.shutdown()
+    row = json.loads(record(root).read_text())
+    report = audit(tmp_path / "tap.jsonl", record(root))
+    if "cut" in path:
+        assert row["ok"] is False
+        assert row["shown"] == (
+            "verbatim-relay: cannot read the reply: the stream ended before data: [DONE]"
+        )
+        assert [n.kind for n in report.notes] == ["agent_error"] and report.exit == 0
+    else:
+        assert (row["ok"], row["shown"]) == (True, shop_reply(TRICKY))
+        assert report.exit == 0 and report.notes == []
 
 
 def test_view_prints_each_turn_exactly(setup):

@@ -9,7 +9,13 @@ P3  An adversarial system prompt cannot change either direction.
 P3b With relay mode off, a model call to the tap is denied, and the agent receives nothing.
 P4  The audit finds 0 breaks in these records, and finds each planted fault.
 
-usage: python scripts/proofs_claude_code.py [OUT_DIR]   (default proofs/claude-code)
+With --stream, the agent streams each reply (SSE): the toy shop agent of the tests with stream=True
+(tests/toy_agent.py), behind a tap in this process with the openai adapter. The plugin relays in
+HTTP mode, with no entry and no test. P1, P2 and P4 run as above, with the adversarial turns. P3b
+and the test checks need a test, so this mode does not run them.
+
+usage: python scripts/proofs_claude_code.py [--stream] [OUT_DIR]
+       (default proofs/claude-code, or proofs/claude-code-stream with --stream)
 """
 
 from __future__ import annotations
@@ -80,8 +86,8 @@ def claude(prompt: str, settings: Path, cwd: Path, extra: list[str]) -> tuple[li
     return shown, result
 
 
-def settings_file(path: Path, start_on: bool) -> Path:
-    options = {"cli": CLI, "start_on": start_on}
+def settings_file(path: Path, start_on: bool, **more: str) -> Path:
+    options = {"cli": CLI, "start_on": start_on, **more}
     conf = {"options": options}
     path.write_text(
         json.dumps({"pluginConfigs": {"verbatim-relay": conf, "verbatim-relay@inline": conf}})
@@ -165,8 +171,85 @@ def planted(tap: Path, relay: Path, work: Path) -> list[dict]:
     return results
 
 
+def relay_turns(report: dict, tap_rec: Path, settings: Path, work: Path) -> None:
+    """P1 and P2 for each message, with a neutral and with an adversarial system prompt."""
+    for mode, extra in (
+        ("neutral", []),
+        ("adversarial", ["--append-system-prompt", ADVERSARIAL]),
+    ):
+        for m in MESSAGES:
+            before = len(rows(tap_rec, "exchange"))
+            shown, _ = claude(m, settings, work, extra)
+            new = rows(tap_rec, "exchange")[before:]
+            turn = {
+                "mode": mode,
+                "message": m,
+                "agent_inputs": len(new),
+                "P1": len(new) == 1 and new[0]["input"] == m,
+                "P2": len(new) == 1 and shown == [new[0]["reply"]],
+            }
+            report["turns"].append(turn)
+            print(mode, "P1", turn["P1"], "P2", turn["P2"], repr(m[:30]), flush=True)
+
+
+def write_results(out: Path, report: dict, tap_rec: Path, relay_rec: Path) -> int:
+    out.mkdir(parents=True, exist_ok=True)
+    shutil.copy(tap_rec, out / "tap.jsonl")
+    shutil.copy(relay_rec, out / "relay.jsonl")
+    (out / "results.json").write_text(json.dumps(report, indent=1, ensure_ascii=False) + "\n")
+    print("PASS" if report["pass"] else "FAIL", out / "results.json")
+    return 0 if report["pass"] else 1
+
+
+def main_stream(out: Path) -> int:
+    """P1, P2 and P4 with a streamed agent over HTTP. The tap runs in this process."""
+    from toy_agent import ToyAgent
+
+    from verbatim_relay.adapters import make
+    from verbatim_relay.tap import Tap, start_in_thread
+
+    work = Path(tempfile.mkdtemp())
+    # The relay record is at the default path of the plugin. The folder has no config.json.
+    (work / ".verbatim-relay").mkdir()
+    tap_rec, relay_rec = work / "tap.jsonl", work / ".verbatim-relay" / "relay.jsonl"
+    agent = ToyAgent(stream=True)
+    tap = Tap(("127.0.0.1", 0), agent.url, tap_rec, make("openai"))
+    start_in_thread(tap)
+    tap_url = f"http://127.0.0.1:{tap.server_address[1]}/v1/chat/completions"
+    on = settings_file(
+        work / "on.json", True, adapter="openai", tap_url=tap_url, agent_url=agent.url
+    )
+    version = subprocess.run(["claude", "--version"], capture_output=True, text=True).stdout.strip()
+    report: dict = {
+        "date": date.today().isoformat(),
+        "claude_code": version,
+        "transport": "http-stream",
+        "turns": [],
+    }
+    try:
+        relay_turns(report, tap_rec, on, work)
+    finally:
+        tap.shutdown()
+        agent.shutdown()
+    exchanges = rows(tap_rec, "exchange")
+    report["streamed_exchanges"] = sum("stream" in r for r in exchanges)
+    rep = audit(tap_rec, relay_rec)
+    report["P4"] = {"audit": rep.as_dict(), "planted": planted(tap_rec, relay_rec, work)}
+    report["pass"] = (
+        all(t["P1"] and t["P2"] for t in report["turns"])
+        and report["streamed_exchanges"] == len(exchanges) == len(report["turns"])
+        and rep.exit == 0
+        and all(p["ok"] for p in report["P4"]["planted"])
+    )
+    return write_results(out, report, tap_rec, relay_rec)
+
+
 def main() -> int:
-    out = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "proofs" / "claude-code"
+    args = sys.argv[1:]
+    if "--stream" in args:
+        args.remove("--stream")
+        return main_stream(Path(args[0]) if args else ROOT / "proofs" / "claude-code-stream")
+    out = Path(args[0]) if args else ROOT / "proofs" / "claude-code"
     work = Path(tempfile.mkdtemp())
     (work / ".verbatim-relay").mkdir()
     (work / ".verbatim-relay" / "config.json").write_text(json.dumps({"entry": ENTRY}))
@@ -186,23 +269,7 @@ def main() -> int:
     tap_rec, relay_rec = folder / "tap.jsonl", folder / "relay.jsonl"
     report["start"] = started
     try:
-        for mode, extra in (
-            ("neutral", []),
-            ("adversarial", ["--append-system-prompt", ADVERSARIAL]),
-        ):
-            for m in MESSAGES:
-                before = len(rows(tap_rec, "exchange"))
-                shown, _ = claude(m, on, work, extra)
-                new = rows(tap_rec, "exchange")[before:]
-                turn = {
-                    "mode": mode,
-                    "message": m,
-                    "agent_inputs": len(new),
-                    "P1": len(new) == 1 and new[0]["input"] == m,
-                    "P2": len(new) == 1 and shown == [new[0]["reply"]],
-                }
-                report["turns"].append(turn)
-                print(mode, "P1", turn["P1"], "P2", turn["P2"], repr(m[:30]), flush=True)
+        relay_turns(report, tap_rec, on, work)
 
         # Relay mode off while the test still runs: the model must not reach the tap.
         (work / ".verbatim-relay" / "mode").write_text("off\n")
@@ -245,12 +312,7 @@ def main() -> int:
         and all(p["ok"] for p in report["P4"]["planted"])
     )
     report["pass"] = ok
-    out.mkdir(parents=True, exist_ok=True)
-    for name in ("tap.jsonl", "relay.jsonl"):
-        shutil.copy(folder / name, out / name)
-    (out / "results.json").write_text(json.dumps(report, indent=1, ensure_ascii=False) + "\n")
-    print("PASS" if ok else "FAIL", out / "results.json")
-    return 0 if ok else 1
+    return write_results(out, report, tap_rec, relay_rec)
 
 
 if __name__ == "__main__":
