@@ -21,7 +21,7 @@ A prompt cannot fix this. A mechanism can. In relay mode, the hook takes each pr
 
 ## Results
 
-| Proof | Claude Code 2.1.288, plugin | Claude Code 2.1.288, hook kit | Codex 0.160.0, hook kit |
+| Proof | Claude Code 2.1.290, plugin | Claude Code 2.1.290, hook kit | Codex 0.160.0, hook kit |
 |---|---|---|---|
 | Messages reach the agent byte for byte | 10/10 | 10/10 | 10/10 |
 | Replies reach the tester byte for byte | 10/10 | 10/10 | 10/10 |
