@@ -135,6 +135,10 @@ async def main() -> None:
         system_prompt=SYSTEM,
         mcp_servers={"shop": shop},
         allowed_tools=["mcp__shop__lookup_order"],
+        # Isolate the session: no settings files, no claude.ai connectors, no plugins.
+        setting_sources=[],
+        strict_mcp_config=True,
+        env={"CLAUDE_CODE_PLUGIN_DIRS": ""},
     )
     loop = asyncio.get_running_loop()
     codex = await loop.run_in_executor(None, CodexThread, os.getcwd())

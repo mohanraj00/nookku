@@ -14,6 +14,7 @@ Do not change the app's code. Write only files in `.verbatim-relay/`.
    - both, or none.
 4. Find the backends of the app: the HTTP services that it calls, for example a stock or payment service. For each one, find the environment variable that holds its URL. Also find each direct call to the Anthropic or the OpenAI API, and check that the SDK reads its URL from `ANTHROPIC_BASE_URL` or `OPENAI_BASE_URL`.
 5. Check that the app keeps its session files. If the app sets `persistSession: false` (Agent SDK) or `ephemeral: true` (Codex `thread/start`), tell the tester. The test then has no trace of the model sessions. Do not change the app.
+6. Check that an Agent SDK session of the app is isolated: `setting_sources=[]`, `strict_mcp_config=True` and `CLAUDE_CODE_PLUGIN_DIRS` set to `""` in `env` (`settingSources` and `strictMcpConfig` in TypeScript). If an option is missing, tell the tester: the app's model can then see the tester's plugins and claude.ai connectors. Do not change the app.
 
 ## 2. Write the entry
 
