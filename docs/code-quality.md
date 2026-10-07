@@ -129,13 +129,13 @@ A check is a test, a lint rule, a conformance case or a CI step. "Review" means 
 
 **Reason.** A broad catch hides defects. A silent skip makes a bad record look good. If the tester sees only the cause, the tester does not know what to do.
 
-**Example.** `kit.handle` in [src/verbatim_relay/kit.py](../src/verbatim_relay/kit.py) says "relay mode is on, but no test runs. Start one with: verbatim-relay start. Nothing was sent." Each broad catch in `kit.py`, `bridge.py` and `agent.py` has a comment with its reason. Defects: with a stale `current.json`, the plugin shows only a connection error ([#64](https://github.com/mohanraj00/verbatim-relay/issues/64)). A prompt with a lone surrogate shows "the hook failed (UnicodeEncodeError ...)" ([#65](https://github.com/mohanraj00/verbatim-relay/issues/65)).
+**Example.** `kit.handle` in [src/verbatim_relay/kit.py](../src/verbatim_relay/kit.py) says "relay mode is on, but no test runs. Start one with: verbatim-relay start. Nothing was sent." Each broad catch in `kit.py`, `bridge.py` and `agent.py` has a comment with its reason. Defects: with a stale `current.json`, the plugin showed only a connection error ([#64](https://github.com/mohanraj00/verbatim-relay/issues/64)). A prompt with a lone surrogate shows "the hook failed (UnicodeEncodeError ...)" ([#65](https://github.com/mohanraj00/verbatim-relay/issues/65)).
 
 **Check.**
 
 - Ruff `E722` refuses a bare `except:`.
-- `register.test.ts`: "relay mode with an entry and no test fails closed" checks the text "no test runs".
-- The other parts: review. [#64](https://github.com/mohanraj00/verbatim-relay/issues/64) and [#65](https://github.com/mohanraj00/verbatim-relay/issues/65) add tests for their messages.
+- `register.test.ts`: "relay mode with an entry and no test fails closed" and "a current.json whose bridge does not run is no test, and the prompt does not reach the model" check the text "no test runs".
+- The other parts: review. [#65](https://github.com/mohanraj00/verbatim-relay/issues/65) adds a test for its message.
 
 ## 8. Tests
 
