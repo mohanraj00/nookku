@@ -3234,6 +3234,50 @@ LOG_ROWS = [
 HARNESS_SPANS_PB = pb(
     1, pb(1, CX_RESOURCE_PB) + pb(2, pb(2, pb(5, "fs.read_file") + pb_fixed64(7, ns(0))))
 )
+# A span with a lone surrogate in its name, in an attribute key and in an attribute value. The JSON
+# body escapes each one. The receiver writes each one as its escape text (SPEC.md section 2).
+SURROGATE_JSON = {
+    "resourceSpans": [
+        {
+            "resource": {"attributes": [js_kv("service.name", {"stringValue": "toy-shop"})]},
+            "scopeSpans": [
+                {
+                    "scope": {"name": "toy-shop"},
+                    "spans": [
+                        {
+                            "traceId": TRACE_ID,
+                            "spanId": "b7ad6b7169203331",
+                            "name": "GET /mugs/\ud83d",
+                            "startTimeUnixNano": str(ns(40)),
+                            "endTimeUnixNano": str(ns(40.5)),
+                            "attributes": [
+                                js_kv("shop.note", {"stringValue": "a mug \udc00"}),
+                                js_kv("shop.\ud83d", {"stringValue": "teapot"}),
+                            ],
+                        }
+                    ],
+                }
+            ],
+        }
+    ]
+}
+SURROGATE_ROW = {
+    "v": 1,
+    "type": "span",
+    "received": RECEIVED,
+    "service": "toy-shop",
+    "resource": {"service.name": "toy-shop"},
+    "scope": "toy-shop",
+    "trace_id": TRACE_ID,
+    "span_id": "b7ad6b7169203331",
+    "parent_span_id": None,
+    "name": "GET /mugs/\\ud83d",
+    "start": T0 + 40,
+    "end": T0 + 40.5,
+    "attributes": {"shop.note": "a mug \\udc00", "shop.\\ud83d": "teapot"},
+    "events": [],
+    "status": {"code": 0, "message": None},
+}
 OTLP_CASES: dict[str, dict] = {
     "traces_protobuf": {
         "path": "/v1/traces",
@@ -3266,6 +3310,12 @@ OTLP_CASES: dict[str, dict] = {
         "type": "application/json",
         "body": b'{"resourceMetrics": []}',
         "rows": None,
+    },
+    "lone_surrogate_escaped": {
+        "path": "/v1/traces",
+        "type": "application/json",
+        "body": json.dumps(SURROGATE_JSON).encode(),
+        "rows": [SURROGATE_ROW],
     },
     "truncated_protobuf": {
         "path": "/v1/traces",

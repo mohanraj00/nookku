@@ -11,7 +11,7 @@ import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
 
 import type { VerbatimRelayState, VerbatimRelayTurn } from '../types'
-import { blockedRow, contractBody, commandOf, contractShown, denyPattern, entryNames, isChecked, namesEntry, replyText, requestBody, toolReadsOnly, touchesRecords, touchesTestFiles, turnRow } from './core'
+import { blockedRow, contractBody, commandOf, contractShown, denyPattern, entryNames, isChecked, loneSurrogate, namesEntry, replyText, requestBody, toolReadsOnly, touchesRecords, touchesTestFiles, turnRow } from './core'
 import type { Current, Options } from './core'
 
 const PANE = 'verbatim-relay'
@@ -296,6 +296,12 @@ async function toolFailed($: any, o: Options, e: any, next: any): Promise<any> {
 async function relayPrompt($: any, o: Options, e: any): Promise<any> {
   if (e.attachments?.length) {
     $.ui.log('verbatim-relay: the relay does not send attachments. Nothing was sent.')
+    return { drop: 'verbatim-relay: nothing was sent' }
+  }
+  // A relayed message is never changed, so the plugin refuses it (SPEC.md section 5).
+  const surrogate = loneSurrogate(e.text)
+  if (surrogate) {
+    $.ui.log(`verbatim-relay: nothing was sent. The message has ${surrogate}.`)
     return { drop: 'verbatim-relay: nothing was sent' }
   }
   const cur = await currentTest($)
