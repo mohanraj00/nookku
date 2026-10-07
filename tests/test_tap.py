@@ -115,7 +115,7 @@ def test_a_stream_passes_unchanged_and_the_row_has_the_joined_reply(tmp_path):
     assert read_tap(tmp_path / "tap.jsonl") == [Exchange(1, TRICKY, 200, shop_reply(TRICKY))]
     [row] = raw_rows(tmp_path / "tap.jsonl")
     assert row["stream"] == {"sha256": hashlib.sha256(out).hexdigest(), "bytes": len(out)}
-    assert "error" not in row
+    assert "error" not in row and row["v"] == "0.2"
 
 
 def test_each_part_of_a_stream_reaches_the_caller_before_the_stream_ends(tmp_path):
@@ -160,7 +160,8 @@ def test_a_failed_stream_is_an_error_exchange_with_no_reply(tmp_path, fault, err
     assert out == agent.sent[0]
     assert read_tap(tmp_path / "tap.jsonl") == [Exchange(1, TRICKY, 200, None)]
     [row] = raw_rows(tmp_path / "tap.jsonl")
-    assert row["error"].startswith(error)
+    # A 0.2 reader refuses a failed stream, so the row has version 0.3 (SPEC.md section 2).
+    assert row["error"].startswith(error) and row["v"] == "0.3"
     assert row["stream"] == {"sha256": hashlib.sha256(out).hexdigest(), "bytes": len(out)}
 
 
