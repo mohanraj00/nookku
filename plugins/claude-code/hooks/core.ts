@@ -71,6 +71,15 @@ export function contractBody(id: string, test: string, said: string, turns: read
 // A lone surrogate is not a Unicode scalar value (SPEC.md section 2). The tap returns 502 for it.
 const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/
 
+// Name the first lone surrogate in a text, as record.lone_surrogate does, or return null. The
+// character number counts code points, as Python does.
+export function loneSurrogate(text: string): string | null {
+  const found = LONE_SURROGATE.exec(text)
+  if (found === null) return null
+  const code = found[0].charCodeAt(0).toString(16).toUpperCase().padStart(4, '0')
+  return `a lone surrogate U+${code} at character ${[...text.slice(0, found.index)].length}`
+}
+
 export function contractShown(status: number, body: string, id: string): { shown: string; ok: boolean } {
   let data: any = null
   try {

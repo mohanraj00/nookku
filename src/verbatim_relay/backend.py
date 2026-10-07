@@ -23,6 +23,7 @@ from typing import Any
 from urllib.parse import unquote_plus, urlsplit
 
 from . import stdio
+from .record import json_text
 from .tap import HOP_BY_HOP
 
 FILE = "backend.jsonl"
@@ -202,7 +203,7 @@ class Proxy(ThreadingHTTPServer):
 
     def _write(self, row: dict[str, Any]) -> None:
         with self.record.open("a", encoding="utf-8") as fh:
-            fh.write(json.dumps(row, ensure_ascii=False) + "\n")
+            fh.write(json_text(row) + "\n")
 
 
 class Handler(BaseHTTPRequestHandler):

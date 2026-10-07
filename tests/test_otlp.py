@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from verbatim_relay import otlp
+from verbatim_relay.record import json_text
 from verbatim_relay.stdio import start_in_thread
 
 CASES = sorted((Path(__file__).resolve().parent.parent / "conformance" / "otlp").iterdir())
@@ -28,7 +29,9 @@ def test_conformance(case: Path) -> None:
         assert parsed is None
     else:
         assert parsed is not None
-        assert otlp.rows(parsed, expect["received"]) == expect["rows"]
+        # Compare the rows as the receiver writes them, with each lone surrogate escaped.
+        rows = otlp.rows(parsed, expect["received"])
+        assert [json.loads(json_text(r)) for r in rows] == expect["rows"]
 
 
 def post(url: str, path: str, body: bytes, ctype: str, encoding: str = "") -> int:
@@ -80,3 +83,18 @@ def test_quiet_waits_for_the_last_request(tmp_path: Path) -> None:
         assert slept == []
     finally:
         receiver.server_close()
+
+
+def test_the_receiver_writes_a_lone_surrogate_as_its_escape(tmp_path: Path) -> None:
+    record = tmp_path / "otel.jsonl"
+    receiver = otlp.Receiver(("127.0.0.1", 0), record)
+    start_in_thread(receiver)
+    log = {"timeUnixNano": "1000", "body": {"stringValue": "a mug \ud83d"}}
+    body = json.dumps({"resourceLogs": [{"scopeLogs": [{"logRecords": [log]}]}]}).encode()
+    try:
+        assert post(receiver.url, "/v1/logs", body, "application/json") == 200
+    finally:
+        receiver.shutdown()
+        receiver.server_close()
+    [row] = [json.loads(x) for x in record.read_text(encoding="utf-8").splitlines()]
+    assert row["body"] == "a mug \\ud83d"
