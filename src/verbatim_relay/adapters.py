@@ -190,7 +190,12 @@ class OpenAIAdapter:
             raise StreamError("the stream ended before data: [DONE]")
         if not parts:
             raise AdapterError("no chunk of the stream has a 'delta.content' text")
-        return "".join(parts)
+        # A chunk can end in the middle of a surrogate pair. Join each pair into one character, as
+        # a JavaScript string does. A lone surrogate is not a Unicode scalar value (SPEC.md 2).
+        try:
+            return "".join(parts).encode("utf-16-le", "surrogatepass").decode("utf-16-le")
+        except UnicodeDecodeError:
+            raise StreamError("the stream reply has a lone surrogate") from None
 
 
 def make(

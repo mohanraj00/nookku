@@ -149,7 +149,10 @@ export function streamText(body: string): string {
   }
   if (!done) throw new Error('the stream ended before data: [DONE]')
   if (!parts.length) throw new Error("no chunk of the stream has a 'delta.content' text")
-  return parts.join('')
+  const text = parts.join('')
+  // A lone surrogate is not a Unicode scalar value (SPEC.md section 2).
+  if (/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/.test(text)) throw new Error('the stream reply has a lone surrogate')
+  return text
 }
 
 // The reply in a tap response. The relay shows a streamed reply only when it is complete.

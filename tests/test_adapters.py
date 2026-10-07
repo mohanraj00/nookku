@@ -113,6 +113,18 @@ def test_openai_stream_failures_are_stream_errors(body, error):
         make("openai").stream_reply(body)
 
 
+def test_a_surrogate_pair_split_between_chunks_is_one_character():
+    pair = _stream(
+        b'data: {"choices": [{"delta": {"content": "mug \\ud83d"}}]}',
+        b'data: {"choices": [{"delta": {"content": "\\ude00"}}]}',
+        b"data: [DONE]",
+    )
+    assert make("openai").stream_reply(pair) == "mug \U0001f600"
+    lone = _stream(b'data: {"choices": [{"delta": {"content": "mug \\ud83d"}}]}', b"data: [DONE]")
+    with pytest.raises(StreamError, match="lone surrogate"):
+        make("openai").stream_reply(lone)
+
+
 def test_a_stream_without_content_cannot_be_read():
     body = _stream({"choices": [{"delta": {"tool_calls": []}}]}, b"data: [DONE]")
     with pytest.raises(AdapterError):

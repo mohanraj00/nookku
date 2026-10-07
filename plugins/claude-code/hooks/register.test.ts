@@ -132,6 +132,9 @@ test('stream parts', async () => {
     ['data: {"choices": [{"delta": {"tool_calls": []}}]}\n\n' + done, "no chunk of the stream has a 'delta.content' text"],
   ]
   for (const [body, error] of failures) expect(() => streamText(body)).toThrow(error)
+  // A chunk can end in the middle of a surrogate pair. JSON.stringify escapes each half.
+  expect(streamText(chunk('mug \ud83d') + chunk('\ude00') + done)).toBe('mug \u{1F600}')
+  expect(() => streamText(chunk('mug \ud83d') + done)).toThrow('the stream reply has a lone surrogate')
   expect(isStream('Text/Event-Stream; charset=utf-8')).toBe(true)
   expect(isStream('application/json')).toBe(false)
   expect(() => replyText({ adapter: 'json', reply_field: 'reply' } as any, sse('hi'), 'text/event-stream')).toThrow('does not read a streamed response')

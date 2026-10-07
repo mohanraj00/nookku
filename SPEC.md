@@ -143,12 +143,13 @@ The `openai` adapter reads a 2xx stream with these rules:
 
 - It reads the SSE events with the rules of the WHATWG HTML standard. A line end is `\r\n`, `\n` or `\r`. A line that starts with `:` is a comment. A blank line ends an event, and the data lines of an event are joined with `\n`. The last event does not need a blank line after it.
 - Each event, until the event with the data `[DONE]`, is a chunk: a JSON object.
-- The reply is the `choices[].delta.content` texts of the choice with `index` 0, joined in the order of the stream. A choice without `index` is choice 0. A chunk with an empty `choices` list, for example a `usage` chunk, adds no text. The adapter ignores other fields of a chunk.
+- The reply is the `choices[].delta.content` texts of the choice with `index` 0, joined in the order of the stream. A chunk can end in the middle of a UTF-16 surrogate pair, so the adapter joins each pair of surrogates into one character after the join. A choice without `index` is choice 0. A chunk with an empty `choices` list, for example a `usage` chunk, adds no text. The adapter ignores other fields of a chunk.
 - The stream failed if one of these conditions occurs. The row then gets `reply: null` and the reason in `error`:
   - **Ended early:** the stream has no `[DONE]` event.
   - **Error:** an event has the name `error`, or a chunk has an `error` that is not `null`.
   - **Malformed chunk:** the body is not UTF-8, a chunk is not a JSON object, `choices` is not a list, a choice has no `delta` object, or a `delta.content` is not a string or `null`.
   - **Event after the end:** an event comes after `[DONE]`.
+  - **Lone surrogate:** the joined reply has a surrogate that is not part of a pair (section 2).
 - If the stream did not fail, but no chunk has a `delta.content` text, the tap writes an `unparsed` row. A response that is not a stream with a `null` content gets the same row.
 
 Each adapter maps onto the agent contract (section 6):
