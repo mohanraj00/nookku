@@ -213,6 +213,37 @@ def test_openai_history_is_per_session(tmp_path):
     assert audit(tmp_path / "tap.jsonl", record(root)).exit == 0
 
 
+@pytest.mark.parametrize("openai_stream", [True, False])
+def test_openai_stream_asks_an_agent_that_streams_only_on_request(tmp_path, openai_stream):
+    agent = ToyAgent(stream="on_request")
+    tap = Tap(("127.0.0.1", 0), agent.url, tmp_path / "tap.jsonl", make("openai"))
+    start_in_thread(tap)
+    url = f"http://127.0.0.1:{tap.server_address[1]}/v1/chat/completions"
+    root = tmp_path / "p"
+    config = kit.Config(tap_url=url, adapter="openai", openai_stream=openai_stream)
+    kit.init(root, "codex", config)
+    kit.set_mode(root, True)
+    for text in (TRICKY, "second"):
+        assert kit.handle(prompt(text), root, "codex")["decision"] == "block"
+    tap.shutdown()
+    agent.shutdown()
+    bodies = [json.loads(r["body"]) for r in agent.received]
+    assert [b["stream"] for b in bodies] == [openai_stream, openai_stream]
+    rows = [json.loads(x) for x in (tmp_path / "tap.jsonl").read_text().split("\n") if x]
+    assert ["stream" in r for r in rows] == [openai_stream, openai_stream]
+    shown = [(t.ok, t.shown) for t in read_relay(record(root)) if isinstance(t, Turn)]
+    assert shown == [(True, shop_reply(TRICKY)), (True, shop_reply("second"))]
+    assert audit(tmp_path / "tap.jsonl", record(root)).exit == 0
+
+
+def test_openai_stream_must_be_a_boolean(tmp_path):
+    kit.init(tmp_path, "codex", kit.Config(adapter="openai"))
+    path = tmp_path / ".verbatim-relay" / "config.json"
+    path.write_text(json.dumps({**json.loads(path.read_text()), "openai_stream": "true"}))
+    with pytest.raises(ValueError, match="'openai_stream' must be true or false"):
+        kit.Config.load(tmp_path)
+
+
 @pytest.mark.parametrize("path", ["/v1/chat/completions", "/v1/cut/chat/completions"])
 def test_a_streamed_reply_is_shown_only_when_complete(tmp_path, path):
     agent = ToyAgent(stream=True)

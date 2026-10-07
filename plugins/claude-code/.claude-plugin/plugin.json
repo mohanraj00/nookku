@@ -49,6 +49,12 @@
       "description": "openai adapter: the model field of each request. Empty means no model field.",
       "default": ""
     },
+    "openai_stream": {
+      "type": "boolean",
+      "title": "Ask for a stream",
+      "description": "openai adapter: send \"stream\": true in each request, for an agent that streams only on request.",
+      "default": false
+    },
     "record": {
       "type": "string",
       "title": "Relay record",

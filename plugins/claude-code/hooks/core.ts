@@ -9,6 +9,7 @@ export type Options = {
   message_field: string
   reply_field: string
   openai_model: string
+  openai_stream: boolean
   record: string
   start_on: boolean
   cli: string
@@ -51,7 +52,8 @@ export function requestBody(o: Options, said: string, turns: readonly VerbatimRe
       messages.push({ role: 'user', content: t.said }, { role: 'assistant', content: t.shown })
     }
     messages.push({ role: 'user', content: said })
-    const body: Record<string, unknown> = { messages, stream: false }
+    // With the option openai_stream, the request asks for a stream (SPEC.md section 5).
+    const body: Record<string, unknown> = { messages, stream: o.openai_stream === true }
     if (o.openai_model) body.model = o.openai_model
     return JSON.stringify(body)
   }

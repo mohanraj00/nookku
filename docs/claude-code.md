@@ -115,7 +115,7 @@ Options. Set them with `/plugin configure verbatim-relay@verbatim-relay` in Clau
 |---|---|---|
 | `cli` | `verbatim-relay` | The command that starts and ends a test. Give a full path if it is not on `PATH`. |
 | `start_on` | `false` | Without an entry: start each session in relay mode. With an entry, relay mode is on while a test runs, also after a restart of Claude Code. |
-| `tap_url`, `agent_url`, `adapter`, `message_field`, `reply_field`, `openai_model`, `record` | | For an agent that runs as an HTTP server (see below). |
+| `tap_url`, `agent_url`, `adapter`, `message_field`, `reply_field`, `openai_model`, `openai_stream`, `record` | | For an agent that runs as an HTTP server (see below). |
 
 ## Evaluation
 
@@ -173,11 +173,12 @@ To try it, start `python examples/toy-shop/http_agent.py`. Then use `/verbatim-r
 | `message_field` | `text` | `json` adapter: the dot path of the message in the request body |
 | `reply_field` | `reply` | `json` adapter: the dot path of the reply in the response body |
 | `openai_model` | empty | `openai` adapter: the `model` field of each request |
+| `openai_stream` | `false` | `openai` adapter: `true` sends `"stream": true` in each request, for an agent that streams only on request |
 | `record` | `.verbatim-relay/relay.jsonl` | The relay record, relative to the working directory |
 
-The kit takes the same options as flags: `--tap-url`, `--agent-url`, `--adapter` and so on.
+The kit takes the same options as flags: `--tap-url`, `--agent-url`, `--adapter` and so on. For `openai_stream`, the flag is `--openai-stream`, with no value.
 
-If your agent streams its reply (SSE, `text/event-stream`), use the `openai` adapter. The relay sends `"stream": false`. If the agent streams also with this flag, the tap sends each part to the relay when it comes, and records the complete reply when the stream ends. The relay shows the reply when the stream is complete. A stream that ends early, sends an error or has a malformed chunk gives an error, not a part of the reply. [SPEC.md section 4.1](../SPEC.md#41-http-mode) defines the rules.
+If your agent streams its reply (SSE, `text/event-stream`), use the `openai` adapter. The relay sends `"stream": false`. If your agent streams only on request, set `openai_stream` to `true`. Then the relay sends `"stream": true`. If the agent streams, the tap sends each part to the relay when it comes, and records the complete reply when the stream ends. The relay shows the reply when the stream is complete. A stream that ends early, sends an error or has a malformed chunk gives an error, not a part of the reply. [SPEC.md section 4.1](../SPEC.md#41-http-mode) defines the rules.
 
 ## Audit
 

@@ -113,15 +113,16 @@ class JsonAdapter:
 class OpenAIAdapter:
     """A POST to an OpenAI-compatible `/chat/completions` endpoint. The reply can be a stream."""
 
-    def __init__(self, model: str = "") -> None:
-        self.model = model
+    def __init__(self, model: str = "", stream: bool = False) -> None:
+        self.model, self.stream = model, stream
 
     def request(self, message: str, history: History) -> bytes:
         messages = []
         for said, reply in history:
             messages += [{"role": "user", "content": said}, {"role": "assistant", "content": reply}]
         messages.append({"role": "user", "content": message})
-        body: dict[str, Any] = {"messages": messages, "stream": False}
+        # With the option openai_stream, the request asks for a stream (SPEC.md section 5).
+        body: dict[str, Any] = {"messages": messages, "stream": self.stream}
         if self.model:
             body["model"] = self.model
         return json.dumps(body, ensure_ascii=False).encode()
@@ -199,10 +200,14 @@ class OpenAIAdapter:
 
 
 def make(
-    name: str, message_field: str = "text", reply_field: str = "reply", model: str = ""
+    name: str,
+    message_field: str = "text",
+    reply_field: str = "reply",
+    model: str = "",
+    stream: bool = False,
 ) -> Adapter:
     if name == "json":
         return JsonAdapter(message_field, reply_field)
     if name == "openai":
-        return OpenAIAdapter(model)
+        return OpenAIAdapter(model, stream)
     raise ValueError(f"unknown adapter {name!r}")

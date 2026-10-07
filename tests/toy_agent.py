@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import Any
+from typing import Any, Literal
 
 
 def shop_reply(text: str) -> str:
@@ -45,12 +45,16 @@ STREAM_FAULTS = {
 class ToyAgent(ThreadingHTTPServer):
     """With stream=True, each /chat/completions reply is an SSE stream, also for stream: false.
 
-    With a gate, the stream waits after its first content part until the gate is set.
+    With stream="on_request", a /chat/completions reply is a stream only if the request has
+    "stream": true, as an OpenAI-compatible API does. With a gate, the stream waits after its
+    first content part until the gate is set.
     """
 
     daemon_threads = True
 
-    def __init__(self, stream: bool = False, gate: threading.Event | None = None) -> None:
+    def __init__(
+        self, stream: bool | Literal["on_request"] = False, gate: threading.Event | None = None
+    ) -> None:
         self.received: list[dict[str, Any]] = []
         self.sent: list[bytes] = []
         self.stream, self.gate = stream, gate
@@ -98,6 +102,12 @@ class _Handler(BaseHTTPRequestHandler):
             if n == 2 and self.server.gate is not None:
                 self.server.gate.wait(10)
 
+    def _streams(self, body: bytes) -> bool:
+        """True if the reply to this request is a stream."""
+        if self.server.stream == "on_request":
+            return json.loads(body).get("stream") is True
+        return self.server.stream is True
+
     def do_GET(self) -> None:
         self.server.received.append({"method": "GET", "path": self.path, "body": b""})
         self._send(200, b"ok", "text/plain")
@@ -119,7 +129,7 @@ class _Handler(BaseHTTPRequestHandler):
         elif self.path == "/cut":
             # A reply cut in the middle of an emoji: a lone surrogate.
             self._send(200, b'{"reply": "Your mug ships today \\ud83d"}')
-        elif self.path.endswith("/chat/completions") and self.server.stream:
+        elif self.path.endswith("/chat/completions") and self._streams(body):
             self._stream(shop_reply(json.loads(body)["messages"][-1]["content"]))
         elif self.path.endswith("/chat/completions"):
             text = json.loads(body)["messages"][-1]["content"]
