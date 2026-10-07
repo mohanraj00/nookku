@@ -32,6 +32,8 @@ TIMEOUT = 280
 # The UserPromptSubmit hook deadline. Each relay timeout must end before it, so that the hook
 # can still block the prompt.
 HOOK_DEADLINE = 300
+# The number of code points in the detail of a blocked_call row (SPEC.md section 2.2).
+DETAIL_LIMIT = 300
 LOOPBACK = ["127.0.0.1", "localhost", "0.0.0.0", "[::1]"]
 # Tools that only read, write or search files. Every other tool is denied when its input names
 # the tap or the agent, so a tool that the kit does not know is denied too.
@@ -358,10 +360,16 @@ def touches_records(text: str) -> bool:
     return any(m.group(1) != "report.md" for m in TEST_FOLDER_FILE.finditer(text))
 
 
+def blocked_detail(text: str) -> str:
+    """The detail of a blocked_call row (SPEC.md section 2.2): the first 300 code points of the
+    text, with each lone surrogate escaped. blockedDetail in the plugin uses the same rule."""
+    return escape_surrogates(text[:DETAIL_LIMIT])
+
+
 def _deny(
     record: Path, harness: str, tool: str, text: str, reason: str = DENY_REASON
 ) -> dict[str, Any]:
-    detail = escape_surrogates(text[:300])
+    detail = blocked_detail(text)
     try:
         record.parent.mkdir(parents=True, exist_ok=True)
         Writer(record).append(

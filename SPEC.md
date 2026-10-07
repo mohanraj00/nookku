@@ -23,7 +23,7 @@ Each string in a row, as a field name or as a value, holds only Unicode scalar v
 
 Each record has one reader with one rule: `record.read_rows` in Python, and `relayTurns` in the plugin for the relay record. The reader checks each line with the rules of section 3.1 (`record_invalid`). If a line is not valid, or a hash does not match its text, the reader stops with an error that names the file and the line. It never skips a line. The audit, the relays, the end of a test, the trace (section 8) and the transcript with the trace (section 9.2) use this reader. If a record file does not exist, the audit stops with `record_missing`. The relays, the end of a test, the trace and the transcript with the trace read a file that does not exist as a record with no rows.
 
-The relays refuse a message with a lone surrogate (section 5). The other writers do not write a relayed message or reply: the OTLP receiver (section 7.5), the backend proxies (section 7.6), the model API proxies (section 7.7) and the trace (section 8). If a string that one of these writers writes has a lone surrogate, the writer writes its escape text in its place. The escape text is a backslash, `u` and 4 lowercase hex digits. For example, U+D83D becomes the 6 characters `\ud83d`, which JSON writes as `"\\ud83d"`. Thus a write never fails on a lone surrogate.
+The relays refuse a message with a lone surrogate (section 5). The other writers do not write a relayed message or reply: the OTLP receiver (section 7.5), the backend proxies (section 7.6), the model API proxies (section 7.7) and the trace (section 8). The `detail` of a `blocked_call` row (section 2.2) is not a relayed message either. If a string that one of these writers writes has a lone surrogate, the writer writes its escape text in its place. The escape text is a backslash, `u` and 4 lowercase hex digits. For example, U+D83D becomes the 6 characters `\ud83d`, which JSON writes as `"\\ud83d"`. Thus a write never fails on a lone surrogate.
 
 ### 2.1 Tap record
 
@@ -76,6 +76,8 @@ In stdio mode, the tap writes these `status` values:
 In a test (section 7), the relay record is `relay.jsonl` in the test folder.
 
 `blocked_call`: the relay denied a model tool call that targeted the agent or the tap. Fields: `harness`, `tool`, `detail`. The audit counts these rows and does not match them.
+
+`detail` is the first 300 code points of the JSON text of the tool call. The cut counts code points, not UTF-16 code units, so it never splits a surrogate pair. If the cut text has a lone surrogate, the relay writes its escape text (section 2) in its place. `kit.blocked_detail` in the hook kit and `blockedDetail` in the plugin use this rule. The shared table `DETAIL_CASES` in `register.test.ts` tests both.
 
 ## 3. Audit
 
