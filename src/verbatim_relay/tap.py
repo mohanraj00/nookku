@@ -12,7 +12,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from verbatim_relay.adapters import Adapter, AdapterError, StreamError, is_stream
-from verbatim_relay.record import Writer
+from verbatim_relay.record import Writer, lone_surrogate
 
 HOP_BY_HOP = {
     "connection",
@@ -80,6 +80,10 @@ class _Handler(BaseHTTPRequestHandler):
                 message = tap.adapter.message(body)
             except AdapterError as e:
                 parse_error = f"request: {e}"
+            found = None if message is None else lone_surrogate(message)
+            if found:
+                # The record cannot hold the message. The tap marks it as unparsed.
+                message, parse_error = None, f"request: the message has {found}"
 
         headers = {k: v for k, v in self.headers.items() if k.lower() not in NOT_FORWARDED}
         headers["Accept-Encoding"] = "identity"
@@ -140,6 +144,21 @@ class _Handler(BaseHTTPRequestHandler):
                         }
                     )
                 else:
+                    found = lone_surrogate(reply)
+                    if found:
+                        # The record cannot hold the reply, so the relay gets an error.
+                        note = f"the agent reply has {found}"
+                        tap.writer.append(
+                            {
+                                "type": "exchange",
+                                "input": message,
+                                "status": None,
+                                "reply": None,
+                                "error": note,
+                            }
+                        )
+                        self._error(502, f"verbatim-relay tap: {note}")
+                        return
                     tap.writer.append(
                         {"type": "exchange", "input": message, "status": status, "reply": reply}
                     )

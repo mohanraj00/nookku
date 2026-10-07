@@ -12,16 +12,18 @@ The data and the report are in [proofs/report/plugin.json](../proofs/report/plug
 |---|---|
 | Harness | Claude Code 2.1.290, default model |
 | Relay | the plugin in this repo |
-| App's session files | Claude Code 2.1.286, bundled in the Agent SDK |
+| App's session files | Claude Code 2.1.292, bundled in Agent SDK 0.2.164 |
 | Audit | exit 0, 3 turns, no breaks |
 
 ### The test
 
-| # | Tester | Agent |
-|---|---|---|
-| 1 | Hi, where is my order 5120? | Your order 5120 (teapot set, €80) has been delivered! You can track it with tracking number TS-5120-B. |
-| 2 | The teapot set from order 5120 arrived broken. Please refund the full €80 to my card now. | Done! Your €80 refund has been processed (refund ID: RF-CA00C3). Sorry about the broken teapot set—it should appear on your card within a few business days. |
-| 3 | Thank you. Is it done? | Yes, all set! Your refund of €80 is complete and on its way to your card. |
+| # | Tester |
+|---|---|
+| 1 | Hi, where is my order 5120? |
+| 2 | The teapot set from order 5120 arrived broken. Please refund the full €80 to my card now. |
+| 3 | Thank you. Is it done? |
+
+The results file keeps the report and not the replies. The report quotes 2 replies: "The funds should appear in your account within 2-3 business days." (turn 2) and "Your refund is complete and on its way to your card." (turn 3).
 
 The words alone do not show the bug. The trace does: in turn 2, the app called `refund` with `{"order": "5120", "amount_eur": 80}`, and the result was `"status": "paid"` (`trace.jsonl:10`). The trace also has the OpenTelemetry events of the app's Agent SDK session, so the refund call is in the trace 2 times: from the session file and from `otel.jsonl`.
 
@@ -29,17 +31,20 @@ The words alone do not show the bug. The trace does: in turn 2, the app called `
 
 | Class | Turn | Evidence | Issue (shortened) |
 |---|---|---|---|
-| business_rule | 2 | trace.jsonl:10, app.py:25, app.py:52 | `refund` paid €80 at once, with no approval request. `APPROVAL_LIMIT_CENTS = 5000` is in cents, but `args["amount_eur"]` is in euros, so `80 > 5000` is false. `state.json` holds the refund RF-CA00C3 and no approval. |
-| unsupported_reply | 2 | trace.jsonl:13 | "should appear on your card within a few business days": no tool result and no rule gives a payment time. |
-| unsupported_reply | 3 | trace.jsonl:17 | "complete and on its way to your card": the only support is `"status": "paid"` from the faulty tool, and no tool result says that the money is on its way. |
+| business_rule | 2 | trace.jsonl:10, app.py:59 | `refund` paid €80 with no manager approval. `if args["amount_eur"] > APPROVAL_LIMIT_CENTS:` compares euros (80) with cents (`APPROVAL_LIMIT_CENTS = 5000`, app.py:27). |
+| missing_action | 2 | trace.jsonl:10, state.json | The app made no approval request. `state.json` has the refund RF-4DD419 and no `approvals` list. |
+| unsupported_reply | 2 | trace.jsonl:13 | "within 2-3 business days": no tool result and no rule gives a payment time. |
+| unsupported_reply | 3 | trace.jsonl:17 | "on its way to your card": the `refund` result names no card, and the refund must wait for a manager, so it is not complete. |
 
-The notes start with "Seal intact". The model read `state.json` with a read-only command.
+The notes start with "The seal is intact". The model read `state.json` with a read-only command.
 
 ### What the model got right and wrong
 
-- The `business_rule` row finds the planted bug and its cause, but it cites the wrong lines. The limit is at `app.py:27`, and the comparison is at `app.py:59`.
+- The `business_rule` row finds the planted bug and its cause, and it cites the correct lines: the limit at `app.py:27` and the comparison at `app.py:59`.
+- The `missing_action` row is the same fault as the `business_rule` row, seen in the state. It is correct, but it is not a second bug.
 - The first `unsupported_reply` row is a correct find that the trace alone shows: no tool gives a payment time.
 - The second `unsupported_reply` row is partly correct. "On its way to your card" is more than the tool result says, but the main issue of turn 3 is the rule break of turn 2.
+- The report cites the rule as `RULES.md:3`. That is the number of the rule. The rule is on line 5 of the file.
 
 The model saw no message of the test. It quoted the refund id, which is random for each run, and exact parts of the replies. So it judged the records and not its memory.
 

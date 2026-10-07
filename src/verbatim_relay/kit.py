@@ -18,7 +18,7 @@ from urllib.parse import urlsplit
 
 from verbatim_relay import bridge, commands, evaluation, seal
 from verbatim_relay.adapters import AdapterError, History, StreamError, is_stream, make
-from verbatim_relay.record import RecordError, Turn, Writer, read_relay
+from verbatim_relay.record import RecordError, Turn, Writer, lone_surrogate, read_relay
 
 STATE_DIR = bridge.STATE_DIR
 TIMEOUT = 280
@@ -325,10 +325,18 @@ def touches_records(text: str) -> bool:
 def _deny(
     record: Path, harness: str, tool: str, text: str, reason: str = DENY_REASON
 ) -> dict[str, Any]:
-    record.parent.mkdir(parents=True, exist_ok=True)
-    Writer(record).append(
-        {"type": "blocked_call", "harness": harness, "tool": tool, "detail": text[:300]}
-    )
+    detail = text[:300]
+    if lone_surrogate(detail):
+        # A record text holds only Unicode scalar values (SPEC.md section 2).
+        detail = detail.encode("utf-8", "backslashreplace").decode("utf-8")
+    try:
+        record.parent.mkdir(parents=True, exist_ok=True)
+        Writer(record).append(
+            {"type": "blocked_call", "harness": harness, "tool": tool, "detail": detail}
+        )
+    except (OSError, ValueError) as e:
+        # The deny must not depend on the record. Without it, the call reaches the tap.
+        print(f"verbatim-relay hook: cannot record a blocked call: {e}", file=sys.stderr)
     return {
         "hookSpecificOutput": {
             "hookEventName": "PreToolUse",

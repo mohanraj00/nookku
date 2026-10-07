@@ -116,6 +116,9 @@ class _Handler(BaseHTTPRequestHandler):
             self._send(500, b'{"error": "boom"}')
         elif self.path.startswith("/not-json"):
             self._send(200, b"plain text", "text/plain")
+        elif self.path == "/cut":
+            # A reply cut in the middle of an emoji: a lone surrogate.
+            self._send(200, b'{"reply": "Your mug ships today \\ud83d"}')
         elif self.path.endswith("/chat/completions") and self.server.stream:
             self._stream(shop_reply(json.loads(body)["messages"][-1]["content"]))
         elif self.path.endswith("/chat/completions"):

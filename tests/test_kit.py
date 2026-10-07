@@ -122,6 +122,22 @@ def test_pre_tool_use(setup, tool, tool_input, denied):
         assert answer["hookSpecificOutput"]["permissionDecision"] == "deny"
 
 
+def test_a_blocked_call_with_a_lone_surrogate_is_still_denied(setup):
+    root, _, _ = setup
+    port = kit.Config.load(root).tap_url.rsplit(":", 1)[1].strip("/")
+    event = {
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Bash",
+        "tool_input": {"command": f"curl http://127.0.0.1:{port}/", "note": "mug \ud83d"},
+    }
+    answer = kit.handle(event, root, "codex")
+    assert answer is not None
+    assert answer["hookSpecificOutput"]["permissionDecision"] == "deny"
+    rows = read_relay(record(root))
+    assert rows == [BlockedCall(1, "Bash", rows[0].detail)]
+    assert "\\ud83d" in rows[0].detail
+
+
 def test_the_agent_url_is_denied_too(setup):
     root, _, agent = setup
     event = {

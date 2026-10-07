@@ -14,6 +14,20 @@ from typing import Any
 
 VERSION = "0.2"
 VERSIONS = ("0.1", "0.2")
+# A surrogate code point. In a decoded Python string, each one is a lone surrogate.
+_SURROGATE = re.compile("[\ud800-\udfff]")
+
+
+def lone_surrogate(text: str) -> str | None:
+    """Name the first lone surrogate in the text, or return None if the text has none.
+
+    A record text holds only Unicode scalar values (SPEC.md section 2). UTF-8 cannot encode a
+    lone surrogate, so this check must occur before a hash or a write.
+    """
+    found = _SURROGATE.search(text)
+    if found is None:
+        return None
+    return f"a lone surrogate U+{ord(found.group()):04X} at character {found.start()}"
 
 
 def sha256(text: str | None) -> str | None:
@@ -121,6 +135,11 @@ def _validate(kind: str, path: Path, n: int, raw: str) -> dict[str, Any]:
         raise bad(f"not JSON ({e.msg})") from None
     if not isinstance(row, dict):
         raise bad("not a JSON object")
+    for name, value in row.items():
+        text = value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
+        found = lone_surrogate(name) or lone_surrogate(text)
+        if found:
+            raise bad(f"field {name!r} has {found}, which is not a Unicode scalar value")
     if row.get("v") not in VERSIONS:
         raise bad(f"version {row.get('v')!r}, expected one of {', '.join(VERSIONS)}")
     fields = _SCHEMA[kind].get(row.get("type"))  # type: ignore[arg-type]

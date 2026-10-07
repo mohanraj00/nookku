@@ -315,6 +315,8 @@ test('contract parts', async () => {
 // Python tap returns for it. tests/test_contract.py checks this table against the cases and
 // against contract.parse_reply.
 const CONTRACT_LINES: [string, number][] = [
+  ["{\"v\": 1, \"id\": \"m-1\", \"error\": \"Mug sold out \\ud83d\"}", 502], // error_with_a_lone_surrogate
+  ["{\"v\": 1, \"id\": \"m-1\", \"reply\": \"## Returns  \\nYou can return order #4471 within 30 days.\\n\\n| item | status |\\n|---|---|\\n| mug | eligible |\\ud83d\"}", 502], // reply_with_a_lone_surrogate
   ["{\"v\": 1, \"id\": \"m-1\", \"error\": \"The order service is down.\"}", 500], // error_is_status_500
   ["{\"v\": 1, \"id\": \"m-1\", \"reply\": null, \"error\": \"The order service is down.\"}", 502], // null_reply_and_error
   ["{\"v\": 1, \"id\": \"m-1\", \"reply\": \"## Returns  \\nYou can return order #4471 within 30 days.\\n\\n| item | status |\\n|---|---|\\n| mug | eligible |\", \"latency_ms\": 12}", 200], // other_fields_are_ignored
