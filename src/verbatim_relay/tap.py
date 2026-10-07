@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import http.client
 import json
 import sys
@@ -10,7 +11,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from verbatim_relay.adapters import Adapter, AdapterError
+from verbatim_relay.adapters import Adapter, AdapterError, StreamError, is_stream
 from verbatim_relay.record import Writer
 
 HOP_BY_HOP = {
@@ -73,10 +74,6 @@ class _Handler(BaseHTTPRequestHandler):
         body = self.rfile.read(int(self.headers.get("Content-Length") or 0))
         tap, method, path = self.server, self.command, self.path
         recorded = tap.adapter.accepts(method, path)
-        refusal = tap.adapter.refuse(body) if recorded else None
-        if refusal:
-            self._error(501, refusal)
-            return
         message, parse_error = None, None
         if recorded:
             try:
@@ -90,7 +87,11 @@ class _Handler(BaseHTTPRequestHandler):
         try:
             conn.request(method, tap.base_path + path, body=body if body else None, headers=headers)
             resp = conn.getresponse()
-            status, out_headers, out = resp.status, resp.getheaders(), resp.read()
+            status, out_headers = resp.status, resp.getheaders()
+            if is_stream(resp.getheader("Content-Type")) and method != "HEAD":
+                self._stream(resp, recorded, message, parse_error)
+                return
+            out = resp.read()
         except (OSError, http.client.HTTPException) as e:
             if message is not None:
                 tap.writer.append(
@@ -153,6 +154,98 @@ class _Handler(BaseHTTPRequestHandler):
                     }
                 )
         self._send(status, out_headers, out)
+
+    def _stream(
+        self,
+        resp: http.client.HTTPResponse,
+        recorded: bool,
+        message: str | None,
+        parse_error: str | None,
+    ) -> None:
+        """Send each part of an SSE response to the caller when it comes (SPEC.md section 4.1).
+
+        The tap writes the row when the stream ends, before the end of the response to the caller.
+        This function catches each error itself, because the caller already has the status.
+        """
+        length = resp.getheader("Content-Length")
+        caller = True
+        try:
+            self.send_response_only(resp.status)
+            for name, value in resp.getheaders():
+                if name.lower() not in NOT_RETURNED:
+                    self.send_header(name, value)
+            if length is None:
+                self.send_header("Transfer-Encoding", "chunked")
+            else:
+                self.send_header("Content-Length", length)
+            self.end_headers()
+            self.wfile.flush()
+        except OSError:
+            caller = False
+        raw = bytearray()
+        failure = None
+        while True:
+            try:
+                part = resp.read1(65536)
+            except (OSError, http.client.HTTPException) as e:
+                failure = f"the stream from the agent stopped: {e}"
+                break
+            if not part:
+                break
+            raw += part
+            if caller:
+                # The record keeps all of the stream, also if the caller went away.
+                try:
+                    chunk = part if length is not None else b"%x\r\n%s\r\n" % (len(part), part)
+                    self.wfile.write(chunk)
+                    self.wfile.flush()
+                except OSError:
+                    caller = False
+        if failure is None and length is not None and resp.length:
+            # read1 gives b"" at an early end of a body with a Content-Length. It does not raise.
+            failure = f"the stream from the agent stopped after {len(raw)} of {length} bytes"
+        if recorded:
+            self._stream_row(resp.status, bytes(raw), message, parse_error, failure)
+        if caller and failure is None and length is None:
+            try:
+                self.wfile.write(b"0\r\n\r\n")
+                self.wfile.flush()
+            except OSError:
+                pass
+        # After a failure, the caller gets an incomplete body, the same as from the agent.
+        if failure is not None or not caller:
+            self.close_connection = True
+
+    def _stream_row(
+        self,
+        status: int,
+        raw: bytes,
+        message: str | None,
+        parse_error: str | None,
+        failure: str | None,
+    ) -> None:
+        """Write the row of a streamed response. A failed stream gets no reply, only an error."""
+        tap, method, path = self.server, self.command, self.path
+        unparsed = {"type": "unparsed", "method": method, "path": path}
+        if message is None:
+            tap.writer.append({**unparsed, "error": parse_error or "unknown"})
+            return
+        row: dict[str, object] = {"type": "exchange", "input": message, "status": status}
+        row["reply"] = None
+        if not 200 <= status < 300:
+            row["error"] = f"HTTP {status}"
+        elif failure is not None:
+            row["error"] = failure
+        else:
+            try:
+                row["reply"] = tap.adapter.stream_reply(raw)
+            except StreamError as e:
+                row["error"] = str(e)
+            except AdapterError as e:
+                tap.writer.append({**unparsed, "error": f"response: {e}"})
+                return
+        row["stream"] = {"sha256": hashlib.sha256(raw).hexdigest(), "bytes": len(raw)}
+        tap.writer.append(row)
 
     do_GET = do_POST = do_PUT = do_PATCH = do_DELETE = do_HEAD = do_OPTIONS = _forward
 

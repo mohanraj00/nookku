@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import threading
 import time
 from dataclasses import dataclass
@@ -88,7 +89,8 @@ _SCHEMA: dict[str, dict[str, dict[str, tuple[type, ...]]]] = {
     },
 }
 # Types and optional fields that a "0.1" row must not have.
-_SINCE_02 = {"model_session", "started", "originator"}
+_SINCE_02 = {"model_session", "started", "originator", "stream"}
+_HEX64 = re.compile(r"[0-9a-f]{64}")
 # Optional fields: (row type, field) -> allowed types
 _OPTIONAL: dict[tuple[str, str], tuple[type, ...]] = {
     ("exchange", "started"): _NUM,
@@ -96,6 +98,17 @@ _OPTIONAL: dict[tuple[str, str], tuple[type, ...]] = {
     ("turn", "ok"): _BOOL,
     ("turn", "session"): _STR,
 }
+
+
+def _stream_info(value: Any) -> bool:
+    """True if the value is a `stream` object: the SHA-256 and the size of the raw body."""
+    return (
+        isinstance(value, dict)
+        and isinstance(value.get("sha256"), str)
+        and _HEX64.fullmatch(value["sha256"]) is not None
+        and type(value.get("bytes")) is int
+        and value["bytes"] >= 0
+    )
 
 
 def _validate(kind: str, path: Path, n: int, raw: str) -> dict[str, Any]:
@@ -125,8 +138,15 @@ def _validate(kind: str, path: Path, n: int, raw: str) -> dict[str, Any]:
             raise bad(f"field {name}_sha256 does not match {name!r}")
     if row["type"] == "exchange":
         ok = row["status"] is not None and 200 <= row["status"] < 300
-        if ok != (row["reply"] is not None):
-            raise bad("'reply' must be a string for a 2xx status and null for any other status")
+        if "stream" in row and not _stream_info(row["stream"]):
+            raise bad("field 'stream' has the wrong type")
+        # A failed stream (SPEC.md section 2.1) has a 2xx status, no reply and an error.
+        failed = ok and row["reply"] is None and "stream" in row and "error" in row
+        if ok != (row["reply"] is not None) and not failed:
+            raise bad(
+                "'reply' must be a string for a 2xx status, and null for any other status "
+                "or for a failed stream"
+            )
     for (kind_, name), types in _OPTIONAL.items():
         value = row.get(name)
         if row["type"] != kind_ or name not in row:

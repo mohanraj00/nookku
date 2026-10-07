@@ -160,12 +160,12 @@ def compare(turns: list[Turn], exchanges: list[Exchange]) -> tuple[list[Finding]
     notes: list[Finding] = []
     for i, j in pairs:
         t, e = turns[i], exchanges[j]
-        if e.status is None or not 200 <= e.status < 300:
+        # A null reply: a status that is not 2xx, no response, or a failed stream.
+        if e.reply is None:
             notes.append(Finding("agent_error", t.line, e.line, {"status": e.status}))
         elif t.shown is None:
             breaks.append(Finding("unshown_reply", t.line, e.line))
         elif t.shown != e.reply:
-            assert e.reply is not None  # record.py rejects a 2xx exchange without a reply
             breaks.append(Finding("altered_reply", t.line, e.line, difference(e.reply, t.shown)))
 
     def order(f: Finding) -> tuple[int, int, int]:
