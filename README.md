@@ -24,7 +24,7 @@ tester ──> harness ──> relay ──────> tap ──stdin/stdout�
                          └─> audit <──┘   exit 0 clean, 1 break, 2 invalid record
 ```
 
-Two processes write two records, and the audit compares them byte for byte. It reports 7 break classes ([SPEC.md section 3.3](SPEC.md#33-break-classes)). It fails closed: it never reports clean on a record that it cannot read. 50 audit cases, 20 contract cases, 10 trace cases, 11 seal cases and 7 receiver cases in [conformance/](conformance/) test the spec ([cases](conformance/build.py), [tests](tests/)).
+Two processes write two records, and the audit compares them byte for byte. It reports 7 break classes ([SPEC.md section 3.3](SPEC.md#33-break-classes)). It fails closed: it never reports clean on a record that it cannot read. 53 audit cases, 20 contract cases, 10 trace cases, 11 seal cases and 7 receiver cases in [conformance/](conformance/) test the spec ([cases](conformance/build.py), [tests](tests/)).
 
 A test also records what your app did. It copies the session files of the app's own Agent SDK or Codex sessions. It records the backend calls, the direct model calls and the OpenTelemetry spans of the app. [docs/architecture.md](docs/architecture.md) shows each part.
 
