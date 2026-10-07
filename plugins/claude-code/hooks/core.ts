@@ -66,6 +66,9 @@ export function contractBody(id: string, test: string, said: string, turns: read
 
 // What the tester sees for one tap response, and whether it is the agent's reply.
 // A line with both 'reply' and 'error' is not a contract line, also if one is null (SPEC.md section 6).
+// A lone surrogate is not a Unicode scalar value (SPEC.md section 2). The tap returns 502 for it.
+const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/
+
 export function contractShown(status: number, body: string, id: string): { shown: string; ok: boolean } {
   let data: any = null
   try {
@@ -75,10 +78,10 @@ export function contractShown(status: number, body: string, id: string): { shown
   }
   const mine = data !== null && typeof data === 'object' && data.v === 1 && data.id === id
   if (status === 200) {
-    if (mine && typeof data.reply === 'string' && data.error === undefined) return { shown: data.reply, ok: true }
+    if (mine && typeof data.reply === 'string' && data.error === undefined && !LONE_SURROGATE.test(data.reply)) return { shown: data.reply, ok: true }
     return { shown: `verbatim-relay: cannot read the reply: ${body}`, ok: false }
   }
-  if (status === 500 && mine && typeof data.error === 'string' && data.reply === undefined) {
+  if (status === 500 && mine && typeof data.error === 'string' && data.reply === undefined && !LONE_SURROGATE.test(data.error)) {
     return { shown: `verbatim-relay: the agent sent an error:\n${data.error}`, ok: false }
   }
   const error = data !== null && typeof data?.error === 'string' ? data.error : body

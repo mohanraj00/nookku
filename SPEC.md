@@ -17,6 +17,8 @@ Two processes write two records. The relay writes the **relay record**: what the
 
 Each record is a UTF-8 JSONL file. Each line is one JSON object. Each object has a version `v` and a `type`. A writer writes `"v": "0.2"`. A reader accepts `"0.1"` and `"0.2"`. A type or a field that this section marks as 0.2 is not valid in a `"0.1"` row. Each text field has a `<field>_sha256` field: the SHA-256 of the UTF-8 bytes of the text, in lower-case hex. If the text is `null`, its hash is `null`. `ts` is a Unix time in seconds.
 
+Each string in a row, as a field name or as a value, holds only Unicode scalar values. JSON can escape a lone UTF-16 surrogate, for example `"\ud83d"`, but UTF-8 cannot encode it. A row with a lone surrogate is not valid.
+
 ### 2.1 Tap record
 
 `exchange`: one request that the adapter parsed, and its response.
@@ -24,7 +26,7 @@ Each record is a UTF-8 JSONL file. Each line is one JSON object. Each object has
 | Field | Type | Meaning |
 |---|---|---|
 | `input` | string | The message that the agent received, as the adapter extracts it. |
-| `status` | integer or null | The HTTP status of the agent's response. `null` if the agent did not respond. |
+| `status` | integer or null | The HTTP status of the agent's response. `null` if the agent did not respond, or if its reply or its error has a lone surrogate (section 4). |
 | `reply` | string or null | The reply that the agent sent, as the adapter extracts it. It is `null` if, and only if, the status is not 2xx or is `null`. |
 | `error` | string | Optional. Why `reply` is `null`. |
 | `started` | number | Optional, 0.2. The Unix time when the tap sent the request to the agent. `ts` is the time when the tap wrote the row. |
@@ -36,6 +38,7 @@ In stdio mode, the tap writes these `status` values:
 | A `reply` line | 200 |
 | An `error` line | 500 |
 | No line: the agent exited, or the tap stopped it after a timeout | `null` |
+| A `reply` or an `error` line with a lone surrogate | `null` |
 
 `unparsed`: a request or a 2xx response that the tap forwarded but that the adapter cannot parse. Fields: `method`, `path`, `error`. The tap forwards this request without change, but the audit cannot check it. In stdio mode, the tap also writes `unparsed` for a request that is not a contract input, for an agent line that is not a valid contract output, and for an agent line that arrives when no request waits for it. For the last kind, `method` is `STDIO` and `path` is `stdout`.
 
@@ -72,7 +75,7 @@ In a test (section 7), the relay record is `relay.jsonl` in the test folder.
 The audit stops with exit code 2 and does not report breaks if one of these conditions occurs:
 
 - `record_missing`: a record file does not exist or cannot be read.
-- `record_invalid`: a line is not a JSON object, has a wrong `v` or an unknown `type`, has a missing or wrongly typed field, or has a hash that does not match its text.
+- `record_invalid`: a line is not a JSON object, has a wrong `v` or an unknown `type`, has a missing or wrongly typed field, has a hash that does not match its text, or has a lone surrogate (section 2).
 - `tap_unparsed`: the tap record has an `unparsed` row. The audit cannot check that exchange.
 
 The report names each check that it skipped.
@@ -126,6 +129,8 @@ The audit counts `blocked_call` rows and `model_session` rows. It does not match
 - The tap returns the agent's status, headers and body without change, except hop-by-hop headers and `Content-Length`.
 - If the agent does not respond, the tap returns status 502 and writes an `exchange` row with `status: null`.
 - The tap writes rows only for `POST` requests that the adapter accepts. It forwards other requests without a row.
+- If the message that the adapter extracts has a lone surrogate (section 2), the tap writes an `unparsed` row. It still forwards the request without change.
+- If the reply of a 2xx response has a lone surrogate, the tap returns status 502 and not the agent's response. It writes an `exchange` row with `status: null`, `reply: null` and an `error` that names the lone surrogate.
 - The tap does not support streamed responses in v0.1. If an OpenAI-style request has `"stream": true`, the tap returns status 501 and does not forward it.
 
 #### Adapters
@@ -152,6 +157,8 @@ Each adapter maps onto the agent contract (section 6):
 - The tap sends one request at a time. It waits for one line on the agent's stdout.
 - If the line is a valid output with the same `id`, the tap returns status 200 for a `reply` and 500 for an `error`, with the line as the body. It writes an `exchange` row. For an `error` line, the row's `error` is the agent's error text.
 - If the line is not valid, or has a different `id`, the tap returns status 502 and writes an `unparsed` row.
+- If the `message` of an input has a lone surrogate (section 2), the tap returns status 400, writes an `unparsed` row and does not send the body.
+- If the `reply` or the `error` of an output has a lone surrogate, the tap returns status 502. It writes an `exchange` row with `status: null`, `reply: null` and an `error` that names the lone surrogate.
 - If the agent sends no line in 240 seconds, the tap stops the agent's process group. It returns status 504 and writes an `exchange` row with `status: null`.
 - If the agent exits, the tap returns status 502 and writes an `exchange` row with `status: null` and the exit code in `error`.
 - The tap does not restart the agent. After a crash or a timeout, it answers each later request with the same error. The error body includes the last 20 lines of `app.log`.

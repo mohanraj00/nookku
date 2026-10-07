@@ -19,7 +19,13 @@ def test_version(capsys):
 
 
 @pytest.mark.parametrize(
-    "case, code", [("clean", 0), ("altered_reply_word", 1), ("relay_record_missing", 2)]
+    "case, code",
+    [
+        ("clean", 0),
+        ("altered_reply_word", 1),
+        ("relay_record_missing", 2),
+        ("lone_surrogate_in_the_tap_record", 2),
+    ],
 )
 def test_audit_exit_codes_and_text(case, code, capsys):
     d = CASES / case

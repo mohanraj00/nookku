@@ -112,6 +112,19 @@ TAP_02 = [{**ex(m, r, v="0.2"), "started": 0.5} for m, r in ((M1, R1), (M2, R2),
 RELAY_02 = [turn(m, r, v="0.2") for m, r in ((M1, R1), (M2, R2), (M3, R3))]
 SESSION_A = model_session("4f1c2a7e-0d3b-4c55-9a61-2b8e5d7c9f10", 4471, False)
 SESSION_B = model_session("019a0b1c-2d3e-7f40-8a5b-6c7d8e9f0a1b", None, True)
+# A lone UTF-16 surrogate: the first half of an emoji. JavaScript makes it when it cuts a text,
+# for example with `reply.slice(0, 280)`. JSON can escape it, but UTF-8 cannot encode it.
+LONE = "\ud83d"
+
+
+def lone_surrogate(row: dict, field: str) -> str:
+    """The row as a raw line, with a lone surrogate at the end of a text field.
+
+    The hash is of the text with U+FFFD in place of the surrogate, as a JavaScript writer makes it.
+    """
+    text = row[field] + LONE
+    return json.dumps({**row, field: text, f"{field}_sha256": sha(row[field] + "\ufffd")})
+
 
 # name: (tap rows or None for a missing file, relay rows or None, expectation)
 # A row can be a raw string, written as the line itself.
@@ -306,6 +319,16 @@ CASES_BY_NAME: dict[str, tuple[list | None, list | None, dict]] = {
         CLEAN_RELAY,
         {"exit": 2, "errors": ["record_invalid"]},
     ),
+    "lone_surrogate_in_the_tap_record": (
+        [lone_surrogate(CLEAN_TAP[0], "reply"), *CLEAN_TAP[1:]],
+        [turn(M1, R1 + "\ufffd"), *CLEAN_RELAY[1:]],
+        {"exit": 2, "errors": ["record_invalid"]},
+    ),
+    "lone_surrogate_in_the_relay_record": (
+        CLEAN_TAP,
+        [lone_surrogate(CLEAN_RELAY[0], "shown"), *CLEAN_RELAY[1:]],
+        {"exit": 2, "errors": ["record_invalid"]},
+    ),
     "tap_unparsed": ([*CLEAN_TAP, UNPARSED], CLEAN_RELAY, {"exit": 2, "errors": ["tap_unparsed"]}),
 }
 
@@ -409,6 +432,30 @@ CONTRACT_CASES: dict[str, dict] = {
         "agent": [{"lines": [out(reply=4471)]}],
         "forwarded": [0],
         "http": [502],
+        "rows": [UNPARSED_POST],
+    },
+    # The record cannot hold a lone surrogate (SPEC.md section 2). The tap records an error.
+    "reply_with_a_lone_surrogate": {
+        "requests": [req(TRICKY)],
+        "agent": [{"lines": [json.dumps({"v": 1, "id": "m-1", "reply": R1 + LONE})]}],
+        "forwarded": [0],
+        "http": [502],
+        "rows": [{"type": "exchange", "input": TRICKY, "status": None, "reply": None}],
+    },
+    "error_with_a_lone_surrogate": {
+        "requests": [req(TRICKY)],
+        "agent": [{"lines": [json.dumps({"v": 1, "id": "m-1", "error": "Mug sold out " + LONE})]}],
+        "forwarded": [0],
+        "http": [502],
+        "rows": [{"type": "exchange", "input": TRICKY, "status": None, "reply": None}],
+    },
+    "request_with_a_lone_surrogate": {
+        "requests": [
+            json.dumps({"v": 1, "id": "m-1", "session": "t-1", "message": M1 + LONE, "history": []})
+        ],
+        "agent": [],
+        "forwarded": [],
+        "http": [400],
         "rows": [UNPARSED_POST],
     },
     "reply_wrong_contract_version": {

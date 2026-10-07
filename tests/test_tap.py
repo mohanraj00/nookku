@@ -113,6 +113,27 @@ def test_a_body_the_adapter_cannot_parse_is_forwarded_and_marked(agent, tmp_path
     assert "response" in rows[0].error and "request" in rows[1].error
 
 
+def test_a_reply_with_a_lone_surrogate_is_an_error_row(agent, tmp_path):
+    tap = run_tap(agent.url, tmp_path / "tap.jsonl")
+    status, _, out = post(tap, "/cut", b'{"text": "hi"}')
+    tap.shutdown()
+    assert status == 502 and b"lone surrogate U+D83D" in out
+    assert read_tap(tmp_path / "tap.jsonl") == [Exchange(1, "hi", None, None)]
+    row = json.loads((tmp_path / "tap.jsonl").read_text())
+    assert row["error"] == "the agent reply has a lone surrogate U+D83D at character 21"
+
+
+def test_a_message_with_a_lone_surrogate_is_forwarded_and_marked(agent, tmp_path):
+    tap = run_tap(agent.url, tmp_path / "tap.jsonl")
+    body = b'{"text": "hi \\ud83d"}'
+    status, _, _ = post(tap, "/cut", body)
+    tap.shutdown()
+    assert status == 200 and agent.received[0]["body"] == body
+    rows = read_tap(tmp_path / "tap.jsonl")
+    assert [type(r) for r in rows] == [Unparsed]
+    assert "lone surrogate U+D83D" in rows[0].error
+
+
 def test_a_get_is_forwarded_without_a_row(agent, tmp_path):
     tap = run_tap(agent.url, tmp_path / "tap.jsonl")
     url = f"http://127.0.0.1:{tap.server_address[1]}/health"
