@@ -7,7 +7,7 @@ from typing import Any
 
 # The Agent SDK of the toy apps. A new release bundles a new Claude Code, and the session reader is
 # tested only for the versions in TESTED of trace.py (#35). Change this pin only with the proofs.
-AGENT_SDK = "claude-agent-sdk==0.2.163"
+AGENT_SDK = "claude-agent-sdk==0.2.164"
 
 
 def json_lines(text: str) -> list[Any]:

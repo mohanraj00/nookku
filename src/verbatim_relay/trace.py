@@ -21,7 +21,7 @@ from .record import VERSION
 TRACE_VERSION = "0.3"
 
 # The versions that the conformance cases and proofs/trace/ cover.
-TESTED = {"claude-code": ("2.1.286",), "codex": ("0.160.0",)}
+TESTED = {"claude-code": ("2.1.286", "2.1.292"), "codex": ("0.160.0",)}
 # Tools that the harness itself gives to the model. They are not tools of the app.
 HARNESS_INTERNAL = {"claude-code": {"ToolSearch"}, "codex": set()}
 CHECKS = (

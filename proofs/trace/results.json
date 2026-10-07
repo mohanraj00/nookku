@@ -2,10 +2,10 @@
  "date": "2026-10-06",
  "versions": {
   "session files": {
-   "claude-code": "2.1.286",
+   "claude-code": "2.1.292",
    "codex": "0.160.0"
   },
-  "claude-agent-sdk": "0.2.163",
+  "claude-agent-sdk": "0.2.164",
   "verbatim-relay": "0.1.0",
   "claude-code": "2.1.290 (Claude Code)",
   "codex": "codex-cli 0.160.0"
@@ -15,12 +15,12 @@
   {
    "harness": "claude-code",
    "inferred": false,
-   "version": "2.1.286",
-   "items": 11,
+   "version": "2.1.292",
+   "items": 10,
    "ignored": {
-    "assistant.thinking": 7,
+    "assistant.thinking": 6,
     "atis-latch": 2,
-    "attachment": 24,
+    "attachment": 14,
     "cost-state": 1,
     "file-history-snapshot": 4,
     "last-prompt": 3,
@@ -52,8 +52,12 @@
   "agent_error": 0,
   "tool_error": 2,
   "command_failed": 1,
+  "span_error": 0,
+  "backend_error": 0,
+  "model_api_error": 0,
   "turn_without_model": 0,
   "item_between_turns": 0,
+  "otel_tool_not_in_session": 0,
   "session_inferred": 1,
   "version_untested": 0
  },
@@ -172,18 +176,26 @@
   {
    "turn": 1,
    "harness": "claude-code",
-   "kind": "tool_call",
+   "kind": "log",
    "role": null,
    "server": null,
-   "name": "ToolSearch",
+   "name": "user_prompt",
    "exit_code": null,
-   "harness_internal": true,
-   "line": 22,
+   "harness_internal": false,
+   "line": 1,
    "input": {
-    "query": "select:mcp__shop__lookup_order",
-    "max_results": 1
+    "session.id": "c359c1a8-8784-4ab2-9b3c-87da38944bd5",
+    "terminal.type": "non-interactive",
+    "event.name": "user_prompt",
+    "event.timestamp": "2026-10-07T05:37:16.471Z",
+    "event.sequence": 12,
+    "prompt.id": "85b0163c-4dad-4ec7-a94f-8d23b9ba517e",
+    "prompt_length": "23",
+    "prompt": "Where is my order 4471?",
+    "prompt_text": "Where is my order 4471?",
+    "message.uuid": "7b04d20a-5e94-4adb-bbf4-af2e85ab5cb1"
    },
-   "output": "{\"type\": \"tool_reference\", \"tool_name\": \"mcp__shop__lookup_order\"}",
+   "output": "claude_code.user_prompt",
    "error": null
   },
   {
@@ -195,11 +207,68 @@
    "name": "lookup_order",
    "exit_code": null,
    "harness_internal": false,
-   "line": 32,
+   "line": 21,
    "input": {
     "order": "4471"
    },
    "output": "{\"item\": \"blue mug\", \"status\": \"delivered\", \"price_eur\": 8}",
+   "error": null
+  },
+  {
+   "turn": 1,
+   "harness": "claude-code",
+   "kind": "log",
+   "role": null,
+   "server": null,
+   "name": "tool_decision",
+   "exit_code": null,
+   "harness_internal": false,
+   "line": 2,
+   "input": {
+    "session.id": "c359c1a8-8784-4ab2-9b3c-87da38944bd5",
+    "terminal.type": "non-interactive",
+    "event.name": "tool_decision",
+    "event.timestamp": "2026-10-07T05:37:18.804Z",
+    "event.sequence": 41,
+    "prompt.id": "85b0163c-4dad-4ec7-a94f-8d23b9ba517e",
+    "decision": "accept",
+    "source": "config",
+    "tool_name": "mcp_tool",
+    "tool_use_id": "toolu_01WrmvY3bTKSjCP38KnB5Rrj",
+    "tool_source": "mcp",
+    "tool_parameters": "{\"mcp_server_name\":\"shop\",\"mcp_tool_name\":\"lookup_order\"}"
+   },
+   "output": "claude_code.tool_decision",
+   "error": null
+  },
+  {
+   "turn": 1,
+   "harness": "claude-code",
+   "kind": "log",
+   "role": null,
+   "server": null,
+   "name": "tool_result",
+   "exit_code": null,
+   "harness_internal": false,
+   "line": 3,
+   "input": {
+    "session.id": "c359c1a8-8784-4ab2-9b3c-87da38944bd5",
+    "terminal.type": "non-interactive",
+    "event.name": "tool_result",
+    "event.timestamp": "2026-10-07T05:37:18.814Z",
+    "event.sequence": 43,
+    "prompt.id": "85b0163c-4dad-4ec7-a94f-8d23b9ba517e",
+    "tool_name": "mcp_tool",
+    "tool_use_id": "toolu_01WrmvY3bTKSjCP38KnB5Rrj",
+    "success": "true",
+    "duration_ms": "9",
+    "tool_parameters": "{\"mcp_server_name\":\"shop\",\"mcp_tool_name\":\"lookup_order\"}",
+    "tool_input": "{\"order\":\"4471\"}",
+    "tool_input_size_bytes": "16",
+    "tool_result_size_bytes": "96",
+    "mcp_server_scope": "dynamic"
+   },
+   "output": "claude_code.tool_result",
    "error": null
   },
   {
@@ -211,11 +280,38 @@
    "name": null,
    "exit_code": null,
    "harness_internal": false,
-   "line": 36,
+   "line": 27,
    "output": {
     "sha256": "538370ec95df4b66feccd4a7f8c3fd6532e9cc084d5e52b2168dc445c4942969",
     "chars": 50
    }
+  },
+  {
+   "turn": 1,
+   "harness": "claude-code",
+   "kind": "log",
+   "role": null,
+   "server": null,
+   "name": "assistant_response",
+   "exit_code": null,
+   "harness_internal": false,
+   "line": 4,
+   "input": {
+    "session.id": "c359c1a8-8784-4ab2-9b3c-87da38944bd5",
+    "terminal.type": "non-interactive",
+    "event.name": "assistant_response",
+    "event.timestamp": "2026-10-07T05:37:20.400Z",
+    "event.sequence": 45,
+    "prompt.id": "85b0163c-4dad-4ec7-a94f-8d23b9ba517e",
+    "response_length": 50,
+    "response": "Your order 4471 (blue mug, €8) has been delivered.",
+    "request_id": "req_011CfnLTXDAi5NSxU8W7cjZk",
+    "message.uuid": "82c9311a-d4f6-4669-bf0d-efbba4933b3e",
+    "model": "claude-haiku-4-5-20251001",
+    "query_source": "sdk"
+   },
+   "output": "claude_code.assistant_response",
+   "error": null
   },
   {
    "turn": 1,
@@ -272,11 +368,36 @@
    "name": null,
    "exit_code": null,
    "harness_internal": false,
-   "line": 39,
+   "line": 30,
    "output": {
     "sha256": "8fe790b82848fa46a5110bb9c31e623209fdb3a8a04c9e56453706694bebc305",
     "chars": 23
    }
+  },
+  {
+   "turn": 2,
+   "harness": "claude-code",
+   "kind": "log",
+   "role": null,
+   "server": null,
+   "name": "user_prompt",
+   "exit_code": null,
+   "harness_internal": false,
+   "line": 5,
+   "input": {
+    "session.id": "c359c1a8-8784-4ab2-9b3c-87da38944bd5",
+    "terminal.type": "non-interactive",
+    "event.name": "user_prompt",
+    "event.timestamp": "2026-10-07T05:37:24.727Z",
+    "event.sequence": 46,
+    "prompt.id": "e24ce64a-98ba-47da-9dfe-639245d3004b",
+    "prompt_length": "23",
+    "prompt": "Where is my order 9999?",
+    "prompt_text": "Where is my order 9999?",
+    "message.uuid": "1353280f-d972-4adc-93ee-5b7d8d03316a"
+   },
+   "output": "claude_code.user_prompt",
+   "error": null
   },
   {
    "turn": 2,
@@ -287,11 +408,69 @@
    "name": "lookup_order",
    "exit_code": null,
    "harness_internal": false,
-   "line": 43,
+   "line": 33,
    "input": {
     "order": "9999"
    },
    "output": null,
+   "error": "{\"error\": \"no such order\"}"
+  },
+  {
+   "turn": 2,
+   "harness": "claude-code",
+   "kind": "log",
+   "role": null,
+   "server": null,
+   "name": "tool_decision",
+   "exit_code": null,
+   "harness_internal": false,
+   "line": 6,
+   "input": {
+    "session.id": "c359c1a8-8784-4ab2-9b3c-87da38944bd5",
+    "terminal.type": "non-interactive",
+    "event.name": "tool_decision",
+    "event.timestamp": "2026-10-07T05:37:26.047Z",
+    "event.sequence": 47,
+    "prompt.id": "e24ce64a-98ba-47da-9dfe-639245d3004b",
+    "decision": "accept",
+    "source": "config",
+    "tool_name": "mcp_tool",
+    "tool_use_id": "toolu_01ETG4q9gr5A5ZWkGAj3DKea",
+    "tool_source": "mcp",
+    "tool_parameters": "{\"mcp_server_name\":\"shop\",\"mcp_tool_name\":\"lookup_order\"}"
+   },
+   "output": "claude_code.tool_decision",
+   "error": null
+  },
+  {
+   "turn": 2,
+   "harness": "claude-code",
+   "kind": "log",
+   "role": null,
+   "server": null,
+   "name": "tool_result",
+   "exit_code": null,
+   "harness_internal": false,
+   "line": 7,
+   "input": {
+    "session.id": "c359c1a8-8784-4ab2-9b3c-87da38944bd5",
+    "terminal.type": "non-interactive",
+    "event.name": "tool_result",
+    "event.timestamp": "2026-10-07T05:37:26.052Z",
+    "event.sequence": 49,
+    "prompt.id": "e24ce64a-98ba-47da-9dfe-639245d3004b",
+    "tool_name": "mcp_tool",
+    "tool_use_id": "toolu_01ETG4q9gr5A5ZWkGAj3DKea",
+    "success": "false",
+    "duration_ms": "4",
+    "error_type": "McpToolCallError",
+    "error": "{\"error\": \"no such order\"}",
+    "tool_parameters": "{\"mcp_server_name\":\"shop\",\"mcp_tool_name\":\"lookup_order\"}",
+    "tool_input": "{\"order\":\"9999\"}",
+    "tool_input_size_bytes": "16",
+    "mcp_server_scope": "dynamic"
+   },
+   "output": "claude_code.tool_result",
    "error": "{\"error\": \"no such order\"}"
   },
   {
@@ -303,11 +482,38 @@
    "name": null,
    "exit_code": null,
    "harness_internal": false,
-   "line": 47,
+   "line": 36,
    "output": {
     "sha256": "91a54ca6a6394c9748e168bb0f802508669527c30a9281901a64215204719c38",
     "chars": 40
    }
+  },
+  {
+   "turn": 2,
+   "harness": "claude-code",
+   "kind": "log",
+   "role": null,
+   "server": null,
+   "name": "assistant_response",
+   "exit_code": null,
+   "harness_internal": false,
+   "line": 8,
+   "input": {
+    "session.id": "c359c1a8-8784-4ab2-9b3c-87da38944bd5",
+    "terminal.type": "non-interactive",
+    "event.name": "assistant_response",
+    "event.timestamp": "2026-10-07T05:37:27.537Z",
+    "event.sequence": 51,
+    "prompt.id": "e24ce64a-98ba-47da-9dfe-639245d3004b",
+    "response_length": 40,
+    "response": "Order 9999 does not exist in our system.",
+    "request_id": "req_011CfnLU435XknsHq8j55gTy",
+    "message.uuid": "48b4da69-ab50-4139-ae7a-9025931e616e",
+    "model": "claude-haiku-4-5-20251001",
+    "query_source": "sdk"
+   },
+   "output": "claude_code.assistant_response",
+   "error": null
   },
   {
    "turn": 2,
@@ -364,11 +570,36 @@
    "name": null,
    "exit_code": null,
    "harness_internal": false,
-   "line": 50,
+   "line": 39,
    "output": {
     "sha256": "95d6c9735a5aa1e3865403d5caf01f5437f46885524f34529b5cdc303a3cd1c1",
     "chars": 23
    }
+  },
+  {
+   "turn": 3,
+   "harness": "claude-code",
+   "kind": "log",
+   "role": null,
+   "server": null,
+   "name": "user_prompt",
+   "exit_code": null,
+   "harness_internal": false,
+   "line": 9,
+   "input": {
+    "session.id": "c359c1a8-8784-4ab2-9b3c-87da38944bd5",
+    "terminal.type": "non-interactive",
+    "event.name": "user_prompt",
+    "event.timestamp": "2026-10-07T05:37:33.870Z",
+    "event.sequence": 52,
+    "prompt.id": "186935f1-0d3f-4072-bf24-1c7e9062cac1",
+    "prompt_length": "23",
+    "prompt": "Is the teapot in stock?",
+    "prompt_text": "Is the teapot in stock?",
+    "message.uuid": "1116c937-d881-471e-8804-4cfcb27aeb0f"
+   },
+   "output": "claude_code.user_prompt",
+   "error": null
   },
   {
    "turn": 3,
@@ -379,11 +610,38 @@
    "name": null,
    "exit_code": null,
    "harness_internal": false,
-   "line": 54,
+   "line": 42,
    "output": {
-    "sha256": "b826defffa20814ddb0c0e555c4f8e11532c6258b9d194ac4a029b4750798549",
-    "chars": 79
+    "sha256": "61ceb39f0e499ca6eedd961973e33c1288362328aee3ab2cec0c925c05c9d4f3",
+    "chars": 89
    }
+  },
+  {
+   "turn": 3,
+   "harness": "claude-code",
+   "kind": "log",
+   "role": null,
+   "server": null,
+   "name": "assistant_response",
+   "exit_code": null,
+   "harness_internal": false,
+   "line": 10,
+   "input": {
+    "session.id": "c359c1a8-8784-4ab2-9b3c-87da38944bd5",
+    "terminal.type": "non-interactive",
+    "event.name": "assistant_response",
+    "event.timestamp": "2026-10-07T05:37:35.951Z",
+    "event.sequence": 54,
+    "prompt.id": "186935f1-0d3f-4072-bf24-1c7e9062cac1",
+    "response_length": 89,
+    "response": "I can only look up orders by number—contact the shop directly to check product inventory.",
+    "request_id": "req_011CfnLUdTErBwCVsVR9JqGD",
+    "message.uuid": "0331ff11-1cb7-45cf-b87a-eaf8758a670f",
+    "model": "claude-haiku-4-5-20251001",
+    "query_source": "sdk"
+   },
+   "output": "claude_code.assistant_response",
+   "error": null
   },
   {
    "turn": 3,
@@ -440,11 +698,36 @@
    "name": null,
    "exit_code": null,
    "harness_internal": false,
-   "line": 57,
+   "line": 45,
    "output": {
     "sha256": "b02c321f0b34584cafd4220bb2b571f0c7ba70a2722a01d1cb2a48fbdffc76cf",
     "chars": 19
    }
+  },
+  {
+   "turn": 4,
+   "harness": "claude-code",
+   "kind": "log",
+   "role": null,
+   "server": null,
+   "name": "user_prompt",
+   "exit_code": null,
+   "harness_internal": false,
+   "line": 11,
+   "input": {
+    "session.id": "c359c1a8-8784-4ab2-9b3c-87da38944bd5",
+    "terminal.type": "non-interactive",
+    "event.name": "user_prompt",
+    "event.timestamp": "2026-10-07T05:37:42.873Z",
+    "event.sequence": 55,
+    "prompt.id": "09e79f8b-c45d-49b7-a276-9353e85c7e2b",
+    "prompt_length": "19",
+    "prompt": "Can I return a mug?",
+    "prompt_text": "Can I return a mug?",
+    "message.uuid": "4e85ba43-1bc3-4b67-a58d-a1f005c62e64"
+   },
+   "output": "claude_code.user_prompt",
+   "error": null
   },
   {
    "turn": 4,
@@ -455,11 +738,38 @@
    "name": null,
    "exit_code": null,
    "harness_internal": false,
-   "line": 61,
+   "line": 48,
    "output": {
-    "sha256": "3a703ea084aa45f7c2bb2a2a193542ecaceee876d4a7b134570998e7c44e42bc",
-    "chars": 78
+    "sha256": "d74ebebe15a58d4228326e8dade7a4dd44347c4ba7fe8ae8718797b300d842a8",
+    "chars": 74
    }
+  },
+  {
+   "turn": 4,
+   "harness": "claude-code",
+   "kind": "log",
+   "role": null,
+   "server": null,
+   "name": "assistant_response",
+   "exit_code": null,
+   "harness_internal": false,
+   "line": 12,
+   "input": {
+    "session.id": "c359c1a8-8784-4ab2-9b3c-87da38944bd5",
+    "terminal.type": "non-interactive",
+    "event.name": "assistant_response",
+    "event.timestamp": "2026-10-07T05:37:44.508Z",
+    "event.sequence": 57,
+    "prompt.id": "09e79f8b-c45d-49b7-a276-9353e85c7e2b",
+    "response_length": 74,
+    "response": "I can only look up orders—contact the shop directly about return policies.",
+    "request_id": "req_011CfnLVJ9Qphy6sTosNoZfg",
+    "message.uuid": "babdcd42-536d-4e55-bc3e-7a29eafd8435",
+    "model": "claude-haiku-4-5-20251001",
+    "query_source": "sdk"
+   },
+   "output": "claude_code.assistant_response",
+   "error": null
   },
   {
    "turn": 4,
@@ -505,8 +815,8 @@
    "harness_internal": false,
    "line": 64,
    "output": {
-    "sha256": "7a0b144cf7be14419b453161895f3a15d69e910d1282b8c796eae1eecd0c6016",
-    "chars": 89
+    "sha256": "5f1c179d2c800eac3b461b5cb47eb4b55593945c7151983c255c390ef191f420",
+    "chars": 97
    }
   }
  ],

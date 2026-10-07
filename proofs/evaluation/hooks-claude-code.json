@@ -1,10 +1,10 @@
 {
- "date": "2026-10-05",
+ "date": "2026-10-06",
  "relay": "hooks-claude-code",
- "version": "2.1.288 (Claude Code)",
+ "version": "2.1.290 (Claude Code)",
  "answers": {
   "memory_sha256": "c627c09c14e58e44bc51622dac392958ec88244e414b508020634f53cfcd1e69",
-  "read": "Your order code is **ZX-4471-Q**.\n\nThe `verbatim-relay transcript` output shows it in turn 1 of the latest session, in your tester block:\n\n```\nMy order code is ZX-4471-Q.  \n```\n\nThe line ends with two spaces. The agent's reply quoted the same text, and the two trailing spaces are in it too.\n\nThis code came from the relay transcript. You did not send it to me in this conversation."
+  "read": "The order code is `ZX-4471-Q`. It comes from turn 1, where the tester wrote \"My order code is ZX-4471-Q.\" The agent sent the same text back."
  },
  "audit_exit": 0,
  "turns": 2,

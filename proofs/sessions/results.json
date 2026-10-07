@@ -4,7 +4,7 @@
   "verbatim-relay": "0.1.0",
   "claude-code": "2.1.290 (Claude Code)",
   "codex": "codex-cli 0.160.0",
-  "claude-agent-sdk": "0.2.163"
+  "claude-agent-sdk": "0.2.164"
  },
  "check_passed": true,
  "sessions": [
