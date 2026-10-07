@@ -9,12 +9,14 @@ decision.
 
 from __future__ import annotations
 
+import codecs
 import json
 from collections.abc import Mapping
 from typing import Any
 from urllib.parse import urlsplit
 
 from . import backend
+from .adapters import StreamError, sse_events
 
 FILE = "model_api.jsonl"
 # The API name: the variable of its SDK and the URL if the entry has no value in the variable.
@@ -65,22 +67,47 @@ def harness(headers: list[tuple[str, str]]) -> str | None:
     return next((h for start, h in HARNESS_AGENTS if agent.startswith(start)), None)
 
 
-def events(data: bytes) -> list[str]:
-    """The data of each event of an SSE stream."""
-    out = []
-    text = data.decode("utf-8", errors="replace").replace("\r\n", "\n").replace("\r", "\n")
-    for block in text.split("\n\n"):
-        lines = [x[5:].removeprefix(" ") for x in block.split("\n") if x.startswith("data:")]
-        if lines:
-            out.append("\n".join(lines))
-    return out
-
-
 def _json(text: str) -> Any:
     try:
         return json.loads(text)
     except ValueError:
         return None
+
+
+def _error(data: Any) -> str | None:
+    error = data.get("error") if isinstance(data, dict) else None
+    if isinstance(error, dict):
+        return str(error.get("message") or error.get("type") or error)
+    return str(error) if error else None
+
+
+def events(data: bytes, out: dict[str, Any]) -> list[Any]:
+    """The JSON data of each event of an SSE stream, or None for data that is not JSON.
+
+    The parser is the strict parser of the tap (`adapters.sse_events`, SPEC.md section 4.1). A
+    stream that stopped can end in the middle of a UTF-8 character, so the parser ignores an
+    incomplete character at the end. If other bytes are not UTF-8, the result gets the error of
+    the parser and no events. An event with the name `error` sets the error of the result.
+    """
+    decoder = codecs.getincrementaldecoder("utf-8")()
+    try:
+        # Without final=True, the decoder keeps an incomplete character at the end for later.
+        decoder.decode(data)
+        data = data[: len(data) - len(decoder.getstate()[0])]
+    except UnicodeDecodeError:
+        pass  # sse_events refuses the body below, and its error goes into the result.
+    try:
+        found = sse_events(data)
+    except StreamError as e:
+        out["error"] = str(e)
+        return []
+    parsed = []
+    for name, text in found:
+        value = _json(text)
+        if name == "error":
+            out["error"] = _error(value) or text
+        parsed.append(value)
+    return parsed
 
 
 def _dict(value: Any) -> dict[str, Any]:
@@ -117,13 +144,6 @@ def _anthropic_content(out: dict[str, Any], content: Any) -> None:
             out["tool_calls"].append(call)
 
 
-def _error(data: Any) -> str | None:
-    error = data.get("error") if isinstance(data, dict) else None
-    if isinstance(error, dict):
-        return str(error.get("message") or error.get("type") or error)
-    return str(error) if error else None
-
-
 def anthropic(data: bytes, stream: bool) -> dict[str, Any]:
     """The result of a call to the Anthropic Messages API."""
     out = _empty()
@@ -137,8 +157,7 @@ def anthropic(data: bytes, stream: bool) -> dict[str, Any]:
         _anthropic_content(out, body.get("content"))
         return out
     blocks: dict[int, dict[str, Any]] = {}
-    for text in events(data):
-        event = _json(text)
+    for event in events(data, out):
         if not isinstance(event, dict):
             continue
         kind = event.get("type")
@@ -194,8 +213,7 @@ def openai(data: bytes, stream: bool) -> dict[str, Any]:
             )
         return out
     calls: dict[int, dict[str, Any]] = {}
-    for text in events(data):
-        chunk = _json(text)
+    for chunk in events(data, out):
         if not isinstance(chunk, dict):
             continue
         out["model"] = chunk.get("model") or out["model"]
@@ -274,8 +292,7 @@ def responses(data: bytes, stream: bool) -> dict[str, Any]:
     # The output items by their output_index. The deltas add to an item, and the last
     # response.output_item.done event replaces it.
     items: dict[int, dict[str, Any]] = {}
-    for text in events(data):
-        event = _json(text)
+    for event in events(data, out):
         if not isinstance(event, dict):
             continue
         kind = event.get("type")

@@ -37,7 +37,8 @@ def sse_events(body: bytes) -> list[tuple[str, str]]:
 
     The rules are those of the WHATWG HTML standard: a blank line ends an event, a line that starts
     with a colon is a comment, and an event without a data line is not an event. The last event
-    does not need a blank line after it.
+    does not need a blank line after it. The `openai` adapter and the model API proxies
+    (`model_api.events`) use this one parser.
     """
     try:
         text = body.decode("utf-8").removeprefix("﻿")
