@@ -47,9 +47,9 @@ The Agent SDK runs its own bundled Claude Code. The `claude-code` version in the
 |---|---|---|---|
 | Claude Code 2.1.292, bundled in Claude Agent SDK 0.2.164 | 10 | 2/2 | [results](../proofs/trace/results.json) |
 | Claude Code 2.1.286, bundled in Claude Agent SDK 0.2.163 (earlier run) | 11 | 2/2 | [results](../proofs/trace/results-2.1.286.json) |
-| codex-cli 0.160.0, app-server | 12 | 4/4 | [results](../proofs/trace/results.json) |
+| codex-cli 0.160.0, app-server | 13 | 4/4 | [results](../proofs/trace/results.json) |
 
-The findings are 2 `tool_error` (order 9999, one in each harness), 1 `command_failed` (`cat returns.txt`) and 1 `session_inferred` (the Codex session). The results keep no model text: each message shows only its SHA-256 and its length.
+In the 2.1.292 run, the findings are 2 `tool_error` (order 9999, one in each harness), 2 `command_failed` (`cat returns.txt`, and an `rg` search for that file by the Codex model) and 1 `session_inferred` (the Codex session). The results keep no model text: each message shows only its SHA-256 and its length. Each OpenTelemetry log of the harness, which holds the prompt and the answer, shows only its attribute names and the SHA-256 and length of its values.
 
 ### Backend calls
 

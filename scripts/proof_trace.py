@@ -61,16 +61,40 @@ def found(items: list[dict], harness, turn, kind, name, args, result) -> bool:
     return False
 
 
+def digest(value: object) -> dict | None:
+    """The SHA-256 and the length of a value, in place of its text."""
+    if value is None:
+        return None
+    if isinstance(value, str):
+        text = value
+    else:
+        text = json.dumps(value, sort_keys=True, ensure_ascii=False)
+    return {"sha256": hashlib.sha256(text.encode()).hexdigest(), "chars": len(text)}
+
+
 def public(it: dict) -> dict:
-    """A trace row without model text."""
+    """A trace row without model text.
+
+    A message keeps only a digest of its text. A tool call and a command keep their input and
+    output, which come from the toy tools. Any other item, for example an OpenTelemetry log of the
+    harness with the prompt and the answer, keeps only its attribute names and digests.
+    """
     out = {k: it[k] for k in ("turn", "harness", "kind", "role", "server", "name", "exit_code")}
     out |= {"harness_internal": it["harness_internal"], "line": it["source"]["line"]}
     if it["kind"] == "message":
-        text = it["output"] or ""
-        out["output"] = {"sha256": hashlib.sha256(text.encode()).hexdigest(), "chars": len(text)}
-    else:
+        out["output"] = digest(it["output"] or "")
+    elif it["kind"] in ("tool_call", "command"):
         out |= {"input": it["input"], "output": it["output"], "error": it["error"]}
+    else:
+        keys = sorted(it["input"]) if isinstance(it["input"], dict) else None
+        out |= {"input_keys": keys, "input": digest(it["input"])}
+        out |= {"output": digest(it["output"]), "error": digest(it["error"])}
     return out
+
+
+def scrub(text: str) -> str:
+    """The text without the local paths of this machine. A model command can name them."""
+    return text.replace(str(ROOT), "<repo>").replace(str(Path.home()), "~")
 
 
 def main() -> int:
@@ -120,7 +144,8 @@ def main() -> int:
         and findings["counts"]["version_untested"] == 0
     )
     out.mkdir(parents=True, exist_ok=True)
-    (out / "results.json").write_text(json.dumps(report, indent=1, ensure_ascii=False) + "\n")
+    text = json.dumps(report, indent=1, ensure_ascii=False) + "\n"
+    (out / "results.json").write_text(scrub(text))
     print("PASS" if report["pass"] else "FAIL", out / "results.json")
     return 0 if report["pass"] else 1
 
