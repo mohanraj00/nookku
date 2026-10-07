@@ -96,6 +96,8 @@ Switch relay mode on or off. With an entry, `on` starts a test and `off` ends it
 
 Print each relayed turn. This is the display of the hook kit. With an entry, it shows the turns of the latest test, and it follows to the next test.
 
+If the relay record has an invalid line, `view` shows the error with the file and the line on stderr. Without `--no-follow`, it shows the error one time and continues to wait. When the record changes and is valid, it shows the next turns. With `--no-follow`, it stops with exit code 2.
+
 | Flag | Default | Meaning |
 |---|---|---|
 | `--root PATH` | the current folder | The project. |
@@ -105,7 +107,7 @@ Print each relayed turn. This is the display of the hook kit. With an entry, it 
 | Exit code | Meaning |
 |---|---|
 | 0 | The view stopped. |
-| 2 | The config cannot be read. |
+| 2 | The config cannot be read. With `--no-follow`: the relay record is missing or invalid. |
 
 ### `verbatim-relay transcript`
 

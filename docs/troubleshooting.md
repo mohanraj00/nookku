@@ -148,6 +148,12 @@ First, look in the test folder `.verbatim-relay/tests/<test-id>/`. `bridge.log` 
 
 **Fix.** Send text only ([#6](https://github.com/mohanraj00/verbatim-relay/issues/6)).
 
+### `verbatim-relay: the record is invalid: <path>: line <n>: <reason>. Do not trust this record. The view shows the next turns when the record changes and is valid.`
+
+(kit.py) **Cause.** `verbatim-relay view` read a relay record with an invalid line. A line changed after the writer wrote it, or another program wrote it. The view shows this error one time and continues to wait. With `--no-follow`, it shows `verbatim-relay: <path>: line <n>: <reason>` and exits with 2.
+
+**Fix.** Do not edit a record. Find the program that wrote the line. After the end of the test, run `verbatim-relay verify` to see which files changed.
+
 ### Each message reaches the agent two times
 
 **Cause.** The plugin and the hook kit both run in the project. The audit shows `duplicate_send` breaks.
