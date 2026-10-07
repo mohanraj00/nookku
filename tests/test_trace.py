@@ -120,3 +120,25 @@ def test_a_decisions_request_keeps_no_image_data(tmp_path: Path) -> None:
     }
     assert items[1]["input"]["answers"] == []
     assert "dG95" not in json.dumps(items)
+
+
+def test_a_lone_surrogate_in_a_source_is_written_as_its_escape(tmp_path: Path) -> None:
+    (tmp_path / "manifest.json").write_text(json.dumps({"test": "t", "model_sessions": []}))
+    request = {"messages": [{"role": "user", "content": "a mug \udc00"}]}
+    row = {
+        "v": 1,
+        "type": "call",
+        "api": "openai",
+        "path": "/v1/chat/completions",
+        "started": 4.0,
+        "ts": 5.0,
+        "request_body": {"text": json.dumps(request), "cut": False},
+        "status": 200,
+        "error": None,
+        "result": {"model": "gpt-toy", "text": "mug \ud83d", "tool_calls": []},
+    }
+    # json.dumps escapes each lone surrogate, so the file is valid UTF-8.
+    (tmp_path / "model_api.jsonl").write_text(json.dumps(row) + "\n", encoding="utf-8")
+    trace.build(tmp_path)
+    outputs = [it["output"] for it in rows(tmp_path / "trace.jsonl")]
+    assert outputs == ["a mug \\udc00", "mug \\ud83d"]

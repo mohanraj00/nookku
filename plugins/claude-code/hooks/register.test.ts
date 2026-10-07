@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { contractBody, contractShown, denyPattern, entryNames, isChecked, namesEntry, pick, readsOnly, requestBody, sha256, toolReadsOnly, touchesRecords, touchesTestFiles } from './core'
+import { contractBody, contractShown, denyPattern, entryNames, isChecked, loneSurrogate, namesEntry, pick, readsOnly, requestBody, sha256, toolReadsOnly, touchesRecords, touchesTestFiles } from './core'
 
 const TRICKY = 'Hi, I want to return order #4471.  \n\nÜnïcödé € ₹\t| a | b |\n'
 const REPLY = '## Toy shop  \nYou wrote it.\n\n| item | price |\n|---|---|\n| mug | € 8 |\n'
@@ -55,6 +55,18 @@ test('relay mode sends the exact bytes, shows the exact reply, and keeps the mod
   expect(row).toMatchObject({ v: '0.2', type: 'turn', harness: 'claude-code', said: TRICKY, shown: REPLY, ok: true, session: 's1' })
   expect(row.said_sha256).toBe(await sha256(TRICKY))
   expect(row.shown_sha256).toBe(await sha256(REPLY))
+})
+
+test('relay mode refuses a prompt with a lone surrogate and records no turn', { options: OPTIONS }, async ($, on) => {
+  const f = fakes(on, () => ({ status: 200, text: JSON.stringify({ reply: REPLY }) }))
+  const result: any = await $.prompt.submit({ text: 'a \uD83D\uDE00 mug \uD83D' })
+  expect(result.drop).toBe('verbatim-relay: nothing was sent')
+  expect(f.sent.length).toBe(0)
+  expect(f.logs).toEqual(['verbatim-relay: nothing was sent. The message has a lone surrogate U+D83D at character 8.'])
+  expect(f.files['/virtual/relay.jsonl']).toBe(undefined)
+  // The same text as record.lone_surrogate in Python.
+  expect(loneSurrogate('mug \uDC00')).toBe('a lone surrogate U+DC00 at character 4')
+  expect(loneSurrogate('a \uD83D\uDE00 mug')).toBe(null)
 })
 
 test('relay mode off passes the prompt on', { options: { ...OPTIONS, start_on: false } }, async ($, on) => {

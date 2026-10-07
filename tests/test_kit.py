@@ -87,6 +87,24 @@ def test_a_broken_config_blocks_in_relay_mode(tmp_path):
     assert "config is broken" in kit.handle(prompt("hi"), tmp_path, "codex")["reason"]
 
 
+def test_a_prompt_with_a_lone_surrogate_is_refused_and_not_recorded(setup):
+    root, tap_rec, agent = setup
+    kit.set_mode(root, True)
+    # The harness sends the prompt as JSON, which can escape a lone surrogate.
+    event = '{"hook_event_name": "UserPromptSubmit", "prompt": "a \\ud83d\\ude00 mug \\ud83d"}'
+    out = io.StringIO()
+    assert kit.run_hook(root, "codex", io.StringIO(event), out) == 0
+    answer = json.loads(out.getvalue())
+    assert answer == {
+        "decision": "block",
+        "reason": "verbatim-relay: nothing was sent. "
+        "The message has a lone surrogate U+D83D at character 8.",
+    }
+    assert agent.received == []
+    assert not record(root).exists()
+    assert not tap_rec.exists()
+
+
 @pytest.mark.parametrize("on", [True, False])
 def test_a_crash_blocks_only_in_relay_mode(tmp_path, on):
     kit.set_mode(tmp_path, on)
