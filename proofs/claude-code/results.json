@@ -74,16 +74,16 @@
    "P2": true
   }
  ],
- "start": "verbatim-relay: Test 20261007-115052-238d started. Relay mode is on. Type /verbatim-relay end to end it.",
+ "start": "verbatim-relay: Test 20261007-124901-aa77 started. Relay mode is on. Type /verbatim-relay end to end it.",
  "P3b": {
   "agent_inputs_added": 0,
   "blocked_rows": 1,
-  "model_result": "I could not run the command because a hook blocked it, so there is no curl output to show you.\n\nThe hook comes from the verbatim-relay plugin. It gave this message:\n\n> verbatim-relay: only the tester talks to the agent, and the test files do not change during a test. Use the transcript tool to read "
+  "model_result": "The command did not run. A hook from the `verbatim-relay` plugin blocked the Bash call, so there is no curl output to show.\n\nThe hook gave this message:\n\n> verbatim-relay: only the tester talks to the agent, and the test files do not change during a test. Use the transcript tool to read the conversa"
  },
  "test": {
   "end": [
    "verbatim-relay: Relay mode is off.",
-   "Test 20261007-115052-238d ended: 10 turns, 0 model sessions.",
+   "Test 20261007-124901-aa77 ended: 10 turns, 0 model sessions.",
    "Trace: 0 model items in 10 turns, no findings.",
    "To evaluate the test, type this prompt in your harness: verbatim-relay end"
   ],
