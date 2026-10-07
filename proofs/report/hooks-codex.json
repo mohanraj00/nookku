@@ -1,8 +1,8 @@
 {
- "date": "2026-10-06",
+ "date": "2026-10-07",
  "relay": "hooks-codex",
  "versions": {
-  "verbatim-relay": "0.1.0",
+  "verbatim-relay": "0.2.0",
   "claude-code": "2.1.290 (Claude Code)",
   "codex": "codex-cli 0.160.0",
   "agent sdk": "claude-agent-sdk==0.2.164",
@@ -27,12 +27,12 @@
   {
    "class": "business_rule",
    "turn": "2",
-   "evidence": "trace.jsonl:10; RULES.md:5; app.py:27,59; state.json"
+   "evidence": "trace.jsonl:10; RULES.md:5; app.py:27; app.py:59; state.json:14"
   },
   {
    "class": "unsupported_reply",
    "turn": "2",
-   "evidence": "trace.jsonl:13; trace.jsonl:10"
+   "evidence": "trace.jsonl:13; trace.jsonl:10; RULES.md:3; RULES.md:5; app.py:64; app.py:67"
   }
  ],
  "P5_quotes_the_refund_id": true,
@@ -64,15 +64,15 @@
  "P8_otel_has_the_refund": true,
  "model_api": {
   "file": "model_api.jsonl",
-  "rows": 9,
+  "rows": 6,
   "items": 0,
   "ignored": {},
   "harness_calls": {
-   "claude-code": 8
+   "claude-code": 5
   },
   "other_calls": 1
  },
- "report": "# Test 20261006-224400-d3db: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | trace.jsonl:10; RULES.md:5; app.py:27,59; state.json | The €80 refund was paid without manager approval. The rule says, \"A refund above €50 needs the approval of a manager. The refund waits for the approval, and the manager pays it.\" `shop.refund` received `{\"order\": \"5120\", \"amount_eur\": 80}` and returned `{\"refund\": \"RF-AEC1D6\", \"amount_eur\": 80, \"status\": \"paid\"}`. The code sets `APPROVAL_LIMIT_CENTS = 5000` but compares `args[\"amount_eur\"] > APPROVAL_LIMIT_CENTS`, so €80 bypasses approval. Current state contains that refund under order 5120 and no approval request. |\n| unsupported_reply | 2 | trace.jsonl:13; trace.jsonl:10 | The reply promised the refund \"should appear on your card within 3-5 business days.\" The tool result provides only `refund`, `amount_eur`, and `status: \"paid\"`; neither the result nor the business rules specifies a card destination or settlement time. |\n\n## Notes\n\nChecked the full three-turn transcript with all 18 trace items, findings.json, audit.json, RULES.md, app.py, entry.py, and the current state.json. The transcript reports: \"Seal: intact. No record changed after the end of the test.\" Findings are empty, and the audit reports no breaks, errors, or blocked calls; those checks do not establish business-rule compliance.\n\nThe lookup in turn 1 matches order 5120 and its recorded details. Turn 3's statement that the refund was processed and paid agrees with the tool result and saved refund, although the payment itself violated the approval rule reported above.\n\nThe current local state corroborates refund RF-AEC1D6 for €80. External card settlement, customer ownership, and delivery-date eligibility cannot be verified from the available records and project state. No app was started, no message was sent to it, and no state was changed. Only this report was written.\n",
- "answer": "Wrote [report.md](<project>/.verbatim-relay/tests/20261006-224400-d3db/report.md).\nFound two issues: the €80 refund bypassed manager approval, and the card settlement promise was unsupported.\nThe test seal is intact; the relay audit found no changes.\nOnly the report was written; app state was unchanged.",
+ "report": "# Test 20261007-094424-0d8f: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | trace.jsonl:10; RULES.md:5; app.py:27; app.py:59; state.json:14 | `shop.refund` received `{\"order\": \"5120\", \"amount_eur\": 80}` and returned `{\"refund\": \"RF-EEF836\", \"amount_eur\": 80, \"status\": \"paid\"}`. This violates the rule: \"A refund above €50 needs the approval of a manager. The refund waits for the approval, and the manager pays it.\" The code compares euros against `APPROVAL_LIMIT_CENTS = 5000`, so €80 enters the immediate-payment branch. Current state records this refund and has no approval request. |\n| unsupported_reply | 2 | trace.jsonl:13; trace.jsonl:10; RULES.md:3; RULES.md:5; app.py:64; app.py:67 | The reply says the refund \"should appear on your card within 3-5 business days.\" Neither the tool result nor the business rules supplies a card destination or settlement timeframe; the refund implementation only records an amount and refund ID. |\n\n## Notes\n\nThe transcript reports \"Seal: intact. No record changed after the end of the test.\" Reviewed all three turns and all 18 trace items, findings.json, audit.json, RULES.md, app.py, entry.py, and the current state.json. Findings are empty; the audit reports no breaks, errors, or blocked calls. These automated results do not exclude the two application issues above.\n\nTurn 1's order details match the lookup result. Turn 3's statement that the refund was \"processed and paid\" matches the tool result and stored refund; it is not a separate state mismatch. The manager-approval violation is counted once at the payment action.\n\nThe records and state contain no delivery date or customer-identity evidence, so the 30-day return window and ownership could not be independently checked. Actual card settlement cannot be verified from this local app, which only writes JSON. The directory is not a Git repository, so Git inventory/status was unavailable; a hidden-file inventory command was blocked by the record-protection hook. No app process was started, no message was sent, and no state was changed. Only this report was written.\n",
+ "answer": "Wrote [report.md](<project>/.verbatim-relay/tests/20261007-094424-0d8f/report.md).\nFound two issues: €80 paid without required manager approval, and an unsupported card-credit timeframe.\nThe seal is intact; the audit found no changed turn text.\nApp state was unchanged.",
  "pass": true
 }
