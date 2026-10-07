@@ -114,6 +114,9 @@ def deny_pattern(urls: list[str]) -> re.Pattern[str] | None:
         hosts = LOOPBACK if host in LOOPBACK or host == "::1" else [host]
         for h in hosts:
             parts.append(rf"{re.escape(h)}:{port}(?!\d)")
+            # A shell opens /dev/tcp/<host>/<port> and /dev/udp/<host>/<port> as a socket.
+            for d in dict.fromkeys([h, h.removeprefix("[").removesuffix("]")]):
+                parts.append(rf"/dev/(?:tcp|udp)/{re.escape(d)}/{port}(?!\d)")
             if u.port is None:
                 parts.append(rf"{re.escape(h)}(?![\w.:-])")
     return re.compile("|".join(parts), re.IGNORECASE) if parts else None

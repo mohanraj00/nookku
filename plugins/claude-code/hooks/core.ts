@@ -114,6 +114,10 @@ export function denyPattern(urls: readonly string[]): RegExp | null {
     const hosts = LOOPBACK.includes(url.hostname) || url.hostname === '[::1]' ? LOOPBACK : [url.hostname]
     for (const host of hosts) {
       parts.push(`${escape(host)}:${port}(?!\\d)`)
+      // A shell opens /dev/tcp/<host>/<port> and /dev/udp/<host>/<port> as a socket.
+      for (const d of new Set([host, host.replace(/^\[(.*)\]$/, '$1')])) {
+        parts.push(`/dev/(?:tcp|udp)/${escape(d)}/${port}(?!\\d)`)
+      }
       if (!url.port) parts.push(`${escape(host)}(?![\\w.:-])`)
     }
   }

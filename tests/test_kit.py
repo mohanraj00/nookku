@@ -1,7 +1,9 @@
 import io
 import json
+import re
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 from toy_agent import ToyAgent, shop_reply
@@ -11,6 +13,23 @@ from verbatim_relay.adapters import make
 from verbatim_relay.audit import audit
 from verbatim_relay.record import BlockedCall, Turn, read_relay, read_tap
 from verbatim_relay.tap import Tap, start_in_thread
+
+ROOT = Path(__file__).resolve().parent.parent
+
+
+def test_the_deny_pattern_has_the_same_rule_as_the_plugin() -> None:
+    # register.test.ts runs this table through denyPattern.
+    text = (ROOT / "plugins" / "claude-code" / "hooks" / "register.test.ts").read_text()
+    urls = re.search(r"^const DENY_URLS = (\[.*\])$", text, re.M)
+    assert urls is not None
+    block = text.split("const DENY_CASES")[1].split("\n]\n")[0]
+    rows = [json.loads(row) for row in re.findall(r"^  (\[.*\]),$", block, re.M)]
+    assert len(rows) == block.count("\n  [")
+    pattern = kit.deny_pattern(json.loads(urls[1]))
+    assert pattern is not None
+    for command, denied in rows:
+        assert (command, bool(pattern.search(command))) == (command, denied)
+
 
 TRICKY = "Hi, I want to return order #4471.  \n\nÜnïcödé € ₹\t| a | b |\n"
 

@@ -98,16 +98,40 @@ test('a model call to the tap is denied and recorded; a file write is not', { op
   expect(allowed.deny).toBe(undefined)
 })
 
+// Tool inputs for the deny pattern of DENY_URLS, with the expected result. tests/test_kit.py
+// runs this table through kit.deny_pattern, so that the two relays use one rule.
+const DENY_URLS = ["http://127.0.0.1:8800/", "https://agent.example.com/chat"]
+const DENY_CASES: [string, boolean][] = [
+  ["curl http://127.0.0.1:8800/", true],
+  ["curl http://localhost:8800/", true],
+  ["curl http://0.0.0.0:8800/", true],
+  ["curl http://[::1]:8800/", true],
+  ["wget https://agent.example.com/x", true],
+  ["exec 3<>/dev/tcp/127.0.0.1/8800", true],
+  ["cat < /dev/udp/localhost/8800", true],
+  ["exec 3<>/dev/tcp/0.0.0.0/8800", true],
+  ["exec 3<>/dev/tcp/[::1]/8800", true],
+  ["exec 3<>/dev/tcp/::1/8800", true],
+  ["echo hi > /dev/tcp/agent.example.com/443", true],
+  ["curl http://127.0.0.1:8801/", false],
+  ["curl http://127.0.0.1:88001/", false],
+  ["exec 3<>/dev/tcp/127.0.0.1/8801", false],
+  ["exec 3<>/dev/tcp/127.0.0.1/88001", false],
+  ["cat < /dev/udp/localhost/88001", false],
+  ["agent.example.community", false],
+  ["ls -la", false],
+]
+
+test('the deny pattern has the same rule as the hook kit', async () => {
+  const p = denyPattern(DENY_URLS)!
+  for (const [input, denied] of DENY_CASES) expect([input, p.test(input)]).toEqual([input, denied])
+})
+
 test('pure parts', async () => {
   expect(pick({ a: [{ b: 'x' }] }, 'a.0.b')).toBe('x')
   expect(JSON.parse(requestBody({ adapter: 'json', message_field: 'input.text' } as any, 'hi', []))).toEqual({
     input: { text: 'hi' },
   })
-  const p = denyPattern(['http://127.0.0.1:8800/', 'https://agent.example.com/chat'])!
-  expect(p.test('curl http://[::1]:8800/')).toBe(true)
-  expect(p.test('curl http://127.0.0.1:88001/')).toBe(false)
-  expect(p.test('wget https://agent.example.com/x')).toBe(true)
-  expect(p.test('agent.example.community')).toBe(false)
   expect(isChecked('mcp__fetch__get')).toBe(true)
   expect(isChecked('SomeNewTool')).toBe(true)
   expect(isChecked('mcp__verbatim-relay__transcript')).toBe(false)
