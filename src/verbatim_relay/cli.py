@@ -42,7 +42,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--cmd", action="store_true", help="stdio mode: start the COMMAND after -- as the agent"
     )
     tap.add_argument("--log", type=Path, help="stdio mode: the agent's stderr (default app.log)")
-    tap.add_argument("--timeout", type=float, default=stdio.TIMEOUT, help="stdio mode: seconds")
+    tap.add_argument(
+        "--timeout", type=float, default=stdio.TIMEOUT, help="seconds to wait for the agent"
+    )
     tap.add_argument("--record", required=True, type=Path, help="the tap record (JSONL) to append")
     tap.add_argument(
         "--listen",
@@ -145,7 +147,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             stdio.serve(stdio.StdioTap(args.listen, agent, args.record))
             return 0
         adapter = make(args.adapter, args.message_field, args.reply_field)
-        serve(Tap(args.listen, args.agent, args.record, adapter))
+        serve(Tap(args.listen, args.agent, args.record, adapter, timeout=args.timeout))
         return 0
     if args.command == "setup":
         print(resources.files("verbatim_relay").joinpath("setup.md").read_text(encoding="utf-8"))
