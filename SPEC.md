@@ -226,7 +226,7 @@ A test runs the entry from `start` to `end`. A new conversation is a new test: e
 | `evaluate` | boolean | Optional. `false` stops the evaluation at the end of a test (section 9). The default is `true`. |
 | `otel` | boolean | Optional. `false` stops the OTLP receiver of a test (section 7.5). The default is `true`. |
 | `backends` | list of objects | Optional. The backends of the app, each with the strings `name`, `env` and `url` (section 7.6). Each `name` and each `env` is used only once. |
-| `model_api` | boolean or list of strings | Optional. The model APIs to record (section 7.7): `true` for all, `false` for none, or a list of `anthropic` and `openai`. The default is `true`. A backend must not use the variable of a recorded model API. |
+| `model_api` | boolean, list or object | Optional. The model APIs to record (section 7.7): `true` for all, `false` for none, a list of `anthropic` and `openai`, or an object from these names to the upstream URL of the API or `null`. The default is `true`. A backend must not use the variable of a recorded model API. |
 
 `verbatim-relay check` runs a short test with one message. It passes if the entry sends a reply, and if the tap identifies at least one model session and finds its session file for each harness in `models`.
 
@@ -367,7 +367,7 @@ An app can call a model API directly with an SDK, with no harness session. Durin
 | `anthropic` | `ANTHROPIC_BASE_URL` | `https://api.anthropic.com` |
 | `openai` | `OPENAI_BASE_URL` | `https://api.openai.com/v1` |
 
-The proxy forwards to the value that the bridge has in the variable, else to the URL of the table. It gives the entry the URL of the proxy in the variable. A value that is not an `http` or `https` URL stops the start of the test.
+The proxy forwards to the URL that `model_api` gives for the API, else to the value that the bridge has in the variable, else to the URL of the table. A URL in `model_api` is necessary if the tester's harness also reads the variable, for example Codex and `OPENAI_BASE_URL`. It gives the entry the URL of the proxy in the variable. A value that is not an `http` or `https` URL stops the start of the test.
 
 - The proxy forwards each request as a backend proxy does (section 7.6).
 - It sends each part of the response to the app when the part comes, also for a streamed (SSE) response. It sends the status and the headers first. If the API gives no `Content-Length`, the proxy sends the body to the app with `Transfer-Encoding: chunked`.

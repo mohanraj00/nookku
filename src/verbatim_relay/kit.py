@@ -72,8 +72,8 @@ class Config:
     otel: bool = True
     # The backend proxies of a test (SPEC.md section 7.6).
     backends: list[dict[str, str]] = field(default_factory=list)
-    # The model APIs to record: true, false or a list of names (SPEC.md section 7.7).
-    model_api: bool | list[str] = True
+    # The model APIs to record: true, false, a list of names, or names with URLs (SPEC.md 7.7).
+    model_api: bool | list[str] | dict[str, str | None] = True
 
     @classmethod
     def load(cls, root: Path) -> Config:

@@ -24,7 +24,7 @@ def rows(tmp_path: Path) -> list[dict]:
 
 def proxy_for(model: ModelServer, tmp_path: Path, api: str = "anthropic") -> backend.Proxies:
     env = model_api.APIS[api][0]
-    apis = model_api.backends([api], {env: model.url})
+    apis = model_api.backends({api: None}, {env: model.url})
     return backend.Proxies(apis, tmp_path / model_api.FILE, model_api.ModelProxy)
 
 
@@ -171,16 +171,24 @@ def test_a_harness_call_keeps_no_text(tmp_path: Path) -> None:
 
 
 def test_the_config_and_the_urls() -> None:
-    assert model_api.parse(None) == ["anthropic", "openai"]
-    assert model_api.parse(True) == ["anthropic", "openai"]
-    assert model_api.parse(False) == []
-    assert model_api.parse(["openai"]) == ["openai"]
-    with pytest.raises(ValueError, match="true, false or a list"):
-        model_api.parse(["toy"])
-    urls = model_api.backends(["anthropic", "openai"], {"OPENAI_BASE_URL": "https://gw.test/v1/"})
+    assert model_api.parse(None) == {"anthropic": None, "openai": None}
+    assert model_api.parse(True) == {"anthropic": None, "openai": None}
+    assert model_api.parse(False) == {}
+    assert model_api.parse(["openai"]) == {"openai": None}
+    assert model_api.parse({"openai": "http://127.0.0.1:9/v1"}) == {
+        "openai": "http://127.0.0.1:9/v1"
+    }
+    for bad in (["toy"], {"toy": None}, {"openai": 9}):
+        with pytest.raises(ValueError, match="true, false, a list"):
+            model_api.parse(bad)
+    apis = {"anthropic": None, "openai": None}
+    urls = model_api.backends(apis, {"OPENAI_BASE_URL": "https://gw.test/v1/"})
     assert [(b.env, b.url) for b in urls] == [
         ("ANTHROPIC_BASE_URL", "https://api.anthropic.com"),
         ("OPENAI_BASE_URL", "https://gw.test/v1"),
     ]
+    # A URL in the configuration comes before the variable.
+    urls = model_api.backends({"openai": "http://127.0.0.1:9/v1"}, {"OPENAI_BASE_URL": "https://x"})
+    assert urls[0].url == "http://127.0.0.1:9/v1"
     with pytest.raises(ValueError, match="ANTHROPIC_BASE_URL"):
-        model_api.backends(["anthropic"], {"ANTHROPIC_BASE_URL": "ftp://x"})
+        model_api.backends({"anthropic": None}, {"ANTHROPIC_BASE_URL": "ftp://x"})

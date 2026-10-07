@@ -1,0 +1,105 @@
+{
+ "date": "2026-10-06",
+ "relay": "plugin",
+ "versions": {
+  "verbatim-relay": "0.1.0",
+  "claude-code": "2.1.290 (Claude Code)",
+  "codex": "codex-cli 0.160.0",
+  "agent sdk": "claude-agent-sdk==0.2.163",
+  "session files": {
+   "claude-code": "2.1.286"
+  }
+ },
+ "turns": 3,
+ "audit_exit": 0,
+ "items_by_turn": [
+  {
+   "turn": 1,
+   "session": 3,
+   "backend": 1,
+   "model_api": 2
+  },
+  {
+   "turn": 2,
+   "session": 3,
+   "backend": 2,
+   "model_api": 2
+  },
+  {
+   "turn": 3,
+   "session": 3,
+   "backend": 1,
+   "model_api": 2
+  }
+ ],
+ "T1_each_turn_has_3_sources": true,
+ "reserve_calls": [
+  {
+   "line": 15,
+   "turn": 2
+  },
+  {
+   "line": 16,
+   "turn": 2
+  }
+ ],
+ "reserve_calls_in_turn_2": 2,
+ "reservations_in_stock": 2,
+ "report_written": true,
+ "issues": [
+  {
+   "class": "business_rule",
+   "turn": "2",
+   "evidence": "trace.jsonl:15, trace.jsonl:16, services.py:46-52"
+  },
+  {
+   "class": "state_mismatch",
+   "turn": "2",
+   "evidence": "trace.jsonl:13, trace.jsonl:18, stock.json"
+  },
+  {
+   "class": "state_mismatch",
+   "turn": "3",
+   "evidence": "trace.jsonl:24, trace.jsonl:28"
+  }
+ ],
+ "T2_cites_a_reserve_call": true,
+ "P5_quotes_a_reservation_id": true,
+ "P5_quotes_a_reply": true,
+ "commands_outside_project": null,
+ "seal": {
+  "sealed": true,
+  "intact": true,
+  "changed": [],
+  "missing": [],
+  "added": [],
+  "copy": "same"
+ },
+ "P7_records_unchanged": true,
+ "backend": {
+  "file": "backend.jsonl",
+  "rows": 4,
+  "items": 4,
+  "ignored": {}
+ },
+ "model_api": {
+  "file": "model_api.jsonl",
+  "rows": 11,
+  "items": 6,
+  "ignored": {},
+  "harness_calls": {
+   "claude-code": 7
+  },
+  "other_calls": 1
+ },
+ "otel": {
+  "file": "otel.jsonl",
+  "rows": 12,
+  "items": 12,
+  "ignored": {}
+ },
+ "counts": {},
+ "report": "# Test 20261006-181513-07fc: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | trace.jsonl:15, trace.jsonl:16, services.py:46-52 | RULES.md rule 3 says a reservation holds only the items that the customer asked for. The customer asked for 1. `reserve` sent `POST /reserve` two times, and both got status 200: `RS-ACF295` (left 2) and `RS-BA6578` (left 1). The loop in `services.py` retries after a success, so the service held 2 items for order 6210. |\n| state_mismatch | 2 | trace.jsonl:13, trace.jsonl:18, stock.json | The tool result showed only `{\"reservation\": \"RS-BA6578\", \"qty\": 1}`. The reply said \"I've reserved 1 teapot set ... RS-BA6578\". The stock service holds 2 reservations for order 6210 (`RS-ACF295` and `RS-BA6578`). The reply hides the first one, which breaks rule 4. |\n| state_mismatch | 3 | trace.jsonl:24, trace.jsonl:28 | The stock was 3 before and 1 after. The reply said \"We now have 1 teapot set remaining in stock after your reservation.\" The number agrees with the tool, but it is wrong for one reservation (it should be 2). The reply shows the double reservation as normal. |\n\n## Notes\n\n- Seal: intact. `findings.json` has no findings. `audit.json` has no breaks.\n- I read the trace for the 3 turns, `RULES.md`, `services.py`, `stock.py`, `stock.json` and `state.json`. I made no state change.\n- Root cause: `services.py:46-52`. The loop always runs 2 times, even after status 200. The stock service has no idempotency check on the order and SKU. The shop tool then returns the last answer only.\n- Turns 1 and 3: `check_stock` got the correct SKU and the replies agree with the results. No issue found.\n- The case-note calls (`model_api`) agree with the turns. `state.json` shows order 6210 still \"waiting for stock\". No rule requires a change there, so I do not report it.\n- I could not check the shop tool wrapper (`entry.py`, `app.py`) in depth. The backend trace is enough to show the cause.\n",
+ "answer": "I found one real bug, and the report is written to `report.md` in the test folder. The seal is intact, and `findings.json` and `audit.json` show no problems.\n\n- **Turn 2, `business_rule`:** The customer asked for 1 teapot set, but the stock service held 2 (`RS-ACF295` and `RS-BA6578`). The cause is `services.py:46-52`. The `reserve` function retries two times, even after a successful answer.\n- **Turn 2, `state_mismatch`:** The reply named only `RS-BA6578`, and it hid the first reservation.\n- **Turn 3, `state_mismatch`:** The reply said \"1 remaining after your reservation\". Stock went from 3 to 1, so it should be 2 after one reservation.\n- Turn 1 had no issue.",
+ "pass": true
+}

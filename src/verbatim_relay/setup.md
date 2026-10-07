@@ -57,7 +57,7 @@ Write the test keys into `.verbatim-relay/config.json`. Keep the other keys of t
 - `entry` is the command as a list of arguments. It runs in the project root. Use the app's own interpreter or virtual environment.
 - `models` lists the harnesses from step 1.3.
 - `backends` lists the backends from step 1.4: `{"name": "stock", "env": "STOCK_URL", "url": "<the real URL>"}`. During a test, the app gets the URL of a recording proxy in `env`. If the app reads the URL from a file and not from the environment, the entry gives the app the URL from `env`, for example with a copy of the app's configuration for the test. Do not change the app's own files.
-- `model_api` is `true` by default: the app gets the URL of a recording proxy in `ANTHROPIC_BASE_URL` and `OPENAI_BASE_URL`. If the app gives its SDK a fixed URL, the entry gives the SDK the URL from the variable, as for a backend. If the app uses Codex with a ChatGPT login, set `"model_api": ["anthropic"]`.
+- `model_api` is `true` by default: the app gets the URL of a recording proxy in `ANTHROPIC_BASE_URL` and `OPENAI_BASE_URL`. If the app gives its SDK a fixed URL, the entry gives the SDK the URL from the variable, as for a backend. If the app uses Codex with a ChatGPT login, set `"model_api": ["anthropic"]`. If the tester's harness reads the same variable as the app, give the app's URL in the config: `"model_api": {"openai": "<the app's URL>"}`.
 
 ## 4. Check
 

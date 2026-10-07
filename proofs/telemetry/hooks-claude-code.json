@@ -1,0 +1,105 @@
+{
+ "date": "2026-10-06",
+ "relay": "hooks-claude-code",
+ "versions": {
+  "verbatim-relay": "0.1.0",
+  "claude-code": "2.1.290 (Claude Code)",
+  "codex": "codex-cli 0.160.0",
+  "agent sdk": "claude-agent-sdk==0.2.163",
+  "session files": {
+   "claude-code": "2.1.286"
+  }
+ },
+ "turns": 3,
+ "audit_exit": 0,
+ "items_by_turn": [
+  {
+   "turn": 1,
+   "session": 3,
+   "backend": 1,
+   "model_api": 2
+  },
+  {
+   "turn": 2,
+   "session": 3,
+   "backend": 2,
+   "model_api": 2
+  },
+  {
+   "turn": 3,
+   "session": 3,
+   "backend": 1,
+   "model_api": 2
+  }
+ ],
+ "T1_each_turn_has_3_sources": true,
+ "reserve_calls": [
+  {
+   "line": 15,
+   "turn": 2
+  },
+  {
+   "line": 16,
+   "turn": 2
+  }
+ ],
+ "reserve_calls_in_turn_2": 2,
+ "reservations_in_stock": 2,
+ "report_written": true,
+ "issues": [
+  {
+   "class": "business_rule",
+   "turn": "2",
+   "evidence": "trace.jsonl:15, trace.jsonl:16, services.py:44-49, RULES.md rule 3"
+  },
+  {
+   "class": "state_mismatch",
+   "turn": "2",
+   "evidence": "trace.jsonl:13, trace.jsonl:18"
+  },
+  {
+   "class": "state_mismatch",
+   "turn": "3",
+   "evidence": "trace.jsonl:24, trace.jsonl:28, trace.jsonl:5"
+  }
+ ],
+ "T2_cites_a_reserve_call": true,
+ "P5_quotes_a_reservation_id": true,
+ "P5_quotes_a_reply": true,
+ "commands_outside_project": null,
+ "seal": {
+  "sealed": true,
+  "intact": true,
+  "changed": [],
+  "missing": [],
+  "added": [],
+  "copy": "same"
+ },
+ "P7_records_unchanged": true,
+ "backend": {
+  "file": "backend.jsonl",
+  "rows": 4,
+  "items": 4,
+  "ignored": {}
+ },
+ "model_api": {
+  "file": "model_api.jsonl",
+  "rows": 13,
+  "items": 6,
+  "ignored": {},
+  "harness_calls": {
+   "claude-code": 9
+  },
+  "other_calls": 1
+ },
+ "otel": {
+  "file": "otel.jsonl",
+  "rows": 12,
+  "items": 12,
+  "ignored": {}
+ },
+ "counts": {},
+ "report": "# Test 20261006-181606-7197: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | trace.jsonl:15, trace.jsonl:16, services.py:44-49, RULES.md rule 3 | The tester asked for 1 item. The agent made one `reserve` tool call, but the stock service got two `POST /reserve` requests with `\"qty\": 1`. Both returned status 200 (`RS-FDBBD2`, `left: 2`, then `RS-BEA099`, `left: 1`). The `for _ in range(2)` loop in `services.reserve` does not stop after a success. The result is 2 items held, and rule 3 says a reservation holds \"no more\" than the customer asked for. |\n| state_mismatch | 2 | trace.jsonl:13, trace.jsonl:18 | The tool result and the reply show one reservation, `RS-BEA099`, for qty 1. The backend holds two (`RS-FDBBD2` and `RS-BEA099`). The reply \"I've reserved 1 teapot set ... under reservation number RS-BEA099\" does not agree with the real state. `app.py:72` drops the `left` count and hides the second reservation. |\n| state_mismatch | 3 | trace.jsonl:24, trace.jsonl:28, trace.jsonl:5 | Stock was 3 at turn 1 and 1 at turn 3. One reserved item cannot explain this change. The reply says \"only 1 unit left in stock after your reservation\" and does not mention the 2-unit drop. The agent does not report the extra reservation `RS-FDBBD2`, which breaks rule 4 (tell the customer the number of items reserved). |\n\n## Notes\n\n- Seal intact. `findings.json` has no findings. `audit.json` has no breaks, errors or blocked calls.\n- I read the transcript with trace, `RULES.md`, `app.py`, `services.py`, `stock.py` and `state.json`. I did not start the app or change any state.\n- Cause: `services.py:44-49` sends the request a second time after a 200 answer. The comment says the retry is for lost requests, but the code has no `break` on success. Fix: stop the loop after the first status 200.\n- Turn 1 is correct. `check_stock` got `teapot-set` and returned `left: 3`. The words \"running low\" and \"recommend ordering soon\" have no rule support, but they are minor and I did not list them as an issue.\n- The `model_api` \"Case note\" calls send the conversation to an outside model. I found no rule against this, so I did not list it.\n- I did not check the live stock file, because the service state is not in the project files that I read.\n",
+ "answer": "I wrote the report. The test found 3 issues, all from one bug.\n\n- **Bug:** In turn 2 the agent made one `reserve` call. The stock service got two POSTs, so 2 items were held, not 1. The cause is the retry loop in `services.py:44-49`, which does not stop after a success.\n- **Reply mismatch:** The agent reported only `RS-BEA099`. It did not report `RS-FDBBD2`, so it broke rule 3 and rule 4. In turn 3 it said stock fell to 1 \"after your reservation\", but the drop was from 3 to 1.\n- **Not checked:** I did not read the live stock file. I did not start the app.\n\nThe report is at `.verbatim-relay/tests/20261006-181606-7197/report.md`.",
+ "pass": true
+}
