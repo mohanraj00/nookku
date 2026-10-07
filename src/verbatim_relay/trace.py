@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from . import backend, model_api, otlp
-from .record import VERSION, read_rows
+from .record import VERSION, json_text, read_rows
 
 # The version of a trace row. 0.3 adds the kinds span and log, and the field service.
 TRACE_VERSION = "0.3"
@@ -722,7 +722,7 @@ def build(folder: Path) -> dict[str, Any]:
     items.sort(key=lambda it: it["ts"] if it["ts"] is not None else float("inf"))
     assign(items, spans)
     findings = check(exchanges, spans, items, sessions, servers)
-    lines = [json.dumps(it, ensure_ascii=False) + "\n" for it in items]
+    lines = [json_text(it) + "\n" for it in items]
     (folder / "trace.jsonl").write_text("".join(lines), encoding="utf-8")
     counts = Counter(f["check"] for f in findings)
     report = {
@@ -737,9 +737,10 @@ def build(folder: Path) -> dict[str, Any]:
         "counts": {c: counts[c] for c in CHECKS},
         "findings": findings,
     }
-    text = json.dumps(report, indent=1, ensure_ascii=False) + "\n"
+    text = json_text(report, indent=1) + "\n"
     (folder / "findings.json").write_text(text, encoding="utf-8")
-    return report
+    # The caller prints the report, so it gets the escaped text of findings.json.
+    return dict(json.loads(text))
 
 
 def summary(report: dict[str, Any]) -> str:

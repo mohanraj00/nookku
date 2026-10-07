@@ -21,6 +21,8 @@ Each string in a row, as a field name or as a value, holds only Unicode scalar v
 
 Each record has one reader with one rule: `record.read_rows` in Python, and `relayTurns` in the plugin for the relay record. The reader checks each line with the rules of section 3.1 (`record_invalid`). If a line is not valid, or a hash does not match its text, the reader stops with an error that names the file and the line. It never skips a line. The audit, the relays, the end of a test, the trace (section 8) and the transcript with the trace (section 9.2) use this reader. If a record file does not exist, the audit stops with `record_missing`. The relays, the end of a test, the trace and the transcript with the trace read a file that does not exist as a record with no rows.
 
+The relays refuse a message with a lone surrogate (section 5). The other writers do not write a relayed message or reply: the OTLP receiver (section 7.5), the backend proxies (section 7.6), the model API proxies (section 7.7) and the trace (section 8). If a string that one of these writers writes has a lone surrogate, the writer writes its escape text in its place. The escape text is a backslash, `u` and 4 lowercase hex digits. For example, U+D83D becomes the 6 characters `\ud83d`, which JSON writes as `"\\ud83d"`. Thus a write never fails on a lone surrogate.
+
 ### 2.1 Tap record
 
 `exchange`: one request that the adapter parsed, and its response.
@@ -210,6 +212,7 @@ A relay is the Claude Code plugin or the hook kit. The hook kit uses the classic
 
 - **Relay mode.** If relay mode is on, each prompt that the tester submits goes to the tap, and the model does not receive it. If relay mode is off, the relay does nothing to prompts. If an entry is configured, `start` switches relay mode on and `end` switches it off (section 7). `on` and `off` are aliases of `start` and `end`.
 - **Control prompts.** With an entry, a relay never relays the exact prompts `verbatim-relay start`, `verbatim-relay end` and `verbatim-relay status`, also in relay mode. It runs the command and blocks the prompt. There is one exception: if `verbatim-relay end` leaves a test to evaluate (section 9), the relay lets the prompt go to the model, with the evaluation prompt added as context. The plugin also has the `/verbatim-relay` command, which never starts an evaluation.
+- **Lone surrogate.** If relay mode is on and the message has a lone surrogate (section 2), the relay does not send it and writes no turn. It stops the prompt from reaching the model, and it shows the tester the code point and its character number, for example "verbatim-relay: nothing was sent. The message has a lone surrogate U+D83D at character 21." The character number counts code points from 0. The relay never changes the message.
 - **Fail closed.** If relay mode is on and the relay cannot send the message, it still stops the prompt from reaching the model. It shows the error to the tester and writes the error as `shown` with `ok: false`.
 - **Display.** The plugin shows the reply as a transcript row that the model does not receive. The hook kit writes the relay record, and `verbatim-relay view` prints each turn from it.
 - **Streams.** If the tap response is a stream (section 4.1), the relay reads the complete body and joins the reply with the rules of the adapter. It shows the reply only when the stream is complete. It does not show the parts. If the stream failed, the relay shows the error and writes it as `shown` with `ok: false`.
@@ -381,7 +384,7 @@ The config key `otel: false` stops the receiver and these variables.
 
 The receiver takes `POST /v1/traces` and `POST /v1/logs` with `application/json` or `application/x-protobuf`, also with `Content-Encoding: gzip`. It reads the protobuf messages of opentelemetry-proto v1, and skips the fields that it does not know. It answers `POST /v1/metrics` with 200 and drops the body. It answers other paths with 404, and a body that it cannot read with 400.
 
-The receiver writes `otel.jsonl` in the test folder: one JSON object on each line, in the order of the requests.
+The receiver writes `otel.jsonl` in the test folder: one JSON object on each line, in the order of the requests. It writes each lone surrogate in a string as its escape text (section 2).
 
 - **`span`**: `v` (`1`), `type`, `received` (Unix time), `service` (the `service.name` of the resource), `resource` (its attributes), `scope` (the scope name), `trace_id`, `span_id` and `parent_span_id` (lowercase hex, or `null`), `name`, `start` and `end` (Unix time), `attributes`, `events` (each with `time`, `name` and `attributes`), and `status` (`code`: 0 unset, 1 ok, 2 error; `message`).
 - **`log`**: `v`, `type`, `received`, `service`, `resource`, `scope`, `time` (the record time, or the observed time if the record time is 0), `event_name` (the `event.name` attribute, or the `eventName` field), `severity`, `body`, `attributes`, `trace_id` and `span_id`.
@@ -427,7 +430,7 @@ Before it writes a row, the proxy removes the secret values. A header name or a 
 - The rule reads the name after it decodes `+` and the `%` escapes, for example `api%5Fkey`. The record keeps the name as it came.
 - A parameter with no `=` stays as it came.
 
-The secret headers and the full query still go to the backend, and the secret headers go to the app. The proxy does not change the bodies in the record.
+The secret headers and the full query still go to the backend, and the secret headers go to the app. The proxy does not change the bodies in the record. It writes each lone surrogate in a string of a row as its escape text (section 2). The bytes that it forwards do not change.
 
 ### 7.7 Model API proxies
 
@@ -442,6 +445,7 @@ The proxy forwards to the URL that `model_api` gives for the API, else to the va
 
 - The proxy forwards each request as a backend proxy does (section 7.6).
 - It removes the values of secret headers and secret query parameters from the row as a backend proxy does (section 7.6).
+- It writes each lone surrogate in a string of a row as its escape text, as a backend proxy does. For example, a JSON response can escape a lone surrogate in the text of `result`.
 - It sends each part of the response to the app when the part comes, also for a streamed (SSE) response. It sends the status and the headers first. If the API gives no `Content-Length`, the proxy sends the body to the app with `Transfer-Encoding: chunked`.
 - If the API stops during the body, also before the end that its `Content-Length` gives, the row gets the error `the stream stopped: <reason>`, and the proxy closes the connection to the app. If the app goes away, the proxy reads the rest of the response for the record.
 - At the end of the test, the proxy waits for open calls as a backend proxy does.
@@ -496,7 +500,7 @@ The trace reads `tap.jsonl`, `sessions/`, `otel.jsonl`, `backend.jsonl` and `mod
 
 ### 8.2 Trace record
 
-`trace.jsonl` is a UTF-8 JSONL file, sorted by `ts`. Each line is a `model_item` row (0.3). Each row has all of these fields:
+`trace.jsonl` is a UTF-8 JSONL file, sorted by `ts`. The trace writes each lone surrogate in a string of `trace.jsonl` and `findings.json` as its escape text (section 2). A harness session file can have one. Each line is a `model_item` row (0.3). Each row has all of these fields:
 
 | Field | Type | Meaning |
 |---|---|---|

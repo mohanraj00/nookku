@@ -18,7 +18,14 @@ from urllib.parse import urlsplit
 
 from verbatim_relay import bridge, commands, evaluation, seal
 from verbatim_relay.adapters import AdapterError, History, StreamError, is_stream, make
-from verbatim_relay.record import RecordError, Turn, Writer, lone_surrogate, read_relay
+from verbatim_relay.record import (
+    RecordError,
+    Turn,
+    Writer,
+    escape_surrogates,
+    lone_surrogate,
+    read_relay,
+)
 
 STATE_DIR = bridge.STATE_DIR
 TIMEOUT = 280
@@ -245,6 +252,10 @@ def handle(event: dict[str, Any], root: Path, harness: str) -> dict[str, Any] | 
             return _block(f"verbatim-relay: relay mode is on, but the config is broken: {e}")
         if not isinstance(said, str):
             return _block("verbatim-relay: the hook input has no prompt text. Nothing was sent.")
+        found = lone_surrogate(said)
+        if found:
+            # A relayed message is never changed, so the kit refuses it (SPEC.md section 5).
+            return _block(f"verbatim-relay: nothing was sent. The message has {found}.")
         if config.entry:
             cur = bridge.current(root)
             if cur is None:
@@ -340,10 +351,7 @@ def touches_records(text: str) -> bool:
 def _deny(
     record: Path, harness: str, tool: str, text: str, reason: str = DENY_REASON
 ) -> dict[str, Any]:
-    detail = text[:300]
-    if lone_surrogate(detail):
-        # A record text holds only Unicode scalar values (SPEC.md section 2).
-        detail = detail.encode("utf-8", "backslashreplace").decode("utf-8")
+    detail = escape_surrogates(text[:300])
     try:
         record.parent.mkdir(parents=True, exist_ok=True)
         Writer(record).append(

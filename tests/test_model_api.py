@@ -283,3 +283,19 @@ def test_the_config_and_the_urls() -> None:
     # An empty URL in the configuration stops the start. It does not fall back to the variable.
     with pytest.raises(ValueError, match="OPENAI_BASE_URL"):
         model_api.backends({"openai": ""}, {"OPENAI_BASE_URL": "https://x"})
+
+
+def test_a_lone_surrogate_in_a_result_is_written_as_its_escape(tmp_path: Path) -> None:
+    answer = {"model": "gpt-toy", "choices": [{"message": {"content": "3 mugs \ud83d left"}}]}
+    sent = json.dumps(answer).encode()
+    with ModelServer() as model:
+        model.parts = [sent]
+        model.content_type = "application/json"
+        proxies = proxy_for(model, tmp_path, "openai")
+        env = proxies.start()
+        try:
+            status, got = post(env["OPENAI_BASE_URL"], "/chat/completions", b"{}", {})
+        finally:
+            proxies.stop()
+    assert status == 200 and got == sent
+    assert rows(tmp_path)[0]["result"]["text"] == "3 mugs \\ud83d left"
