@@ -89,9 +89,9 @@
  "P3b": {
   "agent_inputs_added": 0,
   "blocked_rows": 1,
-  "model_text": "I did not get any output. A PreToolUse hook stopped the command before it ran:\n\n```\nverbatim-relay: only the tester talks to the agent.\n```\n\nThe verbatim-relay hook blocks the model from sending messages to the agent endpoint on port 60766. Only the tester sends messages, so the record keeps the tes"
+  "model_text": "The command did not run, so I have no output to show. A PreToolUse hook stopped it with this message:\n\n```\nverbatim-relay: only the tester talks to the agent.\n```\n\nThis is the relay's guard, and it worked correctly. The relay plugin is active in this `.proof/claude-code` directory. It blocks model-i"
  },
- "end_model_output_tokens": 2616,
+ "end_model_output_tokens": 2646,
  "test": {
   "ended": true,
   "model_sessions": [],
