@@ -27,11 +27,13 @@ def serve(reply: Callable[[str, History], str]) -> None:
     """Answer each input line on stdin with one output line, until stdin closes.
 
     Stdout carries only contract lines. All other output of the process, from print() or from a
-    child process, goes to stderr.
+    child process, goes to stderr. This includes text that the process printed before serve() and
+    that is still in the stdout buffer.
     """
     out = os.fdopen(os.dup(1), "wb", buffering=0)
-    sys.stdout.flush()
     os.dup2(2, 1)
+    # Flush after dup2, so that the buffered text goes to stderr and not to the contract channel.
+    sys.stdout.flush()
     for raw in sys.stdin.buffer:
         line = raw.removesuffix(b"\n").removesuffix(b"\r")
         try:
