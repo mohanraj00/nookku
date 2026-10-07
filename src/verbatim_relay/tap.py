@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import http.client
 import json
+import socket
 import sys
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -13,6 +15,7 @@ from urllib.parse import urlsplit
 
 from verbatim_relay.adapters import Adapter, AdapterError, StreamError, is_stream
 from verbatim_relay.record import Writer, lone_surrogate
+from verbatim_relay.stdio import TIMEOUT
 
 HOP_BY_HOP = {
     "connection",
@@ -26,25 +29,39 @@ HOP_BY_HOP = {
 }
 NOT_FORWARDED = HOP_BY_HOP | {"host", "accept-encoding", "content-length"}
 NOT_RETURNED = HOP_BY_HOP | {"content-length"}
-TIMEOUT = 300
 
 
 class Tap(ThreadingHTTPServer):
     daemon_threads = True
 
-    def __init__(self, listen: tuple[str, int], agent: str, record: Path, adapter: Adapter) -> None:
+    def __init__(
+        self,
+        listen: tuple[str, int],
+        agent: str,
+        record: Path,
+        adapter: Adapter,
+        timeout: float = TIMEOUT,
+    ) -> None:
         parts = urlsplit(agent)
         if parts.scheme not in ("http", "https") or not parts.hostname:
             raise ValueError(f"the agent URL must be http or https: {agent!r}")
         self.scheme, self.agent_host = parts.scheme, parts.hostname
         self.agent_port = parts.port or (443 if parts.scheme == "https" else 80)
         self.base_path = parts.path.rstrip("/")
-        self.writer, self.adapter = Writer(record), adapter
+        self.writer, self.adapter, self.timeout = Writer(record), adapter, timeout
         super().__init__(listen, _Handler)
 
     def connect(self) -> http.client.HTTPConnection:
         cls = http.client.HTTPSConnection if self.scheme == "https" else http.client.HTTPConnection
-        return cls(self.agent_host, self.agent_port, timeout=TIMEOUT)
+        return cls(self.agent_host, self.agent_port, timeout=self.timeout)
+
+
+def _expire(conn: http.client.HTTPConnection, expired: threading.Event) -> None:
+    """Stop a read from the agent at the deadline. The read then fails or returns early."""
+    expired.set()
+    if conn.sock is not None:
+        with contextlib.suppress(OSError):
+            conn.sock.shutdown(socket.SHUT_RDWR)
 
 
 class _Handler(BaseHTTPRequestHandler):
@@ -88,15 +105,26 @@ class _Handler(BaseHTTPRequestHandler):
         headers = {k: v for k, v in self.headers.items() if k.lower() not in NOT_FORWARDED}
         headers["Accept-Encoding"] = "identity"
         conn = tap.connect()
+        # The socket timeout starts again after each read. This timer gives one deadline for the
+        # whole response, so an agent that sends a byte at a time still gets a 504.
+        expired = threading.Event()
+        timer = threading.Timer(tap.timeout or TIMEOUT, _expire, (conn, expired))
+        timer.daemon = True
+        timer.start()
         try:
             conn.request(method, tap.base_path + path, body=body if body else None, headers=headers)
             resp = conn.getresponse()
             status, out_headers = resp.status, resp.getheaders()
             if is_stream(resp.getheader("Content-Type")) and method != "HEAD":
-                self._stream(resp, recorded, message, parse_error)
+                self._stream(resp, recorded, message, parse_error, expired)
                 return
             out = resp.read()
+            if expired.is_set():
+                raise TimeoutError
         except (OSError, http.client.HTTPException) as e:
+            # After the agent timeout, the tap answers 504 before the relay timeout (SPEC.md 4.3).
+            late = isinstance(e, TimeoutError) or expired.is_set()
+            why = f"the agent sent no response in {tap.timeout:g} s" if late else None
             if message is not None:
                 tap.writer.append(
                     {
@@ -104,7 +132,7 @@ class _Handler(BaseHTTPRequestHandler):
                         "input": message,
                         "status": None,
                         "reply": None,
-                        "error": f"agent unreachable: {e}",
+                        "error": why or f"agent unreachable: {e}",
                     }
                 )
             elif recorded:
@@ -116,9 +144,13 @@ class _Handler(BaseHTTPRequestHandler):
                         "error": parse_error or "unknown",
                     }
                 )
-            self._error(502, f"verbatim-relay tap: the agent is unreachable: {e}")
+            if why:
+                self._error(504, f"verbatim-relay tap: {why}")
+            else:
+                self._error(502, f"verbatim-relay tap: the agent is unreachable: {e}")
             return
         finally:
+            timer.cancel()
             conn.close()
 
         if recorded:
@@ -180,6 +212,7 @@ class _Handler(BaseHTTPRequestHandler):
         recorded: bool,
         message: str | None,
         parse_error: str | None,
+        expired: threading.Event,
     ) -> None:
         """Send each part of an SSE response to the caller when it comes (SPEC.md section 4.1).
 
@@ -220,7 +253,10 @@ class _Handler(BaseHTTPRequestHandler):
                     self.wfile.flush()
                 except OSError:
                     caller = False
-        if failure is None and length is not None and resp.length:
+        if expired.is_set():
+            # The deadline of the tap stopped the read, so the stream is not complete (SPEC.md 4.3).
+            failure = f"the agent sent no full response in {self.server.timeout:g} s"
+        elif failure is None and length is not None and resp.length:
             # read1 gives b"" at an early end of a body with a Content-Length. It does not raise.
             failure = f"the stream from the agent stopped after {len(raw)} of {length} bytes"
         if recorded:
