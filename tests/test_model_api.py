@@ -146,13 +146,15 @@ def test_the_api_key_goes_to_the_api_but_not_the_record(tmp_path: Path) -> None:
         env = proxies.start()
         try:
             headers = {"x-api-key": "sk-toy-k3y", "Authorization": "Bearer t0k3n"}
-            post(env["ANTHROPIC_BASE_URL"], "/v1/messages", b"{}", headers)
+            post(env["ANTHROPIC_BASE_URL"], "/v1/messages?beta=true&key=q-k3y", b"{}", headers)
         finally:
             proxies.stop()
     assert ("x-api-key", "sk-toy-k3y") in model.seen[0]["headers"]
     assert ("Authorization", "Bearer t0k3n") in model.seen[0]["headers"]
+    assert model.seen[0]["path"] == "/v1/messages?beta=true&key=q-k3y"
     text = (tmp_path / model_api.FILE).read_text()
     assert "k3y" not in text and "t0k3n" not in text
+    assert rows(tmp_path)[0]["query"] == "beta=true&key="
 
 
 def test_a_harness_call_keeps_no_text(tmp_path: Path) -> None:

@@ -370,13 +370,20 @@ The proxy writes one row to `backend.jsonl` for each call:
 | `v`, `type` | `1`, `"call"` |
 | `backend` | The `name` of the backend. |
 | `started`, `ts` | The Unix times when the request came and when the call ended. |
-| `method`, `path`, `query` | The request line from the app. `query` is `null` if the path has no `?`. |
+| `method`, `path`, `query` | The request line from the app. `query` is `null` if the path has no `?`. The proxy removes the values of secret query parameters from `query` (see below). |
 | `request_headers`, `response_headers` | The headers as a list of `[name, value]`, in their order. `response_headers` is `null` if the backend did not answer. |
 | `request_body`, `response_body` | An object: `size`, `sha256` (of the bytes), `cut`, and `text` (UTF-8) or `base64`. For a `gzip` or `deflate` body, `text` is the decoded body, and `decoded` names the encoding. If the body is longer than 1 MiB, `text` or `base64` holds the first 1 MiB, and `cut` is `true`. `size` and `sha256` are always of all the bytes that went to the app or the backend. `response_body` is `null` if the backend did not answer. |
 | `status` | The status of the backend, or `null`. |
 | `error` | `the backend did not answer: <reason>`, `the test ended before the backend answered`, or `null`. |
 
-Before it writes a row, the proxy replaces the value of each secret header with `<removed>`: `Authorization`, `Proxy-Authorization`, `Cookie`, `Set-Cookie`, and each header whose name contains `key`, `token` or `secret`. The secret headers still go to the backend and to the app. The proxy does not change the bodies in the record.
+Before it writes a row, the proxy removes the secret values. A header name or a query parameter name is secret if it is `Authorization`, `Proxy-Authorization`, `Cookie`, `Set-Cookie`, `auth` or `sig`, or if it contains `key`, `token`, `secret`, `password` or `signature`. The rule ignores case.
+
+- For each secret header, the proxy replaces the value with `<removed>`.
+- For each secret query parameter, the proxy keeps the name and the `=`, and removes the value. For example, `sku=mug&api_key=toy-123` becomes `sku=mug&api_key=`. Each parameter and each `&` stays in its order. The proxy splits the query only at `&`.
+- The rule reads the name after it decodes `+` and the `%` escapes, for example `api%5Fkey`. The record keeps the name as it came.
+- A parameter with no `=` stays as it came.
+
+The secret headers and the full query still go to the backend, and the secret headers go to the app. The proxy does not change the bodies in the record.
 
 ### 7.7 Model API proxies
 
@@ -390,6 +397,7 @@ An app can call a model API directly with an SDK, with no harness session. Durin
 The proxy forwards to the URL that `model_api` gives for the API, else to the value that the bridge has in the variable, else to the URL of the table. A URL in `model_api` is necessary if the tester's harness also reads the variable, for example Codex and `OPENAI_BASE_URL`. It gives the entry the URL of the proxy in the variable. A value that is not an `http` or `https` URL stops the start of the test. An empty URL in `model_api` also stops it: the proxy does not then use the variable.
 
 - The proxy forwards each request as a backend proxy does (section 7.6).
+- It removes the values of secret headers and secret query parameters from the row as a backend proxy does (section 7.6).
 - It sends each part of the response to the app when the part comes, also for a streamed (SSE) response. It sends the status and the headers first. If the API gives no `Content-Length`, the proxy sends the body to the app with `Transfer-Encoding: chunked`.
 - If the API stops during the body, also before the end that its `Content-Length` gives, the row gets the error `the stream stopped: <reason>`, and the proxy closes the connection to the app. If the app goes away, the proxy reads the rest of the response for the record.
 - At the end of the test, the proxy waits for open calls as a backend proxy does.
