@@ -27,8 +27,10 @@ If `.codex/hooks.json` changes, trust it again.
 |---|---|---|
 | P1 to P4, plugin | `uv run python scripts/proofs_claude_code.py` | `proofs/claude-code/` |
 | P1 to P4, plugin, streamed agent | `uv run python scripts/proofs_claude_code.py --stream` | `proofs/claude-code-stream/` |
+| P1 to P4, plugin, agent that streams only on request | `uv run python scripts/proofs_claude_code.py --stream --on-request` | `proofs/claude-code-stream-on-request/` |
 | P1 to P4, hook kit | `uv run python scripts/proofs_hooks.py claude-code` or `codex` | `proofs/hooks-<harness>/` |
 | P1 to P4, hook kit, streamed agent | `uv run python scripts/proofs_hooks.py claude-code --stream` or `codex --stream` | `proofs/hooks-<harness>-stream/` |
+| P1 to P4, hook kit, agent that streams only on request | `uv run python scripts/proofs_hooks.py claude-code --stream --on-request` or `codex --stream --on-request` | `proofs/hooks-<harness>-stream-on-request/` |
 | Model sessions of the app | `uv run python scripts/proof_sessions.py` | `proofs/sessions/` |
 | Trace of the model sessions | `uv run python scripts/proof_trace.py` | `proofs/trace/` |
 | Backend proxy, no model | `uv run python scripts/proof_backend.py` | `proofs/backend/` |
