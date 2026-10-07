@@ -89,14 +89,14 @@
  "P3b": {
   "agent_inputs_added": 0,
   "blocked_rows": 1,
-  "model_text": "I did not get an output, because a hook stopped the command before it ran. The hook gave this message:\n\n```\nPreToolUse:Bash hook error: verbatim-relay: only the tester talks to the agent.\n```\n\nThe verbatim-relay plugin has a hook that runs before each shell command. This hook refused the command. Th"
+  "model_text": "I did not get output from the command. The `verbatim-relay` PreToolUse hook blocked it before it ran, with this message:\n\n```\nverbatim-relay: only the tester talks to the agent.\n```\n\nThe hook stops the model from sending text to the agent directly. In this project, only the tester sends messages, an"
  },
- "end_model_output_tokens": 3206,
+ "end_model_output_tokens": 2681,
  "test": {
   "ended": true,
   "model_sessions": [],
   "versions": {
-   "verbatim-relay": "0.2.0",
+   "verbatim-relay": "0.3.0",
    "claude-code": "2.1.290 (Claude Code)",
    "codex": "codex-cli 0.160.0"
   }
