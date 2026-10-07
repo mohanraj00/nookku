@@ -335,3 +335,26 @@ def test_a_timeout_after_stray_lines_names_them_and_the_fix(tmp_path: Path) -> N
     rows = [json.loads(x) for x in (tmp_path / "tap.jsonl").read_text().split("\n") if x]
     assert [r["type"] for r in rows] == ["unparsed"] * 3 + ["exchange"]
     assert rows[-1]["error"] == want
+
+
+def test_an_agent_that_writes_stray_lines_all_the_time_still_times_out(tmp_path: Path) -> None:
+    script = tmp_path / "agent.py"
+    script.write_text(
+        "import sys, time\nsys.stdin.readline()\n"
+        "while True:\n    print('toy shop: still loading', flush=True)\n    time.sleep(0.01)\n"
+    )
+    agent = Agent([sys.executable, str(script)], tmp_path, tmp_path / "app.log", timeout=0.5)
+    tap = StdioTap(("127.0.0.1", 0), agent, tmp_path / "tap.jsonl")
+    agent.start()
+    start_in_thread(tap)
+    began = time.monotonic()
+    try:
+        status, body = post(
+            tap.url, contract.request("m-1", "t-1", "Where is my mug?", []).decode()
+        )
+    finally:
+        tap.shutdown()
+        agent.stop(grace=1)
+    assert status == 504
+    assert time.monotonic() - began < 5
+    assert "no reply line for m-1 in 0.5 s" in json.loads(body)["error"]

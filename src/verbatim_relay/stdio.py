@@ -103,8 +103,12 @@ class Agent:
         deadline = time.monotonic() + self.timeout
         strays: list[bytes] = []
         while True:
+            left = deadline - time.monotonic()
             try:
-                out = self._lines.get(timeout=max(0.0, deadline - time.monotonic()))
+                # An agent that writes stray lines all the time still gets the timeout.
+                if left <= 0:
+                    raise queue.Empty
+                out = self._lines.get(timeout=left)
             except queue.Empty:
                 self.kill()
                 self.failed = _no_reply(rid, self.timeout, strays)
