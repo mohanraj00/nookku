@@ -25,8 +25,8 @@ from verbatim_relay import __version__, backend, contract, model_api, otlp, seal
 from verbatim_relay.adapters import History
 from verbatim_relay.audit import audit
 from verbatim_relay.record import Writer
+from verbatim_relay.stdio import STRAY_HINT, Agent, StdioTap, start_in_thread
 from verbatim_relay.stdio import TIMEOUT as AGENT_TIMEOUT
-from verbatim_relay.stdio import Agent, StdioTap, start_in_thread
 
 STATE_DIR = ".verbatim-relay"
 # The harness session that ends a test, for the bridge (SPEC.md section 7.2).
@@ -677,6 +677,8 @@ def check(root: Path) -> tuple[bool, list[str]]:
         manifest = end(root) or {}
     lines = [f"Test {cur['test']}: {cur['dir']}", f"Reply: {shown}"]
     problems = [] if ok else ["The entry sent no reply."]
+    if not ok and STRAY_HINT in shown:
+        problems = [f"The entry printed lines on stdout, but no reply line. {STRAY_HINT}"]
     found = manifest.get("model_sessions", [])
     for harness in config.models:
         mine = [s for s in found if s["harness"] == harness]
