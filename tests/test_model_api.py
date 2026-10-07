@@ -192,3 +192,6 @@ def test_the_config_and_the_urls() -> None:
     assert urls[0].url == "http://127.0.0.1:9/v1"
     with pytest.raises(ValueError, match="ANTHROPIC_BASE_URL"):
         model_api.backends({"anthropic": None}, {"ANTHROPIC_BASE_URL": "ftp://x"})
+    # An empty URL in the configuration stops the start. It does not fall back to the variable.
+    with pytest.raises(ValueError, match="OPENAI_BASE_URL"):
+        model_api.backends({"openai": ""}, {"OPENAI_BASE_URL": "https://x"})

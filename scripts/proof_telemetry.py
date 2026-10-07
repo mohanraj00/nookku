@@ -12,7 +12,8 @@ number that it asked for. The tester asks for 1 teapot set in turn 2. Then the t
 
 T1  Each turn has items from 3 sources: the session file of the Agent SDK, the backend proxy and
     the model API proxy.
-T2  report.md has a row with the trace line of a `POST /reserve` call as its evidence.
+T2  report.md has a row for turn 2 that cites the trace lines of all the `POST /reserve` calls of
+    turn 2. A row that cites only 1 call does not show that the app reserved 2 times.
 P5  report.md holds a reservation id from the records, or an exact quote of 20 or more characters
     from a reply of the agent.
 P7  After the evaluation, `verbatim-relay verify` finds the test folder intact.
@@ -108,13 +109,17 @@ def main() -> int:
         for n, it in enumerate(trace, 1)
         if it["harness"] == "backend" and it["name"] == "POST /reserve"
     ]
-    lines = {n for n, _ in reserves}
     outputs = json.dumps([it["output"] for _, it in reserves])
     reservation_ids = re.findall(r"RS-[0-9A-F]{6}", outputs)
     report_path = folder / "report.md"
     report = report_path.read_text(encoding="utf-8") if report_path.exists() else ""
     issues = pr.rows(report)
-    cites = [r for r in issues if cited(r["evidence"]) & lines]
+    bug_lines = {n for n, it in reserves if it["turn"] == BUG_TURN}
+    cites = [
+        r
+        for r in issues
+        if r["turn"] == str(BUG_TURN) and len(bug_lines) >= 2 and bug_lines <= cited(r["evidence"])
+    ]
     audit = json.loads((folder / "audit.json").read_text())
     manifest = json.loads((folder / "manifest.json").read_text())
     findings = json.loads((folder / "findings.json").read_text())
@@ -140,7 +145,7 @@ def main() -> int:
         "reservations_in_stock": len(stock_now.get("reservations", [])),
         "report_written": report_path.exists(),
         "issues": [{k: r[k] for k in ("class", "turn", "evidence")} for r in issues],
-        "T2_cites_a_reserve_call": bool(cites),
+        "T2_cites_both_reserve_calls": bool(cites),
         "P5_quotes_a_reservation_id": any(i in report for i in reservation_ids),
         "P5_quotes_a_reply": pr.quotes_a_reply(report, replies),
         "commands_outside_project": (
@@ -159,7 +164,7 @@ def main() -> int:
     result["pass"] = (
         audit["exit"] == 0
         and result["T1_each_turn_has_3_sources"]
-        and result["T2_cites_a_reserve_call"]
+        and result["T2_cites_both_reserve_calls"]
         and (result["P5_quotes_a_reservation_id"] or result["P5_quotes_a_reply"])
         and not result["commands_outside_project"]
         and result["P7_records_unchanged"]

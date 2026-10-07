@@ -367,7 +367,7 @@ An app can call a model API directly with an SDK, with no harness session. Durin
 | `anthropic` | `ANTHROPIC_BASE_URL` | `https://api.anthropic.com` |
 | `openai` | `OPENAI_BASE_URL` | `https://api.openai.com/v1` |
 
-The proxy forwards to the URL that `model_api` gives for the API, else to the value that the bridge has in the variable, else to the URL of the table. A URL in `model_api` is necessary if the tester's harness also reads the variable, for example Codex and `OPENAI_BASE_URL`. It gives the entry the URL of the proxy in the variable. A value that is not an `http` or `https` URL stops the start of the test.
+The proxy forwards to the URL that `model_api` gives for the API, else to the value that the bridge has in the variable, else to the URL of the table. A URL in `model_api` is necessary if the tester's harness also reads the variable, for example Codex and `OPENAI_BASE_URL`. It gives the entry the URL of the proxy in the variable. A value that is not an `http` or `https` URL stops the start of the test. An empty URL in `model_api` also stops it: the proxy does not then use the variable.
 
 - The proxy forwards each request as a backend proxy does (section 7.6).
 - It sends each part of the response to the app when the part comes, also for a streamed (SSE) response. It sends the status and the headers first. If the API gives no `Content-Length`, the proxy sends the body to the app with `Transfer-Encoding: chunked`.

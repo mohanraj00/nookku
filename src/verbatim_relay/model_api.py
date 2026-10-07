@@ -50,7 +50,8 @@ def backends(apis: Mapping[str, str | None], environ: Mapping[str, str]) -> list
     out = []
     for name, configured in apis.items():
         env, default = APIS[name]
-        url = configured or environ.get(env) or default
+        # A URL in the configuration is used as it is, also if it is empty, so that it is checked.
+        url = configured if configured is not None else (environ.get(env) or default)
         if urlsplit(url).scheme not in ("http", "https") or not urlsplit(url).hostname:
             raise ValueError(f"the URL of {name} ({env}) must be an http or https URL: {url!r}")
         out.append(backend.Backend(name, env, url.rstrip("/")))

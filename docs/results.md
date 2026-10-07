@@ -118,16 +118,16 @@ The app's session files are from Claude Code 2.1.286, bundled in the Agent SDK. 
 [scripts/proof_telemetry.py](../scripts/proof_telemetry.py) runs a test of the [full toy shop](../examples/toy-shop-full/app.py) in each relay. The app has 3 parts: an Agent SDK session with 3 tools, a [stock service](../examples/toy-shop-full/stock.py) over HTTP, and a direct call to a case-note model after each reply, with the OpenAI Chat Completions API and a stream. The proof runs the stock service and a [toy note model](../examples/toy-shop-full/toy_model.py) on local ports, because the proof machine has no OpenAI API key that the proof may use. The Agent SDK session uses the real Anthropic API through the model API proxy. The app has a planted bug that only the backend calls show: after 1 `reserve` tool call, the app reserves the items 2 times, because its retry loop has no break. The model tells the customer the number that it asked for.
 
 - **T1:** each of the 3 turns has items from 3 sources: the session file of the Agent SDK, the backend proxy and the model API proxy.
-- **T2:** `report.md` has a row with the trace line of a `POST /reserve` call as its evidence.
+- **T2:** `report.md` has a row for turn 2 that cites the trace lines of both `POST /reserve` calls of turn 2. A row that cites only 1 call does not show that the app reserved 2 times.
 - **P5 and P7:** as for the evaluation proofs below.
 
-| Relay | Harness | Items by turn (session, backend, model API) | Row with the reserve calls | T1 | T2 | P5 | P7 | Result | Data |
+| Relay | Harness | Items by turn (session, backend, model API) | Rows that cite both reserve calls | T1 | T2 | P5 | P7 | Result | Data |
 |---|---|---|---|---|---|---|---|---|---|
 | Plugin | Claude Code 2.1.290 | 3, 1, 2 / 3, 2, 2 / 3, 1, 2 | `business_rule`, turn 2 | pass | pass | pass | pass | pass | [results](../proofs/telemetry/plugin.json) |
-| Hook kit | Claude Code 2.1.290 | 3, 1, 2 / 3, 2, 2 / 3, 1, 2 | `business_rule`, turn 2 | pass | pass | pass | pass | pass | [results](../proofs/telemetry/hooks-claude-code.json) |
-| Hook kit | Codex 0.160.0 | 3, 1, 2 / 3, 2, 2 / 3, 1, 2 | `business_rule`, turn 2 | pass | pass | pass | pass | pass | [results](../proofs/telemetry/hooks-codex.json) |
+| Hook kit | Claude Code 2.1.290 | 3, 1, 2 / 3, 2, 2 / 3, 1, 2 | `state_mismatch` and `missing_action`, turn 2 | pass | pass | pass | pass | pass | [results](../proofs/telemetry/hooks-claude-code.json) |
+| Hook kit | Codex 0.160.0 | 3, 1, 2 / 3, 2, 2 / 3, 1, 2 | `business_rule` and `state_mismatch`, turn 2 | pass | pass | pass | pass | pass | [results](../proofs/telemetry/hooks-codex.json) |
 
-In each run, the stock service had 2 reservations for the 1 teapot set that the tester asked for, and the trace had 0 findings. The Agent SDK is pinned to 0.2.163, which bundles Claude Code 2.1.286 ([#35](https://github.com/mohanraj00/verbatim-relay/issues/35)). The proxy marked 7, 9 and 6 of its calls as harness calls and kept no text of them. The toy note model gives a fixed answer, so this proof does not show a real model behind the direct call. [proofs/model-api/](../proofs/model-api/results.json) shows the proxy with the stream formats of both APIs.
+In each run, the stock service had 2 reservations for the 1 teapot set that the tester asked for, and the trace had 0 findings. The Agent SDK is pinned to 0.2.163, which bundles Claude Code 2.1.286 ([#35](https://github.com/mohanraj00/verbatim-relay/issues/35)). The proxy marked 7, 8 and 8 of its calls as harness calls and kept no text of them. The toy note model gives a fixed answer, so this proof does not show a real model behind the direct call. [proofs/model-api/](../proofs/model-api/results.json) shows the proxy with the stream formats of both APIs.
 
 ## 2. Benchmark under pressure
 
