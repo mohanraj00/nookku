@@ -24,6 +24,8 @@ class ModelServer(ThreadingHTTPServer):
         self.gzip = False
         # True: the server closes the connection after the first part of a stream.
         self.stop_after_first = False
+        # The bytes that the Content-Length of a one-part answer adds and that it does not send.
+        self.short_by = 0
         # Set: the server sends the parts after the first part.
         self.release = threading.Event()
         self.release.set()
@@ -63,9 +65,10 @@ class _Handler(BaseHTTPRequestHandler):
             data = gzip.compress(parts[0]) if self.server.gzip else parts[0]
             if self.server.gzip:
                 self.send_header("Content-Encoding", "gzip")
-            self.send_header("Content-Length", str(len(data)))
+            self.send_header("Content-Length", str(len(data) + self.server.short_by))
             self.end_headers()
             self.wfile.write(data)
+            self.close_connection = self.server.short_by > 0
             return
         self.send_header("Transfer-Encoding", "chunked")
         self.end_headers()

@@ -371,7 +371,7 @@ The proxy forwards to the value that the bridge has in the variable, else to the
 
 - The proxy forwards each request as a backend proxy does (section 7.6).
 - It sends each part of the response to the app when the part comes, also for a streamed (SSE) response. It sends the status and the headers first. If the API gives no `Content-Length`, the proxy sends the body to the app with `Transfer-Encoding: chunked`.
-- If the API stops during the body, the row gets the error `the stream stopped: <reason>`. If the app goes away, the proxy reads the rest of the response for the record.
+- If the API stops during the body, also before the end that its `Content-Length` gives, the row gets the error `the stream stopped: <reason>`, and the proxy closes the connection to the app. If the app goes away, the proxy reads the rest of the response for the record.
 - At the end of the test, the proxy waits for open calls as a backend proxy does.
 
 A harness that the app uses, for example the Agent SDK, also reads these variables. Thus its calls also go through the proxy. The proxy finds a harness call by the start of its `User-Agent`: `claude-cli` or `claude-code` for `claude-code`, and `codex` for `codex`. A harness call holds the harness's own instructions. Thus its row keeps only the `size`, `sha256` and `cut` of each body, with `omitted: true`, and its `result` is `null`. Claude Code 2.1.286 also sends `HEAD /api/hello` with the User-Agent of its runtime and no body. This call is not a model call, and the trace does not keep it (section 8.4).

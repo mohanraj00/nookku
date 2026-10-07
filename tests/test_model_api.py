@@ -99,6 +99,24 @@ def test_a_stream_that_stops_gives_an_error_row(tmp_path: Path) -> None:
     assert row["response_body"]["size"] == len(STREAM[0])
 
 
+def test_an_answer_shorter_than_its_length_gives_an_error_row(tmp_path: Path) -> None:
+    with ModelServer() as model:
+        model.short_by = 10
+        proxies = proxy_for(model, tmp_path)
+        env = proxies.start()
+        try:
+            conn = connect(env["ANTHROPIC_BASE_URL"])
+            conn.request("POST", "/v1/messages", body=b"{}", headers={})
+            resp = conn.getresponse()
+            with pytest.raises(http.client.IncompleteRead):
+                resp.read()
+            conn.close()
+        finally:
+            proxies.stop()
+    row = rows(tmp_path)[0]
+    assert row["error"] == "the stream stopped: the API sent 34 of 44 bytes"
+
+
 def test_a_gzip_json_answer_is_read_for_the_result(tmp_path: Path) -> None:
     answer = {"model": "gpt-toy", "choices": [{"message": {"content": "Hi"}, "finish_reason": "x"}]}
     with ModelServer() as model:

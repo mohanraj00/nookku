@@ -314,6 +314,10 @@ class Handler(BaseHTTPRequestHandler):
                     self.wfile.flush()
                 except OSError:
                     app = False
+        left = resp.length if length is not None and not bodyless else None
+        if error is None and left:
+            # read1 gives b"" at an early end of a body with a Content-Length. It does not raise.
+            error = f"the stream stopped: the API sent {int(length or 0) - left} of {length} bytes"
         if app and chunked and error is None:
             try:
                 self.wfile.write(b"0\r\n\r\n")
