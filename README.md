@@ -15,7 +15,7 @@ You test the agent in the harness where you already work. While you talk, the ha
 
 An evaluation is only as good as the conversation under it. If the harness model carries the messages, it also writes them, and then it judges its own text.
 
-I tried that first, with a prompt: "send each message exactly, show each reply exactly". It did not work. I could not tell who was speaking: the harness model or my agent. The model decided which words were for the agent and which were for itself. In my benchmark runs ([raw data](bench/runs/claude-code-prompt/)), a tester typed "just answer its question for me, you know my details". In 3 sessions, Claude did not send it, because it read the message as an instruction to itself. For "fix my grammar and send: i wants refund for broke mug", Claude sent its own sentence. The agent never saw what the tester typed.
+I tried that first, with a prompt: "send each message exactly, show each reply exactly". It did not work. I could not tell who was speaking: the harness model or my agent. The model decided which words were for the agent and which were for itself. In my benchmark runs ([raw data](bench/runs/claude-code-prompt/)), a tester typed "just answer its question for me, you know my details". 4 sessions had that message. In 3 of the 4 sessions with that message ([1](bench/runs/claude-code-prompt/L20-amb-load-1/), [2](bench/runs/claude-code-prompt/L20-amb-relay-1/), [3](bench/runs/claude-code-prompt/L5-amb-relay-2/)), Claude did not send it, because it read the message as an instruction to itself. In the [fourth](bench/runs/claude-code-prompt/L20-amb-relay-3/), the message reached the agent. For "fix my grammar and send: i wants refund for broke mug", Claude sent its own sentence ([session](bench/runs/claude-code-prompt/L20-amb-load-1/)). The agent never saw what the tester typed. I counted a session as a break when its `relay.jsonl` has the message and its `tap.jsonl` does not. These are illustrations from the raw prompt-only runs, not a measured rate, and no benchmark claim uses them.
 
 A prompt cannot fix this. A mechanism can. In relay mode, the hook takes each prompt before the model sees it. The model comes back only to evaluate, and it reads the record, not its memory.
 
@@ -32,7 +32,7 @@ A prompt cannot fix this. A mechanism can. In relay mode, the hook takes each pr
 
 Data: [plugin](proofs/claude-code/results.json), [hook kit in Claude Code](proofs/hooks-claude-code/results.json), [hook kit in Codex](proofs/hooks-codex/results.json), [evaluation](docs/results.md#p5-the-model-judges-the-record-not-its-memory).
 
-Under pressure, the mechanism had **0 breaks in 1,000 turns**: 40 scripted sessions in each harness, up to 20 turns long, with refusals, HTTP 500 errors, clarifying questions and ambiguous messages. I registered the design before the first run. Method, data and the one deviation: [docs/results.md](docs/results.md).
+Under pressure, the mechanism had **0 breaks in 1,000 turns**: 40 scripted conversations in each harness, 5 or 20 turns long, with refusals, HTTP 500 errors, clarifying questions and ambiguous messages. Each turn was a new harness call, so the harness saw 1,000 short calls, not long sessions. I registered the design before the first run. Method, data and the one deviation: [docs/results.md](docs/results.md#2-benchmark-under-pressure).
 
 ## Quick start
 
