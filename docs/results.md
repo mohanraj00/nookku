@@ -172,6 +172,8 @@ Totals: [bench/results.json](../bench/results.json). An agent error is an HTTP 5
 
 ## Run it again
 
+[how-to/run-the-proofs.md](how-to/run-the-proofs.md) explains each command, the trust step of Codex, and what to do after a run.
+
 ```bash
 uv run python scripts/proofs_claude_code.py
 uv run python scripts/proofs_hooks.py claude-code

@@ -31,7 +31,7 @@ verbatim-relay = "verbatim_relay.cli:main"
 
 [project.urls]
 Repository = "https://github.com/mohanraj00/verbatim-relay"
-Documentation = "https://github.com/mohanraj00/verbatim-relay#quick-start"
+Documentation = "https://github.com/mohanraj00/verbatim-relay/blob/main/docs/index.md"
 Specification = "https://github.com/mohanraj00/verbatim-relay/blob/main/SPEC.md"
 Changelog = "https://github.com/mohanraj00/verbatim-relay/blob/main/CHANGELOG.md"
 Issues = "https://github.com/mohanraj00/verbatim-relay/issues"
