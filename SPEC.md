@@ -136,6 +136,7 @@ The audit counts `blocked_call` rows and `model_session` rows. It does not match
 - When the stream ends, the tap writes the row (section 2.1), then ends the response to the caller. The adapter reads the complete body. The tap does not write a row for each part.
 - If the agent stops during the body, also before the end that its `Content-Length` gives, the stream failed. The row gets the error `the stream from the agent stopped: <reason>` or `the stream from the agent stopped after <n> of <length> bytes`. The tap then closes the connection to the caller, so the caller also gets an incomplete body.
 - If the caller goes away, the tap reads the rest of the stream for the record.
+- If the tap cannot write the row of a stream, it writes the error to stderr and closes the connection to the caller. It does not send the end of a chunked body. It does not send a second status, and it does not write a second row.
 - If the message that the adapter extracts has a lone surrogate (section 2), the tap writes an `unparsed` row. It still forwards the request without change.
 - If the reply of a 2xx response has a lone surrogate, the tap returns status 502 and not the agent's response. It writes an `exchange` row with `status: null`, `reply: null` and an `error` that names the lone surrogate.
 

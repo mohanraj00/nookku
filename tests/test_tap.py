@@ -1,6 +1,7 @@
 import hashlib
 import http.client
 import json
+import socket
 import threading
 import urllib.error
 import urllib.request
@@ -173,6 +174,40 @@ def test_the_json_adapter_marks_a_stream_unparsed(tmp_path):
     assert (status, out) == (200, agent.sent[0])
     [row] = read_tap(tmp_path / "tap.jsonl")
     assert isinstance(row, Unparsed) and "does not read a streamed response" in row.error
+
+
+def test_a_record_error_during_a_stream_sends_no_second_status_and_no_second_row(tmp_path, capsys):
+    agent = ToyAgent(stream=True)
+    tap = run_tap(agent.url, tmp_path / "tap.jsonl", "openai")
+    write = tap.writer.append
+    calls: list[dict] = []
+
+    def fail_once(row: dict) -> None:
+        # The first write fails, as with a full disk. A later write goes to the record.
+        calls.append(row)
+        if len(calls) == 1:
+            raise OSError(28, "No space left on device")
+        write(row)
+
+    tap.writer.append = fail_once  # type: ignore[method-assign]
+    body = json.dumps({"stream": True, "messages": [{"role": "user", "content": "hi"}]})
+    request = (
+        f"POST /v1/chat/completions HTTP/1.1\r\nHost: toy\r\nContent-Length: {len(body)}\r\n"
+        "Connection: close\r\n\r\n" + body
+    )
+    with socket.create_connection(("127.0.0.1", tap.server_address[1]), timeout=10) as sock:
+        sock.sendall(request.encode())
+        raw = b""
+        while part := sock.recv(65536):
+            raw += part
+    tap.shutdown()
+    agent.shutdown()
+
+    head, _, chunked = raw.partition(b"\r\n\r\n")
+    assert head.startswith(b"HTTP/1.1 200 ") and raw.count(b"HTTP/1.1 ") == 1
+    assert b"Transfer-Encoding: chunked" in head and not chunked.endswith(b"0\r\n\r\n")
+    assert len(calls) == 1 and not (tmp_path / "tap.jsonl").exists()
+    assert "cannot write the record: [Errno 28] No space left on device" in capsys.readouterr().err
 
 
 def test_an_agent_error_is_forwarded_and_recorded(agent, tmp_path):

@@ -89,13 +89,27 @@ class _Handler(BaseHTTPRequestHandler):
         headers["Accept-Encoding"] = "identity"
         conn = tap.connect()
         try:
+            self._exchange(conn, body, headers, recorded, message, parse_error)
+        finally:
+            conn.close()
+
+    def _exchange(
+        self,
+        conn: http.client.HTTPConnection,
+        body: bytes,
+        headers: dict[str, str],
+        recorded: bool,
+        message: str | None,
+        parse_error: str | None,
+    ) -> None:
+        """Send the request to the agent, then send its response to the caller and write the row."""
+        tap, method, path = self.server, self.command, self.path
+        try:
             conn.request(method, tap.base_path + path, body=body if body else None, headers=headers)
             resp = conn.getresponse()
             status, out_headers = resp.status, resp.getheaders()
-            if is_stream(resp.getheader("Content-Type")) and method != "HEAD":
-                self._stream(resp, recorded, message, parse_error)
-                return
-            out = resp.read()
+            streamed = is_stream(resp.getheader("Content-Type")) and method != "HEAD"
+            out = b"" if streamed else resp.read()
         except (OSError, http.client.HTTPException) as e:
             if message is not None:
                 tap.writer.append(
@@ -118,8 +132,11 @@ class _Handler(BaseHTTPRequestHandler):
                 )
             self._error(502, f"verbatim-relay tap: the agent is unreachable: {e}")
             return
-        finally:
-            conn.close()
+        if streamed:
+            # The stream sends the status first, so it runs outside the try above. Thus no handler
+            # sends a second status after the headers.
+            self._stream(resp, recorded, message, parse_error)
+            return
 
         if recorded:
             if message is None:
@@ -184,7 +201,9 @@ class _Handler(BaseHTTPRequestHandler):
         """Send each part of an SSE response to the caller when it comes (SPEC.md section 4.1).
 
         The tap writes the row when the stream ends, before the end of the response to the caller.
-        This function catches each error itself, because the caller already has the status.
+        The caller already has the status, so no error here sends a second status. If the tap
+        cannot write the row, it writes the error to stderr and closes the connection. It does not
+        send the end of a chunked body, so the caller gets an incomplete body.
         """
         length = resp.getheader("Content-Length")
         caller = True
@@ -224,7 +243,12 @@ class _Handler(BaseHTTPRequestHandler):
             # read1 gives b"" at an early end of a body with a Content-Length. It does not raise.
             failure = f"the stream from the agent stopped after {len(raw)} of {length} bytes"
         if recorded:
-            self._stream_row(resp.status, bytes(raw), message, parse_error, failure)
+            try:
+                self._stream_row(resp.status, bytes(raw), message, parse_error, failure)
+            except OSError as e:
+                print(f"verbatim-relay tap: cannot write the record: {e}", file=sys.stderr)
+                self.close_connection = True
+                return
         if caller and failure is None and length is None:
             try:
                 self.wfile.write(b"0\r\n\r\n")
