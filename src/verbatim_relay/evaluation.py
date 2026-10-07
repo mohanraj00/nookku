@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from . import bridge, seal
+from .record import RecordError, read_rows
 
 REPORT = "report.md"
 # A longer text shows its start, and the trace line holds all of it.
@@ -41,18 +42,27 @@ def pending(root: Path) -> Path | None:
     return folder if manifest.get("ended") is not None else None
 
 
-def _rows(path: Path) -> list[dict[str, Any]]:
+def _items(path: Path) -> list[dict[str, Any]]:
+    """The items of trace.jsonl, or none if the file does not exist. Split on \\n only: a text can
+    hold U+2028. A line that is not a JSON object raises a RecordError that names the line."""
     try:
         text = path.read_text(encoding="utf-8")
     except OSError:
         return []
+    except UnicodeDecodeError:
+        raise RecordError("record_invalid", path, "not UTF-8") from None
+    lines = text.split("\n")
+    if lines and lines[-1] == "":
+        lines.pop()
     out = []
-    for x in text.split("\n"):
-        if x:
-            try:
-                out.append(json.loads(x))
-            except ValueError:
-                continue
+    for n, raw in enumerate(lines, 1):
+        try:
+            item = json.loads(raw)
+        except ValueError:
+            raise RecordError("record_invalid", path, f"line {n}: not JSON") from None
+        if not isinstance(item, dict):
+            raise RecordError("record_invalid", path, f"line {n}: not a JSON object")
+        out.append(item)
     return out
 
 
@@ -164,9 +174,20 @@ def _finding(f: dict[str, Any], lines: dict[tuple[str, int], int]) -> str:
 
 
 def transcript(folder: Path) -> str:
-    """The exact conversation of a test as the agent received and sent it, with the trace."""
-    exchanges = [r for r in _rows(folder / "tap.jsonl") if r.get("type") == "exchange"]
-    items = _rows(folder / "trace.jsonl")
+    """The exact conversation of a test as the agent received and sent it, with the trace.
+
+    If tap.jsonl or trace.jsonl is invalid, the first line says so, and the transcript shows no
+    turn: a changed text must not look exact.
+    """
+    try:
+        tap = read_rows("tap", folder / "tap.jsonl", missing_ok=True)
+        items = _items(folder / "trace.jsonl")
+    except RecordError as e:
+        return (
+            f"Record: INVALID. {e}. Do not trust these records. This transcript shows no turn.\n"
+            f"{seal.summary(seal.verify(folder))}\n"
+        )
+    exchanges = [r for _, r in tap if r["type"] == "exchange"]
     try:
         findings = json.loads((folder / "findings.json").read_text(encoding="utf-8"))["findings"]
     except (OSError, ValueError, KeyError):

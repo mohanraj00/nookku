@@ -255,7 +255,11 @@ def _trace_command(root: Path, test: str | None, as_json: bool) -> int:
     if (check["sealed"] or check["copy"] != "none") and broken:
         print(f"verbatim-relay: the trace was not rebuilt. {seal.summary(check)}", file=sys.stderr)
         return 2
-    report = trace.build(folder)
+    try:
+        report = trace.build(folder)
+    except RecordError as e:
+        print(f"verbatim-relay: the trace was not rebuilt. {e}", file=sys.stderr)
+        return 2
     seal.update(folder, list(rebuilt))
     if as_json:
         print(json.dumps(report, indent=1, ensure_ascii=False))

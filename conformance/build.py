@@ -258,6 +258,17 @@ CASES_BY_NAME: dict[str, tuple[list | None, list | None, dict]] = {
         CLEAN_RELAY,
         {"exit": 2, "errors": ["record_invalid"]},
     ),
+    # One byte of a text changed after the write, and its hash did not change.
+    "reply_changed_after_the_write": (
+        [{**CLEAN_TAP[0], "reply": R1.replace("30 days", "31 days")}, *CLEAN_TAP[1:]],
+        CLEAN_RELAY,
+        {"exit": 2, "errors": ["record_invalid"]},
+    ),
+    "shown_changed_after_the_write": (
+        CLEAN_TAP,
+        [{**CLEAN_RELAY[0], "shown": R1.replace("30 days", "31 days")}, *CLEAN_RELAY[1:]],
+        {"exit": 2, "errors": ["record_invalid"]},
+    ),
     "wrong_version": (
         CLEAN_TAP,
         [{**CLEAN_RELAY[0], "v": "0.3"}, *CLEAN_RELAY[1:]],

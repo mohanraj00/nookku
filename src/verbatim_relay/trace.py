@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from . import backend, model_api, otlp
-from .record import VERSION
+from .record import VERSION, read_rows
 
 # The version of a trace row. 0.3 adds the kinds span and log, and the field service.
 TRACE_VERSION = "0.3"
@@ -576,9 +576,8 @@ def _in_session(event: dict[str, Any], items: list[dict[str, Any]]) -> bool:
 
 
 def _exchanges(tap: Path) -> list[dict[str, Any]]:
-    if not tap.exists():
-        return []
-    return [r for _, r in _lines(tap) if isinstance(r, dict) and r.get("type") == "exchange"]
+    """The exchange rows of tap.jsonl. An invalid line raises a RecordError (SPEC.md section 2)."""
+    return [r for _, r in read_rows("tap", tap, missing_ok=True) if r["type"] == "exchange"]
 
 
 def windows(exchanges: list[dict[str, Any]]) -> list[tuple[float, float]]:

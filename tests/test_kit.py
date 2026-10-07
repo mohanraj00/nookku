@@ -9,7 +9,7 @@ from toy_agent import ToyAgent, shop_reply
 from verbatim_relay import kit
 from verbatim_relay.adapters import make
 from verbatim_relay.audit import audit
-from verbatim_relay.record import BlockedCall, Turn, read_relay, read_tap
+from verbatim_relay.record import BlockedCall, RecordError, Turn, read_relay, read_tap
 from verbatim_relay.tap import Tap, start_in_thread
 
 TRICKY = "Hi, I want to return order #4471.  \n\nÜnïcödé € ₹\t| a | b |\n"
@@ -93,6 +93,27 @@ def test_a_crash_blocks_only_in_relay_mode(tmp_path, on):
     out = io.StringIO()
     assert kit.run_hook(tmp_path, "codex", io.StringIO("not json"), out) == 0
     assert ('"decision": "block"' in out.getvalue()) is on
+
+
+def test_a_bad_line_in_the_relay_record_is_an_error_and_blocks(setup):
+    root, _, agent = setup
+    kit.set_mode(root, True)
+    kit.handle(prompt("first"), root, "codex")
+    line = record(root).read_text(encoding="utf-8")
+    # One byte of the said text changes, and its hash stays.
+    record(root).write_text(line.replace("first", "firsT", 1), encoding="utf-8")
+    with pytest.raises(RecordError, match=r"relay\.jsonl: line 1: field said_sha256"):
+        kit.history(record(root), "s1")
+    record(root).write_text(line + "{not json\n", encoding="utf-8")
+    with pytest.raises(RecordError, match=r"relay\.jsonl: line 2: not JSON"):
+        kit.history(record(root), "s1")
+    out = io.StringIO()
+    kit.run_hook(root, "codex", io.StringIO(json.dumps(prompt("second"))), out)
+    answer = json.loads(out.getvalue())
+    assert answer["decision"] == "block"
+    assert "relay.jsonl: line 2: not JSON" in answer["reason"]
+    assert len(agent.received) == 1
+    assert kit.history(root / "no-such.jsonl", "s1") == []
 
 
 @pytest.mark.parametrize(

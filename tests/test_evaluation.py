@@ -56,6 +56,37 @@ def test_the_transcript_shows_each_turn_with_its_trace(tmp_path: Path) -> None:
     assert "error:\nno tool_result in the session file\n" in outside
 
 
+def test_a_changed_byte_in_the_tap_record_makes_the_transcript_invalid(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root = project(tmp_path)
+    folder = root / ".verbatim-relay" / "tests" / TEST
+    tap = folder / "tap.jsonl"
+    # One byte of a reply changes, and its hash stays.
+    tap.write_text(tap.read_text().replace("toy shop reply", "toy shop replY", 1))
+    text = evaluation.transcript(folder)
+    first, second, rest = text.split("\n", 2)
+    assert first.startswith(f"Record: INVALID. {tap}: line 1: field reply_sha256 does not match")
+    assert first.endswith("Do not trust these records. This transcript shows no turn.")
+    assert second == "Seal: none. The records of this test have no seal."
+    assert rest == ""
+    assert "replY" not in text
+    assert "exact" not in text
+    assert main(["trace", "--root", str(root)]) == 2
+    assert "line 1: field reply_sha256" in capsys.readouterr().err
+
+
+def test_an_invalid_trace_line_makes_the_transcript_invalid(tmp_path: Path) -> None:
+    root = project(tmp_path)
+    folder = root / ".verbatim-relay" / "tests" / TEST
+    with (folder / "trace.jsonl").open("a", encoding="utf-8") as fh:
+        fh.write("[1]\n")
+    text = evaluation.transcript(folder)
+    assert text.startswith("Record: INVALID. ")
+    assert "trace.jsonl: line 12: not a JSON object" in text.split("\n")[0]
+    assert "════ turn 1 ════" not in text
+
+
 def test_a_long_text_is_cut_and_points_to_its_line() -> None:
     item = {"harness": "codex", "kind": "message", "role": "assistant", "output": "x" * 2500}
     text = evaluation.render_item(item, 7)

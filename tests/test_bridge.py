@@ -10,7 +10,7 @@ import pytest
 
 from verbatim_relay import bridge, kit, seal
 from verbatim_relay.audit import audit
-from verbatim_relay.record import Writer
+from verbatim_relay.record import RecordError, Writer
 
 ROOT = Path(__file__).resolve().parent.parent
 TOY_SHOP = ROOT / "examples" / "toy-shop" / "agent.py"
@@ -98,6 +98,19 @@ def test_history_is_the_ok_turns_of_the_test(tmp_path: Path) -> None:
     w.append({"type": "turn", "harness": "codex", "said": "a\u2028", "shown": "b", "ok": True})
     w.append({"type": "turn", "harness": "codex", "said": "c", "shown": "error", "ok": False})
     assert bridge.history(relay) == [("a\u2028", "b")]
+
+
+def test_an_invalid_relay_record_is_an_error(tmp_path: Path) -> None:
+    relay = tmp_path / "relay.jsonl"
+    Writer(relay).append(
+        {"type": "turn", "harness": "codex", "said": "a", "shown": "b", "ok": True}
+    )
+    relay.write_text(relay.read_text(encoding="utf-8").replace('"b"', '"c"'), encoding="utf-8")
+    with pytest.raises(RecordError, match=r"relay\.jsonl: line 1: field shown_sha256"):
+        bridge.history(relay)
+    text = bridge.summary({"test": "t", "dir": str(tmp_path), "ended": 1.0})
+    assert text.startswith("Test t ended: an invalid relay record (")
+    assert bridge.history(tmp_path / "no-such.jsonl") == []
 
 
 def test_a_stale_current_file_is_removed(tmp_path: Path) -> None:
