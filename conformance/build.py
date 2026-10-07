@@ -381,6 +381,29 @@ CONTRACT_CASES: dict[str, dict] = {
         "http": [502],
         "rows": [UNPARSED_POST],
     },
+    # A null field still counts. The line has both fields, so it is not valid.
+    "reply_and_null_error": {
+        "requests": [req(TRICKY)],
+        "agent": [{"lines": [out(reply=R1, error=None)]}],
+        "forwarded": [0],
+        "http": [502],
+        "rows": [UNPARSED_POST],
+    },
+    "null_reply_and_error": {
+        "requests": [req(TRICKY)],
+        "agent": [{"lines": [out(reply=None, error="The order service is down.")]}],
+        "forwarded": [0],
+        "http": [502],
+        "rows": [UNPARSED_POST],
+    },
+    # NaN is not JSON. Python json.loads accepts it by default, JSON.parse does not.
+    "reply_with_nan": {
+        "requests": [req(TRICKY)],
+        "agent": [{"lines": [out(reply=R1, score=float("nan"))]}],
+        "forwarded": [0],
+        "http": [502],
+        "rows": [UNPARSED_POST],
+    },
     "reply_not_a_string": {
         "requests": [req(TRICKY)],
         "agent": [{"lines": [out(reply=4471)]}],

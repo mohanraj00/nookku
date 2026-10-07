@@ -209,6 +209,14 @@ Output: an object with `v: 1`, the same `id`, and exactly one of these fields:
 
 Other fields are allowed and ignored.
 
+An output line is not valid in these cases. The tap returns status 502 for it and writes an `unparsed` row (section 4.2).
+
+- The line has both `reply` and `error`, also if one of them is `null`.
+- The line has neither `reply` nor `error`, or the field is not a string.
+- The line contains `NaN`, `Infinity` or `-Infinity`. These are not JSON values. This rule applies to an input line too.
+
+The tap, the plugin and the hook kit read an output line with these same rules.
+
 The Python helper `verbatim_relay.agent.serve(reply)` speaks this contract for a function `reply(message, history) -> str`. It writes its contract lines to the original stdout, and it sends all other output of the process to stderr.
 
 ## 7. Tests
