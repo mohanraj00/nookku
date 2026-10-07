@@ -220,6 +220,13 @@ def test_tap_needs_one_agent(argv: list[str]) -> None:
     assert e.value.code == 2
 
 
+def test_init_takes_the_openai_stream_flag(tmp_path: Path) -> None:
+    args = ["init", "codex", "--root", str(tmp_path), "--adapter", "openai", "--openai-stream"]
+    assert main(args) == 0
+    conf = json.loads((tmp_path / ".verbatim-relay" / "config.json").read_text())
+    assert (conf["adapter"], conf["openai_stream"]) == ("openai", True)
+
+
 def test_init_start_and_end_a_test(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     entry = f"{sys.executable} {TOY_SHOP}"
     assert (
@@ -227,7 +234,7 @@ def test_init_start_and_end_a_test(tmp_path: Path, capsys: pytest.CaptureFixture
     )
     conf = json.loads((tmp_path / ".verbatim-relay" / "config.json").read_text())
     assert conf["entry"] == [sys.executable, str(TOY_SHOP)]
-    assert conf["models"] == ["codex"]
+    assert conf["models"] == ["codex"] and conf["openai_stream"] is False
     capsys.readouterr()
     assert main(["start", "--root", str(tmp_path), "--json"]) == 0
     started = json.loads(capsys.readouterr().out)

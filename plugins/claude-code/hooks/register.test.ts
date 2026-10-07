@@ -113,6 +113,13 @@ function sse(reply: string, done = true): string {
 }
 const SSE = { 'content-type': 'text/event-stream; charset=utf-8' }
 
+test('openai_stream asks the agent for a stream', { options: { ...OPTIONS, adapter: 'openai', openai_stream: true } }, async ($, on) => {
+  const f = fakes(on, () => ({ status: 200, text: sse(REPLY), headers: SSE }))
+  await $.prompt.submit({ text: TRICKY })
+  expect(JSON.parse(f.sent[0].body)).toEqual({ messages: [{ role: 'user', content: TRICKY }], stream: true })
+  expect(f.logs).toEqual([REPLY])
+})
+
 test('the openai adapter shows a streamed reply when the stream is complete', { options: { ...OPTIONS, adapter: 'openai' } }, async ($, on) => {
   const f = fakes(on, () => ({ status: 200, text: sse(REPLY), headers: SSE }))
   await $.prompt.submit({ text: TRICKY })
@@ -475,7 +482,8 @@ const RELAY_LINES: [string, boolean][] = [
   ["{\"v\": \"0.2\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"Ünïcödé check: can I pay in € or ₹? Ça marche?\", \"said_sha256\": \"a80c2f3530fd028aa513e5e34214643ae75b1e02f80fa3580a356ee6e5224877\", \"shown\": \"Café policy: we ac\", \"shown_sha256\": \"352f303b4c94c27c1354a7614822d4cd2c7d1392f39c9734679495a3d9095681\"}", true],
   ["{\"v\": \"0.2\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"Ünïcödé check: can I pay in € or ₹? Ça marche?\", \"said_sha256\": \"a80c2f3530fd028aa513e5e34214643ae75b1e02f80fa3580a356ee6e5224877\", \"shown\": \"Café policy: we accept € and ₹. Résumé of fees: none.\", \"shown_sha256\": \"65d02e898525f6bdd5cebfc4818c9088f86358fefc7adc90f95e3d7e810dc423\"}", true],
   ["{\"v\": \"0.2\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"Ünïcödé check: can I pay in € or ₹? Ça marche?\", \"said_sha256\": \"a80c2f3530fd028aa513e5e34214643ae75b1e02f80fa3580a356ee6e5224877\", \"shown\": \"verbatim-relay: cannot read the reply: the stream ended before data: [DONE]\", \"shown_sha256\": \"ee0b7d5d389e587d3f7aa14f301a0fb5a9b82659df4628c5c9776108358bcb0f\"}", true],
-  ["{\"v\": \"0.3\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"Hi, I want to return order #4471.  \", \"said_sha256\": \"1ef5984361673b46e8871bb201a8340501f8b192637dada66fe7830deb6f1c80\", \"shown\": \"## Returns  \\nYou can return order #4471 within 30 days.\\n\\n| item | status |\\n|---|---|\\n| mug | eligible |\", \"shown_sha256\": \"b28e6e6e5f429d58765d7a29dfda83a9f02db6cd91702a60aa4cf4606cb7b47a\"}", false],
+  ["{\"v\": \"0.3\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"Hi, I want to return order #4471.  \", \"said_sha256\": \"1ef5984361673b46e8871bb201a8340501f8b192637dada66fe7830deb6f1c80\", \"shown\": \"## Returns  \\nYou can return order #4471 within 30 days.\\n\\n| item | status |\\n|---|---|\\n| mug | eligible |\", \"shown_sha256\": \"b28e6e6e5f429d58765d7a29dfda83a9f02db6cd91702a60aa4cf4606cb7b47a\"}", true],
+  ["{\"v\": \"9.9\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"Hi, I want to return order #4471.  \", \"said_sha256\": \"1ef5984361673b46e8871bb201a8340501f8b192637dada66fe7830deb6f1c80\", \"shown\": \"## Returns  \\nYou can return order #4471 within 30 days.\\n\\n| item | status |\\n|---|---|\\n| mug | eligible |\", \"shown_sha256\": \"b28e6e6e5f429d58765d7a29dfda83a9f02db6cd91702a60aa4cf4606cb7b47a\"}", false],
 ]
 
 test('the plugin reads a relay line with the same rule as the Python reader', async () => {

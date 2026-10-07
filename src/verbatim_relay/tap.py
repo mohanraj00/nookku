@@ -112,14 +112,30 @@ class _Handler(BaseHTTPRequestHandler):
         timer.daemon = True
         timer.start()
         try:
+            self._exchange(conn, body, headers, recorded, message, parse_error, expired)
+        finally:
+            timer.cancel()
+            conn.close()
+
+    def _exchange(
+        self,
+        conn: http.client.HTTPConnection,
+        body: bytes,
+        headers: dict[str, str],
+        recorded: bool,
+        message: str | None,
+        parse_error: str | None,
+        expired: threading.Event,
+    ) -> None:
+        """Send the request to the agent, then send its response to the caller and write the row."""
+        tap, method, path = self.server, self.command, self.path
+        try:
             conn.request(method, tap.base_path + path, body=body if body else None, headers=headers)
             resp = conn.getresponse()
             status, out_headers = resp.status, resp.getheaders()
-            if is_stream(resp.getheader("Content-Type")) and method != "HEAD":
-                self._stream(resp, recorded, message, parse_error, expired)
-                return
-            out = resp.read()
-            if expired.is_set():
+            streamed = is_stream(resp.getheader("Content-Type")) and method != "HEAD"
+            out = b"" if streamed else resp.read()
+            if expired.is_set() and not streamed:
                 raise TimeoutError
         except (OSError, http.client.HTTPException) as e:
             # After the agent timeout, the tap answers 504 before the relay timeout (SPEC.md 4.3).
@@ -149,9 +165,11 @@ class _Handler(BaseHTTPRequestHandler):
             else:
                 self._error(502, f"verbatim-relay tap: the agent is unreachable: {e}")
             return
-        finally:
-            timer.cancel()
-            conn.close()
+        if streamed:
+            # The stream sends the status first, so it runs outside the try above. Thus no handler
+            # sends a second status after the headers.
+            self._stream(resp, recorded, message, parse_error, expired)
+            return
 
         if recorded:
             if message is None:
@@ -217,7 +235,9 @@ class _Handler(BaseHTTPRequestHandler):
         """Send each part of an SSE response to the caller when it comes (SPEC.md section 4.1).
 
         The tap writes the row when the stream ends, before the end of the response to the caller.
-        This function catches each error itself, because the caller already has the status.
+        The caller already has the status, so no error here sends a second status. If the tap
+        cannot write the row, it writes the error to stderr and closes the connection. It does not
+        send the end of a chunked body, so the caller gets an incomplete body.
         """
         length = resp.getheader("Content-Length")
         caller = True
@@ -235,6 +255,9 @@ class _Handler(BaseHTTPRequestHandler):
         except OSError:
             caller = False
         raw = bytearray()
+        # With a Content-Length, the caller has a full response only with the last byte. The tap
+        # holds that byte until the row is in the record, so a failed write leaves it incomplete.
+        held = b""
         failure = None
         while True:
             try:
@@ -248,9 +271,14 @@ class _Handler(BaseHTTPRequestHandler):
             if caller:
                 # The record keeps all of the stream, also if the caller went away.
                 try:
-                    chunk = part if length is not None else b"%x\r\n%s\r\n" % (len(part), part)
-                    self.wfile.write(chunk)
-                    self.wfile.flush()
+                    if length is not None:
+                        data = held + part
+                        chunk, held = data[:-1], data[-1:]
+                    else:
+                        chunk = b"%x\r\n%s\r\n" % (len(part), part)
+                    if chunk:
+                        self.wfile.write(chunk)
+                        self.wfile.flush()
                 except OSError:
                     caller = False
         if expired.is_set():
@@ -260,7 +288,18 @@ class _Handler(BaseHTTPRequestHandler):
             # read1 gives b"" at an early end of a body with a Content-Length. It does not raise.
             failure = f"the stream from the agent stopped after {len(raw)} of {length} bytes"
         if recorded:
-            self._stream_row(resp.status, bytes(raw), message, parse_error, failure)
+            try:
+                self._stream_row(resp.status, bytes(raw), message, parse_error, failure)
+            except OSError as e:
+                print(f"verbatim-relay tap: cannot write the record: {e}", file=sys.stderr)
+                self.close_connection = True
+                return
+        if caller and held:
+            try:
+                self.wfile.write(held)
+                self.wfile.flush()
+            except OSError:
+                caller = False
         if caller and failure is None and length is None:
             try:
                 self.wfile.write(b"0\r\n\r\n")

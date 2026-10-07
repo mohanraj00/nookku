@@ -14,8 +14,12 @@ With --stream, the agent streams each reply (SSE): the toy shop agent of the tes
 HTTP mode, with no entry and no test. P1, P2 and P4 run as above, with the adversarial turns. P3b
 and the test checks need a test, so this mode does not run them.
 
-usage: python scripts/proofs_claude_code.py [--stream] [OUT_DIR]
-       (default proofs/claude-code, or proofs/claude-code-stream with --stream)
+With --stream --on-request, the toy agent streams only if the request has "stream": true
+(stream="on_request"), and the plugin has the option openai_stream. Each exchange must be a stream.
+
+usage: python scripts/proofs_claude_code.py [--stream [--on-request]] [OUT_DIR]
+       (default proofs/claude-code, proofs/claude-code-stream with --stream, or
+       proofs/claude-code-stream-on-request with --stream --on-request)
 """
 
 from __future__ import annotations
@@ -86,7 +90,7 @@ def claude(prompt: str, settings: Path, cwd: Path, extra: list[str]) -> tuple[li
     return shown, result
 
 
-def settings_file(path: Path, start_on: bool, **more: str) -> Path:
+def settings_file(path: Path, start_on: bool, **more: object) -> Path:
     options = {"cli": CLI, "start_on": start_on, **more}
     conf = {"options": options}
     path.write_text(
@@ -201,8 +205,11 @@ def write_results(out: Path, report: dict, tap_rec: Path, relay_rec: Path) -> in
     return 0 if report["pass"] else 1
 
 
-def main_stream(out: Path) -> int:
-    """P1, P2 and P4 with a streamed agent over HTTP. The tap runs in this process."""
+def main_stream(out: Path, on_request: bool = False) -> int:
+    """P1, P2 and P4 with a streamed agent over HTTP. The tap runs in this process.
+
+    With on_request, the agent streams only on request, and the plugin asks for a stream.
+    """
     from toy_agent import ToyAgent
 
     from verbatim_relay.adapters import make
@@ -212,18 +219,21 @@ def main_stream(out: Path) -> int:
     # The relay record is at the default path of the plugin. The folder has no config.json.
     (work / ".verbatim-relay").mkdir()
     tap_rec, relay_rec = work / "tap.jsonl", work / ".verbatim-relay" / "relay.jsonl"
-    agent = ToyAgent(stream=True)
+    agent = ToyAgent(stream="on_request" if on_request else True)
     tap = Tap(("127.0.0.1", 0), agent.url, tap_rec, make("openai"))
     start_in_thread(tap)
     tap_url = f"http://127.0.0.1:{tap.server_address[1]}/v1/chat/completions"
-    on = settings_file(
-        work / "on.json", True, adapter="openai", tap_url=tap_url, agent_url=agent.url
-    )
+    options: dict[str, object] = {"adapter": "openai", "tap_url": tap_url, "agent_url": agent.url}
+    if on_request:
+        options["openai_stream"] = True
+    on = settings_file(work / "on.json", True, **options)
     version = subprocess.run(["claude", "--version"], capture_output=True, text=True).stdout.strip()
     report: dict = {
         "date": date.today().isoformat(),
         "claude_code": version,
         "transport": "http-stream",
+        "agent_streams": "on_request" if on_request else "always",
+        "openai_stream": on_request,
         "turns": [],
     }
     try:
@@ -246,9 +256,15 @@ def main_stream(out: Path) -> int:
 
 def main() -> int:
     args = sys.argv[1:]
+    on_request = "--on-request" in args
+    if on_request:
+        args.remove("--on-request")
+        if "--stream" not in args:
+            sys.exit("--on-request needs --stream")
     if "--stream" in args:
         args.remove("--stream")
-        return main_stream(Path(args[0]) if args else ROOT / "proofs" / "claude-code-stream")
+        name = "claude-code-stream-on-request" if on_request else "claude-code-stream"
+        return main_stream(Path(args[0]) if args else ROOT / "proofs" / name, on_request)
     out = Path(args[0]) if args else ROOT / "proofs" / "claude-code"
     work = Path(tempfile.mkdtemp())
     (work / ".verbatim-relay").mkdir()

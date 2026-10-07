@@ -15,7 +15,9 @@ Two processes write two records. The relay writes the **relay record**: what the
 
 ## 2. Record format
 
-Each record is a UTF-8 JSONL file. Each line is one JSON object. Each object has a version `v` and a `type`. A writer writes `"v": "0.2"`. A reader accepts `"0.1"` and `"0.2"`. A type or a field that this section marks as 0.2 is not valid in a `"0.1"` row. Each text field has a `<field>_sha256` field: the SHA-256 of the UTF-8 bytes of the text, in lower-case hex. If the text is `null`, its hash is `null`. `ts` is a Unix time in seconds.
+Each record is a UTF-8 JSONL file. Each line is one JSON object. Each object has a version `v` and a `type`. A writer writes `"v": "0.2"`, except for the row of a failed stream (section 2.1), which has `"v": "0.3"`. A reader accepts `"0.1"`, `"0.2"` and `"0.3"`. A type or a field that this section marks as 0.2 is not valid in a `"0.1"` row. A `"0.3"` row can have each type and field of a `"0.2"` row. Each text field has a `<field>_sha256` field: the SHA-256 of the UTF-8 bytes of the text, in lower-case hex. If the text is `null`, its hash is `null`. `ts` is a Unix time in seconds.
+
+**Version 0.3.** The row of a failed stream has a 2xx status and `reply: null`. A reader of verbatim-relay 0.2.0 refuses this row as `record_invalid`, because it does not know the rule of a failed stream. Thus this row has version 0.3, and a 0.2.0 reader gives an error that names the version. Each other row keeps version 0.2, so a 0.2.0 reader still reads it. A row of a failed stream with version `"0.1"` or `"0.2"` is not valid.
 
 Each string in a row, as a field name or as a value, holds only Unicode scalar values. JSON can escape a lone UTF-16 surrogate, for example `"\ud83d"`, but UTF-8 cannot encode it. A row with a lone surrogate is not valid.
 
@@ -36,7 +38,7 @@ The relays refuse a message with a lone surrogate (section 5). The other writers
 | `started` | number | Optional, 0.2. The Unix time when the tap sent the request to the agent. `ts` is the time when the tap wrote the row. |
 | `stream` | object | Optional, 0.2. The tap writes it if the response is a stream (section 4.1). `sha256` is the SHA-256 of the raw response body, as the tap forwarded it, in lower-case hex. `bytes` is the size of that body. |
 
-A streamed reply: the tap writes one `exchange` row when the stream ends. `reply` is the complete reply that the adapter joins from the stream. The audit compares this text, the same as a reply that is not streamed. A row never holds a part of a reply. If the stream failed (section 4.1), the row has the 2xx status, `reply: null`, `stream` and `error`. A row with a 2xx status and `reply: null` must have `stream` and `error`.
+A streamed reply: the tap writes one `exchange` row when the stream ends. `reply` is the complete reply that the adapter joins from the stream. The audit compares this text, the same as a reply that is not streamed. A row never holds a part of a reply. If the stream failed (section 4.1), the row has the 2xx status, `reply: null`, `stream` and `error`, and `"v": "0.3"`. A row with a 2xx status and `reply: null` must have `stream`, `error` and `"v": "0.3"`.
 
 In stdio mode, the tap writes these `status` values:
 
@@ -143,13 +145,14 @@ The audit counts `blocked_call` rows and `model_session` rows. It does not match
 - When the stream ends, the tap writes the row (section 2.1), then ends the response to the caller. The adapter reads the complete body. The tap does not write a row for each part.
 - If the agent stops during the body, also before the end that its `Content-Length` gives, the stream failed. The row gets the error `the stream from the agent stopped: <reason>` or `the stream from the agent stopped after <n> of <length> bytes`. The tap then closes the connection to the caller, so the caller also gets an incomplete body.
 - If the caller goes away, the tap reads the rest of the stream for the record.
+- If the tap cannot write the row of a stream, it writes the error to stderr and closes the connection to the caller. It does not send the end of a chunked body. With a `Content-Length`, the tap holds the last byte of the body until the row is in the record, so it does not send that byte. Thus the caller can see that the response is not complete. It does not send a second status, and it does not write a second row.
 - If the message that the adapter extracts has a lone surrogate (section 2), the tap writes an `unparsed` row. It still forwards the request without change.
 - If the reply of a 2xx response has a lone surrogate, the tap returns status 502 and not the agent's response. It writes an `exchange` row with `status: null`, `reply: null` and an `error` that names the lone surrogate.
 
 #### Adapters
 
 - **`json`:** the input is at a field path in the request body, and the reply is at a field path in the response body. The defaults are `text` and `reply`. A path uses dots, and a list index is a number, for example `choices.0.message.content`. The `json` adapter does not read a stream. For a 2xx stream, the tap writes an `unparsed` row.
-- **`openai`:** for a `POST` to a path that ends in `/chat/completions`. The input is the `content` of the last message with role `user`. The content must be a string, or a list with exactly one part of type `text`. The reply is `choices.0.message.content`. The request can have `"stream": true`. The tap forwards it without change.
+- **`openai`:** for a `POST` to a path that ends in `/chat/completions`. The input is the `content` of the last message with role `user`. The content must be a string, or a list with exactly one part of type `text`. The reply is `choices.0.message.content`. The request can have `"stream": true`. The tap forwards it without change. The relay sends `"stream": true` only with the option `openai_stream` (section 5).
 
 The `openai` adapter reads a 2xx stream with these rules:
 
@@ -217,6 +220,7 @@ A relay is the Claude Code plugin or the hook kit. The hook kit uses the classic
 - **No test.** With an entry, a relay sends a prompt only to a running test (section 7.2). The hook kit asks `bridge.current` before each prompt. The plugin reads `current.json`. If the plugin cannot connect to the tap of `current.json`, it runs `verbatim-relay status --json`. Only if `test` is `null` in that answer, no test runs. Each other answer keeps the connection error. If no `current.json` exists, the relay blocks the prompt, shows "relay mode is on, but no test runs" with the step to start a test, and writes no turn. If the plugin found no test after a failed connection, it shows "the test stopped, and no test runs" with the same step. The POST can have reached the tap before the connection closed, so the plugin writes the turn with `ok: false`, and the audit can match it.
 - **Display.** The plugin shows the reply as a transcript row that the model does not receive. The hook kit writes the relay record, and `verbatim-relay view` prints each turn from it.
 - **Streams.** If the tap response is a stream (section 4.1), the relay reads the complete body and joins the reply with the rules of the adapter. It shows the reply only when the stream is complete. It does not show the parts. If the stream failed, the relay shows the error and writes it as `shown` with `ok: false`.
+- **Stream request.** For an agent that runs as an HTTP server, the `openai` adapter of a relay sends `"stream": false` in each request. If the option `openai_stream` is `true`, it sends `"stream": true`, for an agent that streams only on request. The default is `false`. The plugin has it as an option, and the hook kit has it as the key `openai_stream` in `.verbatim-relay/config.json`, a boolean. A test with an entry uses the agent contract (section 6), so this option does not apply.
 - **Transcript.** `verbatim-relay transcript` prints the turns of the relay record for the model. Its first line gives the scope and the number of turns. Its second line is this legend: "Legend: ok (an agent block): the agent answered and the relay showed its reply. It does not judge the reply. Not ok (a relay error block): the relay got no reply and shows its own error text." Each turn has a tester block with `said`. Then it has an agent block with `shown`, or a relay error block with `shown` if `ok` is `false`. The turns show no hashes and no session ids. With an entry, the scope is each session of the latest test, or of `--test <test-id>`. With no entry, the scope is the session of the last turn, or `--session <id>`. The plugin's `transcript` tool runs this command and returns its output with no change, so both relays give the model the same text. With `trace: true`, the tool runs `verbatim-relay transcript --trace` (section 9.2).
 - **Deny.** The relay denies a model tool call if its input contains the host and port of the tap or the agent, as `<host>:<port>` or as the shell socket path `/dev/tcp/<host>/<port>` or `/dev/udp/<host>/<port>`. A port can have leading zeros, and a port followed by more digits does not match. File tools (read, write, edit, search) are not denied, because a file that names an address does not call it. Every other tool is denied, including tools that the relay does not know. The deny is best effort. The audit finds each message that goes through the tap. A call to the agent around the tap is in neither record.
 - **Test files.** During a test, the relay denies a model tool call that writes into `.verbatim-relay/`, and each other tool call except file reads whose input names `.verbatim-relay`. When no test runs, the relay denies:
@@ -462,7 +466,13 @@ The proxy writes one row to `model_api.jsonl` for each call, with the fields of 
 | `stream` | `true` if the `Content-Type` of the response is `text/event-stream`. `null` if the API did not answer. |
 | `result` | The result of a model call, or `null` for another path or a harness call. |
 
-`result` is an object with `model`, `text` (the text blocks joined), `tool_calls` (a list of `id`, `name` and `input`), `stop_reason`, `usage` and `error` (the `message` of the `error` object of the API, or `null`). The result of a `/decisions` call also has `answers`. The proxy reads the result from the decoded response body, as JSON or from the `data` lines of the SSE events:
+`result` is an object with `model`, `text` (the text blocks joined), `tool_calls` (a list of `id`, `name` and `input`), `stop_reason`, `usage` and `error` (the `message` of the `error` object of the API, or `null`). The result of a `/decisions` call also has `answers`. The proxy reads the result from the decoded response body, as JSON or from the `data` of the SSE events:
+
+- The proxy reads the SSE events with the parser of the tap (section 4.1), so both read a stream with the same rules. It does not change a forwarded byte.
+- If the API stopped in the middle of a UTF-8 character, the parser ignores that incomplete character at the end of the body. If other bytes of a stream are not UTF-8, the result has no events and the error `the stream is not UTF-8`.
+- An event with the name `error` sets `error`: the `message` of its `error` object, or else its data.
+
+The parsers of each model call:
 
 - `anthropic`, path that ends with `/v1/messages`: the `content` blocks, `stop_reason` and `usage`. In a stream: `message_start`, `content_block_start`, `content_block_delta` (`text_delta` and `input_json_delta`), `message_delta` and `error`.
 - `openai`, path that ends with `/chat/completions`: `choices[0].message` (`content` and `tool_calls`), `finish_reason` and `usage`. In a stream: the `delta` of choice 0 of each chunk. The `arguments` of a tool call are parsed as JSON. If they are not JSON, `input` is the text.

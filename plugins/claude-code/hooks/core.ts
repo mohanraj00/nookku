@@ -9,6 +9,7 @@ export type Options = {
   message_field: string
   reply_field: string
   openai_model: string
+  openai_stream: boolean
   record: string
   start_on: boolean
   cli: string
@@ -51,7 +52,8 @@ export function requestBody(o: Options, said: string, turns: readonly VerbatimRe
       messages.push({ role: 'user', content: t.said }, { role: 'assistant', content: t.shown })
     }
     messages.push({ role: 'user', content: said })
-    const body: Record<string, unknown> = { messages, stream: false }
+    // With the option openai_stream, the request asks for a stream (SPEC.md section 5).
+    const body: Record<string, unknown> = { messages, stream: o.openai_stream === true }
     if (o.openai_model) body.model = o.openai_model
     return JSON.stringify(body)
   }
@@ -267,6 +269,8 @@ const RELAY_FIELDS: Record<string, Record<string, string[]>> = {
 }
 const RELAY_OPTIONAL: Record<string, Record<string, string>> = { turn: { ok: 'boolean', session: 'string' } }
 const TEXT_FIELDS = ['said', 'shown']
+// The record versions of SPEC.md section 2, the same as `record.VERSIONS` in Python.
+const RELAY_VERSIONS = ['0.1', '0.2', '0.3']
 const SINCE_02 = ['model_session', 'started', 'originator', 'stream']
 
 function jsonType(value: unknown): string {
@@ -291,7 +295,7 @@ async function relayLineError(raw: string): Promise<string | null> {
   }
   if (jsonType(row) !== 'object') return 'not a JSON object'
   if (hasLoneSurrogate(row)) return 'a field has a lone surrogate, which is not a Unicode scalar value'
-  if (row.v !== '0.1' && row.v !== '0.2') return `version ${JSON.stringify(row.v)}, expected one of 0.1, 0.2`
+  if (!RELAY_VERSIONS.includes(row.v)) return `version ${JSON.stringify(row.v)}, expected one of ${RELAY_VERSIONS.join(', ')}`
   const fields = Object.hasOwn(RELAY_FIELDS, row.type) ? RELAY_FIELDS[row.type] : null
   if (fields === null) return `unknown type ${JSON.stringify(row.type)} in a relay record`
   for (const [name, types] of Object.entries(fields)) {
