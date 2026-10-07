@@ -93,16 +93,17 @@ is the tone right, is each answer accurate? Quote the turns that you judge.
 
 ### What the model found
 
-- **The agent did not apply its own policy.** The customer reported a damaged item in turn 1 and asked for a refund in turn 3. Rule 1 says "Damaged items: full refund", but the agent did not start a refund or give a next step.
-- **A loop.** The same question in turns 1 to 4, after the customer named the mug, with no apology and no change after "THE MUG".
-- **Answers that are not answers.** Turn 6 does not say "no" to Delhi. Turn 7 names the teapot and gets no price.
-- **A vague rule.** "Change of mind: 30 days" does not say when the 30 days start or what the customer gets.
-- **The trailing spaces of reply 6.** The model saw them because the transcript is exact.
+- **The agent did not apply its own policy.** The customer reported a damaged item in turn 1 and asked for a refund in turn 3. Rule 1 of turn 5 says "Damaged items: full refund", but the agent did not start a refund or give a next step.
+- **A loop.** The same question in 5 of 7 turns, after the customer named the item, with no apology and no change after "THE MUG".
+- **Answers that are not answers.** Turn 6 does not say "no" to Delhi first. Turn 7 names the teapot and gets no price.
+- **A vague rule.** "Change of mind: 30 days" does not say if the customer gets a refund, an exchange or store credit.
+- **A probable cause.** The agent asks the same question for each message about an item, and answers only the general questions. The model names item detection as the first place to look.
 
-### What the model got wrong
+### What changed after #10
 
-- Its verdict says that "four of seven replies do not answer the question". Its own table marks five turns as a fail.
-- It reports the `ok` field as a fault of the test harness and says not to trust it. `ok` means that the row shows the agent's reply and not a relay error. It does not judge the reply. The transcript must explain its fields: [#10](https://github.com/mohanraj00/verbatim-relay/issues/10).
+In an earlier run, the model read the `ok` field as a pass mark for the reply and said not to trust it. Now the transcript tool gives the rendered transcript of `verbatim-relay transcript`, with a legend at the top: `ok` means that the agent answered and the relay showed its reply, and it does not judge the reply. The transcript shows no hashes. In this run, the answer does not name `ok` ([#10](https://github.com/mohanraj00/verbatim-relay/issues/10)).
+
+The model also asked for the trace. This run has no test folder, so the relay answered "no test folder", and the model wrote this as a limit of its evaluation.
 
 The model judges from the transcript only. It cannot see the agent's code, so it can find a fault but not always its cause.
 

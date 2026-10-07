@@ -66,7 +66,7 @@ def test_relay_mode_on_relays_exact_bytes_and_blocks_the_prompt(setup):
     answer = kit.handle(prompt(TRICKY), root, "codex")
     assert answer["decision"] == "block"
     [turn] = read_relay(record(root))
-    assert turn == Turn(1, TRICKY, shop_reply(TRICKY))
+    assert turn == Turn(1, TRICKY, shop_reply(TRICKY), True, "s1")
     row = json.loads(record(root).read_text())
     assert (row["ok"], row["session"], row["harness"]) == (True, "s1", "codex")
     assert read_tap(tap_rec)[0].input == TRICKY
