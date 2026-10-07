@@ -422,7 +422,8 @@ def read_model_api(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
             exit_code=row.get("status"),
         )
         items.append(it)
-        later = [_results(f, r) for _, _, f, r in calls[i + 1 :]]
+        # A tool call id is unique only in one API format, so a result must have the same format.
+        later = [_results(f, r) for _, _, f, r in calls[i + 1 :] if f == form]
         for call in result.get("tool_calls") or []:
             it = _item("model_api", api, model_api.FILE, n, row.get("ts"))
             it.update(kind="tool_call", name=call.get("name"), input=call.get("input"))
