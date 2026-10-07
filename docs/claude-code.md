@@ -61,7 +61,7 @@ During a test, the bridge runs an OTLP/HTTP receiver and gives your app its addr
 
 `/verbatim-relay end` ends the test with no evaluation. To evaluate that test later, type the prompt `verbatim-relay end`. `/verbatim-relay on` and `/verbatim-relay off` do the same as `start` and `end`. The prompts `verbatim-relay start` and `verbatim-relay status` also work.
 
-The model reads the exact conversation of the latest test with the read-only `transcript` tool. It did not see the conversation while you talked, so it judges the record, not its memory. During a test, it cannot send a message to the agent, and it cannot change the files in `.verbatim-relay/`: the plugin denies these tool calls, except file reads. It also denies a model command that runs the entry, for example `python entry.py`. A command that only reads the entry, for example `cat entry.py`, can run.
+The model reads the exact conversation of the latest test with the read-only `transcript` tool. The tool runs `verbatim-relay transcript`, so the model gets the same text as with the hook kit. It did not see the conversation while you talked, so it judges the record, not its memory. During a test, it cannot send a message to the agent, and it cannot change the files in `.verbatim-relay/`: the plugin denies these tool calls, except file reads. It also denies a model command that runs the entry, for example `python entry.py`. A command that only reads the entry, for example `cat entry.py`, can run.
 
 `verbatim-relay trace` builds the trace of the latest test again and shows its findings.
 

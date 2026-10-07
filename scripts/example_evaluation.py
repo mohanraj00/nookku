@@ -10,6 +10,7 @@ usage: python scripts/example_evaluation.py
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -40,6 +41,8 @@ PROMPT = (
     "is the tone right, is each answer accurate? Quote the turns that you judge."
 )
 PLUGIN = ["--plugin-dir", str(ROOT / "plugins" / "claude-code")]
+# The transcript tool of the plugin runs the verbatim-relay command of this checkout.
+ENV = {**os.environ, "PATH": f"{ROOT / '.venv' / 'bin'}{os.pathsep}{os.environ['PATH']}"}
 
 
 def settings(tap_url: str, record: Path, on: bool) -> list[str]:
@@ -58,6 +61,7 @@ def claude(prompt: str, session: str | None, cwd: Path, extra: list[str]) -> tup
         text=True,
         stdin=subprocess.DEVNULL,
         cwd=cwd,
+        env=ENV,
         timeout=600,
     )
     d = json.loads(p.stdout[p.stdout.index("{") :]) if "{" in p.stdout else {}
