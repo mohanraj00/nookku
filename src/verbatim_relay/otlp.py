@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Any
 
 from . import stdio
+from .record import json_text
 
 FILE = "otel.jsonl"
 VERSION = 1
@@ -403,7 +404,7 @@ class Receiver(ThreadingHTTPServer):
         return f"http://{host!s}:{port}"
 
     def write(self, new: list[dict[str, Any]]) -> None:
-        text = "".join(json.dumps(r, ensure_ascii=False) + "\n" for r in new)
+        text = "".join(json_text(r) + "\n" for r in new)
         with self.lock:
             self.last = time.time()
             if text:

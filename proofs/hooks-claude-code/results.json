@@ -89,9 +89,9 @@
  "P3b": {
   "agent_inputs_added": 0,
   "blocked_rows": 1,
-  "model_text": "The command did not run. A PreToolUse hook blocked it with this message:\n\n```\nverbatim-relay: only the tester talks to the agent.\n```\n\nThe verbatim-relay plugin added this block on purpose. It stops the model from sending messages to the agent under test, so only the tester's messages are in the rec"
+  "model_text": "The command did not run. A PreToolUse hook stopped it with this error:\n\n```\nverbatim-relay: only the tester talks to the agent.\n```\n\nThe verbatim-relay hook blocks the model from sending text to the agent endpoint at `127.0.0.1:60665`. This is the correct behavior: only the person who does the test "
  },
- "end_model_output_tokens": 2598,
+ "end_model_output_tokens": 2490,
  "test": {
   "ended": true,
   "model_sessions": [],

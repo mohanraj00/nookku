@@ -254,3 +254,25 @@ def test_a_call_that_does_not_end_gets_a_row_and_no_second_row(
         assert [(r["status"], r["error"]) for r in rows(tmp_path)] == [(None, backend.ENDED)]
         t.join()
     assert len(rows(tmp_path)) == 1
+
+
+class NotedProxy(backend.Proxy):
+    """A proxy that adds a text with a lone surrogate to each row."""
+
+    def describe(self, row: dict, headers: list[tuple[str, str]], body: bytes) -> None:
+        row["note"] = "a mug \ud83d"
+
+
+def test_a_lone_surrogate_in_a_row_is_written_as_its_escape(tmp_path: Path) -> None:
+    # The proxy reads headers as Latin-1 and bodies as strict UTF-8, so no wire text gives a lone
+    # surrogate. A subclass row gives one to the writer.
+    with StockServer() as stock:
+        b = backend.Backend("stock", "STOCK_URL", stock.url)
+        proxies = backend.Proxies([b], tmp_path / backend.FILE, NotedProxy)
+        env = proxies.start()
+        try:
+            status, _, _ = request(env["STOCK_URL"], "GET", "/stock?sku=mug", None, {})
+        finally:
+            proxies.stop()
+    assert status == 200
+    assert rows(tmp_path)[0]["note"] == "a mug \\ud83d"
