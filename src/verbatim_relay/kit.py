@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import http.client
 import json
 import re
 import shlex
@@ -16,7 +17,7 @@ from typing import Any, TextIO
 from urllib.parse import urlsplit
 
 from verbatim_relay import bridge, commands, evaluation, seal
-from verbatim_relay.adapters import AdapterError, History, make
+from verbatim_relay.adapters import AdapterError, History, StreamError, is_stream, make
 from verbatim_relay.record import RecordError, Turn, Writer, lone_surrogate, read_relay
 
 STATE_DIR = bridge.STATE_DIR
@@ -149,15 +150,17 @@ def relay(config: Config, said: str, past: History) -> tuple[str, bool]:
     )
     try:
         with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
+            stream = is_stream(resp.headers.get("Content-Type"))
             body = resp.read()
     except urllib.error.HTTPError as e:
         text = e.read().decode("utf-8", errors="replace")
         return f"verbatim-relay: the agent returned HTTP {e.code}:\n{text}", False
-    except (OSError, ValueError) as e:
+    except (OSError, ValueError, http.client.HTTPException) as e:
         return f"verbatim-relay: cannot reach the tap at {config.tap_url}: {e}", False
     try:
-        return adapter.reply(body), True
-    except AdapterError as e:
+        # The relay shows a streamed reply only when the stream is complete (SPEC.md section 5).
+        return (adapter.stream_reply(body) if stream else adapter.reply(body)), True
+    except (AdapterError, StreamError) as e:
         return f"verbatim-relay: cannot read the reply: {e}", False
 
 
