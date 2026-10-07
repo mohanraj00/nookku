@@ -394,6 +394,11 @@ CASES_BY_NAME: dict[str, tuple[list | None, list | None, dict]] = {
         CLEAN_RELAY,
         {"exit": 2, "errors": ["record_invalid"]},
     ),
+    "stream_in_a_v01_relay_row": (
+        CLEAN_TAP,
+        [{**CLEAN_RELAY[0], "stream": STREAM_TAP[0]["stream"]}, *CLEAN_RELAY[1:]],
+        {"exit": 2, "errors": ["record_invalid"]},
+    ),
     "stream_wrong_field_type": (
         [{**STREAM_TAP[0], "stream": {"sha256": "abc", "bytes": 120}}, *STREAM_TAP[1:]],
         RELAY_02,

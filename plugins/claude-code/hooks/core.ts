@@ -253,7 +253,7 @@ const RELAY_FIELDS: Record<string, Record<string, string[]>> = {
 }
 const RELAY_OPTIONAL: Record<string, Record<string, string>> = { turn: { ok: 'boolean', session: 'string' } }
 const TEXT_FIELDS = ['said', 'shown']
-const SINCE_02 = ['model_session', 'started', 'originator']
+const SINCE_02 = ['model_session', 'started', 'originator', 'stream']
 
 function jsonType(value: unknown): string {
   return value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value

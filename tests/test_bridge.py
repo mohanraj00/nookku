@@ -512,3 +512,20 @@ def test_a_bad_backend_config_stops_the_start(tmp_path: Path) -> None:
     config.write_text(json.dumps({**json.loads(config.read_text()), "backends": [{"name": "x"}]}))
     with pytest.raises(bridge.BridgeError, match="'name', 'env' and 'url'"):
         bridge.start(root)
+
+
+def test_an_invalid_relay_record_infers_no_codex_session(tmp_path: Path, homes: tuple) -> None:
+    # Without the tester sessions of relay.jsonl, a tester rollout looks like an app session.
+    script = tmp_path / "app.py"
+    script.write_text(FIXTURE_APP)
+    root = project(tmp_path, [sys.executable, str(script)], ["codex"])
+    cur = bridge.start(root, "tester-start")
+    folder = Path(cur["dir"])
+    (folder / "relay.jsonl").write_text("not json\n", encoding="utf-8")
+    time.sleep(0.5)
+    bridge.end(root, wait=10)
+    manifest = json.loads((folder / "manifest.json").read_text())
+    assert [s for s in manifest["model_sessions"] if s["harness"] == "codex"] == []
+    assert not (folder / "sessions" / "codex").exists()
+    log = (folder / "bridge.log").read_text(encoding="utf-8")
+    assert "the relay record is invalid, so the test infers no Codex session" in log

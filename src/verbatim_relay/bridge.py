@@ -591,10 +591,13 @@ def run(root: Path, test: str, tester_session: str | None, timeout: float = AGEN
         if data.get("test") == test and isinstance(data.get("tester_session"), str):
             tester.add(data["tester_session"])
     ending.unlink(missing_ok=True)
+    infer = True
     try:
         tester |= {t.session for t in turns(relay, missing_ok=True) if t.session is not None}
     except RecordError as e:  # the test must still end
-        _log(f"the relay record is invalid, so its sessions are not tester sessions: {e}")
+        # Without the tester sessions, an inferred Codex session can be a tester session.
+        infer = False
+        _log(f"the relay record is invalid, so the test infers no Codex session: {e}")
     sessions: list[dict[str, Any]] = []
     copies = folder / "sessions"
     for sid, pid in watcher.found.items():
@@ -611,7 +614,7 @@ def run(root: Path, test: str, tester_session: str | None, timeout: float = AGEN
                 "file": f"sessions/claude-code/{sid}.jsonl" if files else None,
             }
         )
-    for f, meta in codex_sessions(root, started, ended, tester):
+    for f, meta in codex_sessions(root, started, ended, tester) if infer else []:
         row: dict[str, Any] = {
             "type": "model_session",
             "harness": "codex",
