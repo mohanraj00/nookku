@@ -14,6 +14,11 @@ class ContractError(ValueError):
     """A line is not a valid contract input or output."""
 
 
+def _no_constant(name: str) -> Any:
+    # json.loads accepts NaN, Infinity and -Infinity. They are not JSON. JSON.parse refuses them.
+    raise ContractError(f"{name} is not a JSON value")
+
+
 def request(rid: str, session: str, message: str, history: History) -> bytes:
     """The input line for one message, without its line end."""
     body = {
@@ -30,7 +35,7 @@ def _object(line: bytes, what: str) -> dict[str, Any]:
     if b"\n" in line or b"\r" in line:
         raise ContractError(f"the {what} has a raw line end")
     try:
-        data = json.loads(line.decode("utf-8"))
+        data = json.loads(line.decode("utf-8"), parse_constant=_no_constant)
     except (UnicodeDecodeError, json.JSONDecodeError):
         raise ContractError(f"the {what} is not UTF-8 JSON") from None
     if not isinstance(data, dict):
@@ -65,9 +70,10 @@ def parse_reply(line: bytes, rid: str) -> tuple[str | None, str | None]:
     data = _object(line, "reply")
     if data["id"] != rid:
         raise ContractError(f"the reply id {data['id']!r} is not the request id {rid!r}")
-    reply, error = data.get("reply"), data.get("error")
-    if (reply is None) == (error is None):
+    # A line with both keys is not valid, also if one of them is null (SPEC.md section 6).
+    if ("reply" in data) == ("error" in data):
         raise ContractError("the reply must have exactly one of 'reply' and 'error'")
-    if not isinstance(reply if error is None else error, str):
+    reply, error = data.get("reply"), data.get("error")
+    if not isinstance(reply if "reply" in data else error, str):
         raise ContractError("'reply' or 'error' is not a string")
     return reply, error

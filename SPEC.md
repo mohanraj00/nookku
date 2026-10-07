@@ -210,6 +210,14 @@ Output: an object with `v: 1`, the same `id`, and exactly one of these fields:
 
 Other fields are allowed and ignored.
 
+An output line is not valid in these cases. The tap returns status 502 for it and writes an `unparsed` row (section 4.2).
+
+- The line has both `reply` and `error`, also if one of them is `null`.
+- The line has neither `reply` nor `error`, or the field is not a string.
+- The line contains `NaN`, `Infinity` or `-Infinity`. These are not JSON values. This rule applies to an input line too.
+
+The tap, the plugin and the hook kit read an output line with these same rules.
+
 The Python helper `verbatim_relay.agent.serve(reply)` speaks this contract for a function `reply(message, history) -> str`. It writes its contract lines to the original stdout, and it sends all other output of the process to stderr.
 
 ## 7. Tests
@@ -390,6 +398,14 @@ The proxy writes one row to `model_api.jsonl` for each call, with the fields of 
 
 - `anthropic`, path that ends with `/v1/messages`: the `content` blocks, `stop_reason` and `usage`. In a stream: `message_start`, `content_block_start`, `content_block_delta` (`text_delta` and `input_json_delta`), `message_delta` and `error`.
 - `openai`, path that ends with `/chat/completions`: `choices[0].message` (`content` and `tool_calls`), `finish_reason` and `usage`. In a stream: the `delta` of choice 0 of each chunk. The `arguments` of a tool call are parsed as JSON. If they are not JSON, `input` is the text.
+- `openai`, path that ends with `/responses` (also `/v1/responses`): the Responses API. A path after the response id, for example `GET /responses/<id>`, is not a model call. The parser reads the response object:
+  - `text` is the `text` of each `output_text` part of each `message` item in `output`, joined.
+  - Each `function_call` item in `output` is a tool call. `id` is its `call_id`, because a later request gives the result with this id. `input` is its `arguments`, parsed as for `/chat/completions`.
+  - `stop_reason` is the `status` of the response, for example `completed`, `incomplete` or `failed`. `usage` is `usage`. `error` is the `message` of the `error` object.
+  - In a stream, the parser keeps the output items by their `output_index`. `response.output_item.added` and `response.output_item.done` set the item. `response.output_text.delta` adds its `delta` to the text of the part at `content_index`. `response.function_call_arguments.delta` adds its `delta` to the `arguments` of the item. Thus a stream that stops before its end keeps the text and the arguments that came. The parser reads `model`, `status`, `usage` and `error` from the `response` object of `response.created`, `response.in_progress`, `response.completed`, `response.failed` and `response.incomplete`. An `error` event gives `error` from its `message`. The parser does not read the other events.
+  - This parser follows the OpenAI API reference of 2026-10-07, the date when it was read: [create a response](https://developers.openai.com/api/reference/resources/responses/methods/create) and [streaming events](https://developers.openai.com/api/reference/resources/responses/streaming-events).
+
+To read a new model call, the proxy adds one row to its table of model calls (the API, the end of the path and the format) and one parser for the format. The trace selects its reader of the request by the same format (section 8.4).
 
 ## 8. Trace
 
@@ -471,9 +487,9 @@ The reader takes the version from `cli_version` of the `session_meta` line.
 
 **Model API calls** (`model_api.jsonl`). The reader counts each harness call by its `harness`, and does not keep it, because the session file of the harness has its turns. It counts each call to a path that is not a model call (section 7.7) in `other_calls`, and does not keep it. It counts each row that is not a call by its type. From each other call, in this order:
 
-- a `message` item with the role `user`, if the last message of the request has the role `user` and text: a string, or the joined `text` parts. `ts` is `started`. If the request body is cut or is not JSON, the call gives no user message;
+- a `message` item with the role `user`, if the last message of the request has the role `user` and text: a string, or the joined `text` parts. `ts` is `started`. If the request body is cut or is not JSON, the call gives no user message. For `/responses`, the messages are the items of `input`. A string `input` is the user message. Else the last item must be a message (with no `type`, or the type `message`) with the role `user`. Its text is its `content` string, or its joined `input_text` parts;
 - a `message` item with the role `assistant`. `output` is the `text` of the result, or `null` if it is empty. `ts` is the `ts` of the row;
-- a `tool_call` item for each tool call of the result. `ts` is the `ts` of the row. The output is the first tool result with the same id in the request of a later call: a `tool_result` block (`anthropic`, an `error` if `is_error` is `true`) or a message with the role `tool` (`openai`). With no such result, `output` and `error` are `null`.
+- a `tool_call` item for each tool call of the result. `ts` is the `ts` of the row. The output is the first tool result with the same id in the request of a later call of the same format (`messages`, `chat` or `responses`), because a tool call id is unique only in one format: a `tool_result` block (`anthropic`, an `error` if `is_error` is `true`), a message with the role `tool` (`openai`, `/chat/completions`), or a `function_call_output` item of `input` with the same `call_id` (`openai`, `/responses`). The text of a `function_call_output` is its `output` string, or its `input_text` parts joined, with each other part as JSON. With no such result, `output` and `error` are `null`.
 
 ### 8.5 Harness tools
 

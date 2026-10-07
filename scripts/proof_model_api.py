@@ -2,8 +2,9 @@
 7.7).
 
 A toy model API runs on a local port, as the Anthropic and the OpenAI API of a test. A test runs an
-entry that, for one message, makes 3 calls through the proxies: a streamed Anthropic call, a
-streamed OpenAI call and an Anthropic call with a JSON answer. For a streamed call, the toy API
+entry that, for one message, makes 4 calls through the proxies: a streamed Anthropic call, a
+streamed OpenAI Chat Completions call, an Anthropic call with a JSON answer and a streamed OpenAI
+Responses call. For a streamed call, the toy API
 sends the first event and then waits until the entry says that it has that event. Thus the proof
 fails if the proxy holds the stream until its end. The proof compares the SHA-256 of each body at 3
 places: the entry, the toy API and model_api.jsonl. It checks the text in the record and that no
@@ -67,6 +68,31 @@ OPENAI = [
     ),
     b"data: [DONE]\n\n",
 ]
+MESSAGE = {"id": "msg_1", "type": "message", "role": "assistant", "content": []}
+SHIPS = "".join(f"Teapot {n} ships today. " for n in range(40))
+RESPONSES = sse(
+    [
+        {"type": "response.created", "response": {"model": "gpt-toy", "status": "in_progress"}},
+        {"type": "response.output_item.added", "output_index": 0, "item": MESSAGE},
+        *[
+            {
+                "type": "response.output_text.delta",
+                "item_id": "msg_1",
+                "output_index": 0,
+                "content_index": 0,
+                "delta": f"Teapot {n} ships today. ",
+            }
+            for n in range(40)
+        ],
+        {
+            "type": "response.output_item.done",
+            "output_index": 0,
+            "item": {**MESSAGE, "content": [{"type": "output_text", "text": SHIPS}]},
+        },
+        {"type": "response.completed", "response": {"model": "gpt-toy", "status": "completed"}},
+    ],
+    named=True,
+)
 JSON = json.dumps(
     {
         "model": "claude-toy",
@@ -75,7 +101,7 @@ JSON = json.dumps(
     }
 ).encode()
 
-# The entry makes the 3 calls for one message, and replies with what it sent and got.
+# The entry makes the 4 calls for one message, and replies with what it sent and got.
 ENTRY = """
 import hashlib, json, os, sys, urllib.request
 
@@ -86,6 +112,7 @@ calls = [
     (os.environ["ANTHROPIC_BASE_URL"] + "/v1/messages", {"stream": True}),
     (os.environ["OPENAI_BASE_URL"] + "/chat/completions", {"stream": True}),
     (os.environ["ANTHROPIC_BASE_URL"] + "/v1/messages", {"stream": False}),
+    (os.environ["OPENAI_BASE_URL"] + "/responses", {"stream": True}),
 ]
 for raw in sys.stdin.buffer:
     request = json.loads(raw)
@@ -121,7 +148,12 @@ class ToyApi(BaseHTTPRequestHandler):
             self.end_headers()
             return
         stream = json.loads(body).get("stream") is True
-        parts = (OPENAI if "chat" in self.path else ANTHROPIC) if stream else [JSON]
+        if not stream:
+            parts = [JSON]
+        elif self.path.endswith("/responses"):
+            parts = RESPONSES
+        else:
+            parts = OPENAI if "chat" in self.path else ANTHROPIC
         seen: dict[str, object] = {
             "path": self.path,
             "got": hashlib.sha256(body).hexdigest(),
@@ -185,6 +217,7 @@ def main() -> int:
         "".join(f"Teapot set {n}: 3 left at €80. " for n in range(40)),
         "".join(f"Mug {n}. " for n in range(40)),
         "Order 5120 has 2 teapot sets.",
+        SHIPS,
     ]
     calls = []
     for i, (e, s, r) in enumerate(zip(entry, SEEN, rows, strict=True)):
@@ -213,9 +246,9 @@ def main() -> int:
         "seal_intact": seal.verify(folder)["intact"],
     }
     result["pass"] = (
-        len(calls) == 3
+        len(calls) == 4
         and all(c["request_same"] and c["response_same"] and c["text_in_record"] for c in calls)
-        and [c["first_part_before_the_end"] for c in calls] == [True, True, None]
+        and [c["first_part_before_the_end"] for c in calls] == [True, True, None, True]
         and not result["key_in_record"]
         and result["seal_intact"]
     )

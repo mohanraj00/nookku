@@ -220,17 +220,112 @@ def openai(data: bytes, stream: bool) -> dict[str, Any]:
     return out
 
 
-def model_call(api: str, path: str) -> bool:
-    """True if the path is a model call of the API."""
-    end = {"anthropic": "/v1/messages", "openai": "/chat/completions"}.get(api)
-    return end is not None and path.rstrip("/").endswith(end)
+# The events of a Responses API stream that hold the response object.
+RESPONSE_EVENTS = (
+    "response.created",
+    "response.in_progress",
+    "response.completed",
+    "response.failed",
+    "response.incomplete",
+)
+
+
+def _responses_output(out: dict[str, Any], items: Any) -> None:
+    """The text and the tool calls of the `output` items of an OpenAI response."""
+    for item in items if isinstance(items, list) else []:
+        if not isinstance(item, dict):
+            continue
+        if item.get("type") == "message":
+            for part in item.get("content") or []:
+                if isinstance(part, dict) and part.get("type") == "output_text":
+                    out["text"] += str(part.get("text") or "")
+        elif item.get("type") == "function_call":
+            out["tool_calls"].append(
+                {
+                    "id": item.get("call_id"),
+                    "name": item.get("name"),
+                    "input": _arguments(item.get("arguments")),
+                }
+            )
+
+
+def _responses_status(out: dict[str, Any], response: Any) -> None:
+    """The model, the status, the usage and the error of an OpenAI response object."""
+    if not isinstance(response, dict):
+        return
+    out["model"] = response.get("model") or out["model"]
+    out["stop_reason"] = response.get("status") or out["stop_reason"]
+    out["usage"] = response.get("usage") or out["usage"]
+    out["error"] = _error(response) or out["error"]
+
+
+def responses(data: bytes, stream: bool) -> dict[str, Any]:
+    """The result of a call to the OpenAI Responses API."""
+    out = _empty()
+    if not stream:
+        body = _json(data.decode("utf-8", errors="replace"))
+        if not isinstance(body, dict):
+            out["error"] = "the response is not JSON"
+            return out
+        _responses_status(out, body)
+        _responses_output(out, body.get("output"))
+        return out
+    # The output items by their output_index. The deltas add to an item, and the last
+    # response.output_item.done event replaces it.
+    items: dict[int, dict[str, Any]] = {}
+    for text in events(data):
+        event = _json(text)
+        if not isinstance(event, dict):
+            continue
+        kind = event.get("type")
+        index = event.get("output_index")
+        index = index if isinstance(index, int) else 0
+        if kind in ("response.output_item.added", "response.output_item.done"):
+            if isinstance(event.get("item"), dict):
+                items[index] = dict(event["item"])
+        elif kind == "response.output_text.delta":
+            item = items.setdefault(index, {"type": "message"})
+            old = item.get("content")
+            content: list[Any] = old if isinstance(old, list) else []
+            item["content"] = content
+            at = event.get("content_index")
+            at = at if isinstance(at, int) else 0
+            while len(content) <= at:
+                content.append({"type": "output_text", "text": ""})
+            part = content[at] = _dict(content[at])
+            part["text"] = str(part.get("text") or "") + str(event.get("delta") or "")
+        elif kind == "response.function_call_arguments.delta":
+            item = items.setdefault(index, {"type": "function_call"})
+            item["arguments"] = str(item.get("arguments") or "") + str(event.get("delta") or "")
+        elif kind in RESPONSE_EVENTS:
+            _responses_status(out, event.get("response"))
+        elif kind == "error":
+            out["error"] = str(event.get("message") or event.get("code") or "error")
+    _responses_output(out, [item for _, item in sorted(items.items())])
+    return out
+
+
+# The model calls: the API, the end of the path, and the format of the call. The format selects
+# the parser of the result here and the reader of the request in the trace. To read a new model
+# call, add one row here and one parser to PARSERS.
+CALLS = (
+    ("anthropic", "/v1/messages", "messages"),
+    ("openai", "/chat/completions", "chat"),
+    ("openai", "/responses", "responses"),
+)
+PARSERS = {"messages": anthropic, "chat": openai, "responses": responses}
+
+
+def call_format(api: str, path: str) -> str | None:
+    """The format of a model call of the API, or None if the path is not a model call."""
+    end = path.rstrip("/")
+    return next((f for a, tail, f in CALLS if a == api and end.endswith(tail)), None)
 
 
 def result(api: str, path: str, data: bytes, stream: bool) -> dict[str, Any] | None:
     """The result of a call, or None for a path that is not a model call."""
-    if not model_call(api, path):
-        return None
-    return anthropic(data, stream) if api == "anthropic" else openai(data, stream)
+    form = call_format(api, path)
+    return None if form is None else PARSERS[form](data, stream)
 
 
 def _omit(body: Any) -> None:
