@@ -1,11 +1,14 @@
 import json
+import re
 from pathlib import Path
 
 import pytest
 
 from verbatim_relay.audit import audit
+from verbatim_relay.record import RecordError, read_rows
 
-CASES = sorted((Path(__file__).resolve().parent.parent / "conformance" / "cases").iterdir())
+ROOT = Path(__file__).resolve().parent.parent
+CASES = sorted((ROOT / "conformance" / "cases").iterdir())
 
 
 @pytest.mark.parametrize("case", CASES, ids=[c.name for c in CASES])
@@ -22,3 +25,27 @@ def test_case(case: Path) -> None:
     assert notes == expect.get("notes", [])
     assert report.blocked_calls == expect.get("blocked_calls", 0)
     assert report.model_sessions == expect.get("model_sessions", 0)
+
+
+def _valid(tmp_path: Path, line: str) -> bool:
+    path = tmp_path / "relay.jsonl"
+    path.write_text(line + "\n", encoding="utf-8")
+    try:
+        read_rows("relay", path)
+    except RecordError:
+        return False
+    return True
+
+
+def test_the_plugin_reads_each_relay_line_like_the_python_reader(tmp_path: Path) -> None:
+    # register.test.ts runs this table through relayTurns.
+    text = (ROOT / "plugins" / "claude-code" / "hooks" / "register.test.ts").read_text("utf-8")
+    block = text.split("const RELAY_LINES")[1].split("\n]\n")[0]
+    rows = [json.loads(row) for row in re.findall(r"^  (\[.*\]),$", block, re.M)]
+    want = set()
+    for relay in (ROOT / "conformance" / "cases").glob("*/relay.jsonl"):
+        lines = relay.read_text(encoding="utf-8").split("\n")
+        want.update(lines[:-1] if lines[-1] == "" else lines)
+    assert sorted(line for line, _ in rows) == sorted(want)
+    for line, valid in rows:
+        assert [line, _valid(tmp_path, line)] == [line, valid]

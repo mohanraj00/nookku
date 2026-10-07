@@ -261,6 +261,78 @@ export function blockedRow(tool: string, detail: string): string {
   return JSON.stringify(row) + '\n'
 }
 
+// The relay record rule of SPEC.md section 2, the same as `record.read_rows` in Python. Each field
+// has its allowed JSON types. A text field also needs its hash.
+const RELAY_FIELDS: Record<string, Record<string, string[]>> = {
+  turn: { ts: ['number'], harness: ['string'], said: ['string'], shown: ['string', 'null'] },
+  blocked_call: { ts: ['number'], harness: ['string'], tool: ['string'], detail: ['string'] },
+}
+const RELAY_OPTIONAL: Record<string, Record<string, string>> = { turn: { ok: 'boolean', session: 'string' } }
+const TEXT_FIELDS = ['said', 'shown']
+// The record versions of SPEC.md section 2, the same as `record.VERSIONS` in Python.
+const RELAY_VERSIONS = ['0.1', '0.2', '0.3']
+const SINCE_02 = ['model_session', 'started', 'originator', 'stream']
+
+function jsonType(value: unknown): string {
+  return value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value
+}
+
+function hasLoneSurrogate(value: unknown): boolean {
+  if (typeof value === 'string') return LONE_SURROGATE.test(value)
+  if (value !== null && typeof value === 'object') {
+    return Object.entries(value).some(([k, v]) => LONE_SURROGATE.test(k) || hasLoneSurrogate(v))
+  }
+  return false
+}
+
+// Why one line of a relay record is not valid, or null if it is valid.
+async function relayLineError(raw: string): Promise<string | null> {
+  let row: any
+  try {
+    row = JSON.parse(raw)
+  } catch {
+    return 'not JSON'
+  }
+  if (jsonType(row) !== 'object') return 'not a JSON object'
+  if (hasLoneSurrogate(row)) return 'a field has a lone surrogate, which is not a Unicode scalar value'
+  if (!RELAY_VERSIONS.includes(row.v)) return `version ${JSON.stringify(row.v)}, expected one of ${RELAY_VERSIONS.join(', ')}`
+  const fields = Object.hasOwn(RELAY_FIELDS, row.type) ? RELAY_FIELDS[row.type] : null
+  if (fields === null) return `unknown type ${JSON.stringify(row.type)} in a relay record`
+  for (const [name, types] of Object.entries(fields)) {
+    if (!(name in row)) return `missing field '${name}'`
+    if (!types.includes(jsonType(row[name]))) return `field '${name}' has the wrong type`
+    if (TEXT_FIELDS.includes(name)) {
+      const hash = `${name}_sha256`
+      if (!(hash in row) || row[hash] !== (await sha256(row[name]))) return `field ${hash} does not match '${name}'`
+    }
+  }
+  for (const [name, type] of Object.entries(RELAY_OPTIONAL[row.type] ?? {})) {
+    if (name in row && jsonType(row[name]) !== type) return `field '${name}' has the wrong type`
+  }
+  if (row.v === '0.1' && [row.type, ...Object.keys(row)].some(k => SINCE_02.includes(k))) {
+    return 'a field or a type of version 0.2 in a version 0.1 row'
+  }
+  if ('error' in row && typeof row.error !== 'string') return "field 'error' has the wrong type"
+  return null
+}
+
+// The turns of a relay record, of one session or (with null) of all sessions. An invalid line or a
+// wrong hash throws an Error that names the file and the line. Never skip such a line.
+export async function relayTurns(text: string, path: string, session: string | null): Promise<VerbatimRelayTurn[]> {
+  const lines = text.split('\n')
+  if (lines.length && lines[lines.length - 1] === '') lines.pop()
+  const turns: VerbatimRelayTurn[] = []
+  for (const [i, raw] of lines.entries()) {
+    const error = await relayLineError(raw)
+    if (error !== null) throw new Error(`${path}: line ${i + 1}: ${error}`)
+    const row = JSON.parse(raw)
+    if (row.type === 'turn' && (session === null || row.session === session)) {
+      turns.push({ said: row.said, shown: row.shown, ok: row.ok === true })
+    }
+  }
+  return turns
+}
+
 // The shell command check of the deny rules (SPEC.md section 5), the same as
 // src/verbatim_relay/commands.py. A command passes if each of its commands is a read program and
 // each output redirect writes /dev/null or report.md. Input that does not parse fails.

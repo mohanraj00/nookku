@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { contractBody, contractShown, denyPattern, entryNames, isChecked, isStream, loneSurrogate, namesEntry, pick, readsOnly, replyText, requestBody, sha256, sseEvents, streamText, toolReadsOnly, touchesRecords, touchesTestFiles } from './core'
+import { contractBody, contractShown, denyPattern, entryNames, isChecked, isStream, loneSurrogate, namesEntry, pick, readsOnly, relayTurns, replyText, requestBody, sha256, sseEvents, streamText, toolReadsOnly, touchesRecords, touchesTestFiles } from './core'
 
 const TRICKY = 'Hi, I want to return order #4471.  \n\nÜnïcödé € ₹\t| a | b |\n'
 const REPLY = '## Toy shop  \nYou wrote it.\n\n| item | price |\n|---|---|\n| mug | € 8 |\n'
@@ -451,6 +451,74 @@ test('the plugin reads an agent line with the same rule as the Python tap', asyn
   }
 })
 
+// Each line of the relay records in conformance/cases/, with true if the Python reader accepts
+// it. tests/test_conformance.py checks this table against the cases and against
+// record.read_rows.
+const RELAY_LINES: [string, boolean][] = [
+  ["", false],
+  ["{\"v\": \"0.1\", \"type\": \"blocked_call\", \"ts\": 1.0, \"harness\": \"claude-code\", \"tool\": \"Bash\", \"detail\": \"curl -s http://127.0.0.1:8800/\"}", true],
+  ["{\"v\": \"0.1\", \"type\": \"turn\"", false],
+  ["{\"v\": \"0.1\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"Hi, I want to return order #4471.  \", \"said_sha256\": \"1ef5984361673b46e8871bb201a8340501f8b192637dada66fe7830deb6f1c80\", \"shown\": \"## Returns  \\nYou can return order #4471 within 30 days.\\n\\n| item | status |\\n|---|---|\\n| mug | eligible |\", \"shown_sha256\": \"b28e6e6e5f429d58765d7a29dfda83a9f02db6cd91702a60aa4cf4606cb7b47a\", \"ok\": \"yes\"}", false],
+  ["{\"v\": \"0.1\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"Hi, I want to return order #4471.  \", \"said_sha256\": \"1ef5984361673b46e8871bb201a8340501f8b192637dada66fe7830deb6f1c80\", \"shown\": \"## Returns  \\nYou can return order #4471 within 30 days.\\n\\n| item | status |\\n|---|---|\\n| mug | eligible |\", \"shown_sha256\": \"b28e6e6e5f429d58765d7a29dfda83a9f02db6cd91702a60aa4cf4606cb7b47a\", \"ok\": true, \"session\": \"s1\"}", true],
+  ["{\"v\": \"0.1\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"Hi, I want to return order #4471.  \", \"said_sha256\": \"1ef5984361673b46e8871bb201a8340501f8b192637dada66fe7830deb6f1c80\", \"shown\": \"## Returns  \\nYou can return order #4471 within 30 days.\\n\\n| item | status |\\n|---|---|\\n| mug | eligible |\", \"shown_sha256\": \"b28e6e6e5f429d58765d7a29dfda83a9f02db6cd91702a60aa4cf4606cb7b47a\", \"stream\": {\"sha256\": \"7739af7e5ea3e2927666bdbb94ed110778c3cf8dbe2962c3a322b7dab31f6d93\", \"bytes\": 854}}", false],
+  ["{\"v\": \"0.1\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"Hi, I want to return order #4471.  \", \"said_sha256\": \"1ef5984361673b46e8871bb201a8340501f8b192637dada66fe7830deb6f1c80\", \"shown\": \"## Returns  \\nYou can return order #4471 within 30 days.\\n\\n| item | status |\\n|---|---|\\n| mug | eligible |\", \"shown_sha256\": \"b28e6e6e5f429d58765d7a29dfda83a9f02db6cd91702a60aa4cf4606cb7b47a\"}", true],
+  ["{\"v\": \"0.1\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"Hi, I want to return order #4471.  \", \"said_sha256\": \"1ef5984361673b46e8871bb201a8340501f8b192637dada66fe7830deb6f1c80\", \"shown\": \"## Returns  \\nYou can return order #4471 within 30 days.\\n\\n| item | status |\\n|---|---|\\n| mug | eligible |\\n\", \"shown_sha256\": \"587f9ea21b2366fe62e43ec12cfc3fdc28c6b9d4155052eddda4ad78ac2792b1\"}", true],
+  ["{\"v\": \"0.1\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"Hi, I want to return order #4471.  \", \"said_sha256\": \"1ef5984361673b46e8871bb201a8340501f8b192637dada66fe7830deb6f1c80\", \"shown\": \"## Returns  \\nYou can return order #4471 within 30 days.\\n\\n| item | status |\\n|---|---|\\n| mug | eligible |\\ud83d\", \"shown_sha256\": \"ed17c70b981183c55831abc1105f82a43b9fb9fb9386dbfeac69603bd7b8f1d3\"}", false],
+  ["{\"v\": \"0.1\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"Hi, I want to return order #4471.  \", \"said_sha256\": \"1ef5984361673b46e8871bb201a8340501f8b192637dada66fe7830deb6f1c80\", \"shown\": \"## Returns  \\nYou can return order #4471 within 30 days.\\n\\n| item | status |\\n|---|---|\\n| mug | eligible |�\", \"shown_sha256\": \"ed17c70b981183c55831abc1105f82a43b9fb9fb9386dbfeac69603bd7b8f1d3\"}", true],
+  ["{\"v\": \"0.1\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"Hi, I want to return order #4471.  \", \"said_sha256\": \"1ef5984361673b46e8871bb201a8340501f8b192637dada66fe7830deb6f1c80\", \"shown\": \"## Returns  \\nYou can return order #4471 within 31 days.\\n\\n| item | status |\\n|---|---|\\n| mug | eligible |\", \"shown_sha256\": \"b28e6e6e5f429d58765d7a29dfda83a9f02db6cd91702a60aa4cf4606cb7b47a\"}", false],
+  ["{\"v\": \"0.1\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"Hi, I want to return order #4471.  \", \"said_sha256\": \"1ef5984361673b46e8871bb201a8340501f8b192637dada66fe7830deb6f1c80\", \"shown\": \"The agent returned an error.\", \"shown_sha256\": \"bee7e3658e9dcf2e9817c9a86e45c7e85a8dac78c78e536f62470dd20be84b68\"}", true],
+  ["{\"v\": \"0.1\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"Hi, I want to return order #4471.  \", \"said_sha256\": \"1ef5984361673b46e8871bb201a8340501f8b192637dada66fe7830deb6f1c80\", \"shown\": null, \"shown_sha256\": null}", true],
+  ["{\"v\": \"0.1\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"Hi, I want to return order #4471.  \", \"said_sha256\": \"1ef5984361673b46e8871bb201a8340501f8b192637dada66fe7830deb6f1c80\", \"shown_sha256\": \"b28e6e6e5f429d58765d7a29dfda83a9f02db6cd91702a60aa4cf4606cb7b47a\"}", false],
+  ["{\"v\": \"0.1\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"Two questions:\\n\\n1. Do you ship to Chennai?\\n2. Is the mug dishwasher safe?\", \"said_sha256\": \"9cfec17ff2654186bdfda6011942e259c57f77f16c89550e20351725a090c6fc\", \"shown\": \"1. Yes, we ship to Chennai.\\n\\n2. Yes.   \", \"shown_sha256\": \"0f84387363da9a5fefb6dc923874883389ac8aa548422360f78da5526e882c03\", \"ok\": true, \"session\": \"s1\"}", true],
+  ["{\"v\": \"0.1\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"Two questions:\\n\\n1. Do you ship to Chennai?\\n2. Is the mug dishwasher safe?\", \"said_sha256\": \"9cfec17ff2654186bdfda6011942e259c57f77f16c89550e20351725a090c6fc\", \"shown\": \"1. Yes, we ship to Chennai.\\n\\n2. Yes.   \", \"shown_sha256\": \"0f84387363da9a5fefb6dc923874883389ac8aa548422360f78da5526e882c03\"}", true],
+  ["{\"v\": \"0.1\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"Two questions:\\n\\n1. Do you ship to Chennai?\\n2. Is the mug dishwasher safe?\", \"said_sha256\": \"9cfec17ff2654186bdfda6011942e259c57f77f16c89550e20351725a090c6fc\", \"shown\": \"1. Yes, we ship to Chennai.\\n\\n2. Yes.\", \"shown_sha256\": \"2138f4e2bd63c65c14522632d3513b146ba68b658fcd04b9ceb1bfd4bb88f0ad\"}", true],
+  ["{\"v\": \"0.1\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"Two questions:\\n\\n1. Do you ship to Chennai?\\n2. Is the mug dishwasher safe?\", \"said_sha256\": \"9cfec17ff2654186bdfda6011942e259c57f77f16c89550e20351725a090c6fc\", \"shown\": null, \"shown_sha256\": null}", true],
+  ["{\"v\": \"0.1\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"Ünïcödé check: can I pay in € or ₹? Ça marche?\", \"said_sha256\": \"a80c2f3530fd028aa513e5e34214643ae75b1e02f80fa3580a356ee6e5224877\", \"shown\": \"Café policy: we accept € and ₹. Résumé of fees: none.\", \"shown_sha256\": \"65d02e898525f6bdd5cebfc4818c9088f86358fefc7adc90f95e3d7e810dc423\", \"ok\": true, \"session\": \"s1\"}", true],
+  ["{\"v\": \"0.1\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"Ünïcödé check: can I pay in € or ₹? Ça marche?\", \"said_sha256\": \"a80c2f3530fd028aa513e5e34214643ae75b1e02f80fa3580a356ee6e5224877\", \"shown\": \"Café policy: we accept € and ₹. Résumé of fees: none.\", \"shown_sha256\": \"65d02e898525f6bdd5cebfc4818c9088f86358fefc7adc90f95e3d7e810dc423\"}", true],
+  ["{\"v\": \"0.1\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"Ünïcödé check: can I pay in € or ₹? Ça marche?\", \"said_sha256\": \"a80c2f3530fd028aa513e5e34214643ae75b1e02f80fa3580a356ee6e5224877\", \"shown\": \"Care policy: we accept € and ₹. Résumé of fees: none.\", \"shown_sha256\": \"6b29bcbedee17c9b0ccf24465822b5b33d5bd6fddb3fc50462efaa58bc0dbb53\"}", true],
+  ["{\"v\": \"0.2\", \"type\": \"model_session\", \"ts\": 1.0, \"harness\": \"claude-code\", \"session\": \"4f1c2a7e-0d3b-4c55-9a61-2b8e5d7c9f10\", \"pid\": 4471, \"inferred\": false}", false],
+  ["{\"v\": \"0.2\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"Hi, I want to return order #4471.  \", \"said_sha256\": \"1ef5984361673b46e8871bb201a8340501f8b192637dada66fe7830deb6f1c80\", \"shown\": \"## Returns  \\nYou can return order #4471 within 30 days.\\n\\n| item | status |\\n|---|---|\\n| mug | eligible |\", \"shown_sha256\": \"b28e6e6e5f429d58765d7a29dfda83a9f02db6cd91702a60aa4cf4606cb7b47a\"}", true],
+  ["{\"v\": \"0.2\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"Two questions:\\n\\n1. Do you ship to Chennai?\\n2. Is the mug dishwasher safe?\", \"said_sha256\": \"9cfec17ff2654186bdfda6011942e259c57f77f16c89550e20351725a090c6fc\", \"shown\": \"1. Yes, we ship to Chennai.\\n\\n2. Yes.   \", \"shown_sha256\": \"0f84387363da9a5fefb6dc923874883389ac8aa548422360f78da5526e882c03\"}", true],
+  ["{\"v\": \"0.2\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"Ünïcödé check: can I pay in € or ₹? Ça marche?\", \"said_sha256\": \"a80c2f3530fd028aa513e5e34214643ae75b1e02f80fa3580a356ee6e5224877\", \"shown\": \"Café policy: we ac\", \"shown_sha256\": \"352f303b4c94c27c1354a7614822d4cd2c7d1392f39c9734679495a3d9095681\"}", true],
+  ["{\"v\": \"0.2\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"Ünïcödé check: can I pay in € or ₹? Ça marche?\", \"said_sha256\": \"a80c2f3530fd028aa513e5e34214643ae75b1e02f80fa3580a356ee6e5224877\", \"shown\": \"Café policy: we accept € and ₹. Résumé of fees: none.\", \"shown_sha256\": \"65d02e898525f6bdd5cebfc4818c9088f86358fefc7adc90f95e3d7e810dc423\"}", true],
+  ["{\"v\": \"0.2\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"Ünïcödé check: can I pay in € or ₹? Ça marche?\", \"said_sha256\": \"a80c2f3530fd028aa513e5e34214643ae75b1e02f80fa3580a356ee6e5224877\", \"shown\": \"verbatim-relay: cannot read the reply: the stream ended before data: [DONE]\", \"shown_sha256\": \"ee0b7d5d389e587d3f7aa14f301a0fb5a9b82659df4628c5c9776108358bcb0f\"}", true],
+  ["{\"v\": \"0.3\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"Hi, I want to return order #4471.  \", \"said_sha256\": \"1ef5984361673b46e8871bb201a8340501f8b192637dada66fe7830deb6f1c80\", \"shown\": \"## Returns  \\nYou can return order #4471 within 30 days.\\n\\n| item | status |\\n|---|---|\\n| mug | eligible |\", \"shown_sha256\": \"b28e6e6e5f429d58765d7a29dfda83a9f02db6cd91702a60aa4cf4606cb7b47a\"}", true],
+  ["{\"v\": \"9.9\", \"type\": \"turn\", \"ts\": 1.0, \"harness\": \"claude-code\", \"said\": \"Hi, I want to return order #4471.  \", \"said_sha256\": \"1ef5984361673b46e8871bb201a8340501f8b192637dada66fe7830deb6f1c80\", \"shown\": \"## Returns  \\nYou can return order #4471 within 30 days.\\n\\n| item | status |\\n|---|---|\\n| mug | eligible |\", \"shown_sha256\": \"b28e6e6e5f429d58765d7a29dfda83a9f02db6cd91702a60aa4cf4606cb7b47a\"}", false],
+]
+
+test('the plugin reads a relay line with the same rule as the Python reader', async () => {
+  for (const [line, valid] of RELAY_LINES) {
+    let error = ''
+    try {
+      await relayTurns(`${line}\n`, 'relay.jsonl', null)
+    } catch (err) {
+      error = (err as Error).message
+    }
+    expect([line, error === '']).toEqual([line, valid])
+    if (!valid) expect(error.startsWith('relay.jsonl: line 1: ')).toBe(true)
+  }
+})
+
+test('a bad line in the relay record is an error, and nothing is sent', { options: OPTIONS }, async ($, on) => {
+  const f = fakes(on, () => ({ status: 200, text: JSON.stringify({ reply: REPLY }) }))
+  on('prompt.submit', async (_$: any, e: any) => ({ text: e.text }))
+  await $.prompt.submit({ text: 'first' })
+  const [row] = rows(f.files['/virtual/relay.jsonl'])
+  // One byte of the shown text changes, and its hash stays.
+  const changed = JSON.stringify({ ...row, shown: REPLY.replace('mug', 'mud') }) + '\n'
+  f.files['/virtual/relay.jsonl'] = changed
+  await $.prompt.submit({ text: 'second' })
+  expect(f.sent.length).toBe(1)
+  expect(f.files['/virtual/relay.jsonl']).toBe(changed)
+  let error = ''
+  try {
+    await relayTurns(changed, '/virtual/relay.jsonl', null)
+  } catch (err) {
+    error = (err as Error).message
+  }
+  expect(error).toBe("/virtual/relay.jsonl: line 1: field shown_sha256 does not match 'shown'")
+})
+
 test('the prompt verbatim-relay end ends the test and gives the model the evaluation', { options: { start_on: false } }, async ($, on) => {
   const f = fakes(on, contractReply)
   const runs = withTest(on, f)
@@ -632,7 +700,7 @@ async function expectBlocked($: any, on: any, f: ReturnType<typeof fakes>, error
 test('a record line that is not JSON blocks the prompt', { options: OPTIONS }, async ($, on) => {
   const f = fakes(on, () => ({ status: 200, text: JSON.stringify({ reply: REPLY }) }))
   f.files['/virtual/relay.jsonl'] = 'not json\n'
-  await expectBlocked($, on, f, 'SyntaxError')
+  await expectBlocked($, on, f, 'relay.jsonl: line 1: not JSON')
 })
 
 test('a record that cannot be read blocks the prompt', { options: OPTIONS }, async ($, on) => {
@@ -653,7 +721,7 @@ test('during a test, a record line that is not JSON blocks the prompt', { option
   f.files['.verbatim-relay/current.json'] = JSON.stringify(CURRENT)
   f.files['.verbatim-relay/mode'] = 'on\n'
   f.files[`${DIR}/relay.jsonl`] = 'not json\n'
-  await expectBlocked($, on, f, 'SyntaxError')
+  await expectBlocked($, on, f, 'relay.jsonl: line 1: not JSON')
 })
 
 test('in relay mode, a failed tool guard denies the call', { options: { ...OPTIONS, agent_url: 'not a url' } }, async ($, on) => {

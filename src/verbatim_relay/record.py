@@ -226,10 +226,18 @@ def _validate(kind: str, path: Path, n: int, raw: str) -> dict[str, Any]:
     return row
 
 
-def _read(kind: str, path: Path) -> list[tuple[int, dict[str, Any]]]:
+def read_rows(kind: str, path: Path, missing_ok: bool = False) -> list[tuple[int, dict[str, Any]]]:
+    """Each row of a tap record (kind `tap`) or a relay record (kind `relay`), with its line.
+
+    This is the one reader of the two records. An invalid line or a wrong hash stops the read with
+    a RecordError that names the file and the line. With missing_ok, a file that does not exist
+    gives no rows.
+    """
     try:
         data = path.read_bytes()
     except OSError as e:
+        if missing_ok and isinstance(e, FileNotFoundError):
+            return []
         raise RecordError("record_missing", path, e.strerror or "cannot read") from None
     try:
         text = data.decode("utf-8")
@@ -241,9 +249,9 @@ def _read(kind: str, path: Path) -> list[tuple[int, dict[str, Any]]]:
     return [(n, _validate(kind, path, n, raw)) for n, raw in enumerate(lines, 1)]
 
 
-def read_tap(path: Path) -> list[Exchange | Unparsed | ModelSession]:
+def read_tap(path: Path, missing_ok: bool = False) -> list[Exchange | Unparsed | ModelSession]:
     rows: list[Exchange | Unparsed | ModelSession] = []
-    for n, r in _read("tap", path):
+    for n, r in read_rows("tap", path, missing_ok):
         if r["type"] == "exchange":
             rows.append(Exchange(n, r["input"], r["status"], r["reply"]))
         elif r["type"] == "model_session":
@@ -253,14 +261,19 @@ def read_tap(path: Path) -> list[Exchange | Unparsed | ModelSession]:
     return rows
 
 
-def read_relay(path: Path) -> list[Turn | BlockedCall]:
+def read_relay(path: Path, missing_ok: bool = False) -> list[Turn | BlockedCall]:
     rows: list[Turn | BlockedCall] = []
-    for n, r in _read("relay", path):
+    for n, r in read_rows("relay", path, missing_ok):
         if r["type"] == "turn":
             rows.append(Turn(n, r["said"], r["shown"], r.get("ok"), r.get("session")))
         else:
             rows.append(BlockedCall(n, r["tool"], r["detail"]))
     return rows
+
+
+def turns(path: Path, missing_ok: bool = False) -> list[Turn]:
+    """The turns of a relay record, with the error rule of read_rows."""
+    return [r for r in read_relay(path, missing_ok) if isinstance(r, Turn)]
 
 
 def _hashed(row: dict[str, Any]) -> dict[str, Any]:
