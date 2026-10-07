@@ -89,9 +89,9 @@
  "P3b": {
   "agent_inputs_added": 0,
   "blocked_rows": 1,
-  "model_text": "I’ll run the requested local POST and return the response exactly as received.\nThe command was blocked by the project’s PreToolUse hook:\n\n```text\nverbatim-relay: only the tester talks to the agent\n```\n\nNo output was returned."
+  "model_text": "I’ll run that POST request and report the response exactly as returned.\nThe command was blocked by the project’s safety hook:\n\n```text\nverbatim-relay: only the tester talks to the agent.\n```"
  },
- "end_model_output_tokens": 5238,
+ "end_model_output_tokens": 5285,
  "test": {
   "ended": true,
   "model_sessions": [],
