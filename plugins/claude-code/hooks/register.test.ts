@@ -7,9 +7,11 @@ const REPLY = '## Toy shop  \nYou wrote it.\n\n| item | price |\n|---|---|\n| mu
 const OPTIONS = { start_on: true, record: '/virtual/relay.jsonl' }
 
 // Fakes for the tap and the file system, under the plugin. A file system hook answers
-// { value }, or { deny } for a call that rejects.
+// { value }, or { deny } for a call that rejects. Set broken.stat to a path, or broken.session
+// to true, and that call rejects.
 function fakes(on: any, reply: (body: string) => { status: number; text: string; headers?: Record<string, string> }) {
   const files: Record<string, string> = {}
+  const broken = { stat: '', session: false }
   const sent: { url: string; body: string }[] = []
   const logs: string[] = []
   on('http.fetch', async (_$: any, e: any) => {
@@ -21,7 +23,9 @@ function fakes(on: any, reply: (body: string) => { status: number; text: string;
   // from .verbatim-relay/ on, as the plugin wrote it.
   const key = (path: string) => path.replace(/^.*?(?=\.verbatim-relay\/)/, '')
   on('fs.stat', async (_$: any, e: any) =>
-    key(e.path) in files
+    broken.stat !== '' && key(e.path) === broken.stat
+      ? { deny: `EACCES: permission denied: ${e.path}` }
+      : key(e.path) in files
       ? { value: { kind: 'file', size: files[key(e.path)].length, mtimeMs: 0, isLink: false } }
       : { deny: `ENOENT: no such file: ${e.path}` },
   )
@@ -36,8 +40,8 @@ function fakes(on: any, reply: (body: string) => { status: number; text: string;
   })
   on('ui.status', async () => ({ value: undefined }))
   on('ui.open', async () => ({ value: undefined }))
-  on('session.id', async () => ({ value: 's1' }))
-  return { files, sent, logs }
+  on('session.id', async () => (broken.session ? { deny: 'the session is not bound' } : { value: 's1' }))
+  return { files, sent, logs, broken }
 }
 
 function rows(text: string | undefined) {
@@ -512,4 +516,118 @@ test('after a test, a deny goes to denied.jsonl and not to the sealed relay.json
   expect(typeof sed.deny).toBe('string')
   expect(rows(f.files[`${DIR}/denied.jsonl`]).map(r => r.tool)).toEqual(['Bash'])
   expect(f.files[`${DIR}/relay.jsonl`]).toBe(relay)
+})
+
+// Each failure of the relay path blocks the prompt: the hook beneath, which stands for the model,
+// never gets it, and the tester sees the error.
+async function expectBlocked($: any, on: any, f: ReturnType<typeof fakes>, error: string) {
+  const model: string[] = []
+  on('prompt.submit', async (_$: any, e: any) => {
+    model.push(e.text)
+    return { text: e.text }
+  })
+  const result: any = await $.prompt.submit({ text: 'hi' })
+  expect(result.drop).toBe('verbatim-relay: nothing reached the model')
+  expect(model).toEqual([])
+  expect(f.sent.length).toBe(0)
+  expect(f.logs.length).toBe(1)
+  expect(f.logs[0].startsWith('verbatim-relay: the hook failed (')).toBe(true)
+  expect(f.logs[0]).toContain(error)
+  expect(f.logs[0]).toContain('Nothing reached the model.')
+}
+
+test('a record line that is not JSON blocks the prompt', { options: OPTIONS }, async ($, on) => {
+  const f = fakes(on, () => ({ status: 200, text: JSON.stringify({ reply: REPLY }) }))
+  f.files['/virtual/relay.jsonl'] = 'not json\n'
+  await expectBlocked($, on, f, 'SyntaxError')
+})
+
+test('a record that cannot be read blocks the prompt', { options: OPTIONS }, async ($, on) => {
+  const f = fakes(on, () => ({ status: 200, text: JSON.stringify({ reply: REPLY }) }))
+  f.broken.stat = '/virtual/relay.jsonl'
+  await expectBlocked($, on, f, 'EACCES')
+})
+
+test('a failed session id blocks the prompt', { options: OPTIONS }, async ($, on) => {
+  const f = fakes(on, () => ({ status: 200, text: JSON.stringify({ reply: REPLY }) }))
+  f.broken.session = true
+  await expectBlocked($, on, f, 'the session is not bound')
+})
+
+test('during a test, a record line that is not JSON blocks the prompt', { options: { start_on: false } }, async ($, on) => {
+  const f = fakes(on, contractReply)
+  withTest(on, f)
+  f.files['.verbatim-relay/current.json'] = JSON.stringify(CURRENT)
+  f.files['.verbatim-relay/mode'] = 'on\n'
+  f.files[`${DIR}/relay.jsonl`] = 'not json\n'
+  await expectBlocked($, on, f, 'SyntaxError')
+})
+
+test('in relay mode, a failed tool guard denies the call', { options: { ...OPTIONS, agent_url: 'not a url' } }, async ($, on) => {
+  fakes(on, () => ({ status: 200, text: '{}' }))
+  const ran: string[] = []
+  on('tool.call', async (_$: any, e: any) => {
+    ran.push(e.tool)
+    return { result: 'ran' }
+  })
+  const call: any = await $.tool.call({ tool: 'Bash', command: 'echo hi' } as any)
+  expect(call.deny).toContain('verbatim-relay: the hook failed (TypeError')
+  expect(ran).toEqual([])
+})
+
+// The .catch handlers. The test kit cannot make a hook run past its time budget: the budget
+// counts only the plugin's own code, and the plugin waits on no clock. It also cannot make the
+// plugin return a value that the engine refuses: the kit refuses that value at the test's own
+// hook. So these tests make the hook throw outside its own try.
+
+test('a control prompt whose hook fails does not reach the model', { options: { start_on: false } }, async ($, on) => {
+  const f = fakes(on, contractReply)
+  withTest(on, f)
+  f.broken.session = true
+  const model: string[] = []
+  on('prompt.submit', async (_$: any, e: any) => {
+    model.push(e.text)
+    return { text: e.text }
+  })
+  const result: any = await $.prompt.submit({ text: 'verbatim-relay start' })
+  expect(result.drop).toBe('verbatim-relay: nothing reached the model')
+  expect(model).toEqual([])
+  expect(f.logs.length).toBe(1)
+  expect(f.logs[0].startsWith('verbatim-relay: the hook failed (throw: ')).toBe(true)
+  expect(f.logs[0]).toContain('the session is not bound')
+  expect(f.logs[0]).toContain('Nothing reached the model.')
+})
+
+test('a failed transcript tool denies the call', { options: OPTIONS }, async ($, on) => {
+  const f = fakes(on, () => ({ status: 200, text: '{}' }))
+  f.broken.session = true
+  const ran: string[] = []
+  on('tool.call', async (_$: any, e: any) => {
+    ran.push(e.tool)
+    return { result: 'ran' }
+  })
+  const call: any = await $.tool.call({ tool: 'mcp__verbatim-relay__transcript' } as any)
+  expect(call.deny).toContain('verbatim-relay: the hook failed (throw: ')
+  expect(ran).toEqual([])
+})
+
+test('with relay mode off, a failed tool guard keeps the call', { options: { ...OPTIONS, start_on: false, agent_url: 'not a url' } }, async ($, on) => {
+  fakes(on, () => ({ status: 200, text: '{}' }))
+  on('tool.call', async () => ({ result: 'ran' }))
+  const call: any = await $.tool.call({ tool: 'Bash', command: 'echo hi' } as any)
+  expect(call.deny).toBe(undefined)
+})
+
+test('if the mode cannot be read, a failed tool guard denies the call', { options: { start_on: false, agent_url: 'not a url' } }, async ($, on) => {
+  const f = fakes(on, contractReply)
+  withTest(on, f)
+  f.broken.stat = '.verbatim-relay/mode'
+  const ran: string[] = []
+  on('tool.call', async (_$: any, e: any) => {
+    ran.push(e.tool)
+    return { result: 'ran' }
+  })
+  const call: any = await $.tool.call({ tool: 'Bash', command: 'echo hi' } as any)
+  expect(call.deny).toContain('verbatim-relay: the hook failed (TypeError')
+  expect(ran).toEqual([])
 })
