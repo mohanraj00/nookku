@@ -37,7 +37,7 @@ In stdio mode, the tap writes these `status` values:
 | An `error` line | 500 |
 | No line: the agent exited, or the tap stopped it after a timeout | `null` |
 
-`unparsed`: a request or a 2xx response that the tap forwarded but that the adapter cannot parse. Fields: `method`, `path`, `error`. The tap forwards this request without change, but the audit cannot check it. In stdio mode, the tap also writes `unparsed` for a request that is not a contract input, for an agent line that is not a valid contract output, and for an agent line that arrives when no request waits for it. For the last kind, `method` is `STDIO` and `path` is `stdout`.
+`unparsed`: a request or a 2xx response that the tap forwarded but that the adapter cannot parse. Fields: `method`, `path`, `error`. The tap forwards this request without change, but the audit cannot check it. In stdio mode, the tap also writes `unparsed` for a request that is not a contract input, for an agent line with the request id that is not a valid contract output, and for a stray agent line (section 4.2). For a stray line, `method` is `STDIO` and `path` is `stdout`.
 
 `model_session` (0.2): a model session of the app that the tap identified during a test (section 7.3). The audit counts these rows and does not match them.
 
@@ -149,13 +149,14 @@ Each adapter maps onto the agent contract (section 6):
 
 - The tap starts the agent in its own process group, with the test root as its working directory. The agent's stderr goes to `app.log` in the test folder.
 - The tap accepts a `POST` with a body that is a valid contract input on one line: no `\n` and no `\r` bytes. It writes the body to the agent's stdin without change, then one `\n`. If the body is not valid, the tap returns status 400, writes an `unparsed` row and does not send the body.
-- The tap sends one request at a time. It waits for one line on the agent's stdout.
-- If the line is a valid output with the same `id`, the tap returns status 200 for a `reply` and 500 for an `error`, with the line as the body. It writes an `exchange` row. For an `error` line, the row's `error` is the agent's error text.
-- If the line is not valid, or has a different `id`, the tap returns status 502 and writes an `unparsed` row.
-- If the agent sends no line in 240 seconds, the tap stops the agent's process group. It returns status 504 and writes an `exchange` row with `status: null`.
+- The tap sends one request at a time. It reads lines from the agent's stdout until it gets a JSON object with the request `id`. That line is the reply line.
+- A line that is not a JSON object, or has no `id`, or has a different `id`, is a stray line. The tap writes an `unparsed` row for it and waits for the reply line.
+- If the reply line is a valid output, the tap returns status 200 for a `reply` and 500 for an `error`, with the line as the body. It writes an `exchange` row. For an `error` line, the row's `error` is the agent's error text.
+- If the reply line is not valid, the tap returns status 502 and writes an `unparsed` row.
+- If the agent sends no reply line in 240 seconds after the request, the tap stops the agent's process group. It returns status 504 and writes an `exchange` row with `status: null`.
 - If the agent exits, the tap returns status 502 and writes an `exchange` row with `status: null` and the exit code in `error`.
 - The tap does not restart the agent. After a crash or a timeout, it answers each later request with the same error. The error body includes the last 20 lines of `app.log`.
-- Before each request, the tap reads each line that waits on stdout. Each such line becomes an `unparsed` row with `method: STDIO`.
+- Before each request, the tap reads each line that waits on stdout. Each such line is a stray line.
 
 ## 5. Relays
 
@@ -214,6 +215,8 @@ An output line is not valid in these cases. The tap returns status 502 for it an
 - The line has both `reply` and `error`, also if one of them is `null`.
 - The line has neither `reply` nor `error`, or the field is not a string.
 - The line contains `NaN`, `Infinity` or `-Infinity`. These are not JSON values. This rule applies to an input line too.
+
+In stdio mode, a line with no `id` or with a different `id` is a stray line, not an output line (section 4.2).
 
 The tap, the plugin and the hook kit read an output line with these same rules.
 

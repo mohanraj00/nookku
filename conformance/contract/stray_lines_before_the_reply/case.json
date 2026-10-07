@@ -1,0 +1,38 @@
+{
+ "requests": [
+  "{\"v\": 1, \"id\": \"m-1\", \"session\": \"t-1\", \"message\": \"Hi, return order #4471 please.  \\r\\nLine two line three\\t€ ₹  \", \"history\": []}"
+ ],
+ "agent": [
+  {
+   "lines": [
+    "Loading the toy shop catalog...",
+    "{\"v\": 1, \"id\": \"m-0\", \"reply\": \"Café policy: we accept € and ₹. Résumé of fees: none.\"}",
+    "{\"v\": 1, \"id\": \"m-1\", \"reply\": \"## Returns  \\nYou can return order #4471 within 30 days.\\n\\n| item | status |\\n|---|---|\\n| mug | eligible |\"}"
+   ]
+  }
+ ],
+ "forwarded": [
+  0
+ ],
+ "http": [
+  200
+ ],
+ "rows": [
+  {
+   "type": "unparsed",
+   "method": "STDIO",
+   "path": "stdout"
+  },
+  {
+   "type": "unparsed",
+   "method": "STDIO",
+   "path": "stdout"
+  },
+  {
+   "type": "exchange",
+   "input": "Hi, return order #4471 please.  \r\nLine two line three\t€ ₹  ",
+   "status": 200,
+   "reply": "## Returns  \nYou can return order #4471 within 30 days.\n\n| item | status |\n|---|---|\n| mug | eligible |"
+  }
+ ]
+}
