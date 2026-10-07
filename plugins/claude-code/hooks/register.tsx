@@ -105,10 +105,12 @@ function showStatus($: any, relayOn: boolean): void {
   $.ui.status(relayOn ? 'verbatim-relay ON: prompts go to the agent' : undefined)
 }
 
-// Run the verbatim-relay command. Resolve its exit code and its output.
-async function runCli($: any, o: Options, args: string[]): Promise<{ ok: boolean; out: string }> {
+// Run the verbatim-relay command. Resolve its exit code and its output. With exact, the output of
+// a command that passes is its stdout with no change.
+async function runCli($: any, o: Options, args: string[], exact = false): Promise<{ ok: boolean; out: string }> {
   try {
     const r = await $.process.run([o.cli, ...args], { timeoutMs: CLI_TIMEOUT_MS })
+    if (exact && r.exitCode === 0) return { ok: true, out: r.stdout ?? '' }
     return { ok: r.exitCode === 0, out: (r.stdout || r.stderr || '').trim() }
   } catch (err) {
     return { ok: false, out: `cannot run '${o.cli}': ${(err as Error).message}` }
@@ -250,23 +252,25 @@ async function guardOn($: any, o: Options): Promise<boolean> {
 }
 
 // The .catch handler of prompt.submit. The engine calls it when the hook throws, returns a value
-// that the engine refuses, or runs past its time budget. It blocks a control prompt, and each
-// prompt from the person in relay mode. Otherwise the hook is absent, and the prompt goes on.
+// that the engine refuses, or runs past its time budget. A stalled file or state call can cause
+// the failure, so this handler makes no such call. The hook passes a prompt to the model only
+// after it knows that relay mode is off, so here the mode is on or unknown. The handler blocks
+// each prompt from the person. A prompt from another origin goes on, because the hook is absent.
 async function promptFailed($: any, o: Options, e: any, next: any): Promise<any> {
   // If the hook already gave the prompt to the model, that result stands.
   if (next.called) return next(e)
   const fromPerson = !e.origin || PERSON.includes(e.origin.kind)
-  if (fromPerson && (CONTROL.includes(e.text.trim()) || (await guardOn($, o)))) return blockFailed($, hookFailure(next.error))
+  if (fromPerson) return blockFailed($, hookFailure(next.error))
   return undefined
 }
 
-// The .catch handler of a tool.call hook. In relay mode or during a test, it denies the call.
-// Otherwise the hook is absent, and the call goes on.
+// The .catch handler of a tool.call hook. It makes no file or state call, for the same reason.
+// With relay mode off, the hooks let a call go on and do not throw, so here the mode is on or
+// unknown. The handler denies the call.
 async function toolFailed($: any, o: Options, e: any, next: any): Promise<any> {
   // If the hook already let the call run, that result stands.
   if (next.called) return next(e)
-  if (await guardOn($, o)) return { deny: `verbatim-relay: the hook failed (${hookFailure(next.error)}). The tool call did not run.` }
-  return undefined
+  return { deny: `verbatim-relay: the hook failed (${hookFailure(next.error)}). The tool call did not run.` }
 }
 
 // Send one prompt in relay mode. Resolve the answer of the prompt.submit hook. It never calls
@@ -394,14 +398,17 @@ export const register: Register = (on, options) => {
     }
   }).catch(($, e, next) => promptFailed($, o, e, next))
 
+  // The verbatim-relay command renders the transcript, so the plugin and the hook kit give the
+  // model the same text (SPEC.md section 5).
   on('tool.call', { tool: TOOL }, async ($, e) => {
-    if ((e as any).trace === true) {
-      const r = await runCli($, o, ['transcript', '--trace'])
-      return { result: r.out }
-    }
     const s = await read($, state)
-    const turns = s.test ? await recordTurns($, `${s.test}/relay.jsonl`, null) : await recordTurns($, o.record, await $.session.id())
-    return { result: JSON.stringify(turns, null, 1) }
+    const args = (e as any).trace === true
+      ? ['transcript', '--trace']
+      : s.test
+        ? ['transcript', '--test', s.test.split('/').filter(Boolean).pop() ?? '']
+        : ['transcript', '--record', o.record, '--session', await $.session.id()]
+    const r = await runCli($, o, args, true)
+    return { result: r.out }
   }).catch(($, e, next) => toolFailed($, o, e, next))
 
   // The model may read the conversation. It must not take part in it, and during a test it must
@@ -412,7 +419,7 @@ export const register: Register = (on, options) => {
       denied = await guardTool($, o, e)
     } catch (err) {
       // A failed guard denies the call in relay mode or during a test, as the hook kit does.
-      if (!(await guardOn($, o))) throw err
+      if (!(await guardOn($, o))) return next(e)
       denied = { deny: `verbatim-relay: the hook failed (${failure(err)}). The tool call did not run.` }
     }
     return denied ?? next(e)

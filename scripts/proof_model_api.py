@@ -2,13 +2,14 @@
 7.7).
 
 A toy model API runs on a local port, as the Anthropic and the OpenAI API of a test. A test runs an
-entry that, for one message, makes 4 calls through the proxies: a streamed Anthropic call, a
-streamed OpenAI Chat Completions call, an Anthropic call with a JSON answer and a streamed OpenAI
-Responses call. For a streamed call, the toy API
+entry that, for one message, makes 5 calls through the proxies: a streamed Anthropic call, a
+streamed OpenAI Chat Completions call, an Anthropic call with a JSON answer, a streamed OpenAI
+Responses call and an OpenAI Decisions call with a JSON answer. For a streamed call, the toy API
 sends the first event and then waits until the entry says that it has that event. Thus the proof
 fails if the proxy holds the stream until its end. The proof compares the SHA-256 of each body at 3
-places: the entry, the toy API and model_api.jsonl. It checks the text in the record and that no
-API key is in the record. It needs no model, so its result is the same on each run.
+places: the entry, the toy API and model_api.jsonl. It checks the result in the record (the text,
+or the answers of the decision) and that no API key is in the record. It needs no model, so its
+result is the same on each run.
 
 usage: python scripts/proof_model_api.py
 """
@@ -100,8 +101,48 @@ JSON = json.dumps(
         "stop_reason": "end_turn",
     }
 ).encode()
+# The answer of the toy Decisions API, and the answers that the record must have for it.
+DEPARTMENTS = [
+    {"value": "billing", "probability": 0.95},
+    {"value": "shipping", "probability": 0.03},
+    {"value": "other", "probability": 0.02},
+]
+DECISION = json.dumps(
+    {
+        "model": "toy-decide",
+        "answers": [
+            {
+                "type": "choice",
+                "name": "department",
+                "choice": "billing",
+                "probabilities": DEPARTMENTS,
+                "confidence": 0.93,
+            },
+            {"type": "predicate", "name": "urgent", "probability": 0.2},
+            {"type": "refusal", "name": "mood"},
+        ],
+        "usage": {"input_tokens": 30, "output_tokens": 0, "total_tokens": 30},
+    }
+).encode()
+ANSWERS = [
+    {
+        "type": "choice",
+        "name": "department",
+        "value": "billing",
+        "probabilities": DEPARTMENTS,
+        "confidence": 0.93,
+    },
+    {
+        "type": "predicate",
+        "name": "urgent",
+        "value": 0.2,
+        "probabilities": None,
+        "confidence": None,
+    },
+    {"type": "refusal", "name": "mood", "value": None, "probabilities": None, "confidence": None},
+]
 
-# The entry makes the 4 calls for one message, and replies with what it sent and got.
+# The entry makes the 5 calls for one message, and replies with what it sent and got.
 ENTRY = """
 import hashlib, json, os, sys, urllib.request
 
@@ -113,12 +154,25 @@ calls = [
     (os.environ["OPENAI_BASE_URL"] + "/chat/completions", {"stream": True}),
     (os.environ["ANTHROPIC_BASE_URL"] + "/v1/messages", {"stream": False}),
     (os.environ["OPENAI_BASE_URL"] + "/responses", {"stream": True}),
+    (os.environ["OPENAI_BASE_URL"] + "/decisions", {"stream": False}),
+]
+questions = [
+    {"type": "choice", "name": "department", "instructions": "Which department?",
+     "choices": [{"value": "billing"}, {"value": "shipping"}, {"value": "other"}]},
+    {"type": "predicate", "name": "urgent", "instructions": "Is it urgent?"},
+    {"type": "choice", "name": "mood", "instructions": "The mood?",
+     "choices": [{"value": "calm"}, {"value": "angry"}]},
 ]
 for raw in sys.stdin.buffer:
     request = json.loads(raw)
     out = []
     for url, ask in calls:
-        body = json.dumps({**ask, "messages": [{"role": "user", "content": request["message"]}]})
+        if url.endswith("/decisions"):
+            body = json.dumps({"model": "toy-decide", "input": request["message"],
+                               "questions": questions})
+        else:
+            body = json.dumps({**ask, "messages": [{"role": "user",
+                                                    "content": request["message"]}]})
         req = urllib.request.Request(url, data=body.encode(), method="POST")
         req.add_header("Content-Type", "application/json")
         req.add_header("x-api-key", os.environ["TOY_KEY"])
@@ -148,8 +202,9 @@ class ToyApi(BaseHTTPRequestHandler):
             self.end_headers()
             return
         stream = json.loads(body).get("stream") is True
+        answer = DECISION if self.path.endswith("/decisions") else JSON
         if not stream:
-            parts = [JSON]
+            parts = [answer]
         elif self.path.endswith("/responses"):
             parts = RESPONSES
         else:
@@ -164,9 +219,9 @@ class ToyApi(BaseHTTPRequestHandler):
         self.send_response_only(200)
         self.send_header("Content-Type", "text/event-stream" if stream else "application/json")
         if not stream:
-            self.send_header("Content-Length", str(len(JSON)))
+            self.send_header("Content-Length", str(len(answer)))
             self.end_headers()
-            self.wfile.write(JSON)
+            self.wfile.write(answer)
             return
         RELEASE.clear()
         self.send_header("Transfer-Encoding", "chunked")
@@ -204,7 +259,7 @@ def main() -> int:
     (project / ".verbatim-relay" / "config.json").write_text(json.dumps(config))
     cur = bridge.start(project)
     try:
-        shown, ok = bridge.send(cur, "How many teapot sets and mugs are left?")
+        shown, ok = bridge.send(cur, "I was charged twice. How many teapot sets are left?")
     finally:
         bridge.end(project)
         toy.shutdown()
@@ -219,6 +274,8 @@ def main() -> int:
         "Order 5120 has 2 teapot sets.",
         SHIPS,
     ]
+    # The text of each call, and the answers of the decision.
+    expect = [("text", t) for t in texts] + [("answers", ANSWERS)]
     calls = []
     for i, (e, s, r) in enumerate(zip(entry, SEEN, rows, strict=True)):
         calls.append(
@@ -231,7 +288,7 @@ def main() -> int:
                 "request_same": e["sent"] == s["got"] == r["request_body"]["sha256"],
                 "response_same": s["sent"] == e["got"] == r["response_body"]["sha256"],
                 "first_part_before_the_end": s["released_by_entry"],
-                "text_in_record": (r["result"] or {}).get("text") == texts[i],
+                "result_in_record": (r["result"] or {}).get(expect[i][0]) == expect[i][1],
             }
         )
     result = {
@@ -246,9 +303,9 @@ def main() -> int:
         "seal_intact": seal.verify(folder)["intact"],
     }
     result["pass"] = (
-        len(calls) == 4
-        and all(c["request_same"] and c["response_same"] and c["text_in_record"] for c in calls)
-        and [c["first_part_before_the_end"] for c in calls] == [True, True, None, True]
+        len(calls) == 5
+        and all(c["request_same"] and c["response_same"] and c["result_in_record"] for c in calls)
+        and [c["first_part_before_the_end"] for c in calls] == [True, True, None, True, None]
         and not result["key_in_record"]
         and result["seal_intact"]
     )

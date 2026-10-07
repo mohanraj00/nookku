@@ -7,7 +7,9 @@ never fails on a line that it does not know.
 
 from __future__ import annotations
 
+import base64
 import datetime
+import hashlib
 import json
 from collections import Counter
 from collections.abc import Iterator
@@ -34,6 +36,7 @@ CHECKS = (
     "turn_without_model",
     "item_between_turns",
     "otel_tool_not_in_session",
+    "server_not_from_app",
     "session_inferred",
     "version_untested",
 )
@@ -41,6 +44,15 @@ CHECKS = (
 SESSION_KINDS = ("message", "tool_call", "command")
 # Codex tools that run a command. The session file has a command item for them.
 CODEX_COMMANDS = {"exec_command", "shell", "local_shell"}
+# MCP servers that the MCP configuration of an app cannot give: the claude.ai connectors of the
+# account and the servers of plugins. A session file names a server in one of 2 forms: as it
+# is (`claude.ai Toy Mail`) or as the server part of a tool name (`claude_ai_Toy_Mail`).
+NOT_FROM_APP = {
+    "claude.ai ": "a claude.ai connector",
+    "claude_ai_": "a claude.ai connector",
+    "plugin:": "a plugin server",
+    "plugin_": "a plugin server",
+}
 
 
 def _lines(path: Path) -> Iterator[tuple[int, Any]]:
@@ -157,6 +169,35 @@ def read_claude(path: Path, session: str, file: str) -> tuple[list[dict[str, Any
             else:
                 ignored[f"{kind}.{btype}"] += 1
     return items, {"version": version, "ignored": dict(sorted(ignored.items()))}
+
+
+def read_claude_servers(path: Path) -> list[dict[str, Any]]:
+    """The MCP servers that a Claude Code session file names, each with its first line. An
+    attachment line names the servers and the tools that the session loaded, and a tool call
+    names the server of its tool."""
+    found: dict[str, dict[str, Any]] = {}
+    for n, row in _lines(path):
+        if not isinstance(row, dict):
+            continue
+        names: list[str] = []
+        att = row.get("attachment")
+        message = row.get("message")
+        if row.get("type") == "attachment" and isinstance(att, dict):
+            raw = att.get("addedNames")
+            added: list[Any] = raw if isinstance(raw, list) else []
+            if att.get("type") == "mcp_instructions_delta":
+                names = [str(x) for x in added]
+            elif att.get("type") == "deferred_tools_delta":
+                names = [s for s in (_tool("claude-code", str(x))[0] for x in added) if s]
+        elif row.get("type") == "assistant" and isinstance(message, dict):
+            content = message.get("content")
+            for b in content if isinstance(content, list) else []:
+                if isinstance(b, dict) and b.get("type") == "tool_use":
+                    server = _tool("claude-code", str(b.get("name")))[0]
+                    names += [server] if server else []
+        for name in names:
+            found.setdefault(name, {"server": name, "line": n})
+    return list(found.values())
 
 
 def _codex_item(it: dict[str, Any], item: dict[str, Any]) -> bool:
@@ -382,6 +423,69 @@ def _results(form: str, request: dict[str, Any]) -> dict[str, tuple[str, bool]]:
     return out
 
 
+# The options of a question of the Decisions API: the list in the question, and the field of each
+# option in the list.
+DECISION_OPTIONS = {"choice": ("choices", "value"), "score": ("levels", "label")}
+
+
+def _image(url: Any) -> dict[str, Any]:
+    """The media type, the size and the SHA-256 of an inline image (a base64 data URL). The trace
+    keeps no image data. An image that is not base64 data gives no size and no SHA-256."""
+    out: dict[str, Any] = {"media_type": None, "size": None, "sha256": None}
+    if not isinstance(url, str) or not url.startswith("data:") or "," not in url:
+        return out
+    head, data = url[5:].split(",", 1)
+    params = head.split(";")
+    out["media_type"] = params[0] or None
+    if "base64" in params[1:]:
+        try:
+            raw = base64.b64decode("".join(data.split()), validate=True)
+        except ValueError:  # binascii.Error, or a character that is not ASCII
+            return out
+        out.update(size=len(raw), sha256=hashlib.sha256(raw).hexdigest())
+    return out
+
+
+def _question(question: dict[str, Any]) -> dict[str, Any]:
+    """The name, the type and the options of a question of the Decisions API."""
+    kind = question.get("type")
+    spec = DECISION_OPTIONS.get(kind) if isinstance(kind, str) else None
+    given = question.get(spec[0]) if spec else None
+    options = None
+    if spec and isinstance(given, list):
+        options = [o.get(spec[1]) for o in given if isinstance(o, dict)]
+    return {"name": question.get("name"), "type": kind, "options": options}
+
+
+def _decision_request(request: dict[str, Any]) -> tuple[str | None, dict[str, Any]] | None:
+    """The user text, the questions and the images of a request to the Decisions API, or None if
+    the request has none of them. The text is a string `input`, or the joined text of the user
+    messages of `input`."""
+    given = request.get("input")
+    texts = [given] if isinstance(given, str) else []
+    images = []
+    for m in given if isinstance(given, list) else []:
+        if not isinstance(m, dict) or m.get("role") != "user":
+            continue
+        content = m.get("content")
+        if isinstance(content, str):
+            texts.append(content)
+        for part in content if isinstance(content, list) else []:
+            if not isinstance(part, dict):
+                continue
+            if part.get("type") == "input_text" and isinstance(part.get("text"), str):
+                texts.append(part["text"])
+            elif part.get("type") == "input_image":
+                images.append(_image(part.get("image_url")))
+    asked = request.get("questions")
+    questions = [
+        _question(q) for q in (asked if isinstance(asked, list) else []) if isinstance(q, dict)
+    ]
+    if not (texts or images or questions):
+        return None
+    return ("\n".join(texts) if texts else None), {"questions": questions, "images": images}
+
+
 def read_model_api(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """The call rows of model_api.jsonl (SPEC.md section 8.4). The calls of a harness are only
     counted, because its session file has them."""
@@ -405,14 +509,18 @@ def read_model_api(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
             calls.append((n, row, form, _request(row)))
     for i, (n, row, form, request) in enumerate(calls):
         api = str(row.get("api") or "")
-        said = _said(form, request)
-        if said is not None:
+        said, asked = _said(form, request), None
+        if form == "decisions":
+            said, asked = _decision_request(request) or (None, None)
+        if said is not None or asked is not None:
             it = _item("model_api", api, model_api.FILE, n, row.get("started"))
-            it.update(kind="message", role="user", output=said)
+            it.update(kind="message", role="user", input=asked, output=said)
             items.append(it)
         result: dict[str, Any] = row["result"] if isinstance(row.get("result"), dict) else {}
         it = _item("model_api", api, model_api.FILE, n, row.get("ts"))
         info = {k: result.get(k) for k in ("model", "stop_reason", "usage")}
+        if form == "decisions":
+            info["answers"] = result.get("answers") or []
         it.update(
             kind="message",
             role="assistant",
@@ -506,8 +614,10 @@ def check(
     spans: list[tuple[float, float]],
     items: list[dict[str, Any]],
     sessions: list[dict[str, Any]],
+    servers: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
-    """The findings of SPEC.md section 8.4. They do not change the audit's exit code."""
+    """The findings of SPEC.md section 8.6. They do not change the audit's exit code. `servers`
+    holds the MCP servers that the Claude Code session files name (read_claude_servers)."""
     out: list[dict[str, Any]] = []
     session_items = [it for it in items if it["kind"] in SESSION_KINDS]
     for i, r in enumerate(exchanges, 1):
@@ -548,6 +658,14 @@ def check(
         for i in range(1, len(exchanges) + 1):
             if i not in used:
                 out.append(_finding("turn_without_model", i, "no model item in this turn"))
+    for srv in servers or []:
+        name = str(srv["server"])
+        origin = next((v for start, v in NOT_FROM_APP.items() if name.startswith(start)), None)
+        if origin is not None:
+            where = {"harness": srv["harness"], "session": srv["session"]}
+            where["source"] = {"file": srv["file"], "line": srv["line"]}
+            detail = f"{srv['server']}: {origin}, not a server of the app"
+            out.append(_finding("server_not_from_app", None, detail, **where))
     for s in sessions:
         where = {"harness": s["harness"], "session": s["session"]}
         if s.get("inferred"):
@@ -569,6 +687,7 @@ def build(folder: Path) -> dict[str, Any]:
     spans = windows(exchanges)
     items: list[dict[str, Any]] = []
     sessions: list[dict[str, Any]] = []
+    servers: list[dict[str, Any]] = []
     for s in manifest.get("model_sessions", []):
         info: dict[str, Any] = {
             "harness": s["harness"],
@@ -585,6 +704,9 @@ def build(folder: Path) -> dict[str, Any]:
             info.update(more, items=len(found))
             info["version"] = info["version"] or "unknown"
             items += found
+            if s["harness"] == "claude-code":
+                where = {"harness": s["harness"], "session": s["session"], "file": s["file"]}
+                servers += [{**where, **x} for x in read_claude_servers(folder / s["file"])]
         sessions.append(info)
     otel = None
     if (folder / otlp.FILE).exists():
@@ -600,7 +722,7 @@ def build(folder: Path) -> dict[str, Any]:
         items += found
     items.sort(key=lambda it: it["ts"] if it["ts"] is not None else float("inf"))
     assign(items, spans)
-    findings = check(exchanges, spans, items, sessions)
+    findings = check(exchanges, spans, items, sessions, servers)
     lines = [json.dumps(it, ensure_ascii=False) + "\n" for it in items]
     (folder / "trace.jsonl").write_text("".join(lines), encoding="utf-8")
     counts = Counter(f["check"] for f in findings)

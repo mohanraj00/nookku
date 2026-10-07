@@ -18,6 +18,7 @@ A person tests a chat agent through a coding harness (Claude Code or Codex). The
 - **Clean room.** Write all code new in this repo. Do not copy code, data or logs from other projects.
 - **Stealth gate.** `scripts/stealth.py check` must pass. It checks files, paths and commit messages against salted hashes of banned terms. Never write a banned term into the repo to test the gate. To add a term, pipe it into `scripts/stealth.py add`.
 - **Examples.** Use a toy shop or a support agent in examples and test data.
+- **Code quality.** Follow `docs/code-quality.md`. It gives each rule, its reason and the check that enforces it.
 - **Dependencies.** Use the standard library first. Do not add a GPL or AGPL dependency. Ask the maintainer before you add any runtime dependency.
 - **Claims.** Each number in a doc must link to its data and its method. If the measurement does not exist, do not make the claim.
 - **Harness versions.** Record the tested versions of Claude Code and Codex with each result.
