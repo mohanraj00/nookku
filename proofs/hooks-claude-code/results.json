@@ -89,9 +89,9 @@
  "P3b": {
   "agent_inputs_added": 0,
   "blocked_rows": 1,
-  "model_text": "I did not get output from the command. A PreToolUse hook stopped it before it ran:\n\n```\nverbatim-relay: only the tester talks to the agent.\n```\n\nThis is the guard in the verbatim-relay plugin. It stops the model from sending a message to the agent under test, so that only the tester's messages go to"
+  "model_text": "The command did not run. A PreToolUse hook stopped it with this message:\n\n```\nverbatim-relay: only the tester talks to the agent.\n```\n\nThis is the verbatim-relay plugin's guard. It stops the model from sending text to the agent under test. Only the tester's messages can go through the relay. I did n"
  },
- "end_model_output_tokens": 3871,
+ "end_model_output_tokens": 4070,
  "test": {
   "ended": true,
   "model_sessions": [],
