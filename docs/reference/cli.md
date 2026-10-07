@@ -70,8 +70,8 @@ Run a short test with one message, and check the entry and its model sessions ([
 
 | Exit code | Meaning |
 |---|---|
-| 0 | The entry sent a reply, and the test found a model session for each harness in `models`. |
-| 1 | The check failed, or the test did not start. |
+| 0 | The entry sent a reply, the audit of the test is clean, and the test found a model session for each harness in `models`. |
+| 1 | The check failed, or the test did not start. For example, the audit of the test exits with 1 or 2, or the test wrote no valid `audit.json`. |
 
 ### `verbatim-relay mode`
 

@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 from verbatim_relay import bridge, kit, seal, stdio
-from verbatim_relay.audit import audit
+from verbatim_relay.audit import CHECKS, audit
 from verbatim_relay.record import RecordError, Writer
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -258,10 +258,80 @@ def test_check_gives_the_fix_for_logs_on_stdout(
         bridge, "send", lambda cur, said: (f"verbatim-relay: HTTP 504: {error}", False)
     )
     monkeypatch.setattr(bridge, "end", lambda root: {})
+    # The tap wrote an unparsed row for each stray line, so the audit exits with 2.
+    detail = "line 1: STDIO stdout: a stray line on stdout: 'toy shop: loading catalog'"
+    row = {"class": "tap_unparsed", "record": "tap", "detail": detail}
+    (folder / "audit.json").write_text(json.dumps({"exit": 2, "breaks": [], "errors": [row]}))
     passed, lines = bridge.check(root)
     assert not passed
-    want = "FAIL: The entry printed lines on stdout, but no reply line. " + stdio.STRAY_HINT
-    assert lines[-1] == want
+    assert lines[-2:] == [
+        "FAIL: The entry printed lines on stdout, but no reply line. " + stdio.STRAY_HINT,
+        f"FAIL: tap_unparsed: tap {detail}. {stdio.STRAY_HINT}",
+    ]
+
+
+# An entry that prints a log line on stdout and then replies (#90). The reply comes, but the tap
+# writes an unparsed row for the log line, so the audit of each real test exits with 2.
+LOG_ON_STDOUT_APP = """
+import json, sys
+print("toy shop: loading catalog", flush=True)
+for raw in sys.stdin.buffer:
+    request = json.loads(raw)
+    out = {"v": 1, "id": request["id"], "reply": "Toy shop: " + request["message"]}
+    sys.stdout.write(json.dumps(out) + "\\n")
+    sys.stdout.flush()
+"""
+
+
+def test_check_fails_if_the_entry_logs_on_stdout_and_then_replies(
+    tmp_path: Path, homes: tuple
+) -> None:
+    script = tmp_path / "app.py"
+    script.write_text(LOG_ON_STDOUT_APP)
+    root = project(tmp_path, [sys.executable, str(script)])
+    passed, lines = bridge.check(root)
+    assert not passed, lines
+    assert "Reply: Toy shop: " + bridge.CHECK_MESSAGE in lines
+    assert "Audit: exit 2" in lines
+    stray = "a stray line on stdout: 'toy shop: loading catalog'. " + stdio.STRAY_HINT
+    assert [line for line in lines if line.startswith("FAIL")] == [
+        f"FAIL: tap_unparsed: tap line 1: STDIO stdout: {stray}"
+    ]
+
+
+def test_a_clean_entry_passes_the_check(tmp_path: Path, homes: tuple) -> None:
+    root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
+    passed, lines = bridge.check(root)
+    assert passed, lines
+    assert lines[-2:] == ["Audit: exit 0", "PASS"]
+
+
+def test_check_fails_closed_without_a_valid_audit(tmp_path: Path) -> None:
+    missing = "The audit.json of the test is missing. Read bridge.log in the test folder."
+    assert bridge.audit_problems(tmp_path) == (None, [missing])
+    for text in ("{", "[]", '{"exit": 0}', '{"exit": true, "breaks": [], "errors": []}'):
+        (tmp_path / "audit.json").write_text(text)
+        code, problems = bridge.audit_problems(tmp_path)
+        assert code is None, text
+        assert len(problems) == 1, text
+        assert problems[0].startswith("The audit.json of the test is not valid"), text
+
+
+def test_check_names_each_break_with_its_fix(tmp_path: Path) -> None:
+    assert set(bridge.BREAK_FIX) == set(CHECKS)
+    breaks = [
+        {"class": "not_delivered", "relay_line": 1, "tap_line": None, "evidence": {}},
+        {"class": "injected_input", "relay_line": None, "tap_line": 2, "evidence": {}},
+    ]
+    (tmp_path / "audit.json").write_text(json.dumps({"exit": 1, "breaks": breaks, "errors": []}))
+    assert bridge.audit_problems(tmp_path) == (
+        1,
+        [
+            "not_delivered break (relay line 1, tap line -). " + bridge.BREAK_FIX["not_delivered"],
+            "injected_input break (relay line -, tap line 2). "
+            + bridge.BREAK_FIX["injected_input"],
+        ],
+    )
 
 
 def test_the_watcher_takes_only_processes_of_the_entry(tmp_path: Path) -> None:

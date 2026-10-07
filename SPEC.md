@@ -296,7 +296,9 @@ A test runs the entry from `start` to `end`. A new conversation is a new test: e
 | `backends` | list of objects | Optional. The backends of the app, each with the strings `name`, `env` and `url` (section 7.6). Each `name` and each `env` is used only once. |
 | `model_api` | boolean, list or object | Optional. The model APIs to record (section 7.7): `true` for all, `false` for none, a list of `anthropic` and `openai`, or an object from these names to the upstream URL of the API or `null`. The default is `true`. A backend must not use the variable of a recorded model API. |
 
-`verbatim-relay check` runs a short test with one message. It passes if the entry sends a reply, and if the tap identifies at least one model session and finds its session file for each harness in `models`. If the tap times out after stray lines (section 4.2), the check also gives the fix for them.
+`verbatim-relay check` runs a short test with one message. It passes if the entry sends a reply, if the audit of the test is clean, and if the tap identifies at least one model session and finds its session file for each harness in `models`. If the tap times out after stray lines (section 4.2), the check also gives the fix for them.
+
+After the end of the test, the check reads `audit.json` in the test folder (section 7.2). If its exit code is not 0, the check fails. It names each error of the audit and each break, with the line numbers and the fix. For an `unparsed` row of a stray line, the fix is the fix of section 4.2: use `verbatim_relay.agent.serve()` or write logs to stderr. If `audit.json` is missing or is not valid, the check fails and says so.
 
 ### 7.2 Start and end
 
