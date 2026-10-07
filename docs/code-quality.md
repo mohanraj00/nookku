@@ -1,6 +1,6 @@
 # Code quality
 
-This spec says what good code is in this repo. Each rule has a reason, one example from this repo, and the check that enforces it. I wrote the rules from the defects that the reviews of 0.2 and 0.3 found.
+This spec says what good code is in this repo. Each rule has a reason, one example from this repo, and the check that enforces it. I wrote the rules from the defects that reviews found: the code review of 0.2 ([#43](https://github.com/mohanraj00/verbatim-relay/issues/43) to [#46](https://github.com/mohanraj00/verbatim-relay/issues/46), [#63](https://github.com/mohanraj00/verbatim-relay/issues/63), [#67](https://github.com/mohanraj00/verbatim-relay/issues/67) to [#71](https://github.com/mohanraj00/verbatim-relay/issues/71)), and the reviews of the 0.3 PRs (the issues and PRs that each rule names).
 
 A check is a test, a lint rule, a conformance case or a CI step. "Review" means that no automatic check exists yet. Then the reviewer examines the rule by hand, with the [review guidelines](../CLAUDE.md#review-guidelines). If an open issue adds a check, the rule names that issue.
 
