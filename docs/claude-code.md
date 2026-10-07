@@ -90,6 +90,8 @@ The model reads the exact conversation of the latest test with the read-only `tr
 
 If the entry returns an error, crashes or does not answer in 240 seconds, the plugin shows the error and records it. The message never goes to the model. After a crash, each later message gets the same error, with the last lines of `app.log`. End the test and start a new one.
 
+If the test process stops, the plugin cannot reach the tap. It then asks `verbatim-relay status`. If no test runs, the plugin shows "relay mode is on, but no test runs" and tells you to type `/verbatim-relay start`. The message never goes to the model.
+
 Each test is a new conversation, with a new test id and a new entry process. The test folder is `.verbatim-relay/tests/<test-id>/`:
 
 | File | Content |

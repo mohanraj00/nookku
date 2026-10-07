@@ -28,6 +28,7 @@ const CONTROL = ['verbatim-relay start', 'verbatim-relay end', 'verbatim-relay s
 const RECORD_LIMIT = 3.5 * 1024 * 1024
 // The end of a test stops the entry and copies its session files.
 const CLI_TIMEOUT_MS = 180_000
+const NO_TEST = 'verbatim-relay: relay mode is on, but no test runs. Type /verbatim-relay start. Nothing was sent.'
 
 const state = atom({ plugin: 'verbatim-relay', key: 'state' } as const, {
   on: null,
@@ -117,6 +118,18 @@ async function runCli($: any, o: Options, args: string[], exact = false): Promis
   }
 }
 
+// The verbatim-relay command says that no test runs. Python decides if the bridge of
+// current.json runs, and it removes a stale current.json (SPEC.md section 7.2). Each other
+// answer, or no answer, is not a "no test runs".
+async function noTest($: any, o: Options): Promise<boolean> {
+  const r = await runCli($, o, ['status', '--json'])
+  try {
+    return r.ok && JSON.parse(r.out).test === null
+  } catch {
+    return false
+  }
+}
+
 async function startTest($: any, o: Options): Promise<string> {
   const r = await runCli($, o, ['start', '--json', '--tester-session', await $.session.id()])
   let cur: any = null
@@ -178,8 +191,8 @@ async function runControl($: any, o: Options, e: any, next: any, control: string
 }
 
 // Send one prompt to the running test. Resolve the text to show, whether it is the reply, and the
-// record that takes the turn.
-async function relayToTest($: any, cur: Current, said: string): Promise<{ shown: string; ok: boolean; record: string }> {
+// record that takes the turn. Resolve null if the tap does not answer because no test runs.
+async function relayToTest($: any, o: Options, cur: Current, said: string): Promise<{ shown: string; ok: boolean; record: string } | null> {
   const record = `${cur.dir}/relay.jsonl`
   const id = crypto.randomUUID()
   const body = contractBody(id, cur.test, said, await recordTurns($, record, null))
@@ -187,6 +200,8 @@ async function relayToTest($: any, cur: Current, said: string): Promise<{ shown:
     const res = await $.http.fetch(cur.tap_url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body })
     return { ...contractShown(res.status, res.text, id), record }
   } catch (err) {
+    // The bridge of current.json can be stopped. Then its tap does not answer.
+    if (await noTest($, o)) return null
     return { shown: `verbatim-relay: cannot reach the tap at ${cur.tap_url}: ${(err as Error).message}`, ok: false, record }
   }
 }
@@ -282,7 +297,7 @@ async function relayPrompt($: any, o: Options, e: any): Promise<any> {
   }
   const cur = await currentTest($)
   if (!cur && (await hasEntry($))) {
-    $.ui.log('verbatim-relay: relay mode is on, but no test runs. Type /verbatim-relay start. Nothing was sent.')
+    $.ui.log(NO_TEST)
     return { drop: 'verbatim-relay: nothing was sent' }
   }
   const recordPath = cur ? `${cur.dir}/relay.jsonl` : o.record
@@ -293,7 +308,12 @@ async function relayPrompt($: any, o: Options, e: any): Promise<any> {
 
   const said = e.text
   const session = await $.session.id()
-  const { shown, ok, record } = cur ? await relayToTest($, cur, said) : await relayToTap($, o, said, session)
+  const relayed = cur ? await relayToTest($, o, cur, said) : await relayToTap($, o, said, session)
+  if (relayed === null) {
+    $.ui.log(NO_TEST)
+    return { drop: 'verbatim-relay: nothing was sent' }
+  }
+  const { shown, ok, record } = relayed
   $.ui.log(shown)
   await update($, state, st => ({ ...st, turns: [...st.turns, { said, shown, ok }] }))
   try {
