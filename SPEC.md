@@ -21,6 +21,8 @@ Each record is a UTF-8 JSONL file. Each line is one JSON object. Each object has
 
 Each string in a row, as a field name or as a value, holds only Unicode scalar values. JSON can escape a lone UTF-16 surrogate, for example `"\ud83d"`, but UTF-8 cannot encode it. A row with a lone surrogate is not valid.
 
+Each record has one reader with one rule: `record.read_rows` in Python, and `relayTurns` in the plugin for the relay record. The reader checks each line with the rules of section 3.1 (`record_invalid`). If a line is not valid, or a hash does not match its text, the reader stops with an error that names the file and the line. It never skips a line. The audit, the relays, the end of a test, the trace (section 8) and the transcript with the trace (section 9.2) use this reader. If a record file does not exist, the audit stops with `record_missing`. The relays, the end of a test, the trace and the transcript with the trace read a file that does not exist as a record with no rows.
+
 The relays refuse a message with a lone surrogate (section 5). The other writers do not write a relayed message or reply: the OTLP receiver (section 7.5), the backend proxies (section 7.6), the model API proxies (section 7.7) and the trace (section 8). If a string that one of these writers writes has a lone surrogate, the writer writes its escape text in its place. The escape text is a backslash, `u` and 4 lowercase hex digits. For example, U+D83D becomes the 6 characters `\ud83d`, which JSON writes as `"\\ud83d"`. Thus a write never fails on a lone surrogate.
 
 ### 2.1 Tap record
@@ -84,6 +86,8 @@ The audit stops with exit code 2 and does not report breaks if one of these cond
 - `record_missing`: a record file does not exist or cannot be read.
 - `record_invalid`: a line is not a JSON object, has a wrong `v` or an unknown `type`, has a missing or wrongly typed field, has a hash that does not match its text, has a `reply` that does not agree with its `status` (section 2.1), or has a lone surrogate (section 2).
 - `tap_unparsed`: the tap record has an `unparsed` row. The audit cannot check that exchange.
+
+The other readers of a record use the same `record_invalid` rule (section 2).
 
 The report names each check that it skipped.
 
@@ -233,7 +237,7 @@ A relay is the Claude Code plugin or the hook kit. The hook kit uses the classic
   - The command has no `(`, `)`, `$(` or backquote, and each quote ends.
 - **Deny fails closed.** The hook kit applies the denies that need only the state folder before it reads the config. These are the deny of test files, the deny of the entry of the running test (from its `manifest.json`), and the deny of the tap of the running test. Thus a config that does not load does not stop them. If the hook kit fails on a tool call and the folder `.verbatim-relay/` exists, it denies the tool call, also when relay mode is off. Without this folder, no deny applies.
 - The deny of test files and of the entry is best effort, like the deny of the tap. A model can change a file or run the app with a command that does not name it.
-- **History.** For the `openai` adapter, the relay sends the turns of the current session that have `ok: true`, then the new message. In a test, the relay sends the turns of the test that have `ok: true` as `history`.
+- **History.** For the `openai` adapter, the relay sends the turns of the current session that have `ok: true`, then the new message. In a test, the relay sends the turns of the test that have `ok: true` as `history`. If a line of the relay record is not valid (section 2), the relay stops with that error and sends nothing to the tap.
 
 ## 6. Agent contract, version 1
 
@@ -305,7 +309,7 @@ If no process with the pid runs, or if the start time of that process is not `pi
 `end` switches relay mode off and stops the bridge. If a harness session sends the prompt that ends the test, `end` writes its id to `.verbatim-relay/ending.json`. The bridge adds that id to the tester's sessions, so it never takes the session that ends the test, and then evaluates it, as a session of the app. The bridge then:
 
 1. Closes the entry's stdin and waits 5 seconds. Then it stops the process group, first with SIGTERM and after 5 more seconds with SIGKILL. Then it stops the OTLP receiver (section 7.5), after no request came for 0.5 seconds or after 2 seconds, the backend proxies (section 7.6) and the model API proxies (section 7.7).
-2. Identifies the Codex sessions (section 7.3).
+2. Identifies the Codex sessions (section 7.3). If `relay.jsonl` is invalid, the bridge does not know each tester session, so it identifies no Codex session and writes the error to `bridge.log`.
 3. Copies the session file of each identified model session into `sessions/` in the test folder.
 4. Writes the end time and the tester's harness sessions into the manifest.
 5. Builds the trace (section 8): `trace.jsonl` and `findings.json`. If the trace fails, the bridge writes the error to `bridge.log`, and the test still ends.
@@ -362,7 +366,7 @@ The seal shows if a file of the test folder changed after the end of the test. I
 | `copy` | `same` or `different`: a copy exists, and it has, or does not have, the same `v`, `test`, `sealed` and `files`. `verify` always compares an existing copy, also when `seal.json` has `copy: false`. `missing`: no copy exists, and `seal.json` has `copy: true` or does not exist. `none`: no copy exists, and `seal.json` has `copy: false`, or no seal exists. |
 | `intact` | `sealed` is true, the 3 lists are empty, and `copy` is `same` or `none`. |
 
-`verify` exits with 0 if `intact` is true, and with 2 if it is false. `verbatim-relay transcript --trace` shows the result in its first line.
+`verify` exits with 0 if `intact` is true, and with 2 if it is false. `verbatim-relay transcript --trace` shows the result in its first line, or in its second line if a record is not valid (section 9.2).
 
 `verbatim-relay trace` rebuilds `trace.jsonl` and `findings.json`. If a seal or a copy exists, it rebuilds them only if each other sealed file agrees with the seal, `seal.json` exists, and the copy is not `different` or `missing`. Then it writes the new SHA-256 of the 2 files to the seal and to the copy.
 
@@ -503,7 +507,7 @@ A test has 3 sources. Each one is independent of the others in a different way:
 | `otel.jsonl` | the OTLP receiver, from the spans and logs that the app and its harness send | the session files. It is not independent of the app's code, because the app sends it. |
 | The app's state | the app | nothing. The evaluating session reads it and judges it. |
 
-The trace reads `tap.jsonl`, `sessions/`, `otel.jsonl`, `backend.jsonl` and `model_api.jsonl`. It does not read the app's state.
+The trace reads `tap.jsonl`, `sessions/`, `otel.jsonl`, `backend.jsonl` and `model_api.jsonl`. It does not read the app's state. It reads `tap.jsonl` with the reader of section 2. If `tap.jsonl` is not valid, the trace stops with that error: `verbatim-relay trace` exits with code 2, and the end of a test writes no trace.
 
 ### 8.2 Trace record
 
@@ -633,7 +637,7 @@ The evaluation prompt is `src/verbatim_relay/evaluate.md`, with the test id and 
 4. check the state of the app with read-only commands only;
 5. write `report.md`, and no other file.
 
-`verbatim-relay transcript --trace` shows each turn of a test as the app received it and sent it (from `tap.jsonl`). Under each turn, it shows the model items of that turn and the findings of that turn. For a `/decisions` call, the user message shows each question and each image on one line. The assistant message shows each answer on one line in place of the text:
+`verbatim-relay transcript --trace` shows each turn of a test as the app received it and sent it (from `tap.jsonl`). It reads `tap.jsonl` with the reader of section 2. If `tap.jsonl` has a line that is not valid, or if `trace.jsonl` has a line that is not a JSON object, the transcript has only 2 lines. The first line is `Record: INVALID.`, the error with the file and the line, and `Do not trust these records. This transcript shows no turn.` The second line is the result of the seal (section 7.4). The transcript shows no turn, so a changed text never shows as exact. Under each turn, it shows the model items of that turn and the findings of that turn. For a `/decisions` call, the user message shows each question and each image on one line. The assistant message shows each answer on one line in place of the text:
 
 | Type | Line |
 |---|---|

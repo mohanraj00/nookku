@@ -136,22 +136,13 @@ def deny_pattern(urls: list[str]) -> re.Pattern[str] | None:
 
 
 def history(record: Path, session: str | None) -> History:
-    """The turns of this session that showed the agent's reply (SPEC.md section 5)."""
-    if not record.exists():
-        return []
-    out: History = []
-    for line in record.read_text(encoding="utf-8").split("\n"):
-        if not line:
-            continue
-        row = json.loads(line)
-        if (
-            row.get("type") == "turn"
-            and row.get("ok") is True
-            and row.get("session") == session
-            and row.get("shown") is not None
-        ):
-            out.append((row["said"], row["shown"]))
-    return out
+    """The turns of this session that showed the agent's reply (SPEC.md section 5). An invalid
+    line in the record raises a RecordError."""
+    return [
+        (t.said, t.shown)
+        for t in read_relay(record, missing_ok=True)
+        if isinstance(t, Turn) and t.ok is True and t.session == session and t.shown is not None
+    ]
 
 
 def relay(config: Config, said: str, past: History) -> tuple[str, bool]:

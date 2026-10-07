@@ -24,7 +24,7 @@ from typing import Any
 from verbatim_relay import __version__, backend, contract, model_api, otlp, seal, trace
 from verbatim_relay.adapters import History
 from verbatim_relay.audit import audit
-from verbatim_relay.record import Writer
+from verbatim_relay.record import RecordError, Writer, turns
 from verbatim_relay.stdio import STRAY_HINT, Agent, StdioTap, start_in_thread
 from verbatim_relay.stdio import TIMEOUT as AGENT_TIMEOUT
 
@@ -247,10 +247,13 @@ def end(
 
 def summary(manifest: dict[str, Any]) -> str:
     folder = Path(manifest.get("dir", ""))
-    turns = _rows(folder / "relay.jsonl", "turn")
     sessions = manifest.get("model_sessions", [])
+    try:
+        count = f"{len(turns(folder / 'relay.jsonl', missing_ok=True))} turns"
+    except RecordError as e:
+        count = f"an invalid relay record ({e})"
     lines = [
-        f"Test {manifest.get('test')} ended: {len(turns)} turns, {len(sessions)} model sessions.",
+        f"Test {manifest.get('test')} ended: {count}, {len(sessions)} model sessions.",
         f"Folder: {folder}",
     ]
     if manifest.get("ended") is None:
@@ -263,21 +266,13 @@ def summary(manifest: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def _rows(path: Path, kind: str) -> list[dict[str, Any]]:
-    """The rows of one type in a JSONL record. Split on \\n only: a text can hold U+2028."""
-    try:
-        text = path.read_text(encoding="utf-8")
-    except OSError:
-        return []
-    return [r for r in (json.loads(x) for x in text.split("\n") if x) if r.get("type") == kind]
-
-
 def history(relay: Path) -> History:
-    """The turns of the test that showed the agent's reply (SPEC.md section 5)."""
+    """The turns of the test that showed the agent's reply (SPEC.md section 5). An invalid line
+    in the relay record raises a RecordError."""
     return [
-        (r["said"], r["shown"])
-        for r in _rows(relay, "turn")
-        if r.get("ok") is True and isinstance(r.get("shown"), str)
+        (t.said, t.shown)
+        for t in turns(relay, missing_ok=True)
+        if t.ok is True and isinstance(t.shown, str)
     ]
 
 
@@ -596,7 +591,13 @@ def run(root: Path, test: str, tester_session: str | None, timeout: float = AGEN
         if data.get("test") == test and isinstance(data.get("tester_session"), str):
             tester.add(data["tester_session"])
     ending.unlink(missing_ok=True)
-    tester |= {r["session"] for r in _rows(relay, "turn") if isinstance(r.get("session"), str)}
+    infer = True
+    try:
+        tester |= {t.session for t in turns(relay, missing_ok=True) if t.session is not None}
+    except RecordError as e:  # the test must still end
+        # Without the tester sessions, an inferred Codex session can be a tester session.
+        infer = False
+        _log(f"the relay record is invalid, so the test infers no Codex session: {e}")
     sessions: list[dict[str, Any]] = []
     copies = folder / "sessions"
     for sid, pid in watcher.found.items():
@@ -613,7 +614,7 @@ def run(root: Path, test: str, tester_session: str | None, timeout: float = AGEN
                 "file": f"sessions/claude-code/{sid}.jsonl" if files else None,
             }
         )
-    for f, meta in codex_sessions(root, started, ended, tester):
+    for f, meta in codex_sessions(root, started, ended, tester) if infer else []:
         row: dict[str, Any] = {
             "type": "model_session",
             "harness": "codex",

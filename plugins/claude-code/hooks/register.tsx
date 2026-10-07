@@ -11,7 +11,7 @@ import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
 
 import type { VerbatimRelayState, VerbatimRelayTurn } from '../types'
-import { blockedRow, contractBody, commandOf, contractShown, denyPattern, entryNames, isChecked, loneSurrogate, namesEntry, replyText, requestBody, toolReadsOnly, touchesRecords, touchesTestFiles, turnRow } from './core'
+import { blockedRow, commandOf, contractBody, contractShown, denyPattern, entryNames, isChecked, loneSurrogate, namesEntry, relayTurns, replyText, requestBody, toolReadsOnly, touchesRecords, touchesTestFiles, turnRow } from './core'
 import type { Current, Options } from './core'
 
 const PANE = 'verbatim-relay'
@@ -89,18 +89,11 @@ async function append($: any, path: string, line: string): Promise<void> {
 }
 
 // The turns of a record, of one session or (with null) of all sessions. The record outlives the
-// plugin's state, so a resumed session keeps its transcript and its history.
+// plugin's state, so a resumed session keeps its transcript and its history. An invalid line or a
+// wrong hash throws an Error that names the file and the line (SPEC.md section 2).
 async function recordTurns($: any, path: string, session: string | null): Promise<VerbatimRelayTurn[]> {
   if ((await fileSize($, path)) < 0) return []
-  const turns: VerbatimRelayTurn[] = []
-  for (const line of String(await $.fs.read(path)).split('\n')) {
-    if (!line) continue
-    const row = JSON.parse(line)
-    if (row.type === 'turn' && (session === null || row.session === session)) {
-      turns.push({ said: row.said, shown: row.shown, ok: row.ok === true })
-    }
-  }
-  return turns
+  return relayTurns(String(await $.fs.read(path)), path, session)
 }
 
 function showStatus($: any, relayOn: boolean): void {
