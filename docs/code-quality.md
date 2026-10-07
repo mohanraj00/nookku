@@ -10,7 +10,7 @@ A check is a test, a lint rule, a conformance case or a CI step. "Review" means 
 |---|---|---|
 | 1 | [Fail closed](#1-fail-closed) | Tests in `tests/test_kit.py` and `register.test.ts`, also for the plugin prompt path ([#63](https://github.com/mohanraj00/verbatim-relay/issues/63)) and the deny path ([#68](https://github.com/mohanraj00/verbatim-relay/issues/68)). |
 | 2 | [Exact bytes](#2-exact-bytes) | Byte tests of each relay and proxy. Proofs P1 and P2. |
-| 3 | [One rule, two languages](#3-one-rule-two-languages) | `test_the_plugin_reads_each_one_line_case_like_the_tap`, and the shared `DENY_CASES` table for the deny patterns ([#70](https://github.com/mohanraj00/verbatim-relay/issues/70)). |
+| 3 | [One rule, two languages](#3-one-rule-two-languages) | `test_the_plugin_reads_each_one_line_case_like_the_tap`, the shared `DENY_CASES` table for the deny patterns ([#70](https://github.com/mohanraj00/verbatim-relay/issues/70)), and the shared `DETAIL_CASES` table for the detail of a blocked call ([#88](https://github.com/mohanraj00/verbatim-relay/issues/88)). |
 | 4 | [Records](#4-records) | Conformance cases and the CI step for them, also for Unicode ([#43](https://github.com/mohanraj00/verbatim-relay/issues/43), [#65](https://github.com/mohanraj00/verbatim-relay/issues/65)). The shared `RELAY_LINES` table for one reader ([#71](https://github.com/mohanraj00/verbatim-relay/issues/71)). |
 | 5 | [No secrets](#5-no-secrets) | Secret tests of the 2 proxies, also for query values ([#69](https://github.com/mohanraj00/verbatim-relay/issues/69)). |
 | 6 | [Timeouts](#6-timeouts) | `test_each_timeout_ends_before_the_next_one`, also for the HTTP tap ([#67](https://github.com/mohanraj00/verbatim-relay/issues/67)). |
@@ -65,6 +65,7 @@ A check is a test, a lint rule, a conformance case or a CI step. "Review" means 
 - `register.test.ts`: "the plugin reads an agent line with the same rule as the Python tap" runs the same table through `contractShown`.
 - Deny patterns: `tests/test_kit.py` checks the shared `DENY_CASES` table against `kit.deny_pattern`, and `register.test.ts` ("the deny pattern has the same rule as the hook kit") runs it through `denyPattern` ([#70](https://github.com/mohanraj00/verbatim-relay/issues/70)).
 - Relay records: `tests/test_conformance.py` checks the shared `RELAY_LINES` table against `record.read_rows`, and `register.test.ts` runs it through `relayTurns` ([#71](https://github.com/mohanraj00/verbatim-relay/issues/71)).
+- The detail of a `blocked_call` row: `tests/test_kit.py` checks the shared `DETAIL_CASES` table against `kit.blocked_detail` and `record.read_rows`, and `register.test.ts` runs it through `blockedDetail` ([#88](https://github.com/mohanraj00/verbatim-relay/issues/88)).
 
 ## 4. Records
 

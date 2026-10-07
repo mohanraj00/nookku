@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { contractBody, contractShown, denyPattern, entryNames, isChecked, isStream, loneSurrogate, namesEntry, pick, readsOnly, relayTurns, replyText, requestBody, sha256, sseEvents, streamText, toolReadsOnly, touchesRecords, touchesTestFiles } from './core'
+import { blockedDetail, blockedRow, contractBody, contractShown, denyPattern, entryNames, isChecked, isStream, loneSurrogate, namesEntry, pick, readsOnly, relayTurns, replyText, requestBody, sha256, sseEvents, streamText, toolReadsOnly, touchesRecords, touchesTestFiles } from './core'
 
 const TRICKY = 'Hi, I want to return order #4471.  \n\nÜnïcödé € ₹\t| a | b |\n'
 const REPLY = '## Toy shop  \nYou wrote it.\n\n| item | price |\n|---|---|\n| mug | € 8 |\n'
@@ -172,6 +172,50 @@ test('a model call to the tap is denied and recorded; a file write is not', { op
   expect(rows(f.files['/virtual/relay.jsonl'])[0]).toMatchObject({ type: 'blocked_call', tool: 'Bash' })
   const allowed: any = await $.tool.call({ tool: 'Write', file_path: '/tmp/x', content: 'http://127.0.0.1:8800/' } as any)
   expect(allowed.deny).toBe(undefined)
+})
+
+test('a denied call with an emoji at the cut writes a valid relay record', { options: OPTIONS }, async ($, on) => {
+  const f = fakes(on, () => ({ status: 200, text: '{}' }))
+  on('tool.call', async () => ({ result: 'ran' }))
+  // The emoji start before code point 300 and end after it. With 2 offsets, one input has half
+  // of an emoji at UTF-16 code unit 300, where a cut with slice(0, 300) splits it.
+  for (const pad of ['', 'x']) {
+    delete f.files['/virtual/relay.jsonl']
+    const denied: any = await $.tool.call({ tool: 'Bash', command: `curl http://localhost:8800/ -d ${pad}${'\u{1F600}'.repeat(400)}` } as any)
+    expect(typeof denied.deny).toBe('string')
+    const text = f.files['/virtual/relay.jsonl']
+    expect(await relayTurns(text, 'relay.jsonl', null)).toEqual([])
+    const [row] = rows(text)
+    expect(row).toMatchObject({ type: 'blocked_call', tool: 'Bash' })
+    expect([...row.detail].length).toBe(300)
+    expect(row.detail.endsWith('\u{1F600}')).toBe(true)
+    expect(loneSurrogate(row.detail)).toBe(null)
+  }
+})
+
+// Inputs of a blocked_call row, with the expected detail. Each row is [pad, tail, cut]: the input
+// is pad x characters and then the tail, and the detail is the same x characters and then the
+// cut. tests/test_kit.py runs this table through kit.blocked_detail, so that the two relays use
+// one rule.
+const DETAIL_CASES: [number, string, string][] = [
+  [0, "curl http://127.0.0.1:8800/", "curl http://127.0.0.1:8800/"],
+  [299, "😀b", "😀"],
+  [298, "😀😀", "😀😀"],
+  [300, "😀", ""],
+  [0, "mug \ud83d", "mug \\ud83d"],
+  [0, "\ude00 mug", "\\ude00 mug"],
+  [299, "\ud83d\ud83d", "\\ud83d"],
+  [0, "😀\udc00", "😀\\udc00"],
+]
+
+test('the detail of a blocked call has the same rule as the hook kit', async () => {
+  for (const [pad, tail, cut] of DETAIL_CASES) {
+    const input = 'x'.repeat(pad) + tail
+    const detail = blockedDetail(input)
+    expect([input, detail]).toEqual([input, 'x'.repeat(pad) + cut])
+    expect(JSON.parse(blockedRow('Bash', input)).detail).toBe(detail)
+    expect(await relayTurns(blockedRow('Bash', input), 'relay.jsonl', null)).toEqual([])
+  }
 })
 
 // Tool inputs for the deny pattern of DENY_URLS, with the expected result. tests/test_kit.py
