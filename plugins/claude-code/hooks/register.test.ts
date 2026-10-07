@@ -284,7 +284,11 @@ test('a test starts, relays with the contract, records in its folder and ends', 
   const runs = withTest(on, f)
   on('prompt.submit', async (_$: any, e: any) => ({ text: e.text }))
   const started: any = await $.command.run({ command: 'verbatim-relay', args: 'start' } as any)
-  expect(started.text).toContain('Test 20261005-120000-ab12 started')
+  expect(started.text).toBe(
+    'Test 20261005-120000-ab12 started. Relay mode is on. ' +
+      'To end the test and start the evaluation, type the prompt verbatim-relay end, with no slash. ' +
+      'To end the test with no evaluation, type /verbatim-relay end.',
+  )
   expect(runs[0]).toEqual(['verbatim-relay', 'start', '--json', '--tester-session', 's1'])
   await $.prompt.submit({ text: TRICKY })
   await $.prompt.submit({ text: 'second' })
@@ -549,8 +553,36 @@ test('the prompts verbatim-relay start and status run and are never relayed', {}
   expect(runs[0][1]).toBe('start')
   const status: any = await $.prompt.submit({ text: 'verbatim-relay status' })
   expect('drop' in status).toBe(true)
-  expect(f.logs.at(-1)).toContain(`Test ${CURRENT.test} runs`)
+  expect(runs[1]).toEqual(['verbatim-relay', 'status', '--json'])
+  expect(f.logs.at(-1)).toBe(`verbatim-relay: Relay mode is on. Test ${CURRENT.test} runs on ${CURRENT.tap_url}.`)
   expect(f.sent.length).toBe(0)
+})
+
+test('with a stale current.json, the status shows no running test', {}, async ($, on) => {
+  // The bridge died: current.json stays, and the mode file says on.
+  const f = fakes(on, contractReply)
+  const runs = withTest(on, f)
+  f.files['.verbatim-relay/current.json'] = JSON.stringify(CURRENT)
+  f.files['.verbatim-relay/mode'] = 'on\n'
+  const shown: any = await $.command.run({ command: 'verbatim-relay', args: 'status' } as any)
+  expect(runs).toEqual([['verbatim-relay', 'status', '--json']])
+  expect(shown.text).toBe('Relay mode is on. No test runs.')
+  const status: any = await $.prompt.submit({ text: 'verbatim-relay status' })
+  expect('drop' in status).toBe(true)
+  expect(f.logs.at(-1)).toBe('verbatim-relay: Relay mode is on. No test runs.')
+  expect(f.sent.length).toBe(0)
+})
+
+test('if verbatim-relay status fails, the status text says that it is not known', {}, async ($, on) => {
+  const f = fakes(on, contractReply)
+  f.files['.verbatim-relay/config.json'] = JSON.stringify({ entry: ['python', 'agent.py'] })
+  f.files['.verbatim-relay/current.json'] = JSON.stringify(CURRENT)
+  on('process.run', async () => ({ value: { exitCode: 127, stdout: '', stderr: 'verbatim-relay: command not found\n' } }))
+  const shown: any = await $.command.run({ command: 'verbatim-relay', args: 'status' } as any)
+  expect(shown.text).toBe(
+    "The status is not known. The command 'verbatim-relay status --json' failed: verbatim-relay: command not found. " +
+      'Check that the plugin option cli names the verbatim-relay command.',
+  )
 })
 
 test('after a test, the model can write report.md and no other test file', {}, async ($, on) => {

@@ -264,7 +264,7 @@ The hook command that `init` writes into the hook file. It reads one hook event 
 
 ### `verbatim-relay bridge`
 
-The background process of a test ([architecture.md](../architecture.md#the-bridge)). `start` runs it.
+The background process of a test ([architecture.md](../architecture.md#the-bridge)). `start` runs it. `verbatim-relay --help` does not show this command.
 
 | Flag | Default | Meaning |
 |---|---|---|

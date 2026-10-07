@@ -32,6 +32,26 @@ def test_the_deny_pattern_has_the_same_rule_as_the_plugin() -> None:
         assert (command, bool(pattern.search(command))) == (command, denied)
 
 
+# The prompt that ends a test and starts the evaluation, and the end with no evaluation
+# (SPEC.md section 9.1).
+EVALUATION_END = "To end the test and start the evaluation, type the prompt verbatim-relay end"
+
+
+def test_the_start_text_names_the_prompt_that_starts_the_evaluation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(bridge, "start", lambda root, session=None: {"test": "t-1"})
+    text = kit.start_test(tmp_path)
+    assert text.startswith("verbatim-relay: test t-1 started. Relay mode is on")
+    assert f"{EVALUATION_END}. " in text
+    assert text.endswith("To end the test with no evaluation, run verbatim-relay end in a shell.")
+    assert kit.is_on(tmp_path)
+    # The plugin names the same prompt, and its command for the end with no evaluation.
+    plugin = (ROOT / "plugins" / "claude-code" / "hooks" / "register.tsx").read_text()
+    assert f"{EVALUATION_END}, with no slash. " in plugin
+    assert "To end the test with no evaluation, type /verbatim-relay end." in plugin
+
+
 TRICKY = "Hi, I want to return order #4471.  \n\nÜnïcödé € ₹\t| a | b |\n"
 
 

@@ -192,9 +192,11 @@ def start_test(root: Path, tester_session: str | None = None) -> str:
     except bridge.BridgeError as e:
         return f"verbatim-relay: {e}"
     set_mode(root, True)
+    # The same two ends as the start text of the plugin (register.tsx, SPEC.md section 9.1).
     return (
         f"verbatim-relay: test {cur['test']} started. Relay mode is on: each message goes to the "
-        "entry. End the test with: verbatim-relay end"
+        "entry. To end the test and start the evaluation, type the prompt verbatim-relay end. "
+        "To end the test with no evaluation, run verbatim-relay end in a shell."
     )
 
 

@@ -136,7 +136,12 @@ async function startTest($: any, o: Options): Promise<string> {
   await update($, state, s => ({ ...s, on: true, turns: [], test: cur.dir }))
   showStatus($, true)
   void $.ui.open({ id: PANE, title: 'verbatim-relay' })
-  return `Test ${cur.test} started. Relay mode is on. Type /verbatim-relay end to end it.`
+  // The same two ends as the start text of the hook kit (kit.start_test, SPEC.md section 9.1).
+  return (
+    `Test ${cur.test} started. Relay mode is on. ` +
+    'To end the test and start the evaluation, type the prompt verbatim-relay end, with no slash. ' +
+    'To end the test with no evaluation, type /verbatim-relay end.'
+  )
 }
 
 async function endTest($: any, o: Options): Promise<string> {
@@ -161,10 +166,22 @@ async function endForEvaluation($: any, o: Options): Promise<{ text: string; eva
   return { text: `The test did not end: ${r.out}`, evaluation: null }
 }
 
+// The status of a test, from `verbatim-relay status --json`. Python decides if the bridge of
+// current.json runs, and it removes a stale current.json (SPEC.md section 7.2). Thus a stale
+// current.json does not show as a running test.
 async function statusText($: any, o: Options): Promise<string> {
-  const cur = await currentTest($)
-  const test = cur ? ` Test ${cur.test} runs on ${cur.tap_url}.` : ' No test runs.'
-  return `Relay mode is ${(await isOn($, o)) ? 'on' : 'off'}.${test}`
+  const r = await runCli($, o, ['status', '--json'])
+  let s: any = null
+  try {
+    s = JSON.parse(r.out)
+  } catch {
+    // not JSON: the command failed before it could answer
+  }
+  if (!r.ok || typeof s?.on !== 'boolean') {
+    return `The status is not known. The command '${o.cli} status --json' failed: ${r.out || 'no output'}. Check that the plugin option cli names the verbatim-relay command.`
+  }
+  const test = s.test ? ` Test ${s.test.test} runs on ${s.test.tap_url}.` : ' No test runs.'
+  return `Relay mode is ${s.on ? 'on' : 'off'}.${test}`
 }
 
 // Run a control prompt. Resolve the answer of the prompt.submit hook.
