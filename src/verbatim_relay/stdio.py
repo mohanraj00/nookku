@@ -19,7 +19,8 @@ from pathlib import Path
 from verbatim_relay import contract
 from verbatim_relay.record import Writer, lone_surrogate
 
-# The hook kit's UserPromptSubmit deadline is 300 s. The tap must answer well before it.
+# The agent timeout of both taps, HTTP and stdio. Each tap answers well before the relay
+# timeouts (kit.TIMEOUT, bridge.TIMEOUT), and these end before kit.HOOK_DEADLINE.
 TIMEOUT = 240.0
 TAIL = 20
 
