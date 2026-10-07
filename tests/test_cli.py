@@ -6,6 +6,7 @@ import pytest
 
 from verbatim_relay import __version__
 from verbatim_relay.cli import main
+from verbatim_relay.kit import LEGEND
 from verbatim_relay.record import Writer
 
 CASES = Path(__file__).resolve().parent.parent / "conformance" / "cases"
@@ -123,6 +124,76 @@ def test_transcript_without_a_config_uses_the_default_record(tmp_path, capsys):
     )
     assert main(["transcript", "--root", str(tmp_path)]) == 0
     assert "──── tester, turn 1 ────\nhi \n──── agent ────\nyo\n" in capsys.readouterr().out
+
+
+def _turns(path: Path, harness: str) -> None:
+    """Write the same turns as the plugin or the hook kit writes them."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    rows = [
+        ("old question", "old answer", True, "s0"),
+        ("Where is order 4471?  \n", "It ships on Monday.\n\n| item | price |\n", True, "s1"),
+        ("And order 4417?", "verbatim-relay: cannot reach the tap", False, "s1"),
+    ]
+    for said, shown, ok, session in rows:
+        Writer(path).append(
+            {
+                "type": "turn",
+                "harness": harness,
+                "said": said,
+                "shown": shown,
+                "ok": ok,
+                "session": session,
+            }
+        )
+
+
+def _transcript(capsys: pytest.CaptureFixture[str], argv: list[str]) -> str:
+    assert main(["transcript", *argv]) == 0
+    return capsys.readouterr().out
+
+
+@pytest.mark.parametrize("harness", ["claude-code", "codex"])
+def test_the_plugin_and_the_kit_render_the_same_transcript_of_a_test(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], harness: str
+) -> None:
+    # The plugin runs `verbatim-relay transcript --test ID` (register.test.ts). The hook kit
+    # tells the model to run `verbatim-relay transcript`, which takes the latest test.
+    state = tmp_path / ".verbatim-relay"
+    state.mkdir()
+    (state / "config.json").write_text(json.dumps({"entry": ["python", "agent.py"]}))
+    test = "20261007-090000-ab12"
+    _turns(state / "tests" / test / "relay.jsonl", harness)
+    root = ["--root", str(tmp_path)]
+    plugin = _transcript(capsys, [*root, "--test", test])
+    kit = _transcript(capsys, root)
+    assert plugin == kit
+    lines = plugin.split("\n")
+    assert lines[0].startswith(f"verbatim-relay transcript, test {test}: 3 turns.")
+    assert lines[1] == LEGEND
+    assert "──── tester, turn 2 ────\nWhere is order 4471?  \n\n──── agent ────\n" in plugin
+    assert "──── relay error, not an agent reply ────\nverbatim-relay: cannot" in plugin
+    assert "sha256" not in plugin and "s1" not in plugin
+
+
+def test_the_plugin_and_the_kit_render_the_same_transcript_of_a_session(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # Without an entry, the plugin runs `verbatim-relay transcript --record R --session S`
+    # (register.test.ts), and the hook kit runs `verbatim-relay transcript`.
+    record = tmp_path / ".verbatim-relay" / "relay.jsonl"
+    _turns(record, "claude-code")
+    root = ["--root", str(tmp_path)]
+    plugin = _transcript(capsys, [*root, "--record", str(record), "--session", "s1"])
+    kit = _transcript(capsys, root)
+    assert plugin.startswith("verbatim-relay transcript, session s1: 2 turns.")
+    assert kit.startswith("verbatim-relay transcript, the latest session: 2 turns.")
+    assert plugin.split("\n")[1:] == kit.split("\n")[1:]
+    assert "old question" not in plugin
+
+
+def test_spec_has_the_legend_of_the_transcript() -> None:
+    spec = (Path(__file__).resolve().parent.parent / "SPEC.md").read_text(encoding="utf-8")
+    assert f'"{LEGEND}"' in spec
 
 
 TOY_SHOP = Path(__file__).resolve().parent.parent / "examples" / "toy-shop" / "agent.py"

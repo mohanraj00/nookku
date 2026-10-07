@@ -64,6 +64,8 @@ class Turn:
     line: int
     said: str
     shown: str | None
+    ok: bool | None = None
+    session: str | None = None
 
 
 @dataclass(frozen=True)
@@ -210,7 +212,7 @@ def read_relay(path: Path) -> list[Turn | BlockedCall]:
     rows: list[Turn | BlockedCall] = []
     for n, r in _read("relay", path):
         if r["type"] == "turn":
-            rows.append(Turn(n, r["said"], r["shown"]))
+            rows.append(Turn(n, r["said"], r["shown"], r.get("ok"), r.get("session")))
         else:
             rows.append(BlockedCall(n, r["tool"], r["detail"]))
     return rows

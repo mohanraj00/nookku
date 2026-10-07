@@ -59,3 +59,33 @@ def test_the_case_note_comes_from_the_toy_model_as_a_stream(
         model.shutdown()
         model.server_close()
     assert note == "Case note: Can I reserve a teapot set?"
+
+
+def test_the_toy_model_routes_a_complaint_to_a_department(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    model = toy_model.ToyModel(0)
+    threading.Thread(target=model.serve_forever, daemon=True).start()
+    monkeypatch.setenv("OPENAI_BASE_URL", model.url)
+    try:
+        charged = services.department("I was charged twice for order 5120.")
+        broken = services.department("My teapot set arrived with a broken lid.")
+        other = services.department("Do you sell toy trains?")
+    finally:
+        model.shutdown()
+        model.server_close()
+    assert (charged, broken, other) == ("billing", "shipping", "other")
+
+
+def test_the_toy_model_refuses_a_question_that_is_not_a_choice() -> None:
+    ask = {
+        "input": [{"role": "user", "content": [{"type": "input_text", "text": "A refund?"}]}],
+        "questions": [
+            {"type": "predicate", "name": "angry", "instructions": "Is the customer angry?"},
+            {"type": "choice", "name": "department", "choices": services.DEPARTMENTS},
+        ],
+    }
+    answers = toy_model.decide(ask)["answers"]
+    assert answers[0] == {"type": "refusal", "name": "angry"}
+    assert answers[1]["choice"] == "billing"
+    assert answers[1]["probabilities"][0] == {"value": "billing", "probability": 0.9}

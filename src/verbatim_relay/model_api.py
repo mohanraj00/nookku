@@ -3,7 +3,8 @@
 During a test, the bridge runs one recording proxy for each model API, and gives the entry the proxy
 URL in the base URL variable of the API's SDK. The proxy sends each part of a response to the app
 when it comes, also a streamed (SSE) response. It writes one row for each call to model_api.jsonl,
-with the result of the call: the text, the tool calls and the stop reason.
+with the result of the call: the text, the tool calls and the stop reason, or the answers of a
+decision.
 """
 
 from __future__ import annotations
@@ -305,6 +306,46 @@ def responses(data: bytes, stream: bool) -> dict[str, Any]:
     return out
 
 
+# The field of the value of each type of answer of the Decisions API.
+DECISION_VALUES = {"predicate": "probability", "choice": "choice", "score": "score"}
+
+
+def _number(value: Any) -> float | int | None:
+    ok = isinstance(value, (int, float)) and not isinstance(value, bool)
+    return value if ok else None
+
+
+def _answer(answer: dict[str, Any]) -> dict[str, Any]:
+    """One answer of the Decisions API: its type, name, value, probabilities and confidence. A
+    refusal has no value, no probabilities and no confidence."""
+    kind = answer.get("type")
+    field = DECISION_VALUES.get(kind) if isinstance(kind, str) else None
+    found = answer.get("probabilities")
+    return {
+        "type": kind,
+        "name": answer.get("name"),
+        "value": answer.get(field) if field else None,
+        "probabilities": found if isinstance(found, list) else None,
+        "confidence": _number(answer.get("confidence")),
+    }
+
+
+def decisions(data: bytes, stream: bool) -> dict[str, Any]:
+    """The result of a call to the OpenAI Decisions API. The API reference gives no stream, so the
+    body is read as JSON also if `stream` is true."""
+    out = {**_empty(), "answers": []}
+    body = _json(data.decode("utf-8", errors="replace"))
+    if not isinstance(body, dict):
+        out["error"] = "the response is not JSON"
+        return out
+    out.update(model=body.get("model"), usage=body.get("usage"), error=_error(body))
+    answers = body.get("answers")
+    for answer in answers if isinstance(answers, list) else []:
+        if isinstance(answer, dict):
+            out["answers"].append(_answer(answer))
+    return out
+
+
 # The model calls: the API, the end of the path, and the format of the call. The format selects
 # the parser of the result here and the reader of the request in the trace. To read a new model
 # call, add one row here and one parser to PARSERS.
@@ -312,8 +353,9 @@ CALLS = (
     ("anthropic", "/v1/messages", "messages"),
     ("openai", "/chat/completions", "chat"),
     ("openai", "/responses", "responses"),
+    ("openai", "/decisions", "decisions"),
 )
-PARSERS = {"messages": anthropic, "chat": openai, "responses": responses}
+PARSERS = {"messages": anthropic, "chat": openai, "responses": responses, "decisions": decisions}
 
 
 def call_format(api: str, path: str) -> str | None:
