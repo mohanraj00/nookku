@@ -32,7 +32,7 @@ A prompt cannot fix this. A mechanism can. In relay mode, the hook takes each pr
 
 Data: [plugin](proofs/claude-code/results.json), [hook kit in Claude Code](proofs/hooks-claude-code/results.json), [hook kit in Codex](proofs/hooks-codex/results.json), [evaluation](docs/results.md#p5-the-model-judges-the-record-not-its-memory).
 
-Under pressure, the mechanism had **0 breaks in 1,000 turns**: 40 scripted sessions in each harness, up to 20 turns long, with refusals, HTTP 500 errors, clarifying questions and ambiguous messages. I registered the design before the first run. Method, data and the one deviation: [docs/results.md](docs/results.md).
+Under pressure, the mechanism had **0 breaks in 1,000 turns**: 40 scripted conversations in each harness, 5 or 20 turns long, with refusals, HTTP 500 errors, clarifying questions and ambiguous messages. Each turn was a new harness call, so the harness saw 1,000 short calls, not long sessions. I registered the design before the first run. Method, data and the one deviation: [docs/results.md](docs/results.md#2-benchmark-under-pressure).
 
 ## Quick start
 
