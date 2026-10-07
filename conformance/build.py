@@ -1542,7 +1542,7 @@ BACKEND_CASE = {
             "GET",
             "/stock",
             200,
-            query="sku=teapot-set",
+            query="sku=teapot-set&api_key=",
             response=body('{"sku": "teapot-set", "left": 3}'),
         ),
         call(
@@ -1565,7 +1565,7 @@ BACKEND_CASE = {
             12,
             1,
             "GET /stock",
-            input={"query": "sku=teapot-set", "headers": SENT, "body": None},
+            input={"query": "sku=teapot-set&api_key=", "headers": SENT, "body": None},
             output='{"sku": "teapot-set", "left": 3}',
             exit_code=200,
         ),
