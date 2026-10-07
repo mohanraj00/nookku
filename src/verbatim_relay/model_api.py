@@ -25,25 +25,35 @@ APIS = {
 HARNESS_AGENTS = (("claude-cli", "claude-code"), ("claude-code", "claude-code"), ("codex", "codex"))
 
 
-def parse(raw: Any) -> list[str]:
-    """The `model_api` key of the configuration: the names of the APIs to record."""
+def parse(raw: Any) -> dict[str, str | None]:
+    """The `model_api` key of the configuration: the APIs to record, each with the URL from the
+    configuration, or None for the URL from its variable."""
     if raw is None or raw is True:
-        return list(APIS)
+        return dict.fromkeys(APIS)
     if raw is False:
-        return []
+        return {}
     if isinstance(raw, list) and all(isinstance(x, str) and x in APIS for x in raw):
-        return list(dict.fromkeys(raw))
-    raise ValueError(f"'model_api' must be true, false or a list of: {', '.join(APIS)}")
+        return dict.fromkeys(raw)
+    if isinstance(raw, dict) and all(
+        k in APIS and (v is None or isinstance(v, str)) for k, v in raw.items()
+    ):
+        return dict(raw)
+    raise ValueError(
+        f"'model_api' must be true, false, a list of: {', '.join(APIS)}, "
+        "or an object from these names to a URL or null"
+    )
 
 
-def backends(names: list[str], environ: Mapping[str, str]) -> list[backend.Backend]:
-    """One backend for each API. Its URL is the value that the entry has, or the default."""
+def backends(apis: Mapping[str, str | None], environ: Mapping[str, str]) -> list[backend.Backend]:
+    """One backend for each API. Its URL is the URL of the configuration, else the value that the
+    bridge has in the variable, else the default."""
     out = []
-    for name in names:
+    for name, configured in apis.items():
         env, default = APIS[name]
-        url = environ.get(env) or default
+        # A URL in the configuration is used as it is, also if it is empty, so that it is checked.
+        url = configured if configured is not None else (environ.get(env) or default)
         if urlsplit(url).scheme not in ("http", "https") or not urlsplit(url).hostname:
-            raise ValueError(f"{env} must be an http or https URL: {url!r}")
+            raise ValueError(f"the URL of {name} ({env}) must be an http or https URL: {url!r}")
         out.append(backend.Backend(name, env, url.rstrip("/")))
     return out
 

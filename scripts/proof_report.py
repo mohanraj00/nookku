@@ -33,8 +33,10 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from collections.abc import Callable
 from datetime import date
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path[:0] = [str(ROOT / "src")]
@@ -100,15 +102,39 @@ def codex(prompt: str, cwd: Path, extra: list[str]) -> str:
     return texts[-1] if texts else f"(no answer; exit {p.returncode}: {p.stderr.strip()[-300:]})"
 
 
-def setup(project: Path) -> None:
+# The files of each example app. The Codex project is the same for each proof, so setup removes the
+# files of the other examples.
+APP_FILES = {
+    "toy-shop-models": ("app.py", "entry.py", "RULES.md", "state.json"),
+    "toy-shop-full": (
+        "app.py",
+        "entry.py",
+        "RULES.md",
+        "state.json",
+        "services.py",
+        "stock.py",
+        "stock.json",
+        "toy_model.py",
+    ),
+}
+
+
+def setup(
+    project: Path,
+    example: Path = EXAMPLE,
+    sdk: str = "claude-agent-sdk",
+    config: dict[str, Any] | None = None,
+) -> None:
     """Copy the app into the project, with a new state, and configure the test."""
-    for name in ("app.py", "entry.py", "RULES.md", "state.json"):
-        shutil.copy(EXAMPLE / name, project / name)
-    entry = ["uv", "run", "--quiet", "--project", str(ROOT), "--with", "claude-agent-sdk"]
+    for name in {n for names in APP_FILES.values() for n in names}:
+        (project / name).unlink(missing_ok=True)
+    for name in APP_FILES[example.name]:
+        shutil.copy(example / name, project / name)
+    entry = ["uv", "run", "--quiet", "--project", str(ROOT), "--with", sdk]
     entry += ["python", str(project / "entry.py")]
     (project / kit.STATE_DIR).mkdir(parents=True, exist_ok=True)
-    config = {"entry": entry, "models": ["claude-code"]}
-    (project / kit.STATE_DIR / "config.json").write_text(json.dumps(config, indent=1) + "\n")
+    data = {"entry": entry, "models": ["claude-code"], **(config or {})}
+    (project / kit.STATE_DIR / "config.json").write_text(json.dumps(data, indent=1) + "\n")
     (project / kit.STATE_DIR / "mode").write_text("off\n")
 
 
@@ -155,8 +181,13 @@ def private(text: str) -> bool:
     return False
 
 
-def main() -> int:
-    relay = sys.argv[1]
+Run = Callable[[str, list[str]], str]
+
+
+def relay_runner(relay: str) -> tuple[Path, Run, str, str, list[str]]:
+    """The project of a relay, its function that sends one prompt, the start and end prompts, and
+    the arguments of the end prompt."""
+    run: Run
     if relay == "plugin":
         project = Path(tempfile.mkdtemp(prefix="verbatim-relay-report-")).resolve()
         opts = {"options": {"cli": CLI, "start_on": False}}
@@ -193,22 +224,38 @@ def main() -> int:
 
             end_args = ["-s", "workspace-write"]
         start, end = "verbatim-relay start", "verbatim-relay end"
-    setup(project)
+    return project, run, start, end, end_args
 
+
+def run_test(
+    project: Path, run: Run, start: str, end: str, end_args: list[str], messages: list[str]
+) -> tuple[Path, str] | None:
+    """Start a test, send the messages, and end it with the evaluation. Return the test folder and
+    the answer of the end prompt, or None if the test did not start."""
     run(start, [])
     cur = bridge.current(project)
     if cur is None:
-        print("FAIL: the test did not start")
-        return 1
-    folder = Path(cur["dir"])
+        return None
     try:
-        for m in MESSAGES:
+        for m in messages:
             run(m, [])
             print("sent", repr(m[:40]), flush=True)
     finally:
         answer = run(end, end_args)
         if bridge.current(project) is not None:
             subprocess.run([CLI, "end", "--root", str(project)], capture_output=True, timeout=300)
+    return Path(cur["dir"]), answer
+
+
+def main() -> int:
+    relay = sys.argv[1]
+    project, run, start, end, end_args = relay_runner(relay)
+    setup(project)
+    ran = run_test(project, run, start, end, end_args, MESSAGES)
+    if ran is None:
+        print("FAIL: the test did not start")
+        return 1
+    folder, answer = ran
 
     trace = [json.loads(x) for x in (folder / "trace.jsonl").read_text().split("\n") if x]
     calls = [

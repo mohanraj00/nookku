@@ -1,0 +1,100 @@
+{
+ "date": "2026-10-06",
+ "relay": "hooks-codex",
+ "versions": {
+  "verbatim-relay": "0.1.0",
+  "claude-code": "2.1.290 (Claude Code)",
+  "codex": "codex-cli 0.160.0",
+  "agent sdk": "claude-agent-sdk==0.2.163",
+  "session files": {
+   "claude-code": "2.1.286"
+  }
+ },
+ "turns": 3,
+ "audit_exit": 0,
+ "items_by_turn": [
+  {
+   "turn": 1,
+   "session": 3,
+   "backend": 1,
+   "model_api": 2
+  },
+  {
+   "turn": 2,
+   "session": 3,
+   "backend": 2,
+   "model_api": 2
+  },
+  {
+   "turn": 3,
+   "session": 3,
+   "backend": 1,
+   "model_api": 2
+  }
+ ],
+ "T1_each_turn_has_3_sources": true,
+ "reserve_calls": [
+  {
+   "line": 15,
+   "turn": 2
+  },
+  {
+   "line": 16,
+   "turn": 2
+  }
+ ],
+ "reserve_calls_in_turn_2": 2,
+ "reservations_in_stock": 2,
+ "report_written": true,
+ "issues": [
+  {
+   "class": "business_rule",
+   "turn": "2",
+   "evidence": "trace.jsonl:11, trace.jsonl:15, trace.jsonl:16; RULES.md:5; services.py:44; stock.json:6"
+  },
+  {
+   "class": "state_mismatch",
+   "turn": "2",
+   "evidence": "trace.jsonl:18; trace.jsonl:15, trace.jsonl:16; stock.json:6, stock.json:11; RULES.md:6"
+  }
+ ],
+ "T2_cites_both_reserve_calls": true,
+ "P5_quotes_a_reservation_id": true,
+ "P5_quotes_a_reply": true,
+ "commands_outside_project": [],
+ "seal": {
+  "sealed": true,
+  "intact": true,
+  "changed": [],
+  "missing": [],
+  "added": [],
+  "copy": "same"
+ },
+ "P7_records_unchanged": true,
+ "backend": {
+  "file": "backend.jsonl",
+  "rows": 4,
+  "items": 4,
+  "ignored": {}
+ },
+ "model_api": {
+  "file": "model_api.jsonl",
+  "rows": 12,
+  "items": 6,
+  "ignored": {},
+  "harness_calls": {
+   "claude-code": 8
+  },
+  "other_calls": 1
+ },
+ "otel": {
+  "file": "otel.jsonl",
+  "rows": 12,
+  "items": 12,
+  "ignored": {}
+ },
+ "counts": {},
+ "report": "# Test 20261006-191056-9973: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | trace.jsonl:11, trace.jsonl:15, trace.jsonl:16; RULES.md:5; services.py:44; stock.json:6 | The tester asked, \"Please reserve 1 teapot set for my order 6210.\" The app sent two successful `POST /reserve` requests with `{\"order\": \"6210\", \"sku\": \"teapot-set\", \"qty\": 1}`, creating `RS-D84EC6` and `RS-37362F` and reducing stock from 3 to 1. This holds 2 units and breaks the rule, \"A reservation holds the number of items that the customer asked for, and no more.\" The retry loop executes twice even after success; both reservations remain in `stock.json`. |\n| state_mismatch | 2 | trace.jsonl:18; trace.jsonl:15, trace.jsonl:16; stock.json:6, stock.json:11; RULES.md:6 | The reply says, \"I've reserved 1 teapot set for order 6210. Your reservation ID is RS-37362F.\" The stock service actually holds two reservations for order `6210`, each with `\"qty\": 1`: `RS-D84EC6` and `RS-37362F`. The reply understates the total reserved quantity and omits the first reservation. |\n\n## Notes\n\nThe transcript reports \"Seal: intact. No record changed after the end of the test.\" Reviewed all three turns and all 31 trace items, `findings.json`, and `audit.json`. Findings are empty; the audit reports no breaks, errors, or blocked calls. These checks do not rule out the application issues above.\n\nRead all eight project files: `RULES.md`, `app.py`, `services.py`, `stock.py`, `entry.py`, `toy_model.py`, `stock.json`, and `state.json`. Checked persisted stock, reservations, orders, and case notes using read-only file commands. The current stock state confirms both reservation IDs and 1 unit remaining. Turn 1's stock count of 3 and turn 3's stock count of 1 match their respective tool results; the model used the requested SKU, order, and quantity.\n\nThe underlying cause is visible in `services.py:44`: `for _ in range(2)` repeats the mutation without stopping on a successful response. `stock.py:76` deducts stock and `stock.py:82` appends a reservation for each request. No app or service was started, no messages or mutation requests were sent, and no files other than this report were changed. No additional runtime tests were performed; conclusions are limited to the recorded test and current project files/state.\n",
+ "answer": "Saved [report.md](<project>/.verbatim-relay/tests/20261006-191056-9973/report.md).\nFound two issues: reserving two units when one was requested, and reporting only one unit reserved.\nThe retry loop repeats successful reservations.\nThe test seal is intact; only the report was changed.",
+ "pass": true
+}

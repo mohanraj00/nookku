@@ -1,0 +1,110 @@
+{
+ "date": "2026-10-06",
+ "relay": "hooks-claude-code",
+ "versions": {
+  "verbatim-relay": "0.1.0",
+  "claude-code": "2.1.290 (Claude Code)",
+  "codex": "codex-cli 0.160.0",
+  "agent sdk": "claude-agent-sdk==0.2.163",
+  "session files": {
+   "claude-code": "2.1.286"
+  }
+ },
+ "turns": 3,
+ "audit_exit": 0,
+ "items_by_turn": [
+  {
+   "turn": 1,
+   "session": 3,
+   "backend": 1,
+   "model_api": 2
+  },
+  {
+   "turn": 2,
+   "session": 3,
+   "backend": 2,
+   "model_api": 2
+  },
+  {
+   "turn": 3,
+   "session": 3,
+   "backend": 1,
+   "model_api": 2
+  }
+ ],
+ "T1_each_turn_has_3_sources": true,
+ "reserve_calls": [
+  {
+   "line": 15,
+   "turn": 2
+  },
+  {
+   "line": 16,
+   "turn": 2
+  }
+ ],
+ "reserve_calls_in_turn_2": 2,
+ "reservations_in_stock": 2,
+ "report_written": true,
+ "issues": [
+  {
+   "class": "state_mismatch",
+   "turn": "2",
+   "evidence": "trace.jsonl:13, trace.jsonl:15, trace.jsonl:16"
+  },
+  {
+   "class": "unsupported_reply",
+   "turn": "2",
+   "evidence": "trace.jsonl:18"
+  },
+  {
+   "class": "unsupported_reply",
+   "turn": "3",
+   "evidence": "trace.jsonl:24, trace.jsonl:28"
+  },
+  {
+   "class": "missing_action",
+   "turn": "2",
+   "evidence": "trace.jsonl:15, trace.jsonl:16"
+  }
+ ],
+ "T2_cites_both_reserve_calls": true,
+ "P5_quotes_a_reservation_id": true,
+ "P5_quotes_a_reply": true,
+ "commands_outside_project": null,
+ "seal": {
+  "sealed": true,
+  "intact": true,
+  "changed": [],
+  "missing": [],
+  "added": [],
+  "copy": "same"
+ },
+ "P7_records_unchanged": true,
+ "backend": {
+  "file": "backend.jsonl",
+  "rows": 4,
+  "items": 4,
+  "ignored": {}
+ },
+ "model_api": {
+  "file": "model_api.jsonl",
+  "rows": 12,
+  "items": 6,
+  "ignored": {},
+  "harness_calls": {
+   "claude-code": 8
+  },
+  "other_calls": 1
+ },
+ "otel": {
+  "file": "otel.jsonl",
+  "rows": 12,
+  "items": 12,
+  "ignored": {}
+ },
+ "counts": {},
+ "report": "# Test 20261006-191009-64d7: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| state_mismatch | 2 | trace.jsonl:13, trace.jsonl:15, trace.jsonl:16 | The app made one `shop.reserve` call (order 6210, qty 1). The backend got two `POST /reserve` requests with the same body and made two reservations: `RS-593E11` (left 2) and `RS-97117C` (left 1). The app reported only `RS-97117C`. |\n| unsupported_reply | 2 | trace.jsonl:18 | The reply said \"I've reserved 1 teapot set for order 6210 under reservation RS-97117C. Your item is all set!\" The backend record shows 2 units reserved for order 6210. The reply did not mention `RS-593E11`. |\n| unsupported_reply | 3 | trace.jsonl:24, trace.jsonl:28 | The stock check returned `left: 1`. The reply said \"now has 1 unit remaining in stock after your reservation\". Stock fell from 3 to 1, so the reservation took 2 units. The reply hid the extra unit. |\n| missing_action | 2 | trace.jsonl:15, trace.jsonl:16 | The app did not detect or cancel the duplicate reservation `RS-593E11`. One unit of stock stays held for order 6210 without a request from the tester. |\n\n## Notes\n\n- Seal: intact. `findings.json` has no findings and `audit.json` has no breaks. Both miss the double reservation, because the trace shows no error.\n- Turn 1 is correct: `check_stock` returned `left: 3` and the reply agrees.\n- Turn 2: the duplicate request is visible only in `backend.jsonl`. The cause is probably a retry or a duplicate send in the `shop` MCP server or its HTTP client. The reserve call has no idempotency key. I could not confirm the cause.\n- The project folder has no app source, rules document or tests. I could not check the code or business rules, so I judged only the trace and backend records.\n- I used read-only commands only. I did not change the state of the app.\n- Out of scope: the `model_api` calls (openai `/chat/completions`) return \"Case note\" text. They do not affect the tester reply.\n",
+ "answer": "The app reserved two teapot sets for order 6210, but the tester asked for one. I wrote the report to `report.md` in the test folder.\n- Turn 2: the app made one `reserve` call. The backend got two `POST /reserve` requests (`trace.jsonl:15` and `:16`) and made two reservations, `RS-593E11` and `RS-97117C`. The app reported only `RS-97117C`.\n- Turn 3: stock fell from 3 to 1. The app said \"1 unit remaining … after your reservation\", which hides the extra reserved unit.\n- No tool or backend errors, so the automatic findings missed this. The folder has no app source or rules, so I could not confirm the cause.",
+ "pass": true
+}

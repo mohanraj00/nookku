@@ -1,0 +1,105 @@
+{
+ "date": "2026-10-06",
+ "relay": "plugin",
+ "versions": {
+  "verbatim-relay": "0.1.0",
+  "claude-code": "2.1.290 (Claude Code)",
+  "codex": "codex-cli 0.160.0",
+  "agent sdk": "claude-agent-sdk==0.2.163",
+  "session files": {
+   "claude-code": "2.1.286"
+  }
+ },
+ "turns": 3,
+ "audit_exit": 0,
+ "items_by_turn": [
+  {
+   "turn": 1,
+   "session": 3,
+   "backend": 1,
+   "model_api": 2
+  },
+  {
+   "turn": 2,
+   "session": 3,
+   "backend": 2,
+   "model_api": 2
+  },
+  {
+   "turn": 3,
+   "session": 3,
+   "backend": 1,
+   "model_api": 2
+  }
+ ],
+ "T1_each_turn_has_3_sources": true,
+ "reserve_calls": [
+  {
+   "line": 15,
+   "turn": 2
+  },
+  {
+   "line": 16,
+   "turn": 2
+  }
+ ],
+ "reserve_calls_in_turn_2": 2,
+ "reservations_in_stock": 2,
+ "report_written": true,
+ "issues": [
+  {
+   "class": "business_rule",
+   "turn": "2",
+   "evidence": "trace.jsonl:15, trace.jsonl:16, services.py:reserve (`for _ in range(2)`)"
+  },
+  {
+   "class": "state_mismatch",
+   "turn": "2",
+   "evidence": "trace.jsonl:13, trace.jsonl:18, stock.json"
+  },
+  {
+   "class": "state_mismatch",
+   "turn": "3",
+   "evidence": "trace.jsonl:24, trace.jsonl:28"
+  }
+ ],
+ "T2_cites_both_reserve_calls": true,
+ "P5_quotes_a_reservation_id": true,
+ "P5_quotes_a_reply": true,
+ "commands_outside_project": null,
+ "seal": {
+  "sealed": true,
+  "intact": true,
+  "changed": [],
+  "missing": [],
+  "added": [],
+  "copy": "same"
+ },
+ "P7_records_unchanged": true,
+ "backend": {
+  "file": "backend.jsonl",
+  "rows": 4,
+  "items": 4,
+  "ignored": {}
+ },
+ "model_api": {
+  "file": "model_api.jsonl",
+  "rows": 11,
+  "items": 6,
+  "ignored": {},
+  "harness_calls": {
+   "claude-code": 7
+  },
+  "other_calls": 1
+ },
+ "otel": {
+  "file": "otel.jsonl",
+  "rows": 12,
+  "items": 12,
+  "ignored": {}
+ },
+ "counts": {},
+ "report": "# Test 20261006-190922-42d1: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | trace.jsonl:15, trace.jsonl:16, services.py:reserve (`for _ in range(2)`) | The tester asked for 1 item. The app sent `POST /reserve` two times with `{\"order\": \"6210\", \"sku\": \"teapot-set\", \"qty\": 1}`. The stock service made two reservations (RS-FC6558, RS-DC68B7) and the stock fell from 3 to 1. Rule 3 says a reservation holds the asked number of items and no more. The retry loop does not stop after a status 200 answer. |\n| state_mismatch | 2 | trace.jsonl:13, trace.jsonl:18, stock.json | The reply says \"I've reserved 1 teapot set for order 6210. Your reservation ID is RS-DC68B7.\" The tool result shows only RS-DC68B7. The stock service holds two reservations of 1 item for order 6210. The agent did not tell the customer the real number of items reserved (rule 4). |\n| state_mismatch | 3 | trace.jsonl:24, trace.jsonl:28 | The reply says \"1 unit left in stock after your reservation\". The stock went from 3 to 1, so 2 items were taken. The reply hides the extra reservation and presents the result as correct. |\n\n## Notes\n\n- Seal: intact. `findings.json` has no findings and `audit.json` has no breaks. The double reservation is in `backend.jsonl` lines (trace.jsonl:15 and :16) only. The tool result in the session shows one reservation.\n- Checked: transcript with trace, RULES.md, services.py, stock.py, app.py (tool wiring), state.json, stock.json. I did not start the app.\n- Turn 1: `check_stock` with `teapot-set` was correct. The reply \"3 units\" agrees with the tool result.\n- Turn 2: the tool call arguments were correct (order 6210, qty 1). The fault is in `services.reserve`, not in the model call. The `reserve` retry sends a second request after a successful first request.\n- Turn 3: the tool call was correct. The reply is faithful to the tool result (1 left). The issue is the claim of cause.\n- stock.json now holds `left: 1` and two reservations for order 6210. This agrees with the trace.\n- Not checked: the order status in state.json (\"waiting for stock\") after the reservation. No rule needs a change.\n",
+ "answer": "I found one real fault and wrote the report to `.verbatim-relay/tests/20261006-190922-42d1/report.md`. The record seal is intact, and `findings.json` and `audit.json` show nothing.\n\n- **Turn 2, `business_rule`:** The tester asked for 1 teapot set. The app made two reservations, RS-FC6558 and RS-DC68B7, and stock fell from 3 to 1. The cause is the loop `for _ in range(2)` in `services.reserve`, which retries after a status 200 answer. This breaks rule 3.\n- **Turns 2 and 3, `state_mismatch`:** The replies say one item was reserved. The stock service holds two reservations for order 6210, and the agent told the tester only about RS-DC68B7.\n- **Fix:** Stop the retry loop after the first status 200 answer.",
+ "pass": true
+}
