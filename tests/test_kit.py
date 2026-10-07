@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 from toy_agent import ToyAgent, shop_reply
 
-from verbatim_relay import bridge, kit
+from verbatim_relay import bridge, cli, kit
 from verbatim_relay.adapters import make
 from verbatim_relay.audit import audit
 from verbatim_relay.record import (
@@ -358,6 +358,76 @@ def test_view_prints_each_turn_exactly(setup):
     kit.view(record(root), follow=False, out=out)
     assert out.getvalue() == (
         f"──── tester, turn 1 ────\n{TRICKY}\n──── agent ────\n{shop_reply(TRICKY)}\n"
+    )
+
+
+class _StopView(Exception):
+    pass
+
+
+def _follow(monkeypatch, steps):
+    """Run each step in place of a poll sleep of the view. After the last step, stop the view."""
+    todo = list(steps)
+
+    def sleep(_: float) -> None:
+        if not todo:
+            raise _StopView
+        todo.pop(0)()
+
+    monkeypatch.setattr(kit.time, "sleep", sleep)
+
+
+@pytest.mark.parametrize("tests", [False, True], ids=["view", "view_tests"])
+def test_the_view_shows_a_bad_line_once_and_then_follows_again(setup, monkeypatch, tests):
+    root, _, _ = setup
+    kit.set_mode(root, True)
+    kit.handle(prompt("Refund policy?"), root, "codex")
+    kit.handle(prompt("Where is order #4471?"), root, "codex")
+    first, second = record(root).read_text().splitlines(keepends=True)
+    if tests:
+        path = root / ".verbatim-relay" / "tests" / "20261007-080000-aaaa" / "relay.jsonl"
+        path.parent.mkdir(parents=True)
+    else:
+        path = record(root)
+    path.write_text(first)
+    shown_at_error = []
+
+    def bad_line() -> None:
+        with path.open("a") as f:
+            f.write("not json\n")
+
+    _follow(
+        monkeypatch,
+        [
+            bad_line,
+            lambda: shown_at_error.append(out.getvalue()),  # the record does not change
+            lambda: path.write_text(first + second),
+        ],
+    )
+    out, err = io.StringIO(), io.StringIO()
+    with pytest.raises(_StopView):
+        if tests:
+            kit.view_tests(root, True, out, poll=0, err=err)
+        else:
+            kit.view(path, True, out, poll=0, err=err)
+    assert err.getvalue() == (
+        f"verbatim-relay: the record is invalid: {path}: line 2: not JSON (Expecting value). "
+        "Do not trust this record. The view shows the next turns when the record changes "
+        "and is valid.\n"
+    )
+    assert "turn 1" in shown_at_error[0] and "turn 2" not in shown_at_error[0]
+    assert "──── tester, turn 2 ────\nWhere is order #4471?\n" in out.getvalue()
+
+
+def test_the_view_without_follow_stops_at_a_bad_line(setup, capsys):
+    root, _, _ = setup
+    record(root).write_text("not json\n")
+    with pytest.raises(RecordError, match="line 1"):
+        kit.view(record(root), follow=False, out=io.StringIO())
+    assert cli.main(["view", "--root", str(root), "--no-follow"]) == 2
+    assert (
+        capsys.readouterr().err
+        == f"verbatim-relay: {record(root)}: line 1: not JSON (Expecting value)\n"
     )
 
 

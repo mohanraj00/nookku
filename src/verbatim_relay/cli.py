@@ -246,6 +246,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             if config.entry and not args.record:
                 return kit.view_tests(root, not args.no_follow, sys.stdout)
             return kit.view(record, not args.no_follow, sys.stdout)
+        except RecordError as e:
+            print(f"verbatim-relay: {e}", file=sys.stderr)
+            return 2
         except KeyboardInterrupt:
             return 0
     if args.command == "hook":
