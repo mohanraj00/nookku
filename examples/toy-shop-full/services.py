@@ -1,7 +1,7 @@
 """The calls of the full toy shop to its stock service and to its case-note model.
 
-The stock service URL is in STOCK_URL. The note model speaks the OpenAI Chat Completions API at
-OPENAI_BASE_URL. It uses only the standard library.
+The stock service URL is in STOCK_URL. The note model speaks the OpenAI Chat Completions API and
+the OpenAI Decisions API at OPENAI_BASE_URL. It uses only the standard library.
 """
 
 from __future__ import annotations
@@ -71,3 +71,33 @@ def case_note(message: str, reply: str) -> str:
                 for choice in json.loads(line[6:]).get("choices", []):
                     text += choice.get("delta", {}).get("content") or ""
     return text
+
+
+DEPARTMENTS = [
+    {"value": "billing", "description": "Payments, invoices and refunds."},
+    {"value": "shipping", "description": "Delivery, and items that arrived broken."},
+    {"value": "other", "description": "Requests outside these departments."},
+]
+
+
+def department(message: str) -> str:
+    """The department for a complaint, from a `choice` question to the Decisions API."""
+    base = os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1").rstrip("/")
+    ask = {
+        "model": NOTE_MODEL,
+        "input": message,
+        "questions": [
+            {
+                "type": "choice",
+                "name": "department",
+                "instructions": "Which department should handle this complaint?",
+                "choices": DEPARTMENTS,
+            }
+        ],
+    }
+    req = urllib.request.Request(f"{base}/decisions", data=json.dumps(ask).encode())
+    req.add_header("Content-Type", "application/json")
+    req.add_header("Authorization", f"Bearer {os.environ.get('OPENAI_API_KEY', 'toy')}")
+    with urllib.request.urlopen(req, timeout=30) as r:
+        answer = json.loads(r.read())["answers"][0]
+    return str(answer["choice"]) if answer.get("type") == "choice" else "other"

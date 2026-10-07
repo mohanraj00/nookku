@@ -126,6 +126,31 @@ def lone_surrogate(row: dict, field: str) -> str:
     return json.dumps({**row, field: text, f"{field}_sha256": sha(row[field] + "\ufffd")})
 
 
+# A streamed reply (section 2.1): the joined reply, and the SHA-256 and the size of the raw body.
+def sse_body(reply: str, done: bool = True) -> bytes:
+    """An OpenAI-style SSE body with 9 characters of the reply in each chunk."""
+    chunks = [
+        {"choices": [{"index": 0, "delta": {"content": reply[i : i + 9]}}]}
+        for i in range(0, len(reply), 9)
+    ]
+    body = "".join(f"data: {json.dumps(c, ensure_ascii=False)}\n\n" for c in chunks)
+    return (body + ("data: [DONE]\n\n" if done else "")).encode()
+
+
+def stream_info(raw: bytes) -> dict:
+    return {"sha256": hashlib.sha256(raw).hexdigest(), "bytes": len(raw)}
+
+
+STREAM_TAP = [
+    {**ex(m, r, v="0.2"), "stream": stream_info(sse_body(r))}
+    for m, r in ((M1, R1), (M2, R2), (M3, R3))
+]
+ENDED_EARLY = "the stream ended before data: [DONE]"
+FAILED_STREAM = {
+    **ex(M2, None, v="0.2", error=ENDED_EARLY),
+    "stream": stream_info(sse_body(R2, False)),
+}
+
 # name: (tap rows or None for a missing file, relay rows or None, expectation)
 # A row can be a raw string, written as the line itself.
 CASES_BY_NAME: dict[str, tuple[list | None, list | None, dict]] = {
@@ -330,6 +355,39 @@ CASES_BY_NAME: dict[str, tuple[list | None, list | None, dict]] = {
         {"exit": 2, "errors": ["record_invalid"]},
     ),
     "tap_unparsed": ([*CLEAN_TAP, UNPARSED], CLEAN_RELAY, {"exit": 2, "errors": ["tap_unparsed"]}),
+    # Streamed replies (0.2). The audit compares the joined reply, the same as any reply.
+    "streamed_reply_clean": (STREAM_TAP, RELAY_02, {"exit": 0, "breaks": []}),
+    # The relay showed the first part of a complete stream as the reply.
+    "streamed_reply_part_shown": (
+        STREAM_TAP,
+        [RELAY_02[0], turn(M2, R2[:18], v="0.2"), RELAY_02[2]],
+        {"exit": 1, "breaks": [["altered_reply", 2, 2]]},
+    ),
+    # A failed stream has a 2xx status, no reply and an error. It is an agent error.
+    "streamed_reply_failed_is_a_note": (
+        [STREAM_TAP[0], FAILED_STREAM, STREAM_TAP[2]],
+        [
+            RELAY_02[0],
+            turn(M2, f"verbatim-relay: cannot read the reply: {ENDED_EARLY}", v="0.2"),
+            RELAY_02[2],
+        ],
+        {"exit": 0, "breaks": [], "notes": [["agent_error", 2, 2]]},
+    ),
+    "streamed_reply_failed_without_error": (
+        [STREAM_TAP[0], {k: v for k, v in FAILED_STREAM.items() if k != "error"}, STREAM_TAP[2]],
+        RELAY_02,
+        {"exit": 2, "errors": ["record_invalid"]},
+    ),
+    "stream_in_a_v01_row": (
+        [{**CLEAN_TAP[0], "stream": STREAM_TAP[0]["stream"]}, *CLEAN_TAP[1:]],
+        CLEAN_RELAY,
+        {"exit": 2, "errors": ["record_invalid"]},
+    ),
+    "stream_wrong_field_type": (
+        [{**STREAM_TAP[0], "stream": {"sha256": "abc", "bytes": 120}}, *STREAM_TAP[1:]],
+        RELAY_02,
+        {"exit": 2, "errors": ["record_invalid"]},
+    ),
 }
 
 
@@ -1594,7 +1652,7 @@ BACKEND_CASE = {
             "GET",
             "/stock",
             200,
-            query="sku=teapot-set",
+            query="sku=teapot-set&api_key=",
             response=body('{"sku": "teapot-set", "left": 3}'),
         ),
         call(
@@ -1617,7 +1675,7 @@ BACKEND_CASE = {
             12,
             1,
             "GET /stock",
-            input={"query": "sku=teapot-set", "headers": SENT, "body": None},
+            input={"query": "sku=teapot-set&api_key=", "headers": SENT, "body": None},
             output='{"sku": "teapot-set", "left": 3}',
             exit_code=200,
         ),
@@ -2448,6 +2506,292 @@ SERVERS_CASE = {
     },
 }
 
+# A trace case of the OpenAI Decisions API (SPEC.md sections 7.7 and 8.4). In turn 1, a call to
+# /v1/decisions with a text and an image, and 4 questions: a predicate, a choice, a score and a
+# choice that the model refuses. In turn 2, a call to /decisions with a string input and a choice
+# with boolean values. A refusal is not an error, so the case has no finding.
+PHOTO = b"toy photo of a teapot set with a broken lid"
+COMPLAINT = "My teapot set arrived with a broken lid."
+CHARGED = "I was charged twice for order 5120."
+DEPARTMENTS = [
+    {"value": "billing", "description": "Payments, invoices and refunds."},
+    {"value": "shipping", "description": "Delivery and damage in transit."},
+    {"value": "other", "description": "Requests outside these departments."},
+]
+DQUESTIONS = [
+    {
+        "type": "predicate",
+        "name": "damaged",
+        "instructions": "Does the photo show a damaged item?",
+    },
+    {
+        "type": "choice",
+        "name": "department",
+        "instructions": "Which department should handle this complaint?",
+        "choices": DEPARTMENTS,
+    },
+    {
+        "type": "score",
+        "name": "severity",
+        "instructions": "How severe is the problem?",
+        "levels": [
+            {"label": "Low", "description": "The customer can use the item."},
+            {"label": "Medium", "description": "A part of the item is broken."},
+            {"label": "High", "description": "The customer cannot use the item."},
+        ],
+    },
+    {
+        "type": "choice",
+        "name": "mood",
+        "instructions": "Is the customer calm or angry?",
+        "choices": [{"value": "calm"}, {"value": "angry"}],
+    },
+]
+DPHOTO_URL = "data:image/png;base64," + base64.b64encode(PHOTO).decode()
+DINPUT = [
+    {
+        "role": "user",
+        "content": [
+            {"type": "input_text", "text": COMPLAINT},
+            {"type": "input_image", "image_url": DPHOTO_URL, "detail": "low"},
+        ],
+    }
+]
+DQUESTIONS_2 = [
+    {
+        "type": "choice",
+        "name": "department",
+        "instructions": "Which department should handle this complaint?",
+        "choices": DEPARTMENTS,
+    },
+    {
+        "type": "choice",
+        "name": "refund_due",
+        "instructions": "Does the customer have a right to a refund?",
+        "choices": [{"value": True}, {"value": False}],
+    },
+]
+
+
+def dusage(tokens: int) -> dict:
+    return {
+        "input_tokens": tokens,
+        "input_tokens_details": {"cached_tokens": 0, "cache_write_tokens": 0},
+        "output_tokens": 0,
+        "output_tokens_details": {"reasoning_tokens": 0},
+        "total_tokens": tokens,
+    }
+
+
+DANSWERS = [
+    {"type": "predicate", "name": "damaged", "probability": 0.97},
+    {
+        "type": "choice",
+        "name": "department",
+        "choice": "shipping",
+        "probabilities": [
+            {"value": "billing", "probability": 0.03},
+            {"value": "shipping", "probability": 0.95},
+            {"value": "other", "probability": 0.02},
+        ],
+        "confidence": 0.93,
+    },
+    {
+        "type": "score",
+        "name": "severity",
+        "score": 1.2,
+        "probabilities": [
+            {"value": 0, "label": "Low", "probability": 0.1},
+            {"value": 1, "label": "Medium", "probability": 0.6},
+            {"value": 2, "label": "High", "probability": 0.3},
+        ],
+        "confidence": 0.5,
+    },
+    {"type": "refusal", "name": "mood"},
+]
+DANSWERS_2 = [
+    {
+        "type": "choice",
+        "name": "department",
+        "choice": "billing",
+        "probabilities": [
+            {"value": "billing", "probability": 0.95},
+            {"value": "shipping", "probability": 0.03},
+            {"value": "other", "probability": 0.02},
+        ],
+        "confidence": 0.93,
+    },
+    {
+        "type": "choice",
+        "name": "refund_due",
+        "choice": True,
+        "probabilities": [
+            {"value": True, "probability": 0.8},
+            {"value": False, "probability": 0.2},
+        ],
+        "confidence": 0.7,
+    },
+]
+# The answers as the result of SPEC.md section 7.7 gives them: type, name, value, probabilities and
+# confidence.
+DRESULT = [
+    {
+        "type": "predicate",
+        "name": "damaged",
+        "value": 0.97,
+        "probabilities": None,
+        "confidence": None,
+    },
+    {
+        "type": "choice",
+        "name": "department",
+        "value": "shipping",
+        "probabilities": DANSWERS[1]["probabilities"],
+        "confidence": 0.93,
+    },
+    {
+        "type": "score",
+        "name": "severity",
+        "value": 1.2,
+        "probabilities": DANSWERS[2]["probabilities"],
+        "confidence": 0.5,
+    },
+    {"type": "refusal", "name": "mood", "value": None, "probabilities": None, "confidence": None},
+]
+DRESULT_2 = [
+    {
+        "type": "choice",
+        "name": "department",
+        "value": "billing",
+        "probabilities": DANSWERS_2[0]["probabilities"],
+        "confidence": 0.93,
+    },
+    {
+        "type": "choice",
+        "name": "refund_due",
+        "value": True,
+        "probabilities": DANSWERS_2[1]["probabilities"],
+        "confidence": 0.7,
+    },
+]
+V1_DECISIONS = "/v1/decisions"
+DECISIONS = "/decisions"
+DMODEL = "toy-decide"
+DECISIONS_CASE = {
+    "tap": [window(10, 20), window(30, 40)],
+    "manifest": {"test": "20261007-090000-dc01", "model_sessions": []},
+    "sessions": {},
+    "model_api": [
+        mcall(
+            11,
+            "openai",
+            V1_DECISIONS,
+            200,
+            {"model": DMODEL, "input": DINPUT, "questions": DQUESTIONS},
+            response=json.dumps({"model": DMODEL, "answers": DANSWERS, "usage": dusage(120)}),
+            result=result(model=DMODEL, usage=dusage(120), answers=DRESULT),
+        ),
+        mcall(
+            31,
+            "openai",
+            DECISIONS,
+            200,
+            {"model": DMODEL, "input": CHARGED, "questions": DQUESTIONS_2},
+            response=json.dumps({"model": DMODEL, "answers": DANSWERS_2, "usage": dusage(60)}),
+            result=result(model=DMODEL, usage=dusage(60), answers=DRESULT_2),
+        ),
+    ],
+    "trace": [
+        mitem(
+            1,
+            "openai",
+            11,
+            1,
+            "message",
+            role="user",
+            input={
+                "questions": [
+                    {"name": "damaged", "type": "predicate", "options": None},
+                    {
+                        "name": "department",
+                        "type": "choice",
+                        "options": ["billing", "shipping", "other"],
+                    },
+                    {"name": "severity", "type": "score", "options": ["Low", "Medium", "High"]},
+                    {"name": "mood", "type": "choice", "options": ["calm", "angry"]},
+                ],
+                "images": [
+                    {
+                        "media_type": "image/png",
+                        "size": len(PHOTO),
+                        "sha256": hashlib.sha256(PHOTO).hexdigest(),
+                    }
+                ],
+            },
+            output=COMPLAINT,
+        ),
+        mitem(
+            1,
+            "openai",
+            12,
+            1,
+            "message",
+            role="assistant",
+            input={**info(V1_DECISIONS, DMODEL, None, dusage(120)), "answers": DRESULT},
+            exit_code=200,
+        ),
+        mitem(
+            2,
+            "openai",
+            31,
+            2,
+            "message",
+            role="user",
+            input={
+                "questions": [
+                    {
+                        "name": "department",
+                        "type": "choice",
+                        "options": ["billing", "shipping", "other"],
+                    },
+                    {"name": "refund_due", "type": "choice", "options": [True, False]},
+                ],
+                "images": [],
+            },
+            output=CHARGED,
+        ),
+        mitem(
+            2,
+            "openai",
+            32,
+            2,
+            "message",
+            role="assistant",
+            input={**info(DECISIONS, DMODEL, None, dusage(60)), "answers": DRESULT_2},
+            exit_code=200,
+        ),
+    ],
+    "findings": {
+        "v": "0.2",
+        "test": "20261007-090000-dc01",
+        "turns": 2,
+        "items": 4,
+        "sessions": [],
+        "otel": None,
+        "backend": None,
+        "model_api": {
+            "file": "model_api.jsonl",
+            "rows": 2,
+            "items": 4,
+            "ignored": {},
+            "harness_calls": {},
+            "other_calls": 0,
+        },
+        "counts": counts(),
+        "findings": [],
+    },
+}
+
 TRACE_CASES = {
     "claude_code_toy_shop": CLAUDE_CASE,
     "codex_toy_shop": CODEX_CASE,
@@ -2458,6 +2802,7 @@ TRACE_CASES = {
     "model_api_toy_shop": MODEL_API_CASE,
     "model_api_responses": RESPONSES_CASE,
     "servers_not_from_app": SERVERS_CASE,
+    "model_api_decisions": DECISIONS_CASE,
 }
 
 

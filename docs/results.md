@@ -26,6 +26,14 @@ The 5 test messages have trailing spaces, non-ASCII text (`Ünïcödé`, `€`, 
 
 With the hook kit, the model used 0 output tokens in every relay turn, in both harnesses. The hook blocks the prompt before the model runs.
 
+With a streamed agent, the proof scripts take `--stream`. The toy agent sends each reply as Chat Completions SSE events, and the tap with the `openai` adapter forwards them. The relay runs in HTTP mode with no entry, so P3b does not run. P4 audits the records and finds each planted fault.
+
+| Relay | Harness | P1 | P2 | Streamed exchanges | P4 | Data |
+|---|---|---|---|---|---|---|
+| Plugin | Claude Code 2.1.290 | 10/10 | 10/10 | 10 | 5/5 | [results](../proofs/claude-code-stream/results.json) |
+| Hook kit | Claude Code 2.1.290 | 10/10 | 10/10 | 10 | 5/5 | [results](../proofs/hooks-claude-code-stream/results.json) |
+| Hook kit | Codex 0.160.0 | 10/10 | 10/10 | 10 | 5/5 | [results](../proofs/hooks-codex-stream/results.json) |
+
 Each results file has the records of the test next to it: `tap.jsonl` and `relay.jsonl`. The P5 proofs below and the benchmark ran before tests existed, with the tap in front of an HTTP agent.
 
 ### Model sessions of the app
@@ -65,14 +73,15 @@ The record cuts the third request body at 1 MiB, but the stock service got all o
 
 ### Direct model calls
 
-[scripts/proof_model_api.py](../scripts/proof_model_api.py) runs a test with an entry that makes 4 calls to a toy model API through the model API proxies: a streamed Anthropic call, a streamed OpenAI Chat Completions call, an Anthropic call with a JSON answer and a streamed OpenAI Responses call. For a streamed call, the toy API sends the first event and then waits until the entry says that it has that event. The proof compares the SHA-256 of each body at 3 places: the entry, the toy API and `model_api.jsonl`. It also compares the text in the record with the text that the toy API sent. It needs no model.
+[scripts/proof_model_api.py](../scripts/proof_model_api.py) runs a test with an entry that makes 5 calls to a toy model API through the model API proxies: a streamed Anthropic call, a streamed OpenAI Chat Completions call, an Anthropic call with a JSON answer, a streamed OpenAI Responses call and an OpenAI Decisions call with a JSON answer. For a streamed call, the toy API sends the first event and then waits until the entry says that it has that event. The proof compares the SHA-256 of each body at 3 places: the entry, the toy API and `model_api.jsonl`. It also compares the result in the record with the result that the toy API sent: the text, or for the Decisions call its 3 answers (a choice, a predicate and a refusal). It needs no model.
 
-| Call | Response | Same at all 3 places | First part before the end | Text in the record | Data |
+| Call | Response | Same at all 3 places | First part before the end | Result in the record | Data |
 |---|---|---|---|---|---|
 | Anthropic, stream | 6,549 bytes | yes | yes | yes | [results](../proofs/model-api/results.json) |
 | OpenAI Chat Completions, stream | 3,564 bytes | yes | yes | yes | [results](../proofs/model-api/results.json) |
 | Anthropic, JSON | 122 bytes | yes | not a stream | yes | [results](../proofs/model-api/results.json) |
 | OpenAI Responses, stream | 8,531 bytes | yes | yes | yes | [results](../proofs/model-api/results.json) |
+| OpenAI Decisions, JSON | 435 bytes | yes | not a stream | yes | [results](../proofs/model-api/results.json) |
 
 The API key was not in the record. The seal of the test folder was intact.
 
