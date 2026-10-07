@@ -1,6 +1,6 @@
 {
- "date": "2026-10-06",
- "claude_code": "2.1.288 (Claude Code)",
+ "date": "2026-10-07",
+ "claude_code": "2.1.290 (Claude Code)",
  "transport": "stdio",
  "turns": [
   {
@@ -74,24 +74,24 @@
    "P2": true
   }
  ],
- "start": "verbatim-relay: Test 20261006-223755-67f6 started. Relay mode is on. Type /verbatim-relay end to end it.",
+ "start": "verbatim-relay: Test 20261007-092811-66f7 started. Relay mode is on. Type /verbatim-relay end to end it.",
  "P3b": {
   "agent_inputs_added": 0,
   "blocked_rows": 1,
-  "model_result": "The command did not run. A hook from the verbatim-relay plugin blocked it. The hook said that only the tester talks to the agent, and that the test files do not change during a test.\n\nI did not try another way to send the request. If you want the request sent, change the verbatim-relay configuration"
+  "model_result": "I did not get the output. A verbatim-relay hook stopped the `curl` command before it ran. The hook gave this message:\n\n> verbatim-relay: only the tester talks to the agent, and the test files do not change during a test. Use the transcript tool to read the conversation.\n\nThe plugin does not let me s"
  },
  "test": {
   "end": [
    "verbatim-relay: Relay mode is off.",
-   "Test 20261006-223755-67f6 ended: 10 turns, 0 model sessions.",
+   "Test 20261007-092811-66f7 ended: 10 turns, 0 model sessions.",
    "Trace: 0 model items in 10 turns, no findings.",
    "To evaluate the test, type this prompt in your harness: verbatim-relay end"
   ],
   "ended": true,
   "model_sessions": [],
   "versions": {
-   "verbatim-relay": "0.1.0",
-   "claude-code": "2.1.288 (Claude Code)",
+   "verbatim-relay": "0.2.0",
+   "claude-code": "2.1.290 (Claude Code)",
    "codex": "codex-cli 0.160.0"
   }
  },

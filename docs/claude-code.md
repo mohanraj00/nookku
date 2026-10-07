@@ -7,7 +7,7 @@ Two relays work in Claude Code. Use one of them, not both. With both, each messa
 | Plugin (recommended) | the chat, as a dim row that the model does not receive | function hooks, early access |
 | Hook kit (fallback) | `verbatim-relay view`, in a second terminal | classic hooks, stable |
 
-Tested with Claude Code 2.1.288.
+Tested with Claude Code 2.1.290.
 
 ## Connect a test to your app
 
