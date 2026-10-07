@@ -136,6 +136,22 @@ def test_a_live_process_that_is_not_the_bridge_gets_no_signal(tmp_path: Path) ->
         other.wait()
 
 
+def test_a_pid_that_changes_owner_after_the_check_gets_no_signal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
+    other = subprocess.Popen(["sleep", "60"])
+    try:
+        # current() saw the bridge, and then the OS gave its pid to another process.
+        cur = {"test": "x", "pid": other.pid, "pid_start": "ps:old", "dir": str(tmp_path)}
+        monkeypatch.setattr(bridge, "current", lambda root: cur)
+        bridge.end(root, wait=1)
+        assert other.poll() is None
+    finally:
+        other.kill()
+        other.wait()
+
+
 def test_an_entry_that_exits_at_start_is_reported(tmp_path: Path, homes: tuple) -> None:
     script = "import sys; print('no toy shop database', file=sys.stderr); sys.exit(1)"
     root = project(tmp_path, [sys.executable, "-c", script])

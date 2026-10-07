@@ -227,11 +227,13 @@ def end(
     if tester_session:
         _write_json(state(root) / ENDING, {"test": cur["test"], "tester_session": tester_session})
     pid = cur["pid"]
-    os.kill(pid, signal.SIGTERM)
+    # The OS can give the pid to a new process after the bridge stops. Check the start time again
+    # before each signal and in the wait, so that no signal goes to that process.
+    if is_bridge(cur):
+        os.kill(pid, signal.SIGTERM)
     deadline = time.monotonic() + wait
-    while alive(pid) and time.monotonic() < deadline:
-        time.sleep(0.1)
-    # The OS can give the pid to a new process after the bridge stops. Do not kill that process.
+    while is_bridge(cur) and time.monotonic() < deadline:
+        time.sleep(0.2)
     if is_bridge(cur):
         os.kill(pid, signal.SIGKILL)
         (state(root) / "current.json").unlink(missing_ok=True)
