@@ -269,7 +269,7 @@ test('relay mode with an entry and no test fails closed', {}, async ($, on) => {
   expect(f.logs[0]).toContain('no test runs')
 })
 
-test('a current.json whose bridge does not run is no test, and the prompt does not reach the model', {}, async ($, on) => {
+test('a current.json whose bridge does not run is no test, the turn stays with ok false, and the prompt does not reach the model', {}, async ($, on) => {
   // The bridge died: current.json stays, and its tap does not answer.
   const f = fakes(on, contractReply)
   const runs = withTest(on, f)
@@ -281,8 +281,9 @@ test('a current.json whose bridge does not run is no test, and the prompt does n
   expect('drop' in result).toBe(true)
   expect(f.sent.map(s => s.url)).toEqual([CURRENT.tap_url])
   expect(runs).toEqual([['verbatim-relay', 'status', '--json']])
-  expect(f.logs).toEqual(['verbatim-relay: relay mode is on, but no test runs. Type /verbatim-relay start. Nothing was sent.'])
-  expect(f.files[`${DIR}/relay.jsonl`]).toBe(undefined)
+  expect(f.logs).toEqual(['verbatim-relay: the test stopped, and no test runs. The tap did not answer. Type /verbatim-relay start.'])
+  // The POST can have reached the tap, so the record keeps the turn for the audit.
+  expect(rows(f.files[`${DIR}/relay.jsonl`])).toMatchObject([{ said: TRICKY, ok: false }])
   // The next prompt finds no test and does not try the tap.
   const next: any = await $.prompt.submit({ text: 'second' })
   expect('drop' in next).toBe(true)

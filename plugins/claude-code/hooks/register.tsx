@@ -29,6 +29,7 @@ const RECORD_LIMIT = 3.5 * 1024 * 1024
 // The end of a test stops the entry and copies its session files.
 const CLI_TIMEOUT_MS = 180_000
 const NO_TEST = 'verbatim-relay: relay mode is on, but no test runs. Type /verbatim-relay start. Nothing was sent.'
+const STOPPED = 'verbatim-relay: the test stopped, and no test runs. The tap did not answer. Type /verbatim-relay start.'
 
 const state = atom({ plugin: 'verbatim-relay', key: 'state' } as const, {
   on: null,
@@ -192,7 +193,7 @@ async function runControl($: any, o: Options, e: any, next: any, control: string
 
 // Send one prompt to the running test. Resolve the text to show, whether it is the reply, and the
 // record that takes the turn. Resolve null if the tap does not answer because no test runs.
-async function relayToTest($: any, o: Options, cur: Current, said: string): Promise<{ shown: string; ok: boolean; record: string } | null> {
+async function relayToTest($: any, o: Options, cur: Current, said: string): Promise<{ shown: string; ok: boolean; record: string }> {
   const record = `${cur.dir}/relay.jsonl`
   const id = crypto.randomUUID()
   const body = contractBody(id, cur.test, said, await recordTurns($, record, null))
@@ -200,8 +201,10 @@ async function relayToTest($: any, o: Options, cur: Current, said: string): Prom
     const res = await $.http.fetch(cur.tap_url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body })
     return { ...contractShown(res.status, res.text, id), record }
   } catch (err) {
-    // The bridge of current.json can be stopped. Then its tap does not answer.
-    if (await noTest($, o)) return null
+    // The bridge of current.json can be stopped. Then its tap does not answer. The POST can
+    // have reached the tap before the connection closed, so the turn stays in the record with
+    // ok false, and the audit can match it.
+    if (await noTest($, o)) return { shown: STOPPED, ok: false, record }
     return { shown: `verbatim-relay: cannot reach the tap at ${cur.tap_url}: ${(err as Error).message}`, ok: false, record }
   }
 }
@@ -308,12 +311,7 @@ async function relayPrompt($: any, o: Options, e: any): Promise<any> {
 
   const said = e.text
   const session = await $.session.id()
-  const relayed = cur ? await relayToTest($, o, cur, said) : await relayToTap($, o, said, session)
-  if (relayed === null) {
-    $.ui.log(NO_TEST)
-    return { drop: 'verbatim-relay: nothing was sent' }
-  }
-  const { shown, ok, record } = relayed
+  const { shown, ok, record } = cur ? await relayToTest($, o, cur, said) : await relayToTap($, o, said, session)
   $.ui.log(shown)
   await update($, state, st => ({ ...st, turns: [...st.turns, { said, shown, ok }] }))
   try {
