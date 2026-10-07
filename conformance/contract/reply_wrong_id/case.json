@@ -13,13 +13,19 @@
   0
  ],
  "http": [
-  502
+  504
  ],
  "rows": [
   {
    "type": "unparsed",
-   "method": "POST",
-   "path": "/"
+   "method": "STDIO",
+   "path": "stdout"
+  },
+  {
+   "type": "exchange",
+   "input": "Hi, return order #4471 please.  \r\nLine two line three\t€ ₹  ",
+   "status": null,
+   "reply": null
   }
  ]
 }
