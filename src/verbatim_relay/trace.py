@@ -7,7 +7,9 @@ never fails on a line that it does not know.
 
 from __future__ import annotations
 
+import base64
 import datetime
+import hashlib
 import json
 from collections import Counter
 from collections.abc import Iterator
@@ -421,6 +423,69 @@ def _results(form: str, request: dict[str, Any]) -> dict[str, tuple[str, bool]]:
     return out
 
 
+# The options of a question of the Decisions API: the list in the question, and the field of each
+# option in the list.
+DECISION_OPTIONS = {"choice": ("choices", "value"), "score": ("levels", "label")}
+
+
+def _image(url: Any) -> dict[str, Any]:
+    """The media type, the size and the SHA-256 of an inline image (a base64 data URL). The trace
+    keeps no image data. An image that is not base64 data gives no size and no SHA-256."""
+    out: dict[str, Any] = {"media_type": None, "size": None, "sha256": None}
+    if not isinstance(url, str) or not url.startswith("data:") or "," not in url:
+        return out
+    head, data = url[5:].split(",", 1)
+    params = head.split(";")
+    out["media_type"] = params[0] or None
+    if "base64" in params[1:]:
+        try:
+            raw = base64.b64decode("".join(data.split()), validate=True)
+        except ValueError:  # binascii.Error, or a character that is not ASCII
+            return out
+        out.update(size=len(raw), sha256=hashlib.sha256(raw).hexdigest())
+    return out
+
+
+def _question(question: dict[str, Any]) -> dict[str, Any]:
+    """The name, the type and the options of a question of the Decisions API."""
+    kind = question.get("type")
+    spec = DECISION_OPTIONS.get(kind) if isinstance(kind, str) else None
+    given = question.get(spec[0]) if spec else None
+    options = None
+    if spec and isinstance(given, list):
+        options = [o.get(spec[1]) for o in given if isinstance(o, dict)]
+    return {"name": question.get("name"), "type": kind, "options": options}
+
+
+def _decision_request(request: dict[str, Any]) -> tuple[str | None, dict[str, Any]] | None:
+    """The user text, the questions and the images of a request to the Decisions API, or None if
+    the request has none of them. The text is a string `input`, or the joined text of the user
+    messages of `input`."""
+    given = request.get("input")
+    texts = [given] if isinstance(given, str) else []
+    images = []
+    for m in given if isinstance(given, list) else []:
+        if not isinstance(m, dict) or m.get("role") != "user":
+            continue
+        content = m.get("content")
+        if isinstance(content, str):
+            texts.append(content)
+        for part in content if isinstance(content, list) else []:
+            if not isinstance(part, dict):
+                continue
+            if part.get("type") == "input_text" and isinstance(part.get("text"), str):
+                texts.append(part["text"])
+            elif part.get("type") == "input_image":
+                images.append(_image(part.get("image_url")))
+    asked = request.get("questions")
+    questions = [
+        _question(q) for q in (asked if isinstance(asked, list) else []) if isinstance(q, dict)
+    ]
+    if not (texts or images or questions):
+        return None
+    return ("\n".join(texts) if texts else None), {"questions": questions, "images": images}
+
+
 def read_model_api(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """The call rows of model_api.jsonl (SPEC.md section 8.4). The calls of a harness are only
     counted, because its session file has them."""
@@ -444,14 +509,18 @@ def read_model_api(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
             calls.append((n, row, form, _request(row)))
     for i, (n, row, form, request) in enumerate(calls):
         api = str(row.get("api") or "")
-        said = _said(form, request)
-        if said is not None:
+        said, asked = _said(form, request), None
+        if form == "decisions":
+            said, asked = _decision_request(request) or (None, None)
+        if said is not None or asked is not None:
             it = _item("model_api", api, model_api.FILE, n, row.get("started"))
-            it.update(kind="message", role="user", output=said)
+            it.update(kind="message", role="user", input=asked, output=said)
             items.append(it)
         result: dict[str, Any] = row["result"] if isinstance(row.get("result"), dict) else {}
         it = _item("model_api", api, model_api.FILE, n, row.get("ts"))
         info = {k: result.get(k) for k in ("model", "stop_reason", "usage")}
+        if form == "decisions":
+            info["answers"] = result.get("answers") or []
         it.update(
             kind="message",
             role="assistant",
