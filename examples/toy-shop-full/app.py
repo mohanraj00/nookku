@@ -85,10 +85,17 @@ class Shop:
                 system_prompt=SYSTEM,
                 mcp_servers={"shop": server},
                 allowed_tools=[f"mcp__shop__{t.name}" for t in tools],
+                # Isolate the session from the machine of the tester: no settings files, only
+                # the shop's MCP server (no claude.ai connectors), and no plugins from
+                # CLAUDE_CODE_PLUGIN_DIRS.
                 setting_sources=[],
-                # Load the 3 tools at the start. Without this, the model must first find each
-                # tool with ToolSearch, and a small model can repeat that search.
-                env={"ENABLE_TOOL_SEARCH": "false"},
+                strict_mcp_config=True,
+                env={
+                    # Load the 3 tools at the start. Without this, the model must first find
+                    # each tool with ToolSearch, and a small model can repeat that search.
+                    "ENABLE_TOOL_SEARCH": "false",
+                    "CLAUDE_CODE_PLUGIN_DIRS": "",
+                },
             )
         )
 
