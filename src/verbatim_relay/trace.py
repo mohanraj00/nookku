@@ -334,30 +334,47 @@ def _request(row: dict[str, Any]) -> dict[str, Any]:
     return data if isinstance(data, dict) else {}
 
 
-def _said(request: dict[str, Any]) -> str | None:
-    """The text of the last message of a request, if it is a user message with text."""
+def _said(form: str, request: dict[str, Any]) -> str | None:
+    """The text of the last message of a request, if it is a user message with text. For the
+    Responses API, the messages are the `input` items, and a string `input` is a user message."""
+    kinds: tuple[str, ...] = ("text",)
     messages = request.get("messages")
+    if form == "responses":
+        messages, kinds = request.get("input"), ("input_text",)
+        if isinstance(messages, str):
+            return messages
     last = messages[-1] if isinstance(messages, list) and messages else None
     if not isinstance(last, dict) or last.get("role") != "user":
+        return None
+    if form == "responses" and last.get("type", "message") != "message":
         return None
     content = last.get("content")
     if isinstance(content, str):
         return content
     parts = [b for b in content if isinstance(b, dict)] if isinstance(content, list) else []
-    texts = [str(b.get("text")) for b in parts if b.get("type") == "text" and "text" in b]
+    texts = [str(b.get("text")) for b in parts if b.get("type") in kinds and "text" in b]
     return "\n".join(texts) if texts else None
 
 
-def _results(api: str, request: dict[str, Any]) -> dict[str, tuple[str, bool]]:
+def _results(form: str, request: dict[str, Any]) -> dict[str, tuple[str, bool]]:
     """The tool results in the messages of a request: (text, is_error) by tool call id."""
     out: dict[str, tuple[str, bool]] = {}
+    if form == "responses":
+        items = request.get("input")
+        for it in items if isinstance(items, list) else []:
+            if not isinstance(it, dict) or it.get("type") != "function_call_output":
+                continue
+            if it.get("call_id"):
+                text = _text(it.get("output"), ("input_text",))
+                out.setdefault(str(it["call_id"]), (text, False))
+        return out
     messages = request.get("messages")
     for m in messages if isinstance(messages, list) else []:
         if not isinstance(m, dict):
             continue
-        if api == "openai" and m.get("role") == "tool" and m.get("tool_call_id"):
+        if form == "chat" and m.get("role") == "tool" and m.get("tool_call_id"):
             out.setdefault(str(m["tool_call_id"]), (_text(m.get("content"), ("text",)), False))
-        content = m.get("content") if api == "anthropic" else None
+        content = m.get("content") if form == "messages" else None
         for b in content if isinstance(content, list) else []:
             if isinstance(b, dict) and b.get("type") == "tool_result" and b.get("tool_use_id"):
                 text = _text(b.get("content"), ("text",))
@@ -372,21 +389,23 @@ def read_model_api(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     ignored: Counter[str] = Counter()
     harness_calls: Counter[str] = Counter()
     other_calls = 0
-    calls: list[tuple[int, dict[str, Any], dict[str, Any]]] = []
+    calls: list[tuple[int, dict[str, Any], str, dict[str, Any]]] = []
     rows = 0
     for n, row in _lines(path):
         rows += 1
         if not isinstance(row, dict) or row.get("type") != "call":
             ignored[str(row.get("type")) if isinstance(row, dict) else "invalid_json"] += 1
-        elif row.get("harness"):
+            continue
+        form = model_api.call_format(str(row.get("api")), str(row.get("path")))
+        if row.get("harness"):
             harness_calls[str(row["harness"])] += 1
-        elif not model_api.model_call(str(row.get("api")), str(row.get("path"))):
+        elif form is None:
             other_calls += 1
         else:
-            calls.append((n, row, _request(row)))
-    for i, (n, row, request) in enumerate(calls):
+            calls.append((n, row, form, _request(row)))
+    for i, (n, row, form, request) in enumerate(calls):
         api = str(row.get("api") or "")
-        said = _said(request)
+        said = _said(form, request)
         if said is not None:
             it = _item("model_api", api, model_api.FILE, n, row.get("started"))
             it.update(kind="message", role="user", output=said)
@@ -403,7 +422,7 @@ def read_model_api(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
             exit_code=row.get("status"),
         )
         items.append(it)
-        later = [_results(api, r) for _, _, r in calls[i + 1 :]]
+        later = [_results(f, r) for _, _, f, r in calls[i + 1 :]]
         for call in result.get("tool_calls") or []:
             it = _item("model_api", api, model_api.FILE, n, row.get("ts"))
             it.update(kind="tool_call", name=call.get("name"), input=call.get("input"))
