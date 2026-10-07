@@ -103,7 +103,8 @@ def shown_text(final: str | None) -> str | None:
 
 def events(stdout: str) -> list[dict[str, Any]]:
     out = []
-    for line in stdout.splitlines():
+    # Split on \n only: a JSON string can hold U+2028 (#31).
+    for line in stdout.split("\n"):
         if line.startswith("{"):
             with contextlib.suppress(json.JSONDecodeError):
                 out.append(json.loads(line))

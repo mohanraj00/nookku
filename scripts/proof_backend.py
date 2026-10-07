@@ -23,6 +23,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path[:0] = [str(ROOT / "src")]
 
+from proof_common import json_lines  # noqa: E402
+
 from verbatim_relay import __version__, backend, bridge, seal, stdio  # noqa: E402
 
 SEEN: list[dict[str, str]] = []
@@ -114,7 +116,7 @@ def main() -> int:
         stock.server_close()
     folder = Path(cur["dir"])
     entry = json.loads(shown) if ok else []
-    rows = [json.loads(x) for x in (folder / backend.FILE).read_text().splitlines()]
+    rows = json_lines((folder / backend.FILE).read_text())
     calls = []
     for i, (e, s, r) in enumerate(zip(entry, SEEN, rows, strict=True)):
         calls.append(

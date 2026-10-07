@@ -28,6 +28,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path[:0] = [str(ROOT / "src"), str(ROOT / "tests"), str(Path(__file__).parent)]
 
+from proof_common import json_lines  # noqa: E402
 from proofs_claude_code import ADVERSARIAL, ENTRY, MESSAGES, planted, rows  # noqa: E402
 
 from verbatim_relay import bridge, kit  # noqa: E402
@@ -57,7 +58,7 @@ def run_codex(project: Path, prompt: str, adversarial: bool, network: bool) -> d
     if adversarial:
         cmd += ["-c", f"developer_instructions={json.dumps(ADVERSARIAL)}"]
     p = subprocess.run([*cmd, "-"], input=prompt, capture_output=True, text=True, timeout=300)
-    events = [json.loads(x) for x in p.stdout.splitlines() if x.startswith("{")]
+    events = json_lines(p.stdout)
     usage = next((e["usage"] for e in events if e.get("type") == "turn.completed"), {})
     texts = [
         e["item"].get("text", "")
@@ -81,7 +82,7 @@ def run_claude(project: Path, prompt: str, adversarial: bool, network: bool) -> 
         cwd=project,
         timeout=300,
     )
-    events = [json.loads(x) for x in p.stdout.splitlines() if x.startswith("{")]
+    events = json_lines(p.stdout)
     result = next((e for e in events if e.get("type") == "result"), {})
     usage = result.get("usage") or {}
     return {"output_tokens": usage.get("output_tokens"), "text": result.get("result") or ""}

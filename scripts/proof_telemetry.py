@@ -33,6 +33,7 @@ import threading
 from datetime import date
 
 import proof_report as pr
+from proof_common import AGENT_SDK
 
 FULL = pr.ROOT / "examples" / "toy-shop-full"
 sys.path[:0] = [str(FULL)]
@@ -42,8 +43,6 @@ import toy_model  # noqa: E402
 
 from verbatim_relay import seal  # noqa: E402
 
-# This version bundles Claude Code 2.1.286, the version that proofs/trace/ covers (#35).
-SDK = "claude-agent-sdk==0.2.163"
 MESSAGES = [
     "Hi, is the teapot set in stock?",
     "Please reserve 1 teapot set for my order 6210.",
@@ -76,7 +75,7 @@ def main() -> int:
         # reads that variable.
         "model_api": {"anthropic": None, "openai": model.url},
     }
-    pr.setup(project, FULL, SDK, config)
+    pr.setup(project, FULL, AGENT_SDK, config)
     try:
         ran = pr.run_test(project, run, start, end, end_args, MESSAGES)
     finally:
@@ -131,7 +130,7 @@ def main() -> int:
         "relay": relay,
         "versions": {
             **manifest["versions"],
-            "agent sdk": SDK,
+            "agent sdk": AGENT_SDK,
             "session files": {s["harness"]: s["version"] for s in findings["sessions"]},
         },
         "turns": audit["turns"],
