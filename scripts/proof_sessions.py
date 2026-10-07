@@ -20,6 +20,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path[:0] = [str(ROOT / "src")]
 
+from proof_common import AGENT_SDK  # noqa: E402
+
 from verbatim_relay import bridge  # noqa: E402
 
 ENTRY = [
@@ -29,7 +31,7 @@ ENTRY = [
     "--project",
     str(ROOT),
     "--with",
-    "claude-agent-sdk",
+    AGENT_SDK,
     "python",
     str(ROOT / "tests" / "toy_models_entry.py"),
 ]

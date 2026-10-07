@@ -20,6 +20,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path[:0] = [str(ROOT / "src"), str(ROOT / "tests")]
 
+from proof_common import json_lines  # noqa: E402
 from toy_agent import ToyAgent  # noqa: E402
 
 from verbatim_relay import kit  # noqa: E402
@@ -71,7 +72,7 @@ def codex(prompt: str, session: str | None, cwd: Path, extra: list[str]) -> tupl
     p = subprocess.run(
         [*cmd, "-"], input=prompt, capture_output=True, text=True, cwd=cwd, env=ENV, timeout=300
     )
-    events = [json.loads(x) for x in p.stdout.splitlines() if x.startswith("{")]
+    events = json_lines(p.stdout)
     thread = next((e["thread_id"] for e in events if e.get("type") == "thread.started"), session)
     texts = [
         e["item"].get("text", "")

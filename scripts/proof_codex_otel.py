@@ -20,6 +20,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path[:0] = [str(ROOT / "src")]
 
+from proof_common import json_lines  # noqa: E402
+
 from verbatim_relay import otlp  # noqa: E402
 from verbatim_relay.stdio import start_in_thread  # noqa: E402
 
@@ -47,8 +49,8 @@ def main() -> int:
         receiver.shutdown()
         receiver.server_close()
     version = subprocess.run(["codex", "--version"], capture_output=True, text=True).stdout
-    events = [json.loads(x) for x in p.stdout.splitlines() if x.startswith("{")]
-    rows = record.read_text().splitlines() if record.exists() else []
+    events = json_lines(p.stdout)
+    rows = [x for x in record.read_text().split("\n") if x] if record.exists() else []
     result = {
         "date": date.today().isoformat(),
         "codex": version.strip(),

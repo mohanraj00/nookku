@@ -25,6 +25,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path[:0] = [str(ROOT / "src"), str(ROOT / "tests")]
 
+from proof_common import json_lines  # noqa: E402
+
 from verbatim_relay.audit import audit  # noqa: E402
 from verbatim_relay.record import sha256  # noqa: E402
 
@@ -68,7 +70,7 @@ def claude(prompt: str, settings: Path, cwd: Path, extra: list[str]) -> tuple[li
     p = subprocess.run(
         cmd, capture_output=True, text=True, stdin=subprocess.DEVNULL, cwd=cwd, timeout=300
     )
-    events = [json.loads(x) for x in p.stdout.splitlines() if x.startswith("{")]
+    events = json_lines(p.stdout)
     shown = [
         e["text"]
         for e in events

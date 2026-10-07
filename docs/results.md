@@ -34,7 +34,7 @@ Each results file has the records of the test next to it: `tap.jsonl` and `relay
 
 | Harness of the app | Found by | Session file copied | Data |
 |---|---|---|---|
-| Claude Agent SDK 0.2.163 | its process | yes | [results](../proofs/sessions/results.json) |
+| Claude Agent SDK 0.2.164 | its process | yes | [results](../proofs/sessions/results.json) |
 | codex-cli 0.160.0, app-server | its folder and time | yes | [results](../proofs/sessions/results.json) |
 
 The Agent SDK runs its own bundled Claude Code. The `claude-code` version in the results is the `claude` command on `PATH`, not the bundled one. The results keep no model reply.
@@ -45,10 +45,11 @@ The Agent SDK runs its own bundled Claude Code. The `claude-code` version in the
 
 | Session file | Items | Expected calls found | Data |
 |---|---|---|---|
-| Claude Code 2.1.286, bundled in Claude Agent SDK 0.2.163 | 11 | 2/2 | [results](../proofs/trace/results.json) |
-| codex-cli 0.160.0, app-server | 12 | 4/4 | [results](../proofs/trace/results.json) |
+| Claude Code 2.1.292, bundled in Claude Agent SDK 0.2.164 | 10 | 2/2 | [results](../proofs/trace/results.json) |
+| Claude Code 2.1.286, bundled in Claude Agent SDK 0.2.163 (earlier run) | 11 | 2/2 | [results](../proofs/trace/results-2.1.286.json) |
+| codex-cli 0.160.0, app-server | 13 | 4/4 | [results](../proofs/trace/results.json) |
 
-The findings are 2 `tool_error` (order 9999, one in each harness), 1 `command_failed` (`cat returns.txt`) and 1 `session_inferred` (the Codex session). The results keep no model text: each message shows only its SHA-256 and its length.
+In the 2.1.292 run, the findings are 2 `tool_error` (order 9999, one in each harness), 2 `command_failed` (`cat returns.txt`, and an `rg` search for that file by the Codex model) and 1 `session_inferred` (the Codex session). The results keep no model text: each message shows only its SHA-256 and its length. Each OpenTelemetry log of the harness, which holds the prompt and the answer, shows only its attribute names and the SHA-256 and length of its values.
 
 ### Backend calls
 
@@ -83,8 +84,8 @@ The API key was not in the record. The seal of the test folder was intact.
 
 | Relay | Harness | P5a | P5b | Data |
 |---|---|---|---|---|
-| Plugin | Claude Code 2.1.288 | pass | pass | [results](../proofs/evaluation/plugin.json) |
-| Hook kit | Claude Code 2.1.288 | pass | pass | [results](../proofs/evaluation/hooks-claude-code.json) |
+| Plugin | Claude Code 2.1.290 | pass | pass | [results](../proofs/evaluation/plugin.json) |
+| Hook kit | Claude Code 2.1.290 | pass | pass | [results](../proofs/evaluation/hooks-claude-code.json) |
 | Hook kit | Codex 0.160.0 | pass | pass | [results](../proofs/evaluation/hooks-codex.json) |
 
 The session resumes between turns, so P5b also shows that the transcript survives a resume. The results keep only a hash of the P5a answer, because a model can quote the harness's own instruction files in it.
@@ -102,10 +103,11 @@ The session resumes between turns, so P5b also shows that the transcript survive
 | Relay | Harness | Issues in the report | P6 | P5 | P7 | P8 | Isolation | Result | Data |
 |---|---|---|---|---|---|---|---|---|---|
 | Plugin | Claude Code 2.1.290 | 3 | pass | pass | pass | pass | temporary project | pass | [results](../proofs/report/plugin.json) |
-| Hook kit | Claude Code 2.1.290 | 3 | pass | pass | pass | pass | temporary project | pass | [results](../proofs/report/hooks-claude-code.json) |
+| Hook kit | Claude Code 2.1.290 | 3 | pass | pass | pass | pass | temporary project | pass (run 2) | [results](../proofs/report/hooks-claude-code.json) |
+| Hook kit | Claude Code 2.1.290 | 1 | **fail** | pass | pass | pass | temporary project | **fail** (run 1) | [results](../proofs/report/hooks-claude-code-run1.json) |
 | Hook kit | Codex 0.160.0 | 2 | pass | pass | pass | pass | trusted project, 0 commands outside it | pass | [results](../proofs/report/hooks-codex.json) |
 
-The app's session files are from Claude Code 2.1.286, bundled in the Agent SDK. The Agent SDK session reads `ANTHROPIC_BASE_URL`, so its calls went through the model API proxy ([SPEC.md section 7.7](../SPEC.md#77-model-api-proxies)). In each of the 3 runs, the proxy marked 8 calls as harness calls and kept no text of them. 1 other call, `HEAD /api/hello`, was not a model call. The trace kept 0 items from `model_api.jsonl` (`model_api` in each results file). In an earlier run, the relay denied a command of the evaluating model that started with a variable assignment, `T=.verbatim-relay/tests/...`. So the read check now passes a part with only variable assignments. A report is a model answer, and it changes on each run. Before the script stores a report or an answer, it checks that the text shares no 8 words in a row with an instruction file on this machine, and it removes the local paths. [docs/evaluation-example.md](evaluation-example.md#a-test-with-an-automatic-report) shows one report and what the model got wrong.
+The app's session files are from Claude Code 2.1.292, bundled in Agent SDK 0.2.164. In the first run of the hook kit in Claude Code, the report had only 1 row (`unsupported_reply`, turn 2) and missed the refund, although the trace had the refund call in turn 2. The second run passed. Both runs are in the table. A report is a model answer, so P6 can fail when the model does not look at a call. The Agent SDK session reads `ANTHROPIC_BASE_URL`, so its calls went through the model API proxy ([SPEC.md section 7.7](../SPEC.md#77-model-api-proxies)). In the 3 passing runs, the proxy marked 8, 7 and 8 calls as harness calls and kept no text of them. 1 other call, `HEAD /api/hello`, was not a model call. The trace kept 0 items from `model_api.jsonl` (`model_api` in each results file). In an earlier run, the relay denied a command of the evaluating model that started with a variable assignment, `T=.verbatim-relay/tests/...`. So the read check now passes a part with only variable assignments. A report is a model answer, and it changes on each run. Before the script stores a report or an answer, it checks that the text shares no 8 words in a row with an instruction file on this machine, and it removes the local paths. [docs/evaluation-example.md](evaluation-example.md#a-test-with-an-automatic-report) shows one report and what the model got wrong.
 
 **Changes to the method after the first runs.** I changed 3 things after I saw results. All runs before these changes are not in the data.
 
@@ -124,10 +126,10 @@ The app's session files are from Claude Code 2.1.286, bundled in the Agent SDK. 
 | Relay | Harness | Items by turn (session, backend, model API) | Rows that cite both reserve calls | T1 | T2 | P5 | P7 | Result | Data |
 |---|---|---|---|---|---|---|---|---|---|
 | Plugin | Claude Code 2.1.290 | 3, 1, 2 / 3, 2, 2 / 3, 1, 2 | `business_rule`, turn 2 | pass | pass | pass | pass | pass | [results](../proofs/telemetry/plugin.json) |
-| Hook kit | Claude Code 2.1.290 | 3, 1, 2 / 3, 2, 2 / 3, 1, 2 | `state_mismatch` and `missing_action`, turn 2 | pass | pass | pass | pass | pass | [results](../proofs/telemetry/hooks-claude-code.json) |
+| Hook kit | Claude Code 2.1.290 | 3, 1, 2 / 3, 2, 2 / 3, 1, 2 | `business_rule` and `state_mismatch`, turn 2 | pass | pass | pass | pass | pass | [results](../proofs/telemetry/hooks-claude-code.json) |
 | Hook kit | Codex 0.160.0 | 3, 1, 2 / 3, 2, 2 / 3, 1, 2 | `business_rule` and `state_mismatch`, turn 2 | pass | pass | pass | pass | pass | [results](../proofs/telemetry/hooks-codex.json) |
 
-In each run, the stock service had 2 reservations for the 1 teapot set that the tester asked for, and the trace had 0 findings. The Agent SDK is pinned to 0.2.163, which bundles Claude Code 2.1.286 ([#35](https://github.com/mohanraj00/verbatim-relay/issues/35)). The proxy marked 7, 8 and 8 of its calls as harness calls and kept no text of them. The toy note model gives a fixed answer, so this proof does not show a real model behind the direct call. [proofs/model-api/](../proofs/model-api/results.json) shows the proxy with the stream formats of both APIs.
+In each run, the stock service had 2 reservations for the 1 teapot set that the tester asked for, and the trace had 0 findings. The Agent SDK is pinned to 0.2.164, which bundles Claude Code 2.1.292 ([#35](https://github.com/mohanraj00/verbatim-relay/issues/35)). The proxy marked 7, 8 and 9 of its calls as harness calls and kept no text of them. The toy note model gives a fixed answer, so this proof does not show a real model behind the direct call. [proofs/model-api/](../proofs/model-api/results.json) shows the proxy with the stream formats of both APIs.
 
 ## 2. Benchmark under pressure
 

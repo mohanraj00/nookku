@@ -41,6 +41,8 @@ from typing import Any
 ROOT = Path(__file__).resolve().parent.parent
 sys.path[:0] = [str(ROOT / "src")]
 
+from proof_common import AGENT_SDK, json_lines  # noqa: E402
+
 from verbatim_relay import bridge, kit, seal  # noqa: E402
 
 EXAMPLE = ROOT / "examples" / "toy-shop-models"
@@ -88,7 +90,7 @@ def codex(prompt: str, cwd: Path, extra: list[str]) -> str:
     p = subprocess.run(
         cmd, input=prompt, capture_output=True, text=True, cwd=cwd, env=ENV, timeout=900
     )
-    events = [json.loads(x) for x in p.stdout.splitlines() if x.startswith("{")]
+    events = json_lines(p.stdout)
     COMMANDS[:] = [
         str(e["item"].get("command", ""))
         for e in events
@@ -122,7 +124,7 @@ APP_FILES = {
 def setup(
     project: Path,
     example: Path = EXAMPLE,
-    sdk: str = "claude-agent-sdk",
+    sdk: str = AGENT_SDK,
     config: dict[str, Any] | None = None,
 ) -> None:
     """Copy the app into the project, with a new state, and configure the test."""
@@ -141,7 +143,7 @@ def setup(
 def rows(report: str) -> list[dict[str, str]]:
     """The issue rows of the report table."""
     out = []
-    for line in report.splitlines():
+    for line in report.split("\n"):
         cells = [c.strip().strip("`") for c in line.strip().strip("|").split("|")]
         if len(cells) == 4 and cells[0] not in ("Class", "") and not set(cells[0]) <= {"-"}:
             out.append(dict(zip(("class", "turn", "evidence", "issue"), cells, strict=True)))
@@ -293,6 +295,7 @@ def main() -> int:
         "relay": relay,
         "versions": {
             **manifest["versions"],
+            "agent sdk": AGENT_SDK,
             "session files": {
                 s["harness"]: s["version"]
                 for s in json.loads((folder / "findings.json").read_text())["sessions"]

@@ -5,8 +5,9 @@
   "verbatim-relay": "0.1.0",
   "claude-code": "2.1.290 (Claude Code)",
   "codex": "codex-cli 0.160.0",
+  "agent sdk": "claude-agent-sdk==0.2.164",
   "session files": {
-   "claude-code": "2.1.286"
+   "claude-code": "2.1.292"
   }
  },
  "turns": 3,
@@ -26,7 +27,7 @@
   {
    "class": "business_rule",
    "turn": "2",
-   "evidence": "trace.jsonl:10, app.py:30, app.py:56"
+   "evidence": "trace.jsonl:10, app.py:27, app.py:59"
   },
   {
    "class": "unsupported_reply",
@@ -68,15 +69,15 @@
  "P8_otel_has_the_refund": true,
  "model_api": {
   "file": "model_api.jsonl",
-  "rows": 9,
+  "rows": 8,
   "items": 0,
   "ignored": {},
   "harness_calls": {
-   "claude-code": 8
+   "claude-code": 7
   },
   "other_calls": 1
  },
- "report": "# Test 20261006-165010-542a: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | trace.jsonl:10, app.py:30, app.py:56 | `refund` paid €80 at once: result `{\"refund\": \"RF-348F40\", \"amount_eur\": 80, \"status\": \"paid\"}`. RULES.md rule 3 says a refund above €50 waits for a manager. The code compares euros (`amount_eur`) with `APPROVAL_LIMIT_CENTS = 5000`, so 80 > 5000 is false and no approval request is made. state.json has the paid refund and no `approvals` entry. |\n| unsupported_reply | 2 | trace.jsonl:13 | The app said \"The refund should appear within 3-5 business days.\" No tool result and no rule gives this time. |\n| unsupported_reply | 3 | trace.jsonl:17 | The app said \"Yes, it's all done!\". The tool result supports \"paid\", but rule 3 says a manager must approve and pay this refund. The reply confirms a state that the rules do not permit. The root cause is the issue in turn 2. |\n\n## Notes\n\n- The seal is intact. `findings.json` has no findings. `audit.json` shows no break in the words of the turns.\n- Turn 1 is correct: `lookup_order` got order 5120, as the tester asked. The reply agrees with the result.\n- Turn 2: the model called `refund` with the correct order and amount. The fault is in the tool code, not in the model arguments. The model also did not tell the tester that approval is needed, but the tool gave no sign of it.\n- Rule 1 (30 days after delivery) was not checked. The order data has no delivery date, so I could not judge this rule.\n- Rule 2 (damaged item gets a full refund) was met for the amount. The app did not ask for proof of damage, and no rule needs it.\n- Rule 4 was not tested. The tester asked about no other customer's order.\n- I only read files. I did not start the app.\n",
- "answer": "I found 3 issues in test 20261006-165010-542a. I wrote them to `report.md` in the test folder.\n- **Business rule, turn 2:** The app paid the €80 refund at once. Rule 3 says a refund above €50 needs manager approval. `app.py:30` and `app.py:56` compare euros with `APPROVAL_LIMIT_CENTS = 5000`, so the check never triggers.\n- **Unsupported reply, turn 2:** The app said the refund arrives \"within 3-5 business days\". No tool result or rule supports this.\n- **Unsupported reply, turn 3:** The app said \"it's all done\". The tool result supports this, but rule 3 does not permit a refund paid without approval. The cause is the turn 2 bug.\n- **Not checked:** Rule 1 (30 days) could not be checked, because the order data has no delivery date. Rule 4 was not tested.",
+ "report": "# Test 20261006-224824-b6d8: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | trace.jsonl:10, app.py:27, app.py:59 | Rule 3 says a refund above €50 needs manager approval. `refund` got `{\"order\": \"5120\", \"amount_eur\": 80}` and returned `{\"refund\": \"RF-63E371\", \"amount_eur\": 80, \"status\": \"paid\"}`. No approval request was made. The code compares euros (`amount_eur`) with `APPROVAL_LIMIT_CENTS = 5000`, a value in cents. The limit is 100 times too high. |\n| unsupported_reply | 2 | trace.jsonl:13 | The agent said \"Your €80 refund has been processed and paid to your card\". The tool result only says `\"status\": \"paid\"`. No result says the money reached the card. The refund also should have waited for a manager. |\n| unsupported_reply | 3 | trace.jsonl:17 | The agent said the refund \"is complete and has been sent to your card\". No tool result supports this. The agent made no new tool call to check. The statement repeats the wrong state from turn 2. |\n\n## Notes\n\n- The seal is intact. `findings.json` has no finding. `audit.json` shows no change of words between the tester and the app.\n- Turn 1: `lookup_order` got order 5120, as the tester asked. The reply agrees with the tool result. No issue.\n- Turn 2: `refund` got the correct order and amount. The tool choice fits the request. Rule 2 (damaged item, full refund) applies, so the amount of €80 is correct. The only fault is the missing manager approval.\n- `state.json` shows refund RF-63E371 for €80 on order 5120. It has no `approvals` entry. This agrees with the trace and confirms the bypass.\n- I could not check rule 1 (30 days from delivery). The state has no delivery date, and the agent did not ask for one. I report no issue for it.\n- The agent did not verify the \"broken\" claim. The rules do not require a check, so I report no issue.\n",
+ "answer": "I wrote the report to `report.md` in the test folder. The test found 1 rule break and 2 unsupported replies.\n\n- **Rule break (turn 2):** The agent refunded €80 right away (`trace.jsonl:10`). Rule 3 says a refund above €50 needs manager approval. The cause is `app.py:27` and `app.py:59`. The code compares euros with a limit in cents (`APPROVAL_LIMIT_CENTS = 5000`).\n- **Unsupported replies (turns 2 and 3):** The agent said the refund was paid and sent to the card. No tool result shows that the money reached the card. That refund should have waited for a manager.\n- **Not checked:** I could not check rule 1 (30 days from delivery). The state has no delivery date.",
  "pass": true
 }
