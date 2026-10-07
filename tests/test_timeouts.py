@@ -96,3 +96,38 @@ def test_an_agent_that_sends_a_byte_at_a_time_still_gives_504(tmp_path):
     assert json.loads(out)["error"] == "verbatim-relay tap: the agent sent no response in 0.5 s"
     assert 0.5 <= took < 0.5 + ANSWER
     assert read_tap(tmp_path / "tap.jsonl") == [Exchange(1, "Where is my mug?", None, None)]
+
+
+def test_a_stream_that_runs_past_the_deadline_is_not_a_full_reply(tmp_path):
+    # The agent streams parts with no end. The tap stops the read at the deadline, and the row
+    # has no reply.
+    listener = socket.create_server(("127.0.0.1", 0))
+
+    def stream() -> None:
+        conn, _ = listener.accept()
+        with conn:
+            conn.recv(65536)
+            head = b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\n"
+            conn.sendall(head + b"Transfer-Encoding: chunked\r\n\r\n")
+            part = b'data: {"choices": [{"index": 0, "delta": {"content": "mug "}}]}\n\n'
+            with contextlib.suppress(OSError):
+                for _ in range(40):
+                    conn.sendall(b"%x\r\n%s\r\n" % (len(part), part))
+                    time.sleep(0.1)
+
+    threading.Thread(target=stream, daemon=True).start()
+    url = f"http://127.0.0.1:{listener.getsockname()[1]}"
+    t = tap.Tap(("127.0.0.1", 0), url, tmp_path / "tap.jsonl", make("openai"), 0.5)
+    tap.start_in_thread(t)
+    body = json.dumps({"messages": [{"role": "user", "content": "Where is my mug?"}]}).encode()
+    began = time.monotonic()
+    with contextlib.suppress(Exception):
+        post(t, "/v1/chat/completions", body)
+    took = time.monotonic() - began
+    t.shutdown()
+    listener.close()
+
+    assert took < 0.5 + ANSWER
+    row = json.loads((tmp_path / "tap.jsonl").read_text())
+    assert (row["status"], row["reply"]) == (200, None)
+    assert row["error"] == "the agent sent no full response in 0.5 s"

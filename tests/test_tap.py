@@ -1,4 +1,7 @@
+import hashlib
+import http.client
 import json
+import threading
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -79,12 +82,98 @@ def test_openai_adapter(agent, tmp_path):
     assert read_tap(tmp_path / "tap.jsonl") == [Exchange(1, TRICKY, 200, shop_reply(TRICKY))]
 
 
-def test_openai_stream_is_refused_and_not_forwarded(agent, tmp_path):
+def stream_post(tap: Tap, path: str, message: str) -> tuple[int, str, bytes, str | None]:
+    """POST an openai request with stream: true. Return the status, the Content-Type, the body
+    bytes, and the read error or None."""
+    body = {"stream": True, "messages": [{"role": "user", "content": message}]}
+    conn = http.client.HTTPConnection("127.0.0.1", tap.server_address[1], timeout=10)
+    conn.request("POST", path, json.dumps(body, ensure_ascii=False).encode())
+    resp = conn.getresponse()
+    error = None
+    try:
+        out = resp.read()
+    except http.client.IncompleteRead as e:
+        out, error = e.partial, type(e).__name__
+    conn.close()
+    return resp.status, resp.getheader("Content-Type") or "", out, error
+
+
+def raw_rows(path: Path) -> list[dict]:
+    return [json.loads(x) for x in path.read_text(encoding="utf-8").split("\n") if x]
+
+
+def test_a_stream_passes_unchanged_and_the_row_has_the_joined_reply(tmp_path):
+    agent = ToyAgent(stream=True)
     tap = run_tap(agent.url, tmp_path / "tap.jsonl", "openai")
-    body = {"stream": True, "messages": [{"role": "user", "content": "hi"}]}
-    status, _, _ = post(tap, "/v1/chat/completions", json.dumps(body).encode())
+    status, kind, out, error = stream_post(tap, "/v1/chat/completions", TRICKY)
     tap.shutdown()
-    assert status == 501 and agent.received == []
+    agent.shutdown()
+
+    assert (status, kind, error) == (200, "text/event-stream; charset=utf-8", None)
+    assert json.loads(agent.received[0]["body"])["stream"] is True
+    assert out == agent.sent[0]
+    assert read_tap(tmp_path / "tap.jsonl") == [Exchange(1, TRICKY, 200, shop_reply(TRICKY))]
+    [row] = raw_rows(tmp_path / "tap.jsonl")
+    assert row["stream"] == {"sha256": hashlib.sha256(out).hexdigest(), "bytes": len(out)}
+    assert "error" not in row
+
+
+def test_each_part_of_a_stream_reaches_the_caller_before_the_stream_ends(tmp_path):
+    gate = threading.Event()
+    agent = ToyAgent(stream=True, gate=gate)
+    tap = run_tap(agent.url, tmp_path / "tap.jsonl", "openai")
+    body = {"messages": [{"role": "user", "content": "hi"}]}
+    conn = http.client.HTTPConnection("127.0.0.1", tap.server_address[1], timeout=10)
+    conn.request("POST", "/v1/chat/completions", json.dumps(body).encode())
+    resp = conn.getresponse()
+    early = b""
+    while early.count(b"\n\n") < 3:
+        early += resp.read1(65536)
+    # The agent waits for the gate. The tap has no row yet.
+    assert not (tmp_path / "tap.jsonl").exists()
+    gate.set()
+    out = early + resp.read()
+    conn.close()
+    tap.shutdown()
+    agent.shutdown()
+    assert out == agent.sent[0]
+    assert read_tap(tmp_path / "tap.jsonl") == [Exchange(1, "hi", 200, shop_reply("hi"))]
+
+
+@pytest.mark.parametrize(
+    "fault, error, read_error",
+    [
+        ("cut", "the stream ended before data: [DONE]", None),
+        ("error-event", "the agent sent an error: ", None),
+        ("bad-chunk", "a chunk is not JSON", None),
+        ("drop", "the stream from the agent stopped after", "IncompleteRead"),
+    ],
+)
+def test_a_failed_stream_is_an_error_exchange_with_no_reply(tmp_path, fault, error, read_error):
+    agent = ToyAgent(stream=True)
+    tap = run_tap(agent.url, tmp_path / "tap.jsonl", "openai")
+    status, _, out, got_error = stream_post(tap, f"/{fault}/chat/completions", TRICKY)
+    tap.shutdown()
+    agent.shutdown()
+
+    assert (status, got_error) == (200, read_error)
+    assert out == agent.sent[0]
+    assert read_tap(tmp_path / "tap.jsonl") == [Exchange(1, TRICKY, 200, None)]
+    [row] = raw_rows(tmp_path / "tap.jsonl")
+    assert row["error"].startswith(error)
+    assert row["stream"] == {"sha256": hashlib.sha256(out).hexdigest(), "bytes": len(out)}
+
+
+def test_the_json_adapter_marks_a_stream_unparsed(tmp_path):
+    agent = ToyAgent(stream=True)
+    tap = run_tap(agent.url, tmp_path / "tap.jsonl", "json")
+    body = json.dumps({"text": "hi", "messages": [{"role": "user", "content": "hi"}]}).encode()
+    status, _, out = post(tap, "/v1/chat/completions", body)
+    tap.shutdown()
+    agent.shutdown()
+    assert (status, out) == (200, agent.sent[0])
+    [row] = read_tap(tmp_path / "tap.jsonl")
+    assert isinstance(row, Unparsed) and "does not read a streamed response" in row.error
 
 
 def test_an_agent_error_is_forwarded_and_recorded(agent, tmp_path):

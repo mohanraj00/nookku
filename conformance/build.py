@@ -126,6 +126,31 @@ def lone_surrogate(row: dict, field: str) -> str:
     return json.dumps({**row, field: text, f"{field}_sha256": sha(row[field] + "\ufffd")})
 
 
+# A streamed reply (section 2.1): the joined reply, and the SHA-256 and the size of the raw body.
+def sse_body(reply: str, done: bool = True) -> bytes:
+    """An OpenAI-style SSE body with 9 characters of the reply in each chunk."""
+    chunks = [
+        {"choices": [{"index": 0, "delta": {"content": reply[i : i + 9]}}]}
+        for i in range(0, len(reply), 9)
+    ]
+    body = "".join(f"data: {json.dumps(c, ensure_ascii=False)}\n\n" for c in chunks)
+    return (body + ("data: [DONE]\n\n" if done else "")).encode()
+
+
+def stream_info(raw: bytes) -> dict:
+    return {"sha256": hashlib.sha256(raw).hexdigest(), "bytes": len(raw)}
+
+
+STREAM_TAP = [
+    {**ex(m, r, v="0.2"), "stream": stream_info(sse_body(r))}
+    for m, r in ((M1, R1), (M2, R2), (M3, R3))
+]
+ENDED_EARLY = "the stream ended before data: [DONE]"
+FAILED_STREAM = {
+    **ex(M2, None, v="0.2", error=ENDED_EARLY),
+    "stream": stream_info(sse_body(R2, False)),
+}
+
 # name: (tap rows or None for a missing file, relay rows or None, expectation)
 # A row can be a raw string, written as the line itself.
 CASES_BY_NAME: dict[str, tuple[list | None, list | None, dict]] = {
@@ -330,6 +355,39 @@ CASES_BY_NAME: dict[str, tuple[list | None, list | None, dict]] = {
         {"exit": 2, "errors": ["record_invalid"]},
     ),
     "tap_unparsed": ([*CLEAN_TAP, UNPARSED], CLEAN_RELAY, {"exit": 2, "errors": ["tap_unparsed"]}),
+    # Streamed replies (0.2). The audit compares the joined reply, the same as any reply.
+    "streamed_reply_clean": (STREAM_TAP, RELAY_02, {"exit": 0, "breaks": []}),
+    # The relay showed the first part of a complete stream as the reply.
+    "streamed_reply_part_shown": (
+        STREAM_TAP,
+        [RELAY_02[0], turn(M2, R2[:18], v="0.2"), RELAY_02[2]],
+        {"exit": 1, "breaks": [["altered_reply", 2, 2]]},
+    ),
+    # A failed stream has a 2xx status, no reply and an error. It is an agent error.
+    "streamed_reply_failed_is_a_note": (
+        [STREAM_TAP[0], FAILED_STREAM, STREAM_TAP[2]],
+        [
+            RELAY_02[0],
+            turn(M2, f"verbatim-relay: cannot read the reply: {ENDED_EARLY}", v="0.2"),
+            RELAY_02[2],
+        ],
+        {"exit": 0, "breaks": [], "notes": [["agent_error", 2, 2]]},
+    ),
+    "streamed_reply_failed_without_error": (
+        [STREAM_TAP[0], {k: v for k, v in FAILED_STREAM.items() if k != "error"}, STREAM_TAP[2]],
+        RELAY_02,
+        {"exit": 2, "errors": ["record_invalid"]},
+    ),
+    "stream_in_a_v01_row": (
+        [{**CLEAN_TAP[0], "stream": STREAM_TAP[0]["stream"]}, *CLEAN_TAP[1:]],
+        CLEAN_RELAY,
+        {"exit": 2, "errors": ["record_invalid"]},
+    ),
+    "stream_wrong_field_type": (
+        [{**STREAM_TAP[0], "stream": {"sha256": "abc", "bytes": 120}}, *STREAM_TAP[1:]],
+        RELAY_02,
+        {"exit": 2, "errors": ["record_invalid"]},
+    ),
 }
 
 
