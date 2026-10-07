@@ -85,7 +85,8 @@ class _Handler(BaseHTTPRequestHandler):
     def _stream(self, reply: str) -> None:
         """Send the events one at a time. The end of the connection ends the body (HTTP/1.0).
 
-        On a path with /drop/, the Content-Length is 10 bytes more than the body.
+        On a path with /drop/, the Content-Length is 10 bytes more than the body. On a path with
+        /sized/, the Content-Length is the length of the body.
         """
         events = stream_events(reply)
         for part, fault in STREAM_FAULTS.items():
@@ -97,6 +98,8 @@ class _Handler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-cache")
         if "/drop/" in self.path:
             self.send_header("Content-Length", str(len(self.server.sent[-1]) + 10))
+        elif "/sized/" in self.path:
+            self.send_header("Content-Length", str(len(self.server.sent[-1])))
         self.end_headers()
         for n, event in enumerate(events):
             self.wfile.write(event)

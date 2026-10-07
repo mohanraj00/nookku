@@ -1,6 +1,7 @@
 import hashlib
 import http.client
 import json
+import re
 import socket
 import threading
 import urllib.error
@@ -210,6 +211,36 @@ def test_a_record_error_during_a_stream_sends_no_second_status_and_no_second_row
     assert b"Transfer-Encoding: chunked" in head and not chunked.endswith(b"0\r\n\r\n")
     assert len(calls) == 1 and not (tmp_path / "tap.jsonl").exists()
     assert "cannot write the record: [Errno 28] No space left on device" in capsys.readouterr().err
+
+
+def test_a_record_error_leaves_a_sized_stream_incomplete(tmp_path, capsys):
+    # With a Content-Length, all bytes would make a full 200 response. The tap holds the last
+    # byte until the row is in the record, so the caller sees that the response is not complete.
+    agent = ToyAgent(stream=True)
+    tap = run_tap(agent.url, tmp_path / "tap.jsonl", "openai")
+
+    def fail(row: dict) -> None:
+        raise OSError(28, "No space left on device")
+
+    tap.writer.append = fail  # type: ignore[method-assign]
+    body = json.dumps({"stream": True, "messages": [{"role": "user", "content": "hi"}]})
+    request = (
+        f"POST /sized/v1/chat/completions HTTP/1.1\r\nHost: toy\r\n"
+        f"Content-Length: {len(body)}\r\nConnection: close\r\n\r\n{body}"
+    )
+    with socket.create_connection(("127.0.0.1", tap.server_address[1]), timeout=10) as sock:
+        sock.sendall(request.encode())
+        raw = b""
+        while part := sock.recv(65536):
+            raw += part
+    tap.shutdown()
+    agent.shutdown()
+
+    head, _, sent = raw.partition(b"\r\n\r\n")
+    length = int(re.search(rb"Content-Length: (\d+)", head).group(1))
+    assert head.startswith(b"HTTP/1.1 200 ") and len(sent) == length - 1
+    assert sent == agent.sent[-1][:-1]
+    assert "cannot write the record" in capsys.readouterr().err
 
 
 def test_an_agent_error_is_forwarded_and_recorded(agent, tmp_path):

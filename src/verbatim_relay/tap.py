@@ -255,6 +255,9 @@ class _Handler(BaseHTTPRequestHandler):
         except OSError:
             caller = False
         raw = bytearray()
+        # With a Content-Length, the caller has a full response only with the last byte. The tap
+        # holds that byte until the row is in the record, so a failed write leaves it incomplete.
+        held = b""
         failure = None
         while True:
             try:
@@ -268,9 +271,14 @@ class _Handler(BaseHTTPRequestHandler):
             if caller:
                 # The record keeps all of the stream, also if the caller went away.
                 try:
-                    chunk = part if length is not None else b"%x\r\n%s\r\n" % (len(part), part)
-                    self.wfile.write(chunk)
-                    self.wfile.flush()
+                    if length is not None:
+                        data = held + part
+                        chunk, held = data[:-1], data[-1:]
+                    else:
+                        chunk = b"%x\r\n%s\r\n" % (len(part), part)
+                    if chunk:
+                        self.wfile.write(chunk)
+                        self.wfile.flush()
                 except OSError:
                     caller = False
         if expired.is_set():
@@ -286,6 +294,12 @@ class _Handler(BaseHTTPRequestHandler):
                 print(f"verbatim-relay tap: cannot write the record: {e}", file=sys.stderr)
                 self.close_connection = True
                 return
+        if caller and held:
+            try:
+                self.wfile.write(held)
+                self.wfile.flush()
+            except OSError:
+                caller = False
         if caller and failure is None and length is None:
             try:
                 self.wfile.write(b"0\r\n\r\n")
