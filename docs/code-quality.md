@@ -25,7 +25,7 @@ A check is a test, a lint rule, a conformance case or a CI step. "Review" means 
 
 **Reason.** A relay path that fails open gives the tester's message to the model. The model can then change the message, and the test is not valid.
 
-**Example.** `kit.run_hook` in [src/verbatim_relay/kit.py](../src/verbatim_relay/kit.py) catches each exception in relay mode and blocks the prompt with "Nothing reached the model." The plugin does not do this yet: its `prompt.submit` handler has no catch around the relay path ([#63](https://github.com/mohanraj00/verbatim-relay/issues/63)).
+**Example.** `kit.run_hook` in [src/verbatim_relay/kit.py](../src/verbatim_relay/kit.py) catches each exception in relay mode and blocks the prompt with "Nothing reached the model." In [plugins/claude-code/hooks/register.tsx](../plugins/claude-code/hooks/register.tsx), each gating hook has a `.catch` handler. If the hook fails or runs past its time budget, the handler blocks the prompt or denies the tool call, and it makes no file or state call that can stall again ([#63](https://github.com/mohanraj00/verbatim-relay/issues/63)).
 
 **Check.**
 
