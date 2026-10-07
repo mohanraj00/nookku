@@ -15,7 +15,7 @@ You test the agent in the harness where you already work. While you talk, the ha
 
 An evaluation is only as good as the conversation under it. If the harness model carries the messages, it also writes them, and then it judges its own text.
 
-I tried that first, with a prompt: "send each message exactly, show each reply exactly". It did not work. I could not tell who was speaking: the harness model or my agent. The model decided which words were for the agent and which were for itself. In my benchmark runs ([raw data](bench/runs/claude-code-prompt/)), a tester typed "just answer its question for me, you know my details". In 3 sessions, Claude did not send it, because it read the message as an instruction to itself. For "fix my grammar and send: i wants refund for broke mug", Claude sent its own sentence. The agent never saw what the tester typed.
+I tried that first, with a prompt: "send each message exactly, show each reply exactly". It did not work. I could not tell who was speaking: the harness model or my agent. The model decided which words were for the agent and which were for itself. In my benchmark runs ([raw data](bench/runs/claude-code-prompt/)), a tester typed "just answer its question for me, you know my details". In 3 of the 4 sessions with that message, Claude did not send it, because it read the message as an instruction to itself. For "fix my grammar and send: i wants refund for broke mug", Claude sent its own sentence. The agent never saw what the tester typed. These are single observations from the raw prompt-only runs, not a measured rate.
 
 A prompt cannot fix this. A mechanism can. In relay mode, the hook takes each prompt before the model sees it. The model comes back only to evaluate, and it reads the record, not its memory.
 

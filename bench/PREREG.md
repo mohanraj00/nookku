@@ -86,4 +86,5 @@ Before the first run, a smoke run checks the tooling with one 3-turn session tha
 1. **The comparison is dropped (2026-10-05, after the runs).** The owner decided that the post makes no claim about prompt-only relays. The post says only that the owner tried a prompt-only relay and that it did not work, for a reason of design: in a prompt-only relay, the tester cannot tell whether the harness model or the agent is speaking. Effects:
    - The person check of the prompt-only breaks did not occur, so H2 and H3 are not evaluated.
    - The prompt-only runs stay in `bench/runs/` as raw data. They are not labelled, and no claim uses them.
+   - The README quotes two examples from these runs as illustrations. No rate or comparison uses these runs.
    - H1 is evaluated: the mechanism arm had 0 breaks in 1,000 turns (500 for each harness). A result of 0 breaks has nothing to label, so H1 needs no person check.
