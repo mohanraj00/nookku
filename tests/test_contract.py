@@ -1,4 +1,5 @@
 import json
+import re
 import subprocess
 import sys
 import time
@@ -130,11 +131,38 @@ def test_request_round_trip() -> None:
         b'{"v": 1, "id": "m-1", "session": "t-1", "message": "hi", "history": [{"message": "a"}]}',
         b"[1]",
         b"\xff",
+        b'{"v": 1, "id": "m-1", "session": "t-1", "message": "hi", "history": [], "x": Infinity}',
     ],
 )
 def test_request_refuses(line: bytes) -> None:
     with pytest.raises(contract.ContractError):
         contract.parse_request(line)
+
+
+def tap_status(line: str) -> int:
+    """The status that the stdio tap returns for one agent line."""
+    try:
+        _, error = contract.parse_reply(line.encode("utf-8"), "m-1")
+    except contract.ContractError:
+        return 502
+    return 200 if error is None else 500
+
+
+def test_the_plugin_reads_each_one_line_case_like_the_tap() -> None:
+    # register.test.ts runs this table through contractShown.
+    table = ROOT / "plugins" / "claude-code" / "hooks" / "register.test.ts"
+    text = table.read_text(encoding="utf-8")
+    block = text.split("const CONTRACT_LINES")[1].split("\n]\n")[0]
+    rows = {name: json.loads(row) for row, name in re.findall(r"(\[.*\]), // (\w+)$", block, re.M)}
+    want = {}
+    for d in CASES:
+        case = json.loads((d / "case.json").read_text(encoding="utf-8"))
+        steps = case["agent"]
+        if len(case["requests"]) == 1 and len(steps) == 1 and len(steps[0].get("lines", [])) == 1:
+            want[d.name] = [steps[0]["lines"][0], case["http"][0]]
+    assert rows == want
+    for line, status in rows.values():
+        assert tap_status(line) == status
 
 
 SERVED = """
