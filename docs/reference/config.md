@@ -31,6 +31,7 @@ These keys configure the hook kit when there is no entry, for an agent that is a
 | `message_field` | string | `text` | `json` adapter: the dot path of the message in the request body. |
 | `reply_field` | string | `reply` | `json` adapter: the dot path of the reply in the response body. |
 | `openai_model` | string | empty | `openai` adapter: the `model` field of each request. Empty means no `model` field. |
+| `openai_stream` | boolean | `false` | `openai` adapter: `true` sends `"stream": true` in each request, for an agent that streams only on request. |
 | `record` | string | `.verbatim-relay/relay.jsonl` | The relay record, relative to the project. With an entry, each test has its own `relay.jsonl`. |
 
 ### Examples
@@ -66,6 +67,7 @@ The Claude Code plugin reads these options from Claude Code, not from `config.js
 | `message_field` | string | `text` | `json` adapter: the dot path of the message in the request body. |
 | `reply_field` | string | `reply` | `json` adapter: the dot path of the reply in the response body. |
 | `openai_model` | string | empty | `openai` adapter: the `model` field of each request. Empty means no `model` field. |
+| `openai_stream` | boolean | `false` | `openai` adapter: `true` sends `"stream": true` in each request, for an agent that streams only on request. |
 | `record` | string | `.verbatim-relay/relay.jsonl` | Without an entry: the relay record, relative to the working directory or absolute. |
 
 ## Environment variables

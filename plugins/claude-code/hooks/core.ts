@@ -9,6 +9,7 @@ export type Options = {
   message_field: string
   reply_field: string
   openai_model: string
+  openai_stream: boolean
   record: string
   start_on: boolean
   cli: string
@@ -51,7 +52,8 @@ export function requestBody(o: Options, said: string, turns: readonly VerbatimRe
       messages.push({ role: 'user', content: t.said }, { role: 'assistant', content: t.shown })
     }
     messages.push({ role: 'user', content: said })
-    const body: Record<string, unknown> = { messages, stream: false }
+    // With the option openai_stream, the request asks for a stream (SPEC.md section 5).
+    const body: Record<string, unknown> = { messages, stream: o.openai_stream === true }
     if (o.openai_model) body.model = o.openai_model
     return JSON.stringify(body)
   }
@@ -68,6 +70,15 @@ export function contractBody(id: string, test: string, said: string, turns: read
 // A line with both 'reply' and 'error' is not a contract line, also if one is null (SPEC.md section 6).
 // A lone surrogate is not a Unicode scalar value (SPEC.md section 2). The tap returns 502 for it.
 const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/
+
+// Name the first lone surrogate in a text, as record.lone_surrogate does, or return null. The
+// character number counts code points, as Python does.
+export function loneSurrogate(text: string): string | null {
+  const found = LONE_SURROGATE.exec(text)
+  if (found === null) return null
+  const code = found[0].charCodeAt(0).toString(16).toUpperCase().padStart(4, '0')
+  return `a lone surrogate U+${code} at character ${[...text.slice(0, found.index)].length}`
+}
 
 export function contractShown(status: number, body: string, id: string): { shown: string; ok: boolean } {
   let data: any = null

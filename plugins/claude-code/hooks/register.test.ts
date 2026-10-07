@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { contractBody, contractShown, denyPattern, entryNames, isChecked, isStream, namesEntry, pick, readsOnly, replyText, requestBody, sha256, sseEvents, streamText, toolReadsOnly, touchesRecords, touchesTestFiles } from './core'
+import { contractBody, contractShown, denyPattern, entryNames, isChecked, isStream, loneSurrogate, namesEntry, pick, readsOnly, replyText, requestBody, sha256, sseEvents, streamText, toolReadsOnly, touchesRecords, touchesTestFiles } from './core'
 
 const TRICKY = 'Hi, I want to return order #4471.  \n\nÜnïcödé € ₹\t| a | b |\n'
 const REPLY = '## Toy shop  \nYou wrote it.\n\n| item | price |\n|---|---|\n| mug | € 8 |\n'
@@ -8,14 +8,15 @@ const OPTIONS = { start_on: true, record: '/virtual/relay.jsonl' }
 
 // Fakes for the tap and the file system, under the plugin. A file system hook answers
 // { value }, or { deny } for a call that rejects. Set broken.stat to a path, or broken.session
-// to true, and that call rejects.
+// or broken.fetch to true, and that call rejects.
 function fakes(on: any, reply: (body: string) => { status: number; text: string; headers?: Record<string, string> }) {
   const files: Record<string, string> = {}
-  const broken = { stat: '', session: false }
+  const broken = { stat: '', session: false, fetch: false }
   const sent: { url: string; body: string }[] = []
   const logs: string[] = []
   on('http.fetch', async (_$: any, e: any) => {
     sent.push({ url: e.url, body: e.init.body })
+    if (broken.fetch) return { deny: `ECONNREFUSED: connect refused: ${e.url}` }
     const r = reply(e.init.body)
     return { value: { status: r.status, ok: r.status >= 200 && r.status < 300, headers: r.headers ?? {}, text: r.text } }
   })
@@ -61,6 +62,18 @@ test('relay mode sends the exact bytes, shows the exact reply, and keeps the mod
   expect(row.shown_sha256).toBe(await sha256(REPLY))
 })
 
+test('relay mode refuses a prompt with a lone surrogate and records no turn', { options: OPTIONS }, async ($, on) => {
+  const f = fakes(on, () => ({ status: 200, text: JSON.stringify({ reply: REPLY }) }))
+  const result: any = await $.prompt.submit({ text: 'a \uD83D\uDE00 mug \uD83D' })
+  expect(result.drop).toBe('verbatim-relay: nothing was sent')
+  expect(f.sent.length).toBe(0)
+  expect(f.logs).toEqual(['verbatim-relay: nothing was sent. The message has a lone surrogate U+D83D at character 8.'])
+  expect(f.files['/virtual/relay.jsonl']).toBe(undefined)
+  // The same text as record.lone_surrogate in Python.
+  expect(loneSurrogate('mug \uDC00')).toBe('a lone surrogate U+DC00 at character 4')
+  expect(loneSurrogate('a \uD83D\uDE00 mug')).toBe(null)
+})
+
 test('relay mode off passes the prompt on', { options: { ...OPTIONS, start_on: false } }, async ($, on) => {
   const f = fakes(on, () => ({ status: 200, text: '{}' }))
   on('prompt.submit', async (_$: any, e: any) => ({ text: e.text }))
@@ -99,6 +112,13 @@ function sse(reply: string, done = true): string {
   return body + (done ? 'data: [DONE]\n\n' : '')
 }
 const SSE = { 'content-type': 'text/event-stream; charset=utf-8' }
+
+test('openai_stream asks the agent for a stream', { options: { ...OPTIONS, adapter: 'openai', openai_stream: true } }, async ($, on) => {
+  const f = fakes(on, () => ({ status: 200, text: sse(REPLY), headers: SSE }))
+  await $.prompt.submit({ text: TRICKY })
+  expect(JSON.parse(f.sent[0].body)).toEqual({ messages: [{ role: 'user', content: TRICKY }], stream: true })
+  expect(f.logs).toEqual([REPLY])
+})
 
 test('the openai adapter shows a streamed reply when the stream is complete', { options: { ...OPTIONS, adapter: 'openai' } }, async ($, on) => {
   const f = fakes(on, () => ({ status: 200, text: sse(REPLY), headers: SSE }))
@@ -222,17 +242,27 @@ test('the transcript tool shows the exact output of the verbatim-relay command',
 const DIR = '.verbatim-relay/tests/20261005-120000-ab12'
 const CURRENT = { v: 1, test: '20261005-120000-ab12', dir: DIR, tap_url: 'http://127.0.0.1:8811/', pid: 4471, pid_start: 'ps:Mon Oct 5 12:00:00 2026' }
 
+// Only the bridge that the fake command started runs. A current.json that a test writes is
+// stale, so status removes it, as bridge.current does.
 function withTest(on: any, f: ReturnType<typeof fakes>, evaluation: string | null = 'Evaluate the test.') {
   const runs: string[][] = []
+  let bridge = false
   f.files['.verbatim-relay/config.json'] = JSON.stringify({ entry: ['python', 'examples/toy-shop/agent.py'], models: [] })
   on('process.run', async (_$: any, e: any) => {
     runs.push(e.argv)
     if (e.argv[1] === 'transcript') return { value: { exitCode: 0, stdout: RENDERED, stderr: '' } }
+    if (e.argv[1] === 'status') {
+      if (!bridge) delete f.files['.verbatim-relay/current.json']
+      const on = (f.files['.verbatim-relay/mode'] ?? '').trim() === 'on'
+      return { value: { exitCode: 0, stdout: JSON.stringify({ on, test: bridge ? CURRENT : null }) + '\n', stderr: '' } }
+    }
     if (e.argv[1] === 'start') {
+      bridge = true
       f.files['.verbatim-relay/current.json'] = JSON.stringify(CURRENT)
       f.files['.verbatim-relay/mode'] = 'on\n'
       return { value: { exitCode: 0, stdout: JSON.stringify(CURRENT) + '\n', stderr: '' } }
     }
+    bridge = false
     delete f.files['.verbatim-relay/current.json']
     f.files['.verbatim-relay/mode'] = 'off\n'
     if (e.argv.includes('--evaluation')) {
@@ -284,6 +314,41 @@ test('relay mode with an entry and no test fails closed', {}, async ($, on) => {
   expect('drop' in result).toBe(true)
   expect(f.sent.length).toBe(0)
   expect(f.logs[0]).toContain('no test runs')
+})
+
+test('a current.json whose bridge does not run is no test, the turn stays with ok false, and the prompt does not reach the model', {}, async ($, on) => {
+  // The bridge died: current.json stays, and its tap does not answer.
+  const f = fakes(on, contractReply)
+  const runs = withTest(on, f)
+  f.files['.verbatim-relay/current.json'] = JSON.stringify(CURRENT)
+  f.files['.verbatim-relay/mode'] = 'on\n'
+  f.broken.fetch = true
+  on('prompt.submit', async (_$: any, e: any) => ({ text: e.text }))
+  const result: any = await $.prompt.submit({ text: TRICKY })
+  expect('drop' in result).toBe(true)
+  expect(f.sent.map(s => s.url)).toEqual([CURRENT.tap_url])
+  expect(runs).toEqual([['verbatim-relay', 'status', '--json']])
+  expect(f.logs).toEqual(['verbatim-relay: the test stopped, and no test runs. The tap did not answer. Type /verbatim-relay start.'])
+  // The POST can have reached the tap, so the record keeps the turn for the audit.
+  expect(rows(f.files[`${DIR}/relay.jsonl`])).toMatchObject([{ said: TRICKY, ok: false }])
+  // The next prompt finds no test and does not try the tap.
+  const next: any = await $.prompt.submit({ text: 'second' })
+  expect('drop' in next).toBe(true)
+  expect(f.sent.length).toBe(1)
+  expect(f.logs.at(-1)).toContain('no test runs')
+})
+
+test('a tap that does not answer while the bridge runs shows the connection error', { options: { start_on: false } }, async ($, on) => {
+  const f = fakes(on, contractReply)
+  const runs = withTest(on, f)
+  on('prompt.submit', async (_$: any, e: any) => ({ text: e.text }))
+  await $.command.run({ command: 'verbatim-relay', args: 'start' } as any)
+  f.broken.fetch = true
+  const result: any = await $.prompt.submit({ text: TRICKY })
+  expect('drop' in result).toBe(true)
+  expect(runs[1]).toEqual(['verbatim-relay', 'status', '--json'])
+  expect(f.logs.at(-1)).toContain(`cannot reach the tap at ${CURRENT.tap_url}`)
+  expect(rows(f.files[`${DIR}/relay.jsonl`])[0]).toMatchObject({ said: TRICKY, ok: false })
 })
 
 test('a test that does not start leaves relay mode off', {}, async ($, on) => {

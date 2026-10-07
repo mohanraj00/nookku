@@ -107,6 +107,24 @@ def test_a_broken_config_blocks_in_relay_mode(tmp_path):
     assert "config is broken" in kit.handle(prompt("hi"), tmp_path, "codex")["reason"]
 
 
+def test_a_prompt_with_a_lone_surrogate_is_refused_and_not_recorded(setup):
+    root, tap_rec, agent = setup
+    kit.set_mode(root, True)
+    # The harness sends the prompt as JSON, which can escape a lone surrogate.
+    event = '{"hook_event_name": "UserPromptSubmit", "prompt": "a \\ud83d\\ude00 mug \\ud83d"}'
+    out = io.StringIO()
+    assert kit.run_hook(root, "codex", io.StringIO(event), out) == 0
+    answer = json.loads(out.getvalue())
+    assert answer == {
+        "decision": "block",
+        "reason": "verbatim-relay: nothing was sent. "
+        "The message has a lone surrogate U+D83D at character 8.",
+    }
+    assert agent.received == []
+    assert not record(root).exists()
+    assert not tap_rec.exists()
+
+
 @pytest.mark.parametrize("on", [True, False])
 def test_a_crash_blocks_only_in_relay_mode(tmp_path, on):
     kit.set_mode(tmp_path, on)
@@ -230,6 +248,37 @@ def test_openai_history_is_per_session(tmp_path):
     assert [m["content"] for m in bodies[2]["messages"]] == ["other"]
     assert bodies[0]["model"] == "toy"
     assert audit(tmp_path / "tap.jsonl", record(root)).exit == 0
+
+
+@pytest.mark.parametrize("openai_stream", [True, False])
+def test_openai_stream_asks_an_agent_that_streams_only_on_request(tmp_path, openai_stream):
+    agent = ToyAgent(stream="on_request")
+    tap = Tap(("127.0.0.1", 0), agent.url, tmp_path / "tap.jsonl", make("openai"))
+    start_in_thread(tap)
+    url = f"http://127.0.0.1:{tap.server_address[1]}/v1/chat/completions"
+    root = tmp_path / "p"
+    config = kit.Config(tap_url=url, adapter="openai", openai_stream=openai_stream)
+    kit.init(root, "codex", config)
+    kit.set_mode(root, True)
+    for text in (TRICKY, "second"):
+        assert kit.handle(prompt(text), root, "codex")["decision"] == "block"
+    tap.shutdown()
+    agent.shutdown()
+    bodies = [json.loads(r["body"]) for r in agent.received]
+    assert [b["stream"] for b in bodies] == [openai_stream, openai_stream]
+    rows = [json.loads(x) for x in (tmp_path / "tap.jsonl").read_text().split("\n") if x]
+    assert ["stream" in r for r in rows] == [openai_stream, openai_stream]
+    shown = [(t.ok, t.shown) for t in read_relay(record(root)) if isinstance(t, Turn)]
+    assert shown == [(True, shop_reply(TRICKY)), (True, shop_reply("second"))]
+    assert audit(tmp_path / "tap.jsonl", record(root)).exit == 0
+
+
+def test_openai_stream_must_be_a_boolean(tmp_path):
+    kit.init(tmp_path, "codex", kit.Config(adapter="openai"))
+    path = tmp_path / ".verbatim-relay" / "config.json"
+    path.write_text(json.dumps({**json.loads(path.read_text()), "openai_stream": "true"}))
+    with pytest.raises(ValueError, match="'openai_stream' must be true or false"):
+        kit.Config.load(tmp_path)
 
 
 @pytest.mark.parametrize("path", ["/v1/chat/completions", "/v1/cut/chat/completions"])

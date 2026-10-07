@@ -13,7 +13,10 @@ from pathlib import Path
 from typing import Any
 
 VERSION = "0.2"
-VERSIONS = ("0.1", "0.2")
+# A failed stream row has version 0.3, so that a 0.2 reader refuses it for its version and not for
+# its reply (SPEC.md section 2). Each other row keeps VERSION.
+FAILED_STREAM_VERSION = "0.3"
+VERSIONS = ("0.1", "0.2", "0.3")
 # A surrogate code point. In a decoded Python string, each one is a lone surrogate.
 _SURROGATE = re.compile("[\ud800-\udfff]")
 
@@ -28,6 +31,39 @@ def lone_surrogate(text: str) -> str | None:
     if found is None:
         return None
     return f"a lone surrogate U+{ord(found.group()):04X} at character {found.start()}"
+
+
+def escape_surrogates(text: str) -> str:
+    """Replace each lone surrogate in the text with its escape text, for example \\ud83d.
+
+    Use it only for a text that is not a relayed message or reply (SPEC.md section 2). The
+    relays refuse such a message, and do not change it.
+    """
+    if _SURROGATE.search(text) is None:
+        return text
+    return text.encode("utf-8", "backslashreplace").decode("utf-8")
+
+
+def _escaped(value: Any) -> Any:
+    if isinstance(value, str):
+        return escape_surrogates(value)
+    if isinstance(value, dict):
+        return {_escaped(k): _escaped(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_escaped(v) for v in value]
+    return value
+
+
+def json_text(value: Any, indent: int | None = None) -> str:
+    """The JSON text of a value, with each lone surrogate in a key or a string escaped.
+
+    The writers of SPEC.md sections 7.5 to 8 use it, so that a write never raises. The text is
+    never a relayed message or reply.
+    """
+    text = json.dumps(value, indent=indent, ensure_ascii=False)
+    if _SURROGATE.search(text) is None:
+        return text
+    return json.dumps(_escaped(value), indent=indent, ensure_ascii=False)
 
 
 def sha256(text: str | None) -> str | None:
@@ -127,6 +163,13 @@ def _stream_info(value: Any) -> bool:
     )
 
 
+def _failed_stream(row: dict[str, Any]) -> bool:
+    """True if the row is an exchange with a 2xx status and no reply: a failed stream."""
+    status = row.get("status")
+    ok = type(status) is int and 200 <= status < 300
+    return row.get("type") == "exchange" and ok and row.get("reply") is None
+
+
 def _validate(kind: str, path: Path, n: int, raw: str) -> dict[str, Any]:
     def bad(message: str) -> RecordError:
         return RecordError("record_invalid", path, f"line {n}: {message}")
@@ -168,6 +211,8 @@ def _validate(kind: str, path: Path, n: int, raw: str) -> dict[str, Any]:
                 "'reply' must be a string for a 2xx status, and null for any other status "
                 "or for a failed stream"
             )
+        if failed and row["v"] != FAILED_STREAM_VERSION:
+            raise bad(f"a failed stream must have version {FAILED_STREAM_VERSION}")
     for (kind_, name), types in _OPTIONAL.items():
         value = row.get(name)
         if row["type"] != kind_ or name not in row:
@@ -219,7 +264,8 @@ def read_relay(path: Path) -> list[Turn | BlockedCall]:
 
 
 def _hashed(row: dict[str, Any]) -> dict[str, Any]:
-    out: dict[str, Any] = {"v": VERSION, "ts": time.time()}
+    version = FAILED_STREAM_VERSION if _failed_stream(row) else VERSION
+    out: dict[str, Any] = {"v": version, "ts": time.time()}
     for key, value in row.items():
         out[key] = value
         if key in _TEXT_FIELDS:

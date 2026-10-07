@@ -61,6 +61,7 @@ verbatim-relay audit --tap tap.jsonl --relay .verbatim-relay/relay.jsonl
 | `message_field` | `text` | `json` adapter: the dot path of the message in the request body |
 | `reply_field` | `reply` | `json` adapter: the dot path of the reply in the response body |
 | `openai_model` | empty | `openai` adapter: the `model` field of each request |
+| `openai_stream` | `false` | `openai` adapter: `true` sends `"stream": true` in each request, for an agent that streams only on request |
 | `record` | `.verbatim-relay/relay.jsonl` | The relay record, relative to the working directory |
 
 Give the tap the same adapter: `verbatim-relay tap --agent URL --record FILE --adapter openai`. [reference/cli.md](../reference/cli.md#verbatim-relay-tap) lists each flag of the tap.
@@ -74,7 +75,7 @@ Give the tap the same adapter: `verbatim-relay tap --agent URL --record FILE --a
 
 ## Streamed replies
 
-If your agent streams its reply (SSE, `text/event-stream`), use the `openai` adapter. The relay sends `"stream": false`. If the agent streams also with this flag, the tap sends each part to the relay when it comes. It records the complete reply when the stream ends. The relay shows the reply when the stream is complete. A stream that ends early, sends an error or has a malformed chunk gives an error, not a part of the reply. [SPEC.md section 4.1](../../SPEC.md#41-http-mode) defines the rules.
+If your agent streams its reply (SSE, `text/event-stream`), use the `openai` adapter. The relay sends `"stream": false`. If your agent streams only on request, set `openai_stream` to `true` (the hook kit flag is `--openai-stream`, with no value). Then the relay sends `"stream": true`. If the agent streams, the tap sends each part to the relay when it comes. It records the complete reply when the stream ends. The relay shows the reply when the stream is complete. A stream that ends early, sends an error or has a malformed chunk gives an error, not a part of the reply. [SPEC.md section 4.1](../../SPEC.md#41-http-mode) defines the rules.
 
 ## Security
 

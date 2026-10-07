@@ -201,6 +201,7 @@ Install the hook kit for Codex or Claude Code. It writes `.verbatim-relay/config
 | `--message-field PATH` | `text` | The config key `message_field`. |
 | `--reply-field PATH` | `reply` | The config key `reply_field`. |
 | `--openai-model NAME` | empty | The config key `openai_model`. |
+| `--openai-stream` | off | The config key `openai_stream`: set it to `true`. |
 | `--record FILE` | `.verbatim-relay/relay.jsonl` | The config key `record`. |
 
 [config.md](config.md#verbatim-relayconfigjson) explains each key.

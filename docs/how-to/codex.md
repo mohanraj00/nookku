@@ -18,7 +18,7 @@ The proofs ran on codex-cli 0.160.0 ([data](../../proofs/hooks-codex/results.jso
    - `UserPromptSubmit`: in relay mode, it sends the prompt to the tap and blocks it from the model. It also runs the prompts `verbatim-relay start`, `verbatim-relay end` and `verbatim-relay status`.
    - `PreToolUse`: it denies any model tool call that names the tap or the agent, except file tools. During a test, it also denies model changes to `.verbatim-relay/` and model commands that run the entry. After a test, a command that names `.verbatim-relay` can only read, or write `report.md`.
 
-   Add `--models codex` (or `claude-code,codex`) if your app runs its own model sessions. Other options are for an agent that runs as an HTTP server: `--tap-url`, `--agent-url`, `--adapter`, `--message-field`, `--reply-field`, `--openai-model` and `--record`. [reference/config.md](../reference/config.md#verbatim-relayconfigjson) explains each one.
+   Add `--models codex` (or `claude-code,codex`) if your app runs its own model sessions. Other options are for an agent that runs as an HTTP server: `--tap-url`, `--agent-url`, `--adapter`, `--message-field`, `--reply-field`, `--openai-model`, `--openai-stream` and `--record`. [reference/config.md](../reference/config.md#verbatim-relayconfigjson) explains each one.
 
 2. **Trust the hooks.** Codex runs project hooks only after you trust them. Start `codex` in the project once and accept the hooks prompt. Codex stores the trust in `~/.codex/config.toml`. If you change `.codex/hooks.json`, you must trust it again. A change to `.verbatim-relay/config.json` or to the entry does not need new trust.
 

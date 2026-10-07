@@ -227,6 +227,34 @@ def test_a_responses_stream_that_stops_keeps_its_deltas() -> None:
     assert (got["stop_reason"], got["error"]) == (None, "The server stopped.")
 
 
+def chunk(text: str) -> bytes:
+    return f"data: {json.dumps({'choices': [{'delta': {'content': text}}]})}\n\n".encode()
+
+
+def test_the_proxy_reads_a_stream_with_the_parser_of_the_tap() -> None:
+    # The line rules of the tap: \r line ends, a comment, and a last event with no blank line.
+    body = b": the toy shop\r\r" + chunk("2 mugs").replace(b"\n", b"\r") + b'data: {"choices": []}'
+    got = model_api.result("openai", "/v1/chat/completions", body, True)
+    assert got is not None and (got["text"], got["error"]) == ("2 mugs", None)
+    # An event with the name error sets the error, also if its data is not JSON.
+    body = chunk("2 mugs") + b"event: error\ndata: the stock service is down\n\n"
+    got = model_api.result("openai", "/v1/chat/completions", body, True)
+    assert got is not None and got["error"] == "the stock service is down"
+
+
+def test_a_stream_that_is_not_utf8_has_an_error_and_no_text() -> None:
+    body = chunk("2 mugs") + b'data: {"choices": [{"delta": {"content": "\xff"}}]}\n\n'
+    got = model_api.result("openai", "/v1/chat/completions", body, True)
+    assert got is not None and (got["text"], got["error"]) == ("", "the stream is not UTF-8")
+
+
+def test_a_stream_cut_in_a_character_keeps_its_text() -> None:
+    # The API stopped after the first byte of the 3 bytes of the euro sign.
+    body = chunk("2 mugs") + 'data: {"choices": [{"delta": {"content": "€'.encode()[:-2]
+    got = model_api.result("openai", "/v1/chat/completions", body, True)
+    assert got is not None and (got["text"], got["error"]) == ("2 mugs", None)
+
+
 def test_an_incomplete_response_and_the_paths_of_the_responses_api() -> None:
     body = {"model": "gpt-toy", "status": "incomplete", "output": [], "error": None}
     got = model_api.result("openai", "/responses", json.dumps(body).encode(), False)
@@ -283,3 +311,19 @@ def test_the_config_and_the_urls() -> None:
     # An empty URL in the configuration stops the start. It does not fall back to the variable.
     with pytest.raises(ValueError, match="OPENAI_BASE_URL"):
         model_api.backends({"openai": ""}, {"OPENAI_BASE_URL": "https://x"})
+
+
+def test_a_lone_surrogate_in_a_result_is_written_as_its_escape(tmp_path: Path) -> None:
+    answer = {"model": "gpt-toy", "choices": [{"message": {"content": "3 mugs \ud83d left"}}]}
+    sent = json.dumps(answer).encode()
+    with ModelServer() as model:
+        model.parts = [sent]
+        model.content_type = "application/json"
+        proxies = proxy_for(model, tmp_path, "openai")
+        env = proxies.start()
+        try:
+            status, got = post(env["OPENAI_BASE_URL"], "/chat/completions", b"{}", {})
+        finally:
+            proxies.stop()
+    assert status == 200 and got == sent
+    assert rows(tmp_path)[0]["result"]["text"] == "3 mugs \\ud83d left"

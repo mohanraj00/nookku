@@ -18,7 +18,14 @@ from urllib.parse import urlsplit
 
 from verbatim_relay import bridge, commands, evaluation, seal
 from verbatim_relay.adapters import AdapterError, History, StreamError, is_stream, make
-from verbatim_relay.record import RecordError, Turn, Writer, lone_surrogate, read_relay
+from verbatim_relay.record import (
+    RecordError,
+    Turn,
+    Writer,
+    escape_surrogates,
+    lone_surrogate,
+    read_relay,
+)
 
 STATE_DIR = bridge.STATE_DIR
 TIMEOUT = 280
@@ -64,6 +71,8 @@ class Config:
     message_field: str = "text"
     reply_field: str = "reply"
     openai_model: str = ""
+    # True: the openai adapter sends "stream": true in each request (SPEC.md section 5).
+    openai_stream: bool = False
     record: str = f"{STATE_DIR}/relay.jsonl"
     entry: list[str] = field(default_factory=list)
     models: list[str] = field(default_factory=list)
@@ -83,6 +92,8 @@ class Config:
         unknown = set(data) - known
         if unknown:
             raise ValueError(f"unknown config keys: {sorted(unknown)}")
+        if not isinstance(data.get("openai_stream", False), bool):
+            raise ValueError("'openai_stream' must be true or false")
         return cls(**data)
 
     def record_path(self, root: Path) -> Path:
@@ -145,7 +156,13 @@ def history(record: Path, session: str | None) -> History:
 
 def relay(config: Config, said: str, past: History) -> tuple[str, bool]:
     """Send one message through the tap. Return (the text to show, whether it is the reply)."""
-    adapter = make(config.adapter, config.message_field, config.reply_field, config.openai_model)
+    adapter = make(
+        config.adapter,
+        config.message_field,
+        config.reply_field,
+        config.openai_model,
+        config.openai_stream,
+    )
     req = urllib.request.Request(
         config.tap_url,
         data=adapter.request(said, past),
@@ -254,6 +271,10 @@ def handle(event: dict[str, Any], root: Path, harness: str) -> dict[str, Any] | 
             return _block(f"verbatim-relay: relay mode is on, but the config is broken: {e}")
         if not isinstance(said, str):
             return _block("verbatim-relay: the hook input has no prompt text. Nothing was sent.")
+        found = lone_surrogate(said)
+        if found:
+            # A relayed message is never changed, so the kit refuses it (SPEC.md section 5).
+            return _block(f"verbatim-relay: nothing was sent. The message has {found}.")
         if config.entry:
             cur = bridge.current(root)
             if cur is None:
@@ -349,10 +370,7 @@ def touches_records(text: str) -> bool:
 def _deny(
     record: Path, harness: str, tool: str, text: str, reason: str = DENY_REASON
 ) -> dict[str, Any]:
-    detail = text[:300]
-    if lone_surrogate(detail):
-        # A record text holds only Unicode scalar values (SPEC.md section 2).
-        detail = detail.encode("utf-8", "backslashreplace").decode("utf-8")
+    detail = escape_surrogates(text[:300])
     try:
         record.parent.mkdir(parents=True, exist_ok=True)
         Writer(record).append(

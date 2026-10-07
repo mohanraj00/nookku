@@ -1,6 +1,8 @@
 import hashlib
 import http.client
 import json
+import re
+import socket
 import threading
 import urllib.error
 import urllib.request
@@ -115,7 +117,7 @@ def test_a_stream_passes_unchanged_and_the_row_has_the_joined_reply(tmp_path):
     assert read_tap(tmp_path / "tap.jsonl") == [Exchange(1, TRICKY, 200, shop_reply(TRICKY))]
     [row] = raw_rows(tmp_path / "tap.jsonl")
     assert row["stream"] == {"sha256": hashlib.sha256(out).hexdigest(), "bytes": len(out)}
-    assert "error" not in row
+    assert "error" not in row and row["v"] == "0.2"
 
 
 def test_each_part_of_a_stream_reaches_the_caller_before_the_stream_ends(tmp_path):
@@ -160,7 +162,8 @@ def test_a_failed_stream_is_an_error_exchange_with_no_reply(tmp_path, fault, err
     assert out == agent.sent[0]
     assert read_tap(tmp_path / "tap.jsonl") == [Exchange(1, TRICKY, 200, None)]
     [row] = raw_rows(tmp_path / "tap.jsonl")
-    assert row["error"].startswith(error)
+    # A 0.2 reader refuses a failed stream, so the row has version 0.3 (SPEC.md section 2).
+    assert row["error"].startswith(error) and row["v"] == "0.3"
     assert row["stream"] == {"sha256": hashlib.sha256(out).hexdigest(), "bytes": len(out)}
 
 
@@ -174,6 +177,70 @@ def test_the_json_adapter_marks_a_stream_unparsed(tmp_path):
     assert (status, out) == (200, agent.sent[0])
     [row] = read_tap(tmp_path / "tap.jsonl")
     assert isinstance(row, Unparsed) and "does not read a streamed response" in row.error
+
+
+def test_a_record_error_during_a_stream_sends_no_second_status_and_no_second_row(tmp_path, capsys):
+    agent = ToyAgent(stream=True)
+    tap = run_tap(agent.url, tmp_path / "tap.jsonl", "openai")
+    write = tap.writer.append
+    calls: list[dict] = []
+
+    def fail_once(row: dict) -> None:
+        # The first write fails, as with a full disk. A later write goes to the record.
+        calls.append(row)
+        if len(calls) == 1:
+            raise OSError(28, "No space left on device")
+        write(row)
+
+    tap.writer.append = fail_once  # type: ignore[method-assign]
+    body = json.dumps({"stream": True, "messages": [{"role": "user", "content": "hi"}]})
+    request = (
+        f"POST /v1/chat/completions HTTP/1.1\r\nHost: toy\r\nContent-Length: {len(body)}\r\n"
+        "Connection: close\r\n\r\n" + body
+    )
+    with socket.create_connection(("127.0.0.1", tap.server_address[1]), timeout=10) as sock:
+        sock.sendall(request.encode())
+        raw = b""
+        while part := sock.recv(65536):
+            raw += part
+    tap.shutdown()
+    agent.shutdown()
+
+    head, _, chunked = raw.partition(b"\r\n\r\n")
+    assert head.startswith(b"HTTP/1.1 200 ") and raw.count(b"HTTP/1.1 ") == 1
+    assert b"Transfer-Encoding: chunked" in head and not chunked.endswith(b"0\r\n\r\n")
+    assert len(calls) == 1 and not (tmp_path / "tap.jsonl").exists()
+    assert "cannot write the record: [Errno 28] No space left on device" in capsys.readouterr().err
+
+
+def test_a_record_error_leaves_a_sized_stream_incomplete(tmp_path, capsys):
+    # With a Content-Length, all bytes would make a full 200 response. The tap holds the last
+    # byte until the row is in the record, so the caller sees that the response is not complete.
+    agent = ToyAgent(stream=True)
+    tap = run_tap(agent.url, tmp_path / "tap.jsonl", "openai")
+
+    def fail(row: dict) -> None:
+        raise OSError(28, "No space left on device")
+
+    tap.writer.append = fail  # type: ignore[method-assign]
+    body = json.dumps({"stream": True, "messages": [{"role": "user", "content": "hi"}]})
+    request = (
+        f"POST /sized/v1/chat/completions HTTP/1.1\r\nHost: toy\r\n"
+        f"Content-Length: {len(body)}\r\nConnection: close\r\n\r\n{body}"
+    )
+    with socket.create_connection(("127.0.0.1", tap.server_address[1]), timeout=10) as sock:
+        sock.sendall(request.encode())
+        raw = b""
+        while part := sock.recv(65536):
+            raw += part
+    tap.shutdown()
+    agent.shutdown()
+
+    head, _, sent = raw.partition(b"\r\n\r\n")
+    length = int(re.search(rb"Content-Length: (\d+)", head).group(1))
+    assert head.startswith(b"HTTP/1.1 200 ") and len(sent) == length - 1
+    assert sent == agent.sent[-1][:-1]
+    assert "cannot write the record" in capsys.readouterr().err
 
 
 def test_an_agent_error_is_forwarded_and_recorded(agent, tmp_path):

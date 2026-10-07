@@ -8,12 +8,12 @@ A check is a test, a lint rule, a conformance case or a CI step. "Review" means 
 
 | # | Rule | Check |
 |---|---|---|
-| 1 | [Fail closed](#1-fail-closed) | Tests in `tests/test_kit.py` and `register.test.ts`. Review for the plugin prompt path ([#63](https://github.com/mohanraj00/verbatim-relay/issues/63)) and the deny path ([#68](https://github.com/mohanraj00/verbatim-relay/issues/68)). |
+| 1 | [Fail closed](#1-fail-closed) | Tests in `tests/test_kit.py` and `register.test.ts`, also for the plugin prompt path ([#63](https://github.com/mohanraj00/verbatim-relay/issues/63)) and the deny path ([#68](https://github.com/mohanraj00/verbatim-relay/issues/68)). |
 | 2 | [Exact bytes](#2-exact-bytes) | Byte tests of each relay and proxy. Proofs P1 and P2. |
-| 3 | [One rule, two languages](#3-one-rule-two-languages) | `test_the_plugin_reads_each_one_line_case_like_the_tap`. Review for the deny patterns ([#70](https://github.com/mohanraj00/verbatim-relay/issues/70)). |
-| 4 | [Records](#4-records) | Conformance cases and the CI step for them. Review for Unicode ([#43](https://github.com/mohanraj00/verbatim-relay/issues/43), [#65](https://github.com/mohanraj00/verbatim-relay/issues/65)) and one reader ([#71](https://github.com/mohanraj00/verbatim-relay/issues/71)). |
-| 5 | [No secrets](#5-no-secrets) | Secret tests of the 2 proxies. Review for query values ([#69](https://github.com/mohanraj00/verbatim-relay/issues/69)). |
-| 6 | [Timeouts](#6-timeouts) | `test_each_relay_timeout_ends_before_the_hook_deadline`. Review for the HTTP tap ([#67](https://github.com/mohanraj00/verbatim-relay/issues/67)). |
+| 3 | [One rule, two languages](#3-one-rule-two-languages) | `test_the_plugin_reads_each_one_line_case_like_the_tap`, and the shared `DENY_CASES` table for the deny patterns ([#70](https://github.com/mohanraj00/verbatim-relay/issues/70)). |
+| 4 | [Records](#4-records) | Conformance cases and the CI step for them, also for Unicode ([#43](https://github.com/mohanraj00/verbatim-relay/issues/43), [#65](https://github.com/mohanraj00/verbatim-relay/issues/65)). The shared `RELAY_LINES` table for one reader ([#71](https://github.com/mohanraj00/verbatim-relay/issues/71)). |
+| 5 | [No secrets](#5-no-secrets) | Secret tests of the 2 proxies, also for query values ([#69](https://github.com/mohanraj00/verbatim-relay/issues/69)). |
+| 6 | [Timeouts](#6-timeouts) | `test_each_timeout_ends_before_the_next_one`, also for the HTTP tap ([#67](https://github.com/mohanraj00/verbatim-relay/issues/67)). |
 | 7 | [Errors](#7-errors) | Ruff `E722`. Review. |
 | 8 | [Tests](#8-tests) | Review ([#62](https://github.com/mohanraj00/verbatim-relay/issues/62)). |
 | 9 | [Dependencies, types and lint](#9-dependencies-types-and-lint) | `test_no_runtime_dependencies`, mypy, ruff, `claude plugin validate`. |
@@ -32,7 +32,7 @@ A check is a test, a lint rule, a conformance case or a CI step. "Review" means 
 - `tests/test_kit.py`: `test_a_crash_blocks_only_in_relay_mode`, `test_an_unreachable_tap_still_blocks_and_is_recorded`, `test_a_broken_config_blocks_in_relay_mode`.
 - `plugins/claude-code/hooks/register.test.ts`: "relay mode with an entry and no test fails closed".
 - Review item in CLAUDE.md: "A relay path that fails open."
-- [#63](https://github.com/mohanraj00/verbatim-relay/issues/63) adds a test for the plugin prompt path. [#68](https://github.com/mohanraj00/verbatim-relay/issues/68) adds tests for a PreToolUse deny with a broken config and with relay mode off.
+- [#63](https://github.com/mohanraj00/verbatim-relay/issues/63) added tests for the `.catch` handlers of the plugin hooks. [#68](https://github.com/mohanraj00/verbatim-relay/issues/68) added tests for a PreToolUse deny with a broken config and with relay mode off.
 
 ## 2. Exact bytes
 
@@ -57,13 +57,14 @@ A check is a test, a lint rule, a conformance case or a CI step. "Review" means 
 
 **Reason.** Two readers with two rules give two results for one agent. The audit then reports a break in one relay only.
 
-**Example.** `contract.parse_reply` accepted a reply with `"error": null`, but `contractShown` in `plugins/claude-code/hooks/core.ts` refused it ([#45](https://github.com/mohanraj00/verbatim-relay/issues/45)). The fix added the table `CONTRACT_LINES` to `register.test.ts`. `kit.deny_pattern` and `denyPattern` still have no shared table ([#70](https://github.com/mohanraj00/verbatim-relay/issues/70)).
+**Example.** `contract.parse_reply` accepted a reply with `"error": null`, but `contractShown` in `plugins/claude-code/hooks/core.ts` refused it ([#45](https://github.com/mohanraj00/verbatim-relay/issues/45)). The fix added the table `CONTRACT_LINES` to `register.test.ts`. `kit.deny_pattern` and `denyPattern` now share the table `DENY_CASES` ([#70](https://github.com/mohanraj00/verbatim-relay/issues/70)).
 
 **Check.**
 
 - `tests/test_contract.py::test_the_plugin_reads_each_one_line_case_like_the_tap` checks `CONTRACT_LINES` against `conformance/contract/` and against `contract.parse_reply`.
 - `register.test.ts`: "the plugin reads an agent line with the same rule as the Python tap" runs the same table through `contractShown`.
-- Deny patterns: review. [#70](https://github.com/mohanraj00/verbatim-relay/issues/70) adds a shared table.
+- Deny patterns: `tests/test_kit.py` checks the shared `DENY_CASES` table against `kit.deny_pattern`, and `register.test.ts` ("the deny pattern has the same rule as the hook kit") runs it through `denyPattern` ([#70](https://github.com/mohanraj00/verbatim-relay/issues/70)).
+- Relay records: `tests/test_conformance.py` checks the shared `RELAY_LINES` table against `record.read_rows`, and `register.test.ts` runs it through `relayTurns` ([#71](https://github.com/mohanraj00/verbatim-relay/issues/71)).
 
 ## 4. Records
 
@@ -75,15 +76,15 @@ A check is a test, a lint rule, a conformance case or a CI step. "Review" means 
 
 **Reason.** The records are the evidence. If a writer raises, the record loses an exchange, and the audit names the wrong break. If a reader skips a bad line, a changed record looks exact.
 
-**Example.** `record._read` and `record._validate` in [src/verbatim_relay/record.py](../src/verbatim_relay/record.py) stop at the first invalid line, as the case [conformance/cases/hash_mismatch](../conformance/cases/hash_mismatch) shows. Defects: a lone surrogate made `record.sha256` raise, and the tap wrote no row ([#43](https://github.com/mohanraj00/verbatim-relay/issues/43)). `evaluation._rows` skips an invalid line with no message ([#71](https://github.com/mohanraj00/verbatim-relay/issues/71)).
+**Example.** `record.read_rows` and `record._validate` in [src/verbatim_relay/record.py](../src/verbatim_relay/record.py) stop at the first invalid line, as the case [conformance/cases/hash_mismatch](../conformance/cases/hash_mismatch) shows. Defects: a lone surrogate made `record.sha256` raise, and the tap wrote no row ([#43](https://github.com/mohanraj00/verbatim-relay/issues/43)). `evaluation._rows` skipped an invalid line with no message ([#71](https://github.com/mohanraj00/verbatim-relay/issues/71)). Now each part reads a record with `record.read_rows`, and the plugin uses `relayTurns` with the same rule.
 
 **Check.**
 
 - `tests/test_conformance.py::test_case` runs each case in `conformance/cases/`.
 - The CI step "Conformance cases are up to date" runs `conformance/build.py` and fails on a diff.
 - Review item in CLAUDE.md: "A change to the record format or to the audit with no SPEC.md change and no hand-written conformance case."
-- Unicode: review. [#43](https://github.com/mohanraj00/verbatim-relay/issues/43) and [#65](https://github.com/mohanraj00/verbatim-relay/issues/65) add conformance cases and a test for each writer.
-- One reader: review. [#71](https://github.com/mohanraj00/verbatim-relay/issues/71) makes `bridge`, `kit` and `evaluation` use one reader.
+- Unicode: [#43](https://github.com/mohanraj00/verbatim-relay/issues/43) and [#65](https://github.com/mohanraj00/verbatim-relay/issues/65) added conformance cases and a test for each writer.
+- One reader: `tests/test_conformance.py::test_the_plugin_reads_each_relay_line_like_the_python_reader` checks the shared `RELAY_LINES` table ([#71](https://github.com/mohanraj00/verbatim-relay/issues/71)).
 
 ## 5. No secrets
 
@@ -91,13 +92,13 @@ A check is a test, a lint rule, a conformance case or a CI step. "Review" means 
 
 **Reason.** The harness model reads the records in the evaluation. A secret in a record goes to the model and to each person who gets the test folder.
 
-**Example.** `backend.secret` and `SECRET_HEADERS` in [src/verbatim_relay/backend.py](../src/verbatim_relay/backend.py) remove the values of secret headers ([SPEC.md section 7.6](../SPEC.md#76-backend-proxies)). Defect: the backend proxy records the query as it came, so `?api_key=...` goes into `backend.jsonl` ([#69](https://github.com/mohanraj00/verbatim-relay/issues/69)).
+**Example.** `backend.secret` and `SECRET_HEADERS` in [src/verbatim_relay/backend.py](../src/verbatim_relay/backend.py) remove the values of secret headers ([SPEC.md section 7.6](../SPEC.md#76-backend-proxies)). Defect: the backend proxy recorded the query as it came, so `?api_key=...` went into `backend.jsonl` ([#69](https://github.com/mohanraj00/verbatim-relay/issues/69)). Now the proxies remove the values of secret query parameters.
 
 **Check.**
 
 - `tests/test_backend.py::test_secret_headers_reach_the_backend_but_not_the_record`
 - `tests/test_model_api.py::test_the_api_key_goes_to_the_api_but_not_the_record`
-- Query values: review. [#69](https://github.com/mohanraj00/verbatim-relay/issues/69) adds a test.
+- `tests/test_backend.py::test_secret_query_values_reach_the_backend_but_not_the_record`
 
 ## 6. Timeouts
 
@@ -105,19 +106,19 @@ A check is a test, a lint rule, a conformance case or a CI step. "Review" means 
 
 | Wait | Constant | Value |
 |---|---|---|
-| The stdio tap waits for the agent | `stdio.TIMEOUT` | [240 s](../src/verbatim_relay/stdio.py) |
+| The stdio tap and the HTTP tap wait for the agent | `stdio.TIMEOUT` | [240 s](../src/verbatim_relay/stdio.py) |
 | The test relay waits for the tap | `bridge.TIMEOUT` | [270 s](../src/verbatim_relay/bridge.py) |
 | The hook kit relay waits for the tap | `kit.TIMEOUT` | [280 s](../src/verbatim_relay/kit.py) |
 | The harness waits for the prompt hook | `kit.HOOK_DEADLINE` | [300 s](../src/verbatim_relay/kit.py) |
 
 **Reason.** If an inner wait is longer than an outer wait, the outer step stops first. Then the hook cannot block the prompt, and the record and the relay disagree.
 
-**Example.** The HTTP tap waits `tap.TIMEOUT` ([300 s](../src/verbatim_relay/tap.py)) for the agent. This is equal to `kit.HOOK_DEADLINE` and more than `kit.TIMEOUT` ([#67](https://github.com/mohanraj00/verbatim-relay/issues/67)).
+**Example.** Before 0.3, the HTTP tap waited 300 s for the agent. This was equal to `kit.HOOK_DEADLINE` and more than `kit.TIMEOUT`. Now both taps use `stdio.TIMEOUT`, as one deadline for the full response ([#67](https://github.com/mohanraj00/verbatim-relay/issues/67)).
 
 **Check.**
 
-- `tests/test_bridge.py::test_each_relay_timeout_ends_before_the_hook_deadline`
-- The HTTP tap: review. [#67](https://github.com/mohanraj00/verbatim-relay/issues/67) puts both taps on one constant and adds it to the test.
+- `tests/test_timeouts.py::test_each_timeout_ends_before_the_next_one`
+- The HTTP tap: `tests/test_timeouts.py` also checks a slow agent, an agent that sends a byte at a time, and a stream with no end ([#67](https://github.com/mohanraj00/verbatim-relay/issues/67)).
 
 ## 7. Errors
 
@@ -129,13 +130,13 @@ A check is a test, a lint rule, a conformance case or a CI step. "Review" means 
 
 **Reason.** A broad catch hides defects. A silent skip makes a bad record look good. If the tester sees only the cause, the tester does not know what to do.
 
-**Example.** `kit.handle` in [src/verbatim_relay/kit.py](../src/verbatim_relay/kit.py) says "relay mode is on, but no test runs. Start one with: verbatim-relay start. Nothing was sent." Each broad catch in `kit.py`, `bridge.py` and `agent.py` has a comment with its reason. Defects: with a stale `current.json`, the plugin shows only a connection error ([#64](https://github.com/mohanraj00/verbatim-relay/issues/64)). A prompt with a lone surrogate shows "the hook failed (UnicodeEncodeError ...)" ([#65](https://github.com/mohanraj00/verbatim-relay/issues/65)).
+**Example.** `kit.handle` in [src/verbatim_relay/kit.py](../src/verbatim_relay/kit.py) says "relay mode is on, but no test runs. Start one with: verbatim-relay start. Nothing was sent." Each broad catch in `kit.py`, `bridge.py` and `agent.py` has a comment with its reason. Defects: with a stale `current.json`, the plugin showed only a connection error ([#64](https://github.com/mohanraj00/verbatim-relay/issues/64)). A prompt with a lone surrogate showed "the hook failed (UnicodeEncodeError ...)" ([#65](https://github.com/mohanraj00/verbatim-relay/issues/65)). Both now give the cause and the next step.
 
 **Check.**
 
 - Ruff `E722` refuses a bare `except:`.
-- `register.test.ts`: "relay mode with an entry and no test fails closed" checks the text "no test runs".
-- The other parts: review. [#64](https://github.com/mohanraj00/verbatim-relay/issues/64) and [#65](https://github.com/mohanraj00/verbatim-relay/issues/65) add tests for their messages.
+- `register.test.ts`: "relay mode with an entry and no test fails closed" and "a current.json whose bridge does not run is no test, and the prompt does not reach the model" check the text "no test runs".
+- `tests/test_kit.py::test_a_prompt_with_a_lone_surrogate_is_refused_and_not_recorded` checks the message of [#65](https://github.com/mohanraj00/verbatim-relay/issues/65).
 
 ## 8. Tests
 

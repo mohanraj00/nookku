@@ -37,7 +37,8 @@ def sse_events(body: bytes) -> list[tuple[str, str]]:
 
     The rules are those of the WHATWG HTML standard: a blank line ends an event, a line that starts
     with a colon is a comment, and an event without a data line is not an event. The last event
-    does not need a blank line after it.
+    does not need a blank line after it. The `openai` adapter and the model API proxies
+    (`model_api.events`) use this one parser.
     """
     try:
         text = body.decode("utf-8").removeprefix("﻿")
@@ -113,15 +114,16 @@ class JsonAdapter:
 class OpenAIAdapter:
     """A POST to an OpenAI-compatible `/chat/completions` endpoint. The reply can be a stream."""
 
-    def __init__(self, model: str = "") -> None:
-        self.model = model
+    def __init__(self, model: str = "", stream: bool = False) -> None:
+        self.model, self.stream = model, stream
 
     def request(self, message: str, history: History) -> bytes:
         messages = []
         for said, reply in history:
             messages += [{"role": "user", "content": said}, {"role": "assistant", "content": reply}]
         messages.append({"role": "user", "content": message})
-        body: dict[str, Any] = {"messages": messages, "stream": False}
+        # With the option openai_stream, the request asks for a stream (SPEC.md section 5).
+        body: dict[str, Any] = {"messages": messages, "stream": self.stream}
         if self.model:
             body["model"] = self.model
         return json.dumps(body, ensure_ascii=False).encode()
@@ -199,10 +201,14 @@ class OpenAIAdapter:
 
 
 def make(
-    name: str, message_field: str = "text", reply_field: str = "reply", model: str = ""
+    name: str,
+    message_field: str = "text",
+    reply_field: str = "reply",
+    model: str = "",
+    stream: bool = False,
 ) -> Adapter:
     if name == "json":
         return JsonAdapter(message_field, reply_field)
     if name == "openai":
-        return OpenAIAdapter(model)
+        return OpenAIAdapter(model, stream)
     raise ValueError(f"unknown adapter {name!r}")

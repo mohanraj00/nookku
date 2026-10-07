@@ -146,8 +146,9 @@ STREAM_TAP = [
     for m, r in ((M1, R1), (M2, R2), (M3, R3))
 ]
 ENDED_EARLY = "the stream ended before data: [DONE]"
+# A failed stream row has version 0.3 (section 2), because a 0.2 reader refuses its null reply.
 FAILED_STREAM = {
-    **ex(M2, None, v="0.2", error=ENDED_EARLY),
+    **ex(M2, None, v="0.3", error=ENDED_EARLY),
     "stream": stream_info(sse_body(R2, False)),
 }
 
@@ -285,7 +286,7 @@ CASES_BY_NAME: dict[str, tuple[list | None, list | None, dict]] = {
     ),
     "wrong_version": (
         CLEAN_TAP,
-        [{**CLEAN_RELAY[0], "v": "0.3"}, *CLEAN_RELAY[1:]],
+        [{**CLEAN_RELAY[0], "v": "9.9"}, *CLEAN_RELAY[1:]],
         {"exit": 2, "errors": ["record_invalid"]},
     ),
     # Version 0.2: a test adds `started` and `model_session` rows. The matching does not change.
@@ -377,6 +378,18 @@ CASES_BY_NAME: dict[str, tuple[list | None, list | None, dict]] = {
         [STREAM_TAP[0], {k: v for k, v in FAILED_STREAM.items() if k != "error"}, STREAM_TAP[2]],
         RELAY_02,
         {"exit": 2, "errors": ["record_invalid"]},
+    ),
+    # A 0.2 reader refuses a failed stream for its null reply. The row must have version 0.3.
+    "streamed_reply_failed_in_a_v02_row": (
+        [STREAM_TAP[0], {**FAILED_STREAM, "v": "0.2"}, STREAM_TAP[2]],
+        RELAY_02,
+        {"exit": 2, "errors": ["record_invalid"]},
+    ),
+    # A row of version 0.3 can have each type and field of version 0.2, in both records.
+    "v03_rows_of_each_type": (
+        [{**STREAM_TAP[0], "v": "0.3"}, {**SESSION_A, "v": "0.3"}, *STREAM_TAP[1:]],
+        [{**RELAY_02[0], "v": "0.3"}, *RELAY_02[1:]],
+        {"exit": 0, "breaks": [], "model_sessions": 1},
     ),
     "stream_in_a_v01_row": (
         [{**CLEAN_TAP[0], "stream": STREAM_TAP[0]["stream"]}, *CLEAN_TAP[1:]],
@@ -3234,6 +3247,50 @@ LOG_ROWS = [
 HARNESS_SPANS_PB = pb(
     1, pb(1, CX_RESOURCE_PB) + pb(2, pb(2, pb(5, "fs.read_file") + pb_fixed64(7, ns(0))))
 )
+# A span with a lone surrogate in its name, in an attribute key and in an attribute value. The JSON
+# body escapes each one. The receiver writes each one as its escape text (SPEC.md section 2).
+SURROGATE_JSON = {
+    "resourceSpans": [
+        {
+            "resource": {"attributes": [js_kv("service.name", {"stringValue": "toy-shop"})]},
+            "scopeSpans": [
+                {
+                    "scope": {"name": "toy-shop"},
+                    "spans": [
+                        {
+                            "traceId": TRACE_ID,
+                            "spanId": "b7ad6b7169203331",
+                            "name": "GET /mugs/\ud83d",
+                            "startTimeUnixNano": str(ns(40)),
+                            "endTimeUnixNano": str(ns(40.5)),
+                            "attributes": [
+                                js_kv("shop.note", {"stringValue": "a mug \udc00"}),
+                                js_kv("shop.\ud83d", {"stringValue": "teapot"}),
+                            ],
+                        }
+                    ],
+                }
+            ],
+        }
+    ]
+}
+SURROGATE_ROW = {
+    "v": 1,
+    "type": "span",
+    "received": RECEIVED,
+    "service": "toy-shop",
+    "resource": {"service.name": "toy-shop"},
+    "scope": "toy-shop",
+    "trace_id": TRACE_ID,
+    "span_id": "b7ad6b7169203331",
+    "parent_span_id": None,
+    "name": "GET /mugs/\\ud83d",
+    "start": T0 + 40,
+    "end": T0 + 40.5,
+    "attributes": {"shop.note": "a mug \\udc00", "shop.\\ud83d": "teapot"},
+    "events": [],
+    "status": {"code": 0, "message": None},
+}
 OTLP_CASES: dict[str, dict] = {
     "traces_protobuf": {
         "path": "/v1/traces",
@@ -3266,6 +3323,12 @@ OTLP_CASES: dict[str, dict] = {
         "type": "application/json",
         "body": b'{"resourceMetrics": []}',
         "rows": None,
+    },
+    "lone_surrogate_escaped": {
+        "path": "/v1/traces",
+        "type": "application/json",
+        "body": json.dumps(SURROGATE_JSON).encode(),
+        "rows": [SURROGATE_ROW],
     },
     "truncated_protobuf": {
         "path": "/v1/traces",
