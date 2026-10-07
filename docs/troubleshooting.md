@@ -28,9 +28,15 @@ First, look in the test folder `.verbatim-relay/tests/<test-id>/`. `bridge.log` 
 
 ### `verbatim-relay: cannot read .verbatim-relay/config.json: <reason>`
 
-(bridge.py) **Cause.** The file does not exist, or it is not valid JSON.
+(config.py) **Cause.** The file does not exist, or it is not valid JSON. `init` gives this error too, and then it writes nothing.
 
-**Fix.** Correct the JSON, or write the file again with `verbatim-relay init`.
+**Fix.** Correct the JSON. To write a new file, remove the file and run `verbatim-relay init`.
+
+### `verbatim-relay: .verbatim-relay/config.json has unknown keys: ['<key>']. Correct or remove them.`
+
+(config.py) **Cause.** `config.json` has a key that verbatim-relay does not know, for example a key with a typo. `start`, `check` and `init` stop with this error. In relay mode, the hook kit blocks each prompt with the same error.
+
+**Fix.** Correct the name of the key, or remove it. [reference/config.md](reference/config.md) lists each key.
 
 ### `verbatim-relay: 'models' must be a list of claude-code, codex`
 
@@ -112,11 +118,11 @@ First, look in the test folder `.verbatim-relay/tests/<test-id>/`. `bridge.log` 
 
 **Fix.** With an entry, end the test and start a new one. With no entry, start `verbatim-relay tap` ([how-to/http-tap.md](how-to/http-tap.md)).
 
-### `verbatim-relay: relay mode is on, but the config is broken: unknown config keys: ['<key>']`
+### `verbatim-relay: relay mode is on, but the config is broken: <reason>`
 
-(kit.py) **Cause.** `config.json` has a key that the hook kit does not know. The message does not go to the model or to the agent.
+(kit.py) **Cause.** The hook kit cannot read `config.json`, or the file has an unknown key. The message does not go to the model or to the agent. `<reason>` is the error that `start` and `check` give for the same file.
 
-**Fix.** Remove the key. [reference/config.md](reference/config.md) lists each key.
+**Fix.** Correct the file. [reference/config.md](reference/config.md) lists each key.
 
 ### `verbatim-relay: the hook failed (<error>). Nothing reached the model.`
 

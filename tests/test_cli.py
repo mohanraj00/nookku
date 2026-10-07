@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from verbatim_relay import __version__
+from verbatim_relay import __version__, kit
 from verbatim_relay.cli import main
 from verbatim_relay.kit import LEGEND
 from verbatim_relay.record import Writer
@@ -225,6 +225,95 @@ def test_init_takes_the_openai_stream_flag(tmp_path: Path) -> None:
     assert main(args) == 0
     conf = json.loads((tmp_path / ".verbatim-relay" / "config.json").read_text())
     assert (conf["adapter"], conf["openai_stream"]) == ("openai", True)
+
+
+def test_init_again_keeps_the_keys_that_have_no_flag(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert main(["init", "codex", "--root", str(tmp_path), "--entry", "python3 agent.py"]) == 0
+    assert "A new file. Keys that differ from the default: entry." in capsys.readouterr().out
+    path = tmp_path / ".verbatim-relay" / "config.json"
+    backends = [{"name": "stock", "env": "STOCK_URL", "url": "http://127.0.0.1:9001"}]
+    first = {**json.loads(path.read_text()), "backends": backends, "evaluate": False}
+    path.write_text(json.dumps(first))
+    assert main(["init", "codex", "--root", str(tmp_path), "--models", "codex"]) == 0
+    assert json.loads(path.read_text()) == {**first, "models": ["codex"]}
+    kept = ", ".join(k for k in first if k != "models")
+    assert f"Keys changed: models. Keys kept: {kept}." in capsys.readouterr().out
+
+
+def test_init_adds_no_default_to_an_existing_config(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    path = tmp_path / ".verbatim-relay" / "config.json"
+    path.parent.mkdir()
+    path.write_text('{"entry": ["python3", "agent.py"], "evaluate": false}')
+    args = ["init", "claude-code", "--root", str(tmp_path), "--adapter", "openai"]
+    assert main([*args, "--entry", "python3 agent.py"]) == 0
+    assert json.loads(path.read_text()) == {
+        "entry": ["python3", "agent.py"],
+        "evaluate": False,
+        "adapter": "openai",
+    }
+    assert "Keys changed: adapter. Keys kept: entry, evaluate." in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    "config, settings, error",
+    [
+        ('{"tpa_url": "x"}', None, "config.json has unknown keys: ['tpa_url']"),
+        ("{", None, "cannot read .verbatim-relay/config.json"),
+        (None, "{", "settings.local.json: Expecting"),
+        (None, '{"hooks": []}', "'hooks' is not a JSON object"),
+    ],
+)
+def test_init_writes_nothing_if_a_file_cannot_be_kept(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    config: str | None,
+    settings: str | None,
+    error: str,
+) -> None:
+    files = {
+        tmp_path / ".verbatim-relay" / "config.json": config,
+        tmp_path / ".claude" / "settings.local.json": settings,
+    }
+    for path, text in files.items():
+        if text is not None:
+            path.parent.mkdir()
+            path.write_text(text)
+    assert main(["init", "claude-code", "--root", str(tmp_path), "--entry", "python3 a.py"]) == 1
+    err = capsys.readouterr().err
+    assert error in err and err.endswith("Nothing was written.\n")
+    for path, text in files.items():
+        assert (path.read_text() if path.exists() else None) == text
+    assert not (tmp_path / ".verbatim-relay" / "mode").exists()
+
+
+def test_an_unknown_key_stops_start_check_and_the_hook_kit_with_one_message(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert main(["init", "codex", "--root", str(tmp_path), "--entry", f"python3 {TOY_SHOP}"]) == 0
+    path = tmp_path / ".verbatim-relay" / "config.json"
+    path.write_text(json.dumps({**json.loads(path.read_text()), "tpa_url": "x"}))
+    cause = ".verbatim-relay/config.json has unknown keys: ['tpa_url']. Correct or remove them."
+    capsys.readouterr()
+    for command in ("start", "check"):
+        assert main([command, "--root", str(tmp_path)]) == 1
+        assert capsys.readouterr().out == f"verbatim-relay: {cause}\n"
+    assert main(["start", "--root", str(tmp_path), "--json"]) == 1
+    assert json.loads(capsys.readouterr().out) == {"error": cause}
+    # mode on starts a test, so it shows the same message and keeps relay mode off.
+    assert main(["mode", "on", "--root", str(tmp_path)]) == 0
+    assert capsys.readouterr().out == f"verbatim-relay: {cause}\n"
+    assert not kit.is_on(tmp_path)
+    assert not (tmp_path / ".verbatim-relay" / "tests").exists()
+    kit.set_mode(tmp_path, True)
+    event = {"hook_event_name": "UserPromptSubmit", "prompt": "hi", "session_id": "s1"}
+    answer = kit.handle(event, tmp_path, "codex")
+    assert answer is not None and answer["decision"] == "block"
+    broken = "verbatim-relay: relay mode is on, but the config is broken: "
+    assert answer["reason"] == broken + cause
 
 
 def test_init_start_and_end_a_test(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

@@ -42,7 +42,7 @@ def setup(tmp_path):
     start_in_thread(tap)
     root = tmp_path / "project"
     url = f"http://127.0.0.1:{tap.server_address[1]}/"
-    kit.init(root, "codex", kit.Config(tap_url=url, agent_url=agent.url))
+    kit.init(root, "codex", dict(tap_url=url, agent_url=agent.url))
     yield root, tmp_path / "tap.jsonl", agent
     tap.shutdown()
     agent.shutdown()
@@ -61,8 +61,8 @@ def test_init_writes_hooks_once_and_keeps_other_hooks(tmp_path):
     target.parent.mkdir()
     other = {"type": "command", "command": "echo hi"}
     target.write_text(json.dumps({"model": "x", "hooks": {"PreToolUse": [{"hooks": [other]}]}}))
-    kit.init(tmp_path, "claude-code", kit.Config())
-    kit.init(tmp_path, "claude-code", kit.Config())
+    kit.init(tmp_path, "claude-code", {})
+    kit.init(tmp_path, "claude-code", {})
     settings = json.loads(target.read_text())
     assert settings["model"] == "x"
     assert len(settings["hooks"]["UserPromptSubmit"]) == 1
@@ -72,6 +72,22 @@ def test_init_writes_hooks_once_and_keeps_other_hooks(tmp_path):
         "--harness claude-code" in settings["hooks"]["UserPromptSubmit"][0]["hooks"][0]["command"]
     )
     assert not kit.is_on(tmp_path)
+
+
+def test_init_keeps_another_hook_in_the_group_of_the_kit(tmp_path):
+    target = tmp_path / ".codex" / "hooks.json"
+    target.parent.mkdir()
+    ours = {"type": "command", "command": "python -m verbatim_relay hook --harness codex"}
+    other = {"type": "command", "command": "echo hi"}
+    stop = [{"hooks": [other]}]
+    hooks = {"UserPromptSubmit": [{"hooks": [ours, other]}], "Stop": stop}
+    target.write_text(json.dumps({"hooks": hooks}))
+    kit.init(tmp_path, "codex", {})
+    settings = json.loads(target.read_text())
+    groups = settings["hooks"]["UserPromptSubmit"]
+    assert groups[0] == {"hooks": [other]}
+    assert [h["command"] for h in groups[1]["hooks"]] == [kit.hook_command(tmp_path, "codex")]
+    assert settings["hooks"]["Stop"] == stop
 
 
 def test_relay_mode_off_does_nothing(setup):
@@ -94,7 +110,7 @@ def test_relay_mode_on_relays_exact_bytes_and_blocks_the_prompt(setup):
 
 
 def test_an_unreachable_tap_still_blocks_and_is_recorded(tmp_path):
-    kit.init(tmp_path, "codex", kit.Config(tap_url="http://127.0.0.1:9/"))
+    kit.init(tmp_path, "codex", dict(tap_url="http://127.0.0.1:9/"))
     kit.set_mode(tmp_path, True)
     assert kit.handle(prompt("hi"), tmp_path, "codex")["decision"] == "block"
     row = json.loads(record(tmp_path).read_text())
@@ -258,7 +274,7 @@ def test_openai_history_is_per_session(tmp_path):
     start_in_thread(tap)
     url = f"http://127.0.0.1:{tap.server_address[1]}/v1/chat/completions"
     root = tmp_path / "p"
-    kit.init(root, "codex", kit.Config(tap_url=url, adapter="openai", openai_model="toy"))
+    kit.init(root, "codex", dict(tap_url=url, adapter="openai", openai_model="toy"))
     kit.set_mode(root, True)
     for text, session in (("first", "a"), ("second", "a"), ("other", "b")):
         kit.handle(prompt(text, session), root, "codex")
@@ -278,7 +294,7 @@ def test_openai_stream_asks_an_agent_that_streams_only_on_request(tmp_path, open
     start_in_thread(tap)
     url = f"http://127.0.0.1:{tap.server_address[1]}/v1/chat/completions"
     root = tmp_path / "p"
-    config = kit.Config(tap_url=url, adapter="openai", openai_stream=openai_stream)
+    config = dict(tap_url=url, adapter="openai", openai_stream=openai_stream)
     kit.init(root, "codex", config)
     kit.set_mode(root, True)
     for text in (TRICKY, "second"):
@@ -295,7 +311,7 @@ def test_openai_stream_asks_an_agent_that_streams_only_on_request(tmp_path, open
 
 
 def test_openai_stream_must_be_a_boolean(tmp_path):
-    kit.init(tmp_path, "codex", kit.Config(adapter="openai"))
+    kit.init(tmp_path, "codex", dict(adapter="openai"))
     path = tmp_path / ".verbatim-relay" / "config.json"
     path.write_text(json.dumps({**json.loads(path.read_text()), "openai_stream": "true"}))
     with pytest.raises(ValueError, match="'openai_stream' must be true or false"):
@@ -309,7 +325,7 @@ def test_a_streamed_reply_is_shown_only_when_complete(tmp_path, path):
     start_in_thread(tap)
     root = tmp_path / "p"
     url = f"http://127.0.0.1:{tap.server_address[1]}{path}"
-    kit.init(root, "codex", kit.Config(tap_url=url, adapter="openai"))
+    kit.init(root, "codex", dict(tap_url=url, adapter="openai"))
     kit.set_mode(root, True)
     assert kit.handle(prompt(TRICKY), root, "codex")["decision"] == "block"
     tap.shutdown()

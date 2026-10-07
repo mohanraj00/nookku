@@ -24,11 +24,13 @@ from typing import Any
 from verbatim_relay import __version__, backend, contract, model_api, otlp, seal, trace
 from verbatim_relay.adapters import History
 from verbatim_relay.audit import audit
+from verbatim_relay.config import FILE as CONFIG_FILE
+from verbatim_relay.config import STATE_DIR as STATE_DIR
+from verbatim_relay.config import ConfigError, read_config
 from verbatim_relay.record import RecordError, Writer, turns
 from verbatim_relay.stdio import STRAY_HINT, Agent, StdioTap, start_in_thread
 from verbatim_relay.stdio import TIMEOUT as AGENT_TIMEOUT
 
-STATE_DIR = ".verbatim-relay"
 # The harness session that ends a test, for the bridge (SPEC.md section 7.2).
 ENDING = "ending.json"
 HARNESSES = ("claude-code", "codex")
@@ -62,32 +64,37 @@ def state(root: Path) -> Path:
 
 
 def load_config(root: Path) -> TestConfig:
-    """The test keys of `.verbatim-relay/config.json`. Raise BridgeError if there is no entry."""
+    """The test keys of `.verbatim-relay/config.json`. Raise BridgeError if the file breaks the
+    rule of `config.read_config`, or if there is no entry."""
     try:
-        data = json.loads((state(root) / "config.json").read_text())
-    except (OSError, ValueError) as e:
-        raise BridgeError(f"cannot read {STATE_DIR}/config.json: {e}") from None
+        data = read_config(root)
+    except ConfigError as e:
+        raise BridgeError(str(e)) from None
     entry, models = data.get("entry") or [], data.get("models") or []
     if not (isinstance(entry, list) and entry and all(isinstance(a, str) for a in entry)):
-        raise BridgeError(f"{STATE_DIR}/config.json has no 'entry' command")
+        raise BridgeError(f"{CONFIG_FILE} has no 'entry' command")
     if not (isinstance(models, list) and all(m in HARNESSES for m in models)):
         raise BridgeError(f"'models' must be a list of {', '.join(HARNESSES)}")
     try:
         backends = backend.parse(data.get("backends"))
         apis = model_api.backends(model_api.parse(data.get("model_api")), os.environ)
     except ValueError as e:
-        raise BridgeError(f"{STATE_DIR}/config.json: {e}") from None
+        raise BridgeError(f"{CONFIG_FILE}: {e}") from None
     if {b.env for b in backends} & {a.env for a in apis}:
-        raise BridgeError(f"{STATE_DIR}/config.json: a backend uses the variable of a model API")
+        raise BridgeError(f"{CONFIG_FILE}: a backend uses the variable of a model API")
     return TestConfig(entry, models, data.get("otel", True) is not False, backends, apis)
 
 
 def has_entry(root: Path) -> bool:
+    """True if config.json has a list `entry` with at least one item. The plugin's `hasEntry`
+    uses the same rule. A file with an entry and an error still has an entry, so that `start`
+    shows the error."""
     try:
-        load_config(root)
-    except BridgeError:
+        data = json.loads((root / CONFIG_FILE).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
         return False
-    return True
+    entry = data.get("entry") if isinstance(data, dict) else None
+    return isinstance(entry, list) and len(entry) > 0
 
 
 # Bridge processes that this process started, so that alive() can reap them.

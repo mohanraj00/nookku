@@ -1,10 +1,18 @@
 # Configuration reference
 
-verbatim-relay has 2 places for configuration: the file `.verbatim-relay/config.json` in your project, and the options of the Claude Code plugin. The test `tests/test_docs.py` checks each key and each default on this page against `kit.Config` in [src/verbatim_relay/kit.py](../../src/verbatim_relay/kit.py) and against `userConfig` in [plugins/claude-code/.claude-plugin/plugin.json](../../plugins/claude-code/.claude-plugin/plugin.json).
+verbatim-relay has 2 places for configuration: the file `.verbatim-relay/config.json` in your project, and the options of the Claude Code plugin. The test `tests/test_docs.py` checks each key and each default on this page against `Config` in [src/verbatim_relay/config.py](../../src/verbatim_relay/config.py) and against `userConfig` in [plugins/claude-code/.claude-plugin/plugin.json](../../plugins/claude-code/.claude-plugin/plugin.json).
 
 ## `.verbatim-relay/config.json`
 
-The hook kit reads all keys of this file. The plugin reads `entry` from it, and the commands of a test read the test keys. `verbatim-relay init` writes the file with each key ([cli.md](cli.md#verbatim-relay-init)). An unknown key stops the hook kit with the error `unknown config keys`.
+The hook kit reads all keys of this file. The plugin reads `entry` from it, and the commands of a test read the test keys. One reader applies one rule for `start`, `check`, `init` and the hook kit ([SPEC.md section 7.1](../../SPEC.md#71-configuration)). An unknown key gives the same error in each of them:
+
+```text
+.verbatim-relay/config.json has unknown keys: ['<key>']. Correct or remove them.
+```
+
+`start` and `check` stop, `init` writes nothing, and in relay mode the hook kit blocks each prompt.
+
+`verbatim-relay init` writes a new file with each key. In an existing file, it keeps each key and changes only the keys of the flags that you give ([cli.md](cli.md#verbatim-relay-init)).
 
 ### Test keys
 

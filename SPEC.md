@@ -296,6 +296,17 @@ A test runs the entry from `start` to `end`. A new conversation is a new test: e
 | `backends` | list of objects | Optional. The backends of the app, each with the strings `name`, `env` and `url` (section 7.6). Each `name` and each `env` is used only once. |
 | `model_api` | boolean, list or object | Optional. The model APIs to record (section 7.7): `true` for all, `false` for none, a list of `anthropic` and `openai`, or an object from these names to the upstream URL of the API or `null`. The default is `true`. A backend must not use the variable of a recorded model API. |
 
+The file can also hold the relay keys of the hook kit, for an agent that runs as an HTTP server ([docs/reference/config.md](docs/reference/config.md#relay-keys)). Each other key is unknown.
+
+One reader ([src/verbatim_relay/config.py](src/verbatim_relay/config.py)) reads the file for `start`, `check`, `init` and the hook kit, with one rule:
+
+- If the file is not a JSON object, or if it has an unknown key, the reader gives an error. The error text is the same for each command. For an unknown key, it is `.verbatim-relay/config.json has unknown keys: ['<key>']. Correct or remove them.`
+- `start` and `check` stop with the error and exit with 1. `mode on` starts no test and keeps relay mode off.
+- In relay mode, the hook kit blocks each prompt and shows the error. Thus a broken file never lets a prompt reach the model.
+- The plugin reads only `entry` from the file. It starts a test with the `verbatim-relay` command, so the same rule applies.
+
+`verbatim-relay init` keeps each key of an existing file. It changes only the keys of the flags that the tester gives, and it prints the changed keys and the kept keys. A new file gets each key, with its default value if no flag gives it. If the existing file or the hook file breaks the rule or is not valid JSON, `init` writes nothing. `init` replaces only its own hooks in the hook file, and it keeps each other hook, also one in the same group.
+
 `verbatim-relay check` runs a short test with one message. It passes if the entry sends a reply, and if the tap identifies at least one model session and finds its session file for each harness in `models`. If the tap times out after stray lines (section 4.2), the check also gives the fix for them.
 
 ### 7.2 Start and end

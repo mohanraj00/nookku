@@ -210,7 +210,7 @@ def relay_runner(relay: str) -> tuple[Path, Run, str, str, list[str]]:
         harness = relay.removeprefix("hooks-")
         if harness == "claude-code":
             project = Path(tempfile.mkdtemp(prefix="verbatim-relay-report-")).resolve()
-            kit.init(project, "claude-code", kit.Config())
+            kit.init(project, "claude-code", {})
 
             def run(prompt: str, extra: list[str]) -> str:
                 return claude(prompt, project, extra)

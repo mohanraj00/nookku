@@ -33,6 +33,7 @@ import json
 import shutil
 import subprocess
 import sys
+from dataclasses import asdict
 from datetime import date
 from pathlib import Path
 
@@ -177,7 +178,8 @@ def main_stream(harness: str, run, out: Path, on_request: bool = False) -> int:
     config = kit.Config(
         tap_url=tap_url, agent_url=agent.url, adapter="openai", openai_stream=on_request
     )
-    kit.init(project, harness, config)
+    # Each key, so that a key of an earlier run does not stay.
+    kit.init(project, harness, asdict(config))
     relay_rec = config.record_path(project)
     relay_rec.unlink(missing_ok=True)
     kit.set_mode(project, True)
@@ -231,7 +233,7 @@ def main() -> int:
     project = ROOT / ".proof" / harness
     shutil.rmtree(project / ".verbatim-relay" / "tests", ignore_errors=True)
     project.mkdir(parents=True, exist_ok=True)
-    kit.init(project, harness, kit.Config(entry=ENTRY))
+    kit.init(project, harness, asdict(kit.Config(entry=ENTRY)))
     versions = {"claude-code": ["claude", "--version"], "codex": ["codex", "--version"]}
     version = subprocess.run(versions[harness], capture_output=True, text=True).stdout.strip()
     report: dict = {

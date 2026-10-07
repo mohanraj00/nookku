@@ -11,13 +11,16 @@ import time
 import urllib.error
 import urllib.request
 from collections.abc import Iterator
-from dataclasses import asdict, dataclass, field, fields
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, TextIO
 from urllib.parse import urlsplit
 
 from verbatim_relay import bridge, commands, evaluation, seal
 from verbatim_relay.adapters import AdapterError, History, StreamError, is_stream, make
+from verbatim_relay.config import FILE as CONFIG_FILE
+from verbatim_relay.config import Config as Config
+from verbatim_relay.config import check, read_config
 from verbatim_relay.record import (
     RecordError,
     Turn,
@@ -61,43 +64,6 @@ RECORDS_REASON = (
 ENTRY_REASON = "verbatim-relay: during a test, only the tap runs the entry."
 # Prompts that the kit runs and never relays (SPEC.md section 5).
 CONTROL = {"verbatim-relay start", "verbatim-relay end", "verbatim-relay status"}
-
-
-@dataclass
-class Config:
-    tap_url: str = "http://127.0.0.1:8800/"
-    agent_url: str = ""
-    adapter: str = "json"
-    message_field: str = "text"
-    reply_field: str = "reply"
-    openai_model: str = ""
-    # True: the openai adapter sends "stream": true in each request (SPEC.md section 5).
-    openai_stream: bool = False
-    record: str = f"{STATE_DIR}/relay.jsonl"
-    entry: list[str] = field(default_factory=list)
-    models: list[str] = field(default_factory=list)
-    # False stops the evaluation at the end of a test (SPEC.md section 9).
-    evaluate: bool = True
-    # False stops the OTLP receiver of a test (SPEC.md section 7.5).
-    otel: bool = True
-    # The backend proxies of a test (SPEC.md section 7.6).
-    backends: list[dict[str, str]] = field(default_factory=list)
-    # The model APIs to record: true, false, a list of names, or names with URLs (SPEC.md 7.7).
-    model_api: bool | list[str] | dict[str, str | None] = True
-
-    @classmethod
-    def load(cls, root: Path) -> Config:
-        data = json.loads((root / STATE_DIR / "config.json").read_text())
-        known = {f.name for f in fields(cls)}
-        unknown = set(data) - known
-        if unknown:
-            raise ValueError(f"unknown config keys: {sorted(unknown)}")
-        if not isinstance(data.get("openai_stream", False), bool):
-            raise ValueError("'openai_stream' must be true or false")
-        return cls(**data)
-
-    def record_path(self, root: Path) -> Path:
-        return root / self.record
 
 
 def mode_path(root: Path) -> Path:
@@ -422,44 +388,85 @@ def hook_command(root: Path, harness: str) -> str:
     return " ".join(shlex.quote(a) for a in argv)
 
 
+def _ours(hook: Any) -> bool:
+    return isinstance(hook, dict) and "verbatim_relay hook" in str(hook.get("command", ""))
+
+
 def _merge_hooks(settings: dict[str, Any], command: str) -> dict[str, Any]:
+    """Put the kit's hooks into the settings. Remove only the old hooks of the kit, and keep each
+    other hook, also one in the same group. Raise ValueError if the hooks have a wrong form."""
     hooks = settings.setdefault("hooks", {})
+    if not isinstance(hooks, dict):
+        raise ValueError("'hooks' is not a JSON object")
     wanted = {"UserPromptSubmit": ({}, HOOK_DEADLINE), "PreToolUse": ({"matcher": ".*"}, 30)}
     for event, (matcher, timeout) in wanted.items():
         groups = hooks.setdefault(event, [])
-        groups[:] = [
-            g
-            for g in groups
-            if not any("verbatim_relay hook" in h.get("command", "") for h in g.get("hooks", []))
-        ]
-        groups.append(
+        if not isinstance(groups, list):
+            raise ValueError(f"'hooks.{event}' is not a list")
+        kept = []
+        for group in groups:
+            inner = group.get("hooks") if isinstance(group, dict) else None
+            if isinstance(inner, list) and any(_ours(h) for h in inner):
+                rest = [h for h in inner if not _ours(h)]
+                if not rest:
+                    continue
+                group = {**group, "hooks": rest}
+            kept.append(group)
+        kept.append(
             {**matcher, "hooks": [{"type": "command", "command": command, "timeout": timeout}]}
         )
+        groups[:] = kept
     return settings
 
 
-def init(root: Path, harness: str, config: Config) -> list[str]:
-    """Write the config, the mode file and the harness hook file. Return the paths written."""
-    state = root / STATE_DIR
-    state.mkdir(parents=True, exist_ok=True)
-    written = []
-    conf = state / "config.json"
-    conf.write_text(json.dumps(asdict(config), indent=1) + "\n")
-    written.append(str(conf))
+def hook_file(root: Path, harness: str) -> Path:
+    if harness == "codex":
+        return root / ".codex" / "hooks.json"
+    return root / ".claude" / "settings.local.json"
+
+
+@dataclass
+class Installed:
+    """What init wrote."""
+
+    written: list[str]
+    # True if init made a new config.json.
+    new: bool
+    # The keys that got a new value. In a new file: the keys that differ from the default.
+    changed: list[str]
+    # The keys that keep their value. In a new file, these have the default.
+    kept: list[str]
+
+
+def init(root: Path, harness: str, changes: dict[str, Any]) -> Installed:
+    """Write the config, the mode file and the harness hook file.
+
+    An existing config.json keeps each key, and only the keys in `changes` get a new value. A new
+    config.json gets each key with its default, then `changes`. If an existing file cannot be
+    read, or if a key is unknown, raise ValueError before a write."""
+    conf = root / CONFIG_FILE
+    new = not conf.exists()
+    old = asdict(Config()) if new else read_config(root)
+    merged = check({**old, **changes})
+    target = hook_file(root, harness)
+    try:
+        settings = json.loads(target.read_text(encoding="utf-8")) if target.exists() else {}
+        if not isinstance(settings, dict):
+            raise ValueError("it is not a JSON object")
+        settings = _merge_hooks(settings, hook_command(root, harness))
+    except (OSError, ValueError) as e:
+        raise ValueError(
+            f"cannot read {target}: {e}. Correct the file, then run init again."
+        ) from None
+    conf.parent.mkdir(parents=True, exist_ok=True)
+    conf.write_text(json.dumps(merged, indent=1) + "\n", encoding="utf-8")
     if not mode_path(root).exists():
         set_mode(root, False)
-    target = (
-        root / ".codex" / "hooks.json"
-        if harness == "codex"
-        else root / ".claude" / "settings.local.json"
-    )
-    settings = json.loads(target.read_text()) if target.exists() else {}
     target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(
-        json.dumps(_merge_hooks(settings, hook_command(root, harness)), indent=1) + "\n"
-    )
-    written.append(str(target))
-    return written
+    target.write_text(json.dumps(settings, indent=1) + "\n", encoding="utf-8")
+    changed = [k for k in merged if k not in old or old[k] != merged[k]]
+    kept = [k for k in merged if k not in changed]
+    return Installed([str(conf), str(target)], new, changed, kept)
 
 
 # The one-line legend at the top of the transcript (SPEC.md section 5).

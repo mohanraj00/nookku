@@ -65,6 +65,7 @@ A check is a test, a lint rule, a conformance case or a CI step. "Review" means 
 - `register.test.ts`: "the plugin reads an agent line with the same rule as the Python tap" runs the same table through `contractShown`.
 - Deny patterns: `tests/test_kit.py` checks the shared `DENY_CASES` table against `kit.deny_pattern`, and `register.test.ts` ("the deny pattern has the same rule as the hook kit") runs it through `denyPattern` ([#70](https://github.com/mohanraj00/verbatim-relay/issues/70)).
 - Relay records: `tests/test_conformance.py` checks the shared `RELAY_LINES` table against `record.read_rows`, and `register.test.ts` runs it through `relayTurns` ([#71](https://github.com/mohanraj00/verbatim-relay/issues/71)).
+- Config keys: `start`, `check`, `init` and the hook kit read `.verbatim-relay/config.json` with `config.read_config`. `tests/test_cli.py::test_an_unknown_key_stops_start_check_and_the_hook_kit_with_one_message` checks that they give one error ([#89](https://github.com/mohanraj00/verbatim-relay/issues/89)).
 
 ## 4. Records
 
