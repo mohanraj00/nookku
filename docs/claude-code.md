@@ -45,6 +45,29 @@ An Agent SDK session in your app also reads `ANTHROPIC_BASE_URL`, so its calls a
 
 During a test, the bridge runs an OTLP/HTTP receiver and gives your app its address in the standard `OTEL_*` variables. These replace your app's own `OTEL_*` values for the test. If your app uses the OpenTelemetry SDK, its spans and logs go to `otel.jsonl` in the test folder and into the trace. An Agent SDK session also sends its prompts, tool calls and replies, because the bridge sets `CLAUDE_CODE_ENABLE_TELEMETRY=1`. The trace checks each tool call of these events against the session file. The receiver removes each `user.*`, `organization.*` and e-mail attribute before it writes a row. To stop the receiver, add `"otel": false` to `.verbatim-relay/config.json`. [SPEC.md section 7.5](../SPEC.md#75-otlp-receiver) defines the receiver.
 
+### Isolate the app's model session
+
+An Agent SDK session can load more than your app gives it. With `setting_sources=[]`, it still connects to the claude.ai connectors of the tester's account, and it loads each plugin in the variable `CLAUDE_CODE_PLUGIN_DIRS`. Then the app's model can see tools that are not the app's tools. It can reach the tester's accounts, and the result of a test depends on the tester's machine.
+
+To give the session only the tools of your app, set these options in the app (Python Agent SDK):
+
+```python
+ClaudeAgentOptions(
+    mcp_servers={"shop": server},
+    allowed_tools=["mcp__shop__lookup_order"],
+    setting_sources=[],
+    strict_mcp_config=True,
+    env={"CLAUDE_CODE_PLUGIN_DIRS": ""},
+)
+```
+
+- `setting_sources=[]` loads no settings file: no user, project or local settings, and thus no plugins, hooks or MCP servers from them. In TypeScript, the option is `settingSources: []`.
+- `strict_mcp_config=True` passes `--strict-mcp-config` to Claude Code. The session then uses only the servers in `mcp_servers`, and no claude.ai connectors, no `.mcp.json` and no plugin servers. In TypeScript, the option is `strictMcpConfig: true`. The [Agent SDK reference](https://code.claude.com/docs/en/agent-sdk/python) defines both options.
+- `CLAUDE_CODE_PLUGIN_DIRS` with an empty value loads no plugins from this variable. The session gets the variable from the entry, and thus from the tester's harness. `env` sets it for the session only.
+- If your app loads MCP servers from `.mcp.json` or from a settings file, `strict_mcp_config` also stops them. Then set `ENABLE_CLAUDEAI_MCP_SERVERS` to `false` in `env`, in place of `strict_mcp_config`. This variable stops only the claude.ai connectors ([MCP docs](https://code.claude.com/docs/en/mcp#use-mcp-servers-from-claude-ai)).
+
+The toy shop apps in [examples/](../examples/) use these options. The trace check `server_not_from_app` finds a claude.ai connector or a plugin server in a session file of your app ([SPEC.md section 8.6](../SPEC.md#86-findings)).
+
 ## Plugin
 
 1. Add the marketplace and install the plugin:

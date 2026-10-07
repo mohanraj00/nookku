@@ -525,6 +525,10 @@ def result(tid: str, content: Any, error: bool = False) -> dict:
     return {**row, "is_error": True} if error else row
 
 
+# The model API cases below define another result(). Later session lines use this name.
+cc_result = result
+
+
 def cx_line(t: float, item: dict, at: bool = True) -> dict:
     """One item_completed line of a Codex rollout file."""
     payload: dict[str, Any] = {
@@ -584,6 +588,7 @@ def counts(**n: int) -> dict:
         "turn_without_model",
         "item_between_turns",
         "otel_tool_not_in_session",
+        "server_not_from_app",
         "session_inferred",
         "version_untested",
     )
@@ -2245,6 +2250,157 @@ RESPONSES_CASE = {
     },
 }
 
+
+# MCP servers that are not from the app (SPEC.md section 8.6): the session of the app loaded a
+# claude.ai connector and a plugin server of the tester, and called a tool of the connector. The
+# attachment lines copy the shapes of a session file of Claude Code 2.1.292.
+def cc_attachment(t: float, attachment: dict) -> dict:
+    """One attachment line of a Claude Code session file."""
+    return {
+        "type": "attachment",
+        "sessionId": CC,
+        "timestamp": iso(T0 + t),
+        "version": "2.1.292",
+        "isSidechain": False,
+        "attachment": attachment,
+    }
+
+
+SERVERS_CASE = {
+    "tap": [window(10, 20)],
+    "manifest": {"test": "20261006-080000-mc01", "model_sessions": [CC_SESSION]},
+    "sessions": {
+        CC_FILE: [
+            cc_attachment(
+                1,
+                {
+                    "type": "deferred_tools_delta",
+                    "addedNames": [
+                        "WebFetch",
+                        "mcp__shop__lookup_order",
+                        "mcp__claude_ai_Toy_Mail__search_threads",
+                        "mcp__claude_ai_Toy_Mail__send_message",
+                        "mcp__plugin_toybox_stock__check_stock",
+                    ],
+                    "removedNames": [],
+                },
+            ),
+            cc_attachment(
+                1,
+                {
+                    "type": "mcp_instructions_delta",
+                    "addedNames": ["claude.ai Toy Docs"],
+                    "addedBlocks": ["## claude.ai Toy Docs\nThe docs of the toy shop."],
+                    "removedNames": [],
+                },
+            ),
+            cc_line("user", 11, "Where is my order 4471?", version="2.1.292"),
+            cc_line(
+                "assistant",
+                12,
+                [use("t1", "mcp__shop__lookup_order", {"order": "4471"})],
+                version="2.1.292",
+            ),
+            cc_line(
+                "user",
+                12.5,
+                [cc_result("t1", [{"type": "text", "text": '{"status": "delivered"}'}])],
+                version="2.1.292",
+            ),
+            cc_line(
+                "assistant",
+                13,
+                [use("t2", "mcp__claude_ai_Toy_Mail__search_threads", {"query": "4471"})],
+                version="2.1.292",
+            ),
+            cc_line("user", 13.5, [cc_result("t2", "no threads")], version="2.1.292"),
+            cc_line(
+                "assistant",
+                14,
+                [{"type": "text", "text": "Order 4471 was delivered."}],
+                version="2.1.292",
+            ),
+        ]
+    },
+    "trace": [
+        item(1, "claude-code", 11, "message", 3, role="user", output="Where is my order 4471?"),
+        item(
+            1,
+            "claude-code",
+            12,
+            "tool_call",
+            4,
+            server="shop",
+            name="lookup_order",
+            input={"order": "4471"},
+            output='{"status": "delivered"}',
+            result_line=5,
+        ),
+        item(
+            1,
+            "claude-code",
+            13,
+            "tool_call",
+            6,
+            server="claude_ai_Toy_Mail",
+            name="search_threads",
+            input={"query": "4471"},
+            output="no threads",
+            result_line=7,
+        ),
+        item(
+            1,
+            "claude-code",
+            14,
+            "message",
+            8,
+            role="assistant",
+            output="Order 4471 was delivered.",
+        ),
+    ],
+    "findings": {
+        "v": "0.2",
+        "test": "20261006-080000-mc01",
+        "turns": 1,
+        "items": 4,
+        "sessions": [
+            {
+                "harness": "claude-code",
+                "session": CC,
+                "file": CC_FILE,
+                "inferred": False,
+                "version": "2.1.292",
+                "items": 4,
+                "ignored": {"attachment": 2},
+            }
+        ],
+        "otel": None,
+        "backend": None,
+        "model_api": None,
+        "counts": counts(server_not_from_app=3),
+        "findings": [
+            {
+                "check": "server_not_from_app",
+                "turn": None,
+                "detail": "claude_ai_Toy_Mail: a claude.ai connector, not a server of the app",
+                **where("claude-code", 1),
+            },
+            {
+                "check": "server_not_from_app",
+                "turn": None,
+                "detail": "plugin_toybox_stock: a plugin server, not a server of the app",
+                **where("claude-code", 1),
+            },
+            {
+                "check": "server_not_from_app",
+                "turn": None,
+                "detail": "claude.ai Toy Docs: a claude.ai connector, not a server of the app",
+                **where("claude-code", 2),
+            },
+        ],
+    },
+}
+
 # A trace case of the OpenAI Decisions API (SPEC.md sections 7.7 and 8.4). In turn 1, a call to
 # /v1/decisions with a text and an image, and 4 questions: a predicate, a choice, a score and a
 # choice that the model refuses. In turn 2, a call to /decisions with a string input and a choice
@@ -2540,6 +2696,7 @@ TRACE_CASES = {
     "backend_toy_shop": BACKEND_CASE,
     "model_api_toy_shop": MODEL_API_CASE,
     "model_api_responses": RESPONSES_CASE,
+    "servers_not_from_app": SERVERS_CASE,
     "model_api_decisions": DECISIONS_CASE,
 }
 

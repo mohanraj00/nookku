@@ -15,7 +15,7 @@
    "request_same": true,
    "response_same": true,
    "first_part_before_the_end": true,
-   "result_in_record": true
+   "text_in_record": true
   },
   {
    "call": 2,
@@ -26,7 +26,7 @@
    "request_same": true,
    "response_same": true,
    "first_part_before_the_end": true,
-   "result_in_record": true
+   "text_in_record": true
   },
   {
    "call": 3,
@@ -37,7 +37,7 @@
    "request_same": true,
    "response_same": true,
    "first_part_before_the_end": null,
-   "result_in_record": true
+   "text_in_record": true
   },
   {
    "call": 4,
@@ -48,18 +48,7 @@
    "request_same": true,
    "response_same": true,
    "first_part_before_the_end": true,
-   "result_in_record": true
-  },
-  {
-   "call": 5,
-   "api": "openai",
-   "path": "/v1/decisions",
-   "stream": false,
-   "response_size": 435,
-   "request_same": true,
-   "response_same": true,
-   "first_part_before_the_end": null,
-   "result_in_record": true
+   "text_in_record": true
   }
  ],
  "key_in_record": false,

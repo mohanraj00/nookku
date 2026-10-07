@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from verbatim_relay import commands, kit
+from verbatim_relay import bridge, commands, kit
 from verbatim_relay.record import BlockedCall, read_relay
 
 F = ".verbatim-relay/tests/20261006-080000-cc01"
@@ -110,7 +110,13 @@ def project(tmp_path: Path, running: bool) -> Path:
     folder.mkdir(parents=True)
     (state / "config.json").write_text(json.dumps({"entry": ["python", "shop/entry.py"]}))
     if running:
-        cur = {"test": folder.name, "pid": os.getpid(), "dir": str(folder), "tap_url": ""}
+        cur = {
+            "test": folder.name,
+            "pid": os.getpid(),
+            "pid_start": bridge.process_start(os.getpid()),
+            "dir": str(folder),
+            "tap_url": "",
+        }
         (state / "current.json").write_text(json.dumps(cur))
     return folder
 
