@@ -3,6 +3,8 @@
  "harness": "claude-code",
  "version": "2.1.290 (Claude Code)",
  "transport": "http-stream",
+ "agent_streams": "always",
+ "openai_stream": false,
  "turns": [
   {
    "mode": "neutral",

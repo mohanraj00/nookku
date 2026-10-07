@@ -1,10 +1,10 @@
 {
- "date": "2026-10-06",
+ "date": "2026-10-07",
  "relay": "plugin",
  "version": "2.1.290 (Claude Code)",
  "answers": {
   "memory_sha256": "c627c09c14e58e44bc51622dac392958ec88244e414b508020634f53cfcd1e69",
-  "read": "The order code you gave the agent was:\n\n> My order code is ZX-4471-Q.\n\nThe code is **ZX-4471-Q**."
+  "read": "The tester gave the agent the order code **ZX-4471-Q** in turn 1 of the verbatim-relay transcript. The exact message was:\n\n> My order code is ZX-4471-Q.\n\nYou did not send this code to me in this conversation. I found it only in the transcript."
  },
  "audit_exit": 0,
  "turns": 2,

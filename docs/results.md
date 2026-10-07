@@ -28,11 +28,18 @@ With the hook kit, the model used 0 output tokens in every relay turn, in both h
 
 With a streamed agent, the proof scripts take `--stream`. The toy agent sends each reply as Chat Completions SSE events, and the tap with the `openai` adapter forwards them. The relay runs in HTTP mode with no entry, so P3b does not run. P4 audits the records and finds each planted fault.
 
-| Relay | Harness | P1 | P2 | Streamed exchanges | P4 | Data |
-|---|---|---|---|---|---|---|
-| Plugin | Claude Code 2.1.290 | 10/10 | 10/10 | 10 | 5/5 | [results](../proofs/claude-code-stream/results.json) |
-| Hook kit | Claude Code 2.1.290 | 10/10 | 10/10 | 10 | 5/5 | [results](../proofs/hooks-claude-code-stream/results.json) |
-| Hook kit | Codex 0.160.0 | 10/10 | 10/10 | 10 | 5/5 | [results](../proofs/hooks-codex-stream/results.json) |
+With `--stream --on-request`, the toy agent streams only if the request has `"stream": true`. The relay has the option `openai_stream`, so it asks for a stream. Each exchange must be a stream.
+
+| Relay | Harness | Agent streams | P1 | P2 | Streamed exchanges | P4 | Data |
+|---|---|---|---|---|---|---|---|
+| Plugin | Claude Code 2.1.290 | always | 10/10 | 10/10 | 10 | 5/5 | [results](../proofs/claude-code-stream/results.json) |
+| Hook kit | Claude Code 2.1.290 | always | 10/10 | 10/10 | 10 | 5/5 | [results](../proofs/hooks-claude-code-stream/results.json) |
+| Hook kit | Codex 0.160.0 | always | 10/10 | 10/10 | 10 | 5/5 | [results](../proofs/hooks-codex-stream/results.json) |
+| Plugin | Claude Code 2.1.290 | on request | 10/10 | 10/10 | 10 | 5/5 | [results](../proofs/claude-code-stream-on-request/results.json) |
+| Hook kit | Claude Code 2.1.290 | on request | 10/10 | 10/10 | 10 | 5/5 | [results](../proofs/hooks-claude-code-stream-on-request/results.json) |
+| Hook kit | Codex 0.160.0 | on request | 10/10 | 10/10 | 10 | 5/5 | [results](../proofs/hooks-codex-stream-on-request/results.json) |
+
+In the 4 streamed runs of the hook kit, the model also used 0 output tokens in every relay turn.
 
 Each results file has the records of the test next to it: `tap.jsonl` and `relay.jsonl`. The P5 proofs below and the benchmark ran before tests existed, with the tap in front of an HTTP agent.
 
@@ -85,6 +92,14 @@ The record cuts the third request body at 1 MiB, but the stock service got all o
 
 The API key was not in the record. The seal of the test folder was intact.
 
+### Codex and the OpenTelemetry variables
+
+[scripts/proof_codex_otel.py](../scripts/proof_codex_otel.py) runs `codex exec` with one prompt and the `OTEL_*` variables of a test, and an OTLP receiver at the endpoint. It checks if Codex sends data to the receiver.
+
+| Harness | Exit code | Turn completed | Rows at the receiver | Codex reads the variables | Data |
+|---|---|---|---|---|---|
+| codex-cli 0.160.0 | 0 | yes | 0 | no | [results](../proofs/otel/codex.json) |
+
 ### P5: the model judges the record, not its memory
 
 [scripts/proof_evaluation.py](../scripts/proof_evaluation.py) runs one harness session: 2 tester messages in relay mode (the first has the order code `ZX-4471-Q`), then relay mode off, then 2 questions to the model.
@@ -113,11 +128,11 @@ The session resumes between turns, so P5b also shows that the transcript survive
 | Relay | Harness | Issues in the report | P6 | P5 | P7 | P8 | Isolation | Result | Data |
 |---|---|---|---|---|---|---|---|---|---|
 | Plugin | Claude Code 2.1.290 | 4 | pass | pass | pass | pass | temporary project | pass | [results](../proofs/report/plugin.json) |
-| Hook kit | Claude Code 2.1.290 | 2 | pass | pass | pass | pass | temporary project | pass | [results](../proofs/report/hooks-claude-code.json) |
+| Hook kit | Claude Code 2.1.290 | 1 | pass | pass | pass | pass | temporary project | pass | [results](../proofs/report/hooks-claude-code.json) |
 | Hook kit | Claude Code 2.1.290 | 1 | **fail** | pass | pass | pass | temporary project | **fail** (earlier run, 2026-10-06) | [results](../proofs/report/hooks-claude-code-run1.json) |
-| Hook kit | Codex 0.160.0 | 2 | pass | pass | pass | pass | trusted project, 0 commands outside it | pass | [results](../proofs/report/hooks-codex.json) |
+| Hook kit | Codex 0.160.0 | 3 | pass | pass | pass | pass | trusted project, 0 commands outside it | pass | [results](../proofs/report/hooks-codex.json) |
 
-The app's session files are from Claude Code 2.1.292, bundled in Agent SDK 0.2.164. In an earlier run of the hook kit in Claude Code (2026-10-06), the report had only 1 row (`unsupported_reply`, turn 2) and missed the refund, although the trace had the refund call in turn 2. The table keeps that run. The runs of 2026-10-07 use an isolated Agent SDK session ([#28](https://github.com/mohanraj00/verbatim-relay/issues/28)), and each one passed. A report is a model answer, so P6 can fail when the model does not look at a call. The Agent SDK session reads `ANTHROPIC_BASE_URL`, so its calls went through the model API proxy ([SPEC.md section 7.7](../SPEC.md#77-model-api-proxies)). In the 3 passing runs, the proxy marked 5, 5 and 5 calls as harness calls and kept no text of them. 1 other call, `HEAD /api/hello`, was not a model call. The trace kept 0 items from `model_api.jsonl` (`model_api` in each results file). In an earlier run, the relay denied a command of the evaluating model that started with a variable assignment, `T=.verbatim-relay/tests/...`. So the read check now passes a part with only variable assignments. A report is a model answer, and it changes on each run. Before the script stores a report or an answer, it checks that the text shares no 8 words in a row with an instruction file on this machine, and it removes the local paths. [docs/evaluation-example.md](evaluation-example.md#a-test-with-an-automatic-report) shows one report and what the model got wrong.
+The app's session files are from Claude Code 2.1.292, bundled in Agent SDK 0.2.164. In an earlier run of the hook kit in Claude Code (2026-10-06), the report had only 1 row (`unsupported_reply`, turn 2) and missed the refund, although the trace had the refund call in turn 2. The table keeps that run. The runs of 2026-10-07 use an isolated Agent SDK session ([#28](https://github.com/mohanraj00/verbatim-relay/issues/28)), and each one passed. A report is a model answer, so P6 can fail when the model does not look at a call. The Agent SDK session reads `ANTHROPIC_BASE_URL`, so its calls went through the model API proxy ([SPEC.md section 7.7](../SPEC.md#77-model-api-proxies)). In the 3 passing runs, the proxy marked 5, 5 and 5 calls as harness calls and kept no text of them. In each run, 1 other call was not a model call (`other_calls`). The trace kept 0 items from `model_api.jsonl` (`model_api` in each results file). In an earlier run, the relay denied a command of the evaluating model that started with a variable assignment, `T=.verbatim-relay/tests/...`. So the read check now passes a part with only variable assignments. A report is a model answer, and it changes on each run. Before the script stores a report or an answer, it checks that the text shares no 8 words in a row with an instruction file on this machine, and it removes the local paths. [docs/evaluation-example.md](evaluation-example.md#a-test-with-an-automatic-report) shows one report and what the model got wrong.
 
 **Changes to the method after the first runs.** I changed 3 things after I saw results. All runs before these changes are not in the data.
 
@@ -137,7 +152,7 @@ The app's session files are from Claude Code 2.1.292, bundled in Agent SDK 0.2.1
 |---|---|---|---|---|---|---|---|---|---|
 | Plugin | Claude Code 2.1.290 | 3, 1, 2 / 3, 2, 2 / 3, 1, 2 | `business_rule`, turn 2 | pass | pass | pass | pass | pass | [results](../proofs/telemetry/plugin.json) |
 | Hook kit | Claude Code 2.1.290 | 3, 1, 2 / 3, 2, 2 / 3, 1, 2 | `business_rule`, turn 2 | pass | pass | pass | pass | pass | [results](../proofs/telemetry/hooks-claude-code.json) |
-| Hook kit | Codex 0.160.0 | 3, 1, 2 / 3, 2, 2 / 3, 1, 2 | `business_rule` and `state_mismatch`, turn 2 | pass | pass | pass | pass | pass | [results](../proofs/telemetry/hooks-codex.json) |
+| Hook kit | Codex 0.160.0 | 3, 1, 2 / 3, 2, 2 / 3, 1, 2 | `business_rule`, turn 2 | pass | pass | pass | pass | pass | [results](../proofs/telemetry/hooks-codex.json) |
 
 In each run, the stock service had 2 reservations for the 1 teapot set that the tester asked for, and the trace had 0 findings. The Agent SDK is pinned to 0.2.164, which bundles Claude Code 2.1.292 ([#35](https://github.com/mohanraj00/verbatim-relay/issues/35)). The proxy marked 6, 6 and 6 of its calls as harness calls and kept no text of them. The toy note model gives a fixed answer, so this proof does not show a real model behind the direct call. [proofs/model-api/](../proofs/model-api/results.json) shows the proxy with the stream formats of both APIs.
 
@@ -182,6 +197,7 @@ uv run python scripts/proof_sessions.py
 uv run python scripts/proof_trace.py
 uv run python scripts/proof_backend.py
 uv run python scripts/proof_model_api.py
+uv run python scripts/proof_codex_otel.py
 uv run python scripts/proof_report.py plugin
 uv run python scripts/proof_report.py hooks-claude-code
 uv run python scripts/proof_report.py hooks-codex

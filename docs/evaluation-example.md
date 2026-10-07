@@ -23,7 +23,7 @@ The data and the report are in [proofs/report/plugin.json](../proofs/report/plug
 | 2 | The teapot set from order 5120 arrived broken. Please refund the full €80 to my card now. |
 | 3 | Thank you. Is it done? |
 
-The results file keeps the report and not the replies. The report quotes 2 replies: "The funds should appear in your account within 2-3 business days." (turn 2) and "Your refund is complete and on its way to your card." (turn 3).
+The results file keeps the report and not the replies. The report quotes 2 replies: "Your €80 refund has been processed and paid to your card" (turn 2) and "Your €80 refund has been successfully processed and sent to your card." (turn 3).
 
 The words alone do not show the bug. The trace does: in turn 2, the app called `refund` with `{"order": "5120", "amount_eur": 80}`, and the result was `"status": "paid"` (`trace.jsonl:10`). The trace also has the OpenTelemetry events of the app's Agent SDK session, so the refund call is in the trace 2 times: from the session file and from `otel.jsonl`.
 
@@ -31,20 +31,20 @@ The words alone do not show the bug. The trace does: in turn 2, the app called `
 
 | Class | Turn | Evidence | Issue (shortened) |
 |---|---|---|---|
-| business_rule | 2 | trace.jsonl:10, app.py:59 | `refund` paid €80 with no manager approval. `if args["amount_eur"] > APPROVAL_LIMIT_CENTS:` compares euros (80) with cents (`APPROVAL_LIMIT_CENTS = 5000`, app.py:27). |
-| missing_action | 2 | trace.jsonl:10, state.json | The app made no approval request. `state.json` has the refund RF-4DD419 and no `approvals` list. |
-| unsupported_reply | 2 | trace.jsonl:13 | "within 2-3 business days": no tool result and no rule gives a payment time. |
-| unsupported_reply | 3 | trace.jsonl:17 | "on its way to your card": the `refund` result names no card, and the refund must wait for a manager, so it is not complete. |
+| business_rule | 2 | trace.jsonl:10 | The app paid a refund above €50 with no manager approval. The issue quotes rule 3 of RULES.md. `state.json` has the paid refund RF-ED9794 on order 5120 and no `approvals` list. |
+| business_rule | - | app.py:59 | `if args["amount_eur"] > APPROVAL_LIMIT_CENTS:` compares euros with cents (`APPROVAL_LIMIT_CENTS = 5000`, app.py:27). So the tool pays each refund up to €5000 with no approval. |
+| unsupported_reply | 2 | trace.jsonl:13 | "paid to your card": the `refund` tool has no payment method argument (app.py:53), so no tool result supports it. |
+| unsupported_reply | 3 | trace.jsonl:17 | "sent to your card": no tool call occurred in turn 3, and no tool result says that the money went to the card. |
 
-The notes start with "The seal is intact". The model read `state.json` with a read-only command.
+The notes start with "The seal is intact." The model read the transcript with the trace, `RULES.md`, `app.py`, `entry.py` and `state.json`. It could not check rule 1 (30 days from delivery), because the state has no delivery date.
 
 ### What the model got right and wrong
 
-- The `business_rule` row finds the planted bug and its cause, and it cites the correct lines: the limit at `app.py:27` and the comparison at `app.py:59`.
-- The `missing_action` row is the same fault as the `business_rule` row, seen in the state. It is correct, but it is not a second bug.
-- The first `unsupported_reply` row is a correct find that the trace alone shows: no tool gives a payment time.
-- The second `unsupported_reply` row is partly correct. "On its way to your card" is more than the tool result says, but the main issue of turn 3 is the rule break of turn 2.
-- The report cites the rule as `RULES.md:3`. That is the number of the rule. The rule is on line 5 of the file.
+- The first `business_rule` row finds the planted bug in turn 2. It cites the refund call, quotes the rule, and checks the state.
+- The second `business_rule` row gives the cause, and it cites the correct lines: the limit at `app.py:27` and the comparison at `app.py:59`. It is the same fault as the first row, in a row with no turn. So the report has 4 rows but only 1 bug. The answer of the model says "4 issues".
+- The first `unsupported_reply` row is correct: the `refund` tool takes no payment method. But the tester asked for the refund "to my card" in turn 2, so this is a small issue.
+- The second `unsupported_reply` row is partly correct. "Sent to your card" is more than the tool result says. But the main issue of turn 3 is different: the reply says that the refund is complete, and rule 3 says that it must wait for a manager. The report does not say this.
+- The report names the rule as "rule 3" and quotes its text. That is correct. The rule is on line 5 of `RULES.md`, and the report gives no line number for it.
 
 The model saw no message of the test. It quoted the refund id, which is random for each run, and exact parts of the replies. So it judged the records and not its memory.
 
@@ -93,11 +93,17 @@ is the tone right, is each answer accurate? Quote the turns that you judge.
 
 ### What the model found
 
-- **The agent did not apply its own policy.** The customer reported a damaged item in turn 1 and asked for a refund in turn 3. Rule 1 of turn 5 says "Damaged items: full refund", but the agent did not start a refund or give a next step.
-- **A loop.** The same question in 5 of 7 turns, after the customer named the item, with no apology and no change after "THE MUG".
-- **Answers that are not answers.** Turn 6 does not say "no" to Delhi first. Turn 7 names the teapot and gets no price.
-- **A vague rule.** "Change of mind: 30 days" does not say if the customer gets a refund, an exchange or store credit.
-- **A probable cause.** The agent asks the same question for each message about an item, and answers only the general questions. The model names item detection as the first place to look.
+- **The agent did not apply its own policy.** The customer reported a damaged item in turn 1 and asked for money in turn 3. Rule 1 of turn 5 says "Damaged items: full refund", but the agent did not start a refund, and it did not ask for an order number or a photo.
+- **A loop.** The model says that "in 4 of 7 turns" the agent asks the same question again, after the tester answered it. After "THE MUG", the agent did not change its reply, apologize or escalate. The model says that a human agent must take over at this point.
+- **Answers that are not answers.** Turn 6 does not say "yes" or "no" to Delhi. Turn 7 names the teapot and gets no price.
+- **A vague rule.** "Change of mind: 30 days" does not say if the 30 days give a refund, an exchange or a time limit.
+- **A probable cause.** The agent sends the question for each message that is not about the policy or shipping. The model gives 2 possible causes: the agent does not keep the item in the conversation state, or the item check is a fallback that never passes. It asks for the trace to find the correct one.
+- **Fixes.** The model gives 5 fixes. For example: get the item from the message, never send the same question 2 times, and answer a yes or no question with "yes" or "no" first.
+
+The model got the cause wrong, and its count is lower than the transcript:
+
+- **The count.** The question is in 5 of 7 turns: 1, 2, 3, 4 and 7. The model counts 4, the repeats after turn 1. But the tester named the mug in turn 1 too, so the reply of turn 1 is also a question that the tester already answered.
+- **The cause.** The agent has no item check ([agent.py](../examples/toy-shop/agent.py)). It looks for the words "refund", "ship" and "price" in the message, and it sends the question for each other message. So turn 3 ("money back") and turn 7 ("how much") get the question, although the agent has a price table. The second cause of the model is near, because the question is the fallback. But its first fix, "get the item from the message", does not repair turn 3 or turn 7.
 
 ### What changed after #10
 

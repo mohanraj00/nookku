@@ -3,6 +3,8 @@
  "harness": "codex",
  "version": "codex-cli 0.160.0",
  "transport": "http-stream",
+ "agent_streams": "always",
+ "openai_stream": false,
  "turns": [
   {
    "mode": "neutral",

@@ -1,10 +1,10 @@
 {
- "date": "2026-10-06",
+ "date": "2026-10-07",
  "relay": "hooks-claude-code",
  "version": "2.1.290 (Claude Code)",
  "answers": {
   "memory_sha256": "c627c09c14e58e44bc51622dac392958ec88244e414b508020634f53cfcd1e69",
-  "read": "The order code is `ZX-4471-Q`. It comes from turn 1, where the tester wrote \"My order code is ZX-4471-Q.\" The agent sent the same text back."
+  "read": "The order code you gave the agent in turn 1 is:\n\n`ZX-4471-Q`\n\nYour full turn 1 message was `My order code is ZX-4471-Q.  `, with two trailing spaces. The agent's reply quotes the same text."
  },
  "audit_exit": 0,
  "turns": 2,
