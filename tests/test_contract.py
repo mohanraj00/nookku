@@ -11,7 +11,7 @@ import pytest
 
 from verbatim_relay import contract
 from verbatim_relay.audit import audit
-from verbatim_relay.record import Writer
+from verbatim_relay.record import Writer, lone_surrogate
 from verbatim_relay.stdio import Agent, StdioTap, start_in_thread
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -72,6 +72,30 @@ def test_contract_case(case_dir: Path, tmp_path: Path) -> None:
         assert row["v"] == "0.2"
         if row["type"] == "exchange":
             assert row["started"] <= row["ts"]
+
+
+def test_a_lone_surrogate_in_a_reply_is_named(tmp_path: Path) -> None:
+    script = tmp_path / "agent.py"
+    script.write_text(
+        "import sys\nsys.stdin.readline()\n"
+        'print(\'{"v": 1, "id": "m-1", "reply": "Your mug ships today \\\\ud83d"}\', '
+        "flush=True)\nsys.stdin.readline()\n"
+    )
+    agent = Agent([sys.executable, str(script)], tmp_path, tmp_path / "app.log", timeout=5)
+    tap = StdioTap(("127.0.0.1", 0), agent, tmp_path / "tap.jsonl")
+    agent.start()
+    start_in_thread(tap)
+    try:
+        status, body = post(
+            tap.url, contract.request("m-1", "t-1", "Where is my mug?", []).decode()
+        )
+    finally:
+        tap.shutdown()
+        agent.stop(grace=1)
+    note = "the agent reply has a lone surrogate U+D83D at character 21"
+    assert status == 502 and note in json.loads(body)["error"]
+    row = json.loads((tmp_path / "tap.jsonl").read_text())
+    assert (row["status"], row["reply"], row["error"]) == (None, None, note)
 
 
 def test_an_error_after_a_crash_shows_the_end_of_the_log(tmp_path: Path) -> None:
@@ -144,8 +168,10 @@ def test_request_refuses(line: bytes) -> None:
 def tap_status(line: str) -> int:
     """The status that the stdio tap returns for one agent line."""
     try:
-        _, error = contract.parse_reply(line.encode("utf-8"), "m-1")
+        reply, error = contract.parse_reply(line.encode("utf-8"), "m-1")
     except contract.ContractError:
+        return 502
+    if lone_surrogate((reply if error is None else error) or ""):
         return 502
     return 200 if error is None else 500
 

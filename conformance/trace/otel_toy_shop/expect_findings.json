@@ -34,6 +34,7 @@
   "turn_without_model": 0,
   "item_between_turns": 1,
   "otel_tool_not_in_session": 1,
+  "server_not_from_app": 0,
   "session_inferred": 0,
   "version_untested": 0
  },

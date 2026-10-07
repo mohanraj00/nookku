@@ -112,6 +112,19 @@ TAP_02 = [{**ex(m, r, v="0.2"), "started": 0.5} for m, r in ((M1, R1), (M2, R2),
 RELAY_02 = [turn(m, r, v="0.2") for m, r in ((M1, R1), (M2, R2), (M3, R3))]
 SESSION_A = model_session("4f1c2a7e-0d3b-4c55-9a61-2b8e5d7c9f10", 4471, False)
 SESSION_B = model_session("019a0b1c-2d3e-7f40-8a5b-6c7d8e9f0a1b", None, True)
+# A lone UTF-16 surrogate: the first half of an emoji. JavaScript makes it when it cuts a text,
+# for example with `reply.slice(0, 280)`. JSON can escape it, but UTF-8 cannot encode it.
+LONE = "\ud83d"
+
+
+def lone_surrogate(row: dict, field: str) -> str:
+    """The row as a raw line, with a lone surrogate at the end of a text field.
+
+    The hash is of the text with U+FFFD in place of the surrogate, as a JavaScript writer makes it.
+    """
+    text = row[field] + LONE
+    return json.dumps({**row, field: text, f"{field}_sha256": sha(row[field] + "\ufffd")})
+
 
 # name: (tap rows or None for a missing file, relay rows or None, expectation)
 # A row can be a raw string, written as the line itself.
@@ -306,6 +319,16 @@ CASES_BY_NAME: dict[str, tuple[list | None, list | None, dict]] = {
         CLEAN_RELAY,
         {"exit": 2, "errors": ["record_invalid"]},
     ),
+    "lone_surrogate_in_the_tap_record": (
+        [lone_surrogate(CLEAN_TAP[0], "reply"), *CLEAN_TAP[1:]],
+        [turn(M1, R1 + "\ufffd"), *CLEAN_RELAY[1:]],
+        {"exit": 2, "errors": ["record_invalid"]},
+    ),
+    "lone_surrogate_in_the_relay_record": (
+        CLEAN_TAP,
+        [lone_surrogate(CLEAN_RELAY[0], "shown"), *CLEAN_RELAY[1:]],
+        {"exit": 2, "errors": ["record_invalid"]},
+    ),
     "tap_unparsed": ([*CLEAN_TAP, UNPARSED], CLEAN_RELAY, {"exit": 2, "errors": ["tap_unparsed"]}),
 }
 
@@ -424,6 +447,30 @@ CONTRACT_CASES: dict[str, dict] = {
         "http": [502],
         "rows": [UNPARSED_POST],
     },
+    # The record cannot hold a lone surrogate (SPEC.md section 2). The tap records an error.
+    "reply_with_a_lone_surrogate": {
+        "requests": [req(TRICKY)],
+        "agent": [{"lines": [json.dumps({"v": 1, "id": "m-1", "reply": R1 + LONE})]}],
+        "forwarded": [0],
+        "http": [502],
+        "rows": [{"type": "exchange", "input": TRICKY, "status": None, "reply": None}],
+    },
+    "error_with_a_lone_surrogate": {
+        "requests": [req(TRICKY)],
+        "agent": [{"lines": [json.dumps({"v": 1, "id": "m-1", "error": "Mug sold out " + LONE})]}],
+        "forwarded": [0],
+        "http": [502],
+        "rows": [{"type": "exchange", "input": TRICKY, "status": None, "reply": None}],
+    },
+    "request_with_a_lone_surrogate": {
+        "requests": [
+            json.dumps({"v": 1, "id": "m-1", "session": "t-1", "message": M1 + LONE, "history": []})
+        ],
+        "agent": [],
+        "forwarded": [],
+        "http": [400],
+        "rows": [UNPARSED_POST],
+    },
     "reply_wrong_contract_version": {
         "requests": [req(TRICKY)],
         "agent": [{"lines": [json.dumps({"v": 2, "id": "m-1", "reply": R1})]}],
@@ -538,6 +585,10 @@ def result(tid: str, content: Any, error: bool = False) -> dict:
     return {**row, "is_error": True} if error else row
 
 
+# The model API cases below define another result(). Later session lines use this name.
+cc_result = result
+
+
 def cx_line(t: float, item: dict, at: bool = True) -> dict:
     """One item_completed line of a Codex rollout file."""
     payload: dict[str, Any] = {
@@ -597,6 +648,7 @@ def counts(**n: int) -> dict:
         "turn_without_model",
         "item_between_turns",
         "otel_tool_not_in_session",
+        "server_not_from_app",
         "session_inferred",
         "version_untested",
     )
@@ -1555,7 +1607,7 @@ BACKEND_CASE = {
             "GET",
             "/stock",
             200,
-            query="sku=teapot-set",
+            query="sku=teapot-set&api_key=",
             response=body('{"sku": "teapot-set", "left": 3}'),
         ),
         call(
@@ -1578,7 +1630,7 @@ BACKEND_CASE = {
             12,
             1,
             "GET /stock",
-            input={"query": "sku=teapot-set", "headers": SENT, "body": None},
+            input={"query": "sku=teapot-set&api_key=", "headers": SENT, "body": None},
             output='{"sku": "teapot-set", "left": 3}',
             exit_code=200,
         ),
@@ -2258,6 +2310,443 @@ RESPONSES_CASE = {
     },
 }
 
+
+# MCP servers that are not from the app (SPEC.md section 8.6): the session of the app loaded a
+# claude.ai connector and a plugin server of the tester, and called a tool of the connector. The
+# attachment lines copy the shapes of a session file of Claude Code 2.1.292.
+def cc_attachment(t: float, attachment: dict) -> dict:
+    """One attachment line of a Claude Code session file."""
+    return {
+        "type": "attachment",
+        "sessionId": CC,
+        "timestamp": iso(T0 + t),
+        "version": "2.1.292",
+        "isSidechain": False,
+        "attachment": attachment,
+    }
+
+
+SERVERS_CASE = {
+    "tap": [window(10, 20)],
+    "manifest": {"test": "20261006-080000-mc01", "model_sessions": [CC_SESSION]},
+    "sessions": {
+        CC_FILE: [
+            cc_attachment(
+                1,
+                {
+                    "type": "deferred_tools_delta",
+                    "addedNames": [
+                        "WebFetch",
+                        "mcp__shop__lookup_order",
+                        "mcp__claude_ai_Toy_Mail__search_threads",
+                        "mcp__claude_ai_Toy_Mail__send_message",
+                        "mcp__plugin_toybox_stock__check_stock",
+                    ],
+                    "removedNames": [],
+                },
+            ),
+            cc_attachment(
+                1,
+                {
+                    "type": "mcp_instructions_delta",
+                    "addedNames": ["claude.ai Toy Docs"],
+                    "addedBlocks": ["## claude.ai Toy Docs\nThe docs of the toy shop."],
+                    "removedNames": [],
+                },
+            ),
+            cc_line("user", 11, "Where is my order 4471?", version="2.1.292"),
+            cc_line(
+                "assistant",
+                12,
+                [use("t1", "mcp__shop__lookup_order", {"order": "4471"})],
+                version="2.1.292",
+            ),
+            cc_line(
+                "user",
+                12.5,
+                [cc_result("t1", [{"type": "text", "text": '{"status": "delivered"}'}])],
+                version="2.1.292",
+            ),
+            cc_line(
+                "assistant",
+                13,
+                [use("t2", "mcp__claude_ai_Toy_Mail__search_threads", {"query": "4471"})],
+                version="2.1.292",
+            ),
+            cc_line("user", 13.5, [cc_result("t2", "no threads")], version="2.1.292"),
+            cc_line(
+                "assistant",
+                14,
+                [{"type": "text", "text": "Order 4471 was delivered."}],
+                version="2.1.292",
+            ),
+        ]
+    },
+    "trace": [
+        item(1, "claude-code", 11, "message", 3, role="user", output="Where is my order 4471?"),
+        item(
+            1,
+            "claude-code",
+            12,
+            "tool_call",
+            4,
+            server="shop",
+            name="lookup_order",
+            input={"order": "4471"},
+            output='{"status": "delivered"}',
+            result_line=5,
+        ),
+        item(
+            1,
+            "claude-code",
+            13,
+            "tool_call",
+            6,
+            server="claude_ai_Toy_Mail",
+            name="search_threads",
+            input={"query": "4471"},
+            output="no threads",
+            result_line=7,
+        ),
+        item(
+            1,
+            "claude-code",
+            14,
+            "message",
+            8,
+            role="assistant",
+            output="Order 4471 was delivered.",
+        ),
+    ],
+    "findings": {
+        "v": "0.2",
+        "test": "20261006-080000-mc01",
+        "turns": 1,
+        "items": 4,
+        "sessions": [
+            {
+                "harness": "claude-code",
+                "session": CC,
+                "file": CC_FILE,
+                "inferred": False,
+                "version": "2.1.292",
+                "items": 4,
+                "ignored": {"attachment": 2},
+            }
+        ],
+        "otel": None,
+        "backend": None,
+        "model_api": None,
+        "counts": counts(server_not_from_app=3),
+        "findings": [
+            {
+                "check": "server_not_from_app",
+                "turn": None,
+                "detail": "claude_ai_Toy_Mail: a claude.ai connector, not a server of the app",
+                **where("claude-code", 1),
+            },
+            {
+                "check": "server_not_from_app",
+                "turn": None,
+                "detail": "plugin_toybox_stock: a plugin server, not a server of the app",
+                **where("claude-code", 1),
+            },
+            {
+                "check": "server_not_from_app",
+                "turn": None,
+                "detail": "claude.ai Toy Docs: a claude.ai connector, not a server of the app",
+                **where("claude-code", 2),
+            },
+        ],
+    },
+}
+
+# A trace case of the OpenAI Decisions API (SPEC.md sections 7.7 and 8.4). In turn 1, a call to
+# /v1/decisions with a text and an image, and 4 questions: a predicate, a choice, a score and a
+# choice that the model refuses. In turn 2, a call to /decisions with a string input and a choice
+# with boolean values. A refusal is not an error, so the case has no finding.
+PHOTO = b"toy photo of a teapot set with a broken lid"
+COMPLAINT = "My teapot set arrived with a broken lid."
+CHARGED = "I was charged twice for order 5120."
+DEPARTMENTS = [
+    {"value": "billing", "description": "Payments, invoices and refunds."},
+    {"value": "shipping", "description": "Delivery and damage in transit."},
+    {"value": "other", "description": "Requests outside these departments."},
+]
+DQUESTIONS = [
+    {
+        "type": "predicate",
+        "name": "damaged",
+        "instructions": "Does the photo show a damaged item?",
+    },
+    {
+        "type": "choice",
+        "name": "department",
+        "instructions": "Which department should handle this complaint?",
+        "choices": DEPARTMENTS,
+    },
+    {
+        "type": "score",
+        "name": "severity",
+        "instructions": "How severe is the problem?",
+        "levels": [
+            {"label": "Low", "description": "The customer can use the item."},
+            {"label": "Medium", "description": "A part of the item is broken."},
+            {"label": "High", "description": "The customer cannot use the item."},
+        ],
+    },
+    {
+        "type": "choice",
+        "name": "mood",
+        "instructions": "Is the customer calm or angry?",
+        "choices": [{"value": "calm"}, {"value": "angry"}],
+    },
+]
+DPHOTO_URL = "data:image/png;base64," + base64.b64encode(PHOTO).decode()
+DINPUT = [
+    {
+        "role": "user",
+        "content": [
+            {"type": "input_text", "text": COMPLAINT},
+            {"type": "input_image", "image_url": DPHOTO_URL, "detail": "low"},
+        ],
+    }
+]
+DQUESTIONS_2 = [
+    {
+        "type": "choice",
+        "name": "department",
+        "instructions": "Which department should handle this complaint?",
+        "choices": DEPARTMENTS,
+    },
+    {
+        "type": "choice",
+        "name": "refund_due",
+        "instructions": "Does the customer have a right to a refund?",
+        "choices": [{"value": True}, {"value": False}],
+    },
+]
+
+
+def dusage(tokens: int) -> dict:
+    return {
+        "input_tokens": tokens,
+        "input_tokens_details": {"cached_tokens": 0, "cache_write_tokens": 0},
+        "output_tokens": 0,
+        "output_tokens_details": {"reasoning_tokens": 0},
+        "total_tokens": tokens,
+    }
+
+
+DANSWERS = [
+    {"type": "predicate", "name": "damaged", "probability": 0.97},
+    {
+        "type": "choice",
+        "name": "department",
+        "choice": "shipping",
+        "probabilities": [
+            {"value": "billing", "probability": 0.03},
+            {"value": "shipping", "probability": 0.95},
+            {"value": "other", "probability": 0.02},
+        ],
+        "confidence": 0.93,
+    },
+    {
+        "type": "score",
+        "name": "severity",
+        "score": 1.2,
+        "probabilities": [
+            {"value": 0, "label": "Low", "probability": 0.1},
+            {"value": 1, "label": "Medium", "probability": 0.6},
+            {"value": 2, "label": "High", "probability": 0.3},
+        ],
+        "confidence": 0.5,
+    },
+    {"type": "refusal", "name": "mood"},
+]
+DANSWERS_2 = [
+    {
+        "type": "choice",
+        "name": "department",
+        "choice": "billing",
+        "probabilities": [
+            {"value": "billing", "probability": 0.95},
+            {"value": "shipping", "probability": 0.03},
+            {"value": "other", "probability": 0.02},
+        ],
+        "confidence": 0.93,
+    },
+    {
+        "type": "choice",
+        "name": "refund_due",
+        "choice": True,
+        "probabilities": [
+            {"value": True, "probability": 0.8},
+            {"value": False, "probability": 0.2},
+        ],
+        "confidence": 0.7,
+    },
+]
+# The answers as the result of SPEC.md section 7.7 gives them: type, name, value, probabilities and
+# confidence.
+DRESULT = [
+    {
+        "type": "predicate",
+        "name": "damaged",
+        "value": 0.97,
+        "probabilities": None,
+        "confidence": None,
+    },
+    {
+        "type": "choice",
+        "name": "department",
+        "value": "shipping",
+        "probabilities": DANSWERS[1]["probabilities"],
+        "confidence": 0.93,
+    },
+    {
+        "type": "score",
+        "name": "severity",
+        "value": 1.2,
+        "probabilities": DANSWERS[2]["probabilities"],
+        "confidence": 0.5,
+    },
+    {"type": "refusal", "name": "mood", "value": None, "probabilities": None, "confidence": None},
+]
+DRESULT_2 = [
+    {
+        "type": "choice",
+        "name": "department",
+        "value": "billing",
+        "probabilities": DANSWERS_2[0]["probabilities"],
+        "confidence": 0.93,
+    },
+    {
+        "type": "choice",
+        "name": "refund_due",
+        "value": True,
+        "probabilities": DANSWERS_2[1]["probabilities"],
+        "confidence": 0.7,
+    },
+]
+V1_DECISIONS = "/v1/decisions"
+DECISIONS = "/decisions"
+DMODEL = "toy-decide"
+DECISIONS_CASE = {
+    "tap": [window(10, 20), window(30, 40)],
+    "manifest": {"test": "20261007-090000-dc01", "model_sessions": []},
+    "sessions": {},
+    "model_api": [
+        mcall(
+            11,
+            "openai",
+            V1_DECISIONS,
+            200,
+            {"model": DMODEL, "input": DINPUT, "questions": DQUESTIONS},
+            response=json.dumps({"model": DMODEL, "answers": DANSWERS, "usage": dusage(120)}),
+            result=result(model=DMODEL, usage=dusage(120), answers=DRESULT),
+        ),
+        mcall(
+            31,
+            "openai",
+            DECISIONS,
+            200,
+            {"model": DMODEL, "input": CHARGED, "questions": DQUESTIONS_2},
+            response=json.dumps({"model": DMODEL, "answers": DANSWERS_2, "usage": dusage(60)}),
+            result=result(model=DMODEL, usage=dusage(60), answers=DRESULT_2),
+        ),
+    ],
+    "trace": [
+        mitem(
+            1,
+            "openai",
+            11,
+            1,
+            "message",
+            role="user",
+            input={
+                "questions": [
+                    {"name": "damaged", "type": "predicate", "options": None},
+                    {
+                        "name": "department",
+                        "type": "choice",
+                        "options": ["billing", "shipping", "other"],
+                    },
+                    {"name": "severity", "type": "score", "options": ["Low", "Medium", "High"]},
+                    {"name": "mood", "type": "choice", "options": ["calm", "angry"]},
+                ],
+                "images": [
+                    {
+                        "media_type": "image/png",
+                        "size": len(PHOTO),
+                        "sha256": hashlib.sha256(PHOTO).hexdigest(),
+                    }
+                ],
+            },
+            output=COMPLAINT,
+        ),
+        mitem(
+            1,
+            "openai",
+            12,
+            1,
+            "message",
+            role="assistant",
+            input={**info(V1_DECISIONS, DMODEL, None, dusage(120)), "answers": DRESULT},
+            exit_code=200,
+        ),
+        mitem(
+            2,
+            "openai",
+            31,
+            2,
+            "message",
+            role="user",
+            input={
+                "questions": [
+                    {
+                        "name": "department",
+                        "type": "choice",
+                        "options": ["billing", "shipping", "other"],
+                    },
+                    {"name": "refund_due", "type": "choice", "options": [True, False]},
+                ],
+                "images": [],
+            },
+            output=CHARGED,
+        ),
+        mitem(
+            2,
+            "openai",
+            32,
+            2,
+            "message",
+            role="assistant",
+            input={**info(DECISIONS, DMODEL, None, dusage(60)), "answers": DRESULT_2},
+            exit_code=200,
+        ),
+    ],
+    "findings": {
+        "v": "0.2",
+        "test": "20261007-090000-dc01",
+        "turns": 2,
+        "items": 4,
+        "sessions": [],
+        "otel": None,
+        "backend": None,
+        "model_api": {
+            "file": "model_api.jsonl",
+            "rows": 2,
+            "items": 4,
+            "ignored": {},
+            "harness_calls": {},
+            "other_calls": 0,
+        },
+        "counts": counts(),
+        "findings": [],
+    },
+}
+
 TRACE_CASES = {
     "claude_code_toy_shop": CLAUDE_CASE,
     "codex_toy_shop": CODEX_CASE,
@@ -2267,6 +2756,8 @@ TRACE_CASES = {
     "backend_toy_shop": BACKEND_CASE,
     "model_api_toy_shop": MODEL_API_CASE,
     "model_api_responses": RESPONSES_CASE,
+    "servers_not_from_app": SERVERS_CASE,
+    "model_api_decisions": DECISIONS_CASE,
 }
 
 

@@ -58,7 +58,7 @@
     "cli": {
       "type": "string",
       "title": "verbatim-relay command",
-      "description": "The verbatim-relay command that starts and ends a test. Give a full path if it is not on PATH.",
+      "description": "The verbatim-relay command that starts and ends a test and prints the transcript. Give a full path if it is not on PATH.",
       "default": "verbatim-relay"
     },
     "start_on": {

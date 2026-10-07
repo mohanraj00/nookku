@@ -23,6 +23,7 @@ claude plugin validate plugins/claude-code && claude plugin test plugins/claude-
 - **Numbers need data.** Each number in a doc links to the file that it comes from. Do not edit a published result by hand.
 - **Relays change, proofs run again.** After a change to the plugin or the hook kit, run the proofs in [docs/results.md](docs/results.md#run-it-again) and commit the new results with the harness version that they record.
 - **Examples use a toy shop or a support agent.**
+- **Code quality.** Follow [docs/code-quality.md](docs/code-quality.md). It gives each rule and the check that enforces it.
 
 ## Pull requests
 

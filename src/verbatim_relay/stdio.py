@@ -17,7 +17,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer, ThreadingHTTPServer
 from pathlib import Path
 
 from verbatim_relay import contract
-from verbatim_relay.record import Writer
+from verbatim_relay.record import Writer, lone_surrogate
 
 # The hook kit's UserPromptSubmit deadline is 300 s. The tap must answer well before it.
 TIMEOUT = 240.0
@@ -224,6 +224,12 @@ class _Handler(BaseHTTPRequestHandler):
             self._unparsed("POST", path, f"request: {e}")
             self._error(400, f"verbatim-relay tap: {e}")
             return
+        found = lone_surrogate(message)
+        if found:
+            # The record cannot hold the message, so the agent does not get it.
+            self._unparsed("POST", path, f"request: the message has {found}")
+            self._error(400, f"verbatim-relay tap: the message has {found}")
+            return
         with tap.lock:
             for line in tap.agent.stray():
                 self._stray(line)
@@ -241,6 +247,14 @@ class _Handler(BaseHTTPRequestHandler):
             except contract.ContractError as e:
                 self._unparsed("POST", path, f"reply: {e}")
                 self._error(502, f"verbatim-relay tap: {e}")
+                return
+            # parse_reply gives exactly one string: the reply or the error.
+            what, text = ("error", error) if error is not None else ("reply", reply or "")
+            found = lone_surrogate(text)
+            if found:
+                note = f"the agent {what} has {found}"
+                tap.writer.append({**row, "status": None, "reply": None, "error": note})
+                self._error(502, f"verbatim-relay tap: {note}")
                 return
             if error is None:
                 tap.writer.append({**row, "status": 200, "reply": reply})
