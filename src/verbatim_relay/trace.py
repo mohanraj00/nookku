@@ -740,7 +740,8 @@ def build(folder: Path) -> dict[str, Any]:
     }
     text = json_text(report, indent=1) + "\n"
     (folder / "findings.json").write_text(text, encoding="utf-8")
-    return report
+    # The caller prints the report, so it gets the escaped text of findings.json.
+    return dict(json.loads(text))
 
 
 def summary(report: dict[str, Any]) -> str:

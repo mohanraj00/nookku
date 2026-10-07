@@ -1,5 +1,8 @@
 import json
+import os
 import shutil
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -142,3 +145,31 @@ def test_a_lone_surrogate_in_a_source_is_written_as_its_escape(tmp_path: Path) -
     trace.build(tmp_path)
     outputs = [it["output"] for it in rows(tmp_path / "trace.jsonl")]
     assert outputs == ["a mug \\udc00", "mug \\ud83d"]
+
+
+@pytest.mark.parametrize("as_json", [False, True])
+def test_the_trace_command_prints_a_lone_surrogate_as_its_escape(
+    tmp_path: Path, as_json: bool
+) -> None:
+    folder = tmp_path / ".verbatim-relay" / "tests" / "t"
+    folder.mkdir(parents=True)
+    (folder / "manifest.json").write_text(json.dumps({"test": "t", "model_sessions": []}))
+    request = {"messages": [{"role": "user", "content": "a mug"}]}
+    row = {
+        "v": 1,
+        "type": "call",
+        "api": "openai",
+        "path": "/v1/chat/completions",
+        "started": 4.0,
+        "ts": 5.0,
+        "request_body": {"text": json.dumps(request), "cut": False},
+        "status": 500,
+        "error": "the stock service \udc00 is down",
+        "result": None,
+    }
+    (folder / "model_api.jsonl").write_text(json.dumps(row) + "\n", encoding="utf-8")
+    argv = [sys.executable, "-m", "verbatim_relay", "trace", "t", "--root", str(tmp_path)]
+    env = {**os.environ, "PYTHONIOENCODING": "utf-8:strict"}
+    p = subprocess.run(argv + ["--json"] * as_json, capture_output=True, env=env)
+    assert p.returncode == 0, p.stderr
+    assert "the stock service \\udc00 is down" in p.stdout.decode("utf-8").replace("\\\\", "\\")
