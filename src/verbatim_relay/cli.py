@@ -17,7 +17,7 @@ from verbatim_relay.record import RecordError
 from verbatim_relay.tap import Tap, serve
 
 # Config keys that are not a plain string flag of init.
-LIST_KEYS = {"entry", "models", "evaluate", "otel", "backends", "model_api"}
+LIST_KEYS = {"entry", "models", "evaluate", "otel", "backends", "model_api", "openai_stream"}
 
 
 def _listen(value: str) -> tuple[str, int]:
@@ -68,6 +68,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     for name, default in vars(kit.Config()).items():
         if name not in LIST_KEYS:
             ini.add_argument(f"--{name.replace('_', '-')}", default=default)
+    ini.add_argument(
+        "--openai-stream",
+        action="store_true",
+        help='openai adapter: send "stream": true in each request',
+    )
     ini.add_argument("--entry", default="", help="the entry command of a test, as one string")
     ini.add_argument(
         "--models", default="", help="the app's model harnesses: claude-code, codex or both (comma)"
@@ -175,7 +180,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         root = args.root.resolve()
         values = {k: getattr(args, k) for k in vars(kit.Config()) if k not in LIST_KEYS}
         models = [m.strip() for m in args.models.split(",") if m.strip()]
-        config = kit.Config(**values, entry=shlex.split(args.entry), models=models)
+        config = kit.Config(
+            **values,
+            entry=shlex.split(args.entry),
+            models=models,
+            openai_stream=args.openai_stream,
+        )
         for path in kit.init(root, args.harness, config):
             print(f"wrote {path}")
         print(

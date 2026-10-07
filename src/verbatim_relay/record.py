@@ -13,7 +13,10 @@ from pathlib import Path
 from typing import Any
 
 VERSION = "0.2"
-VERSIONS = ("0.1", "0.2")
+# A failed stream row has version 0.3, so that a 0.2 reader refuses it for its version and not for
+# its reply (SPEC.md section 2). Each other row keeps VERSION.
+FAILED_STREAM_VERSION = "0.3"
+VERSIONS = ("0.1", "0.2", "0.3")
 # A surrogate code point. In a decoded Python string, each one is a lone surrogate.
 _SURROGATE = re.compile("[\ud800-\udfff]")
 
@@ -160,6 +163,13 @@ def _stream_info(value: Any) -> bool:
     )
 
 
+def _failed_stream(row: dict[str, Any]) -> bool:
+    """True if the row is an exchange with a 2xx status and no reply: a failed stream."""
+    status = row.get("status")
+    ok = type(status) is int and 200 <= status < 300
+    return row.get("type") == "exchange" and ok and row.get("reply") is None
+
+
 def _validate(kind: str, path: Path, n: int, raw: str) -> dict[str, Any]:
     def bad(message: str) -> RecordError:
         return RecordError("record_invalid", path, f"line {n}: {message}")
@@ -201,6 +211,8 @@ def _validate(kind: str, path: Path, n: int, raw: str) -> dict[str, Any]:
                 "'reply' must be a string for a 2xx status, and null for any other status "
                 "or for a failed stream"
             )
+        if failed and row["v"] != FAILED_STREAM_VERSION:
+            raise bad(f"a failed stream must have version {FAILED_STREAM_VERSION}")
     for (kind_, name), types in _OPTIONAL.items():
         value = row.get(name)
         if row["type"] != kind_ or name not in row:
@@ -252,7 +264,8 @@ def read_relay(path: Path) -> list[Turn | BlockedCall]:
 
 
 def _hashed(row: dict[str, Any]) -> dict[str, Any]:
-    out: dict[str, Any] = {"v": VERSION, "ts": time.time()}
+    version = FAILED_STREAM_VERSION if _failed_stream(row) else VERSION
+    out: dict[str, Any] = {"v": version, "ts": time.time()}
     for key, value in row.items():
         out[key] = value
         if key in _TEXT_FIELDS:

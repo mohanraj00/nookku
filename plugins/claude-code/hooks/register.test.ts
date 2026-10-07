@@ -113,6 +113,13 @@ function sse(reply: string, done = true): string {
 }
 const SSE = { 'content-type': 'text/event-stream; charset=utf-8' }
 
+test('openai_stream asks the agent for a stream', { options: { ...OPTIONS, adapter: 'openai', openai_stream: true } }, async ($, on) => {
+  const f = fakes(on, () => ({ status: 200, text: sse(REPLY), headers: SSE }))
+  await $.prompt.submit({ text: TRICKY })
+  expect(JSON.parse(f.sent[0].body)).toEqual({ messages: [{ role: 'user', content: TRICKY }], stream: true })
+  expect(f.logs).toEqual([REPLY])
+})
+
 test('the openai adapter shows a streamed reply when the stream is complete', { options: { ...OPTIONS, adapter: 'openai' } }, async ($, on) => {
   const f = fakes(on, () => ({ status: 200, text: sse(REPLY), headers: SSE }))
   await $.prompt.submit({ text: TRICKY })

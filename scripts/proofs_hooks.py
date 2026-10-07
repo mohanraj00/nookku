@@ -18,8 +18,13 @@ With --stream, the agent streams each reply (SSE): the toy shop agent of the tes
 mode, with no entry and no test. P1, P2 and P4 run as above, with the adversarial turns. P3b and
 the test checks need a test, so this mode does not run them.
 
-usage: python scripts/proofs_hooks.py codex|claude-code [--stream] [OUT_DIR]
-       (default proofs/hooks-<harness>, or proofs/hooks-<harness>-stream with --stream)
+With --stream --on-request, the toy agent streams only if the request has "stream": true
+(stream="on_request"), and the kit config has "openai_stream": true. Each exchange must be a
+stream.
+
+usage: python scripts/proofs_hooks.py codex|claude-code [--stream [--on-request]] [OUT_DIR]
+       (default proofs/hooks-<harness>, proofs/hooks-<harness>-stream with --stream, or
+       proofs/hooks-<harness>-stream-on-request with --stream --on-request)
 """
 
 from __future__ import annotations
@@ -149,8 +154,11 @@ def write_results(out: Path, report: dict, tap_rec: Path, relay_rec: Path) -> in
     return 0 if report["pass"] else 1
 
 
-def main_stream(harness: str, run, out: Path) -> int:
-    """P1, P2 and P4 with a streamed agent over HTTP. The tap runs in this process."""
+def main_stream(harness: str, run, out: Path, on_request: bool = False) -> int:
+    """P1, P2 and P4 with a streamed agent over HTTP. The tap runs in this process.
+
+    With on_request, the agent streams only on request, and the kit asks for a stream.
+    """
     from toy_agent import ToyAgent
 
     from verbatim_relay.adapters import make
@@ -162,11 +170,13 @@ def main_stream(harness: str, run, out: Path) -> int:
     shutil.rmtree(work, ignore_errors=True)
     work.mkdir()
     tap_rec = work / "tap.jsonl"
-    agent = ToyAgent(stream=True)
+    agent = ToyAgent(stream="on_request" if on_request else True)
     tap = Tap(("127.0.0.1", 0), agent.url, tap_rec, make("openai"))
     start_in_thread(tap)
     tap_url = f"http://127.0.0.1:{tap.server_address[1]}/v1/chat/completions"
-    config = kit.Config(tap_url=tap_url, agent_url=agent.url, adapter="openai")
+    config = kit.Config(
+        tap_url=tap_url, agent_url=agent.url, adapter="openai", openai_stream=on_request
+    )
     kit.init(project, harness, config)
     relay_rec = config.record_path(project)
     relay_rec.unlink(missing_ok=True)
@@ -178,6 +188,8 @@ def main_stream(harness: str, run, out: Path) -> int:
         "harness": harness,
         "version": version,
         "transport": "http-stream",
+        "agent_streams": "on_request" if on_request else "always",
+        "openai_stream": on_request,
         "turns": [],
     }
     try:
@@ -204,11 +216,17 @@ def main() -> int:
     stream = "--stream" in args
     if stream:
         args.remove("--stream")
+    on_request = "--on-request" in args
+    if on_request:
+        args.remove("--on-request")
+        if not stream:
+            sys.exit("--on-request needs --stream")
     harness = args[0]
     run = {"codex": run_codex, "claude-code": run_claude}[harness]
     if stream:
-        default = ROOT / "proofs" / f"hooks-{harness}-stream"
-        return main_stream(harness, run, Path(args[1]) if len(args) > 1 else default)
+        name = f"hooks-{harness}-stream" + ("-on-request" if on_request else "")
+        default = ROOT / "proofs" / name
+        return main_stream(harness, run, Path(args[1]) if len(args) > 1 else default, on_request)
     out = Path(args[1]) if len(args) > 1 else ROOT / "proofs" / f"hooks-{harness}"
     project = ROOT / ".proof" / harness
     shutil.rmtree(project / ".verbatim-relay" / "tests", ignore_errors=True)
