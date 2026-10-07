@@ -59,7 +59,7 @@ serve(reply)
 
 If `reply` raises an exception, `serve()` writes an `error` line with the exception, and the test continues.
 
-`serve()` needs `verbatim_relay` in the Python environment of your app. `uv tool install` puts it in its own environment, so also add version 0.2.0 or later to your app's environment, for example with `uv add --dev verbatim-relay`. Then use your app's interpreter in the entry command, for example `[".venv/bin/python", ".verbatim-relay/entry.py"]`.
+`serve()` needs `verbatim_relay` in the Python environment of your app. `uv tool install` puts it in its own environment, so also add version 0.2.0 or later to your app's environment, for example with `uv add --dev "verbatim-relay>=0.2"`. If PyPI does not have 0.2.0 yet, add it from the repo: `uv add --dev "verbatim-relay @ git+https://github.com/mohanraj00/verbatim-relay"`. Then use your app's interpreter in the entry command, for example `[".venv/bin/python", ".verbatim-relay/entry.py"]`.
 
 ### In another language
 

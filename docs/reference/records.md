@@ -48,7 +48,7 @@ The seal does not contain `report.md`, `bridge.log`, `seal.json` and `denied.jso
 
 | Record | Version | Defined in |
 |---|---|---|
-| Tap record and relay record | `"0.2"`. A reader also accepts `"0.1"`. | [SPEC.md section 2](../../SPEC.md#2-record-format) |
+| Tap record and relay record | `"0.2"`. The row of a failed stream in the tap record is `"0.3"`. A reader accepts `"0.1"`, `"0.2"` and `"0.3"`. | [SPEC.md section 2](../../SPEC.md#2-record-format) |
 | Agent contract | `1` | [SPEC.md section 6](../../SPEC.md#6-agent-contract-version-1) |
 | Trace row | `"0.3"` | [SPEC.md section 8.2](../../SPEC.md#82-trace-record) |
 | Seal | `1` | [SPEC.md section 7.4](../../SPEC.md#74-seal) |
