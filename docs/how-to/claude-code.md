@@ -25,7 +25,7 @@ Before you start, connect a test to your app: [connect-your-agent.md](connect-yo
    ```
 
 2. Write `.verbatim-relay/config.json` with your entry (see above).
-3. Type `/verbatim-relay start`. The plugin starts the entry through the tap, and relay mode goes on. The status line shows it. The start text gives the 2 ways to end the test: the prompt `verbatim-relay end` with the evaluation, and `/verbatim-relay end` with no evaluation.
+3. Type `/verbatim-relay start`. The plugin starts the entry through the tap, and relay mode goes on. The status line shows it. The start text tells you how to end the test: the prompt `verbatim-relay end` with the evaluation, or `/verbatim-relay end` with no evaluation.
 4. Type your test messages. Each reply shows as a row in the chat and in the verbatim-relay pane.
 5. Type the prompt `verbatim-relay end`, with no slash. The plugin stops the entry, copies the app's session files into the test folder, builds the trace and switches relay mode off. Then the prompt goes to the model with the evaluation prompt, and the model writes `report.md` in the test folder (see [Evaluation](#evaluation)).
 
