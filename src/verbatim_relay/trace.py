@@ -8,7 +8,6 @@ never fails on a line that it does not know.
 from __future__ import annotations
 
 import base64
-import binascii
 import datetime
 import hashlib
 import json
@@ -402,7 +401,7 @@ def _image(url: Any) -> dict[str, Any]:
     if "base64" in params[1:]:
         try:
             raw = base64.b64decode("".join(data.split()), validate=True)
-        except binascii.Error:
+        except ValueError:  # binascii.Error, or a character that is not ASCII
             return out
         out.update(size=len(raw), sha256=hashlib.sha256(raw).hexdigest())
     return out

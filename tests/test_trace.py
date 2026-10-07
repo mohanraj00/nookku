@@ -87,6 +87,7 @@ def test_a_decisions_request_keeps_no_image_data(tmp_path: Path) -> None:
                 "content": [
                     {"type": "input_image", "image_url": "data:image/jpeg;base64,dG95"},
                     {"type": "input_image", "image_url": "data:image/png;base64,not base64!"},
+                    {"type": "input_image", "image_url": "data:image/png;base64,é"},
                     {"type": "input_image", "image_url": "https://shop.test/mug.png"},
                 ],
             },
@@ -112,6 +113,7 @@ def test_a_decisions_request_keeps_no_image_data(tmp_path: Path) -> None:
                 "size": 3,
                 "sha256": "0f53133ce57ca8e8937bb4b1c15a33ef9594704e1c11abd58e598bb8362f7385",
             },
+            {"media_type": "image/png", "size": None, "sha256": None},
             {"media_type": "image/png", "size": None, "sha256": None},
             {"media_type": None, "size": None, "sha256": None},
         ],
