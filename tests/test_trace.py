@@ -48,3 +48,31 @@ def test_a_file_without_a_version_is_unknown(tmp_path: Path) -> None:
     report = trace.build(tmp_path)
     assert report["sessions"][0]["version"] == "unknown"
     assert report["findings"][0]["detail"] == "version unknown, tested: 0.160.0"
+
+
+def test_a_tool_result_matches_only_a_call_of_its_format(tmp_path: Path) -> None:
+    def call(path: str, request: dict, result: dict) -> dict:
+        body = {"text": json.dumps(request), "cut": False}
+        return {
+            "type": "call",
+            "api": "openai",
+            "path": path,
+            "request_body": body,
+            "result": result,
+        }
+
+    lookup = {"id": "call_1", "name": "lookup_order", "input": {"order": "4471"}}
+    rows = [
+        call("/v1/chat/completions", {"messages": []}, {"tool_calls": [lookup]}),
+        call("/v1/responses", {"input": []}, {"tool_calls": [lookup]}),
+        call(
+            "/v1/responses",
+            {"input": [{"type": "function_call_output", "call_id": "call_1", "output": "shipped"}]},
+            {},
+        ),
+    ]
+    path = tmp_path / "model_api.jsonl"
+    path.write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
+    items, _ = trace.read_model_api(path)
+    tools = [it for it in items if it["kind"] == "tool_call"]
+    assert [it.get("output") for it in tools] == [None, "shipped"]

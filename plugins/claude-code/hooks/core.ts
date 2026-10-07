@@ -65,6 +65,7 @@ export function contractBody(id: string, test: string, said: string, turns: read
 }
 
 // What the tester sees for one tap response, and whether it is the agent's reply.
+// A line with both 'reply' and 'error' is not a contract line, also if one is null (SPEC.md section 6).
 export function contractShown(status: number, body: string, id: string): { shown: string; ok: boolean } {
   let data: any = null
   try {
@@ -77,7 +78,7 @@ export function contractShown(status: number, body: string, id: string): { shown
     if (mine && typeof data.reply === 'string' && data.error === undefined) return { shown: data.reply, ok: true }
     return { shown: `verbatim-relay: cannot read the reply: ${body}`, ok: false }
   }
-  if (status === 500 && mine && typeof data.error === 'string') {
+  if (status === 500 && mine && typeof data.error === 'string' && data.reply === undefined) {
     return { shown: `verbatim-relay: the agent sent an error:\n${data.error}`, ok: false }
   }
   const error = data !== null && typeof data?.error === 'string' ? data.error : body
