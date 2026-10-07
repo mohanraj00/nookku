@@ -586,6 +586,8 @@ def run(root: Path, test: str, tester_session: str | None, timeout: float = AGEN
     watcher.stop()
     watcher.poll()
     agent.stop()
+    # A line after the last reply waits in the queue. It is a stray line too (SPEC.md 4.2).
+    tap.record_rest()
     if receiver:
         # The app can export its last spans when it exits. Then no request comes after it.
         receiver.quiet()

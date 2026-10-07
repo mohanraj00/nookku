@@ -44,6 +44,7 @@ class Agent:
         self.failed: str | None = None
         self._lines: queue.Queue[bytes | None] = queue.Queue()
         self.proc: subprocess.Popen[bytes] | None = None
+        self._reader: threading.Thread | None = None
 
     def start(self) -> None:
         with self.log.open("ab") as err:
@@ -56,7 +57,8 @@ class Agent:
                 start_new_session=True,
                 env={**os.environ, **self.env} if self.env else None,
             )
-        threading.Thread(target=self._read, daemon=True).start()
+        self._reader = threading.Thread(target=self._read, daemon=True)
+        self._reader.start()
 
     def _read(self) -> None:
         assert self.proc is not None and self.proc.stdout is not None
@@ -86,6 +88,19 @@ class Agent:
                 self._exited()
                 return out
             out.append(line)
+
+    def rest(self, wait: float = 1.0) -> list[bytes]:
+        """The lines that the agent wrote after its last reply. Call it after stop()."""
+        if self._reader is not None:
+            self._reader.join(timeout=wait)
+        out: list[bytes] = []
+        while True:
+            try:
+                line = self._lines.get_nowait()
+            except queue.Empty:
+                return out
+            if line is not None:
+                out.append(line)
 
     def ask(self, line: bytes, rid: str, stray: Callable[[bytes], None]) -> tuple[str, bytes | str]:
         """Send one input line. Return ("line", output) or ("exited" | "timeout", reason).
@@ -173,6 +188,17 @@ def _is_for(line: bytes, rid: str) -> bool:
     return isinstance(data, dict) and data.get("id") == rid
 
 
+def stray_row(line: bytes) -> dict[str, str]:
+    """The unparsed row of a stray line on stdout (SPEC.md section 4.2)."""
+    excerpt = line[:80].decode("utf-8", errors="replace")
+    return {
+        "type": "unparsed",
+        "method": "STDIO",
+        "path": "stdout",
+        "error": f"a stray line on stdout: {excerpt!r}",
+    }
+
+
 class StdioTap(ThreadingHTTPServer):
     daemon_threads = True
 
@@ -183,6 +209,11 @@ class StdioTap(ThreadingHTTPServer):
 
     def server_bind(self) -> None:
         bind(self)
+
+    def record_rest(self) -> None:
+        """Write a stray row for each line that the agent wrote after its last reply."""
+        for line in self.agent.rest():
+            self.writer.append(stray_row(line))
 
     @property
     def url(self) -> str:
@@ -214,8 +245,7 @@ class _Handler(BaseHTTPRequestHandler):
         )
 
     def _stray(self, line: bytes) -> None:
-        excerpt = line[:80].decode("utf-8", errors="replace")
-        self._unparsed("STDIO", "stdout", f"a stray line on stdout: {excerpt!r}")
+        self.server.writer.append(stray_row(line))
 
     def do_POST(self) -> None:
         if "chunked" in self.headers.get("Transfer-Encoding", "").lower():

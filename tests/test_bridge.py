@@ -299,6 +299,33 @@ def test_check_fails_if_the_entry_logs_on_stdout_and_then_replies(
     ]
 
 
+REPLY_THEN_LOG_APP = """
+import json, sys
+for raw in sys.stdin.buffer:
+    request = json.loads(raw)
+    out = {"v": 1, "id": request["id"], "reply": "Toy shop: " + request["message"]}
+    sys.stdout.write(json.dumps(out) + "\\n")
+    sys.stdout.write("toy shop: reply sent\\n")
+    sys.stdout.flush()
+"""
+
+
+def test_check_fails_if_the_entry_replies_and_then_logs_on_stdout(
+    tmp_path: Path, homes: tuple
+) -> None:
+    # The log line comes after the last reply. The end of the test records it as a stray line.
+    script = tmp_path / "app.py"
+    script.write_text(REPLY_THEN_LOG_APP)
+    root = project(tmp_path, [sys.executable, str(script)])
+    passed, lines = bridge.check(root)
+    assert not passed, lines
+    assert "Audit: exit 2" in lines
+    stray = "a stray line on stdout: 'toy shop: reply sent'. " + stdio.STRAY_HINT
+    assert [line for line in lines if line.startswith("FAIL")] == [
+        f"FAIL: tap_unparsed: tap line 2: STDIO stdout: {stray}"
+    ]
+
+
 def test_a_clean_entry_passes_the_check(tmp_path: Path, homes: tuple) -> None:
     root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
     passed, lines = bridge.check(root)

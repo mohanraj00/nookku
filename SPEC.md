@@ -194,6 +194,7 @@ Each adapter maps onto the agent contract (section 6):
 - If the agent exits, the tap returns status 502 and writes an `exchange` row with `status: null` and the exit code in `error`.
 - The tap does not restart the agent. After a crash or a timeout, it answers each later request with the same error. The error body includes the last 20 lines of `app.log`.
 - Before each request, the tap reads each line that waits on stdout. Each such line is a stray line.
+- At the end of a test, after the agent stops, the tap reads each line that the agent wrote after its last reply. Each such line is a stray line too.
 
 ### 4.3 Timeouts
 
