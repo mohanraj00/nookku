@@ -12,6 +12,7 @@ from urllib.parse import urlsplit
 
 from verbatim_relay.adapters import Adapter, AdapterError
 from verbatim_relay.record import Writer
+from verbatim_relay.stdio import TIMEOUT
 
 HOP_BY_HOP = {
     "connection",
@@ -25,25 +26,31 @@ HOP_BY_HOP = {
 }
 NOT_FORWARDED = HOP_BY_HOP | {"host", "accept-encoding", "content-length"}
 NOT_RETURNED = HOP_BY_HOP | {"content-length"}
-TIMEOUT = 300
 
 
 class Tap(ThreadingHTTPServer):
     daemon_threads = True
 
-    def __init__(self, listen: tuple[str, int], agent: str, record: Path, adapter: Adapter) -> None:
+    def __init__(
+        self,
+        listen: tuple[str, int],
+        agent: str,
+        record: Path,
+        adapter: Adapter,
+        timeout: float = TIMEOUT,
+    ) -> None:
         parts = urlsplit(agent)
         if parts.scheme not in ("http", "https") or not parts.hostname:
             raise ValueError(f"the agent URL must be http or https: {agent!r}")
         self.scheme, self.agent_host = parts.scheme, parts.hostname
         self.agent_port = parts.port or (443 if parts.scheme == "https" else 80)
         self.base_path = parts.path.rstrip("/")
-        self.writer, self.adapter = Writer(record), adapter
+        self.writer, self.adapter, self.timeout = Writer(record), adapter, timeout
         super().__init__(listen, _Handler)
 
     def connect(self) -> http.client.HTTPConnection:
         cls = http.client.HTTPSConnection if self.scheme == "https" else http.client.HTTPConnection
-        return cls(self.agent_host, self.agent_port, timeout=TIMEOUT)
+        return cls(self.agent_host, self.agent_port, timeout=self.timeout)
 
 
 class _Handler(BaseHTTPRequestHandler):
@@ -92,6 +99,9 @@ class _Handler(BaseHTTPRequestHandler):
             resp = conn.getresponse()
             status, out_headers, out = resp.status, resp.getheaders(), resp.read()
         except (OSError, http.client.HTTPException) as e:
+            # After the agent timeout, the tap answers 504 before the relay timeout (SPEC.md 4.3).
+            late = isinstance(e, TimeoutError)
+            why = f"the agent sent no response in {tap.timeout:g} s" if late else None
             if message is not None:
                 tap.writer.append(
                     {
@@ -99,7 +109,7 @@ class _Handler(BaseHTTPRequestHandler):
                         "input": message,
                         "status": None,
                         "reply": None,
-                        "error": f"agent unreachable: {e}",
+                        "error": why or f"agent unreachable: {e}",
                     }
                 )
             elif recorded:
@@ -111,7 +121,10 @@ class _Handler(BaseHTTPRequestHandler):
                         "error": parse_error or "unknown",
                     }
                 )
-            self._error(502, f"verbatim-relay tap: the agent is unreachable: {e}")
+            if why:
+                self._error(504, f"verbatim-relay tap: {why}")
+            else:
+                self._error(502, f"verbatim-relay tap: the agent is unreachable: {e}")
             return
         finally:
             conn.close()

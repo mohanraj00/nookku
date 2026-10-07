@@ -17,6 +17,8 @@ class ToyAgent(ThreadingHTTPServer):
 
     def __init__(self) -> None:
         self.received: list[dict[str, Any]] = []
+        # A request to /slow waits for this event (at most 10 s), then the agent replies.
+        self.release = threading.Event()
         super().__init__(("127.0.0.1", 0), _Handler)
         threading.Thread(target=self.serve_forever, daemon=True).start()
 
@@ -53,6 +55,8 @@ class _Handler(BaseHTTPRequestHandler):
                 "headers": dict(self.headers.items()),
             }
         )
+        if self.path.startswith("/slow"):
+            self.server.release.wait(10)
         if self.path.startswith("/fail"):
             self._send(500, b'{"error": "boom"}')
         elif self.path.startswith("/not-json"):

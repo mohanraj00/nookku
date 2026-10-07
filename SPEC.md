@@ -124,7 +124,8 @@ The audit counts `blocked_call` rows and `model_session` rows. It does not match
 
 - The tap forwards the method, path, query, headers and body without change. It does not forward hop-by-hop headers and `Host`. It replaces `Accept-Encoding` with `identity`, so that the agent sends a body that the adapter can read.
 - The tap returns the agent's status, headers and body without change, except hop-by-hop headers and `Content-Length`.
-- If the agent does not respond, the tap returns status 502 and writes an `exchange` row with `status: null`.
+- If the tap cannot reach the agent, it returns status 502 and writes an `exchange` row with `status: null`.
+- If the tap waits 240 seconds for a connection or for data from the agent, it closes the connection. It returns status 504 and writes an `exchange` row with `status: null`, and the timeout in `error`.
 - The tap writes rows only for `POST` requests that the adapter accepts. It forwards other requests without a row.
 - The tap does not support streamed responses in v0.1. If an OpenAI-style request has `"stream": true`, the tap returns status 501 and does not forward it.
 
@@ -156,6 +157,20 @@ Each adapter maps onto the agent contract (section 6):
 - If the agent exits, the tap returns status 502 and writes an `exchange` row with `status: null` and the exit code in `error`.
 - The tap does not restart the agent. After a crash or a timeout, it answers each later request with the same error. The error body includes the last 20 lines of `app.log`.
 - Before each request, the tap reads each line that waits on stdout. Each such line becomes an `unparsed` row with `method: STDIO`.
+
+### 4.3 Timeouts
+
+Each timeout on the relay path ends before the next one, so that each part gets an answer and the relay can still block the prompt.
+
+| Order | Timeout | Seconds |
+|---|---|---|
+| 1 | The agent timeout of the tap, the same in HTTP mode and stdio mode | 240 |
+| 2 | The tap answers the relay, at most 5 seconds after the agent timeout | 245 |
+| 3 | The hook kit waits for the tap of a test (section 7) | 270 |
+| 3 | The hook kit waits for the tap of section 4.1 | 280 |
+| 4 | The harness stops the `UserPromptSubmit` hook | 300 |
+
+The plugin sets no timeout of its own. It waits for the answer of the tap. The test `tests/test_timeouts.py` checks this order.
 
 ## 5. Relays
 

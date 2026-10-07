@@ -17,6 +17,7 @@ TRICKY = "Hi, I want to return order #4471.  \n\nÜnïcödé € ₹\t| a | b |\
 def agent():
     server = ToyAgent()
     yield server
+    server.release.set()
     server.shutdown()
 
 
