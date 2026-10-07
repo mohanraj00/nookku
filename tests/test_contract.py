@@ -9,6 +9,8 @@ from pathlib import Path
 import pytest
 
 from verbatim_relay import contract
+from verbatim_relay.audit import audit
+from verbatim_relay.record import Writer
 from verbatim_relay.stdio import Agent, StdioTap, start_in_thread
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -173,3 +175,38 @@ def test_serve_speaks_the_contract(tmp_path: Path) -> None:
     assert len(out) == 4
     assert p.stderr.count(b"a log line from the toy shop") == 2
     assert p.returncode == 0
+
+
+# The entry prints a line at import, before serve(). Stdout is a pipe, so Python buffers the line.
+EARLY = """
+from verbatim_relay.agent import serve
+
+print("toy shop: loading catalog")
+serve(lambda message, history: "We sell mugs.")
+"""
+
+
+def test_output_before_serve_goes_to_the_log(tmp_path: Path) -> None:
+    script = tmp_path / "entry.py"
+    script.write_text(EARLY)
+    env = {"PYTHONPATH": str(ROOT / "src")}
+    agent = Agent([sys.executable, str(script)], tmp_path, tmp_path / "app.log", env=env)
+    tap = StdioTap(("127.0.0.1", 0), agent, tmp_path / "tap.jsonl")
+    agent.start()
+    start_in_thread(tap)
+    said = "Do you sell mugs?"
+    try:
+        # Give the entry time to start, so that a stray line is on stdout before the request.
+        time.sleep(0.5)
+        status, body = post(tap.url, contract.request("m-1", "t-1", said, []).decode())
+    finally:
+        tap.shutdown()
+        agent.stop(grace=1)
+    assert status == 200
+    shown, _ = contract.parse_reply(body, "m-1")
+    rows = [json.loads(x) for x in (tmp_path / "tap.jsonl").read_text().split("\n") if x]
+    assert [r["type"] for r in rows] == ["exchange"]
+    assert "toy shop: loading catalog" in (tmp_path / "app.log").read_text()
+    relay = Writer(tmp_path / "relay.jsonl")
+    relay.append({"type": "turn", "harness": "codex", "said": said, "shown": shown})
+    assert audit(tmp_path / "tap.jsonl", relay.path).exit == 0
