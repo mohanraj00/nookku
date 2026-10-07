@@ -136,7 +136,7 @@ test('the transcript tool shows the exact output of the verbatim-relay command',
 
 // A test (SPEC.md section 7). The fake verbatim-relay command writes current.json, as the bridge does.
 const DIR = '.verbatim-relay/tests/20261005-120000-ab12'
-const CURRENT = { v: 1, test: '20261005-120000-ab12', dir: DIR, tap_url: 'http://127.0.0.1:8811/', pid: 4471 }
+const CURRENT = { v: 1, test: '20261005-120000-ab12', dir: DIR, tap_url: 'http://127.0.0.1:8811/', pid: 4471, pid_start: 'ps:Mon Oct 5 12:00:00 2026' }
 
 function withTest(on: any, f: ReturnType<typeof fakes>, evaluation: string | null = 'Evaluate the test.') {
   const runs: string[][] = []

@@ -15,7 +15,7 @@ export type Options = {
 }
 
 // The running test, from .verbatim-relay/current.json (SPEC.md section 7.2).
-export type Current = { test: string; dir: string; tap_url: string; pid: number }
+export type Current = { test: string; dir: string; tap_url: string; pid: number; pid_start: string }
 
 export const HARNESS = 'claude-code'
 

@@ -106,6 +106,44 @@ def alive(pid: int) -> bool:
     return True
 
 
+def process_start(pid: int) -> str | None:
+    """The start time of a process as the OS gives it, or None if it is not known.
+
+    The OS can give the pid of a stopped process to a new process. The new process has a
+    different start time, so the pid and this value together identify one process."""
+    try:
+        stat = Path(f"/proc/{pid}/stat").read_text()
+    except OSError:
+        pass
+    else:
+        # Field 2 is the command name in parentheses. It can hold spaces and ")".
+        fields = stat.rsplit(")", 1)[-1].split()
+        return f"proc:{fields[19]}" if len(fields) > 19 else None
+    # UTC and the C locale give the same text in each shell.
+    env = {**os.environ, "LC_ALL": "C", "TZ": "UTC0"}
+    try:
+        out = subprocess.run(
+            ["ps", "-o", "lstart=", "-p", str(pid)],
+            capture_output=True,
+            text=True,
+            env=env,
+            timeout=10,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    text = " ".join(out.stdout.split())
+    return f"ps:{text}" if out.returncode == 0 and text else None
+
+
+def is_bridge(cur: dict[str, Any]) -> bool:
+    """True if the process of `pid` runs and has the start time `pid_start` of current.json."""
+    pid, start = cur.get("pid"), cur.get("pid_start")
+    if type(pid) is not int or pid <= 0 or not isinstance(start, str) or not alive(pid):
+        return False
+    return process_start(pid) == start
+
+
 def current(root: Path) -> dict[str, Any] | None:
     """The running test, from current.json. Remove the file if its bridge does not run."""
     path = state(root) / "current.json"
@@ -113,7 +151,7 @@ def current(root: Path) -> dict[str, Any] | None:
         cur = json.loads(path.read_text())
     except (OSError, ValueError):
         return None
-    if not isinstance(cur, dict) or not isinstance(cur.get("pid"), int) or not alive(cur["pid"]):
+    if not isinstance(cur, dict) or not is_bridge(cur):
         path.unlink(missing_ok=True)
         return None
     return cur
@@ -189,11 +227,14 @@ def end(
     if tester_session:
         _write_json(state(root) / ENDING, {"test": cur["test"], "tester_session": tester_session})
     pid = cur["pid"]
-    os.kill(pid, signal.SIGTERM)
+    # The OS can give the pid to a new process after the bridge stops. Check the start time again
+    # before each signal and in the wait, so that no signal goes to that process.
+    if is_bridge(cur):
+        os.kill(pid, signal.SIGTERM)
     deadline = time.monotonic() + wait
-    while alive(pid) and time.monotonic() < deadline:
-        time.sleep(0.1)
-    if alive(pid):
+    while is_bridge(cur) and time.monotonic() < deadline:
+        time.sleep(0.2)
+    if is_bridge(cur):
         os.kill(pid, signal.SIGKILL)
         (state(root) / "current.json").unlink(missing_ok=True)
     manifest = Path(cur["dir"]) / "manifest.json"
@@ -458,6 +499,10 @@ def run(root: Path, test: str, tester_session: str | None, timeout: float = AGEN
     root = root.resolve()
     folder = state(root) / "tests" / test
     config = load_config(root)
+    pid_start = process_start(os.getpid())
+    if pid_start is None:
+        print("verbatim-relay bridge: cannot read the start time of its process", file=sys.stderr)
+        return 1
     started = time.time()
     manifest: dict[str, Any] = {
         "v": "0.2",
@@ -518,7 +563,14 @@ def run(root: Path, test: str, tester_session: str | None, timeout: float = AGEN
     start_in_thread(tap)
     _write_json(
         state(root) / "current.json",
-        {"v": 1, "test": test, "dir": str(folder), "tap_url": tap.url, "pid": os.getpid()},
+        {
+            "v": 1,
+            "test": test,
+            "dir": str(folder),
+            "tap_url": tap.url,
+            "pid": os.getpid(),
+            "pid_start": pid_start,
+        },
     )
     _log(f"test {test} on {tap.url}")
     stop.wait()
