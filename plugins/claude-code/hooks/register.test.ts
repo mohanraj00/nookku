@@ -259,6 +259,36 @@ test('contract parts', async () => {
   expect(touchesTestFiles('Bash', '{"command": "verbatim-relay transcript"}')).toBe(false)
 })
 
+// The agent line of each one-line case in conformance/contract/, with the status that the
+// Python tap returns for it. tests/test_contract.py checks this table against the cases and
+// against contract.parse_reply.
+const CONTRACT_LINES: [string, number][] = [
+  ["{\"v\": 1, \"id\": \"m-1\", \"error\": \"Mug sold out \\ud83d\"}", 502], // error_with_a_lone_surrogate
+  ["{\"v\": 1, \"id\": \"m-1\", \"reply\": \"## Returns  \\nYou can return order #4471 within 30 days.\\n\\n| item | status |\\n|---|---|\\n| mug | eligible |\\ud83d\"}", 502], // reply_with_a_lone_surrogate
+  ["{\"v\": 1, \"id\": \"m-1\", \"error\": \"The order service is down.\"}", 500], // error_is_status_500
+  ["{\"v\": 1, \"id\": \"m-1\", \"reply\": null, \"error\": \"The order service is down.\"}", 502], // null_reply_and_error
+  ["{\"v\": 1, \"id\": \"m-1\", \"reply\": \"## Returns  \\nYou can return order #4471 within 30 days.\\n\\n| item | status |\\n|---|---|\\n| mug | eligible |\", \"latency_ms\": 12}", 200], // other_fields_are_ignored
+  ["{\"v\": 1, \"id\": \"m-1\", \"reply\": \"## Returns  \\nYou can return order #4471 within 30 days.\\n\\n| item | status |\\n|---|---|\\n| mug | eligible |\", \"error\": \"also an error\"}", 502], // reply_and_error
+  ["{\"v\": 1, \"id\": \"m-1\", \"reply\": \"## Returns  \\nYou can return order #4471 within 30 days.\\n\\n| item | status |\\n|---|---|\\n| mug | eligible |\", \"error\": null}", 502], // reply_and_null_error
+  ["{\"v\": 1, \"id\": \"m-1\", \"reply\": \"## Returns  \\nYou can return order #4471 within 30 days.\\n\\n| item | status |\\n|---|---|\\n| mug | eligible |\"}", 200], // reply_is_exact
+  ["{\"v\": 1, \"id\": \"m-1\", \"reply\": 4471}", 502], // reply_not_a_string
+  ["Loading the toy shop catalog...", 502], // reply_not_json
+  ["{\"v\": 1, \"id\": \"m-1\", \"reply\": \"## Returns  \\nYou can return order #4471 within 30 days.\\n\\n| item | status |\\n|---|---|\\n| mug | eligible |\", \"score\": NaN}", 502], // reply_with_nan
+  ["{\"v\": 2, \"id\": \"m-1\", \"reply\": \"## Returns  \\nYou can return order #4471 within 30 days.\\n\\n| item | status |\\n|---|---|\\n| mug | eligible |\"}", 502], // reply_wrong_contract_version
+  ["{\"v\": 1, \"id\": \"m-0\", \"reply\": \"## Returns  \\nYou can return order #4471 within 30 days.\\n\\n| item | status |\\n|---|---|\\n| mug | eligible |\"}", 502], // reply_wrong_id
+]
+
+test('the plugin reads an agent line with the same rule as the Python tap', async () => {
+  for (const [line, status] of CONTRACT_LINES) {
+    const reply = contractShown(200, line, 'm-1')
+    expect([line, reply.ok]).toEqual([line, status === 200])
+    if (status === 200) expect(reply.shown).toBe(JSON.parse(line).reply)
+    const error = contractShown(500, line, 'm-1')
+    expect([line, error.shown.startsWith('verbatim-relay: the agent sent an error:\n')]).toEqual([line, status === 500])
+    expect(error.ok).toBe(false)
+  }
+})
+
 test('the prompt verbatim-relay end ends the test and gives the model the evaluation', { options: { start_on: false } }, async ($, on) => {
   const f = fakes(on, contractReply)
   const runs = withTest(on, f)
