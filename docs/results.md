@@ -65,13 +65,14 @@ The record cuts the third request body at 1 MiB, but the stock service got all o
 
 ### Direct model calls
 
-[scripts/proof_model_api.py](../scripts/proof_model_api.py) runs a test with an entry that makes 3 calls to a toy model API through the model API proxies: a streamed Anthropic call, a streamed OpenAI call and an Anthropic call with a JSON answer. For a streamed call, the toy API sends the first event and then waits until the entry says that it has that event. The proof compares the SHA-256 of each body at 3 places: the entry, the toy API and `model_api.jsonl`. It also compares the text in the record with the text that the toy API sent. It needs no model.
+[scripts/proof_model_api.py](../scripts/proof_model_api.py) runs a test with an entry that makes 4 calls to a toy model API through the model API proxies: a streamed Anthropic call, a streamed OpenAI Chat Completions call, an Anthropic call with a JSON answer and a streamed OpenAI Responses call. For a streamed call, the toy API sends the first event and then waits until the entry says that it has that event. The proof compares the SHA-256 of each body at 3 places: the entry, the toy API and `model_api.jsonl`. It also compares the text in the record with the text that the toy API sent. It needs no model.
 
 | Call | Response | Same at all 3 places | First part before the end | Text in the record | Data |
 |---|---|---|---|---|---|
 | Anthropic, stream | 6,549 bytes | yes | yes | yes | [results](../proofs/model-api/results.json) |
-| OpenAI, stream | 3,564 bytes | yes | yes | yes | [results](../proofs/model-api/results.json) |
+| OpenAI Chat Completions, stream | 3,564 bytes | yes | yes | yes | [results](../proofs/model-api/results.json) |
 | Anthropic, JSON | 122 bytes | yes | not a stream | yes | [results](../proofs/model-api/results.json) |
+| OpenAI Responses, stream | 8,531 bytes | yes | yes | yes | [results](../proofs/model-api/results.json) |
 
 The API key was not in the record. The seal of the test folder was intact.
 
