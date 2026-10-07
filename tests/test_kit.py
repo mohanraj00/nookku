@@ -12,7 +12,14 @@ from toy_agent import ToyAgent, shop_reply
 from verbatim_relay import bridge, kit
 from verbatim_relay.adapters import make
 from verbatim_relay.audit import audit
-from verbatim_relay.record import BlockedCall, RecordError, Turn, read_relay, read_tap
+from verbatim_relay.record import (
+    BlockedCall,
+    RecordError,
+    Turn,
+    read_relay,
+    read_rows,
+    read_tap,
+)
 from verbatim_relay.tap import Tap, start_in_thread
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -30,6 +37,22 @@ def test_the_deny_pattern_has_the_same_rule_as_the_plugin() -> None:
     assert pattern is not None
     for command, denied in rows:
         assert (command, bool(pattern.search(command))) == (command, denied)
+
+
+def test_the_blocked_call_detail_has_the_same_rule_as_the_plugin(tmp_path: Path) -> None:
+    # register.test.ts runs this table through blockedDetail.
+    text = (ROOT / "plugins" / "claude-code" / "hooks" / "register.test.ts").read_text("utf-8")
+    block = text.split("const DETAIL_CASES")[1].split("\n]\n")[0]
+    rows = [json.loads(row) for row in re.findall(r"^  (\[.*\]),$", block, re.M)]
+    assert len(rows) == block.count("\n  [") > 0
+    path = tmp_path / "relay.jsonl"
+    for pad, tail, cut in rows:
+        detail = kit.blocked_detail("x" * pad + tail)
+        assert [pad, tail, detail] == [pad, tail, "x" * pad + cut]
+        row = {"v": "0.2", "type": "blocked_call", "ts": 1.0, "harness": "claude-code"}
+        row.update(tool="Bash", detail=detail)
+        path.write_text(json.dumps(row, ensure_ascii=False) + "\n", encoding="utf-8")
+        assert read_rows("relay", path) == [(1, row)]
 
 
 TRICKY = "Hi, I want to return order #4471.  \n\nÜnïcödé € ₹\t| a | b |\n"
