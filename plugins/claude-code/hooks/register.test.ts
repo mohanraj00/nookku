@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { contractBody, contractShown, denyPattern, entryNames, isChecked, loneSurrogate, namesEntry, pick, readsOnly, requestBody, sha256, toolReadsOnly, touchesRecords, touchesTestFiles } from './core'
+import { contractBody, contractShown, denyPattern, entryNames, isChecked, isStream, loneSurrogate, namesEntry, pick, readsOnly, replyText, requestBody, sha256, sseEvents, streamText, toolReadsOnly, touchesRecords, touchesTestFiles } from './core'
 
 const TRICKY = 'Hi, I want to return order #4471.  \n\nÜnïcödé € ₹\t| a | b |\n'
 const REPLY = '## Toy shop  \nYou wrote it.\n\n| item | price |\n|---|---|\n| mug | € 8 |\n'
@@ -8,14 +8,14 @@ const OPTIONS = { start_on: true, record: '/virtual/relay.jsonl' }
 
 // Fakes for the tap and the file system, under the plugin. A file system hook answers
 // { value }, or { deny } for a call that rejects.
-function fakes(on: any, reply: (body: string) => { status: number; text: string }) {
+function fakes(on: any, reply: (body: string) => { status: number; text: string; headers?: Record<string, string> }) {
   const files: Record<string, string> = {}
   const sent: { url: string; body: string }[] = []
   const logs: string[] = []
   on('http.fetch', async (_$: any, e: any) => {
     sent.push({ url: e.url, body: e.init.body })
     const r = reply(e.init.body)
-    return { value: { status: r.status, ok: r.status >= 200 && r.status < 300, headers: {}, text: r.text } }
+    return { value: { status: r.status, ok: r.status >= 200 && r.status < 300, headers: r.headers ?? {}, text: r.text } }
   })
   // $.fs resolves a relative path against the working directory. Key the files by the path
   // from .verbatim-relay/ on, as the plugin wrote it.
@@ -98,6 +98,58 @@ test('the openai adapter sends the conversation so far', { options: { ...OPTIONS
       { role: 'user', content: 'second' },
     ],
   })
+})
+
+// An OpenAI-style SSE body with 5 characters of the reply in each chunk.
+function sse(reply: string, done = true): string {
+  let body = ': the toy shop streams\n\n'
+  for (let i = 0; i < reply.length; i += 5) body += `data: ${JSON.stringify({ choices: [{ index: 0, delta: { content: reply.slice(i, i + 5) } }] })}\n\n`
+  return body + (done ? 'data: [DONE]\n\n' : '')
+}
+const SSE = { 'content-type': 'text/event-stream; charset=utf-8' }
+
+test('the openai adapter shows a streamed reply when the stream is complete', { options: { ...OPTIONS, adapter: 'openai' } }, async ($, on) => {
+  const f = fakes(on, () => ({ status: 200, text: sse(REPLY), headers: SSE }))
+  await $.prompt.submit({ text: TRICKY })
+  expect(f.logs).toEqual([REPLY])
+  expect(rows(f.files['/virtual/relay.jsonl'])[0]).toMatchObject({ shown: REPLY, ok: true })
+})
+
+test('a stream that ends early is an error, not a part of the reply', { options: { ...OPTIONS, adapter: 'openai' } }, async ($, on) => {
+  const f = fakes(on, () => ({ status: 200, text: sse(REPLY, false), headers: SSE }))
+  await $.prompt.submit({ text: TRICKY })
+  expect(f.logs).toEqual(['verbatim-relay: cannot read the reply: the stream ended before data: [DONE]'])
+  expect(rows(f.files['/virtual/relay.jsonl'])[0]).toMatchObject({ shown: f.logs[0], ok: false })
+})
+
+test('stream parts', async () => {
+  expect(sseEvents('﻿: c\r\nevent: note\r\ndata: a\r\ndata:b\r\n\r\ndata: c\rdata: d\n\n\nevent: x\n\ndata: last')).toEqual([
+    { name: 'note', data: 'a\nb' },
+    { name: 'message', data: 'c\nd' },
+    { name: 'message', data: 'last' },
+  ])
+  const chunk = (content: unknown, index = 0) => `data: ${JSON.stringify({ choices: [{ index, delta: { content } }] })}\n\n`
+  const done = 'data: [DONE]\n\n'
+  expect(streamText(chunk('## Toy') + chunk('other', 1) + 'data: {"choices": []}\n\n' + chunk(' shop') + done)).toBe('## Toy shop')
+  const failures: [string, string][] = [
+    [chunk('a'), 'ended before data: [DONE]'],
+    [chunk('a') + done + chunk('b'), 'after data: [DONE]'],
+    [chunk('a') + 'data: {"error": {"message": "down"}}\n\n' + done, 'an error:'],
+    [chunk('a') + 'event: error\ndata: down\n\n' + done, 'error event'],
+    ['data: {"choices": [{"delta": {"con\n\n' + done, 'not JSON'],
+    ['data: [1, 2]\n\n' + done, 'not a JSON object'],
+    ['data: {"choices": {}}\n\n' + done, 'not a list'],
+    ['data: {"choices": [{"delta": "a"}]}\n\n' + done, "no 'delta' object"],
+    [chunk(4471) + done, 'not a string'],
+    ['data: {"choices": [{"delta": {"tool_calls": []}}]}\n\n' + done, "no chunk of the stream has a 'delta.content' text"],
+  ]
+  for (const [body, error] of failures) expect(() => streamText(body)).toThrow(error)
+  // A chunk can end in the middle of a surrogate pair. JSON.stringify escapes each half.
+  expect(streamText(chunk('mug \ud83d') + chunk('\ude00') + done)).toBe('mug \u{1F600}')
+  expect(() => streamText(chunk('mug \ud83d') + done)).toThrow('the stream reply has a lone surrogate')
+  expect(isStream('Text/Event-Stream; charset=utf-8')).toBe(true)
+  expect(isStream('application/json')).toBe(false)
+  expect(() => replyText({ adapter: 'json', reply_field: 'reply' } as any, sse('hi'), 'text/event-stream')).toThrow('does not read a streamed response')
 })
 
 test('a model call to the tap is denied and recorded; a file write is not', { options: OPTIONS }, async ($, on) => {

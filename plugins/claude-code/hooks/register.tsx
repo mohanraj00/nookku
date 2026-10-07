@@ -202,7 +202,7 @@ async function relayToTap($: any, o: Options, said: string, session: string): Pr
     })
     if (!res.ok) return { shown: `verbatim-relay: the agent returned HTTP ${res.status}:\n${res.text}`, ok: false, record: o.record }
     try {
-      return { shown: replyText(o, res.text), ok: true, record: o.record }
+      return { shown: replyText(o, res.text, res.headers?.['content-type']), ok: true, record: o.record }
     } catch (err) {
       return { shown: `verbatim-relay: cannot read the reply: ${(err as Error).message}`, ok: false, record: o.record }
     }
