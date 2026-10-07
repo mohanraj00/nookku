@@ -70,6 +70,9 @@ export function contractBody(id: string, test: string, said: string, turns: read
 // A line with both 'reply' and 'error' is not a contract line, also if one is null (SPEC.md section 6).
 // A lone surrogate is not a Unicode scalar value (SPEC.md section 2). The tap returns 502 for it.
 const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/
+const LONE_SURROGATES = new RegExp(LONE_SURROGATE.source, 'g')
+// The number of code points in the detail of a blocked_call row (SPEC.md section 2.2).
+const DETAIL_LIMIT = 300
 
 // Name the first lone surrogate in a text, as record.lone_surrogate does, or return null. The
 // character number counts code points, as Python does.
@@ -256,8 +259,20 @@ export async function turnRow(said: string, shown: string | null, ok: boolean, s
   return JSON.stringify(row) + '\n'
 }
 
-export function blockedRow(tool: string, detail: string): string {
-  const row = { v: '0.2', type: 'blocked_call', ts: Date.now() / 1000, harness: HARNESS, tool, detail }
+// The detail of a blocked_call row, the same as kit.blocked_detail in Python (SPEC.md section
+// 2.2). The cut counts code points, so it never splits a surrogate pair. Each lone surrogate in
+// the input becomes its escape text, for example \ud83d.
+export function blockedDetail(input: string): string {
+  let end = 0
+  for (let n = 0; n < DETAIL_LIMIT && end < input.length; n++) end += input.codePointAt(end)! > 0xffff ? 2 : 1
+  return input
+    .slice(0, end)
+    .replace(LONE_SURROGATES, c => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`)
+}
+
+// The row of a denied tool call. It cuts the input with blockedDetail.
+export function blockedRow(tool: string, input: string): string {
+  const row = { v: '0.2', type: 'blocked_call', ts: Date.now() / 1000, harness: HARNESS, tool, detail: blockedDetail(input) }
   return JSON.stringify(row) + '\n'
 }
 

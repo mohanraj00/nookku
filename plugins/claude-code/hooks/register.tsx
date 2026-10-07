@@ -346,7 +346,7 @@ async function guardTool($: any, o: Options, e: any): Promise<{ deny: string } |
   const toTap = deny !== null && isChecked(e.tool) && deny.test(input)
   if (toTap || (cur !== null && touchesTestFiles(e.tool, input))) {
     try {
-      await append($, cur ? `${cur.dir}/relay.jsonl` : o.record, blockedRow(e.tool, input.slice(0, 300)))
+      await append($, cur ? `${cur.dir}/relay.jsonl` : o.record, blockedRow(e.tool, input))
     } catch {
       // The deny holds even if the record cannot take the row.
     }
@@ -358,7 +358,7 @@ async function guardTool($: any, o: Options, e: any): Promise<{ deny: string } |
   if (cur === null && (touchesRecords(e.tool, input) || (isChecked(e.tool) && TEST_FILES.test(input) && !reads))) {
     const s = await read($, state)
     try {
-      await append($, s.test ? `${s.test}/denied.jsonl` : o.record, blockedRow(e.tool, input.slice(0, 300)))
+      await append($, s.test ? `${s.test}/denied.jsonl` : o.record, blockedRow(e.tool, input))
     } catch {
       // The deny holds even if the record cannot take the row.
     }
@@ -367,7 +367,7 @@ async function guardTool($: any, o: Options, e: any): Promise<{ deny: string } |
   const entry = cur !== null && isChecked(e.tool) && !reads ? (await readJson($, CONFIG))?.entry : null
   if (Array.isArray(entry) && namesEntry(input, entryNames(entry.map(String)), commandOf(e.tool, e))) {
     try {
-      await append($, `${cur!.dir}/relay.jsonl`, blockedRow(e.tool, input.slice(0, 300)))
+      await append($, `${cur!.dir}/relay.jsonl`, blockedRow(e.tool, input))
     } catch {
       // The deny holds even if the record cannot take the row.
     }
