@@ -7,7 +7,7 @@ import sys
 import pytest
 from toy_agent import ToyAgent, shop_reply
 
-from verbatim_relay import kit
+from verbatim_relay import bridge, kit
 from verbatim_relay.adapters import make
 from verbatim_relay.audit import audit
 from verbatim_relay.record import BlockedCall, Turn, read_relay, read_tap
@@ -159,6 +159,7 @@ def running_test(root):
     folder.mkdir(parents=True)
     (folder / "manifest.json").write_text(json.dumps({"entry": ["python", "shop/entry.py"]}))
     cur = {"test": folder.name, "pid": os.getpid(), "dir": str(folder), "tap_url": ""}
+    cur["pid_start"] = bridge.process_start(os.getpid())
     (root / ".verbatim-relay" / "current.json").write_text(json.dumps(cur))
     return folder
 
