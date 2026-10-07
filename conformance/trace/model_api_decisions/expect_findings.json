@@ -1,0 +1,31 @@
+{
+ "v": "0.2",
+ "test": "20261007-090000-dc01",
+ "turns": 2,
+ "items": 4,
+ "sessions": [],
+ "otel": null,
+ "backend": null,
+ "model_api": {
+  "file": "model_api.jsonl",
+  "rows": 2,
+  "items": 4,
+  "ignored": {},
+  "harness_calls": {},
+  "other_calls": 0
+ },
+ "counts": {
+  "agent_error": 0,
+  "tool_error": 0,
+  "command_failed": 0,
+  "span_error": 0,
+  "backend_error": 0,
+  "model_api_error": 0,
+  "turn_without_model": 0,
+  "item_between_turns": 0,
+  "otel_tool_not_in_session": 0,
+  "session_inferred": 0,
+  "version_untested": 0
+ },
+ "findings": []
+}

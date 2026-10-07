@@ -385,7 +385,7 @@ The proxy writes one row to `model_api.jsonl` for each call, with the fields of 
 | `stream` | `true` if the `Content-Type` of the response is `text/event-stream`. `null` if the API did not answer. |
 | `result` | The result of a model call, or `null` for another path or a harness call. |
 
-`result` is an object with `model`, `text` (the text blocks joined), `tool_calls` (a list of `id`, `name` and `input`), `stop_reason`, `usage` and `error` (the `message` of the `error` object of the API, or `null`). The proxy reads it from the decoded response body, as JSON or from the `data` lines of the SSE events:
+`result` is an object with `model`, `text` (the text blocks joined), `tool_calls` (a list of `id`, `name` and `input`), `stop_reason`, `usage` and `error` (the `message` of the `error` object of the API, or `null`). The result of a `/decisions` call also has `answers`. The proxy reads the result from the decoded response body, as JSON or from the `data` lines of the SSE events:
 
 - `anthropic`, path that ends with `/v1/messages`: the `content` blocks, `stop_reason` and `usage`. In a stream: `message_start`, `content_block_start`, `content_block_delta` (`text_delta` and `input_json_delta`), `message_delta` and `error`.
 - `openai`, path that ends with `/chat/completions`: `choices[0].message` (`content` and `tool_calls`), `finish_reason` and `usage`. In a stream: the `delta` of choice 0 of each chunk. The `arguments` of a tool call are parsed as JSON. If they are not JSON, `input` is the text.
@@ -395,6 +395,11 @@ The proxy writes one row to `model_api.jsonl` for each call, with the fields of 
   - `stop_reason` is the `status` of the response, for example `completed`, `incomplete` or `failed`. `usage` is `usage`. `error` is the `message` of the `error` object.
   - In a stream, the parser keeps the output items by their `output_index`. `response.output_item.added` and `response.output_item.done` set the item. `response.output_text.delta` adds its `delta` to the text of the part at `content_index`. `response.function_call_arguments.delta` adds its `delta` to the `arguments` of the item. Thus a stream that stops before its end keeps the text and the arguments that came. The parser reads `model`, `status`, `usage` and `error` from the `response` object of `response.created`, `response.in_progress`, `response.completed`, `response.failed` and `response.incomplete`. An `error` event gives `error` from its `message`. The parser does not read the other events.
   - This parser follows the OpenAI API reference of 2026-10-07, the date when it was read: [create a response](https://developers.openai.com/api/reference/resources/responses/methods/create) and [streaming events](https://developers.openai.com/api/reference/resources/responses/streaming-events).
+- `openai`, path that ends with `/decisions` (also `/v1/decisions`): the Decisions API (public beta). A path after `/decisions` is not a model call. The parser reads the decision object as JSON. The API reference gives no stream, so the parser also reads a body with `stream: true` as JSON:
+  - `model` is `model`, `usage` is `usage` and `error` is the `message` of the `error` object. `text` is `""`, `tool_calls` is empty and `stop_reason` is `null`, because a decision has no status.
+  - `answers` holds one object for each item of `answers`, in the same order. Each object has `type`, `name`, `value`, `probabilities` and `confidence`. `value` is `probability` for the type `predicate`, `choice` for `choice` and `score` for `score`. `probabilities` is the list of the answer as the API gives it: `value` and `probability` for a choice, and also `label` for a score. A `predicate` answer has no `probabilities` and no `confidence`. Their value is then `null`.
+  - An answer of the type `refusal` has only `type` and `name`. The model did not answer that question. Its `value`, `probabilities` and `confidence` are `null`. A refusal is not an error: the API gives answers to the other questions of the call. An answer of another type keeps `type` and `name`, and its `value` is `null`.
+  - This parser follows the OpenAI documents of 2026-10-07, the date when they were read: the [Decisions guide](https://developers.openai.com/api/docs/guides/decisions) and the API reference [create a decision](https://developers.openai.com/api/reference/resources/decisions/methods/create).
 
 To read a new model call, the proxy adds one row to its table of model calls (the API, the end of the path and the format) and one parser for the format. The trace selects its reader of the request by the same format (section 8.4).
 
@@ -433,7 +438,7 @@ The trace reads `tap.jsonl`, `sessions/`, `otel.jsonl`, `backend.jsonl` and `mod
 | `role` | string or null | For a message: `user` (the app to the model) or `assistant` (the model to the app). |
 | `server` | string or null | For a tool call: the MCP server or the dynamic tool namespace. |
 | `name` | string or null | For a tool call: the tool name, without the MCP prefix. For a span: its name. For a log: its event name, without the harness prefix for a harness log. For an `http` item: the method and the path, for example `GET /stock`. |
-| `input` | any | For a tool call: its input object. For a command: its argv. For a span or a log: its attributes. For an `http` item: an object with `query`, `headers` (the request headers of the row) and `body` (the request body, as for `output`). For a `model_api` assistant message: an object with `path`, and `model`, `stop_reason` and `usage` of the result. |
+| `input` | any | For a tool call: its input object. For a command: its argv. For a span or a log: its attributes. For an `http` item: an object with `query`, `headers` (the request headers of the row) and `body` (the request body, as for `output`). For a `model_api` assistant message: an object with `path`, and `model`, `stop_reason` and `usage` of the result. For a `/decisions` call, the object also has the `answers` of the result. For a `model_api` user message of a `/decisions` call: an object with `questions` and `images` (section 8.4). For another user message: `null`. |
 | `output` | string or null | For a message: its text. For a tool call or a command: its output text. For a log: its body, as JSON if it is not a string, or `null` if the body is the event name. For an `http` item: the `text` of the response body, with the note `(cut: the record holds the first 1 MiB)` if it is cut; `(<size> bytes that are not UTF-8: base64 in backend.jsonl)` for a binary body; `null` for an empty body or no answer. |
 | `error` | string or null | For a tool call: the error text if the call failed. `output` is then `null`. For a span with status code 2: the status message, else the `exception.message` of its first `exception` event, else `status error`. For a harness `tool_result` log with `success` `false`: its `error` attribute. For an `http` item: the `error` of the row. For a `model_api` assistant message: the `error` of the row, else the `error` of the result. |
 | `exit_code` | integer or null | For a command: its exit code. For an `http` item: the status of the backend. For a `model_api` assistant message: the status of the API. |
@@ -479,7 +484,10 @@ The reader takes the version from `cli_version` of the `session_meta` line.
 **Model API calls** (`model_api.jsonl`). The reader counts each harness call by its `harness`, and does not keep it, because the session file of the harness has its turns. It counts each call to a path that is not a model call (section 7.7) in `other_calls`, and does not keep it. It counts each row that is not a call by its type. From each other call, in this order:
 
 - a `message` item with the role `user`, if the last message of the request has the role `user` and text: a string, or the joined `text` parts. `ts` is `started`. If the request body is cut or is not JSON, the call gives no user message. For `/responses`, the messages are the items of `input`. A string `input` is the user message. Else the last item must be a message (with no `type`, or the type `message`) with the role `user`. Its text is its `content` string, or its joined `input_text` parts;
-- a `message` item with the role `assistant`. `output` is the `text` of the result, or `null` if it is empty. `ts` is the `ts` of the row;
+- for `/decisions`, a `message` item with the role `user` in place of the item above, if the request has text, an image or a question. `ts` is `started`. `output` is the text of `input`: a string `input`, or the joined `content` strings and `input_text` parts of the messages of `input` with the role `user`. With no text, `output` is `null`. `input` is an object:
+  - `questions`: for each question of `questions`, its `name`, `type` and `options`. `options` is the list of the `value` of each item of `choices` for a `choice`, the list of the `label` of each item of `levels` for a `score`, and `null` for another type. The trace does not keep `instructions`.
+  - `images`: for each `input_image` part, its `media_type`, `size` and `sha256`. The `image_url` must be a data URL. `media_type` is the type of the data URL, for example `image/png`. `size` and `sha256` are the length and the SHA-256 of the decoded base64 data. The trace does not keep the data. If the data is not base64, `size` and `sha256` are `null`. If the URL is not a data URL, all 3 are `null`;
+- a `message` item with the role `assistant`. `output` is the `text` of the result, or `null` if it is empty. `ts` is the `ts` of the row. For `/decisions`, `input` also has `answers`, the answers of the result. A refusal does not give an `error`;
 - a `tool_call` item for each tool call of the result. `ts` is the `ts` of the row. The output is the first tool result with the same id in the request of a later call of the same format (`messages`, `chat` or `responses`), because a tool call id is unique only in one format: a `tool_result` block (`anthropic`, an `error` if `is_error` is `true`), a message with the role `tool` (`openai`, `/chat/completions`), or a `function_call_output` item of `input` with the same `call_id` (`openai`, `/responses`). The text of a `function_call_output` is its `output` string, or its `input_text` parts joined, with each other part as JSON. With no such result, `output` and `error` are `null`.
 
 ### 8.5 Harness tools
@@ -533,7 +541,17 @@ The evaluation prompt is `src/verbatim_relay/evaluate.md`, with the test id and 
 4. check the state of the app with read-only commands only;
 5. write `report.md`, and no other file.
 
-`verbatim-relay transcript --trace` shows each turn of a test as the app received it and sent it (from `tap.jsonl`). Under each turn, it shows the model items of that turn and the findings of that turn. Each item names its line in `trace.jsonl` as `[trace.jsonl:N]`. A text longer than 2,000 characters shows its start and names its line. Items with `turn: null` come after the last turn.
+`verbatim-relay transcript --trace` shows each turn of a test as the app received it and sent it (from `tap.jsonl`). Under each turn, it shows the model items of that turn and the findings of that turn. For a `/decisions` call, the user message shows each question and each image on one line. The assistant message shows each answer on one line in place of the text:
+
+| Type | Line |
+|---|---|
+| `predicate` | `<name>: probability <value>` |
+| `choice` | `<name>: <value> (<probability of the value>), confidence <confidence>` |
+| `score` | `<name>: score <value>, confidence <confidence>` |
+| `refusal` | `<name>: refusal (the model did not answer this question)` |
+| Another type | `<name>: <value>` |
+
+For example: `department: billing (0.95), confidence 0.93`. An answer with no name shows `(no name)`. If an answer has no confidence, the line has no confidence. If the probabilities of a choice do not have its value, the line has no probability. Each item names its line in `trace.jsonl` as `[trace.jsonl:N]`. A text longer than 2,000 characters shows its start and names its line. Items with `turn: null` come after the last turn.
 
 ### 9.3 Report
 

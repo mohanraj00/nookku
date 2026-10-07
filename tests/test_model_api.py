@@ -42,7 +42,10 @@ def post(url: str, path: str, body: bytes, headers: dict) -> tuple[int, bytes]:
     return out
 
 
-@pytest.mark.parametrize(("case", "count"), [("model_api_toy_shop", 4), ("model_api_responses", 3)])
+@pytest.mark.parametrize(
+    ("case", "count"),
+    [("model_api_toy_shop", 4), ("model_api_responses", 3), ("model_api_decisions", 2)],
+)
 def test_the_parsers_give_the_results_of_the_conformance_case(case: str, count: int) -> None:
     lines = (TRACE / case / model_api.FILE).read_text().split("\n")
     calls = [json.loads(x) for x in lines if x and '"result": {' in x]
@@ -229,6 +232,28 @@ def test_an_incomplete_response_and_the_paths_of_the_responses_api() -> None:
     assert model_api.call_format("openai", "/v1/responses") == "responses"
     assert model_api.call_format("openai", "/v1/responses/resp_1") is None
     assert model_api.call_format("anthropic", "/v1/responses") is None
+
+
+def test_the_paths_of_the_decisions_api_and_a_body_that_is_not_json() -> None:
+    assert model_api.call_format("openai", "/v1/decisions") == "decisions"
+    assert model_api.call_format("openai", "/decisions/") == "decisions"
+    assert model_api.call_format("openai", "/v1/decisions/dec_1") is None
+    assert model_api.call_format("anthropic", "/v1/decisions") is None
+    got = model_api.result("openai", "/v1/decisions", b"<html>busy</html>", False)
+    assert got is not None and (got["answers"], got["error"]) == ([], "the response is not JSON")
+
+
+def test_a_decisions_error_and_an_answer_of_a_new_type() -> None:
+    body = {
+        "error": {"message": "Unknown question type.", "type": "invalid_request_error"},
+        "answers": [{"type": "rank", "name": "order", "rank": 2}, "not an answer"],
+    }
+    # The API reference gives no stream, so a stream body is also read as JSON.
+    got = model_api.result("openai", "/v1/decisions", json.dumps(body).encode(), True)
+    assert got is not None and got["error"] == "Unknown question type."
+    assert got["answers"] == [
+        {"type": "rank", "name": "order", "value": None, "probabilities": None, "confidence": None}
+    ]
 
 
 def test_the_config_and_the_urls() -> None:

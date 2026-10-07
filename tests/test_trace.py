@@ -76,3 +76,45 @@ def test_a_tool_result_matches_only_a_call_of_its_format(tmp_path: Path) -> None
     items, _ = trace.read_model_api(path)
     tools = [it for it in items if it["kind"] == "tool_call"]
     assert [it.get("output") for it in tools] == [None, "shipped"]
+
+
+def test_a_decisions_request_keeps_no_image_data(tmp_path: Path) -> None:
+    request = {
+        "input": [
+            {"role": "system", "content": "not a user message"},
+            {
+                "role": "user",
+                "content": [
+                    {"type": "input_image", "image_url": "data:image/jpeg;base64,dG95"},
+                    {"type": "input_image", "image_url": "data:image/png;base64,not base64!"},
+                    {"type": "input_image", "image_url": "https://shop.test/mug.png"},
+                ],
+            },
+        ],
+        "questions": [{"type": "choice", "name": "mug", "choices": "not a list"}, "not a dict"],
+    }
+    row = {
+        "type": "call",
+        "api": "openai",
+        "path": "/v1/decisions",
+        "request_body": {"text": json.dumps(request), "cut": False},
+        "result": None,
+    }
+    path = tmp_path / "model_api.jsonl"
+    path.write_text(json.dumps(row) + "\n", encoding="utf-8")
+    items, _ = trace.read_model_api(path)
+    assert items[0]["output"] is None
+    assert items[0]["input"] == {
+        "questions": [{"name": "mug", "type": "choice", "options": None}],
+        "images": [
+            {
+                "media_type": "image/jpeg",
+                "size": 3,
+                "sha256": "0f53133ce57ca8e8937bb4b1c15a33ef9594704e1c11abd58e598bb8362f7385",
+            },
+            {"media_type": "image/png", "size": None, "sha256": None},
+            {"media_type": None, "size": None, "sha256": None},
+        ],
+    }
+    assert items[1]["input"]["answers"] == []
+    assert "dG95" not in json.dumps(items)
