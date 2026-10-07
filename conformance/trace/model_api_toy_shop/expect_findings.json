@@ -1,0 +1,47 @@
+{
+ "v": "0.2",
+ "test": "20261006-080000-ma01",
+ "turns": 2,
+ "items": 9,
+ "sessions": [],
+ "otel": null,
+ "backend": null,
+ "model_api": {
+  "file": "model_api.jsonl",
+  "rows": 7,
+  "items": 9,
+  "ignored": {
+   "note": 1
+  },
+  "harness_calls": {
+   "claude-code": 1
+  },
+  "other_calls": 1
+ },
+ "counts": {
+  "agent_error": 0,
+  "tool_error": 0,
+  "command_failed": 0,
+  "span_error": 0,
+  "backend_error": 0,
+  "model_api_error": 1,
+  "turn_without_model": 0,
+  "item_between_turns": 0,
+  "otel_tool_not_in_session": 0,
+  "session_inferred": 0,
+  "version_untested": 0
+ },
+ "findings": [
+  {
+   "check": "model_api_error",
+   "turn": 2,
+   "detail": "openai: /chat/completions: Rate limit reached",
+   "harness": "model_api",
+   "session": "openai",
+   "source": {
+    "file": "model_api.jsonl",
+    "line": 3
+   }
+  }
+ ]
+}

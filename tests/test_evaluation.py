@@ -62,6 +62,23 @@ def test_a_long_text_is_cut_and_points_to_its_line() -> None:
     assert text.endswith("(cut at 2000 characters: the full text is in trace.jsonl:7)\n")
 
 
+def test_a_model_api_call_shows_its_status_and_error() -> None:
+    item = {
+        "harness": "model_api",
+        "session": "openai",
+        "kind": "message",
+        "role": "assistant",
+        "input": {"path": "/chat/completions"},
+        "output": None,
+        "error": "Rate limit reached",
+        "exit_code": 429,
+    }
+    assert evaluation.render_item(item, 4) == (
+        "[trace.jsonl:4] model_api message, assistant: openai /chat/completions, status 429:\n"
+        "\nerror:\nRate limit reached\n"
+    )
+
+
 def test_the_prompt_names_the_test_and_its_folder(tmp_path: Path) -> None:
     folder = tmp_path / "tests" / TEST
     text = evaluation.prompt(folder)

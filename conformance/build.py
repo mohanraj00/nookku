@@ -557,6 +557,7 @@ def counts(**n: int) -> dict:
         "command_failed",
         "span_error",
         "backend_error",
+        "model_api_error",
         "turn_without_model",
         "item_between_turns",
         "otel_tool_not_in_session",
@@ -714,6 +715,7 @@ CLAUDE_CASE = {
         ],
         "otel": None,
         "backend": None,
+        "model_api": None,
         "counts": counts(agent_error=1, tool_error=3, turn_without_model=1, item_between_turns=2),
         "findings": [
             {"check": "agent_error", "turn": 2, "detail": "the agent gave status 500"},
@@ -1025,6 +1027,7 @@ CODEX_CASE = {
         ],
         "otel": None,
         "backend": None,
+        "model_api": None,
         "counts": counts(
             tool_error=3,
             command_failed=2,
@@ -1148,6 +1151,7 @@ VERSION_CASE = {
         ],
         "otel": None,
         "backend": None,
+        "model_api": None,
         "counts": counts(version_untested=2),
         "findings": [
             {
@@ -1183,6 +1187,7 @@ NO_MODEL_CASE = {
         "sessions": [],
         "otel": None,
         "backend": None,
+        "model_api": None,
         "counts": counts(),
         "findings": [],
     },
@@ -1410,6 +1415,7 @@ OTEL_CASE = {
         ],
         "otel": {"file": "otel.jsonl", "rows": 7, "items": 6, "ignored": {"error": 1}},
         "backend": None,
+        "model_api": None,
         "counts": counts(span_error=2, item_between_turns=1, otel_tool_not_in_session=1),
         "findings": [
             {
@@ -1578,6 +1584,7 @@ BACKEND_CASE = {
         "sessions": [],
         "otel": None,
         "backend": {"file": "backend.jsonl", "rows": 5, "items": 4, "ignored": {"note": 1}},
+        "model_api": None,
         "counts": counts(backend_error=2, item_between_turns=1),
         "findings": [
             {
@@ -1608,6 +1615,362 @@ BACKEND_CASE = {
     },
 }
 
+
+# Direct model API calls (SPEC.md sections 7.7 and 8.4): the rows of model_api.jsonl as the proxy
+# writes them. In turn 1, a streamed Anthropic call with a tool call, and a JSON call with the tool
+# result. In turn 2, an OpenAI call with status 429, a harness call, a streamed OpenAI call with a
+# tool call that has no result, a call to a path that is not a model call, and a row that is not
+# a call.
+def sse(events: list[dict], named: bool = True) -> str:
+    out = ""
+    for e in events:
+        out += (f"event: {e['type']}\n" if named else "") + f"data: {json.dumps(e)}\n\n"
+    return out
+
+
+MSENT = [["Content-Type", "application/json"], ["x-api-key", "<removed>"]]
+ASK = "Is the teapot set in stock?"
+REFUND_ASK = "Refund order 5120."
+TOOLS = [{"name": "check_stock", "input_schema": {"type": "object"}}]
+STOCK_CALL = {"id": "toolu_1", "name": "check_stock", "input": {"sku": "teapot-set"}}
+ANTHROPIC_STREAM = sse(
+    [
+        {
+            "type": "message_start",
+            "message": {"id": "msg_1", "model": "claude-toy", "usage": {"input_tokens": 40}},
+        },
+        {"type": "content_block_start", "index": 0, "content_block": {"type": "text", "text": ""}},
+        {
+            "type": "content_block_delta",
+            "index": 0,
+            "delta": {"type": "text_delta", "text": "Let me "},
+        },
+        {
+            "type": "content_block_delta",
+            "index": 0,
+            "delta": {"type": "text_delta", "text": "check."},
+        },
+        {
+            "type": "content_block_start",
+            "index": 1,
+            "content_block": {
+                "type": "tool_use",
+                "id": "toolu_1",
+                "name": "check_stock",
+                "input": {},
+            },
+        },
+        {
+            "type": "content_block_delta",
+            "index": 1,
+            "delta": {"type": "input_json_delta", "partial_json": '{"sku": "tea'},
+        },
+        {
+            "type": "content_block_delta",
+            "index": 1,
+            "delta": {"type": "input_json_delta", "partial_json": 'pot-set"}'},
+        },
+        {"type": "content_block_stop", "index": 1},
+        {
+            "type": "message_delta",
+            "delta": {"stop_reason": "tool_use"},
+            "usage": {"output_tokens": 20},
+        },
+        {"type": "message_stop"},
+    ]
+)
+ANTHROPIC_JSON = json.dumps(
+    {
+        "id": "msg_2",
+        "type": "message",
+        "model": "claude-toy",
+        "content": [{"type": "text", "text": "Yes, 3 teapot sets are in stock."}],
+        "stop_reason": "end_turn",
+        "usage": {"input_tokens": 70, "output_tokens": 12},
+    }
+)
+LIMIT = json.dumps({"error": {"message": "Rate limit reached", "type": "rate_limit"}})
+
+
+def chunk(delta: dict, finish: str | None = None) -> dict:
+    return {
+        "id": "chatcmpl-1",
+        "model": "gpt-toy",
+        "choices": [{"index": 0, "delta": delta, "finish_reason": finish}],
+    }
+
+
+OPENAI_STREAM = (
+    sse(
+        [
+            chunk(
+                {
+                    "role": "assistant",
+                    "tool_calls": [
+                        {
+                            "index": 0,
+                            "id": "call_1",
+                            "type": "function",
+                            "function": {"name": "refund", "arguments": ""},
+                        }
+                    ],
+                }
+            ),
+            chunk({"tool_calls": [{"index": 0, "function": {"arguments": '{"order": "5120", '}}]}),
+            chunk({"tool_calls": [{"index": 0, "function": {"arguments": '"amount_eur": 80}'}}]}),
+            chunk({}, "tool_calls"),
+        ],
+        named=False,
+    )
+    + "data: [DONE]\n\n"
+)
+
+
+def result(**more: Any) -> dict:
+    out = {"model": None, "text": "", "tool_calls": [], "stop_reason": None, "usage": None}
+    return {**out, "error": None, **more}
+
+
+def mcall(t: float, api: str, path: str, status: int, request: Any, **more: Any) -> dict:
+    kind = "text/event-stream" if more.get("stream") else "application/json"
+    return {
+        "v": 1,
+        "type": "call",
+        "api": api,
+        "harness": more.get("harness"),
+        "started": T0 + t,
+        "ts": T0 + t + more.get("took", 1.0),
+        "method": "POST",
+        "path": path,
+        "query": None,
+        "request_headers": MSENT,
+        "request_body": more.get("request_body") or body(json.dumps(request)),
+        "status": status,
+        "response_headers": [["Content-Type", kind]],
+        "response_body": more.get("response_body") or body(more.get("response", "")),
+        "error": None,
+        "stream": bool(more.get("stream")),
+        "result": more.get("result"),
+    }
+
+
+def omitted(text: str) -> dict:
+    raw = text.encode()
+    return {
+        "size": len(raw),
+        "sha256": hashlib.sha256(raw).hexdigest(),
+        "cut": False,
+        "omitted": True,
+    }
+
+
+def mitem(turn: int, api: str, ts: float, line: int, kind: str, **fields: Any) -> dict:
+    """An expected trace row from model_api.jsonl."""
+    row = item(turn, "claude-code", ts, kind, line)
+    row.update(harness="model_api", session=api, source={"file": "model_api.jsonl", "line": line})
+    return {**row, **fields}
+
+
+def info(path: str, model: str | None, stop: str | None, usage: Any) -> dict:
+    return {"path": path, "model": model, "stop_reason": stop, "usage": usage}
+
+
+MESSAGES = "/v1/messages"
+COMPLETIONS = "/chat/completions"
+ASKED = [{"role": "user", "content": ASK}]
+ANSWERED = [
+    *ASKED,
+    {
+        "role": "assistant",
+        "content": [{"type": "text", "text": "Let me check."}, {"type": "tool_use", **STOCK_CALL}],
+    },
+    {
+        "role": "user",
+        "content": [
+            {
+                "type": "tool_result",
+                "tool_use_id": "toolu_1",
+                "content": [{"type": "text", "text": "3 left"}],
+            }
+        ],
+    },
+]
+REFUND_MESSAGES = [
+    {"role": "system", "content": "You are the toy shop agent."},
+    {"role": "user", "content": REFUND_ASK},
+]
+REFUND_INPUT = {"order": "5120", "amount_eur": 80}
+STREAM_USAGE = {"input_tokens": 40, "output_tokens": 20}
+JSON_USAGE = {"input_tokens": 70, "output_tokens": 12}
+HARNESS_REQUEST = '{"model": "claude-toy", "system": "harness instructions"}'
+MODEL_API_CASE = {
+    "tap": [window(10, 20), window(30, 40)],
+    "manifest": {"test": "20261006-080000-ma01", "model_sessions": []},
+    "sessions": {},
+    "model_api": [
+        mcall(
+            11,
+            "anthropic",
+            MESSAGES,
+            200,
+            {"model": "claude-toy", "stream": True, "tools": TOOLS, "messages": ASKED},
+            stream=True,
+            took=2,
+            response=ANTHROPIC_STREAM,
+            result=result(
+                model="claude-toy",
+                text="Let me check.",
+                tool_calls=[STOCK_CALL],
+                stop_reason="tool_use",
+                usage=STREAM_USAGE,
+            ),
+        ),
+        mcall(
+            14,
+            "anthropic",
+            MESSAGES,
+            200,
+            {"model": "claude-toy", "tools": TOOLS, "messages": ANSWERED},
+            took=2,
+            response=ANTHROPIC_JSON,
+            result=result(
+                model="claude-toy",
+                text="Yes, 3 teapot sets are in stock.",
+                stop_reason="end_turn",
+                usage=JSON_USAGE,
+            ),
+        ),
+        mcall(
+            31,
+            "openai",
+            COMPLETIONS,
+            429,
+            {"model": "gpt-toy", "messages": REFUND_MESSAGES},
+            response=LIMIT,
+            result=result(error="Rate limit reached"),
+        ),
+        mcall(
+            32,
+            "anthropic",
+            MESSAGES,
+            200,
+            None,
+            harness="claude-code",
+            stream=True,
+            request_body=omitted(HARNESS_REQUEST),
+            response_body=omitted(ANTHROPIC_STREAM),
+        ),
+        mcall(
+            34,
+            "openai",
+            COMPLETIONS,
+            200,
+            {"model": "gpt-toy", "stream": True, "messages": REFUND_MESSAGES},
+            stream=True,
+            response=OPENAI_STREAM,
+            result=result(
+                model="gpt-toy",
+                tool_calls=[{"id": "call_1", "name": "refund", "input": REFUND_INPUT}],
+                stop_reason="tool_calls",
+            ),
+        ),
+        {
+            **mcall(36, "anthropic", "/api/hello", 200, None),
+            "method": "HEAD",
+            "request_body": body(),
+            "result": None,
+        },
+        {"v": 1, "type": "note", "detail": "a row that is not a call"},
+    ],
+    "trace": [
+        mitem(1, "anthropic", 11, 1, "message", role="user", output=ASK),
+        mitem(
+            1,
+            "anthropic",
+            13,
+            1,
+            "message",
+            role="assistant",
+            input=info(MESSAGES, "claude-toy", "tool_use", STREAM_USAGE),
+            output="Let me check.",
+            exit_code=200,
+        ),
+        mitem(
+            1,
+            "anthropic",
+            13,
+            1,
+            "tool_call",
+            name="check_stock",
+            input={"sku": "teapot-set"},
+            output="3 left",
+        ),
+        mitem(
+            1,
+            "anthropic",
+            16,
+            2,
+            "message",
+            role="assistant",
+            input=info(MESSAGES, "claude-toy", "end_turn", JSON_USAGE),
+            output="Yes, 3 teapot sets are in stock.",
+            exit_code=200,
+        ),
+        mitem(2, "openai", 31, 3, "message", role="user", output=REFUND_ASK),
+        mitem(
+            2,
+            "openai",
+            32,
+            3,
+            "message",
+            role="assistant",
+            input=info(COMPLETIONS, None, None, None),
+            error="Rate limit reached",
+            exit_code=429,
+        ),
+        mitem(2, "openai", 34, 5, "message", role="user", output=REFUND_ASK),
+        mitem(
+            2,
+            "openai",
+            35,
+            5,
+            "message",
+            role="assistant",
+            input=info(COMPLETIONS, "gpt-toy", "tool_calls", None),
+            exit_code=200,
+        ),
+        mitem(2, "openai", 35, 5, "tool_call", name="refund", input=REFUND_INPUT),
+    ],
+    "findings": {
+        "v": "0.2",
+        "test": "20261006-080000-ma01",
+        "turns": 2,
+        "items": 9,
+        "sessions": [],
+        "otel": None,
+        "backend": None,
+        "model_api": {
+            "file": "model_api.jsonl",
+            "rows": 7,
+            "items": 9,
+            "ignored": {"note": 1},
+            "harness_calls": {"claude-code": 1},
+            "other_calls": 1,
+        },
+        "counts": counts(model_api_error=1),
+        "findings": [
+            {
+                "check": "model_api_error",
+                "turn": 2,
+                "detail": "openai: /chat/completions: Rate limit reached",
+                "harness": "model_api",
+                "session": "openai",
+                "source": {"file": "model_api.jsonl", "line": 3},
+            },
+        ],
+    },
+}
+
 TRACE_CASES = {
     "claude_code_toy_shop": CLAUDE_CASE,
     "codex_toy_shop": CODEX_CASE,
@@ -1615,6 +1978,7 @@ TRACE_CASES = {
     "no_model_sessions": NO_MODEL_CASE,
     "otel_toy_shop": OTEL_CASE,
     "backend_toy_shop": BACKEND_CASE,
+    "model_api_toy_shop": MODEL_API_CASE,
 }
 
 
@@ -2117,6 +2481,7 @@ def main() -> None:
             write(d / rel, lines)
         write(d / "otel.jsonl", case.get("otel"))
         write(d / "backend.jsonl", case.get("backend"))
+        write(d / "model_api.jsonl", case.get("model_api"))
         write(d / "expect_trace.jsonl", case["trace"])
         text = json.dumps(case["findings"], indent=1, ensure_ascii=False)
         (d / "expect_findings.json").write_text(text + "\n")

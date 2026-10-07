@@ -267,6 +267,8 @@ def main() -> int:
         "otel_tool_not_in_session": findings["counts"]["otel_tool_not_in_session"],
         "P8_otel_has_the_refund": any(it["turn"] == REFUND_TURN for _, it in events)
         and findings["counts"]["otel_tool_not_in_session"] == 0,
+        # The Agent SDK calls go through the model API proxy. The trace keeps none of them.
+        "model_api": findings.get("model_api"),
         # A text that shares 8 words with an instruction file stays out of the repo.
         "report": None if hidden else scrub(report, project),
         "answer": None if hidden else scrub(answer, project),
