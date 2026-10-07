@@ -84,7 +84,80 @@ export function contractShown(status: number, body: string, id: string): { shown
   return { shown: `verbatim-relay: HTTP ${status}: ${error}`, ok: false }
 }
 
-export function replyText(o: Options, body: string): string {
+// True if a Content-Type is text/event-stream (SPEC.md section 4.1).
+export function isStream(contentType: string | undefined): boolean {
+  return (contentType ?? '').split(';')[0].trim().toLowerCase() === 'text/event-stream'
+}
+
+// The name and the data of each event of an SSE body, in order. The rules are those of the WHATWG
+// HTML standard. The last event does not need a blank line after it.
+export function sseEvents(body: string): { name: string; data: string }[] {
+  const events: { name: string; data: string }[] = []
+  let name = ''
+  let data: string[] = []
+  for (const line of [...body.replace(/^﻿/, '').split(/\r\n|\r|\n/), '']) {
+    if (line === '') {
+      if (data.length) events.push({ name: name || 'message', data: data.join('\n') })
+      name = ''
+      data = []
+    } else if (!line.startsWith(':')) {
+      const i = line.indexOf(':')
+      const key = i < 0 ? line : line.slice(0, i)
+      const raw = i < 0 ? '' : line.slice(i + 1)
+      const value = raw.startsWith(' ') ? raw.slice(1) : raw
+      if (key === 'data') data.push(value)
+      else if (key === 'event') name = value
+    }
+  }
+  return events
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+// The reply of an openai stream: the joined choices[0].delta.content texts (SPEC.md section 4.1).
+// A stream with no `data: [DONE]`, an event after it, an error or a malformed chunk is an error.
+export function streamText(body: string): string {
+  const parts: string[] = []
+  let done = false
+  for (const { name, data } of sseEvents(body)) {
+    if (done) throw new Error('the stream has an event after data: [DONE]')
+    if (data === '[DONE]') {
+      done = true
+      continue
+    }
+    if (name === 'error') throw new Error(`the agent sent an error event: ${data}`)
+    let chunk: unknown
+    try {
+      chunk = JSON.parse(data)
+    } catch {
+      throw new Error(`a chunk is not JSON: ${data.slice(0, 80)}`)
+    }
+    if (!isObject(chunk)) throw new Error(`a chunk is not a JSON object: ${data.slice(0, 80)}`)
+    if (chunk.error !== undefined && chunk.error !== null) throw new Error(`the agent sent an error: ${JSON.stringify(chunk.error)}`)
+    const choices = 'choices' in chunk ? chunk.choices : []
+    if (!Array.isArray(choices)) throw new Error("the 'choices' of a chunk is not a list")
+    for (const choice of choices) {
+      const delta = isObject(choice) ? ('delta' in choice ? choice.delta : {}) : null
+      if (!isObject(choice) || !isObject(delta)) throw new Error("a choice of a chunk has no 'delta' object")
+      if (('index' in choice ? choice.index : 0) !== 0) continue
+      const content = delta.content ?? null
+      if (content !== null && typeof content !== 'string') throw new Error("the 'delta.content' of a chunk is not a string")
+      if (content !== null) parts.push(content)
+    }
+  }
+  if (!done) throw new Error('the stream ended before data: [DONE]')
+  if (!parts.length) throw new Error("no chunk of the stream has a 'delta.content' text")
+  return parts.join('')
+}
+
+// The reply in a tap response. The relay shows a streamed reply only when it is complete.
+export function replyText(o: Options, body: string, contentType = ''): string {
+  if (isStream(contentType)) {
+    if (o.adapter !== 'openai') throw new Error('the json adapter does not read a streamed response')
+    return streamText(body)
+  }
   const path = o.adapter === 'openai' ? 'choices.0.message.content' : o.reply_field
   let data: unknown
   try {

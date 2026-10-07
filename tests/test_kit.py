@@ -151,6 +151,31 @@ def test_openai_history_is_per_session(tmp_path):
     assert audit(tmp_path / "tap.jsonl", record(root)).exit == 0
 
 
+@pytest.mark.parametrize("path", ["/v1/chat/completions", "/v1/cut/chat/completions"])
+def test_a_streamed_reply_is_shown_only_when_complete(tmp_path, path):
+    agent = ToyAgent(stream=True)
+    tap = Tap(("127.0.0.1", 0), agent.url, tmp_path / "tap.jsonl", make("openai"))
+    start_in_thread(tap)
+    root = tmp_path / "p"
+    url = f"http://127.0.0.1:{tap.server_address[1]}{path}"
+    kit.init(root, "codex", kit.Config(tap_url=url, adapter="openai"))
+    kit.set_mode(root, True)
+    assert kit.handle(prompt(TRICKY), root, "codex")["decision"] == "block"
+    tap.shutdown()
+    agent.shutdown()
+    row = json.loads(record(root).read_text())
+    report = audit(tmp_path / "tap.jsonl", record(root))
+    if "cut" in path:
+        assert row["ok"] is False
+        assert row["shown"] == (
+            "verbatim-relay: cannot read the reply: the stream ended before data: [DONE]"
+        )
+        assert [n.kind for n in report.notes] == ["agent_error"] and report.exit == 0
+    else:
+        assert (row["ok"], row["shown"]) == (True, shop_reply(TRICKY))
+        assert report.exit == 0 and report.notes == []
+
+
 def test_view_prints_each_turn_exactly(setup):
     root, _, _ = setup
     kit.set_mode(root, True)

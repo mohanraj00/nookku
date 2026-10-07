@@ -102,7 +102,8 @@ An agent that runs as an HTTP server also works: `verbatim-relay tap --agent URL
 - **The model sessions come from the harness's own files.** The harness binary writes them, not your app, and their format can change between harness versions. If your app turns them off (`persistSession: false` in the Agent SDK, `ephemeral: true` in Codex), the test has no copy, and `verbatim-relay check` says so. A Codex session must run in the project folder or below it. The trace readers cover the session files of Claude Code 2.1.286 ([data](proofs/trace/results-2.1.286.json)) and 2.1.292, and codex-cli 0.160.0 ([data](proofs/trace/results.json)). For another version, the trace still runs, and `findings.json` says that the version is not tested.
 - **The entry is in the message path.** The harness model writes it, and the tap records only what goes in and out of the entry. Review it before a test. During a test, the relay denies model edits to `.verbatim-relay/` and model commands that run the entry. The manifest keeps the SHA-256 of each file in `.verbatim-relay/`.
 - **Codex runs project hooks only after you trust them.** The kit does not skip that step.
-- **Not yet:** streamed replies, attachments and images, harnesses other than Claude Code and Codex, and tests on Windows.
+- **Streamed replies need the `openai` adapter.** The relay shows a streamed reply when the stream is complete, not each part.
+- **Not yet:** attachments and images, harnesses other than Claude Code and Codex, and tests on Windows.
 - **The plugin stops at a relay record of 3.5 MiB.** Move the record to start a new one.
 
 ## License

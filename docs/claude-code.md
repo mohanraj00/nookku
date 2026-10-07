@@ -154,6 +154,8 @@ To try it, start `python examples/toy-shop/http_agent.py`. Then use `/verbatim-r
 
 The kit takes the same options as flags: `--tap-url`, `--agent-url`, `--adapter` and so on.
 
+If your agent streams its reply (SSE, `text/event-stream`), use the `openai` adapter. The relay sends `"stream": false`. If the agent streams also with this flag, the tap sends each part to the relay when it comes, and records the complete reply when the stream ends. The relay shows the reply when the stream is complete. A stream that ends early, sends an error or has a malformed chunk gives an error, not a part of the reply. [SPEC.md section 4.1](../SPEC.md#41-http-mode) defines the rules.
+
 ## Audit
 
 ```bash
