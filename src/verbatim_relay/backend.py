@@ -3,7 +3,7 @@
 During a test, the bridge runs one recording proxy for each backend in the configuration, and gives
 the entry the proxy URL in the backend's environment variable. The proxy forwards each request to
 the real URL and sends the response back with no change. It writes one row for each call to
-backend.jsonl, without the values of secret headers.
+backend.jsonl, without the values of secret headers and secret query parameters.
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlsplit
+from urllib.parse import unquote_plus, urlsplit
 
 from . import stdio
 from .tap import HOP_BY_HOP
@@ -30,8 +30,11 @@ VERSION = 1
 TIMEOUT = 120
 # A body larger than this goes into the record cut. The app always gets all of the bytes.
 RECORD_LIMIT = 1024 * 1024
+# The rule for the names of secret headers and secret query parameters: a name in SECRET_HEADERS
+# or SECRET_NAMES, or a name that contains a part in SECRET_PARTS. Case does not apply.
 SECRET_HEADERS = {"authorization", "proxy-authorization", "cookie", "set-cookie"}
-SECRET_PARTS = ("key", "token", "secret")
+SECRET_NAMES = {"auth", "sig"}
+SECRET_PARTS = ("key", "token", "secret", "password", "signature")
 REMOVED = "<removed>"
 # The app does not know that it speaks to a proxy, so the proxy headers go through.
 NOT_FORWARDED = (HOP_BY_HOP - {"proxy-authorization"}) | {"host", "content-length"}
@@ -71,12 +74,22 @@ def parse(raw: Any) -> list[Backend]:
 
 def secret(name: str) -> bool:
     low = name.lower()
-    return low in SECRET_HEADERS or any(p in low for p in SECRET_PARTS)
+    return low in SECRET_HEADERS or low in SECRET_NAMES or any(p in low for p in SECRET_PARTS)
 
 
 def headers_row(items: list[tuple[str, str]]) -> list[list[str]]:
     """The headers as [name, value] pairs, in their order, with the secret values removed."""
     return [[k, REMOVED if secret(k) else v] for k, v in items]
+
+
+def query_row(query: str) -> str:
+    """The query with the values of the secret parameters removed. Each name, each `=` and each
+    `&` stays, in its order. The rule reads the decoded name, for example `api%5Fkey`."""
+    parts = []
+    for part in query.split("&"):
+        name, eq, _ = part.partition("=")
+        parts.append(name + eq if eq and secret(unquote_plus(name)) else part)
+    return "&".join(parts)
 
 
 def decode(data: bytes, encoding: str | None) -> bytes | None:
@@ -221,7 +234,7 @@ class Handler(BaseHTTPRequestHandler):
             "ts": None,
             "method": method,
             "path": path,
-            "query": query or None,
+            "query": query_row(query) if query else None,
             "request_headers": headers_row(sent),
             "request_body": body_row(body, self.headers.get("Content-Encoding")),
             "status": None,

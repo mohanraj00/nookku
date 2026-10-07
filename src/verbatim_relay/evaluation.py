@@ -66,15 +66,60 @@ def _value(value: Any) -> str:
     return value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
 
 
+def decision(answer: dict[str, Any]) -> str:
+    """One answer of a call to the Decisions API on one line, for example
+    `department: billing (0.95), confidence 0.93`. For a choice, the number in brackets is the
+    probability of the chosen value."""
+    name = answer.get("name") if answer.get("name") is not None else "(no name)"
+    kind, value = answer.get("type"), answer.get("value")
+    if kind == "refusal":
+        return f"{name}: refusal (the model did not answer this question)"
+    if kind == "predicate":
+        out = f"{name}: probability {_value(value)}"
+    elif kind == "score":
+        out = f"{name}: score {_value(value)}"
+    else:
+        out = f"{name}: {_value(value)}"
+        for p in answer.get("probabilities") or []:
+            same = isinstance(p, dict) and p.get("value") == value
+            if same and type(p.get("value")) is type(value):
+                out += f" ({_value(p.get('probability'))})"
+                break
+    if answer.get("confidence") is not None:
+        out += f", confidence {_value(answer['confidence'])}"
+    return out
+
+
+def _asked(asked: Any) -> str:
+    """The questions and the images of a request to the Decisions API, one on each line."""
+    if not isinstance(asked, dict):
+        return ""
+    out = ""
+    for q in asked.get("questions") or []:
+        options = q.get("options")
+        shown = f": {', '.join(_value(o) for o in options)}" if options else ""
+        out += f"question {q.get('name') or '(no name)'} ({q.get('type')}){shown}\n"
+    for i in asked.get("images") or []:
+        size = f"{i['size']} bytes" if i.get("size") is not None else "not base64"
+        out += f"image: {i.get('media_type')}, {size}, sha256 {i.get('sha256')}\n"
+    return out
+
+
 def render_item(it: dict[str, Any], line: int) -> str:
     """One trace item, with its line in trace.jsonl as its evidence."""
     head = f"[trace.jsonl:{line}] {it['harness']} {it['kind']}"
     if it["kind"] == "message":
         out = f"{head}, {it['role']}:\n{_cut(it['output'] or '', line)}\n"
+        if it["harness"] == "model_api" and it["role"] == "user":
+            out += _asked(it["input"])
         if it["harness"] == "model_api" and it["role"] == "assistant":
             status = it["exit_code"] if it["exit_code"] is not None else "no answer"
             out = f"{head}, assistant: {it['session']} {it['input']['path']}, status {status}:\n"
-            out += f"{_cut(it['output'] or '', line)}\n"
+            answers = it["input"].get("answers")
+            if answers:
+                out += "".join(f"{decision(a)}\n" for a in answers if isinstance(a, dict))
+            else:
+                out += f"{_cut(it['output'] or '', line)}\n"
         if it.get("error") is not None:
             out += f"error:\n{_cut(it['error'], line)}\n"
         return out

@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import contextlib
 import http.client
 import json
+import socket
 import sys
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -11,7 +13,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from verbatim_relay.adapters import Adapter, AdapterError
-from verbatim_relay.record import Writer
+from verbatim_relay.record import Writer, lone_surrogate
 from verbatim_relay.stdio import TIMEOUT
 
 HOP_BY_HOP = {
@@ -53,6 +55,14 @@ class Tap(ThreadingHTTPServer):
         return cls(self.agent_host, self.agent_port, timeout=self.timeout)
 
 
+def _expire(conn: http.client.HTTPConnection, expired: threading.Event) -> None:
+    """Stop a read from the agent at the deadline. The read then fails or returns early."""
+    expired.set()
+    if conn.sock is not None:
+        with contextlib.suppress(OSError):
+            conn.sock.shutdown(socket.SHUT_RDWR)
+
+
 class _Handler(BaseHTTPRequestHandler):
     server: Tap
     protocol_version = "HTTP/1.1"
@@ -90,17 +100,29 @@ class _Handler(BaseHTTPRequestHandler):
                 message = tap.adapter.message(body)
             except AdapterError as e:
                 parse_error = f"request: {e}"
+            found = None if message is None else lone_surrogate(message)
+            if found:
+                # The record cannot hold the message. The tap marks it as unparsed.
+                message, parse_error = None, f"request: the message has {found}"
 
         headers = {k: v for k, v in self.headers.items() if k.lower() not in NOT_FORWARDED}
         headers["Accept-Encoding"] = "identity"
         conn = tap.connect()
+        # The socket timeout starts again after each read. This timer gives one deadline for the
+        # whole response, so an agent that sends a byte at a time still gets a 504.
+        expired = threading.Event()
+        timer = threading.Timer(tap.timeout or TIMEOUT, _expire, (conn, expired))
+        timer.daemon = True
+        timer.start()
         try:
             conn.request(method, tap.base_path + path, body=body if body else None, headers=headers)
             resp = conn.getresponse()
             status, out_headers, out = resp.status, resp.getheaders(), resp.read()
+            if expired.is_set():
+                raise TimeoutError
         except (OSError, http.client.HTTPException) as e:
             # After the agent timeout, the tap answers 504 before the relay timeout (SPEC.md 4.3).
-            late = isinstance(e, TimeoutError)
+            late = isinstance(e, TimeoutError) or expired.is_set()
             why = f"the agent sent no response in {tap.timeout:g} s" if late else None
             if message is not None:
                 tap.writer.append(
@@ -127,6 +149,7 @@ class _Handler(BaseHTTPRequestHandler):
                 self._error(502, f"verbatim-relay tap: the agent is unreachable: {e}")
             return
         finally:
+            timer.cancel()
             conn.close()
 
         if recorded:
@@ -152,6 +175,21 @@ class _Handler(BaseHTTPRequestHandler):
                         }
                     )
                 else:
+                    found = lone_surrogate(reply)
+                    if found:
+                        # The record cannot hold the reply, so the relay gets an error.
+                        note = f"the agent reply has {found}"
+                        tap.writer.append(
+                            {
+                                "type": "exchange",
+                                "input": message,
+                                "status": None,
+                                "reply": None,
+                                "error": note,
+                            }
+                        )
+                        self._error(502, f"verbatim-relay tap: {note}")
+                        return
                     tap.writer.append(
                         {"type": "exchange", "input": message, "status": status, "reply": reply}
                     )

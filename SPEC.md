@@ -17,6 +17,8 @@ Two processes write two records. The relay writes the **relay record**: what the
 
 Each record is a UTF-8 JSONL file. Each line is one JSON object. Each object has a version `v` and a `type`. A writer writes `"v": "0.2"`. A reader accepts `"0.1"` and `"0.2"`. A type or a field that this section marks as 0.2 is not valid in a `"0.1"` row. Each text field has a `<field>_sha256` field: the SHA-256 of the UTF-8 bytes of the text, in lower-case hex. If the text is `null`, its hash is `null`. `ts` is a Unix time in seconds.
 
+Each string in a row, as a field name or as a value, holds only Unicode scalar values. JSON can escape a lone UTF-16 surrogate, for example `"\ud83d"`, but UTF-8 cannot encode it. A row with a lone surrogate is not valid.
+
 ### 2.1 Tap record
 
 `exchange`: one request that the adapter parsed, and its response.
@@ -24,7 +26,7 @@ Each record is a UTF-8 JSONL file. Each line is one JSON object. Each object has
 | Field | Type | Meaning |
 |---|---|---|
 | `input` | string | The message that the agent received, as the adapter extracts it. |
-| `status` | integer or null | The HTTP status of the agent's response. `null` if the agent did not respond. |
+| `status` | integer or null | The HTTP status of the agent's response. `null` if the agent did not respond, or if its reply or its error has a lone surrogate (section 4). |
 | `reply` | string or null | The reply that the agent sent, as the adapter extracts it. It is `null` if, and only if, the status is not 2xx or is `null`. |
 | `error` | string | Optional. Why `reply` is `null`. |
 | `started` | number | Optional, 0.2. The Unix time when the tap sent the request to the agent. `ts` is the time when the tap wrote the row. |
@@ -36,6 +38,7 @@ In stdio mode, the tap writes these `status` values:
 | A `reply` line | 200 |
 | An `error` line | 500 |
 | No line: the agent exited, or the tap stopped it after a timeout | `null` |
+| A `reply` or an `error` line with a lone surrogate | `null` |
 
 `unparsed`: a request or a 2xx response that the tap forwarded but that the adapter cannot parse. Fields: `method`, `path`, `error`. The tap forwards this request without change, but the audit cannot check it. In stdio mode, the tap also writes `unparsed` for a request that is not a contract input, for an agent line that is not a valid contract output, and for an agent line that arrives when no request waits for it. For the last kind, `method` is `STDIO` and `path` is `stdout`.
 
@@ -72,7 +75,7 @@ In a test (section 7), the relay record is `relay.jsonl` in the test folder.
 The audit stops with exit code 2 and does not report breaks if one of these conditions occurs:
 
 - `record_missing`: a record file does not exist or cannot be read.
-- `record_invalid`: a line is not a JSON object, has a wrong `v` or an unknown `type`, has a missing or wrongly typed field, or has a hash that does not match its text.
+- `record_invalid`: a line is not a JSON object, has a wrong `v` or an unknown `type`, has a missing or wrongly typed field, has a hash that does not match its text, or has a lone surrogate (section 2).
 - `tap_unparsed`: the tap record has an `unparsed` row. The audit cannot check that exchange.
 
 The report names each check that it skipped.
@@ -125,8 +128,10 @@ The audit counts `blocked_call` rows and `model_session` rows. It does not match
 - The tap forwards the method, path, query, headers and body without change. It does not forward hop-by-hop headers and `Host`. It replaces `Accept-Encoding` with `identity`, so that the agent sends a body that the adapter can read.
 - The tap returns the agent's status, headers and body without change, except hop-by-hop headers and `Content-Length`.
 - If the tap cannot reach the agent, it returns status 502 and writes an `exchange` row with `status: null`.
-- If the tap waits 240 seconds for a connection or for data from the agent, it closes the connection. It returns status 504 and writes an `exchange` row with `status: null`, and the timeout in `error`.
+- If the tap gets no full response from the agent in 240 seconds, it closes the connection. The 240 seconds is one deadline for the connection, the headers and the body. It returns status 504 and writes an `exchange` row with `status: null`, and the timeout in `error`.
 - The tap writes rows only for `POST` requests that the adapter accepts. It forwards other requests without a row.
+- If the message that the adapter extracts has a lone surrogate (section 2), the tap writes an `unparsed` row. It still forwards the request without change.
+- If the reply of a 2xx response has a lone surrogate, the tap returns status 502 and not the agent's response. It writes an `exchange` row with `status: null`, `reply: null` and an `error` that names the lone surrogate.
 - The tap does not support streamed responses in v0.1. If an OpenAI-style request has `"stream": true`, the tap returns status 501 and does not forward it.
 
 #### Adapters
@@ -153,6 +158,8 @@ Each adapter maps onto the agent contract (section 6):
 - The tap sends one request at a time. It waits for one line on the agent's stdout.
 - If the line is a valid output with the same `id`, the tap returns status 200 for a `reply` and 500 for an `error`, with the line as the body. It writes an `exchange` row. For an `error` line, the row's `error` is the agent's error text.
 - If the line is not valid, or has a different `id`, the tap returns status 502 and writes an `unparsed` row.
+- If the `message` of an input has a lone surrogate (section 2), the tap returns status 400, writes an `unparsed` row and does not send the body.
+- If the `reply` or the `error` of an output has a lone surrogate, the tap returns status 502. It writes an `exchange` row with `status: null`, `reply: null` and an `error` that names the lone surrogate.
 - If the agent sends no line in 240 seconds, the tap stops the agent's process group. It returns status 504 and writes an `exchange` row with `status: null`.
 - If the agent exits, the tap returns status 502 and writes an `exchange` row with `status: null` and the exit code in `error`.
 - The tap does not restart the agent. After a crash or a timeout, it answers each later request with the same error. The error body includes the last 20 lines of `app.log`.
@@ -164,13 +171,13 @@ Each timeout on the relay path ends before the next one, so that each part gets 
 
 | Order | Timeout | Seconds |
 |---|---|---|
-| 1 | The agent timeout of the tap, the same in HTTP mode and stdio mode | 240 |
-| 2 | The tap answers the relay, at most 5 seconds after the agent timeout | 245 |
-| 3 | The hook kit waits for the tap of a test (section 7) | 270 |
-| 3 | The hook kit waits for the tap of section 4.1 | 280 |
-| 4 | The harness stops the `UserPromptSubmit` hook | 300 |
+| 1 | The agent timeout of the tap, the same in HTTP mode and stdio mode | [240](src/verbatim_relay/stdio.py#L24) |
+| 2 | The tap answers the relay, at most 5 seconds after the agent timeout | [245](tests/test_timeouts.py#L22) |
+| 3 | The hook kit waits for the tap of a test (section 7) | [270](src/verbatim_relay/bridge.py#L36) |
+| 3 | The hook kit waits for the tap of section 4.1 | [280](src/verbatim_relay/kit.py#L23) |
+| 4 | The harness stops the `UserPromptSubmit` hook | [300](src/verbatim_relay/kit.py#L26) |
 
-The plugin sets no timeout of its own. It waits for the answer of the tap. The test `tests/test_timeouts.py` checks this order.
+Each number links to its constant. The 5 seconds of order 2 is the `ANSWER` limit of the test. The plugin sets no timeout of its own. It waits for the answer of the tap. The test [`tests/test_timeouts.py`](tests/test_timeouts.py) checks this order, and it measures the 504 of a slow agent and of an agent that sends a byte at a time.
 
 ## 5. Relays
 
@@ -180,6 +187,7 @@ A relay is the Claude Code plugin or the hook kit. The hook kit uses the classic
 - **Control prompts.** With an entry, a relay never relays the exact prompts `verbatim-relay start`, `verbatim-relay end` and `verbatim-relay status`, also in relay mode. It runs the command and blocks the prompt. There is one exception: if `verbatim-relay end` leaves a test to evaluate (section 9), the relay lets the prompt go to the model, with the evaluation prompt added as context. The plugin also has the `/verbatim-relay` command, which never starts an evaluation.
 - **Fail closed.** If relay mode is on and the relay cannot send the message, it still stops the prompt from reaching the model. It shows the error to the tester and writes the error as `shown` with `ok: false`.
 - **Display.** The plugin shows the reply as a transcript row that the model does not receive. The hook kit writes the relay record, and `verbatim-relay view` prints each turn from it.
+- **Transcript.** `verbatim-relay transcript` prints the turns of the relay record for the model. Its first line gives the scope and the number of turns. Its second line is this legend: "Legend: ok (an agent block): the agent answered and the relay showed its reply. It does not judge the reply. Not ok (a relay error block): the relay got no reply and shows its own error text." Each turn has a tester block with `said`. Then it has an agent block with `shown`, or a relay error block with `shown` if `ok` is `false`. The turns show no hashes and no session ids. With an entry, the scope is each session of the latest test, or of `--test <test-id>`. With no entry, the scope is the session of the last turn, or `--session <id>`. The plugin's `transcript` tool runs this command and returns its output with no change, so both relays give the model the same text. With `trace: true`, the tool runs `verbatim-relay transcript --trace` (section 9.2).
 - **Deny.** The relay denies a model tool call if its input contains the host and port of the tap or the agent. File tools (read, write, edit, search) are not denied, because a file that names an address does not call it. Every other tool is denied, including tools that the relay does not know. The deny is best effort. The audit finds each message that goes through the tap. A call to the agent around the tap is in neither record.
 - **Test files.** During a test, the relay denies a model tool call that writes into `.verbatim-relay/`, and each other tool call except file reads whose input names `.verbatim-relay`. When no test runs, the relay denies:
   - a write tool call (a file write or edit, or a patch) that names a file in `.verbatim-relay/tests/<test-id>/` other than `report.md`;
@@ -255,7 +263,11 @@ A test runs the entry from `start` to `end`. A new conversation is a new test: e
 
 ### 7.2 Start and end
 
-`start` creates the test folder and starts the bridge, a background process that runs the tap in stdio mode. The bridge writes `.verbatim-relay/current.json` with the test id, the test folder, the tap URL and its own pid. Then `start` switches relay mode on. With an entry, relay mode is the file `.verbatim-relay/mode` for both relays, so it survives a restart of the harness or a reload of the plugin. If `current.json` names a process that does not run, `start` removes the file.
+`start` creates the test folder and starts the bridge, a background process that runs the tap in stdio mode. The bridge writes `.verbatim-relay/current.json` with the test id, the test folder, the tap URL, its own pid and the string `pid_start`. Then `start` switches relay mode on. With an entry, relay mode is the file `.verbatim-relay/mode` for both relays, so it survives a restart of the harness or a reload of the plugin.
+
+`pid_start` is the start time of the bridge process. The OS can give the pid of a stopped process to a new process, so the pid and `pid_start` together identify the bridge. On Linux, `pid_start` is `proc:` and field 22 of `/proc/<pid>/stat`. On other systems, it is `ps:` and the output of `ps -o lstart= -p <pid>` with `TZ=UTC0` and `LC_ALL=C`, with each run of spaces as one space. A reader compares the value only for equality. If the bridge cannot read its start time, it does not start.
+
+If no process with the pid runs, or if the start time of that process is not `pid_start`, the test does not run. Then `start`, `end` and `status` remove `current.json`, and `end` sends no signal to the process.
 
 `end` switches relay mode off and stops the bridge. If a harness session sends the prompt that ends the test, `end` writes its id to `.verbatim-relay/ending.json`. The bridge adds that id to the tester's sessions, so it never takes the session that ends the test, and then evaluates it, as a session of the app. The bridge then:
 
@@ -373,13 +385,20 @@ The proxy writes one row to `backend.jsonl` for each call:
 | `v`, `type` | `1`, `"call"` |
 | `backend` | The `name` of the backend. |
 | `started`, `ts` | The Unix times when the request came and when the call ended. |
-| `method`, `path`, `query` | The request line from the app. `query` is `null` if the path has no `?`. |
+| `method`, `path`, `query` | The request line from the app. `query` is `null` if the path has no `?`. The proxy removes the values of secret query parameters from `query` (see below). |
 | `request_headers`, `response_headers` | The headers as a list of `[name, value]`, in their order. `response_headers` is `null` if the backend did not answer. |
 | `request_body`, `response_body` | An object: `size`, `sha256` (of the bytes), `cut`, and `text` (UTF-8) or `base64`. For a `gzip` or `deflate` body, `text` is the decoded body, and `decoded` names the encoding. If the body is longer than 1 MiB, `text` or `base64` holds the first 1 MiB, and `cut` is `true`. `size` and `sha256` are always of all the bytes that went to the app or the backend. `response_body` is `null` if the backend did not answer. |
 | `status` | The status of the backend, or `null`. |
 | `error` | `the backend did not answer: <reason>`, `the test ended before the backend answered`, or `null`. |
 
-Before it writes a row, the proxy replaces the value of each secret header with `<removed>`: `Authorization`, `Proxy-Authorization`, `Cookie`, `Set-Cookie`, and each header whose name contains `key`, `token` or `secret`. The secret headers still go to the backend and to the app. The proxy does not change the bodies in the record.
+Before it writes a row, the proxy removes the secret values. A header name or a query parameter name is secret if it is `Authorization`, `Proxy-Authorization`, `Cookie`, `Set-Cookie`, `auth` or `sig`, or if it contains `key`, `token`, `secret`, `password` or `signature`. The rule ignores case.
+
+- For each secret header, the proxy replaces the value with `<removed>`.
+- For each secret query parameter, the proxy keeps the name and the `=`, and removes the value. For example, `sku=mug&api_key=toy-123` becomes `sku=mug&api_key=`. Each parameter and each `&` stays in its order. The proxy splits the query only at `&`.
+- The rule reads the name after it decodes `+` and the `%` escapes, for example `api%5Fkey`. The record keeps the name as it came.
+- A parameter with no `=` stays as it came.
+
+The secret headers and the full query still go to the backend, and the secret headers go to the app. The proxy does not change the bodies in the record.
 
 ### 7.7 Model API proxies
 
@@ -393,6 +412,7 @@ An app can call a model API directly with an SDK, with no harness session. Durin
 The proxy forwards to the URL that `model_api` gives for the API, else to the value that the bridge has in the variable, else to the URL of the table. A URL in `model_api` is necessary if the tester's harness also reads the variable, for example Codex and `OPENAI_BASE_URL`. It gives the entry the URL of the proxy in the variable. A value that is not an `http` or `https` URL stops the start of the test. An empty URL in `model_api` also stops it: the proxy does not then use the variable.
 
 - The proxy forwards each request as a backend proxy does (section 7.6).
+- It removes the values of secret headers and secret query parameters from the row as a backend proxy does (section 7.6).
 - It sends each part of the response to the app when the part comes, also for a streamed (SSE) response. It sends the status and the headers first. If the API gives no `Content-Length`, the proxy sends the body to the app with `Transfer-Encoding: chunked`.
 - If the API stops during the body, also before the end that its `Content-Length` gives, the row gets the error `the stream stopped: <reason>`, and the proxy closes the connection to the app. If the app goes away, the proxy reads the rest of the response for the record.
 - At the end of the test, the proxy waits for open calls as a backend proxy does.
@@ -408,7 +428,7 @@ The proxy writes one row to `model_api.jsonl` for each call, with the fields of 
 | `stream` | `true` if the `Content-Type` of the response is `text/event-stream`. `null` if the API did not answer. |
 | `result` | The result of a model call, or `null` for another path or a harness call. |
 
-`result` is an object with `model`, `text` (the text blocks joined), `tool_calls` (a list of `id`, `name` and `input`), `stop_reason`, `usage` and `error` (the `message` of the `error` object of the API, or `null`). The proxy reads it from the decoded response body, as JSON or from the `data` lines of the SSE events:
+`result` is an object with `model`, `text` (the text blocks joined), `tool_calls` (a list of `id`, `name` and `input`), `stop_reason`, `usage` and `error` (the `message` of the `error` object of the API, or `null`). The result of a `/decisions` call also has `answers`. The proxy reads the result from the decoded response body, as JSON or from the `data` lines of the SSE events:
 
 - `anthropic`, path that ends with `/v1/messages`: the `content` blocks, `stop_reason` and `usage`. In a stream: `message_start`, `content_block_start`, `content_block_delta` (`text_delta` and `input_json_delta`), `message_delta` and `error`.
 - `openai`, path that ends with `/chat/completions`: `choices[0].message` (`content` and `tool_calls`), `finish_reason` and `usage`. In a stream: the `delta` of choice 0 of each chunk. The `arguments` of a tool call are parsed as JSON. If they are not JSON, `input` is the text.
@@ -418,6 +438,11 @@ The proxy writes one row to `model_api.jsonl` for each call, with the fields of 
   - `stop_reason` is the `status` of the response, for example `completed`, `incomplete` or `failed`. `usage` is `usage`. `error` is the `message` of the `error` object.
   - In a stream, the parser keeps the output items by their `output_index`. `response.output_item.added` and `response.output_item.done` set the item. `response.output_text.delta` adds its `delta` to the text of the part at `content_index`. `response.function_call_arguments.delta` adds its `delta` to the `arguments` of the item. Thus a stream that stops before its end keeps the text and the arguments that came. The parser reads `model`, `status`, `usage` and `error` from the `response` object of `response.created`, `response.in_progress`, `response.completed`, `response.failed` and `response.incomplete`. An `error` event gives `error` from its `message`. The parser does not read the other events.
   - This parser follows the OpenAI API reference of 2026-10-07, the date when it was read: [create a response](https://developers.openai.com/api/reference/resources/responses/methods/create) and [streaming events](https://developers.openai.com/api/reference/resources/responses/streaming-events).
+- `openai`, path that ends with `/decisions` (also `/v1/decisions`): the Decisions API (public beta). A path after `/decisions` is not a model call. The parser reads the decision object as JSON. The API reference gives no stream, so the parser also reads a body with `stream: true` as JSON:
+  - `model` is `model`, `usage` is `usage` and `error` is the `message` of the `error` object. `text` is `""`, `tool_calls` is empty and `stop_reason` is `null`, because a decision has no status.
+  - `answers` holds one object for each item of `answers`, in the same order. Each object has `type`, `name`, `value`, `probabilities` and `confidence`. `value` is `probability` for the type `predicate`, `choice` for `choice` and `score` for `score`. `probabilities` is the list of the answer as the API gives it: `value` and `probability` for a choice, and also `label` for a score. A `predicate` answer has no `probabilities` and no `confidence`. Their value is then `null`.
+  - An answer of the type `refusal` has only `type` and `name`. The model did not answer that question. Its `value`, `probabilities` and `confidence` are `null`. A refusal is not an error: the API gives answers to the other questions of the call. An answer of another type keeps `type` and `name`, and its `value` is `null`.
+  - This parser follows the OpenAI documents of 2026-10-07, the date when they were read: the [Decisions guide](https://developers.openai.com/api/docs/guides/decisions) and the API reference [create a decision](https://developers.openai.com/api/reference/resources/decisions/methods/create).
 
 To read a new model call, the proxy adds one row to its table of model calls (the API, the end of the path and the format) and one parser for the format. The trace selects its reader of the request by the same format (section 8.4).
 
@@ -456,7 +481,7 @@ The trace reads `tap.jsonl`, `sessions/`, `otel.jsonl`, `backend.jsonl` and `mod
 | `role` | string or null | For a message: `user` (the app to the model) or `assistant` (the model to the app). |
 | `server` | string or null | For a tool call: the MCP server or the dynamic tool namespace. |
 | `name` | string or null | For a tool call: the tool name, without the MCP prefix. For a span: its name. For a log: its event name, without the harness prefix for a harness log. For an `http` item: the method and the path, for example `GET /stock`. |
-| `input` | any | For a tool call: its input object. For a command: its argv. For a span or a log: its attributes. For an `http` item: an object with `query`, `headers` (the request headers of the row) and `body` (the request body, as for `output`). For a `model_api` assistant message: an object with `path`, and `model`, `stop_reason` and `usage` of the result. |
+| `input` | any | For a tool call: its input object. For a command: its argv. For a span or a log: its attributes. For an `http` item: an object with `query`, `headers` (the request headers of the row) and `body` (the request body, as for `output`). For a `model_api` assistant message: an object with `path`, and `model`, `stop_reason` and `usage` of the result. For a `/decisions` call, the object also has the `answers` of the result. For a `model_api` user message of a `/decisions` call: an object with `questions` and `images` (section 8.4). For another user message: `null`. |
 | `output` | string or null | For a message: its text. For a tool call or a command: its output text. For a log: its body, as JSON if it is not a string, or `null` if the body is the event name. For an `http` item: the `text` of the response body, with the note `(cut: the record holds the first 1 MiB)` if it is cut; `(<size> bytes that are not UTF-8: base64 in backend.jsonl)` for a binary body; `null` for an empty body or no answer. |
 | `error` | string or null | For a tool call: the error text if the call failed. `output` is then `null`. For a span with status code 2: the status message, else the `exception.message` of its first `exception` event, else `status error`. For a harness `tool_result` log with `success` `false`: its `error` attribute. For an `http` item: the `error` of the row. For a `model_api` assistant message: the `error` of the row, else the `error` of the result. |
 | `exit_code` | integer or null | For a command: its exit code. For an `http` item: the status of the backend. For a `model_api` assistant message: the status of the API. |
@@ -483,6 +508,14 @@ Each reader reads the copied session file of one model session in the manifest. 
 
 The reader takes the version from the first line that has a `version` field.
 
+The reader also finds the MCP servers that the file names, for the check `server_not_from_app` (section 8.6). It does not make items from them. A server name comes from:
+
+- each name in `attachment.addedNames` of a line of type `attachment` with an `attachment.type` of `mcp_instructions_delta`, for example `claude.ai Toy Docs`;
+- the `<server>` part of each name `mcp__<server>__<tool>` in `attachment.addedNames` of a line with an `attachment.type` of `deferred_tools_delta`, for example `claude_ai_Toy_Mail`;
+- the `<server>` part of the name of each `tool_use` block of an `assistant` line.
+
+The reader keeps each name once, with the first line that has it. It still counts the `attachment` lines as lines that it does not keep.
+
 **Codex** (`sessions/codex/<rollout file>`). The reader keeps the lines of type `event_msg` with a payload of type `item_completed`. `ts` is the item's `completed_at_ms` divided by 1000, or the line's `timestamp`. By item type:
 
 | Item | Trace item |
@@ -502,7 +535,10 @@ The reader takes the version from `cli_version` of the `session_meta` line.
 **Model API calls** (`model_api.jsonl`). The reader counts each harness call by its `harness`, and does not keep it, because the session file of the harness has its turns. It counts each call to a path that is not a model call (section 7.7) in `other_calls`, and does not keep it. It counts each row that is not a call by its type. From each other call, in this order:
 
 - a `message` item with the role `user`, if the last message of the request has the role `user` and text: a string, or the joined `text` parts. `ts` is `started`. If the request body is cut or is not JSON, the call gives no user message. For `/responses`, the messages are the items of `input`. A string `input` is the user message. Else the last item must be a message (with no `type`, or the type `message`) with the role `user`. Its text is its `content` string, or its joined `input_text` parts;
-- a `message` item with the role `assistant`. `output` is the `text` of the result, or `null` if it is empty. `ts` is the `ts` of the row;
+- for `/decisions`, a `message` item with the role `user` in place of the item above, if the request has text, an image or a question. `ts` is `started`. `output` is the text of `input`: a string `input`, or the joined `content` strings and `input_text` parts of the messages of `input` with the role `user`. With no text, `output` is `null`. `input` is an object:
+  - `questions`: for each question of `questions`, its `name`, `type` and `options`. `options` is the list of the `value` of each item of `choices` for a `choice`, the list of the `label` of each item of `levels` for a `score`, and `null` for another type. The trace does not keep `instructions`.
+  - `images`: for each `input_image` part, its `media_type`, `size` and `sha256`. The `image_url` must be a data URL. `media_type` is the type of the data URL, for example `image/png`. `size` and `sha256` are the length and the SHA-256 of the decoded base64 data. The trace does not keep the data. If the data is not base64, `size` and `sha256` are `null`. If the URL is not a data URL, all 3 are `null`;
+- a `message` item with the role `assistant`. `output` is the `text` of the result, or `null` if it is empty. `ts` is the `ts` of the row. For `/decisions`, `input` also has `answers`, the answers of the result. A refusal does not give an `error`;
 - a `tool_call` item for each tool call of the result. `ts` is the `ts` of the row. The output is the first tool result with the same id in the request of a later call of the same format (`messages`, `chat` or `responses`), because a tool call id is unique only in one format: a `tool_result` block (`anthropic`, an `error` if `is_error` is `true`), a message with the role `tool` (`openai`, `/chat/completions`), or a `function_call_output` item of `input` with the same `call_id` (`openai`, `/responses`). The text of a `function_call_output` is its `output` string, or its `input_text` parts joined, with each other part as JSON. With no such result, `output` and `error` are `null`.
 
 ### 8.5 Harness tools
@@ -524,6 +560,7 @@ These tools come from the harness, not from the app: `ToolSearch` in Claude Code
 | `turn_without_model` | A turn with no `message`, `tool_call` or `command` item. This check runs only if a session reader kept at least 1 item. |
 | `item_between_turns` | An item with `turn: null` and a `ts` at or after the start of turn 1. An item before turn 1, for example a model call when the app starts, is not a finding. |
 | `otel_tool_not_in_session` | A harness `tool_result` log with no tool call of its tool in the session items of the same harness and turn. The tool is the `mcp_tool_name` of `tool_parameters`, or `tool_name` (Claude Code), or `tool_name` (Codex). If the event and the tool call both have an input object, the inputs must be equal. For a Codex `exec_command`, `shell` or `local_shell`, any `command` item matches. |
+| `server_not_from_app` | An MCP server in a Claude Code session file (section 8.4) that the MCP configuration of the app cannot give: a claude.ai connector of the account (a name that starts with `claude.ai ` or `claude_ai_`), or a server of a plugin (a name that starts with `plugin:` or `plugin_`). An app that loads a plugin itself also gets this finding for the servers of that plugin. The check does not find a server from a settings file or from `.mcp.json`, because its name does not show where it comes from. The finding has `harness`, `session` and `source` (the file and the first line that names the server). |
 | `session_inferred` | A model session with `inferred: true`. |
 | `version_untested` | A session file from a harness version that `proofs/trace/` does not cover. The tested versions are Claude Code 2.1.286 and 2.1.292, and codex-cli 0.160.0. If a reader finds no version in the file, the version is `unknown`. If the file is not in the test folder, the version is `null`, and this check does not run. |
 
@@ -556,7 +593,17 @@ The evaluation prompt is `src/verbatim_relay/evaluate.md`, with the test id and 
 4. check the state of the app with read-only commands only;
 5. write `report.md`, and no other file.
 
-`verbatim-relay transcript --trace` shows each turn of a test as the app received it and sent it (from `tap.jsonl`). Under each turn, it shows the model items of that turn and the findings of that turn. Each item names its line in `trace.jsonl` as `[trace.jsonl:N]`. A text longer than 2,000 characters shows its start and names its line. Items with `turn: null` come after the last turn.
+`verbatim-relay transcript --trace` shows each turn of a test as the app received it and sent it (from `tap.jsonl`). Under each turn, it shows the model items of that turn and the findings of that turn. For a `/decisions` call, the user message shows each question and each image on one line. The assistant message shows each answer on one line in place of the text:
+
+| Type | Line |
+|---|---|
+| `predicate` | `<name>: probability <value>` |
+| `choice` | `<name>: <value> (<probability of the value>), confidence <confidence>` |
+| `score` | `<name>: score <value>, confidence <confidence>` |
+| `refusal` | `<name>: refusal (the model did not answer this question)` |
+| Another type | `<name>: <value>` |
+
+For example: `department: billing (0.95), confidence 0.93`. An answer with no name shows `(no name)`. If an answer has no confidence, the line has no confidence. If the probabilities of a choice do not have its value, the line has no probability. Each item names its line in `trace.jsonl` as `[trace.jsonl:N]`. A text longer than 2,000 characters shows its start and names its line. Items with `turn: null` come after the last turn.
 
 ### 9.3 Report
 

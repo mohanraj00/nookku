@@ -1,9 +1,15 @@
-"""A toy model that writes case notes. It speaks the OpenAI Chat Completions API with a stream.
+"""A toy model that writes case notes and routes complaints. It speaks the OpenAI Chat Completions
+API with a stream, and the OpenAI Decisions API.
 
     python examples/toy-shop-full/toy_model.py [port]
 
-The app finds it in OPENAI_BASE_URL, for example http://127.0.0.1:9002/v1. Its answer is fixed:
-"Case note: " and the first line of the customer's message. It needs no API key and no network.
+The app finds it in OPENAI_BASE_URL, for example http://127.0.0.1:9002/v1. Its answers are fixed:
+
+- /chat/completions: "Case note: " and the first line of the customer's message.
+- /decisions: for each `choice` question, the department of the first word of ROUTES in the
+  input, if the question has it as a choice. Else the last choice. It refuses each other question.
+
+It needs no API key and no network.
 """
 
 from __future__ import annotations
@@ -20,6 +26,52 @@ def note(messages: list[dict[str, Any]]) -> str:
     said = next((m["content"] for m in reversed(messages) if m.get("role") == "user"), "")
     first = str(said).split("\n")[0].removeprefix("Customer: ").strip()
     return f"Case note: {first[:80]}"
+
+
+# The words of a complaint and the department for them.
+ROUTES = (
+    ("charged", "billing"),
+    ("refund", "billing"),
+    ("invoice", "billing"),
+    ("broken", "shipping"),
+    ("arrived", "shipping"),
+    ("delivery", "shipping"),
+)
+
+
+def _text(given: Any) -> str:
+    """The text of the `input` of a Decisions API request."""
+    if isinstance(given, str):
+        return given
+    parts = [p for m in given or [] for p in m.get("content") or [] if isinstance(p, dict)]
+    return "\n".join(p.get("text") or "" for p in parts if p.get("type") == "input_text")
+
+
+def decide(ask: dict[str, Any]) -> dict[str, Any]:
+    """The answer of the Decisions API to a request: one answer for each question."""
+    text = _text(ask.get("input")).lower()
+    found = next((d for word, d in ROUTES if word in text), None)
+    answers: list[dict[str, Any]] = []
+    for q in ask.get("questions") or []:
+        values = [c.get("value") for c in q.get("choices") or []]
+        if q.get("type") != "choice" or not values:
+            answers.append({"type": "refusal", "name": q.get("name")})
+            continue
+        chosen = found if found in values else values[-1]
+        rest = round(0.1 / max(len(values) - 1, 1), 4)
+        probabilities = [{"value": v, "probability": 0.9 if v == chosen else rest} for v in values]
+        answers.append(
+            {
+                "type": "choice",
+                "name": q.get("name"),
+                "choice": chosen,
+                "probabilities": probabilities,
+                "confidence": 0.85,
+            }
+        )
+    tokens = len(text.split())
+    usage = {"input_tokens": tokens, "output_tokens": 0, "total_tokens": tokens}
+    return {"model": MODEL, "answers": answers, "usage": usage}
 
 
 class ToyModel(ThreadingHTTPServer):
@@ -47,6 +99,14 @@ class _Handler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         ask = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)))
+        if self.path.endswith("/decisions"):
+            data = json.dumps(decide(ask), ensure_ascii=False).encode()
+            self.send_response_only(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+            return
         if not self.path.endswith("/chat/completions"):
             self.send_response_only(404)
             self.send_header("Content-Length", "0")

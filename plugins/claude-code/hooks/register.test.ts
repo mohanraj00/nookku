@@ -115,23 +115,35 @@ test('pure parts', async () => {
   expect(await sha256('é')).toBe('4a99557e4033c3539de2eb65472017cad5f9557f7a0625a09f1c3f6e2ba69c4c')
 })
 
-test('the transcript tool reads this session from the record', { options: OPTIONS }, async ($, on) => {
-  const f = fakes(on, () => ({ status: 200, text: JSON.stringify({ reply: REPLY }) }))
-  f.files['/virtual/relay.jsonl'] = JSON.stringify({ type: 'turn', said: 'other', shown: 'x', ok: true, session: 's0' }) + '\n'
-  await $.prompt.submit({ text: TRICKY })
+// The verbatim-relay command renders the transcript for the plugin and for the hook kit.
+// tests/test_cli.py checks that the argv of the plugin give the same text as the argv of the kit.
+const RENDERED = `verbatim-relay transcript, session s1: 1 turns.\n\n──── tester, turn 1 ────\n${TRICKY}\n──── agent ────\n${REPLY}\n`
+
+test('the transcript tool shows the exact output of the verbatim-relay command', { options: OPTIONS }, async ($, on) => {
+  fakes(on, () => ({ status: 200, text: '{}' }))
+  const runs: string[][] = []
+  on('process.run', async (_$: any, e: any) => {
+    runs.push(e.argv)
+    return { value: { exitCode: 0, stdout: RENDERED, stderr: '' } }
+  })
   const out: any = await $.tool.call({ tool: 'mcp__verbatim-relay__transcript' } as any)
-  expect(JSON.parse(out.result)).toEqual([{ said: TRICKY, shown: REPLY, ok: true }])
+  expect(runs[0]).toEqual(['verbatim-relay', 'transcript', '--record', '/virtual/relay.jsonl', '--session', 's1'])
+  expect(out.result).toBe(RENDERED)
+  const traced: any = await $.tool.call({ tool: 'mcp__verbatim-relay__transcript', trace: true } as any)
+  expect(runs[1]).toEqual(['verbatim-relay', 'transcript', '--trace'])
+  expect(traced.result).toBe(RENDERED)
 })
 
 // A test (SPEC.md section 7). The fake verbatim-relay command writes current.json, as the bridge does.
 const DIR = '.verbatim-relay/tests/20261005-120000-ab12'
-const CURRENT = { v: 1, test: '20261005-120000-ab12', dir: DIR, tap_url: 'http://127.0.0.1:8811/', pid: 4471 }
+const CURRENT = { v: 1, test: '20261005-120000-ab12', dir: DIR, tap_url: 'http://127.0.0.1:8811/', pid: 4471, pid_start: 'ps:Mon Oct 5 12:00:00 2026' }
 
 function withTest(on: any, f: ReturnType<typeof fakes>, evaluation: string | null = 'Evaluate the test.') {
   const runs: string[][] = []
   f.files['.verbatim-relay/config.json'] = JSON.stringify({ entry: ['python', 'examples/toy-shop/agent.py'], models: [] })
   on('process.run', async (_$: any, e: any) => {
     runs.push(e.argv)
+    if (e.argv[1] === 'transcript') return { value: { exitCode: 0, stdout: RENDERED, stderr: '' } }
     if (e.argv[1] === 'start') {
       f.files['.verbatim-relay/current.json'] = JSON.stringify(CURRENT)
       f.files['.verbatim-relay/mode'] = 'on\n'
@@ -171,9 +183,10 @@ test('a test starts, relays with the contract, records in its folder and ends', 
   expect(turns[0]).toMatchObject({ v: '0.2', type: 'turn', said: TRICKY, shown: REPLY, ok: true, session: 's1' })
   expect(f.files['/virtual/relay.jsonl']).toBe(undefined)
   const transcript: any = await $.tool.call({ tool: 'mcp__verbatim-relay__transcript' } as any)
-  expect(JSON.parse(transcript.result).length).toBe(2)
+  expect(runs[1]).toEqual(['verbatim-relay', 'transcript', '--test', CURRENT.test])
+  expect(transcript.result).toBe(RENDERED)
   const ended: any = await $.command.run({ command: 'verbatim-relay', args: 'end' } as any)
-  expect(runs[1]).toEqual(['verbatim-relay', 'end'])
+  expect(runs[2]).toEqual(['verbatim-relay', 'end'])
   expect(ended.text).toContain('Relay mode is off.')
   const after: any = await $.prompt.submit({ text: 'to the model' })
   expect(after.drop).toBe(undefined)
@@ -263,6 +276,8 @@ test('contract parts', async () => {
 // Python tap returns for it. tests/test_contract.py checks this table against the cases and
 // against contract.parse_reply.
 const CONTRACT_LINES: [string, number][] = [
+  ["{\"v\": 1, \"id\": \"m-1\", \"error\": \"Mug sold out \\ud83d\"}", 502], // error_with_a_lone_surrogate
+  ["{\"v\": 1, \"id\": \"m-1\", \"reply\": \"## Returns  \\nYou can return order #4471 within 30 days.\\n\\n| item | status |\\n|---|---|\\n| mug | eligible |\\ud83d\"}", 502], // reply_with_a_lone_surrogate
   ["{\"v\": 1, \"id\": \"m-1\", \"error\": \"The order service is down.\"}", 500], // error_is_status_500
   ["{\"v\": 1, \"id\": \"m-1\", \"reply\": null, \"error\": \"The order service is down.\"}", 502], // null_reply_and_error
   ["{\"v\": 1, \"id\": \"m-1\", \"reply\": \"## Returns  \\nYou can return order #4471 within 30 days.\\n\\n| item | status |\\n|---|---|\\n| mug | eligible |\", \"latency_ms\": 12}", 200], // other_fields_are_ignored

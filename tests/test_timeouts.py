@@ -1,8 +1,11 @@
 """The timeouts on the relay path, in order: agent < tap answer < relay < hook deadline."""
 
+import contextlib
 import inspect
 import json
 import re
+import socket
+import threading
 import time
 from pathlib import Path
 
@@ -63,3 +66,33 @@ def test_a_slow_agent_gives_504_and_an_error_row(agent, tmp_path):
     assert read_tap(tmp_path / "tap.jsonl") == [Exchange(1, "Where is my mug?", None, None)]
     row = json.loads((tmp_path / "tap.jsonl").read_text())
     assert row["error"] == "the agent sent no response in 0.3 s"
+
+
+def test_an_agent_that_sends_a_byte_at_a_time_still_gives_504(tmp_path):
+    # Each gap is shorter than the timeout, but the whole response takes longer.
+    listener = socket.create_server(("127.0.0.1", 0))
+
+    def trickle() -> None:
+        conn, _ = listener.accept()
+        with conn:
+            conn.recv(65536)
+            conn.sendall(b"HTTP/1.1 200 OK\r\nContent-Length: 40\r\n\r\n")
+            with contextlib.suppress(OSError):
+                for _ in range(40):
+                    time.sleep(0.1)
+                    conn.sendall(b"x")
+
+    threading.Thread(target=trickle, daemon=True).start()
+    url = f"http://127.0.0.1:{listener.getsockname()[1]}"
+    t = tap.Tap(("127.0.0.1", 0), url, tmp_path / "tap.jsonl", make("json"), 0.5)
+    tap.start_in_thread(t)
+    began = time.monotonic()
+    status, _, out = post(t, "/", b'{"text": "Where is my mug?"}')
+    took = time.monotonic() - began
+    t.shutdown()
+    listener.close()
+
+    assert status == 504
+    assert json.loads(out)["error"] == "verbatim-relay tap: the agent sent no response in 0.5 s"
+    assert 0.5 <= took < 0.5 + ANSWER
+    assert read_tap(tmp_path / "tap.jsonl") == [Exchange(1, "Where is my mug?", None, None)]

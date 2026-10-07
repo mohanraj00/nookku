@@ -84,6 +84,33 @@ def test_secret_headers_reach_the_backend_but_not_the_record(tmp_path: Path) -> 
     assert ["Authorization", backend.REMOVED] in row["request_headers"]
 
 
+def test_secret_query_values_reach_the_backend_but_not_the_record(tmp_path: Path) -> None:
+    with StockServer() as stock:
+        proxies = proxy_for(stock, tmp_path)
+        env = proxies.start()
+        try:
+            request(env["STOCK_URL"], "GET", "/stock?sku=mug&api_key=toy-123", None, {})
+        finally:
+            proxies.stop()
+    assert stock.seen[0]["path"] == "/stock?sku=mug&api_key=toy-123"
+    assert "toy-123" not in (tmp_path / backend.FILE).read_text()
+    assert rows(tmp_path)[0]["query"] == "sku=mug&api_key="
+
+
+def test_repeated_and_encoded_secret_query_names(tmp_path: Path) -> None:
+    query = "token=a1&sku=mug&token=b2&api%5Fkey=c3&Sig=d4&q=&flag&auth=e5&keep=f6"
+    with StockServer() as stock:
+        proxies = proxy_for(stock, tmp_path)
+        env = proxies.start()
+        try:
+            request(env["STOCK_URL"], "GET", "/stock?" + query, None, {})
+        finally:
+            proxies.stop()
+    assert stock.seen[0]["path"] == "/stock?" + query
+    want = "token=&sku=mug&token=&api%5Fkey=&Sig=&q=&flag&auth=&keep=f6"
+    assert rows(tmp_path)[0]["query"] == want
+
+
 def test_a_large_body_is_cut_in_the_record_only(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

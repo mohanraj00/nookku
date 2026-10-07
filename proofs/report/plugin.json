@@ -1,8 +1,8 @@
 {
- "date": "2026-10-06",
+ "date": "2026-10-07",
  "relay": "plugin",
  "versions": {
-  "verbatim-relay": "0.1.0",
+  "verbatim-relay": "0.2.0",
   "claude-code": "2.1.290 (Claude Code)",
   "codex": "codex-cli 0.160.0",
   "agent sdk": "claude-agent-sdk==0.2.164",
@@ -27,7 +27,12 @@
   {
    "class": "business_rule",
    "turn": "2",
-   "evidence": "trace.jsonl:10, app.py:25, app.py:62, RULES.md rule 3"
+   "evidence": "trace.jsonl:10, app.py:59"
+  },
+  {
+   "class": "missing_action",
+   "turn": "2",
+   "evidence": "trace.jsonl:10, state.json"
   },
   {
    "class": "unsupported_reply",
@@ -35,9 +40,9 @@
    "evidence": "trace.jsonl:13"
   },
   {
-   "class": "state_mismatch",
+   "class": "unsupported_reply",
    "turn": "3",
-   "evidence": "trace.jsonl:17, trace.jsonl:10"
+   "evidence": "trace.jsonl:17"
   }
  ],
  "P5_quotes_the_refund_id": true,
@@ -69,15 +74,15 @@
  "P8_otel_has_the_refund": true,
  "model_api": {
   "file": "model_api.jsonl",
-  "rows": 9,
+  "rows": 6,
   "items": 0,
   "ignored": {},
   "harness_calls": {
-   "claude-code": 8
+   "claude-code": 5
   },
   "other_calls": 1
  },
- "report": "# Test 20261006-224232-53e8: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | trace.jsonl:10, app.py:25, app.py:62, RULES.md rule 3 | The `refund` tool paid €80 at once (`{\"refund\": \"RF-06ABC3\", \"amount_eur\": 80, \"status\": \"paid\"}`). Rule 3 says a refund above €50 waits for a manager. The code compares euros (`amount_eur` 80) with `APPROVAL_LIMIT_CENTS = 5000`, so the check `80 > 5000` is false and no approval request is made. `state.json` has no `approvals` entry and holds the paid refund RF-06ABC3. |\n| unsupported_reply | 2 | trace.jsonl:13 | The agent said \"will appear on your card within 1-2 business days\". No tool result or rule gives this time. The tool result has no card or timing data. |\n| state_mismatch | 3 | trace.jsonl:17, trace.jsonl:10 | The agent said \"Yes, your refund is complete!\" and gave the same \"1-2 business days\" claim. A refund above €50 must stay open until a manager approves it, so the state (`paid` without approval) does not agree with the rule. The reply repeats the unsupported claim and confirms a payment that no manager approved. |\n\n## Notes\n\n- Seal: intact. `findings.json` has no findings. `audit.json` shows no break between the words of the tester and the app.\n- I read the full transcript (3 turns, 18 items), `RULES.md`, `app.py`, `entry.py` and `state.json`. I made no change to the state and did not start the app.\n- Turn 1 is correct: `lookup_order` got order 5120, and the reply agrees with the tool result.\n- Root cause is one defect: `app.py:25` names the limit in cents (5000) but `app.py:62` compares it with a value in euros. The correct limit in euros is 50.\n- I could not check the 30-day return rule (RULES.md rule 1). The order data has no delivery date, and the agent did not ask for one. I do not report this as an issue.\n- I could not check the claim \"arrived broken\". No tool can verify damage, and rule 2 only needs the claim.\n",
- "answer": "I found 3 issues in the test. The report is at `.verbatim-relay/tests/20261006-224232-53e8/report.md`.\n- **business_rule (turn 2):** The agent paid the €80 refund at once. Rule 3 says a refund above €50 waits for a manager. The cause is in `app.py:25` and `app.py:62`: the limit is 5000 cents, but the code compares it with euros.\n- **unsupported_reply (turn 2):** The agent said the refund \"will appear on your card within 1-2 business days\". No tool result or rule gives that time.\n- **state_mismatch (turn 3):** The agent said the refund is \"complete\". No manager approved it, so it should still be open under the rule.\n\nTurn 1 is correct. The seal is intact, and `findings.json` and `audit.json` show no problems.",
+ "report": "# Test 20261007-092812-b9dd: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | trace.jsonl:10, app.py:59 | The agent paid a refund of €80 without manager approval. RULES.md:3 says: \"A refund above €50 needs the approval of a manager. The refund waits for the approval, and the manager pays it.\" The `refund` tool returned `{\"refund\": \"RF-4DD419\", \"amount_eur\": 80, \"status\": \"paid\"}`. The cause is a unit error in the code: `if args[\"amount_eur\"] > APPROVAL_LIMIT_CENTS:` compares euros (80) with cents (`APPROVAL_LIMIT_CENTS = 5000`, app.py:27). Thus, only a refund above €5000 goes to a manager. |\n| missing_action | 2 | trace.jsonl:10, state.json | The app did not make an approval request for the refund. state.json has no `approvals` list. It has `\"refunds\": [{\"refund\": \"RF-4DD419\", \"amount_eur\": 80}]` on order 5120. |\n| unsupported_reply | 2 | trace.jsonl:13 | The agent said \"The funds should appear in your account within 2-3 business days.\" No tool result and no rule gives a payment time. |\n| unsupported_reply | 3 | trace.jsonl:17 | The agent said \"Your refund is complete and on its way to your card.\" The `refund` tool has no payment method argument, and its result (trace.jsonl:10) does not name a card. Also, by RULES.md:3, this refund must wait for a manager, so it must not be \"complete\". |\n\n## Notes\n\n- The seal is intact. No record changed after the end of the test.\n- `findings.json` has no findings, and all its error counts are 0. `audit.json` shows no breaks: the words of each turn did not change between the tester and the app.\n- I read RULES.md, app.py, entry.py and state.json. I did not start the app or change its state.\n- Turn 1 is correct. `lookup_order` got order \"5120\", and the reply agrees with the result at trace.jsonl:3.\n- The refund in turn 2 had the correct tool and the correct arguments (`{\"order\": \"5120\", \"amount_eur\": 80}`). The fault is in the tool code (app.py:59), not in the choice of the model. RULES.md:2 permits a full refund for a damaged item.\n- I could not check RULES.md:1 (30 days after delivery). state.json has no delivery date for order 5120.\n- I could not check RULES.md:4 (other customers' orders). The app has no customer identity, and the tester asked only about order 5120.\n- The agent did not ask for proof of the damage. No rule needs proof, so I did not report this as an issue.\n",
+ "answer": "I wrote the report to `.verbatim-relay/tests/20261007-092812-b9dd/report.md`. It has 4 issues. The seal is intact, and the audit shows no changed words.\n\n1. **business_rule (turn 2):** The app paid the €80 refund immediately, but RULES.md:3 requires a manager to approve a refund above €50. The cause is a unit error at `app.py:59`: the code compares the euro amount with `APPROVAL_LIMIT_CENTS = 5000`.\n2. **missing_action (turn 2):** The app did not make an approval request. `state.json` has no `approvals` list.\n3. **unsupported_reply (turns 2 and 3):** The agent said \"2-3 business days\" and \"on its way to your card\". No tool result or rule supports these statements.\n\nI could not check the 30-day return rule because the order has no delivery date. Turn 1 is correct.",
  "pass": true
 }
