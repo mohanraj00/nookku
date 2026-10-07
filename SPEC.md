@@ -130,7 +130,8 @@ The audit counts `blocked_call` rows and `model_session` rows. It does not match
 
 - The tap forwards the method, path, query, headers and body without change. It does not forward hop-by-hop headers and `Host`. It replaces `Accept-Encoding` with `identity`, so that the agent sends a body that the adapter can read.
 - The tap returns the agent's status, headers and body without change, except hop-by-hop headers and `Content-Length`.
-- If the agent does not respond, the tap returns status 502 and writes an `exchange` row with `status: null`.
+- If the tap cannot reach the agent, it returns status 502 and writes an `exchange` row with `status: null`.
+- If the tap gets no full response from the agent in 240 seconds, it closes the connection. The 240 seconds is one deadline for the connection, the headers and the body. It returns status 504 and writes an `exchange` row with `status: null`, and the timeout in `error`. For a stream, the tap already sent the status, so it writes an `exchange` row with `reply: null` and the timeout in `error`, and closes the connection.
 - The tap writes rows only for `POST` requests that the adapter accepts. It forwards other requests without a row.
 - **Streams.** A response is a stream if its `Content-Type` is `text/event-stream` (SSE). The tap sends each part of a stream to the caller when the part comes, without change. It sends the status and the headers first. If the agent gives a `Content-Length`, the tap keeps it. If not, the tap sends the body with `Transfer-Encoding: chunked`.
 - When the stream ends, the tap writes the row (section 2.1), then ends the response to the caller. The adapter reads the complete body. The tap does not write a row for each part.
@@ -184,6 +185,20 @@ Each adapter maps onto the agent contract (section 6):
 - If the agent exits, the tap returns status 502 and writes an `exchange` row with `status: null` and the exit code in `error`.
 - The tap does not restart the agent. After a crash or a timeout, it answers each later request with the same error. The error body includes the last 20 lines of `app.log`.
 - Before each request, the tap reads each line that waits on stdout. Each such line is a stray line.
+
+### 4.3 Timeouts
+
+Each timeout on the relay path ends before the next one, so that each part gets an answer and the relay can still block the prompt.
+
+| Order | Timeout | Seconds |
+|---|---|---|
+| 1 | The agent timeout of the tap, the same in HTTP mode and stdio mode | [240](src/verbatim_relay/stdio.py#L24) |
+| 2 | The tap answers the relay, at most 5 seconds after the agent timeout | [245](tests/test_timeouts.py#L22) |
+| 3 | The hook kit waits for the tap of a test (section 7) | [270](src/verbatim_relay/bridge.py#L36) |
+| 3 | The hook kit waits for the tap of section 4.1 | [280](src/verbatim_relay/kit.py#L23) |
+| 4 | The harness stops the `UserPromptSubmit` hook | [300](src/verbatim_relay/kit.py#L26) |
+
+Each number links to its constant. The 5 seconds of order 2 is the `ANSWER` limit of the test. The plugin sets no timeout of its own. It waits for the answer of the tap. The test [`tests/test_timeouts.py`](tests/test_timeouts.py) checks this order, and it measures the 504 of a slow agent and of an agent that sends a byte at a time.
 
 ## 5. Relays
 
