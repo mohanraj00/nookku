@@ -12,7 +12,7 @@ import subprocess
 import sys
 import threading
 import time
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from http.server import BaseHTTPRequestHandler, HTTPServer, ThreadingHTTPServer
 from pathlib import Path
 
@@ -23,6 +23,8 @@ from verbatim_relay.record import Writer, lone_surrogate
 # timeouts (kit.TIMEOUT, bridge.TIMEOUT), and these end before kit.HOOK_DEADLINE.
 TIMEOUT = 240.0
 TAIL = 20
+# The fix for an agent that writes logs on stdout. `verbatim-relay check` prints it too.
+STRAY_HINT = "Use verbatim_relay.agent.serve() or write logs to stderr."
 
 
 class Agent:
@@ -85,8 +87,12 @@ class Agent:
                 return out
             out.append(line)
 
-    def ask(self, line: bytes) -> tuple[str, bytes | str]:
-        """Send one input line. Return ("line", output) or ("exited" | "timeout", reason)."""
+    def ask(self, line: bytes, rid: str, stray: Callable[[bytes], None]) -> tuple[str, bytes | str]:
+        """Send one input line. Return ("line", output) or ("exited" | "timeout", reason).
+
+        The output is the first line for the request id `rid`. Each other line is a stray line,
+        and `stray` gets it. The timeout is one deadline for the full request.
+        """
         if self.failed:
             return "exited", self.failed
         assert self.proc is not None and self.proc.stdin is not None
@@ -95,15 +101,25 @@ class Agent:
             self.proc.stdin.flush()
         except OSError:
             return "exited", self._exited()
-        try:
-            out = self._lines.get(timeout=self.timeout)
-        except queue.Empty:
-            self.kill()
-            self.failed = f"the agent sent no reply in {self.timeout:g} s, so the tap stopped it"
-            return "timeout", self.failed
-        if out is None:
-            return "exited", self._exited()
-        return "line", out
+        deadline = time.monotonic() + self.timeout
+        strays: list[bytes] = []
+        while True:
+            left = deadline - time.monotonic()
+            try:
+                # An agent that writes stray lines all the time still gets the timeout.
+                if left <= 0:
+                    raise queue.Empty
+                out = self._lines.get(timeout=left)
+            except queue.Empty:
+                self.kill()
+                self.failed = _no_reply(rid, self.timeout, strays)
+                return "timeout", self.failed
+            if out is None:
+                return "exited", self._exited()
+            if _is_for(out, rid):
+                return "line", out
+            strays.append(out)
+            stray(out)
 
     def tail(self) -> str:
         try:
@@ -134,6 +150,27 @@ class Agent:
                 continue
         # The children of the agent are in its group. Stop the ones that are still alive.
         self.kill(signal.SIGKILL)
+
+
+def _no_reply(rid: str, timeout: float, strays: list[bytes]) -> str:
+    """The error text of a timeout. If the agent printed stray lines, it names them and the fix."""
+    if not strays:
+        return f"the agent sent no reply in {timeout:g} s, so the tap stopped it"
+    count = f"{len(strays)} line" + ("" if len(strays) == 1 else "s")
+    first = strays[0][:80].decode("utf-8", errors="replace")
+    return (
+        f"the agent printed {count} on stdout but no reply line for {rid} in {timeout:g} s, "
+        f"so the tap stopped it. {STRAY_HINT} The first line: {first!r}"
+    )
+
+
+def _is_for(line: bytes, rid: str) -> bool:
+    """True if the line is a JSON object with the id `rid`. Only such a line can be the reply."""
+    try:
+        data = json.loads(line.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError):
+        return False
+    return isinstance(data, dict) and data.get("id") == rid
 
 
 class StdioTap(ThreadingHTTPServer):
@@ -176,6 +213,10 @@ class _Handler(BaseHTTPRequestHandler):
             {"type": "unparsed", "method": method, "path": path, "error": error}
         )
 
+    def _stray(self, line: bytes) -> None:
+        excerpt = line[:80].decode("utf-8", errors="replace")
+        self._unparsed("STDIO", "stdout", f"a stray line on stdout: {excerpt!r}")
+
     def do_POST(self) -> None:
         if "chunked" in self.headers.get("Transfer-Encoding", "").lower():
             self._error(411, "verbatim-relay needs a Content-Length request body")
@@ -196,10 +237,9 @@ class _Handler(BaseHTTPRequestHandler):
             return
         with tap.lock:
             for line in tap.agent.stray():
-                excerpt = line[:80].decode("utf-8", errors="replace")
-                self._unparsed("STDIO", "stdout", f"a line outside a request: {excerpt!r}")
+                self._stray(line)
             started = time.time()
-            kind, out = tap.agent.ask(body)
+            kind, out = tap.agent.ask(body, rid, self._stray)
             row = {"type": "exchange", "input": message, "started": started}
             if isinstance(out, str):
                 tap.writer.append({**row, "status": None, "reply": None, "error": out})

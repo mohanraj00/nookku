@@ -187,7 +187,10 @@ def test_the_plugin_reads_each_one_line_case_like_the_tap() -> None:
         case = json.loads((d / "case.json").read_text(encoding="utf-8"))
         steps = case["agent"]
         if len(case["requests"]) == 1 and len(steps) == 1 and len(steps[0].get("lines", [])) == 1:
-            want[d.name] = [steps[0]["lines"][0], case["http"][0]]
+            # The tap waits past a stray line until the timeout (504). The plugin reads one body,
+            # so for the plugin a stray line is not a valid output (502).
+            status = 502 if case["http"][0] == 504 else case["http"][0]
+            want[d.name] = [steps[0]["lines"][0], status]
     assert rows == want
     for line, status in rows.values():
         assert tap_status(line) == status
@@ -250,8 +253,6 @@ def test_output_before_serve_goes_to_the_log(tmp_path: Path) -> None:
     start_in_thread(tap)
     said = "Do you sell mugs?"
     try:
-        # Give the entry time to start, so that a stray line is on stdout before the request.
-        time.sleep(0.5)
         status, body = post(tap.url, contract.request("m-1", "t-1", said, []).decode())
     finally:
         tap.shutdown()
@@ -264,3 +265,96 @@ def test_output_before_serve_goes_to_the_log(tmp_path: Path) -> None:
     relay = Writer(tmp_path / "relay.jsonl")
     relay.append({"type": "turn", "harness": "codex", "said": said, "shown": shown})
     assert audit(tmp_path / "tap.jsonl", relay.path).exit == 0
+
+
+# The entry prints a log line on stdout just before each reply, with no wait. Only the line with
+# the request id is the reply.
+NOISY = """
+import json, sys
+for raw in sys.stdin.buffer:
+    rid = json.loads(raw)["id"]
+    print("toy shop: looking up the order", flush=True)
+    print(json.dumps({"v": 1, "id": rid, "reply": "Order " + rid + " ships today."}), flush=True)
+"""
+
+
+def test_a_stray_line_before_the_reply_is_not_the_reply(tmp_path: Path) -> None:
+    script = tmp_path / "entry.py"
+    script.write_text(NOISY)
+    agent = Agent([sys.executable, str(script)], tmp_path, tmp_path / "app.log", timeout=10)
+    tap = StdioTap(("127.0.0.1", 0), agent, tmp_path / "tap.jsonl")
+    agent.start()
+    start_in_thread(tap)
+    try:
+        answers = [
+            post(tap.url, contract.request(rid, "t-1", "Where is my mug?", []).decode())
+            for rid in ("m-1", "m-2")
+        ]
+    finally:
+        tap.shutdown()
+        agent.stop(grace=1)
+    assert [status for status, _ in answers] == [200, 200]
+    rows = [json.loads(x) for x in (tmp_path / "tap.jsonl").read_text().split("\n") if x]
+    exchanges = [r for r in rows if r["type"] == "exchange"]
+    assert [r["reply"] for r in exchanges] == ["Order m-1 ships today.", "Order m-2 ships today."]
+    stray = [r for r in rows if r["type"] == "unparsed"]
+    assert [(r["method"], r["path"]) for r in stray] == [("STDIO", "stdout")] * 2
+    assert all("toy shop: looking up the order" in r["error"] for r in stray)
+
+
+# The entry writes its logs on stdout and never sends a reply line.
+LOGS_ON_STDOUT = """
+import sys
+for raw in sys.stdin.buffer:
+    for step in ("loading catalog", "looking up the order", "order found"):
+        print("toy shop: " + step, flush=True)
+"""
+
+
+def test_a_timeout_after_stray_lines_names_them_and_the_fix(tmp_path: Path) -> None:
+    script = tmp_path / "entry.py"
+    script.write_text(LOGS_ON_STDOUT)
+    agent = Agent([sys.executable, str(script)], tmp_path, tmp_path / "app.log", timeout=1)
+    tap = StdioTap(("127.0.0.1", 0), agent, tmp_path / "tap.jsonl")
+    agent.start()
+    start_in_thread(tap)
+    try:
+        status, body = post(
+            tap.url, contract.request("m-1", "t-1", "Where is my mug?", []).decode()
+        )
+    finally:
+        tap.shutdown()
+        agent.stop(grace=1)
+    want = (
+        "the agent printed 3 lines on stdout but no reply line for m-1 in 1 s, so the tap stopped "
+        "it. Use verbatim_relay.agent.serve() or write logs to stderr. "
+        "The first line: 'toy shop: loading catalog'"
+    )
+    assert status == 504
+    assert want in json.loads(body)["error"]
+    rows = [json.loads(x) for x in (tmp_path / "tap.jsonl").read_text().split("\n") if x]
+    assert [r["type"] for r in rows] == ["unparsed"] * 3 + ["exchange"]
+    assert rows[-1]["error"] == want
+
+
+def test_an_agent_that_writes_stray_lines_all_the_time_still_times_out(tmp_path: Path) -> None:
+    script = tmp_path / "agent.py"
+    script.write_text(
+        "import sys, time\nsys.stdin.readline()\n"
+        "while True:\n    print('toy shop: still loading', flush=True)\n    time.sleep(0.01)\n"
+    )
+    agent = Agent([sys.executable, str(script)], tmp_path, tmp_path / "app.log", timeout=0.5)
+    tap = StdioTap(("127.0.0.1", 0), agent, tmp_path / "tap.jsonl")
+    agent.start()
+    start_in_thread(tap)
+    began = time.monotonic()
+    try:
+        status, body = post(
+            tap.url, contract.request("m-1", "t-1", "Where is my mug?", []).decode()
+        )
+    finally:
+        tap.shutdown()
+        agent.stop(grace=1)
+    assert status == 504
+    assert time.monotonic() - began < 5
+    assert "no reply line for m-1 in 0.5 s" in json.loads(body)["error"]
