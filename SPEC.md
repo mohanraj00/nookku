@@ -154,6 +154,7 @@ Each adapter maps onto the agent contract (section 6):
 - If the reply line is a valid output, the tap returns status 200 for a `reply` and 500 for an `error`, with the line as the body. It writes an `exchange` row. For an `error` line, the row's `error` is the agent's error text.
 - If the reply line is not valid, the tap returns status 502 and writes an `unparsed` row.
 - If the agent sends no reply line in 240 seconds after the request, the tap stops the agent's process group. It returns status 504 and writes an `exchange` row with `status: null`.
+- If the tap got stray lines for that request before the timeout, the error text of the row and of the 504 body gives the number of stray lines, the request `id`, and the first 80 bytes of the first stray line. It also gives the fix: use `verbatim_relay.agent.serve()` or write logs to stderr.
 - If the agent exits, the tap returns status 502 and writes an `exchange` row with `status: null` and the exit code in `error`.
 - The tap does not restart the agent. After a crash or a timeout, it answers each later request with the same error. The error body includes the last 20 lines of `app.log`.
 - Before each request, the tap reads each line that waits on stdout. Each such line is a stray line.
@@ -216,7 +217,7 @@ An output line is not valid in these cases. The tap returns status 502 for it an
 - The line has neither `reply` nor `error`, or the field is not a string.
 - The line contains `NaN`, `Infinity` or `-Infinity`. These are not JSON values. This rule applies to an input line too.
 
-In stdio mode, a line with no `id` or with a different `id` is a stray line, not an output line (section 4.2).
+In stdio mode, a line with no `id` or with a different `id` is a stray line, not an output line (section 4.2). This rule applies to stdio mode only. An HTTP response has one body, and that body is the output line. If the body has no `id` or a different `id`, it is not valid.
 
 The tap, the plugin and the hook kit read an output line with these same rules.
 
@@ -239,7 +240,7 @@ A test runs the entry from `start` to `end`. A new conversation is a new test: e
 | `backends` | list of objects | Optional. The backends of the app, each with the strings `name`, `env` and `url` (section 7.6). Each `name` and each `env` is used only once. |
 | `model_api` | boolean, list or object | Optional. The model APIs to record (section 7.7): `true` for all, `false` for none, a list of `anthropic` and `openai`, or an object from these names to the upstream URL of the API or `null`. The default is `true`. A backend must not use the variable of a recorded model API. |
 
-`verbatim-relay check` runs a short test with one message. It passes if the entry sends a reply, and if the tap identifies at least one model session and finds its session file for each harness in `models`.
+`verbatim-relay check` runs a short test with one message. It passes if the entry sends a reply, and if the tap identifies at least one model session and finds its session file for each harness in `models`. If the tap times out after stray lines (section 4.2), the check also gives the fix for them.
 
 ### 7.2 Start and end
 

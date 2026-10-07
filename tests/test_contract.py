@@ -227,8 +227,6 @@ def test_output_before_serve_goes_to_the_log(tmp_path: Path) -> None:
     start_in_thread(tap)
     said = "Do you sell mugs?"
     try:
-        # Give the entry time to start, so that a stray line is on stdout before the request.
-        time.sleep(0.5)
         status, body = post(tap.url, contract.request("m-1", "t-1", said, []).decode())
     finally:
         tap.shutdown()
@@ -276,3 +274,38 @@ def test_a_stray_line_before_the_reply_is_not_the_reply(tmp_path: Path) -> None:
     stray = [r for r in rows if r["type"] == "unparsed"]
     assert [(r["method"], r["path"]) for r in stray] == [("STDIO", "stdout")] * 2
     assert all("toy shop: looking up the order" in r["error"] for r in stray)
+
+
+# The entry writes its logs on stdout and never sends a reply line.
+LOGS_ON_STDOUT = """
+import sys
+for raw in sys.stdin.buffer:
+    for step in ("loading catalog", "looking up the order", "order found"):
+        print("toy shop: " + step, flush=True)
+"""
+
+
+def test_a_timeout_after_stray_lines_names_them_and_the_fix(tmp_path: Path) -> None:
+    script = tmp_path / "entry.py"
+    script.write_text(LOGS_ON_STDOUT)
+    agent = Agent([sys.executable, str(script)], tmp_path, tmp_path / "app.log", timeout=1)
+    tap = StdioTap(("127.0.0.1", 0), agent, tmp_path / "tap.jsonl")
+    agent.start()
+    start_in_thread(tap)
+    try:
+        status, body = post(
+            tap.url, contract.request("m-1", "t-1", "Where is my mug?", []).decode()
+        )
+    finally:
+        tap.shutdown()
+        agent.stop(grace=1)
+    want = (
+        "the agent printed 3 lines on stdout but no reply line for m-1 in 1 s, so the tap stopped "
+        "it. Use verbatim_relay.agent.serve() or write logs to stderr. "
+        "The first line: 'toy shop: loading catalog'"
+    )
+    assert status == 504
+    assert want in json.loads(body)["error"]
+    rows = [json.loads(x) for x in (tmp_path / "tap.jsonl").read_text().split("\n") if x]
+    assert [r["type"] for r in rows] == ["unparsed"] * 3 + ["exchange"]
+    assert rows[-1]["error"] == want
