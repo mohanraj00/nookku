@@ -23,7 +23,11 @@ Do one task.
 - [Isolate an Agent SDK session](how-to/isolate-agent-sdk.md): give the app's model only the tools of the app.
 - [Add a backend](how-to/add-a-backend.md): record the calls of the app to its HTTP services.
 - [Record model calls and OpenTelemetry](how-to/record-model-calls.md): record the direct model calls and the spans and logs of the app.
+- [Read the results of a test](how-to/read-the-results.md): read the seal, the audit, the findings, the report and the transcript, and decide the next step.
 - [Run the proofs](how-to/run-the-proofs.md): run the proofs again after a change to a [relay](reference/glossary.md#relay) or for a new [harness](reference/glossary.md#harness) version.
+- [Recover a stuck test](how-to/recover-a-stuck-test.md): end a test whose bridge stopped, see a stale `current.json`, and start a new test.
+- [Upgrade](how-to/upgrade.md): upgrade the CLI, the package and the plugin, trust the Codex hooks again, and do the special step of a release.
+- [Remove](how-to/remove.md): remove the hooks of the kit, the plugin, the test files and the package.
 - [Troubleshooting](troubleshooting.md): each error text, its cause and the fix.
 
 ## Reference

@@ -100,6 +100,8 @@ First, look in the test folder `.verbatim-relay/tests/<test-id>/`. `bridge.log` 
 
 ## During a test
 
+If a test does not end or its bridge stopped, follow [how-to/recover-a-stuck-test.md](how-to/recover-a-stuck-test.md).
+
 In relay mode, both relays fail closed. If a relay cannot send a message, the message does not go to the model. The relay shows the error and writes it in the relay record with `ok: false` ([SPEC.md section 5](../SPEC.md#5-relays)).
 
 If the entry returns an error, crashes or does not answer in [240 seconds](../src/verbatim_relay/stdio.py), the relay shows the error and records it. After a crash, each later message gets the same error, with the last lines of `app.log`. End the test and start a new one.
