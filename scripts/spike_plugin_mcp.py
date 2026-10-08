@@ -138,13 +138,13 @@ def plugin() -> Path:
     (p / ".claude-plugin" / "plugin.json").write_text(json.dumps(manifest, indent=2) + "\n")
     (p / "server.py").write_text(SERVER_PY, encoding="utf-8")
     (p / "hook.py").write_text(HOOK_PY, encoding="utf-8")
-    python = shutil.which("python3")
+    python = sys.executable
     # The log paths are arguments, so the server and the hook need no environment variable.
     server = {"command": python, "args": ["${CLAUDE_PLUGIN_ROOT}/server.py", str(SERVER_LOG)]}
     (p / ".mcp.json").write_text(json.dumps({"mcpServers": {SERVER: server}}, indent=2) + "\n")
     # A shell runs the command, so each path is quoted.
     root = '"${CLAUDE_PLUGIN_ROOT}/hook.py"'
-    command = f"{shlex.quote(python or 'python3')} {root} {shlex.quote(str(HOOK_LOG))}"
+    command = f"{shlex.quote(python)} {root} {shlex.quote(str(HOOK_LOG))}"
     hook = {"type": "command", "command": command}
     hooks = {"hooks": {"PreToolUse": [{"matcher": "mcp__.*", "hooks": [hook]}]}}
     (p / "hooks" / "hooks.json").write_text(json.dumps(hooks, indent=2) + "\n")
