@@ -216,6 +216,12 @@ First, look in the test folder `.verbatim-relay/tests/<test-id>/`. `bridge.log` 
 
 **Fix.** Read `bridge.log` in the test folder. It has the error of the audit.
 
+### `verbatim-relay check` passes, but the replies are wrong
+
+**Cause.** `check` does not judge the reply. It passes with any reply line, also a fallback text of your app. For example, the entry starts the app with the wrong interpreter, with no environment file, or in the wrong working folder. Then the app can send its fallback text for each message.
+
+**Fix.** Do the 4 steps in [Make sure that check runs your real app](how-to/connect-your-agent.md#make-sure-that-check-runs-your-real-app).
+
 ## Audit, verify and trace
 
 ### `ERROR record_missing: <path>: No such file or directory`

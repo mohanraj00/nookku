@@ -14,7 +14,7 @@ from typing import Any
 
 import pytest
 
-from verbatim_relay import audit, cli, config, trace
+from verbatim_relay import audit, bridge, cli, config, trace
 
 ROOT = Path(__file__).resolve().parent.parent
 DOCS = ROOT / "docs"
@@ -178,6 +178,19 @@ def test_the_readme_counts_each_folder_of_conformance_cases() -> None:
 def test_each_count_of_the_code_is_correct(page: str, phrase: str, count: int) -> None:
     found = re.findall(phrase, (ROOT / page).read_text(encoding="utf-8"))
     assert found and all(int(n) == count for n in found)
+
+
+CHECK_PAGES = [
+    "docs/getting-started.md",
+    "docs/how-to/connect-your-agent.md",
+    "docs/reference/cli.md",
+]
+
+
+@pytest.mark.parametrize("page", CHECK_PAGES)
+def test_each_page_that_runs_check_gives_the_fixed_check_message(page: str) -> None:
+    text = (ROOT / page).read_text(encoding="utf-8")
+    assert f"`{bridge.CHECK_MESSAGE}`" in text
 
 
 # The map of the docs ---------------------------------------------------------------------------

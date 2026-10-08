@@ -85,6 +85,8 @@ Audit: exit 0
 PASS
 ```
 
+PASS proves the connection, not the reply. `check` sent one fixed message to the entry: `Hello from verbatim-relay check. What can you help me with?` The entry sent a reply line, and the audit of this short test is clean. `check` does not judge the reply. Here the reply is the fallback text of the toy shop, because the toy shop has no rule for this message. For your own app, do the steps in [Make sure that check runs your real app](how-to/connect-your-agent.md#make-sure-that-check-runs-your-real-app).
+
 ## 5. Start the viewer
 
 The hook kit cannot show text in the chat of Claude Code. Open a second terminal, go to the project, and start the viewer:

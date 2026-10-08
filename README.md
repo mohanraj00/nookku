@@ -48,7 +48,7 @@ In a clone of this repo, with the toy shop agent and the hook kit in Claude Code
 
 ```bash
 verbatim-relay init claude-code --entry "python3 examples/toy-shop/agent.py"
-verbatim-relay check        # one message through the entry: PASS
+verbatim-relay check        # one message through the entry: PASS proves the connection, not the reply
 verbatim-relay view         # in a second terminal: each reply shows here
 ```
 
