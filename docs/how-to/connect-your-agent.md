@@ -106,7 +106,7 @@ PASS proves the connection. It does not prove that your app gives correct replie
 
 - It does not judge the reply. Any reply line passes, also a fallback text of your app. The toy shop reply above is the `FALLBACK` text of [agent.py](../../examples/toy-shop/agent.py), because the toy shop has no rule for the check message.
 - It sends only one message. It does not check a conversation with more turns.
-- It does not read the records of the backends, the model API calls or the OpenTelemetry spans.
+- It does not use the records of the backends, the model API calls or the OpenTelemetry spans to decide PASS. The end of the check test puts them into the trace, but `check` does not examine them.
 
 If all steps pass, `check` exits with 0. Else it exits with 1. If it fails, read `app.log` and `bridge.log` in the [test folder](../reference/glossary.md#test-folder) that it names. [troubleshooting.md](../troubleshooting.md) lists the errors.
 
