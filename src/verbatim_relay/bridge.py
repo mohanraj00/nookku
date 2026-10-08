@@ -41,6 +41,17 @@ POLL = 0.5
 NOT_CONFIG = {"tests", "current.json", "mode", "relay.jsonl", "tap.jsonl", ENDING}
 SKIP_DIRS = {"node_modules", ".venv", "__pycache__", ".git"}
 CHECK_MESSAGE = "Hello from verbatim-relay check. What can you help me with?"
+# For each break class of the audit (SPEC.md section 3.3): what occurred in the check, and the fix.
+ONE_SENDER = "Make sure that only one relay sends messages to the tap."
+BREAK_FIX = {
+    "altered_input": f"The agent received a different message. {ONE_SENDER}",
+    "injected_input": f"The agent received a message that the check did not send. {ONE_SENDER}",
+    "duplicate_send": f"The agent received the check message more than one time. {ONE_SENDER}",
+    "out_of_order": f"The agent received the messages in a different order. {ONE_SENDER}",
+    "not_delivered": "The agent did not receive the check message. Read bridge.log and app.log.",
+    "altered_reply": "The check got a different reply from the agent. Read bridge.log.",
+    "unshown_reply": "The check did not get the reply of the agent. Read bridge.log.",
+}
 
 
 class BridgeError(Exception):
@@ -582,6 +593,8 @@ def run(root: Path, test: str, tester_session: str | None, timeout: float = AGEN
     watcher.stop()
     watcher.poll()
     agent.stop()
+    # A line after the last reply waits in the queue. It is a stray line too (SPEC.md 4.2).
+    tap.record_rest()
     if receiver:
         # The app can export its last spans when it exits. Then no request comes after it.
         receiver.quiet()
@@ -664,8 +677,46 @@ def run(root: Path, test: str, tester_session: str | None, timeout: float = AGEN
     return 0
 
 
+def audit_problems(folder: Path) -> tuple[int | None, list[str]]:
+    """Read audit.json of a test folder. Return (the exit code, a problem for each break or error).
+
+    If the file is missing or invalid, the exit code is None and the check fails (fail closed).
+    """
+    try:
+        report = json.loads((folder / "audit.json").read_text(encoding="utf-8"))
+        code, breaks, errors = report["exit"], report["breaks"], report["errors"]
+        if type(code) is not int or not isinstance(breaks, list) or not isinstance(errors, list):
+            raise ValueError("wrong types")
+        problems = [_audit_error(e) for e in errors] + [_audit_break(b) for b in breaks]
+    except (OSError, ValueError, TypeError, KeyError) as e:
+        why = "is missing" if isinstance(e, FileNotFoundError) else f"is not valid ({e})"
+        return None, [f"The audit.json of the test {why}. Read bridge.log in the test folder."]
+    if code != 0 and not problems:
+        problems = [f"The audit exits with {code}. Read audit.json in the test folder."]
+    return code, problems
+
+
+def _audit_error(error: dict[str, Any]) -> str:
+    kind, detail = error["class"], error["detail"]
+    if kind == "tap_unparsed" and "a stray line on stdout" in detail:
+        return f"tap_unparsed: tap {detail}. {STRAY_HINT}"
+    if kind == "tap_unparsed":
+        fix = "Send one contract line for each request (SPEC.md section 6)."
+        return f"tap_unparsed: tap {detail}. {fix}"
+    return f"{kind}: the {error['record']} record: {detail}. Read bridge.log in the test folder."
+
+
+def _audit_break(found: dict[str, Any]) -> str:
+    kind = found["class"]
+    where = f"relay line {found['relay_line'] or '-'}, tap line {found['tap_line'] or '-'}"
+    fix = BREAK_FIX.get(kind, "Read audit.json in the test folder.")
+    return f"{kind} break ({where}). {fix}"
+
+
 def check(root: Path) -> tuple[bool, list[str]]:
-    """Run a test with one message. Return (passed, the report lines)."""
+    """Run a test with one message. Return (passed, the report lines).
+
+    The check passes only if the audit of its own test is clean (SPEC.md section 7.1)."""
     config = load_config(root)
     cur = start(root)
     relay = Path(cur["dir"]) / "relay.jsonl"
@@ -687,6 +738,9 @@ def check(root: Path) -> tuple[bool, list[str]]:
     problems = [] if ok else ["The entry sent no reply."]
     if not ok and STRAY_HINT in shown:
         problems = [f"The entry printed lines on stdout, but no reply line. {STRAY_HINT}"]
+    code, audited = audit_problems(Path(cur["dir"]))
+    lines.append(f"Audit: exit {code}" if code is not None else "Audit: no valid audit.json")
+    problems += audited
     found = manifest.get("model_sessions", [])
     for harness in config.models:
         mine = [s for s in found if s["harness"] == harness]

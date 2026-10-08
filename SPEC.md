@@ -196,6 +196,7 @@ Each adapter maps onto the agent contract (section 6):
 - If the agent exits, the tap returns status 502 and writes an `exchange` row with `status: null` and the exit code in `error`.
 - The tap does not restart the agent. After a crash or a timeout, it answers each later request with the same error. The error body includes the last 20 lines of `app.log`.
 - Before each request, the tap reads each line that waits on stdout. Each such line is a stray line.
+- At the end of a test, after the agent stops, the tap reads each line that the agent wrote after its last reply. Each such line is a stray line too.
 
 ### 4.3 Timeouts
 
@@ -309,7 +310,9 @@ One reader ([src/verbatim_relay/config.py](src/verbatim_relay/config.py)) reads 
 
 `verbatim-relay init` keeps each key of an existing file. It changes only the keys of the flags that the tester gives, and it prints the changed keys and the kept keys. A new file gets each key, with its default value if no flag gives it. If the existing file or the hook file breaks the rule or is not valid JSON, `init` writes nothing. `init` replaces only its own hooks in the hook file, and it keeps each other hook, also one in the same group.
 
-`verbatim-relay check` runs a short test with one message. It passes if the entry sends a reply, and if the tap identifies at least one model session and finds its session file for each harness in `models`. If the tap times out after stray lines (section 4.2), the check also gives the fix for them.
+`verbatim-relay check` runs a short test with one message. It passes if the entry sends a reply, if the audit of the test is clean, and if the tap identifies at least one model session and finds its session file for each harness in `models`. If the tap times out after stray lines (section 4.2), the check also gives the fix for them.
+
+After the end of the test, the check reads `audit.json` in the test folder (section 7.2). If its exit code is not 0, the check fails. It names each error of the audit and each break, with the line numbers and the fix. For an `unparsed` row of a stray line, the fix is the fix of section 4.2: use `verbatim_relay.agent.serve()` or write logs to stderr. If `audit.json` is missing or is not valid, the check fails and says so.
 
 ### 7.2 Start and end
 

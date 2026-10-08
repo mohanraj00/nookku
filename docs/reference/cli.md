@@ -70,8 +70,8 @@ Run a short test with one message, and check the entry and its model sessions ([
 
 | Exit code | Meaning |
 |---|---|
-| 0 | The entry sent a reply, and the test found a model session for each harness in `models`. |
-| 1 | The check failed, or the test did not start. |
+| 0 | The entry sent a reply, the audit of the test is clean, and the test found a model session for each harness in `models`. |
+| 1 | The check failed, or the test did not start. For example, the audit of the test exits with 1 or 2, or the test wrote no valid `audit.json`. |
 
 ### `verbatim-relay mode`
 
@@ -96,6 +96,8 @@ Switch relay mode on or off. With an entry, `on` starts a test and `off` ends it
 
 Print each relayed turn. This is the display of the hook kit. With an entry, it shows the turns of the latest test, and it follows to the next test.
 
+If the relay record has an invalid line, `view` shows the error with the file and the line on stderr. Without `--no-follow`, it shows the error one time and continues to wait. When the record changes and is valid, it shows the next turns. With `--no-follow`, it stops with exit code 2. A test has no relay record before its first turn, so the view of such a test shows no turn and exits with 0. After the end of a test, `verbatim-relay verify` shows a record that is missing.
+
 | Flag | Default | Meaning |
 |---|---|---|
 | `--root PATH` | the current folder | The project. |
@@ -105,7 +107,7 @@ Print each relayed turn. This is the display of the hook kit. With an entry, it 
 | Exit code | Meaning |
 |---|---|
 | 0 | The view stopped. |
-| 2 | The config cannot be read. |
+| 2 | The config cannot be read. With `--no-follow`: the relay record is invalid, or, with no entry, the configured record does not exist. |
 
 ### `verbatim-relay transcript`
 

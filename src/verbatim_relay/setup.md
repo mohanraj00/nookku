@@ -68,7 +68,7 @@ Run:
 verbatim-relay check
 ```
 
-It starts the entry, sends one message, and ends the test. It passes if a reply comes back and if it finds a model session for each harness in `models`. If it fails, read `app.log` and `bridge.log` in the test folder that it names, correct the entry, and run it again.
+It starts the entry, sends one message, and ends the test. It passes if a reply comes back, if the audit of the test is clean, and if it finds a model session for each harness in `models`. If it fails, read `app.log` and `bridge.log` in the test folder that it names, correct the entry, and run it again.
 
 ## 5. Hand over
 
