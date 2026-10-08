@@ -35,6 +35,7 @@ import os
 import pty
 import re
 import select
+import shlex
 import shutil
 import struct
 import subprocess
@@ -74,14 +75,27 @@ if event.get("prompt", "").startswith("block"):
 """
 
 
-def text(size: int, mark: str) -> str:
-    """A text of `size` UTF-8 bytes that starts with `mark`-START and ends with `mark`-END."""
-    head = f"{mark}-START\n# Order 1042\n\n**Status:** shipped, _2 items_\n\n"
-    head += "- Café crème mug: 1 ü 中文 😀 𝄞\n"
-    tail = f"\n{mark}-END"
+# The astral characters of each field, so that the screen check finds the field that shows.
+ASTRAL = {"reason": "😀 𝄞", "systemMessage": "🧸 🎲"}
+
+
+def marks(mark: str) -> tuple[str, str, str]:
+    """The start, middle and end markers of a text."""
+    return f"{mark}-START", f"{mark}-MID", f"{mark}-END"
+
+
+def text(size: int, mark: str, astral: str) -> str:
+    """A text of `size` UTF-8 bytes that starts with `mark`-START, has `mark`-MID near its
+    middle, and ends with `mark`-END."""
+    start, mid, end = marks(mark)
+    head = f"{start}\n# Order 1042\n\n**Status:** shipped, _2 items_\n\n"
+    head += f"- Café crème mug: 1 ü 中文 {astral}\n"
+    tail = f"\n{end}"
     body = head
     n = 0
     while len((body + tail).encode()) < size:
+        if n == max(1, size // 70):
+            body += f"{mid}\n"
         body += f"line {n:05d} of the toy shop reply.\n"
         n += 1
     out = (body + tail).encode()
@@ -98,7 +112,9 @@ def project(payload: dict[str, str]) -> Path:
     (p / ".claude").mkdir(parents=True, exist_ok=True)
     (p / "hook.py").write_text(HOOK, encoding="utf-8")
     (p / "payload.json").write_text(json.dumps({"decision": "block", **payload}), encoding="utf-8")
-    command = f"{shutil.which('python3')} {p / 'hook.py'} {p / 'payload.json'}"
+    command = shlex.join(
+        [shutil.which("python3") or "python3", str(p / "hook.py"), str(p / "payload.json")]
+    )
     hooks = {"UserPromptSubmit": [{"hooks": [{"type": "command", "command": command}]}]}
     (p / ".claude" / "settings.json").write_text(json.dumps({"hooks": hooks}), encoding="utf-8")
     return p
@@ -276,7 +292,7 @@ def run_tty(
         out[field] = {
             "start_shown": f"{m}-START" in joined,
             "end_shown": f"{m}-END" in joined,
-            "astral_shown": "😀" in flat and "𝄞" in flat,
+            "astral_shown": all(c in flat for c in ASTRAL[field].split()),
         }
     # The CLI moves the cursor to start a new line, so the screen bytes cannot show a line break.
     # Markdown can be read only if the start of the text is on the screen.
@@ -288,14 +304,14 @@ def run_tty(
 
 def case(fields: tuple[str, ...], size: int, n: int) -> dict[str, Any]:
     mark = f"HD{n:02d}"
-    payload = {f: text(size, f"{mark}-{f}") for f in fields}
+    payload = {f: text(size, f"{mark}-{f}", ASTRAL[f]) for f in fields}
     with tempfile.TemporaryDirectory(prefix="hook-display-") as tmp:
         p = project(payload)
         record = Path(tmp) / "model.jsonl"
         out: dict[str, Any] = {"fields": list(fields), "size": size}
         for mode in ("print", "tty"):
             record.unlink(missing_ok=True)
-            SpikeProxy.marks = (PROMPT, *(f"{mark}-{f}-START" for f in fields))
+            SpikeProxy.marks = (PROMPT, *(m for f in fields for m in marks(f"{mark}-{f}")))
             proxies = backend.Proxies(
                 [backend.Backend("anthropic", "ANTHROPIC_BASE_URL", "https://api.anthropic.com")],
                 record,
@@ -340,7 +356,7 @@ def main() -> int:
     out = Path(args[1]) if len(args) > 1 else ROOT / "proofs" / "spikes" / "hook-display.json"
     data = json.loads(out.read_text(encoding="utf-8")) if out.exists() else {}
     if size is not None:
-        p = project({f: text(int(size), f"DESK-{f}") for f in ("reason", "systemMessage")})
+        p = project({f: text(int(size), f"DESK-{f}", ASTRAL[f]) for f in ASTRAL})
         print(f"Open {p} in the app. Send the prompt: {BLOCKED}")
         print(f"Then send the prompt: {PASSED}")
         return 0
