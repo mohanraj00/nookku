@@ -87,4 +87,4 @@ The Claude Code plugin reads these options from Claude Code, not from `config.js
 | `VERBATIM_RELAY_HOME` | the bridge, `verify` | The folder of the copies of the seals. The default is `~/.verbatim-relay` ([SPEC.md section 7.4](../../SPEC.md#74-seal)). |
 | `ANTHROPIC_BASE_URL`, `OPENAI_BASE_URL` | the bridge | The upstream URL of each model API proxy, if `model_api` gives none ([SPEC.md section 7.7](../../SPEC.md#77-model-api-proxies)). |
 
-During a test, the bridge also sets variables for the entry ([SPEC.md section 7](../../SPEC.md#7-tests)). These are the `OTEL_*` variables, the `env` of each backend, and the two base URLs above.
+During a test, the bridge also sets variables for the entry ([SPEC.md section 7](../../SPEC.md#7-tests)). These are the `OTEL_*` variables, `CLAUDE_CODE_ENABLE_TELEMETRY=1`, the `env` of each backend, and the two base URLs above ([otlp.py](../../src/verbatim_relay/otlp.py), [SPEC.md section 7.5](../../SPEC.md#75-otlp-receiver)).

@@ -21,6 +21,7 @@ Do one task.
 - [Isolate an Agent SDK session](how-to/isolate-agent-sdk.md): give the app's model only the tools of the app.
 - [Add a backend](how-to/add-a-backend.md): record the calls of the app to its HTTP services.
 - [Record model calls and OpenTelemetry](how-to/record-model-calls.md): record the direct model calls and the spans and logs of the app.
+- [Read the results of a test](how-to/read-the-results.md): read the seal, the audit, the findings, the report and the transcript, and decide the next step.
 - [Run the proofs](how-to/run-the-proofs.md): run the proofs again after a change to a [relay](reference/glossary.md#relay) or for a new [harness](reference/glossary.md#harness) version.
 - [Troubleshooting](troubleshooting.md): each error text, its cause and the fix.
 

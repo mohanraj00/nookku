@@ -62,7 +62,7 @@ verbatim-relay audit --tap tap.jsonl --relay .verbatim-relay/relay.jsonl
 | `reply_field` | `reply` | `json` adapter: the dot path of the reply in the response body |
 | `openai_model` | empty | `openai` adapter: the `model` field of each request |
 | `openai_stream` | `false` | `openai` adapter: `true` sends `"stream": true` in each request, for an agent that streams only on request |
-| `record` | `.verbatim-relay/relay.jsonl` | The relay record, relative to the working directory |
+| `record` | `.verbatim-relay/relay.jsonl` | The relay record. The hook kit reads a relative path from the project root, and the plugin from the working directory. |
 
 Give the tap the same adapter: `verbatim-relay tap --agent URL --record FILE --adapter openai`. [reference/cli.md](../reference/cli.md#verbatim-relay-tap) lists each flag of the tap.
 
