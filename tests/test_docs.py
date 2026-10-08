@@ -190,6 +190,20 @@ def test_each_docs_page_is_on_the_map() -> None:
     assert sorted(str(p.relative_to(ROOT)) for p in pages - linked) == []
 
 
+@pytest.mark.parametrize(
+    "page",
+    [
+        "README.md",
+        "docs/getting-started.md",
+        "docs/how-to/connect-your-agent.md",
+        "docs/how-to/test-your-app.md",
+    ],
+)
+def test_each_page_that_starts_the_setup_gives_the_form_that_runs_the_command(page: str) -> None:
+    # A prompt of only "verbatim-relay setup" did not make the model run the command (#125).
+    assert "!verbatim-relay setup" in (ROOT / page).read_text(encoding="utf-8")
+
+
 # Reference pages -----------------------------------------------------------------------------
 
 

@@ -235,6 +235,7 @@ Seal: intact. No record changed after the end of the test.
 
 ## Next steps
 
+- Test your own app: [how-to/test-your-app.md](how-to/test-your-app.md). In the harness, type `!verbatim-relay setup`. Then type the prompt "Follow the verbatim-relay setup guide, and connect a test to this app."
 - Connect your own agent: [how-to/connect-your-agent.md](how-to/connect-your-agent.md).
 - Use the Claude Code plugin, which shows each reply in the chat: [how-to/claude-code.md](how-to/claude-code.md).
 - Use Codex: [how-to/codex.md](how-to/codex.md).

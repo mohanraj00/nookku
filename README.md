@@ -58,7 +58,7 @@ In Claude Code, type the prompt `verbatim-relay start`, then your test messages,
 verbatim-relay audit --tap .verbatim-relay/tests/<test-id>/tap.jsonl --relay .verbatim-relay/tests/<test-id>/relay.jsonl
 ```
 
-[docs/getting-started.md](docs/getting-started.md) shows each step with its real output. For the plugin, which shows each reply in the chat, read [docs/how-to/claude-code.md](docs/how-to/claude-code.md). For Codex, read [docs/how-to/codex.md](docs/how-to/codex.md). For your own app, ask the harness model: "Run `verbatim-relay setup` and connect a test to this app" ([docs/how-to/connect-your-agent.md](docs/how-to/connect-your-agent.md)).
+[docs/getting-started.md](docs/getting-started.md) shows each step with its real output. For the plugin, which shows each reply in the chat, read [docs/how-to/claude-code.md](docs/how-to/claude-code.md). For Codex, read [docs/how-to/codex.md](docs/how-to/codex.md). For your own app, type `!verbatim-relay setup` in the harness. Then type the prompt "Follow the verbatim-relay setup guide, and connect a test to this app" ([docs/how-to/test-your-app.md](docs/how-to/test-your-app.md)).
 
 ## Results
 
