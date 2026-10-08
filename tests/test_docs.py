@@ -271,6 +271,33 @@ def test_the_config_page_has_each_key_of_config_json_with_its_default() -> None:
     assert documented == wanted
 
 
+GLOSSARY_TERMS = {
+    "Agent contract",
+    "Audit",
+    "Bridge",
+    "Entry",
+    "Evaluation",
+    "Findings",
+    "Harness",
+    "Relay",
+    "Relay mode",
+    "Seal",
+    "Tap",
+    "Test folder",
+    "Trace",
+}
+
+
+def test_each_glossary_term_links_to_a_section_of_the_spec() -> None:
+    glossary = DOCS / "reference" / "glossary.md"
+    terms = _sections(glossary, "##")
+    assert sorted(GLOSSARY_TERMS - set(terms)) == []
+    spec = (ROOT / "SPEC.md").resolve()
+    for term, body in terms.items():
+        targets = [resolve(glossary, t) for t in links(body)]
+        assert any(path == spec and fragment for path, fragment in targets), term
+
+
 def test_the_config_page_has_each_plugin_option_with_its_default() -> None:
     manifest = ROOT / "plugins" / "claude-code" / ".claude-plugin" / "plugin.json"
     options = json.loads(manifest.read_text(encoding="utf-8"))["userConfig"]
