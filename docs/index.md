@@ -18,6 +18,7 @@ Do one task.
 - [Test an agent in Claude Code](how-to/claude-code.md): the plugin and the hook kit, and the evaluation at the end.
 - [Test an agent in Codex](how-to/codex.md): the hook kit and the trust step.
 - [Use the HTTP tap](how-to/http-tap.md): put the tap in front of an agent that is already an HTTP server.
+- [Test a streaming agent](how-to/test-a-streaming-agent.md): join the stream in the entry, or use the HTTP tap with the `openai` adapter.
 - [Isolate an Agent SDK session](how-to/isolate-agent-sdk.md): give the app's model only the tools of the app.
 - [Add a backend](how-to/add-a-backend.md): record the calls of the app to its HTTP services.
 - [Record model calls and OpenTelemetry](how-to/record-model-calls.md): record the direct model calls and the spans and logs of the app.

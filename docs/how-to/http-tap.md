@@ -1,6 +1,6 @@
 # Use the HTTP tap
 
-Use this mode if your agent is already an HTTP server and you do not want an entry. The tap is in front of the agent and records each exchange. There is no test: no test folder, no trace, no seal and no evaluation prompt. For these, use an entry ([connect-your-agent.md](connect-your-agent.md)).
+Use this mode if your agent is already an HTTP server and you do not want an entry. The tap is in front of the agent and records each exchange. There is no test: no test folder, no trace, no seal and no evaluation prompt. For these, use an entry that calls your server ([connect-your-agent.md](connect-your-agent.md#if-your-app-is-an-http-server)).
 
 ## 1. Start the agent and the tap
 
