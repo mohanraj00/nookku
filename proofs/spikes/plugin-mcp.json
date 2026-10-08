@@ -281,6 +281,20 @@
         "unchanged": false
       }
     ],
-    "person": {}
+    "person": {
+      "claude-code-desktop": {
+        "date": "2026-10-08",
+        "app_version": "Claude 2.26454.2 (75afdd) 2026-10-07T07:23:01.000Z",
+        "method": "scripts/spike_plugin_mcp.py claude-code --project. A person opened the project in the desktop app, installed the plugin from the local marketplace, and typed the prompt that the script prints.",
+        "server_started": true,
+        "tool_ran": true,
+        "hook_tool_name": "mcp__plugin_mcp-spike_spike__transcript",
+        "sent": {
+          "size": 10240,
+          "sha256": "d487ba9b69c51cda5d61113542f1716653cf051f2b0cf8f16bf5dff67171b262"
+        },
+        "model": "not measured with a proxy. The model said that the result had the start and the end markers, and that the non-ASCII and astral characters were correct."
+      }
+    }
   }
 }

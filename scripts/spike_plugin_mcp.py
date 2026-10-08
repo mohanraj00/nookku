@@ -30,6 +30,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import shlex
 import shutil
 import subprocess
 import sys
@@ -141,7 +142,10 @@ def plugin() -> Path:
     # The log paths are arguments, so the server and the hook need no environment variable.
     server = {"command": python, "args": ["${CLAUDE_PLUGIN_ROOT}/server.py", str(SERVER_LOG)]}
     (p / ".mcp.json").write_text(json.dumps({"mcpServers": {SERVER: server}}, indent=2) + "\n")
-    hook = {"type": "command", "command": f"{python} ${{CLAUDE_PLUGIN_ROOT}}/hook.py {HOOK_LOG}"}
+    # A shell runs the command, so each path is quoted.
+    root = '"${CLAUDE_PLUGIN_ROOT}/hook.py"'
+    command = f"{shlex.quote(python or 'python3')} {root} {shlex.quote(str(HOOK_LOG))}"
+    hook = {"type": "command", "command": command}
     hooks = {"hooks": {"PreToolUse": [{"matcher": "mcp__.*", "hooks": [hook]}]}}
     (p / "hooks" / "hooks.json").write_text(json.dumps(hooks, indent=2) + "\n")
     return p
