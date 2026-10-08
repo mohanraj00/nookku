@@ -22,7 +22,7 @@ The cost is plumbing. You write the entry and `config.json` once, or you let the
 
 ## Plugin or hook kit?
 
-In Claude Code, use the plugin: it shows each reply in the chat. Use the hook kit in Codex, or in Claude Code if the plugin fails. The plugin uses function hooks, which are early access. Do not use both in one project, or each message goes to the agent two times. Read [how-to/claude-code.md](how-to/claude-code.md).
+In Claude Code, use the plugin: it shows each reply in the chat. Use the hook kit in Codex, or in Claude Code if the plugin fails. The plugin uses function hooks, which are early access. Do not use both in one project, or each message goes to the agent two times. Read [how-to/choose-a-relay.md](how-to/choose-a-relay.md).
 
 ## Does the model see my test messages?
 

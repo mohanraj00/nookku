@@ -16,7 +16,9 @@ Do one task.
 
 - [Test your own app](how-to/test-your-app.md): from the install to the results of a first [test](reference/glossary.md#test), with the expected output of each step.
 - [Connect your own agent](how-to/connect-your-agent.md): write the [entry](reference/glossary.md#entry) and the configuration, use `verbatim_relay.agent.serve()`, and run `verbatim-relay check`.
-- [Test an agent in Claude Code](how-to/claude-code.md): the plugin and the hook kit, and the [evaluation](reference/glossary.md#evaluation) at the end.
+- [Choose a relay](how-to/choose-a-relay.md): select the plugin or the hook kit, and an entry or the HTTP tap. Switch from one relay to the other.
+- [Test an agent with the Claude Code plugin](how-to/claude-code-plugin.md): install the plugin, run a test, and read the [evaluation](reference/glossary.md#evaluation) at the end.
+- [Test an agent with the hook kit in Claude Code](how-to/claude-code-hook-kit.md): install the hook kit, and see each reply in `verbatim-relay view`.
 - [Test an agent in Codex](how-to/codex.md): the hook kit and the trust step.
 - [Use the HTTP tap](how-to/http-tap.md): put the [tap](reference/glossary.md#tap) in front of an agent that is already an HTTP server.
 - [Test a streaming agent](how-to/test-a-streaming-agent.md): join the stream in the entry, or use the HTTP tap with the `openai` adapter.
@@ -65,3 +67,4 @@ These pages moved. Each one keeps a link to its new place.
 
 - [claude-code.md](claude-code.md) moved to [how-to/claude-code.md](how-to/claude-code.md) and other pages.
 - [codex.md](codex.md) moved to [how-to/codex.md](how-to/codex.md).
+- [how-to/claude-code.md](how-to/claude-code.md) is now 2 guides: [how-to/claude-code-plugin.md](how-to/claude-code-plugin.md) and [how-to/claude-code-hook-kit.md](how-to/claude-code-hook-kit.md).
