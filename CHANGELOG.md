@@ -13,7 +13,7 @@ A docs release. The docs have new how-to guides for each task of a test, a gloss
 - **Other agents.** An entry in Node ([examples/toy-shop-node/entry.mjs](examples/toy-shop-node/entry.mjs)), an entry for an HTTP server ([examples/toy-shop/http_entry.py](examples/toy-shop/http_entry.py)), a table that compares the entry with the HTTP tap, and [a guide for a streaming agent](docs/how-to/test-a-streaming-agent.md) ([#132](https://github.com/mohanraj00/verbatim-relay/issues/132)).
 - **Stuck tests, upgrades and removal.** [Recover a stuck test](docs/how-to/recover-a-stuck-test.md), [upgrade](docs/how-to/upgrade.md) and [remove](docs/how-to/remove.md) verbatim-relay ([#133](https://github.com/mohanraj00/verbatim-relay/issues/133)).
 - **Diagrams.** [docs/architecture.md](docs/architecture.md) has a corrected data-flow diagram, and new diagrams of one turn, the test lifecycle and the trace, with a table of the timeouts. Tests check the diagrams against the records page and the constants ([#134](https://github.com/mohanraj00/verbatim-relay/issues/134)).
-- **Navigation.** The README has 3 routes and a Docs table in task order. The docs map groups the guides by task. Troubleshooting starts with a table of symptoms ([#135](https://github.com/mohanraj00/verbatim-relay/issues/135)).
+- **Navigation.** The README gives a route to try the toy shop, a route to connect your own app and a route to choose a relay, and a Docs table in task order. The docs map groups the guides by task. Troubleshooting starts with a table of symptoms ([#135](https://github.com/mohanraj00/verbatim-relay/issues/135)).
 
 ## 0.3.0
 

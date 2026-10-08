@@ -2,7 +2,7 @@
 
 This guide takes your own app from the install to the results of a first [test](../reference/glossary.md#test). Each step gives the expected output, so you can compare your screen with it.
 
-I made the output with the toy shop agent of this repo ([examples/toy-shop/agent.py](../../examples/toy-shop/agent.py)) as the app, verbatim-relay 0.3.0 ([version](../../src/verbatim_relay/__init__.py)) and the hook kit in Claude Code. Each output is a sample of one run, not a measurement. To make it again, run the steps of this page on the toy shop, with the same 3 messages as the [tutorial](../getting-started.md#6-run-the-test). I shortened the paths of the folders to `.../`. The test ids and the replies of your app are different. The [tutorial](../getting-started.md) shows the same steps for the toy shop only.
+I made the output with the toy shop agent of this repo ([examples/toy-shop/agent.py](../../examples/toy-shop/agent.py)) as the app, verbatim-relay 0.3.0 ([version](https://github.com/mohanraj00/verbatim-relay/blob/v0.3.0/src/verbatim_relay/__init__.py)) and the hook kit in Claude Code. Each output is a sample of one run, not a measurement. To make it again, run the steps of this page on the toy shop, with the same 3 messages as the [tutorial](../getting-started.md#6-run-the-test). I shortened the paths of the folders to `.../`. The test ids and the replies of your app are different. The [tutorial](../getting-started.md) shows the same steps for the toy shop only.
 
 ## What you need
 
