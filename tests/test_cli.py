@@ -265,6 +265,9 @@ def test_init_adds_no_default_to_an_existing_config(
         ("{", None, "cannot read .verbatim-relay/config.json"),
         (None, "{", "settings.local.json: Expecting"),
         (None, '{"hooks": []}', "'hooks' is not a JSON object"),
+        (None, '{"hooks": {"PreToolUse": [null]}}', "a group of 'hooks.PreToolUse' has no list"),
+        (None, '{"hooks": {"PreToolUse": [{"hooks": {}}]}}', "a group of 'hooks.PreToolUse'"),
+        (None, '{"hooks": {"UserPromptSubmit": [{"hooks": [1]}]}}', "'hooks.UserPromptSubmit'"),
     ],
 )
 def test_init_writes_nothing_if_a_file_cannot_be_kept(
@@ -314,6 +317,21 @@ def test_an_unknown_key_stops_start_check_and_the_hook_kit_with_one_message(
     assert answer is not None and answer["decision"] == "block"
     broken = "verbatim-relay: relay mode is on, but the config is broken: "
     assert answer["reason"] == broken + cause
+
+
+def test_mode_on_with_no_entry_and_an_unknown_key_keeps_relay_mode_off(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    path = tmp_path / ".verbatim-relay" / "config.json"
+    path.parent.mkdir()
+    path.write_text(json.dumps({"agent_url": "http://127.0.0.1:9000/", "tpa_url": "x"}))
+    assert main(["mode", "on", "--root", str(tmp_path)]) == 0
+    cause = ".verbatim-relay/config.json has unknown keys: ['tpa_url']. Correct or remove them."
+    assert capsys.readouterr().out == f"verbatim-relay: {cause}\n"
+    assert not kit.is_on(tmp_path)
+    path.write_text(json.dumps({"agent_url": "http://127.0.0.1:9000/"}))
+    assert main(["mode", "on", "--root", str(tmp_path)]) == 0
+    assert kit.is_on(tmp_path)
 
 
 def test_init_start_and_end_a_test(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

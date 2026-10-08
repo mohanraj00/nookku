@@ -414,7 +414,9 @@ def _merge_hooks(settings: dict[str, Any], command: str) -> dict[str, Any]:
         kept = []
         for group in groups:
             inner = group.get("hooks") if isinstance(group, dict) else None
-            if isinstance(inner, list) and any(_ours(h) for h in inner):
+            if not isinstance(inner, list) or not all(isinstance(h, dict) for h in inner):
+                raise ValueError(f"a group of 'hooks.{event}' has no list of hook objects")
+            if any(_ours(h) for h in inner):
                 rest = [h for h in inner if not _ours(h)]
                 if not rest:
                     continue

@@ -304,7 +304,7 @@ The file can also hold the relay keys of the hook kit, for an agent that runs as
 One reader ([src/verbatim_relay/config.py](src/verbatim_relay/config.py)) reads the file for `start`, `check`, `init` and the hook kit, with one rule:
 
 - If the file is not a JSON object, or if it has an unknown key, the reader gives an error. The error text is the same for each command. For an unknown key, it is `.verbatim-relay/config.json has unknown keys: ['<key>']. Correct or remove them.`
-- `start` and `check` stop with the error and exit with 1. `mode on` starts no test and keeps relay mode off.
+- `start` and `check` stop with the error and exit with 1. `mode on` starts no test and keeps relay mode off, also if the file has no entry.
 - In relay mode, the hook kit blocks each prompt and shows the error. Thus a broken file never lets a prompt reach the model.
 - The plugin reads only `entry` from the file. It starts a test with the `verbatim-relay` command, so the same rule applies.
 

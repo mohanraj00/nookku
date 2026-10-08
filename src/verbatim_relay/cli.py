@@ -14,6 +14,7 @@ from verbatim_relay import __version__, bridge, evaluation, kit, seal, stdio, tr
 from verbatim_relay.adapters import make
 from verbatim_relay.audit import audit, render
 from verbatim_relay.config import KEYS as CONFIG_KEYS
+from verbatim_relay.config import ConfigError, read_config
 from verbatim_relay.record import RecordError
 from verbatim_relay.tap import Tap, serve
 
@@ -225,6 +226,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.state != "status" and bridge.has_entry(root):
             print(kit.start_test(root) if args.state == "on" else kit.end_test(root))
             return 0
+        if args.state == "on" and (root / kit.STATE_DIR / "config.json").exists():
+            # A config with no entry (direct HTTP mode) follows the same rule for its keys.
+            try:
+                read_config(root)
+            except ConfigError as e:
+                print(f"verbatim-relay: {e}")
+                return 0
         if args.state != "status":
             kit.set_mode(root, args.state == "on")
         print(f"Relay mode is {'on' if kit.is_on(root) else 'off'}.")
