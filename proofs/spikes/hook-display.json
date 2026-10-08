@@ -930,6 +930,27 @@
         }
       }
     ],
-    "person": {}
+    "person": {
+      "claude-code-desktop": {
+        "date": "2026-10-08",
+        "app_version": "Claude 2.26454.2 (75afdd) 2026-10-07T07:23:01.000Z",
+        "method": "scripts/spike_hook_display.py claude-code --project 10240, then the 2 prompts that it prints, typed by a person",
+        "size": 10240,
+        "reason": {
+          "shown": true,
+          "start_shown": true,
+          "end_shown": true,
+          "line_breaks": true,
+          "astral_shown": true
+        },
+        "systemMessage": {
+          "shown": false
+        },
+        "form": "the title \"Prompt blocked by a hook\", then the reason. The original prompt does not show.",
+        "markdown_rendered": false,
+        "model": "not measured: the desktop app has no proxy here. The next prompt got only the reply \"ok\".",
+        "note": "A first try sent the prompt in code format, with a backtick first. The hook did not block it, because the prompt did not start with \"block\". That try is not a result."
+      }
+    }
   }
 }
