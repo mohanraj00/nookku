@@ -13,6 +13,16 @@ A person tests a chat agent through a coding harness (Claude Code or Codex). The
 - Make CI green before you mark a PR as ready. The maintainer reviews and merges.
 - If you find work outside the scope of the issue, propose a new issue to the maintainer. Do not make the PR larger.
 
+## Two harnesses work on this repo
+
+Claude Code and Codex both work on this repo, at the same time. The label `agent:claude-code` or `agent:codex` names the harness that does the work.
+
+- Before you start an issue, add the label of your harness to it. Do not start an issue that has the label of the other harness.
+- Add the label of your harness to each PR that you open.
+- When CI is green and the PR is ready, ask the other harness for a review in a PR comment. Claude Code writes `@codex review`. Codex writes `@claude review this PR. Use the Review guidelines in CLAUDE.md.`
+- Answer each finding of that review in the PR: fix it, or say why it is not a defect. Then ask the maintainer to review.
+- Work in your own worktree and on your own branch. Do not push to the branch of the other harness.
+
 ## Rules
 
 - **Clean room.** Write all code new in this repo. Do not copy code, data or logs from other projects.
