@@ -96,12 +96,21 @@ def test_the_node_entry_passes_the_audit_through_the_stdio_tap(tmp_path: Path) -
 
 
 @needs_node
-def test_node_readline_splits_a_line_at_u2028_so_the_entry_does_not_use_it() -> None:
+def test_node_readline_can_split_a_line_at_u2028_so_the_entry_does_not_use_it() -> None:
+    """Node 25 readline ends a line at U+2028. An older Node does not. The entry splits only at
+    \\n, so it works with both."""
+    assert NODE is not None
+    major = int(
+        subprocess.run(
+            [NODE, "-p", "process.versions.node.split('.')[0]"], capture_output=True, text=True
+        ).stdout
+    )
     count = "const rl = require('readline').createInterface({input: process.stdin}); let n = 0;"
     count += " rl.on('line', () => n++); rl.on('close', () => console.log(n));"
-    assert NODE is not None
     p = subprocess.run([NODE, "-e", count], input="a\u2028b\n".encode(), capture_output=True)
-    assert p.stdout == b"2\n"
+    assert p.stdout in (b"1\n", b"2\n")
+    if major >= 25:
+        assert p.stdout == b"2\n"
 
 
 def free_port() -> int:

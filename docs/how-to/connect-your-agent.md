@@ -103,8 +103,8 @@ async function answer(line) {
 }
 
 console.error("toy shop agent: ready");
-// Split the input only at "\n". node:readline also splits at "\r", U+2028 and U+2029,
-// and a message can contain U+2028.
+// Split the input only at "\n". node:readline also splits at "\r", and in Node 25 also at
+// U+2028 and U+2029. A message can contain U+2028.
 process.stdin.setEncoding("utf8");
 let pending = "";
 for await (const chunk of process.stdin) {
@@ -122,7 +122,7 @@ The configuration:
 
 Obey these rules in Node:
 
-- Do not read the input with `node:readline`. It also ends a line at `\r`, U+2028 and U+2029 ([test](../../tests/test_example_entries.py), with Node 25.8.0). The relays do not escape U+2028 in the input line, so a message with U+2028 arrives in 2 parts.
+- Do not read the input with `node:readline`. It also ends a line at `\r`. In Node 25, it also ends a line at U+2028 and U+2029 ([test](../../tests/test_example_entries.py), run with Node 25.8.0). The relays do not escape U+2028 in the input line, so a message with U+2028 arrives in 2 parts.
 - Keep `console.log = console.error` at the top. Then a `console.log` of the app goes to stderr.
 - If the app starts a child process, send its stdout to stderr, for example with `stdio: ["ignore", 2, 2]` in `spawn`.
 - If `reply` throws, the entry writes an `error` line, and the test continues.

@@ -35,8 +35,8 @@ async function answer(line) {
 }
 
 console.error("toy shop agent: ready");
-// Split the input only at "\n". node:readline also splits at "\r", U+2028 and U+2029,
-// and a message can contain U+2028.
+// Split the input only at "\n". node:readline also splits at "\r", and in Node 25 also at
+// U+2028 and U+2029. A message can contain U+2028.
 process.stdin.setEncoding("utf8");
 let pending = "";
 for await (const chunk of process.stdin) {
