@@ -227,6 +227,8 @@ verbatim-relay verify
 Seal: intact. No record changed after the end of the test.
 ```
 
+To read each file of a test folder in order, see [Read the results of a test](how-to/read-the-results.md).
+
 ## What you did
 
 - You connected a test to an agent with no change to the agent's code.
