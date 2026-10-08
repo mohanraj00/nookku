@@ -29,7 +29,7 @@ async function answer(line) {
   try {
     out.reply = await reply(request.message, request.history);
   } catch (err) {
-    out.error = String(err.message ?? err);
+    out.error = String(err?.message ?? err);
   }
   process.stdout.write(JSON.stringify(out) + "\n");
 }

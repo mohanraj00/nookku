@@ -97,7 +97,7 @@ async function answer(line) {
   try {
     out.reply = await reply(request.message, request.history);
   } catch (err) {
-    out.error = String(err.message ?? err);
+    out.error = String(err?.message ?? err);
   }
   process.stdout.write(JSON.stringify(out) + "\n");
 }
@@ -122,7 +122,7 @@ The configuration:
 
 Obey these rules in Node:
 
-- Do not read the input with `node:readline`. In Node 25.8.0, it also ends a line at `\r`, U+2028 and U+2029. The relays do not escape U+2028 in the input line, so a message with U+2028 arrives in 2 parts.
+- Do not read the input with `node:readline`. It also ends a line at `\r`, U+2028 and U+2029 ([test](../../tests/test_example_entries.py), with Node 25.8.0). The relays do not escape U+2028 in the input line, so a message with U+2028 arrives in 2 parts.
 - Keep `console.log = console.error` at the top. Then a `console.log` of the app goes to stderr.
 - If the app starts a child process, send its stdout to stderr, for example with `stdio: ["ignore", 2, 2]` in `spawn`.
 - If `reply` throws, the entry writes an `error` line, and the test continues.
@@ -211,13 +211,22 @@ SERVER = Path(__file__).with_name("http_agent.py")
 def start_server() -> subprocess.Popen[bytes]:
     """Start the server once, and wait until it accepts a connection. Its output goes to stderr.
     If it does not accept a connection in 30 s, stop it, so that no server stays after the entry."""
+    try:
+        socket.create_connection(("127.0.0.1", PORT), timeout=1).close()
+    except OSError:
+        pass
+    else:
+        # Another process owns the port. Do not send the messages of the test to it.
+        raise SystemExit(f"toy shop entry: port {PORT} is in use. Set TOY_SHOP_PORT.")
     server = subprocess.Popen([sys.executable, str(SERVER), str(PORT)], stdout=sys.stderr)
     # HTTPServer looks up the host name before it listens. On some machines this takes seconds.
     deadline = time.monotonic() + 30
     while True:
         try:
             socket.create_connection(("127.0.0.1", PORT), timeout=1).close()
-            return server
+            if server.poll() is None:
+                return server
+            raise OSError(f"the server stopped: exit {server.returncode}")
         except OSError:
             if server.poll() is not None or time.monotonic() > deadline:
                 server.kill()

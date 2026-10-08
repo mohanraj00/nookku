@@ -95,6 +95,15 @@ def test_the_node_entry_passes_the_audit_through_the_stdio_tap(tmp_path: Path) -
     assert audit(tmp_path / "tap.jsonl", relay.path).exit == 0
 
 
+@needs_node
+def test_node_readline_splits_a_line_at_u2028_so_the_entry_does_not_use_it() -> None:
+    count = "const rl = require('readline').createInterface({input: process.stdin}); let n = 0;"
+    count += " rl.on('line', () => n++); rl.on('close', () => console.log(n));"
+    assert NODE is not None
+    p = subprocess.run([NODE, "-e", count], input="a\u2028b\n".encode(), capture_output=True)
+    assert p.stdout == b"2\n"
+
+
 def free_port() -> int:
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))
