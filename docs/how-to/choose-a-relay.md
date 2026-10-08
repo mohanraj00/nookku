@@ -47,10 +47,10 @@ With an entry, the two relays use the same `.verbatim-relay/config.json` and the
 ### From the plugin to the hook kit
 
 1. End the running test. Type `/verbatim-relay end`.
-2. Disable the plugin:
+2. Disable the plugin in this project only. Give `--scope local`. Without it, the command can disable the plugin at the user scope, and then the plugin stops in each project:
 
    ```bash
-   claude plugin disable verbatim-relay@verbatim-relay
+   claude plugin disable --scope local verbatim-relay@verbatim-relay
    ```
 
 3. Install the hook kit. `init` keeps each key of an existing `.verbatim-relay/config.json`, also the entry:
@@ -65,6 +65,12 @@ With an entry, the two relays use the same `.verbatim-relay/config.json` and the
 
 1. End the running test. Run `verbatim-relay end` in a shell.
 2. Remove the [2 hooks](../../src/verbatim_relay/kit.py) of the kit from `.claude/settings.local.json`. Their command contains `verbatim_relay hook`. Keep your other hooks.
-3. Do the steps of [claude-code-plugin.md](claude-code-plugin.md). Your `.verbatim-relay/config.json` stays.
+3. If you disabled the plugin in this project before, enable it again in this project:
+
+   ```bash
+   claude plugin enable --scope local verbatim-relay@verbatim-relay
+   ```
+
+4. Do the steps of [claude-code-plugin.md](claude-code-plugin.md). Your `.verbatim-relay/config.json` stays.
 
 With no entry, the plugin reads `tap_url` and the other options from its plugin options ([reference/config.md](../reference/config.md#plugin-options)). The hook kit reads them from `.verbatim-relay/config.json`. If you changed an option, set it again for the new relay.
