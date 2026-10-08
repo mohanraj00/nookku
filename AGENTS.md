@@ -25,6 +25,7 @@ Claude Code and Codex both work on this repo, at the same time. The label `agent
   - Before you post, read the PR comments. If a security review was already asked for or done, do not ask again.
   - Do not ask again after you fix a finding. Only the maintainer can ask for a second security review.
 - Answer each finding of the code review and of the security review in the PR: fix it, or say why it is not a defect. Then ask the maintainer to review.
+- Turn on auto-merge only after you answer each finding of the code review and of the security review, and only if the maintainer agrees. `main` requires no approving review, so auto-merge can merge a PR before its review arrives.
 - Work in your own worktree and on your own branch. Do not push to the branch of the other harness.
 
 ## Rules
