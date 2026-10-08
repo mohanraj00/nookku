@@ -365,4 +365,4 @@ Then run `verbatim-relay check` again. The manifest of each test keeps the SHA-2
 ## Next
 
 - An Agent SDK session in your app: [isolate-agent-sdk.md](isolate-agent-sdk.md).
-- Run the test: [claude-code.md](claude-code.md) or [codex.md](codex.md).
+- Run the test: [claude-code-plugin.md](claude-code-plugin.md), [claude-code-hook-kit.md](claude-code-hook-kit.md) or [codex.md](codex.md).
