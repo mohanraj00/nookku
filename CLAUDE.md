@@ -21,7 +21,10 @@ Claude Code and Codex both work on this repo, at the same time. The label `agent
 - After you add your label, read the labels of the issue again. If both labels are on it, the label that was added first wins. The issue events show the order: `gh api repos/mohanraj00/verbatim-relay/issues/N/events`. If your label was second, remove it and do not start the issue.
 - Add the label of your harness to each PR that you open.
 - When CI is green and the PR is ready, ask the other harness for a review in a PR comment. Claude Code writes `@codex review`. Codex writes `@claude review this PR. Use the Review guidelines in CLAUDE.md.`
-- Answer each finding of that review in the PR: fix it, or say why it is not a defect. Then ask the maintainer to review.
+- The code review ends with `Security review: needed` or `Security review: not needed`. If it says `needed`, post `@codex security review` on the PR, one time for each PR:
+  - Before you post, read the PR comments. If a security review was already asked for or done, do not ask again.
+  - Do not ask again after you fix a finding. Only the maintainer can ask for a second security review.
+- Answer each finding of the code review and of the security review in the PR: fix it, or say why it is not a defect. Then ask the maintainer to review.
 - Work in your own worktree and on your own branch. Do not push to the branch of the other harness.
 
 ## Rules
@@ -48,6 +51,15 @@ Flag these as high priority in a PR review:
 - A new runtime dependency, or a GPL or AGPL dependency.
 - A number in a doc with no link to its data and its method.
 - A plugin helper that takes `$` and is not a top-level function declaration.
+
+End a code review with one line. Write `Security review: needed`, with the reason, if the PR changes one of these:
+
+- the relay path, the tap, the guard, the seal or the policy file;
+- a hook, the plugin, or the code that starts the entry or a test;
+- the code that reads input from the model, a tester or an agent;
+- a workflow, a secret, a permission or a dependency.
+
+Else write `Security review: not needed`. Do not ask for the security review yourself. The PR author asks for it. A security review does not end with this line.
 
 ## Writing
 
