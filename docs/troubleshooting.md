@@ -148,6 +148,12 @@ First, look in the test folder `.verbatim-relay/tests/<test-id>/`. `bridge.log` 
 
 **Fix.** Send text only ([#6](https://github.com/mohanraj00/verbatim-relay/issues/6)).
 
+### `verbatim-relay: the record is invalid: <path>: line <n>: <reason>. Do not trust this record. The view shows the next turns when the record changes and is valid.`
+
+(kit.py) **Cause.** `verbatim-relay view` read a relay record with an invalid line. A line changed after the writer wrote it, or another program wrote it. The view shows this error one time and continues to wait. With `--no-follow`, it shows `verbatim-relay: <path>: line <n>: <reason>` and exits with 2.
+
+**Fix.** Do not edit a record. Find the program that wrote the line. After the end of the test, run `verbatim-relay verify` to see which files changed.
+
 ### Each message reaches the agent two times
 
 **Cause.** The plugin and the hook kit both run in the project. The audit shows `duplicate_send` breaks.
@@ -186,6 +192,24 @@ First, look in the test folder `.verbatim-relay/tests/<test-id>/`. `bridge.log` 
 
 **Fix.** Let the app keep its session files during a test. The trace needs them ([limits.md](limits.md)).
 
+### `FAIL: tap_unparsed: tap line <n>: STDIO stdout: a stray line on stdout: '<text>'. Use verbatim_relay.agent.serve() or write logs to stderr.`
+
+(bridge.py, from `verbatim-relay check`) **Cause.** The entry or your app wrote a log line on stdout. The reply can still come, but the audit of the check test exits with 2. The audit of each real test also exits with 2.
+
+**Fix.** Write logs to stderr. In Python, use `verbatim_relay.agent.serve()` ([how-to/connect-your-agent.md](how-to/connect-your-agent.md)). Then run `verbatim-relay check` again.
+
+### `FAIL: <class> break (relay line <n>, tap line <n>). <fix>`
+
+(bridge.py, from `verbatim-relay check`) **Cause.** The audit of the check test found a break ([SPEC.md section 3.3](../SPEC.md#33-break-classes)). For example, `injected_input` means that the agent received a message that the check did not send.
+
+**Fix.** Follow the fix in the line. `audit.json` in the test folder has the evidence of each break.
+
+### `FAIL: The audit.json of the test is missing. Read bridge.log in the test folder.`
+
+(bridge.py, from `verbatim-relay check`) **Cause.** The bridge did not write the audit at the end of the check test. The check fails closed, because it cannot show that the records agree. The text says `is not valid` if the file is not a valid audit report.
+
+**Fix.** Read `bridge.log` in the test folder. It has the error of the audit.
+
 ## Audit, verify and trace
 
 ### `ERROR record_missing: <path>: No such file or directory`
@@ -204,7 +228,7 @@ First, look in the test folder `.verbatim-relay/tests/<test-id>/`. `bridge.log` 
 
 (audit.py) **Cause.** The entry wrote a line on stdout that is not a contract line. The tap wrote an `unparsed` row for it. The audit cannot check that row, so it exits with 2.
 
-**Fix.** Write logs to stderr, or use `serve()`. `verbatim-relay check` passes with such a line, so also read the audit.
+**Fix.** Write logs to stderr, or use `serve()`. `verbatim-relay check` fails with such a line and gives the same fix.
 
 ### `Seal: BROKEN. changed: <file>. Do not trust these records.`
 

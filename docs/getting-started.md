@@ -81,6 +81,7 @@ verbatim-relay check
 ```text
 Test 20261007-133809-bbb2: .../toy-shop/.verbatim-relay/tests/20261007-133809-bbb2
 Reply: Which item is this about: the mug or the teapot?
+Audit: exit 0
 PASS
 ```
 

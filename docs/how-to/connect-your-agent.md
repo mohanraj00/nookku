@@ -89,10 +89,11 @@ It starts the entry, sends one message, and ends the test. For the toy shop, the
 ```text
 Test 20261007-133809-bbb2: /path/to/toy-shop/.verbatim-relay/tests/20261007-133809-bbb2
 Reply: Which item is this about: the mug or the teapot?
+Audit: exit 0
 PASS
 ```
 
-It exits with 0 if the entry sent a reply and the test found a model session for each harness in `models`. Else it exits with 1. If it fails, read `app.log` and `bridge.log` in the test folder that it names. [troubleshooting.md](../troubleshooting.md) lists the errors.
+It exits with 0 if the entry sent a reply, the audit of the test is clean, and the test found a model session for each harness in `models`. Else it exits with 1. If it fails, read `app.log` and `bridge.log` in the test folder that it names. [troubleshooting.md](../troubleshooting.md) lists the errors.
 
 ## When the app changes
 

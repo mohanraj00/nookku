@@ -517,10 +517,16 @@ def transcript(
     return 0
 
 
-def view(record: Path, follow: bool, out: TextIO, poll: float = 0.3) -> int:
-    """Print each turn of the relay record. With follow, wait for new turns."""
+def view(
+    record: Path, follow: bool, out: TextIO, poll: float = 0.3, err: TextIO | None = None
+) -> int:
+    """Print each turn of the relay record. With follow, wait for new turns.
+
+    An invalid record raises a RecordError. With follow, the view shows the error on err and
+    continues: it shows the turns again when the record changes and is valid.
+    """
     seen = 0
-    for turns in _turns(record, follow, poll):
+    for turns in _turns(record, follow, poll, _ErrorOnce(err or sys.stderr)):
         for turn in turns[seen:]:
             seen += 1
             out.write(render_turn(turn, seen))
@@ -528,22 +534,32 @@ def view(record: Path, follow: bool, out: TextIO, poll: float = 0.3) -> int:
     return 0
 
 
-def view_tests(root: Path, follow: bool, out: TextIO, poll: float = 0.3) -> int:
-    """Print each turn of the latest test. With follow, wait for new turns and new tests."""
+def view_tests(
+    root: Path, follow: bool, out: TextIO, poll: float = 0.3, err: TextIO | None = None
+) -> int:
+    """Print each turn of the latest test. With follow, wait for new turns and new tests.
+
+    An invalid record raises a RecordError. With follow, the view shows the error on err and
+    continues, as in view.
+    """
     shown_test, seen = None, 0
+    errors = _ErrorOnce(err or sys.stderr)
     while True:
         folder = bridge.latest_test(root)
         if folder is not None and folder != shown_test:
             shown_test, seen = folder, 0
+            errors.clear()
             out.write(f"════ test {folder.name} ════\n")
             out.flush()
         record = folder / "relay.jsonl" if folder else None
         if record is not None and record.exists():
             try:
                 turns = [r for r in read_relay(record) if isinstance(r, Turn)]
-            except RecordError:
+                errors.clear()
+            except RecordError as e:
                 if not follow:
                     raise
+                errors.show(e, record)
                 turns = []
             for turn in turns[seen:]:
                 seen += 1
@@ -554,13 +570,43 @@ def view_tests(root: Path, follow: bool, out: TextIO, poll: float = 0.3) -> int:
         time.sleep(poll)
 
 
-def _turns(record: Path, follow: bool, poll: float) -> Iterator[list[Turn]]:
+class _ErrorOnce:
+    """Show a record error once. Show it again only when the error or the record changes."""
+
+    def __init__(self, err: TextIO) -> None:
+        self.err = err
+        self.last: tuple[str, tuple[int, int] | None] | None = None
+
+    def show(self, e: RecordError, record: Path) -> None:
+        try:
+            st = record.stat()
+            stamp: tuple[int, int] | None = (st.st_size, st.st_mtime_ns)
+        except OSError:
+            stamp = None
+        if (str(e), stamp) == self.last:
+            return
+        self.last = (str(e), stamp)
+        cause = "the record is invalid" if e.kind == "record_invalid" else "cannot read the record"
+        self.err.write(
+            f"verbatim-relay: {cause}: {e}. Do not trust this record. "
+            "The view shows the next turns when the record changes and is valid.\n"
+        )
+        self.err.flush()
+
+    def clear(self) -> None:
+        self.last = None
+
+
+def _turns(record: Path, follow: bool, poll: float, errors: _ErrorOnce) -> Iterator[list[Turn]]:
     while True:
         try:
-            yield [r for r in read_relay(record) if isinstance(r, Turn)]
-        except RecordError:
+            # With follow, the view waits for a record that does not exist yet.
+            yield [r for r in read_relay(record, missing_ok=follow) if isinstance(r, Turn)]
+            errors.clear()
+        except RecordError as e:
             if not follow:
                 raise
+            errors.show(e, record)
         if not follow:
             return
         time.sleep(poll)
