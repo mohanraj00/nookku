@@ -1,0 +1,935 @@
+{
+  "claude-code": {
+    "date": "2026-10-08",
+    "versions": {
+      "claude-code": "2.1.294",
+      "python": "3.13.12"
+    },
+    "model": "haiku",
+    "tty_rows": 50,
+    "method": "scripts/spike_hook_display.py",
+    "cases": [
+      {
+        "fields": [
+          "reason"
+        ],
+        "size": 1024,
+        "print": {
+          "exit": 0,
+          "results": 2,
+          "events": 1,
+          "reason": {
+            "shown": true,
+            "byte_exact": true,
+            "level": "warning",
+            "form": "prefix + text + original prompt"
+          },
+          "model": [
+            {
+              "path": "/api/hello",
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/v1/messages",
+              "model": "claude-haiku-5-5",
+              "tools": 24,
+              "messages": 2,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "HD00-reason-START": []
+              }
+            },
+            {
+              "path": "/v1/messages",
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PROMPT-MARK-41d0": [
+                  "messages[0].user"
+                ],
+                "HD00-reason-START": []
+              }
+            }
+          ]
+        },
+        "tty": {
+          "reason": {
+            "start_shown": true,
+            "end_shown": true,
+            "astral_shown": true
+          },
+          "markdown_rendered": false,
+          "prefix_shown": true,
+          "model": [
+            {
+              "path": "/api/hello",
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/v1/messages",
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "HD00-reason-START": []
+              }
+            },
+            {
+              "path": "/v1/messages",
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "HD00-reason-START": []
+              }
+            },
+            {
+              "path": "/v1/messages",
+              "model": "claude-haiku-5-5",
+              "tools": 53,
+              "messages": 2,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "HD00-reason-START": []
+              }
+            },
+            {
+              "path": "/v1/messages",
+              "model": "claude-haiku-5-5",
+              "tools": 53,
+              "messages": 4,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "HD00-reason-START": []
+              }
+            }
+          ]
+        }
+      },
+      {
+        "fields": [
+          "reason"
+        ],
+        "size": 10240,
+        "print": {
+          "exit": 0,
+          "results": 2,
+          "events": 1,
+          "reason": {
+            "shown": true,
+            "byte_exact": true,
+            "level": "warning",
+            "form": "prefix + text + original prompt"
+          },
+          "model": [
+            {
+              "path": "/api/hello",
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/v1/messages",
+              "model": "claude-haiku-5-5",
+              "tools": 24,
+              "messages": 2,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "HD01-reason-START": []
+              }
+            },
+            {
+              "path": "/v1/messages",
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PROMPT-MARK-41d0": [
+                  "messages[0].user"
+                ],
+                "HD01-reason-START": []
+              }
+            }
+          ]
+        },
+        "tty": {
+          "reason": {
+            "start_shown": false,
+            "end_shown": true,
+            "astral_shown": false
+          },
+          "markdown_rendered": null,
+          "prefix_shown": false,
+          "model": [
+            {
+              "path": "/api/hello",
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/v1/messages",
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "HD01-reason-START": []
+              }
+            },
+            {
+              "path": "/v1/messages",
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "HD01-reason-START": []
+              }
+            },
+            {
+              "path": "/v1/messages",
+              "model": "claude-haiku-5-5",
+              "tools": 53,
+              "messages": 2,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "HD01-reason-START": []
+              }
+            }
+          ]
+        }
+      },
+      {
+        "fields": [
+          "reason"
+        ],
+        "size": 102400,
+        "print": {
+          "exit": 0,
+          "results": 2,
+          "events": 1,
+          "reason": {
+            "shown": true,
+            "byte_exact": true,
+            "level": "warning",
+            "form": "prefix + text + original prompt"
+          },
+          "model": [
+            {
+              "path": "/api/hello",
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/v1/messages",
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PROMPT-MARK-41d0": [
+                  "messages[0].user"
+                ],
+                "HD02-reason-START": []
+              }
+            },
+            {
+              "path": "/v1/messages",
+              "model": "claude-haiku-5-5",
+              "tools": 24,
+              "messages": 2,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "HD02-reason-START": []
+              }
+            }
+          ]
+        },
+        "tty": {
+          "reason": {
+            "start_shown": false,
+            "end_shown": true,
+            "astral_shown": false
+          },
+          "markdown_rendered": null,
+          "prefix_shown": false,
+          "model": [
+            {
+              "path": "/api/hello",
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/v1/messages",
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "HD02-reason-START": []
+              }
+            },
+            {
+              "path": "/v1/messages",
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "HD02-reason-START": []
+              }
+            },
+            {
+              "path": "/v1/messages",
+              "model": "claude-haiku-5-5",
+              "tools": 53,
+              "messages": 2,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "HD02-reason-START": []
+              }
+            },
+            {
+              "path": "/v1/messages",
+              "model": "claude-haiku-5-5",
+              "tools": 53,
+              "messages": 4,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "HD02-reason-START": []
+              }
+            }
+          ]
+        }
+      },
+      {
+        "fields": [
+          "systemMessage"
+        ],
+        "size": 1024,
+        "print": {
+          "exit": 0,
+          "results": 2,
+          "events": 1,
+          "systemMessage": {
+            "shown": false,
+            "byte_exact": false
+          },
+          "model": [
+            {
+              "path": "/api/hello",
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/v1/messages",
+              "model": "claude-haiku-5-5",
+              "tools": 24,
+              "messages": 2,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "HD03-systemMessage-START": []
+              }
+            },
+            {
+              "path": "/v1/messages",
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PROMPT-MARK-41d0": [
+                  "messages[0].user"
+                ],
+                "HD03-systemMessage-START": []
+              }
+            }
+          ]
+        },
+        "tty": {
+          "systemMessage": {
+            "start_shown": false,
+            "end_shown": false,
+            "astral_shown": false
+          },
+          "markdown_rendered": null,
+          "prefix_shown": true,
+          "model": [
+            {
+              "path": "/api/hello",
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/v1/messages",
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "HD03-systemMessage-START": []
+              }
+            },
+            {
+              "path": "/v1/messages",
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "HD03-systemMessage-START": []
+              }
+            },
+            {
+              "path": "/v1/messages",
+              "model": "claude-haiku-5-5",
+              "tools": 53,
+              "messages": 2,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "HD03-systemMessage-START": []
+              }
+            }
+          ]
+        }
+      },
+      {
+        "fields": [
+          "systemMessage"
+        ],
+        "size": 10240,
+        "print": {
+          "exit": 0,
+          "results": 2,
+          "events": 1,
+          "systemMessage": {
+            "shown": false,
+            "byte_exact": false
+          },
+          "model": [
+            {
+              "path": "/api/hello",
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/v1/messages",
+              "model": "claude-haiku-5-5",
+              "tools": 24,
+              "messages": 2,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "HD04-systemMessage-START": []
+              }
+            },
+            {
+              "path": "/v1/messages",
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PROMPT-MARK-41d0": [
+                  "messages[0].user"
+                ],
+                "HD04-systemMessage-START": []
+              }
+            }
+          ]
+        },
+        "tty": {
+          "systemMessage": {
+            "start_shown": false,
+            "end_shown": false,
+            "astral_shown": false
+          },
+          "markdown_rendered": null,
+          "prefix_shown": true,
+          "model": [
+            {
+              "path": "/api/hello",
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/v1/messages",
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "HD04-systemMessage-START": []
+              }
+            },
+            {
+              "path": "/v1/messages",
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "HD04-systemMessage-START": []
+              }
+            },
+            {
+              "path": "/v1/messages",
+              "model": "claude-haiku-5-5",
+              "tools": 53,
+              "messages": 2,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "HD04-systemMessage-START": []
+              }
+            }
+          ]
+        }
+      },
+      {
+        "fields": [
+          "systemMessage"
+        ],
+        "size": 102400,
+        "print": {
+          "exit": 0,
+          "results": 2,
+          "events": 1,
+          "systemMessage": {
+            "shown": false,
+            "byte_exact": false
+          },
+          "model": [
+            {
+              "path": "/api/hello",
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/v1/messages",
+              "model": "claude-haiku-5-5",
+              "tools": 24,
+              "messages": 2,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "HD05-systemMessage-START": []
+              }
+            },
+            {
+              "path": "/v1/messages",
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PROMPT-MARK-41d0": [
+                  "messages[0].user"
+                ],
+                "HD05-systemMessage-START": []
+              }
+            }
+          ]
+        },
+        "tty": {
+          "systemMessage": {
+            "start_shown": false,
+            "end_shown": false,
+            "astral_shown": false
+          },
+          "markdown_rendered": null,
+          "prefix_shown": true,
+          "model": [
+            {
+              "path": "/api/hello",
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/v1/messages",
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "HD05-systemMessage-START": []
+              }
+            },
+            {
+              "path": "/v1/messages",
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "HD05-systemMessage-START": []
+              }
+            },
+            {
+              "path": "/v1/messages",
+              "model": "claude-haiku-5-5",
+              "tools": 53,
+              "messages": 2,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "HD05-systemMessage-START": []
+              }
+            }
+          ]
+        }
+      },
+      {
+        "fields": [
+          "reason",
+          "systemMessage"
+        ],
+        "size": 1024,
+        "print": {
+          "exit": 0,
+          "results": 2,
+          "events": 1,
+          "reason": {
+            "shown": true,
+            "byte_exact": true,
+            "level": "warning",
+            "form": "prefix + text + original prompt"
+          },
+          "systemMessage": {
+            "shown": false,
+            "byte_exact": false
+          },
+          "model": [
+            {
+              "path": "/api/hello",
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/v1/messages",
+              "model": "claude-haiku-5-5",
+              "tools": 24,
+              "messages": 2,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "HD06-reason-START": [],
+                "HD06-systemMessage-START": []
+              }
+            },
+            {
+              "path": "/v1/messages",
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PROMPT-MARK-41d0": [
+                  "messages[0].user"
+                ],
+                "HD06-reason-START": [],
+                "HD06-systemMessage-START": []
+              }
+            }
+          ]
+        },
+        "tty": {
+          "reason": {
+            "start_shown": true,
+            "end_shown": true,
+            "astral_shown": true
+          },
+          "systemMessage": {
+            "start_shown": false,
+            "end_shown": false,
+            "astral_shown": true
+          },
+          "markdown_rendered": false,
+          "prefix_shown": true,
+          "model": [
+            {
+              "path": "/api/hello",
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/v1/messages",
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "HD06-reason-START": [],
+                "HD06-systemMessage-START": []
+              }
+            },
+            {
+              "path": "/v1/messages",
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "HD06-reason-START": [],
+                "HD06-systemMessage-START": []
+              }
+            },
+            {
+              "path": "/v1/messages",
+              "model": "claude-haiku-5-5",
+              "tools": 53,
+              "messages": 2,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "HD06-reason-START": [],
+                "HD06-systemMessage-START": []
+              }
+            },
+            {
+              "path": "/v1/messages",
+              "model": "claude-haiku-5-5",
+              "tools": 53,
+              "messages": 4,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "HD06-reason-START": [],
+                "HD06-systemMessage-START": []
+              }
+            }
+          ]
+        }
+      },
+      {
+        "fields": [
+          "reason",
+          "systemMessage"
+        ],
+        "size": 10240,
+        "print": {
+          "exit": 0,
+          "results": 2,
+          "events": 1,
+          "reason": {
+            "shown": true,
+            "byte_exact": true,
+            "level": "warning",
+            "form": "prefix + text + original prompt"
+          },
+          "systemMessage": {
+            "shown": false,
+            "byte_exact": false
+          },
+          "model": [
+            {
+              "path": "/api/hello",
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/v1/messages",
+              "model": "claude-haiku-5-5",
+              "tools": 24,
+              "messages": 2,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "HD07-reason-START": [],
+                "HD07-systemMessage-START": []
+              }
+            },
+            {
+              "path": "/v1/messages",
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PROMPT-MARK-41d0": [
+                  "messages[0].user"
+                ],
+                "HD07-reason-START": [],
+                "HD07-systemMessage-START": []
+              }
+            }
+          ]
+        },
+        "tty": {
+          "reason": {
+            "start_shown": false,
+            "end_shown": true,
+            "astral_shown": false
+          },
+          "systemMessage": {
+            "start_shown": false,
+            "end_shown": false,
+            "astral_shown": false
+          },
+          "markdown_rendered": null,
+          "prefix_shown": false,
+          "model": [
+            {
+              "path": "/api/hello",
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/v1/messages",
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "HD07-reason-START": [],
+                "HD07-systemMessage-START": []
+              }
+            },
+            {
+              "path": "/v1/messages",
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "HD07-reason-START": [],
+                "HD07-systemMessage-START": []
+              }
+            },
+            {
+              "path": "/v1/messages",
+              "model": "claude-haiku-5-5",
+              "tools": 53,
+              "messages": 2,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "HD07-reason-START": [],
+                "HD07-systemMessage-START": []
+              }
+            },
+            {
+              "path": "/v1/messages",
+              "model": "claude-haiku-5-5",
+              "tools": 53,
+              "messages": 4,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "HD07-reason-START": [],
+                "HD07-systemMessage-START": []
+              }
+            }
+          ]
+        }
+      },
+      {
+        "fields": [
+          "reason",
+          "systemMessage"
+        ],
+        "size": 102400,
+        "print": {
+          "exit": 0,
+          "results": 2,
+          "events": 1,
+          "reason": {
+            "shown": true,
+            "byte_exact": true,
+            "level": "warning",
+            "form": "prefix + text + original prompt"
+          },
+          "systemMessage": {
+            "shown": false,
+            "byte_exact": false
+          },
+          "model": [
+            {
+              "path": "/api/hello",
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/v1/messages",
+              "model": "claude-haiku-5-5",
+              "tools": 24,
+              "messages": 2,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "HD08-reason-START": [],
+                "HD08-systemMessage-START": []
+              }
+            },
+            {
+              "path": "/v1/messages",
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PROMPT-MARK-41d0": [
+                  "messages[0].user"
+                ],
+                "HD08-reason-START": [],
+                "HD08-systemMessage-START": []
+              }
+            }
+          ]
+        },
+        "tty": {
+          "reason": {
+            "start_shown": false,
+            "end_shown": true,
+            "astral_shown": false
+          },
+          "systemMessage": {
+            "start_shown": false,
+            "end_shown": false,
+            "astral_shown": false
+          },
+          "markdown_rendered": null,
+          "prefix_shown": false,
+          "model": [
+            {
+              "path": "/api/hello",
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/v1/messages",
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "HD08-reason-START": [],
+                "HD08-systemMessage-START": []
+              }
+            },
+            {
+              "path": "/v1/messages",
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "HD08-reason-START": [],
+                "HD08-systemMessage-START": []
+              }
+            },
+            {
+              "path": "/v1/messages",
+              "model": "claude-haiku-5-5",
+              "tools": 53,
+              "messages": 2,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "HD08-reason-START": [],
+                "HD08-systemMessage-START": []
+              }
+            },
+            {
+              "path": "/v1/messages",
+              "model": "claude-haiku-5-5",
+              "tools": 53,
+              "messages": 4,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "HD08-reason-START": [],
+                "HD08-systemMessage-START": []
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "person": {}
+  }
+}
