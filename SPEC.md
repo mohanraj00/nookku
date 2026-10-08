@@ -1,4 +1,4 @@
-# verbatim-relay specification, v0.2 (draft)
+# verbatim-relay specification, v0.3 (draft)
 
 This file defines the two records and the audit. The conformance cases in `conformance/` are the executable form of this file. If the code and this file disagree, the code is wrong.
 
@@ -206,9 +206,9 @@ Each timeout on the relay path ends before the next one, so that each part gets 
 |---|---|---|
 | 1 | The agent timeout of the tap, the same in HTTP mode and stdio mode | [240](src/verbatim_relay/stdio.py#L24) |
 | 2 | The tap answers the relay, at most 5 seconds after the agent timeout | [245](tests/test_timeouts.py#L22) |
-| 3 | The hook kit waits for the tap of a test (section 7) | [270](src/verbatim_relay/bridge.py#L36) |
-| 3 | The hook kit waits for the tap of section 4.1 | [280](src/verbatim_relay/kit.py#L23) |
-| 4 | The harness stops the `UserPromptSubmit` hook | [300](src/verbatim_relay/kit.py#L26) |
+| 3 | The hook kit waits for the tap of a test (section 7) | [270](src/verbatim_relay/bridge.py#L38) |
+| 3 | The hook kit waits for the tap of section 4.1 | [280](src/verbatim_relay/kit.py#L34) |
+| 4 | The harness stops the `UserPromptSubmit` hook | [300](src/verbatim_relay/kit.py#L37) |
 
 Each number links to its constant. The 5 seconds of order 2 is the `ANSWER` limit of the test. The plugin sets no timeout of its own. It waits for the answer of the tap. The test [`tests/test_timeouts.py`](tests/test_timeouts.py) checks this order, and it measures the 504 of a slow agent and of an agent that sends a byte at a time.
 
