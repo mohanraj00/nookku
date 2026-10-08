@@ -28,7 +28,15 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
         python: ["3.10", "3.11", "3.12", "3.13"]
+        # GitHub has few macOS runners. Ubuntu covers each Python version, and macOS covers the
+        # oldest and the newest. macOS found defects that Ubuntu did not (#17).
+        exclude:
+          - os: macos-latest
+            python: "3.11"
+          - os: macos-latest
+            python: "3.12"
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
