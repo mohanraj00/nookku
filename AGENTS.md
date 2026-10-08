@@ -20,7 +20,10 @@ Claude Code and Codex both work on this repo, at the same time. The label `agent
 - Before you start an issue, add the label of your harness to it. Do not start an issue that has the label of the other harness.
 - After you add your label, read the labels of the issue again. If both labels are on it, the label that was added first wins. The issue events show the order: `gh api repos/mohanraj00/verbatim-relay/issues/N/events`. If your label was second, remove it and do not start the issue.
 - Add the label of your harness to each PR that you open.
-- When CI is green and the PR is ready, ask the other harness for a review in a PR comment. Claude Code writes `@codex review`. Codex writes `@claude review this PR. Use the Review guidelines in CLAUDE.md.`
+- No harness reviews a PR by default. You must ask the other harness for the code review in a PR comment:
+  - Claude Code writes `@codex review`. Codex writes `@claude review this PR. Use the Review guidelines in CLAUDE.md.`
+  - Ask when CI is green and the PR is ready.
+  - Before you ask, read the PR comments. If the PR already has this request, do not ask again.
 - The code review ends with `Security review: needed` or `Security review: not needed`. If it says `needed`, post `@codex security review` on the PR, one time for each PR:
   - Before you post, read the PR comments. If a security review was already asked for or done, do not ask again.
   - Do not ask again after you fix a finding. Only the maintainer can ask for a second security review.
