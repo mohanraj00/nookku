@@ -18,6 +18,7 @@ A person tests a chat agent through a coding harness (Claude Code or Codex). The
 Claude Code and Codex both work on this repo, at the same time. The label `agent:claude-code` or `agent:codex` names the harness that does the work.
 
 - Before you start an issue, add the label of your harness to it. Do not start an issue that has the label of the other harness.
+- After you add your label, read the labels of the issue again. If both labels are on it, the label that was added first wins. The issue events show the order: `gh api repos/mohanraj00/verbatim-relay/issues/N/events`. If your label was second, remove it and do not start the issue.
 - Add the label of your harness to each PR that you open.
 - When CI is green and the PR is ready, ask the other harness for a review in a PR comment. Claude Code writes `@codex review`. Codex writes `@claude review this PR. Use the Review guidelines in CLAUDE.md.`
 - Answer each finding of that review in the PR: fix it, or say why it is not a defect. Then ask the maintainer to review.
