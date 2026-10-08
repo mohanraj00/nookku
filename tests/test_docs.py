@@ -359,3 +359,33 @@ def test_the_results_guide_names_each_break_class_and_each_trace_check() -> None
     page = _sections(DOCS / "how-to" / "read-the-results.md", "###")
     assert _first_cells(page["Break classes"]) == list(audit.CHECKS)
     assert _first_cells(page["Trace checks"]) == list(trace.CHECKS)
+
+
+# How-to pages that name parts of the code ------------------------------------------------------
+
+
+@pytest.mark.parametrize("harness", ["claude-code", "codex"])
+def test_the_remove_page_names_each_hook_that_init_writes(harness: str, tmp_path: Path) -> None:
+    """The remove page tells the tester which hook entries to remove. If init writes another
+    event, matcher or timeout, the page must change too."""
+    kit.init(tmp_path, harness, {})
+    hook_file = kit.hook_file(tmp_path, harness)
+    page = (DOCS / "how-to" / "remove.md").read_text(encoding="utf-8")
+    assert f"`{hook_file.relative_to(tmp_path)}`" in page
+    for event, groups in json.loads(hook_file.read_text(encoding="utf-8"))["hooks"].items():
+        (group,) = groups
+        (hook,) = group["hooks"]
+        assert "verbatim_relay hook" in hook["command"]
+        assert f"`hooks.{event}`" in page
+        assert f'"timeout": {hook["timeout"]}' in page
+        if "matcher" in group:
+            assert f'"matcher": "{group["matcher"]}"' in page
+    assert "`verbatim_relay hook`" in page
+
+
+def test_the_upgrade_page_has_a_section_for_each_release_with_an_upgrade_step() -> None:
+    changelog = _sections(ROOT / "CHANGELOG.md", "##")
+    special = sorted(v for v, body in changelog.items() if "**Upgrade.**" in body)
+    page = _sections(DOCS / "how-to" / "upgrade.md", "###")
+    assert special
+    assert [v for v in special if v not in page] == []
