@@ -27,16 +27,21 @@
           "model": [
             {
               "path": "/api/hello",
+              "status": 200,
               "json": false,
               "found": {}
             },
             {
               "path": "/v1/messages",
+              "status": 200,
               "model": "claude-haiku-5-5",
               "tools": 24,
               "messages": 2,
               "found": {
                 "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "messages[0].user"
+                ],
                 "HD00-reason-START": [],
                 "HD00-reason-MID": [],
                 "HD00-reason-END": []
@@ -44,6 +49,7 @@
             },
             {
               "path": "/v1/messages",
+              "status": 200,
               "model": "claude-haiku-5-5",
               "tools": 0,
               "messages": 1,
@@ -51,6 +57,7 @@
                 "PROMPT-MARK-41d0": [
                   "messages[0].user"
                 ],
+                "PASS-MARK-77c1": [],
                 "HD00-reason-START": [],
                 "HD00-reason-MID": [],
                 "HD00-reason-END": []
@@ -69,16 +76,19 @@
           "model": [
             {
               "path": "/api/hello",
+              "status": 200,
               "json": false,
               "found": {}
             },
             {
               "path": "/v1/messages",
+              "status": 429,
               "model": "claude-haiku-5-5",
               "tools": 0,
               "messages": 1,
               "found": {
                 "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [],
                 "HD00-reason-START": [],
                 "HD00-reason-MID": [],
                 "HD00-reason-END": []
@@ -86,23 +96,47 @@
             },
             {
               "path": "/v1/messages",
-              "model": "claude-haiku-5-5",
-              "tools": 0,
-              "messages": 1,
-              "found": {
-                "PROMPT-MARK-41d0": [],
-                "HD00-reason-START": [],
-                "HD00-reason-MID": [],
-                "HD00-reason-END": []
-              }
-            },
-            {
-              "path": "/v1/messages",
+              "status": 200,
               "model": "claude-haiku-5-5",
               "tools": 53,
               "messages": 2,
               "found": {
                 "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "messages[0].user"
+                ],
+                "HD00-reason-START": [],
+                "HD00-reason-MID": [],
+                "HD00-reason-END": []
+              }
+            },
+            {
+              "path": "/v1/messages",
+              "status": 200,
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "messages[0].user"
+                ],
+                "HD00-reason-START": [],
+                "HD00-reason-MID": [],
+                "HD00-reason-END": []
+              }
+            },
+            {
+              "path": "/v1/messages",
+              "status": 200,
+              "model": "claude-haiku-5-5",
+              "tools": 53,
+              "messages": 4,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "messages[0].user"
+                ],
                 "HD00-reason-START": [],
                 "HD00-reason-MID": [],
                 "HD00-reason-END": []
@@ -129,16 +163,21 @@
           "model": [
             {
               "path": "/api/hello",
+              "status": 200,
               "json": false,
               "found": {}
             },
             {
               "path": "/v1/messages",
+              "status": 200,
               "model": "claude-haiku-5-5",
               "tools": 24,
               "messages": 2,
               "found": {
                 "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "messages[0].user"
+                ],
                 "HD01-reason-START": [],
                 "HD01-reason-MID": [],
                 "HD01-reason-END": []
@@ -146,6 +185,7 @@
             },
             {
               "path": "/v1/messages",
+              "status": 200,
               "model": "claude-haiku-5-5",
               "tools": 0,
               "messages": 1,
@@ -153,6 +193,7 @@
                 "PROMPT-MARK-41d0": [
                   "messages[0].user"
                 ],
+                "PASS-MARK-77c1": [],
                 "HD01-reason-START": [],
                 "HD01-reason-MID": [],
                 "HD01-reason-END": []
@@ -162,25 +203,28 @@
         },
         "tty": {
           "reason": {
-            "start_shown": false,
+            "start_shown": true,
             "end_shown": true,
-            "astral_shown": false
+            "astral_shown": true
           },
-          "markdown_rendered": null,
-          "prefix_shown": false,
+          "markdown_rendered": false,
+          "prefix_shown": true,
           "model": [
             {
               "path": "/api/hello",
+              "status": 200,
               "json": false,
               "found": {}
             },
             {
               "path": "/v1/messages",
+              "status": 429,
               "model": "claude-haiku-5-5",
               "tools": 0,
               "messages": 1,
               "found": {
                 "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [],
                 "HD01-reason-START": [],
                 "HD01-reason-MID": [],
                 "HD01-reason-END": []
@@ -188,23 +232,47 @@
             },
             {
               "path": "/v1/messages",
-              "model": "claude-haiku-5-5",
-              "tools": 0,
-              "messages": 1,
-              "found": {
-                "PROMPT-MARK-41d0": [],
-                "HD01-reason-START": [],
-                "HD01-reason-MID": [],
-                "HD01-reason-END": []
-              }
-            },
-            {
-              "path": "/v1/messages",
+              "status": 200,
               "model": "claude-haiku-5-5",
               "tools": 53,
               "messages": 2,
               "found": {
                 "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "messages[0].user"
+                ],
+                "HD01-reason-START": [],
+                "HD01-reason-MID": [],
+                "HD01-reason-END": []
+              }
+            },
+            {
+              "path": "/v1/messages",
+              "status": 200,
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "messages[0].user"
+                ],
+                "HD01-reason-START": [],
+                "HD01-reason-MID": [],
+                "HD01-reason-END": []
+              }
+            },
+            {
+              "path": "/v1/messages",
+              "status": 200,
+              "model": "claude-haiku-5-5",
+              "tools": 53,
+              "messages": 4,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "messages[0].user"
+                ],
                 "HD01-reason-START": [],
                 "HD01-reason-MID": [],
                 "HD01-reason-END": []
@@ -231,16 +299,21 @@
           "model": [
             {
               "path": "/api/hello",
+              "status": 200,
               "json": false,
               "found": {}
             },
             {
               "path": "/v1/messages",
+              "status": 200,
               "model": "claude-haiku-5-5",
               "tools": 24,
               "messages": 2,
               "found": {
                 "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "messages[0].user"
+                ],
                 "HD02-reason-START": [],
                 "HD02-reason-MID": [],
                 "HD02-reason-END": []
@@ -248,6 +321,7 @@
             },
             {
               "path": "/v1/messages",
+              "status": 200,
               "model": "claude-haiku-5-5",
               "tools": 0,
               "messages": 1,
@@ -255,6 +329,7 @@
                 "PROMPT-MARK-41d0": [
                   "messages[0].user"
                 ],
+                "PASS-MARK-77c1": [],
                 "HD02-reason-START": [],
                 "HD02-reason-MID": [],
                 "HD02-reason-END": []
@@ -273,16 +348,19 @@
           "model": [
             {
               "path": "/api/hello",
+              "status": 200,
               "json": false,
               "found": {}
             },
             {
               "path": "/v1/messages",
+              "status": 429,
               "model": "claude-haiku-5-5",
               "tools": 0,
               "messages": 1,
               "found": {
                 "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [],
                 "HD02-reason-START": [],
                 "HD02-reason-MID": [],
                 "HD02-reason-END": []
@@ -290,23 +368,15 @@
             },
             {
               "path": "/v1/messages",
-              "model": "claude-haiku-5-5",
-              "tools": 0,
-              "messages": 1,
-              "found": {
-                "PROMPT-MARK-41d0": [],
-                "HD02-reason-START": [],
-                "HD02-reason-MID": [],
-                "HD02-reason-END": []
-              }
-            },
-            {
-              "path": "/v1/messages",
+              "status": 200,
               "model": "claude-haiku-5-5",
               "tools": 53,
               "messages": 2,
               "found": {
                 "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "messages[0].user"
+                ],
                 "HD02-reason-START": [],
                 "HD02-reason-MID": [],
                 "HD02-reason-END": []
@@ -314,11 +384,31 @@
             },
             {
               "path": "/v1/messages",
+              "status": 200,
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "messages[0].user"
+                ],
+                "HD02-reason-START": [],
+                "HD02-reason-MID": [],
+                "HD02-reason-END": []
+              }
+            },
+            {
+              "path": "/v1/messages",
+              "status": 200,
               "model": "claude-haiku-5-5",
               "tools": 53,
               "messages": 4,
               "found": {
                 "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "messages[0].user"
+                ],
                 "HD02-reason-START": [],
                 "HD02-reason-MID": [],
                 "HD02-reason-END": []
@@ -343,16 +433,21 @@
           "model": [
             {
               "path": "/api/hello",
+              "status": 200,
               "json": false,
               "found": {}
             },
             {
               "path": "/v1/messages",
+              "status": 200,
               "model": "claude-haiku-5-5",
               "tools": 24,
               "messages": 2,
               "found": {
                 "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "messages[0].user"
+                ],
                 "HD03-systemMessage-START": [],
                 "HD03-systemMessage-MID": [],
                 "HD03-systemMessage-END": []
@@ -360,6 +455,7 @@
             },
             {
               "path": "/v1/messages",
+              "status": 200,
               "model": "claude-haiku-5-5",
               "tools": 0,
               "messages": 1,
@@ -367,6 +463,7 @@
                 "PROMPT-MARK-41d0": [
                   "messages[0].user"
                 ],
+                "PASS-MARK-77c1": [],
                 "HD03-systemMessage-START": [],
                 "HD03-systemMessage-MID": [],
                 "HD03-systemMessage-END": []
@@ -385,16 +482,19 @@
           "model": [
             {
               "path": "/api/hello",
+              "status": 200,
               "json": false,
               "found": {}
             },
             {
               "path": "/v1/messages",
+              "status": 429,
               "model": "claude-haiku-5-5",
               "tools": 0,
               "messages": 1,
               "found": {
                 "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [],
                 "HD03-systemMessage-START": [],
                 "HD03-systemMessage-MID": [],
                 "HD03-systemMessage-END": []
@@ -402,23 +502,15 @@
             },
             {
               "path": "/v1/messages",
-              "model": "claude-haiku-5-5",
-              "tools": 0,
-              "messages": 1,
-              "found": {
-                "PROMPT-MARK-41d0": [],
-                "HD03-systemMessage-START": [],
-                "HD03-systemMessage-MID": [],
-                "HD03-systemMessage-END": []
-              }
-            },
-            {
-              "path": "/v1/messages",
+              "status": 200,
               "model": "claude-haiku-5-5",
               "tools": 53,
               "messages": 2,
               "found": {
                 "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "messages[0].user"
+                ],
                 "HD03-systemMessage-START": [],
                 "HD03-systemMessage-MID": [],
                 "HD03-systemMessage-END": []
@@ -426,11 +518,31 @@
             },
             {
               "path": "/v1/messages",
+              "status": 200,
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "messages[0].user"
+                ],
+                "HD03-systemMessage-START": [],
+                "HD03-systemMessage-MID": [],
+                "HD03-systemMessage-END": []
+              }
+            },
+            {
+              "path": "/v1/messages",
+              "status": 200,
               "model": "claude-haiku-5-5",
               "tools": 53,
               "messages": 4,
               "found": {
                 "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "messages[0].user"
+                ],
                 "HD03-systemMessage-START": [],
                 "HD03-systemMessage-MID": [],
                 "HD03-systemMessage-END": []
@@ -455,16 +567,21 @@
           "model": [
             {
               "path": "/api/hello",
+              "status": 200,
               "json": false,
               "found": {}
             },
             {
               "path": "/v1/messages",
+              "status": 200,
               "model": "claude-haiku-5-5",
-              "tools": 24,
-              "messages": 2,
+              "tools": 0,
+              "messages": 1,
               "found": {
-                "PROMPT-MARK-41d0": [],
+                "PROMPT-MARK-41d0": [
+                  "messages[0].user"
+                ],
+                "PASS-MARK-77c1": [],
                 "HD04-systemMessage-START": [],
                 "HD04-systemMessage-MID": [],
                 "HD04-systemMessage-END": []
@@ -472,11 +589,13 @@
             },
             {
               "path": "/v1/messages",
+              "status": 200,
               "model": "claude-haiku-5-5",
-              "tools": 0,
-              "messages": 1,
+              "tools": 24,
+              "messages": 2,
               "found": {
-                "PROMPT-MARK-41d0": [
+                "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
                   "messages[0].user"
                 ],
                 "HD04-systemMessage-START": [],
@@ -497,16 +616,19 @@
           "model": [
             {
               "path": "/api/hello",
+              "status": 200,
               "json": false,
               "found": {}
             },
             {
               "path": "/v1/messages",
+              "status": 429,
               "model": "claude-haiku-5-5",
               "tools": 0,
               "messages": 1,
               "found": {
                 "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [],
                 "HD04-systemMessage-START": [],
                 "HD04-systemMessage-MID": [],
                 "HD04-systemMessage-END": []
@@ -514,23 +636,15 @@
             },
             {
               "path": "/v1/messages",
-              "model": "claude-haiku-5-5",
-              "tools": 0,
-              "messages": 1,
-              "found": {
-                "PROMPT-MARK-41d0": [],
-                "HD04-systemMessage-START": [],
-                "HD04-systemMessage-MID": [],
-                "HD04-systemMessage-END": []
-              }
-            },
-            {
-              "path": "/v1/messages",
+              "status": 200,
               "model": "claude-haiku-5-5",
               "tools": 53,
               "messages": 2,
               "found": {
                 "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "messages[0].user"
+                ],
                 "HD04-systemMessage-START": [],
                 "HD04-systemMessage-MID": [],
                 "HD04-systemMessage-END": []
@@ -538,11 +652,31 @@
             },
             {
               "path": "/v1/messages",
+              "status": 200,
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "messages[0].user"
+                ],
+                "HD04-systemMessage-START": [],
+                "HD04-systemMessage-MID": [],
+                "HD04-systemMessage-END": []
+              }
+            },
+            {
+              "path": "/v1/messages",
+              "status": 200,
               "model": "claude-haiku-5-5",
               "tools": 53,
               "messages": 4,
               "found": {
                 "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "messages[0].user"
+                ],
                 "HD04-systemMessage-START": [],
                 "HD04-systemMessage-MID": [],
                 "HD04-systemMessage-END": []
@@ -567,16 +701,21 @@
           "model": [
             {
               "path": "/api/hello",
+              "status": 200,
               "json": false,
               "found": {}
             },
             {
               "path": "/v1/messages",
+              "status": 200,
               "model": "claude-haiku-5-5",
               "tools": 24,
               "messages": 2,
               "found": {
                 "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "messages[0].user"
+                ],
                 "HD05-systemMessage-START": [],
                 "HD05-systemMessage-MID": [],
                 "HD05-systemMessage-END": []
@@ -584,6 +723,7 @@
             },
             {
               "path": "/v1/messages",
+              "status": 200,
               "model": "claude-haiku-5-5",
               "tools": 0,
               "messages": 1,
@@ -591,6 +731,7 @@
                 "PROMPT-MARK-41d0": [
                   "messages[0].user"
                 ],
+                "PASS-MARK-77c1": [],
                 "HD05-systemMessage-START": [],
                 "HD05-systemMessage-MID": [],
                 "HD05-systemMessage-END": []
@@ -609,16 +750,19 @@
           "model": [
             {
               "path": "/api/hello",
+              "status": 200,
               "json": false,
               "found": {}
             },
             {
               "path": "/v1/messages",
+              "status": 429,
               "model": "claude-haiku-5-5",
               "tools": 0,
               "messages": 1,
               "found": {
                 "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [],
                 "HD05-systemMessage-START": [],
                 "HD05-systemMessage-MID": [],
                 "HD05-systemMessage-END": []
@@ -626,23 +770,15 @@
             },
             {
               "path": "/v1/messages",
-              "model": "claude-haiku-5-5",
-              "tools": 0,
-              "messages": 1,
-              "found": {
-                "PROMPT-MARK-41d0": [],
-                "HD05-systemMessage-START": [],
-                "HD05-systemMessage-MID": [],
-                "HD05-systemMessage-END": []
-              }
-            },
-            {
-              "path": "/v1/messages",
+              "status": 200,
               "model": "claude-haiku-5-5",
               "tools": 53,
               "messages": 2,
               "found": {
                 "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "messages[0].user"
+                ],
                 "HD05-systemMessage-START": [],
                 "HD05-systemMessage-MID": [],
                 "HD05-systemMessage-END": []
@@ -650,11 +786,31 @@
             },
             {
               "path": "/v1/messages",
+              "status": 200,
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "messages[0].user"
+                ],
+                "HD05-systemMessage-START": [],
+                "HD05-systemMessage-MID": [],
+                "HD05-systemMessage-END": []
+              }
+            },
+            {
+              "path": "/v1/messages",
+              "status": 200,
               "model": "claude-haiku-5-5",
               "tools": 53,
               "messages": 4,
               "found": {
                 "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "messages[0].user"
+                ],
                 "HD05-systemMessage-START": [],
                 "HD05-systemMessage-MID": [],
                 "HD05-systemMessage-END": []
@@ -686,16 +842,21 @@
           "model": [
             {
               "path": "/api/hello",
+              "status": 200,
               "json": false,
               "found": {}
             },
             {
               "path": "/v1/messages",
+              "status": 200,
               "model": "claude-haiku-5-5",
               "tools": 24,
               "messages": 2,
               "found": {
                 "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "messages[0].user"
+                ],
                 "HD06-reason-START": [],
                 "HD06-reason-MID": [],
                 "HD06-reason-END": [],
@@ -706,6 +867,7 @@
             },
             {
               "path": "/v1/messages",
+              "status": 200,
               "model": "claude-haiku-5-5",
               "tools": 0,
               "messages": 1,
@@ -713,6 +875,7 @@
                 "PROMPT-MARK-41d0": [
                   "messages[0].user"
                 ],
+                "PASS-MARK-77c1": [],
                 "HD06-reason-START": [],
                 "HD06-reason-MID": [],
                 "HD06-reason-END": [],
@@ -739,16 +902,19 @@
           "model": [
             {
               "path": "/api/hello",
+              "status": 200,
               "json": false,
               "found": {}
             },
             {
               "path": "/v1/messages",
+              "status": 429,
               "model": "claude-haiku-5-5",
               "tools": 0,
               "messages": 1,
               "found": {
                 "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [],
                 "HD06-reason-START": [],
                 "HD06-reason-MID": [],
                 "HD06-reason-END": [],
@@ -759,11 +925,15 @@
             },
             {
               "path": "/v1/messages",
+              "status": 200,
               "model": "claude-haiku-5-5",
               "tools": 0,
               "messages": 1,
               "found": {
                 "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "messages[0].user"
+                ],
                 "HD06-reason-START": [],
                 "HD06-reason-MID": [],
                 "HD06-reason-END": [],
@@ -774,11 +944,15 @@
             },
             {
               "path": "/v1/messages",
+              "status": 200,
               "model": "claude-haiku-5-5",
               "tools": 53,
               "messages": 2,
               "found": {
                 "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "messages[0].user"
+                ],
                 "HD06-reason-START": [],
                 "HD06-reason-MID": [],
                 "HD06-reason-END": [],
@@ -789,11 +963,15 @@
             },
             {
               "path": "/v1/messages",
+              "status": 200,
               "model": "claude-haiku-5-5",
               "tools": 53,
               "messages": 4,
               "found": {
                 "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "messages[0].user"
+                ],
                 "HD06-reason-START": [],
                 "HD06-reason-MID": [],
                 "HD06-reason-END": [],
@@ -828,16 +1006,21 @@
           "model": [
             {
               "path": "/api/hello",
+              "status": 200,
               "json": false,
               "found": {}
             },
             {
               "path": "/v1/messages",
+              "status": 200,
               "model": "claude-haiku-5-5",
               "tools": 24,
               "messages": 2,
               "found": {
                 "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "messages[0].user"
+                ],
                 "HD07-reason-START": [],
                 "HD07-reason-MID": [],
                 "HD07-reason-END": [],
@@ -848,6 +1031,7 @@
             },
             {
               "path": "/v1/messages",
+              "status": 200,
               "model": "claude-haiku-5-5",
               "tools": 0,
               "messages": 1,
@@ -855,6 +1039,7 @@
                 "PROMPT-MARK-41d0": [
                   "messages[0].user"
                 ],
+                "PASS-MARK-77c1": [],
                 "HD07-reason-START": [],
                 "HD07-reason-MID": [],
                 "HD07-reason-END": [],
@@ -881,16 +1066,19 @@
           "model": [
             {
               "path": "/api/hello",
+              "status": 200,
               "json": false,
               "found": {}
             },
             {
               "path": "/v1/messages",
+              "status": 429,
               "model": "claude-haiku-5-5",
               "tools": 0,
               "messages": 1,
               "found": {
                 "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [],
                 "HD07-reason-START": [],
                 "HD07-reason-MID": [],
                 "HD07-reason-END": [],
@@ -901,26 +1089,15 @@
             },
             {
               "path": "/v1/messages",
-              "model": "claude-haiku-5-5",
-              "tools": 0,
-              "messages": 1,
-              "found": {
-                "PROMPT-MARK-41d0": [],
-                "HD07-reason-START": [],
-                "HD07-reason-MID": [],
-                "HD07-reason-END": [],
-                "HD07-systemMessage-START": [],
-                "HD07-systemMessage-MID": [],
-                "HD07-systemMessage-END": []
-              }
-            },
-            {
-              "path": "/v1/messages",
+              "status": 200,
               "model": "claude-haiku-5-5",
               "tools": 53,
               "messages": 2,
               "found": {
                 "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "messages[0].user"
+                ],
                 "HD07-reason-START": [],
                 "HD07-reason-MID": [],
                 "HD07-reason-END": [],
@@ -931,11 +1108,34 @@
             },
             {
               "path": "/v1/messages",
+              "status": 200,
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "messages[0].user"
+                ],
+                "HD07-reason-START": [],
+                "HD07-reason-MID": [],
+                "HD07-reason-END": [],
+                "HD07-systemMessage-START": [],
+                "HD07-systemMessage-MID": [],
+                "HD07-systemMessage-END": []
+              }
+            },
+            {
+              "path": "/v1/messages",
+              "status": 200,
               "model": "claude-haiku-5-5",
               "tools": 53,
               "messages": 4,
               "found": {
                 "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "messages[0].user"
+                ],
                 "HD07-reason-START": [],
                 "HD07-reason-MID": [],
                 "HD07-reason-END": [],
@@ -970,16 +1170,21 @@
           "model": [
             {
               "path": "/api/hello",
+              "status": 200,
               "json": false,
               "found": {}
             },
             {
               "path": "/v1/messages",
+              "status": 200,
               "model": "claude-haiku-5-5",
               "tools": 24,
               "messages": 2,
               "found": {
                 "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "messages[0].user"
+                ],
                 "HD08-reason-START": [],
                 "HD08-reason-MID": [],
                 "HD08-reason-END": [],
@@ -990,6 +1195,7 @@
             },
             {
               "path": "/v1/messages",
+              "status": 200,
               "model": "claude-haiku-5-5",
               "tools": 0,
               "messages": 1,
@@ -997,6 +1203,7 @@
                 "PROMPT-MARK-41d0": [
                   "messages[0].user"
                 ],
+                "PASS-MARK-77c1": [],
                 "HD08-reason-START": [],
                 "HD08-reason-MID": [],
                 "HD08-reason-END": [],
@@ -1023,16 +1230,19 @@
           "model": [
             {
               "path": "/api/hello",
+              "status": 200,
               "json": false,
               "found": {}
             },
             {
               "path": "/v1/messages",
+              "status": 429,
               "model": "claude-haiku-5-5",
               "tools": 0,
               "messages": 1,
               "found": {
                 "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [],
                 "HD08-reason-START": [],
                 "HD08-reason-MID": [],
                 "HD08-reason-END": [],
@@ -1043,11 +1253,15 @@
             },
             {
               "path": "/v1/messages",
+              "status": 200,
               "model": "claude-haiku-5-5",
               "tools": 0,
               "messages": 1,
               "found": {
                 "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "messages[0].user"
+                ],
                 "HD08-reason-START": [],
                 "HD08-reason-MID": [],
                 "HD08-reason-END": [],
@@ -1058,26 +1272,15 @@
             },
             {
               "path": "/v1/messages",
+              "status": 200,
               "model": "claude-haiku-5-5",
-              "tools": 53,
+              "tools": 52,
               "messages": 2,
               "found": {
                 "PROMPT-MARK-41d0": [],
-                "HD08-reason-START": [],
-                "HD08-reason-MID": [],
-                "HD08-reason-END": [],
-                "HD08-systemMessage-START": [],
-                "HD08-systemMessage-MID": [],
-                "HD08-systemMessage-END": []
-              }
-            },
-            {
-              "path": "/v1/messages",
-              "model": "claude-haiku-5-5",
-              "tools": 53,
-              "messages": 4,
-              "found": {
-                "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "messages[0].user"
+                ],
                 "HD08-reason-START": [],
                 "HD08-reason-MID": [],
                 "HD08-reason-END": [],

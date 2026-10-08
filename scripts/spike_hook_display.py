@@ -61,7 +61,8 @@ SIZES = (1024, 10 * 1024, 100 * 1024)
 FIELDS = (("reason",), ("systemMessage",), ("reason", "systemMessage"))
 PROMPT = "PROMPT-MARK-41d0"
 BLOCKED = f"block: {PROMPT} a toy shop question"
-PASSED = "pass: reply with the word ok"
+PASS = "PASS-MARK-77c1"
+PASSED = f"pass: {PASS} reply with the word ok"
 # A blocked prompt in Claude Code 2.1.294 shows as this prefix, the reason, and this suffix.
 SHOWN = re.compile(
     r"\AUserPromptSubmit operation blocked by hook:\n(.*)\n\nOriginal prompt: (.*)\Z", re.S
@@ -317,7 +318,7 @@ def case(fields: tuple[str, ...], size: int, n: int) -> dict[str, Any]:
         out: dict[str, Any] = {"fields": list(fields), "size": size}
         for mode in ("print", "tty"):
             record.unlink(missing_ok=True)
-            SpikeProxy.marks = (PROMPT, *(m for f in fields for m in marks(f"{mark}-{f}")))
+            SpikeProxy.marks = (PROMPT, PASS, *(m for f in fields for m in marks(f"{mark}-{f}")))
             proxies = backend.Proxies(
                 [backend.Backend("anthropic", "ANTHROPIC_BASE_URL", "https://api.anthropic.com")],
                 record,
@@ -333,10 +334,19 @@ def case(fields: tuple[str, ...], size: int, n: int) -> dict[str, Any]:
                 proxies.stop()
             rows = record.read_text(encoding="utf-8").splitlines() if record.exists() else []
             result["model"] = [
-                {"path": r["path"], **r["request_body"]}
+                {"path": r["path"], "status": r.get("status"), **r["request_body"]}
                 for r in map(json.loads, rows)
                 if r.get("request_body")
             ]
+            # The next turn must reach the model and get an answer. Else the case cannot tell
+            # if the hook text reaches the model in the next turn.
+            done = [
+                m
+                for m in result["model"]
+                if m.get("tools") and m.get("found", {}).get(PASS) and m.get("status") == 200
+            ]
+            if not done or (mode == "print" and result["results"] != 2):
+                raise RuntimeError(f"{mark} {mode}: the next turn did not complete")
             out[mode] = result
             print(f"{mark} {mode}: {json.dumps(result)}", flush=True)
         return out
