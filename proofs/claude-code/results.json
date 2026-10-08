@@ -74,16 +74,16 @@
    "P2": true
   }
  ],
- "start": "verbatim-relay: Test 20261007-163524-32d1 started. Relay mode is on. Type /verbatim-relay end to end it.",
+ "start": "verbatim-relay: Test 20261007-164020-1d1f started. Relay mode is on. To end the test and start the evaluation, type the prompt verbatim-relay end, with no slash. To end the test with no evaluation, type /verbatim-relay end.",
  "P3b": {
   "agent_inputs_added": 0,
   "blocked_rows": 1,
-  "model_result": "I did not get the output. A verbatim-relay hook stopped the `curl` command before it ran, and the server got no request.\n\nThe hook gave this message:\n\n> verbatim-relay: only the tester talks to the agent, and the test files do not change during a test. Use the transcript tool to read the conversatio"
+  "model_result": "The command did not run. A `verbatim-relay` hook stopped the `curl` call and sent this message:\n\n> verbatim-relay: only the tester talks to the agent, and the test files do not change during a test. Use the transcript tool to read the conversation.\n\nThere is no output from `127.0.0.1:55741`, because"
  },
  "test": {
   "end": [
    "verbatim-relay: Relay mode is off.",
-   "Test 20261007-163524-32d1 ended: 10 turns, 0 model sessions.",
+   "Test 20261007-164020-1d1f ended: 10 turns, 0 model sessions.",
    "Trace: 0 model items in 10 turns, no findings.",
    "To evaluate the test, type this prompt in your harness: verbatim-relay end"
   ],

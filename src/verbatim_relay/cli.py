@@ -103,7 +103,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     sub.add_parser("setup", help="print the guide that connects a test to the app")
 
-    br = sub.add_parser("bridge", help=argparse.SUPPRESS)
+    # No help: argparse then leaves `bridge` out of the command list, and the command still runs.
+    # With help=argparse.SUPPRESS, the list shows "bridge  ==SUPPRESS==".
+    br = sub.add_parser("bridge")
     br.add_argument("--root", type=Path, required=True)
     br.add_argument("--test", required=True)
     br.add_argument("--tester-session")

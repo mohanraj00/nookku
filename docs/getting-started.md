@@ -107,7 +107,7 @@ claude
 Type the prompt `verbatim-relay start`. The hook starts the test and blocks the prompt, so the model does not receive it. Claude Code shows this text:
 
 ```text
-verbatim-relay: test 20261007-133823-0b63 started. Relay mode is on: each message goes to the entry. End the test with: verbatim-relay end
+verbatim-relay: test 20261007-133823-0b63 started. Relay mode is on: each message goes to the entry. To end the test and start the evaluation, type the prompt verbatim-relay end. To end the test with no evaluation, run verbatim-relay end in a shell.
 ```
 
 Type these 3 messages, one at a time:

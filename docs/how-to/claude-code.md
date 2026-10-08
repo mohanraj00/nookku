@@ -25,11 +25,11 @@ Before you start, connect a test to your app: [connect-your-agent.md](connect-yo
    ```
 
 2. Write `.verbatim-relay/config.json` with your entry (see above).
-3. Type `/verbatim-relay start`. The plugin starts the entry through the tap, and relay mode goes on. The status line shows it.
+3. Type `/verbatim-relay start`. The plugin starts the entry through the tap, and relay mode goes on. The status line shows it. The start text tells you how to end the test: the prompt `verbatim-relay end` with the evaluation, or `/verbatim-relay end` with no evaluation.
 4. Type your test messages. Each reply shows as a row in the chat and in the verbatim-relay pane.
 5. Type the prompt `verbatim-relay end`, with no slash. The plugin stops the entry, copies the app's session files into the test folder, builds the trace and switches relay mode off. Then the prompt goes to the model with the evaluation prompt, and the model writes `report.md` in the test folder (see [Evaluation](#evaluation)).
 
-`/verbatim-relay end` ends the test with no evaluation. To evaluate that test later, type the prompt `verbatim-relay end`. `/verbatim-relay on` and `/verbatim-relay off` do the same as `start` and `end`. The prompts `verbatim-relay start` and `verbatim-relay status` also work.
+`/verbatim-relay end` ends the test with no evaluation. To evaluate that test later, type the prompt `verbatim-relay end`. `/verbatim-relay on` and `/verbatim-relay off` do the same as `start` and `end`. The prompts `verbatim-relay start` and `verbatim-relay status` also work. `/verbatim-relay status` shows relay mode and the running test. It asks `verbatim-relay status`, so a test whose process stopped does not show as a running test.
 
 The model reads the exact conversation of the latest test with the read-only `transcript` tool. The tool runs `verbatim-relay transcript`, so the model gets the same text as with the hook kit. During a test, the model cannot send a message to the agent, and it cannot change the files in `.verbatim-relay/`. The plugin denies these tool calls, except file reads. It also denies a model command that runs the entry, for example `python3 entry.py`. A command that only reads the entry, for example `cat entry.py`, can run.
 
