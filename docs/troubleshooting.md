@@ -138,7 +138,7 @@ First, look in the test folder `.verbatim-relay/tests/<test-id>/`. `bridge.log` 
 
 ### `the agent printed <n> lines on stdout but no reply line for <id> in 240 s, so the tap stopped it. Use verbatim_relay.agent.serve() or write logs to stderr. The first line: '<text>'`
 
-(stdio.py) **Cause.** The entry or your app wrote logs on stdout, and no line with the request id came. `<text>` is the first 80 bytes of the first stray line. `verbatim-relay check` says `The entry printed lines on stdout, but no reply line.`
+(stdio.py) **Cause.** The entry or your app wrote logs on stdout, and no line with the request id came. `<text>` is the [first 80 bytes](../src/verbatim_relay/stdio.py#L175) of the first stray line. `verbatim-relay check` says `The entry printed lines on stdout, but no reply line.`
 
 **Fix.** Write logs to stderr. In Python, use `verbatim_relay.agent.serve()`, which sends all other output to stderr ([how-to/connect-your-agent.md](how-to/connect-your-agent.md)).
 
