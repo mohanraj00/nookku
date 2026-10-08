@@ -264,12 +264,12 @@
         },
         "tty": {
           "reason": {
-            "start_shown": false,
+            "start_shown": true,
             "end_shown": true,
-            "astral_shown": false
+            "astral_shown": true
           },
-          "markdown_rendered": null,
-          "prefix_shown": false,
+          "markdown_rendered": false,
+          "prefix_shown": true,
           "model": [
             {
               "path": "/api/hello",
@@ -305,6 +305,18 @@
               "model": "claude-haiku-5-5",
               "tools": 53,
               "messages": 2,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "HD02-reason-START": [],
+                "HD02-reason-MID": [],
+                "HD02-reason-END": []
+              }
+            },
+            {
+              "path": "/v1/messages",
+              "model": "claude-haiku-5-5",
+              "tools": 53,
+              "messages": 4,
               "found": {
                 "PROMPT-MARK-41d0": [],
                 "HD02-reason-START": [],
@@ -503,8 +515,8 @@
             {
               "path": "/v1/messages",
               "model": "claude-haiku-5-5",
-              "tools": 53,
-              "messages": 2,
+              "tools": 0,
+              "messages": 1,
               "found": {
                 "PROMPT-MARK-41d0": [],
                 "HD04-systemMessage-START": [],
@@ -515,8 +527,8 @@
             {
               "path": "/v1/messages",
               "model": "claude-haiku-5-5",
-              "tools": 0,
-              "messages": 1,
+              "tools": 53,
+              "messages": 2,
               "found": {
                 "PROMPT-MARK-41d0": [],
                 "HD04-systemMessage-START": [],
@@ -615,8 +627,8 @@
             {
               "path": "/v1/messages",
               "model": "claude-haiku-5-5",
-              "tools": 53,
-              "messages": 2,
+              "tools": 0,
+              "messages": 1,
               "found": {
                 "PROMPT-MARK-41d0": [],
                 "HD05-systemMessage-START": [],
@@ -627,8 +639,8 @@
             {
               "path": "/v1/messages",
               "model": "claude-haiku-5-5",
-              "tools": 0,
-              "messages": 1,
+              "tools": 53,
+              "messages": 2,
               "found": {
                 "PROMPT-MARK-41d0": [],
                 "HD05-systemMessage-START": [],
@@ -855,17 +867,17 @@
         },
         "tty": {
           "reason": {
-            "start_shown": false,
+            "start_shown": true,
             "end_shown": true,
-            "astral_shown": false
+            "astral_shown": true
           },
           "systemMessage": {
             "start_shown": false,
             "end_shown": false,
             "astral_shown": false
           },
-          "markdown_rendered": null,
-          "prefix_shown": false,
+          "markdown_rendered": false,
+          "prefix_shown": true,
           "model": [
             {
               "path": "/api/hello",
@@ -997,17 +1009,17 @@
         },
         "tty": {
           "reason": {
-            "start_shown": false,
+            "start_shown": true,
             "end_shown": true,
-            "astral_shown": false
+            "astral_shown": true
           },
           "systemMessage": {
             "start_shown": false,
             "end_shown": false,
             "astral_shown": false
           },
-          "markdown_rendered": null,
-          "prefix_shown": false,
+          "markdown_rendered": false,
+          "prefix_shown": true,
           "model": [
             {
               "path": "/api/hello",
@@ -1049,6 +1061,21 @@
               "model": "claude-haiku-5-5",
               "tools": 53,
               "messages": 2,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "HD08-reason-START": [],
+                "HD08-reason-MID": [],
+                "HD08-reason-END": [],
+                "HD08-systemMessage-START": [],
+                "HD08-systemMessage-MID": [],
+                "HD08-systemMessage-END": []
+              }
+            },
+            {
+              "path": "/v1/messages",
+              "model": "claude-haiku-5-5",
+              "tools": 53,
+              "messages": 4,
               "found": {
                 "PROMPT-MARK-41d0": [],
                 "HD08-reason-START": [],

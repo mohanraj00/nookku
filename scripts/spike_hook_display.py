@@ -53,6 +53,8 @@ sys.path.insert(0, str(ROOT / "src"))
 from verbatim_relay import backend  # noqa: E402
 
 MODEL = "haiku"
+# The first character of the input box of the interactive CLI.
+READY = "\u276f".encode()  # HEAVY RIGHT-POINTING ANGLE QUOTATION MARK ORNAMENT
 # The lines of the pseudo-terminal.
 ROWS = 50
 SIZES = (1024, 10 * 1024, 100 * 1024)
@@ -242,27 +244,33 @@ def run_tty(
         os.execvpe("claude", ["claude", *ARGS], env)
     buf = bytearray()
 
-    def pump(seconds: float, until: bytes | None = None, start: int = 0) -> None:
+    def pump(seconds: float, until: bytes | None = None, start: int = 0) -> bool:
+        """Read the screen for up to `seconds`. Return True when `until` shows after `start`."""
         end = time.monotonic() + seconds
         while time.monotonic() < end:
             if until is not None and until in re.sub(
                 rb"\s+", b"", ESCAPES.sub(b"", bytes(buf[start:]))
             ):
-                return
+                return True
             r, _, _ = select.select([fd], [], [], 0.2)
             if r:
                 try:
                     buf.extend(os.read(fd, 1 << 16))
                 except OSError:
-                    return
+                    return False
+        return False
 
     try:
-        pump(8)
+        # The input box of the CLI starts with this character when it is ready for a prompt.
+        if not pump(60, READY):
+            raise RuntimeError("the interactive CLI did not show its input box in 60 seconds")
+        pump(2)
         start = len(buf)
         os.write(fd, BLOCKED.encode())
         pump(1)
         os.write(fd, b"\r")
-        pump(30, b"Originalprompt", start)
+        if not pump(30, b"Originalprompt", start):
+            raise RuntimeError("the interactive CLI did not show the blocked prompt in 30 seconds")
         pump(2)
         blocked = bytes(buf[start:])
         start = len(buf)
