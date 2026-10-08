@@ -22,8 +22,11 @@ Claude Code and Codex both work on this repo, at the same time. The label `agent
 - Add the label of your harness to each PR that you open.
 - No harness reviews a PR by default. You must ask the other harness for the code review in a PR comment:
   - Claude Code writes `@codex review`. Codex writes `@claude review this PR. Use the Review guidelines in CLAUDE.md.`
+  - On the next line of the comment, write `Head: <sha>`, with the short SHA of the head commit of the PR.
   - Ask when CI is green and the PR is ready.
-  - Before you ask, read the PR comments. If the PR already has this request, do not ask again.
+  - Ask one time for each head commit. Before you ask, read the PR comments. If a request names the current head commit, do not ask again.
+  - If you push fixes after a code review, the head commit changes. When CI is green again, ask for a new code review.
+  - Ask for a code review at most 3 times for each PR. After that, ask the maintainer to review.
 - Decide if the PR needs a security review:
   - If the code review ends with `Security review: needed` or `Security review: not needed`, use that line.
   - A Codex code review gives only findings, so it cannot add this line. If the line is not there, use the list in "Review guidelines" to decide.
