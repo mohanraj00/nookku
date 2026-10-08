@@ -24,7 +24,10 @@ Claude Code and Codex both work on this repo, at the same time. The label `agent
   - Claude Code writes `@codex review`. Codex writes `@claude review this PR. Use the Review guidelines in CLAUDE.md.`
   - Ask when CI is green and the PR is ready.
   - Before you ask, read the PR comments. If the PR already has this request, do not ask again.
-- The code review ends with `Security review: needed` or `Security review: not needed`. If it says `needed`, post `@codex security review` on the PR, one time for each PR:
+- Decide if the PR needs a security review:
+  - If the code review ends with `Security review: needed` or `Security review: not needed`, use that line.
+  - A Codex code review gives only findings, so it cannot add this line. If the line is not there, use the list in "Review guidelines" to decide.
+- If the PR needs a security review, post `@codex security review` on the PR, one time for each PR:
   - Before you post, read the PR comments. If a security review was already asked for or done, do not ask again.
   - Do not ask again after you fix a finding. Only the maintainer can ask for a second security review.
 - Answer each finding of the code review and of the security review in the PR: fix it, or say why it is not a defect. Then ask the maintainer to review.
@@ -56,7 +59,7 @@ Flag these as high priority in a PR review:
 - A number in a doc with no link to its data and its method.
 - A plugin helper that takes `$` and is not a top-level function declaration.
 
-End a code review with one line. Write `Security review: needed`, with the reason, if the PR changes one of these:
+If your review format lets you add text after the findings, end a code review with one line. Write `Security review: needed`, with the reason, if the PR changes one of these:
 
 - the relay path, the tap, the guard, the seal or the policy file;
 - a hook, the plugin, or the code that starts the entry or a test;
