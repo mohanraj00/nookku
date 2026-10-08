@@ -4,7 +4,7 @@ This page shows the parts of verbatim-relay and how the data goes between them. 
 
 ## The problem
 
-A tester talks to a chat agent through a coding harness: Claude Code or Codex. If the harness model carries the messages, it also writes them. Then it judges its own text. verbatim-relay takes the model out of the conversation, and keeps 2 records that a third program can compare.
+A tester talks to a chat agent through a coding [harness](reference/glossary.md#harness): Claude Code or Codex. If the harness model carries the messages, it also writes them. Then it judges its own text. verbatim-relay takes the model out of the conversation, and keeps 2 records that a third program can compare.
 
 ## Data flow
 
@@ -43,7 +43,7 @@ flowchart LR
     eval --> report[(report.md)]
 ```
 
-The solid lines carry the conversation. The dotted lines write a record. The relay, the tap and the proxies run on the tester's machine, on `127.0.0.1`.
+The solid lines carry the conversation. The dotted lines write a record. The [relay](reference/glossary.md#relay), the [tap](reference/glossary.md#tap) and the proxies run on the tester's machine, on `127.0.0.1`.
 
 ## The relays
 
@@ -52,7 +52,7 @@ A relay is the harness extension that carries each message and each reply. There
 - **The Claude Code plugin.** It uses function hooks, which are early access. It shows each reply as a row in the chat that the model does not receive. Read [how-to/claude-code.md](how-to/claude-code.md).
 - **The hook kit.** It uses the classic hooks that Codex and Claude Code share. It cannot show text in the chat, so `verbatim-relay view` shows each reply in a second terminal. Read [how-to/codex.md](how-to/codex.md).
 
-In relay mode, the relay takes each prompt before the model sees it. It sends the prompt to the tap and blocks it from the model. The relay also denies a model tool call that names the address of the tap or the agent. It also denies a call that changes the files of a test. The deny is best effort. [limits.md](limits.md) tells you what it does not stop.
+In [relay mode](reference/glossary.md#relay-mode), the relay takes each prompt before the model sees it. It sends the prompt to the tap and blocks it from the model. The relay also denies a model tool call that names the address of the tap or the agent. It also denies a call that changes the files of a test. The deny is best effort. [limits.md](limits.md) tells you what it does not stop.
 
 A relay fails closed. If it cannot send a message, the message still does not go to the model. The relay shows the error and records it as a relay error ([SPEC.md section 5](../SPEC.md#5-relays)).
 
@@ -60,7 +60,7 @@ A relay fails closed. If it cannot send a message, the message still does not go
 
 The tap is a proxy between the relay and the agent. It forwards each request and each response with no change, and it writes the tap record. It has 2 modes ([SPEC.md section 4](../SPEC.md#4-tap)):
 
-- **Stdio mode.** The tap starts the entry and speaks the agent contract with it. A test uses this mode.
+- **Stdio mode.** The tap starts the [entry](reference/glossary.md#entry) and speaks the [agent contract](reference/glossary.md#agent-contract) with it. A test uses this mode.
 - **HTTP mode.** The tap is in front of an agent that is already an HTTP server. Read [how-to/http-tap.md](how-to/http-tap.md).
 
 ## The entry and the agent contract
@@ -71,7 +71,7 @@ This is the plumbing that a test needs. You write the entry once. You change it 
 
 ## The bridge
 
-The bridge is a background process that runs one test ([SPEC.md section 7.2](../SPEC.md#72-start-and-end)). `verbatim-relay start` starts it. The bridge then:
+The [bridge](reference/glossary.md#bridge) is a background process that runs one test ([SPEC.md section 7.2](../SPEC.md#72-start-and-end)). `verbatim-relay start` starts it. The bridge then:
 
 1. starts the OTLP receiver, the backend proxies and the model API proxies;
 2. starts the entry through the tap in stdio mode;
@@ -81,8 +81,8 @@ The bridge is a background process that runs one test ([SPEC.md section 7.2](../
 
 1. stops the entry and the proxies;
 2. finds the Codex sessions of the app;
-3. copies each session file into the test folder;
-4. builds the trace, writes `audit.json` and writes the seal.
+3. copies each session file into the [test folder](reference/glossary.md#test-folder);
+4. builds the [trace](reference/glossary.md#trace), writes `audit.json` and writes the [seal](reference/glossary.md#seal).
 
 ## The proxies and the receiver
 
@@ -100,7 +100,7 @@ If your app runs its own Claude Agent SDK or Codex sessions, the harness binary 
 
 ## The audit
 
-The audit compares the relay record with the tap record ([SPEC.md section 3](../SPEC.md#3-audit)). It aligns the tester messages with the agent inputs, and then it compares each reply. It compares bytes. It does not normalize whitespace, line ends or Unicode. It reports 7 break classes: `altered_input`, `injected_input`, `duplicate_send`, `out_of_order`, `not_delivered`, `altered_reply` and `unshown_reply`.
+The [audit](reference/glossary.md#audit) compares the relay record with the tap record ([SPEC.md section 3](../SPEC.md#3-audit)). It aligns the tester messages with the agent inputs, and then it compares each reply. It compares bytes. It does not normalize whitespace, line ends or Unicode. It reports 7 break classes: `altered_input`, `injected_input`, `duplicate_send`, `out_of_order`, `not_delivered`, `altered_reply` and `unshown_reply`.
 
 The audit fails closed. If a record is missing or invalid, it exits with 2 and reports no result. It never reports clean on a record that it cannot read.
 
@@ -110,11 +110,11 @@ At the end of a test, the bridge writes the SHA-256 of each file of the test fol
 
 ## The trace and the findings
 
-The trace, `trace.jsonl`, joins the session files, `otel.jsonl`, `backend.jsonl` and `model_api.jsonl` into one record. Each item has its turn and a pointer to its line in the source file ([SPEC.md section 8](../SPEC.md#8-trace)). 12 checks write `findings.json`, for example a tool call that failed or a turn in which no model ran ([SPEC.md section 8.6](../SPEC.md#86-findings)). The findings do not change the exit code of the audit.
+The trace, `trace.jsonl`, joins the session files, `otel.jsonl`, `backend.jsonl` and `model_api.jsonl` into one record. Each item has its turn and a pointer to its line in the source file ([SPEC.md section 8](../SPEC.md#8-trace)). 12 checks write `findings.json`, for example a tool call that failed or a turn in which no model ran ([SPEC.md section 8.6](../SPEC.md#86-findings)). The [findings](reference/glossary.md#findings) do not change the exit code of the audit.
 
 ## The evaluation
 
-At the prompt `verbatim-relay end`, the relay ends the test and gives the harness model the evaluation prompt ([SPEC.md section 9](../SPEC.md#9-evaluation)). The model did not see the conversation while you talked. It reads the transcript with the trace, the findings and the audit. It reads your app's code and rules, and it checks the app's state with read-only commands. Then it writes `report.md`. After a test, the relay denies model writes to the test folder, except `report.md`.
+At the prompt `verbatim-relay end`, the relay ends the test and gives the harness model the [evaluation](reference/glossary.md#evaluation) prompt ([SPEC.md section 9](../SPEC.md#9-evaluation)). The model did not see the conversation while you talked. It reads the transcript with the trace, the findings and the audit. It reads your app's code and rules, and it checks the app's state with read-only commands. Then it writes `report.md`. After a test, the relay denies model writes to the test folder, except `report.md`.
 
 A report is a model answer, so it can be wrong. [evaluation-example.md](evaluation-example.md) shows one report and what the model got wrong.
 
