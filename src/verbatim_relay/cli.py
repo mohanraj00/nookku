@@ -13,11 +13,15 @@ from pathlib import Path
 from verbatim_relay import __version__, bridge, evaluation, kit, seal, stdio, trace
 from verbatim_relay.adapters import make
 from verbatim_relay.audit import audit, render
+from verbatim_relay.config import KEYS as CONFIG_KEYS
+from verbatim_relay.config import ConfigError, read_config
 from verbatim_relay.record import RecordError
 from verbatim_relay.tap import Tap, serve
 
 # Config keys that are not a plain string flag of init.
 LIST_KEYS = {"entry", "models", "evaluate", "otel", "backends", "model_api", "openai_stream"}
+# The plain string flags of init. A flag that the user does not give is None.
+STRING_KEYS = [k for k in CONFIG_KEYS if k not in LIST_KEYS]
 
 
 def _listen(value: str) -> tuple[str, int]:
@@ -65,17 +69,21 @@ def main(argv: Sequence[str] | None = None) -> int:
     ini = sub.add_parser("init", help="install the hook kit for Codex or Claude Code")
     ini.add_argument("harness", choices=["codex", "claude-code"])
     ini.add_argument("--root", type=Path, default=Path.cwd(), help="the project (default: here)")
-    for name, default in vars(kit.Config()).items():
-        if name not in LIST_KEYS:
-            ini.add_argument(f"--{name.replace('_', '-')}", default=default)
+    defaults = vars(kit.Config())
+    for name in STRING_KEYS:
+        ini.add_argument(
+            f"--{name.replace('_', '-')}",
+            help=f"the config key {name} (new file: {defaults[name]!r})",
+        )
     ini.add_argument(
         "--openai-stream",
         action="store_true",
+        default=None,
         help='openai adapter: send "stream": true in each request',
     )
-    ini.add_argument("--entry", default="", help="the entry command of a test, as one string")
+    ini.add_argument("--entry", help="the entry command of a test, as one string")
     ini.add_argument(
-        "--models", default="", help="the app's model harnesses: claude-code, codex or both (comma)"
+        "--models", help="the app's model harnesses: claude-code, codex or both (comma)"
     )
 
     for name, text in (
@@ -180,16 +188,26 @@ def main(argv: Sequence[str] | None = None) -> int:
         return report.exit
     if args.command == "init":
         root = args.root.resolve()
-        values = {k: getattr(args, k) for k in vars(kit.Config()) if k not in LIST_KEYS}
-        models = [m.strip() for m in args.models.split(",") if m.strip()]
-        config = kit.Config(
-            **values,
-            entry=shlex.split(args.entry),
-            models=models,
-            openai_stream=args.openai_stream,
-        )
-        for path in kit.init(root, args.harness, config):
-            print(f"wrote {path}")
+        # Only the flags that the user gave change a key of an existing config.json.
+        changes = {k: getattr(args, k) for k in STRING_KEYS if getattr(args, k) is not None}
+        if args.entry is not None:
+            changes["entry"] = shlex.split(args.entry)
+        if args.models is not None:
+            changes["models"] = [m.strip() for m in args.models.split(",") if m.strip()]
+        if args.openai_stream:
+            changes["openai_stream"] = True
+        try:
+            done = kit.init(root, args.harness, changes)
+        except ValueError as e:
+            print(f"verbatim-relay: {str(e).rstrip('.')}. Nothing was written.", file=sys.stderr)
+            return 1
+        conf, hooks = done.written
+        print(f"wrote {conf}")
+        if done.new:
+            print(f"  A new file. Keys that differ from the default: {_names(done.changed)}.")
+        else:
+            print(f"  Keys changed: {_names(done.changed)}. Keys kept: {_names(done.kept)}.")
+        print(f"wrote {hooks}")
         print(
             f"Relay mode is {'on' if kit.is_on(root) else 'off'}. "
             "Switch it with: verbatim-relay mode on"
@@ -210,6 +228,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.state != "status" and bridge.has_entry(root):
             print(kit.start_test(root) if args.state == "on" else kit.end_test(root))
             return 0
+        if args.state == "on" and (root / kit.STATE_DIR / "config.json").exists():
+            # A config with no entry (direct HTTP mode) follows the same rule for its keys.
+            try:
+                read_config(root)
+            except ConfigError as e:
+                print(f"verbatim-relay: {e}")
+                return 0
         if args.state != "status":
             kit.set_mode(root, args.state == "on")
         print(f"Relay mode is {'on' if kit.is_on(root) else 'off'}.")
@@ -257,6 +282,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         return kit.run_hook(args.root, args.harness, sys.stdin, sys.stdout)
     parser.print_help(sys.stderr)
     return 2
+
+
+def _names(keys: list[str]) -> str:
+    return ", ".join(keys) if keys else "none"
 
 
 def _trace_command(root: Path, test: str | None, as_json: bool) -> int:

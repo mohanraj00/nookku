@@ -49,7 +49,7 @@ serve(reply)
 
 ## 3. Write the configuration
 
-Write the test keys into `.verbatim-relay/config.json`. Keep the other keys of the file.
+Write the test keys into `.verbatim-relay/config.json`. Keep the other keys of the file. Use only the keys of this guide. An unknown key stops `check` and `start`.
 
 ```json
 {"entry": ["python", ".verbatim-relay/entry.py"], "models": ["claude-code"]}

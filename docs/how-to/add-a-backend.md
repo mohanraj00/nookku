@@ -26,7 +26,7 @@ Add `backends` to `.verbatim-relay/config.json`:
 
 Each `name` and each `env` can occur only once. A backend must not use `ANTHROPIC_BASE_URL` or `OPENAI_BASE_URL` while the model API proxy records that API ([record-model-calls.md](record-model-calls.md)).
 
-`verbatim-relay init` writes a new `config.json` with an empty `backends` list. If you run `init` again, add your backends again.
+`verbatim-relay init` writes a new `config.json` with an empty `backends` list. If you run `init` again, it keeps your backends. It changes only the keys of the flags that you give.
 
 ## 3. Run a test
 

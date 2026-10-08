@@ -30,7 +30,7 @@ Start a test: run the entry through the tap and switch relay mode on ([SPEC.md s
 | Exit code | Meaning |
 |---|---|
 | 0 | The test started. |
-| 1 | The test did not start: no entry, an invalid configuration, a test that runs already, or an entry that exited. The text names the cause. |
+| 1 | The test did not start: no entry, an invalid configuration (for example an unknown key), a test that runs already, or an entry that exited. The text names the cause. |
 
 ### `verbatim-relay end`
 
@@ -189,7 +189,11 @@ Check that no record of a test changed after its end ([SPEC.md section 7.4](../.
 verbatim-relay init HARNESS [--root PATH] [--entry COMMAND] [--models LIST] [options]
 ```
 
-Install the hook kit for Codex or Claude Code. It writes `.verbatim-relay/config.json`, the file `.verbatim-relay/mode`, and the hooks: `.codex/hooks.json` for Codex, `.claude/settings.local.json` for Claude Code. It keeps your other hooks. It writes a new `config.json`, so a key that has no flag gets its default, for example `backends`.
+Install the hook kit for Codex or Claude Code. It writes `.verbatim-relay/config.json`, the file `.verbatim-relay/mode`, and the hooks: `.codex/hooks.json` for Codex, `.claude/settings.local.json` for Claude Code. It keeps your other hooks, also a hook in the same group as a hook of the kit.
+
+If `config.json` exists, `init` keeps each key and changes only the keys of the flags that you give. For example, a second run keeps `backends` and `"evaluate": false`. It prints the keys that it changed and the keys that it kept. A new `config.json` gets each key. The default of a flag applies only to a new file.
+
+If `config.json` has an unknown key, or if `config.json` or the hook file is not valid JSON, `init` writes nothing. Correct the file, then run `init` again.
 
 | Argument or flag | Default | Meaning |
 |---|---|---|
@@ -211,6 +215,7 @@ Install the hook kit for Codex or Claude Code. It writes `.verbatim-relay/config
 | Exit code | Meaning |
 |---|---|
 | 0 | The files were written. |
+| 1 | Nothing was written: `config.json` or the hook file cannot be read, or `config.json` has an unknown key. The text names the cause. |
 
 ### `verbatim-relay setup`
 

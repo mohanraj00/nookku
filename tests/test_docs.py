@@ -1,5 +1,5 @@
 """The docs agree with the repo: links resolve, counts match the data, and the reference pages
-match the CLI parser, kit.Config and the plugin options."""
+match the CLI parser, config.Config and the plugin options."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from typing import Any
 
 import pytest
 
-from verbatim_relay import audit, cli, kit, trace
+from verbatim_relay import audit, cli, config, trace
 
 ROOT = Path(__file__).resolve().parent.parent
 DOCS = ROOT / "docs"
@@ -265,7 +265,7 @@ def test_the_config_page_has_each_key_of_config_json_with_its_default() -> None:
     page = _sections(DOCS / "reference" / "config.md", "##")
     documented = _row_defaults(page[".verbatim-relay/config.json"])
     wanted = {}
-    for f in fields(kit.Config):
+    for f in fields(config.Config):
         default = f.default if f.default is not MISSING else f.default_factory()
         wanted[f.name] = _cell(default)
     assert documented == wanted

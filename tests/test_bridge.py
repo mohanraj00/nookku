@@ -438,7 +438,7 @@ def test_kit_protects_the_test(
     tmp_path: Path, homes: tuple, tool: str, tool_input: dict, denied: bool
 ) -> None:
     root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
-    kit.init(root, "claude-code", kit.Config(entry=[sys.executable, str(TOY_SHOP)]))
+    kit.init(root, "claude-code", {"entry": [sys.executable, str(TOY_SHOP)]})
     cur = bridge.start(root)
     try:
         text = json.loads(json.dumps(tool_input).replace("{tap_url}", cur["tap_url"]))
@@ -451,7 +451,7 @@ def test_kit_protects_the_test(
 
 def test_view_follows_the_latest_test(tmp_path: Path, homes: tuple) -> None:
     root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
-    kit.init(root, "claude-code", kit.Config(entry=[sys.executable, str(TOY_SHOP)]))
+    kit.init(root, "claude-code", {"entry": [sys.executable, str(TOY_SHOP)]})
     for prompt in ("verbatim-relay start", "Refund policy?", "verbatim-relay end"):
         event = {"hook_event_name": "UserPromptSubmit", "prompt": prompt, "session_id": "s1"}
         kit.handle(event, root, "claude-code")
