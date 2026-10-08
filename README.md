@@ -42,9 +42,13 @@ A test also records what your app did. It copies the session files of the app's 
 uv tool install verbatim-relay
 ```
 
-It needs Python 3.10 or later, and it has no runtime dependencies ([pyproject.toml](pyproject.toml)). The docs are for version 0.3.0. To upgrade from an earlier version, end each running test first. Then run `uv tool upgrade verbatim-relay` ([CHANGELOG.md](CHANGELOG.md#030)).
+It needs Python 3.10 or later, and it has no runtime dependencies ([pyproject.toml](pyproject.toml)). The docs are for version 0.3.0. To upgrade from an earlier version, end each running test first. Then run `uv tool upgrade verbatim-relay` ([CHANGELOG.md](CHANGELOG.md#030)). [docs/how-to/upgrade.md](docs/how-to/upgrade.md) gives each step.
 
 ## Quick start
+
+Select one route: try the toy shop, connect your app, or choose a relay.
+
+### Try the toy shop
 
 In a clone of this repo, with the toy shop agent and the hook kit in Claude Code:
 
@@ -54,13 +58,21 @@ verbatim-relay check        # one message through the entry: PASS proves the con
 verbatim-relay view         # in a second terminal: each reply shows here
 ```
 
-In Claude Code, type the prompt `verbatim-relay start`, then your test messages, then `verbatim-relay end`. The model then evaluates the test and writes `report.md`. Audit the records:
+In Claude Code, type the prompt `verbatim-relay start`, then your test messages, then `verbatim-relay end`. The end of the test writes `audit.json` in the [test folder](docs/reference/glossary.md#test-folder) `.verbatim-relay/tests/<test-id>/`. Then the model evaluates the test and writes `report.md`. [docs/getting-started.md](docs/getting-started.md) shows each step with its real output.
+
+Optional: to see the audit again, run it by hand:
 
 ```bash
 verbatim-relay audit --tap .verbatim-relay/tests/<test-id>/tap.jsonl --relay .verbatim-relay/tests/<test-id>/relay.jsonl
 ```
 
-[docs/getting-started.md](docs/getting-started.md) shows each step with its real output. To select the plugin or the hook kit, read [docs/how-to/choose-a-relay.md](docs/how-to/choose-a-relay.md). For the plugin, which shows each reply in the chat, read [docs/how-to/claude-code-plugin.md](docs/how-to/claude-code-plugin.md). For Codex, read [docs/how-to/codex.md](docs/how-to/codex.md). For your own app, ask the harness model: "Run `verbatim-relay setup` and connect a test to this app" ([docs/how-to/connect-your-agent.md](docs/how-to/connect-your-agent.md)). For your own app, type `!verbatim-relay setup` in the harness. Then type the prompt "Follow the verbatim-relay setup guide, and connect a test to this app" ([docs/how-to/test-your-app.md](docs/how-to/test-your-app.md)).
+### Connect your app
+
+In the harness, in the project folder of your app, type `!verbatim-relay setup`. Then type the prompt "Follow the verbatim-relay setup guide, and connect a test to this app." [docs/how-to/test-your-app.md](docs/how-to/test-your-app.md) gives each step from the install to the results, with the expected output. To write the entry yourself, read [docs/how-to/connect-your-agent.md](docs/how-to/connect-your-agent.md).
+
+### Choose a relay
+
+The plugin shows each reply in the chat of Claude Code. The hook kit works in Claude Code and in Codex, and shows each reply in `verbatim-relay view`. [docs/how-to/choose-a-relay.md](docs/how-to/choose-a-relay.md) compares the [2 relays](SPEC.md#5-relays). Then read the guide of your relay: [Claude Code plugin](docs/how-to/claude-code-plugin.md), [Claude Code hook kit](docs/how-to/claude-code-hook-kit.md) or [Codex](docs/how-to/codex.md).
 
 ## Results
 
@@ -79,11 +91,18 @@ Under pressure, the mechanism had **0 breaks in 1,000 turns**. The test had 40 s
 
 ## Docs
 
+The how-to rows are in the order of the tasks of a test: choose, connect, run, read the results, fix. The row after them has the tasks that maintain verbatim-relay.
+
 | Kind | Pages |
 |---|---|
 | Tutorial | [Get started](docs/getting-started.md) |
-| How-to | [Choose a relay](docs/how-to/choose-a-relay.md), [Connect your agent](docs/how-to/connect-your-agent.md), [Claude Code plugin](docs/how-to/claude-code-plugin.md), [Claude Code hook kit](docs/how-to/claude-code-hook-kit.md), [Codex](docs/how-to/codex.md), [HTTP tap](docs/how-to/http-tap.md), [Isolate an Agent SDK session](docs/how-to/isolate-agent-sdk.md), [Add a backend](docs/how-to/add-a-backend.md), [Model calls and OpenTelemetry](docs/how-to/record-model-calls.md), [Run the proofs](docs/how-to/run-the-proofs.md), [Troubleshooting](docs/troubleshooting.md) |
-| Reference | [CLI](docs/reference/cli.md), [Configuration](docs/reference/config.md), [Records](docs/reference/records.md), [SPEC.md](SPEC.md), [Results](docs/results.md) |
+| How-to: choose | [Choose a relay](docs/how-to/choose-a-relay.md) |
+| How-to: connect your app | [Test your own app](docs/how-to/test-your-app.md), [Connect your agent](docs/how-to/connect-your-agent.md), [HTTP tap](docs/how-to/http-tap.md), [Test a streaming agent](docs/how-to/test-a-streaming-agent.md), [Isolate an Agent SDK session](docs/how-to/isolate-agent-sdk.md), [Add a backend](docs/how-to/add-a-backend.md), [Model calls and OpenTelemetry](docs/how-to/record-model-calls.md) |
+| How-to: run a test | [Claude Code plugin](docs/how-to/claude-code-plugin.md), [Claude Code hook kit](docs/how-to/claude-code-hook-kit.md), [Codex](docs/how-to/codex.md) |
+| How-to: read the results | [Read the results of a test](docs/how-to/read-the-results.md) |
+| How-to: fix | [Troubleshooting](docs/troubleshooting.md), [Recover a stuck test](docs/how-to/recover-a-stuck-test.md) |
+| How-to: maintain | [Upgrade](docs/how-to/upgrade.md), [Remove](docs/how-to/remove.md), [Run the proofs](docs/how-to/run-the-proofs.md) |
+| Reference | [CLI](docs/reference/cli.md), [Configuration](docs/reference/config.md), [Records](docs/reference/records.md), [Glossary](docs/reference/glossary.md), [SPEC.md](SPEC.md), [Results](docs/results.md) |
 | Explanation | [Architecture](docs/architecture.md), [Limits](docs/limits.md), [FAQ](docs/faq.md), [Worked evaluations](docs/evaluation-example.md) |
 
 The full map is [docs/index.md](docs/index.md). Read [docs/limits.md](docs/limits.md) before you trust a result: the deny is best effort, and the entry is not audited.
