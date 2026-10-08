@@ -82,6 +82,8 @@ First, look in the test folder `.verbatim-relay/tests/<test-id>/`. `bridge.log` 
 
 ## During a test
 
+If a test does not end or its bridge stopped, follow [how-to/recover-a-stuck-test.md](how-to/recover-a-stuck-test.md).
+
 ### `verbatim-relay: relay mode is on, but no test runs. Start one with: verbatim-relay start. Nothing was sent.`
 
 (kit.py; the plugin says `Type /verbatim-relay start`) **Cause.** Relay mode is on, but the bridge does not run. For example, the computer restarted during a test.
