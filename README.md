@@ -34,7 +34,7 @@ A test also records what your app did. It copies the session files of the app's 
 uv tool install verbatim-relay
 ```
 
-It needs Python 3.10 or later, and it has no runtime dependencies ([pyproject.toml](pyproject.toml)). Version 0.2.0 or later has tests with an entry. If `verbatim-relay --version` shows 0.1.0, install from the repo: `uv tool install --force git+https://github.com/mohanraj00/verbatim-relay`.
+It needs Python 3.10 or later, and it has no runtime dependencies ([pyproject.toml](pyproject.toml)). The docs are for version 0.3.0. To upgrade from an earlier version, end each running test first. Then run `uv tool upgrade verbatim-relay` ([CHANGELOG.md](CHANGELOG.md#030)).
 
 ## Quick start
 

@@ -10,7 +10,7 @@ First, look in the test folder `.verbatim-relay/tests/<test-id>/`. `bridge.log` 
 
 (argparse, from `verbatim-relay init`) **Cause.** You have version 0.1.0 from PyPI. It has no tests and no entry. Check with `verbatim-relay --version`.
 
-**Fix.** Install version 0.2.0 or later. Until PyPI has it, install from the repo: `uv tool install --force git+https://github.com/mohanraj00/verbatim-relay`.
+**Fix.** Run `uv tool upgrade verbatim-relay`. The docs are for version 0.3.0.
 
 ### `verbatim-relay: command not found`
 
@@ -37,6 +37,12 @@ First, look in the test folder `.verbatim-relay/tests/<test-id>/`. `bridge.log` 
 (config.py) **Cause.** `config.json` has a key that verbatim-relay does not know, for example a key with a typo. `start`, `check` and `init` stop with this error. In relay mode, the hook kit blocks each prompt with the same error.
 
 **Fix.** Correct the name of the key, or remove it. [reference/config.md](reference/config.md) lists each key.
+
+### `verbatim-relay: .verbatim-relay/config.json: 'openai_stream' must be true or false`
+
+(config.py) **Cause.** The key `openai_stream` is not a JSON boolean, for example `"true"` or `1`. `start`, `check`, `init` and `mode on` stop with this error. In relay mode, the hook kit blocks each prompt with it.
+
+**Fix.** Write `true` or `false` with no quotes ([reference/config.md](reference/config.md)).
 
 ### `verbatim-relay: 'models' must be a list of claude-code, codex`
 
@@ -80,6 +86,18 @@ First, look in the test folder `.verbatim-relay/tests/<test-id>/`. `bridge.log` 
 
 **Fix.** The entry runs in the project root. Use a path relative to the root, and run the entry command from the root by hand to see the error.
 
+### `verbatim-relay: the test did not start in 30 s:`
+
+(bridge.py) **Cause.** The bridge did not write `current.json` in [30 seconds](../src/verbatim_relay/bridge.py), so `start` stopped it. The lines after the text are the last lines of `bridge.log`. The last line names the last step that the bridge did.
+
+**Fix.** Read the lines, and correct the step after the last one. Then start the test again.
+
+### `A test needs an entry in .verbatim-relay/config.json. Without one, use /verbatim-relay on|off.`
+
+(register.tsx) **Cause.** You typed `/verbatim-relay start` or `/verbatim-relay end`, but `config.json` has no `entry`. The plugin also finds no entry if `config.json` is not valid JSON.
+
+**Fix.** Write the entry in `config.json`, or ask the harness model to run `verbatim-relay setup` ([how-to/claude-code.md](how-to/claude-code.md)). For an agent that is an HTTP server, use `/verbatim-relay on` and `/verbatim-relay off` ([how-to/http-tap.md](how-to/http-tap.md)).
+
 ## During a test
 
 ### `verbatim-relay: relay mode is on, but no test runs. Start one with: verbatim-relay start. Nothing was sent.`
@@ -87,6 +105,24 @@ First, look in the test folder `.verbatim-relay/tests/<test-id>/`. `bridge.log` 
 (kit.py; the plugin says `Type /verbatim-relay start`) **Cause.** Relay mode is on, but the bridge does not run. For example, the computer restarted during a test.
 
 **Fix.** Start a test. Or switch relay mode off: `verbatim-relay mode off` with the hook kit.
+
+### `verbatim-relay: the test stopped, and no test runs. The tap did not answer. Type /verbatim-relay start.`
+
+(register.tsx) **Cause.** The plugin cannot connect to the tap of `current.json`. Then it runs `verbatim-relay status --json`, and the answer says that no test runs. For example, the bridge process stopped. The message can have reached the tap before the stop, so the record keeps the turn with `ok: false`. The message never goes to the model.
+
+**Fix.** Read `bridge.log` in the test folder. Type `/verbatim-relay start`, then send the message again.
+
+### `The status is not known. The command '<cli> status --json' failed: <output>. Check that the plugin option cli names the verbatim-relay command.`
+
+(register.tsx) **Cause.** The plugin ran `verbatim-relay status --json` for `/verbatim-relay status` or the prompt `verbatim-relay status`, and it got no valid answer. `<cli>` is the plugin option `cli`.
+
+**Fix.** Run `<cli> status --json` in a shell to see the error. If the command is not found, give its full path in the plugin option `cli` ([reference/config.md](reference/config.md#plugin-options)).
+
+### `verbatim-relay: nothing was sent. The message has a lone surrogate U+<hex> at character <n>.`
+
+(kit.py, register.tsx) **Cause.** The message has a lone surrogate: one half of a UTF-16 pair. It is not a Unicode scalar value, so a record cannot hold it ([SPEC.md section 2](../SPEC.md#2-record-format)). The relay never changes a message, so it does not send it. It writes no turn, and the message does not go to the model. `<n>` counts code points from 0.
+
+**Fix.** Correct the message at character `<n>`, then send it again.
 
 ### `verbatim-relay: the agent sent an error:`
 
@@ -100,9 +136,9 @@ First, look in the test folder `.verbatim-relay/tests/<test-id>/`. `bridge.log` 
 
 **Fix.** Make the app answer faster, or write an `error` line when it cannot answer. The tap does not restart the entry: end the test and start a new one.
 
-### `the agent printed <n> lines on stdout but no reply line for <id> in 240 s, so the tap stopped it. Use verbatim_relay.agent.serve() or write logs to stderr.`
+### `the agent printed <n> lines on stdout but no reply line for <id> in 240 s, so the tap stopped it. Use verbatim_relay.agent.serve() or write logs to stderr. The first line: '<text>'`
 
-(stdio.py) **Cause.** The entry or your app wrote logs on stdout, and no line with the request id came. `verbatim-relay check` says `The entry printed lines on stdout, but no reply line.`
+(stdio.py) **Cause.** The entry or your app wrote logs on stdout, and no line with the request id came. `<text>` is the first 80 bytes of the first stray line. `verbatim-relay check` says `The entry printed lines on stdout, but no reply line.`
 
 **Fix.** Write logs to stderr. In Python, use `verbatim_relay.agent.serve()`, which sends all other output to stderr ([how-to/connect-your-agent.md](how-to/connect-your-agent.md)).
 
@@ -130,6 +166,12 @@ First, look in the test folder `.verbatim-relay/tests/<test-id>/`. `bridge.log` 
 
 **Fix.** Read the error. If it repeats, open an issue with the text.
 
+### `verbatim-relay: the hook failed (<error>). The tool call is denied.`
+
+(kit.py; the plugin says `The tool call did not run.`) **Cause.** The deny check failed on a model tool call. It fails closed, so it denied the call. The hook kit denies it if the folder `.verbatim-relay/` exists, also when relay mode is off. The plugin denies it in relay mode, during a test, or if it cannot read the mode ([SPEC.md section 5](../SPEC.md#5-relays)).
+
+**Fix.** Read the error. If it repeats, open an issue with the text.
+
 ### `verbatim-relay: only the tester talks to the agent.`
 
 (kit.py; the plugin adds more text) **Cause.** The relay denied a model tool call that names the address of the tap or the agent. It also denies a call that changes a file of the test. This is the purpose of the deny.
@@ -140,7 +182,7 @@ First, look in the test folder `.verbatim-relay/tests/<test-id>/`. `bridge.log` 
 
 (kit.py, register.tsx) **Cause.** The model tried to run the entry during a test.
 
-**Fix.** None. A command that only reads the entry, for example `cat entry.py`, can run.
+**Fix.** None. A shell command that only reads the entry, for example `cat entry.py`, can run. But during a test, the relays deny each tool call that names `.verbatim-relay`, except a read with a file tool such as `Read` ([SPEC.md section 5](../SPEC.md#5-relays)). Thus `cat .verbatim-relay/entry.py` is denied.
 
 ### `verbatim-relay: the record <path> is full. Move it, then send again. Nothing was sent.`
 
@@ -159,6 +201,12 @@ First, look in the test folder `.verbatim-relay/tests/<test-id>/`. `bridge.log` 
 (kit.py) **Cause.** `verbatim-relay view` read a relay record with an invalid line. A line changed after the writer wrote it, or another program wrote it. The view shows this error one time and continues to wait. With `--no-follow`, it shows `verbatim-relay: <path>: line <n>: <reason>` and exits with 2.
 
 **Fix.** Do not edit a record. Find the program that wrote the line. After the end of the test, run `verbatim-relay verify` to see which files changed.
+
+### `verbatim-relay: cannot read the config: <reason>`
+
+(cli.py, from `verbatim-relay view` and `verbatim-relay transcript`) **Cause.** `config.json` exists, but it is not valid JSON or it breaks the rule for its keys. `<reason>` is the error that `start` gives for the same file. The command exits with 2. `transcript --trace` does not read the config, so it does not give this error.
+
+**Fix.** Correct the file. [reference/config.md](reference/config.md) lists each key.
 
 ### Each message reaches the agent two times
 
