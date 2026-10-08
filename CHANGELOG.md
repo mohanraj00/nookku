@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.3.1
+
+A docs release. The docs have new how-to guides for each task of a test, a glossary, 4 diagrams and facts that match 0.3.0. The code of the relays, the taps and the audit does not change. The examples get a Node entry and an HTTP entry, and the toy HTTP server no longer looks up the host name before it listens.
+
+- **Facts.** The docs show version 0.3.0, the real `init` output, the deny rule for reads of `.verbatim-relay`, the error texts of 0.3.0 and the missing behavior of `mode`, `end`, `check`, `transcript` and `verify` ([#126](https://github.com/mohanraj00/verbatim-relay/issues/126)).
+- **Glossary.** [docs/reference/glossary.md](docs/reference/glossary.md) defines 20 terms, and each term links to its section of SPEC.md ([#127](https://github.com/mohanraj00/verbatim-relay/issues/127)).
+- **Choose a relay.** [docs/how-to/choose-a-relay.md](docs/how-to/choose-a-relay.md) compares the plugin and the hook kit, with a decision flow. The Claude Code guide is now 2 guides, one for each relay ([#128](https://github.com/mohanraj00/verbatim-relay/issues/128)).
+- **Test your own app.** [docs/how-to/test-your-app.md](docs/how-to/test-your-app.md) takes your app from the install to the results, with the expected output at each step. The docs give `!verbatim-relay setup` first, so the harness runs the command ([#129](https://github.com/mohanraj00/verbatim-relay/issues/129), [#125](https://github.com/mohanraj00/verbatim-relay/issues/125)).
+- **Read the results.** [docs/how-to/read-the-results.md](docs/how-to/read-the-results.md) reads the seal, the audit, the findings, the report and the transcript in order, with a table of the 7 break classes and the 12 trace checks ([#130](https://github.com/mohanraj00/verbatim-relay/issues/130)).
+- **What check proves.** The docs say that a PASS of `check` proves the connection, not the reply, and give the steps to make sure that `check` runs your real app ([#131](https://github.com/mohanraj00/verbatim-relay/issues/131)).
+- **Other agents.** An entry in Node ([examples/toy-shop-node/entry.mjs](examples/toy-shop-node/entry.mjs)), an entry for an HTTP server ([examples/toy-shop/http_entry.py](examples/toy-shop/http_entry.py)), a table that compares the entry with the HTTP tap, and [a guide for a streaming agent](docs/how-to/test-a-streaming-agent.md) ([#132](https://github.com/mohanraj00/verbatim-relay/issues/132)).
+- **Stuck tests, upgrades and removal.** [Recover a stuck test](docs/how-to/recover-a-stuck-test.md), [upgrade](docs/how-to/upgrade.md) and [remove](docs/how-to/remove.md) verbatim-relay ([#133](https://github.com/mohanraj00/verbatim-relay/issues/133)).
+- **Diagrams.** [docs/architecture.md](docs/architecture.md) has a corrected data-flow diagram, and new diagrams of one turn, the test lifecycle and the trace, with a table of the timeouts. Tests check the diagrams against the records page and the constants ([#134](https://github.com/mohanraj00/verbatim-relay/issues/134)).
+- **Navigation.** The README gives a route to try the toy shop, a route to connect your own app and a route to choose a relay, and a Docs table in task order. The docs map groups the guides by task. Troubleshooting starts with a table of symptoms ([#135](https://github.com/mohanraj00/verbatim-relay/issues/135)).
+
 ## 0.3.0
 
 Streamed replies, and the fixes of the 0.2 code review. An agent can now stream its reply, and the relays still show and record it byte for byte. Each relay path fails closed: if a hook or a guard fails, the prompt does not reach the model, and the tester sees the cause and the next step. Each record has one reader with one rule in Python and in the plugin. Both taps have one deadline, and the proxies keep no secret query value. The docs have a tutorial, how-to guides, reference pages and an architecture page. [The proofs](docs/results.md) pass in the plugin, the hook kit in Claude Code and the hook kit in Codex.
