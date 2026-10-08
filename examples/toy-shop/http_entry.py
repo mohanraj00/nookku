@@ -25,15 +25,19 @@ SERVER = Path(__file__).with_name("http_agent.py")
 
 
 def start_server() -> subprocess.Popen[bytes]:
-    """Start the server once, and wait until it accepts a connection. Its output goes to stderr."""
+    """Start the server once, and wait until it accepts a connection. Its output goes to stderr.
+    If it does not accept a connection in 30 s, stop it, so that no server stays after the entry."""
     server = subprocess.Popen([sys.executable, str(SERVER), str(PORT)], stdout=sys.stderr)
-    deadline = time.monotonic() + 10
+    # HTTPServer looks up the host name before it listens. On some machines this takes seconds.
+    deadline = time.monotonic() + 30
     while True:
         try:
             socket.create_connection(("127.0.0.1", PORT), timeout=1).close()
             return server
         except OSError:
             if server.poll() is not None or time.monotonic() > deadline:
+                server.kill()
+                server.wait()
                 raise
             time.sleep(0.1)
 

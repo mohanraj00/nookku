@@ -109,7 +109,7 @@ def test_the_http_entry_starts_the_server_and_sends_each_message_to_it() -> None
         [sys.executable, str(HTTP_ENTRY)],
         input=lines(("m-1", "do you ship to delhi?"), ("m-2", ODD)),
         capture_output=True,
-        timeout=60,
+        timeout=120,
         env=env,
     )
     out = p.stdout.split(b"\n")
