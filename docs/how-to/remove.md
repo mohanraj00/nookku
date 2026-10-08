@@ -84,8 +84,7 @@ grep -c 'verbatim_relay hook' .claude/settings.local.json .codex/hooks.json
 Remove each hook object whose `command` contains `verbatim_relay hook`. If its group then has no hook, remove the group too. Keep each other hook and each other key. You can edit the file by hand, or use [jq](https://jqlang.org/). This jq filter removes the hooks of the kit, then each empty group and each empty event:
 
 ```bash
-jq '.hooks |= (with_entries(.value |= (map(.hooks |= map(select(.command | contains("verbatim_relay hook") | not))) | map(select(.hooks | length > 0)))) | with_entries(select(.value | length > 0)))' .claude/settings.local.json > settings.tmp
-mv settings.tmp .claude/settings.local.json
+jq '.hooks |= (with_entries(.value |= (map(.hooks |= map(select((.command // "") | tostring | contains("verbatim_relay hook") | not))) | map(select(.hooks | length > 0)))) | with_entries(select(.value | length > 0)))' .claude/settings.local.json > settings.tmp && mv settings.tmp .claude/settings.local.json
 ```
 
 Do not delete `.claude/settings.local.json` to remove the hooks. The file can also hold your permissions and your own hooks. In my run, the file had a permission and an own hook before `init`. After the jq filter, it had these again:
@@ -116,8 +115,7 @@ Do not delete `.claude/settings.local.json` to remove the hooks. The file can al
 For Codex, use the same filter on `.codex/hooks.json`:
 
 ```bash
-jq '.hooks |= (with_entries(.value |= (map(.hooks |= map(select(.command | contains("verbatim_relay hook") | not))) | map(select(.hooks | length > 0)))) | with_entries(select(.value | length > 0)))' .codex/hooks.json > hooks.tmp
-mv hooks.tmp .codex/hooks.json
+jq '.hooks |= (with_entries(.value |= (map(.hooks |= map(select((.command // "") | tostring | contains("verbatim_relay hook") | not))) | map(select(.hooks | length > 0)))) | with_entries(select(.value | length > 0)))' .codex/hooks.json > hooks.tmp && mv hooks.tmp .codex/hooks.json
 ```
 
 In my run, `.codex/hooks.json` had only the hooks of the kit, so the result was `{"hooks": {}}`.
