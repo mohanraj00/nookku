@@ -13,8 +13,9 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from test_timeouts import ANSWER
 
-from verbatim_relay import audit, bridge, cli, config, kit, trace
+from verbatim_relay import audit, bridge, cli, config, kit, stdio, trace
 
 ROOT = Path(__file__).resolve().parent.parent
 DOCS = ROOT / "docs"
@@ -172,7 +173,8 @@ def test_the_readme_counts_each_folder_of_conformance_cases() -> None:
     [
         ("README.md", r"(\d+) break classes", len(audit.CHECKS)),
         ("docs/architecture.md", r"(\d+) break classes", len(audit.CHECKS)),
-        ("docs/architecture.md", r"(\d+) checks write", len(trace.CHECKS)),
+        # The prose and the diagram of the trace.
+        ("docs/architecture.md", r"(\d+) checks\b", len(trace.CHECKS)),
         ("docs/how-to/read-the-results.md", r"(\d+) break classes", len(audit.CHECKS)),
         ("docs/how-to/read-the-results.md", r"(\d+) trace checks", len(trace.CHECKS)),
     ],
@@ -180,6 +182,47 @@ def test_the_readme_counts_each_folder_of_conformance_cases() -> None:
 def test_each_count_of_the_code_is_correct(page: str, phrase: str, count: int) -> None:
     found = re.findall(phrase, (ROOT / page).read_text(encoding="utf-8"))
     assert found and all(int(n) == count for n in found)
+
+
+# The architecture page -------------------------------------------------------------------------
+
+ARCHITECTURE = DOCS / "architecture.md"
+MERMAID = re.compile(r"^```mermaid\n(.*?)^```", re.MULTILINE | re.DOTALL)
+# A file name in a diagram: a record, a configuration file or the report.
+RECORD_FILE = re.compile(r"[\w-]+\.(?:jsonl|json|md|log)\b")
+
+
+def test_each_record_file_in_a_diagram_is_on_the_records_page() -> None:
+    diagrams = MERMAID.findall(ARCHITECTURE.read_text(encoding="utf-8"))
+    names = {name for diagram in diagrams for name in RECORD_FILE.findall(diagram)}
+    records = (DOCS / "reference" / "records.md").read_text(encoding="utf-8")
+    listed = set(re.findall(r"`([^`]+)`", records))
+    assert len(diagrams) >= 4 and names
+    assert sorted(names - listed) == []
+
+
+# Each constant of the timeout table: its value, the file that defines it, and the name on the
+# line that the table links to. Order 2 is the agent timeout and the ANSWER limit of the test.
+TIMEOUTS = {
+    "stdio.TIMEOUT": (stdio.TIMEOUT, "src/verbatim_relay/stdio.py", "TIMEOUT"),
+    "stdio.TIMEOUT + ANSWER": (stdio.TIMEOUT + ANSWER, "tests/test_timeouts.py", "ANSWER"),
+    "bridge.TIMEOUT": (bridge.TIMEOUT, "src/verbatim_relay/bridge.py", "TIMEOUT"),
+    "kit.TIMEOUT": (kit.TIMEOUT, "src/verbatim_relay/kit.py", "TIMEOUT"),
+    "kit.HOOK_DEADLINE": (kit.HOOK_DEADLINE, "src/verbatim_relay/kit.py", "HOOK_DEADLINE"),
+}
+
+
+def test_the_timeout_table_matches_the_constants() -> None:
+    section = _sections(ARCHITECTURE, "##")["Timeouts"]
+    row = re.compile(r"^\| \d+ \| [^|]+ \| \[(\d+)\]\(([^)#]+)#L(\d+)\) \| `([^`]+)` \|$")
+    rows = [m.groups() for m in map(row.match, section.splitlines()) if m]
+    assert sorted(r[3] for r in rows) == sorted(TIMEOUTS)
+    for seconds, target, line, constant in rows:
+        value, file, name = TIMEOUTS[constant]
+        path = (ARCHITECTURE.parent / target).resolve()
+        assert (int(seconds), path.relative_to(ROOT).as_posix()) == (value, file), constant
+        source = path.read_text(encoding="utf-8").splitlines()[int(line) - 1]
+        assert source.startswith(f"{name} = "), f"{target}#L{line}: {source}"
 
 
 CHECK_PAGES = [
