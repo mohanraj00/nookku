@@ -225,6 +225,19 @@ def test_the_timeout_table_matches_the_constants() -> None:
         assert source.startswith(f"{name} = "), f"{target}#L{line}: {source}"
 
 
+CHECK_PAGES = [
+    "docs/getting-started.md",
+    "docs/how-to/connect-your-agent.md",
+    "docs/reference/cli.md",
+]
+
+
+@pytest.mark.parametrize("page", CHECK_PAGES)
+def test_each_page_that_runs_check_gives_the_fixed_check_message(page: str) -> None:
+    text = (ROOT / page).read_text(encoding="utf-8")
+    assert f"`{bridge.CHECK_MESSAGE}`" in text
+
+
 # The map of the docs ---------------------------------------------------------------------------
 
 

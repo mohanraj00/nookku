@@ -12,7 +12,7 @@ The proofs ran on codex-cli 0.160.0 ([data](../../proofs/hooks-codex/results.jso
    verbatim-relay init codex --entry "python3 examples/toy-shop/agent.py"
    ```
 
-   The entry is a thin wrapper that starts your app and speaks the agent contract ([SPEC.md section 6](../../SPEC.md#6-agent-contract-version-1)). For your own app, ask Codex: "Run `verbatim-relay setup` and connect a test to this app." Codex then writes the entry in `.verbatim-relay/` and runs `verbatim-relay check`. Your app's code does not change. Review the entry before your first test. [connect-your-agent.md](connect-your-agent.md) gives the details.
+   The entry is a thin wrapper that starts your app and speaks the agent contract ([SPEC.md section 6](../../SPEC.md#6-agent-contract-version-1)). For your own app, ask Codex: "Run `verbatim-relay setup` and connect a test to this app." Codex then writes the entry in `.verbatim-relay/` and runs `verbatim-relay check`. Your app's code does not change. Review the entry before your first test. [connect-your-agent.md](connect-your-agent.md) gives the details. A PASS of `check` proves the connection, not the reply. Then do the steps in [Make sure that check runs your real app](connect-your-agent.md#make-sure-that-check-runs-your-real-app).
 
    `init` writes `.verbatim-relay/config.json` and `.codex/hooks.json`, with two hooks:
    - `UserPromptSubmit`: in relay mode, it sends the prompt to the tap and blocks it from the model. It also runs the prompts `verbatim-relay start`, `verbatim-relay end` and `verbatim-relay status`.

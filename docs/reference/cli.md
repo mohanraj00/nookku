@@ -63,7 +63,15 @@ Show relay mode and the running test.
 
 ### `verbatim-relay check`
 
-Run a short test with one message, and check the entry and its model sessions ([SPEC.md section 7.1](../../SPEC.md#71-configuration)).
+Run a short test with one message, and check the entry and its model sessions ([SPEC.md section 7.1](../../SPEC.md#71-configuration)). The message is always `Hello from verbatim-relay check. What can you help me with?`
+
+PASS proves the connection, not the reply. PASS means that:
+
+- the entry sent a reply line, not an `error` line;
+- the audit of the test exits with 0;
+- the test found a model session and its session file for each harness in `models`.
+
+`check` does not judge the text of the reply. A fallback reply of the app also passes. [how-to/connect-your-agent.md](../how-to/connect-your-agent.md#make-sure-that-check-runs-your-real-app) shows how to make sure that the entry runs your real app.
 
 | Flag | Default | Meaning |
 |---|---|---|
