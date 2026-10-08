@@ -173,6 +173,8 @@ def test_the_readme_counts_each_folder_of_conformance_cases() -> None:
         ("README.md", r"(\d+) break classes", len(audit.CHECKS)),
         ("docs/architecture.md", r"(\d+) break classes", len(audit.CHECKS)),
         ("docs/architecture.md", r"(\d+) checks write", len(trace.CHECKS)),
+        ("docs/how-to/read-the-results.md", r"(\d+) break classes", len(audit.CHECKS)),
+        ("docs/how-to/read-the-results.md", r"(\d+) trace checks", len(trace.CHECKS)),
     ],
 )
 def test_each_count_of_the_code_is_correct(page: str, phrase: str, count: int) -> None:
@@ -303,6 +305,17 @@ def test_the_config_page_has_each_plugin_option_with_its_default() -> None:
     options = json.loads(manifest.read_text(encoding="utf-8"))["userConfig"]
     documented = _row_defaults(_sections(DOCS / "reference" / "config.md", "##")["Plugin options"])
     assert documented == {key: _cell(o.get("default", "")) for key, o in options.items()}
+
+
+def _first_cells(section: str) -> list[str]:
+    """The name in the first cell of each table row of a section, in the order of the rows."""
+    return re.findall(r"^\| `([a-z_]+)` \|", section, re.MULTILINE)
+
+
+def test_the_results_guide_names_each_break_class_and_each_trace_check() -> None:
+    page = _sections(DOCS / "how-to" / "read-the-results.md", "###")
+    assert _first_cells(page["Break classes"]) == list(audit.CHECKS)
+    assert _first_cells(page["Trace checks"]) == list(trace.CHECKS)
 
 
 # How-to pages that name parts of the code ------------------------------------------------------
