@@ -217,7 +217,9 @@ def test_a_moved_page_keeps_each_old_anchor(page: str) -> None:
 # Mermaid ---------------------------------------------------------------------------------------
 
 MERMAID = re.compile(r"^```mermaid[ \t]*\n(.*?)^```", re.MULTILINE | re.DOTALL)
-# Syntax that GitHub does not render, or that breaks a flowchart: the node shapes of @{ },
+# The diagram types that GitHub renders and that the docs use.
+MERMAID_TYPES = ("flowchart ", "sequenceDiagram", "stateDiagram-v2")
+# Syntax that GitHub does not render, or that breaks a diagram: the node shapes of @{ },
 # click actions, styles, and the word end as a node id.
 MERMAID_BANNED = re.compile(
     r"@\{|^\s*(click|style|classDef|class|linkStyle)\b|"
@@ -226,7 +228,7 @@ MERMAID_BANNED = re.compile(
 )
 
 
-def test_each_mermaid_diagram_is_a_flowchart_that_github_renders() -> None:
+def test_each_mermaid_diagram_has_a_type_and_syntax_that_github_renders() -> None:
     blocks = [
         (path, block)
         for path in DOCS.rglob("*.md")
@@ -234,7 +236,7 @@ def test_each_mermaid_diagram_is_a_flowchart_that_github_renders() -> None:
     ]
     assert blocks
     for path, block in blocks:
-        assert block.lstrip().startswith("flowchart "), path
+        assert block.lstrip().startswith(MERMAID_TYPES), path
         assert MERMAID_BANNED.findall(block) == [], path
 
 
