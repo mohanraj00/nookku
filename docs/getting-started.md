@@ -1,6 +1,6 @@
 # Get started
 
-In this tutorial, you test the toy shop agent of this repo in Claude Code. You install verbatim-relay, run a test with 3 messages, and read the [audit](reference/glossary.md#audit) and the report of the model. You use the hook kit, because it needs no global install in Claude Code.
+In this tutorial, you test the toy shop agent of this repo in Claude Code. You install verbatim-relay, run a test with 3 messages, and read the [audit](reference/glossary.md#audit) and the report of the model. You use the hook kit, because it needs no global install in Claude Code. To compare the hook kit with the plugin, read [how-to/choose-a-relay.md](how-to/choose-a-relay.md).
 
 The output on this page is the real output of each step. I shortened the paths of the folders to `.../`. The test id and the times are different on your machine.
 
@@ -243,6 +243,6 @@ To read each file of a test folder in order, see [Read the results of a test](ho
 ## Next steps
 
 - Connect your own agent: [how-to/connect-your-agent.md](how-to/connect-your-agent.md).
-- Use the Claude Code plugin, which shows each reply in the chat: [how-to/claude-code.md](how-to/claude-code.md).
+- Use the Claude Code plugin, which shows each reply in the chat: [how-to/claude-code-plugin.md](how-to/claude-code-plugin.md).
 - Use Codex: [how-to/codex.md](how-to/codex.md).
 - See the parts and how they connect: [architecture.md](architecture.md).

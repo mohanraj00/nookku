@@ -60,7 +60,7 @@ In Claude Code, type the prompt `verbatim-relay start`, then your test messages,
 verbatim-relay audit --tap .verbatim-relay/tests/<test-id>/tap.jsonl --relay .verbatim-relay/tests/<test-id>/relay.jsonl
 ```
 
-[docs/getting-started.md](docs/getting-started.md) shows each step with its real output. For the plugin, which shows each reply in the chat, read [docs/how-to/claude-code.md](docs/how-to/claude-code.md). For Codex, read [docs/how-to/codex.md](docs/how-to/codex.md). For your own app, ask the harness model: "Run `verbatim-relay setup` and connect a test to this app" ([docs/how-to/connect-your-agent.md](docs/how-to/connect-your-agent.md)).
+[docs/getting-started.md](docs/getting-started.md) shows each step with its real output. To select the plugin or the hook kit, read [docs/how-to/choose-a-relay.md](docs/how-to/choose-a-relay.md). For the plugin, which shows each reply in the chat, read [docs/how-to/claude-code-plugin.md](docs/how-to/claude-code-plugin.md). For Codex, read [docs/how-to/codex.md](docs/how-to/codex.md). For your own app, ask the harness model: "Run `verbatim-relay setup` and connect a test to this app" ([docs/how-to/connect-your-agent.md](docs/how-to/connect-your-agent.md)).
 
 ## Results
 
@@ -82,7 +82,7 @@ Under pressure, the mechanism had **0 breaks in 1,000 turns**. The test had 40 s
 | Kind | Pages |
 |---|---|
 | Tutorial | [Get started](docs/getting-started.md) |
-| How-to | [Connect your agent](docs/how-to/connect-your-agent.md), [Claude Code](docs/how-to/claude-code.md), [Codex](docs/how-to/codex.md), [HTTP tap](docs/how-to/http-tap.md), [Isolate an Agent SDK session](docs/how-to/isolate-agent-sdk.md), [Add a backend](docs/how-to/add-a-backend.md), [Model calls and OpenTelemetry](docs/how-to/record-model-calls.md), [Run the proofs](docs/how-to/run-the-proofs.md), [Troubleshooting](docs/troubleshooting.md) |
+| How-to | [Choose a relay](docs/how-to/choose-a-relay.md), [Connect your agent](docs/how-to/connect-your-agent.md), [Claude Code plugin](docs/how-to/claude-code-plugin.md), [Claude Code hook kit](docs/how-to/claude-code-hook-kit.md), [Codex](docs/how-to/codex.md), [HTTP tap](docs/how-to/http-tap.md), [Isolate an Agent SDK session](docs/how-to/isolate-agent-sdk.md), [Add a backend](docs/how-to/add-a-backend.md), [Model calls and OpenTelemetry](docs/how-to/record-model-calls.md), [Run the proofs](docs/how-to/run-the-proofs.md), [Troubleshooting](docs/troubleshooting.md) |
 | Reference | [CLI](docs/reference/cli.md), [Configuration](docs/reference/config.md), [Records](docs/reference/records.md), [SPEC.md](SPEC.md), [Results](docs/results.md) |
 | Explanation | [Architecture](docs/architecture.md), [Limits](docs/limits.md), [FAQ](docs/faq.md), [Worked evaluations](docs/evaluation-example.md) |
 
