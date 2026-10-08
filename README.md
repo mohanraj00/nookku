@@ -5,11 +5,11 @@
 [![Python versions](https://img.shields.io/pypi/pyversions/verbatim-relay)](https://pypi.org/project/verbatim-relay/)
 [![License](https://img.shields.io/github/license/mohanraj00/verbatim-relay)](LICENSE)
 
-**Test your chat agent through Claude Code or Codex. The harness model does not retype one message or one reply.**
+**Test your chat agent through Claude Code or Codex. The [harness](docs/reference/glossary.md#harness) model does not retype one message or one reply.**
 
-verbatim-relay is a test harness for chat agent development. You talk to your agent in the coding harness where you already work. The relay sends each message to your agent byte for byte, and shows each reply byte for byte. The model does not run while you talk. At the end, the model reads the exact record and evaluates your agent: business logic, tone, accuracy.
+verbatim-relay is a test harness for chat agent development. You talk to your agent in the coding harness where you already work. The [relay](docs/reference/glossary.md#relay) sends each message to your agent byte for byte, and shows each reply byte for byte. The model does not run while you talk. At the end, the model reads the exact record and evaluates your agent: business logic, tone, accuracy.
 
-It adapts to your app through a thin entry in `.verbatim-relay/`, and your app's code does not change. The cost is plumbing: you write the entry once, and you change it when the start or the wiring of your app changes.
+It adapts to your app through a thin [entry](docs/reference/glossary.md#entry) in `.verbatim-relay/`, and your app's code does not change. The cost is plumbing: you write the entry once, and you change it when the start or the wiring of your app changes.
 
 ## How it works
 
@@ -23,6 +23,12 @@ tester ──> harness ──> relay ──────> tap ──stdin/stdout�
                          │            │
                          └─> audit <──┘   exit 0 clean, 1 break, 2 invalid record
 ```
+
+- [Harness](docs/reference/glossary.md#harness): Claude Code or Codex, where you type your test messages.
+- [Relay](docs/reference/glossary.md#relay): the plugin or the hook kit in the harness. It carries each message and each reply, and the model writes neither.
+- [Tap](docs/reference/glossary.md#tap): a proxy in front of your agent. It forwards each byte with no change, and records what the agent received and sent.
+- [Entry](docs/reference/glossary.md#entry): a thin wrapper that starts your app and speaks one JSON line in and one JSON line out.
+- [Audit](docs/reference/glossary.md#audit): a program that compares the two records byte for byte, and names each break.
 
 Two processes write two records, and the audit compares them byte for byte. It reports 7 break classes ([SPEC.md section 3.3](SPEC.md#33-break-classes)). It fails closed: it never reports clean on a record that it cannot read. 53 audit cases, 20 contract cases, 10 trace cases, 11 seal cases and 7 receiver cases in [conformance/](conformance/) test the spec ([cases](conformance/build.py), [tests](tests/)).
 
