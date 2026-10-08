@@ -2,7 +2,7 @@
 
 After a test, the test folder holds the records, the trace, the audit, the seal and, if the model ran, a report. This page tells you how to read these files in order. Read the seal first. If a file changed after the end of the test, do not trust the other results.
 
-The sample output on this page comes from one test of the [toy shop agent](../../examples/toy-shop/agent.py) with verbatim-relay 0.3.0. The test has the 3 messages of the [tutorial](../getting-started.md#6-run-the-test). I gave each prompt to `verbatim-relay hook --harness claude-code` as a `UserPromptSubmit` event, as Claude Code does. No harness model ran, so this test has no report. I shortened the paths to `.../`. The test id and the times are different on your machine.
+The sample output on this page comes from one test of the [toy shop agent](../../examples/toy-shop/agent.py) with verbatim-relay 0.3.0. The test has the 3 messages of the [tutorial](../getting-started.md#6-run-the-test). I gave each prompt to `verbatim-relay hook --harness claude-code` as a `UserPromptSubmit` event, as Claude Code does. No harness model ran, so this test has no report. The output is a sample of one run, not a measurement. To make it again, run the steps of the tutorial on the toy shop. I shortened the paths to `.../`. The test id and the times are different on your machine.
 
 ## The test folder
 
@@ -66,7 +66,7 @@ grep -l '"harness": "verbatim-relay-check"' .verbatim-relay/tests/*/relay.jsonl
 .verbatim-relay/tests/20261007-224433-6815/relay.jsonl
 ```
 
-`verbatim-relay trace`, `verify` and `transcript` use the latest test if you do not give a test id. If you ran `check` after your test, the latest test is the check test. Then give the test id of your test to each command.
+`verbatim-relay trace`, `verify` and `transcript --trace` use the latest test if you do not give a test id. `transcript` with no `--trace` uses the latest test only if the configuration has an `entry`. With no entry, it reads the relay record of the configuration, and shows its latest session. If you ran `check` after your test, the latest test is the check test. Then give the test id of your test to each command.
 
 ## 2. Read the seal
 
@@ -221,7 +221,7 @@ The trace has 12 trace checks ([trace.py](../../src/verbatim_relay/trace.py)). `
 | `span_error` | An OpenTelemetry span of the app has an error. |
 | `backend_error` | A call to a backend got no answer, or a status of 500 or more. |
 | `model_api_error` | A direct call to a model API has an error, or a status of 400 or more. |
-| `turn_without_model` | A turn has no model item. This check runs only if the trace has at least 1 item from a session file. |
+| `turn_without_model` | A turn has no `message`, `tool_call` or `command` item from a session file. A turn with only an OTLP, backend or model API item still gets this finding. This check runs only if the trace has at least 1 item from a session file. |
 | `item_between_turns` | A model item has no turn, but it occurred at or after the start of turn 1. |
 | `otel_tool_not_in_session` | A harness log says that a tool ran, but the session file of that harness and turn has no call of that tool. |
 | `server_not_from_app` | A Claude Code session used an MCP server that the app's configuration cannot give: a claude.ai connector or a plugin server. |

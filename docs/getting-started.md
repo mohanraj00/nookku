@@ -1,6 +1,6 @@
 # Get started
 
-In this tutorial, you test the toy shop agent of this repo in Claude Code. You install verbatim-relay, run a test with 3 messages, and read the audit and the report of the model. You use the hook kit, because it needs no global install in Claude Code.
+In this tutorial, you test the toy shop agent of this repo in Claude Code. You install verbatim-relay, run a test with 3 messages, and read the [audit](reference/glossary.md#audit) and the report of the model. You use the hook kit, because it needs no global install in Claude Code.
 
 The output on this page is the real output of each step. I shortened the paths of the folders to `.../`. The test id and the times are different on your machine.
 
@@ -42,7 +42,7 @@ The toy shop agent is one Python file with no dependencies. It has 3 fixed repli
 
 ## 3. Send one message to the agent by hand
 
-The agent speaks the agent contract: one JSON line in on stdin, and one JSON line out on stdout ([SPEC.md section 6](../SPEC.md#6-agent-contract-version-1)). Send it one line:
+The agent speaks the [agent contract](reference/glossary.md#agent-contract): one JSON line in on stdin, and one JSON line out on stdout ([SPEC.md section 6](../SPEC.md#6-agent-contract-version-1)). Send it one line:
 
 ```bash
 echo '{"v": 1, "id": "1", "session": "s1", "message": "do you ship to delhi?", "history": []}' | python3 agent.py
@@ -70,7 +70,7 @@ Relay mode is off. Switch it with: verbatim-relay mode on
 Do not also enable the verbatim-relay Claude Code plugin in this project, or each message is sent two times.
 ```
 
-`config.json` holds the entry: the command that the tap starts for each test. `settings.local.json` holds two hooks. The `UserPromptSubmit` hook takes each prompt before the model sees it. The `PreToolUse` hook denies a model tool call that names the agent or changes a file of the test.
+`config.json` holds the [entry](reference/glossary.md#entry): the command that the [tap](reference/glossary.md#tap) starts for each test. `settings.local.json` holds two hooks. The `UserPromptSubmit` hook takes each prompt before the model sees it. The `PreToolUse` hook denies a model tool call that names the agent or changes a file of the test.
 
 Check the connection with one message:
 
@@ -140,7 +140,7 @@ We ship to Chennai and Pune. Delivery takes 3 to 5 days.
 
 ## 7. End the test
 
-Type the prompt `verbatim-relay end`. The hook ends the test: it stops the agent, builds the trace, writes the audit and seals the test folder. Then the prompt goes to the model with the evaluation prompt.
+Type the prompt `verbatim-relay end`. The hook ends the test: it stops the agent, builds the [trace](reference/glossary.md#trace), writes the audit and [seals](reference/glossary.md#seal) the [test folder](reference/glossary.md#test-folder). Then the prompt goes to the model with the [evaluation](reference/glossary.md#evaluation) prompt.
 
 The model now reads the record of the test. Claude Code asks you to allow its commands. Allow the read commands, for example `verbatim-relay transcript --trace` and `cat`, and the write of `report.md`. The model gives a short summary. In my run, it was:
 
@@ -215,7 +215,7 @@ cat .verbatim-relay/tests/20261007-133823-0b63/report.md
 - Audit: 3 exchanges, 0 breaks, 0 errors. ...
 ```
 
-Each row has a class, a turn and its evidence. The model did not see the conversation while you talked. It read the record, the code of the agent and the findings. A report is a model answer, so check its evidence. Here, the evidence is correct. In `agent.py`, line 18 is the refund rule, line 22 is the fallback reply, and line 26 is the keyword match.
+Each row has a class, a turn and its evidence. The model did not see the conversation while you talked. It read the record, the code of the agent and the [findings](reference/glossary.md#findings). A report is a model answer, so check its evidence. Here, the evidence is correct. In `agent.py`, line 18 is the refund rule, line 22 is the fallback reply, and line 26 is the keyword match.
 
 Last, check that no record changed after the end of the test:
 
