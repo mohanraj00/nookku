@@ -36,6 +36,8 @@ Start a test: run the entry through the tap and switch relay mode on ([SPEC.md s
 
 End the test: switch relay mode off, stop the entry and collect its sessions, the trace, the audit and the seal ([SPEC.md section 7.2](../../SPEC.md#72-start-and-end)). If no test runs, it switches relay mode off.
 
+`end` in a shell gives no evaluation. If the test needs an evaluation, it prints the prompt to type in the harness: `To evaluate the test, type this prompt in your harness: verbatim-relay end` ([SPEC.md section 9.1](../../SPEC.md#91-start)).
+
 | Flag | Default | Meaning |
 |---|---|---|
 | `--root PATH` | the current folder | The project. |
@@ -61,7 +63,15 @@ Show relay mode and the running test.
 
 ### `verbatim-relay check`
 
-Run a short test with one message, and check the entry and its model sessions ([SPEC.md section 7.1](../../SPEC.md#71-configuration)).
+Run a short test with one message, and check the entry and its model sessions ([SPEC.md section 7.1](../../SPEC.md#71-configuration)). The message is always `Hello from verbatim-relay check. What can you help me with?`
+
+PASS proves the connection, not the reply. PASS means that:
+
+- the entry sent a reply line, not an `error` line;
+- the audit of the test exits with 0;
+- the test found a model session and its session file for each harness in `models`.
+
+`check` does not judge the text of the reply. A fallback reply of the app also passes. [how-to/connect-your-agent.md](../how-to/connect-your-agent.md#make-sure-that-check-runs-your-real-app) shows how to make sure that the entry runs your real app.
 
 | Flag | Default | Meaning |
 |---|---|---|
@@ -71,7 +81,7 @@ Run a short test with one message, and check the entry and its model sessions ([
 | Exit code | Meaning |
 |---|---|
 | 0 | The entry sent a reply, the audit of the test is clean, and the test found a model session for each harness in `models`. |
-| 1 | The check failed, or the test did not start. For example, the audit of the test exits with 1 or 2, or the test wrote no valid `audit.json`. |
+| 1 | The check failed, or the test did not start. For example, the audit of the test exits with 1 or 2, the test wrote no valid `audit.json`, or a model session has no session file. |
 
 ### `verbatim-relay mode`
 
@@ -79,7 +89,7 @@ Run a short test with one message, and check the entry and its model sessions ([
 verbatim-relay mode STATE [--root PATH]
 ```
 
-Switch relay mode on or off. With an entry, `on` starts a test and `off` ends it. With no entry, it only switches relay mode ([how-to/http-tap.md](../how-to/http-tap.md)).
+Switch relay mode on or off. With an entry, `on` starts a test and `off` ends it. With no entry, it only switches relay mode ([how-to/http-tap.md](../how-to/http-tap.md)). Before it switches relay mode on, it reads `config.json`, if the file exists. If the file is broken, `on` shows the error and does not switch relay mode on ([#109](https://github.com/mohanraj00/verbatim-relay/pull/109)).
 
 | Argument or flag | Default | Meaning |
 |---|---|---|
@@ -117,14 +127,14 @@ Print the exact conversation for the model to evaluate ([SPEC.md section 5](../.
 |---|---|---|
 | `--root PATH` | the current folder | The project. |
 | `--test ID` | the latest test | The test to print. |
-| `--trace` | off | Print each turn as the app got it (from `tap.jsonl`), with the model items and the findings of that turn ([SPEC.md section 9.2](../../SPEC.md#92-evaluation-prompt)). |
+| `--trace` | off | Print each turn as the app got it (from `tap.jsonl`), with the model items and the findings of that turn ([SPEC.md section 9.2](../../SPEC.md#92-evaluation-prompt)). It ignores `--record`, `--all` and `--session`. |
 | `--all` | off | With no entry: each session of the record, not only the latest one. |
 | `--session ID` | none | Only the turns of this harness session. |
 | `--record FILE` | from the config | The relay record to print. |
 
 | Exit code | Meaning |
 |---|---|
-| 0 | The transcript printed. |
+| 0 | The transcript printed. With `--trace`, also if a record is invalid: then the first line says `Record: INVALID` and the transcript shows no turn. |
 | 2 | No test folder (with `--trace`), the config cannot be read, or the relay record is missing or invalid. |
 
 ### `verbatim-relay audit`
@@ -179,7 +189,7 @@ Check that no record of a test changed after its end ([SPEC.md section 7.4](../.
 | Exit code | Meaning |
 |---|---|
 | 0 | The seal is intact. |
-| 2 | The seal is broken, or there is no test folder. |
+| 2 | The seal is broken, the test has no seal, or there is no test folder. |
 
 ## Commands that install or connect
 

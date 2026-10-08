@@ -18,14 +18,16 @@ verbatim-relay --version
 ```
 
 ```text
-verbatim-relay 0.2.0
+verbatim-relay 0.3.0
 ```
 
-If the version is 0.1.0, PyPI does not have version 0.2.0 yet. Install from the repo:
+This tutorial needs version 0.3.0 or later. If the version is lower, end each running test with `verbatim-relay end`. Then upgrade:
 
 ```bash
-uv tool install --force git+https://github.com/mohanraj00/verbatim-relay
+uv tool upgrade verbatim-relay
 ```
+
+End the tests first, because 0.3.0 does not find a test that version 0.2.0 started. It then cannot end that test ([#44](https://github.com/mohanraj00/verbatim-relay/issues/44)).
 
 ## 2. Make a project for the toy shop
 
@@ -65,6 +67,7 @@ verbatim-relay init claude-code --entry "python3 agent.py"
 
 ```text
 wrote .../toy-shop/.verbatim-relay/config.json
+  A new file. Keys that differ from the default: entry.
 wrote .../toy-shop/.claude/settings.local.json
 Relay mode is off. Switch it with: verbatim-relay mode on
 Do not also enable the verbatim-relay Claude Code plugin in this project, or each message is sent two times.
@@ -84,6 +87,8 @@ Reply: Which item is this about: the mug or the teapot?
 Audit: exit 0
 PASS
 ```
+
+PASS proves the connection, not the reply. `check` sent one fixed message to the entry: `Hello from verbatim-relay check. What can you help me with?` The entry sent a reply line, and the audit of this short test is clean. `check` does not judge the reply. Here the reply is the fallback text of the toy shop, because the toy shop has no rule for this message. For your own app, do the steps in [Make sure that check runs your real app](how-to/connect-your-agent.md#make-sure-that-check-runs-your-real-app).
 
 ## 5. Start the viewer
 
@@ -226,6 +231,8 @@ verbatim-relay verify
 ```text
 Seal: intact. No record changed after the end of the test.
 ```
+
+To read each file of a test folder in order, see [Read the results of a test](how-to/read-the-results.md).
 
 ## What you did
 

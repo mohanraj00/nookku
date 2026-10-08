@@ -13,8 +13,9 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from test_timeouts import ANSWER
 
-from verbatim_relay import audit, cli, config, trace
+from verbatim_relay import audit, bridge, cli, config, kit, stdio, trace
 
 ROOT = Path(__file__).resolve().parent.parent
 DOCS = ROOT / "docs"
@@ -172,12 +173,69 @@ def test_the_readme_counts_each_folder_of_conformance_cases() -> None:
     [
         ("README.md", r"(\d+) break classes", len(audit.CHECKS)),
         ("docs/architecture.md", r"(\d+) break classes", len(audit.CHECKS)),
-        ("docs/architecture.md", r"(\d+) checks write", len(trace.CHECKS)),
+        # The prose and the diagram of the trace.
+        ("docs/architecture.md", r"(\d+) checks\b", len(trace.CHECKS)),
+        ("docs/how-to/read-the-results.md", r"(\d+) break classes", len(audit.CHECKS)),
+        ("docs/how-to/read-the-results.md", r"(\d+) trace checks", len(trace.CHECKS)),
     ],
 )
 def test_each_count_of_the_code_is_correct(page: str, phrase: str, count: int) -> None:
     found = re.findall(phrase, (ROOT / page).read_text(encoding="utf-8"))
     assert found and all(int(n) == count for n in found)
+
+
+# The architecture page -------------------------------------------------------------------------
+
+ARCHITECTURE = DOCS / "architecture.md"
+MERMAID = re.compile(r"^```mermaid\n(.*?)^```", re.MULTILINE | re.DOTALL)
+# A file name in a diagram: a record, a configuration file or the report.
+RECORD_FILE = re.compile(r"[\w-]+\.(?:jsonl|json|md|log)\b")
+
+
+def test_each_record_file_in_a_diagram_is_on_the_records_page() -> None:
+    diagrams = MERMAID.findall(ARCHITECTURE.read_text(encoding="utf-8"))
+    names = {name for diagram in diagrams for name in RECORD_FILE.findall(diagram)}
+    records = (DOCS / "reference" / "records.md").read_text(encoding="utf-8")
+    listed = set(re.findall(r"`([^`]+)`", records))
+    assert len(diagrams) >= 4 and names
+    assert sorted(names - listed) == []
+
+
+# Each constant of the timeout table: its value, the file that defines it, and the name on the
+# line that the table links to. Order 2 is the agent timeout and the ANSWER limit of the test.
+TIMEOUTS = {
+    "stdio.TIMEOUT": (stdio.TIMEOUT, "src/verbatim_relay/stdio.py", "TIMEOUT"),
+    "stdio.TIMEOUT + ANSWER": (stdio.TIMEOUT + ANSWER, "tests/test_timeouts.py", "ANSWER"),
+    "bridge.TIMEOUT": (bridge.TIMEOUT, "src/verbatim_relay/bridge.py", "TIMEOUT"),
+    "kit.TIMEOUT": (kit.TIMEOUT, "src/verbatim_relay/kit.py", "TIMEOUT"),
+    "kit.HOOK_DEADLINE": (kit.HOOK_DEADLINE, "src/verbatim_relay/kit.py", "HOOK_DEADLINE"),
+}
+
+
+def test_the_timeout_table_matches_the_constants() -> None:
+    section = _sections(ARCHITECTURE, "##")["Timeouts"]
+    row = re.compile(r"^\| \d+ \| [^|]+ \| \[(\d+)\]\(([^)#]+)#L(\d+)\) \| `([^`]+)` \|$")
+    rows = [m.groups() for m in map(row.match, section.splitlines()) if m]
+    assert sorted(r[3] for r in rows) == sorted(TIMEOUTS)
+    for seconds, target, line, constant in rows:
+        value, file, name = TIMEOUTS[constant]
+        path = (ARCHITECTURE.parent / target).resolve()
+        assert (int(seconds), path.relative_to(ROOT).as_posix()) == (value, file), constant
+        source = path.read_text(encoding="utf-8").splitlines()[int(line) - 1]
+        assert source.startswith(f"{name} = "), f"{target}#L{line}: {source}"
+
+
+CHECK_PAGES = [
+    "docs/getting-started.md",
+    "docs/how-to/connect-your-agent.md",
+    "docs/reference/cli.md",
+]
+
+
+@pytest.mark.parametrize("page", CHECK_PAGES)
+def test_each_page_that_runs_check_gives_the_fixed_check_message(page: str) -> None:
+    text = (ROOT / page).read_text(encoding="utf-8")
+    assert f"`{bridge.CHECK_MESSAGE}`" in text
 
 
 # The map of the docs ---------------------------------------------------------------------------
@@ -317,3 +375,44 @@ def test_the_config_page_has_each_plugin_option_with_its_default() -> None:
     options = json.loads(manifest.read_text(encoding="utf-8"))["userConfig"]
     documented = _row_defaults(_sections(DOCS / "reference" / "config.md", "##")["Plugin options"])
     assert documented == {key: _cell(o.get("default", "")) for key, o in options.items()}
+
+
+def _first_cells(section: str) -> list[str]:
+    """The name in the first cell of each table row of a section, in the order of the rows."""
+    return re.findall(r"^\| `([a-z_]+)` \|", section, re.MULTILINE)
+
+
+def test_the_results_guide_names_each_break_class_and_each_trace_check() -> None:
+    page = _sections(DOCS / "how-to" / "read-the-results.md", "###")
+    assert _first_cells(page["Break classes"]) == list(audit.CHECKS)
+    assert _first_cells(page["Trace checks"]) == list(trace.CHECKS)
+
+
+# How-to pages that name parts of the code ------------------------------------------------------
+
+
+@pytest.mark.parametrize("harness", ["claude-code", "codex"])
+def test_the_remove_page_names_each_hook_that_init_writes(harness: str, tmp_path: Path) -> None:
+    """The remove page tells the tester which hook entries to remove. If init writes another
+    event, matcher or timeout, the page must change too."""
+    kit.init(tmp_path, harness, {})
+    hook_file = kit.hook_file(tmp_path, harness)
+    page = (DOCS / "how-to" / "remove.md").read_text(encoding="utf-8")
+    assert f"`{hook_file.relative_to(tmp_path)}`" in page
+    for event, groups in json.loads(hook_file.read_text(encoding="utf-8"))["hooks"].items():
+        (group,) = groups
+        (hook,) = group["hooks"]
+        assert "verbatim_relay hook" in hook["command"]
+        assert f"`hooks.{event}`" in page
+        assert f'"timeout": {hook["timeout"]}' in page
+        if "matcher" in group:
+            assert f'"matcher": "{group["matcher"]}"' in page
+    assert "`verbatim_relay hook`" in page
+
+
+def test_the_upgrade_page_has_a_section_for_each_release_with_an_upgrade_step() -> None:
+    changelog = _sections(ROOT / "CHANGELOG.md", "##")
+    special = sorted(v for v, body in changelog.items() if "**Upgrade.**" in body)
+    page = _sections(DOCS / "how-to" / "upgrade.md", "###")
+    assert special
+    assert [v for v in special if v not in page] == []
