@@ -242,6 +242,7 @@ To read each file of a test folder in order, see [Read the results of a test](ho
 
 ## Next steps
 
+- Test your own app: [how-to/test-your-app.md](how-to/test-your-app.md). In the harness, type `!verbatim-relay setup`. Then type the prompt "Follow the verbatim-relay setup guide, and connect a test to this app."
 - Connect your own agent: [how-to/connect-your-agent.md](how-to/connect-your-agent.md).
 - Use the Claude Code plugin, which shows each reply in the chat: [how-to/claude-code-plugin.md](how-to/claude-code-plugin.md).
 - Use Codex: [how-to/codex.md](how-to/codex.md).

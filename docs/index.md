@@ -14,6 +14,7 @@ Do each step, and learn how the parts work.
 
 Do one task.
 
+- [Test your own app](how-to/test-your-app.md): from the install to the results of a first [test](reference/glossary.md#test), with the expected output of each step.
 - [Connect your own agent](how-to/connect-your-agent.md): write the [entry](reference/glossary.md#entry) and the configuration, use `verbatim_relay.agent.serve()`, and run `verbatim-relay check`.
 - [Choose a relay](how-to/choose-a-relay.md): select the plugin or the hook kit, and an entry or the HTTP tap. Switch from one relay to the other.
 - [Test an agent with the Claude Code plugin](how-to/claude-code-plugin.md): install the plugin, run a test, and read the [evaluation](reference/glossary.md#evaluation) at the end.
