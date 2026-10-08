@@ -24,15 +24,15 @@ This page moved. Its sections are now on these pages. Each heading below keeps t
 
 ## Plugin
 
-[how-to/claude-code.md](how-to/claude-code.md#plugin). The files of a test folder are in [reference/records.md](reference/records.md#the-test-folder). The plugin options are in [reference/config.md](reference/config.md#plugin-options).
+[how-to/claude-code-plugin.md](how-to/claude-code-plugin.md). The files of a test folder are in [reference/records.md](reference/records.md#the-test-folder). The plugin options are in [reference/config.md](reference/config.md#plugin-options).
 
 ## Evaluation
 
-[how-to/claude-code.md](how-to/claude-code.md#evaluation)
+[how-to/claude-code-plugin.md](how-to/claude-code-plugin.md#evaluation) or [how-to/claude-code-hook-kit.md](how-to/claude-code-hook-kit.md#evaluation)
 
 ## Hook kit
 
-[how-to/claude-code.md](how-to/claude-code.md#hook-kit)
+[how-to/claude-code-hook-kit.md](how-to/claude-code-hook-kit.md)
 
 ## An agent that runs as an HTTP server
 
@@ -40,4 +40,4 @@ This page moved. Its sections are now on these pages. Each heading below keeps t
 
 ## Audit
 
-[how-to/claude-code.md](how-to/claude-code.md#audit)
+[how-to/claude-code-plugin.md](how-to/claude-code-plugin.md#audit) or [how-to/claude-code-hook-kit.md](how-to/claude-code-hook-kit.md#audit)

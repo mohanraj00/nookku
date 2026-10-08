@@ -82,6 +82,10 @@ First, look in the test folder `.verbatim-relay/tests/<test-id>/`. `bridge.log` 
 
 ## During a test
 
+In relay mode, both relays fail closed. If a relay cannot send a message, the message does not go to the model. The relay shows the error and writes it in the relay record with `ok: false` ([SPEC.md section 5](../SPEC.md#5-relays)).
+
+If the entry returns an error, crashes or does not answer in [240 seconds](../src/verbatim_relay/stdio.py), the relay shows the error and records it. After a crash, each later message gets the same error, with the last lines of `app.log`. End the test and start a new one.
+
 ### `verbatim-relay: relay mode is on, but no test runs. Start one with: verbatim-relay start. Nothing was sent.`
 
 (kit.py; the plugin says `Type /verbatim-relay start`) **Cause.** Relay mode is on, but the bridge does not run. For example, the computer restarted during a test.
@@ -117,6 +121,12 @@ First, look in the test folder `.verbatim-relay/tests/<test-id>/`. `bridge.log` 
 (bridge.py, kit.py, register.tsx) **Cause.** The bridge or the tap does not run. With no entry, the tap of `tap_url` does not run.
 
 **Fix.** With an entry, end the test and start a new one. With no entry, start `verbatim-relay tap` ([how-to/http-tap.md](how-to/http-tap.md)).
+
+### `verbatim-relay: the test stopped, and no test runs. The tap did not answer. Type /verbatim-relay start.`
+
+(register.tsx) **Cause.** The plugin could not reach the tap of the running test. It then ran `verbatim-relay status --json`, and the answer said that no test runs. For example, the test process stopped. The message can have reached the tap before the test stopped, so the record keeps the turn with `ok: false`. The message does not go to the model.
+
+**Fix.** Type `/verbatim-relay start` to start a new test.
 
 ### `verbatim-relay: relay mode is on, but the config is broken: <reason>`
 
@@ -164,7 +174,7 @@ First, look in the test folder `.verbatim-relay/tests/<test-id>/`. `bridge.log` 
 
 **Cause.** The plugin and the hook kit both run in the project. The audit shows `duplicate_send` breaks.
 
-**Fix.** Use one relay. Remove the verbatim-relay hooks from `.claude/settings.local.json`, or disable the plugin.
+**Fix.** Use one relay. Remove the verbatim-relay hooks from `.claude/settings.local.json`, or disable the plugin. [how-to/choose-a-relay.md](how-to/choose-a-relay.md#switch-from-one-relay-to-the-other) gives the steps.
 
 ### In Codex, the model answers my test messages
 

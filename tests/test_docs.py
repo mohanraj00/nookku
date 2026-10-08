@@ -190,6 +190,69 @@ def test_each_docs_page_is_on_the_map() -> None:
     assert sorted(str(p.relative_to(ROOT)) for p in pages - linked) == []
 
 
+# A page that moved or split keeps the anchor of each old section, so old links still work.
+KEPT_ANCHORS = {
+    "docs/claude-code.md": {
+        "connect-a-test-to-your-app",
+        "backends",
+        "direct-model-calls",
+        "opentelemetry",
+        "isolate-the-apps-model-session",
+        "plugin",
+        "evaluation",
+        "hook-kit",
+        "an-agent-that-runs-as-an-http-server",
+        "audit",
+    },
+    "docs/codex.md": {"install", "use", "audit"},
+    "docs/how-to/claude-code.md": {"plugin", "hook-kit", "evaluation", "audit", "more"},
+}
+
+
+@pytest.mark.parametrize("page", sorted(KEPT_ANCHORS))
+def test_a_moved_page_keeps_each_old_anchor(page: str) -> None:
+    assert sorted(KEPT_ANCHORS[page] - anchors(ROOT / page)) == []
+
+
+# Mermaid ---------------------------------------------------------------------------------------
+
+MERMAID = re.compile(r"^```mermaid[ \t]*\n(.*?)^```", re.MULTILINE | re.DOTALL)
+# Syntax that GitHub does not render, or that breaks a flowchart: the node shapes of @{ },
+# click actions, styles, and the word end as a node id.
+MERMAID_BANNED = re.compile(
+    r"@\{|^\s*(click|style|classDef|class|linkStyle)\b|"
+    r"(-->|---|-\.->|==>|\|)\s*end\b|^\s*end\b(?!\s*$)|\bend\s*(\[|\(|\{|-->|---|-\.->|==>)",
+    re.MULTILINE,
+)
+
+
+def test_each_mermaid_diagram_is_a_flowchart_that_github_renders() -> None:
+    blocks = [
+        (path, block)
+        for path in DOCS.rglob("*.md")
+        for block in MERMAID.findall(path.read_text(encoding="utf-8"))
+    ]
+    assert blocks
+    for path, block in blocks:
+        assert block.lstrip().startswith("flowchart "), path
+        assert MERMAID_BANNED.findall(block) == [], path
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "a --> end",
+        "end[Done]",
+        "end --> a",
+        "a --> b@{ shape: rect }",
+        "click a call f()",
+        "style a fill:#f00",
+    ],
+)
+def test_the_mermaid_check_finds_banned_syntax(line: str) -> None:
+    assert MERMAID_BANNED.search(line)
+
+
 # Reference pages -----------------------------------------------------------------------------
 
 
