@@ -103,7 +103,7 @@ FAIL: tap_unparsed: tap line 1: STDIO stdout: a stray line on stdout: 'toy shop 
 
 ## 5. Install the relay, and start the viewer
 
-The [relay](../reference/glossary.md#relay) carries each message to the tap and each reply back to you. Use one relay. [claude-code.md](claude-code.md) compares the plugin and the hook kit.
+The [relay](../reference/glossary.md#relay) carries each message to the tap and each reply back to you. Use one relay. [choose-a-relay.md](choose-a-relay.md) compares the plugin and the hook kit.
 
 ### Hook kit in Claude Code
 
@@ -131,7 +131,7 @@ Then trust the hooks. Start `codex` in the project once, and accept the hooks pr
 
 ### Plugin in Claude Code
 
-Install the plugin as [claude-code.md](claude-code.md#plugin) says. The plugin shows each reply in the chat, so you do not need the viewer.
+Install the plugin as [claude-code-plugin.md](claude-code-plugin.md#install) says. The plugin shows each reply in the chat, so you do not need the viewer.
 
 ### Start the viewer
 
@@ -227,7 +227,9 @@ If the latest test has no `report.md`, the prompt `verbatim-relay end` starts it
 
 ## 8. Read the results
 
-The test folder `.verbatim-relay/tests/<test-id>/` holds the two records, the audit, the trace, the findings, the seal and `report.md`. [reference/records.md](../reference/records.md#the-test-folder) lists each file. The tutorial shows how to read the audit and the report: [8. Read the audit](../getting-started.md#8-read-the-audit) and [9. Read the report](../getting-started.md#9-read-the-report).
+The test folder `.verbatim-relay/tests/<test-id>/` holds the two records, the audit, the trace, the findings, the seal and `report.md`. [reference/records.md](../reference/records.md#the-test-folder) lists each file.
+
+Read the files in the order of [read-the-results.md](read-the-results.md): the seal, the audit, the findings, the report and the transcript. That page also tells you the next step for each result. The tutorial shows the same steps for the toy shop: [8. Read the audit](../getting-started.md#8-read-the-audit), [9. Read the report](../getting-started.md#9-read-the-report) and [10. Read the trace and the findings](../getting-started.md#10-read-the-trace-and-the-findings).
 
 For the toy shop test, the audit gives:
 
@@ -241,4 +243,4 @@ A report is a model answer, so check its evidence.
 ## Next
 
 - Change the entry when your app changes: [connect-your-agent.md](connect-your-agent.md#when-the-app-changes).
-- Each error text, its cause and the fix: [troubleshooting.md](../troubleshooting.md).
+- Each symptom and each error text, with the fix: [troubleshooting.md](../troubleshooting.md).

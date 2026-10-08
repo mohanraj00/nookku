@@ -1,8 +1,24 @@
 # Troubleshooting
 
-Each entry gives a real error text from the code, its cause and the fix. The source file of each text is in parentheses. A part in angle brackets, for example `<test-id>`, changes from run to run.
+If you see a problem but no error text, find the problem in [Symptoms](#symptoms). If you have an error text, find it in the sections after Symptoms. Each of these entries gives a real error text from the code, its cause and the fix. The source file of each text is in parentheses. A part in angle brackets, for example `<test-id>`, changes from run to run.
 
-First, look in the test folder `.verbatim-relay/tests/<test-id>/`. `bridge.log` has the steps of the bridge. `app.log` has the stderr of your entry and your app.
+First, look in the [test folder](reference/glossary.md#test-folder) `.verbatim-relay/tests/<test-id>/`. `bridge.log` has the steps of the [bridge](reference/glossary.md#bridge). `app.log` has the stderr of your [entry](reference/glossary.md#entry) and your app.
+
+## Symptoms
+
+| Symptom | Fix |
+|---|---|
+| `verbatim-relay check` passes, but the replies are wrong. | `check` does not judge the reply. Do the steps in [Make sure that check runs your real app](how-to/connect-your-agent.md#make-sure-that-check-runs-your-real-app). The [entry for this symptom](#verbatim-relay-check-passes-but-the-replies-are-wrong) gives the cause. |
+| The viewer shows an old test or the check test. | This is correct before the start of a test. The viewer shows the last test, and after `check` this is the check test. When a test starts, the viewer shows a header line with the new test id ([test-your-app.md](how-to/test-your-app.md#start-the-viewer)). If no new header comes, run `verbatim-relay status` to see if a test runs ([recover-a-stuck-test.md](how-to/recover-a-stuck-test.md#1-run-status)). |
+| `transcript`, `trace` or `verify` shows the check test, not your test. | These commands use the latest test. If you ran `check` after your test, give the id of your test ([read-the-results.md](how-to/read-the-results.md#1-find-the-test-id)). |
+| A prompt went to the model in [relay mode](reference/glossary.md#relay-mode). | In relay mode, the [relay](reference/glossary.md#relay) blocks each prompt. Run `verbatim-relay status`. If it says `relay mode is off.`, start a test with the prompt `verbatim-relay start`. If relay mode is on, the hooks did not run. In Codex, trust the hooks ([In Codex, the model answers my test messages](#in-codex-the-model-answers-my-test-messages)). In Claude Code, install the relay again ([hook kit](how-to/claude-code-hook-kit.md#install), [plugin](how-to/claude-code-plugin.md#install)). |
+| Codex does not run the hooks. | Codex runs project hooks only after a person trusts them. Do the trust step ([codex.md](how-to/codex.md#install), [In Codex, the model answers my test messages](#in-codex-the-model-answers-my-test-messages)). |
+| Each message reaches the agent two times. | The plugin and the hook kit both run. Use one relay ([Each message reaches the agent two times](#each-message-reaches-the-agent-two-times)). |
+| A test does not start. | Find the error text in [Start a test](#start-a-test). |
+| The test does not end, or each prompt says that no test runs. | Follow [recover-a-stuck-test.md](how-to/recover-a-stuck-test.md). |
+| No `report.md` after the end. | The model writes `report.md` only after the prompt `verbatim-relay end`. `verbatim-relay end` in a shell, or `/verbatim-relay end` in the plugin, ends the test with no [evaluation](reference/glossary.md#evaluation). If `evaluate` is `false` in the configuration, no evaluation starts. If you denied a command of the evaluation, the model can stop. Type the prompt `verbatim-relay end` again. If the latest test has no `report.md`, this prompt starts its evaluation ([SPEC.md section 9.1](../SPEC.md#91-start), [test-your-app.md](how-to/test-your-app.md#7-allow-the-evaluation-commands)). In Codex, the sandbox must let the model write in the project ([codex.md](how-to/codex.md#use)). |
+| The [audit](reference/glossary.md#audit) exits with 1 or 2. | Read the break or the error in `audit.json` ([read-the-results.md](how-to/read-the-results.md#3-read-the-audit)). For each error text, read [Audit, verify and trace](#audit-verify-and-trace). |
+| `verbatim-relay verify` says `Seal: BROKEN`. | A file of the test folder changed after the end of the test. Do not trust the changed files. Run a new test ([Audit, verify and trace](#audit-verify-and-trace)). |
 
 ## Install
 
@@ -96,7 +112,7 @@ First, look in the test folder `.verbatim-relay/tests/<test-id>/`. `bridge.log` 
 
 (register.tsx) **Cause.** You typed `/verbatim-relay start` or `/verbatim-relay end`, but `config.json` has no `entry`. The plugin also finds no entry if `config.json` is not valid JSON.
 
-**Fix.** Write the entry in `config.json`, or ask the harness model to run `verbatim-relay setup` ([how-to/claude-code.md](how-to/claude-code.md)). For an agent that is an HTTP server, use `/verbatim-relay on` and `/verbatim-relay off` ([how-to/http-tap.md](how-to/http-tap.md)).
+**Fix.** Write the entry in `config.json`, or ask the harness model to run `verbatim-relay setup` ([how-to/claude-code-plugin.md](how-to/claude-code-plugin.md)). For an agent that is an HTTP server, use `/verbatim-relay on` and `/verbatim-relay off` ([how-to/http-tap.md](how-to/http-tap.md)).
 
 ## During a test
 

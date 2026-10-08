@@ -272,6 +272,15 @@ def test_a_moved_page_keeps_each_old_anchor(page: str) -> None:
     assert sorted(KEPT_ANCHORS[page] - anchors(ROOT / page)) == []
 
 
+def test_the_docs_table_of_the_readme_lists_each_how_to_guide() -> None:
+    # A moved page only keeps old links, so the table does not list it.
+    readme = ROOT / "README.md"
+    linked = {resolve(readme, t)[0] for t in links(_sections(readme, "##")["Docs"])}
+    moved = {(ROOT / page).resolve() for page in KEPT_ANCHORS}
+    guides = {p.resolve() for p in (DOCS / "how-to").glob("*.md")} - moved
+    assert sorted(str(p.relative_to(ROOT)) for p in guides - linked) == []
+
+
 # Mermaid ---------------------------------------------------------------------------------------
 
 MERMAID = re.compile(r"^```mermaid[ \t]*\n(.*?)^```", re.MULTILINE | re.DOTALL)
