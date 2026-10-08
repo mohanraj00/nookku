@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from verbatim_relay import __version__, kit
+from verbatim_relay import __version__, bridge, kit
 from verbatim_relay.cli import main
 from verbatim_relay.kit import LEGEND
 from verbatim_relay.record import Writer
@@ -63,6 +63,21 @@ def test_rows_from_the_writer_pass_the_audit(tmp_path, capsys):
 
 def test_no_command_prints_help():
     assert main([]) == 2
+
+
+def test_the_help_hides_the_bridge_command_and_the_command_still_runs(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    with pytest.raises(SystemExit) as exit_info:
+        main(["--help"])
+    assert exit_info.value.code == 0
+    out = capsys.readouterr().out
+    assert "==SUPPRESS==" not in out
+    assert "bridge" not in out.split()
+    calls: list[tuple[Path, str, str | None]] = []
+    monkeypatch.setattr(bridge, "run", lambda *args: calls.append(args) or 0)
+    assert main(["bridge", "--root", str(tmp_path), "--test", "t-1"]) == 0
+    assert calls == [(tmp_path, "t-1", None)]
 
 
 def test_tap_command_end_to_end(tmp_path):
