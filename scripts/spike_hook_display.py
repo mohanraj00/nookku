@@ -114,9 +114,7 @@ def project(payload: dict[str, str]) -> Path:
     (p / ".claude").mkdir(parents=True, exist_ok=True)
     (p / "hook.py").write_text(HOOK, encoding="utf-8")
     (p / "payload.json").write_text(json.dumps({"decision": "block", **payload}), encoding="utf-8")
-    command = shlex.join(
-        [shutil.which("python3") or "python3", str(p / "hook.py"), str(p / "payload.json")]
-    )
+    command = shlex.join([sys.executable, str(p / "hook.py"), str(p / "payload.json")])
     hooks = {"UserPromptSubmit": [{"hooks": [{"type": "command", "command": command}]}]}
     (p / ".claude" / "settings.json").write_text(json.dumps({"hooks": hooks}), encoding="utf-8")
     return p
