@@ -112,8 +112,8 @@ sequenceDiagram
     alt the tap answers
         Tap->>Entry: the same bytes as one line on stdin
         Entry-->>Tap: one contract JSON line on stdout, or no line in 240 s
-        Tap->>Tap: write an exchange row to tap.jsonl
-        Tap-->>Relay: 200 with the same bytes, or an error status
+        Tap->>Tap: write an exchange row to tap.jsonl, or an unparsed row if the reply line breaks the contract
+        Tap-->>Relay: 200 with the same bytes, or an error status (502 for an unparsed reply)
         Relay->>Relay: write a turn to relay.jsonl, with ok: true only for a 200
         Relay-->>Tester: show the reply or the error
     else the tap does not answer
@@ -248,12 +248,12 @@ Each wait on the relay path ends before the wait around it, so that the relay ca
 | Order | Wait | Seconds | Constant |
 |---|---|---|---|
 | 1 | The tap waits for the agent, in HTTP mode and in stdio mode. | [240](../src/verbatim_relay/stdio.py#L24) | `stdio.TIMEOUT` |
-| 2 | The tap answers the relay, at most 5 seconds after the agent timeout. | [245](../tests/test_timeouts.py#L22) | `stdio.TIMEOUT + ANSWER` |
+| 2 | The tap answers the relay, at most [5 seconds](../tests/test_timeouts.py#L22) after the agent timeout. | [245](../tests/test_timeouts.py#L22) | `stdio.TIMEOUT + ANSWER` |
 | 3 | The hook kit waits for the tap of a test. | [270](../src/verbatim_relay/bridge.py#L38) | `bridge.TIMEOUT` |
 | 3 | The hook kit waits for a tap in HTTP mode, with no test. | [280](../src/verbatim_relay/kit.py#L34) | `kit.TIMEOUT` |
 | 4 | The harness stops the `UserPromptSubmit` hook of the hook kit. | [300](../src/verbatim_relay/kit.py#L37) | `kit.HOOK_DEADLINE` |
 
-Each number links to its constant. The 5 seconds of order 2 is the `ANSWER` limit of the test. The plugin sets no timeout of its own. It waits for the answer of the tap. [tests/test_docs.py](../tests/test_docs.py) checks that this table matches the constants.
+Each number links to its constant. The [5 seconds](../tests/test_timeouts.py#L22) of order 2 is the `ANSWER` limit of the test. The plugin sets no timeout of its own. It waits for the answer of the tap. [tests/test_docs.py](../tests/test_docs.py) checks that this table matches the constants.
 
 ## Where to read the code
 
