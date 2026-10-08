@@ -8,6 +8,7 @@ usage: python examples/toy-shop/http_agent.py [PORT]
 from __future__ import annotations
 
 import json
+import socketserver
 import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -29,7 +30,15 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(out)
 
 
+class Server(ThreadingHTTPServer):
+    def server_bind(self) -> None:
+        # HTTPServer looks up the host name here, and the lookup can take seconds. The toy shop
+        # does not use the name, so it skips the lookup and listens at once.
+        socketserver.TCPServer.server_bind(self)
+        self.server_name, self.server_port = "127.0.0.1", self.server_address[1]
+
+
 if __name__ == "__main__":
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8700
     print(f"toy shop agent on http://127.0.0.1:{port}/", file=sys.stderr)
-    ThreadingHTTPServer(("127.0.0.1", port), Handler).serve_forever()
+    Server(("127.0.0.1", port), Handler).serve_forever()

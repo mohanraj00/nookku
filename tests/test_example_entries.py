@@ -131,7 +131,7 @@ def test_the_http_entry_starts_the_server_and_sends_each_message_to_it() -> None
         env=env,
     )
     out = p.stdout.split(b"\n")
-    assert out[-1] == b"" and len(out) == 3
+    assert out[-1] == b"" and len(out) == 3, p.stderr.decode(errors="replace")
     assert contract.parse_reply(out[0], "m-1") == (SHIP, None)
     assert contract.parse_reply(out[1], "m-2") == (FALLBACK, None)
     assert f"toy shop agent on http://127.0.0.1:{port}/".encode() in p.stderr
