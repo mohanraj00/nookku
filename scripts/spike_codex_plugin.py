@@ -251,6 +251,8 @@ def desktop_finish(prompt_blocked: str, tool_blocked: str) -> None:
 
 def hook() -> int:
     """Record allowed fields from the toy event, then block its test markers."""
+    # This toy probe expects harness fields. A malformed event can fail open.
+    # It is not a relay guard; the external check must run before relay prompts.
     event = json.load(sys.stdin)
     if Path(event["cwd"]).parts[-3:] != (".proof", "codex-plugin-spike", "project"):
         print("{}")
@@ -311,6 +313,9 @@ def fixture(version: str, timeout: int) -> None:
     )
     script = plugin / "scripts/probe.py"
     script.parent.mkdir(parents=True, exist_ok=True)
+    # Keep the executable fixed during manifest and timeout comparisons.
+    # Later edits to this script do not update an existing fixture probe.
+    # Use a new fixture and repeat human trust and measurements for new code.
     if not script.exists():
         script.write_text(Path(__file__).read_text(encoding="utf-8"), encoding="utf-8")
     write_json(

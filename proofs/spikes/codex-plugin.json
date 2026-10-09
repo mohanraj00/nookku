@@ -1500,17 +1500,13 @@
     "ruff": "passed",
     "ruff_format": "passed",
     "mypy": "passed",
-    "pytest": {
-      "passed": 507
-    },
+    "pytest": "passed",
     "stealth": "passed",
     "claude_plugin_validate": "passed",
-    "claude_plugin_test": {
-      "passed": 46
-    },
+    "claude_plugin_test": "passed",
     "conformance": "passed; no diff",
-    "evidence_consistency": "passed; every answer reference resolves, desktop events match the baseline observation, and prompt blocking and untrusted forwarding agree with saved model markers",
-    "scope": "The required checks ran on the final script and completed answers. This check record was added after they passed."
+    "scope": "The author ran the listed commands. Test counts and the hand-written evidence-consistency claim were removed. CI logs are the check evidence.",
+    "ci": "https://github.com/mohanraj00/verbatim-relay/pull/197/checks"
   },
   "hook_inspections": [
     {
