@@ -142,6 +142,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     tr.add_argument("--test", help="the test id (default: the latest test)")
     tr.add_argument("--session", help="only the turns of this harness session")
 
+    mcp = sub.add_parser("mcp", help="the MCP server with the transcript and status tools")
+    mcp.add_argument("--root", type=Path, help="the project (default: CLAUDE_PROJECT_DIR or here)")
+
     hook = sub.add_parser("hook", help="the hook command that init installs")
     hook.add_argument("--root", type=Path, required=True)
     hook.add_argument("--harness", required=True)
@@ -242,16 +245,17 @@ def main(argv: Sequence[str] | None = None) -> int:
             kit.set_mode(root, args.state == "on")
         print(f"Relay mode is {'on' if kit.is_on(root) else 'off'}.")
         return 0
-    if args.command == "transcript" and args.trace:
-        root = args.root.resolve()
-        tests = root / bridge.STATE_DIR / "tests"
-        folder = tests / args.test if args.test else bridge.latest_test(root)
-        if folder is None or not folder.is_dir():
-            print("nookku: no test folder.", file=sys.stderr)
+    if args.command == "transcript":
+        try:
+            text = kit.transcript_text(
+                args.root.resolve(), args.test, args.trace, args.all, args.session, args.record
+            )
+        except kit.TranscriptError as e:
+            print(f"nookku: {e}", file=sys.stderr)
             return 2
-        print(evaluation.transcript(folder), end="")
+        print(text, end="")
         return 0
-    if args.command in ("view", "transcript"):
+    if args.command == "view":
         root = args.root.resolve()
         # The plugin has no config file. Without one, use the default record path.
         has_config = (root / kit.STATE_DIR / "config.json").exists()
@@ -260,18 +264,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         except (OSError, ValueError, TypeError) as e:
             print(f"nookku: cannot read the config: {e}", file=sys.stderr)
             return 2
-        test = bridge.latest_test(root) if config.entry and not args.record else None
-        if args.command == "transcript" and args.test and not args.record:
-            test = root / bridge.STATE_DIR / "tests" / args.test
-        record = args.record or (test / "relay.jsonl" if test else config.record_path(root))
-        if args.command == "transcript":
-            scope = f"test {test.name}" if test else ""
-            every = args.all or test is not None
-            try:
-                return kit.transcript(record, every, sys.stdout, scope, args.session)
-            except RecordError as e:
-                print(f"nookku: {e}", file=sys.stderr)
-                return 2
+        record = args.record or config.record_path(root)
         try:
             if config.entry and not args.record:
                 return kit.view_tests(root, not args.no_follow, sys.stdout)
@@ -281,6 +274,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 2
         except KeyboardInterrupt:
             return 0
+    if args.command == "mcp":
+        from nookku import mcp as server
+
+        return server.serve(args.root.resolve() if args.root else server.project_root())
     if args.command == "hook":
         return kit.run_hook(args.root, args.harness, sys.stdin, sys.stdout)
     parser.print_help(sys.stderr)

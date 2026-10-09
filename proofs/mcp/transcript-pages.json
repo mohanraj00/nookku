@@ -1,0 +1,619 @@
+{
+  "issue": 215,
+  "date": "2026-10-09",
+  "method": "scripts/measure_transcript_pages.py",
+  "versions": {
+    "claude": "2.1.295 (Claude Code)",
+    "codex": "codex-cli 0.162.0"
+  },
+  "claude_model": "haiku",
+  "page_tokens_default": 2000,
+  "estimate": "nookku.mcp.estimate_tokens",
+  "cases": [
+    {
+      "harness": "claude-code",
+      "kind": "english",
+      "page_tokens": 2000,
+      "sent": {
+        "bytes": 7695,
+        "characters": 7263,
+        "estimate": 2049.0,
+        "sha256": "57380a2c2cc1fc3200d7897c3ae3e092ac6bc12e15dede89ac71a60e56a263bf"
+      },
+      "arrived": [
+        {
+          "bytes": 7695,
+          "sha256": "57380a2c2cc1fc3200d7897c3ae3e092ac6bc12e15dede89ac71a60e56a263bf"
+        }
+      ],
+      "unchanged": true,
+      "exit": 0
+    },
+    {
+      "harness": "claude-code",
+      "kind": "english",
+      "page_tokens": 4000,
+      "sent": {
+        "bytes": 15265,
+        "characters": 14449,
+        "estimate": 4056.75,
+        "sha256": "8cbb3003a4e43fae109943d977796c9953b17e1c1dc6086512016e0f4e5dba5e"
+      },
+      "arrived": [
+        {
+          "bytes": 15265,
+          "sha256": "8cbb3003a4e43fae109943d977796c9953b17e1c1dc6086512016e0f4e5dba5e"
+        }
+      ],
+      "unchanged": true,
+      "exit": 0
+    },
+    {
+      "harness": "claude-code",
+      "kind": "english",
+      "page_tokens": 8000,
+      "sent": {
+        "bytes": 30116,
+        "characters": 28468,
+        "estimate": 8005.75,
+        "sha256": "00404821e8170b6122a6d4e978ee91b731a8ad0d73f15052b23c9b42181ecd8f"
+      },
+      "arrived": [
+        {
+          "bytes": 30116,
+          "sha256": "00404821e8170b6122a6d4e978ee91b731a8ad0d73f15052b23c9b42181ecd8f"
+        }
+      ],
+      "unchanged": true,
+      "exit": 0
+    },
+    {
+      "harness": "claude-code",
+      "kind": "non_ascii",
+      "page_tokens": 2000,
+      "sent": {
+        "bytes": 6094,
+        "characters": 3862,
+        "estimate": 1952.5,
+        "sha256": "c58b7cc6a5d44411ff685e972f79ec5cd8395ba7a4b9b6ac43b46d2479ee2ccb"
+      },
+      "arrived": [
+        {
+          "bytes": 6094,
+          "sha256": "c58b7cc6a5d44411ff685e972f79ec5cd8395ba7a4b9b6ac43b46d2479ee2ccb"
+        }
+      ],
+      "unchanged": true,
+      "exit": 0
+    },
+    {
+      "harness": "claude-code",
+      "kind": "non_ascii",
+      "page_tokens": 4000,
+      "sent": {
+        "bytes": 12345,
+        "characters": 7617,
+        "estimate": 3989.25,
+        "sha256": "ac931da01b3374e8a9a54852b251b22004f6176a6642f0425a043c7f6e88dc23"
+      },
+      "arrived": [
+        {
+          "bytes": 12345,
+          "sha256": "ac931da01b3374e8a9a54852b251b22004f6176a6642f0425a043c7f6e88dc23"
+        }
+      ],
+      "unchanged": true,
+      "exit": 0
+    },
+    {
+      "harness": "claude-code",
+      "kind": "non_ascii",
+      "page_tokens": 8000,
+      "sent": {
+        "bytes": 24826,
+        "characters": 15122,
+        "estimate": 8055.25,
+        "sha256": "4685f214aaf7f6fb05b47b94c209653499ab90f4af0fb56abf3c4632ddc4e1fb"
+      },
+      "arrived": [
+        {
+          "bytes": 24826,
+          "sha256": "4685f214aaf7f6fb05b47b94c209653499ab90f4af0fb56abf3c4632ddc4e1fb"
+        }
+      ],
+      "unchanged": true,
+      "exit": 0
+    },
+    {
+      "harness": "claude-code",
+      "kind": "json",
+      "page_tokens": 2000,
+      "sent": {
+        "bytes": 4761,
+        "characters": 4649,
+        "estimate": 1635.5,
+        "sha256": "e39a026808cd6ed368ed8fcb5d33ee7585a036c2fe3ce7f2c01911070e7b441b"
+      },
+      "arrived": [
+        {
+          "bytes": 4761,
+          "sha256": "e39a026808cd6ed368ed8fcb5d33ee7585a036c2fe3ce7f2c01911070e7b441b"
+        }
+      ],
+      "unchanged": true,
+      "exit": 0
+    },
+    {
+      "harness": "claude-code",
+      "kind": "json",
+      "page_tokens": 4000,
+      "sent": {
+        "bytes": 10939,
+        "characters": 10731,
+        "estimate": 3826.5,
+        "sha256": "f11ba82a0d066216b5bad1180474b56708bc93c7e06ba5585c7d77b906cdd342"
+      },
+      "arrived": [
+        {
+          "bytes": 10939,
+          "sha256": "f11ba82a0d066216b5bad1180474b56708bc93c7e06ba5585c7d77b906cdd342"
+        }
+      ],
+      "unchanged": true,
+      "exit": 0
+    },
+    {
+      "harness": "claude-code",
+      "kind": "json",
+      "page_tokens": 8000,
+      "sent": {
+        "bytes": 21237,
+        "characters": 20869,
+        "estimate": 7478.5,
+        "sha256": "19de472f7790fe00000a463761f20ec98a9c23b9c63138d5016677cd1e876f12"
+      },
+      "arrived": [
+        {
+          "bytes": 21237,
+          "sha256": "19de472f7790fe00000a463761f20ec98a9c23b9c63138d5016677cd1e876f12"
+        }
+      ],
+      "unchanged": true,
+      "exit": 0
+    },
+    {
+      "harness": "claude-code",
+      "kind": "emoji",
+      "page_tokens": 2000,
+      "sent": {
+        "bytes": 4359,
+        "characters": 1875,
+        "estimate": 1749.75,
+        "sha256": "06f89bca2885bfac3ed5961119e94f9d06e6e3724a045753c9e898eb982face9"
+      },
+      "arrived": [
+        {
+          "bytes": 4359,
+          "sha256": "06f89bca2885bfac3ed5961119e94f9d06e6e3724a045753c9e898eb982face9"
+        }
+      ],
+      "unchanged": true,
+      "exit": 0
+    },
+    {
+      "harness": "claude-code",
+      "kind": "emoji",
+      "page_tokens": 4000,
+      "sent": {
+        "bytes": 9314,
+        "characters": 3582,
+        "estimate": 3849.5,
+        "sha256": "7d4bd001831a6090086495f8ed0354477886f1217c273454eef1df69d55f7b9e"
+      },
+      "arrived": [
+        {
+          "bytes": 9314,
+          "sha256": "7d4bd001831a6090086495f8ed0354477886f1217c273454eef1df69d55f7b9e"
+        }
+      ],
+      "unchanged": true,
+      "exit": 0
+    },
+    {
+      "harness": "claude-code",
+      "kind": "emoji",
+      "page_tokens": 8000,
+      "sent": {
+        "bytes": 19245,
+        "characters": 7017,
+        "estimate": 8054.25,
+        "sha256": "a326d0462986ee1ceae8a0ddf20ecaef98c0e7ca73ef1261959bc54c401e8edd"
+      },
+      "arrived": [
+        {
+          "bytes": 19245,
+          "sha256": "a326d0462986ee1ceae8a0ddf20ecaef98c0e7ca73ef1261959bc54c401e8edd"
+        }
+      ],
+      "unchanged": true,
+      "exit": 0
+    },
+    {
+      "harness": "codex",
+      "kind": "english",
+      "page_tokens": 2000,
+      "sent": {
+        "bytes": 7695,
+        "characters": 7263,
+        "estimate": 2049.0,
+        "sha256": "57380a2c2cc1fc3200d7897c3ae3e092ac6bc12e15dede89ac71a60e56a263bf"
+      },
+      "arrived": [
+        {
+          "bytes": 7857,
+          "sha256": "ff28f16be84ce9458a0b66a40a024ab889d2f7806ee30d40f56a48540461df63"
+        },
+        {
+          "bytes": 33,
+          "sha256": "644dc54c794021862b7ac94e0357f255503b6c5589f0ee3d8f3a2dc0ab426f83"
+        },
+        {
+          "bytes": 7695,
+          "sha256": "57380a2c2cc1fc3200d7897c3ae3e092ac6bc12e15dede89ac71a60e56a263bf"
+        }
+      ],
+      "unchanged": true,
+      "exit": 0,
+      "tools": [
+        "mcp__nookku.status",
+        "mcp__nookku.transcript"
+      ]
+    },
+    {
+      "harness": "codex",
+      "kind": "english",
+      "page_tokens": 4000,
+      "sent": {
+        "bytes": 15265,
+        "characters": 14449,
+        "estimate": 4056.75,
+        "sha256": "8cbb3003a4e43fae109943d977796c9953b17e1c1dc6086512016e0f4e5dba5e"
+      },
+      "arrived": [
+        {
+          "bytes": 12175,
+          "sha256": "49e5574dc43e46b828568cf440fca86c919f6d88d4ef315385c1eb62265cdfb5"
+        },
+        {
+          "bytes": 33,
+          "sha256": "1256e090a47971ebf7ffc7ae7857a2592ee43c0db7e70199f8f2109ed1c10d53"
+        },
+        {
+          "bytes": 11988,
+          "sha256": "2ebce86372636792f12f2b69041e0bc31712c3dab2c80d60d2085d78eda135a3"
+        }
+      ],
+      "unchanged": false,
+      "exit": 0,
+      "tools": [
+        "mcp__nookku.status",
+        "mcp__nookku.transcript"
+      ]
+    },
+    {
+      "harness": "codex",
+      "kind": "english",
+      "page_tokens": 8000,
+      "sent": {
+        "bytes": 30116,
+        "characters": 28468,
+        "estimate": 8005.75,
+        "sha256": "00404821e8170b6122a6d4e978ee91b731a8ad0d73f15052b23c9b42181ecd8f"
+      },
+      "arrived": [
+        {
+          "bytes": 12178,
+          "sha256": "6902fe4a3c93a26d3deef2e6b1fcdd187c253bfbd889af923cfc9f0c2cd806a2"
+        },
+        {
+          "bytes": 33,
+          "sha256": "d74ae102542e6926a098bb334fa21313e31eeb57be2b49aaebb0aba8b9307deb"
+        },
+        {
+          "bytes": 11988,
+          "sha256": "edaace04ba60447cd0b6a830e89cc17c094cc9c310fc201ab9b190233d92a00c"
+        }
+      ],
+      "unchanged": false,
+      "exit": 0,
+      "tools": [
+        "mcp__nookku.status",
+        "mcp__nookku.transcript"
+      ]
+    },
+    {
+      "harness": "codex",
+      "kind": "non_ascii",
+      "page_tokens": 2000,
+      "sent": {
+        "bytes": 6094,
+        "characters": 3862,
+        "estimate": 1952.5,
+        "sha256": "c58b7cc6a5d44411ff685e972f79ec5cd8395ba7a4b9b6ac43b46d2479ee2ccb"
+      },
+      "arrived": [
+        {
+          "bytes": 6236,
+          "sha256": "9edf184832e382b740a5ab5881d6c871bc72398108e439582ffff7141e942a38"
+        },
+        {
+          "bytes": 33,
+          "sha256": "f85778232a60e5d0e79a218d1aece1467fd6ffa50aa5dad1851384e298c4fc52"
+        },
+        {
+          "bytes": 6094,
+          "sha256": "c58b7cc6a5d44411ff685e972f79ec5cd8395ba7a4b9b6ac43b46d2479ee2ccb"
+        }
+      ],
+      "unchanged": true,
+      "exit": 0,
+      "tools": [
+        "mcp__nookku.status",
+        "mcp__nookku.transcript"
+      ]
+    },
+    {
+      "harness": "codex",
+      "kind": "non_ascii",
+      "page_tokens": 4000,
+      "sent": {
+        "bytes": 12345,
+        "characters": 7617,
+        "estimate": 3989.25,
+        "sha256": "ac931da01b3374e8a9a54852b251b22004f6176a6642f0425a043c7f6e88dc23"
+      },
+      "arrived": [
+        {
+          "bytes": 12162,
+          "sha256": "e288ebaecfaea52afbc621d5ee11036d985868e4ae0137676a5749a1b2beb811"
+        },
+        {
+          "bytes": 33,
+          "sha256": "1256e090a47971ebf7ffc7ae7857a2592ee43c0db7e70199f8f2109ed1c10d53"
+        },
+        {
+          "bytes": 11988,
+          "sha256": "ae2bf1c64fca893a4889b88562c8bdecfce8bad3a845771f959b243053be83b4"
+        }
+      ],
+      "unchanged": false,
+      "exit": 0,
+      "tools": [
+        "mcp__nookku.status",
+        "mcp__nookku.transcript"
+      ]
+    },
+    {
+      "harness": "codex",
+      "kind": "non_ascii",
+      "page_tokens": 8000,
+      "sent": {
+        "bytes": 24826,
+        "characters": 15122,
+        "estimate": 8055.25,
+        "sha256": "4685f214aaf7f6fb05b47b94c209653499ab90f4af0fb56abf3c4632ddc4e1fb"
+      },
+      "arrived": [
+        {
+          "bytes": 12161,
+          "sha256": "41adf6c661f587cb700f7148f7a53abde15f2def311e90ec203274ade7c38f9e"
+        },
+        {
+          "bytes": 33,
+          "sha256": "8f3fb634ed5f504af5ddb2c33e6bd2f6cb2d7e3a7cd030c44c3b1f014b4eadfc"
+        },
+        {
+          "bytes": 11988,
+          "sha256": "ca40cf3503496f038c703da96f028aee890ade328f885f4b24cb7e1e467984ae"
+        }
+      ],
+      "unchanged": false,
+      "exit": 0,
+      "tools": [
+        "mcp__nookku.status",
+        "mcp__nookku.transcript"
+      ]
+    },
+    {
+      "harness": "codex",
+      "kind": "json",
+      "page_tokens": 2000,
+      "sent": {
+        "bytes": 4761,
+        "characters": 4649,
+        "estimate": 1635.5,
+        "sha256": "e39a026808cd6ed368ed8fcb5d33ee7585a036c2fe3ce7f2c01911070e7b441b"
+      },
+      "arrived": [
+        {
+          "bytes": 5683,
+          "sha256": "ebae26262c3e5b7b5ed5c92bd518bdcf6f09bb82fcb6dac11fa364270bb2eabd"
+        },
+        {
+          "bytes": 33,
+          "sha256": "507aa9b02aa63f71ffbd3d716559d85145682ac678cfb254985dc51f39d3e4b8"
+        },
+        {
+          "bytes": 4761,
+          "sha256": "e39a026808cd6ed368ed8fcb5d33ee7585a036c2fe3ce7f2c01911070e7b441b"
+        }
+      ],
+      "unchanged": true,
+      "exit": 0,
+      "tools": [
+        "mcp__nookku.status",
+        "mcp__nookku.transcript"
+      ]
+    },
+    {
+      "harness": "codex",
+      "kind": "json",
+      "page_tokens": 4000,
+      "sent": {
+        "bytes": 10939,
+        "characters": 10731,
+        "estimate": 3826.5,
+        "sha256": "f11ba82a0d066216b5bad1180474b56708bc93c7e06ba5585c7d77b906cdd342"
+      },
+      "arrived": [
+        {
+          "bytes": 13073,
+          "sha256": "9026304ac82ebf9686edf057338f453ea14f6554c1e2df06919ae7a010661cfb"
+        },
+        {
+          "bytes": 33,
+          "sha256": "64f6631ed344e0335875e5a6132ff494323e2b7bef74a4c69f3653ab6ed419be"
+        },
+        {
+          "bytes": 10939,
+          "sha256": "f11ba82a0d066216b5bad1180474b56708bc93c7e06ba5585c7d77b906cdd342"
+        }
+      ],
+      "unchanged": true,
+      "exit": 0,
+      "tools": [
+        "mcp__nookku.status",
+        "mcp__nookku.transcript"
+      ]
+    },
+    {
+      "harness": "codex",
+      "kind": "json",
+      "page_tokens": 8000,
+      "sent": {
+        "bytes": 21237,
+        "characters": 20869,
+        "estimate": 7478.5,
+        "sha256": "19de472f7790fe00000a463761f20ec98a9c23b9c63138d5016677cd1e876f12"
+      },
+      "arrived": [
+        {
+          "bytes": 14328,
+          "sha256": "1d780b08bfbdc51dd6fa6b41d14a7e5f6c50c42df3f6ff593f2f30fd8487312b"
+        },
+        {
+          "bytes": 33,
+          "sha256": "7990313c7c1171b239b175cb3fd39fadf0c29dc75f9a4b69284d8199f8150db4"
+        },
+        {
+          "bytes": 11988,
+          "sha256": "66035096f96a175202cc39e250702de92f827da09f50c81e05124a539ff69679"
+        }
+      ],
+      "unchanged": false,
+      "exit": 0,
+      "tools": [
+        "mcp__nookku.status",
+        "mcp__nookku.transcript"
+      ]
+    },
+    {
+      "harness": "codex",
+      "kind": "emoji",
+      "page_tokens": 2000,
+      "sent": {
+        "bytes": 4359,
+        "characters": 1875,
+        "estimate": 1749.75,
+        "sha256": "06f89bca2885bfac3ed5961119e94f9d06e6e3724a045753c9e898eb982face9"
+      },
+      "arrived": [
+        {
+          "bytes": 4485,
+          "sha256": "4e7d38363143e037e8bdcd494baa2dd11bd130f8012a56339f8a439226fc8eb1"
+        },
+        {
+          "bytes": 33,
+          "sha256": "8f3fb634ed5f504af5ddb2c33e6bd2f6cb2d7e3a7cd030c44c3b1f014b4eadfc"
+        },
+        {
+          "bytes": 4359,
+          "sha256": "06f89bca2885bfac3ed5961119e94f9d06e6e3724a045753c9e898eb982face9"
+        }
+      ],
+      "unchanged": true,
+      "exit": 0,
+      "tools": [
+        "mcp__nookku.status",
+        "mcp__nookku.transcript"
+      ]
+    },
+    {
+      "harness": "codex",
+      "kind": "emoji",
+      "page_tokens": 4000,
+      "sent": {
+        "bytes": 9314,
+        "characters": 3582,
+        "estimate": 3849.5,
+        "sha256": "7d4bd001831a6090086495f8ed0354477886f1217c273454eef1df69d55f7b9e"
+      },
+      "arrived": [
+        {
+          "bytes": 9456,
+          "sha256": "9e0a24212574763cb7a3f763b0092a248de668d76aa65c6f4a2019464faf128a"
+        },
+        {
+          "bytes": 33,
+          "sha256": "99f6ef9f44ba547bfb082948b0bbaeb3e2abe189fe9bfb5b90a0d889685c9fe4"
+        },
+        {
+          "bytes": 9314,
+          "sha256": "7d4bd001831a6090086495f8ed0354477886f1217c273454eef1df69d55f7b9e"
+        }
+      ],
+      "unchanged": true,
+      "exit": 0,
+      "tools": [
+        "mcp__nookku.status",
+        "mcp__nookku.transcript"
+      ]
+    },
+    {
+      "harness": "codex",
+      "kind": "emoji",
+      "page_tokens": 8000,
+      "sent": {
+        "bytes": 19245,
+        "characters": 7017,
+        "estimate": 8054.25,
+        "sha256": "a326d0462986ee1ceae8a0ddf20ecaef98c0e7ca73ef1261959bc54c401e8edd"
+      },
+      "arrived": [
+        {
+          "bytes": 12137,
+          "sha256": "a58a04ed3e405e1fbefd72a1d67f8e45531b2f6deb346ac56adb839b8b9cb4a6"
+        },
+        {
+          "bytes": 33,
+          "sha256": "1bbb8670af869ce6996a934b3f4525eb1a8e158a361a89df7c6ce5c91f37f684"
+        },
+        {
+          "bytes": 11987,
+          "sha256": "e9a3de0f80db029a1b25313693950ab42bee9adc6efac0133c29780a7f191730"
+        }
+      ],
+      "unchanged": false,
+      "exit": 0,
+      "tools": [
+        "mcp__nookku.status",
+        "mcp__nookku.transcript"
+      ]
+    }
+  ],
+  "runs": [
+    "python scripts/measure_transcript_pages.py claude-code",
+    "python scripts/measure_transcript_pages.py codex"
+  ],
+  "note": "Two runs of the same script, one for each harness. An earlier Codex run timed out in its first case after 300 seconds and was run again."
+}

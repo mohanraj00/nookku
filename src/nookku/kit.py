@@ -526,6 +526,47 @@ def transcript(
     return 0
 
 
+class TranscriptError(Exception):
+    """The transcript cannot be made. The text says why."""
+
+
+def transcript_text(
+    root: Path,
+    test: str | None = None,
+    trace: bool = False,
+    every_session: bool = False,
+    session: str | None = None,
+    record: Path | None = None,
+) -> str:
+    """The text of `nookku transcript`. The CLI and the transcript tool of `nookku mcp` use it,
+    so that both give the model the same text. Raise TranscriptError if it cannot be made."""
+    import io
+
+    tests = root / STATE_DIR / "tests"
+    if trace:
+        folder = tests / test if test else bridge.latest_test(root)
+        if folder is None or not folder.is_dir():
+            raise TranscriptError("no test folder.")
+        return evaluation.transcript(folder)
+    # The plugin has no config file. Without one, use the default record path.
+    has_config = (root / STATE_DIR / "config.json").exists()
+    try:
+        config = Config.load(root) if has_config else Config()
+    except (OSError, ValueError, TypeError) as e:
+        raise TranscriptError(f"cannot read the config: {e}") from None
+    folder = bridge.latest_test(root) if config.entry and not record else None
+    if test and not record:
+        folder = tests / test
+    path = record or (folder / "relay.jsonl" if folder else config.record_path(root))
+    out = io.StringIO()
+    scope = f"test {folder.name}" if folder else ""
+    try:
+        transcript(path, every_session or folder is not None, out, scope, session)
+    except RecordError as e:
+        raise TranscriptError(str(e)) from None
+    return out.getvalue()
+
+
 def view(
     record: Path, follow: bool, out: TextIO, poll: float = 0.3, err: TextIO | None = None
 ) -> int:
