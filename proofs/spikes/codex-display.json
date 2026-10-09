@@ -1,0 +1,2688 @@
+{
+  "issue": 205,
+  "method": "scripts/spike_codex_display.py",
+  "versions": {
+    "cli": "codex-cli 0.162.0",
+    "desktop": {
+      "installed_version": "26.1007.21159",
+      "installed_build": "20052",
+      "bundled_cli": "codex-cli 0.162.0-alpha.17.2",
+      "runtime_version": null,
+      "method": "Installed Info.plist and bundled binary --version; not runtime attribution."
+    }
+  },
+  "checked_at": "2026-10-09T17:22:52.376162+00:00",
+  "sources": [
+    "https://developers.openai.com/plugins/build/plugins",
+    "https://learn.chatgpt.com/docs/hooks",
+    "https://learn.chatgpt.com/docs/config-file/config-reference",
+    "https://learn.chatgpt.com/docs/reference/slash-commands",
+    "https://learn.chatgpt.com/docs/build-skills",
+    "https://developers.openai.com/plugins/build/chatgpt-ui",
+    "https://developers.openai.com/plugins/build/extensions",
+    "https://github.com/openai/codex/blob/rust-v0.162.0/codex-rs/plugin/src/manifest.rs",
+    "https://github.com/openai/codex/blob/rust-v0.162.0/codex-rs/config/src/hook_config.rs",
+    "https://github.com/openai/codex/blob/rust-v0.162.0/codex-rs/tui/src/bottom_pane/status_line_setup.rs"
+  ],
+  "inspection": {
+    "hooks": [
+      {
+        "key": "toy-display-spike-205@toy-display-market-205:hooks/hooks.json:pre_tool_use:0:0",
+        "eventName": "preToolUse",
+        "handlerType": "command",
+        "command": "/opt/homebrew/opt/python@3.14/bin/python3.14 \"<user-home>/.codex/plugins/cache/toy-display-market-205/toy-display-spike-205/0.0.1/hook.py\"",
+        "async": false,
+        "matcher": null,
+        "timeoutSec": 10,
+        "statusMessage": "DISPLAY_STATUS_PreToolUse_205",
+        "additionalContextLimit": null,
+        "sourcePath": "<user-home>/.codex/plugins/cache/toy-display-market-205/toy-display-spike-205/0.0.1/hooks/hooks.json",
+        "source": "plugin",
+        "pluginId": "toy-display-spike-205@toy-display-market-205",
+        "displayOrder": 8,
+        "enabled": true,
+        "isManaged": false,
+        "currentHash": "sha256:6b4e9445ebbdabc0c3e4c0fc67d96b6cd57c0e72176aad58daafcc14ef029ecf",
+        "trustStatus": "trusted"
+      },
+      {
+        "key": "toy-display-spike-205@toy-display-market-205:hooks/hooks.json:post_tool_use:0:0",
+        "eventName": "postToolUse",
+        "handlerType": "command",
+        "command": "/opt/homebrew/opt/python@3.14/bin/python3.14 \"<user-home>/.codex/plugins/cache/toy-display-market-205/toy-display-spike-205/0.0.1/hook.py\"",
+        "async": false,
+        "matcher": null,
+        "timeoutSec": 10,
+        "statusMessage": "DISPLAY_STATUS_PostToolUse_205",
+        "additionalContextLimit": null,
+        "sourcePath": "<user-home>/.codex/plugins/cache/toy-display-market-205/toy-display-spike-205/0.0.1/hooks/hooks.json",
+        "source": "plugin",
+        "pluginId": "toy-display-spike-205@toy-display-market-205",
+        "displayOrder": 9,
+        "enabled": true,
+        "isManaged": false,
+        "currentHash": "sha256:bcd56d5bfda40f971af7ac98a0b40c42f22a53d77d056b04d92e2655077df66a",
+        "trustStatus": "trusted"
+      },
+      {
+        "key": "toy-display-spike-205@toy-display-market-205:hooks/hooks.json:session_start:0:0",
+        "eventName": "sessionStart",
+        "handlerType": "command",
+        "command": "/opt/homebrew/opt/python@3.14/bin/python3.14 \"<user-home>/.codex/plugins/cache/toy-display-market-205/toy-display-spike-205/0.0.1/hook.py\"",
+        "async": false,
+        "matcher": null,
+        "timeoutSec": 10,
+        "statusMessage": "DISPLAY_STATUS_SessionStart_205",
+        "additionalContextLimit": null,
+        "sourcePath": "<user-home>/.codex/plugins/cache/toy-display-market-205/toy-display-spike-205/0.0.1/hooks/hooks.json",
+        "source": "plugin",
+        "pluginId": "toy-display-spike-205@toy-display-market-205",
+        "displayOrder": 10,
+        "enabled": true,
+        "isManaged": false,
+        "currentHash": "sha256:94046a3ba1bb2e38c84875f327a5525e2a641de08c50acd8631ca3b24eaba503",
+        "trustStatus": "trusted"
+      },
+      {
+        "key": "toy-display-spike-205@toy-display-market-205:hooks/hooks.json:user_prompt_submit:0:0",
+        "eventName": "userPromptSubmit",
+        "handlerType": "command",
+        "command": "/opt/homebrew/opt/python@3.14/bin/python3.14 \"<user-home>/.codex/plugins/cache/toy-display-market-205/toy-display-spike-205/0.0.1/hook.py\"",
+        "async": false,
+        "matcher": null,
+        "timeoutSec": 10,
+        "statusMessage": "DISPLAY_STATUS_UserPromptSubmit_205",
+        "additionalContextLimit": null,
+        "sourcePath": "<user-home>/.codex/plugins/cache/toy-display-market-205/toy-display-spike-205/0.0.1/hooks/hooks.json",
+        "source": "plugin",
+        "pluginId": "toy-display-spike-205@toy-display-market-205",
+        "displayOrder": 11,
+        "enabled": true,
+        "isManaged": false,
+        "currentHash": "sha256:a7fa073be6f180fc6eaeba4aa5b8b73af5fc0cb58d0554fbce4de7a18b922e8d",
+        "trustStatus": "trusted"
+      },
+      {
+        "key": "toy-display-spike-205@toy-display-market-205:hooks/hooks.json:stop:0:0",
+        "eventName": "stop",
+        "handlerType": "command",
+        "command": "/opt/homebrew/opt/python@3.14/bin/python3.14 \"<user-home>/.codex/plugins/cache/toy-display-market-205/toy-display-spike-205/0.0.1/hook.py\"",
+        "async": false,
+        "matcher": null,
+        "timeoutSec": 10,
+        "statusMessage": "DISPLAY_STATUS_Stop_205",
+        "additionalContextLimit": null,
+        "sourcePath": "<user-home>/.codex/plugins/cache/toy-display-market-205/toy-display-spike-205/0.0.1/hooks/hooks.json",
+        "source": "plugin",
+        "pluginId": "toy-display-spike-205@toy-display-market-205",
+        "displayOrder": 12,
+        "enabled": true,
+        "isManaged": false,
+        "currentHash": "sha256:90c4b85459734b3f747a3491b64281ba87ec2904fb7733b961876750dbc55e7e",
+        "trustStatus": "trusted"
+      }
+    ],
+    "errors": [],
+    "warnings": [
+      "failed to parse plugin hooks config <user-home>/.codex/plugins/cache/verbatim-relay/verbatim-relay/0.3.1/hooks/hooks.json: unknown field `modules`, expected `description` or `hooks` at line 1 column 11"
+    ],
+    "plugin": {
+      "plugin": {
+        "marketplaceName": "toy-display-market-205",
+        "marketplacePath": "<spike>/.agents/plugins/marketplace.json",
+        "summary": {
+          "id": "toy-display-spike-205@toy-display-market-205",
+          "remotePluginId": null,
+          "version": null,
+          "localVersion": "0.0.1",
+          "name": "toy-display-spike-205",
+          "shareContext": null,
+          "source": {
+            "type": "local",
+            "path": "<spike>/plugin"
+          },
+          "installed": true,
+          "installedAt": null,
+          "enabled": true,
+          "installPolicy": "AVAILABLE",
+          "installPolicySource": null,
+          "mustShowInstallationInterstitial": null,
+          "authPolicy": "ON_INSTALL",
+          "availability": "AVAILABLE",
+          "disabledReason": null,
+          "eligiblePlanTypes": null,
+          "interface": {
+            "displayName": "Toy shop display",
+            "shortDescription": "Inspect a toy shop order.",
+            "longDescription": null,
+            "developerName": null,
+            "category": "Productivity",
+            "capabilities": [],
+            "websiteUrl": null,
+            "privacyPolicyUrl": null,
+            "termsOfServiceUrl": null,
+            "defaultPrompt": null,
+            "brandColor": null,
+            "composerIcon": null,
+            "composerIconUrl": null,
+            "logo": null,
+            "logoDark": null,
+            "logoUrl": null,
+            "logoUrlDark": null,
+            "screenshots": [],
+            "screenshotUrls": []
+          },
+          "keywords": []
+        },
+        "shareUrl": null,
+        "description": "Toy shop display spike.",
+        "skills": [
+          {
+            "name": "toy-display-spike-205:toy-order",
+            "description": "Check a toy shop order.",
+            "shortDescription": null,
+            "interface": null,
+            "path": "<spike>/plugin/skills/toy-order/SKILL.md",
+            "enabled": true
+          }
+        ],
+        "onboardingSkill": null,
+        "hooks": [
+          {
+            "key": "toy-display-spike-205@toy-display-market-205:hooks/hooks.json:pre_tool_use:0:0",
+            "eventName": "preToolUse"
+          },
+          {
+            "key": "toy-display-spike-205@toy-display-market-205:hooks/hooks.json:post_tool_use:0:0",
+            "eventName": "postToolUse"
+          },
+          {
+            "key": "toy-display-spike-205@toy-display-market-205:hooks/hooks.json:session_start:0:0",
+            "eventName": "sessionStart"
+          },
+          {
+            "key": "toy-display-spike-205@toy-display-market-205:hooks/hooks.json:user_prompt_submit:0:0",
+            "eventName": "userPromptSubmit"
+          },
+          {
+            "key": "toy-display-spike-205@toy-display-market-205:hooks/hooks.json:stop:0:0",
+            "eventName": "stop"
+          }
+        ],
+        "apps": [],
+        "appTemplates": [],
+        "mcpServers": [
+          "toy_display"
+        ],
+        "scheduledTasks": null
+      }
+    }
+  },
+  "schema": {
+    "method": "codex app-server generate-json-schema --experimental; tested binary, not main",
+    "sha256": "b622caca02860968f6a417be5b44ff6f63546707d2a2cd60f1338d988b17691b",
+    "definitions": {
+      "HookEventName": {
+        "fields": [],
+        "enum": [
+          "preToolUse",
+          "permissionRequest",
+          "postToolUse",
+          "preCompact",
+          "postCompact",
+          "sessionStart",
+          "sessionEnd",
+          "userPromptSubmit",
+          "subagentStart",
+          "subagentStop",
+          "stop",
+          "interrupt"
+        ]
+      },
+      "PluginAuthPolicy": {
+        "fields": [],
+        "enum": [
+          "ON_INSTALL",
+          "ON_USE"
+        ]
+      },
+      "PluginAvailability": {
+        "fields": [],
+        "enum": null
+      },
+      "PluginDetail": {
+        "fields": [
+          "appTemplates",
+          "apps",
+          "description",
+          "hooks",
+          "marketplaceName",
+          "marketplacePath",
+          "mcpServers",
+          "onboardingSkill",
+          "scheduledTasks",
+          "shareUrl",
+          "skills",
+          "summary"
+        ],
+        "enum": null
+      },
+      "PluginDisabledReason": {
+        "fields": [],
+        "enum": [
+          "disabled_by_admin",
+          "plan_not_eligible",
+          "required_app_unavailable",
+          "unknown"
+        ]
+      },
+      "PluginHookSummary": {
+        "fields": [
+          "eventName",
+          "key"
+        ],
+        "enum": null
+      },
+      "PluginInstallPolicy": {
+        "fields": [],
+        "enum": [
+          "NOT_AVAILABLE",
+          "AVAILABLE",
+          "INSTALLED_BY_DEFAULT"
+        ]
+      },
+      "PluginInstallPolicySource": {
+        "fields": [],
+        "enum": [
+          "WORKSPACE_SETTING",
+          "IMPLICIT_CANONICAL_APP"
+        ]
+      },
+      "PluginInterface": {
+        "fields": [
+          "brandColor",
+          "capabilities",
+          "category",
+          "composerIcon",
+          "composerIconUrl",
+          "defaultPrompt",
+          "developerName",
+          "displayName",
+          "logo",
+          "logoDark",
+          "logoUrl",
+          "logoUrlDark",
+          "longDescription",
+          "privacyPolicyUrl",
+          "screenshotUrls",
+          "screenshots",
+          "shortDescription",
+          "termsOfServiceUrl",
+          "websiteUrl"
+        ],
+        "enum": null
+      },
+      "PluginShareContext": {
+        "fields": [
+          "canPublishToWorkspace",
+          "creatorAccountUserId",
+          "creatorName",
+          "discoverability",
+          "remotePluginId",
+          "remoteVersion",
+          "sharePrincipals",
+          "shareUrl"
+        ],
+        "enum": null
+      },
+      "PluginShareDiscoverability": {
+        "fields": [],
+        "enum": [
+          "LISTED",
+          "UNLISTED",
+          "PRIVATE"
+        ]
+      },
+      "PluginSharePrincipal": {
+        "fields": [
+          "name",
+          "principalId",
+          "principalType",
+          "role"
+        ],
+        "enum": null
+      },
+      "PluginSharePrincipalRole": {
+        "fields": [],
+        "enum": [
+          "reader",
+          "editor",
+          "owner"
+        ]
+      },
+      "PluginSharePrincipalType": {
+        "fields": [],
+        "enum": [
+          "user",
+          "group",
+          "workspace"
+        ]
+      },
+      "PluginSource": {
+        "fields": [],
+        "enum": null
+      },
+      "PluginSummary": {
+        "fields": [
+          "authPolicy",
+          "availability",
+          "disabledReason",
+          "eligiblePlanTypes",
+          "enabled",
+          "id",
+          "installPolicy",
+          "installPolicySource",
+          "installed",
+          "installedAt",
+          "interface",
+          "keywords",
+          "localVersion",
+          "mustShowInstallationInterstitial",
+          "name",
+          "remotePluginId",
+          "shareContext",
+          "source",
+          "version"
+        ],
+        "enum": null
+      }
+    }
+  },
+  "preflight": [
+    {
+      "key": "toy-display-spike-205@toy-display-market-205:hooks/hooks.json:pre_tool_use:0:0",
+      "eventName": "preToolUse",
+      "handlerType": "command",
+      "command": "/opt/homebrew/opt/python@3.14/bin/python3.14 \"<user-home>/.codex/plugins/cache/toy-display-market-205/toy-display-spike-205/0.0.1/hook.py\"",
+      "async": false,
+      "matcher": null,
+      "timeoutSec": 10,
+      "statusMessage": "DISPLAY_STATUS_PreToolUse_205",
+      "additionalContextLimit": null,
+      "sourcePath": "<user-home>/.codex/plugins/cache/toy-display-market-205/toy-display-spike-205/0.0.1/hooks/hooks.json",
+      "source": "plugin",
+      "pluginId": "toy-display-spike-205@toy-display-market-205",
+      "displayOrder": 4,
+      "enabled": true,
+      "isManaged": false,
+      "currentHash": "sha256:6b4e9445ebbdabc0c3e4c0fc67d96b6cd57c0e72176aad58daafcc14ef029ecf",
+      "trustStatus": "trusted"
+    },
+    {
+      "key": "toy-display-spike-205@toy-display-market-205:hooks/hooks.json:post_tool_use:0:0",
+      "eventName": "postToolUse",
+      "handlerType": "command",
+      "command": "/opt/homebrew/opt/python@3.14/bin/python3.14 \"<user-home>/.codex/plugins/cache/toy-display-market-205/toy-display-spike-205/0.0.1/hook.py\"",
+      "async": false,
+      "matcher": null,
+      "timeoutSec": 10,
+      "statusMessage": "DISPLAY_STATUS_PostToolUse_205",
+      "additionalContextLimit": null,
+      "sourcePath": "<user-home>/.codex/plugins/cache/toy-display-market-205/toy-display-spike-205/0.0.1/hooks/hooks.json",
+      "source": "plugin",
+      "pluginId": "toy-display-spike-205@toy-display-market-205",
+      "displayOrder": 5,
+      "enabled": true,
+      "isManaged": false,
+      "currentHash": "sha256:bcd56d5bfda40f971af7ac98a0b40c42f22a53d77d056b04d92e2655077df66a",
+      "trustStatus": "trusted"
+    },
+    {
+      "key": "toy-display-spike-205@toy-display-market-205:hooks/hooks.json:session_start:0:0",
+      "eventName": "sessionStart",
+      "handlerType": "command",
+      "command": "/opt/homebrew/opt/python@3.14/bin/python3.14 \"<user-home>/.codex/plugins/cache/toy-display-market-205/toy-display-spike-205/0.0.1/hook.py\"",
+      "async": false,
+      "matcher": null,
+      "timeoutSec": 10,
+      "statusMessage": "DISPLAY_STATUS_SessionStart_205",
+      "additionalContextLimit": null,
+      "sourcePath": "<user-home>/.codex/plugins/cache/toy-display-market-205/toy-display-spike-205/0.0.1/hooks/hooks.json",
+      "source": "plugin",
+      "pluginId": "toy-display-spike-205@toy-display-market-205",
+      "displayOrder": 6,
+      "enabled": true,
+      "isManaged": false,
+      "currentHash": "sha256:94046a3ba1bb2e38c84875f327a5525e2a641de08c50acd8631ca3b24eaba503",
+      "trustStatus": "trusted"
+    },
+    {
+      "key": "toy-display-spike-205@toy-display-market-205:hooks/hooks.json:user_prompt_submit:0:0",
+      "eventName": "userPromptSubmit",
+      "handlerType": "command",
+      "command": "/opt/homebrew/opt/python@3.14/bin/python3.14 \"<user-home>/.codex/plugins/cache/toy-display-market-205/toy-display-spike-205/0.0.1/hook.py\"",
+      "async": false,
+      "matcher": null,
+      "timeoutSec": 10,
+      "statusMessage": "DISPLAY_STATUS_UserPromptSubmit_205",
+      "additionalContextLimit": null,
+      "sourcePath": "<user-home>/.codex/plugins/cache/toy-display-market-205/toy-display-spike-205/0.0.1/hooks/hooks.json",
+      "source": "plugin",
+      "pluginId": "toy-display-spike-205@toy-display-market-205",
+      "displayOrder": 7,
+      "enabled": true,
+      "isManaged": false,
+      "currentHash": "sha256:a7fa073be6f180fc6eaeba4aa5b8b73af5fc0cb58d0554fbce4de7a18b922e8d",
+      "trustStatus": "trusted"
+    },
+    {
+      "key": "toy-display-spike-205@toy-display-market-205:hooks/hooks.json:stop:0:0",
+      "eventName": "stop",
+      "handlerType": "command",
+      "command": "/opt/homebrew/opt/python@3.14/bin/python3.14 \"<user-home>/.codex/plugins/cache/toy-display-market-205/toy-display-spike-205/0.0.1/hook.py\"",
+      "async": false,
+      "matcher": null,
+      "timeoutSec": 10,
+      "statusMessage": "DISPLAY_STATUS_Stop_205",
+      "additionalContextLimit": null,
+      "sourcePath": "<user-home>/.codex/plugins/cache/toy-display-market-205/toy-display-spike-205/0.0.1/hooks/hooks.json",
+      "source": "plugin",
+      "pluginId": "toy-display-spike-205@toy-display-market-205",
+      "displayOrder": 8,
+      "enabled": true,
+      "isManaged": false,
+      "currentHash": "sha256:90c4b85459734b3f747a3491b64281ba87ec2904fb7733b961876750dbc55e7e",
+      "trustStatus": "trusted"
+    }
+  ],
+  "runs": [
+    {
+      "surface": "codex_exec",
+      "case": "hooks",
+      "version": "codex-cli 0.162.0",
+      "exit_code": 0,
+      "termination": "process exit",
+      "markers_in_output": {
+        "DISPLAY_STATUS_SessionStart_205": false,
+        "DISPLAY_WARNING_SessionStart_205": false,
+        "DISPLAY_CONTEXT_SessionStart_205": false,
+        "DISPLAY_STATUS_UserPromptSubmit_205": false,
+        "DISPLAY_WARNING_UserPromptSubmit_205": false,
+        "DISPLAY_CONTEXT_UserPromptSubmit_205": false,
+        "DISPLAY_STATUS_PreToolUse_205": false,
+        "DISPLAY_WARNING_PreToolUse_205": false,
+        "DISPLAY_CONTEXT_PreToolUse_205": false,
+        "DISPLAY_STATUS_PostToolUse_205": false,
+        "DISPLAY_WARNING_PostToolUse_205": false,
+        "DISPLAY_CONTEXT_PostToolUse_205": false,
+        "DISPLAY_STATUS_Stop_205": false,
+        "DISPLAY_WARNING_Stop_205": false,
+        "DISPLAY_CONTEXT_Stop_205": false,
+        "DISPLAY_SKILL_BODY_205": false,
+        "DISPLAY_MCP_TEXT_205": false,
+        "DISPLAY_MCP_STRUCTURED_205": false,
+        "DISPLAY_MCP_META_205": false,
+        "DISPLAY_UI_205": false
+      },
+      "model_requests": [
+        {
+          "found": {
+            "DISPLAY_STATUS_SessionStart_205": [],
+            "DISPLAY_WARNING_SessionStart_205": [],
+            "DISPLAY_CONTEXT_SessionStart_205": [
+              "input[3].developer"
+            ],
+            "DISPLAY_STATUS_UserPromptSubmit_205": [],
+            "DISPLAY_WARNING_UserPromptSubmit_205": [],
+            "DISPLAY_CONTEXT_UserPromptSubmit_205": [
+              "input[5].developer"
+            ],
+            "DISPLAY_STATUS_PreToolUse_205": [],
+            "DISPLAY_WARNING_PreToolUse_205": [],
+            "DISPLAY_CONTEXT_PreToolUse_205": [],
+            "DISPLAY_STATUS_PostToolUse_205": [],
+            "DISPLAY_WARNING_PostToolUse_205": [],
+            "DISPLAY_CONTEXT_PostToolUse_205": [],
+            "DISPLAY_STATUS_Stop_205": [],
+            "DISPLAY_WARNING_Stop_205": [],
+            "DISPLAY_CONTEXT_Stop_205": [],
+            "DISPLAY_SKILL_BODY_205": [],
+            "DISPLAY_MCP_TEXT_205": [],
+            "DISPLAY_MCP_STRUCTURED_205": [],
+            "DISPLAY_MCP_META_205": [],
+            "DISPLAY_UI_205": []
+          },
+          "toy_tools": [
+            {
+              "name": "show_order",
+              "namespace": "mcp__toy_display"
+            }
+          ],
+          "tool_output_checks": []
+        },
+        {
+          "found": {
+            "DISPLAY_STATUS_SessionStart_205": [],
+            "DISPLAY_WARNING_SessionStart_205": [],
+            "DISPLAY_CONTEXT_SessionStart_205": [
+              "input[3].developer"
+            ],
+            "DISPLAY_STATUS_UserPromptSubmit_205": [],
+            "DISPLAY_WARNING_UserPromptSubmit_205": [],
+            "DISPLAY_CONTEXT_UserPromptSubmit_205": [
+              "input[5].developer"
+            ],
+            "DISPLAY_STATUS_PreToolUse_205": [],
+            "DISPLAY_WARNING_PreToolUse_205": [],
+            "DISPLAY_CONTEXT_PreToolUse_205": [
+              "input[7].developer"
+            ],
+            "DISPLAY_STATUS_PostToolUse_205": [],
+            "DISPLAY_WARNING_PostToolUse_205": [],
+            "DISPLAY_CONTEXT_PostToolUse_205": [
+              "input[8].developer"
+            ],
+            "DISPLAY_STATUS_Stop_205": [],
+            "DISPLAY_WARNING_Stop_205": [],
+            "DISPLAY_CONTEXT_Stop_205": [],
+            "DISPLAY_SKILL_BODY_205": [],
+            "DISPLAY_MCP_TEXT_205": [],
+            "DISPLAY_MCP_STRUCTURED_205": [],
+            "DISPLAY_MCP_META_205": [],
+            "DISPLAY_UI_205": []
+          },
+          "toy_tools": [
+            {
+              "name": "show_order",
+              "namespace": "mcp__toy_display"
+            }
+          ],
+          "tool_output_checks": [
+            {
+              "size": 124,
+              "error_terms": []
+            }
+          ]
+        }
+      ],
+      "fixture_pin": {
+        "enabled_config_mcp_servers": [],
+        "enabled_non_toy_plugins": [],
+        "definition_sha256": "b241b6dc8dc2c5a5bfe816f4a81ab8e6e390fa69b63b7f691e6172e7e6701409",
+        "executable_sha256": "c61521307920e0b5eedfc88603e5a433e5dbcb616fbfee79515019179a1bf17a",
+        "input_sha256": {
+          "hooks/hooks.json": "b241b6dc8dc2c5a5bfe816f4a81ab8e6e390fa69b63b7f691e6172e7e6701409",
+          "hook.py": "c61521307920e0b5eedfc88603e5a433e5dbcb616fbfee79515019179a1bf17a",
+          "server.py": "eff13a5abc6046ddd495cbca5bdb57edbae7bbb98d5aefd936aef42ff4b19b1e",
+          "order.html": "a20490f50d8bb4f37e4b2324ac63639be3cbd5059b6f8d030e05fa35a45bb409",
+          "skills/toy-order/SKILL.md": "04526a707c35d5d1989975ff7d13141d9d15fb4f2fde223e1eb5e3df66ae5193",
+          ".codex-plugin/plugin.json": "9fb2744b186648dd596d11210f880250731b6f6eacc5066e6b215b7cbcd542f8",
+          ".mcp.json": "b5ac9c585ee024489887c0b9b486fade72ef6fb864c69cc06e7efc70652a7262"
+        },
+        "installed_root": "<user-home>/.codex/plugins/cache/toy-display-market-205/toy-display-spike-205/0.0.1",
+        "method": "All generated plugin bytes, exact hook command/source and inspected hashes.",
+        "hook_hashes": {
+          "preToolUse": "sha256:6b4e9445ebbdabc0c3e4c0fc67d96b6cd57c0e72176aad58daafcc14ef029ecf",
+          "postToolUse": "sha256:bcd56d5bfda40f971af7ac98a0b40c42f22a53d77d056b04d92e2655077df66a",
+          "sessionStart": "sha256:94046a3ba1bb2e38c84875f327a5525e2a641de08c50acd8631ca3b24eaba503",
+          "userPromptSubmit": "sha256:a7fa073be6f180fc6eaeba4aa5b8b73af5fc0cb58d0554fbce4de7a18b922e8d",
+          "stop": "sha256:90c4b85459734b3f747a3491b64281ba87ec2904fb7733b961876750dbc55e7e"
+        }
+      },
+      "hook_events": [
+        {
+          "event": "SessionStart"
+        },
+        {
+          "event": "UserPromptSubmit"
+        },
+        {
+          "event": "PreToolUse"
+        },
+        {
+          "event": "PostToolUse"
+        },
+        {
+          "event": "Stop"
+        }
+      ],
+      "mcp_events": [
+        {
+          "method": "initialize",
+          "capability_keys": [
+            "elicitation",
+            "experimental"
+          ],
+          "extension_keys": []
+        },
+        {
+          "method": "notifications/initialized"
+        },
+        {
+          "method": "tools/list"
+        }
+      ]
+    },
+    {
+      "surface": "codex_exec",
+      "case": "mcp",
+      "version": "codex-cli 0.162.0",
+      "exit_code": 0,
+      "termination": "process exit",
+      "markers_in_output": {
+        "DISPLAY_STATUS_SessionStart_205": false,
+        "DISPLAY_WARNING_SessionStart_205": false,
+        "DISPLAY_CONTEXT_SessionStart_205": false,
+        "DISPLAY_STATUS_UserPromptSubmit_205": false,
+        "DISPLAY_WARNING_UserPromptSubmit_205": false,
+        "DISPLAY_CONTEXT_UserPromptSubmit_205": false,
+        "DISPLAY_STATUS_PreToolUse_205": false,
+        "DISPLAY_WARNING_PreToolUse_205": false,
+        "DISPLAY_CONTEXT_PreToolUse_205": false,
+        "DISPLAY_STATUS_PostToolUse_205": false,
+        "DISPLAY_WARNING_PostToolUse_205": false,
+        "DISPLAY_CONTEXT_PostToolUse_205": false,
+        "DISPLAY_STATUS_Stop_205": false,
+        "DISPLAY_WARNING_Stop_205": false,
+        "DISPLAY_CONTEXT_Stop_205": false,
+        "DISPLAY_SKILL_BODY_205": false,
+        "DISPLAY_MCP_TEXT_205": true,
+        "DISPLAY_MCP_STRUCTURED_205": true,
+        "DISPLAY_MCP_META_205": true,
+        "DISPLAY_UI_205": false
+      },
+      "model_requests": [
+        {
+          "found": {
+            "DISPLAY_STATUS_SessionStart_205": [],
+            "DISPLAY_WARNING_SessionStart_205": [],
+            "DISPLAY_CONTEXT_SessionStart_205": [
+              "input[3].developer"
+            ],
+            "DISPLAY_STATUS_UserPromptSubmit_205": [],
+            "DISPLAY_WARNING_UserPromptSubmit_205": [],
+            "DISPLAY_CONTEXT_UserPromptSubmit_205": [
+              "input[5].developer"
+            ],
+            "DISPLAY_STATUS_PreToolUse_205": [],
+            "DISPLAY_WARNING_PreToolUse_205": [],
+            "DISPLAY_CONTEXT_PreToolUse_205": [],
+            "DISPLAY_STATUS_PostToolUse_205": [],
+            "DISPLAY_WARNING_PostToolUse_205": [],
+            "DISPLAY_CONTEXT_PostToolUse_205": [],
+            "DISPLAY_STATUS_Stop_205": [],
+            "DISPLAY_WARNING_Stop_205": [],
+            "DISPLAY_CONTEXT_Stop_205": [],
+            "DISPLAY_SKILL_BODY_205": [],
+            "DISPLAY_MCP_TEXT_205": [],
+            "DISPLAY_MCP_STRUCTURED_205": [],
+            "DISPLAY_MCP_META_205": [],
+            "DISPLAY_UI_205": []
+          },
+          "toy_tools": [
+            {
+              "name": "show_order",
+              "namespace": "mcp__toy_display"
+            }
+          ],
+          "tool_output_checks": []
+        },
+        {
+          "found": {
+            "DISPLAY_STATUS_SessionStart_205": [],
+            "DISPLAY_WARNING_SessionStart_205": [],
+            "DISPLAY_CONTEXT_SessionStart_205": [
+              "input[3].developer"
+            ],
+            "DISPLAY_STATUS_UserPromptSubmit_205": [],
+            "DISPLAY_WARNING_UserPromptSubmit_205": [],
+            "DISPLAY_CONTEXT_UserPromptSubmit_205": [
+              "input[5].developer"
+            ],
+            "DISPLAY_STATUS_PreToolUse_205": [],
+            "DISPLAY_WARNING_PreToolUse_205": [],
+            "DISPLAY_CONTEXT_PreToolUse_205": [
+              "input[7].developer"
+            ],
+            "DISPLAY_STATUS_PostToolUse_205": [],
+            "DISPLAY_WARNING_PostToolUse_205": [],
+            "DISPLAY_CONTEXT_PostToolUse_205": [
+              "input[8].developer"
+            ],
+            "DISPLAY_STATUS_Stop_205": [],
+            "DISPLAY_WARNING_Stop_205": [],
+            "DISPLAY_CONTEXT_Stop_205": [],
+            "DISPLAY_SKILL_BODY_205": [],
+            "DISPLAY_MCP_TEXT_205": [],
+            "DISPLAY_MCP_STRUCTURED_205": [
+              "input[9].function_call_output"
+            ],
+            "DISPLAY_MCP_META_205": [],
+            "DISPLAY_UI_205": []
+          },
+          "toy_tools": [
+            {
+              "name": "show_order",
+              "namespace": "mcp__toy_display"
+            }
+          ],
+          "tool_output_checks": [
+            {
+              "size": 109,
+              "error_terms": []
+            }
+          ]
+        }
+      ],
+      "fixture_pin": {
+        "enabled_config_mcp_servers": [],
+        "enabled_non_toy_plugins": [],
+        "definition_sha256": "b241b6dc8dc2c5a5bfe816f4a81ab8e6e390fa69b63b7f691e6172e7e6701409",
+        "executable_sha256": "c61521307920e0b5eedfc88603e5a433e5dbcb616fbfee79515019179a1bf17a",
+        "input_sha256": {
+          "hooks/hooks.json": "b241b6dc8dc2c5a5bfe816f4a81ab8e6e390fa69b63b7f691e6172e7e6701409",
+          "hook.py": "c61521307920e0b5eedfc88603e5a433e5dbcb616fbfee79515019179a1bf17a",
+          "server.py": "eff13a5abc6046ddd495cbca5bdb57edbae7bbb98d5aefd936aef42ff4b19b1e",
+          "order.html": "a20490f50d8bb4f37e4b2324ac63639be3cbd5059b6f8d030e05fa35a45bb409",
+          "skills/toy-order/SKILL.md": "04526a707c35d5d1989975ff7d13141d9d15fb4f2fde223e1eb5e3df66ae5193",
+          ".codex-plugin/plugin.json": "9fb2744b186648dd596d11210f880250731b6f6eacc5066e6b215b7cbcd542f8",
+          ".mcp.json": "b5ac9c585ee024489887c0b9b486fade72ef6fb864c69cc06e7efc70652a7262"
+        },
+        "installed_root": "<user-home>/.codex/plugins/cache/toy-display-market-205/toy-display-spike-205/0.0.1",
+        "method": "All generated plugin bytes, exact hook command/source and inspected hashes.",
+        "hook_hashes": {
+          "preToolUse": "sha256:6b4e9445ebbdabc0c3e4c0fc67d96b6cd57c0e72176aad58daafcc14ef029ecf",
+          "postToolUse": "sha256:bcd56d5bfda40f971af7ac98a0b40c42f22a53d77d056b04d92e2655077df66a",
+          "sessionStart": "sha256:94046a3ba1bb2e38c84875f327a5525e2a641de08c50acd8631ca3b24eaba503",
+          "userPromptSubmit": "sha256:a7fa073be6f180fc6eaeba4aa5b8b73af5fc0cb58d0554fbce4de7a18b922e8d",
+          "stop": "sha256:90c4b85459734b3f747a3491b64281ba87ec2904fb7733b961876750dbc55e7e"
+        }
+      },
+      "hook_events": [
+        {
+          "event": "SessionStart"
+        },
+        {
+          "event": "UserPromptSubmit"
+        },
+        {
+          "event": "PreToolUse"
+        },
+        {
+          "event": "PostToolUse"
+        },
+        {
+          "event": "Stop"
+        }
+      ],
+      "mcp_events": [
+        {
+          "method": "initialize",
+          "capability_keys": [
+            "elicitation",
+            "experimental"
+          ],
+          "extension_keys": []
+        },
+        {
+          "method": "notifications/initialized"
+        },
+        {
+          "method": "tools/list"
+        },
+        {
+          "method": "tools/call",
+          "tool": "show_order"
+        }
+      ]
+    },
+    {
+      "surface": "codex_exec",
+      "case": "skill",
+      "version": "codex-cli 0.162.0",
+      "exit_code": 0,
+      "termination": "process exit",
+      "markers_in_output": {
+        "DISPLAY_STATUS_SessionStart_205": false,
+        "DISPLAY_WARNING_SessionStart_205": false,
+        "DISPLAY_CONTEXT_SessionStart_205": false,
+        "DISPLAY_STATUS_UserPromptSubmit_205": false,
+        "DISPLAY_WARNING_UserPromptSubmit_205": false,
+        "DISPLAY_CONTEXT_UserPromptSubmit_205": false,
+        "DISPLAY_STATUS_PreToolUse_205": false,
+        "DISPLAY_WARNING_PreToolUse_205": false,
+        "DISPLAY_CONTEXT_PreToolUse_205": false,
+        "DISPLAY_STATUS_PostToolUse_205": false,
+        "DISPLAY_WARNING_PostToolUse_205": false,
+        "DISPLAY_CONTEXT_PostToolUse_205": false,
+        "DISPLAY_STATUS_Stop_205": false,
+        "DISPLAY_WARNING_Stop_205": false,
+        "DISPLAY_CONTEXT_Stop_205": false,
+        "DISPLAY_SKILL_BODY_205": false,
+        "DISPLAY_MCP_TEXT_205": false,
+        "DISPLAY_MCP_STRUCTURED_205": false,
+        "DISPLAY_MCP_META_205": false,
+        "DISPLAY_UI_205": false
+      },
+      "model_requests": [
+        {
+          "found": {
+            "DISPLAY_STATUS_SessionStart_205": [],
+            "DISPLAY_WARNING_SessionStart_205": [],
+            "DISPLAY_CONTEXT_SessionStart_205": [
+              "input[3].developer"
+            ],
+            "DISPLAY_STATUS_UserPromptSubmit_205": [],
+            "DISPLAY_WARNING_UserPromptSubmit_205": [],
+            "DISPLAY_CONTEXT_UserPromptSubmit_205": [
+              "input[5].developer"
+            ],
+            "DISPLAY_STATUS_PreToolUse_205": [],
+            "DISPLAY_WARNING_PreToolUse_205": [],
+            "DISPLAY_CONTEXT_PreToolUse_205": [],
+            "DISPLAY_STATUS_PostToolUse_205": [],
+            "DISPLAY_WARNING_PostToolUse_205": [],
+            "DISPLAY_CONTEXT_PostToolUse_205": [],
+            "DISPLAY_STATUS_Stop_205": [],
+            "DISPLAY_WARNING_Stop_205": [],
+            "DISPLAY_CONTEXT_Stop_205": [],
+            "DISPLAY_SKILL_BODY_205": [
+              "input[6].user"
+            ],
+            "DISPLAY_MCP_TEXT_205": [],
+            "DISPLAY_MCP_STRUCTURED_205": [],
+            "DISPLAY_MCP_META_205": [],
+            "DISPLAY_UI_205": []
+          },
+          "toy_tools": [
+            {
+              "name": "show_order",
+              "namespace": "mcp__toy_display"
+            }
+          ],
+          "tool_output_checks": []
+        }
+      ],
+      "fixture_pin": {
+        "enabled_config_mcp_servers": [],
+        "enabled_non_toy_plugins": [],
+        "definition_sha256": "b241b6dc8dc2c5a5bfe816f4a81ab8e6e390fa69b63b7f691e6172e7e6701409",
+        "executable_sha256": "c61521307920e0b5eedfc88603e5a433e5dbcb616fbfee79515019179a1bf17a",
+        "input_sha256": {
+          "hooks/hooks.json": "b241b6dc8dc2c5a5bfe816f4a81ab8e6e390fa69b63b7f691e6172e7e6701409",
+          "hook.py": "c61521307920e0b5eedfc88603e5a433e5dbcb616fbfee79515019179a1bf17a",
+          "server.py": "eff13a5abc6046ddd495cbca5bdb57edbae7bbb98d5aefd936aef42ff4b19b1e",
+          "order.html": "a20490f50d8bb4f37e4b2324ac63639be3cbd5059b6f8d030e05fa35a45bb409",
+          "skills/toy-order/SKILL.md": "04526a707c35d5d1989975ff7d13141d9d15fb4f2fde223e1eb5e3df66ae5193",
+          ".codex-plugin/plugin.json": "9fb2744b186648dd596d11210f880250731b6f6eacc5066e6b215b7cbcd542f8",
+          ".mcp.json": "b5ac9c585ee024489887c0b9b486fade72ef6fb864c69cc06e7efc70652a7262"
+        },
+        "installed_root": "<user-home>/.codex/plugins/cache/toy-display-market-205/toy-display-spike-205/0.0.1",
+        "method": "All generated plugin bytes, exact hook command/source and inspected hashes.",
+        "hook_hashes": {
+          "preToolUse": "sha256:6b4e9445ebbdabc0c3e4c0fc67d96b6cd57c0e72176aad58daafcc14ef029ecf",
+          "postToolUse": "sha256:bcd56d5bfda40f971af7ac98a0b40c42f22a53d77d056b04d92e2655077df66a",
+          "sessionStart": "sha256:94046a3ba1bb2e38c84875f327a5525e2a641de08c50acd8631ca3b24eaba503",
+          "userPromptSubmit": "sha256:a7fa073be6f180fc6eaeba4aa5b8b73af5fc0cb58d0554fbce4de7a18b922e8d",
+          "stop": "sha256:90c4b85459734b3f747a3491b64281ba87ec2904fb7733b961876750dbc55e7e"
+        }
+      },
+      "hook_events": [
+        {
+          "event": "SessionStart"
+        },
+        {
+          "event": "UserPromptSubmit"
+        },
+        {
+          "event": "Stop"
+        }
+      ],
+      "mcp_events": [
+        {
+          "method": "initialize",
+          "capability_keys": [
+            "elicitation",
+            "experimental"
+          ],
+          "extension_keys": []
+        },
+        {
+          "method": "notifications/initialized"
+        },
+        {
+          "method": "tools/list"
+        }
+      ]
+    },
+    {
+      "surface": "interactive_cli",
+      "case": "hooks",
+      "version": "codex-cli 0.162.0",
+      "exit_code": null,
+      "termination": "terminated after Stop warning",
+      "markers_in_output": {
+        "DISPLAY_STATUS_SessionStart_205": true,
+        "DISPLAY_WARNING_SessionStart_205": true,
+        "DISPLAY_CONTEXT_SessionStart_205": false,
+        "DISPLAY_STATUS_UserPromptSubmit_205": true,
+        "DISPLAY_WARNING_UserPromptSubmit_205": true,
+        "DISPLAY_CONTEXT_UserPromptSubmit_205": false,
+        "DISPLAY_STATUS_PreToolUse_205": true,
+        "DISPLAY_WARNING_PreToolUse_205": true,
+        "DISPLAY_CONTEXT_PreToolUse_205": false,
+        "DISPLAY_STATUS_PostToolUse_205": true,
+        "DISPLAY_WARNING_PostToolUse_205": true,
+        "DISPLAY_CONTEXT_PostToolUse_205": false,
+        "DISPLAY_STATUS_Stop_205": true,
+        "DISPLAY_WARNING_Stop_205": true,
+        "DISPLAY_CONTEXT_Stop_205": false,
+        "DISPLAY_SKILL_BODY_205": false,
+        "DISPLAY_MCP_TEXT_205": false,
+        "DISPLAY_MCP_STRUCTURED_205": false,
+        "DISPLAY_MCP_META_205": false,
+        "DISPLAY_UI_205": false
+      },
+      "model_requests": [
+        {
+          "found": {
+            "DISPLAY_STATUS_SessionStart_205": [],
+            "DISPLAY_WARNING_SessionStart_205": [],
+            "DISPLAY_CONTEXT_SessionStart_205": [
+              "input[3].developer"
+            ],
+            "DISPLAY_STATUS_UserPromptSubmit_205": [],
+            "DISPLAY_WARNING_UserPromptSubmit_205": [],
+            "DISPLAY_CONTEXT_UserPromptSubmit_205": [
+              "input[5].developer"
+            ],
+            "DISPLAY_STATUS_PreToolUse_205": [],
+            "DISPLAY_WARNING_PreToolUse_205": [],
+            "DISPLAY_CONTEXT_PreToolUse_205": [],
+            "DISPLAY_STATUS_PostToolUse_205": [],
+            "DISPLAY_WARNING_PostToolUse_205": [],
+            "DISPLAY_CONTEXT_PostToolUse_205": [],
+            "DISPLAY_STATUS_Stop_205": [],
+            "DISPLAY_WARNING_Stop_205": [],
+            "DISPLAY_CONTEXT_Stop_205": [],
+            "DISPLAY_SKILL_BODY_205": [],
+            "DISPLAY_MCP_TEXT_205": [],
+            "DISPLAY_MCP_STRUCTURED_205": [],
+            "DISPLAY_MCP_META_205": [],
+            "DISPLAY_UI_205": []
+          },
+          "toy_tools": [
+            {
+              "name": "show_order",
+              "namespace": "mcp__toy_display"
+            }
+          ],
+          "tool_output_checks": []
+        },
+        {
+          "found": {
+            "DISPLAY_STATUS_SessionStart_205": [],
+            "DISPLAY_WARNING_SessionStart_205": [],
+            "DISPLAY_CONTEXT_SessionStart_205": [
+              "input[3].developer"
+            ],
+            "DISPLAY_STATUS_UserPromptSubmit_205": [],
+            "DISPLAY_WARNING_UserPromptSubmit_205": [],
+            "DISPLAY_CONTEXT_UserPromptSubmit_205": [
+              "input[5].developer"
+            ],
+            "DISPLAY_STATUS_PreToolUse_205": [],
+            "DISPLAY_WARNING_PreToolUse_205": [],
+            "DISPLAY_CONTEXT_PreToolUse_205": [
+              "input[7].developer"
+            ],
+            "DISPLAY_STATUS_PostToolUse_205": [],
+            "DISPLAY_WARNING_PostToolUse_205": [],
+            "DISPLAY_CONTEXT_PostToolUse_205": [
+              "input[8].developer"
+            ],
+            "DISPLAY_STATUS_Stop_205": [],
+            "DISPLAY_WARNING_Stop_205": [],
+            "DISPLAY_CONTEXT_Stop_205": [],
+            "DISPLAY_SKILL_BODY_205": [],
+            "DISPLAY_MCP_TEXT_205": [],
+            "DISPLAY_MCP_STRUCTURED_205": [],
+            "DISPLAY_MCP_META_205": [],
+            "DISPLAY_UI_205": []
+          },
+          "toy_tools": [
+            {
+              "name": "show_order",
+              "namespace": "mcp__toy_display"
+            }
+          ],
+          "tool_output_checks": [
+            {
+              "size": 124,
+              "error_terms": []
+            }
+          ]
+        }
+      ],
+      "fixture_pin": {
+        "enabled_config_mcp_servers": [],
+        "enabled_non_toy_plugins": [],
+        "definition_sha256": "b241b6dc8dc2c5a5bfe816f4a81ab8e6e390fa69b63b7f691e6172e7e6701409",
+        "executable_sha256": "c61521307920e0b5eedfc88603e5a433e5dbcb616fbfee79515019179a1bf17a",
+        "input_sha256": {
+          "hooks/hooks.json": "b241b6dc8dc2c5a5bfe816f4a81ab8e6e390fa69b63b7f691e6172e7e6701409",
+          "hook.py": "c61521307920e0b5eedfc88603e5a433e5dbcb616fbfee79515019179a1bf17a",
+          "server.py": "eff13a5abc6046ddd495cbca5bdb57edbae7bbb98d5aefd936aef42ff4b19b1e",
+          "order.html": "a20490f50d8bb4f37e4b2324ac63639be3cbd5059b6f8d030e05fa35a45bb409",
+          "skills/toy-order/SKILL.md": "04526a707c35d5d1989975ff7d13141d9d15fb4f2fde223e1eb5e3df66ae5193",
+          ".codex-plugin/plugin.json": "9fb2744b186648dd596d11210f880250731b6f6eacc5066e6b215b7cbcd542f8",
+          ".mcp.json": "b5ac9c585ee024489887c0b9b486fade72ef6fb864c69cc06e7efc70652a7262"
+        },
+        "installed_root": "<user-home>/.codex/plugins/cache/toy-display-market-205/toy-display-spike-205/0.0.1",
+        "method": "All generated plugin bytes, exact hook command/source and inspected hashes.",
+        "hook_hashes": {
+          "preToolUse": "sha256:6b4e9445ebbdabc0c3e4c0fc67d96b6cd57c0e72176aad58daafcc14ef029ecf",
+          "postToolUse": "sha256:bcd56d5bfda40f971af7ac98a0b40c42f22a53d77d056b04d92e2655077df66a",
+          "sessionStart": "sha256:94046a3ba1bb2e38c84875f327a5525e2a641de08c50acd8631ca3b24eaba503",
+          "userPromptSubmit": "sha256:a7fa073be6f180fc6eaeba4aa5b8b73af5fc0cb58d0554fbce4de7a18b922e8d",
+          "stop": "sha256:90c4b85459734b3f747a3491b64281ba87ec2904fb7733b961876750dbc55e7e"
+        }
+      },
+      "hook_events": [
+        {
+          "event": "SessionStart"
+        },
+        {
+          "event": "UserPromptSubmit"
+        },
+        {
+          "event": "PreToolUse"
+        },
+        {
+          "event": "PostToolUse"
+        },
+        {
+          "event": "Stop"
+        }
+      ],
+      "mcp_events": [
+        {
+          "method": "initialize",
+          "capability_keys": [
+            "elicitation",
+            "experimental",
+            "extensions"
+          ],
+          "extension_keys": [
+            "openai/elicitation"
+          ]
+        },
+        {
+          "method": "notifications/initialized"
+        },
+        {
+          "method": "tools/list"
+        }
+      ]
+    },
+    {
+      "surface": "interactive_cli",
+      "case": "mcp",
+      "version": "codex-cli 0.162.0",
+      "exit_code": null,
+      "termination": "terminated after Stop warning",
+      "markers_in_output": {
+        "DISPLAY_STATUS_SessionStart_205": true,
+        "DISPLAY_WARNING_SessionStart_205": true,
+        "DISPLAY_CONTEXT_SessionStart_205": false,
+        "DISPLAY_STATUS_UserPromptSubmit_205": true,
+        "DISPLAY_WARNING_UserPromptSubmit_205": true,
+        "DISPLAY_CONTEXT_UserPromptSubmit_205": false,
+        "DISPLAY_STATUS_PreToolUse_205": true,
+        "DISPLAY_WARNING_PreToolUse_205": true,
+        "DISPLAY_CONTEXT_PreToolUse_205": false,
+        "DISPLAY_STATUS_PostToolUse_205": true,
+        "DISPLAY_WARNING_PostToolUse_205": true,
+        "DISPLAY_CONTEXT_PostToolUse_205": false,
+        "DISPLAY_STATUS_Stop_205": true,
+        "DISPLAY_WARNING_Stop_205": true,
+        "DISPLAY_CONTEXT_Stop_205": false,
+        "DISPLAY_SKILL_BODY_205": false,
+        "DISPLAY_MCP_TEXT_205": true,
+        "DISPLAY_MCP_STRUCTURED_205": false,
+        "DISPLAY_MCP_META_205": false,
+        "DISPLAY_UI_205": false
+      },
+      "model_requests": [
+        {
+          "found": {
+            "DISPLAY_STATUS_SessionStart_205": [],
+            "DISPLAY_WARNING_SessionStart_205": [],
+            "DISPLAY_CONTEXT_SessionStart_205": [
+              "input[3].developer"
+            ],
+            "DISPLAY_STATUS_UserPromptSubmit_205": [],
+            "DISPLAY_WARNING_UserPromptSubmit_205": [],
+            "DISPLAY_CONTEXT_UserPromptSubmit_205": [
+              "input[5].developer"
+            ],
+            "DISPLAY_STATUS_PreToolUse_205": [],
+            "DISPLAY_WARNING_PreToolUse_205": [],
+            "DISPLAY_CONTEXT_PreToolUse_205": [],
+            "DISPLAY_STATUS_PostToolUse_205": [],
+            "DISPLAY_WARNING_PostToolUse_205": [],
+            "DISPLAY_CONTEXT_PostToolUse_205": [],
+            "DISPLAY_STATUS_Stop_205": [],
+            "DISPLAY_WARNING_Stop_205": [],
+            "DISPLAY_CONTEXT_Stop_205": [],
+            "DISPLAY_SKILL_BODY_205": [],
+            "DISPLAY_MCP_TEXT_205": [],
+            "DISPLAY_MCP_STRUCTURED_205": [],
+            "DISPLAY_MCP_META_205": [],
+            "DISPLAY_UI_205": []
+          },
+          "toy_tools": [
+            {
+              "name": "show_order",
+              "namespace": "mcp__toy_display"
+            }
+          ],
+          "tool_output_checks": []
+        },
+        {
+          "found": {
+            "DISPLAY_STATUS_SessionStart_205": [],
+            "DISPLAY_WARNING_SessionStart_205": [],
+            "DISPLAY_CONTEXT_SessionStart_205": [
+              "input[3].developer"
+            ],
+            "DISPLAY_STATUS_UserPromptSubmit_205": [],
+            "DISPLAY_WARNING_UserPromptSubmit_205": [],
+            "DISPLAY_CONTEXT_UserPromptSubmit_205": [
+              "input[5].developer"
+            ],
+            "DISPLAY_STATUS_PreToolUse_205": [],
+            "DISPLAY_WARNING_PreToolUse_205": [],
+            "DISPLAY_CONTEXT_PreToolUse_205": [
+              "input[7].developer"
+            ],
+            "DISPLAY_STATUS_PostToolUse_205": [],
+            "DISPLAY_WARNING_PostToolUse_205": [],
+            "DISPLAY_CONTEXT_PostToolUse_205": [
+              "input[8].developer"
+            ],
+            "DISPLAY_STATUS_Stop_205": [],
+            "DISPLAY_WARNING_Stop_205": [],
+            "DISPLAY_CONTEXT_Stop_205": [],
+            "DISPLAY_SKILL_BODY_205": [],
+            "DISPLAY_MCP_TEXT_205": [],
+            "DISPLAY_MCP_STRUCTURED_205": [
+              "input[9].function_call_output"
+            ],
+            "DISPLAY_MCP_META_205": [],
+            "DISPLAY_UI_205": []
+          },
+          "toy_tools": [
+            {
+              "name": "show_order",
+              "namespace": "mcp__toy_display"
+            }
+          ],
+          "tool_output_checks": [
+            {
+              "size": 109,
+              "error_terms": []
+            }
+          ]
+        }
+      ],
+      "fixture_pin": {
+        "enabled_config_mcp_servers": [],
+        "enabled_non_toy_plugins": [],
+        "definition_sha256": "b241b6dc8dc2c5a5bfe816f4a81ab8e6e390fa69b63b7f691e6172e7e6701409",
+        "executable_sha256": "c61521307920e0b5eedfc88603e5a433e5dbcb616fbfee79515019179a1bf17a",
+        "input_sha256": {
+          "hooks/hooks.json": "b241b6dc8dc2c5a5bfe816f4a81ab8e6e390fa69b63b7f691e6172e7e6701409",
+          "hook.py": "c61521307920e0b5eedfc88603e5a433e5dbcb616fbfee79515019179a1bf17a",
+          "server.py": "eff13a5abc6046ddd495cbca5bdb57edbae7bbb98d5aefd936aef42ff4b19b1e",
+          "order.html": "a20490f50d8bb4f37e4b2324ac63639be3cbd5059b6f8d030e05fa35a45bb409",
+          "skills/toy-order/SKILL.md": "04526a707c35d5d1989975ff7d13141d9d15fb4f2fde223e1eb5e3df66ae5193",
+          ".codex-plugin/plugin.json": "9fb2744b186648dd596d11210f880250731b6f6eacc5066e6b215b7cbcd542f8",
+          ".mcp.json": "b5ac9c585ee024489887c0b9b486fade72ef6fb864c69cc06e7efc70652a7262"
+        },
+        "installed_root": "<user-home>/.codex/plugins/cache/toy-display-market-205/toy-display-spike-205/0.0.1",
+        "method": "All generated plugin bytes, exact hook command/source and inspected hashes.",
+        "hook_hashes": {
+          "preToolUse": "sha256:6b4e9445ebbdabc0c3e4c0fc67d96b6cd57c0e72176aad58daafcc14ef029ecf",
+          "postToolUse": "sha256:bcd56d5bfda40f971af7ac98a0b40c42f22a53d77d056b04d92e2655077df66a",
+          "sessionStart": "sha256:94046a3ba1bb2e38c84875f327a5525e2a641de08c50acd8631ca3b24eaba503",
+          "userPromptSubmit": "sha256:a7fa073be6f180fc6eaeba4aa5b8b73af5fc0cb58d0554fbce4de7a18b922e8d",
+          "stop": "sha256:90c4b85459734b3f747a3491b64281ba87ec2904fb7733b961876750dbc55e7e"
+        }
+      },
+      "hook_events": [
+        {
+          "event": "SessionStart"
+        },
+        {
+          "event": "UserPromptSubmit"
+        },
+        {
+          "event": "PreToolUse"
+        },
+        {
+          "event": "PostToolUse"
+        },
+        {
+          "event": "Stop"
+        }
+      ],
+      "mcp_events": [
+        {
+          "method": "initialize",
+          "capability_keys": [
+            "elicitation",
+            "experimental",
+            "extensions"
+          ],
+          "extension_keys": [
+            "openai/elicitation"
+          ]
+        },
+        {
+          "method": "notifications/initialized"
+        },
+        {
+          "method": "tools/list"
+        },
+        {
+          "method": "tools/call",
+          "tool": "show_order"
+        }
+      ]
+    },
+    {
+      "surface": "interactive_cli",
+      "case": "skill",
+      "version": "codex-cli 0.162.0",
+      "exit_code": null,
+      "termination": "terminated after Stop warning",
+      "markers_in_output": {
+        "DISPLAY_STATUS_SessionStart_205": true,
+        "DISPLAY_WARNING_SessionStart_205": true,
+        "DISPLAY_CONTEXT_SessionStart_205": false,
+        "DISPLAY_STATUS_UserPromptSubmit_205": true,
+        "DISPLAY_WARNING_UserPromptSubmit_205": true,
+        "DISPLAY_CONTEXT_UserPromptSubmit_205": false,
+        "DISPLAY_STATUS_PreToolUse_205": false,
+        "DISPLAY_WARNING_PreToolUse_205": false,
+        "DISPLAY_CONTEXT_PreToolUse_205": false,
+        "DISPLAY_STATUS_PostToolUse_205": false,
+        "DISPLAY_WARNING_PostToolUse_205": false,
+        "DISPLAY_CONTEXT_PostToolUse_205": false,
+        "DISPLAY_STATUS_Stop_205": true,
+        "DISPLAY_WARNING_Stop_205": true,
+        "DISPLAY_CONTEXT_Stop_205": false,
+        "DISPLAY_SKILL_BODY_205": false,
+        "DISPLAY_MCP_TEXT_205": false,
+        "DISPLAY_MCP_STRUCTURED_205": false,
+        "DISPLAY_MCP_META_205": false,
+        "DISPLAY_UI_205": false
+      },
+      "model_requests": [
+        {
+          "found": {
+            "DISPLAY_STATUS_SessionStart_205": [],
+            "DISPLAY_WARNING_SessionStart_205": [],
+            "DISPLAY_CONTEXT_SessionStart_205": [
+              "input[3].developer"
+            ],
+            "DISPLAY_STATUS_UserPromptSubmit_205": [],
+            "DISPLAY_WARNING_UserPromptSubmit_205": [],
+            "DISPLAY_CONTEXT_UserPromptSubmit_205": [
+              "input[5].developer"
+            ],
+            "DISPLAY_STATUS_PreToolUse_205": [],
+            "DISPLAY_WARNING_PreToolUse_205": [],
+            "DISPLAY_CONTEXT_PreToolUse_205": [],
+            "DISPLAY_STATUS_PostToolUse_205": [],
+            "DISPLAY_WARNING_PostToolUse_205": [],
+            "DISPLAY_CONTEXT_PostToolUse_205": [],
+            "DISPLAY_STATUS_Stop_205": [],
+            "DISPLAY_WARNING_Stop_205": [],
+            "DISPLAY_CONTEXT_Stop_205": [],
+            "DISPLAY_SKILL_BODY_205": [
+              "input[6].user"
+            ],
+            "DISPLAY_MCP_TEXT_205": [],
+            "DISPLAY_MCP_STRUCTURED_205": [],
+            "DISPLAY_MCP_META_205": [],
+            "DISPLAY_UI_205": []
+          },
+          "toy_tools": [
+            {
+              "name": "show_order",
+              "namespace": "mcp__toy_display"
+            }
+          ],
+          "tool_output_checks": []
+        }
+      ],
+      "fixture_pin": {
+        "enabled_config_mcp_servers": [],
+        "enabled_non_toy_plugins": [],
+        "definition_sha256": "b241b6dc8dc2c5a5bfe816f4a81ab8e6e390fa69b63b7f691e6172e7e6701409",
+        "executable_sha256": "c61521307920e0b5eedfc88603e5a433e5dbcb616fbfee79515019179a1bf17a",
+        "input_sha256": {
+          "hooks/hooks.json": "b241b6dc8dc2c5a5bfe816f4a81ab8e6e390fa69b63b7f691e6172e7e6701409",
+          "hook.py": "c61521307920e0b5eedfc88603e5a433e5dbcb616fbfee79515019179a1bf17a",
+          "server.py": "eff13a5abc6046ddd495cbca5bdb57edbae7bbb98d5aefd936aef42ff4b19b1e",
+          "order.html": "a20490f50d8bb4f37e4b2324ac63639be3cbd5059b6f8d030e05fa35a45bb409",
+          "skills/toy-order/SKILL.md": "04526a707c35d5d1989975ff7d13141d9d15fb4f2fde223e1eb5e3df66ae5193",
+          ".codex-plugin/plugin.json": "9fb2744b186648dd596d11210f880250731b6f6eacc5066e6b215b7cbcd542f8",
+          ".mcp.json": "b5ac9c585ee024489887c0b9b486fade72ef6fb864c69cc06e7efc70652a7262"
+        },
+        "installed_root": "<user-home>/.codex/plugins/cache/toy-display-market-205/toy-display-spike-205/0.0.1",
+        "method": "All generated plugin bytes, exact hook command/source and inspected hashes.",
+        "hook_hashes": {
+          "preToolUse": "sha256:6b4e9445ebbdabc0c3e4c0fc67d96b6cd57c0e72176aad58daafcc14ef029ecf",
+          "postToolUse": "sha256:bcd56d5bfda40f971af7ac98a0b40c42f22a53d77d056b04d92e2655077df66a",
+          "sessionStart": "sha256:94046a3ba1bb2e38c84875f327a5525e2a641de08c50acd8631ca3b24eaba503",
+          "userPromptSubmit": "sha256:a7fa073be6f180fc6eaeba4aa5b8b73af5fc0cb58d0554fbce4de7a18b922e8d",
+          "stop": "sha256:90c4b85459734b3f747a3491b64281ba87ec2904fb7733b961876750dbc55e7e"
+        }
+      },
+      "hook_events": [
+        {
+          "event": "SessionStart"
+        },
+        {
+          "event": "UserPromptSubmit"
+        },
+        {
+          "event": "Stop"
+        }
+      ],
+      "mcp_events": [
+        {
+          "method": "initialize",
+          "capability_keys": [
+            "elicitation",
+            "experimental",
+            "extensions"
+          ],
+          "extension_keys": [
+            "openai/elicitation"
+          ]
+        },
+        {
+          "method": "notifications/initialized"
+        },
+        {
+          "method": "tools/list"
+        }
+      ]
+    }
+  ],
+  "excluded_setup_runs": [
+    {
+      "surface": "codex_exec",
+      "case": "hooks",
+      "reason": "Superseded by the complete matrix after mock namespace and marker fixes."
+    },
+    {
+      "surface": "codex_exec",
+      "case": "mcp",
+      "reason": "Superseded by the complete matrix after mock namespace and marker fixes."
+    },
+    {
+      "surface": "codex_exec",
+      "case": "skill",
+      "reason": "Superseded by the complete matrix after mock namespace and marker fixes."
+    },
+    {
+      "surface": "interactive_cli",
+      "case": "hooks",
+      "reason": "Superseded by the complete matrix after mock namespace and marker fixes."
+    },
+    {
+      "surface": "interactive_cli",
+      "case": "mcp",
+      "reason": "Superseded by the complete matrix after mock namespace and marker fixes."
+    },
+    {
+      "surface": "codex_exec",
+      "case": "hooks",
+      "reason": "Superseded by the complete matrix after mock namespace and marker fixes."
+    },
+    {
+      "surface": "codex_exec",
+      "case": "mcp",
+      "reason": "Superseded by the complete matrix after mock namespace and marker fixes."
+    },
+    {
+      "surface": "codex_exec",
+      "case": "skill",
+      "reason": "Superseded by the complete matrix after mock namespace and marker fixes."
+    },
+    {
+      "surface": "interactive_cli",
+      "case": "hooks",
+      "reason": "Superseded by the complete matrix after mock namespace and marker fixes."
+    },
+    {
+      "surface": "interactive_cli",
+      "case": "mcp",
+      "reason": "Superseded by the complete matrix after mock namespace and marker fixes."
+    },
+    {
+      "surface": "codex_exec",
+      "case": "hooks",
+      "reason": "Superseded by the complete matrix after mock namespace and marker fixes."
+    },
+    {
+      "surface": "codex_exec",
+      "case": "mcp",
+      "reason": "Superseded by the complete matrix after mock namespace and marker fixes."
+    },
+    {
+      "surface": "codex_exec",
+      "case": "skill",
+      "reason": "Superseded by the complete matrix after mock namespace and marker fixes."
+    },
+    {
+      "reason": "Superseded CLI matrix: the old discovery filter hid enabled non-toy hooks.",
+      "runs": [
+        {
+          "surface": "codex_exec",
+          "case": "hooks",
+          "version": "codex-cli 0.162.0"
+        },
+        {
+          "surface": "codex_exec",
+          "case": "mcp",
+          "version": "codex-cli 0.162.0"
+        },
+        {
+          "surface": "codex_exec",
+          "case": "skill",
+          "version": "codex-cli 0.162.0"
+        },
+        {
+          "surface": "interactive_cli",
+          "case": "hooks",
+          "version": "codex-cli 0.162.0"
+        },
+        {
+          "surface": "interactive_cli",
+          "case": "mcp",
+          "version": "codex-cli 0.162.0"
+        },
+        {
+          "surface": "interactive_cli",
+          "case": "skill",
+          "version": "codex-cli 0.162.0"
+        }
+      ]
+    },
+    {
+      "reason": "Superseded by the final initialized client and literal plugin-table override check.",
+      "runs": [
+        {
+          "surface": "codex_exec",
+          "case": "hooks",
+          "version": "codex-cli 0.162.0"
+        },
+        {
+          "surface": "codex_exec",
+          "case": "mcp",
+          "version": "codex-cli 0.162.0"
+        },
+        {
+          "surface": "codex_exec",
+          "case": "skill",
+          "version": "codex-cli 0.162.0"
+        },
+        {
+          "surface": "interactive_cli",
+          "case": "hooks",
+          "version": "codex-cli 0.162.0"
+        },
+        {
+          "surface": "interactive_cli",
+          "case": "mcp",
+          "version": "codex-cli 0.162.0"
+        },
+        {
+          "surface": "interactive_cli",
+          "case": "skill",
+          "version": "codex-cli 0.162.0"
+        }
+      ]
+    },
+    {
+      "reason": "Superseded before full plugin-input pinning and effective MCP-server isolation.",
+      "runs": [
+        {
+          "surface": "codex_exec",
+          "case": "hooks",
+          "version": "codex-cli 0.162.0"
+        },
+        {
+          "surface": "codex_exec",
+          "case": "mcp",
+          "version": "codex-cli 0.162.0"
+        },
+        {
+          "surface": "codex_exec",
+          "case": "skill",
+          "version": "codex-cli 0.162.0"
+        },
+        {
+          "surface": "interactive_cli",
+          "case": "hooks",
+          "version": "codex-cli 0.162.0"
+        },
+        {
+          "surface": "interactive_cli",
+          "case": "mcp",
+          "version": "codex-cli 0.162.0"
+        },
+        {
+          "surface": "interactive_cli",
+          "case": "skill",
+          "version": "codex-cli 0.162.0"
+        }
+      ]
+    },
+    {
+      "reason": "Superseded by the flags-only MCP invocation check.",
+      "runs": [
+        {
+          "surface": "codex_exec",
+          "case": "hooks",
+          "version": "codex-cli 0.162.0"
+        },
+        {
+          "surface": "codex_exec",
+          "case": "mcp",
+          "version": "codex-cli 0.162.0"
+        },
+        {
+          "surface": "codex_exec",
+          "case": "skill",
+          "version": "codex-cli 0.162.0"
+        },
+        {
+          "surface": "interactive_cli",
+          "case": "hooks",
+          "version": "codex-cli 0.162.0"
+        },
+        {
+          "surface": "interactive_cli",
+          "case": "mcp",
+          "version": "codex-cli 0.162.0"
+        },
+        {
+          "surface": "interactive_cli",
+          "case": "skill",
+          "version": "codex-cli 0.162.0"
+        }
+      ]
+    }
+  ],
+  "manifest_schema": {
+    "version_tag": "rust-v0.162.0",
+    "source": "https://github.com/openai/codex/blob/rust-v0.162.0/codex-rs/plugin/src/manifest.rs",
+    "method": "Read the tested version tag with gstack browse. Inspect PluginManifestPaths and PluginManifestInterface; retain field names only.",
+    "components": [
+      "skills",
+      "onboarding_skill",
+      "mcp_servers",
+      "apps",
+      "hooks"
+    ],
+    "in_process_function_handler": false,
+    "status_line_or_command_registration_field": false,
+    "hook_handler_source": "https://github.com/openai/codex/blob/rust-v0.162.0/codex-rs/config/src/hook_config.rs",
+    "parsed_hook_types": [
+      "command",
+      "mcp_tool",
+      "prompt",
+      "agent"
+    ],
+    "documented_active_hook_types": [
+      "command",
+      "mcp_tool"
+    ]
+  },
+  "limits": [
+    "A loopback model stub sent fixed toy tool calls and toy answers. No real CLI model was used.",
+    "The schema lists supported events; runtime checks cover only the fixture events.",
+    "Warning and status marker absence applies to the captured requests. Stop runs after the final request; a later turn was not tested.",
+    "CLI output marker presence is not evidence of a graphical card or pane. No CLI resources/read call was recorded.",
+    "A person performed desktop checks and reported the About version. No desktop model-request capture was configured.",
+    "Desktop status text and menu entry discovery were not identified. No warning was seen although hook events were recorded.",
+    "The human reported several Refresh clicks, while the bounded interval recorded one server call. No claim about every click, exact callback origin, later model-context delivery, or byte equality is made.",
+    "The final CLI matrix checks all generated source and installed plugin files, effective configured MCP server flags, plugin flags and the full hook list before each case. Superseded CLI runs are excluded. Desktop executable verification followed the human check; no earlier desktop byte snapshot exists.",
+    "The fixture check does not lock files. Concurrent changes after the check and before Codex reads plugin inputs can escape the check.",
+    "The recorded desktop checks did not preflight the MCP executable/configuration or unrelated MCP servers before launch. The current method adds a preflight without CLI overrides, but it was not used for those earlier observations. Those observations do not establish an isolated desktop runtime.",
+    "The final CLI method passes only per-server enabled flags in MCP overrides. Server settings are not copied into process arguments. The tested CLI cannot use a dotted server name in this flag path, so the method stops for unsupported names before starting a probe."
+  ],
+  "answers": {
+    "in_process_code": {
+      "interactive_cli": {
+        "answer": "No supported function-hook or in-process plugin-code API was found in the tested manifest and handler schema. Command hooks run subprocesses; MCP tools run through a server.",
+        "basis": "version-tagged manifest and hook handler schema"
+      },
+      "codex_exec": {
+        "answer": "Same manifest and hook schema. No supported function handler.",
+        "basis": "schema"
+      },
+      "desktop": {
+        "answer": "The documented local plugin hook API uses the same schema. No supported function handler is declared.",
+        "basis": "docs and schema; no injected-code experiment"
+      },
+      "events": [
+        "preToolUse",
+        "permissionRequest",
+        "postToolUse",
+        "preCompact",
+        "postCompact",
+        "sessionStart",
+        "sessionEnd",
+        "userPromptSubmit",
+        "subagentStart",
+        "subagentStop",
+        "stop",
+        "interrupt"
+      ],
+      "event_scope": "Schema event names, not a claim that every event was exercised."
+    },
+    "status_pane_footer": {
+      "interactive_cli": {
+        "answer": "No plugin footer or persistent status-line field. The CLI status line selects built-in StatusLineItem identifiers. Hook statusMessage is transient; the isolated probe saw it for the fixture events.",
+        "basis": "manifest_schema, runs[3], version-tagged status_line_setup.rs"
+      },
+      "codex_exec": {
+        "answer": "No terminal pane or footer. Hook status and warning markers were absent from the captured JSON/stderr. MCP tool-result metadata is present in JSON.",
+        "basis": "runs[0], runs[1]"
+      },
+      "desktop": {
+        "answer": "The maintainer saw the toy MCP App in a pane on the left. The menu/opening path was not identified. Hook status text was not identified. No plugin footer/status-line registration field is declared in the inspected schema.",
+        "basis": "desktop human report, MCP resources/read events, installed_bundle_schema"
+      }
+    },
+    "commands_without_model": {
+      "interactive_cli": {
+        "answer": "No native command registration field in the tested manifest. Explicit skill invocation sent the skill body to the mock model as user content and started a turn.",
+        "basis": "manifest_schema, runs[5]"
+      },
+      "codex_exec": {
+        "answer": "Skill invocation started a request and sent the skill body to the mock model. No slash-command UI in exec.",
+        "basis": "runs[2]"
+      },
+      "desktop": {
+        "answer": "The skill started a model turn and ran the toy shell command. The MCP App recheck recorded a show_order server call with no new chat turn or hook event. This supports a UI-side tool path without starting the model. Native slash-command registration is not declared; menu entries were not identified.",
+        "basis": "desktop.chat_observation, desktop_refresh, manifest_schema"
+      }
+    },
+    "nonblocking_notice_and_model": {
+      "interactive_cli": {
+        "answer": "systemMessage showed as a warning for the fixture events. Warning/status markers were absent from captured model requests. additionalContext went to the mock model as developer content and did not show as a notice.",
+        "basis": "runs[3] and runs[4]"
+      },
+      "codex_exec": {
+        "answer": "The captured exec output did not contain the hook warning/status markers. additionalContext reached the mock model as developer content.",
+        "basis": "runs[0]"
+      },
+      "desktop": {
+        "answer": "The hooks ran, but the maintainer saw no warning notices. Status display was not identified. The docs define additionalContext as model context. Desktop model-request delivery was not captured; CLI marker results do not prove desktop isolation.",
+        "basis": "desktop.hook_events, desktop.human_observation, hooks docs"
+      }
+    },
+    "mcp_ui_or_resource": {
+      "interactive_cli": {
+        "answer": "The call displayed text, with no graphical card. The structuredContent marker reached the model; the _meta marker did not. No resources/read call was recorded.",
+        "basis": "runs[4]"
+      },
+      "codex_exec": {
+        "answer": "The JSON event contains content, structuredContent and _meta markers. Only the structuredContent marker reached the mock model. No UI resource read or render was recorded.",
+        "basis": "runs[1]"
+      },
+      "desktop": {
+        "answer": "The maintainer saw DISPLAY_UI_205 in a pane. The host advertised io.modelcontextprotocol/ui and fetched the HTML resource. The Refresh recheck recorded a server call without a new model turn. The fixed Order ready result explains the lack of a visible status change. Sidebar/menu entry discovery was not established.",
+        "basis": "desktop, desktop_refresh, fixture SERVER and HTML"
+      }
+    }
+  },
+  "adr_recommendation": {
+    "status": "complete_with_limits",
+    "text": "Keep the Codex command-hook adapter for relay and guard events. Do not port Claude Code function display hooks or use a skill as a model-free control command. Add an optional Codex desktop MCP App display adapter: the toy resource rendered in a pane and a UI-side tool call did not start a model turn. Keep its methods in the Python core. Use systemMessage only for optional CLI notices; the tested desktop showed no warnings and status was not identified. Keep tester replies out of additionalContext and model-visible tool content. MCP App data delivery to later model turns and byte equality need their own proof before it carries a live relay reply. Exec needs an external display consumer. Display is not a hook-trust or relay enforcement boundary.",
+    "evidence": [
+      "manifest_schema",
+      "runs",
+      "desktop",
+      "desktop_refresh",
+      "answers",
+      "limits"
+    ]
+  },
+  "installed_bundle_schema": {
+    "method": "Installed bundled CLI generate-json-schema; not the running chat process.",
+    "version": "codex-cli 0.162.0-alpha.17.2",
+    "sha256": "a263605022399e8a8fa6a59faff5a29424f92e9f896df38b0035a6c49833e9c0",
+    "definitions": {
+      "HookEventName": {
+        "fields": [],
+        "enum": [
+          "preToolUse",
+          "permissionRequest",
+          "postToolUse",
+          "preCompact",
+          "postCompact",
+          "sessionStart",
+          "sessionEnd",
+          "userPromptSubmit",
+          "subagentStart",
+          "subagentStop",
+          "stop",
+          "interrupt"
+        ]
+      },
+      "PluginDetail": {
+        "fields": [
+          "appTemplates",
+          "apps",
+          "description",
+          "hooks",
+          "marketplaceName",
+          "marketplacePath",
+          "mcpServers",
+          "onboardingSkill",
+          "scheduledTasks",
+          "shareUrl",
+          "skills",
+          "summary"
+        ],
+        "enum": null
+      },
+      "PluginInterface": {
+        "fields": [
+          "brandColor",
+          "capabilities",
+          "category",
+          "composerIcon",
+          "composerIconUrl",
+          "defaultPrompt",
+          "developerName",
+          "displayName",
+          "logo",
+          "logoDark",
+          "logoUrl",
+          "logoUrlDark",
+          "longDescription",
+          "privacyPolicyUrl",
+          "screenshotUrls",
+          "screenshots",
+          "shortDescription",
+          "termsOfServiceUrl",
+          "websiteUrl"
+        ],
+        "enum": null
+      }
+    }
+  },
+  "desktop_refresh": {
+    "method": "A person clicks between desktop-refresh-start and desktop-refresh-finish.",
+    "mcp_events": [
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation",
+          "experimental",
+          "extensions"
+        ],
+        "extension_keys": [
+          "io.modelcontextprotocol/ui",
+          "openai/elicitation",
+          "openai/form"
+        ]
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "resources/read",
+        "uri": "ui://toy-shop/order.html"
+      },
+      {
+        "method": "tools/call",
+        "tool": "show_order"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      }
+    ],
+    "show_order_calls": 1,
+    "hook_events": [],
+    "versions_before": {
+      "cli": "codex-cli 0.162.0",
+      "desktop": {
+        "installed_version": "26.1007.21159",
+        "installed_build": "20052",
+        "bundled_cli": "codex-cli 0.162.0-alpha.17.2",
+        "runtime_version": null,
+        "method": "Installed Info.plist and bundled binary --version; not runtime attribution."
+      }
+    },
+    "versions_after": {
+      "cli": "codex-cli 0.162.0",
+      "desktop": {
+        "installed_version": "26.1007.21159",
+        "installed_build": "20052",
+        "bundled_cli": "codex-cli 0.162.0-alpha.17.2",
+        "runtime_version": null,
+        "method": "Installed Info.plist and bundled binary --version; not runtime attribution."
+      }
+    },
+    "limit": "No CLI measurement ran during this interval. No desktop model-request capture. One server call was recorded while the person reported several clicks; this does not prove one call for each click or identify its precise UI origin.",
+    "human_report": "The maintainer reported a few clicks, not an exact click count.",
+    "new_model_turn": false,
+    "model_turn_evidence": "desktop.chat_observation"
+  },
+  "desktop": {
+    "method": "Person operates local desktop chat; imports report and toy event names only.",
+    "versions_before": {
+      "cli": "codex-cli 0.162.0",
+      "desktop": {
+        "installed_version": "26.1007.21159",
+        "installed_build": "20052",
+        "bundled_cli": "codex-cli 0.162.0-alpha.17.2",
+        "runtime_version": null,
+        "method": "Installed Info.plist and bundled binary --version; not runtime attribution."
+      }
+    },
+    "versions_after": {
+      "cli": "codex-cli 0.162.0",
+      "desktop": {
+        "installed_version": "26.1007.21159",
+        "installed_build": "20052",
+        "bundled_cli": "codex-cli 0.162.0-alpha.17.2",
+        "runtime_version": null,
+        "method": "Installed Info.plist and bundled binary --version; not runtime attribution."
+      }
+    },
+    "human_observation": {
+      "runtime_version": "26.1007.21159",
+      "status_shown": null,
+      "warnings_shown": false,
+      "skill_started_turn": true,
+      "ui_rendered": true,
+      "refresh_started_turn": false,
+      "sidebar_entry": null,
+      "panel_entry": null,
+      "pane_location": "left",
+      "opening_path": "unknown",
+      "refresh_click_count": "several"
+    },
+    "hook_events": [
+      {
+        "event": "SessionStart"
+      },
+      {
+        "event": "UserPromptSubmit"
+      },
+      {
+        "event": "PreToolUse"
+      },
+      {
+        "event": "PostToolUse"
+      },
+      {
+        "event": "PreToolUse"
+      },
+      {
+        "event": "PostToolUse"
+      },
+      {
+        "event": "PreToolUse"
+      },
+      {
+        "event": "PostToolUse"
+      },
+      {
+        "event": "PreToolUse"
+      },
+      {
+        "event": "PostToolUse"
+      },
+      {
+        "event": "PreToolUse"
+      },
+      {
+        "event": "PostToolUse"
+      },
+      {
+        "event": "PreToolUse"
+      },
+      {
+        "event": "PostToolUse"
+      },
+      {
+        "event": "PreToolUse"
+      },
+      {
+        "event": "PostToolUse"
+      },
+      {
+        "event": "Stop"
+      },
+      {
+        "event": "UserPromptSubmit"
+      },
+      {
+        "event": "PreToolUse"
+      },
+      {
+        "event": "PostToolUse"
+      },
+      {
+        "event": "Stop"
+      },
+      {
+        "event": "UserPromptSubmit"
+      },
+      {
+        "event": "PreToolUse"
+      },
+      {
+        "event": "PostToolUse"
+      },
+      {
+        "event": "Stop"
+      }
+    ],
+    "mcp_events": [
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation",
+          "experimental",
+          "extensions"
+        ],
+        "extension_keys": [
+          "io.modelcontextprotocol/ui",
+          "openai/elicitation",
+          "openai/form"
+        ]
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation",
+          "experimental",
+          "extensions"
+        ],
+        "extension_keys": [
+          "io.modelcontextprotocol/ui",
+          "openai/elicitation",
+          "openai/form"
+        ]
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "resources/read",
+        "uri": "ui://toy-shop/order.html"
+      },
+      {
+        "method": "tools/call",
+        "tool": "show_order"
+      },
+      {
+        "method": "tools/call",
+        "tool": "show_order"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "tools/call",
+        "tool": "show_order"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "resources/read",
+        "uri": "ui://toy-shop/order.html"
+      },
+      {
+        "method": "tools/call",
+        "tool": "show_order"
+      },
+      {
+        "method": "resources/read",
+        "uri": "ui://toy-shop/order.html"
+      },
+      {
+        "method": "resources/read",
+        "uri": "ui://toy-shop/order.html"
+      },
+      {
+        "method": "resources/read",
+        "uri": "ui://toy-shop/order.html"
+      },
+      {
+        "method": "resources/read",
+        "uri": "ui://toy-shop/order.html"
+      },
+      {
+        "method": "resources/read",
+        "uri": "ui://toy-shop/order.html"
+      },
+      {
+        "method": "tools/call",
+        "tool": "show_order"
+      },
+      {
+        "method": "resources/read",
+        "uri": "ui://toy-shop/order.html"
+      },
+      {
+        "method": "resources/read",
+        "uri": "ui://toy-shop/order.html"
+      },
+      {
+        "method": "tools/call",
+        "tool": "show_order"
+      },
+      {
+        "method": "resources/read",
+        "uri": "ui://toy-shop/order.html"
+      },
+      {
+        "method": "resources/read",
+        "uri": "ui://toy-shop/order.html"
+      },
+      {
+        "method": "resources/read",
+        "uri": "ui://toy-shop/order.html"
+      },
+      {
+        "method": "tools/call",
+        "tool": "show_order"
+      },
+      {
+        "method": "tools/call",
+        "tool": "show_order"
+      },
+      {
+        "method": "tools/call",
+        "tool": "show_order"
+      },
+      {
+        "method": "tools/call",
+        "tool": "show_order"
+      },
+      {
+        "method": "tools/call",
+        "tool": "show_order"
+      },
+      {
+        "method": "tools/call",
+        "tool": "show_order"
+      },
+      {
+        "method": "tools/call",
+        "tool": "show_order"
+      },
+      {
+        "method": "tools/call",
+        "tool": "show_order"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation",
+          "experimental",
+          "extensions"
+        ],
+        "extension_keys": [
+          "io.modelcontextprotocol/ui",
+          "openai/elicitation",
+          "openai/form"
+        ]
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "resources/read",
+        "uri": "ui://toy-shop/order.html"
+      },
+      {
+        "method": "tools/call",
+        "tool": "show_order"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "tools/call",
+        "tool": "show_order"
+      },
+      {
+        "method": "tools/call",
+        "tool": "show_order"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation",
+          "experimental",
+          "extensions"
+        ],
+        "extension_keys": [
+          "io.modelcontextprotocol/ui",
+          "openai/elicitation",
+          "openai/form"
+        ]
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "resources/read",
+        "uri": "ui://toy-shop/order.html"
+      },
+      {
+        "method": "tools/call",
+        "tool": "show_order"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      }
+    ],
+    "model_request_capture": false,
+    "chat_observation": {
+      "method": "Read the completed chat before and after the Refresh interval with read_thread, without outputs. Keep turn IDs and toy execution states only.",
+      "thread_url": "codex://threads/01a120ec-12d9-7e63-bfa4-441ce6dd9bfe",
+      "thread_title": "Run toy support check",
+      "skill_turn_id": "01a120ef-e469-7833-917f-33fe4f63559a",
+      "skill_started_model_turn": true,
+      "skill_shell_command_completed": true,
+      "order_turn_id": "01a120f0-b6b6-72d3-bd35-97ca7ee5c19b",
+      "order_tool_completed": true,
+      "last_turn_before_refresh": "01a120f0-b6b6-72d3-bd35-97ca7ee5c19b",
+      "last_turn_after_refresh": "01a120f0-b6b6-72d3-bd35-97ca7ee5c19b",
+      "new_turn_after_refresh": false,
+      "model_answers_retained": false
+    },
+    "version_attribution": {
+      "runtime_version": "26.1007.21159",
+      "method": "Maintainer reported the About version.",
+      "matches_installed_bundle": true
+    },
+    "fixture_verification_limit": "The installed hook bytes were verified after the human observations, not captured at each earlier desktop event.",
+    "fixture_pin_before": null
+  },
+  "fixture_pin": {
+    "enabled_config_mcp_servers": [],
+    "enabled_non_toy_plugins": [],
+    "definition_sha256": "b241b6dc8dc2c5a5bfe816f4a81ab8e6e390fa69b63b7f691e6172e7e6701409",
+    "executable_sha256": "c61521307920e0b5eedfc88603e5a433e5dbcb616fbfee79515019179a1bf17a",
+    "input_sha256": {
+      "hooks/hooks.json": "b241b6dc8dc2c5a5bfe816f4a81ab8e6e390fa69b63b7f691e6172e7e6701409",
+      "hook.py": "c61521307920e0b5eedfc88603e5a433e5dbcb616fbfee79515019179a1bf17a",
+      "server.py": "eff13a5abc6046ddd495cbca5bdb57edbae7bbb98d5aefd936aef42ff4b19b1e",
+      "order.html": "a20490f50d8bb4f37e4b2324ac63639be3cbd5059b6f8d030e05fa35a45bb409",
+      "skills/toy-order/SKILL.md": "04526a707c35d5d1989975ff7d13141d9d15fb4f2fde223e1eb5e3df66ae5193",
+      ".codex-plugin/plugin.json": "9fb2744b186648dd596d11210f880250731b6f6eacc5066e6b215b7cbcd542f8",
+      ".mcp.json": "b5ac9c585ee024489887c0b9b486fade72ef6fb864c69cc06e7efc70652a7262"
+    },
+    "installed_root": "<user-home>/.codex/plugins/cache/toy-display-market-205/toy-display-spike-205/0.0.1",
+    "method": "All generated plugin bytes, exact hook command/source and inspected hashes.",
+    "hook_hashes": {
+      "preToolUse": "sha256:6b4e9445ebbdabc0c3e4c0fc67d96b6cd57c0e72176aad58daafcc14ef029ecf",
+      "postToolUse": "sha256:bcd56d5bfda40f971af7ac98a0b40c42f22a53d77d056b04d92e2655077df66a",
+      "sessionStart": "sha256:94046a3ba1bb2e38c84875f327a5525e2a641de08c50acd8631ca3b24eaba503",
+      "userPromptSubmit": "sha256:a7fa073be6f180fc6eaeba4aa5b8b73af5fc0cb58d0554fbce4de7a18b922e8d",
+      "stop": "sha256:90c4b85459734b3f747a3491b64281ba87ec2904fb7733b961876750dbc55e7e"
+    }
+  }
+}

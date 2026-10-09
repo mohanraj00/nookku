@@ -66,6 +66,7 @@ Understand why it works as it does.
 
 - [Architecture](architecture.md): the relays, the taps, the bridge, the proxies, the audit, the trace and the evaluation, with diagrams of the data flow, one turn, the test lifecycle and the trace.
 - [ADR 0001: One core, one plugin](adr/0001-one-core-one-plugin.md): why one Python core and one plugin serve Claude Code and Codex, and what the spikes measured.
+- [Codex display spike](codex-display.md): the plugin display mechanisms, the CLI measurements and the desktop check.
 - [Limits](limits.md): what verbatim-relay does not do or prove.
 - [FAQ](faq.md): why a mechanism and not a prompt, what it costs, and other questions.
 - [Worked evaluations](evaluation-example.md): 2 tests of the toy shop, the model's reports and what the model got wrong.
