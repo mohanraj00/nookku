@@ -11,7 +11,7 @@ In v0.3, 2 relays do this work:
 - The hook kit: Python command hooks that `init` writes into a project, for Claude Code and Codex.
 - The Claude Code plugin: TypeScript function hooks.
 
-Testers used both relays. The plugin gave a better experience, but it works only in Claude Code. Its rules repeat the Python rules in TypeScript. About 10 open issues only make the 2 copies equal.
+Testers used both relays. The plugin gave a better experience, but it works only in Claude Code. Its rules repeat the Python rules in TypeScript. The 5 open guard issues of v0.4.0, [#146](https://github.com/mohanraj00/verbatim-relay/issues/146), [#149](https://github.com/mohanraj00/verbatim-relay/issues/149), [#150](https://github.com/mohanraj00/verbatim-relay/issues/150), [#172](https://github.com/mohanraj00/verbatim-relay/issues/172) and [#173](https://github.com/mohanraj00/verbatim-relay/issues/173), must each change the same rule in both copies.
 
 Before this decision, I measured 5 questions in spikes. Each result below links to its data and its method. The versions are in each data file.
 
@@ -23,7 +23,7 @@ Data: [`hook-display.json`](../../proofs/spikes/hook-display.json). Method: [`sp
 - The text keeps its bytes, but it shows as a blocked prompt with a fixed title. Claude Code does not render it as Markdown.
 - In print mode, a reason of 1, 10 and 100 KiB was complete, byte for byte.
 - In the interactive CLI, the screen does not always show the start of a reply that is longer than the screen. In 4 runs, the start of a 10 KiB or 100 KiB text was on the screen in 0, 0, 3 and 4 of 4 cases.
-- The model did not get the hook text, in this turn or in the next turn.
+- In the CLI, the model did not get the hook text, in this turn or in the next turn. In the desktop app, I did not measure this, because I had no proxy there.
 - In print mode, Claude Code sent the blocked prompt to the model API in a harness request with no tools and 1 message. This occurred in 9 of 9 cases. In the interactive CLI, it occurred in 0 of 9 cases. [#199](https://github.com/mohanraj00/verbatim-relay/issues/199) records this limit.
 
 ### Can a command hook show the reply? (Codex, #193)
@@ -81,14 +81,14 @@ The spikes give these rules for the design:
 
 - **Reply display.** In both harnesses, the core can show the reply with the block `reason`, as an optional notice. Do not use `systemMessage`, because the desktop apps do not show it. Keep `nooku view` and the transcript tool, because `codex exec` shows no reply, and the interactive screen can lose the start of a long reply.
 - **Trust gate.** In Codex, the core checks the hook state with `hooks/list` before the first relayed message. If a required hook is missing, disabled, untrusted or modified, the core refuses the test. The plugin's own `SessionStart` hook is not the gate. A person always does the trust step.
-- **Transcript tool.** The MCP server gives the model read-only tools: `transcript` and `status`. `transcript` returns pages, with an offset, a page count and a hash. The page size is configurable, and the default is less than 40 KiB. Normal use needs no raised output limit.
+- **Transcript tool.** The MCP server gives the model read-only tools: `transcript` and `status`. `transcript` returns pages, with an offset, a page count and a hash. The page size is configurable. The default is 10 KiB, the largest size that got to the model unchanged in both harnesses. The output limits count tokens, not bytes, so a larger default needs a new measurement. The model cannot compute a hash, so the default must stay inside a measured bound.
 - **Tool names.** The core builds the allowed tool names from one constant for each harness, because the 2 harnesses use different prefixes.
 - **Hook time.** Keep one Python process for each event. The hook path imports only the modules that its rule needs. A test fails if the hook path imports more. The target is less than 25 ms on macOS for a warm event. The guard does not call the bridge over loopback.
-- **Blocked prompts.** A command hook alone does not keep a blocked prompt from the model API. `claude -p` and the Codex desktop app sent it in a side request. Until [#199](https://github.com/mohanraj00/verbatim-relay/issues/199) closes, the docs state this limit.
+- **Blocked prompts.** A command hook alone does not keep a blocked prompt from the model API. `claude -p` and the Codex desktop app sent it in a side request. Until [#199](https://github.com/mohanraj00/verbatim-relay/issues/199) and [#203](https://github.com/mohanraj00/verbatim-relay/issues/203) close, the docs state this limit.
 
 ## Options that I did not take
 
-- **Keep 2 relays.** Each rule needs 2 copies and conformance cases for both. The copies drift, and about 10 open issues only make them equal again.
+- **Keep 2 relays.** Each rule needs 2 copies and conformance cases for both. The copies drift, and each guard issue must change both of them.
 - **Move the rules to TypeScript.** Codex does not run function hooks, so Codex would still need a second copy.
 - **A long-running hook server.** A loopback call saves time only while a test runs, and a command hook still needs a `curl` process. The guard must also work outside a test. A second path adds a second way to fail.
 - **Trust the plugin to check itself.** In Codex, an untrusted plugin skips all its hooks, also `SessionStart`. Only a check outside the plugin can refuse the test.
