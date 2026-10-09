@@ -29,7 +29,7 @@ It writes `.nookku/config.json` and adds [2 hooks](../../src/nookku/kit.py) to `
    It shows each turn of the latest test, and it follows to the next test.
 
 2. Start Claude Code in the project and type the prompt `nookku start`. The kit starts the test and does not send this prompt to the model.
-3. Type your test messages. Claude Code shows "relayed to the agent". The reply shows in the viewer.
+3. Type your test messages. Claude Code shows each reply as the reason of a blocked prompt. The viewer also shows the replies.
 4. Type the prompt `nookku end`. The kit ends the test, and the model evaluates it and writes `report.md` (see [Evaluation](#evaluation)).
 
 The prompt `nookku status` shows the running test. You can also start and end a test from a shell: `nookku start` and `nookku end`. The end from a shell starts no evaluation. To evaluate that test later, type the prompt `nookku end`.

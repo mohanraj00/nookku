@@ -133,7 +133,7 @@ Type these 3 messages, one at a time:
 2. `ok what is your refund policy`
 3. `do you ship to delhi?`
 
-For each message, Claude Code shows `nookku: relayed to the agent. The reply is in the viewer (nookku view).` The model does not run. The viewer shows each turn:
+For each message, Claude Code shows the agent's reply as the reason of a blocked prompt. The model does not run, and it does not get the reply. The viewer also shows each turn:
 
 ```text
 ════ test 20261007-133823-0b63 ════

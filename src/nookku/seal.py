@@ -7,7 +7,6 @@ the end. A model that changes a record must also change both seals.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import time
@@ -41,6 +40,8 @@ def copy_path(test: str, base: Path | None = None) -> Path:
 
 
 def _sha256(path: Path) -> str:
+    import hashlib  # here, so that a hook event stays fast (#214)
+
     h = hashlib.sha256()
     with path.open("rb") as f:
         for block in iter(lambda: f.read(1 << 16), b""):

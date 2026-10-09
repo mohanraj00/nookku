@@ -1,0 +1,373 @@
+{
+  "date": "2026-10-09",
+  "method": "scripts/spike_hook_latency.py",
+  "macos": {
+    "python": "3.12.13",
+    "machine": {
+      "system": "Darwin",
+      "release": "27.0.0",
+      "arch": "arm64",
+      "cpus": 10,
+      "model": "Mac16,12"
+    },
+    "runs": 50,
+    "floor": {
+      "python_c_pass": {
+        "n": 50,
+        "median_ms": 28.46,
+        "p95_ms": 32.96,
+        "min_ms": 24.35
+      },
+      "python_I_S_c_pass": {
+        "n": 50,
+        "median_ms": 18.45,
+        "p95_ms": 19.85,
+        "min_ms": 17.21
+      },
+      "python_rule_imports": {
+        "n": 50,
+        "median_ms": 32.01,
+        "p95_ms": 35.5,
+        "min_ms": 27.19
+      }
+    },
+    "hook_warm": {
+      "tool_pass": {
+        "n": 50,
+        "median_ms": 79.19,
+        "p95_ms": 177.93,
+        "min_ms": 41.97
+      },
+      "tool_read_state": {
+        "n": 50,
+        "median_ms": 69.22,
+        "p95_ms": 203.89,
+        "min_ms": 43.61
+      },
+      "tool_write_state": {
+        "n": 50,
+        "median_ms": 46.03,
+        "p95_ms": 61.74,
+        "min_ms": 39.36
+      },
+      "prompt_off": {
+        "n": 50,
+        "median_ms": 49.04,
+        "p95_ms": 66.72,
+        "min_ms": 44.13
+      }
+    },
+    "hook_cold": {
+      "tool_pass": {
+        "n": 50,
+        "median_ms": 100.67,
+        "p95_ms": 229.39,
+        "min_ms": 65.94
+      },
+      "tool_read_state": {
+        "n": 50,
+        "median_ms": 62.64,
+        "p95_ms": 116.37,
+        "min_ms": 49.86
+      },
+      "tool_write_state": {
+        "n": 50,
+        "median_ms": 58.38,
+        "p95_ms": 82.15,
+        "min_ms": 52.36
+      },
+      "prompt_off": {
+        "n": 50,
+        "median_ms": 79.64,
+        "p95_ms": 118.42,
+        "min_ms": 60.43
+      }
+    },
+    "kit_only_warm": {
+      "n": 50,
+      "median_ms": 50.31,
+      "p95_ms": 62.5,
+      "min_ms": 41.15
+    },
+    "imports": {
+      "cumulative_ms": {
+        "nookku.cli": 48.64,
+        "nookku.kit": 19.3
+      },
+      "slowest_own_ms": {
+        "_hashlib": 2.56,
+        "nookku.record": 2.5,
+        "_ssl": 1.72,
+        "typing": 1.26,
+        "ssl": 1.09,
+        "inspect": 1.02,
+        "nookku.bridge": 0.98,
+        "_socket": 0.79,
+        "ast": 0.68,
+        "enum": 0.65
+      }
+    },
+    "loopback": {
+      "in_process_client": {
+        "n": 50,
+        "median_ms": 0.52,
+        "p95_ms": 0.79,
+        "min_ms": 0.37
+      },
+      "curl_process": {
+        "n": 50,
+        "median_ms": 12.34,
+        "p95_ms": 15.23,
+        "min_ms": 9.83
+      }
+    },
+    "tool_calls_100_s": 5.16
+  },
+  "linux": {
+    "python": "3.13.5",
+    "machine": {
+      "system": "Linux",
+      "release": "6.8.0-117-generic",
+      "arch": "aarch64",
+      "cpus": 4,
+      "model": "0x000"
+    },
+    "runs": 50,
+    "floor": {
+      "python_c_pass": {
+        "n": 50,
+        "median_ms": 8.19,
+        "p95_ms": 10.28,
+        "min_ms": 6.72
+      },
+      "python_I_S_c_pass": {
+        "n": 50,
+        "median_ms": 5.01,
+        "p95_ms": 6.53,
+        "min_ms": 4.51
+      },
+      "python_rule_imports": {
+        "n": 50,
+        "median_ms": 15.25,
+        "p95_ms": 23.95,
+        "min_ms": 13.1
+      }
+    },
+    "hook_warm": {
+      "tool_pass": {
+        "n": 50,
+        "median_ms": 35.32,
+        "p95_ms": 43.66,
+        "min_ms": 32.58
+      },
+      "tool_read_state": {
+        "n": 50,
+        "median_ms": 38.55,
+        "p95_ms": 45.65,
+        "min_ms": 32.4
+      },
+      "tool_write_state": {
+        "n": 50,
+        "median_ms": 29.17,
+        "p95_ms": 32.25,
+        "min_ms": 26.6
+      },
+      "prompt_off": {
+        "n": 50,
+        "median_ms": 32.03,
+        "p95_ms": 35.07,
+        "min_ms": 28.02
+      }
+    },
+    "hook_cold": {
+      "tool_pass": {
+        "n": 50,
+        "median_ms": 47.4,
+        "p95_ms": 52.76,
+        "min_ms": 43.53
+      },
+      "tool_read_state": {
+        "n": 50,
+        "median_ms": 49.49,
+        "p95_ms": 60.37,
+        "min_ms": 39.24
+      },
+      "tool_write_state": {
+        "n": 50,
+        "median_ms": 46.44,
+        "p95_ms": 90.12,
+        "min_ms": 38.75
+      },
+      "prompt_off": {
+        "n": 50,
+        "median_ms": 46.55,
+        "p95_ms": 60.54,
+        "min_ms": 39.62
+      }
+    },
+    "kit_only_warm": {
+      "n": 50,
+      "median_ms": 27.97,
+      "p95_ms": 30.72,
+      "min_ms": 26.18
+    },
+    "imports": {
+      "cumulative_ms": {
+        "nookku.cli": 36.98,
+        "nookku.kit": 16.52
+      },
+      "slowest_own_ms": {
+        "ipaddress": 2.04,
+        "nookku.record": 1.72,
+        "_hashlib": 1.39,
+        "typing": 1.23,
+        "nookku.audit": 0.99,
+        "ssl": 0.92,
+        "inspect": 0.91,
+        "enum": 0.76,
+        "socket": 0.75,
+        "_ssl": 0.69
+      }
+    },
+    "loopback": {
+      "in_process_client": {
+        "n": 50,
+        "median_ms": 0.29,
+        "p95_ms": 0.62,
+        "min_ms": 0.23
+      },
+      "curl_process": {
+        "n": 50,
+        "median_ms": 6.74,
+        "p95_ms": 18.47,
+        "min_ms": 3.86
+      }
+    },
+    "tool_calls_100_s": 3.26,
+    "docker_image": "ruby:3.3"
+  },
+  "issue": 214,
+  "note": "Measured after the lazy imports of #214. The machine had other work: the 1-minute load average was 7.3 during the second macOS run. Compare each hook time with the floor of the same run, not with the floor of the spike (proofs/spikes/hook-latency.json).",
+  "macos_run2": {
+    "python": "3.12.13",
+    "machine": {
+      "system": "Darwin",
+      "release": "27.0.0",
+      "arch": "arm64",
+      "cpus": 10,
+      "model": "Mac16,12"
+    },
+    "runs": 50,
+    "floor": {
+      "python_c_pass": {
+        "n": 50,
+        "median_ms": 20.56,
+        "p95_ms": 24.52,
+        "min_ms": 19.37
+      },
+      "python_I_S_c_pass": {
+        "n": 50,
+        "median_ms": 15.71,
+        "p95_ms": 17.67,
+        "min_ms": 14.49
+      },
+      "python_rule_imports": {
+        "n": 50,
+        "median_ms": 27.92,
+        "p95_ms": 30.38,
+        "min_ms": 25.89
+      }
+    },
+    "hook_warm": {
+      "tool_pass": {
+        "n": 50,
+        "median_ms": 42.28,
+        "p95_ms": 46.13,
+        "min_ms": 39.76
+      },
+      "tool_read_state": {
+        "n": 50,
+        "median_ms": 47.76,
+        "p95_ms": 59.51,
+        "min_ms": 41.65
+      },
+      "tool_write_state": {
+        "n": 50,
+        "median_ms": 42.32,
+        "p95_ms": 54.08,
+        "min_ms": 38.79
+      },
+      "prompt_off": {
+        "n": 50,
+        "median_ms": 42.56,
+        "p95_ms": 46.12,
+        "min_ms": 38.74
+      }
+    },
+    "hook_cold": {
+      "tool_pass": {
+        "n": 50,
+        "median_ms": 54.39,
+        "p95_ms": 70.93,
+        "min_ms": 48.4
+      },
+      "tool_read_state": {
+        "n": 50,
+        "median_ms": 61.41,
+        "p95_ms": 76.97,
+        "min_ms": 51.09
+      },
+      "tool_write_state": {
+        "n": 50,
+        "median_ms": 51.74,
+        "p95_ms": 54.56,
+        "min_ms": 49.38
+      },
+      "prompt_off": {
+        "n": 50,
+        "median_ms": 50.24,
+        "p95_ms": 52.29,
+        "min_ms": 48.9
+      }
+    },
+    "kit_only_warm": {
+      "n": 50,
+      "median_ms": 53.68,
+      "p95_ms": 82.22,
+      "min_ms": 40.86
+    },
+    "imports": {
+      "cumulative_ms": {
+        "nookku.cli": 48.93,
+        "nookku.kit": 17.13
+      },
+      "slowest_own_ms": {
+        "_hashlib": 2.61,
+        "nookku.record": 2.49,
+        "_ssl": 1.72,
+        "typing": 1.21,
+        "ssl": 1.07,
+        "inspect": 1.02,
+        "nookku.bridge": 0.94,
+        "_socket": 0.81,
+        "ast": 0.68,
+        "enum": 0.66
+      }
+    },
+    "loopback": {
+      "in_process_client": {
+        "n": 50,
+        "median_ms": 0.27,
+        "p95_ms": 0.79,
+        "min_ms": 0.23
+      },
+      "curl_process": {
+        "n": 50,
+        "median_ms": 9.46,
+        "p95_ms": 11.47,
+        "min_ms": 7.97
+      }
+    },
+    "tool_calls_100_s": 4.71
+  }
+}

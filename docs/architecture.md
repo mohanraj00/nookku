@@ -249,9 +249,9 @@ Each wait on the relay path ends before the wait around it, so that the relay ca
 |---|---|---|---|
 | 1 | The tap waits for the agent, in HTTP mode and in stdio mode. | [240](../src/nookku/stdio.py#L24) | `stdio.TIMEOUT` |
 | 2 | The tap answers the relay, at most [5 seconds](../tests/test_timeouts.py#L22) after the agent timeout. | [245](../tests/test_timeouts.py#L22) | `stdio.TIMEOUT + ANSWER` |
-| 3 | The hook kit waits for the tap of a test. | [270](../src/nookku/bridge.py#L38) | `bridge.TIMEOUT` |
-| 3 | The hook kit waits for a tap in HTTP mode, with no test. | [280](../src/nookku/kit.py#L34) | `kit.TIMEOUT` |
-| 4 | The harness stops the `UserPromptSubmit` hook of the hook kit. | [300](../src/nookku/kit.py#L37) | `kit.HOOK_DEADLINE` |
+| 3 | The hook kit waits for the tap of a test. | [270](../src/nookku/state.py#L21) | `state.TIMEOUT` |
+| 3 | The hook kit waits for a tap in HTTP mode, with no test. | [280](../src/nookku/kit.py#L32) | `kit.TIMEOUT` |
+| 4 | The harness stops the `UserPromptSubmit` hook of the hook kit. | [300](../src/nookku/kit.py#L35) | `kit.HOOK_DEADLINE` |
 
 Each number links to its constant. The [5 seconds](../tests/test_timeouts.py#L22) of order 2 is the `ANSWER` limit of the test. The plugin sets no timeout of its own. It waits for the answer of the tap. [tests/test_docs.py](../tests/test_docs.py) checks that this table matches the constants.
 

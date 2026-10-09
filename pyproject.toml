@@ -27,7 +27,7 @@ classifiers = [
 keywords = ["llm", "agents", "testing", "claude-code", "codex", "audit"]
 
 [project.scripts]
-nookku = "nookku.cli:main"
+nookku = "nookku.__main__:main"
 
 [project.urls]
 Repository = "https://github.com/mohanraj00/nookku"
