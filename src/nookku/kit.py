@@ -566,6 +566,69 @@ def transcript(
     return 0
 
 
+class TranscriptError(Exception):
+    """The transcript cannot be made. The text says why."""
+
+
+# The name of a test folder. It has no path separator and no drive, on each system.
+TEST_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]*")
+
+
+def folder_of_test(root: Path, test: str) -> Path:
+    """The folder of a test id, which must stay in the tests folder of the project. The model
+    can give the id to the transcript tool, so a path must not reach another folder."""
+    tests = (root / STATE_DIR / "tests").resolve()
+    folder = (tests / test).resolve()
+    if not TEST_ID.fullmatch(test) or folder.parent != tests:
+        raise TranscriptError(f"'{test}' is not a test id")
+    return folder
+
+
+def _latest(root: Path) -> Path | None:
+    """The latest test, with the same check as a test id: a symbolic link in the tests folder
+    must not take the transcript to a folder outside the project."""
+    last = state.latest_test(root)
+    return None if last is None else folder_of_test(root, last.name)
+
+
+def transcript_text(
+    root: Path,
+    test: str | None = None,
+    trace: bool = False,
+    every_session: bool = False,
+    session: str | None = None,
+    record: Path | None = None,
+) -> str:
+    """The text of `nookku transcript`. The CLI and the transcript tool of `nookku mcp` use it,
+    so that both give the model the same text. Raise TranscriptError if it cannot be made."""
+    import io
+
+    if trace:
+        folder = folder_of_test(root, test) if test else _latest(root)
+        if folder is None or not folder.is_dir():
+            raise TranscriptError("no test folder.")
+        from nookku import evaluation
+
+        return evaluation.transcript(folder)
+    # The plugin has no config file. Without one, use the default record path.
+    has_config = (root / STATE_DIR / "config.json").exists()
+    try:
+        config = Config.load(root) if has_config else Config()
+    except (OSError, ValueError, TypeError) as e:
+        raise TranscriptError(f"cannot read the config: {e}") from None
+    folder = _latest(root) if config.entry and not record else None
+    if test and not record:
+        folder = folder_of_test(root, test)
+    path = record or (folder / "relay.jsonl" if folder else config.record_path(root))
+    out = io.StringIO()
+    scope = f"test {folder.name}" if folder else ""
+    try:
+        transcript(path, every_session or folder is not None, out, scope, session)
+    except RecordError as e:
+        raise TranscriptError(str(e)) from None
+    return out.getvalue()
+
+
 def view(
     record: Path, follow: bool, out: TextIO, poll: float = 0.3, err: TextIO | None = None
 ) -> int:

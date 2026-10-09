@@ -280,6 +280,18 @@ The hook command that `init` writes into the hook file. It reads one hook event 
 | 0 | The hook answered. If the hook fails in relay mode, it still blocks the prompt. |
 | 2 | A wrong argument, an event that cannot be read, or both the old and the new state folder in the project. Exit 2 blocks the event, so the relay fails closed. |
 
+### `nookku mcp`
+
+The MCP server that gives the model the read-only tools `transcript` and `status`. It reads one JSON-RPC message on each line of stdin and writes each answer on stdout. A harness starts it from its MCP configuration ([SPEC.md section 5](../../SPEC.md#5-relays)). The plugin does not start it yet: [#216](https://github.com/mohanraj00/nookku/issues/216) adds it to the plugin.
+
+| Flag | Default | Meaning |
+|---|---|---|
+| `--root PATH` | `CLAUDE_PROJECT_DIR`, else the current folder | The project. |
+
+| Exit code | Meaning |
+|---|---|
+| 0 | stdin ended. |
+
 ### `nookku bridge`
 
 The background process of a test ([architecture.md](../architecture.md#the-bridge)). `start` runs it. `nookku --help` does not show this command.
