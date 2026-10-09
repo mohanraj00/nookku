@@ -2,10 +2,10 @@
 
 A test harness for developers of agent apps.
 
-[![CI](https://github.com/mohanraj00/verbatim-relay/actions/workflows/ci.yml/badge.svg)](https://github.com/mohanraj00/verbatim-relay/actions/workflows/ci.yml)
+[![CI](https://github.com/mohanraj00/nookku/actions/workflows/ci.yml/badge.svg)](https://github.com/mohanraj00/nookku/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/nookku)](https://pypi.org/project/nookku/)
 [![Python versions](https://img.shields.io/pypi/pyversions/nookku)](https://pypi.org/project/nookku/)
-[![License](https://img.shields.io/github/license/mohanraj00/verbatim-relay)](LICENSE)
+[![License](https://img.shields.io/github/license/mohanraj00/nookku)](LICENSE)
 
 **Test your chat agent through Claude Code or Codex. The [harness](docs/reference/glossary.md#harness) model does not retype one message or one reply.**
 

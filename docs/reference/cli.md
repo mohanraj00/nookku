@@ -89,7 +89,7 @@ PASS proves the connection, not the reply. PASS means that:
 nookku mode STATE [--root PATH]
 ```
 
-Switch relay mode on or off. With an entry, `on` starts a test and `off` ends it. With no entry, it only switches relay mode ([how-to/http-tap.md](../how-to/http-tap.md)). Before it switches relay mode on, it reads `config.json`, if the file exists. If the file is broken, `on` shows the error and does not switch relay mode on ([#109](https://github.com/mohanraj00/verbatim-relay/pull/109)).
+Switch relay mode on or off. With an entry, `on` starts a test and `off` ends it. With no entry, it only switches relay mode ([how-to/http-tap.md](../how-to/http-tap.md)). Before it switches relay mode on, it reads `config.json`, if the file exists. If the file is broken, `on` shows the error and does not switch relay mode on ([#109](https://github.com/mohanraj00/nookku/pull/109)).
 
 | Argument or flag | Default | Meaning |
 |---|---|---|

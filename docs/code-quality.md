@@ -1,6 +1,6 @@
 # Code quality
 
-This spec says what good code is in this repo. Each rule has a reason, one example from this repo, and the check that enforces it. I wrote the rules from the defects that reviews found: the code review of 0.2 ([#43](https://github.com/mohanraj00/verbatim-relay/issues/43) to [#46](https://github.com/mohanraj00/verbatim-relay/issues/46), [#63](https://github.com/mohanraj00/verbatim-relay/issues/63), [#67](https://github.com/mohanraj00/verbatim-relay/issues/67) to [#71](https://github.com/mohanraj00/verbatim-relay/issues/71)), and the reviews of the 0.3 PRs (the issues and PRs that each rule names).
+This spec says what good code is in this repo. Each rule has a reason, one example from this repo, and the check that enforces it. I wrote the rules from the defects that reviews found: the code review of 0.2 ([#43](https://github.com/mohanraj00/nookku/issues/43) to [#46](https://github.com/mohanraj00/nookku/issues/46), [#63](https://github.com/mohanraj00/nookku/issues/63), [#67](https://github.com/mohanraj00/nookku/issues/67) to [#71](https://github.com/mohanraj00/nookku/issues/71)), and the reviews of the 0.3 PRs (the issues and PRs that each rule names).
 
 A check is a test, a lint rule, a conformance case or a CI step. "Review" means that no automatic check exists yet. Then the reviewer examines the rule by hand, with the [review guidelines](../CLAUDE.md#review-guidelines). If an open issue adds a check, the rule names that issue.
 
@@ -8,14 +8,14 @@ A check is a test, a lint rule, a conformance case or a CI step. "Review" means 
 
 | # | Rule | Check |
 |---|---|---|
-| 1 | [Fail closed](#1-fail-closed) | Tests in `tests/test_kit.py` and `register.test.ts`, also for the plugin prompt path ([#63](https://github.com/mohanraj00/verbatim-relay/issues/63)) and the deny path ([#68](https://github.com/mohanraj00/verbatim-relay/issues/68)). |
+| 1 | [Fail closed](#1-fail-closed) | Tests in `tests/test_kit.py` and `register.test.ts`, also for the plugin prompt path ([#63](https://github.com/mohanraj00/nookku/issues/63)) and the deny path ([#68](https://github.com/mohanraj00/nookku/issues/68)). |
 | 2 | [Exact bytes](#2-exact-bytes) | Byte tests of each relay and proxy. Proofs P1 and P2. |
-| 3 | [One rule, two languages](#3-one-rule-two-languages) | `test_the_plugin_reads_each_one_line_case_like_the_tap`, the shared `DENY_CASES` table for the deny patterns ([#70](https://github.com/mohanraj00/verbatim-relay/issues/70)), and the shared `DETAIL_CASES` table for the detail of a blocked call ([#88](https://github.com/mohanraj00/verbatim-relay/issues/88)). |
-| 4 | [Records](#4-records) | Conformance cases and the CI step for them, also for Unicode ([#43](https://github.com/mohanraj00/verbatim-relay/issues/43), [#65](https://github.com/mohanraj00/verbatim-relay/issues/65)). The shared `RELAY_LINES` table for one reader ([#71](https://github.com/mohanraj00/verbatim-relay/issues/71)). |
-| 5 | [No secrets](#5-no-secrets) | Secret tests of the 2 proxies, also for query values ([#69](https://github.com/mohanraj00/verbatim-relay/issues/69)). |
-| 6 | [Timeouts](#6-timeouts) | `test_each_timeout_ends_before_the_next_one`, also for the HTTP tap ([#67](https://github.com/mohanraj00/verbatim-relay/issues/67)). |
+| 3 | [One rule, two languages](#3-one-rule-two-languages) | `test_the_plugin_reads_each_one_line_case_like_the_tap`, the shared `DENY_CASES` table for the deny patterns ([#70](https://github.com/mohanraj00/nookku/issues/70)), and the shared `DETAIL_CASES` table for the detail of a blocked call ([#88](https://github.com/mohanraj00/nookku/issues/88)). |
+| 4 | [Records](#4-records) | Conformance cases and the CI step for them, also for Unicode ([#43](https://github.com/mohanraj00/nookku/issues/43), [#65](https://github.com/mohanraj00/nookku/issues/65)). The shared `RELAY_LINES` table for one reader ([#71](https://github.com/mohanraj00/nookku/issues/71)). |
+| 5 | [No secrets](#5-no-secrets) | Secret tests of the 2 proxies, also for query values ([#69](https://github.com/mohanraj00/nookku/issues/69)). |
+| 6 | [Timeouts](#6-timeouts) | `test_each_timeout_ends_before_the_next_one`, also for the HTTP tap ([#67](https://github.com/mohanraj00/nookku/issues/67)). |
 | 7 | [Errors](#7-errors) | Ruff `E722`. Review. |
-| 8 | [Tests](#8-tests) | Review ([#62](https://github.com/mohanraj00/verbatim-relay/issues/62)). |
+| 8 | [Tests](#8-tests) | Review ([#62](https://github.com/mohanraj00/nookku/issues/62)). |
 | 9 | [Dependencies, types and lint](#9-dependencies-types-and-lint) | `test_no_runtime_dependencies`, mypy, ruff, `claude plugin validate`. |
 | 10 | [Docs and claims](#10-docs-and-claims) | The stealth gate. Review. |
 
@@ -25,14 +25,14 @@ A check is a test, a lint rule, a conformance case or a CI step. "Review" means 
 
 **Reason.** A relay path that fails open gives the tester's message to the model. The model can then change the message, and the test is not valid.
 
-**Example.** `kit.run_hook` in [src/nookku/kit.py](../src/nookku/kit.py) catches each exception in relay mode and blocks the prompt with "Nothing reached the model." In [plugins/claude-code/hooks/register.tsx](../plugins/claude-code/hooks/register.tsx), each gating hook has a `.catch` handler. If the hook fails or runs past its time budget, the handler blocks the prompt or denies the tool call, and it makes no file or state call that can stall again ([#63](https://github.com/mohanraj00/verbatim-relay/issues/63)).
+**Example.** `kit.run_hook` in [src/nookku/kit.py](../src/nookku/kit.py) catches each exception in relay mode and blocks the prompt with "Nothing reached the model." In [plugins/claude-code/hooks/register.tsx](../plugins/claude-code/hooks/register.tsx), each gating hook has a `.catch` handler. If the hook fails or runs past its time budget, the handler blocks the prompt or denies the tool call, and it makes no file or state call that can stall again ([#63](https://github.com/mohanraj00/nookku/issues/63)).
 
 **Check.**
 
 - `tests/test_kit.py`: `test_a_crash_blocks_only_in_relay_mode`, `test_an_unreachable_tap_still_blocks_and_is_recorded`, `test_a_broken_config_blocks_in_relay_mode`.
 - `plugins/claude-code/hooks/register.test.ts`: "relay mode with an entry and no test fails closed".
 - Review item in CLAUDE.md: "A relay path that fails open."
-- [#63](https://github.com/mohanraj00/verbatim-relay/issues/63) added tests for the `.catch` handlers of the plugin hooks. [#68](https://github.com/mohanraj00/verbatim-relay/issues/68) added tests for a PreToolUse deny with a broken config and with relay mode off.
+- [#63](https://github.com/mohanraj00/nookku/issues/63) added tests for the `.catch` handlers of the plugin hooks. [#68](https://github.com/mohanraj00/nookku/issues/68) added tests for a PreToolUse deny with a broken config and with relay mode off.
 
 ## 2. Exact bytes
 
@@ -57,16 +57,16 @@ A check is a test, a lint rule, a conformance case or a CI step. "Review" means 
 
 **Reason.** Two readers with two rules give two results for one agent. The audit then reports a break in one relay only.
 
-**Example.** `contract.parse_reply` accepted a reply with `"error": null`, but `contractShown` in `plugins/claude-code/hooks/core.ts` refused it ([#45](https://github.com/mohanraj00/verbatim-relay/issues/45)). The fix added the table `CONTRACT_LINES` to `register.test.ts`. `kit.deny_pattern` and `denyPattern` now share the table `DENY_CASES` ([#70](https://github.com/mohanraj00/verbatim-relay/issues/70)).
+**Example.** `contract.parse_reply` accepted a reply with `"error": null`, but `contractShown` in `plugins/claude-code/hooks/core.ts` refused it ([#45](https://github.com/mohanraj00/nookku/issues/45)). The fix added the table `CONTRACT_LINES` to `register.test.ts`. `kit.deny_pattern` and `denyPattern` now share the table `DENY_CASES` ([#70](https://github.com/mohanraj00/nookku/issues/70)).
 
 **Check.**
 
 - `tests/test_contract.py::test_the_plugin_reads_each_one_line_case_like_the_tap` checks `CONTRACT_LINES` against `conformance/contract/` and against `contract.parse_reply`.
 - `register.test.ts`: "the plugin reads an agent line with the same rule as the Python tap" runs the same table through `contractShown`.
-- Deny patterns: `tests/test_kit.py` checks the shared `DENY_CASES` table against `kit.deny_pattern`, and `register.test.ts` ("the deny pattern has the same rule as the hook kit") runs it through `denyPattern` ([#70](https://github.com/mohanraj00/verbatim-relay/issues/70)).
-- Relay records: `tests/test_conformance.py` checks the shared `RELAY_LINES` table against `record.read_rows`, and `register.test.ts` runs it through `relayTurns` ([#71](https://github.com/mohanraj00/verbatim-relay/issues/71)).
-- Config keys: `start`, `check`, `init` and the hook kit read `.nookku/config.json` with `config.read_config`. `tests/test_cli.py::test_an_unknown_key_stops_start_check_and_the_hook_kit_with_one_message` checks that they give one error ([#89](https://github.com/mohanraj00/verbatim-relay/issues/89)).
-- The detail of a `blocked_call` row: `tests/test_kit.py` checks the shared `DETAIL_CASES` table against `kit.blocked_detail` and `record.read_rows`, and `register.test.ts` runs it through `blockedDetail` ([#88](https://github.com/mohanraj00/verbatim-relay/issues/88)).
+- Deny patterns: `tests/test_kit.py` checks the shared `DENY_CASES` table against `kit.deny_pattern`, and `register.test.ts` ("the deny pattern has the same rule as the hook kit") runs it through `denyPattern` ([#70](https://github.com/mohanraj00/nookku/issues/70)).
+- Relay records: `tests/test_conformance.py` checks the shared `RELAY_LINES` table against `record.read_rows`, and `register.test.ts` runs it through `relayTurns` ([#71](https://github.com/mohanraj00/nookku/issues/71)).
+- Config keys: `start`, `check`, `init` and the hook kit read `.nookku/config.json` with `config.read_config`. `tests/test_cli.py::test_an_unknown_key_stops_start_check_and_the_hook_kit_with_one_message` checks that they give one error ([#89](https://github.com/mohanraj00/nookku/issues/89)).
+- The detail of a `blocked_call` row: `tests/test_kit.py` checks the shared `DETAIL_CASES` table against `kit.blocked_detail` and `record.read_rows`, and `register.test.ts` runs it through `blockedDetail` ([#88](https://github.com/mohanraj00/nookku/issues/88)).
 
 ## 4. Records
 
@@ -78,15 +78,15 @@ A check is a test, a lint rule, a conformance case or a CI step. "Review" means 
 
 **Reason.** The records are the evidence. If a writer raises, the record loses an exchange, and the audit names the wrong break. If a reader skips a bad line, a changed record looks exact.
 
-**Example.** `record.read_rows` and `record._validate` in [src/nookku/record.py](../src/nookku/record.py) stop at the first invalid line, as the case [conformance/cases/hash_mismatch](../conformance/cases/hash_mismatch) shows. Defects: a lone surrogate made `record.sha256` raise, and the tap wrote no row ([#43](https://github.com/mohanraj00/verbatim-relay/issues/43)). `evaluation._rows` skipped an invalid line with no message ([#71](https://github.com/mohanraj00/verbatim-relay/issues/71)). Now each part reads a record with `record.read_rows`, and the plugin uses `relayTurns` with the same rule.
+**Example.** `record.read_rows` and `record._validate` in [src/nookku/record.py](../src/nookku/record.py) stop at the first invalid line, as the case [conformance/cases/hash_mismatch](../conformance/cases/hash_mismatch) shows. Defects: a lone surrogate made `record.sha256` raise, and the tap wrote no row ([#43](https://github.com/mohanraj00/nookku/issues/43)). `evaluation._rows` skipped an invalid line with no message ([#71](https://github.com/mohanraj00/nookku/issues/71)). Now each part reads a record with `record.read_rows`, and the plugin uses `relayTurns` with the same rule.
 
 **Check.**
 
 - `tests/test_conformance.py::test_case` runs each case in `conformance/cases/`.
 - The CI step "Conformance cases are up to date" runs `conformance/build.py` and fails on a diff.
 - Review item in CLAUDE.md: "A change to the record format or to the audit with no SPEC.md change and no hand-written conformance case."
-- Unicode: [#43](https://github.com/mohanraj00/verbatim-relay/issues/43) and [#65](https://github.com/mohanraj00/verbatim-relay/issues/65) added conformance cases and a test for each writer.
-- One reader: `tests/test_conformance.py::test_the_plugin_reads_each_relay_line_like_the_python_reader` checks the shared `RELAY_LINES` table ([#71](https://github.com/mohanraj00/verbatim-relay/issues/71)).
+- Unicode: [#43](https://github.com/mohanraj00/nookku/issues/43) and [#65](https://github.com/mohanraj00/nookku/issues/65) added conformance cases and a test for each writer.
+- One reader: `tests/test_conformance.py::test_the_plugin_reads_each_relay_line_like_the_python_reader` checks the shared `RELAY_LINES` table ([#71](https://github.com/mohanraj00/nookku/issues/71)).
 
 ## 5. No secrets
 
@@ -94,7 +94,7 @@ A check is a test, a lint rule, a conformance case or a CI step. "Review" means 
 
 **Reason.** The harness model reads the records in the evaluation. A secret in a record goes to the model and to each person who gets the test folder.
 
-**Example.** `backend.secret` and `SECRET_HEADERS` in [src/nookku/backend.py](../src/nookku/backend.py) remove the values of secret headers ([SPEC.md section 7.6](../SPEC.md#76-backend-proxies)). Defect: the backend proxy recorded the query as it came, so `?api_key=...` went into `backend.jsonl` ([#69](https://github.com/mohanraj00/verbatim-relay/issues/69)). Now the proxies remove the values of secret query parameters.
+**Example.** `backend.secret` and `SECRET_HEADERS` in [src/nookku/backend.py](../src/nookku/backend.py) remove the values of secret headers ([SPEC.md section 7.6](../SPEC.md#76-backend-proxies)). Defect: the backend proxy recorded the query as it came, so `?api_key=...` went into `backend.jsonl` ([#69](https://github.com/mohanraj00/nookku/issues/69)). Now the proxies remove the values of secret query parameters.
 
 **Check.**
 
@@ -115,12 +115,12 @@ A check is a test, a lint rule, a conformance case or a CI step. "Review" means 
 
 **Reason.** If an inner wait is longer than an outer wait, the outer step stops first. Then the hook cannot block the prompt, and the record and the relay disagree.
 
-**Example.** Before 0.3, the HTTP tap waited 300 s for the agent. This was equal to `kit.HOOK_DEADLINE` and more than `kit.TIMEOUT`. Now both taps use `stdio.TIMEOUT`, as one deadline for the full response ([#67](https://github.com/mohanraj00/verbatim-relay/issues/67)).
+**Example.** Before 0.3, the HTTP tap waited 300 s for the agent. This was equal to `kit.HOOK_DEADLINE` and more than `kit.TIMEOUT`. Now both taps use `stdio.TIMEOUT`, as one deadline for the full response ([#67](https://github.com/mohanraj00/nookku/issues/67)).
 
 **Check.**
 
 - `tests/test_timeouts.py::test_each_timeout_ends_before_the_next_one`
-- The HTTP tap: `tests/test_timeouts.py` also checks a slow agent, an agent that sends a byte at a time, and a stream with no end ([#67](https://github.com/mohanraj00/verbatim-relay/issues/67)).
+- The HTTP tap: `tests/test_timeouts.py` also checks a slow agent, an agent that sends a byte at a time, and a stream with no end ([#67](https://github.com/mohanraj00/nookku/issues/67)).
 
 ## 7. Errors
 
@@ -132,13 +132,13 @@ A check is a test, a lint rule, a conformance case or a CI step. "Review" means 
 
 **Reason.** A broad catch hides defects. A silent skip makes a bad record look good. If the tester sees only the cause, the tester does not know what to do.
 
-**Example.** `kit.handle` in [src/nookku/kit.py](../src/nookku/kit.py) says "relay mode is on, but no test runs. Start one with: Nookku start. Nothing was sent." Each broad catch in `kit.py`, `bridge.py` and `agent.py` has a comment with its reason. Defects: with a stale `current.json`, the plugin showed only a connection error ([#64](https://github.com/mohanraj00/verbatim-relay/issues/64)). A prompt with a lone surrogate showed "the hook failed (UnicodeEncodeError ...)" ([#65](https://github.com/mohanraj00/verbatim-relay/issues/65)). Both now give the cause and the next step.
+**Example.** `kit.handle` in [src/nookku/kit.py](../src/nookku/kit.py) says "relay mode is on, but no test runs. Start one with: Nookku start. Nothing was sent." Each broad catch in `kit.py`, `bridge.py` and `agent.py` has a comment with its reason. Defects: with a stale `current.json`, the plugin showed only a connection error ([#64](https://github.com/mohanraj00/nookku/issues/64)). A prompt with a lone surrogate showed "the hook failed (UnicodeEncodeError ...)" ([#65](https://github.com/mohanraj00/nookku/issues/65)). Both now give the cause and the next step.
 
 **Check.**
 
 - Ruff `E722` refuses a bare `except:`.
 - `register.test.ts`: "relay mode with an entry and no test fails closed" and "a current.json whose bridge does not run is no test, and the prompt does not reach the model" check the text "no test runs".
-- `tests/test_kit.py::test_a_prompt_with_a_lone_surrogate_is_refused_and_not_recorded` checks the message of [#65](https://github.com/mohanraj00/verbatim-relay/issues/65).
+- `tests/test_kit.py::test_a_prompt_with_a_lone_surrogate_is_refused_and_not_recorded` checks the message of [#65](https://github.com/mohanraj00/nookku/issues/65).
 
 ## 8. Tests
 
@@ -150,9 +150,9 @@ A check is a test, a lint rule, a conformance case or a CI step. "Review" means 
 
 **Reason.** A test that passes before the fix does not prove the fix. A real API makes a test slow and costly, and it gives a different result on each run. A fixed sleep passes on a fast machine and hides the race.
 
-**Example.** [tests/toy_model_server.py](../tests/toy_model_server.py) waits after the first part until the test releases it. `tests/test_otlp.py::test_quiet_waits_for_the_last_request` gives `Receiver.quiet` a sleep function. Defect: `tests/test_contract.py::test_output_before_serve_goes_to_the_log` waits [0.5 s](../tests/test_contract.py) before its request, so it does not show the race of [#62](https://github.com/mohanraj00/verbatim-relay/issues/62). The proofs that use a real harness are local scripts in `scripts/`, not tests (CLAUDE.md "Proofs").
+**Example.** [tests/toy_model_server.py](../tests/toy_model_server.py) waits after the first part until the test releases it. `tests/test_otlp.py::test_quiet_waits_for_the_last_request` gives `Receiver.quiet` a sleep function. Defect: `tests/test_contract.py::test_output_before_serve_goes_to_the_log` waits [0.5 s](../tests/test_contract.py) before its request, so it does not show the race of [#62](https://github.com/mohanraj00/nookku/issues/62). The proofs that use a real harness are local scripts in `scripts/`, not tests (CLAUDE.md "Proofs").
 
-**Check.** Review. [#62](https://github.com/mohanraj00/verbatim-relay/issues/62) removes the fixed sleep from that test.
+**Check.** Review. [#62](https://github.com/mohanraj00/nookku/issues/62) removes the fixed sleep from that test.
 
 ## 9. Dependencies, types and lint
 
@@ -183,7 +183,7 @@ A check is a test, a lint rule, a conformance case or a CI step. "Review" means 
 
 **Reason.** Simple language is easy to review. A number with no data is a claim that nobody can check.
 
-**Example.** The proof table in [docs/results.md](results.md#1-proofs) links each row to its `results.json`. Defects: the README quoted prompt-only runs that the pre-registration excludes ([#9](https://github.com/mohanraj00/verbatim-relay/issues/9)). The README did not say that each benchmark turn was a new harness call ([#8](https://github.com/mohanraj00/verbatim-relay/issues/8)).
+**Example.** The proof table in [docs/results.md](results.md#1-proofs) links each row to its `results.json`. Defects: the README quoted prompt-only runs that the pre-registration excludes ([#9](https://github.com/mohanraj00/nookku/issues/9)). The README did not say that each benchmark turn was a new harness call ([#8](https://github.com/mohanraj00/nookku/issues/8)).
 
 **Check.**
 

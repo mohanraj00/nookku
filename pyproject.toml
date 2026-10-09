@@ -30,11 +30,11 @@ keywords = ["llm", "agents", "testing", "claude-code", "codex", "audit"]
 nookku = "nookku.cli:main"
 
 [project.urls]
-Repository = "https://github.com/mohanraj00/verbatim-relay"
-Documentation = "https://github.com/mohanraj00/verbatim-relay/blob/main/docs/index.md"
-Specification = "https://github.com/mohanraj00/verbatim-relay/blob/main/SPEC.md"
-Changelog = "https://github.com/mohanraj00/verbatim-relay/blob/main/CHANGELOG.md"
-Issues = "https://github.com/mohanraj00/verbatim-relay/issues"
+Repository = "https://github.com/mohanraj00/nookku"
+Documentation = "https://github.com/mohanraj00/nookku/blob/main/docs/index.md"
+Specification = "https://github.com/mohanraj00/nookku/blob/main/SPEC.md"
+Changelog = "https://github.com/mohanraj00/nookku/blob/main/CHANGELOG.md"
+Issues = "https://github.com/mohanraj00/nookku/issues"
 
 [dependency-groups]
 dev = ["pytest>=8", "pytest-cov>=5", "mypy>=1.10", "ruff>=0.6"]
@@ -58,7 +58,7 @@ path = "README.md"
 
 [[tool.hatch.metadata.hooks.fancy-pypi-readme.substitutions]]
 pattern = '\]\((?!https?://|#)([^)]+)\)'
-replacement = '](https://github.com/mohanraj00/verbatim-relay/blob/main/\1)'
+replacement = '](https://github.com/mohanraj00/nookku/blob/main/\1)'
 
 [tool.ruff]
 line-length = 100

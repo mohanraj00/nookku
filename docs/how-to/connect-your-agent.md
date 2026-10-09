@@ -63,7 +63,7 @@ serve(reply)
 
 If `reply` raises an exception, `serve()` writes an `error` line with the exception, and the test continues.
 
-`serve()` needs `nookku` in the Python environment of your app. `uv tool install` puts it in its own environment, so also add it to your app's environment, for example with `uv add --dev "nookku>=0.3"`. In an earlier version, `serve()` can send the stdout text that the entry printed before it to the tap, and not to stderr ([#46](https://github.com/mohanraj00/verbatim-relay/issues/46)). Then use your app's interpreter in the entry command, for example `[".venv/bin/python", ".nookku/entry.py"]`.
+`serve()` needs `nookku` in the Python environment of your app. `uv tool install` puts it in its own environment, so also add it to your app's environment, for example with `uv add --dev "nookku>=0.3"`. In an earlier version, `serve()` can send the stdout text that the entry printed before it to the tap, and not to stderr ([#46](https://github.com/mohanraj00/nookku/issues/46)). Then use your app's interpreter in the entry command, for example `[".venv/bin/python", ".nookku/entry.py"]`.
 
 ### In Node
 

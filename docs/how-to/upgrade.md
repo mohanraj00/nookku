@@ -33,7 +33,7 @@ uv tool upgrade nookku
 If you installed it from the repo, install it again:
 
 ```bash
-uv tool install --force git+https://github.com/mohanraj00/verbatim-relay
+uv tool install --force git+https://github.com/mohanraj00/nookku
 ```
 
 Check the version:
@@ -102,7 +102,7 @@ PASS
 
 ### 0.4.0
 
-verbatim-relay is now Nookku ([#181](https://github.com/mohanraj00/verbatim-relay/issues/181)). The package, the CLI, the module and the plugin have new names, so the steps 2 and 3 above do not apply. Do these steps in their place.
+verbatim-relay is now Nookku ([#181](https://github.com/mohanraj00/nookku/issues/181)). The package, the CLI, the module and the plugin have new names, so the steps 2 and 3 above do not apply. Do these steps in their place.
 
 1. End each running test with the old CLI:
 
@@ -128,7 +128,7 @@ verbatim-relay is now Nookku ([#181](https://github.com/mohanraj00/verbatim-rela
    ```bash
    claude plugin uninstall verbatim-relay@verbatim-relay
    claude plugin marketplace remove verbatim-relay
-   claude plugin marketplace add mohanraj00/verbatim-relay
+   claude plugin marketplace add mohanraj00/nookku
    claude plugin install nookku@nookku
    ```
 
@@ -145,7 +145,7 @@ Then run `check` (step 5 above).
 
 ### 0.3.0
 
-**A test that 0.2.0 started.** `current.json` now needs `pid_start`, the start time of the bridge ([#44](https://github.com/mohanraj00/verbatim-relay/issues/44)). 0.3.0 treats a test that 0.2.0 started as not running. `status` names no test, and `end` removes `current.json` but sends no signal to the old bridge. The old bridge and its entry continue to run.
+**A test that 0.2.0 started.** `current.json` now needs `pid_start`, the start time of the bridge ([#44](https://github.com/mohanraj00/nookku/issues/44)). 0.3.0 treats a test that 0.2.0 started as not running. `status` names no test, and `end` removes `current.json` but sends no signal to the old bridge. The old bridge and its entry continue to run.
 
 I made this state with 0.3.0: I started a test and removed `pid_start` from its `current.json`. Then `status` and `end` printed:
 
@@ -173,7 +173,7 @@ Stop it with SIGTERM, the default signal of `kill`:
 kill 38282
 ```
 
-On SIGTERM, the bridge ends the test as `end` does: it stops the entry, and writes the trace, the audit and the seal. The bridge of 0.2.0 does the same ([bridge.py of 0.2.0](https://github.com/mohanraj00/verbatim-relay/blob/v0.2.0/src/verbatim_relay/bridge.py#L514)). In my run, the test folder then had `audit.json` and `seal.json`:
+On SIGTERM, the bridge ends the test as `end` does: it stops the entry, and writes the trace, the audit and the seal. The bridge of 0.2.0 does the same ([bridge.py of 0.2.0](https://github.com/mohanraj00/nookku/blob/v0.2.0/src/verbatim_relay/bridge.py#L514)). In my run, the test folder then had `audit.json` and `seal.json`:
 
 ```bash
 nookku verify 20261007-224554-4b17
@@ -185,7 +185,7 @@ Seal: intact. No record changed after the end of the test.
 
 Do not use `kill -9` on the bridge. With SIGKILL, the bridge cannot write the audit and the seal ([recover-a-stuck-test.md](recover-a-stuck-test.md#4-learn-what-a-stale-currentjson-is)).
 
-**Unknown keys in `config.json`.** `start`, `check` and `init` now stop at an unknown key, for example a key with a typo ([#89](https://github.com/mohanraj00/verbatim-relay/issues/89)). Before, `start` accepted it. With the key `evaluation` in place of `evaluate`, `check` printed this text and exited with 1:
+**Unknown keys in `config.json`.** `start`, `check` and `init` now stop at an unknown key, for example a key with a typo ([#89](https://github.com/mohanraj00/nookku/issues/89)). Before, `start` accepted it. With the key `evaluation` in place of `evaluate`, `check` printed this text and exited with 1:
 
 ```text
 nookku: .nookku/config.json has unknown keys: ['evaluation']. Correct or remove them.
