@@ -6,7 +6,7 @@
     "name": "Mohan Raj"
   },
   "license": "Apache-2.0",
-  "repository": "https://github.com/mohanraj00/verbatim-relay",
+  "repository": "https://github.com/mohanraj00/nookku",
   "types": "./types/index.d.ts",
   "userConfig": {
     "tap_url": {

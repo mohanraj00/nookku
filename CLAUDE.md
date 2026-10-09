@@ -18,7 +18,7 @@ Nookku is a test harness for developers of agent apps. A person tests a chat age
 Claude Code and Codex both work on this repo, at the same time. The label `agent:claude-code` or `agent:codex` names the harness that does the work.
 
 - Before you start an issue, add the label of your harness to it. Do not start an issue that has the label of the other harness.
-- After you add your label, read the labels of the issue again. If both labels are on it, the label that was added first wins. The issue events show the order: `gh api repos/mohanraj00/verbatim-relay/issues/N/events`. If your label was second, remove it and do not start the issue.
+- After you add your label, read the labels of the issue again. If both labels are on it, the label that was added first wins. The issue events show the order: `gh api repos/mohanraj00/nookku/issues/N/events`. If your label was second, remove it and do not start the issue.
 - Add the label of your harness to each PR that you open.
 - No harness reviews a PR by default. You must ask the other harness for the code review in a PR comment:
   - Claude Code writes `@codex review`. Codex writes `@claude review this PR. Use the Review guidelines in CLAUDE.md.`

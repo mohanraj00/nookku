@@ -14,11 +14,11 @@ claude plugin validate plugins/claude-code && claude plugin test plugins/claude-
 ```
 
 - [ ] CI is green.
-- [ ] If this changes a relay (the plugin or the hook kit), I ran the proofs again ([docs/how-to/run-the-proofs.md](https://github.com/mohanraj00/verbatim-relay/blob/main/docs/how-to/run-the-proofs.md)). I committed the results with the harness versions that they record.
+- [ ] If this changes a relay (the plugin or the hook kit), I ran the proofs again ([docs/how-to/run-the-proofs.md](https://github.com/mohanraj00/nookku/blob/main/docs/how-to/run-the-proofs.md)). I committed the results with the harness versions that they record.
 
 ## Code quality
 
-From [docs/code-quality.md](https://github.com/mohanraj00/verbatim-relay/blob/main/docs/code-quality.md). Mark each item that applies, and say why an item does not apply.
+From [docs/code-quality.md](https://github.com/mohanraj00/nookku/blob/main/docs/code-quality.md). Mark each item that applies, and say why an item does not apply.
 
 - [ ] **Fail closed.** If a relay path or a deny path fails, it blocks the message or the tool call.
 - [ ] **Exact bytes.** No relay or proxy changes a byte of a message, a reply or a forwarded body.

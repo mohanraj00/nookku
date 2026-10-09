@@ -48,4 +48,4 @@ If the session is isolated, the output has no `server_not_from_app` line. The ch
 
 ## In the proofs
 
-In an earlier run of the evaluation proof, the report missed the planted bug. The runs after the isolation ([#28](https://github.com/mohanraj00/verbatim-relay/issues/28)) each passed. [docs/results.md](../results.md#p5-and-p6-the-evaluation-at-the-end-of-a-test) has the data of both.
+In an earlier run of the evaluation proof, the report missed the planted bug. The runs after the isolation ([#28](https://github.com/mohanraj00/nookku/issues/28)) each passed. [docs/results.md](../results.md#p5-and-p6-the-evaluation-at-the-end-of-a-test) has the data of both.

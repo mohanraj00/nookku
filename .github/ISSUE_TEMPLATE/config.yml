@@ -1,5 +1,5 @@
 blank_issues_enabled: true
 contact_links:
   - name: Security problem
-    url: https://github.com/mohanraj00/verbatim-relay/security/advisories/new
+    url: https://github.com/mohanraj00/nookku/security/advisories/new
     about: Report a security problem in private. Do not open a public issue.

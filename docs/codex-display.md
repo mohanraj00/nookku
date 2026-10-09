@@ -1,7 +1,7 @@
 # Codex display spike
 
-I tested the display mechanisms for [the display issue](https://github.com/mohanraj00/verbatim-relay/issues/205).
-This work is part of [the milestone plan](https://github.com/mohanraj00/verbatim-relay/issues/183).
+I tested the display mechanisms for [the display issue](https://github.com/mohanraj00/nookku/issues/205).
+This work is part of [the milestone plan](https://github.com/mohanraj00/nookku/issues/183).
 The [result](../proofs/spikes/codex-display.json) records the versions, sources and marker checks.
 The [method](../scripts/spike_codex_display.py) creates a toy shop plugin. It uses a local mock model
 for CLI checks. A person must trust the hooks and do the desktop checks.

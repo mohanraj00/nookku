@@ -216,13 +216,13 @@ If the entry returns an error, crashes or does not answer in [240 seconds](../sr
 
 (register.tsx) **Cause.** The plugin stops at a relay record of [3.5 MiB](../plugins/claude-code/hooks/register.tsx).
 
-**Fix.** Move the record, then send the message again ([#2](https://github.com/mohanraj00/verbatim-relay/issues/2)).
+**Fix.** Move the record, then send the message again ([#2](https://github.com/mohanraj00/nookku/issues/2)).
 
 ### `nookku: the relay does not send attachments. Nothing was sent.`
 
 (register.tsx) **Cause.** The prompt had an attachment or an image.
 
-**Fix.** Send text only ([#6](https://github.com/mohanraj00/verbatim-relay/issues/6)).
+**Fix.** Send text only ([#6](https://github.com/mohanraj00/nookku/issues/6)).
 
 ### `nookku: the record is invalid: <path>: line <n>: <reason>. Do not trust this record. The view shows the next turns when the record changes and is valid.`
 

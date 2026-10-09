@@ -107,7 +107,7 @@ The model got the cause wrong, and its count is lower than the transcript:
 
 ### What changed after #10
 
-In an earlier run, the model read the `ok` field as a pass mark for the reply and said not to trust it. Now the transcript tool gives the rendered transcript of `nookku transcript`, with a legend at the top: `ok` means that the agent answered and the relay showed its reply, and it does not judge the reply. The transcript shows no hashes. In this run, the answer does not name `ok` ([#10](https://github.com/mohanraj00/verbatim-relay/issues/10)).
+In an earlier run, the model read the `ok` field as a pass mark for the reply and said not to trust it. Now the transcript tool gives the rendered transcript of `nookku transcript`, with a legend at the top: `ok` means that the agent answered and the relay showed its reply, and it does not judge the reply. The transcript shows no hashes. In this run, the answer does not name `ok` ([#10](https://github.com/mohanraj00/nookku/issues/10)).
 
 The model also asked for the trace. This run has no test folder, so the relay answered "no test folder", and the model wrote this as a limit of its evaluation.
 

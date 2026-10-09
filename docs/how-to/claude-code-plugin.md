@@ -23,7 +23,7 @@ Before you start, connect a test to your app: [connect-your-agent.md](connect-yo
 2. Add the marketplace and install the plugin:
 
    ```bash
-   claude plugin marketplace add mohanraj00/verbatim-relay
+   claude plugin marketplace add mohanraj00/nookku
    claude plugin install nookku@nookku
    ```
 

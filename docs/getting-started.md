@@ -29,14 +29,14 @@ This tutorial needs version 0.3.0 or later. If the version is lower, end each ru
 uv tool upgrade nookku
 ```
 
-End the tests first, because 0.3.0 does not find a test that version 0.2.0 started. It then cannot end that test ([#44](https://github.com/mohanraj00/verbatim-relay/issues/44)).
+End the tests first, because 0.3.0 does not find a test that version 0.2.0 started. It then cannot end that test ([#44](https://github.com/mohanraj00/nookku/issues/44)).
 
 ## 2. Make a project for the toy shop
 
 Get the toy shop agent, and put it in a new project folder:
 
 ```bash
-git clone https://github.com/mohanraj00/verbatim-relay.git
+git clone https://github.com/mohanraj00/nookku.git
 mkdir toy-shop
 cp nookku/examples/toy-shop/agent.py toy-shop/
 cd toy-shop
