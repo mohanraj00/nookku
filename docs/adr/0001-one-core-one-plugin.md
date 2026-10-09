@@ -28,7 +28,14 @@ Data: [`hook-display.json`](../../proofs/spikes/hook-display.json). Method: [`sp
 
 ### Can a command hook show the reply? (Codex, #193)
 
-This spike is not done. I add its result here before this ADR is accepted.
+Data: [`hook-display.json`](../../proofs/spikes/hook-display.json), part `codex`. Method: [`spike_hook_display.py`](../../scripts/spike_hook_display.py).
+
+- In the interactive CLI and in the desktop app, Codex shows the block `reason`. In `codex exec`, it shows no reply field.
+- The interactive CLI shows `systemMessage`. The desktop app does not show it.
+- Codex shows the text with a fixed title. It does not render Markdown.
+- In the desktop app, the largest tested reason was complete and byte for byte, when a person copied it. The maximum length is not known.
+- The model did not get the hook text.
+- In the desktop app, a separate request to the model API held the blocked prompt. The requests of the main turns did not hold it. The purpose of that request is not known.
 
 ### Codex plugin hooks and the trust step (#177)
 
@@ -72,12 +79,12 @@ Data: [`hook-latency.json`](../../proofs/spikes/hook-latency.json). Method: [`sp
 
 The spikes give these rules for the design:
 
-- **Reply display.** In Claude Code, show the reply with the block `reason`, not `systemMessage`. Keep `nooku view` and the transcript tool for long replies, because the interactive screen can lose the start of a long reply.
+- **Reply display.** In both harnesses, the core can show the reply with the block `reason`, as an optional notice. Do not use `systemMessage`, because the desktop apps do not show it. Keep `nooku view` and the transcript tool, because `codex exec` shows no reply, and the interactive screen can lose the start of a long reply.
 - **Trust gate.** In Codex, the core checks the hook state with `hooks/list` before the first relayed message. If a required hook is missing, disabled, untrusted or modified, the core refuses the test. The plugin's own `SessionStart` hook is not the gate. A person always does the trust step.
 - **Transcript tool.** The MCP server gives the model read-only tools: `transcript` and `status`. `transcript` returns pages, with an offset, a page count and a hash. The page size is configurable, and the default is less than 40 KiB. Normal use needs no raised output limit.
 - **Tool names.** The core builds the allowed tool names from one constant for each harness, because the 2 harnesses use different prefixes.
 - **Hook time.** Keep one Python process for each event. The hook path imports only the modules that its rule needs. A test fails if the hook path imports more. The target is less than 25 ms on macOS for a warm event. The guard does not call the bridge over loopback.
-- **Print mode.** `claude -p` can send a blocked prompt to the model API. Until [#199](https://github.com/mohanraj00/verbatim-relay/issues/199) closes, the docs state this limit.
+- **Blocked prompts.** A command hook alone does not keep a blocked prompt from the model API. `claude -p` and the Codex desktop app sent it in a side request. Until [#199](https://github.com/mohanraj00/verbatim-relay/issues/199) closes, the docs state this limit.
 
 ## Options that I did not take
 
