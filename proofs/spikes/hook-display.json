@@ -3706,6 +3706,1045 @@
         "desktop": "Hook blocked this message above an orange outline card. The reason inside is plain text."
       },
       "recommendation": "Use block reason as an optional reply notice in interactive Codex and the desktop app. Keep view and the transcript tool for exec and a neutral reply display. Do not use systemMessage for desktop reply display. Do not claim that a command hook keeps tester prompts out of every model request."
+    },
+    "side_request_investigation": {
+      "date": "2026-10-09",
+      "source_inspection": {
+        "method": "Read the installed app.asar archive header and its JavaScript entries. Search the entries below for generateTitle, ThreadMetadataGenerationService, and thread_title. Store facts only, not app code or instructions.",
+        "bundle": "/Applications/ChatGPT.app/Contents/Resources/app.asar",
+        "bundle_sha256": "40efd7acdf03a24817fcd7f35684fc2173b154df06774243cb4ab227e36fa915",
+        "version": {
+          "installed": "26.1002.52244",
+          "build": "13536",
+          "runtime": null,
+          "runtime_cli": "0.162.0-alpha.2",
+          "runtime_cli_method": "app-server thread/read metadata for the captured desktop session"
+        },
+        "entries": [
+          ".vite/build/main-B6ZOwXa3.js",
+          ".vite/build/bootstrap-CTpobVUg.js",
+          "webview/assets/app-shared-6c00c2afcf84.js"
+        ],
+        "facts": [
+          "The desktop client has a ThreadMetadataGenerationService with generateTitle.",
+          "The title caller builds the title prompt from the submitted text.",
+          "The caller skips generation if the chat already has a non-provisional title.",
+          "The title generator uses the ephemeralGenerationModel and the thread_title feature.",
+          "The title request has a structured title and description response schema."
+        ],
+        "conclusion": "Title generation is a candidate for the old side request. Its original schema and purpose were not retained. The new capture records a title-description schema match."
+      },
+      "settings_search": {
+        "method": "Read the official config reference table with gstack browse. Search title, auxiliary, telemetry, background, hook and feedback. Also inspect codex features list and the desktop title caller.",
+        "reference": "https://developers.openai.com/codex/config-reference/",
+        "result": "No verified setting to disable desktop chat title generation was found. tui.terminal_title controls the terminal title, not desktop chat title generation.",
+        "init_and_trust_gate": "Do not set an unverified key in init or the plugin. The trust gate cannot prove that the desktop sends no side request. Keep the documented limit until the harness provides a verified control.",
+        "hook_contract_reference": "https://developers.openai.com/codex/hooks/"
+      },
+      "cli": {
+        "method": "scripts/spike_hook_display.py codex; codex --desktop; codex --copies DIR",
+        "data": "codex.cases in this file; each exec and tty case sends a first blocked prompt and then a passed prompt in the same conversation",
+        "version": "codex-cli 0.162.0",
+        "blocked_prompt_in_requests": false,
+        "title_description_request": "The old CLI captures did not retain schemas. No side request with a blocked-prompt marker was measured. Do not infer a guarantee from its absence."
+      },
+      "openai_report": {
+        "status": "draft only; maintainer approval required before filing",
+        "issue": "https://github.com/mohanraj00/verbatim-relay/issues/203"
+      },
+      "conclusion": "A Codex desktop title-generation request can contain a prompt blocked by UserPromptSubmit. No verified disable setting was found. State the limit; do not claim that the desktop relay keeps every tester prompt out of every model request."
+    },
+    "desktop_single_chat_side_requests": {
+      "date": "2026-10-09",
+      "version": {
+        "installed": "26.1002.52244",
+        "build": "13536",
+        "runtime": null,
+        "runtime_cli": "0.162.0-alpha.2",
+        "runtime_cli_method": "session_meta.cli_version for the linked desktop chat"
+      },
+      "method": "scripts/spike_hook_display.py codex --side-requests; marker-only rows and receipts saved before cleanup",
+      "plan_deviation": "The person ran the entire plan in one chat. The FIRST labels after SIDE00 are later prompts, not fresh-chat tests. This run cannot establish repeated first-prompt behavior.",
+      "sessions": [
+        "01a1201f-5326-7ef2-b2fe-db4ec9d6d630"
+      ],
+      "hook_receipts": [
+        {
+          "blocked": true,
+          "case_match": true,
+          "case": "SIDE00-FIRST",
+          "session_id": "01a1201f-5326-7ef2-b2fe-db4ec9d6d630"
+        },
+        {
+          "blocked": false,
+          "case_match": true,
+          "case": "SIDE00-FIRST",
+          "session_id": "01a1201f-5326-7ef2-b2fe-db4ec9d6d630"
+        },
+        {
+          "blocked": true,
+          "case_match": true,
+          "case": "SIDE00-LATER",
+          "session_id": "01a1201f-5326-7ef2-b2fe-db4ec9d6d630"
+        },
+        {
+          "blocked": false,
+          "case_match": true,
+          "case": "SIDE00-LATER",
+          "session_id": "01a1201f-5326-7ef2-b2fe-db4ec9d6d630"
+        },
+        {
+          "blocked": true,
+          "case_match": true,
+          "case": "SIDE01-FIRST",
+          "session_id": "01a1201f-5326-7ef2-b2fe-db4ec9d6d630"
+        },
+        {
+          "blocked": false,
+          "case_match": true,
+          "case": "SIDE01-FIRST",
+          "session_id": "01a1201f-5326-7ef2-b2fe-db4ec9d6d630"
+        },
+        {
+          "blocked": true,
+          "case_match": true,
+          "case": "SIDE01-LATER",
+          "session_id": "01a1201f-5326-7ef2-b2fe-db4ec9d6d630"
+        },
+        {
+          "blocked": false,
+          "case_match": true,
+          "case": "SIDE01-LATER",
+          "session_id": "01a1201f-5326-7ef2-b2fe-db4ec9d6d630"
+        },
+        {
+          "blocked": true,
+          "case_match": true,
+          "case": "SIDE02-FIRST",
+          "session_id": "01a1201f-5326-7ef2-b2fe-db4ec9d6d630"
+        },
+        {
+          "blocked": false,
+          "case_match": true,
+          "case": "SIDE02-FIRST",
+          "session_id": "01a1201f-5326-7ef2-b2fe-db4ec9d6d630"
+        },
+        {
+          "blocked": true,
+          "case_match": true,
+          "case": "SIDE02-LATER",
+          "session_id": "01a1201f-5326-7ef2-b2fe-db4ec9d6d630"
+        },
+        {
+          "blocked": false,
+          "case_match": true,
+          "case": "SIDE02-LATER",
+          "session_id": "01a1201f-5326-7ef2-b2fe-db4ec9d6d630"
+        }
+      ],
+      "model_requests": [
+        {
+          "path": "/responses",
+          "status": 200,
+          "model": "gpt-6-luna",
+          "tools": 0,
+          "messages": 7,
+          "found": {
+            "SIDE00-FIRST-PROMPT": [
+              "input[6].user"
+            ],
+            "SIDE00-FIRST-PASS": [],
+            "SIDE00-FIRST-reason-START": [],
+            "SIDE00-FIRST-reason-MID": [],
+            "SIDE00-FIRST-reason-END": [],
+            "SIDE00-LATER-PROMPT": [],
+            "SIDE00-LATER-PASS": [],
+            "SIDE00-LATER-reason-START": [],
+            "SIDE00-LATER-reason-MID": [],
+            "SIDE00-LATER-reason-END": [],
+            "SIDE01-FIRST-PROMPT": [],
+            "SIDE01-FIRST-PASS": [],
+            "SIDE01-FIRST-reason-START": [],
+            "SIDE01-FIRST-reason-MID": [],
+            "SIDE01-FIRST-reason-END": [],
+            "SIDE01-LATER-PROMPT": [],
+            "SIDE01-LATER-PASS": [],
+            "SIDE01-LATER-reason-START": [],
+            "SIDE01-LATER-reason-MID": [],
+            "SIDE01-LATER-reason-END": [],
+            "SIDE02-FIRST-PROMPT": [],
+            "SIDE02-FIRST-PASS": [],
+            "SIDE02-FIRST-reason-START": [],
+            "SIDE02-FIRST-reason-MID": [],
+            "SIDE02-FIRST-reason-END": [],
+            "SIDE02-LATER-PROMPT": [],
+            "SIDE02-LATER-PASS": [],
+            "SIDE02-LATER-reason-START": [],
+            "SIDE02-LATER-reason-MID": [],
+            "SIDE02-LATER-reason-END": []
+          },
+          "title_description_schema": true
+        },
+        {
+          "path": "/responses",
+          "status": 200,
+          "model": "gpt-5.6-luna",
+          "tools": 0,
+          "messages": 8,
+          "found": {
+            "SIDE00-FIRST-PROMPT": [],
+            "SIDE00-FIRST-PASS": [
+              "input[7].user"
+            ],
+            "SIDE00-FIRST-reason-START": [],
+            "SIDE00-FIRST-reason-MID": [],
+            "SIDE00-FIRST-reason-END": [],
+            "SIDE00-LATER-PROMPT": [],
+            "SIDE00-LATER-PASS": [],
+            "SIDE00-LATER-reason-START": [],
+            "SIDE00-LATER-reason-MID": [],
+            "SIDE00-LATER-reason-END": [],
+            "SIDE01-FIRST-PROMPT": [],
+            "SIDE01-FIRST-PASS": [],
+            "SIDE01-FIRST-reason-START": [],
+            "SIDE01-FIRST-reason-MID": [],
+            "SIDE01-FIRST-reason-END": [],
+            "SIDE01-LATER-PROMPT": [],
+            "SIDE01-LATER-PASS": [],
+            "SIDE01-LATER-reason-START": [],
+            "SIDE01-LATER-reason-MID": [],
+            "SIDE01-LATER-reason-END": [],
+            "SIDE02-FIRST-PROMPT": [],
+            "SIDE02-FIRST-PASS": [],
+            "SIDE02-FIRST-reason-START": [],
+            "SIDE02-FIRST-reason-MID": [],
+            "SIDE02-FIRST-reason-END": [],
+            "SIDE02-LATER-PROMPT": [],
+            "SIDE02-LATER-PASS": [],
+            "SIDE02-LATER-reason-START": [],
+            "SIDE02-LATER-reason-MID": [],
+            "SIDE02-LATER-reason-END": []
+          },
+          "title_description_schema": false
+        },
+        {
+          "path": "/responses",
+          "status": 200,
+          "model": "gpt-6-luna",
+          "tools": 0,
+          "messages": 12,
+          "found": {
+            "SIDE00-FIRST-PROMPT": [],
+            "SIDE00-FIRST-PASS": [
+              "input[7].user"
+            ],
+            "SIDE00-FIRST-reason-START": [],
+            "SIDE00-FIRST-reason-MID": [],
+            "SIDE00-FIRST-reason-END": [],
+            "SIDE00-LATER-PROMPT": [],
+            "SIDE00-LATER-PASS": [
+              "input[11].user"
+            ],
+            "SIDE00-LATER-reason-START": [],
+            "SIDE00-LATER-reason-MID": [],
+            "SIDE00-LATER-reason-END": [],
+            "SIDE01-FIRST-PROMPT": [],
+            "SIDE01-FIRST-PASS": [],
+            "SIDE01-FIRST-reason-START": [],
+            "SIDE01-FIRST-reason-MID": [],
+            "SIDE01-FIRST-reason-END": [],
+            "SIDE01-LATER-PROMPT": [],
+            "SIDE01-LATER-PASS": [],
+            "SIDE01-LATER-reason-START": [],
+            "SIDE01-LATER-reason-MID": [],
+            "SIDE01-LATER-reason-END": [],
+            "SIDE02-FIRST-PROMPT": [],
+            "SIDE02-FIRST-PASS": [],
+            "SIDE02-FIRST-reason-START": [],
+            "SIDE02-FIRST-reason-MID": [],
+            "SIDE02-FIRST-reason-END": [],
+            "SIDE02-LATER-PROMPT": [],
+            "SIDE02-LATER-PASS": [],
+            "SIDE02-LATER-reason-START": [],
+            "SIDE02-LATER-reason-MID": [],
+            "SIDE02-LATER-reason-END": []
+          },
+          "title_description_schema": false
+        },
+        {
+          "path": "/responses",
+          "status": 200,
+          "model": "gpt-6-luna",
+          "tools": 0,
+          "messages": 14,
+          "found": {
+            "SIDE00-FIRST-PROMPT": [],
+            "SIDE00-FIRST-PASS": [
+              "input[7].user"
+            ],
+            "SIDE00-FIRST-reason-START": [],
+            "SIDE00-FIRST-reason-MID": [],
+            "SIDE00-FIRST-reason-END": [],
+            "SIDE00-LATER-PROMPT": [],
+            "SIDE00-LATER-PASS": [
+              "input[11].user"
+            ],
+            "SIDE00-LATER-reason-START": [],
+            "SIDE00-LATER-reason-MID": [],
+            "SIDE00-LATER-reason-END": [],
+            "SIDE01-FIRST-PROMPT": [],
+            "SIDE01-FIRST-PASS": [
+              "input[13].user"
+            ],
+            "SIDE01-FIRST-reason-START": [],
+            "SIDE01-FIRST-reason-MID": [],
+            "SIDE01-FIRST-reason-END": [],
+            "SIDE01-LATER-PROMPT": [],
+            "SIDE01-LATER-PASS": [],
+            "SIDE01-LATER-reason-START": [],
+            "SIDE01-LATER-reason-MID": [],
+            "SIDE01-LATER-reason-END": [],
+            "SIDE02-FIRST-PROMPT": [],
+            "SIDE02-FIRST-PASS": [],
+            "SIDE02-FIRST-reason-START": [],
+            "SIDE02-FIRST-reason-MID": [],
+            "SIDE02-FIRST-reason-END": [],
+            "SIDE02-LATER-PROMPT": [],
+            "SIDE02-LATER-PASS": [],
+            "SIDE02-LATER-reason-START": [],
+            "SIDE02-LATER-reason-MID": [],
+            "SIDE02-LATER-reason-END": []
+          },
+          "title_description_schema": false
+        },
+        {
+          "path": "/responses",
+          "status": 200,
+          "model": "gpt-6-luna",
+          "tools": 0,
+          "messages": 16,
+          "found": {
+            "SIDE00-FIRST-PROMPT": [],
+            "SIDE00-FIRST-PASS": [
+              "input[7].user"
+            ],
+            "SIDE00-FIRST-reason-START": [],
+            "SIDE00-FIRST-reason-MID": [],
+            "SIDE00-FIRST-reason-END": [],
+            "SIDE00-LATER-PROMPT": [],
+            "SIDE00-LATER-PASS": [
+              "input[11].user"
+            ],
+            "SIDE00-LATER-reason-START": [],
+            "SIDE00-LATER-reason-MID": [],
+            "SIDE00-LATER-reason-END": [],
+            "SIDE01-FIRST-PROMPT": [],
+            "SIDE01-FIRST-PASS": [
+              "input[13].user"
+            ],
+            "SIDE01-FIRST-reason-START": [],
+            "SIDE01-FIRST-reason-MID": [],
+            "SIDE01-FIRST-reason-END": [],
+            "SIDE01-LATER-PROMPT": [],
+            "SIDE01-LATER-PASS": [
+              "input[15].user"
+            ],
+            "SIDE01-LATER-reason-START": [],
+            "SIDE01-LATER-reason-MID": [],
+            "SIDE01-LATER-reason-END": [],
+            "SIDE02-FIRST-PROMPT": [],
+            "SIDE02-FIRST-PASS": [],
+            "SIDE02-FIRST-reason-START": [],
+            "SIDE02-FIRST-reason-MID": [],
+            "SIDE02-FIRST-reason-END": [],
+            "SIDE02-LATER-PROMPT": [],
+            "SIDE02-LATER-PASS": [],
+            "SIDE02-LATER-reason-START": [],
+            "SIDE02-LATER-reason-MID": [],
+            "SIDE02-LATER-reason-END": []
+          },
+          "title_description_schema": false
+        },
+        {
+          "path": "/responses",
+          "status": 200,
+          "model": "gpt-6-luna",
+          "tools": 0,
+          "messages": 18,
+          "found": {
+            "SIDE00-FIRST-PROMPT": [],
+            "SIDE00-FIRST-PASS": [
+              "input[7].user"
+            ],
+            "SIDE00-FIRST-reason-START": [],
+            "SIDE00-FIRST-reason-MID": [],
+            "SIDE00-FIRST-reason-END": [],
+            "SIDE00-LATER-PROMPT": [],
+            "SIDE00-LATER-PASS": [
+              "input[11].user"
+            ],
+            "SIDE00-LATER-reason-START": [],
+            "SIDE00-LATER-reason-MID": [],
+            "SIDE00-LATER-reason-END": [],
+            "SIDE01-FIRST-PROMPT": [],
+            "SIDE01-FIRST-PASS": [
+              "input[13].user"
+            ],
+            "SIDE01-FIRST-reason-START": [],
+            "SIDE01-FIRST-reason-MID": [],
+            "SIDE01-FIRST-reason-END": [],
+            "SIDE01-LATER-PROMPT": [],
+            "SIDE01-LATER-PASS": [
+              "input[15].user"
+            ],
+            "SIDE01-LATER-reason-START": [],
+            "SIDE01-LATER-reason-MID": [],
+            "SIDE01-LATER-reason-END": [],
+            "SIDE02-FIRST-PROMPT": [],
+            "SIDE02-FIRST-PASS": [
+              "input[17].user"
+            ],
+            "SIDE02-FIRST-reason-START": [],
+            "SIDE02-FIRST-reason-MID": [],
+            "SIDE02-FIRST-reason-END": [],
+            "SIDE02-LATER-PROMPT": [],
+            "SIDE02-LATER-PASS": [],
+            "SIDE02-LATER-reason-START": [],
+            "SIDE02-LATER-reason-MID": [],
+            "SIDE02-LATER-reason-END": []
+          },
+          "title_description_schema": false
+        },
+        {
+          "path": "/responses",
+          "status": 200,
+          "model": "gpt-6-luna",
+          "tools": 0,
+          "messages": 20,
+          "found": {
+            "SIDE00-FIRST-PROMPT": [],
+            "SIDE00-FIRST-PASS": [
+              "input[7].user"
+            ],
+            "SIDE00-FIRST-reason-START": [],
+            "SIDE00-FIRST-reason-MID": [],
+            "SIDE00-FIRST-reason-END": [],
+            "SIDE00-LATER-PROMPT": [],
+            "SIDE00-LATER-PASS": [
+              "input[11].user"
+            ],
+            "SIDE00-LATER-reason-START": [],
+            "SIDE00-LATER-reason-MID": [],
+            "SIDE00-LATER-reason-END": [],
+            "SIDE01-FIRST-PROMPT": [],
+            "SIDE01-FIRST-PASS": [
+              "input[13].user"
+            ],
+            "SIDE01-FIRST-reason-START": [],
+            "SIDE01-FIRST-reason-MID": [],
+            "SIDE01-FIRST-reason-END": [],
+            "SIDE01-LATER-PROMPT": [],
+            "SIDE01-LATER-PASS": [
+              "input[15].user"
+            ],
+            "SIDE01-LATER-reason-START": [],
+            "SIDE01-LATER-reason-MID": [],
+            "SIDE01-LATER-reason-END": [],
+            "SIDE02-FIRST-PROMPT": [],
+            "SIDE02-FIRST-PASS": [
+              "input[17].user"
+            ],
+            "SIDE02-FIRST-reason-START": [],
+            "SIDE02-FIRST-reason-MID": [],
+            "SIDE02-FIRST-reason-END": [],
+            "SIDE02-LATER-PROMPT": [],
+            "SIDE02-LATER-PASS": [
+              "input[19].user"
+            ],
+            "SIDE02-LATER-reason-START": [],
+            "SIDE02-LATER-reason-MID": [],
+            "SIDE02-LATER-reason-END": []
+          },
+          "title_description_schema": false
+        }
+      ],
+      "summary": {
+        "title_request_contains_first_blocked_prompt": true,
+        "later_blocked_prompts_in_requests": []
+      },
+      "person": {
+        "version": "26.1002.52244",
+        "chat": "codex://threads/01a1201f-5326-7ef2-b2fe-db4ec9d6d630",
+        "provider_url_removed": true
+      },
+      "pass_turn_check": {
+        "method": "Read the linked chat with read_thread. Its pass turns have status completed, error null and answer ok. The blocked turns have no user or assistant item. Save facts only, not the raw chat.",
+        "result": "The pass turns completed. The person described the cases as failed; the linked chat confirms that the blocked notices are the expected outcome."
+      }
+    },
+    "desktop_side_requests": {
+      "date": "2026-10-09",
+      "version": {
+        "installed": "26.1002.52244",
+        "build": "13536",
+        "runtime": null,
+        "runtime_cli": "0.162.0-alpha.2",
+        "runtime_cli_method": "Read only session_meta.cli_version from the captured desktop chats, with the toy-project cwd checked."
+      },
+      "method": "scripts/spike_hook_display.py codex --side-requests",
+      "provider_setup": "person sets openai_base_url in user config, then removes it",
+      "request_compression": "disabled in project config so marker inspection reads JSON",
+      "model": "gpt-5.6-luna",
+      "capture_scope": "all JSON model requests during the capture; other chats paused",
+      "unrelated_plugins": "disabled for this project during the capture",
+      "sessions": [
+        "01a12027-d62f-73e2-a702-c5fcf2328a6b",
+        "01a1202a-7ded-7800-856f-38cfde484ec2",
+        "01a1202b-d53d-7453-a4c7-3ac72d3d14ee"
+      ],
+      "model_requests": [
+        {
+          "path": "/responses",
+          "status": 200,
+          "model": "gpt-6-luna",
+          "tools": 0,
+          "messages": 7,
+          "found": {
+            "SIDE00-FIRST-PROMPT": [
+              "input[6].user"
+            ],
+            "SIDE00-FIRST-PASS": [],
+            "SIDE00-FIRST-reason-START": [],
+            "SIDE00-FIRST-reason-MID": [],
+            "SIDE00-FIRST-reason-END": [],
+            "SIDE00-LATER-PROMPT": [],
+            "SIDE00-LATER-PASS": [],
+            "SIDE00-LATER-reason-START": [],
+            "SIDE00-LATER-reason-MID": [],
+            "SIDE00-LATER-reason-END": [],
+            "SIDE01-FIRST-PROMPT": [],
+            "SIDE01-FIRST-PASS": [],
+            "SIDE01-FIRST-reason-START": [],
+            "SIDE01-FIRST-reason-MID": [],
+            "SIDE01-FIRST-reason-END": [],
+            "SIDE01-LATER-PROMPT": [],
+            "SIDE01-LATER-PASS": [],
+            "SIDE01-LATER-reason-START": [],
+            "SIDE01-LATER-reason-MID": [],
+            "SIDE01-LATER-reason-END": [],
+            "SIDE02-FIRST-PROMPT": [],
+            "SIDE02-FIRST-PASS": [],
+            "SIDE02-FIRST-reason-START": [],
+            "SIDE02-FIRST-reason-MID": [],
+            "SIDE02-FIRST-reason-END": [],
+            "SIDE02-LATER-PROMPT": [],
+            "SIDE02-LATER-PASS": [],
+            "SIDE02-LATER-reason-START": [],
+            "SIDE02-LATER-reason-MID": [],
+            "SIDE02-LATER-reason-END": []
+          },
+          "title_description_schema": true
+        },
+        {
+          "path": "/responses",
+          "status": 200,
+          "model": "gpt-6-luna",
+          "tools": 0,
+          "messages": 10,
+          "found": {
+            "SIDE00-FIRST-PROMPT": [],
+            "SIDE00-FIRST-PASS": [
+              "input[9].user"
+            ],
+            "SIDE00-FIRST-reason-START": [],
+            "SIDE00-FIRST-reason-MID": [],
+            "SIDE00-FIRST-reason-END": [],
+            "SIDE00-LATER-PROMPT": [],
+            "SIDE00-LATER-PASS": [],
+            "SIDE00-LATER-reason-START": [],
+            "SIDE00-LATER-reason-MID": [],
+            "SIDE00-LATER-reason-END": [],
+            "SIDE01-FIRST-PROMPT": [],
+            "SIDE01-FIRST-PASS": [],
+            "SIDE01-FIRST-reason-START": [],
+            "SIDE01-FIRST-reason-MID": [],
+            "SIDE01-FIRST-reason-END": [],
+            "SIDE01-LATER-PROMPT": [],
+            "SIDE01-LATER-PASS": [],
+            "SIDE01-LATER-reason-START": [],
+            "SIDE01-LATER-reason-MID": [],
+            "SIDE01-LATER-reason-END": [],
+            "SIDE02-FIRST-PROMPT": [],
+            "SIDE02-FIRST-PASS": [],
+            "SIDE02-FIRST-reason-START": [],
+            "SIDE02-FIRST-reason-MID": [],
+            "SIDE02-FIRST-reason-END": [],
+            "SIDE02-LATER-PROMPT": [],
+            "SIDE02-LATER-PASS": [],
+            "SIDE02-LATER-reason-START": [],
+            "SIDE02-LATER-reason-MID": [],
+            "SIDE02-LATER-reason-END": []
+          },
+          "title_description_schema": false
+        },
+        {
+          "path": "/responses",
+          "status": 200,
+          "model": "gpt-6-luna",
+          "tools": 0,
+          "messages": 12,
+          "found": {
+            "SIDE00-FIRST-PROMPT": [],
+            "SIDE00-FIRST-PASS": [
+              "input[9].user"
+            ],
+            "SIDE00-FIRST-reason-START": [],
+            "SIDE00-FIRST-reason-MID": [],
+            "SIDE00-FIRST-reason-END": [],
+            "SIDE00-LATER-PROMPT": [],
+            "SIDE00-LATER-PASS": [
+              "input[11].user"
+            ],
+            "SIDE00-LATER-reason-START": [],
+            "SIDE00-LATER-reason-MID": [],
+            "SIDE00-LATER-reason-END": [],
+            "SIDE01-FIRST-PROMPT": [],
+            "SIDE01-FIRST-PASS": [],
+            "SIDE01-FIRST-reason-START": [],
+            "SIDE01-FIRST-reason-MID": [],
+            "SIDE01-FIRST-reason-END": [],
+            "SIDE01-LATER-PROMPT": [],
+            "SIDE01-LATER-PASS": [],
+            "SIDE01-LATER-reason-START": [],
+            "SIDE01-LATER-reason-MID": [],
+            "SIDE01-LATER-reason-END": [],
+            "SIDE02-FIRST-PROMPT": [],
+            "SIDE02-FIRST-PASS": [],
+            "SIDE02-FIRST-reason-START": [],
+            "SIDE02-FIRST-reason-MID": [],
+            "SIDE02-FIRST-reason-END": [],
+            "SIDE02-LATER-PROMPT": [],
+            "SIDE02-LATER-PASS": [],
+            "SIDE02-LATER-reason-START": [],
+            "SIDE02-LATER-reason-MID": [],
+            "SIDE02-LATER-reason-END": []
+          },
+          "title_description_schema": false
+        },
+        {
+          "path": "/responses",
+          "status": 200,
+          "model": "gpt-6-luna",
+          "tools": 0,
+          "messages": 7,
+          "found": {
+            "SIDE00-FIRST-PROMPT": [],
+            "SIDE00-FIRST-PASS": [],
+            "SIDE00-FIRST-reason-START": [],
+            "SIDE00-FIRST-reason-MID": [],
+            "SIDE00-FIRST-reason-END": [],
+            "SIDE00-LATER-PROMPT": [],
+            "SIDE00-LATER-PASS": [],
+            "SIDE00-LATER-reason-START": [],
+            "SIDE00-LATER-reason-MID": [],
+            "SIDE00-LATER-reason-END": [],
+            "SIDE01-FIRST-PROMPT": [
+              "input[6].user"
+            ],
+            "SIDE01-FIRST-PASS": [],
+            "SIDE01-FIRST-reason-START": [],
+            "SIDE01-FIRST-reason-MID": [],
+            "SIDE01-FIRST-reason-END": [],
+            "SIDE01-LATER-PROMPT": [],
+            "SIDE01-LATER-PASS": [],
+            "SIDE01-LATER-reason-START": [],
+            "SIDE01-LATER-reason-MID": [],
+            "SIDE01-LATER-reason-END": [],
+            "SIDE02-FIRST-PROMPT": [],
+            "SIDE02-FIRST-PASS": [],
+            "SIDE02-FIRST-reason-START": [],
+            "SIDE02-FIRST-reason-MID": [],
+            "SIDE02-FIRST-reason-END": [],
+            "SIDE02-LATER-PROMPT": [],
+            "SIDE02-LATER-PASS": [],
+            "SIDE02-LATER-reason-START": [],
+            "SIDE02-LATER-reason-MID": [],
+            "SIDE02-LATER-reason-END": []
+          },
+          "title_description_schema": true
+        },
+        {
+          "path": "/responses",
+          "status": 200,
+          "model": "gpt-5.6-luna",
+          "tools": 0,
+          "messages": 8,
+          "found": {
+            "SIDE00-FIRST-PROMPT": [],
+            "SIDE00-FIRST-PASS": [],
+            "SIDE00-FIRST-reason-START": [],
+            "SIDE00-FIRST-reason-MID": [],
+            "SIDE00-FIRST-reason-END": [],
+            "SIDE00-LATER-PROMPT": [],
+            "SIDE00-LATER-PASS": [],
+            "SIDE00-LATER-reason-START": [],
+            "SIDE00-LATER-reason-MID": [],
+            "SIDE00-LATER-reason-END": [],
+            "SIDE01-FIRST-PROMPT": [],
+            "SIDE01-FIRST-PASS": [
+              "input[7].user"
+            ],
+            "SIDE01-FIRST-reason-START": [],
+            "SIDE01-FIRST-reason-MID": [],
+            "SIDE01-FIRST-reason-END": [],
+            "SIDE01-LATER-PROMPT": [],
+            "SIDE01-LATER-PASS": [],
+            "SIDE01-LATER-reason-START": [],
+            "SIDE01-LATER-reason-MID": [],
+            "SIDE01-LATER-reason-END": [],
+            "SIDE02-FIRST-PROMPT": [],
+            "SIDE02-FIRST-PASS": [],
+            "SIDE02-FIRST-reason-START": [],
+            "SIDE02-FIRST-reason-MID": [],
+            "SIDE02-FIRST-reason-END": [],
+            "SIDE02-LATER-PROMPT": [],
+            "SIDE02-LATER-PASS": [],
+            "SIDE02-LATER-reason-START": [],
+            "SIDE02-LATER-reason-MID": [],
+            "SIDE02-LATER-reason-END": []
+          },
+          "title_description_schema": false
+        },
+        {
+          "path": "/responses",
+          "status": 200,
+          "model": "gpt-5.6-luna",
+          "tools": 0,
+          "messages": 10,
+          "found": {
+            "SIDE00-FIRST-PROMPT": [],
+            "SIDE00-FIRST-PASS": [],
+            "SIDE00-FIRST-reason-START": [],
+            "SIDE00-FIRST-reason-MID": [],
+            "SIDE00-FIRST-reason-END": [],
+            "SIDE00-LATER-PROMPT": [],
+            "SIDE00-LATER-PASS": [],
+            "SIDE00-LATER-reason-START": [],
+            "SIDE00-LATER-reason-MID": [],
+            "SIDE00-LATER-reason-END": [],
+            "SIDE01-FIRST-PROMPT": [],
+            "SIDE01-FIRST-PASS": [
+              "input[7].user"
+            ],
+            "SIDE01-FIRST-reason-START": [],
+            "SIDE01-FIRST-reason-MID": [],
+            "SIDE01-FIRST-reason-END": [],
+            "SIDE01-LATER-PROMPT": [],
+            "SIDE01-LATER-PASS": [
+              "input[9].user"
+            ],
+            "SIDE01-LATER-reason-START": [],
+            "SIDE01-LATER-reason-MID": [],
+            "SIDE01-LATER-reason-END": [],
+            "SIDE02-FIRST-PROMPT": [],
+            "SIDE02-FIRST-PASS": [],
+            "SIDE02-FIRST-reason-START": [],
+            "SIDE02-FIRST-reason-MID": [],
+            "SIDE02-FIRST-reason-END": [],
+            "SIDE02-LATER-PROMPT": [],
+            "SIDE02-LATER-PASS": [],
+            "SIDE02-LATER-reason-START": [],
+            "SIDE02-LATER-reason-MID": [],
+            "SIDE02-LATER-reason-END": []
+          },
+          "title_description_schema": false
+        },
+        {
+          "path": "/responses",
+          "status": 200,
+          "model": "gpt-6-luna",
+          "tools": 0,
+          "messages": 7,
+          "found": {
+            "SIDE00-FIRST-PROMPT": [],
+            "SIDE00-FIRST-PASS": [],
+            "SIDE00-FIRST-reason-START": [],
+            "SIDE00-FIRST-reason-MID": [],
+            "SIDE00-FIRST-reason-END": [],
+            "SIDE00-LATER-PROMPT": [],
+            "SIDE00-LATER-PASS": [],
+            "SIDE00-LATER-reason-START": [],
+            "SIDE00-LATER-reason-MID": [],
+            "SIDE00-LATER-reason-END": [],
+            "SIDE01-FIRST-PROMPT": [],
+            "SIDE01-FIRST-PASS": [],
+            "SIDE01-FIRST-reason-START": [],
+            "SIDE01-FIRST-reason-MID": [],
+            "SIDE01-FIRST-reason-END": [],
+            "SIDE01-LATER-PROMPT": [],
+            "SIDE01-LATER-PASS": [],
+            "SIDE01-LATER-reason-START": [],
+            "SIDE01-LATER-reason-MID": [],
+            "SIDE01-LATER-reason-END": [],
+            "SIDE02-FIRST-PROMPT": [
+              "input[6].user"
+            ],
+            "SIDE02-FIRST-PASS": [],
+            "SIDE02-FIRST-reason-START": [],
+            "SIDE02-FIRST-reason-MID": [],
+            "SIDE02-FIRST-reason-END": [],
+            "SIDE02-LATER-PROMPT": [],
+            "SIDE02-LATER-PASS": [],
+            "SIDE02-LATER-reason-START": [],
+            "SIDE02-LATER-reason-MID": [],
+            "SIDE02-LATER-reason-END": []
+          },
+          "title_description_schema": true
+        },
+        {
+          "path": "/responses",
+          "status": 200,
+          "model": "gpt-5.6-luna",
+          "tools": 0,
+          "messages": 8,
+          "found": {
+            "SIDE00-FIRST-PROMPT": [],
+            "SIDE00-FIRST-PASS": [],
+            "SIDE00-FIRST-reason-START": [],
+            "SIDE00-FIRST-reason-MID": [],
+            "SIDE00-FIRST-reason-END": [],
+            "SIDE00-LATER-PROMPT": [],
+            "SIDE00-LATER-PASS": [],
+            "SIDE00-LATER-reason-START": [],
+            "SIDE00-LATER-reason-MID": [],
+            "SIDE00-LATER-reason-END": [],
+            "SIDE01-FIRST-PROMPT": [],
+            "SIDE01-FIRST-PASS": [],
+            "SIDE01-FIRST-reason-START": [],
+            "SIDE01-FIRST-reason-MID": [],
+            "SIDE01-FIRST-reason-END": [],
+            "SIDE01-LATER-PROMPT": [],
+            "SIDE01-LATER-PASS": [],
+            "SIDE01-LATER-reason-START": [],
+            "SIDE01-LATER-reason-MID": [],
+            "SIDE01-LATER-reason-END": [],
+            "SIDE02-FIRST-PROMPT": [],
+            "SIDE02-FIRST-PASS": [
+              "input[7].user"
+            ],
+            "SIDE02-FIRST-reason-START": [],
+            "SIDE02-FIRST-reason-MID": [],
+            "SIDE02-FIRST-reason-END": [],
+            "SIDE02-LATER-PROMPT": [],
+            "SIDE02-LATER-PASS": [],
+            "SIDE02-LATER-reason-START": [],
+            "SIDE02-LATER-reason-MID": [],
+            "SIDE02-LATER-reason-END": []
+          },
+          "title_description_schema": false
+        },
+        {
+          "path": "/responses",
+          "status": 200,
+          "model": "gpt-5.6-luna",
+          "tools": 0,
+          "messages": 10,
+          "found": {
+            "SIDE00-FIRST-PROMPT": [],
+            "SIDE00-FIRST-PASS": [],
+            "SIDE00-FIRST-reason-START": [],
+            "SIDE00-FIRST-reason-MID": [],
+            "SIDE00-FIRST-reason-END": [],
+            "SIDE00-LATER-PROMPT": [],
+            "SIDE00-LATER-PASS": [],
+            "SIDE00-LATER-reason-START": [],
+            "SIDE00-LATER-reason-MID": [],
+            "SIDE00-LATER-reason-END": [],
+            "SIDE01-FIRST-PROMPT": [],
+            "SIDE01-FIRST-PASS": [],
+            "SIDE01-FIRST-reason-START": [],
+            "SIDE01-FIRST-reason-MID": [],
+            "SIDE01-FIRST-reason-END": [],
+            "SIDE01-LATER-PROMPT": [],
+            "SIDE01-LATER-PASS": [],
+            "SIDE01-LATER-reason-START": [],
+            "SIDE01-LATER-reason-MID": [],
+            "SIDE01-LATER-reason-END": [],
+            "SIDE02-FIRST-PROMPT": [],
+            "SIDE02-FIRST-PASS": [
+              "input[7].user"
+            ],
+            "SIDE02-FIRST-reason-START": [],
+            "SIDE02-FIRST-reason-MID": [],
+            "SIDE02-FIRST-reason-END": [],
+            "SIDE02-LATER-PROMPT": [],
+            "SIDE02-LATER-PASS": [
+              "input[9].user"
+            ],
+            "SIDE02-LATER-reason-START": [],
+            "SIDE02-LATER-reason-MID": [],
+            "SIDE02-LATER-reason-END": []
+          },
+          "title_description_schema": false
+        }
+      ],
+      "cases": [
+        {
+          "id": "SIDE00-FIRST",
+          "chat": 0,
+          "position": "first",
+          "fields": [
+            "reason"
+          ],
+          "size": 84,
+          "blocked_prompt": "block: SIDE00-FIRST-PROMPT a toy shop question",
+          "passed_prompt": "pass: SIDE00-FIRST-PASS reply with the word ok",
+          "copy_checks": {
+            "reason": {
+              "byte_exact": null
+            }
+          },
+          "hook_receipts": {
+            "blocked": 1,
+            "passed": 1
+          }
+        },
+        {
+          "id": "SIDE00-LATER",
+          "chat": 0,
+          "position": "later",
+          "fields": [
+            "reason"
+          ],
+          "size": 84,
+          "blocked_prompt": "block: SIDE00-LATER-PROMPT a toy shop question",
+          "passed_prompt": "pass: SIDE00-LATER-PASS reply with the word ok",
+          "copy_checks": {
+            "reason": {
+              "byte_exact": null
+            }
+          },
+          "hook_receipts": {
+            "blocked": 1,
+            "passed": 1
+          }
+        },
+        {
+          "id": "SIDE01-FIRST",
+          "chat": 1,
+          "position": "first",
+          "fields": [
+            "reason"
+          ],
+          "size": 84,
+          "blocked_prompt": "block: SIDE01-FIRST-PROMPT a toy shop question",
+          "passed_prompt": "pass: SIDE01-FIRST-PASS reply with the word ok",
+          "copy_checks": {
+            "reason": {
+              "byte_exact": null
+            }
+          },
+          "hook_receipts": {
+            "blocked": 1,
+            "passed": 1
+          }
+        },
+        {
+          "id": "SIDE01-LATER",
+          "chat": 1,
+          "position": "later",
+          "fields": [
+            "reason"
+          ],
+          "size": 84,
+          "blocked_prompt": "block: SIDE01-LATER-PROMPT a toy shop question",
+          "passed_prompt": "pass: SIDE01-LATER-PASS reply with the word ok",
+          "copy_checks": {
+            "reason": {
+              "byte_exact": null
+            }
+          },
+          "hook_receipts": {
+            "blocked": 1,
+            "passed": 1
+          }
+        },
+        {
+          "id": "SIDE02-FIRST",
+          "chat": 2,
+          "position": "first",
+          "fields": [
+            "reason"
+          ],
+          "size": 84,
+          "blocked_prompt": "block: SIDE02-FIRST-PROMPT a toy shop question",
+          "passed_prompt": "pass: SIDE02-FIRST-PASS reply with the word ok",
+          "copy_checks": {
+            "reason": {
+              "byte_exact": null
+            }
+          },
+          "hook_receipts": {
+            "blocked": 1,
+            "passed": 1
+          }
+        },
+        {
+          "id": "SIDE02-LATER",
+          "chat": 2,
+          "position": "later",
+          "fields": [
+            "reason"
+          ],
+          "size": 84,
+          "blocked_prompt": "block: SIDE02-LATER-PROMPT a toy shop question",
+          "passed_prompt": "pass: SIDE02-LATER-PASS reply with the word ok",
+          "copy_checks": {
+            "reason": {
+              "byte_exact": null
+            }
+          },
+          "hook_receipts": {
+            "blocked": 1,
+            "passed": 1
+          }
+        }
+      ],
+      "visual_observations": "The person ran the repeat after the single-chat trial. Hook receipts verify each block and pass in the required order in separate chats. Each pass turn completed with answer ok and no turn error, checked through read_thread. The global provider URL was removed before the proxy stopped.",
+      "chat_sessions": {
+        "0": "01a12027-d62f-73e2-a702-c5fcf2328a6b",
+        "1": "01a1202a-7ded-7800-856f-38cfde484ec2",
+        "2": "01a1202b-d53d-7453-a4c7-3ac72d3d14ee"
+      },
+      "unclassified_requests": 45,
+      "runtime_versions_by_session": {
+        "01a12027-d62f-73e2-a702-c5fcf2328a6b": "0.162.0-alpha.2",
+        "01a1202a-7ded-7800-856f-38cfde484ec2": "0.162.0-alpha.2",
+        "01a1202b-d53d-7453-a4c7-3ac72d3d14ee": "0.162.0-alpha.2"
+      },
+      "summary": {
+        "method": "For each case, count whether any model_requests found map has its ID-PROMPT marker. A title request has title_description_schema true. Count reply markers ending in -reason-START or -reason-END the same way.",
+        "first_cases": 3,
+        "first_blocked_prompts_in_title_requests": 3,
+        "later_cases": 3,
+        "later_blocked_prompts_in_requests": 0,
+        "reply_markers_in_requests": [],
+        "conclusion": "The blocked first prompt reached chat title generation in each tested fresh chat. No later blocked prompt or hook reply marker appeared in these recorded model requests. This does not prove that only first prompts can reach a side request."
+      },
+      "pass_turn_check": {
+        "method": "Read each linked desktop chat with read_thread. Check the pass user marker, completed status, error null, and final answer ok. Save facts only.",
+        "completed_pass_turns": 6,
+        "turn_errors": 0,
+        "all_answers_ok": true
+      },
+      "chat_links": [
+        "codex://threads/01a12027-d62f-73e2-a702-c5fcf2328a6b",
+        "codex://threads/01a1202a-7ded-7800-856f-38cfde484ec2",
+        "codex://threads/01a1202b-d53d-7453-a4c7-3ac72d3d14ee"
+      ],
+      "chat_links_method": "Build the links from the session ids in the hook receipts, then verify the pass turns with read_thread.",
+      "app_version_confirmation": "The person confirmed 26.1002.52244 during the single-chat trial. The retry read the same installed bundle version.",
+      "provider_cleanup": "The capture script verified that the temporary openai_base_url was removed before it stopped the proxy."
     }
   }
 }
