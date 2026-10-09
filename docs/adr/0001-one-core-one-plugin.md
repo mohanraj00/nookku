@@ -73,7 +73,7 @@ Data: [`hook-latency.json`](../../proofs/spikes/hook-latency.json). Method: [`sp
 - **Name.** The project becomes Nooku (Tamil நோக்கு: to look, observe, scrutinize). Tagline: "A test harness for developers of agent apps." [#181](https://github.com/mohanraj00/verbatim-relay/issues/181) does the rename.
 - **One core.** One core in Python holds each rule and each text: the control words, the relay, the guard, the policy, the status, the start and end texts, and the scripted tests. No rule has a TypeScript copy.
 - **One plugin.** One plugin folder serves Claude Code and Codex. It has a manifest for each harness, one command hook file, one MCP server and one skills folder. Each command hook runs `python -m nooku hook`.
-- **Display layer.** Claude Code function hooks are an optional display layer: dim rows, a pane, a status line and slash commands. They hold no rule. If they break, the command hooks still work.
+- **Display layer.** Claude Code function hooks are an optional display layer: dim rows, a pane, a status line and slash commands. They hold no rule. If they break, the command hooks still work. [#205](https://github.com/mohanraj00/verbatim-relay/issues/205) finds what a Codex plugin can show, and gives Codex its own display layer if one exists.
 - **Fallback.** `init` writes the same command hooks into a project, for a project that cannot install plugins.
 - **Harnesses.** Claude Code and Codex only. A new harness needs an adapter for its hook events and a plugin manifest. It needs no change to the core.
 
@@ -89,7 +89,7 @@ The spikes give these rules for the design:
 ## Options that I did not take
 
 - **Keep 2 relays.** Each rule needs 2 copies and conformance cases for both. The copies drift, and each guard issue must change both of them.
-- **Move the rules to TypeScript.** Codex does not run function hooks, so Codex would still need a second copy.
+- **Move the rules to TypeScript.** Codex runs command hooks from a plugin, and I know of no Codex API that runs TypeScript in the harness process. No spike measured this yet. [#205](https://github.com/mohanraj00/verbatim-relay/issues/205) measures it. If no such API exists, Codex would still need a second copy.
 - **A long-running hook server.** A loopback call saves time only while a test runs, and a command hook still needs a `curl` process. The guard must also work outside a test. A second path adds a second way to fail.
 - **Trust the plugin to check itself.** In Codex, an untrusted plugin skips all its hooks, also `SessionStart`. Only a check outside the plugin can refuse the test.
 - **Send the full transcript in one tool result.** At the default limits, results of 50 KiB or more did not get to the model unchanged.
