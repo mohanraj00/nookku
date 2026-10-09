@@ -32,6 +32,86 @@ def test_responses_markers_name_the_input_role_and_do_not_keep_the_body() -> Non
     assert "private toy shop instructions" not in json.dumps(result)
 
 
+def test_a_title_schema_match_keeps_no_instructions_schema_or_answer() -> None:
+    body = json.dumps(
+        {
+            "instructions": "private title instructions",
+            "input": [{"role": "user", "content": "toy marker"}],
+            "text": {
+                "format": {
+                    "type": "json_schema",
+                    "schema": {
+                        "properties": {
+                            "title": {"type": "string", "description": "private field text"},
+                            "description": {"type": "string"},
+                        },
+                        "required": ["title", "description"],
+                    },
+                }
+            },
+        }
+    ).encode()
+    result = spike.where(body, ("toy marker",))
+    assert result["title_description_schema"] is True
+    assert "private" not in json.dumps(result)
+    assert "schema" not in result
+    assert spike.where(b'{"input":[],"tools":[]}', ())["title_description_schema"] is False
+
+
+def test_first_and_later_cases_use_distinct_chats_in_the_measured_order() -> None:
+    plan = spike.side_request_plan()
+    receipts = [
+        {"case": c["id"], "blocked": blocked, "session_id": f"toy-session-{c['chat']}"}
+        for c in plan
+        for blocked in (True, False)
+    ]
+    sessions = spike.side_request_sessions(plan, receipts)
+    assert len(sessions) == 3
+    assert len({c["blocked_prompt"] for c in plan}) == len(plan)
+    with pytest.raises(RuntimeError, match="in order"):
+        spike.side_request_sessions(plan, receipts[::-1])
+    with pytest.raises(RuntimeError, match="in order"):
+        spike.side_request_sessions(plan, receipts[:-1])
+    for receipt in receipts:
+        receipt["session_id"] = "one-toy-chat"
+    with pytest.raises(RuntimeError, match="new desktop chat"):
+        spike.side_request_sessions(plan, receipts)
+
+
+def test_a_title_request_that_finishes_during_cleanup_is_in_the_capture(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(spike, "ROOT", tmp_path)
+    monkeypatch.setenv("CODEX_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr(spike, "require_codex_hook", lambda p: [])
+    monkeypatch.setattr(spike, "desktop_plan", lambda: [])
+    monkeypatch.setattr(spike, "codex_receipts", lambda p: [])
+
+    def proxies(backends: object, record: Path, kind: object) -> MagicMock:
+        proxy = MagicMock()
+        proxy.start.return_value = {"HOOK_DISPLAY_PROXY": "http://127.0.0.1:54321"}
+        row = {
+            "path": "/responses",
+            "status": 200,
+            "request_body": {"model": "toy-model", "title_description_schema": True},
+        }
+        proxy.stop.side_effect = lambda: record.write_text(json.dumps(row) + "\n")
+        return proxy
+
+    monkeypatch.setattr(spike.backend, "Proxies", proxies)
+    output = tmp_path / "capture.json"
+    spike.codex_desktop(output)
+    requests = json.loads(output.read_text())["codex"]["desktop"]["model_requests"]
+    assert requests == [
+        {
+            "path": "/responses",
+            "status": 200,
+            "model": "toy-model",
+            "title_description_schema": True,
+        }
+    ]
+
+
 def test_the_proxy_keeps_no_request_or_response_header_or_body() -> None:
     proxy = object.__new__(spike.CodexSpikeProxy)
     proxy.marks = ("toy marker",)
