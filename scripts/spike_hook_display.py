@@ -37,6 +37,7 @@ systemMessage, or both for --project. --person imports their observations and de
 usage: python scripts/spike_hook_display.py claude-code|codex [--project SIZE | --person FILE] [OUT]
        --fields reason|systemMessage|both (with --project only)
        codex --desktop: capture model requests while a person runs the desktop prompt matrix
+       Cleanup waits for a person to remove the global URL, including after errors or Ctrl-C.
        A person adds the printed openai_base_url to user config, then removes it after the cases.
        codex --copies DIR: compare copied field files after the desktop capture
        (default OUT: proofs/spikes/hook-display.json)
@@ -64,6 +65,7 @@ import time
 from datetime import date
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
@@ -810,34 +812,37 @@ def desktop_plan() -> list[dict[str, Any]]:
 
 def wait_desktop_provider_cleanup(user_config: Path, url: str, proxies: backend.Proxies) -> None:
     """Keep the listener while a person removes the global URL, also after a failed capture."""
-    setting = r"(?m)^\s*openai_base_url\s*=\s*[\"']" + re.escape(url) + r"[\"']"
+    port = urlsplit(url).port
+    setting = (
+        r"(?m)^\s*openai_base_url\s*=\s*[\"']https?://"
+        rf"(?:127\.0\.0\.1|localhost|\[::1\]):{port}(?=[/\"'?#]|$)"
+    )
     notified = False
     while True:
         try:
+            current: str | None
             try:
                 current = user_config.read_text()
             except FileNotFoundError:
                 current = ""
-            if re.search(setting, current) is None:
+            except (OSError, UnicodeError) as error:
+                current = None
+                if not notified:
+                    print(f"Cannot verify provider cleanup: {error}", flush=True)
+            if current is not None and re.search(setting, current) is None:
                 return
-        except (OSError, UnicodeError) as error:
             if not notified:
-                print(f"Cannot verify provider cleanup: {error}", flush=True)
-        except KeyboardInterrupt:
-            pass  # A second interrupt must not release a port still named by user config.
-        if not notified:
-            print(
-                f"Remove the temporary openai_base_url for {url} from {user_config}. "
-                "The listener stays open until cleanup is verified, also after an error. "
-                "Start a new chat for later model turns; the test chat keeps this URL.",
-                flush=True,
-            )
-            notified = True
-        try:
+                print(
+                    f"Remove the temporary openai_base_url for port {port} from {user_config}. "
+                    "The listener stays open until cleanup is verified, also after an error. "
+                    "Start a new chat for later model turns; the test chat keeps this URL.",
+                    flush=True,
+                )
+                notified = True
             with proxies.lock:
                 proxies.lock.wait(timeout=1)
         except KeyboardInterrupt:
-            print("Cleanup is still required. The listener stays open.", flush=True)
+            continue  # Status output is also inside this guard. Never release a configured port.
 
 
 def codex_desktop(out: Path) -> None:

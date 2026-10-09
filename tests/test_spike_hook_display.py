@@ -170,3 +170,42 @@ def test_a_desktop_failure_keeps_the_proxy_until_the_global_url_is_removed(
         spike.codex_desktop(tmp_path / "result.json")
     assert proxy.lock.wait.call_count == (2 if interrupt_cleanup else 1)
     proxy.stop.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    "configured_url",
+    [
+        "http://127.0.0.1:54321",
+        "http://127.0.0.1:54321/",
+        "http://127.0.0.1:54321/responses?toy=1",
+        "http://localhost:54321/responses",
+    ],
+)
+@pytest.mark.parametrize("interrupt_notice", [False, True])
+def test_cleanup_checks_the_port_and_catches_an_interrupt_in_its_notice(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    configured_url: str,
+    interrupt_notice: bool,
+) -> None:
+    config = tmp_path / "config.toml"
+    config.write_text(f'openai_base_url = "{configured_url}"\n')
+    proxy = MagicMock()
+    proxy.lock.wait.side_effect = lambda **kwargs: config.unlink()
+    if interrupt_notice:
+        notice = MagicMock(side_effect=[KeyboardInterrupt, None])
+        monkeypatch.setattr(spike, "print", notice, raising=False)
+    spike.wait_desktop_provider_cleanup(config, "http://127.0.0.1:54321", proxy)
+    assert not config.exists()
+    proxy.lock.wait.assert_called_once()
+    if interrupt_notice:
+        assert notice.call_count == 2
+
+
+def test_cleanup_cannot_confirm_an_unreadable_config_is_safe() -> None:
+    config = MagicMock(spec=Path)
+    config.read_text.side_effect = [PermissionError("toy config is unreadable"), ""]
+    proxy = MagicMock()
+    spike.wait_desktop_provider_cleanup(config, "http://127.0.0.1:54321", proxy)
+    proxy.lock.wait.assert_called_once()
+    assert config.read_text.call_count == 2
