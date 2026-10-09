@@ -1339,7 +1339,6 @@
           "next_turn_completed": true,
           "fields": {
             "reason": {
-              "shown": false,
               "start_shown": false,
               "end_shown": false,
               "byte_exact": false
@@ -1457,7 +1456,6 @@
           "next_turn_completed": true,
           "fields": {
             "reason": {
-              "shown": false,
               "start_shown": false,
               "end_shown": false,
               "byte_exact": false
@@ -1575,7 +1573,6 @@
           "next_turn_completed": true,
           "fields": {
             "reason": {
-              "shown": false,
               "start_shown": false,
               "end_shown": false,
               "byte_exact": false
@@ -1694,7 +1691,6 @@
           "next_turn_completed": true,
           "fields": {
             "systemMessage": {
-              "shown": false,
               "start_shown": false,
               "end_shown": false,
               "byte_exact": false
@@ -1813,7 +1809,6 @@
           "next_turn_completed": true,
           "fields": {
             "systemMessage": {
-              "shown": false,
               "start_shown": false,
               "end_shown": false,
               "byte_exact": false
@@ -1932,7 +1927,6 @@
           "next_turn_completed": true,
           "fields": {
             "systemMessage": {
-              "shown": false,
               "start_shown": false,
               "end_shown": false,
               "byte_exact": false
@@ -2051,13 +2045,11 @@
           "next_turn_completed": true,
           "fields": {
             "reason": {
-              "shown": false,
               "start_shown": false,
               "end_shown": false,
               "byte_exact": false
             },
             "systemMessage": {
-              "shown": false,
               "start_shown": false,
               "end_shown": false,
               "byte_exact": false
@@ -2193,13 +2185,11 @@
           "next_turn_completed": true,
           "fields": {
             "reason": {
-              "shown": false,
               "start_shown": false,
               "end_shown": false,
               "byte_exact": false
             },
             "systemMessage": {
-              "shown": false,
               "start_shown": false,
               "end_shown": false,
               "byte_exact": false
@@ -2335,13 +2325,11 @@
           "next_turn_completed": true,
           "fields": {
             "reason": {
-              "shown": false,
               "start_shown": false,
               "end_shown": false,
               "byte_exact": false
             },
             "systemMessage": {
-              "shown": false,
               "start_shown": false,
               "end_shown": false,
               "byte_exact": false

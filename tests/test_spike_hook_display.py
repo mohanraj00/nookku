@@ -114,3 +114,17 @@ def test_a_desktop_copy_keeps_its_line_end_bytes(
         if not suffix
         else (check["copied_sha256"] != check["expected_sha256"])
     )
+
+
+def test_a_corrupt_hook_definition_stops_without_replacing_it(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(spike, "ROOT", tmp_path)
+    project = spike.codex_project({"reason": "toy shop first reply"})
+    source = project / ".codex" / "hooks.json"
+    source.write_bytes(b"{invalid")
+    payload = (project / "payload.json").read_bytes()
+    with pytest.raises(RuntimeError, match="Review its source"):
+        spike.codex_project({"reason": "toy shop next reply"})
+    assert source.read_bytes() == b"{invalid"
+    assert (project / "payload.json").read_bytes() == payload

@@ -376,7 +376,6 @@ def case(fields: tuple[str, ...], size: int, n: int) -> dict[str, Any]:
 
 
 CODEX_MODEL = "gpt-5.6-luna"
-CODEX_PLUGIN_IDS: list[str] = []
 CODEX_HOOK = """import json, sys
 from pathlib import Path
 event = json.load(sys.stdin)
@@ -419,8 +418,8 @@ def codex_project(payload: dict[str, str]) -> Path:
     script = p / "hook.py"
     source = p / ".codex" / "hooks.json"
     if source.exists():
-        existing = json.loads(source.read_text(encoding="utf-8"))
         try:
+            existing = json.loads(source.read_text(encoding="utf-8"))
             handler = existing["hooks"]["UserPromptSubmit"][0]["hooks"][0]
             command = shlex.split(handler["command"])
         except (KeyError, IndexError, TypeError, ValueError) as error:
@@ -529,7 +528,7 @@ def require_codex_hook(p: Path) -> list[str]:
             proc.stdout.close()
 
 
-def codex_args(url: str) -> list[str]:
+def codex_args(url: str, plugins: list[str]) -> list[str]:
     """Use ChatGPT auth with an HTTP Responses proxy. Do not change the user's config."""
     settings = {
         "model_provider": "hook_display",
@@ -544,11 +543,7 @@ def codex_args(url: str) -> list[str]:
         "-m",
         CODEX_MODEL,
         *(a for k, v in settings.items() for a in ("-c", f"{k}={json.dumps(v)}")),
-        *(
-            a
-            for plugin in CODEX_PLUGIN_IDS
-            for a in ("-c", f"plugins.{json.dumps(plugin)}.enabled=false")
-        ),
+        *(a for plugin in plugins for a in ("-c", f"plugins.{json.dumps(plugin)}.enabled=false")),
     ]
 
 
@@ -603,7 +598,6 @@ def codex_exec(p: Path, args: list[str], payload: dict[str, str]) -> dict[str, A
         "next_turn_completed": completed,
         "fields": {
             f: {
-                "shown": any(v.splitlines()[0] in t for t in strings),
                 "start_shown": any(v.splitlines()[0] in t for t in strings),
                 "end_shown": any(v.splitlines()[-1] in t for t in strings),
                 "byte_exact": any(v in t for t in strings),
@@ -722,7 +716,7 @@ class CodexSpikeProxy(SpikeProxy):
     streaming = True
 
 
-def codex_case(fields: tuple[str, ...], size: int, n: int) -> dict[str, Any]:
+def codex_case(fields: tuple[str, ...], size: int, n: int, plugins: list[str]) -> dict[str, Any]:
     mark = f"CXHD{n:02d}"
     payload = {f: text(size, f"{mark}-{f}", ASTRAL[f]) for f in fields}
     p = codex_project(payload)
@@ -750,9 +744,9 @@ def codex_case(fields: tuple[str, ...], size: int, n: int) -> dict[str, Any]:
             url = proxy.start()["HOOK_DISPLAY_PROXY"]
             try:
                 result = (
-                    runner(p, codex_args(url), payload)
+                    runner(p, codex_args(url, plugins), payload)
                     if mode == "exec"
-                    else runner(p, codex_args(url), payload, mark, record)
+                    else runner(p, codex_args(url, plugins), payload, mark, record)
                 )
             finally:
                 proxy.stop()
@@ -1054,7 +1048,6 @@ def option(args: list[str], name: str) -> str | None:
 
 
 def main() -> int:
-    global CODEX_PLUGIN_IDS
     args = sys.argv[1:]
     if not args or args[0] not in ("claude-code", "codex"):
         print(__doc__, file=sys.stderr)
@@ -1098,10 +1091,11 @@ def main() -> int:
         )
     elif harness == "codex":
         prepared = codex_project({f: text(1024, f"DESK-{f}", ASTRAL[f]) for f in ASTRAL})
-        CODEX_PLUGIN_IDS = require_codex_hook(prepared)
+        plugins = require_codex_hook(prepared)
         version = subprocess.run(["codex", "--version"], capture_output=True, text=True, check=True)
         cases = [
-            codex_case(f, s, n) for n, (f, s) in enumerate((f, s) for f in FIELDS for s in SIZES)
+            codex_case(f, s, n, plugins)
+            for n, (f, s) in enumerate((f, s) for f in FIELDS for s in SIZES)
         ]
         data["codex"] = {
             **data.get("codex", {}),
