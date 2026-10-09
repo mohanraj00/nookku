@@ -21,7 +21,7 @@ The 5 test messages have trailing spaces, non-ASCII text (`Ünïcödé`, `€`, 
 | Relay | Harness | P1 | P2 | P3 | P3b | P4 | Data |
 |---|---|---|---|---|---|---|---|
 | Plugin | Claude Code 2.1.290 | 10/10 | 10/10 | 5/5 | pass | 5/5 | [results](../proofs/claude-code/results.json) |
-| Hook kit | Claude Code 2.1.290 | 10/10 | 10/10 | 5/5 | pass | 5/5 | [results](../proofs/hooks-claude-code/results.json) |
+| Hook kit | Claude Code 2.1.295 | 10/10 | 10/10 | 5/5 | pass | 5/5 | [results](../proofs/hooks-claude-code/results.json) |
 | Hook kit | Codex 0.160.0 | 10/10 | 10/10 | 5/5 | pass | 5/5 | [results](../proofs/hooks-codex/results.json) |
 
 With the hook kit, the model used 0 output tokens in every relay turn, in both harnesses. The hook blocks the prompt before the model runs.

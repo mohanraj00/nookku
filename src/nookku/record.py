@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import re
@@ -67,6 +66,8 @@ def json_text(value: Any, indent: int | None = None) -> str:
 
 
 def sha256(text: str | None) -> str | None:
+    import hashlib  # here, so that a hook event that writes no row stays fast (#214)
+
     return None if text is None else hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 

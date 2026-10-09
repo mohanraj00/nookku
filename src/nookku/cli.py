@@ -143,8 +143,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     tr.add_argument("--session", help="only the turns of this harness session")
 
     hook = sub.add_parser("hook", help="the hook command that init installs")
-    hook.add_argument("--root", type=Path, required=True)
-    hook.add_argument("--harness", required=True)
+    hook.add_argument("--root", type=Path, help="the project (default: from the event)")
+    hook.add_argument("--harness", required=True, choices=["claude-code", "codex"])
 
     args = parser.parse_args(argv)
     if isinstance(getattr(args, "root", None), Path):
@@ -282,7 +282,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         except KeyboardInterrupt:
             return 0
     if args.command == "hook":
-        return kit.run_hook(args.root, args.harness, sys.stdin, sys.stdout)
+        root = args.root.resolve() if args.root else None
+        return kit.run_hook(root, args.harness, sys.stdin, sys.stdout)
     parser.print_help(sys.stderr)
     return 2
 

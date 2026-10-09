@@ -161,13 +161,9 @@ In the harness, type the prompt `nookku start`. With the plugin, you can also ty
 nookku: test 20261007-231159-fd98 started. Relay mode is on: each message goes to the entry. To end the test and start the evaluation, type the prompt nookku end. To end the test with no evaluation, run nookku end in a shell.
 ```
 
-Type your test messages, one at a time. The model does not run. For each message, the hook kit in Claude Code shows:
+Type your test messages, one at a time. The model does not run. For each message, Claude Code shows the reply of your app as the reason of a blocked prompt, byte for byte. The model does not get this text.
 
-```text
-nookku: relayed to the agent. The reply is in the viewer (nookku view).
-```
-
-The viewer shows each turn. For 3 messages to the toy shop:
+The viewer also shows each turn. For 3 messages to the toy shop:
 
 ```text
 ════ test 20261007-231159-fd98 ════

@@ -20,7 +20,7 @@ from nookku import contract
 from nookku.record import Writer, lone_surrogate
 
 # The agent timeout of both taps, HTTP and stdio. Each tap answers well before the relay
-# timeouts (kit.TIMEOUT, bridge.TIMEOUT), and these end before kit.HOOK_DEADLINE.
+# timeouts (kit.TIMEOUT, state.TIMEOUT), and these end before kit.HOOK_DEADLINE.
 TIMEOUT = 240.0
 TAIL = 20
 # The fix for an agent that writes logs on stdout. `nookku check` prints it too.

@@ -156,6 +156,8 @@ def test_relay_mode_on_relays_exact_bytes_and_blocks_the_prompt(setup):
     kit.set_mode(root, True)
     answer = kit.handle(prompt(TRICKY), root, "codex")
     assert answer["decision"] == "block"
+    # The block reason shows the reply byte for byte (ADR 0001: reply display).
+    assert answer["reason"] == shop_reply(TRICKY)
     [turn] = read_relay(record(root))
     assert turn == Turn(1, TRICKY, shop_reply(TRICKY), True, "s1")
     row = json.loads(record(root).read_text())
@@ -310,7 +312,7 @@ def test_a_failed_deny_path_denies_with_relay_mode_off(tmp_path, monkeypatch):
     def fail(*_):
         raise RuntimeError("disk gone")
 
-    monkeypatch.setattr(kit.bridge, "current", fail)
+    monkeypatch.setattr(kit.state, "current", fail)
     event = json.dumps(pre({"command": "ls"}))
     out = io.StringIO()
     # With no state folder, no deny applies, so the call goes on.
@@ -491,9 +493,48 @@ def test_the_installed_hook_command_runs(setup):
         text=True,
         timeout=60,
     )
-    assert json.loads(p.stdout)["decision"] == "block"
+    assert json.loads(p.stdout) == {"decision": "block", "reason": shop_reply(TRICKY)}
     assert read_relay(record(root))[0].said == TRICKY
     assert sys.executable in line
+
+
+@pytest.mark.parametrize("source", ["env", "cwd"])
+def test_a_hook_with_no_root_finds_the_project(setup, monkeypatch, source):
+    root, _, _ = setup
+    kit.set_mode(root, True)
+    event = prompt(TRICKY)
+    monkeypatch.delenv("CLAUDE_PROJECT_DIR", raising=False)
+    if source == "env":
+        monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(root))
+    else:
+        event["cwd"] = str(root)
+    out = io.StringIO()
+    assert kit.run_hook(None, "claude-code", io.StringIO(json.dumps(event)), out) == 0
+    assert json.loads(out.getvalue())["reason"] == shop_reply(TRICKY)
+    assert json.loads(record(root).read_text())["harness"] == "claude-code"
+
+
+def test_a_codex_hook_ignores_the_project_variable_of_claude_code(setup, monkeypatch, tmp_path):
+    root, _, _ = setup
+    kit.set_mode(root, True)
+    other = tmp_path / "claude-project"
+    other.mkdir()
+    monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(other))
+    event = {**prompt(TRICKY), "cwd": str(root)}
+    out = io.StringIO()
+    assert kit.run_hook(None, "codex", io.StringIO(json.dumps(event)), out) == 0
+    assert json.loads(out.getvalue())["reason"] == shop_reply(TRICKY)
+
+
+@pytest.mark.parametrize(
+    "args",
+    [[], ["--harness"], ["--harness", "other"], ["--harness", "codex", "--x", "1"]],
+)
+def test_wrong_hook_arguments_exit_2(args, capsys):
+    from nookku.__main__ import main
+
+    assert main(["hook", *args]) == 2
+    assert "usage: nookku hook" in capsys.readouterr().err
 
 
 def test_transcript_prints_the_latest_session(setup):

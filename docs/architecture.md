@@ -73,7 +73,7 @@ The relay sends each message as an HTTP POST with a contract JSON body ([SPEC.md
 A relay is the harness extension that carries each message and each reply. There are 2 relays ([SPEC.md section 5](../SPEC.md#5-relays)):
 
 - **The Claude Code plugin.** It uses function hooks, which are early access. It shows each reply as a row in the chat that the model does not receive. Read [how-to/claude-code-plugin.md](how-to/claude-code-plugin.md).
-- **The hook kit.** It uses the classic hooks that Codex and Claude Code share. It cannot show text in the chat, so `nookku view` shows each reply in a second terminal. Read [how-to/claude-code-hook-kit.md](how-to/claude-code-hook-kit.md) or [how-to/codex.md](how-to/codex.md).
+- **The hook kit.** It uses the classic hooks that Codex and Claude Code share. It shows each reply as the reason of a blocked prompt, and `nookku view` shows each reply in a second terminal. `codex exec` does not show the reason. Read [how-to/claude-code-hook-kit.md](how-to/claude-code-hook-kit.md) or [how-to/codex.md](how-to/codex.md).
 
 In [relay mode](reference/glossary.md#relay-mode), the relay takes each prompt before the model sees it. It sends the prompt to the tap and blocks it from the model. The relay also denies a model tool call that names the address of the tap or the agent. It also denies a call that changes the files of a test. The deny is best effort. [limits.md](limits.md) tells you what it does not stop.
 
@@ -249,9 +249,9 @@ Each wait on the relay path ends before the wait around it, so that the relay ca
 |---|---|---|---|
 | 1 | The tap waits for the agent, in HTTP mode and in stdio mode. | [240](../src/nookku/stdio.py#L24) | `stdio.TIMEOUT` |
 | 2 | The tap answers the relay, at most [5 seconds](../tests/test_timeouts.py#L22) after the agent timeout. | [245](../tests/test_timeouts.py#L22) | `stdio.TIMEOUT + ANSWER` |
-| 3 | The hook kit waits for the tap of a test. | [270](../src/nookku/bridge.py#L38) | `bridge.TIMEOUT` |
-| 3 | The hook kit waits for a tap in HTTP mode, with no test. | [280](../src/nookku/kit.py#L34) | `kit.TIMEOUT` |
-| 4 | The harness stops the `UserPromptSubmit` hook of the hook kit. | [300](../src/nookku/kit.py#L37) | `kit.HOOK_DEADLINE` |
+| 3 | The hook kit waits for the tap of a test. | [270](../src/nookku/state.py#L21) | `state.TIMEOUT` |
+| 3 | The hook kit waits for a tap in HTTP mode, with no test. | [280](../src/nookku/kit.py#L32) | `kit.TIMEOUT` |
+| 4 | The harness stops the `UserPromptSubmit` hook of the hook kit. | [300](../src/nookku/kit.py#L35) | `kit.HOOK_DEADLINE` |
 
 Each number links to its constant. The [5 seconds](../tests/test_timeouts.py#L22) of order 2 is the `ANSWER` limit of the test. The plugin sets no timeout of its own. It waits for the answer of the tap. [tests/test_docs.py](../tests/test_docs.py) checks that this table matches the constants.
 

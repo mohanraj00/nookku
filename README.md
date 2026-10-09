@@ -74,11 +74,11 @@ In the harness, in the project folder of your app, type `!nookku setup`. Then ty
 
 ### Choose a relay
 
-The plugin shows each reply in the chat of Claude Code. The hook kit works in Claude Code and in Codex, and shows each reply in `nookku view`. [docs/how-to/choose-a-relay.md](docs/how-to/choose-a-relay.md) compares the [2 relays](SPEC.md#5-relays). Then read the guide of your relay: [Claude Code plugin](docs/how-to/claude-code-plugin.md), [Claude Code hook kit](docs/how-to/claude-code-hook-kit.md) or [Codex](docs/how-to/codex.md).
+The plugin shows each reply in the chat of Claude Code. The hook kit works in Claude Code and in Codex. It shows each reply as the reason of a blocked prompt, and in `nookku view`. [docs/how-to/choose-a-relay.md](docs/how-to/choose-a-relay.md) compares the [2 relays](SPEC.md#5-relays). Then read the guide of your relay: [Claude Code plugin](docs/how-to/claude-code-plugin.md), [Claude Code hook kit](docs/how-to/claude-code-hook-kit.md) or [Codex](docs/how-to/codex.md).
 
 ## Results
 
-| Proof | Claude Code 2.1.290, plugin | Claude Code 2.1.290, hook kit | Codex 0.160.0, hook kit |
+| Proof | Claude Code 2.1.290, plugin | Claude Code 2.1.295, hook kit | Codex 0.160.0, hook kit |
 |---|---|---|---|
 | Messages reach the agent byte for byte | 10/10 | 10/10 | 10/10 |
 | Replies reach the tester byte for byte | 10/10 | 10/10 | 10/10 |
@@ -87,7 +87,7 @@ The plugin shows each reply in the chat of Claude Code. The hook kit works in Cl
 | Audit finds planted faults | 5/5 | 5/5 | 5/5 |
 | After the test, the model has no memory of the conversation, and reads it from the transcript | yes | yes | yes |
 
-Data: [plugin](proofs/claude-code/results.json), [hook kit in Claude Code](proofs/hooks-claude-code/results.json), [hook kit in Codex](proofs/hooks-codex/results.json), [evaluation](docs/results.md#p5-the-model-judges-the-record-not-its-memory). Method: [docs/results.md](docs/results.md#1-proofs).
+The last row ran on Claude Code 2.1.290 in both Claude Code columns. Data: [plugin](proofs/claude-code/results.json), [hook kit in Claude Code](proofs/hooks-claude-code/results.json), [hook kit in Codex](proofs/hooks-codex/results.json), [evaluation](docs/results.md#p5-the-model-judges-the-record-not-its-memory). Method: [docs/results.md](docs/results.md#1-proofs).
 
 Under pressure, the mechanism had **0 breaks in 1,000 turns**. The test had 40 scripted conversations in each harness, 5 or 20 turns long. They had refusals, HTTP 500 errors, questions back to the tester and ambiguous messages. Each turn was a new harness call. I registered the design before the first run. Method, data and the one deviation: [docs/results.md](docs/results.md#2-benchmark-under-pressure).
 
