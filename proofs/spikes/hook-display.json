@@ -4730,7 +4730,8 @@
         "later_cases": 3,
         "later_blocked_prompts_in_requests": 0,
         "reply_markers_in_requests": [],
-        "conclusion": "The blocked first prompt reached chat title generation in each tested fresh chat. No later blocked prompt or hook reply marker appeared in these recorded model requests. This does not prove that only first prompts can reach a side request."
+        "conclusion": "The blocked first prompt reached chat title generation in each tested fresh chat. No later blocked prompt or hook reply marker appeared in the classified JSON model requests. This does not prove that only first prompts can reach a side request.",
+        "absence_claim_scope": "Only the classified JSON model requests. The unclassified_requests count covers other HTTP requests with no model field. No full bodies were retained for those requests, so this summary makes no absence claim about them."
       },
       "pass_turn_check": {
         "method": "Read each linked desktop chat with read_thread. Check the pass user marker, completed status, error null, and final answer ok. Save facts only.",
