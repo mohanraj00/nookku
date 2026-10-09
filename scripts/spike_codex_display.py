@@ -441,7 +441,7 @@ class AppServer:
 
 
 def toml_value(value: Any) -> str:
-    """Keep effective server settings while changing only the enabled flags."""
+    """Encode literal configuration keys for invocation overrides."""
     if isinstance(value, dict):
         return (
             "{"
@@ -478,11 +478,14 @@ def isolate_invocation() -> None:
         server.process.stdin.flush()
         config = effective_config(server)
         servers = config.get("mcp_servers", {})
-        if servers:
-            disabled_servers = {
-                name: {**settings, "enabled": False} for name, settings in servers.items()
-            }
-            INVOCATION_OVERRIDES.extend(["-c", "mcp_servers=" + toml_value(disabled_servers)])
+        if any(not re.fullmatch(r"[A-Za-z0-9_-]+", name) for name in servers):
+            raise SystemExit(
+                "An MCP server name cannot use a flag-only override in this CLI. "
+                "Use a probe configuration with simple server names; no probe started."
+            )
+        INVOCATION_OVERRIDES.extend(
+            arg for name in servers for arg in ("-c", f"mcp_servers.{name}.enabled=false")
+        )
         plugins = config.get("plugins", {})
         states = {
             name: {**settings, "enabled": name == SELECTOR} for name, settings in plugins.items()

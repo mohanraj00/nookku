@@ -64,8 +64,13 @@ Before each CLI case, it checks every generated file in the source and installed
 the manifest, MCP configuration, hook definition, hook and MCP executables, skill and HTML.
 It records their digests with each run. It checks the installed hook command, source and definition hash
 against the inspected hook definitions. It reads the effective configuration for the toy
-project and disables all configured MCP servers for the CLI invocation. This includes a
-configured server named `toy_display`; only the verified plugin supplies the toy server.
+project and disables all configured MCP servers for the CLI invocation. The override contains
+only server names and enabled flags, so server environment values, arguments and headers
+stay out of the process arguments. The tested CLI does not accept a dotted server name in
+this flag path. The method stops if a server name has a dot or other unsupported character.
+Use letters, digits, underscores or hyphens in server names for this local probe.
+A configured server named `toy_display` is also disabled. Only the verified plugin supplies
+the toy server.
 It disables other effective plugins. Saved configuration stays unchanged.
 It then refuses any configured MCP server or non-toy plugin that remains enabled before a case.
 It first disables unrelated

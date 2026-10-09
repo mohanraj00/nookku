@@ -11,7 +11,7 @@
       "method": "Installed Info.plist and bundled binary --version; not runtime attribution."
     }
   },
-  "checked_at": "2026-10-09T16:46:11.776709+00:00",
+  "checked_at": "2026-10-09T17:22:52.376162+00:00",
   "sources": [
     "https://developers.openai.com/plugins/build/plugins",
     "https://learn.chatgpt.com/docs/hooks",
@@ -1594,6 +1594,41 @@
           "version": "codex-cli 0.162.0"
         }
       ]
+    },
+    {
+      "reason": "Superseded by the flags-only MCP invocation check.",
+      "runs": [
+        {
+          "surface": "codex_exec",
+          "case": "hooks",
+          "version": "codex-cli 0.162.0"
+        },
+        {
+          "surface": "codex_exec",
+          "case": "mcp",
+          "version": "codex-cli 0.162.0"
+        },
+        {
+          "surface": "codex_exec",
+          "case": "skill",
+          "version": "codex-cli 0.162.0"
+        },
+        {
+          "surface": "interactive_cli",
+          "case": "hooks",
+          "version": "codex-cli 0.162.0"
+        },
+        {
+          "surface": "interactive_cli",
+          "case": "mcp",
+          "version": "codex-cli 0.162.0"
+        },
+        {
+          "surface": "interactive_cli",
+          "case": "skill",
+          "version": "codex-cli 0.162.0"
+        }
+      ]
     }
   ],
   "manifest_schema": {
@@ -1631,7 +1666,8 @@
     "The human reported several Refresh clicks, while the bounded interval recorded one server call. No claim about every click, exact callback origin, later model-context delivery, or byte equality is made.",
     "The final CLI matrix checks all generated source and installed plugin files, effective configured MCP server flags, plugin flags and the full hook list before each case. Superseded CLI runs are excluded. Desktop executable verification followed the human check; no earlier desktop byte snapshot exists.",
     "The fixture check does not lock files. Concurrent changes after the check and before Codex reads plugin inputs can escape the check.",
-    "The recorded desktop checks did not preflight the MCP executable/configuration or unrelated MCP servers before launch. The current method adds a preflight without CLI overrides, but it was not used for those earlier observations. Those observations do not establish an isolated desktop runtime."
+    "The recorded desktop checks did not preflight the MCP executable/configuration or unrelated MCP servers before launch. The current method adds a preflight without CLI overrides, but it was not used for those earlier observations. Those observations do not establish an isolated desktop runtime.",
+    "The final CLI method passes only per-server enabled flags in MCP overrides. Server settings are not copied into process arguments. The tested CLI cannot use a dotted server name in this flag path, so the method stops for unsupported names before starting a probe."
   ],
   "answers": {
     "in_process_code": {

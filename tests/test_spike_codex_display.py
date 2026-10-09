@@ -541,10 +541,12 @@ def test_isolation_disables_effective_mcp_servers_without_saving_config(monkeypa
                 return {
                     "config": {
                         "mcp_servers": {
-                            "other.toy": {
+                            "other_toy": {
                                 "command": "toy-server",
                                 "enabled": True,
-                                "env": {"TOY": "local"},
+                                "env": {"TOY_TOKEN": "toy-secret-value"},
+                                "args": ["--token", "toy-argument-value"],
+                                "http_headers": {"Authorization": "toy-header-value"},
                             },
                             "toy_display": {"command": "other-server"},
                         }
@@ -561,14 +563,13 @@ def test_isolation_disables_effective_mcp_servers_without_saving_config(monkeypa
     monkeypatch.setattr(spike, "AppServer", FakeServer)
     monkeypatch.setattr(spike, "INVOCATION_OVERRIDES", args)
     spike.isolate_invocation()
-    table = next((arg for arg in args if arg.startswith("mcp_servers=")), None)
-    assert table is not None, "Disable servers from effective user and project config"
-    tomllib = pytest.importorskip("tomllib")
-    parsed = tomllib.loads(table)["mcp_servers"]
-    assert parsed["other.toy"]["enabled"] is False
-    assert parsed["other.toy"]["command"] == "toy-server"
-    assert parsed["other.toy"]["env"] == {"TOY": "local"}
-    assert parsed["toy_display"]["enabled"] is False
+    flags = [arg for arg in args if arg.startswith("mcp_servers.")]
+    assert flags == ["mcp_servers.other_toy.enabled=false", "mcp_servers.toy_display.enabled=false"]
+    assert "toy-secret-value" not in " ".join(args)
+    assert "toy-argument-value" not in " ".join(args)
+    assert "toy-header-value" not in " ".join(args)
+    assert "toy-server" not in " ".join(args)
+    assert "other-server" not in " ".join(args)
 
 
 def test_enabled_configured_mcp_server_stops_before_endpoint(monkeypatch, tmp_path):
@@ -613,3 +614,36 @@ def test_desktop_preflight_rejects_changed_mcp_inputs(monkeypatch, tmp_path, rel
     with pytest.raises(SystemExit, match="fixture"):
         spike.desktop_start()
     assert not (tmp_path / "desktop-baseline.json").exists()
+
+
+@pytest.mark.parametrize("name", ["other.toy", 'other"toy', "other toy"])
+def test_unsupported_mcp_server_name_stops_without_copying_settings(monkeypatch, name):
+    class FakeServer:
+        def __init__(self):
+            self.process = type("Process", (), {"stdin": io.BytesIO()})()
+
+        def request(self, method, params):
+            if method == "config/read":
+                return {
+                    "config": {
+                        "mcp_servers": {
+                            name: {
+                                "command": "toy-server",
+                                "env": {"TOY_TOKEN": "toy-secret-value"},
+                            }
+                        }
+                    }
+                }
+            if method == "hooks/list":
+                return {"data": [{"hooks": []}]}
+            return {}
+
+        def close(self):
+            pass
+
+    args = []
+    monkeypatch.setattr(spike, "AppServer", FakeServer)
+    monkeypatch.setattr(spike, "INVOCATION_OVERRIDES", args)
+    with pytest.raises(SystemExit, match="flag-only override"):
+        spike.isolate_invocation()
+    assert args == []
