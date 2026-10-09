@@ -152,3 +152,38 @@ def test_mcp_fixture_declares_entrypoints_and_serves_the_ui_resource(tmp_path):
     resource = responses[2]["contents"][0]
     assert resource["mimeType"] == "text/html;profile=mcp-app"
     assert "DISPLAY_UI_205" in resource["text"]
+
+
+def test_refresh_import_requires_a_baseline(monkeypatch, tmp_path):
+    monkeypatch.setattr(spike, "WORK", tmp_path)
+    with pytest.raises(SystemExit, match="desktop-refresh-start"):
+        spike.desktop_refresh(False)
+
+
+def test_refresh_records_only_calls_and_hooks_after_the_baseline(monkeypatch, tmp_path):
+    project = tmp_path / "project"
+    project.mkdir()
+    proof = tmp_path / "proof.json"
+    monkeypatch.setattr(spike, "WORK", tmp_path)
+    monkeypatch.setattr(spike, "PROJECT", project)
+    monkeypatch.setattr(spike, "PROOF", proof)
+    monkeypatch.setattr(spike, "versions", lambda: {"cli": "toy-version"})
+    old_call = {"method": "tools/call", "tool": "show_order"}
+    old_hook = {"event": "Stop"}
+    (project / "mcp.jsonl").write_text(json.dumps(old_call) + "\n")
+    (project / "hooks.jsonl").write_text(json.dumps(old_hook) + "\n")
+    spike.desktop_refresh(True)
+    new_events = [
+        {"method": "initialize"},
+        {"method": "resources/read", "uri": "ui://toy-shop/order.html"},
+        {"method": "tools/call", "tool": "other"},
+        {"method": "tools/call", "tool": "show_order"},
+    ]
+    with (project / "mcp.jsonl").open("a") as stream:
+        stream.write("\n".join(map(json.dumps, new_events)) + "\n")
+    spike.desktop_refresh(False)
+    result = json.loads(proof.read_text())["desktop_refresh"]
+    assert result["mcp_events"] == new_events
+    assert result["show_order_calls"] == 1
+    assert result["hook_events"] == []
+    assert result["versions_before"] == result["versions_after"] == {"cli": "toy-version"}

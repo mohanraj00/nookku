@@ -12,18 +12,19 @@ for CLI checks. A person must trust the hooks and do the desktop checks.
 |---|---|---|---|
 | Code inside the Codex process | No supported function handler in the inspected schema. | Same schema. | The documented plugin hook API uses the same handler types. |
 | Persistent plugin status line or footer | No registration field. The CLI status line selects built-in items. | No terminal display. | No registration field in the inspected plugin metadata. |
-| Hook `statusMessage` | The toy PostToolUse and Stop status markers showed. | No status marker in captured output. | Human check pending. |
-| Hook `systemMessage` without a block | The toy warnings showed. | No warning marker in captured output. | Human check pending. |
+| Hook `statusMessage` | The toy PostToolUse and Stop status markers showed. | No status marker in captured output. | Status was not identified. |
+| Hook `systemMessage` without a block | The toy warnings showed. | No warning marker in captured output. | No warning was seen. The hook events were recorded. |
 | Hook `additionalContext` | Added to the model request as developer text. | Added to the model request as developer text. | The docs define it as model context. No request capture in this desktop method. |
-| A skill as a command | The skill body went to the model and started a turn. | The skill body went to the model and started a turn. | Human check pending. The docs describe skills as model instructions. |
-| MCP App or resource | Text output. No UI resource read. | The JSON event includes the MCP result and metadata. No UI resource read. | The toy card declares sidebar and conversation panel entrypoints. Human check pending. |
+| A skill as a command | The skill body went to the model and started a turn. | The skill body went to the model and started a turn. | The skill started a model turn and ran the toy command. |
+| MCP App or resource | Text output. No UI resource read. | The JSON event includes the MCP result and metadata. No UI resource read. | The toy card rendered in a pane on the left. The menu and opening path were not identified. |
 
-The [CLI runs](../proofs/spikes/codex-display.json) support the measured cells.
+The [CLI runs and desktop observations](../proofs/spikes/codex-display.json) support the measured cells.
 The [version-tagged manifest](https://github.com/openai/codex/blob/rust-v0.162.0/codex-rs/plugin/src/manifest.rs)
 and [hook handler schema](https://github.com/openai/codex/blob/rust-v0.162.0/codex-rs/config/src/hook_config.rs)
 support the schema cells. The [status-line item enum](https://github.com/openai/codex/blob/rust-v0.162.0/codex-rs/tui/src/bottom_pane/status_line_setup.rs)
 defines the built-in CLI items. The result also records the schema emitted by the installed desktop binary.
-That binary's version does not identify the running desktop chat.
+The person confirmed the running app version in About. It matches the installed app version
+in the [result](../proofs/spikes/codex-display.json).
 
 The [hook docs](https://learn.chatgpt.com/docs/hooks) define warning and context outputs.
 The [skill docs](https://learn.chatgpt.com/docs/build-skills) describe invocation and model instructions.
@@ -33,6 +34,14 @@ The [extension docs](https://developers.openai.com/plugins/build/extensions) des
 In the MCP checks, the structured result reached the mock model. The `_meta` marker did not.
 The CLI displayed the text content. The exec event included the content and metadata.
 A marker in an exec JSON event does not show that a card rendered.
+
+The desktop fetched the toy UI resource. The person saw `DISPLAY_UI_205` in the pane.
+During a separate Refresh check, the server recorded a `show_order` call, with no hook event
+or new chat turn. This supports a UI tool path that does not start a model turn.
+The person clicked several times. The check does not establish a call for each click or the
+precise source of the recorded call. The button returns the same "Order ready." text, so a
+successful call causes no visible change. The [desktop and desktop_refresh records](../proofs/spikes/codex-display.json)
+contain the observations and limits. The [method](../scripts/spike_codex_display.py) contains the fixed response.
 
 Warning and status markers were absent from the captured model requests. This check covers the
 requests in each toy turn. Stop runs after the final request. I did not test its warning in a later turn.
@@ -54,7 +63,11 @@ The result keeps marker locations and event names. It keeps no request body, mod
 Run `desktop-start`, then follow its steps in a new local desktop chat. Do not run the CLI matrix
 in that toy project during the desktop check. A person records the observations and app version.
 Run `desktop-finish FILE` to import the observation JSON. The importer rejects extra fields such as a model answer.
-Update the desktop answers and recommendation from the imported observations before closing the issue.
+For a separate button check, run `desktop-refresh-start`. Ask the person to click Refresh order
+without a chat prompt. Run `desktop-refresh-finish` to record the server and hook events since
+the baseline. Check the chat before and after for a new model turn. Record deviations from
+the requested click count. A server event alone does not identify its caller.
+Update the desktop answers and recommendation from the observations before closing the issue.
 
 ## Recommendation for the ADR
 
@@ -63,7 +76,11 @@ surfaces that show them. Keep control-word handling in the Python core. A skill 
 command path that bypasses the model. Do not use `additionalContext` to carry a tester reply that
 must stay out of the model context.
 
-Do not port the function display hooks to Codex. Evaluate an MCP App as an optional desktop display
-adapter after the human check. Its UI can call a tool directly, but tool results can also reach the model.
-The CLI can show text and warnings. An external consumer must display exec results.
-The display does not enforce hook trust or relay isolation.
+Do not port the function display hooks to Codex. Add an optional MCP App adapter for the desktop
+display, with its methods in the Python core. The toy pane rendered, and the button check recorded
+a server call without a new model turn. Before it carries a live tester reply, prove byte equality
+and check whether UI call results enter later model turns. This spike does not prove either property.
+
+Use CLI warnings only as optional notices. The person saw no desktop warnings and did not identify
+status text. An external consumer must display exec results. The display does not enforce hook
+trust or relay isolation.

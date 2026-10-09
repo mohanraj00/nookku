@@ -1383,8 +1383,9 @@
     "The schema lists supported events; runtime checks cover only the fixture events.",
     "Warning and status marker absence applies to the captured requests. Stop runs after the final request; a later turn was not tested.",
     "CLI output marker presence is not evidence of a graphical card or pane. No CLI resources/read call was recorded.",
-    "Desktop checks require a person. No desktop model-request capture is configured.",
-    "Installed bundle versions do not identify a running desktop chat; its version needs a human report."
+    "A person performed desktop checks and reported the About version. No desktop model-request capture was configured.",
+    "Desktop status text and menu entry discovery were not identified. No warning was seen although hook events were recorded.",
+    "The human reported several Refresh clicks, while the bounded interval recorded one server call. No claim about every click, exact callback origin, later model-context delivery, or byte equality is made."
   ],
   "answers": {
     "in_process_code": {
@@ -1426,8 +1427,8 @@
         "basis": "runs[0], runs[1]"
       },
       "desktop": {
-        "answer": "MCP conversation panels and sidebar apps are documented. The toy plugin declares global and thread entrypoints. Human check pending. No plugin status-line or footer registration field is declared.",
-        "basis": "extensions documentation; desktop check pending"
+        "answer": "The maintainer saw the toy MCP App in a pane on the left. The menu/opening path was not identified. Hook status text was not identified. No plugin footer/status-line registration field is declared in the inspected schema.",
+        "basis": "desktop human report, MCP resources/read events, installed_bundle_schema"
       }
     },
     "commands_without_model": {
@@ -1440,8 +1441,8 @@
         "basis": "runs[2]"
       },
       "desktop": {
-        "answer": "Skills are documented as model instructions and may appear in the slash list. MCP UI entrypoints and tools/call from an app provide a possible direct action. Human skill/menu/button check pending.",
-        "basis": "build-skills, slash-commands and extensions documentation"
+        "answer": "The skill started a model turn and ran the toy shell command. The MCP App recheck recorded a show_order server call with no new chat turn or hook event. This supports a UI-side tool path without starting the model. Native slash-command registration is not declared; menu entries were not identified.",
+        "basis": "desktop.chat_observation, desktop_refresh, manifest_schema"
       }
     },
     "nonblocking_notice_and_model": {
@@ -1454,8 +1455,8 @@
         "basis": "runs[0]"
       },
       "desktop": {
-        "answer": "Docs say systemMessage surfaces a warning and additionalContext is model-visible. Human UI check pending; no desktop model-request capture.",
-        "basis": "hooks documentation"
+        "answer": "The hooks ran, but the maintainer saw no warning notices. Status display was not identified. The docs define additionalContext as model context. Desktop model-request delivery was not captured; CLI marker results do not prove desktop isolation.",
+        "basis": "desktop.hook_events, desktop.human_observation, hooks docs"
       }
     },
     "mcp_ui_or_resource": {
@@ -1468,17 +1469,19 @@
         "basis": "runs[1]"
       },
       "desktop": {
-        "answer": "An MCP App with a UI resource, sidebar entry and conversation panel is documented. This fixture exposes an HTML resource and direct Refresh order action. Human rendering check pending.",
-        "basis": "chatgpt-ui and extensions documentation; tests/test_spike_codex_display.py"
+        "answer": "The maintainer saw DISPLAY_UI_205 in a pane. The host advertised io.modelcontextprotocol/ui and fetched the HTML resource. The Refresh recheck recorded a server call without a new model turn. The fixed Order ready result explains the lack of a visible status change. Sidebar/menu entry discovery was not established.",
+        "basis": "desktop, desktop_refresh, fixture SERVER and HTML"
       }
     }
   },
   "adr_recommendation": {
-    "status": "pending_desktop",
-    "text": "Keep the command-hook adapter for Codex. Use systemMessage for optional short notices where the surface shows them. Do not use additionalContext or a skill to carry a tester reply that must stay out of model context. Do not port the Claude Code function display hooks to Codex. Treat MCP Apps as an optional desktop display adapter, conditional on the human rendering check. The CLI can use text and warnings; exec needs its external consumer to display results. Keep control-word handling in the Python core. A display is not a trust or relay enforcement boundary.",
+    "status": "complete_with_limits",
+    "text": "Keep the Codex command-hook adapter for relay and guard events. Do not port Claude Code function display hooks or use a skill as a model-free control command. Add an optional Codex desktop MCP App display adapter: the toy resource rendered in a pane and a UI-side tool call did not start a model turn. Keep its methods in the Python core. Use systemMessage only for optional CLI notices; the tested desktop showed no warnings and status was not identified. Keep tester replies out of additionalContext and model-visible tool content. MCP App data delivery to later model turns and byte equality need their own proof before it carries a live relay reply. Exec needs an external display consumer. Display is not a hook-trust or relay enforcement boundary.",
     "evidence": [
       "manifest_schema",
       "runs",
+      "desktop",
+      "desktop_refresh",
       "answers",
       "limits"
     ]
@@ -1546,6 +1549,830 @@
         ],
         "enum": null
       }
+    }
+  },
+  "desktop_refresh": {
+    "method": "A person clicks between desktop-refresh-start and desktop-refresh-finish.",
+    "mcp_events": [
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation",
+          "experimental",
+          "extensions"
+        ],
+        "extension_keys": [
+          "io.modelcontextprotocol/ui",
+          "openai/elicitation",
+          "openai/form"
+        ]
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "resources/read",
+        "uri": "ui://toy-shop/order.html"
+      },
+      {
+        "method": "tools/call",
+        "tool": "show_order"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      }
+    ],
+    "show_order_calls": 1,
+    "hook_events": [],
+    "versions_before": {
+      "cli": "codex-cli 0.162.0",
+      "desktop": {
+        "installed_version": "26.1007.21159",
+        "installed_build": "20052",
+        "bundled_cli": "codex-cli 0.162.0-alpha.17.2",
+        "runtime_version": null,
+        "method": "Installed Info.plist and bundled binary --version; not runtime attribution."
+      }
+    },
+    "versions_after": {
+      "cli": "codex-cli 0.162.0",
+      "desktop": {
+        "installed_version": "26.1007.21159",
+        "installed_build": "20052",
+        "bundled_cli": "codex-cli 0.162.0-alpha.17.2",
+        "runtime_version": null,
+        "method": "Installed Info.plist and bundled binary --version; not runtime attribution."
+      }
+    },
+    "limit": "No CLI measurement ran during this interval. No desktop model-request capture. One server call was recorded while the person reported several clicks; this does not prove one call for each click or identify its precise UI origin.",
+    "human_report": "The maintainer reported a few clicks, not an exact click count.",
+    "new_model_turn": false,
+    "model_turn_evidence": "desktop.chat_observation"
+  },
+  "desktop": {
+    "method": "Person operates local desktop chat; imports report and toy event names only.",
+    "versions_before": {
+      "cli": "codex-cli 0.162.0",
+      "desktop": {
+        "installed_version": "26.1007.21159",
+        "installed_build": "20052",
+        "bundled_cli": "codex-cli 0.162.0-alpha.17.2",
+        "runtime_version": null,
+        "method": "Installed Info.plist and bundled binary --version; not runtime attribution."
+      }
+    },
+    "versions_after": {
+      "cli": "codex-cli 0.162.0",
+      "desktop": {
+        "installed_version": "26.1007.21159",
+        "installed_build": "20052",
+        "bundled_cli": "codex-cli 0.162.0-alpha.17.2",
+        "runtime_version": null,
+        "method": "Installed Info.plist and bundled binary --version; not runtime attribution."
+      }
+    },
+    "human_observation": {
+      "runtime_version": "26.1007.21159",
+      "status_shown": null,
+      "warnings_shown": false,
+      "skill_started_turn": true,
+      "ui_rendered": true,
+      "refresh_started_turn": false,
+      "sidebar_entry": null,
+      "panel_entry": null,
+      "notes": "The maintainer saw DISPLAY_UI_205 in a pane on the left. The opening path and menu entries were not identified. Status was not identified; no warnings were seen. The maintainer clicked Refresh a few times. The chat had no new turn in the recheck."
+    },
+    "hook_events": [
+      {
+        "event": "SessionStart"
+      },
+      {
+        "event": "UserPromptSubmit"
+      },
+      {
+        "event": "PreToolUse"
+      },
+      {
+        "event": "PostToolUse"
+      },
+      {
+        "event": "PreToolUse"
+      },
+      {
+        "event": "PostToolUse"
+      },
+      {
+        "event": "PreToolUse"
+      },
+      {
+        "event": "PostToolUse"
+      },
+      {
+        "event": "PreToolUse"
+      },
+      {
+        "event": "PostToolUse"
+      },
+      {
+        "event": "PreToolUse"
+      },
+      {
+        "event": "PostToolUse"
+      },
+      {
+        "event": "PreToolUse"
+      },
+      {
+        "event": "PostToolUse"
+      },
+      {
+        "event": "PreToolUse"
+      },
+      {
+        "event": "PostToolUse"
+      },
+      {
+        "event": "Stop"
+      },
+      {
+        "event": "UserPromptSubmit"
+      },
+      {
+        "event": "PreToolUse"
+      },
+      {
+        "event": "PostToolUse"
+      },
+      {
+        "event": "Stop"
+      },
+      {
+        "event": "UserPromptSubmit"
+      },
+      {
+        "event": "PreToolUse"
+      },
+      {
+        "event": "PostToolUse"
+      },
+      {
+        "event": "Stop"
+      }
+    ],
+    "mcp_events": [
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation",
+          "experimental",
+          "extensions"
+        ],
+        "extension_keys": [
+          "io.modelcontextprotocol/ui",
+          "openai/elicitation",
+          "openai/form"
+        ]
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation",
+          "experimental",
+          "extensions"
+        ],
+        "extension_keys": [
+          "io.modelcontextprotocol/ui",
+          "openai/elicitation",
+          "openai/form"
+        ]
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "resources/read",
+        "uri": "ui://toy-shop/order.html"
+      },
+      {
+        "method": "tools/call",
+        "tool": "show_order"
+      },
+      {
+        "method": "tools/call",
+        "tool": "show_order"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "tools/call",
+        "tool": "show_order"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "resources/read",
+        "uri": "ui://toy-shop/order.html"
+      },
+      {
+        "method": "tools/call",
+        "tool": "show_order"
+      },
+      {
+        "method": "resources/read",
+        "uri": "ui://toy-shop/order.html"
+      },
+      {
+        "method": "resources/read",
+        "uri": "ui://toy-shop/order.html"
+      },
+      {
+        "method": "resources/read",
+        "uri": "ui://toy-shop/order.html"
+      },
+      {
+        "method": "resources/read",
+        "uri": "ui://toy-shop/order.html"
+      },
+      {
+        "method": "resources/read",
+        "uri": "ui://toy-shop/order.html"
+      },
+      {
+        "method": "tools/call",
+        "tool": "show_order"
+      },
+      {
+        "method": "resources/read",
+        "uri": "ui://toy-shop/order.html"
+      },
+      {
+        "method": "resources/read",
+        "uri": "ui://toy-shop/order.html"
+      },
+      {
+        "method": "tools/call",
+        "tool": "show_order"
+      },
+      {
+        "method": "resources/read",
+        "uri": "ui://toy-shop/order.html"
+      },
+      {
+        "method": "resources/read",
+        "uri": "ui://toy-shop/order.html"
+      },
+      {
+        "method": "resources/read",
+        "uri": "ui://toy-shop/order.html"
+      },
+      {
+        "method": "tools/call",
+        "tool": "show_order"
+      },
+      {
+        "method": "tools/call",
+        "tool": "show_order"
+      },
+      {
+        "method": "tools/call",
+        "tool": "show_order"
+      },
+      {
+        "method": "tools/call",
+        "tool": "show_order"
+      },
+      {
+        "method": "tools/call",
+        "tool": "show_order"
+      },
+      {
+        "method": "tools/call",
+        "tool": "show_order"
+      },
+      {
+        "method": "tools/call",
+        "tool": "show_order"
+      },
+      {
+        "method": "tools/call",
+        "tool": "show_order"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation",
+          "experimental",
+          "extensions"
+        ],
+        "extension_keys": [
+          "io.modelcontextprotocol/ui",
+          "openai/elicitation",
+          "openai/form"
+        ]
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "resources/read",
+        "uri": "ui://toy-shop/order.html"
+      },
+      {
+        "method": "tools/call",
+        "tool": "show_order"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "tools/call",
+        "tool": "show_order"
+      },
+      {
+        "method": "tools/call",
+        "tool": "show_order"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation",
+          "experimental",
+          "extensions"
+        ],
+        "extension_keys": [
+          "io.modelcontextprotocol/ui",
+          "openai/elicitation",
+          "openai/form"
+        ]
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      },
+      {
+        "method": "resources/read",
+        "uri": "ui://toy-shop/order.html"
+      },
+      {
+        "method": "tools/call",
+        "tool": "show_order"
+      },
+      {
+        "method": "initialize",
+        "capability_keys": [
+          "elicitation"
+        ],
+        "extension_keys": []
+      },
+      {
+        "method": "notifications/initialized"
+      },
+      {
+        "method": "tools/list"
+      }
+    ],
+    "model_request_capture": false,
+    "chat_observation": {
+      "method": "Read the completed chat before and after the Refresh interval with read_thread, without outputs. Keep turn IDs and toy execution states only.",
+      "thread_url": "codex://threads/01a120ec-12d9-7e63-bfa4-441ce6dd9bfe",
+      "thread_title": "Run toy support check",
+      "skill_turn_id": "01a120ef-e469-7833-917f-33fe4f63559a",
+      "skill_started_model_turn": true,
+      "skill_shell_command_completed": true,
+      "order_turn_id": "01a120f0-b6b6-72d3-bd35-97ca7ee5c19b",
+      "order_tool_completed": true,
+      "last_turn_before_refresh": "01a120f0-b6b6-72d3-bd35-97ca7ee5c19b",
+      "last_turn_after_refresh": "01a120f0-b6b6-72d3-bd35-97ca7ee5c19b",
+      "new_turn_after_refresh": false,
+      "model_answers_retained": false
+    },
+    "version_attribution": {
+      "runtime_version": "26.1007.21159",
+      "method": "Maintainer reported the About version.",
+      "matches_installed_bundle": true
     }
   }
 }

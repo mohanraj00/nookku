@@ -4,6 +4,7 @@ prepare creates a toy plugin in the primary checkout's ignored .proof folder.
 inspect reads the tested CLI schema, plugin metadata and hook trust, with no model.
 measure refuses untrusted hooks, then uses a loopback mock model in exec and the TUI.
 desktop-start prints the human checks. desktop-finish imports observations from JSON.
+desktop-refresh-start/finish record the event delta for a separate human button check.
 No model request, model answer, terminal transcript or harness instruction is saved.
 Use Python with tomllib for this local method. It does not add a package dependency.
 The script records only marker locations, event names and UI observations.
@@ -797,6 +798,41 @@ def desktop_start() -> None:
     )
 
 
+def desktop_refresh(start: bool) -> None:
+    """Record events around a human button check, with no chat prompt or CLI run."""
+    baseline_path = WORK / "desktop-refresh-baseline.json"
+    if start:
+        write(
+            baseline_path,
+            {
+                "mcp": len(rows(PROJECT / "mcp.jsonl")),
+                "hooks": len(rows(PROJECT / "hooks.jsonl")),
+                "versions": versions(),
+            },
+        )
+        print("Click Refresh order once in the existing desktop card. Send no chat prompt.")
+        print("Then run desktop-refresh-finish and confirm whether a model turn started.")
+        return
+    baseline = read(baseline_path)
+    if not baseline:
+        raise SystemExit("Run desktop-refresh-start before the person clicks Refresh order.")
+    events = rows(PROJECT / "mcp.jsonl")[baseline["mcp"] :]
+    data = read(PROOF)
+    data["desktop_refresh"] = {
+        "method": "A person clicks between desktop-refresh-start and desktop-refresh-finish.",
+        "mcp_events": events,
+        "show_order_calls": sum(
+            e.get("method") == "tools/call" and e.get("tool") == "show_order" for e in events
+        ),
+        "hook_events": rows(PROJECT / "hooks.jsonl")[baseline["hooks"] :],
+        "versions_before": baseline["versions"],
+        "versions_after": versions(),
+        "limit": "Check concurrent actions and chat turns separately. No model-request capture.",
+    }
+    write(PROOF, safe(data))
+    print(f"Recorded {data['desktop_refresh']['show_order_calls']} show_order calls.")
+
+
 def desktop_finish(path: Path) -> None:
     observation = read(path)
     allowed = {
@@ -833,13 +869,24 @@ def desktop_finish(path: Path) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "operation", choices=("prepare", "inspect", "measure", "desktop-start", "desktop-finish")
+        "operation",
+        choices=(
+            "prepare",
+            "inspect",
+            "measure",
+            "desktop-start",
+            "desktop-finish",
+            "desktop-refresh-start",
+            "desktop-refresh-finish",
+        ),
     )
     parser.add_argument("observation", nargs="?", type=Path)
     parser.add_argument("--surface", choices=("codex_exec", "interactive_cli"))
     parser.add_argument("--case", choices=("hooks", "mcp", "skill"))
     args = parser.parse_args()
-    if args.operation == "measure":
+    if args.operation in ("desktop-refresh-start", "desktop-refresh-finish"):
+        desktop_refresh(args.operation == "desktop-refresh-start")
+    elif args.operation == "measure":
         measure(args.surface, args.case)
     elif args.operation == "desktop-finish":
         if args.observation is None:
