@@ -3,6 +3,8 @@
 import hashlib
 import importlib.util
 import json
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -169,6 +171,7 @@ def test_desktop_import_reads_only_the_matched_toy_output_and_runtime(monkeypatc
     assert result["cases"][0]["retained_text_unchanged"]
     assert result["cases"][0]["wire_text_unchanged"] is None
     assert result["hook_tool_names"] == ["mcp__spike__transcript"]
+    assert "no call identity" in result["server_log_pairing"]
     assert "PRIVATE TOY" not in json.dumps(result)
     assert text not in json.dumps(result)
 
@@ -203,3 +206,68 @@ def test_a_desktop_import_refuses_an_unmatched_server_log(monkeypatch, tmp_path)
     monkeypatch.setattr(spike, "CODEX_HERE", work)
     with pytest.raises(ValueError, match="server log does not match"):
         spike.codex_rollout(rollout)
+
+
+@pytest.mark.parametrize(
+    ("names", "expected"),
+    [([], None), (["mcp__spike.transcript"], False), (["mcp__mcp-spike__transcript"], True)],
+)
+def test_plugin_identity_answers_come_from_observed_names(names, expected):
+    entry = {"cases": [], "desktop": {"hook_tool_names": names}}
+    if names:
+        entry["cases"] = [
+            {
+                "size": 10240,
+                "sent": ["toy"],
+                "unchanged": True,
+                "tool_output_token_limit": None,
+                "model_tools": names,
+            }
+        ]
+    answers = spike.codex_answers(entry)
+    assert answers["codex_exec"]["prefix_has_plugin_identity"] is expected
+    assert answers["desktop"]["prefix_has_plugin_identity"] is expected
+
+
+def test_project_instructions_print_the_script_command(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(spike, "codex_project", lambda: tmp_path)
+    assert spike.codex_main(["--project"], tmp_path / "proof.json", {}) == 0
+    assert (
+        "python scripts/spike_plugin_mcp.py codex --rollout FILE [OUT]" in capsys.readouterr().out
+    )
+
+
+def test_repeated_sizes_return_the_same_bytes_and_logged_hash(tmp_path):
+    server = tmp_path / "server.py"
+    server.write_text(spike.SERVER_PY)
+    log = tmp_path / "server.jsonl"
+    requests = [
+        {
+            "jsonrpc": "2.0",
+            "id": rid,
+            "method": "tools/call",
+            "params": {"name": "transcript", "arguments": {"size": 10240}},
+        }
+        for rid in (1, 2)
+    ]
+    result = subprocess.run(
+        [sys.executable, str(server), str(log)],
+        input="\n".join(json.dumps(row) for row in requests) + "\n",
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=5,
+    )
+    outputs = [
+        json.loads(line)["result"]["content"][0]["text"] for line in result.stdout.splitlines()
+    ]
+    sent = spike.lines(log)
+    assert outputs[0].encode() == outputs[1].encode()
+    assert (
+        sent[0]
+        == sent[1]
+        == {
+            "size": 10240,
+            "sha256": hashlib.sha256(outputs[0].encode()).hexdigest(),
+        }
+    )

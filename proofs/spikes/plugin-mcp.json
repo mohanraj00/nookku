@@ -703,6 +703,7 @@
       ],
       "method": "scripts/spike_plugin_mcp.py codex --rollout FILE; person drives the desktop",
       "evidence": "Server log and matched desktop tool outputs; no model-request proxy",
+      "server_log_pairing": "Order and size; deterministic transcript per size; no call identity",
       "cases": [
         {
           "size": 10240,

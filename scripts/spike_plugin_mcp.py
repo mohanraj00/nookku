@@ -29,7 +29,8 @@ with tool_output_token_limit=1000000. This measures the request boundary, not mo
 No harness instructions or model answers are saved. Desktop checks need a person. --rollout FILE
 hashes only this spike's tool outputs from their desktop session and reads its runtime version.
 A retained session result is not an independent model-request capture. --person FILE adds their
-reported observations. Installed desktop versions do not identify a running chat's version.
+reported observations. Both imports run no case, so they do not need a hook trust check.
+Installed desktop versions do not identify a running chat's version.
 
 usage: python scripts/spike_plugin_mcp.py claude-code [--project | --person FILE] [OUT]
        python scripts/spike_plugin_mcp.py codex [--project | --person FILE | --rollout FILE] [OUT]
@@ -479,6 +480,7 @@ def codex_hooks() -> list[dict[str, Any]]:
 
 
 def fingerprint(value: str) -> dict[str, Any]:
+    """Hash exact bytes. `truncated` is a text heuristic; only hashes prove byte equality."""
     raw = value.encode()
     return {
         "size": len(raw),
@@ -644,6 +646,8 @@ def codex_rollout(path: Path) -> dict[str, Any]:
 
     A rollout is the harness's retained result, not an independent model-request capture.
     The person must first run the toy tool in the desktop app and provide that session's file.
+    Logs are paired by order and size, not by call identity. The toy server returns the same
+    bytes for each size, so another call of that size cannot change the hash comparison.
     """
     calls: dict[str, int] = {}
     cases: list[dict[str, Any]] = []
@@ -711,6 +715,7 @@ def codex_rollout(path: Path) -> dict[str, Any]:
         "models": sorted(models),
         "method": "scripts/spike_plugin_mcp.py codex --rollout FILE; person drives the desktop",
         "evidence": "Server log and matched desktop tool outputs; no model-request proxy",
+        "server_log_pairing": "Order and size; deterministic transcript per size; no call identity",
         "cases": cases,
         "hook_tool_names": sorted(
             {r["tool_name"] for r in lines(CODEX_HERE / "hook.jsonl") if r["tool_name"] == tool}
@@ -725,6 +730,8 @@ def codex_answers(entry: dict[str, Any]) -> dict[str, Any]:
     cases = entry.get("cases", [])
     desktop = entry.get("desktop", {})
     desktop_cases = desktop.get("cases", [])
+    cli_names = {name for case in cases for name in case.get("model_tools", [])}
+    desktop_names = desktop.get("hook_tool_names", [])
     return {
         "codex_exec": {
             "plugin_server_starts": bool(cases) and all(c["sent"] for c in cases),
@@ -742,7 +749,9 @@ def codex_answers(entry: dict[str, Any]) -> dict[str, Any]:
                 },
             },
             "guard_tool_prefix": f"mcp__{SERVER}__",
-            "prefix_has_plugin_identity": False,
+            "prefix_has_plugin_identity": any(PLUGIN in name for name in cli_names)
+            if cli_names
+            else None,
         },
         "desktop": {
             "plugin_server_starts": bool(desktop_cases),
@@ -752,7 +761,9 @@ def codex_answers(entry: dict[str, Any]) -> dict[str, Any]:
             },
             "tool_text_unchanged_at_request_boundary": "not measured",
             "guard_tool_prefix": f"mcp__{SERVER}__",
-            "prefix_has_plugin_identity": False,
+            "prefix_has_plugin_identity": (
+                any(PLUGIN in name for name in desktop_names) if desktop_names else None
+            ),
         },
     }
 
@@ -771,7 +782,7 @@ def codex_main(args: list[str], out: Path, data: dict[str, Any]) -> int:
             f"For the desktop check, open {p} in the app. Start a new chat with the plugin enabled."
         )
         print("Call transcript with size 10240, then 1048576.")
-        print("Then import that desktop session with: codex --rollout FILE [OUT] in this script.")
+        print("Then import: python scripts/spike_plugin_mcp.py codex --rollout FILE [OUT]")
         return 0
     entry = data.setdefault("codex", {})
     if "--rollout" in args:
