@@ -145,7 +145,7 @@ def _transcript(root: Path, args: dict[str, Any]) -> tuple[str, dict[str, Any]]:
     if type(number) is not int or type(limit) is not int or limit < 100:
         raise ValueError("page must be an integer, and page_tokens an integer of 100 or more")
     test = args.get("test")
-    if test is not None and (not isinstance(test, str) or "/" in test or test in ("", ".", "..")):
+    if test is not None and not isinstance(test, str):
         raise ValueError("test must be the id of a test")
     text = kit.transcript_text(root, test, args.get("trace") is True, args.get("all") is True)
     return page(text, number, limit)

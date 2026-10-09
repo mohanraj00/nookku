@@ -94,7 +94,18 @@ def test_the_estimate_counts_dense_text_higher_than_english() -> None:
 
 @pytest.mark.parametrize(
     "arguments",
-    [{"page": 99}, {"page": "1"}, {"page_tokens": 10}, {"test": "../x"}, {"trace": True}],
+    [
+        {"page": 99},
+        {"page": "1"},
+        {"page_tokens": 10},
+        {"trace": True},
+        {"test": 7},
+        {"test": "../x"},
+        {"test": "..\\..\\x"},
+        {"test": "C:\\other\\test"},
+        {"test": "/tmp/x"},
+        {"test": "a/../../x", "trace": True},
+    ],
 )
 def test_a_wrong_call_is_an_error_result(tmp_path: Path, arguments: dict) -> None:
     relay(tmp_path, [("hi", "hello")])

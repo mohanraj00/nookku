@@ -530,6 +530,20 @@ class TranscriptError(Exception):
     """The transcript cannot be made. The text says why."""
 
 
+# The name of a test folder. It has no path separator and no drive, on each system.
+TEST_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]*")
+
+
+def folder_of_test(root: Path, test: str) -> Path:
+    """The folder of a test id, which must stay in the tests folder of the project. The model
+    can give the id to the transcript tool, so a path must not reach another folder."""
+    tests = (root / STATE_DIR / "tests").resolve()
+    folder = (tests / test).resolve()
+    if not TEST_ID.fullmatch(test) or folder.parent != tests:
+        raise TranscriptError(f"'{test}' is not a test id")
+    return folder
+
+
 def transcript_text(
     root: Path,
     test: str | None = None,
@@ -542,9 +556,8 @@ def transcript_text(
     so that both give the model the same text. Raise TranscriptError if it cannot be made."""
     import io
 
-    tests = root / STATE_DIR / "tests"
     if trace:
-        folder = tests / test if test else bridge.latest_test(root)
+        folder = folder_of_test(root, test) if test else bridge.latest_test(root)
         if folder is None or not folder.is_dir():
             raise TranscriptError("no test folder.")
         return evaluation.transcript(folder)
@@ -556,7 +569,7 @@ def transcript_text(
         raise TranscriptError(f"cannot read the config: {e}") from None
     folder = bridge.latest_test(root) if config.entry and not record else None
     if test and not record:
-        folder = tests / test
+        folder = folder_of_test(root, test)
     path = record or (folder / "relay.jsonl" if folder else config.record_path(root))
     out = io.StringIO()
     scope = f"test {folder.name}" if folder else ""
