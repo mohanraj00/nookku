@@ -1,0 +1,300 @@
+{
+  "claude-code": {
+    "date": "2026-10-08",
+    "versions": {
+      "claude-code": "2.1.294",
+      "python": "3.13.12"
+    },
+    "model": "haiku",
+    "method": "scripts/spike_plugin_mcp.py",
+    "cases": [
+      {
+        "size": 10240,
+        "MAX_MCP_OUTPUT_TOKENS": null,
+        "exit": 0,
+        "server": [
+          {
+            "name": "plugin:mcp-spike:spike",
+            "status": "connected",
+            "source": "plugin"
+          }
+        ],
+        "model_tools": [
+          "mcp__plugin_mcp-spike_spike__transcript"
+        ],
+        "hook_tool_names": [
+          "mcp__plugin_mcp-spike_spike__transcript"
+        ],
+        "sent": [
+          {
+            "size": 10240,
+            "sha256": "d487ba9b69c51cda5d61113542f1716653cf051f2b0cf8f16bf5dff67171b262"
+          }
+        ],
+        "arrived": {
+          "blocks": 1,
+          "size": 10240,
+          "sha256": "d487ba9b69c51cda5d61113542f1716653cf051f2b0cf8f16bf5dff67171b262",
+          "has_start": true,
+          "has_end": true,
+          "saved_to_file": false,
+          "persisted_preview": false
+        },
+        "unchanged": true
+      },
+      {
+        "size": 51200,
+        "MAX_MCP_OUTPUT_TOKENS": null,
+        "exit": 0,
+        "server": [
+          {
+            "name": "plugin:mcp-spike:spike",
+            "status": "connected",
+            "source": "plugin"
+          }
+        ],
+        "model_tools": [
+          "mcp__plugin_mcp-spike_spike__transcript"
+        ],
+        "hook_tool_names": [
+          "mcp__plugin_mcp-spike_spike__transcript"
+        ],
+        "sent": [
+          {
+            "size": 51200,
+            "sha256": "c5bdfff6f4b68381b13170230831b2e7d219640900ef2b5b1ec3592119eed2c1"
+          }
+        ],
+        "arrived": {
+          "blocks": 1,
+          "size": 2313,
+          "sha256": "ce87cf7b171e14f5f5c80ad7bd468f9ec5d290078183b86253f195707d67df30",
+          "has_start": true,
+          "has_end": false,
+          "saved_to_file": false,
+          "persisted_preview": true
+        },
+        "unchanged": false
+      },
+      {
+        "size": 102400,
+        "MAX_MCP_OUTPUT_TOKENS": null,
+        "exit": 0,
+        "server": [
+          {
+            "name": "plugin:mcp-spike:spike",
+            "status": "connected",
+            "source": "plugin"
+          }
+        ],
+        "model_tools": [
+          "mcp__plugin_mcp-spike_spike__transcript"
+        ],
+        "hook_tool_names": [
+          "mcp__plugin_mcp-spike_spike__transcript"
+        ],
+        "sent": [
+          {
+            "size": 102400,
+            "sha256": "c67ac526952b84ed71c86b8cca58c0c70f4eddab084eac11e51b30ce9c4edba6"
+          }
+        ],
+        "arrived": {
+          "blocks": 1,
+          "size": 1434,
+          "sha256": "f850a5068837a699d425b6cdc633d4605abbf0579c1a3005dc98759a6f8c5822",
+          "has_start": false,
+          "has_end": false,
+          "saved_to_file": true,
+          "persisted_preview": false
+        },
+        "unchanged": false
+      },
+      {
+        "size": 1048576,
+        "MAX_MCP_OUTPUT_TOKENS": null,
+        "exit": 0,
+        "server": [
+          {
+            "name": "plugin:mcp-spike:spike",
+            "status": "connected",
+            "source": "plugin"
+          }
+        ],
+        "model_tools": [
+          "mcp__plugin_mcp-spike_spike__transcript"
+        ],
+        "hook_tool_names": [
+          "mcp__plugin_mcp-spike_spike__transcript"
+        ],
+        "sent": [
+          {
+            "size": 1048576,
+            "sha256": "f1fbc090a8c080a092f65c21d57e074afd0b96419e0373cc2630915f9f1242a1"
+          }
+        ],
+        "arrived": {
+          "blocks": 1,
+          "size": 1437,
+          "sha256": "e8ced586ddd6c3b5a0d5b758e3c3e5f0846533d9f32024b81d0400cc89be2dce",
+          "has_start": false,
+          "has_end": false,
+          "saved_to_file": true,
+          "persisted_preview": false
+        },
+        "unchanged": false
+      },
+      {
+        "size": 10240,
+        "MAX_MCP_OUTPUT_TOKENS": "1000000",
+        "exit": 0,
+        "server": [
+          {
+            "name": "plugin:mcp-spike:spike",
+            "status": "connected",
+            "source": "plugin"
+          }
+        ],
+        "model_tools": [
+          "mcp__plugin_mcp-spike_spike__transcript"
+        ],
+        "hook_tool_names": [
+          "mcp__plugin_mcp-spike_spike__transcript"
+        ],
+        "sent": [
+          {
+            "size": 10240,
+            "sha256": "d487ba9b69c51cda5d61113542f1716653cf051f2b0cf8f16bf5dff67171b262"
+          }
+        ],
+        "arrived": {
+          "blocks": 1,
+          "size": 10240,
+          "sha256": "d487ba9b69c51cda5d61113542f1716653cf051f2b0cf8f16bf5dff67171b262",
+          "has_start": true,
+          "has_end": true,
+          "saved_to_file": false,
+          "persisted_preview": false
+        },
+        "unchanged": true
+      },
+      {
+        "size": 51200,
+        "MAX_MCP_OUTPUT_TOKENS": "1000000",
+        "exit": 0,
+        "server": [
+          {
+            "name": "plugin:mcp-spike:spike",
+            "status": "connected",
+            "source": "plugin"
+          }
+        ],
+        "model_tools": [
+          "mcp__plugin_mcp-spike_spike__transcript"
+        ],
+        "hook_tool_names": [
+          "mcp__plugin_mcp-spike_spike__transcript"
+        ],
+        "sent": [
+          {
+            "size": 51200,
+            "sha256": "c5bdfff6f4b68381b13170230831b2e7d219640900ef2b5b1ec3592119eed2c1"
+          }
+        ],
+        "arrived": {
+          "blocks": 1,
+          "size": 2313,
+          "sha256": "7d6f378604e2fefe85f0832e45f878d673daec62207e30d81ddf1d46f535c82b",
+          "has_start": true,
+          "has_end": false,
+          "saved_to_file": false,
+          "persisted_preview": true
+        },
+        "unchanged": false
+      },
+      {
+        "size": 102400,
+        "MAX_MCP_OUTPUT_TOKENS": "1000000",
+        "exit": 0,
+        "server": [
+          {
+            "name": "plugin:mcp-spike:spike",
+            "status": "connected",
+            "source": "plugin"
+          }
+        ],
+        "model_tools": [
+          "mcp__plugin_mcp-spike_spike__transcript"
+        ],
+        "hook_tool_names": [
+          "mcp__plugin_mcp-spike_spike__transcript"
+        ],
+        "sent": [
+          {
+            "size": 102400,
+            "sha256": "c67ac526952b84ed71c86b8cca58c0c70f4eddab084eac11e51b30ce9c4edba6"
+          }
+        ],
+        "arrived": {
+          "blocks": 1,
+          "size": 2314,
+          "sha256": "d0e86e691a2df985146537cea8c86532c1ae1dd5e1979724c66c479e4f2c114a",
+          "has_start": true,
+          "has_end": false,
+          "saved_to_file": false,
+          "persisted_preview": true
+        },
+        "unchanged": false
+      },
+      {
+        "size": 1048576,
+        "MAX_MCP_OUTPUT_TOKENS": "1000000",
+        "exit": 0,
+        "server": [
+          {
+            "name": "plugin:mcp-spike:spike",
+            "status": "connected",
+            "source": "plugin"
+          }
+        ],
+        "model_tools": [
+          "mcp__plugin_mcp-spike_spike__transcript"
+        ],
+        "hook_tool_names": [
+          "mcp__plugin_mcp-spike_spike__transcript"
+        ],
+        "sent": [
+          {
+            "size": 1048576,
+            "sha256": "f1fbc090a8c080a092f65c21d57e074afd0b96419e0373cc2630915f9f1242a1"
+          }
+        ],
+        "arrived": {
+          "blocks": 1,
+          "size": 2310,
+          "sha256": "7c5e69360e4e0821bd749825ab29b171499a498a2a5567006b2ac1ff2bcd7646",
+          "has_start": true,
+          "has_end": false,
+          "saved_to_file": false,
+          "persisted_preview": true
+        },
+        "unchanged": false
+      }
+    ],
+    "person": {
+      "claude-code-desktop": {
+        "date": "2026-10-08",
+        "app_version": "Claude 2.26454.2 (75afdd) 2026-10-07T07:23:01.000Z",
+        "method": "scripts/spike_plugin_mcp.py claude-code --project. A person opened the project in the desktop app, installed the plugin from the local marketplace, and typed the prompt that the script prints.",
+        "server_started": true,
+        "tool_ran": true,
+        "hook_tool_name": "mcp__plugin_mcp-spike_spike__transcript",
+        "sent": {
+          "size": 10240,
+          "sha256": "d487ba9b69c51cda5d61113542f1716653cf051f2b0cf8f16bf5dff67171b262"
+        },
+        "model": "not measured with a proxy. The model said that the result had the start and the end markers, and that the non-ASCII and astral characters were correct."
+      }
+    }
+  }
+}
