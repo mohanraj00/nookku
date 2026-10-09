@@ -117,7 +117,7 @@ verbatim-relay is now Nooku ([#181](https://github.com/mohanraj00/verbatim-relay
    uv tool install nooku
    ```
 
-3. In each project, run one `nooku` command, for example `nooku status`. The command moves `.verbatim-relay/` to `.nooku/`, with each test and each seal, and prints the 2 folders.
+3. In each project, run one `nooku` command, for example `nooku status`. The command moves `.verbatim-relay/` to `.nooku/`, with each test and each seal, and prints the 2 folders. If `config.json` has a `record` path in `.verbatim-relay/`, the command changes it to the same file in `.nooku/`.
 
 4. If `.verbatim-relay/` and `.nooku/` both exist, each command stops with exit 1 and names the 2 folders. Each hook event is blocked. Keep one folder: move the tests that you need into `.nooku/tests/`, then remove `.verbatim-relay/`.
 
@@ -132,7 +132,7 @@ verbatim-relay is now Nooku ([#181](https://github.com/mohanraj00/verbatim-relay
    claude plugin install nooku@nooku
    ```
 
-7. If your entry imports the package, change `verbatim_relay` to `nooku` in the import, for example `from nooku import serve`. Then change the package in your app's environment:
+7. If your entry imports the package, change `verbatim_relay` to `nooku` in the import, for example `from nooku.agent import serve`. Then change the package in your app's environment:
 
    ```bash
    uv remove --dev verbatim-relay

@@ -43,6 +43,29 @@ def move_old_state(root: Path) -> str | None:
     except OSError as error:
         return f"cannot move {old} to {new}: {error}"
     print(f"nooku: moved {old} to {new}", file=sys.stderr)
+    return _move_record_key(root)
+
+
+def _move_record_key(root: Path) -> str | None:
+    """Change a `record` key in the old state folder to the same file in STATE_DIR. Without this
+    change, the first prompt writes the record into the old folder again, and then both folders
+    exist. A record path outside the old folder stays as it is."""
+    path = root / FILE
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return None
+    except (OSError, ValueError) as error:
+        return f"cannot read {path}: {error}"
+    record = data.get("record") if isinstance(data, dict) else None
+    if not isinstance(record, str) or not record.startswith(f"{OLD_STATE_DIR}/"):
+        return None
+    data["record"] = STATE_DIR + record[len(OLD_STATE_DIR) :]
+    try:
+        path.write_text(json.dumps(data, indent=1) + "\n", encoding="utf-8")
+    except OSError as error:
+        return f"cannot write {path}: {error}"
+    print(f"nooku: changed 'record' in {path} to {data['record']}", file=sys.stderr)
     return None
 
 

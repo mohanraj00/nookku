@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import json
 from pathlib import Path
 
 import pytest
@@ -60,3 +61,20 @@ def test_a_command_moves_the_old_folder_first(
     assert "moved" in capsys.readouterr().err
     assert (tmp_path / STATE_DIR / "config.json").exists()
     assert not (tmp_path / OLD_STATE_DIR).exists()
+
+
+def test_the_move_changes_an_old_record_path(tmp_path: Path) -> None:
+    old_state(tmp_path)
+    conf = {"record": f"{OLD_STATE_DIR}/relay.jsonl", "adapter": "json"}
+    (tmp_path / OLD_STATE_DIR / "config.json").write_text(json.dumps(conf))
+    assert move_old_state(tmp_path) is None
+    data = json.loads((tmp_path / STATE_DIR / "config.json").read_text())
+    assert data == {"record": f"{STATE_DIR}/relay.jsonl", "adapter": "json"}
+
+
+def test_the_move_keeps_a_custom_record_path(tmp_path: Path) -> None:
+    old_state(tmp_path)
+    conf = {"record": "logs/relay.jsonl"}
+    (tmp_path / OLD_STATE_DIR / "config.json").write_text(json.dumps(conf))
+    assert move_old_state(tmp_path) is None
+    assert json.loads((tmp_path / STATE_DIR / "config.json").read_text()) == conf

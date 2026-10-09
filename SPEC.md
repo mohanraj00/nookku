@@ -290,7 +290,7 @@ The Python helper `nooku.agent.serve(reply)` speaks this contract for a function
 
 A test runs the entry from `start` to `end`. A new conversation is a new test: each test starts a new entry process with a new test id.
 
-**The state folder.** `.nooku/` in the project holds the configuration and the tests. verbatim-relay 0.3.x and earlier used `.verbatim-relay/`. Each command with a project root moves `.verbatim-relay/` to `.nooku/` before it does its work, with one rename, so each record and each seal stays as it is. If both folders exist, nothing moves: the command stops with exit 1, and the hook kit blocks the event with exit 2.
+**The state folder.** `.nooku/` in the project holds the configuration and the tests. verbatim-relay 0.3.x and earlier used `.verbatim-relay/`. Each command with a project root moves `.verbatim-relay/` to `.nooku/` before it does its work, with one rename, so each record and each seal stays as it is. A `record` path in `.verbatim-relay/` in `config.json` then changes to the same file in `.nooku/`. If both folders exist, nothing moves: the command stops with exit 1, and the hook kit blocks the event with exit 2.
 
 ### 7.1 Configuration
 
