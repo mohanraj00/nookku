@@ -544,6 +544,13 @@ def folder_of_test(root: Path, test: str) -> Path:
     return folder
 
 
+def _latest(root: Path) -> Path | None:
+    """The latest test, with the same check as a test id: a symbolic link in the tests folder
+    must not take the transcript to a folder outside the project."""
+    last = bridge.latest_test(root)
+    return None if last is None else folder_of_test(root, last.name)
+
+
 def transcript_text(
     root: Path,
     test: str | None = None,
@@ -557,7 +564,7 @@ def transcript_text(
     import io
 
     if trace:
-        folder = folder_of_test(root, test) if test else bridge.latest_test(root)
+        folder = folder_of_test(root, test) if test else _latest(root)
         if folder is None or not folder.is_dir():
             raise TranscriptError("no test folder.")
         return evaluation.transcript(folder)
@@ -567,7 +574,7 @@ def transcript_text(
         config = Config.load(root) if has_config else Config()
     except (OSError, ValueError, TypeError) as e:
         raise TranscriptError(f"cannot read the config: {e}") from None
-    folder = bridge.latest_test(root) if config.entry and not record else None
+    folder = _latest(root) if config.entry and not record else None
     if test and not record:
         folder = folder_of_test(root, test)
     path = record or (folder / "relay.jsonl" if folder else config.record_path(root))

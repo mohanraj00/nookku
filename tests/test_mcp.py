@@ -165,3 +165,21 @@ def test_the_server_moves_the_old_state_folder_of_its_default_root(
     monkeypatch.setattr("sys.stdin", io.StringIO(""))
     assert main(["mcp"]) == 0
     assert (tmp_path / STATE_DIR).is_dir() and not (tmp_path / OLD_STATE_DIR).exists()
+
+
+@pytest.mark.parametrize("trace", [True, False])
+def test_a_link_in_the_tests_folder_does_not_reach_another_folder(
+    tmp_path: Path, trace: bool
+) -> None:
+    other = tmp_path / "other" / "20261009-120000-aaaa"
+    other.mkdir(parents=True)
+    (other / "relay.jsonl").write_text("")
+    project = tmp_path / "project"
+    tests = project / kit.STATE_DIR / "tests"
+    tests.mkdir(parents=True)
+    (project / kit.STATE_DIR / "config.json").write_text('{"entry": ["python3", "a.py"]}')
+    (tests / "20261009-130000-bbbb").symlink_to(other, target_is_directory=True)
+    arguments = {"trace": True} if trace else {}
+    result = rpc(project, "tools/call", {"name": "transcript", "arguments": arguments})["result"]
+    assert result["isError"] is True
+    assert "is not a test id" in result["content"][0]["text"]
