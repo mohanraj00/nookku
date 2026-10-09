@@ -14,11 +14,11 @@ A prompt cannot fix this. A mechanism can. In relay mode, the hook takes each pr
 
 ## Does my app's code change?
 
-No. A test runs your app through an entry in `.verbatim-relay/`. The entry is test code. It starts your app and speaks the agent contract ([how-to/connect-your-agent.md](how-to/connect-your-agent.md)).
+No. A test runs your app through an entry in `.nooku/`. The entry is test code. It starts your app and speaks the agent contract ([how-to/connect-your-agent.md](how-to/connect-your-agent.md)).
 
 ## What does it cost me to use it?
 
-The cost is plumbing. You write the entry and `config.json` once, or you let the harness model write them with `verbatim-relay setup`. You change them when the start or the wiring of your app changes. The package has no runtime dependencies ([pyproject.toml](../pyproject.toml)), so it adds no package to your app.
+The cost is plumbing. You write the entry and `config.json` once, or you let the harness model write them with `nooku setup`. You change them when the start or the wiring of your app changes. The package has no runtime dependencies ([pyproject.toml](../pyproject.toml)), so it adds no package to your app.
 
 ## Plugin or hook kit?
 
@@ -34,15 +34,15 @@ It proves that the relay record and the tap record agree byte for byte. Each mes
 
 ## My agent is an HTTP server. Do I need an entry?
 
-No. Put the tap in front of it with `verbatim-relay tap --agent URL` ([how-to/http-tap.md](how-to/http-tap.md)). Without an entry, a test has no trace, no seal and no evaluation prompt.
+No. Put the tap in front of it with `nooku tap --agent URL` ([how-to/http-tap.md](how-to/http-tap.md)). Without an entry, a test has no trace, no seal and no evaluation prompt.
 
 ## My app uses the Claude Agent SDK. Is that a problem?
 
 No, the test copies its session files and adds each tool call to the trace. Isolate the session first, so that it sees only the tools of your app ([how-to/isolate-agent-sdk.md](how-to/isolate-agent-sdk.md)).
 
-## Does verbatim-relay send my data to a server?
+## Does Nooku send my data to a server?
 
-verbatim-relay itself sends no data to a server of its own. The relays, the tap, the proxies and the receiver listen on `127.0.0.1` by default. The proxies forward the calls of your app to the services and the model APIs that your app calls. The records stay in `.verbatim-relay/tests/` on your machine. The harness model reads them at the end of a test. Thus they go to the model provider of your harness, the same as each other file that the model reads.
+Nooku itself sends no data to a server of its own. The relays, the tap, the proxies and the receiver listen on `127.0.0.1` by default. The proxies forward the calls of your app to the services and the model APIs that your app calls. The records stay in `.nooku/tests/` on your machine. The harness model reads them at the end of a test. Thus they go to the model provider of your harness, the same as each other file that the model reads.
 
 ## Do the records hold secrets?
 

@@ -1,4 +1,4 @@
-// The toy shop agent in Node, as the entry of a verbatim-relay test (SPEC.md section 6).
+// The toy shop agent in Node, as the entry of a nooku test (SPEC.md section 6).
 // It reads one JSON line on stdin for each message, and writes one JSON line on stdout.
 // Usage: node examples/toy-shop-node/entry.mjs
 

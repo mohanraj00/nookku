@@ -11,9 +11,9 @@ from pathlib import Path
 import pytest
 from toy_agent import ToyAgent, shop_reply
 
-from verbatim_relay.adapters import make
-from verbatim_relay.record import Exchange, Unparsed, read_tap
-from verbatim_relay.tap import Tap, start_in_thread
+from nooku.adapters import make
+from nooku.record import Exchange, Unparsed, read_tap
+from nooku.tap import Tap, start_in_thread
 
 TRICKY = "Hi, I want to return order #4471.  \n\nÜnïcödé € ₹\t| a | b |\n"
 

@@ -3,9 +3,9 @@ requires = ["hatchling>=1.24", "hatch-fancy-pypi-readme>=24.1"]
 build-backend = "hatchling.build"
 
 [project]
-name = "verbatim-relay"
+name = "nooku"
 dynamic = ["version", "readme"]
-description = "Test a chat agent through Claude Code or Codex without the model retyping the conversation, and audit that it held."
+description = "A test harness for developers of agent apps. Test your agent through Claude Code or Codex, byte for byte, and audit the record."
 license = "Apache-2.0"
 license-files = ["LICENSE"]
 authors = [{ name = "Mohan Raj" }]
@@ -27,7 +27,7 @@ classifiers = [
 keywords = ["llm", "agents", "testing", "claude-code", "codex", "audit"]
 
 [project.scripts]
-verbatim-relay = "verbatim_relay.cli:main"
+nooku = "nooku.cli:main"
 
 [project.urls]
 Repository = "https://github.com/mohanraj00/verbatim-relay"
@@ -40,10 +40,10 @@ Issues = "https://github.com/mohanraj00/verbatim-relay/issues"
 dev = ["pytest>=8", "pytest-cov>=5", "mypy>=1.10", "ruff>=0.6"]
 
 [tool.hatch.version]
-path = "src/verbatim_relay/__init__.py"
+path = "src/nooku/__init__.py"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/verbatim_relay"]
+packages = ["src/nooku"]
 
 [tool.hatch.build.targets.sdist]
 # the package, its spec and its conformance suite; the benchmark and proofs stay in the repo
@@ -82,5 +82,5 @@ pythonpath = ["tests"]
 addopts = "-q"
 
 [tool.coverage.run]
-source = ["verbatim_relay"]
+source = ["nooku"]
 branch = true

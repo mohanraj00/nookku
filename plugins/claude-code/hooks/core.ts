@@ -1,6 +1,6 @@
 // Pure parts of the plugin: requests, replies, record rows and the deny pattern (SPEC.md).
 
-import type { VerbatimRelayTurn } from '../types'
+import type { NookuTurn } from '../types'
 
 export type Options = {
   tap_url: string
@@ -15,7 +15,7 @@ export type Options = {
   cli: string
 }
 
-// The running test, from .verbatim-relay/current.json (SPEC.md section 7.2).
+// The running test, from .nooku/current.json (SPEC.md section 7.2).
 export type Current = { test: string; dir: string; tap_url: string; pid: number; pid_start: string }
 
 export const HARNESS = 'claude-code'
@@ -44,7 +44,7 @@ function nest(path: string, value: unknown): unknown {
 }
 
 // The request body for one tester message. The openai adapter sends the whole conversation.
-export function requestBody(o: Options, said: string, turns: readonly VerbatimRelayTurn[]): string {
+export function requestBody(o: Options, said: string, turns: readonly NookuTurn[]): string {
   if (o.adapter === 'openai') {
     const messages: { role: string; content: string }[] = []
     for (const t of turns) {
@@ -61,7 +61,7 @@ export function requestBody(o: Options, said: string, turns: readonly VerbatimRe
 }
 
 // The agent contract (SPEC.md section 6). The tap forwards this body to the entry without change.
-export function contractBody(id: string, test: string, said: string, turns: readonly VerbatimRelayTurn[]): string {
+export function contractBody(id: string, test: string, said: string, turns: readonly NookuTurn[]): string {
   const history = turns.filter(t => t.ok && t.shown !== null).map(t => ({ message: t.said, reply: t.shown }))
   return JSON.stringify({ v: 1, id, session: test, message: said, history })
 }
@@ -93,13 +93,13 @@ export function contractShown(status: number, body: string, id: string): { shown
   const mine = data !== null && typeof data === 'object' && data.v === 1 && data.id === id
   if (status === 200) {
     if (mine && typeof data.reply === 'string' && data.error === undefined && !LONE_SURROGATE.test(data.reply)) return { shown: data.reply, ok: true }
-    return { shown: `verbatim-relay: cannot read the reply: ${body}`, ok: false }
+    return { shown: `nooku: cannot read the reply: ${body}`, ok: false }
   }
   if (status === 500 && mine && typeof data.error === 'string' && data.reply === undefined && !LONE_SURROGATE.test(data.error)) {
-    return { shown: `verbatim-relay: the agent sent an error:\n${data.error}`, ok: false }
+    return { shown: `nooku: the agent sent an error:\n${data.error}`, ok: false }
   }
   const error = data !== null && typeof data?.error === 'string' ? data.error : body
-  return { shown: `verbatim-relay: HTTP ${status}: ${error}`, ok: false }
+  return { shown: `nooku: HTTP ${status}: ${error}`, ok: false }
 }
 
 // True if a Content-Type is text/event-stream (SPEC.md section 4.1).
@@ -222,10 +222,10 @@ export function denyPattern(urls: readonly string[]): RegExp | null {
 // so a tool that the plugin does not know is denied when its input names the tap or the agent.
 const FILE_TOOLS = ['Read', 'Write', 'Edit', 'MultiEdit', 'NotebookEdit', 'Glob', 'Grep', 'LS', 'TodoWrite']
 const WRITE_TOOLS = ['Write', 'Edit', 'MultiEdit', 'NotebookEdit']
-const TEST_FILES = /\.verbatim-relay/
+const TEST_FILES = /\.nooku/
 
 export function isChecked(tool: string): boolean {
-  return !FILE_TOOLS.includes(tool) && !tool.startsWith('mcp__verbatim-relay__')
+  return !FILE_TOOLS.includes(tool) && !tool.startsWith('mcp__nooku__')
 }
 
 // During a test, the model must not change the entry or the test files (SPEC.md section 5).
@@ -236,7 +236,7 @@ export function touchesTestFiles(tool: string, input: string): boolean {
 
 // After a test, the model may write report.md in a test folder, and no other file of it
 // (SPEC.md section 9).
-const TEST_FOLDER_FILE = /\.verbatim-relay\/tests\/[^/\s"']+\/([^\s"'\\]*)/g
+const TEST_FOLDER_FILE = /\.nooku\/tests\/[^/\s"']+\/([^\s"'\\]*)/g
 
 export function touchesRecords(tool: string, input: string): boolean {
   if (!WRITE_TOOLS.includes(tool)) return false
@@ -333,10 +333,10 @@ async function relayLineError(raw: string): Promise<string | null> {
 
 // The turns of a relay record, of one session or (with null) of all sessions. An invalid line or a
 // wrong hash throws an Error that names the file and the line. Never skip such a line.
-export async function relayTurns(text: string, path: string, session: string | null): Promise<VerbatimRelayTurn[]> {
+export async function relayTurns(text: string, path: string, session: string | null): Promise<NookuTurn[]> {
   const lines = text.split('\n')
   if (lines.length && lines[lines.length - 1] === '') lines.pop()
-  const turns: VerbatimRelayTurn[] = []
+  const turns: NookuTurn[] = []
   for (const [i, raw] of lines.entries()) {
     const error = await relayLineError(raw)
     if (error !== null) throw new Error(`${path}: line ${i + 1}: ${error}`)
@@ -349,7 +349,7 @@ export async function relayTurns(text: string, path: string, session: string | n
 }
 
 // The shell command check of the deny rules (SPEC.md section 5), the same as
-// src/verbatim_relay/commands.py. A command passes if each of its commands is a read program and
+// src/nooku/commands.py. A command passes if each of its commands is a read program and
 // each output redirect writes /dev/null or report.md. Input that does not parse fails.
 const SHELL_TOOLS = ['Bash', 'shell', 'local_shell', 'exec_command']
 const SHELLS = ['bash', 'sh', 'zsh']
@@ -424,7 +424,7 @@ const READS: Record<string, (args: string[]) => boolean> = {
   sed: sedReads,
   sort: args => !short(args, 'o') && !args.some(a => a.startsWith('--output')),
   find: args => !args.some(a => FIND_ACTIONS.includes(a)),
-  'verbatim-relay': args => args.length > 0 && VIEWS.includes(args[0]),
+  'nooku': args => args.length > 0 && VIEWS.includes(args[0]),
 }
 
 function stripHeredocs(text: string): string {
@@ -495,7 +495,7 @@ export function tokens(text: string): [string, boolean][] | null {
   return out
 }
 
-// A part with only variable assignments passes, for example T=.verbatim-relay/tests/x. These
+// A part with only variable assignments passes, for example T=.nooku/tests/x. These
 // variables change how the shell finds or runs a program, so an assignment to them fails.
 const SHELL_VARIABLES = ['PATH', 'IFS', 'CDPATH', 'ENV', 'BASH_ENV', 'SHELLOPTS', 'BASHOPTS', 'PS4', 'PROMPT_COMMAND']
 

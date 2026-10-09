@@ -5,9 +5,9 @@ from pathlib import Path
 
 import pytest
 
-from verbatim_relay import otlp
-from verbatim_relay.record import json_text
-from verbatim_relay.stdio import start_in_thread
+from nooku import otlp
+from nooku.record import json_text
+from nooku.stdio import start_in_thread
 
 CASES = sorted((Path(__file__).resolve().parent.parent / "conformance" / "otlp").iterdir())
 

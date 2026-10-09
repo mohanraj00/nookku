@@ -1,4 +1,4 @@
-"""The file .verbatim-relay/config.json (SPEC.md section 7.1): its keys and its one reader.
+"""The file .nooku/config.json (SPEC.md section 7.1): its keys and its one reader.
 
 The hook kit, `start`, `check` and `init` read the file with `read_config`, so one rule applies
 to its keys. Each part then checks the values that it uses.
@@ -7,16 +7,43 @@ to its keys. Each part then checks the values that it uses.
 from __future__ import annotations
 
 import json
+import sys
 from dataclasses import dataclass, field, fields
 from pathlib import Path
 from typing import Any
 
-STATE_DIR = ".verbatim-relay"
+STATE_DIR = ".nooku"
 FILE = f"{STATE_DIR}/config.json"
+# The state folder of verbatim-relay 0.3.x and earlier. The first run of nooku moves it.
+OLD_STATE_DIR = ".verbatim-relay"
 
 
 class ConfigError(ValueError):
     """The config file cannot be read, or it breaks the rule for its keys."""
+
+
+def move_old_state(root: Path) -> str | None:
+    """Move the state folder of verbatim-relay 0.3.x to STATE_DIR. Return an error, or None.
+
+    The move is one rename, so each test, record and seal stays as it is. If both folders exist,
+    nothing moves: the person must choose which one to keep.
+    """
+    old, new = root / OLD_STATE_DIR, root / STATE_DIR
+    if not old.is_dir():
+        return None
+    if new.exists():
+        return (
+            f"{old} and {new} both exist. Keep one: move the tests that you need into {new}, "
+            f"then remove {old}."
+        )
+    try:
+        old.rename(new)
+    except FileNotFoundError:
+        return None  # Another nooku process moved it first.
+    except OSError as error:
+        return f"cannot move {old} to {new}: {error}"
+    print(f"nooku: moved {old} to {new}", file=sys.stderr)
+    return None
 
 
 @dataclass

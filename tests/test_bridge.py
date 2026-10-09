@@ -8,9 +8,9 @@ from pathlib import Path
 
 import pytest
 
-from verbatim_relay import bridge, kit, seal, stdio
-from verbatim_relay.audit import CHECKS, audit
-from verbatim_relay.record import RecordError, Writer
+from nooku import bridge, kit, seal, stdio
+from nooku.audit import CHECKS, audit
+from nooku.record import RecordError, Writer
 
 ROOT = Path(__file__).resolve().parent.parent
 TOY_SHOP = ROOT / "examples" / "toy-shop" / "agent.py"
@@ -48,9 +48,9 @@ for raw in sys.stdin.buffer:
 
 def project(tmp_path: Path, entry: list[str], models: list[str] | None = None) -> Path:
     root = tmp_path / "shop"
-    (root / ".verbatim-relay").mkdir(parents=True)
+    (root / ".nooku").mkdir(parents=True)
     conf = {"entry": entry, "models": models or []}
-    (root / ".verbatim-relay" / "config.json").write_text(json.dumps(conf))
+    (root / ".nooku" / "config.json").write_text(json.dumps(conf))
     return root
 
 
@@ -66,7 +66,7 @@ def test_a_test_relays_and_records_both_sides(tmp_path: Path, homes: tuple) -> N
     root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
     cur = bridge.start(root, "tester-1")
     try:
-        assert (root / ".verbatim-relay" / "current.json").exists()
+        assert (root / ".nooku" / "current.json").exists()
         assert cur["pid_start"] == bridge.process_start(cur["pid"])
         said = "Do you ship to Chennai?\u2028Line two  "
         shown, ok = bridge.send(cur, said)
@@ -83,7 +83,7 @@ def test_a_test_relays_and_records_both_sides(tmp_path: Path, homes: tuple) -> N
     assert manifest["model_sessions"] == []
     assert "config.json" in manifest["config_sha256"]
     folder = Path(cur["dir"])
-    assert not (root / ".verbatim-relay" / "current.json").exists()
+    assert not (root / ".nooku" / "current.json").exists()
     assert "toy shop agent: ready" in (folder / "app.log").read_text()
     report = audit(folder / "tap.jsonl", folder / "relay.jsonl")
     assert (report.exit, report.turns, report.exchanges) == (0, 1, 1)
@@ -117,7 +117,7 @@ def test_a_stale_current_file_is_removed(tmp_path: Path) -> None:
     root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
     dead = subprocess.Popen([sys.executable, "-c", "pass"])
     dead.wait()
-    current = root / ".verbatim-relay" / "current.json"
+    current = root / ".nooku" / "current.json"
     current.write_text(json.dumps({"test": "x", "pid": dead.pid, "dir": "", "tap_url": ""}))
     assert bridge.current(root) is None
     assert not current.exists()
@@ -127,7 +127,7 @@ def test_a_live_process_that_is_not_the_bridge_gets_no_signal(tmp_path: Path) ->
     root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
     other = subprocess.Popen(["sleep", "60"])
     try:
-        current = root / ".verbatim-relay" / "current.json"
+        current = root / ".nooku" / "current.json"
         real = bridge.process_start(other.pid)
         assert real
         cur = {"test": "x", "pid": other.pid, "dir": str(tmp_path), "tap_url": ""}
@@ -216,9 +216,9 @@ def test_the_tester_thread_is_not_an_app_session(tmp_path: Path, homes: tuple) -
     events = [
         {"hook_event_name": "UserPromptSubmit", "prompt": p, "session_id": sid}
         for p, sid in (
-            ("verbatim-relay start", "tester-start"),
+            ("nooku start", "tester-start"),
             ("Is the teapot in stock?", "tester-start"),
-            ("verbatim-relay end", TESTER_THREAD),
+            ("nooku end", TESTER_THREAD),
         )
     ]
     answers = [kit.handle(e, root, "codex") for e in events]
@@ -226,7 +226,7 @@ def test_the_tester_thread_is_not_an_app_session(tmp_path: Path, homes: tuple) -
     assert "started" in answers[0]["reason"]
     # The end prompt goes on to the model, with the evaluation.
     assert "Evaluate test" in answers[2]["hookSpecificOutput"]["additionalContext"]
-    assert not (root / ".verbatim-relay" / bridge.ENDING).exists()
+    assert not (root / ".nooku" / bridge.ENDING).exists()
     folder = bridge.latest_test(root)
     assert folder is not None
     manifest = json.loads((folder / "manifest.json").read_text())
@@ -254,9 +254,7 @@ def test_check_gives_the_fix_for_logs_on_stdout(
     folder = tmp_path / "test"
     folder.mkdir()
     monkeypatch.setattr(bridge, "start", lambda root: {"test": "t-1", "dir": str(folder)})
-    monkeypatch.setattr(
-        bridge, "send", lambda cur, said: (f"verbatim-relay: HTTP 504: {error}", False)
-    )
+    monkeypatch.setattr(bridge, "send", lambda cur, said: (f"nooku: HTTP 504: {error}", False))
     monkeypatch.setattr(bridge, "end", lambda root: {})
     # The tap wrote an unparsed row for each stray line, so the audit exits with 2.
     detail = "line 1: STDIO stdout: a stray line on stdout: 'toy shop: loading catalog'"
@@ -425,10 +423,10 @@ def test_kit_without_a_test_fails_closed(tmp_path: Path) -> None:
 @pytest.mark.parametrize(
     ("tool", "tool_input", "denied"),
     [
-        ("Write", {"file_path": ".verbatim-relay/entry.py", "content": "x"}, True),
-        ("apply_patch", {"input": "*** Update File: .verbatim-relay/config.json"}, True),
-        ("Bash", {"command": "cat .verbatim-relay/config.json"}, True),
-        ("Read", {"file_path": ".verbatim-relay/config.json"}, False),
+        ("Write", {"file_path": ".nooku/entry.py", "content": "x"}, True),
+        ("apply_patch", {"input": "*** Update File: .nooku/config.json"}, True),
+        ("Bash", {"command": "cat .nooku/config.json"}, True),
+        ("Read", {"file_path": ".nooku/config.json"}, False),
         ("Write", {"file_path": "shop/orders.py", "content": "x"}, False),
         ("Bash", {"command": "curl -s {tap_url}"}, True),
         ("Bash", {"command": "ls"}, False),
@@ -452,7 +450,7 @@ def test_kit_protects_the_test(
 def test_view_follows_the_latest_test(tmp_path: Path, homes: tuple) -> None:
     root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
     kit.init(root, "claude-code", {"entry": [sys.executable, str(TOY_SHOP)]})
-    for prompt in ("verbatim-relay start", "Refund policy?", "verbatim-relay end"):
+    for prompt in ("nooku start", "Refund policy?", "nooku end"):
         event = {"hook_event_name": "UserPromptSubmit", "prompt": prompt, "session_id": "s1"}
         kit.handle(event, root, "claude-code")
     out = io.StringIO()
@@ -463,7 +461,7 @@ def test_view_follows_the_latest_test(tmp_path: Path, homes: tuple) -> None:
 
 
 def test_the_latest_test_is_the_one_that_started_last(tmp_path: Path) -> None:
-    tests = tmp_path / ".verbatim-relay" / "tests"
+    tests = tmp_path / ".nooku" / "tests"
     # The same second: the random part puts the older test last by name.
     for name, started in (("20261006-080000-ffff", 1.0), ("20261006-080000-0000", 2.0)):
         (tests / name).mkdir(parents=True)
@@ -524,7 +522,7 @@ def test_the_receiver_records_the_app_spans(tmp_path: Path, homes: tuple) -> Non
 
 def test_otel_false_starts_no_receiver(tmp_path: Path, homes: tuple) -> None:
     root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
-    config = root / ".verbatim-relay" / "config.json"
+    config = root / ".nooku" / "config.json"
     config.write_text(json.dumps({**json.loads(config.read_text()), "otel": False}))
     cur = bridge.start(root, "tester-1")
     try:
@@ -553,7 +551,7 @@ def test_the_proxy_records_the_backend_calls(tmp_path: Path, homes: tuple) -> No
     from toy_stock_server import StockServer
 
     root = project(tmp_path, [sys.executable, "-c", STOCK_APP])
-    config = root / ".verbatim-relay" / "config.json"
+    config = root / ".nooku" / "config.json"
     with StockServer() as stock:
         backends = [{"name": "stock", "env": "STOCK_URL", "url": stock.url}]
         config.write_text(json.dumps({**json.loads(config.read_text()), "backends": backends}))
@@ -619,7 +617,7 @@ def test_the_proxy_records_the_direct_model_calls(
 
 def test_a_bad_model_api_config_stops_the_start(tmp_path: Path) -> None:
     root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
-    config = root / ".verbatim-relay" / "config.json"
+    config = root / ".nooku" / "config.json"
     config.write_text(json.dumps({**json.loads(config.read_text()), "model_api": ["toy"]}))
     with pytest.raises(bridge.BridgeError, match="'model_api' must be"):
         bridge.start(root)
@@ -627,7 +625,7 @@ def test_a_bad_model_api_config_stops_the_start(tmp_path: Path) -> None:
 
 def test_a_bad_backend_config_stops_the_start(tmp_path: Path) -> None:
     root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
-    config = root / ".verbatim-relay" / "config.json"
+    config = root / ".nooku" / "config.json"
     config.write_text(json.dumps({**json.loads(config.read_text()), "backends": [{"name": "x"}]}))
     with pytest.raises(bridge.BridgeError, match="'name', 'env' and 'url'"):
         bridge.start(root)

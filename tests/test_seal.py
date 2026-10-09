@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from verbatim_relay import seal
-from verbatim_relay.cli import main
+from nooku import seal
+from nooku.cli import main
 
 CASES = sorted((Path(__file__).resolve().parent.parent / "conformance" / "seal").iterdir())
 TEST = "20261006-120000-se01"
@@ -19,7 +19,7 @@ def test_conformance(case: Path) -> None:
 
 def folder(tmp_path: Path) -> Path:
     """A copy of the intact case, as a test folder of a project."""
-    f = tmp_path / ".verbatim-relay" / "tests" / TEST
+    f = tmp_path / ".nooku" / "tests" / TEST
     shutil.copytree(CASES[0].parent / "intact" / "test" / TEST, f)
     (f / "seal.json").unlink()
     return f

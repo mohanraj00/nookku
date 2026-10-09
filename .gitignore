@@ -14,7 +14,7 @@ htmlcov/
 .DS_Store
 .env
 CLAUDE.local.md
-.verbatim-relay/
+.nooku/
 .proof/
 bench/smoke/
 bench/logs/

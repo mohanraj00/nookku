@@ -1,6 +1,6 @@
 """The entry of the toy shop with a model session: agent contract v1 on stdin and stdout.
 
-The tap starts it at `verbatim-relay start` (SPEC.md section 6). It needs claude-agent-sdk.
+The tap starts it at `nooku start` (SPEC.md section 6). It needs claude-agent-sdk.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ import sys
 
 from app import Shop
 
-from verbatim_relay import contract
+from nooku import contract
 
 
 async def main() -> None:

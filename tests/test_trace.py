@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from verbatim_relay import trace
+from nooku import trace
 
 CASES = sorted((Path(__file__).resolve().parent.parent / "conformance" / "trace").iterdir())
 
@@ -151,7 +151,7 @@ def test_a_lone_surrogate_in_a_source_is_written_as_its_escape(tmp_path: Path) -
 def test_the_trace_command_prints_a_lone_surrogate_as_its_escape(
     tmp_path: Path, as_json: bool
 ) -> None:
-    folder = tmp_path / ".verbatim-relay" / "tests" / "t"
+    folder = tmp_path / ".nooku" / "tests" / "t"
     folder.mkdir(parents=True)
     (folder / "manifest.json").write_text(json.dumps({"test": "t", "model_sessions": []}))
     request = {"messages": [{"role": "user", "content": "a mug"}]}
@@ -168,7 +168,7 @@ def test_the_trace_command_prints_a_lone_surrogate_as_its_escape(
         "result": None,
     }
     (folder / "model_api.jsonl").write_text(json.dumps(row) + "\n", encoding="utf-8")
-    argv = [sys.executable, "-m", "verbatim_relay", "trace", "t", "--root", str(tmp_path)]
+    argv = [sys.executable, "-m", "nooku", "trace", "t", "--root", str(tmp_path)]
     env = {**os.environ, "PYTHONIOENCODING": "utf-8:strict"}
     p = subprocess.run(argv + ["--json"] * as_json, capture_output=True, env=env)
     assert p.returncode == 0, p.stderr

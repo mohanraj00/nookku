@@ -15,9 +15,9 @@ The proofs show that each relay is exact in a real harness. They run the harness
 
 Codex runs project hooks only after a person trusts them. Never try to skip the trust step. Trust these projects once:
 
-1. Install the kit in the project of the proofs: `verbatim-relay init codex --root .proof/codex`.
+1. Install the kit in the project of the proofs: `nooku init codex --root .proof/codex`.
 2. Start `codex` in `.proof/codex` and accept the hooks prompt.
-3. For the evaluation proofs, do the same in `~/.verbatim-relay-proof/codex`. That project is outside the repo, so that the evaluating model cannot read the docs that describe the planted bug ([proof_report.py](../../scripts/proof_report.py)).
+3. For the evaluation proofs, do the same in `~/.nooku-proof/codex`. That project is outside the repo, so that the evaluating model cannot read the docs that describe the planted bug ([proof_report.py](../../scripts/proof_report.py)).
 
 If `.codex/hooks.json` changes, trust it again.
 

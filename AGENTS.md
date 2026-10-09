@@ -1,4 +1,4 @@
-# Work on verbatim-relay
+# Work on Nooku
 
 ## What this project is
 

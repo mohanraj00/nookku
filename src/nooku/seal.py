@@ -1,7 +1,7 @@
 """The seal of a test folder (SPEC.md section 7.4).
 
 At the end of a test, the bridge writes the SHA-256 of each file of the test folder to seal.json,
-and a copy to ~/.verbatim-relay/seals/<test-id>.json. `verify` finds each file that changed after
+and a copy to ~/.nooku/seals/<test-id>.json. `verify` finds each file that changed after
 the end. A model that changes a record must also change both seals.
 """
 
@@ -22,7 +22,7 @@ VERSION = 1
 
 
 def home() -> Path:
-    return Path(os.environ.get("VERBATIM_RELAY_HOME") or Path.home() / ".verbatim-relay")
+    return Path(os.environ.get("NOOKU_HOME") or Path.home() / ".nooku")
 
 
 def copy_path(test: str, base: Path | None = None) -> Path:

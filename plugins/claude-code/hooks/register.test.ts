@@ -21,8 +21,8 @@ function fakes(on: any, reply: (body: string) => { status: number; text: string;
     return { value: { status: r.status, ok: r.status >= 200 && r.status < 300, headers: r.headers ?? {}, text: r.text } }
   })
   // $.fs resolves a relative path against the working directory. Key the files by the path
-  // from .verbatim-relay/ on, as the plugin wrote it.
-  const key = (path: string) => path.replace(/^.*?(?=\.verbatim-relay\/)/, '')
+  // from .nooku/ on, as the plugin wrote it.
+  const key = (path: string) => path.replace(/^.*?(?=\.nooku\/)/, '')
   on('fs.stat', async (_$: any, e: any) =>
     broken.stat !== '' && key(e.path) === broken.stat
       ? { deny: `EACCES: permission denied: ${e.path}` }
@@ -65,9 +65,9 @@ test('relay mode sends the exact bytes, shows the exact reply, and keeps the mod
 test('relay mode refuses a prompt with a lone surrogate and records no turn', { options: OPTIONS }, async ($, on) => {
   const f = fakes(on, () => ({ status: 200, text: JSON.stringify({ reply: REPLY }) }))
   const result: any = await $.prompt.submit({ text: 'a \uD83D\uDE00 mug \uD83D' })
-  expect(result.drop).toBe('verbatim-relay: nothing was sent')
+  expect(result.drop).toBe('nooku: nothing was sent')
   expect(f.sent.length).toBe(0)
-  expect(f.logs).toEqual(['verbatim-relay: nothing was sent. The message has a lone surrogate U+D83D at character 8.'])
+  expect(f.logs).toEqual(['nooku: nothing was sent. The message has a lone surrogate U+D83D at character 8.'])
   expect(f.files['/virtual/relay.jsonl']).toBe(undefined)
   // The same text as record.lone_surrogate in Python.
   expect(loneSurrogate('mug \uDC00')).toBe('a lone surrogate U+DC00 at character 4')
@@ -85,7 +85,7 @@ test('relay mode off passes the prompt on', { options: { ...OPTIONS, start_on: f
 test('an agent error is shown and recorded as shown', { options: OPTIONS }, async ($, on) => {
   const f = fakes(on, () => ({ status: 500, text: '{"error": "boom"}' }))
   await $.prompt.submit({ text: 'hi' })
-  expect(f.logs[0]).toBe('verbatim-relay: the agent returned HTTP 500:\n{"error": "boom"}')
+  expect(f.logs[0]).toBe('nooku: the agent returned HTTP 500:\n{"error": "boom"}')
   expect(rows(f.files['/virtual/relay.jsonl'])[0].shown).toBe(f.logs[0])
 })
 
@@ -130,7 +130,7 @@ test('the openai adapter shows a streamed reply when the stream is complete', { 
 test('a stream that ends early is an error, not a part of the reply', { options: { ...OPTIONS, adapter: 'openai' } }, async ($, on) => {
   const f = fakes(on, () => ({ status: 200, text: sse(REPLY, false), headers: SSE }))
   await $.prompt.submit({ text: TRICKY })
-  expect(f.logs).toEqual(['verbatim-relay: cannot read the reply: the stream ended before data: [DONE]'])
+  expect(f.logs).toEqual(['nooku: cannot read the reply: the stream ended before data: [DONE]'])
   expect(rows(f.files['/virtual/relay.jsonl'])[0]).toMatchObject({ shown: f.logs[0], ok: false })
 })
 
@@ -258,32 +258,32 @@ test('pure parts', async () => {
   })
   expect(isChecked('mcp__fetch__get')).toBe(true)
   expect(isChecked('SomeNewTool')).toBe(true)
-  expect(isChecked('mcp__verbatim-relay__transcript')).toBe(false)
+  expect(isChecked('mcp__nooku__transcript')).toBe(false)
   expect(isChecked('Edit')).toBe(false)
   expect(await sha256('é')).toBe('4a99557e4033c3539de2eb65472017cad5f9557f7a0625a09f1c3f6e2ba69c4c')
 })
 
-// The verbatim-relay command renders the transcript for the plugin and for the hook kit.
+// The nooku command renders the transcript for the plugin and for the hook kit.
 // tests/test_cli.py checks that the argv of the plugin give the same text as the argv of the kit.
-const RENDERED = `verbatim-relay transcript, session s1: 1 turns.\n\n──── tester, turn 1 ────\n${TRICKY}\n──── agent ────\n${REPLY}\n`
+const RENDERED = `nooku transcript, session s1: 1 turns.\n\n──── tester, turn 1 ────\n${TRICKY}\n──── agent ────\n${REPLY}\n`
 
-test('the transcript tool shows the exact output of the verbatim-relay command', { options: OPTIONS }, async ($, on) => {
+test('the transcript tool shows the exact output of the nooku command', { options: OPTIONS }, async ($, on) => {
   fakes(on, () => ({ status: 200, text: '{}' }))
   const runs: string[][] = []
   on('process.run', async (_$: any, e: any) => {
     runs.push(e.argv)
     return { value: { exitCode: 0, stdout: RENDERED, stderr: '' } }
   })
-  const out: any = await $.tool.call({ tool: 'mcp__verbatim-relay__transcript' } as any)
-  expect(runs[0]).toEqual(['verbatim-relay', 'transcript', '--record', '/virtual/relay.jsonl', '--session', 's1'])
+  const out: any = await $.tool.call({ tool: 'mcp__nooku__transcript' } as any)
+  expect(runs[0]).toEqual(['nooku', 'transcript', '--record', '/virtual/relay.jsonl', '--session', 's1'])
   expect(out.result).toBe(RENDERED)
-  const traced: any = await $.tool.call({ tool: 'mcp__verbatim-relay__transcript', trace: true } as any)
-  expect(runs[1]).toEqual(['verbatim-relay', 'transcript', '--trace'])
+  const traced: any = await $.tool.call({ tool: 'mcp__nooku__transcript', trace: true } as any)
+  expect(runs[1]).toEqual(['nooku', 'transcript', '--trace'])
   expect(traced.result).toBe(RENDERED)
 })
 
-// A test (SPEC.md section 7). The fake verbatim-relay command writes current.json, as the bridge does.
-const DIR = '.verbatim-relay/tests/20261005-120000-ab12'
+// A test (SPEC.md section 7). The fake nooku command writes current.json, as the bridge does.
+const DIR = '.nooku/tests/20261005-120000-ab12'
 const CURRENT = { v: 1, test: '20261005-120000-ab12', dir: DIR, tap_url: 'http://127.0.0.1:8811/', pid: 4471, pid_start: 'ps:Mon Oct 5 12:00:00 2026' }
 
 // Only the bridge that the fake command started runs. A current.json that a test writes is
@@ -291,24 +291,24 @@ const CURRENT = { v: 1, test: '20261005-120000-ab12', dir: DIR, tap_url: 'http:/
 function withTest(on: any, f: ReturnType<typeof fakes>, evaluation: string | null = 'Evaluate the test.') {
   const runs: string[][] = []
   let bridge = false
-  f.files['.verbatim-relay/config.json'] = JSON.stringify({ entry: ['python', 'examples/toy-shop/agent.py'], models: [] })
+  f.files['.nooku/config.json'] = JSON.stringify({ entry: ['python', 'examples/toy-shop/agent.py'], models: [] })
   on('process.run', async (_$: any, e: any) => {
     runs.push(e.argv)
     if (e.argv[1] === 'transcript') return { value: { exitCode: 0, stdout: RENDERED, stderr: '' } }
     if (e.argv[1] === 'status') {
-      if (!bridge) delete f.files['.verbatim-relay/current.json']
-      const on = (f.files['.verbatim-relay/mode'] ?? '').trim() === 'on'
+      if (!bridge) delete f.files['.nooku/current.json']
+      const on = (f.files['.nooku/mode'] ?? '').trim() === 'on'
       return { value: { exitCode: 0, stdout: JSON.stringify({ on, test: bridge ? CURRENT : null }) + '\n', stderr: '' } }
     }
     if (e.argv[1] === 'start') {
       bridge = true
-      f.files['.verbatim-relay/current.json'] = JSON.stringify(CURRENT)
-      f.files['.verbatim-relay/mode'] = 'on\n'
+      f.files['.nooku/current.json'] = JSON.stringify(CURRENT)
+      f.files['.nooku/mode'] = 'on\n'
       return { value: { exitCode: 0, stdout: JSON.stringify(CURRENT) + '\n', stderr: '' } }
     }
     bridge = false
-    delete f.files['.verbatim-relay/current.json']
-    f.files['.verbatim-relay/mode'] = 'off\n'
+    delete f.files['.nooku/current.json']
+    f.files['.nooku/mode'] = 'off\n'
     if (e.argv.includes('--evaluation')) {
       const out = { text: 'Test 20261005-120000-ab12 ended: 1 turns, 0 model sessions.', evaluation }
       return { value: { exitCode: 0, stdout: JSON.stringify(out) + '\n', stderr: '' } }
@@ -327,13 +327,13 @@ test('a test starts, relays with the contract, records in its folder and ends', 
   const f = fakes(on, contractReply)
   const runs = withTest(on, f)
   on('prompt.submit', async (_$: any, e: any) => ({ text: e.text }))
-  const started: any = await $.command.run({ command: 'verbatim-relay', args: 'start' } as any)
+  const started: any = await $.command.run({ command: 'nooku', args: 'start' } as any)
   expect(started.text).toBe(
     'Test 20261005-120000-ab12 started. Relay mode is on. ' +
-      'To end the test and start the evaluation, type the prompt verbatim-relay end, with no slash. ' +
-      'To end the test with no evaluation, type /verbatim-relay end.',
+      'To end the test and start the evaluation, type the prompt nooku end, with no slash. ' +
+      'To end the test with no evaluation, type /nooku end.',
   )
-  expect(runs[0]).toEqual(['verbatim-relay', 'start', '--json', '--tester-session', 's1'])
+  expect(runs[0]).toEqual(['nooku', 'start', '--json', '--tester-session', 's1'])
   await $.prompt.submit({ text: TRICKY })
   await $.prompt.submit({ text: 'second' })
   expect(f.sent[0].url).toBe(CURRENT.tap_url)
@@ -344,11 +344,11 @@ test('a test starts, relays with the contract, records in its folder and ends', 
   const turns = rows(f.files[`${DIR}/relay.jsonl`])
   expect(turns[0]).toMatchObject({ v: '0.2', type: 'turn', said: TRICKY, shown: REPLY, ok: true, session: 's1' })
   expect(f.files['/virtual/relay.jsonl']).toBe(undefined)
-  const transcript: any = await $.tool.call({ tool: 'mcp__verbatim-relay__transcript' } as any)
-  expect(runs[1]).toEqual(['verbatim-relay', 'transcript', '--test', CURRENT.test])
+  const transcript: any = await $.tool.call({ tool: 'mcp__nooku__transcript' } as any)
+  expect(runs[1]).toEqual(['nooku', 'transcript', '--test', CURRENT.test])
   expect(transcript.result).toBe(RENDERED)
-  const ended: any = await $.command.run({ command: 'verbatim-relay', args: 'end' } as any)
-  expect(runs[2]).toEqual(['verbatim-relay', 'end'])
+  const ended: any = await $.command.run({ command: 'nooku', args: 'end' } as any)
+  expect(runs[2]).toEqual(['nooku', 'end'])
   expect(ended.text).toContain('Relay mode is off.')
   const after: any = await $.prompt.submit({ text: 'to the model' })
   expect(after.drop).toBe(undefined)
@@ -356,8 +356,8 @@ test('a test starts, relays with the contract, records in its folder and ends', 
 
 test('relay mode with an entry and no test fails closed', {}, async ($, on) => {
   const f = fakes(on, contractReply)
-  f.files['.verbatim-relay/config.json'] = JSON.stringify({ entry: ['python', 'agent.py'] })
-  f.files['.verbatim-relay/mode'] = 'on\n'
+  f.files['.nooku/config.json'] = JSON.stringify({ entry: ['python', 'agent.py'] })
+  f.files['.nooku/mode'] = 'on\n'
   const result: any = await $.prompt.submit({ text: 'hi' })
   expect('drop' in result).toBe(true)
   expect(f.sent.length).toBe(0)
@@ -368,15 +368,15 @@ test('a current.json whose bridge does not run is no test, the turn stays with o
   // The bridge died: current.json stays, and its tap does not answer.
   const f = fakes(on, contractReply)
   const runs = withTest(on, f)
-  f.files['.verbatim-relay/current.json'] = JSON.stringify(CURRENT)
-  f.files['.verbatim-relay/mode'] = 'on\n'
+  f.files['.nooku/current.json'] = JSON.stringify(CURRENT)
+  f.files['.nooku/mode'] = 'on\n'
   f.broken.fetch = true
   on('prompt.submit', async (_$: any, e: any) => ({ text: e.text }))
   const result: any = await $.prompt.submit({ text: TRICKY })
   expect('drop' in result).toBe(true)
   expect(f.sent.map(s => s.url)).toEqual([CURRENT.tap_url])
-  expect(runs).toEqual([['verbatim-relay', 'status', '--json']])
-  expect(f.logs).toEqual(['verbatim-relay: the test stopped, and no test runs. The tap did not answer. Type /verbatim-relay start.'])
+  expect(runs).toEqual([['nooku', 'status', '--json']])
+  expect(f.logs).toEqual(['nooku: the test stopped, and no test runs. The tap did not answer. Type /nooku start.'])
   // The POST can have reached the tap, so the record keeps the turn for the audit.
   expect(rows(f.files[`${DIR}/relay.jsonl`])).toMatchObject([{ said: TRICKY, ok: false }])
   // The next prompt finds no test and does not try the tap.
@@ -390,21 +390,21 @@ test('a tap that does not answer while the bridge runs shows the connection erro
   const f = fakes(on, contractReply)
   const runs = withTest(on, f)
   on('prompt.submit', async (_$: any, e: any) => ({ text: e.text }))
-  await $.command.run({ command: 'verbatim-relay', args: 'start' } as any)
+  await $.command.run({ command: 'nooku', args: 'start' } as any)
   f.broken.fetch = true
   const result: any = await $.prompt.submit({ text: TRICKY })
   expect('drop' in result).toBe(true)
-  expect(runs[1]).toEqual(['verbatim-relay', 'status', '--json'])
+  expect(runs[1]).toEqual(['nooku', 'status', '--json'])
   expect(f.logs.at(-1)).toContain(`cannot reach the tap at ${CURRENT.tap_url}`)
   expect(rows(f.files[`${DIR}/relay.jsonl`])[0]).toMatchObject({ said: TRICKY, ok: false })
 })
 
 test('a test that does not start leaves relay mode off', {}, async ($, on) => {
   const f = fakes(on, contractReply)
-  f.files['.verbatim-relay/config.json'] = JSON.stringify({ entry: ['python', 'agent.py'] })
+  f.files['.nooku/config.json'] = JSON.stringify({ entry: ['python', 'agent.py'] })
   on('process.run', async () => ({ value: { exitCode: 1, stdout: '{"error": "the entry exited at start"}\n', stderr: '' } }))
   on('prompt.submit', async (_$: any, e: any) => ({ text: e.text }))
-  const started: any = await $.command.run({ command: 'verbatim-relay', args: 'on' } as any)
+  const started: any = await $.command.run({ command: 'nooku', args: 'on' } as any)
   expect(started.text).toBe('The test did not start: the entry exited at start')
   const result: any = await $.prompt.submit({ text: 'hello' })
   expect(result.text).toBe('hello')
@@ -414,8 +414,8 @@ test('a running test keeps relay mode after the plugin reloads', { options: { st
   // A new plugin state, with start_on false. The mode file and current.json say that a test runs.
   const f = fakes(on, contractReply)
   withTest(on, f)
-  f.files['.verbatim-relay/current.json'] = JSON.stringify(CURRENT)
-  f.files['.verbatim-relay/mode'] = 'on\n'
+  f.files['.nooku/current.json'] = JSON.stringify(CURRENT)
+  f.files['.nooku/mode'] = 'on\n'
   const result: any = await $.prompt.submit({ text: TRICKY })
   expect('drop' in result).toBe(true)
   expect(f.sent[0].url).toBe(CURRENT.tap_url)
@@ -433,13 +433,13 @@ test('with an entry, start_on alone does not switch relay mode on', { options: {
 test('during a test, the model cannot change the test files or call the tap', { options: { start_on: true } }, async ($, on) => {
   const f = fakes(on, contractReply)
   withTest(on, f)
-  f.files['.verbatim-relay/current.json'] = JSON.stringify(CURRENT)
+  f.files['.nooku/current.json'] = JSON.stringify(CURRENT)
   on('tool.call', async () => ({ result: 'ran' }))
-  const write: any = await $.tool.call({ tool: 'Edit', file_path: '.verbatim-relay/entry.py', old_string: 'a', new_string: 'b' } as any)
+  const write: any = await $.tool.call({ tool: 'Edit', file_path: '.nooku/entry.py', old_string: 'a', new_string: 'b' } as any)
   expect(typeof write.deny).toBe('string')
   const curl: any = await $.tool.call({ tool: 'Bash', command: 'curl -s http://127.0.0.1:8811/' } as any)
   expect(typeof curl.deny).toBe('string')
-  const read: any = await $.tool.call({ tool: 'Read', file_path: '.verbatim-relay/config.json' } as any)
+  const read: any = await $.tool.call({ tool: 'Read', file_path: '.nooku/config.json' } as any)
   expect(read.deny).toBe(undefined)
   expect(rows(f.files[`${DIR}/relay.jsonl`]).map(r => r.tool)).toEqual(['Edit', 'Bash'])
 })
@@ -447,7 +447,7 @@ test('during a test, the model cannot change the test files or call the tap', { 
 test('contract parts', async () => {
   const turns = [
     { said: 'a', shown: 'b', ok: true },
-    { said: 'c', shown: 'verbatim-relay: HTTP 502: x', ok: false },
+    { said: 'c', shown: 'nooku: HTTP 502: x', ok: false },
   ]
   expect(JSON.parse(contractBody('m-1', 't-1', 'd', turns))).toEqual({
     v: 1,
@@ -460,13 +460,13 @@ test('contract parts', async () => {
   expect(contractShown(200, '{"v": 1, "id": "m-1", "reply": "Hi  "}', 'm-1')).toEqual({ shown: 'Hi  ', ok: true })
   expect(contractShown(200, '{"v": 1, "id": "m-0", "reply": "Hi"}', 'm-1').ok).toBe(false)
   expect(contractShown(500, '{"v": 1, "id": "m-1", "error": "down"}', 'm-1')).toEqual({
-    shown: 'verbatim-relay: the agent sent an error:\ndown',
+    shown: 'nooku: the agent sent an error:\ndown',
     ok: false,
   })
-  expect(contractShown(502, '{"error": "the agent exited (code 3)"}', 'm-1').shown).toBe('verbatim-relay: HTTP 502: the agent exited (code 3)')
-  expect(touchesTestFiles('Write', '{"file_path": ".verbatim-relay/entry.py"}')).toBe(true)
-  expect(touchesTestFiles('Read', '{"file_path": ".verbatim-relay/entry.py"}')).toBe(false)
-  expect(touchesTestFiles('Bash', '{"command": "verbatim-relay transcript"}')).toBe(false)
+  expect(contractShown(502, '{"error": "the agent exited (code 3)"}', 'm-1').shown).toBe('nooku: HTTP 502: the agent exited (code 3)')
+  expect(touchesTestFiles('Write', '{"file_path": ".nooku/entry.py"}')).toBe(true)
+  expect(touchesTestFiles('Read', '{"file_path": ".nooku/entry.py"}')).toBe(false)
+  expect(touchesTestFiles('Bash', '{"command": "nooku transcript"}')).toBe(false)
 })
 
 // The agent line of each one-line case in conformance/contract/, with the status that the
@@ -494,7 +494,7 @@ test('the plugin reads an agent line with the same rule as the Python tap', asyn
     expect([line, reply.ok]).toEqual([line, status === 200])
     if (status === 200) expect(reply.shown).toBe(JSON.parse(line).reply)
     const error = contractShown(500, line, 'm-1')
-    expect([line, error.shown.startsWith('verbatim-relay: the agent sent an error:\n')]).toEqual([line, status === 500])
+    expect([line, error.shown.startsWith('nooku: the agent sent an error:\n')]).toEqual([line, status === 500])
     expect(error.ok).toBe(false)
   }
 })
@@ -567,38 +567,38 @@ test('a bad line in the relay record is an error, and nothing is sent', { option
   expect(error).toBe("/virtual/relay.jsonl: line 1: field shown_sha256 does not match 'shown'")
 })
 
-test('the prompt verbatim-relay end ends the test and gives the model the evaluation', { options: { start_on: false } }, async ($, on) => {
+test('the prompt nooku end ends the test and gives the model the evaluation', { options: { start_on: false } }, async ($, on) => {
   const f = fakes(on, contractReply)
   const runs = withTest(on, f)
   on('prompt.submit', async (_$: any, e: any) => ({ text: e.text, context: e.context }))
-  await $.command.run({ command: 'verbatim-relay', args: 'start' } as any)
-  const result: any = await $.prompt.submit({ text: 'verbatim-relay end' })
-  expect(runs[1]).toEqual(['verbatim-relay', 'end', '--evaluation'])
-  expect(result.text).toBe('verbatim-relay end')
+  await $.command.run({ command: 'nooku', args: 'start' } as any)
+  const result: any = await $.prompt.submit({ text: 'nooku end' })
+  expect(runs[1]).toEqual(['nooku', 'end', '--evaluation'])
+  expect(result.text).toBe('nooku end')
   expect(result.context.at(-1)).toContain('Evaluate the test.')
   expect(result.context.at(-1)).toContain('ended: 1 turns')
   expect(f.sent.length).toBe(0)
 })
 
-test('with no evaluation, the prompt verbatim-relay end does not reach the model', {}, async ($, on) => {
+test('with no evaluation, the prompt nooku end does not reach the model', {}, async ($, on) => {
   const f = fakes(on, contractReply)
   withTest(on, f, null)
   on('prompt.submit', async (_$: any, e: any) => ({ text: e.text }))
-  const result: any = await $.prompt.submit({ text: 'verbatim-relay end' })
+  const result: any = await $.prompt.submit({ text: 'nooku end' })
   expect('drop' in result).toBe(true)
   expect(f.logs[0]).toContain('Relay mode is off.')
 })
 
-test('the prompts verbatim-relay start and status run and are never relayed', {}, async ($, on) => {
+test('the prompts nooku start and status run and are never relayed', {}, async ($, on) => {
   const f = fakes(on, contractReply)
   const runs = withTest(on, f)
-  const started: any = await $.prompt.submit({ text: 'verbatim-relay start' })
+  const started: any = await $.prompt.submit({ text: 'nooku start' })
   expect('drop' in started).toBe(true)
   expect(runs[0][1]).toBe('start')
-  const status: any = await $.prompt.submit({ text: 'verbatim-relay status' })
+  const status: any = await $.prompt.submit({ text: 'nooku status' })
   expect('drop' in status).toBe(true)
-  expect(runs[1]).toEqual(['verbatim-relay', 'status', '--json'])
-  expect(f.logs.at(-1)).toBe(`verbatim-relay: Relay mode is on. Test ${CURRENT.test} runs on ${CURRENT.tap_url}.`)
+  expect(runs[1]).toEqual(['nooku', 'status', '--json'])
+  expect(f.logs.at(-1)).toBe(`nooku: Relay mode is on. Test ${CURRENT.test} runs on ${CURRENT.tap_url}.`)
   expect(f.sent.length).toBe(0)
 })
 
@@ -606,26 +606,26 @@ test('with a stale current.json, the status shows no running test', {}, async ($
   // The bridge died: current.json stays, and the mode file says on.
   const f = fakes(on, contractReply)
   const runs = withTest(on, f)
-  f.files['.verbatim-relay/current.json'] = JSON.stringify(CURRENT)
-  f.files['.verbatim-relay/mode'] = 'on\n'
-  const shown: any = await $.command.run({ command: 'verbatim-relay', args: 'status' } as any)
-  expect(runs).toEqual([['verbatim-relay', 'status', '--json']])
+  f.files['.nooku/current.json'] = JSON.stringify(CURRENT)
+  f.files['.nooku/mode'] = 'on\n'
+  const shown: any = await $.command.run({ command: 'nooku', args: 'status' } as any)
+  expect(runs).toEqual([['nooku', 'status', '--json']])
   expect(shown.text).toBe('Relay mode is on. No test runs.')
-  const status: any = await $.prompt.submit({ text: 'verbatim-relay status' })
+  const status: any = await $.prompt.submit({ text: 'nooku status' })
   expect('drop' in status).toBe(true)
-  expect(f.logs.at(-1)).toBe('verbatim-relay: Relay mode is on. No test runs.')
+  expect(f.logs.at(-1)).toBe('nooku: Relay mode is on. No test runs.')
   expect(f.sent.length).toBe(0)
 })
 
-test('if verbatim-relay status fails, the status text says that it is not known', {}, async ($, on) => {
+test('if nooku status fails, the status text says that it is not known', {}, async ($, on) => {
   const f = fakes(on, contractReply)
-  f.files['.verbatim-relay/config.json'] = JSON.stringify({ entry: ['python', 'agent.py'] })
-  f.files['.verbatim-relay/current.json'] = JSON.stringify(CURRENT)
-  on('process.run', async () => ({ value: { exitCode: 127, stdout: '', stderr: 'verbatim-relay: command not found\n' } }))
-  const shown: any = await $.command.run({ command: 'verbatim-relay', args: 'status' } as any)
+  f.files['.nooku/config.json'] = JSON.stringify({ entry: ['python', 'agent.py'] })
+  f.files['.nooku/current.json'] = JSON.stringify(CURRENT)
+  on('process.run', async () => ({ value: { exitCode: 127, stdout: '', stderr: 'nooku: command not found\n' } }))
+  const shown: any = await $.command.run({ command: 'nooku', args: 'status' } as any)
   expect(shown.text).toBe(
-    "The status is not known. The command 'verbatim-relay status --json' failed: verbatim-relay: command not found. " +
-      'Check that the plugin option cli names the verbatim-relay command.',
+    "The status is not known. The command 'nooku status --json' failed: nooku: command not found. " +
+      'Check that the plugin option cli names the nooku command.',
   )
 })
 
@@ -633,25 +633,25 @@ test('after a test, the model can write report.md and no other test file', {}, a
   const f = fakes(on, contractReply)
   withTest(on, f)
   on('tool.call', async () => ({ result: 'ran' }))
-  const folder = '.verbatim-relay/tests/20261005-120000-ab12'
+  const folder = '.nooku/tests/20261005-120000-ab12'
   const report: any = await $.tool.call({ tool: 'Write', file_path: `${folder}/report.md`, content: '# Report' } as any)
   expect(report.deny).toBe(undefined)
   const tap: any = await $.tool.call({ tool: 'Edit', file_path: `${folder}/tap.jsonl`, old_string: 'a', new_string: 'b' } as any)
   expect(typeof tap.deny).toBe('string')
-  const config: any = await $.tool.call({ tool: 'Write', file_path: '.verbatim-relay/config.json', content: '{}' } as any)
+  const config: any = await $.tool.call({ tool: 'Write', file_path: '.nooku/config.json', content: '{}' } as any)
   expect(config.deny).toBe(undefined)
   expect(touchesRecords('Write', `"${folder}/sessions/codex/r.jsonl"`)).toBe(true)
   expect(touchesRecords('Read', `"${folder}/tap.jsonl"`)).toBe(false)
 })
 
 // The same table as tests/test_commands.py.
-const F = '.verbatim-relay/tests/20261006-080000-cc01'
+const F = '.nooku/tests/20261006-080000-cc01'
 const READS = [
   "cat {F}/findings.json",
   "sed -n '1,200p' {F}/trace.jsonl",
   "sed -n '/refund/p' {F}/trace.jsonl",
   "sed -n -e '1,5p' -e '/a\\/w/p' {F}/trace.jsonl",
-  "verbatim-relay audit --json",
+  "nooku audit --json",
   "T={F}; ls $T; cat $T/findings.json",
   "jq '.findings[] | .check' {F}/findings.json",
   "ls -la {F} && wc -l {F}/tap.jsonl",
@@ -660,7 +660,7 @@ const READS = [
   "cat {F}/audit.json 2>&1 | tail -n 3",
   "cat > {F}/report.md <<'EOF'\n# Test: evaluation\nIt's done; rm -rf $(x) > a\nEOF",
   "cd {F}\nsort -n tap.jsonl",
-  "verbatim-relay transcript --trace --test 20261006-080000-cc01",
+  "nooku transcript --trace --test 20261006-080000-cc01",
   "find {F} -name '*.jsonl'",
   "cat \"{F}/manifest.json\"",
 ].map(c => c.replaceAll('{F}', F))
@@ -688,9 +688,9 @@ const WRITES = [
   "LD_PRELOAD=x.so; cat {F}/tap.jsonl",
   "T=$(rm {F}/tap.jsonl)",
   "cat '{F}/tap.jsonl",
-  "verbatim-relay end",
-  "verbatim-relay trace --root {F}/../../..",
-  "verbatim-relay check",
+  "nooku end",
+  "nooku trace --root {F}/../../..",
+  "nooku check",
   "python entry.py",
 ].map(c => c.replaceAll('{F}', F))
 
@@ -719,10 +719,10 @@ test('the shell command check', async () => {
 test('during a test, the model cannot run the entry around the tap', { options: { start_on: true } }, async ($, on) => {
   const f = fakes(on, contractReply)
   withTest(on, f)
-  f.files['.verbatim-relay/current.json'] = JSON.stringify(CURRENT)
+  f.files['.nooku/current.json'] = JSON.stringify(CURRENT)
   on('tool.call', async () => ({ result: 'ran' }))
   const run: any = await $.tool.call({ tool: 'Bash', command: 'cd examples/toy-shop && python agent.py' } as any)
-  expect(run.deny).toBe('verbatim-relay: during a test, only the tap runs the entry.')
+  expect(run.deny).toBe('nooku: during a test, only the tap runs the entry.')
   const cat: any = await $.tool.call({ tool: 'Bash', command: 'cat examples/toy-shop/agent.py' } as any)
   expect(cat.deny).toBe(undefined)
   expect(rows(f.files[`${DIR}/relay.jsonl`]).map(r => r.tool)).toEqual(['Bash'])
@@ -746,8 +746,8 @@ test('after a test, a deny goes to denied.jsonl and not to the sealed relay.json
   const f = fakes(on, contractReply)
   withTest(on, f)
   on('tool.call', async () => ({ result: 'ran' }))
-  await $.command.run({ command: 'verbatim-relay', args: 'start' } as any)
-  await $.command.run({ command: 'verbatim-relay', args: 'end' } as any)
+  await $.command.run({ command: 'nooku', args: 'start' } as any)
+  await $.command.run({ command: 'nooku', args: 'end' } as any)
   const relay = f.files[`${DIR}/relay.jsonl`]
   const sed: any = await $.tool.call({ tool: 'Bash', command: `sed -i '' 's/a/b/' ${DIR}/trace.jsonl` } as any)
   expect(typeof sed.deny).toBe('string')
@@ -764,11 +764,11 @@ async function expectBlocked($: any, on: any, f: ReturnType<typeof fakes>, error
     return { text: e.text }
   })
   const result: any = await $.prompt.submit({ text: 'hi' })
-  expect(result.drop).toBe('verbatim-relay: nothing reached the model')
+  expect(result.drop).toBe('nooku: nothing reached the model')
   expect(model).toEqual([])
   expect(f.sent.length).toBe(0)
   expect(f.logs.length).toBe(1)
-  expect(f.logs[0].startsWith('verbatim-relay: the hook failed (')).toBe(true)
+  expect(f.logs[0].startsWith('nooku: the hook failed (')).toBe(true)
   expect(f.logs[0]).toContain(error)
   expect(f.logs[0]).toContain('Nothing reached the model.')
 }
@@ -794,8 +794,8 @@ test('a failed session id blocks the prompt', { options: OPTIONS }, async ($, on
 test('during a test, a record line that is not JSON blocks the prompt', { options: { start_on: false } }, async ($, on) => {
   const f = fakes(on, contractReply)
   withTest(on, f)
-  f.files['.verbatim-relay/current.json'] = JSON.stringify(CURRENT)
-  f.files['.verbatim-relay/mode'] = 'on\n'
+  f.files['.nooku/current.json'] = JSON.stringify(CURRENT)
+  f.files['.nooku/mode'] = 'on\n'
   f.files[`${DIR}/relay.jsonl`] = 'not json\n'
   await expectBlocked($, on, f, 'relay.jsonl: line 1: not JSON')
 })
@@ -808,7 +808,7 @@ test('in relay mode, a failed tool guard denies the call', { options: { ...OPTIO
     return { result: 'ran' }
   })
   const call: any = await $.tool.call({ tool: 'Bash', command: 'echo hi' } as any)
-  expect(call.deny).toContain('verbatim-relay: the hook failed (TypeError')
+  expect(call.deny).toContain('nooku: the hook failed (TypeError')
   expect(ran).toEqual([])
 })
 
@@ -826,11 +826,11 @@ test('a control prompt whose hook fails does not reach the model', { options: { 
     model.push(e.text)
     return { text: e.text }
   })
-  const result: any = await $.prompt.submit({ text: 'verbatim-relay start' })
-  expect(result.drop).toBe('verbatim-relay: nothing reached the model')
+  const result: any = await $.prompt.submit({ text: 'nooku start' })
+  expect(result.drop).toBe('nooku: nothing reached the model')
   expect(model).toEqual([])
   expect(f.logs.length).toBe(1)
-  expect(f.logs[0].startsWith('verbatim-relay: the hook failed (throw: ')).toBe(true)
+  expect(f.logs[0].startsWith('nooku: the hook failed (throw: ')).toBe(true)
   expect(f.logs[0]).toContain('the session is not bound')
   expect(f.logs[0]).toContain('Nothing reached the model.')
 })
@@ -843,8 +843,8 @@ test('a failed transcript tool denies the call', { options: OPTIONS }, async ($,
     ran.push(e.tool)
     return { result: 'ran' }
   })
-  const call: any = await $.tool.call({ tool: 'mcp__verbatim-relay__transcript' } as any)
-  expect(call.deny).toContain('verbatim-relay: the hook failed (throw: ')
+  const call: any = await $.tool.call({ tool: 'mcp__nooku__transcript' } as any)
+  expect(call.deny).toContain('nooku: the hook failed (throw: ')
   expect(ran).toEqual([])
 })
 
@@ -858,13 +858,13 @@ test('with relay mode off, a failed tool guard keeps the call', { options: { ...
 test('if the mode cannot be read, a failed tool guard denies the call', { options: { start_on: false, agent_url: 'not a url' } }, async ($, on) => {
   const f = fakes(on, contractReply)
   withTest(on, f)
-  f.broken.stat = '.verbatim-relay/mode'
+  f.broken.stat = '.nooku/mode'
   const ran: string[] = []
   on('tool.call', async (_$: any, e: any) => {
     ran.push(e.tool)
     return { result: 'ran' }
   })
   const call: any = await $.tool.call({ tool: 'Bash', command: 'echo hi' } as any)
-  expect(call.deny).toContain('verbatim-relay: the hook failed (TypeError')
+  expect(call.deny).toContain('nooku: the hook failed (TypeError')
   expect(ran).toEqual([])
 })

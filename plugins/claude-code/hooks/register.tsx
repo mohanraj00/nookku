@@ -1,41 +1,41 @@
-// verbatim-relay for Claude Code. In relay mode, each prompt that the tester types goes to the
+// nooku for Claude Code. In relay mode, each prompt that the tester types goes to the
 // agent (through the tap) and never to the model. The agent's reply is shown as a transcript row,
 // which the model does not receive.
 //
-// If .verbatim-relay/config.json has an entry, relay mode is a test (SPEC.md section 7): the
-// verbatim-relay command starts the entry through the tap, and each prompt goes to that test.
-// Relay mode is then the file .verbatim-relay/mode, which `start` and `end` write. It survives a
+// If .nooku/config.json has an entry, relay mode is a test (SPEC.md section 7): the
+// nooku command starts the entry through the tap, and each prompt goes to that test.
+// Relay mode is then the file .nooku/mode, which `start` and `end` write. It survives a
 // reload of the plugin, so a running test never loses relay mode.
 
 import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
 
-import type { VerbatimRelayState, VerbatimRelayTurn } from '../types'
+import type { NookuState, NookuTurn } from '../types'
 import { blockedRow, commandOf, contractBody, contractShown, denyPattern, entryNames, isChecked, loneSurrogate, namesEntry, relayTurns, replyText, requestBody, toolReadsOnly, touchesRecords, touchesTestFiles, turnRow } from './core'
 import type { Current, Options } from './core'
 
-const PANE = 'verbatim-relay'
-const TOOL = 'mcp__verbatim-relay__transcript'
+const PANE = 'nooku'
+const TOOL = 'mcp__nooku__transcript'
 const PERSON = ['composer', 'bridge', 'sdk']
-const CONFIG = '.verbatim-relay/config.json'
-const CURRENT = '.verbatim-relay/current.json'
-const MODE = '.verbatim-relay/mode'
-const TEST_FILES = /\.verbatim-relay/
-const RECORDS_REASON = 'verbatim-relay: the records of a test do not change. Write only report.md. A command that names .verbatim-relay may only read.'
+const CONFIG = '.nooku/config.json'
+const CURRENT = '.nooku/current.json'
+const MODE = '.nooku/mode'
+const TEST_FILES = /\.nooku/
+const RECORDS_REASON = 'nooku: the records of a test do not change. Write only report.md. A command that names .nooku may only read.'
 // Prompts that run the test and are never relayed (SPEC.md section 5).
-const CONTROL = ['verbatim-relay start', 'verbatim-relay end', 'verbatim-relay status']
+const CONTROL = ['nooku start', 'nooku end', 'nooku status']
 // $.fs.read copies at most 4 MiB. Stop before the record reaches it.
 const RECORD_LIMIT = 3.5 * 1024 * 1024
 // The end of a test stops the entry and copies its session files.
 const CLI_TIMEOUT_MS = 180_000
-const NO_TEST = 'verbatim-relay: relay mode is on, but no test runs. Type /verbatim-relay start. Nothing was sent.'
-const STOPPED = 'verbatim-relay: the test stopped, and no test runs. The tap did not answer. Type /verbatim-relay start.'
+const NO_TEST = 'nooku: relay mode is on, but no test runs. Type /nooku start. Nothing was sent.'
+const STOPPED = 'nooku: the test stopped, and no test runs. The tap did not answer. Type /nooku start.'
 
-const state = atom({ plugin: 'verbatim-relay', key: 'state' } as const, {
+const state = atom({ plugin: 'nooku', key: 'state' } as const, {
   on: null,
   turns: [],
   test: null,
-} as VerbatimRelayState)
+} as NookuState)
 
 async function isOn($: any, o: Options): Promise<boolean> {
   if (await hasEntry($)) return modeOn($)
@@ -91,16 +91,16 @@ async function append($: any, path: string, line: string): Promise<void> {
 // The turns of a record, of one session or (with null) of all sessions. The record outlives the
 // plugin's state, so a resumed session keeps its transcript and its history. An invalid line or a
 // wrong hash throws an Error that names the file and the line (SPEC.md section 2).
-async function recordTurns($: any, path: string, session: string | null): Promise<VerbatimRelayTurn[]> {
+async function recordTurns($: any, path: string, session: string | null): Promise<NookuTurn[]> {
   if ((await fileSize($, path)) < 0) return []
   return relayTurns(String(await $.fs.read(path)), path, session)
 }
 
 function showStatus($: any, relayOn: boolean): void {
-  $.ui.status(relayOn ? 'verbatim-relay ON: prompts go to the agent' : undefined)
+  $.ui.status(relayOn ? 'nooku ON: prompts go to the agent' : undefined)
 }
 
-// Run the verbatim-relay command. Resolve its exit code and its output. With exact, the output of
+// Run the nooku command. Resolve its exit code and its output. With exact, the output of
 // a command that passes is its stdout with no change.
 async function runCli($: any, o: Options, args: string[], exact = false): Promise<{ ok: boolean; out: string }> {
   try {
@@ -112,7 +112,7 @@ async function runCli($: any, o: Options, args: string[], exact = false): Promis
   }
 }
 
-// The verbatim-relay command says that no test runs. Python decides if the bridge of
+// The nooku command says that no test runs. Python decides if the bridge of
 // current.json runs, and it removes a stale current.json (SPEC.md section 7.2). Each other
 // answer, or no answer, is not a "no test runs".
 async function noTest($: any, o: Options): Promise<boolean> {
@@ -135,12 +135,12 @@ async function startTest($: any, o: Options): Promise<string> {
   if (!r.ok || !cur?.test) return `The test did not start: ${cur?.error ?? r.out}`
   await update($, state, s => ({ ...s, on: true, turns: [], test: cur.dir }))
   showStatus($, true)
-  void $.ui.open({ id: PANE, title: 'verbatim-relay' })
+  void $.ui.open({ id: PANE, title: 'nooku' })
   // The same two ends as the start text of the hook kit (kit.start_test, SPEC.md section 9.1).
   return (
     `Test ${cur.test} started. Relay mode is on. ` +
-    'To end the test and start the evaluation, type the prompt verbatim-relay end, with no slash. ' +
-    'To end the test with no evaluation, type /verbatim-relay end.'
+    'To end the test and start the evaluation, type the prompt nooku end, with no slash. ' +
+    'To end the test with no evaluation, type /nooku end.'
   )
 }
 
@@ -151,7 +151,7 @@ async function endTest($: any, o: Options): Promise<string> {
   return r.ok ? `Relay mode is off.\n${r.out}` : `The test did not end: ${r.out}`
 }
 
-// End the test for the control prompt `verbatim-relay end`. Resolve the text to show and the
+// End the test for the control prompt `nooku end`. Resolve the text to show and the
 // evaluation prompt, or null if the test needs no evaluation (SPEC.md section 9).
 async function endForEvaluation($: any, o: Options): Promise<{ text: string; evaluation: string | null }> {
   await update($, state, s => ({ ...s, on: false }))
@@ -166,7 +166,7 @@ async function endForEvaluation($: any, o: Options): Promise<{ text: string; eva
   return { text: `The test did not end: ${r.out}`, evaluation: null }
 }
 
-// The status of a test, from `verbatim-relay status --json`. Python decides if the bridge of
+// The status of a test, from `nooku status --json`. Python decides if the bridge of
 // current.json runs, and it removes a stale current.json (SPEC.md section 7.2). Thus a stale
 // current.json does not show as a running test.
 async function statusText($: any, o: Options): Promise<string> {
@@ -178,7 +178,7 @@ async function statusText($: any, o: Options): Promise<string> {
     // not JSON: the command failed before it could answer
   }
   if (!r.ok || typeof s?.on !== 'boolean') {
-    return `The status is not known. The command '${o.cli} status --json' failed: ${r.out || 'no output'}. Check that the plugin option cli names the verbatim-relay command.`
+    return `The status is not known. The command '${o.cli} status --json' failed: ${r.out || 'no output'}. Check that the plugin option cli names the nooku command.`
   }
   const test = s.test ? ` Test ${s.test.test} runs on ${s.test.tap_url}.` : ' No test runs.'
   return `Relay mode is ${s.on ? 'on' : 'off'}.${test}`
@@ -186,17 +186,17 @@ async function statusText($: any, o: Options): Promise<string> {
 
 // Run a control prompt. Resolve the answer of the prompt.submit hook.
 async function runControl($: any, o: Options, e: any, next: any, control: string): Promise<any> {
-  if (control === 'verbatim-relay start') {
-    $.ui.log(`verbatim-relay: ${await startTest($, o)}`)
-    return { drop: 'verbatim-relay: the test command ran' }
+  if (control === 'nooku start') {
+    $.ui.log(`nooku: ${await startTest($, o)}`)
+    return { drop: 'nooku: the test command ran' }
   }
-  if (control === 'verbatim-relay status') {
-    $.ui.log(`verbatim-relay: ${await statusText($, o)}`)
-    return { drop: 'verbatim-relay: the test command ran' }
+  if (control === 'nooku status') {
+    $.ui.log(`nooku: ${await statusText($, o)}`)
+    return { drop: 'nooku: the test command ran' }
   }
   const { text, evaluation } = await endForEvaluation($, o)
-  $.ui.log(`verbatim-relay: ${text}`)
-  if (evaluation === null) return { drop: 'verbatim-relay: the test command ran' }
+  $.ui.log(`nooku: ${text}`)
+  if (evaluation === null) return { drop: 'nooku: the test command ran' }
   // The prompt goes on to the model, which evaluates the test.
   return next({ ...e, context: [...(e.context ?? []), `${text}\n\n${evaluation}`] })
 }
@@ -215,7 +215,7 @@ async function relayToTest($: any, o: Options, cur: Current, said: string): Prom
     // have reached the tap before the connection closed, so the turn stays in the record with
     // ok false, and the audit can match it.
     if (await noTest($, o)) return { shown: STOPPED, ok: false, record }
-    return { shown: `verbatim-relay: cannot reach the tap at ${cur.tap_url}: ${(err as Error).message}`, ok: false, record }
+    return { shown: `nooku: cannot reach the tap at ${cur.tap_url}: ${(err as Error).message}`, ok: false, record }
   }
 }
 
@@ -228,14 +228,14 @@ async function relayToTap($: any, o: Options, said: string, session: string): Pr
       headers: { 'Content-Type': 'application/json' },
       body: requestBody(o, said, past),
     })
-    if (!res.ok) return { shown: `verbatim-relay: the agent returned HTTP ${res.status}:\n${res.text}`, ok: false, record: o.record }
+    if (!res.ok) return { shown: `nooku: the agent returned HTTP ${res.status}:\n${res.text}`, ok: false, record: o.record }
     try {
       return { shown: replyText(o, res.text, res.headers?.['content-type']), ok: true, record: o.record }
     } catch (err) {
-      return { shown: `verbatim-relay: cannot read the reply: ${(err as Error).message}`, ok: false, record: o.record }
+      return { shown: `nooku: cannot read the reply: ${(err as Error).message}`, ok: false, record: o.record }
     }
   } catch (err) {
-    return { shown: `verbatim-relay: cannot reach the tap at ${o.tap_url}: ${(err as Error).message}`, ok: false, record: o.record }
+    return { shown: `nooku: cannot reach the tap at ${o.tap_url}: ${(err as Error).message}`, ok: false, record: o.record }
   }
 }
 
@@ -255,11 +255,11 @@ function hookFailure(f: any): string {
 // the prompt to the model, so the handler must never reject in relay mode.
 function blockFailed($: any, detail: string): any {
   try {
-    $.ui.log(`verbatim-relay: the hook failed (${detail}). Nothing reached the model.`)
+    $.ui.log(`nooku: the hook failed (${detail}). Nothing reached the model.`)
   } catch {
     // The block holds even if the log fails.
   }
-  return { drop: 'verbatim-relay: nothing reached the model' }
+  return { drop: 'nooku: nothing reached the model' }
 }
 
 // Relay mode is on, or a test runs. This check does not hide errors: if it cannot read a file
@@ -298,31 +298,31 @@ async function promptFailed($: any, o: Options, e: any, next: any): Promise<any>
 async function toolFailed($: any, o: Options, e: any, next: any): Promise<any> {
   // If the hook already let the call run, that result stands.
   if (next.called) return next(e)
-  return { deny: `verbatim-relay: the hook failed (${hookFailure(next.error)}). The tool call did not run.` }
+  return { deny: `nooku: the hook failed (${hookFailure(next.error)}). The tool call did not run.` }
 }
 
 // Send one prompt in relay mode. Resolve the answer of the prompt.submit hook. It never calls
 // next, so the prompt never reaches the model.
 async function relayPrompt($: any, o: Options, e: any): Promise<any> {
   if (e.attachments?.length) {
-    $.ui.log('verbatim-relay: the relay does not send attachments. Nothing was sent.')
-    return { drop: 'verbatim-relay: nothing was sent' }
+    $.ui.log('nooku: the relay does not send attachments. Nothing was sent.')
+    return { drop: 'nooku: nothing was sent' }
   }
   // A relayed message is never changed, so the plugin refuses it (SPEC.md section 5).
   const surrogate = loneSurrogate(e.text)
   if (surrogate) {
-    $.ui.log(`verbatim-relay: nothing was sent. The message has ${surrogate}.`)
-    return { drop: 'verbatim-relay: nothing was sent' }
+    $.ui.log(`nooku: nothing was sent. The message has ${surrogate}.`)
+    return { drop: 'nooku: nothing was sent' }
   }
   const cur = await currentTest($)
   if (!cur && (await hasEntry($))) {
     $.ui.log(NO_TEST)
-    return { drop: 'verbatim-relay: nothing was sent' }
+    return { drop: 'nooku: nothing was sent' }
   }
   const recordPath = cur ? `${cur.dir}/relay.jsonl` : o.record
   if ((await fileSize($, recordPath)) > RECORD_LIMIT) {
-    $.ui.log(`verbatim-relay: the record ${recordPath} is full. Move it, then send again. Nothing was sent.`)
-    return { drop: 'verbatim-relay: nothing was sent' }
+    $.ui.log(`nooku: the record ${recordPath} is full. Move it, then send again. Nothing was sent.`)
+    return { drop: 'nooku: nothing was sent' }
   }
 
   const said = e.text
@@ -333,9 +333,9 @@ async function relayPrompt($: any, o: Options, e: any): Promise<any> {
   try {
     await append($, record, await turnRow(said, shown, ok, session))
   } catch (err) {
-    $.ui.log(`verbatim-relay: cannot write the record ${record}: ${(err as Error).message}`)
+    $.ui.log(`nooku: cannot write the record ${record}: ${(err as Error).message}`)
   }
-  return { drop: 'verbatim-relay: relayed to the agent' }
+  return { drop: 'nooku: relayed to the agent' }
 }
 
 // The deny of a model tool call, or null if the call may run. It never calls next.
@@ -351,7 +351,7 @@ async function guardTool($: any, o: Options, e: any): Promise<{ deny: string } |
       // The deny holds even if the record cannot take the row.
     }
     return {
-      deny: 'verbatim-relay: only the tester talks to the agent, and the test files do not change during a test. Use the transcript tool to read the conversation.',
+      deny: 'nooku: only the tester talks to the agent, and the test files do not change during a test. Use the transcript tool to read the conversation.',
     }
   }
   const reads = toolReadsOnly(e.tool, e)
@@ -371,7 +371,7 @@ async function guardTool($: any, o: Options, e: any): Promise<{ deny: string } |
     } catch {
       // The deny holds even if the record cannot take the row.
     }
-    return { deny: 'verbatim-relay: during a test, only the tap runs the entry.' }
+    return { deny: 'nooku: during a test, only the tap runs the entry.' }
   }
   return null
 }
@@ -381,8 +381,8 @@ export const register: Register = (on, options) => {
 
   on('session.start', async ($, e, next) => {
     await $.command.register({
-      name: 'verbatim-relay',
-      description: 'verbatim-relay start|end|status (on|off): send each prompt to the agent, not to the model',
+      name: 'nooku',
+      description: 'nooku start|end|status (on|off): send each prompt to the agent, not to the model',
     })
     await $.tool.register({
       name: 'transcript',
@@ -397,22 +397,22 @@ export const register: Register = (on, options) => {
     return next(e)
   })
 
-  on('command.run', { command: 'verbatim-relay' }, async ($, e) => {
+  on('command.run', { command: 'nooku' }, async ($, e) => {
     const arg = e.args.trim()
     const known = ['', 'status', 'on', 'off', 'start', 'end']
-    if (!known.includes(arg)) return { text: 'Usage: /verbatim-relay start|end|status (on and off are the same as start and end)' }
+    if (!known.includes(arg)) return { text: 'Usage: /nooku start|end|status (on and off are the same as start and end)' }
     if (await hasEntry($)) {
       if (arg === 'start' || arg === 'on') return { text: await startTest($, o) }
       if (arg === 'end' || arg === 'off') return { text: await endTest($, o) }
       return { text: await statusText($, o) }
     }
     if (arg === 'start' || arg === 'end') {
-      return { text: `A test needs an entry in ${CONFIG}. Without one, use /verbatim-relay on|off.` }
+      return { text: `A test needs an entry in ${CONFIG}. Without one, use /nooku on|off.` }
     }
     if (arg === 'on' || arg === 'off') {
       await update($, state, s => ({ ...s, on: arg === 'on' }))
       showStatus($, arg === 'on')
-      if (arg === 'on') void $.ui.open({ id: PANE, title: 'verbatim-relay' })
+      if (arg === 'on') void $.ui.open({ id: PANE, title: 'nooku' })
     }
     const relayOn = await isOn($, o)
     return {
@@ -432,7 +432,7 @@ export const register: Register = (on, options) => {
     }
   }).catch(($, e, next) => promptFailed($, o, e, next))
 
-  // The verbatim-relay command renders the transcript, so the plugin and the hook kit give the
+  // The nooku command renders the transcript, so the plugin and the hook kit give the
   // model the same text (SPEC.md section 5).
   on('tool.call', { tool: TOOL }, async ($, e) => {
     const s = await read($, state)
@@ -454,7 +454,7 @@ export const register: Register = (on, options) => {
     } catch (err) {
       // A failed guard denies the call in relay mode or during a test, as the hook kit does.
       if (!(await guardOn($, o))) return next(e)
-      denied = { deny: `verbatim-relay: the hook failed (${failure(err)}). The tool call did not run.` }
+      denied = { deny: `nooku: the hook failed (${failure(err)}). The tool call did not run.` }
     }
     return denied ?? next(e)
   }).catch(($, e, next) => toolFailed($, o, e, next))
@@ -464,7 +464,7 @@ export const register: Register = (on, options) => {
     const s = await read($, state)
     return (
       <Box flexDirection="column">
-        {s.turns.length === 0 && <Text dimColor>No relayed turns yet. Type /verbatim-relay start, then a message.</Text>}
+        {s.turns.length === 0 && <Text dimColor>No relayed turns yet. Type /nooku start, then a message.</Text>}
         {s.turns.slice(-6).map((t, i) => (
           <Box key={String(i)} flexDirection="column">
             <Text bold>tester:</Text>

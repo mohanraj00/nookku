@@ -16,7 +16,7 @@ from typing import Any
 BENCH = Path(__file__).resolve().parent
 sys.path.insert(0, str(BENCH.parent / "src"))
 
-from verbatim_relay.audit import audit  # noqa: E402
+from nooku.audit import audit  # noqa: E402
 
 
 def cell(session_id: str) -> str:

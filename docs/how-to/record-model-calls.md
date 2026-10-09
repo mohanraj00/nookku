@@ -8,13 +8,13 @@ If your app calls the Anthropic or the OpenAI API with an SDK, the bridge record
 
 1. Check that your SDK reads its URL from `ANTHROPIC_BASE_URL` or `OPENAI_BASE_URL`. If your app gives the SDK a fixed URL, let the entry give the SDK the URL from the variable.
 2. Run a test. You need no configuration: `model_api` is `true` by default.
-3. Read the calls with `verbatim-relay transcript --trace`.
+3. Read the calls with `nooku transcript --trace`.
 
 An Agent SDK session in your app also reads `ANTHROPIC_BASE_URL`, so its calls also go through the proxy. The record keeps only the size and the SHA-256 of these calls, because they hold the instructions of Claude Code. The session file already gives their turns.
 
 ### Change which APIs the proxy records
 
-| Case | `model_api` in `.verbatim-relay/config.json` |
+| Case | `model_api` in `.nooku/config.json` |
 |---|---|
 | Record both APIs (the default) | `true` |
 | Record no API | `false` |
@@ -33,4 +33,4 @@ An Agent SDK session also sends its prompts, tool calls and replies, because the
 
 Codex does not read the `OTEL_*` variables. [codex.md](codex.md) gives the data.
 
-To stop the receiver, add `"otel": false` to `.verbatim-relay/config.json`.
+To stop the receiver, add `"otel": false` to `.nooku/config.json`.

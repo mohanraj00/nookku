@@ -17,10 +17,10 @@ from pathlib import Path
 
 import pytest
 
-from verbatim_relay import contract
-from verbatim_relay.audit import audit
-from verbatim_relay.record import Writer
-from verbatim_relay.stdio import Agent, StdioTap, start_in_thread
+from nooku import contract
+from nooku.audit import audit
+from nooku.record import Writer
+from nooku.stdio import Agent, StdioTap, start_in_thread
 
 ROOT = Path(__file__).resolve().parent.parent
 NODE_ENTRY = ROOT / "examples" / "toy-shop-node" / "entry.mjs"

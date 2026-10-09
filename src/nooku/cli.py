@@ -10,13 +10,13 @@ from collections.abc import Sequence
 from importlib import resources
 from pathlib import Path
 
-from verbatim_relay import __version__, bridge, evaluation, kit, seal, stdio, trace
-from verbatim_relay.adapters import make
-from verbatim_relay.audit import audit, render
-from verbatim_relay.config import KEYS as CONFIG_KEYS
-from verbatim_relay.config import ConfigError, read_config
-from verbatim_relay.record import RecordError
-from verbatim_relay.tap import Tap, serve
+from nooku import __version__, bridge, evaluation, kit, seal, stdio, trace
+from nooku.adapters import make
+from nooku.audit import audit, render
+from nooku.config import KEYS as CONFIG_KEYS
+from nooku.config import ConfigError, move_old_state, read_config
+from nooku.record import RecordError
+from nooku.tap import Tap, serve
 
 # Config keys that are not a plain string flag of init.
 LIST_KEYS = {"entry", "models", "evaluate", "otel", "backends", "model_api", "openai_stream"}
@@ -32,7 +32,7 @@ def _listen(value: str) -> tuple[str, int]:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="verbatim-relay", description=__doc__)
+    parser = argparse.ArgumentParser(prog="nooku", description=__doc__)
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     sub = parser.add_subparsers(dest="command", metavar="COMMAND")
 
@@ -147,6 +147,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     hook.add_argument("--harness", required=True)
 
     args = parser.parse_args(argv)
+    if isinstance(getattr(args, "root", None), Path):
+        error = move_old_state(args.root.resolve())
+        if error:
+            print(f"nooku: {error}", file=sys.stderr)
+            # Exit 2 blocks the event in a hook, so the relay fails closed.
+            return 2 if args.command == "hook" else 1
     if args.command == "tap":
         command = args.command_[1:] if args.command_[:1] == ["--"] else args.command_
         if args.cmd == bool(args.agent) or (args.cmd and not command):
@@ -160,7 +166,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         serve(Tap(args.listen, args.agent, args.record, adapter, timeout=args.timeout))
         return 0
     if args.command == "setup":
-        print(resources.files("verbatim_relay").joinpath("setup.md").read_text(encoding="utf-8"))
+        print(resources.files("nooku").joinpath("setup.md").read_text(encoding="utf-8"))
         return 0
     if args.command == "bridge":
         return bridge.run(args.root, args.test, args.tester_session)
@@ -174,7 +180,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             root / bridge.STATE_DIR / "tests" / args.test if args.test else bridge.latest_test(root)
         )
         if folder is None or not folder.is_dir():
-            print("verbatim-relay: no test folder.", file=sys.stderr)
+            print("nooku: no test folder.", file=sys.stderr)
             return 2
         result = seal.verify(folder)
         print(json.dumps(result, indent=1) if args.json else seal.summary(result))
@@ -199,7 +205,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         try:
             done = kit.init(root, args.harness, changes)
         except ValueError as e:
-            print(f"verbatim-relay: {str(e).rstrip('.')}. Nothing was written.", file=sys.stderr)
+            print(f"nooku: {str(e).rstrip('.')}. Nothing was written.", file=sys.stderr)
             return 1
         conf, hooks = done.written
         print(f"wrote {conf}")
@@ -208,10 +214,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         else:
             print(f"  Keys changed: {_names(done.changed)}. Keys kept: {_names(done.kept)}.")
         print(f"wrote {hooks}")
-        print(
-            f"Relay mode is {'on' if kit.is_on(root) else 'off'}. "
-            "Switch it with: verbatim-relay mode on"
-        )
+        print(f"Relay mode is {'on' if kit.is_on(root) else 'off'}. Switch it with: nooku mode on")
         if args.harness == "codex":
             print(
                 "Codex runs project hooks only after you trust them. Start codex in this "
@@ -219,7 +222,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
         else:
             print(
-                "Do not also enable the verbatim-relay Claude Code plugin in this project, "
+                "Do not also enable the nooku Claude Code plugin in this project, "
                 "or each message is sent two times."
             )
         return 0
@@ -233,7 +236,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             try:
                 read_config(root)
             except ConfigError as e:
-                print(f"verbatim-relay: {e}")
+                print(f"nooku: {e}")
                 return 0
         if args.state != "status":
             kit.set_mode(root, args.state == "on")
@@ -244,7 +247,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         tests = root / bridge.STATE_DIR / "tests"
         folder = tests / args.test if args.test else bridge.latest_test(root)
         if folder is None or not folder.is_dir():
-            print("verbatim-relay: no test folder.", file=sys.stderr)
+            print("nooku: no test folder.", file=sys.stderr)
             return 2
         print(evaluation.transcript(folder), end="")
         return 0
@@ -255,7 +258,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         try:
             config = kit.Config.load(root) if has_config else kit.Config()
         except (OSError, ValueError, TypeError) as e:
-            print(f"verbatim-relay: cannot read the config: {e}", file=sys.stderr)
+            print(f"nooku: cannot read the config: {e}", file=sys.stderr)
             return 2
         test = bridge.latest_test(root) if config.entry and not args.record else None
         if args.command == "transcript" and args.test and not args.record:
@@ -267,14 +270,14 @@ def main(argv: Sequence[str] | None = None) -> int:
             try:
                 return kit.transcript(record, every, sys.stdout, scope, args.session)
             except RecordError as e:
-                print(f"verbatim-relay: {e}", file=sys.stderr)
+                print(f"nooku: {e}", file=sys.stderr)
                 return 2
         try:
             if config.entry and not args.record:
                 return kit.view_tests(root, not args.no_follow, sys.stdout)
             return kit.view(record, not args.no_follow, sys.stdout)
         except RecordError as e:
-            print(f"verbatim-relay: {e}", file=sys.stderr)
+            print(f"nooku: {e}", file=sys.stderr)
             return 2
         except KeyboardInterrupt:
             return 0
@@ -291,7 +294,7 @@ def _names(keys: list[str]) -> str:
 def _trace_command(root: Path, test: str | None, as_json: bool) -> int:
     folder = root / bridge.STATE_DIR / "tests" / test if test else bridge.latest_test(root)
     if folder is None or not (folder / "manifest.json").exists():
-        print("verbatim-relay: no test folder with a manifest.", file=sys.stderr)
+        print("nooku: no test folder with a manifest.", file=sys.stderr)
         return 2
     check = seal.verify(folder)
     rebuilt = ("trace.jsonl", "findings.json")
@@ -299,12 +302,12 @@ def _trace_command(root: Path, test: str | None, as_json: bool) -> int:
     # A rebuild changes only the trace files. It needs sources that agree with an intact seal.
     broken = sources or check["copy"] in ("different", "missing") or not check["sealed"]
     if (check["sealed"] or check["copy"] != "none") and broken:
-        print(f"verbatim-relay: the trace was not rebuilt. {seal.summary(check)}", file=sys.stderr)
+        print(f"nooku: the trace was not rebuilt. {seal.summary(check)}", file=sys.stderr)
         return 2
     try:
         report = trace.build(folder)
     except RecordError as e:
-        print(f"verbatim-relay: the trace was not rebuilt. {e}", file=sys.stderr)
+        print(f"nooku: the trace was not rebuilt. {e}", file=sys.stderr)
         return 2
     seal.update(folder, list(rebuilt))
     if as_json:
@@ -325,14 +328,14 @@ def _test_command(args: argparse.Namespace) -> int:
         try:
             cur = bridge.start(root, args.tester_session)
         except bridge.BridgeError as e:
-            print(json.dumps({"error": str(e)}) if args.json else f"verbatim-relay: {e}")
+            print(json.dumps({"error": str(e)}) if args.json else f"nooku: {e}")
             return 1
         kit.set_mode(root, True)
         if args.json:
             print(json.dumps(cur))
         else:
             print(f"Test {cur['test']} started on {cur['tap_url']}. Relay mode is on.")
-            print("End it with: verbatim-relay end")
+            print("End it with: nooku end")
         return 0
     if args.command == "end":
         kit.set_mode(root, False)
@@ -347,19 +350,19 @@ def _test_command(args: argparse.Namespace) -> int:
         else:
             print(text)
             if ended and evaluation.pending(root):
-                print("To evaluate the test, type this prompt in your harness: verbatim-relay end")
+                print("To evaluate the test, type this prompt in your harness: nooku end")
         return 0
     if args.command == "status":
         running = bridge.current(root)
         if args.json:
             print(json.dumps({"on": kit.is_on(root), "test": running}))
         else:
-            print(kit.status(root).removeprefix("verbatim-relay: "))
+            print(kit.status(root).removeprefix("nooku: "))
         return 0
     try:
         passed, lines = bridge.check(root)
     except bridge.BridgeError as e:
-        print(f"verbatim-relay: {e}")
+        print(f"nooku: {e}")
         return 1
     print(json.dumps({"pass": passed, "report": lines}) if args.json else "\n".join(lines))
     return 0 if passed else 1

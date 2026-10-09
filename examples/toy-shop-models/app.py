@@ -1,7 +1,7 @@
 """The toy shop support agent with a model session: one Claude Agent SDK client and 2 tools.
 
 The tools read and write the shop's state in state.json (or $TOY_SHOP_STATE). The shop's rules are
-in RULES.md. It needs claude-agent-sdk, which is not a dependency of verbatim-relay:
+in RULES.md. It needs claude-agent-sdk, which is not a dependency of nooku:
 
     uv run --with claude-agent-sdk python examples/toy-shop-models/entry.py
 """

@@ -23,11 +23,11 @@ sys.path[:0] = [str(ROOT / "src"), str(ROOT / "tests")]
 from proof_common import json_lines  # noqa: E402
 from toy_agent import ToyAgent  # noqa: E402
 
-from verbatim_relay import kit  # noqa: E402
-from verbatim_relay.adapters import make  # noqa: E402
-from verbatim_relay.audit import audit  # noqa: E402
-from verbatim_relay.record import sha256  # noqa: E402
-from verbatim_relay.tap import Tap, start_in_thread  # noqa: E402
+from nooku import kit  # noqa: E402
+from nooku.adapters import make  # noqa: E402
+from nooku.audit import audit  # noqa: E402
+from nooku.record import sha256  # noqa: E402
+from nooku.tap import Tap, start_in_thread  # noqa: E402
 
 CODE = "ZX-4471-Q"
 MESSAGES = [f"My order code is {CODE}.  ", "Ünïcödé check: is the teapot € 24?"]
@@ -36,10 +36,8 @@ MEMORY = (
     "conversation? If you saw none, answer exactly NONE. If you saw some, quote them."
 )
 READ = {
-    "plugin": "Use the verbatim-relay transcript tool. Quote the order code that I gave the agent.",
-    "hooks": (
-        "Run `verbatim-relay transcript` in the shell. Quote the order code that I gave the agent."
-    ),
+    "plugin": "Use the nooku transcript tool. Quote the order code that I gave the agent.",
+    "hooks": ("Run `nooku transcript` in the shell. Quote the order code that I gave the agent."),
 }
 ENV = {**os.environ, "PATH": f"{ROOT / '.venv' / 'bin'}{os.pathsep}{os.environ['PATH']}"}
 
@@ -100,7 +98,7 @@ def main() -> int:
 
             def settings(on: bool) -> list[str]:
                 opts = {"options": {"tap_url": tap_url, "record": str(record), "start_on": on}}
-                conf = {"pluginConfigs": {"verbatim-relay": opts, "verbatim-relay@inline": opts}}
+                conf = {"pluginConfigs": {"nooku": opts, "nooku@inline": opts}}
                 return ["--settings", json.dumps(conf)]
 
             session = None
@@ -112,7 +110,7 @@ def main() -> int:
                 READ["plugin"],
                 session,
                 work,
-                [*off, "--allowedTools=mcp__verbatim-relay__transcript"],
+                [*off, "--allowedTools=mcp__nooku__transcript"],
             )
             version = subprocess.run(
                 ["claude", "--version"], capture_output=True, text=True
@@ -128,7 +126,7 @@ def main() -> int:
             # codex exec resume does not take -s, so set the sandbox as config
             relay_args = [] if harness == "claude-code" else ["-c", 'sandbox_mode="read-only"']
             read_args = (
-                ["--allowedTools=Bash(verbatim-relay transcript*)"]
+                ["--allowedTools=Bash(nooku transcript*)"]
                 if harness == "claude-code"
                 else ["-c", 'sandbox_mode="read-only"']
             )

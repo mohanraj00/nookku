@@ -1,6 +1,6 @@
 """Spike #179: the time that a Python hook process adds to each hook event. Local only.
 
-The hook kit runs `python -m verbatim_relay hook` for each hook event. This script measures:
+The hook kit runs `python -m nooku hook` for each hook event. This script measures:
 
 - the wall time of one hook process for 4 events: a PreToolUse event that passes, one that reads
   the state folder, one that writes in it (a deny), and a UserPromptSubmit event with relay mode
@@ -10,7 +10,7 @@ The hook kit runs `python -m verbatim_relay hook` for each hook event. This scri
 - the time of an empty Python process, and of a process that imports only the standard modules
   of a guard rule, as the floor;
 - the import time of each module of the package (`-X importtime`), and the time of a process that
-  imports only `verbatim_relay.kit`, to show what a lazy import can save;
+  imports only `nooku.kit`, to show what a lazy import can save;
 - the time of the same event as an HTTP request over loopback to a server that answers in its
   process, as the bridge could do during a test, and with `curl` as the hook command;
 - the time of 100 hook processes one after the other, as for 100 tool calls in one model turn.
@@ -105,12 +105,12 @@ def runs(
 
 
 def import_times(python: str, env: dict[str, str]) -> dict[str, Any]:
-    """From -X importtime, the median of 10 runs: the cumulative time of `import verbatim_relay.cli`
-    and of `import verbatim_relay.kit`, each in its own process, and the 10 slowest modules of the
+    """From -X importtime, the median of 10 runs: the cumulative time of `import nooku.cli`
+    and of `import nooku.kit`, each in its own process, and the 10 slowest modules of the
     CLI import by their own time."""
     cumulative: dict[str, float] = {}
     own: dict[str, list[int]] = {}
-    for target in ("verbatim_relay.cli", "verbatim_relay.kit"):
+    for target in ("nooku.cli", "nooku.kit"):
         totals = []
         for _ in range(10):
             err = subprocess.run(
@@ -126,7 +126,7 @@ def import_times(python: str, env: dict[str, str]) -> dict[str, Any]:
                     continue
                 if m.group(3) == target:
                     totals.append(int(m.group(2)))
-                if target == "verbatim_relay.cli":
+                if target == "nooku.cli":
                     own.setdefault(m.group(3), []).append(int(m.group(1)))
         cumulative[target] = round(statistics.median(totals) / 1000, 2)
     slow = sorted(own.items(), key=lambda kv: -statistics.median(kv[1]))[:10]
@@ -140,7 +140,7 @@ def loopback(root: Path, event: dict[str, Any], src: Path) -> dict[str, Any]:
     """An HTTP server in this process answers each event with the hook rule. The client is this
     process (http.client) or a curl process."""
     sys.path.insert(0, str(src))
-    from verbatim_relay import kit
+    from nooku import kit
 
     class Handler(BaseHTTPRequestHandler):
         def do_POST(self) -> None:
@@ -191,15 +191,15 @@ def measure() -> dict[str, Any]:
         env = {**os.environ, "PYTHONPATH": str(src)}
         env.pop("PYTHONDONTWRITEBYTECODE", None)
         subprocess.run(
-            [python, "-m", "verbatim_relay", "init", "claude-code", "--root", str(project)],
+            [python, "-m", "nooku", "init", "claude-code", "--root", str(project)],
             env=env,
             capture_output=True,
             check=True,
         )
         sys.path.insert(0, str(src))
-        from verbatim_relay import kit
+        from nooku import kit
 
-        hook = [python, "-m", "verbatim_relay", "hook", "--root", str(project)]
+        hook = [python, "-m", "nooku", "hook", "--root", str(project)]
         hook += ["--harness", "claude-code"]
         cases = events(kit.STATE_DIR)
         out: dict[str, Any] = {
@@ -228,7 +228,7 @@ def measure() -> dict[str, Any]:
             data = json.dumps(event)
             out["hook_warm"][name] = stats(runs(hook, env, data))
             out["hook_cold"][name] = stats(runs(hook, env, data, cold=src))
-        out["kit_only_warm"] = stats(runs([python, "-c", "import verbatim_relay.kit"], env))
+        out["kit_only_warm"] = stats(runs([python, "-c", "import nooku.kit"], env))
         out["imports"] = import_times(python, env)
         out["loopback"] = loopback(project, cases["tool_pass"], src)
         data = json.dumps(cases["tool_pass"])

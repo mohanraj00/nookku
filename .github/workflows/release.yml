@@ -12,7 +12,7 @@ jobs:
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
       - run: uv build
       - name: The tag matches the package version
-        run: test -f "dist/verbatim_relay-${GITHUB_REF_NAME#v}-py3-none-any.whl"
+        run: test -f "dist/nooku-${GITHUB_REF_NAME#v}-py3-none-any.whl"
       - name: The tag matches the plugin version
         run: |
           grep -q "\"version\": \"${GITHUB_REF_NAME#v}\"" plugins/claude-code/.claude-plugin/plugin.json
@@ -43,7 +43,7 @@ jobs:
         run: |
           python -m venv /tmp/clean
           /tmp/clean/bin/pip install -q dist/*.whl pytest
-          /tmp/clean/bin/verbatim-relay --version
+          /tmp/clean/bin/nooku --version
           /tmp/clean/bin/python -m pytest -p no:cacheprovider tests
 
   publish:

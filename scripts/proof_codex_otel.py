@@ -22,14 +22,14 @@ sys.path[:0] = [str(ROOT / "src")]
 
 from proof_common import json_lines  # noqa: E402
 
-from verbatim_relay import otlp  # noqa: E402
-from verbatim_relay.stdio import start_in_thread  # noqa: E402
+from nooku import otlp  # noqa: E402
+from nooku.stdio import start_in_thread  # noqa: E402
 
 PROMPT = "Reply with one word: done."
 
 
 def main() -> int:
-    work = Path(tempfile.mkdtemp(prefix="verbatim-relay-otel-"))
+    work = Path(tempfile.mkdtemp(prefix="nooku-otel-"))
     record = work / otlp.FILE
     receiver = otlp.Receiver(("127.0.0.1", 0), record)
     start_in_thread(receiver)

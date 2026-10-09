@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from verbatim_relay.audit import audit
-from verbatim_relay.record import RecordError, read_rows
+from nooku.audit import audit
+from nooku.record import RecordError, read_rows
 
 ROOT = Path(__file__).resolve().parent.parent
 CASES = sorted((ROOT / "conformance" / "cases").iterdir())
