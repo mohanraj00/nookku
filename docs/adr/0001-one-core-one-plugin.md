@@ -58,6 +58,16 @@ Data: [`plugin-mcp.json`](../../proofs/spikes/plugin-mcp.json). Method: [`spike_
 - A truncated result can keep its start and end markers. Only a hash shows the change.
 - The tool name is `mcp__plugin_<plugin>_<server>__<tool>` in Claude Code, and `mcp__<server>__<tool>` in Codex.
 
+### What a Codex plugin can show (#205)
+
+Data: [`codex-display.json`](../../proofs/spikes/codex-display.json). Method: [`spike_codex_display.py`](../../scripts/spike_codex_display.py). Report: [Codex display spike](../codex-display.md).
+
+- The tested plugin manifest and hook schema of Codex have no in-process handler like a Claude Code function hook. They also have no plugin footer, no status-line field and no command that runs without the model. This result comes from the schema, not from a test that injected code.
+- A skill starts a model turn. Hook `additionalContext` goes to the model.
+- The interactive CLI shows hook `systemMessage` warnings and short `statusMessage` texts. `codex exec` shows neither.
+- In the desktop app, a toy MCP App rendered in a pane. A click in the app called a server tool with no new chat turn and no hook event. The person clicked more than one time, so this does not prove 1 call for each click.
+- The desktop check ran before the probe checked its files and disabled other MCP servers. Thus it does not prove an isolated desktop run.
+
 ### Time that a Python hook process adds (#179)
 
 Data: [`hook-latency.json`](../../proofs/spikes/hook-latency.json). Method: [`spike_hook_latency.py`](../../scripts/spike_hook_latency.py).
@@ -73,7 +83,7 @@ Data: [`hook-latency.json`](../../proofs/spikes/hook-latency.json). Method: [`sp
 - **Name.** The project becomes Nooku (Tamil நோக்கு: to look, observe, scrutinize). Tagline: "A test harness for developers of agent apps." [#181](https://github.com/mohanraj00/verbatim-relay/issues/181) does the rename.
 - **One core.** One core in Python holds each rule and each text: the control words, the relay, the guard, the policy, the status, the start and end texts, and the scripted tests. No rule has a TypeScript copy.
 - **One plugin.** One plugin folder serves Claude Code and Codex. It has a manifest for each harness, one command hook file, one MCP server and one skills folder. Each command hook runs `python -m nooku hook`.
-- **Display layer.** Claude Code function hooks are an optional display layer: dim rows, a pane, a status line and slash commands. They hold no rule. If they break, the command hooks still work. [#205](https://github.com/mohanraj00/verbatim-relay/issues/205) finds what a Codex plugin can show, and gives Codex its own display layer if one exists.
+- **Display layer.** Claude Code function hooks are an optional display layer: dim rows, a pane, a status line and slash commands. They hold no rule. If they break, the command hooks still work. In Codex, an optional MCP App can be the display layer of the desktop app, with its logic in the core. Before an MCP App shows a live reply, a spike must prove that it keeps the bytes, and that a click result does not go to the model. In the interactive CLI, hook warnings can give short notices. `codex exec` has no display layer, so it needs `nooku view`. A display layer never carries a tester reply in text that goes to the model, for example `additionalContext`.
 - **Fallback.** `init` writes the same command hooks into a project, for a project that cannot install plugins.
 - **Harnesses.** Claude Code and Codex only. A new harness needs an adapter for its hook events and a plugin manifest. It needs no change to the core.
 
@@ -89,7 +99,7 @@ The spikes give these rules for the design:
 ## Options that I did not take
 
 - **Keep 2 relays.** Each rule needs 2 copies and conformance cases for both. The copies drift, and each guard issue must change both of them.
-- **Move the rules to TypeScript.** Codex runs command hooks from a plugin, and I know of no Codex API that runs TypeScript in the harness process. No spike measured this yet. [#205](https://github.com/mohanraj00/verbatim-relay/issues/205) measures it. If no such API exists, Codex would still need a second copy.
+- **Move the rules to TypeScript.** The Codex plugin schema has no handler that runs code in the harness process ([#205](https://github.com/mohanraj00/verbatim-relay/issues/205)). Thus Codex would still need a second copy.
 - **A long-running hook server.** A loopback call saves time only while a test runs, and a command hook still needs a `curl` process. The guard must also work outside a test. A second path adds a second way to fail.
 - **Trust the plugin to check itself.** In Codex, an untrusted plugin skips all its hooks, also `SessionStart`. Only a check outside the plugin can refuse the test.
 - **Send the full transcript in one tool result.** At the default limits, results of 50 KiB or more did not get to the model unchanged.
@@ -97,7 +107,7 @@ The spikes give these rules for the design:
 ## Consequences
 
 - Each guard rule, control word and display text has one copy. The issues that only make the 2 copies equal close with [#182](https://github.com/mohanraj00/verbatim-relay/issues/182).
-- Codex gets the plugin, the MCP tools and the skills.
+- Codex gets the plugin, the MCP tools and the skills. It does not get the dim rows, the status line or the slash commands of Claude Code. Its desktop app can get an MCP App pane later.
 - Claude Code users of the v0.3 plugin get the same look, because the function hooks stay as the display layer.
 - Each event costs one Python process. With lazy imports, this is the floor that the hook-time rule gives.
 - A Codex test needs the trust step after each change to a hook file. The upgrade docs must say this.
