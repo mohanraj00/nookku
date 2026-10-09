@@ -808,6 +808,38 @@ def desktop_plan() -> list[dict[str, Any]]:
     return out
 
 
+def wait_desktop_provider_cleanup(user_config: Path, url: str, proxies: backend.Proxies) -> None:
+    """Keep the listener while a person removes the global URL, also after a failed capture."""
+    setting = r"(?m)^\s*openai_base_url\s*=\s*[\"']" + re.escape(url) + r"[\"']"
+    notified = False
+    while True:
+        try:
+            try:
+                current = user_config.read_text()
+            except FileNotFoundError:
+                current = ""
+            if re.search(setting, current) is None:
+                return
+        except (OSError, UnicodeError) as error:
+            if not notified:
+                print(f"Cannot verify provider cleanup: {error}", flush=True)
+        except KeyboardInterrupt:
+            pass  # A second interrupt must not release a port still named by user config.
+        if not notified:
+            print(
+                f"Remove the temporary openai_base_url for {url} from {user_config}. "
+                "The listener stays open until cleanup is verified, also after an error. "
+                "Start a new chat for later model turns; the test chat keeps this URL.",
+                flush=True,
+            )
+            notified = True
+        try:
+            with proxies.lock:
+                proxies.lock.wait(timeout=1)
+        except KeyboardInterrupt:
+            print("Cleanup is still required. The listener stays open.", flush=True)
+
+
 def codex_desktop(out: Path) -> None:
     """Keep a proxy running while a person tests a new local desktop chat."""
     p = codex_project({})
@@ -874,42 +906,43 @@ def codex_desktop(out: Path) -> None:
             record,
             CodexSpikeProxy,
         )
+        user_config = (
+            Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))) / "config.toml"
+        )
         url = proxies.start()["HOOK_DISPLAY_PROXY"]
-        settings = [
-            f"model = {json.dumps(CODEX_MODEL)}",
-            'sandbox_mode = "read-only"',
-            "[features]",
-            "enable_request_compression = false",
-        ]
-        for plugin in plugins:
-            settings.extend([f"[plugins.{json.dumps(plugin)}]", "enabled = false"])
-        config.write_text("\n".join(settings) + "\n")
-        provider = p / "desktop-provider.toml"
-        provider.write_text(f"openai_base_url = {json.dumps(url)}\n")
-        checks.write_text(
-            "# Request recorder setup\n\n"
-            "Pause other active chats during this capture. Add this line at the top of "
-            "`~/.codex/config.toml`, before any table heading. This changes the provider URL "
-            "for new local chats. The proxy forwards to the same backend "
-            "and keeps markers only.\n\n"
-            f"```toml\n{provider.read_text()}```\n\n"
-            "Start a new local chat in this project. After the last pass answer, remove that "
-            "line from user config before you resume other chats. Start a new chat for later model "
-            "turns: the test chat keeps the recorder URL. The script never changes "
-            "user config or hook trust.\n\n" + checks.read_text()
-        )
-        print(
-            f"Desktop capture ready. Pause other chats. A person must add the line in {provider} "
-            "at the top of ~/.codex/config.toml, then start a new local chat in this project. "
-            "Project config cannot set a provider URL. The script does not change user config.",
-            flush=True,
-        )
-        print(f"Follow {checks}. The capture waits for all listed prompt pairs.", flush=True)
         try:
-            deadline = time.monotonic() + 3600
-            user_config = (
-                Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))) / "config.toml"
+            settings = [
+                f"model = {json.dumps(CODEX_MODEL)}",
+                'sandbox_mode = "read-only"',
+                "[features]",
+                "enable_request_compression = false",
+            ]
+            for plugin in plugins:
+                settings.extend([f"[plugins.{json.dumps(plugin)}]", "enabled = false"])
+            config.write_text("\n".join(settings) + "\n")
+            provider = p / "desktop-provider.toml"
+            provider.write_text(f"openai_base_url = {json.dumps(url)}\n")
+            checks.write_text(
+                "# Request recorder setup\n\n"
+                "Pause other active chats during this capture. Add this line at the top of "
+                "`~/.codex/config.toml`, before any table heading. This changes the provider URL "
+                "for new local chats. The proxy forwards to the same backend "
+                "and keeps markers only.\n\n"
+                f"```toml\n{provider.read_text()}```\n\n"
+                "Start a new local chat in this project. After the last pass answer, remove that "
+                "line from user config before you resume other chats. Start a new chat for "
+                "later model turns: the test chat keeps the recorder URL. The script never changes "
+                "user config or hook trust.\n\n" + checks.read_text()
             )
+            print(
+                "Desktop capture ready. Pause other chats. "
+                f"A person must add the line in {provider} "
+                "at the top of ~/.codex/config.toml, then start a new local chat in this project. "
+                "Project config cannot set a provider URL. The script does not change user config.",
+                flush=True,
+            )
+            print(f"Follow {checks}. The capture waits for all listed prompt pairs.", flush=True)
+            deadline = time.monotonic() + 3600
             completed: set[str] = set()
             while time.monotonic() < deadline:
                 receipts = codex_receipts(p)
@@ -945,15 +978,6 @@ def codex_desktop(out: Path) -> None:
                         "The proxy stays available until that line is removed.",
                         flush=True,
                     )
-                    while time.monotonic() < deadline:
-                        current = user_config.read_text() if user_config.exists() else ""
-                        setting = r"(?m)^\s*openai_base_url\s*=\s*[\"']" + re.escape(url)
-                        if re.search(setting + r"[\"']", current) is None:
-                            break
-                        with proxies.lock:
-                            proxies.lock.wait(timeout=1)
-                    else:
-                        raise RuntimeError("Remove the temporary openai_base_url from user config.")
                     break
                 # A model call wakes the condition; hook receipts are checked at each timeout.
                 with proxies.lock:
@@ -961,6 +985,7 @@ def codex_desktop(out: Path) -> None:
             else:
                 raise RuntimeError("The desktop capture timed out. Run --desktop again to retry.")
         finally:
+            wait_desktop_provider_cleanup(user_config, url, proxies)
             proxies.stop()
             if old_config is None:
                 config.unlink(missing_ok=True)

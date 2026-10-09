@@ -4,6 +4,7 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -128,3 +129,44 @@ def test_a_corrupt_hook_definition_stops_without_replacing_it(
         spike.codex_project({"reason": "toy shop next reply"})
     assert source.read_bytes() == b"{invalid"
     assert (project / "payload.json").read_bytes() == payload
+
+
+@pytest.mark.parametrize("failure", [RuntimeError, TimeoutError, KeyboardInterrupt])
+@pytest.mark.parametrize("interrupt_cleanup", [False, True])
+def test_a_desktop_failure_keeps_the_proxy_until_the_global_url_is_removed(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    failure: type[BaseException],
+    interrupt_cleanup: bool,
+) -> None:
+    monkeypatch.setattr(spike, "ROOT", tmp_path)
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("CODEX_HOME", str(home))
+    config = home / "config.toml"
+    proxy = MagicMock()
+    url = "http://127.0.0.1:54321"
+
+    def start() -> dict[str, str]:
+        config.write_text(f'openai_base_url = "{url}"\n')
+        return {"HOOK_DISPLAY_PROXY": url}
+
+    def stop() -> None:
+        assert not config.exists(), "The proxy closed before the global URL was removed"
+
+    proxy.start.side_effect = start
+    proxy.stop.side_effect = stop
+
+    def remove_override(**kwargs: object) -> None:
+        if interrupt_cleanup and proxy.lock.wait.call_count == 1:
+            raise KeyboardInterrupt
+        config.unlink()
+
+    proxy.lock.wait.side_effect = remove_override
+    monkeypatch.setattr(spike.backend, "Proxies", lambda *args: proxy)
+    monkeypatch.setattr(spike, "require_codex_hook", lambda p: [])
+    monkeypatch.setattr(spike, "codex_receipts", MagicMock(side_effect=failure("capture failed")))
+    with pytest.raises(failure, match="capture failed"):
+        spike.codex_desktop(tmp_path / "result.json")
+    assert proxy.lock.wait.call_count == (2 if interrupt_cleanup else 1)
+    proxy.stop.assert_called_once()
