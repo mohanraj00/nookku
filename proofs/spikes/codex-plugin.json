@@ -1,0 +1,2007 @@
+{
+  "issue": 177,
+  "date_utc": "2026-10-08",
+  "status": "complete",
+  "versions": {
+    "codex_cli": "codex-cli 0.160.0",
+    "desktop": {
+      "status": "installed",
+      "version": "26.1002.52244",
+      "build": "13536",
+      "bundled_cli": "codex-cli 0.162.0-alpha.2",
+      "measurement": "Installed Info.plist and bundled CLI --version",
+      "independently_observed_runtime_version": null
+    },
+    "current_codex_cli": "codex-cli 0.162.0",
+    "scope": "codex_cli is the initial installed version; current_codex_cli is the CLI used for included runs. Desktop fields measure the installed bundle, not its running chat process."
+  },
+  "method": "scripts/spike_codex_plugin.py",
+  "documentation": [
+    "https://learn.chatgpt.com/docs/hooks",
+    "https://developers.openai.com/plugins/build/plugins"
+  ],
+  "fixture": {
+    "version": "1.0.2",
+    "hook_timeout": 11
+  },
+  "installation": [
+    {
+      "source": "Git over loopback HTTP, ref main",
+      "marketplace_add_exit": 0,
+      "plugin_add_exit": 0,
+      "upgrade": false,
+      "git_commit": "f54873a1156d3277d20e8eed65e66fe7bc469bcb",
+      "installed": {
+        "pluginId": "toy-hook-spike-177@toy-hook-market-177",
+        "name": "toy-hook-spike-177",
+        "marketplaceName": "toy-hook-market-177",
+        "version": "1.0.0",
+        "installedPath": "<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.0",
+        "authPolicy": "ON_INSTALL"
+      },
+      "hook_definition_sha256": "3f8a62a520296961fba625687b3141eccdff6356c1b4b7c291b9ccae3f11607a"
+    },
+    {
+      "source": "Git over loopback HTTP, ref main",
+      "marketplace_command": "upgrade",
+      "marketplace_exit": 0,
+      "plugin_add_exit": 0,
+      "upgrade": true,
+      "git_commit": "54cc80723e4387358775f73586931a04ee28292e",
+      "hook_definition_sha256": "3f8a62a520296961fba625687b3141eccdff6356c1b4b7c291b9ccae3f11607a",
+      "installed": {
+        "pluginId": "toy-hook-spike-177@toy-hook-market-177",
+        "name": "toy-hook-spike-177",
+        "marketplaceName": "toy-hook-market-177",
+        "version": "1.0.0",
+        "installedPath": "<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.0",
+        "authPolicy": "ON_INSTALL"
+      }
+    },
+    {
+      "source": "Git over loopback HTTP, ref main",
+      "marketplace_command": "upgrade",
+      "marketplace_exit": 0,
+      "plugin_add_exit": 0,
+      "upgrade": true,
+      "git_commit": "92dfc35ca26a8b0b14ac17d6db836e667fb96b25",
+      "hook_definition_sha256": "3f8a62a520296961fba625687b3141eccdff6356c1b4b7c291b9ccae3f11607a",
+      "installed": {
+        "pluginId": "toy-hook-spike-177@toy-hook-market-177",
+        "name": "toy-hook-spike-177",
+        "marketplaceName": "toy-hook-market-177",
+        "version": "1.0.1",
+        "installedPath": "<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.1",
+        "authPolicy": "ON_INSTALL"
+      }
+    },
+    {
+      "source": "Git over loopback HTTP, ref main",
+      "marketplace_command": "upgrade",
+      "marketplace_exit": 0,
+      "plugin_add_exit": 0,
+      "upgrade": true,
+      "git_commit": "8d4f9259df5c8c7fbf78d9067978eec4c7f63fa0",
+      "hook_definition_sha256": "b3af96fb2ec73b63db3ffab9e439b4dce91d8f83d0dd258cf8b0ea3191f9d7d1",
+      "installed": {
+        "pluginId": "toy-hook-spike-177@toy-hook-market-177",
+        "name": "toy-hook-spike-177",
+        "marketplaceName": "toy-hook-market-177",
+        "version": "1.0.2",
+        "installedPath": "<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.2",
+        "authPolicy": "ON_INSTALL"
+      }
+    }
+  ],
+  "runs": [
+    {
+      "surface": "codex_exec",
+      "expected_trust": "untrusted",
+      "fixture": {
+        "version": "1.0.0",
+        "hook_timeout": 10
+      },
+      "exit_code": 0,
+      "hook_events": [],
+      "model_requests": [
+        {
+          "path": "/v1/responses",
+          "block_marker": true,
+          "tool_marker": false
+        },
+        {
+          "path": "/v1/responses",
+          "block_marker": true,
+          "tool_marker": true
+        }
+      ],
+      "trust_warnings": [],
+      "excluded_from_conclusions": "The probe ignored user config, including saved hook trust; hook discovery and trust state were not verified.",
+      "fixture_git_commit": "f54873a1156d3277d20e8eed65e66fe7bc469bcb"
+    },
+    {
+      "surface": "codex_exec",
+      "expected_trust": "untrusted",
+      "fixture": {
+        "version": "1.0.0",
+        "hook_timeout": 10
+      },
+      "plugin_listed_installed": true,
+      "exit_code": 0,
+      "hook_events": [],
+      "model_requests": [
+        {
+          "path": "/v1/responses",
+          "block_marker": true,
+          "tool_marker": false
+        },
+        {
+          "path": "/v1/responses",
+          "block_marker": true,
+          "tool_marker": true
+        }
+      ],
+      "trust_warnings": [],
+      "fixture_git_commit": "f54873a1156d3277d20e8eed65e66fe7bc469bcb",
+      "excluded_from_conclusions": "The probe ignored user config, including saved hook trust; hook discovery and trust state were not verified."
+    },
+    {
+      "surface": "codex_exec",
+      "expected_trust": "untrusted",
+      "fixture": {
+        "version": "1.0.0",
+        "hook_timeout": 10
+      },
+      "plugin_listed_installed": true,
+      "exit_code": 0,
+      "hook_events": [],
+      "model_requests": [
+        {
+          "path": "/v1/responses",
+          "block_marker": true,
+          "tool_marker": false
+        },
+        {
+          "path": "/v1/responses",
+          "block_marker": true,
+          "tool_marker": true
+        }
+      ],
+      "trust_warnings": [],
+      "stream_event_types": [
+        "thread.started",
+        "item.completed",
+        "turn.started",
+        "item.started",
+        "item.completed",
+        "item.completed",
+        "turn.completed"
+      ],
+      "fixture_git_commit": "f54873a1156d3277d20e8eed65e66fe7bc469bcb",
+      "excluded_from_conclusions": "The probe ignored user config, including saved hook trust; hook discovery and trust state were not verified."
+    },
+    {
+      "surface": "codex_exec",
+      "expected_trust": "untrusted",
+      "fixture": {
+        "version": "1.0.0",
+        "hook_timeout": 10
+      },
+      "plugin_listed_installed": true,
+      "exit_code": 0,
+      "hook_events": [],
+      "model_requests": [
+        {
+          "path": "/v1/responses",
+          "block_marker": true,
+          "tool_marker": false
+        },
+        {
+          "path": "/v1/responses",
+          "block_marker": true,
+          "tool_marker": true
+        }
+      ],
+      "trust_warnings": [],
+      "stream_event_types": [
+        "thread.started",
+        "item.completed",
+        "turn.started",
+        "item.started",
+        "item.completed",
+        "item.completed",
+        "turn.completed"
+      ],
+      "fixture_git_commit": "54cc80723e4387358775f73586931a04ee28292e",
+      "excluded_from_conclusions": "The probe ignored user config, including saved hook trust; hook discovery and trust state were not verified."
+    },
+    {
+      "surface": "interactive_cli",
+      "expected_trust": "observe",
+      "fixture": {
+        "version": "1.0.0",
+        "hook_timeout": 10
+      },
+      "plugin_listed_installed": true,
+      "exit_code": 0,
+      "hook_events": [],
+      "model_requests": [],
+      "trust_warnings": [],
+      "stream_event_types": []
+    },
+    {
+      "surface": "interactive_cli",
+      "expected_trust": "observe",
+      "fixture": {
+        "version": "1.0.0",
+        "hook_timeout": 10
+      },
+      "plugin_listed_installed": true,
+      "exit_code": 0,
+      "hook_events": [],
+      "model_requests": [],
+      "trust_warnings": [],
+      "stream_event_types": []
+    },
+    {
+      "surface": "codex_exec",
+      "expected_trust": "untrusted",
+      "fixture": {
+        "version": "1.0.0",
+        "hook_timeout": 10
+      },
+      "plugin_listed_installed": true,
+      "exit_code": 0,
+      "hook_events": [],
+      "model_requests": [
+        {
+          "path": "/v1/responses",
+          "block_marker": true,
+          "tool_marker": false
+        },
+        {
+          "path": "/v1/responses",
+          "block_marker": true,
+          "tool_marker": true
+        }
+      ],
+      "trust_warnings": [],
+      "stream_event_types": [
+        "thread.started",
+        "item.completed",
+        "turn.started",
+        "item.started",
+        "item.completed",
+        "item.completed",
+        "turn.completed"
+      ],
+      "diagnostics": [
+        {
+          "type": "error",
+          "message": "Model metadata for `toy-spike-model` not found. Defaulting to fallback metadata; this can degrade performance and cause issues."
+        }
+      ],
+      "codex_version": "codex-cli 0.162.0",
+      "excluded_from_conclusions": "The probe ignored user config, including saved hook trust; hook discovery and trust state were not verified."
+    },
+    {
+      "surface": "codex_exec",
+      "expected_trust": "trusted",
+      "case": "prompt",
+      "hook_metadata_before_run": {
+        "codex_version": "codex-cli 0.162.0",
+        "method": "app-server initialize, hooks/list; no trust mutation",
+        "hooks": [
+          {
+            "key": "toy-hook-spike-177@toy-hook-market-177:hooks/hooks.json:pre_tool_use:0:0",
+            "eventName": "preToolUse",
+            "handlerType": "command",
+            "command": "/opt/homebrew/opt/python@3.14/bin/python3.14 \"<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.0/scripts/probe.py\" hook",
+            "async": false,
+            "matcher": null,
+            "timeoutSec": 10,
+            "statusMessage": null,
+            "additionalContextLimit": null,
+            "sourcePath": "<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.0/hooks/hooks.json",
+            "source": "plugin",
+            "pluginId": "toy-hook-spike-177@toy-hook-market-177",
+            "displayOrder": 7,
+            "enabled": true,
+            "isManaged": false,
+            "currentHash": "sha256:fca0a1570f686dea857c0149236c1726a888e4684969f78dd4e917916d309b6d",
+            "trustStatus": "trusted"
+          },
+          {
+            "key": "toy-hook-spike-177@toy-hook-market-177:hooks/hooks.json:session_start:0:0",
+            "eventName": "sessionStart",
+            "handlerType": "command",
+            "command": "/opt/homebrew/opt/python@3.14/bin/python3.14 \"<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.0/scripts/probe.py\" hook",
+            "async": false,
+            "matcher": null,
+            "timeoutSec": 10,
+            "statusMessage": null,
+            "additionalContextLimit": null,
+            "sourcePath": "<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.0/hooks/hooks.json",
+            "source": "plugin",
+            "pluginId": "toy-hook-spike-177@toy-hook-market-177",
+            "displayOrder": 8,
+            "enabled": true,
+            "isManaged": false,
+            "currentHash": "sha256:dafea478a3f13d98b176f75f673cc0f0cdb834f52d801f62a3ca556442417631",
+            "trustStatus": "trusted"
+          },
+          {
+            "key": "toy-hook-spike-177@toy-hook-market-177:hooks/hooks.json:user_prompt_submit:0:0",
+            "eventName": "userPromptSubmit",
+            "handlerType": "command",
+            "command": "/opt/homebrew/opt/python@3.14/bin/python3.14 \"<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.0/scripts/probe.py\" hook",
+            "async": false,
+            "matcher": null,
+            "timeoutSec": 10,
+            "statusMessage": null,
+            "additionalContextLimit": null,
+            "sourcePath": "<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.0/hooks/hooks.json",
+            "source": "plugin",
+            "pluginId": "toy-hook-spike-177@toy-hook-market-177",
+            "displayOrder": 9,
+            "enabled": true,
+            "isManaged": false,
+            "currentHash": "sha256:d13d989e9cf917ecd690f149ac72f1f4782b8ad2e704b4555ed5370567ea9c4b",
+            "trustStatus": "trusted"
+          }
+        ],
+        "errors": [],
+        "warnings": [
+          "failed to parse plugin hooks config <user-home>/.codex/plugins/cache/verbatim-relay/verbatim-relay/0.3.1/hooks/hooks.json: unknown field `modules`, expected `description` or `hooks` at line 1 column 11"
+        ]
+      },
+      "fixture": {
+        "version": "1.0.0",
+        "hook_timeout": 10
+      },
+      "plugin_listed_installed": true,
+      "exit_code": 0,
+      "hook_events": [
+        {
+          "event": "SessionStart",
+          "tool_name": null,
+          "blocked_prompt": false,
+          "plugin_data_set": true,
+          "claude_plugin_data_set": true,
+          "root_variables_equal": true,
+          "plugin_root_set": true,
+          "claude_plugin_root_set": true
+        },
+        {
+          "event": "UserPromptSubmit",
+          "tool_name": null,
+          "blocked_prompt": true,
+          "plugin_data_set": true,
+          "claude_plugin_data_set": true,
+          "root_variables_equal": true,
+          "plugin_root_set": true,
+          "claude_plugin_root_set": true
+        }
+      ],
+      "model_requests": [],
+      "trust_warnings": [],
+      "stream_event_types": [
+        "thread.started",
+        "item.completed",
+        "item.completed",
+        "turn.started",
+        "item.completed",
+        "turn.completed"
+      ],
+      "diagnostics": [
+        {
+          "type": "error",
+          "message": "failed to parse plugin hooks config <user-home>/.codex/plugins/cache/verbatim-relay/verbatim-relay/0.3.1/hooks/hooks.json: unknown field `modules`, expected `description` or `hooks` at line 1 column 11"
+        },
+        {
+          "type": "error",
+          "message": "Model metadata for `toy-spike-model` not found. Defaulting to fallback metadata; this can degrade performance and cause issues."
+        },
+        {
+          "type": "error",
+          "message": "Exceeded skills context budget. All skill descriptions were removed and 92 additional skills were not included in the model-visible skills list."
+        }
+      ],
+      "codex_version": "codex-cli 0.162.0"
+    },
+    {
+      "surface": "codex_exec",
+      "expected_trust": "trusted",
+      "case": "tool",
+      "hook_metadata_before_run": {
+        "codex_version": "codex-cli 0.162.0",
+        "method": "app-server initialize, hooks/list; no trust mutation",
+        "hooks": [
+          {
+            "key": "toy-hook-spike-177@toy-hook-market-177:hooks/hooks.json:pre_tool_use:0:0",
+            "eventName": "preToolUse",
+            "handlerType": "command",
+            "command": "/opt/homebrew/opt/python@3.14/bin/python3.14 \"<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.0/scripts/probe.py\" hook",
+            "async": false,
+            "matcher": null,
+            "timeoutSec": 10,
+            "statusMessage": null,
+            "additionalContextLimit": null,
+            "sourcePath": "<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.0/hooks/hooks.json",
+            "source": "plugin",
+            "pluginId": "toy-hook-spike-177@toy-hook-market-177",
+            "displayOrder": 7,
+            "enabled": true,
+            "isManaged": false,
+            "currentHash": "sha256:fca0a1570f686dea857c0149236c1726a888e4684969f78dd4e917916d309b6d",
+            "trustStatus": "trusted"
+          },
+          {
+            "key": "toy-hook-spike-177@toy-hook-market-177:hooks/hooks.json:session_start:0:0",
+            "eventName": "sessionStart",
+            "handlerType": "command",
+            "command": "/opt/homebrew/opt/python@3.14/bin/python3.14 \"<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.0/scripts/probe.py\" hook",
+            "async": false,
+            "matcher": null,
+            "timeoutSec": 10,
+            "statusMessage": null,
+            "additionalContextLimit": null,
+            "sourcePath": "<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.0/hooks/hooks.json",
+            "source": "plugin",
+            "pluginId": "toy-hook-spike-177@toy-hook-market-177",
+            "displayOrder": 8,
+            "enabled": true,
+            "isManaged": false,
+            "currentHash": "sha256:dafea478a3f13d98b176f75f673cc0f0cdb834f52d801f62a3ca556442417631",
+            "trustStatus": "trusted"
+          },
+          {
+            "key": "toy-hook-spike-177@toy-hook-market-177:hooks/hooks.json:user_prompt_submit:0:0",
+            "eventName": "userPromptSubmit",
+            "handlerType": "command",
+            "command": "/opt/homebrew/opt/python@3.14/bin/python3.14 \"<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.0/scripts/probe.py\" hook",
+            "async": false,
+            "matcher": null,
+            "timeoutSec": 10,
+            "statusMessage": null,
+            "additionalContextLimit": null,
+            "sourcePath": "<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.0/hooks/hooks.json",
+            "source": "plugin",
+            "pluginId": "toy-hook-spike-177@toy-hook-market-177",
+            "displayOrder": 9,
+            "enabled": true,
+            "isManaged": false,
+            "currentHash": "sha256:d13d989e9cf917ecd690f149ac72f1f4782b8ad2e704b4555ed5370567ea9c4b",
+            "trustStatus": "trusted"
+          }
+        ],
+        "errors": [],
+        "warnings": [
+          "failed to parse plugin hooks config <user-home>/.codex/plugins/cache/verbatim-relay/verbatim-relay/0.3.1/hooks/hooks.json: unknown field `modules`, expected `description` or `hooks` at line 1 column 11"
+        ]
+      },
+      "fixture": {
+        "version": "1.0.0",
+        "hook_timeout": 10
+      },
+      "plugin_listed_installed": true,
+      "exit_code": 0,
+      "hook_events": [
+        {
+          "event": "SessionStart",
+          "tool_name": null,
+          "blocked_prompt": false,
+          "plugin_data_set": true,
+          "claude_plugin_data_set": true,
+          "root_variables_equal": true,
+          "plugin_root_set": true,
+          "claude_plugin_root_set": true
+        },
+        {
+          "event": "UserPromptSubmit",
+          "tool_name": null,
+          "blocked_prompt": false,
+          "plugin_data_set": true,
+          "claude_plugin_data_set": true,
+          "root_variables_equal": true,
+          "plugin_root_set": true,
+          "claude_plugin_root_set": true
+        },
+        {
+          "event": "PreToolUse",
+          "tool_name": "Bash",
+          "blocked_prompt": false,
+          "plugin_data_set": true,
+          "claude_plugin_data_set": true,
+          "root_variables_equal": true,
+          "plugin_root_set": true,
+          "claude_plugin_root_set": true
+        }
+      ],
+      "model_requests": [
+        {
+          "path": "/v1/responses",
+          "block_marker": false,
+          "tool_marker": true,
+          "toy_tool_denial": false
+        },
+        {
+          "path": "/v1/responses",
+          "block_marker": false,
+          "tool_marker": true,
+          "toy_tool_denial": true
+        }
+      ],
+      "trust_warnings": [],
+      "stream_event_types": [
+        "thread.started",
+        "item.completed",
+        "item.completed",
+        "turn.started",
+        "item.completed",
+        "item.completed",
+        "turn.completed"
+      ],
+      "diagnostics": [
+        {
+          "type": "error",
+          "message": "failed to parse plugin hooks config <user-home>/.codex/plugins/cache/verbatim-relay/verbatim-relay/0.3.1/hooks/hooks.json: unknown field `modules`, expected `description` or `hooks` at line 1 column 11"
+        },
+        {
+          "type": "error",
+          "message": "Model metadata for `toy-spike-model` not found. Defaulting to fallback metadata; this can degrade performance and cause issues."
+        },
+        {
+          "type": "error",
+          "message": "Exceeded skills context budget. All skill descriptions were removed and 92 additional skills were not included in the model-visible skills list."
+        }
+      ],
+      "codex_version": "codex-cli 0.162.0"
+    },
+    {
+      "surface": "interactive_cli",
+      "expected_trust": "trusted",
+      "case": "prompt",
+      "hook_metadata_before_run": {
+        "codex_version": "codex-cli 0.162.0",
+        "method": "app-server initialize, hooks/list; no trust mutation",
+        "hooks": [
+          {
+            "key": "toy-hook-spike-177@toy-hook-market-177:hooks/hooks.json:pre_tool_use:0:0",
+            "eventName": "preToolUse",
+            "handlerType": "command",
+            "command": "/opt/homebrew/opt/python@3.14/bin/python3.14 \"<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.0/scripts/probe.py\" hook",
+            "async": false,
+            "matcher": null,
+            "timeoutSec": 10,
+            "statusMessage": null,
+            "additionalContextLimit": null,
+            "sourcePath": "<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.0/hooks/hooks.json",
+            "source": "plugin",
+            "pluginId": "toy-hook-spike-177@toy-hook-market-177",
+            "displayOrder": 7,
+            "enabled": true,
+            "isManaged": false,
+            "currentHash": "sha256:fca0a1570f686dea857c0149236c1726a888e4684969f78dd4e917916d309b6d",
+            "trustStatus": "trusted"
+          },
+          {
+            "key": "toy-hook-spike-177@toy-hook-market-177:hooks/hooks.json:session_start:0:0",
+            "eventName": "sessionStart",
+            "handlerType": "command",
+            "command": "/opt/homebrew/opt/python@3.14/bin/python3.14 \"<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.0/scripts/probe.py\" hook",
+            "async": false,
+            "matcher": null,
+            "timeoutSec": 10,
+            "statusMessage": null,
+            "additionalContextLimit": null,
+            "sourcePath": "<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.0/hooks/hooks.json",
+            "source": "plugin",
+            "pluginId": "toy-hook-spike-177@toy-hook-market-177",
+            "displayOrder": 8,
+            "enabled": true,
+            "isManaged": false,
+            "currentHash": "sha256:dafea478a3f13d98b176f75f673cc0f0cdb834f52d801f62a3ca556442417631",
+            "trustStatus": "trusted"
+          },
+          {
+            "key": "toy-hook-spike-177@toy-hook-market-177:hooks/hooks.json:user_prompt_submit:0:0",
+            "eventName": "userPromptSubmit",
+            "handlerType": "command",
+            "command": "/opt/homebrew/opt/python@3.14/bin/python3.14 \"<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.0/scripts/probe.py\" hook",
+            "async": false,
+            "matcher": null,
+            "timeoutSec": 10,
+            "statusMessage": null,
+            "additionalContextLimit": null,
+            "sourcePath": "<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.0/hooks/hooks.json",
+            "source": "plugin",
+            "pluginId": "toy-hook-spike-177@toy-hook-market-177",
+            "displayOrder": 9,
+            "enabled": true,
+            "isManaged": false,
+            "currentHash": "sha256:d13d989e9cf917ecd690f149ac72f1f4782b8ad2e704b4555ed5370567ea9c4b",
+            "trustStatus": "trusted"
+          }
+        ],
+        "errors": [],
+        "warnings": [
+          "failed to parse plugin hooks config <user-home>/.codex/plugins/cache/verbatim-relay/verbatim-relay/0.3.1/hooks/hooks.json: unknown field `modules`, expected `description` or `hooks` at line 1 column 11"
+        ]
+      },
+      "fixture": {
+        "version": "1.0.0",
+        "hook_timeout": 10
+      },
+      "plugin_listed_installed": true,
+      "exit_code": 0,
+      "hook_events": [
+        {
+          "event": "SessionStart",
+          "tool_name": null,
+          "blocked_prompt": false,
+          "plugin_data_set": true,
+          "claude_plugin_data_set": true,
+          "root_variables_equal": true,
+          "plugin_root_set": true,
+          "claude_plugin_root_set": true
+        },
+        {
+          "event": "UserPromptSubmit",
+          "tool_name": null,
+          "blocked_prompt": true,
+          "plugin_data_set": true,
+          "claude_plugin_data_set": true,
+          "root_variables_equal": true,
+          "plugin_root_set": true,
+          "claude_plugin_root_set": true
+        },
+        {
+          "event": "UserPromptSubmit",
+          "tool_name": null,
+          "blocked_prompt": false,
+          "plugin_data_set": true,
+          "claude_plugin_data_set": true,
+          "root_variables_equal": true,
+          "plugin_root_set": true,
+          "claude_plugin_root_set": true
+        },
+        {
+          "event": "PreToolUse",
+          "tool_name": "Bash",
+          "blocked_prompt": false,
+          "plugin_data_set": true,
+          "claude_plugin_data_set": true,
+          "root_variables_equal": true,
+          "plugin_root_set": true,
+          "claude_plugin_root_set": true
+        }
+      ],
+      "model_requests": [
+        {
+          "path": "/v1/responses",
+          "block_marker": false,
+          "tool_marker": true,
+          "toy_tool_denial": false
+        },
+        {
+          "path": "/v1/responses",
+          "block_marker": false,
+          "tool_marker": true,
+          "toy_tool_denial": true
+        },
+        {
+          "path": "/v1/responses",
+          "block_marker": false,
+          "tool_marker": true,
+          "toy_tool_denial": false
+        }
+      ],
+      "trust_warnings": [],
+      "stream_event_types": [],
+      "diagnostics": [],
+      "codex_version": "codex-cli 0.162.0"
+    },
+    {
+      "surface": "codex_exec",
+      "expected_trust": "trusted",
+      "case": "prompt",
+      "hook_metadata_before_run": {
+        "codex_version": "codex-cli 0.162.0",
+        "method": "app-server initialize, hooks/list; no trust mutation",
+        "hooks": [
+          {
+            "key": "toy-hook-spike-177@toy-hook-market-177:hooks/hooks.json:pre_tool_use:0:0",
+            "eventName": "preToolUse",
+            "handlerType": "command",
+            "command": "/opt/homebrew/opt/python@3.14/bin/python3.14 \"<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.1/scripts/probe.py\" hook",
+            "async": false,
+            "matcher": null,
+            "timeoutSec": 10,
+            "statusMessage": null,
+            "additionalContextLimit": null,
+            "sourcePath": "<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.1/hooks/hooks.json",
+            "source": "plugin",
+            "pluginId": "toy-hook-spike-177@toy-hook-market-177",
+            "displayOrder": 7,
+            "enabled": true,
+            "isManaged": false,
+            "currentHash": "sha256:fca0a1570f686dea857c0149236c1726a888e4684969f78dd4e917916d309b6d",
+            "trustStatus": "trusted"
+          },
+          {
+            "key": "toy-hook-spike-177@toy-hook-market-177:hooks/hooks.json:session_start:0:0",
+            "eventName": "sessionStart",
+            "handlerType": "command",
+            "command": "/opt/homebrew/opt/python@3.14/bin/python3.14 \"<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.1/scripts/probe.py\" hook",
+            "async": false,
+            "matcher": null,
+            "timeoutSec": 10,
+            "statusMessage": null,
+            "additionalContextLimit": null,
+            "sourcePath": "<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.1/hooks/hooks.json",
+            "source": "plugin",
+            "pluginId": "toy-hook-spike-177@toy-hook-market-177",
+            "displayOrder": 8,
+            "enabled": true,
+            "isManaged": false,
+            "currentHash": "sha256:dafea478a3f13d98b176f75f673cc0f0cdb834f52d801f62a3ca556442417631",
+            "trustStatus": "trusted"
+          },
+          {
+            "key": "toy-hook-spike-177@toy-hook-market-177:hooks/hooks.json:user_prompt_submit:0:0",
+            "eventName": "userPromptSubmit",
+            "handlerType": "command",
+            "command": "/opt/homebrew/opt/python@3.14/bin/python3.14 \"<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.1/scripts/probe.py\" hook",
+            "async": false,
+            "matcher": null,
+            "timeoutSec": 10,
+            "statusMessage": null,
+            "additionalContextLimit": null,
+            "sourcePath": "<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.1/hooks/hooks.json",
+            "source": "plugin",
+            "pluginId": "toy-hook-spike-177@toy-hook-market-177",
+            "displayOrder": 9,
+            "enabled": true,
+            "isManaged": false,
+            "currentHash": "sha256:d13d989e9cf917ecd690f149ac72f1f4782b8ad2e704b4555ed5370567ea9c4b",
+            "trustStatus": "trusted"
+          }
+        ],
+        "errors": [],
+        "warnings": [
+          "failed to parse plugin hooks config <user-home>/.codex/plugins/cache/verbatim-relay/verbatim-relay/0.3.1/hooks/hooks.json: unknown field `modules`, expected `description` or `hooks` at line 1 column 11"
+        ]
+      },
+      "fixture": {
+        "version": "1.0.1",
+        "hook_timeout": 10
+      },
+      "plugin_listed_installed": true,
+      "exit_code": 0,
+      "hook_events": [
+        {
+          "event": "SessionStart",
+          "tool_name": null,
+          "blocked_prompt": false,
+          "plugin_data_set": true,
+          "claude_plugin_data_set": true,
+          "root_variables_equal": true,
+          "plugin_root_set": true,
+          "claude_plugin_root_set": true
+        },
+        {
+          "event": "UserPromptSubmit",
+          "tool_name": null,
+          "blocked_prompt": true,
+          "plugin_data_set": true,
+          "claude_plugin_data_set": true,
+          "root_variables_equal": true,
+          "plugin_root_set": true,
+          "claude_plugin_root_set": true
+        }
+      ],
+      "model_requests": [],
+      "trust_warnings": [],
+      "stream_event_types": [
+        "thread.started",
+        "item.completed",
+        "item.completed",
+        "turn.started",
+        "item.completed",
+        "turn.completed"
+      ],
+      "diagnostics": [
+        {
+          "type": "error",
+          "message": "failed to parse plugin hooks config <user-home>/.codex/plugins/cache/verbatim-relay/verbatim-relay/0.3.1/hooks/hooks.json: unknown field `modules`, expected `description` or `hooks` at line 1 column 11"
+        },
+        {
+          "type": "error",
+          "message": "Model metadata for `toy-spike-model` not found. Defaulting to fallback metadata; this can degrade performance and cause issues."
+        },
+        {
+          "type": "error",
+          "message": "Exceeded skills context budget. All skill descriptions were removed and 92 additional skills were not included in the model-visible skills list."
+        }
+      ],
+      "codex_version": "codex-cli 0.162.0"
+    },
+    {
+      "surface": "codex_exec",
+      "expected_trust": "untrusted",
+      "case": "prompt",
+      "hook_metadata_before_run": {
+        "codex_version": "codex-cli 0.162.0",
+        "method": "app-server initialize, hooks/list; no trust mutation",
+        "hooks": [
+          {
+            "key": "toy-hook-spike-177@toy-hook-market-177:hooks/hooks.json:pre_tool_use:0:0",
+            "eventName": "preToolUse",
+            "handlerType": "command",
+            "command": "/opt/homebrew/opt/python@3.14/bin/python3.14 \"<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.2/scripts/probe.py\" hook",
+            "async": false,
+            "matcher": null,
+            "timeoutSec": 11,
+            "statusMessage": null,
+            "additionalContextLimit": null,
+            "sourcePath": "<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.2/hooks/hooks.json",
+            "source": "plugin",
+            "pluginId": "toy-hook-spike-177@toy-hook-market-177",
+            "displayOrder": 7,
+            "enabled": true,
+            "isManaged": false,
+            "currentHash": "sha256:5a294bdb2a8ce4eb1add6da57842aeb5d5ceea76f863b1291b6cf48a823d6e0e",
+            "trustStatus": "modified"
+          },
+          {
+            "key": "toy-hook-spike-177@toy-hook-market-177:hooks/hooks.json:session_start:0:0",
+            "eventName": "sessionStart",
+            "handlerType": "command",
+            "command": "/opt/homebrew/opt/python@3.14/bin/python3.14 \"<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.2/scripts/probe.py\" hook",
+            "async": false,
+            "matcher": null,
+            "timeoutSec": 11,
+            "statusMessage": null,
+            "additionalContextLimit": null,
+            "sourcePath": "<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.2/hooks/hooks.json",
+            "source": "plugin",
+            "pluginId": "toy-hook-spike-177@toy-hook-market-177",
+            "displayOrder": 8,
+            "enabled": true,
+            "isManaged": false,
+            "currentHash": "sha256:4e238a95dd43f3bac3aea507a652acd89f937d77836eb8eca2a2cbb17a80cd9f",
+            "trustStatus": "modified"
+          },
+          {
+            "key": "toy-hook-spike-177@toy-hook-market-177:hooks/hooks.json:user_prompt_submit:0:0",
+            "eventName": "userPromptSubmit",
+            "handlerType": "command",
+            "command": "/opt/homebrew/opt/python@3.14/bin/python3.14 \"<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.2/scripts/probe.py\" hook",
+            "async": false,
+            "matcher": null,
+            "timeoutSec": 11,
+            "statusMessage": null,
+            "additionalContextLimit": null,
+            "sourcePath": "<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.2/hooks/hooks.json",
+            "source": "plugin",
+            "pluginId": "toy-hook-spike-177@toy-hook-market-177",
+            "displayOrder": 9,
+            "enabled": true,
+            "isManaged": false,
+            "currentHash": "sha256:aa70200b532abe042fbf17ef4c1adabce70762efa138996a176a30cb1b7f1b6d",
+            "trustStatus": "modified"
+          }
+        ],
+        "errors": [],
+        "warnings": [
+          "failed to parse plugin hooks config <user-home>/.codex/plugins/cache/verbatim-relay/verbatim-relay/0.3.1/hooks/hooks.json: unknown field `modules`, expected `description` or `hooks` at line 1 column 11"
+        ]
+      },
+      "fixture": {
+        "version": "1.0.2",
+        "hook_timeout": 11
+      },
+      "plugin_listed_installed": true,
+      "exit_code": 0,
+      "hook_events": [],
+      "model_requests": [
+        {
+          "path": "/v1/responses",
+          "block_marker": true,
+          "tool_marker": false,
+          "toy_tool_denial": false
+        },
+        {
+          "path": "/v1/responses",
+          "block_marker": true,
+          "tool_marker": true,
+          "toy_tool_denial": false
+        }
+      ],
+      "trust_warnings": [],
+      "stream_event_types": [
+        "thread.started",
+        "item.completed",
+        "item.completed",
+        "turn.started",
+        "item.completed",
+        "item.started",
+        "item.completed",
+        "item.completed",
+        "turn.completed"
+      ],
+      "diagnostics": [
+        {
+          "type": "error",
+          "message": "failed to parse plugin hooks config <user-home>/.codex/plugins/cache/verbatim-relay/verbatim-relay/0.3.1/hooks/hooks.json: unknown field `modules`, expected `description` or `hooks` at line 1 column 11"
+        },
+        {
+          "type": "error",
+          "message": "Model metadata for `toy-spike-model` not found. Defaulting to fallback metadata; this can degrade performance and cause issues."
+        },
+        {
+          "type": "error",
+          "message": "Exceeded skills context budget. All skill descriptions were removed and 92 additional skills were not included in the model-visible skills list."
+        }
+      ],
+      "codex_version": "codex-cli 0.162.0"
+    },
+    {
+      "surface": "interactive_cli",
+      "expected_trust": "observe",
+      "case": "prompt",
+      "hook_metadata_before_run": {
+        "codex_version": "codex-cli 0.162.0",
+        "method": "app-server initialize, hooks/list; no trust mutation",
+        "hooks": [
+          {
+            "key": "toy-hook-spike-177@toy-hook-market-177:hooks/hooks.json:pre_tool_use:0:0",
+            "eventName": "preToolUse",
+            "handlerType": "command",
+            "command": "/opt/homebrew/opt/python@3.14/bin/python3.14 \"<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.2/scripts/probe.py\" hook",
+            "async": false,
+            "matcher": null,
+            "timeoutSec": 11,
+            "statusMessage": null,
+            "additionalContextLimit": null,
+            "sourcePath": "<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.2/hooks/hooks.json",
+            "source": "plugin",
+            "pluginId": "toy-hook-spike-177@toy-hook-market-177",
+            "displayOrder": 7,
+            "enabled": true,
+            "isManaged": false,
+            "currentHash": "sha256:5a294bdb2a8ce4eb1add6da57842aeb5d5ceea76f863b1291b6cf48a823d6e0e",
+            "trustStatus": "modified"
+          },
+          {
+            "key": "toy-hook-spike-177@toy-hook-market-177:hooks/hooks.json:session_start:0:0",
+            "eventName": "sessionStart",
+            "handlerType": "command",
+            "command": "/opt/homebrew/opt/python@3.14/bin/python3.14 \"<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.2/scripts/probe.py\" hook",
+            "async": false,
+            "matcher": null,
+            "timeoutSec": 11,
+            "statusMessage": null,
+            "additionalContextLimit": null,
+            "sourcePath": "<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.2/hooks/hooks.json",
+            "source": "plugin",
+            "pluginId": "toy-hook-spike-177@toy-hook-market-177",
+            "displayOrder": 8,
+            "enabled": true,
+            "isManaged": false,
+            "currentHash": "sha256:4e238a95dd43f3bac3aea507a652acd89f937d77836eb8eca2a2cbb17a80cd9f",
+            "trustStatus": "modified"
+          },
+          {
+            "key": "toy-hook-spike-177@toy-hook-market-177:hooks/hooks.json:user_prompt_submit:0:0",
+            "eventName": "userPromptSubmit",
+            "handlerType": "command",
+            "command": "/opt/homebrew/opt/python@3.14/bin/python3.14 \"<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.2/scripts/probe.py\" hook",
+            "async": false,
+            "matcher": null,
+            "timeoutSec": 11,
+            "statusMessage": null,
+            "additionalContextLimit": null,
+            "sourcePath": "<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.2/hooks/hooks.json",
+            "source": "plugin",
+            "pluginId": "toy-hook-spike-177@toy-hook-market-177",
+            "displayOrder": 9,
+            "enabled": true,
+            "isManaged": false,
+            "currentHash": "sha256:aa70200b532abe042fbf17ef4c1adabce70762efa138996a176a30cb1b7f1b6d",
+            "trustStatus": "modified"
+          }
+        ],
+        "errors": [],
+        "warnings": [
+          "failed to parse plugin hooks config <user-home>/.codex/plugins/cache/verbatim-relay/verbatim-relay/0.3.1/hooks/hooks.json: unknown field `modules`, expected `description` or `hooks` at line 1 column 11"
+        ]
+      },
+      "fixture": {
+        "version": "1.0.2",
+        "hook_timeout": 11
+      },
+      "plugin_listed_installed": true,
+      "exit_code": 0,
+      "hook_events": [],
+      "model_requests": [],
+      "trust_warnings": [],
+      "stream_event_types": [],
+      "diagnostics": [],
+      "codex_version": "codex-cli 0.162.0"
+    },
+    {
+      "surface": "interactive_cli",
+      "expected_trust": "observe",
+      "case": "prompt",
+      "hook_metadata_before_run": {
+        "codex_version": "codex-cli 0.162.0",
+        "method": "app-server initialize, hooks/list; no trust mutation",
+        "hooks": [
+          {
+            "key": "toy-hook-spike-177@toy-hook-market-177:hooks/hooks.json:pre_tool_use:0:0",
+            "eventName": "preToolUse",
+            "handlerType": "command",
+            "command": "/opt/homebrew/opt/python@3.14/bin/python3.14 \"<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.2/scripts/probe.py\" hook",
+            "async": false,
+            "matcher": null,
+            "timeoutSec": 11,
+            "statusMessage": null,
+            "additionalContextLimit": null,
+            "sourcePath": "<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.2/hooks/hooks.json",
+            "source": "plugin",
+            "pluginId": "toy-hook-spike-177@toy-hook-market-177",
+            "displayOrder": 7,
+            "enabled": true,
+            "isManaged": false,
+            "currentHash": "sha256:5a294bdb2a8ce4eb1add6da57842aeb5d5ceea76f863b1291b6cf48a823d6e0e",
+            "trustStatus": "modified"
+          },
+          {
+            "key": "toy-hook-spike-177@toy-hook-market-177:hooks/hooks.json:session_start:0:0",
+            "eventName": "sessionStart",
+            "handlerType": "command",
+            "command": "/opt/homebrew/opt/python@3.14/bin/python3.14 \"<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.2/scripts/probe.py\" hook",
+            "async": false,
+            "matcher": null,
+            "timeoutSec": 11,
+            "statusMessage": null,
+            "additionalContextLimit": null,
+            "sourcePath": "<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.2/hooks/hooks.json",
+            "source": "plugin",
+            "pluginId": "toy-hook-spike-177@toy-hook-market-177",
+            "displayOrder": 8,
+            "enabled": true,
+            "isManaged": false,
+            "currentHash": "sha256:4e238a95dd43f3bac3aea507a652acd89f937d77836eb8eca2a2cbb17a80cd9f",
+            "trustStatus": "modified"
+          },
+          {
+            "key": "toy-hook-spike-177@toy-hook-market-177:hooks/hooks.json:user_prompt_submit:0:0",
+            "eventName": "userPromptSubmit",
+            "handlerType": "command",
+            "command": "/opt/homebrew/opt/python@3.14/bin/python3.14 \"<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.2/scripts/probe.py\" hook",
+            "async": false,
+            "matcher": null,
+            "timeoutSec": 11,
+            "statusMessage": null,
+            "additionalContextLimit": null,
+            "sourcePath": "<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.2/hooks/hooks.json",
+            "source": "plugin",
+            "pluginId": "toy-hook-spike-177@toy-hook-market-177",
+            "displayOrder": 9,
+            "enabled": true,
+            "isManaged": false,
+            "currentHash": "sha256:aa70200b532abe042fbf17ef4c1adabce70762efa138996a176a30cb1b7f1b6d",
+            "trustStatus": "modified"
+          }
+        ],
+        "errors": [],
+        "warnings": [
+          "failed to parse plugin hooks config <user-home>/.codex/plugins/cache/verbatim-relay/verbatim-relay/0.3.1/hooks/hooks.json: unknown field `modules`, expected `description` or `hooks` at line 1 column 11"
+        ]
+      },
+      "fixture": {
+        "version": "1.0.2",
+        "hook_timeout": 11
+      },
+      "plugin_listed_installed": true,
+      "exit_code": 0,
+      "hook_events": [],
+      "model_requests": [],
+      "trust_warnings": [],
+      "stream_event_types": [],
+      "diagnostics": [],
+      "codex_version": "codex-cli 0.162.0"
+    },
+    {
+      "surface": "codex_exec",
+      "expected_trust": "trusted",
+      "case": "prompt",
+      "hook_metadata_before_run": {
+        "codex_version": "codex-cli 0.162.0",
+        "method": "app-server initialize, hooks/list; no trust mutation",
+        "hooks": [
+          {
+            "key": "toy-hook-spike-177@toy-hook-market-177:hooks/hooks.json:pre_tool_use:0:0",
+            "eventName": "preToolUse",
+            "handlerType": "command",
+            "command": "/opt/homebrew/opt/python@3.14/bin/python3.14 \"<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.2/scripts/probe.py\" hook",
+            "async": false,
+            "matcher": null,
+            "timeoutSec": 11,
+            "statusMessage": null,
+            "additionalContextLimit": null,
+            "sourcePath": "<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.2/hooks/hooks.json",
+            "source": "plugin",
+            "pluginId": "toy-hook-spike-177@toy-hook-market-177",
+            "displayOrder": 7,
+            "enabled": true,
+            "isManaged": false,
+            "currentHash": "sha256:5a294bdb2a8ce4eb1add6da57842aeb5d5ceea76f863b1291b6cf48a823d6e0e",
+            "trustStatus": "trusted"
+          },
+          {
+            "key": "toy-hook-spike-177@toy-hook-market-177:hooks/hooks.json:session_start:0:0",
+            "eventName": "sessionStart",
+            "handlerType": "command",
+            "command": "/opt/homebrew/opt/python@3.14/bin/python3.14 \"<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.2/scripts/probe.py\" hook",
+            "async": false,
+            "matcher": null,
+            "timeoutSec": 11,
+            "statusMessage": null,
+            "additionalContextLimit": null,
+            "sourcePath": "<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.2/hooks/hooks.json",
+            "source": "plugin",
+            "pluginId": "toy-hook-spike-177@toy-hook-market-177",
+            "displayOrder": 8,
+            "enabled": true,
+            "isManaged": false,
+            "currentHash": "sha256:4e238a95dd43f3bac3aea507a652acd89f937d77836eb8eca2a2cbb17a80cd9f",
+            "trustStatus": "trusted"
+          },
+          {
+            "key": "toy-hook-spike-177@toy-hook-market-177:hooks/hooks.json:user_prompt_submit:0:0",
+            "eventName": "userPromptSubmit",
+            "handlerType": "command",
+            "command": "/opt/homebrew/opt/python@3.14/bin/python3.14 \"<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.2/scripts/probe.py\" hook",
+            "async": false,
+            "matcher": null,
+            "timeoutSec": 11,
+            "statusMessage": null,
+            "additionalContextLimit": null,
+            "sourcePath": "<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.2/hooks/hooks.json",
+            "source": "plugin",
+            "pluginId": "toy-hook-spike-177@toy-hook-market-177",
+            "displayOrder": 9,
+            "enabled": true,
+            "isManaged": false,
+            "currentHash": "sha256:aa70200b532abe042fbf17ef4c1adabce70762efa138996a176a30cb1b7f1b6d",
+            "trustStatus": "trusted"
+          }
+        ],
+        "errors": [],
+        "warnings": [
+          "failed to parse plugin hooks config <user-home>/.codex/plugins/cache/verbatim-relay/verbatim-relay/0.3.1/hooks/hooks.json: unknown field `modules`, expected `description` or `hooks` at line 1 column 11"
+        ]
+      },
+      "fixture": {
+        "version": "1.0.2",
+        "hook_timeout": 11
+      },
+      "plugin_listed_installed": true,
+      "exit_code": 0,
+      "hook_events": [
+        {
+          "event": "SessionStart",
+          "tool_name": null,
+          "blocked_prompt": false,
+          "plugin_data_set": true,
+          "claude_plugin_data_set": true,
+          "root_variables_equal": true,
+          "plugin_root_set": true,
+          "claude_plugin_root_set": true
+        },
+        {
+          "event": "UserPromptSubmit",
+          "tool_name": null,
+          "blocked_prompt": true,
+          "plugin_data_set": true,
+          "claude_plugin_data_set": true,
+          "root_variables_equal": true,
+          "plugin_root_set": true,
+          "claude_plugin_root_set": true
+        }
+      ],
+      "model_requests": [],
+      "trust_warnings": [],
+      "stream_event_types": [
+        "thread.started",
+        "item.completed",
+        "item.completed",
+        "turn.started",
+        "item.completed",
+        "turn.completed"
+      ],
+      "diagnostics": [
+        {
+          "type": "error",
+          "message": "failed to parse plugin hooks config <user-home>/.codex/plugins/cache/verbatim-relay/verbatim-relay/0.3.1/hooks/hooks.json: unknown field `modules`, expected `description` or `hooks` at line 1 column 11"
+        },
+        {
+          "type": "error",
+          "message": "Model metadata for `toy-spike-model` not found. Defaulting to fallback metadata; this can degrade performance and cause issues."
+        },
+        {
+          "type": "error",
+          "message": "Exceeded skills context budget. All skill descriptions were removed and 92 additional skills were not included in the model-visible skills list."
+        }
+      ],
+      "codex_version": "codex-cli 0.162.0"
+    },
+    {
+      "surface": "codex_exec",
+      "expected_trust": "trusted",
+      "case": "tool",
+      "hook_metadata_before_run": {
+        "codex_version": "codex-cli 0.162.0",
+        "method": "app-server initialize, hooks/list; no trust mutation",
+        "hooks": [
+          {
+            "key": "toy-hook-spike-177@toy-hook-market-177:hooks/hooks.json:pre_tool_use:0:0",
+            "eventName": "preToolUse",
+            "handlerType": "command",
+            "command": "/opt/homebrew/opt/python@3.14/bin/python3.14 \"<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.2/scripts/probe.py\" hook",
+            "async": false,
+            "matcher": null,
+            "timeoutSec": 11,
+            "statusMessage": null,
+            "additionalContextLimit": null,
+            "sourcePath": "<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.2/hooks/hooks.json",
+            "source": "plugin",
+            "pluginId": "toy-hook-spike-177@toy-hook-market-177",
+            "displayOrder": 7,
+            "enabled": true,
+            "isManaged": false,
+            "currentHash": "sha256:5a294bdb2a8ce4eb1add6da57842aeb5d5ceea76f863b1291b6cf48a823d6e0e",
+            "trustStatus": "trusted"
+          },
+          {
+            "key": "toy-hook-spike-177@toy-hook-market-177:hooks/hooks.json:session_start:0:0",
+            "eventName": "sessionStart",
+            "handlerType": "command",
+            "command": "/opt/homebrew/opt/python@3.14/bin/python3.14 \"<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.2/scripts/probe.py\" hook",
+            "async": false,
+            "matcher": null,
+            "timeoutSec": 11,
+            "statusMessage": null,
+            "additionalContextLimit": null,
+            "sourcePath": "<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.2/hooks/hooks.json",
+            "source": "plugin",
+            "pluginId": "toy-hook-spike-177@toy-hook-market-177",
+            "displayOrder": 8,
+            "enabled": true,
+            "isManaged": false,
+            "currentHash": "sha256:4e238a95dd43f3bac3aea507a652acd89f937d77836eb8eca2a2cbb17a80cd9f",
+            "trustStatus": "trusted"
+          },
+          {
+            "key": "toy-hook-spike-177@toy-hook-market-177:hooks/hooks.json:user_prompt_submit:0:0",
+            "eventName": "userPromptSubmit",
+            "handlerType": "command",
+            "command": "/opt/homebrew/opt/python@3.14/bin/python3.14 \"<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.2/scripts/probe.py\" hook",
+            "async": false,
+            "matcher": null,
+            "timeoutSec": 11,
+            "statusMessage": null,
+            "additionalContextLimit": null,
+            "sourcePath": "<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.2/hooks/hooks.json",
+            "source": "plugin",
+            "pluginId": "toy-hook-spike-177@toy-hook-market-177",
+            "displayOrder": 9,
+            "enabled": true,
+            "isManaged": false,
+            "currentHash": "sha256:aa70200b532abe042fbf17ef4c1adabce70762efa138996a176a30cb1b7f1b6d",
+            "trustStatus": "trusted"
+          }
+        ],
+        "errors": [],
+        "warnings": [
+          "failed to parse plugin hooks config <user-home>/.codex/plugins/cache/verbatim-relay/verbatim-relay/0.3.1/hooks/hooks.json: unknown field `modules`, expected `description` or `hooks` at line 1 column 11"
+        ]
+      },
+      "fixture": {
+        "version": "1.0.2",
+        "hook_timeout": 11
+      },
+      "plugin_listed_installed": true,
+      "exit_code": 0,
+      "hook_events": [
+        {
+          "event": "SessionStart",
+          "tool_name": null,
+          "blocked_prompt": false,
+          "plugin_data_set": true,
+          "claude_plugin_data_set": true,
+          "root_variables_equal": true,
+          "plugin_root_set": true,
+          "claude_plugin_root_set": true
+        },
+        {
+          "event": "UserPromptSubmit",
+          "tool_name": null,
+          "blocked_prompt": false,
+          "plugin_data_set": true,
+          "claude_plugin_data_set": true,
+          "root_variables_equal": true,
+          "plugin_root_set": true,
+          "claude_plugin_root_set": true
+        },
+        {
+          "event": "PreToolUse",
+          "tool_name": "Bash",
+          "blocked_prompt": false,
+          "plugin_data_set": true,
+          "claude_plugin_data_set": true,
+          "root_variables_equal": true,
+          "plugin_root_set": true,
+          "claude_plugin_root_set": true
+        }
+      ],
+      "model_requests": [
+        {
+          "path": "/v1/responses",
+          "block_marker": false,
+          "tool_marker": true,
+          "toy_tool_denial": false
+        },
+        {
+          "path": "/v1/responses",
+          "block_marker": false,
+          "tool_marker": true,
+          "toy_tool_denial": true
+        }
+      ],
+      "trust_warnings": [],
+      "stream_event_types": [
+        "thread.started",
+        "item.completed",
+        "item.completed",
+        "turn.started",
+        "item.completed",
+        "item.completed",
+        "turn.completed"
+      ],
+      "diagnostics": [
+        {
+          "type": "error",
+          "message": "failed to parse plugin hooks config <user-home>/.codex/plugins/cache/verbatim-relay/verbatim-relay/0.3.1/hooks/hooks.json: unknown field `modules`, expected `description` or `hooks` at line 1 column 11"
+        },
+        {
+          "type": "error",
+          "message": "Model metadata for `toy-spike-model` not found. Defaulting to fallback metadata; this can degrade performance and cause issues."
+        },
+        {
+          "type": "error",
+          "message": "Exceeded skills context budget. All skill descriptions were removed and 92 additional skills were not included in the model-visible skills list."
+        }
+      ],
+      "codex_version": "codex-cli 0.162.0"
+    }
+  ],
+  "answers": {
+    "events_by_surface": {
+      "status": "observed_with_scope_limit",
+      "answer": {
+        "codex_exec": "SessionStart and UserPromptSubmit ran; the block prompt caused no model request. PreToolUse ran as Bash and its denial reached the mock provider.",
+        "interactive_cli": "SessionStart, UserPromptSubmit and PreToolUse ran. The TUI showed the prompt block and tool denial.",
+        "desktop": "SessionStart, both UserPromptSubmit cases and PreToolUse ran after the saved baseline. The maintainer reported both blocks. The chat has an empty completed prompt turn and a tool turn ending with the PreToolUse block and no retry. No independent model-request capture was made for the desktop."
+      },
+      "tested_cli": "codex-cli 0.162.0",
+      "evidence": [
+        "runs[7]",
+        "runs[8]",
+        "runs[10]",
+        "runs[9]",
+        "runs[14]",
+        "runs[15]",
+        "desktop_runs[0]"
+      ],
+      "desktop_version_evidence": "desktop_runs[0].version_attribution"
+    },
+    "trust_ui": {
+      "status": "observed",
+      "answer": "The /hooks overview groups entries by event. Enter opens an event list and details. Without a statusMessage, the toy handler is displayed as Unnamed hook. The detail pane identifies the plugin source, command, timeout and trust status. The maintainer used Trust all for 1.0.0 and reviewed the modified entries for 1.0.2. The detail screen offers t to trust the selected entry; the overview offers t to trust all pending entries. This records the CLI trust UI. The desktop check used the hook definition that the maintainer had already trusted; it did not measure a separate desktop trust dialog.",
+      "evidence": [
+        "human_observations[0]",
+        "hook_inspections[0]",
+        "human_observations[1]",
+        "hook_inspections[3]",
+        "desktop_runs[0]"
+      ]
+    },
+    "trust_after_upgrade": {
+      "status": "observed",
+      "answer": "Changing only the manifest version from 1.0.0 to 1.0.1 preserved all three currentHash values and trustStatus trusted, although the expanded cache path changed. Version 1.0.2 changed the timeout from 10 to 11 seconds. All three hashes changed and trustStatus became modified. No trust mutation was performed by the script. The maintainer renewed trust for the changed definition, and trusted runs then blocked both cases. This tests manifest versions and a timeout change, not every possible plugin file change. Upgrade behavior was not separately measured in the desktop.",
+      "tested_cli": "codex-cli 0.162.0",
+      "evidence": [
+        "installation[2]",
+        "installation[3]",
+        "hook_inspections[0]",
+        "hook_inspections[1]",
+        "hook_inspections[2]",
+        "hook_inspections[3]",
+        "runs[14]",
+        "runs[15]"
+      ]
+    },
+    "untrusted_prompt": {
+      "status": "observed",
+      "answer": "After the timeout change, hooks/list listed all three enabled hooks as modified. Codex exec skipped them, including SessionStart. The block marker was present in the mock provider request. An untrusted plugin alone fails open for this prompt. Desktop behavior with untrusted hooks was not measured. Do not infer a fail-closed guarantee for the desktop from the trusted desktop check.",
+      "tested_cli": "codex-cli 0.162.0",
+      "evidence": [
+        "runs[11]"
+      ]
+    },
+    "session_start_detection": {
+      "status": "observed",
+      "answer": "A SessionStart check in the same untrusted plugin is skipped and cannot detect its own missing enforcement. An external launcher can call hooks/list and require all three expected hooks to be enabled and trusted before it sends any test prompt. The proof refuses exec trusted in the modified state before starting its mock model endpoint. This check is a spike, not a production security boundary; a launcher must also pin the runtime configuration and plugin files to avoid changes between inspection and launch.",
+      "tested_cli": "codex-cli 0.162.0",
+      "evidence": [
+        "runs[11]",
+        "preflight_refusals[0]"
+      ]
+    },
+    "shared_layout": {
+      "status": "observed_with_scope_limit",
+      "answer": "The fixture has .claude-plugin/plugin.json and .codex-plugin/plugin.json, one hooks/hooks.json and one skills folder. Codex discovers the command hooks from that layout. The Claude Code manifest validator passed with metadata warnings. Claude Code hook execution is not tested by this issue. Desktop hook execution also used that fixture. This does not prove skill invocation or MCP execution in either harness.",
+      "evidence": [
+        "installation[3]",
+        "shared_layout_validation",
+        "runs[7]",
+        "runs[8]",
+        "runs[10]",
+        "desktop_runs[0]"
+      ]
+    },
+    "plugin_root_variables": {
+      "status": "observed",
+      "answer": "The command hook received PLUGIN_ROOT and CLAUDE_PLUGIN_ROOT with equal values. PLUGIN_DATA and CLAUDE_PLUGIN_DATA were both set. The shared command used CLAUDE_PLUGIN_ROOT. The desktop event rows also show both root variables set and equal, and both data variables set.",
+      "tested_cli": "codex-cli 0.162.0",
+      "evidence": [
+        "runs[7]",
+        "runs[8]",
+        "runs[10]",
+        "runs[9]",
+        "desktop_runs[0]"
+      ]
+    },
+    "git_marketplace_install": {
+      "status": "observed",
+      "answer": "Both marketplace add and plugin add exited with 0 for a Git repository served over loopback HTTP.",
+      "evidence": "installation[0]"
+    }
+  },
+  "checks": {
+    "status": "passed",
+    "python": "Python 3.13.12",
+    "claude_code": "2.1.294 (Claude Code)",
+    "commands": [
+      "uv run ruff check .",
+      "uv run ruff format --check .",
+      "uv run mypy",
+      "uv run pytest",
+      "uv run python scripts/stealth.py check",
+      "claude plugin validate plugins/claude-code",
+      "claude plugin test plugins/claude-code",
+      "uv run python conformance/build.py && git diff --exit-code conformance/"
+    ],
+    "ruff": "passed",
+    "ruff_format": "passed",
+    "mypy": "passed",
+    "pytest": "passed",
+    "stealth": "passed",
+    "claude_plugin_validate": "passed",
+    "claude_plugin_test": "passed",
+    "conformance": "passed; no diff",
+    "scope": "The author ran the listed commands. Test counts and the hand-written evidence-consistency claim were removed. CI logs are the check evidence.",
+    "ci": "https://github.com/mohanraj00/verbatim-relay/pull/197/checks"
+  },
+  "hook_inspections": [
+    {
+      "codex_version": "codex-cli 0.162.0",
+      "method": "app-server initialize, hooks/list; no trust mutation",
+      "hooks": [
+        {
+          "key": "toy-hook-spike-177@toy-hook-market-177:hooks/hooks.json:pre_tool_use:0:0",
+          "eventName": "preToolUse",
+          "handlerType": "command",
+          "command": "/opt/homebrew/opt/python@3.14/bin/python3.14 \"<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.0/scripts/probe.py\" hook",
+          "async": false,
+          "matcher": null,
+          "timeoutSec": 10,
+          "statusMessage": null,
+          "additionalContextLimit": null,
+          "sourcePath": "<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.0/hooks/hooks.json",
+          "source": "plugin",
+          "pluginId": "toy-hook-spike-177@toy-hook-market-177",
+          "displayOrder": 7,
+          "enabled": true,
+          "isManaged": false,
+          "currentHash": "sha256:fca0a1570f686dea857c0149236c1726a888e4684969f78dd4e917916d309b6d",
+          "trustStatus": "trusted"
+        },
+        {
+          "key": "toy-hook-spike-177@toy-hook-market-177:hooks/hooks.json:session_start:0:0",
+          "eventName": "sessionStart",
+          "handlerType": "command",
+          "command": "/opt/homebrew/opt/python@3.14/bin/python3.14 \"<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.0/scripts/probe.py\" hook",
+          "async": false,
+          "matcher": null,
+          "timeoutSec": 10,
+          "statusMessage": null,
+          "additionalContextLimit": null,
+          "sourcePath": "<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.0/hooks/hooks.json",
+          "source": "plugin",
+          "pluginId": "toy-hook-spike-177@toy-hook-market-177",
+          "displayOrder": 8,
+          "enabled": true,
+          "isManaged": false,
+          "currentHash": "sha256:dafea478a3f13d98b176f75f673cc0f0cdb834f52d801f62a3ca556442417631",
+          "trustStatus": "trusted"
+        },
+        {
+          "key": "toy-hook-spike-177@toy-hook-market-177:hooks/hooks.json:user_prompt_submit:0:0",
+          "eventName": "userPromptSubmit",
+          "handlerType": "command",
+          "command": "/opt/homebrew/opt/python@3.14/bin/python3.14 \"<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.0/scripts/probe.py\" hook",
+          "async": false,
+          "matcher": null,
+          "timeoutSec": 10,
+          "statusMessage": null,
+          "additionalContextLimit": null,
+          "sourcePath": "<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.0/hooks/hooks.json",
+          "source": "plugin",
+          "pluginId": "toy-hook-spike-177@toy-hook-market-177",
+          "displayOrder": 9,
+          "enabled": true,
+          "isManaged": false,
+          "currentHash": "sha256:d13d989e9cf917ecd690f149ac72f1f4782b8ad2e704b4555ed5370567ea9c4b",
+          "trustStatus": "trusted"
+        }
+      ],
+      "errors": [],
+      "warnings": [
+        "failed to parse plugin hooks config <user-home>/.codex/plugins/cache/verbatim-relay/verbatim-relay/0.3.1/hooks/hooks.json: unknown field `modules`, expected `description` or `hooks` at line 1 column 11"
+      ]
+    },
+    {
+      "codex_version": "codex-cli 0.162.0",
+      "method": "app-server initialize, hooks/list; no trust mutation",
+      "hooks": [
+        {
+          "key": "toy-hook-spike-177@toy-hook-market-177:hooks/hooks.json:pre_tool_use:0:0",
+          "eventName": "preToolUse",
+          "handlerType": "command",
+          "command": "/opt/homebrew/opt/python@3.14/bin/python3.14 \"<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.1/scripts/probe.py\" hook",
+          "async": false,
+          "matcher": null,
+          "timeoutSec": 10,
+          "statusMessage": null,
+          "additionalContextLimit": null,
+          "sourcePath": "<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.1/hooks/hooks.json",
+          "source": "plugin",
+          "pluginId": "toy-hook-spike-177@toy-hook-market-177",
+          "displayOrder": 7,
+          "enabled": true,
+          "isManaged": false,
+          "currentHash": "sha256:fca0a1570f686dea857c0149236c1726a888e4684969f78dd4e917916d309b6d",
+          "trustStatus": "trusted"
+        },
+        {
+          "key": "toy-hook-spike-177@toy-hook-market-177:hooks/hooks.json:session_start:0:0",
+          "eventName": "sessionStart",
+          "handlerType": "command",
+          "command": "/opt/homebrew/opt/python@3.14/bin/python3.14 \"<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.1/scripts/probe.py\" hook",
+          "async": false,
+          "matcher": null,
+          "timeoutSec": 10,
+          "statusMessage": null,
+          "additionalContextLimit": null,
+          "sourcePath": "<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.1/hooks/hooks.json",
+          "source": "plugin",
+          "pluginId": "toy-hook-spike-177@toy-hook-market-177",
+          "displayOrder": 8,
+          "enabled": true,
+          "isManaged": false,
+          "currentHash": "sha256:dafea478a3f13d98b176f75f673cc0f0cdb834f52d801f62a3ca556442417631",
+          "trustStatus": "trusted"
+        },
+        {
+          "key": "toy-hook-spike-177@toy-hook-market-177:hooks/hooks.json:user_prompt_submit:0:0",
+          "eventName": "userPromptSubmit",
+          "handlerType": "command",
+          "command": "/opt/homebrew/opt/python@3.14/bin/python3.14 \"<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.1/scripts/probe.py\" hook",
+          "async": false,
+          "matcher": null,
+          "timeoutSec": 10,
+          "statusMessage": null,
+          "additionalContextLimit": null,
+          "sourcePath": "<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.1/hooks/hooks.json",
+          "source": "plugin",
+          "pluginId": "toy-hook-spike-177@toy-hook-market-177",
+          "displayOrder": 9,
+          "enabled": true,
+          "isManaged": false,
+          "currentHash": "sha256:d13d989e9cf917ecd690f149ac72f1f4782b8ad2e704b4555ed5370567ea9c4b",
+          "trustStatus": "trusted"
+        }
+      ],
+      "errors": [],
+      "warnings": [
+        "failed to parse plugin hooks config <user-home>/.codex/plugins/cache/verbatim-relay/verbatim-relay/0.3.1/hooks/hooks.json: unknown field `modules`, expected `description` or `hooks` at line 1 column 11"
+      ]
+    },
+    {
+      "codex_version": "codex-cli 0.162.0",
+      "method": "app-server initialize, hooks/list; no trust mutation",
+      "hooks": [
+        {
+          "key": "toy-hook-spike-177@toy-hook-market-177:hooks/hooks.json:pre_tool_use:0:0",
+          "eventName": "preToolUse",
+          "handlerType": "command",
+          "command": "/opt/homebrew/opt/python@3.14/bin/python3.14 \"<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.2/scripts/probe.py\" hook",
+          "async": false,
+          "matcher": null,
+          "timeoutSec": 11,
+          "statusMessage": null,
+          "additionalContextLimit": null,
+          "sourcePath": "<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.2/hooks/hooks.json",
+          "source": "plugin",
+          "pluginId": "toy-hook-spike-177@toy-hook-market-177",
+          "displayOrder": 7,
+          "enabled": true,
+          "isManaged": false,
+          "currentHash": "sha256:5a294bdb2a8ce4eb1add6da57842aeb5d5ceea76f863b1291b6cf48a823d6e0e",
+          "trustStatus": "modified"
+        },
+        {
+          "key": "toy-hook-spike-177@toy-hook-market-177:hooks/hooks.json:session_start:0:0",
+          "eventName": "sessionStart",
+          "handlerType": "command",
+          "command": "/opt/homebrew/opt/python@3.14/bin/python3.14 \"<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.2/scripts/probe.py\" hook",
+          "async": false,
+          "matcher": null,
+          "timeoutSec": 11,
+          "statusMessage": null,
+          "additionalContextLimit": null,
+          "sourcePath": "<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.2/hooks/hooks.json",
+          "source": "plugin",
+          "pluginId": "toy-hook-spike-177@toy-hook-market-177",
+          "displayOrder": 8,
+          "enabled": true,
+          "isManaged": false,
+          "currentHash": "sha256:4e238a95dd43f3bac3aea507a652acd89f937d77836eb8eca2a2cbb17a80cd9f",
+          "trustStatus": "modified"
+        },
+        {
+          "key": "toy-hook-spike-177@toy-hook-market-177:hooks/hooks.json:user_prompt_submit:0:0",
+          "eventName": "userPromptSubmit",
+          "handlerType": "command",
+          "command": "/opt/homebrew/opt/python@3.14/bin/python3.14 \"<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.2/scripts/probe.py\" hook",
+          "async": false,
+          "matcher": null,
+          "timeoutSec": 11,
+          "statusMessage": null,
+          "additionalContextLimit": null,
+          "sourcePath": "<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.2/hooks/hooks.json",
+          "source": "plugin",
+          "pluginId": "toy-hook-spike-177@toy-hook-market-177",
+          "displayOrder": 9,
+          "enabled": true,
+          "isManaged": false,
+          "currentHash": "sha256:aa70200b532abe042fbf17ef4c1adabce70762efa138996a176a30cb1b7f1b6d",
+          "trustStatus": "modified"
+        }
+      ],
+      "errors": [],
+      "warnings": [
+        "failed to parse plugin hooks config <user-home>/.codex/plugins/cache/verbatim-relay/verbatim-relay/0.3.1/hooks/hooks.json: unknown field `modules`, expected `description` or `hooks` at line 1 column 11"
+      ]
+    },
+    {
+      "codex_version": "codex-cli 0.162.0",
+      "method": "app-server initialize, hooks/list; no trust mutation",
+      "hooks": [
+        {
+          "key": "toy-hook-spike-177@toy-hook-market-177:hooks/hooks.json:pre_tool_use:0:0",
+          "eventName": "preToolUse",
+          "handlerType": "command",
+          "command": "/opt/homebrew/opt/python@3.14/bin/python3.14 \"<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.2/scripts/probe.py\" hook",
+          "async": false,
+          "matcher": null,
+          "timeoutSec": 11,
+          "statusMessage": null,
+          "additionalContextLimit": null,
+          "sourcePath": "<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.2/hooks/hooks.json",
+          "source": "plugin",
+          "pluginId": "toy-hook-spike-177@toy-hook-market-177",
+          "displayOrder": 7,
+          "enabled": true,
+          "isManaged": false,
+          "currentHash": "sha256:5a294bdb2a8ce4eb1add6da57842aeb5d5ceea76f863b1291b6cf48a823d6e0e",
+          "trustStatus": "trusted"
+        },
+        {
+          "key": "toy-hook-spike-177@toy-hook-market-177:hooks/hooks.json:session_start:0:0",
+          "eventName": "sessionStart",
+          "handlerType": "command",
+          "command": "/opt/homebrew/opt/python@3.14/bin/python3.14 \"<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.2/scripts/probe.py\" hook",
+          "async": false,
+          "matcher": null,
+          "timeoutSec": 11,
+          "statusMessage": null,
+          "additionalContextLimit": null,
+          "sourcePath": "<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.2/hooks/hooks.json",
+          "source": "plugin",
+          "pluginId": "toy-hook-spike-177@toy-hook-market-177",
+          "displayOrder": 8,
+          "enabled": true,
+          "isManaged": false,
+          "currentHash": "sha256:4e238a95dd43f3bac3aea507a652acd89f937d77836eb8eca2a2cbb17a80cd9f",
+          "trustStatus": "trusted"
+        },
+        {
+          "key": "toy-hook-spike-177@toy-hook-market-177:hooks/hooks.json:user_prompt_submit:0:0",
+          "eventName": "userPromptSubmit",
+          "handlerType": "command",
+          "command": "/opt/homebrew/opt/python@3.14/bin/python3.14 \"<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.2/scripts/probe.py\" hook",
+          "async": false,
+          "matcher": null,
+          "timeoutSec": 11,
+          "statusMessage": null,
+          "additionalContextLimit": null,
+          "sourcePath": "<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.2/hooks/hooks.json",
+          "source": "plugin",
+          "pluginId": "toy-hook-spike-177@toy-hook-market-177",
+          "displayOrder": 9,
+          "enabled": true,
+          "isManaged": false,
+          "currentHash": "sha256:aa70200b532abe042fbf17ef4c1adabce70762efa138996a176a30cb1b7f1b6d",
+          "trustStatus": "trusted"
+        }
+      ],
+      "errors": [],
+      "warnings": [
+        "failed to parse plugin hooks config <user-home>/.codex/plugins/cache/verbatim-relay/verbatim-relay/0.3.1/hooks/hooks.json: unknown field `modules`, expected `description` or `hooks` at line 1 column 11"
+      ]
+    }
+  ],
+  "human_observations": [
+    {
+      "surface": "interactive_cli",
+      "report": "The maintainer did not see the plugin name and selected Trust all.",
+      "source": "Maintainer messages in this chat",
+      "codex_version_not_captured_in_run": true
+    },
+    {
+      "surface": "interactive_cli",
+      "source": "Maintainer screenshots and done message in this chat",
+      "report": "The event overview showed three hooks requiring review. The selected detail row was Unnamed hook, marked modified, with the toy plugin source, version 1.0.2 and timeout 11 seconds. The detail screen used t to trust one entry. The maintainer completed review and trust; hooks/list then confirmed all three entries trusted."
+    }
+  ],
+  "preflight_refusals": [
+    {
+      "hook_metadata": {
+        "codex_version": "codex-cli 0.162.0",
+        "method": "app-server initialize, hooks/list; no trust mutation",
+        "hooks": [
+          {
+            "key": "toy-hook-spike-177@toy-hook-market-177:hooks/hooks.json:pre_tool_use:0:0",
+            "eventName": "preToolUse",
+            "handlerType": "command",
+            "command": "/opt/homebrew/opt/python@3.14/bin/python3.14 \"<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.2/scripts/probe.py\" hook",
+            "async": false,
+            "matcher": null,
+            "timeoutSec": 11,
+            "statusMessage": null,
+            "additionalContextLimit": null,
+            "sourcePath": "<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.2/hooks/hooks.json",
+            "source": "plugin",
+            "pluginId": "toy-hook-spike-177@toy-hook-market-177",
+            "displayOrder": 7,
+            "enabled": true,
+            "isManaged": false,
+            "currentHash": "sha256:5a294bdb2a8ce4eb1add6da57842aeb5d5ceea76f863b1291b6cf48a823d6e0e",
+            "trustStatus": "modified"
+          },
+          {
+            "key": "toy-hook-spike-177@toy-hook-market-177:hooks/hooks.json:session_start:0:0",
+            "eventName": "sessionStart",
+            "handlerType": "command",
+            "command": "/opt/homebrew/opt/python@3.14/bin/python3.14 \"<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.2/scripts/probe.py\" hook",
+            "async": false,
+            "matcher": null,
+            "timeoutSec": 11,
+            "statusMessage": null,
+            "additionalContextLimit": null,
+            "sourcePath": "<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.2/hooks/hooks.json",
+            "source": "plugin",
+            "pluginId": "toy-hook-spike-177@toy-hook-market-177",
+            "displayOrder": 8,
+            "enabled": true,
+            "isManaged": false,
+            "currentHash": "sha256:4e238a95dd43f3bac3aea507a652acd89f937d77836eb8eca2a2cbb17a80cd9f",
+            "trustStatus": "modified"
+          },
+          {
+            "key": "toy-hook-spike-177@toy-hook-market-177:hooks/hooks.json:user_prompt_submit:0:0",
+            "eventName": "userPromptSubmit",
+            "handlerType": "command",
+            "command": "/opt/homebrew/opt/python@3.14/bin/python3.14 \"<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.2/scripts/probe.py\" hook",
+            "async": false,
+            "matcher": null,
+            "timeoutSec": 11,
+            "statusMessage": null,
+            "additionalContextLimit": null,
+            "sourcePath": "<user-home>/.codex/plugins/cache/toy-hook-market-177/toy-hook-spike-177/1.0.2/hooks/hooks.json",
+            "source": "plugin",
+            "pluginId": "toy-hook-spike-177@toy-hook-market-177",
+            "displayOrder": 9,
+            "enabled": true,
+            "isManaged": false,
+            "currentHash": "sha256:aa70200b532abe042fbf17ef4c1adabce70762efa138996a176a30cb1b7f1b6d",
+            "trustStatus": "modified"
+          }
+        ],
+        "errors": [],
+        "warnings": [
+          "failed to parse plugin hooks config <user-home>/.codex/plugins/cache/verbatim-relay/verbatim-relay/0.3.1/hooks/hooks.json: unknown field `modules`, expected `description` or `hooks` at line 1 column 11"
+        ]
+      },
+      "model_endpoint_started": false
+    }
+  ],
+  "shared_layout_validation": {
+    "claude_code_version": "2.1.294 (Claude Code)",
+    "exit_code": 0,
+    "scope": "Manifest validation; not a Claude Code hook runtime test",
+    "warnings": [
+      "No description provided",
+      "No author information provided"
+    ]
+  },
+  "adr_recommendation": {
+    "status": "complete",
+    "text": "Use one command-hook file and skills folder with separate compatibility manifests. Trusted command hooks ran in the interactive CLI, codex exec and the desktop check. Do not enable a relay using plugin trust alone: the untrusted CLI skipped every hook and sent the prompt to the mock model. Require a launch preflight outside the plugin before any relay prompt. Refuse missing, disabled, untrusted or modified required hooks. Do not use SessionStart inside the same plugin as the trust gate. Pin the runtime configuration and plugin files between inspection and launch; hooks/list in this spike is not a production security boundary. A manifest-only upgrade preserved trust; a timeout change required renewed human trust. Keep desktop relay support conditional on an external gate for that surface. The desktop block result has event and chat evidence, but no independent model-request capture or runtime version measurement.",
+    "evidence": [
+      "answers.events_by_surface",
+      "answers.trust_after_upgrade",
+      "answers.untrusted_prompt",
+      "answers.session_start_detection",
+      "answers.shared_layout",
+      "desktop_runs[0]"
+    ]
+  },
+  "desktop_runs": [
+    {
+      "surface": "desktop_local_chat",
+      "operation": "Maintainer operates the desktop app; the script reads toy hook events",
+      "versions_before": {
+        "codex_cli": "codex-cli 0.162.0",
+        "desktop": {
+          "status": "installed_not_yet_tested",
+          "version": "26.1002.52244",
+          "build": "13536",
+          "bundled_cli": "codex-cli 0.162.0-alpha.2"
+        }
+      },
+      "versions_after": {
+        "codex_cli": "codex-cli 0.162.0",
+        "desktop": {
+          "status": "installed_not_yet_tested",
+          "version": "26.1002.52244",
+          "build": "13536",
+          "bundled_cli": "codex-cli 0.162.0-alpha.2"
+        }
+      },
+      "fixture": {
+        "version": "1.0.2",
+        "hook_timeout": 11
+      },
+      "hook_events": [
+        {
+          "event": "SessionStart",
+          "tool_name": null,
+          "blocked_prompt": false,
+          "plugin_data_set": true,
+          "claude_plugin_data_set": true,
+          "root_variables_equal": true,
+          "plugin_root_set": true,
+          "claude_plugin_root_set": true
+        },
+        {
+          "event": "UserPromptSubmit",
+          "tool_name": null,
+          "blocked_prompt": true,
+          "plugin_data_set": true,
+          "claude_plugin_data_set": true,
+          "root_variables_equal": true,
+          "plugin_root_set": true,
+          "claude_plugin_root_set": true
+        },
+        {
+          "event": "UserPromptSubmit",
+          "tool_name": null,
+          "blocked_prompt": false,
+          "plugin_data_set": true,
+          "claude_plugin_data_set": true,
+          "root_variables_equal": true,
+          "plugin_root_set": true,
+          "claude_plugin_root_set": true
+        },
+        {
+          "event": "PreToolUse",
+          "tool_name": "Bash",
+          "blocked_prompt": false,
+          "plugin_data_set": true,
+          "claude_plugin_data_set": true,
+          "root_variables_equal": true,
+          "plugin_root_set": true,
+          "claude_plugin_root_set": true
+        }
+      ],
+      "human_observation": {
+        "prompt_blocked": "yes",
+        "tool_blocked": "yes"
+      },
+      "limits": [
+        "Attribution requires no CLI run in the same folder during this observation.",
+        "No independent desktop model-request capture; block display is a human report.",
+        "Installed bundle versions do not identify the running desktop chat process."
+      ],
+      "version_attribution": {
+        "installed_desktop_version": "26.1002.52244",
+        "installed_desktop_build": "13536",
+        "installed_bundled_cli_version": "codex-cli 0.162.0-alpha.2",
+        "independently_observed_runtime_version": null,
+        "method": "versions_before and versions_after read Info.plist and invoke the bundled CLI with --version. The desktop chat runtime was not independently identified."
+      },
+      "chat_observation": {
+        "thread_url": "codex://threads/01a11d55-054a-7ef3-9f64-41c637db8dba",
+        "method": "Read the completed desktop chat with read_thread after the maintainer reported both blocks. Save only the toy result and empty-turn state.",
+        "prompt_turn": {
+          "status": "completed",
+          "items": []
+        },
+        "tool_turn": {
+          "status": "completed",
+          "final_answer": "Blocked by the PreToolUse hook. I did not retry."
+        },
+        "source": "Maintainer report and desktop chat read on 2026-10-08"
+      }
+    }
+  ],
+  "documentation_check": {
+    "date_utc": "2026-10-08",
+    "method": "Read the official pages with the repository browse skill. Runtime conclusions use the saved measurements.",
+    "sources": [
+      {
+        "url": "https://learn.chatgpt.com/docs/hooks",
+        "observation": "Non-managed hooks require review of the current definition and are skipped until trusted. The page lists both root-variable names for plugin hooks."
+      },
+      {
+        "url": "https://developers.openai.com/plugins/build/plugins",
+        "observation": "The packaging page describes manually installed desktop plugin hooks. It also describes runtime loading of enabled plugin hooks and skipped untrusted definitions. The compatibility manifest remains supported."
+      }
+    ],
+    "conclusion": "Use the measured CLI and desktop results for the tested surfaces. The desktop packaging text is not evidence that CLI hooks cannot run."
+  },
+  "method_scope": {
+    "cli": "Included CLI runs enabled features.hooks and the toy plugin. The local mock provider supplied the tool call. Code mode was disabled. Other installed plugin warnings remain in hook metadata; no trust was written by this script.",
+    "desktop": "The maintainer used a local chat in the toy project with the already trusted definition. Only events since desktop-start and the toy chat outcome are evidence.",
+    "shared_fixture": "The fixture creates both compatibility manifests, one hooks file and one skill. Existing fixture probe code is not rewritten on a version or timeout upgrade, so the upgrade comparison does not change the executable script.",
+    "historical_runs": "Runs marked excluded_from_conclusions do not support any answer. Runs with no prompts document setup or human trust work only."
+  }
+}
