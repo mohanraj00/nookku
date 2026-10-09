@@ -10,11 +10,11 @@ If your app reads the URL from a file and not from the environment, let the entr
 
 ## 2. Add the backend to the configuration
 
-Add `backends` to `.nooku/config.json`:
+Add `backends` to `.nookku/config.json`:
 
 ```json
 {
-  "entry": ["python3", ".nooku/entry.py"],
+  "entry": ["python3", ".nookku/entry.py"],
   "models": ["claude-code"],
   "backends": [{"name": "stock", "env": "STOCK_URL", "url": "http://127.0.0.1:9001"}]
 }
@@ -26,7 +26,7 @@ Add `backends` to `.nooku/config.json`:
 
 Each `name` and each `env` can occur only once. A backend must not use `ANTHROPIC_BASE_URL` or `OPENAI_BASE_URL` while the model API proxy records that API ([record-model-calls.md](record-model-calls.md)).
 
-`nooku init` writes a new `config.json` with an empty `backends` list. If you run `init` again, it keeps your backends. It changes only the keys of the flags that you give.
+`nookku init` writes a new `config.json` with an empty `backends` list. If you run `init` again, it keeps your backends. It changes only the keys of the flags that you give.
 
 ## 3. Run a test
 
@@ -39,11 +39,11 @@ During a test, the bridge runs a recording proxy for each backend, and gives you
 
 ## 4. Read the calls
 
-After the test, `nooku transcript --trace` shows each call under its turn, as an `http` item with its `trace.jsonl` line. The check `backend_error` finds each call with no answer or a status of 500 or more ([SPEC.md section 8.6](../../SPEC.md#86-findings)).
+After the test, `nookku transcript --trace` shows each call under its turn, as an `http` item with its `trace.jsonl` line. The check `backend_error` finds each call with no answer or a status of 500 or more ([SPEC.md section 8.6](../../SPEC.md#86-findings)).
 
 ```bash
-nooku transcript --trace
-nooku trace
+nookku transcript --trace
+nookku trace
 ```
 
 ## Example

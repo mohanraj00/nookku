@@ -13,39 +13,39 @@ I made the output with the toy shop agent of this repo ([examples/toy-shop/agent
 ## 1. Install
 
 ```bash
-uv tool install nooku
-nooku --version
+uv tool install nookku
+nookku --version
 ```
 
 ```text
-nooku 0.3.0
+nookku 0.3.0
 ```
 
-If the shell does not find the command, read [troubleshooting.md](../troubleshooting.md#nooku-command-not-found).
+If the shell does not find the command, read [troubleshooting.md](../troubleshooting.md#nookku-command-not-found).
 
 ## 2. Run the setup in the harness
 
 Start Claude Code or Codex in the project folder of your app. Type this line, with the `!` at the start:
 
 ```text
-!nooku setup
+!nookku setup
 ```
 
-The `!` tells the [harness](../reference/glossary.md#harness) to run the line as a shell command. The harness adds the output to the conversation, so the model gets the setup guide as text ([setup.md](../../src/nooku/setup.md)). The first line of the guide is:
+The `!` tells the [harness](../reference/glossary.md#harness) to run the line as a shell command. The harness adds the output to the conversation, so the model gets the setup guide as text ([setup.md](../../src/nookku/setup.md)). The first line of the guide is:
 
 ```text
-# nooku setup: connect a test to this app
+# nookku setup: connect a test to this app
 ```
 
 Then type this prompt:
 
 ```text
-Follow the nooku setup guide, and connect a test to this app.
+Follow the nookku setup guide, and connect a test to this app.
 ```
 
-Do not type only `nooku setup` as a prompt. In my first test of a real app, the model did not know the tool. It searched the project for the term, did not run the command, and asked what I meant. If the Claude Code plugin is installed, its `setup` skill also runs the command.
+Do not type only `nookku setup` as a prompt. In my first test of a real app, the model did not know the tool. It searched the project for the term, did not run the command, and asked what I meant. If the Claude Code plugin is installed, its `setup` skill also runs the command.
 
-The model reads your app and writes 2 files in `.nooku/`:
+The model reads your app and writes 2 files in `.nookku/`:
 
 - `entry.<ext>`: the [entry](../reference/glossary.md#entry). It is a thin wrapper that starts your app and speaks the [agent contract](../reference/glossary.md#agent-contract).
 - `config.json`: the configuration. The key `entry` holds the command that starts the entry.
@@ -56,17 +56,17 @@ If your app already speaks the agent contract, the entry can be the start comman
 {"entry": ["python3", "agent.py"], "models": []}
 ```
 
-At the end, the model runs `nooku check` (step 4).
+At the end, the model runs `nookku check` (step 4).
 
 ## 3. Review the entry
 
 The entry is in the message path. The [tap](../reference/glossary.md#tap) records only what goes in and out of the entry. Thus the [audit](../reference/glossary.md#audit) cannot see a change that the entry makes ([limits.md](../limits.md)).
 
-Open `.nooku/entry.<ext>` and `.nooku/config.json`. Check each item:
+Open `.nookku/entry.<ext>` and `.nookku/config.json`. Check each item:
 
 - [ ] **The message has no change.** The entry sends `message` to the app as it comes. It does not trim, format or translate it.
 - [ ] **The reply has no change.** The entry returns the reply of the app as it comes.
-- [ ] **The entry writes no logs on stdout.** Only contract lines go to stdout. Logs, prints and the output of child processes go to stderr. In Python, `nooku.agent.serve()` does this.
+- [ ] **The entry writes no logs on stdout.** Only contract lines go to stdout. Logs, prints and the output of child processes go to stderr. In Python, `nookku.agent.serve()` does this.
 - [ ] **The test uses one conversation.** The entry starts one app conversation for the whole test. It does not start a new conversation for each message.
 - [ ] **The entry uses the correct interpreter.** The first item of `entry` is the interpreter or the virtual environment of your app, for example `.venv/bin/python`. It is not a system `python3` that does not have the packages of your app.
 
@@ -75,26 +75,26 @@ If an item is not correct, tell the model what to correct, or correct the file y
 ## 4. Run check
 
 ```bash
-nooku check
+nookku check
 ```
 
 `check` starts the entry, sends one message, and ends the test. For the toy shop, the output is:
 
 ```text
-Test 20261007-231156-8465: .../toy-shop/.nooku/tests/20261007-231156-8465
+Test 20261007-231156-8465: .../toy-shop/.nookku/tests/20261007-231156-8465
 Reply: Which item is this about: the mug or the teapot?
 Audit: exit 0
 PASS
 ```
 
-Read the `Reply:` line. It must be a reply of your app to the message "Hello from Nooku check. What can you help me with?". If it is an error of your app, read `app.log` in the [test folder](../reference/glossary.md#test-folder) that the first line names.
+Read the `Reply:` line. It must be a reply of your app to the message "Hello from Nookku check. What can you help me with?". If it is an error of your app, read `app.log` in the [test folder](../reference/glossary.md#test-folder) that the first line names.
 
 Then read the last line. `PASS` means that the entry sent a reply, the audit of the test is clean, and the test found a model session for each harness in `models`. `check` then exits with 0. Else the last line starts with `FAIL:`, gives the cause, and `check` exits with 1. For example, if the entry writes a log line on stdout, the last 3 lines are:
 
 ```text
 Reply: Which item is this about: the mug or the teapot?
 Audit: exit 2
-FAIL: tap_unparsed: tap line 1: STDIO stdout: a stray line on stdout: 'toy shop agent: ready'. Use nooku.agent.serve() or write logs to stderr.
+FAIL: tap_unparsed: tap line 1: STDIO stdout: a stray line on stdout: 'toy shop agent: ready'. Use nookku.agent.serve() or write logs to stderr.
 ```
 
 [troubleshooting.md](../troubleshooting.md#end-a-test) gives the fix for each `FAIL:` text.
@@ -108,15 +108,15 @@ The [relay](../reference/glossary.md#relay) carries each message to the tap and 
 ### Hook kit in Claude Code
 
 ```bash
-nooku init claude-code
+nookku init claude-code
 ```
 
 ```text
-wrote .../toy-shop/.nooku/config.json
+wrote .../toy-shop/.nookku/config.json
   Keys changed: none. Keys kept: entry, models.
 wrote .../toy-shop/.claude/settings.local.json
-Relay mode is off. Switch it with: nooku mode on
-Do not also enable the nooku Claude Code plugin in this project, or each message is sent two times.
+Relay mode is off. Switch it with: nookku mode on
+Do not also enable the nookku Claude Code plugin in this project, or each message is sent two times.
 ```
 
 `init` keeps the entry from step 2, so do not give `--entry`. Do not switch relay mode on now. Step 6 starts the test.
@@ -124,7 +124,7 @@ Do not also enable the nooku Claude Code plugin in this project, or each message
 ### Hook kit in Codex
 
 ```bash
-nooku init codex
+nookku init codex
 ```
 
 Then trust the hooks. Start `codex` in the project once, and accept the hooks prompt ([codex.md](codex.md#install)).
@@ -138,7 +138,7 @@ Install the plugin as [claude-code-plugin.md](claude-code-plugin.md#install) say
 With the hook kit, open a second terminal in the project folder, and start the viewer:
 
 ```bash
-nooku view
+nookku view
 ```
 
 Before the start of a test, the viewer shows the last test. After step 4, this is the test of `check`:
@@ -146,7 +146,7 @@ Before the start of a test, the viewer shows the last test. After step 4, this i
 ```text
 ════ test 20261007-231156-8465 ════
 ──── tester, turn 1 ────
-Hello from nooku check. What can you help me with?
+Hello from nookku check. What can you help me with?
 ──── agent ────
 Which item is this about: the mug or the teapot?
 ```
@@ -155,16 +155,16 @@ This is correct. Keep the viewer open. When your test starts, the viewer follows
 
 ## 6. Run the test
 
-In the harness, type the prompt `nooku start`. With the plugin, you can also type `/nooku start`. The relay starts the test and switches [relay mode](../reference/glossary.md#relay-mode) on. The model does not receive the prompt. The hook kit in Claude Code shows:
+In the harness, type the prompt `nookku start`. With the plugin, you can also type `/nookku start`. The relay starts the test and switches [relay mode](../reference/glossary.md#relay-mode) on. The model does not receive the prompt. The hook kit in Claude Code shows:
 
 ```text
-nooku: test 20261007-231159-fd98 started. Relay mode is on: each message goes to the entry. To end the test and start the evaluation, type the prompt nooku end. To end the test with no evaluation, run nooku end in a shell.
+nookku: test 20261007-231159-fd98 started. Relay mode is on: each message goes to the entry. To end the test and start the evaluation, type the prompt nookku end. To end the test with no evaluation, run nookku end in a shell.
 ```
 
 Type your test messages, one at a time. The model does not run. For each message, the hook kit in Claude Code shows:
 
 ```text
-nooku: relayed to the agent. The reply is in the viewer (nooku view).
+nookku: relayed to the agent. The reply is in the viewer (nookku view).
 ```
 
 The viewer shows each turn. For 3 messages to the toy shop:
@@ -189,25 +189,25 @@ do you ship to delhi?
 We ship to Chennai and Pune. Delivery takes 3 to 5 days.  
 ```
 
-To end the test, type the prompt `nooku end`. The relay stops the entry, copies the session files of your app, builds the [trace](../reference/glossary.md#trace), writes the audit and [seals](../reference/glossary.md#seal) the test folder. Then the prompt goes to the model with this end text and the evaluation prompt:
+To end the test, type the prompt `nookku end`. The relay stops the entry, copies the session files of your app, builds the [trace](../reference/glossary.md#trace), writes the audit and [seals](../reference/glossary.md#seal) the test folder. Then the prompt goes to the model with this end text and the evaluation prompt:
 
 ```text
-nooku: relay mode is off.
+nookku: relay mode is off.
 Test 20261007-231159-fd98 ended: 3 turns, 0 model sessions.
-Folder: .../toy-shop/.nooku/tests/20261007-231159-fd98
+Folder: .../toy-shop/.nookku/tests/20261007-231159-fd98
 Trace: 0 model items in 3 turns, no findings.
-Audit: nooku audit --tap .../tap.jsonl --relay .../relay.jsonl
+Audit: nookku audit --tap .../tap.jsonl --relay .../relay.jsonl
 ```
 
-The toy shop has no model sessions. If your app runs its own model sessions, the counts of model sessions and model items are more than 0. To end the test with no evaluation, run `nooku end` in a shell.
+The toy shop has no model sessions. If your app runs its own model sessions, the counts of model sessions and model items are more than 0. To end the test with no evaluation, run `nookku end` in a shell.
 
 ## 7. Allow the evaluation commands
 
-In the [evaluation](../reference/glossary.md#evaluation), the [harness model](../reference/glossary.md#harness-model) reads the record of the test and writes `report.md` ([evaluate.md](../../src/nooku/evaluate.md)). The harness asks you to allow each command, unless your permission settings allow it already. Expect these requests:
+In the [evaluation](../reference/glossary.md#evaluation), the [harness model](../reference/glossary.md#harness-model) reads the record of the test and writes `report.md` ([evaluate.md](../../src/nookku/evaluate.md)). The harness asks you to allow each command, unless your permission settings allow it already. Expect these requests:
 
 | Command | What it does |
 |---|---|
-| `nooku transcript --trace --test <test-id>` | Shows each turn as your app got it, with the model items of your app. |
+| `nookku transcript --trace --test <test-id>` | Shows each turn as your app got it, with the model items of your app. |
 | `cat`, `sed -n`, `jq` or `grep` on `findings.json` and `audit.json` in the test folder | Reads the [findings](../reference/glossary.md#findings) and the audit. |
 | A read of the code, the docs and the tests of your app | Finds the business rules. |
 | A read-only command on the state of your app, for example a SELECT query or a GET request | Checks the state of your app. |
@@ -215,19 +215,19 @@ In the [evaluation](../reference/glossary.md#evaluation), the [harness model](..
 
 Allow these commands. Deny a command that changes the state of your app, starts your app or sends a message to it. The evaluation prompt forbids these commands.
 
-The relay also checks each command. After a test, it denies a write to the test folder, except `report.md`. It also denies a shell command that names `.nooku` and does more than read ([SPEC.md section 5](../../SPEC.md#5-relays) lists the read programs). Then the model gets this text:
+The relay also checks each command. After a test, it denies a write to the test folder, except `report.md`. It also denies a shell command that names `.nookku` and does more than read ([SPEC.md section 5](../../SPEC.md#5-relays) lists the read programs). Then the model gets this text:
 
 ```text
-nooku: the records of a test do not change. Write only report.md. A command that names .nooku may only read.
+nookku: the records of a test do not change. Write only report.md. A command that names .nookku may only read.
 ```
 
 If you deny a command, the model does not get its output. In Claude Code, a deny with no message tells the model to stop and wait for you. Then the model does not write `report.md`. To continue, type a reply, for example "Do not run that command. Continue with the other steps."
 
-If the latest test has no `report.md`, the prompt `nooku end` starts its evaluation again ([SPEC.md section 9.1](../../SPEC.md#91-start)). The end text is then "Nooku: no test runs. Relay mode is off."
+If the latest test has no `report.md`, the prompt `nookku end` starts its evaluation again ([SPEC.md section 9.1](../../SPEC.md#91-start)). The end text is then "Nookku: no test runs. Relay mode is off."
 
 ## 8. Read the results
 
-The test folder `.nooku/tests/<test-id>/` holds the two records, the audit, the trace, the findings, the seal and `report.md`. [reference/records.md](../reference/records.md#the-test-folder) lists each file.
+The test folder `.nookku/tests/<test-id>/` holds the two records, the audit, the trace, the findings, the seal and `report.md`. [reference/records.md](../reference/records.md#the-test-folder) lists each file.
 
 Read the files in the order of [read-the-results.md](read-the-results.md): the seal, the audit, the findings, the report and the transcript. That page also tells you the next step for each result. The tutorial shows the same steps for the toy shop: [8. Read the audit](../getting-started.md#8-read-the-audit), [9. Read the report](../getting-started.md#9-read-the-report) and [10. Read the trace and the findings](../getting-started.md#10-read-the-trace-and-the-findings).
 

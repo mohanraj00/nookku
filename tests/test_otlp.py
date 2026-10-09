@@ -5,9 +5,9 @@ from pathlib import Path
 
 import pytest
 
-from nooku import otlp
-from nooku.record import json_text
-from nooku.stdio import start_in_thread
+from nookku import otlp
+from nookku.record import json_text
+from nookku.stdio import start_in_thread
 
 CASES = sorted((Path(__file__).resolve().parent.parent / "conformance" / "otlp").iterdir())
 

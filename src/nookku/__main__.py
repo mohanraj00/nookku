@@ -1,5 +1,5 @@
 import sys
 
-from nooku.cli import main
+from nookku.cli import main
 
 sys.exit(main())

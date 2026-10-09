@@ -1,10 +1,10 @@
 # Architecture
 
-This page shows the parts of Nooku and how the data goes between them. [SPEC.md](../SPEC.md) defines each part exactly. This page tells you why each part exists and where to read more.
+This page shows the parts of Nookku and how the data goes between them. [SPEC.md](../SPEC.md) defines each part exactly. This page tells you why each part exists and where to read more.
 
 ## The problem
 
-A tester talks to a chat agent through a coding [harness](reference/glossary.md#harness): Claude Code or Codex. If the harness model carries the messages, it also writes them. Then it judges its own text. Nooku takes the model out of the conversation, and keeps 2 records that a third program can compare.
+A tester talks to a chat agent through a coding [harness](reference/glossary.md#harness): Claude Code or Codex. If the harness model carries the messages, it also writes them. Then it judges its own text. Nookku takes the model out of the conversation, and keeps 2 records that a third program can compare.
 
 ## Data flow
 
@@ -23,7 +23,7 @@ flowchart TB
     tap -->|the same bytes in the HTTP response| relay
     relay -->|plugin: a chat row| tester
     relay -.->|writes| relayrec[(relay.jsonl)]
-    relayrec -->|hook kit| viewer[Viewer: nooku view]
+    relayrec -->|hook kit| viewer[Viewer: nookku view]
     viewer -->|shows the reply| tester
     tap -.->|writes| taprec[(tap.jsonl)]
 
@@ -73,7 +73,7 @@ The relay sends each message as an HTTP POST with a contract JSON body ([SPEC.md
 A relay is the harness extension that carries each message and each reply. There are 2 relays ([SPEC.md section 5](../SPEC.md#5-relays)):
 
 - **The Claude Code plugin.** It uses function hooks, which are early access. It shows each reply as a row in the chat that the model does not receive. Read [how-to/claude-code-plugin.md](how-to/claude-code-plugin.md).
-- **The hook kit.** It uses the classic hooks that Codex and Claude Code share. It cannot show text in the chat, so `nooku view` shows each reply in a second terminal. Read [how-to/claude-code-hook-kit.md](how-to/claude-code-hook-kit.md) or [how-to/codex.md](how-to/codex.md).
+- **The hook kit.** It uses the classic hooks that Codex and Claude Code share. It cannot show text in the chat, so `nookku view` shows each reply in a second terminal. Read [how-to/claude-code-hook-kit.md](how-to/claude-code-hook-kit.md) or [how-to/codex.md](how-to/codex.md).
 
 In [relay mode](reference/glossary.md#relay-mode), the relay takes each prompt before the model sees it. It sends the prompt to the tap and blocks it from the model. The relay also denies a model tool call that names the address of the tap or the agent. It also denies a call that changes the files of a test. The deny is best effort. [limits.md](limits.md) tells you what it does not stop.
 
@@ -88,9 +88,9 @@ The tap is a proxy between the relay and the agent. It forwards each request and
 
 ## The entry and the agent contract
 
-The entry is a thin wrapper that starts your app and speaks the agent contract on stdin and stdout. The contract is one JSON line in for each message, and one JSON line out for each reply ([SPEC.md section 6](../SPEC.md#6-agent-contract-version-1)). The entry is test code, not app code. It is in `.nooku/`, and your app's code does not change.
+The entry is a thin wrapper that starts your app and speaks the agent contract on stdin and stdout. The contract is one JSON line in for each message, and one JSON line out for each reply ([SPEC.md section 6](../SPEC.md#6-agent-contract-version-1)). The entry is test code, not app code. It is in `.nookku/`, and your app's code does not change.
 
-This is the plumbing that a test needs. You write the entry once. You change it when the start or the wiring of your app changes. In Python, `nooku.agent.serve()` speaks the contract for one function. Read [how-to/connect-your-agent.md](how-to/connect-your-agent.md).
+This is the plumbing that a test needs. You write the entry once. You change it when the start or the wiring of your app changes. In Python, `nookku.agent.serve()` speaks the contract for one function. Read [how-to/connect-your-agent.md](how-to/connect-your-agent.md).
 
 ## One turn
 
@@ -131,13 +131,13 @@ sequenceDiagram
 
 ## The bridge
 
-The [bridge](reference/glossary.md#bridge) is a background process that runs one test ([SPEC.md section 7.2](../SPEC.md#72-start-and-end)). `nooku start` starts it. The bridge then:
+The [bridge](reference/glossary.md#bridge) is a background process that runs one test ([SPEC.md section 7.2](../SPEC.md#72-start-and-end)). `nookku start` starts it. The bridge then:
 
 1. starts the OTLP receiver, the backend proxies and the model API proxies;
 2. starts the entry through the tap in stdio mode;
 3. watches for the Claude Code sessions that a process of the entry runs, and writes a `model_session` row to `tap.jsonl` for each one ([SPEC.md section 7.3](../SPEC.md#73-model-sessions)).
 
-`nooku end` stops it. The bridge then:
+`nookku end` stops it. The bridge then:
 
 1. stops the entry and the proxies;
 2. finds the Codex sessions of the app, and writes a `model_session` row to `tap.jsonl` for each one;
@@ -158,19 +158,19 @@ stateDiagram-v2
     state "Evaluating: the harness model writes report.md" as Evaluating
 
     [*] --> Off
-    Off --> Running: nooku start
-    Running --> Ended: the prompt nooku end
-    Running --> Ended: nooku end in a shell, or /nooku end
+    Off --> Running: nookku start
+    Running --> Ended: the prompt nookku end
+    Running --> Ended: nookku end in a shell, or /nookku end
     Running --> Off: the bridge stopped before its end steps, and a check removed the stale current.json
-    Ended --> Evaluating: the prompt nooku end, if evaluate is not false
-    Ended --> Running: nooku start
+    Ended --> Evaluating: the prompt nookku end, if evaluate is not false
+    Ended --> Running: nookku start
     Evaluating --> Off: the model wrote report.md
     Evaluating --> Ended: the model wrote no report.md
     note right of Ended: With "evaluate" false, the test stays here and gets no evaluation.
 ```
 
-- There are 2 ways to end a test ([SPEC.md section 9.1](../SPEC.md#91-start)). The prompt `nooku end` ends the test and starts the evaluation in one step. `nooku end` in a shell, or `/nooku end` in the plugin, ends the test with no evaluation.
-- A later prompt `nooku end` starts the evaluation of the latest test, if that test ended and has no `report.md`. A new test with `nooku start` becomes the latest test, so the test before it gets no evaluation.
+- There are 2 ways to end a test ([SPEC.md section 9.1](../SPEC.md#91-start)). The prompt `nookku end` ends the test and starts the evaluation in one step. `nookku end` in a shell, or `/nookku end` in the plugin, ends the test with no evaluation.
+- A later prompt `nookku end` starts the evaluation of the latest test, if that test ended and has no `report.md`. A new test with `nookku start` becomes the latest test, so the test before it gets no evaluation.
 - If the configuration has `"evaluate": false`, no test gets an evaluation ([reference/config.md](reference/config.md#test-keys)).
 - If the bridge stops before its end steps, `current.json` stays. `start`, `end` and `status` check if the bridge of `current.json` runs. If it does not run, they remove the stale file ([SPEC.md section 7.2](../SPEC.md#72-start-and-end)). The hook kit does this check before each prompt. The plugin does it after a POST to the tap fails. A test with a stale `current.json` has no end time, so it gets no evaluation.
 
@@ -196,7 +196,7 @@ The audit fails closed. If a record is missing or invalid, it exits with 2 and r
 
 ## The seal
 
-At the end of a test, the bridge writes the SHA-256 of each file of the test folder to `seal.json`. It also writes a copy outside the project ([SPEC.md section 7.4](../SPEC.md#74-seal)). `nooku verify` shows each file that changed after the end. The seal does not stop a change. It makes a change visible.
+At the end of a test, the bridge writes the SHA-256 of each file of the test folder to `seal.json`. It also writes a copy outside the project ([SPEC.md section 7.4](../SPEC.md#74-seal)). `nookku verify` shows each file that changed after the end. The seal does not stop a change. It makes a change visible.
 
 ## The trace and the findings
 
@@ -221,7 +221,7 @@ flowchart TB
     sreaders -->|sessions and MCP servers| checks
     taprec -->|status of each exchange| checks
     checks -.->|writes| findingsrec[(findings.json)]
-    taprec --> transcript[nooku transcript --trace]
+    taprec --> transcript[nookku transcript --trace]
     tracerec --> transcript
     findingsrec --> transcript
     sealrec[(seal.json)] -->|seal check| transcript
@@ -233,11 +233,11 @@ flowchart TB
 
 - The bridge builds the trace at the end of a test, from the copied session files in `sessions/` and the list of model sessions in `manifest.json`.
 - The window of a turn is from `started` to `ts` of its exchange row in `tap.jsonl`. An item in no window has no turn ([SPEC.md section 8.3](../SPEC.md#83-turns)).
-- `nooku transcript --trace` shows each turn from `tap.jsonl`, with its items and its findings, and the result of the seal ([SPEC.md section 9.2](../SPEC.md#92-evaluation-prompt)).
+- `nookku transcript --trace` shows each turn from `tap.jsonl`, with its items and its findings, and the result of the seal ([SPEC.md section 9.2](../SPEC.md#92-evaluation-prompt)).
 
 ## The evaluation
 
-At the prompt `nooku end`, the relay ends the test and gives the harness model the [evaluation](reference/glossary.md#evaluation) prompt ([SPEC.md section 9](../SPEC.md#9-evaluation)). The model did not see the conversation while you talked. It reads the transcript with the trace, the findings and the audit. It reads your app's code and rules, and it checks the app's state with read-only commands. Then it writes `report.md`. After a test, the relay denies model writes to the test folder, except `report.md`.
+At the prompt `nookku end`, the relay ends the test and gives the harness model the [evaluation](reference/glossary.md#evaluation) prompt ([SPEC.md section 9](../SPEC.md#9-evaluation)). The model did not see the conversation while you talked. It reads the transcript with the trace, the findings and the audit. It reads your app's code and rules, and it checks the app's state with read-only commands. Then it writes `report.md`. After a test, the relay denies model writes to the test folder, except `report.md`.
 
 A report is a model answer, so it can be wrong. [evaluation-example.md](evaluation-example.md) shows one report and what the model got wrong.
 
@@ -247,11 +247,11 @@ Each wait on the relay path ends before the wait around it, so that the relay ca
 
 | Order | Wait | Seconds | Constant |
 |---|---|---|---|
-| 1 | The tap waits for the agent, in HTTP mode and in stdio mode. | [240](../src/nooku/stdio.py#L24) | `stdio.TIMEOUT` |
+| 1 | The tap waits for the agent, in HTTP mode and in stdio mode. | [240](../src/nookku/stdio.py#L24) | `stdio.TIMEOUT` |
 | 2 | The tap answers the relay, at most [5 seconds](../tests/test_timeouts.py#L22) after the agent timeout. | [245](../tests/test_timeouts.py#L22) | `stdio.TIMEOUT + ANSWER` |
-| 3 | The hook kit waits for the tap of a test. | [270](../src/nooku/bridge.py#L38) | `bridge.TIMEOUT` |
-| 3 | The hook kit waits for a tap in HTTP mode, with no test. | [280](../src/nooku/kit.py#L34) | `kit.TIMEOUT` |
-| 4 | The harness stops the `UserPromptSubmit` hook of the hook kit. | [300](../src/nooku/kit.py#L37) | `kit.HOOK_DEADLINE` |
+| 3 | The hook kit waits for the tap of a test. | [270](../src/nookku/bridge.py#L38) | `bridge.TIMEOUT` |
+| 3 | The hook kit waits for a tap in HTTP mode, with no test. | [280](../src/nookku/kit.py#L34) | `kit.TIMEOUT` |
+| 4 | The harness stops the `UserPromptSubmit` hook of the hook kit. | [300](../src/nookku/kit.py#L37) | `kit.HOOK_DEADLINE` |
 
 Each number links to its constant. The [5 seconds](../tests/test_timeouts.py#L22) of order 2 is the `ANSWER` limit of the test. The plugin sets no timeout of its own. It waits for the answer of the tap. [tests/test_docs.py](../tests/test_docs.py) checks that this table matches the constants.
 
@@ -259,14 +259,14 @@ Each number links to its constant. The [5 seconds](../tests/test_timeouts.py#L22
 
 | Part | Code |
 |---|---|
-| Hook kit | [src/nooku/kit.py](../src/nooku/kit.py) |
+| Hook kit | [src/nookku/kit.py](../src/nookku/kit.py) |
 | Plugin | [plugins/claude-code/hooks/register.tsx](../plugins/claude-code/hooks/register.tsx), [core.ts](../plugins/claude-code/hooks/core.ts) |
-| Tap, HTTP mode | [src/nooku/tap.py](../src/nooku/tap.py), [adapters.py](../src/nooku/adapters.py) |
-| Tap, stdio mode | [src/nooku/stdio.py](../src/nooku/stdio.py) |
-| Agent contract | [src/nooku/contract.py](../src/nooku/contract.py), [agent.py](../src/nooku/agent.py) |
-| Bridge | [src/nooku/bridge.py](../src/nooku/bridge.py) |
-| Proxies and receiver | [backend.py](../src/nooku/backend.py), [model_api.py](../src/nooku/model_api.py), [otlp.py](../src/nooku/otlp.py) |
-| Records and audit | [record.py](../src/nooku/record.py), [audit.py](../src/nooku/audit.py) |
-| Seal | [seal.py](../src/nooku/seal.py) |
-| Trace and evaluation | [trace.py](../src/nooku/trace.py), [evaluation.py](../src/nooku/evaluation.py), [evaluate.md](../src/nooku/evaluate.md) |
-| Read check of the deny | [commands.py](../src/nooku/commands.py) |
+| Tap, HTTP mode | [src/nookku/tap.py](../src/nookku/tap.py), [adapters.py](../src/nookku/adapters.py) |
+| Tap, stdio mode | [src/nookku/stdio.py](../src/nookku/stdio.py) |
+| Agent contract | [src/nookku/contract.py](../src/nookku/contract.py), [agent.py](../src/nookku/agent.py) |
+| Bridge | [src/nookku/bridge.py](../src/nookku/bridge.py) |
+| Proxies and receiver | [backend.py](../src/nookku/backend.py), [model_api.py](../src/nookku/model_api.py), [otlp.py](../src/nookku/otlp.py) |
+| Records and audit | [record.py](../src/nookku/record.py), [audit.py](../src/nookku/audit.py) |
+| Seal | [seal.py](../src/nookku/seal.py) |
+| Trace and evaluation | [trace.py](../src/nookku/trace.py), [evaluation.py](../src/nookku/evaluation.py), [evaluate.md](../src/nookku/evaluate.md) |
+| Read check of the deny | [commands.py](../src/nookku/commands.py) |

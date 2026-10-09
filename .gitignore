@@ -14,7 +14,7 @@ htmlcov/
 .DS_Store
 .env
 CLAUDE.local.md
-.nooku/
+.nookku/
 # The state folder of verbatim-relay 0.3.x and earlier.
 .verbatim-relay/
 .proof/

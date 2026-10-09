@@ -25,7 +25,7 @@ sys.path[:0] = [str(ROOT / "src"), str(ROOT / "scripts")]
 
 from proof_sessions import ENTRY  # noqa: E402
 
-from nooku import bridge  # noqa: E402
+from nookku import bridge  # noqa: E402
 
 MESSAGES = [
     "Where is my order 4471?",
@@ -101,9 +101,9 @@ def main() -> int:
     out = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "proofs" / "trace"
     project = ROOT / ".proof" / "trace"
     shutil.rmtree(project, ignore_errors=True)
-    (project / ".nooku").mkdir(parents=True)
+    (project / ".nookku").mkdir(parents=True)
     config = {"entry": ENTRY, "models": ["claude-code", "codex"]}
-    (project / ".nooku" / "config.json").write_text(json.dumps(config))
+    (project / ".nookku" / "config.json").write_text(json.dumps(config))
     cur = bridge.start(project, wait=120)
     try:
         for m in MESSAGES:

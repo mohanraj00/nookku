@@ -13,9 +13,9 @@ import pytest
 from test_tap import post
 from toy_agent import ToyAgent
 
-from nooku import bridge, kit, stdio, tap
-from nooku.adapters import make
-from nooku.record import Exchange, read_tap
+from nookku import bridge, kit, stdio, tap
+from nookku.adapters import make
+from nookku.record import Exchange, read_tap
 
 ROOT = Path(__file__).resolve().parent.parent
 # The most time that a tap needs after the agent timeout to write its row and answer.
@@ -61,7 +61,7 @@ def test_a_slow_agent_gives_504_and_an_error_row(agent, tmp_path):
     t.shutdown()
 
     assert status == 504
-    assert json.loads(out)["error"] == "nooku tap: the agent sent no response in 0.3 s"
+    assert json.loads(out)["error"] == "nookku tap: the agent sent no response in 0.3 s"
     assert timeout <= took < timeout + ANSWER
     assert read_tap(tmp_path / "tap.jsonl") == [Exchange(1, "Where is my mug?", None, None)]
     row = json.loads((tmp_path / "tap.jsonl").read_text())
@@ -93,7 +93,7 @@ def test_an_agent_that_sends_a_byte_at_a_time_still_gives_504(tmp_path):
     listener.close()
 
     assert status == 504
-    assert json.loads(out)["error"] == "nooku tap: the agent sent no response in 0.5 s"
+    assert json.loads(out)["error"] == "nookku tap: the agent sent no response in 0.5 s"
     assert 0.5 <= took < 0.5 + ANSWER
     assert read_tap(tmp_path / "tap.jsonl") == [Exchange(1, "Where is my mug?", None, None)]
 

@@ -21,7 +21,7 @@ ClaudeAgentOptions(
 - `CLAUDE_CODE_PLUGIN_DIRS` with an empty value loads no plugins from this variable. The session gets the variable from the entry, and thus from the tester's harness. `env` sets it for the session only.
 - If your app loads MCP servers from `.mcp.json` or from a settings file, `strict_mcp_config` also stops them. Then set `ENABLE_CLAUDEAI_MCP_SERVERS` to `false` in `env`, in place of `strict_mcp_config`. This variable stops only the claude.ai connectors ([MCP docs](https://code.claude.com/docs/en/mcp#use-mcp-servers-from-claude-ai)).
 
-These options are in the code of your app, not in the entry. `nooku setup` tells the harness model to check them and to tell you if one is missing. It does not change your app.
+These options are in the code of your app, not in the entry. `nookku setup` tells the harness model to check them and to tell you if one is missing. It does not change your app.
 
 ## Examples
 
@@ -30,7 +30,7 @@ The toy shop apps in this repo use these options:
 - [examples/toy-shop-models/app.py](../../examples/toy-shop-models/app.py): 2 tools and a planted bug.
 - [examples/toy-shop-full/app.py](../../examples/toy-shop-full/app.py): 3 tools, a stock service and a direct model call.
 
-Each one needs `claude-agent-sdk`, which is not a dependency of Nooku:
+Each one needs `claude-agent-sdk`, which is not a dependency of Nookku:
 
 ```bash
 uv run --with claude-agent-sdk python3 examples/toy-shop-full/entry.py
@@ -41,7 +41,7 @@ uv run --with claude-agent-sdk python3 examples/toy-shop-full/entry.py
 The trace check `server_not_from_app` finds a claude.ai connector or a plugin server in a session file of your app ([SPEC.md section 8.6](../../SPEC.md#86-findings)). After a test, run:
 
 ```bash
-nooku trace
+nookku trace
 ```
 
 If the session is isolated, the output has no `server_not_from_app` line. The check does not find a server from a settings file or from `.mcp.json`, because its name does not show where it comes from.

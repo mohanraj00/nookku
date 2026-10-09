@@ -1,4 +1,4 @@
-"""Proof that `nooku check` finds the app's model sessions. Local only.
+"""Proof that `nookku check` finds the app's model sessions. Local only.
 
 The entry is a toy shop app with one Claude Agent SDK session and one codex app-server thread
 (tests/toy_models_entry.py). The check must find a Claude Code session by its process, a Codex
@@ -22,7 +22,7 @@ sys.path[:0] = [str(ROOT / "src")]
 
 from proof_common import AGENT_SDK  # noqa: E402
 
-from nooku import bridge  # noqa: E402
+from nookku import bridge  # noqa: E402
 
 ENTRY = [
     "uv",
@@ -41,9 +41,9 @@ def main() -> int:
     out = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "proofs" / "sessions"
     project = ROOT / ".proof" / "sessions"
     shutil.rmtree(project, ignore_errors=True)
-    (project / ".nooku").mkdir(parents=True)
+    (project / ".nookku").mkdir(parents=True)
     config = {"entry": ENTRY, "models": ["claude-code", "codex"]}
-    (project / ".nooku" / "config.json").write_text(json.dumps(config))
+    (project / ".nookku" / "config.json").write_text(json.dumps(config))
     passed, lines = bridge.check(project)
     print("\n".join(lines))
     folder = bridge.latest_test(project)

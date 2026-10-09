@@ -14,54 +14,54 @@ Before you start, connect a test to your app: [connect-your-agent.md](connect-yo
 
 ## Install
 
-1. Install the `nooku` command. The plugin runs it to start and end a test:
+1. Install the `nookku` command. The plugin runs it to start and end a test:
 
    ```bash
-   uv tool install nooku
+   uv tool install nookku
    ```
 
 2. Add the marketplace and install the plugin:
 
    ```bash
    claude plugin marketplace add mohanraj00/verbatim-relay
-   claude plugin install nooku@nooku
+   claude plugin install nookku@nookku
    ```
 
-3. Write `.nooku/config.json` with your [entry](../reference/glossary.md#entry) (see above).
+3. Write `.nookku/config.json` with your [entry](../reference/glossary.md#entry) (see above).
 
 ## Run a test
 
-1. Type `/nooku start`. The plugin starts the entry through the [tap](../reference/glossary.md#tap), and [relay mode](../reference/glossary.md#relay-mode) goes on. The status line shows it. The start text tells you how to end the test.
-2. Type your test messages. Each reply shows as a row in the chat and in the Nooku pane.
-3. Type the prompt `nooku end`, with no slash. The plugin stops the entry, copies the app's session files into the [test folder](../reference/glossary.md#test-folder), builds the [trace](../reference/glossary.md#trace) and switches relay mode off. Then the prompt goes to the model with the evaluation prompt. The model writes `report.md` in the test folder (see [Evaluation](#evaluation)).
+1. Type `/nookku start`. The plugin starts the entry through the [tap](../reference/glossary.md#tap), and [relay mode](../reference/glossary.md#relay-mode) goes on. The status line shows it. The start text tells you how to end the test.
+2. Type your test messages. Each reply shows as a row in the chat and in the Nookku pane.
+3. Type the prompt `nookku end`, with no slash. The plugin stops the entry, copies the app's session files into the [test folder](../reference/glossary.md#test-folder), builds the [trace](../reference/glossary.md#trace) and switches relay mode off. Then the prompt goes to the model with the evaluation prompt. The model writes `report.md` in the test folder (see [Evaluation](#evaluation)).
 
-`/nooku end` ends the test with no evaluation. To evaluate that test later, type the prompt `nooku end`. `/nooku on` and `/nooku off` do the same as `start` and `end`. The prompts `nooku start` and `nooku status` also work.
+`/nookku end` ends the test with no evaluation. To evaluate that test later, type the prompt `nookku end`. `/nookku on` and `/nookku off` do the same as `start` and `end`. The prompts `nookku start` and `nookku status` also work.
 
-`/nooku status` shows relay mode and the running test. The plugin runs `nooku status --json` for it. Thus a test whose process stopped does not show as a running test.
+`/nookku status` shows relay mode and the running test. The plugin runs `nookku status --json` for it. Thus a test whose process stopped does not show as a running test.
 
-`nooku trace` builds the trace of the latest test again and shows its findings.
+`nookku trace` builds the trace of the latest test again and shows its findings.
 
-Each test is a new conversation, with a new test id and a new entry process. The test folder is `.nooku/tests/<test-id>/`. [reference/records.md](../reference/records.md#the-test-folder) lists its files.
+Each test is a new conversation, with a new test id and a new entry process. The test folder is `.nookku/tests/<test-id>/`. [reference/records.md](../reference/records.md#the-test-folder) lists its files.
 
 If a message gets an error, read [troubleshooting.md](../troubleshooting.md#during-a-test).
 
 ## What the model can do
 
-The model reads the exact conversation of the latest test with the read-only `transcript` tool. The tool runs `nooku transcript`, so the model gets the same text as with the hook kit.
+The model reads the exact conversation of the latest test with the read-only `transcript` tool. The tool runs `nookku transcript`, so the model gets the same text as with the hook kit.
 
-During a test, the model cannot send a message to the agent, and it cannot change the files in `.nooku/`. The plugin denies each tool call that writes into `.nooku/`. It also denies each other tool call that names `.nooku`, also a read command such as `cat`. Only the file tools can read these files ([SPEC.md section 5](../../SPEC.md#5-relays)).
+During a test, the model cannot send a message to the agent, and it cannot change the files in `.nookku/`. The plugin denies each tool call that writes into `.nookku/`. It also denies each other tool call that names `.nookku`, also a read command such as `cat`. Only the file tools can read these files ([SPEC.md section 5](../../SPEC.md#5-relays)).
 
 During a test, the plugin also denies a model command that runs the entry, for example `python3 entry.py`. A command that only reads the entry, for example `cat entry.py`, can run.
 
 ## Options
 
-The plugin options are in [reference/config.md](../reference/config.md#plugin-options). Set them with `/plugin configure nooku@nooku` in Claude Code, or with `--config KEY=VALUE` at install. The defaults fit a test with an entry.
+The plugin options are in [reference/config.md](../reference/config.md#plugin-options). Set them with `/plugin configure nookku@nookku` in Claude Code, or with `--config KEY=VALUE` at install. The defaults fit a test with an entry.
 
 ## Evaluation
 
-The evaluation prompt ([evaluate.md](../../src/nooku/evaluate.md)) tells the model to:
+The evaluation prompt ([evaluate.md](../../src/nookku/evaluate.md)) tells the model to:
 
-1. read the transcript with the trace: `nooku transcript --trace`, or the `transcript` tool with `trace: true`;
+1. read the transcript with the trace: `nookku transcript --trace`, or the `transcript` tool with `trace: true`;
 2. read `findings.json` and `audit.json`;
 3. read your app's code and its business rules;
 4. check your app's state with read-only commands;
@@ -69,14 +69,14 @@ The evaluation prompt ([evaluate.md](../../src/nooku/evaluate.md)) tells the mod
 
 The model did not see the conversation while you talked, so it judges the record, not its memory. Claude Code asks you to allow each command of the model, unless your permission settings allow it.
 
-After a test, the plugin denies model writes to the test folder, except `report.md`. A shell command that names `.nooku` can only read, or write `report.md` ([SPEC.md section 5](../../SPEC.md#5-relays) lists the read programs).
+After a test, the plugin denies model writes to the test folder, except `report.md`. A shell command that names `.nookku` can only read, or write `report.md` ([SPEC.md section 5](../../SPEC.md#5-relays) lists the read programs).
 
-To stop the evaluation, add `"evaluate": false` to `.nooku/config.json`. [evaluation-example.md](../evaluation-example.md) shows a test and its report.
+To stop the evaluation, add `"evaluate": false` to `.nookku/config.json`. [evaluation-example.md](../evaluation-example.md) shows a test and its report.
 
 ## Audit
 
 ```bash
-nooku audit --tap .nooku/tests/<test-id>/tap.jsonl --relay .nooku/tests/<test-id>/relay.jsonl
+nookku audit --tap .nookku/tests/<test-id>/tap.jsonl --relay .nookku/tests/<test-id>/relay.jsonl
 ```
 
 Exit code 0 means clean, 1 means a break, and 2 means that a record is missing or invalid ([SPEC.md section 3.4](../../SPEC.md#34-exit-codes)).
@@ -88,4 +88,4 @@ Exit code 0 means clean, 1 means a break, and 2 means that a record is missing o
 - Backends of your app: [add-a-backend.md](add-a-backend.md).
 - Direct model calls and OpenTelemetry: [record-model-calls.md](record-model-calls.md).
 - An Agent SDK session in your app: [isolate-agent-sdk.md](isolate-agent-sdk.md).
-- Audit a test: [reference/cli.md](../reference/cli.md#nooku-audit).
+- Audit a test: [reference/cli.md](../reference/cli.md#nookku-audit).

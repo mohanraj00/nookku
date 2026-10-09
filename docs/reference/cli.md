@@ -1,9 +1,9 @@
 # CLI reference
 
-This page lists each command of `nooku`, each flag and each exit code. The parser is in [src/nooku/cli.py](../../src/nooku/cli.py). The test `tests/test_docs.py` checks that each command and each flag of the parser is on this page. It also checks that each flag on this page is in the parser.
+This page lists each command of `nookku`, each flag and each exit code. The parser is in [src/nookku/cli.py](../../src/nookku/cli.py). The test `tests/test_docs.py` checks that each command and each flag of the parser is on this page. It also checks that each flag on this page is in the parser.
 
 ```text
-nooku [-h] [--version] COMMAND ...
+nookku [-h] [--version] COMMAND ...
 ```
 
 | Flag | Meaning |
@@ -11,15 +11,15 @@ nooku [-h] [--version] COMMAND ...
 | `--version` | Print the version and exit with 0. |
 | `-h`, `--help` | Print the help of the program or of a command, and exit with 0. |
 
-Each command that takes `--root` uses the current folder by default. The root is the project: the folder that holds `.nooku/`.
+Each command that takes `--root` uses the current folder by default. The root is the project: the folder that holds `.nookku/`.
 
-An unknown command or flag prints the usage and exits with 2. With no command, `nooku` prints the help and exits with 2.
+An unknown command or flag prints the usage and exits with 2. With no command, `nookku` prints the help and exits with 2.
 
 ## Commands of a test
 
-### `nooku start`
+### `nookku start`
 
-Start a test: run the entry through the tap and switch relay mode on ([SPEC.md section 7.2](../../SPEC.md#72-start-and-end)). It needs an `entry` in `.nooku/config.json`.
+Start a test: run the entry through the tap and switch relay mode on ([SPEC.md section 7.2](../../SPEC.md#72-start-and-end)). It needs an `entry` in `.nookku/config.json`.
 
 | Flag | Default | Meaning |
 |---|---|---|
@@ -32,11 +32,11 @@ Start a test: run the entry through the tap and switch relay mode on ([SPEC.md s
 | 0 | The test started. |
 | 1 | The test did not start: no entry, an invalid configuration (for example an unknown key), a test that runs already, or an entry that exited. The text names the cause. |
 
-### `nooku end`
+### `nookku end`
 
 End the test: switch relay mode off, stop the entry and collect its sessions, the trace, the audit and the seal ([SPEC.md section 7.2](../../SPEC.md#72-start-and-end)). If no test runs, it switches relay mode off.
 
-`end` in a shell gives no evaluation. If the test needs an evaluation, it prints the prompt to type in the harness: `To evaluate the test, type this prompt in your harness: nooku end` ([SPEC.md section 9.1](../../SPEC.md#91-start)).
+`end` in a shell gives no evaluation. If the test needs an evaluation, it prints the prompt to type in the harness: `To evaluate the test, type this prompt in your harness: nookku end` ([SPEC.md section 9.1](../../SPEC.md#91-start)).
 
 | Flag | Default | Meaning |
 |---|---|---|
@@ -48,7 +48,7 @@ End the test: switch relay mode off, stop the entry and collect its sessions, th
 |---|---|
 | 0 | Always. |
 
-### `nooku status`
+### `nookku status`
 
 Show relay mode and the running test.
 
@@ -61,9 +61,9 @@ Show relay mode and the running test.
 |---|---|
 | 0 | Always. |
 
-### `nooku check`
+### `nookku check`
 
-Run a short test with one message, and check the entry and its model sessions ([SPEC.md section 7.1](../../SPEC.md#71-configuration)). The message is always `Hello from nooku check. What can you help me with?`
+Run a short test with one message, and check the entry and its model sessions ([SPEC.md section 7.1](../../SPEC.md#71-configuration)). The message is always `Hello from nookku check. What can you help me with?`
 
 PASS proves the connection, not the reply. PASS means that:
 
@@ -83,10 +83,10 @@ PASS proves the connection, not the reply. PASS means that:
 | 0 | The entry sent a reply, the audit of the test is clean, and the test found a model session for each harness in `models`. |
 | 1 | The check failed, or the test did not start. For example, the audit of the test exits with 1 or 2, the test wrote no valid `audit.json`, or a model session has no session file. |
 
-### `nooku mode`
+### `nookku mode`
 
 ```text
-nooku mode STATE [--root PATH]
+nookku mode STATE [--root PATH]
 ```
 
 Switch relay mode on or off. With an entry, `on` starts a test and `off` ends it. With no entry, it only switches relay mode ([how-to/http-tap.md](../how-to/http-tap.md)). Before it switches relay mode on, it reads `config.json`, if the file exists. If the file is broken, `on` shows the error and does not switch relay mode on ([#109](https://github.com/mohanraj00/verbatim-relay/pull/109)).
@@ -102,11 +102,11 @@ Switch relay mode on or off. With an entry, `on` starts a test and `off` ends it
 
 ## Commands that read a test
 
-### `nooku view`
+### `nookku view`
 
 Print each relayed turn. This is the display of the hook kit. With an entry, it shows the turns of the latest test, and it follows to the next test.
 
-If the relay record has an invalid line, `view` shows the error with the file and the line on stderr. Without `--no-follow`, it shows the error one time and continues to wait. When the record changes and is valid, it shows the next turns. With `--no-follow`, it stops with exit code 2. A test has no relay record before its first turn, so the view of such a test shows no turn and exits with 0. After the end of a test, `nooku verify` shows a record that is missing.
+If the relay record has an invalid line, `view` shows the error with the file and the line on stderr. Without `--no-follow`, it shows the error one time and continues to wait. When the record changes and is valid, it shows the next turns. With `--no-follow`, it stops with exit code 2. A test has no relay record before its first turn, so the view of such a test shows no turn and exits with 0. After the end of a test, `nookku verify` shows a record that is missing.
 
 | Flag | Default | Meaning |
 |---|---|---|
@@ -119,7 +119,7 @@ If the relay record has an invalid line, `view` shows the error with the file an
 | 0 | The view stopped. |
 | 2 | The config cannot be read. With `--no-follow`: the relay record is invalid, or, with no entry, the configured record does not exist. |
 
-### `nooku transcript`
+### `nookku transcript`
 
 Print the exact conversation for the model to evaluate ([SPEC.md section 5](../../SPEC.md#5-relays)). With an entry, the scope is the latest test.
 
@@ -137,7 +137,7 @@ Print the exact conversation for the model to evaluate ([SPEC.md section 5](../.
 | 0 | The transcript printed. With `--trace`, also if a record is invalid: then the first line says `Record: INVALID` and the transcript shows no turn. |
 | 2 | No test folder (with `--trace`), the config cannot be read, or the relay record is missing or invalid. |
 
-### `nooku audit`
+### `nookku audit`
 
 Compare the relay record with the tap record ([SPEC.md section 3](../../SPEC.md#3-audit)).
 
@@ -153,10 +153,10 @@ Compare the relay record with the tap record ([SPEC.md section 3](../../SPEC.md#
 | 1 | The records are valid and have one or more breaks. |
 | 2 | A record is missing or invalid, or the tap has an unparsed exchange. |
 
-### `nooku trace`
+### `nookku trace`
 
 ```text
-nooku trace [TEST] [--root PATH] [--json]
+nookku trace [TEST] [--root PATH] [--json]
 ```
 
 Build the trace of a test again, and show its findings ([SPEC.md section 8](../../SPEC.md#8-trace)). If the test has a seal, it rebuilds only from sources that agree with the seal.
@@ -172,10 +172,10 @@ Build the trace of a test again, and show its findings ([SPEC.md section 8](../.
 | 0 | The trace was built. |
 | 2 | No test folder with a manifest, or the seal is broken and the trace was not rebuilt. |
 
-### `nooku verify`
+### `nookku verify`
 
 ```text
-nooku verify [TEST] [--root PATH] [--json]
+nookku verify [TEST] [--root PATH] [--json]
 ```
 
 Check that no record of a test changed after its end ([SPEC.md section 7.4](../../SPEC.md#74-seal)).
@@ -193,13 +193,13 @@ Check that no record of a test changed after its end ([SPEC.md section 7.4](../.
 
 ## Commands that install or connect
 
-### `nooku init`
+### `nookku init`
 
 ```text
-nooku init HARNESS [--root PATH] [--entry COMMAND] [--models LIST] [options]
+nookku init HARNESS [--root PATH] [--entry COMMAND] [--models LIST] [options]
 ```
 
-Install the hook kit for Codex or Claude Code. It writes `.nooku/config.json`, the file `.nooku/mode`, and the hooks: `.codex/hooks.json` for Codex, `.claude/settings.local.json` for Claude Code. It keeps your other hooks, also a hook in the same group as a hook of the kit.
+Install the hook kit for Codex or Claude Code. It writes `.nookku/config.json`, the file `.nookku/mode`, and the hooks: `.codex/hooks.json` for Codex, `.claude/settings.local.json` for Claude Code. It keeps your other hooks, also a hook in the same group as a hook of the kit.
 
 If `config.json` exists, `init` keeps each key and changes only the keys of the flags that you give. For example, a second run keeps `backends` and `"evaluate": false`. It prints the keys that it changed and the keys that it kept. A new `config.json` gets each key. The default of a flag applies only to a new file.
 
@@ -218,27 +218,27 @@ If `config.json` has an unknown key, or if `config.json` or the hook file is not
 | `--reply-field PATH` | `reply` | The config key `reply_field`. |
 | `--openai-model NAME` | empty | The config key `openai_model`. |
 | `--openai-stream` | off | The config key `openai_stream`: set it to `true`. |
-| `--record FILE` | `.nooku/relay.jsonl` | The config key `record`. |
+| `--record FILE` | `.nookku/relay.jsonl` | The config key `record`. |
 
-[config.md](config.md#nookuconfigjson) explains each key.
+[config.md](config.md#nookkuconfigjson) explains each key.
 
 | Exit code | Meaning |
 |---|---|
 | 0 | The files were written. |
 | 1 | Nothing was written: `config.json` or the hook file cannot be read, or `config.json` has an unknown key. The text names the cause. |
 
-### `nooku setup`
+### `nookku setup`
 
-Print the guide that connects a test to the app ([setup.md](../../src/nooku/setup.md)). A harness model reads it and writes the entry ([how-to/connect-your-agent.md](../how-to/connect-your-agent.md)).
+Print the guide that connects a test to the app ([setup.md](../../src/nookku/setup.md)). A harness model reads it and writes the entry ([how-to/connect-your-agent.md](../how-to/connect-your-agent.md)).
 
 | Exit code | Meaning |
 |---|---|
 | 0 | Always. |
 
-### `nooku tap`
+### `nookku tap`
 
 ```text
-nooku tap (--agent URL | --cmd -- COMMAND...) --record FILE [options]
+nookku tap (--agent URL | --cmd -- COMMAND...) --record FILE [options]
 ```
 
 Run the tap proxy in front of the agent ([SPEC.md section 4](../../SPEC.md#4-tap)). A test starts it for you, so you need this command only for an agent that is an HTTP server ([how-to/http-tap.md](../how-to/http-tap.md)).
@@ -249,7 +249,7 @@ Run the tap proxy in front of the agent ([SPEC.md section 4](../../SPEC.md#4-tap
 | `--cmd` | off | Stdio mode: start the command after `--` as the agent. |
 | `--record FILE` | required | The tap record (JSONL). The tap adds rows to it. |
 | `--listen HOST:PORT` | `127.0.0.1:8800` | The address of the tap. |
-| `--timeout SECONDS` | [240](../../src/nooku/stdio.py) | The seconds to wait for the agent. |
+| `--timeout SECONDS` | [240](../../src/nookku/stdio.py) | The seconds to wait for the agent. |
 | `--log PATH` | `app.log` next to the record | Stdio mode: the file for the agent's stderr. |
 | `--adapter NAME` | `json` | `json` or `openai` ([SPEC.md section 4.1](../../SPEC.md#adapters)). |
 | `--message-field PATH` | `text` | `json` adapter: the field path of the message in the request. |
@@ -266,7 +266,7 @@ Give exactly one of `--agent` and `--cmd`.
 
 The relays and the bridge run these commands. You do not run them yourself.
 
-### `nooku hook`
+### `nookku hook`
 
 The hook command that `init` writes into the hook file. It reads one hook event as JSON on stdin and writes the answer on stdout ([SPEC.md section 5](../../SPEC.md#5-relays)).
 
@@ -279,9 +279,9 @@ The hook command that `init` writes into the hook file. It reads one hook event 
 |---|---|
 | 0 | Always. If the hook fails in relay mode, it still blocks the prompt. |
 
-### `nooku bridge`
+### `nookku bridge`
 
-The background process of a test ([architecture.md](../architecture.md#the-bridge)). `start` runs it. `nooku --help` does not show this command.
+The background process of a test ([architecture.md](../architecture.md#the-bridge)). `start` runs it. `nookku --help` does not show this command.
 
 | Flag | Default | Meaning |
 |---|---|---|

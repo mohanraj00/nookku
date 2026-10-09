@@ -1,6 +1,6 @@
 """Proofs P1 to P4 for the Claude Code plugin, headless. Local only: it needs the claude CLI.
 
-The plugin starts a test (SPEC.md section 7) with /nooku start. The entry is the toy shop
+The plugin starts a test (SPEC.md section 7) with /nookku start. The entry is the toy shop
 agent of the tests over stdio (tests/toy_entry.py). Each message is one claude -p run.
 
 P1  Each tester message reaches the agent byte for byte (the tap record).
@@ -37,12 +37,12 @@ sys.path[:0] = [str(ROOT / "src"), str(ROOT / "tests")]
 
 from proof_common import json_lines  # noqa: E402
 
-from nooku.audit import audit  # noqa: E402
-from nooku.record import sha256  # noqa: E402
+from nookku.audit import audit  # noqa: E402
+from nookku.record import sha256  # noqa: E402
 
 PLUGIN = ROOT / "plugins" / "claude-code"
 ENTRY = [sys.executable, str(ROOT / "tests" / "toy_entry.py")]
-CLI = str(Path(sys.executable).parent / "nooku")
+CLI = str(Path(sys.executable).parent / "nookku")
 MESSAGES = [
     "Hi, I want to return order #4471.  ",
     "Ünïcödé check: can I pay in € or ₹? Ça marche?",
@@ -82,7 +82,7 @@ def claude(prompt: str, settings: Path, cwd: Path, extra: list[str]) -> tuple[li
     )
     events = json_lines(p.stdout)
     shown = [
-        e["text"] for e in events if e.get("subtype") == "ui_log" and e.get("plugin") == "nooku"
+        e["text"] for e in events if e.get("subtype") == "ui_log" and e.get("plugin") == "nookku"
     ]
     result = next((e.get("result") or "" for e in events if e.get("type") == "result"), "")
     return shown, result
@@ -91,7 +91,7 @@ def claude(prompt: str, settings: Path, cwd: Path, extra: list[str]) -> tuple[li
 def settings_file(path: Path, start_on: bool, **more: object) -> Path:
     options = {"cli": CLI, "start_on": start_on, **more}
     conf = {"options": options}
-    path.write_text(json.dumps({"pluginConfigs": {"nooku": conf, "nooku@inline": conf}}))
+    path.write_text(json.dumps({"pluginConfigs": {"nookku": conf, "nookku@inline": conf}}))
     return path
 
 
@@ -208,13 +208,13 @@ def main_stream(out: Path, on_request: bool = False) -> int:
     """
     from toy_agent import ToyAgent
 
-    from nooku.adapters import make
-    from nooku.tap import Tap, start_in_thread
+    from nookku.adapters import make
+    from nookku.tap import Tap, start_in_thread
 
     work = Path(tempfile.mkdtemp())
     # The relay record is at the default path of the plugin. The folder has no config.json.
-    (work / ".nooku").mkdir()
-    tap_rec, relay_rec = work / "tap.jsonl", work / ".nooku" / "relay.jsonl"
+    (work / ".nookku").mkdir()
+    tap_rec, relay_rec = work / "tap.jsonl", work / ".nookku" / "relay.jsonl"
     agent = ToyAgent(stream="on_request" if on_request else True)
     tap = Tap(("127.0.0.1", 0), agent.url, tap_rec, make("openai"))
     start_in_thread(tap)
@@ -263,8 +263,8 @@ def main() -> int:
         return main_stream(Path(args[0]) if args else ROOT / "proofs" / name, on_request)
     out = Path(args[0]) if args else ROOT / "proofs" / "claude-code"
     work = Path(tempfile.mkdtemp())
-    (work / ".nooku").mkdir()
-    (work / ".nooku" / "config.json").write_text(json.dumps({"entry": ENTRY}))
+    (work / ".nookku").mkdir()
+    (work / ".nookku" / "config.json").write_text(json.dumps({"entry": ENTRY}))
     version = subprocess.run(["claude", "--version"], capture_output=True, text=True).stdout.strip()
     report: dict = {
         "date": date.today().isoformat(),
@@ -274,8 +274,8 @@ def main() -> int:
     }
     on = settings_file(work / "on.json", True)
     off = settings_file(work / "off.json", False)
-    _, started = claude("/nooku start", on, work, [])
-    current = work / ".nooku" / "current.json"
+    _, started = claude("/nookku start", on, work, [])
+    current = work / ".nookku" / "current.json"
     cur = json.loads(current.read_text())
     folder = Path(cur["dir"])
     tap_rec, relay_rec = folder / "tap.jsonl", folder / "relay.jsonl"
@@ -284,7 +284,7 @@ def main() -> int:
         relay_turns(report, tap_rec, on, work)
 
         # Relay mode off while the test still runs: the model must not reach the tap.
-        (work / ".nooku" / "mode").write_text("off\n")
+        (work / ".nookku" / "mode").write_text("off\n")
         before = len(rows(tap_rec, "exchange"))
         _, result = claude(
             f"Use Bash to run: curl -s -X POST {cur['tap_url']} -d "
@@ -300,7 +300,7 @@ def main() -> int:
         }
         print("P3b", report["P3b"], flush=True)
     finally:
-        _, ended = claude("/nooku end", on, work, [])
+        _, ended = claude("/nookku end", on, work, [])
         if current.exists():
             subprocess.run([CLI, "end", "--root", str(work)], capture_output=True, timeout=180)
     manifest = json.loads((folder / "manifest.json").read_text())

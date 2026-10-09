@@ -1,13 +1,13 @@
 """Proofs P1 to P4 for the hook kit, headless, in Codex or in Claude Code. Local only.
 
 P1  Each tester message reaches the agent byte for byte (the tap record).
-P2  Each reply reaches the viewer byte for byte (`nooku view`).
+P2  Each reply reaches the viewer byte for byte (`nookku view`).
 P3  An adversarial instruction cannot change either direction, and the model does not run.
 P3b With relay mode off, a model call to the tap is denied, and the agent receives nothing.
 P4  The audit finds 0 breaks in these records, and finds each planted fault.
 
-The kit is installed with `nooku init` in .proof/<harness>/. The tester starts and ends
-the test (SPEC.md section 7) with the prompts `nooku start` and `nooku end`. The
+The kit is installed with `nookku init` in .proof/<harness>/. The tester starts and ends
+the test (SPEC.md section 7) with the prompts `nookku start` and `nookku end`. The
 entry is the toy shop agent of the tests over stdio (tests/toy_entry.py).
 
 Codex runs project hooks only after a person trusts them, so trust .proof/codex/.codex/hooks.json
@@ -43,9 +43,9 @@ sys.path[:0] = [str(ROOT / "src"), str(ROOT / "tests"), str(Path(__file__).paren
 from proof_common import json_lines  # noqa: E402
 from proofs_claude_code import ADVERSARIAL, ENTRY, MESSAGES, planted, rows  # noqa: E402
 
-from nooku import bridge, kit  # noqa: E402
-from nooku.audit import audit  # noqa: E402
-from nooku.record import Turn, read_relay  # noqa: E402
+from nookku import bridge, kit  # noqa: E402
+from nookku.audit import audit  # noqa: E402
+from nookku.record import Turn, read_relay  # noqa: E402
 
 CODEX_MODEL = "gpt-5.6-luna"
 
@@ -102,7 +102,7 @@ def run_claude(project: Path, prompt: str, adversarial: bool, network: bool) -> 
 
 def viewer_text(project: Path) -> str:
     out = subprocess.run(
-        [sys.executable, "-m", "nooku", "view", "--no-follow", "--root", str(project)],
+        [sys.executable, "-m", "nookku", "view", "--no-follow", "--root", str(project)],
         capture_output=True,
         text=True,
         timeout=30,
@@ -162,8 +162,8 @@ def main_stream(harness: str, run, out: Path, on_request: bool = False) -> int:
     """
     from toy_agent import ToyAgent
 
-    from nooku.adapters import make
-    from nooku.tap import Tap, start_in_thread
+    from nookku.adapters import make
+    from nookku.tap import Tap, start_in_thread
 
     project = ROOT / ".proof" / harness
     project.mkdir(parents=True, exist_ok=True)
@@ -231,7 +231,7 @@ def main() -> int:
         return main_stream(harness, run, Path(args[1]) if len(args) > 1 else default, on_request)
     out = Path(args[1]) if len(args) > 1 else ROOT / "proofs" / f"hooks-{harness}"
     project = ROOT / ".proof" / harness
-    shutil.rmtree(project / ".nooku" / "tests", ignore_errors=True)
+    shutil.rmtree(project / ".nookku" / "tests", ignore_errors=True)
     project.mkdir(parents=True, exist_ok=True)
     kit.init(project, harness, asdict(kit.Config(entry=ENTRY)))
     versions = {"claude-code": ["claude", "--version"], "codex": ["codex", "--version"]}
@@ -243,10 +243,12 @@ def main() -> int:
         "transport": "stdio",
         "turns": [],
     }
-    report["start_model_output_tokens"] = run(project, "nooku start", False, False)["output_tokens"]
+    report["start_model_output_tokens"] = run(project, "nookku start", False, False)[
+        "output_tokens"
+    ]
     cur = bridge.current(project)
     if cur is None:
-        print("FAIL: the prompt 'nooku start' did not start a test")
+        print("FAIL: the prompt 'nookku start' did not start a test")
         return 1
     folder = Path(cur["dir"])
     tap_rec, relay_rec = folder / "tap.jsonl", folder / "relay.jsonl"
@@ -269,7 +271,9 @@ def main() -> int:
         }
         print("P3b", report["P3b"], flush=True)
     finally:
-        report["end_model_output_tokens"] = run(project, "nooku end", False, False)["output_tokens"]
+        report["end_model_output_tokens"] = run(project, "nookku end", False, False)[
+            "output_tokens"
+        ]
         if bridge.current(project) is not None:
             kit.end_test(project)
     manifest = json.loads((folder / "manifest.json").read_text())

@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from nooku import evaluation, kit, trace
-from nooku.cli import main
+from nookku import evaluation, kit, trace
+from nookku.cli import main
 
 CASE = Path(__file__).resolve().parent.parent / "conformance" / "trace" / "claude_code_toy_shop"
 TEST = "20261006-080000-cc01"
@@ -13,7 +13,7 @@ TEST = "20261006-080000-cc01"
 
 def project(tmp_path: Path, config: dict | None = None, ended: float | None = 2.0) -> Path:
     """A project with one test folder: the Claude Code trace case."""
-    state = tmp_path / ".nooku"
+    state = tmp_path / ".nookku"
     folder = state / "tests" / TEST
     shutil.copytree(CASE, folder, ignore=shutil.ignore_patterns("expect_*"))
     manifest = json.loads((folder / "manifest.json").read_text())
@@ -26,7 +26,7 @@ def project(tmp_path: Path, config: dict | None = None, ended: float | None = 2.
 
 def test_pending_is_the_latest_ended_test_with_no_report(tmp_path: Path) -> None:
     root = project(tmp_path)
-    folder = root / ".nooku" / "tests" / TEST
+    folder = root / ".nookku" / "tests" / TEST
     assert evaluation.pending(root) == folder
     (folder / evaluation.REPORT).write_text("# Report\n")
     assert evaluation.pending(root) is None
@@ -40,10 +40,10 @@ def test_no_evaluation_if_the_config_turns_it_off_or_the_test_runs(tmp_path: Pat
 
 def test_the_transcript_shows_each_turn_with_its_trace(tmp_path: Path) -> None:
     root = project(tmp_path)
-    text = evaluation.transcript(root / ".nooku" / "tests" / TEST)
+    text = evaluation.transcript(root / ".nookku" / "tests" / TEST)
     seal_line, text = text.split("\n", 1)
     assert seal_line == "Seal: none. The records of this test have no seal."
-    assert text.startswith(f"nooku transcript with trace, test {TEST}: 3 turns, 11 ")
+    assert text.startswith(f"nookku transcript with trace, test {TEST}: 3 turns, 11 ")
     turn1 = text.split("════ turn 1 ════")[1].split("════ turn 2 ════")[0]
     assert "[trace.jsonl:5] claude-code tool_call: shop.lookup_order\n" in turn1
     assert 'input: {"order": "4471"}\nresult:\n{"status": "delivered"}\n' in turn1
@@ -60,7 +60,7 @@ def test_a_changed_byte_in_the_tap_record_makes_the_transcript_invalid(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     root = project(tmp_path)
-    folder = root / ".nooku" / "tests" / TEST
+    folder = root / ".nookku" / "tests" / TEST
     tap = folder / "tap.jsonl"
     # One byte of a reply changes, and its hash stays.
     tap.write_text(tap.read_text().replace("toy shop reply", "toy shop replY", 1))
@@ -78,7 +78,7 @@ def test_a_changed_byte_in_the_tap_record_makes_the_transcript_invalid(
 
 def test_an_invalid_trace_line_makes_the_transcript_invalid(tmp_path: Path) -> None:
     root = project(tmp_path)
-    folder = root / ".nooku" / "tests" / TEST
+    folder = root / ".nookku" / "tests" / TEST
     with (folder / "trace.jsonl").open("a", encoding="utf-8") as fh:
         fh.write("[1]\n")
     text = evaluation.transcript(folder)
@@ -142,7 +142,7 @@ def test_each_decision_shows_on_one_line_and_a_refusal_is_not_an_error(tmp_path:
 def test_the_prompt_names_the_test_and_its_folder(tmp_path: Path) -> None:
     folder = tmp_path / "tests" / TEST
     text = evaluation.prompt(folder)
-    assert f"nooku transcript --trace --test {TEST}" in text
+    assert f"nookku transcript --trace --test {TEST}" in text
     assert f"`{folder}/report.md`" in text
     assert "{" + "folder}" not in text and "{" + "test}" not in text
 
@@ -153,14 +153,14 @@ def event(root: Path, prompt: str) -> dict:
 
 def test_the_kit_gives_the_model_the_evaluation_at_end(tmp_path: Path) -> None:
     root = project(tmp_path)
-    answer = kit.handle(event(root, "nooku end"), root, "codex")
+    answer = kit.handle(event(root, "nookku end"), root, "codex")
     assert answer is not None
     context = answer["hookSpecificOutput"]["additionalContext"]
-    assert context.startswith("nooku: no test runs. Relay mode is off.\n\n# Evaluate test")
+    assert context.startswith("nookku: no test runs. Relay mode is off.\n\n# Evaluate test")
     assert "decision" not in answer
     # With the evaluation off, the prompt stays blocked.
     off = project(tmp_path / "off", {"evaluate": False})
-    assert kit.handle(event(off, "nooku end"), off, "codex")["decision"] == "block"
+    assert kit.handle(event(off, "nookku end"), off, "codex")["decision"] == "block"
 
 
 @pytest.mark.parametrize(
@@ -169,7 +169,7 @@ def test_the_kit_gives_the_model_the_evaluation_at_end(tmp_path: Path) -> None:
 )
 def test_after_a_test_the_kit_protects_the_records(tmp_path: Path, name: str, denied: bool) -> None:
     root = project(tmp_path)
-    path = root / ".nooku" / "tests" / TEST / name
+    path = root / ".nookku" / "tests" / TEST / name
     write = {
         "hook_event_name": "PreToolUse",
         "tool_name": "Write",

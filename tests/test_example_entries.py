@@ -17,10 +17,10 @@ from pathlib import Path
 
 import pytest
 
-from nooku import contract
-from nooku.audit import audit
-from nooku.record import Writer
-from nooku.stdio import Agent, StdioTap, start_in_thread
+from nookku import contract
+from nookku.audit import audit
+from nookku.record import Writer
+from nookku.stdio import Agent, StdioTap, start_in_thread
 
 ROOT = Path(__file__).resolve().parent.parent
 NODE_ENTRY = ROOT / "examples" / "toy-shop-node" / "entry.mjs"

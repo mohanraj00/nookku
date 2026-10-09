@@ -1,12 +1,12 @@
 {
-  "name": "nooku",
-  "description": "Nooku: a test harness for developers of agent apps.",
+  "name": "nookku",
+  "description": "Nookku: a test harness for developers of agent apps.",
   "owner": {
     "name": "Mohan Raj"
   },
   "plugins": [
     {
-      "name": "nooku",
+      "name": "nookku",
       "source": "./plugins/claude-code",
       "description": "Relay a test conversation to a chat agent byte for byte. The model never writes either direction."
     }

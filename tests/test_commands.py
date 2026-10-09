@@ -4,10 +4,10 @@ from pathlib import Path
 
 import pytest
 
-from nooku import bridge, commands, kit
-from nooku.record import BlockedCall, read_relay
+from nookku import bridge, commands, kit
+from nookku.record import BlockedCall, read_relay
 
-F = ".nooku/tests/20261006-080000-cc01"
+F = ".nookku/tests/20261006-080000-cc01"
 
 # The plugin has the same table in plugins/claude-code/hooks/register.test.ts.
 READS = [
@@ -15,7 +15,7 @@ READS = [
     f"sed -n '1,200p' {F}/trace.jsonl",
     f"sed -n '/refund/p' {F}/trace.jsonl",
     f"sed -n -e '1,5p' -e '/a\\/w/p' {F}/trace.jsonl",
-    "nooku audit --json",
+    "nookku audit --json",
     f"T={F}; ls $T; cat $T/findings.json",
     f"jq '.findings[] | .check' {F}/findings.json",
     f"ls -la {F} && wc -l {F}/tap.jsonl",
@@ -24,7 +24,7 @@ READS = [
     f"cat {F}/audit.json 2>&1 | tail -n 3",
     f"cat > {F}/report.md <<'EOF'\n# Test: evaluation\nIt's done; rm -rf $(x) > a\nEOF",
     f"cd {F}\nsort -n tap.jsonl",
-    "nooku transcript --trace --test 20261006-080000-cc01",
+    "nookku transcript --trace --test 20261006-080000-cc01",
     f"find {F} -name '*.jsonl'",
     f'cat "{F}/manifest.json"',
 ]
@@ -52,9 +52,9 @@ WRITES = [
     f"LD_PRELOAD=x.so; cat {F}/tap.jsonl",
     f"T=$(rm {F}/tap.jsonl)",
     f"cat '{F}/tap.jsonl",
-    "nooku end",
-    f"nooku trace --root {F}/../../..",
-    "nooku check",
+    "nookku end",
+    f"nookku trace --root {F}/../../..",
+    "nookku check",
     "python entry.py",
 ]
 
@@ -105,7 +105,7 @@ def reason(answer: dict | None) -> str | None:
 
 
 def project(tmp_path: Path, running: bool) -> Path:
-    state = tmp_path / ".nooku"
+    state = tmp_path / ".nookku"
     folder = state / "tests" / "20261006-080000-cc01"
     folder.mkdir(parents=True)
     (state / "config.json").write_text(json.dumps({"entry": ["python", "shop/entry.py"]}))

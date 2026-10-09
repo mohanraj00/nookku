@@ -1,4 +1,4 @@
-"""The file .nooku/config.json (SPEC.md section 7.1): its keys and its one reader.
+"""The file .nookku/config.json (SPEC.md section 7.1): its keys and its one reader.
 
 The hook kit, `start`, `check` and `init` read the file with `read_config`, so one rule applies
 to its keys. Each part then checks the values that it uses.
@@ -12,9 +12,9 @@ from dataclasses import dataclass, field, fields
 from pathlib import Path
 from typing import Any
 
-STATE_DIR = ".nooku"
+STATE_DIR = ".nookku"
 FILE = f"{STATE_DIR}/config.json"
-# The state folder of verbatim-relay 0.3.x and earlier. The first run of nooku moves it.
+# The state folder of verbatim-relay 0.3.x and earlier. The first run of nookku moves it.
 OLD_STATE_DIR = ".verbatim-relay"
 
 
@@ -43,10 +43,10 @@ def move_old_state(root: Path) -> str | None:
     try:
         old.rename(new)
     except FileNotFoundError:
-        return None  # Another nooku process moved it first.
+        return None  # Another nookku process moved it first.
     except OSError as error:
         return f"cannot move {old} to {new}: {error}"
-    print(f"nooku: moved {old} to {new}", file=sys.stderr)
+    print(f"nookku: moved {old} to {new}", file=sys.stderr)
     return None
 
 
@@ -72,7 +72,7 @@ def _move_record_key(path: Path) -> str | None:
     except OSError as error:
         tmp.unlink(missing_ok=True)
         return f"cannot write {path}: {error}"
-    print(f"nooku: changed 'record' in {path} to {data['record']}", file=sys.stderr)
+    print(f"nookku: changed 'record' in {path} to {data['record']}", file=sys.stderr)
     return None
 
 

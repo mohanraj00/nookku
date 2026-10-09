@@ -1,6 +1,6 @@
 """A helper for an entry in Python: speak the agent contract (SPEC.md section 6) for a function.
 
-from nooku.agent import serve
+from nookku.agent import serve
 
 def reply(message: str, history: list[tuple[str, str]]) -> str:
     return shop.answer(message)
@@ -15,8 +15,8 @@ import os
 import sys
 from collections.abc import Callable
 
-from nooku import contract
-from nooku.adapters import History
+from nookku import contract
+from nookku.adapters import History
 
 
 def _line(rid: str, **fields: str) -> bytes:
@@ -39,7 +39,7 @@ def serve(reply: Callable[[str, History], str]) -> None:
         try:
             rid, message, history = contract.parse_request(line)
         except contract.ContractError as e:
-            out.write(_line("", error=f"nooku agent: {e}") + b"\n")
+            out.write(_line("", error=f"nookku agent: {e}") + b"\n")
             continue
         try:
             text = reply(message, history)

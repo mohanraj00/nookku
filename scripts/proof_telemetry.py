@@ -8,7 +8,7 @@ real Anthropic API through the model API proxy.
 The app has a planted bug that only the backend calls show: after 1 `reserve` tool call, the app
 reserves the items 2 times, because its retry loop has no break. The model tells the customer the
 number that it asked for. The tester asks for 1 teapot set in turn 2. Then the tester types
-`nooku end`, and the harness model evaluates the test with no other prompt.
+`nookku end`, and the harness model evaluates the test with no other prompt.
 
 T1  Each turn has items from 3 sources: the session file of the Agent SDK, the backend proxy and
     the model API proxy.
@@ -16,7 +16,7 @@ T2  report.md has a row for turn 2 that cites the trace lines of all the `POST /
     turn 2. A row that cites only 1 call does not show that the app reserved 2 times.
 P5  report.md holds a reservation id from the records, or an exact quote of 20 or more characters
     from a reply of the agent.
-P7  After the evaluation, `nooku verify` finds the test folder intact.
+P7  After the evaluation, `nookku verify` finds the test folder intact.
 
 The isolation, the evaluation and the check of model answers against instruction files are the
 same as in scripts/proof_report.py.
@@ -41,7 +41,7 @@ sys.path[:0] = [str(FULL)]
 import stock  # noqa: E402
 import toy_model  # noqa: E402
 
-from nooku import seal  # noqa: E402
+from nookku import seal  # noqa: E402
 
 MESSAGES = [
     "Hi, is the teapot set in stock?",

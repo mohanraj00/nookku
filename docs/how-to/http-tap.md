@@ -13,14 +13,14 @@ python3 examples/toy-shop/http_agent.py
 In a second terminal, put the tap in front of it:
 
 ```bash
-nooku tap --agent http://127.0.0.1:8700/ --record tap.jsonl
+nookku tap --agent http://127.0.0.1:8700/ --record tap.jsonl
 ```
 
 The tap prints:
 
 ```text
-nooku tap: listening on http://127.0.0.1:8800/ -> http://127.0.0.1:8700/
-nooku tap: writing tap.jsonl
+nookku tap: listening on http://127.0.0.1:8800/ -> http://127.0.0.1:8700/
+nookku tap: writing tap.jsonl
 ```
 
 To check the tap without a harness, send one message:
@@ -33,8 +33,8 @@ The answer is the agent's answer with no change: `{"reply": "We ship to Chennai 
 
 ## 2. Install a relay with no entry
 
-- **Plugin:** do not write an `entry` in `.nooku/config.json`. The plugin options `tap_url`, `adapter` and the others apply ([reference/config.md](../reference/config.md#plugin-options)).
-- **Hook kit:** run `nooku init claude-code` or `nooku init codex` with no `--entry`. The kit takes the same options as flags: `--tap-url`, `--agent-url`, `--adapter` and so on.
+- **Plugin:** do not write an `entry` in `.nookku/config.json`. The plugin options `tap_url`, `adapter` and the others apply ([reference/config.md](../reference/config.md#plugin-options)).
+- **Hook kit:** run `nookku init claude-code` or `nookku init codex` with no `--entry`. The kit takes the same options as flags: `--tap-url`, `--agent-url`, `--adapter` and so on.
 
 ## 3. Relay mode on and off
 
@@ -42,13 +42,13 @@ With no entry, relay mode has no test. Switch it on before your messages and off
 
 | Relay | On | Off |
 |---|---|---|
-| Plugin | `/nooku on` | `/nooku off` |
-| Hook kit | `nooku mode on` | `nooku mode off` |
+| Plugin | `/nookku on` | `/nookku off` |
+| Hook kit | `nookku mode on` | `nookku mode off` |
 
-The relay record is `.nooku/relay.jsonl` by default (the option `record`). After the test, audit the two records:
+The relay record is `.nookku/relay.jsonl` by default (the option `record`). After the test, audit the two records:
 
 ```bash
-nooku audit --tap tap.jsonl --relay .nooku/relay.jsonl
+nookku audit --tap tap.jsonl --relay .nookku/relay.jsonl
 ```
 
 ## Options
@@ -62,9 +62,9 @@ nooku audit --tap tap.jsonl --relay .nooku/relay.jsonl
 | `reply_field` | `reply` | `json` adapter: the dot path of the reply in the response body |
 | `openai_model` | empty | `openai` adapter: the `model` field of each request |
 | `openai_stream` | `false` | `openai` adapter: `true` sends `"stream": true` in each request, for an agent that streams only on request |
-| `record` | `.nooku/relay.jsonl` | The relay record. The hook kit reads a relative path from the project root, and the plugin from the working directory. |
+| `record` | `.nookku/relay.jsonl` | The relay record. The hook kit reads a relative path from the project root, and the plugin from the working directory. |
 
-Give the tap the same adapter: `nooku tap --agent URL --record FILE --adapter openai`. [reference/cli.md](../reference/cli.md#nooku-tap) lists each flag of the tap.
+Give the tap the same adapter: `nookku tap --agent URL --record FILE --adapter openai`. [reference/cli.md](../reference/cli.md#nookku-tap) lists each flag of the tap.
 
 ## Adapters
 

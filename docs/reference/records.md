@@ -1,30 +1,30 @@
 # Records and files
 
-This page lists each file that Nooku writes, and links to the section of [SPEC.md](../../SPEC.md) that defines its format. SPEC.md is the authority. If this page and SPEC.md disagree, SPEC.md is correct.
+This page lists each file that Nookku writes, and links to the section of [SPEC.md](../../SPEC.md) that defines its format. SPEC.md is the authority. If this page and SPEC.md disagree, SPEC.md is correct.
 
 ## The state folder
 
-`.nooku/` in your project holds the configuration and the tests.
+`.nookku/` in your project holds the configuration and the tests.
 
-verbatim-relay 0.3.x and earlier used `.verbatim-relay/`. The first `nooku` command in the project moves it to `.nooku/` ([how-to/upgrade.md](../how-to/upgrade.md#040)).
+verbatim-relay 0.3.x and earlier used `.verbatim-relay/`. The first `nookku` command in the project moves it to `.nookku/` ([how-to/upgrade.md](../how-to/upgrade.md#040)).
 
 | Path | Writer | Content |
 |---|---|---|
-| `config.json` | you, `nooku init` or the harness model | The configuration ([config.md](config.md)). |
+| `config.json` | you, `nookku init` or the harness model | The configuration ([config.md](config.md)). |
 | `entry.<ext>` | you or the harness model | The entry, if it is not in your app ([how-to/connect-your-agent.md](../how-to/connect-your-agent.md)). |
 | `mode` | the relays | `on` or `off`: relay mode. It survives a restart of the harness ([SPEC.md section 7.2](../../SPEC.md#72-start-and-end)). |
 | `current.json` | the bridge | The running test: its id, its folder, the tap URL, the pid and the start time of the bridge. The file exists only while a test runs. |
-| `ending.json` | `nooku end` | The harness session that ends the test, for the bridge. |
+| `ending.json` | `nookku end` | The harness session that ends the test, for the bridge. |
 | `relay.jsonl` | the relays | With no entry: the relay record ([how-to/http-tap.md](../how-to/http-tap.md)). |
 | `tests/<test-id>/` | the bridge, the relays, the tap | One folder for each test (see below). |
 
-Add `.nooku/tests/` to `.gitignore` if the conversation must not go into your repo ([SECURITY.md](../../SECURITY.md)).
+Add `.nookku/tests/` to `.gitignore` if the conversation must not go into your repo ([SECURITY.md](../../SECURITY.md)).
 
-The bridge also writes a copy of each seal to `~/.nooku/seals/<test-id>.json`, or under `NOOKU_HOME` if it is set.
+The bridge also writes a copy of each seal to `~/.nookku/seals/<test-id>.json`, or under `NOOKKU_HOME` if it is set.
 
 ## The test folder
 
-Each test is a new conversation, with a new test id and a new entry process. The test folder is `.nooku/tests/<test-id>/`. The test id is the start time and a random part, for example `20261007-133823-0b63`.
+Each test is a new conversation, with a new test id and a new entry process. The test folder is `.nookku/tests/<test-id>/`. The test id is the start time and a random part, for example `20261007-133823-0b63`.
 
 | File | Content | Format |
 |---|---|---|
@@ -36,8 +36,8 @@ Each test is a new conversation, with a new test id and a new entry process. The
 | `sessions/` | A copy of each session file of your app's model sessions. | [SPEC.md section 7.3](../../SPEC.md#73-model-sessions) |
 | `trace.jsonl` | Each message, tool call and command of those sessions, and each item of `otel.jsonl`, `backend.jsonl` and `model_api.jsonl`, with its result, its turn and its line in the source file. | [SPEC.md section 8.2](../../SPEC.md#82-trace-record) |
 | `findings.json` | The checks of the trace: failed tools and commands, agent errors, turns with no model item, and more. | [SPEC.md section 8.6](../../SPEC.md#86-findings) |
-| `audit.json` | The audit of the two records, as `nooku audit --json` prints it. | [SPEC.md section 3](../../SPEC.md#3-audit) |
-| `seal.json` | The SHA-256 of each other file at the end of the test. `nooku verify` shows if a file changed after the end. | [SPEC.md section 7.4](../../SPEC.md#74-seal) |
+| `audit.json` | The audit of the two records, as `nookku audit --json` prints it. | [SPEC.md section 3](../../SPEC.md#3-audit) |
+| `seal.json` | The SHA-256 of each other file at the end of the test. `nookku verify` shows if a file changed after the end. | [SPEC.md section 7.4](../../SPEC.md#74-seal) |
 | `report.md` | The model's evaluation, if it ran. | [SPEC.md section 9.3](../../SPEC.md#93-report) |
 | `denied.jsonl` | The model tool calls that the relay denied after the end. | `blocked_call` rows of [SPEC.md section 2.2](../../SPEC.md#22-relay-record) |
 | `backend.jsonl` | The calls of your app to its backends. | [SPEC.md section 7.6](../../SPEC.md#76-backend-proxies) |

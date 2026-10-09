@@ -16,7 +16,7 @@ from typing import Any
 BENCH = Path(__file__).resolve().parent
 sys.path.insert(0, str(BENCH.parent / "src"))
 
-from nooku.audit import audit  # noqa: E402
+from nookku.audit import audit  # noqa: E402
 
 
 def cell(session_id: str) -> str:

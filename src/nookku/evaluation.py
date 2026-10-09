@@ -195,7 +195,7 @@ def transcript(folder: Path) -> str:
     lines = {(it["source"]["file"], it["source"]["line"]): n for n, it in enumerate(items, 1)}
     out = [
         seal.summary(seal.verify(folder)) + "\n",
-        f"nooku transcript with trace, test {folder.name}: {len(exchanges)} turns, "
+        f"nookku transcript with trace, test {folder.name}: {len(exchanges)} turns, "
         f"{len(items)} model items. The tester and agent blocks are exact: they come from "
         "tap.jsonl. A model item comes from the app's own model sessions, or from the "
         "OpenTelemetry spans and logs of the app (otel.jsonl), or from the calls of the app to "
@@ -226,6 +226,6 @@ def transcript(folder: Path) -> str:
 
 
 def prompt(folder: Path) -> str:
-    """The evaluation prompt for a test folder (src/nooku/evaluate.md)."""
-    text = resources.files("nooku").joinpath("evaluate.md").read_text(encoding="utf-8")
+    """The evaluation prompt for a test folder (src/nookku/evaluate.md)."""
+    text = resources.files("nookku").joinpath("evaluate.md").read_text(encoding="utf-8")
     return text.replace("{test}", folder.name).replace("{folder}", str(folder))

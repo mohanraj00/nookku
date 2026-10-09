@@ -2849,7 +2849,7 @@ TRACE_CASES = {
 
 
 # Seal cases (SPEC.md section 7.4). Each case is a test folder after its end, the copy of the seal in
-# `home/seals/`, and the result that `nooku verify --json` must give.
+# `home/seals/`, and the result that `nookku verify --json` must give.
 SEAL_TEST = "20261006-120000-se01"
 SEALED_AT = 1791316800.0
 SEAL_FILES = {

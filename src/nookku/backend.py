@@ -245,7 +245,7 @@ class Handler(BaseHTTPRequestHandler):
         }
         proxy.describe(row, sent, body)
         if not proxy.begin(row):
-            data = json.dumps({"error": "nooku backend proxy: the test ended"}).encode()
+            data = json.dumps({"error": "nookku backend proxy: the test ended"}).encode()
             self._send(503, [("Content-Type", "application/json")], data)
             return
         conn = proxy.connect()
@@ -269,7 +269,7 @@ class Handler(BaseHTTPRequestHandler):
         except (OSError, http.client.HTTPException) as e:
             row.update(ts=time.time(), error=f"the backend did not answer: {e}")
             proxy.end(row)
-            data = json.dumps({"error": f"nooku backend proxy: {e}"}).encode()
+            data = json.dumps({"error": f"nookku backend proxy: {e}"}).encode()
             self._send(502, [("Content-Type", "application/json")], data)
             return
         finally:

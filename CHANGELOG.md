@@ -2,14 +2,14 @@
 
 ## 0.4.0
 
-verbatim-relay is now Nooku. The package, the CLI, the module, the plugin, the marketplace, the state folder and the variables have the new name. The record format and the audit do not change.
+verbatim-relay is now Nookku. The package, the CLI, the module, the plugin, the marketplace, the state folder and the variables have the new name. The record format and the audit do not change.
 
-**Upgrade.** End each running test. Then install `nooku`, update the plugin and run `nooku init` again. The first `nooku` command in a project moves `.verbatim-relay/` to `.nooku/`. [The upgrade guide](docs/how-to/upgrade.md#040) gives each step.
+**Upgrade.** End each running test. Then install `nookku`, update the plugin and run `nookku init` again. The first `nookku` command in a project moves `.verbatim-relay/` to `.nookku/`. [The upgrade guide](docs/how-to/upgrade.md#040) gives each step.
 
-- **New name.** The package and the CLI are `nooku`, the module is `nooku`, and the plugin is `nooku@nooku`. The variables start with `NOOKU_`, for example `NOOKU_HOME` ([#181](https://github.com/mohanraj00/verbatim-relay/issues/181)).
-- **State folder move.** Each command with a project root moves `.verbatim-relay/` to `.nooku/`. A `record` path in the old folder changes to the same file in `.nooku/`. If both folders exist, the command stops and names both. A hook event is then blocked, so the relay fails closed ([SPEC.md section 7](SPEC.md#7-tests), [#181](https://github.com/mohanraj00/verbatim-relay/issues/181)).
-- **Old seal copies.** `verify` reads the seal copy of an old test from `~/.verbatim-relay/seals/` if `~/.nooku/seals/` has no copy ([SPEC.md section 7.4](SPEC.md#74-seal), [#181](https://github.com/mohanraj00/verbatim-relay/issues/181)).
-- **Old kit hooks.** `nooku init` replaces the hooks that verbatim-relay wrote, so the harness runs one hook for each event ([#181](https://github.com/mohanraj00/verbatim-relay/issues/181)).
+- **New name.** The package and the CLI are `nookku`, the module is `nookku`, and the plugin is `nookku@nookku`. The variables start with `NOOKKU_`, for example `NOOKKU_HOME` ([#181](https://github.com/mohanraj00/verbatim-relay/issues/181)).
+- **State folder move.** Each command with a project root moves `.verbatim-relay/` to `.nookku/`. A `record` path in the old folder changes to the same file in `.nookku/`. If both folders exist, the command stops and names both. A hook event is then blocked, so the relay fails closed ([SPEC.md section 7](SPEC.md#7-tests), [#181](https://github.com/mohanraj00/verbatim-relay/issues/181)).
+- **Old seal copies.** `verify` reads the seal copy of an old test from `~/.verbatim-relay/seals/` if `~/.nookku/seals/` has no copy ([SPEC.md section 7.4](SPEC.md#74-seal), [#181](https://github.com/mohanraj00/verbatim-relay/issues/181)).
+- **Old kit hooks.** `nookku init` replaces the hooks that verbatim-relay wrote, so the harness runs one hook for each event ([#181](https://github.com/mohanraj00/verbatim-relay/issues/181)).
 
 ## 0.3.1
 
@@ -48,7 +48,7 @@ Streamed replies, and the fixes of the 0.2 code review. An agent can now stream 
 - **Blocked-call detail.** Both relays cut the `detail` of a `blocked_call` row at 300 code points, so a cut never splits a surrogate pair and the relay record stays valid. The shared table `DETAIL_CASES` checks both relays ([SPEC.md section 2.2](SPEC.md#22-relay-record), [#88](https://github.com/mohanraj00/verbatim-relay/issues/88)).
 - **Record errors in the view.** In follow mode, `view` writes an error for an invalid relay record to stderr, and shows the next turns when the record is valid again. `view --no-follow` writes the error and exits with 2 ([docs/reference/cli.md](docs/reference/cli.md), [#92](https://github.com/mohanraj00/verbatim-relay/issues/92)).
 - **Start and status texts.** The start text of both relays names the prompt `verbatim-relay end`, which ends the test and starts the evaluation, and the end with no evaluation. The plugin status asks `verbatim-relay status --json`, so a stale `current.json` does not show as a running test. `--help` does not show the internal `bridge` command ([SPEC.md section 5](SPEC.md#5-relays), [#91](https://github.com/mohanraj00/verbatim-relay/issues/91)).
-- **One deadline.** Both taps wait [240 seconds](src/nooku/stdio.py) for the agent, as one deadline for the connection, the headers and the body, also for a stream. Each timeout of the relay path ends before the next one, and [one test](tests/test_timeouts.py) checks the order ([SPEC.md section 4.3](SPEC.md#43-timeouts), [#67](https://github.com/mohanraj00/verbatim-relay/issues/67)).
+- **One deadline.** Both taps wait [240 seconds](src/nookku/stdio.py) for the agent, as one deadline for the connection, the headers and the body, also for a stream. Each timeout of the relay path ends before the next one, and [one test](tests/test_timeouts.py) checks the order ([SPEC.md section 4.3](SPEC.md#43-timeouts), [#67](https://github.com/mohanraj00/verbatim-relay/issues/67)).
 - **Deny.** Both relays deny a model command that writes to `/dev/tcp` or `/dev/udp` paths of the tap or the agent, also with leading zeros in the port. The shared table `DENY_CASES` checks both deny patterns ([#70](https://github.com/mohanraj00/verbatim-relay/issues/70)).
 - **No secret query values.** The backend and model API proxies remove the values of secret query parameters from the record, and forward them with no change ([#69](https://github.com/mohanraj00/verbatim-relay/issues/69)).
 - **Transcript.** The plugin and the hook kit give the model one rendered transcript, with a legend for `ok` and for a relay error, and with no hashes ([SPEC.md section 5](SPEC.md#5-relays), [#10](https://github.com/mohanraj00/verbatim-relay/issues/10)).
@@ -57,7 +57,7 @@ Streamed replies, and the fixes of the 0.2 code review. An agent can now stream 
 - **Docs.** A one-screen README, a docs map, a tutorial ([docs/getting-started.md](docs/getting-started.md)), how-to guides, reference pages for the CLI, the config and the records, an architecture page, troubleshooting and a FAQ. A code of conduct (Contributor Covenant 2.1), issue and PR templates, and a code quality spec ([docs/code-quality.md](docs/code-quality.md)). Tests check each relative link, the README counts, and the CLI and config pages against the code ([#72](https://github.com/mohanraj00/verbatim-relay/issues/72), [#73](https://github.com/mohanraj00/verbatim-relay/issues/73)).
 - **Claims.** The README marks the prompt-only examples as single observations, and the benchmark text says that each turn was a new harness call ([#9](https://github.com/mohanraj00/verbatim-relay/issues/9), [#8](https://github.com/mohanraj00/verbatim-relay/issues/8)).
 - **CI.** GitHub Actions are pinned to commit SHAs ([#4](https://github.com/mohanraj00/verbatim-relay/issues/4)).
-- **Counts.** 53 audit cases in [conformance/cases/](conformance/cases/), 20 contract cases in [conformance/contract/](conformance/contract/), 10 trace cases in [conformance/trace/](conformance/trace/), 11 seal cases in [conformance/seal/](conformance/seal/) and 7 receiver cases in [conformance/otlp/](conformance/otlp/) ([cases](conformance/build.py)). The trace has [12 checks](src/nooku/trace.py).
+- **Counts.** 53 audit cases in [conformance/cases/](conformance/cases/), 20 contract cases in [conformance/contract/](conformance/contract/), 10 trace cases in [conformance/trace/](conformance/trace/), 11 seal cases in [conformance/seal/](conformance/seal/) and 7 receiver cases in [conformance/otlp/](conformance/otlp/) ([cases](conformance/build.py)). The trace has [12 checks](src/nookku/trace.py).
 
 ## 0.2.0
 

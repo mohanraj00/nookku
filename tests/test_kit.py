@@ -9,10 +9,10 @@ from pathlib import Path
 import pytest
 from toy_agent import ToyAgent, shop_reply
 
-from nooku import bridge, cli, kit
-from nooku.adapters import make
-from nooku.audit import audit
-from nooku.record import (
+from nookku import bridge, cli, kit
+from nookku.adapters import make
+from nookku.audit import audit
+from nookku.record import (
     BlockedCall,
     RecordError,
     Turn,
@@ -20,7 +20,7 @@ from nooku.record import (
     read_rows,
     read_tap,
 )
-from nooku.tap import Tap, start_in_thread
+from nookku.tap import Tap, start_in_thread
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -41,7 +41,7 @@ def test_the_deny_pattern_has_the_same_rule_as_the_plugin() -> None:
 
 # The prompt that ends a test and starts the evaluation, and the end with no evaluation
 # (SPEC.md section 9.1).
-EVALUATION_END = "To end the test and start the evaluation, type the prompt nooku end"
+EVALUATION_END = "To end the test and start the evaluation, type the prompt nookku end"
 
 
 def test_the_start_text_names_the_prompt_that_starts_the_evaluation(
@@ -49,14 +49,14 @@ def test_the_start_text_names_the_prompt_that_starts_the_evaluation(
 ) -> None:
     monkeypatch.setattr(bridge, "start", lambda root, session=None: {"test": "t-1"})
     text = kit.start_test(tmp_path)
-    assert text.startswith("nooku: test t-1 started. Relay mode is on")
+    assert text.startswith("nookku: test t-1 started. Relay mode is on")
     assert f"{EVALUATION_END}. " in text
-    assert text.endswith("To end the test with no evaluation, run nooku end in a shell.")
+    assert text.endswith("To end the test with no evaluation, run nookku end in a shell.")
     assert kit.is_on(tmp_path)
     # The plugin names the same prompt, and its command for the end with no evaluation.
     plugin = (ROOT / "plugins" / "claude-code" / "hooks" / "register.tsx").read_text()
     assert f"{EVALUATION_END}, with no slash. " in plugin
-    assert "To end the test with no evaluation, type /nooku end." in plugin
+    assert "To end the test with no evaluation, type /nookku end." in plugin
 
 
 def test_the_blocked_call_detail_has_the_same_rule_as_the_plugin(tmp_path: Path) -> None:
@@ -96,7 +96,7 @@ def prompt(text, session="s1"):
 
 
 def record(root):
-    return root / ".nooku" / "relay.jsonl"
+    return root / ".nookku" / "relay.jsonl"
 
 
 def test_init_writes_hooks_once_and_keeps_other_hooks(tmp_path):
@@ -120,7 +120,7 @@ def test_init_writes_hooks_once_and_keeps_other_hooks(tmp_path):
 def test_init_keeps_another_hook_in_the_group_of_the_kit(tmp_path):
     target = tmp_path / ".codex" / "hooks.json"
     target.parent.mkdir()
-    ours = {"type": "command", "command": "python -m nooku hook --harness codex"}
+    ours = {"type": "command", "command": "python -m nookku hook --harness codex"}
     other = {"type": "command", "command": "echo hi"}
     stop = [{"hooks": [other]}]
     hooks = {"UserPromptSubmit": [{"hooks": [ours, other]}], "Stop": stop}
@@ -169,12 +169,12 @@ def test_an_unreachable_tap_still_blocks_and_is_recorded(tmp_path):
     kit.set_mode(tmp_path, True)
     assert kit.handle(prompt("hi"), tmp_path, "codex")["decision"] == "block"
     row = json.loads(record(tmp_path).read_text())
-    assert row["ok"] is False and row["shown"].startswith("nooku: cannot reach the tap")
+    assert row["ok"] is False and row["shown"].startswith("nookku: cannot reach the tap")
 
 
 def test_a_broken_config_blocks_in_relay_mode(tmp_path):
     kit.set_mode(tmp_path, True)
-    (tmp_path / ".nooku" / "config.json").write_text('{"tap": 1}')
+    (tmp_path / ".nookku" / "config.json").write_text('{"tap": 1}')
     assert "config is broken" in kit.handle(prompt("hi"), tmp_path, "codex")["reason"]
 
 
@@ -188,7 +188,7 @@ def test_a_prompt_with_a_lone_surrogate_is_refused_and_not_recorded(setup):
     answer = json.loads(out.getvalue())
     assert answer == {
         "decision": "block",
-        "reason": "nooku: nothing was sent. "
+        "reason": "nookku: nothing was sent. "
         "The message has a lone surrogate U+D83D at character 8.",
     }
     assert agent.received == []
@@ -284,20 +284,20 @@ def pre(tool_input, tool="Bash"):
 
 def running_test(root):
     """A running test with the entry in its manifest. The pid of this process is alive."""
-    folder = root / ".nooku" / "tests" / "20261007-090000-ab12"
+    folder = root / ".nookku" / "tests" / "20261007-090000-ab12"
     folder.mkdir(parents=True)
     (folder / "manifest.json").write_text(json.dumps({"entry": ["python", "shop/entry.py"]}))
     cur = {"test": folder.name, "pid": os.getpid(), "dir": str(folder), "tap_url": ""}
     cur["pid_start"] = bridge.process_start(os.getpid())
-    (root / ".nooku" / "current.json").write_text(json.dumps(cur))
+    (root / ".nookku" / "current.json").write_text(json.dumps(cur))
     return folder
 
 
 @pytest.mark.parametrize("config", ["not json", '{"tap": 1}', "[[]]"])
 def test_a_broken_config_still_denies_test_files_and_the_entry(tmp_path, config):
     folder = running_test(tmp_path)
-    (tmp_path / ".nooku" / "config.json").write_text(config)
-    for command in ("cat .nooku/tests/x/tap.jsonl", "cd shop && python entry.py"):
+    (tmp_path / ".nookku" / "config.json").write_text(config)
+    for command in ("cat .nookku/tests/x/tap.jsonl", "cd shop && python entry.py"):
         answer = kit.handle(pre({"command": command}), tmp_path, "codex")
         assert answer["hookSpecificOutput"]["permissionDecision"] == "deny"
     reason = kit.handle(pre({"command": "python entry.py"}), tmp_path, "codex")
@@ -367,7 +367,7 @@ def test_openai_stream_asks_an_agent_that_streams_only_on_request(tmp_path, open
 
 def test_openai_stream_must_be_a_boolean(tmp_path):
     kit.init(tmp_path, "codex", dict(adapter="openai"))
-    path = tmp_path / ".nooku" / "config.json"
+    path = tmp_path / ".nookku" / "config.json"
     path.write_text(json.dumps({**json.loads(path.read_text()), "openai_stream": "true"}))
     with pytest.raises(ValueError, match="'openai_stream' must be true or false"):
         kit.Config.load(tmp_path)
@@ -390,7 +390,7 @@ def test_a_streamed_reply_is_shown_only_when_complete(tmp_path, path):
     if "cut" in path:
         assert row["ok"] is False
         assert row["shown"] == (
-            "nooku: cannot read the reply: the stream ended before data: [DONE]"
+            "nookku: cannot read the reply: the stream ended before data: [DONE]"
         )
         assert [n.kind for n in report.notes] == ["agent_error"] and report.exit == 0
     else:
@@ -433,7 +433,7 @@ def test_the_view_shows_a_bad_line_once_and_then_follows_again(setup, monkeypatc
     kit.handle(prompt("Where is order #4471?"), root, "codex")
     first, second = record(root).read_text().splitlines(keepends=True)
     if tests:
-        path = root / ".nooku" / "tests" / "20261007-080000-aaaa" / "relay.jsonl"
+        path = root / ".nookku" / "tests" / "20261007-080000-aaaa" / "relay.jsonl"
         path.parent.mkdir(parents=True)
     else:
         path = record(root)
@@ -459,7 +459,7 @@ def test_the_view_shows_a_bad_line_once_and_then_follows_again(setup, monkeypatc
         else:
             kit.view(path, True, out, poll=0, err=err)
     assert err.getvalue() == (
-        f"nooku: the record is invalid: {path}: line 2: not JSON (Expecting value). "
+        f"nookku: the record is invalid: {path}: line 2: not JSON (Expecting value). "
         "Do not trust this record. The view shows the next turns when the record changes "
         "and is valid.\n"
     )
@@ -473,7 +473,9 @@ def test_the_view_without_follow_stops_at_a_bad_line(setup, capsys):
     with pytest.raises(RecordError, match="line 1"):
         kit.view(record(root), follow=False, out=io.StringIO())
     assert cli.main(["view", "--root", str(root), "--no-follow"]) == 2
-    assert capsys.readouterr().err == f"nooku: {record(root)}: line 1: not JSON (Expecting value)\n"
+    assert (
+        capsys.readouterr().err == f"nookku: {record(root)}: line 1: not JSON (Expecting value)\n"
+    )
 
 
 def test_the_installed_hook_command_runs(setup):
@@ -514,6 +516,6 @@ def test_the_model_may_run_the_transcript_command(setup):
     event = {
         "hook_event_name": "PreToolUse",
         "tool_name": "Bash",
-        "tool_input": {"command": "nooku transcript"},
+        "tool_input": {"command": "nookku transcript"},
     }
     assert kit.handle(event, root, "codex") is None

@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from toy_model_server import ModelServer
 
-from nooku import backend, model_api
+from nookku import backend, model_api
 
 TRACE = Path(__file__).resolve().parent.parent / "conformance" / "trace"
 STREAM = [

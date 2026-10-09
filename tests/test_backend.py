@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 from toy_stock_server import StockServer
 
-from nooku import backend
+from nookku import backend
 
 
 def proxy_for(stock: StockServer, tmp_path: Path, url: str | None = None) -> backend.Proxies:

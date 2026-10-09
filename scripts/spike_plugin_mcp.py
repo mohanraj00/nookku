@@ -60,7 +60,7 @@ from typing import Any, ClassVar
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
-from nooku import backend  # noqa: E402
+from nookku import backend  # noqa: E402
 
 MODEL = "haiku"
 PLUGIN = "mcp-spike"

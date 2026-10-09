@@ -21,15 +21,15 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from nooku import __version__, backend, contract, model_api, otlp, seal, trace
-from nooku.adapters import History
-from nooku.audit import audit
-from nooku.config import FILE as CONFIG_FILE
-from nooku.config import STATE_DIR as STATE_DIR
-from nooku.config import ConfigError, read_config
-from nooku.record import RecordError, Writer, turns
-from nooku.stdio import STRAY_HINT, Agent, StdioTap, start_in_thread
-from nooku.stdio import TIMEOUT as AGENT_TIMEOUT
+from nookku import __version__, backend, contract, model_api, otlp, seal, trace
+from nookku.adapters import History
+from nookku.audit import audit
+from nookku.config import FILE as CONFIG_FILE
+from nookku.config import STATE_DIR as STATE_DIR
+from nookku.config import ConfigError, read_config
+from nookku.record import RecordError, Writer, turns
+from nookku.stdio import STRAY_HINT, Agent, StdioTap, start_in_thread
+from nookku.stdio import TIMEOUT as AGENT_TIMEOUT
 
 # The harness session that ends a test, for the bridge (SPEC.md section 7.2).
 ENDING = "ending.json"
@@ -40,7 +40,7 @@ POLL = 0.5
 # Files in the state folder that a test writes or that switch a mode. They are not configuration.
 NOT_CONFIG = {"tests", "current.json", "mode", "relay.jsonl", "tap.jsonl", ENDING}
 SKIP_DIRS = {"node_modules", ".venv", "__pycache__", ".git"}
-CHECK_MESSAGE = "Hello from nooku check. What can you help me with?"
+CHECK_MESSAGE = "Hello from nookku check. What can you help me with?"
 # For each break class of the audit (SPEC.md section 3.3): what occurred in the check, and the fix.
 ONE_SENDER = "Make sure that only one relay sends messages to the tap."
 BREAK_FIX = {
@@ -75,7 +75,7 @@ def state(root: Path) -> Path:
 
 
 def load_config(root: Path) -> TestConfig:
-    """The test keys of `.nooku/config.json`. Raise BridgeError if the file breaks the
+    """The test keys of `.nookku/config.json`. Raise BridgeError if the file breaks the
     rule of `config.read_config`, or if there is no entry."""
     try:
         data = read_config(root)
@@ -207,7 +207,7 @@ def start(root: Path, tester_session: str | None = None, wait: float = 30.0) -> 
     test = f"{stamp}-{secrets.token_hex(2)}"
     folder = state(root) / "tests" / test
     folder.mkdir(parents=True)
-    argv = [sys.executable, "-m", "nooku", "bridge", "--root", str(root), "--test", test]
+    argv = [sys.executable, "-m", "nookku", "bridge", "--root", str(root), "--test", test]
     if tester_session:
         argv += ["--tester-session", tester_session]
     with (folder / "bridge.log").open("ab") as log:
@@ -279,7 +279,7 @@ def summary(manifest: dict[str, Any]) -> str:
     with contextlib.suppress(OSError, ValueError, KeyError):
         lines.append(trace.summary(json.loads((folder / "findings.json").read_text())))
     lines.append(
-        f"Audit: nooku audit --tap {folder / 'tap.jsonl'} --relay {folder / 'relay.jsonl'}"
+        f"Audit: nookku audit --tap {folder / 'tap.jsonl'} --relay {folder / 'relay.jsonl'}"
     )
     return "\n".join(lines)
 
@@ -309,20 +309,20 @@ def send(cur: dict[str, Any], said: str, timeout: float = TIMEOUT) -> tuple[str,
         if e.code == 500:
             try:
                 error = contract.parse_reply(text, rid)[1]
-                return f"nooku: the agent sent an error:\n{error}", False
+                return f"nookku: the agent sent an error:\n{error}", False
             except contract.ContractError:
                 pass
         try:
             message = json.loads(text)["error"]
         except (ValueError, KeyError, TypeError):
             message = text.decode("utf-8", errors="replace")
-        return f"nooku: HTTP {e.code}: {message}", False
+        return f"nookku: HTTP {e.code}: {message}", False
     except (OSError, ValueError) as e:
-        return f"nooku: cannot reach the tap at {cur['tap_url']}: {e}", False
+        return f"nookku: cannot reach the tap at {cur['tap_url']}: {e}", False
     try:
         reply, _ = contract.parse_reply(out, rid)
     except contract.ContractError as e:
-        return f"nooku: cannot read the reply: {e}", False
+        return f"nookku: cannot read the reply: {e}", False
     assert reply is not None
     return reply, True
 
@@ -498,7 +498,7 @@ def codex_sessions(
 
 def _log(message: str) -> None:
     """One progress line in bridge.log, so that a test that does not start shows its last step."""
-    print(f"nooku bridge: {message}", file=sys.stderr, flush=True)
+    print(f"nookku bridge: {message}", file=sys.stderr, flush=True)
 
 
 def _write_json(path: Path, data: dict[str, Any]) -> None:
@@ -514,7 +514,7 @@ def run(root: Path, test: str, tester_session: str | None, timeout: float = AGEN
     config = load_config(root)
     pid_start = process_start(os.getpid())
     if pid_start is None:
-        print("nooku bridge: cannot read the start time of its process", file=sys.stderr)
+        print("nookku bridge: cannot read the start time of its process", file=sys.stderr)
         return 1
     started = time.time()
     manifest: dict[str, Any] = {
@@ -526,7 +526,7 @@ def run(root: Path, test: str, tester_session: str | None, timeout: float = AGEN
         "models": config.models,
         "started": started,
         "ended": None,
-        "versions": {"nooku": __version__, "claude-code": None, "codex": None},
+        "versions": {"nookku": __version__, "claude-code": None, "codex": None},
         "config_sha256": config_hashes(root),
         "tester_sessions": [tester_session] if tester_session else [],
         "model_sessions": [],
@@ -560,13 +560,13 @@ def run(root: Path, test: str, tester_session: str | None, timeout: float = AGEN
     try:
         agent.start()
     except OSError as e:
-        print(f"nooku bridge: cannot start the entry {config.entry}: {e}", file=sys.stderr)
+        print(f"nookku bridge: cannot start the entry {config.entry}: {e}", file=sys.stderr)
         return 1
     _log(f"entry started: {config.entry}")
     time.sleep(0.3)
     assert agent.proc is not None
     if agent.proc.poll() is not None:
-        print(f"nooku bridge: the entry exited at start:\n{agent.tail()}", file=sys.stderr)
+        print(f"nookku bridge: the entry exited at start:\n{agent.tail()}", file=sys.stderr)
         return 1
     stop = threading.Event()
     for sig in (signal.SIGTERM, signal.SIGINT):
@@ -725,7 +725,7 @@ def check(root: Path) -> tuple[bool, list[str]]:
         Writer(relay).append(
             {
                 "type": "turn",
-                "harness": "nooku-check",
+                "harness": "nookku-check",
                 "said": CHECK_MESSAGE,
                 "shown": shown,
                 "ok": ok,

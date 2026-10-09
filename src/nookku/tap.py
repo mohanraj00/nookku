@@ -13,9 +13,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from nooku.adapters import Adapter, AdapterError, StreamError, is_stream
-from nooku.record import Writer, lone_surrogate
-from nooku.stdio import TIMEOUT
+from nookku.adapters import Adapter, AdapterError, StreamError, is_stream
+from nookku.record import Writer, lone_surrogate
+from nookku.stdio import TIMEOUT
 
 HOP_BY_HOP = {
     "connection",
@@ -86,7 +86,7 @@ class _Handler(BaseHTTPRequestHandler):
 
     def _forward(self) -> None:
         if "chunked" in self.headers.get("Transfer-Encoding", "").lower():
-            self._error(411, "nooku needs a Content-Length request body")
+            self._error(411, "nookku needs a Content-Length request body")
             return
         body = self.rfile.read(int(self.headers.get("Content-Length") or 0))
         tap, method, path = self.server, self.command, self.path
@@ -161,9 +161,9 @@ class _Handler(BaseHTTPRequestHandler):
                     }
                 )
             if why:
-                self._error(504, f"nooku tap: {why}")
+                self._error(504, f"nookku tap: {why}")
             else:
-                self._error(502, f"nooku tap: the agent is unreachable: {e}")
+                self._error(502, f"nookku tap: the agent is unreachable: {e}")
             return
         if streamed:
             # The stream sends the status first, so it runs outside the try above. Thus no handler
@@ -207,7 +207,7 @@ class _Handler(BaseHTTPRequestHandler):
                                 "error": note,
                             }
                         )
-                        self._error(502, f"nooku tap: {note}")
+                        self._error(502, f"nookku tap: {note}")
                         return
                     tap.writer.append(
                         {"type": "exchange", "input": message, "status": status, "reply": reply}
@@ -291,7 +291,7 @@ class _Handler(BaseHTTPRequestHandler):
             try:
                 self._stream_row(resp.status, bytes(raw), message, parse_error, failure)
             except OSError as e:
-                print(f"nooku tap: cannot write the record: {e}", file=sys.stderr)
+                print(f"nookku tap: cannot write the record: {e}", file=sys.stderr)
                 self.close_connection = True
                 return
         if caller and held:
@@ -348,11 +348,11 @@ def serve(tap: Tap) -> None:
     host, port = tap.server_address[:2]
     host = host.decode() if isinstance(host, bytes) else host
     print(
-        f"nooku tap: listening on http://{host}:{port}/ "
+        f"nookku tap: listening on http://{host}:{port}/ "
         f"-> {tap.scheme}://{tap.agent_host}:{tap.agent_port}{tap.base_path}/",
         file=sys.stderr,
     )
-    print(f"nooku tap: writing {tap.writer.path}", file=sys.stderr)
+    print(f"nookku tap: writing {tap.writer.path}", file=sys.stderr)
     try:
         tap.serve_forever()
     except KeyboardInterrupt:
