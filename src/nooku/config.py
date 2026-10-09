@@ -36,6 +36,10 @@ def move_old_state(root: Path) -> str | None:
             f"{old} and {new} both exist. Keep one: move the tests that you need into {new}, "
             f"then remove {old}."
         )
+    # Change the config first. If that fails, the old folder stays, and the next run tries again.
+    error = _move_record_key(old / "config.json")
+    if error:
+        return error
     try:
         old.rename(new)
     except FileNotFoundError:
@@ -43,14 +47,13 @@ def move_old_state(root: Path) -> str | None:
     except OSError as error:
         return f"cannot move {old} to {new}: {error}"
     print(f"nooku: moved {old} to {new}", file=sys.stderr)
-    return _move_record_key(root)
+    return None
 
 
-def _move_record_key(root: Path) -> str | None:
+def _move_record_key(path: Path) -> str | None:
     """Change a `record` key in the old state folder to the same file in STATE_DIR. Without this
     change, the first prompt writes the record into the old folder again, and then both folders
     exist. A record path outside the old folder stays as it is."""
-    path = root / FILE
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:

@@ -78,3 +78,23 @@ def test_the_move_keeps_a_custom_record_path(tmp_path: Path) -> None:
     (tmp_path / OLD_STATE_DIR / "config.json").write_text(json.dumps(conf))
     assert move_old_state(tmp_path) is None
     assert json.loads((tmp_path / STATE_DIR / "config.json").read_text()) == conf
+
+
+def test_a_failed_config_change_keeps_the_old_folder(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    old_state(tmp_path)
+    conf = tmp_path / OLD_STATE_DIR / "config.json"
+    conf.write_text(json.dumps({"record": f"{OLD_STATE_DIR}/relay.jsonl"}))
+
+    def fail(*args: object, **kwargs: object) -> None:
+        raise PermissionError("read-only")
+
+    with monkeypatch.context() as m:
+        m.setattr(Path, "write_text", fail)
+        assert "cannot write" in (move_old_state(tmp_path) or "")
+    assert conf.exists()
+    assert not (tmp_path / STATE_DIR).exists()
+    assert move_old_state(tmp_path) is None
+    data = json.loads((tmp_path / STATE_DIR / "config.json").read_text())
+    assert data["record"] == f"{STATE_DIR}/relay.jsonl"
