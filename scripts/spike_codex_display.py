@@ -6,6 +6,7 @@ measure refuses untrusted hooks, then uses a loopback mock model in exec and the
 desktop-start prints the human checks. desktop-finish imports observations from JSON.
 desktop-refresh-start/finish record the event delta for a separate human button check.
 No model request, model answer, terminal transcript or harness instruction is saved.
+This local method supports macOS and Linux; the TUI probe uses Unix APIs.
 Use Python with tomllib for this local method. It does not add a package dependency.
 The script records only marker locations, event names and UI observations.
 """
@@ -36,19 +37,13 @@ from typing import Any, ClassVar
 
 ROOT = Path(__file__).resolve().parent.parent
 PROOF = ROOT / "proofs/spikes/codex-display.json"
-COMMON = subprocess.run(
-    ["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
-    cwd=ROOT,
-    capture_output=True,
-    text=True,
-    check=True,
-).stdout.strip()
-WORK = Path(COMMON).parent / ".proof/codex-display-205"
+WORK = ROOT / ".proof/codex-display-205"
 PLUGIN = WORK / "plugin"
 PROJECT = WORK / "project"
 MARKET = "toy-display-market-205"
 NAME = "toy-display-spike-205"
 SELECTOR = f"{NAME}@{MARKET}"
+INVOCATION_OVERRIDES: list[str] = []
 EVENTS = ("SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "Stop")
 MARKERS = (
     *(
@@ -207,6 +202,20 @@ for line in sys.stdin:
 """
 
 
+def use_primary_checkout() -> None:
+    """Resolve fixture paths when a command runs, not during test collection."""
+    global WORK, PLUGIN, PROJECT
+    common = subprocess.run(
+        ["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    WORK = Path(common).parent / ".proof/codex-display-205"
+    PLUGIN, PROJECT = WORK / "plugin", WORK / "project"
+
+
 def write(path: Path, value: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(value, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
@@ -254,28 +263,9 @@ def reviewed_write(path: Path, text: str) -> None:
     path.write_text(text, encoding="utf-8")
 
 
-def prepare() -> None:
-    PROJECT.mkdir(parents=True, exist_ok=True)
-    (PLUGIN / "hooks").mkdir(parents=True, exist_ok=True)
-    skill = PLUGIN / "skills/toy-order"
-    skill.mkdir(parents=True, exist_ok=True)
-    write(
-        PLUGIN / ".codex-plugin/plugin.json",
-        {
-            "name": NAME,
-            "version": "0.0.1",
-            "description": "Toy shop display spike.",
-            "skills": "./skills/",
-            "mcpServers": "./.mcp.json",
-            "interface": {
-                "displayName": "Toy shop display",
-                "shortDescription": "Inspect a toy shop order.",
-            },
-        },
-    )
+def fixture_definition() -> str:
     hook_command = f'{shlex.quote(sys.executable)} "${{PLUGIN_ROOT}}/hook.py"'
-    reviewed_write(
-        PLUGIN / "hooks/hooks.json",
+    return (
         json.dumps(
             {
                 "hooks": {
@@ -297,8 +287,30 @@ def prepare() -> None:
             indent=2,
             ensure_ascii=False,
         )
-        + "\n",
+        + "\n"
     )
+
+
+def prepare() -> None:
+    PROJECT.mkdir(parents=True, exist_ok=True)
+    (PLUGIN / "hooks").mkdir(parents=True, exist_ok=True)
+    skill = PLUGIN / "skills/toy-order"
+    skill.mkdir(parents=True, exist_ok=True)
+    write(
+        PLUGIN / ".codex-plugin/plugin.json",
+        {
+            "name": NAME,
+            "version": "0.0.1",
+            "description": "Toy shop display spike.",
+            "skills": "./skills/",
+            "mcpServers": "./.mcp.json",
+            "interface": {
+                "displayName": "Toy shop display",
+                "shortDescription": "Inspect a toy shop order.",
+            },
+        },
+    )
+    reviewed_write(PLUGIN / "hooks/hooks.json", fixture_definition())
     for filename, text in (("hook.py", HOOK), ("server.py", SERVER), ("order.html", HTML)):
         if filename == "hook.py":
             reviewed_write(PLUGIN / filename, text)
@@ -345,22 +357,25 @@ def prepare() -> None:
 def overrides() -> list[str]:
     # Do not disable the trust check or ignore the config that holds human trust.
     values = {
-        f'plugins."{SELECTOR}".enabled': "true",
-        f'marketplaces."{MARKET}".source_type': '"local"',
-        f'marketplaces."{MARKET}".source': json.dumps(str(WORK)),
+        f"plugins.{SELECTOR}.enabled": "true",
+        f"marketplaces.{MARKET}.source_type": '"local"',
+        f"marketplaces.{MARKET}.source": json.dumps(str(WORK)),
         "features.hooks": "true",
         "features.code_mode": "false",
         "features.code_mode_only": "false",
     }
     # Disable other plugins for this invocation only. Leave saved user config untouched.
-    import tomllib
-
     config = Path.home() / ".codex/config.toml"
     if config.exists():
+        import tomllib
+
         for name in tomllib.loads(config.read_text()).get("plugins", {}):
             if name != SELECTOR:
-                values[f'plugins."{name}".enabled'] = "false"
-    return [arg for key, value in values.items() for arg in ("-c", f"{key}={value}")]
+                values[f"plugins.{name}.enabled"] = "false"
+    return [
+        *[arg for key, value in values.items() for arg in ("-c", f"{key}={value}")],
+        *INVOCATION_OVERRIDES,
+    ]
 
 
 class AppServer:
@@ -413,6 +428,30 @@ class AppServer:
             self.process.wait()
 
 
+def isolate_invocation() -> None:
+    """Disable unrelated hooks for this invocation; do not write trust or saved config."""
+    server = AppServer()
+    try:
+        server.request(
+            "initialize",
+            {
+                "clientInfo": {"name": "toy-display-205", "version": "0.0.1"},
+                "capabilities": {"experimentalApi": True},
+            },
+        )
+        hooks = server.request("hooks/list", {"cwds": [str(PROJECT)]})["data"][0]["hooks"]
+        if any(
+            h.get("enabled") and h.get("pluginId") != SELECTOR and h.get("isManaged") for h in hooks
+        ):
+            raise SystemExit("A non-toy managed hook is enabled. The isolated probe cannot run.")
+        disabled = [h["key"] for h in hooks if h.get("pluginId") != SELECTOR]
+        state = ", ".join(f"{json.dumps(key)}={{enabled=false}}" for key in disabled)
+        if disabled:
+            INVOCATION_OVERRIDES.extend(["-c", "hooks.state={" + state + "}"])
+    finally:
+        server.close()
+
+
 def metadata() -> dict[str, Any]:
     server = AppServer()
     try:
@@ -432,7 +471,7 @@ def metadata() -> dict[str, Any]:
             {"pluginName": NAME, "marketplacePath": str(WORK / ".agents/plugins/marketplace.json")},
         )
         return {
-            "hooks": [h for h in hooks["hooks"] if h.get("pluginId") == SELECTOR],
+            "hooks": hooks["hooks"],
             "errors": hooks["errors"],
             "warnings": hooks["warnings"],
             "plugin": plugin,
@@ -665,20 +704,88 @@ def tty(args: list[str], prompt: str) -> tuple[int | None, bytes]:
             os.waitpid(pid, 0)
 
 
-def measure(surface: str | None = None, only_case: str | None = None) -> None:
-    data = read(PROOF)
-    hooks = metadata()["hooks"]
-    expected = {event[0].lower() + event[1:] for event in EVENTS}
+def verify_fixture(observed: dict[str, Any], pinned: list[dict[str, Any]]) -> dict[str, Any]:
+    """Check all discovered hooks and the installed bytes before starting an endpoint."""
+    discovered = observed["hooks"]
+    if any(h.get("enabled") and h.get("pluginId") != SELECTOR for h in discovered):
+        raise SystemExit(
+            "Non-toy hooks are enabled. Disable them for this probe; no endpoint started."
+        )
+    hooks = [h for h in discovered if h.get("pluginId") == SELECTOR]
+    expected = {event[0].lower() + event[1:]: event for event in EVENTS}
     if (
-        len(hooks) != len(EVENTS)
-        or {h.get("eventName") for h in hooks} != expected
-        or not all(h["enabled"] and h["trustStatus"] == "trusted" for h in hooks)
+        observed.get("errors")
+        or len(hooks) != len(EVENTS)
+        or {h.get("eventName") for h in hooks} != set(expected)
+        or not all(h.get("enabled") and h.get("trustStatus") == "trusted" for h in hooks)
     ):
         raise SystemExit(
             "The toy hooks are not all trusted. A person must review /hooks. "
             "No model endpoint started."
         )
-    data["preflight"] = safe(hooks)
+    cache = Path.home() / ".codex/plugins/cache" / MARKET / NAME / "0.0.1"
+    definition = fixture_definition().encode()
+    executable = HOOK.encode()
+    for root in (PLUGIN, cache):
+        for relative, expected_bytes in (("hooks/hooks.json", definition), ("hook.py", executable)):
+            path = root / relative
+            try:
+                matches = path.resolve() == path and path.read_bytes() == expected_bytes
+            except OSError:
+                matches = False
+            if not matches:
+                raise SystemExit(
+                    "The toy fixture bytes or path differ. Use a new fixture and human review. "
+                    "No model endpoint started."
+                )
+    hashes = {h["eventName"]: h.get("currentHash") for h in pinned if h.get("pluginId") == SELECTOR}
+    for hook in hooks:
+        event = expected[hook["eventName"]]
+        fields = {
+            "source": "plugin",
+            "handlerType": "command",
+            "sourcePath": str(cache / "hooks/hooks.json"),
+            "command": f'{shlex.quote(sys.executable)} "{cache}/hook.py"',
+            "async": False,
+            "matcher": None,
+            "timeoutSec": 10,
+            "statusMessage": f"DISPLAY_STATUS_{event}_205",
+            "additionalContextLimit": None,
+        }
+        current_hash = hook.get("currentHash")
+        if (
+            any(hook.get(k) != v for k, v in fields.items())
+            or not isinstance(current_hash, str)
+            or not re.fullmatch(r"sha256:[0-9a-f]{64}", current_hash)
+            or hashes.get(hook["eventName"]) != current_hash
+        ):
+            raise SystemExit(
+                "The toy fixture command, source or definition hash differs from the inspected "
+                "fixture. Run inspect on the generated fixture and let a person review /hooks. "
+                "No model endpoint started."
+            )
+    return {
+        "hooks": hooks,
+        "definition_sha256": hashlib.sha256(definition).hexdigest(),
+        "executable_sha256": hashlib.sha256(executable).hexdigest(),
+        "installed_root": str(cache),
+        "method": "Generated bytes, exact command/source, and inspected hook definition hashes.",
+    }
+
+
+def pin_evidence(verified: dict[str, Any]) -> dict[str, Any]:
+    return {
+        **{k: v for k, v in verified.items() if k != "hooks"},
+        "hook_hashes": {h["eventName"]: h["currentHash"] for h in verified["hooks"]},
+    }
+
+
+def measure(surface: str | None = None, only_case: str | None = None) -> None:
+    data = read(PROOF)
+    pinned = data.get("inspection", {}).get("hooks", [])
+    verified = verify_fixture(metadata(), pinned)
+    data["preflight"] = safe(verified["hooks"])
+    data["fixture_pin"] = safe(pin_evidence(verified))
     runs = data.setdefault("runs", [])
     for run in runs:
         if (surface is None or run["surface"] == surface) and (
@@ -696,6 +803,7 @@ def measure(surface: str | None = None, only_case: str | None = None) -> None:
         ):
             if only_case and only_case != case:
                 continue
+            verified = verify_fixture(metadata(), pinned)
             before_hooks, before_mcp = (
                 len(rows(PROJECT / "hooks.jsonl")),
                 len(rows(PROJECT / "mcp.jsonl")),
@@ -760,6 +868,7 @@ def measure(surface: str | None = None, only_case: str | None = None) -> None:
                         else "process exit",
                         "markers_in_output": {m: m in flat for m in MARKERS},
                         "model_requests": Model.observations,
+                        "fixture_pin": safe(pin_evidence(verified)),
                         "hook_events": rows(PROJECT / "hooks.jsonl")[before_hooks:],
                         "mcp_events": mcp_events,
                     }
@@ -794,7 +903,9 @@ def desktop_start() -> None:
     print(
         "Also check the app menu and chat side panel for Toy shop order. "
         "Record JSON: runtime_version, status_shown, warnings_shown, "
-        "skill_started_turn, ui_rendered, refresh_started_turn, sidebar_entry, panel_entry, notes."
+        "skill_started_turn, ui_rendered, refresh_started_turn, sidebar_entry, panel_entry, "
+        "pane_location (left/right/inline/unknown), opening_path (tool/menu/unknown), "
+        "refresh_click_count (none/once/several/unknown). Use booleans or null for checks."
     )
 
 
@@ -844,11 +955,37 @@ def desktop_finish(path: Path) -> None:
         "refresh_started_turn",
         "sidebar_entry",
         "panel_entry",
-        "notes",
+        "pane_location",
+        "opening_path",
+        "refresh_click_count",
     }
     if set(observation) - allowed or not allowed <= set(observation):
         raise SystemExit(
             "Use exactly the fields printed by desktop-start. Do not import a model answer."
+        )
+    checks = allowed - {"runtime_version", "pane_location", "opening_path", "refresh_click_count"}
+    version = observation["runtime_version"]
+    choices = {
+        "pane_location": {"left", "right", "inline", "unknown"},
+        "opening_path": {"tool", "menu", "unknown"},
+        "refresh_click_count": {"none", "once", "several", "unknown"},
+    }
+    if (
+        any(observation[k] is not None and type(observation[k]) is not bool for k in checks)
+        or (
+            version is not None
+            and (
+                not isinstance(version, str)
+                or not re.fullmatch(r"[0-9]{1,8}(\.[0-9]{1,8}){1,3}", version)
+            )
+        )
+        or any(
+            not isinstance(observation[k], str) or observation[k] not in v
+            for k, v in choices.items()
+        )
+    ):
+        raise SystemExit(
+            "Use bounded observations only. Do not import a model answer or free text."
         )
     baseline = read(WORK / "desktop-baseline.json")
     if not baseline:
@@ -884,9 +1021,11 @@ def main() -> None:
     parser.add_argument("--surface", choices=("codex_exec", "interactive_cli"))
     parser.add_argument("--case", choices=("hooks", "mcp", "skill"))
     args = parser.parse_args()
+    use_primary_checkout()
     if args.operation in ("desktop-refresh-start", "desktop-refresh-finish"):
         desktop_refresh(args.operation == "desktop-refresh-start")
     elif args.operation == "measure":
+        isolate_invocation()
         measure(args.surface, args.case)
     elif args.operation == "desktop-finish":
         if args.observation is None:

@@ -12,7 +12,7 @@ for CLI checks. A person must trust the hooks and do the desktop checks.
 |---|---|---|---|
 | Code inside the Codex process | No supported function handler in the inspected schema. | Same schema. | The documented plugin hook API uses the same handler types. |
 | Persistent plugin status line or footer | No registration field. The CLI status line selects built-in items. | No terminal display. | No registration field in the inspected plugin metadata. |
-| Hook `statusMessage` | The toy PostToolUse and Stop status markers showed. | No status marker in captured output. | Status was not identified. |
+| Hook `statusMessage` | The toy status markers showed for the fixture events. | No status marker in captured output. | Status was not identified. |
 | Hook `systemMessage` without a block | The toy warnings showed. | No warning marker in captured output. | No warning was seen. The hook events were recorded. |
 | Hook `additionalContext` | Added to the model request as developer text. | Added to the model request as developer text. | The docs define it as model context. No request capture in this desktop method. |
 | A skill as a command | The skill body went to the model and started a turn. | The skill body went to the model and started a turn. | The skill started a model turn and ran the toy command. |
@@ -46,7 +46,8 @@ contain the observations and limits. The [method](../scripts/spike_codex_display
 Warning and status markers were absent from the captured model requests. This check covers the
 requests in each toy turn. Stop runs after the final request. I did not test its warning in a later turn.
 I did not test byte equality of a rendered reply. The desktop method records human observations and
-toy hook/MCP event names. It does not capture desktop model requests.
+toy hook/MCP event names. It does not capture desktop model requests. The installed hook files were checked after the
+human observations; no file snapshot was taken at each earlier desktop event.
 
 ## Run the method
 
@@ -54,15 +55,20 @@ Use a Python version with `tomllib`. The method adds no package dependency.
 Run `python3 scripts/spike_codex_display.py prepare`. Install the toy plugin with the commands it prints.
 A person opens `/hooks` in the printed toy project and trusts only the toy display hooks.
 The script does not write trust state. It refuses to replace a reviewed hook definition or executable.
+Before each CLI case, it checks the installed command, source, definition hash and file bytes
+against the generated fixture and inspected hook definitions. It disables other hooks for that
+invocation and then checks the full hook list. Any enabled non-toy hook stops the probe.
 
 Run `inspect` to record schema and plugin metadata. Run `measure` for the CLI matrix.
 Use `--surface codex_exec|interactive_cli` or `--case hooks|mcp|skill` to repeat a selected case.
-Superseded runs are excluded from conclusions. The mock model sends fixed toy calls and answers.
+Superseded runs are excluded from conclusions. The first matrix included enabled non-toy hooks;
+its results are excluded. The final matrix checks the isolated fixture before each case. The mock model sends fixed toy calls and answers.
 The result keeps marker locations and event names. It keeps no request body, model answer or terminal transcript.
 
 Run `desktop-start`, then follow its steps in a new local desktop chat. Do not run the CLI matrix
 in that toy project during the desktop check. A person records the observations and app version.
-Run `desktop-finish FILE` to import the observation JSON. The importer rejects extra fields such as a model answer.
+Run `desktop-finish FILE` to import the observation JSON. The importer accepts only booleans, bounded choices and a version string. It rejects free text,
+including notes and model answers.
 For a separate button check, run `desktop-refresh-start`. Ask the person to click Refresh order
 without a chat prompt. Run `desktop-refresh-finish` to record the server and hook events since
 the baseline. Check the chat before and after for a new model turn. Record deviations from
