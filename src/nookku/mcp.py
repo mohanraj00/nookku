@@ -19,6 +19,9 @@ from typing import Any, TextIO
 from nookku import __version__, kit
 
 PROTOCOL = "2025-06-18"
+# The MCP versions that this server answers with the same messages. A client that asks for another
+# version gets PROTOCOL, and can stop if it does not support it.
+PROTOCOLS = {"2024-11-05", "2025-03-26", PROTOCOL}
 # The page bound of a transcript page, as an estimate of tokens (estimate_tokens). The
 # measurement and its method are in SPEC.md section 5.
 PAGE_TOKENS = 2000
@@ -97,9 +100,29 @@ def pages(text: str, limit: float) -> list[tuple[int, int]]:
     return bounds
 
 
+def _footer(number: int, count: int, start: int, end: int, length: int, digest: str) -> str:
+    after = (
+        f"Next: call transcript with page {number + 1}."
+        if number < count
+        else "This is the last page."
+    )
+    return (
+        f"\n──── nookku: end of page {number} of {count}. Characters {start} to {end} of "
+        f"{length}. SHA-256 of this page: {digest}. {after} ────\n"
+    )
+
+
+# The estimate of the longest footer. A page body gets the bound less this, so that the whole
+# result, with its footer, stays in the bound.
+FOOTER_TOKENS = estimate_tokens(_footer(10**9, 10**9 + 1, 10**12, 10**12, 10**12, "f" * 64))
+
+
 def page(text: str, number: int, limit: float) -> tuple[str, dict[str, Any]]:
-    """One page of a text with its footer, and the facts of the footer as data."""
-    bounds = pages(text, limit)
+    """One page of a text with its footer, and the facts of the footer as data. The page with its
+    footer has an estimate of at most `limit` tokens."""
+    if limit <= FOOTER_TOKENS:
+        raise ValueError(f"page_tokens must be more than {FOOTER_TOKENS:g}")
+    bounds = pages(text, limit - FOOTER_TOKENS)
     if not 1 <= number <= len(bounds):
         raise ValueError(f"page {number} does not exist. The text has {len(bounds)} pages.")
     start, end = bounds[number - 1]
@@ -113,16 +136,7 @@ def page(text: str, number: int, limit: float) -> tuple[str, dict[str, Any]]:
         "length": len(text),
         "sha256": digest,
     }
-    after = (
-        f"Next: call transcript with page {number + 1}."
-        if number < len(bounds)
-        else "This is the last page."
-    )
-    footer = (
-        f"\n──── nookku: end of page {number} of {len(bounds)}. Characters {start} to {end} of "
-        f"{len(text)}. SHA-256 of this page: {digest}. {after} ────\n"
-    )
-    return body + footer, facts
+    return body + _footer(number, len(bounds), start, end, len(text), digest), facts
 
 
 def _transcript(root: Path, args: dict[str, Any]) -> tuple[str, dict[str, Any]]:
@@ -169,7 +183,7 @@ def answer(root: Path, message: Any) -> dict[str, Any] | None:
     if method == "initialize":
         version = params.get("protocolVersion")
         result: dict[str, Any] = {
-            "protocolVersion": version if isinstance(version, str) else PROTOCOL,
+            "protocolVersion": version if version in PROTOCOLS else PROTOCOL,
             "capabilities": {"tools": {}},
             "serverInfo": {"name": "nookku", "version": __version__},
         }
@@ -194,8 +208,10 @@ def project_root() -> Path:
     return Path(os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd()).resolve()
 
 
-def serve(root: Path, stdin: TextIO = sys.stdin, stdout: TextIO = sys.stdout) -> int:
+def serve(root: Path, stdin: TextIO | None = None, stdout: TextIO | None = None) -> int:
     """Answer each message of stdin, one JSON object on each line, until stdin ends."""
+    stdin = stdin or sys.stdin
+    stdout = stdout or sys.stdout
     for line in stdin:
         if not line.strip():
             continue

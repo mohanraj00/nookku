@@ -33,6 +33,8 @@ def relay(root: Path, turns: list[tuple[str, str]]) -> None:
 def test_initialize_names_the_server_and_keeps_the_protocol_version(tmp_path: Path) -> None:
     result = rpc(tmp_path, "initialize", {"protocolVersion": "2025-03-26"})["result"]
     assert result["protocolVersion"] == "2025-03-26"
+    future = rpc(tmp_path, "initialize", {"protocolVersion": "2099-01-01"})["result"]
+    assert future["protocolVersion"] == mcp.PROTOCOL
     assert result["serverInfo"]["name"] == "nookku"
     assert result["capabilities"] == {"tools": {}}
 
@@ -63,7 +65,7 @@ def test_the_transcript_is_the_cli_text_in_pages_that_join_to_it(tmp_path: Path)
         body, footer = text.rsplit("\n──── nookku: end of page", 1)
         assert facts["sha256"] == hashlib.sha256(body.encode()).hexdigest()
         assert facts["sha256"] in footer
-        assert mcp.estimate_tokens(body) <= mcp.PAGE_TOKENS
+        assert mcp.estimate_tokens(text) <= mcp.PAGE_TOKENS
         count = facts["pages"]
         joined += body
         if number == count:
@@ -131,3 +133,24 @@ def test_serve_answers_each_line_in_ascii_json(tmp_path: Path) -> None:
     assert out.getvalue().isascii()
     assert "réponse" in answers[2]["result"]["content"][0]["text"]
     assert re.search(r"end of page 1 of 1\.", answers[2]["result"]["content"][0]["text"])
+
+
+@pytest.mark.parametrize("limit", [100, 300, 2000])
+def test_a_page_with_its_footer_stays_in_the_bound(limit: int) -> None:
+    text = "".join(f'line {n} 日本語 {{"a": [1, 2]}}\n' for n in range(500))
+    count = len(mcp.pages(text, limit - mcp.FOOTER_TOKENS))
+    for number in range(1, count + 1):
+        assert mcp.estimate_tokens(mcp.page(text, number, limit)[0]) <= limit
+
+
+def test_the_server_moves_the_old_state_folder_of_its_default_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from nookku.cli import main
+    from nookku.config import OLD_STATE_DIR, STATE_DIR
+
+    (tmp_path / OLD_STATE_DIR).mkdir()
+    monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(tmp_path))
+    monkeypatch.setattr("sys.stdin", io.StringIO(""))
+    assert main(["mcp"]) == 0
+    assert (tmp_path / STATE_DIR).is_dir() and not (tmp_path / OLD_STATE_DIR).exists()

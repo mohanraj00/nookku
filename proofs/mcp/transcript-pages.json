@@ -15,15 +15,15 @@
       "kind": "english",
       "page_tokens": 2000,
       "sent": {
-        "bytes": 7695,
-        "characters": 7263,
-        "estimate": 2049.0,
-        "sha256": "57380a2c2cc1fc3200d7897c3ae3e092ac6bc12e15dede89ac71a60e56a263bf"
+        "bytes": 7105,
+        "characters": 6705,
+        "estimate": 1892.25,
+        "sha256": "436254962db5076343bcfbb2f57845b9b0bcc77c719b6fd542e6ef1927d8e422"
       },
       "arrived": [
         {
-          "bytes": 7695,
-          "sha256": "57380a2c2cc1fc3200d7897c3ae3e092ac6bc12e15dede89ac71a60e56a263bf"
+          "bytes": 7105,
+          "sha256": "436254962db5076343bcfbb2f57845b9b0bcc77c719b6fd542e6ef1927d8e422"
         }
       ],
       "unchanged": true,
@@ -34,15 +34,15 @@
       "kind": "english",
       "page_tokens": 4000,
       "sent": {
-        "bytes": 15265,
-        "characters": 14449,
-        "estimate": 4056.75,
-        "sha256": "8cbb3003a4e43fae109943d977796c9953b17e1c1dc6086512016e0f4e5dba5e"
+        "bytes": 14776,
+        "characters": 13960,
+        "estimate": 3930.25,
+        "sha256": "d9ebf0ef84a70320b7b37ef32da7a719a394a4526e8838cd4cfe56e83255512d"
       },
       "arrived": [
         {
-          "bytes": 15265,
-          "sha256": "8cbb3003a4e43fae109943d977796c9953b17e1c1dc6086512016e0f4e5dba5e"
+          "bytes": 14776,
+          "sha256": "d9ebf0ef84a70320b7b37ef32da7a719a394a4526e8838cd4cfe56e83255512d"
         }
       ],
       "unchanged": true,
@@ -53,15 +53,15 @@
       "kind": "english",
       "page_tokens": 8000,
       "sent": {
-        "bytes": 30116,
-        "characters": 28468,
-        "estimate": 8005.75,
-        "sha256": "00404821e8170b6122a6d4e978ee91b731a8ad0d73f15052b23c9b42181ecd8f"
+        "bytes": 30015,
+        "characters": 28399,
+        "estimate": 7975.5,
+        "sha256": "67c7868401b2ebba856aa7b2606343438766a62e39eceaf9531a82937e633feb"
       },
       "arrived": [
         {
-          "bytes": 30116,
-          "sha256": "00404821e8170b6122a6d4e978ee91b731a8ad0d73f15052b23c9b42181ecd8f"
+          "bytes": 30015,
+          "sha256": "67c7868401b2ebba856aa7b2606343438766a62e39eceaf9531a82937e633feb"
         }
       ],
       "unchanged": true,
@@ -91,15 +91,15 @@
       "kind": "non_ascii",
       "page_tokens": 4000,
       "sent": {
-        "bytes": 12345,
-        "characters": 7617,
-        "estimate": 3989.25,
-        "sha256": "ac931da01b3374e8a9a54852b251b22004f6176a6642f0425a043c7f6e88dc23"
+        "bytes": 12313,
+        "characters": 7601,
+        "estimate": 3979.0,
+        "sha256": "9300b82366bdce3ab87bcb1105d0cf41dbdce36cc9fa67b78d7c7d9c9dedab12"
       },
       "arrived": [
         {
-          "bytes": 12345,
-          "sha256": "ac931da01b3374e8a9a54852b251b22004f6176a6642f0425a043c7f6e88dc23"
+          "bytes": 12313,
+          "sha256": "9300b82366bdce3ab87bcb1105d0cf41dbdce36cc9fa67b78d7c7d9c9dedab12"
         }
       ],
       "unchanged": true,
@@ -110,15 +110,15 @@
       "kind": "non_ascii",
       "page_tokens": 8000,
       "sent": {
-        "bytes": 24826,
-        "characters": 15122,
-        "estimate": 8055.25,
-        "sha256": "4685f214aaf7f6fb05b47b94c209653499ab90f4af0fb56abf3c4632ddc4e1fb"
+        "bytes": 24076,
+        "characters": 14668,
+        "estimate": 7810.75,
+        "sha256": "55b4c77b4444b36d6adbda12d08955989efcc4a26f8f4cc071eb2a49256ccd4a"
       },
       "arrived": [
         {
-          "bytes": 24826,
-          "sha256": "4685f214aaf7f6fb05b47b94c209653499ab90f4af0fb56abf3c4632ddc4e1fb"
+          "bytes": 24076,
+          "sha256": "55b4c77b4444b36d6adbda12d08955989efcc4a26f8f4cc071eb2a49256ccd4a"
         }
       ],
       "unchanged": true,
@@ -224,15 +224,15 @@
       "kind": "emoji",
       "page_tokens": 8000,
       "sent": {
-        "bytes": 19245,
-        "characters": 7017,
-        "estimate": 8054.25,
-        "sha256": "a326d0462986ee1ceae8a0ddf20ecaef98c0e7ca73ef1261959bc54c401e8edd"
+        "bytes": 18003,
+        "characters": 6587,
+        "estimate": 7528.5,
+        "sha256": "c70f843023e2f31d3c6fc51fa5d9247beae7159f92286e53fa569951ec4d57cd"
       },
       "arrived": [
         {
-          "bytes": 19245,
-          "sha256": "a326d0462986ee1ceae8a0ddf20ecaef98c0e7ca73ef1261959bc54c401e8edd"
+          "bytes": 18003,
+          "sha256": "c70f843023e2f31d3c6fc51fa5d9247beae7159f92286e53fa569951ec4d57cd"
         }
       ],
       "unchanged": true,
@@ -243,23 +243,23 @@
       "kind": "english",
       "page_tokens": 2000,
       "sent": {
-        "bytes": 7695,
-        "characters": 7263,
-        "estimate": 2049.0,
-        "sha256": "57380a2c2cc1fc3200d7897c3ae3e092ac6bc12e15dede89ac71a60e56a263bf"
+        "bytes": 7105,
+        "characters": 6705,
+        "estimate": 1892.25,
+        "sha256": "436254962db5076343bcfbb2f57845b9b0bcc77c719b6fd542e6ef1927d8e422"
       },
       "arrived": [
         {
-          "bytes": 7857,
-          "sha256": "ff28f16be84ce9458a0b66a40a024ab889d2f7806ee30d40f56a48540461df63"
+          "bytes": 7263,
+          "sha256": "aaec3db565ed78a91046db81b3b64eff349b6da56c583893cd853211f0cc592a"
         },
         {
           "bytes": 33,
-          "sha256": "644dc54c794021862b7ac94e0357f255503b6c5589f0ee3d8f3a2dc0ab426f83"
+          "sha256": "4d7c9d7a2c10eae72ed785d1b8dc679017236c25b793d51e4984170c1d7bb849"
         },
         {
-          "bytes": 7695,
-          "sha256": "57380a2c2cc1fc3200d7897c3ae3e092ac6bc12e15dede89ac71a60e56a263bf"
+          "bytes": 7105,
+          "sha256": "436254962db5076343bcfbb2f57845b9b0bcc77c719b6fd542e6ef1927d8e422"
         }
       ],
       "unchanged": true,
@@ -274,23 +274,23 @@
       "kind": "english",
       "page_tokens": 4000,
       "sent": {
-        "bytes": 15265,
-        "characters": 14449,
-        "estimate": 4056.75,
-        "sha256": "8cbb3003a4e43fae109943d977796c9953b17e1c1dc6086512016e0f4e5dba5e"
+        "bytes": 14776,
+        "characters": 13960,
+        "estimate": 3930.25,
+        "sha256": "d9ebf0ef84a70320b7b37ef32da7a719a394a4526e8838cd4cfe56e83255512d"
       },
       "arrived": [
         {
-          "bytes": 12175,
-          "sha256": "49e5574dc43e46b828568cf440fca86c919f6d88d4ef315385c1eb62265cdfb5"
+          "bytes": 12178,
+          "sha256": "4aad0653e7a93f29aeae25291030b6d99583093d4b43e23b7cfcbffa569bf739"
         },
         {
           "bytes": 33,
-          "sha256": "1256e090a47971ebf7ffc7ae7857a2592ee43c0db7e70199f8f2109ed1c10d53"
+          "sha256": "8f3fb634ed5f504af5ddb2c33e6bd2f6cb2d7e3a7cd030c44c3b1f014b4eadfc"
         },
         {
           "bytes": 11988,
-          "sha256": "2ebce86372636792f12f2b69041e0bc31712c3dab2c80d60d2085d78eda135a3"
+          "sha256": "b18ba346dbabf11c8ee0befcc60c4380e7898cb5a8cc82adbbd0967b72c5c3d0"
         }
       ],
       "unchanged": false,
@@ -305,23 +305,23 @@
       "kind": "english",
       "page_tokens": 8000,
       "sent": {
-        "bytes": 30116,
-        "characters": 28468,
-        "estimate": 8005.75,
-        "sha256": "00404821e8170b6122a6d4e978ee91b731a8ad0d73f15052b23c9b42181ecd8f"
+        "bytes": 30015,
+        "characters": 28399,
+        "estimate": 7975.5,
+        "sha256": "67c7868401b2ebba856aa7b2606343438766a62e39eceaf9531a82937e633feb"
       },
       "arrived": [
         {
-          "bytes": 12178,
-          "sha256": "6902fe4a3c93a26d3deef2e6b1fcdd187c253bfbd889af923cfc9f0c2cd806a2"
+          "bytes": 12175,
+          "sha256": "e80dcbb1324d8b048bd35820ee1e03e5de5866322561ffbd8a53d1a404baba02"
         },
         {
           "bytes": 33,
-          "sha256": "d74ae102542e6926a098bb334fa21313e31eeb57be2b49aaebb0aba8b9307deb"
+          "sha256": "1f828996809521486762b3dab4df1b8f58ca7705c325ac338a53c5c1737e9960"
         },
         {
           "bytes": 11988,
-          "sha256": "edaace04ba60447cd0b6a830e89cc17c094cc9c310fc201ab9b190233d92a00c"
+          "sha256": "cb76ed78651c359c2457aaaa58626ad2889c84cec66e3cd7ffd00962ffd64f35"
         }
       ],
       "unchanged": false,
@@ -344,11 +344,11 @@
       "arrived": [
         {
           "bytes": 6236,
-          "sha256": "9edf184832e382b740a5ab5881d6c871bc72398108e439582ffff7141e942a38"
+          "sha256": "1223a9432cc46ab5a323478ce6fbfda44fdd278abdabaedb985998aa26708e83"
         },
         {
           "bytes": 33,
-          "sha256": "f85778232a60e5d0e79a218d1aece1467fd6ffa50aa5dad1851384e298c4fc52"
+          "sha256": "28cbdb9d74140611db053b6d23a5c59eaf7b88c4e1cd9a29a0d27d37096ddbb2"
         },
         {
           "bytes": 6094,
@@ -367,23 +367,23 @@
       "kind": "non_ascii",
       "page_tokens": 4000,
       "sent": {
-        "bytes": 12345,
-        "characters": 7617,
-        "estimate": 3989.25,
-        "sha256": "ac931da01b3374e8a9a54852b251b22004f6176a6642f0425a043c7f6e88dc23"
+        "bytes": 12313,
+        "characters": 7601,
+        "estimate": 3979.0,
+        "sha256": "9300b82366bdce3ab87bcb1105d0cf41dbdce36cc9fa67b78d7c7d9c9dedab12"
       },
       "arrived": [
         {
-          "bytes": 12162,
-          "sha256": "e288ebaecfaea52afbc621d5ee11036d985868e4ae0137676a5749a1b2beb811"
+          "bytes": 12161,
+          "sha256": "f7c18c6c9288a507b59e6cf88b9975c7954397adb0d380a2b58b36dd4500df46"
         },
         {
           "bytes": 33,
-          "sha256": "1256e090a47971ebf7ffc7ae7857a2592ee43c0db7e70199f8f2109ed1c10d53"
+          "sha256": "e6e3a4863caeca98462da7bb64bee492b63cf52605d56f793d8f3faee08c78c6"
         },
         {
           "bytes": 11988,
-          "sha256": "ae2bf1c64fca893a4889b88562c8bdecfce8bad3a845771f959b243053be83b4"
+          "sha256": "53f280954c0673562c497d9e9f36eb0d0e22742fab1ececc573b45be1b982486"
         }
       ],
       "unchanged": false,
@@ -398,23 +398,23 @@
       "kind": "non_ascii",
       "page_tokens": 8000,
       "sent": {
-        "bytes": 24826,
-        "characters": 15122,
-        "estimate": 8055.25,
-        "sha256": "4685f214aaf7f6fb05b47b94c209653499ab90f4af0fb56abf3c4632ddc4e1fb"
+        "bytes": 24076,
+        "characters": 14668,
+        "estimate": 7810.75,
+        "sha256": "55b4c77b4444b36d6adbda12d08955989efcc4a26f8f4cc071eb2a49256ccd4a"
       },
       "arrived": [
         {
           "bytes": 12161,
-          "sha256": "41adf6c661f587cb700f7148f7a53abde15f2def311e90ec203274ade7c38f9e"
+          "sha256": "775f4e7a12e8a556d3f51c4f24249bd92c7c8303968b484dfb720c4ba1c60f9e"
         },
         {
           "bytes": 33,
-          "sha256": "8f3fb634ed5f504af5ddb2c33e6bd2f6cb2d7e3a7cd030c44c3b1f014b4eadfc"
+          "sha256": "3a70273bf52f96e943b62d7083b9a55fc2122fac279fb21105b10442dfeb2f7a"
         },
         {
-          "bytes": 11988,
-          "sha256": "ca40cf3503496f038c703da96f028aee890ade328f885f4b24cb7e1e467984ae"
+          "bytes": 11987,
+          "sha256": "5330ea31a698d53f3eef6cbf5f3e11656ff4530437afa72d248580ff7b8928cc"
         }
       ],
       "unchanged": false,
@@ -437,11 +437,11 @@
       "arrived": [
         {
           "bytes": 5683,
-          "sha256": "ebae26262c3e5b7b5ed5c92bd518bdcf6f09bb82fcb6dac11fa364270bb2eabd"
+          "sha256": "d0956a05184de3a7a14eb77f8fec767b06e1e4fd74a80220c7ef9d54d840dafb"
         },
         {
           "bytes": 33,
-          "sha256": "507aa9b02aa63f71ffbd3d716559d85145682ac678cfb254985dc51f39d3e4b8"
+          "sha256": "81c3f044f194cbdb55a694ed4761aa3a938e675d4187f2dcba08d0c8bc18a2eb"
         },
         {
           "bytes": 4761,
@@ -468,11 +468,11 @@
       "arrived": [
         {
           "bytes": 13073,
-          "sha256": "9026304ac82ebf9686edf057338f453ea14f6554c1e2df06919ae7a010661cfb"
+          "sha256": "626e8fd6823400a1aa331aad179889ac940d74a3ee8aab2093950713c430694a"
         },
         {
           "bytes": 33,
-          "sha256": "64f6631ed344e0335875e5a6132ff494323e2b7bef74a4c69f3653ab6ed419be"
+          "sha256": "6510a4a6da64b46cdd9f42a376907d3c8f4852c3d9106cf22f4bd23d0914a896"
         },
         {
           "bytes": 10939,
@@ -499,11 +499,11 @@
       "arrived": [
         {
           "bytes": 14328,
-          "sha256": "1d780b08bfbdc51dd6fa6b41d14a7e5f6c50c42df3f6ff593f2f30fd8487312b"
+          "sha256": "7a26327d6ecfe204ccdbef1111827b96302954ca80aa308853be97c13fa8ec71"
         },
         {
           "bytes": 33,
-          "sha256": "7990313c7c1171b239b175cb3fd39fadf0c29dc75f9a4b69284d8199f8150db4"
+          "sha256": "5c01d6f2c970800d89c260cb728ece5877ac5f2bc2a88280491232910b12f728"
         },
         {
           "bytes": 11988,
@@ -530,11 +530,11 @@
       "arrived": [
         {
           "bytes": 4485,
-          "sha256": "4e7d38363143e037e8bdcd494baa2dd11bd130f8012a56339f8a439226fc8eb1"
+          "sha256": "f552e08882669fa22199fc605a1169b6015c8ad1aef2d71f770772eb28bc8864"
         },
         {
           "bytes": 33,
-          "sha256": "8f3fb634ed5f504af5ddb2c33e6bd2f6cb2d7e3a7cd030c44c3b1f014b4eadfc"
+          "sha256": "1f828996809521486762b3dab4df1b8f58ca7705c325ac338a53c5c1737e9960"
         },
         {
           "bytes": 4359,
@@ -584,23 +584,23 @@
       "kind": "emoji",
       "page_tokens": 8000,
       "sent": {
-        "bytes": 19245,
-        "characters": 7017,
-        "estimate": 8054.25,
-        "sha256": "a326d0462986ee1ceae8a0ddf20ecaef98c0e7ca73ef1261959bc54c401e8edd"
+        "bytes": 18003,
+        "characters": 6587,
+        "estimate": 7528.5,
+        "sha256": "c70f843023e2f31d3c6fc51fa5d9247beae7159f92286e53fa569951ec4d57cd"
       },
       "arrived": [
         {
           "bytes": 12137,
-          "sha256": "a58a04ed3e405e1fbefd72a1d67f8e45531b2f6deb346ac56adb839b8b9cb4a6"
+          "sha256": "cc7b1791c3a316e81c51c3919a4f98626f474f9b8743452440b8b557aad99a59"
         },
         {
           "bytes": 33,
-          "sha256": "1bbb8670af869ce6996a934b3f4525eb1a8e158a361a89df7c6ce5c91f37f684"
+          "sha256": "587f2c4706481441f8bdc13bf00e24d3d94338e1ddcada7fa495dba53c60a354"
         },
         {
           "bytes": 11987,
-          "sha256": "e9a3de0f80db029a1b25313693950ab42bee9adc6efac0133c29780a7f191730"
+          "sha256": "550a5911de54f239c2edfcedac2d382240e3bd0359270a79ff247418917bdf61"
         }
       ],
       "unchanged": false,
@@ -615,5 +615,5 @@
     "python scripts/measure_transcript_pages.py claude-code",
     "python scripts/measure_transcript_pages.py codex"
   ],
-  "note": "Two runs of the same script, one for each harness. An earlier Codex run timed out in its first case after 300 seconds and was run again."
+  "note": "Two runs of the same script, one for each harness."
 }

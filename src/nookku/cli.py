@@ -150,6 +150,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     hook.add_argument("--harness", required=True)
 
     args = parser.parse_args(argv)
+    if args.command == "mcp" and args.root is None:
+        from nookku.mcp import project_root
+
+        # The default root also gets the move of the old state folder below.
+        args.root = project_root()
     if isinstance(getattr(args, "root", None), Path):
         error = move_old_state(args.root.resolve())
         if error:
@@ -277,7 +282,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "mcp":
         from nookku import mcp as server
 
-        return server.serve(args.root.resolve() if args.root else server.project_root())
+        return server.serve(args.root.resolve())
     if args.command == "hook":
         return kit.run_hook(args.root, args.harness, sys.stdin, sys.stdout)
     parser.print_help(sys.stderr)
