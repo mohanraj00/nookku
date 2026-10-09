@@ -1,6 +1,6 @@
 ---
 name: Bug
-about: Nooku does something wrong
+about: Nookku does something wrong
 labels: bug
 ---
 
@@ -24,7 +24,7 @@ Use a private security advisory, as SECURITY.md says.
 
 ## Versions
 
-- Nooku: <!-- Nooku --version -->
+- Nookku: <!-- Nookku --version -->
 - Harness and version: <!-- claude --version or codex --version -->
 - Relay: <!-- plugin or hook kit -->
 - OS: <!-- for example macOS 15 or Ubuntu 24.04 -->
@@ -34,7 +34,7 @@ Use a private security advisory, as SECURITY.md says.
 
 <!--
 Paste what applies, without private data:
-- the output of Nooku audit, verify or check;
+- the output of Nookku audit, verify or check;
 - the last lines of bridge.log and app.log in the test folder;
 - the rows of relay.jsonl or tap.jsonl that show the problem.
 -->

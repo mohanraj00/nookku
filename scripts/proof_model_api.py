@@ -29,7 +29,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path[:0] = [str(ROOT / "src")]
 
-from nooku import __version__, bridge, model_api, seal, stdio  # noqa: E402
+from nookku import __version__, bridge, model_api, seal, stdio  # noqa: E402
 
 KEY = "sk-toy-proof-k3y"
 SEEN: list[dict[str, object]] = []
@@ -252,11 +252,11 @@ def main() -> int:
         TOY_RELEASE=f"{url}/release",
         TOY_KEY=KEY,
     )
-    project = Path(tempfile.mkdtemp(prefix="nooku-model-api-"))
-    (project / ".nooku").mkdir()
+    project = Path(tempfile.mkdtemp(prefix="nookku-model-api-"))
+    (project / ".nookku").mkdir()
     (project / "entry.py").write_text(ENTRY)
     config = {"entry": [sys.executable, "entry.py"], "models": [], "otel": False}
-    (project / ".nooku" / "config.json").write_text(json.dumps(config))
+    (project / ".nookku" / "config.json").write_text(json.dumps(config))
     cur = bridge.start(project)
     try:
         shown, ok = bridge.send(cur, "I was charged twice. How many teapot sets are left?")
@@ -294,7 +294,7 @@ def main() -> int:
     result = {
         "date": date.today().isoformat(),
         "versions": {
-            "nooku": __version__,
+            "nookku": __version__,
             "python": sys.version.split()[0],
             "os": os.uname().sysname,
         },

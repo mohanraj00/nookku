@@ -16,12 +16,12 @@ from pathlib import Path
 from typing import Any, TextIO
 from urllib.parse import urlsplit
 
-from nooku import bridge, commands, evaluation, seal
-from nooku.adapters import AdapterError, History, StreamError, is_stream, make
-from nooku.config import FILE as CONFIG_FILE
-from nooku.config import Config as Config
-from nooku.config import check, read_config
-from nooku.record import (
+from nookku import bridge, commands, evaluation, seal
+from nookku.adapters import AdapterError, History, StreamError, is_stream, make
+from nookku.config import FILE as CONFIG_FILE
+from nookku.config import Config as Config
+from nookku.config import check, read_config
+from nookku.record import (
     RecordError,
     Turn,
     Writer,
@@ -55,17 +55,17 @@ FILE_TOOLS = {
     "update_plan",
 }
 WRITE_TOOLS = {"Write", "Edit", "MultiEdit", "NotebookEdit", "apply_patch"}
-DENY_REASON = "nooku: only the tester talks to the agent."
-TEST_FILES = re.compile(r"\.nooku")
+DENY_REASON = "nookku: only the tester talks to the agent."
+TEST_FILES = re.compile(r"\.nookku")
 # A file in a test folder. After a test, only report.md may change (SPEC.md section 9).
-TEST_FOLDER_FILE = re.compile(r"\.nooku/tests/[^/\s\"']+/([^\s\"'\\]*)")
+TEST_FOLDER_FILE = re.compile(r"\.nookku/tests/[^/\s\"']+/([^\s\"'\\]*)")
 RECORDS_REASON = (
-    "nooku: the records of a test do not change. Write only report.md. "
-    "A command that names .nooku may only read."
+    "nookku: the records of a test do not change. Write only report.md. "
+    "A command that names .nookku may only read."
 )
-ENTRY_REASON = "nooku: during a test, only the tap runs the entry."
+ENTRY_REASON = "nookku: during a test, only the tap runs the entry."
 # Prompts that the kit runs and never relays (SPEC.md section 5).
-CONTROL = {"nooku start", "nooku end", "nooku status"}
+CONTROL = {"nookku start", "nookku end", "nookku status"}
 
 
 def mode_path(root: Path) -> Path:
@@ -134,14 +134,14 @@ def relay(config: Config, said: str, past: History) -> tuple[str, bool]:
             body = resp.read()
     except urllib.error.HTTPError as e:
         text = e.read().decode("utf-8", errors="replace")
-        return f"nooku: the agent returned HTTP {e.code}:\n{text}", False
+        return f"nookku: the agent returned HTTP {e.code}:\n{text}", False
     except (OSError, ValueError, http.client.HTTPException) as e:
-        return f"nooku: cannot reach the tap at {config.tap_url}: {e}", False
+        return f"nookku: cannot reach the tap at {config.tap_url}: {e}", False
     try:
         # The relay shows a streamed reply only when the stream is complete (SPEC.md section 5).
         return (adapter.stream_reply(body) if stream else adapter.reply(body)), True
     except (AdapterError, StreamError) as e:
-        return f"nooku: cannot read the reply: {e}", False
+        return f"nookku: cannot read the reply: {e}", False
 
 
 def _block(reason: str) -> dict[str, Any]:
@@ -158,13 +158,13 @@ def start_test(root: Path, tester_session: str | None = None) -> str:
     try:
         cur = bridge.start(root, tester_session)
     except bridge.BridgeError as e:
-        return f"nooku: {e}"
+        return f"nookku: {e}"
     set_mode(root, True)
     # The same two ends as the start text of the plugin (register.tsx, SPEC.md section 9.1).
     return (
-        f"nooku: test {cur['test']} started. Relay mode is on: each message goes to the "
-        "entry. To end the test and start the evaluation, type the prompt nooku end. "
-        "To end the test with no evaluation, run nooku end in a shell."
+        f"nookku: test {cur['test']} started. Relay mode is on: each message goes to the "
+        "entry. To end the test and start the evaluation, type the prompt nookku end. "
+        "To end the test with no evaluation, run nookku end in a shell."
     )
 
 
@@ -173,14 +173,14 @@ def end_test(root: Path, tester_session: str | None = None) -> str:
     set_mode(root, False)
     manifest = bridge.end(root, tester_session=tester_session)
     if manifest is None:
-        return "nooku: no test runs. Relay mode is off."
-    return "nooku: relay mode is off.\n" + bridge.summary(manifest)
+        return "nookku: no test runs. Relay mode is off."
+    return "nookku: relay mode is off.\n" + bridge.summary(manifest)
 
 
 def status(root: Path) -> str:
     cur = bridge.current(root)
     test = f" Test {cur['test']} runs on {cur['tap_url']}." if cur else ""
-    return f"nooku: relay mode is {'on' if is_on(root) else 'off'}.{test}"
+    return f"nookku: relay mode is {'on' if is_on(root) else 'off'}.{test}"
 
 
 def _control(said: str, root: Path, session: str | None) -> str:
@@ -206,7 +206,7 @@ def _relay_test(
     if session:
         row["session"] = session
     Writer(Path(cur["dir"]) / "relay.jsonl").append(row)
-    return _block("nooku: relayed to the agent. The reply is in the viewer (nooku view).")
+    return _block("nookku: relayed to the agent. The reply is in the viewer (nookku view).")
 
 
 def handle(event: dict[str, Any], root: Path, harness: str) -> dict[str, Any] | None:
@@ -217,7 +217,7 @@ def handle(event: dict[str, Any], root: Path, harness: str) -> dict[str, Any] | 
         session = event.get("session_id") if isinstance(event.get("session_id"), str) else None
         if isinstance(said, str) and said.strip() in CONTROL:
             text = _control(said, root, session)
-            folder = evaluation.pending(root) if said.strip() == "nooku end" else None
+            folder = evaluation.pending(root) if said.strip() == "nookku end" else None
             if folder is None:
                 return _block(text)
             # The prompt goes on to the model, which evaluates the test (SPEC.md section 9).
@@ -227,19 +227,19 @@ def handle(event: dict[str, Any], root: Path, harness: str) -> dict[str, Any] | 
         try:
             config = Config.load(root)
         except (OSError, ValueError, TypeError) as e:
-            return _block(f"nooku: relay mode is on, but the config is broken: {e}")
+            return _block(f"nookku: relay mode is on, but the config is broken: {e}")
         if not isinstance(said, str):
-            return _block("nooku: the hook input has no prompt text. Nothing was sent.")
+            return _block("nookku: the hook input has no prompt text. Nothing was sent.")
         found = lone_surrogate(said)
         if found:
             # A relayed message is never changed, so the kit refuses it (SPEC.md section 5).
-            return _block(f"nooku: nothing was sent. The message has {found}.")
+            return _block(f"nookku: nothing was sent. The message has {found}.")
         if config.entry:
             cur = bridge.current(root)
             if cur is None:
                 return _block(
-                    "nooku: relay mode is on, but no test runs. Start one with: "
-                    "nooku start. Nothing was sent."
+                    "nookku: relay mode is on, but no test runs. Start one with: "
+                    "nookku start. Nothing was sent."
                 )
             return _relay_test(cur, said, harness, session)
         record = config.record_path(root)
@@ -255,7 +255,7 @@ def handle(event: dict[str, Any], root: Path, harness: str) -> dict[str, Any] | 
             row["session"] = session
         record.parent.mkdir(parents=True, exist_ok=True)
         Writer(record).append(row)
-        return _block("nooku: relayed to the agent. The reply is in the viewer (nooku view).")
+        return _block("nookku: relayed to the agent. The reply is in the viewer (nookku view).")
     if name == "PreToolUse":
         tool = str(event.get("tool_name", ""))
         tool_input = event.get("tool_input", event)
@@ -340,7 +340,7 @@ def _deny(
         )
     except (OSError, ValueError) as e:
         # The deny must not depend on the record. Without it, the call reaches the tap.
-        print(f"nooku hook: cannot record a blocked call: {e}", file=sys.stderr)
+        print(f"nookku hook: cannot record a blocked call: {e}", file=sys.stderr)
     return {
         "hookSpecificOutput": {
             "hookEventName": "PreToolUse",
@@ -358,7 +358,7 @@ def run_hook(root: Path, harness: str, stdin: TextIO, stdout: TextIO) -> int:
         event = json.loads(stdin.read())
         answer = handle(event, root, harness)
     except Exception as e:  # fail closed: a crash must not hand the prompt to the model
-        failed = f"nooku: the hook failed ({type(e).__name__}: {e})."
+        failed = f"nookku: the hook failed ({type(e).__name__}: {e})."
         tool_call = isinstance(event, dict) and event.get("hook_event_name") == "PreToolUse"
         if tool_call and (root / STATE_DIR).is_dir():
             # Each deny of section 5 needs a file in the state folder. With no folder, none applies.
@@ -372,7 +372,7 @@ def run_hook(root: Path, harness: str, stdin: TextIO, stdout: TextIO) -> int:
         elif is_on(root):
             answer = _block(f"{failed} Nothing reached the model.")
         else:
-            print(f"nooku hook: {type(e).__name__}: {e}", file=sys.stderr)
+            print(f"nookku hook: {type(e).__name__}: {e}", file=sys.stderr)
             return 0
     if answer is not None:
         stdout.write(json.dumps(answer, ensure_ascii=False) + "\n")
@@ -383,7 +383,7 @@ def hook_command(root: Path, harness: str) -> str:
     argv = [
         sys.executable,
         "-m",
-        "nooku",
+        "nookku",
         "hook",
         "--root",
         str(root),
@@ -395,7 +395,7 @@ def hook_command(root: Path, harness: str) -> str:
 
 # The hook commands of the kit. verbatim-relay 0.3.x and earlier wrote the second one, so a new
 # `init` replaces those hooks too.
-OWN_COMMANDS = ("nooku hook", "verbatim_relay hook")
+OWN_COMMANDS = ("nookku hook", "verbatim_relay hook")
 
 
 def _ours(hook: Any) -> bool:
@@ -517,7 +517,7 @@ def transcript(
         turns = latest_session(record)
     scope = scope or ("all sessions" if every_session else "the latest session")
     out.write(
-        f"nooku transcript, {scope}: {len(turns)} turns. The text is exact: the "
+        f"nookku transcript, {scope}: {len(turns)} turns. The text is exact: the "
         "tester typed each tester block, and the agent sent each agent block.\n"
         f"{LEGEND}\n\n"
     )
@@ -597,7 +597,7 @@ class _ErrorOnce:
         self.last = (str(e), stamp)
         cause = "the record is invalid" if e.kind == "record_invalid" else "cannot read the record"
         self.err.write(
-            f"nooku: {cause}: {e}. Do not trust this record. "
+            f"nookku: {cause}: {e}. Do not trust this record. "
             "The view shows the next turns when the record changes and is valid.\n"
         )
         self.err.flush()

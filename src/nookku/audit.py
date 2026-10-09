@@ -7,7 +7,7 @@ from itertools import pairwise
 from pathlib import Path
 from typing import Any
 
-from nooku.record import (
+from nookku.record import (
     BlockedCall,
     Exchange,
     ModelSession,

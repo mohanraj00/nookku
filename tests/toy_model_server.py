@@ -8,7 +8,7 @@ import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 
-from nooku import stdio
+from nookku import stdio
 
 
 class ModelServer(ThreadingHTTPServer):

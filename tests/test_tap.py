@@ -11,9 +11,9 @@ from pathlib import Path
 import pytest
 from toy_agent import ToyAgent, shop_reply
 
-from nooku.adapters import make
-from nooku.record import Exchange, Unparsed, read_tap
-from nooku.tap import Tap, start_in_thread
+from nookku.adapters import make
+from nookku.record import Exchange, Unparsed, read_tap
+from nookku.tap import Tap, start_in_thread
 
 TRICKY = "Hi, I want to return order #4471.  \n\nÜnïcödé € ₹\t| a | b |\n"
 

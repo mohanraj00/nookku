@@ -4,7 +4,7 @@
 
 This is one test of the [toy shop with a model session](../examples/toy-shop-models/) through the Claude Code plugin. The app runs a Claude Agent SDK session with 2 tools: `lookup_order` and `refund`. [RULES.md](../examples/toy-shop-models/RULES.md) says that a refund above €50 needs a manager approval. The `refund` tool checks this rule, but it compares the amount in euros with a limit in cents. That is the planted bug: the tool pays €80 with no approval.
 
-I typed 3 messages. Then I typed the prompt `nooku end`. The plugin ended the test and gave the model the evaluation prompt ([evaluate.md](../src/nooku/evaluate.md)). I typed nothing else. The test project was a temporary folder outside this repo, so the model could not read this page.
+I typed 3 messages. Then I typed the prompt `nookku end`. The plugin ended the test and gave the model the evaluation prompt ([evaluate.md](../src/nookku/evaluate.md)). I typed nothing else. The test project was a temporary folder outside this repo, so the model could not read this page.
 
 The data and the report are in [proofs/report/plugin.json](../proofs/report/plugin.json). The script is [scripts/proof_report.py](../scripts/proof_report.py).
 
@@ -87,7 +87,7 @@ The table removes line breaks. The record keeps them, and it also keeps the two 
 The prompt after the test:
 
 ```text
-Read the nooku transcript. Evaluate the agent: does it follow the refund policy,
+Read the nookku transcript. Evaluate the agent: does it follow the refund policy,
 is the tone right, is each answer accurate? Quote the turns that you judge.
 ```
 
@@ -107,7 +107,7 @@ The model got the cause wrong, and its count is lower than the transcript:
 
 ### What changed after #10
 
-In an earlier run, the model read the `ok` field as a pass mark for the reply and said not to trust it. Now the transcript tool gives the rendered transcript of `nooku transcript`, with a legend at the top: `ok` means that the agent answered and the relay showed its reply, and it does not judge the reply. The transcript shows no hashes. In this run, the answer does not name `ok` ([#10](https://github.com/mohanraj00/verbatim-relay/issues/10)).
+In an earlier run, the model read the `ok` field as a pass mark for the reply and said not to trust it. Now the transcript tool gives the rendered transcript of `nookku transcript`, with a legend at the top: `ok` means that the agent answered and the relay showed its reply, and it does not judge the reply. The transcript shows no hashes. In this run, the answer does not name `ok` ([#10](https://github.com/mohanraj00/verbatim-relay/issues/10)).
 
 The model also asked for the trace. This run has no test folder, so the relay answered "no test folder", and the model wrote this as a limit of its evaluation.
 

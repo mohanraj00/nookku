@@ -4,7 +4,7 @@ Two kinds of evidence: proofs that each relay is exact, and a benchmark under pr
 
 ## 1. Proofs
 
-Each proof runs the harness headless in a test (SPEC.md section 7). The tester starts the test from the harness: `/nooku start` in the plugin, the prompt `nooku start` in the hook kit. The entry is the toy shop agent of the tests over stdio ([tests/toy_entry.py](../tests/toy_entry.py)), which uses `nooku.agent.serve`. Scripts: [scripts/proofs_claude_code.py](../scripts/proofs_claude_code.py) for the plugin, [scripts/proofs_hooks.py](../scripts/proofs_hooks.py) for the hook kit.
+Each proof runs the harness headless in a test (SPEC.md section 7). The tester starts the test from the harness: `/nookku start` in the plugin, the prompt `nookku start` in the hook kit. The entry is the toy shop agent of the tests over stdio ([tests/toy_entry.py](../tests/toy_entry.py)), which uses `nookku.agent.serve`. Scripts: [scripts/proofs_claude_code.py](../scripts/proofs_claude_code.py) for the plugin, [scripts/proofs_hooks.py](../scripts/proofs_hooks.py) for the hook kit.
 
 | # | Proof |
 |---|---|
@@ -45,7 +45,7 @@ Each results file has the records of the test next to it: `tap.jsonl` and `relay
 
 ### Model sessions of the app
 
-[scripts/proof_sessions.py](../scripts/proof_sessions.py) runs `nooku check` on a toy shop app with real model sessions ([tests/toy_models_entry.py](../tests/toy_models_entry.py)). For one message, the app runs one Claude Agent SDK session with an in-process `lookup_order` tool, and one `codex app-server` thread. The check must find each session and copy its session file.
+[scripts/proof_sessions.py](../scripts/proof_sessions.py) runs `nookku check` on a toy shop app with real model sessions ([tests/toy_models_entry.py](../tests/toy_models_entry.py)). For one message, the app runs one Claude Agent SDK session with an in-process `lookup_order` tool, and one `codex app-server` thread. The check must find each session and copy its session file.
 
 | Harness of the app | Found by | Session file copied | Data |
 |---|---|---|---|
@@ -105,7 +105,7 @@ The API key was not in the record. The seal of the test folder was intact.
 [scripts/proof_evaluation.py](../scripts/proof_evaluation.py) runs one harness session: 2 tester messages in relay mode (the first has the order code `ZX-4471-Q`), then relay mode off, then 2 questions to the model.
 
 - **P5a:** "Do not use any tool. Before this message, did I send you any other message?" The answer must not contain the order code or the second message. The tester's messages never reached the model.
-- **P5b:** "Read the Nooku transcript. Quote the order code that I gave the agent." The answer must contain `ZX-4471-Q`.
+- **P5b:** "Read the Nookku transcript. Quote the order code that I gave the agent." The answer must contain `ZX-4471-Q`.
 
 | Relay | Harness | P5a | P5b | Data |
 |---|---|---|---|---|
@@ -117,13 +117,13 @@ The session resumes between turns, so P5b also shows that the transcript survive
 
 ### P5 and P6: the evaluation at the end of a test
 
-[scripts/proof_report.py](../scripts/proof_report.py) runs a test of the [toy shop with a model session](../examples/toy-shop-models/). The app has a planted bug: [RULES.md](../examples/toy-shop-models/RULES.md) needs a manager approval for a refund above €50, but the `refund` tool compares the amount in euros with a limit in cents, so it pays €80 with no approval. In turn 2, the tester asks for a refund of €80. Then the tester types the prompt `nooku end`, and nothing else.
+[scripts/proof_report.py](../scripts/proof_report.py) runs a test of the [toy shop with a model session](../examples/toy-shop-models/). The app has a planted bug: [RULES.md](../examples/toy-shop-models/RULES.md) needs a manager approval for a refund above €50, but the `refund` tool compares the amount in euros with a limit in cents, so it pays €80 with no approval. In turn 2, the tester asks for a refund of €80. Then the tester types the prompt `nookku end`, and nothing else.
 
 - **P6:** `report.md` has a `business_rule` row for turn 2, with the `trace.jsonl` line of the refund call as its evidence.
 - **P5, extended:** `report.md` holds a fact that only the records of the test and the app's state hold: the random refund id, or an exact quote of 20 or more characters from a reply of the agent. The model saw no message of the test.
-- **P7:** after the evaluation, `nooku verify` finds the test folder intact. The evaluating model changed no record ([SPEC.md section 7.4](../SPEC.md#74-seal)).
+- **P7:** after the evaluation, `nookku verify` finds the test folder intact. The evaluating model changed no record ([SPEC.md section 7.4](../SPEC.md#74-seal)).
 - **P8:** the trace has the Agent SDK `tool_result` event of the refund in turn 2, from the OTLP receiver (`otel.jsonl`), and the cross-check `otel_tool_not_in_session` finds 0 differences from the session file ([SPEC.md section 7.5](../SPEC.md#75-otlp-receiver)).
-- **Isolation:** the evaluating model must not read this page or the proof script, which describe the bug. So each project is outside the repo. The plugin and the Claude Code kit run in a temporary folder. Codex runs only hooks that a person trusted, so its project is `~/.nooku-proof/codex`, where I trusted the hooks of `nooku init codex`. For Codex, the proof also fails if a command of the evaluation names a parent folder or a path of the repo.
+- **Isolation:** the evaluating model must not read this page or the proof script, which describe the bug. So each project is outside the repo. The plugin and the Claude Code kit run in a temporary folder. Codex runs only hooks that a person trusted, so its project is `~/.nookku-proof/codex`, where I trusted the hooks of `nookku init codex`. For Codex, the proof also fails if a command of the evaluation names a parent folder or a path of the repo.
 
 | Relay | Harness | Issues in the report | P6 | P5 | P7 | P8 | Isolation | Result | Data |
 |---|---|---|---|---|---|---|---|---|---|
@@ -132,7 +132,7 @@ The session resumes between turns, so P5b also shows that the transcript survive
 | Hook kit | Claude Code 2.1.290 | 1 | **fail** | pass | pass | pass | temporary project | **fail** (earlier run, 2026-10-06) | [results](../proofs/report/hooks-claude-code-run1.json) |
 | Hook kit | Codex 0.160.0 | 3 | pass | pass | pass | pass | trusted project, 0 commands outside it | pass | [results](../proofs/report/hooks-codex.json) |
 
-The app's session files are from Claude Code 2.1.292, bundled in Agent SDK 0.2.164. In an earlier run of the hook kit in Claude Code (2026-10-06), the report had only 1 row (`unsupported_reply`, turn 2) and missed the refund, although the trace had the refund call in turn 2. The table keeps that run. The runs of 2026-10-07 use an isolated Agent SDK session ([#28](https://github.com/mohanraj00/verbatim-relay/issues/28)), and each one passed. A report is a model answer, so P6 can fail when the model does not look at a call. The Agent SDK session reads `ANTHROPIC_BASE_URL`, so its calls went through the model API proxy ([SPEC.md section 7.7](../SPEC.md#77-model-api-proxies)). In the 3 passing runs, the proxy marked 5, 5 and 5 calls as harness calls and kept no text of them. In each run, 1 other call was not a model call (`other_calls`). The trace kept 0 items from `model_api.jsonl` (`model_api` in each results file). In an earlier run, the relay denied a command of the evaluating model that started with a variable assignment, `T=.nooku/tests/...`. So the read check now passes a part with only variable assignments. A report is a model answer, and it changes on each run. Before the script stores a report or an answer, it checks that the text shares no 8 words in a row with an instruction file on this machine, and it removes the local paths. [docs/evaluation-example.md](evaluation-example.md#a-test-with-an-automatic-report) shows one report and what the model got wrong.
+The app's session files are from Claude Code 2.1.292, bundled in Agent SDK 0.2.164. In an earlier run of the hook kit in Claude Code (2026-10-06), the report had only 1 row (`unsupported_reply`, turn 2) and missed the refund, although the trace had the refund call in turn 2. The table keeps that run. The runs of 2026-10-07 use an isolated Agent SDK session ([#28](https://github.com/mohanraj00/verbatim-relay/issues/28)), and each one passed. A report is a model answer, so P6 can fail when the model does not look at a call. The Agent SDK session reads `ANTHROPIC_BASE_URL`, so its calls went through the model API proxy ([SPEC.md section 7.7](../SPEC.md#77-model-api-proxies)). In the 3 passing runs, the proxy marked 5, 5 and 5 calls as harness calls and kept no text of them. In each run, 1 other call was not a model call (`other_calls`). The trace kept 0 items from `model_api.jsonl` (`model_api` in each results file). In an earlier run, the relay denied a command of the evaluating model that started with a variable assignment, `T=.nookku/tests/...`. So the read check now passes a part with only variable assignments. A report is a model answer, and it changes on each run. Before the script stores a report or an answer, it checks that the text shares no 8 words in a row with an instruction file on this machine, and it removes the local paths. [docs/evaluation-example.md](evaluation-example.md#a-test-with-an-automatic-report) shows one report and what the model got wrong.
 
 **Changes to the method after the first runs.** I changed 3 things after I saw results. All runs before these changes are not in the data.
 
@@ -212,4 +212,4 @@ uv run python bench/run.py mechanism codex
 uv run python bench/score.py
 ```
 
-The Codex runs need the trusted project `.proof/codex`. Run `nooku init codex --root .proof/codex`, then trust its hooks once in `codex`.
+The Codex runs need the trusted project `.proof/codex`. Run `nookku init codex --root .proof/codex`, then trust its hooks once in `codex`.

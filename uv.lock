@@ -440,7 +440,7 @@ wheels = [
 ]
 
 [[package]]
-name = "nooku"
+name = "nookku"
 source = { editable = "." }
 
 [package.dev-dependencies]

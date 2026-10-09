@@ -28,10 +28,10 @@ sys.path[:0] = [str(ROOT / "src"), str(BENCH)]
 
 from agent import BenchAgent  # noqa: E402
 
-from nooku import kit  # noqa: E402
-from nooku.adapters import make  # noqa: E402
-from nooku.record import Writer  # noqa: E402
-from nooku.tap import Tap, start_in_thread  # noqa: E402
+from nookku import kit  # noqa: E402
+from nookku.adapters import make  # noqa: E402
+from nookku.record import Writer  # noqa: E402
+from nookku.tap import Tap, start_in_thread  # noqa: E402
 
 CLAUDE_MODEL = "opus"
 CODEX_MODEL, CODEX_EFFORT = "gpt-6.1-sol", "low"
@@ -248,7 +248,7 @@ def run_prompt(harness: str, s: dict, d: Path, tap_url: str, cwd: Path) -> dict[
 def run_plugin(s: dict, d: Path, tap_url: str, cwd: Path) -> dict[str, Any]:
     conf = {"options": {"tap_url": tap_url, "record": str(d / "relay.jsonl"), "start_on": True}}
     settings = cwd / "settings.json"
-    settings.write_text(json.dumps({"pluginConfigs": {"nooku": conf, "nooku@inline": conf}}))
+    settings.write_text(json.dumps({"pluginConfigs": {"nookku": conf, "nookku@inline": conf}}))
     extra = [
         "--model",
         CLAUDE_MODEL,

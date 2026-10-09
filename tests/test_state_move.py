@@ -1,4 +1,4 @@
-"""The first run of nooku moves the state folder of verbatim-relay 0.3.x (#181)."""
+"""The first run of nookku moves the state folder of verbatim-relay 0.3.x (#181)."""
 
 from __future__ import annotations
 
@@ -8,8 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from nooku.cli import main
-from nooku.config import OLD_STATE_DIR, STATE_DIR, move_old_state
+from nookku.cli import main
+from nookku.config import OLD_STATE_DIR, STATE_DIR, move_old_state
 
 
 def old_state(root: Path) -> Path:

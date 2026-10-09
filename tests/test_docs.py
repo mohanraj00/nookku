@@ -15,7 +15,7 @@ from typing import Any
 import pytest
 from test_timeouts import ANSWER
 
-from nooku import audit, bridge, cli, config, kit, stdio, trace
+from nookku import audit, bridge, cli, config, kit, stdio, trace
 
 ROOT = Path(__file__).resolve().parent.parent
 DOCS = ROOT / "docs"
@@ -135,7 +135,7 @@ def test_the_link_check_finds_a_broken_link_and_a_broken_anchor(tmp_path: Path) 
     [
         ("6. Agent contract, version 1", "6-agent-contract-version-1"),
         ("7.5 OTLP receiver", "75-otlp-receiver"),
-        ("`.nooku/config.json`", "nookuconfigjson"),
+        ("`.nookku/config.json`", "nookkuconfigjson"),
         (
             "P5: the model judges the record, not its memory",
             "p5-the-model-judges-the-record-not-its-memory",
@@ -204,11 +204,11 @@ def test_each_record_file_in_a_diagram_is_on_the_records_page() -> None:
 # Each constant of the timeout table: its value, the file that defines it, and the name on the
 # line that the table links to. Order 2 is the agent timeout and the ANSWER limit of the test.
 TIMEOUTS = {
-    "stdio.TIMEOUT": (stdio.TIMEOUT, "src/nooku/stdio.py", "TIMEOUT"),
+    "stdio.TIMEOUT": (stdio.TIMEOUT, "src/nookku/stdio.py", "TIMEOUT"),
     "stdio.TIMEOUT + ANSWER": (stdio.TIMEOUT + ANSWER, "tests/test_timeouts.py", "ANSWER"),
-    "bridge.TIMEOUT": (bridge.TIMEOUT, "src/nooku/bridge.py", "TIMEOUT"),
-    "kit.TIMEOUT": (kit.TIMEOUT, "src/nooku/kit.py", "TIMEOUT"),
-    "kit.HOOK_DEADLINE": (kit.HOOK_DEADLINE, "src/nooku/kit.py", "HOOK_DEADLINE"),
+    "bridge.TIMEOUT": (bridge.TIMEOUT, "src/nookku/bridge.py", "TIMEOUT"),
+    "kit.TIMEOUT": (kit.TIMEOUT, "src/nookku/kit.py", "TIMEOUT"),
+    "kit.HOOK_DEADLINE": (kit.HOOK_DEADLINE, "src/nookku/kit.py", "HOOK_DEADLINE"),
 }
 
 
@@ -332,8 +332,8 @@ def test_the_mermaid_check_finds_banned_syntax(line: str) -> None:
     ],
 )
 def test_each_page_that_starts_the_setup_gives_the_form_that_runs_the_command(page: str) -> None:
-    # A prompt of only "nooku setup" did not make the model run the command (#125).
-    assert "!nooku setup" in (ROOT / page).read_text(encoding="utf-8")
+    # A prompt of only "nookku setup" did not make the model run the command (#125).
+    assert "!nookku setup" in (ROOT / page).read_text(encoding="utf-8")
 
 
 # Reference pages -----------------------------------------------------------------------------
@@ -387,9 +387,9 @@ def _documented(action: argparse.Action) -> str | None:
 def test_the_cli_page_has_each_command_and_each_flag() -> None:
     page = _sections(DOCS / "reference" / "cli.md", "###")
     commands = _commands()
-    assert sorted(page) == sorted(f"nooku {name}" for name in commands)
+    assert sorted(page) == sorted(f"nookku {name}" for name in commands)
     for name, parser in commands.items():
-        section = page[f"nooku {name}"]
+        section = page[f"nookku {name}"]
         rows = set(re.findall(r"^\| `(--[a-z][a-z-]*|[A-Z]+)\b", section, re.MULTILINE))
         wanted = {d for d in map(_documented, parser._actions) if d}
         assert rows == wanted, name
@@ -409,7 +409,7 @@ def _cell(default: Any) -> str:
 
 def test_the_config_page_has_each_key_of_config_json_with_its_default() -> None:
     page = _sections(DOCS / "reference" / "config.md", "##")
-    documented = _row_defaults(page[".nooku/config.json"])
+    documented = _row_defaults(page[".nookku/config.json"])
     wanted = {}
     for f in fields(config.Config):
         default = f.default if f.default is not MISSING else f.default_factory()
@@ -476,12 +476,12 @@ def test_the_remove_page_names_each_hook_that_init_writes(harness: str, tmp_path
     for event, groups in json.loads(hook_file.read_text(encoding="utf-8"))["hooks"].items():
         (group,) = groups
         (hook,) = group["hooks"]
-        assert "nooku hook" in hook["command"]
+        assert "nookku hook" in hook["command"]
         assert f"`hooks.{event}`" in page
         assert f'"timeout": {hook["timeout"]}' in page
         if "matcher" in group:
             assert f'"matcher": "{group["matcher"]}"' in page
-    assert "`nooku hook`" in page
+    assert "`nookku hook`" in page
 
 
 def test_the_upgrade_page_has_a_section_for_each_release_with_an_upgrade_step() -> None:

@@ -2,14 +2,14 @@
 
 After a test, the test folder holds the records, the trace, the audit, the seal and, if the model ran, a report. This page tells you how to read these files in order. Read the seal first. If a file changed after the end of the test, do not trust the other results.
 
-The sample output on this page comes from one test of the [toy shop agent](../../examples/toy-shop/agent.py) with verbatim-relay 0.3.0. The test has the 3 messages of the [tutorial](../getting-started.md#6-run-the-test). I gave each prompt to `nooku hook --harness claude-code` as a `UserPromptSubmit` event, as Claude Code does. No harness model ran, so this test has no report. The output is a sample of one run, not a measurement. To make it again, run the steps of the tutorial on the toy shop. I shortened the paths to `.../`. The test id and the times are different on your machine.
+The sample output on this page comes from one test of the [toy shop agent](../../examples/toy-shop/agent.py) with verbatim-relay 0.3.0. The test has the 3 messages of the [tutorial](../getting-started.md#6-run-the-test). I gave each prompt to `nookku hook --harness claude-code` as a `UserPromptSubmit` event, as Claude Code does. No harness model ran, so this test has no report. The output is a sample of one run, not a measurement. To make it again, run the steps of the tutorial on the toy shop. I shortened the paths to `.../`. The test id and the times are different on your machine.
 
 ## The test folder
 
-Each test has one folder, `.nooku/tests/<test-id>/`. The comment on each line tells which part writes the file, when it writes it, and if the seal covers it. The steps of the end are in [SPEC.md section 7.2](../../SPEC.md#72-start-and-end).
+Each test has one folder, `.nookku/tests/<test-id>/`. The comment on each line tells which part writes the file, when it writes it, and if the seal covers it. The steps of the end are in [SPEC.md section 7.2](../../SPEC.md#72-start-and-end).
 
 ```text
-.nooku/tests/20261007-224435-5353/
+.nookku/tests/20261007-224435-5353/
   manifest.json      the bridge, at the start; the end adds the end time      sealed
   relay.jsonl        the relay, at each turn                                  sealed
   tap.jsonl          the tap, at each exchange and each model session         sealed
@@ -29,7 +29,7 @@ Each test has one folder, `.nooku/tests/<test-id>/`. The comment on each line te
   denied.jsonl       the relay, after the end, for each denied tool call      not sealed
 ```
 
-- `nooku trace` writes `trace.jsonl` and `findings.json` again, and writes their new SHA-256 to the seal.
+- `nookku trace` writes `trace.jsonl` and `findings.json` again, and writes their new SHA-256 to the seal.
 - A file exists only if its writer has data. The toy shop has no model, no backend and no telemetry, so its folder has no `sessions/`, `otel.jsonl`, `backend.jsonl` or `model_api.jsonl`.
 
 [reference/records.md](../reference/records.md#the-test-folder) gives the format of each file.
@@ -39,16 +39,16 @@ Each test has one folder, `.nooku/tests/<test-id>/`. The comment on each line te
 The end text of a test gives its id and its folder:
 
 ```text
-nooku: relay mode is off.
+nookku: relay mode is off.
 Test 20261007-224435-5353 ended: 3 turns, 0 model sessions.
-Folder: .../toy-shop/.nooku/tests/20261007-224435-5353
+Folder: .../toy-shop/.nookku/tests/20261007-224435-5353
 Trace: 0 model items in 3 turns, no findings.
 ```
 
 If you do not have the end text, list the test folders:
 
 ```bash
-ls .nooku/tests/
+ls .nookku/tests/
 ```
 
 ```text
@@ -56,22 +56,22 @@ ls .nooku/tests/
 20261007-224435-5353
 ```
 
-`nooku check` also makes a test folder. Do not read the check tests as your tests. A check test has one turn from the harness `nooku-check`. To find the check tests:
+`nookku check` also makes a test folder. Do not read the check tests as your tests. A check test has one turn from the harness `nookku-check`. To find the check tests:
 
 ```bash
-grep -l '"harness": "nooku-check"' .nooku/tests/*/relay.jsonl
+grep -l '"harness": "nookku-check"' .nookku/tests/*/relay.jsonl
 ```
 
 ```text
-.nooku/tests/20261007-224433-6815/relay.jsonl
+.nookku/tests/20261007-224433-6815/relay.jsonl
 ```
 
-`nooku trace`, `verify` and `transcript --trace` use the latest test if you do not give a test id. `transcript` with no `--trace` uses the latest test only if the configuration has an `entry`. With no entry, it reads the relay record of the configuration, and shows its latest session. If you ran `check` after your test, the latest test is the check test. Then give the test id of your test to each command.
+`nookku trace`, `verify` and `transcript --trace` use the latest test if you do not give a test id. `transcript` with no `--trace` uses the latest test only if the configuration has an `entry`. With no entry, it reads the relay record of the configuration, and shows its latest session. If you ran `check` after your test, the latest test is the check test. Then give the test id of your test to each command.
 
 ## 2. Read the seal
 
 ```bash
-nooku verify 20261007-224435-5353
+nookku verify 20261007-224435-5353
 ```
 
 ```text
@@ -84,14 +84,14 @@ The exit code is 0 if the seal is intact. It is 2 if the seal is broken or if th
 Seal: BROKEN. changed: relay.jsonl. Do not trust these records.
 ```
 
-If the seal is broken, do not trust the changed files. `nooku verify --json` gives the lists `changed`, `missing` and `added`, and the result of the copy in your home folder ([SPEC.md section 7.4](../../SPEC.md#74-seal)). The seal shows a change. It does not stop a change.
+If the seal is broken, do not trust the changed files. `nookku verify --json` gives the lists `changed`, `missing` and `added`, and the result of the copy in your home folder ([SPEC.md section 7.4](../../SPEC.md#74-seal)). The seal shows a change. It does not stop a change.
 
 ## 3. Read the audit
 
-`audit.json` is the audit of `tap.jsonl` against `relay.jsonl`, in the form of `nooku audit --json`:
+`audit.json` is the audit of `tap.jsonl` against `relay.jsonl`, in the form of `nookku audit --json`:
 
 ```bash
-cat .nooku/tests/20261007-224435-5353/audit.json
+cat .nookku/tests/20261007-224435-5353/audit.json
 ```
 
 ```json
@@ -140,7 +140,7 @@ Each break has `class`, `relay_line`, `tap_line` and `evidence`. For a changed t
 
 ### Break classes
 
-The audit has 7 break classes ([audit.py](../../src/nooku/audit.py), [SPEC.md section 3.3](../../SPEC.md#33-break-classes)). The fixes follow `BREAK_FIX` in [bridge.py](../../src/nooku/bridge.py), the text that `nooku check` gives for a break.
+The audit has 7 break classes ([audit.py](../../src/nookku/audit.py), [SPEC.md section 3.3](../../SPEC.md#33-break-classes)). The fixes follow `BREAK_FIX` in [bridge.py](../../src/nookku/bridge.py), the text that `nookku check` gives for a break.
 
 | Class | What the records show | Fix |
 |---|---|---|
@@ -159,7 +159,7 @@ For each error of exit 2, [troubleshooting.md](../troubleshooting.md#audit-verif
 `findings.json` holds the checks of the trace ([SPEC.md section 8.6](../../SPEC.md#86-findings)):
 
 ```bash
-cat .nooku/tests/20261007-224435-5353/findings.json
+cat .nookku/tests/20261007-224435-5353/findings.json
 ```
 
 ```json
@@ -194,7 +194,7 @@ cat .nooku/tests/20261007-224435-5353/findings.json
 
 A finding is a fact, not yet an issue. For example, a tool error can be the correct result of a request for an order that does not exist. The findings do not change the exit code of the audit.
 
-`nooku trace` shows the findings on one line each. This output is from a copy of the conformance case [claude_code_toy_shop](../../conformance/trace/claude_code_toy_shop/), which has a Claude Code session file:
+`nookku trace` shows the findings on one line each. This output is from a copy of the conformance case [claude_code_toy_shop](../../conformance/trace/claude_code_toy_shop/), which has a Claude Code session file:
 
 ```text
 Trace: 11 model items in 3 turns, 1 agent_error, 3 tool_error, 1 turn_without_model, 2 item_between_turns.
@@ -211,7 +211,7 @@ Each finding in `findings.json` has `check`, `turn` and `detail`. A finding abou
 
 ### Trace checks
 
-The trace has 12 trace checks ([trace.py](../../src/nooku/trace.py)). `findings.json` sorts the findings in the order of this table.
+The trace has 12 trace checks ([trace.py](../../src/nookku/trace.py)). `findings.json` sorts the findings in the order of this table.
 
 | Check | Finding |
 |---|---|
@@ -272,12 +272,12 @@ Line 22 is the reply of turn 1, and line 26 sends it for each message with no ke
 ## 6. Read the transcript with the trace
 
 ```bash
-nooku transcript --trace --test 20261007-224435-5353
+nookku transcript --trace --test 20261007-224435-5353
 ```
 
 ```text
 Seal: intact. No record changed after the end of the test.
-nooku transcript with trace, test 20261007-224435-5353: 3 turns, 0 model items. The tester and agent blocks are exact: they come from tap.jsonl. ...
+nookku transcript with trace, test 20261007-224435-5353: 3 turns, 0 model items. The tester and agent blocks are exact: they come from tap.jsonl. ...
 
 ════ turn 1 ════
 ──── tester → agent ────

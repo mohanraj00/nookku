@@ -16,15 +16,15 @@ from collections.abc import Callable, Sequence
 from http.server import BaseHTTPRequestHandler, HTTPServer, ThreadingHTTPServer
 from pathlib import Path
 
-from nooku import contract
-from nooku.record import Writer, lone_surrogate
+from nookku import contract
+from nookku.record import Writer, lone_surrogate
 
 # The agent timeout of both taps, HTTP and stdio. Each tap answers well before the relay
 # timeouts (kit.TIMEOUT, bridge.TIMEOUT), and these end before kit.HOOK_DEADLINE.
 TIMEOUT = 240.0
 TAIL = 20
-# The fix for an agent that writes logs on stdout. `nooku check` prints it too.
-STRAY_HINT = "Use nooku.agent.serve() or write logs to stderr."
+# The fix for an agent that writes logs on stdout. `nookku check` prints it too.
+STRAY_HINT = "Use nookku.agent.serve() or write logs to stderr."
 
 
 class Agent:
@@ -249,7 +249,7 @@ class _Handler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         if "chunked" in self.headers.get("Transfer-Encoding", "").lower():
-            self._error(411, "nooku needs a Content-Length request body")
+            self._error(411, "nookku needs a Content-Length request body")
             return
         body = self.rfile.read(int(self.headers.get("Content-Length") or 0))
         tap, path = self.server, self.path
@@ -257,13 +257,13 @@ class _Handler(BaseHTTPRequestHandler):
             rid, message, _ = contract.parse_request(body)
         except contract.ContractError as e:
             self._unparsed("POST", path, f"request: {e}")
-            self._error(400, f"nooku tap: {e}")
+            self._error(400, f"nookku tap: {e}")
             return
         found = lone_surrogate(message)
         if found:
             # The record cannot hold the message, so the agent does not get it.
             self._unparsed("POST", path, f"request: the message has {found}")
-            self._error(400, f"nooku tap: the message has {found}")
+            self._error(400, f"nookku tap: the message has {found}")
             return
         with tap.lock:
             for line in tap.agent.stray():
@@ -275,13 +275,13 @@ class _Handler(BaseHTTPRequestHandler):
                 tap.writer.append({**row, "status": None, "reply": None, "error": out})
                 tail = tap.agent.tail()
                 detail = f"{out}\nThe last lines of app.log:\n{tail}" if tail else out
-                self._error(504 if kind == "timeout" else 502, f"nooku tap: {detail}")
+                self._error(504 if kind == "timeout" else 502, f"nookku tap: {detail}")
                 return
             try:
                 reply, error = contract.parse_reply(out, rid)
             except contract.ContractError as e:
                 self._unparsed("POST", path, f"reply: {e}")
-                self._error(502, f"nooku tap: {e}")
+                self._error(502, f"nookku tap: {e}")
                 return
             # parse_reply gives exactly one string: the reply or the error.
             what, text = ("error", error) if error is not None else ("reply", reply or "")
@@ -289,7 +289,7 @@ class _Handler(BaseHTTPRequestHandler):
             if found:
                 note = f"the agent {what} has {found}"
                 tap.writer.append({**row, "status": None, "reply": None, "error": note})
-                self._error(502, f"nooku tap: {note}")
+                self._error(502, f"nookku tap: {note}")
                 return
             if error is None:
                 tap.writer.append({**row, "status": 200, "reply": reply})
@@ -299,7 +299,7 @@ class _Handler(BaseHTTPRequestHandler):
                 self._send(500, out)
 
     def _refuse(self) -> None:
-        self._error(405, "nooku tap: send each message as a POST")
+        self._error(405, "nookku tap: send each message as a POST")
 
     do_GET = do_PUT = do_PATCH = do_DELETE = do_HEAD = do_OPTIONS = _refuse
 
@@ -323,8 +323,8 @@ def start_in_thread(tap: socketserver.BaseServer) -> threading.Thread:
 
 
 def serve(tap: StdioTap) -> None:
-    print(f"nooku tap: listening on {tap.url} -> {tap.agent.argv}", file=sys.stderr)
-    print(f"nooku tap: writing {tap.writer.path}", file=sys.stderr)
+    print(f"nookku tap: listening on {tap.url} -> {tap.agent.argv}", file=sys.stderr)
+    print(f"nookku tap: writing {tap.writer.path}", file=sys.stderr)
     tap.agent.start()
     try:
         tap.serve_forever()

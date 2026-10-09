@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from nooku.adapters import History
+from nookku.adapters import History
 
 VERSION = 1
 

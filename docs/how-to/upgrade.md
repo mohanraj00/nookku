@@ -1,4 +1,4 @@
-# Upgrade Nooku
+# Upgrade Nookku
 
 This page upgrades the CLI, the package in your app's environment, the Claude Code plugin and the Codex hooks. Some releases need a special step. Read the section of each release from your version to the new version in [Releases with a special step](#releases-with-a-special-step). [CHANGELOG.md](../../CHANGELOG.md) lists all changes.
 
@@ -8,16 +8,16 @@ The output on this page is the real output of each step. I used the toy shop pro
 
 End each running test before you upgrade. A new version can read the `current.json` of an old test as no test, and then it does not stop the old bridge (see [0.3.0](#030)).
 
-In each project that uses Nooku, run:
+In each project that uses Nookku, run:
 
 ```bash
-nooku status
+nookku status
 ```
 
 If the line names a test, end it:
 
 ```bash
-nooku end
+nookku end
 ```
 
 If the line names no test and relay mode is on, follow [recover-a-stuck-test.md](recover-a-stuck-test.md).
@@ -27,7 +27,7 @@ If the line names no test and relay mode is on, follow [recover-a-stuck-test.md]
 If you installed the CLI from PyPI, run:
 
 ```bash
-uv tool upgrade nooku
+uv tool upgrade nookku
 ```
 
 If you installed it from the repo, install it again:
@@ -39,29 +39,29 @@ uv tool install --force git+https://github.com/mohanraj00/verbatim-relay
 Check the version:
 
 ```bash
-nooku --version
+nookku --version
 ```
 
 ```text
-nooku 0.3.0
+nookku 0.3.0
 ```
 
-The hooks of the kit run the Python of the CLI install, for example `.../nooku/bin/python -m nooku hook ...`. Thus the hooks use the new version, and the hook file does not change. If you install the CLI in a new place, run `nooku init` again, so that the hooks name the new Python.
+The hooks of the kit run the Python of the CLI install, for example `.../nookku/bin/python -m nookku hook ...`. Thus the hooks use the new version, and the hook file does not change. If you install the CLI in a new place, run `nookku init` again, so that the hooks name the new Python.
 
-If your entry imports `nooku`, for example to use `serve()`, upgrade the package in your app's environment too ([connect-your-agent.md](connect-your-agent.md#in-python-use-serve)). With uv, run:
+If your entry imports `nookku`, for example to use `serve()`, upgrade the package in your app's environment too ([connect-your-agent.md](connect-your-agent.md#in-python-use-serve)). With uv, run:
 
 ```bash
-uv sync --upgrade-package nooku
+uv sync --upgrade-package nookku
 ```
 
-If your version constraint excludes the new version, change the constraint first, for example with `uv add --dev "nooku>=0.3"`. Then check the version with the interpreter of the entry:
+If your version constraint excludes the new version, change the constraint first, for example with `uv add --dev "nookku>=0.3"`. Then check the version with the interpreter of the entry:
 
 ```bash
-.venv/bin/python -m nooku --version
+.venv/bin/python -m nookku --version
 ```
 
 ```text
-nooku 0.3.0
+nookku 0.3.0
 ```
 
 ## 3. Update the plugin
@@ -69,11 +69,11 @@ nooku 0.3.0
 If you use the Claude Code plugin, update the marketplace and the plugin:
 
 ```bash
-claude plugin marketplace update nooku
-claude plugin update nooku@nooku
+claude plugin marketplace update nookku
+claude plugin update nookku@nookku
 ```
 
-The second command names the new version, or says that the plugin is already at the latest version. Restart Claude Code to load the new version. `claude plugin list` shows the version of `nooku@nooku`.
+The second command names the new version, or says that the plugin is already at the latest version. Restart Claude Code to load the new version. `claude plugin list` shows the version of `nookku@nookku`.
 
 The plugin runs the CLI to start and end a test, to show the status and to print the transcript (the plugin option `cli` in [reference/config.md](../reference/config.md#plugin-options)). Upgrade the CLI and the plugin to the same version.
 
@@ -81,28 +81,28 @@ The plugin runs the CLI to start and end a test, to show the status and to print
 
 If you use the hook kit in Codex, start `codex` in the project. If Codex shows the hooks prompt, accept it.
 
-Do not skip this step. If Codex does not trust the hooks, it does not run them, and the model answers your test messages ([troubleshooting.md](../troubleshooting.md#in-codex-the-model-answers-my-test-messages)). Codex asks again after each change to `.codex/hooks.json`, for example after a new `nooku init` ([codex.md](codex.md#install)).
+Do not skip this step. If Codex does not trust the hooks, it does not run them, and the model answers your test messages ([troubleshooting.md](../troubleshooting.md#in-codex-the-model-answers-my-test-messages)). Codex asks again after each change to `.codex/hooks.json`, for example after a new `nookku init` ([codex.md](codex.md#install)).
 
 ## 5. Run `check`
 
 ```bash
-nooku check
+nookku check
 ```
 
 ```text
-Test 20261007-224410-2171: .../toy-shop/.nooku/tests/20261007-224410-2171
+Test 20261007-224410-2171: .../toy-shop/.nookku/tests/20261007-224410-2171
 Reply: Which item is this about: the mug or the teapot?
 Audit: exit 0
 PASS
 ```
 
-`check` runs a short test with one message through the new version, and exits with 0 if it passes ([reference/cli.md](../reference/cli.md#nooku-check)). If it fails, each FAIL line gives the cause and the fix ([troubleshooting.md](../troubleshooting.md#end-a-test)).
+`check` runs a short test with one message through the new version, and exits with 0 if it passes ([reference/cli.md](../reference/cli.md#nookku-check)). If it fails, each FAIL line gives the cause and the fix ([troubleshooting.md](../troubleshooting.md#end-a-test)).
 
 ## Releases with a special step
 
 ### 0.4.0
 
-verbatim-relay is now Nooku ([#181](https://github.com/mohanraj00/verbatim-relay/issues/181)). The package, the CLI, the module and the plugin have new names, so the steps 2 and 3 above do not apply. Do these steps in their place.
+verbatim-relay is now Nookku ([#181](https://github.com/mohanraj00/verbatim-relay/issues/181)). The package, the CLI, the module and the plugin have new names, so the steps 2 and 3 above do not apply. Do these steps in their place.
 
 1. End each running test with the old CLI:
 
@@ -114,14 +114,14 @@ verbatim-relay is now Nooku ([#181](https://github.com/mohanraj00/verbatim-relay
 
    ```bash
    uv tool uninstall verbatim-relay
-   uv tool install nooku
+   uv tool install nookku
    ```
 
-3. In each project, run one `nooku` command, for example `nooku status`. The command moves `.verbatim-relay/` to `.nooku/`, with each test and each seal, and prints the 2 folders. If `config.json` has a `record` path in `.verbatim-relay/`, the command changes it to the same file in `.nooku/`.
+3. In each project, run one `nookku` command, for example `nookku status`. The command moves `.verbatim-relay/` to `.nookku/`, with each test and each seal, and prints the 2 folders. If `config.json` has a `record` path in `.verbatim-relay/`, the command changes it to the same file in `.nookku/`.
 
-4. If `.verbatim-relay/` and `.nooku/` both exist, each command stops with exit 1 and names the 2 folders. Each hook event is blocked. Keep one folder: move the tests that you need into `.nooku/tests/`, then remove `.verbatim-relay/`.
+4. If `.verbatim-relay/` and `.nookku/` both exist, each command stops with exit 1 and names the 2 folders. Each hook event is blocked. Keep one folder: move the tests that you need into `.nookku/tests/`, then remove `.verbatim-relay/`.
 
-5. If you use the hook kit, run `nooku init` again with the same harness and flags. It replaces the hooks that verbatim-relay wrote. In Codex, trust the hooks again (step 4 above).
+5. If you use the hook kit, run `nookku init` again with the same harness and flags. It replaces the hooks that verbatim-relay wrote. In Codex, trust the hooks again (step 4 above).
 
 6. If you use the Claude Code plugin, remove the old plugin and its marketplace, then install the new plugin:
 
@@ -129,17 +129,17 @@ verbatim-relay is now Nooku ([#181](https://github.com/mohanraj00/verbatim-relay
    claude plugin uninstall verbatim-relay@verbatim-relay
    claude plugin marketplace remove verbatim-relay
    claude plugin marketplace add mohanraj00/verbatim-relay
-   claude plugin install nooku@nooku
+   claude plugin install nookku@nookku
    ```
 
-7. If your entry imports the package, change `verbatim_relay` to `nooku` in the import, for example `from nooku.agent import serve`. Then change the package in your app's environment:
+7. If your entry imports the package, change `verbatim_relay` to `nookku` in the import, for example `from nookku.agent import serve`. Then change the package in your app's environment:
 
    ```bash
    uv remove --dev verbatim-relay
-   uv add --dev nooku
+   uv add --dev nookku
    ```
 
-8. If you set `VERBATIM_RELAY_HOME`, set `NOOKU_HOME` in its place. `verify` still reads the seal copies of old tests from `~/.verbatim-relay/seals/`, or from `VERBATIM_RELAY_HOME` if it is set.
+8. If you set `VERBATIM_RELAY_HOME`, set `NOOKKU_HOME` in its place. `verify` still reads the seal copies of old tests from `~/.verbatim-relay/seals/`, or from `VERBATIM_RELAY_HOME` if it is set.
 
 Then run `check` (step 5 above).
 
@@ -176,7 +176,7 @@ kill 38282
 On SIGTERM, the bridge ends the test as `end` does: it stops the entry, and writes the trace, the audit and the seal. The bridge of 0.2.0 does the same ([bridge.py of 0.2.0](https://github.com/mohanraj00/verbatim-relay/blob/v0.2.0/src/verbatim_relay/bridge.py#L514)). In my run, the test folder then had `audit.json` and `seal.json`:
 
 ```bash
-nooku verify 20261007-224554-4b17
+nookku verify 20261007-224554-4b17
 ```
 
 ```text
@@ -188,7 +188,7 @@ Do not use `kill -9` on the bridge. With SIGKILL, the bridge cannot write the au
 **Unknown keys in `config.json`.** `start`, `check` and `init` now stop at an unknown key, for example a key with a typo ([#89](https://github.com/mohanraj00/verbatim-relay/issues/89)). Before, `start` accepted it. With the key `evaluation` in place of `evaluate`, `check` printed this text and exited with 1:
 
 ```text
-nooku: .nooku/config.json has unknown keys: ['evaluation']. Correct or remove them.
+nookku: .nookku/config.json has unknown keys: ['evaluation']. Correct or remove them.
 ```
 
 Correct the name of the key, or remove it. [reference/config.md](../reference/config.md) lists each key.

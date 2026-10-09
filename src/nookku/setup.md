@@ -1,8 +1,8 @@
-# Nooku setup: connect a test to this app
+# Nookku setup: connect a test to this app
 
-You configure a Nooku test for the app in this project. In a test, the tester types each message, and Nooku sends it to the app byte for byte. You do not take part in the test. You only write the connection now.
+You configure a Nookku test for the app in this project. In a test, the tester types each message, and Nookku sends it to the app byte for byte. You do not take part in the test. You only write the connection now.
 
-Do not change the app's code. Write only files in `.nooku/`.
+Do not change the app's code. Write only files in `.nookku/`.
 
 ## 1. Read the app
 
@@ -18,7 +18,7 @@ Do not change the app's code. Write only files in `.nooku/`.
 
 ## 2. Write the entry
 
-Write `.nooku/entry.<ext>` in the language of the app. The entry starts the app once, then speaks the agent contract on stdin and stdout until stdin closes:
+Write `.nookku/entry.<ext>` in the language of the app. The entry starts the app once, then speaks the agent contract on stdin and stdout until stdin closes:
 
 - **In:** one JSON object on one line for each message: `{"v": 1, "id": "...", "session": "...", "message": "...", "history": [{"message": "...", "reply": "..."}]}`.
 - **Out:** one JSON object on one line for each input: `{"v": 1, "id": "<the same id>", "reply": "..."}`, or `{"v": 1, "id": "<the same id>", "error": "..."}` if the app has no reply.
@@ -32,10 +32,10 @@ Obey these rules:
 - If the app fails on one message, write an `error` line and continue.
 - Exit when stdin closes.
 
-In Python, if `nooku` is installed in the app's environment, use the helper:
+In Python, if `nookku` is installed in the app's environment, use the helper:
 
 ```python
-from nooku.agent import serve
+from nookku.agent import serve
 
 
 def reply(message: str, history: list[tuple[str, str]]) -> str:
@@ -49,10 +49,10 @@ serve(reply)
 
 ## 3. Write the configuration
 
-Write the test keys into `.nooku/config.json`. Keep the other keys of the file. Use only the keys of this guide. An unknown key stops `check` and `start`.
+Write the test keys into `.nookku/config.json`. Keep the other keys of the file. Use only the keys of this guide. An unknown key stops `check` and `start`.
 
 ```json
-{"entry": ["python", ".nooku/entry.py"], "models": ["claude-code"]}
+{"entry": ["python", ".nookku/entry.py"], "models": ["claude-code"]}
 ```
 
 - `entry` is the command as a list of arguments. It runs in the project root. Use the app's own interpreter or virtual environment.
@@ -65,11 +65,11 @@ Write the test keys into `.nooku/config.json`. Keep the other keys of the file. 
 Run:
 
 ```bash
-nooku check
+nookku check
 ```
 
 It starts the entry, sends one message, and ends the test. It passes if a reply comes back, if the audit of the test is clean, and if it finds a model session for each harness in `models`. If it fails, read `app.log` and `bridge.log` in the test folder that it names, correct the entry, and run it again.
 
 ## 5. Hand over
 
-Show the tester the entry and the configuration, and ask the tester to review them. The tester then starts the test: `/nooku start` with the Claude Code plugin, or the prompt `nooku start` with the hook kit.
+Show the tester the entry and the configuration, and ask the tester to review them. The tester then starts the test: `/nookku start` with the Claude Code plugin, or the prompt `nookku start` with the hook kit.

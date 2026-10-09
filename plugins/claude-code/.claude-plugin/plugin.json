@@ -1,5 +1,5 @@
 {
-  "name": "nooku",
+  "name": "nookku",
   "version": "0.3.1",
   "description": "Relay a test conversation to a chat agent byte for byte. The model never writes either direction.",
   "author": {
@@ -12,7 +12,7 @@
     "tap_url": {
       "type": "string",
       "title": "Tap URL",
-      "description": "The URL that receives each message: the nooku tap in front of the agent.",
+      "description": "The URL that receives each message: the nookku tap in front of the agent.",
       "default": "http://127.0.0.1:8800/"
     },
     "agent_url": {
@@ -59,13 +59,13 @@
       "type": "string",
       "title": "Relay record",
       "description": "The relay record (JSONL), relative to the working directory or absolute.",
-      "default": ".nooku/relay.jsonl"
+      "default": ".nookku/relay.jsonl"
     },
     "cli": {
       "type": "string",
-      "title": "nooku command",
-      "description": "The nooku command that starts and ends a test and prints the transcript. Give a full path if it is not on PATH.",
-      "default": "nooku"
+      "title": "nookku command",
+      "description": "The nookku command that starts and ends a test and prints the transcript. Give a full path if it is not on PATH.",
+      "default": "nookku"
     },
     "start_on": {
       "type": "boolean",

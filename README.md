@@ -1,17 +1,17 @@
-# Nooku
+# Nookku
 
 A test harness for developers of agent apps.
 
 [![CI](https://github.com/mohanraj00/verbatim-relay/actions/workflows/ci.yml/badge.svg)](https://github.com/mohanraj00/verbatim-relay/actions/workflows/ci.yml)
-[![PyPI](https://img.shields.io/pypi/v/nooku)](https://pypi.org/project/nooku/)
-[![Python versions](https://img.shields.io/pypi/pyversions/nooku)](https://pypi.org/project/nooku/)
+[![PyPI](https://img.shields.io/pypi/v/nookku)](https://pypi.org/project/nookku/)
+[![Python versions](https://img.shields.io/pypi/pyversions/nookku)](https://pypi.org/project/nookku/)
 [![License](https://img.shields.io/github/license/mohanraj00/verbatim-relay)](LICENSE)
 
 **Test your chat agent through Claude Code or Codex. The [harness](docs/reference/glossary.md#harness) model does not retype one message or one reply.**
 
-Nooku is a test harness for developers of agent apps. You talk to your agent in the coding harness where you already work. The [relay](docs/reference/glossary.md#relay) sends each message to your agent byte for byte, and shows each reply byte for byte. The model does not run while you talk. At the end, the model reads the exact record and evaluates your agent: business logic, tone, accuracy.
+Nookku is a test harness for developers of agent apps. You talk to your agent in the coding harness where you already work. The [relay](docs/reference/glossary.md#relay) sends each message to your agent byte for byte, and shows each reply byte for byte. The model does not run while you talk. At the end, the model reads the exact record and evaluates your agent: business logic, tone, accuracy.
 
-It adapts to your app through a thin [entry](docs/reference/glossary.md#entry) in `.nooku/`, and your app's code does not change. The cost is plumbing: you write the entry once, and you change it when the start or the wiring of your app changes.
+It adapts to your app through a thin [entry](docs/reference/glossary.md#entry) in `.nookku/`, and your app's code does not change. The cost is plumbing: you write the entry once, and you change it when the start or the wiring of your app changes.
 
 ## How it works
 
@@ -41,10 +41,10 @@ A test also records what your app did. It copies the session files of the app's 
 ## Install
 
 ```bash
-uv tool install nooku
+uv tool install nookku
 ```
 
-It needs Python 3.10 or later, and it has no runtime dependencies ([pyproject.toml](pyproject.toml)). The docs are for version 0.3.0. To upgrade from an earlier version, end each running test first. Then run `uv tool upgrade nooku` ([CHANGELOG.md](CHANGELOG.md#030)). [docs/how-to/upgrade.md](docs/how-to/upgrade.md) gives each step.
+It needs Python 3.10 or later, and it has no runtime dependencies ([pyproject.toml](pyproject.toml)). The docs are for version 0.3.0. To upgrade from an earlier version, end each running test first. Then run `uv tool upgrade nookku` ([CHANGELOG.md](CHANGELOG.md#030)). [docs/how-to/upgrade.md](docs/how-to/upgrade.md) gives each step.
 
 ## Quick start
 
@@ -55,26 +55,26 @@ Select one route: try the toy shop, connect your app, or choose a relay.
 In a clone of this repo, with the toy shop agent and the hook kit in Claude Code:
 
 ```bash
-nooku init claude-code --entry "python3 examples/toy-shop/agent.py"
-nooku check        # one message through the entry: PASS proves the connection, not the reply
-nooku view         # in a second terminal: each reply shows here
+nookku init claude-code --entry "python3 examples/toy-shop/agent.py"
+nookku check        # one message through the entry: PASS proves the connection, not the reply
+nookku view         # in a second terminal: each reply shows here
 ```
 
-In Claude Code, type the prompt `nooku start`, then your test messages, then `nooku end`. The end of the test writes `audit.json` in the [test folder](docs/reference/glossary.md#test-folder) `.nooku/tests/<test-id>/`. Then the model evaluates the test and writes `report.md`. [docs/getting-started.md](docs/getting-started.md) shows each step with its real output.
+In Claude Code, type the prompt `nookku start`, then your test messages, then `nookku end`. The end of the test writes `audit.json` in the [test folder](docs/reference/glossary.md#test-folder) `.nookku/tests/<test-id>/`. Then the model evaluates the test and writes `report.md`. [docs/getting-started.md](docs/getting-started.md) shows each step with its real output.
 
 Optional: to see the audit again, run it by hand:
 
 ```bash
-nooku audit --tap .nooku/tests/<test-id>/tap.jsonl --relay .nooku/tests/<test-id>/relay.jsonl
+nookku audit --tap .nookku/tests/<test-id>/tap.jsonl --relay .nookku/tests/<test-id>/relay.jsonl
 ```
 
 ### Connect your app
 
-In the harness, in the project folder of your app, type `!nooku setup`. Then type the prompt "Follow the Nooku setup guide, and connect a test to this app." [docs/how-to/test-your-app.md](docs/how-to/test-your-app.md) gives each step from the install to the results, with the expected output. To write the entry yourself, read [docs/how-to/connect-your-agent.md](docs/how-to/connect-your-agent.md).
+In the harness, in the project folder of your app, type `!nookku setup`. Then type the prompt "Follow the Nookku setup guide, and connect a test to this app." [docs/how-to/test-your-app.md](docs/how-to/test-your-app.md) gives each step from the install to the results, with the expected output. To write the entry yourself, read [docs/how-to/connect-your-agent.md](docs/how-to/connect-your-agent.md).
 
 ### Choose a relay
 
-The plugin shows each reply in the chat of Claude Code. The hook kit works in Claude Code and in Codex, and shows each reply in `nooku view`. [docs/how-to/choose-a-relay.md](docs/how-to/choose-a-relay.md) compares the [2 relays](SPEC.md#5-relays). Then read the guide of your relay: [Claude Code plugin](docs/how-to/claude-code-plugin.md), [Claude Code hook kit](docs/how-to/claude-code-hook-kit.md) or [Codex](docs/how-to/codex.md).
+The plugin shows each reply in the chat of Claude Code. The hook kit works in Claude Code and in Codex, and shows each reply in `nookku view`. [docs/how-to/choose-a-relay.md](docs/how-to/choose-a-relay.md) compares the [2 relays](SPEC.md#5-relays). Then read the guide of your relay: [Claude Code plugin](docs/how-to/claude-code-plugin.md), [Claude Code hook kit](docs/how-to/claude-code-hook-kit.md) or [Codex](docs/how-to/codex.md).
 
 ## Results
 
@@ -93,7 +93,7 @@ Under pressure, the mechanism had **0 breaks in 1,000 turns**. The test had 40 s
 
 ## Docs
 
-The how-to rows are in the order of the tasks of a test: choose, connect, run, read the results, fix. The row after them has the tasks that maintain Nooku.
+The how-to rows are in the order of the tasks of a test: choose, connect, run, read the results, fix. The row after them has the tasks that maintain Nookku.
 
 | Kind | Pages |
 |---|---|

@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from nooku.audit import audit
-from nooku.record import RecordError, read_rows
+from nookku.audit import audit
+from nookku.record import RecordError, read_rows
 
 ROOT = Path(__file__).resolve().parent.parent
 CASES = sorted((ROOT / "conformance" / "cases").iterdir())

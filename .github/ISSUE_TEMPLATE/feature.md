@@ -15,7 +15,7 @@ Do not name a client or a product other than Claude Code and Codex.
 
 ## Proposal
 
-<!-- What should Nooku do? If the change touches the records or the audit, say which section of SPEC.md changes. -->
+<!-- What should Nookku do? If the change touches the records or the audit, say which section of SPEC.md changes. -->
 
 ## Done when
 

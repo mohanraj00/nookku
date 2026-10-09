@@ -1,15 +1,15 @@
 # Connect your own agent
 
-A test runs your app through an entry: a thin wrapper that starts the app and speaks the agent contract. The entry and its configuration are in `.nooku/`. Your app's code does not change.
+A test runs your app through an entry: a thin wrapper that starts the app and speaks the agent contract. The entry and its configuration are in `.nookku/`. Your app's code does not change.
 
 This is the plumbing that a test needs. You write it once, when you start to test the app. You change it when the start or the wiring of the app changes, for example a new service or a new start command.
 
 ## Let the harness model write the entry
 
-1. Install the package: `uv tool install nooku`.
-2. Start Claude Code or Codex in your project. Type `!nooku setup`. The harness runs the command, and the model gets the guide as text ([setup.md](../../src/nooku/setup.md)).
-3. Type the prompt: "Follow the Nooku setup guide, and connect a test to this app." With the Claude Code plugin, the `setup` skill does the same as steps 2 and 3.
-4. The model reads the app, writes `.nooku/entry.<ext>` and `.nooku/config.json`, and runs `nooku check`.
+1. Install the package: `uv tool install nookku`.
+2. Start Claude Code or Codex in your project. Type `!nookku setup`. The harness runs the command, and the model gets the guide as text ([setup.md](../../src/nookku/setup.md)).
+3. Type the prompt: "Follow the Nookku setup guide, and connect a test to this app." With the Claude Code plugin, the `setup` skill does the same as steps 2 and 3.
+4. The model reads the app, writes `.nookku/entry.<ext>` and `.nookku/config.json`, and runs `nookku check`.
 5. Review the entry. It is in the message path, and the audit cannot see a change that the entry makes.
 6. Make sure that the entry runs your real app ([Make sure that check runs your real app](#make-sure-that-check-runs-your-real-app)). A PASS of `check` does not prove it.
 
@@ -44,10 +44,10 @@ Obey these rules:
 
 ### In Python, use `serve()`
 
-`nooku.agent.serve(reply)` speaks the contract for one function. It writes the contract lines to the original stdout. It sends all other output of the process to stderr, also the output of child processes ([agent.py](../../src/nooku/agent.py)).
+`nookku.agent.serve(reply)` speaks the contract for one function. It writes the contract lines to the original stdout. It sends all other output of the process to stderr, also the output of child processes ([agent.py](../../src/nookku/agent.py)).
 
 ```python
-from nooku.agent import serve
+from nookku.agent import serve
 
 from toy_shop import Shop  # your app
 
@@ -63,14 +63,14 @@ serve(reply)
 
 If `reply` raises an exception, `serve()` writes an `error` line with the exception, and the test continues.
 
-`serve()` needs `nooku` in the Python environment of your app. `uv tool install` puts it in its own environment, so also add it to your app's environment, for example with `uv add --dev "nooku>=0.3"`. In an earlier version, `serve()` can send the stdout text that the entry printed before it to the tap, and not to stderr ([#46](https://github.com/mohanraj00/verbatim-relay/issues/46)). Then use your app's interpreter in the entry command, for example `[".venv/bin/python", ".nooku/entry.py"]`.
+`serve()` needs `nookku` in the Python environment of your app. `uv tool install` puts it in its own environment, so also add it to your app's environment, for example with `uv add --dev "nookku>=0.3"`. In an earlier version, `serve()` can send the stdout text that the entry printed before it to the tap, and not to stderr ([#46](https://github.com/mohanraj00/verbatim-relay/issues/46)). Then use your app's interpreter in the entry command, for example `[".venv/bin/python", ".nookku/entry.py"]`.
 
 ### In Node
 
-[examples/toy-shop-node/entry.mjs](../../examples/toy-shop-node/entry.mjs) is an entry for the toy shop in Node. It needs no package. Copy it to `.nooku/entry.mjs`, and replace the function `reply` with the call to your app. `reply` can be `async`.
+[examples/toy-shop-node/entry.mjs](../../examples/toy-shop-node/entry.mjs) is an entry for the toy shop in Node. It needs no package. Copy it to `.nookku/entry.mjs`, and replace the function `reply` with the call to your app. `reply` can be `async`.
 
 ```js
-// The toy shop agent in Node, as the entry of a nooku test (SPEC.md section 6).
+// The toy shop agent in Node, as the entry of a nookku test (SPEC.md section 6).
 // It reads one JSON line on stdin for each message, and writes one JSON line on stdout.
 // Usage: node examples/toy-shop-node/entry.mjs
 
@@ -121,7 +121,7 @@ for await (const chunk of process.stdin) {
 The configuration:
 
 ```json
-{"entry": ["node", ".nooku/entry.mjs"], "models": []}
+{"entry": ["node", ".nookku/entry.mjs"], "models": []}
 ```
 
 Obey these rules in Node:
@@ -131,10 +131,10 @@ Obey these rules in Node:
 - If the app starts a child process, send its stdout to stderr, for example with `stdio: ["ignore", 2, 2]` in `spawn`.
 - If `reply` throws, the entry writes an `error` line, and the test continues.
 
-`nooku check` with this entry gives:
+`nookku check` with this entry gives:
 
 ```text
-Test 20261007-224419-fac5: /path/to/toy-shop-node/.nooku/tests/20261007-224419-fac5
+Test 20261007-224419-fac5: /path/to/toy-shop-node/.nookku/tests/20261007-224419-fac5
 Reply: Which item is this about: the mug or the teapot?
 Audit: exit 0
 PASS
@@ -148,36 +148,36 @@ Write the same loop in the language of your app. [examples/toy-shop/agent.py](..
 
 ## Write the configuration
 
-`.nooku/config.json` holds the test keys:
+`.nookku/config.json` holds the test keys:
 
 ```json
-{"entry": ["python3", ".nooku/entry.py"], "models": ["claude-code"]}
+{"entry": ["python3", ".nookku/entry.py"], "models": ["claude-code"]}
 ```
 
 - `entry` is the command as a list of arguments. It runs in the project root.
-- `models` lists the harnesses that your app uses for its own model sessions: `claude-code`, `codex`, both or none. `nooku check` fails if it does not find a session for each one.
+- `models` lists the harnesses that your app uses for its own model sessions: `claude-code`, `codex`, both or none. `nookku check` fails if it does not find a session for each one.
 
-[reference/config.md](../reference/config.md) lists each key. For the hook kit, `nooku init <harness> --entry "<command>"` writes this file and the hooks in one step.
+[reference/config.md](../reference/config.md) lists each key. For the hook kit, `nookku init <harness> --entry "<command>"` writes this file and the hooks in one step.
 
 ## Check the connection
 
 ```bash
-nooku check
+nookku check
 ```
 
 It starts the entry, sends one message, and ends the test. For the toy shop, the output is:
 
 ```text
-Test 20261007-133809-bbb2: /path/to/toy-shop/.nooku/tests/20261007-133809-bbb2
+Test 20261007-133809-bbb2: /path/to/toy-shop/.nookku/tests/20261007-133809-bbb2
 Reply: Which item is this about: the mug or the teapot?
 Audit: exit 0
 PASS
 ```
 
-PASS proves the connection. It does not prove that your app gives correct replies. `check` does these steps, and PASS means that each step passed ([bridge.py](../../src/nooku/bridge.py)):
+PASS proves the connection. It does not prove that your app gives correct replies. `check` does these steps, and PASS means that each step passed ([bridge.py](../../src/nookku/bridge.py)):
 
 1. It starts a [test](../reference/glossary.md#test).
-2. It sends one fixed message to the entry: `Hello from nooku check. What can you help me with?`
+2. It sends one fixed message to the entry: `Hello from nookku check. What can you help me with?`
 3. The entry must send a reply line, not an `error` line.
 4. The [audit](../reference/glossary.md#audit) of the test must be clean. It must exit with 0.
 5. For each [harness](../reference/glossary.md#harness) in `models`, the test must find a model session of the app and its session file.
@@ -203,7 +203,7 @@ Compare the `Reply:` line with a normal reply of your app to the same message. F
 `app.log` in the test folder has the stderr of the entry and your app. Search it for fallback warnings and missing-config warnings:
 
 ```bash
-grep -i -E 'fallback|warn|missing|not set|default' .nooku/tests/<test-id>/app.log
+grep -i -E 'fallback|warn|missing|not set|default' .nookku/tests/<test-id>/app.log
 ```
 
 Change the words to the words that your app writes in its logs. For the toy shop, `grep` finds no line and exits with 1. Its `app.log` has only the line `toy shop agent: ready`.
@@ -225,13 +225,13 @@ The first line is stderr. The second line is the reply line on stdout. Compare t
 
 ### 4. Check the interpreter, the environment file and the working folder
 
-The tap starts the entry with these settings ([stdio.py](../../src/nooku/stdio.py)):
+The tap starts the entry with these settings ([stdio.py](../../src/nookku/stdio.py)):
 
-- **Interpreter.** The command is `entry` in `.nooku/config.json`. Its first word is the interpreter. Use the interpreter of your app, for example `.venv/bin/python`. If you use a different interpreter, the packages of your app can be missing.
+- **Interpreter.** The command is `entry` in `.nookku/config.json`. Its first word is the interpreter. Use the interpreter of your app, for example `.venv/bin/python`. If you use a different interpreter, the packages of your app can be missing.
 - **Working folder.** The entry runs in the project root. If your app reads a file with a relative path, for example `.env` or a config file in its own folder, give the app the correct path in the entry.
-- **Environment.** The entry gets the environment of the process that starts the test, and the variables of the bridge, for example `ANTHROPIC_BASE_URL`. After `nooku check` in a shell, it is the environment of that shell. With the hook kit or the plugin, the harness starts the test, so it is the environment of the harness. If your app reads its keys from an environment file, load that file in the entry.
+- **Environment.** The entry gets the environment of the process that starts the test, and the variables of the bridge, for example `ANTHROPIC_BASE_URL`. After `nookku check` in a shell, it is the environment of that shell. With the hook kit or the plugin, the harness starts the test, so it is the environment of the harness. If your app reads its keys from an environment file, load that file in the entry.
 
-After a change to the entry, run `nooku check` again, and do the 4 steps again.
+After a change to the entry, run `nookku check` again, and do the 4 steps again.
 
 ## If your app is an HTTP server
 
@@ -246,7 +246,7 @@ I recommend the entry. [examples/toy-shop/http_entry.py](../../examples/toy-shop
 """An entry for the toy shop HTTP agent. It starts the server, then sends each message to it.
 
 The entry starts the server, so the server gets the environment of the test and its output goes
-to app.log. Run it from the repo root, with a Python that has nooku:
+to app.log. Run it from the repo root, with a Python that has nookku:
 
     {"entry": [".venv/bin/python", "examples/toy-shop/http_entry.py"]}
 """
@@ -262,7 +262,7 @@ import time
 import urllib.request
 from pathlib import Path
 
-from nooku.agent import serve
+from nookku.agent import serve
 
 PORT = int(os.environ.get("TOY_SHOP_PORT", "8700"))
 URL = f"http://127.0.0.1:{PORT}/"
@@ -324,13 +324,13 @@ Obey these rules for an HTTP server:
 - Start the server in the entry, not before the test. Then the server gets the proxy URLs and the OTLP URL in its environment, and the tap writes its stderr to `app.log`. The tap also finds a Claude Code session of the server only if the server is a child of the entry ([SPEC.md section 7.3](../../SPEC.md#73-model-sessions)).
 - Send the stdout of the server to stderr. `serve()` does this only for output after it starts, so give `stdout=sys.stderr` to the server process.
 - Set `agent_url` to the URL of the server. The relay then denies a model tool call that names this URL, the same as a call to the tap ([reference/config.md](../reference/config.md#relay-keys)). A model call to the server goes around the tap, and no record shows it.
-- Give the call to the server a timeout of less than [240 seconds](../../src/nooku/stdio.py), the agent timeout of the tap. Then the tester sees the error of the call.
+- Give the call to the server a timeout of less than [240 seconds](../../src/nookku/stdio.py), the agent timeout of the tap. Then the tester sees the error of the call.
 - If the server streams its reply, read the full stream and return one reply ([test-a-streaming-agent.md](test-a-streaming-agent.md)).
 
-`nooku check` with this entry gives:
+`nookku check` with this entry gives:
 
 ```text
-Test 20261007-224920-4058: /path/to/toy-shop-http/.nooku/tests/20261007-224920-4058
+Test 20261007-224920-4058: /path/to/toy-shop-http/.nookku/tests/20261007-224920-4058
 Reply: Which item is this about: the mug or the teapot?
 Audit: exit 0
 PASS
@@ -340,17 +340,17 @@ PASS
 
 | | Entry (the tap in stdio mode) | HTTP tap |
 |---|---|---|
-| Test folder | Yes: `.nooku/tests/<test-id>/` | No |
+| Test folder | Yes: `.nookku/tests/<test-id>/` | No |
 | Trace | Yes: `trace.jsonl` and `findings.json` | No |
-| Seal | Yes: `seal.json`. `nooku verify` shows each changed file. | No |
-| Evaluation | Yes, after the prompt `nooku end` | No |
+| Seal | Yes: `seal.json`. `nookku verify` shows each changed file. | No |
+| Evaluation | Yes, after the prompt `nookku end` | No |
 | Backend and model API proxies | Yes, for the entry and each process that it starts | No |
 | OTLP receiver | Yes, for the entry and each process that it starts | No |
 | Copies of the model sessions | Yes, in `sessions/` of the test folder | No |
-| Record path | `tap.jsonl` and `relay.jsonl` in the test folder | The `--record` file of the tap, and the relay option `record` (default `.nooku/relay.jsonl`) |
-| Audit | The bridge writes `audit.json` at the end. | You run `nooku audit --tap FILE --relay FILE`. |
-| On | Plugin: `/nooku start`. Hook kit: the prompt `nooku start`. | Plugin: `/nooku on`. Hook kit: `nooku mode on`. |
-| Off | Plugin: `/nooku end`. Hook kit: the prompt `nooku end`. | Plugin: `/nooku off`. Hook kit: `nooku mode off`. |
+| Record path | `tap.jsonl` and `relay.jsonl` in the test folder | The `--record` file of the tap, and the relay option `record` (default `.nookku/relay.jsonl`) |
+| Audit | The bridge writes `audit.json` at the end. | You run `nookku audit --tap FILE --relay FILE`. |
+| On | Plugin: `/nookku start`. Hook kit: the prompt `nookku start`. | Plugin: `/nookku on`. Hook kit: `nookku mode on`. |
+| Off | Plugin: `/nookku end`. Hook kit: the prompt `nookku end`. | Plugin: `/nookku off`. Hook kit: `nookku mode off`. |
 | Streamed replies | The entry joins the stream into one reply. | Only with the `openai` adapter. |
 
 ## When the app changes
@@ -360,7 +360,7 @@ PASS
 - **A new HTTP service:** add it to `backends` ([add-a-backend.md](add-a-backend.md)).
 - **A new direct model call:** check that the SDK reads `ANTHROPIC_BASE_URL` or `OPENAI_BASE_URL` ([record-model-calls.md](record-model-calls.md)).
 
-Then run `nooku check` again. The manifest of each test keeps the SHA-256 of each file in `.nooku/`, so a test shows which entry it ran.
+Then run `nookku check` again. The manifest of each test keeps the SHA-256 of each file in `.nookku/`, so a test shows which entry it ran.
 
 ## Next
 

@@ -1,7 +1,7 @@
 """The seal of a test folder (SPEC.md section 7.4).
 
 At the end of a test, the bridge writes the SHA-256 of each file of the test folder to seal.json,
-and a copy to ~/.nooku/seals/<test-id>.json. `verify` finds each file that changed after
+and a copy to ~/.nookku/seals/<test-id>.json. `verify` finds each file that changed after
 the end. A model that changes a record must also change both seals.
 """
 
@@ -22,7 +22,7 @@ VERSION = 1
 
 
 def home() -> Path:
-    return Path(os.environ.get("NOOKU_HOME") or Path.home() / ".nooku")
+    return Path(os.environ.get("NOOKKU_HOME") or Path.home() / ".nookku")
 
 
 def old_home() -> Path:

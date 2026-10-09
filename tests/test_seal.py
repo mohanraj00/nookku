@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from nooku import seal
-from nooku.cli import main
+from nookku import seal
+from nookku.cli import main
 
 CASES = sorted((Path(__file__).resolve().parent.parent / "conformance" / "seal").iterdir())
 TEST = "20261006-120000-se01"
@@ -19,7 +19,7 @@ def test_conformance(case: Path) -> None:
 
 def folder(tmp_path: Path) -> Path:
     """A copy of the intact case, as a test folder of a project."""
-    f = tmp_path / ".nooku" / "tests" / TEST
+    f = tmp_path / ".nookku" / "tests" / TEST
     shutil.copytree(CASES[0].parent / "intact" / "test" / TEST, f)
     (f / "seal.json").unlink()
     return f
@@ -38,10 +38,10 @@ def test_verify_finds_the_copy_of_a_test_that_verbatim_relay_sealed(
     tmp_path: Path, seal_home: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     old = tmp_path / "old-home"
-    monkeypatch.setenv("NOOKU_HOME", str(old))
+    monkeypatch.setenv("NOOKKU_HOME", str(old))
     f = folder(tmp_path)
     assert seal.write(f) is None
-    monkeypatch.setenv("NOOKU_HOME", str(seal_home))
+    monkeypatch.setenv("NOOKKU_HOME", str(seal_home))
     monkeypatch.setenv("VERBATIM_RELAY_HOME", str(old))
     assert seal.verify(f)["copy"] == "same"
     assert seal.verify(f)["intact"]

@@ -4,10 +4,10 @@ from pathlib import Path
 
 import pytest
 
-from nooku import __version__, bridge, kit
-from nooku.cli import main
-from nooku.kit import LEGEND
-from nooku.record import Writer
+from nookku import __version__, bridge, kit
+from nookku.cli import main
+from nookku.kit import LEGEND
+from nookku.record import Writer
 
 CASES = Path(__file__).resolve().parent.parent / "conformance" / "cases"
 
@@ -16,7 +16,7 @@ def test_version(capsys):
     with pytest.raises(SystemExit) as exit_info:
         main(["--version"])
     assert exit_info.value.code == 0
-    assert capsys.readouterr().out.strip() == f"nooku {__version__}"
+    assert capsys.readouterr().out.strip() == f"nookku {__version__}"
 
 
 @pytest.mark.parametrize(
@@ -96,7 +96,7 @@ def test_tap_command_end_to_end(tmp_path):
     cmd = [
         sys.executable,
         "-m",
-        "nooku",
+        "nookku",
         "tap",
         "--agent",
         agent.url,
@@ -125,7 +125,7 @@ def test_tap_command_end_to_end(tmp_path):
 
 
 def test_transcript_without_a_config_uses_the_default_record(tmp_path, capsys):
-    relay = Writer(tmp_path / ".nooku" / "relay.jsonl")
+    relay = Writer(tmp_path / ".nookku" / "relay.jsonl")
     relay.path.parent.mkdir()
     relay.append(
         {
@@ -147,7 +147,7 @@ def _turns(path: Path, harness: str) -> None:
     rows = [
         ("old question", "old answer", True, "s0"),
         ("Where is order 4471?  \n", "It ships on Monday.\n\n| item | price |\n", True, "s1"),
-        ("And order 4417?", "nooku: cannot reach the tap", False, "s1"),
+        ("And order 4417?", "nookku: cannot reach the tap", False, "s1"),
     ]
     for said, shown, ok, session in rows:
         Writer(path).append(
@@ -171,9 +171,9 @@ def _transcript(capsys: pytest.CaptureFixture[str], argv: list[str]) -> str:
 def test_the_plugin_and_the_kit_render_the_same_transcript_of_a_test(
     tmp_path: Path, capsys: pytest.CaptureFixture[str], harness: str
 ) -> None:
-    # The plugin runs `nooku transcript --test ID` (register.test.ts). The hook kit
-    # tells the model to run `nooku transcript`, which takes the latest test.
-    state = tmp_path / ".nooku"
+    # The plugin runs `nookku transcript --test ID` (register.test.ts). The hook kit
+    # tells the model to run `nookku transcript`, which takes the latest test.
+    state = tmp_path / ".nookku"
     state.mkdir()
     (state / "config.json").write_text(json.dumps({"entry": ["python", "agent.py"]}))
     test = "20261007-090000-ab12"
@@ -183,25 +183,25 @@ def test_the_plugin_and_the_kit_render_the_same_transcript_of_a_test(
     kit = _transcript(capsys, root)
     assert plugin == kit
     lines = plugin.split("\n")
-    assert lines[0].startswith(f"nooku transcript, test {test}: 3 turns.")
+    assert lines[0].startswith(f"nookku transcript, test {test}: 3 turns.")
     assert lines[1] == LEGEND
     assert "──── tester, turn 2 ────\nWhere is order 4471?  \n\n──── agent ────\n" in plugin
-    assert "──── relay error, not an agent reply ────\nnooku: cannot" in plugin
+    assert "──── relay error, not an agent reply ────\nnookku: cannot" in plugin
     assert "sha256" not in plugin and "s1" not in plugin
 
 
 def test_the_plugin_and_the_kit_render_the_same_transcript_of_a_session(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    # Without an entry, the plugin runs `nooku transcript --record R --session S`
-    # (register.test.ts), and the hook kit runs `nooku transcript`.
-    record = tmp_path / ".nooku" / "relay.jsonl"
+    # Without an entry, the plugin runs `nookku transcript --record R --session S`
+    # (register.test.ts), and the hook kit runs `nookku transcript`.
+    record = tmp_path / ".nookku" / "relay.jsonl"
     _turns(record, "claude-code")
     root = ["--root", str(tmp_path)]
     plugin = _transcript(capsys, [*root, "--record", str(record), "--session", "s1"])
     kit = _transcript(capsys, root)
-    assert plugin.startswith("nooku transcript, session s1: 2 turns.")
-    assert kit.startswith("nooku transcript, the latest session: 2 turns.")
+    assert plugin.startswith("nookku transcript, session s1: 2 turns.")
+    assert kit.startswith("nookku transcript, the latest session: 2 turns.")
     assert plugin.split("\n")[1:] == kit.split("\n")[1:]
     assert "old question" not in plugin
 
@@ -217,8 +217,8 @@ TOY_SHOP = Path(__file__).resolve().parent.parent / "examples" / "toy-shop" / "a
 def test_setup_prints_the_guide(capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["setup"]) == 0
     out = capsys.readouterr().out
-    assert out.startswith("# Nooku setup")
-    assert "nooku check" in out
+    assert out.startswith("# Nookku setup")
+    assert "nookku check" in out
 
 
 @pytest.mark.parametrize(
@@ -238,7 +238,7 @@ def test_tap_needs_one_agent(argv: list[str]) -> None:
 def test_init_takes_the_openai_stream_flag(tmp_path: Path) -> None:
     args = ["init", "codex", "--root", str(tmp_path), "--adapter", "openai", "--openai-stream"]
     assert main(args) == 0
-    conf = json.loads((tmp_path / ".nooku" / "config.json").read_text())
+    conf = json.loads((tmp_path / ".nookku" / "config.json").read_text())
     assert (conf["adapter"], conf["openai_stream"]) == ("openai", True)
 
 
@@ -247,7 +247,7 @@ def test_init_again_keeps_the_keys_that_have_no_flag(
 ) -> None:
     assert main(["init", "codex", "--root", str(tmp_path), "--entry", "python3 agent.py"]) == 0
     assert "A new file. Keys that differ from the default: entry." in capsys.readouterr().out
-    path = tmp_path / ".nooku" / "config.json"
+    path = tmp_path / ".nookku" / "config.json"
     backends = [{"name": "stock", "env": "STOCK_URL", "url": "http://127.0.0.1:9001"}]
     first = {**json.loads(path.read_text()), "backends": backends, "evaluate": False}
     path.write_text(json.dumps(first))
@@ -260,7 +260,7 @@ def test_init_again_keeps_the_keys_that_have_no_flag(
 def test_init_adds_no_default_to_an_existing_config(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    path = tmp_path / ".nooku" / "config.json"
+    path = tmp_path / ".nookku" / "config.json"
     path.parent.mkdir()
     path.write_text('{"entry": ["python3", "agent.py"], "evaluate": false}')
     args = ["init", "claude-code", "--root", str(tmp_path), "--adapter", "openai"]
@@ -277,7 +277,7 @@ def test_init_adds_no_default_to_an_existing_config(
     "config, settings, error",
     [
         ('{"tpa_url": "x"}', None, "config.json has unknown keys: ['tpa_url']"),
-        ("{", None, "cannot read .nooku/config.json"),
+        ("{", None, "cannot read .nookku/config.json"),
         (None, "{", "settings.local.json: Expecting"),
         (None, '{"hooks": []}', "'hooks' is not a JSON object"),
         (None, '{"hooks": {"PreToolUse": [null]}}', "a group of 'hooks.PreToolUse' has no list"),
@@ -293,7 +293,7 @@ def test_init_writes_nothing_if_a_file_cannot_be_kept(
     error: str,
 ) -> None:
     files = {
-        tmp_path / ".nooku" / "config.json": config,
+        tmp_path / ".nookku" / "config.json": config,
         tmp_path / ".claude" / "settings.local.json": settings,
     }
     for path, text in files.items():
@@ -305,44 +305,44 @@ def test_init_writes_nothing_if_a_file_cannot_be_kept(
     assert error in err and err.endswith("Nothing was written.\n")
     for path, text in files.items():
         assert (path.read_text() if path.exists() else None) == text
-    assert not (tmp_path / ".nooku" / "mode").exists()
+    assert not (tmp_path / ".nookku" / "mode").exists()
 
 
 def test_an_unknown_key_stops_start_check_and_the_hook_kit_with_one_message(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     assert main(["init", "codex", "--root", str(tmp_path), "--entry", f"python3 {TOY_SHOP}"]) == 0
-    path = tmp_path / ".nooku" / "config.json"
+    path = tmp_path / ".nookku" / "config.json"
     path.write_text(json.dumps({**json.loads(path.read_text()), "tpa_url": "x"}))
-    cause = ".nooku/config.json has unknown keys: ['tpa_url']. Correct or remove them."
+    cause = ".nookku/config.json has unknown keys: ['tpa_url']. Correct or remove them."
     capsys.readouterr()
     for command in ("start", "check"):
         assert main([command, "--root", str(tmp_path)]) == 1
-        assert capsys.readouterr().out == f"nooku: {cause}\n"
+        assert capsys.readouterr().out == f"nookku: {cause}\n"
     assert main(["start", "--root", str(tmp_path), "--json"]) == 1
     assert json.loads(capsys.readouterr().out) == {"error": cause}
     # mode on starts a test, so it shows the same message and keeps relay mode off.
     assert main(["mode", "on", "--root", str(tmp_path)]) == 0
-    assert capsys.readouterr().out == f"nooku: {cause}\n"
+    assert capsys.readouterr().out == f"nookku: {cause}\n"
     assert not kit.is_on(tmp_path)
-    assert not (tmp_path / ".nooku" / "tests").exists()
+    assert not (tmp_path / ".nookku" / "tests").exists()
     kit.set_mode(tmp_path, True)
     event = {"hook_event_name": "UserPromptSubmit", "prompt": "hi", "session_id": "s1"}
     answer = kit.handle(event, tmp_path, "codex")
     assert answer is not None and answer["decision"] == "block"
-    broken = "nooku: relay mode is on, but the config is broken: "
+    broken = "nookku: relay mode is on, but the config is broken: "
     assert answer["reason"] == broken + cause
 
 
 def test_mode_on_with_no_entry_and_an_unknown_key_keeps_relay_mode_off(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    path = tmp_path / ".nooku" / "config.json"
+    path = tmp_path / ".nookku" / "config.json"
     path.parent.mkdir()
     path.write_text(json.dumps({"agent_url": "http://127.0.0.1:9000/", "tpa_url": "x"}))
     assert main(["mode", "on", "--root", str(tmp_path)]) == 0
-    cause = ".nooku/config.json has unknown keys: ['tpa_url']. Correct or remove them."
-    assert capsys.readouterr().out == f"nooku: {cause}\n"
+    cause = ".nookku/config.json has unknown keys: ['tpa_url']. Correct or remove them."
+    assert capsys.readouterr().out == f"nookku: {cause}\n"
     assert not kit.is_on(tmp_path)
     path.write_text(json.dumps({"agent_url": "http://127.0.0.1:9000/"}))
     assert main(["mode", "on", "--root", str(tmp_path)]) == 0
@@ -354,7 +354,7 @@ def test_init_start_and_end_a_test(tmp_path: Path, capsys: pytest.CaptureFixture
     assert (
         main(["init", "codex", "--root", str(tmp_path), "--entry", entry, "--models", "codex"]) == 0
     )
-    conf = json.loads((tmp_path / ".nooku" / "config.json").read_text())
+    conf = json.loads((tmp_path / ".nookku" / "config.json").read_text())
     assert conf["entry"] == [sys.executable, str(TOY_SHOP)]
     assert conf["models"] == ["codex"] and conf["openai_stream"] is False
     capsys.readouterr()

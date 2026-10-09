@@ -1,10 +1,10 @@
 """The toy shop chat agent for the quick start. Standard library only.
 
-It speaks the nooku agent contract (SPEC.md section 6): one JSON line in on stdin for
+It speaks the nookku agent contract (SPEC.md section 6): one JSON line in on stdin for
 each message, and one JSON line out on stdout with the reply. The tap starts it as the entry of a
 test:
 
-    nooku init claude-code --entry "python examples/toy-shop/agent.py"
+    nookku init claude-code --entry "python examples/toy-shop/agent.py"
 
 usage: python examples/toy-shop/agent.py
 """
