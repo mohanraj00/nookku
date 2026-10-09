@@ -1458,6 +1458,41 @@
           "version": "codex-cli 0.162.0"
         }
       ]
+    },
+    {
+      "reason": "Superseded by the final initialized client and literal plugin-table override check.",
+      "runs": [
+        {
+          "surface": "codex_exec",
+          "case": "hooks",
+          "version": "codex-cli 0.162.0"
+        },
+        {
+          "surface": "codex_exec",
+          "case": "mcp",
+          "version": "codex-cli 0.162.0"
+        },
+        {
+          "surface": "codex_exec",
+          "case": "skill",
+          "version": "codex-cli 0.162.0"
+        },
+        {
+          "surface": "interactive_cli",
+          "case": "hooks",
+          "version": "codex-cli 0.162.0"
+        },
+        {
+          "surface": "interactive_cli",
+          "case": "mcp",
+          "version": "codex-cli 0.162.0"
+        },
+        {
+          "surface": "interactive_cli",
+          "case": "skill",
+          "version": "codex-cli 0.162.0"
+        }
+      ]
     }
   ],
   "manifest_schema": {
@@ -1493,7 +1528,8 @@
     "A person performed desktop checks and reported the About version. No desktop model-request capture was configured.",
     "Desktop status text and menu entry discovery were not identified. No warning was seen although hook events were recorded.",
     "The human reported several Refresh clicks, while the bounded interval recorded one server call. No claim about every click, exact callback origin, later model-context delivery, or byte equality is made.",
-    "The final CLI matrix checks the full hook list and installed fixture before each case. Earlier runs with enabled non-toy hooks are excluded. Desktop executable verification followed the human check; no earlier desktop byte snapshot exists."
+    "The final CLI matrix checks the full hook list and installed fixture before each case. Earlier runs with enabled non-toy hooks are excluded. Desktop executable verification followed the human check; no earlier desktop byte snapshot exists.",
+    "The fixture check does not lock files. Concurrent changes after the check and before Codex reads a hook can escape the check."
   ],
   "answers": {
     "in_process_code": {

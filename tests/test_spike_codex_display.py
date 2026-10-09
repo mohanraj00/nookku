@@ -396,12 +396,15 @@ def test_plugin_override_targets_the_selector_without_literal_quote_characters(
     monkeypatch.setattr(spike.Path, "home", lambda: tmp_path)
     monkeypatch.setattr(spike, "INVOCATION_OVERRIDES", [])
     args = spike.overrides()
-    assert f"plugins.{spike.SELECTOR}.enabled=true" in args
+    assert any(f'"{spike.SELECTOR}"={{enabled=true}}' in arg for arg in args)
     assert not any('plugins."' in arg for arg in args)
 
 
 def test_invocation_disables_only_non_toy_hooks_without_setting_trust(monkeypatch):
     class FakeServer:
+        def __init__(self):
+            self.process = type("Process", (), {"stdin": io.BytesIO()})()
+
         def request(self, method, params):
             if method == "hooks/list":
                 return {
@@ -454,3 +457,38 @@ def test_desktop_import_keeps_only_bounded_observations(monkeypatch, tmp_path):
     result = json.loads((tmp_path / "proof.json").read_text())
     assert result["desktop"]["human_observation"] == observation
     assert "notes" not in result["desktop"]["human_observation"]
+
+
+def test_dotted_plugin_selector_stays_one_literal_key(monkeypatch, tmp_path):
+    tomllib = pytest.importorskip("tomllib")
+    config = tmp_path / ".codex/config.toml"
+    config.parent.mkdir()
+    config.write_text('[plugins."other.name@toy-market"]\nenabled = true\n')
+    monkeypatch.setattr(spike.Path, "home", lambda: tmp_path)
+    monkeypatch.setattr(spike, "INVOCATION_OVERRIDES", [])
+    args = spike.overrides()
+    table = next((arg for arg in args if arg.startswith("plugins=")), None)
+    assert table is not None, "Use a table override so dots in selector keys stay literal"
+    plugins = tomllib.loads(table)["plugins"]
+    assert plugins["other.name@toy-market"]["enabled"] is False
+    assert plugins[spike.SELECTOR]["enabled"] is True
+
+
+def test_isolation_sends_initialized_before_reading_hooks(monkeypatch):
+    stream = io.BytesIO()
+
+    class FakeServer:
+        def __init__(self):
+            self.process = type("Process", (), {"stdin": stream})()
+
+        def request(self, method, params):
+            if method == "hooks/list":
+                assert b'"method":"initialized"' in stream.getvalue()
+                return {"data": [{"hooks": []}]}
+            return {}
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(spike, "AppServer", FakeServer)
+    spike.isolate_invocation()

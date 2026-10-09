@@ -357,7 +357,6 @@ def prepare() -> None:
 def overrides() -> list[str]:
     # Do not disable the trust check or ignore the config that holds human trust.
     values = {
-        f"plugins.{SELECTOR}.enabled": "true",
         f"marketplaces.{MARKET}.source_type": '"local"',
         f"marketplaces.{MARKET}.source": json.dumps(str(WORK)),
         "features.hooks": "true",
@@ -365,13 +364,22 @@ def overrides() -> list[str]:
         "features.code_mode_only": "false",
     }
     # Disable other plugins for this invocation only. Leave saved user config untouched.
+    plugin_states = {SELECTOR: True}
     config = Path.home() / ".codex/config.toml"
     if config.exists():
         import tomllib
 
         for name in tomllib.loads(config.read_text()).get("plugins", {}):
             if name != SELECTOR:
-                values[f"plugins.{name}.enabled"] = "false"
+                plugin_states[name] = False
+    values["plugins"] = (
+        "{"
+        + ", ".join(
+            f"{json.dumps(name)}={{enabled={json.dumps(enabled)}}}"
+            for name, enabled in plugin_states.items()
+        )
+        + "}"
+    )
     return [
         *[arg for key, value in values.items() for arg in ("-c", f"{key}={value}")],
         *INVOCATION_OVERRIDES,
@@ -439,6 +447,9 @@ def isolate_invocation() -> None:
                 "capabilities": {"experimentalApi": True},
             },
         )
+        assert server.process.stdin is not None
+        server.process.stdin.write(b'{"method":"initialized"}\n')
+        server.process.stdin.flush()
         hooks = server.request("hooks/list", {"cwds": [str(PROJECT)]})["data"][0]["hooks"]
         if any(
             h.get("enabled") and h.get("pluginId") != SELECTOR and h.get("isManaged") for h in hooks

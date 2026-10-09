@@ -48,6 +48,8 @@ requests in each toy turn. Stop runs after the final request. I did not test its
 I did not test byte equality of a rendered reply. The desktop method records human observations and
 toy hook/MCP event names. It does not capture desktop model requests. The installed hook files were checked after the
 human observations; no file snapshot was taken at each earlier desktop event.
+The fixture check does not lock the files. A change between the check and Codex reading them
+can escape the check. This local spike does not prove protection against concurrent file changes.
 
 ## Run the method
 
@@ -56,8 +58,10 @@ Run `python3 scripts/spike_codex_display.py prepare`. Install the toy plugin wit
 A person opens `/hooks` in the printed toy project and trusts only the toy display hooks.
 The script does not write trust state. It refuses to replace a reviewed hook definition or executable.
 Before each CLI case, it checks the installed command, source, definition hash and file bytes
-against the generated fixture and inspected hook definitions. It disables other hooks for that
-invocation and then checks the full hook list. Any enabled non-toy hook stops the probe.
+against the generated fixture and inspected hook definitions. It first disables unrelated
+non-managed hooks for that invocation. An enabled non-toy managed hook stops isolation.
+It then checks the full hook list before each case. Any non-toy hook that remains enabled
+or appears after isolation stops the probe.
 
 Run `inspect` to record schema and plugin metadata. Run `measure` for the CLI matrix.
 Use `--surface codex_exec|interactive_cli` or `--case hooks|mcp|skill` to repeat a selected case.
