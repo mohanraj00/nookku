@@ -281,7 +281,7 @@ The hook command that `init` writes into the hook file. It reads one hook event 
 
 ### `nookku mcp`
 
-The MCP server that gives the model the read-only tools `transcript` and `status`. It reads one JSON-RPC message on each line of stdin and writes each answer on stdout. The plugin starts it ([SPEC.md section 5](../../SPEC.md#5-relays)).
+The MCP server that gives the model the read-only tools `transcript` and `status`. It reads one JSON-RPC message on each line of stdin and writes each answer on stdout. A harness starts it from its MCP configuration ([SPEC.md section 5](../../SPEC.md#5-relays)). The plugin does not start it yet: [#216](https://github.com/mohanraj00/nookku/issues/216) adds it to the plugin.
 
 | Flag | Default | Meaning |
 |---|---|---|
