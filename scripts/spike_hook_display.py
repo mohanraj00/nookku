@@ -37,6 +37,7 @@ systemMessage, or both for --project. --person imports their observations and de
 usage: python scripts/spike_hook_display.py claude-code|codex [--project SIZE | --person FILE] [OUT]
        --fields reason|systemMessage|both (with --project only)
        codex --desktop: capture model requests while a person runs the desktop prompt matrix
+       codex --side-requests: repeat first and later blocked prompts in separate desktop chats
        Cleanup waits for a person to remove the global URL, including after errors or Ctrl-C.
        A person adds the printed openai_base_url to user config, then removes it after the cases.
        codex --copies DIR: compare copied field files after the desktop capture
@@ -170,11 +171,21 @@ def where(body: bytes, marks: tuple[str, ...]) -> dict[str, Any]:
             found.append("other")
         places[m] = found
     tools = data.get("tools") or []
+    # Keep a schema match, never the title instructions or the model's answer.
+    text_format = data.get("text")
+    text_format = text_format.get("format") if isinstance(text_format, dict) else None
+    schema = text_format.get("schema") if isinstance(text_format, dict) else None
+    title_schema = (
+        isinstance(schema, dict)
+        and set(schema.get("properties") or {}) == {"title", "description"}
+        and set(schema.get("required") or []) == {"title", "description"}
+    )
     return {
         "model": data.get("model"),
         "tools": len(tools),
         "messages": len(data.get("messages") or data.get("input") or []),
         "found": places,
+        "title_description_schema": title_schema,
     }
 
 
@@ -810,6 +821,49 @@ def desktop_plan() -> list[dict[str, Any]]:
     return out
 
 
+def side_request_plan() -> list[dict[str, Any]]:
+    """A new chat for each pair of first and later blocked prompts."""
+    out = []
+    for chat in range(3):
+        for position in ("first", "later"):
+            mark = f"SIDE{chat:02d}-{position.upper()}"
+            reply = f"{mark}-reason-START Toy shop hook blocked this prompt. {mark}-reason-END"
+            out.append(
+                {
+                    "id": mark,
+                    "chat": chat,
+                    "position": position,
+                    "fields": ["reason"],
+                    "size": len(reply.encode()),
+                    "blocked_prompt": f"block: {mark}-PROMPT a toy shop question",
+                    "passed_prompt": f"pass: {mark}-PASS reply with the word ok",
+                    "payload": {"decision": "block", "reason": reply},
+                }
+            )
+    return out
+
+
+def side_request_sessions(
+    plan: list[dict[str, Any]], receipts: list[dict[str, Any]]
+) -> dict[int, str]:
+    """Check the person's chat grouping and prompt order from hook receipts."""
+    sessions = {}
+    for chat in sorted({c["chat"] for c in plan}):
+        cases = [c for c in plan if c["chat"] == chat]
+        rows = [r for r in receipts if r.get("case") in {c["id"] for c in cases}]
+        ids = {r.get("session_id") for r in rows}
+        expected = [(c["id"], blocked) for c in cases for blocked in (True, False)]
+        if len(ids) != 1 or None in ids or [(r["case"], r["blocked"]) for r in rows] != expected:
+            raise RuntimeError(
+                "Each chat needs its first block, pass, later block and pass in order."
+            )
+        session = next(iter(ids))
+        if session in sessions.values():
+            raise RuntimeError("Start a new desktop chat for each first-prompt case.")
+        sessions[chat] = session
+    return sessions
+
+
 def wait_desktop_provider_cleanup(user_config: Path, url: str, proxies: backend.Proxies) -> None:
     """Keep the listener while a person removes the global URL, also after a failed capture."""
     port = urlsplit(url).port
@@ -845,11 +899,11 @@ def wait_desktop_provider_cleanup(user_config: Path, url: str, proxies: backend.
             continue  # Status output is also inside this guard. Never release a configured port.
 
 
-def codex_desktop(out: Path) -> None:
+def codex_desktop(out: Path, *, side_requests: bool = False) -> None:
     """Keep a proxy running while a person tests a new local desktop chat."""
     p = codex_project({})
     plugins = require_codex_hook(p)
-    plan = desktop_plan()
+    plan = side_request_plan() if side_requests else desktop_plan()
     payloads = {
         prompt: {"id": case["id"], "payload": case["payload"]}
         for case in plan
@@ -862,14 +916,30 @@ def codex_desktop(out: Path) -> None:
         "# Desktop hook display check",
         "",
         f"Open `{p}` as a project in the desktop app. Start a new local chat in it.",
-        "Keep all prompts in that chat. The capture script must stay running.",
-        "For each case, send the block prompt. Note which field shows, whether its start and end",
-        "show, whether it has line breaks, whether Markdown renders, and whether Café, 中文,",
-        "😀, 𝄞, 🧸 and 🎲 show. Note whether it looks like a warning, an error or plain text.",
+        "The capture script must stay running.",
+    ]
+    if side_requests:
+        instructions.extend(
+            [
+                "Start a NEW chat for each FIRST case. Keep its LATER case in the same chat.",
+                "For each case, send the block prompt. Note that the hook blocks it.",
+            ]
+        )
+    else:
+        instructions.extend(
+            [
+                "Keep all prompts in that chat.",
+                "For each case, send the block prompt. Note which field shows,",
+                "whether its start and end show, whether it has line breaks,",
+                "whether Markdown renders, and whether Café, 中文, 😀, 𝄞, 🧸 and 🎲 show.",
+                "Note whether it looks like a warning, an error or plain text.",
+                "For a byte comparison, save each shown field as ID-FIELD.txt in this folder.",
+                "Copy only the reply text. The script compares its UTF-8 bytes with the fixture.",
+            ]
+        )
+    instructions += [
         "Then send the pass prompt and wait for its answer before the next case.",
         "Record the desktop version in About. Send the observations and the chat link to Codex.",
-        "For a byte comparison, save each shown field's text as ID-FIELD.txt in this folder.",
-        "Copy only the field's reply text. The script compares its UTF-8 bytes with the fixture.",
         "",
     ]
     for case in plan:
@@ -996,11 +1066,19 @@ def codex_desktop(out: Path) -> None:
                 config.unlink(missing_ok=True)
             else:
                 config.write_bytes(old_config)
+        # stop() waits for in-flight calls. Read again so a late title stream is not lost.
+        rows = list(map(json.loads, record.read_text().splitlines())) if record.exists() else []
+        models = [
+            {"path": r["path"], "status": r.get("status"), **r["request_body"]}
+            for r in rows
+            if (r.get("request_body") or {}).get("model")
+        ]
         data = json.loads(out.read_text()) if out.exists() else {}
         desktop: dict[str, Any] = {
             "date": date.today().isoformat(),
             "version": desktop_version(),
-            "method": "scripts/spike_hook_display.py codex --desktop",
+            "method": "scripts/spike_hook_display.py codex "
+            + ("--side-requests" if side_requests else "--desktop"),
             "provider_setup": "person sets openai_base_url in user config, then removes it",
             "request_compression": "disabled in project config so marker inspection reads JSON",
             "model": CODEX_MODEL,
@@ -1011,6 +1089,11 @@ def codex_desktop(out: Path) -> None:
             "cases": [],
             "visual_observations": "pending the person's report",
         }
+        if side_requests:
+            desktop["chat_sessions"] = side_request_sessions(plan, receipts)
+            desktop["unclassified_requests"] = sum(
+                not (r.get("request_body") or {}).get("model") for r in rows
+            )
         for case in plan:
             copies = {}
             for field in case["fields"]:
@@ -1034,7 +1117,9 @@ def codex_desktop(out: Path) -> None:
                     },
                 }
             )
-        data.setdefault("codex", {})["desktop"] = desktop
+        data.setdefault("codex", {})["desktop_side_requests" if side_requests else "desktop"] = (
+            desktop
+        )
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
         print(
@@ -1083,6 +1168,11 @@ def main() -> int:
         print(__doc__, file=sys.stderr)
         return 2
     harness = args[0]
+    side_requests = "--side-requests" in args
+    if side_requests:
+        args.remove("--side-requests")
+        if harness != "codex":
+            raise ValueError("--side-requests is for Codex only")
     desktop = "--desktop" in args
     if desktop:
         args.remove("--desktop")
@@ -1094,12 +1184,14 @@ def main() -> int:
         raise ValueError("--fields must be reason, systemMessage or both")
     person = option(args, "--person")
     copies = option(args, "--copies")
+    if side_requests and (desktop or size is not None or person or copies):
+        raise ValueError("Use codex --side-requests without other modes.")
     out = Path(args[1]) if len(args) > 1 else ROOT / "proofs" / "spikes" / "hook-display.json"
     data = json.loads(out.read_text(encoding="utf-8")) if out.exists() else {}
     if copies is not None and (harness != "codex" or desktop or size is not None or person):
         raise ValueError("Use codex --copies DIR without --desktop, --project or --person.")
-    if desktop:
-        codex_desktop(out)
+    if desktop or side_requests:
+        codex_desktop(out, side_requests=side_requests)
         return 0
     if size is not None:
         fields = ASTRAL if selected == "both" else {selected: ASTRAL[selected]}
