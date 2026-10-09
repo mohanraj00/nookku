@@ -109,7 +109,7 @@ A check is a test, a lint rule, a conformance case or a CI step. "Review" means 
 | Wait | Constant | Value |
 |---|---|---|
 | The stdio tap and the HTTP tap wait for the agent | `stdio.TIMEOUT` | [240 s](../src/nookku/stdio.py) |
-| The test relay waits for the tap | `bridge.TIMEOUT` | [270 s](../src/nookku/bridge.py) |
+| The test relay waits for the tap | `state.TIMEOUT` | [270 s](../src/nookku/state.py) |
 | The hook kit relay waits for the tap | `kit.TIMEOUT` | [280 s](../src/nookku/kit.py) |
 | The harness waits for the prompt hook | `kit.HOOK_DEADLINE` | [300 s](../src/nookku/kit.py) |
 

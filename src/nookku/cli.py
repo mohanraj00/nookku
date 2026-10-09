@@ -146,8 +146,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     mcp.add_argument("--root", type=Path, help="the project (default: CLAUDE_PROJECT_DIR or here)")
 
     hook = sub.add_parser("hook", help="the hook command that init installs")
-    hook.add_argument("--root", type=Path, required=True)
-    hook.add_argument("--harness", required=True)
+    hook.add_argument("--root", type=Path, help="the project (default: from the event)")
+    hook.add_argument("--harness", required=True, choices=["claude-code", "codex"])
 
     args = parser.parse_args(argv)
     if args.command == "mcp" and args.root is None:
@@ -284,7 +284,8 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         return server.serve(args.root.resolve())
     if args.command == "hook":
-        return kit.run_hook(args.root, args.harness, sys.stdin, sys.stdout)
+        root = args.root.resolve() if args.root else None
+        return kit.run_hook(root, args.harness, sys.stdin, sys.stdout)
     parser.print_help(sys.stderr)
     return 2
 

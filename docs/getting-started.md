@@ -10,7 +10,7 @@ I made the output of steps 5 and 10 in a second run of the same steps, with verb
 
 - macOS or Linux.
 - Python 3.10 or later ([pyproject.toml](../pyproject.toml)), [uv](https://docs.astral.sh/uv/) and git.
-- Claude Code. The proofs of the hook kit ran on Claude Code 2.1.290 ([data](../proofs/hooks-claude-code/results.json)).
+- Claude Code. The proofs of the hook kit ran on Claude Code 2.1.295 ([data](../proofs/hooks-claude-code/results.json)).
 
 ## 1. Install Nookku
 
@@ -94,7 +94,7 @@ PASS proves the connection, not the reply. `check` sent one fixed message to the
 
 ## 5. Start the viewer
 
-The hook kit cannot show text in the chat of Claude Code. Open a second terminal, go to the project, and start the viewer:
+The hook kit shows each reply in the chat only as the reason of a blocked prompt. In the CLI, the start of a long reply can go off the screen. Thus open a second terminal, go to the project, and start the viewer:
 
 ```bash
 cd toy-shop
@@ -133,7 +133,7 @@ Type these 3 messages, one at a time:
 2. `ok what is your refund policy`
 3. `do you ship to delhi?`
 
-For each message, Claude Code shows `nookku: relayed to the agent. The reply is in the viewer (nookku view).` The model does not run. The viewer shows each turn:
+For each message, Claude Code shows the agent's reply as the reason of a blocked prompt. The model does not run, and it does not get the reply. The viewer also shows each turn:
 
 ```text
 ════ test 20261007-133823-0b63 ════

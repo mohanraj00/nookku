@@ -2,25 +2,23 @@
 
 from __future__ import annotations
 
-import http.client
 import json
+import os
 import re
 import shlex
 import sys
 import time
-import urllib.error
-import urllib.request
 from collections.abc import Iterator
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, TextIO
 from urllib.parse import urlsplit
 
-from nookku import bridge, commands, evaluation, seal
+from nookku import commands, seal, state
 from nookku.adapters import AdapterError, History, StreamError, is_stream, make
 from nookku.config import FILE as CONFIG_FILE
 from nookku.config import Config as Config
-from nookku.config import check, read_config
+from nookku.config import check, move_old_state, read_config
 from nookku.record import (
     RecordError,
     Turn,
@@ -30,7 +28,7 @@ from nookku.record import (
     read_relay,
 )
 
-STATE_DIR = bridge.STATE_DIR
+STATE_DIR = state.STATE_DIR
 TIMEOUT = 280
 # The UserPromptSubmit hook deadline. Each relay timeout must end before it, so that the hook
 # can still block the prompt.
@@ -115,6 +113,11 @@ def history(record: Path, session: str | None) -> History:
 
 def relay(config: Config, said: str, past: History) -> tuple[str, bool]:
     """Send one message through the tap. Return (the text to show, whether it is the reply)."""
+    # Imported here, so that an event that does not relay stays fast (#214).
+    import http.client
+    import urllib.error
+    import urllib.request
+
     adapter = make(
         config.adapter,
         config.message_field,
@@ -145,6 +148,8 @@ def relay(config: Config, said: str, past: History) -> tuple[str, bool]:
 
 
 def _block(reason: str) -> dict[str, Any]:
+    """Block the prompt. Both harnesses show the reason to the person and not to the model (#176,
+    #193), so the reason of a relayed prompt is the text to show, byte for byte."""
     return {"decision": "block", "reason": reason}
 
 
@@ -155,6 +160,8 @@ def _context(text: str) -> dict[str, Any]:
 
 def start_test(root: Path, tester_session: str | None = None) -> str:
     """Start a test and switch relay mode on. Return the text to show."""
+    from nookku import bridge
+
     try:
         cur = bridge.start(root, tester_session)
     except bridge.BridgeError as e:
@@ -170,6 +177,8 @@ def start_test(root: Path, tester_session: str | None = None) -> str:
 
 def end_test(root: Path, tester_session: str | None = None) -> str:
     """Switch relay mode off and end the running test. Return the text to show."""
+    from nookku import bridge
+
     set_mode(root, False)
     manifest = bridge.end(root, tester_session=tester_session)
     if manifest is None:
@@ -178,7 +187,7 @@ def end_test(root: Path, tester_session: str | None = None) -> str:
 
 
 def status(root: Path) -> str:
-    cur = bridge.current(root)
+    cur = state.current(root)
     test = f" Test {cur['test']} runs on {cur['tap_url']}." if cur else ""
     return f"nookku: relay mode is {'on' if is_on(root) else 'off'}.{test}"
 
@@ -195,7 +204,7 @@ def _control(said: str, root: Path, session: str | None) -> str:
 def _relay_test(
     cur: dict[str, Any], said: str, harness: str, session: str | None
 ) -> dict[str, Any]:
-    shown, ok = bridge.send(cur, said)
+    shown, ok = state.send(cur, said)
     row: dict[str, Any] = {
         "type": "turn",
         "harness": harness,
@@ -206,7 +215,7 @@ def _relay_test(
     if session:
         row["session"] = session
     Writer(Path(cur["dir"]) / "relay.jsonl").append(row)
-    return _block("nookku: relayed to the agent. The reply is in the viewer (nookku view).")
+    return _block(shown)
 
 
 def handle(event: dict[str, Any], root: Path, harness: str) -> dict[str, Any] | None:
@@ -216,6 +225,8 @@ def handle(event: dict[str, Any], root: Path, harness: str) -> dict[str, Any] | 
         said = event.get("prompt")
         session = event.get("session_id") if isinstance(event.get("session_id"), str) else None
         if isinstance(said, str) and said.strip() in CONTROL:
+            from nookku import evaluation
+
             text = _control(said, root, session)
             folder = evaluation.pending(root) if said.strip() == "nookku end" else None
             if folder is None:
@@ -235,7 +246,7 @@ def handle(event: dict[str, Any], root: Path, harness: str) -> dict[str, Any] | 
             # A relayed message is never changed, so the kit refuses it (SPEC.md section 5).
             return _block(f"nookku: nothing was sent. The message has {found}.")
         if config.entry:
-            cur = bridge.current(root)
+            cur = state.current(root)
             if cur is None:
                 return _block(
                     "nookku: relay mode is on, but no test runs. Start one with: "
@@ -255,12 +266,12 @@ def handle(event: dict[str, Any], root: Path, harness: str) -> dict[str, Any] | 
             row["session"] = session
         record.parent.mkdir(parents=True, exist_ok=True)
         Writer(record).append(row)
-        return _block("nookku: relayed to the agent. The reply is in the viewer (nookku view).")
+        return _block(shown)
     if name == "PreToolUse":
         tool = str(event.get("tool_name", ""))
         tool_input = event.get("tool_input", event)
         text = json.dumps(tool_input, ensure_ascii=False)
-        cur = bridge.current(root)
+        cur = state.current(root)
         if cur is not None and tool in WRITE_TOOLS and TEST_FILES.search(text):
             return _deny(Path(cur["dir"]) / "relay.jsonl", harness, tool, text)
         if cur is None and tool in WRITE_TOOLS and touches_records(text):
@@ -314,7 +325,7 @@ def _names_entry(entry: list[str], text: str, tool: str, tool_input: Any) -> boo
 
 def _last_record(root: Path) -> Path:
     """After a test, a deny goes to denied.jsonl, so that the sealed relay.jsonl does not change."""
-    last = bridge.latest_test(root)
+    last = state.latest_test(root)
     return last / seal.DENIED if last else root / STATE_DIR / "relay.jsonl"
 
 
@@ -350,12 +361,41 @@ def _deny(
     }
 
 
-def run_hook(root: Path, harness: str, stdin: TextIO, stdout: TextIO) -> int:
+def project_root(event: Any, harness: str) -> Path:
+    """The project of a hook event with no --root: in Claude Code CLAUDE_PROJECT_DIR, else the
+    `cwd` of the event, else the working folder of the process. A plugin hook does not know the
+    project when it is installed, so it finds the project here. A Codex hook can inherit
+    CLAUDE_PROJECT_DIR from a Claude Code session of another project, so Codex never uses it."""
+    named = os.environ.get("CLAUDE_PROJECT_DIR") if harness == "claude-code" else None
+    if not named and isinstance(event, dict) and isinstance(event.get("cwd"), str):
+        named = event["cwd"]
+    return Path(named or os.getcwd()).resolve()
+
+
+def run_hook(root: Path | None, harness: str, stdin: TextIO, stdout: TextIO) -> int:
     """The hook command. In relay mode, any failure still blocks the prompt. If the state folder
-    exists, any failure of a PreToolUse event denies the tool call."""
+    exists, any failure of a PreToolUse event denies the tool call. With no root, the event gives
+    it (project_root)."""
     event: Any = None
     try:
-        event = json.loads(stdin.read())
+        raw = stdin.read()
+    except (OSError, ValueError) as e:
+        print(f"nookku hook: cannot read the event: {e}", file=sys.stderr)
+        return 2
+    try:
+        event = json.loads(raw)
+    except ValueError:
+        event = None
+    if root is None:
+        root = project_root(event, harness)
+    error = move_old_state(root)
+    if error:
+        print(f"nookku: {error}", file=sys.stderr)
+        # Exit 2 blocks the event, so the relay fails closed.
+        return 2
+    try:
+        if event is None:
+            event = json.loads(raw)
         answer = handle(event, root, harness)
     except Exception as e:  # fail closed: a crash must not hand the prompt to the model
         failed = f"nookku: the hook failed ({type(e).__name__}: {e})."
@@ -547,7 +587,7 @@ def folder_of_test(root: Path, test: str) -> Path:
 def _latest(root: Path) -> Path | None:
     """The latest test, with the same check as a test id: a symbolic link in the tests folder
     must not take the transcript to a folder outside the project."""
-    last = bridge.latest_test(root)
+    last = state.latest_test(root)
     return None if last is None else folder_of_test(root, last.name)
 
 
@@ -567,6 +607,8 @@ def transcript_text(
         folder = folder_of_test(root, test) if test else _latest(root)
         if folder is None or not folder.is_dir():
             raise TranscriptError("no test folder.")
+        from nookku import evaluation
+
         return evaluation.transcript(folder)
     # The plugin has no config file. Without one, use the default record path.
     has_config = (root / STATE_DIR / "config.json").exists()
@@ -615,7 +657,7 @@ def view_tests(
     shown_test, seen = None, 0
     errors = _ErrorOnce(err or sys.stderr)
     while True:
-        folder = bridge.latest_test(root)
+        folder = state.latest_test(root)
         if folder is not None and folder != shown_test:
             shown_test, seen = folder, 0
             errors.clear()

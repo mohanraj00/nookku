@@ -206,7 +206,7 @@ def test_each_record_file_in_a_diagram_is_on_the_records_page() -> None:
 TIMEOUTS = {
     "stdio.TIMEOUT": (stdio.TIMEOUT, "src/nookku/stdio.py", "TIMEOUT"),
     "stdio.TIMEOUT + ANSWER": (stdio.TIMEOUT + ANSWER, "tests/test_timeouts.py", "ANSWER"),
-    "bridge.TIMEOUT": (bridge.TIMEOUT, "src/nookku/bridge.py", "TIMEOUT"),
+    "state.TIMEOUT": (bridge.TIMEOUT, "src/nookku/state.py", "TIMEOUT"),
     "kit.TIMEOUT": (kit.TIMEOUT, "src/nookku/kit.py", "TIMEOUT"),
     "kit.HOOK_DEADLINE": (kit.HOOK_DEADLINE, "src/nookku/kit.py", "HOOK_DEADLINE"),
 }
