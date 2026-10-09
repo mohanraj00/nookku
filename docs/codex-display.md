@@ -48,6 +48,9 @@ requests in each toy turn. Stop runs after the final request. I did not test its
 I did not test byte equality of a rendered reply. The desktop method records human observations and
 toy hook/MCP event names. It does not capture desktop model requests. The installed hook files were checked after the
 human observations; no file snapshot was taken at each earlier desktop event.
+The MCP files were checked after those desktop observations. The old desktop run did not
+check other enabled MCP servers before starting. It is display evidence, with these limits;
+it does not establish an isolated desktop runtime.
 The fixture check does not lock the files. A change between the check and Codex reading them
 can escape the check. This local spike does not prove protection against concurrent file changes.
 
@@ -56,9 +59,16 @@ can escape the check. This local spike does not prove protection against concurr
 Use a Python version with `tomllib`. The method adds no package dependency.
 Run `python3 scripts/spike_codex_display.py prepare`. Install the toy plugin with the commands it prints.
 A person opens `/hooks` in the printed toy project and trusts only the toy display hooks.
-The script does not write trust state. It refuses to replace a reviewed hook definition or executable.
-Before each CLI case, it checks the installed command, source, definition hash and file bytes
-against the generated fixture and inspected hook definitions. It first disables unrelated
+The script does not write trust state. It refuses to replace any generated plugin file.
+Before each CLI case, it checks every generated file in the source and installed cache:
+the manifest, MCP configuration, hook definition, hook and MCP executables, skill and HTML.
+It records their digests with each run. It checks the installed hook command, source and definition hash
+against the inspected hook definitions. It reads the effective configuration for the toy
+project and disables all configured MCP servers for the CLI invocation. This includes a
+configured server named `toy_display`; only the verified plugin supplies the toy server.
+It disables other effective plugins. Saved configuration stays unchanged.
+It then refuses any configured MCP server or non-toy plugin that remains enabled before a case.
+It first disables unrelated
 non-managed hooks for that invocation. An enabled non-toy managed hook stops isolation.
 It then checks the full hook list before each case. Any non-toy hook that remains enabled
 or appears after isolation stops the probe.
@@ -69,7 +79,12 @@ Superseded runs are excluded from conclusions. The first matrix included enabled
 its results are excluded. The final matrix checks the isolated fixture before each case. The mock model sends fixed toy calls and answers.
 The result keeps marker locations and event names. It keeps no request body, model answer or terminal transcript.
 
-Run `desktop-start`, then follow its steps in a new local desktop chat. Do not run the CLI matrix
+Run `desktop-start`, then follow its steps in a new local desktop chat.
+This step checks the fixture and effective configuration without CLI overrides. It refuses
+enabled configured MCP servers, non-toy plugins or non-toy hooks. A person must disable those
+in the desktop configuration before a new check. The script does not change saved settings.
+Use the checked toy project and configuration for the desktop chat. The check does not bind
+the desktop process to those settings or lock files. Do not run the CLI matrix
 in that toy project during the desktop check. A person records the observations and app version.
 Run `desktop-finish FILE` to import the observation JSON. The importer accepts only booleans, bounded choices and a version string. It rejects free text,
 including notes and model answers.

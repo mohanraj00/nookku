@@ -236,8 +236,13 @@ def approved_fixture(monkeypatch, tmp_path):
             for event in spike.EVENTS
         }
     }
+    monkeypatch.setattr(spike, "PLUGIN", source)
     for root in (source, cache):
-        (root / "hooks").mkdir(parents=True)
+        for relative, content in spike.plugin_inputs().items():
+            path = root / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(content)
+        (root / "hooks").mkdir(parents=True, exist_ok=True)
         (root / "hooks/hooks.json").write_text(json.dumps(definition, indent=2) + "\n")
         (root / "hook.py").write_text(spike.HOOK)
     monkeypatch.setattr(spike.Path, "home", lambda: home)
@@ -316,6 +321,8 @@ def test_non_toy_enabled_hooks_survive_discovery_and_stop_the_probe(monkeypatch,
             self.process = type("Process", (), {"stdin": io.BytesIO()})()
 
         def request(self, method, params):
+            if method == "config/read":
+                return {"config": {}}
             if method == "hooks/list":
                 return {"data": [{"hooks": hooks, "errors": [], "warnings": []}]}
             return {}
@@ -406,6 +413,8 @@ def test_invocation_disables_only_non_toy_hooks_without_setting_trust(monkeypatc
             self.process = type("Process", (), {"stdin": io.BytesIO()})()
 
         def request(self, method, params):
+            if method == "config/read":
+                return {"config": {}}
             if method == "hooks/list":
                 return {
                     "data": [
@@ -426,10 +435,10 @@ def test_invocation_disables_only_non_toy_hooks_without_setting_trust(monkeypatc
     monkeypatch.setattr(spike, "AppServer", FakeServer)
     monkeypatch.setattr(spike, "INVOCATION_OVERRIDES", args)
     spike.isolate_invocation()
-    assert len(args) == 2 and args[0] == "-c"
-    assert '"other-key"={enabled=false}' in args[1]
-    assert "toy-key" not in args[1]
-    assert "trusted_hash" not in args[1]
+    state = next(arg for arg in args if arg.startswith("hooks.state="))
+    assert '"other-key"={enabled=false}' in state
+    assert "toy-key" not in state
+    assert "trusted_hash" not in " ".join(args)
 
 
 def test_desktop_import_keeps_only_bounded_observations(monkeypatch, tmp_path):
@@ -482,6 +491,8 @@ def test_isolation_sends_initialized_before_reading_hooks(monkeypatch):
             self.process = type("Process", (), {"stdin": stream})()
 
         def request(self, method, params):
+            if method == "config/read":
+                return {"config": {}}
             if method == "hooks/list":
                 assert b'"method":"initialized"' in stream.getvalue()
                 return {"data": [{"hooks": []}]}
@@ -492,3 +503,113 @@ def test_isolation_sends_initialized_before_reading_hooks(monkeypatch):
 
     monkeypatch.setattr(spike, "AppServer", FakeServer)
     spike.isolate_invocation()
+
+
+@pytest.mark.parametrize(
+    "relative",
+    [
+        "server.py",
+        ".mcp.json",
+        "order.html",
+        ".codex-plugin/plugin.json",
+        "skills/toy-order/SKILL.md",
+    ],
+)
+@pytest.mark.parametrize("installed", [False, True])
+def test_probe_checks_all_plugin_inputs_before_starting(monkeypatch, tmp_path, relative, installed):
+    cache, _, _ = approved_fixture(monkeypatch, tmp_path)
+    target = (cache if installed else spike.PLUGIN) / relative
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text("changed toy fixture input")
+
+    def refuse(*args):
+        pytest.fail("An endpoint started with an unchecked plugin input")
+
+    monkeypatch.setattr(spike, "ThreadingHTTPServer", refuse)
+    with pytest.raises(SystemExit, match="fixture"):
+        spike.measure()
+
+
+def test_isolation_disables_effective_mcp_servers_without_saving_config(monkeypatch):
+    class FakeServer:
+        def __init__(self):
+            self.process = type("Process", (), {"stdin": io.BytesIO()})()
+
+        def request(self, method, params):
+            if method == "config/read":
+                assert params["cwd"] == str(spike.PROJECT)
+                return {
+                    "config": {
+                        "mcp_servers": {
+                            "other.toy": {
+                                "command": "toy-server",
+                                "enabled": True,
+                                "env": {"TOY": "local"},
+                            },
+                            "toy_display": {"command": "other-server"},
+                        }
+                    }
+                }
+            if method == "hooks/list":
+                return {"data": [{"hooks": []}]}
+            return {}
+
+        def close(self):
+            pass
+
+    args = []
+    monkeypatch.setattr(spike, "AppServer", FakeServer)
+    monkeypatch.setattr(spike, "INVOCATION_OVERRIDES", args)
+    spike.isolate_invocation()
+    table = next((arg for arg in args if arg.startswith("mcp_servers=")), None)
+    assert table is not None, "Disable servers from effective user and project config"
+    tomllib = pytest.importorskip("tomllib")
+    parsed = tomllib.loads(table)["mcp_servers"]
+    assert parsed["other.toy"]["enabled"] is False
+    assert parsed["other.toy"]["command"] == "toy-server"
+    assert parsed["other.toy"]["env"] == {"TOY": "local"}
+    assert parsed["toy_display"]["enabled"] is False
+
+
+def test_enabled_configured_mcp_server_stops_before_endpoint(monkeypatch, tmp_path):
+    _, hooks, _ = approved_fixture(monkeypatch, tmp_path)
+    monkeypatch.setattr(
+        spike,
+        "metadata",
+        lambda: {"hooks": hooks, "errors": [], "enabled_config_mcp_servers": ["other.toy"]},
+    )
+
+    def refuse(*args):
+        pytest.fail("An endpoint started with an unrelated MCP server enabled")
+
+    monkeypatch.setattr(spike, "ThreadingHTTPServer", refuse)
+    with pytest.raises(SystemExit, match="MCP servers"):
+        spike.measure()
+
+
+def test_desktop_start_checks_fixture_before_printing_human_steps(monkeypatch, tmp_path):
+    approved_fixture(monkeypatch, tmp_path)
+    monkeypatch.setattr(spike, "WORK", tmp_path)
+    monkeypatch.setattr(spike, "PROJECT", tmp_path)
+    monkeypatch.setattr(spike, "versions", lambda: {})
+    monkeypatch.setattr(spike, "metadata", lambda **kwargs: {"hooks": [], "errors": []})
+    with pytest.raises(SystemExit, match="trusted"):
+        spike.desktop_start()
+    assert not (tmp_path / "desktop-baseline.json").exists()
+
+
+@pytest.mark.parametrize("relative", ["server.py", ".mcp.json"])
+def test_desktop_preflight_rejects_changed_mcp_inputs(monkeypatch, tmp_path, relative):
+    monkeypatch.setattr(spike, "WORK", tmp_path)
+    monkeypatch.setattr(spike, "PROJECT", tmp_path)
+    cache, hooks, _ = approved_fixture(monkeypatch, tmp_path)
+    (cache / relative).write_text("changed toy MCP input")
+
+    def unisolated_metadata(*, isolated):
+        assert isolated is False, "Desktop must check settings without CLI overrides"
+        return {"hooks": hooks, "errors": []}
+
+    monkeypatch.setattr(spike, "metadata", unisolated_metadata)
+    with pytest.raises(SystemExit, match="fixture"):
+        spike.desktop_start()
+    assert not (tmp_path / "desktop-baseline.json").exists()

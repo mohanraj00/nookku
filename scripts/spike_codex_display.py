@@ -291,48 +291,52 @@ def fixture_definition() -> str:
     )
 
 
-def prepare() -> None:
-    PROJECT.mkdir(parents=True, exist_ok=True)
-    (PLUGIN / "hooks").mkdir(parents=True, exist_ok=True)
-    skill = PLUGIN / "skills/toy-order"
-    skill.mkdir(parents=True, exist_ok=True)
-    write(
-        PLUGIN / ".codex-plugin/plugin.json",
-        {
-            "name": NAME,
-            "version": "0.0.1",
-            "description": "Toy shop display spike.",
-            "skills": "./skills/",
-            "mcpServers": "./.mcp.json",
-            "interface": {
-                "displayName": "Toy shop display",
-                "shortDescription": "Inspect a toy shop order.",
-            },
-        },
-    )
-    reviewed_write(PLUGIN / "hooks/hooks.json", fixture_definition())
-    for filename, text in (("hook.py", HOOK), ("server.py", SERVER), ("order.html", HTML)):
-        if filename == "hook.py":
-            reviewed_write(PLUGIN / filename, text)
-        else:
-            (PLUGIN / filename).write_text(text, encoding="utf-8")
-    skill.joinpath("SKILL.md").write_text(
-        "---\nname: toy-order\ndescription: Check a toy shop order.\n---\n\n"
-        "DISPLAY_SKILL_BODY_205\nUse the shell to print 'Toy order ready'.\n",
-        encoding="utf-8",
-    )
-    write(
-        PLUGIN / ".mcp.json",
-        {
-            "mcpServers": {
-                "toy_display": {
-                    "command": sys.executable,
-                    "args": [str(PLUGIN / "server.py"), str(PROJECT / "mcp.jsonl")],
-                    "default_tools_approval_mode": "approve",
+def plugin_inputs() -> dict[str, bytes]:
+    """All plugin files that can select code, supply instructions or serve the UI."""
+
+    def encoded(value: Any) -> bytes:
+        return (json.dumps(value, indent=2, ensure_ascii=False) + "\n").encode()
+
+    return {
+        "hooks/hooks.json": fixture_definition().encode(),
+        "hook.py": HOOK.encode(),
+        "server.py": SERVER.encode(),
+        "order.html": HTML.encode(),
+        "skills/toy-order/SKILL.md": (
+            b"---\nname: toy-order\ndescription: Check a toy shop order.\n---\n\n"
+            b"DISPLAY_SKILL_BODY_205\nUse the shell to print 'Toy order ready'.\n"
+        ),
+        ".codex-plugin/plugin.json": encoded(
+            {
+                "name": NAME,
+                "version": "0.0.1",
+                "description": "Toy shop display spike.",
+                "skills": "./skills/",
+                "mcpServers": "./.mcp.json",
+                "interface": {
+                    "displayName": "Toy shop display",
+                    "shortDescription": "Inspect a toy shop order.",
+                },
+            }
+        ),
+        ".mcp.json": encoded(
+            {
+                "mcpServers": {
+                    "toy_display": {
+                        "command": sys.executable,
+                        "args": [str(PLUGIN / "server.py"), str(PROJECT / "mcp.jsonl")],
+                        "default_tools_approval_mode": "approve",
+                    }
                 }
             }
-        },
-    )
+        ),
+    }
+
+
+def prepare() -> None:
+    PROJECT.mkdir(parents=True, exist_ok=True)
+    for relative, content in plugin_inputs().items():
+        reviewed_write(PLUGIN / relative, content.decode())
     write(
         WORK / ".agents/plugins/marketplace.json",
         {
@@ -389,9 +393,9 @@ def overrides() -> list[str]:
 class AppServer:
     """A bounded read-only JSON-RPC client. No trust or turn API is called."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, isolated: bool = True) -> None:
         self.process = subprocess.Popen(
-            ["codex", "app-server", "--stdio", *overrides()],
+            ["codex", "app-server", "--stdio", *(overrides() if isolated else [])],
             cwd=PROJECT,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
@@ -436,8 +440,30 @@ class AppServer:
             self.process.wait()
 
 
+def toml_value(value: Any) -> str:
+    """Keep effective server settings while changing only the enabled flags."""
+    if isinstance(value, dict):
+        return (
+            "{"
+            + ", ".join(
+                f"{json.dumps(k)}={toml_value(v)}" for k, v in value.items() if v is not None
+            )
+            + "}"
+        )
+    if isinstance(value, list):
+        return "[" + ", ".join(toml_value(v) for v in value) + "]"
+    if isinstance(value, (str, bool, int, float)):
+        return json.dumps(value, ensure_ascii=False)
+    raise SystemExit("Unsupported MCP setting. No probe started; inspect the effective config.")
+
+
+def effective_config(server: AppServer) -> dict[str, Any]:
+    config = server.request("config/read", {"cwd": str(PROJECT), "includeLayers": False})["config"]
+    return config
+
+
 def isolate_invocation() -> None:
-    """Disable unrelated hooks for this invocation; do not write trust or saved config."""
+    """Disable configured servers and unrelated hooks; do not write trust or saved config."""
     server = AppServer()
     try:
         server.request(
@@ -450,6 +476,19 @@ def isolate_invocation() -> None:
         assert server.process.stdin is not None
         server.process.stdin.write(b'{"method":"initialized"}\n')
         server.process.stdin.flush()
+        config = effective_config(server)
+        servers = config.get("mcp_servers", {})
+        if servers:
+            disabled_servers = {
+                name: {**settings, "enabled": False} for name, settings in servers.items()
+            }
+            INVOCATION_OVERRIDES.extend(["-c", "mcp_servers=" + toml_value(disabled_servers)])
+        plugins = config.get("plugins", {})
+        states = {
+            name: {**settings, "enabled": name == SELECTOR} for name, settings in plugins.items()
+        }
+        states.setdefault(SELECTOR, {"enabled": True})
+        INVOCATION_OVERRIDES.extend(["-c", "plugins=" + toml_value(states)])
         hooks = server.request("hooks/list", {"cwds": [str(PROJECT)]})["data"][0]["hooks"]
         if any(
             h.get("enabled") and h.get("pluginId") != SELECTOR and h.get("isManaged") for h in hooks
@@ -463,8 +502,8 @@ def isolate_invocation() -> None:
         server.close()
 
 
-def metadata() -> dict[str, Any]:
-    server = AppServer()
+def metadata(*, isolated: bool = True) -> dict[str, Any]:
+    server = AppServer() if isolated else AppServer(isolated=False)
     try:
         server.request(
             "initialize",
@@ -481,7 +520,17 @@ def metadata() -> dict[str, Any]:
             "plugin/read",
             {"pluginName": NAME, "marketplacePath": str(WORK / ".agents/plugins/marketplace.json")},
         )
+        config = effective_config(server)
+        servers = config.get("mcp_servers", {})
         return {
+            "enabled_config_mcp_servers": sorted(
+                name for name, settings in servers.items() if settings.get("enabled", True)
+            ),
+            "enabled_non_toy_plugins": sorted(
+                name
+                for name, settings in config.get("plugins", {}).items()
+                if name != SELECTOR and settings.get("enabled", True)
+            ),
             "hooks": hooks["hooks"],
             "errors": hooks["errors"],
             "warnings": hooks["warnings"],
@@ -717,6 +766,14 @@ def tty(args: list[str], prompt: str) -> tuple[int | None, bytes]:
 
 def verify_fixture(observed: dict[str, Any], pinned: list[dict[str, Any]]) -> dict[str, Any]:
     """Check all discovered hooks and the installed bytes before starting an endpoint."""
+    if observed.get("enabled_config_mcp_servers"):
+        raise SystemExit(
+            "Configured MCP servers are enabled. Disable them for the probe; no endpoint started."
+        )
+    if observed.get("enabled_non_toy_plugins"):
+        raise SystemExit(
+            "Non-toy plugins are enabled. Disable them for the probe; no endpoint started."
+        )
     discovered = observed["hooks"]
     if any(h.get("enabled") and h.get("pluginId") != SELECTOR for h in discovered):
         raise SystemExit(
@@ -737,8 +794,9 @@ def verify_fixture(observed: dict[str, Any], pinned: list[dict[str, Any]]) -> di
     cache = Path.home() / ".codex/plugins/cache" / MARKET / NAME / "0.0.1"
     definition = fixture_definition().encode()
     executable = HOOK.encode()
+    inputs = plugin_inputs()
     for root in (PLUGIN, cache):
-        for relative, expected_bytes in (("hooks/hooks.json", definition), ("hook.py", executable)):
+        for relative, expected_bytes in inputs.items():
             path = root / relative
             try:
                 matches = path.resolve() == path and path.read_bytes() == expected_bytes
@@ -777,10 +835,15 @@ def verify_fixture(observed: dict[str, Any], pinned: list[dict[str, Any]]) -> di
             )
     return {
         "hooks": hooks,
+        "enabled_config_mcp_servers": [],
+        "enabled_non_toy_plugins": [],
         "definition_sha256": hashlib.sha256(definition).hexdigest(),
         "executable_sha256": hashlib.sha256(executable).hexdigest(),
+        "input_sha256": {
+            name: hashlib.sha256(content).hexdigest() for name, content in inputs.items()
+        },
         "installed_root": str(cache),
-        "method": "Generated bytes, exact command/source, and inspected hook definition hashes.",
+        "method": "All generated plugin bytes, exact hook command/source and inspected hashes.",
     }
 
 
@@ -893,12 +956,15 @@ def measure(surface: str | None = None, only_case: str | None = None) -> None:
 
 
 def desktop_start() -> None:
+    data = read(PROOF)
+    verified = verify_fixture(metadata(isolated=False), data.get("inspection", {}).get("hooks", []))
     write(
         WORK / "desktop-baseline.json",
         {
             "hooks": len(rows(PROJECT / "hooks.jsonl")),
             "mcp": len(rows(PROJECT / "mcp.jsonl")),
             "versions": versions(),
+            "fixture_pin": safe(pin_evidence(verified)),
         },
     )
     print(f"Open a new local desktop chat in {PROJECT}.")
@@ -1006,6 +1072,7 @@ def desktop_finish(path: Path) -> None:
         "method": "Person operates local desktop chat; imports report and toy event names only.",
         "versions_before": baseline["versions"],
         "versions_after": versions(),
+        "fixture_pin_before": baseline.get("fixture_pin"),
         "human_observation": observation,
         "hook_events": rows(PROJECT / "hooks.jsonl")[baseline["hooks"] :],
         "mcp_events": rows(PROJECT / "mcp.jsonl")[baseline["mcp"] :],
