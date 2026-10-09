@@ -296,5 +296,541 @@
         "model": "not measured with a proxy. The model said that the result had the start and the end markers, and that the non-ASCII and astral characters were correct."
       }
     }
+  },
+  "codex": {
+    "date": "2026-10-08",
+    "versions": {
+      "codex-cli": "codex-cli 0.162.0",
+      "desktop": {
+        "version": "26.1002.52244",
+        "build": "13536",
+        "bundled_cli": "codex-cli 0.162.0-alpha.2",
+        "measurement": "Installed Info.plist and bundled CLI --version",
+        "independently_observed_runtime_version": null
+      },
+      "python": "3.13.12"
+    },
+    "method": "scripts/spike_plugin_mcp.py codex",
+    "model": "loopback Responses API stub; request boundary measured, no real model",
+    "standard_library_only": true,
+    "cases": [
+      {
+        "size": 10240,
+        "surface": "codex_exec",
+        "tool_output_token_limit": null,
+        "exit": 0,
+        "model_tools": [
+          "mcp__spike.transcript"
+        ],
+        "hook_tool_names": [
+          "mcp__spike__transcript"
+        ],
+        "sent": [
+          {
+            "size": 10240,
+            "sha256": "d487ba9b69c51cda5d61113542f1716653cf051f2b0cf8f16bf5dff67171b262"
+          }
+        ],
+        "arrived": {
+          "envelope": {
+            "size": 10527,
+            "sha256": "8b6d42affd9e83d56bce45dfa35a119e3604ad08ee887e6bad2e7296f543321a",
+            "has_start": true,
+            "has_end": true,
+            "truncated": false
+          },
+          "text_parts": [
+            {
+              "size": 33,
+              "sha256": "1256e090a47971ebf7ffc7ae7857a2592ee43c0db7e70199f8f2109ed1c10d53",
+              "has_start": false,
+              "has_end": false,
+              "truncated": false
+            },
+            {
+              "size": 10240,
+              "sha256": "d487ba9b69c51cda5d61113542f1716653cf051f2b0cf8f16bf5dff67171b262",
+              "has_start": true,
+              "has_end": true,
+              "truncated": false
+            }
+          ]
+        },
+        "unchanged": true,
+        "model_requests": 2
+      },
+      {
+        "size": 51200,
+        "surface": "codex_exec",
+        "tool_output_token_limit": null,
+        "exit": 0,
+        "model_tools": [
+          "mcp__spike.transcript"
+        ],
+        "hook_tool_names": [
+          "mcp__codex_app__list_artifacts",
+          "mcp__spike__transcript"
+        ],
+        "sent": [
+          {
+            "size": 51200,
+            "sha256": "c5bdfff6f4b68381b13170230831b2e7d219640900ef2b5b1ec3592119eed2c1"
+          }
+        ],
+        "arrived": {
+          "envelope": {
+            "size": 12305,
+            "sha256": "2a31a000b6af0e18d2e7f0ce87ed4ad77735755456932269a7eed8788c8c224e",
+            "has_start": true,
+            "has_end": true,
+            "truncated": true
+          },
+          "text_parts": [
+            {
+              "size": 33,
+              "sha256": "f9849c90272310a7c2a70a43f0e934bc4e9a28f98f76bd035516c5c33265bdcc",
+              "has_start": false,
+              "has_end": false,
+              "truncated": false
+            },
+            {
+              "size": 11988,
+              "sha256": "5b941f9362ea340c0a3550c8eebbddf2a0d7edec496f411e754d7068e6bf1094",
+              "has_start": true,
+              "has_end": true,
+              "truncated": true
+            }
+          ]
+        },
+        "unchanged": false,
+        "model_requests": 2
+      },
+      {
+        "size": 102400,
+        "surface": "codex_exec",
+        "tool_output_token_limit": null,
+        "exit": 0,
+        "model_tools": [
+          "mcp__spike.transcript"
+        ],
+        "hook_tool_names": [
+          "mcp__spike__transcript"
+        ],
+        "sent": [
+          {
+            "size": 102400,
+            "sha256": "c67ac526952b84ed71c86b8cca58c0c70f4eddab084eac11e51b30ce9c4edba6"
+          }
+        ],
+        "arrived": {
+          "envelope": {
+            "size": 12305,
+            "sha256": "c6a4cd83b9111bd9d5798ad2d37ddd65fe75768dec896030c89c4c6387b23f3d",
+            "has_start": true,
+            "has_end": true,
+            "truncated": true
+          },
+          "text_parts": [
+            {
+              "size": 33,
+              "sha256": "c49ca4bbcc84eb533e7aa088cf3072ab46acd3ffd6b56a17d30da188e2a1a286",
+              "has_start": false,
+              "has_end": false,
+              "truncated": false
+            },
+            {
+              "size": 11988,
+              "sha256": "1651e9a5b92fe2e8707485caadac45f1456fe7d844d2ea04aec9e654fe32b5cd",
+              "has_start": true,
+              "has_end": true,
+              "truncated": true
+            }
+          ]
+        },
+        "unchanged": false,
+        "model_requests": 2
+      },
+      {
+        "size": 1048576,
+        "surface": "codex_exec",
+        "tool_output_token_limit": null,
+        "exit": 0,
+        "model_tools": [
+          "mcp__spike.transcript"
+        ],
+        "hook_tool_names": [
+          "mcp__spike__transcript"
+        ],
+        "sent": [
+          {
+            "size": 1048576,
+            "sha256": "f1fbc090a8c080a092f65c21d57e074afd0b96419e0373cc2630915f9f1242a1"
+          }
+        ],
+        "arrived": {
+          "envelope": {
+            "size": 12305,
+            "sha256": "532cc8d2250e90d92194b15d0038b4a638db3e1227b3331bfcaddab9217c48f2",
+            "has_start": true,
+            "has_end": true,
+            "truncated": true
+          },
+          "text_parts": [
+            {
+              "size": 33,
+              "sha256": "151a0ab11f5945e26e036e796c1566aa5eba1a9956aa044ebc24c7da81dcf33f",
+              "has_start": false,
+              "has_end": false,
+              "truncated": false
+            },
+            {
+              "size": 11988,
+              "sha256": "073b6b7f658bce4589ff86a034a4453adbce40e85270aac97ffac8a2e6e2c2ab",
+              "has_start": true,
+              "has_end": true,
+              "truncated": true
+            }
+          ]
+        },
+        "unchanged": false,
+        "model_requests": 2
+      },
+      {
+        "size": 10240,
+        "surface": "codex_exec",
+        "tool_output_token_limit": 1000000,
+        "exit": 0,
+        "model_tools": [
+          "mcp__spike.transcript"
+        ],
+        "hook_tool_names": [
+          "mcp__codex_app__list_threads",
+          "mcp__spike__transcript"
+        ],
+        "sent": [
+          {
+            "size": 10240,
+            "sha256": "d487ba9b69c51cda5d61113542f1716653cf051f2b0cf8f16bf5dff67171b262"
+          }
+        ],
+        "arrived": {
+          "envelope": {
+            "size": 10527,
+            "sha256": "cf2141f9cc03ba785900e288c15e4fbca7d444f529a49b20c2f0b2f7342753fa",
+            "has_start": true,
+            "has_end": true,
+            "truncated": false
+          },
+          "text_parts": [
+            {
+              "size": 33,
+              "sha256": "273a0c0bc9bdabefb56d4779b2fcf5de6fb1e9400863f75794b2287ca8a2e424",
+              "has_start": false,
+              "has_end": false,
+              "truncated": false
+            },
+            {
+              "size": 10240,
+              "sha256": "d487ba9b69c51cda5d61113542f1716653cf051f2b0cf8f16bf5dff67171b262",
+              "has_start": true,
+              "has_end": true,
+              "truncated": false
+            }
+          ]
+        },
+        "unchanged": true,
+        "model_requests": 2
+      },
+      {
+        "size": 51200,
+        "surface": "codex_exec",
+        "tool_output_token_limit": 1000000,
+        "exit": 0,
+        "model_tools": [
+          "mcp__spike.transcript"
+        ],
+        "hook_tool_names": [
+          "mcp__codex_app__read_thread",
+          "mcp__spike__transcript"
+        ],
+        "sent": [
+          {
+            "size": 51200,
+            "sha256": "c5bdfff6f4b68381b13170230831b2e7d219640900ef2b5b1ec3592119eed2c1"
+          }
+        ],
+        "arrived": {
+          "envelope": {
+            "size": 52193,
+            "sha256": "d7207e57ad3cb5cc9fc7bd06973824039738659b3614a3e50f556da3660c2e6a",
+            "has_start": true,
+            "has_end": true,
+            "truncated": false
+          },
+          "text_parts": [
+            {
+              "size": 33,
+              "sha256": "38aef83cb013e4789ca79ebcee872c90fac4bf8525e9ee8646af50e2a0823724",
+              "has_start": false,
+              "has_end": false,
+              "truncated": false
+            },
+            {
+              "size": 51200,
+              "sha256": "c5bdfff6f4b68381b13170230831b2e7d219640900ef2b5b1ec3592119eed2c1",
+              "has_start": true,
+              "has_end": true,
+              "truncated": false
+            }
+          ]
+        },
+        "unchanged": true,
+        "model_requests": 2
+      },
+      {
+        "size": 102400,
+        "surface": "codex_exec",
+        "tool_output_token_limit": 1000000,
+        "exit": 0,
+        "model_tools": [
+          "mcp__spike.transcript"
+        ],
+        "hook_tool_names": [
+          "mcp__spike__transcript"
+        ],
+        "sent": [
+          {
+            "size": 102400,
+            "sha256": "c67ac526952b84ed71c86b8cca58c0c70f4eddab084eac11e51b30ce9c4edba6"
+          }
+        ],
+        "arrived": {
+          "envelope": {
+            "size": 104278,
+            "sha256": "52bed92610057d2cac34464b13c516068e862bc79420b4b6a9154c5a6684e7ea",
+            "has_start": true,
+            "has_end": true,
+            "truncated": false
+          },
+          "text_parts": [
+            {
+              "size": 33,
+              "sha256": "c49ca4bbcc84eb533e7aa088cf3072ab46acd3ffd6b56a17d30da188e2a1a286",
+              "has_start": false,
+              "has_end": false,
+              "truncated": false
+            },
+            {
+              "size": 102400,
+              "sha256": "c67ac526952b84ed71c86b8cca58c0c70f4eddab084eac11e51b30ce9c4edba6",
+              "has_start": true,
+              "has_end": true,
+              "truncated": false
+            }
+          ]
+        },
+        "unchanged": true,
+        "model_requests": 2
+      },
+      {
+        "size": 1048576,
+        "surface": "codex_exec",
+        "tool_output_token_limit": 1000000,
+        "exit": 0,
+        "model_tools": [
+          "mcp__spike.transcript"
+        ],
+        "hook_tool_names": [
+          "mcp__codex_app__attach_worktree",
+          "mcp__spike__transcript"
+        ],
+        "sent": [
+          {
+            "size": 1048576,
+            "sha256": "f1fbc090a8c080a092f65c21d57e074afd0b96419e0373cc2630915f9f1242a1"
+          }
+        ],
+        "arrived": {
+          "envelope": {
+            "size": 1066800,
+            "sha256": "c5ea2c4db5913d02526f4dfbb155d6cbc8217478be775bc8d2442f0b66e1c2b2",
+            "has_start": true,
+            "has_end": true,
+            "truncated": false
+          },
+          "text_parts": [
+            {
+              "size": 33,
+              "sha256": "3e2b1e1883c4454af745edca3b5021909b085916ab48fd834002bb037c31abe1",
+              "has_start": false,
+              "has_end": false,
+              "truncated": false
+            },
+            {
+              "size": 1048576,
+              "sha256": "f1fbc090a8c080a092f65c21d57e074afd0b96419e0373cc2630915f9f1242a1",
+              "has_start": true,
+              "has_end": true,
+              "truncated": false
+            }
+          ]
+        },
+        "unchanged": true,
+        "model_requests": 3
+      }
+    ],
+    "person": {},
+    "desktop": {
+      "date": "2026-10-08",
+      "versions": {
+        "codex-cli": "codex-cli 0.162.0",
+        "desktop": {
+          "version": "26.1002.52244",
+          "build": "13536",
+          "bundled_cli": "codex-cli 0.162.0-alpha.2",
+          "measurement": "Installed Info.plist and bundled CLI --version",
+          "independently_observed_runtime_version": null
+        },
+        "python": "3.13.12"
+      },
+      "runtime": {
+        "cli_version": "0.162.0-alpha.2",
+        "originator": "Codex Desktop",
+        "source": "vscode"
+      },
+      "models": [
+        "gpt-6.1-sol"
+      ],
+      "method": "scripts/spike_plugin_mcp.py codex --rollout FILE; person drives the desktop",
+      "evidence": "Server log and matched desktop tool outputs; no model-request proxy",
+      "server_log_pairing": "Order and size; deterministic transcript per size; no call identity",
+      "cases": [
+        {
+          "size": 10240,
+          "retained": {
+            "envelope": {
+              "size": 10543,
+              "sha256": "fb22e4c51904b19f77a4ad15c0fc04dfb5e7138342ccc7d0d7fe1657d5d6c1f6",
+              "has_start": true,
+              "has_end": true,
+              "truncated": false
+            },
+            "text_parts": [
+              {
+                "size": 47,
+                "sha256": "8b11000664d9ae152d68a38d254a291c11ce04af19938de744eb6923727c2629",
+                "has_start": false,
+                "has_end": false,
+                "truncated": false
+              },
+              {
+                "size": 10240,
+                "sha256": "d487ba9b69c51cda5d61113542f1716653cf051f2b0cf8f16bf5dff67171b262",
+                "has_start": true,
+                "has_end": true,
+                "truncated": false
+              }
+            ]
+          },
+          "sent": {
+            "size": 10240,
+            "sha256": "d487ba9b69c51cda5d61113542f1716653cf051f2b0cf8f16bf5dff67171b262"
+          },
+          "retained_text_unchanged": true,
+          "wire_text_unchanged": null
+        },
+        {
+          "size": 1048576,
+          "retained": {
+            "envelope": {
+              "size": 40933,
+              "sha256": "76b8c4396c11a773f2e078f727e0c0eaa45cc4fd14bf99771d05b89329ffc2cd",
+              "has_start": true,
+              "has_end": true,
+              "truncated": true
+            },
+            "text_parts": [
+              {
+                "size": 47,
+                "sha256": "8b11000664d9ae152d68a38d254a291c11ce04af19938de744eb6923727c2629",
+                "has_start": false,
+                "has_end": false,
+                "truncated": false
+              },
+              {
+                "size": 40113,
+                "sha256": "b3e6fc8cebcb316b796455a283db808622e6ffc2b0da6d20af8925eb7b5d7677",
+                "has_start": true,
+                "has_end": true,
+                "truncated": true
+              }
+            ]
+          },
+          "sent": {
+            "size": 1048576,
+            "sha256": "f1fbc090a8c080a092f65c21d57e074afd0b96419e0373cc2630915f9f1242a1"
+          },
+          "retained_text_unchanged": false,
+          "wire_text_unchanged": null
+        }
+      ],
+      "hook_tool_names": [
+        "mcp__spike__transcript"
+      ],
+      "standard_library_only": true,
+      "raised_output_limit": "not tested in desktop",
+      "thread": "codex://threads/01a11f28-1e14-7b41-a4d6-86d7c9cffef6"
+    },
+    "fixture": {
+      "manifest": ".codex-plugin/plugin.json",
+      "mcp_file": ".mcp.json",
+      "server_name": "spike",
+      "cwd": ".",
+      "server_script": "./server.py",
+      "default_tools_approval_mode": "approve",
+      "hook": "hooks/hooks.json; a person must trust it"
+    },
+    "hook_preflight": [
+      {
+        "pluginId": "mcp-spike@toy-mcp-market-194",
+        "eventName": "preToolUse",
+        "enabled": true,
+        "trustStatus": "trusted"
+      }
+    ],
+    "answers": {
+      "codex_exec": {
+        "plugin_server_starts": true,
+        "standard_library_only": true,
+        "tool_text_unchanged_at_request_boundary": {
+          "default_limit": {
+            "10240": true,
+            "51200": false,
+            "102400": false,
+            "1048576": false
+          },
+          "raised_limit": {
+            "10240": true,
+            "51200": true,
+            "102400": true,
+            "1048576": true
+          }
+        },
+        "guard_tool_prefix": "mcp__spike__",
+        "prefix_has_plugin_identity": false
+      },
+      "desktop": {
+        "plugin_server_starts": true,
+        "standard_library_only": true,
+        "tool_text_unchanged_in_retained_session": {
+          "10240": true,
+          "1048576": false
+        },
+        "tool_text_unchanged_at_request_boundary": "not measured",
+        "guard_tool_prefix": "mcp__spike__",
+        "prefix_has_plugin_identity": false
+      }
+    },
+    "hook_log_scope": "The installed hook also logs other chats. Only the spike name is evidence."
   }
 }
