@@ -34,6 +34,24 @@ def test_write_seals_the_folder_and_writes_the_copy(tmp_path: Path, seal_home: P
     assert (seal_home / "seals" / f"{TEST}.json").exists()
 
 
+def test_verify_finds_the_copy_of_a_test_that_verbatim_relay_sealed(
+    tmp_path: Path, seal_home: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    old = tmp_path / "old-home"
+    monkeypatch.setenv("NOOKU_HOME", str(old))
+    f = folder(tmp_path)
+    assert seal.write(f) is None
+    monkeypatch.setenv("NOOKU_HOME", str(seal_home))
+    monkeypatch.setenv("VERBATIM_RELAY_HOME", str(old))
+    assert seal.verify(f)["copy"] == "same"
+    assert seal.verify(f)["intact"]
+    assert not (seal_home / "seals" / f"{TEST}.json").exists()
+
+
+def test_a_new_seal_goes_to_the_new_home(tmp_path: Path, seal_home: Path) -> None:
+    assert seal.copy_path(TEST) == seal_home / "seals" / f"{TEST}.json"
+
+
 def test_a_seal_with_no_copy_says_so(tmp_path: Path) -> None:
     f = folder(tmp_path)
     blocked = tmp_path / "not-a-folder"

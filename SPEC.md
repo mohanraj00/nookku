@@ -17,7 +17,7 @@ Two processes write two records. The relay writes the **relay record**: what the
 
 Each record is a UTF-8 JSONL file. Each line is one JSON object. Each object has a version `v` and a `type`. A writer writes `"v": "0.2"`, except for the row of a failed stream (section 2.1), which has `"v": "0.3"`. A reader accepts `"0.1"`, `"0.2"` and `"0.3"`. A type or a field that this section marks as 0.2 is not valid in a `"0.1"` row. A `"0.3"` row can have each type and field of a `"0.2"` row. Each text field has a `<field>_sha256` field: the SHA-256 of the UTF-8 bytes of the text, in lower-case hex. If the text is `null`, its hash is `null`. `ts` is a Unix time in seconds.
 
-**Version 0.3.** The row of a failed stream has a 2xx status and `reply: null`. A reader of Nooku 0.2.0 refuses this row as `record_invalid`, because it does not know the rule of a failed stream. Thus this row has version 0.3, and a 0.2.0 reader gives an error that names the version. Each other row keeps version 0.2, so a 0.2.0 reader still reads it. A row of a failed stream with version `"0.1"` or `"0.2"` is not valid.
+**Version 0.3.** The row of a failed stream has a 2xx status and `reply: null`. A reader of verbatim-relay 0.2.0 refuses this row as `record_invalid`, because it does not know the rule of a failed stream. Thus this row has version 0.3, and a 0.2.0 reader gives an error that names the version. Each other row keeps version 0.2, so a 0.2.0 reader still reads it. A row of a failed stream with version `"0.1"` or `"0.2"` is not valid.
 
 Each string in a row, as a field name or as a value, holds only Unicode scalar values. JSON can escape a lone UTF-16 surrogate, for example `"\ud83d"`, but UTF-8 cannot encode it. A row with a lone surrogate is not valid.
 
@@ -290,6 +290,8 @@ The Python helper `nooku.agent.serve(reply)` speaks this contract for a function
 
 A test runs the entry from `start` to `end`. A new conversation is a new test: each test starts a new entry process with a new test id.
 
+**The state folder.** `.nooku/` in the project holds the configuration and the tests. verbatim-relay 0.3.x and earlier used `.verbatim-relay/`. Each command with a project root moves `.verbatim-relay/` to `.nooku/` before it does its work, with one rename, so each record and each seal stays as it is. If both folders exist, nothing moves: the command stops with exit 1, and the hook kit blocks the event with exit 2.
+
 ### 7.1 Configuration
 
 `.nooku/config.json` holds the test configuration:
@@ -374,6 +376,7 @@ The seal shows if a file of the test folder changed after the end of the test. I
 
 - The seal does not contain `report.md`, `bridge.log`, `seal.json` and `denied.jsonl`, because these files change after the end.
 - The bridge also writes a copy, with the same fields and `copy: true`, to `~/.nooku/seals/<test-id>.json` (under `NOOKU_HOME` if it is set). If it cannot write the copy, for example in a sandbox, `seal.json` has `copy: false`.
+- If no copy is in `~/.nooku/seals/` but a copy is in `~/.verbatim-relay/seals/` (under `VERBATIM_RELAY_HOME` if it is set), the copy of verbatim-relay 0.3.x and earlier is the copy.
 
 `nooku verify [TEST] [--json]` compares the folder with the seal, and the seal with the copy. If `seal.json` does not exist, the copy is the seal. The result:
 

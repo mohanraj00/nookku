@@ -2,7 +2,7 @@
 
 After a test, the test folder holds the records, the trace, the audit, the seal and, if the model ran, a report. This page tells you how to read these files in order. Read the seal first. If a file changed after the end of the test, do not trust the other results.
 
-The sample output on this page comes from one test of the [toy shop agent](../../examples/toy-shop/agent.py) with Nooku 0.3.0. The test has the 3 messages of the [tutorial](../getting-started.md#6-run-the-test). I gave each prompt to `nooku hook --harness claude-code` as a `UserPromptSubmit` event, as Claude Code does. No harness model ran, so this test has no report. The output is a sample of one run, not a measurement. To make it again, run the steps of the tutorial on the toy shop. I shortened the paths to `.../`. The test id and the times are different on your machine.
+The sample output on this page comes from one test of the [toy shop agent](../../examples/toy-shop/agent.py) with verbatim-relay 0.3.0. The test has the 3 messages of the [tutorial](../getting-started.md#6-run-the-test). I gave each prompt to `nooku hook --harness claude-code` as a `UserPromptSubmit` event, as Claude Code does. No harness model ran, so this test has no report. The output is a sample of one run, not a measurement. To make it again, run the steps of the tutorial on the toy shop. I shortened the paths to `.../`. The test id and the times are different on your machine.
 
 ## The test folder
 

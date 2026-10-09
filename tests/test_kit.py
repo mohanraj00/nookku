@@ -133,6 +133,18 @@ def test_init_keeps_another_hook_in_the_group_of_the_kit(tmp_path):
     assert settings["hooks"]["Stop"] == stop
 
 
+def test_init_replaces_the_hooks_of_verbatim_relay(tmp_path):
+    target = tmp_path / ".codex" / "hooks.json"
+    target.parent.mkdir()
+    old = {"type": "command", "command": "python -m verbatim_relay hook --harness codex"}
+    target.write_text(json.dumps({"hooks": {"UserPromptSubmit": [{"hooks": [old]}]}}))
+    kit.init(tmp_path, "codex", {})
+    groups = json.loads(target.read_text())["hooks"]["UserPromptSubmit"]
+    assert [h["command"] for g in groups for h in g["hooks"]] == [
+        kit.hook_command(tmp_path, "codex")
+    ]
+
+
 def test_relay_mode_off_does_nothing(setup):
     root, _, agent = setup
     assert kit.handle(prompt("hi"), root, "codex") is None

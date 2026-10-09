@@ -2,7 +2,7 @@
 
 This page removes Nooku from a project and from your computer: the hooks of the kit, the plugin, the test files and the package.
 
-The output on this page is the real output of each step. I used the toy shop project of [getting-started.md](../getting-started.md) with Nooku 0.3.0, Claude Code 2.1.294 and jq 1.7.1 on macOS. I shortened the paths of the folders to `.../`. The test ids are different on your machine.
+The output on this page is the real output of each step. I used the toy shop project of [getting-started.md](../getting-started.md) with verbatim-relay 0.3.0, Claude Code 2.1.294 and jq 1.7.1 on macOS. I shortened the paths of the folders to `.../`. The test ids are different on your machine.
 
 Do the steps in this order. Remove the hooks before you remove the CLI. The hooks run the Python of the CLI install. After `uv tool uninstall`, this program does not exist. Then each hook command fails with `No such file or directory`.
 

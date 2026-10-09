@@ -2,7 +2,7 @@
 
 This page upgrades the CLI, the package in your app's environment, the Claude Code plugin and the Codex hooks. Some releases need a special step. Read the section of each release from your version to the new version in [Releases with a special step](#releases-with-a-special-step). [CHANGELOG.md](../../CHANGELOG.md) lists all changes.
 
-The output on this page is the real output of each step. I used the toy shop project of [getting-started.md](../getting-started.md) with Nooku 0.3.0 and Claude Code 2.1.294 on macOS. I shortened the paths of the folders to `.../`. The test id and the times are different on your machine.
+The output on this page is the real output of each step. I used the toy shop project of [getting-started.md](../getting-started.md) with verbatim-relay 0.3.0 and Claude Code 2.1.294 on macOS. I shortened the paths of the folders to `.../`. The test id and the times are different on your machine.
 
 ## 1. End each running test
 
@@ -100,6 +100,49 @@ PASS
 
 ## Releases with a special step
 
+### 0.4.0
+
+verbatim-relay is now Nooku ([#181](https://github.com/mohanraj00/verbatim-relay/issues/181)). The package, the CLI, the module and the plugin have new names, so the steps 2 and 3 above do not apply. Do these steps in their place.
+
+1. End each running test with the old CLI:
+
+   ```bash
+   verbatim-relay end
+   ```
+
+2. Remove the old CLI and install the new CLI:
+
+   ```bash
+   uv tool uninstall verbatim-relay
+   uv tool install nooku
+   ```
+
+3. In each project, run one `nooku` command, for example `nooku status`. The command moves `.verbatim-relay/` to `.nooku/`, with each test and each seal, and prints the 2 folders.
+
+4. If `.verbatim-relay/` and `.nooku/` both exist, each command stops with exit 1 and names the 2 folders. Each hook event is blocked. Keep one folder: move the tests that you need into `.nooku/tests/`, then remove `.verbatim-relay/`.
+
+5. If you use the hook kit, run `nooku init` again with the same harness and flags. It replaces the hooks that verbatim-relay wrote. In Codex, trust the hooks again (step 4 above).
+
+6. If you use the Claude Code plugin, remove the old plugin and its marketplace, then install the new plugin:
+
+   ```bash
+   claude plugin uninstall verbatim-relay@verbatim-relay
+   claude plugin marketplace remove verbatim-relay
+   claude plugin marketplace add mohanraj00/verbatim-relay
+   claude plugin install nooku@nooku
+   ```
+
+7. If your entry imports the package, change `verbatim_relay` to `nooku` in the import, for example `from nooku import serve`. Then change the package in your app's environment:
+
+   ```bash
+   uv remove --dev verbatim-relay
+   uv add --dev nooku
+   ```
+
+8. If you set `VERBATIM_RELAY_HOME`, set `NOOKU_HOME` in its place. `verify` still reads the seal copies of old tests from `~/.verbatim-relay/seals/`, or from `VERBATIM_RELAY_HOME` if it is set.
+
+Then run `check` (step 5 above).
+
 ### 0.3.0
 
 **A test that 0.2.0 started.** `current.json` now needs `pid_start`, the start time of the bridge ([#44](https://github.com/mohanraj00/verbatim-relay/issues/44)). 0.3.0 treats a test that 0.2.0 started as not running. `status` names no test, and `end` removes `current.json` but sends no signal to the old bridge. The old bridge and its entry continue to run.
@@ -121,7 +164,7 @@ ps -A -o pid=,command= | grep '[v]erbatim_relay bridge'
 ```
 
 ```text
-38282 .../bin/python -m nooku bridge --root .../toy-shop --test 20261007-224554-4b17
+38282 .../bin/python -m verbatim_relay bridge --root .../toy-shop --test 20261007-224554-4b17
 ```
 
 Stop it with SIGTERM, the default signal of `kill`:
@@ -130,7 +173,7 @@ Stop it with SIGTERM, the default signal of `kill`:
 kill 38282
 ```
 
-On SIGTERM, the bridge ends the test as `end` does: it stops the entry, and writes the trace, the audit and the seal. The bridge of 0.2.0 does the same ([bridge.py of 0.2.0](https://github.com/mohanraj00/verbatim-relay/blob/v0.2.0/src/nooku/bridge.py#L514)). In my run, the test folder then had `audit.json` and `seal.json`:
+On SIGTERM, the bridge ends the test as `end` does: it stops the entry, and writes the trace, the audit and the seal. The bridge of 0.2.0 does the same ([bridge.py of 0.2.0](https://github.com/mohanraj00/verbatim-relay/blob/v0.2.0/src/verbatim_relay/bridge.py#L514)). In my run, the test folder then had `audit.json` and `seal.json`:
 
 ```bash
 nooku verify 20261007-224554-4b17

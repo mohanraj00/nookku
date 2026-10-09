@@ -8,7 +8,7 @@ nooku: relay mode is on, but no test runs. Start one with: nooku start. Nothing 
 
 The plugin shows the same text with `Type /nooku start`, or "the test stopped, and no test runs" ([claude-code-plugin.md](claude-code-plugin.md)). In both relays, the message does not go to the model.
 
-The output on this page is the real output of each step. I used the toy shop project of [getting-started.md](../getting-started.md) with Nooku 0.3.0 on macOS. I started a test, sent one message, and stopped the bridge with `kill -9`. I shortened the paths of the folders to `.../`. The test id, the pid and the times are different on your machine.
+The output on this page is the real output of each step. I used the toy shop project of [getting-started.md](../getting-started.md) with verbatim-relay 0.3.0 on macOS. I started a test, sent one message, and stopped the bridge with `kill -9`. I shortened the paths of the folders to `.../`. The test id, the pid and the times are different on your machine.
 
 Run each command in the project root, in a shell.
 

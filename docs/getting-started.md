@@ -4,7 +4,7 @@ In this tutorial, you test the toy shop agent of this repo in Claude Code. You i
 
 The output on this page is the real output of each step. I shortened the paths of the folders to `.../`. The test id and the times are different on your machine.
 
-I made the output of steps 5 and 10 in a second run of the same steps, with Nooku 0.3.0 on macOS. In that run, I gave each prompt to `nooku hook --harness claude-code`, as Claude Code does. Thus the test ids of steps 5 and 10 are different from the other steps. Each of these outputs is a sample of one run.
+I made the output of steps 5 and 10 in a second run of the same steps, with verbatim-relay 0.3.0 on macOS. In that run, I gave each prompt to `nooku hook --harness claude-code`, as Claude Code does. Thus the test ids of steps 5 and 10 are different from the other steps. Each of these outputs is a sample of one run.
 
 ## What you need
 

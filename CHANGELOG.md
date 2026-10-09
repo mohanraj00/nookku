@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.4.0
+
+verbatim-relay is now Nooku. The package, the CLI, the module, the plugin, the marketplace, the state folder and the variables have the new name. The record format and the audit do not change.
+
+**Upgrade.** End each running test. Then install `nooku`, update the plugin and run `nooku init` again. The first `nooku` command in a project moves `.verbatim-relay/` to `.nooku/`. [The upgrade guide](docs/how-to/upgrade.md#040) gives each step.
+
+- **New name.** The package and the CLI are `nooku`, the module is `nooku`, and the plugin is `nooku@nooku`. The variables start with `NOOKU_`, for example `NOOKU_HOME` ([#181](https://github.com/mohanraj00/verbatim-relay/issues/181)).
+- **State folder move.** Each command with a project root moves `.verbatim-relay/` to `.nooku/`. If both folders exist, the command stops and names both. A hook event is then blocked, so the relay fails closed ([SPEC.md section 7](SPEC.md#7-tests), [#181](https://github.com/mohanraj00/verbatim-relay/issues/181)).
+- **Old seal copies.** `verify` reads the seal copy of an old test from `~/.verbatim-relay/seals/` if `~/.nooku/seals/` has no copy ([SPEC.md section 7.4](SPEC.md#74-seal), [#181](https://github.com/mohanraj00/verbatim-relay/issues/181)).
+- **Old kit hooks.** `nooku init` replaces the hooks that verbatim-relay wrote, so the harness runs one hook for each event ([#181](https://github.com/mohanraj00/verbatim-relay/issues/181)).
+
 ## 0.3.1
 
 A docs release. The docs have new how-to guides for each task of a test, a glossary, 4 diagrams and facts that match 0.3.0. The code of the relays, the taps and the audit does not change. The examples get a Node entry and an HTTP entry, and the toy HTTP server no longer looks up the host name before it listens.

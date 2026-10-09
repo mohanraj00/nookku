@@ -393,8 +393,13 @@ def hook_command(root: Path, harness: str) -> str:
     return " ".join(shlex.quote(a) for a in argv)
 
 
+# The hook commands of the kit. verbatim-relay 0.3.x and earlier wrote the second one, so a new
+# `init` replaces those hooks too.
+OWN_COMMANDS = ("nooku hook", "verbatim_relay hook")
+
+
 def _ours(hook: Any) -> bool:
-    return isinstance(hook, dict) and "nooku hook" in str(hook.get("command", ""))
+    return isinstance(hook, dict) and any(c in str(hook.get("command", "")) for c in OWN_COMMANDS)
 
 
 def _merge_hooks(settings: dict[str, Any], command: str) -> dict[str, Any]:

@@ -6,6 +6,8 @@ This page lists each file that Nooku writes, and links to the section of [SPEC.m
 
 `.nooku/` in your project holds the configuration and the tests.
 
+verbatim-relay 0.3.x and earlier used `.verbatim-relay/`. The first `nooku` command in the project moves it to `.nooku/` ([how-to/upgrade.md](../how-to/upgrade.md#040)).
+
 | Path | Writer | Content |
 |---|---|---|
 | `config.json` | you, `nooku init` or the harness model | The configuration ([config.md](config.md)). |
