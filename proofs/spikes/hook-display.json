@@ -3749,7 +3749,8 @@
         "title_description_request": "The old CLI captures did not retain schemas. No side request with a blocked-prompt marker was measured. Do not infer a guarantee from its absence."
       },
       "openai_report": {
-        "status": "draft only; maintainer approval required before filing",
+        "status": "filed with maintainer approval",
+        "url": "https://github.com/openai/codex/issues/52520",
         "issue": "https://github.com/mohanraj00/verbatim-relay/issues/203"
       },
       "conclusion": "A Codex desktop title-generation request can contain a prompt blocked by UserPromptSubmit. No verified disable setting was found. State the limit; do not claim that the desktop relay keeps every tester prompt out of every model request."
