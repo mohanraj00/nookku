@@ -272,12 +272,13 @@ The hook command that `init` writes into the hook file. It reads one hook event 
 
 | Flag | Default | Meaning |
 |---|---|---|
-| `--root PATH` | required | The project. |
+| `--root PATH` | from the event | The project. With no `--root`, a Claude Code hook takes `CLAUDE_PROJECT_DIR`, and each hook then takes the `cwd` of the event, else its working folder. The plugin gives no `--root`. |
 | `--harness NAME` | required | `codex` or `claude-code`. |
 
 | Exit code | Meaning |
 |---|---|
-| 0 | Always. If the hook fails in relay mode, it still blocks the prompt. |
+| 0 | The hook answered. If the hook fails in relay mode, it still blocks the prompt. |
+| 2 | A wrong argument, an event that cannot be read, or both the old and the new state folder in the project. Exit 2 blocks the event, so the relay fails closed. |
 
 ### `nookku bridge`
 
