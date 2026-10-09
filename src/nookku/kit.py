@@ -361,11 +361,12 @@ def _deny(
     }
 
 
-def project_root(event: Any) -> Path:
-    """The project of a hook event with no --root: CLAUDE_PROJECT_DIR, else the `cwd` of the
-    event, else the working folder of the process. A plugin hook does not know the project when
-    it is installed, so it finds the project here."""
-    named = os.environ.get("CLAUDE_PROJECT_DIR")
+def project_root(event: Any, harness: str) -> Path:
+    """The project of a hook event with no --root: in Claude Code CLAUDE_PROJECT_DIR, else the
+    `cwd` of the event, else the working folder of the process. A plugin hook does not know the
+    project when it is installed, so it finds the project here. A Codex hook can inherit
+    CLAUDE_PROJECT_DIR from a Claude Code session of another project, so Codex never uses it."""
+    named = os.environ.get("CLAUDE_PROJECT_DIR") if harness == "claude-code" else None
     if not named and isinstance(event, dict) and isinstance(event.get("cwd"), str):
         named = event["cwd"]
     return Path(named or os.getcwd()).resolve()
@@ -386,7 +387,7 @@ def run_hook(root: Path | None, harness: str, stdin: TextIO, stdout: TextIO) -> 
     except ValueError:
         event = None
     if root is None:
-        root = project_root(event)
+        root = project_root(event, harness)
     error = move_old_state(root)
     if error:
         print(f"nookku: {error}", file=sys.stderr)

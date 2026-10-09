@@ -514,6 +514,18 @@ def test_a_hook_with_no_root_finds_the_project(setup, monkeypatch, source):
     assert json.loads(record(root).read_text())["harness"] == "claude-code"
 
 
+def test_a_codex_hook_ignores_the_project_variable_of_claude_code(setup, monkeypatch, tmp_path):
+    root, _, _ = setup
+    kit.set_mode(root, True)
+    other = tmp_path / "claude-project"
+    other.mkdir()
+    monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(other))
+    event = {**prompt(TRICKY), "cwd": str(root)}
+    out = io.StringIO()
+    assert kit.run_hook(None, "codex", io.StringIO(json.dumps(event)), out) == 0
+    assert json.loads(out.getvalue())["reason"] == shop_reply(TRICKY)
+
+
 @pytest.mark.parametrize(
     "args",
     [[], ["--harness"], ["--harness", "other"], ["--harness", "codex", "--x", "1"]],

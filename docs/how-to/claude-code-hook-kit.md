@@ -4,7 +4,7 @@ The hook kit is a [relay](../reference/glossary.md#relay) that uses classic hook
 
 **Warning:** Do not also enable the plugin in this project. With both relays, each message goes to the agent two times ([choose-a-relay.md](choose-a-relay.md#switch-from-one-relay-to-the-other)).
 
-The proofs ran on Claude Code 2.1.290 ([data](../../proofs/hooks-claude-code/results.json)). [getting-started.md](../getting-started.md) shows each step of the hook kit with the toy shop, and the real output of each step.
+The proofs ran on Claude Code 2.1.295 ([data](../../proofs/hooks-claude-code/results.json)). [getting-started.md](../getting-started.md) shows each step of the hook kit with the toy shop, and the real output of each step.
 
 Before you start, connect a test to your app: [connect-your-agent.md](connect-your-agent.md).
 
