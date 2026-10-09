@@ -80,20 +80,23 @@ def test_the_move_keeps_a_custom_record_path(tmp_path: Path) -> None:
     assert json.loads((tmp_path / STATE_DIR / "config.json").read_text()) == conf
 
 
+@pytest.mark.parametrize("step", ["write_text", "replace"])
 def test_a_failed_config_change_keeps_the_old_folder(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, step: str
 ) -> None:
     old_state(tmp_path)
     conf = tmp_path / OLD_STATE_DIR / "config.json"
-    conf.write_text(json.dumps({"record": f"{OLD_STATE_DIR}/relay.jsonl"}))
+    text = json.dumps({"record": f"{OLD_STATE_DIR}/relay.jsonl"})
+    conf.write_text(text)
 
     def fail(*args: object, **kwargs: object) -> None:
-        raise PermissionError("read-only")
+        raise OSError(28, "No space left on device")
 
     with monkeypatch.context() as m:
-        m.setattr(Path, "write_text", fail)
+        m.setattr(Path, step, fail)
         assert "cannot write" in (move_old_state(tmp_path) or "")
-    assert conf.exists()
+    assert conf.read_text() == text
+    assert sorted(p.name for p in conf.parent.iterdir()) == ["config.json", "tests"]
     assert not (tmp_path / STATE_DIR).exists()
     assert move_old_state(tmp_path) is None
     data = json.loads((tmp_path / STATE_DIR / "config.json").read_text())

@@ -64,9 +64,13 @@ def _move_record_key(path: Path) -> str | None:
     if not isinstance(record, str) or not record.startswith(f"{OLD_STATE_DIR}/"):
         return None
     data["record"] = STATE_DIR + record[len(OLD_STATE_DIR) :]
+    # Write a new file and replace the old one, so a failed write leaves the old file whole.
+    tmp = path.with_name(path.name + ".tmp")
     try:
-        path.write_text(json.dumps(data, indent=1) + "\n", encoding="utf-8")
+        tmp.write_text(json.dumps(data, indent=1) + "\n", encoding="utf-8")
+        tmp.replace(path)
     except OSError as error:
+        tmp.unlink(missing_ok=True)
         return f"cannot write {path}: {error}"
     print(f"nooku: changed 'record' in {path} to {data['record']}", file=sys.stderr)
     return None
