@@ -26,7 +26,7 @@ from claude_agent_sdk import (  # type: ignore[import-not-found]
     tool,
 )
 
-from verbatim_relay import contract
+from nooku import contract
 
 ORDERS = {"4471": {"item": "blue mug", "status": "delivered", "price_eur": 8}}
 SYSTEM = "You are the toy shop support agent. Use lookup_order for order questions. One sentence."

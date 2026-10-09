@@ -1,6 +1,6 @@
 # Test an agent with the hook kit in Claude Code
 
-The hook kit is a [relay](../reference/glossary.md#relay) that uses classic hooks. It cannot show text in the chat, so each reply shows in `verbatim-relay view`, in a second terminal. To compare it with the plugin, read [choose-a-relay.md](choose-a-relay.md). For Codex, read [codex.md](codex.md).
+The hook kit is a [relay](../reference/glossary.md#relay) that uses classic hooks. It cannot show text in the chat, so each reply shows in `nooku view`, in a second terminal. To compare it with the plugin, read [choose-a-relay.md](choose-a-relay.md). For Codex, read [codex.md](codex.md).
 
 **Warning:** Do not also enable the plugin in this project. With both relays, each message goes to the agent two times ([choose-a-relay.md](choose-a-relay.md#switch-from-one-relay-to-the-other)).
 
@@ -13,46 +13,46 @@ Before you start, connect a test to your app: [connect-your-agent.md](connect-yo
 In your project, install the kit with the [entry](../reference/glossary.md#entry):
 
 ```bash
-verbatim-relay init claude-code --entry "python3 examples/toy-shop/agent.py"
+nooku init claude-code --entry "python3 examples/toy-shop/agent.py"
 ```
 
-It writes `.verbatim-relay/config.json` and adds [2 hooks](../../src/verbatim_relay/kit.py) to `.claude/settings.local.json`. It keeps your other hooks. Add `--models claude-code,codex` if your app runs its own model sessions.
+It writes `.nooku/config.json` and adds [2 hooks](../../src/nooku/kit.py) to `.claude/settings.local.json`. It keeps your other hooks. Add `--models claude-code,codex` if your app runs its own model sessions.
 
 ## Run a test
 
 1. In a second terminal, start the viewer:
 
    ```bash
-   verbatim-relay view
+   nooku view
    ```
 
    It shows each turn of the latest test, and it follows to the next test.
 
-2. Start Claude Code in the project and type the prompt `verbatim-relay start`. The kit starts the test and does not send this prompt to the model.
+2. Start Claude Code in the project and type the prompt `nooku start`. The kit starts the test and does not send this prompt to the model.
 3. Type your test messages. Claude Code shows "relayed to the agent". The reply shows in the viewer.
-4. Type the prompt `verbatim-relay end`. The kit ends the test, and the model evaluates it and writes `report.md` (see [Evaluation](#evaluation)).
+4. Type the prompt `nooku end`. The kit ends the test, and the model evaluates it and writes `report.md` (see [Evaluation](#evaluation)).
 
-The prompt `verbatim-relay status` shows the running test. You can also start and end a test from a shell: `verbatim-relay start` and `verbatim-relay end`. The end from a shell starts no evaluation. To evaluate that test later, type the prompt `verbatim-relay end`.
+The prompt `nooku status` shows the running test. You can also start and end a test from a shell: `nooku start` and `nooku end`. The end from a shell starts no evaluation. To evaluate that test later, type the prompt `nooku end`.
 
-`verbatim-relay trace` builds the [trace](../reference/glossary.md#trace) of the latest test again and shows its findings.
+`nooku trace` builds the [trace](../reference/glossary.md#trace) of the latest test again and shows its findings.
 
-Each test is a new conversation, with a new test id and a new entry process. The [test folder](../reference/glossary.md#test-folder) is `.verbatim-relay/tests/<test-id>/`. [reference/records.md](../reference/records.md#the-test-folder) lists its files.
+Each test is a new conversation, with a new test id and a new entry process. The [test folder](../reference/glossary.md#test-folder) is `.nooku/tests/<test-id>/`. [reference/records.md](../reference/records.md#the-test-folder) lists its files.
 
 If a message gets an error, read [troubleshooting.md](../troubleshooting.md#during-a-test).
 
 ## What the model can do
 
-The model reads the exact conversation of the latest test with `verbatim-relay transcript`. The command prints the exact turns, and the plugin gives the model the same text.
+The model reads the exact conversation of the latest test with `nooku transcript`. The command prints the exact turns, and the plugin gives the model the same text.
 
-During a test, the model cannot send a message to the agent, and it cannot change the files in `.verbatim-relay/`. The kit denies each tool call that writes into `.verbatim-relay/`. It also denies each other tool call that names `.verbatim-relay`, also a read command such as `cat`. Only the file tools can read these files ([SPEC.md section 5](../../SPEC.md#5-relays)).
+During a test, the model cannot send a message to the agent, and it cannot change the files in `.nooku/`. The kit denies each tool call that writes into `.nooku/`. It also denies each other tool call that names `.nooku`, also a read command such as `cat`. Only the file tools can read these files ([SPEC.md section 5](../../SPEC.md#5-relays)).
 
 During a test, the kit also denies a model command that runs the entry, for example `python3 entry.py`. A command that only reads the entry, for example `cat entry.py`, can run.
 
 ## Evaluation
 
-The evaluation prompt ([evaluate.md](../../src/verbatim_relay/evaluate.md)) tells the model to:
+The evaluation prompt ([evaluate.md](../../src/nooku/evaluate.md)) tells the model to:
 
-1. read the transcript with the trace: `verbatim-relay transcript --trace`;
+1. read the transcript with the trace: `nooku transcript --trace`;
 2. read `findings.json` and `audit.json`;
 3. read your app's code and its business rules;
 4. check your app's state with read-only commands;
@@ -60,14 +60,14 @@ The evaluation prompt ([evaluate.md](../../src/verbatim_relay/evaluate.md)) tell
 
 The model did not see the conversation while you talked, so it judges the record, not its memory. Claude Code asks you to allow each command of the model, unless your permission settings allow it.
 
-After a test, the kit denies model writes to the test folder, except `report.md`. A shell command that names `.verbatim-relay` can only read, or write `report.md` ([SPEC.md section 5](../../SPEC.md#5-relays) lists the read programs).
+After a test, the kit denies model writes to the test folder, except `report.md`. A shell command that names `.nooku` can only read, or write `report.md` ([SPEC.md section 5](../../SPEC.md#5-relays) lists the read programs).
 
-To stop the evaluation, add `"evaluate": false` to `.verbatim-relay/config.json`. [evaluation-example.md](../evaluation-example.md) shows a test and its report.
+To stop the evaluation, add `"evaluate": false` to `.nooku/config.json`. [evaluation-example.md](../evaluation-example.md) shows a test and its report.
 
 ## Audit
 
 ```bash
-verbatim-relay audit --tap .verbatim-relay/tests/<test-id>/tap.jsonl --relay .verbatim-relay/tests/<test-id>/relay.jsonl
+nooku audit --tap .nooku/tests/<test-id>/tap.jsonl --relay .nooku/tests/<test-id>/relay.jsonl
 ```
 
 Exit code 0 means clean, 1 means a break, and 2 means that a record is missing or invalid ([SPEC.md section 3.4](../../SPEC.md#34-exit-codes)).
@@ -79,4 +79,4 @@ Exit code 0 means clean, 1 means a break, and 2 means that a record is missing o
 - Backends of your app: [add-a-backend.md](add-a-backend.md).
 - Direct model calls and OpenTelemetry: [record-model-calls.md](record-model-calls.md).
 - An Agent SDK session in your app: [isolate-agent-sdk.md](isolate-agent-sdk.md).
-- Audit a test: [reference/cli.md](../reference/cli.md#verbatim-relay-audit).
+- Audit a test: [reference/cli.md](../reference/cli.md#nooku-audit).

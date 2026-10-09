@@ -25,7 +25,7 @@ sys.path[:0] = [str(ROOT / "src")]
 
 from proof_common import json_lines  # noqa: E402
 
-from verbatim_relay import __version__, backend, bridge, seal, stdio  # noqa: E402
+from nooku import __version__, backend, bridge, seal, stdio  # noqa: E402
 
 SEEN: list[dict[str, str]] = []
 
@@ -91,8 +91,8 @@ class StockServer(ThreadingHTTPServer):
 def main() -> int:
     stock = StockServer(("127.0.0.1", 0), Stock)
     threading.Thread(target=stock.serve_forever, daemon=True).start()
-    project = Path(tempfile.mkdtemp(prefix="verbatim-relay-backend-"))
-    (project / ".verbatim-relay").mkdir()
+    project = Path(tempfile.mkdtemp(prefix="nooku-backend-"))
+    (project / ".nooku").mkdir()
     (project / "entry.py").write_text(ENTRY)
     config = {
         "entry": [sys.executable, "entry.py"],
@@ -106,7 +106,7 @@ def main() -> int:
             }
         ],
     }
-    (project / ".verbatim-relay" / "config.json").write_text(json.dumps(config))
+    (project / ".nooku" / "config.json").write_text(json.dumps(config))
     cur = bridge.start(project)
     try:
         shown, ok = bridge.send(cur, "Scan, check and import the teapot sets.")
@@ -133,7 +133,7 @@ def main() -> int:
     result = {
         "date": date.today().isoformat(),
         "versions": {
-            "verbatim-relay": __version__,
+            "nooku": __version__,
             "python": sys.version.split()[0],
             "os": os.uname().sysname,
         },

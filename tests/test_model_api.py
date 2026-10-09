@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from toy_model_server import ModelServer
 
-from verbatim_relay import backend, model_api
+from nooku import backend, model_api
 
 TRACE = Path(__file__).resolve().parent.parent / "conformance" / "trace"
 STREAM = [

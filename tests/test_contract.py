@@ -9,10 +9,10 @@ from pathlib import Path
 
 import pytest
 
-from verbatim_relay import contract
-from verbatim_relay.audit import audit
-from verbatim_relay.record import Writer, lone_surrogate
-from verbatim_relay.stdio import Agent, StdioTap, start_in_thread
+from nooku import contract
+from nooku.audit import audit
+from nooku.record import Writer, lone_surrogate
+from nooku.stdio import Agent, StdioTap, start_in_thread
 
 ROOT = Path(__file__).resolve().parent.parent
 CASES = sorted((ROOT / "conformance" / "contract").iterdir())
@@ -197,7 +197,7 @@ def test_the_plugin_reads_each_one_line_case_like_the_tap() -> None:
 
 
 SERVED = """
-from verbatim_relay.agent import serve
+from nooku.agent import serve
 
 def reply(message, history):
     print("a log line from the toy shop")
@@ -228,7 +228,7 @@ def test_serve_speaks_the_contract(tmp_path: Path) -> None:
     assert out[-1] == b""
     assert contract.parse_reply(out[0], "m-1") == ("1|Hi  \r\n\u2028€", None)
     assert contract.parse_reply(out[1], "m-2") == (None, "RuntimeError: the order service is down")
-    assert json.loads(out[2])["error"].startswith("verbatim-relay agent:")
+    assert json.loads(out[2])["error"].startswith("nooku agent:")
     assert len(out) == 4
     assert p.stderr.count(b"a log line from the toy shop") == 2
     assert p.returncode == 0
@@ -236,7 +236,7 @@ def test_serve_speaks_the_contract(tmp_path: Path) -> None:
 
 # The entry prints a line at import, before serve(). Stdout is a pipe, so Python buffers the line.
 EARLY = """
-from verbatim_relay.agent import serve
+from nooku.agent import serve
 
 print("toy shop: loading catalog")
 serve(lambda message, history: "We sell mugs.")
@@ -327,7 +327,7 @@ def test_a_timeout_after_stray_lines_names_them_and_the_fix(tmp_path: Path) -> N
         agent.stop(grace=1)
     want = (
         "the agent printed 3 lines on stdout but no reply line for m-1 in 1 s, so the tap stopped "
-        "it. Use verbatim_relay.agent.serve() or write logs to stderr. "
+        "it. Use nooku.agent.serve() or write logs to stderr. "
         "The first line: 'toy shop: loading catalog'"
     )
     assert status == 504

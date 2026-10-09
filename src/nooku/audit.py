@@ -7,7 +7,7 @@ from itertools import pairwise
 from pathlib import Path
 from typing import Any
 
-from verbatim_relay.record import (
+from nooku.record import (
     BlockedCall,
     Exchange,
     ModelSession,

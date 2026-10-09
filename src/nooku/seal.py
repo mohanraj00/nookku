@@ -1,7 +1,7 @@
 """The seal of a test folder (SPEC.md section 7.4).
 
 At the end of a test, the bridge writes the SHA-256 of each file of the test folder to seal.json,
-and a copy to ~/.verbatim-relay/seals/<test-id>.json. `verify` finds each file that changed after
+and a copy to ~/.nooku/seals/<test-id>.json. `verify` finds each file that changed after
 the end. A model that changes a record must also change both seals.
 """
 
@@ -22,11 +22,22 @@ VERSION = 1
 
 
 def home() -> Path:
+    return Path(os.environ.get("NOOKU_HOME") or Path.home() / ".nooku")
+
+
+def old_home() -> Path:
+    """The home folder of verbatim-relay 0.3.x and earlier. It holds old seal copies."""
     return Path(os.environ.get("VERBATIM_RELAY_HOME") or Path.home() / ".verbatim-relay")
 
 
 def copy_path(test: str, base: Path | None = None) -> Path:
-    return (base or home()) / "seals" / f"{test}.json"
+    """The seal copy of a test. If no copy is in home() but one is in old_home(), use that one,
+    so that `verify` still finds the copy of a test that verbatim-relay sealed."""
+    if base is not None:
+        return base / "seals" / f"{test}.json"
+    new = home() / "seals" / f"{test}.json"
+    old = old_home() / "seals" / f"{test}.json"
+    return old if not new.exists() and old.exists() else new
 
 
 def _sha256(path: Path) -> str:

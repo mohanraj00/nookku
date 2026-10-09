@@ -1,8 +1,8 @@
-# Work on verbatim-relay
+# Work on Nooku
 
 ## What this project is
 
-A person tests a chat agent through a coding harness (Claude Code or Codex). The harness extension carries each message and each reply byte for byte, so the model never retypes them. An independent tap proxy records what the agent received and sent. The audit compares the two records and names each break.
+Nooku is a test harness for developers of agent apps. A person tests a chat agent through a coding harness (Claude Code or Codex). The harness extension carries each message and each reply byte for byte, so the model never retypes them. An independent tap proxy records what the agent received and sent. The audit compares the two records and names each break.
 
 `AGENTS.md` is a copy of this file for Codex. Change the two files together. A test checks that they are the same.
 

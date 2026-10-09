@@ -1,10 +1,10 @@
 # Get started
 
-In this tutorial, you test the toy shop agent of this repo in Claude Code. You install verbatim-relay, run a test with 3 messages, and read the [audit](reference/glossary.md#audit), the report of the model and the [findings](reference/glossary.md#findings). You use the hook kit, because it needs no global install in Claude Code. To compare the hook kit with the plugin, read [how-to/choose-a-relay.md](how-to/choose-a-relay.md).
+In this tutorial, you test the toy shop agent of this repo in Claude Code. You install Nooku, run a test with 3 messages, and read the [audit](reference/glossary.md#audit), the report of the model and the [findings](reference/glossary.md#findings). You use the hook kit, because it needs no global install in Claude Code. To compare the hook kit with the plugin, read [how-to/choose-a-relay.md](how-to/choose-a-relay.md).
 
 The output on this page is the real output of each step. I shortened the paths of the folders to `.../`. The test id and the times are different on your machine.
 
-I made the output of steps 5 and 10 in a second run of the same steps, with verbatim-relay 0.3.0 on macOS. In that run, I gave each prompt to `verbatim-relay hook --harness claude-code`, as Claude Code does. Thus the test ids of steps 5 and 10 are different from the other steps. Each of these outputs is a sample of one run.
+I made the output of steps 5 and 10 in a second run of the same steps, with verbatim-relay 0.3.0 on macOS. In that run, I gave each prompt to `nooku hook --harness claude-code`, as Claude Code does. Thus the test ids of steps 5 and 10 are different from the other steps. Each of these outputs is a sample of one run.
 
 ## What you need
 
@@ -12,21 +12,21 @@ I made the output of steps 5 and 10 in a second run of the same steps, with verb
 - Python 3.10 or later ([pyproject.toml](../pyproject.toml)), [uv](https://docs.astral.sh/uv/) and git.
 - Claude Code. The proofs of the hook kit ran on Claude Code 2.1.290 ([data](../proofs/hooks-claude-code/results.json)).
 
-## 1. Install verbatim-relay
+## 1. Install Nooku
 
 ```bash
-uv tool install verbatim-relay
-verbatim-relay --version
+uv tool install nooku
+nooku --version
 ```
 
 ```text
-verbatim-relay 0.3.0
+nooku 0.3.0
 ```
 
-This tutorial needs version 0.3.0 or later. If the version is lower, end each running test with `verbatim-relay end`. Then upgrade:
+This tutorial needs version 0.3.0 or later. If the version is lower, end each running test with `nooku end`. Then upgrade:
 
 ```bash
-uv tool upgrade verbatim-relay
+uv tool upgrade nooku
 ```
 
 End the tests first, because 0.3.0 does not find a test that version 0.2.0 started. It then cannot end that test ([#44](https://github.com/mohanraj00/verbatim-relay/issues/44)).
@@ -38,7 +38,7 @@ Get the toy shop agent, and put it in a new project folder:
 ```bash
 git clone https://github.com/mohanraj00/verbatim-relay.git
 mkdir toy-shop
-cp verbatim-relay/examples/toy-shop/agent.py toy-shop/
+cp nooku/examples/toy-shop/agent.py toy-shop/
 cd toy-shop
 ```
 
@@ -64,15 +64,15 @@ The first line goes to stderr. The second line is the reply, on stdout. Note the
 Install the hook kit for Claude Code, with the command that starts the agent:
 
 ```bash
-verbatim-relay init claude-code --entry "python3 agent.py"
+nooku init claude-code --entry "python3 agent.py"
 ```
 
 ```text
-wrote .../toy-shop/.verbatim-relay/config.json
+wrote .../toy-shop/.nooku/config.json
   A new file. Keys that differ from the default: entry.
 wrote .../toy-shop/.claude/settings.local.json
-Relay mode is off. Switch it with: verbatim-relay mode on
-Do not also enable the verbatim-relay Claude Code plugin in this project, or each message is sent two times.
+Relay mode is off. Switch it with: nooku mode on
+Do not also enable the nooku Claude Code plugin in this project, or each message is sent two times.
 ```
 
 `config.json` holds the [entry](reference/glossary.md#entry): the command that the [tap](reference/glossary.md#tap) starts for each test. `settings.local.json` holds two hooks. The `UserPromptSubmit` hook takes each prompt before the model sees it. The `PreToolUse` hook denies a model tool call that names the agent or changes a file of the test.
@@ -80,17 +80,17 @@ Do not also enable the verbatim-relay Claude Code plugin in this project, or eac
 Check the connection with one message:
 
 ```bash
-verbatim-relay check
+nooku check
 ```
 
 ```text
-Test 20261007-133809-bbb2: .../toy-shop/.verbatim-relay/tests/20261007-133809-bbb2
+Test 20261007-133809-bbb2: .../toy-shop/.nooku/tests/20261007-133809-bbb2
 Reply: Which item is this about: the mug or the teapot?
 Audit: exit 0
 PASS
 ```
 
-PASS proves the connection, not the reply. `check` sent one fixed message to the entry: `Hello from verbatim-relay check. What can you help me with?` The entry sent a reply line, and the audit of this short test is clean. `check` does not judge the reply. Here the reply is the fallback text of the toy shop, because the toy shop has no rule for this message. For your own app, do the steps in [Make sure that check runs your real app](how-to/connect-your-agent.md#make-sure-that-check-runs-your-real-app).
+PASS proves the connection, not the reply. `check` sent one fixed message to the entry: `Hello from nooku check. What can you help me with?` The entry sent a reply line, and the audit of this short test is clean. `check` does not judge the reply. Here the reply is the fallback text of the toy shop, because the toy shop has no rule for this message. For your own app, do the steps in [Make sure that check runs your real app](how-to/connect-your-agent.md#make-sure-that-check-runs-your-real-app).
 
 ## 5. Start the viewer
 
@@ -98,7 +98,7 @@ The hook kit cannot show text in the chat of Claude Code. Open a second terminal
 
 ```bash
 cd toy-shop
-verbatim-relay view
+nooku view
 ```
 
 The viewer shows each turn of the latest test, and it waits for the next turn. Before your test starts, the latest test is the test of `check` from step 4. In my second run, the viewer showed:
@@ -106,7 +106,7 @@ The viewer shows each turn of the latest test, and it waits for the next turn. B
 ```text
 ════ test 20261008-011239-cfe6 ════
 ──── tester, turn 1 ────
-Hello from verbatim-relay check. What can you help me with?
+Hello from nooku check. What can you help me with?
 ──── agent ────
 Which item is this about: the mug or the teapot?
 ```
@@ -121,10 +121,10 @@ In the first terminal, start Claude Code in the project:
 claude
 ```
 
-Type the prompt `verbatim-relay start`. The hook starts the test and blocks the prompt, so the model does not receive it. Claude Code shows this text:
+Type the prompt `nooku start`. The hook starts the test and blocks the prompt, so the model does not receive it. Claude Code shows this text:
 
 ```text
-verbatim-relay: test 20261007-133823-0b63 started. Relay mode is on: each message goes to the entry. To end the test and start the evaluation, type the prompt verbatim-relay end. To end the test with no evaluation, run verbatim-relay end in a shell.
+nooku: test 20261007-133823-0b63 started. Relay mode is on: each message goes to the entry. To end the test and start the evaluation, type the prompt nooku end. To end the test with no evaluation, run nooku end in a shell.
 ```
 
 Type these 3 messages, one at a time:
@@ -133,7 +133,7 @@ Type these 3 messages, one at a time:
 2. `ok what is your refund policy`
 3. `do you ship to delhi?`
 
-For each message, Claude Code shows `verbatim-relay: relayed to the agent. The reply is in the viewer (verbatim-relay view).` The model does not run. The viewer shows each turn:
+For each message, Claude Code shows `nooku: relayed to the agent. The reply is in the viewer (nooku view).` The model does not run. The viewer shows each turn:
 
 ```text
 ════ test 20261007-133823-0b63 ════
@@ -157,11 +157,11 @@ We ship to Chennai and Pune. Delivery takes 3 to 5 days.
 
 ## 7. End the test
 
-Type the prompt `verbatim-relay end`. The hook ends the test: it stops the agent, builds the [trace](reference/glossary.md#trace), writes the audit and [seals](reference/glossary.md#seal) the [test folder](reference/glossary.md#test-folder). Then the prompt goes to the model with the [evaluation](reference/glossary.md#evaluation) prompt.
+Type the prompt `nooku end`. The hook ends the test: it stops the agent, builds the [trace](reference/glossary.md#trace), writes the audit and [seals](reference/glossary.md#seal) the [test folder](reference/glossary.md#test-folder). Then the prompt goes to the model with the [evaluation](reference/glossary.md#evaluation) prompt.
 
 The model now reads the record of the test. Claude Code asks you to allow its commands. Allow these commands:
 
-- `verbatim-relay transcript --trace --test <test-id>`: it shows each turn as the agent got it.
+- `nooku transcript --trace --test <test-id>`: it shows each turn as the agent got it.
 - `cat`, `sed -n`, `jq` or `grep` on `findings.json` and `audit.json` in the test folder.
 - A read of `agent.py`.
 - The write of `report.md` in the test folder.
@@ -183,19 +183,19 @@ The model's answer is different on each run.
 Each test has a folder. Find its id:
 
 ```bash
-ls .verbatim-relay/tests/
+ls .nooku/tests/
 ```
 
 ```text
 20261007-133809-bbb2	20261007-133823-0b63
 ```
 
-The first folder is the test of `verbatim-relay check`. The second is your test.
+The first folder is the test of `nooku check`. The second is your test.
 
 The end of the test already wrote the audit of its two records in `audit.json` in the test folder. To see the audit as text, run it again. This command is optional:
 
 ```bash
-verbatim-relay audit --tap .verbatim-relay/tests/20261007-133823-0b63/tap.jsonl --relay .verbatim-relay/tests/20261007-133823-0b63/relay.jsonl
+nooku audit --tap .nooku/tests/20261007-133823-0b63/tap.jsonl --relay .nooku/tests/20261007-133823-0b63/relay.jsonl
 ```
 
 ```text
@@ -208,7 +208,7 @@ Result: clean (exit 0)
 To see a break, audit a conformance case of the repo. Its records have 4 planted faults:
 
 ```bash
-verbatim-relay audit --tap ../verbatim-relay/conformance/cases/several_breaks/tap.jsonl --relay ../verbatim-relay/conformance/cases/several_breaks/relay.jsonl
+nooku audit --tap ../nooku/conformance/cases/several_breaks/tap.jsonl --relay ../nooku/conformance/cases/several_breaks/relay.jsonl
 ```
 
 ```text
@@ -227,7 +227,7 @@ The exit code is 0 for clean, 1 for a break, and 2 if a record is missing or inv
 The model wrote `report.md` in the test folder:
 
 ```bash
-cat .verbatim-relay/tests/20261007-133823-0b63/report.md
+cat .nooku/tests/20261007-133823-0b63/report.md
 ```
 
 ```markdown
@@ -248,7 +248,7 @@ Each row has a class, a turn and its evidence. The model did not see the convers
 Last, check that no record changed after the end of the test:
 
 ```bash
-verbatim-relay verify
+nooku verify
 ```
 
 ```text
@@ -260,20 +260,20 @@ Seal: intact. No record changed after the end of the test.
 At the end of the test, the bridge also built the trace, `trace.jsonl`, and its checks, `findings.json`. Build the trace again, and show its findings:
 
 ```bash
-verbatim-relay trace
+nooku trace
 ```
 
 In my second run, the output was:
 
 ```text
 Trace: 0 model items in 3 turns, no findings.
-File: .../toy-shop/.verbatim-relay/tests/20261008-011242-a35f/trace.jsonl
+File: .../toy-shop/.nooku/tests/20261008-011242-a35f/trace.jsonl
 ```
 
 With no test id, `trace` uses the latest test. The toy shop has no model, so the trace has no model items and no findings. Read the findings file:
 
 ```bash
-cat .verbatim-relay/tests/20261008-011242-a35f/findings.json
+cat .nooku/tests/20261008-011242-a35f/findings.json
 ```
 
 ```json
@@ -317,7 +317,7 @@ To read each file of a test folder in order, see [Read the results of a test](ho
 
 ## Next steps
 
-- Test your own app: [how-to/test-your-app.md](how-to/test-your-app.md). In the harness, type `!verbatim-relay setup`. Then type the prompt "Follow the verbatim-relay setup guide, and connect a test to this app."
+- Test your own app: [how-to/test-your-app.md](how-to/test-your-app.md). In the harness, type `!nooku setup`. Then type the prompt "Follow the Nooku setup guide, and connect a test to this app."
 - Connect your own agent: [how-to/connect-your-agent.md](how-to/connect-your-agent.md).
 - Use the Claude Code plugin, which shows each reply in the chat: [how-to/claude-code-plugin.md](how-to/claude-code-plugin.md).
 - Use Codex: [how-to/codex.md](how-to/codex.md).

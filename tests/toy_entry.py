@@ -2,6 +2,6 @@
 
 from toy_agent import shop_reply
 
-from verbatim_relay.agent import serve
+from nooku.agent import serve
 
 serve(lambda message, history: shop_reply(message))

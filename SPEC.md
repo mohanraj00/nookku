@@ -1,4 +1,4 @@
-# verbatim-relay specification, v0.3 (draft)
+# Nooku specification, v0.3 (draft)
 
 This file defines the two records and the audit. The conformance cases in `conformance/` are the executable form of this file. If the code and this file disagree, the code is wrong.
 
@@ -181,7 +181,7 @@ Each adapter maps onto the agent contract (section 6):
 
 ### 4.2 Stdio mode
 
-`verbatim-relay tap --cmd -- <command>` starts the command as the agent and talks to it with the agent contract (section 6). The tap listens on a local HTTP endpoint, the same as in HTTP mode. The relay posts each contract input line to it.
+`nooku tap --cmd -- <command>` starts the command as the agent and talks to it with the agent contract (section 6). The tap listens on a local HTTP endpoint, the same as in HTTP mode. The relay posts each contract input line to it.
 
 - The tap starts the agent in its own process group, with the test root as its working directory. The agent's stderr goes to `app.log` in the test folder.
 - The tap accepts a `POST` with a body that is a valid contract input on one line: no `\n` and no `\r` bytes. It writes the body to the agent's stdin without change, then one `\n`. If the body is not valid, the tap returns status 400, writes an `unparsed` row and does not send the body.
@@ -192,7 +192,7 @@ Each adapter maps onto the agent contract (section 6):
 - If the reply line is not valid, the tap returns status 502 and writes an `unparsed` row.
 - If the `reply` or the `error` of an output has a lone surrogate, the tap returns status 502. It writes an `exchange` row with `status: null`, `reply: null` and an `error` that names the lone surrogate.
 - If the agent sends no reply line in 240 seconds after the request, the tap stops the agent's process group. It returns status 504 and writes an `exchange` row with `status: null`.
-- If the tap got stray lines for that request before the timeout, the error text of the row and of the 504 body gives the number of stray lines, the request `id`, and the first 80 bytes of the first stray line. It also gives the fix: use `verbatim_relay.agent.serve()` or write logs to stderr.
+- If the tap got stray lines for that request before the timeout, the error text of the row and of the 504 body gives the number of stray lines, the request `id`, and the first 80 bytes of the first stray line. It also gives the fix: use `nooku.agent.serve()` or write logs to stderr.
 - If the agent exits, the tap returns status 502 and writes an `exchange` row with `status: null` and the exit code in `error`.
 - The tap does not restart the agent. After a crash or a timeout, it answers each later request with the same error. The error body includes the last 20 lines of `app.log`.
 - Before each request, the tap reads each line that waits on stdout. Each such line is a stray line.
@@ -204,11 +204,11 @@ Each timeout on the relay path ends before the next one, so that each part gets 
 
 | Order | Timeout | Seconds |
 |---|---|---|
-| 1 | The agent timeout of the tap, the same in HTTP mode and stdio mode | [240](src/verbatim_relay/stdio.py#L24) |
+| 1 | The agent timeout of the tap, the same in HTTP mode and stdio mode | [240](src/nooku/stdio.py#L24) |
 | 2 | The tap answers the relay, at most 5 seconds after the agent timeout | [245](tests/test_timeouts.py#L22) |
-| 3 | The hook kit waits for the tap of a test (section 7) | [270](src/verbatim_relay/bridge.py#L38) |
-| 3 | The hook kit waits for the tap of section 4.1 | [280](src/verbatim_relay/kit.py#L34) |
-| 4 | The harness stops the `UserPromptSubmit` hook | [300](src/verbatim_relay/kit.py#L37) |
+| 3 | The hook kit waits for the tap of a test (section 7) | [270](src/nooku/bridge.py#L38) |
+| 3 | The hook kit waits for the tap of section 4.1 | [280](src/nooku/kit.py#L34) |
+| 4 | The harness stops the `UserPromptSubmit` hook | [300](src/nooku/kit.py#L37) |
 
 Each number links to its constant. The 5 seconds of order 2 is the `ANSWER` limit of the test. The plugin sets no timeout of its own. It waits for the answer of the tap. The test [`tests/test_timeouts.py`](tests/test_timeouts.py) checks this order, and it measures the 504 of a slow agent and of an agent that sends a byte at a time.
 
@@ -221,28 +221,28 @@ The Codex desktop app can send a blocked prompt to the model API in a separate r
 The follow-up capture records a title-description schema match, without request or response bodies. Its data is at `codex.desktop_side_requests`, with the source inspection at `codex.side_request_investigation.source_inspection`. The method is `codex --side-requests` in the same script. The schema match and the installed title generator identify chat title generation as the purpose of the measured request. In this capture, the blocked first prompt reached title generation in each new chat. The later blocked prompts appeared in no classified JSON model request. The absence claim does not cover the other HTTP requests that had no model field. The capture keeps no full bodies for those requests. This does not prove that only first prompts can reach a side request. I found no verified setting that stops it. Do not use the desktop relay when a test needs to keep each tester prompt out of every model request.
 
 - **Relay mode.** If relay mode is on, each prompt that the tester submits goes to the tap, and the model does not receive it. If relay mode is off, the relay does nothing to prompts. If an entry is configured, `start` switches relay mode on and `end` switches it off (section 7). `on` and `off` are aliases of `start` and `end`.
-- **Control prompts.** With an entry, a relay never relays the exact prompts `verbatim-relay start`, `verbatim-relay end` and `verbatim-relay status`, also in relay mode. It runs the command and blocks the prompt. There is one exception: if `verbatim-relay end` leaves a test to evaluate (section 9), the relay lets the prompt go to the model, with the evaluation prompt added as context. The plugin also has the `/verbatim-relay` command, which never starts an evaluation.
-- **Lone surrogate.** If relay mode is on and the message has a lone surrogate (section 2), the relay does not send it and writes no turn. It stops the prompt from reaching the model, and it shows the tester the code point and its character number, for example "verbatim-relay: nothing was sent. The message has a lone surrogate U+D83D at character 21." The character number counts code points from 0. The relay never changes the message.
+- **Control prompts.** With an entry, a relay never relays the exact prompts `nooku start`, `nooku end` and `nooku status`, also in relay mode. It runs the command and blocks the prompt. There is one exception: if `nooku end` leaves a test to evaluate (section 9), the relay lets the prompt go to the model, with the evaluation prompt added as context. The plugin also has the `/nooku` command, which never starts an evaluation.
+- **Lone surrogate.** If relay mode is on and the message has a lone surrogate (section 2), the relay does not send it and writes no turn. It stops the prompt from reaching the model, and it shows the tester the code point and its character number, for example "Nooku: nothing was sent. The message has a lone surrogate U+D83D at character 21." The character number counts code points from 0. The relay never changes the message.
 - **Fail closed.** If relay mode is on and the relay cannot send the message, it still stops the prompt from reaching the model. It shows the error to the tester and writes the error as `shown` with `ok: false`.
-- **No test.** With an entry, a relay sends a prompt only to a running test (section 7.2). The hook kit asks `bridge.current` before each prompt. The plugin reads `current.json`. If the plugin cannot connect to the tap of `current.json`, it runs `verbatim-relay status --json`. Only if `test` is `null` in that answer, no test runs. Each other answer keeps the connection error. If no `current.json` exists, the relay blocks the prompt, shows "relay mode is on, but no test runs" with the step to start a test, and writes no turn. If the plugin found no test after a failed connection, it shows "the test stopped, and no test runs" with the same step. The POST can have reached the tap before the connection closed, so the plugin writes the turn with `ok: false`, and the audit can match it. The status text of the plugin also comes from `verbatim-relay status --json`, for `/verbatim-relay status` and for the prompt `verbatim-relay status`. Thus a stale `current.json` does not show as a running test.
-- **Display.** The plugin shows the reply as a transcript row that the model does not receive. The hook kit writes the relay record, and `verbatim-relay view` prints each turn from it.
+- **No test.** With an entry, a relay sends a prompt only to a running test (section 7.2). The hook kit asks `bridge.current` before each prompt. The plugin reads `current.json`. If the plugin cannot connect to the tap of `current.json`, it runs `nooku status --json`. Only if `test` is `null` in that answer, no test runs. Each other answer keeps the connection error. If no `current.json` exists, the relay blocks the prompt, shows "relay mode is on, but no test runs" with the step to start a test, and writes no turn. If the plugin found no test after a failed connection, it shows "the test stopped, and no test runs" with the same step. The POST can have reached the tap before the connection closed, so the plugin writes the turn with `ok: false`, and the audit can match it. The status text of the plugin also comes from `nooku status --json`, for `/nooku status` and for the prompt `nooku status`. Thus a stale `current.json` does not show as a running test.
+- **Display.** The plugin shows the reply as a transcript row that the model does not receive. The hook kit writes the relay record, and `nooku view` prints each turn from it.
 - **Streams.** If the tap response is a stream (section 4.1), the relay reads the complete body and joins the reply with the rules of the adapter. It shows the reply only when the stream is complete. It does not show the parts. If the stream failed, the relay shows the error and writes it as `shown` with `ok: false`.
-- **Stream request.** For an agent that runs as an HTTP server, the `openai` adapter of a relay sends `"stream": false` in each request. If the option `openai_stream` is `true`, it sends `"stream": true`, for an agent that streams only on request. The default is `false`. The plugin has it as an option, and the hook kit has it as the key `openai_stream` in `.verbatim-relay/config.json`, a boolean. A test with an entry uses the agent contract (section 6), so this option does not apply.
-- **Transcript.** `verbatim-relay transcript` prints the turns of the relay record for the model. Its first line gives the scope and the number of turns. Its second line is this legend: "Legend: ok (an agent block): the agent answered and the relay showed its reply. It does not judge the reply. Not ok (a relay error block): the relay got no reply and shows its own error text." Each turn has a tester block with `said`. Then it has an agent block with `shown`, or a relay error block with `shown` if `ok` is `false`. The turns show no hashes and no session ids. With an entry, the scope is each session of the latest test, or of `--test <test-id>`. With no entry, the scope is the session of the last turn, or `--session <id>`. The plugin's `transcript` tool runs this command and returns its output with no change, so both relays give the model the same text. With `trace: true`, the tool runs `verbatim-relay transcript --trace` (section 9.2).
+- **Stream request.** For an agent that runs as an HTTP server, the `openai` adapter of a relay sends `"stream": false` in each request. If the option `openai_stream` is `true`, it sends `"stream": true`, for an agent that streams only on request. The default is `false`. The plugin has it as an option, and the hook kit has it as the key `openai_stream` in `.nooku/config.json`, a boolean. A test with an entry uses the agent contract (section 6), so this option does not apply.
+- **Transcript.** `nooku transcript` prints the turns of the relay record for the model. Its first line gives the scope and the number of turns. Its second line is this legend: "Legend: ok (an agent block): the agent answered and the relay showed its reply. It does not judge the reply. Not ok (a relay error block): the relay got no reply and shows its own error text." Each turn has a tester block with `said`. Then it has an agent block with `shown`, or a relay error block with `shown` if `ok` is `false`. The turns show no hashes and no session ids. With an entry, the scope is each session of the latest test, or of `--test <test-id>`. With no entry, the scope is the session of the last turn, or `--session <id>`. The plugin's `transcript` tool runs this command and returns its output with no change, so both relays give the model the same text. With `trace: true`, the tool runs `nooku transcript --trace` (section 9.2).
 - **Deny.** The relay denies a model tool call if its input contains the host and port of the tap or the agent, as `<host>:<port>` or as the shell socket path `/dev/tcp/<host>/<port>` or `/dev/udp/<host>/<port>`. A port can have leading zeros, and a port followed by more digits does not match. File tools (read, write, edit, search) are not denied, because a file that names an address does not call it. Every other tool is denied, including tools that the relay does not know. The deny is best effort. The audit finds each message that goes through the tap. A call to the agent around the tap is in neither record.
-- **Test files.** During a test, the relay denies a model tool call that writes into `.verbatim-relay/`, and each other tool call except file reads whose input names `.verbatim-relay`. When no test runs, the relay denies:
-  - a write tool call (a file write or edit, or a patch) that names a file in `.verbatim-relay/tests/<test-id>/` other than `report.md`;
-  - each other tool call, except file tools, whose input names `.verbatim-relay` and that does not pass the read check.
+- **Test files.** During a test, the relay denies a model tool call that writes into `.nooku/`, and each other tool call except file reads whose input names `.nooku`. When no test runs, the relay denies:
+  - a write tool call (a file write or edit, or a patch) that names a file in `.nooku/tests/<test-id>/` other than `report.md`;
+  - each other tool call, except file tools, whose input names `.nooku` and that does not pass the read check.
 
   The relay writes the `blocked_call` row of a deny after a test to `denied.jsonl` in the latest test folder, so that the sealed `relay.jsonl` does not change (section 7.4).
 - **Entry.** During a test, the relay denies a model tool call, except file tools, that names the entry and does not pass the read check. The names of the entry are the base name of each entry argument with the file type `.py`, `.js`, `.mjs`, `.cjs`, `.ts`, `.sh` or `.rb`, and the argument after `-m`. The relay looks for each name in the input, and in each word of a shell command after it removes the quotes and escapes. A word with `*`, `?` or `[` matches a name as a glob. An entry with no such argument, for example `npm run agent`, has no names.
 - **Read check.** A tool call passes the read check only if it is a shell tool call (`Bash`, `shell`, `local_shell` or `exec_command`) and its command obeys these rules. Each other tool call fails, so the deny fails closed.
   - The relay removes the body of each here-document, then splits the command at `;`, `&`, `|` and new lines.
-  - Each part starts with a read program, or has only variable assignments. An assignment to `PATH`, `IFS`, `CDPATH`, `ENV`, `BASH_ENV`, `SHELLOPTS`, `BASHOPTS`, `PS4`, `PROMPT_COMMAND`, or a variable that starts with `LD_` or `DYLD_`, fails. The read programs are `cat`, `head`, `tail`, `grep`, `egrep`, `fgrep`, `rg`, `jq`, `wc`, `ls`, `nl`, `cut`, `sort`, `diff`, `cmp`, `stat`, `sha256sum`, `shasum`, `echo`, `printf`, `pwd`, `cd`, `sed`, `find` or `verbatim-relay`.
-  - `sed` needs `-n`, and each of its scripts, without its `/regex/` addresses, has only line addresses and the commands `p`, `P`, `=`, `q`, `Q`, `d` and `n`. An option that the check does not know fails, for example `-i` or `-f`. `sort` has no `-o`. `rg` has no `--pre`. `find` has no `-delete`, `-exec`, `-execdir`, `-ok`, `-okdir`, `-fls`, `-fprint`, `-fprint0` or `-fprintf`. `verbatim-relay` runs `transcript`, `audit`, `status` or `view`.
+  - Each part starts with a read program, or has only variable assignments. An assignment to `PATH`, `IFS`, `CDPATH`, `ENV`, `BASH_ENV`, `SHELLOPTS`, `BASHOPTS`, `PS4`, `PROMPT_COMMAND`, or a variable that starts with `LD_` or `DYLD_`, fails. The read programs are `cat`, `head`, `tail`, `grep`, `egrep`, `fgrep`, `rg`, `jq`, `wc`, `ls`, `nl`, `cut`, `sort`, `diff`, `cmp`, `stat`, `sha256sum`, `shasum`, `echo`, `printf`, `pwd`, `cd`, `sed`, `find` or `nooku`.
+  - `sed` needs `-n`, and each of its scripts, without its `/regex/` addresses, has only line addresses and the commands `p`, `P`, `=`, `q`, `Q`, `d` and `n`. An option that the check does not know fails, for example `-i` or `-f`. `sort` has no `-o`. `rg` has no `--pre`. `find` has no `-delete`, `-exec`, `-execdir`, `-ok`, `-okdir`, `-fls`, `-fprint`, `-fprint0` or `-fprintf`. `nooku` runs `transcript`, `audit`, `status` or `view`.
   - Each output redirect writes `/dev/null` or a file with the name `report.md`, or it copies a file descriptor.
   - The command has no `(`, `)`, `$(` or backquote, and each quote ends.
-- **Deny fails closed.** The hook kit applies the denies that need only the state folder before it reads the config. These are the deny of test files, the deny of the entry of the running test (from its `manifest.json`), and the deny of the tap of the running test. Thus a config that does not load does not stop them. If the hook kit fails on a tool call and the folder `.verbatim-relay/` exists, it denies the tool call, also when relay mode is off. Without this folder, no deny applies.
+- **Deny fails closed.** The hook kit applies the denies that need only the state folder before it reads the config. These are the deny of test files, the deny of the entry of the running test (from its `manifest.json`), and the deny of the tap of the running test. Thus a config that does not load does not stop them. If the hook kit fails on a tool call and the folder `.nooku/` exists, it denies the tool call, also when relay mode is off. Without this folder, no deny applies.
 - The deny of test files and of the entry is best effort, like the deny of the tap. A model can change a file or run the app with a command that does not name it.
 - **History.** For the `openai` adapter, the relay sends the turns of the current session that have `ok: true`, then the new message. In a test, the relay sends the turns of the test that have `ok: true` as `history`. If a line of the relay record is not valid (section 2), the relay stops with that error and sends nothing to the tap.
 
@@ -284,15 +284,17 @@ In stdio mode, a line with no `id` or with a different `id` is a stray line, not
 
 The tap, the plugin and the hook kit read an output line with these same rules.
 
-The Python helper `verbatim_relay.agent.serve(reply)` speaks this contract for a function `reply(message, history) -> str`. It writes its contract lines to the original stdout, and it sends all other output of the process to stderr.
+The Python helper `nooku.agent.serve(reply)` speaks this contract for a function `reply(message, history) -> str`. It writes its contract lines to the original stdout, and it sends all other output of the process to stderr.
 
 ## 7. Tests
 
 A test runs the entry from `start` to `end`. A new conversation is a new test: each test starts a new entry process with a new test id.
 
+**The state folder.** `.nooku/` in the project holds the configuration and the tests. verbatim-relay 0.3.x and earlier used `.verbatim-relay/`. Each command with a project root moves `.verbatim-relay/` to `.nooku/` before it does its work, with one rename, so each record and each seal stays as it is. A `record` path in `.verbatim-relay/` in `config.json` then changes to the same file in `.nooku/`. If both folders exist, nothing moves: the command stops with exit 1, and the hook kit blocks the event with exit 2.
+
 ### 7.1 Configuration
 
-`.verbatim-relay/config.json` holds the test configuration:
+`.nooku/config.json` holds the test configuration:
 
 | Key | Type | Meaning |
 |---|---|---|
@@ -305,49 +307,49 @@ A test runs the entry from `start` to `end`. A new conversation is a new test: e
 
 The file can also hold the relay keys of the hook kit, for an agent that runs as an HTTP server ([docs/reference/config.md](docs/reference/config.md#relay-keys)). Each other key is unknown.
 
-One reader ([src/verbatim_relay/config.py](src/verbatim_relay/config.py)) reads the file for `start`, `check`, `init` and the hook kit, with one rule:
+One reader ([src/nooku/config.py](src/nooku/config.py)) reads the file for `start`, `check`, `init` and the hook kit, with one rule:
 
-- If the file is not a JSON object, or if it has an unknown key, the reader gives an error. The error text is the same for each command. For an unknown key, it is `.verbatim-relay/config.json has unknown keys: ['<key>']. Correct or remove them.`
+- If the file is not a JSON object, or if it has an unknown key, the reader gives an error. The error text is the same for each command. For an unknown key, it is `.nooku/config.json has unknown keys: ['<key>']. Correct or remove them.`
 - `start` and `check` stop with the error and exit with 1. `mode on` starts no test and keeps relay mode off, also if the file has no entry.
 - In relay mode, the hook kit blocks each prompt and shows the error. Thus a broken file never lets a prompt reach the model.
-- The plugin reads only `entry` from the file. It starts a test with the `verbatim-relay` command, so the same rule applies.
+- The plugin reads only `entry` from the file. It starts a test with the `nooku` command, so the same rule applies.
 
-`verbatim-relay init` keeps each key of an existing file. It changes only the keys of the flags that the tester gives, and it prints the changed keys and the kept keys. A new file gets each key, with its default value if no flag gives it. If the existing file or the hook file breaks the rule or is not valid JSON, `init` writes nothing. `init` replaces only its own hooks in the hook file, and it keeps each other hook, also one in the same group.
+`nooku init` keeps each key of an existing file. It changes only the keys of the flags that the tester gives, and it prints the changed keys and the kept keys. A new file gets each key, with its default value if no flag gives it. If the existing file or the hook file breaks the rule or is not valid JSON, `init` writes nothing. `init` replaces only its own hooks in the hook file, and it keeps each other hook, also one in the same group.
 
-`verbatim-relay check` runs a short test with one message. It passes if the entry sends a reply, if the audit of the test is clean, and if the tap identifies at least one model session and finds its session file for each harness in `models`. If the tap times out after stray lines (section 4.2), the check also gives the fix for them.
+`nooku check` runs a short test with one message. It passes if the entry sends a reply, if the audit of the test is clean, and if the tap identifies at least one model session and finds its session file for each harness in `models`. If the tap times out after stray lines (section 4.2), the check also gives the fix for them.
 
-After the end of the test, the check reads `audit.json` in the test folder (section 7.2). If its exit code is not 0, the check fails. It names each error of the audit and each break, with the line numbers and the fix. For an `unparsed` row of a stray line, the fix is the fix of section 4.2: use `verbatim_relay.agent.serve()` or write logs to stderr. If `audit.json` is missing or is not valid, the check fails and says so.
+After the end of the test, the check reads `audit.json` in the test folder (section 7.2). If its exit code is not 0, the check fails. It names each error of the audit and each break, with the line numbers and the fix. For an `unparsed` row of a stray line, the fix is the fix of section 4.2: use `nooku.agent.serve()` or write logs to stderr. If `audit.json` is missing or is not valid, the check fails and says so.
 
 ### 7.2 Start and end
 
-`start` creates the test folder and starts the bridge, a background process that runs the tap in stdio mode. The bridge writes `.verbatim-relay/current.json` with the test id, the test folder, the tap URL, its own pid and the string `pid_start`. Then `start` switches relay mode on. With an entry, relay mode is the file `.verbatim-relay/mode` for both relays, so it survives a restart of the harness or a reload of the plugin.
+`start` creates the test folder and starts the bridge, a background process that runs the tap in stdio mode. The bridge writes `.nooku/current.json` with the test id, the test folder, the tap URL, its own pid and the string `pid_start`. Then `start` switches relay mode on. With an entry, relay mode is the file `.nooku/mode` for both relays, so it survives a restart of the harness or a reload of the plugin.
 
 `pid_start` is the start time of the bridge process. The OS can give the pid of a stopped process to a new process, so the pid and `pid_start` together identify the bridge. On Linux, `pid_start` is `proc:` and field 22 of `/proc/<pid>/stat`. On other systems, it is `ps:` and the output of `ps -o lstart= -p <pid>` with `TZ=UTC0` and `LC_ALL=C`, with each run of spaces as one space. A reader compares the value only for equality. If the bridge cannot read its start time, it does not start.
 
 If no process with the pid runs, or if the start time of that process is not `pid_start`, the test does not run. Then `start`, `end` and `status` remove `current.json`, and `end` sends no signal to the process.
 
-`end` switches relay mode off and stops the bridge. If a harness session sends the prompt that ends the test, `end` writes its id to `.verbatim-relay/ending.json`. The bridge adds that id to the tester's sessions, so it never takes the session that ends the test, and then evaluates it, as a session of the app. The bridge then:
+`end` switches relay mode off and stops the bridge. If a harness session sends the prompt that ends the test, `end` writes its id to `.nooku/ending.json`. The bridge adds that id to the tester's sessions, so it never takes the session that ends the test, and then evaluates it, as a session of the app. The bridge then:
 
 1. Closes the entry's stdin and waits 5 seconds. Then it stops the process group, first with SIGTERM and after 5 more seconds with SIGKILL. Then it stops the OTLP receiver (section 7.5), after no request came for 0.5 seconds or after 2 seconds, the backend proxies (section 7.6) and the model API proxies (section 7.7).
 2. Identifies the Codex sessions (section 7.3). If `relay.jsonl` is invalid, the bridge does not know each tester session, so it identifies no Codex session and writes the error to `bridge.log`.
 3. Copies the session file of each identified model session into `sessions/` in the test folder.
 4. Writes the end time and the tester's harness sessions into the manifest.
 5. Builds the trace (section 8): `trace.jsonl` and `findings.json`. If the trace fails, the bridge writes the error to `bridge.log`, and the test still ends.
-6. Writes `audit.json`: the audit of `tap.jsonl` against `relay.jsonl` (section 3), in the form of `verbatim-relay audit --json`. If the audit fails, the bridge writes the error to `bridge.log`.
+6. Writes `audit.json`: the audit of `tap.jsonl` against `relay.jsonl` (section 3), in the form of `nooku audit --json`. If the audit fails, the bridge writes the error to `bridge.log`.
 7. Writes the seal (section 7.4). If the seal fails, the bridge writes the error to `bridge.log`.
 8. Removes `current.json`.
 
 The test folder:
 
 ```text
-.verbatim-relay/tests/<test-id>/
+.nooku/tests/<test-id>/
   manifest.json  relay.jsonl  tap.jsonl  app.log  bridge.log
   otel.jsonl  backend.jsonl  model_api.jsonl  trace.jsonl  findings.json  audit.json  seal.json  report.md  denied.jsonl
   sessions/claude-code/<session>.jsonl
   sessions/codex/<rollout file>
 ```
 
-`manifest.json` holds the test id, the project root, the entry, the models, the start and end times, the versions of verbatim-relay, Claude Code and Codex, the SHA-256 of each configuration file in `.verbatim-relay/`, and the tester's harness session ids.
+`manifest.json` holds the test id, the project root, the entry, the models, the start and end times, the versions of Nooku, Claude Code and Codex, the SHA-256 of each configuration file in `.nooku/`, and the tester's harness session ids.
 
 ### 7.3 Model sessions
 
@@ -373,9 +375,10 @@ The seal shows if a file of the test folder changed after the end of the test. I
 | `copy` | boolean | True if the bridge wrote the copy. |
 
 - The seal does not contain `report.md`, `bridge.log`, `seal.json` and `denied.jsonl`, because these files change after the end.
-- The bridge also writes a copy, with the same fields and `copy: true`, to `~/.verbatim-relay/seals/<test-id>.json` (under `VERBATIM_RELAY_HOME` if it is set). If it cannot write the copy, for example in a sandbox, `seal.json` has `copy: false`.
+- The bridge also writes a copy, with the same fields and `copy: true`, to `~/.nooku/seals/<test-id>.json` (under `NOOKU_HOME` if it is set). If it cannot write the copy, for example in a sandbox, `seal.json` has `copy: false`.
+- If no copy is in `~/.nooku/seals/` but a copy is in `~/.verbatim-relay/seals/` (under `VERBATIM_RELAY_HOME` if it is set), the copy of verbatim-relay 0.3.x and earlier is the copy.
 
-`verbatim-relay verify [TEST] [--json]` compares the folder with the seal, and the seal with the copy. If `seal.json` does not exist, the copy is the seal. The result:
+`nooku verify [TEST] [--json]` compares the folder with the seal, and the seal with the copy. If `seal.json` does not exist, the copy is the seal. The result:
 
 | Field | Meaning |
 |---|---|
@@ -386,9 +389,9 @@ The seal shows if a file of the test folder changed after the end of the test. I
 | `copy` | `same` or `different`: a copy exists, and it has, or does not have, the same `v`, `test`, `sealed` and `files`. `verify` always compares an existing copy, also when `seal.json` has `copy: false`. `missing`: no copy exists, and `seal.json` has `copy: true` or does not exist. `none`: no copy exists, and `seal.json` has `copy: false`, or no seal exists. |
 | `intact` | `sealed` is true, the 3 lists are empty, and `copy` is `same` or `none`. |
 
-`verify` exits with 0 if `intact` is true, and with 2 if it is false. `verbatim-relay transcript --trace` shows the result in its first line, or in its second line if a record is not valid (section 9.2).
+`verify` exits with 0 if `intact` is true, and with 2 if it is false. `nooku transcript --trace` shows the result in its first line, or in its second line if a record is not valid (section 9.2).
 
-`verbatim-relay trace` rebuilds `trace.jsonl` and `findings.json`. If a seal or a copy exists, it rebuilds them only if each other sealed file agrees with the seal, `seal.json` exists, and the copy is not `different` or `missing`. Then it writes the new SHA-256 of the 2 files to the seal and to the copy.
+`nooku trace` rebuilds `trace.jsonl` and `findings.json`. If a seal or a copy exists, it rebuilds them only if each other sealed file agrees with the seal, `seal.json` exists, and the copy is not `different` or `missing`. Then it writes the new SHA-256 of the 2 files to the seal and to the copy.
 
 The conformance cases in `conformance/seal/` test `verify`.
 
@@ -512,7 +515,7 @@ To read a new model call, the proxy adds one row to its table of model calls (th
 
 ## 8. Trace
 
-The trace is one record of the model items of the app in a test. It ties each item to a turn. `verbatim-relay trace [TEST]` builds it again from the files in the test folder.
+The trace is one record of the model items of the app in a test. It ties each item to a turn. `nooku trace [TEST]` builds it again from the files in the test folder.
 
 ### 8.1 Sources
 
@@ -527,7 +530,7 @@ A test has 3 sources. Each one is independent of the others in a different way:
 | `otel.jsonl` | the OTLP receiver, from the spans and logs that the app and its harness send | the session files. It is not independent of the app's code, because the app sends it. |
 | The app's state | the app | nothing. The evaluating session reads it and judges it. |
 
-The trace reads `tap.jsonl`, `sessions/`, `otel.jsonl`, `backend.jsonl` and `model_api.jsonl`. It does not read the app's state. It reads `tap.jsonl` with the reader of section 2. If `tap.jsonl` is not valid, the trace stops with that error: `verbatim-relay trace` exits with code 2, and the end of a test writes no trace.
+The trace reads `tap.jsonl`, `sessions/`, `otel.jsonl`, `backend.jsonl` and `model_api.jsonl`. It does not read the app's state. It reads `tap.jsonl` with the reader of section 2. If `tap.jsonl` is not valid, the trace stops with that error: `nooku trace` exits with code 2, and the end of a test writes no trace.
 
 ### 8.2 Trace record
 
@@ -643,21 +646,21 @@ A test needs an evaluation if all of these are true:
 - the latest test (the one with the greatest `started` in its manifest) has an `ended` time;
 - its folder has no `report.md`.
 
-The prompt `verbatim-relay end` ends the running test, if one runs. Then, if a test needs an evaluation, the relay lets the prompt go to the model with this context: the end text and the evaluation prompt for that test. So the prompt also starts the evaluation of a test that ended in another way, for example with `verbatim-relay end` in a shell. Otherwise, the relay blocks the prompt (section 5).
+The prompt `nooku end` ends the running test, if one runs. Then, if a test needs an evaluation, the relay lets the prompt go to the model with this context: the end text and the evaluation prompt for that test. So the prompt also starts the evaluation of a test that ended in another way, for example with `nooku end` in a shell. Otherwise, the relay blocks the prompt (section 5).
 
-`verbatim-relay end --evaluation` ends the test and prints one JSON object: `text`, the end text, and `evaluation`, the evaluation prompt or `null`. The plugin uses it.
+`nooku end --evaluation` ends the test and prints one JSON object: `text`, the end text, and `evaluation`, the evaluation prompt or `null`. The plugin uses it.
 
 ### 9.2 Evaluation prompt
 
-The evaluation prompt is `src/verbatim_relay/evaluate.md`, with the test id and the test folder filled in. It tells the model to:
+The evaluation prompt is `src/nooku/evaluate.md`, with the test id and the test folder filled in. It tells the model to:
 
-1. read the transcript with the trace: `verbatim-relay transcript --trace --test <test-id>`;
+1. read the transcript with the trace: `nooku transcript --trace --test <test-id>`;
 2. read `findings.json` and `audit.json`;
 3. read the code of the app and its business rules;
 4. check the state of the app with read-only commands only;
 5. write `report.md`, and no other file.
 
-`verbatim-relay transcript --trace` shows each turn of a test as the app received it and sent it (from `tap.jsonl`). It reads `tap.jsonl` with the reader of section 2. If `tap.jsonl` has a line that is not valid, or if `trace.jsonl` has a line that is not a JSON object, the transcript has only 2 lines. The first line is `Record: INVALID.`, the error with the file and the line, and `Do not trust these records. This transcript shows no turn.` The second line is the result of the seal (section 7.4). The transcript shows no turn, so a changed text never shows as exact. Under each turn, it shows the model items of that turn and the findings of that turn. For a `/decisions` call, the user message shows each question and each image on one line. The assistant message shows each answer on one line in place of the text:
+`nooku transcript --trace` shows each turn of a test as the app received it and sent it (from `tap.jsonl`). It reads `tap.jsonl` with the reader of section 2. If `tap.jsonl` has a line that is not valid, or if `trace.jsonl` has a line that is not a JSON object, the transcript has only 2 lines. The first line is `Record: INVALID.`, the error with the file and the line, and `Do not trust these records. This transcript shows no turn.` The second line is the result of the seal (section 7.4). The transcript shows no turn, so a changed text never shows as exact. Under each turn, it shows the model items of that turn and the findings of that turn. For a `/decisions` call, the user message shows each question and each image on one line. The assistant message shows each answer on one line in place of the text:
 
 | Type | Line |
 |---|---|

@@ -1,7 +1,7 @@
 """An entry for the toy shop HTTP agent. It starts the server, then sends each message to it.
 
 The entry starts the server, so the server gets the environment of the test and its output goes
-to app.log. Run it from the repo root, with a Python that has verbatim_relay:
+to app.log. Run it from the repo root, with a Python that has nooku:
 
     {"entry": [".venv/bin/python", "examples/toy-shop/http_entry.py"]}
 """
@@ -17,7 +17,7 @@ import time
 import urllib.request
 from pathlib import Path
 
-from verbatim_relay.agent import serve
+from nooku.agent import serve
 
 PORT = int(os.environ.get("TOY_SHOP_PORT", "8700"))
 URL = f"http://127.0.0.1:{PORT}/"

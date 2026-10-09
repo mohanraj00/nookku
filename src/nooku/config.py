@@ -1,4 +1,4 @@
-"""The file .verbatim-relay/config.json (SPEC.md section 7.1): its keys and its one reader.
+"""The file .nooku/config.json (SPEC.md section 7.1): its keys and its one reader.
 
 The hook kit, `start`, `check` and `init` read the file with `read_config`, so one rule applies
 to its keys. Each part then checks the values that it uses.
@@ -7,16 +7,73 @@ to its keys. Each part then checks the values that it uses.
 from __future__ import annotations
 
 import json
+import sys
 from dataclasses import dataclass, field, fields
 from pathlib import Path
 from typing import Any
 
-STATE_DIR = ".verbatim-relay"
+STATE_DIR = ".nooku"
 FILE = f"{STATE_DIR}/config.json"
+# The state folder of verbatim-relay 0.3.x and earlier. The first run of nooku moves it.
+OLD_STATE_DIR = ".verbatim-relay"
 
 
 class ConfigError(ValueError):
     """The config file cannot be read, or it breaks the rule for its keys."""
+
+
+def move_old_state(root: Path) -> str | None:
+    """Move the state folder of verbatim-relay 0.3.x to STATE_DIR. Return an error, or None.
+
+    The move is one rename, so each test, record and seal stays as it is. If both folders exist,
+    nothing moves: the person must choose which one to keep.
+    """
+    old, new = root / OLD_STATE_DIR, root / STATE_DIR
+    if not old.is_dir():
+        return None
+    if new.exists():
+        return (
+            f"{old} and {new} both exist. Keep one: move the tests that you need into {new}, "
+            f"then remove {old}."
+        )
+    # Change the config first. If that fails, the old folder stays, and the next run tries again.
+    error = _move_record_key(old / "config.json")
+    if error:
+        return error
+    try:
+        old.rename(new)
+    except FileNotFoundError:
+        return None  # Another nooku process moved it first.
+    except OSError as error:
+        return f"cannot move {old} to {new}: {error}"
+    print(f"nooku: moved {old} to {new}", file=sys.stderr)
+    return None
+
+
+def _move_record_key(path: Path) -> str | None:
+    """Change a `record` key in the old state folder to the same file in STATE_DIR. Without this
+    change, the first prompt writes the record into the old folder again, and then both folders
+    exist. A record path outside the old folder stays as it is."""
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return None
+    except (OSError, ValueError) as error:
+        return f"cannot read {path}: {error}"
+    record = data.get("record") if isinstance(data, dict) else None
+    if not isinstance(record, str) or not record.startswith(f"{OLD_STATE_DIR}/"):
+        return None
+    data["record"] = STATE_DIR + record[len(OLD_STATE_DIR) :]
+    # Write a new file and replace the old one, so a failed write leaves the old file whole.
+    tmp = path.with_name(path.name + ".tmp")
+    try:
+        tmp.write_text(json.dumps(data, indent=1) + "\n", encoding="utf-8")
+        tmp.replace(path)
+    except OSError as error:
+        tmp.unlink(missing_ok=True)
+        return f"cannot write {path}: {error}"
+    print(f"nooku: changed 'record' in {path} to {data['record']}", file=sys.stderr)
+    return None
 
 
 @dataclass

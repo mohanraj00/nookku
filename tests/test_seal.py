@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from verbatim_relay import seal
-from verbatim_relay.cli import main
+from nooku import seal
+from nooku.cli import main
 
 CASES = sorted((Path(__file__).resolve().parent.parent / "conformance" / "seal").iterdir())
 TEST = "20261006-120000-se01"
@@ -19,7 +19,7 @@ def test_conformance(case: Path) -> None:
 
 def folder(tmp_path: Path) -> Path:
     """A copy of the intact case, as a test folder of a project."""
-    f = tmp_path / ".verbatim-relay" / "tests" / TEST
+    f = tmp_path / ".nooku" / "tests" / TEST
     shutil.copytree(CASES[0].parent / "intact" / "test" / TEST, f)
     (f / "seal.json").unlink()
     return f
@@ -32,6 +32,24 @@ def test_write_seals_the_folder_and_writes_the_copy(tmp_path: Path, seal_home: P
     assert result["intact"] and result["copy"] == "same"
     assert "report.md" not in json.loads((f / "seal.json").read_text())["files"]
     assert (seal_home / "seals" / f"{TEST}.json").exists()
+
+
+def test_verify_finds_the_copy_of_a_test_that_verbatim_relay_sealed(
+    tmp_path: Path, seal_home: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    old = tmp_path / "old-home"
+    monkeypatch.setenv("NOOKU_HOME", str(old))
+    f = folder(tmp_path)
+    assert seal.write(f) is None
+    monkeypatch.setenv("NOOKU_HOME", str(seal_home))
+    monkeypatch.setenv("VERBATIM_RELAY_HOME", str(old))
+    assert seal.verify(f)["copy"] == "same"
+    assert seal.verify(f)["intact"]
+    assert not (seal_home / "seals" / f"{TEST}.json").exists()
+
+
+def test_a_new_seal_goes_to_the_new_home(tmp_path: Path, seal_home: Path) -> None:
+    assert seal.copy_path(TEST) == seal_home / "seals" / f"{TEST}.json"
 
 
 def test_a_seal_with_no_copy_says_so(tmp_path: Path) -> None:

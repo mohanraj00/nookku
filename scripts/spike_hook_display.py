@@ -71,7 +71,7 @@ from urllib.parse import urlsplit
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
-from verbatim_relay import backend  # noqa: E402
+from nooku import backend  # noqa: E402
 
 MODEL = "haiku"
 # The first character of the input box of the interactive CLI.

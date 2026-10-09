@@ -1,6 +1,6 @@
 """A helper for an entry in Python: speak the agent contract (SPEC.md section 6) for a function.
 
-from verbatim_relay.agent import serve
+from nooku.agent import serve
 
 def reply(message: str, history: list[tuple[str, str]]) -> str:
     return shop.answer(message)
@@ -15,8 +15,8 @@ import os
 import sys
 from collections.abc import Callable
 
-from verbatim_relay import contract
-from verbatim_relay.adapters import History
+from nooku import contract
+from nooku.adapters import History
 
 
 def _line(rid: str, **fields: str) -> bytes:
@@ -39,7 +39,7 @@ def serve(reply: Callable[[str, History], str]) -> None:
         try:
             rid, message, history = contract.parse_request(line)
         except contract.ContractError as e:
-            out.write(_line("", error=f"verbatim-relay agent: {e}") + b"\n")
+            out.write(_line("", error=f"nooku agent: {e}") + b"\n")
             continue
         try:
             text = reply(message, history)

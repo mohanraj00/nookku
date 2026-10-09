@@ -1,10 +1,10 @@
-export type VerbatimRelayTurn = { said: string; shown: string | null; ok: boolean }
+export type NookuTurn = { said: string; shown: string | null; ok: boolean }
 
 // `test` is the folder of the latest test that this session started, or null.
-export type VerbatimRelayState = { on: boolean | null; turns: VerbatimRelayTurn[]; test?: string | null }
+export type NookuState = { on: boolean | null; turns: NookuTurn[]; test?: string | null }
 
 declare module 'claude-code' {
   interface PluginState {
-    'verbatim-relay': { state: VerbatimRelayState }
+    'nooku': { state: NookuState }
   }
 }

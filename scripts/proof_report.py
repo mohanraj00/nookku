@@ -3,22 +3,22 @@
 The app is the toy shop with a model session (examples/toy-shop-models/). It has a planted
 business-rule bug: RULES.md needs a manager approval for a refund above €50, but the refund tool
 compares the amount in EUR with a limit in cents, so it pays €80 with no approval. The tester asks
-for a refund of €80 in turn 2. Then the tester types `verbatim-relay end`,
+for a refund of €80 in turn 2. Then the tester types `nooku end`,
 and the harness model evaluates the test with no other prompt.
 
 P6  report.md has a `business_rule` row for turn 2 with the trace line of the refund call.
 P5  report.md holds a fact that only the records of the test (and the app's state) hold: the
     random refund id, or an exact quote of 20 or more characters from a reply of the agent. The
     model saw no message of the test, so it can know these only from the records.
-P7  After the evaluation, `verbatim-relay verify` finds the test folder intact: the evaluating
+P7  After the evaluation, `nooku verify` finds the test folder intact: the evaluating
     model changed no record (SPEC.md section 7.4).
 P8  The trace has the Agent SDK `tool_result` event of the refund in turn 2, from otel.jsonl, and
     the session file has the same tool call (SPEC.md sections 7.5 and 8).
 
 The evaluating model must not see this script or the docs, which describe the bug. So each
 project is outside the repo. The plugin and the Claude Code kit use a temporary folder. Codex runs
-only the hooks that a person trusted, so its project is ~/.verbatim-relay-proof/codex, with the
-kit from `verbatim-relay init codex`. For Codex, the proof also fails if a command of the
+only the hooks that a person trusted, so its project is ~/.nooku-proof/codex, with the
+kit from `nooku init codex`. For Codex, the proof also fails if a command of the
 evaluation names a parent folder or a path of the repo.
 
 usage: python scripts/proof_report.py plugin|hooks-claude-code|hooks-codex
@@ -43,10 +43,10 @@ sys.path[:0] = [str(ROOT / "src")]
 
 from proof_common import AGENT_SDK, json_lines  # noqa: E402
 
-from verbatim_relay import bridge, kit, seal  # noqa: E402
+from nooku import bridge, kit, seal  # noqa: E402
 
 EXAMPLE = ROOT / "examples" / "toy-shop-models"
-CLI = str(ROOT / ".venv" / "bin" / "verbatim-relay")
+CLI = str(ROOT / ".venv" / "bin" / "nooku")
 ENV = {**os.environ, "PATH": f"{ROOT / '.venv' / 'bin'}{os.pathsep}{os.environ['PATH']}"}
 MESSAGES = [
     "Hi, where is my order 5120?",
@@ -55,7 +55,7 @@ MESSAGES = [
 ]
 REFUND_TURN = 2
 # The evaluation needs to run the CLI, read files and write report.md. Nothing else.
-CLAUDE_TOOLS = ["--allowedTools=Bash(verbatim-relay:*),Bash(cat:*),Bash(ls:*),Read,Grep,Glob,Write"]
+CLAUDE_TOOLS = ["--allowedTools=Bash(nooku:*),Bash(cat:*),Bash(ls:*),Read,Grep,Glob,Write"]
 # A model answer can quote instruction files. These hold the instructions on this machine.
 INSTRUCTIONS = [
     Path.home() / ".claude" / "CLAUDE.md",
@@ -82,7 +82,7 @@ def claude(prompt: str, cwd: Path, extra: list[str]) -> str:
 # The commands that Codex ran in its last run.
 COMMANDS: list[str] = []
 # The Codex project. A person trusted its hooks, so the script never writes them.
-CODEX_PROJECT = Path.home() / ".verbatim-relay-proof" / "codex"
+CODEX_PROJECT = Path.home() / ".nooku-proof" / "codex"
 
 
 def codex(prompt: str, cwd: Path, extra: list[str]) -> str:
@@ -191,9 +191,9 @@ def relay_runner(relay: str) -> tuple[Path, Run, str, str, list[str]]:
     the arguments of the end prompt."""
     run: Run
     if relay == "plugin":
-        project = Path(tempfile.mkdtemp(prefix="verbatim-relay-report-")).resolve()
+        project = Path(tempfile.mkdtemp(prefix="nooku-report-")).resolve()
         opts = {"options": {"cli": CLI, "start_on": False}}
-        conf = {"pluginConfigs": {"verbatim-relay": opts, "verbatim-relay@inline": opts}}
+        conf = {"pluginConfigs": {"nooku": opts, "nooku@inline": opts}}
         base = [
             "--plugin-dir",
             str(ROOT / "plugins" / "claude-code"),
@@ -204,12 +204,12 @@ def relay_runner(relay: str) -> tuple[Path, Run, str, str, list[str]]:
         def run(prompt: str, extra: list[str]) -> str:
             return claude(prompt, project, [*base, *extra])
 
-        start, end = "/verbatim-relay start", "verbatim-relay end"
+        start, end = "/nooku start", "nooku end"
         end_args = CLAUDE_TOOLS
     else:
         harness = relay.removeprefix("hooks-")
         if harness == "claude-code":
-            project = Path(tempfile.mkdtemp(prefix="verbatim-relay-report-")).resolve()
+            project = Path(tempfile.mkdtemp(prefix="nooku-report-")).resolve()
             kit.init(project, "claude-code", {})
 
             def run(prompt: str, extra: list[str]) -> str:
@@ -225,7 +225,7 @@ def relay_runner(relay: str) -> tuple[Path, Run, str, str, list[str]]:
                 return codex(prompt, project, extra)
 
             end_args = ["-s", "workspace-write"]
-        start, end = "verbatim-relay start", "verbatim-relay end"
+        start, end = "nooku start", "nooku end"
     return project, run, start, end, end_args
 
 

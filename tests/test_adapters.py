@@ -3,7 +3,7 @@ import re
 
 import pytest
 
-from verbatim_relay.adapters import AdapterError, StreamError, is_stream, make, pick, sse_events
+from nooku.adapters import AdapterError, StreamError, is_stream, make, pick, sse_events
 
 
 def test_pick_follows_keys_and_list_indexes():

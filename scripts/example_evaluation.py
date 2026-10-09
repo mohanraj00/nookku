@@ -21,10 +21,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path[:0] = [str(ROOT / "src")]
 
-from verbatim_relay.adapters import make  # noqa: E402
-from verbatim_relay.audit import audit  # noqa: E402
-from verbatim_relay.record import Turn, read_relay  # noqa: E402
-from verbatim_relay.tap import Tap, start_in_thread  # noqa: E402
+from nooku.adapters import make  # noqa: E402
+from nooku.audit import audit  # noqa: E402
+from nooku.record import Turn, read_relay  # noqa: E402
+from nooku.tap import Tap, start_in_thread  # noqa: E402
 
 AGENT_PORT = 8790
 MESSAGES = [
@@ -37,17 +37,17 @@ MESSAGES = [
     "how much is the teapot",
 ]
 PROMPT = (
-    "Read the verbatim-relay transcript. Evaluate the agent: does it follow the refund policy, "
+    "Read the nooku transcript. Evaluate the agent: does it follow the refund policy, "
     "is the tone right, is each answer accurate? Quote the turns that you judge."
 )
 PLUGIN = ["--plugin-dir", str(ROOT / "plugins" / "claude-code")]
-# The transcript tool of the plugin runs the verbatim-relay command of this checkout.
+# The transcript tool of the plugin runs the nooku command of this checkout.
 ENV = {**os.environ, "PATH": f"{ROOT / '.venv' / 'bin'}{os.pathsep}{os.environ['PATH']}"}
 
 
 def settings(tap_url: str, record: Path, on: bool) -> list[str]:
     opts = {"options": {"tap_url": tap_url, "record": str(record), "start_on": on}}
-    conf = {"pluginConfigs": {"verbatim-relay": opts, "verbatim-relay@inline": opts}}
+    conf = {"pluginConfigs": {"nooku": opts, "nooku@inline": opts}}
     return ["--settings", json.dumps(conf)]
 
 
@@ -82,7 +82,7 @@ def main() -> int:
         session = None
         for m in MESSAGES:
             _, session = claude(m, session, work, [*PLUGIN, *settings(tap_url, record, True)])
-        allow = "--allowedTools=mcp__verbatim-relay__transcript"
+        allow = "--allowedTools=mcp__nooku__transcript"
         off = [*PLUGIN, *settings(tap_url, record, False), allow]
         answer, _ = claude(PROMPT, session, work, off)
     finally:

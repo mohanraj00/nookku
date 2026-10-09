@@ -27,7 +27,7 @@ FIND_ACTIONS = {"-delete", "-exec", "-execdir", "-ok", "-okdir", "-fls", "-fprin
 FIND_ACTIONS |= {"-fprintf"}
 # trace writes trace.jsonl and findings.json, and check starts a test, so they are not here.
 VIEWS = {"transcript", "audit", "status", "view"}
-# A part with only variable assignments passes, for example T=.verbatim-relay/tests/x. These
+# A part with only variable assignments passes, for example T=.nooku/tests/x. These
 # variables change how the shell finds or runs a program, so an assignment to them fails.
 ASSIGNMENT = re.compile(r"([A-Za-z_][A-Za-z0-9_]*)=")
 SHELL_VARIABLES = {"PATH", "IFS", "CDPATH", "ENV", "BASH_ENV", "SHELLOPTS", "BASHOPTS", "PS4"}
@@ -108,7 +108,7 @@ READS: dict[str, Callable[[list[str]], bool]] = {
     "sed": _sed,
     "sort": _sort,
     "find": lambda args: not FIND_ACTIONS & set(args),
-    "verbatim-relay": lambda args: bool(args) and args[0] in VIEWS,
+    "nooku": lambda args: bool(args) and args[0] in VIEWS,
 }
 
 
