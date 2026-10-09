@@ -94,7 +94,7 @@ PASS proves the connection, not the reply. `check` sent one fixed message to the
 
 ## 5. Start the viewer
 
-The hook kit cannot show text in the chat of Claude Code. Open a second terminal, go to the project, and start the viewer:
+The hook kit shows each reply in the chat only as the reason of a blocked prompt. In the CLI, the start of a long reply can go off the screen. Thus open a second terminal, go to the project, and start the viewer:
 
 ```bash
 cd toy-shop

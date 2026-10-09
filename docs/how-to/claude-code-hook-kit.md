@@ -1,6 +1,6 @@
 # Test an agent with the hook kit in Claude Code
 
-The hook kit is a [relay](../reference/glossary.md#relay) that uses classic hooks. It cannot show text in the chat, so each reply shows in `nookku view`, in a second terminal. To compare it with the plugin, read [choose-a-relay.md](choose-a-relay.md). For Codex, read [codex.md](codex.md).
+The hook kit is a [relay](../reference/glossary.md#relay) that uses classic hooks. It shows each reply as the reason of a blocked prompt, and in `nookku view`, in a second terminal. To compare it with the plugin, read [choose-a-relay.md](choose-a-relay.md). For Codex, read [codex.md](codex.md).
 
 **Warning:** Do not also enable the plugin in this project. With both relays, each message goes to the agent two times ([choose-a-relay.md](choose-a-relay.md#switch-from-one-relay-to-the-other)).
 

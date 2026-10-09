@@ -81,7 +81,10 @@ def run_codex(project: Path, prompt: str, adversarial: bool, network: bool) -> d
 
 
 def run_claude(project: Path, prompt: str, adversarial: bool, network: bool) -> dict:
+    # Only the settings of the project, where init wrote the kit. A plugin of the user, for
+    # example nookku itself, must not take part in the proof.
     cmd = ["claude", "-p", "--verbose", "--output-format", "stream-json"]
+    cmd += ["--setting-sources", "project,local"]
     if adversarial:
         cmd += ["--append-system-prompt", ADVERSARIAL]
     if network:

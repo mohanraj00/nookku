@@ -74,7 +74,7 @@ In the harness, in the project folder of your app, type `!nookku setup`. Then ty
 
 ### Choose a relay
 
-The plugin shows each reply in the chat of Claude Code. The hook kit works in Claude Code and in Codex, and shows each reply in `nookku view`. [docs/how-to/choose-a-relay.md](docs/how-to/choose-a-relay.md) compares the [2 relays](SPEC.md#5-relays). Then read the guide of your relay: [Claude Code plugin](docs/how-to/claude-code-plugin.md), [Claude Code hook kit](docs/how-to/claude-code-hook-kit.md) or [Codex](docs/how-to/codex.md).
+The plugin shows each reply in the chat of Claude Code. The hook kit works in Claude Code and in Codex. It shows each reply as the reason of a blocked prompt, and in `nookku view`. [docs/how-to/choose-a-relay.md](docs/how-to/choose-a-relay.md) compares the [2 relays](SPEC.md#5-relays). Then read the guide of your relay: [Claude Code plugin](docs/how-to/claude-code-plugin.md), [Claude Code hook kit](docs/how-to/claude-code-hook-kit.md) or [Codex](docs/how-to/codex.md).
 
 ## Results
 

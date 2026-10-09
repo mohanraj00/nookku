@@ -73,7 +73,7 @@ The relay sends each message as an HTTP POST with a contract JSON body ([SPEC.md
 A relay is the harness extension that carries each message and each reply. There are 2 relays ([SPEC.md section 5](../SPEC.md#5-relays)):
 
 - **The Claude Code plugin.** It uses function hooks, which are early access. It shows each reply as a row in the chat that the model does not receive. Read [how-to/claude-code-plugin.md](how-to/claude-code-plugin.md).
-- **The hook kit.** It uses the classic hooks that Codex and Claude Code share. It cannot show text in the chat, so `nookku view` shows each reply in a second terminal. Read [how-to/claude-code-hook-kit.md](how-to/claude-code-hook-kit.md) or [how-to/codex.md](how-to/codex.md).
+- **The hook kit.** It uses the classic hooks that Codex and Claude Code share. It shows each reply as the reason of a blocked prompt, and `nookku view` shows each reply in a second terminal. `codex exec` does not show the reason. Read [how-to/claude-code-hook-kit.md](how-to/claude-code-hook-kit.md) or [how-to/codex.md](how-to/codex.md).
 
 In [relay mode](reference/glossary.md#relay-mode), the relay takes each prompt before the model sees it. It sends the prompt to the tap and blocks it from the model. The relay also denies a model tool call that names the address of the tap or the agent. It also denies a call that changes the files of a test. The deny is best effort. [limits.md](limits.md) tells you what it does not stop.
 
