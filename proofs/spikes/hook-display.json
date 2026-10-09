@@ -1316,5 +1316,2408 @@
         "script_commit": "f0b3208. The text of that commit has no middle marker, and both fields use the same astral characters."
       }
     }
+  },
+  "codex": {
+    "date": "2026-10-08",
+    "versions": {
+      "codex-cli": "codex-cli 0.162.0",
+      "python": "3.13.12"
+    },
+    "model": "gpt-5.6-luna",
+    "tty_rows": 50,
+    "unrelated_plugins": "disabled for each CLI invocation",
+    "method": "scripts/spike_hook_display.py",
+    "cases": [
+      {
+        "fields": [
+          "reason"
+        ],
+        "size": 1024,
+        "exec": {
+          "blocked_exit": 0,
+          "passed_exit": 0,
+          "next_turn_completed": true,
+          "fields": {
+            "reason": {
+              "shown": false,
+              "start_shown": false,
+              "end_shown": false,
+              "byte_exact": false
+            }
+          },
+          "model": [
+            {
+              "path": "/models",
+              "status": 200,
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/models",
+              "status": 200,
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/models",
+              "status": 200,
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/responses",
+              "status": 200,
+              "model": "gpt-5.6-luna",
+              "tools": 0,
+              "messages": 6,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "input[5].user"
+                ],
+                "CXHD00-reason-START": [],
+                "CXHD00-reason-MID": [],
+                "CXHD00-reason-END": []
+              }
+            }
+          ]
+        },
+        "tty": {
+          "fields": {
+            "reason": {
+              "start_shown": true,
+              "end_shown": true,
+              "astral_shown": true,
+              "raw_utf8_payload_in_screen": false,
+              "byte_exact": null
+            }
+          },
+          "markdown_source_shown": true,
+          "line_breaks_byte_exact": null,
+          "form": {
+            "reason": "other"
+          },
+          "model": [
+            {
+              "path": "/models",
+              "status": 200,
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/models",
+              "status": 200,
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/responses",
+              "status": 200,
+              "model": "gpt-5.6-luna",
+              "tools": 0,
+              "messages": 5,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "input[4].user"
+                ],
+                "CXHD00-reason-START": [],
+                "CXHD00-reason-MID": [],
+                "CXHD00-reason-END": []
+              }
+            },
+            {
+              "path": "/responses",
+              "status": 200,
+              "model": "gpt-5.6-luna",
+              "tools": 0,
+              "messages": 5,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "input[4].user"
+                ],
+                "CXHD00-reason-START": [],
+                "CXHD00-reason-MID": [],
+                "CXHD00-reason-END": []
+              }
+            }
+          ],
+          "next_turn_api_completed": true
+        }
+      },
+      {
+        "fields": [
+          "reason"
+        ],
+        "size": 10240,
+        "exec": {
+          "blocked_exit": 0,
+          "passed_exit": 0,
+          "next_turn_completed": true,
+          "fields": {
+            "reason": {
+              "shown": false,
+              "start_shown": false,
+              "end_shown": false,
+              "byte_exact": false
+            }
+          },
+          "model": [
+            {
+              "path": "/models",
+              "status": 200,
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/models",
+              "status": 200,
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/models",
+              "status": 200,
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/responses",
+              "status": 200,
+              "model": "gpt-5.6-luna",
+              "tools": 0,
+              "messages": 6,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "input[5].user"
+                ],
+                "CXHD01-reason-START": [],
+                "CXHD01-reason-MID": [],
+                "CXHD01-reason-END": []
+              }
+            }
+          ]
+        },
+        "tty": {
+          "fields": {
+            "reason": {
+              "start_shown": true,
+              "end_shown": true,
+              "astral_shown": true,
+              "raw_utf8_payload_in_screen": false,
+              "byte_exact": null
+            }
+          },
+          "markdown_source_shown": true,
+          "line_breaks_byte_exact": null,
+          "form": {
+            "reason": "other"
+          },
+          "model": [
+            {
+              "path": "/models",
+              "status": 200,
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/models",
+              "status": 200,
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/responses",
+              "status": 200,
+              "model": "gpt-5.6-luna",
+              "tools": 0,
+              "messages": 5,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "input[4].user"
+                ],
+                "CXHD01-reason-START": [],
+                "CXHD01-reason-MID": [],
+                "CXHD01-reason-END": []
+              }
+            },
+            {
+              "path": "/responses",
+              "status": 200,
+              "model": "gpt-5.6-luna",
+              "tools": 0,
+              "messages": 5,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "input[4].user"
+                ],
+                "CXHD01-reason-START": [],
+                "CXHD01-reason-MID": [],
+                "CXHD01-reason-END": []
+              }
+            }
+          ],
+          "next_turn_api_completed": true
+        }
+      },
+      {
+        "fields": [
+          "reason"
+        ],
+        "size": 102400,
+        "exec": {
+          "blocked_exit": 0,
+          "passed_exit": 0,
+          "next_turn_completed": true,
+          "fields": {
+            "reason": {
+              "shown": false,
+              "start_shown": false,
+              "end_shown": false,
+              "byte_exact": false
+            }
+          },
+          "model": [
+            {
+              "path": "/models",
+              "status": 200,
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/models",
+              "status": 200,
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/models",
+              "status": 200,
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/responses",
+              "status": 200,
+              "model": "gpt-5.6-luna",
+              "tools": 0,
+              "messages": 6,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "input[5].user"
+                ],
+                "CXHD02-reason-START": [],
+                "CXHD02-reason-MID": [],
+                "CXHD02-reason-END": []
+              }
+            }
+          ]
+        },
+        "tty": {
+          "fields": {
+            "reason": {
+              "start_shown": true,
+              "end_shown": true,
+              "astral_shown": true,
+              "raw_utf8_payload_in_screen": false,
+              "byte_exact": null
+            }
+          },
+          "markdown_source_shown": true,
+          "line_breaks_byte_exact": null,
+          "form": {
+            "reason": "other"
+          },
+          "model": [
+            {
+              "path": "/models",
+              "status": 200,
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/models",
+              "status": 200,
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/responses",
+              "status": 200,
+              "model": "gpt-5.6-luna",
+              "tools": 0,
+              "messages": 5,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "input[4].user"
+                ],
+                "CXHD02-reason-START": [],
+                "CXHD02-reason-MID": [],
+                "CXHD02-reason-END": []
+              }
+            },
+            {
+              "path": "/responses",
+              "status": 200,
+              "model": "gpt-5.6-luna",
+              "tools": 0,
+              "messages": 5,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "input[4].user"
+                ],
+                "CXHD02-reason-START": [],
+                "CXHD02-reason-MID": [],
+                "CXHD02-reason-END": []
+              }
+            }
+          ],
+          "next_turn_api_completed": true
+        }
+      },
+      {
+        "fields": [
+          "systemMessage"
+        ],
+        "size": 1024,
+        "control_reason": "Hook display control block.",
+        "exec": {
+          "blocked_exit": 0,
+          "passed_exit": 0,
+          "next_turn_completed": true,
+          "fields": {
+            "systemMessage": {
+              "shown": false,
+              "start_shown": false,
+              "end_shown": false,
+              "byte_exact": false
+            }
+          },
+          "model": [
+            {
+              "path": "/models",
+              "status": 200,
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/models",
+              "status": 200,
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/models",
+              "status": 200,
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/responses",
+              "status": 200,
+              "model": "gpt-5.6-luna",
+              "tools": 0,
+              "messages": 6,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "input[5].user"
+                ],
+                "CXHD03-systemMessage-START": [],
+                "CXHD03-systemMessage-MID": [],
+                "CXHD03-systemMessage-END": []
+              }
+            }
+          ]
+        },
+        "tty": {
+          "fields": {
+            "systemMessage": {
+              "start_shown": true,
+              "end_shown": true,
+              "astral_shown": true,
+              "raw_utf8_payload_in_screen": false,
+              "byte_exact": null
+            }
+          },
+          "markdown_source_shown": true,
+          "line_breaks_byte_exact": null,
+          "form": {
+            "systemMessage": "other"
+          },
+          "model": [
+            {
+              "path": "/models",
+              "status": 200,
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/models",
+              "status": 200,
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/responses",
+              "status": 200,
+              "model": "gpt-5.6-luna",
+              "tools": 0,
+              "messages": 5,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "input[4].user"
+                ],
+                "CXHD03-systemMessage-START": [],
+                "CXHD03-systemMessage-MID": [],
+                "CXHD03-systemMessage-END": []
+              }
+            },
+            {
+              "path": "/responses",
+              "status": 200,
+              "model": "gpt-5.6-luna",
+              "tools": 0,
+              "messages": 5,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "input[4].user"
+                ],
+                "CXHD03-systemMessage-START": [],
+                "CXHD03-systemMessage-MID": [],
+                "CXHD03-systemMessage-END": []
+              }
+            }
+          ],
+          "next_turn_api_completed": true
+        }
+      },
+      {
+        "fields": [
+          "systemMessage"
+        ],
+        "size": 10240,
+        "control_reason": "Hook display control block.",
+        "exec": {
+          "blocked_exit": 0,
+          "passed_exit": 0,
+          "next_turn_completed": true,
+          "fields": {
+            "systemMessage": {
+              "shown": false,
+              "start_shown": false,
+              "end_shown": false,
+              "byte_exact": false
+            }
+          },
+          "model": [
+            {
+              "path": "/models",
+              "status": 200,
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/models",
+              "status": 200,
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/models",
+              "status": 200,
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/responses",
+              "status": 200,
+              "model": "gpt-5.6-luna",
+              "tools": 0,
+              "messages": 6,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "input[5].user"
+                ],
+                "CXHD04-systemMessage-START": [],
+                "CXHD04-systemMessage-MID": [],
+                "CXHD04-systemMessage-END": []
+              }
+            }
+          ]
+        },
+        "tty": {
+          "fields": {
+            "systemMessage": {
+              "start_shown": true,
+              "end_shown": true,
+              "astral_shown": true,
+              "raw_utf8_payload_in_screen": false,
+              "byte_exact": null
+            }
+          },
+          "markdown_source_shown": true,
+          "line_breaks_byte_exact": null,
+          "form": {
+            "systemMessage": "other"
+          },
+          "model": [
+            {
+              "path": "/models",
+              "status": 200,
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/models",
+              "status": 200,
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/responses",
+              "status": 200,
+              "model": "gpt-5.6-luna",
+              "tools": 0,
+              "messages": 5,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "input[4].user"
+                ],
+                "CXHD04-systemMessage-START": [],
+                "CXHD04-systemMessage-MID": [],
+                "CXHD04-systemMessage-END": []
+              }
+            },
+            {
+              "path": "/responses",
+              "status": 200,
+              "model": "gpt-5.6-luna",
+              "tools": 0,
+              "messages": 5,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "input[4].user"
+                ],
+                "CXHD04-systemMessage-START": [],
+                "CXHD04-systemMessage-MID": [],
+                "CXHD04-systemMessage-END": []
+              }
+            }
+          ],
+          "next_turn_api_completed": true
+        }
+      },
+      {
+        "fields": [
+          "systemMessage"
+        ],
+        "size": 102400,
+        "control_reason": "Hook display control block.",
+        "exec": {
+          "blocked_exit": 0,
+          "passed_exit": 0,
+          "next_turn_completed": true,
+          "fields": {
+            "systemMessage": {
+              "shown": false,
+              "start_shown": false,
+              "end_shown": false,
+              "byte_exact": false
+            }
+          },
+          "model": [
+            {
+              "path": "/models",
+              "status": 200,
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/models",
+              "status": 200,
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/models",
+              "status": 200,
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/responses",
+              "status": 200,
+              "model": "gpt-5.6-luna",
+              "tools": 0,
+              "messages": 6,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "input[5].user"
+                ],
+                "CXHD05-systemMessage-START": [],
+                "CXHD05-systemMessage-MID": [],
+                "CXHD05-systemMessage-END": []
+              }
+            }
+          ]
+        },
+        "tty": {
+          "fields": {
+            "systemMessage": {
+              "start_shown": true,
+              "end_shown": true,
+              "astral_shown": true,
+              "raw_utf8_payload_in_screen": false,
+              "byte_exact": null
+            }
+          },
+          "markdown_source_shown": true,
+          "line_breaks_byte_exact": null,
+          "form": {
+            "systemMessage": "other"
+          },
+          "model": [
+            {
+              "path": "/models",
+              "status": 200,
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/models",
+              "status": 200,
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/responses",
+              "status": 200,
+              "model": "gpt-5.6-luna",
+              "tools": 0,
+              "messages": 5,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "input[4].user"
+                ],
+                "CXHD05-systemMessage-START": [],
+                "CXHD05-systemMessage-MID": [],
+                "CXHD05-systemMessage-END": []
+              }
+            },
+            {
+              "path": "/responses",
+              "status": 200,
+              "model": "gpt-5.6-luna",
+              "tools": 0,
+              "messages": 5,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "input[4].user"
+                ],
+                "CXHD05-systemMessage-START": [],
+                "CXHD05-systemMessage-MID": [],
+                "CXHD05-systemMessage-END": []
+              }
+            }
+          ],
+          "next_turn_api_completed": true
+        }
+      },
+      {
+        "fields": [
+          "reason",
+          "systemMessage"
+        ],
+        "size": 1024,
+        "exec": {
+          "blocked_exit": 0,
+          "passed_exit": 0,
+          "next_turn_completed": true,
+          "fields": {
+            "reason": {
+              "shown": false,
+              "start_shown": false,
+              "end_shown": false,
+              "byte_exact": false
+            },
+            "systemMessage": {
+              "shown": false,
+              "start_shown": false,
+              "end_shown": false,
+              "byte_exact": false
+            }
+          },
+          "model": [
+            {
+              "path": "/models",
+              "status": 200,
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/models",
+              "status": 200,
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/models",
+              "status": 200,
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/responses",
+              "status": 200,
+              "model": "gpt-5.6-luna",
+              "tools": 0,
+              "messages": 6,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "input[5].user"
+                ],
+                "CXHD06-reason-START": [],
+                "CXHD06-reason-MID": [],
+                "CXHD06-reason-END": [],
+                "CXHD06-systemMessage-START": [],
+                "CXHD06-systemMessage-MID": [],
+                "CXHD06-systemMessage-END": []
+              }
+            }
+          ]
+        },
+        "tty": {
+          "fields": {
+            "reason": {
+              "start_shown": true,
+              "end_shown": true,
+              "astral_shown": true,
+              "raw_utf8_payload_in_screen": false,
+              "byte_exact": null
+            },
+            "systemMessage": {
+              "start_shown": true,
+              "end_shown": true,
+              "astral_shown": true,
+              "raw_utf8_payload_in_screen": false,
+              "byte_exact": null
+            }
+          },
+          "markdown_source_shown": true,
+          "line_breaks_byte_exact": null,
+          "form": {
+            "reason": "other",
+            "systemMessage": "other"
+          },
+          "model": [
+            {
+              "path": "/models",
+              "status": 200,
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/models",
+              "status": 200,
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/responses",
+              "status": 200,
+              "model": "gpt-5.6-luna",
+              "tools": 0,
+              "messages": 5,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "input[4].user"
+                ],
+                "CXHD06-reason-START": [],
+                "CXHD06-reason-MID": [],
+                "CXHD06-reason-END": [],
+                "CXHD06-systemMessage-START": [],
+                "CXHD06-systemMessage-MID": [],
+                "CXHD06-systemMessage-END": []
+              }
+            },
+            {
+              "path": "/responses",
+              "status": 200,
+              "model": "gpt-5.6-luna",
+              "tools": 0,
+              "messages": 5,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "input[4].user"
+                ],
+                "CXHD06-reason-START": [],
+                "CXHD06-reason-MID": [],
+                "CXHD06-reason-END": [],
+                "CXHD06-systemMessage-START": [],
+                "CXHD06-systemMessage-MID": [],
+                "CXHD06-systemMessage-END": []
+              }
+            }
+          ],
+          "next_turn_api_completed": true
+        }
+      },
+      {
+        "fields": [
+          "reason",
+          "systemMessage"
+        ],
+        "size": 10240,
+        "exec": {
+          "blocked_exit": 0,
+          "passed_exit": 0,
+          "next_turn_completed": true,
+          "fields": {
+            "reason": {
+              "shown": false,
+              "start_shown": false,
+              "end_shown": false,
+              "byte_exact": false
+            },
+            "systemMessage": {
+              "shown": false,
+              "start_shown": false,
+              "end_shown": false,
+              "byte_exact": false
+            }
+          },
+          "model": [
+            {
+              "path": "/models",
+              "status": 200,
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/models",
+              "status": 200,
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/models",
+              "status": 200,
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/responses",
+              "status": 200,
+              "model": "gpt-5.6-luna",
+              "tools": 0,
+              "messages": 6,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "input[5].user"
+                ],
+                "CXHD07-reason-START": [],
+                "CXHD07-reason-MID": [],
+                "CXHD07-reason-END": [],
+                "CXHD07-systemMessage-START": [],
+                "CXHD07-systemMessage-MID": [],
+                "CXHD07-systemMessage-END": []
+              }
+            }
+          ]
+        },
+        "tty": {
+          "fields": {
+            "reason": {
+              "start_shown": true,
+              "end_shown": true,
+              "astral_shown": true,
+              "raw_utf8_payload_in_screen": false,
+              "byte_exact": null
+            },
+            "systemMessage": {
+              "start_shown": true,
+              "end_shown": true,
+              "astral_shown": true,
+              "raw_utf8_payload_in_screen": false,
+              "byte_exact": null
+            }
+          },
+          "markdown_source_shown": true,
+          "line_breaks_byte_exact": null,
+          "form": {
+            "reason": "other",
+            "systemMessage": "other"
+          },
+          "model": [
+            {
+              "path": "/models",
+              "status": 200,
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/models",
+              "status": 200,
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/responses",
+              "status": 200,
+              "model": "gpt-5.6-luna",
+              "tools": 0,
+              "messages": 5,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "input[4].user"
+                ],
+                "CXHD07-reason-START": [],
+                "CXHD07-reason-MID": [],
+                "CXHD07-reason-END": [],
+                "CXHD07-systemMessage-START": [],
+                "CXHD07-systemMessage-MID": [],
+                "CXHD07-systemMessage-END": []
+              }
+            },
+            {
+              "path": "/responses",
+              "status": 200,
+              "model": "gpt-5.6-luna",
+              "tools": 0,
+              "messages": 5,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "input[4].user"
+                ],
+                "CXHD07-reason-START": [],
+                "CXHD07-reason-MID": [],
+                "CXHD07-reason-END": [],
+                "CXHD07-systemMessage-START": [],
+                "CXHD07-systemMessage-MID": [],
+                "CXHD07-systemMessage-END": []
+              }
+            }
+          ],
+          "next_turn_api_completed": true
+        }
+      },
+      {
+        "fields": [
+          "reason",
+          "systemMessage"
+        ],
+        "size": 102400,
+        "exec": {
+          "blocked_exit": 0,
+          "passed_exit": 0,
+          "next_turn_completed": true,
+          "fields": {
+            "reason": {
+              "shown": false,
+              "start_shown": false,
+              "end_shown": false,
+              "byte_exact": false
+            },
+            "systemMessage": {
+              "shown": false,
+              "start_shown": false,
+              "end_shown": false,
+              "byte_exact": false
+            }
+          },
+          "model": [
+            {
+              "path": "/models",
+              "status": 200,
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/models",
+              "status": 200,
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/models",
+              "status": 200,
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/responses",
+              "status": 200,
+              "model": "gpt-5.6-luna",
+              "tools": 0,
+              "messages": 6,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "input[5].user"
+                ],
+                "CXHD08-reason-START": [],
+                "CXHD08-reason-MID": [],
+                "CXHD08-reason-END": [],
+                "CXHD08-systemMessage-START": [],
+                "CXHD08-systemMessage-MID": [],
+                "CXHD08-systemMessage-END": []
+              }
+            }
+          ]
+        },
+        "tty": {
+          "fields": {
+            "reason": {
+              "start_shown": true,
+              "end_shown": true,
+              "astral_shown": true,
+              "raw_utf8_payload_in_screen": false,
+              "byte_exact": null
+            },
+            "systemMessage": {
+              "start_shown": true,
+              "end_shown": true,
+              "astral_shown": true,
+              "raw_utf8_payload_in_screen": false,
+              "byte_exact": null
+            }
+          },
+          "markdown_source_shown": true,
+          "line_breaks_byte_exact": null,
+          "form": {
+            "reason": "other",
+            "systemMessage": "other"
+          },
+          "model": [
+            {
+              "path": "/models",
+              "status": 200,
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/models",
+              "status": 200,
+              "json": false,
+              "found": {}
+            },
+            {
+              "path": "/responses",
+              "status": 200,
+              "model": "gpt-5.6-luna",
+              "tools": 0,
+              "messages": 5,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "input[4].user"
+                ],
+                "CXHD08-reason-START": [],
+                "CXHD08-reason-MID": [],
+                "CXHD08-reason-END": [],
+                "CXHD08-systemMessage-START": [],
+                "CXHD08-systemMessage-MID": [],
+                "CXHD08-systemMessage-END": []
+              }
+            },
+            {
+              "path": "/responses",
+              "status": 200,
+              "model": "gpt-5.6-luna",
+              "tools": 0,
+              "messages": 5,
+              "found": {
+                "PROMPT-MARK-41d0": [],
+                "PASS-MARK-77c1": [
+                  "input[4].user"
+                ],
+                "CXHD08-reason-START": [],
+                "CXHD08-reason-MID": [],
+                "CXHD08-reason-END": [],
+                "CXHD08-systemMessage-START": [],
+                "CXHD08-systemMessage-MID": [],
+                "CXHD08-systemMessage-END": []
+              }
+            }
+          ],
+          "next_turn_api_completed": true
+        }
+      }
+    ],
+    "person": {
+      "codex-desktop": {
+        "date": "2026-10-09",
+        "method": "Person sends the desktop matrix prompts from scripts/spike_hook_display.py codex --desktop, then supplies screenshots.",
+        "cases": {
+          "DESK00": {
+            "size": 1024,
+            "fields": [
+              "reason"
+            ],
+            "reason": {
+              "shown": true,
+              "start_shown": true,
+              "mid_shown": true,
+              "end_shown": true,
+              "line_breaks_visible": true,
+              "non_ascii_visible": true,
+              "astral_visible": true,
+              "byte_exact": null
+            },
+            "markdown_rendered": false,
+            "form": "Hook blocked this message above an orange outline card with a hook icon. The reason is plain text inside the card.",
+            "evidence": [
+              {
+                "file": "proofs/spikes/hook-display-codex-desktop-desk00-start.png",
+                "sha256": "fa5e28931c0c1e84c8b2ead98795a9c5d1bcdc171936cce377db0255bd064edf"
+              },
+              {
+                "file": "proofs/spikes/hook-display-codex-desktop-desk00-end.png",
+                "sha256": "98742e0cebb32cc9eb6e8d7812a890b4332c9bd9498a258b35523c963b04fecd"
+              }
+            ],
+            "byte_check": "Not measured. Screenshots cannot prove UTF-8 byte equality.",
+            "session": "codex://threads/01a11f71-afa4-76b3-a569-f6a509adebbf"
+          },
+          "DESK08": {
+            "size": 102400,
+            "fields": [
+              "reason",
+              "systemMessage"
+            ],
+            "reason": {
+              "end_shown": true,
+              "expected_last_padding_line": "line 03007 of the ",
+              "last_padding_line_matches_fixture": true,
+              "byte_exact": true
+            },
+            "systemMessage": {
+              "shown": null,
+              "note": "Not in the supplied screenshot."
+            },
+            "form": "Orange outline hook card. The screenshot shows the end of the reason and the next pass answer.",
+            "evidence": [
+              {
+                "file": "proofs/spikes/hook-display-codex-desktop-desk08-end.png",
+                "sha256": "2553c02a084793825d21bcf36120af10dc37295fd6cdee21657db4d1379c8099"
+              }
+            ],
+            "method": "Compare the screenshot with the DESK08 payload from scripts/spike_hook_display.py desktop_plan.",
+            "note": "The partial filler line is in the fixture. The END marker is intact. The separately copied reason matches every fixture byte.",
+            "copy_data": "codex.desktop.cases: DESK08.copy_checks.reason"
+          },
+          "DESK03": {
+            "systemMessage": {
+              "shown": false
+            },
+            "source": "Person reports that DESK03-DESK05 did not show the reply. Hook receipts and next model requests show that the prompts were blocked."
+          },
+          "DESK04": {
+            "systemMessage": {
+              "shown": false
+            },
+            "source": "Person reports that DESK03-DESK05 did not show the reply. Hook receipts and next model requests show that the prompts were blocked."
+          },
+          "DESK05": {
+            "systemMessage": {
+              "shown": false
+            },
+            "source": "Person reports that DESK03-DESK05 did not show the reply. Hook receipts and next model requests show that the prompts were blocked."
+          },
+          "DESK02": {
+            "reply_card_shown": true,
+            "source": "Person reports that this case worked. The exact fields in mixed cases need confirmation."
+          },
+          "DESK06": {
+            "reply_card_shown": true,
+            "source": "Person reports that this case worked. The exact fields in mixed cases need confirmation."
+          },
+          "DESK07": {
+            "reply_card_shown": true,
+            "source": "Person reports that this case worked. The exact fields in mixed cases need confirmation."
+          }
+        },
+        "repeat_note": "DESK00 was repeated before DESK02. DESK04 was retried after a DESK03 pass. Each requested case has a matched block and pass."
+      }
+    },
+    "desktop_attempts": [
+      {
+        "thread": "codex://threads/01a11f53-bd55-7f61-8587-ea48ef6e6e04",
+        "runtime_cli": "0.162.0-alpha.2",
+        "provider": "openai",
+        "usable_display_measurement": false,
+        "reason": "Copied prompts ended with a newline and did not match the fixture keys. The fallback reason was used.",
+        "model_api_capture": "none; the desktop used openai instead of the configured hook_display provider",
+        "method": "scripts/spike_hook_display.py codex --desktop"
+      },
+      {
+        "thread": "codex://threads/01a11f62-d285-7e02-a04b-1bbefb0ac105",
+        "runtime_cli": "0.162.0-alpha.2",
+        "provider": "openai",
+        "hook_case_match": true,
+        "block_receipt": true,
+        "pass_receipt": true,
+        "visual_observations": "pending the person's report",
+        "model_api_capture": "none; project-local provider URL settings were filtered",
+        "usable_model_measurement": false,
+        "method": "scripts/spike_hook_display.py codex --desktop"
+      }
+    ],
+    "desktop": {
+      "date": "2026-10-09",
+      "version": {
+        "installed": "26.1002.52244",
+        "build": "13536",
+        "runtime": null,
+        "runtime_cli": "0.162.0-alpha.2",
+        "runtime_cli_method": "app-server thread/read metadata for the captured desktop session"
+      },
+      "method": "scripts/spike_hook_display.py codex --desktop",
+      "provider_setup": "person sets openai_base_url in user config, then removes it",
+      "request_compression": "disabled in project config so marker inspection reads JSON",
+      "model": "gpt-5.6-luna",
+      "capture_scope": "all JSON model requests during the matrix; includes the separate model request",
+      "unrelated_plugins": "disabled for this project during the capture",
+      "sessions": [
+        "01a11f71-afa4-76b3-a569-f6a509adebbf"
+      ],
+      "model_requests": [
+        {
+          "path": "/responses",
+          "status": 200,
+          "model": "gpt-6-luna",
+          "tools": 0,
+          "messages": 7,
+          "found": {
+            "DESK00-PROMPT": [
+              "input[6].user"
+            ],
+            "DESK00-PASS": [],
+            "DESK00-reason-START": [],
+            "DESK00-reason-MID": [],
+            "DESK00-reason-END": [],
+            "DESK01-PROMPT": [],
+            "DESK01-PASS": [],
+            "DESK01-reason-START": [],
+            "DESK01-reason-MID": [],
+            "DESK01-reason-END": [],
+            "DESK02-PROMPT": [],
+            "DESK02-PASS": [],
+            "DESK02-reason-START": [],
+            "DESK02-reason-MID": [],
+            "DESK02-reason-END": [],
+            "DESK03-PROMPT": [],
+            "DESK03-PASS": [],
+            "DESK03-systemMessage-START": [],
+            "DESK03-systemMessage-MID": [],
+            "DESK03-systemMessage-END": [],
+            "DESK04-PROMPT": [],
+            "DESK04-PASS": [],
+            "DESK04-systemMessage-START": [],
+            "DESK04-systemMessage-MID": [],
+            "DESK04-systemMessage-END": [],
+            "DESK05-PROMPT": [],
+            "DESK05-PASS": [],
+            "DESK05-systemMessage-START": [],
+            "DESK05-systemMessage-MID": [],
+            "DESK05-systemMessage-END": [],
+            "DESK06-PROMPT": [],
+            "DESK06-PASS": [],
+            "DESK06-reason-START": [],
+            "DESK06-reason-MID": [],
+            "DESK06-reason-END": [],
+            "DESK06-systemMessage-START": [],
+            "DESK06-systemMessage-MID": [],
+            "DESK06-systemMessage-END": [],
+            "DESK07-PROMPT": [],
+            "DESK07-PASS": [],
+            "DESK07-reason-START": [],
+            "DESK07-reason-MID": [],
+            "DESK07-reason-END": [],
+            "DESK07-systemMessage-START": [],
+            "DESK07-systemMessage-MID": [],
+            "DESK07-systemMessage-END": [],
+            "DESK08-PROMPT": [],
+            "DESK08-PASS": [],
+            "DESK08-reason-START": [],
+            "DESK08-reason-MID": [],
+            "DESK08-reason-END": [],
+            "DESK08-systemMessage-START": [],
+            "DESK08-systemMessage-MID": [],
+            "DESK08-systemMessage-END": []
+          }
+        },
+        {
+          "path": "/responses",
+          "status": 200,
+          "model": "gpt-5.6-luna",
+          "tools": 0,
+          "messages": 8,
+          "found": {
+            "DESK00-PROMPT": [],
+            "DESK00-PASS": [
+              "input[7].user"
+            ],
+            "DESK00-reason-START": [],
+            "DESK00-reason-MID": [],
+            "DESK00-reason-END": [],
+            "DESK01-PROMPT": [],
+            "DESK01-PASS": [],
+            "DESK01-reason-START": [],
+            "DESK01-reason-MID": [],
+            "DESK01-reason-END": [],
+            "DESK02-PROMPT": [],
+            "DESK02-PASS": [],
+            "DESK02-reason-START": [],
+            "DESK02-reason-MID": [],
+            "DESK02-reason-END": [],
+            "DESK03-PROMPT": [],
+            "DESK03-PASS": [],
+            "DESK03-systemMessage-START": [],
+            "DESK03-systemMessage-MID": [],
+            "DESK03-systemMessage-END": [],
+            "DESK04-PROMPT": [],
+            "DESK04-PASS": [],
+            "DESK04-systemMessage-START": [],
+            "DESK04-systemMessage-MID": [],
+            "DESK04-systemMessage-END": [],
+            "DESK05-PROMPT": [],
+            "DESK05-PASS": [],
+            "DESK05-systemMessage-START": [],
+            "DESK05-systemMessage-MID": [],
+            "DESK05-systemMessage-END": [],
+            "DESK06-PROMPT": [],
+            "DESK06-PASS": [],
+            "DESK06-reason-START": [],
+            "DESK06-reason-MID": [],
+            "DESK06-reason-END": [],
+            "DESK06-systemMessage-START": [],
+            "DESK06-systemMessage-MID": [],
+            "DESK06-systemMessage-END": [],
+            "DESK07-PROMPT": [],
+            "DESK07-PASS": [],
+            "DESK07-reason-START": [],
+            "DESK07-reason-MID": [],
+            "DESK07-reason-END": [],
+            "DESK07-systemMessage-START": [],
+            "DESK07-systemMessage-MID": [],
+            "DESK07-systemMessage-END": [],
+            "DESK08-PROMPT": [],
+            "DESK08-PASS": [],
+            "DESK08-reason-START": [],
+            "DESK08-reason-MID": [],
+            "DESK08-reason-END": [],
+            "DESK08-systemMessage-START": [],
+            "DESK08-systemMessage-MID": [],
+            "DESK08-systemMessage-END": []
+          }
+        },
+        {
+          "path": "/responses",
+          "status": 200,
+          "model": "gpt-5.6-luna",
+          "tools": 0,
+          "messages": 13,
+          "found": {
+            "DESK00-PROMPT": [],
+            "DESK00-PASS": [
+              "input[7].user"
+            ],
+            "DESK00-reason-START": [],
+            "DESK00-reason-MID": [],
+            "DESK00-reason-END": [],
+            "DESK01-PROMPT": [],
+            "DESK01-PASS": [],
+            "DESK01-reason-START": [],
+            "DESK01-reason-MID": [],
+            "DESK01-reason-END": [],
+            "DESK02-PROMPT": [],
+            "DESK02-PASS": [],
+            "DESK02-reason-START": [],
+            "DESK02-reason-MID": [],
+            "DESK02-reason-END": [],
+            "DESK03-PROMPT": [],
+            "DESK03-PASS": [],
+            "DESK03-systemMessage-START": [],
+            "DESK03-systemMessage-MID": [],
+            "DESK03-systemMessage-END": [],
+            "DESK04-PROMPT": [],
+            "DESK04-PASS": [],
+            "DESK04-systemMessage-START": [],
+            "DESK04-systemMessage-MID": [],
+            "DESK04-systemMessage-END": [],
+            "DESK05-PROMPT": [],
+            "DESK05-PASS": [],
+            "DESK05-systemMessage-START": [],
+            "DESK05-systemMessage-MID": [],
+            "DESK05-systemMessage-END": [],
+            "DESK06-PROMPT": [],
+            "DESK06-PASS": [],
+            "DESK06-reason-START": [],
+            "DESK06-reason-MID": [],
+            "DESK06-reason-END": [],
+            "DESK06-systemMessage-START": [],
+            "DESK06-systemMessage-MID": [],
+            "DESK06-systemMessage-END": [],
+            "DESK07-PROMPT": [],
+            "DESK07-PASS": [],
+            "DESK07-reason-START": [],
+            "DESK07-reason-MID": [],
+            "DESK07-reason-END": [],
+            "DESK07-systemMessage-START": [],
+            "DESK07-systemMessage-MID": [],
+            "DESK07-systemMessage-END": [],
+            "DESK08-PROMPT": [],
+            "DESK08-PASS": [
+              "input[12].user"
+            ],
+            "DESK08-reason-START": [],
+            "DESK08-reason-MID": [],
+            "DESK08-reason-END": [],
+            "DESK08-systemMessage-START": [],
+            "DESK08-systemMessage-MID": [],
+            "DESK08-systemMessage-END": []
+          }
+        },
+        {
+          "path": "/responses",
+          "status": 200,
+          "model": "gpt-5.6-luna",
+          "tools": 0,
+          "messages": 16,
+          "found": {
+            "DESK00-PROMPT": [],
+            "DESK00-PASS": [
+              "input[7].user"
+            ],
+            "DESK00-reason-START": [],
+            "DESK00-reason-MID": [],
+            "DESK00-reason-END": [],
+            "DESK01-PROMPT": [],
+            "DESK01-PASS": [
+              "input[15].user"
+            ],
+            "DESK01-reason-START": [],
+            "DESK01-reason-MID": [],
+            "DESK01-reason-END": [],
+            "DESK02-PROMPT": [],
+            "DESK02-PASS": [],
+            "DESK02-reason-START": [],
+            "DESK02-reason-MID": [],
+            "DESK02-reason-END": [],
+            "DESK03-PROMPT": [],
+            "DESK03-PASS": [],
+            "DESK03-systemMessage-START": [],
+            "DESK03-systemMessage-MID": [],
+            "DESK03-systemMessage-END": [],
+            "DESK04-PROMPT": [],
+            "DESK04-PASS": [],
+            "DESK04-systemMessage-START": [],
+            "DESK04-systemMessage-MID": [],
+            "DESK04-systemMessage-END": [],
+            "DESK05-PROMPT": [],
+            "DESK05-PASS": [],
+            "DESK05-systemMessage-START": [],
+            "DESK05-systemMessage-MID": [],
+            "DESK05-systemMessage-END": [],
+            "DESK06-PROMPT": [],
+            "DESK06-PASS": [],
+            "DESK06-reason-START": [],
+            "DESK06-reason-MID": [],
+            "DESK06-reason-END": [],
+            "DESK06-systemMessage-START": [],
+            "DESK06-systemMessage-MID": [],
+            "DESK06-systemMessage-END": [],
+            "DESK07-PROMPT": [],
+            "DESK07-PASS": [],
+            "DESK07-reason-START": [],
+            "DESK07-reason-MID": [],
+            "DESK07-reason-END": [],
+            "DESK07-systemMessage-START": [],
+            "DESK07-systemMessage-MID": [],
+            "DESK07-systemMessage-END": [],
+            "DESK08-PROMPT": [],
+            "DESK08-PASS": [
+              "input[12].user"
+            ],
+            "DESK08-reason-START": [],
+            "DESK08-reason-MID": [],
+            "DESK08-reason-END": [],
+            "DESK08-systemMessage-START": [],
+            "DESK08-systemMessage-MID": [],
+            "DESK08-systemMessage-END": []
+          }
+        },
+        {
+          "path": "/responses",
+          "status": 200,
+          "model": "gpt-5.6-luna",
+          "tools": 0,
+          "messages": 18,
+          "found": {
+            "DESK00-PROMPT": [],
+            "DESK00-PASS": [
+              "input[7].user",
+              "input[17].user"
+            ],
+            "DESK00-reason-START": [],
+            "DESK00-reason-MID": [],
+            "DESK00-reason-END": [],
+            "DESK01-PROMPT": [],
+            "DESK01-PASS": [
+              "input[15].user"
+            ],
+            "DESK01-reason-START": [],
+            "DESK01-reason-MID": [],
+            "DESK01-reason-END": [],
+            "DESK02-PROMPT": [],
+            "DESK02-PASS": [],
+            "DESK02-reason-START": [],
+            "DESK02-reason-MID": [],
+            "DESK02-reason-END": [],
+            "DESK03-PROMPT": [],
+            "DESK03-PASS": [],
+            "DESK03-systemMessage-START": [],
+            "DESK03-systemMessage-MID": [],
+            "DESK03-systemMessage-END": [],
+            "DESK04-PROMPT": [],
+            "DESK04-PASS": [],
+            "DESK04-systemMessage-START": [],
+            "DESK04-systemMessage-MID": [],
+            "DESK04-systemMessage-END": [],
+            "DESK05-PROMPT": [],
+            "DESK05-PASS": [],
+            "DESK05-systemMessage-START": [],
+            "DESK05-systemMessage-MID": [],
+            "DESK05-systemMessage-END": [],
+            "DESK06-PROMPT": [],
+            "DESK06-PASS": [],
+            "DESK06-reason-START": [],
+            "DESK06-reason-MID": [],
+            "DESK06-reason-END": [],
+            "DESK06-systemMessage-START": [],
+            "DESK06-systemMessage-MID": [],
+            "DESK06-systemMessage-END": [],
+            "DESK07-PROMPT": [],
+            "DESK07-PASS": [],
+            "DESK07-reason-START": [],
+            "DESK07-reason-MID": [],
+            "DESK07-reason-END": [],
+            "DESK07-systemMessage-START": [],
+            "DESK07-systemMessage-MID": [],
+            "DESK07-systemMessage-END": [],
+            "DESK08-PROMPT": [],
+            "DESK08-PASS": [
+              "input[12].user"
+            ],
+            "DESK08-reason-START": [],
+            "DESK08-reason-MID": [],
+            "DESK08-reason-END": [],
+            "DESK08-systemMessage-START": [],
+            "DESK08-systemMessage-MID": [],
+            "DESK08-systemMessage-END": []
+          }
+        },
+        {
+          "path": "/responses",
+          "status": 200,
+          "model": "gpt-5.6-luna",
+          "tools": 0,
+          "messages": 20,
+          "found": {
+            "DESK00-PROMPT": [],
+            "DESK00-PASS": [
+              "input[7].user",
+              "input[17].user"
+            ],
+            "DESK00-reason-START": [],
+            "DESK00-reason-MID": [],
+            "DESK00-reason-END": [],
+            "DESK01-PROMPT": [],
+            "DESK01-PASS": [
+              "input[15].user"
+            ],
+            "DESK01-reason-START": [],
+            "DESK01-reason-MID": [],
+            "DESK01-reason-END": [],
+            "DESK02-PROMPT": [],
+            "DESK02-PASS": [
+              "input[19].user"
+            ],
+            "DESK02-reason-START": [],
+            "DESK02-reason-MID": [],
+            "DESK02-reason-END": [],
+            "DESK03-PROMPT": [],
+            "DESK03-PASS": [],
+            "DESK03-systemMessage-START": [],
+            "DESK03-systemMessage-MID": [],
+            "DESK03-systemMessage-END": [],
+            "DESK04-PROMPT": [],
+            "DESK04-PASS": [],
+            "DESK04-systemMessage-START": [],
+            "DESK04-systemMessage-MID": [],
+            "DESK04-systemMessage-END": [],
+            "DESK05-PROMPT": [],
+            "DESK05-PASS": [],
+            "DESK05-systemMessage-START": [],
+            "DESK05-systemMessage-MID": [],
+            "DESK05-systemMessage-END": [],
+            "DESK06-PROMPT": [],
+            "DESK06-PASS": [],
+            "DESK06-reason-START": [],
+            "DESK06-reason-MID": [],
+            "DESK06-reason-END": [],
+            "DESK06-systemMessage-START": [],
+            "DESK06-systemMessage-MID": [],
+            "DESK06-systemMessage-END": [],
+            "DESK07-PROMPT": [],
+            "DESK07-PASS": [],
+            "DESK07-reason-START": [],
+            "DESK07-reason-MID": [],
+            "DESK07-reason-END": [],
+            "DESK07-systemMessage-START": [],
+            "DESK07-systemMessage-MID": [],
+            "DESK07-systemMessage-END": [],
+            "DESK08-PROMPT": [],
+            "DESK08-PASS": [
+              "input[12].user"
+            ],
+            "DESK08-reason-START": [],
+            "DESK08-reason-MID": [],
+            "DESK08-reason-END": [],
+            "DESK08-systemMessage-START": [],
+            "DESK08-systemMessage-MID": [],
+            "DESK08-systemMessage-END": []
+          }
+        },
+        {
+          "path": "/responses",
+          "status": 200,
+          "model": "gpt-5.6-luna",
+          "tools": 0,
+          "messages": 22,
+          "found": {
+            "DESK00-PROMPT": [],
+            "DESK00-PASS": [
+              "input[7].user",
+              "input[17].user"
+            ],
+            "DESK00-reason-START": [],
+            "DESK00-reason-MID": [],
+            "DESK00-reason-END": [],
+            "DESK01-PROMPT": [],
+            "DESK01-PASS": [
+              "input[15].user"
+            ],
+            "DESK01-reason-START": [],
+            "DESK01-reason-MID": [],
+            "DESK01-reason-END": [],
+            "DESK02-PROMPT": [],
+            "DESK02-PASS": [
+              "input[19].user"
+            ],
+            "DESK02-reason-START": [],
+            "DESK02-reason-MID": [],
+            "DESK02-reason-END": [],
+            "DESK03-PROMPT": [],
+            "DESK03-PASS": [
+              "input[21].user"
+            ],
+            "DESK03-systemMessage-START": [],
+            "DESK03-systemMessage-MID": [],
+            "DESK03-systemMessage-END": [],
+            "DESK04-PROMPT": [],
+            "DESK04-PASS": [],
+            "DESK04-systemMessage-START": [],
+            "DESK04-systemMessage-MID": [],
+            "DESK04-systemMessage-END": [],
+            "DESK05-PROMPT": [],
+            "DESK05-PASS": [],
+            "DESK05-systemMessage-START": [],
+            "DESK05-systemMessage-MID": [],
+            "DESK05-systemMessage-END": [],
+            "DESK06-PROMPT": [],
+            "DESK06-PASS": [],
+            "DESK06-reason-START": [],
+            "DESK06-reason-MID": [],
+            "DESK06-reason-END": [],
+            "DESK06-systemMessage-START": [],
+            "DESK06-systemMessage-MID": [],
+            "DESK06-systemMessage-END": [],
+            "DESK07-PROMPT": [],
+            "DESK07-PASS": [],
+            "DESK07-reason-START": [],
+            "DESK07-reason-MID": [],
+            "DESK07-reason-END": [],
+            "DESK07-systemMessage-START": [],
+            "DESK07-systemMessage-MID": [],
+            "DESK07-systemMessage-END": [],
+            "DESK08-PROMPT": [],
+            "DESK08-PASS": [
+              "input[12].user"
+            ],
+            "DESK08-reason-START": [],
+            "DESK08-reason-MID": [],
+            "DESK08-reason-END": [],
+            "DESK08-systemMessage-START": [],
+            "DESK08-systemMessage-MID": [],
+            "DESK08-systemMessage-END": []
+          }
+        },
+        {
+          "path": "/responses",
+          "status": 200,
+          "model": "gpt-5.6-luna",
+          "tools": 0,
+          "messages": 24,
+          "found": {
+            "DESK00-PROMPT": [],
+            "DESK00-PASS": [
+              "input[7].user",
+              "input[17].user"
+            ],
+            "DESK00-reason-START": [],
+            "DESK00-reason-MID": [],
+            "DESK00-reason-END": [],
+            "DESK01-PROMPT": [],
+            "DESK01-PASS": [
+              "input[15].user"
+            ],
+            "DESK01-reason-START": [],
+            "DESK01-reason-MID": [],
+            "DESK01-reason-END": [],
+            "DESK02-PROMPT": [],
+            "DESK02-PASS": [
+              "input[19].user"
+            ],
+            "DESK02-reason-START": [],
+            "DESK02-reason-MID": [],
+            "DESK02-reason-END": [],
+            "DESK03-PROMPT": [],
+            "DESK03-PASS": [
+              "input[21].user",
+              "input[23].user"
+            ],
+            "DESK03-systemMessage-START": [],
+            "DESK03-systemMessage-MID": [],
+            "DESK03-systemMessage-END": [],
+            "DESK04-PROMPT": [],
+            "DESK04-PASS": [],
+            "DESK04-systemMessage-START": [],
+            "DESK04-systemMessage-MID": [],
+            "DESK04-systemMessage-END": [],
+            "DESK05-PROMPT": [],
+            "DESK05-PASS": [],
+            "DESK05-systemMessage-START": [],
+            "DESK05-systemMessage-MID": [],
+            "DESK05-systemMessage-END": [],
+            "DESK06-PROMPT": [],
+            "DESK06-PASS": [],
+            "DESK06-reason-START": [],
+            "DESK06-reason-MID": [],
+            "DESK06-reason-END": [],
+            "DESK06-systemMessage-START": [],
+            "DESK06-systemMessage-MID": [],
+            "DESK06-systemMessage-END": [],
+            "DESK07-PROMPT": [],
+            "DESK07-PASS": [],
+            "DESK07-reason-START": [],
+            "DESK07-reason-MID": [],
+            "DESK07-reason-END": [],
+            "DESK07-systemMessage-START": [],
+            "DESK07-systemMessage-MID": [],
+            "DESK07-systemMessage-END": [],
+            "DESK08-PROMPT": [],
+            "DESK08-PASS": [
+              "input[12].user"
+            ],
+            "DESK08-reason-START": [],
+            "DESK08-reason-MID": [],
+            "DESK08-reason-END": [],
+            "DESK08-systemMessage-START": [],
+            "DESK08-systemMessage-MID": [],
+            "DESK08-systemMessage-END": []
+          }
+        },
+        {
+          "path": "/responses",
+          "status": 200,
+          "model": "gpt-5.6-luna",
+          "tools": 0,
+          "messages": 26,
+          "found": {
+            "DESK00-PROMPT": [],
+            "DESK00-PASS": [
+              "input[7].user",
+              "input[17].user"
+            ],
+            "DESK00-reason-START": [],
+            "DESK00-reason-MID": [],
+            "DESK00-reason-END": [],
+            "DESK01-PROMPT": [],
+            "DESK01-PASS": [
+              "input[15].user"
+            ],
+            "DESK01-reason-START": [],
+            "DESK01-reason-MID": [],
+            "DESK01-reason-END": [],
+            "DESK02-PROMPT": [],
+            "DESK02-PASS": [
+              "input[19].user"
+            ],
+            "DESK02-reason-START": [],
+            "DESK02-reason-MID": [],
+            "DESK02-reason-END": [],
+            "DESK03-PROMPT": [],
+            "DESK03-PASS": [
+              "input[21].user",
+              "input[23].user"
+            ],
+            "DESK03-systemMessage-START": [],
+            "DESK03-systemMessage-MID": [],
+            "DESK03-systemMessage-END": [],
+            "DESK04-PROMPT": [],
+            "DESK04-PASS": [
+              "input[25].user"
+            ],
+            "DESK04-systemMessage-START": [],
+            "DESK04-systemMessage-MID": [],
+            "DESK04-systemMessage-END": [],
+            "DESK05-PROMPT": [],
+            "DESK05-PASS": [],
+            "DESK05-systemMessage-START": [],
+            "DESK05-systemMessage-MID": [],
+            "DESK05-systemMessage-END": [],
+            "DESK06-PROMPT": [],
+            "DESK06-PASS": [],
+            "DESK06-reason-START": [],
+            "DESK06-reason-MID": [],
+            "DESK06-reason-END": [],
+            "DESK06-systemMessage-START": [],
+            "DESK06-systemMessage-MID": [],
+            "DESK06-systemMessage-END": [],
+            "DESK07-PROMPT": [],
+            "DESK07-PASS": [],
+            "DESK07-reason-START": [],
+            "DESK07-reason-MID": [],
+            "DESK07-reason-END": [],
+            "DESK07-systemMessage-START": [],
+            "DESK07-systemMessage-MID": [],
+            "DESK07-systemMessage-END": [],
+            "DESK08-PROMPT": [],
+            "DESK08-PASS": [
+              "input[12].user"
+            ],
+            "DESK08-reason-START": [],
+            "DESK08-reason-MID": [],
+            "DESK08-reason-END": [],
+            "DESK08-systemMessage-START": [],
+            "DESK08-systemMessage-MID": [],
+            "DESK08-systemMessage-END": []
+          }
+        },
+        {
+          "path": "/responses",
+          "status": 200,
+          "model": "gpt-5.6-luna",
+          "tools": 0,
+          "messages": 28,
+          "found": {
+            "DESK00-PROMPT": [],
+            "DESK00-PASS": [
+              "input[7].user",
+              "input[17].user"
+            ],
+            "DESK00-reason-START": [],
+            "DESK00-reason-MID": [],
+            "DESK00-reason-END": [],
+            "DESK01-PROMPT": [],
+            "DESK01-PASS": [
+              "input[15].user"
+            ],
+            "DESK01-reason-START": [],
+            "DESK01-reason-MID": [],
+            "DESK01-reason-END": [],
+            "DESK02-PROMPT": [],
+            "DESK02-PASS": [
+              "input[19].user"
+            ],
+            "DESK02-reason-START": [],
+            "DESK02-reason-MID": [],
+            "DESK02-reason-END": [],
+            "DESK03-PROMPT": [],
+            "DESK03-PASS": [
+              "input[21].user",
+              "input[23].user"
+            ],
+            "DESK03-systemMessage-START": [],
+            "DESK03-systemMessage-MID": [],
+            "DESK03-systemMessage-END": [],
+            "DESK04-PROMPT": [],
+            "DESK04-PASS": [
+              "input[25].user"
+            ],
+            "DESK04-systemMessage-START": [],
+            "DESK04-systemMessage-MID": [],
+            "DESK04-systemMessage-END": [],
+            "DESK05-PROMPT": [],
+            "DESK05-PASS": [
+              "input[27].user"
+            ],
+            "DESK05-systemMessage-START": [],
+            "DESK05-systemMessage-MID": [],
+            "DESK05-systemMessage-END": [],
+            "DESK06-PROMPT": [],
+            "DESK06-PASS": [],
+            "DESK06-reason-START": [],
+            "DESK06-reason-MID": [],
+            "DESK06-reason-END": [],
+            "DESK06-systemMessage-START": [],
+            "DESK06-systemMessage-MID": [],
+            "DESK06-systemMessage-END": [],
+            "DESK07-PROMPT": [],
+            "DESK07-PASS": [],
+            "DESK07-reason-START": [],
+            "DESK07-reason-MID": [],
+            "DESK07-reason-END": [],
+            "DESK07-systemMessage-START": [],
+            "DESK07-systemMessage-MID": [],
+            "DESK07-systemMessage-END": [],
+            "DESK08-PROMPT": [],
+            "DESK08-PASS": [
+              "input[12].user"
+            ],
+            "DESK08-reason-START": [],
+            "DESK08-reason-MID": [],
+            "DESK08-reason-END": [],
+            "DESK08-systemMessage-START": [],
+            "DESK08-systemMessage-MID": [],
+            "DESK08-systemMessage-END": []
+          }
+        },
+        {
+          "path": "/responses",
+          "status": 200,
+          "model": "gpt-5.6-luna",
+          "tools": 0,
+          "messages": 30,
+          "found": {
+            "DESK00-PROMPT": [],
+            "DESK00-PASS": [
+              "input[7].user",
+              "input[17].user"
+            ],
+            "DESK00-reason-START": [],
+            "DESK00-reason-MID": [],
+            "DESK00-reason-END": [],
+            "DESK01-PROMPT": [],
+            "DESK01-PASS": [
+              "input[15].user"
+            ],
+            "DESK01-reason-START": [],
+            "DESK01-reason-MID": [],
+            "DESK01-reason-END": [],
+            "DESK02-PROMPT": [],
+            "DESK02-PASS": [
+              "input[19].user"
+            ],
+            "DESK02-reason-START": [],
+            "DESK02-reason-MID": [],
+            "DESK02-reason-END": [],
+            "DESK03-PROMPT": [],
+            "DESK03-PASS": [
+              "input[21].user",
+              "input[23].user"
+            ],
+            "DESK03-systemMessage-START": [],
+            "DESK03-systemMessage-MID": [],
+            "DESK03-systemMessage-END": [],
+            "DESK04-PROMPT": [],
+            "DESK04-PASS": [
+              "input[25].user"
+            ],
+            "DESK04-systemMessage-START": [],
+            "DESK04-systemMessage-MID": [],
+            "DESK04-systemMessage-END": [],
+            "DESK05-PROMPT": [],
+            "DESK05-PASS": [
+              "input[27].user"
+            ],
+            "DESK05-systemMessage-START": [],
+            "DESK05-systemMessage-MID": [],
+            "DESK05-systemMessage-END": [],
+            "DESK06-PROMPT": [],
+            "DESK06-PASS": [
+              "input[29].user"
+            ],
+            "DESK06-reason-START": [],
+            "DESK06-reason-MID": [],
+            "DESK06-reason-END": [],
+            "DESK06-systemMessage-START": [],
+            "DESK06-systemMessage-MID": [],
+            "DESK06-systemMessage-END": [],
+            "DESK07-PROMPT": [],
+            "DESK07-PASS": [],
+            "DESK07-reason-START": [],
+            "DESK07-reason-MID": [],
+            "DESK07-reason-END": [],
+            "DESK07-systemMessage-START": [],
+            "DESK07-systemMessage-MID": [],
+            "DESK07-systemMessage-END": [],
+            "DESK08-PROMPT": [],
+            "DESK08-PASS": [
+              "input[12].user"
+            ],
+            "DESK08-reason-START": [],
+            "DESK08-reason-MID": [],
+            "DESK08-reason-END": [],
+            "DESK08-systemMessage-START": [],
+            "DESK08-systemMessage-MID": [],
+            "DESK08-systemMessage-END": []
+          }
+        },
+        {
+          "path": "/responses",
+          "status": 200,
+          "model": "gpt-5.6-luna",
+          "tools": 0,
+          "messages": 32,
+          "found": {
+            "DESK00-PROMPT": [],
+            "DESK00-PASS": [
+              "input[7].user",
+              "input[17].user"
+            ],
+            "DESK00-reason-START": [],
+            "DESK00-reason-MID": [],
+            "DESK00-reason-END": [],
+            "DESK01-PROMPT": [],
+            "DESK01-PASS": [
+              "input[15].user"
+            ],
+            "DESK01-reason-START": [],
+            "DESK01-reason-MID": [],
+            "DESK01-reason-END": [],
+            "DESK02-PROMPT": [],
+            "DESK02-PASS": [
+              "input[19].user"
+            ],
+            "DESK02-reason-START": [],
+            "DESK02-reason-MID": [],
+            "DESK02-reason-END": [],
+            "DESK03-PROMPT": [],
+            "DESK03-PASS": [
+              "input[21].user",
+              "input[23].user"
+            ],
+            "DESK03-systemMessage-START": [],
+            "DESK03-systemMessage-MID": [],
+            "DESK03-systemMessage-END": [],
+            "DESK04-PROMPT": [],
+            "DESK04-PASS": [
+              "input[25].user"
+            ],
+            "DESK04-systemMessage-START": [],
+            "DESK04-systemMessage-MID": [],
+            "DESK04-systemMessage-END": [],
+            "DESK05-PROMPT": [],
+            "DESK05-PASS": [
+              "input[27].user"
+            ],
+            "DESK05-systemMessage-START": [],
+            "DESK05-systemMessage-MID": [],
+            "DESK05-systemMessage-END": [],
+            "DESK06-PROMPT": [],
+            "DESK06-PASS": [
+              "input[29].user"
+            ],
+            "DESK06-reason-START": [],
+            "DESK06-reason-MID": [],
+            "DESK06-reason-END": [],
+            "DESK06-systemMessage-START": [],
+            "DESK06-systemMessage-MID": [],
+            "DESK06-systemMessage-END": [],
+            "DESK07-PROMPT": [],
+            "DESK07-PASS": [
+              "input[31].user"
+            ],
+            "DESK07-reason-START": [],
+            "DESK07-reason-MID": [],
+            "DESK07-reason-END": [],
+            "DESK07-systemMessage-START": [],
+            "DESK07-systemMessage-MID": [],
+            "DESK07-systemMessage-END": [],
+            "DESK08-PROMPT": [],
+            "DESK08-PASS": [
+              "input[12].user"
+            ],
+            "DESK08-reason-START": [],
+            "DESK08-reason-MID": [],
+            "DESK08-reason-END": [],
+            "DESK08-systemMessage-START": [],
+            "DESK08-systemMessage-MID": [],
+            "DESK08-systemMessage-END": []
+          }
+        }
+      ],
+      "cases": [
+        {
+          "id": "DESK00",
+          "fields": [
+            "reason"
+          ],
+          "size": 1024,
+          "blocked_prompt": "block: DESK00-PROMPT a toy shop question",
+          "passed_prompt": "pass: DESK00-PASS reply with the word ok",
+          "copy_checks": {
+            "reason": {
+              "byte_exact": null
+            }
+          },
+          "hook_receipts": {
+            "blocked": 2,
+            "passed": 2
+          }
+        },
+        {
+          "id": "DESK01",
+          "fields": [
+            "reason"
+          ],
+          "size": 10240,
+          "blocked_prompt": "block: DESK01-PROMPT a toy shop question",
+          "passed_prompt": "pass: DESK01-PASS reply with the word ok",
+          "copy_checks": {
+            "reason": {
+              "byte_exact": null
+            }
+          },
+          "hook_receipts": {
+            "blocked": 1,
+            "passed": 1
+          }
+        },
+        {
+          "id": "DESK02",
+          "fields": [
+            "reason"
+          ],
+          "size": 102400,
+          "blocked_prompt": "block: DESK02-PROMPT a toy shop question",
+          "passed_prompt": "pass: DESK02-PASS reply with the word ok",
+          "copy_checks": {
+            "reason": {
+              "byte_exact": null
+            }
+          },
+          "hook_receipts": {
+            "blocked": 1,
+            "passed": 1
+          }
+        },
+        {
+          "id": "DESK03",
+          "fields": [
+            "systemMessage"
+          ],
+          "size": 1024,
+          "blocked_prompt": "block: DESK03-PROMPT a toy shop question",
+          "passed_prompt": "pass: DESK03-PASS reply with the word ok",
+          "copy_checks": {
+            "systemMessage": {
+              "byte_exact": null
+            }
+          },
+          "hook_receipts": {
+            "blocked": 1,
+            "passed": 2
+          }
+        },
+        {
+          "id": "DESK04",
+          "fields": [
+            "systemMessage"
+          ],
+          "size": 10240,
+          "blocked_prompt": "block: DESK04-PROMPT a toy shop question",
+          "passed_prompt": "pass: DESK04-PASS reply with the word ok",
+          "copy_checks": {
+            "systemMessage": {
+              "byte_exact": null
+            }
+          },
+          "hook_receipts": {
+            "blocked": 2,
+            "passed": 1
+          }
+        },
+        {
+          "id": "DESK05",
+          "fields": [
+            "systemMessage"
+          ],
+          "size": 102400,
+          "blocked_prompt": "block: DESK05-PROMPT a toy shop question",
+          "passed_prompt": "pass: DESK05-PASS reply with the word ok",
+          "copy_checks": {
+            "systemMessage": {
+              "byte_exact": null
+            }
+          },
+          "hook_receipts": {
+            "blocked": 1,
+            "passed": 1
+          }
+        },
+        {
+          "id": "DESK06",
+          "fields": [
+            "reason",
+            "systemMessage"
+          ],
+          "size": 1024,
+          "blocked_prompt": "block: DESK06-PROMPT a toy shop question",
+          "passed_prompt": "pass: DESK06-PASS reply with the word ok",
+          "copy_checks": {
+            "reason": {
+              "byte_exact": null
+            },
+            "systemMessage": {
+              "byte_exact": null
+            }
+          },
+          "hook_receipts": {
+            "blocked": 1,
+            "passed": 1
+          }
+        },
+        {
+          "id": "DESK07",
+          "fields": [
+            "reason",
+            "systemMessage"
+          ],
+          "size": 10240,
+          "blocked_prompt": "block: DESK07-PROMPT a toy shop question",
+          "passed_prompt": "pass: DESK07-PASS reply with the word ok",
+          "copy_checks": {
+            "reason": {
+              "byte_exact": null
+            },
+            "systemMessage": {
+              "byte_exact": null
+            }
+          },
+          "hook_receipts": {
+            "blocked": 1,
+            "passed": 1
+          }
+        },
+        {
+          "id": "DESK08",
+          "fields": [
+            "reason",
+            "systemMessage"
+          ],
+          "size": 102400,
+          "blocked_prompt": "block: DESK08-PROMPT a toy shop question",
+          "passed_prompt": "pass: DESK08-PASS reply with the word ok",
+          "copy_checks": {
+            "reason": {
+              "byte_exact": true,
+              "copied_bytes": 102400,
+              "expected_bytes": 102400,
+              "copied_sha256": "0c7885e4a48a7c5bff11319dc29fd7fb6764be57d14d8ea572df06b2a17b7422",
+              "expected_sha256": "0c7885e4a48a7c5bff11319dc29fd7fb6764be57d14d8ea572df06b2a17b7422"
+            },
+            "systemMessage": {
+              "byte_exact": null
+            }
+          },
+          "hook_receipts": {
+            "blocked": 1,
+            "passed": 1
+          }
+        }
+      ],
+      "visual_observations": "See codex.person.codex-desktop. The copied DESK08 reason matches every byte. Mixed-case systemMessage visibility was not reported separately.",
+      "auxiliary_request_note": "A separate gpt-6-luna request contains DESK00-PROMPT. Its purpose was not retained. It contains no reply markers. Do not claim that the blocked prompt reached no model.",
+      "receipt_method": "Counts read from the capture receipt.jsonl before the later CLI presentation probe. The desktop capture required block and pass receipts plus a completed pass API request for every case.",
+      "copy_method": "scripts/spike_hook_display.py codex --copies DIR"
+    },
+    "cli_presentation": {
+      "method": "scripts/spike_hook_display.py codex_tty; both fields, 1024 UTF-8 bytes each",
+      "version": "codex-cli 0.162.0",
+      "observed": {
+        "fields": {
+          "reason": {
+            "start_shown": true,
+            "end_shown": true,
+            "astral_shown": true,
+            "raw_utf8_payload_in_screen": false,
+            "byte_exact": null,
+            "line_prefix": "   └ "
+          },
+          "systemMessage": {
+            "start_shown": true,
+            "end_shown": true,
+            "astral_shown": true,
+            "raw_utf8_payload_in_screen": false,
+            "byte_exact": null,
+            "line_prefix": "   └ "
+          }
+        },
+        "markdown_source_shown": true,
+        "line_breaks_byte_exact": null,
+        "form": {
+          "reason": "other",
+          "systemMessage": "other"
+        },
+        "next_turn_api_completed": true
+      },
+      "form_summary": "Both fields appear as indented plain text under a box-drawing branch prefix. Markdown source is literal."
+    },
+    "answers": {
+      "method": "scripts/spike_hook_display.py codex; codex --desktop; codex --copies DIR",
+      "display": {
+        "exec": "Neither reason nor systemMessage appears in exec JSON output.",
+        "tty": "Both fields appear. The separate presentation probe records indented plain text under a branch prefix.",
+        "desktop": "Reason appears. SystemMessage-only cases do not show their reply. Mixed cases show a reply card; the fields were not all reported separately."
+      },
+      "model": "No START, MID or END reply marker appears in a captured CLI or desktop model request. A separate desktop model request contains the blocked prompt marker; its purpose was not retained.",
+      "length": "The CLI stream has START and END markers at every tested size. Desktop reason reaches the END marker and is copied byte for byte at the largest tested size. This establishes a tested bound, not the maximum limit.",
+      "text": {
+        "markdown": "Literal source in the interactive CLI and the desktop hook notice.",
+        "tty_bytes": "The raw terminal stream does not contain the complete unmodified UTF-8 payload. It adds terminal formatting. Exact recovery from a terminal copy was not tested.",
+        "desktop_bytes": "The copied DESK08 reason is byte for byte equal, including whitespace, Markdown, non-ASCII and astral characters. See its copy_checks for sizes and hashes."
+      },
+      "form": {
+        "tty": "Indented hook output. See cli_presentation for the measured branch prefixes.",
+        "desktop": "Hook blocked this message above an orange outline card. The reason inside is plain text."
+      },
+      "recommendation": "Use block reason as an optional reply notice in interactive Codex and the desktop app. Keep view and the transcript tool for exec and a neutral reply display. Do not use systemMessage for desktop reply display. Do not claim that a command hook keeps tester prompts out of every model request."
+    }
   }
 }
