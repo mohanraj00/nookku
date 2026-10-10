@@ -154,7 +154,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     tr.add_argument("--session", help="only the turns of this harness session")
 
     mcp = sub.add_parser("mcp", help="the MCP server with the transcript and status tools")
-    mcp.add_argument("--root", type=Path, help="the project (default: CLAUDE_PROJECT_DIR or here)")
+    mcp.add_argument("--root", type=Path, help="the project (default: here)")
 
     hook = sub.add_parser("hook", help="the hook command that init installs")
     hook.add_argument("--root", type=Path, help="the project (default: from the event)")

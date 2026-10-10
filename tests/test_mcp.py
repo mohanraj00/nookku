@@ -161,10 +161,23 @@ def test_the_server_moves_the_old_state_folder_of_its_default_root(
     from nookku.config import OLD_STATE_DIR, STATE_DIR
 
     (tmp_path / OLD_STATE_DIR).mkdir()
-    monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
     monkeypatch.setattr("sys.stdin", io.StringIO(""))
     assert main(["mcp"]) == 0
     assert (tmp_path / STATE_DIR).is_dir() and not (tmp_path / OLD_STATE_DIR).exists()
+
+
+def test_the_server_reads_the_project_of_its_working_folder(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # A Codex can inherit CLAUDE_PROJECT_DIR from a Claude Code session of another project.
+    other = tmp_path / "other"
+    other.mkdir()
+    project = tmp_path / "project"
+    project.mkdir()
+    monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(other))
+    monkeypatch.chdir(project)
+    assert mcp.project_root() == project.resolve()
 
 
 @pytest.mark.parametrize("trace", [True, False])

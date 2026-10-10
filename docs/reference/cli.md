@@ -287,7 +287,7 @@ The MCP server that gives the model the read-only tools `transcript` and `status
 
 | Flag | Default | Meaning |
 |---|---|---|
-| `--root PATH` | `CLAUDE_PROJECT_DIR`, else the current folder | The project. |
+| `--root PATH` | the current folder | The project. Claude Code and Codex start the server of the plugin in the project. The server does not read `CLAUDE_PROJECT_DIR`, because a Codex can inherit it from a Claude Code session of another project. |
 
 | Exit code | Meaning |
 |---|---|

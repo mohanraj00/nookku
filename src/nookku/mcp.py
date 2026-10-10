@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import sys
 from pathlib import Path
 from typing import Any, TextIO
@@ -216,8 +215,10 @@ def _error(rid: Any, code: int, text: str) -> dict[str, Any]:
 
 
 def project_root() -> Path:
-    """The project of the server: CLAUDE_PROJECT_DIR, else the working folder."""
-    return Path(os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd()).resolve()
+    """The project of the server: its working folder. Claude Code and Codex start a plugin MCP
+    server in the project (proofs/plugin/load.json). The server does not read CLAUDE_PROJECT_DIR,
+    because a Codex can inherit it from a Claude Code session of another project."""
+    return Path.cwd().resolve()
 
 
 def serve(root: Path, stdin: TextIO | None = None, stdout: TextIO | None = None) -> int:
