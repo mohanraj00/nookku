@@ -362,7 +362,9 @@ def test_init_start_and_end_a_test(tmp_path: Path, capsys: pytest.CaptureFixture
     started = json.loads(capsys.readouterr().out)
     assert main(["status", "--root", str(tmp_path), "--json"]) == 0
     status = json.loads(capsys.readouterr().out)
-    assert status == {"on": True, "test": started, "text": kit.status(tmp_path)[8:]}
+    text = kit.status(tmp_path)[8:]
+    refuse = kit.ATTACHMENTS_REASON
+    assert status == {"on": True, "test": started, "text": text, "attachments": refuse}
     assert status["text"].startswith(f"relay mode is on. Test {started['test']} runs on ")
     assert main(["start", "--root", str(tmp_path)]) == 1
     assert "runs already" in capsys.readouterr().out

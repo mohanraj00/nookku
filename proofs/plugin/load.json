@@ -13,7 +13,11 @@
    "CLAUDE_PLUGIN_ROOT is set": true,
    "the command hook blocks the prompt with the relay error": true,
    "/nookku status shows the core text": true,
-   "the model calls mcp__plugin_nookku_nookku__status": true
+   "a prompt with an image is dropped with the core text": true,
+   "only the text prompt is relayed, not the prompt with the image": true,
+   "the model calls mcp__plugin_nookku_nookku__status": true,
+   "the MCP server starts in the project": true,
+   "the MCP server gets no CLAUDE_PROJECT_DIR of another project": true
   }
  },
  "codex": {
@@ -45,12 +49,15 @@
    "nookku:setup"
   ],
   "checks": {
+   "the repo marketplace refuses the install until #217": true,
    "the hooks file parses": true,
    "2 command hooks": true,
    "each hook is untrusted, so a person must trust it": true,
    "the MCP server starts with status and transcript": true,
    "the Codex tool name is mcp__nookku__status": true,
-   "the setup skill loads": true
+   "the setup skill loads": true,
+   "the MCP server starts in the project": true,
+   "the MCP server gets no CLAUDE_PROJECT_DIR of another project": true
   }
  }
 }

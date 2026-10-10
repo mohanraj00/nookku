@@ -62,6 +62,9 @@ RECORDS_REASON = (
     "A command that names .nookku may only read."
 )
 ENTRY_REASON = "nookku: during a test, only the tap runs the entry."
+# A command hook gets only the text of a prompt, not its attachments. The display layer of the
+# Claude Code plugin sees them, and drops the prompt with this text in relay mode (#216).
+ATTACHMENTS_REASON = "nookku: the relay does not send attachments. Nothing was sent."
 # Prompts that the kit runs and never relays (SPEC.md section 5).
 CONTROL = {"nookku start", "nookku end", "nookku status"}
 

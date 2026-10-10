@@ -65,12 +65,17 @@ def test_each_marketplace_names_the_plugin_folder() -> None:
     codex = load(ROOT / ".agents" / "plugins" / "marketplace.json")["plugins"]
     assert [p["source"] for p in claude] == ["./plugins/nookku"]
     assert [p["source"] for p in codex] == [{"source": "local", "path": "./plugins/nookku"}]
+    # Codex skips an untrusted hook, so the plugin alone fails open (#177). Codex cannot install it
+    # until the trust gate of #217 refuses a test with an untrusted hook.
+    assert [p["policy"]["installation"] for p in codex] == ["NOT_AVAILABLE"]
 
 
 def test_the_typescript_holds_no_rule() -> None:
     source = (PLUGIN / "hooks" / "register.tsx").read_text(encoding="utf-8")
-    for word in ("prompt.submit", "tool.call", "http.fetch", "fs.read", "fs.write", "deny", "drop"):
+    for word in ("tool.call", "http.fetch", "fs.read", "fs.write", "deny", "nookku: "):
         assert word not in source, word
+    # The one exception: a prompt with an attachment, which a command hook cannot see.
+    assert source.count("prompt.submit") == 1 and source.count("drop: refusal") == 1
     assert not (PLUGIN / "hooks" / "core.ts").exists()
 
 

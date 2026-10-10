@@ -2,6 +2,9 @@
 // which holds each rule: the relay, the guard, the control prompts and their texts. These function
 // hooks only show what the nookku command prints: the /nookku command, the status line and the
 // pane. They hold no rule. If they break, the command hooks still work (docs/adr/0001).
+//
+// One exception: a command hook gets only the text of a prompt, not its attachments. So in relay
+// mode, the prompt hook drops a prompt with an attachment. The core gives the mode and the text.
 
 import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
@@ -53,6 +56,22 @@ async function sessionArgs($: any): Promise<string[]> {
   }
 }
 
+// Drop a prompt with an attachment in relay mode, with the text of `nookku status --json`. If
+// the command fails, the mode is not known, so drop the prompt with the error output.
+async function refuseAttachments($: any, e: any, next: any): Promise<any> {
+  if (!e.attachments?.length) return next(e)
+  const r = await runCli($, ['status', '--json'])
+  let refusal: string | null = r.out.trim()
+  try {
+    if (r.ok) refusal = JSON.parse(r.out).attachments ?? null
+  } catch {
+    // not JSON: drop the prompt with the output
+  }
+  if (refusal === null) return next(e)
+  $.ui.log(refusal)
+  return { drop: refusal }
+}
+
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({
@@ -63,7 +82,10 @@ export const register: Register = on => {
     return next(e)
   })
 
-  // /nookku view opens the pane. Each other word goes to `nookku mode`, which answers it.
+  on('prompt.submit', async ($, e, next) => refuseAttachments($, e, next))
+
+  // /nookku view opens the pane. /nookku and /nookku status show `nookku status`, which names
+  // the running test. Each other word goes to `nookku mode`, which answers it.
   on('command.run', { command: 'nookku' }, async ($, e) => {
     const words = e.args.trim().split(/\s+/).filter(Boolean)
     if (words[0] === 'view') {
@@ -71,7 +93,8 @@ export const register: Register = on => {
       void $.ui.open({ id: PANE, title: 'nookku' })
       return { text: (await read($, state)).view ?? '' }
     }
-    const r = await runCli($, ['mode', ...words, ...(await sessionArgs($))])
+    const status = words.length === 0 || (words.length === 1 && words[0] === 'status')
+    const r = await runCli($, status ? ['status'] : ['mode', ...words, ...(await sessionArgs($))])
     await showStatus($)
     await refreshView($)
     return { text: r.out.trimEnd() }

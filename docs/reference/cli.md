@@ -55,7 +55,7 @@ Show relay mode and the running test.
 | Flag | Default | Meaning |
 |---|---|---|
 | `--root PATH` | the current folder | The project. |
-| `--json` | off | Print `{"on": ..., "test": ..., "text": ...}`. `text` is the status line of the plugin, or `null` if relay mode is off. |
+| `--json` | off | Print `{"on": ..., "test": ..., "text": ..., "attachments": ...}`. `text` is the status line of the plugin. `attachments` is the text that refuses a prompt with an attachment in the plugin. Each is `null` if relay mode is off. |
 
 | Exit code | Meaning |
 |---|---|

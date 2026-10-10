@@ -388,9 +388,11 @@ def _test_command(args: argparse.Namespace) -> int:
         running = bridge.current(root)
         if args.json:
             on = kit.is_on(root)
-            # text is the status line of the plugin, or null if relay mode is off.
+            # text is the status line of the plugin, and attachments is the text that refuses a
+            # prompt with an attachment. Each is null if relay mode is off.
             line = kit.status(root).removeprefix("nookku: ") if on else None
-            print(json.dumps({"on": on, "test": running, "text": line}))
+            refuse = kit.ATTACHMENTS_REASON if on else None
+            print(json.dumps({"on": on, "test": running, "text": line, "attachments": refuse}))
         else:
             print(kit.status(root).removeprefix("nookku: "))
         return 0
