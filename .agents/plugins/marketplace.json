@@ -1,0 +1,20 @@
+{
+  "name": "nookku",
+  "interface": {
+    "displayName": "Nookku"
+  },
+  "plugins": [
+    {
+      "name": "nookku",
+      "source": {
+        "source": "local",
+        "path": "./plugins/nookku"
+      },
+      "policy": {
+        "installation": "NOT_AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

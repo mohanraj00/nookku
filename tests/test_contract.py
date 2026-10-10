@@ -1,5 +1,4 @@
 import json
-import re
 import subprocess
 import sys
 import time
@@ -176,19 +175,16 @@ def tap_status(line: str) -> int:
     return 200 if error is None else 500
 
 
-def test_the_plugin_reads_each_one_line_case_like_the_tap() -> None:
-    # register.test.ts runs this table through contractShown.
-    table = ROOT / "plugins" / "claude-code" / "hooks" / "register.test.ts"
-    text = table.read_text(encoding="utf-8")
-    block = text.split("const CONTRACT_LINES")[1].split("\n]\n")[0]
-    rows = {name: json.loads(row) for row, name in re.findall(r"(\[.*\]), // (\w+)$", block, re.M)}
+def test_the_tap_reads_each_one_line_case_of_the_table() -> None:
+    # The table holds the line and the HTTP status of each one-line conformance case.
+    rows = json.loads((ROOT / "tests" / "tables.json").read_text("utf-8"))["contract_lines"]
     want = {}
     for d in CASES:
         case = json.loads((d / "case.json").read_text(encoding="utf-8"))
         steps = case["agent"]
         if len(case["requests"]) == 1 and len(steps) == 1 and len(steps[0].get("lines", [])) == 1:
-            # The tap waits past a stray line until the timeout (504). The plugin reads one body,
-            # so for the plugin a stray line is not a valid output (502).
+            # The tap waits past a stray line until the timeout (504). One body with only the
+            # stray line is not a valid output (502).
             status = 502 if case["http"][0] == 504 else case["http"][0]
             want[d.name] = [steps[0]["lines"][0], status]
     assert rows == want

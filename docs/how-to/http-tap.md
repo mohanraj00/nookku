@@ -33,7 +33,7 @@ The answer is the agent's answer with no change: `{"reply": "We ship to Chennai 
 
 ## 2. Install a relay with no entry
 
-- **Plugin:** do not write an `entry` in `.nookku/config.json`. The plugin options `tap_url`, `adapter` and the others apply ([reference/config.md](../reference/config.md#plugin-options)).
+- **Plugin:** run `nookku init plugin` with no `--entry`. It writes `.nookku/config.json` and no project hooks. Its flags set `tap_url`, `adapter` and the others: `--tap-url`, `--agent-url`, `--adapter` and so on.
 - **Hook kit:** run `nookku init claude-code` or `nookku init codex` with no `--entry`. The kit takes the same options as flags: `--tap-url`, `--agent-url`, `--adapter` and so on.
 
 ## 3. Relay mode on and off

@@ -19,5 +19,5 @@ def test_no_runtime_dependencies() -> None:
 
 
 def test_the_plugin_has_the_package_version() -> None:
-    manifest = ROOT / "plugins" / "claude-code" / ".claude-plugin" / "plugin.json"
+    manifest = ROOT / "plugins" / "nookku" / ".claude-plugin" / "plugin.json"
     assert json.loads(manifest.read_text())["version"] == nookku.__version__

@@ -1,0 +1,12 @@
+{
+  "name": "nookku",
+  "version": "0.3.1",
+  "description": "Relay a test conversation to a chat agent byte for byte. The model never writes either direction.",
+  "author": {
+    "name": "Mohan Raj"
+  },
+  "license": "Apache-2.0",
+  "repository": "https://github.com/mohanraj00/nookku",
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json"
+}

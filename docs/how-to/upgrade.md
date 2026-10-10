@@ -75,7 +75,7 @@ claude plugin update nookku@nookku
 
 The second command names the new version, or says that the plugin is already at the latest version. Restart Claude Code to load the new version. `claude plugin list` shows the version of `nookku@nookku`.
 
-The plugin runs the CLI to start and end a test, to show the status and to print the transcript (the plugin option `cli` in [reference/config.md](../reference/config.md#plugin-options)). Upgrade the CLI and the plugin to the same version.
+Each hook of the plugin, its MCP server and `/nookku` run the `nookku` command from `PATH`. Upgrade the CLI and the plugin to the same version. The plugin has no options: it reads `config.json`. If you set plugin options before 0.4.0, set the same keys with `nookku init plugin` ([reference/cli.md](../reference/cli.md#nookku-init)).
 
 ## 4. Trust the Codex hooks again
 

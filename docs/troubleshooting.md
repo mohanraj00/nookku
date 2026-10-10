@@ -32,7 +32,7 @@ First, look in the [test folder](reference/glossary.md#test-folder) `.nookku/tes
 
 **Cause.** The folder of `uv tool` programs is not on `PATH`.
 
-**Fix.** Run `uv tool update-shell`, then open a new terminal. For the plugin, you can also give the full path in the plugin option `cli` ([reference/config.md](reference/config.md#plugin-options)).
+**Fix.** Run `uv tool update-shell`, then open a new terminal. The plugin runs `nookku` from `PATH`.
 
 ## Start a test
 
@@ -108,12 +108,6 @@ First, look in the [test folder](reference/glossary.md#test-folder) `.nookku/tes
 
 **Fix.** Read the lines, and correct the step after the last one. Then start the test again.
 
-### `A test needs an entry in .nookku/config.json. Without one, use /nookku on|off.`
-
-(register.tsx) **Cause.** You typed `/nookku start` or `/nookku end`, but `config.json` has no `entry`. The plugin also finds no entry if `config.json` is not valid JSON.
-
-**Fix.** Write the entry in `config.json`, or ask the harness model to run `nookku setup` ([how-to/claude-code-plugin.md](how-to/claude-code-plugin.md)). For an agent that is an HTTP server, use `/nookku on` and `/nookku off` ([how-to/http-tap.md](how-to/http-tap.md)).
-
 ## During a test
 
 If a test does not end or its bridge stopped, follow [how-to/recover-a-stuck-test.md](how-to/recover-a-stuck-test.md).
@@ -124,25 +118,13 @@ If the entry returns an error, crashes or does not answer in [240 seconds](../sr
 
 ### `nookku: relay mode is on, but no test runs. Start one with: nookku start. Nothing was sent.`
 
-(kit.py; the plugin says `Type /nookku start`) **Cause.** Relay mode is on, but the bridge does not run. For example, the computer restarted during a test.
+(kit.py) **Cause.** Relay mode is on, but the bridge does not run. For example, the computer restarted during a test.
 
 **Fix.** Start a test. Or switch relay mode off: `nookku mode off` with the hook kit.
 
-### `nookku: the test stopped, and no test runs. The tap did not answer. Type /nookku start.`
-
-(register.tsx) **Cause.** The plugin cannot connect to the tap of `current.json`. Then it runs `nookku status --json`, and the answer says that no test runs. For example, the bridge process stopped. The message can have reached the tap before the stop, so the record keeps the turn with `ok: false`. The message never goes to the model.
-
-**Fix.** Read `bridge.log` in the test folder. Type `/nookku start`, then send the message again.
-
-### `The status is not known. The command '<cli> status --json' failed: <output>. Check that the plugin option cli names the nookku command.`
-
-(register.tsx) **Cause.** The plugin ran `nookku status --json` for `/nookku status` or the prompt `nookku status`, and it got no valid answer. `<cli>` is the plugin option `cli`.
-
-**Fix.** Run `<cli> status --json` in a shell to see the error. If the command is not found, give its full path in the plugin option `cli` ([reference/config.md](reference/config.md#plugin-options)).
-
 ### `nookku: nothing was sent. The message has a lone surrogate U+<hex> at character <n>.`
 
-(kit.py, register.tsx) **Cause.** The message has a lone surrogate: one half of a UTF-16 pair. It is not a Unicode scalar value, so a record cannot hold it ([SPEC.md section 2](../SPEC.md#2-record-format)). The relay never changes a message, so it does not send it. It writes no turn, and the message does not go to the model. `<n>` counts code points from 0.
+(kit.py) **Cause.** The message has a lone surrogate: one half of a UTF-16 pair. It is not a Unicode scalar value, so a record cannot hold it ([SPEC.md section 2](../SPEC.md#2-record-format)). The relay never changes a message, so it does not send it. It writes no turn, and the message does not go to the model. `<n>` counts code points from 0.
 
 **Fix.** Correct the message at character `<n>`, then send it again.
 
@@ -172,15 +154,15 @@ If the entry returns an error, crashes or does not answer in [240 seconds](../sr
 
 ### `nookku: cannot reach the tap at <url>: <reason>`
 
-(bridge.py, kit.py, register.tsx) **Cause.** The bridge or the tap does not run. With no entry, the tap of `tap_url` does not run.
+(bridge.py, kit.py) **Cause.** The bridge or the tap does not run. With no entry, the tap of `tap_url` does not run.
 
 **Fix.** With an entry, end the test and start a new one. With no entry, start `nookku tap` ([how-to/http-tap.md](how-to/http-tap.md)).
 
-### `nookku: the test stopped, and no test runs. The tap did not answer. Type /nookku start.`
+### `nookku: relay mode is on, but the nookku command is not on PATH. Install it with: uv tool install nookku. Nothing was sent.`
 
-(register.tsx) **Cause.** The plugin could not reach the tap of the running test. It then ran `nookku status --json`, and the answer said that no test runs. For example, the test process stopped. The message can have reached the tap before the test stopped, so the record keeps the turn with `ok: false`. The message does not go to the model.
+(plugins/nookku/hooks/nookku-hook.sh; for a tool call it ends with `The tool call did not run.`) **Cause.** The plugin cannot find the `nookku` command. Relay mode is on, or a test runs, so the plugin blocks the prompt and denies each tool call.
 
-**Fix.** Type `/nookku start` to start a new test.
+**Fix.** Install the command, or put it on `PATH`. Then open a new terminal and start the harness again.
 
 ### `nookku: relay mode is on, but the config is broken: <reason>`
 
@@ -190,37 +172,31 @@ If the entry returns an error, crashes or does not answer in [240 seconds](../sr
 
 ### `nookku: the hook failed (<error>). Nothing reached the model.`
 
-(kit.py, register.tsx) **Cause.** The relay failed on this prompt. It fails closed, so it blocked the prompt.
+(kit.py) **Cause.** The relay failed on this prompt. It fails closed, so it blocked the prompt.
 
 **Fix.** Read the error. If it repeats, open an issue with the text.
 
 ### `nookku: the hook failed (<error>). The tool call is denied.`
 
-(kit.py; the plugin says `The tool call did not run.`) **Cause.** The deny check failed on a model tool call. It fails closed, so it denied the call. The hook kit denies it if the folder `.nookku/` exists, also when relay mode is off. The plugin denies it in relay mode, during a test, or if it cannot read the mode ([SPEC.md section 5](../SPEC.md#5-relays)).
+(kit.py) **Cause.** The deny check failed on a model tool call. It fails closed, so it denied the call. The hook denies it if the folder `.nookku/` exists, also when relay mode is off ([SPEC.md section 5](../SPEC.md#5-relays)).
 
 **Fix.** Read the error. If it repeats, open an issue with the text.
 
 ### `nookku: only the tester talks to the agent.`
 
-(kit.py; the plugin adds more text) **Cause.** The relay denied a model tool call that names the address of the tap or the agent. It also denies a call that changes a file of the test. This is the purpose of the deny.
+(kit.py) **Cause.** The relay denied a model tool call that names the address of the tap or the agent. It also denies a call that changes a file of the test. This is the purpose of the deny.
 
 **Fix.** None. Talk to the agent through the relay. To read the conversation, the model uses `nookku transcript` or the `transcript` tool.
 
 ### `nookku: during a test, only the tap runs the entry.`
 
-(kit.py, register.tsx) **Cause.** The model tried to run the entry during a test.
+(kit.py) **Cause.** The model tried to run the entry during a test.
 
 **Fix.** None. A shell command that only reads the entry, for example `cat entry.py`, can run. But during a test, the relays deny each tool call that names `.nookku`, except a read with a file tool such as `Read` ([SPEC.md section 5](../SPEC.md#5-relays)). Thus `cat .nookku/entry.py` is denied.
 
-### `nookku: the record <path> is full. Move it, then send again. Nothing was sent.`
-
-(register.tsx) **Cause.** The plugin stops at a relay record of [3.5 MiB](../plugins/claude-code/hooks/register.tsx).
-
-**Fix.** Move the record, then send the message again ([#2](https://github.com/mohanraj00/nookku/issues/2)).
-
 ### `nookku: the relay does not send attachments. Nothing was sent.`
 
-(register.tsx) **Cause.** The prompt had an attachment or an image.
+(kit.py, shown by register.tsx) **Cause.** In relay mode, the Claude Code plugin got a prompt with an attachment or an image. A command hook gets only the text of a prompt, so the project hooks and the Codex plugin cannot refuse it ([limits.md](limits.md)).
 
 **Fix.** Send text only ([#6](https://github.com/mohanraj00/nookku/issues/6)).
 
@@ -252,7 +228,7 @@ If the entry returns an error, crashes or does not answer in [240 seconds](../sr
 
 ### `nookku: the records of a test do not change. Write only report.md. A command that names .nookku may only read.`
 
-(kit.py, register.tsx) **Cause.** After a test, the model tried to write a file of the test folder. Or it ran a command that names `.nookku` and does not pass the read check.
+(kit.py) **Cause.** After a test, the model tried to write a file of the test folder. Or it ran a command that names `.nookku` and does not pass the read check.
 
 **Fix.** None for the records. If the evaluation needs a command, use a read program from the list in [SPEC.md section 5](../SPEC.md#5-relays), for example `cat`, `jq` or `sed -n`.
 

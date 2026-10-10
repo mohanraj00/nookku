@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import sys
 from pathlib import Path
 from typing import Any, TextIO
@@ -25,6 +24,18 @@ PROTOCOLS = {"2024-11-05", "2025-03-26", PROTOCOL}
 # The page bound of a transcript page, as an estimate of tokens (estimate_tokens). The
 # measurement and its method are in SPEC.md section 5.
 PAGE_TOKENS = 2000
+
+# The plugin and its MCP server have the same name (plugins/nookku). Each harness names the tool of
+# a plugin server in its own form (proofs/spikes/plugin-mcp.json, proofs/plugin/load.json).
+PLUGIN = "nookku"
+SERVER = "nookku"
+TOOL_PREFIX = {"claude-code": f"mcp__plugin_{PLUGIN}_{SERVER}__", "codex": f"mcp__{SERVER}__"}
+
+
+def tool_name(harness: str, tool: str) -> str:
+    """The name of a tool of this server, as the model of a harness sees it."""
+    return TOOL_PREFIX[harness] + tool
+
 
 TOOLS = [
     {
@@ -185,7 +196,7 @@ def answer(root: Path, message: Any) -> dict[str, Any] | None:
         result: dict[str, Any] = {
             "protocolVersion": version if version in PROTOCOLS else PROTOCOL,
             "capabilities": {"tools": {}},
-            "serverInfo": {"name": "nookku", "version": __version__},
+            "serverInfo": {"name": SERVER, "version": __version__},
         }
     elif method == "ping":
         result = {}
@@ -204,8 +215,10 @@ def _error(rid: Any, code: int, text: str) -> dict[str, Any]:
 
 
 def project_root() -> Path:
-    """The project of the server: CLAUDE_PROJECT_DIR, else the working folder."""
-    return Path(os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd()).resolve()
+    """The project of the server: its working folder. Claude Code and Codex start a plugin MCP
+    server in the project (proofs/plugin/load.json). The server does not read CLAUDE_PROJECT_DIR,
+    because a Codex can inherit it from a Claude Code session of another project."""
+    return Path.cwd().resolve()
 
 
 def serve(root: Path, stdin: TextIO | None = None, stdout: TextIO | None = None) -> int:

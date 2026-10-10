@@ -24,7 +24,7 @@ This page moved. Its sections are now on these pages. Each heading below keeps t
 
 ## Plugin
 
-[how-to/claude-code-plugin.md](how-to/claude-code-plugin.md). The files of a test folder are in [reference/records.md](reference/records.md#the-test-folder). The plugin options are in [reference/config.md](reference/config.md#plugin-options).
+[how-to/claude-code-plugin.md](how-to/claude-code-plugin.md). The files of a test folder are in [reference/records.md](reference/records.md#the-test-folder). The plugin has no options. It reads the keys of [reference/config.md](reference/config.md).
 
 ## Evaluation
 
