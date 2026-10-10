@@ -54,7 +54,7 @@ How-to guides. Each guide does one task. The guides are in the order of the task
 Look up a fact.
 
 - [CLI](reference/cli.md): each command, flag and exit code.
-- [Configuration](reference/config.md): each key of `.nookku/config.json`, each plugin option and each environment variable.
+- [Configuration](reference/config.md): each key of `.nookku/config.json` and each environment variable.
 - [Records and files](reference/records.md): each file of a test, with links to its format in SPEC.md.
 - [Glossary](reference/glossary.md): each term of the docs, with a link to its section in SPEC.md.
 - [SPEC.md](../SPEC.md): the specification of the records, the audit, the tap, the relays, the [agent contract](reference/glossary.md#agent-contract), the tests, the [trace](reference/glossary.md#trace) and the evaluation.

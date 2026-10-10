@@ -73,4 +73,4 @@ With an entry, the two relays use the same `.nookku/config.json` and the same [t
 
 4. Do the steps of [claude-code-plugin.md](claude-code-plugin.md). Your `.nookku/config.json` stays.
 
-With no entry, the plugin reads `tap_url` and the other options from its plugin options ([reference/config.md](../reference/config.md#plugin-options)). The hook kit reads them from `.nookku/config.json`. If you changed an option, set it again for the new relay.
+Both relays read `tap_url` and the other keys from `.nookku/config.json` ([reference/config.md](../reference/config.md)), so the file stays.

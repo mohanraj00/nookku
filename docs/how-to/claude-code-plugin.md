@@ -1,6 +1,6 @@
 # Test an agent with the Claude Code plugin
 
-The plugin is a [relay](../reference/glossary.md#relay) for Claude Code. It shows each reply in the chat, as a dim row that the model does not receive. It uses function hooks, which are early access. To compare it with the hook kit, read [choose-a-relay.md](choose-a-relay.md).
+The plugin is a [relay](../reference/glossary.md#relay) for Claude Code. It shows each reply in the chat as the reason of the blocked prompt, which the model does not receive. Its command hooks run the `nookku` command. Its display layer uses function hooks, which are early access. To compare it with the hook kit, read [choose-a-relay.md](choose-a-relay.md).
 
 **Warning:** Do not also install the hook kit in this project. With both relays, each message goes to the agent two times ([choose-a-relay.md](choose-a-relay.md#switch-from-one-relay-to-the-other)).
 
@@ -14,7 +14,7 @@ Before you start, connect a test to your app: [connect-your-agent.md](connect-yo
 
 ## Install
 
-1. Install the `nookku` command. The plugin runs it to start and end a test:
+1. Install the `nookku` command. Each hook of the plugin runs it:
 
    ```bash
    uv tool install nookku
@@ -27,17 +27,21 @@ Before you start, connect a test to your app: [connect-your-agent.md](connect-yo
    claude plugin install nookku@nookku
    ```
 
-3. Write `.nookku/config.json` with your [entry](../reference/glossary.md#entry) (see above).
+3. Write `.nookku/config.json` with your [entry](../reference/glossary.md#entry) (see above). `nookku init plugin` writes it, and writes no project hooks:
+
+   ```bash
+   nookku init plugin --entry "python3 examples/toy-shop/agent.py"
+   ```
 
 ## Run a test
 
 1. Type `/nookku start`. The plugin starts the entry through the [tap](../reference/glossary.md#tap), and [relay mode](../reference/glossary.md#relay-mode) goes on. The status line shows it. The start text tells you how to end the test.
-2. Type your test messages. Each reply shows as a row in the chat and in the Nookku pane.
+2. Type your test messages. Each reply shows in the chat as the reason of the blocked prompt. `/nookku view` shows the turns in the Nookku pane.
 3. Type the prompt `nookku end`, with no slash. The plugin stops the entry, copies the app's session files into the [test folder](../reference/glossary.md#test-folder), builds the [trace](../reference/glossary.md#trace) and switches relay mode off. Then the prompt goes to the model with the evaluation prompt. The model writes `report.md` in the test folder (see [Evaluation](#evaluation)).
 
 `/nookku end` ends the test with no evaluation. To evaluate that test later, type the prompt `nookku end`. `/nookku on` and `/nookku off` do the same as `start` and `end`. The prompts `nookku start` and `nookku status` also work.
 
-`/nookku status` shows relay mode and the running test. The plugin runs `nookku status --json` for it. Thus a test whose process stopped does not show as a running test.
+`/nookku status` shows relay mode and the running test. The plugin runs `nookku status` for it. Thus a test whose process stopped does not show as a running test.
 
 `nookku trace` builds the trace of the latest test again and shows its findings.
 
@@ -55,7 +59,7 @@ During a test, the plugin also denies a model command that runs the entry, for e
 
 ## Options
 
-The plugin options are in [reference/config.md](../reference/config.md#plugin-options). Set them with `/plugin configure nookku@nookku` in Claude Code, or with `--config KEY=VALUE` at install. The defaults fit a test with an entry.
+The plugin has no options. It reads `.nookku/config.json` ([reference/config.md](../reference/config.md)). `nookku init plugin` writes the file, and its flags set each key ([reference/cli.md](../reference/cli.md#nookku-init)).
 
 ## Evaluation
 
