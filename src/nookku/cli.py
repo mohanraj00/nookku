@@ -66,8 +66,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     aud.add_argument("--relay", required=True, type=Path, help="the relay record")
     aud.add_argument("--json", action="store_true", help="print the report as JSON")
 
-    ini = sub.add_parser("init", help="install the hook kit for Codex or Claude Code")
-    ini.add_argument("harness", choices=["codex", "claude-code"])
+    ini = sub.add_parser("init", help="write the config, and the project hooks of a harness")
+    ini.add_argument(
+        "harness",
+        choices=["codex", "claude-code", "plugin"],
+        help="plugin: write only the config, because the nookku plugin has the hooks",
+    )
     ini.add_argument("--root", type=Path, default=Path.cwd(), help="the project (default: here)")
     defaults = vars(kit.Config())
     for name in STRING_KEYS:
@@ -119,8 +123,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     br.add_argument("--tester-session")
 
     mode = sub.add_parser("mode", help="switch relay mode on or off (with an entry: start or end)")
-    mode.add_argument("state", choices=["on", "off", "status"])
+    mode.add_argument(
+        "state",
+        nargs="?",
+        default="status",
+        choices=["on", "off", "status", "start", "end"],
+        help="start is the same as on, and end is the same as off (default: status)",
+    )
     mode.add_argument("--root", type=Path, default=Path.cwd())
+    mode.add_argument("--tester-session", help="the tester's harness session id")
 
     view = sub.add_parser("view", help="print each relayed turn (the hook kit's display)")
     view.add_argument("--root", type=Path, default=Path.cwd())
@@ -215,15 +226,21 @@ def main(argv: Sequence[str] | None = None) -> int:
         except ValueError as e:
             print(f"nookku: {str(e).rstrip('.')}. Nothing was written.", file=sys.stderr)
             return 1
-        conf, hooks = done.written
+        conf, *hooks = done.written
         print(f"wrote {conf}")
         if done.new:
             print(f"  A new file. Keys that differ from the default: {_names(done.changed)}.")
         else:
             print(f"  Keys changed: {_names(done.changed)}. Keys kept: {_names(done.kept)}.")
-        print(f"wrote {hooks}")
+        for written in hooks:
+            print(f"wrote {written}")
         print(f"Relay mode is {'on' if kit.is_on(root) else 'off'}. Switch it with: nookku mode on")
-        if args.harness == "codex":
+        if args.harness == "plugin":
+            print(
+                "The nookku plugin runs the hooks. Do not also run nookku init codex or "
+                "nookku init claude-code in this project, or each message is sent two times."
+            )
+        elif args.harness == "codex":
             print(
                 "Codex runs project hooks only after you trust them. Start codex in this "
                 "project and accept the hooks prompt."
@@ -236,8 +253,20 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
     if args.command == "mode":
         root = args.root.resolve()
+        # The /nookku command of the plugin runs `nookku mode`, with the words of its menu.
+        args.state = {"start": "on", "end": "off"}.get(args.state, args.state)
         if args.state != "status" and bridge.has_entry(root):
-            print(kit.start_test(root) if args.state == "on" else kit.end_test(root))
+            session = args.tester_session
+            print(
+                kit.start_test(root, session) if args.state == "on" else kit.end_test(root, session)
+            )
+            return 0
+        if args.state == "on" and not (root / kit.STATE_DIR / "config.json").exists():
+            # Without a config, each relayed prompt is blocked, so relay mode stays off.
+            print(
+                "nookku: this project has no .nookku/config.json, so relay mode stays off. "
+                "Write it with: nookku init plugin"
+            )
             return 0
         if args.state == "on" and (root / kit.STATE_DIR / "config.json").exists():
             # A config with no entry (direct HTTP mode) follows the same rule for its keys.
@@ -358,7 +387,10 @@ def _test_command(args: argparse.Namespace) -> int:
     if args.command == "status":
         running = bridge.current(root)
         if args.json:
-            print(json.dumps({"on": kit.is_on(root), "test": running}))
+            on = kit.is_on(root)
+            # text is the status line of the plugin, or null if relay mode is off.
+            line = kit.status(root).removeprefix("nookku: ") if on else None
+            print(json.dumps({"on": on, "test": running, "text": line}))
         else:
             print(kit.status(root).removeprefix("nookku: "))
         return 0

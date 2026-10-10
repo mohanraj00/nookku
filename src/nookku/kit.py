@@ -393,6 +393,10 @@ def run_hook(root: Path | None, harness: str, stdin: TextIO, stdout: TextIO) -> 
         print(f"nookku: {error}", file=sys.stderr)
         # Exit 2 blocks the event, so the relay fails closed.
         return 2
+    if not (root / STATE_DIR).is_dir():
+        # The plugin runs this hook in each project. A project with no state folder has no test,
+        # no relay mode and no record, so no rule applies to it.
+        return 0
     try:
         if event is None:
             event = json.loads(raw)
@@ -438,6 +442,14 @@ def hook_command(root: Path, harness: str) -> str:
 OWN_COMMANDS = ("nookku hook", "verbatim_relay hook")
 
 
+# The events of the hooks, with the matcher and the timeout in seconds of each. The plugin's
+# hooks/hooks.json has the same events (tests/test_plugin.py).
+HOOK_EVENTS: dict[str, tuple[dict[str, str], int]] = {
+    "UserPromptSubmit": ({}, HOOK_DEADLINE),
+    "PreToolUse": ({"matcher": ".*"}, 30),
+}
+
+
 def _ours(hook: Any) -> bool:
     return isinstance(hook, dict) and any(c in str(hook.get("command", "")) for c in OWN_COMMANDS)
 
@@ -448,8 +460,7 @@ def _merge_hooks(settings: dict[str, Any], command: str) -> dict[str, Any]:
     hooks = settings.setdefault("hooks", {})
     if not isinstance(hooks, dict):
         raise ValueError("'hooks' is not a JSON object")
-    wanted = {"UserPromptSubmit": ({}, HOOK_DEADLINE), "PreToolUse": ({"matcher": ".*"}, 30)}
-    for event, (matcher, timeout) in wanted.items():
+    for event, (matcher, timeout) in HOOK_EVENTS.items():
         groups = hooks.setdefault(event, [])
         if not isinstance(groups, list):
             raise ValueError(f"'hooks.{event}' is not a list")
@@ -471,7 +482,10 @@ def _merge_hooks(settings: dict[str, Any], command: str) -> dict[str, Any]:
     return settings
 
 
-def hook_file(root: Path, harness: str) -> Path:
+def hook_file(root: Path, harness: str) -> Path | None:
+    """The file of the project hooks. With the plugin, the plugin has the hooks, so None."""
+    if harness == "plugin":
+        return None
     if harness == "codex":
         return root / ".codex" / "hooks.json"
     return root / ".claude" / "settings.local.json"
@@ -491,7 +505,8 @@ class Installed:
 
 
 def init(root: Path, harness: str, changes: dict[str, Any]) -> Installed:
-    """Write the config, the mode file and the harness hook file.
+    """Write the config, the mode file and the harness hook file. For the plugin, write no hook
+    file, because the plugin has the hooks.
 
     An existing config.json keeps each key, and only the keys in `changes` get a new value. A new
     config.json gets each key with its default, then `changes`. If an existing file cannot be
@@ -501,8 +516,10 @@ def init(root: Path, harness: str, changes: dict[str, Any]) -> Installed:
     old = asdict(Config()) if new else read_config(root)
     merged = check({**old, **changes})
     target = hook_file(root, harness)
+    settings: dict[str, Any] = {}
     try:
-        settings = json.loads(target.read_text(encoding="utf-8")) if target.exists() else {}
+        if target is not None and target.exists():
+            settings = json.loads(target.read_text(encoding="utf-8"))
         if not isinstance(settings, dict):
             raise ValueError("it is not a JSON object")
         settings = _merge_hooks(settings, hook_command(root, harness))
@@ -514,11 +531,14 @@ def init(root: Path, harness: str, changes: dict[str, Any]) -> Installed:
     conf.write_text(json.dumps(merged, indent=1) + "\n", encoding="utf-8")
     if not mode_path(root).exists():
         set_mode(root, False)
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(json.dumps(settings, indent=1) + "\n", encoding="utf-8")
+    written = [str(conf)]
+    if target is not None:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(json.dumps(settings, indent=1) + "\n", encoding="utf-8")
+        written.append(str(target))
     changed = [k for k in merged if k not in old or old[k] != merged[k]]
     kept = [k for k in merged if k not in changed]
-    return Installed([str(conf), str(target)], new, changed, kept)
+    return Installed(written, new, changed, kept)
 
 
 # The one-line legend at the top of the transcript (SPEC.md section 5).

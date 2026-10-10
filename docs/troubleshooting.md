@@ -212,12 +212,6 @@ If the entry returns an error, crashes or does not answer in [240 seconds](../sr
 
 **Fix.** None. A shell command that only reads the entry, for example `cat entry.py`, can run. But during a test, the relays deny each tool call that names `.nookku`, except a read with a file tool such as `Read` ([SPEC.md section 5](../SPEC.md#5-relays)). Thus `cat .nookku/entry.py` is denied.
 
-### `nookku: the record <path> is full. Move it, then send again. Nothing was sent.`
-
-(register.tsx) **Cause.** The plugin stops at a relay record of [3.5 MiB](../plugins/claude-code/hooks/register.tsx).
-
-**Fix.** Move the record, then send the message again ([#2](https://github.com/mohanraj00/nookku/issues/2)).
-
 ### `nookku: the relay does not send attachments. Nothing was sent.`
 
 (register.tsx) **Cause.** The prompt had an attachment or an image.

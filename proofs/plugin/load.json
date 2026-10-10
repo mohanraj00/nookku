@@ -1,0 +1,56 @@
+{
+ "date": "2026-10-09",
+ "nookku": "0.3.1",
+ "method": "scripts/proof_plugin_load.py",
+ "claude_code": {
+  "version": "2.1.295 (Claude Code)",
+  "hook_variables": [
+   "CLAUDE_PLUGIN_ROOT",
+   "CLAUDE_PLUGIN_DATA"
+  ],
+  "checks": {
+   "PLUGIN_ROOT is not set": true,
+   "CLAUDE_PLUGIN_ROOT is set": true,
+   "the command hook blocks the prompt with the relay error": true,
+   "/nookku status shows the core text": true,
+   "the model calls mcp__plugin_nookku_nookku__status": true
+  }
+ },
+ "codex": {
+  "version": "codex-cli 0.162.0",
+  "hooks": [
+   {
+    "eventName": "preToolUse",
+    "matcher": ".*",
+    "timeoutSec": 30,
+    "trustStatus": "untrusted",
+    "enabled": true
+   },
+   {
+    "eventName": "userPromptSubmit",
+    "matcher": null,
+    "timeoutSec": 300,
+    "trustStatus": "untrusted",
+    "enabled": true
+   }
+  ],
+  "hook_warnings": [],
+  "mcp_server": "nookku",
+  "mcp_tools": [
+   "status",
+   "transcript"
+  ],
+  "mcp_error": null,
+  "skills": [
+   "nookku:setup"
+  ],
+  "checks": {
+   "the hooks file parses": true,
+   "2 command hooks": true,
+   "each hook is untrusted, so a person must trust it": true,
+   "the MCP server starts with status and transcript": true,
+   "the Codex tool name is mcp__nookku__status": true,
+   "the setup skill loads": true
+  }
+ }
+}

@@ -171,7 +171,7 @@ def _transcript(capsys: pytest.CaptureFixture[str], argv: list[str]) -> str:
 def test_the_plugin_and_the_kit_render_the_same_transcript_of_a_test(
     tmp_path: Path, capsys: pytest.CaptureFixture[str], harness: str
 ) -> None:
-    # The plugin runs `nookku transcript --test ID` (register.test.ts). The hook kit
+    # The transcript tool takes a test id (`nookku transcript --test ID`). The evaluation
     # tells the model to run `nookku transcript`, which takes the latest test.
     state = tmp_path / ".nookku"
     state.mkdir()
@@ -193,8 +193,8 @@ def test_the_plugin_and_the_kit_render_the_same_transcript_of_a_test(
 def test_the_plugin_and_the_kit_render_the_same_transcript_of_a_session(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    # Without an entry, the plugin runs `nookku transcript --record R --session S`
-    # (register.test.ts), and the hook kit runs `nookku transcript`.
+    # Without an entry, `nookku transcript --record R --session S` gives one session, and
+    # `nookku transcript` gives the session of the default record.
     record = tmp_path / ".nookku" / "relay.jsonl"
     _turns(record, "claude-code")
     root = ["--root", str(tmp_path)]
@@ -361,7 +361,9 @@ def test_init_start_and_end_a_test(tmp_path: Path, capsys: pytest.CaptureFixture
     assert main(["start", "--root", str(tmp_path), "--json"]) == 0
     started = json.loads(capsys.readouterr().out)
     assert main(["status", "--root", str(tmp_path), "--json"]) == 0
-    assert json.loads(capsys.readouterr().out) == {"on": True, "test": started}
+    status = json.loads(capsys.readouterr().out)
+    assert status == {"on": True, "test": started, "text": kit.status(tmp_path)[8:]}
+    assert status["text"].startswith(f"relay mode is on. Test {started['test']} runs on ")
     assert main(["start", "--root", str(tmp_path)]) == 1
     assert "runs already" in capsys.readouterr().out
     assert main(["mode", "off", "--root", str(tmp_path)]) == 0

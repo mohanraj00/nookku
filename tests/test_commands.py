@@ -9,7 +9,6 @@ from nookku.record import BlockedCall, read_relay
 
 F = ".nookku/tests/20261006-080000-cc01"
 
-# The plugin has the same table in plugins/claude-code/hooks/register.test.ts.
 READS = [
     f"cat {F}/findings.json",
     f"sed -n '1,200p' {F}/trace.jsonl",

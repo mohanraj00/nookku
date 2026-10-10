@@ -1,10 +1,10 @@
 # Configuration reference
 
-Nookku has 2 places for configuration: the file `.nookku/config.json` in your project, and the options of the Claude Code plugin. The test `tests/test_docs.py` checks each key and each default on this page against `Config` in [src/nookku/config.py](../../src/nookku/config.py) and against `userConfig` in [plugins/claude-code/.claude-plugin/plugin.json](../../plugins/claude-code/.claude-plugin/plugin.json).
+Nookku reads its configuration from the file `.nookku/config.json` in your project. The plugin has no options. The test `tests/test_docs.py` checks each key and each default on this page against `Config` in [src/nookku/config.py](../../src/nookku/config.py).
 
 ## `.nookku/config.json`
 
-The hook kit reads all keys of this file. The plugin reads `entry` from it, and the commands of a test read the test keys. One reader applies one rule for `start`, `check`, `init` and the hook kit ([SPEC.md section 7.1](../../SPEC.md#71-configuration)). An unknown key gives the same error in each of them:
+The hooks of the plugin and the project hooks read all keys of this file, and the commands of a test read the test keys. One reader applies one rule for `start`, `check`, `init` and the hook kit ([SPEC.md section 7.1](../../SPEC.md#71-configuration)). An unknown key gives the same error in each of them:
 
 ```text
 .nookku/config.json has unknown keys: ['<key>']. Correct or remove them.
@@ -63,20 +63,7 @@ The full toy shop, with a stock service and a note model on local ports:
 
 ## Plugin options
 
-The Claude Code plugin reads these options from Claude Code, not from `config.json`. Set them with `/plugin configure nookku@nookku`, or with `--config KEY=VALUE` at install. The defaults fit a test with an entry.
-
-| Key | Type | Default | Meaning |
-|---|---|---|---|
-| `cli` | string | `nookku` | The command that starts and ends a test and prints the transcript. Give a full path if it is not on `PATH`. |
-| `start_on` | boolean | `false` | Without an entry: start each session in relay mode. With an entry, relay mode is on while a test runs, also after a restart of Claude Code. |
-| `tap_url` | string | `http://127.0.0.1:8800/` | Without an entry: the URL that receives each message. |
-| `agent_url` | string | empty | The agent's own URL. Model tool calls to it are denied, the same as calls to the tap. |
-| `adapter` | string | `json` | `json` or `openai`. |
-| `message_field` | string | `text` | `json` adapter: the dot path of the message in the request body. |
-| `reply_field` | string | `reply` | `json` adapter: the dot path of the reply in the response body. |
-| `openai_model` | string | empty | `openai` adapter: the `model` field of each request. Empty means no `model` field. |
-| `openai_stream` | boolean | `false` | `openai` adapter: `true` sends `"stream": true` in each request, for an agent that streams only on request. |
-| `record` | string | `.nookku/relay.jsonl` | Without an entry: the relay record, relative to the working directory or absolute. |
+The plugin has no options. Write `.nookku/config.json` with `nookku init plugin`, and change a key with the flags of `nookku init` ([cli.md](cli.md#nookku-init)). Before 0.4.0, the Claude Code plugin had its own options ([#216](https://github.com/mohanraj00/nookku/issues/216)).
 
 ## Environment variables
 

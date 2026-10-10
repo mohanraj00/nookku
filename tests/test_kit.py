@@ -1,7 +1,6 @@
 import io
 import json
 import os
-import re
 import subprocess
 import sys
 from pathlib import Path
@@ -25,15 +24,11 @@ from nookku.tap import Tap, start_in_thread
 ROOT = Path(__file__).resolve().parent.parent
 
 
-def test_the_deny_pattern_has_the_same_rule_as_the_plugin() -> None:
-    # register.test.ts runs this table through denyPattern.
-    text = (ROOT / "plugins" / "claude-code" / "hooks" / "register.test.ts").read_text()
-    urls = re.search(r"^const DENY_URLS = (\[.*\])$", text, re.M)
-    assert urls is not None
-    block = text.split("const DENY_CASES")[1].split("\n]\n")[0]
-    rows = [json.loads(row) for row in re.findall(r"^  (\[.*\]),$", block, re.M)]
-    assert len(rows) == block.count("\n  [")
-    pattern = kit.deny_pattern(json.loads(urls[1]))
+def test_the_deny_pattern_matches_each_case_of_the_table() -> None:
+    tables = json.loads((ROOT / "tests" / "tables.json").read_text("utf-8"))
+    rows = tables["deny_cases"]
+    assert rows
+    pattern = kit.deny_pattern(tables["deny_urls"])
     assert pattern is not None
     for command, denied in rows:
         assert (command, bool(pattern.search(command))) == (command, denied)
@@ -53,18 +48,11 @@ def test_the_start_text_names_the_prompt_that_starts_the_evaluation(
     assert f"{EVALUATION_END}. " in text
     assert text.endswith("To end the test with no evaluation, run nookku end in a shell.")
     assert kit.is_on(tmp_path)
-    # The plugin names the same prompt, and its command for the end with no evaluation.
-    plugin = (ROOT / "plugins" / "claude-code" / "hooks" / "register.tsx").read_text()
-    assert f"{EVALUATION_END}, with no slash. " in plugin
-    assert "To end the test with no evaluation, type /nookku end." in plugin
 
 
-def test_the_blocked_call_detail_has_the_same_rule_as_the_plugin(tmp_path: Path) -> None:
-    # register.test.ts runs this table through blockedDetail.
-    text = (ROOT / "plugins" / "claude-code" / "hooks" / "register.test.ts").read_text("utf-8")
-    block = text.split("const DETAIL_CASES")[1].split("\n]\n")[0]
-    rows = [json.loads(row) for row in re.findall(r"^  (\[.*\]),$", block, re.M)]
-    assert len(rows) == block.count("\n  [") > 0
+def test_the_blocked_call_detail_keeps_300_code_points(tmp_path: Path) -> None:
+    rows = json.loads((ROOT / "tests" / "tables.json").read_text("utf-8"))["detail_cases"]
+    assert rows
     path = tmp_path / "relay.jsonl"
     for pad, tail, cut in rows:
         detail = kit.blocked_detail("x" * pad + tail)
@@ -560,3 +548,18 @@ def test_the_model_may_run_the_transcript_command(setup):
         "tool_input": {"command": "nookku transcript"},
     }
     assert kit.handle(event, root, "codex") is None
+
+
+@pytest.mark.parametrize(
+    "event",
+    [
+        {"hook_event_name": "UserPromptSubmit", "prompt": "nookku status"},
+        {"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "ls"}},
+    ],
+)
+def test_with_no_state_folder_the_hook_gives_no_answer(tmp_path: Path, event: dict) -> None:
+    # The plugin runs the hook in each project.
+    out = io.StringIO()
+    assert kit.run_hook(tmp_path, "claude-code", io.StringIO(json.dumps(event)), out) == 0
+    assert out.getvalue() == ""
+    assert not (tmp_path / kit.STATE_DIR).exists()

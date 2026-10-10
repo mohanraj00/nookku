@@ -25,12 +25,12 @@ A check is a test, a lint rule, a conformance case or a CI step. "Review" means 
 
 **Reason.** A relay path that fails open gives the tester's message to the model. The model can then change the message, and the test is not valid.
 
-**Example.** `kit.run_hook` in [src/nookku/kit.py](../src/nookku/kit.py) catches each exception in relay mode and blocks the prompt with "Nothing reached the model." In [plugins/claude-code/hooks/register.tsx](../plugins/claude-code/hooks/register.tsx), each gating hook has a `.catch` handler. If the hook fails or runs past its time budget, the handler blocks the prompt or denies the tool call, and it makes no file or state call that can stall again ([#63](https://github.com/mohanraj00/nookku/issues/63)).
+**Example.** `kit.run_hook` in [src/nookku/kit.py](../src/nookku/kit.py) catches each exception in relay mode and blocks the prompt with "Nothing reached the model." The plugin runs the same hook. If the `nookku` command is not on `PATH`, [plugins/nookku/hooks/nookku-hook.sh](../plugins/nookku/hooks/nookku-hook.sh) blocks the prompt and denies the tool call in relay mode or during a test ([#216](https://github.com/mohanraj00/nookku/issues/216)).
 
 **Check.**
 
 - `tests/test_kit.py`: `test_a_crash_blocks_only_in_relay_mode`, `test_an_unreachable_tap_still_blocks_and_is_recorded`, `test_a_broken_config_blocks_in_relay_mode`.
-- `plugins/claude-code/hooks/register.test.ts`: "relay mode with an entry and no test fails closed".
+- `tests/test_plugin.py`: `test_with_no_nookku_and_relay_mode_on_the_guard_fails_closed`, `test_with_no_nookku_a_running_test_fails_closed`.
 - Review item in CLAUDE.md: "A relay path that fails open."
 - [#63](https://github.com/mohanraj00/nookku/issues/63) added tests for the `.catch` handlers of the plugin hooks. [#68](https://github.com/mohanraj00/nookku/issues/68) added tests for a PreToolUse deny with a broken config and with relay mode off.
 
@@ -57,7 +57,7 @@ A check is a test, a lint rule, a conformance case or a CI step. "Review" means 
 
 **Reason.** Two readers with two rules give two results for one agent. The audit then reports a break in one relay only.
 
-**Example.** `contract.parse_reply` accepted a reply with `"error": null`, but `contractShown` in `plugins/claude-code/hooks/core.ts` refused it ([#45](https://github.com/mohanraj00/nookku/issues/45)). The fix added the table `CONTRACT_LINES` to `register.test.ts`. `kit.deny_pattern` and `denyPattern` now share the table `DENY_CASES` ([#70](https://github.com/mohanraj00/nookku/issues/70)).
+**Example.** `contract.parse_reply` accepted a reply with `"error": null`, but `contractShown` in `plugins/claude-code/hooks/core.ts` refused it ([#45](https://github.com/mohanraj00/nookku/issues/45)). The fix added a table of contract lines. Since [#216](https://github.com/mohanraj00/nookku/issues/216), the plugin has no copy of a rule, and the tables in [tests/tables.json](../tests/tables.json) test only the core.
 
 **Check.**
 
@@ -160,17 +160,17 @@ A check is a test, a lint rule, a conformance case or a CI step. "Review" means 
 
 - Use the standard library first. Ask the maintainer before you add a runtime dependency. Do not add a GPL or AGPL dependency.
 - `mypy` (strict) and `ruff` are clean.
-- In `plugins/claude-code/hooks/register.tsx`, a function that takes `$` is a top-level function declaration (CLAUDE.md "Plugin helpers").
+- In `plugins/nookku/hooks/register.tsx`, a function that takes `$` is a top-level function declaration (CLAUDE.md "Plugin helpers").
 
 **Reason.** The package installs into the tester's project, so it must not add packages there. Types and lint find defects before review. `claude plugin validate` refuses other forms of a helper.
 
-**Example.** [pyproject.toml](../pyproject.toml) has `dependencies = []`. `recordTurns` in [register.tsx](../plugins/claude-code/hooks/register.tsx) is a top-level `async function` that takes `$`.
+**Example.** [pyproject.toml](../pyproject.toml) has `dependencies = []`. `showStatus` in [register.tsx](../plugins/nookku/hooks/register.tsx) is a top-level `async function` that takes `$`.
 
 **Check.**
 
 - `tests/test_package.py::test_no_runtime_dependencies`
 - CI job `lint`: `uv run ruff check .`, `uv run ruff format --check .` and `uv run mypy` (`strict = true` in `pyproject.toml`).
-- CI job `claude-code-plugin`: `claude plugin validate plugins/claude-code`.
+- CI job `claude-code-plugin`: `claude plugin validate plugins/nookku`.
 - GPL or AGPL dependency: review item in CLAUDE.md.
 
 ## 10. Docs and claims

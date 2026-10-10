@@ -15,7 +15,7 @@ jobs:
         run: test -f "dist/nookku-${GITHUB_REF_NAME#v}-py3-none-any.whl"
       - name: The tag matches the plugin version
         run: |
-          grep -q "\"version\": \"${GITHUB_REF_NAME#v}\"" plugins/claude-code/.claude-plugin/plugin.json
+          grep -q "\"version\": \"${GITHUB_REF_NAME#v}\"" plugins/nookku/.claude-plugin/plugin.json
       - run: uvx twine check --strict dist/*
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:

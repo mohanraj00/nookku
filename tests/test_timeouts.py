@@ -3,7 +3,6 @@
 import contextlib
 import inspect
 import json
-import re
 import socket
 import threading
 import time
@@ -38,16 +37,6 @@ def test_each_timeout_ends_before_the_next_one() -> None:
     relay = [kit.TIMEOUT, bridge.TIMEOUT]
     assert stdio.TIMEOUT < answer < min(relay)
     assert max(relay) < kit.HOOK_DEADLINE
-
-
-def test_the_plugin_sets_no_relay_timeout_of_its_own() -> None:
-    # $.http.fetch has no timeout, and its time does not count against the hook budget. So the
-    # plugin waits for the tap, and the tap answers after its agent timeout. If the plugin gets a
-    # relay timeout, this test must compare it with the others.
-    source = (ROOT / "plugins" / "claude-code" / "hooks" / "register.tsx").read_text()
-    fetches = re.findall(r"\$\.http\.fetch\([^)]*\)", source, re.S)
-    assert len(fetches) >= 2
-    assert not any(re.search(r"timeout|signal", f, re.I) for f in fetches)
 
 
 def test_a_slow_agent_gives_504_and_an_error_row(agent, tmp_path):

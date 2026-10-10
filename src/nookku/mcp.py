@@ -26,6 +26,18 @@ PROTOCOLS = {"2024-11-05", "2025-03-26", PROTOCOL}
 # measurement and its method are in SPEC.md section 5.
 PAGE_TOKENS = 2000
 
+# The plugin and its MCP server have the same name (plugins/nookku). Each harness names the tool of
+# a plugin server in its own form (proofs/spikes/plugin-mcp.json, proofs/plugin/load.json).
+PLUGIN = "nookku"
+SERVER = "nookku"
+TOOL_PREFIX = {"claude-code": f"mcp__plugin_{PLUGIN}_{SERVER}__", "codex": f"mcp__{SERVER}__"}
+
+
+def tool_name(harness: str, tool: str) -> str:
+    """The name of a tool of this server, as the model of a harness sees it."""
+    return TOOL_PREFIX[harness] + tool
+
+
 TOOLS = [
     {
         "name": "transcript",
@@ -185,7 +197,7 @@ def answer(root: Path, message: Any) -> dict[str, Any] | None:
         result: dict[str, Any] = {
             "protocolVersion": version if version in PROTOCOLS else PROTOCOL,
             "capabilities": {"tools": {}},
-            "serverInfo": {"name": "nookku", "version": __version__},
+            "serverInfo": {"name": SERVER, "version": __version__},
         }
     elif method == "ping":
         result = {}

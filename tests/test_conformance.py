@@ -1,5 +1,4 @@
 import json
-import re
 from pathlib import Path
 
 import pytest
@@ -37,11 +36,9 @@ def _valid(tmp_path: Path, line: str) -> bool:
     return True
 
 
-def test_the_plugin_reads_each_relay_line_like_the_python_reader(tmp_path: Path) -> None:
-    # register.test.ts runs this table through relayTurns.
-    text = (ROOT / "plugins" / "claude-code" / "hooks" / "register.test.ts").read_text("utf-8")
-    block = text.split("const RELAY_LINES")[1].split("\n]\n")[0]
-    rows = [json.loads(row) for row in re.findall(r"^  (\[.*\]),$", block, re.M)]
+def test_the_reader_takes_each_relay_line_of_the_table(tmp_path: Path) -> None:
+    # The table holds each line of the conformance cases, and if the reader takes it.
+    rows = json.loads((ROOT / "tests" / "tables.json").read_text("utf-8"))["relay_lines"]
     want = set()
     for relay in (ROOT / "conformance" / "cases").glob("*/relay.jsonl"):
         lines = relay.read_text(encoding="utf-8").split("\n")

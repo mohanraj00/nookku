@@ -10,7 +10,7 @@ I ran these commands, and each one exited with 0:
 
 ```bash
 uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pytest && uv run python scripts/stealth.py check
-claude plugin validate plugins/claude-code && claude plugin test plugins/claude-code
+claude plugin validate plugins/nookku && claude plugin test plugins/nookku
 ```
 
 - [ ] CI is green.

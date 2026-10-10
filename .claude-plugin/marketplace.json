@@ -7,7 +7,7 @@
   "plugins": [
     {
       "name": "nookku",
-      "source": "./plugins/claude-code",
+      "source": "./plugins/nookku",
       "description": "Relay a test conversation to a chat agent byte for byte. The model never writes either direction."
     }
   ]

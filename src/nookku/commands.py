@@ -2,7 +2,7 @@
 
 A shell command passes the check if each of its commands is a read program and each output
 redirect writes /dev/null or report.md. All other input fails, also input that the check cannot
-parse, so the deny fails closed. The plugin has the same check in plugins/claude-code/hooks/core.ts.
+parse, so the deny fails closed. The plugin runs this check through `nookku hook`.
 """
 
 from __future__ import annotations

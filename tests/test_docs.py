@@ -1,5 +1,5 @@
 """The docs agree with the repo: links resolve, counts match the data, and the reference pages
-match the CLI parser, config.Config and the plugin options."""
+match the CLI parser and config.Config."""
 
 from __future__ import annotations
 
@@ -442,13 +442,6 @@ def test_each_glossary_term_links_to_a_section_of_the_spec() -> None:
     for term, body in terms.items():
         targets = [resolve(glossary, t) for t in links(body)]
         assert any(path == spec and fragment for path, fragment in targets), term
-
-
-def test_the_config_page_has_each_plugin_option_with_its_default() -> None:
-    manifest = ROOT / "plugins" / "claude-code" / ".claude-plugin" / "plugin.json"
-    options = json.loads(manifest.read_text(encoding="utf-8"))["userConfig"]
-    documented = _row_defaults(_sections(DOCS / "reference" / "config.md", "##")["Plugin options"])
-    assert documented == {key: _cell(o.get("default", "")) for key, o in options.items()}
 
 
 def _first_cells(section: str) -> list[str]:

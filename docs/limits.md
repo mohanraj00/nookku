@@ -14,4 +14,3 @@ This page lists what Nookku does not do, and what it does not prove. [results.md
 - **The relay shows a streamed reply only when the stream is complete.** It does not show each part. With an entry, the entry joins the stream into one reply, in any stream format. Only the HTTP tap needs the `openai` adapter for a stream ([how-to/test-a-streaming-agent.md](how-to/test-a-streaming-agent.md)).
 - **A report is a model answer.** It can miss an issue or name a wrong line. [evaluation-example.md](evaluation-example.md) shows one report and what the model got wrong.
 - **Not yet:** attachments and images ([#6](https://github.com/mohanraj00/nookku/issues/6)), harnesses other than Claude Code and Codex, and tests on Windows.
-- **The plugin stops at a relay record of [3.5 MiB](../plugins/claude-code/hooks/register.tsx).** Move the record to start a new one ([#2](https://github.com/mohanraj00/nookku/issues/2)).

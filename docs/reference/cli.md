@@ -55,7 +55,7 @@ Show relay mode and the running test.
 | Flag | Default | Meaning |
 |---|---|---|
 | `--root PATH` | the current folder | The project. |
-| `--json` | off | Print `{"on": ..., "test": ...}`. |
+| `--json` | off | Print `{"on": ..., "test": ..., "text": ...}`. `text` is the status line of the plugin, or `null` if relay mode is off. |
 
 | Exit code | Meaning |
 |---|---|
@@ -86,15 +86,16 @@ PASS proves the connection, not the reply. PASS means that:
 ### `nookku mode`
 
 ```text
-nookku mode STATE [--root PATH]
+nookku mode [STATE] [--root PATH] [--tester-session ID]
 ```
 
-Switch relay mode on or off. With an entry, `on` starts a test and `off` ends it. With no entry, it only switches relay mode ([how-to/http-tap.md](../how-to/http-tap.md)). Before it switches relay mode on, it reads `config.json`, if the file exists. If the file is broken, `on` shows the error and does not switch relay mode on ([#109](https://github.com/mohanraj00/nookku/pull/109)).
+Switch relay mode on or off. With an entry, `on` starts a test and `off` ends it. With no entry, it only switches relay mode ([how-to/http-tap.md](../how-to/http-tap.md)). Before it switches relay mode on, it reads `config.json`, if the file exists. If the file is broken, `on` shows the error and does not switch relay mode on ([#109](https://github.com/mohanraj00/nookku/pull/109)). If the file does not exist, `on` tells you to run `nookku init plugin`, and relay mode stays off. The `/nookku` command of the plugin runs `nookku mode` with its words, and shows the output.
 
 | Argument or flag | Default | Meaning |
 |---|---|---|
-| `STATE` | | `on`, `off` or `status`. |
+| `STATE` | `status` | `on`, `off` or `status`. `start` is the same as `on`, and `end` is the same as `off`. |
 | `--root PATH` | the current folder | The project. |
+| `--tester-session ID` | none | The tester's harness session id. With an entry, the test copies this session when it ends. |
 
 | Exit code | Meaning |
 |---|---|
@@ -199,7 +200,7 @@ Check that no record of a test changed after its end ([SPEC.md section 7.4](../.
 nookku init HARNESS [--root PATH] [--entry COMMAND] [--models LIST] [options]
 ```
 
-Install the hook kit for Codex or Claude Code. It writes `.nookku/config.json`, the file `.nookku/mode`, and the hooks: `.codex/hooks.json` for Codex, `.claude/settings.local.json` for Claude Code. It keeps your other hooks, also a hook in the same group as a hook of the kit.
+Write the config, and the project hooks of a harness. It writes `.nookku/config.json`, the file `.nookku/mode`, and the hooks: `.codex/hooks.json` for Codex, `.claude/settings.local.json` for Claude Code. It keeps your other hooks, also a hook in the same group as a hook of the kit. With `plugin`, it writes no hooks, because the nookku plugin has them. Do not use the plugin and the project hooks in one project, or each message is sent two times.
 
 If `config.json` exists, `init` keeps each key and changes only the keys of the flags that you give. For example, a second run keeps `backends` and `"evaluate": false`. It prints the keys that it changed and the keys that it kept. A new `config.json` gets each key. The default of a flag applies only to a new file.
 
@@ -207,7 +208,7 @@ If `config.json` has an unknown key, or if `config.json` or the hook file is not
 
 | Argument or flag | Default | Meaning |
 |---|---|---|
-| `HARNESS` | | `codex` or `claude-code`. |
+| `HARNESS` | | `codex`, `claude-code` or `plugin`. |
 | `--root PATH` | the current folder | The project. |
 | `--entry COMMAND` | none | The entry command of a test, as one string. The shell rules split it into arguments. |
 | `--models LIST` | none | The app's model harnesses, separated by commas: `claude-code`, `codex` or both. |

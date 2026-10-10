@@ -15,7 +15,7 @@ The plugin tests also need the `claude` CLI.
 ```bash
 uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pytest
 uv run python scripts/stealth.py check
-claude plugin validate plugins/claude-code && claude plugin test plugins/claude-code
+claude plugin validate plugins/nookku && claude plugin test plugins/nookku
 ```
 
 `uv run pytest` also checks the docs (`tests/test_docs.py`). It checks each relative link and each anchor in the Markdown files, and the counts in the README. It also checks the CLI and configuration reference pages against the code.
