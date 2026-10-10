@@ -1,0 +1,58 @@
+{
+ "date": "2026-10-09",
+ "nookku": "0.3.1",
+ "codex": "codex-cli 0.162.0",
+ "method": "scripts/proof_codex_gate.py",
+ "part_a": {
+  "start_output": "nookku: the Codex hooks of nookku are not ready, so relay mode stays off. Codex skips a hook that is not trusted, and then a message goes to the model.\n- the plugin hook PreToolUse is untrusted, not trusted.\n- the plugin hook UserPromptSubmit is untrusted, not trusted.\nStart codex in this project, type /hooks, check each nookku hook and trust it. Then start the test again.",
+  "start_exit": 1,
+  "mode_after_start": "off",
+  "gate": {
+   "codex": true,
+   "hooks": [
+    {
+     "origin": "plugin",
+     "event": "preToolUse",
+     "enabled": true,
+     "trust": "untrusted",
+     "hash": "sha256:b17fd671aff4ea1cf061585881db03115d7812d6ad47cd5bb17ff6dc84d20b17",
+     "script_sha256": "f50a064260a464c81c864c5bb5bc760f15c9b04770ff81c42ade03dba7511341"
+    },
+    {
+     "origin": "plugin",
+     "event": "userPromptSubmit",
+     "enabled": true,
+     "trust": "untrusted",
+     "hash": "sha256:cdada78120900a490c84e8a0c483ebb42013e71e767237bb1feda58d19818682",
+     "script_sha256": "f50a064260a464c81c864c5bb5bc760f15c9b04770ff81c42ade03dba7511341"
+    }
+   ],
+   "problems": [
+    "the plugin hook PreToolUse is untrusted, not trusted.",
+    "the plugin hook UserPromptSubmit is untrusted, not trusted."
+   ]
+  },
+  "hash_after_script_change": {
+   "preToolUse": "sha256:b17fd671aff4ea1cf061585881db03115d7812d6ad47cd5bb17ff6dc84d20b17",
+   "userPromptSubmit": "sha256:cdada78120900a490c84e8a0c483ebb42013e71e767237bb1feda58d19818682"
+  },
+  "hash_after_timeout_change": {
+   "preToolUse": "sha256:dc01794f49c27feeb4f91e789ecc7cdf71a83149b67b703b4428e7548769670f",
+   "userPromptSubmit": "sha256:cdada78120900a490c84e8a0c483ebb42013e71e767237bb1feda58d19818682"
+  },
+  "problems_after_script_change": [
+   "the plugin hook PreToolUse is untrusted, not trusted.",
+   "the plugin hook PreToolUse is modified: its script <user-home>/Reboot/public/verbatim-relay/.proof/codex-gate/codex-home/plugins/cache/nookku/nookku/0.3.1/hooks/nookku-hook.sh differs from the script of nookku 0.3.1.",
+   "the plugin hook UserPromptSubmit is untrusted, not trusted.",
+   "the plugin hook UserPromptSubmit is modified: its script <user-home>/Reboot/public/verbatim-relay/.proof/codex-gate/codex-home/plugins/cache/nookku/nookku/0.3.1/hooks/nookku-hook.sh differs from the script of nookku 0.3.1."
+  ],
+  "checks": {
+   "start refuses untrusted hooks": true,
+   "relay mode stays off": true,
+   "a script change keeps the trust hash": true,
+   "a timeout change changes the trust hash of that hook": true,
+   "the gate finds the changed script": true
+  }
+ },
+ "part_b": null
+}

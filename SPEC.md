@@ -357,7 +357,7 @@ The test folder:
   sessions/codex/<rollout file>
 ```
 
-`manifest.json` holds the test id, the project root, the entry, the models, the start and end times, the versions of Nookku, Claude Code and Codex, the SHA-256 of each configuration file in `.nookku/`, and the tester's harness session ids.
+`manifest.json` holds the test id, the project root, the entry, the models, the start and end times, the versions of Nookku, Claude Code and Codex, the SHA-256 of each configuration file in `.nookku/`, the tester's harness session ids, and `codex_gate`: the result of the Codex hook gate at the start and at the end of the test (section 7.8).
 
 ### 7.3 Model sessions
 
@@ -520,6 +520,23 @@ The parsers of each model call:
   - This parser follows the OpenAI documents of 2026-10-07, the date when they were read: the [Decisions guide](https://developers.openai.com/api/docs/guides/decisions) and the API reference [create a decision](https://developers.openai.com/api/reference/resources/decisions/methods/create).
 
 To read a new model call, the proxy adds one row to its table of model calls (the API, the end of the path and the format) and one parser for the format. The trace selects its reader of the request by the same format (section 8.4).
+
+### 7.8 Codex hook gate
+
+Codex skips a hook that a person did not trust. Then a relayed prompt goes to the model, and a hook cannot detect this, because it does not run ([proofs/spikes/codex-plugin.json](proofs/spikes/codex-plugin.json)). Thus the gate runs outside the hooks ([`src/nookku/codex_gate.py`](src/nookku/codex_gate.py)):
+
+1. `start` and `mode on` run the gate before relay mode goes on. The gate starts `codex app-server` in the project and reads `hooks/list`. It never changes the trust of a hook. A person does the trust step.
+2. The nookku hooks are the hooks of a plugin with an id that starts with `nookku@`, and the project hooks with the command of `nookku init codex`. If Codex lists a nookku hook of the plugin, or `.codex/hooks.json` has a nookku hook, the gate requires the `UserPromptSubmit` and the `PreToolUse` hook of that origin.
+3. The gate refuses the test with each reason, and relay mode stays off, if a required hook is:
+   - **missing**: Codex does not list it. Codex lists the project hooks only in a project that a person trusts;
+   - **disabled**;
+   - **not trusted**: its trust status is not `trusted`, for example `untrusted` or `modified`;
+   - **modified**: its matcher, its timeout or its command differs from this version of nookku. For the plugin, the SHA-256 of `nookku-hook.sh` must also be the SHA-256 of this version, because the trust hash of Codex does not cover the script ([proofs/codex-gate/gate.json](proofs/codex-gate/gate.json)).
+4. The gate also refuses a test if the plugin and the project hooks are both on, because then each message goes to the agent two times.
+5. If the `codex` command (`NOOKKU_CODEX`, else `codex`) is not on `PATH`, or if `codex app-server` stops before it answers, Codex cannot run, and the gate passes with no check. If the app-server does not answer in 60 seconds, the gate refuses the test.
+6. `end` runs the gate again. `codex_gate` in `manifest.json` has both results: `codex`, the nookku hooks with their origin, event, trust status, trust hash and script SHA-256, and the problems. If the end result has a problem, or its hooks differ from the start, the end text says that the Codex hooks changed during the test and that the test is not to be trusted. The seal covers the manifest.
+
+The gate does not stop a person who starts Codex with other hooks after the start. The check at the end makes such a change visible in the sealed record.
 
 ## 8. Trace
 

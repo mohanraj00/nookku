@@ -10,3 +10,13 @@ def seal_home(tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.Monk
     monkeypatch.setenv("NOOKKU_HOME", str(home))
     monkeypatch.setenv("VERBATIM_RELAY_HOME", str(tmp_path_factory.mktemp("old-home")))
     return home
+
+
+@pytest.fixture(autouse=True)
+def codex_home(tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """The Codex hook gate of a test reads an empty Codex home, not the user's hooks."""
+    home = tmp_path_factory.mktemp("codex-home")
+    monkeypatch.setenv("CODEX_HOME", str(home))
+    # No Codex: a test of the gate gives a fake codex command.
+    monkeypatch.setenv("NOOKKU_CODEX", "nookku-test-no-codex")
+    return home
