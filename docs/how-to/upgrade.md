@@ -75,14 +75,14 @@ claude plugin update nookku@nookku
 
 The second command names the new version, or says that the plugin is already at the latest version. Restart Claude Code to load the new version. `claude plugin list` shows the version of `nookku@nookku`.
 
-If you use the plugin in Codex, remove the plugin and its marketplace, then install them again:
+If you use the plugin in Codex, update the marketplace, then add the plugin again:
 
 ```bash
-codex plugin remove nookku@nookku
-codex plugin marketplace remove nookku
-codex plugin marketplace add mohanraj00/nookku
+codex plugin marketplace upgrade nookku
 codex plugin add nookku@nookku
 ```
+
+The second command installs the version of the updated marketplace. In the Codex spike, these 2 commands moved the installed plugin from 1.0.0 to 1.0.1, then to 1.0.2 ([data](../../proofs/spikes/codex-plugin.json), `installation`, [method](../../scripts/spike_codex_plugin.py)). `codex plugin list` shows the installed version.
 
 Restart Codex to load the new version. Do this step before step 4. If the plugin script of a release changes, the gate refuses the old plugin: its script SHA-256 is not the SHA-256 of the new CLI ([SPEC.md section 7.8](../../SPEC.md#78-codex-hook-gate)). A trust step does not correct this.
 
