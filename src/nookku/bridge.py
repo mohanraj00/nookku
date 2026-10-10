@@ -113,10 +113,17 @@ def start(root: Path, tester_session: str | None = None, wait: float = 30.0) -> 
     cur = current(root)
     if cur is not None:
         raise BridgeError(f"test {cur['test']} runs already. End it first.")
+    from nookku import codex_gate
+
+    gate = codex_gate.check(root)
+    if gate["problems"]:
+        raise BridgeError(codex_gate.refusal(gate))
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     test = f"{stamp}-{secrets.token_hex(2)}"
     folder = state(root) / "tests" / test
     folder.mkdir(parents=True)
+    # The bridge puts the result in the manifest, and removes this file.
+    _write_json(folder / GATE_FILE, gate)
     argv = [sys.executable, "-m", "nookku", "bridge", "--root", str(root), "--test", test]
     if tester_session:
         argv += ["--tester-session", tester_session]
@@ -173,6 +180,33 @@ def end(
     return data
 
 
+GATE_FILE = "codex-gate.json"
+
+
+def _start_gate(folder: Path) -> dict[str, Any] | None:
+    """The gate result that start wrote, or None if start did not write one."""
+    path = folder / GATE_FILE
+    try:
+        gate: dict[str, Any] = json.loads(path.read_text())
+    except (OSError, ValueError):
+        return None
+    path.unlink(missing_ok=True)
+    return gate
+
+
+def gate_changed(manifest: dict[str, Any]) -> str | None:
+    """Why the Codex hooks of the test are not the hooks that start checked, or None."""
+    gate = manifest.get("codex_gate") or {}
+    first, last = gate.get("start"), gate.get("end")
+    if not first or not last or not first.get("codex"):
+        return None
+    if last.get("problems"):
+        return "; ".join(last["problems"])
+    if first.get("hooks") != last.get("hooks"):
+        return "the hooks at the end differ from the hooks at the start"
+    return None
+
+
 def summary(manifest: dict[str, Any]) -> str:
     folder = Path(manifest.get("dir", ""))
     sessions = manifest.get("model_sessions", [])
@@ -186,6 +220,12 @@ def summary(manifest: dict[str, Any]) -> str:
     ]
     if manifest.get("ended") is None:
         lines.append("The bridge did not finish its collection. See bridge.log in the folder.")
+    changed = gate_changed(manifest)
+    if changed:
+        lines.append(
+            "The Codex hooks changed during the test, so Codex can have skipped a hook and given "
+            f"a message to the model: {changed}. Do not trust this test."
+        )
     with contextlib.suppress(OSError, ValueError, KeyError):
         lines.append(trace.summary(json.loads((folder / "findings.json").read_text())))
     lines.append(
@@ -397,6 +437,7 @@ def run(root: Path, test: str, tester_session: str | None, timeout: float = AGEN
         "config_sha256": config_hashes(root),
         "tester_sessions": [tester_session] if tester_session else [],
         "model_sessions": [],
+        "codex_gate": {"start": _start_gate(folder), "end": None},
     }
     _write_json(folder / "manifest.json", manifest)
     _log("manifest written")
@@ -522,6 +563,12 @@ def run(root: Path, test: str, tester_session: str | None, timeout: float = AGEN
         {"claude-code": versions.get("claude"), "codex": versions.get("codex")}
     )
     manifest.update(ended=ended, tester_sessions=sorted(tester), model_sessions=sessions)
+    try:
+        from nookku import codex_gate
+
+        manifest["codex_gate"]["end"] = codex_gate.check(root)
+    except Exception as e:  # the test must still end
+        manifest["codex_gate"]["end"] = {"codex": None, "hooks": [], "problems": [repr(e)]}
     _write_json(folder / "manifest.json", manifest)
     try:
         _log(trace.summary(trace.build(folder)))

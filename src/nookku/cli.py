@@ -275,6 +275,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             except ConfigError as e:
                 print(f"nookku: {e}")
                 return 0
+        if args.state == "on":
+            from nookku import codex_gate
+
+            gate = codex_gate.check(root)
+            if gate["problems"]:
+                print(f"nookku: {codex_gate.refusal(gate)}")
+                return 0
         if args.state != "status":
             kit.set_mode(root, args.state == "on")
         print(f"Relay mode is {'on' if kit.is_on(root) else 'off'}.")

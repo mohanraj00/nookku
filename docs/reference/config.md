@@ -71,6 +71,7 @@ The plugin has no options. Write `.nookku/config.json` with `nookku init plugin`
 |---|---|---|
 | `CLAUDE_CONFIG_DIR` | the bridge | The Claude Code folder with the session files. The default is `~/.claude` ([SPEC.md section 7.3](../../SPEC.md#73-model-sessions)). |
 | `CODEX_HOME` | the bridge | The Codex folder with the rollout files. The default is `~/.codex`. |
+| `NOOKKU_CODEX` | `start`, `mode on`, the bridge | The `codex` command of the Codex hook gate. The default is `codex`. If the command is not on `PATH`, the gate does not run ([SPEC.md section 7.8](../../SPEC.md#78-codex-hook-gate)). |
 | `NOOKKU_HOME` | the bridge, `verify` | The folder of the copies of the seals. The default is `~/.nookku` ([SPEC.md section 7.4](../../SPEC.md#74-seal)). |
 | `ANTHROPIC_BASE_URL`, `OPENAI_BASE_URL` | the bridge | The upstream URL of each model API proxy, if `model_api` gives none ([SPEC.md section 7.7](../../SPEC.md#77-model-api-proxies)). |
 
