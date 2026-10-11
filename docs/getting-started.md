@@ -76,6 +76,8 @@ Relay mode is off. Switch it with: nookku mode on
 Do not also enable the nookku Claude Code plugin in this project, or each message is sent two times.
 ```
 
+If the nookku plugin is on in Claude Code, `init` also prints a warning with the command that turns it off. `nookku start` refuses a test while both are on.
+
 `init` prints the absolute paths. Here `...` stands for the folders above `toy-shop`. `config.json` holds the [entry](reference/glossary.md#entry): the command that the [tap](reference/glossary.md#tap) starts for each test. `settings.local.json` holds two hooks. The `UserPromptSubmit` hook takes each prompt before the model sees it. The `PreToolUse` hook denies a model tool call that names the agent or changes a file of the test.
 
 Check the connection with one message:
