@@ -764,6 +764,17 @@ def state_folder_of(root: Path) -> Path | None:
     return next((p for p in (root, *root.parents) if p.name.casefold() in names), None)
 
 
+def state_root_error(root: Path, harness: str) -> str | None:
+    """The error of init if root is inside a state folder, else None (#148)."""
+    folder = state_folder_of(root)
+    if folder is None:
+        return None
+    return (
+        f"the root {root} is inside the state folder {folder}. Run init in the project: "
+        f"nookku init {harness} --root {folder.parent}"
+    )
+
+
 def init(root: Path, harness: str, changes: dict[str, Any]) -> Installed:
     """Write the config, the mode file and the harness hook file. For the plugin, write no hook
     file, because the plugin has the hooks.
@@ -772,12 +783,9 @@ def init(root: Path, harness: str, changes: dict[str, Any]) -> Installed:
     config.json gets each key with its default, then `changes`. If an existing file cannot be
     read, if a key is unknown, or if root is inside a state folder, raise ValueError before a
     write (#148)."""
-    folder = state_folder_of(root)
-    if folder is not None:
-        raise ValueError(
-            f"the root {root} is inside the state folder {folder}. Run init in the project: "
-            f"nookku init {harness} --root {folder.parent}"
-        )
+    error = state_root_error(root, harness)
+    if error is not None:
+        raise ValueError(error)
     conf = root / CONFIG_FILE
     new = not conf.exists()
     old = asdict(Config()) if new else read_config(root)

@@ -192,6 +192,12 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         # The default root also gets the move of the old state folder below.
         args.root = project_root()
+    if args.command == "init":
+        # Check before the move of the old state folder, which can change a test folder.
+        error = kit.state_root_error(args.root.resolve(), args.harness)
+        if error:
+            print(f"nookku: {error}. Nothing was written.", file=sys.stderr)
+            return 1
     if isinstance(getattr(args, "root", None), Path):
         error = move_old_state(args.root.resolve())
         if error:

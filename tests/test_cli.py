@@ -251,9 +251,12 @@ def test_init_refuses_a_root_inside_the_state_folder(
 ) -> None:
     root = tmp_path / inside
     root.mkdir(parents=True)
-    before = sorted(tmp_path.rglob("*"))
+    # A folder of the old name in the root must not move (#148).
+    (root / ".verbatim-relay").mkdir()
+    (root / ".verbatim-relay" / "config.json").write_text('{"record": ".verbatim-relay/r.jsonl"}')
+    before = {p: p.read_bytes() if p.is_file() else None for p in tmp_path.rglob("*")}
     assert main(["init", harness, "--root", str(root)]) == 1
-    assert sorted(tmp_path.rglob("*")) == before
+    assert {p: p.read_bytes() if p.is_file() else None for p in tmp_path.rglob("*")} == before
     err = capsys.readouterr().err
     folder = tmp_path / inside.split("/")[0]
     assert f"is inside the state folder {folder}." in err
