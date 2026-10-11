@@ -19,6 +19,7 @@ ALLOWED = {
     "nookku.contract",
     "nookku.hook",
     "nookku.kit",
+    "nookku.policy",
     "nookku.record",
     "nookku.seal",
     "nookku.state",

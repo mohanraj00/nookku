@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any, TextIO
 from urllib.parse import urlsplit
 
-from nookku import commands, seal, state
+from nookku import commands, policy, seal, state
 from nookku.adapters import AdapterError, History, StreamError, is_stream, make
 from nookku.config import FILE as CONFIG_FILE
 from nookku.config import Config as Config
@@ -275,6 +275,9 @@ def handle(event: dict[str, Any], root: Path, harness: str) -> dict[str, Any] | 
         tool_input = event.get("tool_input", event)
         text = json.dumps(tool_input, ensure_ascii=False)
         cur = state.current(root)
+        if touches_policy(event, root, tool, tool_input, text):
+            record = Path(cur["dir"]) / "relay.jsonl" if cur else _last_record(root)
+            return _deny(record, harness, tool, text, policy.REASON)
         if cur is not None and tool in WRITE_TOOLS and TEST_FILES.search(text):
             return _deny(Path(cur["dir"]) / "relay.jsonl", harness, tool, text)
         if cur is None and tool in WRITE_TOOLS and touches_records(text):
@@ -309,6 +312,17 @@ def handle(event: dict[str, Any], root: Path, harness: str) -> dict[str, Any] | 
         if loaded is not None:
             return _deny(loaded.record_path(root), harness, tool, text)
     return None
+
+
+def touches_policy(event: Any, root: Path, tool: str, tool_input: Any, text: str) -> bool:
+    """True if a model tool call can change the policy file (SPEC.md section 5)."""
+    writes = tool in WRITE_TOOLS
+    if tool in FILE_TOOLS and not writes:
+        return False
+    reads = not writes and commands.tool_reads_only(tool, tool_input)
+    cwd = event.get("cwd") if isinstance(event, dict) else None
+    here = root / cwd if isinstance(cwd, str) and cwd else root
+    return policy.touches(root, tool, tool_input, text, writes, reads, here)
 
 
 def _test_entry(cur: dict[str, Any]) -> list[str]:
@@ -355,6 +369,10 @@ def _deny(
     except (OSError, ValueError) as e:
         # The deny must not depend on the record. Without it, the call reaches the tap.
         print(f"nookku hook: cannot record a blocked call: {e}", file=sys.stderr)
+    return _deny_answer(reason)
+
+
+def _deny_answer(reason: str) -> dict[str, Any]:
     return {
         "hookSpecificOutput": {
             "hookEventName": "PreToolUse",
@@ -362,6 +380,18 @@ def _deny(
             "permissionDecisionReason": reason,
         }
     }
+
+
+def _policy_write(event: Any, root: Path) -> bool:
+    """True if a PreToolUse event can change the policy file. A failure denies the call."""
+    if not isinstance(event, dict) or event.get("hook_event_name") != "PreToolUse":
+        return False
+    try:
+        tool_input = event.get("tool_input", event)
+        text = json.dumps(tool_input, ensure_ascii=False)
+        return touches_policy(event, root, str(event.get("tool_name", "")), tool_input, text)
+    except Exception:  # fail closed
+        return True
 
 
 def project_root(event: Any, harness: str) -> Path:
@@ -398,7 +428,10 @@ def run_hook(root: Path | None, harness: str, stdin: TextIO, stdout: TextIO) -> 
         return 2
     if not (root / STATE_DIR).is_dir():
         # The plugin runs this hook in each project. A project with no state folder has no test,
-        # no relay mode and no record, so no rule applies to it.
+        # no relay mode and no record. Only the deny of the policy file applies, so that the
+        # model cannot write a weak policy before the first test. It writes no record.
+        if _policy_write(event, root):
+            stdout.write(json.dumps(_deny_answer(policy.REASON), ensure_ascii=False) + "\n")
         return 0
     try:
         if event is None:

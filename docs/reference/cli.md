@@ -228,6 +228,27 @@ If `config.json` has an unknown key, or if `config.json` or the hook file is not
 | 0 | The files were written. |
 | 1 | Nothing was written: `config.json` or the hook file cannot be read, or `config.json` has an unknown key. The text names the cause. |
 
+### `nookku policy`
+
+```text
+nookku policy [set KEY VALUE] [--root PATH]
+```
+
+Print each key of the policy file `.nookku/policy.json` with its value, as JSON. With `set`, change one key, then print the keys. Only a person runs this command, in a shell. The relay denies it from the model ([SPEC.md section 7.9](../../SPEC.md#79-policy-file)). [config.md](config.md#nookkupolicyjson) explains the file.
+
+| Argument or flag | Default | Meaning |
+|---|---|---|
+| `ACTION` | none | `set` changes one key. With no action, the command only prints the keys. |
+| `KEY` | | The key to change. |
+| `VALUE` | | The new value of the key. |
+| `--root PATH` | the current folder | The project. |
+
+| Exit code | Meaning |
+|---|---|
+| 0 | The keys were printed. With `set`, the key was changed first. |
+| 1 | The policy file is not valid, the key is not known, or the value is not valid. The text names the cause. Nothing was changed. |
+| 2 | The arguments are not complete. |
+
 ### `nookku setup`
 
 Print the guide that connects a test to the app ([setup.md](../../src/nookku/setup.md)). A harness model reads it and writes the entry ([how-to/connect-your-agent.md](../how-to/connect-your-agent.md)).

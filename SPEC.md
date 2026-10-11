@@ -237,7 +237,7 @@ The follow-up capture records a title-description schema match, without request 
 - **No test.** With an entry, a relay sends a prompt only to a running test (section 7.2). The relay asks `bridge.current` before each prompt, so a stale `current.json` does not show as a running test. If no test runs, the relay blocks the prompt, shows "relay mode is on, but no test runs" with the step to start a test, and writes no turn. The status text of the plugin comes from `nookku status --json`, for `/nookku status`. The prompt `nookku status` gives the same text.
 - **Attachments.** The relay sends only the text of a prompt, because a command hook gets only the text. In relay mode, the display layer of the plugin in Claude Code drops a prompt with an attachment, and shows `kit.ATTACHMENTS_REASON` from `nookku status --json`. If that command fails, it drops the prompt and shows the error. In Claude Code 2.1.295, the plugin dropped a prompt with an image, and the relay record got only the next text prompt ([data](proofs/plugin/load.json), [method](scripts/proof_plugin_load.py)). With the project hooks, or in Codex, the relay sends the text of a prompt with an attachment, and the agent does not get the attachment.
 - **Display.** The relay blocks each relayed prompt, and the `reason` of the block is the text to show: the reply byte for byte, or the error. Claude Code and Codex show this reason to the person and do not give it to the model ([#176, #193](proofs/spikes/hook-display.json)). `codex exec` shows no reason. The relay also writes the relay record, and `nookku view` prints each turn from it. The pane of the plugin in Claude Code shows the last [40 lines](plugins/nookku/hooks/register.tsx#L18) of `nookku view --no-follow`.
-- **Project root.** `nookku hook` takes the project from `--root`. With no `--root`, it takes `CLAUDE_PROJECT_DIR` (only in Claude Code), else the `cwd` of the event, else its working folder. A Codex hook can inherit `CLAUDE_PROJECT_DIR` from a Claude Code session of another project. A plugin hook does not know the project when it is installed, so it gives no `--root`. The plugin runs its hooks in each project, so a project with no `.nookku/` folder gets no answer from the hook. If the `nookku` command is not on `PATH`, the shell guard of the plugin (`plugins/nookku/hooks/nookku-hook.sh`) blocks the prompt and denies the tool call when the mode file does not say `off` or `current.json` exists.
+- **Project root.** `nookku hook` takes the project from `--root`. With no `--root`, it takes `CLAUDE_PROJECT_DIR` (only in Claude Code), else the `cwd` of the event, else its working folder. A Codex hook can inherit `CLAUDE_PROJECT_DIR` from a Claude Code session of another project. A plugin hook does not know the project when it is installed, so it gives no `--root`. The plugin runs its hooks in each project, so a project with no `.nookku/` folder gets no answer from the hook, except the deny of the policy file. If the `nookku` command is not on `PATH`, the shell guard of the plugin (`plugins/nookku/hooks/nookku-hook.sh`) blocks the prompt and denies the tool call when the mode file does not say `off` or `current.json` exists.
 - **Hook time.** `nookku hook` imports only the modules that its rule needs. [`tests/test_hook_imports.py`](tests/test_hook_imports.py) fails if a hook event imports more. The time of a warm event is in [`proofs/hook-time/hook-latency.json`](proofs/hook-time/hook-latency.json). The method is [`scripts/spike_hook_latency.py`](scripts/spike_hook_latency.py).
 - **Streams.** If the tap response is a stream (section 4.1), the relay reads the complete body and joins the reply with the rules of the adapter. It shows the reply only when the stream is complete. It does not show the parts. If the stream failed, the relay shows the error and writes it as `shown` with `ok: false`.
 - **Stream request.** For an agent that runs as an HTTP server, the `openai` adapter of a relay sends `"stream": false` in each request. If the option `openai_stream` is `true`, it sends `"stream": true`, for an agent that streams only on request. The default is `false`. The relay reads it as the key `openai_stream` in `.nookku/config.json`, a boolean. A test with an entry uses the agent contract (section 6), so this option does not apply.
@@ -254,6 +254,14 @@ The follow-up capture records a title-description schema match, without request 
   - each other tool call, except file tools, whose input names `.nookku` and that does not pass the read check.
 
   The relay writes the `blocked_call` row of a deny after a test to `denied.jsonl` in the latest test folder, so that the sealed `relay.jsonl` does not change (section 7.4).
+- **Policy file.** The relay denies each model tool call that can change `.nookku/policy.json` (section 7.9), with a test and with no test. It applies this deny before each other deny. The reason is `nookku: only a person changes .nookku/policy.json, with nookku policy set in a shell.` The relay denies:
+  - a call, except a file tool that only reads, whose input names `policy.json` and `.nookku`, if it is a write tool call or does not pass the read check;
+  - a write tool call whose `file_path`, `notebook_path` or `path` is the policy file after the relay resolves it from the `cwd` of the event and follows each symbolic link;
+  - a call that does not pass the read check and names `nookku policy`, for example `nookku policy set`;
+  - a call that does not pass the read check, names `policy.json`, and has a `cwd` in `.nookku/`;
+  - a call of a tool that is not a shell or a file tool, for example `write_stdin` of a persistent Codex shell, that names `policy.json`. Its input does not show the folder where its text runs.
+
+  Each match ignores case, because the file system of macOS and Windows ignores case. If the project has no `.nookku/` folder, the relay applies only this deny and writes no record, so that the model cannot write a weak policy before the first test. Like each deny, it is best effort: a command can change the file with a name that the relay does not see. The manifest records the policy of each test.
 - **Entry.** During a test, the relay denies a model tool call, except file tools, that names the entry and does not pass the read check. The names of the entry are the base name of each entry argument with the file type `.py`, `.js`, `.mjs`, `.cjs`, `.ts`, `.sh` or `.rb`, and the argument after `-m`. The relay looks for each name in the input, and in each word of a shell command after it removes the quotes and escapes. A word with `*`, `?` or `[` matches a name as a glob. An entry with no such argument, for example `npm run agent`, has no names.
 - **Read check.** A tool call passes the read check only if it is a shell tool call (`Bash`, `shell`, `local_shell` or `exec_command`) and its command obeys these rules. Each other tool call fails, so the deny fails closed.
   - The relay removes the body of each here-document, then splits the command at `;`, `&`, `|` and new lines.
@@ -261,7 +269,7 @@ The follow-up capture records a title-description schema match, without request 
   - `sed` needs `-n`, and each of its scripts, without its `/regex/` addresses, has only line addresses and the commands `p`, `P`, `=`, `q`, `Q`, `d` and `n`. An option that the check does not know fails, for example `-i` or `-f`. `sort` has no `-o`. `rg` has no `--pre`. `find` has no `-delete`, `-exec`, `-execdir`, `-ok`, `-okdir`, `-fls`, `-fprint`, `-fprint0` or `-fprintf`. `nookku` runs `transcript`, `audit`, `status` or `view`.
   - Each output redirect writes `/dev/null` or a file with the name `report.md`, or it copies a file descriptor.
   - The command has no `(`, `)`, `$(` or backquote, and each quote ends.
-- **Deny fails closed.** The relay applies the denies that need only the state folder before it reads the config. These are the deny of test files, the deny of the entry of the running test (from its `manifest.json`), and the deny of the tap of the running test. Thus a config that does not load does not stop them. If the relay fails on a tool call and the folder `.nookku/` exists, it denies the tool call, also when relay mode is off. Without this folder, no deny applies.
+- **Deny fails closed.** The relay applies the denies that need only the state folder before it reads the config. These are the deny of test files, the deny of the entry of the running test (from its `manifest.json`), and the deny of the tap of the running test. Thus a config that does not load does not stop them. If the relay fails on a tool call and the folder `.nookku/` exists, it denies the tool call, also when relay mode is off. Without this folder, only the deny of the policy file applies.
 - The deny of test files and of the entry is best effort, like the deny of the tap. A model can change a file or run the app with a command that does not name it.
 - **History.** For the `openai` adapter, the relay sends the turns of the current session that have `ok: true`, then the new message. In a test, the relay sends the turns of the test that have `ok: true` as `history`. If a line of the relay record is not valid (section 2), the relay stops with that error and sends nothing to the tap.
 
@@ -367,7 +375,7 @@ The test folder:
   sessions/codex/<rollout file>
 ```
 
-`manifest.json` holds the test id, the project root, the entry, the models, the start and end times, the versions of Nookku, Claude Code and Codex, the SHA-256 of each configuration file in `.nookku/`, the tester's harness session ids, and `codex_gate`: the result of the Codex hook gate at the start and at the end of the test (section 7.8).
+`manifest.json` holds the test id, the project root, the entry, the models, the start and end times, the versions of Nookku, Claude Code and Codex, the SHA-256 of each configuration file in `.nookku/`, `policy`: the value of each policy key (section 7.9), the tester's harness session ids, and `codex_gate`: the result of the Codex hook gate at the start and at the end of the test (section 7.8).
 
 ### 7.3 Model sessions
 
@@ -547,6 +555,18 @@ Codex skips a hook that a person did not trust. Then a relayed prompt goes to th
 6. `end` runs the gate again. `codex_gate` in `manifest.json` has both results: `codex`, the nookku hooks with their origin, event, trust status, trust hash and script SHA-256, and the problems. If the end result has a problem, or its hooks differ from the start, the end text says that the Codex hooks changed during the test and that the test is not to be trusted. The seal covers the manifest.
 
 The gate does not stop a person who starts Codex with other hooks after the start. The check at the end makes such a change visible in the sealed record.
+
+### 7.9 Policy file
+
+`.nookku/policy.json` holds the keys that control the guard. The model can change `config.json` for normal app work, so a check of single keys in a shell edit of `config.json` is not reliable. Thus these keys are in a separate file that the model never writes ([`src/nookku/policy.py`](src/nookku/policy.py)).
+
+- The file is a JSON object. If it does not exist, each key has its default, and each default is the strict value. If the file is not a JSON object, or has a key or a value that is not known, `start` and `check` stop with the error and exit with 1.
+- `nookku policy` prints each key with its value. `nookku policy set <key> <value>` writes one key. Only a person runs it, in a shell. The relay denies it from the model (section 5).
+- `manifest.json` records the value of each key as `policy`. `config_sha256` records the SHA-256 of the file, as for each configuration file in `.nookku/`.
+- The plugin has no options, so no plugin option can change a policy key.
+- 0.4.0 defines no key. Each guard rule that a person can change adds its key to this section, with its default and its conformance cases.
+
+The conformance cases of the deny are in [`conformance/policy/`](conformance/policy/). Each case is a hook event, the files of the project, and the decision of the relay.
 
 ## 8. Trace
 

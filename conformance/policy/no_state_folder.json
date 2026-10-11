@@ -1,0 +1,20 @@
+{
+ "answer": {
+  "hookSpecificOutput": {
+   "hookEventName": "PreToolUse",
+   "permissionDecision": "deny",
+   "permissionDecisionReason": "nookku: only a person changes .nookku/policy.json, with nookku policy set in a shell."
+  }
+ },
+ "event": {
+  "cwd": "{root}",
+  "hook_event_name": "PreToolUse",
+  "tool_input": {
+   "content": "{}",
+   "file_path": ".nookku/policy.json"
+  },
+  "tool_name": "Write"
+ },
+ "links": {},
+ "state": false
+}

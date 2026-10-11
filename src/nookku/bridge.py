@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from nookku import __version__, backend, model_api, otlp, seal, trace
+from nookku import __version__, backend, model_api, otlp, policy, seal, trace
 from nookku.audit import audit
 from nookku.config import FILE as CONFIG_FILE
 from nookku.config import STATE_DIR as STATE_DIR
@@ -76,14 +76,18 @@ class TestConfig:
     backends: list[backend.Backend] = field(default_factory=list)
     # The model APIs to record, with their URLs (SPEC.md section 7.7).
     model_apis: list[backend.Backend] = field(default_factory=list)
+    # Each key of the policy file with its value (SPEC.md section 7.9).
+    policy: dict[str, Any] = field(default_factory=dict)
 
 
 def load_config(root: Path) -> TestConfig:
     """The test keys of `.nookku/config.json`. Raise BridgeError if the file breaks the
-    rule of `config.read_config`, or if there is no entry."""
+    rule of `config.read_config`, if there is no entry, or if the policy file is not valid. Also
+    return the policy keys (SPEC.md section 7.9)."""
     try:
         data = read_config(root)
-    except ConfigError as e:
+        rules = policy.read(root)
+    except (ConfigError, policy.PolicyError) as e:
         raise BridgeError(str(e)) from None
     entry, models = data.get("entry") or [], data.get("models") or []
     if not (isinstance(entry, list) and entry and all(isinstance(a, str) for a in entry)):
@@ -97,7 +101,8 @@ def load_config(root: Path) -> TestConfig:
         raise BridgeError(f"{CONFIG_FILE}: {e}") from None
     if {b.env for b in backends} & {a.env for a in apis}:
         raise BridgeError(f"{CONFIG_FILE}: a backend uses the variable of a model API")
-    return TestConfig(entry, models, data.get("otel", True) is not False, backends, apis)
+    otel = data.get("otel", True) is not False
+    return TestConfig(entry, models, otel, backends, apis, rules)
 
 
 def _tail(path: Path, n: int = 20) -> str:
@@ -435,6 +440,7 @@ def run(root: Path, test: str, tester_session: str | None, timeout: float = AGEN
         "ended": None,
         "versions": {"nookku": __version__, "claude-code": None, "codex": None},
         "config_sha256": config_hashes(root),
+        "policy": config.policy,
         "tester_sessions": [tester_session] if tester_session else [],
         "model_sessions": [],
         "codex_gate": {"start": _start_gate(folder), "end": None},
