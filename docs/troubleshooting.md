@@ -226,11 +226,11 @@ If the entry returns an error, crashes or does not answer in [240 seconds](../sr
 
 ## End a test
 
-### `nookku: <path> is a record or a state file of nookku. Only nookku writes it. A command may read it.`
+### `nookku: <path> is a record or a state file of nookku. Only nookku writes it. A command may read it. <cause>`
 
-(kit.py) **Cause.** When no test ran, the model tried to write a record or a state file of nookku: a file of a test folder other than `report.md`, `current.json`, `mode`, `relay.jsonl`, `tap.jsonl`, `ending.json` or a seal copy. Or a command that does not pass the read check ran in `.nookku/`. The relay checks the paths that a call writes, not its text, so a file or a here-document that only names a record is not denied ([SPEC.md section 5](../SPEC.md#5-relays)).
+(kit.py) **Cause.** When no test ran, the model tried to write a record or a state file of nookku: a file of a test folder other than `report.md`, `current.json`, `mode`, `relay.jsonl`, `tap.jsonl`, `ending.json` or a seal copy. Or a command that does not pass the read check ran in `.nookku/`. The relay checks the paths that a call writes, not its text, so a file or a here-document that only names a record is not denied ([SPEC.md section 5](../SPEC.md#5-relays)). For a shell command, `<cause>` names the program or the redirect that failed, for example `"rm" is not a read command.` or `The redirect ">" writes it.`
 
-**Fix.** None for the records. A tool call can change `config.json` and the files of the entry when no test runs. If the evaluation needs a command, use a read program from the list in [SPEC.md section 5](../SPEC.md#5-relays), for example `cat`, `jq` or `sed -n`.
+**Fix.** None for the records. A tool call can change `config.json` and the files of the entry when no test runs. If the evaluation needs a command, use a read program from the list in [SPEC.md section 5](../SPEC.md#5-relays), for example `cat`, `jq` or `sed -n`. If your team uses a read program that is not in the list, add it with `nookku policy set guard_reads <program>` ([config.md](reference/config.md)). If the cause is `The guard cannot parse the command.`, remove each `$(...)`, backquote and bracket from the command.
 
 ### `nookku: a test runs, so a tool call may not name <path> until the test ends. The file tools may read it.`
 

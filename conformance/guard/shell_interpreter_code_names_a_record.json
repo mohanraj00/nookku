@@ -3,7 +3,7 @@
   "hookSpecificOutput": {
    "hookEventName": "PreToolUse",
    "permissionDecision": "deny",
-   "permissionDecisionReason": "nookku: .nookku/tests/t1/tap.jsonl is a record or a state file of nookku. Only nookku writes it. A command may read it."
+   "permissionDecisionReason": "nookku: .nookku/tests/t1/tap.jsonl is a record or a state file of nookku. Only nookku writes it. A command may read it. \"python3\" is not a read command."
   }
  },
  "event": {

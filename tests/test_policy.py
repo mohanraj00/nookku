@@ -131,15 +131,40 @@ def test_policy_set_names_the_known_keys(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     assert main(["policy", "--root", str(tmp_path), "set", "scripts", "model"]) == 1
-    assert "The keys are: guard_fields." in capsys.readouterr().err
+    assert "The keys are: guard_fields, guard_reads." in capsys.readouterr().err
 
 
 def test_guard_fields_takes_names_separated_by_commas(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     assert main(["policy", "--root", str(tmp_path), "set", "guard_fields", "path, url"]) == 0
-    assert json.loads(capsys.readouterr().out) == {"guard_fields": ["path", "url"]}
+    out = json.loads(capsys.readouterr().out)
+    assert out == {"guard_fields": ["path", "url"], "guard_reads": []}
     assert main(["policy", "--root", str(tmp_path), "set", "guard_fields", "path,,url"]) == 1
+
+
+@pytest.mark.parametrize(
+    ("text", "value"),
+    [
+        ("bat, fd", ["bat", "fd"]),
+        ("", []),
+        (" ", []),
+        ("bin/bat", None),
+        ("a b", None),
+        (",", None),
+        ("$X", None),
+        ("r?", None),
+        ("bat,-x", None),
+    ],
+)
+def test_guard_reads_takes_program_names(
+    tmp_path: Path, text: str, value: list[str] | None, capsys: pytest.CaptureFixture[str]
+) -> None:
+    code = main(["policy", "--root", str(tmp_path), "set", "guard_reads", text])
+    assert code == (0 if value is not None else 1)
+    assert (policy.READS_WARNING in capsys.readouterr().err) == bool(value)
+    if value is not None:
+        assert policy.read(tmp_path)["guard_reads"] == value
 
 
 def test_start_reads_the_policy_for_the_manifest(tmp_path: Path, keys: None) -> None:

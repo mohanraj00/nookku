@@ -3090,11 +3090,23 @@ POLICY_CASES: dict[str, dict] = {
 
 # Guard cases of the state folder (SPEC.md section 5, #149). The format is the format of the policy
 # cases. `test` is true if a test runs, with the folder `<state>/tests/t1`.
-def records(name: str) -> dict:
+def records(name: str, cause: str = "") -> dict:
+    """The records deny. `cause` names the program or the redirect of a shell command (#172)."""
     return deny(
         f"nookku: {name} is a record or a state file of nookku. Only nookku writes it. "
-        "A command may read it."
+        "A command may read it." + (f" {cause}" if cause else "")
     )
+
+
+def not_read(program: str) -> str:
+    return f'"{program}" is not a read command.'
+
+
+def writes_with(program: str) -> str:
+    return f'"{program}" with these arguments can write.'
+
+
+UNPARSED = "The guard cannot parse the command."
 
 
 def during(name: str) -> dict:
@@ -3134,27 +3146,27 @@ GUARD_CASES: dict[str, dict] = {
     },
     "shell_edit_of_a_record": {
         "event": bash(f"sed -i '' 's/4471/4417/' {RECORD}"),
-        "answer": records(RECORD),
+        "answer": records(RECORD, writes_with("sed")),
     },
     "shell_redirect_to_a_state_file": {
         "event": bash(f"echo on >> {STATE}/mode"),
-        "answer": records(f"{STATE}/mode"),
+        "answer": records(f"{STATE}/mode", 'The redirect ">>" writes it.'),
     },
     "shell_removes_the_state_folder": {
         "event": bash(f"rm -rf {STATE}"),
-        "answer": records(STATE),
+        "answer": records(STATE, not_read("rm")),
     },
     "shell_glob_of_records": {
         "event": bash("rm .nook*/tests/*/tap.jsonl"),
-        "answer": records(".nook*/tests/*/tap.jsonl"),
+        "answer": records(".nook*/tests/*/tap.jsonl", not_read("rm")),
     },
     "shell_seal_copy": {
         "event": bash(f"rm ~/{STATE}/seals/t1.json"),
-        "answer": records(f"~/{STATE}/seals/t1.json"),
+        "answer": records(f"~/{STATE}/seals/t1.json", not_read("rm")),
     },
     "shell_changes_to_the_state_folder": {
         "event": bash(f"cd {STATE} && rm relay.jsonl"),
-        "answer": records(STATE),
+        "answer": records(STATE, not_read("rm")),
     },
     # Case 2 of #149: the body of a here-document that is data names a record.
     "shell_heredoc_data_names_a_record": {
@@ -3163,17 +3175,101 @@ GUARD_CASES: dict[str, dict] = {
     },
     "shell_heredoc_code_names_a_record": {
         "event": bash(f"python3 - <<'EOF'\nopen('{RECORD}', 'w')\nEOF"),
-        "answer": records(RECORD),
+        # The body is code with brackets, so the check cannot parse it.
+        "answer": records(RECORD, UNPARSED),
     },
     # The argument of an interpreter is code that names a record.
     "shell_interpreter_code_names_a_record": {
         "event": bash(f"python3 -c \"open('{T1}/tap.jsonl', 'w').write('')\""),
-        "answer": records(f"{T1}/tap.jsonl"),
+        "answer": records(f"{T1}/tap.jsonl", not_read("python3")),
     },
     # A variable carries the path to the program.
     "shell_assignment_names_a_record": {
         "event": bash(f"P={RECORD} python3 clean.py"),
-        "answer": records(f"P={RECORD}"),
+        "answer": records(f"P={RECORD}", not_read("python3")),
+    },
+    # The examples of #172. which, type and command -v are read commands.
+    "shell_which_then_ls_of_a_test": {
+        "event": bash(f"which ls; /bin/ls {T1}"),
+        "answer": None,
+    },
+    "shell_audit_with_echo_tail_and_a_variable": {
+        "event": bash(
+            f'echo "== audit =="; nookku audit {T1} 2>&1 | tail -n 20; '
+            'echo "exit ${pipestatus[1]} $status"'
+        ),
+        "answer": None,
+    },
+    "shell_type_and_command_v_then_a_read": {
+        "event": bash(f"type nookku && command -v nookku && cat {RECORD}"),
+        "answer": None,
+    },
+    "shell_command_runs_a_program": {
+        "event": bash(f"command rm {RECORD}"),
+        "answer": records(RECORD, writes_with("command")),
+    },
+    # A variable can be an argument, but not the program.
+    "shell_variable_program_names_a_record": {
+        "event": bash(f"X=rm; $X {RECORD}"),
+        "answer": records(RECORD, not_read("$X")),
+    },
+    "shell_braced_variable_program_names_a_record": {
+        "event": bash(f"X=rm; ${{X}} {RECORD}"),
+        "answer": records(RECORD, not_read("${X}")),
+    },
+    "shell_variable_argument_of_a_read": {
+        "event": bash(f"T={T1}; cat $T/relay.jsonl ${{T}}/tap.jsonl"),
+        "answer": None,
+    },
+    # The check cannot parse a command substitution, so each word that names a record counts.
+    "shell_command_substitution_names_a_record": {
+        "event": bash(f"cat $(echo {RECORD})"),
+        "answer": records(RECORD, UNPARSED),
+    },
+    "shell_backquote_names_a_record": {
+        "event": bash(f"cat `echo {RECORD}`"),
+        "answer": records(RECORD, UNPARSED),
+    },
+    # guard_reads adds read programs. A program of the built-in list keeps its own check.
+    "shell_program_of_guard_reads": {
+        "policy_text": '{"guard_reads": ["bat"]}\n',
+        "event": bash(f"bat {RECORD}"),
+        "answer": None,
+    },
+    "shell_program_not_in_guard_reads": {
+        "event": bash(f"bat {RECORD}"),
+        "answer": records(RECORD, not_read("bat")),
+    },
+    "shell_guard_reads_keeps_the_sed_check": {
+        "policy_text": '{"guard_reads": ["sed"]}\n',
+        "event": bash(f"sed -i '' 's/4471/4417/' {RECORD}"),
+        "answer": records(RECORD, writes_with("sed")),
+    },
+    # A program name of guard_reads is literal. An expansion can become another program, so the
+    # policy file is not valid, and no program is added.
+    "shell_guard_reads_with_an_expansion": {
+        "policy_text": '{"guard_reads": ["$X"]}\n',
+        "event": bash(f"X=rm; $X {RECORD}"),
+        "answer": records(RECORD, not_read("$X")),
+    },
+    # An assignment before a program fails the read check, so a command in the state folder is
+    # denied.
+    "shell_assignment_before_a_read_in_the_state_folder": {
+        "event": bash(f"cd {STATE} && PATH=/tmp cat config.json"),
+        "answer": records(STATE, 'The read check does not accept the assignment "PATH=/tmp".'),
+    },
+    # The deny of the policy file does not use guard_reads.
+    "shell_program_of_guard_reads_writes_the_policy": {
+        "policy_text": '{"guard_reads": ["shopctl"]}\n',
+        "event": bash(f"shopctl --save {STATE}/policy.json"),
+        "answer": deny(
+            f"nookku: only a person changes {STATE}/policy.json, with nookku policy set in a shell."
+        ),
+    },
+    "test_shell_which_then_ls_of_a_test": {
+        "test": True,
+        "event": bash(f"which ls; /bin/ls {T1}"),
+        "answer": during(T1),
     },
     "shell_reads_a_record_into_another_file": {
         "event": bash(f"cat -n {RECORD} | sed -n 1,200p > /tmp/copy.txt"),

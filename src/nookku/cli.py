@@ -437,6 +437,8 @@ def _policy(root: Path, action: str | None, key: str | None, value: str | None) 
             return 2
         else:
             values = policy.set_key(root, key, value)
+            if key == "guard_reads" and values[key]:
+                print(policy.READS_WARNING, file=sys.stderr)
     except (policy.PolicyError, OSError) as e:
         print(f"nookku: {e}", file=sys.stderr)
         return 1

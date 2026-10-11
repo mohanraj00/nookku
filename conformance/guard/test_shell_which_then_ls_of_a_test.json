@@ -1,0 +1,20 @@
+{
+ "answer": {
+  "hookSpecificOutput": {
+   "hookEventName": "PreToolUse",
+   "permissionDecision": "deny",
+   "permissionDecisionReason": "nookku: a test runs, so a tool call may not name .nookku/tests/t1 until the test ends. The file tools may read it."
+  }
+ },
+ "event": {
+  "cwd": "{root}",
+  "hook_event_name": "PreToolUse",
+  "tool_input": {
+   "command": "which ls; /bin/ls .nookku/tests/t1"
+  },
+  "tool_name": "Bash"
+ },
+ "links": {},
+ "state": true,
+ "test": true
+}

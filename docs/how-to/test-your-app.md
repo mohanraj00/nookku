@@ -211,10 +211,10 @@ In the [evaluation](../reference/glossary.md#evaluation), the [harness model](..
 
 Allow these commands. Deny a command that changes the state of your app, starts your app or sends a message to it. The evaluation prompt forbids these commands.
 
-The relay also checks each command. After a test, it denies a write to the test folder, except `report.md`, and a write to the other records and state files of nookku. It checks the paths that a command writes, not its text ([SPEC.md section 5](../../SPEC.md#5-relays) lists the read programs and the protected files). Then the model gets this text, with the path that the command named:
+The relay also checks each command. After a test, it denies a write to the test folder, except `report.md`, and a write to the other records and state files of nookku. It checks the paths that a command writes, not its text ([SPEC.md section 5](../../SPEC.md#5-relays) lists the read programs and the protected files). Then the model gets this text, with the path that the command named and the program or the redirect that failed:
 
 ```text
-nookku: <path> is a record or a state file of nookku. Only nookku writes it. A command may read it.
+nookku: <path> is a record or a state file of nookku. Only nookku writes it. A command may read it. "rm" is not a read command.
 ```
 
 If you deny a command, the model does not get its output. In Claude Code, a deny with no message tells the model to stop and wait for you. Then the model does not write `report.md`. To continue, type a reply, for example "Do not run that command. Continue with the other steps."

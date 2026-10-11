@@ -22,6 +22,12 @@ STATE_DIR = ".nookku"
 NAME = "policy.json"
 FILE = f"{STATE_DIR}/{NAME}"
 REASON = f"nookku: only a person changes {FILE}, with nookku policy set in a shell."
+# The warning of `nookku policy set guard_reads`.
+READS_WARNING = (
+    "nookku: the guard does not check the arguments of a program of guard_reads. Add only a "
+    "program that cannot write a file or start a program with any argument. For example, "
+    "fd --exec and bat --pager start a program."
+)
 # Text that names the file or the command that writes it. The match ignores case, because the
 # file system of macOS and Windows ignores case.
 NAMES_FILE = re.compile(re.escape(NAME), re.IGNORECASE)
@@ -56,6 +62,29 @@ def _is_names(value: Any) -> bool:
     return isinstance(value, list) and bool(value) and all(isinstance(n, str) and n for n in value)
 
 
+# A program name: a literal base name. A shell expansion such as $X or a glob such as r? can
+# become another program, so its characters are not allowed.
+PROGRAM = re.compile(r"[A-Za-z0-9_][A-Za-z0-9._+-]*")
+
+
+def _programs(text: str) -> list[str]:
+    if not text.strip():
+        return []
+    names = [n.strip() for n in text.split(",")]
+    if not all(PROGRAM.fullmatch(n) for n in names):
+        raise ValueError(
+            "give program names with only letters, digits and . _ + -, separated by commas, "
+            "for example od,hexdump"
+        )
+    return names
+
+
+def _is_programs(value: Any) -> bool:
+    return isinstance(value, list) and all(
+        isinstance(n, str) and PROGRAM.fullmatch(n) for n in value
+    )
+
+
 # The keys of policy.json. Each other key is an error. The issue that adds a guard rule adds its
 # key here, with SPEC.md section 7.9 and docs/reference/config.md.
 KEYS: dict[str, Key] = {
@@ -67,6 +96,14 @@ KEYS: dict[str, Key] = {
         _is_names,
         "the fields of a tool input that the guard reads, for a tool that is not a shell or a "
         "file tool",
+    ),
+    # More programs that the read check accepts (#172), with each argument. The deny of this file
+    # does not use them.
+    "guard_reads": Key(
+        [],
+        _programs,
+        _is_programs,
+        "more programs that the read check of the guard accepts",
     ),
 }
 

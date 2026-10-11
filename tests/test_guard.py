@@ -13,6 +13,7 @@ from nookku import commands, kit
 
 STATE = "." + "nookku"
 CASES = sorted((Path(__file__).resolve().parent.parent / "conformance" / "guard").glob("*.json"))
+SED = '"sed" with these arguments can write.'
 
 
 def _fill(value: Any, root: Path) -> Any:
@@ -43,17 +44,34 @@ def test_conformance(case: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 
 
 @pytest.mark.parametrize(
-    ("command", "targets", "folders"),
+    ("command", "targets", "folders", "cause"),
     [
-        ("sed -i '' s/a/b/ shop.json", ["-i", "", "s/a/b/", "shop.json"], []),
-        ("cat shop.json > out.txt", ["out.txt"], []),
-        ("grep -n refund shop.py 2>/dev/null", ["/dev/null"], []),
-        ("cd shop && make", [], ["shop"]),
-        ("python3 <<< 'print(1)'", ["print(1)"], []),
+        ("sed -i '' s/a/b/ shop.json", ["-i", "", "s/a/b/", "shop.json"], [], SED),
+        ("cat shop.json > out.txt", ["out.txt"], [], 'The redirect ">" writes it.'),
+        ("grep -n refund shop.py 2>/dev/null", ["/dev/null"], [], 'The redirect ">" writes it.'),
+        ("cd shop && make", [], ["shop"], '"make" is not a read command.'),
+        ("python3 <<< 'print(1)'", ["print(1)"], [], '"python3" is not a read command.'),
+        ("cat a.txt; echo ${x} $y", [], [], ""),
+        (
+            "PATH=/tmp cat a.txt",
+            [],
+            [],
+            'The read check does not accept the assignment "PATH=/tmp".',
+        ),
+        ("IFS=x; cat a.txt", [], [], 'The read check does not accept the assignment "IFS=x".'),
     ],
 )
-def test_write_targets(command: str, targets: list[str], folders: list[str]) -> None:
-    assert commands.write_targets(command) == (targets, folders)
+def test_write_targets(command: str, targets: list[str], folders: list[str], cause: str) -> None:
+    found = commands.write_targets(command)
+    assert found is not None
+    assert [w for w, _ in found.targets] == targets
+    assert (found.folders, found.cause) == (folders, cause)
+
+
+def test_guard_reads_adds_programs_but_keeps_each_built_in_check() -> None:
+    assert not commands.reads_only("bat shop.json")
+    assert commands.reads_only("bat shop.json", frozenset({"bat"}))
+    assert not commands.reads_only("sed -i '' s/a/b/ shop.json", frozenset({"sed"}))
 
 
 def test_a_command_that_the_check_cannot_parse_has_no_targets() -> None:
