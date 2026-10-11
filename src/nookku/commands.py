@@ -41,6 +41,23 @@ STATE = ".nookku"
 DATA_PROGRAMS = {"cat", "tee", "gh", "jq", "wc", "grep", "head", "tail", "sort"}
 GIT_DATA = {"commit", "tag", "notes"}
 PATCH_FILE = re.compile(r"^\*\*\* (?:(?:Add|Update|Delete) File|Move to): (.+)$", re.MULTILINE)
+# The nookku commands that drive a test. Only a person runs them (#173). `mode` drives a test only
+# with one of MODE_DRIVES, and `run` only if the policy key scripts is not model.
+DRIVES = {"start", "end", "hook", "run"}
+MODE_DRIVES = {"on", "off", "start", "end"}
+# Programs that run their arguments as a command.
+LAUNCHERS = {"env", "exec", "nohup", "time", "command", "sudo", "uvx"}
+PYTHON = re.compile(r"python[0-9.]*")
+# Text that imports the package, and text that runs a drive command. The rule reads the text only
+# if the check cannot parse the command.
+IMPORTS = re.compile(
+    r"\b(?:import|from)\s+nookku\b|\b(?:import_module|__import__)\s*\(\s*['\"]nookku\b"
+)
+DRIVE_TEXT = re.compile(
+    r"\bnookku\s+(?:-\S+\s+)*(start|end|hook|run|mode\s+(?:on|off|start|end))\b"
+)
+IMPORT = "import nookku"
+SHELL_CODE = re.compile(r"-[a-zA-Z]*c[a-zA-Z]*")
 # A word of a text that can name a path in a state folder.
 STATE_WORD = re.compile(r"[^\s\"'`;|&<>(),{}]+")
 
@@ -325,6 +342,97 @@ def _data_heredoc(line: str, at: int) -> bool:
     if program in DATA_PROGRAMS:
         return True
     return program == "git" and args[:1] != [] and args[0] in GIT_DATA
+
+
+def _parts(toks: list[tuple[str, bool]]) -> list[list[str]] | None:
+    """The words of each part of a command, without redirects. None if a part has a bracket."""
+    parts: list[list[str]] = [[]]
+    i = 0
+    while i < len(toks):
+        text, op = toks[i]
+        if not op:
+            parts[-1].append(text)
+        elif "(" in text or ")" in text:
+            return None
+        elif set(text) <= set(";&|"):
+            parts.append([])
+        else:
+            i += 1
+        i += 1
+    return parts
+
+
+def _subcommand(args: list[str]) -> str | None:
+    """The drive command of the arguments of nookku, for example "nookku start", or None."""
+    words = [a for a in args if not a.startswith("-")]
+    if words and words[0] in DRIVES:
+        return f"nookku {words[0]}"
+    state = next((w for w in words[1:] if w in MODE_DRIVES), None)
+    if words[:1] == ["mode"] and state is not None:
+        return f"nookku mode {state}"
+    return None
+
+
+def _program(word: str) -> str:
+    return word.rsplit("/", 1)[-1]
+
+
+def _runs(word: str) -> bool:
+    """True for a program that the drive rule reads: nookku, python or a shell."""
+    program = _program(word)
+    return program in ("nookku", "nookku.exe", *SHELLS) or PYTHON.fullmatch(program) is not None
+
+
+def _drive_part(words: list[str]) -> str | None:
+    i = 0
+    while i < len(words) and ASSIGNMENT.match(words[i]):
+        i += 1
+    if i < len(words) and (
+        _program(words[i]) in LAUNCHERS
+        or (_program(words[i]) in ("uv", "pipx") and words[i + 1 : i + 2] == ["run"])
+    ):
+        # A launcher option can take a value, so the program is the first word that runs.
+        i = next((j for j in range(i + 1, len(words)) if _runs(words[j])), len(words))
+    while i < len(words):
+        program = _program(words[i])
+        if program in ("nookku", "nookku.exe"):
+            return _subcommand(words[i + 1 :])
+        elif PYTHON.fullmatch(program) and "-m" in words[i + 1 :]:
+            k = words.index("-m", i + 1)
+            module = words[k + 1] if k + 1 < len(words) else ""
+            if module == "nookku":
+                return _subcommand(words[k + 2 :])
+            return IMPORT if module.startswith("nookku.") else None
+        elif program in SHELLS:
+            # The code of sh -c, bash -lc and the like.
+            flags = [k for k in range(i + 1, len(words)) if SHELL_CODE.fullmatch(words[k])]
+            return drive(words[flags[0] + 1]) if flags and flags[0] + 1 < len(words) else None
+        return None
+    return None
+
+
+def drive(command: str) -> str | None:
+    """The nookku command that a shell command runs to drive a test, for example "nookku start",
+    or IMPORT if the command imports the package. None if it does neither (SPEC.md section 5).
+
+    The rule finds the program after assignments, launchers such as env and uv run, python -m
+    and sh -c. If the check cannot parse the command, the rule reads its text. A command that
+    only reads, for example grep "import nookku", does not import the package."""
+    stripped = strip_data_heredocs(command)
+    toks = tokens(stripped)
+    parts = _parts(toks) if toks is not None else None
+    if parts is None:
+        m = DRIVE_TEXT.search(stripped)
+        if m:
+            return "nookku " + " ".join(m.group(1).split())
+    else:
+        for words in parts:
+            found = _drive_part(words)
+            if found is not None:
+                return found
+    if IMPORTS.search(stripped) and not reads_only(command):
+        return IMPORT
+    return None
 
 
 def strip_data_heredocs(text: str) -> str:

@@ -1,0 +1,20 @@
+{
+ "answer": {
+  "hookSpecificOutput": {
+   "hookEventName": "PreToolUse",
+   "permissionDecision": "deny",
+   "permissionDecisionReason": "nookku: a model command may not import nookku, because a script can drive a test with it. To run a scenario, use nookku run --script, if the policy key scripts is model."
+  }
+ },
+ "event": {
+  "cwd": "{root}",
+  "hook_event_name": "PreToolUse",
+  "tool_input": {
+   "command": "python3 - <<'EOF'\nfrom nookku import kit\nEOF"
+  },
+  "tool_name": "Bash"
+ },
+ "links": {},
+ "state": true,
+ "test": false
+}

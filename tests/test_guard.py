@@ -101,3 +101,46 @@ def test_a_heredoc_body_of_code_stays() -> None:
 )
 def test_state_rest(word: str, rest: list[str] | None) -> None:
     assert commands.state_rest(word) == rest
+
+
+@pytest.mark.parametrize(
+    ("command", "what"),
+    [
+        ("nookku start", "nookku start"),
+        ("X=1 nookku end", "nookku end"),
+        ("nookku mode --root . on", "nookku mode on"),
+        ("time python3 -m nookku start", "nookku start"),
+        ("uv run --with shop nookku end", "nookku end"),
+        ("sudo -u shop nookku hook", "nookku hook"),
+        ("env A=1 bash -lc 'nookku end'", "nookku end"),
+        ("pipx run nookku run --script s.jsonl", "nookku run"),
+        ("echo $(nookku start)", "nookku start"),
+        ("python -m nookku.kit", commands.IMPORT),
+        ("python3 -c 'from nookku import kit'", commands.IMPORT),
+        ("python3 -c \"__import__('nookku')\"", commands.IMPORT),
+        ("nookku mode", None),
+        ("nookku mode status", None),
+        ("nookku check", None),
+        ("uvx nookku audit", None),
+        ("echo nookku start", None),
+        ('grep -rn "import nookku" shop', None),
+        ("bash shop/run.sh", None),
+    ],
+)
+def test_drive(command: str, what: str | None) -> None:
+    assert commands.drive(command) == what
+
+
+def test_the_drive_deny_applies_with_no_state_folder(tmp_path: Path) -> None:
+    # A model can write the config with init and start a test in one command.
+    event = {
+        "hook_event_name": "PreToolUse",
+        "cwd": str(tmp_path),
+        "tool_name": "Bash",
+        "tool_input": {"command": "nookku init plugin && nookku start"},
+    }
+    out = io.StringIO()
+    assert kit.run_hook(tmp_path, "claude-code", io.StringIO(json.dumps(event)), out) == 0
+    reason = json.loads(out.getvalue())["hookSpecificOutput"]["permissionDecisionReason"]
+    assert reason == kit.DRIVE_REASON.format(what="nookku start")
+    assert not (tmp_path / STATE).exists()

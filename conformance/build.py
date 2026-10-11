@@ -3106,7 +3106,19 @@ def writes_with(program: str) -> str:
     return f'"{program}" with these arguments can write.'
 
 
-UNPARSED = "The guard cannot parse the command."
+CANNOT_PARSE = "The guard cannot parse the command."
+SCENARIO = "To run a scenario, use nookku run --script, if the policy key scripts is model."
+IMPORT_REASON = (
+    "nookku: a model command may not import nookku, because a script can drive a test with it. "
+    + SCENARIO
+)
+
+
+def drives(what: str) -> dict:
+    """The deny of a model command that drives a test (#173)."""
+    return deny(
+        f"nookku: only a person runs {what}. A model command may not drive a test. {SCENARIO}"
+    )
 
 
 def during(name: str) -> dict:
@@ -3176,7 +3188,7 @@ GUARD_CASES: dict[str, dict] = {
     "shell_heredoc_code_names_a_record": {
         "event": bash(f"python3 - <<'EOF'\nopen('{RECORD}', 'w')\nEOF"),
         # The body is code with brackets, so the check cannot parse it.
-        "answer": records(RECORD, UNPARSED),
+        "answer": records(RECORD, CANNOT_PARSE),
     },
     # The argument of an interpreter is code that names a record.
     "shell_interpreter_code_names_a_record": {
@@ -3224,11 +3236,11 @@ GUARD_CASES: dict[str, dict] = {
     # The check cannot parse a command substitution, so each word that names a record counts.
     "shell_command_substitution_names_a_record": {
         "event": bash(f"cat $(echo {RECORD})"),
-        "answer": records(RECORD, UNPARSED),
+        "answer": records(RECORD, CANNOT_PARSE),
     },
     "shell_backquote_names_a_record": {
         "event": bash(f"cat `echo {RECORD}`"),
-        "answer": records(RECORD, UNPARSED),
+        "answer": records(RECORD, CANNOT_PARSE),
     },
     # guard_reads adds read programs. A program of the built-in list keeps its own check.
     "shell_program_of_guard_reads": {
@@ -3270,6 +3282,74 @@ GUARD_CASES: dict[str, dict] = {
         "test": True,
         "event": bash(f"which ls; /bin/ls {T1}"),
         "answer": during(T1),
+    },
+    # #173: only a person drives a test, with a test and with no test.
+    "shell_starts_a_test": {
+        "event": bash("nookku start"),
+        "answer": drives("nookku start"),
+    },
+    "test_shell_ends_the_test": {
+        "test": True,
+        "event": bash("nookku end"),
+        "answer": drives("nookku end"),
+    },
+    "shell_python_module_switches_relay_mode_on": {
+        "event": bash("python3 -m nookku mode on"),
+        "answer": drives("nookku mode on"),
+    },
+    "test_shell_code_ends_the_test": {
+        "test": True,
+        "event": bash("bash -lc 'nookku end'"),
+        "answer": drives("nookku end"),
+    },
+    "shell_pipes_an_event_to_the_hook": {
+        "event": bash(
+            'echo \'{"hook_event_name": "UserPromptSubmit", "prompt": "Where is order 4471?"}\''
+            " | nookku hook --harness claude-code"
+        ),
+        "answer": drives("nookku hook"),
+    },
+    "session_input_starts_a_test": {
+        "event": pevent("write_stdin", session_id=1, chars="nookku start\n"),
+        "answer": drives("nookku start"),
+    },
+    "shell_imports_the_package": {
+        "event": bash('python3 -c "import nookku.kit"'),
+        "answer": deny(IMPORT_REASON),
+    },
+    "shell_heredoc_code_imports_the_package": {
+        "event": bash("python3 - <<'EOF'\nfrom nookku import kit\nEOF"),
+        "answer": deny(IMPORT_REASON),
+    },
+    "shell_heredoc_data_names_an_import": {
+        "event": bash("cat > /tmp/notes.md <<'EOF'\nimport nookku\nEOF"),
+        "answer": None,
+    },
+    "shell_searches_for_an_import": {
+        "event": bash('grep -rn "import nookku" shop'),
+        "answer": None,
+    },
+    "shell_runs_a_script_with_scripts_person": {
+        "event": bash("nookku run --script refunds.jsonl"),
+        "answer": drives("nookku run"),
+    },
+    "shell_runs_a_script_with_scripts_model": {
+        "policy_text": '{"scripts": "model"}\n',
+        "event": bash("nookku run --script refunds.jsonl"),
+        "answer": None,
+    },
+    "shell_mode_status": {
+        "event": bash("nookku mode status"),
+        "answer": None,
+    },
+    "shell_check": {
+        "event": bash("nookku check"),
+        "answer": None,
+    },
+    "test_shell_transcript_with_the_trace": {
+        "test": True,
+        "event": bash("nookku transcript --trace"),
+        "answer": None,
     },
     "shell_reads_a_record_into_another_file": {
         "event": bash(f"cat -n {RECORD} | sed -n 1,200p > /tmp/copy.txt"),

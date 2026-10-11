@@ -85,6 +85,12 @@ def _is_programs(value: Any) -> bool:
     )
 
 
+def _who(text: str) -> str:
+    if text not in ("person", "model"):
+        raise ValueError("give person or model")
+    return text
+
+
 # The keys of policy.json. Each other key is an error. The issue that adds a guard rule adds its
 # key here, with SPEC.md section 7.9 and docs/reference/config.md.
 KEYS: dict[str, Key] = {
@@ -104,6 +110,13 @@ KEYS: dict[str, Key] = {
         _programs,
         _is_programs,
         "more programs that the read check of the guard accepts",
+    ),
+    # Who runs nookku run --script (#173, #171). With person, the guard denies it from the model.
+    "scripts": Key(
+        "person",
+        _who,
+        lambda v: v in ("person", "model"),
+        "who runs nookku run --script: person or model",
     ),
 }
 

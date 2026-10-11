@@ -130,8 +130,13 @@ def test_policy_set_refuses_a_bad_key_or_value(
 def test_policy_set_names_the_known_keys(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    assert main(["policy", "--root", str(tmp_path), "set", "scripts", "model"]) == 1
-    assert "The keys are: guard_fields, guard_reads." in capsys.readouterr().err
+    assert main(["policy", "--root", str(tmp_path), "set", "players", "model"]) == 1
+    assert "The keys are: guard_fields, guard_reads, scripts." in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(("text", "code"), [("model", 0), ("person", 0), ("anyone", 1)])
+def test_scripts_takes_person_or_model(tmp_path: Path, text: str, code: int) -> None:
+    assert main(["policy", "--root", str(tmp_path), "set", "scripts", text]) == code
 
 
 def test_guard_fields_takes_names_separated_by_commas(
@@ -139,7 +144,7 @@ def test_guard_fields_takes_names_separated_by_commas(
 ) -> None:
     assert main(["policy", "--root", str(tmp_path), "set", "guard_fields", "path, url"]) == 0
     out = json.loads(capsys.readouterr().out)
-    assert out == {"guard_fields": ["path", "url"], "guard_reads": []}
+    assert out == {"guard_fields": ["path", "url"], "guard_reads": [], "scripts": "person"}
     assert main(["policy", "--root", str(tmp_path), "set", "guard_fields", "path,,url"]) == 1
 
 
