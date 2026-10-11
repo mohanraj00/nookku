@@ -1,4 +1,5 @@
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -277,6 +278,33 @@ def test_init_refuses_a_state_folder_that_is_a_symlink(
     assert f"--root {tmp_path / 'shop'}. Nothing was written." in capsys.readouterr().err
 
 
+def test_init_refuses_the_target_of_a_symlinked_state_folder(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (tmp_path / "shop").mkdir()
+    assert main(["init", "codex", "--root", str(tmp_path / "shop")]) == 0
+    (tmp_path / "shop" / ".nookku").rename(tmp_path / "store")
+    (tmp_path / "shop" / ".nookku").symlink_to(tmp_path / "store")
+    (tmp_path / "store" / "tests" / "t1").mkdir(parents=True)
+    capsys.readouterr()
+    before = sorted(tmp_path.rglob("*"))
+    assert main(["init", "codex", "--root", str(tmp_path / "store" / "tests" / "t1")]) == 1
+    monkeypatch.chdir(tmp_path / "store" / "tests" / "t1")
+    assert main(["init", "codex", "--root", "."]) == 1
+    assert sorted(tmp_path.rglob("*")) == before
+    assert f"is inside the state folder {tmp_path / 'store'}." in capsys.readouterr().err
+
+
+def test_init_prints_the_root_before_the_move_of_the_old_folder(tmp_path: Path) -> None:
+    (tmp_path / ".verbatim-relay").mkdir()
+    cmd = [sys.executable, "-m", "nookku", "init", "plugin", "--root", str(tmp_path)]
+    out = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    lines = out.stdout.splitlines()
+    assert lines[0] == f"Project root: {tmp_path.resolve()}"
+    assert lines[1].startswith("nookku: moved ")
+    assert lines.count(lines[0]) == 1
+
+
 def test_init_prints_the_absolute_root_first(
     tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -296,8 +324,6 @@ def test_init_prints_the_absolute_root_first(
 def test_init_warns_if_a_new_root_is_not_the_top_of_its_git_tree(
     tmp_path: Path, capsys: pytest.CaptureFixture[str], sub: str, config: bool, warned: bool
 ) -> None:
-    import subprocess
-
     subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
     root = (tmp_path / sub).resolve()
     root.mkdir(exist_ok=True)

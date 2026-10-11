@@ -757,11 +757,27 @@ class Installed:
     kept: list[str]
 
 
+def _is_state_folder(folder: Path) -> bool:
+    """True if a folder has the files of a state folder: the mode file and the config or the
+    tests. A state folder can be the target of a symlink with another name."""
+    try:
+        mode = (folder / "mode").read_text(encoding="utf-8").strip()
+    except (OSError, UnicodeDecodeError):
+        return False
+    return mode in ("on", "off") and (
+        (folder / "config.json").is_file() or (folder / "tests").is_dir()
+    )
+
+
 def state_folder_of(root: Path) -> Path | None:
-    """The state folder that holds root, for example a test folder, or None. The match ignores
-    case, because the file system of macOS and Windows ignores case."""
+    """The state folder that holds root, for example a test folder, or None. A folder matches by
+    its name, in any case, because the file system of macOS and Windows ignores case, or by its
+    files."""
     names = (STATE_DIR.casefold(), OLD_STATE_DIR.casefold())
-    return next((p for p in (root, *root.parents) if p.name.casefold() in names), None)
+    return next(
+        (p for p in (root, *root.parents) if p.name.casefold() in names or _is_state_folder(p)),
+        None,
+    )
 
 
 def state_root_error(root: Path, harness: str) -> str | None:
@@ -769,6 +785,12 @@ def state_root_error(root: Path, harness: str) -> str | None:
     folder = state_folder_of(root)
     if folder is None:
         return None
+    if folder.name.casefold() not in (STATE_DIR.casefold(), OLD_STATE_DIR.casefold()):
+        # The folder is the target of a symlink, so its parent is not the project.
+        return (
+            f"the root {root} is inside the state folder {folder}. Run init in the project "
+            "that holds this state folder"
+        )
     return (
         f"the root {root} is inside the state folder {folder}. Run init in the project: "
         f"nookku init {harness} --root {folder.parent}"

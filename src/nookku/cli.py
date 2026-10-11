@@ -202,6 +202,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         if error:
             print(f"nookku: {error}. Nothing was written.", file=sys.stderr)
             return 1
+        # The root comes first, before a message of the move below, also in output with stderr
+        # in the same pipe.
+        print(f"Project root: {args.root.resolve()}", flush=True)
     if isinstance(getattr(args, "root", None), Path):
         error = move_old_state(args.root.resolve())
         if error:
@@ -262,8 +265,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         except ValueError as e:
             print(f"nookku: {str(e).rstrip('.')}. Nothing was written.", file=sys.stderr)
             return 1
-        # The root comes first, also in output with stderr in the same pipe.
-        print(f"Project root: {root}", flush=True)
         top = _git_top(root) if done.new else None
         if top is not None and top != root:
             print(
