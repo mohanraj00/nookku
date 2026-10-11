@@ -16,6 +16,8 @@ STATE_DIR = ".nookku"
 FILE = f"{STATE_DIR}/config.json"
 # The state folder of verbatim-relay 0.3.x and earlier. The first run of nookku moves it.
 OLD_STATE_DIR = ".verbatim-relay"
+# The message of nookku check if config.json has no check_message (SPEC.md section 7.1).
+CHECK_MESSAGE = "Hello from nookku check. What can you help me with?"
 
 
 class ConfigError(ValueError):
@@ -97,6 +99,8 @@ class Config:
     backends: list[dict[str, str]] = field(default_factory=list)
     # The model APIs to record: true, false, a list of names, or names with URLs (SPEC.md 7.7).
     model_api: bool | list[str] | dict[str, str | None] = True
+    # The one message of nookku check (SPEC.md section 7.1).
+    check_message: str = CHECK_MESSAGE
 
     @classmethod
     def load(cls, root: Path) -> Config:
@@ -119,6 +123,9 @@ def check(data: Any) -> dict[str, Any]:
         raise ConfigError(f"{FILE} has unknown keys: {unknown}. Correct or remove them.")
     if not isinstance(data.get("openai_stream", False), bool):
         raise ConfigError(f"{FILE}: 'openai_stream' must be true or false")
+    message = data.get("check_message", CHECK_MESSAGE)
+    if not isinstance(message, str) or not message.strip():
+        raise ConfigError(f"{FILE}: 'check_message' must be a string with text")
     return data
 
 

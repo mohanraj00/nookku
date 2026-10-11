@@ -243,6 +243,21 @@ def test_init_takes_the_openai_stream_flag(tmp_path: Path) -> None:
     assert (conf["adapter"], conf["openai_stream"]) == ("openai", True)
 
 
+def test_init_takes_the_check_message_flag(tmp_path: Path) -> None:
+    args = ["init", "codex", "--root", str(tmp_path), "--check-message", "Do you sell teapots?"]
+    assert main(args) == 0
+    conf = json.loads((tmp_path / ".nookku" / "config.json").read_text())
+    assert conf["check_message"] == "Do you sell teapots?"
+
+
+def test_init_refuses_an_empty_check_message(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert main(["init", "codex", "--root", str(tmp_path), "--check-message", " "]) == 1
+    assert "'check_message' must be a string with text" in capsys.readouterr().err
+    assert not (tmp_path / ".nookku" / "config.json").exists()
+
+
 @pytest.mark.parametrize(
     "inside", [".nookku/tests/t1", ".nookku", ".NOOKKU/tests/t1", ".verbatim-relay"]
 )

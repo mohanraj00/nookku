@@ -20,6 +20,7 @@ from typing import Any
 
 from nookku import __version__, backend, model_api, otlp, policy, seal, trace
 from nookku.audit import audit
+from nookku.config import CHECK_MESSAGE as CHECK_MESSAGE
 from nookku.config import FILE as CONFIG_FILE
 from nookku.config import STATE_DIR as STATE_DIR
 from nookku.config import ConfigError, read_config
@@ -52,7 +53,6 @@ POLL = 0.5
 # Files in the state folder that a test writes or that switch a mode. They are not configuration.
 NOT_CONFIG = {"tests", "current.json", "mode", "relay.jsonl", "tap.jsonl", ENDING}
 SKIP_DIRS = {"node_modules", ".venv", "__pycache__", ".git"}
-CHECK_MESSAGE = "Hello from nookku check. What can you help me with?"
 # For each break class of the audit (SPEC.md section 3.3): what occurred in the check, and the fix.
 ONE_SENDER = "Make sure that only one relay sends messages to the tap."
 BREAK_FIX = {
@@ -82,6 +82,8 @@ class TestConfig:
     model_apis: list[backend.Backend] = field(default_factory=list)
     # Each key of the policy file with its value (SPEC.md section 7.9).
     policy: dict[str, Any] = field(default_factory=dict)
+    # The one message of nookku check (SPEC.md section 7.1).
+    check_message: str = CHECK_MESSAGE
 
 
 def load_config(root: Path) -> TestConfig:
@@ -109,7 +111,8 @@ def load_config(root: Path) -> TestConfig:
     if reserved:
         raise BridgeError(f"{CONFIG_FILE}: a backend uses the variable {reserved[0]} of nookku")
     otel = data.get("otel", True) is not False
-    return TestConfig(entry, models, otel, backends, apis, rules)
+    message = data.get("check_message", CHECK_MESSAGE)
+    return TestConfig(entry, models, otel, backends, apis, rules, message)
 
 
 def _tail(path: Path, n: int = 20) -> str:
@@ -655,12 +658,12 @@ def check(root: Path) -> tuple[bool, list[str]]:
     cur = start(root)
     relay = Path(cur["dir"]) / "relay.jsonl"
     try:
-        shown, ok = send(cur, CHECK_MESSAGE)
+        shown, ok = send(cur, config.check_message)
         Writer(relay).append(
             {
                 "type": "turn",
                 "harness": "nookku-check",
-                "said": CHECK_MESSAGE,
+                "said": config.check_message,
                 "shown": shown,
                 "ok": ok,
             }
