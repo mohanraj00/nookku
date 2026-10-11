@@ -45,6 +45,9 @@ from nookku.stdio import TIMEOUT as AGENT_TIMEOUT
 # The harness session that ends a test, for the bridge (SPEC.md section 7.2).
 ENDING = "ending.json"
 HARNESSES = ("claude-code", "codex")
+# The variables that give the entry its test folder and its test id (#145).
+TEST_DIR = "NOOKKU_TEST_DIR"
+TEST_ID = "NOOKKU_TEST_ID"
 POLL = 0.5
 # Files in the state folder that a test writes or that switch a mode. They are not configuration.
 NOT_CONFIG = {"tests", "current.json", "mode", "relay.jsonl", "tap.jsonl", ENDING}
@@ -102,6 +105,9 @@ def load_config(root: Path) -> TestConfig:
         raise BridgeError(f"{CONFIG_FILE}: {e}") from None
     if {b.env for b in backends} & {a.env for a in apis}:
         raise BridgeError(f"{CONFIG_FILE}: a backend uses the variable of a model API")
+    reserved = sorted({b.env for b in backends} & {TEST_DIR, TEST_ID})
+    if reserved:
+        raise BridgeError(f"{CONFIG_FILE}: a backend uses the variable {reserved[0]} of nookku")
     otel = data.get("otel", True) is not False
     return TestConfig(entry, models, otel, backends, apis, rules)
 
@@ -471,6 +477,9 @@ def run(root: Path, test: str, tester_session: str | None, timeout: float = AGEN
         _log(f"backend {p.backend.name}: {p.backend.env}={p.url} -> {p.backend.url}")
     apis = backend.Proxies(config.model_apis, folder / model_api.FILE, model_api.ModelProxy)
     env.update(apis.start())
+    # The app can keep its state in the test folder, for example in app-state/, so that the seal
+    # covers it (SPEC.md section 6.1).
+    env.update({TEST_DIR: str(folder.resolve()), TEST_ID: test})
     for p in apis.proxies:
         _log(f"model API {p.backend.name}: {p.backend.env}={p.url} -> {p.backend.url}")
     agent = Agent(config.entry, root, folder / "app.log", timeout=timeout, env=env)

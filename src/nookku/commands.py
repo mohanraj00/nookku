@@ -71,6 +71,9 @@ IMPORT = "import nookku"
 SHELL_CODE = re.compile(r"-[a-zA-Z]*c[a-zA-Z]*")
 # A word of a text that can name a path in a state folder.
 STATE_WORD = re.compile(r"[^\s\"'`;|&<>(),{}]+")
+# The entry gets the test folder in NOOKKU_TEST_DIR, and a child process of the app, for example
+# its model harness, can inherit it (#145). A word that names the variable names the test folder.
+TEST_DIR_NAME = re.compile(r"[$%]?\{?NOOKKU_TEST_DIR\}?%?", re.IGNORECASE)
 
 
 def _short(args: list[str], letter: str) -> bool:
@@ -623,7 +626,9 @@ def write_targets(command: str, extra: frozenset[str] = frozenset()) -> Writes |
 def state_rest(word: str) -> list[str] | None:
     """The parts of a path after the state folder `.nookku`, or None if the word names no path in
     a state folder. The match ignores case. A glob part that starts with a dot matches the state
-    folder as the shell would. The part after `=` of a word like `of=PATH` is a path too."""
+    folder as the shell would. The part after `=` of a word like `of=PATH` is a path too. The
+    variable NOOKKU_TEST_DIR names a test folder."""
+    word = TEST_DIR_NAME.sub(f"{STATE}/tests/NOOKKU_TEST_DIR", word)
     for piece in [word, *word.split("=")[1:]]:
         if not piece:
             continue

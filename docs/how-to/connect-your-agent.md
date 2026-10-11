@@ -230,6 +230,7 @@ The tap starts the entry with these settings ([stdio.py](../../src/nookku/stdio.
 - **Interpreter.** The command is `entry` in `.nookku/config.json`. Its first word is the interpreter. Use the interpreter of your app, for example `.venv/bin/python`. If you use a different interpreter, the packages of your app can be missing.
 - **Working folder.** The entry runs in the project root. If your app reads a file with a relative path, for example `.env` or a config file in its own folder, give the app the correct path in the entry.
 - **Environment.** The entry gets the environment of the process that starts the test, and the variables of the bridge, for example `ANTHROPIC_BASE_URL`. After `nookku check` in a shell, it is the environment of that shell. With the project hooks or the plugin, the harness starts the test, so it is the environment of the harness. If your app reads its keys from an environment file, load that file in the entry.
+- **Test folder.** The bridge gives the entry `NOOKKU_TEST_DIR`, the absolute path of the test folder, and `NOOKKU_TEST_ID`, the test id. To keep the state of your app for a test, for example an event log, write it to `$NOOKKU_TEST_DIR/app-state/`. Do not make the path from the session id. The seal covers each file of the test folder, and the evaluation reads `app-state/` ([SPEC.md section 6.1](../../SPEC.md#61-environment-of-the-entry)). The toy shop writes `app-state/answers.jsonl` ([agent.py](../../examples/toy-shop/agent.py)).
 
 After a change to the entry, run `nookku check` again, and do the 4 steps again.
 
