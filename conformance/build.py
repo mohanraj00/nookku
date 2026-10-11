@@ -3045,6 +3045,12 @@ POLICY_CASES: dict[str, dict] = {
         "event": pevent("Write", file_path="/tmp/notes.md", content="See .nookku/policy.json."),
         "answer": None,
     },
+    "write_content_looks_like_a_patch": {
+        "event": pevent(
+            "Write", file_path="/tmp/notes.md", content="*** Update File: .nookku/policy.json\n"
+        ),
+        "answer": None,
+    },
     "shell_heredoc_data_names_the_file": {
         "event": pevent(
             "Bash", command="cat > /tmp/notes.md <<'EOF'\nSee .nookku/policy.json.\nEOF"
@@ -3139,6 +3145,11 @@ GUARD_CASES: dict[str, dict] = {
         "event": bash(f"python3 - <<'EOF'\nopen('{RECORD}', 'w')\nEOF"),
         "answer": records(RECORD),
     },
+    # A variable carries the path to the program.
+    "shell_assignment_names_a_record": {
+        "event": bash(f"P={RECORD} python3 clean.py"),
+        "answer": records(f"P={RECORD}"),
+    },
     "shell_reads_a_record_into_another_file": {
         "event": bash(f"cat -n {RECORD} | sed -n 1,200p > /tmp/copy.txt"),
         "answer": None,
@@ -3166,6 +3177,13 @@ GUARD_CASES: dict[str, dict] = {
             input=f"*** Begin Patch\n*** Delete File: {STATE}/current.json\n*** End Patch\n",
         ),
         "answer": records(f"{STATE}/current.json"),
+    },
+    # Only apply_patch has patch headers. Other content only looks like a patch.
+    "write_content_looks_like_a_patch": {
+        "event": pevent(
+            "Write", file_path="/tmp/notes.md", content=f"*** Delete File: {STATE}/current.json\n"
+        ),
+        "answer": None,
     },
     "patch_content_names_a_record": {
         "event": pevent(

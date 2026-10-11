@@ -392,7 +392,7 @@ def state_write(
     if tool in WRITE_TOOLS:
         fields = tool_input if isinstance(tool_input, dict) else {}
         paths: list[str] = [v for f in PATH_FIELDS if isinstance(v := fields.get(f), str) and v]
-        for p in [*paths, *commands.patch_targets(tool_input)]:
+        for p in [*paths, *commands.patch_targets(tool, tool_input)]:
             full = cwd / p
             for candidate in (p, str(full), str(full.resolve())):
                 rest = commands.state_rest(candidate)

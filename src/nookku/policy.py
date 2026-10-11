@@ -125,7 +125,10 @@ def touches(
         # A file tool writes its target paths. Its content names no file that it writes (#149).
         own = str(path(root).resolve()).casefold()
         fields = tool_input if isinstance(tool_input, dict) else {}
-        for value in [*(fields.get(f) for f in PATH_FIELDS), *commands.patch_targets(tool_input)]:
+        for value in [
+            *(fields.get(f) for f in PATH_FIELDS),
+            *commands.patch_targets(tool, tool_input),
+        ]:
             target = _target(value, cwd)
             rest = commands.state_rest(value) if isinstance(value, str) else None
             if rest is not None and [r.casefold() for r in rest] == [NAME]:

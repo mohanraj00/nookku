@@ -367,8 +367,16 @@ def write_targets(command: str) -> tuple[list[str], list[str]] | None:
                 segments[-1].append(nxt[0])
             i += 1
         i += 1
+    # A variable can carry a path to a later program, for example P=<path> python -c '...'. So if
+    # a part writes, each assignment of the command is a target too.
+    assignments: list[str] = []
+    writes = False
     for words in segments:
-        if not words or all(_assignment(w) for w in words):
+        k = 0
+        while k < len(words) and ASSIGNMENT.match(words[k]):
+            k += 1
+        assignments += words[:k]
+        if k == len(words):
             continue
         program, args = _split(words)
         if program == "cd":
@@ -377,7 +385,8 @@ def write_targets(command: str) -> tuple[list[str], list[str]] | None:
         check = READS.get(program)
         if check is None or not check(args):
             targets += args
-    return targets, folders
+            writes = True
+    return (targets + assignments if writes else targets), folders
 
 
 def state_rest(word: str) -> list[str] | None:
@@ -396,8 +405,11 @@ def state_rest(word: str) -> list[str] | None:
     return None
 
 
-def patch_targets(tool_input: Any) -> list[str]:
-    """The file names in the headers of each patch of an apply_patch call."""
+def patch_targets(tool: str, tool_input: Any) -> list[str]:
+    """The file names in the headers of each patch of an apply_patch call. The content of another
+    file tool can look like a patch, but it is not one."""
+    if tool != "apply_patch":
+        return []
     out: list[str] = []
     for value in _strings(tool_input):
         out += [m.group(1).strip() for m in PATCH_FILE.finditer(value)]
