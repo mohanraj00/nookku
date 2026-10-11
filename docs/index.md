@@ -76,6 +76,7 @@ Understand why it works as it does.
 - [README](../README.md): the summary on one screen.
 - [CONTRIBUTING.md](../CONTRIBUTING.md): how to work on this repo.
 - [Code quality](code-quality.md): the rules of the code in this repo, and the check that enforces each rule.
+- [Logo](assets/logo/README.md): the logo files, the colours, and what the two eyes mean.
 - [CODE_OF_CONDUCT.md](../CODE_OF_CONDUCT.md): how we treat each other.
 - [SECURITY.md](../SECURITY.md): how to report a security problem.
 - [CHANGELOG.md](../CHANGELOG.md): the changes in each release.
