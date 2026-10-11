@@ -186,6 +186,29 @@ def test_a_prompt_with_a_lone_surrogate_is_refused_and_not_recorded(setup):
     assert not tap_rec.exists()
 
 
+CONTROL_CASES = sorted((ROOT / "conformance" / "control").glob("*.json"))
+
+
+@pytest.mark.parametrize("harness", ["claude-code", "codex"])
+@pytest.mark.parametrize("case", CONTROL_CASES, ids=[c.stem for c in CONTROL_CASES])
+def test_a_message_near_a_control_prompt_is_refused_and_not_recorded(setup, case, harness):
+    root, tap_rec, agent = setup
+    data = json.loads(case.read_text("utf-8"))
+    if "policy_text" in data:
+        (root / ".nookku" / "policy.json").write_text(data["policy_text"])
+    kit.set_mode(root, True)
+    answer = kit.handle(prompt(data["prompt"]), root, harness)
+    assert answer["decision"] == "block"
+    if data["refused"]:
+        assert answer["reason"] == kit.NEAR_CONTROL_REASON
+        assert agent.received == []
+        assert not record(root).exists()
+        assert not tap_rec.exists()
+    else:
+        assert answer["reason"] == shop_reply(data["prompt"])
+        assert [t.said for t in read_relay(record(root))] == [data["prompt"]]
+
+
 @pytest.mark.parametrize("on", [True, False])
 def test_a_crash_blocks_only_in_relay_mode(tmp_path, on):
     kit.set_mode(tmp_path, on)

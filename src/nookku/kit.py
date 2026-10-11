@@ -86,6 +86,11 @@ IMPORT_REASON = (
 ATTACHMENTS_REASON = "nookku: the relay does not send attachments. Nothing was sent."
 # Prompts that the relay runs and never relays (SPEC.md section 5).
 CONTROL = {"nookku start", "nookku end", "nookku status"}
+# The refusal of a message near a control prompt in relay mode (#146).
+NEAR_CONTROL_REASON = (
+    "nookku: nothing was sent. The message is near a control prompt. The control prompts are: "
+    "nookku start, nookku end, nookku status."
+)
 
 
 def mode_path(root: Path) -> Path:
@@ -223,6 +228,31 @@ def _control(said: str, root: Path, session: str | None) -> str:
     return status(root)
 
 
+def _edit_distance(a: str, b: str, limit: int) -> int:
+    """The edit distance of a and b, or limit + 1 if it is more than limit."""
+    if abs(len(a) - len(b)) > limit:
+        return limit + 1
+    row = list(range(len(b) + 1))
+    for i, x in enumerate(a, 1):
+        prev, row[0] = row[0], i
+        for j, y in enumerate(b, 1):
+            prev, row[j] = row[j], min(row[j] + 1, row[j - 1] + 1, prev + (x != y))
+    return min(row[-1], limit + 1)
+
+
+def near_control(said: str, limit: int) -> bool:
+    """True if a message that is not a control prompt looks like one (SPEC.md section 5): its
+    first word is nookku in any case, or the message is at most limit edits from a control
+    prompt. A limit of 0 turns off the rule."""
+    words = said.split()
+    if limit <= 0 or said.strip() in CONTROL or not words:
+        return False
+    text = " ".join(words).casefold()
+    return words[0].casefold() == "nookku" or any(
+        _edit_distance(text, c, limit) <= limit for c in CONTROL
+    )
+
+
 def _relay_test(
     cur: dict[str, Any], said: str, harness: str, session: str | None
 ) -> dict[str, Any]:
@@ -267,6 +297,11 @@ def handle(event: dict[str, Any], root: Path, harness: str) -> dict[str, Any] | 
         if found:
             # A relayed message is never changed, so the relay refuses it (SPEC.md section 5).
             return _block(f"nookku: nothing was sent. The message has {found}.")
+        rules = _policy(root)
+        limit = rules["control_distance"] if rules is not None else None
+        if near_control(said, policy.KEYS["control_distance"].default if limit is None else limit):
+            # A refused message is not a turn, so the relay writes no row (SPEC.md section 5).
+            return _block(NEAR_CONTROL_REASON)
         if config.entry:
             cur = state.current(root)
             if cur is None:

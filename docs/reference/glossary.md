@@ -34,6 +34,12 @@ A background process that runs one test. `nookku start` starts it, and `nookku e
 
 SPEC.md: [section 7.2](../../SPEC.md#72-start-and-end).
 
+## Control prompt
+
+A prompt that the relay runs and never relays: `nookku start`, `nookku end` or `nookku status`. It must be exact. In relay mode, the relay refuses a message that is near a control prompt, for example `nookku stop`, and sends nothing.
+
+SPEC.md: [section 5](../../SPEC.md#5-relays), [section 7.9](../../SPEC.md#79-policy-file).
+
 ## Entry
 
 The command that the tap starts in a test. It is a thin wrapper that starts your app and speaks the agent contract. It is test code, not app code. The key `entry` of `.nookku/config.json` holds it. The entry is in the message path, and the tap records only what goes in and out of it. Review it before a test ([limits.md](../limits.md)).
