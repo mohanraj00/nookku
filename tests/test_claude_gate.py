@@ -70,7 +70,8 @@ def test_mode_on_keeps_relay_mode_off_with_both_on(
     kit.init(tmp_path, "claude-code", {})
     _enable(tmp_path / ".claude" / "settings.json", True)
     assert main(["mode", "--root", str(tmp_path), "on"]) == 0
-    assert f"nookku: {claude_gate.PROBLEM}" in capsys.readouterr().out
+    found = tmp_path / ".claude" / "settings.local.json"
+    assert f"nookku: {claude_gate.PROBLEM.format(file=found)}" in capsys.readouterr().out
     assert not kit.is_on(tmp_path)
 
 
@@ -115,4 +116,6 @@ def test_a_linked_worktree_reads_the_local_file_of_the_main_checkout(tmp_path: P
     kit.init(linked, "plugin", {})
     assert claude_gate.project_hooks_on(linked)
     assert claude_gate.plugin_on(linked)
-    assert claude_gate.problem(linked) == claude_gate.PROBLEM
+    # The refusal names the file of the main checkout, which has the hooks.
+    found = main_dir / ".claude" / "settings.local.json"
+    assert claude_gate.problem(linked) == claude_gate.PROBLEM.format(file=found)

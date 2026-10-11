@@ -21,7 +21,7 @@ DISABLE = "claude plugin disable --scope local nookku@nookku"
 PROBLEM = (
     "both the nookku plugin and the project hooks of nookku init claude-code are on in Claude "
     "Code, so each message would go to the agent two times. Remove one of them: run "
-    f"{DISABLE}, or remove the nookku hooks from .claude/settings.local.json. A running Claude "
+    f"{DISABLE}, or remove the nookku hooks from {{file}}. A running Claude "
     "Code session keeps a plugin that it loaded, so then run /reload-plugins or restart it."
 )
 
@@ -90,8 +90,8 @@ def plugin_on(root: Path) -> bool:
     return False
 
 
-def project_hooks_on(root: Path) -> bool:
-    """True if a project settings file has a hook of nookku init claude-code."""
+def project_hooks_file(root: Path) -> Path | None:
+    """The first project settings file with a hook of nookku init claude-code, or None."""
     for path in settings_files(root)[1:]:
         hooks = _read(path).get("hooks")
         if not isinstance(hooks, dict):
@@ -100,10 +100,16 @@ def project_hooks_on(root: Path) -> bool:
             for group in groups if isinstance(groups, list) else []:
                 inner = group.get("hooks") if isinstance(group, dict) else None
                 if isinstance(inner, list) and any(kit._ours(h) for h in inner):
-                    return True
-    return False
+                    return path
+    return None
+
+
+def project_hooks_on(root: Path) -> bool:
+    """True if a project settings file has a hook of nookku init claude-code."""
+    return project_hooks_file(root) is not None
 
 
 def problem(root: Path) -> str | None:
     """The refusal of a test if the plugin and the project hooks are both on, else None."""
-    return PROBLEM if plugin_on(root) and project_hooks_on(root) else None
+    found = project_hooks_file(root)
+    return PROBLEM.format(file=found) if found is not None and plugin_on(root) else None
