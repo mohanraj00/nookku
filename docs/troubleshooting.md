@@ -184,7 +184,7 @@ If the entry returns an error, crashes or does not answer in [240 seconds](../sr
 
 ### `nookku: only the tester talks to the agent.`
 
-(kit.py) **Cause.** The relay denied a model tool call that names the address of the tap or the agent. It also denies a call that changes a file of the test. This is the purpose of the deny.
+(kit.py) **Cause.** The relay denied a model tool call that names the address of the tap or the agent. This is the purpose of the deny.
 
 **Fix.** None. Talk to the agent through the relay. To read the conversation, the model uses `nookku transcript` or the `transcript` tool.
 
@@ -226,11 +226,17 @@ If the entry returns an error, crashes or does not answer in [240 seconds](../sr
 
 ## End a test
 
-### `nookku: the records of a test do not change. Write only report.md. A command that names .nookku may only read.`
+### `nookku: <path> is a record or a state file of nookku. Only nookku writes it. A command may read it.`
 
-(kit.py) **Cause.** After a test, the model tried to write a file of the test folder. Or it ran a command that names `.nookku` and does not pass the read check.
+(kit.py) **Cause.** When no test ran, the model tried to write a record or a state file of nookku: a file of a test folder other than `report.md`, `current.json`, `mode`, `relay.jsonl`, `tap.jsonl`, `ending.json` or a seal copy. Or a command that does not pass the read check ran in `.nookku/`. The relay checks the paths that a call writes, not its text, so a file or a here-document that only names a record is not denied ([SPEC.md section 5](../SPEC.md#5-relays)).
 
-**Fix.** None for the records. If the evaluation needs a command, use a read program from the list in [SPEC.md section 5](../SPEC.md#5-relays), for example `cat`, `jq` or `sed -n`.
+**Fix.** None for the records. A tool call can change `config.json` and the files of the entry when no test runs. If the evaluation needs a command, use a read program from the list in [SPEC.md section 5](../SPEC.md#5-relays), for example `cat`, `jq` or `sed -n`.
+
+### `nookku: a test runs, so a tool call may not name <path> until the test ends. The file tools may read it.`
+
+(kit.py) **Cause.** During a test, the model made a tool call that names a path in `.nookku/`, for example an edit of `config.json` or `cat .nookku/config.json`. A file read with a tool such as `Read` passes.
+
+**Fix.** Wait for the end of the test, or read the file with a file tool.
 
 ### `The bridge did not finish its collection. See bridge.log in the folder.`
 

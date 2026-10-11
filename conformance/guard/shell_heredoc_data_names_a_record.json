@@ -1,0 +1,14 @@
+{
+ "answer": null,
+ "event": {
+  "cwd": "{root}",
+  "hook_event_name": "PreToolUse",
+  "tool_input": {
+   "command": "cat > /tmp/issue.md <<'EOF'\nSee .nookku/tests/t1/relay.jsonl.\nEOF"
+  },
+  "tool_name": "Bash"
+ },
+ "links": {},
+ "state": true,
+ "test": false
+}

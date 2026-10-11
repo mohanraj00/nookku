@@ -15,5 +15,6 @@
   "tool_name": "Bash"
  },
  "links": {},
- "state": true
+ "state": true,
+ "test": false
 }

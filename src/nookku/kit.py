@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import fnmatch
 import json
 import os
 import re
@@ -53,13 +54,20 @@ FILE_TOOLS = {
     "update_plan",
 }
 WRITE_TOOLS = {"Write", "Edit", "MultiEdit", "NotebookEdit", "apply_patch"}
+# The input fields of a file tool that give its target path.
+PATH_FIELDS = ("file_path", "notebook_path", "path")
 DENY_REASON = "nookku: only the tester talks to the agent."
-TEST_FILES = re.compile(r"\.nookku")
-# A file in a test folder. After a test, only report.md may change (SPEC.md section 9).
-TEST_FOLDER_FILE = re.compile(r"\.nookku/tests/[^/\s\"']+/([^\s\"'\\]*)")
+# The files and folders of the state folder that only nookku writes, also when no test runs
+# (SPEC.md section 5). In a test folder, only report.md may change (SPEC.md section 9). `seals`
+# is the folder of the seal copies in the nookku home.
+RECORDS = {"tests", "current.json", "mode", "relay.jsonl", "tap.jsonl", "ending.json", "seals"}
 RECORDS_REASON = (
-    "nookku: the records of a test do not change. Write only report.md. "
-    "A command that names .nookku may only read."
+    "nookku: {name} is a record or a state file of nookku. Only nookku writes it. "
+    "A command may read it."
+)
+TEST_REASON = (
+    "nookku: a test runs, so a tool call may not name {name} until the test ends. "
+    "The file tools may read it."
 )
 ENTRY_REASON = "nookku: during a test, only the tap runs the entry."
 # A command hook gets only the text of a prompt, not its attachments. The display layer of the
@@ -278,18 +286,17 @@ def handle(event: dict[str, Any], root: Path, harness: str) -> dict[str, Any] | 
         if touches_policy(event, root, tool, tool_input, text):
             record = Path(cur["dir"]) / "relay.jsonl" if cur else _last_record(root)
             return _deny(record, harness, tool, text, policy.REASON)
-        if cur is not None and tool in WRITE_TOOLS and TEST_FILES.search(text):
-            return _deny(Path(cur["dir"]) / "relay.jsonl", harness, tool, text)
-        if cur is None and tool in WRITE_TOOLS and touches_records(text):
-            return _deny(_last_record(root), harness, tool, text, RECORDS_REASON)
+        # These denies need only the state folder, so a broken config does not stop them.
+        name = state_write(event, root, tool, tool_input, cur is not None)
+        if name is not None and cur is not None:
+            reason = TEST_REASON.format(name=name)
+            return _deny(Path(cur["dir"]) / "relay.jsonl", harness, tool, text, reason)
+        if name is not None:
+            reason = RECORDS_REASON.format(name=name)
+            return _deny(_last_record(root), harness, tool, text, reason)
         if tool in FILE_TOOLS:
             return None
         reads = commands.tool_reads_only(tool, tool_input)
-        if cur is None and TEST_FILES.search(text) and not reads:
-            return _deny(_last_record(root), harness, tool, text, RECORDS_REASON)
-        # These denies need only the state folder, so a broken config does not stop them.
-        if cur is not None and TEST_FILES.search(text):
-            return _deny(Path(cur["dir"]) / "relay.jsonl", harness, tool, text)
         if cur is not None and not reads and _names_entry(_test_entry(cur), text, tool, tool_input):
             return _deny(Path(cur["dir"]) / "relay.jsonl", harness, tool, text, ENTRY_REASON)
         try:
@@ -346,9 +353,82 @@ def _last_record(root: Path) -> Path:
     return last / seal.DENIED if last else root / STATE_DIR / "relay.jsonl"
 
 
-def touches_records(text: str) -> bool:
-    """True if the text names a file of a test folder other than report.md."""
-    return any(m.group(1) != "report.md" for m in TEST_FOLDER_FILE.finditer(text))
+def _protected(rest: list[str], during: bool) -> bool:
+    """True if a path in the state folder, given by its parts after the folder, is protected:
+    during a test, each path. With no test, the state folder itself and each record."""
+    if during or not rest:
+        return True
+    first = rest[0].lower()
+    if any(c in first for c in "*?["):
+        return any(fnmatch.fnmatchcase(r, first) for r in RECORDS)
+    if first == "tests" and len(rest) == 3 and rest[2].lower() == "report.md":
+        return False
+    return first in RECORDS
+
+
+def _event_cwd(event: dict[str, Any], tool_input: Any, root: Path) -> Path:
+    """The folder of a tool call: the `workdir` of a Codex shell call, else the `cwd` of the
+    event, else the project."""
+    named = tool_input.get("workdir") if isinstance(tool_input, dict) else None
+    if not isinstance(named, str) or not named:
+        named = event.get("cwd") if isinstance(event.get("cwd"), str) else None
+    return root / named if named else root
+
+
+def _in_state(path: Path) -> bool:
+    return commands.state_rest(str(path)) is not None
+
+
+def state_write(
+    event: dict[str, Any], root: Path, tool: str, tool_input: Any, during: bool
+) -> str | None:
+    """The protected path of the state folder that a model tool call can write, or None (SPEC.md
+    section 5). During a test, a call except a file read may not name the state folder at all.
+
+    The rule checks paths, not text. A file tool has its target path. A shell command has the
+    words that it can write (commands.write_targets), without the bodies of its here-documents
+    that are data. Another tool has each word of its input."""
+    cwd = _event_cwd(event, tool_input, root)
+    if tool in WRITE_TOOLS:
+        fields = tool_input if isinstance(tool_input, dict) else {}
+        paths: list[str] = [v for f in PATH_FIELDS if isinstance(v := fields.get(f), str) and v]
+        for p in [*paths, *commands.patch_targets(tool, tool_input)]:
+            full = cwd / p
+            for candidate in (p, str(full), str(full.resolve())):
+                rest = commands.state_rest(candidate)
+                if rest is not None and _protected(rest, during):
+                    return p
+        return None
+    if tool in FILE_TOOLS:
+        return None
+    command = commands.command_of(tool, tool_input)
+    if command is None:
+        words = commands.state_words(tool_input)
+        return next((w for w in words if _protected(commands.state_rest(w) or [], during)), None)
+    stripped = commands.strip_data_heredocs(command)
+    if during:
+        if _in_state(cwd):
+            return str(cwd)
+        return next(iter(commands.state_words(stripped)), None)
+    found = commands.write_targets(command)
+    if found is None:
+        # The check cannot parse the command, so each word that names the state folder counts.
+        return next(iter(commands.state_words(stripped)), None)
+    targets, folders = found
+    for word in targets:
+        # An argument can be code, for example python3 -c "open('<path>', 'w')". So each path in
+        # it counts, not only the whole word.
+        for part in [word, *commands.path_words(word)]:
+            rest = commands.state_rest(part)
+            if rest is not None and _protected(rest, during):
+                return part
+    if commands.reads_only(command):
+        return None
+    # A relative word of a command that runs in the state folder does not name the folder.
+    for folder in folders:
+        if commands.state_rest(folder) is not None:
+            return folder
+    return str(cwd) if _in_state(cwd) else None
 
 
 def blocked_detail(text: str) -> str:

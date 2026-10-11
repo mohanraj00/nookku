@@ -1,0 +1,20 @@
+{
+ "answer": {
+  "hookSpecificOutput": {
+   "hookEventName": "PreToolUse",
+   "permissionDecision": "deny",
+   "permissionDecisionReason": "nookku: .nookku/tests/t1/tap.jsonl is a record or a state file of nookku. Only nookku writes it. A command may read it."
+  }
+ },
+ "event": {
+  "cwd": "{root}",
+  "hook_event_name": "PreToolUse",
+  "tool_input": {
+   "command": "python3 -c \"open('.nookku/tests/t1/tap.jsonl', 'w').write('')\""
+  },
+  "tool_name": "Bash"
+ },
+ "links": {},
+ "state": true,
+ "test": false
+}

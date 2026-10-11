@@ -133,9 +133,11 @@ def test_during_a_test_the_kit_denies_a_run_of_the_entry(tmp_path: Path) -> None
 def test_after_a_test_the_kit_denies_a_shell_write_to_the_records(tmp_path: Path) -> None:
     project(tmp_path, running=False)
     sed = pre("Bash", {"command": f"sed -i '' 's/4471/4417/' {F}/trace.jsonl"})
-    assert reason(kit.handle(sed, tmp_path, "claude-code")) == kit.RECORDS_REASON
+    trace = kit.RECORDS_REASON.format(name=f"{F}/trace.jsonl")
+    assert reason(kit.handle(sed, tmp_path, "claude-code")) == trace
     tool = pre("mcp__files__write", {"path": f"{F}/tap.jsonl"})
-    assert reason(kit.handle(tool, tmp_path, "claude-code")) == kit.RECORDS_REASON
+    tap = kit.RECORDS_REASON.format(name=f"{F}/tap.jsonl")
+    assert reason(kit.handle(tool, tmp_path, "claude-code")) == tap
     for command in (f"cat {F}/trace.jsonl", f"cat > {F}/report.md <<'EOF'\n# Report\nEOF"):
         assert kit.handle(pre("Bash", {"command": command}), tmp_path, "codex") is None
     # The denies after a test go to denied.jsonl, so that the sealed relay.jsonl does not change.

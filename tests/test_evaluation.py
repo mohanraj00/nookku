@@ -178,7 +178,8 @@ def test_after_a_test_the_kit_protects_the_records(tmp_path: Path, name: str, de
     answer = kit.handle(write, root, "claude-code")
     assert (answer is not None) == denied
     if denied:
-        assert answer["hookSpecificOutput"]["permissionDecisionReason"] == kit.RECORDS_REASON
+        reason = kit.RECORDS_REASON.format(name=str(path))
+        assert answer["hookSpecificOutput"]["permissionDecisionReason"] == reason
 
 
 def test_cli_end_evaluation_and_transcript_trace(

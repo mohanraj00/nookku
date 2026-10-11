@@ -1,0 +1,15 @@
+{
+ "answer": null,
+ "event": {
+  "cwd": "{root}",
+  "hook_event_name": "PreToolUse",
+  "tool_input": {
+   "content": "# Report\n",
+   "file_path": ".nookku/tests/t1/report.md"
+  },
+  "tool_name": "Write"
+ },
+ "links": {},
+ "state": true,
+ "test": false
+}

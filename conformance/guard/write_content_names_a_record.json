@@ -1,0 +1,15 @@
+{
+ "answer": null,
+ "event": {
+  "cwd": "{root}",
+  "hook_event_name": "PreToolUse",
+  "tool_input": {
+   "content": "See .nookku/tests/t1/relay.jsonl.",
+   "file_path": "/tmp/notes.md"
+  },
+  "tool_name": "Write"
+ },
+ "links": {},
+ "state": true,
+ "test": false
+}

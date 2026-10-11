@@ -8,6 +8,7 @@ parse, so the deny fails closed. The plugin runs this check through `nookku hook
 from __future__ import annotations
 
 import fnmatch
+import posixpath
 import re
 import shlex
 from collections.abc import Callable
@@ -34,6 +35,14 @@ SHELL_VARIABLES = {"PATH", "IFS", "CDPATH", "ENV", "BASH_ENV", "SHELLOPTS", "BAS
 SHELL_VARIABLES |= {"PROMPT_COMMAND"}
 # The file types of an entry argument that names a program file (SPEC.md section 5).
 CODE = {".py", ".js", ".mjs", ".cjs", ".ts", ".sh", ".rb"}
+STATE = ".nookku"
+# Programs that only store or show the body of a here-document. For each other program, for
+# example `python -` or `sh`, the body is code (SPEC.md section 5).
+DATA_PROGRAMS = {"cat", "tee", "gh", "jq", "wc", "grep", "head", "tail", "sort"}
+GIT_DATA = {"commit", "tag", "notes"}
+PATCH_FILE = re.compile(r"^\*\*\* (?:(?:Add|Update|Delete) File|Move to): (.+)$", re.MULTILINE)
+# A word of a text that can name a path in a state folder.
+STATE_WORD = re.compile(r"[^\s\"'`;|&<>(),{}]+")
 
 
 def _short(args: list[str], letter: str) -> bool:
@@ -284,3 +293,145 @@ def names_entry(text: str, names: list[str], command: str | None = None) -> bool
             if glob and (fnmatch.fnmatchcase(x, base) or fnmatch.fnmatchcase(x, word)):
                 return True
     return False
+
+
+def _split(words: list[str]) -> tuple[str, list[str]]:
+    """The program of a part of a command and its arguments. The program is the first word that
+    is not a variable assignment."""
+    k = 0
+    while k < len(words) and ASSIGNMENT.match(words[k]):
+        k += 1
+    return (words[k].rsplit("/", 1)[-1], words[k + 1 :]) if k < len(words) else ("", [])
+
+
+def _data_heredoc(line: str, at: int) -> bool:
+    """True if the here-document that starts at `at` in the line is data, not code: its program
+    only stores or shows it, like `cat > file` or `gh issue create --body-file -`."""
+    toks = tokens(re.split(r"[;&|]", line[:at])[-1]) or []
+    program, args = _split([w for w, op in toks if not op])
+    if program in DATA_PROGRAMS:
+        return True
+    return program == "git" and args[:1] != [] and args[0] in GIT_DATA
+
+
+def strip_data_heredocs(text: str) -> str:
+    """The command without the bodies of the here-documents that are data (SPEC.md section 5).
+    The body of a here-document for each other program, for example `python -`, is code, so it
+    stays."""
+    out: list[str] = []
+    ends: list[tuple[str, bool, bool]] = []
+    for line in text.split("\n"):
+        if ends:
+            end, dash, data = ends[0]
+            if (line.lstrip("\t") if dash else line) == end:
+                ends.pop(0)
+            elif not data:
+                out.append(line)
+            continue
+        out.append(line)
+        for m in HEREDOC.finditer(line):
+            ends.append((m.group(3), m.group(1) == "-", _data_heredoc(line, m.start())))
+    return "\n".join(out)
+
+
+def write_targets(command: str) -> tuple[list[str], list[str]] | None:
+    """The words that a command can write, and the folders that it changes to with `cd`. Return
+    None if the check cannot parse the command.
+
+    A part that passes the read check writes nothing, so its words are not targets. Each word of
+    each other part is a target, because the check does not know where a program writes. Each
+    output redirect target is a target."""
+    toks = tokens(strip_data_heredocs(command))
+    if toks is None:
+        return None
+    targets: list[str] = []
+    folders: list[str] = []
+    segments: list[list[str]] = [[]]
+    i = 0
+    while i < len(toks):
+        text, op = toks[i]
+        if not op:
+            segments[-1].append(text)
+        elif "(" in text or ")" in text:
+            return None
+        elif set(text) <= set(";&|"):
+            segments.append([])
+        else:
+            nxt = toks[i + 1] if i + 1 < len(toks) else None
+            if nxt is None or nxt[1]:
+                return None
+            dup = text.endswith("&") and (nxt[0].isdigit() or nxt[0] == "-")
+            if ">" in text and not dup:
+                targets.append(nxt[0])
+            elif text == "<<<":
+                segments[-1].append(nxt[0])
+            i += 1
+        i += 1
+    # A variable can carry a path to a later program, for example P=<path> python -c '...'. So if
+    # a part writes, each assignment of the command is a target too.
+    assignments: list[str] = []
+    writes = False
+    for words in segments:
+        k = 0
+        while k < len(words) and ASSIGNMENT.match(words[k]):
+            k += 1
+        assignments += words[:k]
+        if k == len(words):
+            continue
+        program, args = _split(words)
+        if program == "cd":
+            folders += args[-1:]
+            continue
+        check = READS.get(program)
+        if check is None or not check(args):
+            targets += args
+            writes = True
+    return (targets + assignments if writes else targets), folders
+
+
+def state_rest(word: str) -> list[str] | None:
+    """The parts of a path after the state folder `.nookku`, or None if the word names no path in
+    a state folder. The match ignores case. A glob part that starts with a dot matches the state
+    folder as the shell would. The part after `=` of a word like `of=PATH` is a path too."""
+    for piece in [word, *word.split("=")[1:]]:
+        if not piece:
+            continue
+        parts = posixpath.normpath(piece.replace("\\", "/")).split("/")
+        for k, part in enumerate(parts):
+            low = part.lower()
+            glob = part.startswith(".") and any(c in part for c in "*?[")
+            if low == STATE or (glob and fnmatch.fnmatchcase(STATE, low)):
+                return parts[k + 1 :]
+    return None
+
+
+def patch_targets(tool: str, tool_input: Any) -> list[str]:
+    """The file names in the headers of each patch of an apply_patch call. The content of another
+    file tool can look like a patch, but it is not one."""
+    if tool != "apply_patch":
+        return []
+    out: list[str] = []
+    for value in _strings(tool_input):
+        out += [m.group(1).strip() for m in PATCH_FILE.finditer(value)]
+    return out
+
+
+def _strings(value: Any) -> list[str]:
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, dict):
+        return [s for v in value.values() for s in _strings(v)]
+    if isinstance(value, list):
+        return [s for v in value for s in _strings(v)]
+    return []
+
+
+def path_words(text: str) -> list[str]:
+    """The words of a text, split at spaces, quotes, brackets, commas and shell operators."""
+    return STATE_WORD.findall(text)
+
+
+def state_words(tool_input: Any) -> list[str]:
+    """Each word of each text of a tool input that names a path in a state folder."""
+    words = [m.group(0) for s in _strings(tool_input) for m in STATE_WORD.finditer(s)]
+    return [w for w in words if state_rest(w) is not None]

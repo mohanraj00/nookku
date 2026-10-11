@@ -16,5 +16,6 @@
   "tool_name": "write_stdin"
  },
  "links": {},
- "state": true
+ "state": true,
+ "test": false
 }

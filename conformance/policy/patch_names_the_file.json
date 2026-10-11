@@ -15,5 +15,6 @@
   "tool_name": "apply_patch"
  },
  "links": {},
- "state": true
+ "state": true,
+ "test": false
 }

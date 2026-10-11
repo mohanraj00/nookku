@@ -207,8 +207,8 @@ Each timeout on the relay path ends before the next one, so that each part gets 
 | 1 | The agent timeout of the tap, the same in HTTP mode and stdio mode | [240](src/nookku/stdio.py#L24) |
 | 2 | The tap answers the relay, at most 5 seconds after the agent timeout | [245](tests/test_timeouts.py#L21) |
 | 3 | The relay waits for the tap of a test (section 7) | [270](src/nookku/state.py#L21) |
-| 3 | The relay waits for the tap of section 4.1 | [280](src/nookku/kit.py#L32) |
-| 4 | The harness stops the `UserPromptSubmit` hook | [300](src/nookku/kit.py#L35) |
+| 3 | The relay waits for the tap of section 4.1 | [280](src/nookku/kit.py#L33) |
+| 4 | The harness stops the `UserPromptSubmit` hook | [300](src/nookku/kit.py#L36) |
 
 Each number links to its constant. The 5 seconds of order 2 is the `ANSWER` limit of the test. The plugin and the project hooks run the same hook, so they have the same timeouts. The test [`tests/test_timeouts.py`](tests/test_timeouts.py) checks this order, and it measures the 504 of a slow agent and of an agent that sends a byte at a time.
 
@@ -249,14 +249,26 @@ The follow-up capture records a title-description schema match, without request 
   - A tool result has text content only. With `structuredContent`, Codex 0.162.0 gave the model only that JSON and not the text.
   - A page of the default bound got to the model unchanged in Claude Code 2.1.295 and Codex 0.162.0, for English, text that is not English, JSON and emoji. Codex changed each page of 12313 bytes or more. Claude Code kept each page up to 30015 bytes. Data: [`proofs/mcp/transcript-pages.json`](proofs/mcp/transcript-pages.json). Method: [`scripts/measure_transcript_pages.py`](scripts/measure_transcript_pages.py).
 - **Deny.** The relay denies a model tool call if its input contains the host and port of the tap or the agent, as `<host>:<port>` or as the shell socket path `/dev/tcp/<host>/<port>` or `/dev/udp/<host>/<port>`. A port can have leading zeros, and a port followed by more digits does not match. File tools (read, write, edit, search) are not denied, because a file that names an address does not call it. Every other tool is denied, including tools that the relay does not know. The deny is best effort. The audit finds each message that goes through the tap. A call to the agent around the tap is in neither record.
-- **Test files.** During a test, the relay denies a model tool call that writes into `.nookku/`, and each other tool call except file reads whose input names `.nookku`. When no test runs, the relay denies:
-  - a write tool call (a file write or edit, or a patch) that names a file in `.nookku/tests/<test-id>/` other than `report.md`;
-  - each other tool call, except file tools, whose input names `.nookku` and that does not pass the read check.
+- **Test files.** The relay checks the paths that a model tool call can write, not the text of the call. The conformance cases are in [`conformance/guard/`](conformance/guard/).
+  - A file write tool writes its targets: `file_path`, `notebook_path` or `path`, and the file names in the patch headers of an `apply_patch` call. The relay also resolves a target from the `cwd` of the event, and follows each symbolic link. The content of a file names no target.
+  - A shell command writes each output redirect target, and each word of each part that does not pass the read check. If a part does not pass it, each variable assignment of the command is a target too, because a variable can carry a path to a program. A target word can be code, for example the argument of `python3 -c`, so the relay also splits it at spaces, quotes, brackets, commas and shell operators, and checks each part. Before the check, the relay removes the body of each here-document whose program only stores or shows it: `cat`, `tee`, `gh`, `jq`, `wc`, `grep`, `head`, `tail`, `sort`, `git commit`, `git tag` and `git notes`. For each other program, for example `python -`, the body is code, so it stays. If the check cannot parse the command, each word that names the state folder is a target.
+  - Each other tool writes each word of its input.
+  - A word names a path in a state folder if one of its parts is `.nookku`. The match ignores case, comes after the relay removes each `..`, and takes a glob part that starts with a dot as the shell does. The part after `=`, as in `of=<path>`, is a path too.
+
+  During a test, the relay denies each tool call, except a read with a file tool, that names a path in `.nookku/`. For a shell command, a read also counts, but the body of a here-document that is data does not. The relay also denies a shell command with a `cwd` in the state folder. The reason is `nookku: a test runs, so a tool call may not name <name> until the test ends. The file tools may read it.`
+
+  When no test runs, a tool call can change `config.json` and the files of the entry. The relay denies a write to a record or a state file of nookku:
+  - the state folder itself;
+  - `tests/`, except `report.md` in a test folder;
+  - `current.json`, `mode`, `relay.jsonl`, `tap.jsonl` and `ending.json`;
+  - `seals/`, the seal copies in the nookku home.
+
+  It also denies a shell command that does not pass the read check and changes to the state folder with `cd`, or has a `cwd` or a Codex `workdir` in it. The reason is `nookku: <name> is a record or a state file of nookku. Only nookku writes it. A command may read it.` `<name>` is the path as the call gives it.
 
   The relay writes the `blocked_call` row of a deny after a test to `denied.jsonl` in the latest test folder, so that the sealed `relay.jsonl` does not change (section 7.4).
 - **Policy file.** The relay denies each model tool call that can change `.nookku/policy.json` (section 7.9), with a test and with no test. It applies this deny before each other deny. The reason is `nookku: only a person changes .nookku/policy.json, with nookku policy set in a shell.` The relay denies:
-  - a call, except a file tool that only reads, whose input names `policy.json` and `.nookku`, if it is a write tool call or does not pass the read check;
-  - a write tool call whose `file_path`, `notebook_path` or `path` is the policy file after the relay resolves it from the `cwd` of the event and follows each symbolic link;
+  - a call, except a file tool, that does not pass the read check and whose input names `policy.json` and `.nookku`. For a shell command, the body of a here-document that is data does not count (see "Test files");
+  - a write tool call with a target (see "Test files") that is the policy file, also after the relay resolves it from the `cwd` of the event and follows each symbolic link;
   - a call that does not pass the read check and names `nookku policy`, for example `nookku policy set`;
   - a call that does not pass the read check, names `policy.json`, and has a `cwd` in `.nookku/`;
   - a call of a tool that is not a shell or a file tool, for example `write_stdin` of a persistent Codex shell, that names `policy.json`. Its input does not show the folder where its text runs.

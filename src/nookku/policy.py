@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from nookku import commands
 from nookku.commands import SHELL_TOOLS
 
 STATE_DIR = ".nookku"
@@ -120,15 +121,28 @@ def touches(
     The caller does not ask for a file tool that only reads. Best effort, like each deny of the
     relay. `cwd` is the folder of the call, so that a relative path finds its file.
     """
-    if NAMES_FILE.search(text) and NAMES_STATE.search(text) and (writes or not reads):
-        return True
-    if writes and isinstance(tool_input, dict):
+    if writes:
+        # A file tool writes its target paths. Its content names no file that it writes (#149).
         own = str(path(root).resolve()).casefold()
-        for name in PATH_FIELDS:
-            target = _target(tool_input.get(name), cwd)
+        fields = tool_input if isinstance(tool_input, dict) else {}
+        for value in [
+            *(fields.get(f) for f in PATH_FIELDS),
+            *commands.patch_targets(tool, tool_input),
+        ]:
+            target = _target(value, cwd)
+            rest = commands.state_rest(value) if isinstance(value, str) else None
+            if rest is not None and [r.casefold() for r in rest] == [NAME]:
+                return True
             if target is not None and str(target).casefold() == own:
                 return True
-    if writes or reads:
+        return False
+    command = commands.command_of(tool, tool_input)
+    if command is not None:
+        # The body of a here-document that is data names no file that the command writes.
+        text = commands.strip_data_heredocs(command)
+    if NAMES_FILE.search(text) and NAMES_STATE.search(text) and not reads:
+        return True
+    if reads:
         return False
     if NAMES_COMMAND.search(text):
         return True
