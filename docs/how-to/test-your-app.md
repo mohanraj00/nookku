@@ -87,7 +87,7 @@ Audit: exit 0
 PASS
 ```
 
-Read the `Reply:` line. It must be a reply of your app to the message "Hello from Nookku check. What can you help me with?". If it is an error of your app, read `app.log` in the [test folder](../reference/glossary.md#test-folder) that the first line names.
+Read the `Reply:` line. It must be a reply of your app to the message of the config key `check_message`. The default is `Hello from nookku check. What can you help me with?`. If your app declines this message, for example because it is out of scope, set a message that your app answers: `nookku init <harness> --check-message "Do you sell teapots?"`. Use the harness of your relay, for example `plugin`. If it is an error of your app, read `app.log` in the [test folder](../reference/glossary.md#test-folder) that the first line names.
 
 Then read the last line. `PASS` means that the entry sent a reply, the audit of the test is clean, and the test found a model session for each harness in `models`. `check` then exits with 0. Else the last line starts with `FAIL:`, gives the cause, and `check` exits with 1. For example, if the entry writes a log line on stdout, the last 3 lines are:
 

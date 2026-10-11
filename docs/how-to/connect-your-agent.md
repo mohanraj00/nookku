@@ -177,7 +177,7 @@ PASS
 PASS proves the connection. It does not prove that your app gives correct replies. `check` does these steps, and PASS means that each step passed ([bridge.py](../../src/nookku/bridge.py)):
 
 1. It starts a [test](../reference/glossary.md#test).
-2. It sends one fixed message to the entry: `Hello from nookku check. What can you help me with?`
+2. It sends one message to the entry, the config key `check_message`. The default is `Hello from nookku check. What can you help me with?`
 3. The entry must send a reply line, not an `error` line.
 4. The [audit](../reference/glossary.md#audit) of the test must be clean. It must exit with 0.
 5. For each [harness](../reference/glossary.md#harness) in `models`, the test must find a model session of the app and its session file.

@@ -63,7 +63,7 @@ Show relay mode and the running test.
 
 ### `nookku check`
 
-Run a short test with one message, and check the entry and its model sessions ([SPEC.md section 7.1](../../SPEC.md#71-configuration)). The message is always `Hello from nookku check. What can you help me with?`
+Run a short test with one message, and check the entry and its model sessions ([SPEC.md section 7.1](../../SPEC.md#71-configuration)). It sends the value of the config key `check_message`. The default is `Hello from nookku check. What can you help me with?`. If your app declines this message, set `check_message` to a message that your app answers, with `nookku init <harness> --check-message TEXT` ([config.md](config.md#nookkuconfigjson))
 
 PASS proves the connection, not the reply. PASS means that:
 
@@ -223,6 +223,7 @@ The output starts with `Project root:` and the absolute root, then gives the abs
 | `--openai-model NAME` | empty | The config key `openai_model`. |
 | `--openai-stream` | off | The config key `openai_stream`: set it to `true`. |
 | `--record FILE` | `.nookku/relay.jsonl` | The config key `record`. |
+| `--check-message TEXT` | `Hello from nookku check. What can you help me with?` | The config key `check_message`: the one message of `nookku check`. |
 | `--remove` | off | Remove the project hooks of nookku, and keep each other hook and key. `HARNESS` must be `claude-code` or `codex`. It takes no other flag. |
 
 [config.md](config.md#nookkuconfigjson) explains each key.

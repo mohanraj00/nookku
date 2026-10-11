@@ -369,6 +369,7 @@ A test runs the entry from `start` to `end`. A new conversation is a new test: e
 | `otel` | boolean | Optional. `false` stops the OTLP receiver of a test (section 7.5). The default is `true`. |
 | `backends` | list of objects | Optional. The backends of the app, each with the strings `name`, `env` and `url` (section 7.6). Each `name` and each `env` is used only once. |
 | `model_api` | boolean, list or object | Optional. The model APIs to record (section 7.7): `true` for all, `false` for none, a list of `anthropic` and `openai`, or an object from these names to the upstream URL of the API or `null`. The default is `true`. A backend must not use the variable of a recorded model API. |
+| `check_message` | string | Optional. The one message of `nookku check`. It must have a character that is not white space, and no lone surrogate. The default is `Hello from nookku check. What can you help me with?`. |
 
 The file can also hold the relay keys, for an agent that runs as an HTTP server ([docs/reference/config.md](docs/reference/config.md#relay-keys)). Each other key is unknown.
 
@@ -380,7 +381,7 @@ One reader ([src/nookku/config.py](src/nookku/config.py)) reads the file for `st
 
 `nookku init` refuses a root in a state folder, for example a test folder, and writes nothing. The match ignores case and also finds the old folder `.verbatim-relay`. It also finds a state folder by its marker file `nookku-state`, which `init` and `start` write, for example in the target of a `.nookku` symlink. It finds a test folder by its `manifest.json`, also a copied test folder, and names the project root of the manifest. It checks the root as given and the resolved root. `nookku init` keeps each key of an existing file. It changes only the keys of the flags that the tester gives, and it prints the changed keys and the kept keys. A new file gets each key, with its default value if no flag gives it. If the existing file or the hook file breaks the rule or is not valid JSON, `init` writes nothing. `init` replaces only its own hooks in the hook file, and it keeps each other hook, also one in the same group.
 
-`nookku check` runs a short test with one message. It passes if the entry sends a reply, if the audit of the test is clean, and if the tap identifies at least one model session and finds its session file for each harness in `models`. If the tap times out after stray lines (section 4.2), the check also gives the fix for them.
+`nookku check` runs a short test with one message, the value of `check_message`. The relay record of the check has this message in `said`. The check passes if the entry sends a reply, if the audit of the test is clean, and if the tap identifies at least one model session and finds its session file for each harness in `models`. If the tap times out after stray lines (section 4.2), the check also gives the fix for them.
 
 After the end of the test, the check reads `audit.json` in the test folder (section 7.2). If its exit code is not 0, the check fails. It names each error of the audit and each break, with the line numbers and the fix. For an `unparsed` row of a stray line, the fix is the fix of section 4.2: use `nookku.agent.serve()` or write logs to stderr. If `audit.json` is missing or is not valid, the check fails and says so.
 

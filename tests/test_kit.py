@@ -479,6 +479,30 @@ def test_openai_stream_must_be_a_boolean(tmp_path):
         kit.Config.load(tmp_path)
 
 
+def test_a_new_config_has_the_default_check_message(tmp_path):
+    kit.init(tmp_path, "codex", {})
+    conf = json.loads((tmp_path / ".nookku" / "config.json").read_text())
+    assert conf["check_message"] == "Hello from nookku check. What can you help me with?"
+
+
+@pytest.mark.parametrize("value", ["", "  \n", 7, None, ["hello"]])
+def test_check_message_must_be_a_string_with_text(tmp_path, value):
+    kit.init(tmp_path, "codex", {})
+    path = tmp_path / ".nookku" / "config.json"
+    path.write_text(json.dumps({**json.loads(path.read_text()), "check_message": value}))
+    with pytest.raises(ValueError, match="'check_message' must be a string with text"):
+        kit.Config.load(tmp_path)
+
+
+def test_check_message_must_have_no_lone_surrogate(tmp_path):
+    kit.init(tmp_path, "codex", {})
+    path = tmp_path / ".nookku" / "config.json"
+    text = path.read_text().replace("What can you help me with?", "\\ud83d")
+    path.write_text(text)
+    with pytest.raises(ValueError, match=r"'check_message' has a lone surrogate U\+D83D"):
+        kit.Config.load(tmp_path)
+
+
 @pytest.mark.parametrize("path", ["/v1/chat/completions", "/v1/cut/chat/completions"])
 def test_a_streamed_reply_is_shown_only_when_complete(tmp_path, path):
     agent = ToyAgent(stream=True)

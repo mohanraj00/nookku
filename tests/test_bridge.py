@@ -327,6 +327,25 @@ def test_check_fails_if_the_entry_logs_on_stdout_and_then_replies(
     ]
 
 
+ECHO_APP = LOG_ON_STDOUT_APP.replace('print("toy shop: loading catalog", flush=True)\n', "")
+
+
+def test_check_sends_the_check_message_of_the_config(tmp_path: Path, homes: tuple) -> None:
+    script = tmp_path / "app.py"
+    script.write_text(ECHO_APP)
+    root = project(tmp_path, [sys.executable, str(script)])
+    conf = root / ".nookku" / "config.json"
+    message = "Do you sell a red teapot?\nI need one for a gift."
+    conf.write_text(json.dumps({**json.loads(conf.read_text()), "check_message": message}))
+    passed, lines = bridge.check(root)
+    assert passed, lines
+    assert "Reply: Toy shop: " + message in lines
+    folder = bridge.latest_test(root)
+    assert folder is not None
+    turns = [json.loads(x) for x in (folder / "relay.jsonl").read_text().splitlines() if x]
+    assert [r["said"] for r in turns if r["type"] == "turn"] == [message]
+
+
 REPLY_THEN_LOG_APP = """
 import json, sys
 for raw in sys.stdin.buffer:
