@@ -34,7 +34,7 @@ The plugin loads in Codex 0.162.0: Codex lists its 2 hooks, its MCP tools and it
      nookku init codex --entry "python3 examples/toy-shop/agent.py"
      ```
 
-     `init` writes `.nookku/config.json` and `.codex/hooks.json`, with 2 hooks:
+     `init` writes `.nookku/config.json` and `.codex/hooks.json`, with 2 hooks. Its output starts with the absolute project root, and gives the absolute path of each file. Run `init` in the top folder of your project, not in `.nookku/` or a test folder.
      - `UserPromptSubmit`: in relay mode, it sends the prompt to the tap and blocks it from the model. It also runs the prompts `nookku start`, `nookku end` and `nookku status`.
      - `PreToolUse`: it denies any model tool call that names the tap or the agent, except file tools. During a test, it also denies model changes to `.nookku/` and model commands that run the entry. After a test, a command that names `.nookku` can only read, or write `report.md`.
 

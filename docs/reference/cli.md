@@ -206,6 +206,8 @@ If `config.json` exists, `init` keeps each key and changes only the keys of the 
 
 If `config.json` has an unknown key, or if `config.json` or the hook file is not valid JSON, `init` writes nothing. Correct the file, then run `init` again.
 
+The output starts with `Project root:` and the absolute root, then gives the absolute path of each file that `init` wrote. If the root is in a state folder, for example a test folder in `.nookku/tests/`, `init` writes nothing, exits with 1 and names the project folder to use. If the root has no `config.json` and is not the top level of its git work tree, `init` prints a warning that names the top level. It still writes the files.
+
 | Argument or flag | Default | Meaning |
 |---|---|---|
 | `HARNESS` | | `codex`, `claude-code` or `plugin`. |

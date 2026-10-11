@@ -108,6 +108,18 @@ First, look in the [test folder](reference/glossary.md#test-folder) `.nookku/tes
 
 **Fix.** Read the lines, and correct the step after the last one. Then start the test again.
 
+### `nookku: the root <path> is inside the state folder <folder>. Run init in the project: nookku init <harness> --root <project>. Nothing was written.`
+
+(kit.py) **Cause.** You ran `init` in `.nookku/` or in a folder below it, for example a test folder. A config or a hook file there does not work, and it changes a sealed test folder ([#148](https://github.com/mohanraj00/nookku/issues/148)).
+
+**Fix.** Run the command that the error gives. It uses the folder above the state folder.
+
+### `nookku: warning: <root> is not the top level of its git work tree, <top>.`
+
+(cli.py) **Cause.** `init` wrote a new config in a folder below the top level of your git work tree. This is correct if your app is in that folder. Else the harness does not find the hooks, because it starts in the top level.
+
+**Fix.** If the top level is your project, run `init` again with `--root <top>`, and remove the `.nookku/` folder of `<root>`.
+
 ## During a test
 
 If a test does not end or its bridge stopped, follow [how-to/recover-a-stuck-test.md](how-to/recover-a-stuck-test.md).

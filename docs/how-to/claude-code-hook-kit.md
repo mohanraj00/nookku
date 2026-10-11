@@ -16,7 +16,7 @@ In your project, write the hooks with the [entry](../reference/glossary.md#entry
 nookku init claude-code --entry "python3 examples/toy-shop/agent.py"
 ```
 
-It writes `.nookku/config.json` and adds [2 hooks](../../src/nookku/kit.py) to `.claude/settings.local.json`. It keeps your other hooks. Add `--models claude-code,codex` if your app runs its own model sessions.
+It writes `.nookku/config.json` and adds [2 hooks](../../src/nookku/kit.py) to `.claude/settings.local.json`. It keeps your other hooks. The output starts with the absolute project root, and gives the absolute path of each file. Run `init` in the top folder of your project, not in `.nookku/` or a test folder. Add `--models claude-code,codex` if your app runs its own model sessions.
 
 ## Run a test
 

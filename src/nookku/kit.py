@@ -18,8 +18,8 @@ from urllib.parse import urlsplit
 from nookku import commands, policy, seal, state
 from nookku.adapters import AdapterError, History, StreamError, is_stream, make
 from nookku.config import FILE as CONFIG_FILE
+from nookku.config import OLD_STATE_DIR, check, move_old_state, read_config
 from nookku.config import Config as Config
-from nookku.config import check, move_old_state, read_config
 from nookku.record import (
     RecordError,
     Turn,
@@ -757,13 +757,27 @@ class Installed:
     kept: list[str]
 
 
+def state_folder_of(root: Path) -> Path | None:
+    """The state folder that holds root, for example a test folder, or None. The match ignores
+    case, because the file system of macOS and Windows ignores case."""
+    names = (STATE_DIR.casefold(), OLD_STATE_DIR.casefold())
+    return next((p for p in (root, *root.parents) if p.name.casefold() in names), None)
+
+
 def init(root: Path, harness: str, changes: dict[str, Any]) -> Installed:
     """Write the config, the mode file and the harness hook file. For the plugin, write no hook
     file, because the plugin has the hooks.
 
     An existing config.json keeps each key, and only the keys in `changes` get a new value. A new
     config.json gets each key with its default, then `changes`. If an existing file cannot be
-    read, or if a key is unknown, raise ValueError before a write."""
+    read, if a key is unknown, or if root is inside a state folder, raise ValueError before a
+    write (#148)."""
+    folder = state_folder_of(root)
+    if folder is not None:
+        raise ValueError(
+            f"the root {root} is inside the state folder {folder}. Run init in the project: "
+            f"nookku init {harness} --root {folder.parent}"
+        )
     conf = root / CONFIG_FILE
     new = not conf.exists()
     old = asdict(Config()) if new else read_config(root)

@@ -31,6 +31,24 @@ def _listen(value: str) -> tuple[str, int]:
     return host.strip("[]"), int(port)
 
 
+def _git_top(root: Path) -> Path | None:
+    """The top level of the git work tree of root, or None if root is not in one."""
+    import subprocess  # only init needs it, and a hook event imports this module
+
+    try:
+        out = subprocess.run(
+            ["git", "-C", str(root), "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return (
+        Path(out.stdout.strip()).resolve() if out.returncode == 0 and out.stdout.strip() else None
+    )
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="nookku", description=__doc__)
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
@@ -234,7 +252,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         except ValueError as e:
             print(f"nookku: {str(e).rstrip('.')}. Nothing was written.", file=sys.stderr)
             return 1
+        top = _git_top(root) if done.new else None
+        if top is not None and top != root:
+            print(
+                f"nookku: warning: {root} is not the top level of its git work tree, {top}. "
+                f"If {top} is the project, run: nookku init {args.harness} --root {top}",
+                file=sys.stderr,
+            )
         conf, *hooks = done.written
+        print(f"Project root: {root}")
         print(f"wrote {conf}")
         if done.new:
             print(f"  A new file. Keys that differ from the default: {_names(done.changed)}.")

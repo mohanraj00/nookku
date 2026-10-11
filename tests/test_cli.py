@@ -242,6 +242,56 @@ def test_init_takes_the_openai_stream_flag(tmp_path: Path) -> None:
     assert (conf["adapter"], conf["openai_stream"]) == ("openai", True)
 
 
+@pytest.mark.parametrize(
+    "inside", [".nookku/tests/t1", ".nookku", ".NOOKKU/tests/t1", ".verbatim-relay"]
+)
+@pytest.mark.parametrize("harness", ["claude-code", "codex", "plugin"])
+def test_init_refuses_a_root_inside_the_state_folder(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], inside: str, harness: str
+) -> None:
+    root = tmp_path / inside
+    root.mkdir(parents=True)
+    before = sorted(tmp_path.rglob("*"))
+    assert main(["init", harness, "--root", str(root)]) == 1
+    assert sorted(tmp_path.rglob("*")) == before
+    err = capsys.readouterr().err
+    folder = tmp_path / inside.split("/")[0]
+    assert f"is inside the state folder {folder}." in err
+    assert f"--root {tmp_path}. Nothing was written." in err
+
+
+def test_init_prints_the_absolute_root_first(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    assert main(["init", "codex", "--root", "."]) == 0
+    out = capsys.readouterr().out.splitlines()
+    assert out[:2] == [
+        f"Project root: {tmp_path.resolve()}",
+        f"wrote {tmp_path.resolve() / '.nookku' / 'config.json'}",
+    ]
+    assert f"wrote {tmp_path.resolve() / '.codex' / 'hooks.json'}" in out
+
+
+@pytest.mark.parametrize(
+    ("sub", "config", "warned"), [("shop", False, True), ("", False, False), ("shop", True, False)]
+)
+def test_init_warns_if_a_new_root_is_not_the_top_of_its_git_tree(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], sub: str, config: bool, warned: bool
+) -> None:
+    import subprocess
+
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    root = (tmp_path / sub).resolve()
+    root.mkdir(exist_ok=True)
+    if config:
+        assert main(["init", "plugin", "--root", str(root)]) == 0
+        capsys.readouterr()
+    assert main(["init", "plugin", "--root", str(root)]) == 0
+    err = capsys.readouterr().err
+    assert (f"is not the top level of its git work tree, {tmp_path.resolve()}." in err) == warned
+
+
 def test_init_again_keeps_the_keys_that_have_no_flag(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
