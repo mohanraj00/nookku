@@ -775,21 +775,22 @@ class Removed:
     path: Path
     # The count of removed hooks. 0 if the file has no hook of nookku or does not exist.
     count: int
-    # True if the file had only the hooks of nookku, so init --remove deleted it.
-    deleted: bool
+    # The text of the file before the removal, to put it back.
+    before: str = ""
 
 
 def remove(root: Path, harness: str) -> Removed:
     """Remove the project hooks of nookku from the hook file of the harness (#163). Keep each
-    other hook and key, and the state folder. If the file is then an empty object, delete it,
-    because init made it. If the file cannot be read, raise ValueError before a write."""
+    other hook and key, the file itself and the state folder. If the file cannot be read, raise
+    ValueError before a write."""
     target = hook_file(root, harness)
     if target is None:
         raise ValueError("the nookku plugin has the hooks, so no project file has them")
     if not target.exists():
-        return Removed(target, 0, False)
+        return Removed(target, 0)
     try:
-        settings = json.loads(target.read_text(encoding="utf-8"))
+        before = target.read_text(encoding="utf-8")
+        settings = json.loads(before)
         if not isinstance(settings, dict):
             raise ValueError("it is not a JSON object")
         count = _remove_hooks(settings)
@@ -797,13 +798,9 @@ def remove(root: Path, harness: str) -> Removed:
         raise ValueError(
             f"cannot read {target}: {e}. Correct the file, then run init --remove again"
         ) from None
-    if not count:
-        return Removed(target, 0, False)
-    if not settings:
-        target.unlink()
-        return Removed(target, count, True)
-    target.write_text(json.dumps(settings, indent=1) + "\n", encoding="utf-8")
-    return Removed(target, count, False)
+    if count:
+        target.write_text(json.dumps(settings, indent=1) + "\n", encoding="utf-8")
+    return Removed(target, count, before)
 
 
 def hook_file(root: Path, harness: str) -> Path | None:

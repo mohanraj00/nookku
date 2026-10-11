@@ -232,7 +232,7 @@ The output starts with `Project root:` and the absolute root, then gives the abs
 | 0 | The files were written. |
 | 1 | Nothing was written: `config.json` or the hook file cannot be read, or `config.json` has an unknown key. The text names the cause. |
 
-`init --remove` removes each hook whose command contains `nookku hook` or `verbatim_relay hook` from the hook file of the harness. It removes a group or an event that then has no hook. If the file then has no key, it deletes the file. It does not change `.nookku/`. It prints the absolute path of the file and the count of removed hooks, or that the file has no hook of nookku. If a test runs or relay mode is on, it changes nothing and exits with 1, because without the hooks a message in relay mode goes to the model. If the hook file cannot be read, it changes nothing and exits with 1 ([code](../../src/nookku/kit.py), [test](../../tests/test_kit.py)).
+`init --remove` removes each hook whose command contains `nookku hook` or `verbatim_relay hook` from the hook file of the harness. It removes a group or an event that then has no hook. It keeps the file, also as `{}`, and does not change the state folder. It prints the absolute path of the file and the count of removed hooks, or that the file has no hook of nookku. If a test runs or relay mode is on, also in the `.verbatim-relay/` folder of 0.3, it changes nothing and exits with 1, because without the hooks a message in relay mode goes to the model. If relay mode comes on while it runs, it puts the hooks back and exits with 1. If the hook file cannot be read, it changes nothing and exits with 1 ([code](../../src/nookku/kit.py), [test](../../tests/test_kit.py)).
 
 ### `nookku policy`
 

@@ -77,18 +77,18 @@ nookku init --remove claude-code
 nookku init --remove codex
 ```
 
-It removes each hook whose `command` contains `nookku hook`, and also each hook of verbatim-relay 0.3, whose command contains `verbatim_relay hook`. If a group or an event then has no hook, it removes it too. It keeps each other hook and each other key, and `.nookku/`. If the file then has no key, it deletes the file, because `init` made it.
+It removes each hook whose `command` contains `nookku hook`, and also each hook of verbatim-relay 0.3, whose command contains `verbatim_relay hook`. If a group or an event then has no hook, it removes it too. It keeps each other hook, each other key, the file itself and `.nookku/`. If the file had only the hooks of nookku, it is then `{}`. The command does not delete it, because the file can be yours from before `init`.
 
 In my run, `.claude/settings.local.json` had a permission and an own hook before `init`. `.codex/hooks.json` did not exist before `init`:
 
 ```text
 removed 2 hooks from .../toy-shop/.claude/settings.local.json
-The state folder .nookku/ stays. It has the config and your tests.
-removed 2 hooks from .../toy-shop/.codex/hooks.json, and deleted the file, because it is now empty
-The state folder .nookku/ stays. It has the config and your tests.
+The state folder stays. It has the config and your tests.
+removed 2 hooks from .../toy-shop/.codex/hooks.json
+The state folder stays. It has the config and your tests.
 ```
 
-After the command, `.claude/settings.local.json` had the same JSON as before `init`. Only the indent was different, because `init` writes the file again:
+After the command, `.codex/hooks.json` was `{}`, and `.claude/settings.local.json` had the same JSON as before `init`. Only the indent was different, because `init` writes the file again:
 
 ```json
 {
@@ -117,11 +117,16 @@ If the file has no hook of nookku, the command changes nothing and exits with 0:
 
 ```text
 .../toy-shop/.codex/hooks.json has no hook of nookku. Nothing was changed.
+The state folder stays. It has the config and your tests.
 ```
 
 The command changes nothing and exits with 1 in these 2 cases:
 
-- A test runs or relay mode is on. Without the hooks, a message in relay mode goes to the model. End the test with `nookku end`, or switch relay mode off with `nookku mode off`.
+- A test runs or relay mode is on, also in the `.verbatim-relay/` folder of 0.3. Without the hooks, a message in relay mode goes to the model. End the test with `nookku end`, or switch relay mode off with `nookku mode off`. If relay mode comes on while the command runs, the command puts the hooks back.
+
+  ```text
+  nookku: relay mode is on. Switch it off first: nookku mode off. Nothing was changed.
+  ```
 - The file is not valid JSON, or its `hooks` key has a wrong form. Correct the file, then run the command again.
 
 Do not delete `.claude/settings.local.json` yourself to remove the hooks. The file can also hold your permissions and your own hooks.

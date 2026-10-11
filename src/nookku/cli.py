@@ -15,7 +15,7 @@ from nookku import __version__, bridge, evaluation, kit, seal, stdio, trace
 from nookku.adapters import make
 from nookku.audit import audit, render
 from nookku.config import KEYS as CONFIG_KEYS
-from nookku.config import ConfigError, move_old_state, read_config
+from nookku.config import OLD_STATE_DIR, ConfigError, move_old_state, read_config
 from nookku.record import RecordError
 from nookku.tap import Tap, serve
 
@@ -68,36 +68,39 @@ def _warn_both_on(root: Path, harness: str) -> None:
         )
 
 
+def _relay_on(root: Path) -> str | None:
+    """The refusal of init --remove if a test or relay mode is on, else None. Read the mode
+    file of the old state folder too, because init --remove does not move it."""
+    if bridge.current(root) is not None:
+        return "a test runs. End it first with: nookku end"
+    old = root / OLD_STATE_DIR / "mode"
+    if kit.is_on(root) or (old.is_file() and old.read_text().strip() == "on"):
+        return "relay mode is on. Switch it off first: nookku mode off"
+    return None
+
+
 def _remove_hooks(root: Path, harness: str) -> int:
     """init --remove (#163): remove the project hooks, but not while a test or relay mode is
     on. Without the hooks, a message in relay mode would go to the model."""
-    if bridge.current(root) is not None:
-        print(
-            "nookku: a test runs. End it first with: nookku end. Nothing was changed.",
-            file=sys.stderr,
-        )
+    refuse = _relay_on(root)
+    if refuse is None:
+        try:
+            done = kit.remove(root, harness)
+        except ValueError as e:
+            print(f"nookku: {str(e).rstrip('.')}. Nothing was changed.", file=sys.stderr)
+            return 1
+        # A test or relay mode can start while the file changes. Then put the hooks back.
+        refuse = _relay_on(root)
+        if refuse is not None and done.count:
+            done.path.write_text(done.before, encoding="utf-8")
+    if refuse is not None:
+        print(f"nookku: {refuse}. Nothing was changed.", file=sys.stderr)
         return 1
-    if kit.is_on(root):
-        print(
-            "nookku: relay mode is on. Switch it off first: nookku mode off. Nothing was changed.",
-            file=sys.stderr,
-        )
-        return 1
-    try:
-        done = kit.remove(root, harness)
-    except ValueError as e:
-        print(f"nookku: {str(e).rstrip('.')}. Nothing was changed.", file=sys.stderr)
-        return 1
-    if not done.count:
-        print(f"{done.path} has no hook of nookku. Nothing was changed.")
-    elif done.deleted:
-        print(
-            f"removed {done.count} hooks from {done.path}, and deleted the file, because it "
-            "is now empty"
-        )
-    else:
+    if done.count:
         print(f"removed {done.count} hooks from {done.path}")
-    print("The state folder .nookku/ stays. It has the config and your tests.")
+    else:
+        print(f"{done.path} has no hook of nookku. Nothing was changed.")
+    print("The state folder stays. It has the config and your tests.")
     return 0
 
 
@@ -253,7 +256,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         given = [k for k in (*STRING_KEYS, "entry", "models", "openai_stream") if getattr(args, k)]
         if args.harness == "plugin" or given:
             ini.error("--remove takes the harness claude-code or codex, and no other flag")
-    if args.command == "init" and not args.remove:
+    if args.command == "init" and args.remove:
+        # Before the move of the old state folder: a refusal changes nothing.
+        return _remove_hooks(args.root.resolve(), args.harness)
+    if args.command == "init":
         # Check before the move of the old state folder, which can change a test folder. Check
         # the path as given too, because resolve() removes a state folder that is a symlink.
         error = kit.state_root_error(
@@ -310,8 +316,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         else:
             print(render(report))
         return report.exit
-    if args.command == "init" and args.remove:
-        return _remove_hooks(args.root.resolve(), args.harness)
     if args.command == "init":
         root = args.root.resolve()
         # Only the flags that the user gave change a key of an existing config.json.

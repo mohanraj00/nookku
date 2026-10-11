@@ -496,8 +496,9 @@ def test_init_remove_prints_each_change(tmp_path: Path, capsys: pytest.CaptureFi
     target = tmp_path / ".codex" / "hooks.json"
     assert main(["init", "--remove", "codex", "--root", str(tmp_path)]) == 0
     out = capsys.readouterr().out
-    assert f"removed 2 hooks from {target}, and deleted the file" in out
-    assert not target.exists() and (tmp_path / ".nookku" / "config.json").exists()
+    assert f"removed 2 hooks from {target}\n" in out
+    assert json.loads(target.read_text()) == {}
+    assert (tmp_path / ".nookku" / "config.json").exists()
     assert main(["init", "codex", "--remove", "--root", str(tmp_path)]) == 0
     assert f"{target} has no hook of nookku. Nothing was changed." in capsys.readouterr().out
 
@@ -521,6 +522,44 @@ def test_init_remove_refuses_while_a_test_or_relay_mode_is_on(
     assert ("nookku end" if running else "nookku mode off") in err
     assert err.endswith("Nothing was changed.\n")
     assert target.read_text() == text
+
+
+def test_init_remove_puts_the_hooks_back_if_relay_mode_starts(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    assert main(["init", "codex", "--root", str(tmp_path)]) == 0
+    target = tmp_path / ".codex" / "hooks.json"
+    text = target.read_text()
+    remove = kit.remove
+
+    def remove_then_mode_on(root: Path, harness: str) -> kit.Removed:
+        done = remove(root, harness)
+        assert "nookku hook" not in target.read_text()
+        kit.set_mode(root, True)
+        return done
+
+    monkeypatch.setattr(kit, "remove", remove_then_mode_on)
+    capsys.readouterr()
+    assert main(["init", "--remove", "codex", "--root", str(tmp_path)]) == 1
+    assert "nookku mode off" in capsys.readouterr().err
+    assert target.read_text() == text
+
+
+def test_init_remove_refuses_with_old_relay_mode_on_and_does_not_move_it(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    old = tmp_path / ".verbatim-relay"
+    old.mkdir()
+    (old / "mode").write_text("on\n")
+    target = tmp_path / ".codex" / "hooks.json"
+    target.parent.mkdir()
+    hook = {"type": "command", "command": "python -m verbatim_relay hook --harness codex"}
+    text = json.dumps({"hooks": {"UserPromptSubmit": [{"hooks": [hook]}]}})
+    target.write_text(text)
+    assert main(["init", "--remove", "codex", "--root", str(tmp_path)]) == 1
+    assert "relay mode is on" in capsys.readouterr().err
+    assert target.read_text() == text
+    assert old.is_dir() and not (tmp_path / ".nookku").exists()
 
 
 @pytest.mark.parametrize(

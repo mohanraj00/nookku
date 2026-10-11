@@ -146,19 +146,24 @@ def test_remove_restores_a_file_with_other_hooks_and_keys(tmp_path, harness):
     target.write_text(json.dumps(before))
     kit.init(tmp_path, harness, {})
     done = kit.remove(tmp_path, harness)
-    assert (done.path, done.count, done.deleted) == (target, 2, False)
+    assert (done.path, done.count) == (target, 2)
     assert json.loads(target.read_text()) == before
     assert (tmp_path / ".nookku" / "config.json").exists()
 
 
 @pytest.mark.parametrize("harness", ["claude-code", "codex"])
-def test_remove_deletes_a_file_that_init_made(tmp_path, harness):
-    kit.init(tmp_path, harness, {})
+@pytest.mark.parametrize("before", [None, {}, {"hooks": {}}])
+def test_remove_keeps_a_file_with_no_other_key(tmp_path, harness, before):
     target = kit.hook_file(tmp_path, harness)
-    assert target is not None and target.exists()
+    assert target is not None
+    if before is not None:
+        target.parent.mkdir()
+        target.write_text(json.dumps(before))
+    kit.init(tmp_path, harness, {})
     done = kit.remove(tmp_path, harness)
-    assert (done.count, done.deleted) == (2, True)
-    assert not target.exists()
+    assert (done.path, done.count) == (target, 2)
+    # The file stays, because a file that existed before init can be empty.
+    assert json.loads(target.read_text()) == {}
 
 
 def test_remove_keeps_another_hook_in_the_group_and_removes_old_hooks(tmp_path):
@@ -180,7 +185,7 @@ def test_remove_changes_nothing_in_a_file_with_no_hook_of_nookku(tmp_path, text)
         target.parent.mkdir()
         target.write_text(text)
     done = kit.remove(tmp_path, "claude-code")
-    assert (done.count, done.deleted) == (0, False)
+    assert done.count == 0
     assert (target.read_text() if target.exists() else None) == text
 
 
