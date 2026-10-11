@@ -152,6 +152,9 @@ def test_guard_fields_takes_names_separated_by_commas(
         ("bin/bat", None),
         ("a b", None),
         (",", None),
+        ("$X", None),
+        ("r?", None),
+        ("bat,-x", None),
     ],
 )
 def test_guard_reads_takes_program_names(

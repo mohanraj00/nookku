@@ -52,6 +52,13 @@ def test_conformance(case: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
         ("cd shop && make", [], ["shop"], '"make" is not a read command.'),
         ("python3 <<< 'print(1)'", ["print(1)"], [], '"python3" is not a read command.'),
         ("cat a.txt; echo ${x} $y", [], [], ""),
+        (
+            "PATH=/tmp cat a.txt",
+            [],
+            [],
+            'The read check does not accept the assignment "PATH=/tmp".',
+        ),
+        ("IFS=x; cat a.txt", [], [], 'The read check does not accept the assignment "IFS=x".'),
     ],
 )
 def test_write_targets(command: str, targets: list[str], folders: list[str], cause: str) -> None:

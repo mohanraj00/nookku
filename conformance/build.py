@@ -3245,6 +3245,19 @@ GUARD_CASES: dict[str, dict] = {
         "event": bash(f"sed -i '' 's/4471/4417/' {RECORD}"),
         "answer": records(RECORD, writes_with("sed")),
     },
+    # A program name of guard_reads is literal. An expansion can become another program, so the
+    # policy file is not valid, and no program is added.
+    "shell_guard_reads_with_an_expansion": {
+        "policy_text": '{"guard_reads": ["$X"]}\n',
+        "event": bash(f"X=rm; $X {RECORD}"),
+        "answer": records(RECORD, not_read("$X")),
+    },
+    # An assignment before a program fails the read check, so a command in the state folder is
+    # denied.
+    "shell_assignment_before_a_read_in_the_state_folder": {
+        "event": bash(f"cd {STATE} && PATH=/tmp cat config.json"),
+        "answer": records(STATE, 'The read check does not accept the assignment "PATH=/tmp".'),
+    },
     # The deny of the policy file does not use guard_reads.
     "shell_program_of_guard_reads_writes_the_policy": {
         "policy_text": '{"guard_reads": ["shopctl"]}\n',

@@ -56,8 +56,9 @@ def _is_names(value: Any) -> bool:
     return isinstance(value, list) and bool(value) and all(isinstance(n, str) and n for n in value)
 
 
-# A program name: a base name with no path and no space.
-PROGRAM = re.compile(r"[^\s/\\]+")
+# A program name: a literal base name. A shell expansion such as $X or a glob such as r? can
+# become another program, so its characters are not allowed.
+PROGRAM = re.compile(r"[A-Za-z0-9_][A-Za-z0-9._+-]*")
 
 
 def _programs(text: str) -> list[str]:
@@ -65,7 +66,10 @@ def _programs(text: str) -> list[str]:
         return []
     names = [n.strip() for n in text.split(",")]
     if not all(PROGRAM.fullmatch(n) for n in names):
-        raise ValueError("give program names with no path, separated by commas, for example bat,fd")
+        raise ValueError(
+            "give program names with only letters, digits and . _ + -, separated by commas, "
+            "for example bat,fd"
+        )
     return names
 
 

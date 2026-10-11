@@ -393,13 +393,21 @@ def write_targets(command: str, extra: frozenset[str] = frozenset()) -> Writes |
     # a part writes, each assignment of the command is a target too.
     assignments: list[str] = []
     writes = ""
+    # The read check refuses an assignment before a program, and an assignment that changes how
+    # the shell runs programs. These write nothing, but the deny reason names them.
+    refused = ""
     for words in segments:
         k = 0
         while k < len(words) and ASSIGNMENT.match(words[k]):
             k += 1
         assignments += words[:k]
         if k == len(words):
+            bad = next((w for w in words if not _assignment(w)), None)
+            if bad is not None and not refused:
+                refused = f'The read check does not accept the assignment "{bad}".'
             continue
+        if k and not refused:
+            refused = f'The read check does not accept the assignment "{words[0]}".'
         program, args = _split(words)
         if program == "cd":
             folders += args[-1:]
@@ -410,7 +418,7 @@ def write_targets(command: str, extra: frozenset[str] = frozenset()) -> Writes |
             writes = writes or cause
     if writes:
         targets += [(a, writes) for a in assignments]
-    return Writes(targets, folders, writes or next((c for _, c in targets), ""))
+    return Writes(targets, folders, writes or next((c for _, c in targets), refused))
 
 
 def state_rest(word: str) -> list[str] | None:

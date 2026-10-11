@@ -268,6 +268,7 @@ The follow-up capture records a title-description schema match, without request 
   - `"<program>" is not a read command.` for a program that is not a read program, for example `"rm"` or `"$X"`;
   - `"<program>" with these arguments can write.` for a read program whose arguments fail the read check, for example `sed -i` or `command rm`;
   - `The redirect "<operator>" writes it.` for an output redirect;
+  - `The read check does not accept the assignment "<word>".` for a variable assignment that the read check refuses, for example `PATH=/tmp`;
   - `The guard cannot parse the command.` if the check cannot parse the command, for example a command with `$(...)`.
 
   The relay writes the `blocked_call` row of a deny after a test to `denied.jsonl` in the latest test folder, so that the sealed `relay.jsonl` does not change (section 7.4).
@@ -586,7 +587,7 @@ The gate does not stop a person who starts Codex with other hooks after the star
 | Key | Type | Default | Meaning |
 |---|---|---|---|
 | `guard_fields` | list of strings | `["path", "file_path", "url", "uri", "command"]` | The fields of a tool input that the guard reads, for a tool that is not a shell or a file tool (section 5). `nookku policy set guard_fields path,url` takes the names separated by commas. |
-| `guard_reads` | list of strings | `[]` | More programs that the read check accepts (section 5). A program of the built-in list keeps its own check. The deny of the policy file does not use this key. `nookku policy set guard_reads bat,fd` takes base names with no path, separated by commas. An empty value clears the list. |
+| `guard_reads` | list of strings | `[]` | More programs that the read check accepts (section 5). A program of the built-in list keeps its own check. The deny of the policy file does not use this key. `nookku policy set guard_reads bat,fd` takes names separated by commas. A name has only letters, digits, `.`, `_`, `+` and `-`, and does not start with `.`, `+` or `-`. Thus a shell expansion such as `$X` or a glob such as `r?` is not valid, because the shell can change it into another program. An empty value clears the list. |
 
 The conformance cases of the deny are in [`conformance/policy/`](conformance/policy/). Each case is a hook event, the files of the project, and the decision of the relay.
 
