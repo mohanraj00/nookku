@@ -73,7 +73,9 @@ The policy file holds the keys that control the guard. The model can change `con
 | Key | Type | Default | Meaning |
 |---|---|---|---|
 | `guard_fields` | list of strings | `path`, `file_path`, `url`, `uri`, `command` | The fields of a tool input that the guard reads, for a tool that is not a shell or a file tool, for example an MCP tool. The other fields are free text. Set it with `nookku policy set guard_fields path,url,command`. |
-| `guard_reads` | list of strings | empty | More programs that the read check of the guard accepts, for example a pager or a file viewer of your team. A program of the built-in list, for example `sed`, keeps its own check. The deny of `policy.json` does not use this key. Set it with `nookku policy set guard_reads bat,fd`. Clear it with `nookku policy set guard_reads ""`. |
+| `guard_reads` | list of strings | empty | More programs that the read check of the guard accepts, for example `od,hexdump`. The guard does not check the arguments of these programs. A program of the built-in list, for example `sed`, keeps its own check. The deny of `policy.json` does not use this key. Set it with `nookku policy set guard_reads od,hexdump`. Clear it with `nookku policy set guard_reads ""`. |
+
+Add a program to `guard_reads` only if it cannot write a file or start a program with any argument. For example, `fd --exec` and `bat --pager` start a program, and `xxd` writes its second file argument. The model can use each argument of a program in the list. `nookku policy set guard_reads` prints this warning.
 
 Each guard rule that a person can change adds its key here.
 

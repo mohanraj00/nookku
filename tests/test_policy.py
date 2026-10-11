@@ -158,10 +158,11 @@ def test_guard_fields_takes_names_separated_by_commas(
     ],
 )
 def test_guard_reads_takes_program_names(
-    tmp_path: Path, text: str, value: list[str] | None
+    tmp_path: Path, text: str, value: list[str] | None, capsys: pytest.CaptureFixture[str]
 ) -> None:
     code = main(["policy", "--root", str(tmp_path), "set", "guard_reads", text])
     assert code == (0 if value is not None else 1)
+    assert (policy.READS_WARNING in capsys.readouterr().err) == bool(value)
     if value is not None:
         assert policy.read(tmp_path)["guard_reads"] == value
 

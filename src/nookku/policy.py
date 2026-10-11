@@ -22,6 +22,12 @@ STATE_DIR = ".nookku"
 NAME = "policy.json"
 FILE = f"{STATE_DIR}/{NAME}"
 REASON = f"nookku: only a person changes {FILE}, with nookku policy set in a shell."
+# The warning of `nookku policy set guard_reads`.
+READS_WARNING = (
+    "nookku: the guard does not check the arguments of a program of guard_reads. Add only a "
+    "program that cannot write a file or start a program with any argument. For example, "
+    "fd --exec and bat --pager start a program."
+)
 # Text that names the file or the command that writes it. The match ignores case, because the
 # file system of macOS and Windows ignores case.
 NAMES_FILE = re.compile(re.escape(NAME), re.IGNORECASE)
@@ -68,7 +74,7 @@ def _programs(text: str) -> list[str]:
     if not all(PROGRAM.fullmatch(n) for n in names):
         raise ValueError(
             "give program names with only letters, digits and . _ + -, separated by commas, "
-            "for example bat,fd"
+            "for example od,hexdump"
         )
     return names
 
@@ -91,7 +97,8 @@ KEYS: dict[str, Key] = {
         "the fields of a tool input that the guard reads, for a tool that is not a shell or a "
         "file tool",
     ),
-    # More programs that the read check accepts (#172). The deny of this file does not use them.
+    # More programs that the read check accepts (#172), with each argument. The deny of this file
+    # does not use them.
     "guard_reads": Key(
         [],
         _programs,
