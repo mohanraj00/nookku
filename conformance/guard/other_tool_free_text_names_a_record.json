@@ -1,0 +1,15 @@
+{
+ "answer": null,
+ "event": {
+  "cwd": "{root}",
+  "hook_event_name": "PreToolUse",
+  "tool_input": {
+   "body": "The guard denied .nookku/tests/t1/relay.jsonl.",
+   "title": "Feedback"
+  },
+  "tool_name": "mcp__docs__create"
+ },
+ "links": {},
+ "state": true,
+ "test": false
+}

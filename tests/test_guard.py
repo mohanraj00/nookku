@@ -29,6 +29,8 @@ def test_conformance(case: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     root = tmp_path.resolve()
     folder = root / STATE / "tests" / "t1"
     folder.mkdir(parents=True)
+    if "policy_text" in data:
+        (root / STATE / "policy.json").write_text(data["policy_text"])
     if data["test"]:
         cur = {"dir": str(folder), "tap_url": "http://127.0.0.1:9/"}
         monkeypatch.setattr(kit.state, "current", lambda root: cur)

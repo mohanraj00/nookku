@@ -1,0 +1,15 @@
+{
+ "answer": null,
+ "event": {
+  "cwd": "{root}",
+  "hook_event_name": "PreToolUse",
+  "tool_input": {
+   "path": ".nookku/mode"
+  },
+  "tool_name": "mcp__files__copy"
+ },
+ "links": {},
+ "policy_text": "{\"guard_fields\": [\"target\"]}\n",
+ "state": true,
+ "test": false
+}
