@@ -84,3 +84,35 @@ def test_init_warns_if_the_other_form_is_on(
     assert claude_gate.DISABLE in capsys.readouterr().err
     assert main(["init", "plugin", "--root", str(tmp_path)]) == 0
     assert "project hooks of nookku init claude-code" in capsys.readouterr().err
+
+
+def test_a_linked_worktree_reads_the_local_file_of_the_main_checkout(tmp_path: Path) -> None:
+    import subprocess
+
+    main_dir = tmp_path / "shop"
+    main_dir.mkdir()
+    git = ["git", "-C", str(main_dir)]
+    subprocess.run([*git, "init", "-q"], check=True)
+    subprocess.run(
+        [
+            *git,
+            "-c",
+            "user.name=t",
+            "-c",
+            "user.email=t@t",
+            "commit",
+            "-q",
+            "--allow-empty",
+            "-m",
+            "start",
+        ],
+        check=True,
+    )
+    linked = tmp_path / "shop-2"
+    subprocess.run([*git, "worktree", "add", "-q", str(linked)], check=True)
+    kit.init(main_dir, "claude-code", {})
+    _enable(main_dir / ".claude" / "settings.local.json", True)
+    kit.init(linked, "plugin", {})
+    assert claude_gate.project_hooks_on(linked)
+    assert claude_gate.plugin_on(linked)
+    assert claude_gate.problem(linked) == claude_gate.PROBLEM
