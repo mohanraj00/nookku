@@ -3360,6 +3360,18 @@ GUARD_CASES: dict[str, dict] = {
         "event": bash("python -Im nookku start"),
         "answer": drives("nookku start"),
     },
+    "shell_python_long_option_value_starts_a_test": {
+        "event": bash("python --check-hash-based-pycs always -m nookku start"),
+        "answer": drives("nookku start"),
+    },
+    "shell_pipes_a_drive_into_a_shell_with_arguments": {
+        "event": bash("printf 'nookku start' | bash -s refund"),
+        "answer": drives("nookku start"),
+    },
+    "shell_env_value_names_a_drive": {
+        "event": bash("env NOTE='nookku start' echo ok"),
+        "answer": None,
+    },
     "shell_pipes_a_drive_into_a_shell": {
         "event": bash("echo 'nookku start' | bash"),
         "answer": drives("nookku start"),

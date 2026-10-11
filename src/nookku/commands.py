@@ -59,6 +59,10 @@ DRIVE_TEXT = re.compile(
 # The same text with no word boundary before nookku, for text that an option holds, for example
 # env -S'nookku start'.
 LAUNCH_TEXT = re.compile(DRIVE_TEXT.pattern.removeprefix(r"\b"))
+# The env option that splits its value into a command, alone or in a group as in -vS.
+SPLIT = re.compile(r"-[a-zA-Z]*S|--split-string")
+# The python long option that takes the next word as its value.
+PYTHON_LONG_VALUES = {"--check-hash-based-pycs"}
 IMPORT = "import nookku"
 SHELL_CODE = re.compile(r"-[a-zA-Z]*c[a-zA-Z]*")
 # A word of a text that can name a path in a state folder.
@@ -386,27 +390,46 @@ def _runs(word: str) -> bool:
     return program in ("nookku", "nookku.exe", *SHELLS) or PYTHON.fullmatch(program) is not None
 
 
-def _module(args: list[str]) -> tuple[str, list[str]] | None:
-    """The module of python -m and the words after it, or None. The module can follow -m, be
-    attached as in -mnookku, or follow a group of flags as in -Im."""
+def _python(args: list[str]) -> tuple[str, list[str]]:
+    """What python runs: ("-m", [module, *args]), ("-c", []), ("script", args) or
+    ("stdin", args). The module can follow -m, be attached as in -mnookku, or follow a group of
+    flags as in -Im. A value of -W, -X or --check-hash-based-pycs is not the script."""
     k = 0
-    while k < len(args) and args[k].startswith("-") and args[k] not in ("-", "--"):
+    while k < len(args) and args[k].startswith("-") and args[k] != "-":
         word = args[k]
         k += 1
+        if word == "--":
+            break
         if word.startswith("--"):
+            k += word in PYTHON_LONG_VALUES
             continue
         for n, letter in enumerate(word[1:], 2):
             if letter == "m":
-                if word[n:]:
-                    return word[n:], args[k:]
-                return (args[k], args[k + 1 :]) if k < len(args) else None
+                return "-m", [word[n:], *args[k:]] if word[n:] else args[k:]
             if letter == "c":
-                return None
+                return "-c", []
             if letter in "WX":
-                # The value of -W or -X is the rest of the word or the next word.
+                # The value is the rest of the word or the next word.
                 k += 0 if word[n:] else 1
                 break
-    return None
+    if k >= len(args) or args[k] == "-":
+        return "stdin", args[k + 1 :]
+    return "script", args[k:]
+
+
+def _shell_stdin(args: list[str]) -> bool:
+    """True if a shell runs code from its standard input: no -c, and -s or no script."""
+    k, stdin = 0, False
+    while k < len(args) and args[k][:1] in ("-", "+") and args[k] != "--":
+        word = args[k]
+        k += 1
+        if word in ("-o", "+o", "-O", "+O"):
+            k += 1
+        elif SHELL_CODE.fullmatch(word):
+            return False
+        elif word[0] == "-" and "s" in word[1:] and not word.startswith("--"):
+            stdin = True
+    return stdin or k + (k < len(args) and args[k] == "--") >= len(args)
 
 
 def _reads_stdin(words: list[str]) -> bool:
@@ -418,8 +441,8 @@ def _reads_stdin(words: list[str]) -> bool:
         return False
     program, args = _program(words[i]), words[i + 1 :]
     if program in SHELLS:
-        return all(a.startswith("-") and not SHELL_CODE.fullmatch(a) for a in args)
-    return PYTHON.fullmatch(program) is not None and all(a.startswith("-") for a in args)
+        return _shell_stdin(args)
+    return PYTHON.fullmatch(program) is not None and _python(args)[0] == "stdin"
 
 
 def _drive_part(words: list[str], allowed: frozenset[str]) -> str | None:
@@ -431,20 +454,23 @@ def _drive_part(words: list[str], allowed: frozenset[str]) -> str | None:
         or (_program(words[i]) in ("uv", "pipx") and words[i + 1 : i + 2] == ["run"])
     ):
         # A launcher option can take a value, for example uv run --python python3. The rule reads
-        # each later word that runs a program, and gives the first drive that it finds. An option
-        # can also hold a command, for example env -S 'nookku start', so the rule also reads the
-        # text of the words.
+        # each later word that runs a program, and gives the first drive that it finds. The env
+        # option -S holds a command, for example env -S 'nookku start', so the rule reads the
+        # text from that option.
         starts = (j for j in range(i + 1, len(words)) if _runs(words[j]))
         found = next((f for j in starts if (f := _drive_part(words[j:], allowed))), None)
-        return found or _drive_text(" ".join(words[i + 1 :]), allowed, LAUNCH_TEXT)
+        split = next((j for j in range(i + 1, len(words)) if SPLIT.match(words[j])), None)
+        if found is None and _program(words[i]) == "env" and split is not None:
+            found = _drive_text(" ".join(words[split:]), allowed, LAUNCH_TEXT)
+        return found
     if i >= len(words):
         return None
     program = _program(words[i])
     found = None
     if program in ("nookku", "nookku.exe"):
         found = _subcommand(words[i + 1 :])
-    elif PYTHON.fullmatch(program) and (run := _module(words[i + 1 :])) is not None:
-        module, rest = run
+    elif PYTHON.fullmatch(program) and (run := _python(words[i + 1 :]))[0] == "-m":
+        module, *rest = run[1] or [""]
         if module == "nookku":
             found = _subcommand(rest)
         elif module.startswith("nookku."):
