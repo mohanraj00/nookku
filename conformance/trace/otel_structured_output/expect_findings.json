@@ -2,7 +2,7 @@
  "v": "0.2",
  "test": "20261011-090000-so01",
  "turns": 1,
- "items": 7,
+ "items": 8,
  "sessions": [
   {
    "harness": "claude-code",
@@ -11,6 +11,15 @@
    "inferred": false,
    "version": "2.1.286",
    "items": 3,
+   "ignored": {}
+  },
+  {
+   "harness": "claude-code",
+   "session": "8a2d4f6b-1c3e-4a57-9b8d-0e2f4a6c8e01",
+   "file": "sessions/claude-code/8a2d4f6b-1c3e-4a57-9b8d-0e2f4a6c8e01.jsonl",
+   "inferred": false,
+   "version": "2.1.286",
+   "items": 1,
    "ignored": {}
   }
  ],
@@ -24,7 +33,7 @@
  "model_api": null,
  "counts": {
   "agent_error": 0,
-  "tool_error": 1,
+  "tool_error": 2,
   "command_failed": 0,
   "span_error": 0,
   "backend_error": 0,
@@ -47,6 +56,18 @@
     "file": "sessions/claude-code/4f1c2a7e-0d3b-4c55-9a61-2b8e5d7c9f10.jsonl",
     "line": 2,
     "result_line": 3
+   }
+  },
+  {
+   "check": "tool_error",
+   "turn": 1,
+   "detail": "StructuredOutput: Output does not match the schema: price_eur must be a number",
+   "harness": "claude-code",
+   "session": "8a2d4f6b-1c3e-4a57-9b8d-0e2f4a6c8e01",
+   "source": {
+    "file": "sessions/claude-code/8a2d4f6b-1c3e-4a57-9b8d-0e2f4a6c8e01.jsonl",
+    "line": 1,
+    "result_line": 2
    }
   },
   {

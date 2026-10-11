@@ -1638,8 +1638,9 @@ OTEL_CASE = {
 # A structured output that the model sends 2 times in one turn (SPEC.md section 8.6). The first
 # output does not agree with the schema. Each tool_result event has the tool use id of its call.
 # The event of the second call has a cut `note`, so its input is not equal to the session input.
-# A third event has an id with no tool call in the session: the id rule gives a finding, though
-# its name and input agree with the first call. A fourth event has no id and a cut `note`: the
+# A third event has an id with no tool call in its session: the id rule gives a finding, though
+# its name and input agree with the first call. A second session has a call with that id, but
+# the id rule looks only in the session of the event. A fourth event has no id and a cut `note`: the
 # shared prefix agrees with the second call.
 GIFT_BAD = {"items": [{"sku": "teapot-set", "price_eur": "twenty-eight"}]}
 GIFT_NOTE = "A blue teapot set with 2 cups. It fits a gift box of size M."
@@ -1660,6 +1661,9 @@ def output_event(t: float, tid: str | None, args: dict, error: str | None = None
     return {**row, "attributes": attrs}
 
 
+CC2 = "8a2d4f6b-1c3e-4a57-9b8d-0e2f4a6c8e01"
+CC2_FILE = f"sessions/claude-code/{CC2}.jsonl"
+CC2_SESSION = {**CC_SESSION, "session": CC2, "pid": 4472, "file": CC2_FILE}
 OUTPUT_EVENTS = [
     output_event(12.6, "toolu_s1", GIFT_BAD, SCHEMA_ERROR),
     output_event(13.6, "toolu_s2", GIFT_CUT),
@@ -1668,7 +1672,7 @@ OUTPUT_EVENTS = [
 ]
 STRUCTURED_CASE = {
     "tap": [window(10, 20)],
-    "manifest": {"test": "20261011-090000-so01", "model_sessions": [CC_SESSION]},
+    "manifest": {"test": "20261011-090000-so01", "model_sessions": [CC_SESSION, CC2_SESSION]},
     "sessions": {
         CC_FILE: [
             cc_line("user", 11, "Find a gift under 30 EUR in the toy shop."),
@@ -1676,7 +1680,13 @@ STRUCTURED_CASE = {
             cc_line("user", 12.5, [cc_result("toolu_s1", SCHEMA_ERROR, error=True)]),
             cc_line("assistant", 13, [use("toolu_s2", "StructuredOutput", GIFT_GOOD)]),
             cc_line("user", 13.5, [cc_result("toolu_s2", "Structured output provided.")]),
-        ]
+        ],
+        CC2_FILE: [
+            cc_line(
+                "assistant", 12.2, [use("toolu_s9", "StructuredOutput", GIFT_BAD)], sessionId=CC2
+            ),
+            cc_line("user", 12.3, [cc_result("toolu_s9", SCHEMA_ERROR, error=True)], sessionId=CC2),
+        ],
     },
     "otel": OUTPUT_EVENTS,
     "trace": [
@@ -1700,6 +1710,20 @@ STRUCTURED_CASE = {
             error=SCHEMA_ERROR,
             result_line=3,
         ),
+        {
+            **item(
+                1,
+                "claude-code",
+                12.2,
+                "tool_call",
+                1,
+                name="StructuredOutput",
+                input=GIFT_BAD,
+                error=SCHEMA_ERROR,
+            ),
+            "session": CC2,
+            "source": {"file": CC2_FILE, "line": 1, "result_line": 2},
+        },
         *[
             oitem(
                 1,
@@ -1745,7 +1769,7 @@ STRUCTURED_CASE = {
         "v": "0.2",
         "test": "20261011-090000-so01",
         "turns": 1,
-        "items": 7,
+        "items": 8,
         "sessions": [
             {
                 "harness": "claude-code",
@@ -1755,18 +1779,35 @@ STRUCTURED_CASE = {
                 "version": "2.1.286",
                 "items": 3,
                 "ignored": {},
-            }
+            },
+            {
+                "harness": "claude-code",
+                "session": CC2,
+                "file": CC2_FILE,
+                "inferred": False,
+                "version": "2.1.286",
+                "items": 1,
+                "ignored": {},
+            },
         ],
         "otel": {"file": "otel.jsonl", "rows": 4, "items": 4, "ignored": {}},
         "backend": None,
         "model_api": None,
-        "counts": counts(tool_error=1, otel_tool_not_in_session=1),
+        "counts": counts(tool_error=2, otel_tool_not_in_session=1),
         "findings": [
             {
                 "check": "tool_error",
                 "turn": 1,
                 "detail": f"StructuredOutput: {SCHEMA_ERROR}",
                 **where("claude-code", 2, 3),
+            },
+            {
+                "check": "tool_error",
+                "turn": 1,
+                "detail": f"StructuredOutput: {SCHEMA_ERROR}",
+                "harness": "claude-code",
+                "session": CC2,
+                "source": {"file": CC2_FILE, "line": 1, "result_line": 2},
             },
             {
                 "check": "otel_tool_not_in_session",

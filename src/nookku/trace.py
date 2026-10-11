@@ -584,12 +584,13 @@ def _cut_equal(event: Any, session: Any) -> bool:
 
 def _in_session(event: dict[str, Any], items: list[dict[str, Any]]) -> bool:
     """True if the session items have the tool call of the event (SPEC.md section 8.6). If the
-    event has a tool use id and a tool call of its harness has one, only the id must agree."""
+    event has a tool use id and a tool call of its session has one, only the id must agree."""
     name, args = _event_tool(event)
     given = event["input"].get("tool_use_id") if event["harness"] == "claude-code" else None
     own = [it for it in items if it["harness"] == event["harness"]]
-    if isinstance(given, str) and given and any(it.get(CALL_ID) for it in own):
-        return any(it.get(CALL_ID) == given for it in own)
+    same = [it for it in own if it["session"] == event["session"] and it.get(CALL_ID)]
+    if isinstance(given, str) and given and same:
+        return any(it[CALL_ID] == given for it in same)
     command = event["harness"] == "codex" and name in CODEX_COMMANDS
     for it in own:
         if it["turn"] != event["turn"]:
