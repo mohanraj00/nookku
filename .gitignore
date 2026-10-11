@@ -21,4 +21,6 @@ CLAUDE.local.md
 bench/smoke/
 bench/logs/
 tap.jsonl
+# The proofs commit the tap record of each run as their data.
+!proofs/**/tap.jsonl
 .gstack/
