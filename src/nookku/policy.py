@@ -45,9 +45,30 @@ class Key:
     meaning: str
 
 
+def _names(text: str) -> list[str]:
+    names = [n.strip() for n in text.split(",")]
+    if not all(names):
+        raise ValueError("give field names, separated by commas, for example path,url")
+    return names
+
+
+def _is_names(value: Any) -> bool:
+    return isinstance(value, list) and bool(value) and all(isinstance(n, str) and n for n in value)
+
+
 # The keys of policy.json. Each other key is an error. The issue that adds a guard rule adds its
 # key here, with SPEC.md section 7.9 and docs/reference/config.md.
-KEYS: dict[str, Key] = {}
+KEYS: dict[str, Key] = {
+    # The fields of a tool input that the guard reads, for a tool that is not a shell or a file
+    # tool (#150). The other fields are free text.
+    "guard_fields": Key(
+        ["path", "file_path", "url", "uri", "command"],
+        _names,
+        _is_names,
+        "the fields of a tool input that the guard reads, for a tool that is not a shell or a "
+        "file tool",
+    ),
+}
 
 
 def path(root: Path) -> Path:

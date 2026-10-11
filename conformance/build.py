@@ -3051,6 +3051,15 @@ POLICY_CASES: dict[str, dict] = {
         ),
         "answer": None,
     },
+    # The guard reads only the fields of guard_fields of an MCP tool (#150).
+    "other_tool_free_text_names_the_file": {
+        "event": pevent("mcp__docs__create", body="Change .nookku/policy.json with a shell."),
+        "answer": None,
+    },
+    "other_tool_path_names_the_file": {
+        "event": pevent("mcp__files__write", path=".nookku/policy.json", content="{}"),
+        "answer": POLICY_DENY,
+    },
     "shell_heredoc_data_names_the_file": {
         "event": pevent(
             "Bash", command="cat > /tmp/notes.md <<'EOF'\nSee .nookku/policy.json.\nEOF"
@@ -3203,6 +3212,47 @@ GUARD_CASES: dict[str, dict] = {
     },
     "other_tool_writes_the_config": {
         "event": pevent("mcp__files__write", path=CONFIG, content="{}"),
+        "answer": None,
+    },
+    # A tool that is not a shell or a file tool: the guard reads only the fields of guard_fields
+    # (#150). `policy_text` is the policy file of the case.
+    "other_tool_free_text_names_a_record": {
+        "event": pevent("mcp__docs__create", title="Feedback", body=f"The guard denied {RECORD}."),
+        "answer": None,
+    },
+    "other_tool_nested_uri_names_a_state_file": {
+        "event": pevent("mcp__web__save", request={"options": {"uri": f"{STATE}/mode"}}),
+        "answer": records(f"{STATE}/mode"),
+    },
+    "other_tool_field_of_the_policy": {
+        "policy_text": '{"guard_fields": ["target"]}\n',
+        "event": pevent("mcp__files__copy", target=f"{STATE}/mode", path=f"{STATE}/mode"),
+        "answer": records(f"{STATE}/mode"),
+    },
+    "other_tool_field_not_in_the_policy": {
+        "policy_text": '{"guard_fields": ["target"]}\n',
+        "event": pevent("mcp__files__copy", path=f"{STATE}/mode"),
+        "answer": None,
+    },
+    # A policy file that is not valid does not weaken the guard: each field counts.
+    "other_tool_with_a_broken_policy": {
+        "policy_text": "[]\n",
+        "event": pevent("mcp__docs__create", body=f"{STATE}/mode"),
+        "answer": records(f"{STATE}/mode"),
+    },
+    "test_other_tool_url_names_the_tap": {
+        "test": True,
+        "event": pevent("mcp__web__fetch", url="http://127.0.0.1:9/chat"),
+        "answer": deny("nookku: only the tester talks to the agent."),
+    },
+    "test_other_tool_free_text_names_the_tap": {
+        "test": True,
+        "event": pevent("mcp__docs__create", body="The tap runs on http://127.0.0.1:9/."),
+        "answer": None,
+    },
+    "test_other_tool_free_text_names_the_state_folder": {
+        "test": True,
+        "event": pevent("mcp__docs__create", body=f"See {CONFIG}."),
         "answer": None,
     },
     # During a test, a tool call except a file read may not name the state folder.
