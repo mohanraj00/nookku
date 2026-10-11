@@ -112,6 +112,16 @@ def test_the_entry_keeps_its_state_in_the_sealed_test_folder(tmp_path: Path, hom
     assert not seal.verify(folder)["intact"]
 
 
+@pytest.mark.parametrize("name", [bridge.TEST_DIR, bridge.TEST_ID])
+def test_a_backend_may_not_use_a_test_variable(tmp_path: Path, name: str) -> None:
+    root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
+    config = root / ".nookku" / "config.json"
+    shop = {"name": "shop", "env": name, "url": "http://127.0.0.1:9000"}
+    config.write_text(json.dumps({**json.loads(config.read_text()), "backends": [shop]}))
+    with pytest.raises(bridge.BridgeError, match=f"the variable {name} of nookku"):
+        bridge.load_config(root)
+
+
 def test_history_is_the_ok_turns_of_the_test(tmp_path: Path) -> None:
     relay = tmp_path / "relay.jsonl"
     w = Writer(relay)

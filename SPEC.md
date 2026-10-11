@@ -349,7 +349,7 @@ In a test, the bridge gives the entry 2 variables, together with the variables o
 | `NOOKKU_TEST_DIR` | The absolute path of the test folder. |
 | `NOOKKU_TEST_ID` | The test id. It is also the `session` of each input line. |
 
-An app can keep its state for the test in the subfolder `app-state/` of the test folder, for example an event log. The seal covers each file of the test folder (section 7.4), so `verify` shows a change to these files after the end of the test. The evaluation reads `app-state/` if it exists. Only the app writes there: the relay denies a model write to the test folder (section 5).
+An app can keep its state for the test in the subfolder `app-state/` of the test folder, for example an event log. The seal covers each file of the test folder (section 7.4), so `verify` shows a change to these files after the end of the test. The evaluation reads `app-state/` if it exists. Only the app writes there: the relay denies a model write to the test folder (section 5). A child process of the app, for example its model harness, can inherit `NOOKKU_TEST_DIR`, so during a test the relay also denies a tool call that names the variable. A backend may not use one of these 2 variables as its `env`.
 
 ## 7. Tests
 

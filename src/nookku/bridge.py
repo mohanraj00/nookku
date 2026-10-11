@@ -105,6 +105,9 @@ def load_config(root: Path) -> TestConfig:
         raise BridgeError(f"{CONFIG_FILE}: {e}") from None
     if {b.env for b in backends} & {a.env for a in apis}:
         raise BridgeError(f"{CONFIG_FILE}: a backend uses the variable of a model API")
+    reserved = sorted({b.env for b in backends} & {TEST_DIR, TEST_ID})
+    if reserved:
+        raise BridgeError(f"{CONFIG_FILE}: a backend uses the variable {reserved[0]} of nookku")
     otel = data.get("otel", True) is not False
     return TestConfig(entry, models, otel, backends, apis, rules)
 

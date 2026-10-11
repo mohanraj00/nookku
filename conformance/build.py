@@ -3284,6 +3284,17 @@ GUARD_CASES: dict[str, dict] = {
         "event": bash(f"which ls; /bin/ls {T1}"),
         "answer": during(T1),
     },
+    # #145: the entry and its child processes get the test folder in NOOKKU_TEST_DIR.
+    "test_shell_writes_the_tap_record_through_the_test_folder_variable": {
+        "test": True,
+        "event": bash('printf x > "$NOOKKU_TEST_DIR/tap.jsonl"'),
+        "answer": during("$NOOKKU_TEST_DIR/tap.jsonl"),
+    },
+    "test_shell_code_names_the_test_folder_variable": {
+        "test": True,
+        "event": bash("python3 -c \"import os; print(os.environ['NOOKKU_TEST_DIR'])\""),
+        "answer": during("NOOKKU_TEST_DIR"),
+    },
     # #173: only a person drives a test, with a test and with no test.
     "shell_starts_a_test": {
         "event": bash("nookku start"),
