@@ -223,7 +223,7 @@ The trace has 12 trace checks ([trace.py](../../src/nookku/trace.py)). `findings
 | `model_api_error` | A direct call to a model API has an error, or a status of 400 or more. |
 | `turn_without_model` | A turn has no `message`, `tool_call` or `command` item from a session file. A turn with only an OTLP, backend or model API item still gets this finding. This check runs only if the trace has at least 1 item from a session file. |
 | `item_between_turns` | A model item has no turn, but it occurred at or after the start of turn 1. |
-| `otel_tool_not_in_session` | A harness log says that a tool ran, but the session file of that harness and turn has no call of that tool. |
+| `otel_tool_not_in_session` | A harness log says that a tool ran, but the session file of that harness has no call with its tool use id. If the log has no id, the session file has no call of that tool in that turn. |
 | `server_not_from_app` | A Claude Code session used an MCP server that the app's configuration cannot give: a claude.ai connector or a plugin server. |
 | `session_inferred` | The tap found a Codex session from its folder and its time, not from its process. |
 | `version_untested` | A session file comes from a harness version that the proofs do not cover. `findings.json` has one finding for each session. The transcript shows one line for each harness and version, with the count of sessions, for example `(claude-code, 4 sessions)`. |

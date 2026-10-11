@@ -1635,6 +1635,152 @@ OTEL_CASE = {
 }
 
 
+# A structured output that the model sends 2 times in one turn (SPEC.md section 8.6). The first
+# output does not agree with the schema. Each tool_result event has the tool use id of its call.
+# The event of the second call has a cut `note`, so its input is not equal to the session input.
+# A third event has an id with no tool call in the session: the id rule gives a finding, though
+# its name and input agree with the first call. A fourth event has no id and a cut `note`: the
+# shared prefix agrees with the second call.
+GIFT_BAD = {"items": [{"sku": "teapot-set", "price_eur": "twenty-eight"}]}
+GIFT_NOTE = "A blue teapot set with 2 cups. It fits a gift box of size M."
+GIFT_GOOD = {"items": [{"sku": "teapot-set", "price_eur": 28, "note": GIFT_NOTE}]}
+GIFT_CUT = {"items": [{"sku": "teapot-set", "price_eur": 28, "note": GIFT_NOTE[:24] + "…"}]}
+SCHEMA_ERROR = "Output does not match the schema: price_eur must be a number"
+
+
+def output_event(t: float, tid: str | None, args: dict, error: str | None = None) -> dict:
+    """A tool_result event of Claude Code for its StructuredOutput tool."""
+    row = tool_event(t, "StructuredOutput", args)
+    attrs = {k: v for k, v in row["attributes"].items() if k != "tool_parameters"}
+    attrs["tool_name"] = "StructuredOutput"
+    if tid is not None:
+        attrs["tool_use_id"] = tid
+    if error is not None:
+        attrs |= {"success": "false", "error": error}
+    return {**row, "attributes": attrs}
+
+
+OUTPUT_EVENTS = [
+    output_event(12.6, "toolu_s1", GIFT_BAD, SCHEMA_ERROR),
+    output_event(13.6, "toolu_s2", GIFT_CUT),
+    output_event(13.7, "toolu_s9", GIFT_BAD),
+    output_event(13.8, None, GIFT_CUT),
+]
+STRUCTURED_CASE = {
+    "tap": [window(10, 20)],
+    "manifest": {"test": "20261011-090000-so01", "model_sessions": [CC_SESSION]},
+    "sessions": {
+        CC_FILE: [
+            cc_line("user", 11, "Find a gift under 30 EUR in the toy shop."),
+            cc_line("assistant", 12, [use("toolu_s1", "StructuredOutput", GIFT_BAD)]),
+            cc_line("user", 12.5, [cc_result("toolu_s1", SCHEMA_ERROR, error=True)]),
+            cc_line("assistant", 13, [use("toolu_s2", "StructuredOutput", GIFT_GOOD)]),
+            cc_line("user", 13.5, [cc_result("toolu_s2", "Structured output provided.")]),
+        ]
+    },
+    "otel": OUTPUT_EVENTS,
+    "trace": [
+        item(
+            1,
+            "claude-code",
+            11,
+            "message",
+            1,
+            role="user",
+            output="Find a gift under 30 EUR in the toy shop.",
+        ),
+        item(
+            1,
+            "claude-code",
+            12,
+            "tool_call",
+            2,
+            name="StructuredOutput",
+            input=GIFT_BAD,
+            error=SCHEMA_ERROR,
+            result_line=3,
+        ),
+        *[
+            oitem(
+                1,
+                "claude-code",
+                CC,
+                e["time"] - T0,
+                "log",
+                n,
+                name="tool_result",
+                input=e["attributes"],
+                error=e["attributes"].get("error"),
+                service="claude-code",
+            )
+            for n, e in enumerate(OUTPUT_EVENTS[:1], 1)
+        ],
+        item(
+            1,
+            "claude-code",
+            13,
+            "tool_call",
+            4,
+            name="StructuredOutput",
+            input=GIFT_GOOD,
+            output="Structured output provided.",
+            result_line=5,
+        ),
+        *[
+            oitem(
+                1,
+                "claude-code",
+                CC,
+                e["time"] - T0,
+                "log",
+                n,
+                name="tool_result",
+                input=e["attributes"],
+                service="claude-code",
+            )
+            for n, e in enumerate(OUTPUT_EVENTS[1:], 2)
+        ],
+    ],
+    "findings": {
+        "v": "0.2",
+        "test": "20261011-090000-so01",
+        "turns": 1,
+        "items": 7,
+        "sessions": [
+            {
+                "harness": "claude-code",
+                "session": CC,
+                "file": CC_FILE,
+                "inferred": False,
+                "version": "2.1.286",
+                "items": 3,
+                "ignored": {},
+            }
+        ],
+        "otel": {"file": "otel.jsonl", "rows": 4, "items": 4, "ignored": {}},
+        "backend": None,
+        "model_api": None,
+        "counts": counts(tool_error=1, otel_tool_not_in_session=1),
+        "findings": [
+            {
+                "check": "tool_error",
+                "turn": 1,
+                "detail": f"StructuredOutput: {SCHEMA_ERROR}",
+                **where("claude-code", 2, 3),
+            },
+            {
+                "check": "otel_tool_not_in_session",
+                "turn": 1,
+                "detail": "StructuredOutput: a tool_result event with no tool call in the session file",
+                "harness": "claude-code",
+                "session": CC,
+                "source": {"file": "otel.jsonl", "line": 3},
+            },
+        ],
+    },
+}
+
+
 # Backend calls (SPEC.md sections 7.6 and 8.4): the rows of backend.jsonl as the proxy writes them.
 # A call in turn 1, a 500 status and a call with no answer in turn 2, a binary response between
 # the turns, and a row that is not a call.
@@ -2845,6 +2991,7 @@ TRACE_CASES = {
     "untested_versions": VERSION_CASE,
     "no_model_sessions": NO_MODEL_CASE,
     "otel_toy_shop": OTEL_CASE,
+    "otel_structured_output": STRUCTURED_CASE,
     "backend_toy_shop": BACKEND_CASE,
     "model_api_toy_shop": MODEL_API_CASE,
     "model_api_responses": RESPONSES_CASE,
