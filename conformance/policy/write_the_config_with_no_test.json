@@ -1,0 +1,14 @@
+{
+ "answer": null,
+ "event": {
+  "cwd": "{root}",
+  "hook_event_name": "PreToolUse",
+  "tool_input": {
+   "content": "{}",
+   "file_path": ".nookku/config.json"
+  },
+  "tool_name": "Write"
+ },
+ "links": {},
+ "state": true
+}

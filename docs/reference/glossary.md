@@ -70,6 +70,12 @@ The nookku plugin, `plugins/nookku`, for Claude Code and Codex. Its 2 command ho
 
 SPEC.md: [section 5](../../SPEC.md#5-relays).
 
+## Policy file
+
+The file `.nookku/policy.json`. It holds the keys that control the guard. Only a person changes it, with `nookku policy set` in a shell. The relay denies each model write to it, also when no test runs.
+
+SPEC.md: [section 7.9](../../SPEC.md#79-policy-file).
+
 ## Project hooks
 
 The 2 command hooks that `nookku init claude-code` or `nookku init codex` writes into one project. They run the relay, with the same rules as the plugin. Use them if you cannot install plugins.

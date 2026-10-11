@@ -61,9 +61,20 @@ The full toy shop, with a stock service and a note model on local ports:
 }
 ```
 
+## `.nookku/policy.json`
+
+The policy file holds the keys that control the guard. The model can change `config.json` for normal app work, so these keys are in a separate file that the model never writes ([SPEC.md section 7.9](../../SPEC.md#79-policy-file)).
+
+- Only a person changes the file, with `nookku policy set KEY VALUE` in a shell ([cli.md](cli.md#nookku-policy)). `nookku policy` prints each key with its value.
+- The relay denies each model tool call that can write the file, also when no test runs. The deny reason names the file.
+- If the file does not exist, each key has its default. Each default is the strict value.
+- The manifest of each test records the SHA-256 of the file and the value of each key.
+
+In 0.4.0, the file has no keys yet. Each guard rule that a person can change adds its key here.
+
 ## Plugin options
 
-The plugin has no options. Write `.nookku/config.json` with `nookku init plugin`, and change a key with the flags of `nookku init` ([cli.md](cli.md#nookku-init)). Before 0.4.0, the Claude Code plugin had its own options ([#216](https://github.com/mohanraj00/nookku/issues/216)).
+The plugin has no options, so no plugin option can change a policy key. Write `.nookku/config.json` with `nookku init plugin`, and change a key with the flags of `nookku init` ([cli.md](cli.md#nookku-init)). Before 0.4.0, the Claude Code plugin had its own options ([#216](https://github.com/mohanraj00/nookku/issues/216)).
 
 ## Environment variables
 

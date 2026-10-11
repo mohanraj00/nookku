@@ -156,6 +156,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     mcp = sub.add_parser("mcp", help="the MCP server with the transcript and status tools")
     mcp.add_argument("--root", type=Path, help="the project (default: here)")
 
+    pol = sub.add_parser(
+        "policy", help="print the policy keys, or change one (only a person, in a shell)"
+    )
+    pol.add_argument("--root", type=Path, default=Path.cwd())
+    pol.add_argument("action", nargs="?", choices=["set"])
+    pol.add_argument("key", nargs="?")
+    pol.add_argument("value", nargs="?")
+
     hook = sub.add_parser("hook", help="the hook command that init installs")
     hook.add_argument("--root", type=Path, help="the project (default: from the event)")
     hook.add_argument("--harness", required=True, choices=["claude-code", "codex"])
@@ -319,6 +327,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         from nookku import mcp as server
 
         return server.serve(args.root.resolve())
+    if args.command == "policy":
+        return _policy(args.root.resolve(), args.action, args.key, args.value)
     if args.command == "hook":
         root = args.root.resolve() if args.root else None
         return kit.run_hook(root, args.harness, sys.stdin, sys.stdout)
@@ -410,3 +420,25 @@ def _test_command(args: argparse.Namespace) -> int:
         return 1
     print(json.dumps({"pass": passed, "report": lines}) if args.json else "\n".join(lines))
     return 0 if passed else 1
+
+
+def _policy(root: Path, action: str | None, key: str | None, value: str | None) -> int:
+    """Print the policy keys, or change one key (SPEC.md section 7.9)."""
+    from nookku import policy
+
+    try:
+        if action is None:
+            if key is not None:
+                print("usage: nookku policy [set KEY VALUE]", file=sys.stderr)
+                return 2
+            values = policy.read(root)
+        elif key is None or value is None:
+            print("usage: nookku policy set KEY VALUE", file=sys.stderr)
+            return 2
+        else:
+            values = policy.set_key(root, key, value)
+    except (policy.PolicyError, OSError) as e:
+        print(f"nookku: {e}", file=sys.stderr)
+        return 1
+    print(json.dumps(values, indent=1, sort_keys=True))
+    return 0

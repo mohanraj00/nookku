@@ -1,0 +1,13 @@
+{
+ "answer": null,
+ "event": {
+  "cwd": "{root}",
+  "hook_event_name": "PreToolUse",
+  "tool_input": {
+   "command": "ls src"
+  },
+  "tool_name": "Bash"
+ },
+ "links": {},
+ "state": false
+}

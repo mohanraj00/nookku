@@ -3,7 +3,8 @@
 `cases/` holds the audit cases (SPEC.md section 3). `contract/` holds the stdio cases (sections 4.2
 and 6): the requests that the relay posts, what a scripted agent does with each one, and the rows
 and HTTP statuses that the tap must give. `trace/` holds the trace cases (section 8). `seal/` holds
-the seal cases (section 7.4). `otlp/` holds the receiver cases (section 7.5).
+the seal cases (section 7.4). `otlp/` holds the receiver cases (section 7.5). `policy/` holds the
+deny cases of the policy file (sections 5 and 7.9).
 
 Never fill an expectation by running the audit. CI runs this script and fails if the files change.
 
@@ -27,6 +28,7 @@ CONTRACT = Path(__file__).parent / "contract"
 TRACE = Path(__file__).parent / "trace"
 SEAL = Path(__file__).parent / "seal"
 OTLP = Path(__file__).parent / "otlp"
+POLICY = Path(__file__).parent / "policy"
 
 
 def sha(text: str | None) -> str | None:
@@ -2943,6 +2945,111 @@ def write_seal_case(d: Path, case: dict) -> None:
     (d / "expect_verify.json").write_text(json.dumps(case["verify"], indent=1) + "\n")
 
 
+# Policy cases (SPEC.md sections 5 and 7.9). Each case is a PreToolUse event with no running test,
+# the project around it, and the answer of `nookku hook`. In the event, `{root}` is the project.
+# `state` is false for a project with no state folder. `links` maps a link to its target.
+POLICY_DENY = {
+    "hookSpecificOutput": {
+        "hookEventName": "PreToolUse",
+        "permissionDecision": "deny",
+        "permissionDecisionReason": (
+            "nookku: only a person changes .nookku/policy.json, with nookku policy set in a shell."
+        ),
+    }
+}
+
+
+def pevent(tool: str, cwd: str = "{root}", **tool_input: Any) -> dict:
+    return {
+        "hook_event_name": "PreToolUse",
+        "cwd": cwd,
+        "tool_name": tool,
+        "tool_input": tool_input,
+    }
+
+
+POLICY_CASES: dict[str, dict] = {
+    "write_names_the_file": {
+        "event": pevent("Write", file_path=".nookku/policy.json", content="{}"),
+        "answer": POLICY_DENY,
+    },
+    "edit_with_the_absolute_path": {
+        "event": pevent(
+            "Edit", file_path="{root}/.nookku/policy.json", old_string="{", new_string="{ "
+        ),
+        "answer": POLICY_DENY,
+    },
+    "edit_with_other_case": {
+        "event": pevent("Edit", file_path=".NOOKKU/Policy.JSON", old_string="{", new_string="{ "),
+        "answer": POLICY_DENY,
+    },
+    "write_in_the_state_folder_with_a_relative_path": {
+        "event": pevent("Write", cwd="{root}/.nookku", file_path="policy.json", content="{}"),
+        "answer": POLICY_DENY,
+    },
+    "write_through_a_link": {
+        "links": {"notes/rules.json": ".nookku/policy.json"},
+        "event": pevent("Write", file_path="notes/rules.json", content="{}"),
+        "answer": POLICY_DENY,
+    },
+    "patch_names_the_file": {
+        "event": pevent(
+            "apply_patch",
+            input="*** Begin Patch\n*** Add File: .nookku/policy.json\n+{}\n*** End Patch\n",
+        ),
+        "answer": POLICY_DENY,
+    },
+    "shell_edit_in_place": {
+        "event": pevent("Bash", command="sed -i '' 's/1/2/' .nookku/policy.json"),
+        "answer": POLICY_DENY,
+    },
+    "shell_policy_set": {
+        "event": pevent("Bash", command="nookku policy set scripts model"),
+        "answer": POLICY_DENY,
+    },
+    "shell_policy_set_through_python": {
+        "event": pevent("exec_command", cmd="uv run python -m nookku policy set scripts model"),
+        "answer": POLICY_DENY,
+    },
+    "shell_write_in_the_state_folder": {
+        "event": pevent("Bash", cwd="{root}/.nookku", command="printf '{}' > policy.json"),
+        "answer": POLICY_DENY,
+    },
+    "no_state_folder": {
+        "state": False,
+        "event": pevent("Write", file_path=".nookku/policy.json", content="{}"),
+        "answer": POLICY_DENY,
+    },
+    "no_state_folder_other_call": {
+        "state": False,
+        "event": pevent("Bash", command="ls src"),
+        "answer": None,
+    },
+    "shell_reads_the_file": {
+        "event": pevent("Bash", command="cat .nookku/policy.json"),
+        "answer": None,
+    },
+    "read_tool": {
+        "event": pevent("Read", file_path=".nookku/policy.json"),
+        "answer": None,
+    },
+    "write_a_policy_file_of_the_app": {
+        "event": pevent("Write", file_path="shop/policy.json", content="{}"),
+        "answer": None,
+    },
+    "write_the_config_with_no_test": {
+        "event": pevent("Write", file_path=".nookku/config.json", content="{}"),
+        "answer": None,
+    },
+}
+
+
+def write_policy_case(path: Path, case: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    data = {"state": case.get("state", True), "links": case.get("links", {}), **case}
+    path.write_text(json.dumps(data, indent=1, sort_keys=True) + "\n", encoding="utf-8")
+
+
 # Receiver cases (SPEC.md section 7.5). This small protobuf writer follows the public OTLP .proto
 # files. Each case is a request body and the otel.jsonl rows that the receiver must write for it.
 def pb_varint(n: int) -> bytes:
@@ -3407,10 +3514,13 @@ def main() -> None:
     shutil.rmtree(SEAL, ignore_errors=True)
     for name, case in SEAL_CASES.items():
         write_seal_case(SEAL / name, case)
+    shutil.rmtree(POLICY, ignore_errors=True)
+    for name, case in POLICY_CASES.items():
+        write_policy_case(POLICY / f"{name}.json", case)
     print(
         f"{len(CASES_BY_NAME)} audit cases, {len(CONTRACT_CASES)} contract cases, "
-        f"{len(TRACE_CASES)} trace cases, {len(SEAL_CASES)} seal cases and "
-        f"{len(OTLP_CASES)} receiver cases written"
+        f"{len(TRACE_CASES)} trace cases, {len(SEAL_CASES)} seal cases, "
+        f"{len(OTLP_CASES)} receiver cases and {len(POLICY_CASES)} policy cases written"
     )
 
 

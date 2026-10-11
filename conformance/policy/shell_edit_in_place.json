@@ -1,0 +1,19 @@
+{
+ "answer": {
+  "hookSpecificOutput": {
+   "hookEventName": "PreToolUse",
+   "permissionDecision": "deny",
+   "permissionDecisionReason": "nookku: only a person changes .nookku/policy.json, with nookku policy set in a shell."
+  }
+ },
+ "event": {
+  "cwd": "{root}",
+  "hook_event_name": "PreToolUse",
+  "tool_input": {
+   "command": "sed -i '' 's/1/2/' .nookku/policy.json"
+  },
+  "tool_name": "Bash"
+ },
+ "links": {},
+ "state": true
+}

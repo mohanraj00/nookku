@@ -1,0 +1,13 @@
+{
+ "answer": null,
+ "event": {
+  "cwd": "{root}",
+  "hook_event_name": "PreToolUse",
+  "tool_input": {
+   "command": "cat .nookku/policy.json"
+  },
+  "tool_name": "Bash"
+ },
+ "links": {},
+ "state": true
+}

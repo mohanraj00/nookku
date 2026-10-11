@@ -1,0 +1,13 @@
+{
+ "answer": null,
+ "event": {
+  "cwd": "{root}",
+  "hook_event_name": "PreToolUse",
+  "tool_input": {
+   "file_path": ".nookku/policy.json"
+  },
+  "tool_name": "Read"
+ },
+ "links": {},
+ "state": true
+}
