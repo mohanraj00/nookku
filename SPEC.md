@@ -258,7 +258,8 @@ The follow-up capture records a title-description schema match, without request 
   - a call, except a file tool that only reads, whose input names `policy.json` and `.nookku`, if it is a write tool call or does not pass the read check;
   - a write tool call whose `file_path`, `notebook_path` or `path` is the policy file after the relay resolves it from the `cwd` of the event and follows each symbolic link;
   - a call that does not pass the read check and names `nookku policy`, for example `nookku policy set`;
-  - a call that does not pass the read check, names `policy.json`, and has a `cwd` in `.nookku/`.
+  - a call that does not pass the read check, names `policy.json`, and has a `cwd` in `.nookku/`;
+  - a call of a tool that is not a shell or a file tool, for example `write_stdin` of a persistent Codex shell, that names `policy.json`. Its input does not show the folder where its text runs.
 
   Each match ignores case, because the file system of macOS and Windows ignores case. If the project has no `.nookku/` folder, the relay applies only this deny and writes no record, so that the model cannot write a weak policy before the first test. Like each deny, it is best effort: a command can change the file with a name that the relay does not see. The manifest records the policy of each test.
 - **Entry.** During a test, the relay denies a model tool call, except file tools, that names the entry and does not pass the read check. The names of the entry are the base name of each entry argument with the file type `.py`, `.js`, `.mjs`, `.cjs`, `.ts`, `.sh` or `.rb`, and the argument after `-m`. The relay looks for each name in the input, and in each word of a shell command after it removes the quotes and escapes. A word with `*`, `?` or `[` matches a name as a glob. An entry with no such argument, for example `npm run agent`, has no names.

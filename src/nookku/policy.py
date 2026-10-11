@@ -15,6 +15,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from nookku.commands import SHELL_TOOLS
+
 STATE_DIR = ".nookku"
 NAME = "policy.json"
 FILE = f"{STATE_DIR}/{NAME}"
@@ -129,6 +131,10 @@ def touches(
     if writes or reads:
         return False
     if NAMES_COMMAND.search(text):
+        return True
+    # A tool that is not a shell, for example write_stdin of a persistent Codex shell, does not
+    # show the folder where its text runs. So it must not name the file at all.
+    if tool not in SHELL_TOOLS and NAMES_FILE.search(text):
         return True
     # A command in the state folder can name the file without the folder.
     state = str((root / STATE_DIR).resolve()).casefold()

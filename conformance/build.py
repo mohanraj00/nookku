@@ -3015,6 +3015,11 @@ POLICY_CASES: dict[str, dict] = {
         "event": pevent("Bash", cwd="{root}/.nookku", command="printf '{}' > policy.json"),
         "answer": POLICY_DENY,
     },
+    # A persistent shell can run in .nookku/. Its later input names only the file.
+    "shell_session_input_names_the_file": {
+        "event": pevent("write_stdin", session_id=3, chars="printf '{}' > policy.json\n"),
+        "answer": POLICY_DENY,
+    },
     "no_state_folder": {
         "state": False,
         "event": pevent("Write", file_path=".nookku/policy.json", content="{}"),
