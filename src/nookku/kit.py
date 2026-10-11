@@ -416,9 +416,12 @@ def state_write(
         return next(iter(commands.state_words(stripped)), None)
     targets, folders = found
     for word in targets:
-        rest = commands.state_rest(word)
-        if rest is not None and _protected(rest, during):
-            return word
+        # An argument can be code, for example python3 -c "open('<path>', 'w')". So each path in
+        # it counts, not only the whole word.
+        for part in [word, *commands.path_words(word)]:
+            rest = commands.state_rest(part)
+            if rest is not None and _protected(rest, during):
+                return part
     if commands.reads_only(command):
         return None
     # A relative word of a command that runs in the state folder does not name the folder.

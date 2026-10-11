@@ -3145,6 +3145,11 @@ GUARD_CASES: dict[str, dict] = {
         "event": bash(f"python3 - <<'EOF'\nopen('{RECORD}', 'w')\nEOF"),
         "answer": records(RECORD),
     },
+    # The argument of an interpreter is code that names a record.
+    "shell_interpreter_code_names_a_record": {
+        "event": bash(f"python3 -c \"open('{T1}/tap.jsonl', 'w').write('')\""),
+        "answer": records(f"{T1}/tap.jsonl"),
+    },
     # A variable carries the path to the program.
     "shell_assignment_names_a_record": {
         "event": bash(f"P={RECORD} python3 clean.py"),

@@ -42,7 +42,7 @@ DATA_PROGRAMS = {"cat", "tee", "gh", "jq", "wc", "grep", "head", "tail", "sort"}
 GIT_DATA = {"commit", "tag", "notes"}
 PATCH_FILE = re.compile(r"^\*\*\* (?:(?:Add|Update|Delete) File|Move to): (.+)$", re.MULTILINE)
 # A word of a text that can name a path in a state folder.
-STATE_WORD = re.compile(r"[^\s\"'`;|&<>()]+")
+STATE_WORD = re.compile(r"[^\s\"'`;|&<>(),{}]+")
 
 
 def _short(args: list[str], letter: str) -> bool:
@@ -424,6 +424,11 @@ def _strings(value: Any) -> list[str]:
     if isinstance(value, list):
         return [s for v in value for s in _strings(v)]
     return []
+
+
+def path_words(text: str) -> list[str]:
+    """The words of a text, split at spaces, quotes, brackets, commas and shell operators."""
+    return STATE_WORD.findall(text)
 
 
 def state_words(tool_input: Any) -> list[str]:
