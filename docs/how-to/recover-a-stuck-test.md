@@ -114,7 +114,7 @@ cat .nookku/current.json
 cat: .nookku/current.json: No such file or directory
 ```
 
-The folder of the stuck test stays. It has `relay.jsonl`, `tap.jsonl`, `app.log`, `bridge.log` and `manifest.json`. It has no `audit.json` and no seal, because the bridge did not finish the test. `verify` says so and exits with 2:
+The folder of the stuck test stays. It has `relay.jsonl`, `tap.jsonl`, `app.log`, `bridge.log` and `manifest.json`, and the files that the app wrote in `app-state/`. It has no `audit.json` and no seal, because the bridge did not finish the test. `verify` says so and exits with 2:
 
 ```bash
 nookku verify 20261007-224330-68e1

@@ -340,6 +340,17 @@ The tap and the relay read an output line with these same rules.
 
 The Python helper `nookku.agent.serve(reply)` speaks this contract for a function `reply(message, history) -> str`. It writes its contract lines to the original stdout, and it sends all other output of the process to stderr.
 
+### 6.1 Environment of the entry
+
+In a test, the bridge gives the entry 2 variables, together with the variables of section 7:
+
+| Variable | Value |
+|---|---|
+| `NOOKKU_TEST_DIR` | The absolute path of the test folder. |
+| `NOOKKU_TEST_ID` | The test id. It is also the `session` of each input line. |
+
+An app can keep its state for the test in the subfolder `app-state/` of the test folder, for example an event log. The seal covers each file of the test folder (section 7.4), so `verify` shows a change to these files after the end of the test. The evaluation reads `app-state/` if it exists. Only the app writes there: the relay denies a model write to the test folder (section 5).
+
 ## 7. Tests
 
 A test runs the entry from `start` to `end`. A new conversation is a new test: each test starts a new entry process with a new test id.

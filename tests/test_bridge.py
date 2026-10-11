@@ -92,6 +92,26 @@ def test_a_test_relays_and_records_both_sides(tmp_path: Path, homes: tuple) -> N
     assert bridge.end(root) is None
 
 
+def test_the_entry_keeps_its_state_in_the_sealed_test_folder(tmp_path: Path, homes: tuple) -> None:
+    root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
+    cur = bridge.start(root)
+    try:
+        shown, ok = bridge.send(cur, "What is the refund policy?")
+    finally:
+        bridge.end(root)
+    assert ok and shown.startswith("Our refund policy")
+    folder = Path(cur["dir"])
+    state = folder / "app-state" / "answers.jsonl"
+    row = json.loads(state.read_text())
+    # The toy shop got the test id and the absolute test folder from the bridge.
+    assert row["test"] == cur["test"] and row["topic"] == "refund"
+    assert Path(cur["dir"]).is_absolute()
+    result = seal.verify(folder)
+    assert result["intact"]
+    state.write_text(state.read_text().replace("refund", "price"))
+    assert not seal.verify(folder)["intact"]
+
+
 def test_history_is_the_ok_turns_of_the_test(tmp_path: Path) -> None:
     relay = tmp_path / "relay.jsonl"
     w = Writer(relay)
