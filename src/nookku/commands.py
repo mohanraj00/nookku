@@ -45,6 +45,9 @@ PATCH_FILE = re.compile(r"^\*\*\* (?:(?:Add|Update|Delete) File|Move to): (.+)$"
 # with one of MODE_DRIVES, and `run` only if the policy key scripts is not model.
 DRIVES = {"start", "end", "hook", "run"}
 MODE_DRIVES = {"on", "off", "start", "end"}
+# `init --remove` removes the project hooks, so the next message would reach the model (#163).
+# argparse also takes a unique prefix of the flag, from --rem.
+REMOVE = "--remove"
 # Programs that run their arguments as a command.
 LAUNCHERS = {"env", "exec", "nohup", "time", "command", "sudo", "uvx"}
 PYTHON = re.compile(r"python[0-9.]*")
@@ -54,7 +57,8 @@ IMPORTS = re.compile(
     r"\b(?:import|from)\s+nookku\b|\b(?:import_module|__import__)\s*\(\s*['\"]nookku\b"
 )
 DRIVE_TEXT = re.compile(
-    r"\bnookku\s+(?:-\S+\s+)*(start|end|hook|run|mode\s+(?:on|off|start|end))\b"
+    r"\bnookku\s+(?:-\S+\s+)*(start|end|hook|run|mode\s+(?:on|off|start|end)"
+    r"|init\b[^;&|\n]*?\s--rem(?:o|ov|ove)?\b)"
 )
 # The same text with no word boundary before nookku, for text that an option holds, for example
 # env -S'nookku start'.
@@ -377,6 +381,8 @@ def _subcommand(args: list[str]) -> str | None:
     state = next((w for w in words[1:] if w in MODE_DRIVES), None)
     if words[:1] == ["mode"] and state is not None:
         return f"nookku mode {state}"
+    if words[:1] == ["init"] and any(len(a) >= 5 and REMOVE.startswith(a) for a in args):
+        return "nookku init --remove"
     return None
 
 
@@ -487,6 +493,7 @@ def _drive_part(words: list[str], allowed: frozenset[str]) -> str | None:
 def _drive_text(text: str, allowed: frozenset[str], pattern: re.Pattern[str]) -> str | None:
     for m in pattern.finditer(text):
         what = "nookku " + " ".join(m.group(1).split())
+        what = "nookku init --remove" if what.startswith("nookku init") else what
         if what not in allowed:
             return what
     return None

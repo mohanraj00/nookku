@@ -70,7 +70,7 @@ The `command` of each hook contains `nookku hook`. This is the file that `nookku
 
 `.codex/hooks.json` has the same form, with `--harness codex`.
 
-Remove the project hooks with `init --remove`. Give the harness:
+Remove the project hooks with `init --remove`. Run it yourself in a shell. The relay denies it to a model, because without the hooks the next message goes to the model ([SPEC.md section 5](../../SPEC.md#5-relays)). Give the harness:
 
 ```bash
 nookku init --remove claude-code
