@@ -27,6 +27,7 @@ These keys configure a test ([SPEC.md section 7.1](../../SPEC.md#71-configuratio
 | `backends` | list of objects | `[]` | The backends of the app, each with the strings `name`, `env` and `url`. Each `name` and each `env` occurs only once ([how-to/add-a-backend.md](../how-to/add-a-backend.md)). |
 | `model_api` | boolean, list or object | `true` | The model APIs to record: `true` for all, `false` for none, a list of `anthropic` and `openai`, or an object from these names to the upstream URL or `null` ([how-to/record-model-calls.md](../how-to/record-model-calls.md)). |
 | `check_message` | string | `Hello from nookku check. What can you help me with?` | The one message that `nookku check` sends. It must have a character that is not white space, and no lone surrogate. Set it to a message that your app answers normally, for example a question about a product of the shop. |
+| `transcript_compact` | boolean | `false` | `true` makes `nookku transcript --trace` show a repeated prompt one time. `--compact` and `--no-compact` override it ([cli.md](cli.md#nookku-transcript)). |
 
 ### Relay keys
 

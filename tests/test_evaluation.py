@@ -1,10 +1,11 @@
+import hashlib
 import json
 import shutil
 from pathlib import Path
 
 import pytest
 
-from nookku import evaluation, kit, trace
+from nookku import evaluation, kit, mcp, trace
 from nookku.cli import main
 
 CASE = Path(__file__).resolve().parent.parent / "conformance" / "trace" / "claude_code_toy_shop"
@@ -202,3 +203,108 @@ def test_the_kit_config_takes_the_evaluate_key(tmp_path: Path) -> None:
     kit.set_mode(root, True)
     answer = kit.handle(event(root, "hello"), root, "codex")
     assert "no test runs" in answer["reason"]
+
+
+OTEL_CASE = CASE.parent / "otel_toy_shop"
+# The app prompt of each model turn: the toy shop rules and the output schema (#152).
+# It has no character that JSON escapes, so it shows the same in an attribute and in a message.
+PROMPT = "You are the toy shop support agent. Give the reply as one string. " * 5
+
+
+def _item(turn: int, kind: str, file: str, line: int, **fields: object) -> dict:
+    harness = "otel" if file == "otel.jsonl" else "claude-code"
+    base = {"v": "0.3", "type": "model_item", "turn": turn, "harness": harness, "session": "s1"}
+    base.update({"ts": 0, "kind": kind, "role": None, "server": None, "name": None})
+    base.update({"input": None, "output": None, "error": None, "exit_code": None})
+    base.update({"harness_internal": False, "service": None})
+    return {**base, **fields, "source": {"file": file, "line": line}}
+
+
+def compact_folder(tmp_path: Path) -> Path:
+    """A test with 2 model turns. Each turn sends PROMPT to the model, and the harness also
+    sends it in the OTel user_prompt log."""
+    folder = tmp_path / "test"
+    shutil.copytree(OTEL_CASE, folder, ignore=shutil.ignore_patterns("expect_*"))
+    session = "sessions/claude-code/s1.jsonl"
+    items = []
+    for turn in (1, 2):
+        attributes = {"event.name": "user_prompt", "prompt": PROMPT, "prompt_length": "1"}
+        items.append(_item(turn, "log", "otel.jsonl", turn, name="user_prompt", input=attributes))
+        items.append(_item(turn, "message", session, turn, role="user", output=PROMPT))
+        reply = f"toy shop reply {turn}"
+        items.append(_item(turn, "message", session, turn + 2, role="assistant", output=reply))
+    (folder / "trace.jsonl").write_text("".join(json.dumps(it) + "\n" for it in items))
+    return folder
+
+
+def test_a_compact_transcript_shows_each_prompt_body_one_time(tmp_path: Path) -> None:
+    folder = compact_folder(tmp_path)
+    full = evaluation.transcript(folder)
+    assert full.count(PROMPT) == 4
+    assert "Compact:" not in full
+    text = evaluation.transcript(folder, compact=True)
+    assert text.count(PROMPT) == 1
+    assert "\nCompact: a text of 200 or more characters" in text
+    digest = hashlib.sha256(PROMPT.encode()).hexdigest()
+    same = f"(compact: the same text as [trace.jsonl:2], sha256 {digest}, {len(PROMPT)} characters)"
+    turn1, turn2 = text.split("════ turn 1 ════")[1].split("════ turn 2 ════")
+    # The OTel attribute has the text of the session message of the same turn.
+    assert f'"prompt": "{same}"' in turn1
+    assert f"[trace.jsonl:2] claude-code message, user:\n{PROMPT}\n" in turn1
+    # In turn 2, the attribute and the message point to the first full text.
+    assert f'"prompt": "{same}"' in turn2
+    assert f"[trace.jsonl:5] claude-code message, user:\n{same}\n" in turn2
+    # A short text and each other item do not change.
+    assert '"event.name": "user_prompt"' in turn2
+    assert "toy shop reply 2" in turn2
+
+
+def test_a_compact_transcript_shows_a_repeated_otel_prompt_with_no_session_one_time(
+    tmp_path: Path,
+) -> None:
+    folder = compact_folder(tmp_path)
+    lines = (folder / "trace.jsonl").read_text().splitlines()
+    kept = [line for line in lines if json.loads(line)["kind"] == "log"]
+    (folder / "trace.jsonl").write_text("\n".join(kept) + "\n")
+    text = evaluation.transcript(folder, compact=True)
+    assert text.count(PROMPT) == 1
+    assert "(compact: the same text as [trace.jsonl:1], sha256 " in text
+
+
+def test_the_config_key_and_the_flags_choose_the_compact_transcript(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root = project(tmp_path, {"transcript_compact": True})
+    folder = root / ".nookku" / "tests" / TEST
+    source = compact_folder(tmp_path / "source")
+    for name in ("tap.jsonl", "trace.jsonl"):
+        (folder / name).write_text((source / name).read_text())
+    args = ["transcript", "--trace", "--root", str(root)]
+    assert main(args) == 0
+    assert capsys.readouterr().out.count(PROMPT) == 1
+    assert main([*args, "--no-compact"]) == 0
+    assert capsys.readouterr().out.count(PROMPT) == 4
+    (root / ".nookku" / "config.json").write_text(json.dumps({"entry": ["python", "agent.py"]}))
+    assert main(args) == 0
+    assert capsys.readouterr().out.count(PROMPT) == 4
+    assert main([*args, "--compact"]) == 0
+    assert capsys.readouterr().out.count(PROMPT) == 1
+
+
+def test_the_config_refuses_a_compact_value_that_is_not_a_boolean(tmp_path: Path) -> None:
+    root = project(tmp_path, {"transcript_compact": "yes"})
+    with pytest.raises(kit.TranscriptError, match="transcript_compact"):
+        kit.transcript_text(root, trace=True)
+
+
+@pytest.mark.parametrize("compact", [True, False])
+def test_the_mcp_transcript_takes_compact(tmp_path: Path, compact: bool) -> None:
+    root = project(tmp_path, {"transcript_compact": not compact})
+    folder = root / ".nookku" / "tests" / TEST
+    source = compact_folder(tmp_path / "source")
+    for name in ("tap.jsonl", "trace.jsonl"):
+        (folder / name).write_text((source / name).read_text())
+    arguments = {"trace": True, "compact": compact, "page_tokens": 100000}
+    text = mcp.call(root, "transcript", arguments)["content"][0]["text"]
+    assert text.startswith(kit.transcript_text(root, trace=True, compact=compact))
+    assert text.count(PROMPT) == (1 if compact else 4)

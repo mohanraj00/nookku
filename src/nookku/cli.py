@@ -20,7 +20,16 @@ from nookku.record import RecordError
 from nookku.tap import Tap, serve
 
 # Config keys that are not a plain string flag of init.
-LIST_KEYS = {"entry", "models", "evaluate", "otel", "backends", "model_api", "openai_stream"}
+LIST_KEYS = {
+    "entry",
+    "models",
+    "evaluate",
+    "otel",
+    "backends",
+    "model_api",
+    "openai_stream",
+    "transcript_compact",
+}
 # The plain string flags of init. A flag that the user does not give is None.
 STRING_KEYS = [k for k in CONFIG_KEYS if k not in LIST_KEYS]
 
@@ -230,6 +239,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     tr.add_argument("--test", help="the test id (default: the latest test)")
     tr.add_argument("--session", help="only the turns of this harness session")
+    tr.add_argument(
+        "--compact",
+        action="store_true",
+        default=None,
+        help="with --trace: show a repeated text one time (default: transcript_compact)",
+    )
+    tr.add_argument(
+        "--no-compact", dest="compact", action="store_false", help="with --trace: show each text"
+    )
 
     mcp = sub.add_parser("mcp", help="the MCP server with the transcript and status tools")
     mcp.add_argument("--root", type=Path, help="the project (default: here)")
@@ -407,7 +425,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "transcript":
         try:
             text = kit.transcript_text(
-                args.root.resolve(), args.test, args.trace, args.all, args.session, args.record
+                args.root.resolve(),
+                args.test,
+                args.trace,
+                args.all,
+                args.session,
+                args.record,
+                args.compact,
             )
         except kit.TranscriptError as e:
             print(f"nookku: {e}", file=sys.stderr)
