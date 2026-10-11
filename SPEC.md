@@ -583,6 +583,8 @@ Codex skips a hook that a person did not trust. Then a relayed prompt goes to th
 
 The gate does not stop a person who starts Codex with other hooks after the start. The check at the end makes such a change visible in the sealed record.
 
+Claude Code has no list of hooks for a program, so `start` and `mode on` read its settings files ([`src/nookku/claude_gate.py`](src/nookku/claude_gate.py), [#151](https://github.com/mohanraj00/nookku/issues/151)). The files are the user file (`$CLAUDE_CONFIG_DIR/settings.json`, else `~/.claude/settings.json`), `.claude/settings.json` and `.claude/settings.local.json`, with the last file first in precedence. If `enabledPlugins` gives `true` to a plugin with an id that starts with `nookku@`, and a project file has a hook with the command of `nookku init claude-code`, the test is refused and relay mode stays off. `init claude-code` warns if the plugin is on, and `init plugin` warns if the project hooks are on. The check does not read managed settings or a `--plugin-dir` of the session.
+
 ### 7.9 Policy file
 
 `.nookku/policy.json` holds the keys that control the guard. The model can change `config.json` for normal app work, so a check of single keys in a shell edit of `config.json` is not reliable. Thus these keys are in a separate file that the model never writes ([`src/nookku/policy.py`](src/nookku/policy.py)).

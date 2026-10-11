@@ -50,6 +50,24 @@ def _git_top(root: Path) -> Path | None:
     )
 
 
+def _warn_both_on(root: Path, harness: str) -> None:
+    """Warn after init if the other form of the relay is on in Claude Code (#151)."""
+    from nookku import claude_gate
+
+    if harness == "claude-code" and claude_gate.plugin_on(root):
+        print(
+            "nookku: warning: the nookku plugin is also on in Claude Code. Turn it off with: "
+            f"{claude_gate.DISABLE}. Else nookku start refuses the test.",
+            file=sys.stderr,
+        )
+    elif harness == "plugin" and claude_gate.project_hooks_on(root):
+        print(
+            "nookku: warning: .claude has the project hooks of nookku init claude-code. Remove "
+            "them from .claude/settings.local.json. Else nookku start refuses the test.",
+            file=sys.stderr,
+        )
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="nookku", description=__doc__)
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
@@ -297,6 +315,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "Do not also enable the nookku Claude Code plugin in this project, "
                 "or each message is sent two times."
             )
+        _warn_both_on(root, args.harness)
         return 0
     if args.command == "mode":
         root = args.root.resolve()
@@ -323,8 +342,12 @@ def main(argv: Sequence[str] | None = None) -> int:
                 print(f"nookku: {e}")
                 return 0
         if args.state == "on":
-            from nookku import codex_gate
+            from nookku import claude_gate, codex_gate
 
+            both = claude_gate.problem(root)
+            if both is not None:
+                print(f"nookku: {both}")
+                return 0
             gate = codex_gate.check(root)
             if gate["problems"]:
                 print(f"nookku: {codex_gate.refusal(gate)}")

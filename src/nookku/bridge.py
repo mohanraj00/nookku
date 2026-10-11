@@ -119,8 +119,11 @@ def start(root: Path, tester_session: str | None = None, wait: float = 30.0) -> 
     cur = current(root)
     if cur is not None:
         raise BridgeError(f"test {cur['test']} runs already. End it first.")
-    from nookku import codex_gate
+    from nookku import claude_gate, codex_gate
 
+    both = claude_gate.problem(root)
+    if both is not None:
+        raise BridgeError(both)
     gate = codex_gate.check(root)
     if gate["problems"]:
         raise BridgeError(codex_gate.refusal(gate))

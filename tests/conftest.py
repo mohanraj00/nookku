@@ -20,3 +20,11 @@ def codex_home(tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.Mon
     # No Codex: a test of the gate gives a fake codex command.
     monkeypatch.setenv("NOOKKU_CODEX", "nookku-test-no-codex")
     return home
+
+
+@pytest.fixture(autouse=True)
+def claude_home(tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """The Claude Code check of a test reads empty user settings, not the user's plugins."""
+    home = tmp_path_factory.mktemp("claude-home")
+    monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(home))
+    return home

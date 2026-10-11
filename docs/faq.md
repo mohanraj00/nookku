@@ -22,7 +22,7 @@ The cost is plumbing. You write the entry and `config.json` once, or you let the
 
 ## Plugin or project hooks?
 
-Use the plugin if you can, in Claude Code or in Codex. Use the project hooks if you cannot install plugins. Both forms run the same relay, `nookku hook`. Do not use both in one project, or each message goes to the agent two times. Read [how-to/choose-a-relay.md](how-to/choose-a-relay.md).
+Use the plugin if you can, in Claude Code or in Codex. Use the project hooks if you cannot install plugins. Both forms run the same relay, `nookku hook`. Do not use both in one project, or each message goes to the agent two times. `nookku start` refuses a test if both are on. Read [how-to/choose-a-relay.md](how-to/choose-a-relay.md).
 
 ## Does the model see my test messages?
 
