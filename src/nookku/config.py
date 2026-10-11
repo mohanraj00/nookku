@@ -12,6 +12,8 @@ from dataclasses import dataclass, field, fields
 from pathlib import Path
 from typing import Any
 
+from nookku.record import lone_surrogate
+
 STATE_DIR = ".nookku"
 FILE = f"{STATE_DIR}/config.json"
 # The state folder of verbatim-relay 0.3.x and earlier. The first run of nookku moves it.
@@ -126,6 +128,9 @@ def check(data: Any) -> dict[str, Any]:
     message = data.get("check_message", CHECK_MESSAGE)
     if not isinstance(message, str) or not message.strip():
         raise ConfigError(f"{FILE}: 'check_message' must be a string with text")
+    bad = lone_surrogate(message)
+    if bad is not None:
+        raise ConfigError(f"{FILE}: 'check_message' has {bad}")
     return data
 
 

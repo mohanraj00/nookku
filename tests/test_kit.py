@@ -494,6 +494,15 @@ def test_check_message_must_be_a_string_with_text(tmp_path, value):
         kit.Config.load(tmp_path)
 
 
+def test_check_message_must_have_no_lone_surrogate(tmp_path):
+    kit.init(tmp_path, "codex", {})
+    path = tmp_path / ".nookku" / "config.json"
+    text = path.read_text().replace("What can you help me with?", "\\ud83d")
+    path.write_text(text)
+    with pytest.raises(ValueError, match=r"'check_message' has a lone surrogate U\+D83D"):
+        kit.Config.load(tmp_path)
+
+
 @pytest.mark.parametrize("path", ["/v1/chat/completions", "/v1/cut/chat/completions"])
 def test_a_streamed_reply_is_shown_only_when_complete(tmp_path, path):
     agent = ToyAgent(stream=True)

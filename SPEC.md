@@ -369,7 +369,7 @@ A test runs the entry from `start` to `end`. A new conversation is a new test: e
 | `otel` | boolean | Optional. `false` stops the OTLP receiver of a test (section 7.5). The default is `true`. |
 | `backends` | list of objects | Optional. The backends of the app, each with the strings `name`, `env` and `url` (section 7.6). Each `name` and each `env` is used only once. |
 | `model_api` | boolean, list or object | Optional. The model APIs to record (section 7.7): `true` for all, `false` for none, a list of `anthropic` and `openai`, or an object from these names to the upstream URL of the API or `null`. The default is `true`. A backend must not use the variable of a recorded model API. |
-| `check_message` | string | Optional. The one message of `nookku check`. It must have a character that is not white space. The default is `Hello from nookku check. What can you help me with?`. |
+| `check_message` | string | Optional. The one message of `nookku check`. It must have a character that is not white space, and no lone surrogate. The default is `Hello from nookku check. What can you help me with?`. |
 
 The file can also hold the relay keys, for an agent that runs as an HTTP server ([docs/reference/config.md](docs/reference/config.md#relay-keys)). Each other key is unknown.
 
