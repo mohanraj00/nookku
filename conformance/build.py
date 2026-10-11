@@ -639,8 +639,10 @@ def iso(t: float) -> str:
 
 
 def window(started: float | None, ts: float, status: int | None = 200, v: str = "0.2") -> dict:
-    """An exchange of a trace case: only its times and its status matter."""
-    row = ex("toy shop message", "toy shop reply" if status == 200 else None, status, v=v)
+    """An exchange of a trace case: only its times and its status matter. Each reply names its
+    time, so that 2 turns never give a repeated_reply finding."""
+    reply = f"toy shop reply at {ts:g}" if status == 200 else None
+    row = ex("toy shop message", reply, status, v=v)
     row["ts"] = T0 + ts
     if started is not None:
         row["started"] = T0 + started
@@ -732,6 +734,7 @@ def where(harness: str, line: int, result_line: int | None = None) -> dict:
 def counts(**n: int) -> dict:
     checks = (
         "agent_error",
+        "repeated_reply",
         "tool_error",
         "command_failed",
         "span_error",
@@ -1372,6 +1375,80 @@ NO_MODEL_CASE = {
         "findings": [],
     },
 }
+
+# Repeated replies (SPEC.md section 8.6): turns 2 and 3 give the same long fallback text, turn 4
+# fails, turns 5 to 7 give the same short text, and turn 8 gives the reply of turn 1 again. The 3
+# cases differ only in the value of repeated_reply in the manifest: none (the default 2), 3 and 0.
+FALLBACK = "Sorry, I can help only with the orders of the toy shop. Please ask about an order."
+DONT_KNOW = "Sorry, I do not know."
+REPLIES = [
+    "We sell teapots and mugs.",
+    FALLBACK,
+    FALLBACK,
+    None,
+    DONT_KNOW,
+    DONT_KNOW,
+    DONT_KNOW,
+    "We sell teapots and mugs.",
+]
+
+
+def replied(n: int, reply: str | None) -> dict:
+    """Exchange n of the repeated reply cases, with its reply, or with status 500 if it is None."""
+    row = window(20 * n - 10, 20 * n, 200 if reply is not None else 500)
+    if reply is not None:
+        row |= {"reply": reply, "reply_sha256": sha(reply)}
+    return row
+
+
+REPEATED_TAP = [replied(n, reply) for n, reply in enumerate(REPLIES, 1)]
+REPEATED_AGENT_ERROR = {"check": "agent_error", "turn": 4, "detail": "the agent gave status 500"}
+REPEATED_FALLBACK = {
+    "check": "repeated_reply",
+    "turn": 2,
+    "detail": 'the same reply in turns 2 and 3: "Sorry, I can help only with the orders of the '
+    'toy shop. Plea" (cut)',
+    "turns": [2, 3],
+}
+REPEATED_DONT_KNOW = {
+    "check": "repeated_reply",
+    "turn": 5,
+    "detail": 'the same reply in turns 5, 6 and 7: "Sorry, I do not know."',
+    "turns": [5, 6, 7],
+}
+
+
+def repeated_case(test: str, keys: dict | None, found: list[dict]) -> dict:
+    manifest: dict[str, Any] = {"test": test, "model_sessions": []}
+    if keys is not None:
+        manifest["trace"] = keys
+    return {
+        "tap": REPEATED_TAP,
+        "manifest": manifest,
+        "sessions": {},
+        "trace": [],
+        "findings": {
+            "v": "0.2",
+            "test": test,
+            "turns": len(REPLIES),
+            "items": 0,
+            "sessions": [],
+            "otel": None,
+            "backend": None,
+            "model_api": None,
+            "counts": counts(
+                agent_error=1, repeated_reply=sum(f["check"] == "repeated_reply" for f in found)
+            ),
+            "findings": [REPEATED_AGENT_ERROR, *found],
+        },
+    }
+
+
+REPEATED_CASE = repeated_case("20261006-080000-rr01", None, [REPEATED_FALLBACK, REPEATED_DONT_KNOW])
+REPEATED_THREE_CASE = repeated_case(
+    "20261006-080000-rr03", {"repeated_reply": 3}, [REPEATED_DONT_KNOW]
+)
+REPEATED_OFF_CASE = repeated_case("20261006-080000-rr00", {"repeated_reply": 0}, [])
 
 # OpenTelemetry (SPEC.md sections 7.5 and 8.4): the rows of otel.jsonl as the receiver writes them.
 # A harness tool_result that the session file has, one that it does not have, app spans with and
@@ -2850,6 +2927,9 @@ TRACE_CASES = {
     "model_api_responses": RESPONSES_CASE,
     "servers_not_from_app": SERVERS_CASE,
     "model_api_decisions": DECISIONS_CASE,
+    "repeated_reply": REPEATED_CASE,
+    "repeated_reply_three": REPEATED_THREE_CASE,
+    "repeated_reply_off": REPEATED_OFF_CASE,
 }
 
 

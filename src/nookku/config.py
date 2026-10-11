@@ -103,6 +103,9 @@ class Config:
     model_api: bool | list[str] | dict[str, str | None] = True
     # The one message of nookku check (SPEC.md section 7.1).
     check_message: str = CHECK_MESSAGE
+    # The count of consecutive turns with the same reply that gives a repeated_reply finding.
+    # 0 turns the check off (SPEC.md section 8.6).
+    repeated_reply: int = 2
 
     @classmethod
     def load(cls, root: Path) -> Config:
@@ -131,6 +134,11 @@ def check(data: Any) -> dict[str, Any]:
     bad = lone_surrogate(message)
     if bad is not None:
         raise ConfigError(f"{FILE}: 'check_message' has {bad}")
+    count = data.get("repeated_reply", 2)
+    if isinstance(count, bool) or not isinstance(count, int) or count < 0 or count == 1:
+        raise ConfigError(
+            f"{FILE}: 'repeated_reply' must be 0 (off) or a whole number of 2 or more"
+        )
     return data
 
 

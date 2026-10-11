@@ -84,6 +84,8 @@ class TestConfig:
     policy: dict[str, Any] = field(default_factory=dict)
     # The one message of nookku check (SPEC.md section 7.1).
     check_message: str = CHECK_MESSAGE
+    # The keys of the trace checks. The manifest records them (SPEC.md section 7.2).
+    trace: dict[str, Any] = field(default_factory=dict)
 
 
 def load_config(root: Path) -> TestConfig:
@@ -112,7 +114,8 @@ def load_config(root: Path) -> TestConfig:
         raise BridgeError(f"{CONFIG_FILE}: a backend uses the variable {reserved[0]} of nookku")
     otel = data.get("otel", True) is not False
     message = data.get("check_message", CHECK_MESSAGE)
-    return TestConfig(entry, models, otel, backends, apis, rules, message)
+    keys = {"repeated_reply": data.get("repeated_reply", trace.REPEATED_REPLY)}
+    return TestConfig(entry, models, otel, backends, apis, rules, message, keys)
 
 
 def _tail(path: Path, n: int = 20) -> str:
@@ -455,6 +458,7 @@ def run(root: Path, test: str, tester_session: str | None, timeout: float = AGEN
         "versions": {"nookku": __version__, "claude-code": None, "codex": None},
         "config_sha256": config_hashes(root),
         "policy": config.policy,
+        "trace": config.trace,
         "tester_sessions": [tester_session] if tester_session else [],
         "model_sessions": [],
         "codex_gate": {"start": _start_gate(folder), "end": None},

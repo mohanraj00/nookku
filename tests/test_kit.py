@@ -494,6 +494,27 @@ def test_check_message_must_be_a_string_with_text(tmp_path, value):
         kit.Config.load(tmp_path)
 
 
+def test_a_new_config_has_the_default_repeated_reply(tmp_path):
+    kit.init(tmp_path, "codex", {})
+    conf = json.loads((tmp_path / ".nookku" / "config.json").read_text())
+    assert conf["repeated_reply"] == 2
+
+
+@pytest.mark.parametrize("value", [1, -1, True, False, 2.0, "2", None, [2]])
+def test_repeated_reply_must_be_0_or_a_count_of_2_or_more(tmp_path, value):
+    kit.init(tmp_path, "codex", {})
+    path = tmp_path / ".nookku" / "config.json"
+    path.write_text(json.dumps({**json.loads(path.read_text()), "repeated_reply": value}))
+    with pytest.raises(ValueError, match="'repeated_reply' must be 0 \\(off\\) or a whole number"):
+        kit.Config.load(tmp_path)
+
+
+@pytest.mark.parametrize("value", [0, 2, 5])
+def test_repeated_reply_takes_0_and_each_count_of_2_or_more(tmp_path, value):
+    kit.init(tmp_path, "codex", {"repeated_reply": value})
+    assert kit.Config.load(tmp_path).repeated_reply == value
+
+
 def test_check_message_must_have_no_lone_surrogate(tmp_path):
     kit.init(tmp_path, "codex", {})
     path = tmp_path / ".nookku" / "config.json"

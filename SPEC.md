@@ -370,6 +370,7 @@ A test runs the entry from `start` to `end`. A new conversation is a new test: e
 | `backends` | list of objects | Optional. The backends of the app, each with the strings `name`, `env` and `url` (section 7.6). Each `name` and each `env` is used only once. |
 | `model_api` | boolean, list or object | Optional. The model APIs to record (section 7.7): `true` for all, `false` for none, a list of `anthropic` and `openai`, or an object from these names to the upstream URL of the API or `null`. The default is `true`. A backend must not use the variable of a recorded model API. |
 | `check_message` | string | Optional. The one message of `nookku check`. It must have a character that is not white space, and no lone surrogate. The default is `Hello from nookku check. What can you help me with?`. |
+| `repeated_reply` | integer | Optional. The count of consecutive turns with the same reply that gives a `repeated_reply` finding (section 8.6). It must be 0 or 2 or more. `0` turns the check off. The default is 2. |
 
 The file can also hold the relay keys, for an agent that runs as an HTTP server ([docs/reference/config.md](docs/reference/config.md#relay-keys)). Each other key is unknown.
 
@@ -414,7 +415,7 @@ The test folder:
   sessions/codex/<rollout file>
 ```
 
-`manifest.json` holds the test id, the project root, the entry, the models, the start and end times, the versions of Nookku, Claude Code and Codex, the SHA-256 of each configuration file in `.nookku/`, `policy`: the value of each policy key (section 7.9), the tester's harness session ids, and `codex_gate`: the result of the Codex hook gate at the start and at the end of the test (section 7.8).
+`manifest.json` holds the test id, the project root, the entry, the models, the start and end times, the versions of Nookku, Claude Code and Codex, the SHA-256 of each configuration file in `.nookku/`, `policy`: the value of each policy key (section 7.9), `trace`: the value of each config key of the trace checks (`repeated_reply`, section 8.6), the tester's harness session ids, and `codex_gate`: the result of the Codex hook gate at the start and at the end of the test (section 7.8).
 
 ### 7.3 Model sessions
 
@@ -722,6 +723,7 @@ These tools come from the harness, not from the app: `ToolSearch` in Claude Code
 | Check | Finding |
 |---|---|
 | `agent_error` | An exchange with a `status` that is not 200. |
+| `repeated_reply` | A run of `repeated_reply` (section 7.1) or more consecutive exchanges with the same `reply`, byte for byte. An exchange with `reply: null` ends a run. Each run gives one finding. Its `turn` is the first turn of the run, `turns` is the list of each turn of the run, and `detail` names the turns and gives the first 60 code points of the reply as a JSON string, with ` (cut)` after it if the reply is longer. The trace takes the count from `trace` in the manifest. If the manifest has no count, the count is 2. A count of 0 turns the check off. |
 | `tool_error` | A tool call with an `error`. |
 | `command_failed` | A command with an exit code that is not 0, or with an `error`. |
 | `span_error` | A span with an `error`. |

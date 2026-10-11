@@ -27,6 +27,7 @@ These keys configure a test ([SPEC.md section 7.1](../../SPEC.md#71-configuratio
 | `backends` | list of objects | `[]` | The backends of the app, each with the strings `name`, `env` and `url`. Each `name` and each `env` occurs only once ([how-to/add-a-backend.md](../how-to/add-a-backend.md)). |
 | `model_api` | boolean, list or object | `true` | The model APIs to record: `true` for all, `false` for none, a list of `anthropic` and `openai`, or an object from these names to the upstream URL or `null` ([how-to/record-model-calls.md](../how-to/record-model-calls.md)). |
 | `check_message` | string | `Hello from nookku check. What can you help me with?` | The one message that `nookku check` sends. It must have a character that is not white space, and no lone surrogate. Set it to a message that your app answers normally, for example a question about a product of the shop. |
+| `repeated_reply` | integer | `2` | The count of consecutive turns with the same reply that gives a `repeated_reply` finding of the trace ([SPEC.md section 8.6](../../SPEC.md#86-findings)). `0` turns the check off. A value of 1 or less than 0 is an error. The manifest of each test records the value. |
 
 ### Relay keys
 
