@@ -4,7 +4,8 @@
 and 6): the requests that the relay posts, what a scripted agent does with each one, and the rows
 and HTTP statuses that the tap must give. `trace/` holds the trace cases (section 8). `seal/` holds
 the seal cases (section 7.4). `otlp/` holds the receiver cases (section 7.5). `policy/` holds the
-deny cases of the policy file (sections 5 and 7.9).
+deny cases of the policy file (sections 5 and 7.9). `guard/` holds the deny cases of the state
+folder (section 5).
 
 Never fill an expectation by running the audit. CI runs this script and fails if the files change.
 
@@ -29,6 +30,7 @@ TRACE = Path(__file__).parent / "trace"
 SEAL = Path(__file__).parent / "seal"
 OTLP = Path(__file__).parent / "otlp"
 POLICY = Path(__file__).parent / "policy"
+GUARD = Path(__file__).parent / "guard"
 
 
 def sha(text: str | None) -> str | None:
@@ -3038,6 +3040,17 @@ POLICY_CASES: dict[str, dict] = {
         "event": pevent("Read", file_path=".nookku/policy.json"),
         "answer": None,
     },
+    # The content of a file names no file that the tool writes (#149).
+    "write_content_names_the_file": {
+        "event": pevent("Write", file_path="/tmp/notes.md", content="See .nookku/policy.json."),
+        "answer": None,
+    },
+    "shell_heredoc_data_names_the_file": {
+        "event": pevent(
+            "Bash", command="cat > /tmp/notes.md <<'EOF'\nSee .nookku/policy.json.\nEOF"
+        ),
+        "answer": None,
+    },
     "write_a_policy_file_of_the_app": {
         "event": pevent("Write", file_path="shop/policy.json", content="{}"),
         "answer": None,
@@ -3049,9 +3062,163 @@ POLICY_CASES: dict[str, dict] = {
 }
 
 
+# Guard cases of the state folder (SPEC.md section 5, #149). The format is the format of the policy
+# cases. `test` is true if a test runs, with the folder `<state>/tests/t1`.
+def records(name: str) -> dict:
+    return deny(
+        f"nookku: {name} is a record or a state file of nookku. Only nookku writes it. "
+        "A command may read it."
+    )
+
+
+def during(name: str) -> dict:
+    return deny(
+        f"nookku: a test runs, so a tool call may not name {name} until the test ends. "
+        "The file tools may read it."
+    )
+
+
+def deny(reason: str) -> dict:
+    return {
+        "hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "permissionDecision": "deny",
+            "permissionDecisionReason": reason,
+        }
+    }
+
+
+def bash(command: str, cwd: str = "{root}") -> dict:
+    return pevent("Bash", cwd=cwd, command=command)
+
+
+STATE = "." + "nookku"
+T1 = f"{STATE}/tests/t1"
+RECORD = f"{T1}/relay.jsonl"
+CONFIG = f"{STATE}/config.json"
+GUARD_CASES: dict[str, dict] = {
+    # With no test, the config and the entry are normal app files.
+    "shell_edit_of_the_config": {
+        "event": bash(f"sed -i '' 's/8800/8801/' {CONFIG}"),
+        "answer": None,
+    },
+    "shell_edit_of_the_entry": {
+        "event": bash(f"sed -i '' 's/shop/toy_shop/' {STATE}/entry.py"),
+        "answer": None,
+    },
+    "shell_edit_of_a_record": {
+        "event": bash(f"sed -i '' 's/4471/4417/' {RECORD}"),
+        "answer": records(RECORD),
+    },
+    "shell_redirect_to_a_state_file": {
+        "event": bash(f"echo on >> {STATE}/mode"),
+        "answer": records(f"{STATE}/mode"),
+    },
+    "shell_removes_the_state_folder": {
+        "event": bash(f"rm -rf {STATE}"),
+        "answer": records(STATE),
+    },
+    "shell_glob_of_records": {
+        "event": bash("rm .nook*/tests/*/tap.jsonl"),
+        "answer": records(".nook*/tests/*/tap.jsonl"),
+    },
+    "shell_seal_copy": {
+        "event": bash(f"rm ~/{STATE}/seals/t1.json"),
+        "answer": records(f"~/{STATE}/seals/t1.json"),
+    },
+    "shell_changes_to_the_state_folder": {
+        "event": bash(f"cd {STATE} && rm relay.jsonl"),
+        "answer": records(STATE),
+    },
+    # Case 2 of #149: the body of a here-document that is data names a record.
+    "shell_heredoc_data_names_a_record": {
+        "event": bash(f"cat > /tmp/issue.md <<'EOF'\nSee {RECORD}.\nEOF"),
+        "answer": None,
+    },
+    "shell_heredoc_code_names_a_record": {
+        "event": bash(f"python3 - <<'EOF'\nopen('{RECORD}', 'w')\nEOF"),
+        "answer": records(RECORD),
+    },
+    "shell_reads_a_record_into_another_file": {
+        "event": bash(f"cat -n {RECORD} | sed -n 1,200p > /tmp/copy.txt"),
+        "answer": None,
+    },
+    "shell_writes_the_report": {
+        "event": bash(f"cat > {T1}/report.md <<'EOF'\n# Report\nEOF"),
+        "answer": None,
+    },
+    # Case 3 of #149: the content of a file names a record. The target is outside the project.
+    "write_content_names_a_record": {
+        "event": pevent("Write", file_path="/tmp/notes.md", content=f"See {RECORD}."),
+        "answer": None,
+    },
+    "write_of_a_record": {
+        "event": pevent("Write", file_path=f"{T1}/tap.jsonl", content="{}"),
+        "answer": records(f"{T1}/tap.jsonl"),
+    },
+    "write_of_the_report": {
+        "event": pevent("Write", file_path=f"{T1}/report.md", content="# Report\n"),
+        "answer": None,
+    },
+    "patch_header_names_a_state_file": {
+        "event": pevent(
+            "apply_patch",
+            input=f"*** Begin Patch\n*** Delete File: {STATE}/current.json\n*** End Patch\n",
+        ),
+        "answer": records(f"{STATE}/current.json"),
+    },
+    "patch_content_names_a_record": {
+        "event": pevent(
+            "apply_patch",
+            input=f"*** Begin Patch\n*** Update File: shop/app.py\n+LOG = '{RECORD}'\n*** End Patch\n",
+        ),
+        "answer": None,
+    },
+    "other_tool_writes_a_state_file": {
+        "event": pevent("mcp__files__write", path=f"{STATE}/mode", content="on"),
+        "answer": records(f"{STATE}/mode"),
+    },
+    "other_tool_writes_the_config": {
+        "event": pevent("mcp__files__write", path=CONFIG, content="{}"),
+        "answer": None,
+    },
+    # During a test, a tool call except a file read may not name the state folder.
+    "test_shell_edit_of_the_config": {
+        "test": True,
+        "event": bash(f"sed -i '' 's/8800/8801/' {CONFIG}"),
+        "answer": during(CONFIG),
+    },
+    "test_shell_read_of_the_config": {
+        "test": True,
+        "event": bash(f"cat {CONFIG}"),
+        "answer": during(CONFIG),
+    },
+    "test_write_of_the_config": {
+        "test": True,
+        "event": pevent("Write", file_path=CONFIG, content="{}"),
+        "answer": during(CONFIG),
+    },
+    "test_read_of_the_config": {
+        "test": True,
+        "event": pevent("Read", file_path=CONFIG),
+        "answer": None,
+    },
+    "test_write_content_names_the_state_folder": {
+        "test": True,
+        "event": pevent("Write", file_path="/tmp/notes.md", content=f"See {CONFIG}."),
+        "answer": None,
+    },
+    "test_shell_heredoc_data_names_the_state_folder": {
+        "test": True,
+        "event": bash(f"cat > /tmp/notes.md <<'EOF'\nSee {CONFIG}.\nEOF"),
+        "answer": None,
+    },
+}
+
+
 def write_policy_case(path: Path, case: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    data = {"state": case.get("state", True), "links": case.get("links", {}), **case}
+    data = {"state": True, "links": {}, "test": False, **case}
     path.write_text(json.dumps(data, indent=1, sort_keys=True) + "\n", encoding="utf-8")
 
 
@@ -3522,10 +3689,14 @@ def main() -> None:
     shutil.rmtree(POLICY, ignore_errors=True)
     for name, case in POLICY_CASES.items():
         write_policy_case(POLICY / f"{name}.json", case)
+    shutil.rmtree(GUARD, ignore_errors=True)
+    for name, case in GUARD_CASES.items():
+        write_policy_case(GUARD / f"{name}.json", case)
     print(
         f"{len(CASES_BY_NAME)} audit cases, {len(CONTRACT_CASES)} contract cases, "
         f"{len(TRACE_CASES)} trace cases, {len(SEAL_CASES)} seal cases, "
-        f"{len(OTLP_CASES)} receiver cases and {len(POLICY_CASES)} policy cases written"
+        f"{len(OTLP_CASES)} receiver cases, {len(POLICY_CASES)} policy cases and "
+        f"{len(GUARD_CASES)} guard cases written"
     )
 
 

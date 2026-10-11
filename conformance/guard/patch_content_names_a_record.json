@@ -1,0 +1,14 @@
+{
+ "answer": null,
+ "event": {
+  "cwd": "{root}",
+  "hook_event_name": "PreToolUse",
+  "tool_input": {
+   "input": "*** Begin Patch\n*** Update File: shop/app.py\n+LOG = '.nookku/tests/t1/relay.jsonl'\n*** End Patch\n"
+  },
+  "tool_name": "apply_patch"
+ },
+ "links": {},
+ "state": true,
+ "test": false
+}

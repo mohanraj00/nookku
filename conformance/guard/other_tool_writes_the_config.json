@@ -1,0 +1,15 @@
+{
+ "answer": null,
+ "event": {
+  "cwd": "{root}",
+  "hook_event_name": "PreToolUse",
+  "tool_input": {
+   "content": "{}",
+   "path": ".nookku/config.json"
+  },
+  "tool_name": "mcp__files__write"
+ },
+ "links": {},
+ "state": true,
+ "test": false
+}

@@ -16,5 +16,6 @@
   "tool_name": "Write"
  },
  "links": {},
- "state": false
+ "state": false,
+ "test": false
 }

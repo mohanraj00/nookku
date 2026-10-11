@@ -17,5 +17,6 @@
   "tool_name": "Edit"
  },
  "links": {},
- "state": true
+ "state": true,
+ "test": false
 }
