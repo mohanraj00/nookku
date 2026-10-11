@@ -390,9 +390,9 @@ def drive_reason(tool: str, tool_input: Any, rules: dict[str, Any] | None) -> st
         command = commands.command_of(tool, tool_input)
     if command is None:
         return None
-    what = commands.drive(command)
     scripts = rules["scripts"] if rules is not None else policy.KEYS["scripts"].default
-    if what is None or (what == "nookku run" and scripts == "model"):
+    what = commands.drive(command, frozenset({"nookku run"} if scripts == "model" else ()))
+    if what is None:
         return None
     return IMPORT_REASON if what == commands.IMPORT else DRIVE_REASON.format(what=what)
 

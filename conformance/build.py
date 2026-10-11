@@ -3338,6 +3338,15 @@ GUARD_CASES: dict[str, dict] = {
         "event": bash("nookku run --script refunds.jsonl"),
         "answer": None,
     },
+    "shell_runs_a_script_then_starts_a_test_with_scripts_model": {
+        "policy_text": '{"scripts": "model"}\n',
+        "event": bash("nookku run --script refunds.jsonl; nookku start"),
+        "answer": drives("nookku start"),
+    },
+    "shell_uv_python_option_starts_a_test": {
+        "event": bash("uv run --python python3 nookku start"),
+        "answer": drives("nookku start"),
+    },
     "shell_mode_status": {
         "event": bash("nookku mode status"),
         "answer": None,

@@ -1,0 +1,21 @@
+{
+ "answer": {
+  "hookSpecificOutput": {
+   "hookEventName": "PreToolUse",
+   "permissionDecision": "deny",
+   "permissionDecisionReason": "nookku: only a person runs nookku start. A model command may not drive a test. To run a scenario, use nookku run --script, if the policy key scripts is model."
+  }
+ },
+ "event": {
+  "cwd": "{root}",
+  "hook_event_name": "PreToolUse",
+  "tool_input": {
+   "command": "nookku run --script refunds.jsonl; nookku start"
+  },
+  "tool_name": "Bash"
+ },
+ "links": {},
+ "policy_text": "{\"scripts\": \"model\"}\n",
+ "state": true,
+ "test": false
+}

@@ -383,7 +383,7 @@ def _runs(word: str) -> bool:
     return program in ("nookku", "nookku.exe", *SHELLS) or PYTHON.fullmatch(program) is not None
 
 
-def _drive_part(words: list[str]) -> str | None:
+def _drive_part(words: list[str], allowed: frozenset[str]) -> str | None:
     i = 0
     while i < len(words) and ASSIGNMENT.match(words[i]):
         i += 1
@@ -391,43 +391,51 @@ def _drive_part(words: list[str]) -> str | None:
         _program(words[i]) in LAUNCHERS
         or (_program(words[i]) in ("uv", "pipx") and words[i + 1 : i + 2] == ["run"])
     ):
-        # A launcher option can take a value, so the program is the first word that runs.
-        i = next((j for j in range(i + 1, len(words)) if _runs(words[j])), len(words))
-    while i < len(words):
-        program = _program(words[i])
-        if program in ("nookku", "nookku.exe"):
-            return _subcommand(words[i + 1 :])
-        elif PYTHON.fullmatch(program) and "-m" in words[i + 1 :]:
-            k = words.index("-m", i + 1)
-            module = words[k + 1] if k + 1 < len(words) else ""
-            if module == "nookku":
-                return _subcommand(words[k + 2 :])
-            return IMPORT if module.startswith("nookku.") else None
-        elif program in SHELLS:
-            # The code of sh -c, bash -lc and the like.
-            flags = [k for k in range(i + 1, len(words)) if SHELL_CODE.fullmatch(words[k])]
-            return drive(words[flags[0] + 1]) if flags and flags[0] + 1 < len(words) else None
+        # A launcher option can take a value, for example uv run --python python3. The rule reads
+        # each later word that runs a program, and gives the first drive that it finds.
+        starts = (j for j in range(i + 1, len(words)) if _runs(words[j]))
+        return next((f for j in starts if (f := _drive_part(words[j:], allowed))), None)
+    if i >= len(words):
         return None
-    return None
+    program = _program(words[i])
+    found: str | None = None
+    if program in ("nookku", "nookku.exe"):
+        found = _subcommand(words[i + 1 :])
+    elif PYTHON.fullmatch(program) and "-m" in words[i + 1 :]:
+        k = words.index("-m", i + 1)
+        module = words[k + 1] if k + 1 < len(words) else ""
+        if module == "nookku":
+            found = _subcommand(words[k + 2 :])
+        elif module.startswith("nookku."):
+            found = IMPORT
+    elif program in SHELLS:
+        # The code of sh -c, bash -lc and the like.
+        flags = [k for k in range(i + 1, len(words)) if SHELL_CODE.fullmatch(words[k])]
+        if flags and flags[0] + 1 < len(words):
+            found = drive(words[flags[0] + 1], allowed)
+    return found if found not in allowed else None
 
 
-def drive(command: str) -> str | None:
+def drive(command: str, allowed: frozenset[str] = frozenset()) -> str | None:
     """The nookku command that a shell command runs to drive a test, for example "nookku start",
     or IMPORT if the command imports the package. None if it does neither (SPEC.md section 5).
 
     The rule finds the program after assignments, launchers such as env and uv run, python -m
     and sh -c. If the check cannot parse the command, the rule reads its text. A command that
-    only reads, for example grep "import nookku", does not import the package."""
+    only reads, for example grep "import nookku", does not import the package. The rule reads
+    each part of the command and skips a drive in allowed, so an allowed part cannot hide a
+    later part that is not allowed."""
     stripped = strip_data_heredocs(command)
     toks = tokens(stripped)
     parts = _parts(toks) if toks is not None else None
     if parts is None:
-        m = DRIVE_TEXT.search(stripped)
-        if m:
-            return "nookku " + " ".join(m.group(1).split())
+        for m in DRIVE_TEXT.finditer(stripped):
+            what = "nookku " + " ".join(m.group(1).split())
+            if what not in allowed:
+                return what
     else:
         for words in parts:
-            found = _drive_part(words)
+            found = _drive_part(words, allowed)
             if found is not None:
                 return found
     if IMPORTS.search(stripped) and not reads_only(command):

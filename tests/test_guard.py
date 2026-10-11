@@ -115,6 +115,9 @@ def test_state_rest(word: str, rest: list[str] | None) -> None:
         ("env A=1 bash -lc 'nookku end'", "nookku end"),
         ("pipx run nookku run --script s.jsonl", "nookku run"),
         ("echo $(nookku start)", "nookku start"),
+        ("uv run --python python3 nookku start", "nookku start"),
+        ("env -u HOME python3 -m nookku end", "nookku end"),
+        ("uv run --python python3 shop/agent.py", None),
         ("python -m nookku.kit", commands.IMPORT),
         ("python3 -c 'from nookku import kit'", commands.IMPORT),
         ("python3 -c \"__import__('nookku')\"", commands.IMPORT),
@@ -129,6 +132,20 @@ def test_state_rest(word: str, rest: list[str] | None) -> None:
 )
 def test_drive(command: str, what: str | None) -> None:
     assert commands.drive(command) == what
+
+
+@pytest.mark.parametrize(
+    ("command", "what"),
+    [
+        ("nookku run --script s.jsonl", None),
+        ("nookku run --script s.jsonl; nookku start", "nookku start"),
+        ("nookku run --script s.jsonl && python3 -c 'import nookku'", commands.IMPORT),
+        ("bash -c 'nookku run --script s.jsonl; nookku end'", "nookku end"),
+        ("echo $(nookku run --script s.jsonl) $(nookku start)", "nookku start"),
+    ],
+)
+def test_an_allowed_drive_does_not_hide_a_later_drive(command: str, what: str | None) -> None:
+    assert commands.drive(command, frozenset({"nookku run"})) == what
 
 
 def test_the_drive_deny_applies_with_no_state_folder(tmp_path: Path) -> None:
