@@ -3310,6 +3310,19 @@ GUARD_CASES: dict[str, dict] = {
         ),
         "answer": drives("nookku hook"),
     },
+    # #163: init --remove removes the project hooks, so only a person runs it.
+    "shell_removes_the_project_hooks": {
+        "event": bash("nookku init --remove claude-code"),
+        "answer": drives("nookku init --remove"),
+    },
+    "shell_removes_the_project_hooks_with_a_short_flag": {
+        "event": bash("uv run python -m nookku init codex --rem --root ."),
+        "answer": drives("nookku init --remove"),
+    },
+    "shell_inits_with_a_flag_that_starts_like_remove": {
+        "event": bash("nookku init codex --remote-name x"),
+        "answer": None,
+    },
     "session_input_starts_a_test": {
         "event": pevent("write_stdin", session_id=1, chars="nookku start\n"),
         "answer": drives("nookku start"),

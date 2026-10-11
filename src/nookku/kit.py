@@ -735,6 +735,89 @@ def _merge_hooks(settings: dict[str, Any], command: str) -> dict[str, Any]:
     return settings
 
 
+def _remove_hooks(settings: dict[str, Any]) -> int:
+    """Remove each hook of nookku from the settings, and return the count. Remove a group and
+    an event that the removal makes empty, and then an empty hooks key. Keep each other hook and
+    key. Raise ValueError if the hooks have a wrong form."""
+    if "hooks" not in settings:
+        return 0
+    hooks = settings["hooks"]
+    if not isinstance(hooks, dict):
+        raise ValueError("'hooks' is not a JSON object")
+    removed = 0
+    for event in list(hooks):
+        groups = hooks[event]
+        if not isinstance(groups, list):
+            raise ValueError(f"'hooks.{event}' is not a list")
+        kept = []
+        for group in groups:
+            inner = group.get("hooks") if isinstance(group, dict) else None
+            if not isinstance(inner, list) or not all(isinstance(h, dict) for h in inner):
+                raise ValueError(f"a group of 'hooks.{event}' has no list of hook objects")
+            if any(_ours(h) for h in inner):
+                rest = [h for h in inner if not _ours(h)]
+                removed += len(inner) - len(rest)
+                if not rest:
+                    continue
+                group = {**group, "hooks": rest}
+            kept.append(group)
+        if kept or len(kept) == len(groups):
+            groups[:] = kept
+        else:
+            del hooks[event]
+    if removed and not hooks:
+        del settings["hooks"]
+    return removed
+
+
+@dataclass
+class Removed:
+    """What init --remove changed."""
+
+    path: Path
+    # The count of removed hooks. 0 if the file has no hook of nookku or does not exist.
+    count: int
+    # The text of the file before the removal, to put it back.
+    before: str = ""
+
+
+def remove(root: Path, harness: str) -> Removed:
+    """Remove the project hooks of nookku from the hook file of the harness (#163). Keep each
+    other hook and key, the file itself and the state folder. If the file cannot be read, raise
+    ValueError before a write."""
+    target = hook_file(root, harness)
+    if target is None:
+        raise ValueError("the nookku plugin has the hooks, so no project file has them")
+    if not target.exists():
+        return Removed(target, 0)
+    try:
+        before = target.read_text(encoding="utf-8")
+        settings = json.loads(before)
+        if not isinstance(settings, dict):
+            raise ValueError("it is not a JSON object")
+        count = _remove_hooks(settings)
+    except (OSError, ValueError) as e:
+        raise ValueError(
+            f"cannot read {target}: {e}. Correct the file, then run init --remove again"
+        ) from None
+    if count:
+        try:
+            replace_text(target, json.dumps(settings, indent=1) + "\n")
+        except OSError as e:
+            raise ValueError(f"cannot write {target}: {e}") from None
+    return Removed(target, count, before)
+
+
+def replace_text(path: Path, text: str) -> None:
+    """Write a new file and replace the old one, so a failed write leaves the old file whole."""
+    tmp = path.with_name(path.name + ".tmp")
+    try:
+        tmp.write_text(text, encoding="utf-8")
+        tmp.replace(path)
+    finally:
+        tmp.unlink(missing_ok=True)
+
+
 def hook_file(root: Path, harness: str) -> Path | None:
     """The file of the project hooks. With the plugin, the plugin has the hooks, so None."""
     if harness == "plugin":

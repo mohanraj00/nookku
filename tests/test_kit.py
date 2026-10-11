@@ -133,6 +133,99 @@ def test_init_replaces_the_hooks_of_verbatim_relay(tmp_path):
     ]
 
 
+@pytest.mark.parametrize("harness", ["claude-code", "codex"])
+def test_remove_restores_a_file_with_other_hooks_and_keys(tmp_path, harness):
+    target = kit.hook_file(tmp_path, harness)
+    assert target is not None
+    target.parent.mkdir()
+    other = {"type": "command", "command": "echo hi"}
+    before = {
+        "permissions": {"allow": ["Bash(pytest:*)"]},
+        "hooks": {"PreToolUse": [{"matcher": ".*", "hooks": [other]}], "Stop": []},
+    }
+    target.write_text(json.dumps(before))
+    kit.init(tmp_path, harness, {})
+    done = kit.remove(tmp_path, harness)
+    assert (done.path, done.count) == (target, 2)
+    assert json.loads(target.read_text()) == before
+    assert (tmp_path / ".nookku" / "config.json").exists()
+
+
+@pytest.mark.parametrize("harness", ["claude-code", "codex"])
+@pytest.mark.parametrize("before", [None, {}, {"hooks": {}}])
+def test_remove_keeps_a_file_with_no_other_key(tmp_path, harness, before):
+    target = kit.hook_file(tmp_path, harness)
+    assert target is not None
+    if before is not None:
+        target.parent.mkdir()
+        target.write_text(json.dumps(before))
+    kit.init(tmp_path, harness, {})
+    done = kit.remove(tmp_path, harness)
+    assert (done.path, done.count) == (target, 2)
+    # The file stays, because a file that existed before init can be empty.
+    assert json.loads(target.read_text()) == {}
+
+
+def test_remove_keeps_another_hook_in_the_group_and_removes_old_hooks(tmp_path):
+    target = tmp_path / ".codex" / "hooks.json"
+    target.parent.mkdir()
+    old = {"type": "command", "command": "python -m verbatim_relay hook --harness codex"}
+    ours = {"type": "command", "command": "python -m nookku hook --harness codex"}
+    other = {"type": "command", "command": "echo hi"}
+    hooks = {"UserPromptSubmit": [{"hooks": [ours, other]}], "PreToolUse": [{"hooks": [old]}]}
+    target.write_text(json.dumps({"hooks": hooks}))
+    assert kit.remove(tmp_path, "codex").count == 2
+    assert json.loads(target.read_text()) == {"hooks": {"UserPromptSubmit": [{"hooks": [other]}]}}
+
+
+@pytest.mark.parametrize("text", [None, '{"hooks": {"Stop": [{"hooks": []}]}}', "{}"])
+def test_remove_changes_nothing_in_a_file_with_no_hook_of_nookku(tmp_path, text):
+    target = tmp_path / ".claude" / "settings.local.json"
+    if text is not None:
+        target.parent.mkdir()
+        target.write_text(text)
+    done = kit.remove(tmp_path, "claude-code")
+    assert done.count == 0
+    assert (target.read_text() if target.exists() else None) == text
+
+
+def test_remove_keeps_the_file_if_the_write_fails(tmp_path, monkeypatch):
+    kit.init(tmp_path, "codex", {})
+    target = tmp_path / ".codex" / "hooks.json"
+    text = target.read_text()
+
+    def full(self, data, encoding=None):
+        raise OSError(28, "No space left on device")
+
+    monkeypatch.setattr(Path, "write_text", full)
+    with pytest.raises(ValueError, match="cannot write"):
+        kit.remove(tmp_path, "codex")
+    monkeypatch.undo()
+    assert target.read_text() == text
+    assert not (tmp_path / ".codex" / "hooks.json.tmp").exists()
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "{",
+        "[]",
+        '{"hooks": []}',
+        '{"hooks": null}',
+        '{"hooks": {"Stop": {}}}',
+        '{"hooks": {"Stop": ["wrong"], "PreToolUse": [{"hooks": [{"command": "nookku hook"}]}]}}',
+        '{"hooks": {"PreToolUse": [{"hooks": [{"command": "nookku hook"}, "wrong"]}]}}',
+    ],
+)
+def test_remove_changes_nothing_in_a_file_that_it_cannot_read(tmp_path, text):
+    target = tmp_path / ".claude" / "settings.local.json"
+    target.parent.mkdir()
+    target.write_text(text)
+    with pytest.raises(ValueError, match="cannot read"):
+        kit.remove(tmp_path, "claude-code")
+    assert target.read_text() == text
+
+
 def test_relay_mode_off_does_nothing(setup):
     root, _, agent = setup
     assert kit.handle(prompt("hi"), root, "codex") is None

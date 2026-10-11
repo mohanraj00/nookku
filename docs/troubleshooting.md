@@ -234,13 +234,13 @@ If the entry returns an error, crashes or does not answer in [240 seconds](../sr
 
 (claude_gate.py) **Cause.** A Claude Code settings file enables the nookku plugin, and `.claude/settings.local.json` or `.claude/settings.json` has the hooks of `nookku init claude-code`. `start` and `mode on` refuse the test, and relay mode stays off ([SPEC.md section 7.8](../SPEC.md#78-codex-hook-gate)).
 
-**Fix.** Keep one form. Run `claude plugin disable --scope local nookku@nookku`, or remove the nookku hooks from `<file>`. `<file>` is the settings file that has the hooks: `.claude/settings.local.json`, `.claude/settings.json`, or in a linked git worktree the local file of the main checkout. [how-to/choose-a-relay.md](how-to/choose-a-relay.md#switch-from-one-form-to-the-other) gives the steps. If you turned off the plugin, run `/reload-plugins` in each Claude Code session of the project, or restart it. A session keeps a loaded plugin, and nookku cannot see it. Then start the test again.
+**Fix.** Keep one form. Run `claude plugin disable --scope local nookku@nookku`, or remove the nookku hooks from `<file>`. `<file>` is the settings file that has the hooks: `.claude/settings.local.json`, `.claude/settings.json`, or in a linked git worktree the local file of the main checkout. If `<file>` is `.claude/settings.local.json` of the project, `nookku init --remove claude-code` removes the hooks. [how-to/choose-a-relay.md](how-to/choose-a-relay.md#switch-from-one-form-to-the-other) gives the steps. If you turned off the plugin, run `/reload-plugins` in each Claude Code session of the project, or restart it. A session keeps a loaded plugin, and nookku cannot see it. Then start the test again.
 
 ### Each message reaches the agent two times
 
 **Cause.** The plugin and the project hooks both run in the project. The audit shows `duplicate_send` breaks. Since 0.4.0, `nookku start` refuses such a test, so this occurs only if a form went on after the start, or the plugin came from managed settings or `--plugin-dir`.
 
-**Fix.** Use one form. Remove the Nookku hooks from `.claude/settings.local.json`, or disable the plugin. [how-to/choose-a-relay.md](how-to/choose-a-relay.md#switch-from-one-form-to-the-other) gives the steps.
+**Fix.** Use one form. Remove the Nookku hooks with `nookku init --remove claude-code`, or disable the plugin. [how-to/choose-a-relay.md](how-to/choose-a-relay.md#switch-from-one-form-to-the-other) gives the steps.
 
 ### In Codex, the model answers my test messages
 
