@@ -232,6 +232,18 @@ If the entry returns an error, crashes or does not answer in [240 seconds](../sr
 
 **Fix.** None for the records. A tool call can change `config.json` and the files of the entry when no test runs. If the evaluation needs a command, use a read program from the list in [SPEC.md section 5](../SPEC.md#5-relays), for example `cat`, `jq` or `sed -n`. If your team uses a read program that is not in the list, add it with `nookku policy set guard_reads <program>` ([config.md](reference/config.md)). If the cause is `The guard cannot parse the command.`, remove each `$(...)`, backquote and bracket from the command.
 
+### `nookku: only a person runs <command>. A model command may not drive a test. To run a scenario, use nookku run --script, if the policy key scripts is model.`
+
+(kit.py) **Cause.** The model ran `nookku start`, `end`, `hook`, `run`, or `mode on` or `off`, in a shell. Only a person starts, ends or drives a test, with a prompt such as `nookku start` ([SPEC.md section 5](../SPEC.md#5-relays)).
+
+**Fix.** Type the control word as a prompt. To let the model run a scripted test, set `nookku policy set scripts model` in a shell ([config.md](reference/config.md)).
+
+### `nookku: a model command may not import nookku, because a script can drive a test with it. To run a scenario, use nookku run --script, if the policy key scripts is model.`
+
+(kit.py) **Cause.** A model command imports the `nookku` package, for example `python3 -c "import nookku.kit"`. A script that imports the package can relay turns that look like typed turns.
+
+**Fix.** Use the CLI read commands, for example `nookku transcript` or `nookku audit`. To run a scenario, use `nookku run --script` with the policy key `scripts` set to `model`.
+
 ### `nookku: a test runs, so a tool call may not name <path> until the test ends. The file tools may read it.`
 
 (kit.py) **Cause.** During a test, the model made a tool call that names a path in `.nookku/`, for example an edit of `config.json` or `cat .nookku/config.json`. A file read with a tool such as `Read` passes.

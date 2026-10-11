@@ -1,0 +1,20 @@
+{
+ "answer": {
+  "hookSpecificOutput": {
+   "hookEventName": "PreToolUse",
+   "permissionDecision": "deny",
+   "permissionDecisionReason": "nookku: only a person runs nookku hook. A model command may not drive a test. To run a scenario, use nookku run --script, if the policy key scripts is model."
+  }
+ },
+ "event": {
+  "cwd": "{root}",
+  "hook_event_name": "PreToolUse",
+  "tool_input": {
+   "command": "echo '{\"hook_event_name\": \"UserPromptSubmit\", \"prompt\": \"Where is order 4471?\"}' | nookku hook --harness claude-code"
+  },
+  "tool_name": "Bash"
+ },
+ "links": {},
+ "state": true,
+ "test": false
+}

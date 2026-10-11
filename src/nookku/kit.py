@@ -72,6 +72,15 @@ TEST_REASON = (
     "The file tools may read it."
 )
 ENTRY_REASON = "nookku: during a test, only the tap runs the entry."
+# The deny of a model command that drives a test (SPEC.md section 5, #173).
+SCENARIO = "To run a scenario, use nookku run --script, if the policy key scripts is model."
+DRIVE_REASON = (
+    "nookku: only a person runs {what}. A model command may not drive a test. " + SCENARIO
+)
+IMPORT_REASON = (
+    "nookku: a model command may not import nookku, because a script can drive a test with it. "
+    + SCENARIO
+)
 # A command hook gets only the text of a prompt, not its attachments. The display layer of the
 # Claude Code plugin sees them, and drops the prompt with this text in relay mode (#216).
 ATTACHMENTS_REASON = "nookku: the relay does not send attachments. Nothing was sent."
@@ -297,6 +306,10 @@ def handle(event: dict[str, Any], root: Path, harness: str) -> dict[str, Any] | 
         if touches_policy(event, root, tool, tool_input, text):
             record = Path(cur["dir"]) / "relay.jsonl" if cur else _last_record(root)
             return _deny(record, harness, tool, full, policy.REASON)
+        reason = drive_reason(tool, tool_input, rules)
+        if reason is not None:
+            record = Path(cur["dir"]) / "relay.jsonl" if cur else _last_record(root)
+            return _deny(record, harness, tool, full, reason)
         # These denies need only the state folder, so a broken config does not stop them.
         written = state_write(event, root, tool, tool_input, cur is not None, extra)
         if written is not None and cur is not None:
@@ -364,6 +377,24 @@ def guarded(value: Any, fields: list[str]) -> list[Any]:
         for item in value:
             out += guarded(item, fields)
     return out
+
+
+def drive_reason(tool: str, tool_input: Any, rules: dict[str, Any] | None) -> str | None:
+    """The deny reason if a model tool call drives a test, else None (SPEC.md section 5). With a
+    policy file that is not valid, scripts has its default, person."""
+    command: str | None
+    if tool in SESSION_TOOLS and isinstance(tool_input, dict):
+        chars = tool_input.get("chars")
+        command = chars if isinstance(chars, str) else json.dumps(tool_input)
+    else:
+        command = commands.command_of(tool, tool_input)
+    if command is None:
+        return None
+    scripts = rules["scripts"] if rules is not None else policy.KEYS["scripts"].default
+    what = commands.drive(command, frozenset({"nookku run"} if scripts == "model" else ()))
+    if what is None:
+        return None
+    return IMPORT_REASON if what == commands.IMPORT else DRIVE_REASON.format(what=what)
 
 
 def touches_policy(event: Any, root: Path, tool: str, tool_input: Any, text: str) -> bool:
@@ -530,6 +561,17 @@ def _policy_write(event: Any, root: Path) -> bool:
         return True
 
 
+def _no_state_drive(event: Any) -> str | None:
+    """The drive deny in a project with no state folder, for example nookku init && nookku
+    start. Each policy key has its default. A failure denies the call."""
+    if not isinstance(event, dict) or event.get("hook_event_name") != "PreToolUse":
+        return None
+    try:
+        return drive_reason(str(event.get("tool_name", "")), event.get("tool_input", event), None)
+    except Exception as e:  # fail closed
+        return f"nookku: the hook failed ({type(e).__name__}: {e})."
+
+
 def project_root(event: Any, harness: str) -> Path:
     """The project of a hook event with no --root: in Claude Code CLAUDE_PROJECT_DIR, else the
     `cwd` of the event, else the working folder of the process. A plugin hook does not know the
@@ -568,6 +610,10 @@ def run_hook(root: Path | None, harness: str, stdin: TextIO, stdout: TextIO) -> 
         # model cannot write a weak policy before the first test. It writes no record.
         if _policy_write(event, root):
             stdout.write(json.dumps(_deny_answer(policy.REASON), ensure_ascii=False) + "\n")
+            return 0
+        reason = _no_state_drive(event)
+        if reason is not None:
+            stdout.write(json.dumps(_deny_answer(reason), ensure_ascii=False) + "\n")
         return 0
     try:
         if event is None:
