@@ -26,6 +26,11 @@ READS = [
     "nookku transcript --trace --test 20261006-080000-cc01",
     f"find {F} -name '*.jsonl'",
     f'cat "{F}/manifest.json"',
+    # #172: which, type and command -v, and a variable in an argument.
+    f"which ls; /bin/ls {F}",
+    "type nookku && command -v nookku",
+    f'cat {F}/audit.json | tail -n 20; echo "exit ${{pipestatus[1]}}"',
+    f"T={F}; cat ${{T}}/tap.jsonl",
 ]
 WRITES = [
     f"sed -i '' 's/a/b/' {F}/trace.jsonl",
@@ -55,6 +60,14 @@ WRITES = [
     f"nookku trace --root {F}/../../..",
     "nookku check",
     "python entry.py",
+    # #172: a variable as the program, command with no -v, and each command substitution.
+    f"X=rm; $X {F}/relay.jsonl",
+    f"${{X}} {F}/relay.jsonl",
+    f'"$X" {F}/relay.jsonl',
+    f"command rm {F}/relay.jsonl",
+    f"echo $(date) {F}",
+    f'echo "`date`" {F}',
+    f"echo $((1 + 2))",
 ]
 
 
@@ -133,7 +146,10 @@ def test_during_a_test_the_kit_denies_a_run_of_the_entry(tmp_path: Path) -> None
 def test_after_a_test_the_kit_denies_a_shell_write_to_the_records(tmp_path: Path) -> None:
     project(tmp_path, running=False)
     sed = pre("Bash", {"command": f"sed -i '' 's/4471/4417/' {F}/trace.jsonl"})
-    trace = kit.RECORDS_REASON.format(name=f"{F}/trace.jsonl")
+    trace = (
+        kit.RECORDS_REASON.format(name=f"{F}/trace.jsonl")
+        + ' "sed" with these arguments can write.'
+    )
     assert reason(kit.handle(sed, tmp_path, "claude-code")) == trace
     tool = pre("mcp__files__write", {"path": f"{F}/tap.jsonl"})
     tap = kit.RECORDS_REASON.format(name=f"{F}/tap.jsonl")

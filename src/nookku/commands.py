@@ -12,7 +12,7 @@ import posixpath
 import re
 import shlex
 from collections.abc import Callable
-from typing import Any
+from typing import Any, NamedTuple
 
 SHELL_TOOLS = {"Bash", "shell", "local_shell", "exec_command"}
 SHELLS = {"bash", "sh", "zsh"}
@@ -113,12 +113,26 @@ READS: dict[str, Callable[[list[str]], bool]] = {
         ["diff", "cmp", "stat", "sha256sum", "shasum", "echo", "printf", "pwd", "cd"],
         lambda args: True,
     ),
+    **dict.fromkeys(["which", "type"], lambda args: True),
+    # `command` with no -v or -V runs its argument as a program.
+    "command": lambda args: bool(args) and args[0] in ("-v", "-V"),
     "rg": lambda args: not any(a.startswith("--pre") for a in args),
     "sed": _sed,
     "sort": _sort,
     "find": lambda args: not FIND_ACTIONS & set(args),
     "nookku": lambda args: bool(args) and args[0] in VIEWS,
 }
+
+
+def failure(program: str, args: list[str], extra: frozenset[str] = frozenset()) -> str | None:
+    """Why a part of a command does not pass the read check, or None if it passes. `extra` holds
+    more read programs, from the policy key guard_reads. A program of READS keeps its own check."""
+    check = READS.get(program)
+    if check is None and program in extra:
+        return None
+    if check is None:
+        return f'"{program}" is not a read command.'
+    return None if check(args) else f'"{program}" with these arguments can write.'
 
 
 def _strip_heredocs(text: str) -> str:
@@ -210,7 +224,7 @@ def _writes_only_report(target: str) -> bool:
     return target == "/dev/null" or target.rsplit("/", 1)[-1] == "report.md"
 
 
-def reads_only(command: str) -> bool:
+def reads_only(command: str, extra: frozenset[str] = frozenset()) -> bool:
     """True if each command only reads, and each output redirect writes /dev/null or report.md."""
     toks = tokens(_strip_heredocs(command))
     if toks is None:
@@ -237,8 +251,7 @@ def reads_only(command: str) -> bool:
     for words in segments:
         if all(_assignment(w) for w in words):
             continue
-        check = READS.get(words[0].rsplit("/", 1)[-1])
-        if check is None or not check(words[1:]):
+        if failure(words[0].rsplit("/", 1)[-1], words[1:], extra) is not None:
             return False
     return True
 
@@ -258,10 +271,10 @@ def command_of(tool: str, tool_input: Any) -> str | None:
     return None
 
 
-def tool_reads_only(tool: str, tool_input: Any) -> bool:
+def tool_reads_only(tool: str, tool_input: Any, extra: frozenset[str] = frozenset()) -> bool:
     """True if the tool call is a shell command that only reads (or writes report.md)."""
     cmd = command_of(tool, tool_input)
-    return cmd is not None and reads_only(cmd)
+    return cmd is not None and reads_only(cmd, extra)
 
 
 def entry_names(entry: list[str]) -> list[str]:
@@ -334,7 +347,16 @@ def strip_data_heredocs(text: str) -> str:
     return "\n".join(out)
 
 
-def write_targets(command: str) -> tuple[list[str], list[str]] | None:
+class Writes(NamedTuple):
+    # Each word that the command can write, with the cause: a sentence for the deny reason.
+    targets: list[tuple[str, str]]
+    # The folders that the command changes to with `cd`.
+    folders: list[str]
+    # The first cause of the command, or "" if the command passes the read check.
+    cause: str
+
+
+def write_targets(command: str, extra: frozenset[str] = frozenset()) -> Writes | None:
     """The words that a command can write, and the folders that it changes to with `cd`. Return
     None if the check cannot parse the command.
 
@@ -344,7 +366,7 @@ def write_targets(command: str) -> tuple[list[str], list[str]] | None:
     toks = tokens(strip_data_heredocs(command))
     if toks is None:
         return None
-    targets: list[str] = []
+    targets: list[tuple[str, str]] = []
     folders: list[str] = []
     segments: list[list[str]] = [[]]
     i = 0
@@ -362,7 +384,7 @@ def write_targets(command: str) -> tuple[list[str], list[str]] | None:
                 return None
             dup = text.endswith("&") and (nxt[0].isdigit() or nxt[0] == "-")
             if ">" in text and not dup:
-                targets.append(nxt[0])
+                targets.append((nxt[0], f'The redirect "{text}" writes it.'))
             elif text == "<<<":
                 segments[-1].append(nxt[0])
             i += 1
@@ -370,7 +392,7 @@ def write_targets(command: str) -> tuple[list[str], list[str]] | None:
     # A variable can carry a path to a later program, for example P=<path> python -c '...'. So if
     # a part writes, each assignment of the command is a target too.
     assignments: list[str] = []
-    writes = False
+    writes = ""
     for words in segments:
         k = 0
         while k < len(words) and ASSIGNMENT.match(words[k]):
@@ -382,11 +404,13 @@ def write_targets(command: str) -> tuple[list[str], list[str]] | None:
         if program == "cd":
             folders += args[-1:]
             continue
-        check = READS.get(program)
-        if check is None or not check(args):
-            targets += args
-            writes = True
-    return (targets + assignments if writes else targets), folders
+        cause = failure(program, args, extra)
+        if cause is not None:
+            targets += [(a, cause) for a in args]
+            writes = writes or cause
+    if writes:
+        targets += [(a, writes) for a in assignments]
+    return Writes(targets, folders, writes or next((c for _, c in targets), ""))
 
 
 def state_rest(word: str) -> list[str] | None:

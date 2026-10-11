@@ -65,6 +65,8 @@ RECORDS_REASON = (
     "nookku: {name} is a record or a state file of nookku. Only nookku writes it. "
     "A command may read it."
 )
+# The cause when the read check cannot parse a shell command.
+UNPARSED = "The guard cannot parse the command."
 TEST_REASON = (
     "nookku: a test runs, so a tool call may not name {name} until the test ends. "
     "The file tools may read it."
@@ -285,7 +287,9 @@ def handle(event: dict[str, Any], root: Path, harness: str) -> dict[str, Any] | 
         # The blocked_call row keeps the whole input. The checks of a tool that is not a shell or
         # a file tool read only the fields of guard_fields (SPEC.md section 5).
         full = text
-        fields = _guard_fields(root) if _other_tool(tool) else None
+        rules = _policy(root)
+        fields = rules["guard_fields"] if rules is not None and _other_tool(tool) else None
+        extra = frozenset(rules["guard_reads"]) if rules is not None else frozenset()
         if fields is not None:
             tool_input = guarded(tool_input, fields)
             text = json.dumps(tool_input, ensure_ascii=False)
@@ -294,16 +298,17 @@ def handle(event: dict[str, Any], root: Path, harness: str) -> dict[str, Any] | 
             record = Path(cur["dir"]) / "relay.jsonl" if cur else _last_record(root)
             return _deny(record, harness, tool, full, policy.REASON)
         # These denies need only the state folder, so a broken config does not stop them.
-        name = state_write(event, root, tool, tool_input, cur is not None)
-        if name is not None and cur is not None:
-            reason = TEST_REASON.format(name=name)
+        found = state_write(event, root, tool, tool_input, cur is not None, extra)
+        if found is not None and cur is not None:
+            reason = TEST_REASON.format(name=found[0])
             return _deny(Path(cur["dir"]) / "relay.jsonl", harness, tool, full, reason)
-        if name is not None:
-            reason = RECORDS_REASON.format(name=name)
+        if found is not None:
+            name, cause = found
+            reason = RECORDS_REASON.format(name=name) + (f" {cause}" if cause else "")
             return _deny(_last_record(root), harness, tool, full, reason)
         if tool in FILE_TOOLS:
             return None
-        reads = commands.tool_reads_only(tool, tool_input)
+        reads = commands.tool_reads_only(tool, tool_input, extra)
         if cur is not None and not reads and _names_entry(_test_entry(cur), text, tool, tool_input):
             return _deny(Path(cur["dir"]) / "relay.jsonl", harness, tool, full, ENTRY_REASON)
         try:
@@ -337,14 +342,13 @@ def _other_tool(tool: str) -> bool:
     return tool not in FILE_TOOLS and tool not in commands.SHELL_TOOLS and tool not in SESSION_TOOLS
 
 
-def _guard_fields(root: Path) -> list[str] | None:
-    """The guard_fields policy key, or None if the policy file is not valid. Then each field
-    counts, so a broken file does not weaken the guard."""
+def _policy(root: Path) -> dict[str, Any] | None:
+    """The policy keys, or None if the policy file is not valid. Then each field counts and no
+    program is added to the read programs, so a broken file does not weaken the guard."""
     try:
-        fields: list[str] = policy.read(root)["guard_fields"]
+        return policy.read(root)
     except policy.PolicyError:
         return None
-    return fields
 
 
 def guarded(value: Any, fields: list[str]) -> list[Any]:
@@ -421,10 +425,16 @@ def _in_state(path: Path) -> bool:
 
 
 def state_write(
-    event: dict[str, Any], root: Path, tool: str, tool_input: Any, during: bool
-) -> str | None:
-    """The protected path of the state folder that a model tool call can write, or None (SPEC.md
-    section 5). During a test, a call except a file read may not name the state folder at all.
+    event: dict[str, Any],
+    root: Path,
+    tool: str,
+    tool_input: Any,
+    during: bool,
+    extra: frozenset[str] = frozenset(),
+) -> tuple[str, str] | None:
+    """The protected path of the state folder that a model tool call can write, with the cause for
+    the deny reason, or None (SPEC.md section 5). The cause is "" during a test and for a call
+    that is not a shell command. During a test, a call except a file read may not name the state folder at all.
 
     The rule checks paths, not text. A file tool has its target path. A shell command has the
     words that it can write (commands.write_targets), without the bodies of its here-documents
@@ -438,38 +448,38 @@ def state_write(
             for candidate in (p, str(full), str(full.resolve())):
                 rest = commands.state_rest(candidate)
                 if rest is not None and _protected(rest, during):
-                    return p
+                    return p, ""
         return None
     if tool in FILE_TOOLS:
         return None
     command = commands.command_of(tool, tool_input)
     if command is None:
         words = commands.state_words(tool_input)
-        return next((w for w in words if _protected(commands.state_rest(w) or [], during)), None)
+        named = (w for w in words if _protected(commands.state_rest(w) or [], during))
+        return next(((w, "") for w in named), None)
     stripped = commands.strip_data_heredocs(command)
     if during:
         if _in_state(cwd):
-            return str(cwd)
-        return next(iter(commands.state_words(stripped)), None)
-    found = commands.write_targets(command)
+            return str(cwd), ""
+        return next(((w, "") for w in commands.state_words(stripped)), None)
+    found = commands.write_targets(command, extra)
     if found is None:
         # The check cannot parse the command, so each word that names the state folder counts.
-        return next(iter(commands.state_words(stripped)), None)
-    targets, folders = found
-    for word in targets:
+        return next(((w, UNPARSED) for w in commands.state_words(stripped)), None)
+    for word, cause in found.targets:
         # An argument can be code, for example python3 -c "open('<path>', 'w')". So each path in
         # it counts, not only the whole word.
         for part in [word, *commands.path_words(word)]:
             rest = commands.state_rest(part)
             if rest is not None and _protected(rest, during):
-                return part
-    if commands.reads_only(command):
+                return part, cause
+    if commands.reads_only(command, extra):
         return None
     # A relative word of a command that runs in the state folder does not name the folder.
-    for folder in folders:
+    for folder in found.folders:
         if commands.state_rest(folder) is not None:
-            return folder
-    return str(cwd) if _in_state(cwd) else None
+            return folder, found.cause
+    return (str(cwd), found.cause) if _in_state(cwd) else None
 
 
 def blocked_detail(text: str) -> str:

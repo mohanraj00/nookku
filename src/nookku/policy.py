@@ -56,6 +56,25 @@ def _is_names(value: Any) -> bool:
     return isinstance(value, list) and bool(value) and all(isinstance(n, str) and n for n in value)
 
 
+# A program name: a base name with no path and no space.
+PROGRAM = re.compile(r"[^\s/\\]+")
+
+
+def _programs(text: str) -> list[str]:
+    if not text.strip():
+        return []
+    names = [n.strip() for n in text.split(",")]
+    if not all(PROGRAM.fullmatch(n) for n in names):
+        raise ValueError("give program names with no path, separated by commas, for example bat,fd")
+    return names
+
+
+def _is_programs(value: Any) -> bool:
+    return isinstance(value, list) and all(
+        isinstance(n, str) and PROGRAM.fullmatch(n) for n in value
+    )
+
+
 # The keys of policy.json. Each other key is an error. The issue that adds a guard rule adds its
 # key here, with SPEC.md section 7.9 and docs/reference/config.md.
 KEYS: dict[str, Key] = {
@@ -67,6 +86,13 @@ KEYS: dict[str, Key] = {
         _is_names,
         "the fields of a tool input that the guard reads, for a tool that is not a shell or a "
         "file tool",
+    ),
+    # More programs that the read check accepts (#172). The deny of this file does not use them.
+    "guard_reads": Key(
+        [],
+        _programs,
+        _is_programs,
+        "more programs that the read check of the guard accepts",
     ),
 }
 

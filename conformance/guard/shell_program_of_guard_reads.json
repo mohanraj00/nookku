@@ -1,0 +1,15 @@
+{
+ "answer": null,
+ "event": {
+  "cwd": "{root}",
+  "hook_event_name": "PreToolUse",
+  "tool_input": {
+   "command": "bat .nookku/tests/t1/relay.jsonl"
+  },
+  "tool_name": "Bash"
+ },
+ "links": {},
+ "policy_text": "{\"guard_reads\": [\"bat\"]}\n",
+ "state": true,
+ "test": false
+}

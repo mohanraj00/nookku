@@ -1,0 +1,14 @@
+{
+ "answer": null,
+ "event": {
+  "cwd": "{root}",
+  "hook_event_name": "PreToolUse",
+  "tool_input": {
+   "command": "type nookku && command -v nookku && cat .nookku/tests/t1/relay.jsonl"
+  },
+  "tool_name": "Bash"
+ },
+ "links": {},
+ "state": true,
+ "test": false
+}

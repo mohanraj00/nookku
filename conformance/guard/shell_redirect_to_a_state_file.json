@@ -3,7 +3,7 @@
   "hookSpecificOutput": {
    "hookEventName": "PreToolUse",
    "permissionDecision": "deny",
-   "permissionDecisionReason": "nookku: .nookku/mode is a record or a state file of nookku. Only nookku writes it. A command may read it."
+   "permissionDecisionReason": "nookku: .nookku/mode is a record or a state file of nookku. Only nookku writes it. A command may read it. The redirect \">>\" writes it."
   }
  },
  "event": {

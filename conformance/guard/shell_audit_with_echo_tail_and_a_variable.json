@@ -1,0 +1,14 @@
+{
+ "answer": null,
+ "event": {
+  "cwd": "{root}",
+  "hook_event_name": "PreToolUse",
+  "tool_input": {
+   "command": "echo \"== audit ==\"; nookku audit .nookku/tests/t1 2>&1 | tail -n 20; echo \"exit ${pipestatus[1]} $status\""
+  },
+  "tool_name": "Bash"
+ },
+ "links": {},
+ "state": true,
+ "test": false
+}
