@@ -1,0 +1,14 @@
+{
+ "date": "2026-10-10",
+ "relay": "plugin-claude-code",
+ "version": "2.1.295 (Claude Code)",
+ "answers": {
+  "memory_sha256": "c627c09c14e58e44bc51622dac392958ec88244e414b508020634f53cfcd1e69",
+  "read": "You gave the agent this order code in turn 1 of the latest test session:\n\n`ZX-4471-Q`\n\nThe full message you typed was: «My order code is ZX-4471-Q.  » It ends with two spaces. In its reply, the agent repeated your message exactly."
+ },
+ "audit_exit": 0,
+ "turns": 2,
+ "P5a_no_memory": true,
+ "P5b_reads_record": true,
+ "pass": true
+}

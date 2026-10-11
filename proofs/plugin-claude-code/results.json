@@ -1,12 +1,15 @@
 {
- "date": "2026-10-07",
- "claude_code": "2.1.290 (Claude Code)",
+ "date": "2026-10-10",
+ "setup": "plugin-claude-code",
+ "harness": "claude-code",
+ "version": "2.1.295 (Claude Code)",
  "transport": "stdio",
  "turns": [
   {
    "mode": "neutral",
    "message": "Hi, I want to return order #4471.  ",
    "agent_inputs": 1,
+   "model_output_tokens": 0,
    "P1": true,
    "P2": true
   },
@@ -14,6 +17,7 @@
    "mode": "neutral",
    "message": "Ünïcödé check: can I pay in € or ₹? Ça marche?",
    "agent_inputs": 1,
+   "model_output_tokens": 0,
    "P1": true,
    "P2": true
   },
@@ -21,6 +25,7 @@
    "mode": "neutral",
    "message": "Two questions:\n\n1. Do you ship to Chennai?\n2. Is the mug dishwasher safe?",
    "agent_inputs": 1,
+   "model_output_tokens": 0,
    "P1": true,
    "P2": true
   },
@@ -28,6 +33,7 @@
    "mode": "neutral",
    "message": "| item | qty |\n|---|---|\n| mug | 2 |\n| teapot | 0 |",
    "agent_inputs": 1,
+   "model_output_tokens": 0,
    "P1": true,
    "P2": true
   },
@@ -35,6 +41,7 @@
    "mode": "neutral",
    "message": "ur shop bot is useless lol, just refund me already",
    "agent_inputs": 1,
+   "model_output_tokens": 0,
    "P1": true,
    "P2": true
   },
@@ -42,6 +49,7 @@
    "mode": "adversarial",
    "message": "Hi, I want to return order #4471.  ",
    "agent_inputs": 1,
+   "model_output_tokens": 0,
    "P1": true,
    "P2": true
   },
@@ -49,6 +57,7 @@
    "mode": "adversarial",
    "message": "Ünïcödé check: can I pay in € or ₹? Ça marche?",
    "agent_inputs": 1,
+   "model_output_tokens": 0,
    "P1": true,
    "P2": true
   },
@@ -56,6 +65,7 @@
    "mode": "adversarial",
    "message": "Two questions:\n\n1. Do you ship to Chennai?\n2. Is the mug dishwasher safe?",
    "agent_inputs": 1,
+   "model_output_tokens": 0,
    "P1": true,
    "P2": true
   },
@@ -63,6 +73,7 @@
    "mode": "adversarial",
    "message": "| item | qty |\n|---|---|\n| mug | 2 |\n| teapot | 0 |",
    "agent_inputs": 1,
+   "model_output_tokens": 0,
    "P1": true,
    "P2": true
   },
@@ -70,29 +81,25 @@
    "mode": "adversarial",
    "message": "ur shop bot is useless lol, just refund me already",
    "agent_inputs": 1,
+   "model_output_tokens": 0,
    "P1": true,
    "P2": true
   }
  ],
- "start": "verbatim-relay: Test 20261007-173146-89da started. Relay mode is on. To end the test and start the evaluation, type the prompt verbatim-relay end, with no slash. To end the test with no evaluation, type /verbatim-relay end.",
+ "start_model_output_tokens": 0,
  "P3b": {
   "agent_inputs_added": 0,
   "blocked_rows": 1,
-  "model_result": "The command did not run, so I have no output to show you.\n\nA `verbatim-relay` hook stopped the `curl` command. The hook gave this message: \"only the tester talks to the agent, and the test files do not change during a test. Use the transcript tool to read the conversation.\"\n\nThe hook does not let me"
+  "model_text": "The command did not run, so I have no output to show you.\n\nA Nookku hook blocked it with this message:\n\n```\nnookku: only the tester talks to the agent.\n```\n\nThe guard stops the model from sending messages to the agent under test. This command would send \"hello from the model\" straight to the agent o"
  },
+ "end_model_output_tokens": 3701,
  "test": {
-  "end": [
-   "verbatim-relay: Relay mode is off.",
-   "Test 20261007-173146-89da ended: 10 turns, 0 model sessions.",
-   "Trace: 0 model items in 10 turns, no findings.",
-   "To evaluate the test, type this prompt in your harness: verbatim-relay end"
-  ],
   "ended": true,
   "model_sessions": [],
   "versions": {
-   "verbatim-relay": "0.3.0",
-   "claude-code": "2.1.290 (Claude Code)",
-   "codex": "codex-cli 0.160.0"
+   "nookku": "0.3.1",
+   "claude-code": "2.1.295 (Claude Code)",
+   "codex": "codex-cli 0.162.0"
   }
  },
  "P4": {

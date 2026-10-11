@@ -4,7 +4,11 @@ In one harness session: 2 tester messages in relay mode, then relay mode off, th
   P5a  With no tools, the model cannot quote the tester's messages: they never reached it.
   P5b  The model reads the transcript and quotes the order code from the conversation.
 
-usage: python scripts/proof_evaluation.py plugin|hooks-claude-code|hooks-codex
+Each setup uses the project of scripts/proofs_relay.py. The plugin reads the transcript with its
+MCP tool, and the project hooks with `nookku transcript` in the shell.
+
+usage: python scripts/proof_evaluation.py SETUP (plugin-claude-code, plugin-codex, hooks-claude-code
+       or hooks-codex)
 """
 
 from __future__ import annotations
@@ -15,6 +19,7 @@ import subprocess
 import sys
 import tempfile
 from datetime import date
+from functools import partial
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -26,6 +31,7 @@ from toy_agent import ToyAgent  # noqa: E402
 from nookku import kit  # noqa: E402
 from nookku.adapters import make  # noqa: E402
 from nookku.audit import audit  # noqa: E402
+from nookku.mcp import tool_name  # noqa: E402
 from nookku.record import sha256  # noqa: E402
 from nookku.tap import Tap, start_in_thread  # noqa: E402
 
@@ -39,10 +45,15 @@ READ = {
     "plugin": "Use the nookku transcript tool. Quote the order code that I gave the agent.",
     "hooks": ("Run `nookku transcript` in the shell. Quote the order code that I gave the agent."),
 }
+# The CODEX_HOME of scripts/proof_codex_gate.py, with the plugin of this checkout and its trust.
+PLUGIN_CODEX_HOME = ROOT / ".proof" / "codex-gate" / "codex-home"
+SETUPS = ("plugin-claude-code", "plugin-codex", "hooks-claude-code", "hooks-codex")
 ENV = {**os.environ, "PATH": f"{ROOT / '.venv' / 'bin'}{os.pathsep}{os.environ['PATH']}"}
 
 
-def claude(prompt: str, session: str | None, cwd: Path, extra: list[str]) -> tuple[str, str]:
+def claude(
+    prompt: str, session: str | None, cwd: Path, extra: list[str], env: dict[str, str] = ENV
+) -> tuple[str, str]:
     cmd = ["claude", "-p", "--output-format", "json", *extra]
     if session:
         cmd += ["--resume", session]
@@ -52,14 +63,16 @@ def claude(prompt: str, session: str | None, cwd: Path, extra: list[str]) -> tup
         text=True,
         stdin=subprocess.DEVNULL,
         cwd=cwd,
-        env=ENV,
+        env=env,
         timeout=300,
     )
     d = json.loads(p.stdout[p.stdout.index("{") :]) if "{" in p.stdout else {}
     return d.get("result") or "", d.get("session_id") or session or ""
 
 
-def codex(prompt: str, session: str | None, cwd: Path, extra: list[str]) -> tuple[str, str]:
+def codex(
+    prompt: str, session: str | None, cwd: Path, extra: list[str], env: dict[str, str] = ENV
+) -> tuple[str, str]:
     cmd = (
         ["codex", "exec"]
         + (["resume", session] if session else [])
@@ -68,7 +81,7 @@ def codex(prompt: str, session: str | None, cwd: Path, extra: list[str]) -> tupl
     if not session:
         cmd += ["-C", str(cwd)]
     p = subprocess.run(
-        [*cmd, "-"], input=prompt, capture_output=True, text=True, cwd=cwd, env=ENV, timeout=300
+        [*cmd, "-"], input=prompt, capture_output=True, text=True, cwd=cwd, env=env, timeout=300
     )
     events = json_lines(p.stdout)
     thread = next((e["thread_id"] for e in events if e.get("type") == "thread.started"), session)
@@ -83,7 +96,9 @@ def codex(prompt: str, session: str | None, cwd: Path, extra: list[str]) -> tupl
 
 
 def main() -> int:
-    relay = sys.argv[1]
+    relay = sys.argv[1] if len(sys.argv) > 1 else ""
+    if relay not in SETUPS:
+        sys.exit(f"usage: proof_evaluation.py {'|'.join(SETUPS)}")
     agent = ToyAgent()
     work = Path(tempfile.mkdtemp())
     tap_rec = work / "tap.jsonl"
@@ -92,56 +107,41 @@ def main() -> int:
     tap_url = f"http://127.0.0.1:{tap.server_address[1]}/"
     answers: dict[str, str] = {}
     try:
-        if relay == "plugin":
-            record = work / "relay.jsonl"
-            plugin = ["--plugin-dir", str(ROOT / "plugins" / "claude-code")]
-
-            def settings(on: bool) -> list[str]:
-                opts = {"options": {"tap_url": tap_url, "record": str(record), "start_on": on}}
-                conf = {"pluginConfigs": {"nookku": opts, "nookku@inline": opts}}
-                return ["--settings", json.dumps(conf)]
-
-            session = None
-            for m in MESSAGES:
-                _, session = claude(m, session, work, [*plugin, *settings(True)])
-            off = [*plugin, *settings(False)]
-            answers["memory"], session = claude(MEMORY, session, work, off)
-            answers["read"], _ = claude(
-                READ["plugin"],
-                session,
-                work,
-                [*off, "--allowedTools=mcp__nookku__transcript"],
-            )
-            version = subprocess.run(
-                ["claude", "--version"], capture_output=True, text=True
-            ).stdout.strip()
+        form, harness = relay.split("-", 1)
+        plugin = form == "plugin"
+        project = ROOT / ".proof" / (relay if plugin else harness)
+        record = work / "relay.jsonl"
+        conf = kit.Config(tap_url=tap_url, record=str(record))
+        (project / kit.STATE_DIR).mkdir(parents=True, exist_ok=True)
+        (project / kit.STATE_DIR / "config.json").write_text(json.dumps(conf.__dict__) + "\n")
+        env = dict(ENV)
+        if plugin and harness == "codex":
+            env["CODEX_HOME"] = str(PLUGIN_CODEX_HOME)
+        read = READ["plugin" if plugin else "hooks"]
+        if harness == "claude-code":
+            run = partial(claude, env=env)
+            # Only the settings of the project. An installed plugin of the user takes no part.
+            relay_args = ["--setting-sources", "project,local"]
+            if plugin:
+                relay_args += ["--plugin-dir", str(ROOT / "plugins" / "nookku")]
+            tool = tool_name("claude-code", "transcript") if plugin else "Bash(nookku transcript*)"
+            read_args = [*relay_args, f"--allowedTools={tool}"]
         else:
-            harness = relay.removeprefix("hooks-")
-            project = ROOT / ".proof" / harness
-            record = work / "relay.jsonl"
-            conf = kit.Config(tap_url=tap_url, record=str(record))
-            (project / kit.STATE_DIR).mkdir(parents=True, exist_ok=True)
-            (project / kit.STATE_DIR / "config.json").write_text(json.dumps(conf.__dict__) + "\n")
-            run = claude if harness == "claude-code" else codex
+            run = partial(codex, env=env)
             # codex exec resume does not take -s, so set the sandbox as config
-            relay_args = [] if harness == "claude-code" else ["-c", 'sandbox_mode="read-only"']
-            read_args = (
-                ["--allowedTools=Bash(nookku transcript*)"]
-                if harness == "claude-code"
-                else ["-c", 'sandbox_mode="read-only"']
-            )
-            kit.set_mode(project, True)
-            session = None
-            try:
-                for m in MESSAGES:
-                    _, session = run(m, session, project, relay_args)
-            finally:
-                kit.set_mode(project, False)
-            answers["memory"], session = run(MEMORY, session, project, relay_args)
-            answers["read"], _ = run(READ["hooks"], session, project, read_args)
-            version = subprocess.run(
-                [harness.replace("-code", ""), "--version"], capture_output=True, text=True
-            ).stdout.strip()
+            relay_args = read_args = ["-c", 'sandbox_mode="read-only"']
+        kit.set_mode(project, True)
+        session = None
+        try:
+            for m in MESSAGES:
+                _, session = run(m, session, project, relay_args)
+        finally:
+            kit.set_mode(project, False)
+        answers["memory"], session = run(MEMORY, session, project, relay_args)
+        answers["read"], _ = run(read, session, project, read_args)
+        version = subprocess.run(
+            [harness.replace("-code", ""), "--version"], capture_output=True, text=True
+        ).stdout.strip()
     finally:
         tap.shutdown()
         agent.shutdown()

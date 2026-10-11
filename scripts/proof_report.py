@@ -16,12 +16,13 @@ P8  The trace has the Agent SDK `tool_result` event of the refund in turn 2, fro
     the session file has the same tool call (SPEC.md sections 7.5 and 8).
 
 The evaluating model must not see this script or the docs, which describe the bug. So each
-project is outside the repo. The plugin and the Claude Code kit use a temporary folder. Codex runs
-only the hooks that a person trusted, so its project is ~/.nookku-proof/codex, with the
-kit from `nookku init codex`. For Codex, the proof also fails if a command of the
+project is outside the repo. In Claude Code, each setup uses a temporary folder. Codex runs only
+the hooks that a person trusted. So the project hooks in Codex use ~/.nookku-proof/codex, with the
+hooks of `nookku init codex`. The plugin in Codex uses ~/.nookku-proof/plugin-codex, with the
+CODEX_HOME of scripts/proof_codex_gate.py. For Codex, the proof also fails if a command of the
 evaluation names a parent folder or a path of the repo.
 
-usage: python scripts/proof_report.py plugin|hooks-claude-code|hooks-codex
+usage: python scripts/proof_report.py plugin-claude-code|plugin-codex|hooks-claude-code|hooks-codex
 """
 
 from __future__ import annotations
@@ -83,12 +84,17 @@ def claude(prompt: str, cwd: Path, extra: list[str]) -> str:
 COMMANDS: list[str] = []
 # The Codex project. A person trusted its hooks, so the script never writes them.
 CODEX_PROJECT = Path.home() / ".nookku-proof" / "codex"
+# The project of the plugin in Codex, outside the repo. Its hooks come from the plugin.
+CODEX_PLUGIN_PROJECT = Path.home() / ".nookku-proof" / "plugin-codex"
+# The CODEX_HOME of scripts/proof_codex_gate.py, with the plugin of this checkout and its trust.
+PLUGIN_CODEX_HOME = ROOT / ".proof" / "codex-gate" / "codex-home"
+SETUPS = ("plugin-claude-code", "plugin-codex", "hooks-claude-code", "hooks-codex")
 
 
-def codex(prompt: str, cwd: Path, extra: list[str]) -> str:
+def codex(prompt: str, cwd: Path, extra: list[str], env: dict[str, str] = ENV) -> str:
     cmd = ["codex", "exec", "--json", "--skip-git-repo-check", "-C", str(cwd), *extra, "-"]
     p = subprocess.run(
-        cmd, input=prompt, capture_output=True, text=True, cwd=cwd, env=ENV, timeout=900
+        cmd, input=prompt, capture_output=True, text=True, cwd=cwd, env=env, timeout=900
     )
     events = json_lines(p.stdout)
     COMMANDS[:] = [
@@ -187,46 +193,38 @@ Run = Callable[[str, list[str]], str]
 
 
 def relay_runner(relay: str) -> tuple[Path, Run, str, str, list[str]]:
-    """The project of a relay, its function that sends one prompt, the start and end prompts, and
+    """The project of a setup, its function that sends one prompt, the start and end prompts, and
     the arguments of the end prompt."""
     run: Run
-    if relay == "plugin":
+    form, harness = relay.split("-", 1)
+    start, end = "nookku start", "nookku end"
+    if harness == "claude-code":
         project = Path(tempfile.mkdtemp(prefix="nookku-report-")).resolve()
-        opts = {"options": {"cli": CLI, "start_on": False}}
-        conf = {"pluginConfigs": {"nookku": opts, "nookku@inline": opts}}
-        base = [
-            "--plugin-dir",
-            str(ROOT / "plugins" / "claude-code"),
-            "--settings",
-            json.dumps(conf),
-        ]
+        base: list[str] = []
+        if form == "plugin":
+            base = ["--plugin-dir", str(ROOT / "plugins" / "nookku")]
+        else:
+            kit.init(project, "claude-code", {})
 
         def run(prompt: str, extra: list[str]) -> str:
             return claude(prompt, project, [*base, *extra])
 
-        start, end = "/nookku start", "nookku end"
-        end_args = CLAUDE_TOOLS
+        return project, run, start, end, CLAUDE_TOOLS
+    if form == "plugin":
+        # The plugin of this checkout, in the CODEX_HOME where the maintainer trusted its hooks.
+        project = CODEX_PLUGIN_PROJECT
+        project.mkdir(parents=True, exist_ok=True)
+        env = {**ENV, "CODEX_HOME": str(PLUGIN_CODEX_HOME)}
     else:
-        harness = relay.removeprefix("hooks-")
-        if harness == "claude-code":
-            project = Path(tempfile.mkdtemp(prefix="nookku-report-")).resolve()
-            kit.init(project, "claude-code", {})
+        # Its hooks name this root. Codex runs them only after a person trusts them, so the
+        # script never writes them.
+        project = CODEX_PROJECT
+        env = ENV
 
-            def run(prompt: str, extra: list[str]) -> str:
-                return claude(prompt, project, extra)
+    def run(prompt: str, extra: list[str]) -> str:
+        return codex(prompt, project, extra, env)
 
-            end_args = CLAUDE_TOOLS
-        else:
-            # Its hooks name this root. Codex runs them only after a person trusts them, so the
-            # script never writes them.
-            project = CODEX_PROJECT
-
-            def run(prompt: str, extra: list[str]) -> str:
-                return codex(prompt, project, extra)
-
-            end_args = ["-s", "workspace-write"]
-        start, end = "nookku start", "nookku end"
-    return project, run, start, end, end_args
+    return project, run, start, end, ["-s", "workspace-write"]
 
 
 def run_test(
@@ -250,7 +248,9 @@ def run_test(
 
 
 def main() -> int:
-    relay = sys.argv[1]
+    relay = sys.argv[1] if len(sys.argv) > 1 else ""
+    if relay not in SETUPS:
+        sys.exit(f"usage: proof_report.py {'|'.join(SETUPS)}")
     project, run, start, end, end_args = relay_runner(relay)
     setup(project)
     ran = run_test(project, run, start, end, end_args, MESSAGES)
@@ -308,7 +308,9 @@ def main() -> int:
         "issues": [{k: r[k] for k in ("class", "turn", "evidence")} for r in issues],
         "P5_quotes_the_refund_id": any(i in report for i in refund_ids),
         "P5_quotes_a_reply": quotes_a_reply(report, replies),
-        "commands_outside_project": outside(COMMANDS, project) if relay == "hooks-codex" else None,
+        "commands_outside_project": (
+            outside(COMMANDS, project) if relay.endswith("codex") else None
+        ),
         "P6_finds_the_planted_bug": p6,
         "seal": {k: v for k, v in sealed.items() if k != "test"},
         "P7_records_unchanged": sealed["intact"],

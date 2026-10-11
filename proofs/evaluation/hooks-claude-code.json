@@ -1,10 +1,10 @@
 {
- "date": "2026-10-07",
+ "date": "2026-10-10",
  "relay": "hooks-claude-code",
- "version": "2.1.290 (Claude Code)",
+ "version": "2.1.295 (Claude Code)",
  "answers": {
   "memory_sha256": "c627c09c14e58e44bc51622dac392958ec88244e414b508020634f53cfcd1e69",
-  "read": "The order code you gave the agent in turn 1 is:\n\n`ZX-4471-Q`\n\nYour full turn 1 message was `My order code is ZX-4471-Q.  `, with two trailing spaces. The agent's reply quotes the same text."
+  "read": "The order code that you gave the agent is `ZX-4471-Q`. Turn 1 of the latest session records it:\n\n> My order code is ZX-4471-Q.\n\nThe transcript shows 2 trailing spaces after the period in that message."
  },
  "audit_exit": 0,
  "turns": 2,

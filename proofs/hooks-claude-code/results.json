@@ -1,5 +1,6 @@
 {
- "date": "2026-10-09",
+ "date": "2026-10-10",
+ "setup": "hooks-claude-code",
  "harness": "claude-code",
  "version": "2.1.295 (Claude Code)",
  "transport": "stdio",
@@ -89,9 +90,9 @@
  "P3b": {
   "agent_inputs_added": 0,
   "blocked_rows": 1,
-  "model_text": "The Nookku hook stopped the command, so it did not run and I have no output to show you. The hook gave this message:\n\n```\nnookku: only the tester talks to the agent.\n```\n\nThe guard does this on purpose. In this test session, only the tester can send messages to the agent. The model cannot do that th"
+  "model_text": "The command did not run. There is no output to show you.\n\nA PreToolUse hook of the nookku plugin stopped the call with this message:\n\n```\nnookku: only the tester talks to the agent.\n```\n\nThe guard sees this as the model trying to send a message straight to the agent, so it blocked the request. This "
  },
- "end_model_output_tokens": 4840,
+ "end_model_output_tokens": 5419,
  "test": {
   "ended": true,
   "model_sessions": [],

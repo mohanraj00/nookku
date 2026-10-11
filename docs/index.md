@@ -31,7 +31,7 @@ How-to guides. Each guide does one task. The guides are in the order of the task
 ### Run a test
 
 - [Test an agent with the Claude Code plugin](how-to/claude-code-plugin.md): install the plugin, run a test, and read the [evaluation](reference/glossary.md#evaluation) at the end.
-- [Test an agent with the hook kit in Claude Code](how-to/claude-code-hook-kit.md): install the hook kit, and see each reply in `nookku view`.
+- [Test an agent with the project hooks in Claude Code](how-to/claude-code-hook-kit.md): write the project hooks, and see each reply in `nookku view`.
 - [Test an agent in Codex](how-to/codex.md): the plugin, the project hooks and the trust step.
 
 ### Read the results

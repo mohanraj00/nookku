@@ -21,7 +21,8 @@ P7  After the evaluation, `nookku verify` finds the test folder intact.
 The isolation, the evaluation and the check of model answers against instruction files are the
 same as in scripts/proof_report.py.
 
-usage: python scripts/proof_telemetry.py plugin|hooks-claude-code|hooks-codex
+usage: python scripts/proof_telemetry.py SETUP (plugin-claude-code, plugin-codex, hooks-claude-code
+       or hooks-codex)
 """
 
 from __future__ import annotations
@@ -60,7 +61,9 @@ def cited(evidence: str) -> set[int]:
 
 
 def main() -> int:
-    relay = sys.argv[1]
+    relay = sys.argv[1] if len(sys.argv) > 1 else ""
+    if relay not in pr.SETUPS:
+        sys.exit(f"usage: proof_telemetry.py {'|'.join(pr.SETUPS)}")
     project, run, start, end, end_args = pr.relay_runner(relay)
     for name in pr.APP_FILES[FULL.name]:
         (project / name).unlink(missing_ok=True)
@@ -148,7 +151,7 @@ def main() -> int:
         "P5_quotes_a_reservation_id": any(i in report for i in reservation_ids),
         "P5_quotes_a_reply": pr.quotes_a_reply(report, replies),
         "commands_outside_project": (
-            pr.outside(pr.COMMANDS, project) if relay == "hooks-codex" else None
+            pr.outside(pr.COMMANDS, project) if relay.endswith("codex") else None
         ),
         "seal": {k: v for k, v in sealed.items() if k != "test"},
         "P7_records_unchanged": sealed["intact"],

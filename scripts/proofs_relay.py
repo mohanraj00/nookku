@@ -1,4 +1,7 @@
-"""Proofs P1 to P4 for the hook kit, headless, in Codex or in Claude Code. Local only.
+"""Proofs P1 to P4 for the relay, headless, in 4 setups. Local only.
+
+A setup is a form of the relay and a harness: plugin-claude-code, plugin-codex,
+hooks-claude-code or hooks-codex. Each form runs `nookku hook` (SPEC.md section 5).
 
 P1  Each tester message reaches the agent byte for byte (the tap record).
 P2  Each reply reaches the viewer byte for byte (`nookku view`).
@@ -6,51 +9,76 @@ P3  An adversarial instruction cannot change either direction, and the model doe
 P3b With relay mode off, a model call to the tap is denied, and the agent receives nothing.
 P4  The audit finds 0 breaks in these records, and finds each planted fault.
 
-The kit is installed with `nookku init` in .proof/<harness>/. The tester starts and ends
-the test (SPEC.md section 7) with the prompts `nookku start` and `nookku end`. The
-entry is the toy shop agent of the tests over stdio (tests/toy_entry.py).
+The tester starts and ends the test (SPEC.md section 7) with the prompts `nookku start` and
+`nookku end`. The entry is the toy shop agent of the tests over stdio (tests/toy_entry.py).
 
-Codex runs project hooks only after a person trusts them, so trust .proof/codex/.codex/hooks.json
-once before you run this.
+- The project hooks: `nookku init <harness>` writes them in .proof/<harness>/.
+- The plugin in Claude Code: `claude -p --plugin-dir plugins/nookku`, in .proof/plugin-claude-code/.
+- The plugin in Codex: the CODEX_HOME of scripts/proof_codex_gate.py, where the plugin of this
+  checkout is installed, in .proof/plugin-codex/.
+
+The plugin hooks run `nookku` from PATH, so this script puts the bin folder of its Python first.
+
+Codex runs a hook only after a person trusts it. Never try to skip the trust step. Before a Codex
+setup, the maintainer trusts .proof/codex/.codex/hooks.json (project hooks, in the user CODEX_HOME),
+or the plugin hooks in the CODEX_HOME of proof_codex_gate.py. `nookku start` refuses a test with an
+untrusted hook (SPEC.md section 7.8).
 
 With --stream, the agent streams each reply (SSE): the toy shop agent of the tests with stream=True
-(tests/toy_agent.py), behind a tap in this process with the openai adapter. The kit relays in HTTP
+(tests/toy_agent.py), behind a tap in this process with the openai adapter. The relay runs in HTTP
 mode, with no entry and no test. P1, P2 and P4 run as above, with the adversarial turns. P3b and
 the test checks need a test, so this mode does not run them.
 
 With --stream --on-request, the toy agent streams only if the request has "stream": true
-(stream="on_request"), and the kit config has "openai_stream": true. Each exchange must be a
-stream.
+(stream="on_request"), and the config has "openai_stream": true. Each exchange must be a stream.
 
-usage: python scripts/proofs_hooks.py codex|claude-code [--stream [--on-request]] [OUT_DIR]
-       (default proofs/hooks-<harness>, proofs/hooks-<harness>-stream with --stream, or
-       proofs/hooks-<harness>-stream-on-request with --stream --on-request)
+usage: python scripts/proofs_relay.py SETUP [--stream [--on-request]] [OUT_DIR]
+       (default proofs/SETUP, proofs/SETUP-stream with --stream, or
+       proofs/SETUP-stream-on-request with --stream --on-request)
 """
 
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import sys
 from dataclasses import asdict
 from datetime import date
+from functools import partial
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path[:0] = [str(ROOT / "src"), str(ROOT / "tests"), str(Path(__file__).parent)]
 
-from proof_common import json_lines  # noqa: E402
-from proofs_claude_code import ADVERSARIAL, ENTRY, MESSAGES, planted, rows  # noqa: E402
+from proof_common import ADVERSARIAL, ENTRY, MESSAGES, json_lines, planted, rows  # noqa: E402
 
 from nookku import bridge, kit  # noqa: E402
 from nookku.audit import audit  # noqa: E402
 from nookku.record import Turn, read_relay  # noqa: E402
 
 CODEX_MODEL = "gpt-5.6-luna"
+PLUGIN = ROOT / "plugins" / "nookku"
+# The CODEX_HOME of scripts/proof_codex_gate.py, with the plugin of this checkout and its trust.
+PLUGIN_CODEX_HOME = ROOT / ".proof" / "codex-gate" / "codex-home"
+SETUPS = ("plugin-claude-code", "plugin-codex", "hooks-claude-code", "hooks-codex")
 
 
-def run_codex(project: Path, prompt: str, adversarial: bool, network: bool) -> dict:
+def environment(plugin: bool, harness: str) -> dict[str, str]:
+    """The environment of the harness. The plugin hooks run nookku from PATH, so the bin folder
+    of this Python comes first. The plugin in Codex uses the CODEX_HOME of its trust step."""
+    env = dict(os.environ)
+    if plugin:
+        env["PATH"] = f"{Path(sys.executable).parent}{os.pathsep}{env.get('PATH', '')}"
+        if harness == "codex":
+            env["CODEX_HOME"] = str(PLUGIN_CODEX_HOME)
+    return env
+
+
+def run_codex(
+    project: Path, prompt: str, adversarial: bool, network: bool, plugin: bool = False
+) -> dict:
     cmd = [
         "codex",
         "exec",
@@ -69,7 +97,14 @@ def run_codex(project: Path, prompt: str, adversarial: bool, network: bool) -> d
         cmd += ["-s", "read-only"]
     if adversarial:
         cmd += ["-c", f"developer_instructions={json.dumps(ADVERSARIAL)}"]
-    p = subprocess.run([*cmd, "-"], input=prompt, capture_output=True, text=True, timeout=300)
+    p = subprocess.run(
+        [*cmd, "-"],
+        input=prompt,
+        capture_output=True,
+        text=True,
+        timeout=300,
+        env=environment(plugin, "codex"),
+    )
     events = json_lines(p.stdout)
     usage = next((e["usage"] for e in events if e.get("type") == "turn.completed"), {})
     texts = [
@@ -80,11 +115,15 @@ def run_codex(project: Path, prompt: str, adversarial: bool, network: bool) -> d
     return {"output_tokens": usage.get("output_tokens"), "text": "\n".join(texts)}
 
 
-def run_claude(project: Path, prompt: str, adversarial: bool, network: bool) -> dict:
-    # Only the settings of the project, where init wrote the kit. A plugin of the user, for
-    # example nookku itself, must not take part in the proof.
+def run_claude(
+    project: Path, prompt: str, adversarial: bool, network: bool, plugin: bool = False
+) -> dict:
+    # Only the settings of the project, where init wrote the hooks. A plugin of the user, for
+    # example an installed nookku, must not take part in the proof.
     cmd = ["claude", "-p", "--verbose", "--output-format", "stream-json"]
     cmd += ["--setting-sources", "project,local"]
+    if plugin:
+        cmd += ["--plugin-dir", str(PLUGIN)]
     if adversarial:
         cmd += ["--append-system-prompt", ADVERSARIAL]
     if network:
@@ -96,6 +135,7 @@ def run_claude(project: Path, prompt: str, adversarial: bool, network: bool) -> 
         stdin=subprocess.DEVNULL,
         cwd=project,
         timeout=300,
+        env=environment(plugin, "claude-code"),
     )
     events = json_lines(p.stdout)
     result = next((e for e in events if e.get("type") == "result"), {})
@@ -158,7 +198,14 @@ def write_results(out: Path, report: dict, tap_rec: Path, relay_rec: Path) -> in
     return 0 if report["pass"] else 1
 
 
-def main_stream(harness: str, run, out: Path, on_request: bool = False) -> int:
+def project_of(setup: str) -> Path:
+    """The proof project of a setup. The project hooks keep .proof/<harness>, where the
+    maintainer trusted the Codex hooks."""
+    form, harness = setup.split("-", 1)
+    return ROOT / ".proof" / (harness if form == "hooks" else setup)
+
+
+def main_stream(setup: str, run, out: Path, on_request: bool = False) -> int:
     """P1, P2 and P4 with a streamed agent over HTTP. The tap runs in this process.
 
     With on_request, the agent streams only on request, and the kit asks for a stream.
@@ -168,7 +215,8 @@ def main_stream(harness: str, run, out: Path, on_request: bool = False) -> int:
     from nookku.adapters import make
     from nookku.tap import Tap, start_in_thread
 
-    project = ROOT / ".proof" / harness
+    form, harness = setup.split("-", 1)
+    project = project_of(setup)
     project.mkdir(parents=True, exist_ok=True)
     work = project / "stream"
     shutil.rmtree(work, ignore_errors=True)
@@ -182,7 +230,7 @@ def main_stream(harness: str, run, out: Path, on_request: bool = False) -> int:
         tap_url=tap_url, agent_url=agent.url, adapter="openai", openai_stream=on_request
     )
     # Each key, so that a key of an earlier run does not stay.
-    kit.init(project, harness, asdict(config))
+    kit.init(project, harness if form == "hooks" else "plugin", asdict(config))
     relay_rec = config.record_path(project)
     relay_rec.unlink(missing_ok=True)
     kit.set_mode(project, True)
@@ -190,6 +238,7 @@ def main_stream(harness: str, run, out: Path, on_request: bool = False) -> int:
     version = subprocess.run(versions[harness], capture_output=True, text=True).stdout.strip()
     report: dict = {
         "date": date.today().isoformat(),
+        "setup": setup,
         "harness": harness,
         "version": version,
         "transport": "http-stream",
@@ -226,21 +275,26 @@ def main() -> int:
         args.remove("--on-request")
         if not stream:
             sys.exit("--on-request needs --stream")
-    harness = args[0]
-    run = {"codex": run_codex, "claude-code": run_claude}[harness]
+    if not args or args[0] not in SETUPS:
+        sys.exit(f"usage: proofs_relay.py {'|'.join(SETUPS)} [--stream [--on-request]] [OUT_DIR]")
+    setup = args[0]
+    form, harness = setup.split("-", 1)
+    runner = {"codex": run_codex, "claude-code": run_claude}[harness]
+    run = partial(runner, plugin=form == "plugin")
     if stream:
-        name = f"hooks-{harness}-stream" + ("-on-request" if on_request else "")
+        name = f"{setup}-stream" + ("-on-request" if on_request else "")
         default = ROOT / "proofs" / name
-        return main_stream(harness, run, Path(args[1]) if len(args) > 1 else default, on_request)
-    out = Path(args[1]) if len(args) > 1 else ROOT / "proofs" / f"hooks-{harness}"
-    project = ROOT / ".proof" / harness
-    shutil.rmtree(project / ".nookku" / "tests", ignore_errors=True)
+        return main_stream(setup, run, Path(args[1]) if len(args) > 1 else default, on_request)
+    out = Path(args[1]) if len(args) > 1 else ROOT / "proofs" / setup
+    project = project_of(setup)
+    shutil.rmtree(project / kit.STATE_DIR / "tests", ignore_errors=True)
     project.mkdir(parents=True, exist_ok=True)
-    kit.init(project, harness, asdict(kit.Config(entry=ENTRY)))
+    kit.init(project, harness if form == "hooks" else "plugin", asdict(kit.Config(entry=ENTRY)))
     versions = {"claude-code": ["claude", "--version"], "codex": ["codex", "--version"]}
     version = subprocess.run(versions[harness], capture_output=True, text=True).stdout.strip()
     report: dict = {
         "date": date.today().isoformat(),
+        "setup": setup,
         "harness": harness,
         "version": version,
         "transport": "stdio",

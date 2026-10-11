@@ -1,0 +1,100 @@
+{
+ "date": "2026-10-10",
+ "relay": "plugin-codex",
+ "versions": {
+  "nookku": "0.3.1",
+  "claude-code": "2.1.295 (Claude Code)",
+  "codex": "codex-cli 0.162.0",
+  "agent sdk": "claude-agent-sdk==0.2.164",
+  "session files": {
+   "claude-code": "2.1.292"
+  }
+ },
+ "turns": 3,
+ "audit_exit": 0,
+ "items_by_turn": [
+  {
+   "turn": 1,
+   "session": 3,
+   "backend": 1,
+   "model_api": 2
+  },
+  {
+   "turn": 2,
+   "session": 3,
+   "backend": 2,
+   "model_api": 2
+  },
+  {
+   "turn": 3,
+   "session": 3,
+   "backend": 1,
+   "model_api": 2
+  }
+ ],
+ "T1_each_turn_has_3_sources": true,
+ "reserve_calls": [
+  {
+   "line": 15,
+   "turn": 2
+  },
+  {
+   "line": 16,
+   "turn": 2
+  }
+ ],
+ "reserve_calls_in_turn_2": 2,
+ "reservations_in_stock": 2,
+ "report_written": true,
+ "issues": [
+  {
+   "class": "business_rule",
+   "turn": "2",
+   "evidence": "trace.jsonl:15; trace.jsonl:16; RULES.md:5; services.py:44; stock.json:6"
+  },
+  {
+   "class": "state_mismatch",
+   "turn": "2",
+   "evidence": "trace.jsonl:18; trace.jsonl:15; trace.jsonl:16; stock.json:6; stock.json:11; RULES.md:6"
+  }
+ ],
+ "T2_cites_both_reserve_calls": true,
+ "P5_quotes_a_reservation_id": true,
+ "P5_quotes_a_reply": true,
+ "commands_outside_project": [],
+ "seal": {
+  "sealed": true,
+  "intact": true,
+  "changed": [],
+  "missing": [],
+  "added": [],
+  "copy": "same"
+ },
+ "P7_records_unchanged": true,
+ "backend": {
+  "file": "backend.jsonl",
+  "rows": 4,
+  "items": 4,
+  "ignored": {}
+ },
+ "model_api": {
+  "file": "model_api.jsonl",
+  "rows": 10,
+  "items": 6,
+  "ignored": {},
+  "harness_calls": {
+   "claude-code": 6
+  },
+  "other_calls": 1
+ },
+ "otel": {
+  "file": "otel.jsonl",
+  "rows": 12,
+  "items": 12,
+  "ignored": {}
+ },
+ "counts": {},
+ "report": "# Test 20261010-144714-50bd: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | trace.jsonl:15; trace.jsonl:16; RULES.md:5; services.py:44; stock.json:6 | The tester requested \"Please reserve 1 teapot set for my order 6210.\" The app sent two successful `POST /reserve` requests with identical bodies `{\"order\": \"6210\", \"sku\": \"teapot-set\", \"qty\": 1}`. They created `RS-33F628` and `RS-B42CC2`, reducing stock from 3 to 1 and holding two units. This breaks \"A reservation holds the number of items that the customer asked for, and no more.\" The retry loop in `services.py:44-49` continues after success, and both reservations remain in `stock.json`. |\n| state_mismatch | 2 | trace.jsonl:18; trace.jsonl:15; trace.jsonl:16; stock.json:6; stock.json:11; RULES.md:6 | The reply says \"I've reserved 1 teapot set for your order 6210 with reservation ID RS-B42CC2.\" The stock service actually holds two reservations for order `6210`, each with `\"qty\": 1`. The reply understates the total quantity reserved and omits reservation `RS-33F628`, contrary to the rule that the agent tells the customer the number of items it reserved. |\n\n## Notes\n\nThe transcript reported \"Seal: intact. No record changed after the end of the test.\" I reviewed all three turns and their 31 trace items, findings.json, audit.json, every project Python file, RULES.md, stock.json and state.json. Findings were empty; the audit reported no breaks, errors or blocked calls. These results do not rule out the reservation defect demonstrated by the backend trace.\n\nThe stock replies in turns 1 and 3 agree with their tool results. The saved stock state confirms one unit left and two one-unit reservations for order 6210. The saved case notes match the three recorded note-model replies. The duplicate request is in the service code, rather than two model tool calls: turn 2 contains one `shop.reserve` call with the requested arguments.\n\nI used read-only commands for inspection and wrote only this report. I did not start the app, send it a message, or change its state. Current local state corroborates the sealed trace but is not itself a sealed test record. Returns, refunds and other customers' order privacy were not exercised by this test.\n",
+ "answer": "[Report saved](.nookku/tests/20261010-144714-50bd/report.md).\n\nFound two issues: the app reserved two units instead of one, then reported only one reserved.\nThe test seal is intact. Only the report was changed.",
+ "pass": true
+}

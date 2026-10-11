@@ -155,7 +155,7 @@ This is correct. Keep the viewer open. When your test starts, the viewer follows
 
 ## 6. Run the test
 
-In the harness, type the prompt `nookku start`. With the plugin, you can also type `/nookku start`. The relay starts the test and switches [relay mode](../reference/glossary.md#relay-mode) on. The model does not receive the prompt. The hook kit in Claude Code shows:
+In the harness, type the prompt `nookku start`. With the plugin, you can also type `/nookku start`. The relay starts the test and switches [relay mode](../reference/glossary.md#relay-mode) on. The model does not receive the prompt. The project hooks in Claude Code show:
 
 ```text
 nookku: test 20261007-231159-fd98 started. Relay mode is on: each message goes to the entry. To end the test and start the evaluation, type the prompt nookku end. To end the test with no evaluation, run nookku end in a shell.

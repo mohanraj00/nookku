@@ -27,7 +27,7 @@ tester ──> harness ──> relay ──────> tap ──stdin/stdout�
 ```
 
 - [Harness](docs/reference/glossary.md#harness): Claude Code or Codex, where you type your test messages.
-- [Relay](docs/reference/glossary.md#relay): the plugin or the hook kit in the harness. It carries each message and each reply, and the model writes neither.
+- [Relay](docs/reference/glossary.md#relay): the command `nookku hook`, which the plugin or the project hooks run in the harness. It carries each message and each reply, and the model writes neither.
 - [Tap](docs/reference/glossary.md#tap): a proxy in front of your agent. It forwards each byte with no change, and records what the agent received and sent.
 - [Entry](docs/reference/glossary.md#entry): a thin wrapper that starts your app and speaks one JSON line in and one JSON line out.
 - [Audit](docs/reference/glossary.md#audit): a program that compares the two records byte for byte, and names each break.
@@ -74,20 +74,20 @@ In the harness, in the project folder of your app, type `!nookku setup`. Then ty
 
 ### Choose a relay
 
-The plugin shows each reply in the chat of Claude Code. The hook kit works in Claude Code and in Codex. It shows each reply as the reason of a blocked prompt, and in `nookku view`. [docs/how-to/choose-a-relay.md](docs/how-to/choose-a-relay.md) compares the [2 relays](SPEC.md#5-relays). Then read the guide of your relay: [Claude Code plugin](docs/how-to/claude-code-plugin.md), [Claude Code hook kit](docs/how-to/claude-code-hook-kit.md) or [Codex](docs/how-to/codex.md).
+You install the [relay](SPEC.md#5-relays) as the plugin or as the project hooks. Both work in Claude Code and in Codex, with the same rules. Both show each reply as the reason of a blocked prompt, and in `nookku view`. [docs/how-to/choose-a-relay.md](docs/how-to/choose-a-relay.md) compares them. Then read the guide of your setup: [Claude Code plugin](docs/how-to/claude-code-plugin.md), [Claude Code project hooks](docs/how-to/claude-code-hook-kit.md) or [Codex](docs/how-to/codex.md).
 
 ## Results
 
-| Proof | Claude Code 2.1.290, plugin | Claude Code 2.1.295, project hooks | Codex 0.160.0, project hooks |
-|---|---|---|---|
-| Messages reach the agent byte for byte | 10/10 | 10/10 | 10/10 |
-| Replies reach the tester byte for byte | 10/10 | 10/10 | 10/10 |
-| Same, with a system prompt that tells the model to rewrite both | 5/5 | 5/5 | 5/5 |
-| Model call to the agent denied, agent receives nothing | yes | yes | yes |
-| Audit finds planted faults | 5/5 | 5/5 | 5/5 |
-| After the test, the model has no memory of the conversation, and reads it from the transcript | yes | yes | yes |
+| Proof | Plugin, Claude Code 2.1.295 | Plugin, Codex 0.162.0 | Project hooks, Claude Code 2.1.295 | Project hooks, Codex 0.162.0 |
+|---|---|---|---|---|
+| Messages reach the agent byte for byte | 10/10 | 10/10 | 10/10 | 10/10 |
+| Replies reach the tester byte for byte | 10/10 | 10/10 | 10/10 | 10/10 |
+| Same, with a system prompt that tells the model to rewrite both | 5/5 | 5/5 | 5/5 | 5/5 |
+| Model call to the agent denied, agent receives nothing | yes | yes | yes | yes |
+| Audit finds planted faults | 5/5 | 5/5 | 5/5 | 5/5 |
+| After the test, the model has no memory of the conversation, and reads it from the transcript | yes | yes | yes | yes |
 
-The last row ran on Claude Code 2.1.290 in both Claude Code columns. Data: [plugin](proofs/claude-code/results.json), [project hooks in Claude Code](proofs/hooks-claude-code/results.json), [project hooks in Codex](proofs/hooks-codex/results.json), [evaluation](docs/results.md#p5-the-model-judges-the-record-not-its-memory). Method: [docs/results.md](docs/results.md#1-proofs).
+Data: [plugin in Claude Code](proofs/plugin-claude-code/results.json), [plugin in Codex](proofs/plugin-codex/results.json), [project hooks in Claude Code](proofs/hooks-claude-code/results.json), [project hooks in Codex](proofs/hooks-codex/results.json), [evaluation](docs/results.md#p5-the-model-judges-the-record-not-its-memory). Method: [docs/results.md](docs/results.md#1-proofs).
 
 Under pressure, the mechanism had **0 breaks in 1,000 turns**. The test had 40 scripted conversations in each harness, 5 or 20 turns long. They had refusals, HTTP 500 errors, questions back to the tester and ambiguous messages. Each turn was a new harness call. I registered the design before the first run. Method, data and the one deviation: [docs/results.md](docs/results.md#2-benchmark-under-pressure).
 
@@ -100,7 +100,7 @@ The how-to rows are in the order of the tasks of a test: choose, connect, run, r
 | Tutorial | [Get started](docs/getting-started.md) |
 | How-to: choose | [Choose a relay](docs/how-to/choose-a-relay.md) |
 | How-to: connect your app | [Test your own app](docs/how-to/test-your-app.md), [Connect your agent](docs/how-to/connect-your-agent.md), [HTTP tap](docs/how-to/http-tap.md), [Test a streaming agent](docs/how-to/test-a-streaming-agent.md), [Isolate an Agent SDK session](docs/how-to/isolate-agent-sdk.md), [Add a backend](docs/how-to/add-a-backend.md), [Model calls and OpenTelemetry](docs/how-to/record-model-calls.md) |
-| How-to: run a test | [Claude Code plugin](docs/how-to/claude-code-plugin.md), [Claude Code hook kit](docs/how-to/claude-code-hook-kit.md), [Codex](docs/how-to/codex.md) |
+| How-to: run a test | [Claude Code plugin](docs/how-to/claude-code-plugin.md), [Claude Code project hooks](docs/how-to/claude-code-hook-kit.md), [Codex](docs/how-to/codex.md) |
 | How-to: read the results | [Read the results of a test](docs/how-to/read-the-results.md) |
 | How-to: fix | [Troubleshooting](docs/troubleshooting.md), [Recover a stuck test](docs/how-to/recover-a-stuck-test.md) |
 | How-to: maintain | [Upgrade](docs/how-to/upgrade.md), [Remove](docs/how-to/remove.md), [Run the proofs](docs/how-to/run-the-proofs.md) |

@@ -1,7 +1,8 @@
 {
- "date": "2026-10-07",
+ "date": "2026-10-10",
+ "setup": "hooks-codex",
  "harness": "codex",
- "version": "codex-cli 0.160.0",
+ "version": "codex-cli 0.162.0",
  "transport": "http-stream",
  "agent_streams": "on_request",
  "openai_stream": true,

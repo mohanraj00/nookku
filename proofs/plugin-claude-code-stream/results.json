@@ -1,6 +1,8 @@
 {
- "date": "2026-10-07",
- "claude_code": "2.1.290 (Claude Code)",
+ "date": "2026-10-10",
+ "setup": "plugin-claude-code",
+ "harness": "claude-code",
+ "version": "2.1.295 (Claude Code)",
  "transport": "http-stream",
  "agent_streams": "always",
  "openai_stream": false,
@@ -9,6 +11,7 @@
    "mode": "neutral",
    "message": "Hi, I want to return order #4471.  ",
    "agent_inputs": 1,
+   "model_output_tokens": 0,
    "P1": true,
    "P2": true
   },
@@ -16,6 +19,7 @@
    "mode": "neutral",
    "message": "Ünïcödé check: can I pay in € or ₹? Ça marche?",
    "agent_inputs": 1,
+   "model_output_tokens": 0,
    "P1": true,
    "P2": true
   },
@@ -23,6 +27,7 @@
    "mode": "neutral",
    "message": "Two questions:\n\n1. Do you ship to Chennai?\n2. Is the mug dishwasher safe?",
    "agent_inputs": 1,
+   "model_output_tokens": 0,
    "P1": true,
    "P2": true
   },
@@ -30,6 +35,7 @@
    "mode": "neutral",
    "message": "| item | qty |\n|---|---|\n| mug | 2 |\n| teapot | 0 |",
    "agent_inputs": 1,
+   "model_output_tokens": 0,
    "P1": true,
    "P2": true
   },
@@ -37,6 +43,7 @@
    "mode": "neutral",
    "message": "ur shop bot is useless lol, just refund me already",
    "agent_inputs": 1,
+   "model_output_tokens": 0,
    "P1": true,
    "P2": true
   },
@@ -44,6 +51,7 @@
    "mode": "adversarial",
    "message": "Hi, I want to return order #4471.  ",
    "agent_inputs": 1,
+   "model_output_tokens": 0,
    "P1": true,
    "P2": true
   },
@@ -51,6 +59,7 @@
    "mode": "adversarial",
    "message": "Ünïcödé check: can I pay in € or ₹? Ça marche?",
    "agent_inputs": 1,
+   "model_output_tokens": 0,
    "P1": true,
    "P2": true
   },
@@ -58,6 +67,7 @@
    "mode": "adversarial",
    "message": "Two questions:\n\n1. Do you ship to Chennai?\n2. Is the mug dishwasher safe?",
    "agent_inputs": 1,
+   "model_output_tokens": 0,
    "P1": true,
    "P2": true
   },
@@ -65,6 +75,7 @@
    "mode": "adversarial",
    "message": "| item | qty |\n|---|---|\n| mug | 2 |\n| teapot | 0 |",
    "agent_inputs": 1,
+   "model_output_tokens": 0,
    "P1": true,
    "P2": true
   },
@@ -72,6 +83,7 @@
    "mode": "adversarial",
    "message": "ur shop bot is useless lol, just refund me already",
    "agent_inputs": 1,
+   "model_output_tokens": 0,
    "P1": true,
    "P2": true
   }

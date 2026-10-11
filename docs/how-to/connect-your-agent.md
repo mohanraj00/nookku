@@ -157,7 +157,7 @@ Write the same loop in the language of your app. [examples/toy-shop/agent.py](..
 - `entry` is the command as a list of arguments. It runs in the project root.
 - `models` lists the harnesses that your app uses for its own model sessions: `claude-code`, `codex`, both or none. `nookku check` fails if it does not find a session for each one.
 
-[reference/config.md](../reference/config.md) lists each key. For the hook kit, `nookku init <harness> --entry "<command>"` writes this file and the hooks in one step.
+[reference/config.md](../reference/config.md) lists each key. For the project hooks, `nookku init <harness> --entry "<command>"` writes this file and the hooks in one step.
 
 ## Check the connection
 
