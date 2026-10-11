@@ -263,6 +263,20 @@ def test_init_refuses_a_root_inside_the_state_folder(
     assert f"--root {tmp_path}. Nothing was written." in err
 
 
+def test_init_refuses_a_state_folder_that_is_a_symlink(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    (tmp_path / "store" / "tests" / "t1").mkdir(parents=True)
+    (tmp_path / "shop").mkdir()
+    (tmp_path / "shop" / ".nookku").symlink_to(tmp_path / "store")
+    before = sorted(tmp_path.rglob("*"))
+    assert (
+        main(["init", "codex", "--root", str(tmp_path / "shop" / ".nookku" / "tests" / "t1")]) == 1
+    )
+    assert sorted(tmp_path.rglob("*")) == before
+    assert f"--root {tmp_path / 'shop'}. Nothing was written." in capsys.readouterr().err
+
+
 def test_init_prints_the_absolute_root_first(
     tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -293,6 +307,14 @@ def test_init_warns_if_a_new_root_is_not_the_top_of_its_git_tree(
     assert main(["init", "plugin", "--root", str(root)]) == 0
     err = capsys.readouterr().err
     assert (f"is not the top level of its git work tree, {tmp_path.resolve()}." in err) == warned
+    if warned:
+        # With stderr in the same pipe, the output still starts with the root.
+        (root / ".nookku" / "config.json").unlink()
+        cmd = [sys.executable, "-m", "nookku", "init", "plugin", "--root", str(root)]
+        out = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        lines = out.stdout.splitlines()
+        assert lines[0] == f"Project root: {root}"
+        assert lines[1].startswith("nookku: warning:")
 
 
 def test_init_again_keeps_the_keys_that_have_no_flag(
