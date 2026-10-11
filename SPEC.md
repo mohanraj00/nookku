@@ -776,7 +776,7 @@ The evaluation prompt is `src/nookku/evaluate.md`, with the test id and the test
 
 For example: `department: billing (0.95), confidence 0.93`. An answer with no name shows `(no name)`. If an answer has no confidence, the line has no confidence. If the probabilities of a choice do not have its value, the line has no probability. Each item names its line in `trace.jsonl` as `[trace.jsonl:N]`. A text longer than 2,000 characters shows its start and names its line. Items with `turn: null` come after the last turn.
 
-`nookku transcript --trace --compact` shows a repeated text one time. The config key `transcript_compact` sets the default, and `--no-compact` overrides it. The default output does not change. In compact mode, the second line of the transcript says so, and these rules apply to each text of 200 or more characters:
+`nookku transcript --trace --compact` shows a repeated text one time. The config key `transcript_compact` sets the default, and `--no-compact` overrides it. The default output does not change. In compact mode, a `Compact:` line after the header line says so. These rules apply to each text of 200 or more characters. This bound is a chosen value, not a measurement: a reference holds a SHA-256 of 64 hex characters, so a shorter text gives a small saving ([`COMPACT_MIN`](src/nookku/evaluation.py#L21-L22)). The rules:
 
 - An attribute of an OpenTelemetry span or log shows a reference if a session item of the same turn has the same text in its `output` or `error`.
 - The text of a `user` message, or an attribute of an OpenTelemetry span or log, shows a reference if an earlier item in the transcript showed the same text in full.
