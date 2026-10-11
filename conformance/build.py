@@ -3347,6 +3347,23 @@ GUARD_CASES: dict[str, dict] = {
         "event": bash("uv run --python python3 nookku start"),
         "answer": drives("nookku start"),
     },
+    "shell_env_split_string_starts_a_test": {
+        "event": bash("env -S 'nookku start'"),
+        "answer": drives("nookku start"),
+    },
+    "test_shell_code_after_the_option_end_ends_the_test": {
+        "test": True,
+        "event": bash("sh -c -- 'nookku end'"),
+        "answer": drives("nookku end"),
+    },
+    "shell_python_grouped_module_flag_starts_a_test": {
+        "event": bash("python -Im nookku start"),
+        "answer": drives("nookku start"),
+    },
+    "shell_pipes_a_drive_into_a_shell": {
+        "event": bash("echo 'nookku start' | bash"),
+        "answer": drives("nookku start"),
+    },
     "shell_mode_status": {
         "event": bash("nookku mode status"),
         "answer": None,

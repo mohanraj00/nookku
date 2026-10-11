@@ -56,6 +56,9 @@ IMPORTS = re.compile(
 DRIVE_TEXT = re.compile(
     r"\bnookku\s+(?:-\S+\s+)*(start|end|hook|run|mode\s+(?:on|off|start|end))\b"
 )
+# The same text with no word boundary before nookku, for text that an option holds, for example
+# env -S'nookku start'.
+LAUNCH_TEXT = re.compile(DRIVE_TEXT.pattern.removeprefix(r"\b"))
 IMPORT = "import nookku"
 SHELL_CODE = re.compile(r"-[a-zA-Z]*c[a-zA-Z]*")
 # A word of a text that can name a path in a state folder.
@@ -383,6 +386,42 @@ def _runs(word: str) -> bool:
     return program in ("nookku", "nookku.exe", *SHELLS) or PYTHON.fullmatch(program) is not None
 
 
+def _module(args: list[str]) -> tuple[str, list[str]] | None:
+    """The module of python -m and the words after it, or None. The module can follow -m, be
+    attached as in -mnookku, or follow a group of flags as in -Im."""
+    k = 0
+    while k < len(args) and args[k].startswith("-") and args[k] not in ("-", "--"):
+        word = args[k]
+        k += 1
+        if word.startswith("--"):
+            continue
+        for n, letter in enumerate(word[1:], 2):
+            if letter == "m":
+                if word[n:]:
+                    return word[n:], args[k:]
+                return (args[k], args[k + 1 :]) if k < len(args) else None
+            if letter == "c":
+                return None
+            if letter in "WX":
+                # The value of -W or -X is the rest of the word or the next word.
+                k += 0 if word[n:] else 1
+                break
+    return None
+
+
+def _reads_stdin(words: list[str]) -> bool:
+    """True if a shell or python runs code from its standard input, for example echo ... | sh."""
+    i = next((k for k, w in enumerate(words) if not ASSIGNMENT.match(w)), len(words))
+    if i < len(words) and _program(words[i]) in LAUNCHERS | {"uv", "pipx"}:
+        i = next((j for j in range(i + 1, len(words)) if _runs(words[j])), len(words))
+    if i >= len(words):
+        return False
+    program, args = _program(words[i]), words[i + 1 :]
+    if program in SHELLS:
+        return all(a.startswith("-") and not SHELL_CODE.fullmatch(a) for a in args)
+    return PYTHON.fullmatch(program) is not None and all(a.startswith("-") for a in args)
+
+
 def _drive_part(words: list[str], allowed: frozenset[str]) -> str | None:
     i = 0
     while i < len(words) and ASSIGNMENT.match(words[i]):
@@ -392,28 +431,39 @@ def _drive_part(words: list[str], allowed: frozenset[str]) -> str | None:
         or (_program(words[i]) in ("uv", "pipx") and words[i + 1 : i + 2] == ["run"])
     ):
         # A launcher option can take a value, for example uv run --python python3. The rule reads
-        # each later word that runs a program, and gives the first drive that it finds.
+        # each later word that runs a program, and gives the first drive that it finds. An option
+        # can also hold a command, for example env -S 'nookku start', so the rule also reads the
+        # text of the words.
         starts = (j for j in range(i + 1, len(words)) if _runs(words[j]))
-        return next((f for j in starts if (f := _drive_part(words[j:], allowed))), None)
+        found = next((f for j in starts if (f := _drive_part(words[j:], allowed))), None)
+        return found or _drive_text(" ".join(words[i + 1 :]), allowed, LAUNCH_TEXT)
     if i >= len(words):
         return None
     program = _program(words[i])
-    found: str | None = None
+    found = None
     if program in ("nookku", "nookku.exe"):
         found = _subcommand(words[i + 1 :])
-    elif PYTHON.fullmatch(program) and "-m" in words[i + 1 :]:
-        k = words.index("-m", i + 1)
-        module = words[k + 1] if k + 1 < len(words) else ""
+    elif PYTHON.fullmatch(program) and (run := _module(words[i + 1 :])) is not None:
+        module, rest = run
         if module == "nookku":
-            found = _subcommand(words[k + 2 :])
+            found = _subcommand(rest)
         elif module.startswith("nookku."):
             found = IMPORT
     elif program in SHELLS:
-        # The code of sh -c, bash -lc and the like.
+        # The code of sh -c, bash -lc and the like. The code can follow --, so the rule reads
+        # each word after the flag.
         flags = [k for k in range(i + 1, len(words)) if SHELL_CODE.fullmatch(words[k])]
-        if flags and flags[0] + 1 < len(words):
-            found = drive(words[flags[0] + 1], allowed)
+        later = words[flags[0] + 1 :] if flags else []
+        found = next((f for w in later if (f := drive(w, allowed))), None)
     return found if found not in allowed else None
+
+
+def _drive_text(text: str, allowed: frozenset[str], pattern: re.Pattern[str]) -> str | None:
+    for m in pattern.finditer(text):
+        what = "nookku " + " ".join(m.group(1).split())
+        if what not in allowed:
+            return what
+    return None
 
 
 def drive(command: str, allowed: frozenset[str] = frozenset()) -> str | None:
@@ -429,15 +479,15 @@ def drive(command: str, allowed: frozenset[str] = frozenset()) -> str | None:
     toks = tokens(stripped)
     parts = _parts(toks) if toks is not None else None
     if parts is None:
-        for m in DRIVE_TEXT.finditer(stripped):
-            what = "nookku " + " ".join(m.group(1).split())
-            if what not in allowed:
-                return what
+        found = _drive_text(stripped, allowed, DRIVE_TEXT)
     else:
-        for words in parts:
-            found = _drive_part(words, allowed)
-            if found is not None:
-                return found
+        found = next((f for words in parts if (f := _drive_part(words, allowed))), None)
+        # A shell or python that reads its standard input runs the text of the command before
+        # it, for example echo 'nookku start' | sh.
+        if found is None and any(_reads_stdin(words) for words in parts):
+            found = _drive_text(stripped, allowed, LAUNCH_TEXT)
+    if found is not None:
+        return found
     if IMPORTS.search(stripped) and not reads_only(command):
         return IMPORT
     return None
