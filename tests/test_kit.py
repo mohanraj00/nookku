@@ -189,7 +189,17 @@ def test_remove_changes_nothing_in_a_file_with_no_hook_of_nookku(tmp_path, text)
     assert (target.read_text() if target.exists() else None) == text
 
 
-@pytest.mark.parametrize("text", ["{", "[]", '{"hooks": []}', '{"hooks": {"Stop": {}}}'])
+@pytest.mark.parametrize(
+    "text",
+    [
+        "{",
+        "[]",
+        '{"hooks": []}',
+        '{"hooks": {"Stop": {}}}',
+        '{"hooks": {"Stop": ["wrong"], "PreToolUse": [{"hooks": [{"command": "nookku hook"}]}]}}',
+        '{"hooks": {"PreToolUse": [{"hooks": [{"command": "nookku hook"}, "wrong"]}]}}',
+    ],
+)
 def test_remove_changes_nothing_in_a_file_that_it_cannot_read(tmp_path, text):
     target = tmp_path / ".claude" / "settings.local.json"
     target.parent.mkdir()
