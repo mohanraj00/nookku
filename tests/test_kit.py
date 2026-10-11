@@ -189,12 +189,29 @@ def test_remove_changes_nothing_in_a_file_with_no_hook_of_nookku(tmp_path, text)
     assert (target.read_text() if target.exists() else None) == text
 
 
+def test_remove_keeps_the_file_if_the_write_fails(tmp_path, monkeypatch):
+    kit.init(tmp_path, "codex", {})
+    target = tmp_path / ".codex" / "hooks.json"
+    text = target.read_text()
+
+    def full(self, data, encoding=None):
+        raise OSError(28, "No space left on device")
+
+    monkeypatch.setattr(Path, "write_text", full)
+    with pytest.raises(ValueError, match="cannot write"):
+        kit.remove(tmp_path, "codex")
+    monkeypatch.undo()
+    assert target.read_text() == text
+    assert not (tmp_path / ".codex" / "hooks.json.tmp").exists()
+
+
 @pytest.mark.parametrize(
     "text",
     [
         "{",
         "[]",
         '{"hooks": []}',
+        '{"hooks": null}',
         '{"hooks": {"Stop": {}}}',
         '{"hooks": {"Stop": ["wrong"], "PreToolUse": [{"hooks": [{"command": "nookku hook"}]}]}}',
         '{"hooks": {"PreToolUse": [{"hooks": [{"command": "nookku hook"}, "wrong"]}]}}',

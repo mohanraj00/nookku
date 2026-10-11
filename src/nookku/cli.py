@@ -92,7 +92,7 @@ def _remove_hooks(root: Path, harness: str) -> int:
         # A test or relay mode can start while the file changes. Then put the hooks back.
         refuse = _relay_on(root)
         if refuse is not None and done.count:
-            done.path.write_text(done.before, encoding="utf-8")
+            kit.replace_text(done.path, done.before)
     if refuse is not None:
         print(f"nookku: {refuse}. Nothing was changed.", file=sys.stderr)
         return 1

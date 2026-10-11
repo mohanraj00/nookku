@@ -739,9 +739,9 @@ def _remove_hooks(settings: dict[str, Any]) -> int:
     """Remove each hook of nookku from the settings, and return the count. Remove a group and
     an event that the removal makes empty, and then an empty hooks key. Keep each other hook and
     key. Raise ValueError if the hooks have a wrong form."""
-    hooks = settings.get("hooks")
-    if hooks is None:
+    if "hooks" not in settings:
         return 0
+    hooks = settings["hooks"]
     if not isinstance(hooks, dict):
         raise ValueError("'hooks' is not a JSON object")
     removed = 0
@@ -801,8 +801,21 @@ def remove(root: Path, harness: str) -> Removed:
             f"cannot read {target}: {e}. Correct the file, then run init --remove again"
         ) from None
     if count:
-        target.write_text(json.dumps(settings, indent=1) + "\n", encoding="utf-8")
+        try:
+            replace_text(target, json.dumps(settings, indent=1) + "\n")
+        except OSError as e:
+            raise ValueError(f"cannot write {target}: {e}") from None
     return Removed(target, count, before)
+
+
+def replace_text(path: Path, text: str) -> None:
+    """Write a new file and replace the old one, so a failed write leaves the old file whole."""
+    tmp = path.with_name(path.name + ".tmp")
+    try:
+        tmp.write_text(text, encoding="utf-8")
+        tmp.replace(path)
+    finally:
+        tmp.unlink(missing_ok=True)
 
 
 def hook_file(root: Path, harness: str) -> Path | None:
