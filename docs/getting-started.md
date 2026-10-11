@@ -68,6 +68,7 @@ nookku init claude-code --entry "python3 agent.py"
 ```
 
 ```text
+Project root: .../toy-shop
 wrote .../toy-shop/.nookku/config.json
   A new file. Keys that differ from the default: entry.
 wrote .../toy-shop/.claude/settings.local.json
@@ -75,7 +76,7 @@ Relay mode is off. Switch it with: nookku mode on
 Do not also enable the nookku Claude Code plugin in this project, or each message is sent two times.
 ```
 
-`config.json` holds the [entry](reference/glossary.md#entry): the command that the [tap](reference/glossary.md#tap) starts for each test. `settings.local.json` holds two hooks. The `UserPromptSubmit` hook takes each prompt before the model sees it. The `PreToolUse` hook denies a model tool call that names the agent or changes a file of the test.
+`init` prints the absolute paths. Here `...` stands for the folders above `toy-shop`. `config.json` holds the [entry](reference/glossary.md#entry): the command that the [tap](reference/glossary.md#tap) starts for each test. `settings.local.json` holds two hooks. The `UserPromptSubmit` hook takes each prompt before the model sees it. The `PreToolUse` hook denies a model tool call that names the agent or changes a file of the test.
 
 Check the connection with one message:
 

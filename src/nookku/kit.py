@@ -18,8 +18,8 @@ from urllib.parse import urlsplit
 from nookku import commands, policy, seal, state
 from nookku.adapters import AdapterError, History, StreamError, is_stream, make
 from nookku.config import FILE as CONFIG_FILE
+from nookku.config import OLD_STATE_DIR, check, move_old_state, read_config
 from nookku.config import Config as Config
-from nookku.config import check, move_old_state, read_config
 from nookku.record import (
     RecordError,
     Turn,
@@ -757,13 +757,57 @@ class Installed:
     kept: list[str]
 
 
+def _test_project(folder: Path) -> str | None:
+    """The project root of a test folder, from its manifest.json, or None if the folder is not
+    a test folder of nookku. A copied test folder also has its manifest."""
+    try:
+        data = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(data, dict) or not isinstance(data.get("versions"), dict):
+        return None
+    ours = "nookku" in data["versions"] or "verbatim-relay" in data["versions"]
+    return str(data.get("root", "")) if ours and isinstance(data.get("test"), str) else None
+
+
+def state_root_error(root: Path, harness: str) -> str | None:
+    """The error of init if root is in a state folder or a test folder, else None (#148). A
+    state folder matches by its name, in any case, because the file system of macOS and Windows
+    ignores case, or by its marker file, for the target of a symlink. A test folder matches by
+    its manifest."""
+    names = (STATE_DIR.casefold(), OLD_STATE_DIR.casefold())
+    for folder in (root, *root.parents):
+        if folder.name.casefold() in names:
+            return (
+                f"the root {root} is inside the state folder {folder}. Run init in the "
+                f"project: nookku init {harness} --root {folder.parent}"
+            )
+        if (folder / state.MARKER).is_file():
+            return (
+                f"the root {root} is inside the state folder {folder}. Run init in the "
+                "project that holds this state folder"
+            )
+        project = _test_project(folder)
+        if project is not None:
+            where = f": nookku init {harness} --root {project}" if project else ""
+            return (
+                f"the root {root} is inside the test folder {folder}. Run init in the "
+                f"project{where}"
+            )
+    return None
+
+
 def init(root: Path, harness: str, changes: dict[str, Any]) -> Installed:
     """Write the config, the mode file and the harness hook file. For the plugin, write no hook
     file, because the plugin has the hooks.
 
     An existing config.json keeps each key, and only the keys in `changes` get a new value. A new
     config.json gets each key with its default, then `changes`. If an existing file cannot be
-    read, or if a key is unknown, raise ValueError before a write."""
+    read, if a key is unknown, or if root is inside a state folder, raise ValueError before a
+    write (#148)."""
+    error = state_root_error(root, harness)
+    if error is not None:
+        raise ValueError(error)
     conf = root / CONFIG_FILE
     new = not conf.exists()
     old = asdict(Config()) if new else read_config(root)
@@ -781,6 +825,7 @@ def init(root: Path, harness: str, changes: dict[str, Any]) -> Installed:
             f"cannot read {target}: {e}. Correct the file, then run init again."
         ) from None
     conf.parent.mkdir(parents=True, exist_ok=True)
+    state.mark(conf.parent)
     conf.write_text(json.dumps(merged, indent=1) + "\n", encoding="utf-8")
     if not mode_path(root).exists():
         set_mode(root, False)

@@ -1,10 +1,11 @@
 import json
+import subprocess
 import sys
 from pathlib import Path
 
 import pytest
 
-from nookku import __version__, bridge, kit
+from nookku import __version__, bridge, kit, state
 from nookku.cli import main
 from nookku.kit import LEGEND
 from nookku.record import Writer
@@ -242,6 +243,146 @@ def test_init_takes_the_openai_stream_flag(tmp_path: Path) -> None:
     assert (conf["adapter"], conf["openai_stream"]) == ("openai", True)
 
 
+@pytest.mark.parametrize(
+    "inside", [".nookku/tests/t1", ".nookku", ".NOOKKU/tests/t1", ".verbatim-relay"]
+)
+@pytest.mark.parametrize("harness", ["claude-code", "codex", "plugin"])
+def test_init_refuses_a_root_inside_the_state_folder(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], inside: str, harness: str
+) -> None:
+    root = tmp_path / inside
+    root.mkdir(parents=True)
+    # A folder of the old name in the root must not move (#148).
+    (root / ".verbatim-relay").mkdir()
+    (root / ".verbatim-relay" / "config.json").write_text('{"record": ".verbatim-relay/r.jsonl"}')
+    before = {p: p.read_bytes() if p.is_file() else None for p in tmp_path.rglob("*")}
+    assert main(["init", harness, "--root", str(root)]) == 1
+    assert {p: p.read_bytes() if p.is_file() else None for p in tmp_path.rglob("*")} == before
+    err = capsys.readouterr().err
+    folder = tmp_path / inside.split("/")[0]
+    assert f"is inside the state folder {folder}." in err
+    assert f"--root {tmp_path}. Nothing was written." in err
+
+
+def test_init_refuses_a_state_folder_that_is_a_symlink(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    (tmp_path / "store" / "tests" / "t1").mkdir(parents=True)
+    (tmp_path / "shop").mkdir()
+    (tmp_path / "shop" / ".nookku").symlink_to(tmp_path / "store")
+    before = sorted(tmp_path.rglob("*"))
+    assert (
+        main(["init", "codex", "--root", str(tmp_path / "shop" / ".nookku" / "tests" / "t1")]) == 1
+    )
+    assert sorted(tmp_path.rglob("*")) == before
+    assert f"--root {tmp_path / 'shop'}. Nothing was written." in capsys.readouterr().err
+
+
+def test_init_refuses_the_target_of_a_symlinked_state_folder(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (tmp_path / "shop").mkdir()
+    assert main(["init", "codex", "--root", str(tmp_path / "shop")]) == 0
+    (tmp_path / "shop" / ".nookku").rename(tmp_path / "store")
+    (tmp_path / "shop" / ".nookku").symlink_to(tmp_path / "store")
+    (tmp_path / "store" / "tests" / "t1").mkdir(parents=True)
+    capsys.readouterr()
+    before = sorted(tmp_path.rglob("*"))
+    assert main(["init", "codex", "--root", str(tmp_path / "store" / "tests" / "t1")]) == 1
+    monkeypatch.chdir(tmp_path / "store" / "tests" / "t1")
+    assert main(["init", "codex", "--root", "."]) == 1
+    assert sorted(tmp_path.rglob("*")) == before
+    assert f"is inside the state folder {tmp_path / 'store'}." in capsys.readouterr().err
+
+
+def test_init_refuses_a_copied_test_folder(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    copy = tmp_path / "backup" / "t1"
+    copy.mkdir(parents=True)
+    manifest = {"test": "t1", "root": "/home/me/shop", "versions": {"nookku": "0.4.0"}}
+    (copy / "manifest.json").write_text(json.dumps(manifest))
+    before = sorted(tmp_path.rglob("*"))
+    assert main(["init", "codex", "--root", str(copy)]) == 1
+    assert sorted(tmp_path.rglob("*")) == before
+    err = capsys.readouterr().err
+    assert f"is inside the test folder {copy}." in err
+    assert "--root /home/me/shop. Nothing was written." in err
+
+
+@pytest.mark.parametrize(
+    "files",
+    [
+        {"mode": "on", "config.json": "{}"},
+        {"mode": "off", "tests/x": ""},
+        {"manifest.json": '{"name": "Toy shop", "start_url": "/"}'},
+        {"manifest.json": '{"test": "t1", "versions": {"shop": "1.0"}}'},
+    ],
+    ids=["mode-and-config", "mode-and-tests", "web-manifest", "other-versions"],
+)
+def test_init_accepts_an_app_folder_with_similar_files(
+    tmp_path: Path, files: dict[str, str]
+) -> None:
+    for name, text in files.items():
+        (tmp_path / name).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / name).write_text(text)
+    assert main(["init", "plugin", "--root", str(tmp_path / "app")]) == 0
+
+
+def test_init_marks_the_state_folder(tmp_path: Path) -> None:
+    assert main(["init", "plugin", "--root", str(tmp_path)]) == 0
+    marker = tmp_path / ".nookku" / "nookku-state"
+    assert marker.read_text() == state.MARKER_TEXT
+
+
+def test_init_prints_the_root_before_the_move_of_the_old_folder(tmp_path: Path) -> None:
+    (tmp_path / ".verbatim-relay").mkdir()
+    cmd = [sys.executable, "-m", "nookku", "init", "plugin", "--root", str(tmp_path)]
+    out = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    lines = out.stdout.splitlines()
+    assert lines[0] == f"Project root: {tmp_path.resolve()}"
+    assert lines[1].startswith("nookku: moved ")
+    assert lines.count(lines[0]) == 1
+
+
+def test_init_prints_the_absolute_root_first(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    assert main(["init", "codex", "--root", "."]) == 0
+    out = capsys.readouterr().out.splitlines()
+    assert out[:2] == [
+        f"Project root: {tmp_path.resolve()}",
+        f"wrote {tmp_path.resolve() / '.nookku' / 'config.json'}",
+    ]
+    assert f"wrote {tmp_path.resolve() / '.codex' / 'hooks.json'}" in out
+
+
+@pytest.mark.parametrize(
+    ("sub", "config", "warned"), [("shop", False, True), ("", False, False), ("shop", True, False)]
+)
+def test_init_warns_if_a_new_root_is_not_the_top_of_its_git_tree(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], sub: str, config: bool, warned: bool
+) -> None:
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    root = (tmp_path / sub).resolve()
+    root.mkdir(exist_ok=True)
+    if config:
+        assert main(["init", "plugin", "--root", str(root)]) == 0
+        capsys.readouterr()
+    assert main(["init", "plugin", "--root", str(root)]) == 0
+    err = capsys.readouterr().err
+    assert (f"is not the top level of its git work tree, {tmp_path.resolve()}." in err) == warned
+    if warned:
+        # With stderr in the same pipe, the output still starts with the root.
+        (root / ".nookku" / "config.json").unlink()
+        cmd = [sys.executable, "-m", "nookku", "init", "plugin", "--root", str(root)]
+        out = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        lines = out.stdout.splitlines()
+        assert lines[0] == f"Project root: {root}"
+        assert lines[1].startswith("nookku: warning:")
+
+
 def test_init_again_keeps_the_keys_that_have_no_flag(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -358,7 +499,10 @@ def test_init_start_and_end_a_test(tmp_path: Path, capsys: pytest.CaptureFixture
     assert conf["entry"] == [sys.executable, str(TOY_SHOP)]
     assert conf["models"] == ["codex"] and conf["openai_stream"] is False
     capsys.readouterr()
+    # A state folder of an older version has no marker. The start writes it.
+    (tmp_path / ".nookku" / state.MARKER).unlink()
     assert main(["start", "--root", str(tmp_path), "--json"]) == 0
+    assert (tmp_path / ".nookku" / state.MARKER).is_file()
     started = json.loads(capsys.readouterr().out)
     assert main(["status", "--root", str(tmp_path), "--json"]) == 0
     status = json.loads(capsys.readouterr().out)

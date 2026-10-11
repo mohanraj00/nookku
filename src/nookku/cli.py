@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shlex
 import sys
 from collections.abc import Sequence
@@ -29,6 +30,24 @@ def _listen(value: str) -> tuple[str, int]:
     if not host or not port.isdigit():
         raise argparse.ArgumentTypeError("use HOST:PORT, for example 127.0.0.1:8800")
     return host.strip("[]"), int(port)
+
+
+def _git_top(root: Path) -> Path | None:
+    """The top level of the git work tree of root, or None if root is not in one."""
+    import subprocess  # only init needs it, and a hook event imports this module
+
+    try:
+        out = subprocess.run(
+            ["git", "-C", str(root), "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return (
+        Path(out.stdout.strip()).resolve() if out.returncode == 0 and out.stdout.strip() else None
+    )
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -174,6 +193,18 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         # The default root also gets the move of the old state folder below.
         args.root = project_root()
+    if args.command == "init":
+        # Check before the move of the old state folder, which can change a test folder. Check
+        # the path as given too, because resolve() removes a state folder that is a symlink.
+        error = kit.state_root_error(
+            Path(os.path.abspath(args.root)), args.harness
+        ) or kit.state_root_error(args.root.resolve(), args.harness)
+        if error:
+            print(f"nookku: {error}. Nothing was written.", file=sys.stderr)
+            return 1
+        # The root comes first, before a message of the move below, also in output with stderr
+        # in the same pipe.
+        print(f"Project root: {args.root.resolve()}", flush=True)
     if isinstance(getattr(args, "root", None), Path):
         error = move_old_state(args.root.resolve())
         if error:
@@ -234,6 +265,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         except ValueError as e:
             print(f"nookku: {str(e).rstrip('.')}. Nothing was written.", file=sys.stderr)
             return 1
+        top = _git_top(root) if done.new else None
+        if top is not None and top != root:
+            print(
+                f"nookku: warning: {root} is not the top level of its git work tree, {top}. "
+                f"If {top} is the project, run: nookku init {args.harness} --root {top}",
+                file=sys.stderr,
+                flush=True,
+            )
         conf, *hooks = done.written
         print(f"wrote {conf}")
         if done.new:

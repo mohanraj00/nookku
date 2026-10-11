@@ -35,6 +35,7 @@ from nookku.state import has_entry as has_entry
 from nookku.state import history as history
 from nookku.state import is_bridge as is_bridge
 from nookku.state import latest_test as latest_test
+from nookku.state import mark as _mark
 from nookku.state import process_start as process_start
 from nookku.state import send as send
 from nookku.state import state as state
@@ -127,6 +128,7 @@ def start(root: Path, tester_session: str | None = None, wait: float = 30.0) -> 
     test = f"{stamp}-{secrets.token_hex(2)}"
     folder = state(root) / "tests" / test
     folder.mkdir(parents=True)
+    _mark(state(root))
     # The bridge puts the result in the manifest, and removes this file.
     _write_json(folder / GATE_FILE, gate)
     argv = [sys.executable, "-m", "nookku", "bridge", "--root", str(root), "--test", test]

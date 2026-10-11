@@ -112,6 +112,7 @@ nookku init claude-code
 ```
 
 ```text
+Project root: .../toy-shop
 wrote .../toy-shop/.nookku/config.json
   Keys changed: none. Keys kept: entry, models.
 wrote .../toy-shop/.claude/settings.local.json

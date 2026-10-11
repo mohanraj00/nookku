@@ -25,6 +25,19 @@ def state(root: Path) -> Path:
     return root / STATE_DIR
 
 
+# A file that marks a state folder, also when a symlink with another name points to it. init
+# refuses a root in a marked folder (#148). No app has a file with this name.
+MARKER = "nookku-state"
+MARKER_TEXT = "This folder is the state folder of nookku. Do not run nookku init in it.\n"
+
+
+def mark(folder: Path) -> None:
+    """Write the marker of a state folder, if it does not exist."""
+    path = folder / MARKER
+    if not path.exists():
+        path.write_text(MARKER_TEXT, encoding="utf-8")
+
+
 def has_entry(root: Path) -> bool:
     """True if config.json has a list `entry` with at least one item. The plugin's `hasEntry`
     uses the same rule. A file with an entry and an error still has an entry, so that `start`
