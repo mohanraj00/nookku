@@ -78,7 +78,7 @@ def test_a_deny_during_a_test_names_the_file(
 
 @pytest.fixture
 def keys(monkeypatch: pytest.MonkeyPatch) -> None:
-    """One key for the tests. 0.4.0 defines no key (SPEC.md section 7.9)."""
+    """One key for the tests, in place of the real keys (SPEC.md section 7.9)."""
 
     def parse(text: str) -> str:
         if text not in ("person", "model"):
@@ -127,11 +127,19 @@ def test_policy_set_refuses_a_bad_key_or_value(
     assert not (tmp_path / STATE / "policy.json").exists()
 
 
-def test_with_no_keys_policy_set_names_none(
+def test_policy_set_names_the_known_keys(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     assert main(["policy", "--root", str(tmp_path), "set", "scripts", "model"]) == 1
-    assert "The keys are: none." in capsys.readouterr().err
+    assert "The keys are: guard_fields." in capsys.readouterr().err
+
+
+def test_guard_fields_takes_names_separated_by_commas(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert main(["policy", "--root", str(tmp_path), "set", "guard_fields", "path, url"]) == 0
+    assert json.loads(capsys.readouterr().out) == {"guard_fields": ["path", "url"]}
+    assert main(["policy", "--root", str(tmp_path), "set", "guard_fields", "path,,url"]) == 1
 
 
 def test_start_reads_the_policy_for_the_manifest(tmp_path: Path, keys: None) -> None:

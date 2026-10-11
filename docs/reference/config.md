@@ -70,7 +70,11 @@ The policy file holds the keys that control the guard. The model can change `con
 - If the file does not exist, each key has its default. Each default is the strict value.
 - The manifest of each test records the SHA-256 of the file and the value of each key.
 
-In 0.4.0, the file has no keys yet. Each guard rule that a person can change adds its key here.
+| Key | Type | Default | Meaning |
+|---|---|---|---|
+| `guard_fields` | list of strings | `path`, `file_path`, `url`, `uri`, `command` | The fields of a tool input that the guard reads, for a tool that is not a shell or a file tool, for example an MCP tool. The other fields are free text. Set it with `nookku policy set guard_fields path,url,command`. |
+
+Each guard rule that a person can change adds its key here.
 
 ## Plugin options
 

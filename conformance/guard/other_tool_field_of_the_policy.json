@@ -1,0 +1,22 @@
+{
+ "answer": {
+  "hookSpecificOutput": {
+   "hookEventName": "PreToolUse",
+   "permissionDecision": "deny",
+   "permissionDecisionReason": "nookku: .nookku/mode is a record or a state file of nookku. Only nookku writes it. A command may read it."
+  }
+ },
+ "event": {
+  "cwd": "{root}",
+  "hook_event_name": "PreToolUse",
+  "tool_input": {
+   "path": ".nookku/mode",
+   "target": ".nookku/mode"
+  },
+  "tool_name": "mcp__files__copy"
+ },
+ "links": {},
+ "policy_text": "{\"guard_fields\": [\"target\"]}\n",
+ "state": true,
+ "test": false
+}

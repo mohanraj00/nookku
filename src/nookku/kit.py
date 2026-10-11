@@ -282,23 +282,30 @@ def handle(event: dict[str, Any], root: Path, harness: str) -> dict[str, Any] | 
         tool = str(event.get("tool_name", ""))
         tool_input = event.get("tool_input", event)
         text = json.dumps(tool_input, ensure_ascii=False)
+        # The blocked_call row keeps the whole input. The checks of a tool that is not a shell or
+        # a file tool read only the fields of guard_fields (SPEC.md section 5).
+        full = text
+        fields = _guard_fields(root) if _other_tool(tool) else None
+        if fields is not None:
+            tool_input = guarded(tool_input, fields)
+            text = json.dumps(tool_input, ensure_ascii=False)
         cur = state.current(root)
         if touches_policy(event, root, tool, tool_input, text):
             record = Path(cur["dir"]) / "relay.jsonl" if cur else _last_record(root)
-            return _deny(record, harness, tool, text, policy.REASON)
+            return _deny(record, harness, tool, full, policy.REASON)
         # These denies need only the state folder, so a broken config does not stop them.
         name = state_write(event, root, tool, tool_input, cur is not None)
         if name is not None and cur is not None:
             reason = TEST_REASON.format(name=name)
-            return _deny(Path(cur["dir"]) / "relay.jsonl", harness, tool, text, reason)
+            return _deny(Path(cur["dir"]) / "relay.jsonl", harness, tool, full, reason)
         if name is not None:
             reason = RECORDS_REASON.format(name=name)
-            return _deny(_last_record(root), harness, tool, text, reason)
+            return _deny(_last_record(root), harness, tool, full, reason)
         if tool in FILE_TOOLS:
             return None
         reads = commands.tool_reads_only(tool, tool_input)
         if cur is not None and not reads and _names_entry(_test_entry(cur), text, tool, tool_input):
-            return _deny(Path(cur["dir"]) / "relay.jsonl", harness, tool, text, ENTRY_REASON)
+            return _deny(Path(cur["dir"]) / "relay.jsonl", harness, tool, full, ENTRY_REASON)
         try:
             loaded: Config | None = Config.load(root)
         except (OSError, ValueError, TypeError):
@@ -309,16 +316,50 @@ def handle(event: dict[str, Any], root: Path, harness: str) -> dict[str, Any] | 
             and not reads
             and _names_entry(loaded.entry, text, tool, tool_input)
         ):
-            return _deny(Path(cur["dir"]) / "relay.jsonl", harness, tool, text, ENTRY_REASON)
+            return _deny(Path(cur["dir"]) / "relay.jsonl", harness, tool, full, ENTRY_REASON)
         urls = [loaded.tap_url, loaded.agent_url] if loaded else []
         pattern = deny_pattern([*urls, cur["tap_url"] if cur else ""])
         if pattern is None or not pattern.search(text):
             return None
         if cur is not None:
-            return _deny(Path(cur["dir"]) / "relay.jsonl", harness, tool, text)
+            return _deny(Path(cur["dir"]) / "relay.jsonl", harness, tool, full)
         if loaded is not None:
-            return _deny(loaded.record_path(root), harness, tool, text)
+            return _deny(loaded.record_path(root), harness, tool, full)
     return None
+
+
+# Tools that are a shell in all but name. Their whole input is a command, so each field counts.
+SESSION_TOOLS = {"write_stdin"}
+
+
+def _other_tool(tool: str) -> bool:
+    """True for a tool that is not a shell or a file tool, for example an MCP tool."""
+    return tool not in FILE_TOOLS and tool not in commands.SHELL_TOOLS and tool not in SESSION_TOOLS
+
+
+def _guard_fields(root: Path) -> list[str] | None:
+    """The guard_fields policy key, or None if the policy file is not valid. Then each field
+    counts, so a broken file does not weaken the guard."""
+    try:
+        fields: list[str] = policy.read(root)["guard_fields"]
+    except policy.PolicyError:
+        return None
+    return fields
+
+
+def guarded(value: Any, fields: list[str]) -> list[Any]:
+    """The value of each key in `fields`, at each depth of a tool input."""
+    out: list[Any] = []
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if key in fields:
+                out.append(item)
+            else:
+                out += guarded(item, fields)
+    elif isinstance(value, list):
+        for item in value:
+            out += guarded(item, fields)
+    return out
 
 
 def touches_policy(event: Any, root: Path, tool: str, tool_input: Any, text: str) -> bool:
@@ -467,9 +508,13 @@ def _policy_write(event: Any, root: Path) -> bool:
     if not isinstance(event, dict) or event.get("hook_event_name") != "PreToolUse":
         return False
     try:
+        tool = str(event.get("tool_name", ""))
         tool_input = event.get("tool_input", event)
+        # With no state folder, no policy file exists, so the default guard fields apply.
+        if _other_tool(tool):
+            tool_input = guarded(tool_input, policy.KEYS["guard_fields"].default)
         text = json.dumps(tool_input, ensure_ascii=False)
-        return touches_policy(event, root, str(event.get("tool_name", "")), tool_input, text)
+        return touches_policy(event, root, tool, tool_input, text)
     except Exception:  # fail closed
         return True
 
