@@ -67,7 +67,7 @@ WRITES = [
     f"command rm {F}/relay.jsonl",
     f"echo $(date) {F}",
     f'echo "`date`" {F}',
-    f"echo $((1 + 2))",
+    "echo $((1 + 2))",
 ]
 
 

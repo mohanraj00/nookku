@@ -298,12 +298,12 @@ def handle(event: dict[str, Any], root: Path, harness: str) -> dict[str, Any] | 
             record = Path(cur["dir"]) / "relay.jsonl" if cur else _last_record(root)
             return _deny(record, harness, tool, full, policy.REASON)
         # These denies need only the state folder, so a broken config does not stop them.
-        found = state_write(event, root, tool, tool_input, cur is not None, extra)
-        if found is not None and cur is not None:
-            reason = TEST_REASON.format(name=found[0])
+        written = state_write(event, root, tool, tool_input, cur is not None, extra)
+        if written is not None and cur is not None:
+            reason = TEST_REASON.format(name=written[0])
             return _deny(Path(cur["dir"]) / "relay.jsonl", harness, tool, full, reason)
-        if found is not None:
-            name, cause = found
+        if written is not None:
+            name, cause = written
             reason = RECORDS_REASON.format(name=name) + (f" {cause}" if cause else "")
             return _deny(_last_record(root), harness, tool, full, reason)
         if tool in FILE_TOOLS:
@@ -434,7 +434,8 @@ def state_write(
 ) -> tuple[str, str] | None:
     """The protected path of the state folder that a model tool call can write, with the cause for
     the deny reason, or None (SPEC.md section 5). The cause is "" during a test and for a call
-    that is not a shell command. During a test, a call except a file read may not name the state folder at all.
+    that is not a shell command. During a test, a call except a file read may not name the state
+    folder at all.
 
     The rule checks paths, not text. A file tool has its target path. A shell command has the
     words that it can write (commands.write_targets), without the bodies of its here-documents
