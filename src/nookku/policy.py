@@ -85,6 +85,12 @@ def _is_programs(value: Any) -> bool:
     )
 
 
+def _distance(text: str) -> int:
+    if not text.strip().isdigit():
+        raise ValueError("give a whole number, 0 or more, for example 2")
+    return int(text)
+
+
 def _who(text: str) -> str:
     if text not in ("person", "model"):
         raise ValueError("give person or model")
@@ -117,6 +123,15 @@ KEYS: dict[str, Key] = {
         _who,
         lambda v: v in ("person", "model"),
         "who runs nookku run --script: person or model",
+    ),
+    # The edit distance at which relay mode refuses a message near a control prompt (#146). The
+    # value 0 turns off the rule.
+    "control_distance": Key(
+        2,
+        _distance,
+        lambda v: isinstance(v, int) and not isinstance(v, bool) and v >= 0,
+        "the edit distance at which relay mode refuses a message near a control prompt; 0 "
+        "turns off the rule",
     ),
 }
 

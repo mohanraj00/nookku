@@ -122,6 +122,12 @@ If the entry returns an error, crashes or does not answer in [240 seconds](../sr
 
 **Fix.** Start a test. Or switch relay mode off: `nookku mode off` with the project hooks.
 
+### `nookku: nothing was sent. The message is near a control prompt. The control prompts are: nookku start, nookku end, nookku status.`
+
+(kit.py) **Cause.** Relay mode is on, and the message looks like a control prompt but is not exact. For example, `nookku stop`, `Nookku start`, `nookku  end` (2 spaces) or `nookk end`. The relay did not send the message and wrote no turn, so the agent did not get it ([SPEC.md section 5](../SPEC.md#5-relays)).
+
+**Fix.** Type the exact control prompt, for example `nookku end`. If a real test message gets this refusal, lower the policy key `control_distance` with `nookku policy set control_distance 1`, or turn off the rule with `nookku policy set control_distance 0` ([config.md](reference/config.md)).
+
 ### `nookku: nothing was sent. The message has a lone surrogate U+<hex> at character <n>.`
 
 (kit.py) **Cause.** The message has a lone surrogate: one half of a UTF-16 pair. It is not a Unicode scalar value, so a record cannot hold it ([SPEC.md section 2](../SPEC.md#2-record-format)). The relay never changes a message, so it does not send it. It writes no turn, and the message does not go to the model. `<n>` counts code points from 0.

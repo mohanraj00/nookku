@@ -131,7 +131,10 @@ def test_policy_set_names_the_known_keys(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     assert main(["policy", "--root", str(tmp_path), "set", "players", "model"]) == 1
-    assert "The keys are: guard_fields, guard_reads, scripts." in capsys.readouterr().err
+    assert (
+        "The keys are: guard_fields, guard_reads, scripts, control_distance."
+        in capsys.readouterr().err
+    )
 
 
 @pytest.mark.parametrize(("text", "code"), [("model", 0), ("person", 0), ("anyone", 1)])
@@ -139,12 +142,29 @@ def test_scripts_takes_person_or_model(tmp_path: Path, text: str, code: int) -> 
     assert main(["policy", "--root", str(tmp_path), "set", "scripts", text]) == code
 
 
+@pytest.mark.parametrize(
+    ("text", "value"), [("0", 0), ("2", 2), (" 3 ", 3), ("-1", None), ("two", None), ("1.5", None)]
+)
+def test_control_distance_takes_a_whole_number(
+    tmp_path: Path, text: str, value: int | None
+) -> None:
+    code = main(["policy", "--root", str(tmp_path), "set", "control_distance", text])
+    assert code == (0 if value is not None else 1)
+    if value is not None:
+        assert policy.read(tmp_path)["control_distance"] == value
+
+
 def test_guard_fields_takes_names_separated_by_commas(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     assert main(["policy", "--root", str(tmp_path), "set", "guard_fields", "path, url"]) == 0
     out = json.loads(capsys.readouterr().out)
-    assert out == {"guard_fields": ["path", "url"], "guard_reads": [], "scripts": "person"}
+    assert out == {
+        "guard_fields": ["path", "url"],
+        "guard_reads": [],
+        "scripts": "person",
+        "control_distance": 2,
+    }
     assert main(["policy", "--root", str(tmp_path), "set", "guard_fields", "path,,url"]) == 1
 
 

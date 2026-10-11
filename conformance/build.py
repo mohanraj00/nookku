@@ -31,6 +31,7 @@ SEAL = Path(__file__).parent / "seal"
 OTLP = Path(__file__).parent / "otlp"
 POLICY = Path(__file__).parent / "policy"
 GUARD = Path(__file__).parent / "guard"
+CONTROL = Path(__file__).parent / "control"
 
 
 def sha(text: str | None) -> str | None:
@@ -3514,6 +3515,36 @@ GUARD_CASES: dict[str, dict] = {
 }
 
 
+# Near-miss control prompts in relay mode (SPEC.md section 5, #146). A refused message gets the
+# refusal and is not a turn. Each other message goes to the agent.
+CONTROL_CASES: dict[str, dict] = {
+    "wrong_command_word": {"prompt": "nookku stop", "refused": True},
+    "capital_letter": {"prompt": "Nookku start", "refused": True},
+    "two_spaces": {"prompt": "nookku  end", "refused": True},
+    "name_alone": {"prompt": "nookku", "refused": True},
+    "one_letter_short": {"prompt": "nookk end", "refused": True},
+    "two_edits": {"prompt": "noku status", "refused": True},
+    "three_edits": {"prompt": "nok stat", "refused": False},
+    "shop_question_about_relays": {"prompt": "Do you sell relay switches?", "refused": False},
+    "shop_word_near_the_name": {"prompt": "Is the nook table in stock?", "refused": False},
+    "distance_zero_turns_off_the_rule": {
+        "prompt": "nookku stop",
+        "policy_text": '{"control_distance": 0}\n',
+        "refused": False,
+    },
+    "distance_one": {
+        "prompt": "noku status",
+        "policy_text": '{"control_distance": 1}\n',
+        "refused": False,
+    },
+    "broken_policy_uses_the_default": {
+        "prompt": "nookk end",
+        "policy_text": '{"control_distance": -1}\n',
+        "refused": True,
+    },
+}
+
+
 def write_policy_case(path: Path, case: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     data = {"state": True, "links": {}, "test": False, **case}
@@ -3990,11 +4021,16 @@ def main() -> None:
     shutil.rmtree(GUARD, ignore_errors=True)
     for name, case in GUARD_CASES.items():
         write_policy_case(GUARD / f"{name}.json", case)
+    shutil.rmtree(CONTROL, ignore_errors=True)
+    CONTROL.mkdir()
+    for name, case in CONTROL_CASES.items():
+        text = json.dumps(case, indent=1, sort_keys=True) + "\n"
+        (CONTROL / f"{name}.json").write_text(text, encoding="utf-8")
     print(
         f"{len(CASES_BY_NAME)} audit cases, {len(CONTRACT_CASES)} contract cases, "
         f"{len(TRACE_CASES)} trace cases, {len(SEAL_CASES)} seal cases, "
-        f"{len(OTLP_CASES)} receiver cases, {len(POLICY_CASES)} policy cases and "
-        f"{len(GUARD_CASES)} guard cases written"
+        f"{len(OTLP_CASES)} receiver cases, {len(POLICY_CASES)} policy cases, "
+        f"{len(GUARD_CASES)} guard cases and {len(CONTROL_CASES)} control cases written"
     )
 
 
