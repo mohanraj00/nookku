@@ -1,4 +1,11 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/mohanraj00/nookku/main/docs/assets/logo/nookku-wordmark-dark.svg">
+  <img src="https://raw.githubusercontent.com/mohanraj00/nookku/main/docs/assets/logo/nookku-wordmark.svg" alt="Nookku" width="332">
+</picture>
+
 # Nookku
+
+(நோக்கு - to observe)
 
 A test harness for developers of agent apps.
 
