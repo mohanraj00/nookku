@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from nookku import __version__, bridge, kit
+from nookku import __version__, bridge, kit, state
 from nookku.cli import main
 from nookku.kit import LEGEND
 from nookku.record import Writer
@@ -295,6 +295,46 @@ def test_init_refuses_the_target_of_a_symlinked_state_folder(
     assert f"is inside the state folder {tmp_path / 'store'}." in capsys.readouterr().err
 
 
+def test_init_refuses_a_copied_test_folder(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    copy = tmp_path / "backup" / "t1"
+    copy.mkdir(parents=True)
+    manifest = {"test": "t1", "root": "/home/me/shop", "versions": {"nookku": "0.4.0"}}
+    (copy / "manifest.json").write_text(json.dumps(manifest))
+    before = sorted(tmp_path.rglob("*"))
+    assert main(["init", "codex", "--root", str(copy)]) == 1
+    assert sorted(tmp_path.rglob("*")) == before
+    err = capsys.readouterr().err
+    assert f"is inside the test folder {copy}." in err
+    assert "--root /home/me/shop. Nothing was written." in err
+
+
+@pytest.mark.parametrize(
+    "files",
+    [
+        {"mode": "on", "config.json": "{}"},
+        {"mode": "off", "tests/x": ""},
+        {"manifest.json": '{"name": "Toy shop", "start_url": "/"}'},
+        {"manifest.json": '{"test": "t1", "versions": {"shop": "1.0"}}'},
+    ],
+    ids=["mode-and-config", "mode-and-tests", "web-manifest", "other-versions"],
+)
+def test_init_accepts_an_app_folder_with_similar_files(
+    tmp_path: Path, files: dict[str, str]
+) -> None:
+    for name, text in files.items():
+        (tmp_path / name).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / name).write_text(text)
+    assert main(["init", "plugin", "--root", str(tmp_path / "app")]) == 0
+
+
+def test_init_marks_the_state_folder(tmp_path: Path) -> None:
+    assert main(["init", "plugin", "--root", str(tmp_path)]) == 0
+    marker = tmp_path / ".nookku" / "nookku-state"
+    assert marker.read_text() == state.MARKER_TEXT
+
+
 def test_init_prints_the_root_before_the_move_of_the_old_folder(tmp_path: Path) -> None:
     (tmp_path / ".verbatim-relay").mkdir()
     cmd = [sys.executable, "-m", "nookku", "init", "plugin", "--root", str(tmp_path)]
@@ -459,7 +499,10 @@ def test_init_start_and_end_a_test(tmp_path: Path, capsys: pytest.CaptureFixture
     assert conf["entry"] == [sys.executable, str(TOY_SHOP)]
     assert conf["models"] == ["codex"] and conf["openai_stream"] is False
     capsys.readouterr()
+    # A state folder of an older version has no marker. The start writes it.
+    (tmp_path / ".nookku" / state.MARKER).unlink()
     assert main(["start", "--root", str(tmp_path), "--json"]) == 0
+    assert (tmp_path / ".nookku" / state.MARKER).is_file()
     started = json.loads(capsys.readouterr().out)
     assert main(["status", "--root", str(tmp_path), "--json"]) == 0
     status = json.loads(capsys.readouterr().out)

@@ -12,6 +12,7 @@ verbatim-relay 0.3.x and earlier used `.verbatim-relay/`. The first `nookku` com
 |---|---|---|
 | `config.json` | you, `nookku init` or the harness model | The configuration ([config.md](config.md)). |
 | `entry.<ext>` | you or the harness model | The entry, if it is not in your app ([how-to/connect-your-agent.md](../how-to/connect-your-agent.md)). |
+| `nookku-state` | `nookku init`, `nookku start` | A marker of the state folder. `init` refuses a root in a marked folder, also through a symlink with another name ([#148](https://github.com/mohanraj00/nookku/issues/148)). |
 | `mode` | the relays | `on` or `off`: relay mode. It survives a restart of the harness ([SPEC.md section 7.2](../../SPEC.md#72-start-and-end)). |
 | `current.json` | the bridge | The running test: its id, its folder, the tap URL, the pid and the start time of the bridge. The file exists only while a test runs. |
 | `ending.json` | `nookku end` | The harness session that ends the test, for the bridge. |

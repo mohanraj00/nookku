@@ -757,44 +757,44 @@ class Installed:
     kept: list[str]
 
 
-def _is_state_folder(folder: Path) -> bool:
-    """True if a folder has the files of a state folder: the mode file and the config or the
-    tests. A state folder can be the target of a symlink with another name."""
+def _test_project(folder: Path) -> str | None:
+    """The project root of a test folder, from its manifest.json, or None if the folder is not
+    a test folder of nookku. A copied test folder also has its manifest."""
     try:
-        mode = (folder / "mode").read_text(encoding="utf-8").strip()
-    except (OSError, UnicodeDecodeError):
-        return False
-    return mode in ("on", "off") and (
-        (folder / "config.json").is_file() or (folder / "tests").is_dir()
-    )
-
-
-def state_folder_of(root: Path) -> Path | None:
-    """The state folder that holds root, for example a test folder, or None. A folder matches by
-    its name, in any case, because the file system of macOS and Windows ignores case, or by its
-    files."""
-    names = (STATE_DIR.casefold(), OLD_STATE_DIR.casefold())
-    return next(
-        (p for p in (root, *root.parents) if p.name.casefold() in names or _is_state_folder(p)),
-        None,
-    )
+        data = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(data, dict) or not isinstance(data.get("versions"), dict):
+        return None
+    ours = "nookku" in data["versions"] or "verbatim-relay" in data["versions"]
+    return str(data.get("root", "")) if ours and isinstance(data.get("test"), str) else None
 
 
 def state_root_error(root: Path, harness: str) -> str | None:
-    """The error of init if root is inside a state folder, else None (#148)."""
-    folder = state_folder_of(root)
-    if folder is None:
-        return None
-    if folder.name.casefold() not in (STATE_DIR.casefold(), OLD_STATE_DIR.casefold()):
-        # The folder is the target of a symlink, so its parent is not the project.
-        return (
-            f"the root {root} is inside the state folder {folder}. Run init in the project "
-            "that holds this state folder"
-        )
-    return (
-        f"the root {root} is inside the state folder {folder}. Run init in the project: "
-        f"nookku init {harness} --root {folder.parent}"
-    )
+    """The error of init if root is in a state folder or a test folder, else None (#148). A
+    state folder matches by its name, in any case, because the file system of macOS and Windows
+    ignores case, or by its marker file, for the target of a symlink. A test folder matches by
+    its manifest."""
+    names = (STATE_DIR.casefold(), OLD_STATE_DIR.casefold())
+    for folder in (root, *root.parents):
+        if folder.name.casefold() in names:
+            return (
+                f"the root {root} is inside the state folder {folder}. Run init in the "
+                f"project: nookku init {harness} --root {folder.parent}"
+            )
+        if (folder / state.MARKER).is_file():
+            return (
+                f"the root {root} is inside the state folder {folder}. Run init in the "
+                "project that holds this state folder"
+            )
+        project = _test_project(folder)
+        if project is not None:
+            where = f": nookku init {harness} --root {project}" if project else ""
+            return (
+                f"the root {root} is inside the test folder {folder}. Run init in the "
+                f"project{where}"
+            )
+    return None
 
 
 def init(root: Path, harness: str, changes: dict[str, Any]) -> Installed:
@@ -825,6 +825,7 @@ def init(root: Path, harness: str, changes: dict[str, Any]) -> Installed:
             f"cannot read {target}: {e}. Correct the file, then run init again."
         ) from None
     conf.parent.mkdir(parents=True, exist_ok=True)
+    state.mark(conf.parent)
     conf.write_text(json.dumps(merged, indent=1) + "\n", encoding="utf-8")
     if not mode_path(root).exists():
         set_mode(root, False)

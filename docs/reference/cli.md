@@ -200,13 +200,13 @@ Check that no record of a test changed after its end ([SPEC.md section 7.4](../.
 nookku init HARNESS [--root PATH] [--entry COMMAND] [--models LIST] [options]
 ```
 
-Write the config, and the project hooks of a harness. It writes `.nookku/config.json`, the file `.nookku/mode`, and the hooks: `.codex/hooks.json` for Codex, `.claude/settings.local.json` for Claude Code. It keeps your other hooks, also a hook in the same group as a hook of nookku. With `plugin`, it writes no hooks, because the nookku plugin has them. Do not use the plugin and the project hooks in one project, or each message is sent two times.
+Write the config, and the project hooks of a harness. It writes `.nookku/config.json`, the files `.nookku/mode` and `.nookku/nookku-state`, and the hooks: `.codex/hooks.json` for Codex, `.claude/settings.local.json` for Claude Code. It keeps your other hooks, also a hook in the same group as a hook of nookku. With `plugin`, it writes no hooks, because the nookku plugin has them. Do not use the plugin and the project hooks in one project, or each message is sent two times.
 
 If `config.json` exists, `init` keeps each key and changes only the keys of the flags that you give. For example, a second run keeps `backends` and `"evaluate": false`. It prints the keys that it changed and the keys that it kept. A new `config.json` gets each key. The default of a flag applies only to a new file.
 
 If `config.json` has an unknown key, or if `config.json` or the hook file is not valid JSON, `init` writes nothing. Correct the file, then run `init` again.
 
-The output starts with `Project root:` and the absolute root, then gives the absolute path of each file that `init` wrote. If the root is in a state folder, for example a test folder in `.nookku/tests/` or in the target of a `.nookku` symlink, `init` writes nothing, exits with 1 and names the project folder to use ([code](../../src/nookku/cli.py), [test](../../tests/test_cli.py)). If the root has no `config.json` and is not the top level of its git work tree, `init` prints a warning that names the top level. It still writes the files.
+The output starts with `Project root:` and the absolute root, then gives the absolute path of each file that `init` wrote. If the root is in a state folder or a test folder, for example `.nookku/tests/<id>`, the target of a `.nookku` symlink, or a copied test folder, `init` writes nothing, exits with 1 and names the project folder to use ([code](../../src/nookku/cli.py), [test](../../tests/test_cli.py)). If the root has no `config.json` and is not the top level of its git work tree, `init` prints a warning that names the top level. It still writes the files.
 
 | Argument or flag | Default | Meaning |
 |---|---|---|
