@@ -3027,6 +3027,17 @@ POLICY_CASES: dict[str, dict] = {
         "event": pevent("Write", file_path=".nookku/policy.json", content="{}"),
         "answer": POLICY_DENY,
     },
+    # With no state folder, the default guard fields apply to an MCP tool (#150).
+    "no_state_folder_other_tool_free_text": {
+        "state": False,
+        "event": pevent("mcp__docs__create", body="Discuss .nookku/policy.json."),
+        "answer": None,
+    },
+    "no_state_folder_other_tool_path": {
+        "state": False,
+        "event": pevent("mcp__files__write", path=".nookku/policy.json", content="{}"),
+        "answer": POLICY_DENY,
+    },
     "no_state_folder_other_call": {
         "state": False,
         "event": pevent("Bash", command="ls src"),

@@ -508,9 +508,13 @@ def _policy_write(event: Any, root: Path) -> bool:
     if not isinstance(event, dict) or event.get("hook_event_name") != "PreToolUse":
         return False
     try:
+        tool = str(event.get("tool_name", ""))
         tool_input = event.get("tool_input", event)
+        # With no state folder, no policy file exists, so the default guard fields apply.
+        if _other_tool(tool):
+            tool_input = guarded(tool_input, policy.KEYS["guard_fields"].default)
         text = json.dumps(tool_input, ensure_ascii=False)
-        return touches_policy(event, root, str(event.get("tool_name", "")), tool_input, text)
+        return touches_policy(event, root, tool, tool_input, text)
     except Exception:  # fail closed
         return True
 
