@@ -2,7 +2,7 @@
 
 This page removes Nookku from a project and from your computer: the project hooks, the plugin, the test files and the package.
 
-The output on this page is the real output of each step. I used the toy shop project of [getting-started.md](../getting-started.md) with verbatim-relay 0.3.0, Claude Code 2.1.294 and jq 1.7.1 on macOS. I shortened the paths of the folders to `.../`. The test ids are different on your machine.
+The output on this page is the real output of each step. I used the toy shop project of [getting-started.md](../getting-started.md) with verbatim-relay 0.3.0 and Claude Code 2.1.294 on macOS. Section 2 has the output of the code of [#163](https://github.com/mohanraj00/nookku/issues/163), before the 0.4.0 release. I shortened the paths of the folders to `.../`. The test ids are different on your machine.
 
 Do the steps in this order. Remove the hooks before you remove the CLI. The hooks run the Python of the CLI install. After `uv tool uninstall`, this program does not exist. Then each hook command fails with `No such file or directory`.
 
@@ -70,66 +70,61 @@ The `command` of each hook contains `nookku hook`. This is the file that `nookku
 
 `.codex/hooks.json` has the same form, with `--harness codex`.
 
-Count the project hooks in the 2 files:
+Remove the project hooks with `init --remove`. Give the harness:
 
 ```bash
-grep -c 'nookku hook' .claude/settings.local.json .codex/hooks.json
+nookku init --remove claude-code
+nookku init --remove codex
 ```
+
+It removes each hook whose `command` contains `nookku hook`, and also each hook of verbatim-relay 0.3, whose command contains `verbatim_relay hook`. If a group or an event then has no hook, it removes it too. It keeps each other hook and each other key, and `.nookku/`. If the file then has no key, it deletes the file, because `init` made it.
+
+In my run, `.claude/settings.local.json` had a permission and an own hook before `init`. `.codex/hooks.json` did not exist before `init`:
 
 ```text
-.claude/settings.local.json:2
-.codex/hooks.json:2
+removed 2 hooks from .../toy-shop/.claude/settings.local.json
+The state folder .nookku/ stays. It has the config and your tests.
+removed 2 hooks from .../toy-shop/.codex/hooks.json, and deleted the file, because it is now empty
+The state folder .nookku/ stays. It has the config and your tests.
 ```
 
-Remove each hook object whose `command` contains `nookku hook`. If its group then has no hook, remove the group too. Keep each other hook and each other key. You can edit the file by hand, or use [jq](https://jqlang.org/). This jq filter removes the project hooks, then each empty group and each empty event:
-
-```bash
-jq '.hooks |= (with_entries(.value |= (map(.hooks |= map(select((.command // "") | tostring | contains("nookku hook") | not))) | map(select(.hooks | length > 0)))) | with_entries(select(.value | length > 0)))' .claude/settings.local.json > settings.tmp && mv settings.tmp .claude/settings.local.json
-```
-
-Do not delete `.claude/settings.local.json` to remove the hooks. The file can also hold your permissions and your own hooks. In my run, the file had a permission and an own hook before `init`. After the jq filter, it had these again:
+After the command, `.claude/settings.local.json` had the same JSON as before `init`. Only the indent was different, because `init` writes the file again:
 
 ```json
 {
-  "permissions": {
-    "allow": [
-      "Bash(pytest:*)"
+ "permissions": {
+  "allow": [
+   "Bash(pytest:*)"
+  ]
+ },
+ "hooks": {
+  "PreToolUse": [
+   {
+    "matcher": ".*",
+    "hooks": [
+     {
+      "type": "command",
+      "command": "echo my own hook"
+     }
     ]
-  },
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": ".*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "echo my own hook"
-          }
-        ]
-      }
-    ]
-  }
+   }
+  ]
+ }
 }
 ```
 
-For Codex, use the same filter on `.codex/hooks.json`:
-
-```bash
-jq '.hooks |= (with_entries(.value |= (map(.hooks |= map(select((.command // "") | tostring | contains("nookku hook") | not))) | map(select(.hooks | length > 0)))) | with_entries(select(.value | length > 0)))' .codex/hooks.json > hooks.tmp && mv hooks.tmp .codex/hooks.json
-```
-
-In my run, `.codex/hooks.json` had only the project hooks, so the result was `{"hooks": {}}`.
-
-Count again. Each file must show 0. `grep` exits with 1, because it found no line:
-
-```bash
-grep -c 'nookku hook' .claude/settings.local.json .codex/hooks.json
-```
+If the file has no hook of nookku, the command changes nothing and exits with 0:
 
 ```text
-.claude/settings.local.json:0
-.codex/hooks.json:0
+.../toy-shop/.codex/hooks.json has no hook of nookku. Nothing was changed.
 ```
+
+The command changes nothing and exits with 1 in these 2 cases:
+
+- A test runs or relay mode is on. Without the hooks, a message in relay mode goes to the model. End the test with `nookku end`, or switch relay mode off with `nookku mode off`.
+- The file is not valid JSON, or its `hooks` key has a wrong form. Correct the file, then run the command again.
+
+Do not delete `.claude/settings.local.json` yourself to remove the hooks. The file can also hold your permissions and your own hooks.
 
 ## 3. Uninstall the plugin
 

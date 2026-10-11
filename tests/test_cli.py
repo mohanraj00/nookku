@@ -490,6 +490,64 @@ def test_mode_on_with_no_entry_and_an_unknown_key_keeps_relay_mode_off(
     assert kit.is_on(tmp_path)
 
 
+def test_init_remove_prints_each_change(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    assert main(["init", "codex", "--root", str(tmp_path)]) == 0
+    capsys.readouterr()
+    target = tmp_path / ".codex" / "hooks.json"
+    assert main(["init", "--remove", "codex", "--root", str(tmp_path)]) == 0
+    out = capsys.readouterr().out
+    assert f"removed 2 hooks from {target}, and deleted the file" in out
+    assert not target.exists() and (tmp_path / ".nookku" / "config.json").exists()
+    assert main(["init", "codex", "--remove", "--root", str(tmp_path)]) == 0
+    assert f"{target} has no hook of nookku. Nothing was changed." in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("running", [True, False])
+def test_init_remove_refuses_while_a_test_or_relay_mode_is_on(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+    running: bool,
+) -> None:
+    assert main(["init", "claude-code", "--root", str(tmp_path)]) == 0
+    target = tmp_path / ".claude" / "settings.local.json"
+    text = target.read_text()
+    kit.set_mode(tmp_path, True)
+    if running:
+        monkeypatch.setattr(bridge, "current", lambda root: {"test": "t1"})
+    capsys.readouterr()
+    assert main(["init", "--remove", "claude-code", "--root", str(tmp_path)]) == 1
+    err = capsys.readouterr().err
+    assert ("nookku end" if running else "nookku mode off") in err
+    assert err.endswith("Nothing was changed.\n")
+    assert target.read_text() == text
+
+
+@pytest.mark.parametrize(
+    "extra", [["plugin"], ["codex", "--entry", "python3 a.py"], ["codex", "--openai-stream"]]
+)
+def test_init_remove_takes_no_config_flag(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], extra: list[str]
+) -> None:
+    with pytest.raises(SystemExit) as e:
+        main(["init", "--remove", *extra, "--root", str(tmp_path)])
+    assert e.value.code == 2
+    assert "--remove takes" in capsys.readouterr().err
+    assert not (tmp_path / ".nookku").exists()
+
+
+def test_init_remove_changes_nothing_in_a_broken_file(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    target = tmp_path / ".claude" / "settings.local.json"
+    target.parent.mkdir()
+    target.write_text("{")
+    assert main(["init", "--remove", "claude-code", "--root", str(tmp_path)]) == 1
+    err = capsys.readouterr().err
+    assert f"cannot read {target}" in err and err.endswith("Nothing was changed.\n")
+    assert target.read_text() == "{"
+
+
 def test_init_start_and_end_a_test(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     entry = f"{sys.executable} {TOY_SHOP}"
     assert (

@@ -71,5 +71,11 @@ The 2 forms use the same `.nookku/config.json` and the same [test folders](../re
 ### From the project hooks to the plugin
 
 1. End the running test. Run `nookku end` in a shell.
-2. Remove the [2 hooks](../../src/nookku/kit.py) of nookku from `.claude/settings.local.json` or `.codex/hooks.json`. Their command contains `nookku hook`. Keep your other hooks. [remove.md](remove.md) gives the steps.
+2. Remove the [2 hooks](../../src/nookku/kit.py) of nookku. The command keeps your other hooks ([remove.md](remove.md#2-remove-the-project-hooks)):
+
+   ```bash
+   nookku init --remove claude-code
+   ```
+
+   For Codex, run `nookku init --remove codex`.
 3. Install the plugin, or enable it again in this project. Do the steps of [claude-code-plugin.md](claude-code-plugin.md) or [codex.md](codex.md). Your `.nookku/config.json` stays.

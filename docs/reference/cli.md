@@ -198,6 +198,7 @@ Check that no record of a test changed after its end ([SPEC.md section 7.4](../.
 
 ```text
 nookku init HARNESS [--root PATH] [--entry COMMAND] [--models LIST] [options]
+nookku init --remove HARNESS [--root PATH]
 ```
 
 Write the config, and the project hooks of a harness. It writes `.nookku/config.json`, the files `.nookku/mode` and `.nookku/nookku-state`, and the hooks: `.codex/hooks.json` for Codex, `.claude/settings.local.json` for Claude Code. It keeps your other hooks, also a hook in the same group as a hook of nookku. With `plugin`, it writes no hooks, because the nookku plugin has them. Do not use the plugin and the project hooks in one project, or each message is sent two times.
@@ -222,6 +223,7 @@ The output starts with `Project root:` and the absolute root, then gives the abs
 | `--openai-model NAME` | empty | The config key `openai_model`. |
 | `--openai-stream` | off | The config key `openai_stream`: set it to `true`. |
 | `--record FILE` | `.nookku/relay.jsonl` | The config key `record`. |
+| `--remove` | off | Remove the project hooks of nookku, and keep each other hook and key. `HARNESS` must be `claude-code` or `codex`. It takes no other flag. |
 
 [config.md](config.md#nookkuconfigjson) explains each key.
 
@@ -229,6 +231,8 @@ The output starts with `Project root:` and the absolute root, then gives the abs
 |---|---|
 | 0 | The files were written. |
 | 1 | Nothing was written: `config.json` or the hook file cannot be read, or `config.json` has an unknown key. The text names the cause. |
+
+`init --remove` removes each hook whose command contains `nookku hook` or `verbatim_relay hook` from the hook file of the harness. It removes a group or an event that then has no hook. If the file then has no key, it deletes the file. It does not change `.nookku/`. It prints the absolute path of the file and the count of removed hooks, or that the file has no hook of nookku. If a test runs or relay mode is on, it changes nothing and exits with 1, because without the hooks a message in relay mode goes to the model. If the hook file cannot be read, it changes nothing and exits with 1 ([code](../../src/nookku/kit.py), [test](../../tests/test_kit.py)).
 
 ### `nookku policy`
 

@@ -63,9 +63,42 @@ def _warn_both_on(root: Path, harness: str) -> None:
     elif harness == "plugin" and claude_gate.project_hooks_on(root):
         print(
             "nookku: warning: .claude has the project hooks of nookku init claude-code. Remove "
-            "them from .claude/settings.local.json. Else nookku start refuses the test.",
+            "them with: nookku init claude-code --remove. Else nookku start refuses the test.",
             file=sys.stderr,
         )
+
+
+def _remove_hooks(root: Path, harness: str) -> int:
+    """init --remove (#163): remove the project hooks, but not while a test or relay mode is
+    on. Without the hooks, a message in relay mode would go to the model."""
+    if bridge.current(root) is not None:
+        print(
+            "nookku: a test runs. End it first with: nookku end. Nothing was changed.",
+            file=sys.stderr,
+        )
+        return 1
+    if kit.is_on(root):
+        print(
+            "nookku: relay mode is on. Switch it off first: nookku mode off. Nothing was changed.",
+            file=sys.stderr,
+        )
+        return 1
+    try:
+        done = kit.remove(root, harness)
+    except ValueError as e:
+        print(f"nookku: {str(e).rstrip('.')}. Nothing was changed.", file=sys.stderr)
+        return 1
+    if not done.count:
+        print(f"{done.path} has no hook of nookku. Nothing was changed.")
+    elif done.deleted:
+        print(
+            f"removed {done.count} hooks from {done.path}, and deleted the file, because it "
+            "is now empty"
+        )
+    else:
+        print(f"removed {done.count} hooks from {done.path}")
+    print("The state folder .nookku/ stays. It has the config and your tests.")
+    return 0
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -125,6 +158,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     ini.add_argument("--entry", help="the entry command of a test, as one string")
     ini.add_argument(
         "--models", help="the app's model harnesses: claude-code, codex or both (comma)"
+    )
+    ini.add_argument(
+        "--remove",
+        action="store_true",
+        help="remove the project hooks of nookku, and keep each other hook and .nookku/",
     )
 
     for name, text in (
@@ -211,7 +249,11 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         # The default root also gets the move of the old state folder below.
         args.root = project_root()
-    if args.command == "init":
+    if args.command == "init" and args.remove:
+        given = [k for k in (*STRING_KEYS, "entry", "models", "openai_stream") if getattr(args, k)]
+        if args.harness == "plugin" or given:
+            ini.error("--remove takes the harness claude-code or codex, and no other flag")
+    if args.command == "init" and not args.remove:
         # Check before the move of the old state folder, which can change a test folder. Check
         # the path as given too, because resolve() removes a state folder that is a symlink.
         error = kit.state_root_error(
@@ -268,6 +310,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         else:
             print(render(report))
         return report.exit
+    if args.command == "init" and args.remove:
+        return _remove_hooks(args.root.resolve(), args.harness)
     if args.command == "init":
         root = args.root.resolve()
         # Only the flags that the user gave change a key of an existing config.json.

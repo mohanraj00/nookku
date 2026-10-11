@@ -133,6 +133,67 @@ def test_init_replaces_the_hooks_of_verbatim_relay(tmp_path):
     ]
 
 
+@pytest.mark.parametrize("harness", ["claude-code", "codex"])
+def test_remove_restores_a_file_with_other_hooks_and_keys(tmp_path, harness):
+    target = kit.hook_file(tmp_path, harness)
+    assert target is not None
+    target.parent.mkdir()
+    other = {"type": "command", "command": "echo hi"}
+    before = {
+        "permissions": {"allow": ["Bash(pytest:*)"]},
+        "hooks": {"PreToolUse": [{"matcher": ".*", "hooks": [other]}], "Stop": []},
+    }
+    target.write_text(json.dumps(before))
+    kit.init(tmp_path, harness, {})
+    done = kit.remove(tmp_path, harness)
+    assert (done.path, done.count, done.deleted) == (target, 2, False)
+    assert json.loads(target.read_text()) == before
+    assert (tmp_path / ".nookku" / "config.json").exists()
+
+
+@pytest.mark.parametrize("harness", ["claude-code", "codex"])
+def test_remove_deletes_a_file_that_init_made(tmp_path, harness):
+    kit.init(tmp_path, harness, {})
+    target = kit.hook_file(tmp_path, harness)
+    assert target is not None and target.exists()
+    done = kit.remove(tmp_path, harness)
+    assert (done.count, done.deleted) == (2, True)
+    assert not target.exists()
+
+
+def test_remove_keeps_another_hook_in_the_group_and_removes_old_hooks(tmp_path):
+    target = tmp_path / ".codex" / "hooks.json"
+    target.parent.mkdir()
+    old = {"type": "command", "command": "python -m verbatim_relay hook --harness codex"}
+    ours = {"type": "command", "command": "python -m nookku hook --harness codex"}
+    other = {"type": "command", "command": "echo hi"}
+    hooks = {"UserPromptSubmit": [{"hooks": [ours, other]}], "PreToolUse": [{"hooks": [old]}]}
+    target.write_text(json.dumps({"hooks": hooks}))
+    assert kit.remove(tmp_path, "codex").count == 2
+    assert json.loads(target.read_text()) == {"hooks": {"UserPromptSubmit": [{"hooks": [other]}]}}
+
+
+@pytest.mark.parametrize("text", [None, '{"hooks": {"Stop": [{"hooks": []}]}}', "{}"])
+def test_remove_changes_nothing_in_a_file_with_no_hook_of_nookku(tmp_path, text):
+    target = tmp_path / ".claude" / "settings.local.json"
+    if text is not None:
+        target.parent.mkdir()
+        target.write_text(text)
+    done = kit.remove(tmp_path, "claude-code")
+    assert (done.count, done.deleted) == (0, False)
+    assert (target.read_text() if target.exists() else None) == text
+
+
+@pytest.mark.parametrize("text", ["{", "[]", '{"hooks": []}', '{"hooks": {"Stop": {}}}'])
+def test_remove_changes_nothing_in_a_file_that_it_cannot_read(tmp_path, text):
+    target = tmp_path / ".claude" / "settings.local.json"
+    target.parent.mkdir()
+    target.write_text(text)
+    with pytest.raises(ValueError, match="cannot read"):
+        kit.remove(tmp_path, "claude-code")
+    assert target.read_text() == text
+
+
 def test_relay_mode_off_does_nothing(setup):
     root, _, agent = setup
     assert kit.handle(prompt("hi"), root, "codex") is None
