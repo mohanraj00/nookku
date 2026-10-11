@@ -59,7 +59,8 @@ The 2 forms use the same `.nookku/config.json` and the same [test folders](../re
      ```
 
    - In Codex, remove the plugin with `codex plugin remove nookku@nookku`. This removes it from each project.
-3. Write the project hooks. `init` keeps each key of an existing `.nookku/config.json`, also the entry:
+3. In each running Claude Code session of the project, run `/reload-plugins`, or restart the session. A session keeps a plugin that it loaded, but it reads new project hooks at once. If you skip this step, both hooks run, and `nookku start` cannot see it ([SPEC.md section 7.8](../../SPEC.md#78-codex-hook-gate)).
+4. Write the project hooks. `init` keeps each key of an existing `.nookku/config.json`, also the entry:
 
    ```bash
    nookku init claude-code
