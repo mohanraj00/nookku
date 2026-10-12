@@ -51,6 +51,21 @@ def test_the_start_text_names_the_prompt_that_starts_the_evaluation(
     assert kit.is_on(tmp_path)
 
 
+def test_the_start_text_does_not_name_the_evaluation_if_it_is_off(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(bridge, "start", lambda root, session=None: {"test": "t-1"})
+    (tmp_path / kit.STATE_DIR).mkdir()
+    (tmp_path / kit.STATE_DIR / "config.json").write_text('{"evaluate": false}', "utf-8")
+    text = kit.start_test(tmp_path)
+    assert text == (
+        "nookku: test t-1 started. Relay mode is on: each message goes to the entry. "
+        "To end the test, type the prompt nookku end, or run nookku end in a shell."
+    )
+    assert "evaluation" not in text
+    assert kit.is_on(tmp_path)
+
+
 def test_the_blocked_call_detail_keeps_300_code_points(tmp_path: Path) -> None:
     rows = json.loads((ROOT / "tests" / "tables.json").read_text("utf-8"))["detail_cases"]
     assert rows
