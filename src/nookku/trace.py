@@ -782,10 +782,10 @@ def build(folder: Path) -> dict[str, Any]:
 
 def _repeated_reply(manifest: dict[str, Any]) -> int:
     """The value of repeated_reply that the manifest records. A manifest from before this key,
-    or a value that is not a count, gives the default."""
+    or a value that config.check refuses, gives the default."""
     keys = manifest.get("trace")
     value = keys.get("repeated_reply") if isinstance(keys, dict) else None
-    if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
+    if isinstance(value, int) and not isinstance(value, bool) and (value == 0 or value >= 2):
         return value
     return REPEATED_REPLY
 

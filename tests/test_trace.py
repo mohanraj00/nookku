@@ -45,7 +45,10 @@ def test_repeated_reply_compares_bytes_and_counts_an_empty_reply() -> None:
     assert trace.repeated([{"reply": r} for r in replies], 0) == []
 
 
-@pytest.mark.parametrize("keys", [None, {}, {"repeated_reply": "3"}, {"repeated_reply": True}])
+@pytest.mark.parametrize(
+    "keys",
+    [None, {}, {"repeated_reply": "3"}, {"repeated_reply": True}, {"repeated_reply": 1}],
+)
 def test_a_manifest_with_no_valid_repeated_reply_gives_the_default(keys: object) -> None:
     manifest = {"test": "t"} if keys is None else {"test": "t", "trace": keys}
     assert trace._repeated_reply(manifest) == trace.REPEATED_REPLY

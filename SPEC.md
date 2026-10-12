@@ -723,7 +723,7 @@ These tools come from the harness, not from the app: `ToolSearch` in Claude Code
 | Check | Finding |
 |---|---|
 | `agent_error` | An exchange with a `status` that is not 200. |
-| `repeated_reply` | A run of `repeated_reply` (section 7.1) or more consecutive exchanges with the same `reply`, byte for byte. An exchange with `reply: null` ends a run. Each run gives one finding. Its `turn` is the first turn of the run, `turns` is the list of each turn of the run, and `detail` names the turns and gives the first 60 code points of the reply as a JSON string, with ` (cut)` after it if the reply is longer. The trace takes the count from `trace` in the manifest. If the manifest has no count, the count is 2. A count of 0 turns the check off. |
+| `repeated_reply` | A run of `repeated_reply` (section 7.1) or more consecutive exchanges with the same `reply`, byte for byte. An exchange with `reply: null` ends a run. Each run gives one finding. Its `turn` is the first turn of the run, `turns` is the list of each turn of the run, and `detail` names the turns and gives the first 60 code points of the reply as a JSON string, with ` (cut)` after it if the reply is longer. The trace takes the count from `trace` in the manifest. If the manifest has no count, or a count that section 7.1 does not allow, the count is 2. A count of 0 turns the check off. |
 | `tool_error` | A tool call with an `error`. |
 | `command_failed` | A command with an exit code that is not 0, or with an `error`. |
 | `span_error` | A span with an `error`. |
