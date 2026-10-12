@@ -50,7 +50,7 @@ The proxies remove the values of secret headers and secret query parameters, for
 
 ## Which versions are tested?
 
-Each result names the harness version that it ran on. The current proofs ran on Claude Code 2.1.296 ([data](../proofs/plugin-claude-code/results.json)) and on Codex 0.162.1 ([data](../proofs/plugin-codex/results.json)). [results.md](results.md#1-proofs) gives each proof with its version, and also the earlier runs. CI pins Claude Code 2.1.296 for the plugin tests, the version that the proofs tested ([ci.yml](../.github/workflows/ci.yml)).
+Each result names the harness version that it ran on. The current proofs ran on Claude Code 2.1.296 ([data](../proofs/plugin-claude-code/results.json)) and on Codex 0.162.1 ([data](../proofs/plugin-codex/results.json)). The method is [scripts/proofs_relay.py](../scripts/proofs_relay.py). [results.md](results.md#1-proofs) gives each proof with its version, and also the earlier runs. CI pins Claude Code 2.1.296 for the plugin tests, the version that the proofs tested ([ci.yml](../.github/workflows/ci.yml)).
 
 ## Does it work on Windows?
 
