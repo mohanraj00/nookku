@@ -64,6 +64,9 @@ def test_a_broken_config_starts_no_evaluation(
     out = json.loads(capsys.readouterr().out)
     assert out["evaluation"] is None
     assert out["text"].endswith(note)
+    # A plain end in a shell, after the test ended before, also names the error.
+    assert main(["end", "--root", str(root)]) == 0
+    assert capsys.readouterr().out == f"No test runs. Relay mode is off.\n{note}\n"
 
 
 def test_no_config_note_if_no_test_needs_an_evaluation(tmp_path: Path) -> None:

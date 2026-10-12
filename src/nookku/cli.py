@@ -592,7 +592,9 @@ def _test_command(args: argparse.Namespace) -> int:
             print(text)
             if ended and evaluation.pending(root):
                 print("To evaluate the test, type this prompt in your harness: nookku end")
-            elif ended and (note := evaluation.config_note(root)):
+            elif note := evaluation.config_note(root):
+                # Also after a test that ended before: the tester types nookku end again after
+                # the fix of the file.
                 print(note)
         return 0
     if args.command == "status":
