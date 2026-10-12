@@ -117,7 +117,7 @@ The spikes give these rules for the design:
 
 Date: 2026-10-12. Issues: [#256](https://github.com/mohanraj00/nookku/issues/256) and [#166](https://github.com/mohanraj00/nookku/issues/166).
 
-The first tagline said what Nookku is, but not the problem that it solves. A new visitor read the mechanism before the problem. The README also gave the tagline 2 times.
+The first tagline said what Nookku is, but not the problem that it solves. A new visitor read the mechanism before the problem. The [README of v0.4.0](https://github.com/mohanraj00/nookku/blob/v0.4.0/README.md) also gave the tagline again in its first paragraph.
 
 The new tagline and its second line are:
 
