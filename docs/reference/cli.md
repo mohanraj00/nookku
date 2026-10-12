@@ -131,6 +131,8 @@ Print the exact conversation for the model to evaluate ([SPEC.md section 5](../.
 | `--trace` | off | Print each turn as the app got it (from `tap.jsonl`), with the model items and the findings of that turn ([SPEC.md section 9.2](../../SPEC.md#92-evaluation-prompt)). It ignores `--record`, `--all` and `--session`. |
 | `--all` | off | With no entry: each session of the record, not only the latest one. |
 | `--session ID` | none | Only the turns of this harness session. |
+| `--compact` | the config key `transcript_compact` | With `--trace`: show a repeated text of 200 or more characters one time. The bound is a chosen value, not a measurement ([`COMPACT_MIN`](../../src/nookku/evaluation.py#L21-L22)). After that, it shows as a reference with its `[trace.jsonl:N]`, its SHA-256 and its length. An OpenTelemetry attribute with the text of a session item of the same turn also shows as a reference ([SPEC.md section 9.2](../../SPEC.md#92-evaluation-prompt)). |
+| `--no-compact` | the config key `transcript_compact` | With `--trace`: show each text in full. |
 | `--record FILE` | from the config | The relay record to print. |
 
 | Exit code | Meaning |

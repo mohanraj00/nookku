@@ -100,6 +100,7 @@ def test_the_estimate_counts_dense_text_higher_than_english() -> None:
         {"page_tokens": 10},
         {"trace": True},
         {"test": 7},
+        {"compact": "yes"},
         {"test": "../x"},
         {"test": "..\\..\\x"},
         {"test": "C:\\other\\test"},

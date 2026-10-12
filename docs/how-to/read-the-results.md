@@ -329,6 +329,14 @@ cat: returns.txt: No such file
 
 Items with no turn come after the last turn. If `tap.jsonl` has a line that is not valid, the transcript shows `Record: INVALID.` and no turn ([SPEC.md section 9.2](../../SPEC.md#92-evaluation-prompt)).
 
+Each model turn of an app can send its full prompt again, and OpenTelemetry can send a second copy in the `user_prompt` log. To show each prompt one time, add `--compact`:
+
+```bash
+nookku transcript --trace --compact --test 20261007-224435-5353
+```
+
+A repeated text then shows as `(compact: the same text as [trace.jsonl:N], sha256 <hex>, <length> characters)`. Line N has the full text. To make compact the default, set `transcript_compact` to `true` in `.nookku/config.json` ([config.md](../reference/config.md#nookkuconfigjson)). `--no-compact` then shows each text in full.
+
 ## 7. Decide the next step
 
 | Result | Next step |

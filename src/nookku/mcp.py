@@ -54,6 +54,13 @@ TOOLS = [
                 "trace": {"type": "boolean", "description": "Add the trace of the test."},
                 "test": {"type": "string", "description": "A test id. Default: the latest."},
                 "all": {"type": "boolean", "description": "All sessions of the record."},
+                "compact": {
+                    "type": "boolean",
+                    "description": (
+                        "With trace: show a repeated text one time. Default: the config key "
+                        "transcript_compact."
+                    ),
+                },
                 "page_tokens": {
                     "type": "integer",
                     "minimum": 100,
@@ -158,7 +165,12 @@ def _transcript(root: Path, args: dict[str, Any]) -> tuple[str, dict[str, Any]]:
     test = args.get("test")
     if test is not None and not isinstance(test, str):
         raise ValueError("test must be the id of a test")
-    text = kit.transcript_text(root, test, args.get("trace") is True, args.get("all") is True)
+    compact = args.get("compact")
+    if compact is not None and not isinstance(compact, bool):
+        raise ValueError("compact must be true or false")
+    text = kit.transcript_text(
+        root, test, args.get("trace") is True, args.get("all") is True, compact=compact
+    )
     return page(text, number, limit)
 
 

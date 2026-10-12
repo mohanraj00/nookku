@@ -999,10 +999,21 @@ def transcript_text(
     every_session: bool = False,
     session: str | None = None,
     record: Path | None = None,
+    compact: bool | None = None,
 ) -> str:
     """The text of `nookku transcript`. The CLI and the transcript tool of `nookku mcp` use it,
-    so that both give the model the same text. Raise TranscriptError if it cannot be made."""
+    so that both give the model the same text. Raise TranscriptError if it cannot be made.
+
+    `compact` applies only with trace. None takes the config key `transcript_compact`."""
     import io
+
+    def config() -> Config:
+        # The plugin has no config file. Without one, use the defaults.
+        has_config = (root / STATE_DIR / "config.json").exists()
+        try:
+            return Config.load(root) if has_config else Config()
+        except (OSError, ValueError, TypeError) as e:
+            raise TranscriptError(f"cannot read the config: {e}") from None
 
     if trace:
         folder = folder_of_test(root, test) if test else _latest(root)
@@ -1010,17 +1021,14 @@ def transcript_text(
             raise TranscriptError("no test folder.")
         from nookku import evaluation
 
-        return evaluation.transcript(folder)
-    # The plugin has no config file. Without one, use the default record path.
-    has_config = (root / STATE_DIR / "config.json").exists()
-    try:
-        config = Config.load(root) if has_config else Config()
-    except (OSError, ValueError, TypeError) as e:
-        raise TranscriptError(f"cannot read the config: {e}") from None
-    folder = _latest(root) if config.entry and not record else None
+        if compact is None:
+            compact = config().transcript_compact
+        return evaluation.transcript(folder, compact)
+    conf = config()
+    folder = _latest(root) if conf.entry and not record else None
     if test and not record:
         folder = folder_of_test(root, test)
-    path = record or (folder / "relay.jsonl" if folder else config.record_path(root))
+    path = record or (folder / "relay.jsonl" if folder else conf.record_path(root))
     out = io.StringIO()
     scope = f"test {folder.name}" if folder else ""
     try:
