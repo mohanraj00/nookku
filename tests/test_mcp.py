@@ -39,10 +39,11 @@ def test_initialize_names_the_server_and_keeps_the_protocol_version(tmp_path: Pa
     assert result["capabilities"] == {"tools": {}}
 
 
-def test_tools_list_gives_the_read_only_tools(tmp_path: Path) -> None:
+def test_tools_list_gives_the_tools(tmp_path: Path) -> None:
     tools = rpc(tmp_path, "tools/list")["result"]["tools"]
-    assert [t["name"] for t in tools] == ["transcript", "status"]
-    assert all(t["description"].startswith("Read-only.") for t in tools)
+    assert [t["name"] for t in tools] == ["transcript", "status", "run_script"]
+    read_only = [t for t in tools if t["name"] != "run_script"]
+    assert all(t["description"].startswith("Read-only.") for t in read_only)
 
 
 def test_a_notification_gets_no_answer_and_errors_have_codes(tmp_path: Path) -> None:

@@ -1,6 +1,7 @@
 import io
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -240,7 +241,7 @@ def test_relay_mode_on_relays_exact_bytes_and_blocks_the_prompt(setup):
     # The block reason shows the reply byte for byte (ADR 0001: reply display).
     assert answer["reason"] == shop_reply(TRICKY)
     [turn] = read_relay(record(root))
-    assert turn == Turn(1, TRICKY, shop_reply(TRICKY), True, "s1")
+    assert turn == Turn(1, TRICKY, shop_reply(TRICKY), True, "s1", "codex")
     row = json.loads(record(root).read_text())
     assert (row["ok"], row["session"], row["harness"]) == (True, "s1", "codex")
     assert read_tap(tap_rec)[0].input == TRICKY
@@ -703,3 +704,27 @@ def test_with_no_state_folder_the_hook_gives_no_answer(tmp_path: Path, event: di
     assert kit.run_hook(tmp_path, "claude-code", io.StringIO(json.dumps(event)), out) == 0
     assert out.getvalue() == ""
     assert not (tmp_path / kit.STATE_DIR).exists()
+
+
+@pytest.mark.parametrize(
+    "value, error",
+    [
+        (["python3"], "'entries' must be an object"),
+        ({"re play": ["python3"]}, "the entry name 're play' must be"),
+        ({"-x": ["python3"]}, "the entry name '-x' must be"),
+        ({"replay": []}, "the entry 'replay' must be a list of strings"),
+        ({"replay": "python3 replay.py"}, "the entry 'replay' must be a list of strings"),
+    ],
+)
+def test_entries_must_name_argument_vectors(tmp_path, value, error):
+    kit.init(tmp_path, "codex", {})
+    path = tmp_path / ".nookku" / "config.json"
+    path.write_text(json.dumps({**json.loads(path.read_text()), "entries": value}))
+    with pytest.raises(ValueError, match=re.escape(error)):
+        kit.Config.load(tmp_path)
+
+
+def test_the_transcript_shows_a_scripted_turn_as_script():
+    text = kit.render_turn(Turn(1, "Hi", "Hello", True, None, "script"), 1)
+    assert text.startswith("──── script, turn 1 ────\nHi\n")
+    assert kit.render_turn(Turn(1, "Hi", "Hello", True), 1).startswith("──── tester, turn 1")

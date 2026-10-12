@@ -67,7 +67,7 @@ In stdio mode, the tap writes these `status` values:
 
 | Field | Type | Meaning |
 |---|---|---|
-| `harness` | string | For example `claude-code` or `codex`. |
+| `harness` | string | For example `claude-code` or `codex`. In a scripted test (section 7.10), `script`. |
 | `said` | string | The exact text that the tester submitted. |
 | `shown` | string or null | The exact text that the relay showed to the tester. `null` if the relay showed no reply. |
 | `ok` | boolean | Optional. `true` if `shown` is the agent's reply, `false` if it is an error from the relay. |
@@ -89,6 +89,8 @@ The audit stops with exit code 2 and does not report breaks if one of these cond
 - `record_invalid`: a line is not a JSON object, has a wrong `v` or an unknown `type`, has a missing or wrongly typed field, has a hash that does not match its text, has a `reply` that does not agree with its `status` (section 2.1), or has a lone surrogate (section 2).
 - `tap_unparsed`: the tap record has an `unparsed` row. The audit cannot check that exchange.
 
+With a script (section 7.10), a script file that cannot be read is `record_missing`, and a script that breaks the rule of its form is `record_invalid`. Each has `"record": "script"`.
+
 The other readers of a record use the same `record_invalid` rule (section 2).
 
 The report names each check that it skipped.
@@ -109,6 +111,7 @@ The audit compares text byte for byte. It does not normalize whitespace, line en
    - If the exchange `reply` is `null` (the status is not 2xx or is `null`, or the stream failed), the audit adds an `agent_error` note and does not check the reply.
    - If `shown` is `null`, it is an `unshown_reply` break.
    - If `shown` is not equal to `reply`, it is an `altered_reply` break.
+7. **Script.** Only with a script (section 7.10). Turn n of the relay record must have the harness `script` and a `said` equal to message n of the script, byte for byte. Each turn that breaks this rule is a `script_mismatch` break. Each turn after the last message and each message after the last turn is also a `script_mismatch` break. The evidence has `script_message`, the 1-based index of the message or `null`. For a changed text, it also has the first difference. For a turn with another harness or with no message, it has `harness`.
 
 ### 3.3 Break classes
 
@@ -121,6 +124,7 @@ The audit compares text byte for byte. It does not normalize whitespace, line en
 | `not_delivered` | The tester typed a message, and the agent did not receive it. |
 | `altered_reply` | The tester saw a reply that is different from the reply that the agent sent. |
 | `unshown_reply` | The relay did not show the agent's reply. |
+| `script_mismatch` | In a scripted test, a turn is not the script message at its position, or the counts of turns and messages differ. |
 
 Each break has `relay_line` and `tap_line` (1-based line numbers, or `null`) and `evidence`. For a changed text, the evidence gives the index of the first different character and a short excerpt of each side.
 
@@ -369,6 +373,7 @@ A test runs the entry from `start` to `end`. A new conversation is a new test: e
 | `otel` | boolean | Optional. `false` stops the OTLP receiver of a test (section 7.5). The default is `true`. |
 | `backends` | list of objects | Optional. The backends of the app, each with the strings `name`, `env` and `url` (section 7.6). Each `name` and each `env` is used only once. |
 | `model_api` | boolean, list or object | Optional. The model APIs to record (section 7.7): `true` for all, `false` for none, a list of `anthropic` and `openai`, or an object from these names to the upstream URL of the API or `null`. The default is `true`. A backend must not use the variable of a recorded model API. |
+| `entries` | object | Optional. More entries for a scripted test: an object from a name to an entry argument vector (section 7.10). A name has letters, digits, `_`, `.` and `-`, and starts with a letter or a digit. `entry` stays the default entry. |
 | `check_message` | string | Optional. The one message of `nookku check`. It must have a character that is not white space, and no lone surrogate. The default is `Hello from nookku check. What can you help me with?`. |
 | `transcript_compact` | boolean | Optional. `true` makes `nookku transcript --trace` compact (section 9.2). The default is `false`. |
 
@@ -415,7 +420,7 @@ The test folder:
   sessions/codex/<rollout file>
 ```
 
-`manifest.json` holds the test id, the project root, the entry, the models, the start and end times, the versions of Nookku, Claude Code and Codex, the SHA-256 of each configuration file in `.nookku/`, `policy`: the value of each policy key (section 7.9), the tester's harness session ids, and `codex_gate`: the result of the Codex hook gate at the start and at the end of the test (section 7.8).
+`manifest.json` holds the test id, the project root, the entry, the models, the start and end times, the versions of Nookku, Claude Code and Codex, the SHA-256 of each configuration file in `.nookku/`, `policy`: the value of each policy key (section 7.9), the tester's harness session ids, and `codex_gate`: the result of the Codex hook gate at the start and at the end of the test (section 7.8). `entry_name` is the name of the entry in `entries`, or `null` for the default entry. `script` is `null`, or for a scripted test `source`, the absolute path of the script file, `file`, the name of its copy, and `sha256`, the SHA-256 of the copy (section 7.10).
 
 ### 7.3 Model sessions
 
@@ -617,6 +622,32 @@ Claude Code has no list of hooks for a program, so `start` and `mode on` read it
 
 The conformance cases of the deny are in [`conformance/policy/`](conformance/policy/). Each case is a hook event, the files of the project, and the decision of the relay.
 
+### 7.10 Scripted tests
+
+`nookku run --script <file> [--entry <name>]` runs a scripted test. Each message comes byte for byte from a script file that exists before the test starts. The model never retypes a message: it gives only the path of the script and the name of an entry.
+
+A script has one of 2 forms. Each message is the decoded JSON string.
+
+- JSONL: one row for each turn, each a JSON object with only the string `said`. A last empty line is permitted.
+- JSON: one array of strings. The first character that is not white space is `[`.
+
+The script must be UTF-8 and must have at least one message. A message with a lone surrogate (section 2) is refused. `run` reads the script before the test starts, and a script that breaks a rule starts no test.
+
+`--entry` takes only a name from `entries` (section 7.1), not a command line, because an entry from the model can be any program, and then the test proves nothing. An unknown name starts no test. Without `--entry`, the test uses `entry`.
+
+`run` then:
+
+1. Starts a test (section 7.2). It copies the bytes of the script into the test folder as `script.jsonl` or `script.json`, before the bridge starts, so the seal covers the copy. The manifest records `entry_name` and `script`. `run` does not switch relay mode on, so a typed prompt never becomes a turn of a scripted test.
+2. Sends each message to the entry and waits for its reply. For each message, it writes a relay row with `"harness": "script"`. If a turn has no reply, it sends no more messages.
+3. Ends the test. The bridge gives the audit the script copy, so the audit also runs the script check (section 3.2, step 7).
+4. Prints the test id, the count of turns, the exit code of the audit and the trace summary, and with `--evaluate` the evaluation prompt (section 9.2). It does not print the replies: the evaluation reads the records. Without `--evaluate` or `--no-evaluate`, the `evaluate` key decides.
+
+`run` exits with 0 if the audit is clean, and with 1 if the test did not start, a turn has no reply, the audit is not clean or the Codex hooks changed (section 7.8).
+
+The policy key `scripts` (section 7.9) decides who runs a scripted test. With `person`, the default, the relay denies `nookku run` from the model (section 5), and the MCP tool `run_script` of `nookku mcp` refuses to run. With `model`, the model can run a scripted test with `nookku run` or with `run_script`, which takes `path` and `entry`. The `path` must name a file in the project folder after symlinks resolve, else `run_script` refuses. If the policy file is not valid, `run_script` refuses.
+
+The transcript shows a scripted turn as `script, turn N`, never as a typed turn.
+
 ## 8. Trace
 
 The trace is one record of the model items of the app in a test. It ties each item to a turn. `nookku trace [TEST]` builds it again from the files in the test folder.
@@ -763,6 +794,8 @@ The evaluation prompt is `src/nookku/evaluate.md`, with the test id and the test
 3. read the code of the app and its business rules;
 4. check the state of the app with read-only commands only;
 5. write `report.md`, and no other file.
+
+For a scripted test (section 7.10), the prompt starts with a note. The note says that each message came from the script file, names the copy and its SHA-256, and names the entry. With a replay entry, the replies come from a recording, so the note tells the model to judge the app and the transport, not the model.
 
 `nookku transcript --trace` shows each turn of a test as the app received it and sent it (from `tap.jsonl`). It reads `tap.jsonl` with the reader of section 2. If `tap.jsonl` has a line that is not valid, or if `trace.jsonl` has a line that is not a JSON object, the transcript has only 2 lines. The first line is `Record: INVALID.`, the error with the file and the line, and `Do not trust these records. This transcript shows no turn.` The second line is the result of the seal (section 7.4). The transcript shows no turn, so a changed text never shows as exact. Under each turn, it shows the model items of that turn and the findings of that turn. The findings with no turn come before turn 1. There, the `version_untested` findings of one harness and one version show as one line with the count of sessions, for example `- version_untested: version 2.1.294, tested: 2.1.286, 2.1.292 (claude-code, 4 sessions)`. `findings.json` keeps one finding for each session. For a `/decisions` call, the user message shows each question and each image on one line. The assistant message shows each answer on one line in place of the text:
 

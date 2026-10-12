@@ -140,7 +140,7 @@ Each break has `class`, `relay_line`, `tap_line` and `evidence`. For a changed t
 
 ### Break classes
 
-The audit has 7 break classes ([audit.py](../../src/nookku/audit.py), [SPEC.md section 3.3](../../SPEC.md#33-break-classes)). The fixes follow `BREAK_FIX` in [bridge.py](../../src/nookku/bridge.py), the text that `nookku check` gives for a break.
+The audit has 8 break classes ([audit.py](../../src/nookku/audit.py), [SPEC.md section 3.3](../../SPEC.md#33-break-classes)). The fixes follow `BREAK_FIX` in [bridge.py](../../src/nookku/bridge.py), the text that `nookku check` gives for a break.
 
 | Class | What the records show | Fix |
 |---|---|---|
@@ -151,6 +151,7 @@ The audit has 7 break classes ([audit.py](../../src/nookku/audit.py), [SPEC.md s
 | `not_delivered` | `relay.jsonl` has a turn that has no exchange in `tap.jsonl`. `tap_line` is `null`. | Read `bridge.log` and `app.log`. |
 | `altered_reply` | The `reply` text in `tap.jsonl` and the `shown` text in `relay.jsonl` are different. | Read `bridge.log`. |
 | `unshown_reply` | The `shown` text in `relay.jsonl` is `null`. The relay showed no reply. | Read `bridge.log`. |
+| `script_mismatch` | Only in a scripted test: a turn of `relay.jsonl` is not the message of the script copy at its position, or the counts differ. | Compare `relay.jsonl` with `script.jsonl` or `script.json` in the test folder. If the run stopped at a turn with no reply, read `app.log`. |
 
 For each error of exit 2, [troubleshooting.md](../troubleshooting.md#audit-verify-and-trace) gives the cause and the fix.
 
