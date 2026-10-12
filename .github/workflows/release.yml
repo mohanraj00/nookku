@@ -2,7 +2,7 @@ name: Release
 
 on:
   push:
-    tags: ["v*"]
+    tags: ["v[0-9]*"]  # not verbatim-relay-v*: release-verbatim-relay.yml publishes those
 
 jobs:
   build:
