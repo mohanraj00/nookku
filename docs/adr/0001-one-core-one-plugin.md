@@ -80,7 +80,7 @@ Data: [`hook-latency.json`](../../proofs/spikes/hook-latency.json). Method: [`sp
 
 ## Decision
 
-- **Name.** The project becomes Nookku (Tamil நோக்கு: to look, observe, scrutinize). Tagline: "A test harness for developers of agent apps." [#181](https://github.com/mohanraj00/nookku/issues/181) does the rename.
+- **Name.** The project becomes Nookku (Tamil நோக்கு: to look, observe, scrutinize). Tagline: "A test harness for developers of agent apps." [#181](https://github.com/mohanraj00/nookku/issues/181) does the rename. The tagline changed in v0.4.1: read [Change: the tagline](#change-the-tagline).
 - **One core.** One core in Python holds each rule and each text: the control words, the relay, the guard, the policy, the status, the start and end texts, and the scripted tests. No rule has a TypeScript copy.
 - **One plugin.** One plugin folder serves Claude Code and Codex. It has a manifest for each harness, one command hook file, one MCP server and one skills folder. Each command hook runs `python -m nookku hook`.
 - **Display layer.** Claude Code function hooks are an optional display layer: dim rows, a pane, a status line and slash commands. They hold no rule. If they break, the command hooks still work. In Codex, an optional MCP App can be the display layer of the desktop app, with its logic in the core. Before an MCP App shows a live reply, a spike must prove that it keeps the bytes, and that a click result does not go to the model. In the interactive CLI, hook warnings can give short notices. `codex exec` has no display layer, so it needs `nookku view`. A display layer never carries a tester reply in text that goes to the model, for example `additionalContext`.
@@ -112,3 +112,16 @@ The spikes give these rules for the design:
 - Each event costs one Python process. With lazy imports, this is the floor that the hook-time rule gives.
 - A Codex test needs the trust step after each change to a hook file. The upgrade docs must say this.
 - The rename changes the CLI, the state folder, the variables and the plugin name. [#181](https://github.com/mohanraj00/nookku/issues/181) gives the upgrade steps from verbatim-relay 0.3.x.
+
+## Change: the tagline
+
+Date: 2026-10-12. Issues: [#256](https://github.com/mohanraj00/nookku/issues/256) and [#166](https://github.com/mohanraj00/nookku/issues/166).
+
+The first tagline said what Nookku is, but not the problem that it solves. A new visitor read the mechanism before the problem. The README also gave the tagline 2 times.
+
+The new tagline and its second line are:
+
+- Tagline: "Test your chat agent from Claude Code or Codex, byte for byte."
+- Second line: "Nookku carries each test message to your agent unchanged, records what the agent got, and names each break."
+
+The README gives the tagline one time, at the top. The rest of this ADR does not change.

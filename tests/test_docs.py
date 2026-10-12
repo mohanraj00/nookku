@@ -7,6 +7,7 @@ import argparse
 import json
 import re
 import subprocess
+import sys
 from collections import Counter
 from dataclasses import MISSING, fields
 from pathlib import Path
@@ -334,6 +335,36 @@ def test_the_mermaid_check_finds_banned_syntax(line: str) -> None:
 def test_each_page_that_starts_the_setup_gives_the_form_that_runs_the_command(page: str) -> None:
     # A prompt of only "nookku setup" did not make the model run the command (#125).
     assert "!nookku setup" in (ROOT / page).read_text(encoding="utf-8")
+
+
+# The first screen of the README ------------------------------------------------------------------
+
+TAGLINE = "Test your chat agent from Claude Code or Codex, byte for byte."
+
+
+def test_the_readme_gives_the_tagline_one_time() -> None:
+    assert (ROOT / "README.md").read_text(encoding="utf-8").count(TAGLINE) == 1
+
+
+def test_the_try_of_the_readme_gives_the_output_that_it_shows(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # The try runs the entry and the script of the README, with no harness and no model (#256).
+    section = _sections(ROOT / "README.md", "##")["Try it with no model"]
+    commands, shown = (m.group(2) for m in re.finditer(r"```(\w+)\n(.*?)```", section, re.DOTALL))
+    entry = re.search(r'--entry "python3 ([^"]+)"', commands)
+    script = re.search(r"nookku run --script (\S+) --no-evaluate", commands)
+    assert entry and script
+    monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(tmp_path / "claude-home"))
+    monkeypatch.setenv("CODEX_HOME", str(tmp_path / "codex-home"))
+    root = tmp_path / "shop"
+    (root / ".nookku").mkdir(parents=True)
+    conf = {"entry": [sys.executable, str(ROOT / entry.group(1))]}
+    (root / ".nookku" / "config.json").write_text(json.dumps(conf), encoding="utf-8")
+    args = ["run", "--script", str(ROOT / script.group(1)), "--root", str(root), "--no-evaluate"]
+    assert cli.main(args) == 0
+    out = capsys.readouterr().out.splitlines()
+    assert out[0].startswith("Test ") and out[1:] == shown.splitlines()
 
 
 # Reference pages -----------------------------------------------------------------------------

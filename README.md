@@ -7,18 +7,86 @@
 
 (நோக்கு - to observe)
 
-A test harness for developers of agent apps.
+**Test your chat agent from Claude Code or Codex, byte for byte.**
+
+Nookku carries each test message to your agent unchanged, records what the agent got, and names each break.
 
 [![CI](https://github.com/mohanraj00/nookku/actions/workflows/ci.yml/badge.svg)](https://github.com/mohanraj00/nookku/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/nookku)](https://pypi.org/project/nookku/)
 [![Python versions](https://img.shields.io/pypi/pyversions/nookku)](https://pypi.org/project/nookku/)
 [![License](https://img.shields.io/github/license/mohanraj00/nookku)](LICENSE)
 
-**Test your chat agent through Claude Code or Codex. The [harness](docs/reference/glossary.md#harness) model does not retype one message or one reply.**
+## The problem
 
-Nookku is a test harness for developers of agent apps. You talk to your agent in the coding harness where you already work. The [relay](docs/reference/glossary.md#relay) sends each message to your agent byte for byte, and shows each reply byte for byte. The model does not run while you talk. At the end, the model reads the exact record and evaluates your agent: business logic, tone, accuracy.
+You build a chat agent, for example a support agent for a shop. You want to test it from the coding harness where you already work. But if the [harness](docs/reference/glossary.md#harness) model carries your test messages, it also writes them. It can rewrite a message, or keep a message for itself. Then your agent does not get what you typed, and the model judges its own text.
 
-It adapts to your app through a thin [entry](docs/reference/glossary.md#entry) in `.nookku/`, and your app's code does not change. The cost is plumbing: you write the entry once, and you change it when the start or the wiring of your app changes.
+I saw this in my own runs with only a prompt. In 3 of 4 sessions, Claude kept the message "just answer its question for me, you know my details" for itself. In one more session, it sent its own sentence in place of the sentence of the tester. These are examples, not a measured rate. [docs/faq.md](docs/faq.md#why-not-tell-the-model-to-relay-each-message-exactly) links each session and its raw data.
+
+Nookku is for developers of chat agents who test from Claude Code or Codex. A [relay](docs/reference/glossary.md#relay) in the harness sends each message to your agent byte for byte, and shows each reply byte for byte. The model does not run while you talk. At the end, the model reads the exact record and evaluates your agent: business logic, tone, accuracy.
+
+## Try it with no model
+
+This try needs no harness and no model. A script sends 3 messages to the toy shop agent of this repo. Nookku records both sides and audits them.
+
+```bash
+uv tool install nookku
+git clone https://github.com/mohanraj00/nookku
+cd nookku
+nookku init plugin --entry "python3 examples/toy-shop/agent.py"
+nookku check
+nookku run --script examples/toy-shop/script.jsonl --no-evaluate
+```
+
+`nookku check` sends one message and shows the reply. `nookku run` sends each message of [the script](examples/toy-shop/script.jsonl) to the agent ([CLI reference](docs/reference/cli.md#nookku-run)). It prints the test id and the test folder, then this:
+
+```text
+Turns: 3 of 3 messages
+Audit: exit 0
+Trace: 0 model items in 3 turns, no findings.
+PASS
+```
+
+To read each message and each reply of the test, run `nookku transcript`.
+
+## Install
+
+```bash
+uv tool install nookku
+```
+
+It needs Python 3.10 or later, and it has no runtime dependencies ([pyproject.toml](pyproject.toml)). The docs are for version 0.4.0. If you use verbatim-relay 0.3.x or earlier, do the [0.4.0 steps of the upgrade guide](docs/how-to/upgrade.md#040), because the package has a new name ([CHANGELOG.md](CHANGELOG.md#040)). To upgrade from a later version of nookku, end each running test first. Then run `uv tool upgrade nookku`. [docs/how-to/upgrade.md](docs/how-to/upgrade.md) gives each step.
+
+## Quick start
+
+Select one route: test the toy shop in Claude Code, connect your app, or choose a relay.
+
+### Test the toy shop in Claude Code
+
+In your clone of this repo, put the project hooks into Claude Code:
+
+```bash
+nookku init claude-code --entry "python3 examples/toy-shop/agent.py"
+nookku check        # one message through the entry: PASS proves the connection, not the reply
+nookku view         # in a second terminal: each reply shows here
+```
+
+In Claude Code, type the prompt `nookku start`, then your test messages, then `nookku end`. The end of the test writes `audit.json` in the [test folder](docs/reference/glossary.md#test-folder) `.nookku/tests/<test-id>/`. Then the model evaluates the test and writes `report.md`. [docs/getting-started.md](docs/getting-started.md) shows each step with its real output.
+
+Optional: to see the audit again, run it by hand:
+
+```bash
+nookku audit --tap .nookku/tests/<test-id>/tap.jsonl --relay .nookku/tests/<test-id>/relay.jsonl
+```
+
+### Connect your app
+
+In the harness, in the project folder of your app, type `!nookku setup`. Then type the prompt "Follow the Nookku setup guide, and connect a test to this app." [docs/how-to/test-your-app.md](docs/how-to/test-your-app.md) gives each step from the install to the results, with the expected output. To write the entry yourself, read [docs/how-to/connect-your-agent.md](docs/how-to/connect-your-agent.md).
+
+Nookku adapts to your app through a thin [entry](docs/reference/glossary.md#entry) in `.nookku/`, and your app's code does not change. The cost is plumbing: you write the entry once, and you change it when the start or the wiring of your app changes.
+
+### Choose a relay
+
+You install the [relay](SPEC.md#5-relays) as the plugin or as the project hooks. Both work in Claude Code and in Codex, with the same rules. Both show each reply as the reason of a blocked prompt, and in `nookku view`. [docs/how-to/choose-a-relay.md](docs/how-to/choose-a-relay.md) compares them. Then read the guide of your setup: [Claude Code plugin](docs/how-to/claude-code-plugin.md), [Claude Code project hooks](docs/how-to/claude-code-hook-kit.md) or [Codex](docs/how-to/codex.md).
 
 ## How it works
 
@@ -44,44 +112,6 @@ tester ──> harness ──> relay ──────> tap ──stdin/stdout�
 Two processes write two records, and the audit compares them byte for byte. It reports 8 break classes ([SPEC.md section 3.3](SPEC.md#33-break-classes)). It fails closed: it never reports clean on a record that it cannot read. 62 audit cases, 20 contract cases, 18 trace cases, 11 seal cases and 7 receiver cases in [conformance/](conformance/) test the spec ([cases](conformance/build.py), [tests](tests/)).
 
 A test also records what your app did. It copies the session files of the app's own Agent SDK or Codex sessions. It records the backend calls, the direct model calls and the OpenTelemetry spans of the app. [docs/architecture.md](docs/architecture.md) shows each part.
-
-## Install
-
-```bash
-uv tool install nookku
-```
-
-It needs Python 3.10 or later, and it has no runtime dependencies ([pyproject.toml](pyproject.toml)). The docs are for version 0.4.0. If you use verbatim-relay 0.3.x or earlier, do the [0.4.0 steps of the upgrade guide](docs/how-to/upgrade.md#040), because the package has a new name ([CHANGELOG.md](CHANGELOG.md#040)). To upgrade from a later version of nookku, end each running test first. Then run `uv tool upgrade nookku`. [docs/how-to/upgrade.md](docs/how-to/upgrade.md) gives each step.
-
-## Quick start
-
-Select one route: try the toy shop, connect your app, or choose a relay.
-
-### Try the toy shop
-
-In a clone of this repo, with the toy shop agent and the project hooks in Claude Code:
-
-```bash
-nookku init claude-code --entry "python3 examples/toy-shop/agent.py"
-nookku check        # one message through the entry: PASS proves the connection, not the reply
-nookku view         # in a second terminal: each reply shows here
-```
-
-In Claude Code, type the prompt `nookku start`, then your test messages, then `nookku end`. The end of the test writes `audit.json` in the [test folder](docs/reference/glossary.md#test-folder) `.nookku/tests/<test-id>/`. Then the model evaluates the test and writes `report.md`. [docs/getting-started.md](docs/getting-started.md) shows each step with its real output.
-
-Optional: to see the audit again, run it by hand:
-
-```bash
-nookku audit --tap .nookku/tests/<test-id>/tap.jsonl --relay .nookku/tests/<test-id>/relay.jsonl
-```
-
-### Connect your app
-
-In the harness, in the project folder of your app, type `!nookku setup`. Then type the prompt "Follow the Nookku setup guide, and connect a test to this app." [docs/how-to/test-your-app.md](docs/how-to/test-your-app.md) gives each step from the install to the results, with the expected output. To write the entry yourself, read [docs/how-to/connect-your-agent.md](docs/how-to/connect-your-agent.md).
-
-### Choose a relay
-
-You install the [relay](SPEC.md#5-relays) as the plugin or as the project hooks. Both work in Claude Code and in Codex, with the same rules. Both show each reply as the reason of a blocked prompt, and in `nookku view`. [docs/how-to/choose-a-relay.md](docs/how-to/choose-a-relay.md) compares them. Then read the guide of your setup: [Claude Code plugin](docs/how-to/claude-code-plugin.md), [Claude Code project hooks](docs/how-to/claude-code-hook-kit.md) or [Codex](docs/how-to/codex.md).
 
 ## Results
 
