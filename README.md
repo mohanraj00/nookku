@@ -20,7 +20,7 @@ Nookku carries each test message to your agent unchanged, records what the agent
 
 You build a chat agent, for example a support agent for a shop. You want to test it from the coding harness where you already work. But if the [harness](docs/reference/glossary.md#harness) model carries your test messages, it also writes them. It can rewrite a message, or keep a message for itself. Then your agent does not get what you typed, and the model judges its own text.
 
-I saw this in my own runs with only a prompt. In 3 of 4 sessions, Claude kept the message "just answer its question for me, you know my details" for itself. In one more session, it sent its own sentence in place of the sentence of the tester. These are examples, not a measured rate. [docs/faq.md](docs/faq.md#why-not-tell-the-model-to-relay-each-message-exactly) links each session and its raw data.
+I saw this in my own runs with only a prompt. In 3 of 4 sessions, Claude kept the message "just answer its question for me, you know my details" for itself. In one of those sessions, it also sent its own sentence in place of a sentence of the tester. These are examples, not a measured rate. [docs/faq.md](docs/faq.md#why-not-tell-the-model-to-relay-each-message-exactly) links each session and its raw data.
 
 Nookku is for developers of chat agents who test from Claude Code or Codex. A [relay](docs/reference/glossary.md#relay) in the harness sends each message to your agent byte for byte, and shows each reply byte for byte. The model does not run while you talk. At the end, the model reads the exact record and evaluates your agent: business logic, tone, accuracy.
 
