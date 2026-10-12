@@ -11,7 +11,9 @@ The app has a planted bug for the evaluation proof. This README does not describ
 
 ## Run it
 
-The app needs `claude-agent-sdk`, which is not a dependency of Nookku. From the repo root:
+The app needs `claude-agent-sdk`, which is not a dependency of Nookku.
+
+Choose one relay before you run `nookku init`, and do not install the 2 forms in the same project ([docs/how-to/choose-a-relay.md](../../docs/how-to/choose-a-relay.md)). From the repo root, run `nookku init` with your relay: `plugin`, `claude-code` or `codex`. This example uses the project hooks in Claude Code:
 
 ```bash
 nookku init claude-code --entry "uv run --with claude-agent-sdk python3 examples/toy-shop-models/entry.py" --models claude-code

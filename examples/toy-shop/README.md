@@ -9,10 +9,14 @@ This is the toy shop chat agent of the quick start. It uses the Python standard 
 
 ## Run it
 
-From the repo root:
+Choose one relay before you run `nookku init`. Do not install the plugin and the project hooks in the same project, because each message can then reach the agent 2 times. [docs/how-to/choose-a-relay.md](../../docs/how-to/choose-a-relay.md) compares them.
 
-```bash
-nookku init claude-code --entry "python3 examples/toy-shop/agent.py"
-```
+From the repo root, run the command of your relay, then follow its guide:
 
-Then follow your guide: the [Claude Code plugin](../../docs/how-to/claude-code-plugin.md), the [Claude Code project hooks](../../docs/how-to/claude-code-hook-kit.md) or [Codex](../../docs/how-to/codex.md). For the HTTP agent, read [docs/how-to/http-tap.md](../../docs/how-to/http-tap.md).
+| Relay | Command | Guide |
+|---|---|---|
+| Plugin | `nookku init plugin --entry "python3 examples/toy-shop/agent.py"` | [Claude Code](../../docs/how-to/claude-code-plugin.md) or [Codex](../../docs/how-to/codex.md) |
+| Project hooks in Claude Code | `nookku init claude-code --entry "python3 examples/toy-shop/agent.py"` | [Claude Code project hooks](../../docs/how-to/claude-code-hook-kit.md) |
+| Project hooks in Codex | `nookku init codex --entry "python3 examples/toy-shop/agent.py"` | [Codex](../../docs/how-to/codex.md) |
+
+For the HTTP agent, read [docs/how-to/http-tap.md](../../docs/how-to/http-tap.md).

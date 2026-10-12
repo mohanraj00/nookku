@@ -8,7 +8,7 @@ This is the toy shop agent as an entry in Node. It needs no package. It shows th
 
 ## Run it
 
-From the repo root:
+Choose one relay before you run `nookku init`, and do not install the 2 forms in the same project ([docs/how-to/choose-a-relay.md](../../docs/how-to/choose-a-relay.md)). From the repo root, run `nookku init` with your relay: `plugin`, `claude-code` or `codex`. This example uses the project hooks in Claude Code:
 
 ```bash
 nookku init claude-code --entry "node examples/toy-shop-node/entry.mjs"
