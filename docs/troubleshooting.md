@@ -146,6 +146,12 @@ If the entry returns an error, crashes or does not answer in [240 seconds](../sr
 
 **Fix.** Correct the message at character `<n>`, then send it again.
 
+### `nookku: cannot read the reply: the agent reply has a lone surrogate U+<hex> at character <n>.`
+
+(kit.py) **Cause.** The reply has a lone surrogate: one half of a UTF-16 pair. A record cannot hold it, and the relay never changes a reply, so the relay does not show it. It writes this error as the turn, with `ok: false` ([SPEC.md section 5](../SPEC.md#5-relays)). The tap of nookku refuses such a reply, so `tap_url` in `.nookku/config.json` names a server that is not the tap. `<n>` counts code points from 0.
+
+**Fix.** Set `tap_url` to the URL of `nookku tap`. Then make the app send whole characters. For example, do not cut a reply in the middle of an emoji.
+
 ### `nookku: the agent sent an error:`
 
 (bridge.py, core.ts) **Cause.** The entry wrote an `error` line. The text after it is the error of your app. With `serve()`, it is the exception, for example `KeyError: 'order'`.
