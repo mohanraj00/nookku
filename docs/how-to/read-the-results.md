@@ -2,18 +2,19 @@
 
 After a test, the test folder holds the records, the trace, the audit, the seal and, if the model ran, a report. This page tells you how to read these files in order. Read the seal first. If a file changed after the end of the test, do not trust the other results.
 
-The sample output on this page comes from one test of the [toy shop agent](../../examples/toy-shop/agent.py) with verbatim-relay 0.3.0. The test has the 3 messages of the [tutorial](../getting-started.md#6-run-the-test). I gave each prompt to `nookku hook --harness claude-code` as a `UserPromptSubmit` event, as Claude Code does. No harness model ran, so this test has no report. The output is a sample of one run, not a measurement. To make it again, run the steps of the tutorial on the toy shop. I shortened the paths to `.../`. The test id and the times are different on your machine.
+The sample output on this page comes from one test of the [toy shop agent](../../examples/toy-shop/agent.py) with nookku 0.4.0. The test has the 3 messages of the [tutorial](../getting-started.md#6-run-the-test). I gave each prompt to `nookku hook --harness claude-code` as a `UserPromptSubmit` event, as Claude Code does. No harness model ran, so this test has no report. The output is a sample of one run, not a measurement. To make it again, run the steps of the tutorial on the toy shop. I shortened the paths to `.../`. The test id and the times are different on your machine.
 
 ## The test folder
 
 Each test has one folder, `.nookku/tests/<test-id>/`. The comment on each line tells which part writes the file, when it writes it, and if the seal covers it. The steps of the end are in [SPEC.md section 7.2](../../SPEC.md#72-start-and-end).
 
 ```text
-.nookku/tests/20261007-224435-5353/
+.nookku/tests/20261011-184952-8a8d/
   manifest.json      the bridge, at the start; the end adds the end time      sealed
   relay.jsonl        the relay, at each turn                                  sealed
   tap.jsonl          the tap, at each exchange and each model session         sealed
   app.log            the entry and your app, on stderr, during the test       sealed
+  app-state/         your app, during the test, if it keeps its state there   sealed
   otel.jsonl         the OTLP receiver, if the app sends spans or logs        sealed
   backend.jsonl      a backend proxy, if the app calls a backend              sealed
   model_api.jsonl    a model API proxy, if the app calls a model API          sealed
@@ -40,8 +41,8 @@ The end text of a test gives its id and its folder:
 
 ```text
 nookku: relay mode is off.
-Test 20261007-224435-5353 ended: 3 turns, 0 model sessions.
-Folder: .../toy-shop/.nookku/tests/20261007-224435-5353
+Test 20261011-184952-8a8d ended: 3 turns, 0 model sessions.
+Folder: .../toy-shop/.nookku/tests/20261011-184952-8a8d
 Trace: 0 model items in 3 turns, no findings.
 ```
 
@@ -52,8 +53,8 @@ ls .nookku/tests/
 ```
 
 ```text
-20261007-224433-6815
-20261007-224435-5353
+20261011-184939-398d
+20261011-184952-8a8d
 ```
 
 `nookku check` also makes a test folder. Do not read the check tests as your tests. A check test has one turn from the harness `nookku-check`. To find the check tests:
@@ -63,7 +64,7 @@ grep -l '"harness": "nookku-check"' .nookku/tests/*/relay.jsonl
 ```
 
 ```text
-.nookku/tests/20261007-224433-6815/relay.jsonl
+.nookku/tests/20261011-184939-398d/relay.jsonl
 ```
 
 `nookku trace`, `verify` and `transcript --trace` use the latest test if you do not give a test id. `transcript` with no `--trace` uses the latest test only if the configuration has an `entry`. With no entry, it reads the relay record of the configuration, and shows its latest session. If you ran `check` after your test, the latest test is the check test. Then give the test id of your test to each command.
@@ -71,7 +72,7 @@ grep -l '"harness": "nookku-check"' .nookku/tests/*/relay.jsonl
 ## 2. Read the seal
 
 ```bash
-nookku verify 20261007-224435-5353
+nookku verify 20261011-184952-8a8d
 ```
 
 ```text
@@ -91,7 +92,7 @@ If the seal is broken, do not trust the changed files. `nookku verify --json` gi
 `audit.json` is the audit of `tap.jsonl` against `relay.jsonl`, in the form of `nookku audit --json`:
 
 ```bash
-cat .nookku/tests/20261007-224435-5353/audit.json
+cat .nookku/tests/20261011-184952-8a8d/audit.json
 ```
 
 ```json
@@ -160,13 +161,13 @@ For each error of exit 2, [troubleshooting.md](../troubleshooting.md#audit-verif
 `findings.json` holds the checks of the trace ([SPEC.md section 8.6](../../SPEC.md#86-findings)):
 
 ```bash
-cat .nookku/tests/20261007-224435-5353/findings.json
+cat .nookku/tests/20261011-184952-8a8d/findings.json
 ```
 
 ```json
 {
  "v": "0.2",
- "test": "20261007-224435-5353",
+ "test": "20261011-184952-8a8d",
  "turns": 3,
  "items": 0,
  "sessions": [],
@@ -175,6 +176,8 @@ cat .nookku/tests/20261007-224435-5353/findings.json
  "model_api": null,
  "counts": {
   "agent_error": 0,
+  "repeated_reply": 0,
+  "reply_not_from_model": 0,
   "tool_error": 0,
   "command_failed": 0,
   "span_error": 0,
@@ -233,7 +236,7 @@ The trace has 14 trace checks ([trace.py](../../src/nookku/trace.py)). `findings
 
 ## 5. Read the report
 
-If the harness model evaluated the test, it wrote `report.md` in the test folder ([SPEC.md section 9.3](../../SPEC.md#93-report)). The report has one table with the columns Class, Turn, Evidence and Issue, and one row for each issue. This row comes from the report of the tutorial test ([getting-started.md](../getting-started.md#9-read-the-report)):
+If the harness model evaluated the test, it wrote `report.md` in the test folder ([SPEC.md section 9.3](../../SPEC.md#93-report)). The report has one table with the columns Class, Turn, Evidence and Issue, and one row for each issue. This row comes from the report of the tutorial test ([getting-started.md](../getting-started.md#9-read-the-report)). That test ran with verbatim-relay 0.3.0. In its `agent.py`, each line of the rules was 5 lines higher than in the current file:
 
 ```markdown
 | Class | Turn | Evidence | Issue |
@@ -258,11 +261,11 @@ Turn is the turn number, or `-` if the issue has no turn. Evidence has 3 forms:
 - A turn: the turn in the transcript (step 6).
 - A source line, for example `agent.py:22`: line 22 of that file of your app.
 
-The report is a model answer, so check each piece of evidence. Open each line and compare it with the issue. For the row above, the lines of the toy shop agent are:
+The report is a model answer, so check each piece of evidence. Open each line and compare it with the issue. For the row above, the lines of the current toy shop agent are 27 and 31:
 
 ```bash
-sed -n 22p agent.py
-sed -n 26p agent.py
+sed -n 27p agent.py
+sed -n 31p agent.py
 ```
 
 ```text
@@ -270,17 +273,17 @@ FALLBACK = "Which item is this about: the mug or the teapot?"
     return next((r for k, r in REPLIES.items() if k in text.lower()), FALLBACK)
 ```
 
-Line 22 is the reply of turn 1, and line 26 sends it for each message with no keyword. The evidence agrees with the issue. If a line does not agree, do not trust that row.
+Line 27 is the reply of turn 1, and line 31 sends it for each message with no keyword. The evidence agrees with the issue. If a line does not agree, do not trust that row.
 
 ## 6. Read the transcript with the trace
 
 ```bash
-nookku transcript --trace --test 20261007-224435-5353
+nookku transcript --trace --test 20261011-184952-8a8d
 ```
 
 ```text
 Seal: intact. No record changed after the end of the test.
-nookku transcript with trace, test 20261007-224435-5353: 3 turns, 0 model items. The tester and agent blocks are exact: they come from tap.jsonl. ...
+nookku transcript with trace, test 20261011-184952-8a8d: 3 turns, 0 model items. The tester and agent blocks are exact: they come from tap.jsonl. ...
 
 ════ turn 1 ════
 ──── tester → agent ────
@@ -335,7 +338,7 @@ Items with no turn come after the last turn. If `tap.jsonl` has a line that is n
 Each model turn of an app can send its full prompt again, and OpenTelemetry can send a second copy in the `user_prompt` log. To show each prompt one time, add `--compact`:
 
 ```bash
-nookku transcript --trace --compact --test 20261007-224435-5353
+nookku transcript --trace --compact --test 20261011-184952-8a8d
 ```
 
 A repeated text then shows as `(compact: the same text as [trace.jsonl:N], sha256 <hex>, <length> characters)`. Line N has the full text. To make compact the default, set `transcript_compact` to `true` in `.nookku/config.json` ([config.md](../reference/config.md#nookkuconfigjson)). `--no-compact` then shows each text in full.

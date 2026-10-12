@@ -8,7 +8,7 @@ nookku: relay mode is on, but no test runs. Start one with: nookku start. Nothin
 
 The plugin shows the same text with `Type /nookku start`, or "the test stopped, and no test runs" ([claude-code-plugin.md](claude-code-plugin.md)). In both relays, the message does not go to the model.
 
-The output on this page is the real output of each step. I used the toy shop project of [getting-started.md](../getting-started.md) with verbatim-relay 0.3.0 on macOS. I started a test, sent one message, and stopped the bridge with `kill -9`. I shortened the paths of the folders to `.../`. The test id, the pid and the times are different on your machine.
+The output on this page is the real output of each step. I used the toy shop project of [getting-started.md](../getting-started.md) with nookku 0.4.0 on macOS. I started a test, gave one message to `nookku hook --harness claude-code`, as Claude Code does, and stopped the bridge with `kill -9`. I shortened the paths of the folders to `.../`. The test id, the pid and the times are different on your machine.
 
 Run each command in the project root, in a shell.
 
@@ -25,7 +25,7 @@ relay mode is on.
 Relay mode is on, but the line names no test. Thus the bridge does not run. If a test runs, the line names it:
 
 ```text
-relay mode is on. Test 20261007-224332-07f9 runs on http://127.0.0.1:52705/.
+relay mode is on. Test 20261011-185435-1c1b runs on http://127.0.0.1:49439/.
 ```
 
 If the line names a test, the bridge runs. Then step 2 stops it.
@@ -45,10 +45,10 @@ No test runs. Relay mode is off.
 If the bridge runs but does not stop, `end` waits [120 seconds](../../src/nookku/bridge.py), and then stops the bridge with SIGKILL. I made this case with `kill -STOP` on the bridge. After 120 seconds, `end` printed:
 
 ```text
-Test 20261007-224359-d00f ended: 1 turns, 0 model sessions.
-Folder: .../toy-shop/.nookku/tests/20261007-224359-d00f
+Test 20261011-185222-03fd ended: 1 turns, 0 model sessions.
+Folder: .../toy-shop/.nookku/tests/20261011-185222-03fd
 The bridge did not finish its collection. See bridge.log in the folder.
-Audit: nookku audit --tap .../toy-shop/.nookku/tests/20261007-224359-d00f/tap.jsonl --relay .../toy-shop/.nookku/tests/20261007-224359-d00f/relay.jsonl
+Audit: nookku audit --tap .../toy-shop/.nookku/tests/20261011-185222-03fd/tap.jsonl --relay .../toy-shop/.nookku/tests/20261011-185222-03fd/relay.jsonl
 ```
 
 ## 3. Run `mode off`
@@ -88,18 +88,18 @@ cat .nookku/current.json
 ```text
 {
  "v": 1,
- "test": "20261007-224330-68e1",
- "dir": ".../toy-shop/.nookku/tests/20261007-224330-68e1",
- "tap_url": "http://127.0.0.1:52698/",
- "pid": 35287,
- "pid_start": "ps:Thu Oct 8 05:43:30 2026"
+ "test": "20261011-185432-0da0",
+ "dir": ".../toy-shop/.nookku/tests/20261011-185432-0da0",
+ "tap_url": "http://127.0.0.1:49413/",
+ "pid": 9220,
+ "pid_start": "ps:Mon Oct 12 01:54:32 2026"
 }
 ```
 
 Then look for the process with this pid:
 
 ```bash
-TZ=UTC0 LC_ALL=C ps -o lstart= -p 35287
+TZ=UTC0 LC_ALL=C ps -o lstart= -p 9220
 ```
 
 This command printed nothing and exited with 1, because no process had this pid. Thus the file was stale. If `ps` prints a time, compare it with the time in `pid_start`. If the 2 times are different, another process has the pid, and the file is stale.
@@ -117,7 +117,7 @@ cat: .nookku/current.json: No such file or directory
 The folder of the stuck test stays. It has `relay.jsonl`, `tap.jsonl`, `app.log`, `bridge.log` and `manifest.json`, and the files that the app wrote in `app-state/`. It has no `audit.json` and no seal, because the bridge did not finish the test. `verify` says so and exits with 2:
 
 ```bash
-nookku verify 20261007-224330-68e1
+nookku verify 20261011-185432-0da0
 ```
 
 ```text
@@ -127,7 +127,7 @@ Seal: none. The records of this test have no seal.
 You can still audit the 2 records by hand:
 
 ```bash
-nookku audit --tap .nookku/tests/20261007-224330-68e1/tap.jsonl --relay .nookku/tests/20261007-224330-68e1/relay.jsonl
+nookku audit --tap .nookku/tests/20261011-185432-0da0/tap.jsonl --relay .nookku/tests/20261011-185432-0da0/relay.jsonl
 ```
 
 ```text
@@ -144,7 +144,7 @@ nookku start
 ```
 
 ```text
-Test 20261007-224332-07f9 started on http://127.0.0.1:52705/. Relay mode is on.
+Test 20261011-185435-1c1b started on http://127.0.0.1:49439/. Relay mode is on.
 End it with: nookku end
 ```
 

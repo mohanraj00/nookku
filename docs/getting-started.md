@@ -4,7 +4,7 @@ In this tutorial, you test the toy shop agent of this repo in Claude Code. You i
 
 The output on this page is the real output of each step. I shortened the paths of the folders to `.../`. The test id and the times are different on your machine.
 
-I made the output of steps 5 and 10 in a second run of the same steps, with verbatim-relay 0.3.0 on macOS. In that run, I gave each prompt to `nookku hook --harness claude-code`, as Claude Code does. Thus the test ids of steps 5 and 10 are different from the other steps. Each of these outputs is a sample of one run.
+I made the output of each command with nookku 0.4.0 on macOS. In that run, I gave each prompt to `nookku hook --harness claude-code`, as Claude Code does, so no model ran. The model output of steps 7 and 9 comes from an earlier run in Claude Code with verbatim-relay 0.3.0. Thus its test id, `20261007-133823-0b63`, is different from the other steps. Each of these outputs is a sample of one run.
 
 ## What you need
 
@@ -20,16 +20,10 @@ nookku --version
 ```
 
 ```text
-nookku 0.3.0
+nookku 0.4.0
 ```
 
-This tutorial needs version 0.3.0 or later. If the version is lower, end each running test with `nookku end`. Then upgrade:
-
-```bash
-uv tool upgrade nookku
-```
-
-End the tests first, because 0.3.0 does not find a test that version 0.2.0 started. It then cannot end that test ([#44](https://github.com/mohanraj00/nookku/issues/44)).
+This tutorial needs nookku 0.4.0 or later. If you use verbatim-relay 0.3.x or earlier, the package has a new name, so `uv tool upgrade nookku` cannot upgrade it. Do the [0.4.0 steps of the upgrade guide](how-to/upgrade.md#040) in its place.
 
 ## 2. Make a project for the toy shop
 
@@ -87,7 +81,7 @@ nookku check
 ```
 
 ```text
-Test 20261007-133809-bbb2: .../toy-shop/.nookku/tests/20261007-133809-bbb2
+Test 20261011-184939-398d: .../toy-shop/.nookku/tests/20261011-184939-398d
 Reply: Which item is this about: the mug or the teapot?
 Audit: exit 0
 PASS
@@ -104,10 +98,10 @@ cd toy-shop
 nookku view
 ```
 
-The viewer shows each turn of the latest test, and it waits for the next turn. Before your test starts, the latest test is the test of `check` from step 4. In my second run, the viewer showed:
+The viewer shows each turn of the latest test, and it waits for the next turn. Before your test starts, the latest test is the test of `check` from step 4. In my run, the viewer showed:
 
 ```text
-════ test 20261008-011239-cfe6 ════
+════ test 20261011-184939-398d ════
 ──── tester, turn 1 ────
 Hello from nookku check. What can you help me with?
 ──── agent ────
@@ -127,7 +121,7 @@ claude
 Type the prompt `nookku start`. The hook starts the test and blocks the prompt, so the model does not receive it. Claude Code shows this text:
 
 ```text
-nookku: test 20261007-133823-0b63 started. Relay mode is on: each message goes to the entry. To end the test and start the evaluation, type the prompt nookku end. To end the test with no evaluation, run nookku end in a shell.
+nookku: test 20261011-184952-8a8d started. Relay mode is on: each message goes to the entry. To end the test and start the evaluation, type the prompt nookku end. To end the test with no evaluation, run nookku end in a shell.
 ```
 
 Type these 3 messages, one at a time:
@@ -139,7 +133,7 @@ Type these 3 messages, one at a time:
 For each message, Claude Code shows the agent's reply as the reason of a blocked prompt. The model does not run, and it does not get the reply. The viewer also shows each turn:
 
 ```text
-════ test 20261007-133823-0b63 ════
+════ test 20261011-184952-8a8d ════
 ──── tester, turn 1 ────
 hi, the mug i ordered came with a crack in the handle
 ──── agent ────
@@ -171,7 +165,7 @@ The model now reads the record of the test. Claude Code asks you to allow its co
 
 Deny a command that changes `agent.py` or runs the agent. [Allow the evaluation commands](how-to/test-your-app.md#7-allow-the-evaluation-commands) lists each command, and tells you what to do after a deny.
 
-The model gives a short summary. In my run, it was:
+The model gives a short summary. In the earlier run in Claude Code, it was:
 
 ```text
 I found 1 issue in test 20261007-133823-0b63. The seal is intact, and the audit shows no changes to the words of any turn.
@@ -190,7 +184,7 @@ ls .nookku/tests/
 ```
 
 ```text
-20261007-133809-bbb2	20261007-133823-0b63
+20261011-184939-398d	20261011-184952-8a8d
 ```
 
 The first folder is the test of `nookku check`. The second is your test.
@@ -198,7 +192,7 @@ The first folder is the test of `nookku check`. The second is your test.
 The end of the test already wrote the audit of its two records in `audit.json` in the test folder. To see the audit as text, run it again. This command is optional:
 
 ```bash
-nookku audit --tap .nookku/tests/20261007-133823-0b63/tap.jsonl --relay .nookku/tests/20261007-133823-0b63/relay.jsonl
+nookku audit --tap .nookku/tests/20261011-184952-8a8d/tap.jsonl --relay .nookku/tests/20261011-184952-8a8d/relay.jsonl
 ```
 
 ```text
@@ -246,7 +240,7 @@ cat .nookku/tests/20261007-133823-0b63/report.md
 - Audit: 3 exchanges, 0 breaks, 0 errors. ...
 ```
 
-Each row has a class, a turn and its evidence. The model did not see the conversation while you talked. It read the record, the code of the agent and the findings. A report is a model answer, so check its evidence. Here, the evidence is correct. In `agent.py`, line 18 is the refund rule, line 22 is the fallback reply, and line 26 is the keyword match.
+Each row has a class, a turn and its evidence. The model did not see the conversation while you talked. It read the record, the code of the agent and the findings. A report is a model answer, so check its evidence. Here, the evidence is correct for the `agent.py` of that run: line 18 is the refund rule, line 22 is the fallback reply, and line 26 is the keyword match. In the current `agent.py`, each of these lines is 5 lines lower: lines 23, 27 and 31.
 
 Last, check that no record changed after the end of the test:
 
@@ -266,23 +260,23 @@ At the end of the test, the bridge also built the trace, `trace.jsonl`, and its 
 nookku trace
 ```
 
-In my second run, the output was:
+In my run, the output was:
 
 ```text
 Trace: 0 model items in 3 turns, no findings.
-File: .../toy-shop/.nookku/tests/20261008-011242-a35f/trace.jsonl
+File: .../toy-shop/.nookku/tests/20261011-184952-8a8d/trace.jsonl
 ```
 
 With no test id, `trace` uses the latest test. The toy shop has no model, so the trace has no model items and no findings. Read the findings file:
 
 ```bash
-cat .nookku/tests/20261008-011242-a35f/findings.json
+cat .nookku/tests/20261011-184952-8a8d/findings.json
 ```
 
 ```json
 {
  "v": "0.2",
- "test": "20261008-011242-a35f",
+ "test": "20261011-184952-8a8d",
  "turns": 3,
  "items": 0,
  "sessions": [],
