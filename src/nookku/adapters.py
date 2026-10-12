@@ -6,6 +6,8 @@ import json
 import re
 from typing import Any, Protocol
 
+from nookku.record import lone_surrogate
+
 
 class AdapterError(ValueError):
     """The adapter cannot find the message or the reply."""
@@ -194,10 +196,13 @@ class OpenAIAdapter:
             raise AdapterError("no chunk of the stream has a 'delta.content' text")
         # A chunk can end in the middle of a surrogate pair. Join each pair into one character, as
         # a JavaScript string does. A lone surrogate is not a Unicode scalar value (SPEC.md 2).
-        try:
-            return "".join(parts).encode("utf-16-le", "surrogatepass").decode("utf-16-le")
-        except UnicodeDecodeError:
-            raise StreamError("the stream reply has a lone surrogate") from None
+        units = "".join(parts).encode("utf-16-le", "surrogatepass")
+        joined = units.decode("utf-16-le", "surrogatepass")
+        found = lone_surrogate(joined)
+        if found:
+            # Name the code point and its character number, as the relay does (SPEC.md 5).
+            raise StreamError(f"the stream reply has {found}")
+        return joined
 
 
 def make(
