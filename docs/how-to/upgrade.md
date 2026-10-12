@@ -115,6 +115,8 @@ PASS
 
 verbatim-relay is now Nookku ([#181](https://github.com/mohanraj00/nookku/issues/181)). The package, the CLI, the module and the plugin have new names, so the steps 2 and 3 above do not apply. Do these steps in their place.
 
+If you upgrade the old package with `uv tool upgrade verbatim-relay`, you get `verbatim-relay` 0.4.0. Its command does nothing: it prints one line with the link to this section and exits with 1.
+
 1. End each running test with the old CLI:
 
    ```bash

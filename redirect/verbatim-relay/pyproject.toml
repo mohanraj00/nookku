@@ -1,0 +1,35 @@
+# The last release of verbatim-relay. It only sends each user to nookku. The release workflow of
+# nookku does not build it: .github/workflows/release-verbatim-relay.yml builds it.
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "verbatim-relay"
+version = "0.4.0"
+description = "verbatim-relay is now nookku. This last release only tells you how to upgrade."
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{ name = "Mohan Raj" }]
+requires-python = ">=3.10"
+dependencies = ["nookku>=0.4.0"]
+classifiers = [
+  "Development Status :: 7 - Inactive",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+]
+
+[project.scripts]
+verbatim-relay = "verbatim_relay_redirect:main"
+
+[project.urls]
+Repository = "https://github.com/mohanraj00/nookku"
+Upgrade = "https://github.com/mohanraj00/nookku/blob/main/docs/how-to/upgrade.md#040"
+
+[tool.hatch.build.targets.wheel]
+only-include = ["src/verbatim_relay", "src/verbatim_relay_redirect.py"]
+sources = ["src"]
+
+[tool.hatch.build.targets.sdist]
+include = ["/src", "/README.md", "/LICENSE", "/pyproject.toml"]
