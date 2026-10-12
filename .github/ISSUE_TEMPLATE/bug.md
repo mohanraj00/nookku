@@ -24,9 +24,9 @@ Use a private security advisory, as SECURITY.md says.
 
 ## Versions
 
-- Nookku: <!-- Nookku --version -->
+- Nookku: <!-- nookku --version -->
 - Harness and version: <!-- claude --version or codex --version -->
-- Relay: <!-- plugin or hook kit -->
+- Relay: <!-- plugin or project hooks -->
 - OS: <!-- for example macOS 15 or Ubuntu 24.04 -->
 - Python: <!-- python3 --version -->
 
@@ -34,7 +34,7 @@ Use a private security advisory, as SECURITY.md says.
 
 <!--
 Paste what applies, without private data:
-- the output of Nookku audit, verify or check;
+- the output of nookku audit, verify or check;
 - the last lines of bridge.log and app.log in the test folder;
 - the rows of relay.jsonl or tap.jsonl that show the problem.
 -->
