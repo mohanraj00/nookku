@@ -170,7 +170,7 @@ The `openai` adapter reads a 2xx stream with these rules:
   - **Error:** an event has the name `error`, or a chunk has an `error` that is not `null`.
   - **Malformed chunk:** the body is not UTF-8, a chunk is not a JSON object, `choices` is not a list, a choice has no `delta` object, or a `delta.content` is not a string or `null`.
   - **Event after the end:** an event comes after `[DONE]`.
-  - **Lone surrogate:** the joined reply has a surrogate that is not part of a pair (section 2).
+  - **Lone surrogate:** the joined reply has a surrogate that is not part of a pair (section 2). The error names the code point and its character number, for example `the stream reply has a lone surrogate U+D83D at character 4`.
 - If the stream did not fail, but no chunk has a `delta.content` text, the tap writes an `unparsed` row. A response that is not a stream with a `null` content gets the same row.
 
 Each adapter maps onto the agent contract (section 6):
