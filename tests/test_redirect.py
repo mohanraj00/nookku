@@ -78,11 +78,11 @@ def test_the_link_goes_to_the_0_4_0_section_of_the_upgrade_guide() -> None:
     assert re.search(r"^### 0\.4\.0$", guide, re.MULTILINE)
 
 
-def test_the_project_names_the_old_package_and_depends_on_nookku() -> None:
+def test_the_project_names_the_old_package_and_has_no_dependency() -> None:
     text = (PACKAGE / "pyproject.toml").read_text(encoding="utf-8")
     assert re.search(r'^name = "verbatim-relay"$', text, re.MULTILINE)
     assert re.search(r'^version = "0\.4\.0"$', text, re.MULTILINE)
-    assert re.search(r'^dependencies = \["nookku>=0\.4\.0"\]$', text, re.MULTILINE)
+    assert re.search(r"^dependencies = \[\]$", text, re.MULTILINE)
     assert re.search(r'^verbatim-relay = "verbatim_relay_redirect:main"$', text, re.MULTILINE)
     assert re.search(r'^license = "Apache-2\.0"$', text, re.MULTILINE)
     assert (PACKAGE / "LICENSE").read_bytes() == (ROOT / "LICENSE").read_bytes()

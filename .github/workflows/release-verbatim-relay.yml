@@ -46,11 +46,11 @@ jobs:
         with:
           name: dist
           path: dist/
-      - name: The wheel installs with nookku, prints one line, exits 1, refuses the import and blocks an old hook
+      - name: The wheel installs with no dependency, prints one line, exits 1, refuses the import and blocks an old hook
         run: |
           python -m venv /tmp/clean
           /tmp/clean/bin/pip install -q dist/*.whl
-          /tmp/clean/bin/nookku --version
+          test ! -e /tmp/clean/bin/nookku
           set +e
           /tmp/clean/bin/verbatim-relay 2> err.txt
           code=$?
