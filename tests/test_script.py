@@ -1,9 +1,10 @@
 import json
 import re
+from pathlib import Path
 
 import pytest
 
-from nookku import script
+from nookku import audit, script
 
 MESSAGES = ["Is the teapot in stock?", "Return order #4471, please.  ", "Thanks.\nBye €"]
 
@@ -35,3 +36,18 @@ def test_a_json_array_gives_each_string() -> None:
 def test_a_script_that_breaks_a_rule_is_refused(data: bytes, error: str) -> None:
     with pytest.raises(script.ScriptError, match=re.escape(error)):
         script.parse(data)
+
+
+def test_the_audit_names_a_script_that_cannot_be_read_as_missing(tmp_path: Path) -> None:
+    tap, relay = tmp_path / "tap.jsonl", tmp_path / "relay.jsonl"
+    tap.write_text("")
+    relay.write_text("")
+    bad = tmp_path / "bad.jsonl"
+    bad.write_text("not json\n")
+    for path, kind in [
+        (tmp_path / "none.jsonl", "record_missing"),
+        (tmp_path, "record_missing"),
+        (bad, "record_invalid"),
+    ]:
+        report = audit.audit(tap, relay, path)
+        assert [(e["class"], e["record"]) for e in report.errors] == [(kind, "script")]

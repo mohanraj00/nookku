@@ -228,7 +228,7 @@ def audit(tap_path: Path, relay_path: Path, script_path: Path | None = None) -> 
         try:
             messages = script.read(script_path)[0]
         except script.ScriptError as e:
-            kind = "record_missing" if not script_path.exists() else "record_invalid"
+            kind = "record_missing" if e.unreadable else "record_invalid"
             errors.append({"class": kind, "record": "script", "detail": str(e)})
     if errors:
         skipped = CHECKS if script_path is not None else CHECKS[:-1]

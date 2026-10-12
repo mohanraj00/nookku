@@ -18,7 +18,12 @@ COPIES = {"json": "script.json", "jsonl": "script.jsonl"}
 
 
 class ScriptError(ValueError):
-    """A script file that cannot be read or that breaks the rule of its form."""
+    """A script file that cannot be read or that breaks the rule of its form. The attribute
+    unreadable is True if the file cannot be read."""
+
+    def __init__(self, text: str, unreadable: bool = False) -> None:
+        super().__init__(text)
+        self.unreadable = unreadable
 
 
 def _message(value: object, where: str) -> str:
@@ -70,7 +75,7 @@ def read(path: Path) -> tuple[list[str], str, bytes]:
     try:
         data = path.read_bytes()
     except OSError as e:
-        raise ScriptError(f"cannot read the script {path}: {e}") from None
+        raise ScriptError(f"cannot read the script {path}: {e}", unreadable=True) from None
     messages, form = parse(data)
     return messages, form, data
 
