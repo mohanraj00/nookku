@@ -1,7 +1,7 @@
 {
- "date": "2026-10-10",
- "nookku": "0.3.1",
- "codex": "codex-cli 0.162.0",
+ "date": "2026-10-12",
+ "nookku": "0.4.0",
+ "codex": "codex-cli 0.162.1",
  "method": "scripts/proof_codex_gate.py",
  "part_a": {
   "start_output": "nookku: the Codex hooks of nookku are not ready, so relay mode stays off. Codex skips a hook that is not trusted, and then a message goes to the model.\n- the plugin hook PreToolUse is untrusted, not trusted.\n- the plugin hook UserPromptSubmit is untrusted, not trusted.\nStart codex in this project, type /hooks, check each nookku hook and trust it. Then start the test again.",
@@ -42,9 +42,9 @@
   },
   "problems_after_script_change": [
    "the plugin hook PreToolUse is untrusted, not trusted.",
-   "the plugin hook PreToolUse is modified: its script <user-home>/Reboot/public/verbatim-relay/.proof/codex-gate/codex-home/plugins/cache/nookku/nookku/0.3.1/hooks/nookku-hook.sh differs from the script of nookku 0.3.1.",
+   "the plugin hook PreToolUse is modified: its script <user-home>/Reboot/public/verbatim-relay/.proof/codex-gate/codex-home/plugins/cache/nookku/nookku/0.4.0/hooks/nookku-hook.sh differs from the script of nookku 0.4.0.",
    "the plugin hook UserPromptSubmit is untrusted, not trusted.",
-   "the plugin hook UserPromptSubmit is modified: its script <user-home>/Reboot/public/verbatim-relay/.proof/codex-gate/codex-home/plugins/cache/nookku/nookku/0.3.1/hooks/nookku-hook.sh differs from the script of nookku 0.3.1."
+   "the plugin hook UserPromptSubmit is modified: its script <user-home>/Reboot/public/verbatim-relay/.proof/codex-gate/codex-home/plugins/cache/nookku/nookku/0.4.0/hooks/nookku-hook.sh differs from the script of nookku 0.4.0."
   ],
   "checks": {
    "start refuses untrusted hooks": true,
@@ -78,7 +78,7 @@
    "problems": []
   },
   "start_exit": 0,
-  "end_output": "Test 20261010-102932-b62d ended: 0 turns, 0 model sessions.\nFolder: <user-home>/Reboot/public/verbatim-relay/.proof/codex-gate/project/.nookku/tests/20261010-102932-b62d\nTrace: 0 model items in 0 turns, no findings.\nAudit: nookku audit --tap <user-home>/Reboot/public/verbatim-relay/.proof/codex-gate/project/.nookku/tests/20261010-102932-b62d/tap.jsonl --relay <user-home>/Reboot/public/verbatim-relay/.proof/codex-gate/project/.nookku/tests/20261010-102932-b62d/relay.jsonl\nTo evaluate the test, type this prompt in your harness: nookku end",
+  "end_output": "Test 20261012-115616-4b8a ended: 0 turns, 0 model sessions.\nFolder: <user-home>/Reboot/public/verbatim-relay/.proof/codex-gate/project/.nookku/tests/20261012-115616-4b8a\nTrace: 0 model items in 0 turns, no findings.\nAudit: nookku audit --tap <user-home>/Reboot/public/verbatim-relay/.proof/codex-gate/project/.nookku/tests/20261012-115616-4b8a/tap.jsonl --relay <user-home>/Reboot/public/verbatim-relay/.proof/codex-gate/project/.nookku/tests/20261012-115616-4b8a/relay.jsonl\nTo evaluate the test, type this prompt in your harness: nookku end",
   "manifest_codex_gate": {
    "start": {
     "codex": true,

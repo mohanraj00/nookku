@@ -10,7 +10,7 @@ I made the output of each command with nookku 0.4.0 on macOS. In that run, I gav
 
 - macOS or Linux.
 - Python 3.10 or later ([pyproject.toml](../pyproject.toml)), [uv](https://docs.astral.sh/uv/) and git.
-- Claude Code. The proofs of the project hooks ran on Claude Code 2.1.295 ([data](../proofs/hooks-claude-code/results.json)).
+- Claude Code. The proofs of the project hooks ran on Claude Code 2.1.296 ([data](../proofs/hooks-claude-code/results.json)).
 
 ## 1. Install Nookku
 

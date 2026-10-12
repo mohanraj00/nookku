@@ -1,8 +1,8 @@
 {
- "date": "2026-10-10",
+ "date": "2026-10-12",
  "setup": "plugin-codex",
  "harness": "codex",
- "version": "codex-cli 0.162.0",
+ "version": "codex-cli 0.162.1",
  "transport": "http-stream",
  "agent_streams": "on_request",
  "openai_stream": true,

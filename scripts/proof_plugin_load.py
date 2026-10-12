@@ -274,8 +274,9 @@ def codex(work: Path) -> dict[str, Any]:
             "each hook is untrusted, so a person must trust it": all(
                 h["trustStatus"] == "untrusted" for h in ours
             ),
-            "the MCP server starts with status and transcript": (
-                server["toolsError"] is None and sorted(server["tools"]) == ["status", "transcript"]
+            "the MCP server starts with run_script, status and transcript": (
+                server["toolsError"] is None
+                and sorted(server["tools"]) == ["run_script", "status", "transcript"]
             ),
             f"the Codex tool name is {tool_name('codex', 'status')}": (
                 f"mcp__{server['name']}__status" == tool_name("codex", "status")

@@ -64,7 +64,7 @@
   {
    "check": "version_untested",
    "turn": null,
-   "detail": "version 0.161.0, tested: 0.160.0",
+   "detail": "version 0.161.0, tested: 0.160.0, 0.162.1",
    "harness": "codex",
    "session": "019a0b1c-2d3e-7f40-8a5b-6c7d8e9f0a1b"
   }

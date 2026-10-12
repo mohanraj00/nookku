@@ -121,7 +121,7 @@ def test_a_file_without_a_version_is_unknown(tmp_path: Path) -> None:
     (tmp_path / "rollout.jsonl").write_text('{"type": "world_state"}\n')
     report = trace.build(tmp_path)
     assert report["sessions"][0]["version"] == "unknown"
-    assert report["findings"][0]["detail"] == "version unknown, tested: 0.160.0"
+    assert report["findings"][0]["detail"] == "version unknown, tested: 0.160.0, 0.162.1"
 
 
 def test_a_tool_result_matches_only_a_call_of_its_format(tmp_path: Path) -> None:

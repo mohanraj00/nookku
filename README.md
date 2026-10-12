@@ -85,7 +85,7 @@ You install the [relay](SPEC.md#5-relays) as the plugin or as the project hooks.
 
 ## Results
 
-| Proof | Plugin, Claude Code 2.1.295 | Plugin, Codex 0.162.0 | Project hooks, Claude Code 2.1.295 | Project hooks, Codex 0.162.0 |
+| Proof | Plugin, Claude Code 2.1.296 | Plugin, Codex 0.162.1 | Project hooks, Claude Code 2.1.296 | Project hooks, Codex 0.162.1 |
 |---|---|---|---|---|
 | Messages reach the agent byte for byte | 10/10 | 10/10 | 10/10 | 10/10 |
 | Replies reach the tester byte for byte | 10/10 | 10/10 | 10/10 | 10/10 |
