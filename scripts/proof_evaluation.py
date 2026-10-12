@@ -3,8 +3,9 @@
 In one harness session: 2 tester messages in relay mode, then relay mode off, then:
   P5a  With no tools, the model cannot quote the tester's messages: they never reached it.
   P5b  The model reads the transcript and quotes the order code from the conversation. In
-       Codex, the read must be a `nookku transcript` command with exit code 0 or a completed
-       `transcript` tool call. A model that reads relay.jsonl directly does not pass.
+       Codex, the read must be a `nookku transcript` command with exit code 0 and no second
+       command, or a completed `transcript` tool call. A model that reads relay.jsonl directly
+       does not pass.
 
 Each setup uses the project of scripts/proofs_relay.py. The plugin reads the transcript with its
 MCP tool, and the project hooks with `nookku transcript` in the shell.
@@ -17,6 +18,7 @@ from __future__ import annotations
 
 import json
 import os
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -50,6 +52,7 @@ READ = {
 }
 # The CODEX_HOME of scripts/proof_codex_gate.py, with the plugin of this checkout and its trust.
 PLUGIN_CODEX_HOME = ROOT / ".proof" / "codex-gate" / "codex-home"
+SHELLS = ("bash", "sh", "zsh")
 SETUPS = ("plugin-claude-code", "plugin-codex", "hooks-claude-code", "hooks-codex")
 ENV = {**os.environ, "PATH": f"{ROOT / '.venv' / 'bin'}{os.pathsep}{os.environ['PATH']}"}
 
@@ -122,10 +125,32 @@ def transcript_read(calls: list[dict[str, Any]], plugin: bool) -> bool:
         )
     return any(
         c["type"] == "command_execution"
-        and "nookku transcript" in str(c.get("command", ""))
+        and transcript_command(str(c.get("command", "")))
         and c.get("exit_code") == 0
         for c in calls
     )
+
+
+def transcript_command(command: str) -> bool:
+    """True if the command is only `nookku transcript`, with no second command after it.
+
+    Codex wraps a model command in a shell, for example `/bin/zsh -lc 'nookku transcript'`.
+    A command such as `nookku transcript || cat relay.jsonl` can exit 0 when the transcript
+    read fails, so it does not count.
+    """
+    try:
+        words = shlex.split(command)
+    except ValueError:
+        return False
+    if len(words) == 3 and words[1] in ("-c", "-lc") and Path(words[0]).name in SHELLS:
+        command = words[2]
+    if any(c in command for c in "|&;<>`$\n"):
+        return False
+    try:
+        words = shlex.split(command)
+    except ValueError:
+        return False
+    return words[:2] == ["nookku", "transcript"]
 
 
 def main() -> int:

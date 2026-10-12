@@ -166,7 +166,8 @@ def main() -> int:
     if shutil.which("nookku") is None or __version__ not in run(["nookku", "--version"]).stdout:
         print("put the nookku command of this checkout first on PATH, for example with uv run")
         return 2
-    if "--trusted" not in sys.argv and HOME.exists():
+    reset = "--trusted" not in sys.argv
+    if reset and HOME.exists():
         # Part A needs hooks that no person trusted. The app-server of the old home keeps its
         # control socket, so stop it first.
         subprocess.run(["pkill", "-f", str(HOME)], check=False)
@@ -180,7 +181,8 @@ def main() -> int:
         "codex": run(["codex", "--version"]).stdout.strip(),
         "method": "scripts/proof_codex_gate.py",
         "part_a": old.get("part_a"),
-        "part_b": old.get("part_b"),
+        # A new home has no trusted hooks, so part B of the old home is not valid for it.
+        "part_b": None if reset else old.get("part_b"),
     }
     if "--trusted" in sys.argv:
         result["part_b"] = part_b()
