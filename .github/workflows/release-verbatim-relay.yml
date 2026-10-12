@@ -46,7 +46,7 @@ jobs:
         with:
           name: dist
           path: dist/
-      - name: The wheel installs with nookku, prints one line, exits 1 and refuses the import
+      - name: The wheel installs with nookku, prints one line, exits 1, refuses the import and blocks an old hook
         run: |
           python -m venv /tmp/clean
           /tmp/clean/bin/pip install -q dist/*.whl
@@ -59,6 +59,12 @@ jobs:
           test "$(wc -l < err.txt)" -eq 1
           grep -q "^verbatim-relay is now nookku. " err.txt
           ! /tmp/clean/bin/python -c "import verbatim_relay"
+          set +e
+          /tmp/clean/bin/python -m verbatim_relay hook < /dev/null 2> hook.txt
+          code=$?
+          set -e
+          test "$code" -eq 2
+          grep -q "^verbatim-relay is now nookku. " hook.txt
 
   publish:
     needs: test

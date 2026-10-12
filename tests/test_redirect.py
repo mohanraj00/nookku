@@ -57,6 +57,22 @@ def test_the_import_raises_import_error_with_the_message() -> None:
     assert done.stdout == MESSAGE + "\n"
 
 
+@pytest.mark.parametrize("args", [["hook"], ["hook", "--harness", "codex"], []])
+def test_an_old_hook_command_exits_2_so_the_hook_fails_closed(args: list[str]) -> None:
+    env = {**os.environ, "PYTHONPATH": str(SRC)}
+    done = subprocess.run(
+        [sys.executable, "-m", "verbatim_relay", *args],
+        input='{"prompt": "Is the teapot in stock?"}',
+        capture_output=True,
+        text=True,
+        env=env,
+        timeout=30,
+    )
+    assert done.returncode == 2
+    assert done.stdout == ""
+    assert done.stderr == MESSAGE + "\n"
+
+
 def test_the_link_goes_to_the_0_4_0_section_of_the_upgrade_guide() -> None:
     guide = (ROOT / "docs" / "how-to" / "upgrade.md").read_text(encoding="utf-8")
     assert re.search(r"^### 0\.4\.0$", guide, re.MULTILINE)
