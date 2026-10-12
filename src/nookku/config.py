@@ -21,6 +21,8 @@ FILE = f"{STATE_DIR}/config.json"
 OLD_STATE_DIR = ".verbatim-relay"
 # The message of nookku check if config.json has no check_message (SPEC.md section 7.1).
 CHECK_MESSAGE = "Hello from nookku check. What can you help me with?"
+# The values of model_reply_match (SPEC.md section 8.6).
+MATCHES = ("exact", "normalized", "off")
 
 
 class ConfigError(ValueError):
@@ -107,6 +109,10 @@ class Config:
     # The count of consecutive turns with the same reply that gives a repeated_reply finding.
     # 0 turns the check off (SPEC.md section 8.6).
     repeated_reply: int = 2
+    # The dot path of the client text in the JSON of a model output, or empty for the full text.
+    # model_reply_match: exact, normalized or off (SPEC.md section 8.6).
+    model_reply_field: str = ""
+    model_reply_match: str = "normalized"
     # True: nookku transcript --trace shows a repeated text one time (SPEC.md section 9.2).
     transcript_compact: bool = False
     # More entries of a scripted test, by name (SPEC.md section 7.10). entry stays the default.
@@ -149,6 +155,13 @@ def check(data: Any) -> dict[str, Any]:
         raise ConfigError(
             f"{FILE}: 'repeated_reply' must be 0 (off) or a whole number of 2 or more"
         )
+    path = data.get("model_reply_field", "")
+    if not isinstance(path, str) or (path and not all(path.split("."))):
+        raise ConfigError(
+            f"{FILE}: 'model_reply_field' must be empty or a dot path such as output.client_text"
+        )
+    if data.get("model_reply_match", "normalized") not in MATCHES:
+        raise ConfigError(f"{FILE}: 'model_reply_match' must be exact, normalized or off")
     entries = data.get("entries", {})
     if not isinstance(entries, dict):
         raise ConfigError(f"{FILE}: 'entries' must be an object from a name to a command")

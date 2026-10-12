@@ -64,14 +64,14 @@ def test_a_changed_byte_in_the_tap_record_makes_the_transcript_invalid(
     folder = root / ".nookku" / "tests" / TEST
     tap = folder / "tap.jsonl"
     # One byte of a reply changes, and its hash stays.
-    tap.write_text(tap.read_text().replace("toy shop reply", "toy shop replY", 1))
+    tap.write_text(tap.read_text().replace("was delivered.", "was delivereD.", 1))
     text = evaluation.transcript(folder)
     first, second, rest = text.split("\n", 2)
     assert first.startswith(f"Record: INVALID. {tap}: line 1: field reply_sha256 does not match")
     assert first.endswith("Do not trust these records. This transcript shows no turn.")
     assert second == "Seal: none. The records of this test have no seal."
     assert rest == ""
-    assert "replY" not in text
+    assert "delivereD" not in text
     assert "exact" not in text
     assert main(["trace", "--root", str(root)]) == 2
     assert "line 1: field reply_sha256" in capsys.readouterr().err

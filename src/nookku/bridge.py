@@ -127,7 +127,7 @@ def load_config(root: Path, entry_name: str | None = None) -> TestConfig:
         raise BridgeError(f"{CONFIG_FILE}: a backend uses the variable {reserved[0]} of nookku")
     otel = data.get("otel", True) is not False
     message = data.get("check_message", CHECK_MESSAGE)
-    keys = {"repeated_reply": data.get("repeated_reply", trace.REPEATED_REPLY)}
+    keys = {k: data.get(k, default) for k, default in trace.TRACE_KEYS.items()}
     return TestConfig(entry, models, otel, backends, apis, rules, message, keys, entry_name)
 
 

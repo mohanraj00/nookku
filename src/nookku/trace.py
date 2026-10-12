@@ -17,6 +17,8 @@ from pathlib import Path
 from typing import Any
 
 from . import backend, model_api, otlp
+from .adapters import AdapterError, pick
+from .config import MATCHES
 from .record import VERSION, json_text, read_rows
 
 # The version of a trace row. 0.3 adds the kinds span and log, and the field service.
@@ -29,6 +31,7 @@ HARNESS_INTERNAL = {"claude-code": {"ToolSearch"}, "codex": set()}
 CHECKS = (
     "agent_error",
     "repeated_reply",
+    "reply_not_from_model",
     "tool_error",
     "command_failed",
     "span_error",
@@ -44,7 +47,15 @@ CHECKS = (
 # The default of the config key repeated_reply: the count of consecutive turns with the same
 # reply that gives a repeated_reply finding (SPEC.md section 8.6).
 REPEATED_REPLY = 2
-# The length of the excerpt of a repeated reply in the detail of its finding.
+# The config keys of the checks, with their defaults. The manifest records their values.
+TRACE_KEYS: dict[str, Any] = {
+    "repeated_reply": REPEATED_REPLY,
+    "model_reply_field": "",
+    "model_reply_match": "normalized",
+}
+# The harnesses of the items that hold a model output: the session files and the model APIs.
+MODEL_HARNESSES = ("claude-code", "codex", "model_api")
+# The length of the excerpt of a reply in the detail of a finding.
 EXCERPT = 60
 # The kinds that a model session file gives.
 SESSION_KINDS = ("message", "tool_call", "command")
@@ -665,12 +676,86 @@ def repeated(exchanges: list[dict[str, Any]], count: int) -> list[dict[str, Any]
     for run in runs:
         if count < 2 or len(run) < count:
             continue
-        text = exchanges[run[0] - 1]["reply"]
-        excerpt = json.dumps(text[:EXCERPT], ensure_ascii=False)
-        excerpt += " (cut)" if len(text) > EXCERPT else ""
         names = ", ".join(map(str, run[:-1])) + f" and {run[-1]}"
-        detail = f"the same reply in turns {names}: {excerpt}"
+        detail = f"the same reply in turns {names}: {_excerpt(exchanges[run[0] - 1]['reply'])}"
         out.append(_finding("repeated_reply", run[0], detail, turns=run))
+    return out
+
+
+def _excerpt(text: str) -> str:
+    """The first EXCERPT code points of a reply as a JSON string, for the detail of a finding."""
+    excerpt = json.dumps(text[:EXCERPT], ensure_ascii=False)
+    return excerpt + (" (cut)" if len(text) > EXCERPT else "")
+
+
+def _normal(text: str) -> str:
+    """A text for the match `normalized`: each run of white space is one space, with no space at
+    the start or the end, and the case is folded."""
+    return " ".join(text.split()).casefold()
+
+
+def _structured(text: str) -> Any:
+    """The JSON value of a model text: the full text, or else the part from its first `{` to its
+    last `}`, for a JSON object in a code fence. None if neither part is JSON."""
+    parts = [text]
+    if "{" in text:
+        parts.append(text[text.index("{") : text.rindex("}") + 1] if "}" in text else "")
+    for part in parts:
+        try:
+            return json.loads(part)
+        except ValueError:
+            continue
+    return None
+
+
+def _at(data: Any, path: str) -> Any:
+    """The value at a dot path, or None."""
+    try:
+        return pick(data, path)
+    except AdapterError:
+        return None
+
+
+def model_texts(items: list[dict[str, Any]], turn: int, field: str) -> list[str]:
+    """The model texts of a turn (SPEC.md section 8.6): the text of each assistant message of a
+    session file or a model API call. With a field, the value at the field in the JSON of each
+    such message and in the input of each tool call of the app. An empty text does not count."""
+    out = []
+    for it in items:
+        if it["turn"] != turn or it["harness"] not in MODEL_HARNESSES:
+            continue
+        value = None
+        if it["kind"] == "message" and it["role"] == "assistant" and isinstance(it["output"], str):
+            value = _at(_structured(it["output"]), field) if field else it["output"]
+        elif field and it["kind"] == "tool_call" and not it["harness_internal"]:
+            value = _at(it["input"], field)
+        if isinstance(value, str) and value.strip():
+            out.append(value)
+    return out
+
+
+def not_from_model(
+    exchanges: list[dict[str, Any]], items: list[dict[str, Any]], field: str, match: str
+) -> list[dict[str, Any]]:
+    """One reply_not_from_model finding for each turn whose reply contains none of the model
+    texts of the turn. A turn with no reply or no model text gives no finding."""
+    out: list[dict[str, Any]] = []
+    if match not in ("exact", "normalized"):
+        return out
+    for i, r in enumerate(exchanges, 1):
+        reply = r.get("reply")
+        texts = model_texts(items, i, field) if isinstance(reply, str) else []
+        if not texts or not isinstance(reply, str):
+            continue
+        if match == "exact":
+            found = any(t in reply for t in texts)
+        else:
+            found = any(_normal(t) in _normal(reply) for t in texts)
+        if not found:
+            what = f"the value of {field}" if field else "the text"
+            detail = f"the reply does not contain {what} of a model output of this turn"
+            detail += f" ({len(texts)} checked): {_excerpt(reply)}"
+            out.append(_finding("reply_not_from_model", i, detail))
     return out
 
 
@@ -680,18 +765,20 @@ def check(
     items: list[dict[str, Any]],
     sessions: list[dict[str, Any]],
     servers: list[dict[str, Any]] | None = None,
-    repeated_reply: int = REPEATED_REPLY,
+    keys: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     """The findings of SPEC.md section 8.6. They do not change the audit's exit code. `servers`
     holds the MCP servers that the Claude Code session files name (read_claude_servers).
-    `repeated_reply` is the value of the config key that the manifest records."""
+    `keys` holds the config keys of the checks that the manifest records (trace_keys)."""
+    keys = {**TRACE_KEYS, **(keys or {})}
     out: list[dict[str, Any]] = []
     session_items = [it for it in items if it["kind"] in SESSION_KINDS]
     for i, r in enumerate(exchanges, 1):
         if r.get("status") != 200:
             what = "a timeout or a crash" if r.get("status") is None else f"status {r['status']}"
             out.append(_finding("agent_error", i, f"the agent gave {what}"))
-    out += repeated(exchanges, repeated_reply)
+    out += repeated(exchanges, keys["repeated_reply"])
+    out += not_from_model(exchanges, items, keys["model_reply_field"], keys["model_reply_match"])
     for it in items:
         where = {"harness": it["harness"], "session": it["session"], "source": it["source"]}
         if it["kind"] == "tool_call" and it["error"] is not None:
@@ -790,7 +877,7 @@ def build(folder: Path) -> dict[str, Any]:
         items += found
     items.sort(key=lambda it: it["ts"] if it["ts"] is not None else float("inf"))
     assign(items, spans)
-    findings = check(exchanges, spans, items, sessions, servers, _repeated_reply(manifest))
+    findings = check(exchanges, spans, items, sessions, servers, trace_keys(manifest))
     lines = [json_text({k: v for k, v in it.items() if k != CALL_ID}) + "\n" for it in items]
     (folder / "trace.jsonl").write_text("".join(lines), encoding="utf-8")
     counts = Counter(f["check"] for f in findings)
@@ -812,14 +899,21 @@ def build(folder: Path) -> dict[str, Any]:
     return dict(json.loads(text))
 
 
-def _repeated_reply(manifest: dict[str, Any]) -> int:
-    """The value of repeated_reply that the manifest records. A manifest from before this key,
-    or a value that config.check refuses, gives the default."""
+def trace_keys(manifest: dict[str, Any]) -> dict[str, Any]:
+    """The config keys of the checks that the manifest records. A key that a manifest from
+    before the key does not have, or a value that config.check refuses, gives the default."""
     keys = manifest.get("trace")
-    value = keys.get("repeated_reply") if isinstance(keys, dict) else None
-    if isinstance(value, int) and not isinstance(value, bool) and (value == 0 or value >= 2):
-        return value
-    return REPEATED_REPLY
+    keys = keys if isinstance(keys, dict) else {}
+    out = dict(TRACE_KEYS)
+    count = keys.get("repeated_reply")
+    if isinstance(count, int) and not isinstance(count, bool) and (count == 0 or count >= 2):
+        out["repeated_reply"] = count
+    field = keys.get("model_reply_field")
+    if isinstance(field, str) and (field == "" or all(field.split("."))):
+        out["model_reply_field"] = field
+    if keys.get("model_reply_match") in MATCHES:
+        out["model_reply_match"] = keys["model_reply_match"]
+    return out
 
 
 def summary(report: dict[str, Any]) -> str:
