@@ -814,6 +814,18 @@ def test_run_script_stops_at_a_turn_with_no_reply(tmp_path: Path, homes: tuple) 
     assert lines[1] == "Turns: 2 of 3 messages"
     assert [t["ok"] for t in relay_turns(folder)] == [True, False]
     assert any(line.startswith("FAIL: script_mismatch break") for line in lines), lines
+    assert "FAIL: The entry sent no reply to message 2 of the script." in lines
+
+
+def test_run_script_fails_when_the_last_message_gets_no_reply(tmp_path: Path, homes: tuple) -> None:
+    app = tmp_path / "app.py"
+    app.write_text(ERROR_APP)
+    root = project(tmp_path, [sys.executable, str(app)])
+    path = write_script(tmp_path / "turns.jsonl", "jsonl", ["Hi", "please fail"])
+    passed, lines, _ = bridge.run_script(root, path)
+    assert not passed
+    assert lines[1] == "Turns: 2 of 2 messages"
+    assert lines[-1] == "FAIL: The entry sent no reply to message 2 of the script.", lines
 
 
 def test_the_cli_runs_a_script_and_prints_the_evaluation_prompt(
@@ -844,6 +856,12 @@ def test_the_mcp_tool_runs_a_script_only_if_the_policy_lets_the_model(
     assert "only a person runs a scripted test" in refused["content"][0]["text"]
     assert not (root / ".nookku" / "tests").exists()
     policy.set_key(root, "scripts", "model")
+    outside = write_script(tmp_path / "outside.jsonl", "jsonl", SCRIPT[:1])
+    (root / "link.jsonl").symlink_to(outside)
+    for name in (str(outside), "../outside.jsonl", "link.jsonl"):
+        away = mcp.call(root, "run_script", {"path": name})
+        assert "the script file must be in the project folder" in away["content"][0]["text"]
+    assert not (root / ".nookku" / "tests").exists()
     result = mcp.call(root, "run_script", {"path": "turns.jsonl"})
     text = result["content"][0]["text"]
     assert "isError" not in result, text

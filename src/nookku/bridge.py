@@ -718,7 +718,7 @@ def run_script(
     cur = start(root, entry_name=entry_name, script_path=script_path)
     folder = Path(cur["dir"])
     relay = folder / "relay.jsonl"
-    sent = 0
+    sent, failed = 0, None
     try:
         for said in messages:
             shown, ok = send(cur, said)
@@ -727,12 +727,16 @@ def run_script(
             )
             sent += 1
             if not ok:
+                failed = sent
                 break
         time.sleep(2 * POLL)
     finally:
         manifest = end(root) or {}
     lines = [f"Test {cur['test']}: {cur['dir']}", f"Turns: {sent} of {len(messages)} messages"]
     code, problems = audit_problems(folder)
+    if failed is not None:
+        # The audit can be clean when the last message got no reply, so name the turn here.
+        problems.insert(0, f"The entry sent no reply to message {failed} of the script.")
     lines.append(f"Audit: exit {code}" if code is not None else "Audit: no valid audit.json")
     try:
         findings = json.loads((folder / "findings.json").read_text(encoding="utf-8"))

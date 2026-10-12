@@ -644,7 +644,7 @@ The script must be UTF-8 and must have at least one message. A message with a lo
 
 `run` exits with 0 if the audit is clean, and with 1 if the test did not start, a turn has no reply, the audit is not clean or the Codex hooks changed (section 7.8).
 
-The policy key `scripts` (section 7.9) decides who runs a scripted test. With `person`, the default, the relay denies `nookku run` from the model (section 5), and the MCP tool `run_script` of `nookku mcp` refuses to run. With `model`, the model can run a scripted test with `nookku run` or with `run_script`, which takes `path` and `entry`. If the policy file is not valid, `run_script` refuses.
+The policy key `scripts` (section 7.9) decides who runs a scripted test. With `person`, the default, the relay denies `nookku run` from the model (section 5), and the MCP tool `run_script` of `nookku mcp` refuses to run. With `model`, the model can run a scripted test with `nookku run` or with `run_script`, which takes `path` and `entry`. The `path` must name a file in the project folder after symlinks resolve, else `run_script` refuses. If the policy file is not valid, `run_script` refuses.
 
 The transcript shows a scripted turn as `script, turn N`, never as a typed turn.
 

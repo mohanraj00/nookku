@@ -212,8 +212,12 @@ def _run_script(root: Path, args: dict[str, Any]) -> str:
             "only a person runs a scripted test, because the policy key scripts is person. A "
             "person runs: nookku run --script <file>"
         )
+    # The model names the file, so it must stay in the project, after symlinks resolve.
+    file = (root / path).resolve()
+    if not file.is_relative_to(root.resolve()):
+        raise ValueError("the script file must be in the project folder")
     try:
-        _, lines, folder = bridge.run_script(root, root / path, entry)
+        _, lines, folder = bridge.run_script(root, file, entry)
     except bridge.BridgeError as e:
         raise ValueError(str(e)) from None
     text = "\n".join(lines)
