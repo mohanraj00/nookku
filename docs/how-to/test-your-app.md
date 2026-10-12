@@ -2,7 +2,7 @@
 
 This guide takes your own app from the install to the results of a first [test](../reference/glossary.md#test). Each step gives the expected output, so you can compare your screen with it.
 
-I made the output with the toy shop agent of this repo ([examples/toy-shop/agent.py](../../examples/toy-shop/agent.py)) as the app, verbatim-relay 0.3.0 ([version](https://github.com/mohanraj00/nookku/blob/v0.3.0/src/verbatim_relay/__init__.py)) and the project hooks in Claude Code. Each output is a sample of one run, not a measurement. To make it again, run the steps of this page on the toy shop, with the same 3 messages as the [tutorial](../getting-started.md#6-run-the-test). I shortened the paths of the folders to `.../`. The test ids and the replies of your app are different. The [tutorial](../getting-started.md) shows the same steps for the toy shop only.
+I made the output with the toy shop agent of this repo ([examples/toy-shop/agent.py](../../examples/toy-shop/agent.py)) as the app, nookku 0.4.0 ([version](../../src/nookku/__init__.py)) and the project hooks of Claude Code. I gave each prompt, and the command of step 7, to `nookku hook --harness claude-code`, as Claude Code does. The `config.json` of step 2 comes from an earlier run in Claude Code with verbatim-relay 0.3.0, because a model wrote it. Each output is a sample of one run, not a measurement. To make it again, run the steps of this page on the toy shop, with the same 3 messages as the [tutorial](../getting-started.md#6-run-the-test). I shortened the paths of the folders to `.../`. The test ids and the replies of your app are different. The [tutorial](../getting-started.md) shows the same steps for the toy shop only.
 
 ## What you need
 
@@ -18,7 +18,7 @@ nookku --version
 ```
 
 ```text
-nookku 0.3.0
+nookku 0.4.0
 ```
 
 If the shell does not find the command, read [troubleshooting.md](../troubleshooting.md#nookku-command-not-found).
@@ -34,7 +34,7 @@ Start Claude Code or Codex in the project folder of your app. Type this line, wi
 The `!` tells the [harness](../reference/glossary.md#harness) to run the line as a shell command. The harness adds the output to the conversation, so the model gets the setup guide as text ([setup.md](../../src/nookku/setup.md)). The first line of the guide is:
 
 ```text
-# nookku setup: connect a test to this app
+# Nookku setup: connect a test to this app
 ```
 
 Then type this prompt:
@@ -81,7 +81,7 @@ nookku check
 `check` starts the entry, sends one message, and ends the test. For the toy shop, the output is:
 
 ```text
-Test 20261007-231156-8465: .../toy-shop/.nookku/tests/20261007-231156-8465
+Test 20261011-185044-0f7c: .../toy-shop/.nookku/tests/20261011-185044-0f7c
 Reply: Which item is this about: the mug or the teapot?
 Audit: exit 0
 PASS
@@ -145,7 +145,7 @@ nookku view
 Before the start of a test, the viewer shows the last test. After step 4, this is the test of `check`:
 
 ```text
-════ test 20261007-231156-8465 ════
+════ test 20261011-185044-0f7c ════
 ──── tester, turn 1 ────
 Hello from nookku check. What can you help me with?
 ──── agent ────
@@ -159,7 +159,7 @@ This is correct. Keep the viewer open. When your test starts, the viewer follows
 In the harness, type the prompt `nookku start`. With the plugin, you can also type `/nookku start`. The relay starts the test and switches [relay mode](../reference/glossary.md#relay-mode) on. The model does not receive the prompt. The project hooks in Claude Code show:
 
 ```text
-nookku: test 20261007-231159-fd98 started. Relay mode is on: each message goes to the entry. To end the test and start the evaluation, type the prompt nookku end. To end the test with no evaluation, run nookku end in a shell.
+nookku: test 20261011-185047-267f started. Relay mode is on: each message goes to the entry. To end the test and start the evaluation, type the prompt nookku end. To end the test with no evaluation, run nookku end in a shell.
 ```
 
 Type your test messages, one at a time. The model does not run. For each message, Claude Code shows the reply of your app as the reason of a blocked prompt, byte for byte. The model does not get this text.
@@ -167,7 +167,7 @@ Type your test messages, one at a time. The model does not run. For each message
 The viewer also shows each turn. For 3 messages to the toy shop:
 
 ```text
-════ test 20261007-231159-fd98 ════
+════ test 20261011-185047-267f ════
 ──── tester, turn 1 ────
 hi, the mug i ordered came with a crack in the handle
 ──── agent ────
@@ -190,8 +190,8 @@ To end the test, type the prompt `nookku end`. The relay stops the entry, copies
 
 ```text
 nookku: relay mode is off.
-Test 20261007-231159-fd98 ended: 3 turns, 0 model sessions.
-Folder: .../toy-shop/.nookku/tests/20261007-231159-fd98
+Test 20261011-185047-267f ended: 3 turns, 0 model sessions.
+Folder: .../toy-shop/.nookku/tests/20261011-185047-267f
 Trace: 0 model items in 3 turns, no findings.
 Audit: nookku audit --tap .../tap.jsonl --relay .../relay.jsonl
 ```

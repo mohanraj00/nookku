@@ -2,7 +2,7 @@
 
 This page upgrades the CLI, the package in your app's environment, the Claude Code plugin and the Codex hooks. Some releases need a special step. Read the section of each release from your version to the new version in [Releases with a special step](#releases-with-a-special-step). [CHANGELOG.md](../../CHANGELOG.md) lists all changes.
 
-The output on this page is the real output of each step. I used the toy shop project of [getting-started.md](../getting-started.md) with verbatim-relay 0.3.0 and Claude Code 2.1.294 on macOS. I shortened the paths of the folders to `.../`. The test id and the times are different on your machine.
+The output on this page is the real output of each step. I used the toy shop project of [getting-started.md](../getting-started.md) on macOS. The output of steps 2 and 5 comes from nookku 0.4.0. The output of the [0.3.0](#030) section comes from verbatim-relay 0.3.0 and Claude Code 2.1.294. I shortened the paths of the folders to `.../`. The test id and the times are different on your machine.
 
 ## 1. End each running test
 
@@ -43,7 +43,7 @@ nookku --version
 ```
 
 ```text
-nookku 0.3.0
+nookku 0.4.0
 ```
 
 The hooks of the kit run the Python of the CLI install, for example `.../nookku/bin/python -m nookku hook ...`. Thus the hooks use the new version, and the hook file does not change. If you install the CLI in a new place, run `nookku init` again, so that the hooks name the new Python.
@@ -61,7 +61,7 @@ If your version constraint excludes the new version, change the constraint first
 ```
 
 ```text
-nookku 0.3.0
+nookku 0.4.0
 ```
 
 ## 3. Update the plugin
@@ -101,7 +101,7 @@ nookku check
 ```
 
 ```text
-Test 20261007-224410-2171: .../toy-shop/.nookku/tests/20261007-224410-2171
+Test 20261011-185044-0f7c: .../toy-shop/.nookku/tests/20261011-185044-0f7c
 Reply: Which item is this about: the mug or the teapot?
 Audit: exit 0
 PASS

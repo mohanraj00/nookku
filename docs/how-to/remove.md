@@ -2,7 +2,7 @@
 
 This page removes Nookku from a project and from your computer: the project hooks, the plugin, the test files and the package.
 
-The output on this page is the real output of each step. I used the toy shop project of [getting-started.md](../getting-started.md) with verbatim-relay 0.3.0 and Claude Code 2.1.294 on macOS. Section 2 has the output of the code of [#163](https://github.com/mohanraj00/nookku/issues/163), before the 0.4.0 release. I shortened the paths of the folders to `.../`. The test ids are different on your machine.
+I used the toy shop project of [getting-started.md](../getting-started.md) on macOS. The output of sections 2 and 4 comes from nookku 0.4.0. The output of sections 3 and 5 comes from verbatim-relay 0.3.0 and Claude Code 2.1.294, with the names of 0.4.0. I did not run these commands again, because they change the install of the computer. I shortened the paths of the folders to `.../`. The test ids are different on your machine.
 
 Do the steps in this order. Remove the hooks before you remove the CLI. The hooks run the Python of the CLI install. After `uv tool uninstall`, this program does not exist. Then each hook command fails with `No such file or directory`.
 
