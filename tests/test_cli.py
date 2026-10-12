@@ -256,6 +256,21 @@ def test_init_takes_the_repeated_reply_flag(tmp_path: Path) -> None:
     assert conf["repeated_reply"] == 0
 
 
+def test_init_takes_the_model_reply_flags(tmp_path: Path) -> None:
+    args = ["init", "codex", "--root", str(tmp_path), "--model-reply-field", "output.client_text"]
+    assert main([*args, "--model-reply-match", "exact"]) == 0
+    conf = json.loads((tmp_path / ".nookku" / "config.json").read_text())
+    assert (conf["model_reply_field"], conf["model_reply_match"]) == ("output.client_text", "exact")
+
+
+def test_init_refuses_an_unknown_model_reply_match(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert main(["init", "codex", "--root", str(tmp_path), "--model-reply-match", "loose"]) == 1
+    assert "'model_reply_match' must be exact, normalized or off" in capsys.readouterr().err
+    assert not (tmp_path / ".nookku" / "config.json").exists()
+
+
 def test_init_refuses_a_repeated_reply_of_1(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:

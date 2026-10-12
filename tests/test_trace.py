@@ -51,7 +51,61 @@ def test_repeated_reply_compares_bytes_and_counts_an_empty_reply() -> None:
 )
 def test_a_manifest_with_no_valid_repeated_reply_gives_the_default(keys: object) -> None:
     manifest = {"test": "t"} if keys is None else {"test": "t", "trace": keys}
-    assert trace._repeated_reply(manifest) == trace.REPEATED_REPLY
+    assert trace.trace_keys(manifest) == trace.TRACE_KEYS
+
+
+def _message(turn: int, text: str, harness: str = "claude-code") -> dict:
+    return {
+        "turn": turn,
+        "harness": harness,
+        "kind": "message",
+        "role": "assistant",
+        "output": text,
+    }
+
+
+def test_model_texts_skip_other_turns_otel_items_and_empty_texts() -> None:
+    items = [
+        _message(1, "We sell teapots."),
+        _message(1, "  \n"),
+        _message(2, "Not this turn."),
+        _message(1, "An app log.", harness="otel"),
+        {**_message(1, "A tester message."), "role": "user"},
+    ]
+    assert trace.model_texts(items, 1, "") == ["We sell teapots."]
+
+
+def test_model_texts_with_a_field_read_json_lists_and_tool_inputs() -> None:
+    tool = {"turn": 1, "harness": "codex", "kind": "tool_call", "harness_internal": False}
+    items = [
+        _message(1, '{"output": {"parts": ["Hi", "Tea"]}}'),
+        _message(1, 'Here it is: {"output": {"parts": ["Mug"]}} and more'),
+        _message(1, "not JSON {"),
+        _message(1, '{"output": {"parts": [7]}}'),
+        {**tool, "input": {"output": {"parts": ["Cup"]}}},
+        {**tool, "input": {"output": {"parts": ["Search"]}}, "harness_internal": True},
+    ]
+    assert trace.model_texts(items, 1, "output.parts.0") == ["Hi", "Mug", "Cup"]
+
+
+def test_reply_not_from_model_normalizes_white_space_and_case() -> None:
+    items = [_message(1, "Your  ORDER\nships today.")]
+    exchanges = [{"reply": "Hello. your order ships TODAY. Bye."}]
+    assert trace.not_from_model(exchanges, items, "", "normalized") == []
+    assert [f["turn"] for f in trace.not_from_model(exchanges, items, "", "exact")] == [1]
+    assert trace.not_from_model(exchanges, items, "", "off") == []
+    assert trace.not_from_model([{"reply": None}], items, "", "exact") == []
+
+
+@pytest.mark.parametrize(
+    "keys",
+    [
+        {"model_reply_field": "a..b", "model_reply_match": "loose"},
+        {"model_reply_field": 7, "model_reply_match": None},
+    ],
+)
+def test_a_manifest_with_wrong_model_reply_keys_gives_the_defaults(keys: dict) -> None:
+    assert trace.trace_keys({"trace": keys}) == trace.TRACE_KEYS
 
 
 def test_summary() -> None:

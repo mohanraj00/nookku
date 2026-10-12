@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from nookku import bridge, kit, seal, stdio
+from nookku import bridge, kit, seal, stdio, trace
 from nookku.audit import CHECKS, audit
 from nookku.record import RecordError, Writer
 
@@ -82,7 +82,7 @@ def test_a_test_relays_and_records_both_sides(tmp_path: Path, homes: tuple) -> N
     assert manifest["tester_sessions"] == ["tester-1"]
     assert manifest["model_sessions"] == []
     assert "config.json" in manifest["config_sha256"]
-    assert manifest["trace"] == {"repeated_reply": 2}
+    assert manifest["trace"] == trace.TRACE_KEYS
     folder = Path(cur["dir"])
     assert not (root / ".nookku" / "current.json").exists()
     assert "toy shop agent: ready" in (folder / "app.log").read_text()

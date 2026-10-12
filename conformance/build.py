@@ -638,10 +638,20 @@ def iso(t: float) -> str:
     return stamp.isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
 
-def window(started: float | None, ts: float, status: int | None = 200, v: str = "0.2") -> dict:
-    """An exchange of a trace case: only its times and its status matter. Each reply names its
-    time, so that 2 turns never give a repeated_reply finding."""
-    reply = f"toy shop reply at {ts:g}" if status == 200 else None
+def window(
+    started: float | None,
+    ts: float,
+    status: int | None = 200,
+    v: str = "0.2",
+    reply: str | None = None,
+) -> dict:
+    """An exchange of a trace case: its times, its status and its reply. The default reply names
+    its time, so that 2 turns never give a repeated_reply finding. A turn with a model text
+    gives a reply with that text, so that it gives no reply_not_from_model finding."""
+    if status != 200:
+        reply = None
+    elif reply is None:
+        reply = f"toy shop reply at {ts:g}"
     row = ex("toy shop message", reply, status, v=v)
     row["ts"] = T0 + ts
     if started is not None:
@@ -735,6 +745,7 @@ def counts(**n: int) -> dict:
     checks = (
         "agent_error",
         "repeated_reply",
+        "reply_not_from_model",
         "tool_error",
         "command_failed",
         "span_error",
@@ -772,7 +783,11 @@ TOOL_REFERENCE = {"type": "tool_reference", "tool_name": "mcp__shop__lookup_orde
 # error, 2 failed tools, a thinking block, a meta line, items between turns, a tool call with no
 # result, a line that is not JSON and a turn with no model item.
 CLAUDE_CASE = {
-    "tap": [window(10, 20), window(30, 40, status=500), window(50, 60)],
+    "tap": [
+        window(10, 20, reply="Order 4471 was delivered."),
+        window(30, 40, status=500),
+        window(50, 60),
+    ],
     "manifest": {"test": "20261006-080000-cc01", "model_sessions": [CC_SESSION]},
     "sessions": {
         CC_FILE: [
@@ -944,7 +959,11 @@ NO_FILE = "cat: returns.txt: No such file or directory\n"
 # failed command, an MCP error, a failed dynamic tool, an MCP result with isError, a declined
 # command, item types that the trace skips, an item after the last turn and a turn with no item.
 CODEX_CASE = {
-    "tap": [window(None, 20, v="0.1"), window(None, 40, v="0.1"), window(50, 60)],
+    "tap": [
+        window(None, 20, v="0.1", reply="Delivered, and 12 mugs are in stock."),
+        window(None, 40, v="0.1", reply="I cannot check that."),
+        window(50, 60),
+    ],
     "manifest": {"test": "20261006-080000-cx01", "model_sessions": [CX_SESSION]},
     "sessions": {
         CX_FILE: [
@@ -1266,7 +1285,7 @@ CODEX_CASE = {
 # with no items, and a session that has no file. Turn 1 has items, so no turn_without_model.
 UNTESTED_FILE = f"sessions/codex/rollout-2026-10-06T08-00-00-{CX}.jsonl"
 VERSION_CASE = {
-    "tap": [window(10, 20)],
+    "tap": [window(10, 20, reply="Hello.")],
     "manifest": {
         "test": "20261006-080000-vv01",
         "model_sessions": [
@@ -1450,6 +1469,132 @@ REPEATED_THREE_CASE = repeated_case(
 )
 REPEATED_OFF_CASE = repeated_case("20261006-080000-rr00", {"repeated_reply": 0}, [])
 
+# Replies that are not from the model (SPEC.md section 8.6). Turn 1: the reply is the model text.
+# Turn 2: the reply holds the model text with other white space and case, so only the match
+# `normalized` finds it. Turn 3: the app replaced the model text with a fixed decline text. Turn 4
+# has no model item, so it gives turn_without_model and no reply_not_from_model.
+DECLINE = "Sorry, I cannot help with that."
+PLAIN_TEXTS = ["We sell teapots and mugs.", "Your order  ships\ntoday.", "The mug costs 12 euros."]
+PLAIN_REPLIES = ["We sell teapots and mugs.", "Order 7: your order ships today.", DECLINE]
+# The same turns with a structured model output and model_reply_field `reply`. Turn 2 has its JSON
+# in a code fence. Turn 4 gives its client text in the input of a tool call of the app.
+FIELD_TEXTS = [
+    '{"reply": "We sell teapots and mugs.", "intent": "catalog"}',
+    '```json\n{"reply": "Your order ships today."}\n```',
+    '{"reply": "The mug costs 12 euros."}',
+]
+FIELD_REPLIES = ["We sell teapots and mugs.", "Your order ships today.", DECLINE]
+ANSWER = {"reply": "Thank you for your order."}
+QUESTIONS = ["What do you sell?", "Where is order 7?", "How much is the mug?", "Thanks!"]
+
+
+def reply_case(test: str, keys: dict | None, structured: bool, found: list[dict]) -> dict:
+    texts, replies = (FIELD_TEXTS, FIELD_REPLIES) if structured else (PLAIN_TEXTS, PLAIN_REPLIES)
+    tap = [window(20 * n - 10, 20 * n, reply=r) for n, r in enumerate(replies, 1)]
+    lines, rows = [], []
+    for n, (question, text) in enumerate(zip(QUESTIONS[:3], texts, strict=True), 1):
+        t = 20.0 * n - 9
+        lines += [cc_line("user", t, question), cc_line("assistant", t + 1, [cc_text(text)])]
+        rows += [
+            item(n, "claude-code", t, "message", 2 * n - 1, role="user", output=question),
+            item(n, "claude-code", t + 1, "message", 2 * n, role="assistant", output=text),
+        ]
+    if structured:
+        tap.append(window(70, 80, reply=ANSWER["reply"]))
+        lines += [
+            cc_line("user", 71, QUESTIONS[3]),
+            cc_line("assistant", 72, [use("t1", "mcp__shop__answer", ANSWER)]),
+            cc_line("user", 72.5, [cc_result("t1", "sent")]),
+        ]
+        rows += [
+            item(4, "claude-code", 71, "message", 7, role="user", output=QUESTIONS[3]),
+            item(
+                4,
+                "claude-code",
+                72,
+                "tool_call",
+                8,
+                server="shop",
+                name="answer",
+                input=ANSWER,
+                output="sent",
+                result_line=9,
+            ),
+        ]
+    else:
+        tap.append(window(70, 80, reply="Bye."))
+    manifest: dict[str, Any] = {"test": test, "model_sessions": [CC_SESSION]}
+    if keys is not None:
+        manifest["trace"] = keys
+    without_model = [] if structured else [TURN_4_WITHOUT_MODEL]
+    return {
+        "tap": tap,
+        "manifest": manifest,
+        "sessions": {CC_FILE: lines},
+        "trace": rows,
+        "findings": {
+            "v": "0.2",
+            "test": test,
+            "turns": 4,
+            "items": len(rows),
+            "sessions": [
+                {
+                    "harness": "claude-code",
+                    "session": CC,
+                    "file": CC_FILE,
+                    "inferred": False,
+                    "version": "2.1.286",
+                    "items": len(rows),
+                    "ignored": {},
+                }
+            ],
+            "otel": None,
+            "backend": None,
+            "model_api": None,
+            "counts": counts(
+                reply_not_from_model=len(found), turn_without_model=len(without_model)
+            ),
+            "findings": [*found, *without_model],
+        },
+    }
+
+
+def cc_text(text: str) -> dict:
+    return {"type": "text", "text": text}
+
+
+TURN_4_WITHOUT_MODEL = {
+    "check": "turn_without_model",
+    "turn": 4,
+    "detail": "no model item in this turn",
+}
+DECLINED = {
+    "check": "reply_not_from_model",
+    "turn": 3,
+    "detail": "the reply does not contain the text of a model output of this turn (1 checked): "
+    '"Sorry, I cannot help with that."',
+}
+WHITE_SPACE = {
+    "check": "reply_not_from_model",
+    "turn": 2,
+    "detail": "the reply does not contain the text of a model output of this turn (1 checked): "
+    '"Order 7: your order ships today."',
+}
+DECLINED_FIELD = {
+    "check": "reply_not_from_model",
+    "turn": 3,
+    "detail": "the reply does not contain the value of reply of a model output of this turn "
+    '(1 checked): "Sorry, I cannot help with that."',
+}
+REPLY_CASE = reply_case("20261006-080000-rm01", None, False, [DECLINED])
+REPLY_EXACT_CASE = reply_case(
+    "20261006-080000-rm02", {"model_reply_match": "exact"}, False, [WHITE_SPACE, DECLINED]
+)
+REPLY_OFF_CASE = reply_case("20261006-080000-rm03", {"model_reply_match": "off"}, False, [])
+REPLY_FIELD_CASE = reply_case(
+    "20261006-080000-rm04", {"model_reply_field": "reply"}, True, [DECLINED_FIELD]
+)
+
 # OpenTelemetry (SPEC.md sections 7.5 and 8.4): the rows of otel.jsonl as the receiver writes them.
 # A harness tool_result that the session file has, one that it does not have, app spans with and
 # without an error, an app log, a receiver error row, and a span after the last turn.
@@ -1535,7 +1680,10 @@ APP_LOG = {
     "span_id": None,
 }
 OTEL_CASE = {
-    "tap": [window(10, 20), window(30, 40)],
+    "tap": [
+        window(10, 20, reply="Order 4471 was delivered."),
+        window(30, 40, reply="Your refund is done."),
+    ],
     "manifest": {"test": "20261006-080000-ot01", "model_sessions": [CC_SESSION]},
     "sessions": {
         CC_FILE: [
@@ -2061,7 +2209,7 @@ STREAM_USAGE = {"input_tokens": 40, "output_tokens": 20}
 JSON_USAGE = {"input_tokens": 70, "output_tokens": 12}
 HARNESS_REQUEST = '{"model": "claude-toy", "system": "harness instructions"}'
 MODEL_API_CASE = {
-    "tap": [window(10, 20), window(30, 40)],
+    "tap": [window(10, 20, reply="Yes, 3 teapot sets are in stock."), window(30, 40)],
     "manifest": {"test": "20261006-080000-ma01", "model_sessions": []},
     "sessions": {},
     "model_api": [
@@ -2343,7 +2491,7 @@ RANSWERED = [
 ]
 RSTOCK_CALL = {"id": "call_7", "name": "check_stock", "input": {"sku": "teapot-set"}}
 RESPONSES_CASE = {
-    "tap": [window(10, 20), window(30, 40)],
+    "tap": [window(10, 20, reply="Yes, 3 teapot sets are in stock."), window(30, 40)],
     "manifest": {"test": "20261007-080000-rs01", "model_sessions": []},
     "sessions": {},
     "model_api": [
@@ -2496,7 +2644,7 @@ def cc_attachment(t: float, attachment: dict) -> dict:
 
 
 SERVERS_CASE = {
-    "tap": [window(10, 20)],
+    "tap": [window(10, 20, reply="Order 4471 was delivered.")],
     "manifest": {"test": "20261006-080000-mc01", "model_sessions": [CC_SESSION]},
     "sessions": {
         CC_FILE: [
@@ -2930,6 +3078,10 @@ TRACE_CASES = {
     "repeated_reply": REPEATED_CASE,
     "repeated_reply_three": REPEATED_THREE_CASE,
     "repeated_reply_off": REPEATED_OFF_CASE,
+    "reply_not_from_model": REPLY_CASE,
+    "reply_not_from_model_exact": REPLY_EXACT_CASE,
+    "reply_not_from_model_off": REPLY_OFF_CASE,
+    "reply_not_from_model_field": REPLY_FIELD_CASE,
 }
 
 

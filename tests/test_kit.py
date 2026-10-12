@@ -515,6 +515,30 @@ def test_repeated_reply_takes_0_and_each_count_of_2_or_more(tmp_path, value):
     assert kit.Config.load(tmp_path).repeated_reply == value
 
 
+def test_a_new_config_has_the_default_model_reply_keys(tmp_path):
+    kit.init(tmp_path, "codex", {})
+    conf = json.loads((tmp_path / ".nookku" / "config.json").read_text())
+    assert (conf["model_reply_field"], conf["model_reply_match"]) == ("", "normalized")
+
+
+@pytest.mark.parametrize("value", [".reply", "output..text", "reply.", 7, None, ["reply"]])
+def test_model_reply_field_must_be_empty_or_a_dot_path(tmp_path, value):
+    kit.init(tmp_path, "codex", {})
+    path = tmp_path / ".nookku" / "config.json"
+    path.write_text(json.dumps({**json.loads(path.read_text()), "model_reply_field": value}))
+    with pytest.raises(ValueError, match="'model_reply_field' must be empty or a dot path"):
+        kit.Config.load(tmp_path)
+
+
+@pytest.mark.parametrize("value", ["Exact", "normal", "", None, True])
+def test_model_reply_match_must_be_exact_normalized_or_off(tmp_path, value):
+    kit.init(tmp_path, "codex", {})
+    path = tmp_path / ".nookku" / "config.json"
+    path.write_text(json.dumps({**json.loads(path.read_text()), "model_reply_match": value}))
+    with pytest.raises(ValueError, match="'model_reply_match' must be exact, normalized or off"):
+        kit.Config.load(tmp_path)
+
+
 def test_check_message_must_have_no_lone_surrogate(tmp_path):
     kit.init(tmp_path, "codex", {})
     path = tmp_path / ".nookku" / "config.json"

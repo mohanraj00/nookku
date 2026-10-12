@@ -41,7 +41,7 @@ tester ──> harness ──> relay ──────> tap ──stdin/stdout�
 
 [docs/architecture.md](docs/architecture.md#data-flow) shows this flow with each part, and has diagrams of one turn, the test lifecycle and the trace.
 
-Two processes write two records, and the audit compares them byte for byte. It reports 7 break classes ([SPEC.md section 3.3](SPEC.md#33-break-classes)). It fails closed: it never reports clean on a record that it cannot read. 53 audit cases, 20 contract cases, 13 trace cases, 11 seal cases and 7 receiver cases in [conformance/](conformance/) test the spec ([cases](conformance/build.py), [tests](tests/)).
+Two processes write two records, and the audit compares them byte for byte. It reports 7 break classes ([SPEC.md section 3.3](SPEC.md#33-break-classes)). It fails closed: it never reports clean on a record that it cannot read. 53 audit cases, 20 contract cases, 17 trace cases, 11 seal cases and 7 receiver cases in [conformance/](conformance/) test the spec ([cases](conformance/build.py), [tests](tests/)).
 
 A test also records what your app did. It copies the session files of the app's own Agent SDK or Codex sessions. It records the backend calls, the direct model calls and the OpenTelemetry spans of the app. [docs/architecture.md](docs/architecture.md) shows each part.
 

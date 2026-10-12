@@ -1,0 +1,15 @@
+{
+ "test": "20261006-080000-rm03",
+ "model_sessions": [
+  {
+   "harness": "claude-code",
+   "session": "4f1c2a7e-0d3b-4c55-9a61-2b8e5d7c9f10",
+   "pid": 4471,
+   "inferred": false,
+   "file": "sessions/claude-code/4f1c2a7e-0d3b-4c55-9a61-2b8e5d7c9f10.jsonl"
+  }
+ ],
+ "trace": {
+  "model_reply_match": "off"
+ }
+}

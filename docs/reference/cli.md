@@ -226,6 +226,8 @@ The output starts with `Project root:` and the absolute root, then gives the abs
 | `--openai-stream` | off | The config key `openai_stream`: set it to `true`. |
 | `--record FILE` | `.nookku/relay.jsonl` | The config key `record`. |
 | `--check-message TEXT` | `Hello from nookku check. What can you help me with?` | The config key `check_message`: the one message of `nookku check`. |
+| `--model-reply-field PATH` | empty | The config key `model_reply_field`: the dot path of the client text in a structured model output. |
+| `--model-reply-match MODE` | `normalized` | The config key `model_reply_match`: `exact`, `normalized` or `off`. |
 | `--repeated-reply COUNT` | `2` | The config key `repeated_reply`: the count of consecutive turns with the same reply that gives a finding. `0` turns the check off. |
 | `--remove` | off | Remove the project hooks of nookku, and keep each other hook and key. `HARNESS` must be `claude-code` or `codex`. It takes no other flag. |
 
