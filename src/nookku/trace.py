@@ -77,10 +77,15 @@ NOT_FROM_APP = {
 }
 
 
-def _lines(path: Path) -> Iterator[tuple[int, Any]]:
-    """Each JSON line with its line number. Split on \\n only: a text can hold U+2028."""
-    for n, raw in enumerate(path.read_text(encoding="utf-8").split("\n"), 1):
+def _lines(path: Path, ignored: Counter[str]) -> Iterator[tuple[int, Any]]:
+    """Each JSON line with its line number. Split on \\n only: a text can hold U+2028. Count each
+    blank line as `blank` in `ignored`. The empty text after the last \\n is not a line."""
+    raws = path.read_text(encoding="utf-8").split("\n")
+    if raws[-1] == "":
+        raws.pop()
+    for n, raw in enumerate(raws, 1):
         if not raw.strip():
+            ignored["blank"] += 1
             continue
         try:
             yield n, json.loads(raw)
@@ -150,7 +155,7 @@ def read_claude(path: Path, session: str, file: str) -> tuple[list[dict[str, Any
     calls: dict[str, dict[str, Any]] = {}
     ignored: Counter[str] = Counter()
     version = None
-    for n, row in _lines(path):
+    for n, row in _lines(path, ignored):
         if not isinstance(row, dict):
             ignored["invalid_json"] += 1
             continue
@@ -200,7 +205,7 @@ def read_claude_servers(path: Path) -> list[dict[str, Any]]:
     attachment line names the servers and the tools that the session loaded, and a tool call
     names the server of its tool."""
     found: dict[str, dict[str, Any]] = {}
-    for n, row in _lines(path):
+    for n, row in _lines(path, Counter()):
         if not isinstance(row, dict):
             continue
         names: list[str] = []
@@ -264,7 +269,7 @@ def read_codex(path: Path, session: str, file: str) -> tuple[list[dict[str, Any]
     items: list[dict[str, Any]] = []
     ignored: Counter[str] = Counter()
     version = None
-    for n, row in _lines(path):
+    for n, row in _lines(path, ignored):
         if not isinstance(row, dict):
             ignored["invalid_json"] += 1
             continue
@@ -308,7 +313,7 @@ def read_otel(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     items: list[dict[str, Any]] = []
     ignored: Counter[str] = Counter()
     rows = 0
-    for n, row in _lines(path):
+    for n, row in _lines(path, ignored):
         rows += 1
         kind = row.get("type") if isinstance(row, dict) else None
         if kind not in ("span", "log"):
@@ -363,7 +368,7 @@ def read_backend(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     items: list[dict[str, Any]] = []
     ignored: Counter[str] = Counter()
     rows = 0
-    for n, row in _lines(path):
+    for n, row in _lines(path, ignored):
         rows += 1
         if not isinstance(row, dict) or row.get("type") != "call":
             ignored[str(row.get("type")) if isinstance(row, dict) else "invalid_json"] += 1
@@ -519,7 +524,7 @@ def read_model_api(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     other_calls = 0
     calls: list[tuple[int, dict[str, Any], str, dict[str, Any]]] = []
     rows = 0
-    for n, row in _lines(path):
+    for n, row in _lines(path, ignored):
         rows += 1
         if not isinstance(row, dict) or row.get("type") != "call":
             ignored[str(row.get("type")) if isinstance(row, dict) else "invalid_json"] += 1

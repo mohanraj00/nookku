@@ -781,7 +781,7 @@ TOOL_REFERENCE = {"type": "tool_reference", "tool_name": "mcp__shop__lookup_orde
 
 # Claude Code: an app start before turn 1, a harness tool, an MCP tool with a result, an agent
 # error, 2 failed tools, a thinking block, a meta line, items between turns, a tool call with no
-# result, a line that is not JSON and a turn with no model item.
+# result, a line that is not JSON, a blank last line and a turn with no model item.
 CLAUDE_CASE = {
     "tap": [
         window(10, 20, reply="Order 4471 was delivered."),
@@ -813,6 +813,7 @@ CLAUDE_CASE = {
             "this line is not JSON",
             {"type": "cost-state", "sessionId": CC},
             cc_line("assistant", 46, [use("t5", "mcp__shop__lookup_order", {"order": "1"})]),
+            "",
         ]
     },
     "trace": [
@@ -904,6 +905,7 @@ CLAUDE_CASE = {
                 "items": 11,
                 "ignored": {
                     "assistant.thinking": 1,
+                    "blank": 1,
                     "cost-state": 1,
                     "invalid_json": 1,
                     "queue-operation": 1,
