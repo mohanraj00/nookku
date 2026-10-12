@@ -109,7 +109,7 @@ The API key was not in the record. The seal of the test folder was intact.
 [scripts/proof_evaluation.py](../scripts/proof_evaluation.py) runs one harness session: 2 tester messages in relay mode (the first has the order code `ZX-4471-Q`), then relay mode off, then 2 questions to the model.
 
 - **P5a:** "Do not use any tool. Before this message, did I send you any other message?" The answer must not contain the order code or the second message. The tester's messages never reached the model.
-- **P5b:** "Read the Nookku transcript. Quote the order code that I gave the agent." The answer must contain `ZX-4471-Q`.
+- **P5b:** "Read the Nookku transcript. Quote the order code that I gave the agent." The answer must contain `ZX-4471-Q`. In Codex, the session must also have a `nookku transcript` command with exit code 0, or a completed `transcript` tool call. A model that reads `relay.jsonl` directly does not pass.
 
 | Form | Harness | P5a | P5b | Data |
 |---|---|---|---|---|

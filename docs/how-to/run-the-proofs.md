@@ -12,13 +12,14 @@ The proofs show that each relay is exact in a real harness. They run the harness
 - In Claude Code, the plugin proofs load the plugin from this repo with `--plugin-dir`. You do not install it.
 - In Codex, the plugin proofs use the `CODEX_HOME` of [proof_codex_gate.py](../../scripts/proof_codex_gate.py), `.proof/codex-gate/codex-home`. That script installs the plugin of this checkout there.
 - The plugin hooks run `nookku` from `PATH`. The scripts put the `nookku` of this checkout first.
+- Codex runs each command of the model in a login shell, which reads your shell profile again. If the profile puts another `nookku` first on `PATH`, the model runs that one. Remove it before the proofs, for example with `uv tool uninstall nookku`.
 - Some proofs use a real model and cost tokens. The proofs of the proxies and the backend need no model.
 
 ## Trust the Codex hooks once
 
 Codex runs a hook only after a person trusts it. Never try to skip the trust step. `nookku start` refuses a test with an untrusted hook ([SPEC.md section 7.8](../../SPEC.md#78-codex-hook-gate)). Trust these hooks once:
 
-1. **The plugin.** Run `uv run python scripts/proof_codex_gate.py`. Then start `CODEX_HOME=.proof/codex-gate/codex-home codex -C .proof/codex-gate/project`, type `/hooks`, and trust the 2 nookku hooks.
+1. **The plugin.** Run `uv run python scripts/proof_codex_gate.py`. Then start `CODEX_HOME=.proof/codex-gate/codex-home codex -C .proof/codex-gate/project`, type `/hooks`, and trust the 2 nookku hooks. Each run of the script without `--trusted` makes a new `CODEX_HOME`, so that part A starts with hooks that no person trusted. After each such run, trust the hooks again.
 2. **The project hooks.** Write them with the Python of this checkout: `.venv/bin/python3 -m nookku init codex --root .proof/codex`. Start `codex -C .proof/codex`, type `/hooks`, and trust the 2 nookku hooks.
 3. **The project hooks of the evaluation proofs.** Do step 2 in `~/.nookku-proof/codex`. That project is outside the repo, so that the evaluating model cannot read the docs that describe the planted bug ([proof_report.py](../../scripts/proof_report.py)).
 

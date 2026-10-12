@@ -10,5 +10,6 @@
  "turns": 2,
  "P5a_no_memory": true,
  "P5b_reads_record": true,
+ "read_with_transcript": true,
  "pass": true
 }

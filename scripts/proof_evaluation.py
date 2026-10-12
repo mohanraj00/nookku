@@ -2,7 +2,9 @@
 
 In one harness session: 2 tester messages in relay mode, then relay mode off, then:
   P5a  With no tools, the model cannot quote the tester's messages: they never reached it.
-  P5b  The model reads the transcript and quotes the order code from the conversation.
+  P5b  The model reads the transcript and quotes the order code from the conversation. In
+       Codex, the read must be a `nookku transcript` command with exit code 0 or a completed
+       `transcript` tool call. A model that reads relay.jsonl directly does not pass.
 
 Each setup uses the project of scripts/proofs_relay.py. The plugin reads the transcript with its
 MCP tool, and the project hooks with `nookku transcript` in the shell.
@@ -21,6 +23,7 @@ import tempfile
 from datetime import date
 from functools import partial
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path[:0] = [str(ROOT / "src"), str(ROOT / "tests")]
@@ -71,7 +74,12 @@ def claude(
 
 
 def codex(
-    prompt: str, session: str | None, cwd: Path, extra: list[str], env: dict[str, str] = ENV
+    prompt: str,
+    session: str | None,
+    cwd: Path,
+    extra: list[str],
+    env: dict[str, str] = ENV,
+    calls: list[dict[str, Any]] | None = None,
 ) -> tuple[str, str]:
     cmd = (
         ["codex", "exec"]
@@ -85,6 +93,13 @@ def codex(
     )
     events = json_lines(p.stdout)
     thread = next((e["thread_id"] for e in events if e.get("type") == "thread.started"), session)
+    if calls is not None:
+        calls += [
+            e["item"]
+            for e in events
+            if e.get("type") == "item.completed"
+            and e["item"].get("type") in ("command_execution", "mcp_tool_call")
+        ]
     texts = [
         e["item"].get("text", "")
         for e in events
@@ -93,6 +108,24 @@ def codex(
     if not texts:  # keep the reason, for the record
         return f"(no answer; exit {p.returncode}: {p.stderr.strip()[-300:]})", thread or ""
     return texts[-1], thread or ""
+
+
+def transcript_read(calls: list[dict[str, Any]], plugin: bool) -> bool:
+    """True if a Codex turn read the transcript the way that its setup documents."""
+    if plugin:
+        return any(
+            c["type"] == "mcp_tool_call"
+            and c.get("tool") == "transcript"
+            and not c.get("error")
+            and c.get("status") == "completed"
+            for c in calls
+        )
+    return any(
+        c["type"] == "command_execution"
+        and "nookku transcript" in str(c.get("command", ""))
+        and c.get("exit_code") == 0
+        for c in calls
+    )
 
 
 def main() -> int:
@@ -106,6 +139,7 @@ def main() -> int:
     start_in_thread(tap)
     tap_url = f"http://127.0.0.1:{tap.server_address[1]}/"
     answers: dict[str, str] = {}
+    calls: list[dict[str, Any]] = []  # the Codex commands and tool calls of the last turns
     try:
         form, harness = relay.split("-", 1)
         plugin = form == "plugin"
@@ -127,7 +161,7 @@ def main() -> int:
             tool = tool_name("claude-code", "transcript") if plugin else "Bash(nookku transcript*)"
             read_args = [*relay_args, f"--allowedTools={tool}"]
         else:
-            run = partial(codex, env=env)
+            run = partial(codex, env=env, calls=calls)
             # codex exec resume does not take -s, so set the sandbox as config
             relay_args = read_args = ["-c", 'sandbox_mode="read-only"']
         kit.set_mode(project, True)
@@ -138,7 +172,9 @@ def main() -> int:
         finally:
             kit.set_mode(project, False)
         answers["memory"], session = run(MEMORY, session, project, relay_args)
+        calls.clear()
         answers["read"], _ = run(read, session, project, read_args)
+        read_ok = None if harness == "claude-code" else transcript_read(calls, plugin)
         version = subprocess.run(
             [harness.replace("-code", ""), "--version"], capture_output=True, text=True
         ).stdout.strip()
@@ -157,7 +193,8 @@ def main() -> int:
         "audit_exit": rep.exit,
         "turns": rep.turns,
         "P5a_no_memory": CODE not in answers["memory"] and "teapot" not in answers["memory"],
-        "P5b_reads_record": CODE in answers["read"],
+        "P5b_reads_record": CODE in answers["read"] and read_ok is not False,
+        "read_with_transcript": read_ok,
     }
     result["pass"] = result["P5a_no_memory"] and result["P5b_reads_record"] and rep.exit == 0
     out = ROOT / "proofs" / "evaluation"

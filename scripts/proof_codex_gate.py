@@ -4,7 +4,7 @@ The script uses its own CODEX_HOME, .proof/codex-gate/codex-home, so the user co
 change. It installs the plugin of this checkout from a copy of the marketplace with the plugin
 AVAILABLE. It never calls a trust API.
 
-Part A, with no person:
+Part A, with no person, in a new CODEX_HOME:
 1. With untrusted hooks, `nookku start` refuses the test, and relay mode stays off.
 2. The trust hash of Codex: a change to the plugin script keeps it, and a change to a timeout
    changes it. Thus the gate also checks the SHA-256 of the script.
@@ -166,6 +166,11 @@ def main() -> int:
     if shutil.which("nookku") is None or __version__ not in run(["nookku", "--version"]).stdout:
         print("put the nookku command of this checkout first on PATH, for example with uv run")
         return 2
+    if "--trusted" not in sys.argv and HOME.exists():
+        # Part A needs hooks that no person trusted. The app-server of the old home keeps its
+        # control socket, so stop it first.
+        subprocess.run(["pkill", "-f", str(HOME)], check=False)
+        shutil.rmtree(HOME)
     installed = install()
     project()
     old = json.loads(OUT.read_text()) if OUT.exists() else {}
