@@ -112,7 +112,7 @@ def test_the_test_argument_can_be_the_path_of_the_test_folder(
 
 
 @pytest.mark.parametrize("command", ["verify", "trace"])
-@pytest.mark.parametrize("arg", ["../other", "20261006-000000-none"])
+@pytest.mark.parametrize("arg", ["../other", "20261006-000000-none", "~no-such-user/x"])
 def test_a_wrong_test_argument_names_the_expected_argument(
     tmp_path: Path, command: str, arg: str, capsys: pytest.CaptureFixture
 ) -> None:

@@ -994,8 +994,13 @@ def parse_test_arg(root: Path, arg: str) -> str:
     if TEST_ID.fullmatch(arg):
         return arg
     tests = (root / STATE_DIR / "tests").resolve()
-    folder = Path(arg).expanduser().resolve()
-    if folder.parent == tests and TEST_ID.fullmatch(folder.name):
+    # The shell expands "~", so the argument is a path as it is. A loop of symbolic links
+    # raises RuntimeError or OSError, and then the argument is not a test folder.
+    try:
+        folder = Path(arg).resolve()
+    except (OSError, RuntimeError):
+        folder = None
+    if folder is not None and folder.parent == tests and TEST_ID.fullmatch(folder.name):
         return folder.name
     raise TranscriptError(f"'{arg}' is not a test id or a test folder. {TESTS_HELP}")
 
