@@ -6,6 +6,7 @@ transcript with the trace, the findings and the audit, checks the app, and write
 
 from __future__ import annotations
 
+import hashlib
 import json
 from importlib import resources
 from pathlib import Path
@@ -17,6 +18,8 @@ from .record import RecordError, read_rows
 REPORT = "report.md"
 # A longer text shows its start, and the trace line holds all of it.
 CUT = 2000
+# In compact mode, a shorter text always shows: its reference is almost as long as the text.
+COMPACT_MIN = 200
 
 
 def enabled(root: Path) -> bool:
@@ -173,11 +176,71 @@ def _finding(f: dict[str, Any], lines: dict[tuple[str, int], int]) -> str:
     return f"- {f['check']}: {f['detail']}{where}\n"
 
 
-def transcript(folder: Path) -> str:
+def _reference(text: str, line: int) -> str:
+    digest = hashlib.sha256(text.encode("utf-8", errors="surrogatepass")).hexdigest()
+    return (
+        f"(compact: the same text as [trace.jsonl:{line}], sha256 {digest}, {len(text)} characters)"
+    )
+
+
+def _otel(it: dict[str, Any]) -> bool:
+    return it["kind"] in ("span", "log") and isinstance(it["input"], dict)
+
+
+def _long(value: Any) -> bool:
+    return isinstance(value, str) and len(value) >= COMPACT_MIN
+
+
+def _compact(order: list[tuple[int, dict[str, Any]]]) -> dict[int, dict[str, Any]]:
+    """The shown form of each item in compact mode (#152), by its line in trace.jsonl. `order` is
+    the order of the transcript.
+
+    - An attribute of an OTel span or log that has the same text as a session item of the same
+      turn shows a reference to that item.
+    - A user message or an OTel attribute with a text that an earlier item showed in full shows
+      a reference to that item, with the sha256 and the length of the text.
+
+    A text shorter than COMPACT_MIN characters always shows. No other field changes."""
+    session: dict[int, dict[str, int]] = {}
+    for k, it in order:
+        if it["turn"] is not None and str(it["source"]["file"]).startswith("sessions/"):
+            for text in (it["output"], it["error"]):
+                if _long(text):
+                    session.setdefault(it["turn"], {}).setdefault(text, k)
+    same_turn = {k: session.get(it["turn"], {}) for k, it in order}
+    first: dict[str, int] = {}
+    for k, it in order:
+        if it["kind"] == "message" and it["role"] == "user" and _long(it["output"]):
+            first.setdefault(it["output"], k)
+        if _otel(it):
+            for value in it["input"].values():
+                if _long(value) and value not in same_turn[k]:
+                    first.setdefault(value, k)
+    shown: dict[int, dict[str, Any]] = {}
+    for k, it in order:
+        out = it
+        user = it["kind"] == "message" and it["role"] == "user" and _long(it["output"])
+        if user and first[it["output"]] != k:
+            out = {**it, "output": _reference(it["output"], first[it["output"]])}
+        if _otel(it):
+            attributes = {}
+            for key, value in it["input"].items():
+                if _long(value) and value in same_turn[k]:
+                    value = _reference(value, first.get(value, same_turn[k][value]))
+                elif _long(value) and first[value] != k:
+                    value = _reference(value, first[value])
+                attributes[key] = value
+            out = {**it, "input": attributes}
+        shown[k] = out
+    return shown
+
+
+def transcript(folder: Path, compact: bool = False) -> str:
     """The exact conversation of a test as the agent received and sent it, with the trace.
 
     If tap.jsonl or trace.jsonl is invalid, the first line says so, and the transcript shows no
-    turn: a changed text must not look exact.
+    turn: a changed text must not look exact. With compact, a repeated text of a model item shows
+    one time, and then a reference to it (_compact).
     """
     try:
         tap = read_rows("tap", folder / "tap.jsonl", missing_ok=True)
@@ -203,15 +266,26 @@ def transcript(folder: Path) -> str:
         "(model_api.jsonl). [trace.jsonl:N] is "
         f"line N of {folder / 'trace.jsonl'}.\n",
     ]
+    if compact:
+        out.append(
+            f"Compact: a text of {COMPACT_MIN} or more characters in a user message or in an "
+            "OpenTelemetry attribute shows one time. After that, it shows as (compact: the same "
+            "text as [trace.jsonl:N], sha256 H, L characters). An OpenTelemetry attribute with "
+            "the text of a session item of the same turn also shows in this form.\n"
+        )
     loose = [f for f in findings if f["turn"] is None]
     if loose:
         out.append("\nFindings with no turn:\n" + "".join(_finding(f, lines) for f in loose))
     first = [n for n, it in enumerate(items, 1) if it["turn"] is None]
+    turns = range(1, len(exchanges) + 1)
+    order = [(k, it) for n in turns for k, it in enumerate(items, 1) if it["turn"] == n]
+    order += [(k, items[k - 1]) for k in first]
+    shown = _compact(order) if compact else dict(order)
     for n, ex in enumerate(exchanges, 1):
         out.append(f"\n════ turn {n} ════\n──── tester → agent ────\n{ex.get('input', '')}\n")
-        mine = [(k, it) for k, it in enumerate(items, 1) if it["turn"] == n]
+        mine = [k for k, it in enumerate(items, 1) if it["turn"] == n]
         if mine:
-            out.append("──── model items ────\n" + "".join(render_item(it, k) for k, it in mine))
+            out.append("──── model items ────\n" + "".join(render_item(shown[k], k) for k in mine))
         found = [f for f in findings if f["turn"] == n]
         if found:
             out.append("──── findings ────\n" + "".join(_finding(f, lines) for f in found))
@@ -220,7 +294,7 @@ def transcript(folder: Path) -> str:
             reply = f"(no reply: status {ex.get('status')}, {ex.get('error', 'no error text')})"
         out.append(f"──── agent → tester ────\n{reply}\n")
     if first:
-        rows = "".join(render_item(items[k - 1], k) for k in first)
+        rows = "".join(render_item(shown[k], k) for k in first)
         out.append(f"\n════ model items outside each turn ════\n{rows}")
     return "".join(out)
 

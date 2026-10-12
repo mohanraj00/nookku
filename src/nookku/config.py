@@ -106,6 +106,8 @@ class Config:
     # The count of consecutive turns with the same reply that gives a repeated_reply finding.
     # 0 turns the check off (SPEC.md section 8.6).
     repeated_reply: int = 2
+    # True: nookku transcript --trace shows a repeated text one time (SPEC.md section 9.2).
+    transcript_compact: bool = False
 
     @classmethod
     def load(cls, root: Path) -> Config:
@@ -128,6 +130,8 @@ def check(data: Any) -> dict[str, Any]:
         raise ConfigError(f"{FILE} has unknown keys: {unknown}. Correct or remove them.")
     if not isinstance(data.get("openai_stream", False), bool):
         raise ConfigError(f"{FILE}: 'openai_stream' must be true or false")
+    if not isinstance(data.get("transcript_compact", False), bool):
+        raise ConfigError(f"{FILE}: 'transcript_compact' must be true or false")
     message = data.get("check_message", CHECK_MESSAGE)
     if not isinstance(message, str) or not message.strip():
         raise ConfigError(f"{FILE}: 'check_message' must be a string with text")
