@@ -13,6 +13,7 @@
    "items": 11,
    "ignored": {
     "assistant.thinking": 1,
+    "blank": 1,
     "cost-state": 1,
     "invalid_json": 1,
     "queue-operation": 1,
