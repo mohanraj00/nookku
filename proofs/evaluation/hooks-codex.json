@@ -1,10 +1,10 @@
 {
- "date": "2026-10-10",
+ "date": "2026-10-12",
  "relay": "hooks-codex",
- "version": "codex-cli 0.162.0",
+ "version": "codex-cli 0.162.1",
  "answers": {
-  "memory_sha256": "aa88aec1b82aa261c31e9c9ea6fd700d9ab2790a9a93bdb598bd444895359c95",
-  "read": "“ZX-4471-Q”"
+  "memory_sha256": "1c158a543c82154c6b664f49836fb8b3668764167c02e9a61e494da2492da13b",
+  "read": "Your order code was “ZX-4471-Q.”\n\n`nookku transcript` failed because the config has unknown keys. I read the relay record directly to confirm the code."
  },
  "audit_exit": 0,
  "turns": 2,

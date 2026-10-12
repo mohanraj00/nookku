@@ -1,8 +1,8 @@
 {
- "date": "2026-10-10",
+ "date": "2026-10-12",
  "setup": "plugin-claude-code",
  "harness": "claude-code",
- "version": "2.1.295 (Claude Code)",
+ "version": "2.1.296 (Claude Code)",
  "transport": "http-stream",
  "agent_streams": "on_request",
  "openai_stream": true,

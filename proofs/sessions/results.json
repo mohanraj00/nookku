@@ -1,9 +1,9 @@
 {
- "date": "2026-10-07",
+ "date": "2026-10-12",
  "versions": {
-  "verbatim-relay": "0.2.0",
-  "claude-code": "2.1.290 (Claude Code)",
-  "codex": "codex-cli 0.160.0",
+  "nookku": "0.4.0",
+  "claude-code": "2.1.296 (Claude Code)",
+  "codex": "codex-cli 0.162.1",
   "claude-agent-sdk": "0.2.164"
  },
  "check_passed": true,

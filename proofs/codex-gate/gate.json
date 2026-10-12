@@ -1,12 +1,12 @@
 {
- "date": "2026-10-10",
- "nookku": "0.3.1",
- "codex": "codex-cli 0.162.0",
+ "date": "2026-10-12",
+ "nookku": "0.4.0",
+ "codex": "codex-cli 0.162.1",
  "method": "scripts/proof_codex_gate.py",
  "part_a": {
-  "start_output": "nookku: the Codex hooks of nookku are not ready, so relay mode stays off. Codex skips a hook that is not trusted, and then a message goes to the model.\n- the plugin hook PreToolUse is untrusted, not trusted.\n- the plugin hook UserPromptSubmit is untrusted, not trusted.\nStart codex in this project, type /hooks, check each nookku hook and trust it. Then start the test again.",
-  "start_exit": 1,
-  "mode_after_start": "off",
+  "start_output": "Test 20261012-071431-8e26 started on http://127.0.0.1:58099/. Relay mode is on.\nEnd it with: nookku end",
+  "start_exit": 0,
+  "mode_after_start": "on",
   "gate": {
    "codex": true,
    "hooks": [
@@ -14,7 +14,7 @@
      "origin": "plugin",
      "event": "preToolUse",
      "enabled": true,
-     "trust": "untrusted",
+     "trust": "trusted",
      "hash": "sha256:b17fd671aff4ea1cf061585881db03115d7812d6ad47cd5bb17ff6dc84d20b17",
      "script_sha256": "f50a064260a464c81c864c5bb5bc760f15c9b04770ff81c42ade03dba7511341"
     },
@@ -22,15 +22,12 @@
      "origin": "plugin",
      "event": "userPromptSubmit",
      "enabled": true,
-     "trust": "untrusted",
+     "trust": "trusted",
      "hash": "sha256:cdada78120900a490c84e8a0c483ebb42013e71e767237bb1feda58d19818682",
      "script_sha256": "f50a064260a464c81c864c5bb5bc760f15c9b04770ff81c42ade03dba7511341"
     }
    ],
-   "problems": [
-    "the plugin hook PreToolUse is untrusted, not trusted.",
-    "the plugin hook UserPromptSubmit is untrusted, not trusted."
-   ]
+   "problems": []
   },
   "hash_after_script_change": {
    "preToolUse": "sha256:b17fd671aff4ea1cf061585881db03115d7812d6ad47cd5bb17ff6dc84d20b17",
@@ -41,14 +38,12 @@
    "userPromptSubmit": "sha256:cdada78120900a490c84e8a0c483ebb42013e71e767237bb1feda58d19818682"
   },
   "problems_after_script_change": [
-   "the plugin hook PreToolUse is untrusted, not trusted.",
-   "the plugin hook PreToolUse is modified: its script <user-home>/Reboot/public/verbatim-relay/.proof/codex-gate/codex-home/plugins/cache/nookku/nookku/0.3.1/hooks/nookku-hook.sh differs from the script of nookku 0.3.1.",
-   "the plugin hook UserPromptSubmit is untrusted, not trusted.",
-   "the plugin hook UserPromptSubmit is modified: its script <user-home>/Reboot/public/verbatim-relay/.proof/codex-gate/codex-home/plugins/cache/nookku/nookku/0.3.1/hooks/nookku-hook.sh differs from the script of nookku 0.3.1."
+   "the plugin hook PreToolUse is modified: its script <user-home>/Reboot/public/verbatim-relay/.proof/codex-gate/codex-home/plugins/cache/nookku/nookku/0.4.0/hooks/nookku-hook.sh differs from the script of nookku 0.4.0.",
+   "the plugin hook UserPromptSubmit is modified: its script <user-home>/Reboot/public/verbatim-relay/.proof/codex-gate/codex-home/plugins/cache/nookku/nookku/0.4.0/hooks/nookku-hook.sh differs from the script of nookku 0.4.0."
   ],
   "checks": {
-   "start refuses untrusted hooks": true,
-   "relay mode stays off": true,
+   "start refuses untrusted hooks": false,
+   "relay mode stays off": false,
    "a script change keeps the trust hash": true,
    "a timeout change changes the trust hash of that hook": true,
    "the gate finds the changed script": true
@@ -77,54 +72,9 @@
    ],
    "problems": []
   },
-  "start_exit": 0,
-  "end_output": "Test 20261010-102932-b62d ended: 0 turns, 0 model sessions.\nFolder: <user-home>/Reboot/public/verbatim-relay/.proof/codex-gate/project/.nookku/tests/20261010-102932-b62d\nTrace: 0 model items in 0 turns, no findings.\nAudit: nookku audit --tap <user-home>/Reboot/public/verbatim-relay/.proof/codex-gate/project/.nookku/tests/20261010-102932-b62d/tap.jsonl --relay <user-home>/Reboot/public/verbatim-relay/.proof/codex-gate/project/.nookku/tests/20261010-102932-b62d/relay.jsonl\nTo evaluate the test, type this prompt in your harness: nookku end",
-  "manifest_codex_gate": {
-   "start": {
-    "codex": true,
-    "hooks": [
-     {
-      "origin": "plugin",
-      "event": "preToolUse",
-      "enabled": true,
-      "trust": "trusted",
-      "hash": "sha256:b17fd671aff4ea1cf061585881db03115d7812d6ad47cd5bb17ff6dc84d20b17",
-      "script_sha256": "f50a064260a464c81c864c5bb5bc760f15c9b04770ff81c42ade03dba7511341"
-     },
-     {
-      "origin": "plugin",
-      "event": "userPromptSubmit",
-      "enabled": true,
-      "trust": "trusted",
-      "hash": "sha256:cdada78120900a490c84e8a0c483ebb42013e71e767237bb1feda58d19818682",
-      "script_sha256": "f50a064260a464c81c864c5bb5bc760f15c9b04770ff81c42ade03dba7511341"
-     }
-    ],
-    "problems": []
-   },
-   "end": {
-    "codex": true,
-    "hooks": [
-     {
-      "origin": "plugin",
-      "event": "preToolUse",
-      "enabled": true,
-      "trust": "trusted",
-      "hash": "sha256:b17fd671aff4ea1cf061585881db03115d7812d6ad47cd5bb17ff6dc84d20b17",
-      "script_sha256": "f50a064260a464c81c864c5bb5bc760f15c9b04770ff81c42ade03dba7511341"
-     },
-     {
-      "origin": "plugin",
-      "event": "userPromptSubmit",
-      "enabled": true,
-      "trust": "trusted",
-      "hash": "sha256:cdada78120900a490c84e8a0c483ebb42013e71e767237bb1feda58d19818682",
-      "script_sha256": "f50a064260a464c81c864c5bb5bc760f15c9b04770ff81c42ade03dba7511341"
-     }
-    ],
-    "problems": []
-   }
-  },
+  "start_exit": 1,
+  "end_output": "Test 20261012-071431-8e26 ended: 0 turns, 0 model sessions.\nFolder: <user-home>/Reboot/public/verbatim-relay/.proof/codex-gate/project/.nookku/tests/20261012-071431-8e26\nTrace: 0 model items in 0 turns, no findings.\nAudit: nookku audit --tap <user-home>/Reboot/public/verbatim-relay/.proof/codex-gate/project/.nookku/tests/20261012-071431-8e26/tap.jsonl --relay <user-home>/Reboot/public/verbatim-relay/.proof/codex-gate/project/.nookku/tests/20261012-071431-8e26/relay.jsonl\nTo evaluate the test, type this prompt in your harness: nookku end",
+  "manifest_codex_gate": {},
   "checks": {
    "the gate passes with trusted hooks": [
     {
@@ -144,8 +94,8 @@
      "script_sha256": "f50a064260a464c81c864c5bb5bc760f15c9b04770ff81c42ade03dba7511341"
     }
    ],
-   "start starts the test": true,
-   "the manifest has the gate result of the start and of the end": true,
+   "start starts the test": false,
+   "the manifest has the gate result of the start and of the end": false,
    "the end text names no change": true
   }
  }

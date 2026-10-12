@@ -38,7 +38,7 @@ flowchart TD
 | How the model reads the transcript | With the read-only `transcript` tool of the MCP server `nookku mcp`, in pages. | With the command `nookku transcript`. |
 | If `nookku` is not on `PATH` | The shell guard of the plugin blocks each prompt and denies each tool call in relay mode. | The hooks do not use `PATH`. If you move the install, run `nookku init` again. |
 
-The plugin loads in Claude Code 2.1.295 and in Codex 0.162.0 ([data](../../proofs/plugin/load.json), [method](../../scripts/proof_plugin_load.py)). The proofs P1 to P4 ran on the project hooks in Claude Code 2.1.295 ([data](../../proofs/hooks-claude-code/results.json)) and in codex-cli 0.160.0 ([data](../../proofs/hooks-codex/results.json)).
+The plugin loads in Claude Code 2.1.296 and in Codex 0.162.1 ([data](../../proofs/plugin/load.json), [method](../../scripts/proof_plugin_load.py)). The proofs P1 to P4 ran on the project hooks in Claude Code 2.1.296 ([data](../../proofs/hooks-claude-code/results.json)) and in codex-cli 0.162.1 ([data](../../proofs/hooks-codex/results.json)).
 
 Both forms run the same rules and give the model the same transcript text. Both fail closed: if the relay cannot send a message, the message does not go to the model. For both forms, the deny of model tool calls is best effort. In Codex, a person must trust the hooks of both forms, and `nookku start` refuses a test with an untrusted hook ([SPEC.md section 7.8](../../SPEC.md#78-codex-hook-gate)). [limits.md](../limits.md) gives each limit.
 

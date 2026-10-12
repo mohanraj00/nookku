@@ -1,10 +1,10 @@
 {
- "date": "2026-10-10",
+ "date": "2026-10-12",
  "relay": "plugin-claude-code",
  "versions": {
-  "nookku": "0.3.1",
-  "claude-code": "2.1.295 (Claude Code)",
-  "codex": "codex-cli 0.162.0",
+  "nookku": "0.4.0",
+  "claude-code": "2.1.296 (Claude Code)",
+  "codex": "codex-cli 0.162.1",
   "agent sdk": "claude-agent-sdk==0.2.164",
   "session files": {
    "claude-code": "2.1.292"
@@ -55,10 +55,10 @@
   {
    "class": "state_mismatch",
    "turn": "2",
-   "evidence": "trace.jsonl:13, trace.jsonl:18, stock.json"
+   "evidence": "trace.jsonl:13, trace.jsonl:18, app.py:72"
   },
   {
-   "class": "state_mismatch",
+   "class": "unsupported_reply",
    "turn": "3",
    "evidence": "trace.jsonl:24, trace.jsonl:28"
   }
@@ -99,7 +99,7 @@
   "ignored": {}
  },
  "counts": {},
- "report": "# Test 20261010-144048-02af: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | trace.jsonl:15, trace.jsonl:16, services.py:44 | The tester asked for 1 teapot set, but one `shop.reserve` call sent two `POST /reserve` requests. Both got status 200: `RS-E77C46` (`\"left\": 2`) and `RS-F9684D` (`\"left\": 1`). The order 6210 now holds 2 items. This breaks RULES.md rule 3: \"A reservation holds the number of items that the customer asked for, and no more.\" The cause is the retry loop `for _ in range(2):` in `services.reserve`. This loop does not stop after the first status 200. |\n| state_mismatch | 2 | trace.jsonl:13, trace.jsonl:18, stock.json | The tool result shows only `{\"reservation\": \"RS-F9684D\", \"sku\": \"teapot-set\", \"qty\": 1}`, and the reply says \"I've reserved 1 teapot set for order 6210. Your reservation number is RS-F9684D.\" The stock service holds two reservations for order 6210 (`RS-E77C46` and `RS-F9684D`). Thus the reply does not agree with the state, and the customer does not know about `RS-E77C46` (RULES.md rule 4). |\n| state_mismatch | 3 | trace.jsonl:24, trace.jsonl:28 | The reply says \"We now have 1 teapot set remaining in stock after your reservation.\" The stock was 3 in turn 1 (trace.jsonl:3), and the agent told the customer about 1 reserved item. Thus 2 items left the stock. The reply gives a cause that does not agree with the state and hides the second reservation. |\n\n## Notes\n\n- The seal is intact. The audit shows no breaks, so the words of each turn did not change between the tester and the app. findings.json has no findings.\n- I read RULES.md, services.py and stock.py. I read state.json and stock.json as files only. stock.json agrees with the backend trace: `\"left\": 1` and two reservations for order 6210.\n- Turn 1 is correct: `shop.check_stock` got `teapot-set`, and the reply \"3 units\" agrees with trace.jsonl:3 and trace.jsonl:5.\n- The case notes in state.json come from the toy note model (toy_model.py). They only repeat the customer message, as the code specifies. I did not report them as an issue.\n- I did not read app.py in full, the session file or otel.jsonl line by line. The transcript gave these items. I did not start the app or the stock service.\n",
- "answer": "I found 3 issues in the test. The report is in `.nookku/tests/20261010-144048-02af/report.md`.\n\n- **Turn 2, `business_rule`:** You asked for 1 teapot set, but the app made two reservations for order 6210 (`RS-E77C46` and `RS-F9684D`). The cause is the retry loop in `services.py:44`, which does not stop after the first good answer. This breaks rule 3 in `RULES.md`.\n- **Turn 2, `state_mismatch`:** The reply said that 1 item was reserved and gave only `RS-F9684D`. The stock service holds 2 reservations.\n- **Turn 3, `state_mismatch`:** The reply said that 1 item remains \"after your reservation\". The stock went from 3 to 1, so 2 items were reserved, and the reply hides the second reservation.\n\nThe record seal is intact and the audit shows no changes. Turn 1 had no issues.",
+ "report": "# Test 20261012-083046-f7d0: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | trace.jsonl:15, trace.jsonl:16, services.py:44 | The tester asked for 1 teapot set. The app sent `POST /reserve` 2 times with `{\"order\": \"6210\", \"sku\": \"teapot-set\", \"qty\": 1}`, and both calls returned status 200: `RS-F3ED0E` (`\"left\": 2`) and `RS-2E81AB` (`\"left\": 1`). Order 6210 now holds 2 items, but rule 3 permits only the number that the customer asked for. The cause is in `services.reserve`: the loop `for _ in range(2)` does not stop after a 200 answer. |\n| state_mismatch | 2 | trace.jsonl:13, trace.jsonl:18, app.py:72 | The reply says \"I've reserved 1 teapot set for order 6210 (Reservation ID: RS-2E81AB)\". But `stock.json` holds 2 reservations for order 6210 (`RS-F3ED0E` and `RS-2E81AB`), with 2 items in total. The tool result tells the model only about `RS-2E81AB` and `\"qty\": 1`, because app.py:72 returns `args[\"qty\"]`, not the reserved total. Thus the agent did not tell the customer the number of items that it reserved (rule 4). |\n| unsupported_reply | 3 | trace.jsonl:24, trace.jsonl:28 | The reply says \"1 unit left in stock (down from 3 after your reservation)\". The agent reported 1 reserved item in turn 2, so 1 reservation cannot reduce the stock from 3 to 1. The reply gives the drop of 2 items as the result of \"your reservation\" and does not tell the customer that 2 items are held. |\n\n## Notes\n\n- Seal: intact. No record changed after the end of the test. `findings.json` has no findings, and `audit.json` shows no breaks, no blocked calls and no errors. The words of each turn did not change between the tester and the app.\n- The test folder has no `app-state/` subfolder. I read the state in the project files `stock.json` and `state.json` with read-only commands. `stock.json` shows `\"left\": 1` and 2 reservations for order 6210, and this agrees with the backend calls.\n- Turn 1 is correct: `check_stock` returned `\"left\": 3` (trace.jsonl:3), and the reply says 3 units.\n- The case notes in `state.json` only repeat the customer message (\"Case note: Please reserve 1 teapot set for my order 6210.\"). This is the documented behavior of `toy_model.py`, so I do not report it as an issue of the app. The notes do not record the duplicate reservation.\n- The app did not call `lookup_order` for order 6210 before the reservation. No rule needs this call, so I do not report it.\n- I could not see the thinking of the model (6 items were ignored, as `findings.json` shows). The app log `app.log` is empty.\n",
+ "answer": "I found 3 issues in test 20261012-083046-f7d0. The seal is intact, and nookku itself reported no findings.\n\n1. **Business rule broken (turn 2):** You asked for 1 teapot set, but the app reserved 2 of them for order 6210 (`RS-F3ED0E` and `RS-2E81AB`). The cause is the retry loop at `services.py:44`, which sends the reservation again after it already succeeded.\n2. **Reply does not match the stock (turn 2):** The agent said it reserved \"1 teapot set\", but the stock service holds 2 reservations. The tool returns only the last reservation ID and the quantity you asked for (`app.py:72`).\n3. **Unsupported reply (turn 3):** The agent said the stock went \"down from 3 after your reservation\" to 1. A reservation of 1 item cannot cause a drop of 2.\n\nThe report is at `.nookku/tests/20261012-083046-f7d0/report.md`.",
  "pass": true
 }

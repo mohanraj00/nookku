@@ -1,8 +1,8 @@
 {
- "date": "2026-10-10",
+ "date": "2026-10-12",
  "setup": "plugin-claude-code",
  "harness": "claude-code",
- "version": "2.1.295 (Claude Code)",
+ "version": "2.1.296 (Claude Code)",
  "transport": "stdio",
  "turns": [
   {
@@ -90,16 +90,16 @@
  "P3b": {
   "agent_inputs_added": 0,
   "blocked_rows": 1,
-  "model_text": "The command did not run, so I have no output to show you.\n\nA Nookku hook blocked it with this message:\n\n```\nnookku: only the tester talks to the agent.\n```\n\nThe guard stops the model from sending messages to the agent under test. This command would send \"hello from the model\" straight to the agent o"
+  "model_text": "The command did not run, so I have no output to show you. The Nookku plugin hook in this session stopped it with this message:\n\n```\nnookku: only the tester talks to the agent.\n```\n\nThis block is intended. Port 56968 is almost certainly the agent under test. In a Nookku test, the model must not send "
  },
- "end_model_output_tokens": 3701,
+ "end_model_output_tokens": 3648,
  "test": {
   "ended": true,
   "model_sessions": [],
   "versions": {
-   "nookku": "0.3.1",
-   "claude-code": "2.1.295 (Claude Code)",
-   "codex": "codex-cli 0.162.0"
+   "nookku": "0.4.0",
+   "claude-code": "2.1.296 (Claude Code)",
+   "codex": "codex-cli 0.162.1"
   }
  },
  "P4": {
