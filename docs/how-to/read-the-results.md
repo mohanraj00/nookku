@@ -226,7 +226,7 @@ The trace has 12 trace checks ([trace.py](../../src/nookku/trace.py)). `findings
 | `otel_tool_not_in_session` | A harness log says that a tool ran, but the session file of that harness and turn has no call of that tool. |
 | `server_not_from_app` | A Claude Code session used an MCP server that the app's configuration cannot give: a claude.ai connector or a plugin server. |
 | `session_inferred` | The tap found a Codex session from its folder and its time, not from its process. |
-| `version_untested` | A session file comes from a harness version that the proofs do not cover. |
+| `version_untested` | A session file comes from a harness version that the proofs do not cover. `findings.json` has one finding for each session. The transcript shows one line for each harness and version, with the count of sessions, for example `(claude-code, 4 sessions)`. |
 
 ## 5. Read the report
 

@@ -308,3 +308,26 @@ def test_the_mcp_transcript_takes_compact(tmp_path: Path, compact: bool) -> None
     text = mcp.call(root, "transcript", arguments)["content"][0]["text"]
     assert text.startswith(kit.transcript_text(root, trace=True, compact=compact))
     assert text.count(PROMPT) == (1 if compact else 4)
+
+
+def test_the_transcript_shows_version_untested_one_time_for_each_version(tmp_path: Path) -> None:
+    folder = tmp_path / "20261006-080000-vv01"
+    shutil.copytree(
+        CASE.parent / "untested_versions", folder, ignore=shutil.ignore_patterns("expect_*")
+    )
+    manifest = json.loads((folder / "manifest.json").read_text())
+    first = manifest["model_sessions"][0]
+    for n in range(2, 6):
+        file = f"sessions/claude-code/s{n}.jsonl"
+        shutil.copyfile(folder / first["file"], folder / file)
+        manifest["model_sessions"].append({**first, "session": f"s{n}", "file": file})
+    (folder / "manifest.json").write_text(json.dumps(manifest))
+    report = trace.build(folder)
+    # findings.json keeps one finding for each session: 5 Claude Code and 1 Codex.
+    assert report["counts"]["version_untested"] == 6
+    text = evaluation.transcript(folder)
+    loose = text.split("Findings with no turn:\n")[1].split("\n════")[0]
+    assert loose.splitlines() == [
+        "- version_untested: version 2.1.999, tested: 2.1.286, 2.1.292 (claude-code, 5 sessions)",
+        "- version_untested: version 0.161.0, tested: 0.160.0 (codex, 1 session)",
+    ]
