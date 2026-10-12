@@ -28,6 +28,7 @@ TESTED = {"claude-code": ("2.1.286", "2.1.292"), "codex": ("0.160.0",)}
 HARNESS_INTERNAL = {"claude-code": {"ToolSearch"}, "codex": set()}
 CHECKS = (
     "agent_error",
+    "repeated_reply",
     "tool_error",
     "command_failed",
     "span_error",
@@ -40,6 +41,11 @@ CHECKS = (
     "session_inferred",
     "version_untested",
 )
+# The default of the config key repeated_reply: the count of consecutive turns with the same
+# reply that gives a repeated_reply finding (SPEC.md section 8.6).
+REPEATED_REPLY = 2
+# The length of the excerpt of a repeated reply in the detail of its finding.
+EXCERPT = 60
 # The kinds that a model session file gives.
 SESSION_KINDS = ("message", "tool_call", "command")
 # The key of the tool use id of a Claude Code tool call. The check of section 8.6 uses it. The
@@ -640,21 +646,52 @@ def _finding(check: str, turn: int | None, detail: str, **where: Any) -> dict[st
     return {"check": check, "turn": turn, "detail": detail, **where}
 
 
+def repeated(exchanges: list[dict[str, Any]], count: int) -> list[dict[str, Any]]:
+    """One repeated_reply finding for each run of `count` or more consecutive turns with the
+    same reply bytes. A turn with no reply ends a run. A count below 2 turns the check off."""
+    runs: list[list[int]] = []
+    last: str | None = None
+    for i, r in enumerate(exchanges, 1):
+        reply = r.get("reply")
+        if not isinstance(reply, str):
+            last = None
+            continue
+        if reply == last:
+            runs[-1].append(i)
+        else:
+            runs.append([i])
+        last = reply
+    out: list[dict[str, Any]] = []
+    for run in runs:
+        if count < 2 or len(run) < count:
+            continue
+        text = exchanges[run[0] - 1]["reply"]
+        excerpt = json.dumps(text[:EXCERPT], ensure_ascii=False)
+        excerpt += " (cut)" if len(text) > EXCERPT else ""
+        names = ", ".join(map(str, run[:-1])) + f" and {run[-1]}"
+        detail = f"the same reply in turns {names}: {excerpt}"
+        out.append(_finding("repeated_reply", run[0], detail, turns=run))
+    return out
+
+
 def check(
     exchanges: list[dict[str, Any]],
     spans: list[tuple[float, float]],
     items: list[dict[str, Any]],
     sessions: list[dict[str, Any]],
     servers: list[dict[str, Any]] | None = None,
+    repeated_reply: int = REPEATED_REPLY,
 ) -> list[dict[str, Any]]:
     """The findings of SPEC.md section 8.6. They do not change the audit's exit code. `servers`
-    holds the MCP servers that the Claude Code session files name (read_claude_servers)."""
+    holds the MCP servers that the Claude Code session files name (read_claude_servers).
+    `repeated_reply` is the value of the config key that the manifest records."""
     out: list[dict[str, Any]] = []
     session_items = [it for it in items if it["kind"] in SESSION_KINDS]
     for i, r in enumerate(exchanges, 1):
         if r.get("status") != 200:
             what = "a timeout or a crash" if r.get("status") is None else f"status {r['status']}"
             out.append(_finding("agent_error", i, f"the agent gave {what}"))
+    out += repeated(exchanges, repeated_reply)
     for it in items:
         where = {"harness": it["harness"], "session": it["session"], "source": it["source"]}
         if it["kind"] == "tool_call" and it["error"] is not None:
@@ -753,7 +790,7 @@ def build(folder: Path) -> dict[str, Any]:
         items += found
     items.sort(key=lambda it: it["ts"] if it["ts"] is not None else float("inf"))
     assign(items, spans)
-    findings = check(exchanges, spans, items, sessions, servers)
+    findings = check(exchanges, spans, items, sessions, servers, _repeated_reply(manifest))
     lines = [json_text({k: v for k, v in it.items() if k != CALL_ID}) + "\n" for it in items]
     (folder / "trace.jsonl").write_text("".join(lines), encoding="utf-8")
     counts = Counter(f["check"] for f in findings)
@@ -773,6 +810,16 @@ def build(folder: Path) -> dict[str, Any]:
     (folder / "findings.json").write_text(text, encoding="utf-8")
     # The caller prints the report, so it gets the escaped text of findings.json.
     return dict(json.loads(text))
+
+
+def _repeated_reply(manifest: dict[str, Any]) -> int:
+    """The value of repeated_reply that the manifest records. A manifest from before this key,
+    or a value that config.check refuses, gives the default."""
+    keys = manifest.get("trace")
+    value = keys.get("repeated_reply") if isinstance(keys, dict) else None
+    if isinstance(value, int) and not isinstance(value, bool) and (value == 0 or value >= 2):
+        return value
+    return REPEATED_REPLY
 
 
 def summary(report: dict[str, Any]) -> str:

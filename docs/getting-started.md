@@ -291,6 +291,7 @@ cat .nookku/tests/20261008-011242-a35f/findings.json
  "model_api": null,
  "counts": {
   "agent_error": 0,
+  "repeated_reply": 0,
   "tool_error": 0,
   "command_failed": 0,
   "span_error": 0,

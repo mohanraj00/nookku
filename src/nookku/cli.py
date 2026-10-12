@@ -29,6 +29,7 @@ LIST_KEYS = {
     "backends",
     "model_api",
     "openai_stream",
+    "repeated_reply",
     "transcript_compact",
 }
 # The plain string flags of init. A flag that the user does not give is None.
@@ -169,6 +170,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         default=None,
         help='openai adapter: send "stream": true in each request',
     )
+    ini.add_argument(
+        "--repeated-reply",
+        type=int,
+        metavar="COUNT",
+        help="the config key repeated_reply: the count of consecutive turns with the same reply "
+        "that gives a finding, or 0 for off (new file: 2)",
+    )
     ini.add_argument("--entry", help="the entry command of a test, as one string")
     ini.add_argument(
         "--models", help="the app's model harnesses: claude-code, codex or both (comma)"
@@ -288,6 +296,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         args.root = project_root()
     if args.command == "init" and args.remove:
         given = [k for k in (*STRING_KEYS, "entry", "models", "openai_stream") if getattr(args, k)]
+        given += ["repeated_reply"] if args.repeated_reply is not None else []
         if args.harness == "plugin" or given:
             ini.error("--remove takes the harness claude-code or codex, and no other flag")
     if args.command == "init" and args.remove:
@@ -368,6 +377,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             changes["models"] = [m.strip() for m in args.models.split(",") if m.strip()]
         if args.openai_stream:
             changes["openai_stream"] = True
+        if args.repeated_reply is not None:
+            changes["repeated_reply"] = args.repeated_reply
         try:
             done = kit.init(root, args.harness, changes)
         except ValueError as e:

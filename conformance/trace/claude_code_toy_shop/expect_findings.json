@@ -25,6 +25,7 @@
  "model_api": null,
  "counts": {
   "agent_error": 1,
+  "repeated_reply": 0,
   "tool_error": 3,
   "command_failed": 0,
   "span_error": 0,

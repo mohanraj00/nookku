@@ -251,6 +251,20 @@ def test_init_takes_the_check_message_flag(tmp_path: Path) -> None:
     assert conf["check_message"] == "Do you sell teapots?"
 
 
+def test_init_takes_the_repeated_reply_flag(tmp_path: Path) -> None:
+    assert main(["init", "codex", "--root", str(tmp_path), "--repeated-reply", "0"]) == 0
+    conf = json.loads((tmp_path / ".nookku" / "config.json").read_text())
+    assert conf["repeated_reply"] == 0
+
+
+def test_init_refuses_a_repeated_reply_of_1(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert main(["init", "codex", "--root", str(tmp_path), "--repeated-reply", "1"]) == 1
+    assert "'repeated_reply' must be 0 (off) or a whole number" in capsys.readouterr().err
+    assert not (tmp_path / ".nookku" / "config.json").exists()
+
+
 def test_init_refuses_an_empty_check_message(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:

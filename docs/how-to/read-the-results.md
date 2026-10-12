@@ -212,11 +212,12 @@ Each finding in `findings.json` has `check`, `turn` and `detail`. A finding abou
 
 ### Trace checks
 
-The trace has 12 trace checks ([trace.py](../../src/nookku/trace.py)). `findings.json` sorts the findings in the order of this table.
+The trace has 13 trace checks ([trace.py](../../src/nookku/trace.py)). `findings.json` sorts the findings in the order of this table.
 
 | Check | Finding |
 |---|---|
 | `agent_error` | The agent gave a status that is not 200 for an exchange. |
+| `repeated_reply` | 2 or more consecutive turns have the same reply bytes, for example a fixed fallback text. The finding names each turn of the run in `turns`. The config key [`repeated_reply`](../reference/config.md#test-keys) sets the count, and 0 turns the check off. |
 | `tool_error` | A tool call of the app's model has an error. |
 | `command_failed` | A command of the app's model has an exit code that is not 0, or an error. |
 | `span_error` | An OpenTelemetry span of the app has an error. |

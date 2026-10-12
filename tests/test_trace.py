@@ -37,6 +37,23 @@ def test_a_missing_session_file_is_not_an_error(tmp_path: Path) -> None:
     assert [f["check"] for f in report["findings"]] == ["session_inferred"]
 
 
+def test_repeated_reply_compares_bytes_and_counts_an_empty_reply() -> None:
+    replies = ["", "", "Tea", "tea", "Tea ", None, "Tea", "Tea"]
+    found = trace.repeated([{"reply": r} for r in replies], 2)
+    assert [(f["turn"], f["turns"]) for f in found] == [(1, [1, 2]), (7, [7, 8])]
+    assert found[0]["detail"] == 'the same reply in turns 1 and 2: ""'
+    assert trace.repeated([{"reply": r} for r in replies], 0) == []
+
+
+@pytest.mark.parametrize(
+    "keys",
+    [None, {}, {"repeated_reply": "3"}, {"repeated_reply": True}, {"repeated_reply": 1}],
+)
+def test_a_manifest_with_no_valid_repeated_reply_gives_the_default(keys: object) -> None:
+    manifest = {"test": "t"} if keys is None else {"test": "t", "trace": keys}
+    assert trace._repeated_reply(manifest) == trace.REPEATED_REPLY
+
+
 def test_summary() -> None:
     report = {"items": 3, "turns": 2, "counts": dict.fromkeys(trace.CHECKS, 0)}
     assert trace.summary(report) == "Trace: 3 model items in 2 turns, no findings."
