@@ -3,6 +3,7 @@ release workflow. The tests run the code from the repo, with no build and no net
 
 from __future__ import annotations
 
+import fnmatch
 import os
 import re
 import subprocess
@@ -94,7 +95,11 @@ def test_the_workflow_runs_only_on_its_own_tag_and_checks_the_version() -> None:
     assert "refs/tags/verbatim-relay-v*) ;;" in text
     assert "verbatim_relay-${GITHUB_REF_NAME#verbatim-relay-v}-py3-none-any.whl" in text
     release = (ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
-    assert 'tags: ["v*"]' in release  # "verbatim-relay-v..." does not start with "v"
+    pattern = re.search(r'tags: \["([^"]+)"\]', release)
+    assert pattern
+    # A nookku release must not start on a verbatim-relay tag, which also starts with "v".
+    assert fnmatch.fnmatchcase("v0.4.0", pattern[1])
+    assert not fnmatch.fnmatchcase("verbatim-relay-v0.4.0", pattern[1])
 
 
 def test_only_the_publish_job_gets_an_id_token() -> None:
