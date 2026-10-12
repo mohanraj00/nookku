@@ -1640,7 +1640,9 @@ OTEL_CASE = {
 # The event of the second call has a cut `note`, so its input is not equal to the session input.
 # A third event has an id with no tool call in its session: the id rule gives a finding, though
 # its name and input agree with the first call. A second session has a call with that id, but
-# the id rule looks only in the session of the event. A fourth event has no id and a cut `note`: the
+# the id rule looks only in the session of the event. A fifth event of the second session has
+# no id and the input of the second call of the first session: it gives a finding, because the
+# check looks only in the session of the event. A fourth event has no id and a cut `note`: the
 # shared prefix agrees with the second call.
 GIFT_BAD = {"items": [{"sku": "teapot-set", "price_eur": "twenty-eight"}]}
 GIFT_NOTE = "A blue teapot set with 2 cups. It fits a gift box of size M."
@@ -1669,7 +1671,9 @@ OUTPUT_EVENTS = [
     output_event(13.6, "toolu_s2", GIFT_CUT),
     output_event(13.7, "toolu_s9", GIFT_BAD),
     output_event(13.8, None, GIFT_CUT),
+    output_event(13.9, None, GIFT_GOOD),
 ]
+OUTPUT_EVENTS[-1]["attributes"]["session.id"] = CC2
 STRUCTURED_CASE = {
     "tap": [window(10, 20)],
     "manifest": {"test": "20261011-090000-so01", "model_sessions": [CC_SESSION, CC2_SESSION]},
@@ -1762,14 +1766,25 @@ STRUCTURED_CASE = {
                 input=e["attributes"],
                 service="claude-code",
             )
-            for n, e in enumerate(OUTPUT_EVENTS[1:], 2)
+            for n, e in enumerate(OUTPUT_EVENTS[1:4], 2)
         ],
+        oitem(
+            1,
+            "claude-code",
+            CC2,
+            13.9,
+            "log",
+            5,
+            name="tool_result",
+            input=OUTPUT_EVENTS[4]["attributes"],
+            service="claude-code",
+        ),
     ],
     "findings": {
         "v": "0.2",
         "test": "20261011-090000-so01",
         "turns": 1,
-        "items": 8,
+        "items": 9,
         "sessions": [
             {
                 "harness": "claude-code",
@@ -1790,10 +1805,10 @@ STRUCTURED_CASE = {
                 "ignored": {},
             },
         ],
-        "otel": {"file": "otel.jsonl", "rows": 4, "items": 4, "ignored": {}},
+        "otel": {"file": "otel.jsonl", "rows": 5, "items": 5, "ignored": {}},
         "backend": None,
         "model_api": None,
-        "counts": counts(tool_error=2, otel_tool_not_in_session=1),
+        "counts": counts(tool_error=2, otel_tool_not_in_session=2),
         "findings": [
             {
                 "check": "tool_error",
@@ -1816,6 +1831,14 @@ STRUCTURED_CASE = {
                 "harness": "claude-code",
                 "session": CC,
                 "source": {"file": "otel.jsonl", "line": 3},
+            },
+            {
+                "check": "otel_tool_not_in_session",
+                "turn": 1,
+                "detail": "StructuredOutput: a tool_result event with no tool call in the session file",
+                "harness": "claude-code",
+                "session": CC2,
+                "source": {"file": "otel.jsonl", "line": 5},
             },
         ],
     },
