@@ -348,8 +348,14 @@ If the entry returns an error, crashes or does not answer in [240 seconds](../sr
 
 **Fix.** Run a new test.
 
-### `nookku: no test folder.` or `nookku: no test folder with a manifest.`
+### `nookku: no test folder.`, `nookku: no test '<id>'.` or `nookku: no test folder with a manifest.`
 
 (cli.py) **Cause.** The project has no test, or the test id is wrong.
 
 **Fix.** Run `ls .nookku/tests/` and give a test id that exists.
+
+### `nookku: '<text>' is not a test id or a test folder.`
+
+(kit.py) **Cause.** The argument is not a test id, and it is not the path of a folder in `.nookku/tests` of the project.
+
+**Fix.** Give the test id, for example `nookku verify 20261001-120000-ab12`, or the path of the test folder, for example `nookku verify .nookku/tests/20261001-120000-ab12`. If the test is in another project, add `--root` with the path of that project.

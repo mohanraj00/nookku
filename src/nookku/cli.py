@@ -350,12 +350,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "trace":
         return _trace_command(args.root.resolve(), args.test, args.json)
     if args.command == "verify":
-        root = args.root.resolve()
-        folder = (
-            root / bridge.STATE_DIR / "tests" / args.test if args.test else bridge.latest_test(root)
-        )
-        if folder is None or not folder.is_dir():
-            print("nookku: no test folder.", file=sys.stderr)
+        folder = _test_folder(args.root.resolve(), args.test)
+        if folder is None:
             return 2
         result = seal.verify(folder)
         print(json.dumps(result, indent=1) if args.json else seal.summary(result))
@@ -458,10 +454,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"Relay mode is {'on' if kit.is_on(root) else 'off'}.")
         return 0
     if args.command == "transcript":
+        root = args.root.resolve()
         try:
             text = kit.transcript_text(
-                args.root.resolve(),
-                args.test,
+                root,
+                kit.parse_test_arg(root, args.test) if args.test else None,
                 args.trace,
                 args.all,
                 args.session,
@@ -509,9 +506,27 @@ def _names(keys: list[str]) -> str:
     return ", ".join(keys) if keys else "none"
 
 
+def _test_folder(root: Path, test: str | None) -> Path | None:
+    """The folder of a TEST argument: a test id or the path of a test folder. With no argument,
+    the latest test. If there is no such test, print an error that names the expected argument
+    and return None."""
+    try:
+        folder = kit.existing_test(root, kit.parse_test_arg(root, test)) if test else None
+    except kit.TranscriptError as e:
+        print(f"nookku: {e}", file=sys.stderr)
+        return None
+    folder = folder or bridge.latest_test(root)
+    if folder is None or not folder.is_dir():
+        print(f"nookku: no test folder. {kit.TESTS_HELP}", file=sys.stderr)
+        return None
+    return folder
+
+
 def _trace_command(root: Path, test: str | None, as_json: bool) -> int:
-    folder = root / bridge.STATE_DIR / "tests" / test if test else bridge.latest_test(root)
-    if folder is None or not (folder / "manifest.json").exists():
+    folder = _test_folder(root, test)
+    if folder is None:
+        return 2
+    if not (folder / "manifest.json").exists():
         print("nookku: no test folder with a manifest.", file=sys.stderr)
         return 2
     check = seal.verify(folder)

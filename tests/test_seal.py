@@ -97,3 +97,34 @@ def test_cli_verify_and_the_trace_rebuild(tmp_path: Path, capsys: pytest.Capture
     # A changed source stops the rebuild of the trace, so the trace does not hide the change.
     assert main(["trace", TEST, "--root", str(tmp_path)]) == 2
     assert "the trace was not rebuilt" in capsys.readouterr().err
+
+
+def test_the_test_argument_can_be_the_path_of_the_test_folder(
+    tmp_path: Path, capsys: pytest.CaptureFixture
+) -> None:
+    f = folder(tmp_path)
+    seal.write(f)
+    assert main(["verify", str(f), "--root", str(tmp_path)]) == 0
+    # The records of this case are not valid for a trace, so the trace stops after it finds the
+    # test folder.
+    main(["trace", str(f), "--root", str(tmp_path)])
+    assert "the trace was not rebuilt" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("command", ["verify", "trace"])
+@pytest.mark.parametrize("arg", ["../other", "20261006-000000-none"])
+def test_a_wrong_test_argument_names_the_expected_argument(
+    tmp_path: Path, command: str, arg: str, capsys: pytest.CaptureFixture
+) -> None:
+    seal.write(folder(tmp_path))
+    assert main([command, arg, "--root", str(tmp_path)]) == 2
+    assert "A test id is the name of a folder in .nookku/tests" in capsys.readouterr().err
+
+
+def test_transcript_takes_the_path_of_the_test_folder(
+    tmp_path: Path, capsys: pytest.CaptureFixture
+) -> None:
+    f = folder(tmp_path)
+    assert main(["transcript", "--trace", "--test", str(f), "--root", str(tmp_path)]) == 0
+    assert main(["transcript", "--test", str(tmp_path), "--root", str(tmp_path)]) == 2
+    assert "is not a test id or a test folder" in capsys.readouterr().err
