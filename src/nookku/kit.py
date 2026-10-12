@@ -174,6 +174,22 @@ def relay(config: Config, said: str, past: History) -> tuple[str, bool]:
         return f"nookku: cannot read the reply: {e}", False
 
 
+def checked(shown: str, ok: bool) -> tuple[str, bool]:
+    """The text that the relay shows and writes as `shown`, with its `ok` (SPEC.md section 5).
+
+    A record text holds only Unicode scalar values (SPEC.md section 2), and the relay never
+    changes a reply. So the relay refuses a reply with a lone surrogate and shows an error. An
+    error text is not a reply, so each lone surrogate in it becomes its escape text. Both relay
+    paths, with an entry and with no entry, use this one rule, so the turn is always valid.
+    """
+    if not ok:
+        return escape_surrogates(shown), False
+    found = lone_surrogate(shown)
+    if found:
+        return f"nookku: cannot read the reply: the agent reply has {found}.", False
+    return shown, True
+
+
 def _block(reason: str) -> dict[str, Any]:
     """Block the prompt. Both harnesses show the reason to the person and not to the model (#176,
     #193), so the reason of a relayed prompt is the text to show, byte for byte."""
@@ -268,7 +284,7 @@ def near_control(said: str, limit: int) -> bool:
 def _relay_test(
     cur: dict[str, Any], said: str, harness: str, session: str | None
 ) -> dict[str, Any]:
-    shown, ok = state.send(cur, said)
+    shown, ok = checked(*state.send(cur, said))
     row: dict[str, Any] = {
         "type": "turn",
         "harness": harness,
@@ -323,7 +339,7 @@ def handle(event: dict[str, Any], root: Path, harness: str) -> dict[str, Any] | 
                 )
             return _relay_test(cur, said, harness, session)
         record = config.record_path(root)
-        shown, ok = relay(config, said, history(record, session))
+        shown, ok = checked(*relay(config, said, history(record, session)))
         row: dict[str, Any] = {
             "type": "turn",
             "harness": harness,

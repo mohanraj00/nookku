@@ -121,7 +121,9 @@ def test_a_surrogate_pair_split_between_chunks_is_one_character():
     )
     assert make("openai").stream_reply(pair) == "mug \U0001f600"
     lone = _stream(b'data: {"choices": [{"delta": {"content": "mug \\ud83d"}}]}', b"data: [DONE]")
-    with pytest.raises(StreamError, match="lone surrogate"):
+    # The error names the code point and its character number, as the relay does (#93).
+    named = "the stream reply has a lone surrogate U+D83D at character 4"
+    with pytest.raises(StreamError, match=re.escape(named)):
         make("openai").stream_reply(lone)
 
 
