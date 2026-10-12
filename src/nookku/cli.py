@@ -22,6 +22,7 @@ from nookku.tap import Tap, serve
 # Config keys that are not a plain string flag of init.
 LIST_KEYS = {
     "entry",
+    "entries",
     "models",
     "evaluate",
     "otel",
@@ -148,6 +149,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     aud.add_argument("--tap", required=True, type=Path, help="the tap record")
     aud.add_argument("--relay", required=True, type=Path, help="the relay record")
     aud.add_argument("--json", action="store_true", help="print the report as JSON")
+    aud.add_argument("--script", type=Path, help="the script of a scripted test")
 
     ini = sub.add_parser("init", help="write the config, and the project hooks of a harness")
     ini.add_argument(
@@ -203,6 +205,18 @@ def main(argv: Sequence[str] | None = None) -> int:
                 help="print JSON with the end text and the evaluation prompt (for a relay)",
             )
 
+    run = sub.add_parser("run", help="run a scripted test: send each message of a script file")
+    run.add_argument("--script", required=True, type=Path, help="the script file (JSONL or JSON)")
+    run.add_argument("--entry", help="the name of an entry in the config key entries")
+    run.add_argument("--root", type=Path, default=Path.cwd())
+    run.add_argument("--json", action="store_true", help="print the result as JSON")
+    run.add_argument(
+        "--evaluate",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="print the evaluation prompt at the end (default: the config key evaluate)",
+    )
+
     trc = sub.add_parser("trace", help="build the trace of a test again, and show its findings")
     trc.add_argument("test", nargs="?", help="the test id (default: the latest test)")
     trc.add_argument("--root", type=Path, default=Path.cwd())
@@ -216,6 +230,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     br.add_argument("--root", type=Path, required=True)
     br.add_argument("--test", required=True)
     br.add_argument("--tester-session")
+    br.add_argument("--entry-name")
+    br.add_argument("--script-source")
 
     mode = sub.add_parser("mode", help="switch relay mode on or off (with an entry: start or end)")
     mode.add_argument(
@@ -320,7 +336,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(resources.files("nookku").joinpath("setup.md").read_text(encoding="utf-8"))
         return 0
     if args.command == "bridge":
-        return bridge.run(args.root, args.test, args.tester_session)
+        return bridge.run(
+            args.root,
+            args.test,
+            args.tester_session,
+            entry_name=args.entry_name,
+            script_source=args.script_source,
+        )
+    if args.command == "run":
+        return _run_command(args)
     if args.command in ("start", "end", "status", "check"):
         return _test_command(args)
     if args.command == "trace":
@@ -337,7 +361,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(json.dumps(result, indent=1) if args.json else seal.summary(result))
         return 0 if result["intact"] else 2
     if args.command == "audit":
-        report = audit(args.tap, args.relay)
+        report = audit(args.tap, args.relay, args.script)
         if args.json:
             print(json.dumps(report.as_dict(), indent=1, ensure_ascii=False))
         else:
@@ -514,6 +538,26 @@ def _trace_command(root: Path, test: str | None, as_json: bool) -> int:
         print(f"  {f['check']} ({', '.join(where)}): {f['detail']}")
     print(f"File: {folder / 'trace.jsonl'}")
     return 0
+
+
+def _run_command(args: argparse.Namespace) -> int:
+    """nookku run --script: a scripted test (SPEC.md section 7.10)."""
+    root = args.root.resolve()
+    script_path = args.script if args.script.is_absolute() else Path.cwd() / args.script
+    try:
+        passed, lines, folder = bridge.run_script(root, script_path, args.entry)
+    except bridge.BridgeError as e:
+        print(json.dumps({"error": str(e)}) if args.json else f"nookku: {e}")
+        return 1
+    show = evaluation.enabled(root) if args.evaluate is None else args.evaluate
+    prompt = evaluation.prompt(folder) if show else None
+    if args.json:
+        print(json.dumps({"pass": passed, "report": lines, "evaluation": prompt}))
+    else:
+        print("\n".join(lines))
+        if prompt:
+            print(f"\n{prompt}")
+    return 0 if passed else 1
 
 
 def _test_command(args: argparse.Namespace) -> int:

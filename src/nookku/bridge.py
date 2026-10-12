@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from nookku import __version__, backend, model_api, otlp, policy, seal, trace
+from nookku import __version__, backend, model_api, otlp, policy, script, seal, trace
 from nookku.audit import audit
 from nookku.config import CHECK_MESSAGE as CHECK_MESSAGE
 from nookku.config import FILE as CONFIG_FILE
@@ -63,6 +63,8 @@ BREAK_FIX = {
     "not_delivered": "The agent did not receive the check message. Read bridge.log and app.log.",
     "altered_reply": "The check got a different reply from the agent. Read bridge.log.",
     "unshown_reply": "The check did not get the reply of the agent. Read bridge.log.",
+    "script_mismatch": "A turn of the relay record is not the script message at its position. "
+    "Read relay.jsonl and the script copy in the test folder.",
 }
 
 
@@ -86,18 +88,29 @@ class TestConfig:
     check_message: str = CHECK_MESSAGE
     # The keys of the trace checks. The manifest records them (SPEC.md section 7.2).
     trace: dict[str, Any] = field(default_factory=dict)
+    # The name of the entry in entries, or None for the default entry (SPEC.md section 7.10).
+    entry_name: str | None = None
 
 
-def load_config(root: Path) -> TestConfig:
+def load_config(root: Path, entry_name: str | None = None) -> TestConfig:
     """The test keys of `.nookku/config.json`. Raise BridgeError if the file breaks the
     rule of `config.read_config`, if there is no entry, or if the policy file is not valid. Also
-    return the policy keys (SPEC.md section 7.9)."""
+    return the policy keys (SPEC.md section 7.9). With entry_name, the entry is that entry of
+    entries, and an unknown name raises BridgeError (SPEC.md section 7.10)."""
     try:
         data = read_config(root)
         rules = policy.read(root)
     except (ConfigError, policy.PolicyError) as e:
         raise BridgeError(str(e)) from None
     entry, models = data.get("entry") or [], data.get("models") or []
+    if entry_name is not None:
+        entries = data.get("entries") or {}
+        if entry_name not in entries:
+            names = ", ".join(sorted(entries)) or "none"
+            raise BridgeError(
+                f"{CONFIG_FILE} has no entry {entry_name!r} in 'entries'. The names: {names}."
+            )
+        entry = entries[entry_name]
     if not (isinstance(entry, list) and entry and all(isinstance(a, str) for a in entry)):
         raise BridgeError(f"{CONFIG_FILE} has no 'entry' command")
     if not (isinstance(models, list) and all(m in HARNESSES for m in models)):
@@ -115,7 +128,7 @@ def load_config(root: Path) -> TestConfig:
     otel = data.get("otel", True) is not False
     message = data.get("check_message", CHECK_MESSAGE)
     keys = {"repeated_reply": data.get("repeated_reply", trace.REPEATED_REPLY)}
-    return TestConfig(entry, models, otel, backends, apis, rules, message, keys)
+    return TestConfig(entry, models, otel, backends, apis, rules, message, keys, entry_name)
 
 
 def _tail(path: Path, n: int = 20) -> str:
@@ -125,9 +138,26 @@ def _tail(path: Path, n: int = 20) -> str:
         return ""
 
 
-def start(root: Path, tester_session: str | None = None, wait: float = 30.0) -> dict[str, Any]:
-    """Start a test in a background bridge process. Return the contents of current.json."""
-    load_config(root)
+def start(
+    root: Path,
+    tester_session: str | None = None,
+    wait: float = 30.0,
+    entry_name: str | None = None,
+    script_path: Path | None = None,
+) -> dict[str, Any]:
+    """Start a test in a background bridge process. Return the contents of current.json.
+
+    With script_path, the test is scripted: the script is read before the test starts, and its
+    bytes are copied into the test folder, so that the seal covers them (SPEC.md section 7.10).
+    """
+    load_config(root, entry_name)
+    copy: tuple[str, bytes] | None = None
+    if script_path is not None:
+        try:
+            _, form, data = script.read(script_path)
+        except script.ScriptError as e:
+            raise BridgeError(str(e)) from None
+        copy = (script.COPIES[form], data)
     cur = current(root)
     if cur is not None:
         raise BridgeError(f"test {cur['test']} runs already. End it first.")
@@ -149,6 +179,11 @@ def start(root: Path, tester_session: str | None = None, wait: float = 30.0) -> 
     argv = [sys.executable, "-m", "nookku", "bridge", "--root", str(root), "--test", test]
     if tester_session:
         argv += ["--tester-session", tester_session]
+    if entry_name is not None:
+        argv += ["--entry-name", entry_name]
+    if copy is not None and script_path is not None:
+        (folder / copy[0]).write_bytes(copy[1])
+        argv += ["--script-source", str(script_path.resolve())]
     with (folder / "bridge.log").open("ab") as log:
         proc = subprocess.Popen(
             argv,
@@ -436,11 +471,19 @@ def _write_json(path: Path, data: dict[str, Any]) -> None:
     tmp.replace(path)
 
 
-def run(root: Path, test: str, tester_session: str | None, timeout: float = AGENT_TIMEOUT) -> int:
+def run(
+    root: Path,
+    test: str,
+    tester_session: str | None,
+    timeout: float = AGENT_TIMEOUT,
+    entry_name: str | None = None,
+    script_source: str | None = None,
+) -> int:
     """The bridge process: run the tap and the entry until SIGTERM, then collect."""
     root = root.resolve()
     folder = state(root) / "tests" / test
-    config = load_config(root)
+    config = load_config(root, entry_name)
+    copy = script.copy_in(folder)
     pid_start = process_start(os.getpid())
     if pid_start is None:
         print("nookku bridge: cannot read the start time of its process", file=sys.stderr)
@@ -452,6 +495,14 @@ def run(root: Path, test: str, tester_session: str | None, timeout: float = AGEN
         "dir": str(folder),
         "root": str(root),
         "entry": config.entry,
+        "entry_name": entry_name,
+        "script": None
+        if copy is None
+        else {
+            "source": script_source,
+            "file": copy.name,
+            "sha256": script.sha256(copy.read_bytes()),
+        },
         "models": config.models,
         "started": started,
         "ended": None,
@@ -602,7 +653,7 @@ def run(root: Path, test: str, tester_session: str | None, timeout: float = AGEN
     except Exception as e:  # the test must still end
         _log(f"the trace failed: {e!r}")
     try:
-        report = audit(folder / "tap.jsonl", relay).as_dict()
+        report = audit(folder / "tap.jsonl", relay, copy).as_dict()
         _write_json(folder / "audit.json", report)
     except Exception as e:  # the test must still end
         _log(f"the audit failed: {e!r}")
@@ -652,6 +703,55 @@ def _audit_break(found: dict[str, Any]) -> str:
     where = f"relay line {found['relay_line'] or '-'}, tap line {found['tap_line'] or '-'}"
     fix = BREAK_FIX.get(kind, "Read audit.json in the test folder.")
     return f"{kind} break ({where}). {fix}"
+
+
+def run_script(
+    root: Path, script_path: Path, entry_name: str | None = None
+) -> tuple[bool, list[str], Path]:
+    """Run a scripted test (SPEC.md section 7.10). Return (passed, the report lines, the test
+    folder).
+
+    Each message of the script goes to the entry byte for byte, as a relay row with the harness
+    script. The lines name the test, the count of turns, the audit and the trace. They do not
+    give the replies: the evaluation reads the records. The run stops at the first turn with no
+    reply, and the audit then reports each message that was not sent."""
+    try:
+        messages = script.read(script_path)[0]
+    except script.ScriptError as e:
+        raise BridgeError(str(e)) from None
+    cur = start(root, entry_name=entry_name, script_path=script_path)
+    folder = Path(cur["dir"])
+    relay = folder / "relay.jsonl"
+    sent, failed = 0, None
+    try:
+        for said in messages:
+            shown, ok = send(cur, said)
+            Writer(relay).append(
+                {"type": "turn", "harness": "script", "said": said, "shown": shown, "ok": ok}
+            )
+            sent += 1
+            if not ok:
+                failed = sent
+                break
+        time.sleep(2 * POLL)
+    finally:
+        manifest = end(root) or {}
+    lines = [f"Test {cur['test']}: {cur['dir']}", f"Turns: {sent} of {len(messages)} messages"]
+    code, problems = audit_problems(folder)
+    if failed is not None:
+        # The audit can be clean when the last message got no reply, so name the turn here.
+        problems.insert(0, f"The entry sent no reply to message {failed} of the script.")
+    lines.append(f"Audit: exit {code}" if code is not None else "Audit: no valid audit.json")
+    try:
+        findings = json.loads((folder / "findings.json").read_text(encoding="utf-8"))
+        lines.append(trace.summary(findings))
+    except (OSError, ValueError, KeyError) as e:
+        lines.append(f"Trace: no valid findings.json ({e})")
+    changed = gate_changed(manifest)
+    if changed is not None:
+        problems.append(f"The Codex hooks changed during the test: {changed}")
+    lines += [f"FAIL: {p}" for p in problems] or ["PASS"]
+    return not problems, lines, folder
 
 
 def check(root: Path) -> tuple[bool, list[str]]:

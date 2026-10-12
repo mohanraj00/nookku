@@ -1,0 +1,19 @@
+{
+ "test": "20261011-090000-so01",
+ "model_sessions": [
+  {
+   "harness": "claude-code",
+   "session": "4f1c2a7e-0d3b-4c55-9a61-2b8e5d7c9f10",
+   "pid": 4471,
+   "inferred": false,
+   "file": "sessions/claude-code/4f1c2a7e-0d3b-4c55-9a61-2b8e5d7c9f10.jsonl"
+  },
+  {
+   "harness": "claude-code",
+   "session": "8a2d4f6b-1c3e-4a57-9b8d-0e2f4a6c8e01",
+   "pid": 4472,
+   "inferred": false,
+   "file": "sessions/claude-code/8a2d4f6b-1c3e-4a57-9b8d-0e2f4a6c8e01.jsonl"
+  }
+ ]
+}

@@ -13,7 +13,8 @@ CASES = sorted((ROOT / "conformance" / "cases").iterdir())
 @pytest.mark.parametrize("case", CASES, ids=[c.name for c in CASES])
 def test_case(case: Path) -> None:
     expect = json.loads((case / "expect.json").read_text())
-    report = audit(case / "tap.jsonl", case / "relay.jsonl")
+    script = next(case.glob("script.json*"), None)
+    report = audit(case / "tap.jsonl", case / "relay.jsonl", script)
     assert report.exit == expect["exit"]
     if report.exit == 2:
         assert sorted({e["class"] for e in report.errors}) == expect["errors"]

@@ -26,6 +26,7 @@ CHECKS = [
     "not_delivered",
     "altered_reply",
     "unshown_reply",
+    "script_mismatch",
 ]
 EXCERPT = 24
 
@@ -179,7 +180,29 @@ def compare(turns: list[Turn], exchanges: list[Exchange]) -> tuple[list[Finding]
     return sorted(breaks, key=order), sorted(notes, key=order)
 
 
-def audit(tap_path: Path, relay_path: Path) -> Report:
+def compare_script(turns: list[Turn], messages: list[str]) -> list[Finding]:
+    """The script_mismatch breaks of a scripted test (SPEC.md section 3.2, step 7). Turn n must
+    be a script turn whose said is script message n, and the counts must be equal."""
+    found = []
+    for n in range(max(len(turns), len(messages))):
+        turn = turns[n] if n < len(turns) else None
+        message = messages[n] if n < len(messages) else None
+        evidence: dict[str, Any] = {"script_message": n + 1 if message is not None else None}
+        if turn is None:
+            found.append(Finding("script_mismatch", None, None, evidence))
+        elif message is None or turn.harness != "script":
+            evidence["harness"] = turn.harness
+            found.append(Finding("script_mismatch", turn.line, None, evidence))
+        elif turn.said != message:
+            evidence.update(difference(message, turn.said))
+            found.append(Finding("script_mismatch", turn.line, None, evidence))
+    return found
+
+
+def audit(tap_path: Path, relay_path: Path, script_path: Path | None = None) -> Report:
+    """Compare the records. With a script, also compare the relay record with the script."""
+    from nookku import script
+
     errors, tap_rows, relay_rows = [], None, None
     for name, path, reader in (("tap", tap_path, read_tap), ("relay", relay_path, read_relay)):
         try:
@@ -200,12 +223,22 @@ def audit(tap_path: Path, relay_path: Path) -> Report:
                     "detail": f"line {row.line}: {row.method} {row.path}: {row.error}",
                 }
             )
+    messages: list[str] = []
+    if script_path is not None:
+        try:
+            messages = script.read(script_path)[0]
+        except script.ScriptError as e:
+            kind = "record_missing" if e.unreadable else "record_invalid"
+            errors.append({"class": kind, "record": "script", "detail": str(e)})
     if errors:
-        return Report(exit=2, errors=errors, skipped=list(CHECKS))
+        skipped = CHECKS if script_path is not None else CHECKS[:-1]
+        return Report(exit=2, errors=errors, skipped=list(skipped))
     assert tap_rows is not None and relay_rows is not None
     turns = [r for r in relay_rows if isinstance(r, Turn)]
     exchanges = [r for r in tap_rows if isinstance(r, Exchange)]
     breaks, notes = compare(turns, exchanges)
+    if script_path is not None:
+        breaks += compare_script(turns, messages)
     return Report(
         exit=1 if breaks else 0,
         turns=len(turns),

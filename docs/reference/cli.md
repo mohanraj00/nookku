@@ -83,6 +83,31 @@ PASS proves the connection, not the reply. PASS means that:
 | 0 | The entry sent a reply, the audit of the test is clean, and the test found a model session for each harness in `models`. |
 | 1 | The check failed, or the test did not start. For example, the audit of the test exits with 1 or 2, the test wrote no valid `audit.json`, or a model session has no session file. |
 
+### `nookku run`
+
+```text
+nookku run --script FILE [--entry NAME] [--root PATH] [--json] [--evaluate | --no-evaluate]
+```
+
+Run a scripted test ([SPEC.md section 7.10](../../SPEC.md#710-scripted-tests)). It starts a test, sends each message of the script to the entry byte for byte, waits for each reply and ends the test. The script is JSONL with one `{"said": "..."}` row for each turn, or one JSON array of strings. The test folder gets a copy of the script, and each relay row has `"harness": "script"`. `run` does not switch relay mode on.
+
+The output gives the test id, the count of turns, the audit and the trace, and then `PASS` or each `FAIL:` line. It does not give the replies. Read them with `nookku transcript`.
+
+By default, only a person runs `nookku run`: the relay denies it from the model. A person allows the model with `nookku policy set scripts model`.
+
+| Flag | Default | Meaning |
+|---|---|---|
+| `--script FILE` | required | The script file. |
+| `--entry NAME` | the key `entry` | A name in the config key `entries`. It does not take a command line. |
+| `--root PATH` | the current folder | The project. |
+| `--json` | off | Print `{"pass": ..., "report": [...], "evaluation": ...}`. |
+| `--no-evaluate`, `--evaluate` | the config key `evaluate` | Print the evaluation prompt at the end, or not. |
+
+| Exit code | Meaning |
+|---|---|
+| 0 | The audit of the test is clean. |
+| 1 | The test did not start, for example the script breaks a rule or the entry name is unknown. Or a turn has no reply, the audit is not clean, or the Codex hooks changed. |
+
 ### `nookku mode`
 
 ```text
@@ -149,6 +174,7 @@ Compare the relay record with the tap record ([SPEC.md section 3](../../SPEC.md#
 | `--tap FILE` | required | The tap record. |
 | `--relay FILE` | required | The relay record. |
 | `--json` | off | Print the report as JSON. The bridge writes this form to `audit.json`. |
+| `--script FILE` | none | The script of a scripted test. The audit also compares the relay record with it ([SPEC.md section 3.2](../../SPEC.md#32-matching), step 7). |
 
 | Exit code | Meaning |
 |---|---|
@@ -333,6 +359,8 @@ The background process of a test ([architecture.md](../architecture.md#the-bridg
 | `--root PATH` | required | The project. |
 | `--test ID` | required | The test id. |
 | `--tester-session ID` | none | The tester's harness session id. |
+| `--entry-name NAME` | none | The name of the entry in `entries`, from `nookku run --entry`. |
+| `--script-source FILE` | none | The absolute path of the script of a scripted test, for the manifest. `run` copies the script into the test folder before it starts the bridge. |
 
 | Exit code | Meaning |
 |---|---|

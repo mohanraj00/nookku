@@ -2,6 +2,7 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -75,10 +76,10 @@ def test_the_help_hides_the_bridge_command_and_the_command_still_runs(
     out = capsys.readouterr().out
     assert "==SUPPRESS==" not in out
     assert "bridge" not in out.split()
-    calls: list[tuple[Path, str, str | None]] = []
-    monkeypatch.setattr(bridge, "run", lambda *args: calls.append(args) or 0)
+    calls: list[tuple[tuple[Any, ...], dict[str, Any]]] = []
+    monkeypatch.setattr(bridge, "run", lambda *args, **kw: calls.append((args, kw)) or 0)
     assert main(["bridge", "--root", str(tmp_path), "--test", "t-1"]) == 0
-    assert calls == [(tmp_path, "t-1", None)]
+    assert calls == [((tmp_path, "t-1", None), {"entry_name": None, "script_source": None})]
 
 
 def test_tap_command_end_to_end(tmp_path):

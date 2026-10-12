@@ -237,6 +237,38 @@ Result: clean (exit 0)
 
 A report is a model answer, so check its evidence.
 
+## Run a scripted test
+
+If your app has fixed conversations in its own tests, run them through the relay with `nookku run`. Then the tap, the audit, the trace and the evaluation cover them, and nobody types each message.
+
+1. Write the script. Use one `{"said": "..."}` row for each turn:
+
+   ```text
+   {"said": "Is the teapot in stock?"}
+   {"said": "Return order #4471, please."}
+   {"said": "Thanks."}
+   ```
+
+   A JSON array of strings also works. If your fixtures have another form, convert them, for example with `jq -c '.turns[] | {said: .}' fixture.json > script.jsonl`.
+
+2. Optional: add more entries to `.nookku/config.json`, for example an entry that replays a recording with no model:
+
+   ```json
+   "entries": {"replay": ["python3", "replay_entry.py"]}
+   ```
+
+3. Run the script:
+
+   ```bash
+   nookku run --script script.jsonl --entry replay
+   ```
+
+   Without `--entry`, the test uses the key `entry`.
+
+4. Read the output. It gives the test id, the count of turns, the audit and the trace, then `PASS` or each `FAIL:` line. Read the replies with `nookku transcript --test <test-id>`.
+
+By default, only a person runs `nookku run`. To let the harness model run a script, run `nookku policy set scripts model` in a shell. Then the model can also use the `run_script` tool of the plugin. A scripted test always shows the turns as `script`, not as typed turns ([SPEC.md section 7.10](../../SPEC.md#710-scripted-tests)).
+
 ## Next
 
 - Change the entry when your app changes: [connect-your-agent.md](connect-your-agent.md#when-the-app-changes).

@@ -1,0 +1,97 @@
+{
+ "v": "0.2",
+ "test": "20261011-090000-so01",
+ "turns": 1,
+ "items": 9,
+ "sessions": [
+  {
+   "harness": "claude-code",
+   "session": "4f1c2a7e-0d3b-4c55-9a61-2b8e5d7c9f10",
+   "file": "sessions/claude-code/4f1c2a7e-0d3b-4c55-9a61-2b8e5d7c9f10.jsonl",
+   "inferred": false,
+   "version": "2.1.286",
+   "items": 3,
+   "ignored": {}
+  },
+  {
+   "harness": "claude-code",
+   "session": "8a2d4f6b-1c3e-4a57-9b8d-0e2f4a6c8e01",
+   "file": "sessions/claude-code/8a2d4f6b-1c3e-4a57-9b8d-0e2f4a6c8e01.jsonl",
+   "inferred": false,
+   "version": "2.1.286",
+   "items": 1,
+   "ignored": {}
+  }
+ ],
+ "otel": {
+  "file": "otel.jsonl",
+  "rows": 5,
+  "items": 5,
+  "ignored": {}
+ },
+ "backend": null,
+ "model_api": null,
+ "counts": {
+  "agent_error": 0,
+  "repeated_reply": 0,
+  "tool_error": 2,
+  "command_failed": 0,
+  "span_error": 0,
+  "backend_error": 0,
+  "model_api_error": 0,
+  "turn_without_model": 0,
+  "item_between_turns": 0,
+  "otel_tool_not_in_session": 2,
+  "server_not_from_app": 0,
+  "session_inferred": 0,
+  "version_untested": 0
+ },
+ "findings": [
+  {
+   "check": "tool_error",
+   "turn": 1,
+   "detail": "StructuredOutput: Output does not match the schema: price_eur must be a number",
+   "harness": "claude-code",
+   "session": "4f1c2a7e-0d3b-4c55-9a61-2b8e5d7c9f10",
+   "source": {
+    "file": "sessions/claude-code/4f1c2a7e-0d3b-4c55-9a61-2b8e5d7c9f10.jsonl",
+    "line": 2,
+    "result_line": 3
+   }
+  },
+  {
+   "check": "tool_error",
+   "turn": 1,
+   "detail": "StructuredOutput: Output does not match the schema: price_eur must be a number",
+   "harness": "claude-code",
+   "session": "8a2d4f6b-1c3e-4a57-9b8d-0e2f4a6c8e01",
+   "source": {
+    "file": "sessions/claude-code/8a2d4f6b-1c3e-4a57-9b8d-0e2f4a6c8e01.jsonl",
+    "line": 1,
+    "result_line": 2
+   }
+  },
+  {
+   "check": "otel_tool_not_in_session",
+   "turn": 1,
+   "detail": "StructuredOutput: a tool_result event with no tool call in the session file",
+   "harness": "claude-code",
+   "session": "4f1c2a7e-0d3b-4c55-9a61-2b8e5d7c9f10",
+   "source": {
+    "file": "otel.jsonl",
+    "line": 3
+   }
+  },
+  {
+   "check": "otel_tool_not_in_session",
+   "turn": 1,
+   "detail": "StructuredOutput: a tool_result event with no tool call in the session file",
+   "harness": "claude-code",
+   "session": "8a2d4f6b-1c3e-4a57-9b8d-0e2f4a6c8e01",
+   "source": {
+    "file": "otel.jsonl",
+    "line": 5
+   }
+  }
+ ]
+}

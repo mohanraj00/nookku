@@ -1712,6 +1712,216 @@ OTEL_CASE = {
 }
 
 
+# A structured output that the model sends 2 times in one turn (SPEC.md section 8.6). The first
+# output does not agree with the schema. Each tool_result event has the tool use id of its call.
+# The event of the second call has a cut `note`, so its input is not equal to the session input.
+# A third event has an id with no tool call in its session: the id rule gives a finding, though
+# its name and input agree with the first call. A second session has a call with that id, but
+# the id rule looks only in the session of the event. A fifth event of the second session has
+# no id and the input of the second call of the first session: it gives a finding, because the
+# check looks only in the session of the event. A fourth event has no id and a cut `note`: the
+# shared prefix agrees with the second call.
+GIFT_BAD = {"items": [{"sku": "teapot-set", "price_eur": "twenty-eight"}]}
+GIFT_NOTE = "A blue teapot set with 2 cups. It fits a gift box of size M."
+GIFT_GOOD = {"items": [{"sku": "teapot-set", "price_eur": 28, "note": GIFT_NOTE}]}
+GIFT_CUT = {"items": [{"sku": "teapot-set", "price_eur": 28, "note": GIFT_NOTE[:24] + "…"}]}
+SCHEMA_ERROR = "Output does not match the schema: price_eur must be a number"
+
+
+def output_event(t: float, tid: str | None, args: dict, error: str | None = None) -> dict:
+    """A tool_result event of Claude Code for its StructuredOutput tool."""
+    row = tool_event(t, "StructuredOutput", args)
+    attrs = {k: v for k, v in row["attributes"].items() if k != "tool_parameters"}
+    attrs["tool_name"] = "StructuredOutput"
+    if tid is not None:
+        attrs["tool_use_id"] = tid
+    if error is not None:
+        attrs |= {"success": "false", "error": error}
+    return {**row, "attributes": attrs}
+
+
+CC2 = "8a2d4f6b-1c3e-4a57-9b8d-0e2f4a6c8e01"
+CC2_FILE = f"sessions/claude-code/{CC2}.jsonl"
+CC2_SESSION = {**CC_SESSION, "session": CC2, "pid": 4472, "file": CC2_FILE}
+OUTPUT_EVENTS = [
+    output_event(12.6, "toolu_s1", GIFT_BAD, SCHEMA_ERROR),
+    output_event(13.6, "toolu_s2", GIFT_CUT),
+    output_event(13.7, "toolu_s9", GIFT_BAD),
+    output_event(13.8, None, GIFT_CUT),
+    output_event(13.9, None, GIFT_GOOD),
+]
+OUTPUT_EVENTS[-1]["attributes"]["session.id"] = CC2
+STRUCTURED_CASE = {
+    "tap": [window(10, 20)],
+    "manifest": {"test": "20261011-090000-so01", "model_sessions": [CC_SESSION, CC2_SESSION]},
+    "sessions": {
+        CC_FILE: [
+            cc_line("user", 11, "Find a gift under 30 EUR in the toy shop."),
+            cc_line("assistant", 12, [use("toolu_s1", "StructuredOutput", GIFT_BAD)]),
+            cc_line("user", 12.5, [cc_result("toolu_s1", SCHEMA_ERROR, error=True)]),
+            cc_line("assistant", 13, [use("toolu_s2", "StructuredOutput", GIFT_GOOD)]),
+            cc_line("user", 13.5, [cc_result("toolu_s2", "Structured output provided.")]),
+        ],
+        CC2_FILE: [
+            cc_line(
+                "assistant", 12.2, [use("toolu_s9", "StructuredOutput", GIFT_BAD)], sessionId=CC2
+            ),
+            cc_line("user", 12.3, [cc_result("toolu_s9", SCHEMA_ERROR, error=True)], sessionId=CC2),
+        ],
+    },
+    "otel": OUTPUT_EVENTS,
+    "trace": [
+        item(
+            1,
+            "claude-code",
+            11,
+            "message",
+            1,
+            role="user",
+            output="Find a gift under 30 EUR in the toy shop.",
+        ),
+        item(
+            1,
+            "claude-code",
+            12,
+            "tool_call",
+            2,
+            name="StructuredOutput",
+            input=GIFT_BAD,
+            error=SCHEMA_ERROR,
+            result_line=3,
+        ),
+        {
+            **item(
+                1,
+                "claude-code",
+                12.2,
+                "tool_call",
+                1,
+                name="StructuredOutput",
+                input=GIFT_BAD,
+                error=SCHEMA_ERROR,
+            ),
+            "session": CC2,
+            "source": {"file": CC2_FILE, "line": 1, "result_line": 2},
+        },
+        *[
+            oitem(
+                1,
+                "claude-code",
+                CC,
+                e["time"] - T0,
+                "log",
+                n,
+                name="tool_result",
+                input=e["attributes"],
+                error=e["attributes"].get("error"),
+                service="claude-code",
+            )
+            for n, e in enumerate(OUTPUT_EVENTS[:1], 1)
+        ],
+        item(
+            1,
+            "claude-code",
+            13,
+            "tool_call",
+            4,
+            name="StructuredOutput",
+            input=GIFT_GOOD,
+            output="Structured output provided.",
+            result_line=5,
+        ),
+        *[
+            oitem(
+                1,
+                "claude-code",
+                CC,
+                e["time"] - T0,
+                "log",
+                n,
+                name="tool_result",
+                input=e["attributes"],
+                service="claude-code",
+            )
+            for n, e in enumerate(OUTPUT_EVENTS[1:4], 2)
+        ],
+        oitem(
+            1,
+            "claude-code",
+            CC2,
+            13.9,
+            "log",
+            5,
+            name="tool_result",
+            input=OUTPUT_EVENTS[4]["attributes"],
+            service="claude-code",
+        ),
+    ],
+    "findings": {
+        "v": "0.2",
+        "test": "20261011-090000-so01",
+        "turns": 1,
+        "items": 9,
+        "sessions": [
+            {
+                "harness": "claude-code",
+                "session": CC,
+                "file": CC_FILE,
+                "inferred": False,
+                "version": "2.1.286",
+                "items": 3,
+                "ignored": {},
+            },
+            {
+                "harness": "claude-code",
+                "session": CC2,
+                "file": CC2_FILE,
+                "inferred": False,
+                "version": "2.1.286",
+                "items": 1,
+                "ignored": {},
+            },
+        ],
+        "otel": {"file": "otel.jsonl", "rows": 5, "items": 5, "ignored": {}},
+        "backend": None,
+        "model_api": None,
+        "counts": counts(tool_error=2, otel_tool_not_in_session=2),
+        "findings": [
+            {
+                "check": "tool_error",
+                "turn": 1,
+                "detail": f"StructuredOutput: {SCHEMA_ERROR}",
+                **where("claude-code", 2, 3),
+            },
+            {
+                "check": "tool_error",
+                "turn": 1,
+                "detail": f"StructuredOutput: {SCHEMA_ERROR}",
+                "harness": "claude-code",
+                "session": CC2,
+                "source": {"file": CC2_FILE, "line": 1, "result_line": 2},
+            },
+            {
+                "check": "otel_tool_not_in_session",
+                "turn": 1,
+                "detail": "StructuredOutput: a tool_result event with no tool call in the session file",
+                "harness": "claude-code",
+                "session": CC,
+                "source": {"file": "otel.jsonl", "line": 3},
+            },
+            {
+                "check": "otel_tool_not_in_session",
+                "turn": 1,
+                "detail": "StructuredOutput: a tool_result event with no tool call in the session file",
+                "harness": "claude-code",
+                "session": CC2,
+                "source": {"file": "otel.jsonl", "line": 5},
+            },
+        ],
+    },
+}
+
+
 # Backend calls (SPEC.md sections 7.6 and 8.4): the rows of backend.jsonl as the proxy writes them.
 # A call in turn 1, a 500 status and a call with no answer in turn 2, a binary response between
 # the turns, and a row that is not a call.
@@ -2922,6 +3132,7 @@ TRACE_CASES = {
     "untested_versions": VERSION_CASE,
     "no_model_sessions": NO_MODEL_CASE,
     "otel_toy_shop": OTEL_CASE,
+    "otel_structured_output": STRUCTURED_CASE,
     "backend_toy_shop": BACKEND_CASE,
     "model_api_toy_shop": MODEL_API_CASE,
     "model_api_responses": RESPONSES_CASE,
@@ -4078,6 +4289,70 @@ def write_otlp_case(d: Path, case: dict) -> None:
     (d / "expect.json").write_text(json.dumps(expect, indent=1, ensure_ascii=False) + "\n")
 
 
+def script_turn(said: str, shown: str | None) -> dict:
+    return {**turn(said, shown), "harness": "script"}
+
+
+def jsonl(*messages: str) -> str:
+    return "".join(json.dumps({"said": m}, ensure_ascii=False) + "\n" for m in messages)
+
+
+SCRIPT_RELAY = [script_turn(M1, R1), script_turn(M2, R2), script_turn(M3, R3)]
+M2_CHANGED = M2.replace("€", "EUR")
+# The scripted tests (SPEC.md section 7.10). The file of each case is the script copy that the
+# bridge gives the audit, with its exact bytes.
+SCRIPTS = {
+    "script_clean": ("script.jsonl", jsonl(M1, M2, M3)),
+    "script_clean_json_array": ("script.json", json.dumps([M1, M2, M3], ensure_ascii=False)),
+    "script_said_differs": ("script.jsonl", jsonl(M1, M2, M3)),
+    "script_message_not_sent": ("script.jsonl", jsonl(M1, M2, M3)),
+    "script_turn_after_the_last_message": ("script.jsonl", jsonl(M1, M2)),
+    "script_typed_turn": ("script.jsonl", jsonl(M1, M2, M3)),
+    "script_row_with_another_key": ("script.jsonl", '{"said": "Hi", "reply": "Hello"}\n'),
+    "script_lone_surrogate": ("script.jsonl", '{"said": "\\ud83d"}\n'),
+    "script_empty_array": ("script.json", "[]\n"),
+}
+CASES_BY_NAME.update(
+    {
+        "script_clean": (CLEAN_TAP, SCRIPT_RELAY, {"exit": 0, "breaks": []}),
+        "script_clean_json_array": (CLEAN_TAP, SCRIPT_RELAY, {"exit": 0, "breaks": []}),
+        # The relay sent a changed text, and the tap got the same text. Only the script shows it.
+        "script_said_differs": (
+            [ex(M1, R1), ex(M2_CHANGED, R2), ex(M3, R3)],
+            [script_turn(M1, R1), script_turn(M2_CHANGED, R2), script_turn(M3, R3)],
+            {"exit": 1, "breaks": [["script_mismatch", 2, None]]},
+        ),
+        "script_message_not_sent": (
+            CLEAN_TAP[:2],
+            SCRIPT_RELAY[:2],
+            {"exit": 1, "breaks": [["script_mismatch", None, None]]},
+        ),
+        "script_turn_after_the_last_message": (
+            CLEAN_TAP,
+            SCRIPT_RELAY,
+            {"exit": 1, "breaks": [["script_mismatch", 3, None]]},
+        ),
+        # A typed turn in a scripted test, with the text of the script message.
+        "script_typed_turn": (
+            CLEAN_TAP,
+            [script_turn(M1, R1), turn(M2, R2), script_turn(M3, R3)],
+            {"exit": 1, "breaks": [["script_mismatch", 2, None]]},
+        ),
+        "script_row_with_another_key": (
+            CLEAN_TAP,
+            SCRIPT_RELAY,
+            {"exit": 2, "errors": ["record_invalid"]},
+        ),
+        "script_lone_surrogate": (
+            CLEAN_TAP,
+            SCRIPT_RELAY,
+            {"exit": 2, "errors": ["record_invalid"]},
+        ),
+        "script_empty_array": (CLEAN_TAP, SCRIPT_RELAY, {"exit": 2, "errors": ["record_invalid"]}),
+    }
+)
+
+
 def write(path: Path, rows: list | None) -> None:
     if rows is None:
         return
@@ -4093,6 +4368,9 @@ def main() -> None:
         write(d / "tap.jsonl", tap)
         write(d / "relay.jsonl", relay)
         (d / "expect.json").write_text(json.dumps(expect, indent=1) + "\n")
+        if name in SCRIPTS:
+            file, text = SCRIPTS[name]
+            (d / file).write_text(text, encoding="utf-8")
     shutil.rmtree(CONTRACT, ignore_errors=True)
     for name, case in CONTRACT_CASES.items():
         d = CONTRACT / name
