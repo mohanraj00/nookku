@@ -25,7 +25,7 @@ claude plugin validate plugins/nookku && claude plugin test plugins/nookku
 - **Spec first.** A change to the records or the audit starts in [SPEC.md](SPEC.md). Write its conformance cases by hand in [conformance/build.py](conformance/build.py), before the code. Never fill an expectation by running the audit.
 - **No runtime dependencies.** The package uses the Python standard library only.
 - **Numbers need data.** Each number in a doc links to the file that it comes from. Do not edit a published result by hand.
-- **Relays change, proofs run again.** After a change to the plugin or the hook kit, run the proofs ([docs/how-to/run-the-proofs.md](docs/how-to/run-the-proofs.md)). Commit the new results with the harness version that they record.
+- **Relays change, proofs run again.** After a change to the plugin or the project hooks, run the proofs ([docs/how-to/run-the-proofs.md](docs/how-to/run-the-proofs.md)). Commit the new results with the harness version that they record.
 - **Examples use a toy shop or a support agent.**
 - **Code quality.** Follow [docs/code-quality.md](docs/code-quality.md). It gives each rule and the check that enforces it.
 - **Docs.** Write in ASD-STE100: short sentences, active voice, simple words. If you add a page to `docs/`, add it to [docs/index.md](docs/index.md). If you add a command, a flag or a config key, add it to [docs/reference/cli.md](docs/reference/cli.md) or [docs/reference/config.md](docs/reference/config.md). The tests fail if you do not.
