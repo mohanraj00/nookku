@@ -218,7 +218,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
 
     trc = sub.add_parser("trace", help="build the trace of a test again, and show its findings")
-    trc.add_argument("test", nargs="?", help="the test id (default: the latest test)")
+    trc.add_argument(
+        "test",
+        nargs="?",
+        help="the test id or the path of the test folder (default: the latest test)",
+    )
     trc.add_argument("--root", type=Path, default=Path.cwd())
     trc.add_argument("--json", action="store_true", help="print findings.json")
 
@@ -250,7 +254,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     view.add_argument("--record", type=Path, help="the relay record (default: from the config)")
 
     ver = sub.add_parser("verify", help="check that no record of a test changed after its end")
-    ver.add_argument("test", nargs="?", help="the test id (default: the latest test)")
+    ver.add_argument(
+        "test",
+        nargs="?",
+        help="the test id or the path of the test folder (default: the latest test)",
+    )
     ver.add_argument("--root", type=Path, default=Path.cwd())
     ver.add_argument("--json", action="store_true")
 
@@ -261,7 +269,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     tr.add_argument(
         "--trace", action="store_true", help="each turn as the app got it, with its model items"
     )
-    tr.add_argument("--test", help="the test id (default: the latest test)")
+    tr.add_argument(
+        "--test", help="the test id or the path of the test folder (default: the latest test)"
+    )
     tr.add_argument("--session", help="only the turns of this harness session")
     tr.add_argument(
         "--compact",
