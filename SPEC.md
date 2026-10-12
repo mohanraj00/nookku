@@ -790,6 +790,8 @@ The relay reads `evaluate` with the one reader of `config.json` (section 7.1). I
 
 The prompt `nookku end` ends the running test, if one runs. Then, if a test needs an evaluation, the relay lets the prompt go to the model with this context: the end text and the evaluation prompt for that test. So the prompt also starts the evaluation of a test that ended in another way, for example with `nookku end` in a shell. Otherwise, the relay blocks the prompt (section 5).
 
+The start text of a test gives the ways to end it. If `evaluate` is `false`, the start text does not name the evaluation.
+
 `nookku end --evaluation` ends the test and prints one JSON object: `text`, the end text, and `evaluation`, the evaluation prompt or `null`.
 
 ### 9.2 Evaluation prompt
