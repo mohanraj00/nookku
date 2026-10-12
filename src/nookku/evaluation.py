@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections import Counter
 from importlib import resources
 from pathlib import Path
 from typing import Any
@@ -176,6 +177,28 @@ def _finding(f: dict[str, Any], lines: dict[tuple[str, int], int]) -> str:
     return f"- {f['check']}: {f['detail']}{where}\n"
 
 
+def _loose(findings: list[dict[str, Any]], lines: dict[tuple[str, int], int]) -> str:
+    """The lines of the findings with no turn. The version_untested findings of one harness and
+    one version show as one line with the count of sessions. findings.json keeps each one."""
+    rows: list[str | tuple[str, str]] = []
+    sessions: Counter[tuple[str, str]] = Counter()
+    for f in findings:
+        if f["check"] != "version_untested":
+            rows.append(_finding(f, lines))
+            continue
+        key = (str(f.get("harness")), str(f["detail"]))
+        if key not in sessions:
+            rows.append(key)
+        sessions[key] += 1
+    out = []
+    for row in rows:
+        if isinstance(row, tuple):
+            n = sessions[row]
+            row = f"- version_untested: {row[1]} ({row[0]}, {n} session{'s' if n > 1 else ''})\n"
+        out.append(row)
+    return "".join(out)
+
+
 def _reference(text: str, line: int) -> str:
     digest = hashlib.sha256(text.encode("utf-8", errors="surrogatepass")).hexdigest()
     return (
@@ -275,7 +298,7 @@ def transcript(folder: Path, compact: bool = False) -> str:
         )
     loose = [f for f in findings if f["turn"] is None]
     if loose:
-        out.append("\nFindings with no turn:\n" + "".join(_finding(f, lines) for f in loose))
+        out.append("\nFindings with no turn:\n" + _loose(loose, lines))
     first = [n for n, it in enumerate(items, 1) if it["turn"] is None]
     turns = range(1, len(exchanges) + 1)
     order = [(k, it) for n in turns for k, it in enumerate(items, 1) if it["turn"] == n]
