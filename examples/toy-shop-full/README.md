@@ -14,11 +14,23 @@ The app has a planted bug for the telemetry proof. This README does not describe
 
 ## Run it
 
-The app needs `claude-agent-sdk`, which is not a dependency of Nookku. Start the stock service and the toy note model on local ports, each one in its own shell:
+The app needs `claude-agent-sdk`, which is not a dependency of Nookku. Do these steps from the repo root:
 
-```bash
-python3 examples/toy-shop-full/stock.py 9001
-python3 examples/toy-shop-full/toy_model.py 9002
-```
+1. Choose one relay, and do not install the 2 forms in the same project ([docs/how-to/choose-a-relay.md](../../docs/how-to/choose-a-relay.md)).
+2. Run `nookku init` with your relay: `plugin`, `claude-code` or `codex`. This example uses the project hooks in Claude Code:
 
-Then use the configuration of the full toy shop in [docs/reference/config.md](../../docs/reference/config.md). [docs/how-to/add-a-backend.md](../../docs/how-to/add-a-backend.md) explains the backend. [scripts/proof_telemetry.py](../../scripts/proof_telemetry.py) uses this app.
+   ```bash
+   nookku init claude-code --entry "uv run --with claude-agent-sdk python3 examples/toy-shop-full/entry.py" --models claude-code
+   ```
+
+3. Add the keys `backends` and `model_api` of the full toy shop to `.nookku/config.json`. [docs/reference/config.md](../../docs/reference/config.md#nookkuconfigjson) shows the complete configuration, and [docs/how-to/add-a-backend.md](../../docs/how-to/add-a-backend.md) explains the backend.
+4. Start the stock service and the toy note model on local ports, each one in its own shell:
+
+   ```bash
+   python3 examples/toy-shop-full/stock.py 9001
+   python3 examples/toy-shop-full/toy_model.py 9002
+   ```
+
+5. Follow the guide of your relay to run a test.
+
+[scripts/proof_telemetry.py](../../scripts/proof_telemetry.py) uses this app.
