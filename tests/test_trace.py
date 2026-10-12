@@ -244,3 +244,14 @@ def test_the_trace_command_prints_a_lone_surrogate_as_its_escape(
     p = subprocess.run(argv + ["--json"] * as_json, capture_output=True, env=env)
     assert p.returncode == 0, p.stderr
     assert "the stock service \\udc00 is down" in p.stdout.decode("utf-8").replace("\\\\", "\\")
+
+
+def test_a_blank_line_is_counted_and_the_end_of_the_file_is_not(tmp_path: Path) -> None:
+    rollout = tmp_path / "rollout.jsonl"
+    rollout.write_text('{"type": "session_meta"}\n\n \t\r\n{"type": "turn_context"}\n')
+    _, info = trace.read_codex(rollout, "s", "f")
+    assert info["ignored"] == {"blank": 2, "session_meta": 1, "turn_context": 1}
+    backend_file = tmp_path / "backend.jsonl"
+    backend_file.write_text('\n{"type": "start"}\n')
+    _, info = trace.read_backend(backend_file)
+    assert (info["rows"], info["ignored"]) == (1, {"blank": 1, "start": 1})

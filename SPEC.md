@@ -702,7 +702,7 @@ Turn `n` is the `n`-th `exchange` row of `tap.jsonl`. Its window is from `starte
 
 ### 8.4 Readers
 
-Each reader reads the copied session file of one model session in the manifest. It never fails on a line. It counts each line that it does not keep, by type, in `findings.json`.
+Each reader reads the copied session file of one model session in the manifest. It never fails on a line. It counts each line that it does not keep, by type, in `findings.json`. It counts a blank line (a line with only white space) as `blank`. The empty text after the last `\n` of a file is not a line. The `rows` count of `otel`, `backend` and `model_api` in `findings.json` does not include a blank line.
 
 **Claude Code** (`sessions/claude-code/<session>.jsonl`). The reader keeps the lines of type `user` and `assistant` that have no `isMeta`. `ts` is the line's `timestamp`. From the `message.content` of each line:
 
