@@ -7,6 +7,7 @@ one rule applies to its keys. Each part then checks the values that it uses.
 from __future__ import annotations
 
 import json
+import re
 import sys
 from dataclasses import dataclass, field, fields
 from pathlib import Path
@@ -114,6 +115,8 @@ class Config:
     model_reply_match: str = "normalized"
     # True: nookku transcript --trace shows a repeated text one time (SPEC.md section 9.2).
     transcript_compact: bool = False
+    # More entries of a scripted test, by name (SPEC.md section 7.10). entry stays the default.
+    entries: dict[str, list[str]] = field(default_factory=dict)
 
     @classmethod
     def load(cls, root: Path) -> Config:
@@ -122,6 +125,9 @@ class Config:
     def record_path(self, root: Path) -> Path:
         return root / self.record
 
+
+# The rule for the name of an entry in entries.
+ENTRY_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]*")
 
 # The known keys of config.json. Each other key is an error.
 KEYS = tuple(f.name for f in fields(Config))
@@ -156,6 +162,16 @@ def check(data: Any) -> dict[str, Any]:
         )
     if data.get("model_reply_match", "normalized") not in MATCHES:
         raise ConfigError(f"{FILE}: 'model_reply_match' must be exact, normalized or off")
+    entries = data.get("entries", {})
+    if not isinstance(entries, dict):
+        raise ConfigError(f"{FILE}: 'entries' must be an object from a name to a command")
+    for name, argv in entries.items():
+        if not ENTRY_NAME.fullmatch(name):
+            raise ConfigError(
+                f"{FILE}: the entry name {name!r} must be letters, digits, '_', '.' or '-'"
+            )
+        if not (isinstance(argv, list) and argv and all(isinstance(a, str) for a in argv)):
+            raise ConfigError(f"{FILE}: the entry {name!r} must be a list of strings")
     return data
 
 

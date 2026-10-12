@@ -1,3 +1,4 @@
+import hashlib
 import io
 import json
 import os
@@ -8,8 +9,9 @@ from pathlib import Path
 
 import pytest
 
-from nookku import bridge, kit, seal, stdio, trace
+from nookku import bridge, evaluation, kit, mcp, policy, seal, stdio, trace
 from nookku.audit import CHECKS, audit
+from nookku.cli import main
 from nookku.record import RecordError, Writer
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -696,3 +698,175 @@ def test_an_invalid_relay_record_infers_no_codex_session(tmp_path: Path, homes: 
     assert not (folder / "sessions" / "codex").exists()
     log = (folder / "bridge.log").read_text(encoding="utf-8")
     assert "the relay record is invalid, so the test infers no Codex session" in log
+
+
+SCRIPT = ["Is the teapot in stock?", "Return order #4471, please.  ", "Thanks.\nBye €"]
+
+
+def write_script(path: Path, form: str, messages: list[str]) -> Path:
+    if form == "json":
+        path.write_text(json.dumps(messages, ensure_ascii=False), encoding="utf-8")
+    else:
+        text = "".join(json.dumps({"said": m}, ensure_ascii=False) + "\n" for m in messages)
+        path.write_text(text, encoding="utf-8")
+    return path
+
+
+def relay_turns(folder: Path) -> list[dict]:
+    rows = [json.loads(x) for x in (folder / "relay.jsonl").read_text().splitlines() if x]
+    return [r for r in rows if r["type"] == "turn"]
+
+
+@pytest.mark.parametrize("form", ["jsonl", "json"])
+def test_run_script_sends_each_message_of_the_script(
+    tmp_path: Path, homes: tuple, form: str
+) -> None:
+    app = tmp_path / "app.py"
+    app.write_text(ECHO_APP)
+    root = project(tmp_path, [sys.executable, str(app)])
+    path = write_script(tmp_path / f"turns.{form}", form, SCRIPT)
+    passed, lines, folder = bridge.run_script(root, path)
+    assert passed, lines
+    assert lines[1:] == ["Turns: 3 of 3 messages", "Audit: exit 0", lines[3], "PASS"]
+    # The output gives no reply: the evaluation reads the records.
+    assert not any("Toy shop:" in line for line in lines)
+    turns = relay_turns(folder)
+    assert [(t["harness"], t["said"]) for t in turns] == [("script", m) for m in SCRIPT]
+    assert (folder / f"script.{form}").read_bytes() == path.read_bytes()
+    manifest = json.loads((folder / "manifest.json").read_text())
+    assert manifest["entry_name"] is None
+    assert manifest["script"] == {
+        "source": str(path.resolve()),
+        "file": f"script.{form}",
+        "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+    }
+    assert seal.verify(folder)["intact"]
+    assert not kit.is_on(root)
+    prompt = evaluation.prompt(folder)
+    assert prompt.startswith("This test is scripted.")
+    assert manifest["script"]["sha256"] in prompt
+    # A changed relay row gives script_mismatch.
+    rows = [json.loads(x) for x in (folder / "relay.jsonl").read_text().splitlines() if x]
+    rows[1] = {**rows[1], "said": "Return order #4472, please.  "}
+    rows[1]["said_sha256"] = hashlib.sha256(rows[1]["said"].encode()).hexdigest()
+    changed = tmp_path / "changed.jsonl"
+    changed.write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows))
+    report = audit(folder / "tap.jsonl", changed, folder / f"script.{form}")
+    assert [b.kind for b in report.breaks] == ["altered_input", "script_mismatch"]
+
+
+def test_run_script_starts_the_named_entry(tmp_path: Path, homes: tuple) -> None:
+    app = tmp_path / "app.py"
+    app.write_text(ECHO_APP)
+    root = project(tmp_path, [sys.executable, str(tmp_path / "not-the-app.py")])
+    conf = root / ".nookku" / "config.json"
+    replay = [sys.executable, str(app)]
+    conf.write_text(json.dumps({**json.loads(conf.read_text()), "entries": {"replay": replay}}))
+    path = write_script(tmp_path / "turns.jsonl", "jsonl", SCRIPT[:1])
+    passed, lines, folder = bridge.run_script(root, path, "replay")
+    assert passed, lines
+    manifest = json.loads((folder / "manifest.json").read_text())
+    assert (manifest["entry_name"], manifest["entry"]) == ("replay", replay)
+    assert "The entry is replay: " in evaluation.prompt(folder)
+
+
+@pytest.mark.parametrize(
+    "entry, text, error",
+    [
+        ("replay", '{"said": "Hi"}\n', "has no entry 'replay' in 'entries'. The names: none."),
+        (None, "[]", "the script has no message"),
+        (None, '{"said": "Hi", "x": 1}\n', 'line 1: a row must be {"said": "..."}'),
+    ],
+)
+def test_run_script_starts_no_test_for_a_bad_entry_or_script(
+    tmp_path: Path, homes: tuple, entry: str | None, text: str, error: str
+) -> None:
+    app = tmp_path / "app.py"
+    app.write_text(ECHO_APP)
+    root = project(tmp_path, [sys.executable, str(app)])
+    path = tmp_path / "turns.jsonl"
+    path.write_text(text)
+    with pytest.raises(bridge.BridgeError) as info:
+        bridge.run_script(root, path, entry)
+    assert error in str(info.value)
+    assert not (root / ".nookku" / "tests").exists()
+
+
+ERROR_APP = """
+import json, sys
+for raw in sys.stdin.buffer:
+    request = json.loads(raw)
+    if "fail" in request["message"]:
+        out = {"v": 1, "id": request["id"], "error": "the toy shop is closed"}
+    else:
+        out = {"v": 1, "id": request["id"], "reply": "Toy shop: " + request["message"]}
+    sys.stdout.write(json.dumps(out) + "\\n")
+    sys.stdout.flush()
+"""
+
+
+def test_run_script_stops_at_a_turn_with_no_reply(tmp_path: Path, homes: tuple) -> None:
+    app = tmp_path / "app.py"
+    app.write_text(ERROR_APP)
+    root = project(tmp_path, [sys.executable, str(app)])
+    path = write_script(tmp_path / "turns.jsonl", "jsonl", ["Hi", "please fail", "Thanks"])
+    passed, lines, folder = bridge.run_script(root, path)
+    assert not passed
+    assert lines[1] == "Turns: 2 of 3 messages"
+    assert [t["ok"] for t in relay_turns(folder)] == [True, False]
+    assert any(line.startswith("FAIL: script_mismatch break") for line in lines), lines
+    assert "FAIL: The entry sent no reply to message 2 of the script." in lines
+
+
+def test_run_script_fails_when_the_last_message_gets_no_reply(tmp_path: Path, homes: tuple) -> None:
+    app = tmp_path / "app.py"
+    app.write_text(ERROR_APP)
+    root = project(tmp_path, [sys.executable, str(app)])
+    path = write_script(tmp_path / "turns.jsonl", "jsonl", ["Hi", "please fail"])
+    passed, lines, _ = bridge.run_script(root, path)
+    assert not passed
+    assert lines[1] == "Turns: 2 of 2 messages"
+    assert lines[-1] == "FAIL: The entry sent no reply to message 2 of the script.", lines
+
+
+def test_the_cli_runs_a_script_and_prints_the_evaluation_prompt(
+    tmp_path: Path, homes: tuple, capsys: pytest.CaptureFixture[str]
+) -> None:
+    app = tmp_path / "app.py"
+    app.write_text(ECHO_APP)
+    root = project(tmp_path, [sys.executable, str(app)])
+    path = write_script(tmp_path / "turns.jsonl", "jsonl", SCRIPT)
+    assert main(["run", "--script", str(path), "--root", str(root)]) == 0
+    out = capsys.readouterr().out
+    assert "Turns: 3 of 3 messages" in out and "This test is scripted." in out
+    assert main(["run", "--script", str(path), "--root", str(root), "--no-evaluate"]) == 0
+    assert "This test is scripted." not in capsys.readouterr().out
+    assert main(["run", "--script", str(path), "--root", str(root), "--entry", "x"]) == 1
+    assert "has no entry 'x'" in capsys.readouterr().out
+
+
+def test_the_mcp_tool_runs_a_script_only_if_the_policy_lets_the_model(
+    tmp_path: Path, homes: tuple
+) -> None:
+    app = tmp_path / "app.py"
+    app.write_text(ECHO_APP)
+    root = project(tmp_path, [sys.executable, str(app)])
+    write_script(root / "turns.jsonl", "jsonl", SCRIPT[:1])
+    refused = mcp.call(root, "run_script", {"path": "turns.jsonl"})
+    assert refused["isError"] is True
+    assert "only a person runs a scripted test" in refused["content"][0]["text"]
+    assert not (root / ".nookku" / "tests").exists()
+    policy.set_key(root, "scripts", "model")
+    outside = write_script(tmp_path / "outside.jsonl", "jsonl", SCRIPT[:1])
+    (root / "link.jsonl").symlink_to(outside)
+    for name in (str(outside), "../outside.jsonl", "link.jsonl"):
+        away = mcp.call(root, "run_script", {"path": name})
+        assert "the script file must be in the project folder" in away["content"][0]["text"]
+    assert not (root / ".nookku" / "tests").exists()
+    result = mcp.call(root, "run_script", {"path": "turns.jsonl"})
+    text = result["content"][0]["text"]
+    assert "isError" not in result, text
+    assert "Turns: 1 of 1 messages" in text and "This test is scripted." in text
+    (root / ".nookku" / "policy.json").write_text("{")
+    broken = mcp.call(root, "run_script", {"path": "turns.jsonl"})
+    assert "the policy file is not valid" in broken["content"][0]["text"]

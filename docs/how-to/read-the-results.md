@@ -140,7 +140,7 @@ Each break has `class`, `relay_line`, `tap_line` and `evidence`. For a changed t
 
 ### Break classes
 
-The audit has 7 break classes ([audit.py](../../src/nookku/audit.py), [SPEC.md section 3.3](../../SPEC.md#33-break-classes)). The fixes follow `BREAK_FIX` in [bridge.py](../../src/nookku/bridge.py), the text that `nookku check` gives for a break.
+The audit has 8 break classes ([audit.py](../../src/nookku/audit.py), [SPEC.md section 3.3](../../SPEC.md#33-break-classes)). The fixes follow `BREAK_FIX` in [bridge.py](../../src/nookku/bridge.py), the text that `nookku check` gives for a break.
 
 | Class | What the records show | Fix |
 |---|---|---|
@@ -151,6 +151,7 @@ The audit has 7 break classes ([audit.py](../../src/nookku/audit.py), [SPEC.md s
 | `not_delivered` | `relay.jsonl` has a turn that has no exchange in `tap.jsonl`. `tap_line` is `null`. | Read `bridge.log` and `app.log`. |
 | `altered_reply` | The `reply` text in `tap.jsonl` and the `shown` text in `relay.jsonl` are different. | Read `bridge.log`. |
 | `unshown_reply` | The `shown` text in `relay.jsonl` is `null`. The relay showed no reply. | Read `bridge.log`. |
+| `script_mismatch` | Only in a scripted test: a turn of `relay.jsonl` is not the message of the script copy at its position, or the counts differ. | Compare `relay.jsonl` with `script.jsonl` or `script.json` in the test folder. If the run stopped at a turn with no reply, read `app.log`. |
 
 For each error of exit 2, [troubleshooting.md](../troubleshooting.md#audit-verify-and-trace) gives the cause and the fix.
 
@@ -225,10 +226,10 @@ The trace has 14 trace checks ([trace.py](../../src/nookku/trace.py)). `findings
 | `model_api_error` | A direct call to a model API has an error, or a status of 400 or more. |
 | `turn_without_model` | A turn has no `message`, `tool_call` or `command` item from a session file. A turn with only an OTLP, backend or model API item still gets this finding. This check runs only if the trace has at least 1 item from a session file. |
 | `item_between_turns` | A model item has no turn, but it occurred at or after the start of turn 1. |
-| `otel_tool_not_in_session` | A harness log says that a tool ran, but the session file of that harness and turn has no call of that tool. |
+| `otel_tool_not_in_session` | A harness log says that a tool ran, but the session file of that harness has no call with its tool use id. If the log has no id, the session file has no call of that tool in that turn. |
 | `server_not_from_app` | A Claude Code session used an MCP server that the app's configuration cannot give: a claude.ai connector or a plugin server. |
 | `session_inferred` | The tap found a Codex session from its folder and its time, not from its process. |
-| `version_untested` | A session file comes from a harness version that the proofs do not cover. |
+| `version_untested` | A session file comes from a harness version that the proofs do not cover. `findings.json` has one finding for each session. The transcript shows one line for each harness and version, with the count of sessions, for example `(claude-code, 4 sessions)`. |
 
 ## 5. Read the report
 

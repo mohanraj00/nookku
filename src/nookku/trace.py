@@ -59,6 +59,11 @@ MODEL_HARNESSES = ("claude-code", "codex", "model_api")
 EXCERPT = 60
 # The kinds that a model session file gives.
 SESSION_KINDS = ("message", "tool_call", "command")
+# The key of the tool use id of a Claude Code tool call. The check of section 8.6 uses it. The
+# trace does not write it to trace.jsonl.
+CALL_ID = "_tool_use_id"
+# The marks at the end of a cut string of a tool_result event.
+CUT_MARKS = ("...", "\u2026")
 # Codex tools that run a command. The session file has a command item for them.
 CODEX_COMMANDS = {"exec_command", "shell", "local_shell"}
 # MCP servers that the MCP configuration of an app cannot give: the claude.ai connectors of the
@@ -173,6 +178,8 @@ def read_claude(path: Path, session: str, file: str) -> tuple[list[dict[str, Any
                 it.update(kind="tool_call", server=server, name=name, input=b.get("input"))
                 it["harness_internal"] = str(b.get("name")) in HARNESS_INTERNAL["claude-code"]
                 it["error"] = "no tool_result in the session file"
+                if isinstance(b.get("id"), str) and b["id"]:
+                    it[CALL_ID] = b["id"]
                 calls[str(b.get("id"))] = it
                 items.append(it)
             elif btype == "tool_result" and kind == "user":
@@ -576,17 +583,42 @@ def _event_tool(it: dict[str, Any]) -> tuple[str | None, Any]:
     return name or attrs.get("tool_name"), _json(attrs.get("tool_input"))
 
 
+def _cut_equal(event: Any, session: Any) -> bool:
+    """True if the input of an event agrees with the input of a session item. An event string
+    can be cut: it agrees if the session string starts with it, without a cut mark at its end."""
+    if isinstance(event, dict) and isinstance(session, dict):
+        same_keys = event.keys() == session.keys()
+        return same_keys and all(_cut_equal(v, session[k]) for k, v in event.items())
+    if isinstance(event, list) and isinstance(session, list):
+        same_size = len(event) == len(session)
+        return same_size and all(_cut_equal(a, b) for a, b in zip(event, session, strict=True))
+    if isinstance(event, str) and isinstance(session, str) and len(event) < len(session):
+        for mark in CUT_MARKS:
+            event = event.removesuffix(mark)
+        return session.startswith(event)
+    return bool(event == session)
+
+
 def _in_session(event: dict[str, Any], items: list[dict[str, Any]]) -> bool:
-    """True if the session items of the event's turn have its tool call."""
+    """True if the session items have the tool call of the event (SPEC.md section 8.6). The
+    items are those of the session of the event, or of each session of its harness if the event
+    names no session of the test. If the event has a tool use id and an item has one, only the id
+    must agree."""
     name, args = _event_tool(event)
+    given = event["input"].get("tool_use_id") if event["harness"] == "claude-code" else None
+    own = [it for it in items if it["harness"] == event["harness"]]
+    own = [it for it in own if it["session"] == event["session"]] or own
+    known = [it for it in own if it.get(CALL_ID)]
+    if isinstance(given, str) and given and known:
+        return any(it[CALL_ID] == given for it in known)
     command = event["harness"] == "codex" and name in CODEX_COMMANDS
-    for it in items:
-        if it["harness"] != event["harness"] or it["turn"] != event["turn"]:
+    for it in own:
+        if it["turn"] != event["turn"]:
             continue
         if command and it["kind"] == "command":
             return True
         same_input = not isinstance(args, dict) or not isinstance(it["input"], dict)
-        same_input = same_input or it["input"] == args
+        same_input = same_input or _cut_equal(args, it["input"])
         if not command and it["kind"] == "tool_call" and it["name"] == name and same_input:
             return True
     return False
@@ -846,7 +878,7 @@ def build(folder: Path) -> dict[str, Any]:
     items.sort(key=lambda it: it["ts"] if it["ts"] is not None else float("inf"))
     assign(items, spans)
     findings = check(exchanges, spans, items, sessions, servers, trace_keys(manifest))
-    lines = [json_text(it) + "\n" for it in items]
+    lines = [json_text({k: v for k, v in it.items() if k != CALL_ID}) + "\n" for it in items]
     (folder / "trace.jsonl").write_text("".join(lines), encoding="utf-8")
     counts = Counter(f["check"] for f in findings)
     report = {
