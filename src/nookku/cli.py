@@ -582,6 +582,9 @@ def _test_command(args: argparse.Namespace) -> int:
         if args.evaluation:
             folder = evaluation.pending(root)
             prompt = evaluation.prompt(folder) if folder else None
+            note = evaluation.config_note(root) if folder is None else None
+            if note:
+                text = f"{text}\n{note}"
             print(json.dumps({"text": text, "evaluation": prompt}, ensure_ascii=False))
         elif args.json:
             print(json.dumps(ended))
@@ -589,6 +592,8 @@ def _test_command(args: argparse.Namespace) -> int:
             print(text)
             if ended and evaluation.pending(root):
                 print("To evaluate the test, type this prompt in your harness: nookku end")
+            elif ended and (note := evaluation.config_note(root)):
+                print(note)
         return 0
     if args.command == "status":
         running = bridge.current(root)

@@ -282,7 +282,8 @@ def handle(event: dict[str, Any], root: Path, harness: str) -> dict[str, Any] | 
             text = _control(said, root, session)
             folder = evaluation.pending(root) if said.strip() == "nookku end" else None
             if folder is None:
-                return _block(text)
+                note = evaluation.config_note(root) if said.strip() == "nookku end" else None
+                return _block(f"{text}\n{note}" if note else text)
             # The prompt goes on to the model, which evaluates the test (SPEC.md section 9).
             return _context(f"{text}\n\n{evaluation.prompt(folder)}")
         if not is_on(root):

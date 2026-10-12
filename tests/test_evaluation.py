@@ -36,7 +36,41 @@ def test_pending_is_the_latest_ended_test_with_no_report(tmp_path: Path) -> None
 def test_no_evaluation_if_the_config_turns_it_off_or_the_test_runs(tmp_path: Path) -> None:
     assert evaluation.pending(project(tmp_path / "off", {"evaluate": False})) is None
     assert evaluation.pending(project(tmp_path / "running", ended=None)) is None
-    assert evaluation.enabled(tmp_path / "no-config")
+    assert evaluation.enabled(project(tmp_path / "default"))
+
+
+@pytest.mark.parametrize(
+    "text",
+    ['{"evaluate": true, "nope": 1}', "{broken", "[]"],
+    ids=["unknown-key", "not-json", "not-object"],
+)
+def test_a_broken_config_starts_no_evaluation(
+    tmp_path: Path, text: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # The one reader of config.json decides (#119). A file that it refuses starts no evaluation,
+    # and the end text says why.
+    root = project(tmp_path)
+    (root / ".nookku" / "config.json").write_text(text)
+    assert evaluation.enabled(root) is False
+    assert evaluation.pending(root) is None
+    note = evaluation.config_note(root)
+    assert note is not None
+    assert note.startswith("nookku: no evaluation starts: ")
+    assert note.endswith("Correct the file, then type: nookku end")
+    answer = kit.handle(event(root, "nookku end"), root, "codex")
+    assert answer["decision"] == "block"
+    assert answer["reason"].endswith(note)
+    assert main(["end", "--evaluation", "--root", str(root)]) == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["evaluation"] is None
+    assert out["text"].endswith(note)
+
+
+def test_no_config_note_if_no_test_needs_an_evaluation(tmp_path: Path) -> None:
+    root = project(tmp_path, ended=None)
+    (root / ".nookku" / "config.json").write_text("{broken")
+    assert evaluation.config_note(root) is None
+    assert evaluation.config_note(project(tmp_path / "valid")) is None
 
 
 def test_the_transcript_shows_each_turn_with_its_trace(tmp_path: Path) -> None:

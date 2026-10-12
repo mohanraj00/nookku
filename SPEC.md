@@ -786,6 +786,8 @@ A test needs an evaluation if all of these are true:
 - the latest test (the one with the greatest `started` in its manifest) has an `ended` time;
 - its folder has no `report.md`.
 
+The relay reads `evaluate` with the one reader of `config.json` (section 7.1). If the file cannot be read or breaks the rule for its keys, no evaluation starts. A broken file must not start an evaluation that the tester turned off. Then, if the other conditions are true, the end text has one more line: `nookku: no evaluation starts: <error>. Correct the file, then type: nookku end`.
+
 The prompt `nookku end` ends the running test, if one runs. Then, if a test needs an evaluation, the relay lets the prompt go to the model with this context: the end text and the evaluation prompt for that test. So the prompt also starts the evaluation of a test that ended in another way, for example with `nookku end` in a shell. Otherwise, the relay blocks the prompt (section 5).
 
 `nookku end --evaluation` ends the test and prints one JSON object: `text`, the end text, and `evaluation`, the evaluation prompt or `null`.
