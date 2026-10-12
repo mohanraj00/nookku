@@ -1,0 +1,80 @@
+name: Release verbatim-relay
+
+# The last release of the old name: redirect/verbatim-relay only sends each user to nookku.
+# release.yml builds only nookku, and its tags start with "v", so the two workflows never share a tag.
+on:
+  push:
+    tags: ["verbatim-relay-v*"]
+  workflow_dispatch:  # run it on a verbatim-relay-v* tag; the first step refuses each other ref
+
+permissions: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: The ref is a verbatim-relay tag
+        run: |
+          case "$GITHUB_REF" in
+            refs/tags/verbatim-relay-v*) ;;
+            *) echo "Run this workflow on a verbatim-relay-v* tag, not $GITHUB_REF" >&2; exit 1 ;;
+          esac
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - run: uv build --directory redirect/verbatim-relay -o "$GITHUB_WORKSPACE/dist"
+      - name: The tag matches the package version
+        run: test -f "dist/verbatim_relay-${GITHUB_REF_NAME#verbatim-relay-v}-py3-none-any.whl"
+      - run: uvx twine check --strict dist/*
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dist
+          path: dist/
+
+  test:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.10"
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: dist
+          path: dist/
+      - name: The wheel installs with no dependency, prints one line, exits 1, refuses the import and blocks an old hook
+        run: |
+          python -m venv /tmp/clean
+          /tmp/clean/bin/pip install -q dist/*.whl
+          test ! -e /tmp/clean/bin/nookku
+          set +e
+          /tmp/clean/bin/verbatim-relay 2> err.txt
+          code=$?
+          set -e
+          test "$code" -eq 1
+          test "$(wc -l < err.txt)" -eq 1
+          grep -q "^verbatim-relay is now nookku. " err.txt
+          ! /tmp/clean/bin/python -c "import verbatim_relay"
+          set +e
+          /tmp/clean/bin/python -m verbatim_relay hook < /dev/null 2> hook.txt
+          code=$?
+          set -e
+          test "$code" -eq 2
+          grep -q "^verbatim-relay is now nookku. " hook.txt
+
+  publish:
+    needs: test
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write  # PyPI trusted publishing: no token is stored anywhere
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
