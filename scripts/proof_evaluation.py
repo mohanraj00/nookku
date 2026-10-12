@@ -3,9 +3,9 @@
 In one harness session: 2 tester messages in relay mode, then relay mode off, then:
   P5a  With no tools, the model cannot quote the tester's messages: they never reached it.
   P5b  The model reads the transcript and quotes the order code from the conversation. In
-       Codex, the read must be a `nookku transcript` command with exit code 0 and no second
-       command, or a completed `transcript` tool call. A model that reads relay.jsonl directly
-       does not pass.
+       Codex, each shell command of the read turn must be a `nookku transcript` read with exit
+       code 0. In the plugin, the turn must have a completed `transcript` tool call and no shell
+       command. A model that reads relay.jsonl directly does not pass.
 
 Each setup uses the project of scripts/proofs_relay.py. The plugin reads the transcript with its
 MCP tool, and the project hooks with `nookku transcript` in the shell.
@@ -114,20 +114,22 @@ def codex(
 
 
 def transcript_read(calls: list[dict[str, Any]], plugin: bool) -> bool:
-    """True if a Codex turn read the transcript the way that its setup documents."""
+    """True if a Codex turn read the transcript the way that its setup documents.
+
+    Each shell command of the turn must be a `nookku transcript` read. A second command, for
+    example a direct read of relay.jsonl, could give the code, so the turn does not pass.
+    """
+    commands = [c for c in calls if c["type"] == "command_execution"]
     if plugin:
-        return any(
+        return not commands and any(
             c["type"] == "mcp_tool_call"
             and c.get("tool") == "transcript"
             and not c.get("error")
             and c.get("status") == "completed"
             for c in calls
         )
-    return any(
-        c["type"] == "command_execution"
-        and transcript_command(str(c.get("command", "")))
-        and c.get("exit_code") == 0
-        for c in calls
+    return bool(commands) and all(
+        transcript_command(str(c.get("command", ""))) and c.get("exit_code") == 0 for c in commands
     )
 
 
@@ -150,7 +152,7 @@ def transcript_command(command: str) -> bool:
         words = shlex.split(command)
     except ValueError:
         return False
-    return words[:2] == ["nookku", "transcript"]
+    return words[:2] == ["nookku", "transcript"] and not {"-h", "--help"} & set(words)
 
 
 def main() -> int:
