@@ -4209,6 +4209,70 @@ def write_otlp_case(d: Path, case: dict) -> None:
     (d / "expect.json").write_text(json.dumps(expect, indent=1, ensure_ascii=False) + "\n")
 
 
+def script_turn(said: str, shown: str | None) -> dict:
+    return {**turn(said, shown), "harness": "script"}
+
+
+def jsonl(*messages: str) -> str:
+    return "".join(json.dumps({"said": m}, ensure_ascii=False) + "\n" for m in messages)
+
+
+SCRIPT_RELAY = [script_turn(M1, R1), script_turn(M2, R2), script_turn(M3, R3)]
+M2_CHANGED = M2.replace("€", "EUR")
+# The scripted tests (SPEC.md section 7.10). The file of each case is the script copy that the
+# bridge gives the audit, with its exact bytes.
+SCRIPTS = {
+    "script_clean": ("script.jsonl", jsonl(M1, M2, M3)),
+    "script_clean_json_array": ("script.json", json.dumps([M1, M2, M3], ensure_ascii=False)),
+    "script_said_differs": ("script.jsonl", jsonl(M1, M2, M3)),
+    "script_message_not_sent": ("script.jsonl", jsonl(M1, M2, M3)),
+    "script_turn_after_the_last_message": ("script.jsonl", jsonl(M1, M2)),
+    "script_typed_turn": ("script.jsonl", jsonl(M1, M2, M3)),
+    "script_row_with_another_key": ("script.jsonl", '{"said": "Hi", "reply": "Hello"}\n'),
+    "script_lone_surrogate": ("script.jsonl", '{"said": "\\ud83d"}\n'),
+    "script_empty_array": ("script.json", "[]\n"),
+}
+CASES_BY_NAME.update(
+    {
+        "script_clean": (CLEAN_TAP, SCRIPT_RELAY, {"exit": 0, "breaks": []}),
+        "script_clean_json_array": (CLEAN_TAP, SCRIPT_RELAY, {"exit": 0, "breaks": []}),
+        # The relay sent a changed text, and the tap got the same text. Only the script shows it.
+        "script_said_differs": (
+            [ex(M1, R1), ex(M2_CHANGED, R2), ex(M3, R3)],
+            [script_turn(M1, R1), script_turn(M2_CHANGED, R2), script_turn(M3, R3)],
+            {"exit": 1, "breaks": [["script_mismatch", 2, None]]},
+        ),
+        "script_message_not_sent": (
+            CLEAN_TAP[:2],
+            SCRIPT_RELAY[:2],
+            {"exit": 1, "breaks": [["script_mismatch", None, None]]},
+        ),
+        "script_turn_after_the_last_message": (
+            CLEAN_TAP,
+            SCRIPT_RELAY,
+            {"exit": 1, "breaks": [["script_mismatch", 3, None]]},
+        ),
+        # A typed turn in a scripted test, with the text of the script message.
+        "script_typed_turn": (
+            CLEAN_TAP,
+            [script_turn(M1, R1), turn(M2, R2), script_turn(M3, R3)],
+            {"exit": 1, "breaks": [["script_mismatch", 2, None]]},
+        ),
+        "script_row_with_another_key": (
+            CLEAN_TAP,
+            SCRIPT_RELAY,
+            {"exit": 2, "errors": ["record_invalid"]},
+        ),
+        "script_lone_surrogate": (
+            CLEAN_TAP,
+            SCRIPT_RELAY,
+            {"exit": 2, "errors": ["record_invalid"]},
+        ),
+        "script_empty_array": (CLEAN_TAP, SCRIPT_RELAY, {"exit": 2, "errors": ["record_invalid"]}),
+    }
+)
+
+
 def write(path: Path, rows: list | None) -> None:
     if rows is None:
         return
@@ -4224,6 +4288,9 @@ def main() -> None:
         write(d / "tap.jsonl", tap)
         write(d / "relay.jsonl", relay)
         (d / "expect.json").write_text(json.dumps(expect, indent=1) + "\n")
+        if name in SCRIPTS:
+            file, text = SCRIPTS[name]
+            (d / file).write_text(text, encoding="utf-8")
     shutil.rmtree(CONTRACT, ignore_errors=True)
     for name, case in CONTRACT_CASES.items():
         d = CONTRACT / name

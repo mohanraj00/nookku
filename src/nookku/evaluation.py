@@ -325,4 +325,25 @@ def transcript(folder: Path, compact: bool = False) -> str:
 def prompt(folder: Path) -> str:
     """The evaluation prompt for a test folder (src/nookku/evaluate.md)."""
     text = resources.files("nookku").joinpath("evaluate.md").read_text(encoding="utf-8")
-    return text.replace("{test}", folder.name).replace("{folder}", str(folder))
+    text = text.replace("{test}", folder.name).replace("{folder}", str(folder))
+    return scripted_note(folder) + text
+
+
+def scripted_note(folder: Path) -> str:
+    """The note at the top of the evaluation prompt of a scripted test, or "" (SPEC.md 9.2)."""
+    try:
+        manifest = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return ""
+    found = manifest.get("script") if isinstance(manifest, dict) else None
+    if not isinstance(found, dict):
+        return ""
+    name = manifest.get("entry_name") or "the default entry"
+    entry = json.dumps(manifest.get("entry"), ensure_ascii=False)
+    return (
+        f"This test is scripted. Each message came byte for byte from the script file "
+        f"{found.get('source')} (copy: {found.get('file')}, SHA-256 {found.get('sha256')}), not "
+        f"from a tester. The entry is {name}: {entry}. If this entry replays a recording, the "
+        "replies do not come from a model: then judge the app and the transport, not the "
+        "model.\n\n"
+    )

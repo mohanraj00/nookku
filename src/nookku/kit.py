@@ -933,7 +933,9 @@ LEGEND = (
 def render_turn(turn: Turn, n: int) -> str:
     shown = "(no reply shown)" if turn.shown is None else turn.shown
     who = "relay error, not an agent reply" if turn.ok is False else "agent"
-    return f"──── tester, turn {n} ────\n{turn.said}\n──── {who} ────\n{shown}\n"
+    # A scripted turn is never shown as a typed turn (SPEC.md section 7.10).
+    sender = "script" if turn.harness == "script" else "tester"
+    return f"──── {sender}, turn {n} ────\n{turn.said}\n──── {who} ────\n{shown}\n"
 
 
 def latest_session(record: Path) -> list[Turn]:

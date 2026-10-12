@@ -1,10 +1,11 @@
-"""`nookku mcp`: an MCP server over stdio that gives the model read-only tools (ADR 0001).
+"""`nookku mcp`: an MCP server over stdio that gives the model its tools (ADR 0001).
 
-The tools are `transcript` and `status`. A tool result has a size limit in each harness, and a
-harness can truncate a long result with no sign except the changed text (#178, #194). Thus the
-transcript comes in pages. Each page ends with a footer that gives the page number, the page
-count, the character offsets and the SHA-256 of the page text. A page that lost its footer was
-truncated.
+The read-only tools are `transcript` and `status`. `run_script` runs a scripted test, only if
+the policy key scripts is model (SPEC.md section 7.10). A tool result has a size limit in each
+harness, and a harness can truncate a long result with no sign except the changed text (#178,
+#194). Thus the transcript comes in pages. Each page ends with a footer that gives the page
+number, the page count, the character offsets and the SHA-256 of the page text. A page that lost
+its footer was truncated.
 """
 
 from __future__ import annotations
@@ -73,6 +74,24 @@ TOOLS = [
         "name": "status",
         "description": "Read-only. Relay mode, and the test that runs, if one runs.",
         "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "run_script",
+        "description": (
+            "Run a scripted test: send each message of a script file to the app, byte for byte, "
+            'and end the test. The script is JSONL with one {"said": "..."} row for each '
+            "turn, or one JSON array of strings. The result gives the test id, the count of "
+            "turns, the audit and the trace, not the replies: read them with transcript. Only "
+            "if the policy key scripts is model; a person sets it."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "path": {"type": "string", "description": "The script file, from the project."},
+                "entry": {"type": "string", "description": "A name of the config key entries."},
+            },
+            "required": ["path"],
+        },
     },
 ]
 
@@ -178,6 +197,29 @@ def _status(root: Path) -> str:
     return kit.status(root)
 
 
+def _run_script(root: Path, args: dict[str, Any]) -> str:
+    from nookku import bridge, evaluation, policy
+
+    path, entry = args.get("path"), args.get("entry")
+    if not isinstance(path, str) or not path or (entry is not None and not isinstance(entry, str)):
+        raise ValueError("path must be the path of a script file, and entry the name of an entry")
+    try:
+        who = policy.read(root)["scripts"]
+    except policy.PolicyError as e:
+        raise ValueError(f"the policy file is not valid, so no scripted test runs: {e}") from None
+    if who != "model":
+        raise ValueError(
+            "only a person runs a scripted test, because the policy key scripts is person. A "
+            "person runs: nookku run --script <file>"
+        )
+    try:
+        _, lines, folder = bridge.run_script(root, root / path, entry)
+    except bridge.BridgeError as e:
+        raise ValueError(str(e)) from None
+    text = "\n".join(lines)
+    return f"{text}\n\n{evaluation.prompt(folder)}" if evaluation.enabled(root) else text
+
+
 def call(root: Path, name: str, args: dict[str, Any]) -> dict[str, Any]:
     """The result of one tool call. An error is a result with isError, so the model sees it."""
     try:
@@ -185,6 +227,8 @@ def call(root: Path, name: str, args: dict[str, Any]) -> dict[str, Any]:
             text = _transcript(root, args)[0]
         elif name == "status":
             text = _status(root)
+        elif name == "run_script":
+            text = _run_script(root, args)
         else:
             raise ValueError(f"no tool '{name}'")
     except (ValueError, kit.TranscriptError) as e:

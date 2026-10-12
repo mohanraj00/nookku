@@ -427,6 +427,7 @@ GLOSSARY_TERMS = {
     "Harness",
     "Relay",
     "Relay mode",
+    "Scripted test",
     "Seal",
     "Tap",
     "Test folder",

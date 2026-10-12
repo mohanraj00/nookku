@@ -106,6 +106,12 @@ SPEC.md: [section 5](../../SPEC.md#5-relays), [section 7.2](../../SPEC.md#72-sta
 
 SPEC.md: [section 2.2](../../SPEC.md#22-relay-record).
 
+## Scripted test
+
+A test whose messages come byte for byte from a script file, not from a tester. `nookku run --script` runs it. Each relay row has the harness `script`, and the audit compares the relay record with a copy of the script. The policy key `scripts` decides if the harness model can run one.
+
+SPEC.md: [section 7.10](../../SPEC.md#710-scripted-tests).
+
 ## Seal
 
 `seal.json` in the test folder: the SHA-256 of each file of the test at the end of the test. The bridge also writes a copy outside the project. `nookku verify` shows each file that changed after the end. The seal does not stop a change. It makes a change visible. The files that change after the end, for example `report.md`, are not in the seal.
