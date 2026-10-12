@@ -14,7 +14,7 @@ claude plugin validate plugins/nookku && claude plugin test plugins/nookku
 ```
 
 - [ ] CI is green.
-- [ ] If this changes a relay (the plugin or the hook kit), I ran the proofs again ([docs/how-to/run-the-proofs.md](https://github.com/mohanraj00/nookku/blob/main/docs/how-to/run-the-proofs.md)). I committed the results with the harness versions that they record.
+- [ ] If this changes a relay (the plugin or the project hooks), I ran the proofs again ([docs/how-to/run-the-proofs.md](https://github.com/mohanraj00/nookku/blob/main/docs/how-to/run-the-proofs.md)). I committed the results with the harness versions that they record.
 
 ## Code quality
 
