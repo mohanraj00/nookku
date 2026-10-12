@@ -44,6 +44,9 @@ def test_the_start_text_names_the_prompt_that_starts_the_evaluation(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(bridge, "start", lambda root, session=None: {"test": "t-1"})
+    # A valid config with no evaluate key: the evaluation is on (#119 reads it with read_config).
+    (tmp_path / kit.STATE_DIR).mkdir()
+    (tmp_path / kit.STATE_DIR / "config.json").write_text("{}", "utf-8")
     text = kit.start_test(tmp_path)
     assert text.startswith("nookku: test t-1 started. Relay mode is on")
     assert f"{EVALUATION_END}. " in text
