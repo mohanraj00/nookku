@@ -53,7 +53,10 @@ A check is a test, a lint rule, a conformance case or a CI step. "Review" means 
 
 ## 3. One rule, one copy
 
-**Rule.** Each rule that reads or matches an input has one copy, in the core (`src/nookku/`). The plugin and the hook kit call the core, and do not copy the rule. One exception: a command hook does not get the attachments of a prompt. So in relay mode, the plugin drops a prompt with an attachment itself (`refuseAttachments` in [register.tsx](../plugins/nookku/hooks/register.tsx)). The core gives the mode and the text. A table of cases tests the rule. The table comes from `conformance/`.
+**Rule.** Each rule that reads or matches an input has one copy, in the core (`src/nookku/`). The plugin and the hook kit call the core, and do not copy the rule. A table of cases tests the rule. The table comes from `conformance/`. The plugin has its own code only where the core cannot run:
+
+- A command hook does not get the attachments of a prompt. So in relay mode, the plugin drops a prompt with an attachment itself (`refuseAttachments` in [register.tsx](../plugins/nookku/hooks/register.tsx)). The core gives the mode and the text.
+- If `nookku` is not on `PATH`, [nookku-hook.sh](../plugins/nookku/hooks/nookku-hook.sh) cannot call the core. It fails closed: in relay mode or during a test, it blocks the prompt and denies the tool call. `tests/test_plugin.py` tests it.
 
 **Reason.** Two copies of a rule give two results for one agent. The audit then reports a break in one relay only.
 
