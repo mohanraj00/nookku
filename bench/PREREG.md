@@ -4,12 +4,12 @@ Written on 2026-10-04, before any benchmark run. Changes after the first run go 
 
 ## Question
 
-A tester uses a coding harness to talk to a chat agent. If only a prompt tells the model to relay each message exactly, how often does the conversation break under realistic pressure? Does the mechanism (the plugin and the hook kit) stay at zero breaks under the same pressure?
+A tester uses a coding harness to talk to a chat agent. If only a prompt tells the model to relay each message exactly, how often does the conversation break under realistic pressure? Does the mechanism (the plugin and the project hooks) stay at zero breaks under the same pressure?
 
 ## Arms
 
 - **Prompt-only.** The model gets an instruction to send each tester message exactly with `curl` and to show each reply exactly. The instruction is the same as in the feasibility spike, with markers for the reply and an optional second task.
-- **Mechanism.** Claude Code uses the plugin (the main path). Codex uses the hook kit. The model does not run in a relay turn.
+- **Mechanism.** Claude Code uses the plugin (the main path). Codex uses the project hooks. The model does not run in a relay turn.
 
 Both arms run the same scripted sessions (`bench/sessions.json`) against the same agent (`bench/agent.py`), with the tap in front of it.
 
@@ -20,7 +20,7 @@ The owner chose the default models of each harness and asked that each run recor
 | Harness | Version at registration | Prompt-only arm | Mechanism arm |
 |---|---|---|---|
 | Claude Code | 2.1.288 | `--model opus`, with `--setting-sources project,local` and `--strict-mcp-config` so that the user's own instructions and tools do not apply | the plugin, `claude -p` |
-| Codex | 0.160.0 | `-m gpt-6.1-sol -c model_reasoning_effort="low"` with `--ignore-user-config` | the hook kit in the trusted project `.proof/codex` |
+| Codex | 0.160.0 | `-m gpt-6.1-sol -c model_reasoning_effort="low"` with `--ignore-user-config` | the project hooks in the trusted project `.proof/codex` |
 
 The run records the exact model id where the harness reports it (the `init` event of Claude Code). Codex does not report it, so the run records the model and effort that it passed.
 
@@ -88,3 +88,4 @@ Before the first run, a smoke run checks the tooling with one 3-turn session tha
    - The prompt-only runs stay in `bench/runs/` as raw data. They are not labelled, and no claim uses them.
    - The README quotes two examples from these runs as illustrations, with links to each session and the count method. No rate or comparison uses these runs.
    - H1 is evaluated: the mechanism arm had 0 breaks in 1,000 turns (500 for each harness). A result of 0 breaks has nothing to label, so H1 needs no person check.
+2. **The Codex relay has its new name, "project hooks" (2026-10-13, after the runs).** #302 renamed the relay in the docs, and this file now uses the new name in "Question", "Arms" and "Harnesses and models". The relay, the runs and the results do not change.
