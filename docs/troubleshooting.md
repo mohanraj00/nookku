@@ -98,7 +98,7 @@ First, look in the [test folder](reference/glossary.md#test-folder) `.nookku/tes
 
 ### `nookku: the test did not start:` and `the entry exited at start:`
 
-(bridge.py) **Cause.** The entry stopped in its first moments. The lines after the text are the last lines of `app.log`, for example `can't open file '.../agent.py': [Errno 2] No such file or directory`.
+(bridge.py) **Cause.** The entry stopped in its first moments. The lines after the text are the last lines of `bridge.log`. The bridge writes the last lines of `app.log` into `bridge.log`, for example `can't open file '.../agent.py': [Errno 2] No such file or directory`.
 
 **Fix.** The entry runs in the project root. Use a path relative to the root, and run the entry command from the root by hand to see the error.
 
