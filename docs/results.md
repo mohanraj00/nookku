@@ -25,7 +25,7 @@ The 5 test messages have trailing spaces, non-ASCII text (`Ünïcödé`, `€`, 
 | Project hooks | Claude Code 2.1.296 | 10/10 | 10/10 | 5/5 | pass | 5/5 | [results](../proofs/hooks-claude-code/results.json) |
 | Project hooks | Codex 0.162.1 | 10/10 | 10/10 | 5/5 | pass | 5/5 | [results](../proofs/hooks-codex/results.json) |
 
-In each setup, the model used 0 output tokens in every relay turn. The hook blocks the prompt before the model runs. The plugin in Codex ran in the `CODEX_HOME` of [proof_codex_gate.py](../scripts/proof_codex_gate.py), where I trusted its hooks. In both Codex setups, `nookku start` ran the hook gate first ([SPEC.md section 7.8](../SPEC.md#78-codex-hook-gate)).
+The runs of the tables in this section used nookku 0.4.1. In each setup, the model used 0 output tokens in every relay turn. The hook blocks the prompt before the model runs. The plugin in Codex ran in the `CODEX_HOME` of [proof_codex_gate.py](../scripts/proof_codex_gate.py), where I trusted its hooks. In both Codex setups, `nookku start` ran the hook gate first ([SPEC.md section 7.8](../SPEC.md#78-codex-hook-gate)).
 
 With a streamed agent, the proof scripts take `--stream`. The toy agent sends each reply as Chat Completions SSE events, and the tap with the `openai` adapter forwards them. The relay runs in HTTP mode with no entry, so P3b does not run. P4 audits the records and finds each planted fault.
 
@@ -61,14 +61,18 @@ The Agent SDK runs its own bundled Claude Code. The `claude-code` version in the
 
 [scripts/proof_trace.py](../scripts/proof_trace.py) runs a test of the same toy shop app with 4 messages. Now the Codex thread also has `lookup_order` as a dynamic tool, the toy MCP server `check_stock` ([tests/toy_mcp_server.py](../tests/toy_mcp_server.py)) and a shell. The trace must show 6 tool calls and commands, each with its result or its error, in the correct turn.
 
-| Session file | Items | Expected calls found | Data |
-|---|---|---|---|
-| Claude Code 2.1.292, bundled in Claude Agent SDK 0.2.164 | 10 | 2/2 | [results](../proofs/trace/results.json) |
-| Claude Code 2.1.286, bundled in Claude Agent SDK 0.2.163 (earlier run) | 11 | 2/2 | [results](../proofs/trace/results-2.1.286.json) |
-| codex-cli 0.162.1, app-server | 12 | 4/4 | [results](../proofs/trace/results.json) |
-| codex-cli 0.160.0, app-server (earlier run) | 13 | 4/4 | [results](../proofs/trace/results-0.160.0.json) |
+| Session file | Nookku | Items | Expected calls found | Data |
+|---|---|---|---|---|
+| Claude Code 2.1.292, bundled in Claude Agent SDK 0.2.164 | 0.4.1 | 10 | 2/2 | [results](../proofs/trace/results.json) |
+| codex-cli 0.162.1, app-server | 0.4.1 | 11 | **3/4** | [results](../proofs/trace/results.json) |
+| Claude Code 2.1.292, bundled in Claude Agent SDK 0.2.164 (earlier run) | 0.4.0 | 10 | 2/2 | [results](../proofs/trace/results-nookku-0.4.0.json) |
+| codex-cli 0.162.1, app-server (earlier run) | 0.4.0 | 12 | 4/4 | [results](../proofs/trace/results-nookku-0.4.0.json) |
+| Claude Code 2.1.286, bundled in Claude Agent SDK 0.2.163 (earlier run) | | 11 | 2/2 | [results](../proofs/trace/results-2.1.286.json) |
+| codex-cli 0.160.0, app-server (earlier run) | | 13 | 4/4 | [results](../proofs/trace/results-0.160.0.json) |
 
-In the run of Claude Code 2.1.292 and codex-cli 0.162.1, the findings are 2 `tool_error` (order 9999, one in each harness), 1 `command_failed` (`cat returns.txt`) and 1 `session_inferred` (the Codex session). The earlier codex-cli 0.160.0 run had 1 more `command_failed`: an `rg` search for that file by the Codex model. The results keep no model text: each message shows only its SHA-256 and its length. Each OpenTelemetry log of the harness, which holds the prompt and the answer, shows only its attribute names and the SHA-256 and length of its values.
+The run of nookku 0.4.1 failed. In turn 1, the Codex model gave no answer: the `task_complete` event of the Codex session file has the error `server_overloaded` ("Selected model is at capacity"). Thus the Codex thread made no `lookup_order` call in turn 1. In turn 2, the model called `lookup_order` for order 9999 and then for order 4471. The trace put both calls in turn 2, which agrees with the session file. The trace gave no finding for the failed Codex turn, because the Codex reader ignores `task_complete` events. The 0.4.0 run of the same versions passed.
+
+In the runs of Claude Code 2.1.292 and codex-cli 0.162.1, with nookku 0.4.0 and 0.4.1, the findings are 2 `tool_error` (order 9999, one in each harness), 1 `command_failed` (`cat returns.txt`) and 1 `session_inferred` (the Codex session). The earlier codex-cli 0.160.0 run had 1 more `command_failed`: an `rg` search for that file by the Codex model. The results keep no model text: each message shows only its SHA-256 and its length. Each OpenTelemetry log of the harness, which holds the prompt and the answer, shows only its attribute names and the SHA-256 and length of its values.
 
 ### Backend calls
 
@@ -135,9 +139,9 @@ The session resumes between turns, so P5b also shows that the transcript survive
 | Form | Harness | Issues in the report | P6 | P5 | P7 | P8 | Isolation | Result | Data |
 |---|---|---|---|---|---|---|---|---|---|
 | Plugin | Claude Code 2.1.296 | 3 | pass | pass | pass | pass | temporary project | pass | [results](../proofs/report/plugin-claude-code.json) |
-| Plugin | Codex 0.162.1 | 2 | pass | pass | pass | pass | project outside the repo, 0 commands outside it | pass | [results](../proofs/report/plugin-codex.json) |
-| Project hooks | Claude Code 2.1.296 | 2 | pass | pass | pass | pass | temporary project | pass | [results](../proofs/report/hooks-claude-code.json) |
-| Project hooks | Codex 0.162.1 | 2 | pass | pass | pass | pass | trusted project, 0 commands outside it | pass | [results](../proofs/report/hooks-codex.json) |
+| Plugin | Codex 0.162.1 | 3 | pass | pass | pass | pass | project outside the repo, 0 commands outside it | pass | [results](../proofs/report/plugin-codex.json) |
+| Project hooks | Claude Code 2.1.296 | 3 | pass | pass | pass | pass | temporary project | pass | [results](../proofs/report/hooks-claude-code.json) |
+| Project hooks | Codex 0.162.1 | 3 | pass | pass | pass | pass | trusted project, 0 commands outside it | pass | [results](../proofs/report/hooks-codex.json) |
 | Project hooks | Claude Code 2.1.290 | 1 | **fail** | pass | pass | pass | temporary project | **fail** (earlier run, 2026-10-06) | [results](../proofs/report/hooks-claude-code-run1.json) |
 | Plugin of 0.3 | Claude Code 2.1.290 | 4 | pass | pass | pass | pass | temporary project | pass (earlier run, the worked example) | [results](../proofs/report/plugin.json) |
 
@@ -162,7 +166,7 @@ The app's session files are from Claude Code 2.1.292, bundled in Agent SDK 0.2.1
 | Plugin | Claude Code 2.1.296 | 3, 1, 2 / 3, 2, 2 / 3, 1, 2 | `business_rule`, turn 2 | pass | pass | pass | pass | pass | [results](../proofs/telemetry/plugin-claude-code.json) |
 | Plugin | Codex 0.162.1 | 3, 1, 2 / 3, 2, 2 / 3, 1, 2 | `business_rule`, turn 2; `state_mismatch`, turn 2 | pass | pass | pass | pass | pass | [results](../proofs/telemetry/plugin-codex.json) |
 | Project hooks | Claude Code 2.1.296 | 3, 1, 2 / 3, 2, 2 / 3, 1, 2 | `business_rule`, turn 2 | pass | pass | pass | pass | pass | [results](../proofs/telemetry/hooks-claude-code.json) |
-| Project hooks | Codex 0.162.1 | 3, 1, 2 / 3, 2, 2 / 3, 1, 2 | `business_rule`, turn 2; `state_mismatch`, turn 2 | pass | pass | pass | pass | pass | [results](../proofs/telemetry/hooks-codex.json) |
+| Project hooks | Codex 0.162.1 | 3, 1, 2 / 3, 2, 2 / 3, 1, 2 | `business_rule`, turn 2; `state_mismatch`, turn 2; `unsupported_reply`, turn 3 | pass | pass | pass | pass | pass | [results](../proofs/telemetry/hooks-codex.json) |
 
 In each run, the stock service had 2 reservations for the 1 teapot set that the tester asked for. The Agent SDK is pinned to 0.2.164, which bundles Claude Code 2.1.292 ([#35](https://github.com/mohanraj00/nookku/issues/35)). In each of the 4 runs, the proxy marked 6 of its calls as harness calls and kept no text of them. The toy note model gives a fixed answer, so this proof does not show a real model behind the direct call. [proofs/model-api/](../proofs/model-api/results.json) shows the proxy with the stream formats of both APIs.
 

@@ -1,6 +1,6 @@
 {
  "date": "2026-10-12",
- "nookku": "0.4.0",
+ "nookku": "0.4.1",
  "codex": "codex-cli 0.162.1",
  "method": "scripts/proof_codex_gate.py",
  "part_a": {
@@ -78,7 +78,7 @@
    "problems": []
   },
   "start_exit": 0,
-  "end_output": "Test 20261012-115616-4b8a ended: 0 turns, 0 model sessions.\nFolder: <user-home>/Reboot/public/verbatim-relay/.proof/codex-gate/project/.nookku/tests/20261012-115616-4b8a\nTrace: 0 model items in 0 turns, no findings.\nAudit: nookku audit --tap <user-home>/Reboot/public/verbatim-relay/.proof/codex-gate/project/.nookku/tests/20261012-115616-4b8a/tap.jsonl --relay <user-home>/Reboot/public/verbatim-relay/.proof/codex-gate/project/.nookku/tests/20261012-115616-4b8a/relay.jsonl\nTo evaluate the test, type this prompt in your harness: nookku end",
+  "end_output": "Test 20261012-225327-cef9 ended: 0 turns, 0 model sessions.\nFolder: <user-home>/Reboot/public/verbatim-relay/.proof/codex-gate/project/.nookku/tests/20261012-225327-cef9\nTrace: 0 model items in 0 turns, no findings.\nAudit: nookku audit --tap <user-home>/Reboot/public/verbatim-relay/.proof/codex-gate/project/.nookku/tests/20261012-225327-cef9/tap.jsonl --relay <user-home>/Reboot/public/verbatim-relay/.proof/codex-gate/project/.nookku/tests/20261012-225327-cef9/relay.jsonl\nTo evaluate the test, type this prompt in your harness: nookku end",
   "manifest_codex_gate": {
    "start": {
     "codex": true,
