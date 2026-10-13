@@ -423,7 +423,7 @@ def test_the_setup_skill_checks_the_reply_and_app_log_after_a_pass() -> None:
     assert "`app.log`" in log and "errors" in log and "tracebacks" in log
     # A warning that the app also writes in normal use does not stop the setup.
     assert "normal use" in log
-    assert "`node:readline`" in node and "Node 25 and later" in node
+    assert "`node:readline`" in node and "In Node 25" in node
     assert "U+2028" in node and "U+2029" in node
     link = re.search(rf"\]\({re.escape(NODE_WARNING)}#([\w-]+)\)", node)
     assert link, "the Node step has no link to the warning"

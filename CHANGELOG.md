@@ -2,6 +2,23 @@
 
 Each date is the day of the upload to PyPI, in UTC ([nookku](https://pypi.org/project/nookku/#history), [verbatim-relay](https://pypi.org/project/verbatim-relay/#history)). 0.2.0 has no upload, so its date is the day of [its tag](https://github.com/mohanraj00/nookku/commit/v0.2.0).
 
+## 0.4.2
+
+Released 2026-10-13.
+
+This release fixes defects in the stdio tap, the guard, the config reader and `nookku view`. It also describes Nookku as an evaluation harness for vertical AI agents. The record format does not change.
+
+- **Stdio tap write error.** If the stdio tap cannot write the row of a request, it answers 502, not the reply of the agent, and writes the path and the OS error to stderr. If it cannot write the row of a stray line before a request, it does not send the request to the agent ([SPEC.md section 4.2](SPEC.md#42-stdio-mode), [#293](https://github.com/mohanraj00/nookku/issues/293)).
+- **Broken config.json.** If `config.json` is not a JSON object, the guard denies calls to the default tap. If `config.json` does not exist, the defaults apply ([SPEC.md section 7.1](SPEC.md#71-configuration), [#294](https://github.com/mohanraj00/nookku/issues/294), [#296](https://github.com/mohanraj00/nookku/issues/296)).
+- **One config reader.** `has_entry` reads `config.json` with the config reader ([#295](https://github.com/mohanraj00/nookku/issues/295)).
+- **View.** `nookku view` finds a test that starts after the view starts ([#312](https://github.com/mohanraj00/nookku/issues/312)).
+- **CLI help.** `nookku --help` does not list the internal commands `hook` and `mcp` ([#299](https://github.com/mohanraj00/nookku/issues/299)).
+- **Setup.** After a PASS, the setup skill tells the model to check the reply text and `app.log` ([#161](https://github.com/mohanraj00/nookku/issues/161)).
+- **Description.** The README and the package metadata describe Nookku as an evaluation harness for vertical AI agents. The links in `[project.urls]` use the release tag ([#313](https://github.com/mohanraj00/nookku/issues/313), [#305](https://github.com/mohanraj00/nookku/issues/305)).
+- **Docs.** The troubleshooting entry for a test that did not start names `bridge.log`. The README of the toy shop lists `script.jsonl`. The docs say "project hooks", not "hook kit". The contributor pages are in `docs/contributing/`, and a page at each old path links to the new page ([#169](https://github.com/mohanraj00/nookku/issues/169), [#304](https://github.com/mohanraj00/nookku/issues/304), [#302](https://github.com/mohanraj00/nookku/issues/302), [#306](https://github.com/mohanraj00/nookku/issues/306)).
+- **Proofs.** The proofs of the 4 relay setups, the backend, the model API, the model sessions, the trace and the Codex hook gate ran on 0.4.2. The Codex gate proof fails if Codex installed the plugin of another version ([results.md](docs/results.md), [#310](https://github.com/mohanraj00/nookku/issues/310), [#311](https://github.com/mohanraj00/nookku/issues/311)).
+- **CI.** A PR does not have to be up to date with `main` before a merge. CI runs each job on `main` after each merge ([#308](https://github.com/mohanraj00/nookku/issues/308)).
+
 ## 0.4.1
 
 Released 2026-10-13.

@@ -19,7 +19,10 @@ Part B, after the maintainer trusts the hooks:
    of the start and of the end in the manifest.
 
 The nookku command of this checkout must be first on PATH, for example with `uv run`. The script
-writes proofs/codex-gate/gate.json, with the results of the parts that ran.
+writes proofs/codex-gate/gate.json, with the results of the parts that ran. Each part records the
+nookku version and the folder of the installed plugin. Each part fails if Codex installed the
+plugin in the folder of a different version. A run with --trusted keeps part A only if part A
+ran on the same version.
 
 usage: uv run python scripts/proof_codex_gate.py [--trusted]
 """
@@ -95,6 +98,15 @@ def hashes(result: dict[str, Any]) -> dict[str, str]:
     return {h["event"]: h["hash"] for h in result["hooks"]}
 
 
+def installed_record(installed: Path) -> dict[str, Any]:
+    """Name the installed plugin folder. Codex names the folder with the plugin version."""
+    return {
+        "nookku": __version__,
+        "plugin_folder": str(installed),
+        "plugin_folder_is_this_version": installed.name == __version__,
+    }
+
+
 def part_a(installed: Path) -> dict[str, Any]:
     start = run(["nookku", "start"], PROJECT)
     mode = (PROJECT / STATE_DIR / "mode").read_text().strip()
@@ -114,6 +126,7 @@ def part_a(installed: Path) -> dict[str, Any]:
         script.write_bytes(original)
         hooks_file.write_bytes(original_hooks)
     return {
+        **installed_record(installed),
         "start_output": start.stdout.strip(),
         "start_exit": start.returncode,
         "mode_after_start": mode,
@@ -122,6 +135,7 @@ def part_a(installed: Path) -> dict[str, Any]:
         "hash_after_timeout_change": hashes(after_timeout),
         "problems_after_script_change": after_script["problems"],
         "checks": {
+            "the installed plugin is this version": installed.name == __version__,
             "start refuses untrusted hooks": "is untrusted, not trusted" in start.stdout,
             "relay mode stays off": mode == "off",
             "a script change keeps the trust hash": hashes(after_script) == hashes(before),
@@ -135,7 +149,7 @@ def part_a(installed: Path) -> dict[str, Any]:
     }
 
 
-def part_b() -> dict[str, Any]:
+def part_b(installed: Path) -> dict[str, Any]:
     result = gate()
     started = run(["nookku", "start", "--json"], PROJECT)
     ended = run(["nookku", "end"], PROJECT)
@@ -147,11 +161,13 @@ def part_b() -> dict[str, Any]:
         pass
     recorded = manifest.get("codex_gate") or {}
     return {
+        **installed_record(installed),
         "gate": result,
         "start_exit": started.returncode,
         "end_output": ended.stdout.strip(),
         "manifest_codex_gate": recorded,
         "checks": {
+            "the installed plugin is this version": installed.name == __version__,
             "the gate passes with trusted hooks": result["problems"] == [] and result["hooks"],
             "start starts the test": started.returncode == 0,
             "the manifest has the gate result of the start and of the end": bool(
@@ -180,12 +196,15 @@ def main() -> int:
         "nookku": __version__,
         "codex": run(["codex", "--version"]).stdout.strip(),
         "method": "scripts/proof_codex_gate.py",
-        "part_a": old.get("part_a"),
+        # Keep part A only if it ran on this version.
+        "part_a": old_a
+        if (old_a := old.get("part_a")) and old_a.get("nookku") == __version__
+        else None,
         # A new home has no trusted hooks, so part B of the old home is not valid for it.
         "part_b": None if reset else old.get("part_b"),
     }
     if "--trusted" in sys.argv:
-        result["part_b"] = part_b()
+        result["part_b"] = part_b(installed)
     else:
         result["part_a"] = part_a(installed)
         print(f"Part B: CODEX_HOME={HOME} codex -C {PROJECT}")
