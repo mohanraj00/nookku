@@ -125,3 +125,8 @@ The new tagline and its second line are:
 - Second line: "Nookku carries each test message to your agent unchanged, records what the agent got, and names each [break](../reference/glossary.md#break)."
 
 The README gives the tagline one time, at the top. The rest of this ADR does not change.
+
+These texts also give the tagline: the PyPI summary in `pyproject.toml`, the marketplace description in `.claude-plugin/marketplace.json`, and the first line of `CLAUDE.md` and `AGENTS.md` ([#301](https://github.com/mohanraj00/nookku/issues/301)). Two texts keep their own words:
+
+- The plugin description in `plugins/nookku/.claude-plugin/plugin.json` tells what the plugin does, not what Nookku is.
+- The social preview `docs/assets/logo/nookku-social.png` gives a longer line with the same message. It does not give the old tagline.

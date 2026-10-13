@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "nookku"
 dynamic = ["version", "readme"]
-description = "A test harness for developers of agent apps. Test your agent through Claude Code or Codex, byte for byte, and audit the record."
+description = "Test your chat agent from Claude Code or Codex, byte for byte. Nookku records what the agent got and names each break."
 license = "Apache-2.0"
 license-files = ["LICENSE"]
 authors = [{ name = "Mohan Raj" }]
