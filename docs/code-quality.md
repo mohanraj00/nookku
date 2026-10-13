@@ -53,7 +53,7 @@ A check is a test, a lint rule, a conformance case or a CI step. "Review" means 
 
 ## 3. One rule, one copy
 
-**Rule.** Each rule that reads or matches an input has one copy, in the core (`src/nookku/`). The plugin and the hook kit call the core, and do not copy the rule. A table of cases tests the rule. The tables are in [tests/tables.json](../tests/tables.json). The plugin has its own code only where the core cannot run:
+**Rule.** Each rule that reads or matches an input has one copy, in the core (`src/nookku/`). The plugin and the project hooks call the core, and do not copy the rule. A table of cases tests the rule. The tables are in [tests/tables.json](../tests/tables.json). The plugin has its own code only where the core cannot run:
 
 - A command hook does not receive the attachments of a prompt. So in relay mode, the plugin drops a prompt with an attachment itself (`refuseAttachments` in [register.tsx](../plugins/nookku/hooks/register.tsx)). The core gives the mode and the text.
 - If `nookku` is not on `PATH`, [nookku-hook.sh](../plugins/nookku/hooks/nookku-hook.sh) cannot call the core. It fails closed: in relay mode or during a test, it blocks the prompt and denies the tool call. `tests/test_plugin.py` tests it.
@@ -67,7 +67,7 @@ A check is a test, a lint rule, a conformance case or a CI step. "Review" means 
 - Contract lines: `tests/test_contract.py::test_the_tap_reads_each_one_line_case_of_the_table` checks `contract_lines` in `tests/tables.json` against `conformance/contract/` and against `contract.parse_reply`.
 - Deny patterns: `tests/test_kit.py::test_the_deny_pattern_matches_each_case_of_the_table` checks `deny_cases` against `kit.deny_pattern` ([#70](https://github.com/mohanraj00/nookku/issues/70)).
 - [Relay records](reference/glossary.md#relay-record): `tests/test_conformance.py::test_the_reader_takes_each_relay_line_of_the_table` checks `relay_lines` against `record.read_rows` ([#71](https://github.com/mohanraj00/nookku/issues/71)).
-- Config keys: `start`, `check`, `init` and `nookku hook` read `.nookku/config.json` with `config.read_config`. `tests/test_cli.py::test_an_unknown_key_stops_start_check_and_the_hook_kit_with_one_message` checks that they give one error ([#89](https://github.com/mohanraj00/nookku/issues/89)).
+- Config keys: `start`, `check`, `init` and `nookku hook` read `.nookku/config.json` with `config.read_config`. `tests/test_cli.py::test_an_unknown_key_stops_start_check_and_the_project_hooks_with_one_message` checks that they give one error ([#89](https://github.com/mohanraj00/nookku/issues/89)).
 - The detail of a `blocked_call` row: `tests/test_kit.py::test_the_blocked_call_detail_keeps_300_code_points` checks `detail_cases` against `kit.blocked_detail` and `record.read_rows` ([#88](https://github.com/mohanraj00/nookku/issues/88)).
 
 ## 4. Records

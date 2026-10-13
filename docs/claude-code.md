@@ -28,11 +28,13 @@ This page moved. Its sections are now on these pages. Each heading below keeps t
 
 ## Evaluation
 
-[how-to/claude-code-plugin.md](how-to/claude-code-plugin.md#evaluation) or [how-to/claude-code-hook-kit.md](how-to/claude-code-hook-kit.md#evaluation)
+[how-to/claude-code-plugin.md](how-to/claude-code-plugin.md#evaluation) or [how-to/claude-code-project-hooks.md](how-to/claude-code-project-hooks.md#evaluation)
 
-## Hook kit
+<a id="hook-kit"></a>
 
-[how-to/claude-code-hook-kit.md](how-to/claude-code-hook-kit.md)
+## Project hooks
+
+[how-to/claude-code-project-hooks.md](how-to/claude-code-project-hooks.md)
 
 ## An agent that runs as an HTTP server
 
@@ -40,4 +42,4 @@ This page moved. Its sections are now on these pages. Each heading below keeps t
 
 ## Audit
 
-[how-to/claude-code-plugin.md](how-to/claude-code-plugin.md#audit) or [how-to/claude-code-hook-kit.md](how-to/claude-code-hook-kit.md#audit)
+[how-to/claude-code-plugin.md](how-to/claude-code-plugin.md#audit) or [how-to/claude-code-project-hooks.md](how-to/claude-code-project-hooks.md#audit)

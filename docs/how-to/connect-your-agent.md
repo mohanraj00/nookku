@@ -364,4 +364,4 @@ Then run `nookku check` again. The manifest of each test keeps the SHA-256 of ea
 ## Next
 
 - An Agent SDK session in your app: [isolate-agent-sdk.md](isolate-agent-sdk.md).
-- Run the test: [claude-code-plugin.md](claude-code-plugin.md), [claude-code-hook-kit.md](claude-code-hook-kit.md) or [codex.md](codex.md).
+- Run the test: [claude-code-plugin.md](claude-code-plugin.md), [claude-code-project-hooks.md](claude-code-project-hooks.md) or [codex.md](codex.md).

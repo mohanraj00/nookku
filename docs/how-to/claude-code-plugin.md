@@ -89,7 +89,7 @@ Exit code 0 means clean, 1 means a [break](../reference/glossary.md#break), and 
 
 ## More
 
-- Use the project hooks: [claude-code-hook-kit.md](claude-code-hook-kit.md).
+- Use the project hooks: [claude-code-project-hooks.md](claude-code-project-hooks.md).
 - Use the plugin in Codex: [codex.md](codex.md).
 - An agent that is already an HTTP server: [http-tap.md](http-tap.md).
 - Backends of your app: [add-a-backend.md](add-a-backend.md).

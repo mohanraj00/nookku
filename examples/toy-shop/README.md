@@ -17,7 +17,7 @@ From the repo root, run the command of your relay, then follow its guide:
 | Relay | Command | Guide |
 |---|---|---|
 | Plugin | `nookku init plugin --entry "python3 examples/toy-shop/agent.py"` | [Claude Code](../../docs/how-to/claude-code-plugin.md) or [Codex](../../docs/how-to/codex.md) |
-| Project hooks in Claude Code | `nookku init claude-code --entry "python3 examples/toy-shop/agent.py"` | [Claude Code project hooks](../../docs/how-to/claude-code-hook-kit.md) |
+| Project hooks in Claude Code | `nookku init claude-code --entry "python3 examples/toy-shop/agent.py"` | [Claude Code project hooks](../../docs/how-to/claude-code-project-hooks.md) |
 | Project hooks in Codex | `nookku init codex --entry "python3 examples/toy-shop/agent.py"` | [Codex](../../docs/how-to/codex.md) |
 
 For the HTTP agent, read [docs/how-to/http-tap.md](../../docs/how-to/http-tap.md).

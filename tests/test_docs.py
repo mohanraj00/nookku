@@ -290,6 +290,14 @@ KEPT_ANCHORS = {
     },
     "docs/codex.md": {"install", "use", "audit"},
     "docs/how-to/claude-code.md": {"plugin", "hook-kit", "evaluation", "audit", "more"},
+    "docs/how-to/claude-code-hook-kit.md": {
+        "install",
+        "run-a-test",
+        "what-the-model-can-do",
+        "evaluation",
+        "audit",
+        "more",
+    },
 }
 
 

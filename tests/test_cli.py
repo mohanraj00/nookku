@@ -542,7 +542,7 @@ def test_init_writes_nothing_if_a_file_cannot_be_kept(
     assert not (tmp_path / ".nookku" / "mode").exists()
 
 
-def test_an_unknown_key_stops_start_check_and_the_hook_kit_with_one_message(
+def test_an_unknown_key_stops_start_check_and_the_project_hooks_with_one_message(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     assert main(["init", "codex", "--root", str(tmp_path), "--entry", f"python3 {TOY_SHOP}"]) == 0
@@ -585,7 +585,7 @@ def test_an_unknown_key_stops_start_check_and_the_hook_kit_with_one_message(
         ("tap_url", 8800, "'tap_url' must be a string"),
     ],
 )
-def test_a_wrong_type_stops_init_start_check_mode_on_and_the_hook_kit_with_one_message(
+def test_a_wrong_type_stops_init_start_check_mode_on_and_the_project_hooks_with_one_message(
     tmp_path: Path, capsys: pytest.CaptureFixture[str], key: str, value: Any, rule: str
 ) -> None:
     # The one reader checks the type of each value (#121), so each command gives one error.
@@ -747,7 +747,7 @@ def test_the_shell_start_text_gives_the_same_ways_to_end_a_test(
     shell = capsys.readouterr().out
     ways = kit.end_ways(tmp_path)
     assert shell == f"Test t-1 started on http://127.0.0.1:1/. Relay mode is on.\n{ways}\n"
-    # The plugin and the hook kit show kit.start_test, which ends with the same ways.
+    # The plugin and the project hooks show kit.start_test, which ends with the same ways.
     assert kit.start_test(tmp_path).endswith(f"goes to the entry. {ways}")
     assert ("evaluation" in ways) is evaluate
 

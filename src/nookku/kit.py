@@ -223,7 +223,8 @@ def start_test(root: Path, tester_session: str | None = None) -> str:
     except bridge.BridgeError as e:
         return f"nookku: {e}"
     set_mode(root, True)
-    # The plugin and the hook kit show this text. `nookku start` in a shell gives the same ways.
+    # The plugin and the project hooks show this text.
+    # `nookku start` in a shell gives the same ways.
     return (
         f"nookku: test {cur['test']} started. Relay mode is on: each message goes to the entry. "
         + end_ways(root)
@@ -608,7 +609,7 @@ def state_write(
 
 def blocked_detail(text: str) -> str:
     """The detail of a blocked_call row (SPEC.md section 2.2): the first 300 code points of the
-    text, with each lone surrogate escaped. The plugin and the hook kit use this function."""
+    text, with each lone surrogate escaped. The plugin and the project hooks use this function."""
     return escape_surrogates(text[:DETAIL_LIMIT])
 
 
