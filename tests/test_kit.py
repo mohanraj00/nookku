@@ -295,6 +295,48 @@ def test_a_prompt_with_a_lone_surrogate_is_refused_and_not_recorded(setup):
     assert not tap_rec.exists()
 
 
+REFUSED_REPLY = "nookku: cannot read the reply: the agent reply has a lone surrogate"
+
+
+def test_a_reply_with_a_lone_surrogate_is_refused_and_the_turn_is_valid(setup):
+    # With no tap that follows SPEC.md, a reply can have a lone surrogate (#93).
+    root, _, agent = setup
+    kit.init(root, "codex", dict(tap_url=f"{agent.url}/cut"))
+    kit.set_mode(root, True)
+    answer = kit.handle(prompt("Is my mug shipped?"), root, "codex")
+    reason = f"{REFUSED_REPLY} U+D83D at character 21."
+    assert answer == {"decision": "block", "reason": reason}
+    [turn] = read_relay(record(root))
+    assert isinstance(turn, Turn)
+    assert (turn.said, turn.shown, turn.ok) == ("Is my mug shipped?", reason, False)
+
+
+def test_an_entry_reply_with_a_lone_surrogate_is_refused_and_the_turn_is_valid(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    folder = tmp_path / "test"
+    folder.mkdir()
+    cur = {"test": "t-1", "dir": str(folder), "tap_url": ""}
+    monkeypatch.setattr(kit.state, "send", lambda cur, said: ("Your mug ships \ud83d", True))
+    answer = kit._relay_test(cur, "Is my mug shipped?", "codex", "s1")
+    reason = f"{REFUSED_REPLY} U+D83D at character 15."
+    assert answer == {"decision": "block", "reason": reason}
+    [turn] = read_relay(folder / "relay.jsonl")
+    assert isinstance(turn, Turn) and (turn.shown, turn.ok) == (reason, False)
+
+
+@pytest.mark.parametrize(
+    ("shown", "ok", "out"),
+    [
+        ("Your mug ships today.", True, ("Your mug ships today.", True)),
+        ("nookku: HTTP 502: mug \ud83d", False, ("nookku: HTTP 502: mug \\ud83d", False)),
+        ("nookku: HTTP 502: mug \U0001f600", False, ("nookku: HTTP 502: mug \U0001f600", False)),
+    ],
+)
+def test_checked_keeps_a_reply_and_escapes_an_error(shown, ok, out):
+    assert kit.checked(shown, ok) == out
+
+
 CONTROL_CASES = sorted((ROOT / "conformance" / "control").glob("*.json"))
 
 
