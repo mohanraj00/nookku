@@ -201,27 +201,32 @@ def _context(text: str) -> dict[str, Any]:
     return {"hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": text}}
 
 
+def end_ways(root: Path) -> str:
+    """The ways to end a test, for each start text (SPEC.md section 9.1). If the evaluation is
+    off, the prompt nookku end starts no evaluation, so the text does not name it (#114)."""
+    from nookku import evaluation
+
+    if not evaluation.enabled(root):
+        return "To end the test, type the prompt nookku end, or run nookku end in a shell."
+    return (
+        "To end the test and start the evaluation, type the prompt nookku end. "
+        "To end the test with no evaluation, run nookku end in a shell."
+    )
+
+
 def start_test(root: Path, tester_session: str | None = None) -> str:
     """Start a test and switch relay mode on. Return the text to show."""
-    from nookku import bridge, evaluation
+    from nookku import bridge
 
     try:
         cur = bridge.start(root, tester_session)
     except bridge.BridgeError as e:
         return f"nookku: {e}"
     set_mode(root, True)
-    started = (
-        f"nookku: test {cur['test']} started. Relay mode is on: each message goes to the entry. "
-    )
-    # The plugin and the hook kit show this text (SPEC.md section 9.1). If the evaluation is
-    # off, the prompt nookku end starts no evaluation, so the text does not name it (#114).
-    if not evaluation.enabled(root):
-        return started + (
-            "To end the test, type the prompt nookku end, or run nookku end in a shell."
-        )
+    # The plugin and the hook kit show this text. `nookku start` in a shell gives the same ways.
     return (
-        started + "To end the test and start the evaluation, type the prompt nookku end. "
-        "To end the test with no evaluation, run nookku end in a shell."
+        f"nookku: test {cur['test']} started. Relay mode is on: each message goes to the entry. "
+        + end_ways(root)
     )
 
 

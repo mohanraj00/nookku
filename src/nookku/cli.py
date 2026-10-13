@@ -573,7 +573,7 @@ def _test_command(args: argparse.Namespace) -> int:
             print(json.dumps(cur))
         else:
             print(f"Test {cur['test']} started on {cur['tap_url']}. Relay mode is on.")
-            print("End it with: nookku end")
+            print(kit.end_ways(root))
         return 0
     if args.command == "end":
         kit.set_mode(root, False)
