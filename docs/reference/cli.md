@@ -207,7 +207,7 @@ Build the trace of a test again, and show its findings ([SPEC.md section 8](../.
 nookku verify [TEST] [--root PATH] [--json]
 ```
 
-Check that no record of a test changed after its end ([SPEC.md section 7.4](../../SPEC.md#74-seal)).
+Check that no record of a test changed after its end ([SPEC.md section 7.4](../../SPEC.md#74-seal)). The output starts with the test id, for example `Test 20261011-184952-8a8d. Seal: intact. No record changed after the end of the test.` With no `TEST`, the id shows which test the command checked. `--json` prints only the result of SPEC.md section 7.4.
 
 | Argument or flag | Default | Meaning |
 |---|---|---|

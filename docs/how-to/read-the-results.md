@@ -76,13 +76,13 @@ nookku verify 20261011-184952-8a8d
 ```
 
 ```text
-Seal: intact. No record changed after the end of the test.
+Test 20261011-184952-8a8d. Seal: intact. No record changed after the end of the test.
 ```
 
 The exit code is 0 if the seal is intact. It is 2 if the seal is broken or if the test folder does not exist. If a file changed after the end, the result names the file. For this sample, I added one line end to `relay.jsonl` in a copy of the project:
 
 ```text
-Seal: BROKEN. changed: relay.jsonl. Do not trust these records.
+Test 20261011-184952-8a8d. Seal: BROKEN. changed: relay.jsonl. Do not trust these records.
 ```
 
 If the seal is broken, do not trust the changed files. `nookku verify --json` gives the lists `changed`, `missing` and `added`, and the result of the copy in your home folder ([SPEC.md section 7.4](../../SPEC.md#74-seal)). The seal shows a change. It does not stop a change.
