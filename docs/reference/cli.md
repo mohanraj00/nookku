@@ -13,7 +13,7 @@ nookku [-h] [--version] COMMAND ...
 
 Each command that takes `--root` uses the current folder by default. The root is the project: the folder that holds `.nookku/`.
 
-An unknown command or flag prints the usage and exits with 2. With no command, `nookku` prints the help and exits with 2.
+An unknown command or flag prints the usage and exits with 2. The error of an unknown command lists the commands, but not the [internal commands](#internal-commands). With no command, `nookku` prints the help and exits with 2.
 
 ## Commands of a test
 

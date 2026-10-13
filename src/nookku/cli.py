@@ -7,7 +7,7 @@ import json
 import os
 import shlex
 import sys
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from importlib import resources
 from pathlib import Path
 
@@ -34,6 +34,17 @@ LIST_KEYS = {
 }
 # The plain string flags of init. A flag that the user does not give is None.
 STRING_KEYS = [k for k in CONFIG_KEYS if k not in LIST_KEYS]
+# The relays and the bridge run these commands. A tester does not run them
+# (docs/reference/cli.md, "Internal commands").
+INTERNAL_COMMANDS = frozenset({"hook", "mcp", "bridge"})
+
+
+class _Commands(dict[str, argparse.ArgumentParser]):
+    """The commands of the parser. An unknown command gives an error that lists the commands,
+    and the list leaves out each internal command (#116). Each command still runs."""
+
+    def __iter__(self) -> Iterator[str]:
+        return (name for name in super().__iter__() if name not in INTERNAL_COMMANDS)
 
 
 def _listen(value: str) -> tuple[str, int]:
@@ -288,6 +299,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     hook.add_argument("--root", type=Path, help="the project (default: from the event)")
     hook.add_argument("--harness", required=True, choices=["claude-code", "codex"])
 
+    # argparse reads this list for the invalid-choice error.
+    sub.choices = _Commands(sub.choices)
     args = parser.parse_args(argv)
     if args.command == "mcp" and args.root is None:
         from nookku.mcp import project_root
