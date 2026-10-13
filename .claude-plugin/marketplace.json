@@ -1,6 +1,6 @@
 {
   "name": "nookku",
-  "description": "Nookku: a test harness for developers of agent apps.",
+  "description": "Nookku: an evaluation harness for vertical AI agents.",
   "owner": {
     "name": "Mohan Raj"
   },
@@ -8,7 +8,7 @@
     {
       "name": "nookku",
       "source": "./plugins/nookku",
-      "description": "Relay a test conversation to a chat agent byte for byte. The model never writes either direction."
+      "description": "An evaluation harness for vertical AI agents. The plugin carries each test message and each reply byte for byte, and the model writes neither."
     }
   ]
 }
