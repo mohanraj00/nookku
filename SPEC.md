@@ -394,7 +394,7 @@ One reader ([src/nookku/config.py](src/nookku/config.py)) reads the file for `st
 
 `nookku check` runs a short test with one message, the value of `check_message`. The relay record of the check has this message in `said`. The check passes if the entry sends a reply, if the audit of the test is clean, and if the tap identifies at least one model session and finds its session file for each harness in `models`. If the tap times out after stray lines (section 4.2), the check also gives the fix for them.
 
-After the end of the test, the check reads `audit.json` in the test folder (section 7.2). If its exit code is not 0, the check fails. It names each error of the audit and each break, with the line numbers and the fix. For an `unparsed` row of a stray line, the fix is the fix of section 4.2: use `nookku.agent.serve()` or write logs to stderr. If `audit.json` is missing or is not valid, the check fails and says so.
+After the end of the test, the check reads `audit.json` in the test folder (section 7.2). If its exit code is not 0, the check fails. It names each error of the audit and each break, with the line numbers and the fix. For an `unparsed` row of a stray line, the fix is the fix of section 4.2: use `nookku.agent.serve()` or write logs to stderr. If the audit has 2 or more errors of stray lines, the check names them in one problem: the count, the first 3 lines and the fix. The check gives this fix one time only. If `audit.json` is missing or is not valid, the check fails and says so.
 
 ### 7.2 Start and end
 

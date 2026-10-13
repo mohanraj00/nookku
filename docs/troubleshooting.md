@@ -308,6 +308,8 @@ If the entry returns an error, crashes or does not answer in [240 seconds](../sr
 
 (bridge.py, from `nookku check`) **Cause.** The entry or your app wrote a log line on stdout. The reply can still come, but the audit of the check test exits with 2. The audit of each real test also exits with 2.
 
+If the entry wrote 2 or more stray lines, the check gives one line for all of them: `FAIL: tap_unparsed: tap has <count> stray lines on stdout. The first 3: <lines>. Use nookku.agent.serve() or write logs to stderr.`
+
 **Fix.** Write logs to stderr. In Python, use `nookku.agent.serve()` ([how-to/connect-your-agent.md](how-to/connect-your-agent.md)). Then run `nookku check` again.
 
 ### `FAIL: <class> break (relay line <n>, tap line <n>). <fix>`
