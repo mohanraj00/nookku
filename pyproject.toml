@@ -40,12 +40,14 @@ keywords = [
 [project.scripts]
 nookku = "nookku.__main__:main"
 
+# The blob/ links use the release tag, so the PyPI page of a release links the docs of that
+# release. tests/test_package.py checks that the tag is the package version.
 [project.urls]
 Homepage = "https://github.com/mohanraj00/nookku"
 Repository = "https://github.com/mohanraj00/nookku"
-Documentation = "https://github.com/mohanraj00/nookku/blob/main/docs/index.md"
-Specification = "https://github.com/mohanraj00/nookku/blob/main/SPEC.md"
-Changelog = "https://github.com/mohanraj00/nookku/blob/main/CHANGELOG.md"
+Documentation = "https://github.com/mohanraj00/nookku/blob/v0.4.1/docs/index.md"
+Specification = "https://github.com/mohanraj00/nookku/blob/v0.4.1/SPEC.md"
+Changelog = "https://github.com/mohanraj00/nookku/blob/v0.4.1/CHANGELOG.md"
 Issues = "https://github.com/mohanraj00/nookku/issues"
 
 [dependency-groups]
