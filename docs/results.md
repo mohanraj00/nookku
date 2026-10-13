@@ -25,7 +25,7 @@ The 5 test messages have trailing spaces, non-ASCII text (`Ünïcödé`, `€`, 
 | Project hooks | Claude Code 2.1.296 | 10/10 | 10/10 | 5/5 | pass | 5/5 | [results](../proofs/hooks-claude-code/results.json) |
 | Project hooks | Codex 0.162.1 | 10/10 | 10/10 | 5/5 | pass | 5/5 | [results](../proofs/hooks-codex/results.json) |
 
-The runs of the tables in this section used nookku 0.4.1. In each setup, the model used 0 output tokens in every relay turn. The hook blocks the prompt before the model runs. The plugin in Codex ran in the `CODEX_HOME` of [proof_codex_gate.py](../scripts/proof_codex_gate.py), where I trusted its hooks. In both Codex setups, `nookku start` ran the hook gate first ([SPEC.md section 7.8](../SPEC.md#78-codex-hook-gate)).
+The runs of the first table used nookku 0.4.2 (2026-10-13). The streamed runs used nookku 0.4.1. In each setup, the model used 0 output tokens in every relay turn. The hook blocks the prompt before the model runs. The plugin in Codex ran in the `CODEX_HOME` of [proof_codex_gate.py](../scripts/proof_codex_gate.py), where I trusted its hooks. In both Codex setups, `nookku start` ran the hook gate first ([SPEC.md section 7.8](../SPEC.md#78-codex-hook-gate)).
 
 With a streamed agent, the proof scripts take `--stream`. The toy agent sends each reply as Chat Completions SSE events, and the tap with the `openai` adapter forwards them. The relay runs in HTTP mode with no entry, so P3b does not run. P4 audits the records and finds each planted fault.
 
@@ -50,10 +50,10 @@ Each results file has the records of the test next to it: `tap.jsonl` and `relay
 
 [scripts/proof_sessions.py](../scripts/proof_sessions.py) runs `nookku check` on a toy shop app with real model sessions ([tests/toy_models_entry.py](../tests/toy_models_entry.py)). For one message, the app runs one Claude Agent SDK session with an in-process `lookup_order` tool, and one `codex app-server` thread. The check must find each session and copy its session file.
 
-| Harness of the app | Found by | Session file copied | Data |
-|---|---|---|---|
-| Claude Agent SDK 0.2.164 | its process | yes | [results](../proofs/sessions/results.json) |
-| codex-cli 0.162.1, app-server | its folder and time | yes | [results](../proofs/sessions/results.json) |
+| Harness of the app | Nookku | Found by | Session file copied | Data |
+|---|---|---|---|---|
+| Claude Agent SDK 0.2.164 | 0.4.2 | its process | yes | [results](../proofs/sessions/results.json) |
+| codex-cli 0.162.1, app-server | 0.4.2 | its folder and time | yes | [results](../proofs/sessions/results.json) |
 
 The Agent SDK runs its own bundled Claude Code. The `claude-code` version in the results is the `claude` command on `PATH`, not the bundled one. The results keep no model reply.
 
@@ -63,16 +63,18 @@ The Agent SDK runs its own bundled Claude Code. The `claude-code` version in the
 
 | Session file | Nookku | Items | Expected calls found | Data |
 |---|---|---|---|---|
-| Claude Code 2.1.292, bundled in Claude Agent SDK 0.2.164 | 0.4.1 | 10 | 2/2 | [results](../proofs/trace/results.json) |
-| codex-cli 0.162.1, app-server | 0.4.1 | 11 | **3/4** | [results](../proofs/trace/results.json) |
+| Claude Code 2.1.292, bundled in Claude Agent SDK 0.2.164 | 0.4.2 | 10 | 2/2 | [results](../proofs/trace/results.json) |
+| codex-cli 0.162.1, app-server | 0.4.2 | 17 | 4/4 | [results](../proofs/trace/results.json) |
+| Claude Code 2.1.292, bundled in Claude Agent SDK 0.2.164 (earlier run) | 0.4.1 | 10 | 2/2 | [results](../proofs/trace/results-nookku-0.4.1.json) |
+| codex-cli 0.162.1, app-server (earlier run) | 0.4.1 | 11 | **3/4** | [results](../proofs/trace/results-nookku-0.4.1.json) |
 | Claude Code 2.1.292, bundled in Claude Agent SDK 0.2.164 (earlier run) | 0.4.0 | 10 | 2/2 | [results](../proofs/trace/results-nookku-0.4.0.json) |
 | codex-cli 0.162.1, app-server (earlier run) | 0.4.0 | 12 | 4/4 | [results](../proofs/trace/results-nookku-0.4.0.json) |
 | Claude Code 2.1.286, bundled in Claude Agent SDK 0.2.163 (earlier run) | | 11 | 2/2 | [results](../proofs/trace/results-2.1.286.json) |
 | codex-cli 0.160.0, app-server (earlier run) | | 13 | 4/4 | [results](../proofs/trace/results-0.160.0.json) |
 
-The run of nookku 0.4.1 failed. In turn 1, the Codex model gave no answer: the `task_complete` event of the Codex session file has the error `server_overloaded` ("Selected model is at capacity"). Thus the Codex thread made no `lookup_order` call in turn 1. In turn 2, the model called `lookup_order` for order 9999 and then for order 4471. The trace put both calls in turn 2, which agrees with the session file. The trace gave no [finding](reference/glossary.md#findings) for the failed Codex turn, because the Codex reader ignores `task_complete` events. The 0.4.0 run of the same versions passed.
+The run of nookku 0.4.1 failed. In turn 1, the Codex model gave no answer: the `task_complete` event of the Codex session file has the error `server_overloaded` ("Selected model is at capacity"). Thus the Codex thread made no `lookup_order` call in turn 1. In turn 2, the model called `lookup_order` for order 9999 and then for order 4471. The trace put both calls in turn 2, which agrees with the session file. The trace gave no [finding](reference/glossary.md#findings) for the failed Codex turn, because the Codex reader ignores `task_complete` events. The 0.4.0 run and the 0.4.2 run of the same versions passed.
 
-In the runs of Claude Code 2.1.292 and codex-cli 0.162.1, with nookku 0.4.0 and 0.4.1, the findings are 2 `tool_error` (order 9999, one in each harness), 1 `command_failed` (`cat returns.txt`) and 1 `session_inferred` (the Codex session). The earlier codex-cli 0.160.0 run had 1 more `command_failed`: an `rg` search for that file by the Codex model. The results keep no model text: each message shows only its SHA-256 and its length. Each OpenTelemetry log of the harness, which holds the prompt and the answer, shows only its attribute names and the SHA-256 and length of its values.
+In the runs of Claude Code 2.1.292 and codex-cli 0.162.1, with nookku 0.4.0 and 0.4.1, the findings are 2 `tool_error` (order 9999, one in each harness), 1 `command_failed` (`cat returns.txt`) and 1 `session_inferred` (the Codex session). The earlier codex-cli 0.160.0 run and the 0.4.2 run had 1 more `command_failed`: an `rg` search for that file by the Codex model. The results keep no model text: each message shows only its SHA-256 and its length. Each OpenTelemetry log of the harness, which holds the prompt and the answer, shows only its attribute names and the SHA-256 and length of its values.
 
 ### Backend calls
 
