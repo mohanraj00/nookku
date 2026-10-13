@@ -242,7 +242,6 @@ def test_each_page_that_runs_check_gives_the_default_check_message(page: str) ->
 TEST_ID = re.compile(r"\b\d{8}-\d{6}-[0-9a-f]{4}\b")
 
 
-@pytest.mark.xfail(strict=True, reason="#168: the tutorial output needs one new run in Claude Code")
 def test_the_tutorial_output_comes_from_one_run() -> None:
     # The tutorial makes 2 tests: the test of check and the test in Claude Code. The ls step
     # lists the 2 test folders of the run. Each test id on the page is one of these 2 (#168).
