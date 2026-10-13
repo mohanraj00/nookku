@@ -1,6 +1,10 @@
 # Changelog
 
+Each date is the day of the upload to PyPI, in UTC ([nookku](https://pypi.org/project/nookku/#history), [verbatim-relay](https://pypi.org/project/verbatim-relay/#history)). 0.2.0 has no upload, so its date is the day of its tag.
+
 ## 0.4.0
+
+Released 2026-10-12.
 
 verbatim-relay is now Nookku. The package, the CLI, the module, the plugin, the marketplace, the state folder and the variables have the new name. The record format and the audit do not change.
 
@@ -44,6 +48,8 @@ verbatim-relay is now Nookku. The package, the CLI, the module, the plugin, the 
 
 ## 0.3.1
 
+Released 2026-10-08.
+
 A docs release. The docs have new how-to guides for each task of a test, a glossary, 4 diagrams and facts that match 0.3.0. The code of the relays, the taps and the audit does not change. The examples get a Node entry and an HTTP entry, and the toy HTTP server no longer looks up the host name before it listens.
 
 - **Facts.** The docs show version 0.3.0, the real `init` output, the deny rule for reads of `.verbatim-relay`, the error texts of 0.3.0 and the missing behavior of `mode`, `end`, `check`, `transcript` and `verify` ([#126](https://github.com/mohanraj00/nookku/issues/126)).
@@ -58,6 +64,8 @@ A docs release. The docs have new how-to guides for each task of a test, a gloss
 - **Navigation.** The README gives a route to try the toy shop, a route to connect your own app and a route to choose a relay, and a Docs table in task order. The docs map groups the guides by task. Troubleshooting starts with a table of symptoms ([#135](https://github.com/mohanraj00/nookku/issues/135)).
 
 ## 0.3.0
+
+Released 2026-10-08.
 
 Streamed replies, and the fixes of the 0.2 code review. An agent can now stream its reply, and the relays still show and record it byte for byte. Each relay path fails closed: if a hook or a guard fails, the prompt does not reach the model, and the tester sees the cause and the next step. Each record has one reader with one rule in Python and in the plugin. Both taps have one deadline, and the proxies keep no secret query value. The docs have a tutorial, how-to guides, reference pages and an architecture page. [The proofs](docs/results.md) pass in the plugin, the hook kit in Claude Code and the hook kit in Codex.
 
@@ -92,6 +100,8 @@ Streamed replies, and the fixes of the 0.2 code review. An agent can now stream 
 
 ## 0.2.0
 
+Released 2026-10-07.
+
 The telemetry MVP ([#27](https://github.com/mohanraj00/nookku/issues/27)). For each turn of a test, the record shows each action of the app that can change the reply or the state: its model sessions, its OpenTelemetry spans and logs, its backend calls and its direct model calls. Each action has its turn and its evidence line. The seal shows a changed record, and the evaluation at the end of a test cites these items. [The full telemetry proof](docs/results.md#full-telemetry-with-one-app) passes in the plugin, the hook kit in Claude Code and the hook kit in Codex.
 
 - **Tests.** The harness starts the app. `verbatim-relay start` (or `/verbatim-relay start` in the plugin) starts an entry through the tap and switches relay mode on. `verbatim-relay end` stops it. The agent needs no HTTP server and no extra terminal. Each test has a folder in `.verbatim-relay/tests/` with both records, `app.log` and a manifest.
@@ -117,6 +127,8 @@ The telemetry MVP ([#27](https://github.com/mohanraj00/nookku/issues/27)). For e
 - **Docs.** A worked evaluation of the toy shop agent, with what the model found and what it got wrong: `docs/evaluation-example.md`.
 
 ## 0.1.0
+
+Released 2026-10-06.
 
 The first release.
 
