@@ -354,6 +354,21 @@ def test_the_readme_gives_the_tagline_one_time() -> None:
     assert (ROOT / "README.md").read_text(encoding="utf-8").count(TAGLINE) == 1
 
 
+QUOTED = re.compile(r"\"[^\"\n]*\"")
+
+
+def test_harness_has_one_meaning_in_the_docs() -> None:
+    # "Harness" means a coding harness, Claude Code or Codex. Nookku is not a harness (#166).
+    # Quoted text keeps its words, for example the first tagline in the ADR.
+    pages = [ROOT / "README.md", *(p for p in markdown_files() if DOCS in p.parents)]
+    found = [
+        str(p.relative_to(ROOT))
+        for p in pages
+        if re.search(r"test[ -]harness", QUOTED.sub("", prose(p.read_text("utf-8"))), re.I)
+    ]
+    assert found == []
+
+
 def test_the_try_of_the_readme_gives_the_output_that_it_shows(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
