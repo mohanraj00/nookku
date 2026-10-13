@@ -526,6 +526,139 @@ def test_each_glossary_term_links_to_a_section_of_the_spec() -> None:
         assert any(path == spec and fragment for path, fragment in targets), term
 
 
+GLOSSARY = (DOCS / "reference" / "glossary.md").resolve()
+# The docs use these terms as plain words on almost each page, for example "test your app", "the
+# agent of the toy shop" and "the plugins of Codex". A link on each first use can point to the
+# wrong meaning, so the test does not check them.
+PLAIN_WORDS = {"Agent", "Plugin", "Test"}
+# A count before a term in a phrase that a test reads, for example "10 trace checks". The test
+# of each count reads these phrases, so they are not a use of the term.
+COUNTED = re.compile(r"\b\d+ (?:break classes|trace checks)\b")
+# Phrases on a page that use a term with its plain meaning before its glossary meaning. A link
+# there points to the wrong meaning, so the test does not count them as a use.
+PLAIN_USES = {
+    # "break" as a verb: the display layer stops.
+    "docs/adr/0001-one-core-one-plugin.md": ("If they break",),
+    # "breaks" as a verb: the script does not obey a rule.
+    "docs/reference/cli.md": ("the script breaks a rule",),
+}
+# The link of a glossary term with no fragment: a link to the top of the glossary.
+NO_FRAGMENT = "(top of the glossary)"
+# An inline link, with its text in group 1 and its target in group 2.
+TEXT_LINK = re.compile(
+    r"!?\[((?:[^\[\]]|\[[^\[\]]*\])*)\]\(\s*<?([^)\s>]+)>?(?:\s+\"[^\"]*\")?\s*\)"
+)
+HTML_TAG = re.compile(r"<[^>]+>")
+
+
+def _blank(text: str, pattern: re.Pattern[str]) -> str:
+    """The text with each match changed to spaces. Each other character keeps its place."""
+    return pattern.sub(lambda m: re.sub(r"[^\n]", " ", m.group(0)), text)
+
+
+def _forms(name: str) -> list[str]:
+    """The singular and the plural of a term, for example "entry" and "entries". A heading in the
+    plural, for example "Findings", also gives its singular "finding". A singular that ends in
+    "ss", for example "Harness", keeps its plural "harnesses"."""
+    lower = name.lower()
+    if re.search(r"[^aeiou]y$", lower):
+        return [lower, lower[:-1] + "ies"]
+    forms = [lower, lower + "s", lower + "es"]
+    if re.search(r"[^s]s$", lower):
+        forms.append(lower[:-1])
+    return forms
+
+
+def _term_pattern(forms: list[str]) -> re.Pattern[str]:
+    """A use of a term. The longest form wins, so "relay mode" is not a use of "relay". A file
+    name or a path, as in "audit.json", is not a use."""
+    alternatives = "|".join(re.escape(f) for f in sorted(forms, key=len, reverse=True))
+    return re.compile(rf"(?<![\w./#-])({alternatives})(?![\w/-]|\.\w)", re.IGNORECASE)
+
+
+def first_uses(text: str, page: Path) -> list[tuple[str, int, int, str | None]]:
+    """The first use of each glossary term in the prose of a page: the term, the start and the
+    end of the use in the text, and the anchor of its glossary link, or None with no link. Code,
+    comments, HTML tags, headings and the text of other links are not prose."""
+    by_form = {form: name for name in _sections(GLOSSARY, "##") for form in _forms(name)}
+    pattern = _term_pattern(list(by_form))
+    masked = text
+    for part in (FENCE, COMMENT, CODE_SPAN, HTML_TAG, HEADING, COUNTED):
+        masked = _blank(masked, part)
+    if page.resolve().is_relative_to(ROOT):
+        for phrase in PLAIN_USES.get(page.resolve().relative_to(ROOT).as_posix(), ()):
+            masked = _blank(masked, re.compile(re.escape(phrase)))
+    # Each part of the text: its start, its end and the anchor of its glossary link. Plain text
+    # has the anchor None, and the text of another link has the anchor "".
+    parts: list[tuple[int, int, str | None]] = []
+    end = 0
+    for m in TEXT_LINK.finditer(masked):
+        parts.append((end, m.start(), None))
+        path, fragment = resolve(page, m.group(2))
+        anchor = (fragment or NO_FRAGMENT) if path == GLOSSARY else ""
+        parts.append((m.start(1), m.end(1), anchor))
+        end = m.end()
+    parts.append((end, len(masked), None))
+    seen: dict[str, tuple[str, int, int, str | None]] = {}
+    for start, stop, anchor in parts:
+        if anchor == "":
+            continue
+        for m in pattern.finditer(masked, start, stop):
+            name = by_form.get(m.group(1).lower())
+            if name is not None and name not in seen:
+                seen[name] = (name, m.start(), m.end(), anchor)
+    return sorted(seen.values(), key=lambda use: use[1])
+
+
+def unlinked_first_uses(text: str, page: Path) -> list[str]:
+    """Each glossary term whose first use on the page is not a link to its glossary section."""
+    return [
+        f"{name}: {text[start:end]!r}"
+        for name, start, end, anchor in first_uses(text, page)
+        if name not in PLAIN_WORDS and anchor != slug(name)
+    ]
+
+
+DOCS_PAGES = sorted(p for p in DOCS.rglob("*.md") if p.resolve() != GLOSSARY)
+
+
+@pytest.mark.parametrize("page", DOCS_PAGES, ids=[str(p.relative_to(ROOT)) for p in DOCS_PAGES])
+def test_each_docs_page_links_the_first_use_of_each_glossary_term(page: Path) -> None:
+    assert unlinked_first_uses(page.read_text(encoding="utf-8"), page) == []
+
+
+@pytest.mark.parametrize(
+    "text, wanted",
+    [
+        # The first use has no link, and a later use has one.
+        ("The audit runs. The [audit](../reference/glossary.md#audit) ends.", ["Audit: 'audit'"]),
+        # The link goes to the section of another term.
+        ("The [tap](../reference/glossary.md#trace) runs.", ["Tap: 'tap'"]),
+        # Each first use has its link. "Relay mode" is not a use of "relay".
+        (
+            "[Relay mode](../reference/glossary.md#relay-mode) and "
+            "[relays](../reference/glossary.md#relay).",
+            [],
+        ),
+        # The plural of a term that ends in "y".
+        ("Two entries. The [entry](../reference/glossary.md#entry) runs.", ["Entry: 'entries'"]),
+        # The singular of a term whose heading is in the plural.
+        ("One finding.", ["Findings: 'finding'"]),
+        # The plural of a singular term that ends in "s".
+        ("Two harnesses.", ["Harness: 'harnesses'"]),
+        # A glossary link with no fragment goes to the top of the glossary.
+        ("The [seal](../reference/glossary.md) runs.", ["Seal: 'seal'"]),
+        # A count is not a use only in a phrase that a test reads.
+        ("10 trace checks and 4 break classes.", []),
+        ("2 seals and 3 taps.", ["Seal: 'seals'", "Tap: 'taps'"]),
+        # A file name, a code span, a heading, another link and a plain word.
+        ("# Audit\n\naudit.json, `seal`, [entry.py](e.py), test the agent.", []),
+    ],
+)
+def test_the_glossary_check_finds_a_first_use_with_no_link(text: str, wanted: list[str]) -> None:
+    assert unlinked_first_uses(text, DOCS / "how-to" / "example.md") == wanted
+
+
 def _first_cells(section: str) -> list[str]:
     """The name in the first cell of each table row of a section, in the order of the rows."""
     return re.findall(r"^\| `([a-z_]+)` \|", section, re.MULTILINE)

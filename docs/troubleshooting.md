@@ -1,6 +1,6 @@
 # Troubleshooting
 
-If you see a problem but no error text, find the problem in [Symptoms](#symptoms). If you have an error text, find it in the sections after Symptoms. Each of these entries gives a real error text from the code, its cause and the fix. The source file of each text is in parentheses. A part in angle brackets, for example `<test-id>`, changes from run to run.
+If you see a problem but no error text, find the problem in [Symptoms](#symptoms). If you have an error text, find it in the sections after Symptoms. Each of these sections gives a real error text from the code, its cause and the fix. The source file of each text is in parentheses. A part in angle brackets, for example `<test-id>`, changes from run to run.
 
 First, look in the [test folder](reference/glossary.md#test-folder) `.nookku/tests/<test-id>/`. `bridge.log` has the steps of the [bridge](reference/glossary.md#bridge). `app.log` has the stderr of your [entry](reference/glossary.md#entry) and your app.
 
@@ -12,12 +12,12 @@ First, look in the [test folder](reference/glossary.md#test-folder) `.nookku/tes
 | The viewer shows an old test or the check test. | This is correct before the start of a test. The viewer shows the last test, and after `check` this is the check test. When a test starts, the viewer shows a header line with the new test id ([test-your-app.md](how-to/test-your-app.md#start-the-viewer)). If no new header comes, run `nookku status` to see if a test runs ([recover-a-stuck-test.md](how-to/recover-a-stuck-test.md#1-run-status)). |
 | `transcript`, `trace` or `verify` shows the check test, not your test. | These commands use the latest test. If you ran `check` after your test, give the id of your test ([read-the-results.md](how-to/read-the-results.md#1-find-the-test-id)). |
 | A prompt went to the model in [relay mode](reference/glossary.md#relay-mode). | In relay mode, the [relay](reference/glossary.md#relay) blocks each prompt. Run `nookku status`. If it says `relay mode is off.`, start a test with the prompt `nookku start`. If relay mode is on, the hooks did not run. In Codex, trust the hooks ([In Codex, the model answers my test messages](#in-codex-the-model-answers-my-test-messages)). In Claude Code, install the relay again ([project hooks](how-to/claude-code-hook-kit.md#install), [plugin](how-to/claude-code-plugin.md#install)). |
-| Codex does not run the hooks. | Codex runs project hooks only after a person trusts them. Do the trust step ([codex.md](how-to/codex.md#install), [In Codex, the model answers my test messages](#in-codex-the-model-answers-my-test-messages)). |
-| Each message reaches the agent two times. | The plugin and the project hooks both run. Use one form ([Each message reaches the agent two times](#each-message-reaches-the-agent-two-times)). |
+| Codex does not run the hooks. | Codex runs [project hooks](reference/glossary.md#project-hooks) only after a person trusts them. Do the trust step ([codex.md](how-to/codex.md#install), [In Codex, the model answers my test messages](#in-codex-the-model-answers-my-test-messages)). |
+| Each message reaches the agent two times. | The [plugin](reference/glossary.md#plugin) and the project hooks both run. Use one form ([Each message reaches the agent two times](#each-message-reaches-the-agent-two-times)). |
 | A test does not start. | Find the error text in [Start a test](#start-a-test). |
 | The test does not end, or each prompt says that no test runs. | Follow [recover-a-stuck-test.md](how-to/recover-a-stuck-test.md). |
 | No `report.md` after the end. | The model writes `report.md` only after the prompt `nookku end`. `nookku end` in a shell, or `/nookku end` in the plugin, ends the test with no [evaluation](reference/glossary.md#evaluation). If `evaluate` is `false` in the configuration, no evaluation starts. If you denied a command of the evaluation, the model can stop. Type the prompt `nookku end` again. If the latest test has no `report.md`, this prompt starts its evaluation ([SPEC.md section 9.1](../SPEC.md#91-start), [test-your-app.md](how-to/test-your-app.md#7-allow-the-evaluation-commands)). In Codex, the sandbox must let the model write in the project ([codex.md](how-to/codex.md#use)). |
-| The [audit](reference/glossary.md#audit) exits with 1 or 2. | Read the break or the error in `audit.json` ([read-the-results.md](how-to/read-the-results.md#3-read-the-audit)). For each error text, read [Audit, verify and trace](#audit-verify-and-trace). |
+| The [audit](reference/glossary.md#audit) exits with 1 or 2. | Read the [break](reference/glossary.md#break) or the error in `audit.json` ([read-the-results.md](how-to/read-the-results.md#3-read-the-audit)). For each error text, read [Audit, verify and trace](#audit-verify-and-trace). |
 | `nookku verify` says `Seal: BROKEN`. | A file of the test folder changed after the end of the test. Do not trust the changed files. Run a new test ([Audit, verify and trace](#audit-verify-and-trace)). |
 
 ## Install
@@ -40,7 +40,7 @@ First, look in the [test folder](reference/glossary.md#test-folder) `.nookku/tes
 
 (bridge.py) **Cause.** `config.json` has no `entry`, or it is empty.
 
-**Fix.** Add the entry: `nookku init <harness> --entry "<command>"`, or ask the harness model to run `nookku setup` ([how-to/connect-your-agent.md](how-to/connect-your-agent.md)).
+**Fix.** Add the entry: `nookku init <harness> --entry "<command>"`, or ask the [harness model](reference/glossary.md#harness-model) to run `nookku setup` ([how-to/connect-your-agent.md](how-to/connect-your-agent.md)).
 
 ### `nookku: cannot read .nookku/config.json: <reason>`
 
@@ -116,7 +116,7 @@ First, look in the [test folder](reference/glossary.md#test-folder) `.nookku/tes
 
 ### `nookku: warning: <root> is not the top level of its git work tree, <top>.`
 
-(cli.py) **Cause.** `init` wrote a new config in a folder below the top level of your git work tree. This is correct if your app is in that folder. Else the harness does not find the hooks, because it starts in the top level.
+(cli.py) **Cause.** `init` wrote a new config in a folder below the top level of your git work tree. This is correct if your app is in that folder. Else the [harness](reference/glossary.md#harness) does not find the hooks, because it starts in the top level.
 
 **Fix.** If the top level is your project, run `init` again with `--root <top>`, and remove the `.nookku/` folder of `<root>`.
 
@@ -124,7 +124,7 @@ First, look in the [test folder](reference/glossary.md#test-folder) `.nookku/tes
 
 If a test does not end or its bridge stopped, follow [how-to/recover-a-stuck-test.md](how-to/recover-a-stuck-test.md).
 
-In relay mode, the relay fails closed in both forms. If it cannot send a message, the message does not go to the model. The relay shows the error and writes it in the relay record with `ok: false` ([SPEC.md section 5](../SPEC.md#5-relays)).
+In relay mode, the relay fails closed in both forms. If it cannot send a message, the message does not go to the model. The relay shows the error and writes it in the [relay record](reference/glossary.md#relay-record) with `ok: false` ([SPEC.md section 5](../SPEC.md#5-relays)).
 
 If the entry returns an error, crashes or does not answer in [240 seconds](../src/nookku/stdio.py), the relay shows the error and records it. After a crash, each later message gets the same error, with the last lines of `app.log`. End the test and start a new one.
 
@@ -136,13 +136,13 @@ If the entry returns an error, crashes or does not answer in [240 seconds](../sr
 
 ### `nookku: nothing was sent. The message is near a control prompt. The control prompts are: nookku start, nookku end, nookku status.`
 
-(kit.py) **Cause.** Relay mode is on, and the message looks like a control prompt but is not exact. For example, `nookku stop`, `Nookku start`, `nookku  end` (2 spaces) or `nookk end`. The relay did not send the message and wrote no turn, so the agent did not get it ([SPEC.md section 5](../SPEC.md#5-relays)).
+(kit.py) **Cause.** Relay mode is on, and the message looks like a [control prompt](reference/glossary.md#control-prompt) but is not exact. For example, `nookku stop`, `Nookku start`, `nookku  end` (2 spaces) or `nookk end`. The relay did not send the message and wrote no turn, so the agent did not get it ([SPEC.md section 5](../SPEC.md#5-relays)).
 
 **Fix.** Type the exact control prompt, for example `nookku end`. If a real test message gets this refusal, lower the policy key `control_distance` with `nookku policy set control_distance 1`, or turn off the rule with `nookku policy set control_distance 0` ([config.md](reference/config.md)).
 
 ### `nookku tap: cannot write the record <name>. The error output of the tap gives the cause.`
 
-(tap.py) **Cause.** The HTTP tap cannot write the row of a response to its record, for example because the disk is full or the folder is not writable. The tap does not send the agent's response, so the relay shows this error and the message has no reply ([SPEC.md section 4.1](../SPEC.md#41-http-mode)). The tap writes the record path and the cause to its error output (stderr), in the line `nookku tap: cannot write the record <path>: <reason>`.
+(tap.py) **Cause.** The HTTP [tap](reference/glossary.md#tap) cannot write the row of a response to its record, for example because the disk is full or the folder is not writable. The tap does not send the agent's response, so the relay shows this error and the message has no reply ([SPEC.md section 4.1](../SPEC.md#41-http-mode)). The tap writes the record path and the cause to its error output (stderr), in the line `nookku tap: cannot write the record <path>: <reason>`.
 
 **Fix.** Read the error output of `nookku tap`. Correct the cause, for example free disk space. Then send the message again.
 
@@ -264,7 +264,7 @@ If the entry returns an error, crashes or does not answer in [240 seconds](../sr
 
 ### `nookku: <path> is a record or a state file of nookku. Only nookku writes it. A command may read it. <cause>`
 
-(kit.py) **Cause.** When no test ran, the model tried to write a record or a state file of nookku: a file of a test folder other than `report.md`, `current.json`, `mode`, `relay.jsonl`, `tap.jsonl`, `ending.json` or a seal copy. Or a command that does not pass the read check ran in `.nookku/`. The relay checks the paths that a call writes, not its text, so a file or a here-document that only names a record is not denied ([SPEC.md section 5](../SPEC.md#5-relays)). For a shell command, `<cause>` names the program or the redirect that failed, for example `"rm" is not a read command.` or `The redirect ">" writes it.`
+(kit.py) **Cause.** When no test ran, the model tried to write a record or a state file of nookku: a file of a test folder other than `report.md`, `current.json`, `mode`, `relay.jsonl`, `tap.jsonl`, `ending.json` or a [seal](reference/glossary.md#seal) copy. Or a command that does not pass the read check ran in `.nookku/`. The relay checks the paths that a call writes, not its text, so a file or a here-document that only names a record is not denied ([SPEC.md section 5](../SPEC.md#5-relays)). For a shell command, `<cause>` names the program or the redirect that failed, for example `"rm" is not a read command.` or `The redirect ">" writes it.`
 
 **Fix.** None for the records. A tool call can change `config.json` and the files of the entry when no test runs. If the evaluation needs a command, use a read program from the list in [SPEC.md section 5](../SPEC.md#5-relays), for example `cat`, `jq` or `sed -n`. If your team uses a read program that is not in the list, add it with `nookku policy set guard_reads <program>` ([config.md](reference/config.md)). If the cause is `The guard cannot parse the command.`, remove each `$(...)`, backquote and bracket from the command.
 
@@ -272,7 +272,7 @@ If the entry returns an error, crashes or does not answer in [240 seconds](../sr
 
 (kit.py) **Cause.** The model ran `nookku start`, `end`, `hook`, `run`, or `mode on` or `off`, in a shell. Only a person starts, ends or drives a test, with a prompt such as `nookku start` ([SPEC.md section 5](../SPEC.md#5-relays)).
 
-**Fix.** Type the control word as a prompt. To let the model run a scripted test, set `nookku policy set scripts model` in a shell ([config.md](reference/config.md)).
+**Fix.** Type the control word as a prompt. To let the model run a [scripted test](reference/glossary.md#scripted-test), set `nookku policy set scripts model` in a shell ([config.md](reference/config.md)).
 
 ### `nookku: a model command may not import nookku, because a script can drive a test with it. To run a scenario, use nookku run --script, if the policy key scripts is model.`
 
@@ -290,7 +290,7 @@ If the entry returns an error, crashes or does not answer in [240 seconds](../sr
 
 (bridge.py) **Cause.** The bridge did not write the end time in the manifest. For example, it did not stop in the wait time of `end`.
 
-**Fix.** Read `bridge.log`. Run `nookku trace` to build the trace again.
+**Fix.** Read `bridge.log`. Run `nookku trace` to build the [trace](reference/glossary.md#trace) again.
 
 ### `FAIL: No claude-code model session was identified.`
 

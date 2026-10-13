@@ -1,6 +1,6 @@
 # Test an agent in Claude Code
 
-In Claude Code, you install the [relay](../reference/glossary.md#relay) as the plugin or as the project hooks. Each form has its own guide. Each heading below keeps the old link of its section.
+In Claude Code, you install the [relay](../reference/glossary.md#relay) as the [plugin](../reference/glossary.md#plugin) or as the [project hooks](../reference/glossary.md#project-hooks). Each form has its own guide. Each heading below keeps the old link of its section.
 
 - To select a form, read [choose-a-relay.md](choose-a-relay.md).
 - The plugin: [claude-code-plugin.md](claude-code-plugin.md).

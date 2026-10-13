@@ -1,16 +1,16 @@
 # Connect your own agent
 
-A test runs your app through an entry: a thin wrapper that starts the app and speaks the agent contract. The entry and its configuration are in `.nookku/`. Your app's code does not change.
+A test runs your app through an [entry](../reference/glossary.md#entry): a thin wrapper that starts the app and speaks the [agent contract](../reference/glossary.md#agent-contract). The entry and its configuration are in `.nookku/`. Your app's code does not change.
 
 This is the plumbing that a test needs. You write it once, when you start to test the app. You change it when the start or the wiring of the app changes, for example a new service or a new start command.
 
 ## Let the harness model write the entry
 
-[test-your-app.md](test-your-app.md) gives these steps, from the install to the results, with the expected output. Its steps 2 to 4 run the setup in the harness, review the entry and run `nookku check`. With the Claude Code plugin, the `setup` skill also runs the setup.
+[test-your-app.md](test-your-app.md) gives these steps, from the install to the results, with the expected output. Its steps 2 to 4 run the setup in the [harness](../reference/glossary.md#harness), review the entry and run `nookku check`. With the Claude Code [plugin](../reference/glossary.md#plugin), the `setup` skill also runs the setup.
 
 After the model writes `.nookku/entry.<ext>` and `.nookku/config.json`, do these 2 checks:
 
-1. Review the entry. It is in the message path, and the audit cannot see a change that the entry makes.
+1. Review the entry. It is in the message path, and the [audit](../reference/glossary.md#audit) cannot see a change that the entry makes.
 2. Make sure that the entry runs your real app ([Make sure that check runs your real app](#make-sure-that-check-runs-your-real-app)). A PASS of `check` does not prove it.
 
 ## Write the entry yourself
@@ -34,7 +34,7 @@ If the app has no reply, write `{"v": 1, "id": "7f3a", "error": "the order servi
 Obey these rules:
 
 - Send `message` to the app with no change. Return the app's reply with no change. Do not trim, format or translate either text.
-- Write only contract lines to stdout. Write logs and all other output to stderr. The tap writes stderr to `app.log` in the test folder.
+- Write only contract lines to stdout. Write logs and all other output to stderr. The [tap](../reference/glossary.md#tap) writes stderr to `app.log` in the [test folder](../reference/glossary.md#test-folder).
 - Use one app conversation for the whole test. `session` is the test id. Use `history` only if the app needs the earlier turns from outside.
 - Read and write UTF-8. Split input lines only on `\n`.
 - If the app fails on one message, write an `error` line and continue.
@@ -124,7 +124,7 @@ The configuration:
 
 Obey these rules in Node:
 
-- Do not read the input with `node:readline`. It also ends a line at `\r`. In Node 25, it also ends a line at U+2028 and U+2029 ([test](../../tests/test_example_entries.py), run with Node 25.8.0). The relays do not escape U+2028 in the input line, so a message with U+2028 arrives in 2 parts.
+- Do not read the input with `node:readline`. It also ends a line at `\r`. In Node 25, it also ends a line at U+2028 and U+2029 ([test](../../tests/test_example_entries.py), run with Node 25.8.0). The [relays](../reference/glossary.md#relay) do not escape U+2028 in the input line, so a message with U+2028 arrives in 2 parts.
 - Keep `console.log = console.error` at the top. Then a `console.log` of the app goes to stderr.
 - If the app starts a child process, send its stdout to stderr, for example with `stdio: ["ignore", 2, 2]` in `spawn`.
 - If `reply` throws, the entry writes an `error` line, and the test continues.
@@ -155,7 +155,7 @@ Write the same loop in the language of your app. [examples/toy-shop/agent.py](..
 - `entry` is the command as a list of arguments. It runs in the project root.
 - `models` lists the harnesses that your app uses for its own model sessions: `claude-code`, `codex`, both or none. `nookku check` fails if it does not find a session for each one.
 
-[reference/config.md](../reference/config.md) lists each key. For the project hooks, `nookku init <harness> --entry "<command>"` writes this file and the hooks in one step.
+[reference/config.md](../reference/config.md) lists each key. For the [project hooks](../reference/glossary.md#project-hooks), `nookku init <harness> --entry "<command>"` writes this file and the hooks in one step.
 
 ## Check the connection
 
@@ -184,7 +184,7 @@ PASS proves the connection. It does not prove that your app gives correct replie
 
 - It does not judge the reply. Any reply line passes, also a fallback text of your app. The toy shop reply above is the `FALLBACK` text of [agent.py](../../examples/toy-shop/agent.py), because the toy shop has no rule for the check message.
 - It sends only one message. It does not check a conversation with more turns.
-- It does not use the records of the backends, the model API calls or the OpenTelemetry spans to decide PASS. The end of the check test puts them into the trace, but `check` does not examine them.
+- It does not use the records of the backends, the model API calls or the OpenTelemetry spans to decide PASS. The end of the check test puts them into the [trace](../reference/glossary.md#trace), but `check` does not examine them.
 
 If all steps pass, `check` exits with 0. Else it exits with 1. If it fails, read `app.log` and `bridge.log` in the [test folder](../reference/glossary.md#test-folder) that it names. [troubleshooting.md](../troubleshooting.md) lists the errors.
 
@@ -227,8 +227,8 @@ The tap starts the entry with these settings ([stdio.py](../../src/nookku/stdio.
 
 - **Interpreter.** The command is `entry` in `.nookku/config.json`. Its first word is the interpreter. Use the interpreter of your app, for example `.venv/bin/python`. If you use a different interpreter, the packages of your app can be missing.
 - **Working folder.** The entry runs in the project root. If your app reads a file with a relative path, for example `.env` or a config file in its own folder, give the app the correct path in the entry.
-- **Environment.** The entry gets the environment of the process that starts the test, and the variables of the bridge, for example `ANTHROPIC_BASE_URL`. After `nookku check` in a shell, it is the environment of that shell. With the project hooks or the plugin, the harness starts the test, so it is the environment of the harness. If your app reads its keys from an environment file, load that file in the entry.
-- **Test folder.** The bridge gives the entry `NOOKKU_TEST_DIR`, the absolute path of the test folder, and `NOOKKU_TEST_ID`, the test id. To keep the state of your app for a test, for example an event log, write it to `$NOOKKU_TEST_DIR/app-state/`. Do not make the path from the session id. The seal covers each file of the test folder, and the evaluation reads `app-state/` ([SPEC.md section 6.1](../../SPEC.md#61-environment-of-the-entry)). The toy shop writes `app-state/answers.jsonl` ([agent.py](../../examples/toy-shop/agent.py)).
+- **Environment.** The entry gets the environment of the process that starts the test, and the variables of the [bridge](../reference/glossary.md#bridge), for example `ANTHROPIC_BASE_URL`. After `nookku check` in a shell, it is the environment of that shell. With the project hooks or the plugin, the harness starts the test, so it is the environment of the harness. If your app reads its keys from an environment file, load that file in the entry.
+- **Test folder.** The bridge gives the entry `NOOKKU_TEST_DIR`, the absolute path of the test folder, and `NOOKKU_TEST_ID`, the test id. To keep the state of your app for a test, for example an event log, write it to `$NOOKKU_TEST_DIR/app-state/`. Do not make the path from the session id. The [seal](../reference/glossary.md#seal) covers each file of the test folder, and the [evaluation](../reference/glossary.md#evaluation) reads `app-state/` ([SPEC.md section 6.1](../../SPEC.md#61-environment-of-the-entry)). The toy shop writes `app-state/answers.jsonl` ([agent.py](../../examples/toy-shop/agent.py)).
 
 After a change to the entry, run `nookku check` again, and do the 4 steps again.
 
@@ -237,7 +237,7 @@ After a change to the entry, run `nookku check` again, and do the 4 steps again.
 You can connect an app that is an HTTP server in 2 ways:
 
 - **An entry that calls the server.** The test keeps the test folder, the trace, the seal and the evaluation.
-- **The HTTP tap** ([http-tap.md](http-tap.md)). The tap is in front of the server, and there is no entry. You get only the tap record and the relay record. There is no test folder, no trace, no seal and no evaluation.
+- **The HTTP tap** ([http-tap.md](http-tap.md)). The tap is in front of the server, and there is no entry. You get only the [tap record](../reference/glossary.md#tap-record) and the [relay record](../reference/glossary.md#relay-record). There is no test folder, no trace, no seal and no evaluation.
 
 I recommend the entry. [examples/toy-shop/http_entry.py](../../examples/toy-shop/http_entry.py) starts the toy shop HTTP server ([http_agent.py](../../examples/toy-shop/http_agent.py)), then sends each message to it:
 
@@ -323,7 +323,7 @@ Obey these rules for an HTTP server:
 - Start the server in the entry, not before the test. Then the server gets the proxy URLs and the OTLP URL in its environment, and the tap writes its stderr to `app.log`. The tap also finds a Claude Code session of the server only if the server is a child of the entry ([SPEC.md section 7.3](../../SPEC.md#73-model-sessions)).
 - Send the stdout of the server to stderr. `serve()` does this only for output after it starts, so give `stdout=sys.stderr` to the server process.
 - Set `agent_url` to the URL of the server. The relay then denies a model tool call that names this URL, the same as a call to the tap ([reference/config.md](../reference/config.md#relay-keys)). A model call to the server goes around the tap, and no record shows it.
-- Give the call to the server a timeout of less than [240 seconds](../../src/nookku/stdio.py), the agent timeout of the tap. Then the tester sees the error of the call.
+- Give the call to the server a timeout of less than [240 seconds](../../src/nookku/stdio.py), the agent timeout of the tap. Then the [tester](../reference/glossary.md#tester) sees the error of the call.
 - If the server streams its reply, read the full stream and return one reply ([test-a-streaming-agent.md](test-a-streaming-agent.md)).
 
 `nookku check` with this entry gives:

@@ -1,18 +1,18 @@
 # Method and results
 
-Two kinds of evidence: proofs that each relay is exact, and a benchmark under pressure. Every number here comes from a file in this repo.
+Two kinds of evidence: proofs that each [relay](reference/glossary.md#relay) is exact, and a benchmark under pressure. Every number here comes from a file in this repo.
 
 ## 1. Proofs
 
-Each proof runs the harness headless in a test (SPEC.md section 7). The tester starts the test with the prompt `nookku start`. The entry is the toy shop agent of the tests over stdio ([tests/toy_entry.py](../tests/toy_entry.py)), which uses `nookku.agent.serve`. The proofs run in 4 setups: the plugin and the project hooks, each in Claude Code and in Codex. Each setup runs the same relay, `nookku hook`. Script: [scripts/proofs_relay.py](../scripts/proofs_relay.py).
+Each proof runs the [harness](reference/glossary.md#harness) headless in a test (SPEC.md section 7). The [tester](reference/glossary.md#tester) starts the test with the prompt `nookku start`. The [entry](reference/glossary.md#entry) is the toy shop agent of the tests over stdio ([tests/toy_entry.py](../tests/toy_entry.py)), which uses `nookku.agent.serve`. The proofs run in 4 setups: the [plugin](reference/glossary.md#plugin) and the [project hooks](reference/glossary.md#project-hooks), each in Claude Code and in Codex. Each setup runs the same relay, `nookku hook`. Script: [scripts/proofs_relay.py](../scripts/proofs_relay.py).
 
 | # | Proof |
 |---|---|
-| P1 | Each tester message reaches the agent byte for byte (the tap record). |
-| P2 | Each reply reaches the tester byte for byte (`nookku view`, which shows each turn of the relay record). |
+| P1 | Each tester message reaches the agent byte for byte (the [tap record](reference/glossary.md#tap-record)). |
+| P2 | Each reply reaches the tester byte for byte (`nookku view`, which shows each turn of the [relay record](reference/glossary.md#relay-record)). |
 | P3 | A system prompt that tells the model to fix the tester's grammar and summarize each reply changes nothing. |
-| P3b | With relay mode off and the test still on, the model tries to call the tap with `curl`. The relay denies it, and the agent receives nothing. |
-| P4 | The audit finds 0 breaks in the proof records, and finds each of 5 planted faults: altered reply, unshown reply, altered input, injected input, missing record. |
+| P3b | With [relay mode](reference/glossary.md#relay-mode) off and the test still on, the model tries to call the [tap](reference/glossary.md#tap) with `curl`. The relay denies it, and the agent receives nothing. |
+| P4 | The [audit](reference/glossary.md#audit) finds 0 [breaks](reference/glossary.md#break) in the proof records, and finds each of 5 planted faults: altered reply, unshown reply, altered input, injected input, missing record. |
 
 Each proof also checks that the test ends, and that the tap finds no model session: the toy entry has no model, and the tester's own harness session must not count as one.
 
@@ -59,7 +59,7 @@ The Agent SDK runs its own bundled Claude Code. The `claude-code` version in the
 
 ### Trace of the model sessions
 
-[scripts/proof_trace.py](../scripts/proof_trace.py) runs a test of the same toy shop app with 4 messages. Now the Codex thread also has `lookup_order` as a dynamic tool, the toy MCP server `check_stock` ([tests/toy_mcp_server.py](../tests/toy_mcp_server.py)) and a shell. The trace must show 6 tool calls and commands, each with its result or its error, in the correct turn.
+[scripts/proof_trace.py](../scripts/proof_trace.py) runs a test of the same toy shop app with 4 messages. Now the Codex thread also has `lookup_order` as a dynamic tool, the toy MCP server `check_stock` ([tests/toy_mcp_server.py](../tests/toy_mcp_server.py)) and a shell. The [trace](reference/glossary.md#trace) must show 6 tool calls and commands, each with its result or its error, in the correct turn.
 
 | Session file | Nookku | Items | Expected calls found | Data |
 |---|---|---|---|---|
@@ -70,7 +70,7 @@ The Agent SDK runs its own bundled Claude Code. The `claude-code` version in the
 | Claude Code 2.1.286, bundled in Claude Agent SDK 0.2.163 (earlier run) | | 11 | 2/2 | [results](../proofs/trace/results-2.1.286.json) |
 | codex-cli 0.160.0, app-server (earlier run) | | 13 | 4/4 | [results](../proofs/trace/results-0.160.0.json) |
 
-The run of nookku 0.4.1 failed. In turn 1, the Codex model gave no answer: the `task_complete` event of the Codex session file has the error `server_overloaded` ("Selected model is at capacity"). Thus the Codex thread made no `lookup_order` call in turn 1. In turn 2, the model called `lookup_order` for order 9999 and then for order 4471. The trace put both calls in turn 2, which agrees with the session file. The trace gave no finding for the failed Codex turn, because the Codex reader ignores `task_complete` events. The 0.4.0 run of the same versions passed.
+The run of nookku 0.4.1 failed. In turn 1, the Codex model gave no answer: the `task_complete` event of the Codex session file has the error `server_overloaded` ("Selected model is at capacity"). Thus the Codex thread made no `lookup_order` call in turn 1. In turn 2, the model called `lookup_order` for order 9999 and then for order 4471. The trace put both calls in turn 2, which agrees with the session file. The trace gave no [finding](reference/glossary.md#findings) for the failed Codex turn, because the Codex reader ignores `task_complete` events. The 0.4.0 run of the same versions passed.
 
 In the runs of Claude Code 2.1.292 and codex-cli 0.162.1, with nookku 0.4.0 and 0.4.1, the findings are 2 `tool_error` (order 9999, one in each harness), 1 `command_failed` (`cat returns.txt`) and 1 `session_inferred` (the Codex session). The earlier codex-cli 0.160.0 run had 1 more `command_failed`: an `rg` search for that file by the Codex model. The results keep no model text: each message shows only its SHA-256 and its length. Each OpenTelemetry log of the harness, which holds the prompt and the answer, shows only its attribute names and the SHA-256 and length of its values.
 
@@ -84,7 +84,7 @@ In the runs of Claude Code 2.1.292 and codex-cli 0.162.1, with nookku 0.4.0 and 
 | GET /stock | 0 bytes | 2,059 bytes | yes | [results](../proofs/backend/results.json) |
 | POST /import | 2,320,000 bytes, cut in the record | 2,059 bytes | yes | [results](../proofs/backend/results.json) |
 
-The record cuts the third request body at 1 MiB, but the stock service got all of its bytes. The seal of the test folder was intact.
+The record cuts the third request body at 1 MiB, but the stock service got all of its bytes. The [seal](reference/glossary.md#seal) of the [test folder](reference/glossary.md#test-folder) was intact.
 
 ### Direct model calls
 
@@ -132,7 +132,7 @@ The session resumes between turns, so P5b also shows that the transcript survive
 
 - **P6:** `report.md` has a `business_rule` row for turn 2, with the `trace.jsonl` line of the refund call as its evidence.
 - **P5, extended:** `report.md` holds a fact that only the records of the test and the app's state hold: the random refund id, or an exact quote of 20 or more characters from a reply of the agent. The model saw no message of the test.
-- **P7:** after the evaluation, `nookku verify` finds the test folder intact. The evaluating model changed no record ([SPEC.md section 7.4](../SPEC.md#74-seal)).
+- **P7:** after the [evaluation](reference/glossary.md#evaluation), `nookku verify` finds the test folder intact. The evaluating model changed no record ([SPEC.md section 7.4](../SPEC.md#74-seal)).
 - **P8:** the trace has the Agent SDK `tool_result` event of the refund in turn 2, from the OTLP receiver (`otel.jsonl`), and the cross-check `otel_tool_not_in_session` finds 0 differences from the session file ([SPEC.md section 7.5](../SPEC.md#75-otlp-receiver)).
 - **Isolation:** the evaluating model must not read this page or the proof script, which describe the bug. So each project is outside the repo. In Claude Code, each setup runs in a temporary folder. Codex runs only hooks that a person trusted. So the project hooks in Codex run in `~/.nookku-proof/codex`, where I trusted the hooks of `nookku init codex`. The plugin in Codex runs in `~/.nookku-proof/plugin-codex`, with the `CODEX_HOME` where I trusted the plugin hooks. For Codex, the proof also fails if a command of the evaluation names a parent folder or a path of the repo.
 

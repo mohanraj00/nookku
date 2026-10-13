@@ -1,17 +1,17 @@
 # Test a streaming agent
 
-A streaming agent sends its reply in parts. In a test, the tester sees the complete reply, not each part. The audit compares the complete reply, byte for byte. You can test a streaming agent with an entry or with the HTTP tap.
+A streaming agent sends its reply in parts. In a test, the [tester](../reference/glossary.md#tester) sees the complete reply, not each part. The [audit](../reference/glossary.md#audit) compares the complete reply, byte for byte. You can test a streaming agent with an [entry](../reference/glossary.md#entry) or with the HTTP [tap](../reference/glossary.md#tap).
 
 | Your agent | Use |
 |---|---|
 | A function, an SDK session or a server that streams in any format | [An entry that joins the stream](#with-an-entry) |
 | An HTTP server with an OpenAI-compatible `/chat/completions` endpoint that streams Server-Sent Events | [The HTTP tap with the `openai` adapter](#with-the-http-tap), or an entry |
 
-An entry keeps the test folder, the trace, the seal and the evaluation. The HTTP tap does not. [connect-your-agent.md](connect-your-agent.md#the-entry-and-the-http-tap) compares the two.
+An entry keeps the [test folder](../reference/glossary.md#test-folder), the [trace](../reference/glossary.md#trace), the [seal](../reference/glossary.md#seal) and the [evaluation](../reference/glossary.md#evaluation). The HTTP tap does not. [connect-your-agent.md](connect-your-agent.md#the-entry-and-the-http-tap) compares the two.
 
 ## With an entry
 
-The agent contract has one output line for each message ([SPEC.md section 6](../../SPEC.md#6-agent-contract-version-1)). Thus the entry reads the full stream, joins the parts into one reply, and writes one line.
+The [agent contract](../reference/glossary.md#agent-contract) has one output line for each message ([SPEC.md section 6](../../SPEC.md#6-agent-contract-version-1)). Thus the entry reads the full stream, joins the parts into one reply, and writes one line.
 
 In Python, with `serve()`:
 
@@ -61,13 +61,13 @@ Use the `openai` adapter. The `json` adapter does not read a stream: for a strea
    nookku tap --agent http://127.0.0.1:8700/ --record tap.jsonl --adapter openai
    ```
 
-2. Configure the relay. Give the full `/v1/chat/completions` URL of the tap.
-   - **Plugin:** set the options `adapter` to `openai` and `tap_url` to `http://127.0.0.1:8800/v1/chat/completions`.
-   - **Project hooks:** run `nookku init claude-code --adapter openai --tap-url http://127.0.0.1:8800/v1/chat/completions`, or `init codex` with the same flags.
+2. Configure the [relay](../reference/glossary.md#relay). Give the full `/v1/chat/completions` URL of the tap.
+   - **[Plugin](../reference/glossary.md#plugin):** set the options `adapter` to `openai` and `tap_url` to `http://127.0.0.1:8800/v1/chat/completions`.
+   - **[Project hooks](../reference/glossary.md#project-hooks):** run `nookku init claude-code --adapter openai --tap-url http://127.0.0.1:8800/v1/chat/completions`, or `init codex` with the same flags.
 3. If the agent streams only when the request has `"stream": true`, set the option `openai_stream` to `true`. For the project hooks, add the flag `--openai-stream` to `init`. To set it back to `false`, use `--no-openai-stream`. Else the relay sends `"stream": false`.
-4. Switch relay mode on and off, and audit the two records, as in [http-tap.md](http-tap.md#3-relay-mode-on-and-off).
+4. Switch [relay mode](../reference/glossary.md#relay-mode) on and off, and audit the two records, as in [http-tap.md](http-tap.md#3-relay-mode-on-and-off).
 
-The tap sends each part to the relay when the part comes. When the stream ends, it writes the joined reply to the tap record. The relay shows the reply when the stream is complete.
+The tap sends each part to the relay when the part comes. When the stream ends, it writes the joined reply to the [tap record](../reference/glossary.md#tap-record). The relay shows the reply when the stream is complete.
 
 A stream fails if it ends with no `[DONE]` event, sends an error, or has a malformed chunk. Then the tap record gets `reply: null` and the reason in `error`. The relay shows the error and records it with `ok: false`. The tester never sees a part of a failed reply ([SPEC.md section 4.1](../../SPEC.md#41-http-mode), [section 5](../../SPEC.md#5-relays)).
 
