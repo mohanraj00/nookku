@@ -60,7 +60,7 @@ SPEC.md: [section 8.6](../../SPEC.md#86-findings).
 
 ## Harness
 
-A coding harness: Claude Code or Codex. The tester types in a harness, and the relay is an extension of it. Your app can also use a harness for its own model sessions, for example through the Claude Agent SDK. Then that harness writes the session files that the test copies. The README calls Nookku a "test harness". Each other use of "harness" in the docs means a coding harness.
+A coding harness: Claude Code or Codex. The tester types in a harness, and the relay is an extension of it. Your app can also use a harness for its own model sessions, for example through the Claude Agent SDK. Then that harness writes the session files that the test copies.
 
 SPEC.md: [section 1](../../SPEC.md#1-parts), [section 7.3](../../SPEC.md#73-model-sessions).
 

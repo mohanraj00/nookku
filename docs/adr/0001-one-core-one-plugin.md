@@ -4,7 +4,7 @@ Status: proposed. Date: 2026-10-08. Issue: [#180](https://github.com/mohanraj00/
 
 ## Context
 
-The project started as a relay. Now it is a test harness for developers of agent apps. It starts the agent, relays the turns, taps them, seals the test, audits, traces and evaluates.
+The project started as a relay. Now it is a test tool for developers of agent apps. It starts the agent, relays the turns, taps them, seals the test, audits, traces and evaluates.
 
 In v0.3, 2 relays do this work:
 
