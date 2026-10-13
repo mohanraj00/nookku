@@ -145,7 +145,7 @@ nookku start
 
 ```text
 Test 20261011-185435-1c1b started on http://127.0.0.1:49439/. Relay mode is on.
-End it with: nookku end
+To end the test and start the evaluation, type the prompt nookku end. To end the test with no evaluation, run nookku end in a shell.
 ```
 
 You can also type the prompt `nookku start`, or `/nookku start` in the plugin. The new test is a new conversation. The agent does not get the turns of the stuck test.

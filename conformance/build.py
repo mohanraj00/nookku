@@ -172,6 +172,19 @@ CASES_BY_NAME: dict[str, tuple[list | None, list | None, dict]] = {
         [CLEAN_RELAY[0], BLOCKED, *CLEAN_RELAY[1:]],
         {"exit": 0, "breaks": [], "blocked_calls": 1},
     ),
+    # The detail of a blocked call with an astral character, with an escaped lone surrogate and
+    # with 300 code points that are 582 UTF-16 code units (SPEC.md section 2.2).
+    "blocked_call_detail_with_astral_characters": (
+        CLEAN_TAP,
+        [
+            CLEAN_RELAY[0],
+            {**BLOCKED, "detail": '{"command": "echo Mug sold out 😀"}'},
+            {**BLOCKED, "detail": '{"command": "echo Mug sold out \\ud83d"}'},
+            {**BLOCKED, "detail": '{"command": "echo ' + "📦" * 282},
+            *CLEAN_RELAY[1:],
+        ],
+        {"exit": 0, "breaks": [], "blocked_calls": 3},
+    ),
     "agent_error_is_a_note": (
         [ex(M1, None, status=500, error="HTTP 500")],
         [turn(M1, "The agent returned an error.")],
