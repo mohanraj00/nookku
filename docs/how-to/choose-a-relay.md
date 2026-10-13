@@ -2,8 +2,8 @@
 
 The [relay](../reference/glossary.md#relay) carries each message to your agent and each reply back to you. It is one command, `nookku hook`, with one set of rules ([SPEC.md section 5](../../SPEC.md#5-relays)). You install it in one of 2 forms, in Claude Code or in Codex:
 
-- **The plugin.** You install it one time with the plugin command of your harness. It works in each project that has a `.nookku/` folder.
-- **The project hooks.** `nookku init claude-code` or `nookku init codex` writes the same 2 hooks into one project.
+- **The [plugin](../reference/glossary.md#plugin).** You install it one time with the plugin command of your [harness](../reference/glossary.md#harness). It works in each project that has a `.nookku/` folder.
+- **The [project hooks](../reference/glossary.md#project-hooks).** `nookku init claude-code` or `nookku init codex` writes the same 2 hooks into one project.
 
 Use this page to select a form, and to select how the relay reaches your agent.
 
@@ -36,7 +36,7 @@ flowchart TD
 | The start and end commands | The prompts `nookku start` and `nookku end`. In Claude Code, also `/nookku start` and `/nookku end`. | The prompts `nookku start` and `nookku end`. |
 | Where the reply shows | In the chat, as the reason of a blocked prompt. In Claude Code, also in the Nookku pane (`/nookku view`). In Codex, also in `nookku view`, in a second terminal. | In the chat, as the reason of a blocked prompt, and in `nookku view`, in a second terminal. |
 | How the model reads the transcript | With the read-only `transcript` tool of the MCP server `nookku mcp`, in pages. | With the command `nookku transcript`. |
-| If `nookku` is not on `PATH` | The shell guard of the plugin blocks each prompt and denies each tool call in relay mode. | The hooks do not use `PATH`. If you move the install, run `nookku init` again. |
+| If `nookku` is not on `PATH` | The shell guard of the plugin blocks each prompt and denies each tool call in [relay mode](../reference/glossary.md#relay-mode). | The hooks do not use `PATH`. If you move the install, run `nookku init` again. |
 
 The plugin loads in Claude Code 2.1.296 and in Codex 0.162.1 ([data](../../proofs/plugin/load.json), [method](../../scripts/proof_plugin_load.py)). The proofs P1 to P4 ran on the project hooks in Claude Code 2.1.296 ([data](../../proofs/hooks-claude-code/results.json)) and in codex-cli 0.162.1 ([data](../../proofs/hooks-codex/results.json)).
 
@@ -44,7 +44,7 @@ Both forms run the same rules and give the model the same transcript text. Both 
 
 ## Switch from one form to the other
 
-**Warning:** Never use both forms in one project. If both run, each message goes to the agent two times, and the [audit](../reference/glossary.md#audit) reports a `duplicate_send` break ([SPEC.md section 3.3](../../SPEC.md#33-break-classes)). `nookku start` and `nookku mode on` refuse a test if both forms are on, in Claude Code and in Codex. `nookku init` warns if the other form is on in Claude Code.
+**Warning:** Never use both forms in one project. If both run, each message goes to the agent two times, and the [audit](../reference/glossary.md#audit) reports a `duplicate_send` [break](../reference/glossary.md#break) ([SPEC.md section 3.3](../../SPEC.md#33-break-classes)). `nookku start` and `nookku mode on` refuse a test if both forms are on, in Claude Code and in Codex. `nookku init` warns if the other form is on in Claude Code.
 
 The 2 forms use the same `.nookku/config.json` and the same [test folders](../reference/glossary.md#test-folder). A switch keeps your entry and your old tests.
 

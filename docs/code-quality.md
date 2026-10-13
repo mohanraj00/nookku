@@ -8,12 +8,12 @@ A check is a test, a lint rule, a conformance case or a CI step. "Review" means 
 
 | # | Rule | Check |
 |---|---|---|
-| 1 | [Fail closed](#1-fail-closed) | Tests in `tests/test_kit.py` and `register.test.ts`, also for the plugin prompt path ([#63](https://github.com/mohanraj00/nookku/issues/63)) and the deny path ([#68](https://github.com/mohanraj00/nookku/issues/68)). |
-| 2 | [Exact bytes](#2-exact-bytes) | Byte tests of each relay and proxy. Proofs P1 and P2. |
+| 1 | [Fail closed](#1-fail-closed) | Tests in `tests/test_kit.py` and `register.test.ts`, also for the [plugin](reference/glossary.md#plugin) prompt path ([#63](https://github.com/mohanraj00/nookku/issues/63)) and the deny path ([#68](https://github.com/mohanraj00/nookku/issues/68)). |
+| 2 | [Exact bytes](#2-exact-bytes) | Byte tests of each [relay](reference/glossary.md#relay) and proxy. Proofs P1 and P2. |
 | 3 | [One rule, one copy](#3-one-rule-one-copy) | The tables in `tests/tables.json`: `contract_lines` for the contract lines, `deny_cases` for the deny patterns ([#70](https://github.com/mohanraj00/nookku/issues/70)) and `detail_cases` for the detail of a blocked call ([#88](https://github.com/mohanraj00/nookku/issues/88)). |
 | 4 | [Records](#4-records) | Conformance cases and the CI step for them, also for Unicode ([#43](https://github.com/mohanraj00/nookku/issues/43), [#65](https://github.com/mohanraj00/nookku/issues/65)). The shared `RELAY_LINES` table for one reader ([#71](https://github.com/mohanraj00/nookku/issues/71)). |
 | 5 | [No secrets](#5-no-secrets) | Secret tests of the 2 proxies, also for query values ([#69](https://github.com/mohanraj00/nookku/issues/69)). |
-| 6 | [Timeouts](#6-timeouts) | `test_each_timeout_ends_before_the_next_one`, also for the HTTP tap ([#67](https://github.com/mohanraj00/nookku/issues/67)). |
+| 6 | [Timeouts](#6-timeouts) | `test_each_timeout_ends_before_the_next_one`, also for the HTTP [tap](reference/glossary.md#tap) ([#67](https://github.com/mohanraj00/nookku/issues/67)). |
 | 7 | [Errors](#7-errors) | Ruff `E722`. Review. |
 | 8 | [Tests](#8-tests) | Review ([#62](https://github.com/mohanraj00/nookku/issues/62)). |
 | 9 | [Dependencies, types and lint](#9-dependencies-types-and-lint) | `test_no_runtime_dependencies`, mypy, ruff, `claude plugin validate`. |
@@ -21,11 +21,11 @@ A check is a test, a lint rule, a conformance case or a CI step. "Review" means 
 
 ## 1. Fail closed
 
-**Rule.** If a relay path or a deny path fails, it blocks the message or the tool call. This applies to both forms of the relay, the plugin and the project hooks, in each mode.
+**Rule.** If a relay path or a deny path fails, it blocks the message or the tool call. This applies to both forms of the relay, the plugin and the [project hooks](reference/glossary.md#project-hooks), in each mode.
 
-**Reason.** A relay path that fails open gives the tester's message to the model. The model can then change the message, and the test is not valid.
+**Reason.** A relay path that fails open gives the [tester](reference/glossary.md#tester)'s message to the model. The model can then change the message, and the test is not valid.
 
-**Example.** `kit.run_hook` in [src/nookku/kit.py](../src/nookku/kit.py) catches each exception in relay mode and blocks the prompt with "Nothing reached the model." The plugin runs the same hook. If the `nookku` command is not on `PATH`, [plugins/nookku/hooks/nookku-hook.sh](../plugins/nookku/hooks/nookku-hook.sh) blocks the prompt and denies the tool call in relay mode or during a test ([#216](https://github.com/mohanraj00/nookku/issues/216)).
+**Example.** `kit.run_hook` in [src/nookku/kit.py](../src/nookku/kit.py) catches each exception in [relay mode](reference/glossary.md#relay-mode) and blocks the prompt with "Nothing reached the model." The plugin runs the same hook. If the `nookku` command is not on `PATH`, [plugins/nookku/hooks/nookku-hook.sh](../plugins/nookku/hooks/nookku-hook.sh) blocks the prompt and denies the tool call in relay mode or during a test ([#216](https://github.com/mohanraj00/nookku/issues/216)).
 
 **Check.**
 
@@ -38,7 +38,7 @@ A check is a test, a lint rule, a conformance case or a CI step. "Review" means 
 
 **Rule.** The relays and the proxies never change a byte of a message, a reply or a forwarded body. Do not normalize whitespace, line ends or Unicode. A record can hold a decoded or cut copy of a body, but the forwarded bytes stay the same.
 
-**Reason.** The audit compares text byte for byte ([SPEC.md section 3.2](../SPEC.md#32-matching)). A change of one byte is a break.
+**Reason.** The [audit](reference/glossary.md#audit) compares text byte for byte ([SPEC.md section 3.2](../SPEC.md#32-matching)). A change of one byte is a [break](reference/glossary.md#break).
 
 **Example.** `test_a_gzip_response_is_decoded_in_the_record_only` in [tests/test_backend.py](../tests/test_backend.py): the proxy decodes a copy for the record and forwards the gzip bytes. The case [conformance/cases/altered_input_unicode_nfd](../conformance/cases/altered_input_unicode_nfd) shows that the audit reports a change of Unicode form as a break.
 
@@ -66,7 +66,7 @@ A check is a test, a lint rule, a conformance case or a CI step. "Review" means 
 
 - Contract lines: `tests/test_contract.py::test_the_tap_reads_each_one_line_case_of_the_table` checks `contract_lines` in `tests/tables.json` against `conformance/contract/` and against `contract.parse_reply`.
 - Deny patterns: `tests/test_kit.py::test_the_deny_pattern_matches_each_case_of_the_table` checks `deny_cases` against `kit.deny_pattern` ([#70](https://github.com/mohanraj00/nookku/issues/70)).
-- Relay records: `tests/test_conformance.py::test_the_reader_takes_each_relay_line_of_the_table` checks `relay_lines` against `record.read_rows` ([#71](https://github.com/mohanraj00/nookku/issues/71)).
+- [Relay records](reference/glossary.md#relay-record): `tests/test_conformance.py::test_the_reader_takes_each_relay_line_of_the_table` checks `relay_lines` against `record.read_rows` ([#71](https://github.com/mohanraj00/nookku/issues/71)).
 - Config keys: `start`, `check`, `init` and `nookku hook` read `.nookku/config.json` with `config.read_config`. `tests/test_cli.py::test_an_unknown_key_stops_start_check_and_the_hook_kit_with_one_message` checks that they give one error ([#89](https://github.com/mohanraj00/nookku/issues/89)).
 - The detail of a `blocked_call` row: `tests/test_kit.py::test_the_blocked_call_detail_keeps_300_code_points` checks `detail_cases` against `kit.blocked_detail` and `record.read_rows` ([#88](https://github.com/mohanraj00/nookku/issues/88)).
 
@@ -94,7 +94,7 @@ A check is a test, a lint rule, a conformance case or a CI step. "Review" means 
 
 **Rule.** No secret header value, query value or key goes into a record. The proxy still forwards it with no change.
 
-**Reason.** The harness model reads the records in the evaluation. A secret in a record goes to the model and to each person who gets the test folder.
+**Reason.** The [harness model](reference/glossary.md#harness-model) reads the records in the [evaluation](reference/glossary.md#evaluation). A secret in a record goes to the model and to each person who gets the [test folder](reference/glossary.md#test-folder).
 
 **Example.** `backend.secret` and `SECRET_HEADERS` in [src/nookku/backend.py](../src/nookku/backend.py) remove the values of secret headers ([SPEC.md section 7.6](../SPEC.md#76-backend-proxies)). Defect: the backend proxy recorded the query as it came, so `?api_key=...` went into `backend.jsonl` ([#69](https://github.com/mohanraj00/nookku/issues/69)). Now the proxies remove the values of secret query parameters.
 
@@ -113,7 +113,7 @@ A check is a test, a lint rule, a conformance case or a CI step. "Review" means 
 | The stdio tap and the HTTP tap wait for the agent | `stdio.TIMEOUT` | [240 s](../src/nookku/stdio.py) |
 | The test relay waits for the tap | `state.TIMEOUT` | [270 s](../src/nookku/state.py) |
 | The relay waits for the tap | `kit.TIMEOUT` | [280 s](../src/nookku/kit.py) |
-| The harness waits for the prompt hook | `kit.HOOK_DEADLINE` | [300 s](../src/nookku/kit.py) |
+| The [harness](reference/glossary.md#harness) waits for the prompt hook | `kit.HOOK_DEADLINE` | [300 s](../src/nookku/kit.py) |
 
 **Reason.** If an inner wait is longer than an outer wait, the outer step stops first. Then the hook cannot block the prompt, and the record and the relay disagree.
 
@@ -139,7 +139,7 @@ A check is a test, a lint rule, a conformance case or a CI step. "Review" means 
 **Check.**
 
 - Ruff `E722` refuses a bare `except:`.
-- `register.test.ts`: "relay mode with an entry and no test fails closed" and "a current.json whose bridge does not run is no test, and the prompt does not reach the model" check the text "no test runs".
+- `register.test.ts`: "relay mode with an [entry](reference/glossary.md#entry) and no test fails closed" and "a current.json whose [bridge](reference/glossary.md#bridge) does not run is no test, and the prompt does not reach the model" check the text "no test runs".
 - `tests/test_kit.py::test_a_prompt_with_a_lone_surrogate_is_refused_and_not_recorded` checks the message of [#65](https://github.com/mohanraj00/nookku/issues/65).
 
 ## 8. Tests

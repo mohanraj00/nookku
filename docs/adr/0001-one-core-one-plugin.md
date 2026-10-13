@@ -4,14 +4,14 @@ Status: proposed. Date: 2026-10-08. Issue: [#180](https://github.com/mohanraj00/
 
 ## Context
 
-The project started as a relay. Now it is a test tool for developers of agent apps. It starts the agent, relays the turns, taps them, seals the test, audits, traces and evaluates.
+The project started as a [relay](../reference/glossary.md#relay). Now it is a test tool for developers of agent apps. It starts the agent, relays the turns, [taps](../reference/glossary.md#tap) them, [seals](../reference/glossary.md#seal) the test, [audits](../reference/glossary.md#audit), [traces](../reference/glossary.md#trace) and evaluates.
 
 In v0.3, 2 relays do this work:
 
 - The hook kit: Python command hooks that `init` writes into a project, for Claude Code and Codex.
-- The Claude Code plugin: TypeScript function hooks.
+- The Claude Code [plugin](../reference/glossary.md#plugin): TypeScript function hooks.
 
-Testers used both relays. The plugin gave a better experience, but it works only in Claude Code. Its rules repeat the Python rules in TypeScript. The 5 open guard issues of v0.4.0, [#146](https://github.com/mohanraj00/nookku/issues/146), [#149](https://github.com/mohanraj00/nookku/issues/149), [#150](https://github.com/mohanraj00/nookku/issues/150), [#172](https://github.com/mohanraj00/nookku/issues/172) and [#173](https://github.com/mohanraj00/nookku/issues/173), must each change the same rule in both copies.
+[Testers](../reference/glossary.md#tester) used both relays. The plugin gave a better experience, but it works only in Claude Code. Its rules repeat the Python rules in TypeScript. The 5 open guard issues of v0.4.0, [#146](https://github.com/mohanraj00/nookku/issues/146), [#149](https://github.com/mohanraj00/nookku/issues/149), [#150](https://github.com/mohanraj00/nookku/issues/150), [#172](https://github.com/mohanraj00/nookku/issues/172) and [#173](https://github.com/mohanraj00/nookku/issues/173), must each change the same rule in both copies.
 
 Before this decision, I measured 5 questions in spikes. Each result below links to its data and its method. The versions are in each data file.
 
@@ -24,7 +24,7 @@ Data: [`hook-display.json`](../../proofs/spikes/hook-display.json). Method: [`sp
 - In print mode, a reason of 1, 10 and 100 KiB was complete, byte for byte.
 - In the interactive CLI, the screen does not always show the start of a reply that is longer than the screen. In 4 runs, the start of a 10 KiB or 100 KiB text was on the screen in 0, 0, 3 and 4 of 4 cases.
 - In the CLI, the model did not get the hook text, in this turn or in the next turn. In the desktop app, I did not measure this, because I had no proxy there.
-- In print mode, Claude Code sent the blocked prompt to the model API in a harness request with no tools and 1 message. This occurred in 9 of 9 cases. In the interactive CLI, it occurred in 0 of 9 cases. [#199](https://github.com/mohanraj00/nookku/issues/199) records this limit.
+- In print mode, Claude Code sent the blocked prompt to the model API in a [harness](../reference/glossary.md#harness) request with no tools and 1 message. This occurred in 9 of 9 cases. In the interactive CLI, it occurred in 0 of 9 cases. [#199](https://github.com/mohanraj00/nookku/issues/199) records this limit.
 
 ### Can a command hook show the reply? (Codex, #193)
 
@@ -81,7 +81,7 @@ Data: [`hook-latency.json`](../../proofs/spikes/hook-latency.json). Method: [`sp
 ## Decision
 
 - **Name.** The project becomes Nookku (Tamil நோக்கு: to look, observe, scrutinize). Tagline: "A test harness for developers of agent apps." [#181](https://github.com/mohanraj00/nookku/issues/181) does the rename. The tagline changed in v0.4.1: read [Change: the tagline](#change-the-tagline).
-- **One core.** One core in Python holds each rule and each text: the control words, the relay, the guard, the policy, the status, the start and end texts, and the scripted tests. No rule has a TypeScript copy.
+- **One core.** One core in Python holds each rule and each text: the control words, the relay, the guard, the policy, the status, the start and end texts, and the [scripted tests](../reference/glossary.md#scripted-test). No rule has a TypeScript copy.
 - **One plugin.** One plugin folder serves Claude Code and Codex. It has a manifest for each harness, one command hook file, one MCP server and one skills folder. Each command hook runs `python -m nookku hook`.
 - **Display layer.** Claude Code function hooks are an optional display layer: dim rows, a pane, a status line and slash commands. They hold no rule. If they break, the command hooks still work. In Codex, an optional MCP App can be the display layer of the desktop app, with its logic in the core. Before an MCP App shows a live reply, a spike must prove that it keeps the bytes, and that a click result does not go to the model. In the interactive CLI, hook warnings can give short notices. `codex exec` has no display layer, so it needs `nookku view`. A display layer never carries a tester reply in text that goes to the model, for example `additionalContext`.
 - **Fallback.** `init` writes the same command hooks into a project, for a project that cannot install plugins.
@@ -93,7 +93,7 @@ The spikes give these rules for the design:
 - **Trust gate.** In Codex, the core checks the hook state with `hooks/list` before the first relayed message. If a required hook is missing, disabled, untrusted or modified, the core refuses the test. The plugin's own `SessionStart` hook is not the gate. A person always does the trust step. The check is not a security boundary alone. If a hook changes after the check, Codex skips it, so the hook cannot detect the change. Thus the core starts Codex with the plugin files and the runtime configuration that it checked, and keeps them unchanged until the test ends. [#182](https://github.com/mohanraj00/nookku/issues/182) designs how.
 - **Transcript tool.** The MCP server gives the model read-only tools: `transcript` and `status`. `transcript` returns pages, with an offset, a page count and a hash. The page size is configurable. The output limits count tokens, not bytes, so the core bounds each page by a token estimate, not by bytes. The only measured safe case is 10 KiB of repetitive English text, in both CLIs. Codex truncated that text at about 12 KiB, so token-dense text can be truncated below 10 KiB. Before [#182](https://github.com/mohanraj00/nookku/issues/182) sets the default, it measures a token-dense page, for example non-ASCII text and JSON, in both harnesses.
 - **Tool names.** The core builds the allowed tool names from one constant for each harness, because the 2 harnesses use different prefixes.
-- **Hook time.** Keep one Python process for each event. The hook path imports only the modules that its rule needs. A test fails if the hook path imports more. The target is less than 25 ms on macOS for a warm event. The guard does not call the bridge over loopback.
+- **Hook time.** Keep one Python process for each event. The hook path imports only the modules that its rule needs. A test fails if the hook path imports more. The target is less than 25 ms on macOS for a warm event. The guard does not call the [bridge](../reference/glossary.md#bridge) over loopback.
 - **Blocked prompts.** A command hook alone does not keep a blocked prompt from the model API. `claude -p` and the Codex desktop app sent it in a side request. Until [#199](https://github.com/mohanraj00/nookku/issues/199) and [#203](https://github.com/mohanraj00/nookku/issues/203) close, the docs state this limit.
 
 ## Options that I did not take
@@ -122,6 +122,6 @@ The first tagline said what Nookku is, but not the problem that it solves. A new
 The new tagline and its second line are:
 
 - Tagline: "Test your chat agent from Claude Code or Codex, byte for byte."
-- Second line: "Nookku carries each test message to your agent unchanged, records what the agent got, and names each break."
+- Second line: "Nookku carries each test message to your agent unchanged, records what the agent got, and names each [break](../reference/glossary.md#break)."
 
 The README gives the tagline one time, at the top. The rest of this ADR does not change.

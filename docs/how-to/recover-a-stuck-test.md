@@ -1,12 +1,12 @@
 # Recover a stuck test
 
-A test is stuck when its bridge stopped, but the project still says that a test runs. For example, the computer restarted, or a process killed the bridge. Then the relay blocks each prompt with this text:
+A test is stuck when its [bridge](../reference/glossary.md#bridge) stopped, but the project still says that a test runs. For example, the computer restarted, or a process killed the bridge. Then the [relay](../reference/glossary.md#relay) blocks each prompt with this text:
 
 ```text
 nookku: relay mode is on, but no test runs. Start one with: nookku start. Nothing was sent.
 ```
 
-The plugin shows the same text with `Type /nookku start`, or "the test stopped, and no test runs" ([claude-code-plugin.md](claude-code-plugin.md)). In both relays, the message does not go to the model.
+The [plugin](../reference/glossary.md#plugin) shows the same text with `Type /nookku start`, or "the test stopped, and no test runs" ([claude-code-plugin.md](claude-code-plugin.md)). In both relays, the message does not go to the model.
 
 The output on this page is the real output of each step. I used the toy shop project of [getting-started.md](../getting-started.md) with nookku 0.4.0 on macOS. I started a test, gave one message to `nookku hook --harness claude-code`, as Claude Code does, and stopped the bridge with `kill -9`. I shortened the paths of the folders to `.../`. The test id, the pid and the times are different on your machine.
 
@@ -22,7 +22,7 @@ nookku status
 relay mode is on. No test runs.
 ```
 
-Relay mode is on, but no test runs. Thus the bridge does not run. If a test runs, the line names it:
+[Relay mode](../reference/glossary.md#relay-mode) is on, but no test runs. Thus the bridge does not run. If a test runs, the line names it:
 
 ```text
 relay mode is on. Test 20261011-185435-1c1b runs on http://127.0.0.1:49439/.
@@ -75,7 +75,7 @@ Now each prompt goes to the model again.
 
 ## 4. Learn what a stale `current.json` is
 
-The bridge writes `.nookku/current.json` when a test starts, and removes it when the test ends. The file names the test, its folder, the tap URL, the pid of the bridge and `pid_start`, the start time of the bridge ([reference/records.md](../reference/records.md#the-state-folder)). If the bridge stops with no end, for example after `kill -9` or a restart, the file stays. This file is stale.
+The bridge writes `.nookku/current.json` when a test starts, and removes it when the test ends. The file names the test, its folder, the [tap](../reference/glossary.md#tap) URL, the pid of the bridge and `pid_start`, the start time of the bridge ([reference/records.md](../reference/records.md#the-state-folder)). If the bridge stops with no end, for example after `kill -9` or a restart, the file stays. This file is stale.
 
 A pid and its start time identify the bridge, because the OS can give the pid of a stopped process to a new process. If no process has the pid, or if that process has another start time, no test runs ([SPEC.md section 7.2](../../SPEC.md#72-start-and-end)). Then `status`, `start` and `end` remove the file. The relays also do this check before each prompt.
 
@@ -114,7 +114,7 @@ cat .nookku/current.json
 cat: .nookku/current.json: No such file or directory
 ```
 
-The folder of the stuck test stays. It has `relay.jsonl`, `tap.jsonl`, `app.log`, `bridge.log` and `manifest.json`, and the files that the app wrote in `app-state/`. It has no `audit.json` and no seal, because the bridge did not finish the test. `verify` says so and exits with 2:
+The folder of the stuck test stays. It has `relay.jsonl`, `tap.jsonl`, `app.log`, `bridge.log` and `manifest.json`, and the files that the app wrote in `app-state/`. It has no `audit.json` and no [seal](../reference/glossary.md#seal), because the bridge did not finish the test. `verify` says so and exits with 2:
 
 ```bash
 nookku verify 20261011-185432-0da0
@@ -124,7 +124,7 @@ nookku verify 20261011-185432-0da0
 Test 20261011-185432-0da0. Seal: none. The records of this test have no seal.
 ```
 
-You can still audit the 2 records by hand:
+You can still [audit](../reference/glossary.md#audit) the 2 records by hand:
 
 ```bash
 nookku audit --tap .nookku/tests/20261011-185432-0da0/tap.jsonl --relay .nookku/tests/20261011-185432-0da0/relay.jsonl

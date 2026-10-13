@@ -2,7 +2,7 @@
 
 This guide takes your own app from the install to the results of a first [test](../reference/glossary.md#test). Each step gives the expected output, so you can compare your screen with it.
 
-I made the output with the toy shop agent of this repo ([examples/toy-shop/agent.py](../../examples/toy-shop/agent.py)) as the app, nookku 0.4.0 ([version](../../src/nookku/__init__.py)) and the project hooks of Claude Code. I gave each prompt, and the command of step 7, to `nookku hook --harness claude-code`, as Claude Code does. The `config.json` of step 2 comes from an earlier run in Claude Code with verbatim-relay 0.3.0, because a model wrote it. Each output is a sample of one run, not a measurement. To make it again, run the steps of this page on the toy shop, with the same 3 messages as the [tutorial](../getting-started.md#6-run-the-test). I shortened the paths of the folders to `.../`. The test ids and the replies of your app are different. The [tutorial](../getting-started.md) shows the same steps for the toy shop only.
+I made the output with the toy shop agent of this repo ([examples/toy-shop/agent.py](../../examples/toy-shop/agent.py)) as the app, nookku 0.4.0 ([version](../../src/nookku/__init__.py)) and the [project hooks](../reference/glossary.md#project-hooks) of Claude Code. I gave each prompt, and the command of step 7, to `nookku hook --harness claude-code`, as Claude Code does. The `config.json` of step 2 comes from an earlier run in Claude Code with verbatim-relay 0.3.0, because a model wrote it. Each output is a sample of one run, not a measurement. To make it again, run the steps of this page on the toy shop, with the same 3 messages as the [tutorial](../getting-started.md#6-run-the-test). I shortened the paths of the folders to `.../`. The test ids and the replies of your app are different. The [tutorial](../getting-started.md) shows the same steps for the toy shop only.
 
 ## What you need
 
@@ -43,7 +43,7 @@ Then type this prompt:
 Follow the nookku setup guide, and connect a test to this app.
 ```
 
-Do not type only `nookku setup` as a prompt. In my first test of a real app, the model did not know the tool. It searched the project for the term, did not run the command, and asked what I meant. If the Claude Code plugin is installed, its `setup` skill also runs the command.
+Do not type only `nookku setup` as a prompt. In my first test of a real app, the model did not know the tool. It searched the project for the term, did not run the command, and asked what I meant. If the Claude Code [plugin](../reference/glossary.md#plugin) is installed, its `setup` skill also runs the command.
 
 The model reads your app and writes 2 files in `.nookku/`:
 
@@ -87,7 +87,7 @@ Audit: exit 0
 PASS
 ```
 
-Read the `Reply:` line. It must be a reply of your app to the message of the config key `check_message`. The default is `Hello from nookku check. What can you help me with?`. If your app declines this message, for example because it is out of scope, set a message that your app answers: `nookku init <harness> --check-message "Do you sell teapots?"`. Use the harness of your relay, for example `plugin`. If it is an error of your app, read `app.log` in the [test folder](../reference/glossary.md#test-folder) that the first line names.
+Read the `Reply:` line. It must be a reply of your app to the message of the config key `check_message`. The default is `Hello from nookku check. What can you help me with?`. If your app declines this message, for example because it is out of scope, set a message that your app answers: `nookku init <harness> --check-message "Do you sell teapots?"`. Use the harness of your [relay](../reference/glossary.md#relay), for example `plugin`. If it is an error of your app, read `app.log` in the [test folder](../reference/glossary.md#test-folder) that the first line names.
 
 Then read the last line. `PASS` means that the entry sent a reply, the audit of the test is clean, and the test found a model session for each harness in `models`. `check` then exits with 0. Else the last line starts with `FAIL:`, gives the cause, and `check` exits with 1. For example, if the entry writes a log line on stdout, the last 3 lines are:
 
@@ -120,7 +120,7 @@ Relay mode is off. Switch it with: nookku mode on
 Do not also enable the nookku Claude Code plugin in this project, or each message is sent two times.
 ```
 
-`init` keeps the entry from step 2, so do not give `--entry`. Do not switch relay mode on now. Step 6 starts the test.
+`init` keeps the entry from step 2, so do not give `--entry`. Do not switch [relay mode](../reference/glossary.md#relay-mode) on now. Step 6 starts the test.
 
 ### Project hooks in Codex
 
@@ -186,7 +186,7 @@ do you ship to delhi?
 We ship to Chennai and Pune. Delivery takes 3 to 5 days.  
 ```
 
-To end the test, type the prompt `nookku end`. The relay stops the entry, copies the session files of your app, builds the [trace](../reference/glossary.md#trace), writes the audit and [seals](../reference/glossary.md#seal) the test folder. Then the prompt goes to the model with this end text and the evaluation prompt:
+To end the test, type the prompt `nookku end`. The relay stops the entry, copies the session files of your app, builds the [trace](../reference/glossary.md#trace), writes the audit and [seals](../reference/glossary.md#seal) the test folder. Then the prompt goes to the model with this end text and the [evaluation](../reference/glossary.md#evaluation) prompt:
 
 ```text
 nookku: relay mode is off.
@@ -267,7 +267,7 @@ If your app has fixed conversations in its own tests, run them through the relay
 
 4. Read the output. It gives the test id, the count of turns, the audit and the trace, then `PASS` or each `FAIL:` line. Read the replies with `nookku transcript --test <test-id>`.
 
-By default, only a person runs `nookku run`. To let the harness model run a script, run `nookku policy set scripts model` in a shell. Then the model can also use the `run_script` tool of the plugin. A scripted test always shows the turns as `script`, not as typed turns ([SPEC.md section 7.10](../../SPEC.md#710-scripted-tests)).
+By default, only a person runs `nookku run`. To let the harness model run a script, run `nookku policy set scripts model` in a shell. Then the model can also use the `run_script` tool of the plugin. A [scripted test](../reference/glossary.md#scripted-test) always shows the turns as `script`, not as typed turns ([SPEC.md section 7.10](../../SPEC.md#710-scripted-tests)).
 
 ## Next
 

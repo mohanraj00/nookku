@@ -1,12 +1,12 @@
 # Upgrade Nookku
 
-This page upgrades the CLI, the package in your app's environment, the Claude Code plugin and the Codex hooks. Some releases need a special step. Read the section of each release from your version to the new version in [Releases with a special step](#releases-with-a-special-step). [CHANGELOG.md](../../CHANGELOG.md) lists all changes.
+This page upgrades the CLI, the package in your app's environment, the Claude Code [plugin](../reference/glossary.md#plugin) and the Codex hooks. Some releases need a special step. Read the section of each release from your version to the new version in [Releases with a special step](#releases-with-a-special-step). [CHANGELOG.md](../../CHANGELOG.md) lists all changes.
 
 The output on this page is the real output of each step. I used the toy shop project of [getting-started.md](../getting-started.md) on macOS. The output of steps 2 and 5 comes from nookku 0.4.0. The output of the [0.3.0](#030) section comes from verbatim-relay 0.3.0 and Claude Code 2.1.294. I shortened the paths of the folders to `.../`. The test id and the times are different on your machine.
 
 ## 1. End each running test
 
-End each running test before you upgrade. A new version can read the `current.json` of an old test as no test, and then it does not stop the old bridge (see [0.3.0](#030)).
+End each running test before you upgrade. A new version can read the `current.json` of an old test as no test, and then it does not stop the old [bridge](../reference/glossary.md#bridge) (see [0.3.0](#030)).
 
 In each project that uses Nookku, run:
 
@@ -20,7 +20,7 @@ If the line names a test, end it:
 nookku end
 ```
 
-If the line names no test and relay mode is on, follow [recover-a-stuck-test.md](recover-a-stuck-test.md).
+If the line names no test and [relay mode](../reference/glossary.md#relay-mode) is on, follow [recover-a-stuck-test.md](recover-a-stuck-test.md).
 
 ## 2. Upgrade the CLI and the package
 
@@ -48,7 +48,7 @@ nookku 0.4.0
 
 The hooks of the kit run the Python of the CLI install, for example `.../nookku/bin/python -m nookku hook ...`. Thus the hooks use the new version, and the hook file does not change. If you install the CLI in a new place, run `nookku init` again, so that the hooks name the new Python.
 
-If your entry imports `nookku`, for example to use `serve()`, upgrade the package in your app's environment too ([connect-your-agent.md](connect-your-agent.md#in-python-use-serve)). With uv, run:
+If your [entry](../reference/glossary.md#entry) imports `nookku`, for example to use `serve()`, upgrade the package in your app's environment too ([connect-your-agent.md](connect-your-agent.md#in-python-use-serve)). With uv, run:
 
 ```bash
 uv sync --upgrade-package nookku
@@ -90,7 +90,7 @@ Each hook of the plugin, its MCP server and `/nookku` run the `nookku` command f
 
 ## 4. Trust the Codex hooks again
 
-If you use Codex, with the plugin or with the project hooks, start `codex` in the project. Type `/hooks`, check the 2 nookku hooks and trust them.
+If you use Codex, with the plugin or with the [project hooks](../reference/glossary.md#project-hooks), start `codex` in the project. Type `/hooks`, check the 2 nookku hooks and trust them.
 
 Do not skip this step. If Codex does not trust the hooks, it does not run them, and the model answers your test messages. `nookku start` refuses a test until you trust them ([SPEC.md section 7.8](../../SPEC.md#78-codex-hook-gate)) ([troubleshooting.md](../troubleshooting.md#in-codex-the-model-answers-my-test-messages)). You must trust a hook again after each change to it, for example after a new `nookku init` or a new plugin version ([codex.md](codex.md#install)).
 
@@ -130,11 +130,11 @@ If you upgrade the old package with `uv tool upgrade verbatim-relay`, you get `v
    uv tool install nookku
    ```
 
-3. In each project, run one `nookku` command, for example `nookku status`. The command moves `.verbatim-relay/` to `.nookku/`, with each test and each seal, and prints the 2 folders. If `config.json` has a `record` path in `.verbatim-relay/`, the command changes it to the same file in `.nookku/`.
+3. In each project, run one `nookku` command, for example `nookku status`. The command moves `.verbatim-relay/` to `.nookku/`, with each test and each [seal](../reference/glossary.md#seal), and prints the 2 folders. If `config.json` has a `record` path in `.verbatim-relay/`, the command changes it to the same file in `.nookku/`.
 
 4. If `.verbatim-relay/` and `.nookku/` both exist, each command stops with exit 1 and names the 2 folders. Each hook event is blocked. Keep one folder: move the tests that you need into `.nookku/tests/`, then remove `.verbatim-relay/`.
 
-5. If you use the project hooks (the hook kit of 0.3), run `nookku init` again with the same harness and flags. It replaces the hooks that verbatim-relay wrote. In Codex, trust the hooks again (step 4 above).
+5. If you use the project hooks (the hook kit of 0.3), run `nookku init` again with the same [harness](../reference/glossary.md#harness) and flags. It replaces the hooks that verbatim-relay wrote. In Codex, trust the hooks again (step 4 above).
 
 6. If you use the Claude Code plugin, remove the old plugin and its marketplace, then install the new plugin:
 
@@ -190,7 +190,7 @@ Stop it with SIGTERM, the default signal of `kill`:
 kill 38282
 ```
 
-On SIGTERM, the bridge ends the test as `end` does: it stops the entry, and writes the trace, the audit and the seal. The bridge of 0.2.0 does the same ([bridge.py of 0.2.0](https://github.com/mohanraj00/nookku/blob/v0.2.0/src/verbatim_relay/bridge.py#L514)). In my run, the test folder then had `audit.json` and `seal.json`:
+On SIGTERM, the bridge ends the test as `end` does: it stops the entry, and writes the [trace](../reference/glossary.md#trace), the [audit](../reference/glossary.md#audit) and the seal. The bridge of 0.2.0 does the same ([bridge.py of 0.2.0](https://github.com/mohanraj00/nookku/blob/v0.2.0/src/verbatim_relay/bridge.py#L514)). In my run, the [test folder](../reference/glossary.md#test-folder) then had `audit.json` and `seal.json`:
 
 ```bash
 nookku verify 20261007-224554-4b17
