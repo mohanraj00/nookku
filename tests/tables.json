@@ -26,6 +26,7 @@
  ],
  "relay_lines": [
   ["", false],
+  ["{\"v\": \"0.1\", \"type\": \"turn\", \"ts\": NaN, \"harness\": \"claude-code\", \"said\": \"\u00dcn\u00efc\u00f6d\u00e9 check: can I pay in \u20ac or \u20b9? \u00c7a marche?\", \"said_sha256\": \"a80c2f3530fd028aa513e5e34214643ae75b1e02f80fa3580a356ee6e5224877\", \"shown\": \"Caf\u00e9 policy: we accept \u20ac and \u20b9. R\u00e9sum\u00e9 of fees: none.\", \"shown_sha256\": \"65d02e898525f6bdd5cebfc4818c9088f86358fefc7adc90f95e3d7e810dc423\"}", false],
   ["{\"v\": \"0.1\", \"type\": \"blocked_call\", \"ts\": 1.0, \"harness\": \"claude-code\", \"tool\": \"Bash\", \"detail\": \"curl -s http://127.0.0.1:8800/\"}", true],
   ["{\"v\": \"0.1\", \"type\": \"blocked_call\", \"ts\": 1.0, \"harness\": \"claude-code\", \"tool\": \"Bash\", \"detail\": \"{\\\"command\\\": \\\"echo Mug sold out \ud83d\ude00\\\"}\"}", true],
   ["{\"v\": \"0.1\", \"type\": \"blocked_call\", \"ts\": 1.0, \"harness\": \"claude-code\", \"tool\": \"Bash\", \"detail\": \"{\\\"command\\\": \\\"echo Mug sold out \\\\ud83d\\\"}\"}", true],

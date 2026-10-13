@@ -172,14 +172,26 @@ def _failed_stream(row: dict[str, Any]) -> bool:
     return row.get("type") == "exchange" and ok and row.get("reply") is None
 
 
+class _Constant(ValueError):
+    """A record line has NaN, Infinity or -Infinity."""
+
+
+def _no_constant(name: str) -> Any:
+    # json.loads accepts NaN, Infinity and -Infinity. They are not JSON, and JSON.parse refuses
+    # them. contract.parse_reply uses the same rule (#45, #96).
+    raise _Constant(name)
+
+
 def _validate(kind: str, path: Path, n: int, raw: str) -> dict[str, Any]:
     def bad(message: str) -> RecordError:
         return RecordError("record_invalid", path, f"line {n}: {message}")
 
     try:
-        row = json.loads(raw)
+        row = json.loads(raw, parse_constant=_no_constant)
     except json.JSONDecodeError as e:
         raise bad(f"not JSON ({e.msg})") from None
+    except _Constant as e:
+        raise bad(f"{e} is not a JSON value") from None
     if not isinstance(row, dict):
         raise bad("not a JSON object")
     for name, value in row.items():
