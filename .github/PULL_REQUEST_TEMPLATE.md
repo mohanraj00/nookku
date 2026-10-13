@@ -22,7 +22,7 @@ From [docs/code-quality.md](https://github.com/mohanraj00/nookku/blob/main/docs/
 
 - [ ] **Fail closed.** If a relay path or a deny path fails, it blocks the message or the tool call.
 - [ ] **Exact bytes.** No relay or proxy changes a byte of a message, a reply or a forwarded body.
-- [ ] **One rule, one copy.** A rule that reads or matches an input is only in the core. A table of cases tests it.
+- [ ] **One rule, one copy.** A rule that reads or matches an input is only in the core, with the one exception in rule 3 of `docs/code-quality.md`. A table of cases tests it.
 - [ ] **Records.** A change to the record format or to the audit has a SPEC.md change. It also has a conformance case that I wrote by hand.
 - [ ] **No secrets.** No secret header value, query value or key goes into a record.
 - [ ] **Timeouts.** Each wait ends before the wait of the step around it.
