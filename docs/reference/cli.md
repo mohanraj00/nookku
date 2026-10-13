@@ -50,7 +50,7 @@ End the test: switch relay mode off, stop the entry and collect its sessions, th
 
 ### `nookku status`
 
-Show relay mode and the running test, for example `relay mode is on. Test 20261011-185435-1c1b runs on http://127.0.0.1:49439/.` If no test runs, the second sentence is `No test runs.` The prompt `nookku status` gives the same text. In relay mode, the status line of the plugin also shows it.
+Show relay mode and the running test, for example `relay mode is on. Test <test-id> runs on <tap-url>.` If no test runs, the second sentence is `No test runs.` The prompt `nookku status` gives the same text. In relay mode, the status line of the plugin also shows it.
 
 | Flag | Default | Meaning |
 |---|---|---|
