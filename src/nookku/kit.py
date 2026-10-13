@@ -1003,6 +1003,7 @@ class TranscriptError(Exception):
 
 # The name of a test folder. It has no path separator and no drive, on each system.
 TEST_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]*")
+TESTS_HELP = f"A test id is the name of a folder in {STATE_DIR}/tests of the project."
 
 
 def folder_of_test(root: Path, test: str) -> Path:
@@ -1011,7 +1012,33 @@ def folder_of_test(root: Path, test: str) -> Path:
     tests = (root / STATE_DIR / "tests").resolve()
     folder = (tests / test).resolve()
     if not TEST_ID.fullmatch(test) or folder.parent != tests:
-        raise TranscriptError(f"'{test}' is not a test id")
+        raise TranscriptError(f"'{test}' is not a test id. {TESTS_HELP}")
+    return folder
+
+
+def parse_test_arg(root: Path, arg: str) -> str:
+    """The test id of a TEST argument of the CLI. A tester can give the test id or the path of
+    the test folder. Raise TranscriptError with the expected argument for other text."""
+    if TEST_ID.fullmatch(arg):
+        return arg
+    tests = (root / STATE_DIR / "tests").resolve()
+    # The shell expands "~", so the argument is a path as it is. A loop of symbolic links
+    # raises RuntimeError or OSError, and then the argument is not a test folder.
+    try:
+        folder = Path(arg).resolve()
+    except (OSError, RuntimeError):
+        folder = None
+    if folder is not None and folder.parent == tests and TEST_ID.fullmatch(folder.name):
+        return folder.name
+    raise TranscriptError(f"'{arg}' is not a test id or a test folder. {TESTS_HELP}")
+
+
+def existing_test(root: Path, test: str) -> Path:
+    """The folder of a test id. Raise TranscriptError that names the expected argument if the
+    id is not valid or the test does not exist."""
+    folder = folder_of_test(root, test)
+    if not folder.is_dir():
+        raise TranscriptError(f"no test '{test}'. {TESTS_HELP}")
     return folder
 
 
@@ -1046,7 +1073,7 @@ def transcript_text(
             raise TranscriptError(f"cannot read the config: {e}") from None
 
     if trace:
-        folder = folder_of_test(root, test) if test else _latest(root)
+        folder = existing_test(root, test) if test else _latest(root)
         if folder is None or not folder.is_dir():
             raise TranscriptError("no test folder.")
         from nookku import evaluation
@@ -1057,7 +1084,7 @@ def transcript_text(
     conf = config()
     folder = _latest(root) if conf.entry and not record else None
     if test and not record:
-        folder = folder_of_test(root, test)
+        folder = existing_test(root, test)
     path = record or (folder / "relay.jsonl" if folder else conf.record_path(root))
     out = io.StringIO()
     scope = f"test {folder.name}" if folder else ""
