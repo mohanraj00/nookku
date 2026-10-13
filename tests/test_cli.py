@@ -82,6 +82,28 @@ def test_the_help_hides_the_bridge_command_and_the_command_still_runs(
     assert calls == [((tmp_path, "t-1", None), {"entry_name": None, "script_source": None})]
 
 
+def test_the_invalid_choice_error_does_not_name_an_internal_command(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    with pytest.raises(SystemExit) as exit_info:
+        main(["seal"])
+    assert exit_info.value.code == 2
+    err = capsys.readouterr().err
+    assert "invalid choice: 'seal'" in err
+    listed = err.split("choose from", 1)[1]
+    assert "start" in listed and "transcript" in listed
+    for name in ("bridge", "hook", "mcp"):
+        assert name not in listed
+    # Each internal command still runs.
+    calls: list[str] = []
+    monkeypatch.setattr(bridge, "run", lambda *args, **kw: calls.append("bridge") or 0)
+    assert main(["bridge", "--root", str(tmp_path), "--test", "t-1"]) == 0
+    assert calls == ["bridge"]
+    with pytest.raises(SystemExit) as exit_info:
+        main(["hook"])
+    assert "--harness" in capsys.readouterr().err
+
+
 def test_tap_command_end_to_end(tmp_path):
     import socket
     import subprocess
