@@ -5,8 +5,9 @@ from pathlib import Path
 
 import pytest
 
-from nookku import evaluation, kit, mcp, trace
+from nookku import bridge, evaluation, kit, mcp, trace
 from nookku.cli import main
+from nookku.record import Writer
 
 CASE = Path(__file__).resolve().parent.parent / "conformance" / "trace" / "claude_code_toy_shop"
 TEST = "20261006-080000-cc01"
@@ -31,6 +32,31 @@ def test_pending_is_the_latest_ended_test_with_no_report(tmp_path: Path) -> None
     assert evaluation.pending(root) == folder
     (folder / evaluation.REPORT).write_text("# Report\n")
     assert evaluation.pending(root) is None
+
+
+def test_a_check_test_gets_no_evaluation(tmp_path: Path) -> None:
+    # nookku check runs a test and ends it. The next nookku end must not evaluate it (#102).
+    root = project(tmp_path)
+    folder = root / ".nookku" / "tests" / TEST
+    relay = Writer(folder / "relay.jsonl")
+    row = {"type": "turn", "said": "Hello", "shown": "Hi", "ok": True}
+    relay.append({**row, "harness": bridge.CHECK_HARNESS})
+    assert evaluation.is_check(folder)
+    assert evaluation.pending(root) is None
+    assert evaluation.config_note(root) is None
+    answer = kit.handle(event(root, "nookku end"), root, "codex")
+    assert answer is not None and answer["decision"] == "block"
+    # A turn from a harness makes it a test of the tester again.
+    relay.append({**row, "harness": "codex"})
+    assert not evaluation.is_check(folder)
+    assert evaluation.pending(root) == folder
+
+
+def test_a_test_with_no_turns_or_a_broken_relay_record_is_not_a_check_test(tmp_path: Path) -> None:
+    folder = project(tmp_path) / ".nookku" / "tests" / TEST
+    assert not evaluation.is_check(folder)
+    (folder / "relay.jsonl").write_text("{broken\n")
+    assert not evaluation.is_check(folder)
 
 
 def test_no_evaluation_if_the_config_turns_it_off_or_the_test_runs(tmp_path: Path) -> None:
