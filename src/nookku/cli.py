@@ -509,11 +509,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         except (OSError, ValueError, TypeError) as e:
             print(f"nookku: cannot read the config: {e}", file=sys.stderr)
             return 2
-        record = args.record or config.record_path(root)
+        follow = not args.no_follow
         try:
-            if config.entry and not args.record:
-                return kit.view_tests(root, not args.no_follow, sys.stdout)
-            return kit.view(record, not args.no_follow, sys.stdout)
+            if args.record:
+                return kit.view(args.record, follow, sys.stdout)
+            if config.entry:
+                return kit.view_tests(root, follow, sys.stdout)
+            # The tester can write an entry after the view starts (#312).
+            return kit.view_until_entry(root, config.record_path(root), follow, sys.stdout)
         except RecordError as e:
             print(f"nookku: {e}", file=sys.stderr)
             return 2
