@@ -98,7 +98,7 @@ First, look in the [test folder](reference/glossary.md#test-folder) `.nookku/tes
 
 ### `nookku: the test did not start:` and `the entry exited at start:`
 
-(bridge.py) **Cause.** The entry stopped in its first moments. The lines after the text are the last lines of `app.log`, for example `can't open file '.../agent.py': [Errno 2] No such file or directory`.
+(bridge.py) **Cause.** The entry stopped in its first moments. The lines after the text are the last lines of `bridge.log`. The bridge writes the last lines of `app.log` into `bridge.log`, for example `can't open file '.../agent.py': [Errno 2] No such file or directory`.
 
 **Fix.** The entry runs in the project root. Use a path relative to the root, and run the entry command from the root by hand to see the error.
 
@@ -142,7 +142,7 @@ If the entry returns an error, crashes or does not answer in [240 seconds](../sr
 
 ### `nookku tap: cannot write the record <name>. The error output of the tap gives the cause.`
 
-(tap.py) **Cause.** The HTTP [tap](reference/glossary.md#tap) cannot write the row of a response to its record, for example because the disk is full or the folder is not writable. The tap does not send the agent's response, so the relay shows this error and the message has no reply ([SPEC.md section 4.1](../SPEC.md#41-http-mode)). The tap writes the record path and the cause to its error output (stderr), in the line `nookku tap: cannot write the record <path>: <reason>`.
+(tap.py, stdio.py) **Cause.** The [tap](reference/glossary.md#tap) cannot write a row to its record, for example because the disk is full or the folder is not writable. The tap does not send the agent's response, so the relay shows this error and the message has no reply ([SPEC.md section 4.1](../SPEC.md#41-http-mode), [section 4.2](../SPEC.md#42-stdio-mode)). The tap writes the record path and the cause to its error output (stderr), in the line `nookku tap: cannot write the record <path>: <reason>`. In a test with an entry, the tap runs in the bridge, so this line is in `bridge.log`.
 
 **Fix.** Read the error output of `nookku tap`. Correct the cause, for example free disk space. Then send the message again.
 
@@ -238,7 +238,7 @@ If the entry returns an error, crashes or does not answer in [240 seconds](../sr
 
 ### `nookku: cannot read the config: <reason>`
 
-(cli.py, from `nookku view` and `nookku transcript`) **Cause.** `config.json` exists, but it is not valid JSON or it breaks the rule for its keys. `<reason>` is the error that `start` gives for the same file. The command exits with 2. `transcript --trace` does not read the config, so it does not give this error.
+(cli.py and kit.py, from `nookku view` and `nookku transcript`) **Cause.** `config.json` exists, but it is not valid JSON or it breaks the rule for its keys. `<reason>` is the error that `start` gives for the same file. The command exits with 2. If the config breaks while `nookku view` follows a project with no entry, the view adds `The view reads the config again when it changes.`, shows the error one time and continues to wait. `transcript --trace` does not read the config, so it does not give this error.
 
 **Fix.** Correct the file. [reference/config.md](reference/config.md) lists each key.
 

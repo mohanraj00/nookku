@@ -239,8 +239,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     sub.add_parser("setup", help="print the guide that connects a test to the app")
 
-    # No help: argparse then leaves `bridge` out of the command list, and the command still runs.
-    # With help=argparse.SUPPRESS, the list shows "bridge  ==SUPPRESS==".
+    # An internal command has no help: argparse then leaves it out of the command list of
+    # --help, and the command still runs (#299). With help=argparse.SUPPRESS, the list shows
+    # "bridge  ==SUPPRESS==".
     br = sub.add_parser("bridge")
     br.add_argument("--root", type=Path, required=True)
     br.add_argument("--test", required=True)
@@ -294,7 +295,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--no-compact", dest="compact", action="store_false", help="with --trace: show each text"
     )
 
-    mcp = sub.add_parser("mcp", help="the MCP server with the transcript and status tools")
+    # The MCP server with the transcript and status tools. An internal command has no help.
+    mcp = sub.add_parser("mcp")
     mcp.add_argument("--root", type=Path, help="the project (default: here)")
 
     pol = sub.add_parser(
@@ -305,7 +307,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     pol.add_argument("key", nargs="?")
     pol.add_argument("value", nargs="?")
 
-    hook = sub.add_parser("hook", help="the hook command that init installs")
+    # The hook command that init installs. An internal command has no help.
+    hook = sub.add_parser("hook")
     hook.add_argument("--root", type=Path, help="the project (default: from the event)")
     hook.add_argument("--harness", required=True, choices=["claude-code", "codex"])
 
@@ -506,11 +509,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         except (OSError, ValueError, TypeError) as e:
             print(f"nookku: cannot read the config: {e}", file=sys.stderr)
             return 2
-        record = args.record or config.record_path(root)
+        follow = not args.no_follow
         try:
-            if config.entry and not args.record:
-                return kit.view_tests(root, not args.no_follow, sys.stdout)
-            return kit.view(record, not args.no_follow, sys.stdout)
+            if args.record:
+                return kit.view(args.record, follow, sys.stdout)
+            if config.entry:
+                return kit.view_tests(root, follow, sys.stdout)
+            # The tester can write an entry after the view starts (#312).
+            return kit.view_until_entry(root, config.record_path(root), follow, sys.stdout)
         except RecordError as e:
             print(f"nookku: {e}", file=sys.stderr)
             return 2

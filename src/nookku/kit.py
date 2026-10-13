@@ -9,7 +9,7 @@ import re
 import shlex
 import sys
 import time
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, TextIO
@@ -418,17 +418,21 @@ def _guard_config(root: Path) -> Config | None:
     """The config keys that the guard uses: tap_url, agent_url, record and entry. If the file
     breaks the rule of the one reader, the guard still takes each of these keys that has the
     right type. Thus a wrong value of another key, for example "evaluate": "no", does not allow a
-    call to the tap or to the agent (#121). None if the file is not a JSON object."""
+    call to the tap or to the agent (#121). If the file exists but is not a JSON object, the
+    guard uses the default values, so a broken file never gives fewer denies than the defaults
+    (#294). None if the project has no config file."""
     try:
         return Config.load(root)
     except (OSError, ValueError, TypeError):
         pass
     try:
         data = json.loads((root / CONFIG_FILE).read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return None
     except (OSError, ValueError):
-        return None
+        return Config()
     if not isinstance(data, dict):
-        return None
+        return Config()
     keep: dict[str, Any] = {
         k: data[k] for k in ("tap_url", "agent_url", "record") if isinstance(data.get(k), str)
     }
@@ -1134,6 +1138,79 @@ def view(
     return 0
 
 
+def view_until_entry(
+    root: Path,
+    record: Path,
+    follow: bool,
+    out: TextIO,
+    poll: float = 0.3,
+    err: TextIO | None = None,
+) -> int:
+    """Print each turn of the record of a project with no entry, as in view. With follow, read
+    the config again before each poll (#312). If the config gives a different record, follow
+    that record. When the config has an entry, follow each test as in view_tests.
+
+    If the config cannot be read, the view shows the error on err one time, keeps the record
+    that it follows and reads the config again at the next poll."""
+    err = err or sys.stderr
+    errors, config_errors = _ErrorOnce(err), _ConfigErrorOnce(err)
+    target: Path | None = record
+
+    def changed() -> bool:
+        nonlocal target
+        target = _next_record(root, record, config_errors)
+        return target != record
+
+    while True:
+        shown = _Shown(out)
+        for turns in _turns(record, follow, poll, errors, changed):
+            shown.show(turns)
+        if not follow:
+            return 0
+        if target is None:
+            return view_tests(root, follow, out, poll, err)
+        record = target
+        errors.clear()
+        out.write(f"════ record {record} ════\n")
+        out.flush()
+
+
+def _next_record(root: Path, record: Path, errors: _ConfigErrorOnce) -> Path | None:
+    """The record that the view follows next: None if the config has an entry, else the record
+    of the config. If the config cannot be read, show the error and keep the record."""
+    if not (root / STATE_DIR / "config.json").exists():
+        errors.clear()
+        return Config().record_path(root)
+    try:
+        config = Config.load(root)
+    except (OSError, ValueError, TypeError) as e:
+        errors.show(str(e))
+        return record
+    errors.clear()
+    return None if config.entry else config.record_path(root)
+
+
+class _ConfigErrorOnce:
+    """Show a config error once. Show it again only when the error changes."""
+
+    def __init__(self, err: TextIO) -> None:
+        self.err = err
+        self.last: str | None = None
+
+    def show(self, reason: str) -> None:
+        if reason == self.last:
+            return
+        self.last = reason
+        self.err.write(
+            f"nookku: cannot read the config: {reason}. "
+            "The view reads the config again when it changes.\n"
+        )
+        self.err.flush()
+
+    def clear(self) -> None:
+        self.last = None
+
+
 def view_tests(
     root: Path, follow: bool, out: TextIO, poll: float = 0.3, err: TextIO | None = None
 ) -> int:
@@ -1216,7 +1293,15 @@ class _ErrorOnce:
         self.last = None
 
 
-def _turns(record: Path, follow: bool, poll: float, errors: _ErrorOnce) -> Iterator[list[Turn]]:
+def _turns(
+    record: Path,
+    follow: bool,
+    poll: float,
+    errors: _ErrorOnce,
+    stop: Callable[[], bool] | None = None,
+) -> Iterator[list[Turn]]:
+    """The turns of the record, one list for each poll. With follow, stop before a poll when
+    stop gives True."""
     while True:
         try:
             # With follow, the view waits for a record that does not exist yet.
@@ -1226,6 +1311,6 @@ def _turns(record: Path, follow: bool, poll: float, errors: _ErrorOnce) -> Itera
             if not follow:
                 raise
             errors.show(e, record)
-        if not follow:
+        if not follow or (stop is not None and stop()):
             return
         time.sleep(poll)

@@ -489,6 +489,25 @@ def test_a_wrong_value_of_another_key_keeps_the_url_deny(tmp_path, bad):
     assert len(read_relay(tmp_path / ".nookku" / "relay.jsonl")) == 2
 
 
+@pytest.mark.parametrize("config", ["[]", "not json"])
+@pytest.mark.parametrize("with_test", [False, True])
+def test_a_config_that_is_not_an_object_denies_the_default_tap(tmp_path, config, with_test):
+    # A broken file gives the default values, not fewer denies (#294).
+    (tmp_path / ".nookku").mkdir()
+    folder = running_test(tmp_path) if with_test else None
+    (tmp_path / ".nookku" / "config.json").write_text(config)
+    answer = kit.handle(pre({"command": "curl http://127.0.0.1:8800/"}), tmp_path, "codex")
+    assert answer["hookSpecificOutput"]["permissionDecision"] == "deny"
+    assert kit.handle(pre({"command": "ls"}), tmp_path, "codex") is None
+    log = folder / "relay.jsonl" if folder else tmp_path / ".nookku" / "relay.jsonl"
+    assert [r.tool for r in read_relay(log)] == ["Bash"]
+
+
+def test_no_config_file_does_not_deny_the_default_tap(tmp_path):
+    (tmp_path / ".nookku").mkdir()
+    assert kit.handle(pre({"command": "curl http://127.0.0.1:8800/"}), tmp_path, "codex") is None
+
+
 def test_a_failed_deny_path_denies_with_relay_mode_off(tmp_path, monkeypatch):
     def fail(*_):
         raise RuntimeError("disk gone")
@@ -717,6 +736,40 @@ def test_the_view_shows_a_bad_line_once_and_then_follows_again(setup, monkeypatc
     )
     assert "turn 1" in shown_at_error[0] and "turn 2" not in shown_at_error[0]
     assert "──── tester, turn 2 ────\nWhere is order #4471?\n" in out.getvalue()
+
+
+def test_the_view_follows_the_record_of_a_config_that_comes_later(setup, monkeypatch):
+    """The view starts with no config. Then the tester writes a config with no entry and another
+    record, and later breaks the config. The view follows the new record and shows the config
+    error one time (#312)."""
+    root, _, _ = setup
+    kit.set_mode(root, True)
+    kit.handle(prompt("Refund policy?"), root, "codex")
+    config = root / ".nookku" / "config.json"
+    data = json.loads(config.read_text())
+    assert not data.get("entry")
+    config.unlink()
+    other = root / "other.jsonl"
+    other.write_text(record(root).read_text())
+    record(root).unlink()
+    _follow(
+        monkeypatch,
+        [
+            lambda: config.write_text(json.dumps({**data, "record": "other.jsonl"})),
+            lambda: config.write_text("not json"),
+            lambda: None,  # the config does not change, so the view does not show the error again
+        ],
+    )
+    out, err = io.StringIO(), io.StringIO()
+    with pytest.raises(_StopView):
+        kit.view_until_entry(root, record(root), True, out, poll=0, err=err)
+    assert out.getvalue() == (
+        f"════ record {other} ════\n"
+        f"──── tester, turn 1 ────\nRefund policy?\n──── agent ────\n"
+        f"{shop_reply('Refund policy?')}\n"
+    )
+    assert err.getvalue().count("nookku: cannot read the config: ") == 1
+    assert err.getvalue().endswith(". The view reads the config again when it changes.\n")
 
 
 def test_the_view_without_follow_stops_at_a_bad_line(setup, capsys):

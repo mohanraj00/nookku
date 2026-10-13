@@ -5,6 +5,7 @@ This is the toy shop chat agent of the quick start. It uses the Python standard 
 - [agent.py](agent.py) speaks the agent contract on stdin and stdout ([SPEC.md section 6](../../SPEC.md#6-agent-contract-version-1)). It gives a fixed reply for each topic. In a test, it writes its state to `app-state/answers.jsonl` in the test folder, so the seal covers the state.
 - [http_agent.py](http_agent.py) is the same agent as an HTTP server, for the tap in HTTP mode.
 - [http_entry.py](http_entry.py) is an entry that starts the HTTP server and sends each message to it.
+- [script.jsonl](script.jsonl) is the script of 3 messages for a scripted test. [`nookku run`](../../docs/reference/cli.md#nookku-run) sends each message to the agent.
 - [evaluation.json](evaluation.json) is the data of the worked evaluation. [scripts/example_evaluation.py](../../scripts/example_evaluation.py) writes it, and [docs/evaluation-example.md](../../docs/evaluation-example.md) explains it.
 
 ## Run it

@@ -206,6 +206,9 @@ Each adapter maps onto the agent contract (section 6):
 - The tap does not restart the agent. After a crash or a timeout, it answers each later request with the same error. The error body includes the last 20 lines of `app.log`.
 - Before each request, the tap reads each line that waits on stdout. Each such line is a stray line.
 - At the end of a test, after the agent stops, the tap reads each line that the agent wrote after its last reply. Each such line is a stray line too.
+- If the tap cannot write a row of a request, it uses the rule of section 4.1. It writes the record path and the error to stderr. It returns status 502 with the body `{"error": "nookku tap: cannot write the record <name>. The error output of the tap gives the cause."}`, and not the agent's reply line. It writes no other row for that request.
+- If the tap cannot write the row of a stray line that waits before a request, it does not send the request to the agent. If it cannot write the row of a stray line during a request, it still reads the reply line, so that the next request does not get it as a stray line.
+- If the tap cannot write a stray row at the end of a test, it writes the error to stderr and does not write the other stray rows. No caller waits for these rows, so the end of the test continues.
 
 ### 4.3 Timeouts
 
@@ -215,7 +218,7 @@ Each timeout on the relay path ends before the next one, so that each part gets 
 |---|---|---|
 | 1 | The agent timeout of the tap, the same in HTTP mode and stdio mode | [240](src/nookku/stdio.py#L24) |
 | 2 | The tap answers the relay, at most 5 seconds after the agent timeout | [245](tests/test_timeouts.py#L21) |
-| 3 | The relay waits for the tap of a test (section 7) | [270](src/nookku/state.py#L21) |
+| 3 | The relay waits for the tap of a test (section 7) | [270](src/nookku/state.py#L20) |
 | 3 | The relay waits for the tap of section 4.1 | [280](src/nookku/kit.py#L33) |
 | 4 | The harness stops the `UserPromptSubmit` hook | [300](src/nookku/kit.py#L36) |
 
@@ -260,6 +263,7 @@ The follow-up capture records a title-description schema match, without request 
   - A tool result has text content only. With `structuredContent`, Codex 0.162.0 gave the model only that JSON and not the text ([data](proofs/spikes/codex-display.json), [method](scripts/spike_codex_display.py)).
   - A page of the default bound got to the model unchanged in Claude Code 2.1.295 and Codex 0.162.0, for English, text that is not English, JSON and emoji. Codex changed each page of 12313 bytes or more. Claude Code kept each page up to 30015 bytes. Data: [`proofs/mcp/transcript-pages.json`](proofs/mcp/transcript-pages.json). Method: [`scripts/measure_transcript_pages.py`](scripts/measure_transcript_pages.py).
 - **Deny.** The relay denies a model tool call if its input contains the host and port of the tap or the agent, as `<host>:<port>` or as the shell socket path `/dev/tcp/<host>/<port>` or `/dev/udp/<host>/<port>`. A port can have leading zeros, and a port followed by more digits does not match. File tools (read, write, edit, search) are not denied, because a file that names an address does not call it. Every other tool is denied, including tools that the relay does not know. The deny is best effort. The audit finds each message that goes through the tap. A call to the agent around the tap is in neither record.
+- **Deny addresses.** The deny uses `tap_url` and `agent_url` of `config.json`. During a test, it also uses `tap_url` of `current.json`. If `config.json` breaks the rule of the one reader (section 7.1), the relay keeps each of `tap_url`, `agent_url`, `record` and `entry` that has the right type. If `config.json` exists but is not valid JSON or not a JSON object, the relay uses the default values of these keys. Thus a broken file never gives fewer denies than a file with the default values. If the project has no `config.json`, the deny uses only `tap_url` of `current.json`.
 - **Guard fields.** For a tool that is not a shell or a file tool, for example an MCP tool, each deny of this section reads only the fields of the policy key `guard_fields` (section 7.9), at each depth of the input. The other fields are free text, for example the body of a document. The shell tools, `write_stdin` and the file tools keep their rules, because each field of their input can be a command or a path. In a project with no state folder, the default `guard_fields` apply to the deny of the policy file. If the policy file is not valid, each field counts, so a broken file does not weaken the guard. The `blocked_call` row keeps the whole input. The conformance cases are in [`conformance/guard/`](conformance/guard/), with the names that start with `other_tool`.
 - **Test files.** The relay checks the paths that a model tool call can write, not the text of the call. The conformance cases are in [`conformance/guard/`](conformance/guard/).
   - A file write tool writes its targets: `file_path`, `notebook_path` or `path`, and the file names in the patch headers of an `apply_patch` call. The relay also resolves a target from the `cwd` of the event, and follows each symbolic link. The content of a file names no target.

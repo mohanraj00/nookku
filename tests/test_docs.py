@@ -230,6 +230,7 @@ CHECK_PAGES = [
     "docs/getting-started.md",
     "docs/how-to/connect-your-agent.md",
     "docs/reference/cli.md",
+    "src/nookku/setup.md",
 ]
 
 
@@ -359,13 +360,61 @@ def test_each_page_that_starts_the_setup_gives_the_form_that_runs_the_command(pa
     assert "!nookku setup" in (ROOT / page).read_text(encoding="utf-8")
 
 
+SETUP = ROOT / "src" / "nookku" / "setup.md"
+NODE_WARNING = "https://github.com/mohanraj00/nookku/blob/main/docs/how-to/connect-your-agent.md"
+
+
+def test_the_setup_skill_checks_the_reply_and_app_log_after_a_pass() -> None:
+    # A check of a real app printed PASS with an error text as the reply, and the model
+    # stopped (#161). The setup skill gives 3 steps after a PASS.
+    check = _sections(SETUP, "##")["4. Check"]
+    after = check.split("After a PASS, do these 3 steps:", 1)
+    assert len(after) == 2, "the check section has no steps after a PASS"
+    steps = re.findall(r"^\d+\. (.+)$", after[1], re.MULTILINE)
+    assert len(steps) == 3
+    reply, log, node = steps
+    assert "`Reply:`" in reply and "error text" in reply and "not done" in reply
+    # An app can decline the default check message in normal use. Then the step changes the
+    # config key, not the entry.
+    assert "`check_message`" in reply
+    assert "`app.log`" in log and "errors" in log and "tracebacks" in log
+    # A warning that the app also writes in normal use does not stop the setup.
+    assert "normal use" in log
+    assert "`node:readline`" in node and "Node 25 and later" in node
+    assert "U+2028" in node and "U+2029" in node
+    link = re.search(rf"\]\({re.escape(NODE_WARNING)}#([\w-]+)\)", node)
+    assert link, "the Node step has no link to the warning"
+    page = DOCS / "how-to" / "connect-your-agent.md"
+    assert link.group(1) in anchors(page)
+    assert "U+2028" in _sections(page, "###")["In Node"]
+
+
 # The first screen of the README ------------------------------------------------------------------
 
-TAGLINE = "Test your chat agent from Claude Code or Codex, byte for byte."
+DESCRIPTION = "an evaluation harness for vertical AI agents"
 
 
-def test_the_readme_gives_the_tagline_one_time() -> None:
-    assert (ROOT / "README.md").read_text(encoding="utf-8").count(TAGLINE) == 1
+def test_the_readme_gives_the_description_one_time_at_the_top() -> None:
+    # The description gives the goal, and byte for byte is the guarantee under it (#313).
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    assert readme.count(f"**Nookku: {DESCRIPTION}**") == 1
+    assert readme.index(DESCRIPTION) < readme.index("## ")
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "pyproject.toml",
+        ".claude-plugin/marketplace.json",
+        "plugins/nookku/.claude-plugin/plugin.json",
+        "plugins/nookku/.codex-plugin/plugin.json",
+        "docs/index.md",
+        "CLAUDE.md",
+        "AGENTS.md",
+    ],
+)
+def test_each_description_of_the_project_is_the_readme_description(path: str) -> None:
+    assert DESCRIPTION.lower() in (ROOT / path).read_text(encoding="utf-8").lower()
 
 
 QUOTED = re.compile(r"\"[^\"\n]*\"")
@@ -556,6 +605,9 @@ PLAIN_USES = {
     # "breaks" as a verb: the script does not obey a rule.
     "docs/reference/cli.md": ("the script breaks a rule",),
 }
+# "Evaluation harness" names the kind of tool that Nookku is (#313). Its 2 words do not have
+# their glossary meanings there, on each page.
+PLAIN_EVERYWHERE = re.compile(r"evaluation harness", re.IGNORECASE)
 # The link of a glossary term with no fragment: a link to the top of the glossary.
 NO_FRAGMENT = "(top of the glossary)"
 # An inline link, with its text in group 1 and its target in group 2.
@@ -597,7 +649,7 @@ def first_uses(text: str, page: Path) -> list[tuple[str, int, int, str | None]]:
     by_form = {form: name for name in _sections(GLOSSARY, "##") for form in _forms(name)}
     pattern = _term_pattern(list(by_form))
     masked = text
-    for part in (FENCE, COMMENT, CODE_SPAN, HTML_TAG, HEADING, COUNTED):
+    for part in (FENCE, COMMENT, CODE_SPAN, HTML_TAG, HEADING, COUNTED, PLAIN_EVERYWHERE):
         masked = _blank(masked, part)
     if page.resolve().is_relative_to(ROOT):
         for phrase in PLAIN_USES.get(page.resolve().relative_to(ROOT).as_posix(), ()):
