@@ -384,11 +384,12 @@ A test runs the entry from `start` to `end`. A new conversation is a new test: e
 | `model_reply_match` | string | Optional. `exact`, `normalized` or `off`: the match of the `reply_not_from_model` check (section 8.6). The default is `normalized`. |
 | `transcript_compact` | boolean | Optional. `true` makes `nookku transcript --trace` compact (section 9.2). The default is `false`. |
 
-The file can also hold the relay keys, for an agent that runs as an HTTP server ([docs/reference/config.md](docs/reference/config.md#relay-keys)). Each other key is unknown.
+The file can also hold the relay keys, for an agent that runs as an HTTP server ([docs/reference/config.md](docs/reference/config.md#relay-keys)). `openai_stream` is a boolean. `tap_url`, `agent_url`, `adapter`, `message_field`, `reply_field`, `openai_model` and `record` are strings. Each other key is unknown.
 
 One reader ([src/nookku/config.py](src/nookku/config.py)) reads the file for `start`, `check`, `init` and the relay, with one rule:
 
 - If the file is not a JSON object, or if it has an unknown key, the reader gives an error. The error text is the same for each command. For an unknown key, it is `.nookku/config.json has unknown keys: ['<key>']. Correct or remove them.`
+- If a value does not have the type of its key, the reader gives an error. Each key has one error text, for example `.nookku/config.json: 'models' must be a list of claude-code, codex`. The reader checks the form of `backends` and `model_api` with the rule of sections 7.6 and 7.7. A test also checks the URL of each model API from its variable when it starts.
 - `start` and `check` stop with the error and exit with 1. `mode on` starts no test and keeps relay mode off, also if the file has no entry.
 - In relay mode, the relay blocks each prompt and shows the error. Thus a broken file never lets a prompt reach the model. The plugin and the project hooks run the same relay, so the same rule applies to both.
 

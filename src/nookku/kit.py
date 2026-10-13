@@ -391,10 +391,7 @@ def handle(event: dict[str, Any], root: Path, harness: str) -> dict[str, Any] | 
         reads = commands.tool_reads_only(tool, tool_input, extra)
         if cur is not None and not reads and _names_entry(_test_entry(cur), text, tool, tool_input):
             return _deny(Path(cur["dir"]) / "relay.jsonl", harness, tool, full, ENTRY_REASON)
-        try:
-            loaded: Config | None = Config.load(root)
-        except (OSError, ValueError, TypeError):
-            loaded = None
+        loaded = _guard_config(root)
         if (
             cur is not None
             and loaded is not None
@@ -415,6 +412,30 @@ def handle(event: dict[str, Any], root: Path, harness: str) -> dict[str, Any] | 
 
 # Tools that are a shell in all but name. Their whole input is a command, so each field counts.
 SESSION_TOOLS = {"write_stdin"}
+
+
+def _guard_config(root: Path) -> Config | None:
+    """The config keys that the guard uses: tap_url, agent_url, record and entry. If the file
+    breaks the rule of the one reader, the guard still takes each of these keys that has the
+    right type. Thus a wrong value of another key, for example "evaluate": "no", does not let a
+    call to the tap or to the agent through (#121). None if the file is not a JSON object."""
+    try:
+        return Config.load(root)
+    except (OSError, ValueError, TypeError):
+        pass
+    try:
+        data = json.loads((root / CONFIG_FILE).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(data, dict):
+        return None
+    keep: dict[str, Any] = {
+        k: data[k] for k in ("tap_url", "agent_url", "record") if isinstance(data.get(k), str)
+    }
+    entry = data.get("entry")
+    if isinstance(entry, list) and all(isinstance(a, str) for a in entry):
+        keep["entry"] = entry
+    return Config(**keep)
 
 
 def _other_tool(tool: str) -> bool:

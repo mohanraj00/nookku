@@ -473,6 +473,22 @@ def test_a_broken_config_still_denies_test_files_and_the_entry(tmp_path, config)
     assert [r.tool for r in read_relay(folder / "relay.jsonl")] == ["Bash"] * 3
 
 
+@pytest.mark.parametrize(
+    "bad", [{"evaluate": "no"}, {"models": "claude"}, {"otel": 0}, {"tpa_url": "x"}]
+)
+def test_a_wrong_value_of_another_key_keeps_the_url_deny(tmp_path, bad):
+    # The one reader refuses the file (#121), but the guard keeps the URLs that it can read.
+    tap, agent = "http://127.0.0.1:8811/", "http://127.0.0.1:9011/"
+    (tmp_path / ".nookku").mkdir()
+    config = {"tap_url": tap, "agent_url": agent, **bad}
+    (tmp_path / ".nookku" / "config.json").write_text(json.dumps(config))
+    for url in (tap, agent):
+        answer = kit.handle(pre({"command": f"curl {url}"}), tmp_path, "codex")
+        assert answer["hookSpecificOutput"]["permissionDecision"] == "deny"
+    assert kit.handle(pre({"command": "ls"}), tmp_path, "codex") is None
+    assert len(read_relay(tmp_path / ".nookku" / "relay.jsonl")) == 2
+
+
 def test_a_failed_deny_path_denies_with_relay_mode_off(tmp_path, monkeypatch):
     def fail(*_):
         raise RuntimeError("disk gone")
