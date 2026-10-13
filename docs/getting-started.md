@@ -21,7 +21,7 @@ nookku --version
 nookku 0.4.1
 ```
 
-This tutorial needs nookku 0.4.0 or later. If you use verbatim-relay 0.3.x or earlier, the package has a new name, so `uv tool upgrade nookku` cannot upgrade it. Do the [0.4.0 steps of the upgrade guide](how-to/upgrade.md#040) in its place.
+This tutorial needs nookku 0.4.1 or later. If you use verbatim-relay 0.3.x or earlier, the package has a new name, so `uv tool upgrade nookku` cannot upgrade it. Do the [0.4.0 steps of the upgrade guide](how-to/upgrade.md#040) in its place.
 
 ## 2. Make a project for the toy shop
 
