@@ -1,8 +1,8 @@
 # Test an agent with the Claude Code plugin
 
-The plugin installs the [relay](../reference/glossary.md#relay) in Claude Code for each of your projects. The same plugin works in Codex ([codex.md](codex.md)). Its 2 command hooks run `nookku hook`, so the plugin and the project hooks have the same rules. The plugin shows each reply in the chat as the reason of the blocked prompt, which the model does not receive. To compare it with the project hooks, read [choose-a-relay.md](choose-a-relay.md).
+The [plugin](../reference/glossary.md#plugin) installs the [relay](../reference/glossary.md#relay) in Claude Code for each of your projects. The same plugin works in Codex ([codex.md](codex.md)). Its 2 command hooks run `nookku hook`, so the plugin and the [project hooks](../reference/glossary.md#project-hooks) have the same rules. The plugin shows each reply in the chat as the reason of the blocked prompt, which the model does not receive. To compare it with the project hooks, read [choose-a-relay.md](choose-a-relay.md).
 
-The plugin also has a display layer: `/nookku`, the status line and the Nookku pane. It uses function hooks, which are early access and can change between releases. It holds one rule: in relay mode, it drops a prompt with an attachment. Each text comes from the `nookku` command. If the display layer fails, the command hooks still relay each message, but they relay the text of a prompt with an attachment and drop the attachment.
+The plugin also has a display layer: `/nookku`, the status line and the Nookku pane. It uses function hooks, which are early access and can change between releases. It holds one rule: in [relay mode](../reference/glossary.md#relay-mode), it drops a prompt with an attachment. Each text comes from the `nookku` command. If the display layer fails, the command hooks still relay each message, but they relay the text of a prompt with an attachment and drop the attachment.
 
 **Warning:** Do not also write the project hooks in this project. With both forms, each message goes to the agent two times ([choose-a-relay.md](choose-a-relay.md#switch-from-one-form-to-the-other)).
 
@@ -39,13 +39,13 @@ Before you start, connect a test to your app: [connect-your-agent.md](connect-yo
 
 1. Type `/nookku start`. The plugin starts the entry through the [tap](../reference/glossary.md#tap), and [relay mode](../reference/glossary.md#relay-mode) goes on. The status line shows it. The start text tells you how to end the test.
 2. Type your test messages. Each reply shows in the chat as the reason of the blocked prompt. `/nookku view` shows the last [40 lines](../../plugins/nookku/hooks/register.tsx#L18) of `nookku view` in the Nookku pane. The relay does not send attachments: in relay mode, the plugin drops a prompt with an image or a file, and sends nothing.
-3. Type the prompt `nookku end`, with no slash. The plugin stops the entry, copies the app's session files into the [test folder](../reference/glossary.md#test-folder), builds the [trace](../reference/glossary.md#trace) and switches relay mode off. Then the prompt goes to the model with the evaluation prompt. The model writes `report.md` in the test folder (see [Evaluation](#evaluation)).
+3. Type the prompt `nookku end`, with no slash. The plugin stops the entry, copies the app's session files into the [test folder](../reference/glossary.md#test-folder), builds the [trace](../reference/glossary.md#trace) and switches relay mode off. Then the prompt goes to the model with the [evaluation](../reference/glossary.md#evaluation) prompt. The model writes `report.md` in the test folder (see [Evaluation](#evaluation)).
 
 `/nookku end` ends the test with no evaluation. To evaluate that test later, type the prompt `nookku end`. `/nookku on` and `/nookku off` do the same as `start` and `end`. The prompts `nookku start` and `nookku status` also work. `/nookku <word>` runs `nookku mode <word>`, so the text is the text of the core.
 
 `/nookku` or `/nookku status` shows relay mode and the running test. The plugin runs `nookku status` for it. Thus a test whose process stopped does not show as a running test.
 
-`nookku trace` builds the trace of the latest test again and shows its findings.
+`nookku trace` builds the trace of the latest test again and shows its [findings](../reference/glossary.md#findings).
 
 Each test is a new conversation, with a new test id and a new entry process. The test folder is `.nookku/tests/<test-id>/`. [reference/records.md](../reference/records.md#the-test-folder) lists its files.
 
@@ -95,4 +95,4 @@ Exit code 0 means clean, 1 means a break, and 2 means that a record is missing o
 - Backends of your app: [add-a-backend.md](add-a-backend.md).
 - Direct model calls and OpenTelemetry: [record-model-calls.md](record-model-calls.md).
 - An Agent SDK session in your app: [isolate-agent-sdk.md](isolate-agent-sdk.md).
-- Audit a test: [reference/cli.md](../reference/cli.md#nookku-audit).
+- [Audit](../reference/glossary.md#audit) a test: [reference/cli.md](../reference/cli.md#nookku-audit).

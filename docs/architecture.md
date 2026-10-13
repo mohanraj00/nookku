@@ -4,11 +4,11 @@ This page shows the parts of Nookku and how the data goes between them. [SPEC.md
 
 ## The problem
 
-A tester talks to a chat agent through a coding [harness](reference/glossary.md#harness): Claude Code or Codex. If the harness model carries the messages, it also writes them. Then it judges its own text. Nookku takes the model out of the conversation, and keeps 2 records that a third program can compare.
+A tester talks to a chat agent through a coding [harness](reference/glossary.md#harness): Claude Code or Codex. If the [harness model](reference/glossary.md#harness-model) carries the messages, it also writes them. Then it judges its own text. Nookku takes the model out of the conversation, and keeps 2 records that a third program can compare.
 
 ## Data flow
 
-This diagram shows a test with an entry. With no entry, the relay sends each message to a tap in HTTP mode, and no bridge runs ([how-to/http-tap.md](how-to/http-tap.md)).
+This diagram shows a test with an [entry](reference/glossary.md#entry). With no entry, the [relay](reference/glossary.md#relay) sends each message to a [tap](reference/glossary.md#tap) in HTTP mode, and no [bridge](reference/glossary.md#bridge) runs ([how-to/http-tap.md](how-to/http-tap.md)).
 
 ```mermaid
 flowchart TB
@@ -72,8 +72,8 @@ The relay sends each message as an HTTP POST with a contract JSON body ([SPEC.md
 
 The relay is the command `nookku hook`. It carries each message and each reply, with one set of rules in Python. It has 2 forms, with the same 2 command hooks ([SPEC.md section 5](../SPEC.md#5-relays), [ADR 0001](adr/0001-one-core-one-plugin.md)):
 
-- **The plugin.** One plugin folder for Claude Code and Codex. It also has the MCP server `nookku mcp`, with the read-only tools `transcript` and `status`, and the `setup` skill. In Claude Code, function hooks add `/nookku`, a status line and a pane. They are early access. They hold one rule: in relay mode, they drop a prompt with an attachment. Read [how-to/claude-code-plugin.md](how-to/claude-code-plugin.md) or [how-to/codex.md](how-to/codex.md).
-- **The project hooks.** `nookku init` writes the same 2 hooks into one project. Read [how-to/claude-code-hook-kit.md](how-to/claude-code-hook-kit.md) or [how-to/codex.md](how-to/codex.md).
+- **The [plugin](reference/glossary.md#plugin).** One plugin folder for Claude Code and Codex. It also has the MCP server `nookku mcp`, with the read-only tools `transcript` and `status`, and the `setup` skill. In Claude Code, function hooks add `/nookku`, a status line and a pane. They are early access. They hold one rule: in [relay mode](reference/glossary.md#relay-mode), they drop a prompt with an attachment. Read [how-to/claude-code-plugin.md](how-to/claude-code-plugin.md) or [how-to/codex.md](how-to/codex.md).
+- **The [project hooks](reference/glossary.md#project-hooks).** `nookku init` writes the same 2 hooks into one project. Read [how-to/claude-code-hook-kit.md](how-to/claude-code-hook-kit.md) or [how-to/codex.md](how-to/codex.md).
 
 Both forms show each reply as the reason of a blocked prompt, and `nookku view` shows each reply in a second terminal. `codex exec` does not show the reason. In Codex, `nookku start` refuses a test if a nookku hook is not trusted ([SPEC.md section 7.8](../SPEC.md#78-codex-hook-gate)).
 
@@ -83,7 +83,7 @@ A relay fails closed. If it cannot send a message, the message still does not go
 
 ## The tap
 
-The tap is a proxy between the relay and the agent. It forwards each request and each response with no change, and it writes the tap record. It has 2 modes ([SPEC.md section 4](../SPEC.md#4-tap)):
+The tap is a proxy between the relay and the agent. It forwards each request and each response with no change, and it writes the [tap record](reference/glossary.md#tap-record). It has 2 modes ([SPEC.md section 4](../SPEC.md#4-tap)):
 
 - **Stdio mode.** The tap starts the [entry](reference/glossary.md#entry) and speaks the [agent contract](reference/glossary.md#agent-contract) with it. A test uses this mode.
 - **HTTP mode.** The tap is in front of an agent that is already an HTTP server. Read [how-to/http-tap.md](how-to/http-tap.md).
@@ -146,7 +146,7 @@ The [bridge](reference/glossary.md#bridge) is a background process that runs one
 3. copies each session file into the [test folder](reference/glossary.md#test-folder);
 4. builds the [trace](reference/glossary.md#trace), writes `audit.json` and writes the [seal](reference/glossary.md#seal).
 
-If the trace, the audit or the seal fails, the bridge writes the error to `bridge.log` and does the next step. The test still ends ([SPEC.md section 7.2](../SPEC.md#72-start-and-end)).
+If the trace, the [audit](reference/glossary.md#audit) or the seal fails, the bridge writes the error to `bridge.log` and does the next step. The test still ends ([SPEC.md section 7.2](../SPEC.md#72-start-and-end)).
 
 ## The test lifecycle
 
@@ -171,7 +171,7 @@ stateDiagram-v2
     note right of Ended: With "evaluate" false, the test stays here and gets no evaluation.
 ```
 
-- There are 2 ways to end a test ([SPEC.md section 9.1](../SPEC.md#91-start)). The prompt `nookku end` ends the test and starts the evaluation in one step. `nookku end` in a shell, or `/nookku end` in the plugin, ends the test with no evaluation.
+- There are 2 ways to end a test ([SPEC.md section 9.1](../SPEC.md#91-start)). The prompt `nookku end` ends the test and starts the [evaluation](reference/glossary.md#evaluation) in one step. `nookku end` in a shell, or `/nookku end` in the plugin, ends the test with no evaluation.
 - A later prompt `nookku end` starts the evaluation of the latest test, if that test ended and has no `report.md`. A new test with `nookku start` becomes the latest test, so the test before it gets no evaluation.
 - If the configuration has `"evaluate": false`, no test gets an evaluation ([reference/config.md](reference/config.md#test-keys)).
 - If the bridge stops before its end steps, `current.json` stays. `start`, `end` and `status` check if the bridge of `current.json` runs. If it does not run, they remove the stale file ([SPEC.md section 7.2](../SPEC.md#72-start-and-end)). The relay does this check before each prompt. A test with a stale `current.json` has no end time, so it gets no evaluation.
@@ -192,7 +192,7 @@ If your app runs its own Claude Agent SDK or Codex sessions, the harness binary 
 
 ## The audit
 
-The [audit](reference/glossary.md#audit) compares the relay record with the tap record ([SPEC.md section 3](../SPEC.md#3-audit)). It aligns the tester messages with the agent inputs, and then it compares each reply. It compares bytes. It does not normalize whitespace, line ends or Unicode. It reports 8 break classes: `altered_input`, `injected_input`, `duplicate_send`, `out_of_order`, `not_delivered`, `altered_reply`, `unshown_reply` and `script_mismatch`. A test checks `script_mismatch` only if it is scripted.
+The [audit](reference/glossary.md#audit) compares the [relay record](reference/glossary.md#relay-record) with the tap record ([SPEC.md section 3](../SPEC.md#3-audit)). It aligns the tester messages with the agent inputs, and then it compares each reply. It compares bytes. It does not normalize whitespace, line ends or Unicode. It reports 8 break classes: `altered_input`, `injected_input`, `duplicate_send`, `out_of_order`, `not_delivered`, `altered_reply`, `unshown_reply` and `script_mismatch`. A test checks `script_mismatch` only if it is scripted.
 
 The audit fails closed. If a record is missing or invalid, it exits with 2 and reports no result. It never reports clean on a record that it cannot read.
 

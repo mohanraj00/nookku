@@ -1,6 +1,6 @@
 # Use the HTTP tap
 
-Use this mode if your agent is already an HTTP server and you do not want an entry. The tap is in front of the agent and records each exchange. There is no test: no test folder, no trace, no seal and no evaluation prompt. For these, use an entry that calls your server ([connect-your-agent.md](connect-your-agent.md#if-your-app-is-an-http-server)).
+Use this mode if your agent is already an HTTP server and you do not want an [entry](../reference/glossary.md#entry). The [tap](../reference/glossary.md#tap) is in front of the agent and records each exchange. There is no test: no [test folder](../reference/glossary.md#test-folder), no [trace](../reference/glossary.md#trace), no [seal](../reference/glossary.md#seal) and no [evaluation](../reference/glossary.md#evaluation) prompt. For these, use an entry that calls your server ([connect-your-agent.md](connect-your-agent.md#if-your-app-is-an-http-server)).
 
 ## 1. Start the agent and the tap
 
@@ -23,24 +23,24 @@ nookku tap: listening on http://127.0.0.1:8800/ -> http://127.0.0.1:8700/
 nookku tap: writing tap.jsonl
 ```
 
-To check the tap without a harness, send one message:
+To check the tap without a [harness](../reference/glossary.md#harness), send one message:
 
 ```bash
 curl -s -X POST http://127.0.0.1:8800/ -H 'Content-Type: application/json' -d '{"text": "do you ship to delhi?"}'
 ```
 
-The answer is the agent's answer with no change: `{"reply": "We ship to Chennai and Pune. Delivery takes 3 to 5 days.  "}`. This message is in the tap record but not in a relay record, so an audit of these records shows it as `injected_input`. Use a new record file for the test.
+The answer is the agent's answer with no change: `{"reply": "We ship to Chennai and Pune. Delivery takes 3 to 5 days.  "}`. This message is in the [tap record](../reference/glossary.md#tap-record) but not in a [relay record](../reference/glossary.md#relay-record), so an [audit](../reference/glossary.md#audit) of these records shows it as `injected_input`. Use a new record file for the test.
 
 ## 2. Install a relay with no entry
 
-- **Plugin:** run `nookku init plugin` with no `--entry`. It writes `.nookku/config.json` and no project hooks. Its flags set `tap_url`, `adapter` and the others: `--tap-url`, `--agent-url`, `--adapter` and so on.
+- **[Plugin](../reference/glossary.md#plugin):** run `nookku init plugin` with no `--entry`. It writes `.nookku/config.json` and no [project hooks](../reference/glossary.md#project-hooks). Its flags set `tap_url`, `adapter` and the others: `--tap-url`, `--agent-url`, `--adapter` and so on.
 - **Project hooks:** run `nookku init claude-code` or `nookku init codex` with no `--entry`. `init` takes the same options as flags: `--tap-url`, `--agent-url`, `--adapter` and so on.
 
 ## 3. Relay mode on and off
 
-With no entry, relay mode has no test. Switch it on before your messages and off after them:
+With no entry, [relay mode](../reference/glossary.md#relay-mode) has no test. Switch it on before your messages and off after them:
 
-| Relay | On | Off |
+| [Relay](../reference/glossary.md#relay) | On | Off |
 |---|---|---|
 | Plugin | `/nookku on` | `/nookku off` |
 | Project hooks | `nookku mode on` | `nookku mode off` |

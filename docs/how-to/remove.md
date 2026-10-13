@@ -1,6 +1,6 @@
 # Remove Nookku
 
-This page removes Nookku from a project and from your computer: the project hooks, the plugin, the test files and the package.
+This page removes Nookku from a project and from your computer: the [project hooks](../reference/glossary.md#project-hooks), the [plugin](../reference/glossary.md#plugin), the test files and the package.
 
 I used the toy shop project of [getting-started.md](../getting-started.md) on macOS. The output of sections 2 and 4 comes from nookku 0.4.0. The output of sections 3 and 5 comes from verbatim-relay 0.3.0 and Claude Code 2.1.294, with the names of 0.4.0. I did not run these commands again, because they change the install of the computer. I shortened the paths of the folders to `.../`. The test ids are different on your machine.
 
@@ -18,15 +18,15 @@ If the line names a test, end it:
 nookku end
 ```
 
-End the test before you remove anything. `end` stops the bridge and the entry of the test. Without `end`, they continue to run.
+End the test before you remove anything. `end` stops the [bridge](../reference/glossary.md#bridge) and the [entry](../reference/glossary.md#entry) of the test. Without `end`, they continue to run.
 
-If `status` names no test but relay mode is on, follow [recover-a-stuck-test.md](recover-a-stuck-test.md).
+If `status` names no test but [relay mode](../reference/glossary.md#relay-mode) is on, follow [recover-a-stuck-test.md](recover-a-stuck-test.md).
 
 ## 2. Remove the project hooks
 
 `nookku init` adds 2 hook entries to one file ([kit.py](../../src/nookku/kit.py)):
 
-| Harness | File |
+| [Harness](../reference/glossary.md#harness) | File |
 |---|---|
 | Claude Code | `.claude/settings.local.json` |
 | Codex | `.codex/hooks.json` |
@@ -70,7 +70,7 @@ The `command` of each hook contains `nookku hook`. This is the file that `nookku
 
 `.codex/hooks.json` has the same form, with `--harness codex`.
 
-Remove the project hooks with `init --remove`. Run it yourself in a shell. The relay denies it to a model, because without the hooks the next message goes to the model ([SPEC.md section 5](../../SPEC.md#5-relays)). Give the harness:
+Remove the project hooks with `init --remove`. Run it yourself in a shell. The [relay](../reference/glossary.md#relay) denies it to a model, because without the hooks the next message goes to the model ([SPEC.md section 5](../../SPEC.md#5-relays)). Give the harness:
 
 ```bash
 nookku init --remove claude-code
@@ -167,9 +167,9 @@ I did not record the output of these 2 commands. `codex plugin list` shows the p
 Nookku keeps the files of your tests in 2 places ([reference/records.md](../reference/records.md#the-state-folder)):
 
 - `.nookku/` in the project: the configuration, the entry, relay mode and a folder for each test, with its records.
-- `~/.nookku/seals/`, or `$NOOKKU_HOME/seals/` if the variable is set: a copy of the seal of each test, as `<test-id>.json`. This folder holds the seals of each project on your computer.
+- `~/.nookku/seals/`, or `$NOOKKU_HOME/seals/` if the variable is set: a copy of the [seal](../reference/glossary.md#seal) of each test, as `<test-id>.json`. This folder holds the seals of each project on your computer.
 
-To keep the records of your tests, keep both. If you keep a test folder, keep its seal copy too. With no copy, `verify` says that the seal is broken and exits with 2:
+To keep the records of your tests, keep both. If you keep a [test folder](../reference/glossary.md#test-folder), keep its seal copy too. With no copy, `verify` says that the seal is broken and exits with 2:
 
 ```text
 Test <test-id>. Seal: BROKEN. the copy of the seal is missing. Do not trust these records.

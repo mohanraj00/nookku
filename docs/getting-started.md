@@ -1,6 +1,6 @@
 # Get started
 
-In this tutorial, you test the toy shop agent of this repo in Claude Code. You install Nookku, run a test with 3 messages, and read the [audit](reference/glossary.md#audit), the report of the model and the [findings](reference/glossary.md#findings). You use the project hooks, because they need no global install in Claude Code. To compare the project hooks with the plugin, read [how-to/choose-a-relay.md](how-to/choose-a-relay.md).
+In this tutorial, you test the toy shop agent of this repo in Claude Code. You install Nookku, run a test with 3 messages, and read the [audit](reference/glossary.md#audit), the report of the model and the [findings](reference/glossary.md#findings). You use the [project hooks](reference/glossary.md#project-hooks), because they need no global install in Claude Code. To compare the project hooks with the [plugin](reference/glossary.md#plugin), read [how-to/choose-a-relay.md](how-to/choose-a-relay.md).
 
 The output on this page is the real output of each step. I shortened the paths of the folders to `.../`. The test id and the times are different on your machine.
 
@@ -254,7 +254,7 @@ Test 20261011-184952-8a8d. Seal: intact. No record changed after the end of the 
 
 ## 10. Read the trace and the findings
 
-At the end of the test, the bridge also built the trace, `trace.jsonl`, and its checks, `findings.json`. Build the trace again, and show its findings:
+At the end of the test, the [bridge](reference/glossary.md#bridge) also built the trace, `trace.jsonl`, and its checks, `findings.json`. Build the trace again, and show its findings:
 
 ```bash
 nookku trace

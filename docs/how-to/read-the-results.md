@@ -1,8 +1,8 @@
 # Read the results of a test
 
-After a test, the test folder holds the records, the trace, the audit, the seal and, if the model ran, a report. This page tells you how to read these files in order. Read the seal first. If a file changed after the end of the test, do not trust the other results.
+After a test, the [test folder](../reference/glossary.md#test-folder) holds the records, the [trace](../reference/glossary.md#trace), the [audit](../reference/glossary.md#audit), the [seal](../reference/glossary.md#seal) and, if the model ran, a report. This page tells you how to read these files in order. Read the seal first. If a file changed after the end of the test, do not trust the other results.
 
-The sample output on this page comes from one test of the [toy shop agent](../../examples/toy-shop/agent.py) with nookku 0.4.0. The test has the 3 messages of the [tutorial](../getting-started.md#6-run-the-test). I gave each prompt to `nookku hook --harness claude-code` as a `UserPromptSubmit` event, as Claude Code does. No harness model ran, so this test has no report. The output is a sample of one run, not a measurement. To make it again, run the steps of the tutorial on the toy shop. I shortened the paths to `.../`. The test id and the times are different on your machine.
+The sample output on this page comes from one test of the [toy shop agent](../../examples/toy-shop/agent.py) with nookku 0.4.0. The test has the 3 messages of the [tutorial](../getting-started.md#6-run-the-test). I gave each prompt to `nookku hook --harness claude-code` as a `UserPromptSubmit` event, as Claude Code does. No [harness model](../reference/glossary.md#harness-model) ran, so this test has no report. The output is a sample of one run, not a measurement. To make it again, run the steps of the tutorial on the toy shop. I shortened the paths to `.../`. The test id and the times are different on your machine.
 
 ## The test folder
 
@@ -57,7 +57,7 @@ ls .nookku/tests/
 20261011-184952-8a8d
 ```
 
-`nookku check` also makes a test folder. Do not read the check tests as your tests. A check test has one turn from the harness `nookku-check`. To find the check tests:
+`nookku check` also makes a test folder. Do not read the check tests as your tests. A check test has one turn from the [harness](../reference/glossary.md#harness) `nookku-check`. To find the check tests:
 
 ```bash
 grep -l '"harness": "nookku-check"' .nookku/tests/*/relay.jsonl
@@ -67,7 +67,7 @@ grep -l '"harness": "nookku-check"' .nookku/tests/*/relay.jsonl
 .nookku/tests/20261011-184939-398d/relay.jsonl
 ```
 
-`nookku trace`, `verify` and `transcript --trace` use the latest test if you do not give a test id. `transcript` with no `--trace` uses the latest test only if the configuration has an `entry`. With no entry, it reads the relay record of the configuration, and shows its latest session. If you ran `check` after your test, the latest test is the check test. Then give the test id of your test to each command.
+`nookku trace`, `verify` and `transcript --trace` use the latest test if you do not give a test id. `transcript` with no `--trace` uses the latest test only if the configuration has an `entry`. With no [entry](../reference/glossary.md#entry), it reads the [relay record](../reference/glossary.md#relay-record) of the configuration, and shows its latest session. If you ran `check` after your test, the latest test is the check test. Then give the test id of your test to each command.
 
 ## 2. Read the seal
 
@@ -116,9 +116,9 @@ cat .nookku/tests/20261011-184952-8a8d/audit.json
 |---|---|---|
 | 0 | The records are valid and have no break. | Nothing more in the audit. |
 | 1 | The records are valid and have 1 or more breaks. | `breaks`: one object for each break. |
-| 2 | A record is missing or invalid, or the tap has an unparsed exchange. The audit did not compare the texts. | `errors` and `skipped`: the checks that did not run. |
+| 2 | A record is missing or invalid, or the [tap](../reference/glossary.md#tap) has an unparsed exchange. The audit did not compare the texts. | `errors` and `skipped`: the checks that did not run. |
 
-A clean audit means that each message reached the agent with no change, and each reply reached you with no change. It does not mean that the replies are good. The audit compares the words only. The findings, the report and the transcript tell you what the app did.
+A clean audit means that each message reached the agent with no change, and each reply reached you with no change. It does not mean that the replies are good. The audit compares the words only. The [findings](../reference/glossary.md#findings), the report and the transcript tell you what the app did.
 
 Each break has `class`, `relay_line`, `tap_line` and `evidence`. For a changed text, the evidence gives the index of the first different character, a short part of each text, and the length of each text. This break is from the conformance case [several_breaks](../../conformance/cases/several_breaks/):
 
@@ -145,14 +145,14 @@ The audit has 8 break classes ([audit.py](../../src/nookku/audit.py), [SPEC.md s
 
 | Class | What the records show | Fix |
 |---|---|---|
-| `altered_input` | The `said` text in `relay.jsonl` and the `input` text in `tap.jsonl` at that position are different. | Make sure that only one relay sends messages to the tap. |
+| `altered_input` | The `said` text in `relay.jsonl` and the `input` text in `tap.jsonl` at that position are different. | Make sure that only one [relay](../reference/glossary.md#relay) sends messages to the tap. |
 | `injected_input` | `tap.jsonl` has an exchange that has no turn in `relay.jsonl`. `relay_line` is `null`. | Make sure that only one relay sends messages to the tap. |
-| `duplicate_send` | `tap.jsonl` has more exchanges with the text of a `said` than `relay.jsonl` has turns with it. | Make sure that only one relay sends messages to the tap. For example, do not use the plugin and the project hooks in one project. |
+| `duplicate_send` | `tap.jsonl` has more exchanges with the text of a `said` than `relay.jsonl` has turns with it. | Make sure that only one relay sends messages to the tap. For example, do not use the [plugin](../reference/glossary.md#plugin) and the [project hooks](../reference/glossary.md#project-hooks) in one project. |
 | `out_of_order` | Both records have the message, but at different positions. | Make sure that only one relay sends messages to the tap. |
 | `not_delivered` | `relay.jsonl` has a turn that has no exchange in `tap.jsonl`. `tap_line` is `null`. | Read `bridge.log` and `app.log`. |
 | `altered_reply` | The `reply` text in `tap.jsonl` and the `shown` text in `relay.jsonl` are different. | Read `bridge.log`. |
 | `unshown_reply` | The `shown` text in `relay.jsonl` is `null`. The relay showed no reply. | Read `bridge.log`. |
-| `script_mismatch` | Only in a scripted test: a turn of `relay.jsonl` is not the message of the script copy at its position, or the counts differ. | Compare `relay.jsonl` with `script.jsonl` or `script.json` in the test folder. If the run stopped at a turn with no reply, read `app.log`. |
+| `script_mismatch` | Only in a [scripted test](../reference/glossary.md#scripted-test): a turn of `relay.jsonl` is not the message of the script copy at its position, or the counts differ. | Compare `relay.jsonl` with `script.jsonl` or `script.json` in the test folder. If the run stopped at a turn with no reply, read `app.log`. |
 
 For each error of exit 2, [troubleshooting.md](../troubleshooting.md#audit-verify-and-trace) gives the cause and the fix.
 
@@ -358,4 +358,4 @@ A repeated text then shows as `(compact: the same text as [trace.jsonl:N], sha25
 
 ## Examples
 
-[evaluation-example.md](../evaluation-example.md) has 2 worked evaluations of the toy shop. The first has a report with 4 rows, the trace lines that the report cites, and what the model got right and wrong. The second is an evaluation of the words only, with no trace.
+[evaluation-example.md](../evaluation-example.md) has 2 worked [evaluations](../reference/glossary.md#evaluation) of the toy shop. The first has a report with 4 rows, the trace lines that the report cites, and what the model got right and wrong. The second is an evaluation of the words only, with no trace.

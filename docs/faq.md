@@ -2,7 +2,7 @@
 
 ## Why not tell the model to relay each message exactly?
 
-An evaluation is only as good as the conversation under it. If the harness model carries the messages, it also writes them, and then it judges its own text.
+An [evaluation](reference/glossary.md#evaluation) is only as good as the conversation under it. If the [harness model](reference/glossary.md#harness-model) carries the messages, it also writes them, and then it judges its own text.
 
 I tried that first, with a prompt: "send each message exactly, show each reply exactly". It did not work. I could not tell who spoke: the harness model or my agent. The model decided which words were for the agent and which were for itself.
 
@@ -10,11 +10,11 @@ In my benchmark runs ([raw data](../bench/runs/claude-code-prompt/)), a tester t
 
 I counted a session as a break when its `relay.jsonl` has the message and its `tap.jsonl` does not. These are illustrations from the raw prompt-only runs, not a measured rate, and no benchmark claim uses them ([the deviation](results.md#2-benchmark-under-pressure)).
 
-A prompt cannot fix this. A mechanism can. In relay mode, the hook takes each prompt before the model sees it. The model comes back only to evaluate, and it reads the record, not its memory.
+A prompt cannot fix this. A mechanism can. In [relay mode](reference/glossary.md#relay-mode), the hook takes each prompt before the model sees it. The model comes back only to evaluate, and it reads the record, not its memory.
 
 ## Does my app's code change?
 
-No. A test runs your app through an entry in `.nookku/`. The entry is test code. It starts your app and speaks the agent contract ([how-to/connect-your-agent.md](how-to/connect-your-agent.md)).
+No. A test runs your app through an [entry](reference/glossary.md#entry) in `.nookku/`. The entry is test code. It starts your app and speaks the [agent contract](reference/glossary.md#agent-contract) ([how-to/connect-your-agent.md](how-to/connect-your-agent.md)).
 
 ## What does it cost me to use it?
 
@@ -22,7 +22,7 @@ The cost is plumbing. You write the entry and `config.json` once, or you let the
 
 ## Plugin or project hooks?
 
-Use the plugin if you can, in Claude Code or in Codex. Use the project hooks if you cannot install plugins. Both forms run the same relay, `nookku hook`. Do not use both in one project, or each message goes to the agent two times. `nookku start` refuses a test if both are on. Read [how-to/choose-a-relay.md](how-to/choose-a-relay.md).
+Use the [plugin](reference/glossary.md#plugin) if you can, in Claude Code or in Codex. Use the [project hooks](reference/glossary.md#project-hooks) if you cannot install plugins. Both forms run the same [relay](reference/glossary.md#relay), `nookku hook`. Do not use both in one project, or each message goes to the agent two times. `nookku start` refuses a test if both are on. Read [how-to/choose-a-relay.md](how-to/choose-a-relay.md).
 
 ## Does the model see my test messages?
 
@@ -30,11 +30,11 @@ Not in relay mode. The relay blocks each prompt before the model receives it. Af
 
 ## What does the audit prove?
 
-It proves that the relay record and the tap record agree byte for byte. Each message that the tester typed reached the agent, and each reply that the agent sent reached the tester. It does not prove that the reply is good. The evaluation judges the reply. It also does not see a change that the entry makes, because the tap is in front of the entry ([limits.md](limits.md)).
+It proves that the [relay record](reference/glossary.md#relay-record) and the [tap record](reference/glossary.md#tap-record) agree byte for byte. Each message that the tester typed reached the agent, and each reply that the agent sent reached the tester. It does not prove that the reply is good. The evaluation judges the reply. It also does not see a change that the entry makes, because the [tap](reference/glossary.md#tap) is in front of the entry ([limits.md](limits.md)).
 
 ## My agent is an HTTP server. Do I need an entry?
 
-No. Put the tap in front of it with `nookku tap --agent URL` ([how-to/http-tap.md](how-to/http-tap.md)). Without an entry, a test has no trace, no seal and no evaluation prompt.
+No. Put the tap in front of it with `nookku tap --agent URL` ([how-to/http-tap.md](how-to/http-tap.md)). Without an entry, a test has no [trace](reference/glossary.md#trace), no [seal](reference/glossary.md#seal) and no evaluation prompt.
 
 ## My app uses the Claude Agent SDK. Is that a problem?
 
@@ -42,7 +42,7 @@ No, the test copies its session files and adds each tool call to the trace. Isol
 
 ## Does Nookku send my data to a server?
 
-Nookku itself sends no data to a server of its own. The relays, the tap, the proxies and the receiver listen on `127.0.0.1` by default. The proxies forward the calls of your app to the services and the model APIs that your app calls. The records stay in `.nookku/tests/` on your machine. The harness model reads them at the end of a test. Thus they go to the model provider of your harness, the same as each other file that the model reads.
+Nookku itself sends no data to a server of its own. The relays, the tap, the proxies and the receiver listen on `127.0.0.1` by default. The proxies forward the calls of your app to the services and the model APIs that your app calls. The records stay in `.nookku/tests/` on your machine. The harness model reads them at the end of a test. Thus they go to the model provider of your [harness](reference/glossary.md#harness), the same as each other file that the model reads.
 
 ## Do the records hold secrets?
 

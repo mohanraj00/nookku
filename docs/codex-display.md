@@ -113,4 +113,4 @@ and check whether UI call results enter later model turns. This spike does not p
 
 Use CLI warnings only as optional notices. The person saw no desktop warnings and did not identify
 status text. An external consumer must display exec results. The display does not enforce hook
-trust or relay isolation.
+trust or [relay](reference/glossary.md#relay) isolation.
