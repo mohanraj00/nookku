@@ -489,6 +489,25 @@ def test_a_wrong_value_of_another_key_keeps_the_url_deny(tmp_path, bad):
     assert len(read_relay(tmp_path / ".nookku" / "relay.jsonl")) == 2
 
 
+@pytest.mark.parametrize("config", ["[]", "not json"])
+@pytest.mark.parametrize("with_test", [False, True])
+def test_a_config_that_is_not_an_object_denies_the_default_tap(tmp_path, config, with_test):
+    # A broken file gives the default values, not fewer denies (#294).
+    (tmp_path / ".nookku").mkdir()
+    folder = running_test(tmp_path) if with_test else None
+    (tmp_path / ".nookku" / "config.json").write_text(config)
+    answer = kit.handle(pre({"command": "curl http://127.0.0.1:8800/"}), tmp_path, "codex")
+    assert answer["hookSpecificOutput"]["permissionDecision"] == "deny"
+    assert kit.handle(pre({"command": "ls"}), tmp_path, "codex") is None
+    log = folder / "relay.jsonl" if folder else tmp_path / ".nookku" / "relay.jsonl"
+    assert [r.tool for r in read_relay(log)] == ["Bash"]
+
+
+def test_no_config_file_does_not_deny_the_default_tap(tmp_path):
+    (tmp_path / ".nookku").mkdir()
+    assert kit.handle(pre({"command": "curl http://127.0.0.1:8800/"}), tmp_path, "codex") is None
+
+
 def test_a_failed_deny_path_denies_with_relay_mode_off(tmp_path, monkeypatch):
     def fail(*_):
         raise RuntimeError("disk gone")
