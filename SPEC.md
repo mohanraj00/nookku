@@ -396,6 +396,14 @@ One reader ([src/nookku/config.py](src/nookku/config.py)) reads the file for `st
 - `start` and `check` stop with the error and exit with 1. `mode on` starts no test and keeps relay mode off, also if the file has no entry.
 - In relay mode, the relay blocks each prompt and shows the error. Thus a broken file never lets a prompt reach the model. The plugin and the project hooks run the same relay, so the same rule applies to both.
 
+If `config.json` does not exist, each command has its own result:
+
+- `start` and `check` stop with the error `cannot read .nookku/config.json`, and the reason of the OS, and exit with 1 (`read_config` in [src/nookku/config.py](src/nookku/config.py)).
+- `mode on` starts no test and keeps relay mode off. It prints `this project has no .nookku/config.json, so relay mode stays off`, with the fix `nookku init plugin`, and exits with 0 (`main` in [src/nookku/cli.py](src/nookku/cli.py)).
+- `view` uses the default value of each key, so it reads the record `.nookku/relay.jsonl` (`main` in [src/nookku/cli.py](src/nookku/cli.py)).
+- `transcript` uses the default value of each key (`transcript_text` in [src/nookku/kit.py](src/nookku/kit.py)).
+- The guard has no `tap_url` and no `agent_url` from the config, so it denies no call to them, also not to the default `tap_url` ([#162](https://github.com/mohanraj00/nookku/issues/162)). During a test, it still denies a call to the tap URL of `current.json` (`_guard_config` in [src/nookku/kit.py](src/nookku/kit.py)).
+
 `nookku init` refuses a root in a state folder, for example a test folder, and writes nothing. The match ignores case and also finds the old folder `.verbatim-relay`. It also finds a state folder by its marker file `nookku-state`, which `init` and `start` write, for example in the target of a `.nookku` symlink. It finds a test folder by its `manifest.json`, also a copied test folder, and names the project root of the manifest. It checks the root as given and the resolved root. `nookku init` keeps each key of an existing file. It changes only the keys of the flags that the tester gives, and it prints the changed keys and the kept keys. A new file gets each key, with its default value if no flag gives it. If the existing file or the hook file breaks the rule or is not valid JSON, `init` writes nothing. `init` replaces only its own hooks in the hook file, and it keeps each other hook, also one in the same group.
 
 `nookku check` runs a short test with one message, the value of `check_message`. The relay record of the check has this message in `said`. The check passes if the entry sends a reply, if the audit of the test is clean, and if the tap identifies at least one model session and finds its session file for each harness in `models`. If the tap times out after stray lines (section 4.2), the check also gives the fix for them.

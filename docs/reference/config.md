@@ -18,6 +18,13 @@ The reader also checks the type of each value, as the tables below give it. A va
 
 `start` and `check` stop, `mode on` keeps [relay mode](glossary.md#relay-mode) off, `init` writes nothing, and in relay mode the relay blocks each prompt.
 
+If the file does not exist, each command has its own result ([SPEC.md section 7.1](../../SPEC.md#71-configuration)):
+
+- `start` and `check` stop with the error `cannot read .nookku/config.json` and exit with 1.
+- `mode on` keeps relay mode off and tells you to write the file with `nookku init plugin`.
+- `view` and `transcript` use the default value of each key. Thus `view` reads the record `.nookku/relay.jsonl`.
+- The guard has no `tap_url` and no `agent_url` to deny, also not the default `tap_url`. During a test, it still denies a call to the [tap](glossary.md#tap) of the test.
+
 `nookku init` writes a new file with each key. In an existing file, it keeps each key and changes only the keys of the flags that you give ([cli.md](cli.md#nookku-init)).
 
 ### Test keys
