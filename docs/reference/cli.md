@@ -36,7 +36,7 @@ Start a test: run the entry through the tap and switch relay mode on ([SPEC.md s
 
 End the test: switch relay mode off, stop the entry and collect its sessions, the trace, the audit and the seal ([SPEC.md section 7.2](../../SPEC.md#72-start-and-end)). If no test runs, it switches relay mode off.
 
-`end` in a shell gives no evaluation. If the test needs an evaluation, it prints the prompt to type in the harness: `To evaluate the test, type this prompt in your harness: nookku end` ([SPEC.md section 9.1](../../SPEC.md#91-start)).
+`end` in a shell gives no evaluation. If the test needs an evaluation, it prints the prompt to type in the harness: `To evaluate the test, type this prompt in your harness: nookku end` ([SPEC.md section 9.1](../../SPEC.md#91-start)). If `config.json` is broken, no evaluation starts, and `end` prints the error.
 
 | Flag | Default | Meaning |
 |---|---|---|
