@@ -1,7 +1,7 @@
 // The display layer of nookku in Claude Code. The command hooks of hooks.json run `nookku hook`,
 // which holds each rule: the relay, the guard, the control prompts and their texts. These function
 // hooks only show what the nookku command prints: the /nookku command, the status line and the
-// pane. They hold no rule. If they break, the command hooks still work (docs/adr/0001).
+// pane. They hold no rule. If they break, the command hooks still work (docs/contributing/adr/0001).
 //
 // One exception: a command hook gets only the text of a prompt, not its attachments. So in relay
 // mode, the prompt hook drops a prompt with an attachment. The core gives the mode and the text.

@@ -226,7 +226,7 @@ Each number links to its constant. The 5 seconds of order 2 is the `ANSWER` limi
 
 ## 5. Relays
 
-The relay is one command, `nookku hook`, with one set of rules in Python ([ADR 0001](docs/adr/0001-one-core-one-plugin.md)). It reads a hook event of Claude Code or Codex on stdin, in the classic command hook format that both harnesses share, and `--harness` names the harness. The relay has 2 forms, with the same 2 command hooks (`kit.HOOK_EVENTS`):
+The relay is one command, `nookku hook`, with one set of rules in Python ([ADR 0001](docs/contributing/adr/0001-one-core-one-plugin.md)). It reads a hook event of Claude Code or Codex on stdin, in the classic command hook format that both harnesses share, and `--harness` names the harness. The relay has 2 forms, with the same 2 command hooks (`kit.HOOK_EVENTS`):
 
 - **The plugin**, `plugins/nookku`, for Claude Code and Codex. Its hooks run `plugins/nookku/hooks/nookku-hook.sh`, which runs `nookku hook` from `PATH`. In Claude Code, function hooks add a display layer: `/nookku`, a status line and a pane. The display layer holds one rule, the drop of a prompt with an attachment (below). Each text that it shows is the output of the `nookku` command.
 - **The project hooks**, which `nookku init claude-code` or `nookku init codex` writes into one project. They run `python -m nookku hook --root <root>` with the Python of the install.

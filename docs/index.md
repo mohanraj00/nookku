@@ -47,7 +47,6 @@ How-to guides. Each guide does one task. The guides are in the order of the task
 
 - [Upgrade](how-to/upgrade.md): upgrade the CLI, the package and the plugin, trust the Codex hooks again, and do the special step of a release.
 - [Remove](how-to/remove.md): remove the project hooks, the plugin, the test files and the package.
-- [Run the proofs](how-to/run-the-proofs.md): run the proofs again after a change to a [relay](reference/glossary.md#relay) or for a new [harness](reference/glossary.md#harness) version.
 
 ## Reference
 
@@ -79,9 +78,10 @@ Understand why it works as it does.
 
 ## Contribute to Nookku
 
-Pages for people who change the code of Nookku. You do not need them to test your app.
+Pages for people who change the code of Nookku. You do not need them to test your app. Each page after CONTRIBUTING.md is in `docs/contributing/`.
 
 - [CONTRIBUTING.md](../CONTRIBUTING.md): how to work on this repo.
-- [Code quality](code-quality.md): the rules of the code in this repo, and the check that enforces each rule.
-- [ADR 0001: One core, one plugin](adr/0001-one-core-one-plugin.md): why one Python core and one plugin serve Claude Code and Codex, and what the spikes measured.
-- [Codex display spike](codex-display.md): the plugin display mechanisms, the CLI measurements and the desktop check.
+- [Code quality](contributing/code-quality.md): the rules of the code in this repo, and the check that enforces each rule.
+- [ADR 0001: One core, one plugin](contributing/adr/0001-one-core-one-plugin.md): why one Python core and one plugin serve Claude Code and Codex, and what the spikes measured.
+- [Codex display spike](contributing/codex-display.md): the plugin display mechanisms, the CLI measurements and the desktop check.
+- [Run the proofs](contributing/run-the-proofs.md): run the proofs again after a change to a [relay](reference/glossary.md#relay) or for a new [harness](reference/glossary.md#harness) version.

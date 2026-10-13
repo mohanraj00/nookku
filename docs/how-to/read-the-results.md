@@ -351,7 +351,7 @@ A repeated text then shows as `(compact: the same text as [trace.jsonl:N], sha25
 | The audit exits with 2. | Read `errors` in `audit.json`, and find the error in [troubleshooting.md](../troubleshooting.md#audit-verify-and-trace). Fix the entry or the relay, then run the test again. |
 | The audit exits with 1. | Find the class of each break in the [break classes](#break-classes) table, and do its fix. Then run the test again. Do not trust the report of this test. |
 | A finding. | Find the item in the transcript. If the item shows a fault of the app, fix the app. If it is the correct result, keep it as a fact. |
-| `version_untested`. | Run the proofs for the new harness version ([run-the-proofs.md](run-the-proofs.md)). |
+| `version_untested`. | Run the proofs for the new harness version ([run-the-proofs.md](../contributing/run-the-proofs.md)). |
 | `server_not_from_app`. | Give the app's model only the tools of the app ([isolate-agent-sdk.md](isolate-agent-sdk.md)). |
 | A row of the report. | Check its evidence (step 5). If the evidence agrees, fix the app and run the test again. |
 | A clean audit, no findings and no report rows. | The words arrived exactly. Read the transcript yourself, and judge each reply. |

@@ -42,7 +42,7 @@ Claude Code and Codex both work on this repo, at the same time. The label `agent
 - **Clean room.** Write all code new in this repo. Do not copy code, data or logs from other projects.
 - **Stealth gate.** `scripts/stealth.py check` must pass. It checks files, paths and commit messages against salted hashes of banned terms. Never write a banned term into the repo to test the gate. To add a term, pipe it into `scripts/stealth.py add`.
 - **Examples.** Use a toy shop or a support agent in examples and test data.
-- **Code quality.** Follow `docs/code-quality.md`. It gives each rule, its reason and the check that enforces it.
+- **Code quality.** Follow `docs/contributing/code-quality.md`. It gives each rule, its reason and the check that enforces it.
 - **Dependencies.** Use the standard library first. Do not add a GPL or AGPL dependency. Ask the maintainer before you add any runtime dependency.
 - **Claims.** Each number in a doc must link to its data and its method. If the measurement does not exist, do not make the claim.
 - **Harness versions.** Record the tested versions of Claude Code and Codex with each result.
@@ -91,7 +91,7 @@ claude plugin validate plugins/nookku && claude plugin test plugins/nookku
 - `scripts/proof_report.py <setup>` runs a test of `examples/toy-shop-models/` and the evaluation at its end (P5 extended, P6, P7 and P8), and writes `proofs/report/`.
 - `scripts/proof_telemetry.py <setup>` runs a test of `examples/toy-shop-full/` with all telemetry sources and the evaluation at its end, and writes `proofs/telemetry/`.
 - `scripts/proof_codex_otel.py` checks if Codex sends OpenTelemetry data from the `OTEL_*` variables of a test, and writes `proofs/otel/codex.json`.
-- `scripts/proof_evaluation.py <setup>` runs P5 (the model judges the record, not its memory) and writes `proofs/evaluation/`. Never store a model answer that can quote the harness's own instruction files. Codex runs a hook only after a person trusts it. The maintainer trusts the Codex hooks of the proofs once ([run-the-proofs.md](docs/how-to/run-the-proofs.md#trust-the-codex-hooks-once)). Never try to skip the trust step.
+- `scripts/proof_evaluation.py <setup>` runs P5 (the model judges the record, not its memory) and writes `proofs/evaluation/`. Never store a model answer that can quote the harness's own instruction files. Codex runs a hook only after a person trusts it. The maintainer trusts the Codex hooks of the proofs once ([run-the-proofs.md](docs/contributing/run-the-proofs.md#trust-the-codex-hooks-once)). Never try to skip the trust step.
 
 `scripts/example_evaluation.py` runs the worked evaluation in `docs/evaluation-example.md` and writes `examples/toy-shop/evaluation.json`. The model's answer changes on each run, so update the doc with the data.
 

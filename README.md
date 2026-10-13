@@ -174,7 +174,7 @@ The how-to rows are in the order of the tasks of a test: choose, connect, run, r
 | How-to: run a test | [Claude Code plugin](docs/how-to/claude-code-plugin.md), [Claude Code project hooks](docs/how-to/claude-code-project-hooks.md), [Codex](docs/how-to/codex.md) |
 | How-to: read the results | [Read the results of a test](docs/how-to/read-the-results.md) |
 | How-to: fix | [Troubleshooting](docs/troubleshooting.md), [Recover a stuck test](docs/how-to/recover-a-stuck-test.md) |
-| How-to: maintain | [Upgrade](docs/how-to/upgrade.md), [Remove](docs/how-to/remove.md), [Run the proofs](docs/how-to/run-the-proofs.md) |
+| How-to: maintain | [Upgrade](docs/how-to/upgrade.md), [Remove](docs/how-to/remove.md) |
 | Reference | [CLI](docs/reference/cli.md), [Configuration](docs/reference/config.md), [Records](docs/reference/records.md), [Glossary](docs/reference/glossary.md), [SPEC.md](SPEC.md), [Results](docs/results.md) |
 | Explanation | [Architecture](docs/architecture.md), [Limits](docs/limits.md), [FAQ](docs/faq.md), [Worked evaluations](docs/evaluation-example.md) |
 
@@ -182,7 +182,7 @@ The full map is [docs/index.md](docs/index.md). Read [docs/limits.md](docs/limit
 
 ## Contribute
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md) and the [code of conduct](CODE_OF_CONDUCT.md). Report a security problem as [SECURITY.md](SECURITY.md) says.
+Read [CONTRIBUTING.md](CONTRIBUTING.md) and the [code of conduct](CODE_OF_CONDUCT.md). The pages for contributors are in [docs/contributing/](docs/contributing/), for example [Run the proofs](docs/contributing/run-the-proofs.md) and [Code quality](docs/contributing/code-quality.md). Report a security problem as [SECURITY.md](SECURITY.md) says.
 
 ## License
 

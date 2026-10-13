@@ -201,7 +201,7 @@ Totals: [bench/results.json](../bench/results.json). An agent error is an HTTP 5
 
 ## Run it again
 
-[how-to/run-the-proofs.md](how-to/run-the-proofs.md) explains each command, the trust step of Codex, and what to do after a run.
+[contributing/run-the-proofs.md](contributing/run-the-proofs.md) explains each command, the trust step of Codex, and what to do after a run.
 
 ```bash
 uv run python scripts/proofs_relay.py plugin-claude-code
@@ -230,4 +230,4 @@ uv run python bench/run.py mechanism codex
 uv run python bench/score.py
 ```
 
-The Codex runs need the trust steps of [run-the-proofs.md](how-to/run-the-proofs.md#trust-the-codex-hooks-once).
+The Codex runs need the trust steps of [run-the-proofs.md](contributing/run-the-proofs.md#trust-the-codex-hooks-once).

@@ -70,7 +70,7 @@ The relay sends each message as an HTTP POST with a contract JSON body ([SPEC.md
 
 ## The relays
 
-The relay is the command `nookku hook`. It carries each message and each reply, with one set of rules in Python. It has 2 forms, with the same 2 command hooks ([SPEC.md section 5](../SPEC.md#5-relays), [ADR 0001](adr/0001-one-core-one-plugin.md)):
+The relay is the command `nookku hook`. It carries each message and each reply, with one set of rules in Python. It has 2 forms, with the same 2 command hooks ([SPEC.md section 5](../SPEC.md#5-relays), [ADR 0001](contributing/adr/0001-one-core-one-plugin.md)):
 
 - **The [plugin](reference/glossary.md#plugin).** One plugin folder for Claude Code and Codex. It also has the MCP server `nookku mcp`, with the read-only tools `transcript` and `status`, and the `setup` skill. In Claude Code, function hooks add `/nookku`, a status line and a pane. They are early access. They hold one rule: in [relay mode](reference/glossary.md#relay-mode), they drop a prompt with an attachment. Read [how-to/claude-code-plugin.md](how-to/claude-code-plugin.md) or [how-to/codex.md](how-to/codex.md).
 - **The [project hooks](reference/glossary.md#project-hooks).** `nookku init` writes the same 2 hooks into one project. Read [how-to/claude-code-project-hooks.md](how-to/claude-code-project-hooks.md) or [how-to/codex.md](how-to/codex.md).
