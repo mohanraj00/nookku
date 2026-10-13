@@ -10,7 +10,7 @@ A check is a test, a lint rule, a conformance case or a CI step. "Review" means 
 |---|---|---|
 | 1 | [Fail closed](#1-fail-closed) | Tests in `tests/test_kit.py` and `register.test.ts`, also for the [plugin](reference/glossary.md#plugin) prompt path ([#63](https://github.com/mohanraj00/nookku/issues/63)) and the deny path ([#68](https://github.com/mohanraj00/nookku/issues/68)). |
 | 2 | [Exact bytes](#2-exact-bytes) | Byte tests of each [relay](reference/glossary.md#relay) and proxy. Proofs P1 and P2. |
-| 3 | [One rule, two languages](#3-one-rule-two-languages) | `test_the_plugin_reads_each_one_line_case_like_the_tap`, the shared `DENY_CASES` table for the deny patterns ([#70](https://github.com/mohanraj00/nookku/issues/70)), and the shared `DETAIL_CASES` table for the detail of a blocked call ([#88](https://github.com/mohanraj00/nookku/issues/88)). |
+| 3 | [One rule, one copy](#3-one-rule-one-copy) | The tables in `tests/tables.json`: `contract_lines` for the contract lines, `deny_cases` for the deny patterns ([#70](https://github.com/mohanraj00/nookku/issues/70)) and `detail_cases` for the detail of a blocked call ([#88](https://github.com/mohanraj00/nookku/issues/88)). |
 | 4 | [Records](#4-records) | Conformance cases and the CI step for them, also for Unicode ([#43](https://github.com/mohanraj00/nookku/issues/43), [#65](https://github.com/mohanraj00/nookku/issues/65)). The shared `RELAY_LINES` table for one reader ([#71](https://github.com/mohanraj00/nookku/issues/71)). |
 | 5 | [No secrets](#5-no-secrets) | Secret tests of the 2 proxies, also for query values ([#69](https://github.com/mohanraj00/nookku/issues/69)). |
 | 6 | [Timeouts](#6-timeouts) | `test_each_timeout_ends_before_the_next_one`, also for the HTTP [tap](reference/glossary.md#tap) ([#67](https://github.com/mohanraj00/nookku/issues/67)). |
@@ -23,7 +23,7 @@ A check is a test, a lint rule, a conformance case or a CI step. "Review" means 
 
 **Rule.** If a relay path or a deny path fails, it blocks the message or the tool call. This applies to both forms of the relay, the plugin and the [project hooks](reference/glossary.md#project-hooks), in each mode.
 
-**Reason.** A relay path that fails open gives the tester's message to the model. The model can then change the message, and the test is not valid.
+**Reason.** A relay path that fails open gives the [tester](reference/glossary.md#tester)'s message to the model. The model can then change the message, and the test is not valid.
 
 **Example.** `kit.run_hook` in [src/nookku/kit.py](../src/nookku/kit.py) catches each exception in [relay mode](reference/glossary.md#relay-mode) and blocks the prompt with "Nothing reached the model." The plugin runs the same hook. If the `nookku` command is not on `PATH`, [plugins/nookku/hooks/nookku-hook.sh](../plugins/nookku/hooks/nookku-hook.sh) blocks the prompt and denies the tool call in relay mode or during a test ([#216](https://github.com/mohanraj00/nookku/issues/216)).
 
@@ -38,7 +38,7 @@ A check is a test, a lint rule, a conformance case or a CI step. "Review" means 
 
 **Rule.** The relays and the proxies never change a byte of a message, a reply or a forwarded body. Do not normalize whitespace, line ends or Unicode. A record can hold a decoded or cut copy of a body, but the forwarded bytes stay the same.
 
-**Reason.** The [audit](reference/glossary.md#audit) compares text byte for byte ([SPEC.md section 3.2](../SPEC.md#32-matching)). A change of one byte is a break.
+**Reason.** The [audit](reference/glossary.md#audit) compares text byte for byte ([SPEC.md section 3.2](../SPEC.md#32-matching)). A change of one byte is a [break](reference/glossary.md#break).
 
 **Example.** `test_a_gzip_response_is_decoded_in_the_record_only` in [tests/test_backend.py](../tests/test_backend.py): the proxy decodes a copy for the record and forwards the gzip bytes. The case [conformance/cases/altered_input_unicode_nfd](../conformance/cases/altered_input_unicode_nfd) shows that the audit reports a change of Unicode form as a break.
 
@@ -51,13 +51,16 @@ A check is a test, a lint rule, a conformance case or a CI step. "Review" means 
 - Proofs P1 and P2 ([docs/results.md](results.md#1-proofs)), [scripts/proof_backend.py](../scripts/proof_backend.py) and [scripts/proof_model_api.py](../scripts/proof_model_api.py).
 - Review item in CLAUDE.md: "A change that lets the relay change a byte".
 
-## 3. One rule, two languages
+## 3. One rule, one copy
 
-**Rule.** If Python and the plugin read or match the same input, they use one rule. One shared table of cases tests both. The table comes from `conformance/`.
+**Rule.** Each rule that reads or matches an input has one copy, in the core (`src/nookku/`). The plugin and the hook kit call the core, and do not copy the rule. A table of cases tests the rule. The tables are in [tests/tables.json](../tests/tables.json). The plugin has its own code only where the core cannot run:
 
-**Reason.** Two readers with two rules give two results for one agent. The audit then reports a break in one relay only.
+- A command hook does not receive the attachments of a prompt. So in relay mode, the plugin drops a prompt with an attachment itself (`refuseAttachments` in [register.tsx](../plugins/nookku/hooks/register.tsx)). The core gives the mode and the text.
+- If `nookku` is not on `PATH`, [nookku-hook.sh](../plugins/nookku/hooks/nookku-hook.sh) cannot call the core. It fails closed: in relay mode or during a test, it blocks the prompt and denies the tool call. `tests/test_plugin.py` tests it.
 
-**Example.** `contract.parse_reply` accepted a reply with `"error": null`, but `contractShown` in `plugins/claude-code/hooks/core.ts` refused it ([#45](https://github.com/mohanraj00/nookku/issues/45)). The fix added a table of contract lines. Since [#216](https://github.com/mohanraj00/nookku/issues/216), the plugin has no copy of a rule, and the tables in [tests/tables.json](../tests/tables.json) test only the core.
+**Reason.** Two copies of a rule give two results for one agent. The audit then reports a break in one relay only.
+
+**Example.** `contract.parse_reply` accepted a reply with `"error": null`, but `contractShown` in `plugins/claude-code/hooks/core.ts` refused it ([#45](https://github.com/mohanraj00/nookku/issues/45)). The fix added a table of contract lines. Since [#216](https://github.com/mohanraj00/nookku/issues/216), the plugin has no copy of a rule, except in the 2 places above, and the tables in [tests/tables.json](../tests/tables.json) test only the core.
 
 **Check.**
 

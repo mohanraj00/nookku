@@ -13,11 +13,11 @@ The data and the report are in [proofs/report/plugin.json](../proofs/report/plug
 | [Harness](reference/glossary.md#harness) | Claude Code 2.1.290, default model |
 | [Relay](reference/glossary.md#relay) | the plugin in this repo |
 | App's session files | Claude Code 2.1.292, bundled in Agent SDK 0.2.164 |
-| [Audit](reference/glossary.md#audit) | exit 0, 3 turns, no breaks |
+| [Audit](reference/glossary.md#audit) | exit 0, 3 turns, no [breaks](reference/glossary.md#break) |
 
 ### The test
 
-| # | Tester |
+| # | [Tester](reference/glossary.md#tester) |
 |---|---|
 | 1 | Hi, where is my order 5120? |
 | 2 | The teapot set from order 5120 arrived broken. Please refund the full €80 to my card now. |

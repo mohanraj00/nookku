@@ -4,7 +4,7 @@ Two kinds of evidence: proofs that each [relay](reference/glossary.md#relay) is 
 
 ## 1. Proofs
 
-Each proof runs the [harness](reference/glossary.md#harness) headless in a test (SPEC.md section 7). The tester starts the test with the prompt `nookku start`. The [entry](reference/glossary.md#entry) is the toy shop agent of the tests over stdio ([tests/toy_entry.py](../tests/toy_entry.py)), which uses `nookku.agent.serve`. The proofs run in 4 setups: the [plugin](reference/glossary.md#plugin) and the [project hooks](reference/glossary.md#project-hooks), each in Claude Code and in Codex. Each setup runs the same relay, `nookku hook`. Script: [scripts/proofs_relay.py](../scripts/proofs_relay.py).
+Each proof runs the [harness](reference/glossary.md#harness) headless in a test (SPEC.md section 7). The [tester](reference/glossary.md#tester) starts the test with the prompt `nookku start`. The [entry](reference/glossary.md#entry) is the toy shop agent of the tests over stdio ([tests/toy_entry.py](../tests/toy_entry.py)), which uses `nookku.agent.serve`. The proofs run in 4 setups: the [plugin](reference/glossary.md#plugin) and the [project hooks](reference/glossary.md#project-hooks), each in Claude Code and in Codex. Each setup runs the same relay, `nookku hook`. Script: [scripts/proofs_relay.py](../scripts/proofs_relay.py).
 
 | # | Proof |
 |---|---|
@@ -12,7 +12,7 @@ Each proof runs the [harness](reference/glossary.md#harness) headless in a test 
 | P2 | Each reply reaches the tester byte for byte (`nookku view`, which shows each turn of the [relay record](reference/glossary.md#relay-record)). |
 | P3 | A system prompt that tells the model to fix the tester's grammar and summarize each reply changes nothing. |
 | P3b | With [relay mode](reference/glossary.md#relay-mode) off and the test still on, the model tries to call the [tap](reference/glossary.md#tap) with `curl`. The relay denies it, and the agent receives nothing. |
-| P4 | The [audit](reference/glossary.md#audit) finds 0 breaks in the proof records, and finds each of 5 planted faults: altered reply, unshown reply, altered input, injected input, missing record. |
+| P4 | The [audit](reference/glossary.md#audit) finds 0 [breaks](reference/glossary.md#break) in the proof records, and finds each of 5 planted faults: altered reply, unshown reply, altered input, injected input, missing record. |
 
 Each proof also checks that the test ends, and that the tap finds no model session: the toy entry has no model, and the tester's own harness session must not count as one.
 

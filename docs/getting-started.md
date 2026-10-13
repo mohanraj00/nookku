@@ -202,7 +202,7 @@ Result: clean (exit 0)
 
 `relay.jsonl` is what you typed and saw. `tap.jsonl` is what the agent received and sent. The audit compares them byte for byte. Clean means that each message reached the agent with no change, and each reply reached you with no change.
 
-To see a break, audit a conformance case of the repo. Its records have 4 planted faults:
+To see a [break](reference/glossary.md#break), audit a conformance case of the repo. Its records have 4 planted faults:
 
 ```bash
 nookku audit --tap ../nookku/conformance/cases/several_breaks/tap.jsonl --relay ../nookku/conformance/cases/several_breaks/relay.jsonl

@@ -25,7 +25,7 @@ Start a test: run the [entry](glossary.md#entry) through the [tap](glossary.md#t
 |---|---|---|
 | `--root PATH` | the current folder | The project. |
 | `--json` | off | Print `current.json` of the test as JSON, or `{"error": ...}`. |
-| `--tester-session ID` | none | The tester's [harness](glossary.md#harness) session id. The [bridge](glossary.md#bridge) never takes this session as a session of the app. |
+| `--tester-session ID` | none | The [tester](glossary.md#tester)'s [harness](glossary.md#harness) session id. The [bridge](glossary.md#bridge) never takes this session as a session of the app. |
 
 | Exit code | Meaning |
 |---|---|
@@ -70,6 +70,8 @@ PASS proves the connection, not the reply. PASS means that:
 - the entry sent a reply line, not an `error` line;
 - the audit of the test exits with 0;
 - the test found a model session and its session file for each harness in `models`.
+
+`check` ends its test. The model does not evaluate a check test, so `nookku end` after `check` starts no evaluation ([SPEC.md section 9.1](../../SPEC.md#91-start)).
 
 `check` does not judge the text of the reply. A fallback reply of the app also passes. [how-to/connect-your-agent.md](../how-to/connect-your-agent.md#make-sure-that-check-runs-your-real-app) shows how to make sure that the entry runs your real app.
 
@@ -178,7 +180,7 @@ Compare the relay record with the [tap record](glossary.md#tap-record) ([SPEC.md
 
 | Exit code | Meaning |
 |---|---|
-| 0 | The records are valid and have no break. |
+| 0 | The records are valid and have no [break](glossary.md#break). |
 | 1 | The records are valid and have one or more breaks. |
 | 2 | A record is missing or invalid, or the tap has an unparsed exchange. |
 

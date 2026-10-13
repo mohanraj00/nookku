@@ -44,7 +44,7 @@ Both forms run the same rules and give the model the same transcript text. Both 
 
 ## Switch from one form to the other
 
-**Warning:** Never use both forms in one project. If both run, each message goes to the agent two times, and the [audit](../reference/glossary.md#audit) reports a `duplicate_send` break ([SPEC.md section 3.3](../../SPEC.md#33-break-classes)). `nookku start` and `nookku mode on` refuse a test if both forms are on, in Claude Code and in Codex. `nookku init` warns if the other form is on in Claude Code.
+**Warning:** Never use both forms in one project. If both run, each message goes to the agent two times, and the [audit](../reference/glossary.md#audit) reports a `duplicate_send` [break](../reference/glossary.md#break) ([SPEC.md section 3.3](../../SPEC.md#33-break-classes)). `nookku start` and `nookku mode on` refuse a test if both forms are on, in Claude Code and in Codex. `nookku init` warns if the other form is on in Claude Code.
 
 The 2 forms use the same `.nookku/config.json` and the same [test folders](../reference/glossary.md#test-folder). A switch keeps your entry and your old tests.
 

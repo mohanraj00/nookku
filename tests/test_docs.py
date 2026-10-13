@@ -354,6 +354,21 @@ def test_the_readme_gives_the_tagline_one_time() -> None:
     assert (ROOT / "README.md").read_text(encoding="utf-8").count(TAGLINE) == 1
 
 
+QUOTED = re.compile(r"\"[^\"\n]*\"")
+
+
+def test_harness_has_one_meaning_in_the_docs() -> None:
+    # "Harness" means a coding harness, Claude Code or Codex. Nookku is not a harness (#166).
+    # Quoted text keeps its words, for example the first tagline in the ADR.
+    pages = [ROOT / "README.md", *(p for p in markdown_files() if DOCS in p.parents)]
+    found = [
+        str(p.relative_to(ROOT))
+        for p in pages
+        if re.search(r"test[ -]harness", QUOTED.sub("", prose(p.read_text("utf-8"))), re.I)
+    ]
+    assert found == []
+
+
 def test_the_try_of_the_readme_gives_the_output_that_it_shows(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -373,6 +388,30 @@ def test_the_try_of_the_readme_gives_the_output_that_it_shows(
     assert cli.main(args) == 0
     out = capsys.readouterr().out.splitlines()
     assert out[0].startswith("Test ") and out[1:] == shown.splitlines()
+
+
+def test_the_sample_report_of_the_readme_is_an_excerpt_of_its_data() -> None:
+    # Each line of the excerpt is a line of the real report, in its order (#257).
+    # A "..." line marks a cut.
+    # The excerpt has its own headings, so the section ends at the heading after the code block.
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    found = re.search(r"^## A sample report\n(.*?```.*?```.*?)(?=^## )", readme, re.M | re.S)
+    assert found
+    section = found.group(1)
+    excerpt = re.search(r"```markdown\n(.*?)```", section, re.DOTALL)
+    data = re.search(r"\[[^]]+\]\((proofs/report/[^)]+\.json)\)", section)
+    assert excerpt and data
+    proof = json.loads((ROOT / data.group(1)).read_text(encoding="utf-8"))
+    lines = proof["report"].split("\n")
+    at = 0
+    for line in excerpt.group(1).splitlines():
+        if line == "...":
+            continue
+        assert line in lines[at:], line
+        at = lines.index(line, at) + 1
+    rows = sum(1 for line in lines if line.startswith("| ") and line.count("|") > 4) - 1
+    notes = sum(1 for line in lines if line.startswith("- "))
+    assert f"The full report has {rows} rows and {notes} notes." in section
 
 
 # Reference pages -----------------------------------------------------------------------------
@@ -488,12 +527,23 @@ def test_each_glossary_term_links_to_a_section_of_the_spec() -> None:
 
 
 GLOSSARY = (DOCS / "reference" / "glossary.md").resolve()
-# The docs also use these terms as plain words, for example "test your app", "a break in the
-# record" and "the plugins of Codex". A link on each first use can point to the wrong meaning,
-# so the test does not check them.
-PLAIN_WORDS = {"Agent", "Break", "Plugin", "Test", "Tester"}
-# Phrases that hold a term but are not a use of it. The README calls Nookku a test harness.
-NOT_A_USE = ("test harness",)
+# The docs use these terms as plain words on almost each page, for example "test your app", "the
+# agent of the toy shop" and "the plugins of Codex". A link on each first use can point to the
+# wrong meaning, so the test does not check them.
+PLAIN_WORDS = {"Agent", "Plugin", "Test"}
+# A count before a term in a phrase that a test reads, for example "10 trace checks". The test
+# of each count reads these phrases, so they are not a use of the term.
+COUNTED = re.compile(r"\b\d+ (?:break classes|trace checks)\b")
+# Phrases on a page that use a term with its plain meaning before its glossary meaning. A link
+# there points to the wrong meaning, so the test does not count them as a use.
+PLAIN_USES = {
+    # "break" as a verb: the display layer stops.
+    "docs/adr/0001-one-core-one-plugin.md": ("If they break",),
+    # "breaks" as a verb: the script does not obey a rule.
+    "docs/reference/cli.md": ("the script breaks a rule",),
+}
+# The link of a glossary term with no fragment: a link to the top of the glossary.
+NO_FRAGMENT = "(top of the glossary)"
 # An inline link, with its text in group 1 and its target in group 2.
 TEXT_LINK = re.compile(
     r"!?\[((?:[^\[\]]|\[[^\[\]]*\])*)\]\(\s*<?([^)\s>]+)>?(?:\s+\"[^\"]*\")?\s*\)"
@@ -520,11 +570,10 @@ def _forms(name: str) -> list[str]:
 
 
 def _term_pattern(forms: list[str]) -> re.Pattern[str]:
-    """A use of a term. The longest form wins, so "relay mode" is not a use of "relay". A count
-    before the term, as in "10 trace checks", is a phrase that a test reads, so it is not a use.
-    A file name or a path, as in "audit.json", is not a use."""
+    """A use of a term. The longest form wins, so "relay mode" is not a use of "relay". A file
+    name or a path, as in "audit.json", is not a use."""
     alternatives = "|".join(re.escape(f) for f in sorted(forms, key=len, reverse=True))
-    return re.compile(rf"(?<![\w./#-])(?<!\d )({alternatives})(?![\w/-]|\.\w)", re.IGNORECASE)
+    return re.compile(rf"(?<![\w./#-])({alternatives})(?![\w/-]|\.\w)", re.IGNORECASE)
 
 
 def first_uses(text: str, page: Path) -> list[tuple[str, int, int, str | None]]:
@@ -532,10 +581,13 @@ def first_uses(text: str, page: Path) -> list[tuple[str, int, int, str | None]]:
     end of the use in the text, and the anchor of its glossary link, or None with no link. Code,
     comments, HTML tags, headings and the text of other links are not prose."""
     by_form = {form: name for name in _sections(GLOSSARY, "##") for form in _forms(name)}
-    pattern = _term_pattern([*by_form, *NOT_A_USE])
+    pattern = _term_pattern(list(by_form))
     masked = text
-    for part in (FENCE, COMMENT, CODE_SPAN, HTML_TAG, HEADING):
+    for part in (FENCE, COMMENT, CODE_SPAN, HTML_TAG, HEADING, COUNTED):
         masked = _blank(masked, part)
+    if page.resolve().is_relative_to(ROOT):
+        for phrase in PLAIN_USES.get(page.resolve().relative_to(ROOT).as_posix(), ()):
+            masked = _blank(masked, re.compile(re.escape(phrase)))
     # Each part of the text: its start, its end and the anchor of its glossary link. Plain text
     # has the anchor None, and the text of another link has the anchor "".
     parts: list[tuple[int, int, str | None]] = []
@@ -543,7 +595,8 @@ def first_uses(text: str, page: Path) -> list[tuple[str, int, int, str | None]]:
     for m in TEXT_LINK.finditer(masked):
         parts.append((end, m.start(), None))
         path, fragment = resolve(page, m.group(2))
-        parts.append((m.start(1), m.end(1), fragment if path == GLOSSARY else ""))
+        anchor = (fragment or NO_FRAGMENT) if path == GLOSSARY else ""
+        parts.append((m.start(1), m.end(1), anchor))
         end = m.end()
     parts.append((end, len(masked), None))
     seen: dict[str, tuple[str, int, int, str | None]] = {}
@@ -593,8 +646,13 @@ def test_each_docs_page_links_the_first_use_of_each_glossary_term(page: Path) ->
         ("One finding.", ["Findings: 'finding'"]),
         # The plural of a singular term that ends in "s".
         ("Two harnesses.", ["Harness: 'harnesses'"]),
-        # A count, a file name, a code span, a heading, another link and a plain word.
-        ("# Audit\n\n10 trace checks, audit.json, `seal`, [entry.py](e.py), a test harness.", []),
+        # A glossary link with no fragment goes to the top of the glossary.
+        ("The [seal](../reference/glossary.md) runs.", ["Seal: 'seal'"]),
+        # A count is not a use only in a phrase that a test reads.
+        ("10 trace checks and 4 break classes.", []),
+        ("2 seals and 3 taps.", ["Seal: 'seals'", "Tap: 'taps'"]),
+        # A file name, a code span, a heading, another link and a plain word.
+        ("# Audit\n\naudit.json, `seal`, [entry.py](e.py), test the agent.", []),
     ],
 )
 def test_the_glossary_check_finds_a_first_use_with_no_link(text: str, wanted: list[str]) -> None:

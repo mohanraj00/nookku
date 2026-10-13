@@ -323,7 +323,7 @@ Obey these rules for an HTTP server:
 - Start the server in the entry, not before the test. Then the server gets the proxy URLs and the OTLP URL in its environment, and the tap writes its stderr to `app.log`. The tap also finds a Claude Code session of the server only if the server is a child of the entry ([SPEC.md section 7.3](../../SPEC.md#73-model-sessions)).
 - Send the stdout of the server to stderr. `serve()` does this only for output after it starts, so give `stdout=sys.stderr` to the server process.
 - Set `agent_url` to the URL of the server. The relay then denies a model tool call that names this URL, the same as a call to the tap ([reference/config.md](../reference/config.md#relay-keys)). A model call to the server goes around the tap, and no record shows it.
-- Give the call to the server a timeout of less than [240 seconds](../../src/nookku/stdio.py), the agent timeout of the tap. Then the tester sees the error of the call.
+- Give the call to the server a timeout of less than [240 seconds](../../src/nookku/stdio.py), the agent timeout of the tap. Then the [tester](../reference/glossary.md#tester) sees the error of the call.
 - If the server streams its reply, read the full stream and return one reply ([test-a-streaming-agent.md](test-a-streaming-agent.md)).
 
 `nookku check` with this entry gives:

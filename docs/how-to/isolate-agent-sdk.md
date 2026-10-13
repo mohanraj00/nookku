@@ -1,6 +1,6 @@
 # Isolate an Agent SDK session
 
-Use this page if your app runs a Claude Agent SDK session. An Agent SDK session can load more than your app gives it. With `setting_sources=[]`, it still connects to the claude.ai connectors of the tester's account, and it loads each plugin in the variable `CLAUDE_CODE_PLUGIN_DIRS`. Then the app's model can see tools that are not the app's tools. It can reach the tester's accounts, and the result of a test depends on the tester's machine.
+Use this page if your app runs a Claude Agent SDK session. An Agent SDK session can load more than your app gives it. With `setting_sources=[]`, it still connects to the claude.ai connectors of the [tester](../reference/glossary.md#tester)'s account, and it loads each plugin in the variable `CLAUDE_CODE_PLUGIN_DIRS`. Then the app's model can see tools that are not the app's tools. It can reach the tester's accounts, and the result of a test depends on the tester's machine.
 
 ## Set the options
 

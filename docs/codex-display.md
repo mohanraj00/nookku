@@ -103,7 +103,7 @@ Update the desktop answers and recommendation from the observations before closi
 
 Keep the Codex command-hook adapter. Use `systemMessage` only for optional short state notices on
 surfaces that show them. Keep control-word handling in the Python core. A skill does not give us a
-command path that bypasses the model. Do not use `additionalContext` to carry a tester reply that
+command path that bypasses the model. Do not use `additionalContext` to carry a [tester](reference/glossary.md#tester) reply that
 must stay out of the model context.
 
 Do not port the function display hooks to Codex. Add an optional MCP App adapter for the desktop

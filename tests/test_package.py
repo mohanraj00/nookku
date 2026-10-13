@@ -1,4 +1,5 @@
-"""Packaging rules: no runtime dependencies, a plain version, the same version in the plugin."""
+"""Packaging rules: no runtime dependencies, a plain version, the same version in the plugin
+and in the links of the PyPI README."""
 
 import json
 import re
@@ -21,3 +22,11 @@ def test_no_runtime_dependencies() -> None:
 def test_the_plugin_has_the_package_version() -> None:
     manifest = ROOT / "plugins" / "nookku" / ".claude-plugin" / "plugin.json"
     assert json.loads(manifest.read_text())["version"] == nookku.__version__
+
+
+def test_the_pypi_readme_links_use_the_release_tag() -> None:
+    pyproject = (ROOT / "pyproject.toml").read_text()
+    tags = re.findall(
+        r"replacement = '\]\(https://github\.com/mohanraj00/nookku/blob/([^/]+)/", pyproject
+    )
+    assert tags == [f"v{nookku.__version__}"]

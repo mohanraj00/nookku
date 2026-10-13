@@ -4,14 +4,14 @@ Status: proposed. Date: 2026-10-08. Issue: [#180](https://github.com/mohanraj00/
 
 ## Context
 
-The project started as a [relay](../reference/glossary.md#relay). Now it is a test harness for developers of agent apps. It starts the agent, relays the turns, [taps](../reference/glossary.md#tap) them, [seals](../reference/glossary.md#seal) the test, [audits](../reference/glossary.md#audit), [traces](../reference/glossary.md#trace) and evaluates.
+The project started as a [relay](../reference/glossary.md#relay). Now it is a test tool for developers of agent apps. It starts the agent, relays the turns, [taps](../reference/glossary.md#tap) them, [seals](../reference/glossary.md#seal) the test, [audits](../reference/glossary.md#audit), [traces](../reference/glossary.md#trace) and evaluates.
 
 In v0.3, 2 relays do this work:
 
 - The hook kit: Python command hooks that `init` writes into a project, for Claude Code and Codex.
 - The Claude Code [plugin](../reference/glossary.md#plugin): TypeScript function hooks.
 
-Testers used both relays. The plugin gave a better experience, but it works only in Claude Code. Its rules repeat the Python rules in TypeScript. The 5 open guard issues of v0.4.0, [#146](https://github.com/mohanraj00/nookku/issues/146), [#149](https://github.com/mohanraj00/nookku/issues/149), [#150](https://github.com/mohanraj00/nookku/issues/150), [#172](https://github.com/mohanraj00/nookku/issues/172) and [#173](https://github.com/mohanraj00/nookku/issues/173), must each change the same rule in both copies.
+[Testers](../reference/glossary.md#tester) used both relays. The plugin gave a better experience, but it works only in Claude Code. Its rules repeat the Python rules in TypeScript. The 5 open guard issues of v0.4.0, [#146](https://github.com/mohanraj00/nookku/issues/146), [#149](https://github.com/mohanraj00/nookku/issues/149), [#150](https://github.com/mohanraj00/nookku/issues/150), [#172](https://github.com/mohanraj00/nookku/issues/172) and [#173](https://github.com/mohanraj00/nookku/issues/173), must each change the same rule in both copies.
 
 Before this decision, I measured 5 questions in spikes. Each result below links to its data and its method. The versions are in each data file.
 
@@ -122,6 +122,6 @@ The first tagline said what Nookku is, but not the problem that it solves. A new
 The new tagline and its second line are:
 
 - Tagline: "Test your chat agent from Claude Code or Codex, byte for byte."
-- Second line: "Nookku carries each test message to your agent unchanged, records what the agent got, and names each break."
+- Second line: "Nookku carries each test message to your agent unchanged, records what the agent got, and names each [break](../reference/glossary.md#break)."
 
 The README gives the tagline one time, at the top. The rest of this ADR does not change.

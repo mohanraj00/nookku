@@ -17,7 +17,7 @@ First, look in the [test folder](reference/glossary.md#test-folder) `.nookku/tes
 | A test does not start. | Find the error text in [Start a test](#start-a-test). |
 | The test does not end, or each prompt says that no test runs. | Follow [recover-a-stuck-test.md](how-to/recover-a-stuck-test.md). |
 | No `report.md` after the end. | The model writes `report.md` only after the prompt `nookku end`. `nookku end` in a shell, or `/nookku end` in the plugin, ends the test with no [evaluation](reference/glossary.md#evaluation). If `evaluate` is `false` in the configuration, no evaluation starts. If you denied a command of the evaluation, the model can stop. Type the prompt `nookku end` again. If the latest test has no `report.md`, this prompt starts its evaluation ([SPEC.md section 9.1](../SPEC.md#91-start), [test-your-app.md](how-to/test-your-app.md#7-allow-the-evaluation-commands)). In Codex, the sandbox must let the model write in the project ([codex.md](how-to/codex.md#use)). |
-| The [audit](reference/glossary.md#audit) exits with 1 or 2. | Read the break or the error in `audit.json` ([read-the-results.md](how-to/read-the-results.md#3-read-the-audit)). For each error text, read [Audit, verify and trace](#audit-verify-and-trace). |
+| The [audit](reference/glossary.md#audit) exits with 1 or 2. | Read the [break](reference/glossary.md#break) or the error in `audit.json` ([read-the-results.md](how-to/read-the-results.md#3-read-the-audit)). For each error text, read [Audit, verify and trace](#audit-verify-and-trace). |
 | `nookku verify` says `Seal: BROKEN`. | A file of the test folder changed after the end of the test. Do not trust the changed files. Run a new test ([Audit, verify and trace](#audit-verify-and-trace)). |
 
 ## Install

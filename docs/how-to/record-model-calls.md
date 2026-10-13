@@ -19,7 +19,7 @@ An Agent SDK session in your app also reads `ANTHROPIC_BASE_URL`, so its calls a
 | Record both APIs (the default) | `true` |
 | Record no API | `false` |
 | Your app uses Codex with a ChatGPT login: `OPENAI_BASE_URL` can send Codex to the public API | `["anthropic"]` or `false` |
-| The upstream URL is not in the environment, or the tester's [harness](../reference/glossary.md#harness) reads the same variable | `{"anthropic": null, "openai": "http://127.0.0.1:9002/v1"}` |
+| The upstream URL is not in the environment, or the [tester](../reference/glossary.md#tester)'s [harness](../reference/glossary.md#harness) reads the same variable | `{"anthropic": null, "openai": "http://127.0.0.1:9002/v1"}` |
 
 In the object form, `null` takes the URL from the variable. An empty URL stops the start of the test.
 

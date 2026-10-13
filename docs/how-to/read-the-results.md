@@ -57,7 +57,7 @@ ls .nookku/tests/
 20261011-184952-8a8d
 ```
 
-`nookku check` also makes a test folder. Do not read the check tests as your tests. A check test has one turn from the [harness](../reference/glossary.md#harness) `nookku-check`. To find the check tests:
+`nookku check` also makes a test folder. Do not read the check tests as your tests. A check test has one turn from the [harness](../reference/glossary.md#harness) `nookku-check`. The model does not evaluate a check test. To find the check tests:
 
 ```bash
 grep -l '"harness": "nookku-check"' .nookku/tests/*/relay.jsonl
@@ -114,7 +114,7 @@ cat .nookku/tests/20261011-184952-8a8d/audit.json
 
 | Exit | Meaning | Where to look |
 |---|---|---|
-| 0 | The records are valid and have no break. | Nothing more in the audit. |
+| 0 | The records are valid and have no [break](../reference/glossary.md#break). | Nothing more in the audit. |
 | 1 | The records are valid and have 1 or more breaks. | `breaks`: one object for each break. |
 | 2 | A record is missing or invalid, or the [tap](../reference/glossary.md#tap) has an unparsed exchange. The audit did not compare the texts. | `errors` and `skipped`: the checks that did not run. |
 

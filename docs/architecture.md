@@ -4,7 +4,7 @@ This page shows the parts of Nookku and how the data goes between them. [SPEC.md
 
 ## The problem
 
-A tester talks to a chat agent through a coding [harness](reference/glossary.md#harness): Claude Code or Codex. If the [harness model](reference/glossary.md#harness-model) carries the messages, it also writes them. Then it judges its own text. Nookku takes the model out of the conversation, and keeps 2 records that a third program can compare.
+A [tester](reference/glossary.md#tester) talks to a chat agent through a coding [harness](reference/glossary.md#harness): Claude Code or Codex. If the [harness model](reference/glossary.md#harness-model) carries the messages, it also writes them. Then it judges its own text. Nookku takes the model out of the conversation, and keeps 2 records that a third program can compare.
 
 ## Data flow
 

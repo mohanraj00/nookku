@@ -15,7 +15,7 @@ from typing import Any
 
 from . import bridge, seal
 from .config import ConfigError, read_config
-from .record import RecordError, read_rows
+from .record import RecordError, read_rows, turns
 
 REPORT = "report.md"
 # A longer text shows its start, and the trace line holds all of it.
@@ -35,12 +35,22 @@ def enabled(root: Path) -> bool:
     return conf.get("evaluate", True) is not False
 
 
+def is_check(folder: Path) -> bool:
+    """True if the test is a test of `nookku check`: it has turns, and each one has the harness
+    `nookku-check`. A relay record that cannot be read is not a check test (SPEC.md section 9.1)."""
+    try:
+        found = turns(folder / "relay.jsonl", missing_ok=True)
+    except RecordError:
+        return False
+    return bool(found) and all(t.harness == bridge.CHECK_HARNESS for t in found)
+
+
 def _ended(root: Path) -> Path | None:
-    """The latest test, if no test runs, it ended and it has no report."""
+    """The latest test, if no test runs, it ended, it has no report and it is not a check test."""
     if bridge.current(root) is not None:
         return None
     folder = bridge.latest_test(root)
-    if folder is None or (folder / REPORT).exists():
+    if folder is None or (folder / REPORT).exists() or is_check(folder):
         return None
     try:
         manifest = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))

@@ -80,4 +80,4 @@ In relay mode, the relay fails closed: if it cannot send a message, the message 
 nookku audit --tap .nookku/tests/<test-id>/tap.jsonl --relay .nookku/tests/<test-id>/relay.jsonl
 ```
 
-Exit code 0 means clean, 1 means a break, and 2 means that a record is missing or invalid ([SPEC.md section 3.4](../../SPEC.md#34-exit-codes)).
+Exit code 0 means clean, 1 means a [break](../reference/glossary.md#break), and 2 means that a record is missing or invalid ([SPEC.md section 3.4](../../SPEC.md#34-exit-codes)).
