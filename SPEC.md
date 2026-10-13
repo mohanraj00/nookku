@@ -1,5 +1,7 @@
 # Nookku specification, v0.3 (draft)
 
+The version of this spec is the version of the record format (section 2), not the version of the package.
+
 This file defines the two records and the audit. The conformance cases in `conformance/` are the executable form of this file. If the code and this file disagree, the code is wrong.
 
 ## 1. Parts
