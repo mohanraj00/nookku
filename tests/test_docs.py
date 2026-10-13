@@ -375,13 +375,14 @@ def _commands() -> dict[str, argparse.ArgumentParser]:
     return dict(sub.choices)
 
 
-def _documented(action: argparse.Action) -> str | None:
-    """The name of an argument on the CLI page, or None if the parser hides it."""
+def _documented(action: argparse.Action) -> list[str]:
+    """The names of an argument on the CLI page, or none if the parser hides it. A flag with a
+    --no- form, such as --openai-stream, has 2 names, and the page must give both (#120)."""
     if action.help == argparse.SUPPRESS or isinstance(action, argparse._HelpAction):
-        return None
+        return []
     if action.option_strings:
-        return max(action.option_strings, key=len)
-    return (action.metavar if isinstance(action.metavar, str) else action.dest).upper()
+        return list(action.option_strings)
+    return [(action.metavar if isinstance(action.metavar, str) else action.dest).upper()]
 
 
 def test_the_cli_page_has_each_command_and_each_flag() -> None:
@@ -390,8 +391,10 @@ def test_the_cli_page_has_each_command_and_each_flag() -> None:
     assert sorted(page) == sorted(f"nookku {name}" for name in commands)
     for name, parser in commands.items():
         section = page[f"nookku {name}"]
-        rows = set(re.findall(r"^\| `(--[a-z][a-z-]*|[A-Z]+)\b", section, re.MULTILINE))
-        wanted = {d for d in map(_documented, parser._actions) if d}
+        # Each flag in the first cell of a row, for example `--no-evaluate`, `--evaluate`.
+        cells = re.findall(r"^\| ((?:`[^`]+`(?:, )?)+) \|", section, re.MULTILINE)
+        rows = {m for cell in cells for m in re.findall(r"`(--[a-z][a-z-]*|[A-Z]+)\b", cell)}
+        wanted = {d for action in parser._actions for d in _documented(action)}
         assert rows == wanted, name
 
 
