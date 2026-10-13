@@ -27,7 +27,7 @@ function fakes(on: any, out: Record<string, { exitCode: number; stdout: string; 
   return { runs, status }
 }
 
-const STATUS_ON = { exitCode: 0, stdout: '{"on": true, "test": null, "text": "relay mode is on."}\n' }
+const STATUS_ON = { exitCode: 0, stdout: '{"on": true, "test": null, "text": "relay mode is on. No test runs."}\n' }
 const STATUS_OFF = { exitCode: 0, stdout: '{"on": false, "test": null, "text": null}\n' }
 
 test('/nookku start runs nookku mode and shows its output with no change', {}, async ($, on) => {
@@ -35,7 +35,7 @@ test('/nookku start runs nookku mode and shows its output with no change', {}, a
   const shown: any = await $.command.run({ command: 'nookku', args: 'start' } as any)
   expect(f.runs[0]).toEqual(['nookku', 'mode', 'start', '--tester-session', 's1'])
   expect(shown.text).toBe(STARTED.trimEnd())
-  expect(f.status.at(-1)).toBe('relay mode is on.')
+  expect(f.status.at(-1)).toBe('relay mode is on. No test runs.')
 })
 
 test('each other word of /nookku goes to nookku mode', {}, async ($, on) => {
@@ -99,7 +99,7 @@ const REFUSE = 'nookku: the relay does not send attachments. Nothing was sent.'
 const IMAGE = { text: 'Is this my mug?', attachments: [{ kind: 'image' }] }
 
 test('in relay mode, a prompt with an attachment is dropped with the text of the core', {}, async ($, on) => {
-  const status = { exitCode: 0, stdout: JSON.stringify({ on: true, test: null, text: 'relay mode is on.', attachments: REFUSE }) }
+  const status = { exitCode: 0, stdout: JSON.stringify({ on: true, test: null, text: 'relay mode is on. No test runs.', attachments: REFUSE }) }
   const f = fakes(on, { status })
   const logs: string[] = []
   on('ui.log', async (_$: any, e: any) => {

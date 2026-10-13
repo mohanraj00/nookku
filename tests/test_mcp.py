@@ -119,7 +119,7 @@ def test_a_wrong_call_is_an_error_result(tmp_path: Path, arguments: dict) -> Non
 def test_status_says_if_relay_mode_is_on(tmp_path: Path) -> None:
     kit.set_mode(tmp_path, True)
     result = rpc(tmp_path, "tools/call", {"name": "status", "arguments": {}})["result"]
-    assert result["content"][0]["text"] == "nookku: relay mode is on."
+    assert result["content"][0]["text"] == "nookku: relay mode is on. No test runs."
     assert "relay mode is on" in result["content"][0]["text"]
 
 
