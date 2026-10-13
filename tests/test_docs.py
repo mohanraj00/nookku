@@ -230,6 +230,7 @@ CHECK_PAGES = [
     "docs/getting-started.md",
     "docs/how-to/connect-your-agent.md",
     "docs/reference/cli.md",
+    "src/nookku/setup.md",
 ]
 
 
@@ -373,7 +374,12 @@ def test_the_setup_skill_checks_the_reply_and_app_log_after_a_pass() -> None:
     assert len(steps) == 3
     reply, log, node = steps
     assert "`Reply:`" in reply and "error text" in reply and "not done" in reply
+    # An app can decline the default check message in normal use. Then the step changes the
+    # config key, not the entry.
+    assert "`check_message`" in reply
     assert "`app.log`" in log and "errors" in log and "tracebacks" in log
+    # A warning that the app also writes in normal use does not stop the setup.
+    assert "normal use" in log
     assert "`node:readline`" in node and "Node 25 and later" in node
     assert "U+2028" in node and "U+2029" in node
     link = re.search(rf"\]\({re.escape(NODE_WARNING)}#([\w-]+)\)", node)

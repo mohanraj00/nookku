@@ -58,6 +58,7 @@ Write the test keys into `.nookku/config.json`. Keep the other keys of the file.
 - `entry` is the command as a list of arguments. It runs in the project root. Use the app's own interpreter or virtual environment.
 - `models` lists the harnesses from step 1.3.
 - `backends` lists the backends from step 1.4: `{"name": "stock", "env": "STOCK_URL", "url": "<the real URL>"}`. During a test, the app gets the URL of a recording proxy in `env`. If the app reads the URL from a file and not from the environment, the entry gives the app the URL from `env`, for example with a copy of the app's configuration for the test. Do not change the app's own files.
+- `check_message` is the one message that `check` sends. The default is `Hello from nookku check. What can you help me with?` If the app declines this message, set a message that the app answers in normal use, for example a question about a product.
 - `model_api` is `true` by default: the app gets the URL of a recording proxy in `ANTHROPIC_BASE_URL` and `OPENAI_BASE_URL`. If the app gives its SDK a fixed URL, the entry gives the SDK the URL from the variable, as for a backend. If the app uses Codex with a ChatGPT login, set `"model_api": ["anthropic"]`. If the tester's harness reads the same variable as the app, give the app's URL in the config: `"model_api": {"openai": "<the app's URL>"}`.
 
 ## 4. Check
@@ -72,8 +73,8 @@ It starts the entry, sends one message, and ends the test. It passes if a reply 
 
 A PASS does not prove that the entry runs the app correctly. `check` does not judge the text of the reply. After a PASS, do these 3 steps:
 
-1. Compare the `Reply:` line with a normal reply of the app to the same message. If the reply is an error text or a fallback text of the app, the setup is not done. Correct the entry and run `check` again.
-2. Search `app.log` in the test folder of the check test for errors, tracebacks and warnings. If you find one, correct the entry and run `check` again.
+1. Compare the `Reply:` line with a normal reply of the app to the same message. If the app declines the message in normal use, for example because it is out of scope, set `check_message` to a message that the app answers. Then run `check` again. If the reply is an error text, or is different from the normal reply of the app, the setup is not done. Correct the entry and run `check` again.
+2. Search `app.log` in the test folder of the check test for errors and tracebacks. Also search it for warnings about a fallback or a missing configuration. If a line shows that the entry does not start or call the app correctly, correct the entry and run `check` again. Ignore a warning that the app also writes in normal use.
 3. If the entry is in Node and reads its input with `node:readline`, change the entry. Read stdin and split it only on `\n`. `node:readline` also splits a line at `\r`, and Node 25 and later also split a line at U+2028 and U+2029. A message with one of these characters then arrives in 2 parts. Read the [warning for Node](https://github.com/mohanraj00/nookku/blob/main/docs/how-to/connect-your-agent.md#in-node).
 
 ## 5. Hand over
