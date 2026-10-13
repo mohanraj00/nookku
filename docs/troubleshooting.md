@@ -140,6 +140,12 @@ If the entry returns an error, crashes or does not answer in [240 seconds](../sr
 
 **Fix.** Type the exact control prompt, for example `nookku end`. If a real test message gets this refusal, lower the policy key `control_distance` with `nookku policy set control_distance 1`, or turn off the rule with `nookku policy set control_distance 0` ([config.md](reference/config.md)).
 
+### `nookku tap: cannot write the record <name>. The error output of the tap gives the cause.`
+
+(tap.py) **Cause.** The HTTP tap cannot write the row of a response to its record, for example because the disk is full or the folder is not writable. The tap does not send the agent's response, so the relay shows this error and the message has no reply ([SPEC.md section 4.1](../SPEC.md#41-http-mode)). The tap writes the record path and the cause to its error output (stderr), in the line `nookku tap: cannot write the record <path>: <reason>`.
+
+**Fix.** Read the error output of `nookku tap`. Correct the cause, for example free disk space. Then send the message again.
+
 ### `nookku: nothing was sent. The message has a lone surrogate U+<hex> at character <n>.`
 
 (kit.py) **Cause.** The message has a lone surrogate: one half of a UTF-16 pair. It is not a Unicode scalar value, so a record cannot hold it ([SPEC.md section 2](../SPEC.md#2-record-format)). The relay never changes a message, so it does not send it. It writes no turn, and the message does not go to the model. `<n>` counts code points from 0.
