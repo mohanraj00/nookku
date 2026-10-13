@@ -90,7 +90,8 @@ def test_cli_verify_and_the_trace_rebuild(tmp_path: Path, capsys: pytest.Capture
     f = folder(tmp_path)
     seal.write(f)
     assert main(["verify", "--root", str(tmp_path)]) == 0
-    assert capsys.readouterr().out.startswith("Seal: intact.")
+    # The output names the test, also when the command takes the latest test.
+    assert capsys.readouterr().out.startswith(f"Test {TEST}. Seal: intact.")
     (f / "tap.jsonl").write_text('{"changed": true}\n')
     assert main(["verify", TEST, "--root", str(tmp_path), "--json"]) == 2
     assert json.loads(capsys.readouterr().out)["changed"] == ["tap.jsonl"]

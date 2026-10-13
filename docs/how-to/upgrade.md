@@ -197,7 +197,7 @@ nookku verify 20261007-224554-4b17
 ```
 
 ```text
-Seal: intact. No record changed after the end of the test.
+Test 20261007-224554-4b17. Seal: intact. No record changed after the end of the test.
 ```
 
 Do not use `kill -9` on the bridge. With SIGKILL, the bridge cannot write the audit and the seal ([recover-a-stuck-test.md](recover-a-stuck-test.md#4-learn-what-a-stale-currentjson-is)).
