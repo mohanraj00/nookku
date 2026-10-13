@@ -1,5 +1,5 @@
 """Packaging rules: no runtime dependencies, a plain version, the same version in the plugin
-and in the links of the PyPI README."""
+and in the links of the PyPI page."""
 
 import json
 import re
@@ -30,6 +30,13 @@ def test_the_pypi_readme_links_use_the_release_tag() -> None:
         r"replacement = '\]\(https://github\.com/mohanraj00/nookku/blob/([^/]+)/", pyproject
     )
     assert tags == [f"v{nookku.__version__}"]
+
+
+def test_each_blob_link_in_pyproject_uses_the_release_tag() -> None:
+    # The README substitution and the Documentation, Specification and Changelog URLs.
+    pyproject = (ROOT / "pyproject.toml").read_text()
+    tags = re.findall(r"https://github\.com/mohanraj00/nookku/blob/([^/]+)/", pyproject)
+    assert tags == [f"v{nookku.__version__}"] * 4
 
 
 def test_each_docs_version_line_names_the_package_version() -> None:
