@@ -507,8 +507,11 @@ def _blank(text: str, pattern: re.Pattern[str]) -> str:
 
 
 def _forms(name: str) -> list[str]:
-    """The singular and the plural of a term, for example "entry" and "entries"."""
+    """The singular and the plural of a term, for example "entry" and "entries". A heading in the
+    plural, for example "Findings", also gives its singular "finding"."""
     lower = name.lower()
+    if lower.endswith("s"):
+        return [lower, lower[:-1]]
     if re.search(r"[^aeiou]y$", lower):
         return [lower, lower[:-1] + "ies"]
     return [lower, lower + "s", lower + "es"]
@@ -584,6 +587,8 @@ def test_each_docs_page_links_the_first_use_of_each_glossary_term(page: Path) ->
         ),
         # The plural of a term that ends in "y".
         ("Two entries. The [entry](../reference/glossary.md#entry) runs.", ["Entry: 'entries'"]),
+        # The singular of a term whose heading is in the plural.
+        ("One finding.", ["Findings: 'finding'"]),
         # A count, a file name, a code span, a heading, another link and a plain word.
         ("# Audit\n\n10 trace checks, audit.json, `seal`, [entry.py](e.py), a test harness.", []),
     ],
