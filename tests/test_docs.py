@@ -506,23 +506,28 @@ def _blank(text: str, pattern: re.Pattern[str]) -> str:
     return pattern.sub(lambda m: re.sub(r"[^\n]", " ", m.group(0)), text)
 
 
-def _term_pattern(names: list[str]) -> re.Pattern[str]:
-    """A use of a term, plural too. The longest name wins, so "relay mode" is not a use of
-    "relay". A count before the term, as in "10 trace checks", is a phrase that a test reads,
-    so it is not a use. A file name or a path, as in "audit.json", is not a use."""
-    alternatives = "|".join(re.escape(n) for n in sorted(names, key=len, reverse=True))
-    return re.compile(
-        rf"(?<![\w./#-])(?<!\d )({alternatives})(?:s|es)?(?![\w/-]|\.\w)", re.IGNORECASE
-    )
+def _forms(name: str) -> list[str]:
+    """The singular and the plural of a term, for example "entry" and "entries"."""
+    lower = name.lower()
+    if re.search(r"[^aeiou]y$", lower):
+        return [lower, lower[:-1] + "ies"]
+    return [lower, lower + "s", lower + "es"]
+
+
+def _term_pattern(forms: list[str]) -> re.Pattern[str]:
+    """A use of a term. The longest form wins, so "relay mode" is not a use of "relay". A count
+    before the term, as in "10 trace checks", is a phrase that a test reads, so it is not a use.
+    A file name or a path, as in "audit.json", is not a use."""
+    alternatives = "|".join(re.escape(f) for f in sorted(forms, key=len, reverse=True))
+    return re.compile(rf"(?<![\w./#-])(?<!\d )({alternatives})(?![\w/-]|\.\w)", re.IGNORECASE)
 
 
 def first_uses(text: str, page: Path) -> list[tuple[str, int, int, str | None]]:
     """The first use of each glossary term in the prose of a page: the term, the start and the
     end of the use in the text, and the anchor of its glossary link, or None with no link. Code,
     comments, HTML tags, headings and the text of other links are not prose."""
-    terms = [*_sections(GLOSSARY, "##")]
-    by_lower = {name.lower(): name for name in terms}
-    pattern = _term_pattern([*terms, *NOT_A_USE])
+    by_form = {form: name for name in _sections(GLOSSARY, "##") for form in _forms(name)}
+    pattern = _term_pattern([*by_form, *NOT_A_USE])
     masked = text
     for part in (FENCE, COMMENT, CODE_SPAN, HTML_TAG, HEADING):
         masked = _blank(masked, part)
@@ -541,7 +546,7 @@ def first_uses(text: str, page: Path) -> list[tuple[str, int, int, str | None]]:
         if anchor == "":
             continue
         for m in pattern.finditer(masked, start, stop):
-            name = by_lower.get(m.group(1).lower())
+            name = by_form.get(m.group(1).lower())
             if name is not None and name not in seen:
                 seen[name] = (name, m.start(), m.end(), anchor)
     return sorted(seen.values(), key=lambda use: use[1])
@@ -577,6 +582,8 @@ def test_each_docs_page_links_the_first_use_of_each_glossary_term(page: Path) ->
             "[relays](../reference/glossary.md#relay).",
             [],
         ),
+        # The plural of a term that ends in "y".
+        ("Two entries. The [entry](../reference/glossary.md#entry) runs.", ["Entry: 'entries'"]),
         # A count, a file name, a code span, a heading, another link and a plain word.
         ("# Audit\n\n10 trace checks, audit.json, `seal`, [entry.py](e.py), a test harness.", []),
     ],
