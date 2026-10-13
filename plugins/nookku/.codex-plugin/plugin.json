@@ -1,6 +1,6 @@
 {
   "name": "nookku",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "description": "An evaluation harness for vertical AI agents. The plugin carries each test message and each reply byte for byte, and the model writes neither.",
   "author": {
     "name": "Mohan Raj"

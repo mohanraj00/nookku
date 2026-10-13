@@ -1,3 +1,3 @@
 """Relay a test conversation between a person and a chat agent byte for byte, and audit it."""
 
-__version__ = "0.4.2"
+__version__ = "0.4.3"

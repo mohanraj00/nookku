@@ -2,6 +2,15 @@
 
 Each date is the day of the upload to PyPI, in UTC ([nookku](https://pypi.org/project/nookku/#history), [verbatim-relay](https://pypi.org/project/verbatim-relay/#history)). 0.2.0 has no upload, so its date is the day of [its tag](https://github.com/mohanraj00/nookku/commit/v0.2.0).
 
+## 0.4.3
+
+Released 2026-10-13.
+
+This release changes only docs and an image. The code, the record format and the proofs do not change.
+
+- **Social preview.** The image shows the logo and the description with no "Nookku:" at the start. It does not show "byte for byte", because the image gives no context for the term ([#341](https://github.com/mohanraj00/nookku/issues/341)).
+- **Pre-registration.** `bench/PREREG.md` says "project hooks", not "hook kit". A dated entry under "Deviations" records the change ([#342](https://github.com/mohanraj00/nookku/issues/342)).
+
 ## 0.4.2
 
 Released 2026-10-13.
