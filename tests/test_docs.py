@@ -508,13 +508,15 @@ def _blank(text: str, pattern: re.Pattern[str]) -> str:
 
 def _forms(name: str) -> list[str]:
     """The singular and the plural of a term, for example "entry" and "entries". A heading in the
-    plural, for example "Findings", also gives its singular "finding"."""
+    plural, for example "Findings", also gives its singular "finding". A singular that ends in
+    "ss", for example "Harness", keeps its plural "harnesses"."""
     lower = name.lower()
-    if lower.endswith("s"):
-        return [lower, lower[:-1]]
     if re.search(r"[^aeiou]y$", lower):
         return [lower, lower[:-1] + "ies"]
-    return [lower, lower + "s", lower + "es"]
+    forms = [lower, lower + "s", lower + "es"]
+    if re.search(r"[^s]s$", lower):
+        forms.append(lower[:-1])
+    return forms
 
 
 def _term_pattern(forms: list[str]) -> re.Pattern[str]:
@@ -589,6 +591,8 @@ def test_each_docs_page_links_the_first_use_of_each_glossary_term(page: Path) ->
         ("Two entries. The [entry](../reference/glossary.md#entry) runs.", ["Entry: 'entries'"]),
         # The singular of a term whose heading is in the plural.
         ("One finding.", ["Findings: 'finding'"]),
+        # The plural of a singular term that ends in "s".
+        ("Two harnesses.", ["Harness: 'harnesses'"]),
         # A count, a file name, a code span, a heading, another link and a plain word.
         ("# Audit\n\n10 trace checks, audit.json, `seal`, [entry.py](e.py), a test harness.", []),
     ],
