@@ -473,6 +473,22 @@ def test_a_broken_config_still_denies_test_files_and_the_entry(tmp_path, config)
     assert [r.tool for r in read_relay(folder / "relay.jsonl")] == ["Bash"] * 3
 
 
+@pytest.mark.parametrize(
+    "bad", [{"evaluate": "no"}, {"models": "claude"}, {"otel": 0}, {"tpa_url": "x"}]
+)
+def test_a_wrong_value_of_another_key_keeps_the_url_deny(tmp_path, bad):
+    # The one reader refuses the file (#121), but the guard keeps the URLs that it can read.
+    tap, agent = "http://127.0.0.1:8811/", "http://127.0.0.1:9011/"
+    (tmp_path / ".nookku").mkdir()
+    config = {"tap_url": tap, "agent_url": agent, **bad}
+    (tmp_path / ".nookku" / "config.json").write_text(json.dumps(config))
+    for url in (tap, agent):
+        answer = kit.handle(pre({"command": f"curl {url}"}), tmp_path, "codex")
+        assert answer["hookSpecificOutput"]["permissionDecision"] == "deny"
+    assert kit.handle(pre({"command": "ls"}), tmp_path, "codex") is None
+    assert len(read_relay(tmp_path / ".nookku" / "relay.jsonl")) == 2
+
+
 def test_a_failed_deny_path_denies_with_relay_mode_off(tmp_path, monkeypatch):
     def fail(*_):
         raise RuntimeError("disk gone")
@@ -833,3 +849,37 @@ def test_the_transcript_shows_a_scripted_turn_as_script():
     text = kit.render_turn(Turn(1, "Hi", "Hello", True, None, "script"), 1)
     assert text.startswith("──── script, turn 1 ────\nHi\n")
     assert kit.render_turn(Turn(1, "Hi", "Hello", True), 1).startswith("──── tester, turn 1")
+
+
+@pytest.mark.parametrize("tests", [False, True], ids=["view", "view_tests"])
+def test_the_view_shows_a_new_turn_after_the_record_gets_shorter(setup, monkeypatch, tests):
+    """A person removes a line of the record during follow mode (#113). The record then has as
+    many turns as the view showed, with a new turn at the end. The view must show the new turn."""
+    root, _, _ = setup
+    kit.set_mode(root, True)
+    for text in ("Refund policy?", "Where is order #4471?", "Do you sell tea?"):
+        kit.handle(prompt(text), root, "codex")
+    first, second, third = record(root).read_text().splitlines(keepends=True)
+    if tests:
+        path = root / ".nookku" / "tests" / "20261007-080000-aaaa" / "relay.jsonl"
+        path.parent.mkdir(parents=True)
+    else:
+        path = record(root)
+    path.write_text(first + second)
+    # One write removes the second turn and adds the third, so the count of turns stays at 2.
+    _follow(monkeypatch, [lambda: path.write_text(first + third)])
+    out = io.StringIO()
+    with pytest.raises(_StopView):
+        if tests:
+            kit.view_tests(root, True, out, poll=0, err=io.StringIO())
+        else:
+            kit.view(path, True, out, poll=0, err=io.StringIO())
+    text = out.getvalue()
+    assert text.count(kit.RECORD_CHANGED) == 1
+    after = text.split(kit.RECORD_CHANGED)[-1]
+    assert after == (
+        f"──── tester, turn 1 ────\nRefund policy?\n──── agent ────\n"
+        f"{shop_reply('Refund policy?')}\n"
+        f"──── tester, turn 2 ────\nDo you sell tea?\n──── agent ────\n"
+        f"{shop_reply('Do you sell tea?')}\n"
+    )

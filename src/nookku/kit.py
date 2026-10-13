@@ -388,10 +388,7 @@ def handle(event: dict[str, Any], root: Path, harness: str) -> dict[str, Any] | 
         reads = commands.tool_reads_only(tool, tool_input, extra)
         if cur is not None and not reads and _names_entry(_test_entry(cur), text, tool, tool_input):
             return _deny(Path(cur["dir"]) / "relay.jsonl", harness, tool, full, ENTRY_REASON)
-        try:
-            loaded: Config | None = Config.load(root)
-        except (OSError, ValueError, TypeError):
-            loaded = None
+        loaded = _guard_config(root)
         if (
             cur is not None
             and loaded is not None
@@ -412,6 +409,30 @@ def handle(event: dict[str, Any], root: Path, harness: str) -> dict[str, Any] | 
 
 # Tools that are a shell in all but name. Their whole input is a command, so each field counts.
 SESSION_TOOLS = {"write_stdin"}
+
+
+def _guard_config(root: Path) -> Config | None:
+    """The config keys that the guard uses: tap_url, agent_url, record and entry. If the file
+    breaks the rule of the one reader, the guard still takes each of these keys that has the
+    right type. Thus a wrong value of another key, for example "evaluate": "no", does not let a
+    call to the tap or to the agent through (#121). None if the file is not a JSON object."""
+    try:
+        return Config.load(root)
+    except (OSError, ValueError, TypeError):
+        pass
+    try:
+        data = json.loads((root / CONFIG_FILE).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(data, dict):
+        return None
+    keep: dict[str, Any] = {
+        k: data[k] for k in ("tap_url", "agent_url", "record") if isinstance(data.get(k), str)
+    }
+    entry = data.get("entry")
+    if isinstance(entry, list) and all(isinstance(a, str) for a in entry):
+        keep["entry"] = entry
+    return Config(**keep)
 
 
 def _other_tool(tool: str) -> bool:
@@ -1104,12 +1125,9 @@ def view(
     An invalid record raises a RecordError. With follow, the view shows the error on err and
     continues: it shows the turns again when the record changes and is valid.
     """
-    seen = 0
+    shown = _Shown(out)
     for turns in _turns(record, follow, poll, _ErrorOnce(err or sys.stderr)):
-        for turn in turns[seen:]:
-            seen += 1
-            out.write(render_turn(turn, seen))
-            out.flush()
+        shown.show(turns)
     return 0
 
 
@@ -1121,12 +1139,12 @@ def view_tests(
     An invalid record raises a RecordError. With follow, the view shows the error on err and
     continues, as in view.
     """
-    shown_test, seen = None, 0
+    shown_test, shown = None, _Shown(out)
     errors = _ErrorOnce(err or sys.stderr)
     while True:
         folder = state.latest_test(root)
         if folder is not None and folder != shown_test:
-            shown_test, seen = folder, 0
+            shown_test, shown = folder, _Shown(out)
             errors.clear()
             out.write(f"════ test {folder.name} ════\n")
             out.flush()
@@ -1139,14 +1157,33 @@ def view_tests(
                 if not follow:
                     raise
                 errors.show(e, record)
-                turns = []
-            for turn in turns[seen:]:
-                seen += 1
-                out.write(render_turn(turn, seen))
-                out.flush()
+            else:
+                shown.show(turns)
         if not follow:
             return 0
         time.sleep(poll)
+
+
+RECORD_CHANGED = "──── the record changed: the view shows each turn again ────\n"
+
+
+class _Shown:
+    """The turns that the view showed. A count is not enough: if a person removes a line of the
+    record, a new turn can have the number of a turn that the view showed (#113). If the record
+    does not start with the shown turns, the view says so and shows each turn again."""
+
+    def __init__(self, out: TextIO) -> None:
+        self.out = out
+        self.turns: list[Turn] = []
+
+    def show(self, turns: list[Turn]) -> None:
+        if turns[: len(self.turns)] != self.turns:
+            self.turns = []
+            self.out.write(RECORD_CHANGED)
+        for turn in turns[len(self.turns) :]:
+            self.turns.append(turn)
+            self.out.write(render_turn(turn, len(self.turns)))
+        self.out.flush()
 
 
 class _ErrorOnce:

@@ -22,6 +22,7 @@ from nookku import __version__, backend, model_api, otlp, policy, script, seal, 
 from nookku.audit import audit
 from nookku.config import CHECK_MESSAGE as CHECK_MESSAGE
 from nookku.config import FILE as CONFIG_FILE
+from nookku.config import HARNESSES as HARNESSES
 from nookku.config import STATE_DIR as STATE_DIR
 from nookku.config import ConfigError, read_config
 from nookku.record import RecordError, Writer, turns
@@ -45,7 +46,6 @@ from nookku.stdio import TIMEOUT as AGENT_TIMEOUT
 
 # The harness session that ends a test, for the bridge (SPEC.md section 7.2).
 ENDING = "ending.json"
-HARNESSES = ("claude-code", "codex")
 # The variables that give the entry its test folder and its test id (#145).
 TEST_DIR = "NOOKKU_TEST_DIR"
 TEST_ID = "NOOKKU_TEST_ID"
@@ -115,8 +115,6 @@ def load_config(root: Path, entry_name: str | None = None) -> TestConfig:
         entry = entries[entry_name]
     if not (isinstance(entry, list) and entry and all(isinstance(a, str) for a in entry)):
         raise BridgeError(f"{CONFIG_FILE} has no 'entry' command")
-    if not (isinstance(models, list) and all(m in HARNESSES for m in models)):
-        raise BridgeError(f"'models' must be a list of {', '.join(HARNESSES)}")
     try:
         backends = backend.parse(data.get("backends"))
         apis = model_api.backends(model_api.parse(data.get("model_api")), os.environ)

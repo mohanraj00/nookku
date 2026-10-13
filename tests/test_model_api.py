@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from toy_model_server import ModelServer
 
-from nookku import backend, model_api
+from nookku import backend, config, model_api
 
 TRACE = Path(__file__).resolve().parent.parent / "conformance" / "trace"
 STREAM = [
@@ -287,6 +287,8 @@ def test_a_decisions_error_and_an_answer_of_a_new_type() -> None:
 
 
 def test_the_config_and_the_urls() -> None:
+    # The reader of config.json checks the names, and APIS gives the URL of each (#121).
+    assert tuple(model_api.APIS) == config.MODEL_APIS
     assert model_api.parse(None) == {"anthropic": None, "openai": None}
     assert model_api.parse(True) == {"anthropic": None, "openai": None}
     assert model_api.parse(False) == {}
