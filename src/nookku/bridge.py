@@ -53,6 +53,8 @@ POLL = 0.5
 # Files in the state folder that a test writes or that switch a mode. They are not configuration.
 NOT_CONFIG = {"tests", "current.json", "mode", "relay.jsonl", "tap.jsonl", ENDING}
 SKIP_DIRS = {"node_modules", ".venv", "__pycache__", ".git"}
+# The check names the first stray lines, and gives the count of all of them.
+STRAY_SHOWN = 3
 # For each break class of the audit (SPEC.md section 3.3): what occurred in the check, and the fix.
 ONE_SENDER = "Make sure that only one relay sends messages to the tap."
 BREAK_FIX = {
@@ -679,7 +681,7 @@ def audit_problems(folder: Path) -> tuple[int | None, list[str]]:
         code, breaks, errors = report["exit"], report["breaks"], report["errors"]
         if type(code) is not int or not isinstance(breaks, list) or not isinstance(errors, list):
             raise ValueError("wrong types")
-        problems = [_audit_error(e) for e in errors] + [_audit_break(b) for b in breaks]
+        problems = _audit_errors(errors) + [_audit_break(b) for b in breaks]
     except (OSError, ValueError, TypeError, KeyError) as e:
         why = "is missing" if isinstance(e, FileNotFoundError) else f"is not valid ({e})"
         return None, [f"The audit.json of the test {why}. Read bridge.log in the test folder."]
@@ -688,9 +690,45 @@ def audit_problems(folder: Path) -> tuple[int | None, list[str]]:
     return code, problems
 
 
+def _is_stray(error: dict[str, Any]) -> bool:
+    return bool(error["class"] == "tap_unparsed" and "a stray line on stdout" in error["detail"])
+
+
+def _audit_errors(errors: list[dict[str, Any]]) -> list[str]:
+    """A problem for each audit error. The errors of stray lines give one problem, at the place
+    of the first one, with the count, the first lines and the fix one time (#118)."""
+    stray = [e for e in errors if _is_stray(e)]
+    if len(stray) < 2:
+        return [_audit_error(e) for e in errors]
+    first = "; ".join(e["detail"] for e in stray[:STRAY_SHOWN])
+    grouped = (
+        f"tap_unparsed: tap has {len(stray)} stray lines on stdout. "
+        f"The first {min(len(stray), STRAY_SHOWN)}: {first}. {STRAY_HINT}"
+    )
+    out = []
+    for e in errors:
+        if e is stray[0]:
+            out.append(grouped)
+        elif not _is_stray(e):
+            out.append(_audit_error(e))
+    return out
+
+
+def _hint_once(problems: list[str]) -> list[str]:
+    """Keep the fix for stray lines only in the first problem that gives it (#118)."""
+    hint = f" {STRAY_HINT}"
+    seen, out = False, []
+    for p in problems:
+        if hint in p and seen:
+            p = p.replace(hint, "")
+        seen = seen or hint in p
+        out.append(p)
+    return out
+
+
 def _audit_error(error: dict[str, Any]) -> str:
     kind, detail = error["class"], error["detail"]
-    if kind == "tap_unparsed" and "a stray line on stdout" in detail:
+    if _is_stray(error):
         return f"tap_unparsed: tap {detail}. {STRAY_HINT}"
     if kind == "tap_unparsed":
         fix = "Send one contract line for each request (SPEC.md section 6)."
@@ -750,7 +788,7 @@ def run_script(
     changed = gate_changed(manifest)
     if changed is not None:
         problems.append(f"The Codex hooks changed during the test: {changed}")
-    lines += [f"FAIL: {p}" for p in problems] or ["PASS"]
+    lines += [f"FAIL: {p}" for p in _hint_once(problems)] or ["PASS"]
     return not problems, lines, folder
 
 
@@ -798,5 +836,5 @@ def check(root: Path) -> tuple[bool, list[str]]:
                     f"The {harness} session {s['session']} has no session file. The app can turn "
                     "the files off (persistSession: false in the Agent SDK)."
                 )
-    lines += [f"FAIL: {p}" for p in problems] or ["PASS"]
+    lines += [f"FAIL: {p}" for p in _hint_once(problems)] or ["PASS"]
     return not problems, lines
