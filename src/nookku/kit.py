@@ -418,17 +418,21 @@ def _guard_config(root: Path) -> Config | None:
     """The config keys that the guard uses: tap_url, agent_url, record and entry. If the file
     breaks the rule of the one reader, the guard still takes each of these keys that has the
     right type. Thus a wrong value of another key, for example "evaluate": "no", does not allow a
-    call to the tap or to the agent (#121). None if the file is not a JSON object."""
+    call to the tap or to the agent (#121). If the file exists but is not a JSON object, the
+    guard uses the default values, so a broken file never gives fewer denies than the defaults
+    (#294). None if the project has no config file."""
     try:
         return Config.load(root)
     except (OSError, ValueError, TypeError):
         pass
     try:
         data = json.loads((root / CONFIG_FILE).read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return None
     except (OSError, ValueError):
-        return None
+        return Config()
     if not isinstance(data, dict):
-        return None
+        return Config()
     keep: dict[str, Any] = {
         k: data[k] for k in ("tap_url", "agent_url", "record") if isinstance(data.get(k), str)
     }
