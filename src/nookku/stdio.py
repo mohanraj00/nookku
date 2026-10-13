@@ -199,6 +199,19 @@ def stray_row(line: bytes) -> dict[str, str]:
     }
 
 
+def write_failed(path: Path, e: OSError) -> str:
+    """Write the record path and the OS error to stderr. Return the error text for the caller.
+
+    A caller can be on another computer (--listen), so the text gives only the file name of the
+    record (SPEC.md sections 4.1 and 4.2). A name with a byte that is not UTF-8 has a surrogate
+    escape, and UTF-8 cannot encode it. The text gives such a byte as a backslash escape."""
+    print(f"nookku tap: cannot write the record {path}: {e}", file=sys.stderr)
+    name = path.name.encode("utf-8", "backslashreplace").decode("utf-8")
+    return (
+        f"nookku tap: cannot write the record {name}. The error output of the tap gives the cause."
+    )
+
+
 class StdioTap(ThreadingHTTPServer):
     daemon_threads = True
 
@@ -211,9 +224,16 @@ class StdioTap(ThreadingHTTPServer):
         bind(self)
 
     def record_rest(self) -> None:
-        """Write a stray row for each line that the agent wrote after its last reply."""
+        """Write a stray row for each line that the agent wrote after its last reply.
+
+        No caller waits for these rows. If a write fails, write the error to stderr and stop, so
+        that the end of the test continues (SPEC.md section 4.2)."""
         for line in self.agent.rest():
-            self.writer.append(stray_row(line))
+            try:
+                self.writer.append(stray_row(line))
+            except OSError as e:
+                write_failed(self.writer.path, e)
+                return
 
     @property
     def url(self) -> str:
@@ -225,6 +245,8 @@ class StdioTap(ThreadingHTTPServer):
 class _Handler(BaseHTTPRequestHandler):
     server: StdioTap
     protocol_version = "HTTP/1.1"
+    # The first error of a stray row in the current request (_stray).
+    lost: OSError | None = None
 
     def log_message(self, format: str, *args: object) -> None:
         pass
@@ -239,13 +261,28 @@ class _Handler(BaseHTTPRequestHandler):
     def _error(self, status: int, message: str) -> None:
         self._send(status, json.dumps({"error": message}, ensure_ascii=False).encode())
 
-    def _unparsed(self, method: str, path: str, error: str) -> None:
-        self.server.writer.append(
-            {"type": "unparsed", "method": method, "path": path, "error": error}
-        )
+    def _write(self, row: dict[str, object]) -> bool:
+        """Write one row. If the write fails, answer 502 with a message that names the record,
+        and return False. The caller then sends no other response (SPEC.md section 4.2)."""
+        try:
+            self.server.writer.append(row)
+        except OSError as e:
+            self._error(502, write_failed(self.server.writer.path, e))
+            return False
+        return True
+
+    def _unparsed(self, method: str, path: str, error: str) -> bool:
+        return self._write({"type": "unparsed", "method": method, "path": path, "error": error})
 
     def _stray(self, line: bytes) -> None:
-        self.server.writer.append(stray_row(line))
+        """Write the row of a stray line. Agent.ask() calls it in a request, so it does not
+        answer the caller. It keeps the first write error in self.lost, and then writes no row."""
+        if self.lost is not None:
+            return
+        try:
+            self.server.writer.append(stray_row(line))
+        except OSError as e:
+            self.lost = e
 
     def do_POST(self) -> None:
         if "chunked" in self.headers.get("Transfer-Encoding", "").lower():
@@ -256,23 +293,33 @@ class _Handler(BaseHTTPRequestHandler):
         try:
             rid, message, _ = contract.parse_request(body)
         except contract.ContractError as e:
-            self._unparsed("POST", path, f"request: {e}")
-            self._error(400, f"nookku tap: {e}")
+            if self._unparsed("POST", path, f"request: {e}"):
+                self._error(400, f"nookku tap: {e}")
             return
         found = lone_surrogate(message)
         if found:
             # The record cannot hold the message, so the agent does not get it.
-            self._unparsed("POST", path, f"request: the message has {found}")
-            self._error(400, f"nookku tap: the message has {found}")
+            if self._unparsed("POST", path, f"request: the message has {found}"):
+                self._error(400, f"nookku tap: the message has {found}")
             return
         with tap.lock:
+            self.lost = None
             for line in tap.agent.stray():
                 self._stray(line)
+            if self.lost is not None:
+                # The record is not complete, so the agent does not get the message.
+                self._error(502, write_failed(tap.writer.path, self.lost))
+                return
             started = time.time()
             kind, out = tap.agent.ask(body, rid, self._stray)
+            if self.lost is not None:
+                # The agent got the message, but the caller does not get the reply.
+                self._error(502, write_failed(tap.writer.path, self.lost))
+                return
             row = {"type": "exchange", "input": message, "started": started}
             if isinstance(out, str):
-                tap.writer.append({**row, "status": None, "reply": None, "error": out})
+                if not self._write({**row, "status": None, "reply": None, "error": out}):
+                    return
                 tail = tap.agent.tail()
                 detail = f"{out}\nThe last lines of app.log:\n{tail}" if tail else out
                 self._error(504 if kind == "timeout" else 502, f"nookku tap: {detail}")
@@ -280,22 +327,21 @@ class _Handler(BaseHTTPRequestHandler):
             try:
                 reply, error = contract.parse_reply(out, rid)
             except contract.ContractError as e:
-                self._unparsed("POST", path, f"reply: {e}")
-                self._error(502, f"nookku tap: {e}")
+                if self._unparsed("POST", path, f"reply: {e}"):
+                    self._error(502, f"nookku tap: {e}")
                 return
             # parse_reply gives exactly one string: the reply or the error.
             what, text = ("error", error) if error is not None else ("reply", reply or "")
             found = lone_surrogate(text)
             if found:
                 note = f"the agent {what} has {found}"
-                tap.writer.append({**row, "status": None, "reply": None, "error": note})
-                self._error(502, f"nookku tap: {note}")
+                if self._write({**row, "status": None, "reply": None, "error": note}):
+                    self._error(502, f"nookku tap: {note}")
                 return
             if error is None:
-                tap.writer.append({**row, "status": 200, "reply": reply})
-                self._send(200, out)
-            else:
-                tap.writer.append({**row, "status": 500, "reply": None, "error": error})
+                if self._write({**row, "status": 200, "reply": reply}):
+                    self._send(200, out)
+            elif self._write({**row, "status": 500, "reply": None, "error": error}):
                 self._send(500, out)
 
     def _refuse(self) -> None:

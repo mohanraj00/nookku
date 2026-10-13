@@ -15,7 +15,7 @@ from urllib.parse import urlsplit
 
 from nookku.adapters import Adapter, AdapterError, StreamError, is_stream
 from nookku.record import Writer, lone_surrogate
-from nookku.stdio import TIMEOUT
+from nookku.stdio import TIMEOUT, write_failed
 
 HOP_BY_HOP = {
     "connection",
@@ -94,13 +94,7 @@ class _Handler(BaseHTTPRequestHandler):
         try:
             self.server.writer.append(row)
         except OSError as e:
-            record = self.server.writer.path
-            print(f"nookku tap: cannot write the record {record}: {e}", file=sys.stderr)
-            self._error(
-                502,
-                f"nookku tap: cannot write the record {record.name}. "
-                "The error output of the tap gives the cause.",
-            )
+            self._error(502, write_failed(self.server.writer.path, e))
             return False
         return True
 

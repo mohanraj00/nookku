@@ -206,6 +206,9 @@ Each adapter maps onto the agent contract (section 6):
 - The tap does not restart the agent. After a crash or a timeout, it answers each later request with the same error. The error body includes the last 20 lines of `app.log`.
 - Before each request, the tap reads each line that waits on stdout. Each such line is a stray line.
 - At the end of a test, after the agent stops, the tap reads each line that the agent wrote after its last reply. Each such line is a stray line too.
+- If the tap cannot write a row of a request, it uses the rule of section 4.1. It writes the record path and the error to stderr. It returns status 502 with the body `{"error": "nookku tap: cannot write the record <name>. The error output of the tap gives the cause."}`, and not the agent's reply line. It writes no other row for that request.
+- If the tap cannot write the row of a stray line that waits before a request, it does not send the request to the agent. If it cannot write the row of a stray line during a request, it still reads the reply line, so that the next request does not get it as a stray line.
+- If the tap cannot write a stray row at the end of a test, it writes the error to stderr and does not write the other stray rows. No caller waits for these rows, so the end of the test continues.
 
 ### 4.3 Timeouts
 
