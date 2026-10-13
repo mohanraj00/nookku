@@ -243,6 +243,46 @@ def test_a_record_error_leaves_a_sized_stream_incomplete(tmp_path, capsys):
     assert "cannot write the record" in capsys.readouterr().err
 
 
+@pytest.mark.parametrize(
+    ("path", "body", "reachable"),
+    [
+        ("/", b'{"text": "Is the mug in stock?"}', True),
+        ("/fail", b'{"text": "Is the mug in stock?"}', True),
+        ("/not-json", b'{"text": "Is the mug in stock?"}', True),
+        ("/cut", b'{"text": "Is the mug in stock?"}', True),
+        ("/", b'{"message": "Is the mug in stock?"}', True),
+        ("/", b'{"text": "Is the mug in stock?"}', False),
+        ("/", b'{"message": "Is the mug in stock?"}', False),
+    ],
+    ids=[
+        "reply",
+        "agent-error",
+        "reply-unparsed",
+        "lone-surrogate",
+        "request-unparsed",
+        "unreachable",
+        "unreachable-unparsed",
+    ],
+)
+def test_a_record_error_of_a_response_that_is_not_a_stream_gives_502(
+    agent, tmp_path, capsys, path, body, reachable
+):
+    # #94: the error went to socketserver as a traceback, and the caller got no response.
+    record = tmp_path / "tap.jsonl"
+    tap = run_tap(agent.url if reachable else "http://127.0.0.1:9", record)
+
+    def fail(row: dict) -> None:
+        raise OSError(28, "No space left on device")
+
+    tap.writer.append = fail  # type: ignore[method-assign]
+    status, _, out = post(tap, path, body)
+    tap.shutdown()
+    error = f"nookku tap: cannot write the record {record}: [Errno 28] No space left on device"
+    assert (status, json.loads(out)) == (502, {"error": error})
+    assert "cannot write the record: [Errno 28] No space left on device" in capsys.readouterr().err
+    assert not record.exists()
+
+
 def test_an_agent_error_is_forwarded_and_recorded(agent, tmp_path):
     tap = run_tap(agent.url, tmp_path / "tap.jsonl")
     status, _, out = post(tap, "/fail", b'{"text": "hi"}')

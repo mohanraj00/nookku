@@ -84,6 +84,18 @@ class _Handler(BaseHTTPRequestHandler):
         body = json.dumps({"error": message}).encode()
         self._send(status, [("Content-Type", "application/json")], body)
 
+    def _write(self, row: dict[str, object]) -> bool:
+        """Write one row of a response that is not a stream. If the write fails, write the error
+        to stderr, answer 502 with a message that names the record, and return False. The caller
+        then sends no other response (SPEC.md section 4.1)."""
+        try:
+            self.server.writer.append(row)
+        except OSError as e:
+            print(f"nookku tap: cannot write the record: {e}", file=sys.stderr)
+            self._error(502, f"nookku tap: cannot write the record {self.server.writer.path}: {e}")
+            return False
+        return True
+
     def _forward(self) -> None:
         if "chunked" in self.headers.get("Transfer-Encoding", "").lower():
             self._error(411, "nookku needs a Content-Length request body")
@@ -141,25 +153,24 @@ class _Handler(BaseHTTPRequestHandler):
             # After the agent timeout, the tap answers 504 before the relay timeout (SPEC.md 4.3).
             late = isinstance(e, TimeoutError) or expired.is_set()
             why = f"the agent sent no response in {tap.timeout:g} s" if late else None
+            row: dict[str, object] | None = None
             if message is not None:
-                tap.writer.append(
-                    {
-                        "type": "exchange",
-                        "input": message,
-                        "status": None,
-                        "reply": None,
-                        "error": why or f"agent unreachable: {e}",
-                    }
-                )
+                row = {
+                    "type": "exchange",
+                    "input": message,
+                    "status": None,
+                    "reply": None,
+                    "error": why or f"agent unreachable: {e}",
+                }
             elif recorded:
-                tap.writer.append(
-                    {
-                        "type": "unparsed",
-                        "method": method,
-                        "path": path,
-                        "error": parse_error or "unknown",
-                    }
-                )
+                row = {
+                    "type": "unparsed",
+                    "method": method,
+                    "path": path,
+                    "error": parse_error or "unknown",
+                }
+            if row is not None and not self._write(row):
+                return
             if why:
                 self._error(504, f"nookku tap: {why}")
             else:
@@ -172,56 +183,41 @@ class _Handler(BaseHTTPRequestHandler):
             return
 
         if recorded:
+            unparsed: dict[str, object] = {"type": "unparsed", "method": method, "path": path}
             if message is None:
-                tap.writer.append(
-                    {
-                        "type": "unparsed",
-                        "method": method,
-                        "path": path,
-                        "error": parse_error or "unknown",
-                    }
-                )
+                row = {**unparsed, "error": parse_error or "unknown"}
             elif 200 <= status < 300:
                 try:
                     reply = tap.adapter.reply(out)
                 except AdapterError as e:
-                    tap.writer.append(
-                        {
-                            "type": "unparsed",
-                            "method": method,
-                            "path": path,
-                            "error": f"response: {e}",
-                        }
-                    )
+                    row = {**unparsed, "error": f"response: {e}"}
                 else:
                     found = lone_surrogate(reply)
                     if found:
                         # The record cannot hold the reply, so the relay gets an error.
                         note = f"the agent reply has {found}"
-                        tap.writer.append(
-                            {
-                                "type": "exchange",
-                                "input": message,
-                                "status": None,
-                                "reply": None,
-                                "error": note,
-                            }
-                        )
-                        self._error(502, f"nookku tap: {note}")
+                        row = {
+                            "type": "exchange",
+                            "input": message,
+                            "status": None,
+                            "reply": None,
+                            "error": note,
+                        }
+                        if self._write(row):
+                            self._error(502, f"nookku tap: {note}")
                         return
-                    tap.writer.append(
-                        {"type": "exchange", "input": message, "status": status, "reply": reply}
-                    )
+                    row = {"type": "exchange", "input": message, "status": status, "reply": reply}
             else:
-                tap.writer.append(
-                    {
-                        "type": "exchange",
-                        "input": message,
-                        "status": status,
-                        "reply": None,
-                        "error": f"HTTP {status}",
-                    }
-                )
+                row = {
+                    "type": "exchange",
+                    "input": message,
+                    "status": status,
+                    "reply": None,
+                    "error": f"HTTP {status}",
+                }
+            # The caller gets the response only after its row is in the record.
+            if not self._write(row):
+                return
         self._send(status, out_headers, out)
 
     def _stream(
