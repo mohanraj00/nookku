@@ -151,6 +151,7 @@ The audit counts `blocked_call` rows and `model_session` rows. It does not match
 - When the stream ends, the tap writes the row (section 2.1), then ends the response to the caller. The adapter reads the complete body. The tap does not write a row for each part.
 - If the agent stops during the body, also before the end that its `Content-Length` gives, the stream failed. The row gets the error `the stream from the agent stopped: <reason>` or `the stream from the agent stopped after <n> of <length> bytes`. The tap then closes the connection to the caller, so the caller also gets an incomplete body.
 - If the caller goes away, the tap reads the rest of the stream for the record.
+- If the tap cannot write the row of a response that is not a stream, it writes the record path and the error to stderr. It returns status 502 and not the agent's response, with the body `{"error": "nookku tap: cannot write the record <name>. The error output of the tap gives the cause."}`. `<name>` is the file name of the record. The body gives no path and no OS error, because a caller can be on another computer (`--listen`). This also applies to the row of an agent that is unreachable or sends no response in time. Thus the caller gets the agent's response only after its row is in the record.
 - If the tap cannot write the row of a stream, it writes the error to stderr and closes the connection to the caller. It does not send the end of a chunked body. With a `Content-Length`, the tap holds the last byte of the body until the row is in the record, so it does not send that byte. Thus the caller can see that the response is not complete. It does not send a second status, and it does not write a second row.
 - If the message that the adapter extracts has a lone surrogate (section 2), the tap writes an `unparsed` row. It still forwards the request without change.
 - If the reply of a 2xx response has a lone surrogate, the tap returns status 502 and not the agent's response. It writes an `exchange` row with `status: null`, `reply: null` and an `error` that names the lone surrogate.
@@ -786,6 +787,8 @@ A test needs an evaluation if all of these are true:
 - no test runs;
 - the latest test (the one with the greatest `started` in its manifest) has an `ended` time;
 - its folder has no `report.md`.
+
+The relay reads `evaluate` with the one reader of `config.json` (section 7.1). If the file cannot be read or breaks the rule for its keys, no evaluation starts. A broken file must not start an evaluation that the tester turned off. Then, if the other conditions are true, the end text has one more line: `nookku: no evaluation starts: <error>. Correct the file, then type: nookku end`.
 
 The prompt `nookku end` ends the running test, if one runs. Then, if a test needs an evaluation, the relay lets the prompt go to the model with this context: the end text and the evaluation prompt for that test. So the prompt also starts the evaluation of a test that ended in another way, for example with `nookku end` in a shell. Otherwise, the relay blocks the prompt (section 5).
 
