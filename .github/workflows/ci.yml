@@ -1,6 +1,9 @@
 name: CI
 
 on:
+  # A PR does not have to be up to date with main before it merges (#308). Thus each job of
+  # this file, with the full test matrix, runs on main after each merge. Do not add a job
+  # condition that stops a job on main. If a job fails on main, fix it before the next merge.
   push:
     branches: [main]
   pull_request:
