@@ -378,7 +378,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         if folder is None:
             return 2
         result = seal.verify(folder)
-        print(json.dumps(result, indent=1) if args.json else seal.summary(result))
+        # The test id shows which test the command checked, also with no TEST argument (#160).
+        text = f"Test {folder.name}. {seal.summary(result)}"
+        print(json.dumps(result, indent=1) if args.json else text)
         return 0 if result["intact"] else 2
     if args.command == "audit":
         report = audit(args.tap, args.relay, args.script)
