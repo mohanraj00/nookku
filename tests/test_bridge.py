@@ -295,10 +295,44 @@ def test_check_gives_the_fix_for_logs_on_stdout(
     (folder / "audit.json").write_text(json.dumps({"exit": 2, "breaks": [], "errors": [row]}))
     passed, lines = bridge.check(root)
     assert not passed
+    # The fix shows one time (#118).
     assert lines[-2:] == [
         "FAIL: The entry printed lines on stdout, but no reply line. " + stdio.STRAY_HINT,
-        f"FAIL: tap_unparsed: tap {detail}. {stdio.STRAY_HINT}",
+        f"FAIL: tap_unparsed: tap {detail}.",
     ]
+
+
+def test_check_gives_one_line_for_the_stray_lines(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
+    folder = tmp_path / "test"
+    folder.mkdir()
+    monkeypatch.setattr(bridge, "start", lambda root: {"test": "t-1", "dir": str(folder)})
+    monkeypatch.setattr(bridge, "send", lambda cur, said: ("Toy shop: hi", True))
+    monkeypatch.setattr(bridge, "end", lambda root: {})
+    stray = [
+        {
+            "class": "tap_unparsed",
+            "record": "tap",
+            "detail": f"line {n}: STDIO stdout: a stray line on stdout: 'toy shop: log {n}'",
+        }
+        for n in range(1, 51)
+    ]
+    other = {"class": "tap_unparsed", "record": "tap", "detail": "line 51: not JSON"}
+    errors = [*stray[:2], other, *stray[2:]]
+    report = {"exit": 2, "breaks": [], "errors": errors}
+    (folder / "audit.json").write_text(json.dumps(report))
+    passed, lines = bridge.check(root)
+    assert not passed
+    first = "; ".join(e["detail"] for e in stray[:3])
+    fix = "Send one contract line for each request (SPEC.md section 6)."
+    assert [line for line in lines if line.startswith("FAIL")] == [
+        f"FAIL: tap_unparsed: tap has 50 stray lines on stdout. The first 3: {first}. "
+        + stdio.STRAY_HINT,
+        f"FAIL: tap_unparsed: tap line 51: not JSON. {fix}",
+    ]
+    assert "\n".join(lines).count(stdio.STRAY_HINT) == 1
 
 
 # An entry that prints a log line on stdout and then replies (#90). The reply comes, but the tap

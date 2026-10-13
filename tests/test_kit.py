@@ -849,3 +849,37 @@ def test_the_transcript_shows_a_scripted_turn_as_script():
     text = kit.render_turn(Turn(1, "Hi", "Hello", True, None, "script"), 1)
     assert text.startswith("──── script, turn 1 ────\nHi\n")
     assert kit.render_turn(Turn(1, "Hi", "Hello", True), 1).startswith("──── tester, turn 1")
+
+
+@pytest.mark.parametrize("tests", [False, True], ids=["view", "view_tests"])
+def test_the_view_shows_a_new_turn_after_the_record_gets_shorter(setup, monkeypatch, tests):
+    """A person removes a line of the record during follow mode (#113). The record then has as
+    many turns as the view showed, with a new turn at the end. The view must show the new turn."""
+    root, _, _ = setup
+    kit.set_mode(root, True)
+    for text in ("Refund policy?", "Where is order #4471?", "Do you sell tea?"):
+        kit.handle(prompt(text), root, "codex")
+    first, second, third = record(root).read_text().splitlines(keepends=True)
+    if tests:
+        path = root / ".nookku" / "tests" / "20261007-080000-aaaa" / "relay.jsonl"
+        path.parent.mkdir(parents=True)
+    else:
+        path = record(root)
+    path.write_text(first + second)
+    # One write removes the second turn and adds the third, so the count of turns stays at 2.
+    _follow(monkeypatch, [lambda: path.write_text(first + third)])
+    out = io.StringIO()
+    with pytest.raises(_StopView):
+        if tests:
+            kit.view_tests(root, True, out, poll=0, err=io.StringIO())
+        else:
+            kit.view(path, True, out, poll=0, err=io.StringIO())
+    text = out.getvalue()
+    assert text.count(kit.RECORD_CHANGED) == 1
+    after = text.split(kit.RECORD_CHANGED)[-1]
+    assert after == (
+        f"──── tester, turn 1 ────\nRefund policy?\n──── agent ────\n"
+        f"{shop_reply('Refund policy?')}\n"
+        f"──── tester, turn 2 ────\nDo you sell tea?\n──── agent ────\n"
+        f"{shop_reply('Do you sell tea?')}\n"
+    )
