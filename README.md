@@ -99,7 +99,7 @@ Nookku adapts to your app through a thin [entry](docs/reference/glossary.md#entr
 
 ### Choose a relay
 
-You install the [relay](SPEC.md#5-relays) as the plugin or as the project hooks. Both work in Claude Code and in Codex, with the same rules. Both show each reply as the reason of a blocked prompt, and in `nookku view`. [docs/how-to/choose-a-relay.md](docs/how-to/choose-a-relay.md) compares them. Then read the guide of your setup: [Claude Code plugin](docs/how-to/claude-code-plugin.md), [Claude Code project hooks](docs/how-to/claude-code-hook-kit.md) or [Codex](docs/how-to/codex.md).
+You install the [relay](SPEC.md#5-relays) as the plugin or as the project hooks. Both work in Claude Code and in Codex, with the same rules. Both show each reply as the reason of a blocked prompt, and in `nookku view`. [docs/how-to/choose-a-relay.md](docs/how-to/choose-a-relay.md) compares them. Then read the guide of your setup: [Claude Code plugin](docs/how-to/claude-code-plugin.md), [Claude Code project hooks](docs/how-to/claude-code-project-hooks.md) or [Codex](docs/how-to/codex.md).
 
 ## A sample report
 
@@ -171,7 +171,7 @@ The how-to rows are in the order of the tasks of a test: choose, connect, run, r
 | Tutorial | [Get started](docs/getting-started.md) |
 | How-to: choose | [Choose a relay](docs/how-to/choose-a-relay.md) |
 | How-to: connect your app | [Test your own app](docs/how-to/test-your-app.md), [Connect your agent](docs/how-to/connect-your-agent.md), [HTTP tap](docs/how-to/http-tap.md), [Test a streaming agent](docs/how-to/test-a-streaming-agent.md), [Isolate an Agent SDK session](docs/how-to/isolate-agent-sdk.md), [Add a backend](docs/how-to/add-a-backend.md), [Model calls and OpenTelemetry](docs/how-to/record-model-calls.md) |
-| How-to: run a test | [Claude Code plugin](docs/how-to/claude-code-plugin.md), [Claude Code project hooks](docs/how-to/claude-code-hook-kit.md), [Codex](docs/how-to/codex.md) |
+| How-to: run a test | [Claude Code plugin](docs/how-to/claude-code-plugin.md), [Claude Code project hooks](docs/how-to/claude-code-project-hooks.md), [Codex](docs/how-to/codex.md) |
 | How-to: read the results | [Read the results of a test](docs/how-to/read-the-results.md) |
 | How-to: fix | [Troubleshooting](docs/troubleshooting.md), [Recover a stuck test](docs/how-to/recover-a-stuck-test.md) |
 | How-to: maintain | [Upgrade](docs/how-to/upgrade.md), [Remove](docs/how-to/remove.md), [Run the proofs](docs/how-to/run-the-proofs.md) |

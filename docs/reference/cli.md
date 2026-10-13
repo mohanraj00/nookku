@@ -19,7 +19,7 @@ An unknown command or flag prints the usage and exits with 2. The error of an un
 
 ### `nookku start`
 
-Start a test: run the [entry](glossary.md#entry) through the [tap](glossary.md#tap) and switch [relay mode](glossary.md#relay-mode) on ([SPEC.md section 7.2](../../SPEC.md#72-start-and-end)). It needs an `entry` in `.nookku/config.json`. The start text gives the same ways to end the test as the [plugin](glossary.md#plugin) and the hook kit: the prompt `nookku end`, which also starts the [evaluation](glossary.md#evaluation), and `nookku end` in a shell. If `evaluate` is `false`, the text does not name the evaluation ([SPEC.md section 9.1](../../SPEC.md#91-start)).
+Start a test: run the [entry](glossary.md#entry) through the [tap](glossary.md#tap) and switch [relay mode](glossary.md#relay-mode) on ([SPEC.md section 7.2](../../SPEC.md#72-start-and-end)). It needs an `entry` in `.nookku/config.json`. The start text gives the same ways to end the test as the [plugin](glossary.md#plugin) and the [project hooks](glossary.md#project-hooks): the prompt `nookku end`, which also starts the [evaluation](glossary.md#evaluation), and `nookku end` in a shell. If `evaluate` is `false`, the text does not name the evaluation ([SPEC.md section 9.1](../../SPEC.md#91-start)).
 
 | Flag | Default | Meaning |
 |---|---|---|

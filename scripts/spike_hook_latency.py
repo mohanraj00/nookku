@@ -1,6 +1,6 @@
 """Spike #179: the time that a Python hook process adds to each hook event. Local only.
 
-The hook kit runs `python -m nookku hook` for each hook event. This script measures:
+The project hooks run `python -m nookku hook` for each hook event. This script measures:
 
 - the wall time of one hook process for 4 events: a PreToolUse event that passes, one that reads
   the state folder, one that writes in it (a deny), and a UserPromptSubmit event with relay mode

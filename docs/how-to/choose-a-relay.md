@@ -22,7 +22,7 @@ flowchart TD
 
 1. Select the form:
    - Use the plugin if you can. It gives the model the `transcript` tool, and in Claude Code it adds `/nookku`, a status line and a pane. Read [claude-code-plugin.md](claude-code-plugin.md) or [codex.md](codex.md).
-   - Use the project hooks if your harness or your company does not let you install plugins. Read [claude-code-hook-kit.md](claude-code-hook-kit.md) or [codex.md](codex.md).
+   - Use the project hooks if your harness or your company does not let you install plugins. Read [claude-code-project-hooks.md](claude-code-project-hooks.md) or [codex.md](codex.md).
 2. Select how the relay reaches your agent:
    - If your agent is already an HTTP server, and you need no [trace](../reference/glossary.md#trace) and no [evaluation](../reference/glossary.md#evaluation), you can use the HTTP [tap](../reference/glossary.md#tap). Read [http-tap.md](http-tap.md).
    - Each other agent uses an [entry](../reference/glossary.md#entry). Read [connect-your-agent.md](connect-your-agent.md).

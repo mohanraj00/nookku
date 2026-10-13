@@ -950,7 +950,7 @@ RUNNING = {"test": "20261007-080000-aaaa", "tap_url": "http://127.0.0.1:8811/"}
     ],
 )
 def test_both_relays_give_one_status_text(setup, monkeypatch, capsys, on, running, text):
-    """The hook kit answers the prompt nookku status. The plugin shows `nookku status` and the
+    """The project hooks answer the prompt nookku status. The plugin shows `nookku status` and the
     status line from `nookku status --json`. All give the same text (#117)."""
     root, _, _ = setup
     kit.set_mode(root, on)
