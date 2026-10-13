@@ -185,6 +185,24 @@ def test_the_prompt_names_the_test_and_its_folder(tmp_path: Path) -> None:
     assert "{" + "folder}" not in text and "{" + "test}" not in text
 
 
+def test_the_prompt_says_what_to_do_with_an_invalid_record(tmp_path: Path) -> None:
+    # The prompt names the exact start of the first line of an invalid transcript (#103).
+    root = project(tmp_path)
+    folder = root / ".nookku" / "tests" / TEST
+    with (folder / "trace.jsonl").open("a", encoding="utf-8") as fh:
+        fh.write("[1]\n")
+    marker = "Record: INVALID"
+    assert evaluation.transcript(folder).startswith(marker)
+    text = evaluation.prompt(folder)
+    assert f'If its first line starts with `{marker}`, go to "Invalid record" below.' in text
+    rule = text.split("## Invalid record\n", 1)[1]
+    assert f"If the first line of the transcript starts with `{marker}`" in rule
+    assert "Do not judge the app" in rule
+    assert f"`{folder}/report.md`" in rule
+    assert "with no row in the table" in rule
+    assert "quote the first 2 lines of the transcript" in rule
+
+
 def event(root: Path, prompt: str) -> dict:
     return {"hook_event_name": "UserPromptSubmit", "prompt": prompt, "session_id": "tester"}
 
