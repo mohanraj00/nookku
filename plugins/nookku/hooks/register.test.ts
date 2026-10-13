@@ -72,6 +72,19 @@ test('/nookku view shows the end of nookku view', {}, async ($, on) => {
   expect(shown.text).toBe(VIEW)
 })
 
+test('/nookku view shows a new turn after the record gets shorter', {}, async ($, on) => {
+  // The pane keeps no count of the turns that it showed: each refresh runs nookku view again and
+  // shows its output in place of the old text. So a shorter record does not hide a new turn (#113).
+  const two = { exitCode: 0, stdout: VIEW + '──── tester ────\nBye\n──── agent ────\nBye now\n' }
+  const out: Record<string, { exitCode: number; stdout: string }> = { view: two }
+  fakes(on, out)
+  await $.command.run({ command: 'nookku', args: 'view' } as any)
+  const shorter = { exitCode: 0, stdout: VIEW + '──── tester ────\nTea?\n──── agent ────\nYes\n' }
+  out.view = shorter
+  const shown: any = await $.command.run({ command: 'nookku', args: 'view' } as any)
+  expect(shown.text).toBe(shorter.stdout)
+})
+
 test('the plugin does not change a prompt or a tool call', {}, async ($, on) => {
   fakes(on, { status: STATUS_ON })
   on('prompt.submit', async (_$: any, e: any) => ({ text: e.text }))
