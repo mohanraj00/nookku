@@ -88,4 +88,4 @@ Before the first run, a smoke run checks the tooling with one 3-turn session tha
    - The prompt-only runs stay in `bench/runs/` as raw data. They are not labelled, and no claim uses them.
    - The README quotes two examples from these runs as illustrations, with links to each session and the count method. No rate or comparison uses these runs.
    - H1 is evaluated: the mechanism arm had 0 breaks in 1,000 turns (500 for each harness). A result of 0 breaks has nothing to label, so H1 needs no person check.
-2. **The Codex relay has its new name, "project hooks" (2026-10-13, after the runs).** #302 renamed the relay in the docs, and this file now uses the new name on 3 lines. The relay, the runs and the results do not change.
+2. **The Codex relay has its new name, "project hooks" (2026-10-13, after the runs).** #302 renamed the relay in the docs, and this file now uses the new name in "Question", "Arms" and "Harnesses and models". The relay, the runs and the results do not change.
