@@ -64,7 +64,7 @@ Use the `openai` adapter. The `json` adapter does not read a stream: for a strea
 2. Configure the relay. Give the full `/v1/chat/completions` URL of the tap.
    - **Plugin:** set the options `adapter` to `openai` and `tap_url` to `http://127.0.0.1:8800/v1/chat/completions`.
    - **Project hooks:** run `nookku init claude-code --adapter openai --tap-url http://127.0.0.1:8800/v1/chat/completions`, or `init codex` with the same flags.
-3. If the agent streams only when the request has `"stream": true`, set the option `openai_stream` to `true`. For the project hooks, add the flag `--openai-stream` to `init`. Else the relay sends `"stream": false`.
+3. If the agent streams only when the request has `"stream": true`, set the option `openai_stream` to `true`. For the project hooks, add the flag `--openai-stream` to `init`. To set it back to `false`, use `--no-openai-stream`. Else the relay sends `"stream": false`.
 4. Switch relay mode on and off, and audit the two records, as in [http-tap.md](http-tap.md#3-relay-mode-on-and-off).
 
 The tap sends each part to the relay when the part comes. When the stream ends, it writes the joined reply to the tap record. The relay shows the reply when the stream is complete.

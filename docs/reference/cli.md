@@ -249,7 +249,7 @@ The output starts with `Project root:` and the absolute root, then gives the abs
 | `--message-field PATH` | `text` | The config key `message_field`. |
 | `--reply-field PATH` | `reply` | The config key `reply_field`. |
 | `--openai-model NAME` | empty | The config key `openai_model`. |
-| `--openai-stream` | off | The config key `openai_stream`: set it to `true`. |
+| `--openai-stream`, `--no-openai-stream` | none | The config key `openai_stream`: `--openai-stream` sets it to `true`, and `--no-openai-stream` sets it to `false`. With neither flag, a new file gets `false`, and an existing file keeps its value. |
 | `--record FILE` | `.nookku/relay.jsonl` | The config key `record`. |
 | `--check-message TEXT` | `Hello from nookku check. What can you help me with?` | The config key `check_message`: the one message of `nookku check`. |
 | `--model-reply-field PATH` | empty | The config key `model_reply_field`: the dot path of the client text in a structured model output. |
