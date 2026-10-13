@@ -10,7 +10,7 @@ A check is a test, a lint rule, a conformance case or a CI step. "Review" means 
 |---|---|---|
 | 1 | [Fail closed](#1-fail-closed) | Tests in `tests/test_kit.py` and `register.test.ts`, also for the plugin prompt path ([#63](https://github.com/mohanraj00/nookku/issues/63)) and the deny path ([#68](https://github.com/mohanraj00/nookku/issues/68)). |
 | 2 | [Exact bytes](#2-exact-bytes) | Byte tests of each relay and proxy. Proofs P1 and P2. |
-| 3 | [One rule, two languages](#3-one-rule-two-languages) | `test_the_plugin_reads_each_one_line_case_like_the_tap`, the shared `DENY_CASES` table for the deny patterns ([#70](https://github.com/mohanraj00/nookku/issues/70)), and the shared `DETAIL_CASES` table for the detail of a blocked call ([#88](https://github.com/mohanraj00/nookku/issues/88)). |
+| 3 | [One rule, one copy](#3-one-rule-one-copy) | The tables in `tests/tables.json`: `contract_lines` for the contract lines, `deny_cases` for the deny patterns ([#70](https://github.com/mohanraj00/nookku/issues/70)) and `detail_cases` for the detail of a blocked call ([#88](https://github.com/mohanraj00/nookku/issues/88)). |
 | 4 | [Records](#4-records) | Conformance cases and the CI step for them, also for Unicode ([#43](https://github.com/mohanraj00/nookku/issues/43), [#65](https://github.com/mohanraj00/nookku/issues/65)). The shared `RELAY_LINES` table for one reader ([#71](https://github.com/mohanraj00/nookku/issues/71)). |
 | 5 | [No secrets](#5-no-secrets) | Secret tests of the 2 proxies, also for query values ([#69](https://github.com/mohanraj00/nookku/issues/69)). |
 | 6 | [Timeouts](#6-timeouts) | `test_each_timeout_ends_before_the_next_one`, also for the HTTP tap ([#67](https://github.com/mohanraj00/nookku/issues/67)). |
@@ -51,11 +51,11 @@ A check is a test, a lint rule, a conformance case or a CI step. "Review" means 
 - Proofs P1 and P2 ([docs/results.md](results.md#1-proofs)), [scripts/proof_backend.py](../scripts/proof_backend.py) and [scripts/proof_model_api.py](../scripts/proof_model_api.py).
 - Review item in CLAUDE.md: "A change that lets the relay change a byte".
 
-## 3. One rule, two languages
+## 3. One rule, one copy
 
-**Rule.** If Python and the plugin read or match the same input, they use one rule. One shared table of cases tests both. The table comes from `conformance/`.
+**Rule.** Each rule that reads or matches an input has one copy, in the core (`src/nookku/`). The plugin and the hook kit call the core, and do not copy the rule. A table of cases tests the rule. The table comes from `conformance/`.
 
-**Reason.** Two readers with two rules give two results for one agent. The audit then reports a break in one relay only.
+**Reason.** Two copies of a rule give two results for one agent. The audit then reports a break in one relay only.
 
 **Example.** `contract.parse_reply` accepted a reply with `"error": null`, but `contractShown` in `plugins/claude-code/hooks/core.ts` refused it ([#45](https://github.com/mohanraj00/nookku/issues/45)). The fix added a table of contract lines. Since [#216](https://github.com/mohanraj00/nookku/issues/216), the plugin has no copy of a rule, and the tables in [tests/tables.json](../tests/tables.json) test only the core.
 

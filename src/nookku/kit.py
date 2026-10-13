@@ -580,7 +580,7 @@ def state_write(
 
 def blocked_detail(text: str) -> str:
     """The detail of a blocked_call row (SPEC.md section 2.2): the first 300 code points of the
-    text, with each lone surrogate escaped. blockedDetail in the plugin uses the same rule."""
+    text, with each lone surrogate escaped. The plugin and the hook kit use this function."""
     return escape_surrogates(text[:DETAIL_LIMIT])
 
 
