@@ -390,6 +390,30 @@ def test_the_try_of_the_readme_gives_the_output_that_it_shows(
     assert out[0].startswith("Test ") and out[1:] == shown.splitlines()
 
 
+def test_the_sample_report_of_the_readme_is_an_excerpt_of_its_data() -> None:
+    # Each line of the excerpt is a line of the real report, in its order (#257).
+    # A "..." line marks a cut.
+    # The excerpt has its own headings, so the section ends at the heading after the code block.
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    found = re.search(r"^## A sample report\n(.*?```.*?```.*?)(?=^## )", readme, re.M | re.S)
+    assert found
+    section = found.group(1)
+    excerpt = re.search(r"```markdown\n(.*?)```", section, re.DOTALL)
+    data = re.search(r"\[[^]]+\]\((proofs/report/[^)]+\.json)\)", section)
+    assert excerpt and data
+    proof = json.loads((ROOT / data.group(1)).read_text(encoding="utf-8"))
+    lines = proof["report"].split("\n")
+    at = 0
+    for line in excerpt.group(1).splitlines():
+        if line == "...":
+            continue
+        assert line in lines[at:], line
+        at = lines.index(line, at) + 1
+    rows = sum(1 for line in lines if line.startswith("| ") and line.count("|") > 4) - 1
+    notes = sum(1 for line in lines if line.startswith("- "))
+    assert f"The full report has {rows} rows and {notes} notes." in section
+
+
 # Reference pages -----------------------------------------------------------------------------
 
 
