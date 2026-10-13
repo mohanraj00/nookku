@@ -242,9 +242,12 @@ def end_test(root: Path, tester_session: str | None = None) -> str:
 
 
 def status(root: Path) -> str:
+    """The status text of the prompt nookku status. `nookku status`, the status line of the
+    plugin and the status tool of `nookku mcp` show the same text, so both relays give one text
+    (#117)."""
     cur = state.current(root)
-    test = f" Test {cur['test']} runs on {cur['tap_url']}." if cur else ""
-    return f"nookku: relay mode is {'on' if is_on(root) else 'off'}.{test}"
+    test = f"Test {cur['test']} runs on {cur['tap_url']}." if cur else "No test runs."
+    return f"nookku: relay mode is {'on' if is_on(root) else 'off'}. {test}"
 
 
 def _control(said: str, root: Path, session: str | None) -> str:

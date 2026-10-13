@@ -19,10 +19,10 @@ nookku status
 ```
 
 ```text
-relay mode is on.
+relay mode is on. No test runs.
 ```
 
-Relay mode is on, but the line names no test. Thus the bridge does not run. If a test runs, the line names it:
+Relay mode is on, but no test runs. Thus the bridge does not run. If a test runs, the line names it:
 
 ```text
 relay mode is on. Test 20261011-185435-1c1b runs on http://127.0.0.1:49439/.
@@ -68,7 +68,7 @@ nookku status
 ```
 
 ```text
-relay mode is off.
+relay mode is off. No test runs.
 ```
 
 Now each prompt goes to the model again.
