@@ -2,6 +2,23 @@
 
 Each date is the day of the upload to PyPI, in UTC ([nookku](https://pypi.org/project/nookku/#history), [verbatim-relay](https://pypi.org/project/verbatim-relay/#history)). 0.2.0 has no upload, so its date is the day of [its tag](https://github.com/mohanraj00/nookku/commit/v0.2.0).
 
+## 0.4.1
+
+Released 2026-10-13.
+
+This release fixes defects in the relay, the tap, the record reader, the config reader and the evaluation. It also makes the CLI text and the docs clearer. The record format does not change. The reader refuses 2 kinds of record that 0.4.0 accepted: a number that is NaN or Infinity ([#96](https://github.com/mohanraj00/nookku/issues/96)).
+
+- **Lone surrogate in a reply.** Both relay paths refuse a reply with a lone surrogate, with or without an entry. The turn has `ok: false`, and the error names the code point ([#93](https://github.com/mohanraj00/nookku/issues/93)).
+- **Tap write error.** If the tap cannot write the row of a response that is not a stream, it answers 502 and writes the path and the OS error to stderr. The caller gets a response only after its row is in the record ([SPEC.md section 4.1](SPEC.md#41-http-mode), [#94](https://github.com/mohanraj00/nookku/issues/94)).
+- **NaN and Infinity.** The Python reader refuses NaN and Infinity in a record, as the plugin does ([SPEC.md section 2](SPEC.md#2-record-format), [#96](https://github.com/mohanraj00/nookku/issues/96)).
+- **Blank lines in the trace.** The ignored counts of the trace include the blank lines of a session file ([SPEC.md section 8](SPEC.md#8-trace), [#97](https://github.com/mohanraj00/nookku/issues/97)).
+- **Astral characters.** A new audit case covers a blocked-call detail with astral characters ([#112](https://github.com/mohanraj00/nookku/issues/112)).
+- **One config reader.** The `evaluate` key comes from the one config reader, and `read_config` checks the type of each value. An explicit `null` is now refused. If the file is broken, no evaluation starts and `nookku end` says why. The guard still uses each key that has the right type ([#119](https://github.com/mohanraj00/nookku/issues/119), [#121](https://github.com/mohanraj00/nookku/issues/121)).
+- **Evaluation.** A test of `nookku check` gets no evaluation. The evaluation prompt tells the model what to do with an invalid record ([#102](https://github.com/mohanraj00/nookku/issues/102), [#103](https://github.com/mohanraj00/nookku/issues/103)).
+- **CLI text.** The start text does not name the evaluation if it is off, and it gives the 2 ways to end a test. The invalid-choice error does not name an internal command. `check` shows each stray-line fix one time. `verify` prints the test id and names it in an error. A test argument can be the path of a test folder. `init` has `--no-openai-stream`. The plugin and the project hooks use one status text. The view shows the next turns after the record gets shorter ([#113](https://github.com/mohanraj00/nookku/issues/113), [#114](https://github.com/mohanraj00/nookku/issues/114), [#115](https://github.com/mohanraj00/nookku/issues/115), [#116](https://github.com/mohanraj00/nookku/issues/116), [#117](https://github.com/mohanraj00/nookku/issues/117), [#118](https://github.com/mohanraj00/nookku/issues/118), [#120](https://github.com/mohanraj00/nookku/issues/120), [#122](https://github.com/mohanraj00/nookku/issues/122), [#160](https://github.com/mohanraj00/nookku/issues/160)).
+- **Docs.** The README has a new first screen, a 1-minute try with no model and an excerpt of a real report. The docs map is clean. "Harness" has one meaning, and the docs say "project hooks", not "hook kit". The docs and CI name the same harness versions. The examples have READMEs ([#166](https://github.com/mohanraj00/nookku/issues/166), [#256](https://github.com/mohanraj00/nookku/issues/256), [#257](https://github.com/mohanraj00/nookku/issues/257), [#258](https://github.com/mohanraj00/nookku/issues/258), [#259](https://github.com/mohanraj00/nookku/issues/259), [#260](https://github.com/mohanraj00/nookku/issues/260), [#261](https://github.com/mohanraj00/nookku/issues/261)).
+- **Release.** The release workflow starts only on a `v<number>` tag ([#254](https://github.com/mohanraj00/nookku/issues/254)).
+
 ## 0.4.0
 
 Released 2026-10-12.

@@ -417,8 +417,8 @@ SESSION_TOOLS = {"write_stdin"}
 def _guard_config(root: Path) -> Config | None:
     """The config keys that the guard uses: tap_url, agent_url, record and entry. If the file
     breaks the rule of the one reader, the guard still takes each of these keys that has the
-    right type. Thus a wrong value of another key, for example "evaluate": "no", does not let a
-    call to the tap or to the agent through (#121). None if the file is not a JSON object."""
+    right type. Thus a wrong value of another key, for example "evaluate": "no", does not allow a
+    call to the tap or to the agent (#121). None if the file is not a JSON object."""
     try:
         return Config.load(root)
     except (OSError, ValueError, TypeError):

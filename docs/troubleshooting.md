@@ -372,4 +372,4 @@ If the entry wrote 2 or more stray lines, the check gives one line for all of th
 
 (kit.py) **Cause.** The argument is not a test id, and it is not the path of a folder in `.nookku/tests` of the project.
 
-**Fix.** Give the test id, for example `nookku verify 20261001-120000-ab12`, or the path of the test folder, for example `nookku verify .nookku/tests/20261001-120000-ab12`. If the test is in another project, add `--root` with the path of that project.
+**Fix.** Give the test id, for example `nookku verify 20261001-120000-ab12`, or the path of the test folder, for example `nookku verify .nookku/tests/20261001-120000-ab12`. If the test is in another project, give the path of its test folder, or give the test id and add `--root` with the path of that project. A relative path starts at the current folder, not at `--root`.
