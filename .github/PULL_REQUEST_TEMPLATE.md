@@ -14,15 +14,15 @@ claude plugin validate plugins/nookku && claude plugin test plugins/nookku
 ```
 
 - [ ] CI is green.
-- [ ] If this changes a relay (the plugin or the project hooks), I ran the proofs again ([docs/how-to/run-the-proofs.md](https://github.com/mohanraj00/nookku/blob/main/docs/how-to/run-the-proofs.md)). I committed the results with the harness versions that they record.
+- [ ] If this changes a relay (the plugin or the project hooks), I ran the proofs again ([docs/contributing/run-the-proofs.md](https://github.com/mohanraj00/nookku/blob/main/docs/contributing/run-the-proofs.md)). I committed the results with the harness versions that they record.
 
 ## Code quality
 
-From [docs/code-quality.md](https://github.com/mohanraj00/nookku/blob/main/docs/code-quality.md). Mark each item that applies, and say why an item does not apply.
+From [docs/contributing/code-quality.md](https://github.com/mohanraj00/nookku/blob/main/docs/contributing/code-quality.md). Mark each item that applies, and say why an item does not apply.
 
 - [ ] **Fail closed.** If a relay path or a deny path fails, it blocks the message or the tool call.
 - [ ] **Exact bytes.** No relay or proxy changes a byte of a message, a reply or a forwarded body.
-- [ ] **One rule, one copy.** A rule that reads or matches an input is only in the core, except where the core cannot run (rule 3 of `docs/code-quality.md`). A table of cases tests it.
+- [ ] **One rule, one copy.** A rule that reads or matches an input is only in the core, except where the core cannot run (rule 3 of `docs/contributing/code-quality.md`). A table of cases tests it.
 - [ ] **Records.** A change to the record format or to the audit has a SPEC.md change. It also has a conformance case that I wrote by hand.
 - [ ] **No secrets.** No secret header value, query value or key goes into a record.
 - [ ] **Timeouts.** Each wait ends before the wait of the step around it.

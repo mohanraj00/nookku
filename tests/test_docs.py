@@ -298,6 +298,41 @@ KEPT_ANCHORS = {
         "audit",
         "more",
     },
+    # The contributor pages moved to docs/contributing/ (#306).
+    "docs/code-quality.md": {
+        "rules",
+        "1-fail-closed",
+        "2-exact-bytes",
+        "3-one-rule-one-copy",
+        "4-records",
+        "5-no-secrets",
+        "6-timeouts",
+        "7-errors",
+        "8-tests",
+        "9-dependencies-types-and-lint",
+        "10-docs-and-claims",
+    },
+    "docs/codex-display.md": {"what-i-found", "run-the-method", "recommendation-for-the-adr"},
+    "docs/adr/0001-one-core-one-plugin.md": {
+        "context",
+        "can-a-command-hook-show-the-reply-claude-code-176",
+        "can-a-command-hook-show-the-reply-codex-193",
+        "codex-plugin-hooks-and-the-trust-step-177",
+        "can-a-plugin-mcp-server-give-the-model-the-transcript-178-194",
+        "what-a-codex-plugin-can-show-205",
+        "time-that-a-python-hook-process-adds-179",
+        "decision",
+        "options-that-i-did-not-take",
+        "consequences",
+        "change-the-tagline",
+        "change-the-description",
+    },
+    "docs/how-to/run-the-proofs.md": {
+        "before-you-start",
+        "trust-the-codex-hooks-once",
+        "the-commands",
+        "after-a-run",
+    },
 }
 
 
@@ -609,7 +644,7 @@ COUNTED = re.compile(r"\b\d+ (?:break classes|trace checks)\b")
 # there points to the wrong meaning, so the test does not count them as a use.
 PLAIN_USES = {
     # "break" as a verb: the display layer stops.
-    "docs/adr/0001-one-core-one-plugin.md": ("If they break",),
+    "docs/contributing/adr/0001-one-core-one-plugin.md": ("If they break",),
     # "breaks" as a verb: the script does not obey a rule.
     "docs/reference/cli.md": ("the script breaks a rule",),
 }
