@@ -244,6 +244,19 @@ def test_init_takes_the_openai_stream_flag(tmp_path: Path) -> None:
     assert (conf["adapter"], conf["openai_stream"]) == ("openai", True)
 
 
+def test_init_no_openai_stream_sets_the_key_back_to_false(tmp_path: Path) -> None:
+    # A second init keeps each key with no flag, so only this flag sets the key back (#120).
+    root = ["init", "codex", "--root", str(tmp_path)]
+    assert main([*root, "--adapter", "openai", "--openai-stream"]) == 0
+    path = tmp_path / ".nookku" / "config.json"
+    assert json.loads(path.read_text())["openai_stream"] is True
+    assert main(root) == 0
+    assert json.loads(path.read_text())["openai_stream"] is True
+    assert main([*root, "--no-openai-stream"]) == 0
+    conf = json.loads(path.read_text())
+    assert (conf["adapter"], conf["openai_stream"]) == ("openai", False)
+
+
 def test_init_takes_the_check_message_flag(tmp_path: Path) -> None:
     args = ["init", "codex", "--root", str(tmp_path), "--check-message", "Do you sell teapots?"]
     assert main(args) == 0
@@ -608,7 +621,13 @@ def test_init_remove_refuses_with_old_relay_mode_on_and_does_not_move_it(
 
 
 @pytest.mark.parametrize(
-    "extra", [["plugin"], ["codex", "--entry", "python3 a.py"], ["codex", "--openai-stream"]]
+    "extra",
+    [
+        ["plugin"],
+        ["codex", "--entry", "python3 a.py"],
+        ["codex", "--openai-stream"],
+        ["codex", "--no-openai-stream"],
+    ],
 )
 def test_init_remove_takes_no_config_flag(
     tmp_path: Path, capsys: pytest.CaptureFixture[str], extra: list[str]
