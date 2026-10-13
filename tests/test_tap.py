@@ -243,6 +243,9 @@ def test_a_record_error_leaves_a_sized_stream_incomplete(tmp_path, capsys):
     assert "cannot write the record" in capsys.readouterr().err
 
 
+GIVES_THE_CAUSE = "The error output of the tap gives the cause."
+
+
 @pytest.mark.parametrize(
     ("path", "body", "reachable"),
     [
@@ -277,9 +280,11 @@ def test_a_record_error_of_a_response_that_is_not_a_stream_gives_502(
     tap.writer.append = fail  # type: ignore[method-assign]
     status, _, out = post(tap, path, body)
     tap.shutdown()
-    error = f"nookku tap: cannot write the record {record}: [Errno 28] No space left on device"
+    # The body gives no path and no OS error to a caller that can be on another computer.
+    error = "nookku tap: cannot write the record tap.jsonl. " + GIVES_THE_CAUSE
     assert (status, json.loads(out)) == (502, {"error": error})
-    assert "cannot write the record: [Errno 28] No space left on device" in capsys.readouterr().err
+    cause = f"nookku tap: cannot write the record {record}: [Errno 28] No space left on device"
+    assert cause in capsys.readouterr().err
     assert not record.exists()
 
 

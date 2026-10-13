@@ -87,12 +87,20 @@ class _Handler(BaseHTTPRequestHandler):
     def _write(self, row: dict[str, object]) -> bool:
         """Write one row of a response that is not a stream. If the write fails, write the error
         to stderr, answer 502 with a message that names the record, and return False. The caller
-        then sends no other response (SPEC.md section 4.1)."""
+        then sends no other response (SPEC.md section 4.1).
+
+        A caller can be on another computer (--listen), so the 502 body gives only the file name
+        of the record. The full path and the OS error go to stderr."""
         try:
             self.server.writer.append(row)
         except OSError as e:
-            print(f"nookku tap: cannot write the record: {e}", file=sys.stderr)
-            self._error(502, f"nookku tap: cannot write the record {self.server.writer.path}: {e}")
+            record = self.server.writer.path
+            print(f"nookku tap: cannot write the record {record}: {e}", file=sys.stderr)
+            self._error(
+                502,
+                f"nookku tap: cannot write the record {record.name}. "
+                "The error output of the tap gives the cause.",
+            )
             return False
         return True
 
