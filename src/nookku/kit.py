@@ -9,7 +9,7 @@ import re
 import shlex
 import sys
 import time
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, TextIO
@@ -1134,6 +1134,35 @@ def view(
     return 0
 
 
+def view_until_entry(
+    root: Path,
+    record: Path,
+    follow: bool,
+    out: TextIO,
+    poll: float = 0.3,
+    err: TextIO | None = None,
+) -> int:
+    """Print each turn of the record of a project with no entry, as in view. With follow, read
+    the config again before each poll. When the config has an entry, follow each test as in
+    view_tests (#312)."""
+    shown, errors = _Shown(out), _ErrorOnce(err or sys.stderr)
+    for turns in _turns(record, follow, poll, errors, lambda: _has_entry(root)):
+        shown.show(turns)
+    # With follow, the turns stop only when the config has an entry.
+    return view_tests(root, follow, out, poll, err) if follow else 0
+
+
+def _has_entry(root: Path) -> bool:
+    """True if the config of root has an entry. A config that cannot be read has no entry: the
+    tester can write it at this time, so the view reads it again at the next poll."""
+    if not (root / STATE_DIR / "config.json").exists():
+        return False
+    try:
+        return bool(Config.load(root).entry)
+    except (OSError, ValueError, TypeError):
+        return False
+
+
 def view_tests(
     root: Path, follow: bool, out: TextIO, poll: float = 0.3, err: TextIO | None = None
 ) -> int:
@@ -1216,7 +1245,15 @@ class _ErrorOnce:
         self.last = None
 
 
-def _turns(record: Path, follow: bool, poll: float, errors: _ErrorOnce) -> Iterator[list[Turn]]:
+def _turns(
+    record: Path,
+    follow: bool,
+    poll: float,
+    errors: _ErrorOnce,
+    stop: Callable[[], bool] | None = None,
+) -> Iterator[list[Turn]]:
+    """The turns of the record, one list for each poll. With follow, stop before a poll when
+    stop gives True."""
     while True:
         try:
             # With follow, the view waits for a record that does not exist yet.
@@ -1226,6 +1263,6 @@ def _turns(record: Path, follow: bool, poll: float, errors: _ErrorOnce) -> Itera
             if not follow:
                 raise
             errors.show(e, record)
-        if not follow:
+        if not follow or (stop is not None and stop()):
             return
         time.sleep(poll)

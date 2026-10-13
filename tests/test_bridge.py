@@ -546,6 +546,45 @@ def test_view_follows_the_latest_test(tmp_path: Path, homes: tuple) -> None:
     assert "Refund policy?\n──── agent ────\nOur refund policy:" in text
 
 
+def test_view_finds_a_test_that_starts_after_the_view(
+    tmp_path: Path, homes: tuple, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+) -> None:
+    """The view starts with no config.json. Then the tester writes a config with an entry and
+    starts a test. The view shows the turn of that test (#312)."""
+    root = tmp_path / "shop"
+    root.mkdir()
+    real_sleep, busy = time.sleep, [False]
+
+    def write_config() -> None:
+        kit.init(root, "claude-code", {"entry": [sys.executable, str(TOY_SHOP)]})
+
+    def run_test() -> None:
+        for prompt in ("nookku start", "Refund policy?", "nookku end"):
+            event = {"hook_event_name": "UserPromptSubmit", "prompt": prompt, "session_id": "s1"}
+            kit.handle(event, root, "claude-code")
+
+    todo = [write_config, run_test]
+
+    def sleep(seconds: float) -> None:
+        # A step can also sleep, for example when a test starts. That sleep is a real sleep.
+        if busy[0]:
+            return real_sleep(seconds)
+        if not todo:
+            raise KeyboardInterrupt  # the view stops as when the tester types Ctrl+C
+        busy[0] = True
+        try:
+            todo.pop(0)()
+        finally:
+            busy[0] = False
+
+    monkeypatch.setattr(kit.time, "sleep", sleep)
+    assert main(["view", "--root", str(root)]) == 0
+    assert not todo
+    text = capsys.readouterr().out
+    assert "════ test " in text
+    assert "Refund policy?\n──── agent ────\nOur refund policy:" in text
+
+
 def test_the_latest_test_is_the_one_that_started_last(tmp_path: Path) -> None:
     tests = tmp_path / ".nookku" / "tests"
     # The same second: the random part puts the older test last by name.
