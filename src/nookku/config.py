@@ -148,6 +148,9 @@ STRING_KEYS = (
     "record",
 )
 BOOLEAN_KEYS = ("openai_stream", "evaluate", "otel", "transcript_compact")
+# The keys whose parser takes None for a key that is not there, and the value of an explicit null.
+NULL_KEYS = ("backends", "model_api")
+_NULL = object()
 
 
 def _check_types(data: dict[str, Any]) -> None:
@@ -166,9 +169,12 @@ def _check_types(data: dict[str, Any]) -> None:
     models = data.get("models", [])
     if not (isinstance(models, list) and all(m in HARNESSES for m in models)):
         raise ConfigError(f"{FILE}: 'models' must be a list of {', '.join(HARNESSES)}")
+    # The parsers take None for a key that is not there. An explicit null is a wrong type, so it
+    # goes in as a value that each parser refuses, and gives the same error text.
+    given = {k: _NULL if k in data and data[k] is None else data.get(k) for k in NULL_KEYS}
     try:
-        parse_backends(data.get("backends"))
-        parse_model_api(data.get("model_api"))
+        parse_backends(given["backends"])
+        parse_model_api(given["model_api"])
     except ValueError as e:
         raise ConfigError(f"{FILE}: {e}") from None
 

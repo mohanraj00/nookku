@@ -565,6 +565,10 @@ def test_an_unknown_key_stops_start_check_and_the_hook_kit_with_one_message(
         ("otel", 0, "'otel' must be true or false"),
         ("backends", {}, "'backends' must be a list"),
         ("model_api", "openai", "'model_api' must be true, false, a list of: anthropic, openai"),
+        # An explicit null is not the same as a key that is not there.
+        ("backends", None, "'backends' must be a list"),
+        ("model_api", None, "'model_api' must be true, false, a list of: anthropic, openai"),
+        ("evaluate", None, "'evaluate' must be true or false"),
         ("tap_url", 8800, "'tap_url' must be a string"),
     ],
 )
