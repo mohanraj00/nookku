@@ -50,6 +50,8 @@ ENDING = "ending.json"
 TEST_DIR = "NOOKKU_TEST_DIR"
 TEST_ID = "NOOKKU_TEST_ID"
 POLL = 0.5
+# The harness of the one turn of `nookku check`. A test with only such turns gets no evaluation.
+CHECK_HARNESS = "nookku-check"
 # Files in the state folder that a test writes or that switch a mode. They are not configuration.
 NOT_CONFIG = {"tests", "current.json", "mode", "relay.jsonl", "tap.jsonl", ENDING}
 SKIP_DIRS = {"node_modules", ".venv", "__pycache__", ".git"}
@@ -802,7 +804,7 @@ def check(root: Path) -> tuple[bool, list[str]]:
         Writer(relay).append(
             {
                 "type": "turn",
-                "harness": "nookku-check",
+                "harness": CHECK_HARNESS,
                 "said": config.check_message,
                 "shown": shown,
                 "ok": ok,
