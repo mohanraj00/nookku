@@ -238,7 +238,7 @@ If the entry returns an error, crashes or does not answer in [240 seconds](../sr
 
 ### `nookku: cannot read the config: <reason>`
 
-(cli.py, from `nookku view` and `nookku transcript`) **Cause.** `config.json` exists, but it is not valid JSON or it breaks the rule for its keys. `<reason>` is the error that `start` gives for the same file. The command exits with 2. `transcript --trace` does not read the config, so it does not give this error.
+(cli.py and kit.py, from `nookku view` and `nookku transcript`) **Cause.** `config.json` exists, but it is not valid JSON or it breaks the rule for its keys. `<reason>` is the error that `start` gives for the same file. The command exits with 2. If the config breaks while `nookku view` follows a project with no entry, the view adds `The view reads the config again when it changes.`, shows the error one time and continues to wait. `transcript --trace` does not read the config, so it does not give this error.
 
 **Fix.** Correct the file. [reference/config.md](reference/config.md) lists each key.
 
