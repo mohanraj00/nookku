@@ -6,8 +6,8 @@ from typing import Any
 
 import pytest
 
-from nookku import __version__, bridge, kit, state
-from nookku.cli import main
+from nookku import __version__, bridge, kit, mcp, state
+from nookku.cli import INTERNAL_COMMANDS, main
 from nookku.kit import LEGEND
 from nookku.record import Writer
 
@@ -67,7 +67,7 @@ def test_no_command_prints_help():
     assert main([]) == 2
 
 
-def test_the_help_hides_the_bridge_command_and_the_command_still_runs(
+def test_the_help_lists_no_internal_command_and_each_command_still_runs(
     tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     with pytest.raises(SystemExit) as exit_info:
@@ -75,11 +75,24 @@ def test_the_help_hides_the_bridge_command_and_the_command_still_runs(
     assert exit_info.value.code == 0
     out = capsys.readouterr().out
     assert "==SUPPRESS==" not in out
-    assert "bridge" not in out.split()
+    words = out.replace("{", " ").replace("}", " ").replace(",", " ").split()
+    assert "start" in words and "transcript" in words
+    for name in INTERNAL_COMMANDS:
+        assert name not in words, name
     calls: list[tuple[tuple[Any, ...], dict[str, Any]]] = []
     monkeypatch.setattr(bridge, "run", lambda *args, **kw: calls.append((args, kw)) or 0)
     assert main(["bridge", "--root", str(tmp_path), "--test", "t-1"]) == 0
     assert calls == [((tmp_path, "t-1", None), {"entry_name": None, "script_source": None})]
+    served: list[Path] = []
+    monkeypatch.setattr(mcp, "serve", lambda root: served.append(root) or 0)
+    assert main(["mcp", "--root", str(tmp_path)]) == 0
+    assert served == [tmp_path.resolve()]
+    hooked: list[tuple[Path | None, str]] = []
+    monkeypatch.setattr(
+        kit, "run_hook", lambda root, harness, *streams: hooked.append((root, harness)) or 0
+    )
+    assert main(["hook", "--root", str(tmp_path), "--harness", "codex"]) == 0
+    assert hooked == [(tmp_path.resolve(), "codex")]
 
 
 def test_the_invalid_choice_error_does_not_name_an_internal_command(

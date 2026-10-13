@@ -326,7 +326,7 @@ Give exactly one of `--agent` and `--cmd`.
 
 ## Internal commands
 
-The relays and the bridge run these commands. You do not run them yourself.
+The relays and the bridge run these commands. You do not run them yourself. `nookku --help` does not show these commands.
 
 ### `nookku hook`
 
@@ -356,7 +356,7 @@ The MCP server that gives the model the read-only tools `transcript` and `status
 
 ### `nookku bridge`
 
-The background process of a test ([architecture.md](../architecture.md#the-bridge)). `start` runs it. `nookku --help` does not show this command.
+The background process of a test ([architecture.md](../architecture.md#the-bridge)). `start` runs it.
 
 | Flag | Default | Meaning |
 |---|---|---|
