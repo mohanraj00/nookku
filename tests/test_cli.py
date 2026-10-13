@@ -632,6 +632,26 @@ def test_init_remove_changes_nothing_in_a_broken_file(
     assert target.read_text() == "{"
 
 
+@pytest.mark.parametrize("evaluate", [True, False])
+def test_the_shell_start_text_gives_the_same_ways_to_end_a_test(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+    evaluate: bool,
+) -> None:
+    cur = {"test": "t-1", "tap_url": "http://127.0.0.1:1/"}
+    monkeypatch.setattr(bridge, "start", lambda root, session=None: cur)
+    (tmp_path / ".nookku").mkdir()
+    (tmp_path / ".nookku" / "config.json").write_text(json.dumps({"evaluate": evaluate}))
+    assert main(["start", "--root", str(tmp_path)]) == 0
+    shell = capsys.readouterr().out
+    ways = kit.end_ways(tmp_path)
+    assert shell == f"Test t-1 started on http://127.0.0.1:1/. Relay mode is on.\n{ways}\n"
+    # The plugin and the hook kit show kit.start_test, which ends with the same ways.
+    assert kit.start_test(tmp_path).endswith(f"goes to the entry. {ways}")
+    assert ("evaluation" in ways) is evaluate
+
+
 def test_init_start_and_end_a_test(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     entry = f"{sys.executable} {TOY_SHOP}"
     assert (
