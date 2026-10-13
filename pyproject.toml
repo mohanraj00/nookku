@@ -45,9 +45,9 @@ nookku = "nookku.__main__:main"
 [project.urls]
 Homepage = "https://github.com/mohanraj00/nookku"
 Repository = "https://github.com/mohanraj00/nookku"
-Documentation = "https://github.com/mohanraj00/nookku/blob/v0.4.2/docs/index.md"
-Specification = "https://github.com/mohanraj00/nookku/blob/v0.4.2/SPEC.md"
-Changelog = "https://github.com/mohanraj00/nookku/blob/v0.4.2/CHANGELOG.md"
+Documentation = "https://github.com/mohanraj00/nookku/blob/v0.4.3/docs/index.md"
+Specification = "https://github.com/mohanraj00/nookku/blob/v0.4.3/SPEC.md"
+Changelog = "https://github.com/mohanraj00/nookku/blob/v0.4.3/CHANGELOG.md"
 Issues = "https://github.com/mohanraj00/nookku/issues"
 
 [dependency-groups]
@@ -74,7 +74,7 @@ path = "README.md"
 
 [[tool.hatch.metadata.hooks.fancy-pypi-readme.substitutions]]
 pattern = '\]\((?!https?://|#)([^)]+)\)'
-replacement = '](https://github.com/mohanraj00/nookku/blob/v0.4.2/\1)'
+replacement = '](https://github.com/mohanraj00/nookku/blob/v0.4.3/\1)'
 
 [tool.ruff]
 line-length = 100
