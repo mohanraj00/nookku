@@ -19,4 +19,4 @@ Use the `-dark` files on a dark background.
 
 The letters are monoline paths, so each SVG shows the same in each viewer, with no font.
 
-To draw the SVG files again, run `python docs/assets/logo/make.py`. I rendered the two PNG files from the SVG files with headless Chrome. The text in `nookku-social.png` is the description of the [README](../../../README.md), and it uses the system font.
+To draw the SVG files again, run `python docs/assets/logo/make.py`. I rendered the two PNG files from the SVG files with headless Chrome. The text in `nookku-social.png` is the description in the [README](../../../README.md), with no "Nookku:" at the start, because the logo gives the name. It uses the system font.
