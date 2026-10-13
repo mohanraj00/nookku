@@ -121,7 +121,7 @@ nookku verify 20261011-185432-0da0
 ```
 
 ```text
-Seal: none. The records of this test have no seal.
+Test 20261011-185432-0da0. Seal: none. The records of this test have no seal.
 ```
 
 You can still audit the 2 records by hand:
