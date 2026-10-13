@@ -70,6 +70,12 @@ nookku check
 
 It starts the entry, sends one message, and ends the test. It passes if a reply comes back, if the audit of the test is clean, and if it finds a model session for each harness in `models`. If it fails, read `app.log` and `bridge.log` in the test folder that it names, correct the entry, and run it again.
 
+A PASS does not prove that the entry runs the app correctly. `check` does not judge the text of the reply. After a PASS, do these 3 steps:
+
+1. Compare the `Reply:` line with a normal reply of the app to the same message. If the reply is an error text or a fallback text of the app, the setup is not done. Correct the entry and run `check` again.
+2. Search `app.log` in the test folder of the check test for errors, tracebacks and warnings. If you find one, correct the entry and run `check` again.
+3. If the entry is in Node and reads its input with `node:readline`, change the entry. Read stdin and split it only on `\n`. `node:readline` also splits a line at `\r`, and Node 25 and later also split a line at U+2028 and U+2029. A message with one of these characters then arrives in 2 parts. Read the [warning for Node](https://github.com/mohanraj00/nookku/blob/main/docs/how-to/connect-your-agent.md#in-node).
+
 ## 5. Hand over
 
 Show the tester the entry and the configuration, and ask the tester to review them. The tester then starts the test: the prompt `nookku start`. In Claude Code, the plugin also gives `/nookku start`.

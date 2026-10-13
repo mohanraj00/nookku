@@ -359,6 +359,30 @@ def test_each_page_that_starts_the_setup_gives_the_form_that_runs_the_command(pa
     assert "!nookku setup" in (ROOT / page).read_text(encoding="utf-8")
 
 
+SETUP = ROOT / "src" / "nookku" / "setup.md"
+NODE_WARNING = "https://github.com/mohanraj00/nookku/blob/main/docs/how-to/connect-your-agent.md"
+
+
+def test_the_setup_skill_checks_the_reply_and_app_log_after_a_pass() -> None:
+    # A check of a real app printed PASS with an error text as the reply, and the model
+    # stopped (#161). The setup skill gives 3 steps after a PASS.
+    check = _sections(SETUP, "##")["4. Check"]
+    after = check.split("After a PASS, do these 3 steps:", 1)
+    assert len(after) == 2, "the check section has no steps after a PASS"
+    steps = re.findall(r"^\d+\. (.+)$", after[1], re.MULTILINE)
+    assert len(steps) == 3
+    reply, log, node = steps
+    assert "`Reply:`" in reply and "error text" in reply and "not done" in reply
+    assert "`app.log`" in log and "errors" in log and "tracebacks" in log
+    assert "`node:readline`" in node and "Node 25 and later" in node
+    assert "U+2028" in node and "U+2029" in node
+    link = re.search(rf"\]\({re.escape(NODE_WARNING)}#([\w-]+)\)", node)
+    assert link, "the Node step has no link to the warning"
+    page = DOCS / "how-to" / "connect-your-agent.md"
+    assert link.group(1) in anchors(page)
+    assert "U+2028" in _sections(page, "###")["In Node"]
+
+
 # The first screen of the README ------------------------------------------------------------------
 
 TAGLINE = "Test your chat agent from Claude Code or Codex, byte for byte."
