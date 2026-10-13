@@ -444,7 +444,11 @@ def test_a_record_error_of_a_stray_line_keeps_the_message_from_the_agent(
 ) -> None:
     agent, tap = run_failing_tap(tmp_path, "loading")
     try:
-        time.sleep(0.5)
+        # Send the request only after the stray line is in the queue of the tap.
+        deadline = time.monotonic() + 10
+        while agent._lines.empty() and time.monotonic() < deadline:
+            time.sleep(0.01)
+        assert not agent._lines.empty()
         status, out = post(tap.url, contract.request("m-1", "t-1", "Where is my mug?", []).decode())
     finally:
         tap.shutdown()
