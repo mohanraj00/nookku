@@ -42,7 +42,7 @@ With `--stream --on-request`, the toy agent streams only if the request has `"st
 | Project hooks | Claude Code 2.1.296 | on request | 10/10 | 10/10 | 10 | 5/5 | [results](../proofs/hooks-claude-code-stream-on-request/results.json) |
 | Project hooks | Codex 0.162.1 | on request | 10/10 | 10/10 | 10 | 5/5 | [results](../proofs/hooks-codex-stream-on-request/results.json) |
 
-In the 8 streamed runs, the model also used 0 output tokens in every relay turn.
+In the 8 streamed runs, the model also used 0 output tokens in every relay turn. Each streamed result records nookku 0.4.1 in the key `nookku`.
 
 Each results file has the records of the test next to it: `tap.jsonl` and `relay.jsonl`. The P5 proofs below and the benchmark ran before tests existed, with the tap in front of an HTTP agent.
 
