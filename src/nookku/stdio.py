@@ -203,11 +203,12 @@ def write_failed(path: Path, e: OSError) -> str:
     """Write the record path and the OS error to stderr. Return the error text for the caller.
 
     A caller can be on another computer (--listen), so the text gives only the file name of the
-    record (SPEC.md sections 4.1 and 4.2)."""
+    record (SPEC.md sections 4.1 and 4.2). A name with a byte that is not UTF-8 has a surrogate
+    escape, and UTF-8 cannot encode it. The text gives such a byte as a backslash escape."""
     print(f"nookku tap: cannot write the record {path}: {e}", file=sys.stderr)
+    name = path.name.encode("utf-8", "backslashreplace").decode("utf-8")
     return (
-        f"nookku tap: cannot write the record {path.name}. "
-        "The error output of the tap gives the cause."
+        f"nookku tap: cannot write the record {name}. The error output of the tap gives the cause."
     )
 
 

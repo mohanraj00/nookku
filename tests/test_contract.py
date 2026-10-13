@@ -1,4 +1,5 @@
 import json
+import os
 import subprocess
 import sys
 import time
@@ -468,3 +469,18 @@ def test_a_record_error_at_the_end_goes_to_stderr(tmp_path: Path, capsys) -> Non
     record = tmp_path / "tap.jsonl"
     cause = f"nookku tap: cannot write the record {record}: [Errno 28] No space left on device"
     assert cause in capsys.readouterr().err
+
+
+def test_a_record_name_that_is_not_utf_8_still_gives_502(tmp_path: Path) -> None:
+    # The name has the byte 0xff, so Path.name has the surrogate escape U+DCFF.
+    record = tmp_path / os.fsdecode(b"tap\xff.jsonl")
+    agent = Agent([sys.executable, "-c", ""], tmp_path, tmp_path / "app.log")
+    tap = StdioTap(("127.0.0.1", 0), agent, record)
+    tap.writer.append = full_disk  # type: ignore[method-assign]
+    start_in_thread(tap)
+    try:
+        status, out = post(tap.url, "not a contract line")
+    finally:
+        tap.shutdown()
+    error = CANNOT_WRITE.replace("tap.jsonl", "tap\\udcff.jsonl")
+    assert (status, json.loads(out)) == (502, {"error": error})
