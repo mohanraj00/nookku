@@ -6,14 +6,12 @@ This is the plumbing that a test needs. You write it once, when you start to tes
 
 ## Let the harness model write the entry
 
-1. Install the package: `uv tool install nookku`.
-2. Start Claude Code or Codex in your project. Type `!nookku setup`. The harness runs the command, and the model gets the guide as text ([setup.md](../../src/nookku/setup.md)).
-3. Type the prompt: "Follow the Nookku setup guide, and connect a test to this app." With the Claude Code plugin, the `setup` skill does the same as steps 2 and 3.
-4. The model reads the app, writes `.nookku/entry.<ext>` and `.nookku/config.json`, and runs `nookku check`.
-5. Review the entry. It is in the message path, and the audit cannot see a change that the entry makes.
-6. Make sure that the entry runs your real app ([Make sure that check runs your real app](#make-sure-that-check-runs-your-real-app)). A PASS of `check` does not prove it.
+[test-your-app.md](test-your-app.md) gives these steps, from the install to the results, with the expected output. Its steps 2 to 4 run the setup in the harness, review the entry and run `nookku check`. With the Claude Code plugin, the `setup` skill also runs the setup.
 
-[test-your-app.md](test-your-app.md) shows each step from the install to the results, with the expected output.
+After the model writes `.nookku/entry.<ext>` and `.nookku/config.json`, do these 2 checks:
+
+1. Review the entry. It is in the message path, and the audit cannot see a change that the entry makes.
+2. Make sure that the entry runs your real app ([Make sure that check runs your real app](#make-sure-that-check-runs-your-real-app)). A PASS of `check` does not prove it.
 
 ## Write the entry yourself
 
