@@ -50,7 +50,7 @@ End the test: switch relay mode off, stop the entry and collect its sessions, th
 
 ### `nookku status`
 
-Show relay mode and the running test.
+Show relay mode and the running test, for example `relay mode is on. Test <test-id> runs on <tap-url>.` If no test runs, the second sentence is `No test runs.` The prompt `nookku status` gives the same text. In relay mode, the status line of the plugin also shows it.
 
 | Flag | Default | Meaning |
 |---|---|---|
@@ -70,6 +70,8 @@ PASS proves the connection, not the reply. PASS means that:
 - the entry sent a reply line, not an `error` line;
 - the audit of the test exits with 0;
 - the test found a model session and its session file for each harness in `models`.
+
+`check` ends its test. The model does not evaluate a check test, so `nookku end` after `check` starts no evaluation ([SPEC.md section 9.1](../../SPEC.md#91-start)).
 
 `check` does not judge the text of the reply. A fallback reply of the app also passes. [how-to/connect-your-agent.md](../how-to/connect-your-agent.md#make-sure-that-check-runs-your-real-app) shows how to make sure that the entry runs your real app.
 

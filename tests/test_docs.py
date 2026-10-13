@@ -7,6 +7,7 @@ import argparse
 import json
 import re
 import subprocess
+import sys
 from collections import Counter
 from dataclasses import MISSING, fields
 from pathlib import Path
@@ -241,11 +242,21 @@ def test_each_page_that_runs_check_gives_the_default_check_message(page: str) ->
 # The map of the docs ---------------------------------------------------------------------------
 
 
-def test_each_docs_page_is_on_the_map() -> None:
+def _on_the_map() -> set[Path]:
     index = DOCS / "index.md"
-    linked = {resolve(index, t)[0] for t in links(index.read_text(encoding="utf-8"))}
-    pages = {p.resolve() for p in DOCS.rglob("*.md")} - {index.resolve()}
-    assert sorted(str(p.relative_to(ROOT)) for p in pages - linked) == []
+    return {resolve(index, t)[0] for t in links(index.read_text(encoding="utf-8"))}
+
+
+def test_each_docs_page_is_on_the_map() -> None:
+    # A moved page only keeps old links, so the map does not list it (#260).
+    skipped = {(DOCS / "index.md").resolve()} | {(ROOT / page).resolve() for page in KEPT_ANCHORS}
+    pages = {p.resolve() for p in DOCS.rglob("*.md")} - skipped
+    assert sorted(str(p.relative_to(ROOT)) for p in pages - _on_the_map()) == []
+
+
+def test_no_moved_page_is_on_the_map() -> None:
+    moved = {(ROOT / page).resolve() for page in KEPT_ANCHORS}
+    assert sorted(str(p.relative_to(ROOT)) for p in moved & _on_the_map()) == []
 
 
 # A page that moved or split keeps the anchor of each old section, so old links still work.
@@ -326,14 +337,81 @@ def test_the_mermaid_check_finds_banned_syntax(line: str) -> None:
     "page",
     [
         "README.md",
-        "docs/getting-started.md",
-        "docs/how-to/connect-your-agent.md",
         "docs/how-to/test-your-app.md",
     ],
 )
 def test_each_page_that_starts_the_setup_gives_the_form_that_runs_the_command(page: str) -> None:
     # A prompt of only "nookku setup" did not make the model run the command (#125).
     assert "!nookku setup" in (ROOT / page).read_text(encoding="utf-8")
+
+
+# The first screen of the README ------------------------------------------------------------------
+
+TAGLINE = "Test your chat agent from Claude Code or Codex, byte for byte."
+
+
+def test_the_readme_gives_the_tagline_one_time() -> None:
+    assert (ROOT / "README.md").read_text(encoding="utf-8").count(TAGLINE) == 1
+
+
+QUOTED = re.compile(r"\"[^\"\n]*\"")
+
+
+def test_harness_has_one_meaning_in_the_docs() -> None:
+    # "Harness" means a coding harness, Claude Code or Codex. Nookku is not a harness (#166).
+    # Quoted text keeps its words, for example the first tagline in the ADR.
+    pages = [ROOT / "README.md", *(p for p in markdown_files() if DOCS in p.parents)]
+    found = [
+        str(p.relative_to(ROOT))
+        for p in pages
+        if re.search(r"test[ -]harness", QUOTED.sub("", prose(p.read_text("utf-8"))), re.I)
+    ]
+    assert found == []
+
+
+def test_the_try_of_the_readme_gives_the_output_that_it_shows(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # The try runs the entry and the script of the README, with no harness and no model (#256).
+    section = _sections(ROOT / "README.md", "##")["Try it with no model"]
+    commands, shown = (m.group(2) for m in re.finditer(r"```(\w+)\n(.*?)```", section, re.DOTALL))
+    entry = re.search(r'--entry "python3 ([^"]+)"', commands)
+    script = re.search(r"nookku run --script (\S+) --no-evaluate", commands)
+    assert entry and script
+    monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(tmp_path / "claude-home"))
+    monkeypatch.setenv("CODEX_HOME", str(tmp_path / "codex-home"))
+    root = tmp_path / "shop"
+    (root / ".nookku").mkdir(parents=True)
+    conf = {"entry": [sys.executable, str(ROOT / entry.group(1))]}
+    (root / ".nookku" / "config.json").write_text(json.dumps(conf), encoding="utf-8")
+    args = ["run", "--script", str(ROOT / script.group(1)), "--root", str(root), "--no-evaluate"]
+    assert cli.main(args) == 0
+    out = capsys.readouterr().out.splitlines()
+    assert out[0].startswith("Test ") and out[1:] == shown.splitlines()
+
+
+def test_the_sample_report_of_the_readme_is_an_excerpt_of_its_data() -> None:
+    # Each line of the excerpt is a line of the real report, in its order (#257).
+    # A "..." line marks a cut.
+    # The excerpt has its own headings, so the section ends at the heading after the code block.
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    found = re.search(r"^## A sample report\n(.*?```.*?```.*?)(?=^## )", readme, re.M | re.S)
+    assert found
+    section = found.group(1)
+    excerpt = re.search(r"```markdown\n(.*?)```", section, re.DOTALL)
+    data = re.search(r"\[[^]]+\]\((proofs/report/[^)]+\.json)\)", section)
+    assert excerpt and data
+    proof = json.loads((ROOT / data.group(1)).read_text(encoding="utf-8"))
+    lines = proof["report"].split("\n")
+    at = 0
+    for line in excerpt.group(1).splitlines():
+        if line == "...":
+            continue
+        assert line in lines[at:], line
+        at = lines.index(line, at) + 1
+    rows = sum(1 for line in lines if line.startswith("| ") and line.count("|") > 4) - 1
+    notes = sum(1 for line in lines if line.startswith("- "))
+    assert f"The full report has {rows} rows and {notes} notes." in section
 
 
 # Reference pages -----------------------------------------------------------------------------

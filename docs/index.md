@@ -1,8 +1,8 @@
 # Docs
 
-Nookku is a test harness for chat agent development. You talk to your agent through Claude Code or Codex, and the model stays out of the conversation. An [audit](reference/glossary.md#audit) proves that each message and each reply arrived byte for byte.
+Nookku is a test tool for chat agent development. You talk to your agent through Claude Code or Codex, and the model stays out of the conversation. An [audit](reference/glossary.md#audit) proves that each message and each reply arrived byte for byte.
 
-The docs have 4 kinds of pages: a tutorial, how-to guides, reference pages and explanations. Start with the tutorial. The test `tests/test_docs.py` checks that each page in `docs/` is on this map.
+The docs have 4 kinds of pages: a tutorial, how-to guides, reference pages and explanations. Start with the tutorial. Then do [Test your own app](how-to/test-your-app.md). Pages for contributors are in a separate section at the end. The test `tests/test_docs.py` checks that each page in `docs/` is on this map. Old pages that moved are not on the map. They keep only the links to their new places.
 
 ## Tutorial
 
@@ -65,8 +65,6 @@ Look up a fact.
 Understand why it works as it does.
 
 - [Architecture](architecture.md): the relays, the taps, the bridge, the proxies, the audit, the trace and the evaluation, with diagrams of the data flow, one turn, the test lifecycle and the trace.
-- [ADR 0001: One core, one plugin](adr/0001-one-core-one-plugin.md): why one Python core and one plugin serve Claude Code and Codex, and what the spikes measured.
-- [Codex display spike](codex-display.md): the plugin display mechanisms, the CLI measurements and the desktop check.
 - [Limits](limits.md): what Nookku does not do or prove.
 - [FAQ](faq.md): why a mechanism and not a prompt, what it costs, and other questions.
 - [Worked evaluations](evaluation-example.md): 2 tests of the toy shop, the model's reports and what the model got wrong.
@@ -74,17 +72,16 @@ Understand why it works as it does.
 ## Project
 
 - [README](../README.md): the summary on one screen.
-- [CONTRIBUTING.md](../CONTRIBUTING.md): how to work on this repo.
-- [Code quality](code-quality.md): the rules of the code in this repo, and the check that enforces each rule.
 - [Logo](assets/logo/README.md): the logo files, the colours, and what the two eyes mean.
 - [CODE_OF_CONDUCT.md](../CODE_OF_CONDUCT.md): how we treat each other.
 - [SECURITY.md](../SECURITY.md): how to report a security problem.
 - [CHANGELOG.md](../CHANGELOG.md): the changes in each release.
 
-## Moved pages
+## Contribute to Nookku
 
-These pages moved. Each one keeps a link to its new place.
+Pages for people who change the code of Nookku. You do not need them to test your app.
 
-- [claude-code.md](claude-code.md) moved to [how-to/claude-code.md](how-to/claude-code.md) and other pages.
-- [codex.md](codex.md) moved to [how-to/codex.md](how-to/codex.md).
-- [how-to/claude-code.md](how-to/claude-code.md) is now 2 guides: [how-to/claude-code-plugin.md](how-to/claude-code-plugin.md) and [how-to/claude-code-hook-kit.md](how-to/claude-code-hook-kit.md).
+- [CONTRIBUTING.md](../CONTRIBUTING.md): how to work on this repo.
+- [Code quality](code-quality.md): the rules of the code in this repo, and the check that enforces each rule.
+- [ADR 0001: One core, one plugin](adr/0001-one-core-one-plugin.md): why one Python core and one plugin serve Claude Code and Codex, and what the spikes measured.
+- [Codex display spike](codex-display.md): the plugin display mechanisms, the CLI measurements and the desktop check.

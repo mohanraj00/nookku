@@ -57,7 +57,7 @@ ls .nookku/tests/
 20261011-184952-8a8d
 ```
 
-`nookku check` also makes a test folder. Do not read the check tests as your tests. A check test has one turn from the harness `nookku-check`. To find the check tests:
+`nookku check` also makes a test folder. Do not read the check tests as your tests. A check test has one turn from the harness `nookku-check`. The model does not evaluate a check test. To find the check tests:
 
 ```bash
 grep -l '"harness": "nookku-check"' .nookku/tests/*/relay.jsonl

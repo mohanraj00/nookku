@@ -314,10 +314,8 @@ To read each file of a test folder in order, see [Read the results of a test](ho
 - You audited the two records, and read the model's evaluation of the record.
 - You read the trace and the findings of the test.
 
-## Next steps
+## Next step
 
-- Test your own app: [how-to/test-your-app.md](how-to/test-your-app.md). In the harness, type `!nookku setup`. Then type the prompt "Follow the Nookku setup guide, and connect a test to this app."
-- Connect your own agent: [how-to/connect-your-agent.md](how-to/connect-your-agent.md).
-- Use the Claude Code plugin, which shows each reply in the chat: [how-to/claude-code-plugin.md](how-to/claude-code-plugin.md).
-- Use Codex: [how-to/codex.md](how-to/codex.md).
-- See the parts and how they connect: [architecture.md](architecture.md).
+Test your own app: do [how-to/test-your-app.md](how-to/test-your-app.md). It takes your app from the install to the results of a first test, with the expected output of each step.
+
+The [docs map](index.md) lists each other guide, for example the Claude Code plugin, Codex and the architecture.

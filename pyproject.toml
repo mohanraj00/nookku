@@ -12,7 +12,7 @@ authors = [{ name = "Mohan Raj" }]
 requires-python = ">=3.10"
 dependencies = []
 classifiers = [
-  "Development Status :: 2 - Pre-Alpha",
+  "Development Status :: 3 - Alpha",
   "Intended Audience :: Developers",
   "Operating System :: OS Independent",
   "Programming Language :: Python :: 3",
@@ -24,12 +24,24 @@ classifiers = [
   "Topic :: Software Development :: Testing",
   "Typing :: Typed",
 ]
-keywords = ["llm", "agents", "testing", "claude-code", "codex", "audit"]
+keywords = [
+  "llm",
+  "agents",
+  "testing",
+  "claude-code",
+  "codex",
+  "audit",
+  "evaluation",
+  "chatbot",
+  "agent-testing",
+  "llm-evaluation",
+]
 
 [project.scripts]
 nookku = "nookku.__main__:main"
 
 [project.urls]
+Homepage = "https://github.com/mohanraj00/nookku"
 Repository = "https://github.com/mohanraj00/nookku"
 Documentation = "https://github.com/mohanraj00/nookku/blob/main/docs/index.md"
 Specification = "https://github.com/mohanraj00/nookku/blob/main/SPEC.md"
@@ -49,7 +61,9 @@ packages = ["src/nookku"]
 # the package, its spec and its conformance suite; the benchmark and proofs stay in the repo
 include = ["/src", "/tests", "/conformance", "/SPEC.md", "/CHANGELOG.md", "/README.md", "/LICENSE"]
 
-# PyPI renders the README without the repo around it, so relative links point at GitHub
+# PyPI renders the README without the repo around it, so relative links point at GitHub.
+# The links use the release tag, so the page of a release shows the docs of that release.
+# tests/test_package.py checks that the tag is the package version.
 [tool.hatch.metadata.hooks.fancy-pypi-readme]
 content-type = "text/markdown"
 
@@ -58,7 +72,7 @@ path = "README.md"
 
 [[tool.hatch.metadata.hooks.fancy-pypi-readme.substitutions]]
 pattern = '\]\((?!https?://|#)([^)]+)\)'
-replacement = '](https://github.com/mohanraj00/nookku/blob/main/\1)'
+replacement = '](https://github.com/mohanraj00/nookku/blob/v0.4.0/\1)'
 
 [tool.ruff]
 line-length = 100
