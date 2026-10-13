@@ -215,7 +215,7 @@ Each timeout on the relay path ends before the next one, so that each part gets 
 |---|---|---|
 | 1 | The agent timeout of the tap, the same in HTTP mode and stdio mode | [240](src/nookku/stdio.py#L24) |
 | 2 | The tap answers the relay, at most 5 seconds after the agent timeout | [245](tests/test_timeouts.py#L21) |
-| 3 | The relay waits for the tap of a test (section 7) | [270](src/nookku/state.py#L21) |
+| 3 | The relay waits for the tap of a test (section 7) | [270](src/nookku/state.py#L20) |
 | 3 | The relay waits for the tap of section 4.1 | [280](src/nookku/kit.py#L33) |
 | 4 | The harness stops the `UserPromptSubmit` hook | [300](src/nookku/kit.py#L36) |
 

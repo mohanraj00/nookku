@@ -261,11 +261,28 @@ def check(data: Any) -> dict[str, Any]:
     return data
 
 
+def _load(root: Path) -> Any:
+    """The JSON value of config.json, with no check of its keys. Raise ConfigError if the file
+    cannot be read or is not JSON."""
+    try:
+        return json.loads((root / FILE).read_text(encoding="utf-8"))
+    except (OSError, ValueError) as e:
+        raise ConfigError(f"cannot read {FILE}: {e}") from None
+
+
 def read_config(root: Path) -> dict[str, Any]:
     """The keys of config.json as the file gives them. Raise ConfigError if the file cannot be
     read or breaks the rule for its keys."""
+    return check(_load(root))
+
+
+def has_entry(root: Path) -> bool:
+    """True if config.json has a list `entry` with at least one item. This does not check the
+    other keys. A file with an entry and an error still has an entry, so that `start` shows the
+    error."""
     try:
-        data = json.loads((root / FILE).read_text(encoding="utf-8"))
-    except (OSError, ValueError) as e:
-        raise ConfigError(f"cannot read {FILE}: {e}") from None
-    return check(data)
+        data = _load(root)
+    except ConfigError:
+        return False
+    entry = data.get("entry") if isinstance(data, dict) else None
+    return isinstance(entry, list) and len(entry) > 0

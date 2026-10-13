@@ -13,7 +13,6 @@ if TYPE_CHECKING:
 
 from nookku import contract
 from nookku.adapters import History
-from nookku.config import FILE as CONFIG_FILE
 from nookku.config import STATE_DIR as STATE_DIR
 from nookku.record import turns
 
@@ -36,18 +35,6 @@ def mark(folder: Path) -> None:
     path = folder / MARKER
     if not path.exists():
         path.write_text(MARKER_TEXT, encoding="utf-8")
-
-
-def has_entry(root: Path) -> bool:
-    """True if config.json has a list `entry` with at least one item. The plugin's `hasEntry`
-    uses the same rule. A file with an entry and an error still has an entry, so that `start`
-    shows the error."""
-    try:
-        data = json.loads((root / CONFIG_FILE).read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return False
-    entry = data.get("entry") if isinstance(data, dict) else None
-    return isinstance(entry, list) and len(entry) > 0
 
 
 # Bridge processes that this process started, so that alive() can reap them.

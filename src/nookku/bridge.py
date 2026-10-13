@@ -25,6 +25,7 @@ from nookku.config import FILE as CONFIG_FILE
 from nookku.config import HARNESSES as HARNESSES
 from nookku.config import STATE_DIR as STATE_DIR
 from nookku.config import ConfigError, read_config
+from nookku.config import has_entry as has_entry
 from nookku.record import RecordError, Writer, turns
 
 # The state functions are in nookku.state. These names keep the imports of bridge working.
@@ -33,7 +34,6 @@ from nookku.state import _children as _children
 from nookku.state import _started as _started
 from nookku.state import alive as alive
 from nookku.state import current as current
-from nookku.state import has_entry as has_entry
 from nookku.state import history as history
 from nookku.state import is_bridge as is_bridge
 from nookku.state import latest_test as latest_test
