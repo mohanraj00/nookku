@@ -142,7 +142,7 @@ If the entry returns an error, crashes or does not answer in [240 seconds](../sr
 
 ### `nookku tap: cannot write the record <name>. The error output of the tap gives the cause.`
 
-(tap.py) **Cause.** The HTTP [tap](reference/glossary.md#tap) cannot write the row of a response to its record, for example because the disk is full or the folder is not writable. The tap does not send the agent's response, so the relay shows this error and the message has no reply ([SPEC.md section 4.1](../SPEC.md#41-http-mode)). The tap writes the record path and the cause to its error output (stderr), in the line `nookku tap: cannot write the record <path>: <reason>`.
+(tap.py, stdio.py) **Cause.** The [tap](reference/glossary.md#tap) cannot write a row to its record, for example because the disk is full or the folder is not writable. The tap does not send the agent's response, so the relay shows this error and the message has no reply ([SPEC.md section 4.1](../SPEC.md#41-http-mode), [section 4.2](../SPEC.md#42-stdio-mode)). The tap writes the record path and the cause to its error output (stderr), in the line `nookku tap: cannot write the record <path>: <reason>`. In a test with an entry, the tap runs in the bridge, so this line is in `bridge.log`.
 
 **Fix.** Read the error output of `nookku tap`. Correct the cause, for example free disk space. Then send the message again.
 

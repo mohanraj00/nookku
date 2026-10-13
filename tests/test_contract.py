@@ -354,3 +354,113 @@ def test_an_agent_that_writes_stray_lines_all_the_time_still_times_out(tmp_path:
     assert status == 504
     assert time.monotonic() - began < 5
     assert "no reply line for m-1 in 0.5 s" in json.loads(body)["error"]
+
+
+# The entry answers by the message text. It saves each input line. With "loading" in argv, it
+# writes a stray line before the first request.
+BY_MESSAGE = """
+import json, sys
+got = open(sys.argv[1], "ab")
+if "loading" in sys.argv:
+    print("toy shop: loading catalog", flush=True)
+for raw in sys.stdin.buffer:
+    got.write(raw)
+    got.flush()
+    data = json.loads(raw)
+    rid, text = data["id"], data["message"]
+    if text == "exit":
+        sys.exit(3)
+    if text == "stray":
+        print("toy shop: looking up the order", flush=True)
+    out = {"v": 1, "id": rid, "reply": "Your mug ships today."}
+    if text == "error":
+        out = {"v": 1, "id": rid, "error": "the order db is down"}
+    elif text == "bad":
+        out = {"v": 1, "id": rid, "reply": 5}
+    elif text == "surrogate":
+        out = {"v": 1, "id": rid, "reply": "Your mug ships today \\ud83d"}
+    print(json.dumps(out), flush=True)
+"""
+
+CANNOT_WRITE = (
+    "nookku tap: cannot write the record tap.jsonl. The error output of the tap gives the cause."
+)
+
+
+def full_disk(row: dict) -> None:
+    raise OSError(28, "No space left on device")
+
+
+def run_failing_tap(tmp_path: Path, *argv: str) -> tuple[Agent, StdioTap]:
+    script = tmp_path / "entry.py"
+    script.write_text(BY_MESSAGE)
+    command = [sys.executable, str(script), str(tmp_path / "got.bin"), *argv]
+    agent = Agent(command, tmp_path, tmp_path / "app.log", timeout=5)
+    tap = StdioTap(("127.0.0.1", 0), agent, tmp_path / "tap.jsonl")
+    tap.writer.append = full_disk  # type: ignore[method-assign]
+    agent.start()
+    start_in_thread(tap)
+    return agent, tap
+
+
+@pytest.mark.parametrize(
+    "message",
+    ["Where is my mug?", "error", "bad", "surrogate", "exit", "stray", None, "\ud83d"],
+    ids=[
+        "reply",
+        "agent-error",
+        "reply-unparsed",
+        "lone-surrogate-reply",
+        "exited",
+        "stray-in-request",
+        "request-unparsed",
+        "lone-surrogate-message",
+    ],
+)
+def test_a_record_error_gives_502(tmp_path: Path, capsys, message: str | None) -> None:
+    # #293: the error went to socketserver as a traceback, and the relay got no response.
+    agent, tap = run_failing_tap(tmp_path)
+    if message is None:
+        body = "not a contract line"
+    else:
+        body = json.dumps(
+            {"v": 1, "id": "m-1", "session": "t-1", "message": message, "history": []}
+        )
+    try:
+        status, out = post(tap.url, body)
+    finally:
+        tap.shutdown()
+        agent.stop(grace=1)
+    # The body gives no path and no OS error to a caller that can be on another computer.
+    assert (status, json.loads(out)) == (502, {"error": CANNOT_WRITE})
+    record = tmp_path / "tap.jsonl"
+    cause = f"nookku tap: cannot write the record {record}: [Errno 28] No space left on device"
+    assert cause in capsys.readouterr().err
+    assert not record.exists()
+
+
+def test_a_record_error_of_a_stray_line_keeps_the_message_from_the_agent(
+    tmp_path: Path, capsys
+) -> None:
+    agent, tap = run_failing_tap(tmp_path, "loading")
+    try:
+        time.sleep(0.5)
+        status, out = post(tap.url, contract.request("m-1", "t-1", "Where is my mug?", []).decode())
+    finally:
+        tap.shutdown()
+        agent.stop(grace=1)
+    assert (status, json.loads(out)) == (502, {"error": CANNOT_WRITE})
+    assert "No space left on device" in capsys.readouterr().err
+    got = tmp_path / "got.bin"
+    assert got.read_bytes() == b""
+
+
+def test_a_record_error_at_the_end_goes_to_stderr(tmp_path: Path, capsys) -> None:
+    agent, tap = run_failing_tap(tmp_path, "loading")
+    tap.shutdown()
+    agent.stop(grace=1)
+    # No caller waits for the rows of the end, so the error goes only to stderr.
+    tap.record_rest()
+    record = tmp_path / "tap.jsonl"
+    cause = f"nookku tap: cannot write the record {record}: [Errno 28] No space left on device"
+    assert cause in capsys.readouterr().err
