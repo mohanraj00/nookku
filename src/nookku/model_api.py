@@ -17,6 +17,7 @@ from urllib.parse import urlsplit
 
 from . import backend
 from .adapters import StreamError, sse_events
+from .config import parse_model_api
 
 FILE = "model_api.jsonl"
 # The API name: the variable of its SDK and the URL if the entry has no value in the variable.
@@ -30,21 +31,9 @@ HARNESS_AGENTS = (("claude-cli", "claude-code"), ("claude-code", "claude-code"),
 
 def parse(raw: Any) -> dict[str, str | None]:
     """The `model_api` key of the configuration: the APIs to record, each with the URL from the
-    configuration, or None for the URL from its variable."""
-    if raw is None or raw is True:
-        return dict.fromkeys(APIS)
-    if raw is False:
-        return {}
-    if isinstance(raw, list) and all(isinstance(x, str) and x in APIS for x in raw):
-        return dict.fromkeys(raw)
-    if isinstance(raw, dict) and all(
-        k in APIS and (v is None or isinstance(v, str)) for k, v in raw.items()
-    ):
-        return dict(raw)
-    raise ValueError(
-        f"'model_api' must be true, false, a list of: {', '.join(APIS)}, "
-        "or an object from these names to a URL or null"
-    )
+    configuration, or None for the URL from its variable. The rule is in config.parse_model_api,
+    so the reader of config.json gives the same error."""
+    return parse_model_api(raw)
 
 
 def backends(apis: Mapping[str, str | None], environ: Mapping[str, str]) -> list[backend.Backend]:

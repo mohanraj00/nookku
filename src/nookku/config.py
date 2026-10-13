@@ -12,6 +12,7 @@ import sys
 from dataclasses import dataclass, field, fields
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 from nookku.record import lone_surrogate
 
@@ -131,6 +132,94 @@ ENTRY_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]*")
 
 # The known keys of config.json. Each other key is an error.
 KEYS = tuple(f.name for f in fields(Config))
+# The harnesses that the app can use for its model sessions (the key models).
+HARNESSES = ("claude-code", "codex")
+# The model APIs of the key model_api. model_api.APIS gives the variable and the URL of each.
+MODEL_APIS = ("anthropic", "openai")
+# The keys with a string value and no other rule here. check_message and model_reply_field
+# have their own rules below.
+STRING_KEYS = (
+    "tap_url",
+    "agent_url",
+    "adapter",
+    "message_field",
+    "reply_field",
+    "openai_model",
+    "record",
+)
+BOOLEAN_KEYS = ("openai_stream", "evaluate", "otel", "transcript_compact")
+# The keys whose parser takes None for a key that is not there, and the value of an explicit null.
+NULL_KEYS = ("backends", "model_api")
+_NULL = object()
+
+
+def _check_types(data: dict[str, Any]) -> None:
+    """Check the type of each value that has its own rule here (SPEC.md section 7.1). Each key
+    has one error text, so init, start, check, mode on and the relay give the same error (#121).
+    """
+    for key in STRING_KEYS:
+        if not isinstance(data.get(key, ""), str):
+            raise ConfigError(f"{FILE}: '{key}' must be a string")
+    for key in BOOLEAN_KEYS:
+        if not isinstance(data.get(key, False), bool):
+            raise ConfigError(f"{FILE}: '{key}' must be true or false")
+    entry = data.get("entry", [])
+    if not (isinstance(entry, list) and all(isinstance(a, str) for a in entry)):
+        raise ConfigError(f"{FILE}: 'entry' must be a list of strings")
+    models = data.get("models", [])
+    if not (isinstance(models, list) and all(m in HARNESSES for m in models)):
+        raise ConfigError(f"{FILE}: 'models' must be a list of {', '.join(HARNESSES)}")
+    # The parsers take None for a key that is not there. An explicit null is a wrong type, so it
+    # goes in as a value that each parser refuses, and gives the same error text.
+    given = {k: _NULL if k in data and data[k] is None else data.get(k) for k in NULL_KEYS}
+    try:
+        parse_backends(given["backends"])
+        parse_model_api(given["model_api"])
+    except ValueError as e:
+        raise ConfigError(f"{FILE}: {e}") from None
+
+
+def parse_backends(raw: Any) -> list[tuple[str, str, str]]:
+    """The `backends` key: the name, the variable and the URL of each backend (SPEC.md section
+    7.6). Raise ValueError if it is not valid. The proxy module uses it too, so one rule applies.
+    """
+    if raw is None:
+        return []
+    if not isinstance(raw, list):
+        raise ValueError("'backends' must be a list")
+    out: list[tuple[str, str, str]] = []
+    for b in raw:
+        if not isinstance(b, dict) or not all(
+            isinstance(b.get(k), str) for k in ("name", "env", "url")
+        ):
+            raise ValueError("each backend needs the strings 'name', 'env' and 'url'")
+        if urlsplit(b["url"]).scheme not in ("http", "https") or not urlsplit(b["url"]).hostname:
+            raise ValueError(f"backend {b['name']}: 'url' must be an http or https URL")
+        out.append((b["name"], b["env"], b["url"].rstrip("/")))
+    names = [name for name, _, _ in out]
+    if len(set(names)) != len(names) or len({env for _, env, _ in out}) != len(out):
+        raise ValueError("each backend needs its own 'name' and 'env'")
+    return out
+
+
+def parse_model_api(raw: Any) -> dict[str, str | None]:
+    """The `model_api` key: the APIs to record, each with the URL from the configuration, or
+    None for the URL from its variable (SPEC.md section 7.7). Raise ValueError if it is not
+    valid."""
+    if raw is None or raw is True:
+        return dict.fromkeys(MODEL_APIS)
+    if raw is False:
+        return {}
+    if isinstance(raw, list) and all(isinstance(x, str) and x in MODEL_APIS for x in raw):
+        return dict.fromkeys(raw)
+    if isinstance(raw, dict) and all(
+        k in MODEL_APIS and (v is None or isinstance(v, str)) for k, v in raw.items()
+    ):
+        return dict(raw)
+    raise ValueError(
+        f"'model_api' must be true, false, a list of: {', '.join(MODEL_APIS)}, "
+        "or an object from these names to a URL or null"
+    )
 
 
 def check(data: Any) -> dict[str, Any]:
@@ -140,10 +229,7 @@ def check(data: Any) -> dict[str, Any]:
     unknown = sorted(set(data) - set(KEYS))
     if unknown:
         raise ConfigError(f"{FILE} has unknown keys: {unknown}. Correct or remove them.")
-    if not isinstance(data.get("openai_stream", False), bool):
-        raise ConfigError(f"{FILE}: 'openai_stream' must be true or false")
-    if not isinstance(data.get("transcript_compact", False), bool):
-        raise ConfigError(f"{FILE}: 'transcript_compact' must be true or false")
+    _check_types(data)
     message = data.get("check_message", CHECK_MESSAGE)
     if not isinstance(message, str) or not message.strip():
         raise ConfigError(f"{FILE}: 'check_message' must be a string with text")
