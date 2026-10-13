@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from . import bridge, seal
+from .config import ConfigError, read_config
 from .record import RecordError, read_rows
 
 REPORT = "report.md"
@@ -24,17 +25,19 @@ COMPACT_MIN = 200
 
 
 def enabled(root: Path) -> bool:
-    """The `evaluate` key of the configuration. It is true if it is not there."""
+    """The `evaluate` key of the configuration, read with the one reader. It is true if the key
+    is not there. If the file cannot be read or breaks the rule for its keys, no evaluation starts
+    (SPEC.md section 9.1)."""
     try:
-        conf = json.loads((root / bridge.STATE_DIR / "config.json").read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return True
+        conf = read_config(root)
+    except ConfigError:
+        return False
     return conf.get("evaluate", True) is not False
 
 
-def pending(root: Path) -> Path | None:
-    """The latest test, if it ended, has no report and the configuration lets it be evaluated."""
-    if not enabled(root) or bridge.current(root) is not None:
+def _ended(root: Path) -> Path | None:
+    """The latest test, if no test runs, it ended and it has no report."""
+    if bridge.current(root) is not None:
         return None
     folder = bridge.latest_test(root)
     if folder is None or (folder / REPORT).exists():
@@ -44,6 +47,23 @@ def pending(root: Path) -> Path | None:
     except (OSError, ValueError):
         return None
     return folder if manifest.get("ended") is not None else None
+
+
+def pending(root: Path) -> Path | None:
+    """The latest test, if it ended, has no report and the configuration lets it be evaluated."""
+    return _ended(root) if enabled(root) else None
+
+
+def config_note(root: Path) -> str | None:
+    """The text that tells why a test that needs an evaluation gets none: the config file cannot
+    be read or breaks the rule for its keys. None if this is not the case."""
+    if _ended(root) is None:
+        return None
+    try:
+        read_config(root)
+    except ConfigError as e:
+        return f"nookku: no evaluation starts: {e}. Correct the file, then type: nookku end"
+    return None
 
 
 def _items(path: Path) -> list[dict[str, Any]]:
