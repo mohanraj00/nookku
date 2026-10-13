@@ -384,6 +384,26 @@ CASES_BY_NAME: dict[str, tuple[list | None, list | None, dict]] = {
         [lone_surrogate(CLEAN_RELAY[0], "shown"), *CLEAN_RELAY[1:]],
         {"exit": 2, "errors": ["record_invalid"]},
     ),
+    # NaN, Infinity and -Infinity are not JSON (SPEC.md section 2). json.dumps writes them, so a
+    # test can make the line. JSON.parse refuses them, so the Python reader refuses them too (#96).
+    "nan_in_the_relay_record": (
+        CLEAN_TAP,
+        [
+            CLEAN_RELAY[0],
+            json.dumps({**CLEAN_RELAY[1], "ts": float("nan")}, ensure_ascii=False),
+            CLEAN_RELAY[2],
+        ],
+        {"exit": 2, "errors": ["record_invalid"]},
+    ),
+    "infinity_in_the_tap_record": (
+        [
+            CLEAN_TAP[0],
+            json.dumps({**CLEAN_TAP[1], "ts": float("inf")}, ensure_ascii=False),
+            CLEAN_TAP[2],
+        ],
+        CLEAN_RELAY,
+        {"exit": 2, "errors": ["record_invalid"]},
+    ),
     "tap_unparsed": ([*CLEAN_TAP, UNPARSED], CLEAN_RELAY, {"exit": 2, "errors": ["tap_unparsed"]}),
     # Streamed replies (0.2). The audit compares the joined reply, the same as any reply.
     "streamed_reply_clean": (STREAM_TAP, RELAY_02, {"exit": 0, "breaks": []}),

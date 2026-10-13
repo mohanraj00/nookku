@@ -47,3 +47,13 @@ def test_the_reader_takes_each_relay_line_of_the_table(tmp_path: Path) -> None:
     assert sorted(line for line, _ in rows) == sorted(want)
     for line, valid in rows:
         assert [line, _valid(tmp_path, line)] == [line, valid]
+
+
+@pytest.mark.parametrize("constant", ["NaN", "Infinity", "-Infinity"])
+def test_the_reader_refuses_a_constant_that_is_not_json(tmp_path: Path, constant: str) -> None:
+    # json.loads accepts these constants, but JSON.parse refuses them (#96).
+    path = tmp_path / "tap.jsonl"
+    row = '{"v": "0.2", "type": "unparsed", "ts": %s, "method": "POST", "path": "/", "error": "x"}'
+    path.write_text(row % constant + "\n", encoding="utf-8")
+    with pytest.raises(RecordError, match=f"line 1: {constant} is not a JSON value"):
+        read_rows("tap", path)

@@ -21,6 +21,8 @@ Each record is a UTF-8 JSONL file. Each line is one JSON object. Each object has
 
 Each string in a row, as a field name or as a value, holds only Unicode scalar values. JSON can escape a lone UTF-16 surrogate, for example `"\ud83d"`, but UTF-8 cannot encode it. A row with a lone surrogate is not valid.
 
+A row with `NaN`, `Infinity` or `-Infinity` is not valid. These are not JSON values, but Python `json.loads` accepts them. The reader refuses them, as `JSON.parse` does. The cases are `nan_in_the_relay_record` and `infinity_in_the_tap_record` in [`conformance/cases/`](conformance/cases/).
+
 Each record has one reader with one rule: `record.read_rows` in Python. The reader checks each line with the rules of section 3.1 (`record_invalid`). If a line is not valid, or a hash does not match its text, the reader stops with an error that names the file and the line. It never skips a line. The audit, the relays, the end of a test, the trace (section 8) and the transcript with the trace (section 9.2) use this reader. If a record file does not exist, the audit stops with `record_missing`. The relays, the end of a test, the trace and the transcript with the trace read a file that does not exist as a record with no rows.
 
 The relays refuse a message with a lone surrogate (section 5). The other writers do not write a relayed message or reply: the OTLP receiver (section 7.5), the backend proxies (section 7.6), the model API proxies (section 7.7) and the trace (section 8). The `detail` of a `blocked_call` row (section 2.2) and the error text of a turn with `ok: false` (section 5) are not a relayed message or reply either. If a string that one of these writers writes has a lone surrogate, the writer writes its escape text in its place. The escape text is a backslash, `u` and 4 lowercase hex digits. For example, U+D83D becomes the 6 characters `\ud83d`, which JSON writes as `"\\ud83d"`. Thus a write never fails on a lone surrogate.
@@ -86,7 +88,7 @@ In a test (section 7), the relay record is `relay.jsonl` in the test folder.
 The audit stops with exit code 2 and does not report breaks if one of these conditions occurs:
 
 - `record_missing`: a record file does not exist or cannot be read.
-- `record_invalid`: a line is not a JSON object, has a wrong `v` or an unknown `type`, has a missing or wrongly typed field, has a hash that does not match its text, has a `reply` that does not agree with its `status` (section 2.1), or has a lone surrogate (section 2).
+- `record_invalid`: a line is not a JSON object, has a wrong `v` or an unknown `type`, has a missing or wrongly typed field, has a hash that does not match its text, has a `reply` that does not agree with its `status` (section 2.1), or has a lone surrogate or a `NaN`, `Infinity` or `-Infinity` value (section 2).
 - `tap_unparsed`: the tap record has an `unparsed` row. The audit cannot check that exchange.
 
 With a script (section 7.10), a script file that cannot be read is `record_missing`, and a script that breaks the rule of its form is `record_invalid`. Each has `"record": "script"`.
