@@ -116,7 +116,7 @@ By default, only a person runs `nookku run`: the relay denies it from the model.
 nookku mode [STATE] [--root PATH] [--tester-session ID]
 ```
 
-Switch relay mode on or off. With an entry, `on` starts a test and `off` ends it. With no entry, it only switches relay mode ([how-to/http-tap.md](../how-to/http-tap.md)). Before it switches relay mode on, it reads `config.json`, if the file exists. If the file is broken, `on` shows the error and does not switch relay mode on ([#109](https://github.com/mohanraj00/nookku/pull/109)). If the file does not exist, `on` tells you to run `nookku init plugin`, and does not switch relay mode on. If relay mode is already on, it stays on, and the relay blocks each prompt ([SPEC.md section 7.1](../../SPEC.md#71-configuration)). The `/nookku` command of the plugin runs `nookku mode` with its words, and shows the output.
+Switch relay mode on or off. With an entry, `on` starts a test and `off` ends it. With no entry, it only switches relay mode ([how-to/http-tap.md](../how-to/http-tap.md)). Before it switches relay mode on, it reads `config.json`, if the file exists. If the file is broken, `on` shows the error and does not switch relay mode on ([#109](https://github.com/mohanraj00/nookku/pull/109)). If the file does not exist, `on` tells you to run `nookku init plugin`, and does not switch relay mode on. If relay mode is already on, it stays on, and the relay blocks each prompt that is not a [control prompt](glossary.md#control-prompt) ([SPEC.md section 7.1](../../SPEC.md#71-configuration)). The `/nookku` command of the plugin runs `nookku mode` with its words, and shows the output.
 
 | Argument or flag | Default | Meaning |
 |---|---|---|

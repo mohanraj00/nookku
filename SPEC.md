@@ -400,7 +400,7 @@ If `config.json` does not exist, each command has its own result:
 
 - `start` and `check` stop with the error `cannot read .nookku/config.json`, and the reason of the OS, and exit with 1 (`read_config` in [src/nookku/config.py](src/nookku/config.py)).
 - `mode on` starts no test and does not switch relay mode on. It prints `this project has no .nookku/config.json, so relay mode stays off`, with the fix `nookku init plugin`, and exits with 0 (`main` in [src/nookku/cli.py](src/nookku/cli.py)).
-- `mode on` does not change the mode file. Thus if relay mode is already on, it stays on. Then the relay blocks each prompt with the error `relay mode is on, but the config is broken`, and the reason of the OS (`handle` in [src/nookku/kit.py](src/nookku/kit.py)).
+- `mode on` does not change the mode file. Thus if relay mode is already on, it stays on. Then the relay blocks each prompt that is not a control prompt (section 5) with the error `relay mode is on, but the config is broken`, and the reason of the OS (`handle` in [src/nookku/kit.py](src/nookku/kit.py)).
 - `view` uses the default value of each key, so it reads the record `.nookku/relay.jsonl` (`main` in [src/nookku/cli.py](src/nookku/cli.py)).
 - `transcript` uses the default value of each key (`transcript_text` in [src/nookku/kit.py](src/nookku/kit.py)).
 - The guard has no `tap_url` and no `agent_url` from the config, so it denies no call to them, also not to the default `tap_url` ([#162](https://github.com/mohanraj00/nookku/issues/162)). During a test, it still denies a call to the tap URL of `current.json` (`_guard_config` in [src/nookku/kit.py](src/nookku/kit.py)).
