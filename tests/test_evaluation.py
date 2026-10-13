@@ -5,8 +5,9 @@ from pathlib import Path
 
 import pytest
 
-from nookku import evaluation, kit, mcp, trace
+from nookku import bridge, evaluation, kit, mcp, trace
 from nookku.cli import main
+from nookku.record import Writer
 
 CASE = Path(__file__).resolve().parent.parent / "conformance" / "trace" / "claude_code_toy_shop"
 TEST = "20261006-080000-cc01"
@@ -31,6 +32,31 @@ def test_pending_is_the_latest_ended_test_with_no_report(tmp_path: Path) -> None
     assert evaluation.pending(root) == folder
     (folder / evaluation.REPORT).write_text("# Report\n")
     assert evaluation.pending(root) is None
+
+
+def test_a_check_test_gets_no_evaluation(tmp_path: Path) -> None:
+    # nookku check runs a test and ends it. The next nookku end must not evaluate it (#102).
+    root = project(tmp_path)
+    folder = root / ".nookku" / "tests" / TEST
+    relay = Writer(folder / "relay.jsonl")
+    row = {"type": "turn", "said": "Hello", "shown": "Hi", "ok": True}
+    relay.append({**row, "harness": bridge.CHECK_HARNESS})
+    assert evaluation.is_check(folder)
+    assert evaluation.pending(root) is None
+    assert evaluation.config_note(root) is None
+    answer = kit.handle(event(root, "nookku end"), root, "codex")
+    assert answer is not None and answer["decision"] == "block"
+    # A turn from a harness makes it a test of the tester again.
+    relay.append({**row, "harness": "codex"})
+    assert not evaluation.is_check(folder)
+    assert evaluation.pending(root) == folder
+
+
+def test_a_test_with_no_turns_or_a_broken_relay_record_is_not_a_check_test(tmp_path: Path) -> None:
+    folder = project(tmp_path) / ".nookku" / "tests" / TEST
+    assert not evaluation.is_check(folder)
+    (folder / "relay.jsonl").write_text("{broken\n")
+    assert not evaluation.is_check(folder)
 
 
 def test_no_evaluation_if_the_config_turns_it_off_or_the_test_runs(tmp_path: Path) -> None:
@@ -183,6 +209,24 @@ def test_the_prompt_names_the_test_and_its_folder(tmp_path: Path) -> None:
     assert f"nookku transcript --trace --test {TEST}" in text
     assert f"`{folder}/report.md`" in text
     assert "{" + "folder}" not in text and "{" + "test}" not in text
+
+
+def test_the_prompt_says_what_to_do_with_an_invalid_record(tmp_path: Path) -> None:
+    # The prompt names the exact start of the first line of an invalid transcript (#103).
+    root = project(tmp_path)
+    folder = root / ".nookku" / "tests" / TEST
+    with (folder / "trace.jsonl").open("a", encoding="utf-8") as fh:
+        fh.write("[1]\n")
+    marker = "Record: INVALID"
+    assert evaluation.transcript(folder).startswith(marker)
+    text = evaluation.prompt(folder)
+    assert f'If its first line starts with `{marker}`, go to "Invalid record" below.' in text
+    rule = text.split("## Invalid record\n", 1)[1]
+    assert f"If the first line of the transcript starts with `{marker}`" in rule
+    assert "Do not judge the app" in rule
+    assert f"`{folder}/report.md`" in rule
+    assert "with no row in the table" in rule
+    assert "quote the first 2 lines of the transcript" in rule
 
 
 def event(root: Path, prompt: str) -> dict:

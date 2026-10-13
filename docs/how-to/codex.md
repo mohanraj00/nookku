@@ -1,6 +1,6 @@
 # Test an agent in Codex
 
-In Codex, you install the [relay](../reference/glossary.md#relay) as the plugin or as the project hooks. Both run `nookku hook`, with the same rules. [choose-a-relay.md](choose-a-relay.md) compares them. Codex has no surface that shows hook text in `codex exec`, so `nookku view` shows each reply in a second terminal.
+In Codex, you install the [relay](../reference/glossary.md#relay) as the [plugin](../reference/glossary.md#plugin) or as the [project hooks](../reference/glossary.md#project-hooks). Both run `nookku hook`, with the same rules. [choose-a-relay.md](choose-a-relay.md) compares them. Codex has no surface that shows hook text in `codex exec`, so `nookku view` shows each reply in a second terminal.
 
 The plugin loads in Codex 0.162.1: Codex lists its 2 hooks, its MCP tools and its skill ([data](../../proofs/plugin/load.json), [method](../../scripts/proof_plugin_load.py)). The proofs P1 to P4 ran on the project hooks in codex-cli 0.162.1 ([data](../../proofs/hooks-codex/results.json)).
 
@@ -22,7 +22,7 @@ The plugin loads in Codex 0.162.1: Codex lists its 2 hooks, its MCP tools and it
      codex plugin add nookku@nookku
      ```
 
-     Then write `.nookku/config.json` with the entry of your app. `nookku init plugin` writes it, and writes no project hooks:
+     Then write `.nookku/config.json` with the [entry](../reference/glossary.md#entry) of your app. `nookku init plugin` writes it, and writes no project hooks:
 
      ```bash
      nookku init plugin --entry "python3 examples/toy-shop/agent.py"
@@ -34,13 +34,13 @@ The plugin loads in Codex 0.162.1: Codex lists its 2 hooks, its MCP tools and it
      nookku init codex --entry "python3 examples/toy-shop/agent.py"
      ```
 
-     `init` writes `.nookku/config.json` and `.codex/hooks.json`, with 2 hooks. Its output starts with the absolute project root, and gives the absolute path of each file. Run `init` in the top folder of your project, not in `.nookku/` or a test folder.
-     - `UserPromptSubmit`: in relay mode, it sends the prompt to the tap and blocks it from the model. It also runs the prompts `nookku start`, `nookku end` and `nookku status`.
+     `init` writes `.nookku/config.json` and `.codex/hooks.json`, with 2 hooks. Its output starts with the absolute project root, and gives the absolute path of each file. Run `init` in the top folder of your project, not in `.nookku/` or a [test folder](../reference/glossary.md#test-folder).
+     - `UserPromptSubmit`: in [relay mode](../reference/glossary.md#relay-mode), it sends the prompt to the [tap](../reference/glossary.md#tap) and blocks it from the model. It also runs the prompts `nookku start`, `nookku end` and `nookku status`.
      - `PreToolUse`: it denies any model tool call that names the tap or the agent, except file tools. During a test, it also denies model changes to `.nookku/` and model commands that run the entry. After a test, a command that names `.nookku` can only read, or write `report.md`.
 
      The plugin has the same 2 hooks.
 
-   The entry is a thin wrapper that starts your app and speaks the agent contract ([SPEC.md section 6](../../SPEC.md#6-agent-contract-version-1)). For your own app, type `!nookku setup` in Codex. Codex runs the command, and the model gets the guide as text. With the plugin, the `nookku:setup` skill gives the same guide. Then type the prompt "Follow the Nookku setup guide, and connect a test to this app." Codex then writes the entry in `.nookku/` and runs `nookku check`. Your app's code does not change. Review the entry before your first test. [connect-your-agent.md](connect-your-agent.md) gives the details. A PASS of `check` proves the connection, not the reply. Then do the steps in [Make sure that check runs your real app](connect-your-agent.md#make-sure-that-check-runs-your-real-app).
+   The entry is a thin wrapper that starts your app and speaks the [agent contract](../reference/glossary.md#agent-contract) ([SPEC.md section 6](../../SPEC.md#6-agent-contract-version-1)). For your own app, type `!nookku setup` in Codex. Codex runs the command, and the model gets the guide as text. With the plugin, the `nookku:setup` skill gives the same guide. Then type the prompt "Follow the Nookku setup guide, and connect a test to this app." Codex then writes the entry in `.nookku/` and runs `nookku check`. Your app's code does not change. Review the entry before your first test. [connect-your-agent.md](connect-your-agent.md) gives the details. A PASS of `check` proves the connection, not the reply. Then do the steps in [Make sure that check runs your real app](connect-your-agent.md#make-sure-that-check-runs-your-real-app).
 
    Add `--models codex` (or `claude-code,codex`) if your app runs its own model sessions. Other options are for an agent that runs as an HTTP server: `--tap-url`, `--agent-url`, `--adapter`, `--message-field`, `--reply-field`, `--openai-model`, `--openai-stream` and `--record`. [reference/config.md](../reference/config.md#nookkuconfigjson) explains each one.
 
@@ -58,13 +58,13 @@ The plugin loads in Codex 0.162.1: Codex lists its 2 hooks, its MCP tools and it
 
 2. Start `codex` in the project and type the prompt `nookku start`. The relay checks the hooks, starts your app through the tap and switches relay mode on. It does not send this prompt to the model.
 3. Type your test messages. Codex shows each reply as the reason of the blocked prompt. `codex exec` does not show it, so the viewer also shows each reply. The model does not run in a relay turn: the proofs record 0 output tokens for each one ([data](../../proofs/hooks-codex/results.json)).
-4. Type the prompt `nookku end`. The relay stops your app, copies its session files into the test folder, builds the trace and switches relay mode off. Then the prompt goes to Codex with the evaluation prompt, and Codex writes `report.md` in the test folder. The [Claude Code project hooks guide](claude-code-hook-kit.md#evaluation) explains the evaluation. Codex needs a sandbox that can write in the project to write the report, for example `workspace-write`.
+4. Type the prompt `nookku end`. The relay stops your app, copies its session files into the test folder, builds the [trace](../reference/glossary.md#trace) and switches relay mode off. Then the prompt goes to Codex with the [evaluation](../reference/glossary.md#evaluation) prompt, and Codex writes `report.md` in the test folder. The [Claude Code project hooks guide](claude-code-hook-kit.md#evaluation) explains the evaluation. Codex needs a sandbox that can write in the project to write the report, for example `workspace-write`.
 
 `nookku transcript` prints the exact turns of the latest test. With the plugin, the model reads the same text with the `mcp__nookku__transcript` tool, in pages. The model did not see the conversation while you talked, so it judges the record, not its memory.
 
 Each test is a new conversation, with a new app process. The test folder is `.nookku/tests/<test-id>/`. [reference/records.md](../reference/records.md#the-test-folder) lists its files.
 
-At the end, the relay also builds the trace of the app's model sessions: `trace.jsonl` and `findings.json`. `nookku trace` builds it again and shows the findings.
+At the end, the relay also builds the trace of the app's model sessions: `trace.jsonl` and `findings.json`. `nookku trace` builds it again and shows the [findings](../reference/glossary.md#findings).
 
 If your app runs Codex sessions, the relay finds them at the end of the test. It takes each rollout file that changed during the test and ran in the project folder or below it. It does not take your own session. If your app starts its threads with `ephemeral: true`, Codex writes no rollout file, and the test has no copy.
 
@@ -80,4 +80,4 @@ In relay mode, the relay fails closed: if it cannot send a message, the message 
 nookku audit --tap .nookku/tests/<test-id>/tap.jsonl --relay .nookku/tests/<test-id>/relay.jsonl
 ```
 
-Exit code 0 means clean, 1 means a break, and 2 means that a record is missing or invalid ([SPEC.md section 3.4](../../SPEC.md#34-exit-codes)).
+Exit code 0 means clean, 1 means a [break](../reference/glossary.md#break), and 2 means that a record is missing or invalid ([SPEC.md section 3.4](../../SPEC.md#34-exit-codes)).

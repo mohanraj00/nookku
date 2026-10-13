@@ -6,7 +6,7 @@ The test folder is `{folder}`.
 
 ## Read
 
-1. Run `nookku transcript --trace --test {test}`. Its first line says if a record changed after the end of the test. If the seal is broken, say so in the notes, and do not trust the changed files. Then the transcript shows each turn as the app received it and sent it. Under each turn, it shows the model items of the app: the messages, the tool calls with their input and result, and the commands.
+1. Run `nookku transcript --trace --test {test}`. If its first line starts with `Record: INVALID`, go to "Invalid record" below. Else, its first line says if a record changed after the end of the test. If the seal is broken, say so in the notes, and do not trust the changed files. Then the transcript shows each turn as the app received it and sent it. Under each turn, it shows the model items of the app: the messages, the tool calls with their input and result, and the commands.
 2. Read `findings.json` and `audit.json` in the test folder. A finding is a fact, not yet an issue. The audit shows if the words of a turn changed between the tester and the app.
    To read a file of the test folder in a shell, use `cat`, `sed -n`, `jq` or `grep`. The relay denies other commands that name `.nookku`.
 3. If the test folder has the subfolder `app-state/`, read its files. The app wrote its own state there during the test, and the seal covers it.
@@ -48,3 +48,11 @@ What you checked, and what you could not check.
 - If you find no issue, keep the table with no rows, and say so in the notes.
 
 Then give the tester a summary of 5 lines or fewer.
+
+## Invalid record
+
+If the first line of the transcript starts with `Record: INVALID`, a record of the test is not valid. The transcript then shows no turn, and you cannot trust the records. Do not judge the app, and do not do the other steps of Read and Judge.
+
+1. Write `{folder}/report.md` in the format of Write, with no row in the table.
+2. In the notes, quote the first 2 lines of the transcript. Say that you did not evaluate the app, because a record is not valid.
+3. Tell the tester that a record is not valid and that you did not evaluate the app. Tell the tester to run the test again.

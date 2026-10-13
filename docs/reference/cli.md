@@ -19,13 +19,13 @@ An unknown command or flag prints the usage and exits with 2. The error of an un
 
 ### `nookku start`
 
-Start a test: run the entry through the tap and switch relay mode on ([SPEC.md section 7.2](../../SPEC.md#72-start-and-end)). It needs an `entry` in `.nookku/config.json`. The start text gives the same ways to end the test as the plugin and the hook kit: the prompt `nookku end`, which also starts the evaluation, and `nookku end` in a shell. If `evaluate` is `false`, the text does not name the evaluation ([SPEC.md section 9.1](../../SPEC.md#91-start)).
+Start a test: run the [entry](glossary.md#entry) through the [tap](glossary.md#tap) and switch [relay mode](glossary.md#relay-mode) on ([SPEC.md section 7.2](../../SPEC.md#72-start-and-end)). It needs an `entry` in `.nookku/config.json`. The start text gives the same ways to end the test as the [plugin](glossary.md#plugin) and the hook kit: the prompt `nookku end`, which also starts the [evaluation](glossary.md#evaluation), and `nookku end` in a shell. If `evaluate` is `false`, the text does not name the evaluation ([SPEC.md section 9.1](../../SPEC.md#91-start)).
 
 | Flag | Default | Meaning |
 |---|---|---|
 | `--root PATH` | the current folder | The project. |
 | `--json` | off | Print `current.json` of the test as JSON, or `{"error": ...}`. |
-| `--tester-session ID` | none | The tester's harness session id. The bridge never takes this session as a session of the app. |
+| `--tester-session ID` | none | The [tester](glossary.md#tester)'s [harness](glossary.md#harness) session id. The [bridge](glossary.md#bridge) never takes this session as a session of the app. |
 
 | Exit code | Meaning |
 |---|---|
@@ -34,7 +34,7 @@ Start a test: run the entry through the tap and switch relay mode on ([SPEC.md s
 
 ### `nookku end`
 
-End the test: switch relay mode off, stop the entry and collect its sessions, the trace, the audit and the seal ([SPEC.md section 7.2](../../SPEC.md#72-start-and-end)). If no test runs, it switches relay mode off.
+End the test: switch relay mode off, stop the entry and collect its sessions, the [trace](glossary.md#trace), the [audit](glossary.md#audit) and the [seal](glossary.md#seal) ([SPEC.md section 7.2](../../SPEC.md#72-start-and-end)). If no test runs, it switches relay mode off.
 
 `end` in a shell gives no evaluation. If the test needs an evaluation, it prints the prompt to type in the harness: `To evaluate the test, type this prompt in your harness: nookku end` ([SPEC.md section 9.1](../../SPEC.md#91-start)). If `config.json` is broken, no evaluation starts, and `end` prints the error.
 
@@ -71,6 +71,8 @@ PASS proves the connection, not the reply. PASS means that:
 - the audit of the test exits with 0;
 - the test found a model session and its session file for each harness in `models`.
 
+`check` ends its test. The model does not evaluate a check test, so `nookku end` after `check` starts no evaluation ([SPEC.md section 9.1](../../SPEC.md#91-start)).
+
 `check` does not judge the text of the reply. A fallback reply of the app also passes. [how-to/connect-your-agent.md](../how-to/connect-your-agent.md#make-sure-that-check-runs-your-real-app) shows how to make sure that the entry runs your real app.
 
 | Flag | Default | Meaning |
@@ -89,7 +91,7 @@ PASS proves the connection, not the reply. PASS means that:
 nookku run --script FILE [--entry NAME] [--root PATH] [--json] [--evaluate | --no-evaluate]
 ```
 
-Run a scripted test ([SPEC.md section 7.10](../../SPEC.md#710-scripted-tests)). It starts a test, sends each message of the script to the entry byte for byte, waits for each reply and ends the test. The script is JSONL with one `{"said": "..."}` row for each turn, or one JSON array of strings. The test folder gets a copy of the script, and each relay row has `"harness": "script"`. `run` does not switch relay mode on.
+Run a [scripted test](glossary.md#scripted-test) ([SPEC.md section 7.10](../../SPEC.md#710-scripted-tests)). It starts a test, sends each message of the script to the entry byte for byte, waits for each reply and ends the test. The script is JSONL with one `{"said": "..."}` row for each turn, or one JSON array of strings. The [test folder](glossary.md#test-folder) gets a copy of the script, and each [relay](glossary.md#relay) row has `"harness": "script"`. `run` does not switch relay mode on.
 
 The output gives the test id, the count of turns, the audit and the trace, and then `PASS` or each `FAIL:` line. It does not give the replies. Read them with `nookku transcript`.
 
@@ -132,7 +134,7 @@ Switch relay mode on or off. With an entry, `on` starts a test and `off` ends it
 
 Print each relayed turn. Both forms of the relay use it to show each reply in a second terminal. With an entry, it shows the turns of the latest test, and it follows to the next test.
 
-If the relay record has an invalid line, `view` shows the error with the file and the line on stderr. Without `--no-follow`, it shows the error one time and continues to wait. When the record changes and is valid, it shows the next turns. With `--no-follow`, it stops with exit code 2. If the record does not start with the turns that the view showed, for example because a person removed a line, the view prints `──── the record changed: the view shows each turn again ────` and shows each turn again from turn 1. A test has no relay record before its first turn, so the view of such a test shows no turn and exits with 0. After the end of a test, `nookku verify` shows a record that is missing.
+If the [relay record](glossary.md#relay-record) has an invalid line, `view` shows the error with the file and the line on stderr. Without `--no-follow`, it shows the error one time and continues to wait. When the record changes and is valid, it shows the next turns. With `--no-follow`, it stops with exit code 2. If the record does not start with the turns that the view showed, for example because a person removed a line, the view prints `──── the record changed: the view shows each turn again ────` and shows each turn again from turn 1. A test has no relay record before its first turn, so the view of such a test shows no turn and exits with 0. After the end of a test, `nookku verify` shows a record that is missing.
 
 | Flag | Default | Meaning |
 |---|---|---|
@@ -153,7 +155,7 @@ Print the exact conversation for the model to evaluate ([SPEC.md section 5](../.
 |---|---|---|
 | `--root PATH` | the current folder | The project. |
 | `--test ID` | the latest test | The test to print: the test id, or the path of the test folder. |
-| `--trace` | off | Print each turn as the app got it (from `tap.jsonl`), with the model items and the findings of that turn ([SPEC.md section 9.2](../../SPEC.md#92-evaluation-prompt)). It ignores `--record`, `--all` and `--session`. |
+| `--trace` | off | Print each turn as the app got it (from `tap.jsonl`), with the model items and the [findings](glossary.md#findings) of that turn ([SPEC.md section 9.2](../../SPEC.md#92-evaluation-prompt)). It ignores `--record`, `--all` and `--session`. |
 | `--all` | off | With no entry: each session of the record, not only the latest one. |
 | `--session ID` | none | Only the turns of this harness session. |
 | `--compact` | the config key `transcript_compact` | With `--trace`: show a repeated text of 200 or more characters one time. The bound is a chosen value, not a measurement ([`COMPACT_MIN`](../../src/nookku/evaluation.py#L21-L22)). After that, it shows as a reference with its `[trace.jsonl:N]`, its SHA-256 and its length. An OpenTelemetry attribute with the text of a session item of the same turn also shows as a reference ([SPEC.md section 9.2](../../SPEC.md#92-evaluation-prompt)). |
@@ -167,7 +169,7 @@ Print the exact conversation for the model to evaluate ([SPEC.md section 5](../.
 
 ### `nookku audit`
 
-Compare the relay record with the tap record ([SPEC.md section 3](../../SPEC.md#3-audit)).
+Compare the relay record with the [tap record](glossary.md#tap-record) ([SPEC.md section 3](../../SPEC.md#3-audit)).
 
 | Flag | Default | Meaning |
 |---|---|---|
@@ -178,7 +180,7 @@ Compare the relay record with the tap record ([SPEC.md section 3](../../SPEC.md#
 
 | Exit code | Meaning |
 |---|---|
-| 0 | The records are valid and have no break. |
+| 0 | The records are valid and have no [break](glossary.md#break). |
 | 1 | The records are valid and have one or more breaks. |
 | 2 | A record is missing or invalid, or the tap has an unparsed exchange. |
 
@@ -229,7 +231,7 @@ nookku init HARNESS [--root PATH] [--entry COMMAND] [--models LIST] [options]
 nookku init --remove HARNESS [--root PATH]
 ```
 
-Write the config, and the project hooks of a harness. It writes `.nookku/config.json`, the files `.nookku/mode` and `.nookku/nookku-state`, and the hooks: `.codex/hooks.json` for Codex, `.claude/settings.local.json` for Claude Code. It keeps your other hooks, also a hook in the same group as a hook of nookku. With `plugin`, it writes no hooks, because the nookku plugin has them. Do not use the plugin and the project hooks in one project, or each message is sent two times.
+Write the config, and the [project hooks](glossary.md#project-hooks) of a harness. It writes `.nookku/config.json`, the files `.nookku/mode` and `.nookku/nookku-state`, and the hooks: `.codex/hooks.json` for Codex, `.claude/settings.local.json` for Claude Code. It keeps your other hooks, also a hook in the same group as a hook of nookku. With `plugin`, it writes no hooks, because the nookku plugin has them. Do not use the plugin and the project hooks in one project, or each message is sent two times.
 
 If `config.json` exists, `init` keeps each key and changes only the keys of the flags that you give. For example, a second run keeps `backends` and `"evaluate": false`. It prints the keys that it changed and the keys that it kept. A new `config.json` gets each key. The default of a flag applies only to a new file.
 
@@ -272,7 +274,7 @@ The output starts with `Project root:` and the absolute root, then gives the abs
 nookku policy [set KEY VALUE] [--root PATH]
 ```
 
-Print each key of the policy file `.nookku/policy.json` with its value, as JSON. With `set`, change one key, then print the keys. Only a person runs this command, in a shell. The relay denies it from the model ([SPEC.md section 7.9](../../SPEC.md#79-policy-file)). [config.md](config.md#nookkupolicyjson) explains the file.
+Print each key of the [policy file](glossary.md#policy-file) `.nookku/policy.json` with its value, as JSON. With `set`, change one key, then print the keys. Only a person runs this command, in a shell. The relay denies it from the model ([SPEC.md section 7.9](../../SPEC.md#79-policy-file)). [config.md](config.md#nookkupolicyjson) explains the file.
 
 | Argument or flag | Default | Meaning |
 |---|---|---|
@@ -289,7 +291,7 @@ Print each key of the policy file `.nookku/policy.json` with its value, as JSON.
 
 ### `nookku setup`
 
-Print the guide that connects a test to the app ([setup.md](../../src/nookku/setup.md)). A harness model reads it and writes the entry ([how-to/connect-your-agent.md](../how-to/connect-your-agent.md)).
+Print the guide that connects a test to the app ([setup.md](../../src/nookku/setup.md)). A [harness model](glossary.md#harness-model) reads it and writes the entry ([how-to/connect-your-agent.md](../how-to/connect-your-agent.md)).
 
 | Exit code | Meaning |
 |---|---|

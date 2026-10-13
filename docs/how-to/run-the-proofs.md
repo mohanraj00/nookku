@@ -1,6 +1,6 @@
 # Run the proofs
 
-The proofs show that each relay is exact in a real harness. They run the harness headless, so they are local scripts in `scripts/`, not tests in CI. Run them after each change to a relay, and for each new harness version. Commit the results with the harness versions that they record.
+The proofs show that each [relay](../reference/glossary.md#relay) is exact in a real [harness](../reference/glossary.md#harness). They run the harness headless, so they are local scripts in `scripts/`, not tests in CI. Run them after each change to a relay, and for each new harness version. Commit the results with the harness versions that they record.
 
 [results.md](../results.md) explains each proof and shows the latest results.
 
@@ -8,7 +8,7 @@ The proofs show that each relay is exact in a real harness. They run the harness
 
 - Install the dev tools: `uv sync`.
 - Install the harnesses that the proof needs: `claude` for Claude Code, `codex` for Codex.
-- The proofs run in 4 setups: `plugin-claude-code`, `plugin-codex`, `hooks-claude-code` and `hooks-codex`. A setup is a form of the relay (the plugin or the project hooks) and a harness.
+- The proofs run in 4 setups: `plugin-claude-code`, `plugin-codex`, `hooks-claude-code` and `hooks-codex`. A setup is a form of the relay (the [plugin](../reference/glossary.md#plugin) or the [project hooks](../reference/glossary.md#project-hooks)) and a harness.
 - In Claude Code, the plugin proofs load the plugin from this repo with `--plugin-dir`. You do not install it.
 - In Codex, the plugin proofs use the `CODEX_HOME` of [proof_codex_gate.py](../../scripts/proof_codex_gate.py), `.proof/codex-gate/codex-home`. That script installs the plugin of this checkout there.
 - The plugin hooks run `nookku` from `PATH`. The scripts put the `nookku` of this checkout first.
@@ -21,7 +21,7 @@ Codex runs a hook only after a person trusts it. Never try to skip the trust ste
 
 1. **The plugin.** Run `uv run python scripts/proof_codex_gate.py`. Then start `CODEX_HOME=.proof/codex-gate/codex-home codex -C .proof/codex-gate/project`, type `/hooks`, and trust the 2 nookku hooks. Each run of the script without `--trusted` makes a new `CODEX_HOME`, so that part A starts with hooks that no person trusted. After each such run, trust the hooks again.
 2. **The project hooks.** Write them with the Python of this checkout: `.venv/bin/python3 -m nookku init codex --root .proof/codex`. Start `codex -C .proof/codex`, type `/hooks`, and trust the 2 nookku hooks.
-3. **The project hooks of the evaluation proofs.** Do step 2 in `~/.nookku-proof/codex`. That project is outside the repo, so that the evaluating model cannot read the docs that describe the planted bug ([proof_report.py](../../scripts/proof_report.py)).
+3. **The project hooks of the [evaluation](../reference/glossary.md#evaluation) proofs.** Do step 2 in `~/.nookku-proof/codex`. That project is outside the repo, so that the evaluating model cannot read the docs that describe the planted bug ([proof_report.py](../../scripts/proof_report.py)).
 
 If a hook changes, trust it again. A new plugin script also needs a new run of `proof_codex_gate.py` and a new trust step.
 
@@ -33,7 +33,7 @@ If a hook changes, trust it again. A new plugin script also needs a new run of `
 | P1 to P4, streamed agent | `uv run python scripts/proofs_relay.py <setup> --stream` | `proofs/<setup>-stream/` |
 | P1 to P4, agent that streams only on request | `uv run python scripts/proofs_relay.py <setup> --stream --on-request` | `proofs/<setup>-stream-on-request/` |
 | Model sessions of the app | `uv run python scripts/proof_sessions.py` | `proofs/sessions/` |
-| Trace of the model sessions | `uv run python scripts/proof_trace.py` | `proofs/trace/` |
+| [Trace](../reference/glossary.md#trace) of the model sessions | `uv run python scripts/proof_trace.py` | `proofs/trace/` |
 | Backend proxy, no model | `uv run python scripts/proof_backend.py` | `proofs/backend/` |
 | Model API proxy, no model | `uv run python scripts/proof_model_api.py` | `proofs/model-api/` |
 | P5 to P8, evaluation at the end of a test | `uv run python scripts/proof_report.py <setup>` | `proofs/report/<setup>.json` |

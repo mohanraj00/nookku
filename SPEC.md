@@ -1,5 +1,7 @@
 # Nookku specification, v0.3 (draft)
 
+The version of this spec is the version of the record format (section 2), not the version of the package.
+
 This file defines the two records and the audit. The conformance cases in `conformance/` are the executable form of this file. If the code and this file disagree, the code is wrong.
 
 ## 1. Parts
@@ -789,7 +791,8 @@ A test needs an evaluation if all of these are true:
 - `evaluate` in the configuration is not `false`;
 - no test runs;
 - the latest test (the one with the greatest `started` in its manifest) has an `ended` time;
-- its folder has no `report.md`.
+- its folder has no `report.md`;
+- it is not a check test. A check test is a test of `nookku check`: its relay record has turns, and each turn has the harness `nookku-check`. A relay record that cannot be read does not make a check test.
 
 The relay reads `evaluate` with the one reader of `config.json` (section 7.1). If the file cannot be read or breaks the rule for its keys, no evaluation starts. A broken file must not start an evaluation that the tester turned off. Then, if the other conditions are true, the end text has one more line: `nookku: no evaluation starts: <error>. Correct the file, then type: nookku end`.
 
@@ -808,6 +811,8 @@ The evaluation prompt is `src/nookku/evaluate.md`, with the test id and the test
 3. read the code of the app and its business rules;
 4. check the state of the app with read-only commands only;
 5. write `report.md`, and no other file.
+
+If the first line of the transcript is `Record: INVALID.` (below), the prompt tells the model not to judge the app. The model writes `report.md` with no issue, quotes the first 2 lines of the transcript in the notes, and tells the tester to run the test again.
 
 For a scripted test (section 7.10), the prompt starts with a note. The note says that each message came from the script file, names the copy and its SHA-256, and names the entry. With a replay entry, the replies come from a recording, so the note tells the model to judge the app and the transport, not the model.
 

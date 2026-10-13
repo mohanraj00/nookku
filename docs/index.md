@@ -1,6 +1,6 @@
 # Docs
 
-Nookku is a test harness for chat agent development. You talk to your agent through Claude Code or Codex, and the model stays out of the conversation. An [audit](reference/glossary.md#audit) proves that each message and each reply arrived byte for byte.
+Nookku is a test tool for chat agent development. You talk to your agent through Claude Code or Codex, and the model stays out of the conversation. An [audit](reference/glossary.md#audit) proves that each message and each reply arrived byte for byte.
 
 The docs have 4 kinds of pages: a tutorial, how-to guides, reference pages and explanations. Start with the tutorial. Then do [Test your own app](how-to/test-your-app.md). Pages for contributors are in a separate section at the end. The test `tests/test_docs.py` checks that each page in `docs/` is on this map. Old pages that moved are not on the map. They keep only the links to their new places.
 
@@ -12,11 +12,11 @@ Do each step, and learn how the parts work.
 
 ## Test your app
 
-How-to guides. Each guide does one task. The guides are in the order of the tasks: choose a relay, connect your app, run a test, read the results.
+How-to guides. Each guide does one task. The guides are in the order of the tasks: choose a [relay](reference/glossary.md#relay), connect your app, run a test, read the results.
 
 ### Choose
 
-- [Choose the plugin or the project hooks](how-to/choose-a-relay.md): select a form of the relay, and an entry or the HTTP tap. Switch from one form to the other.
+- [Choose the plugin or the project hooks](how-to/choose-a-relay.md): select a form of the relay, and an [entry](reference/glossary.md#entry) or the HTTP [tap](reference/glossary.md#tap). Switch from one form to the other.
 
 ### Connect your app
 
@@ -30,8 +30,8 @@ How-to guides. Each guide does one task. The guides are in the order of the task
 
 ### Run a test
 
-- [Test an agent with the Claude Code plugin](how-to/claude-code-plugin.md): install the plugin, run a test, and read the [evaluation](reference/glossary.md#evaluation) at the end.
-- [Test an agent with the project hooks in Claude Code](how-to/claude-code-hook-kit.md): write the project hooks, and see each reply in `nookku view`.
+- [Test an agent with the Claude Code plugin](how-to/claude-code-plugin.md): install the [plugin](reference/glossary.md#plugin), run a test, and read the [evaluation](reference/glossary.md#evaluation) at the end.
+- [Test an agent with the project hooks in Claude Code](how-to/claude-code-hook-kit.md): write the [project hooks](reference/glossary.md#project-hooks), and see each reply in `nookku view`.
 - [Test an agent in Codex](how-to/codex.md): the plugin, the project hooks and the trust step.
 
 ### Read the results

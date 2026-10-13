@@ -88,6 +88,26 @@ Nookku adapts to your app through a thin [entry](docs/reference/glossary.md#entr
 
 You install the [relay](SPEC.md#5-relays) as the plugin or as the project hooks. Both work in Claude Code and in Codex, with the same rules. Both show each reply as the reason of a blocked prompt, and in `nookku view`. [docs/how-to/choose-a-relay.md](docs/how-to/choose-a-relay.md) compares them. Then read the guide of your setup: [Claude Code plugin](docs/how-to/claude-code-plugin.md), [Claude Code project hooks](docs/how-to/claude-code-hook-kit.md) or [Codex](docs/how-to/codex.md).
 
+## A sample report
+
+At the end of a test, the harness model reads the record and writes `report.md` in the test folder. This is an excerpt of a real report. Nookku 0.4.0 and Claude Code 2.1.296 wrote it in a test of [the toy shop with a model](examples/toy-shop-models/README.md). The app has a planted bug: its refund tool compares euros with cents. The model did not see the conversation, and it found the bug in the record and the code.
+
+```markdown
+# Test 20261012-082946-399c: evaluation
+
+| Class | Turn | Evidence | Issue |
+|---|---|---|---|
+| business_rule | 2 | trace.jsonl:10, app.py:59 | `refund` got `{"order": "5120", "amount_eur": 80}` and returned `"status": "paid"`. RULES.md rule 3 says that a refund above €50 needs the approval of a manager. The refund of €80 did not wait for an approval. The cause is in `app.py:59`: `args["amount_eur"] > APPROVAL_LIMIT_CENTS` compares euros (80) with cents (5000), so the approval limit is €5000, not €50. |
+...
+
+## Notes
+
+- The seal is intact. `findings.json` has no findings. `audit.json` shows 3 exchanges, no breaks and no blocked calls, so the words of each turn did not change between the tester and the app.
+...
+```
+
+The full report has 3 rows and 7 notes. Data: [proofs/report/plugin-claude-code.json](proofs/report/plugin-claude-code.json). Method: [docs/results.md](docs/results.md#p5-and-p6-the-evaluation-at-the-end-of-a-test). A report is a model answer, so check its evidence. [Read the results of a test](docs/how-to/read-the-results.md) tells you how.
+
 ## How it works
 
 ```text
