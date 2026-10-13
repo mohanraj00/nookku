@@ -239,6 +239,20 @@ def test_each_page_that_runs_check_gives_the_default_check_message(page: str) ->
     assert f"`{bridge.CHECK_MESSAGE}`" in text
 
 
+TEST_ID = re.compile(r"\b\d{8}-\d{6}-[0-9a-f]{4}\b")
+
+
+def test_the_tutorial_output_comes_from_one_run() -> None:
+    # The tutorial makes 2 tests: the test of check and the test in Claude Code. The ls step
+    # lists the 2 test folders of the run. Each test id on the page is one of these 2 (#168).
+    text = (DOCS / "getting-started.md").read_text(encoding="utf-8")
+    listing = re.search(r"^```bash\nls \.nookku/tests/\n```\n\n```text\n(.+?)\n```$", text, re.M)
+    assert listing, "the tutorial has no ls step with its output"
+    folders = TEST_ID.findall(listing.group(1))
+    assert len(folders) == 2
+    assert sorted(set(TEST_ID.findall(text))) == sorted(folders)
+
+
 # The map of the docs ---------------------------------------------------------------------------
 
 
