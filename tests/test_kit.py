@@ -883,3 +883,29 @@ def test_the_view_shows_a_new_turn_after_the_record_gets_shorter(setup, monkeypa
         f"──── tester, turn 2 ────\nDo you sell tea?\n──── agent ────\n"
         f"{shop_reply('Do you sell tea?')}\n"
     )
+
+
+RUNNING = {"test": "20261007-080000-aaaa", "tap_url": "http://127.0.0.1:8811/"}
+
+
+@pytest.mark.parametrize(
+    "on, running, text",
+    [
+        (False, False, "relay mode is off. No test runs."),
+        (True, False, "relay mode is on. No test runs."),
+        (True, True, "relay mode is on. Test 20261007-080000-aaaa runs on http://127.0.0.1:8811/."),
+    ],
+)
+def test_both_relays_give_one_status_text(setup, monkeypatch, capsys, on, running, text):
+    """The hook kit answers the prompt nookku status. The plugin shows `nookku status` and the
+    status line from `nookku status --json`. All give the same text (#117)."""
+    root, _, _ = setup
+    kit.set_mode(root, on)
+    monkeypatch.setattr(kit.state, "current", lambda _root: RUNNING if running else None)
+    monkeypatch.setattr(bridge, "current", lambda _root: RUNNING if running else None)
+    answer = kit.handle(prompt("nookku status"), root, "claude-code")
+    assert answer is not None and answer["reason"] == f"nookku: {text}"
+    assert cli.main(["status", "--root", str(root)]) == 0
+    assert capsys.readouterr().out == f"{text}\n"
+    assert cli.main(["status", "--root", str(root), "--json"]) == 0
+    assert json.loads(capsys.readouterr().out)["text"] == (text if on else None)
