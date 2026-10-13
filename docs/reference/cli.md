@@ -36,7 +36,7 @@ Start a test: run the entry through the tap and switch relay mode on ([SPEC.md s
 
 End the test: switch relay mode off, stop the entry and collect its sessions, the trace, the audit and the seal ([SPEC.md section 7.2](../../SPEC.md#72-start-and-end)). If no test runs, it switches relay mode off.
 
-`end` in a shell gives no evaluation. If the test needs an evaluation, it prints the prompt to type in the harness: `To evaluate the test, type this prompt in your harness: nookku end` ([SPEC.md section 9.1](../../SPEC.md#91-start)).
+`end` in a shell gives no evaluation. If the test needs an evaluation, it prints the prompt to type in the harness: `To evaluate the test, type this prompt in your harness: nookku end` ([SPEC.md section 9.1](../../SPEC.md#91-start)). If `config.json` is broken, no evaluation starts, and `end` prints the error.
 
 | Flag | Default | Meaning |
 |---|---|---|
@@ -152,7 +152,7 @@ Print the exact conversation for the model to evaluate ([SPEC.md section 5](../.
 | Flag | Default | Meaning |
 |---|---|---|
 | `--root PATH` | the current folder | The project. |
-| `--test ID` | the latest test | The test to print. |
+| `--test ID` | the latest test | The test to print: the test id, or the path of the test folder. |
 | `--trace` | off | Print each turn as the app got it (from `tap.jsonl`), with the model items and the findings of that turn ([SPEC.md section 9.2](../../SPEC.md#92-evaluation-prompt)). It ignores `--record`, `--all` and `--session`. |
 | `--all` | off | With no entry: each session of the record, not only the latest one. |
 | `--session ID` | none | Only the turns of this harness session. |
@@ -192,7 +192,7 @@ Build the trace of a test again, and show its findings ([SPEC.md section 8](../.
 
 | Argument or flag | Default | Meaning |
 |---|---|---|
-| `TEST` | the latest test | The test id. |
+| `TEST` | the latest test | The test id, or the path of the test folder. |
 | `--root PATH` | the current folder | The project. |
 | `--json` | off | Print `findings.json`. |
 
@@ -211,7 +211,7 @@ Check that no record of a test changed after its end ([SPEC.md section 7.4](../.
 
 | Argument or flag | Default | Meaning |
 |---|---|---|
-| `TEST` | the latest test | The test id. |
+| `TEST` | the latest test | The test id, or the path of the test folder. |
 | `--root PATH` | the current folder | The project. |
 | `--json` | off | Print the result as JSON. |
 
