@@ -80,7 +80,7 @@ Data: [`hook-latency.json`](../../proofs/spikes/hook-latency.json). Method: [`sp
 
 ## Decision
 
-- **Name.** The project becomes Nookku (Tamil நோக்கு: to look, observe, scrutinize). Tagline: "A test harness for developers of agent apps." [#181](https://github.com/mohanraj00/nookku/issues/181) does the rename. The tagline changed in v0.4.1: read [Change: the tagline](#change-the-tagline).
+- **Name.** The project becomes Nookku (Tamil நோக்கு: to look, observe, scrutinize). Tagline: "A test harness for developers of agent apps." [#181](https://github.com/mohanraj00/nookku/issues/181) does the rename. The tagline changed in v0.4.1: read [Change: the tagline](#change-the-tagline). The description changed in v0.4.2: read [Change: the description](#change-the-description).
 - **One core.** One core in Python holds each rule and each text: the control words, the relay, the guard, the policy, the status, the start and end texts, and the [scripted tests](../reference/glossary.md#scripted-test). No rule has a TypeScript copy.
 - **One plugin.** One plugin folder serves Claude Code and Codex. It has a manifest for each harness, one command hook file, one MCP server and one skills folder. Each command hook runs `python -m nookku hook`.
 - **Display layer.** Claude Code function hooks are an optional display layer: dim rows, a pane, a status line and slash commands. They hold no rule. If they break, the command hooks still work. In Codex, an optional MCP App can be the display layer of the desktop app, with its logic in the core. Before an MCP App shows a live reply, a spike must prove that it keeps the bytes, and that a click result does not go to the model. In the interactive CLI, hook warnings can give short notices. `codex exec` has no display layer, so it needs `nookku view`. A display layer never carries a tester reply in text that goes to the model, for example `additionalContext`.
@@ -125,3 +125,15 @@ The new tagline and its second line are:
 - Second line: "Nookku carries each test message to your agent unchanged, records what the agent got, and names each [break](../reference/glossary.md#break)."
 
 The README gives the tagline one time, at the top. The rest of this ADR does not change.
+
+## Change: the description
+
+Date: 2026-10-13. Issues: [#313](https://github.com/mohanraj00/nookku/issues/313) and [#301](https://github.com/mohanraj00/nookku/issues/301).
+
+The tagline of v0.4.1 gave the method, not the goal. The goal of Nookku is to evaluate a vertical AI agent: an agent that does one job in one domain, for example a support agent for a toy shop. "Byte for byte" is the guarantee that makes the record true, so it stays in the text, but not as the headline.
+
+- Description: "Nookku: an evaluation harness for vertical AI agents".
+- The README, `pyproject.toml`, `.claude-plugin/marketplace.json`, the 2 plugin manifests, `docs/index.md`, `CLAUDE.md` and `AGENTS.md` give this description. [`tests/test_docs.py`](../../tests/test_docs.py) checks it.
+- The README gives a table: each aspect that you evaluate, and the record that Nookku keeps for it.
+
+"Evaluation harness" is the name of the kind of tool. In the docs, "harness" alone still means Claude Code or Codex ([glossary](../reference/glossary.md#harness)).

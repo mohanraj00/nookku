@@ -7,9 +7,22 @@
 
 (நோக்கு - to observe)
 
-**Test your chat agent from Claude Code or Codex, byte for byte.**
+**Nookku: an evaluation harness for vertical AI agents**
 
-Nookku carries each test message to your agent unchanged, records what the agent got, and names each break.
+Talk to your agent app from Claude Code or Codex, as your users do. Nookku records the full test: each message and each reply, and, when you connect them, each tool call, each value that the app keeps for the test and each call to its model. Then a model or a person [evaluates](docs/reference/glossary.md#evaluation) the agent against your app spec.
+
+| You evaluate | Nookku records | Doc and data |
+|---|---|---|
+| Character and tone | each message and each reply | [relay and tap records](docs/reference/records.md#the-test-folder), [proofs](docs/results.md#1-proofs) |
+| Boundaries | the replies, and each refusal in them | [`nookku transcript`](docs/reference/cli.md#nookku-transcript) |
+| Guidance to the user's goal | the path of the conversation, turn by turn | [`nookku transcript`](docs/reference/cli.md#nookku-transcript) |
+| Tool calls | each tool call of the app's model sessions, and each call to the app's backend | [trace](SPEC.md#82-trace-record), [add a backend](docs/how-to/add-a-backend.md), [trace data](docs/results.md#trace-of-the-model-sessions), [backend data](docs/results.md#backend-calls) |
+| Stored data | the values that the app writes to `app-state/` in the test folder | [SPEC.md section 6.1](SPEC.md#61-environment-of-the-entry), [example](docs/getting-started.md#9-read-the-report) |
+| Prompt performance | each direct call to the model API | [record model calls](docs/how-to/record-model-calls.md#direct-model-calls), [data](docs/results.md#direct-model-calls) |
+| Instrumentation | the app's OpenTelemetry spans and logs | [record OpenTelemetry](docs/how-to/record-model-calls.md#opentelemetry), [data](docs/results.md#full-telemetry-with-one-app) |
+| Defects and speed | the audit, the findings and the start and end time of each turn | [audit](SPEC.md#3-audit), [findings](SPEC.md#86-findings), [times](SPEC.md#21-tap-record) |
+
+**One guarantee makes the record true.** The [harness model](docs/reference/glossary.md#harness-model) does not retype a message and does not see a reply. Nookku carries each one byte for byte, so the record is the real conversation ([results](#results), [limits](docs/limits.md)).
 
 [![CI](https://github.com/mohanraj00/nookku/actions/workflows/ci.yml/badge.svg)](https://github.com/mohanraj00/nookku/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/nookku)](https://pypi.org/project/nookku/)

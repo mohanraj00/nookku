@@ -1,6 +1,6 @@
 # Docs
 
-Nookku is a test tool for chat agent development. You talk to your agent through Claude Code or Codex, and the model stays out of the conversation. An [audit](reference/glossary.md#audit) proves that each message and each reply arrived byte for byte.
+Nookku is an evaluation harness for vertical AI agents: an agent that does one job in one domain, for example a support agent for a toy shop. You talk to your agent through Claude Code or Codex, and the model stays out of the conversation. An [audit](reference/glossary.md#audit) proves that each message and each reply arrived byte for byte.
 
 The docs have 4 kinds of pages: a tutorial, how-to guides, reference pages and explanations. Start with the tutorial. Then do [Test your own app](how-to/test-your-app.md). Pages for contributors are in a separate section at the end. The test `tests/test_docs.py` checks that each page in `docs/` is on this map. Old pages that moved are not on the map. They keep only the links to their new places.
 
