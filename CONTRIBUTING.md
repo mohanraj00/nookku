@@ -35,4 +35,6 @@ claude plugin validate plugins/nookku && claude plugin test plugins/nookku
 - Open an issue first for anything larger than a fix. Use the [bug](.github/ISSUE_TEMPLATE/bug.md) or the [feature](.github/ISSUE_TEMPLATE/feature.md) template.
 - One change for each pull request. The [pull request template](.github/PULL_REQUEST_TEMPLATE.md) has the checks and a short list from the code quality rules.
 - Write `Fixes #N` in the pull request body. CI must pass.
+- A pull request does not have to be up to date with `main`. Do not merge `main` into your branch only to update it. Merge `main` only if GitHub shows a merge conflict.
+- CI runs all jobs on `main` after each merge. If a job fails on `main`, fix it before the next merge.
 - Report a security problem in private, as [SECURITY.md](SECURITY.md) says.
