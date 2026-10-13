@@ -484,3 +484,16 @@ def test_the_upgrade_page_has_a_section_for_each_release_with_an_upgrade_step() 
     page = _sections(DOCS / "how-to" / "upgrade.md", "###")
     assert special
     assert [v for v in special if v not in page] == []
+
+
+def test_ci_pins_the_claude_code_version_of_the_plugin_proofs_and_the_faq_names_it() -> None:
+    """CLAUDE.md says that CI pins the tested version. The tested version is the one in the
+    results of the plugin proofs."""
+    ci = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    pins = re.findall(r"@anthropic-ai/claude-code@(\S+)", ci)
+    results = (ROOT / "proofs" / "plugin-claude-code" / "results.json").read_text(encoding="utf-8")
+    tested = set(re.findall(r"\"version\": \"(\S+) \(Claude Code\)\"", results))
+    assert len(tested) == 1, tested
+    assert pins == sorted(tested)
+    faq = (DOCS / "faq.md").read_text(encoding="utf-8")
+    assert f"CI pins Claude Code {pins[0]} " in faq
