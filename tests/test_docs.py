@@ -242,11 +242,21 @@ def test_each_page_that_runs_check_gives_the_default_check_message(page: str) ->
 # The map of the docs ---------------------------------------------------------------------------
 
 
-def test_each_docs_page_is_on_the_map() -> None:
+def _on_the_map() -> set[Path]:
     index = DOCS / "index.md"
-    linked = {resolve(index, t)[0] for t in links(index.read_text(encoding="utf-8"))}
-    pages = {p.resolve() for p in DOCS.rglob("*.md")} - {index.resolve()}
-    assert sorted(str(p.relative_to(ROOT)) for p in pages - linked) == []
+    return {resolve(index, t)[0] for t in links(index.read_text(encoding="utf-8"))}
+
+
+def test_each_docs_page_is_on_the_map() -> None:
+    # A moved page only keeps old links, so the map does not list it (#260).
+    skipped = {(DOCS / "index.md").resolve()} | {(ROOT / page).resolve() for page in KEPT_ANCHORS}
+    pages = {p.resolve() for p in DOCS.rglob("*.md")} - skipped
+    assert sorted(str(p.relative_to(ROOT)) for p in pages - _on_the_map()) == []
+
+
+def test_no_moved_page_is_on_the_map() -> None:
+    moved = {(ROOT / page).resolve() for page in KEPT_ANCHORS}
+    assert sorted(str(p.relative_to(ROOT)) for p in moved & _on_the_map()) == []
 
 
 # A page that moved or split keeps the anchor of each old section, so old links still work.
@@ -327,8 +337,6 @@ def test_the_mermaid_check_finds_banned_syntax(line: str) -> None:
     "page",
     [
         "README.md",
-        "docs/getting-started.md",
-        "docs/how-to/connect-your-agent.md",
         "docs/how-to/test-your-app.md",
     ],
 )
