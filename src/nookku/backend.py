@@ -23,6 +23,7 @@ from typing import Any
 from urllib.parse import unquote_plus, urlsplit
 
 from . import stdio
+from .config import parse_backends
 from .record import json_text
 from .tap import HOP_BY_HOP
 
@@ -53,24 +54,9 @@ class Backend:
 
 
 def parse(raw: Any) -> list[Backend]:
-    """The `backends` key of the configuration. Raise ValueError if it is not valid."""
-    if raw is None:
-        return []
-    if not isinstance(raw, list):
-        raise ValueError("'backends' must be a list")
-    out: list[Backend] = []
-    for b in raw:
-        if not isinstance(b, dict) or not all(
-            isinstance(b.get(k), str) for k in ("name", "env", "url")
-        ):
-            raise ValueError("each backend needs the strings 'name', 'env' and 'url'")
-        if urlsplit(b["url"]).scheme not in ("http", "https") or not urlsplit(b["url"]).hostname:
-            raise ValueError(f"backend {b['name']}: 'url' must be an http or https URL")
-        out.append(Backend(b["name"], b["env"], b["url"].rstrip("/")))
-    names = [b.name for b in out]
-    if len(set(names)) != len(names) or len({b.env for b in out}) != len(out):
-        raise ValueError("each backend needs its own 'name' and 'env'")
-    return out
+    """The `backends` key of the configuration. Raise ValueError if it is not valid. The rule is
+    in config.parse_backends, so the reader of config.json gives the same error."""
+    return [Backend(name, env, url) for name, env, url in parse_backends(raw)]
 
 
 def secret(name: str) -> bool:

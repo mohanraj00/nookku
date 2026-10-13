@@ -555,6 +555,48 @@ def test_an_unknown_key_stops_start_check_and_the_hook_kit_with_one_message(
     assert answer["reason"] == broken + cause
 
 
+@pytest.mark.parametrize(
+    ("key", "value", "rule"),
+    [
+        ("entry", "python3 agent.py", "'entry' must be a list of strings"),
+        ("models", "claude", "'models' must be a list of claude-code, codex"),
+        ("models", ["claude"], "'models' must be a list of claude-code, codex"),
+        ("evaluate", "no", "'evaluate' must be true or false"),
+        ("otel", 0, "'otel' must be true or false"),
+        ("backends", {}, "'backends' must be a list"),
+        ("model_api", "openai", "'model_api' must be true, false, a list of: anthropic, openai"),
+        ("tap_url", 8800, "'tap_url' must be a string"),
+    ],
+)
+def test_a_wrong_type_stops_init_start_check_mode_on_and_the_hook_kit_with_one_message(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], key: str, value: Any, rule: str
+) -> None:
+    # The one reader checks the type of each value (#121), so each command gives one error.
+    assert main(["init", "codex", "--root", str(tmp_path), "--entry", f"python3 {TOY_SHOP}"]) == 0
+    path = tmp_path / ".nookku" / "config.json"
+    path.write_text(json.dumps({**json.loads(path.read_text()), key: value}))
+    text = path.read_text()
+    capsys.readouterr()
+    cause = f".nookku/config.json: {rule}"
+    assert main(["init", "codex", "--root", str(tmp_path), "--adapter", "openai"]) == 1
+    err = capsys.readouterr().err
+    assert cause in err and err.endswith("Nothing was written.\n")
+    assert path.read_text() == text
+    for command in ("start", "check"):
+        assert main([command, "--root", str(tmp_path)]) == 1
+        assert capsys.readouterr().out.startswith(f"nookku: {cause}")
+    assert main(["mode", "on", "--root", str(tmp_path)]) == 0
+    assert capsys.readouterr().out.startswith(f"nookku: {cause}")
+    assert not kit.is_on(tmp_path)
+    assert not (tmp_path / ".nookku" / "tests").exists()
+    kit.set_mode(tmp_path, True)
+    event = {"hook_event_name": "UserPromptSubmit", "prompt": "hi", "session_id": "s1"}
+    answer = kit.handle(event, tmp_path, "codex")
+    assert answer is not None and answer["decision"] == "block"
+    broken = "nookku: relay mode is on, but the config is broken: "
+    assert answer["reason"].startswith(broken + cause)
+
+
 def test_mode_on_with_no_entry_and_an_unknown_key_keeps_relay_mode_off(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:

@@ -10,7 +10,13 @@ The hooks of the plugin and the project hooks read all keys of this file, and th
 .nookku/config.json has unknown keys: ['<key>']. Correct or remove them.
 ```
 
-`start` and `check` stop, `init` writes nothing, and in relay mode the relay blocks each prompt.
+The reader also checks the type of each value, as the tables below give it. A value with a wrong type gives one error for each key, in each command. For example:
+
+```text
+.nookku/config.json: 'models' must be a list of claude-code, codex
+```
+
+`start` and `check` stop, `mode on` keeps relay mode off, `init` writes nothing, and in relay mode the relay blocks each prompt.
 
 `nookku init` writes a new file with each key. In an existing file, it keeps each key and changes only the keys of the flags that you give ([cli.md](cli.md#nookku-init)).
 
