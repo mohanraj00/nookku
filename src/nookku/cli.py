@@ -177,9 +177,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
     ini.add_argument(
         "--openai-stream",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
         default=None,
-        help='openai adapter: send "stream": true in each request',
+        help='openai adapter: send "stream": true in each request, or not (--no-openai-stream)',
     )
     ini.add_argument(
         "--repeated-reply",
@@ -318,8 +318,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         # The default root also gets the move of the old state folder below.
         args.root = project_root()
     if args.command == "init" and args.remove:
-        given = [k for k in (*STRING_KEYS, "entry", "models", "openai_stream") if getattr(args, k)]
-        given += ["repeated_reply"] if args.repeated_reply is not None else []
+        given = [k for k in (*STRING_KEYS, "entry", "models") if getattr(args, k)]
+        # --no-openai-stream gives False, so check for None, not for a true value.
+        given += [k for k in ("openai_stream", "repeated_reply") if getattr(args, k) is not None]
         if args.harness == "plugin" or given:
             ini.error("--remove takes the harness claude-code or codex, and no other flag")
     if args.command == "init" and args.remove:
@@ -396,8 +397,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             changes["entry"] = shlex.split(args.entry)
         if args.models is not None:
             changes["models"] = [m.strip() for m in args.models.split(",") if m.strip()]
-        if args.openai_stream:
-            changes["openai_stream"] = True
+        if args.openai_stream is not None:
+            # --openai-stream gives True and --no-openai-stream gives False (#120).
+            changes["openai_stream"] = args.openai_stream
         if args.repeated_reply is not None:
             changes["repeated_reply"] = args.repeated_reply
         try:
