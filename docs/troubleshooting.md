@@ -342,9 +342,9 @@ If the entry returns an error, crashes or does not answer in [240 seconds](../sr
 
 **Fix.** Write logs to stderr, or use `serve()`. `nookku check` fails with such a line and gives the same fix.
 
-### `Seal: BROKEN. changed: <file>. Do not trust these records.`
+### `Test <id>. Seal: BROKEN. changed: <file>. Do not trust these records.`
 
-(seal.py) **Cause.** A file of the test folder changed after the end of the test. `nookku verify` exits with 2.
+(seal.py) **Cause.** A file of the test folder changed after the end of the test. `nookku verify` exits with 2. `nookku trace` and `nookku transcript --trace` show the same text with no `Test <id>.` at the start.
 
 **Fix.** Do not trust the changed files. Run a new test.
 
