@@ -172,7 +172,7 @@ Nookku keeps the files of your tests in 2 places ([reference/records.md](../refe
 To keep the records of your tests, keep both. If you keep a test folder, keep its seal copy too. With no copy, `verify` says that the seal is broken and exits with 2:
 
 ```text
-Seal: BROKEN. the copy of the seal is missing. Do not trust these records.
+Test <test-id>. Seal: BROKEN. the copy of the seal is missing. Do not trust these records.
 ```
 
 To delete the files of this project, first delete the seal copies of its tests. Do this before you delete `.nookku/`, because the names of the test folders give the names of the copies:

@@ -249,7 +249,7 @@ nookku verify
 ```
 
 ```text
-Seal: intact. No record changed after the end of the test.
+Test 20261011-184952-8a8d. Seal: intact. No record changed after the end of the test.
 ```
 
 ## 10. Read the trace and the findings
