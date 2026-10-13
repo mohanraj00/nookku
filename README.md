@@ -58,7 +58,7 @@ It needs Python 3.10 or later, and it has no runtime dependencies ([pyproject.to
 
 ## Quick start
 
-Select one route: test the toy shop in Claude Code, connect your app, or choose a relay.
+Do these 2 steps in order. First, test the toy shop in Claude Code. Then connect your app. To use the plugin in place of the project hooks, read [Choose a relay](#choose-a-relay).
 
 ### Test the toy shop in Claude Code
 
