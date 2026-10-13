@@ -1,6 +1,6 @@
 # Changelog
 
-Each date is the day of the upload to PyPI, in UTC ([nookku](https://pypi.org/project/nookku/#history), [verbatim-relay](https://pypi.org/project/verbatim-relay/#history)). 0.2.0 has no upload, so its date is the day of its tag.
+Each date is the day of the upload to PyPI, in UTC ([nookku](https://pypi.org/project/nookku/#history), [verbatim-relay](https://pypi.org/project/verbatim-relay/#history)). 0.2.0 has no upload, so its date is the day of [its tag](https://github.com/mohanraj00/nookku/commit/v0.2.0).
 
 ## 0.4.0
 
