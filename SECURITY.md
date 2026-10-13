@@ -1,5 +1,14 @@
 # Security
 
+## Supported versions
+
+I fix security problems only in the latest release.
+
+| Version | Supported |
+| --- | --- |
+| 0.4.x | Yes |
+| 0.3.x and earlier (the `verbatim-relay` package) | No |
+
 ## Report a problem
 
 Use a private security advisory on GitHub (the Security tab of this repo). Do not open a public issue. I answer within 7 days.
