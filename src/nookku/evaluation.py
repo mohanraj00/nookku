@@ -67,12 +67,15 @@ def pending(root: Path) -> Path | None:
 def config_note(root: Path) -> str | None:
     """The text that tells why a test that needs an evaluation gets none: the config file cannot
     be read or breaks the rule for its keys. None if this is not the case."""
-    if _ended(root) is None:
-        return None
     try:
         read_config(root)
     except ConfigError as e:
-        return f"nookku: no evaluation starts: {e}. Correct the file, then type: nookku end"
+        if _ended(root) is None:
+            return None
+        return (
+            f"nookku: no evaluation starts: {str(e).rstrip('.')}. "
+            "Correct the file, then type: nookku end"
+        )
     return None
 
 

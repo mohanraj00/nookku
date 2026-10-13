@@ -83,6 +83,7 @@ def test_a_broken_config_starts_no_evaluation(
     assert note is not None
     assert note.startswith("nookku: no evaluation starts: ")
     assert note.endswith("Correct the file, then type: nookku end")
+    assert ".." not in note
     answer = kit.handle(event(root, "nookku end"), root, "codex")
     assert answer["decision"] == "block"
     assert answer["reason"].endswith(note)

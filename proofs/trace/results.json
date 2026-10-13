@@ -6,7 +6,7 @@
    "codex": "0.162.1"
   },
   "claude-agent-sdk": "0.2.164",
-  "nookku": "0.4.0",
+  "nookku": "0.4.1",
   "claude-code": "2.1.296 (Claude Code)",
   "codex": "codex-cli 0.162.1"
  },
@@ -31,18 +31,18 @@
    "harness": "codex",
    "inferred": true,
    "version": "0.162.1",
-   "items": 12,
+   "items": 11,
    "ignored": {
     "event_msg.task_complete": 4,
     "event_msg.task_started": 4,
-    "event_msg.token_count": 9,
-    "item_completed.Reasoning": 1,
+    "event_msg.token_count": 14,
+    "item_completed.Reasoning": 2,
     "response_item.custom_tool_call": 5,
     "response_item.custom_tool_call_output": 5,
-    "response_item.message": 12,
-    "response_item.reasoning": 1,
+    "response_item.message": 11,
+    "response_item.reasoning": 2,
     "session_meta": 1,
-    "token_usage_record": 9,
+    "token_usage_record": 8,
     "turn_context": 4,
     "world_state": 1
    }
@@ -111,7 +111,7 @@
      "delivered"
     ]
    ],
-   "found": true
+   "found": false
   },
   {
    "expect": [
@@ -164,6 +164,21 @@
   {
    "turn": 1,
    "harness": "claude-code",
+   "kind": "message",
+   "role": "user",
+   "server": null,
+   "name": null,
+   "exit_code": null,
+   "harness_internal": false,
+   "line": 3,
+   "output": {
+    "sha256": "97ddad7b3d142df36e25ddffeabda2c46c386f16e0e7b5197ca2284f68f4f1ad",
+    "chars": 23
+   }
+  },
+  {
+   "turn": 1,
+   "harness": "claude-code",
    "kind": "log",
    "role": null,
    "server": null,
@@ -184,7 +199,7 @@
     "terminal.type"
    ],
    "input": {
-    "sha256": "d3ca2084f4fd48122672f693b3541a7f6a3431d58aa82a1fedcfbe1de5464e72",
+    "sha256": "7dc8d659ce055930dc7393fb26d6c2dd0e3610aaf7dd32f15620840eeee63bcd",
     "chars": 398
    },
    "output": {
@@ -192,21 +207,6 @@
     "chars": 23
    },
    "error": null
-  },
-  {
-   "turn": 1,
-   "harness": "claude-code",
-   "kind": "message",
-   "role": "user",
-   "server": null,
-   "name": null,
-   "exit_code": null,
-   "harness_internal": false,
-   "line": 3,
-   "output": {
-    "sha256": "97ddad7b3d142df36e25ddffeabda2c46c386f16e0e7b5197ca2284f68f4f1ad",
-    "chars": 23
-   }
   },
   {
    "turn": 1,
@@ -249,7 +249,7 @@
     "tool_use_id"
    ],
    "input": {
-    "sha256": "5069f8d37ef0a8e73a5808a350978e788b3dff62acaacfd684cb1720fc1df06e",
+    "sha256": "94b94298817ca91aa94a3672e6742900dd11d121d1e11f8a7351ef0c3c0a00d6",
     "chars": 468
    },
    "output": {
@@ -286,7 +286,7 @@
     "tool_use_id"
    ],
    "input": {
-    "sha256": "75b4f141f5bb6315c79fe9e70846d628817ff9f7cdfdb90dadb40f8ef9529d79",
+    "sha256": "90ab42a563328e36d0eec5da0e8c0ff985ec7eaadf0793bb22c3a8a83f62921e",
     "chars": 574
    },
    "output": {
@@ -335,7 +335,7 @@
     "terminal.type"
    ],
    "input": {
-    "sha256": "d54454131537d76aa9beb0da4bb9cc8ef925ba0b83423f87335bec365daa1e5b",
+    "sha256": "4cfe70f5220850ce1427636974d915de9c1a0c4703f48567be38956775639234",
     "chars": 499
    },
    "output": {
@@ -357,37 +357,6 @@
    "output": {
     "sha256": "97ddad7b3d142df36e25ddffeabda2c46c386f16e0e7b5197ca2284f68f4f1ad",
     "chars": 23
-   }
-  },
-  {
-   "turn": 1,
-   "harness": "codex",
-   "kind": "tool_call",
-   "role": null,
-   "server": null,
-   "name": "lookup_order",
-   "exit_code": null,
-   "harness_internal": false,
-   "line": 13,
-   "input": {
-    "order": "4471"
-   },
-   "output": "{\"item\": \"blue mug\", \"status\": \"delivered\", \"price_eur\": 8}",
-   "error": null
-  },
-  {
-   "turn": 1,
-   "harness": "codex",
-   "kind": "message",
-   "role": "assistant",
-   "server": null,
-   "name": null,
-   "exit_code": null,
-   "harness_internal": false,
-   "line": 16,
-   "output": {
-    "sha256": "b0f586301120ab7f655e7678f4c55a1e16c4784753d89ae1631c8bf92521b86c",
-    "chars": 54
    }
   },
   {
@@ -428,7 +397,7 @@
     "terminal.type"
    ],
    "input": {
-    "sha256": "94ce4d8dd514ae77a5e5f16186e31b817707cc17e306edadc695bb86b00f5be2",
+    "sha256": "a8f1f4cc753324d64984fa158ca6b17237a74fde5fe3cf40cb84e028df0b7d3f",
     "chars": 399
    },
    "output": {
@@ -478,7 +447,7 @@
     "tool_use_id"
    ],
    "input": {
-    "sha256": "9c62ef388d78bb0fd1ffa7be14635b970139adfa6047acf508952eb5033ac978",
+    "sha256": "cae70c005619d3ed88b3a9f99b9999881b8a80e2a22fb7b5544e517efa63649e",
     "chars": 469
    },
    "output": {
@@ -516,8 +485,8 @@
     "tool_use_id"
    ],
    "input": {
-    "sha256": "c5f106be361557bcea7ec0d4b0c43a0ba76d0be580c89f47d8457c6ef9c0dabf",
-    "chars": 621
+    "sha256": "a143c4698de1c0d251a398fc55961db688168feec9a3bebc258284919ad14516",
+    "chars": 620
    },
    "output": {
     "sha256": "8826c8b6219392c375cdff139255b158566532a3d44f28d3ee3e1fa91d4ad19a",
@@ -539,8 +508,8 @@
    "harness_internal": false,
    "line": 32,
    "output": {
-    "sha256": "ae79b7f9a5789bc7a788af3183d3b96f6821bab2c43028aeb62972b39d1bf9d0",
-    "chars": 88
+    "sha256": "01ed7333fa40edb4067c0c6a30a150ecd5d2781a09e720864187544a192f1058",
+    "chars": 39
    }
   },
   {
@@ -568,8 +537,8 @@
     "terminal.type"
    ],
    "input": {
-    "sha256": "526950262fb686255e829624ae8841675008dc52ce3d36823690330ba82c6aa8",
-    "chars": 538
+    "sha256": "2114b2bff86931a2feb3eb9253578ff1c495f55e9146e2c5123a75073d747541",
+    "chars": 489
    },
    "output": {
     "sha256": "6478f68d3b620d941073e9245da7aa7821ef4c291780328c60af34d7341ad500",
@@ -586,7 +555,7 @@
    "name": null,
    "exit_code": null,
    "harness_internal": false,
-   "line": 24,
+   "line": 17,
    "output": {
     "sha256": "8fe790b82848fa46a5110bb9c31e623209fdb3a8a04c9e56453706694bebc305",
     "chars": 23
@@ -601,12 +570,28 @@
    "name": "lookup_order",
    "exit_code": null,
    "harness_internal": false,
-   "line": 27,
+   "line": 24,
    "input": {
     "order": "9999"
    },
    "output": null,
    "error": "{\"error\": \"no such order\"}"
+  },
+  {
+   "turn": 2,
+   "harness": "codex",
+   "kind": "tool_call",
+   "role": null,
+   "server": null,
+   "name": "lookup_order",
+   "exit_code": null,
+   "harness_internal": false,
+   "line": 31,
+   "input": {
+    "order": "4471"
+   },
+   "output": "{\"item\": \"blue mug\", \"status\": \"delivered\", \"price_eur\": 8}",
+   "error": null
   },
   {
    "turn": 2,
@@ -617,10 +602,10 @@
    "name": null,
    "exit_code": null,
    "harness_internal": false,
-   "line": 30,
+   "line": 34,
    "output": {
-    "sha256": "5b37df939bd2b75b6c55d2b2c788f0bf240aa011d8c5d0ae2573df08900723ce",
-    "chars": 46
+    "sha256": "71d8c1193b0c744e0f48323e8165baf70987e3725d621234d5096fac5d359bba",
+    "chars": 75
    }
   },
   {
@@ -661,7 +646,7 @@
     "terminal.type"
    ],
    "input": {
-    "sha256": "d2041a809e28229a798e45107953f535ceecb9cd47fce7f8e66ac77aaac13ee1",
+    "sha256": "4211ae2244c7c710c56761e5ab54624b6e8a3c01b72348ac9d8be563a00db8ed",
     "chars": 399
    },
    "output": {
@@ -681,8 +666,8 @@
    "harness_internal": false,
    "line": 38,
    "output": {
-    "sha256": "8b327b43539ea4c73cf6a6e92e14da34325dc1b8f3cd77815376357ba6cc2dbc",
-    "chars": 109
+    "sha256": "92e9fd60063a4f41945e887dcfdc9f79d9d808cb83a4c6f0f941c3ded88a2d23",
+    "chars": 100
    }
   },
   {
@@ -710,8 +695,8 @@
     "terminal.type"
    ],
    "input": {
-    "sha256": "da8d14972ffc73831158192206b8288dc31c11cca8f4e88fec48fc514cef79a5",
-    "chars": 560
+    "sha256": "6cc980886081daaa081732720574dc6f56635806f5fc45a448171507d5beb085",
+    "chars": 551
    },
    "output": {
     "sha256": "6478f68d3b620d941073e9245da7aa7821ef4c291780328c60af34d7341ad500",
@@ -728,7 +713,7 @@
    "name": null,
    "exit_code": null,
    "harness_internal": false,
-   "line": 38,
+   "line": 42,
    "output": {
     "sha256": "95d6c9735a5aa1e3865403d5caf01f5437f46885524f34529b5cdc303a3cd1c1",
     "chars": 23
@@ -743,7 +728,7 @@
    "name": "check_stock",
    "exit_code": null,
    "harness_internal": false,
-   "line": 45,
+   "line": 49,
    "input": {
     "product": "teapot"
    },
@@ -759,7 +744,7 @@
    "name": null,
    "exit_code": null,
    "harness_internal": false,
-   "line": 48,
+   "line": 52,
    "output": {
     "sha256": "047935cb46b4f26110bff388aff8a069a592fbb05ec361c60d4f0d8e55bec1ae",
     "chars": 37
@@ -803,7 +788,7 @@
     "terminal.type"
    ],
    "input": {
-    "sha256": "5b8b13a01a9567f7048d50fe0ce6ad54496614824f48505e383cbd79684ee039",
+    "sha256": "fe6bf7ab08541d67c11ceaa050107531d18dccb7e1bdd139a9b4531ccebca4cf",
     "chars": 391
    },
    "output": {
@@ -823,8 +808,8 @@
    "harness_internal": false,
    "line": 44,
    "output": {
-    "sha256": "844d89695c40f5dc2b0a2c58c93f6be856188eeb832db78548607dce86459b41",
-    "chars": 127
+    "sha256": "c9ce4532531475237391c8c486f931607f7aa142b35b3e471a2fb5f0f3556b7e",
+    "chars": 123
    }
   },
   {
@@ -852,8 +837,8 @@
     "terminal.type"
    ],
    "input": {
-    "sha256": "91cc66f8e2a017fd0c9ee6a8a80be6bbc5223f7260ecb77ddde4ebeda7bcbd1a",
-    "chars": 578
+    "sha256": "8e620d1c3088b25ec6c55cad04b5eef48be0681f0f97b4d39ccc922163975cc1",
+    "chars": 574
    },
    "output": {
     "sha256": "6478f68d3b620d941073e9245da7aa7821ef4c291780328c60af34d7341ad500",
@@ -870,7 +855,7 @@
    "name": null,
    "exit_code": null,
    "harness_internal": false,
-   "line": 56,
+   "line": 60,
    "output": {
     "sha256": "b02c321f0b34584cafd4220bb2b571f0c7ba70a2722a01d1cb2a48fbdffc76cf",
     "chars": 19
@@ -885,7 +870,7 @@
    "name": null,
    "exit_code": 1,
    "harness_internal": false,
-   "line": 59,
+   "line": 63,
    "input": [
     "/bin/zsh",
     "-lc",
@@ -903,12 +888,12 @@
    "name": null,
    "exit_code": null,
    "harness_internal": false,
-   "line": 64,
+   "line": 68,
    "output": {
     "sha256": "5f1c179d2c800eac3b461b5cb47eb4b55593945c7151983c255c390ef191f420",
     "chars": 97
    }
   }
  ],
- "pass": true
+ "pass": false
 }

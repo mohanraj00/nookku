@@ -54,7 +54,7 @@ To read each message and each reply of the test, run `nookku transcript`.
 uv tool install nookku
 ```
 
-It needs Python 3.10 or later, and it has no runtime dependencies ([pyproject.toml](pyproject.toml)). The docs are for version 0.4.0. If you use verbatim-relay 0.3.x or earlier, do the [0.4.0 steps of the upgrade guide](docs/how-to/upgrade.md#040), because the package has a new name ([CHANGELOG.md](CHANGELOG.md#040)). To upgrade from a later version of nookku, end each running test first. Then run `uv tool upgrade nookku`. [docs/how-to/upgrade.md](docs/how-to/upgrade.md) gives each step.
+It needs Python 3.10 or later, and it has no runtime dependencies ([pyproject.toml](pyproject.toml)). The docs are for version 0.4.1. If you use verbatim-relay 0.3.x or earlier, do the [0.4.0 steps of the upgrade guide](docs/how-to/upgrade.md#040), because the package has a new name ([CHANGELOG.md](CHANGELOG.md#040)). To upgrade from a later version of nookku, end each running test first. Then run `uv tool upgrade nookku`. [docs/how-to/upgrade.md](docs/how-to/upgrade.md) gives each step.
 
 ## Quick start
 
@@ -90,23 +90,24 @@ You install the [relay](SPEC.md#5-relays) as the plugin or as the project hooks.
 
 ## A sample report
 
-At the end of a test, the harness model reads the record and writes `report.md` in the test folder. This is an excerpt of a real report. Nookku 0.4.0 and Claude Code 2.1.296 wrote it in a test of [the toy shop with a model](examples/toy-shop-models/README.md). The app has a planted bug: its refund tool compares euros with cents. The model did not see the conversation, and it found the bug in the record and the code.
+At the end of a test, the harness model reads the record and writes `report.md` in the test folder. This is an excerpt of a real report. Nookku 0.4.1 and Claude Code 2.1.296 wrote it in a test of [the toy shop with a model](examples/toy-shop-models/README.md). The app has a planted bug: its refund tool compares euros with cents. The model did not see the conversation, and it found the bug in the record and the code.
 
 ```markdown
-# Test 20261012-082946-399c: evaluation
+# Test 20261012-232417-15c7: evaluation
 
 | Class | Turn | Evidence | Issue |
 |---|---|---|---|
-| business_rule | 2 | trace.jsonl:10, app.py:59 | `refund` got `{"order": "5120", "amount_eur": 80}` and returned `"status": "paid"`. RULES.md rule 3 says that a refund above €50 needs the approval of a manager. The refund of €80 did not wait for an approval. The cause is in `app.py:59`: `args["amount_eur"] > APPROVAL_LIMIT_CENTS` compares euros (80) with cents (5000), so the approval limit is €5000, not €50. |
+| business_rule | 2 | trace.jsonl:10 | `refund` got `{"order": "5120", "amount_eur": 80}` and returned `"status": "paid"`. RULES.md:3 says that a refund above €50 waits for the approval of a manager, and the manager pays it. The agent paid €80 immediately. `state.json` shows refund `RF-97B38E` on order 5120 and no `approvals` list. |
 ...
+| business_rule | - | app.py:59 | `if args["amount_eur"] > APPROVAL_LIMIT_CENTS:` compares an amount in euros with `APPROVAL_LIMIT_CENTS = 5000` (app.py:27). Thus the approval gate starts only above €5000, not above €50. This is the cause of the turn 2 issue. |
 
 ## Notes
 
-- The seal is intact. `findings.json` has no findings. `audit.json` shows 3 exchanges, no breaks and no blocked calls, so the words of each turn did not change between the tester and the app.
+- The seal is intact. The audit shows no break, no blocked call and no error. `findings.json` has no findings.
 ...
 ```
 
-The full report has 3 rows and 7 notes. Data: [proofs/report/plugin-claude-code.json](proofs/report/plugin-claude-code.json). Method: [docs/results.md](docs/results.md#p5-and-p6-the-evaluation-at-the-end-of-a-test). A report is a model answer, so check its evidence. [Read the results of a test](docs/how-to/read-the-results.md) tells you how.
+The full report has 3 rows and 8 notes. Data: [proofs/report/plugin-claude-code.json](proofs/report/plugin-claude-code.json). Method: [docs/results.md](docs/results.md#p5-and-p6-the-evaluation-at-the-end-of-a-test). A report is a model answer, so check its evidence. [Read the results of a test](docs/how-to/read-the-results.md) tells you how.
 
 ## How it works
 

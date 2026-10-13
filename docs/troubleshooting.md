@@ -26,7 +26,7 @@ First, look in the [test folder](reference/glossary.md#test-folder) `.nookku/tes
 
 (argparse, from `nookku init`) **Cause.** You have version 0.1.0 from PyPI. It has no tests and no entry. Check with `nookku --version`.
 
-**Fix.** Run `uv tool upgrade nookku`. The docs are for version 0.4.0.
+**Fix.** Run `uv tool upgrade nookku`. The docs are for version 0.4.1.
 
 ### `nookku: command not found`
 
@@ -372,4 +372,4 @@ If the entry wrote 2 or more stray lines, the check gives one line for all of th
 
 (kit.py) **Cause.** The argument is not a test id, and it is not the path of a folder in `.nookku/tests` of the project.
 
-**Fix.** Give the test id, for example `nookku verify 20261001-120000-ab12`, or the path of the test folder, for example `nookku verify .nookku/tests/20261001-120000-ab12`. If the test is in another project, add `--root` with the path of that project.
+**Fix.** Give the test id, for example `nookku verify 20261001-120000-ab12`, or the path of the test folder, for example `nookku verify .nookku/tests/20261001-120000-ab12`. If the test is in another project, give the path of its test folder, or give the test id and add `--root` with the path of that project. A relative path starts at the current folder, not at `--root`.

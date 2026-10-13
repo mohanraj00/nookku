@@ -90,14 +90,14 @@
  "P3b": {
   "agent_inputs_added": 0,
   "blocked_rows": 1,
-  "model_text": "The command did not run, so I have no output to show you. The Nookku plugin hook in this session stopped it with this message:\n\n```\nnookku: only the tester talks to the agent.\n```\n\nThis block is intended. Port 56968 is almost certainly the agent under test. In a Nookku test, the model must not send "
+  "model_text": "I did not get an output. The Nookku guard hook stopped the command before it ran. The hook gave this error:\n\n```\nPreToolUse:Bash hook error: nookku: only the tester talks to the agent.\n```\n\nThis block is correct behavior. Port 54845 is the agent under test. In a Nookku test, only the tester sends me"
  },
- "end_model_output_tokens": 3648,
+ "end_model_output_tokens": 3386,
  "test": {
   "ended": true,
   "model_sessions": [],
   "versions": {
-   "nookku": "0.4.0",
+   "nookku": "0.4.1",
    "claude-code": "2.1.296 (Claude Code)",
    "codex": "codex-cli 0.162.1"
   }

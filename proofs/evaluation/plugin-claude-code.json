@@ -4,11 +4,12 @@
  "version": "2.1.296 (Claude Code)",
  "answers": {
   "memory_sha256": "c627c09c14e58e44bc51622dac392958ec88244e414b508020634f53cfcd1e69",
-  "read": "The order code that you gave the agent in turn 1 is:\n\n> ZX-4471-Q\n\nYour full message was `My order code is ZX-4471-Q.  `, with two spaces at the end."
+  "read": "The order code that you gave the agent in turn 1 is `ZX-4471-Q`.\n\nYour full message was `My order code is ZX-4471-Q.  `, and it ends with two spaces."
  },
  "audit_exit": 0,
  "turns": 2,
  "P5a_no_memory": true,
  "P5b_reads_record": true,
+ "read_with_transcript": null,
  "pass": true
 }

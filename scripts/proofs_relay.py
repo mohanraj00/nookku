@@ -54,7 +54,7 @@ sys.path[:0] = [str(ROOT / "src"), str(ROOT / "tests"), str(Path(__file__).paren
 
 from proof_common import ADVERSARIAL, ENTRY, MESSAGES, json_lines, planted, rows  # noqa: E402
 
-from nookku import bridge, kit  # noqa: E402
+from nookku import __version__, bridge, kit  # noqa: E402
 from nookku.audit import audit  # noqa: E402
 from nookku.record import Turn, read_relay  # noqa: E402
 
@@ -241,6 +241,7 @@ def main_stream(setup: str, run, out: Path, on_request: bool = False) -> int:
         "setup": setup,
         "harness": harness,
         "version": version,
+        "nookku": __version__,
         "transport": "http-stream",
         "agent_streams": "on_request" if on_request else "always",
         "openai_stream": on_request,

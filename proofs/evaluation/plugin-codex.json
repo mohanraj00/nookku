@@ -3,7 +3,7 @@
  "relay": "plugin-codex",
  "version": "codex-cli 0.162.1",
  "answers": {
-  "memory_sha256": "4393711671f43757169a51caf54d537ed2afc69a349ba91ae244fd50a5edad83",
+  "memory_sha256": "75506f1a0fb712f9e792c81bf47a30a839dd266d3488fa9cbdf45b259d04e18a",
   "read": "“ZX-4471-Q”"
  },
  "audit_exit": 0,
