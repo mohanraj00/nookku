@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sys
+import threading
 from pathlib import Path
 
 import pytest
@@ -52,6 +53,28 @@ def test_the_script_keeps_each_byte_of_each_said_text(tmp_path: Path) -> None:
     # One row for each turn: json.dumps escapes the line feed, and U+2028 stays as it is.
     assert data.count(b"\n") == len(MESSAGES)
     assert "\u2028".encode() in data
+    assert list(path.parent.iterdir()) == [path]
+
+
+def test_saves_of_one_test_at_the_same_time_each_use_their_own_new_file(tmp_path: Path) -> None:
+    write_test(tmp_path, MESSAGES)
+    errors: list[BaseException] = []
+
+    def one() -> None:
+        try:
+            script_save.save(tmp_path, TEST_ID)
+        except BaseException as e:
+            errors.append(e)
+
+    threads = [threading.Thread(target=one) for _ in range(8)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout=30)
+    assert errors == []
+    path = script_save.path_of(tmp_path, TEST_ID)
+    assert script.parse(path.read_bytes())[0] == MESSAGES
+    # No new file stays after a save.
     assert list(path.parent.iterdir()) == [path]
 
 

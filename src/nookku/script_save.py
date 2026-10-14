@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -65,14 +66,19 @@ def save(root: Path, test: str) -> tuple[Path, int]:
         raise SaveError(str(e)) from None
     data = script_bytes(folder)
     path = path_of(root, folder.name)
-    # Write a new file, then replace, so a reader never gets a part of the script.
-    new = path.with_name(f".{path.name}.{os.getpid()}")
+    # Write a new file, then replace, so a reader never gets a part of the script. Each save
+    # gets its own new file, also 2 saves of one test in 2 threads of the page server.
+    new: Path | None = None
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
-        new.write_bytes(data)
+        fd, name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+        new = Path(name)
+        with os.fdopen(fd, "wb") as f:
+            f.write(data)
         os.replace(new, path)
     except OSError as e:
-        new.unlink(missing_ok=True)
+        if new is not None:
+            new.unlink(missing_ok=True)
         raise SaveError(f"cannot write the script {path}: {e}") from None
     # json.dumps escapes each line end in a message, so each line is one message.
     return path, data.count(b"\n")
