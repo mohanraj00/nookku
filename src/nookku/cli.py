@@ -301,6 +301,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     view.add_argument("--text", action="store_true", help="the text view (the default)")
     _page_parser(sub)
     _script_parser(sub)
+    _export_parser(sub)
 
     ver = sub.add_parser("verify", help="check that no record of a test changed after its end")
     ver.add_argument(
@@ -417,6 +418,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _page_command(args)
     if args.command == "script":
         return _script_command(args)
+    if args.command == "export":
+        return _export_command(args)
     if args.command in ("start", "end", "status", "check"):
         return _test_command(args)
     if args.command == "trace":
@@ -662,6 +665,37 @@ def _script_command(args: argparse.Namespace) -> int:
         return 1
     print(f"Saved {count} messages of test {folder.name} to {path}")
     print(f"Run it with: {script_save.run_text(root, path)}")
+    return 0
+
+
+def _export_parser(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+    exp = sub.add_parser("export", help="write a test as one HTML file to share")
+    exp.add_argument(
+        "test",
+        nargs="?",
+        help="the test id or the path of the test folder (default: the latest test)",
+    )
+    exp.add_argument("--root", type=Path, default=Path.cwd())
+    exp.add_argument(
+        "--out", type=Path, help="the HTML file to write (default: <test id>.html here)"
+    )
+
+
+def _export_command(args: argparse.Namespace) -> int:
+    """nookku export: write a test as one HTML file (SPEC.md section 5, "Export")."""
+    from nookku import export
+
+    root = args.root.resolve()
+    folder = _test_folder(root, args.test)
+    if folder is None:
+        return 2
+    out = args.out or Path(f"{folder.name}.html")
+    try:
+        path = export.write(root, folder, out)
+    except export.ExportError as e:
+        print(f"nookku: the export was not written. {e}", file=sys.stderr)
+        return 1
+    print(f"Wrote test {folder.name} to {path}")
     return 0
 
 

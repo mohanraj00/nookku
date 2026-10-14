@@ -1,0 +1,64 @@
+/* The styles of a test export (#354). */
+footer {
+  position: static;
+}
+
+.export-summary {
+  margin: 0 0 8px;
+  padding-left: 20px;
+}
+
+.export-list,
+.export-steps {
+  margin: 4px 0 8px;
+  font-size: 13px;
+}
+
+.export-list summary,
+.export-steps summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+
+.export-note {
+  margin: 4px 0 0;
+}
+
+.export-note .text {
+  background: var(--tester);
+}
+
+.export-step-list {
+  margin: 4px 0 0;
+  padding-left: 20px;
+}
+
+.export-step {
+  margin: 0 0 6px;
+}
+
+.export-step .text {
+  background: var(--agent);
+  font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.export-step-error .text {
+  background: var(--error-bg);
+  color: var(--error-fg);
+}
+
+.export-step-label {
+  font-size: 11px;
+  color: var(--muted);
+  margin: 2px 0 0;
+}
+
+.link code,
+.remote code,
+.file code {
+  overflow-wrap: anywhere;
+}
+
+img.svg {
+  max-width: 100%;
+}

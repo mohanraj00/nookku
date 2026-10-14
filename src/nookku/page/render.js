@@ -694,8 +694,9 @@
 
   // ---- The block of a reply on the page ----
 
-  // A turn of the agent: the reply as Markdown, and a button that shows the exact text.
-  function reply(doc, cls, who, text) {
+  // A turn of the agent: the reply as Markdown, and a button that shows the exact text. The
+  // export (#354) gives `change`, a function that changes the tree before toDom makes nodes.
+  function reply(doc, cls, who, text, change) {
     const li = doc.createElement("li");
     li.className = "turn " + cls;
     const label = doc.createElement("p");
@@ -714,7 +715,8 @@
     const shown = doc.createElement("div");
     shown.className = "text md";
     try {
-      shown.appendChild(toDom(render(text), doc));
+      const tree = render(text);
+      shown.appendChild(toDom(change ? change(tree) : tree, doc));
     } catch (e) {
       // If the renderer fails, the page shows the exact text.
       shown.hidden = true;

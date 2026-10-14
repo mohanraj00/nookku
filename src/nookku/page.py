@@ -50,6 +50,7 @@ FILES = {
     "notes.js": ("notes.js", "text/javascript; charset=utf-8"),
     "notes.css": ("notes.css", "text/css; charset=utf-8"),
     "save.js": ("save.js", "text/javascript; charset=utf-8"),
+    "export_button.js": ("export_button.js", "text/javascript; charset=utf-8"),
     "render.js": ("render.js", "text/javascript; charset=utf-8"),
     "render.css": ("render.css", "text/css; charset=utf-8"),
     "dashboard.html": ("dashboard.html", "text/html; charset=utf-8"),
@@ -262,12 +263,13 @@ def _shown_test(root: Path) -> Path | None:
     return Path(cur["dir"]) if cur else state.latest_test(root)
 
 
-def allowed_file(root: Path, name: str) -> Path | None:
+def allowed_file(root: Path, name: str, shown: Path | None = None) -> Path | None:
     """The real path of a file that a reply names, or None if the page must refuse it.
 
     A relative path starts at the project root. The real path, after each symlink, must be a file
     in the project or in the folder of the shown test. A file in the state folder is refused,
-    except in the shown test folder, because the state folder holds the tap token."""
+    except in the shown test folder, because the state folder holds the tap token. The export
+    (#354) gives `shown`, the folder of the test that it exports."""
     if not name or "\x00" in name:
         return None
     path = Path(name)
@@ -277,7 +279,7 @@ def allowed_file(root: Path, name: str) -> Path | None:
         real = path.resolve(strict=True)
         if not real.is_file():
             return None
-        folder = _shown_test(root)
+        folder = shown or _shown_test(root)
         if folder is not None and real.is_relative_to(folder.resolve()):
             return real
         if real.is_relative_to(root.resolve()) and not real.is_relative_to(
@@ -289,7 +291,7 @@ def allowed_file(root: Path, name: str) -> Path | None:
     return None
 
 
-def open_checked(root: Path, name: str) -> tuple[int, Path] | None:
+def open_checked(root: Path, name: str, shown: Path | None = None) -> tuple[int, Path] | None:
     """Open a file that a reply names, and check the open file, not only its path. Return the
     descriptor and the real path, or None.
 
@@ -297,14 +299,14 @@ def open_checked(root: Path, name: str) -> tuple[int, Path] | None:
     a folder outside the project. Thus the server opens each part of the checked real path
     relative to the descriptor of the folder before it, and follows no symlink. The open file
     is then the file at the checked path."""
-    path = allowed_file(root, name)
+    path = allowed_file(root, name, shown)
     if path is None:
         return None
     if os.open not in os.supports_dir_fd:
         # A system with no `dir_fd` (Windows) cannot do this walk. A check of the path before
         # and after the open is not atomic, so the server refuses the file.
         return None
-    folder = _shown_test(root)
+    folder = shown or _shown_test(root)
     top = root.resolve()
     # A test folder outside the project, for example through a symlink of the state folder.
     outside = not path.is_relative_to(top)
@@ -552,8 +554,21 @@ class _Handler(BaseHTTPRequestHandler):
             self._json(200 if data["test"] else 404, data)
         elif rest == "api/tests" or rest.startswith("api/tests/"):
             self._json(*dashboard.answer(self.server.root, rest))
+        elif rest == "api/export" or rest.startswith("api/export/"):
+            self._export(rest)
         else:
             self._refuse(404, "not found")
+
+    def _export(self, rest: str) -> None:
+        """Send the export of a test as a file to save (#354)."""
+        from nookku import export
+
+        status, body, name = export.answer(self.server.root, rest)
+        if isinstance(body, dict):
+            self._json(status, body)
+            return
+        self.overrides = {"Content-Disposition": f'attachment; filename="{name}"'}
+        self._answer(status, body, "text/html; charset=utf-8")
 
     def _body(self) -> Any:
         """The JSON body of a POST, or _REFUSED after a refusal."""

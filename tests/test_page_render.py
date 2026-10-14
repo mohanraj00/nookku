@@ -519,7 +519,7 @@ def test_a_file_that_changes_after_the_check_is_refused(
     with os.fdopen(found[0], "rb") as f:
         assert f.read() == b"A"
     checked = (root / "images" / "a.png").resolve()
-    monkeypatch.setattr(page, "allowed_file", lambda base, name: checked)
+    monkeypatch.setattr(page, "allowed_file", lambda base, name, shown=None: checked)
     # After the check, the folder becomes a symlink to a folder outside the project.
     (root / "images").rename(root / "old")
     (root / "images").symlink_to(outside)
