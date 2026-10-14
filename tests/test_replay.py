@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import http.client
+import itertools
 import json
 import re
 import sys
 import threading
+import time
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -87,13 +89,40 @@ def test_a_long_reply_gives_a_diff_with_no_long_wait() -> None:
     # One changed word in a long reply: the equal start and end need no matcher.
     parts = replay.words(common + " costs 8.", common + " costs 9.")
     assert [p for p in parts if p[0] != "equal"] == [["delete", "8."], ["insert", "9."]]
-    # A changed part with more than MAX_TOKENS tokens is one delete and one insert.
-    old = " ".join(["mug teapot"] * replay.MAX_TOKENS)
-    new = " ".join(["teapot mug"] * replay.MAX_TOKENS)
-    parts = replay.words("Hi. " + old + " Bye.", "Hi. " + new + " Bye.")
+    # A changed part that needs more steps than the budget has is one delete and one insert.
+    old = " ".join(f"mug{i}" for i in range(2000))
+    new = " ".join(f"teapot{i}" for i in range(2000))
+    parts = replay.words("Hi. " + old + " Bye.", "Hi. " + new + " Bye.", replay.Budget(1000))
     assert [p[0] for p in parts] == ["equal", "delete", "insert", "equal"]
     assert joined(parts, "delete") == "Hi. " + old + " Bye."
     assert joined(parts, "insert") == "Hi. " + new + " Bye."
+
+
+def test_each_diff_gives_the_two_replies_and_deletes_before_inserts() -> None:
+    texts = ["", "a", "a b", "b a c", "a  c\nd", "c a b a", "e d c b a", "a a a b"]
+    for old in texts:
+        for new in texts:
+            parts = replay.words(old, new)
+            assert joined(parts, "delete") == old and joined(parts, "insert") == new
+            ops = [p[0] for p in parts]
+            assert all(o != n for o, n in itertools.pairwise(ops)), (old, new)
+            assert ("insert", "delete") not in set(itertools.pairwise(ops))
+
+
+def test_a_worst_case_diff_of_many_turns_ends_fast(tmp_path: Path) -> None:
+    # Each turn has 2000 distinct words, and each word changed. A matcher with no budget can need
+    # many seconds for one such turn. The budget is for all 30 turns together.
+    old_turns = [(f"Ask {n}", " ".join(f"mug{n}x{i}" for i in range(2000)), "-") for n in range(30)]
+    new_turns = [(s, r.replace("mug", "pot"), r) for s, r, _ in old_turns]
+    old = make_test(tmp_path, OLD, old_turns, 1_800_000_000.0)
+    new = make_test(tmp_path, NEW, new_turns, 1_800_000_600.0)
+    started = time.monotonic()
+    result = replay.diff(tmp_path, old, new)
+    assert time.monotonic() - started < 5
+    assert result["changed"] == 30
+    for row in result["turns"]:
+        assert joined(row["words"], "delete") == row["reply_old"]
+        assert joined(row["words"], "insert") == row["reply_new"]
 
 
 def test_the_diff_uses_the_tap_reply_not_the_shown_text(tmp_path: Path) -> None:

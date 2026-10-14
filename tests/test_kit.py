@@ -5,11 +5,12 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 import pytest
 from toy_agent import ToyAgent, shop_reply
 
-from nookku import bridge, cli, kit
+from nookku import bridge, cli, kit, state
 from nookku.adapters import make
 from nookku.audit import audit
 from nookku.config import FILE as CONFIG_FILE
@@ -315,18 +316,99 @@ def test_a_reply_with_a_lone_surrogate_is_refused_and_the_turn_is_valid(setup):
     assert (turn.said, turn.shown, turn.ok) == ("Is my mug shipped?", reason, False)
 
 
+def entry_test(
+    root: Path, monkeypatch: pytest.MonkeyPatch, ended: float | None = None
+) -> tuple[dict[str, Any], Path]:
+    """A running test of an entry, in relay mode, with no bridge process."""
+    folder = root / ".nookku" / "tests" / "t-1"
+    folder.mkdir(parents=True)
+    (folder / "manifest.json").write_text(json.dumps({"test": "t-1", "ended": ended}))
+    cur = {"test": "t-1", "dir": str(folder), "tap_url": ""}
+    monkeypatch.setattr(kit.state, "current", lambda root: cur)
+    monkeypatch.setattr(kit, "is_on", lambda root: True)
+    return cur, folder
+
+
 def test_an_entry_reply_with_a_lone_surrogate_is_refused_and_the_turn_is_valid(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    folder = tmp_path / "test"
-    folder.mkdir()
-    cur = {"test": "t-1", "dir": str(folder), "tap_url": ""}
+    _, folder = entry_test(tmp_path, monkeypatch)
     monkeypatch.setattr(kit.state, "send", lambda cur, said: ("Your mug ships \ud83d", True))
-    answer = kit._relay_test(cur, "Is my mug shipped?", "codex", "s1")
+    answer = kit._relay_test(tmp_path, "Is my mug shipped?", "codex", "s1")
     reason = f"{REFUSED_REPLY} U+D83D at character 15."
     assert answer == {"decision": "block", "reason": reason}
     [turn] = read_relay(folder / "relay.jsonl")
     assert isinstance(turn, Turn) and (turn.shown, turn.ok) == (reason, False)
+
+
+def test_the_hook_relay_sends_with_the_send_lock(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The end of a test takes this lock before it stops the tap (SPEC.md section 5).
+    import fcntl
+
+    _, folder = entry_test(tmp_path, monkeypatch)
+    held = []
+
+    def send(cur: dict[str, Any], said: str) -> tuple[str, bool]:
+        fd = os.open(tmp_path / ".nookku" / "send.lock", os.O_RDWR)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            held.append(True)
+        finally:
+            os.close(fd)
+        return "Your mug ships today.", True
+
+    monkeypatch.setattr(kit.state, "send", send)
+    answer = kit._relay_test(tmp_path, "Is my mug shipped?", "codex", None)
+    assert answer == {"decision": "block", "reason": "Your mug ships today."}
+    assert held == [True]
+    [turn] = read_relay(folder / "relay.jsonl")
+    assert isinstance(turn, Turn) and turn.ok is True
+
+
+@pytest.mark.parametrize("closed_by", ["ended", "audit.json", "seal.json", "mode off"])
+def test_the_hook_relay_sends_nothing_to_a_test_that_ended(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, closed_by: str
+) -> None:
+    _, folder = entry_test(tmp_path, monkeypatch, 1.0 if closed_by == "ended" else None)
+    if closed_by.endswith(".json"):
+        (folder / closed_by).write_text("{}")
+    if closed_by == "mode off":
+        monkeypatch.setattr(kit, "is_on", lambda root: False)
+    sent = []
+    monkeypatch.setattr(kit.state, "send", lambda cur, said: sent.append(said) or ("Hi.", True))
+    answer = kit._relay_test(tmp_path, "Is my mug shipped?", "codex", None)
+    assert answer == {"decision": "block", "reason": kit.TEST_ENDED}
+    assert sent == []
+    assert not (folder / "relay.jsonl").exists()
+
+
+def test_the_hook_relay_writes_no_row_if_the_test_ends_during_the_send(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _, folder = entry_test(tmp_path, monkeypatch)
+
+    def send(cur: dict[str, Any], said: str) -> tuple[str, bool]:
+        (folder / "manifest.json").write_text(json.dumps({"test": "t-1", "ended": 2.0}))
+        return "nookku: cannot reach the tap", False
+
+    monkeypatch.setattr(kit.state, "send", send)
+    answer = kit._relay_test(tmp_path, "Is my mug shipped?", "codex", None)
+    assert answer["decision"] == "block"
+    assert answer["reason"].startswith(kit.TEST_ENDED)
+    assert not (folder / "relay.jsonl").exists()
+
+
+def test_the_closed_rule_fails_closed(tmp_path: Path) -> None:
+    folder = tmp_path / "t-1"
+    folder.mkdir()
+    assert state.closed(folder)  # no manifest
+    (folder / "manifest.json").write_text("[1]")
+    assert state.closed(folder)  # not a JSON object
+    (folder / "manifest.json").write_text(json.dumps({"ended": None}))
+    assert not state.closed(folder)
 
 
 @pytest.mark.parametrize(

@@ -511,7 +511,7 @@ The test folder:
   sessions/codex/<rollout file>
 ```
 
-`manifest.json` holds the test id, the project root, the entry, the models, the start and end times, the versions of Nookku, Claude Code and Codex, the SHA-256 of each configuration file in `.nookku/`, `policy`: the value of each policy key (section 7.9), `trace`: the value of each config key of the trace checks (`repeated_reply`, `model_reply_field` and `model_reply_match`, section 8.6), the tester's harness session ids, and `codex_gate`: the result of the Codex hook gate at the start and at the end of the test (section 7.8). `entry_name` is the name of the entry in `entries`, or `null` for the default entry. `script` is `null`, or for a scripted test `source`, the absolute path of the script file, `file`, the name of its copy, and `sha256`, the SHA-256 of the copy (section 7.10). `check` is `true` for a test of `nookku check`, else `false`. The bridge writes it in the first manifest, before the entry starts, so it is also in the manifest of a check that stops before its turn (section 9.1). `entry_pid` and `entry_pid_start` are the pid and the start time of the entry, which the bridge writes after the entry starts. `killed` is `true` if `end` finished the folder after the bridge stopped. A manifest with no `killed` is a test that its bridge ended.
+`manifest.json` holds the test id, the project root, the entry, the models, the start and end times, the versions of Nookku, Claude Code and Codex, the SHA-256 of each configuration file in `.nookku/`, `policy`: the value of each policy key (section 7.9), `trace`: the value of each config key of the trace checks (`repeated_reply`, `model_reply_field` and `model_reply_match`, section 8.6), the tester's harness session ids, and `codex_gate`: the result of the Codex hook gate at the start and at the end of the test (section 7.8). `entry_name` is the name of the entry in `entries`, or `null` for the default entry. `script` is `null`, or for a scripted test `source`, the absolute path of the script file, `file`, the name of its copy, and `sha256`, the SHA-256 of the copy (section 7.10). `check` is `true` for a test of `nookku check`, else `false`. The bridge writes it in the first manifest, before the entry starts, so it is also in the manifest of a check that stops before its turn (section 9.1). `entry_pid` and `entry_pid_start` are the pid and the start time of the entry, which the bridge writes after the entry starts. `killed` is `true` if `end` finished the folder after the bridge stopped. A manifest with no `killed` is a test that its bridge ended. `start_failed` is `true` if the entry did not start, or exited in its start check. Then the bridge writes `ended`, the time of the failure, and `start_failed: true` into the manifest before it exits. Such a test is not a stopped test, and it gets no evaluation (section 9.1). It has no audit and no seal. A manifest with no `start_failed` is a test whose entry started.
 
 ### 7.3 Model sessions
 
@@ -753,7 +753,7 @@ The transcript shows a scripted turn as `script, turn N`, never as a typed turn.
 
 - The diff pairs turn n of the old test with turn n of the new test. A turn that only one test has is a changed turn.
 - The reply of a turn is the tap `reply` (section 2.1), not the relay `shown`, because the tap records what the agent sent. The turns pair with the tap exchanges as in step 1 of the audit (section 3.2). A turn with no paired exchange, or with a null reply, has no reply.
-- A turn changed if the reply is not the same, byte for byte. The word diff splits each reply into words and runs of white space, and compares them with `difflib.SequenceMatcher`, with no junk heuristic. Before the compare, it removes the equal words at the start and at the end. If the part that is left has more than [2000](src/nookku/replay.py#L33) words and runs of white space on one side, the diff marks all of that part as deleted and inserted, with no compare. This limit is a design value, not a measurement: it keeps the time of a diff short ([the test](tests/test_replay.py#L85)). The equal and deleted parts give the old reply, and the equal and inserted parts give the new reply.
+- A turn changed if the reply is not the same, byte for byte. The word diff splits each reply into words and runs of white space. Before the compare, it removes the equal words at the start and at the end. It compares the part that is left with the shortest edit script of Myers (1986). In a run of changes, the deleted words come before the inserted words. One diff of 2 tests has a budget of [5,000,000](src/nookku/replay.py#L28-L33) steps for all of its turns. A step is one compare of 2 words or one diagonal of the algorithm. If a turn needs more steps than are left, the diff marks all of its changed part as deleted and inserted, with no compare. Each later turn of that diff gets the same result. This budget is a design value, not a measurement: it keeps the time of a diff short ([the test](tests/test_replay.py#L112)). The equal and deleted parts give the old reply, and the equal and inserted parts give the new reply.
 - `replay` adds to the lines of `run`: the count of changed turns, each changed reply with `[-deleted words-]` and `{+inserted words+}`, the test of a changed turn that has no reply, and the 2 test ids to select on the dashboard. With `--json`, the result also has `diff`, with the data of `api/diff` (section 5, "Diff page"), or null. A changed reply does not change the exit code: it is the exit code of `run`.
 - If a record of either test is not valid, the diff has no turns and an error.
 
@@ -892,6 +892,7 @@ A test needs an evaluation if all of these are true:
 - no test runs;
 - the test is the tester test. The tester test is the latest test, after the relay skips each check test that has an `ended` time. The latest test is the one with the greatest `started` in its manifest;
 - the test has an `ended` time;
+- the manifest does not have `start_failed: true` (section 7.2);
 - its folder has no `report.md`.
 
 A check test is a test of `nookku check`. If the manifest has the key `check`, the test is a check test only if `check` is `true`. A manifest of a Nookku version that does not write the key has no key `check`. Then the test is a check test if its relay record has turns, and each turn has the harness `nookku-check`. A relay record that cannot be read does not make a check test. A manifest that cannot be read does not make a check test. Then that test gets no evaluation, and no test before it gets one.
@@ -912,11 +913,15 @@ The evaluation prompt is `src/nookku/evaluate.md`, with the test id and the test
 
 1. read the transcript with the trace: `nookku transcript --trace --test <test-id>`;
 2. read `findings.json` and `audit.json`;
-3. read the code of the app and its business rules;
-4. check the state of the app with read-only commands only;
-5. write `report.md`, and no other file.
+3. read `notes.jsonl`, the notes of the tester (section 2.3), if the test folder has it;
+4. read the files of `app-state/`, if the test folder has it;
+5. read the code of the app and its business rules;
+6. check the state of the app with read-only commands only;
+7. write `report.md`, and no other file.
 
-If the first line of the transcript is `Record: INVALID.` (below), the prompt tells the model not to judge the app. The model writes `report.md` with no issue, quotes the first 2 lines of the transcript in the notes, and tells the tester to run the test again.
+A note of the tester is an opinion, not a finding and not evidence. The prompt tells the model to check each note against the records, the code and the state of the app, and not to report an issue only because of a note.
+
+If the first line of the transcript is `Record: INVALID.` (below), the prompt tells the model not to judge the app. The model does not read `notes.jsonl` or do the other steps. It writes `report.md` with no issue, quotes the first 2 lines of the transcript in the notes, and tells the tester to run the test again.
 
 For a scripted test (section 7.10), the prompt starts with a note. The note says that each message came from the script file, names the copy and its SHA-256, and names the entry. With a replay entry, the replies come from a recording, so the note tells the model to judge the app and the transport, not the model.
 
@@ -941,7 +946,7 @@ The reference is `(compact: the same text as [trace.jsonl:N], sha256 <hex>, <len
 
 ### 9.3 Report
 
-`report.md` has one table with the columns Class, Turn, Evidence and Issue, and one row for each issue. The classes:
+`report.md` has 2 tables. The issue table has the columns Class, Turn, Evidence and Issue, and one row for each issue. The classes:
 
 | Class | The app ... |
 |---|---|
@@ -952,4 +957,8 @@ The reference is `(compact: the same text as [trace.jsonl:N], sha256 <hex>, <len
 | `missing_action` | did not do an action that the request or a rule needs. |
 | `state_mismatch` | gave a reply or a trace that does not agree with its state. |
 
-Turn is the number of the turn, or `-`. Evidence is a `trace.jsonl:N` line, a turn, or a source line. The report is a model answer: the proofs check it, but no code reads it.
+Turn is the number of the turn, or `-`. Evidence is a `trace.jsonl:N` line, a turn, or a source line.
+
+The Tester notes table has the columns Note, Turn, Rating, Comment and What the records show, and one row for each line of `notes.jsonl`. Note is `notes.jsonl:N`, where N is the line. Comment is the comment, or its first 200 characters, or `-` for `null`. The last column says if the records agree with the note, do not agree, or cannot show it, with the evidence. If the test has no `notes.jsonl`, the report has the text "The tester wrote no note." in place of this table.
+
+The report is a model answer: the proofs check it, but no code reads it.

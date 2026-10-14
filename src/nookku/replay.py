@@ -10,7 +10,6 @@ reads only the files of the 2 test folders, and it changes no file.
 
 from __future__ import annotations
 
-import difflib
 import re
 from pathlib import Path
 from typing import Any
@@ -26,11 +25,12 @@ ROUTE = "api/diff"
 WORD = re.compile(r"\s+|\S+")
 # In the terminal, a run of equal words longer than this shows only its first and last words.
 CONTEXT = 6
-# The most words and runs of white space on one side of the part between the equal start and the
-# equal end of 2 replies that the matcher compares. The time of the matcher grows fast with the
-# count, so a larger part gets one delete and one insert. Thus a long reply cannot stop the replay
-# or the page server.
-MAX_TOKENS = 2000
+# The most steps of the matcher for one diff of 2 tests, for all of its turns together. A step
+# is one compare of 2 words, or one diagonal of the matcher. A turn that needs more steps than are
+# left gets one delete and one insert for its changed part, and so does each later turn. Thus a
+# diff of a long or a hostile reply takes a short time in the replay and in the page server.
+# This value is a design value, not a measurement (the test of a worst-case diff measures it).
+WORK = 5_000_000
 
 
 class ReplayError(ValueError):
@@ -48,9 +48,71 @@ def replies(folder: Path) -> list[tuple[str, str | None]]:
     return [(t.said, tap[pairs[i]].reply if i in pairs else None) for i, t in enumerate(found)]
 
 
-def words(old: str, new: str) -> list[list[str]]:
+class Budget:
+    """The steps of the matcher that are left for one diff (WORK)."""
+
+    def __init__(self, steps: int = WORK) -> None:
+        self.left = steps
+
+
+def _edits(a: list[str], b: list[str], budget: Budget) -> list[tuple[str, int]] | None:
+    """The shortest edit script from a to b, with the greedy algorithm of Myers (1986): a list
+    of (op, index), with op "equal" or "delete" (an index in a) or "insert" (an index in b).
+    None if the script needs more steps than the budget has. Then the budget has no steps left.
+
+    The steps grow with (len(a) + len(b)) times the count of edits, and the budget stops them.
+    Thus the time has a limit, also for a reply with many equal words."""
+    n, m = len(a), len(b)
+    v: dict[int, int] = {1: 0}
+    trace: list[dict[int, int]] = []
+    for d in range(n + m + 1):
+        trace.append(dict(v))
+        budget.left -= len(v)
+        for k in range(-d, d + 1, 2):
+            # Down (an insert) from diagonal k + 1, or right (a delete) from diagonal k - 1.
+            down = k == -d or (k != d and v[k - 1] < v[k + 1])
+            x = v[k + 1] if down else v[k - 1] + 1
+            y = x - k
+            start = x
+            while x < n and y < m and a[x] == b[y]:
+                x += 1
+                y += 1
+            v[k] = x
+            budget.left -= 1 + x - start
+            if x >= n and y >= m:
+                return _back(trace, n, m)
+        if budget.left < 0:
+            budget.left = 0
+            return None
+    raise AssertionError("unreachable: d = n + m always ends the script")
+
+
+def _back(trace: list[dict[int, int]], x: int, y: int) -> list[tuple[str, int]]:
+    """The edit script from the trace of _edits, from the start of a and b."""
+    out: list[tuple[str, int]] = []
+    for d in range(len(trace) - 1, -1, -1):
+        v, k = trace[d], x - y
+        prev_k = k + 1 if k == -d or (k != d and v[k - 1] < v[k + 1]) else k - 1
+        prev_x = v[prev_k]
+        prev_y = prev_x - prev_k
+        while x > prev_x and y > prev_y:
+            x, y = x - 1, y - 1
+            out.append(("equal", x))
+        if d > 0:
+            if x == prev_x:
+                out.append(("insert", prev_y))
+            else:
+                out.append(("delete", prev_x))
+        x, y = prev_x, prev_y
+    out.reverse()
+    return out
+
+
+def words(old: str, new: str, budget: Budget | None = None) -> list[list[str]]:
     """The word diff of 2 texts: a list of [op, text], with op "equal", "delete" or "insert". The
-    equal and delete parts give the old text, and the equal and insert parts give the new text."""
+    equal and delete parts give the old text, and the equal and insert parts give the new text.
+    In a run of changes, the deleted words come before the inserted words. If the budget has too
+    few steps, the changed part is one delete and one insert."""
     a, b = WORD.findall(old), WORD.findall(new)
     parts: list[list[str]] = []
 
@@ -71,17 +133,24 @@ def words(old: str, new: str) -> list[list[str]]:
         end += 1
     mid_a, mid_b = a[start : len(a) - end], b[start : len(b) - end]
     add("equal", a[:start])
-    if max(len(mid_a), len(mid_b)) > MAX_TOKENS:
+    script = _edits(mid_a, mid_b, budget or Budget()) if mid_a and mid_b else None
+    if script is None:
         add("delete", mid_a)
         add("insert", mid_b)
     else:
-        matcher = difflib.SequenceMatcher(None, mid_a, mid_b, autojunk=False)
-        for op, i, j, k, m in matcher.get_opcodes():
-            if op == "equal":
-                add("equal", mid_a[i:j])
+        deleted: list[str] = []
+        inserted: list[str] = []
+        for op, i in [*script, ("equal", -1)]:
+            if op == "delete":
+                deleted.append(mid_a[i])
+            elif op == "insert":
+                inserted.append(mid_b[i])
             else:
-                add("delete", mid_a[i:j])
-                add("insert", mid_b[k:m])
+                add("delete", deleted)
+                add("insert", inserted)
+                deleted, inserted = [], []
+                if i >= 0:
+                    add("equal", [mid_a[i]])
     add("equal", a[len(a) - end :])
     return parts
 
@@ -102,6 +171,8 @@ def diff(root: Path, old: Path, new: Path) -> dict[str, Any]:
         result["error"] = f"nookku: {e}"
         return result
     rows = []
+    # One budget for all turns, so that a diff of many long turns also ends fast.
+    budget = Budget()
     for n in range(max(len(sides[0]), len(sides[1]))):
         said_a, reply_a = sides[0][n] if n < len(sides[0]) else (None, None)
         said_b, reply_b = sides[1][n] if n < len(sides[1]) else (None, None)
@@ -115,7 +186,7 @@ def diff(root: Path, old: Path, new: Path) -> dict[str, Any]:
                 # A turn that only one test has is a changed turn.
                 "changed": said_a is None or said_b is None or reply_a != reply_b,
                 "said_changed": said_a != said_b,
-                "words": words(reply_a or "", reply_b or ""),
+                "words": words(reply_a or "", reply_b or "", budget),
             }
         )
     result["turns"] = rows

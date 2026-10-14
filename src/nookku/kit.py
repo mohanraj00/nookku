@@ -333,21 +333,45 @@ def prompt_refusal(said: Any, root: Path) -> str | None:
     return None
 
 
-def _relay_test(
-    cur: dict[str, Any], said: str, harness: str, session: str | None
-) -> dict[str, Any]:
-    shown, ok = checked(*state.send(cur, said))
-    row: dict[str, Any] = {
-        "type": "turn",
-        "harness": harness,
-        "said": said,
-        "shown": shown,
-        "ok": ok,
-    }
-    if session:
-        row["session"] = session
-    Writer(Path(cur["dir"]) / "relay.jsonl").append(row)
-    return _block(shown)
+# The text of a prompt in relay mode when no test runs.
+NO_TEST = (
+    "nookku: relay mode is on, but no test runs. Start one with: nookku start. Nothing was sent."
+)
+# The text of a prompt that the hook relay does not send, because the test ended during the hook.
+TEST_ENDED = "nookku: nothing was sent. The test ended. Start a new one with: nookku start"
+
+
+def _relay_test(root: Path, said: str, harness: str, session: str | None) -> dict[str, Any]:
+    """Relay one message to the running test, and write its turn (SPEC.md section 5).
+
+    Fail closed. The end of a test holds the send lock from the tap shutdown to the seal. Thus
+    the relay takes the lock, then reads the running test again. If the test ended, or ends
+    during the send, the relay blocks the prompt and writes no row in the closed record."""
+    sends = state.lock_sends(root)
+    try:
+        cur = state.current(root)
+        if cur is None:
+            return _block(NO_TEST)
+        folder = Path(cur["dir"])
+        # `nookku end` switches relay mode off before it stops the test.
+        if not is_on(root) or state.closed(folder):
+            return _block(TEST_ENDED)
+        shown, ok = checked(*state.send(cur, said))
+        if state.closed(folder):
+            return _block(f"{TEST_ENDED}\n{shown}")
+        row: dict[str, Any] = {
+            "type": "turn",
+            "harness": harness,
+            "said": said,
+            "shown": shown,
+            "ok": ok,
+        }
+        if session:
+            row["session"] = session
+        Writer(folder / "relay.jsonl").append(row)
+        return _block(shown)
+    finally:
+        os.close(sends)
 
 
 def handle(event: dict[str, Any], root: Path, harness: str) -> dict[str, Any] | None:
@@ -384,13 +408,9 @@ def handle(event: dict[str, Any], root: Path, harness: str) -> dict[str, Any] | 
         if refused is not None or not isinstance(said, str):
             return _block(refused or NO_PROMPT)
         if config.entry:
-            cur = state.current(root)
-            if cur is None:
-                return _block(
-                    "nookku: relay mode is on, but no test runs. Start one with: "
-                    "nookku start. Nothing was sent."
-                )
-            return _relay_test(cur, said, harness, session)
+            if state.current(root) is None:
+                return _block(NO_TEST)
+            return _relay_test(root, said, harness, session)
         record = config.record_path(root)
         shown, ok = checked(*relay(config, said, history(record, session)))
         row: dict[str, Any] = {
