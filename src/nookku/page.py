@@ -323,11 +323,12 @@ class PageRunning(Exception):
     """Another page server of the project runs."""
 
 
-def claim_page_file(root: Path, port: int) -> tuple[Path, int]:
+def claim_page_file(root: Path, port: int, test: str | None = None) -> tuple[Path, int]:
     """Write the page file: the port and the pid of this server, with no token (SPEC.md section
-    5). Return its path and the descriptor of the page lock. The server holds the lock for its
-    whole life, so a second server cannot take it. Raise PageRunning if another server holds it.
-    A page file with no holder of the lock is stale, and this server takes it over."""
+    5). A server that `start` started also writes its test (#328). Return its path and the
+    descriptor of the page lock. The server holds the lock for its whole life, so a second server
+    cannot take it. Raise PageRunning if another server holds it. A page file with no holder of
+    the lock is stale, and this server takes it over."""
     import fcntl
 
     folder = state.state(root)
@@ -345,7 +346,10 @@ def claim_page_file(root: Path, port: int) -> tuple[Path, int]:
         new = folder / f".{state.PAGE_FILE}.{os.getpid()}"
         fd = os.open(new, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
         with os.fdopen(fd, "w") as f:
-            f.write(json.dumps({"port": port, "pid": os.getpid()}) + "\n")
+            data: dict[str, Any] = {"port": port, "pid": os.getpid()}
+            if test is not None:
+                data["test"] = test
+            f.write(json.dumps(data) + "\n")
         os.replace(new, path)
     except BaseException:
         os.close(lock)

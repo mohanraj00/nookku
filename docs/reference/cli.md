@@ -21,6 +21,13 @@ An unknown command or flag prints the usage and exits with 2. The error of an un
 
 Start a test: run the [entry](glossary.md#entry) through the [tap](glossary.md#tap) and switch [relay mode](glossary.md#relay-mode) on ([SPEC.md section 7.2](../../SPEC.md#72-start-and-end)). It needs an `entry` in `.nookku/config.json`. The start text gives the same ways to end the test as the [plugin](glossary.md#plugin) and the [project hooks](glossary.md#project-hooks): the prompt `nookku end`, which also starts the [evaluation](glossary.md#evaluation), and `nookku end` in a shell. If `evaluate` is `false`, the text does not name the evaluation ([SPEC.md section 9.1](../../SPEC.md#91-start)).
 
+`start` also starts the [chat page](#nookku-page) of the test and opens it in your browser. The prompt `nookku start` and `/nookku start` in the plugin do the same. `end` stops the page after the page shows the end of the test ([SPEC.md section 5](../../SPEC.md#5-relays)).
+
+- If the browser cannot open, for example over SSH, `start` in a terminal prints the page URL. The prompt `nookku start` and `/nookku start` never show the URL, because the [harness model](glossary.md#harness-model) can see their output. Then run `nookku page` in a separate terminal.
+- If the page does not start, `start` prints the reason. The test continues.
+- To turn this off, for example for a test in CI, set the config key [`page`](config.md#test-keys) to `false`.
+- With `--json`, the text about the page goes to stderr.
+
 | Flag | Default | Meaning |
 |---|---|---|
 | `--root PATH` | the current folder | The project. |
@@ -36,7 +43,7 @@ Start a test: run the [entry](glossary.md#entry) through the [tap](glossary.md#t
 
 End the test: switch relay mode off, stop the entry and collect its sessions, the [trace](glossary.md#trace), the [audit](glossary.md#audit) and the [seal](glossary.md#seal) ([SPEC.md section 7.2](../../SPEC.md#72-start-and-end)). If no test runs, it switches relay mode off.
 
-`end` in a shell gives no evaluation. If the test needs an evaluation, it prints the prompt to type in the harness: `To evaluate the test, type this prompt in your harness: nookku end` ([SPEC.md section 9.1](../../SPEC.md#91-start)). If `config.json` is broken, no evaluation starts, and `end` prints the error.
+`end` also waits for the chat page that `start` started, and stops it. A page that you started with `nookku page` continues to run. `end` in a shell gives no evaluation. If the test needs an evaluation, it prints the prompt to type in the harness: `To evaluate the test, type this prompt in your harness: nookku end` ([SPEC.md section 9.1](../../SPEC.md#91-start)). If `config.json` is broken, no evaluation starts, and `end` prints the error.
 
 | Flag | Default | Meaning |
 |---|---|---|
@@ -144,6 +151,7 @@ Serve the chat page: a local web page where you talk to the agent of the running
 - The server listens only on `127.0.0.1`. The URL has a random token. The server refuses a request with a wrong `Host` or `Origin` header.
 - Run `nookku page` in a separate terminal. Do not run it with `!` in the harness, because the harness shows the output to the model. In a harness shell, `nookku page` refuses to start.
 - Only you get the URL, in the terminal of `nookku page`. Do not give the URL to the harness model, because with it the model can send messages as you. The server writes only its port and its pid to `.nookku/page.json`, and the guard denies a model tool call to that port. The guard also denies a model command that runs `nookku page`.
+- `nookku start` starts the page with the test, so you do not have to run `nookku page` ([`nookku start`](#nookku-start)). If a page server of the project runs already, `start` starts no second page.
 - One page server runs for each project. Stop the page with Ctrl-C. The page also stops when the terminal closes.
 - The relay in the harness chat still works, for example over SSH, in CI and in `codex exec`.
 

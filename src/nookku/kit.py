@@ -237,10 +237,15 @@ def start_test(root: Path, tester_session: str | None = None) -> str:
     set_mode(root, True)
     # The plugin and the project hooks show this text.
     # `nookku start` in a shell gives the same ways.
-    return (
+    text = (
         f"nookku: test {cur['test']} started. Relay mode is on: each message goes to the entry. "
         + end_ways(root)
     )
+    from nookku import page_auto
+
+    # The chat page starts with the test (#328). The text never holds the page URL here.
+    shown = page_auto.after_start(root, cur["test"])
+    return f"{text}\n{shown}" if shown else text
 
 
 def end_test(root: Path, tester_session: str | None = None) -> str:
@@ -249,9 +254,13 @@ def end_test(root: Path, tester_session: str | None = None) -> str:
 
     set_mode(root, False)
     manifest = bridge.end(root, tester_session=tester_session)
+    from nookku import page_auto
+
+    error = page_auto.after_end(root)
     if manifest is None:
         return "nookku: no test runs. Relay mode is off."
-    return "nookku: relay mode is off.\n" + bridge.summary(manifest)
+    text = "nookku: relay mode is off.\n" + bridge.summary(manifest)
+    return f"{text}\n{error}" if error else text
 
 
 def status(root: Path) -> str:
