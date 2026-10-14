@@ -71,28 +71,31 @@ def _edits(a: list[str], b: list[str], budget: Budget) -> list[tuple[str, int]] 
     The steps grow with (len(a) + len(b)) times the count of edits, and the budget stops them.
     Thus the time has a limit, also for a reply with many equal words."""
     n, m = len(a), len(b)
-    v: dict[int, int] = {1: 0}
+    # v[k + off] is the furthest x on diagonal k. A list slice copies the values in C.
+    off = n + m + 1
+    v = [0] * (2 * off + 1)
     # For each d, the values of v that _back reads: the diagonals from lo to d - 1, in steps of 2.
     trace: list[tuple[int, array[int]]] = []
     kept = 0
     for d in range(n + m + 1):
         lo = 1 if d == 0 else 1 - d
-        row = array("q", (v[k] for k in range(lo, max(lo, d - 1) + 1, 2)))
+        row = array("q", v[lo + off : max(lo, d - 1) + off + 1 : 2])
         kept += len(row)
         if kept > KEEP:
             return None
         trace.append((lo, row))
-        budget.left -= len(v)
-        for k in range(-d, d + 1, 2):
-            # Down (an insert) from diagonal k + 1, or right (a delete) from diagonal k - 1.
-            down = k == -d or (k != d and v[k - 1] < v[k + 1])
-            x = v[k + 1] if down else v[k - 1] + 1
-            y = x - k
+        budget.left -= 2 * d + 1
+        for i in range(off - d, off + d + 1, 2):
+            # i is diagonal k = i - off. Down (an insert) from diagonal k + 1, or right (a
+            # delete) from diagonal k - 1.
+            down = i == off - d or (i != off + d and v[i - 1] < v[i + 1])
+            x = v[i + 1] if down else v[i - 1] + 1
+            y = x - i + off
             start = x
             while x < n and y < m and a[x] == b[y]:
                 x += 1
                 y += 1
-            v[k] = x
+            v[i] = x
             budget.left -= 1 + x - start
             if x >= n and y >= m:
                 return _back(trace, n, m)
