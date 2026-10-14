@@ -36,7 +36,7 @@ from types import MappingProxyType
 from typing import Any, BinaryIO, TextIO
 from urllib.parse import unquote, urlsplit
 
-from nookku import dashboard, kit, notes, replay, script_save, seal, state
+from nookku import dashboard, kit, notes, page_trace, replay, script_save, seal, state
 from nookku.record import RecordError, Writer, turns
 
 # The harness of a turn that the page sent (SPEC.md section 2.2).
@@ -56,6 +56,8 @@ FILES = {
     "dashboard.html": ("dashboard.html", "text/html; charset=utf-8"),
     "dashboard.js": ("dashboard.js", "text/javascript; charset=utf-8"),
     "dashboard.css": ("dashboard.css", "text/css; charset=utf-8"),
+    "trace.js": ("trace.js", "text/javascript; charset=utf-8"),
+    "trace.css": ("trace.css", "text/css; charset=utf-8"),
     "compare.js": ("compare.js", "text/javascript; charset=utf-8"),
     "diff.html": ("diff.html", "text/html; charset=utf-8"),
     "diff.js": ("diff.js", "text/javascript; charset=utf-8"),
@@ -556,6 +558,8 @@ class _Handler(BaseHTTPRequestHandler):
         elif rest.startswith("api/turns/"):
             data = view(self.server.root, unquote(rest[len("api/turns/") :]))
             self._json(200 if data["test"] else 404, data)
+        elif rest == page_trace.ROUTE or rest.startswith(page_trace.ROUTE + "/"):
+            self._json(*page_trace.answer(self.server.root, rest))
         elif rest == "api/tests" or rest.startswith("api/tests/"):
             self._json(*dashboard.answer(self.server.root, rest))
         elif rest == "api/export" or rest.startswith("api/export/"):

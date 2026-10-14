@@ -90,7 +90,8 @@ function render(data) {
     } else {
       list.append(NookkuRender.reply(document, "agent", "agent", turn.shown));
     }
-    // notes.js puts the note controls of the turn on this block (#352).
+    // notes.js puts the note controls of the turn on this block (#352), and trace.js puts the
+    // trace steps of the turn after it (#353).
     list.lastElementChild.dataset.turn = String(number);
     list.lastElementChild.dataset.test = test.id;
   }

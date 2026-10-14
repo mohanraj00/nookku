@@ -112,11 +112,14 @@ def _anchors(turns: list[Turn], exchanges: list[Exchange]) -> list[tuple[int, in
     return pairs
 
 
-def compare(turns: list[Turn], exchanges: list[Exchange]) -> tuple[list[Finding], list[Finding]]:
-    """Return (breaks, notes) for two valid records."""
+def pairs(
+    turns: list[Turn], exchanges: list[Exchange]
+) -> tuple[list[tuple[int, int]], list[Finding]]:
+    """Return the (turn, exchange) index pairs of SPEC 3.2 steps 1, 2 and 4, and the breaks of
+    steps 2 to 5. The chat page uses the pairs to put the trace of an exchange under its turn."""
     breaks: list[Finding] = []
     anchors = _anchors(turns, exchanges)
-    pairs = list(anchors)
+    found = list(anchors)
     free_t = [i for i in range(len(turns)) if i not in {a for a, _ in anchors}]
     free_e = [j for j in range(len(exchanges)) if j not in {b for _, b in anchors}]
 
@@ -126,7 +129,7 @@ def compare(turns: list[Turn], exchanges: list[Exchange]) -> tuple[list[Finding]
         if j is not None:
             free_t.remove(i)
             free_e.remove(j)
-            pairs.append((i, j))
+            found.append((i, j))
             breaks.append(Finding("out_of_order", turns[i].line, exchanges[j].line))
 
     # Step 3: an extra copy of a message that the tester typed.
@@ -143,7 +146,7 @@ def compare(turns: list[Turn], exchanges: list[Exchange]) -> tuple[list[Finding]
         for i, j in zip(gap_t, gap_e, strict=False):
             free_t.remove(i)
             free_e.remove(j)
-            pairs.append((i, j))
+            found.append((i, j))
             breaks.append(
                 Finding(
                     "altered_input",
@@ -156,10 +159,16 @@ def compare(turns: list[Turn], exchanges: list[Exchange]) -> tuple[list[Finding]
     # Step 5: what is still left.
     breaks += [Finding("injected_input", None, exchanges[j].line) for j in free_e]
     breaks += [Finding("not_delivered", turns[i].line, None) for i in free_t]
+    return found, breaks
+
+
+def compare(turns: list[Turn], exchanges: list[Exchange]) -> tuple[list[Finding], list[Finding]]:
+    """Return (breaks, notes) for two valid records."""
+    matched, breaks = pairs(turns, exchanges)
 
     # Step 6: the reply of each pair.
     notes: list[Finding] = []
-    for i, j in pairs:
+    for i, j in matched:
         t, e = turns[i], exchanges[j]
         # A null reply: a status that is not 2xx, no response, or a failed stream.
         if e.reply is None:
