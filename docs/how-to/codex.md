@@ -60,7 +60,7 @@ The plugin loads in Codex 0.162.1: Codex lists its 2 hooks, its MCP tools and it
 3. Type your test messages. Codex shows each reply as the reason of the blocked prompt. `codex exec` does not show it, so the viewer also shows each reply. The model does not run in a relay turn: the proofs record 0 output tokens for each one ([data](../../proofs/hooks-codex/results.json)).
 4. Type the prompt `nookku end`. The relay stops your app, copies its session files into the test folder, builds the [trace](../reference/glossary.md#trace) and switches relay mode off. Then the prompt goes to Codex with the [evaluation](../reference/glossary.md#evaluation) prompt, and Codex writes `report.md` in the test folder. The [Claude Code project hooks guide](claude-code-project-hooks.md#evaluation) explains the evaluation. Codex needs a sandbox that can write in the project to write the report, for example `workspace-write`.
 
-`nookku transcript` prints the exact turns of the latest test. With the plugin, the model reads the same text with the `mcp__nookku__transcript` tool, in pages. The model did not see the conversation while you talked, so it judges the record, not its memory.
+`nookku transcript` prints the exact turns of the latest test. A check test that ended does not count: after `nookku check`, the scope is the test before it ([SPEC.md section 9.1](../../SPEC.md#91-start)). With the plugin, the model reads the same text with the `mcp__nookku__transcript` tool, in pages. The model did not see the conversation while you talked, so it judges the record, not its memory.
 
 Each test is a new conversation, with a new app process. The test folder is `.nookku/tests/<test-id>/`. [reference/records.md](../reference/records.md#the-test-folder) lists its files.
 
