@@ -39,8 +39,6 @@ from urllib.parse import urlsplit
 
 from nookku import page, state
 
-# The config key that turns the start of the page with the test on or off (SPEC.md section 7.1).
-CONFIG_KEY = "page"
 # The wait of `nookku start` for the page server to say if the browser opened.
 START_WAIT = 15.0
 # The wait of the page server for the browser command. A browser command that runs longer got the
@@ -87,14 +85,13 @@ NOT_STOPPED = "nookku: the chat page (pid {pid}) did not stop. Stop it with: kil
 def enabled(root: Path) -> bool:
     """True if `start` starts the chat page. The config key `page` is true by default. The plugin
     has no config file, so the default applies."""
-    from nookku.config import read_config
+    from nookku.config import Config, ConfigError
 
     try:
-        data = read_config(root) if (state.state(root) / "config.json").exists() else {}
-    except Exception:
+        return Config.load_or_default(root).page
+    except ConfigError:
         # The start reads the config before this, so a broken config stops the start first.
         return True
-    return bool(data.get(CONFIG_KEY, True))
 
 
 def harness_shell() -> str | None:

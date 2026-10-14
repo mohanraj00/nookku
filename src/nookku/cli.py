@@ -15,6 +15,7 @@ from typing import Any, TextIO
 from nookku import __version__, bridge, evaluation, kit, print_mode, seal, state, stdio, trace
 from nookku.adapters import make
 from nookku.audit import audit, render
+from nookku.config import FILE as CONFIG_FILE
 from nookku.config import KEYS as CONFIG_KEYS
 from nookku.config import OLD_STATE_DIR, ConfigError, move_old_state, read_config
 from nookku.record import RecordError
@@ -108,7 +109,7 @@ def _mode_on_refusal(root: Path) -> str | None:
 
     A refusal does not change the mode file.
     """
-    if not (root / kit.STATE_DIR / "config.json").exists():
+    if not (root / CONFIG_FILE).exists():
         if kit.is_on(root):
             # Do not switch relay mode off here. If it is off, the next prompt goes to the model.
             return (
@@ -546,12 +547,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
     if args.command == "view":
         root = args.root.resolve()
-        # The plugin has no config file. Without one, use the default record path.
-        has_config = (root / kit.STATE_DIR / "config.json").exists()
         try:
-            config = kit.Config.load(root) if has_config else kit.Config()
-        except (OSError, ValueError, TypeError) as e:
-            print(f"nookku: cannot read the config: {e}", file=sys.stderr)
+            config = kit.Config.load_or_default(root)
+        except ConfigError as e:
+            print(f"nookku: {e}", file=sys.stderr)
             return 2
         follow = not args.no_follow
         try:

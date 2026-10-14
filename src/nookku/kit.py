@@ -18,7 +18,7 @@ from urllib.parse import urlsplit
 from nookku import commands, policy, print_mode, seal, state
 from nookku.adapters import AdapterError, History, StreamError, is_stream, make
 from nookku.config import FILE as CONFIG_FILE
-from nookku.config import OLD_STATE_DIR, check, move_old_state, read_config
+from nookku.config import OLD_STATE_DIR, ConfigError, check, move_old_state, read_config
 from nookku.config import Config as Config
 from nookku.record import (
     RecordError,
@@ -1149,12 +1149,10 @@ def transcript_text(
     import io
 
     def config() -> Config:
-        # The plugin has no config file. Without one, use the defaults.
-        has_config = (root / STATE_DIR / "config.json").exists()
         try:
-            return Config.load(root) if has_config else Config()
-        except (OSError, ValueError, TypeError) as e:
-            raise TranscriptError(f"cannot read the config: {e}") from None
+            return Config.load_or_default(root)
+        except ConfigError as e:
+            raise TranscriptError(str(e)) from None
 
     if trace:
         folder = existing_test(root, test) if test else _latest(root)
@@ -1233,12 +1231,9 @@ def view_until_entry(
 def _next_record(root: Path, record: Path, errors: _ConfigErrorOnce) -> Path | None:
     """The record that the view follows next: None if the config has an entry, else the record
     of the config. If the config cannot be read, show the error and keep the record."""
-    if not (root / STATE_DIR / "config.json").exists():
-        errors.clear()
-        return Config().record_path(root)
     try:
-        config = Config.load(root)
-    except (OSError, ValueError, TypeError) as e:
+        config = Config.load_or_default(root)
+    except ConfigError as e:
         errors.show(str(e))
         return record
     errors.clear()
@@ -1256,10 +1251,7 @@ class _ConfigErrorOnce:
         if reason == self.last:
             return
         self.last = reason
-        self.err.write(
-            f"nookku: cannot read the config: {reason}. "
-            "The view reads the config again when it changes.\n"
-        )
+        self.err.write(f"nookku: {reason}. The view reads the config again when it changes.\n")
         self.err.flush()
 
     def clear(self) -> None:
