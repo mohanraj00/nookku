@@ -286,7 +286,7 @@ def test_check_gives_the_fix_for_logs_on_stdout(
     root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
     folder = tmp_path / "test"
     folder.mkdir()
-    monkeypatch.setattr(bridge, "start", lambda root: {"test": "t-1", "dir": str(folder)})
+    monkeypatch.setattr(bridge, "start", lambda root, **_: {"test": "t-1", "dir": str(folder)})
     monkeypatch.setattr(bridge, "send", lambda cur, said: (f"nookku: HTTP 504: {error}", False))
     monkeypatch.setattr(bridge, "end", lambda root: {})
     # The tap wrote an unparsed row for each stray line, so the audit exits with 2.
@@ -308,7 +308,7 @@ def test_check_gives_one_line_for_the_stray_lines(
     root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
     folder = tmp_path / "test"
     folder.mkdir()
-    monkeypatch.setattr(bridge, "start", lambda root: {"test": "t-1", "dir": str(folder)})
+    monkeypatch.setattr(bridge, "start", lambda root, **_: {"test": "t-1", "dir": str(folder)})
     monkeypatch.setattr(bridge, "send", lambda cur, said: ("Toy shop: hi", True))
     monkeypatch.setattr(bridge, "end", lambda root: {})
     stray = [
@@ -415,6 +415,30 @@ def test_a_clean_entry_passes_the_check(tmp_path: Path, homes: tuple) -> None:
     passed, lines = bridge.check(root)
     assert passed, lines
     assert lines[-2:] == ["Audit: exit 0", "PASS"]
+
+
+def test_a_check_that_stops_before_the_reply_gets_no_evaluation(
+    tmp_path: Path, homes: tuple, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Ctrl-C during the send: the check ends its test with no turn (#297).
+    root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
+
+    def stop(cur: dict, said: str) -> tuple[str, bool]:
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(bridge, "send", stop)
+    with pytest.raises(KeyboardInterrupt):
+        bridge.check(root)
+    folder = bridge.latest_test(root)
+    assert folder is not None
+    manifest = json.loads((folder / "manifest.json").read_text())
+    assert manifest["check"] is True and manifest["ended"] is not None
+    assert bridge.history(folder / "relay.jsonl") == []
+    assert evaluation.pending(root) is None
+    # A test of the tester is not a check test.
+    bridge.start(root)
+    assert bridge.end(root)["check"] is False
+    assert evaluation.pending(root) == bridge.latest_test(root)
 
 
 def test_check_fails_closed_without_a_valid_audit(tmp_path: Path) -> None:

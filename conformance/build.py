@@ -5,7 +5,7 @@ and 6): the requests that the relay posts, what a scripted agent does with each 
 and HTTP statuses that the tap must give. `trace/` holds the trace cases (section 8). `seal/` holds
 the seal cases (section 7.4). `otlp/` holds the receiver cases (section 7.5). `policy/` holds the
 deny cases of the policy file (sections 5 and 7.9). `guard/` holds the deny cases of the state
-folder (section 5).
+folder (section 5). `evaluation/` holds the cases of the rule for a check test (section 9.1).
 
 Never fill an expectation by running the audit. CI runs this script and fails if the files change.
 
@@ -32,6 +32,7 @@ OTLP = Path(__file__).parent / "otlp"
 POLICY = Path(__file__).parent / "policy"
 GUARD = Path(__file__).parent / "guard"
 CONTROL = Path(__file__).parent / "control"
+EVALUATION = Path(__file__).parent / "evaluation"
 
 
 def sha(text: str | None) -> str | None:
@@ -4047,6 +4048,35 @@ CONTROL_CASES: dict[str, dict] = {
 }
 
 
+# The rule for a check test (SPEC.md sections 7.2 and 9.1). Each case is a test that ended, with no
+# report. `manifest` holds the keys that the case adds to the manifest, and `relay` the rows of
+# relay.jsonl. `evaluated` tells if the test needs an evaluation.
+CHECK_TURN = {**turn("Hello", "Toy shop: Hello"), "harness": "nookku-check"}
+TESTER_TURN = {**turn("Do you sell teapots?", "Toy shop: yes"), "harness": "codex"}
+EVALUATION_CASES: dict[str, dict] = {
+    # The check stopped before its turn, for example with Ctrl-C (#297).
+    "check_stopped_before_its_turn": {"manifest": {"check": True}, "relay": [], "evaluated": False},
+    "check_with_its_turn": {"manifest": {"check": True}, "relay": [CHECK_TURN], "evaluated": False},
+    "test_of_the_tester": {"manifest": {"check": False}, "relay": [TESTER_TURN], "evaluated": True},
+    # The key decides, and not the turns.
+    "check_false_with_check_turns": {
+        "manifest": {"check": False},
+        "relay": [CHECK_TURN],
+        "evaluated": True,
+    },
+    "check_not_a_boolean": {"manifest": {"check": "true"}, "relay": [], "evaluated": True},
+    # A manifest of Nookku 0.4.1 has no key check: the turns decide.
+    "no_key_check_turns_only": {"manifest": {}, "relay": [CHECK_TURN], "evaluated": False},
+    "no_key_tester_turn": {
+        "manifest": {},
+        "relay": [CHECK_TURN, TESTER_TURN],
+        "evaluated": True,
+    },
+    "no_key_no_turns": {"manifest": {}, "relay": [], "evaluated": True},
+    "no_key_broken_relay_record": {"manifest": {}, "relay": ["{broken"], "evaluated": True},
+}
+
+
 def write_policy_case(path: Path, case: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     data = {"state": True, "links": {}, "test": False, **case}
@@ -4595,11 +4625,17 @@ def main() -> None:
     for name, case in CONTROL_CASES.items():
         text = json.dumps(case, indent=1, sort_keys=True) + "\n"
         (CONTROL / f"{name}.json").write_text(text, encoding="utf-8")
+    shutil.rmtree(EVALUATION, ignore_errors=True)
+    EVALUATION.mkdir()
+    for name, case in EVALUATION_CASES.items():
+        text = json.dumps(case, indent=1, sort_keys=True) + "\n"
+        (EVALUATION / f"{name}.json").write_text(text, encoding="utf-8")
     print(
         f"{len(CASES_BY_NAME)} audit cases, {len(CONTRACT_CASES)} contract cases, "
         f"{len(TRACE_CASES)} trace cases, {len(SEAL_CASES)} seal cases, "
         f"{len(OTLP_CASES)} receiver cases, {len(POLICY_CASES)} policy cases, "
-        f"{len(GUARD_CASES)} guard cases and {len(CONTROL_CASES)} control cases written"
+        f"{len(GUARD_CASES)} guard cases, {len(CONTROL_CASES)} control cases and "
+        f"{len(EVALUATION_CASES)} evaluation cases written"
     )
 
 

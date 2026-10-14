@@ -146,11 +146,14 @@ def start(
     wait: float = 30.0,
     entry_name: str | None = None,
     script_path: Path | None = None,
+    check: bool = False,
 ) -> dict[str, Any]:
     """Start a test in a background bridge process. Return the contents of current.json.
 
     With script_path, the test is scripted: the script is read before the test starts, and its
     bytes are copied into the test folder, so that the seal covers them (SPEC.md section 7.10).
+    With check, the test is a test of `nookku check`: the first manifest records this, so that no
+    evaluation starts, also if the check stops before its turn (SPEC.md section 9.1).
     """
     load_config(root, entry_name)
     copy: tuple[str, bytes] | None = None
@@ -183,6 +186,8 @@ def start(
         argv += ["--tester-session", tester_session]
     if entry_name is not None:
         argv += ["--entry-name", entry_name]
+    if check:
+        argv.append("--check")
     if copy is not None and script_path is not None:
         (folder / copy[0]).write_bytes(copy[1])
         argv += ["--script-source", str(script_path.resolve())]
@@ -480,6 +485,7 @@ def run(
     timeout: float = AGENT_TIMEOUT,
     entry_name: str | None = None,
     script_source: str | None = None,
+    check: bool = False,
 ) -> int:
     """The bridge process: run the tap and the entry until SIGTERM, then collect."""
     root = root.resolve()
@@ -515,6 +521,7 @@ def run(
         "tester_sessions": [tester_session] if tester_session else [],
         "model_sessions": [],
         "codex_gate": {"start": _start_gate(folder), "end": None},
+        "check": check,
     }
     _write_json(folder / "manifest.json", manifest)
     _log("manifest written")
@@ -797,7 +804,7 @@ def check(root: Path) -> tuple[bool, list[str]]:
 
     The check passes only if the audit of its own test is clean (SPEC.md section 7.1)."""
     config = load_config(root)
-    cur = start(root)
+    cur = start(root, check=True)
     relay = Path(cur["dir"]) / "relay.jsonl"
     try:
         shown, ok = send(cur, config.check_message)

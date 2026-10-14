@@ -444,7 +444,7 @@ The test folder:
   sessions/codex/<rollout file>
 ```
 
-`manifest.json` holds the test id, the project root, the entry, the models, the start and end times, the versions of Nookku, Claude Code and Codex, the SHA-256 of each configuration file in `.nookku/`, `policy`: the value of each policy key (section 7.9), `trace`: the value of each config key of the trace checks (`repeated_reply`, `model_reply_field` and `model_reply_match`, section 8.6), the tester's harness session ids, and `codex_gate`: the result of the Codex hook gate at the start and at the end of the test (section 7.8). `entry_name` is the name of the entry in `entries`, or `null` for the default entry. `script` is `null`, or for a scripted test `source`, the absolute path of the script file, `file`, the name of its copy, and `sha256`, the SHA-256 of the copy (section 7.10).
+`manifest.json` holds the test id, the project root, the entry, the models, the start and end times, the versions of Nookku, Claude Code and Codex, the SHA-256 of each configuration file in `.nookku/`, `policy`: the value of each policy key (section 7.9), `trace`: the value of each config key of the trace checks (`repeated_reply`, `model_reply_field` and `model_reply_match`, section 8.6), the tester's harness session ids, and `codex_gate`: the result of the Codex hook gate at the start and at the end of the test (section 7.8). `entry_name` is the name of the entry in `entries`, or `null` for the default entry. `script` is `null`, or for a scripted test `source`, the absolute path of the script file, `file`, the name of its copy, and `sha256`, the SHA-256 of the copy (section 7.10). `check` is `true` for a test of `nookku check`, else `false`. The bridge writes it in the first manifest, before the entry starts, so it is also in the manifest of a check that stops before its turn (section 9.1).
 
 ### 7.3 Model sessions
 
@@ -806,7 +806,7 @@ A test needs an evaluation if all of these are true:
 - no test runs;
 - the latest test (the one with the greatest `started` in its manifest) has an `ended` time;
 - its folder has no `report.md`;
-- it is not a check test. A check test is a test of `nookku check`: its relay record has turns, and each turn has the harness `nookku-check`. A relay record that cannot be read does not make a check test.
+- it is not a check test. A check test is a test of `nookku check`. If the manifest has the key `check`, the test is a check test only if `check` is `true`. A manifest of Nookku 0.4.1 or earlier has no key `check`. Then the test is a check test if its relay record has turns, and each turn has the harness `nookku-check`. A relay record that cannot be read does not make a check test.
 
 The relay reads `evaluate` with the one reader of `config.json` (section 7.1). If the file cannot be read or breaks the rule for its keys, no evaluation starts. A broken file must not start an evaluation that the tester turned off. Then, if the other conditions are true, the end text has one more line: `nookku: no evaluation starts: <error>. Correct the file, then type: nookku end`.
 

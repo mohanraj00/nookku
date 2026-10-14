@@ -365,6 +365,7 @@ The background process of a test ([architecture.md](../architecture.md#the-bridg
 | `--tester-session ID` | none | The tester's harness session id. |
 | `--entry-name NAME` | none | The name of the entry in `entries`, from `nookku run --entry`. |
 | `--script-source FILE` | none | The absolute path of the script of a scripted test, for the manifest. `run` copies the script into the test folder before it starts the bridge. |
+| `--check` | off | The test is a test of `nookku check`. The manifest records `"check": true`, so the model does not evaluate the test ([SPEC.md section 9.1](../../SPEC.md#91-start)). |
 
 | Exit code | Meaning |
 |---|---|
