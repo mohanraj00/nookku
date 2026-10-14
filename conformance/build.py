@@ -6,6 +6,7 @@ and HTTP statuses that the tap must give. `trace/` holds the trace cases (sectio
 the seal cases (section 7.4). `otlp/` holds the receiver cases (section 7.5). `policy/` holds the
 deny cases of the policy file (sections 5 and 7.9). `guard/` holds the deny cases of the state
 folder (section 5). `evaluation/` holds the cases of the rule for a check test (section 9.1).
+`notes/` holds the cases of the notes record (section 2.3).
 
 Never fill an expectation by running the audit. CI runs this script and fails if the files change.
 
@@ -33,6 +34,7 @@ POLICY = Path(__file__).parent / "policy"
 GUARD = Path(__file__).parent / "guard"
 CONTROL = Path(__file__).parent / "control"
 EVALUATION = Path(__file__).parent / "evaluation"
+NOTES = Path(__file__).parent / "notes"
 
 
 def sha(text: str | None) -> str | None:
@@ -3503,6 +3505,7 @@ SEAL_FILES = {
     "bridge.log": "test 20261006-120000-se01 ended\n",
 }
 UNSEALED_FILES = {"report.md", "bridge.log"}
+SEAL_NOTE = '{"v": "0.2", "type": "note", "turn": 1, "rating": "down", "comment": null}\n'
 
 
 def seal_of(files: dict[str, str], copy: bool) -> dict:
@@ -3554,6 +3557,20 @@ SEAL_CASES: dict[str, dict] = {
         "verify": verified(False, "different"),
     },
     "seal_missing": {"no_seal_file": True, "verify": verified(False, "same", sealed=False)},
+    # The notes of the tester (SPEC.md section 2.3) are in the seal. A note changed after the end
+    # breaks it.
+    "notes_intact": {
+        "after": {"notes.jsonl": SEAL_NOTE},
+        "seal_files": {"notes.jsonl": SEAL_NOTE},
+        "copy_files": {"notes.jsonl": SEAL_NOTE},
+        "verify": verified(True, "same"),
+    },
+    "changed_notes": {
+        "after": {"notes.jsonl": SEAL_NOTE.replace('"down"', '"up"')},
+        "seal_files": {"notes.jsonl": SEAL_NOTE},
+        "copy_files": {"notes.jsonl": SEAL_NOTE},
+        "verify": verified(False, "same", changed=["notes.jsonl"]),
+    },
     "no_seal": {
         "no_seal_file": True,
         "no_copy_file": True,
@@ -4795,6 +4812,69 @@ CASES_BY_NAME.update(
 )
 
 
+# Notes cases (SPEC.md section 2.3). Each case is a notes.jsonl and what the reader
+# (`record.read_rows` with the kind `notes`) must give: each note, or the error and its line.
+def note(turn: object, rating: object, comment: object, v: str = "0.2") -> dict:
+    row = {"v": v, "type": "note", "ts": T0 + 30, "turn": turn, "rating": rating}
+    return row | {
+        "comment": comment,
+        "comment_sha256": sha(comment if isinstance(comment, str) else None),
+    }
+
+
+def notes_ok(*rows: dict) -> dict:
+    return {"notes": [{k: r[k] for k in ("turn", "rating", "comment")} for r in rows]}
+
+
+def notes_bad(line: int) -> dict:
+    return {"error": "record_invalid", "line": line}
+
+
+NOTE_UP = note(1, "up", "Fast and correct. The order 4471 is right.")
+NOTE_DOWN = note(2, "down", None)
+NOTE_AGAIN = note(2, "down", "  The refund date is wrong.\n\nIt says Monday.  ")
+NOTE_FR = note(3, None, "Ça marche, merci.")
+NOTES_CASES: dict[str, dict] = {
+    # 2 notes on 2 turns, and a later note on turn 2. The reader keeps each byte of a comment.
+    "two_notes": {
+        "rows": [NOTE_UP, NOTE_DOWN, NOTE_AGAIN],
+        "expect": notes_ok(NOTE_UP, NOTE_DOWN, NOTE_AGAIN),
+    },
+    "comment_only": {"rows": [NOTE_FR], "expect": notes_ok(NOTE_FR)},
+    "no_notes": {"rows": [], "expect": {"notes": []}},
+    "comment_hash_mismatch": {
+        "rows": [NOTE_UP, {**NOTE_DOWN, "comment_sha256": sha("x")}],
+        "expect": notes_bad(2),
+    },
+    "comment_hash_missing": {
+        "rows": [{k: v for k, v in NOTE_UP.items() if k != "comment_sha256"}],
+        "expect": notes_bad(1),
+    },
+    "rating_not_known": {"rows": [note(1, "meh", None)], "expect": notes_bad(1)},
+    "rating_not_text": {"rows": [note(1, 1, None)], "expect": notes_bad(1)},
+    "no_rating_no_comment": {"rows": [note(1, None, None)], "expect": notes_bad(1)},
+    "no_rating_empty_comment": {"rows": [note(1, None, "")], "expect": notes_bad(1)},
+    "turn_zero": {"rows": [note(0, "up", None)], "expect": notes_bad(1)},
+    "turn_is_a_boolean": {"rows": [note(True, "up", None)], "expect": notes_bad(1)},
+    "turn_is_text": {"rows": [note("1", "up", None)], "expect": notes_bad(1)},
+    "turn_missing": {
+        "rows": [{k: v for k, v in NOTE_UP.items() if k != "turn"}],
+        "expect": notes_bad(1),
+    },
+    # The note type is new in 0.2.
+    "note_with_version_0_1": {"rows": [note(1, "up", None, v="0.1")], "expect": notes_bad(1)},
+    # A notes record holds only notes.
+    "turn_row_in_notes": {"rows": [NOTE_UP, turn("Hi", "Hello", v="0.2")], "expect": notes_bad(2)},
+    "lone_surrogate_in_comment": {
+        "rows": [
+            NOTE_UP,
+            '{"v": "0.2", "type": "note", "ts": 1, "turn": 1, "rating": "up", "comment": "\\ud83d", "comment_sha256": null}',
+        ],
+        "expect": notes_bad(2),
+    },
+}
+
+
 def write(path: Path, rows: list | None) -> None:
     if rows is None:
         return
@@ -4839,6 +4919,12 @@ def main() -> None:
     shutil.rmtree(SEAL, ignore_errors=True)
     for name, case in SEAL_CASES.items():
         write_seal_case(SEAL / name, case)
+    shutil.rmtree(NOTES, ignore_errors=True)
+    for name, case in NOTES_CASES.items():
+        (NOTES / name).mkdir(parents=True)
+        write(NOTES / name / "notes.jsonl", case["rows"])
+        text = json.dumps(case["expect"], indent=1, ensure_ascii=False) + "\n"
+        (NOTES / name / "expect.json").write_text(text, encoding="utf-8")
     shutil.rmtree(POLICY, ignore_errors=True)
     for name, case in POLICY_CASES.items():
         write_policy_case(POLICY / f"{name}.json", case)
@@ -4859,8 +4945,8 @@ def main() -> None:
         f"{len(CASES_BY_NAME)} audit cases, {len(CONTRACT_CASES)} contract cases, "
         f"{len(TRACE_CASES)} trace cases, {len(SEAL_CASES)} seal cases, "
         f"{len(OTLP_CASES)} receiver cases, {len(POLICY_CASES)} policy cases, "
-        f"{len(GUARD_CASES)} guard cases, {len(CONTROL_CASES)} control cases and "
-        f"{len(EVALUATION_CASES)} evaluation cases written"
+        f"{len(GUARD_CASES)} guard cases, {len(CONTROL_CASES)} control cases, "
+        f"{len(EVALUATION_CASES)} evaluation cases and {len(NOTES_CASES)} notes cases written"
     )
 
 

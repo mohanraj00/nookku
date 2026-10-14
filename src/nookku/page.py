@@ -29,7 +29,7 @@ from pathlib import Path
 from typing import Any, TextIO
 from urllib.parse import urlsplit
 
-from nookku import kit, seal, state
+from nookku import kit, notes, seal, state
 from nookku.record import RecordError, Writer, turns
 
 # The harness of a turn that the page sent (SPEC.md section 2.2).
@@ -40,6 +40,8 @@ FILES = {
     "": ("index.html", "text/html; charset=utf-8"),
     "app.js": ("app.js", "text/javascript; charset=utf-8"),
     "app.css": ("app.css", "text/css; charset=utf-8"),
+    "notes.js": ("notes.js", "text/javascript; charset=utf-8"),
+    "notes.css": ("notes.css", "text/css; charset=utf-8"),
 }
 # The page loads only its own files. No inline script, no inline style, no other site.
 CSP = (
@@ -279,6 +281,8 @@ class _Handler(BaseHTTPRequestHandler):
             self._answer(200, page_file(name), kind)
         elif rest == "api/turns":
             self._json(200, view(self.server.root))
+        elif rest == notes.VIEW_ROUTE:
+            self._json(200, notes.view(self.server.root))
         else:
             self._refuse(404, "not found")
 
@@ -286,7 +290,7 @@ class _Handler(BaseHTTPRequestHandler):
         rest = self._route()
         if rest is None:
             return
-        if rest != "api/send":
+        if rest not in ("api/send", notes.ADD_ROUTE):
             self._refuse(404, "not found")
             return
         kind = (self.headers.get("Content-Type") or "").split(";")[0].strip().lower()
@@ -306,6 +310,9 @@ class _Handler(BaseHTTPRequestHandler):
         except (ValueError, RecursionError):
             self._refuse(400, "the body is not JSON")
             return
+        if rest == notes.ADD_ROUTE:
+            self._note(data)
+            return
         said = data.get("said") if isinstance(data, dict) else None
         if not isinstance(said, str):
             self._refuse(400, 'the body needs the text "said"')
@@ -316,6 +323,22 @@ class _Handler(BaseHTTPRequestHandler):
             except Exception as e:  # each failure must give the page an error, not a reset
                 self._json(500, {"sent": False, "ok": False, "shown": f"nookku: {e}"})
                 return
+        self._json(200, answer)
+
+    def _note(self, data: Any) -> None:
+        """Write one note of the tester (SPEC.md section 2.3)."""
+        problem = notes.bad_body(data)
+        if problem:
+            self._refuse(400, problem)
+            return
+        # No page lock: a note takes the send lock (notes.add), so it cannot go into a sealed test.
+        try:
+            answer = notes.add(
+                self.server.root, data["turn"], data.get("rating"), data.get("comment")
+            )
+        except Exception as e:  # each failure must give the page an error, not a reset
+            self._json(500, {"saved": False, "error": f"nookku: {e}"})
+            return
         self._json(200, answer)
 
 

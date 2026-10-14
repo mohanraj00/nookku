@@ -83,6 +83,33 @@ In a test (section 7), the relay record is `relay.jsonl` in the test folder.
 
 `detail` is the first 300 code points of the JSON text of the tool call. The cut counts code points, not UTF-16 code units, so it never splits a surrogate pair. If the cut text has a lone surrogate, the relay writes its escape text (section 2) in its place. `kit.blocked_detail` uses this rule. The table `detail_cases` in `tests/tables.json` tests it.
 
+### 2.3 Notes record
+
+`note` (0.2): one note of the tester on one turn. The tester writes it on the chat page (section 5).
+
+| Field | Type | Meaning |
+|---|---|---|
+| `turn` | integer | The number of the turn in `relay.jsonl`, from 1: the Nth `turn` row. |
+| `rating` | string or null | `up` (thumbs up), `down` (thumbs down) or `null` (no rating). |
+| `comment` | string or null | The text of the comment, or `null`. It has the hash `comment_sha256` (section 2). |
+
+A note has a rating, or a comment that is not empty, or both. `record.note_problem` holds this rule, for the reader and for the page server.
+
+In a test, the notes record is `notes.jsonl` in the test folder. The page server writes it, and no other process writes it. A note does not change `relay.jsonl` or `tap.jsonl`, and the audit does not read `notes.jsonl`. The reader is `record.read_rows` with the kind `notes`, with the error rule of this section. If a turn has more than one note, the last note is the current opinion of the tester. The earlier notes stay in the record.
+
+The page posts a note to `api/note`, with the token path and the checks of a `POST` of the chat page (section 5). The body is a JSON object with `turn`, `rating` and `comment`. If the body breaks the rule of a note, if the comment has more than 10,000 code points ([`MAX_COMMENT`](src/nookku/notes.py)), or if the comment has a lone surrogate, the answer is 400. The page server writes the note only if all of these are true:
+
+- a test runs;
+- the page server holds `send.lock` (section 5). It takes the lock before its checks and keeps it until the row is written. The end of a test holds the same lock from the tap shutdown to the seal;
+- the page server can read `manifest.json` of the test as a JSON object, the manifest has no `ended`, and the test folder has no `audit.json` and no `seal.json`;
+- `relay.jsonl` can be read, and it has the turn of the note.
+
+Else the page server writes nothing, and the page shows the reason. Thus no note goes into the folder after the end of the test writes its seal. The seal covers `notes.jsonl` (section 7.4). `api/notes` gives the notes of the test that the page shows.
+
+A note is the opinion of the tester, not a finding. The evaluation prompt (section 9.2) tells the model to read `notes.jsonl`, to check each note against the records, and to cite each note as `notes.jsonl:N` in a "Tester notes" table of `report.md`. The prompt tells the model not to report an issue only because of a note.
+
+The cases are in [`conformance/notes/`](conformance/notes/).
+
 ## 3. Audit
 
 ### 3.1 Validity
@@ -491,6 +518,7 @@ The seal shows if a file of the test folder changed after the end of the test. I
 | `copy` | boolean | True if the bridge wrote the copy. |
 
 - The seal does not contain `report.md`, `bridge.log`, `seal.json` and `denied.jsonl`, because these files change after the end.
+- The seal contains `notes.jsonl` (section 2.3), the notes of the tester. The page server writes no note after the end of the test begins, so a change to `notes.jsonl` after the end breaks the seal. The case is `changed_notes` in `conformance/seal/`.
 - The bridge also writes a copy, with the same fields and `copy: true`, to `~/.nookku/seals/<test-id>.json` (under `NOOKKU_HOME` if it is set). If it cannot write the copy, for example in a sandbox, `seal.json` has `copy: false`.
 - If no copy is in `~/.nookku/seals/` but a copy is in `~/.verbatim-relay/seals/` (under `VERBATIM_RELAY_HOME` if it is set), the copy of verbatim-relay 0.3.x and earlier is the copy.
 

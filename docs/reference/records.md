@@ -33,6 +33,7 @@ Each test is a new conversation, with a new test id and a new entry process. The
 | File | Content | Format |
 |---|---|---|
 | `relay.jsonl` | What you typed and saw. In a [scripted test](glossary.md#scripted-test), each row has `"harness": "script"`. A turn that the chat page sent has `"harness": "pane"`. | [SPEC.md section 2.2](../../SPEC.md#22-relay-record) |
+| `notes.jsonl` | Your notes on the turns, from the chat page: a thumbs up, a thumbs down or a comment. The [evaluation](glossary.md#evaluation) reads them as your opinion, not as a [finding](glossary.md#findings). | [SPEC.md section 2.3](../../SPEC.md#23-notes-record) |
 | `script.jsonl` or `script.json` | Only in a scripted test: a copy of the script file. | [SPEC.md section 7.10](../../SPEC.md#710-scripted-tests) |
 | `tap.jsonl` | What the entry received and sent, and the model sessions that the tap found. | [SPEC.md section 2.1](../../SPEC.md#21-tap-record) |
 | `app.log` | The stderr of the entry and your app. | text |

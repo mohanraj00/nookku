@@ -1,0 +1,3 @@
+{"v": "0.2", "type": "note", "ts": 1791273630.0, "turn": 1, "rating": "up", "comment": "Fast and correct. The order 4471 is right.", "comment_sha256": "344f4c7bfc2cb0786feb4ef6b8a741fb9e5937a15725e22840db52d6a3052dc7"}
+{"v": "0.2", "type": "note", "ts": 1791273630.0, "turn": 2, "rating": "down", "comment": null, "comment_sha256": null}
+{"v": "0.2", "type": "note", "ts": 1791273630.0, "turn": 2, "rating": "down", "comment": "  The refund date is wrong.\n\nIt says Monday.  ", "comment_sha256": "368c996f7c86c36514a3210598f54bd9451f9ba2633ee18ad165fe3fc864ca51"}

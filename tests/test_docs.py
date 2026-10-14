@@ -156,6 +156,7 @@ CASE_FOLDERS = {
     "trace": "trace",
     "seal": "seal",
     "receiver": "otlp",
+    "notes": "notes",
 }
 
 

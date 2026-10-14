@@ -232,7 +232,8 @@ def test_the_page_has_no_inline_script_no_cdn_and_no_html_from_text() -> None:
     html = folder.joinpath("index.html").read_text()
     js = folder.joinpath("app.js").read_text()
     css = folder.joinpath("app.css").read_text()
-    assert re.findall(r"<script[^>]*>", html) == ['<script src="app.js" defer>']
+    scripts = ['<script src="app.js" defer>', '<script src="notes.js" defer>']
+    assert re.findall(r"<script[^>]*>", html) == scripts
     assert not re.search(r"\son\w+=", html)
     assert "style=" not in html
     for text in (html, js, css):
