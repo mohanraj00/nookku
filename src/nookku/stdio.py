@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import contextlib
+import hmac
 import json
 import os
 import queue
+import secrets
 import signal
 import socketserver
 import subprocess
@@ -18,6 +20,7 @@ from pathlib import Path
 
 from nookku import contract
 from nookku.record import Writer, lone_surrogate
+from nookku.state import TOKEN_HEADER
 
 # The agent timeout of both taps, HTTP and stdio. Each tap answers well before the relay
 # timeouts (kit.TIMEOUT, state.TIMEOUT), and these end before kit.HOOK_DEADLINE.
@@ -25,6 +28,8 @@ TIMEOUT = 240.0
 TAIL = 20
 # The fix for an agent that writes logs on stdout. `nookku check` prints it too.
 STRAY_HINT = "Use nookku.agent.serve() or write logs to stderr."
+# The variable that gives `nookku tap --cmd` its token. With no value, the tap makes one.
+TOKEN_ENV = "NOOKKU_TAP_TOKEN"
 
 
 class Agent:
@@ -212,11 +217,24 @@ def write_failed(path: Path, e: OSError) -> str:
     )
 
 
+def new_token() -> str:
+    """A random tap token: 32 random bytes as URL-safe text."""
+    return secrets.token_urlsafe(32)
+
+
 class StdioTap(ThreadingHTTPServer):
+    """The stdio tap. It accepts a POST only with its token (SPEC.md section 4.2).
+
+    With no `token`, the tap makes a random one. The bridge writes `token` to current.json, and
+    a server in the same process can read it here."""
+
     daemon_threads = True
 
-    def __init__(self, listen: tuple[str, int], agent: Agent, record: Path) -> None:
+    def __init__(
+        self, listen: tuple[str, int], agent: Agent, record: Path, token: str | None = None
+    ) -> None:
         self.agent, self.writer = agent, Writer(record)
+        self.token = token or new_token()
         self.lock = threading.Lock()
         super().__init__(listen, _Handler)
 
@@ -284,7 +302,47 @@ class _Handler(BaseHTTPRequestHandler):
         except OSError as e:
             self.lost = e
 
+    def _refusal(self) -> str | None:
+        """The reason to refuse a request that is not from a relay, or None (SPEC.md 4.2).
+
+        A web page in a browser can send a "simple" POST to a local port. Such a request has an
+        Origin header or a Content-Type that is not application/json, and it has no token."""
+        if self.headers.get("Origin") is not None:
+            return "the tap does not accept a request with an Origin header"
+        kind = self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
+        if kind != "application/json":
+            return "the Content-Type of a request must be application/json"
+        given = self.headers.get_all(TOKEN_HEADER) or []
+        if not given:
+            return f"the request has no {TOKEN_HEADER} header"
+        token = self.server.token.encode()
+        # Header values are latin-1 text, so each value encodes back to its bytes.
+        if len(given) != 1 or not hmac.compare_digest(given[0].encode("latin-1"), token):
+            return f"the {TOKEN_HEADER} header is wrong"
+        return None
+
+    def _discard(self) -> None:
+        """Read and drop the body of a refused request, then close the connection."""
+        self.close_connection = True
+        if "chunked" in self.headers.get("Transfer-Encoding", "").lower():
+            return
+        try:
+            left = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            return
+        while left > 0:
+            part = self.rfile.read(min(left, 65536))
+            if not part:
+                return
+            left -= len(part)
+
     def do_POST(self) -> None:
+        refusal = self._refusal()
+        if refusal is not None:
+            # No row and no line to the agent: the request is not from a relay.
+            self._discard()
+            self._error(403, f"nookku tap: {refusal}")
+            return
         if "chunked" in self.headers.get("Transfer-Encoding", "").lower():
             self._error(411, "nookku needs a Content-Length request body")
             return
@@ -370,6 +428,7 @@ def start_in_thread(tap: socketserver.BaseServer) -> threading.Thread:
 
 def serve(tap: StdioTap) -> None:
     print(f"nookku tap: listening on {tap.url} -> {tap.agent.argv}", file=sys.stderr)
+    print(f"nookku tap: send the header {TOKEN_HEADER}: {tap.token}", file=sys.stderr)
     print(f"nookku tap: writing {tap.writer.path}", file=sys.stderr)
     tap.agent.start()
     try:

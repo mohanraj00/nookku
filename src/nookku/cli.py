@@ -354,7 +354,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.cmd:
             log = args.log or args.record.parent / "app.log"
             agent = stdio.Agent(command, Path.cwd(), log, timeout=args.timeout)
-            stdio.serve(stdio.StdioTap(args.listen, agent, args.record))
+            token = os.environ.get(stdio.TOKEN_ENV) or None
+            stdio.serve(stdio.StdioTap(args.listen, agent, args.record, token))
             return 0
         adapter = make(args.adapter, args.message_field, args.reply_field)
         serve(Tap(args.listen, args.agent, args.record, adapter, timeout=args.timeout))

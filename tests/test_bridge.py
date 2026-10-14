@@ -5,11 +5,13 @@ import os
 import subprocess
 import sys
 import time
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 import pytest
 
-from nookku import bridge, evaluation, kit, mcp, policy, seal, stdio, trace
+from nookku import bridge, evaluation, kit, mcp, policy, seal, state, stdio, trace
 from nookku.audit import CHECKS, audit
 from nookku.cli import main
 from nookku.record import RecordError, Writer
@@ -93,6 +95,49 @@ def test_a_test_relays_and_records_both_sides(tmp_path: Path, homes: tuple) -> N
     # The last step of the end seals the folder, with a copy outside the project.
     assert seal.verify(folder)["intact"] and seal.verify(folder)["copy"] == "same"
     assert bridge.end(root) is None
+
+
+def test_the_tap_of_a_test_takes_only_requests_with_its_token(tmp_path: Path, homes: tuple) -> None:
+    root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
+    cur = bridge.start(root)
+    current = root / ".nookku" / "current.json"
+    body = json.dumps({"v": 1, "id": "m-1", "session": "t", "message": "Hi", "history": []})
+    good = state.tap_headers(cur[state.TOKEN_KEY])
+    refused = [
+        {"Content-Type": "application/json"},
+        {**good, state.TOKEN_HEADER: "not-the-tap-token"},
+        {**good, "Origin": "https://example.com"},
+        {**good, "Content-Type": "text/plain"},
+    ]
+    try:
+        # current.json holds the token, so only the owner can read it.
+        assert len(cur[state.TOKEN_KEY]) >= 40 and current.stat().st_mode & 0o777 == 0o600
+        statuses = []
+        for headers in refused:
+            req = urllib.request.Request(cur["tap_url"], body.encode(), headers, method="POST")
+            with pytest.raises(urllib.error.HTTPError) as e:
+                urllib.request.urlopen(req, timeout=10)
+            statuses.append(e.value.code)
+        shown, ok = bridge.send(cur, "What is the refund policy?")
+    finally:
+        bridge.end(root)
+    assert statuses == [403] * 4
+    assert ok and shown.startswith("Our refund policy")
+    rows = [json.loads(x) for x in (Path(cur["dir"]) / "tap.jsonl").read_text().splitlines()]
+    # Only the relayed message reached the entry.
+    assert [r["input"] for r in rows if r["type"] == "exchange"] == ["What is the refund policy?"]
+    answers = Path(cur["dir"]) / "app-state" / "answers.jsonl"
+    assert len(answers.read_text().splitlines()) == 1
+
+
+def test_a_relay_with_no_token_fails_closed(tmp_path: Path, homes: tuple) -> None:
+    root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
+    cur = bridge.start(root)
+    try:
+        shown, ok = bridge.send({k: v for k, v in cur.items() if k != state.TOKEN_KEY}, "Hi")
+    finally:
+        bridge.end(root)
+    assert not ok and shown.startswith("nookku: HTTP 403: nookku tap:")
 
 
 def test_the_entry_keeps_its_state_in_the_sealed_test_folder(tmp_path: Path, homes: tuple) -> None:

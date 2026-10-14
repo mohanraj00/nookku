@@ -319,6 +319,8 @@ Run the tap proxy in front of the agent ([SPEC.md section 4](../../SPEC.md#4-tap
 
 Give exactly one of `--agent` and `--cmd`.
 
+In stdio mode, the tap accepts a `POST` only with its token in the header `X-Nookku-Token` ([SPEC.md section 4.2](../../SPEC.md#42-stdio-mode)). The tap takes the token from the variable `NOOKKU_TAP_TOKEN`. If the variable has no value, the tap makes a random token. At start, the tap writes the token to stderr. In HTTP mode, the tap checks no token ([SPEC.md section 4.1](../../SPEC.md#41-http-mode)).
+
 | Exit code | Meaning |
 |---|---|
 | 0 | The tap stopped, for example after Ctrl-C. |
