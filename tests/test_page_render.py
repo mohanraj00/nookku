@@ -6,6 +6,7 @@ import json
 import os
 import shutil
 import subprocess
+import time
 from importlib import resources
 from pathlib import Path
 from typing import Any
@@ -238,6 +239,30 @@ def test_a_long_or_deep_reply_does_not_stop_the_page() -> None:
     assert len(texts(out["tree"])) > 0
 
 
+@needs_node
+@pytest.mark.parametrize(
+    "text",
+    [
+        "[" * 199_000,
+        "[a](" * 49_000,
+        "[a](<" * 39_000,
+        "*a " * 66_000,
+        "_a " * 66_000,
+        "`a ``b " * 28_000,
+        "<" * 199_000,
+        "http " * 39_000,
+        "- a\n" + "\n" * 100_000 + "  b\n",
+        "**[x](a *b _c `d " * 11_000,
+    ],
+)
+def test_a_reply_of_many_open_marks_renders_in_linear_time(text: str) -> None:
+    """Each of these texts took quadratic time in a first form of the renderer. On a laptop,
+    each takes less than 50 ms now. The bound of 5 s includes the start of node."""
+    started = time.monotonic()
+    node({"text": text})
+    assert time.monotonic() - started < 5
+
+
 # ---- The page server ----
 
 
@@ -441,35 +466,44 @@ def test_launch_uses_the_system_app_with_an_absolute_path(
 def test_a_file_that_changes_after_the_check_is_refused(
     project: tuple[Path, Path, Path], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A process of the test can swap a checked path for a link to another file. The server
-    checks the open file, so it refuses the file."""
+    """A process of the test can swap a part of a checked path for a symlink to another place.
+    The server opens each part with no symlink, so it refuses the file."""
     root, _, outside = project
+    (root / "images").mkdir()
+    (root / "images" / "a.png").write_bytes(b"A")
+    (outside / "a.png").write_bytes(b"SECRET-BYTES")
+    found = page.open_checked(root, "images/a.png")
+    assert found is not None
+    with os.fdopen(found[0], "rb") as f:
+        assert f.read() == b"A"
+    checked = (root / "images" / "a.png").resolve()
+    monkeypatch.setattr(page, "allowed_file", lambda base, name: checked)
+    # After the check, the folder becomes a symlink to a folder outside the project.
+    (root / "images").rename(root / "old")
+    (root / "images").symlink_to(outside)
+    assert page.open_checked(root, "images/a.png") is None
+    # After the check, the file becomes a symlink to a file outside the project.
+    (root / "images").unlink()
+    (root / "old").rename(root / "images")
+    checked.unlink()
+    checked.symlink_to(outside / "a.png")
+    assert page.open_checked(root, "images/a.png") is None
+
+
+def test_the_check_with_no_dir_fd_compares_the_open_file(
+    project: tuple[Path, Path, Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """On a system with no dir_fd, the server checks the path again after the open, and the open
+    file must be the file at the checked path."""
+    root, _, _ = project
     (root / "a.png").write_bytes(b"A")
     (root / "b.png").write_bytes(b"B")
-    (outside / "secret.png").write_bytes(b"SECRET-BYTES")
     checked = page.allowed_file
-    calls: list[str] = []
-
-    def swap(base: Path, name: str) -> Path | None:
-        # The first check sees a.png. Then a.png becomes a link to a file outside, and the
-        # second check sees b.png.
-        calls.append(name)
-        if len(calls) % 2 == 1:
-            return checked(base, name)
-        return checked(base, "b.png")
-
-    monkeypatch.setattr(page, "allowed_file", swap)
-    assert page.open_checked(root, "a.png") is None
-    monkeypatch.setattr(page, "allowed_file", checked)
-    found = page.open_checked(root, "a.png")
+    found = page._open_by_path(root, "a.png", (root / "a.png").resolve())
     assert found is not None
     os.close(found[0])
-    # A symlink at the last part of a checked path does not open.
-    real = (root / "a.png").resolve()
-    monkeypatch.setattr(page, "allowed_file", lambda base, name: real)
-    real.unlink()
-    real.symlink_to(outside / "secret.png")
-    assert page.open_checked(root, "a.png") is None
+    monkeypatch.setattr(page, "allowed_file", lambda base, name: checked(base, "b.png"))
+    assert page._open_by_path(root, "a.png", (root / "a.png").resolve()) is None
 
 
 @needs_node

@@ -15,6 +15,8 @@
   const LIMIT = 200000;
   // A deeper nest of block quotes, lists or emphasis shows as text.
   const MAX_DEPTH = 16;
+  // The longest destination or title of a link.
+  const LINK_MAX = 4096;
   // The path of the files of the page server, relative to the page URL.
   const FILES = "files/";
   const IMAGE = ["png", "jpg", "jpeg", "gif", "webp", "avif", "bmp", "ico"];
@@ -148,24 +150,29 @@
 
   // ---- Inline text ----
 
-  // A link or an image at text[i] == "[": the label, the destination and the end, or null.
-  function linkAt(text, i) {
-    let depth = 0;
-    let j = i;
-    for (; j < text.length; j++) {
+  // The index of the "]" that closes each "[" of a text, in one pass, so that a text with many
+  // "[" and no "]" does not take quadratic time.
+  function brackets(text) {
+    const match = new Map();
+    const open = [];
+    for (let j = 0; j < text.length; j++) {
       const ch = text[j];
       if (ch === "\\") {
         j++;
       } else if (ch === "[") {
-        depth++;
-      } else if (ch === "]") {
-        depth--;
-        if (depth === 0) break;
-      } else if (ch === "\n" && text[j + 1] === "\n") {
-        return null;
+        open.push(j);
+      } else if (ch === "]" && open.length > 0) {
+        match.set(open.pop(), j);
       }
     }
-    if (j >= text.length || text[j + 1] !== "(") {
+    return match;
+  }
+
+  // A link or an image at text[i] == "[": the label, the destination and the end, or null.
+  // A destination and a title are at most LINK_MAX characters, so each call takes bounded time.
+  function linkAt(text, i, match) {
+    const j = match.get(i);
+    if (j === undefined || text[j + 1] !== "(") {
       return null;
     }
     const label = text.slice(i + 1, j);
@@ -173,7 +180,8 @@
     while (text[k] === " ") k++;
     let dest;
     if (text[k] === "<") {
-      const close = text.indexOf(">", k);
+      const at = text.slice(k, k + LINK_MAX).indexOf(">");
+      const close = at < 0 ? -1 : k + at;
       if (close < 0 || text.slice(k, close).includes("\n")) return null;
       dest = text.slice(k + 1, close);
       k = close + 1;
@@ -182,7 +190,10 @@
       const start = k;
       for (; k < text.length; k++) {
         const ch = text[k];
-        if (ch === "\\") {
+        // A destination has no "[", so that each "[" starts at most one scan of the text.
+        if (k - start > LINK_MAX || ch === "[") {
+          return null;
+        } else if (ch === "\\") {
           k++;
         } else if (ch === "(") {
           parens++;
@@ -196,7 +207,7 @@
       dest = text.slice(start, k).replace(/\\([()])/g, "$1");
     }
     let title = "";
-    const rest = /^\s*(?:"([^"]*)"|'([^']*)')?\s*\)/.exec(text.slice(k));
+    const rest = /^\s*(?:"([^"]*)"|'([^']*)')?\s*\)/.exec(text.slice(k, k + LINK_MAX));
     if (!rest) {
       return null;
     }
@@ -244,21 +255,31 @@
     return ch !== undefined && /[\p{L}\p{N}]/u.test(ch);
   }
 
-  // The index of the delimiter that closes d, opened at start, or -1.
-  function closing(text, start, d, missing) {
-    if (missing.has(d)) return -1;
-    let j = start;
-    for (;;) {
-      j = text.indexOf(d, j + 1);
-      if (j < 0) {
-        missing.add(d);
-        return -1;
-      }
+  // Each index where the delimiter d can close, in one pass of the text.
+  function closers(text, d) {
+    const found = [];
+    for (let j = text.indexOf(d, 1); j >= 0; j = text.indexOf(d, j + 1)) {
       if (/\s/.test(text[j - 1])) continue;
       if (d.length === 1 && (text[j + 1] === d || text[j - 1] === d)) continue;
       if (d[0] === "_" && isWord(text[j + d.length])) continue;
-      return j;
+      found.push(j);
     }
+    return found;
+  }
+
+  // The index of the delimiter that closes d, opened before start, or -1. A binary search in the
+  // closers of d, so that many delimiters with no closer do not take quadratic time.
+  function closing(text, start, d, cache) {
+    if (!cache.has(d)) cache.set(d, closers(text, d));
+    const list = cache.get(d);
+    let lo = 0;
+    let hi = list.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (list[mid] > start) hi = mid;
+      else lo = mid + 1;
+    }
+    return lo < list.length ? list[lo] : -1;
   }
 
   function inline(text, depth) {
@@ -266,7 +287,10 @@
       return [text];
     }
     const out = [];
-    const missing = new Set();
+    const cache = new Map();
+    const match = brackets(text);
+    // The lengths of the backtick runs with no closing run.
+    const noTicks = new Set();
     let buf = "";
     let i = 0;
     const flush = () => {
@@ -292,13 +316,14 @@
         let n = 1;
         while (text[i + n] === "`") n++;
         const fence = "`".repeat(n);
-        let close = text.indexOf(fence, i + n);
+        let close = noTicks.has(n) ? -1 : text.indexOf(fence, i + n);
         while (close >= 0 && text[close + n] === "`") {
           let m = close;
           while (text[m] === "`") m++;
           close = text.indexOf(fence, m);
         }
         if (close < 0) {
+          noTicks.add(n);
           buf += fence;
           i += n;
           continue;
@@ -313,7 +338,7 @@
         continue;
       }
       if (ch === "!" && text[i + 1] === "[") {
-        const m = linkAt(text, i + 1);
+        const m = linkAt(text, i + 1, match);
         if (m) {
           flush();
           out.push(...image(m, text.slice(i, m.end), depth));
@@ -322,7 +347,7 @@
         }
       }
       if (ch === "[") {
-        const m = linkAt(text, i);
+        const m = linkAt(text, i, match);
         if (m) {
           flush();
           out.push(...anchor(m, depth));
@@ -330,7 +355,7 @@
           continue;
         }
       }
-      if (ch === "<") {
+      if (ch === "<" && /^<(?:https?|mailto):/i.test(text.slice(i, i + 8))) {
         const m = /^<((?:https?|mailto):[^\s<>]+)>/i.exec(text.slice(i, i + 2048));
         const t = m ? target(m[1]) : NONE;
         if (t.kind === "web" || t.kind === "mail") {
@@ -340,7 +365,7 @@
           continue;
         }
       }
-      if ((ch === "h" || ch === "H") && !isWord(text[i - 1])) {
+      if (/^https?:/i.test(text.slice(i, i + 6)) && !isWord(text[i - 1])) {
         const m = /^https?:[^\s<>]+/i.exec(text.slice(i, i + 2048));
         if (m) {
           const raw = m[0].replace(/[.,;:!?'")\]]+$/, "");
@@ -356,7 +381,7 @@
       const d = DELIMS.find((x) => text.startsWith(x, i));
       if (d && text[i + d.length] && !/\s/.test(text[i + d.length])) {
         const opens = d[0] !== "_" || !isWord(text[i - 1]);
-        const close = opens ? closing(text, i + d.length, d, missing) : -1;
+        const close = opens ? closing(text, i + d.length, d, cache) : -1;
         if (close > i + d.length) {
           flush();
           out.push(node(DELIM_TAG[d], {}, inline(text.slice(i + d.length, close), depth + 1)));
@@ -456,7 +481,19 @@
     return { node: wrap, end: j };
   }
 
-  function list(lines, i, depth) {
+  // For each line, the index of the first line at or after it that is not blank, or -1. One pass
+  // from the end, so that many blank lines in a list do not take quadratic time.
+  function filled(lines) {
+    const next = new Array(lines.length);
+    let n = -1;
+    for (let j = lines.length - 1; j >= 0; j--) {
+      if (!blank(lines[j])) n = j;
+      next[j] = n;
+    }
+    return next;
+  }
+
+  function list(lines, i, depth, next) {
     const first = ITEM.exec(lines[i]);
     const indent = first[1].length;
     const ordered = /\d/.test(first[2]);
@@ -471,8 +508,8 @@
       while (j < lines.length) {
         const line = lines[j];
         if (blank(line)) {
-          const next = lines.slice(j + 1).findIndex((l) => !blank(l));
-          const after = next < 0 ? null : lines[j + 1 + next];
+          const k = j + 1 < lines.length ? next[j + 1] : -1;
+          const after = k < 0 ? null : lines[k];
           if (after !== null && /^ */.exec(after)[0].length >= column) {
             body.push("");
             j++;
@@ -492,11 +529,11 @@
       }
       items.push(node("li", {}, blocks(body, depth + 1)));
       if (j < lines.length && blank(lines[j])) {
-        const next = lines.slice(j).findIndex((l) => !blank(l));
-        if (next < 0) break;
-        const m2 = ITEM.exec(lines[j + next]);
+        const k = next[j];
+        if (k < 0) break;
+        const m2 = ITEM.exec(lines[k]);
         if (!m2 || m2[1].length !== indent) break;
-        j += next;
+        j = k;
       }
     }
     const attrs = {};
@@ -510,6 +547,7 @@
       return [node("p", {}, [lines.join("\n")])];
     }
     const out = [];
+    let next = null;
     let i = 0;
     while (i < lines.length) {
       const line = lines[i];
@@ -559,7 +597,8 @@
         continue;
       }
       if (ITEM.test(line)) {
-        const l = list(lines, i, depth);
+        next = next || filled(lines);
+        const l = list(lines, i, depth, next);
         out.push(l.node);
         i = l.end;
         continue;

@@ -271,16 +271,51 @@ def open_checked(root: Path, name: str) -> tuple[int, Path] | None:
     """Open a file that a reply names, and check the open file, not only its path. Return the
     descriptor and the real path, or None.
 
-    A process of the test can change a path after a check, for example to a symlink to a file
-    outside the project. Thus the server opens the file first, with no symlink at the last part
-    of the path. Then it checks the path again, and the open file must be the file at the
-    checked path (the same device and inode)."""
+    A process of the test can change a path after a check, for example a folder to a symlink to
+    a folder outside the project. Thus the server opens each part of the checked real path
+    relative to the descriptor of the folder before it, and follows no symlink. The open file
+    is then the file at the checked path."""
     path = allowed_file(root, name)
     if path is None:
         return None
-    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
+    if os.open not in os.supports_dir_fd:
+        return _open_by_path(root, name, path)
+    folder = _shown_test(root)
+    top = root.resolve()
+    # A test folder outside the project, for example through a symlink of the state folder.
+    outside = not path.is_relative_to(top)
+    if outside and folder is not None and path.is_relative_to(folder.resolve()):
+        top = folder.resolve()
+    parts = path.relative_to(top).parts
+    nofollow = getattr(os, "O_NOFOLLOW", 0)
     try:
-        fd = os.open(path, flags)
+        fd = os.open(top, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+    except OSError:
+        return None
+    try:
+        for part in parts[:-1]:
+            inner = os.open(part, os.O_RDONLY | os.O_DIRECTORY | nofollow, dir_fd=fd)
+            os.close(fd)
+            fd = inner
+        file = os.open(parts[-1], os.O_RDONLY | nofollow | os.O_NONBLOCK, dir_fd=fd)
+    except (OSError, IndexError):
+        return None
+    finally:
+        os.close(fd)
+    try:
+        if stat.S_ISREG(os.fstat(file).st_mode):
+            return file, path
+    except OSError:
+        pass
+    os.close(file)
+    return None
+
+
+def _open_by_path(root: Path, name: str, path: Path) -> tuple[int, Path] | None:
+    """open_checked for a system with no `dir_fd` (Windows): open the path, check it again, and
+    the open file must be the file at the checked path (the same device and inode)."""
+    try:
+        fd = os.open(path, os.O_RDONLY | getattr(os, "O_BINARY", 0))
     except OSError:
         return None
     try:
