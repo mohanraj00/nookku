@@ -6,6 +6,7 @@ import json
 import os
 import re
 import signal
+import socket
 import subprocess
 import sys
 import threading
@@ -288,3 +289,16 @@ def test_the_config_key_page_false_starts_no_page(running: Any) -> None:
     (root / ".nookku" / "config.json").write_text(json.dumps({"page": "no"}))
     with pytest.raises(Exception, match="'page' must be true or false"):
         kit.Config.load(root)
+
+
+def test_the_page_server_does_not_look_up_the_host_name(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # socket.getfqdn took seconds on a CI computer, so the page server sent no status in time.
+    def slow(name: str = "") -> str:
+        raise AssertionError("getfqdn")
+
+    monkeypatch.setattr(socket, "getfqdn", slow)
+    server = page_auto.AutoPageServer(tmp_path, "t-1")
+    server.server_close()
+    assert server.server_name == page.HOST

@@ -21,6 +21,7 @@ import json
 import os
 import secrets
 import signal
+import socketserver
 import sys
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -187,6 +188,12 @@ class PageServer(ThreadingHTTPServer):
         port = self.server_address[1]
         self.hosts = {f"{HOST}:{port}", f"localhost:{port}"}
         self.origins = {f"http://{h}" for h in self.hosts}
+
+    def server_bind(self) -> None:
+        # HTTPServer.server_bind looks up the name of the host with socket.getfqdn. On some
+        # computers, this lookup takes seconds (#328). The page does not use the name.
+        socketserver.TCPServer.server_bind(self)
+        self.server_name, self.server_port = HOST, self.server_address[1]
 
     @property
     def url(self) -> str:
