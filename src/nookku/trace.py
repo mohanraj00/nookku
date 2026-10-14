@@ -296,6 +296,21 @@ def read_codex(path: Path, session: str, file: str) -> tuple[list[dict[str, Any]
     return items, {"version": version, "ignored": dict(sorted(ignored.items()))}
 
 
+def _codex_error_class(info: Any) -> str | None:
+    """The class of a Codex model error from its codex_error_info: a string, or an object with 1
+    key, for example {"http_connection_failed": {"http_status_code": 503}}. The key is the class.
+    An http_status_code in the value of the key adds the status."""
+    if isinstance(info, str):
+        return info
+    if not isinstance(info, dict) or len(info) != 1:
+        return None
+    kind, value = next(iter(info.items()))
+    code = value.get("http_status_code") if isinstance(value, dict) else None
+    if isinstance(code, int) and not isinstance(code, bool):
+        return f"{kind} (status {code})"
+    return str(kind)
+
+
 def read_codex_errors(path: Path) -> list[dict[str, Any]]:
     """The model errors of a Codex rollout file: each task_complete event with an error, with
     its line, its time and its detail. The event ends a turn of the harness."""
@@ -312,8 +327,8 @@ def read_codex_errors(path: Path) -> list[dict[str, Any]]:
         if isinstance(error, str):
             detail = error
         elif isinstance(error, dict) and isinstance(error.get("message"), str):
-            info = error.get("codex_error_info")
-            detail = f"{info}: {error['message']}" if isinstance(info, str) else error["message"]
+            kind = _codex_error_class(error.get("codex_error_info"))
+            detail = f"{kind}: {error['message']}" if kind else error["message"]
         else:
             detail = json_text(error)
         found.append({"line": n, "ts": _time(row.get("timestamp")), "detail": detail})

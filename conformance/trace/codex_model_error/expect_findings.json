@@ -12,7 +12,7 @@
    "version": "0.162.1",
    "items": 3,
    "ignored": {
-    "event_msg.task_complete": 4,
+    "event_msg.task_complete": 5,
     "event_msg.task_started": 1,
     "session_meta": 1
    }
@@ -30,7 +30,7 @@
   "span_error": 0,
   "backend_error": 0,
   "model_api_error": 0,
-  "model_error": 3,
+  "model_error": 4,
   "turn_without_model": 0,
   "item_between_turns": 0,
   "otel_tool_not_in_session": 0,
@@ -70,6 +70,17 @@
    "source": {
     "file": "sessions/codex/rollout-2026-10-06T08-00-00-019a0b1c-2d3e-7f40-8a5b-6c7d8e9f0a1b.jsonl",
     "line": 9
+   }
+  },
+  {
+   "check": "model_error",
+   "turn": null,
+   "detail": "http_connection_failed (status 503): stream disconnected before completion",
+   "harness": "codex",
+   "session": "019a0b1c-2d3e-7f40-8a5b-6c7d8e9f0a1b",
+   "source": {
+    "file": "sessions/codex/rollout-2026-10-06T08-00-00-019a0b1c-2d3e-7f40-8a5b-6c7d8e9f0a1b.jsonl",
+    "line": 10
    }
   }
  ]

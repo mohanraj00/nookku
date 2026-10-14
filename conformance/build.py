@@ -1431,7 +1431,8 @@ VERSION_CASE = {
 # A Codex turn that ends with a model error (SPEC.md section 8.6). The lines copy the shapes of
 # a session file of codex-cli 0.162.1. In turn 1, the model is at capacity: the task_complete
 # event has an error object and the turn has no model answer. Turn 2 ends with no error. After the
-# last turn, a task_complete has a string error, and one has an error object with no message.
+# last turn, a task_complete has a string error, one has an error object with no message, and
+# one has a codex_error_info object with 1 key and a status, as codex-cli 0.162.1 writes it.
 OVERLOADED = "Selected model is at capacity. Please try a different model."
 
 
@@ -1473,6 +1474,14 @@ CODEX_ERROR_CASE = {
             task_complete(33, "Your order 4471 is delivered."),
             task_complete(50, None, error="stream disconnected"),
             task_complete(51, None, error={"codex_error_info": "other"}),
+            task_complete(
+                52,
+                None,
+                error={
+                    "message": "stream disconnected before completion",
+                    "codex_error_info": {"http_connection_failed": {"http_status_code": 503}},
+                },
+            ),
         ],
     },
     "trace": [
@@ -1496,7 +1505,7 @@ CODEX_ERROR_CASE = {
                 "version": "0.162.1",
                 "items": 3,
                 "ignored": {
-                    "event_msg.task_complete": 4,
+                    "event_msg.task_complete": 5,
                     "event_msg.task_started": 1,
                     "session_meta": 1,
                 },
@@ -1505,7 +1514,7 @@ CODEX_ERROR_CASE = {
         "otel": None,
         "backend": None,
         "model_api": None,
-        "counts": counts(model_error=3),
+        "counts": counts(model_error=4),
         "findings": [
             {
                 "check": "model_error",
@@ -1524,6 +1533,12 @@ CODEX_ERROR_CASE = {
                 "turn": None,
                 "detail": '{"codex_error_info": "other"}',
                 **where("codex", 9),
+            },
+            {
+                "check": "model_error",
+                "turn": None,
+                "detail": "http_connection_failed (status 503): stream disconnected before completion",
+                **where("codex", 10),
             },
         ],
     },
