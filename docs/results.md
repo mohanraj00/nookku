@@ -25,7 +25,7 @@ The 5 test messages have trailing spaces, non-ASCII text (`Ünïcödé`, `€`, 
 | Project hooks | Claude Code 2.1.296 | 10/10 | 10/10 | 5/5 | pass | 5/5 | [results](../proofs/hooks-claude-code/results.json) |
 | Project hooks | Codex 0.162.1 | 10/10 | 10/10 | 5/5 | pass | 5/5 | [results](../proofs/hooks-codex/results.json) |
 
-The runs of the first table used nookku 0.4.2 (2026-10-13). The streamed runs used nookku 0.4.1. In each setup, the model used 0 output tokens in every relay turn. The hook blocks the prompt before the model runs. The plugin in Codex ran in the `CODEX_HOME` of [proof_codex_gate.py](../scripts/proof_codex_gate.py), where I trusted its hooks. In both Codex setups, `nookku start` ran the hook gate first ([SPEC.md section 7.8](../SPEC.md#78-codex-hook-gate)).
+The runs of the first table ran on 2026-10-13. The 2 Claude Code runs used nookku 0.4.3, and the 2 Codex runs used nookku 0.4.2 (the key `test.versions.nookku` of each results file). The streamed runs used nookku 0.4.1. In each setup, the model used 0 output tokens in every relay turn. The hook blocks the prompt before the model runs. The plugin in Codex ran in the `CODEX_HOME` of [proof_codex_gate.py](../scripts/proof_codex_gate.py), where I trusted its hooks. In both Codex setups, `nookku start` ran the hook gate first ([SPEC.md section 7.8](../SPEC.md#78-codex-hook-gate)).
 
 **The chat page.** The setup `page-claude-code` runs the same proofs with the [chat page](reference/cli.md#nookku-page) as the relay ([#327](https://github.com/mohanraj00/nookku/issues/327)). The tester starts and ends the test in Claude Code with the plugin, and sends the 5 messages 2 times on the page, with the headers of a browser. P2 also checks the answer of the page and the turns that the page shows. P3 is different: the proof counts the rows of the Claude Code session files of the project before and after each page turn. A page turn must add 0 rows, and the files must hold 0 of the messages. P3c: the model tries to call the page with `curl`, the guard denies it, and the agent receives nothing. The tap record has the same inputs, statuses and replies as the tap record of `plugin-claude-code`.
 
@@ -33,7 +33,7 @@ The runs of the first table used nookku 0.4.2 (2026-10-13). The streamed runs us
 |---|---|---|---|---|---|---|---|---|---|
 | Chat page | Claude Code 2.1.296 | 10/10 | 10/10 | 0 of 5 messages in 1 session file | pass | pass | 5/5 | yes | [results](../proofs/page-claude-code/results.json) |
 
-The chat page run used nookku 0.4.3 with the change of #327 (2026-10-13).
+The chat page run used nookku 0.4.3 with the changes of #327 and [#328](https://github.com/mohanraj00/nookku/issues/328) (2026-10-14, the keys `nookku` and `date` of the results file).
 
 With a streamed agent, the proof scripts take `--stream`. The toy agent sends each reply as Chat Completions SSE events, and the tap with the `openai` adapter forwards them. The relay runs in HTTP mode with no entry, so P3b does not run. P4 audits the records and finds each planted fault.
 
