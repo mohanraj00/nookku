@@ -29,7 +29,7 @@ from pathlib import Path
 from typing import Any, TextIO
 from urllib.parse import unquote, urlsplit
 
-from nookku import dashboard, kit, script_save, seal, state
+from nookku import dashboard, kit, replay, script_save, seal, state
 from nookku.record import RecordError, Writer, turns
 
 # The harness of a turn that the page sent (SPEC.md section 2.2).
@@ -44,6 +44,10 @@ FILES = {
     "dashboard.html": ("dashboard.html", "text/html; charset=utf-8"),
     "dashboard.js": ("dashboard.js", "text/javascript; charset=utf-8"),
     "dashboard.css": ("dashboard.css", "text/css; charset=utf-8"),
+    "compare.js": ("compare.js", "text/javascript; charset=utf-8"),
+    "diff.html": ("diff.html", "text/html; charset=utf-8"),
+    "diff.js": ("diff.js", "text/javascript; charset=utf-8"),
+    "diff.css": ("diff.css", "text/css; charset=utf-8"),
 }
 # The page loads only its own files. No inline script, no inline style, no other site.
 CSP = (
@@ -308,6 +312,8 @@ class _Handler(BaseHTTPRequestHandler):
             self._json(200 if data["test"] else 404, data)
         elif rest == "api/tests" or rest.startswith("api/tests/"):
             self._json(*dashboard.answer(self.server.root, rest))
+        elif rest.startswith(replay.ROUTE + "/"):
+            self._json(*replay.answer(self.server.root, rest))
         else:
             self._refuse(404, "not found")
 

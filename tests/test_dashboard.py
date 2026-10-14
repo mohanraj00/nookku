@@ -298,7 +298,10 @@ def test_the_dashboard_has_no_inline_script_and_no_html_from_text() -> None:
     html = folder.joinpath("dashboard.html").read_text()
     js = folder.joinpath("dashboard.js").read_text()
     css = folder.joinpath("dashboard.css").read_text()
-    assert re.findall(r"<script[^>]*>", html) == ['<script src="dashboard.js" defer>']
+    assert re.findall(r"<script[^>]*>", html) == [
+        '<script src="compare.js" defer>',
+        '<script src="dashboard.js" defer>',
+    ]
     assert not re.search(r"\son\w+=", html)
     assert "style=" not in html
     for text in (html, js, css):
