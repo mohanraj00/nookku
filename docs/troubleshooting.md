@@ -293,6 +293,12 @@ If the entry returns an error, crashes or does not answer in [240 seconds](../sr
 
 **Fix.** Read `bridge.log`. Run `nookku trace` to build the [trace](reference/glossary.md#trace) again.
 
+### `The bridge stopped before the end, so end wrote the audit and the seal from the records.`
+
+(bridge.py) **Cause.** The bridge stopped with no end, for example after `kill -9` or a restart, or it did not stop in the wait time of `end`. `end` finished the folder: `killed: true` in `manifest.json`, the trace, `audit.json` and the seal. The test has no copied model sessions.
+
+**Fix.** Read `bridge.log`. To see what to do next, read [recover-a-stuck-test.md](how-to/recover-a-stuck-test.md).
+
 ### `FAIL: No claude-code model session was identified.`
 
 (bridge.py, from `nookku check`) **Cause.** `models` names `claude-code`, but the tap found no Claude Code session of a process of the entry. The app does not use Claude Code, or it did not start a session for the check message.

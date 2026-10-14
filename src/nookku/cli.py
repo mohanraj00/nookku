@@ -613,6 +613,18 @@ def _run_command(args: argparse.Namespace) -> int:
     return 0 if passed else 1
 
 
+def _waiting(test: str) -> str:
+    return f"Ending test {test}. Waiting up to {bridge.END_WAIT:g} s for the bridge to stop."
+
+
+def _stopped(folder: Path) -> str:
+    """The text of `status` for a test whose bridge stopped with no end (#164)."""
+    return (
+        f"Test {folder.name} stopped with no end. Folder: {folder}\n"
+        "To write its audit and its seal, run: nookku end"
+    )
+
+
 def _test_command(args: argparse.Namespace) -> int:
     root = args.root.resolve()
     if args.command == "start":
@@ -630,6 +642,9 @@ def _test_command(args: argparse.Namespace) -> int:
         return 0
     if args.command == "end":
         kit.set_mode(root, False)
+        running = bridge.current(root)
+        if running is not None and not (args.json or args.evaluation):
+            print(_waiting(running["test"]), flush=True)
         ended = bridge.end(root)
         text = bridge.summary(ended) if ended else "No test runs. Relay mode is off."
         if args.evaluation:
@@ -662,6 +677,9 @@ def _test_command(args: argparse.Namespace) -> int:
             print(json.dumps({"on": on, "test": test, "text": line, "attachments": refuse}))
         else:
             print(kit.status(root).removeprefix("nookku: "))
+            folder = bridge.stopped(root) if running is None else None
+            if folder is not None:
+                print(_stopped(folder))
         return 0
     try:
         passed, lines = bridge.check(root)
