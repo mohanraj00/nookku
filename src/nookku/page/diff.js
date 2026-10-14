@@ -120,6 +120,7 @@ async function load() {
   el("tests").replaceChildren();
   el("turns").replaceChildren();
   el("summary").textContent = "";
+  const hash = window.location.hash;
   const pair = ids();
   if (pair === null) {
     showError("nookku: select 2 tests on the dashboard to compare them.");
@@ -130,6 +131,10 @@ async function load() {
       cache: "no-store",
     });
     const data = await resp.json();
+    // The hash can change during the request. Then the request of the new hash shows its diff.
+    if (hash !== window.location.hash) {
+      return;
+    }
     if (!data.old || !data.new) {
       showError(data.error || "nookku: the page server gave no diff.");
       return;
@@ -144,6 +149,9 @@ async function load() {
     el("summary").textContent = data.changed + " of " + n + (n === 1 ? " turn" : " turns") + " changed.";
     el("turns").replaceChildren(...data.turns.map((t) => turnItem(t, data.old.id, data.new.id)));
   } catch (e) {
+    if (hash !== window.location.hash) {
+      return;
+    }
     showError("nookku: the page server does not answer. Start it again with: nookku page");
   }
 }

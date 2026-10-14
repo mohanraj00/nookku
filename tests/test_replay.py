@@ -238,6 +238,8 @@ def test_the_diff_page_has_no_inline_script_and_no_html_from_text() -> None:
         assert not re.search(r"https?://", text), name
         for sink in ("innerHTML", "insertAdjacentHTML", "outerHTML"):
             assert sink not in text, name
+    # An answer for an old hash does not replace the diff of the current hash.
+    assert "if (hash !== window.location.hash)" in page.page_file("diff.js").decode()
 
 
 def test_the_guard_denies_a_model_replay_with_each_policy(tmp_path: Path) -> None:
