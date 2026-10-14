@@ -13,9 +13,9 @@ from importlib import resources
 from pathlib import Path
 from typing import Any
 
-from . import bridge, seal
+from . import bridge, seal, state
 from .config import ConfigError, read_config
-from .record import RecordError, read_rows, turns
+from .record import RecordError, read_rows
 
 REPORT = "report.md"
 # A longer text shows its start, and the trace line holds all of it.
@@ -35,38 +35,29 @@ def enabled(root: Path) -> bool:
     return conf.get("evaluate", True) is not False
 
 
-def is_check(folder: Path, manifest: dict[str, Any]) -> bool:
-    """True if the test is a test of `nookku check` (SPEC.md section 9.1). If the manifest has the
-    key `check`, the key decides. A manifest of an older Nookku version has no such key: then
-    the test has turns, and each one has the harness `nookku-check`. A relay record that cannot
-    be read is not a check test."""
-    if "check" in manifest:
-        return manifest["check"] is True
-    try:
-        found = turns(folder / "relay.jsonl", missing_ok=True)
-    except RecordError:
-        return False
-    return bool(found) and all(t.harness == bridge.CHECK_HARNESS for t in found)
+# The rule for a check test is in state.py, so that a hook event can use it (#214).
+is_check = state.is_check
 
 
 def _ended(root: Path) -> Path | None:
-    """The latest test, if no test runs, it ended, it has no report and it is not a check test."""
+    """The latest test that is not a check test that ended, if no test runs, the test ended, it
+    has no report and it is not a check test (SPEC.md section 9.1). A check test that ended does
+    not hide the test before it. A check test with no end time, or a test with a manifest that
+    cannot be read, gets no evaluation, and no test before it gets one."""
     if bridge.current(root) is not None:
         return None
-    folder = bridge.latest_test(root)
+    folder = state.tester_test(root)
     if folder is None or (folder / REPORT).exists():
         return None
-    try:
-        manifest = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
-    except (OSError, ValueError):
+    manifest = state.manifest_of(folder)
+    if manifest is None or manifest.get("ended") is None or is_check(folder, manifest):
         return None
-    if not isinstance(manifest, dict) or is_check(folder, manifest):
-        return None
-    return folder if manifest.get("ended") is not None else None
+    return folder
 
 
 def pending(root: Path) -> Path | None:
-    """The latest test, if it ended, has no report and the configuration lets it be evaluated."""
+    """The latest test that is not a check test, if it ended, has no report and the configuration
+    lets it be evaluated."""
     return _ended(root) if enabled(root) else None
 
 

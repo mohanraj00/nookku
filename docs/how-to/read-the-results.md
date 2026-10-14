@@ -57,7 +57,7 @@ ls .nookku/tests/
 20261011-184952-8a8d
 ```
 
-`nookku check` also makes a test folder. Do not read the check tests as your tests. The manifest of a check test has `"check": true`, and the test has one turn from the [harness](../reference/glossary.md#harness) `nookku-check`. The model does not evaluate a check test, also if the check stopped before its turn. To find the check tests:
+`nookku check` also makes a test folder. Do not read the check tests as your tests. The manifest of a check test has `"check": true`, and the test has one turn from the [harness](../reference/glossary.md#harness) `nookku-check`. The model does not evaluate a check test, also if the check stopped before its turn. A check test after your test does not stop the [evaluation](../reference/glossary.md#evaluation) of your test. To find the check tests:
 
 ```bash
 grep -l '"check": true' .nookku/tests/*/manifest.json
@@ -69,7 +69,7 @@ grep -l '"check": true' .nookku/tests/*/manifest.json
 
 A test of an older Nookku version has no key `check` in its manifest. To find those check tests, use `grep -l '"harness": "nookku-check"' .nookku/tests/*/relay.jsonl`.
 
-`nookku trace`, `verify` and `transcript --trace` use the latest test if you do not give a test id. `transcript` with no `--trace` uses the latest test only if the configuration has an `entry`. With no [entry](../reference/glossary.md#entry), it reads the [relay record](../reference/glossary.md#relay-record) of the configuration, and shows its latest session. If you ran `check` after your test, the latest test is the check test. Then give the test id of your test to each command.
+`nookku trace` and `verify` use the latest test if you do not give a test id. `transcript` also uses the latest test, but it skips each check test that ended. `transcript` with no `--trace` uses a test only if the configuration has an `entry`. With no [entry](../reference/glossary.md#entry), it reads the [relay record](../reference/glossary.md#relay-record) of the configuration, and shows its latest session. If you ran `check` after your test, the latest test is the check test. Then give the test id of your test to `trace` and `verify`.
 
 ## 2. Read the seal
 
