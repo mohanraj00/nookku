@@ -1,5 +1,6 @@
 // The chat page of nookku (#327). Each text of the agent or the tester goes into the page with
-// textContent, never as HTML, so that a reply cannot run code on the page.
+// textContent, or as DOM nodes from render.js (#347), never as HTML, so that a reply cannot run
+// code on the page.
 "use strict";
 
 const POLL_MS = 1000;
@@ -77,7 +78,9 @@ function render(data) {
     shownCount = 0;
     shownTest = test.id;
   }
+  let number = shownCount;
   for (const turn of data.turns.slice(shownCount)) {
+    number += 1;
     const sender = turn.harness === "script" ? "script" : "tester";
     list.append(block("tester", sender + " (" + turn.harness + ")", turn.said));
     if (turn.shown === null) {
@@ -85,8 +88,11 @@ function render(data) {
     } else if (turn.ok === false) {
       list.append(block("relay-error", "relay error", turn.shown));
     } else {
-      list.append(block("agent", "agent", turn.shown));
+      list.append(NookkuRender.reply(document, "agent", "agent", turn.shown));
     }
+    // notes.js puts the note controls of the turn on this block (#352).
+    list.lastElementChild.dataset.turn = String(number);
+    list.lastElementChild.dataset.test = test.id;
   }
   if (data.turns.length > shownCount) {
     shownCount = data.turns.length;

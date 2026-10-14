@@ -1,0 +1,38 @@
+/* The note controls of each reply (#352). */
+.notebar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin: 4px 0 0;
+}
+
+.notebar-rate {
+  padding: 2px 10px;
+  background: var(--agent);
+  color: var(--fg);
+  border: 1px solid var(--line);
+}
+
+.notebar-rate[aria-pressed="true"] {
+  background: var(--tester);
+  border-color: var(--accent);
+}
+
+.notebar-comment {
+  flex: 1 1 240px;
+  font-size: 13px;
+  padding: 4px 8px;
+}
+
+.notebar-save {
+  padding: 4px 12px;
+  font-size: 13px;
+}
+
+.notebar-status {
+  flex-basis: 100%;
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0;
+}
