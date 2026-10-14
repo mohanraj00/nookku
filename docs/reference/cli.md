@@ -214,6 +214,7 @@ Serve the chat page: a local web page where you talk to the agent of the running
 - Run `nookku page` in a separate terminal. Do not run it with `!` in the harness, because the harness shows the output to the model. In a harness shell, `nookku page` refuses to start.
 - Only you get the URL, in the terminal of `nookku page`. Do not give the URL to the harness model, because with it the model can send messages as you. The server writes only its port and its pid to `.nookku/page.json`, and the guard denies a model tool call to that port. The guard also denies a model command that runs `nookku page`.
 - The "Save as script" button writes the test that the page shows as a script, the same as `nookku script save`.
+- The "Export" button downloads one HTML file of the test that the page shows, the same as [`nookku export`](#nookku-export).
 - `nookku start` starts the page with the test, so you do not have to run `nookku page` ([`nookku start`](#nookku-start)). If a page server of the project runs already, `start` starts no second page.
 - One page server runs for each project. Stop the page with Ctrl-C. The page also stops when the terminal closes.
 - The relay in the harness chat still works, for example over SSH, in CI and in `codex exec`.
@@ -303,6 +304,32 @@ Build the trace of a test again, and show its findings ([SPEC.md section 8](../.
 |---|---|
 | 0 | The trace was built. |
 | 2 | No test folder with a manifest, or the seal is broken and the trace was not rebuilt. |
+
+### `nookku export`
+
+```text
+nookku export [TEST] [--root PATH] [--out FILE]
+```
+
+Write a test as one HTML file, so you can give it to a person who does not have the project or nookku. The file holds the CSS, the script and the data inline. It shows the chat, the trace steps, the notes, the audit result and the seal state ([SPEC.md section 5](../../SPEC.md#5-relays)).
+
+- The file loads nothing from the network. A link or a web image shows as text with its URL.
+- The file runs no script and no HTML from the agent. It holds no page URL and no page token.
+- An image or a video file that a reply names with a Markdown link or image goes into the file, with the file rule of the chat page. A path in the text of a reply adds no file. If a reply names a file only in code, the file shows it in a list at its end. A file larger than [4 MiB](../../src/nookku/export.py#L41-L44), or a file after a sum of 32 MiB, shows as its path. These limits are chosen values, not measurements.
+- The command reads the test and changes no record. It does not write into `.nookku/`, into a test folder or into the seal home.
+- On a system that cannot open a file relative to a folder (Windows), the command writes nothing and exits with 1. Use the "Export" button of the chat page there.
+
+| Argument or flag | Default | Meaning |
+|---|---|---|
+| `TEST` | the latest test | The test id, or the path of the test folder. |
+| `--root PATH` | the current folder | The project. |
+| `--out FILE` | `<test id>.html` in the current folder | The HTML file to write. |
+
+| Exit code | Meaning |
+|---|---|
+| 0 | The file was written. |
+| 1 | The command must not write to the path, for example a path in `.nookku/` or a link, or it cannot write the file. |
+| 2 | No test folder. |
 
 ### `nookku verify`
 
