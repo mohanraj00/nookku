@@ -14,7 +14,7 @@ verbatim-relay 0.3.x and earlier used `.verbatim-relay/`. The first `nookku` com
 | `entry.<ext>` | you or the harness model | The [entry](glossary.md#entry), if it is not in your app ([how-to/connect-your-agent.md](../how-to/connect-your-agent.md)). |
 | `nookku-state` | `nookku init`, `nookku start` | A marker of the state folder. `init` refuses a root in a marked folder, also through a symlink with another name ([#148](https://github.com/mohanraj00/nookku/issues/148)). |
 | `mode` | the [relays](glossary.md#relay) | `on` or `off`: [relay mode](glossary.md#relay-mode). It survives a restart of the [harness](glossary.md#harness) ([SPEC.md section 7.2](../../SPEC.md#72-start-and-end)). |
-| `current.json` | the [bridge](glossary.md#bridge) | The running test: its id, its folder, the [tap](glossary.md#tap) URL, the pid and the start time of the bridge. The file exists only while a test runs. |
+| `current.json` | the [bridge](glossary.md#bridge) | The running test: its id, its folder, the [tap](glossary.md#tap) URL, the tap token, the pid and the start time of the bridge. The token is a secret: each relay sends it to the tap ([SPEC.md section 4.2](../../SPEC.md#42-stdio-mode)). Thus the file has mode `0600`, so only the owner can read it. The file exists only while a test runs. |
 | `ending.json` | `nookku end` | The harness session that ends the test, for the bridge. |
 | `relay.jsonl` | the relays | With no entry: the [relay record](glossary.md#relay-record) ([how-to/http-tap.md](../how-to/http-tap.md)). |
 | `tests/<test-id>/` | the bridge, the relays, the tap | One folder for each test (see below). |

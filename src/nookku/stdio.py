@@ -30,6 +30,8 @@ TAIL = 20
 STRAY_HINT = "Use nookku.agent.serve() or write logs to stderr."
 # The variable that gives `nookku tap --cmd` its token. With no value, the tap makes one.
 TOKEN_ENV = "NOOKKU_TAP_TOKEN"
+# The length of a token that the tap makes. A token from TOKEN_ENV must not be shorter.
+TOKEN_MIN = 43
 
 
 class Agent:
@@ -234,6 +236,8 @@ class StdioTap(ThreadingHTTPServer):
         self, listen: tuple[str, int], agent: Agent, record: Path, token: str | None = None
     ) -> None:
         self.agent, self.writer = agent, Writer(record)
+        # True if the tap made the token. Only then does serve() write it to stderr.
+        self.made_token = not token
         self.token = token or new_token()
         self.lock = threading.Lock()
         super().__init__(listen, _Handler)
@@ -428,7 +432,8 @@ def start_in_thread(tap: socketserver.BaseServer) -> threading.Thread:
 
 def serve(tap: StdioTap) -> None:
     print(f"nookku tap: listening on {tap.url} -> {tap.agent.argv}", file=sys.stderr)
-    print(f"nookku tap: send the header {TOKEN_HEADER}: {tap.token}", file=sys.stderr)
+    if tap.made_token:
+        print(f"nookku tap: send the header {TOKEN_HEADER}: {tap.token}", file=sys.stderr)
     print(f"nookku tap: writing {tap.writer.path}", file=sys.stderr)
     tap.agent.start()
     try:

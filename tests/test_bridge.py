@@ -130,6 +130,21 @@ def test_the_tap_of_a_test_takes_only_requests_with_its_token(tmp_path: Path, ho
     assert len(answers.read_text().splitlines()) == 1
 
 
+def test_start_and_status_print_no_tap_token(tmp_path: Path, homes: tuple, capsys) -> None:
+    root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
+    try:
+        assert main(["start", "--root", str(root), "--json"]) == 0
+        started = json.loads(capsys.readouterr().out)
+        assert main(["status", "--root", str(root), "--json"]) == 0
+        status = json.loads(capsys.readouterr().out)
+        cur = bridge.current(root)
+    finally:
+        main(["end", "--root", str(root)])
+    assert cur is not None and cur[state.TOKEN_KEY]
+    assert started == status["test"] == state.public(cur)
+    assert state.TOKEN_KEY not in started
+
+
 def test_a_relay_with_no_token_fails_closed(tmp_path: Path, homes: tuple) -> None:
     root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
     cur = bridge.start(root)

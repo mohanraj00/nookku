@@ -25,6 +25,11 @@ TOKEN_HEADER = "X-Nookku-Token"
 TOKEN_KEY = "tap_token"
 
 
+def public(cur: dict[str, Any]) -> dict[str, Any]:
+    """current.json with no tap token, for output that a log or a tool result can keep."""
+    return {k: v for k, v in cur.items() if k != TOKEN_KEY}
+
+
 def tap_headers(token: str) -> dict[str, str]:
     """The headers of a POST to the stdio tap. A page server of the bridge, or a process that
     reads current.json, sends each message with these headers."""

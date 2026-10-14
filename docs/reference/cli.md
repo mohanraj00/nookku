@@ -24,7 +24,7 @@ Start a test: run the [entry](glossary.md#entry) through the [tap](glossary.md#t
 | Flag | Default | Meaning |
 |---|---|---|
 | `--root PATH` | the current folder | The project. |
-| `--json` | off | Print `current.json` of the test as JSON, or `{"error": ...}`. |
+| `--json` | off | Print `current.json` of the test as JSON, with no `tap_token`, or `{"error": ...}`. |
 | `--tester-session ID` | none | The [tester](glossary.md#tester)'s [harness](glossary.md#harness) session id. The [bridge](glossary.md#bridge) never takes this session as a session of the app. |
 
 | Exit code | Meaning |
@@ -55,7 +55,7 @@ Show relay mode and the running test, for example `relay mode is on. Test <test-
 | Flag | Default | Meaning |
 |---|---|---|
 | `--root PATH` | the current folder | The project. |
-| `--json` | off | Print `{"on": ..., "test": ..., "text": ..., "attachments": ...}`. `text` is the status line of the plugin. `attachments` is the text that refuses a prompt with an attachment in the plugin. Each is `null` if relay mode is off. |
+| `--json` | off | Print `{"on": ..., "test": ..., "text": ..., "attachments": ...}`. `test` is `current.json` with no `tap_token`, or `null`. `text` is the status line of the plugin. `attachments` is the text that refuses a prompt with an attachment in the plugin. Each is `null` if relay mode is off. |
 
 | Exit code | Meaning |
 |---|---|
@@ -319,7 +319,7 @@ Run the tap proxy in front of the agent ([SPEC.md section 4](../../SPEC.md#4-tap
 
 Give exactly one of `--agent` and `--cmd`.
 
-In stdio mode, the tap accepts a `POST` only with its token in the header `X-Nookku-Token` ([SPEC.md section 4.2](../../SPEC.md#42-stdio-mode)). The tap takes the token from the variable `NOOKKU_TAP_TOKEN`. If the variable has no value, the tap makes a random token. At start, the tap writes the token to stderr. In HTTP mode, the tap checks no token ([SPEC.md section 4.1](../../SPEC.md#41-http-mode)).
+In stdio mode, the tap accepts a `POST` only with its token in the header `X-Nookku-Token` ([SPEC.md section 4.2](../../SPEC.md#42-stdio-mode)). The tap takes the token from the variable `NOOKKU_TAP_TOKEN`. The value must have 43 characters or more, else the tap does not start. Use a random value, for example from `python -c "import secrets; print(secrets.token_urlsafe(32))"`. If the variable has no value, the tap makes a random token and writes it to stderr at start. In HTTP mode, the tap checks no token ([SPEC.md section 4.1](../../SPEC.md#41-http-mode)).
 
 | Exit code | Meaning |
 |---|---|
