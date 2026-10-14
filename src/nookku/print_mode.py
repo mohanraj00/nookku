@@ -25,13 +25,17 @@ TRUE = ("1", "true", "yes", "on")
 REASON = (
     "nookku: nothing was sent. Claude Code does not run as the interactive CLI, and then it can "
     "send a prompt to the model API in a title request. Use the interactive CLI, or set "
-    f"{OFF_SWITCH}=1 before you start Claude Code."
+    f"{OFF_SWITCH}=1 in the environment that starts Claude Code. Read docs/troubleshooting.md."
 )
+# The white space that JavaScript trim() removes from an ASCII value. Python str.strip() also
+# removes other characters, for example U+001F and U+0085, and then a value that Claude Code reads
+# as false can turn off the refusal.
+WHITE_SPACE = " \t\n\r\v\f"
 
 
 def refused(env: Mapping[str, str]) -> bool:
     """True if the title request is not off and the entrypoint is not the interactive CLI."""
-    if env.get(OFF_SWITCH, "").strip().lower() in TRUE:
+    if env.get(OFF_SWITCH, "").strip(WHITE_SPACE).lower() in TRUE:
         return False
     return env.get(VARIABLE) not in INTERACTIVE
 

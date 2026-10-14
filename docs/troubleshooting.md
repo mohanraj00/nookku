@@ -225,6 +225,17 @@ If the entry returns an error, crashes or does not answer in [240 seconds](../sr
 
 **Fix.** None. A shell command that only reads the entry, for example `cat entry.py`, can run. But during a test, the relays deny each tool call that names `.nookku`, except a read with a file tool such as `Read` ([SPEC.md section 5](../SPEC.md#5-relays)). Thus `cat .nookku/entry.py` is denied.
 
+### `nookku: nothing was sent. Claude Code does not run as the interactive CLI, and then it can send a prompt to the model API in a title request. Use the interactive CLI, or set CLAUDE_CODE_DISABLE_TERMINAL_TITLE=1 in the environment that starts Claude Code. Read docs/troubleshooting.md.`
+
+(print_mode.py) **Cause.** Claude Code does not run as the interactive CLI. For example, it runs as `claude -p`, in an Agent SDK app, or in the panel of an editor extension. Then Claude Code can send the first prompt of a session to the model API in a request that makes the session title. A hook cannot stop this request, so the relay refuses. It did not start a test, did not send the message and wrote no turn. This prompt can be in the title request already. The data is in [limits.md](limits.md) and [SPEC.md section 5](../SPEC.md#5-relays).
+
+**Fix.** Do one of these steps:
+
+1. Run `claude` in a terminal, with no `-p`. The relay accepts the interactive CLI. In an editor, use its integrated terminal.
+2. Set `CLAUDE_CODE_DISABLE_TERMINAL_TITLE=1` in the environment that starts Claude Code, for example in your shell profile. Then start Claude Code again. This variable stops the title request ([print mode data](../proofs/spikes/print-mode.json)).
+
+`nookku end` and `nookku status` still run.
+
 ### `nookku: the relay does not send attachments. Nothing was sent.`
 
 (kit.py, shown by register.tsx) **Cause.** In relay mode, the Claude Code plugin got a prompt with an attachment or an image. A command hook gets only the text of a prompt, so the project hooks and the Codex plugin cannot refuse it ([limits.md](limits.md)).

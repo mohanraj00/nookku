@@ -59,6 +59,12 @@ TITLE_OFF = "CLAUDE_CODE_DISABLE_TERMINAL_TITLE"
         ({TITLE_OFF: "true"}, False),
         ({"CLAUDE_CODE_ENTRYPOINT": "sdk-cli", TITLE_OFF: "0"}, True),
         ({"CLAUDE_CODE_ENTRYPOINT": "sdk-cli", TITLE_OFF: ""}, True),
+        ({"CLAUDE_CODE_ENTRYPOINT": "sdk-cli", TITLE_OFF: "\t1\r\n"}, False),
+        # Python strip() removes these characters, and JavaScript trim() does not.
+        ({"CLAUDE_CODE_ENTRYPOINT": "sdk-cli", TITLE_OFF: "1\x1f"}, True),
+        ({"CLAUDE_CODE_ENTRYPOINT": "sdk-cli", TITLE_OFF: "1\x85"}, True),
+        ({"CLAUDE_CODE_ENTRYPOINT": "sdk-cli", TITLE_OFF: "\x85on"}, True),
+        ({"CLAUDE_CODE_ENTRYPOINT": "sdk-cli", TITLE_OFF: "1\u00a0"}, True),
     ],
 )
 def test_only_the_interactive_cli_or_the_title_request_off_is_not_refused(
