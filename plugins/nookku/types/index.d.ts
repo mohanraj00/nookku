@@ -12,12 +12,14 @@ export type PaneData = {
 
 // `view` is the end of the output of `nookku view`, which the pane shows. `pane` is the state of
 // the test. `opened` is the test for which the plugin opened the pane. `note` is the output of
-// the last "Open chat", or the error output of `nookku status --json`.
+// the last "Open chat". `error` is the error output of the last `nookku status --json` that
+// failed, else empty.
 export type NookkuState = {
   view: string
   pane?: PaneData | null
   opened?: string | null
   note?: string
+  error?: string
 }
 
 declare module 'claude-code' {

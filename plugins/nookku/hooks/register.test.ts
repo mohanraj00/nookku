@@ -263,6 +263,24 @@ test('while a test runs, the pane reads the state again, for the turns of the ch
   expect(reads()).toBe(before)
 })
 
+test('a failed read of the status does not stop the poll', {}, async ($, on) => {
+  const clock = mock.clock(on)
+  paneFakes(on)
+  const out: Record<string, { exitCode: number; stdout: string; stderr?: string }> = { status: statusWith(RUNNING), view: { exitCode: 0, stdout: '' } }
+  fakes(on, out)
+  await $.command.run({ command: 'nookku', args: 'status' } as any)
+  out.status = { exitCode: 1, stdout: '', stderr: 'nookku: a read failed\n' }
+  await clock.advance(5_000)
+  const ui = await mountPane($)
+  // The pane keeps its last state and shows the error.
+  expect(await ui.find({ type: 'Text', text: 'nookku: a read failed' })).toBeTruthy()
+  expect(await ui.find({ type: 'Text', text: `Test ${TEST}: running, 2 turns` })).toBeTruthy()
+  out.status = statusWith({ ...RUNNING, turns: 7, lines: [`Test ${TEST}: running, 7 turns`] })
+  await clock.advance(5_000)
+  expect(await ui.find({ type: 'Text', text: `Test ${TEST}: running, 7 turns` })).toBeTruthy()
+  expect(await ui.find({ type: 'Text', text: 'nookku: a read failed' })).toBeUndefined()
+})
+
 test('the prompt nookku start opens the pane', {}, async ($, on) => {
   mock.clock(on)
   paneFakes(on)

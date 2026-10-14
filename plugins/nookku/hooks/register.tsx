@@ -57,16 +57,18 @@ async function showStatus($: any): Promise<void> {
   const before = await read($, state)
   const running = pane?.state === 'running' ? pane.test : null
   const open = running !== null && before.opened !== running
-  // If the command fails, the pane shows its error output.
+  // If the command fails, the pane keeps its last state and shows the error output.
   const error = data ? '' : r.out.trim()
   await update($, state, s => ({
     ...s,
-    pane,
+    pane: data ? pane : s.pane,
     opened: open ? running : s.opened,
-    note: error || (open ? '' : s.note),
+    note: open ? '' : s.note,
+    error,
   }))
   if (open) void $.ui.open({ id: PANE, title: 'nookku' })
-  setPoll($, running !== null)
+  // A failed read does not tell if the test runs, so the poll stays as it is and tries again.
+  if (pane !== null) setPoll($, running !== null)
 }
 
 // Read the state each POLL_MS while a test runs. Stop after the test.
@@ -174,6 +176,7 @@ export const register: Register = on => {
           </Button>
         )}
         {s.note ? <Text dimColor>{s.note}</Text> : null}
+        {s.error ? <Text dimColor>{s.error}</Text> : null}
         <Text>{s.view ?? ''}</Text>
       </Box>
     )
