@@ -176,7 +176,7 @@ def main() -> int:
         plugin = form == "plugin"
         project = ROOT / ".proof" / (relay if plugin else harness)
         record = work / "relay.jsonl"
-        conf = kit.Config(tap_url=tap_url, record=str(record))
+        conf = kit.Config(tap_url=tap_url, record=str(record), page=False)
         (project / kit.STATE_DIR).mkdir(parents=True, exist_ok=True)
         (project / kit.STATE_DIR / "config.json").write_text(json.dumps(conf.__dict__) + "\n")
         env = dict(ENV)

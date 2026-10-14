@@ -116,6 +116,8 @@ class Config:
     model_reply_match: str = "normalized"
     # True: nookku transcript --trace shows a repeated text one time (SPEC.md section 9.2).
     transcript_compact: bool = False
+    # False: start does not start the chat page with the test (SPEC.md section 5, #328).
+    page: bool = True
     # More entries of a scripted test, by name (SPEC.md section 7.10). entry stays the default.
     entries: dict[str, list[str]] = field(default_factory=dict)
 
@@ -147,7 +149,7 @@ STRING_KEYS = (
     "openai_model",
     "record",
 )
-BOOLEAN_KEYS = ("openai_stream", "evaluate", "otel", "transcript_compact")
+BOOLEAN_KEYS = ("openai_stream", "evaluate", "otel", "transcript_compact", "page")
 # The keys whose parser takes None for a key that is not there, and the value of an explicit null.
 NULL_KEYS = ("backends", "model_api")
 _NULL = object()

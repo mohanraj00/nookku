@@ -2,7 +2,7 @@
 
 In this tutorial, you test the toy shop agent of this repo in Claude Code. You install Nookku, run a test with 3 messages, and read the [audit](reference/glossary.md#audit), the report of the model and the [findings](reference/glossary.md#findings). You use the [project hooks](reference/glossary.md#project-hooks), because they need no global install in Claude Code. To compare the project hooks with the [plugin](reference/glossary.md#plugin), read [how-to/choose-a-relay.md](how-to/choose-a-relay.md).
 
-The output on this page comes from one run of this tutorial. I did the run on 2026-10-13, on macOS, with nookku 0.4.1 and Claude Code 2.1.296. I shortened the paths of the folders to `.../`. The test id and the times are different on your machine. The model output of steps 7 and 9 is a sample, because the model's answer is different on each run.
+The output on this page comes from one run of this tutorial. I did the run on 2026-10-13, on macOS, with nookku 0.4.1 and Claude Code 2.1.296. I shortened the paths of the folders to `.../`. The test id and the times are different on your machine. The model output of steps 7 and 9 is a sample, because the model's answer is different on each run. The chat page of steps 5 and 6 came after this run ([#328](https://github.com/mohanraj00/nookku/issues/328)), so its line in step 6 is the text of the code, not of the run.
 
 ## What you need
 
@@ -87,30 +87,15 @@ PASS
 
 PASS proves the connection, not the reply. `check` sent one message to the entry, the default of the config key [`check_message`](reference/config.md#nookkuconfigjson): `Hello from nookku check. What can you help me with?` The entry sent a reply line, and the audit of this short test is clean. `check` does not judge the reply. Here the reply is the fallback text of the toy shop, because the toy shop has no rule for this message. For your own app, do the steps in [Make sure that check runs your real app](how-to/connect-your-agent.md#make-sure-that-check-runs-your-real-app).
 
-## 5. Start the viewer
+## 5. The chat page
 
-The project hooks show each reply in the chat only as the reason of a blocked prompt. In the CLI, the start of a long reply can go off the screen. Thus open a second terminal, go to the project, and start the viewer:
+The project hooks show each reply in the chat only as the reason of a blocked prompt. In the CLI, the start of a long reply can go off the screen. Thus `nookku start` in step 6 also starts the [chat page](reference/cli.md#nookku-page) and opens it in your browser. You do not start a viewer by hand. The page shows each turn of the test, and you can also type your messages in the page. `nookku end` stops the page after the page shows the end of the test.
 
-```bash
-cd toy-shop
-nookku view
-```
-
-The viewer shows each turn of the latest test, and it waits for the next turn. Before your test starts, the latest test is the test of `check` from step 4. For the record of that test in my run, the viewer shows:
-
-```text
-════ test 20261013-050627-8c72 ════
-──── tester, turn 1 ────
-Hello from nookku check. What can you help me with?
-──── agent ────
-Which item is this about: the mug or the teapot?
-```
-
-This is correct. When your test starts, the viewer shows a header line with the new test id, then each turn. Keep the viewer open.
+If the browser cannot open, for example over SSH, the start tells you to run `nookku page` in a separate terminal. To see the turns as text, run `nookku view` in a second terminal. To turn the page off, set the config key [`page`](reference/config.md#test-keys) to `false`.
 
 ## 6. Run the test
 
-In the first terminal, start Claude Code in the project:
+In the project folder, start Claude Code:
 
 ```bash
 claude
@@ -120,6 +105,7 @@ Type the prompt `nookku start`. The hook starts the test and blocks the prompt, 
 
 ```text
 nookku: test 20261013-050805-40fa started. Relay mode is on: each message goes to the entry. To end the test and start the evaluation, type the prompt nookku end. To end the test with no evaluation, run nookku end in a shell.
+The chat page opened in your browser. It stops at the end of the test.
 ```
 
 Type these 3 messages, one at a time:
@@ -128,7 +114,7 @@ Type these 3 messages, one at a time:
 2. `ok what is your refund policy`
 3. `do you ship to delhi?`
 
-For each message, Claude Code shows the agent's reply as the reason of a blocked prompt. The model does not run, and it does not get the reply. The viewer also shows each turn:
+For each message, Claude Code shows the agent's reply as the reason of a blocked prompt. The model does not run, and it does not get the reply. The chat page also shows each turn. In my run, `nookku view` in a second terminal showed the turns as text:
 
 ```text
 ════ test 20261013-050805-40fa ════

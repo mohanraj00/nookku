@@ -145,7 +145,8 @@ def setup(
     entry = ["uv", "run", "--quiet", "--project", str(ROOT), "--with", sdk]
     entry += ["python", str(project / "entry.py")]
     (project / kit.STATE_DIR).mkdir(parents=True, exist_ok=True)
-    data = {"entry": entry, "models": ["claude-code"], **(config or {})}
+    # A proof opens no browser tab.
+    data = {"entry": entry, "models": ["claude-code"], "page": False, **(config or {})}
     (project / kit.STATE_DIR / "config.json").write_text(json.dumps(data, indent=1) + "\n")
     (project / kit.STATE_DIR / "mode").write_text("off\n")
 
