@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Nookku chat</title>
+<link rel="stylesheet" href="app.css">
+<script src="app.js" defer></script>
+</head>
+<body>
+<header>
+  <h1>Nookku chat</h1>
+  <p id="test">No test yet.</p>
+</header>
+<main>
+  <p id="start" class="mark" hidden></p>
+  <ol id="turns"></ol>
+  <p id="end" class="mark" hidden></p>
+</main>
+<footer>
+  <p id="error" role="alert" hidden></p>
+  <label for="said">Message to the agent</label>
+  <div class="send">
+    <textarea id="said" rows="3" autocomplete="off"></textarea>
+    <button id="send" type="button">Send</button>
+  </div>
+  <p class="note">Nookku sends each message byte for byte. The harness model does not see it.</p>
+</footer>
+</body>
+</html>

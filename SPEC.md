@@ -6,8 +6,8 @@ This file defines the two records and the audit. The conformance cases in `confo
 
 ## 1. Parts
 
-- **Tester:** a person who types messages in a coding harness (Claude Code or Codex).
-- **Relay:** the harness extension. It sends each tester message to the agent and shows each reply to the tester. The model does not write either direction.
+- **Tester:** a person who types messages in a coding harness (Claude Code or Codex), or on the chat page (section 5).
+- **Relay:** the harness extension, or the chat page (section 5). It sends each tester message to the agent and shows each reply to the tester. The model does not write either direction.
 - **Agent:** the chat agent under test.
 - **Tap:** a proxy between the relay and the agent. It forwards each request and each response without change. In stdio mode (section 4.2), the tap also starts the agent.
 - **Entry:** in stdio mode, the command that the tap starts. It is a thin wrapper that starts the app under test and speaks the agent contract (section 6). It is test code, not app code.
@@ -71,7 +71,7 @@ In stdio mode, the tap writes these `status` values:
 
 | Field | Type | Meaning |
 |---|---|---|
-| `harness` | string | For example `claude-code` or `codex`. In a scripted test (section 7.10), `script`. |
+| `harness` | string | For example `claude-code` or `codex`. In a scripted test (section 7.10), `script`. For a message that the tester sent on the chat page (section 5), `pane`. |
 | `said` | string | The exact text that the tester submitted. |
 | `shown` | string or null | The exact text that the relay showed to the tester. `null` if the relay showed no reply. |
 | `ok` | boolean | Optional. `true` if `shown` is the agent's reply, `false` if it is an error from the relay. |
@@ -236,6 +236,16 @@ The relay is one command, `nookku hook`, with one set of rules in Python ([ADR 0
 
 The rules below apply to both forms. They control the main model turn. A hook does not control each separate model request of the harness.
 
+**Chat page.** `nookku page` serves a local web page where the tester talks to the agent of a running test. The page is a third form of the relay for the messages of a test, next to the plugin and the project hooks. The relay in the harness chat stays, for example over SSH, in CI and in `codex exec`.
+
+- The page server sends each message with the relay function of the hook (`state.send`), with the tap token (section 4.2), and writes a `turn` row with `"harness": "pane"` and no `session` to `relay.jsonl`. The tap record and the audit do not change. The message never enters the harness, so the harness model cannot see it. A browser cannot post to the tap itself, because the tap refuses a request with `Origin`.
+- The page server applies the rules of the hook before it sends: it refuses an empty message, a message with a lone surrogate, an exact control prompt and a near-miss control prompt. For an exact control prompt, the reason is `nookku: the page does not run control prompts. Type <prompt> in the harness. Nothing was sent.` The page server writes no turn for a refused message.
+- **No test.** If no test runs, the page server sends nothing, writes no turn, and the page shows `nookku: no test runs. Start one in the harness with: nookku start. Nothing was sent.`
+- **Fail closed.** If the page server cannot send the message, the page shows the error, and the turn has the error as `shown` with `ok: false`, as in the hook. No message goes to a model.
+- The page server sends one message at a time. The page shows the turns of the running test, else of the latest test, with the start and the end of the test, and it shows each new turn. It puts each text in the page as text, never as HTML.
+- **Security.** The server listens only on `127.0.0.1`. Each path starts with `/p/<token>/`, where the token is 32 random bytes as URL-safe base64 text. The server compares the token in constant time. It refuses a request with a wrong `Host` (403), a wrong `Origin` (403), a `POST` with no `Origin` (403), and a `POST` with a `Content-Type` that is not `application/json` (415). A wrong token gets 404. Each answer has the header `Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`, and `Referrer-Policy: no-referrer`. The page has no inline script and loads no file from another site.
+- The server writes its URL to `page.json` in the state folder, with mode `0600`, and removes the file when it stops. The guard denies a model tool call to this URL (see "Deny addresses"). The server never prints the tap token.
+
 **Blocked prompts.** A command hook alone does not keep a blocked prompt from the model API. 2 cases are measured:
 
 - **`claude -p`.** With `--input-format stream-json`, Claude Code 2.1.294 sent the blocked prompt to the model API in a request with no tools and 1 message, in 9 of 9 cases. In the interactive CLI, this occurred in 0 of 9 cases. The data is the `model` list of each `print` case in [the hook display data](proofs/spikes/hook-display.json). The method is [scripts/spike_hook_display.py](scripts/spike_hook_display.py). See [#199](https://github.com/mohanraj00/nookku/issues/199).
@@ -265,8 +275,8 @@ The follow-up capture records a title-description schema match, without request 
   - The joined pages, without their footers, are the text of `nookku transcript`, character for character.
   - A tool result has text content only. With `structuredContent`, Codex 0.162.0 gave the model only that JSON and not the text ([data](proofs/spikes/codex-display.json), [method](scripts/spike_codex_display.py)).
   - A page of the default bound got to the model unchanged in Claude Code 2.1.295 and Codex 0.162.0, for English, text that is not English, JSON and emoji. Codex changed each page of 12313 bytes or more. Claude Code kept each page up to 30015 bytes. Data: [`proofs/mcp/transcript-pages.json`](proofs/mcp/transcript-pages.json). Method: [`scripts/measure_transcript_pages.py`](scripts/measure_transcript_pages.py).
-- **Deny.** The relay denies a model tool call if its input contains the host and port of the tap or the agent, as `<host>:<port>` or as the shell socket path `/dev/tcp/<host>/<port>` or `/dev/udp/<host>/<port>`. A port can have leading zeros, and a port followed by more digits does not match. File tools (read, write, edit, search) are not denied, because a file that names an address does not call it. Every other tool is denied, including tools that the relay does not know. The deny is best effort. The audit finds each message that goes through the tap. A call to the agent around the tap is in neither record.
-- **Deny addresses.** The deny uses `tap_url` and `agent_url` of `config.json`. During a test, it also uses `tap_url` of `current.json`. If `config.json` breaks the rule of the one reader (section 7.1), the relay keeps each of `tap_url`, `agent_url`, `record` and `entry` that has the right type. If `config.json` exists but is not valid JSON or not a JSON object, the relay uses the default values of these keys. Thus a broken file never gives fewer denies than a file with the default values. If the project has no `config.json`, the deny uses only `tap_url` of `current.json`.
+- **Deny.** The relay denies a model tool call if its input contains the host and port of the tap, the agent or the chat page, as `<host>:<port>` or as the shell socket path `/dev/tcp/<host>/<port>` or `/dev/udp/<host>/<port>`. A port can have leading zeros, and a port followed by more digits does not match. File tools (read, write, edit, search) are not denied, because a file that names an address does not call it. Every other tool is denied, including tools that the relay does not know. The deny is best effort. The audit finds each message that goes through the tap. A call to the agent around the tap is in neither record.
+- **Deny addresses.** The deny uses `tap_url` and `agent_url` of `config.json`. During a test, it also uses `tap_url` of `current.json`. If `page.json` exists, it also uses the `url` of the chat page, with a test and with no test. If `config.json` breaks the rule of the one reader (section 7.1), the relay keeps each of `tap_url`, `agent_url`, `record` and `entry` that has the right type. If `config.json` exists but is not valid JSON or not a JSON object, the relay uses the default values of these keys. Thus a broken file never gives fewer denies than a file with the default values. If the project has no `config.json`, the deny uses only `tap_url` of `current.json` and the `url` of `page.json`.
 - **Guard fields.** For a tool that is not a shell or a file tool, for example an MCP tool, each deny of this section reads only the fields of the policy key `guard_fields` (section 7.9), at each depth of the input. The other fields are free text, for example the body of a document. The shell tools, `write_stdin` and the file tools keep their rules, because each field of their input can be a command or a path. In a project with no state folder, the default `guard_fields` apply to the deny of the policy file. If the policy file is not valid, each field counts, so a broken file does not weaken the guard. The `blocked_call` row keeps the whole input. The conformance cases are in [`conformance/guard/`](conformance/guard/), with the names that start with `other_tool`.
 - **Test files.** The relay checks the paths that a model tool call can write, not the text of the call. The conformance cases are in [`conformance/guard/`](conformance/guard/).
   - A file write tool writes its targets: `file_path`, `notebook_path` or `path`, and the file names in the patch headers of an `apply_patch` call. The relay also resolves a target from the `cwd` of the event, and follows each symbolic link. The content of a file names no target.
@@ -279,7 +289,7 @@ The follow-up capture records a title-description schema match, without request 
   When no test runs, a tool call can change `config.json` and the files of the entry. The relay denies a write to a record or a state file of nookku:
   - the state folder itself;
   - `tests/`, except `report.md` in a test folder;
-  - `current.json`, `mode`, `relay.jsonl`, `tap.jsonl` and `ending.json`;
+  - `current.json`, `mode`, `relay.jsonl`, `tap.jsonl`, `ending.json` and `page.json`;
   - `seals/`, the seal copies in the nookku home.
 
   It also denies a shell command that does not pass the read check and changes to the state folder with `cd`, or has a `cwd` or a Codex `workdir` in it. The reason is `nookku: <name> is a record or a state file of nookku. Only nookku writes it. A command may read it.` `<name>` is the path as the call gives it. For a shell command, one more sentence gives the cause:

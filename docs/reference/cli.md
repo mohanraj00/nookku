@@ -128,6 +128,31 @@ Switch relay mode on or off. With an entry, `on` starts a test and `off` ends it
 |---|---|
 | 0 | Always. If a test does not start, the text names the cause. |
 
+### `nookku page`
+
+```text
+nookku page [--root PATH] [--port PORT]
+```
+
+Serve the chat page: a local web page where you talk to the agent of the running test. The command prints the page URL. Open it in your browser. Stop the page with Ctrl-C.
+
+- The page shows the turns of the running test, else of the latest test, with the start and the end of the test. It asks the server for new turns each [1 second](../../src/nookku/page/app.js#L5).
+- When you send a message, the page server sends it to the [tap](glossary.md#tap) with the relay function of the hook, and writes a turn with `"harness": "pane"` ([SPEC.md section 5](../../SPEC.md#5-relays)). The message does not go into the harness, so the [harness model](glossary.md#harness-model) cannot see it.
+- Start and end the test in the harness, with `nookku start` and `nookku end`. The page does not run these prompts.
+- If no test runs, or the page server cannot send the message, the page shows the error. Nothing goes to a model.
+- The server listens only on `127.0.0.1`. The URL has a random token. The server refuses a request with a wrong `Host` or `Origin` header. The server writes the URL to `.nookku/page.json`, and the guard denies a model tool call to it.
+- The relay in the harness chat still works, for example over SSH, in CI and in `codex exec`.
+
+| Flag | Default | Meaning |
+|---|---|---|
+| `--root PATH` | the current folder | The project. |
+| `--port PORT` | a free port | The port on `127.0.0.1`. |
+
+| Exit code | Meaning |
+|---|---|
+| 0 | The page stopped. |
+| 1 | The server cannot listen on the port. |
+
 ## Commands that read a test
 
 ### `nookku view`
@@ -141,6 +166,7 @@ If the [relay record](glossary.md#relay-record) has an invalid line, `view` show
 | `--root PATH` | the current folder | The project. |
 | `--no-follow` | off | Print the turns so far and stop. Without it, `view` waits for new turns until you stop it. |
 | `--record FILE` | from the config | The relay record to show. |
+| `--text` | on | The text view for a terminal. It is the only view of `nookku view` now. The chat page is [`nookku page`](#nookku-page). |
 
 | Exit code | Meaning |
 |---|---|

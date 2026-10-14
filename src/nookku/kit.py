@@ -60,7 +60,16 @@ DENY_REASON = "nookku: only the tester talks to the agent."
 # The files and folders of the state folder that only nookku writes, also when no test runs
 # (SPEC.md section 5). In a test folder, only report.md may change (SPEC.md section 9). `seals`
 # is the folder of the seal copies in the nookku home.
-RECORDS = {"tests", "current.json", "mode", "relay.jsonl", "tap.jsonl", "ending.json", "seals"}
+RECORDS = {
+    "tests",
+    "current.json",
+    "mode",
+    "relay.jsonl",
+    "tap.jsonl",
+    "ending.json",
+    "seals",
+    state.PAGE_FILE,
+}
 RECORDS_REASON = (
     "nookku: {name} is a record or a state file of nookku. Only nookku writes it. "
     "A command may read it."
@@ -401,13 +410,16 @@ def handle(event: dict[str, Any], root: Path, harness: str) -> dict[str, Any] | 
         ):
             return _deny(Path(cur["dir"]) / "relay.jsonl", harness, tool, full, ENTRY_REASON)
         urls = [loaded.tap_url, loaded.agent_url] if loaded else []
-        pattern = deny_pattern([*urls, cur["tap_url"] if cur else ""])
+        page = state.page_url(root)
+        pattern = deny_pattern([*urls, cur["tap_url"] if cur else "", page or ""])
         if pattern is None or not pattern.search(text):
             return None
         if cur is not None:
             return _deny(Path(cur["dir"]) / "relay.jsonl", harness, tool, full)
         if loaded is not None:
             return _deny(loaded.record_path(root), harness, tool, full)
+        if page:
+            return _deny(_last_record(root), harness, tool, full)
     return None
 
 

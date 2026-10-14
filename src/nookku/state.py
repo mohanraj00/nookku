@@ -25,6 +25,20 @@ TOKEN_HEADER = "X-Nookku-Token"
 TOKEN_KEY = "tap_token"
 
 
+# The page file in the state folder: the URL of the chat page (SPEC.md section 5, "Chat page").
+PAGE_FILE = "page.json"
+
+
+def page_url(root: Path) -> str | None:
+    """The URL of the chat page of the project, or None. The guard denies a call to it."""
+    try:
+        data = json.loads((state(root) / PAGE_FILE).read_text())
+    except (OSError, ValueError):
+        return None
+    url = data.get("url") if isinstance(data, dict) else None
+    return url if isinstance(url, str) else None
+
+
 def public(cur: dict[str, Any]) -> dict[str, Any]:
     """current.json with no tap token, for output that a log or a tool result can keep."""
     return {k: v for k, v in cur.items() if k != TOKEN_KEY}
