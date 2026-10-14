@@ -16,7 +16,7 @@ from typing import Any
 import pytest
 from test_timeouts import ANSWER
 
-from nookku import audit, bridge, cli, config, kit, stdio, trace
+from nookku import __version__, audit, bridge, cli, config, kit, stdio, trace
 
 ROOT = Path(__file__).resolve().parent.parent
 DOCS = ROOT / "docs"
@@ -404,7 +404,11 @@ def test_each_page_that_starts_the_setup_gives_the_form_that_runs_the_command(pa
 
 
 SETUP = ROOT / "src" / "nookku" / "setup.md"
-NODE_WARNING = "https://github.com/mohanraj00/nookku/blob/main/docs/how-to/connect-your-agent.md"
+# The setup text ships in the package, so its link uses the release tag, as `[project.urls]` does
+# (#305, #358). A release changes the tag.
+NODE_WARNING = (
+    f"https://github.com/mohanraj00/nookku/blob/v{__version__}/docs/how-to/connect-your-agent.md"
+)
 
 
 def test_the_setup_skill_checks_the_reply_and_app_log_after_a_pass() -> None:
