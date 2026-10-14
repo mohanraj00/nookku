@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Nookku tests</title>
+<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="dashboard.css">
+<script src="dashboard.js" defer></script>
+</head>
+<body>
+<header>
+  <h1>Nookku tests</h1>
+  <p class="nav"><a href="./">Chat page</a></p>
+</header>
+<main>
+  <form id="filters" class="filters">
+    <label>State
+      <select id="state">
+        <option value="all">All</option>
+        <option value="running">Running</option>
+        <option value="ended">Ended</option>
+        <option value="stopped">Stopped</option>
+        <option value="unknown">Unknown</option>
+      </select>
+    </label>
+    <label>Show
+      <select id="has">
+        <option value="all">All tests</option>
+        <option value="break">Tests with a break</option>
+        <option value="finding">Tests with a finding</option>
+      </select>
+    </label>
+    <label>Sort
+      <select id="order">
+        <option value="newest">Newest first</option>
+        <option value="oldest">Oldest first</option>
+      </select>
+    </label>
+  </form>
+  <p id="error" role="alert" hidden></p>
+  <p id="count" class="note"></p>
+  <div class="table">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Test</th>
+          <th scope="col">Started</th>
+          <th scope="col">State</th>
+          <th scope="col" class="num">Turns</th>
+          <th scope="col" class="num">Breaks</th>
+          <th scope="col" class="num">Findings</th>
+          <th scope="col">Seal</th>
+        </tr>
+      </thead>
+      <tbody id="tests"></tbody>
+    </table>
+  </div>
+  <p class="note">The dashboard reads the files of each test folder. It changes no file. A dash means that the test has no such file yet.</p>
+</main>
+</body>
+</html>

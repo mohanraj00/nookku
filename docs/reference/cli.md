@@ -117,6 +117,28 @@ By default, only a person runs `nookku run`: the relay denies it from the model.
 | 0 | The audit of the test is clean. |
 | 1 | The test did not start, for example the script breaks a rule or the entry name is unknown. Or a turn has no reply, the audit is not clean, or the Codex hooks changed. |
 
+### `nookku script`
+
+```text
+nookku script save [TEST] [--root PATH]
+```
+
+Save a test as a script ([SPEC.md section 7.10](../../SPEC.md#710-scripted-tests)). After you fix a defect, send the same messages again with `nookku run --script`. The command writes the `said` text of each turn of the test to `.nookku/scripts/<test id>.jsonl`, byte for byte. The file name records the source test id. The command prints the path and the `nookku run` command. The "Save as script" button of the chat page (`nookku page`) does the same for the test that the page shows.
+
+Only a person runs `nookku script`: the relay denies it from the model, with each policy. The guard also denies a model write to `.nookku/scripts/`, so the model cannot change a saved script before you run it.
+
+| Flag | Default | Meaning |
+|---|---|---|
+| `ACTION` | required | `save`. |
+| `TEST` | the latest test | The test id, or the path of the test folder. |
+| `--root PATH` | the current folder | The project. |
+
+| Exit code | Meaning |
+|---|---|
+| 0 | The command wrote the script. |
+| 1 | The `relay.jsonl` of the test is not valid or has no turn, or the command cannot write the file. |
+| 2 | No test has this id. |
+
 ### `nookku mode`
 
 ```text
@@ -144,6 +166,7 @@ nookku page [--root PATH] [--port PORT]
 Serve the chat page: a local web page where you talk to the agent of the running test. The command prints the page URL. Open it in your browser. Stop the page with Ctrl-C.
 
 - The page shows the turns of the running test, else of the latest test, with the start and the end of the test. It asks the server for new turns each [1 second](../../src/nookku/page/app.js#L5).
+- The link "All tests" opens the dashboard: one row for each test of the project, with the start time, the state, the count of turns, [breaks](glossary.md#break) and [findings](glossary.md#findings), and the seal state. Filter the rows by state, and by a break or a finding. Sort them by date. A click on a row opens the chat page of that test. If the test ended, that page is read-only. The dashboard reads the test folders and changes no file. It asks the server for new rows each [5 seconds](../../src/nookku/page/dashboard.js#L5) ([SPEC.md section 5](../../SPEC.md#5-relays)).
 - When you send a message, the page server sends it to the [tap](glossary.md#tap) with the relay function of the hook, and writes a turn with `"harness": "pane"` ([SPEC.md section 5](../../SPEC.md#5-relays)). The message does not go into the harness, so the [harness model](glossary.md#harness-model) cannot see it.
 - Start and end the test in the harness, with `nookku start` and `nookku end`. The page does not run these prompts.
 - The page sends only if relay mode is on and the test is not a [scripted test](glossary.md#scripted-test). After `nookku end` begins, the page sends nothing.
@@ -151,6 +174,7 @@ Serve the chat page: a local web page where you talk to the agent of the running
 - The server listens only on `127.0.0.1`. The URL has a random token. The server refuses a request with a wrong `Host` or `Origin` header.
 - Run `nookku page` in a separate terminal. Do not run it with `!` in the harness, because the harness shows the output to the model. In a harness shell, `nookku page` refuses to start.
 - Only you get the URL, in the terminal of `nookku page`. Do not give the URL to the harness model, because with it the model can send messages as you. The server writes only its port and its pid to `.nookku/page.json`, and the guard denies a model tool call to that port. The guard also denies a model command that runs `nookku page`.
+- The "Save as script" button writes the test that the page shows as a script, the same as `nookku script save`.
 - `nookku start` starts the page with the test, so you do not have to run `nookku page` ([`nookku start`](#nookku-start)). If a page server of the project runs already, `start` starts no second page.
 - One page server runs for each project. Stop the page with Ctrl-C. The page also stops when the terminal closes.
 - The relay in the harness chat still works, for example over SSH, in CI and in `codex exec`.

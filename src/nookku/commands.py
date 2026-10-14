@@ -44,7 +44,8 @@ PATCH_FILE = re.compile(r"^\*\*\* (?:(?:Add|Update|Delete) File|Move to): (.+)$"
 # The nookku commands that drive a test. Only a person runs them (#173). `mode` drives a test only
 # with one of MODE_DRIVES, and `run` only if the policy key scripts is not model. `page` prints the
 # URL of the chat page with its token, and with the token a model could send as the tester (#327).
-DRIVES = {"start", "end", "hook", "run", "page"}
+# `script` writes a saved script, which the guard protects from a model write (#350).
+DRIVES = {"start", "end", "hook", "run", "page", "script"}
 MODE_DRIVES = {"on", "off", "start", "end"}
 # `init --remove` removes the project hooks, so the next message would reach the model (#163).
 # argparse also takes a unique prefix of the flag, from --rem.
@@ -58,7 +59,7 @@ IMPORTS = re.compile(
     r"\b(?:import|from)\s+nookku\b|\b(?:import_module|__import__)\s*\(\s*['\"]nookku\b"
 )
 DRIVE_TEXT = re.compile(
-    r"\bnookku\s+(?:-\S+\s+)*(start|end|hook|run|page|mode\s+(?:on|off|start|end)"
+    r"\bnookku\s+(?:-\S+\s+)*(start|end|hook|run|page|script|mode\s+(?:on|off|start|end)"
     r"|init\b[^;&|\n]*?\s--rem(?:o|ov|ove)?\b)"
 )
 # The same text with no word boundary before nookku, for text that an option holds, for example
