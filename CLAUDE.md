@@ -11,6 +11,7 @@ Nookku is an evaluation harness for vertical AI agents. A person tests a chat ag
 - Find work with `gh issue list` and `gh issue view N`.
 - Use one branch for each issue, with the name `N-short-slug`. The PR body says `Fixes #N`.
 - Make CI green before you mark a PR as ready. The maintainer reviews and merges.
+- `main` does not require an up-to-date branch. Merge `main` into a PR only if GitHub shows a merge conflict. CI runs each test job on `main` after each merge. If a job fails on `main`, fix it before the next merge.
 - If you find work outside the scope of the issue, propose a new issue to the maintainer. Do not make the PR larger.
 
 ## Two harnesses work on this repo
