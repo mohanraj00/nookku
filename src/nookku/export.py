@@ -34,7 +34,7 @@ from typing import Any
 from urllib.parse import unquote, urlsplit
 
 from nookku import __version__, dashboard, notes, page, page_trace, seal, state
-from nookku.record import RecordError
+from nookku.record import RecordError, finite
 
 # The route of the page server, after the token: api/export/<test id>.
 ROUTE = "api/export"
@@ -277,25 +277,11 @@ def data(root: Path, folder: Path) -> dict[str, Any]:
         "exported": time.time(),
         "version": __version__,
     }
-    clean, changed = _finite(out)
+    clean, changed = finite(out)
     found: dict[str, Any] = clean
     if changed:
         found["errors"].append(NOT_FINITE)
     return found
-
-
-def _finite(value: Any) -> tuple[Any, bool]:
-    """The value with None for each number that is not finite, and True if there was one. JSON
-    has no NaN or Infinity (SPEC.md section 2), and a file of a test can have one."""
-    if isinstance(value, float) and not math.isfinite(value):
-        return None, True
-    if isinstance(value, dict):
-        pairs = [(k, _finite(v)) for k, v in value.items()]
-        return {k: v for k, (v, _) in pairs}, any(c for _, (_, c) in pairs)
-    if isinstance(value, list):
-        items = [_finite(v) for v in value]
-        return [v for v, _ in items], any(c for _, c in items)
-    return value, False
 
 
 def _objects(data: dict[str, Any] | None, key: str, name: str, errors: list[str]) -> list[Any]:

@@ -12,7 +12,15 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from test_page import base, make_folder, request, start_page, write_current
+from test_page import (
+    base,
+    cookie_only,
+    make_folder,
+    request,
+    session_headers,
+    start_page,
+    write_current,
+)
 
 from nookku import page
 
@@ -255,6 +263,8 @@ def test_a_long_or_deep_reply_does_not_stop_the_page() -> None:
         "**[x](a *b _c `d " * 11_000,
         "a|b\n" + " " * 190_000 + "x",
         "# a" + " " * 190_000 + "x",
+        "```" + " " * 199_000 + "`",
+        "a\n~~~" + " " * 199_000 + "`",
     ],
     # A short id: pytest puts the id in the environment of node, and Linux refuses an
     # environment string over 128 KiB.
@@ -271,6 +281,8 @@ def test_a_long_or_deep_reply_does_not_stop_the_page() -> None:
         "mixed",
         "table",
         "heading",
+        "fence",
+        "fence-in-paragraph",
     ],
 )
 def test_a_reply_of_many_open_marks_renders_in_linear_time(text: str) -> None:
@@ -338,11 +350,13 @@ def test_the_page_serves_an_image_a_video_and_an_svg_of_the_project(
         # The page itself keeps its own strict CSP.
         _, headers, _ = request(server, "GET", base(server))
         assert headers["content-security-policy"] == page.CSP
-        # The browser asks for a file under the session path, with the session cookie.
-        cookie = headers["set-cookie"].split(";", 1)[0]
+        # The page asks for a file under the session path, with the session cookie and the page
+        # key (key.js). The cookie alone gets nothing.
+        both = session_headers(303, headers)
         path = page.SESSION_PATH + "files/images%2Ftrain.png"
-        status, _, body = request(server, "GET", path, headers={"Cookie": cookie})
+        status, _, body = request(server, "GET", path, headers=both)
         assert status == 200 and body == b"\x89PNG fake"
+        assert request(server, "GET", path, headers=cookie_only(both))[0] == 404
         assert request(server, "GET", path)[0] == 404
     finally:
         server.shutdown()
@@ -609,3 +623,190 @@ def test_a_reply_link_to_another_host_stays_a_link() -> None:
     out = node({"text": "[help](https://example.com/help) http://127.0.0.2.example.com/"})
     hrefs = [e["a"]["href"] for e in walk(out["tree"]) if e["t"] == "a"]
     assert hrefs == ["https://example.com/help", "http://127.0.0.2.example.com/"]
+
+
+# ---- The page key (SPEC.md section 5, "Session") ----
+
+KEY = Path(str(resources.files("nookku").joinpath("page").joinpath("key.js")))
+KEY_HARNESS = """
+const input = JSON.parse(require("fs").readFileSync(0, "utf8"));
+const out = { sent: [], replaced: null, stored: null, posted: [] };
+const peers = [];
+class Channel {
+  constructor(name) { this.name = name; this.listeners = []; peers.push(this); }
+  addEventListener(kind, f) { this.listeners.push(f); }
+  postMessage(data) {
+    out.posted.push(data);
+    if (data.ask && input.peer) {
+      setTimeout(() => this.listeners.forEach((f) => f({ data: { key: input.peer } })), 10);
+    }
+  }
+}
+const store = new Map(input.stored ? [["nookku-page-key", input.stored]] : []);
+const win = {
+  location: { hash: input.hash, pathname: "/p/s/", href: "http://127.0.0.1:5000/p/s/" + input.hash,
+    origin: "http://127.0.0.1:5000" },
+  history: { replaceState: (a, b, url) => { out.replaced = url; } },
+  sessionStorage: input.noStorage ? null : {
+    getItem: (k) => store.has(k) ? store.get(k) : null,
+    setItem: (k, v) => { store.set(k, v); out.stored = v; },
+  },
+  BroadcastChannel: Channel, Headers: Headers, setTimeout: setTimeout, clearTimeout: clearTimeout,
+  fetch: async (url, init) => {
+    const headers = init && init.headers ? Object.fromEntries(new Headers(init.headers)) : {};
+    out.sent.push({ url: String(url), key: headers["x-nookku-page"] || null });
+    return { ok: true };
+  },
+};
+global.window = win;
+require(process.argv[1]);
+(async () => {
+  await win.fetch("api/turns");
+  await win.fetch("https://example.com/x.png");
+  // Another tab asks for the key.
+  peers[0].listeners.forEach((f) => f({ data: { ask: true } }));
+  process.stdout.write(JSON.stringify(out));
+})();
+"""
+
+
+def key_node(data: dict[str, Any]) -> dict[str, Any]:
+    assert NODE is not None
+    done = subprocess.run(
+        [NODE, "-e", KEY_HARNESS, str(KEY)],
+        input=json.dumps(data),
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=True,
+    )
+    out: dict[str, Any] = json.loads(done.stdout)
+    return out
+
+
+GIVEN = "A" * 43
+
+
+@needs_node
+def test_the_page_takes_the_key_from_the_fragment_and_sends_it_only_to_its_server() -> None:
+    out = key_node({"hash": "#k=" + GIVEN})
+    # The fragment goes away from the address bar and the history.
+    assert out["replaced"] == "/p/s/"
+    assert out["stored"] == GIVEN
+    assert out["sent"] == [
+        {"url": "api/turns", "key": GIVEN},
+        {"url": "https://example.com/x.png", "key": None},
+    ]
+    # The tab gives the key to a new tab of the same origin.
+    assert {"key": GIVEN} in out["posted"]
+
+
+@needs_node
+def test_a_reload_takes_the_key_from_the_session_storage_of_the_tab() -> None:
+    out = key_node({"hash": "", "stored": GIVEN})
+    assert out["replaced"] is None
+    assert out["sent"][0] == {"url": "api/turns", "key": GIVEN}
+
+
+@needs_node
+def test_a_new_tab_asks_an_open_tab_for_the_key() -> None:
+    out = key_node({"hash": "", "peer": GIVEN})
+    assert {"ask": True} in out["posted"]
+    assert out["sent"][0] == {"url": "api/turns", "key": GIVEN}
+
+
+@needs_node
+@pytest.mark.parametrize("hash_", ["", "#k=short", "#20261013-090000-ab12"])
+def test_a_tab_with_no_key_sends_no_key(hash_: str) -> None:
+    """The server then refuses each request of data with page.NO_KEY. A hash that is not a key,
+    for example the test id of the dashboard, stays for app.js."""
+    out = key_node({"hash": hash_, "noStorage": True})
+    assert out["replaced"] is None
+    assert out["sent"][0] == {"url": "api/turns", "key": None}
+
+
+FILE_HARNESS = """
+const loads = [];
+globalThis.NookkuPage = { fileSrc: (e, src) => loads.push({ tag: e.tag, src: src }) };
+const render = require(process.argv[1]);
+const made = [];
+class El {
+  constructor(tag) { this.tag = tag; this.attrs = {}; this.kids = []; made.push(this); }
+  setAttribute(k, v) { this.attrs[k] = String(v); }
+  appendChild(c) { this.kids.push(c); return c; }
+}
+const doc = { createElement: (t) => new El(t), createTextNode: (t) => ({ text: String(t) }),
+  createDocumentFragment: () => new El("#fragment") };
+render.toDom(render.render(require("fs").readFileSync(0, "utf8")), doc);
+const media = made.filter((e) => ["img", "video", "iframe"].includes(e.tag));
+process.stdout.write(JSON.stringify({ loads: loads, src: media.map((e) => e.attrs.src || null) }));
+"""
+
+
+@needs_node
+def test_the_page_loads_a_file_of_its_server_with_the_page_key() -> None:
+    """An element cannot send the page key, so key.js loads the file and gives a blob: URL."""
+    assert NODE is not None
+    text = "![t](images/train.png) ![k](kite.mp4) ![l](logo.svg) ![d](data:image/png;base64,AA==)"
+    done = subprocess.run(
+        [NODE, "-e", FILE_HARNESS, str(RENDER)],
+        input=text,
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=True,
+    )
+    out = json.loads(done.stdout)
+    assert out["loads"] == [
+        {"tag": "img", "src": "files/images%2Ftrain.png"},
+        {"tag": "video", "src": "files/kite.mp4"},
+        {"tag": "iframe", "src": "files/logo.svg"},
+    ]
+    # No element asks the server for a file with the cookie only.
+    assert out["src"] == [None, None, None, "data:image/png;base64,AA=="]
+
+
+UNC = [
+    "\\\\host\\share\\a.png",
+    "//host/share/a.png",
+    "\\/host/share/a.png",
+    "/\\host\\share\\a.png",
+    "\\\\?\\UNC\\host\\share\\a.png",
+]
+
+
+@needs_node
+def test_a_reply_does_not_name_a_network_path_of_windows() -> None:
+    """On Windows, a check of a network path (UNC) sends the credentials of the person to the
+    host. Thus the page shows such a path as text, and asks the server for no file."""
+    assert NODE is not None
+    names = [*UNC, "file:////host/share/a.png", "file:///%5C%5Chost/share/a.png"]
+    script = (
+        "const r = require(process.argv[1]);"
+        "const names = JSON.parse(require('fs').readFileSync(0, 'utf8'));"
+        "process.stdout.write(JSON.stringify(names.map((n) => r.target(n).kind)));"
+    )
+    done = subprocess.run(
+        [NODE, "-e", script, str(RENDER)],
+        input=json.dumps(names),
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=True,
+    )
+    assert json.loads(done.stdout) == ["none"] * len(names)
+    tree = node({"text": "".join(f"![x]({n.replace(chr(92), '/')}) " for n in UNC[:2])})["tree"]
+    assert not [e for e in walk(tree) if e["t"] in ("img", "button")]
+
+
+@pytest.mark.parametrize("name", UNC)
+def test_the_server_refuses_a_network_path_before_it_checks_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, name: str
+) -> None:
+    checked: list[Path] = []
+    monkeypatch.setattr(Path, "resolve", lambda self, strict=False: checked.append(self))
+    assert page.unc(name)
+    assert page.allowed_file(tmp_path, name) is None
+    assert checked == []
+    assert not page.unc("images/train.png") and not page.unc("/tmp/a.png")
+    assert not page.unc("C:\\shop\\a.png")

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import re
 import threading
@@ -20,6 +21,20 @@ VERSIONS = ("0.1", "0.2", "0.3")
 _SURROGATE = re.compile("[\ud800-\udfff]")
 
 
+def finite(value: Any) -> tuple[Any, bool]:
+    """The value with None for each number that is not finite, and True if there was one. JSON
+    has no NaN or Infinity (SPEC.md section 2), and a file of a test can have one."""
+    if isinstance(value, float) and not math.isfinite(value):
+        return None, True
+    if isinstance(value, dict):
+        pairs = [(k, finite(v)) for k, v in value.items()]
+        return {k: v for k, (v, _) in pairs}, any(c for _, (_, c) in pairs)
+    if isinstance(value, list | tuple):
+        items = [finite(v) for v in value]
+        return [v for v, _ in items], any(c for _, c in items)
+    return value, False
+
+
 def lone_surrogate(text: str) -> str | None:
     """Name the first lone surrogate in the text, or return None if the text has none.
 
@@ -30,6 +45,14 @@ def lone_surrogate(text: str) -> str | None:
     if found is None:
         return None
     return f"a lone surrogate U+{ord(found.group()):04X} at character {found.start()}"
+
+
+def id_problem(text: str) -> str | None:
+    """The reason to refuse a test id from the page, or None. A NUL cannot be in a path, and UTF-8
+    cannot encode a lone surrogate, so the answer cannot name such an id."""
+    if "\x00" in text:
+        return "a NUL character"
+    return lone_surrogate(text)
 
 
 def escape_surrogates(text: str) -> str:

@@ -64,10 +64,22 @@ def base(server: page.PageServer) -> str:
 
 
 def session(server: page.PageServer) -> dict[str, str]:
-    """Open the page URL as the browser does, and return the Cookie header of the session."""
+    """Open the page URL as the browser does, and return the headers that the page script sends:
+    the Cookie header of the session and the page key from the fragment of the redirect."""
     status, headers, _ = request(server, "GET", base(server))
-    assert status == 303 and headers["location"] == page.SESSION_PATH
-    return {"Cookie": headers["set-cookie"].split(";", 1)[0]}
+    return session_headers(status, headers)
+
+
+def session_headers(status: int, headers: dict[str, str]) -> dict[str, str]:
+    """The Cookie header and the page key header of a redirect with a session."""
+    assert status == 303
+    path, sep, key = headers["location"].partition("#k=")
+    assert path == page.SESSION_PATH and sep and key
+    return {"Cookie": headers["set-cookie"].split(";", 1)[0], page.PAGE_HEADER: key}
+
+
+def cookie_only(headers: dict[str, str]) -> dict[str, str]:
+    return {"Cookie": headers["Cookie"]}
 
 
 def start_page(root: Path) -> page.PageServer:
@@ -170,6 +182,7 @@ def test_the_page_url_gives_a_session_one_time(tmp_path: Path) -> None:
         status, _, body = request(server, "GET", page.SESSION_PATH, headers=cookie)
         assert status == 200 and b"<html" in body.lower()
         assert server.token not in cookie["Cookie"]
+        assert server.page_key not in cookie["Cookie"] and server.session != server.page_key
         sent = request(server, "POST", page.SESSION_PATH + "api/send", {"said": ""}, cookie)
         assert sent[0] == 200
         wrong = {"Cookie": f"{server.cookie_name}={'x' * len(server.session)}"}
@@ -190,13 +203,68 @@ def test_the_session_cookie_stays_only_in_the_memory_of_the_browser(tmp_path: Pa
         assert status == 303
         parts = [p.strip() for p in headers["set-cookie"].split(";")]
         name, value = parts[0].split("=", 1)
-        assert name == f"nookku_page_{server.server_address[1]}" and value == server.session
+        assert name == server.cookie_name and value == server.session
+        # The name does not give the port to a server on another port that gets the cookie.
+        assert str(server.server_address[1]) not in name
+        other = page.PageServer(tmp_path)
+        other.server_close()
+        assert other.cookie_name != name
         assert value != server.token
         assert set(parts[1:]) == {f"Path={page.SESSION_PATH}", "HttpOnly", "SameSite=Strict"}
         assert headers["content-security-policy"] == page.CSP
     finally:
         server.shutdown()
         server.server_close()
+
+
+def test_a_request_of_data_needs_the_cookie_and_the_page_key(tmp_path: Path) -> None:
+    """A browser sends the session cookie also to another port of the host. Thus a process that
+    listens on another port can get the cookie, but not the page key: the key goes only in a URL
+    fragment to the script of the page (SPEC.md section 5, "Session")."""
+    folder = make_folder(tmp_path)
+    (folder / "chart.png").write_bytes(b"chart")
+    server = start_page(tmp_path)
+    try:
+        both = session(server)
+        cookie = cookie_only(both)
+        key = {page.PAGE_HEADER: both[page.PAGE_HEADER]}
+        wrong = {**cookie, page.PAGE_HEADER: "x" * len(server.page_key)}
+        paths = [
+            "api/turns",
+            "api/tests",
+            "api/notes",
+            "api/trace",
+            f"api/export/{folder.name}",
+            "files/" + str(folder / "chart.png").replace("/", "%2F"),
+        ]
+        for path in paths:
+            assert request(server, "GET", page.SESSION_PATH + path, headers=both)[0] == 200, path
+            for headers in (cookie, key, wrong):
+                status, _, body = request(server, "GET", page.SESSION_PATH + path, headers=headers)
+                assert status == 404, (path, headers)
+        _, _, body = request(server, "GET", page.SESSION_PATH + "api/turns", headers=cookie)
+        assert page.NO_KEY in json.loads(body)["error"]
+        for path in ("api/send", "api/save-script", "api/note", "api/open"):
+            assert request(server, "POST", page.SESSION_PATH + path, {}, cookie)[0] == 404, path
+            assert request(server, "POST", page.SESSION_PATH + path, {}, wrong)[0] == 404, path
+        # The files of the page hold no data, so they load with the cookie only.
+        for path in ("", "app.js", "key.js", "dashboard.html", "theme.css"):
+            assert request(server, "GET", page.SESSION_PATH + path, headers=cookie)[0] == 200
+        # A second key header is refused.
+        lines = (
+            f"GET {page.SESSION_PATH}api/turns HTTP/1.0\r\nHost: 127.0.0.1:"
+            f"{server.server_address[1]}\r\nCookie: {cookie['Cookie']}\r\n"
+            f"{page.PAGE_HEADER}: {server.page_key}\r\n{page.PAGE_HEADER}: x\r\n\r\n"
+        )
+        assert raw(server, lines.encode()).startswith(b"HTTP/1.0 404")
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_the_key_compare_takes_constant_time() -> None:
+    source = Path(page.__file__).read_text()
+    assert "keys[0].encode(), self.server.page_key.encode()" in source
 
 
 def test_a_post_to_the_page_url_gives_no_session(tmp_path: Path) -> None:
@@ -291,12 +359,13 @@ def test_the_page_has_no_inline_script_no_cdn_and_no_html_from_text() -> None:
     folder = resources.files("nookku").joinpath("page")
     html = folder.joinpath("index.html").read_text()
     scripts = ["render.js", "app.js", "save.js", "notes.js", "export_button.js", "trace.js"]
-    js = "".join(folder.joinpath(name).read_text() for name in scripts)
+    js = "".join(folder.joinpath(name).read_text() for name in [*scripts, "key.js"])
     styles = ["app.css", "render.css", "notes.css", "trace.css"]
     css = "".join(folder.joinpath(name).read_text() for name in styles)
     # theme.js runs before the first paint, without defer (#355).
     tags = re.findall(r"<script[^>]*>", html)
-    assert tags == ['<script src="theme.js">'] + [
+    # key.js takes the page key before the other scripts run (SPEC.md section 5, "Session").
+    assert tags == ['<script src="theme.js">', '<script src="key.js">'] + [
         f'<script src="{s}" defer>' for s in [*scripts, "keys.js"]
     ]
     assert all(name in page.FILES for name in [*scripts, *styles])
@@ -568,6 +637,47 @@ def test_a_said_that_is_not_text_or_a_deep_json_body_gets_400(tmp_path: Path) ->
         server.server_close()
 
 
+@pytest.mark.parametrize("test_id", ["a\x00b", "a\ud800b"])
+def test_a_test_id_with_a_nul_or_a_lone_surrogate_gets_400(tmp_path: Path, test_id: str) -> None:
+    """The answer names the test, and UTF-8 cannot encode a lone surrogate. A path cannot hold a
+    NUL. Each route refuses such an id, and the page gets an answer, not a closed connection."""
+    server = start_page(tmp_path)
+    try:
+        bodies = [
+            ("api/send", {"said": "Hi", "test": test_id}),
+            ("api/save-script", {"test": test_id}),
+            ("api/note", {"test": test_id, "turn": 1, "rating": "up"}),
+        ]
+        for path, body in bodies:
+            status, _, answer = request(server, "POST", base(server) + path, body)
+            assert status == 400, path
+            assert "nookku page:" in json.loads(answer)["error"]
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_a_number_that_is_not_finite_goes_to_the_page_as_null(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """JSON has no NaN. An OTLP attribute can hold one, and the page could not read the answer."""
+    data = {"turns": [{"steps": [{"cost": float("nan"), "ms": (float("inf"), 2.5)}]}]}
+    monkeypatch.setattr(page.page_trace, "answer", lambda root, rest: (200, data))
+    server = start_page(tmp_path)
+    try:
+        status, _, body = request(server, "GET", base(server) + "api/trace")
+
+        def refuse(name: str) -> None:
+            raise AssertionError(name)
+
+        assert status == 200
+        got = json.loads(body, parse_constant=refuse)
+        assert got == {"turns": [{"steps": [{"cost": None, "ms": [None, 2.5]}]}]}
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
 def raw(server: page.PageServer, data: bytes) -> bytes:
     with socket.create_connection(("127.0.0.1", server.server_address[1]), timeout=10) as conn:
         conn.sendall(data)
@@ -633,6 +743,23 @@ def test_a_second_page_server_is_refused_and_a_stale_file_is_taken_over(
     path, lock = page.claim_page_file(tmp_path, 5678)
     assert json.loads(path.read_text()) == {"port": 5678, "pid": os.getpid()}
     os.close(lock)
+
+
+def test_a_short_check_of_the_page_lock_does_not_stop_a_start(tmp_path: Path) -> None:
+    """`nookku status --json` checks the lock with page_auto._held, which takes it for a short
+    time. A page server that starts during that check waits, and then takes the lock."""
+    import fcntl
+
+    folder = tmp_path / ".nookku"
+    folder.mkdir()
+    check = os.open(folder / state.PAGE_LOCK, os.O_RDWR | os.O_CREAT, 0o600)
+    fcntl.flock(check, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    threading.Timer(0.05, os.close, (check,)).start()
+    path, lock = page.claim_page_file(tmp_path, 1234)
+    try:
+        assert json.loads(path.read_text())["port"] == 1234
+    finally:
+        os.close(lock)
 
 
 def test_of_2_servers_that_start_at_the_same_time_one_runs(tmp_path: Path) -> None:
