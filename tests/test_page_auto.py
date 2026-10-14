@@ -77,9 +77,17 @@ def test_each_wait_ends_before_the_hook_deadline() -> None:
     assert 2 * poll / 1000 < page_auto.END_GRACE < page_auto.END_WAIT
 
 
-def test_the_launch_url_gives_the_page_url_one_time(tmp_path: Path) -> None:
+def test_the_launch_url_gives_a_session_one_time_and_a_second_use_stops_the_page(
+    tmp_path: Path,
+) -> None:
     server = page_auto.AutoPageServer(tmp_path, "t-1")
-    threading.Thread(target=server.serve_forever, daemon=True).start()
+    stopped = threading.Event()
+
+    def serve() -> None:
+        server.serve_forever()
+        stopped.set()
+
+    threading.Thread(target=serve, daemon=True).start()
     try:
         path = server.launch_url.split(str(server.server_address[1]), 1)[1]
         assert URL.search(server.launch_url) is None and server.token not in server.launch_url
@@ -89,10 +97,33 @@ def test_the_launch_url_gives_the_page_url_one_time(tmp_path: Path) -> None:
         assert request(server, "GET", f"{path}?x=1")[0] == 404
         # The wrong requests do not use the code.
         status, headers, _ = request(server, "GET", path)
-        assert status == 303 and headers["location"] == f"/p/{server.token}/"
+        # The redirect holds no secret, and the browser history gets no URL that works.
+        assert status == 303 and headers["location"] == page.SESSION_PATH
         assert "content-security-policy" in headers
+        cookie = {"Cookie": headers["set-cookie"].split(";", 1)[0]}
+        assert request(server, "GET", page.SESSION_PATH, headers=cookie)[0] == 200
+        assert request(server, "GET", f"/p/{server.token}/")[0] == 404
+        assert not stopped.is_set()
+        # A second request with the code: one of the two was not the browser.
+        status, headers, body = request(server, "GET", path)
+        assert status == 409 and body.decode() == page_auto.REUSED_PAGE
+        assert "set-cookie" not in headers
+        assert server.reused.is_set() and stopped.wait(5)
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_the_code_after_the_launch_wait_gets_404_and_the_page_runs(tmp_path: Path) -> None:
+    server = page_auto.AutoPageServer(tmp_path, "t-1")
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        # No request came in LAUNCH_WAIT, so the code has no use. Nobody got the session.
+        server.code_used = True
+        path = server.launch_url.split(str(server.server_address[1]), 1)[1]
         assert request(server, "GET", path)[0] == 404
-        assert request(server, "GET", f"/p/{server.token}/")[0] == 200
+        assert not server.reused.is_set()
+        assert request(server, "GET", f"/p/{server.token}/api/turns")[0] == 200
     finally:
         server.shutdown()
         server.server_close()
@@ -349,8 +380,22 @@ def test_the_page_server_does_not_look_up_the_host_name(
 
 FETCH = """
 import sys, urllib.request
-with urllib.request.urlopen(sys.argv[2], timeout=10) as resp:
+opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor())
+with opener.open(sys.argv[2], timeout=10) as resp:
     open(sys.argv[1], "w").write(f"{resp.status} {resp.url}")
+"""
+# Another process reads the launch URL in the process list, and uses it before the browser.
+FIRST = """
+import sys, urllib.error, urllib.request
+try:
+    # This process has no cookie jar, so the redirect to the page gets 404.
+    urllib.request.urlopen(sys.argv[2], timeout=10)
+except urllib.error.HTTPError as e:
+    assert e.code == 404
+try:
+    urllib.request.urlopen(sys.argv[2], timeout=10)
+except urllib.error.HTTPError as e:
+    open(sys.argv[1], "w").write(f"{e.code} {e.read().decode()}")
 """
 
 
@@ -374,8 +419,23 @@ def test_a_browser_that_gets_the_page_opens_it(
     info = state.page_info(root)
     assert info is not None
     status, url = browser.read_text().split(" ", 1)
-    # The browser got the launch URL, and the redirect gave it the page.
-    assert status == "200" and URL.fullmatch(url)
+    # The browser got the launch URL, and the redirect gave it the page with its session.
+    assert status == "200" and url.endswith(page.SESSION_PATH)
+    assert url.split("/")[-2] == "s"
+
+
+def test_a_second_use_of_the_launch_url_stops_the_page_and_the_start_says_so(
+    running: Any, browser: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root, folder = running
+    script = root / "first.py"
+    script.write_text(FIRST)
+    monkeypatch.setenv("BROWSER", f"{sys.executable} {script} {browser} %s")
+    text = page_auto.after_start(root, folder.name, sys.stdout)
+    assert text == page_auto.FAILED.format(reason=page_auto.REUSED)
+    assert state.page_info(root) is None
+    status, body = browser.read_text().split(" ", 1)
+    assert status == "409" and body == page_auto.REUSED_PAGE
 
 
 def test_a_browser_command_that_does_not_get_the_page_gives_no_browser(

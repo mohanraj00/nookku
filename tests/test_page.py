@@ -63,6 +63,13 @@ def base(server: page.PageServer) -> str:
     return f"/p/{server.token}/"
 
 
+def session(server: page.PageServer) -> dict[str, str]:
+    """Open the page URL as the browser does, and return the Cookie header of the session."""
+    status, headers, _ = request(server, "GET", base(server))
+    assert status == 303 and headers["location"] == page.SESSION_PATH
+    return {"Cookie": headers["set-cookie"].split(";", 1)[0]}
+
+
 def start_page(root: Path) -> page.PageServer:
     server = page.PageServer(root)
     threading.Thread(target=server.serve_forever, daemon=True).start()
@@ -138,7 +145,6 @@ def test_each_url_needs_the_token(tmp_path: Path) -> None:
     server = start_page(tmp_path)
     try:
         assert len(server.token) >= 43
-        assert request(server, "GET", base(server))[0] == 200
         assert request(server, "GET", base(server) + "api/turns")[0] == 200
         wrong = "x" * len(server.token)
         for path in ("/", "/p/", f"/p/{server.token}", f"/p/{wrong}/", f"/p/{wrong}/api/turns"):
@@ -151,9 +157,63 @@ def test_each_url_needs_the_token(tmp_path: Path) -> None:
         server.server_close()
 
 
+def test_the_page_url_gives_a_session_one_time(tmp_path: Path) -> None:
+    server = start_page(tmp_path)
+    try:
+        assert request(server, "GET", page.SESSION_PATH)[0] == 404
+        cookie = session(server)
+        assert request(server, "GET", page.SESSION_PATH + "api/turns", headers=cookie)[0] == 200
+        again = request(server, "GET", base(server))
+        # The token has no use after the first GET: the history holds no URL that works.
+        assert again[0] == 404 and b"used" in again[2] and "set-cookie" not in again[1]
+        assert request(server, "GET", base(server) + "api/turns")[0] == 404
+        status, _, body = request(server, "GET", page.SESSION_PATH, headers=cookie)
+        assert status == 200 and b"<html" in body.lower()
+        assert server.token not in cookie["Cookie"]
+        sent = request(server, "POST", page.SESSION_PATH + "api/send", {"said": ""}, cookie)
+        assert sent[0] == 200
+        wrong = {"Cookie": f"{server.cookie_name}={'x' * len(server.session)}"}
+        for headers_sent in (wrong, {"Cookie": "other=1"}, {}):
+            got = request(server, "GET", page.SESSION_PATH + "api/turns", headers=headers_sent)
+            assert got[0] == 404
+        evil = {**cookie, "Origin": "http://evil.example"}
+        assert request(server, "GET", page.SESSION_PATH + "api/turns", headers=evil)[0] == 403
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_the_session_cookie_stays_only_in_the_memory_of_the_browser(tmp_path: Path) -> None:
+    server = start_page(tmp_path)
+    try:
+        status, headers, _ = request(server, "GET", base(server))
+        assert status == 303
+        parts = [p.strip() for p in headers["set-cookie"].split(";")]
+        name, value = parts[0].split("=", 1)
+        assert name == f"nookku_page_{server.server_address[1]}" and value == server.session
+        assert value != server.token
+        assert set(parts[1:]) == {f"Path={page.SESSION_PATH}", "HttpOnly", "SameSite=Strict"}
+        assert headers["content-security-policy"] == page.CSP
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_a_post_to_the_page_url_gives_no_session(tmp_path: Path) -> None:
+    server = start_page(tmp_path)
+    try:
+        status, headers, _ = request(server, "POST", base(server), {"said": "Hi"})
+        assert status == 404 and "set-cookie" not in headers
+        session(server)
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
 def test_the_token_compare_takes_constant_time() -> None:
     source = Path(page.__file__).read_text()
     assert "hmac.compare_digest(token.encode(), self.server.token.encode())" in source
+    assert "got.value.encode(), self.server.session.encode()" in source
 
 
 @pytest.mark.parametrize(
@@ -165,9 +225,9 @@ def test_a_wrong_host_is_refused(tmp_path: Path, host: str) -> None:
         value = host.format(port=server.server_address[1])
         status, _, body = request(server, "GET", base(server), headers={"Host": value or " "})
         assert status == 403, body
-        assert request(server, "GET", base(server))[0] == 200
+        assert request(server, "GET", base(server) + "api/turns")[0] == 200
         local = {"Host": f"localhost:{server.server_address[1]}"}
-        assert request(server, "GET", base(server), headers=local)[0] == 200
+        assert request(server, "GET", base(server) + "api/turns", headers=local)[0] == 200
     finally:
         server.shutdown()
         server.server_close()
@@ -272,8 +332,10 @@ def test_each_message_and_reply_keeps_each_byte(live: Any) -> None:
 def test_the_page_answers_never_hold_the_tap_token(live: Any) -> None:
     _, server, tap, _ = live
     send(server, MESSAGES[0])
+    cookie = session(server)
     for path in ("", "app.js", "api/turns"):
-        assert tap.token.encode() not in request(server, "GET", base(server) + path)[2]
+        got = request(server, "GET", page.SESSION_PATH + path, headers=cookie)
+        assert got[0] == 200 and tap.token.encode() not in got[2]
 
 
 def test_with_no_test_nothing_is_sent(tmp_path: Path) -> None:

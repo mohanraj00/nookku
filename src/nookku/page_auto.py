@@ -9,8 +9,9 @@ section 5, "The page URL"). The start runs in a hook or in a shell, and the mode
 output. Thus:
 
 - The page server gives the browser a launch URL with a one-time code, not the page URL. The first
-  request with the code gets a redirect to the page URL, and the code then has no use. A process
-  list can show the launch URL to the model, but not the page URL.
+  request with the code gets the session cookie and a redirect to a path with no secret. A process
+  list can show the launch URL to the model, but not the page token. If a second request has the
+  code, an other process can have the session, so the page server stops.
 - `nookku start` prints the page URL only if the browser did not open, only to a terminal, and only
   out of a harness shell. Else it prints how to start the page by hand, and no page server runs.
 - The page server writes no URL to a file.
@@ -48,6 +49,9 @@ OPEN_WAIT = 5.0
 # The wait of the page server, from the browser command, for the request of the launch URL. A new
 # browser can take seconds to start. With no request, the browser did not open.
 LAUNCH_WAIT = 10.0
+# The wait of the page server after the first request of the launch URL, for a second request.
+# Another process that reads the process list can make the first request before the browser.
+REUSE_WAIT = 1.0
 # The wait of the page server after the end of its test, for the page to show the end. The page
 # asks for its turns each second (src/nookku/page/app.js).
 END_GRACE = 3.0
@@ -68,6 +72,15 @@ NO_BROWSER = (
     "in a separate terminal."
 )
 FAILED = "nookku: the chat page did not start: {reason}. The test continues."
+REUSED = (
+    "another process used the launch URL of the page first, so the page stopped. To use the "
+    "page, run nookku page in a separate terminal"
+)
+REUSED_PAGE = (
+    "nookku: another process used the launch URL of this chat page first. The chat page "
+    "stopped, and its session has no use now. To use the page, run nookku page in a separate "
+    "terminal.\n"
+)
 NOT_STOPPED = "nookku: the chat page (pid {pid}) did not stop. Stop it with: kill {pid}"
 
 
@@ -247,8 +260,10 @@ class AutoPageServer(page.PageServer):
         self.test = test
         self.code = secrets.token_urlsafe(32)
         self.code_used = False
-        # Set when the first request with the code got the page URL.
+        # Set when the first request with the code got the session.
         self.launched = threading.Event()
+        # Set when a second request had the code. Then the server stops.
+        self.reused = threading.Event()
         self.code_lock = threading.Lock()
         self.ended = threading.Event()
         self.shown_end = threading.Event()
@@ -260,6 +275,8 @@ class AutoPageServer(page.PageServer):
 
 class _AutoHandler(page._Handler):
     server: AutoPageServer
+    # The path after the session or the token, if the last check let the request in.
+    routed: str | None = None
 
     def do_GET(self) -> None:
         parts = urlsplit(self.path)
@@ -267,11 +284,15 @@ class _AutoHandler(page._Handler):
             self._launch(parts.path[len("/o/") :], parts.query)
             return
         ended = self.server.ended.is_set()
+        self.routed = None
         super().do_GET()
-        turns = f"/p/{self.server.token}/api/turns"
-        if ended and not parts.query and hmac.compare_digest(parts.path.encode(), turns.encode()):
+        if ended and self.routed == "api/turns":
             # The page got its turns after the end of the test, so it shows the end.
             self.server.shown_end.set()
+
+    def _route(self) -> str | None:
+        self.routed = super()._route()
+        return self.routed
 
     def _launch(self, code: str, query: str) -> None:
         """The launch URL: one redirect to the page URL, for the first request with the code."""
@@ -286,16 +307,25 @@ class _AutoHandler(page._Handler):
         with self.server.code_lock:
             good = not query and hmac.compare_digest(code.encode(), self.server.code.encode())
             first = good and not self.server.code_used
+            again = good and self.server.launched.is_set()
             if good:
                 self.server.code_used = True
+            if first:
+                self.server.launched.set()
+                # The session is the only way in. The page token never left this process.
+                with self.server.auth_lock:
+                    self.server.token_used = True
+        if again:
+            # Two requests had the code, so one of them was not the browser. Fail closed: the
+            # session stops with the process.
+            self.server.reused.set()
+            threading.Thread(target=self.server.shutdown, daemon=True).start()
+            self._answer(409, REUSED_PAGE.encode(), "text/plain; charset=utf-8")
+            return
         if not first:
             self._refuse(404, "not found")
             return
-        self.server.launched.set()
-        self.send_response(303)
-        self.send_header("Location", f"/p/{self.server.token}/")
-        self.send_header("Content-Length", "0")
-        self.end_headers()
+        self.redirect_with_session()
 
 
 def _can_open() -> bool:
@@ -338,7 +368,11 @@ def _launched(server: AutoPageServer) -> bool:
         server.launched.wait(max(0.0, LAUNCH_WAIT - (time.monotonic() - began)))
     with server.code_lock:
         server.code_used = True
-    return server.launched.is_set()
+    if not server.launched.is_set():
+        return False
+    # The browser can be the second request. Then the server stops, and the browser did not get
+    # the page.
+    return not server.reused.wait(REUSE_WAIT)
 
 
 def _watch(server: AutoPageServer) -> None:
@@ -392,6 +426,9 @@ def serve(root: Path, test: str, status_fd: int, print_url: bool) -> int:
     try:
         if _launched(server):
             report({"status": "opened"})
+        elif server.reused.is_set():
+            last = {"status": "error", "reason": REUSED}
+            return 0
         elif print_url:
             report({"status": "no-browser", "url": server.url})
         else:

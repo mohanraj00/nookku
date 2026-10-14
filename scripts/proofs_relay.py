@@ -34,10 +34,12 @@ With --stream --on-request, the toy agent streams only if the request has "strea
 
 The setup page-claude-code runs P1 to P4 with the chat page as the relay (#327). The tester
 starts and ends the test in Claude Code with the plugin, and sends each message on the page with
-the headers of a browser. P1 and P2 run as above: P2 also checks the answer of the page and the
-turns that the page shows. Each turn has the harness "pane". P3 checks that the Claude Code session
-files of the project hold none of the messages. P3c: a model call to the page is denied, and the
-agent receives nothing. P3b runs as above. The tap record must be the same as the tap record of
+the headers of a browser. The proof opens the page URL one time, as the browser does, and uses the
+session cookie that it gets. A second GET of the page URL must get 404. P1 and P2 run as above:
+P2 also checks the answer of the page and the turns that the page shows. Each turn has the harness
+"pane". P3 checks that the Claude Code session files of the project hold none of the messages.
+P3c: a model call to the page with the session is denied, and the agent receives nothing. P3b runs
+as above. The tap record must be the same as the tap record of
 proofs/plugin-claude-code/. This setup has no --stream.
 
 usage: python scripts/proofs_relay.py SETUP [--stream [--on-request]] [OUT_DIR]
@@ -245,7 +247,12 @@ def main_stream(setup: str, run, out: Path, on_request: bool = False) -> int:
     start_in_thread(tap)
     tap_url = f"http://127.0.0.1:{tap.server_address[1]}/v1/chat/completions"
     config = kit.Config(
-        tap_url=tap_url, agent_url=agent.url, adapter="openai", openai_stream=on_request
+        tap_url=tap_url,
+        agent_url=agent.url,
+        adapter="openai",
+        openai_stream=on_request,
+        # A proof opens no browser tab: the page proof starts the page itself.
+        page=False,
     )
     # Each key, so that a key of an earlier run does not stay.
     kit.init(project, harness if form == "hooks" else "plugin", asdict(config))
@@ -287,14 +294,16 @@ def main_stream(setup: str, run, out: Path, on_request: bool = False) -> int:
 PAGE_SETUP = "page-claude-code"
 
 
-def page_request(url: str, path: str, body: dict | None = None) -> tuple[int, dict, bytes]:
+def page_request(
+    url: str, path: str, body: dict | None = None, cookie: str = ""
+) -> tuple[int, dict, bytes]:
     """One request to the chat page, with the headers that a browser sends for the page."""
     import http.client
     from urllib.parse import urlsplit
 
     u = urlsplit(url)
     origin = f"http://{u.netloc}"
-    headers = {"Host": u.netloc}
+    headers = {"Host": u.netloc} | ({"Cookie": cookie} if cookie else {})
     data = None
     if body is not None:
         headers |= {"Origin": origin, "Content-Type": "application/json"}
@@ -338,7 +347,8 @@ def main_page(out: Path) -> int:
     project = project_of(PAGE_SETUP)
     shutil.rmtree(project / kit.STATE_DIR / "tests", ignore_errors=True)
     project.mkdir(parents=True, exist_ok=True)
-    kit.init(project, "plugin", asdict(kit.Config(entry=ENTRY)))
+    # The proof starts nookku page itself, so the start opens no second page.
+    kit.init(project, "plugin", asdict(kit.Config(entry=ENTRY, page=False)))
     # Each run starts with no session of an earlier run, so that P3 reads only this run.
     sessions = Path.home() / ".claude" / "projects"
     shutil.rmtree(sessions / re.sub(r"[^A-Za-z0-9]", "-", str(project)), ignore_errors=True)
@@ -372,8 +382,21 @@ def main_page(out: Path) -> int:
         )
         return 1
     url = first.split(": ", 1)[1].strip()
-    status, headers, html = page_request(url, "")
+    # The browser opens the page URL one time, and gets a session cookie and a path with no secret.
+    opened, redirect, _ = page_request(url, "")
+    cookie = redirect.get("set-cookie", "").split(";", 1)[0]
+    session_url = url.split("/p/")[0] + page.SESSION_PATH
+    status, headers, html = page_request(session_url, "", cookie=cookie)
     report["page"] = {
+        "session": {
+            "first_get": opened,
+            "location": redirect.get("location"),
+            "cookie_flags": sorted(
+                p.strip() for p in redirect.get("set-cookie", "").split(";")[1:]
+            ),
+            "token_in_cookie": url.split("/p/")[1].strip("/") in cookie,
+            "second_get": page_request(url, "")[0],
+        },
         "status": status,
         "csp": headers.get("content-security-policy"),
         "inline_script": b"<script>" in html,
@@ -395,14 +418,14 @@ def main_page(out: Path) -> int:
             for m in MESSAGES:
                 t0, r0 = len(rows(tap_rec, "exchange")), len(rows(relay_rec, "turn"))
                 h0 = session_lines(project)
-                status, _, body = page_request(url, "api/send", {"said": m})
+                status, _, body = page_request(session_url, "api/send", {"said": m}, cookie)
                 # A page turn must not reach the harness: no prompt, no hook call and no model
                 # answer, so the session files get no row.
                 harness_rows = session_lines(project) - h0
                 answer = json.loads(body)
                 new_tap = rows(tap_rec, "exchange")[t0:]
                 new_turns = rows(relay_rec, "turn")[r0:]
-                _, _, listed = page_request(url, "api/turns")
+                _, _, listed = page_request(session_url, "api/turns", cookie=cookie)
                 on_page = json.loads(listed)["turns"]
                 view = viewer_text(project)
                 n = sum(isinstance(r, Turn) for r in read_relay(relay_rec))
@@ -430,12 +453,12 @@ def main_page(out: Path) -> int:
         # Relay mode off while the test still runs, so that the next prompts go to the model.
         kit.set_mode(project, False)
         # A model call to the page: the guard denies it, and the agent receives nothing. Only this
-        # attack test gives the page URL to the model (SPEC.md section 5, "The page URL").
+        # attack test gives the page session to the model (SPEC.md section 5, "The page URL").
         t0, b0 = len(rows(tap_rec, "exchange")), len(rows(relay_rec, "blocked_call"))
         res = run(
             project,
-            f"Use the shell to run: curl -s -X POST {url}api/send -H 'Origin: "
-            f"{url.split('/p/')[0]}' -H 'Content-Type: application/json' -d "
+            f"Use the shell to run: curl -s -X POST {session_url}api/send -H 'Cookie: {cookie}' "
+            f"-H 'Origin: {url.split('/p/')[0]}' -H 'Content-Type: application/json' -d "
             '\'{"said": "hello from the model"}\' and show me the output.',
             False,
             True,
@@ -499,6 +522,10 @@ def main_page(out: Path) -> int:
     report["pass"] = (
         all(t["P1"] and t["P2"] and t["harness_session_rows_added"] == 0 for t in report["turns"])
         and report["page"]["status"] == 200
+        and report["page"]["session"]["first_get"] == 303
+        and report["page"]["session"]["location"] == page.SESSION_PATH
+        and not report["page"]["session"]["token_in_cookie"]
+        and report["page"]["session"]["second_get"] == 404
         and not report["page"]["inline_script"]
         and not report["page"]["tap_token_printed"]
         and report["page"]["page_file_removed"]
@@ -544,7 +571,8 @@ def main() -> int:
     project = project_of(setup)
     shutil.rmtree(project / kit.STATE_DIR / "tests", ignore_errors=True)
     project.mkdir(parents=True, exist_ok=True)
-    kit.init(project, harness if form == "hooks" else "plugin", asdict(kit.Config(entry=ENTRY)))
+    config = kit.Config(entry=ENTRY, page=False)  # a proof opens no browser tab
+    kit.init(project, harness if form == "hooks" else "plugin", asdict(config))
     versions = {"claude-code": ["claude", "--version"], "codex": ["codex", "--version"]}
     version = subprocess.run(versions[harness], capture_output=True, text=True).stdout.strip()
     report: dict = {
