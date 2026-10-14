@@ -16,6 +16,7 @@ verbatim-relay 0.3.x and earlier used `.verbatim-relay/`. The first `nookku` com
 | `mode` | the [relays](glossary.md#relay) | `on` or `off`: [relay mode](glossary.md#relay-mode). It survives a restart of the [harness](glossary.md#harness) ([SPEC.md section 7.2](../../SPEC.md#72-start-and-end)). |
 | `current.json` | the [bridge](glossary.md#bridge) | The running test: its id, its folder, the [tap](glossary.md#tap) URL, the tap token, the pid and the start time of the bridge. The token is a secret: each relay sends it to the tap ([SPEC.md section 4.2](../../SPEC.md#42-stdio-mode)). Thus the file has mode `0600`, so only the owner can read it. The file exists only while a test runs. |
 | `page.json` | `nookku page` | The port and the pid of the [chat page](cli.md#nookku-page) server, never the token or the URL. The guard denies a model tool call to this port ([SPEC.md section 5](../../SPEC.md#5-relays)). The file has mode `0600`. It exists only while the page server runs. |
+| `send.lock` | `nookku page`, the end of a test | An empty lock file. A send of the chat page and the end of a test take turns with it, so that the end waits for a send that is in progress ([SPEC.md section 5](../../SPEC.md#5-relays)). |
 | `ending.json` | `nookku end` | The harness session that ends the test, for the bridge. |
 | `relay.jsonl` | the relays | With no entry: the [relay record](glossary.md#relay-record) ([how-to/http-tap.md](../how-to/http-tap.md)). |
 | `tests/<test-id>/` | the bridge, the relays, the tap | One folder for each test (see below). |

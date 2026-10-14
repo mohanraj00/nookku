@@ -69,6 +69,9 @@ RELAY_OFF = (
     "nookku: relay mode is off, so the page sends nothing. The test ends, or a person switched "
     "relay mode off. Nothing was sent."
 )
+NO_MANIFEST = (
+    "nookku: the page cannot read manifest.json of the test, so it sends nothing. Nothing was sent."
+)
 SCRIPTED = "nookku: this test is a scripted test, so the page sends nothing. Nothing was sent."
 ENDED = (
     "nookku: the test ended during the send, so the page wrote no turn. The record of the test "
@@ -80,12 +83,13 @@ def page_file(name: str) -> bytes:
     return resources.files("nookku").joinpath("page").joinpath(name).read_bytes()
 
 
-def _manifest(folder: Path) -> dict[str, Any]:
+def _manifest(folder: Path) -> dict[str, Any] | None:
+    """The manifest of a test folder, or None if it is missing or not a JSON object."""
     try:
         data = json.loads((folder / "manifest.json").read_text())
     except (OSError, ValueError):
-        return {}
-    return data if isinstance(data, dict) else {}
+        return None
+    return data if isinstance(data, dict) else None
 
 
 def _closed(folder: Path) -> bool:
@@ -93,7 +97,8 @@ def _closed(folder: Path) -> bool:
     change."""
     if (folder / "audit.json").exists() or (folder / seal.SEAL).exists():
         return True
-    return _manifest(folder).get("ended") is not None
+    manifest = _manifest(folder)
+    return manifest is None or manifest.get("ended") is not None
 
 
 def refusal(root: Path, said: str) -> str | None:
@@ -115,14 +120,29 @@ def send(root: Path, said: str) -> dict[str, Any]:
     reason = refusal(root, said)
     if reason is not None:
         return {"sent": False, "shown": reason, "ok": False}
+    if state.current(root) is None:
+        return {"sent": False, "shown": NO_TEST, "ok": False}
+    # The end of the test takes this lock before it stops the tap, and keeps it until the seal.
+    # Thus the end waits for this send, and a later send sees the closed test.
+    sends = state.lock_sends(root)
+    try:
+        return _send_locked(root, said)
+    finally:
+        os.close(sends)
+
+
+def _send_locked(root: Path, said: str) -> dict[str, Any]:
     cur = state.current(root)
     if cur is None:
         return {"sent": False, "shown": NO_TEST, "ok": False}
     folder = Path(cur["dir"])
+    manifest = _manifest(folder)
+    if manifest is None:
+        return {"sent": False, "shown": NO_MANIFEST, "ok": False}
     # `nookku end` switches relay mode off before it stops the test.
     if not kit.is_on(root) or _closed(folder):
         return {"sent": False, "shown": RELAY_OFF, "ok": False}
-    if _manifest(folder).get("script") is not None:
+    if manifest.get("script") is not None:
         return {"sent": False, "shown": SCRIPTED, "ok": False}
     shown, ok = kit.checked(*state.send(cur, said))
     if _closed(folder):
@@ -138,7 +158,7 @@ def view(root: Path) -> dict[str, Any]:
     folder = Path(cur["dir"]) if cur else state.latest_test(root)
     if folder is None:
         return {"test": None, "turns": [], "error": None}
-    manifest = _manifest(folder)
+    manifest = _manifest(folder) or {}
     test = {
         "id": folder.name,
         "running": cur is not None,

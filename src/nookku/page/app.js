@@ -6,6 +6,9 @@ const POLL_MS = 1000;
 let shownCount = 0;
 let shownTest = null;
 let sending = false;
+// The error of the last poll, if any. A later poll that succeeds removes it, but not the error
+// of a send.
+let pollError = null;
 
 function el(id) {
   return document.getElementById(id);
@@ -34,7 +37,18 @@ function showError(text) {
   box.hidden = !text;
 }
 
+function pollResult(error) {
+  if (error) {
+    pollError = error;
+    showError(error);
+  } else if (pollError !== null) {
+    pollError = null;
+    showError("");
+  }
+}
+
 function render(data) {
+  pollResult(data.error);
   const test = data.test;
   const list = el("turns");
   if (!test) {
@@ -77,9 +91,6 @@ function render(data) {
     window.scrollTo(0, document.body.scrollHeight);
   }
   el("send").disabled = sending || !test.running;
-  if (data.error) {
-    showError(data.error);
-  }
 }
 
 async function refresh() {
@@ -87,7 +98,8 @@ async function refresh() {
     const resp = await fetch("api/turns", { cache: "no-store" });
     render(await resp.json());
   } catch (e) {
-    showError("nookku: the page server does not answer. Start it again with: nookku page");
+    pollError = "nookku: the page server does not answer. Start it again with: nookku page";
+    showError(pollError);
   }
 }
 

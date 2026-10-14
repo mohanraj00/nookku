@@ -45,6 +45,27 @@ def page_info(root: Path) -> dict[str, Any] | None:
     return data
 
 
+# The send lock in the state folder. A page send holds it from its checks to its turn row, and
+# the end of a test holds it from the tap shutdown to the seal (SPEC.md section 5, "Chat page").
+SEND_LOCK = "send.lock"
+
+
+def lock_sends(root: Path) -> int:
+    """Take the send lock of the project, and wait for it if necessary. Return its file
+    descriptor. `os.close` of the descriptor gives the lock back."""
+    import fcntl
+
+    folder = state(root)
+    folder.mkdir(parents=True, exist_ok=True)
+    fd = os.open(folder / SEND_LOCK, os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX)
+    except BaseException:
+        os.close(fd)
+        raise
+    return fd
+
+
 def page_port(root: Path) -> int | None:
     """The port of the chat page of the project, or None. The guard denies a call to it."""
     info = page_info(root)

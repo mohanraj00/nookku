@@ -574,3 +574,73 @@ def test_a_bad_port_gives_a_clean_error(tmp_path: Path, port: str) -> None:
     assert "Traceback" not in done.stderr
     assert "is not valid" in done.stderr
     assert not (tmp_path / ".nookku" / state.PAGE_FILE).exists()
+
+
+@pytest.mark.parametrize("text", [None, "", "{not json", "[1, 2]"])
+def test_a_manifest_that_cannot_be_read_blocks_the_send(live: Any, text: str | None) -> None:
+    _, server, _, folder = live
+    if text is None:
+        (folder / "manifest.json").unlink()
+    else:
+        (folder / "manifest.json").write_text(text)
+    assert send(server, "Hi") == {"sent": False, "shown": page.NO_MANIFEST, "ok": False}
+    assert not (folder / "relay.jsonl").exists()
+    assert not (folder / "tap.jsonl").exists() or (folder / "tap.jsonl").read_text() == ""
+
+
+def test_a_send_waits_for_the_end_and_then_sees_the_closed_test(live: Any) -> None:
+    root, server, _, folder = live
+    # The end of the test holds the send lock from the tap shutdown to the seal.
+    lock = state.lock_sends(root)
+    answers: list[dict[str, Any]] = []
+    thread = threading.Thread(target=lambda: answers.append(send(server, "Hi")))
+    thread.start()
+    thread.join(timeout=1)
+    assert thread.is_alive() and answers == []
+    (folder / "seal.json").write_text("{}")
+    os.close(lock)
+    thread.join(timeout=30)
+    assert answers == [{"sent": False, "shown": page.RELAY_OFF, "ok": False}]
+    assert not (folder / "relay.jsonl").exists()
+    assert not (folder / "tap.jsonl").exists() or (folder / "tap.jsonl").read_text() == ""
+
+
+def test_the_end_waits_for_a_send_in_progress(live: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    root, server, _, folder = live
+    in_send, go_on = threading.Event(), threading.Event()
+    real = state.send
+
+    def slow_send(cur: dict[str, Any], said: str) -> tuple[str, bool]:
+        in_send.set()
+        go_on.wait(timeout=30)
+        return real(cur, said)
+
+    monkeypatch.setattr(state, "send", slow_send)
+    sender = threading.Thread(target=send, args=(server, "Hi"))
+    sender.start()
+    assert in_send.wait(timeout=30)
+    took: list[int] = []
+    ender = threading.Thread(target=lambda: took.append(state.lock_sends(root)))
+    ender.start()
+    ender.join(timeout=1)
+    assert ender.is_alive() and took == []
+    go_on.set()
+    sender.join(timeout=30)
+    ender.join(timeout=30)
+    assert len(took) == 1
+    os.close(took[0])
+    turns = [r for r in read_relay(folder / "relay.jsonl") if isinstance(r, Turn)]
+    assert [(t.harness, t.said, t.ok) for t in turns] == [("pane", "Hi", True)]
+
+
+def test_the_guard_denies_a_model_write_to_the_send_lock(tmp_path: Path) -> None:
+    (tmp_path / ".nookku").mkdir()
+    event = {
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Bash",
+        "tool_input": {"command": "flock .nookku/send.lock sleep 600"},
+        "cwd": str(tmp_path),
+    }
+    answer = kit.handle(event, tmp_path, "claude-code")
+    assert answer is not None
+    assert answer["hookSpecificOutput"]["permissionDecision"] == "deny"

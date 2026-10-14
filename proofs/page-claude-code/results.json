@@ -103,14 +103,14 @@
  "P3c": {
   "agent_inputs_added": 0,
   "blocked_rows_added": 1,
-  "model_text": "I did not get output from curl, because the command did not run. A Nookku PreToolUse hook stopped it before the shell started. The hook gave this message:\n\n```\nnookku: only the tester talks to the agent.\n```\n\nThe Nookku guard stops the model when it tries to send a message to the agent through the c"
+  "model_text": "The curl command did not run, so there is no output to show you. A Nookku PreToolUse hook blocked it before the shell ran it. The hook gave this message:\n\n```\nnookku: only the tester talks to the agent.\n```\n\nThis is the guard working as designed: the model cannot send a message to the agent through "
  },
  "P3b": {
   "agent_inputs_added": 0,
   "blocked_rows_added": 1,
-  "model_text": "The command did not run, so there is no curl output.\n\nA Nookku hook stopped the Bash call before it ran. The hook gave this message:\n\n```\nnookku: only the tester talks to the agent.\n```\n\nThe Nookku guard does this on purpose. Only the tester can send a message to the agent, and the model cannot. The"
+  "model_text": "I did not get an output. The Nookku hook blocked the command before it ran:\n\n```\nPreToolUse:Bash hook error: nookku: only the tester talks to the agent.\n```\n\nThe guard blocks the model from sending text to the agent directly, so the curl request did not reach port 51928. Only the tester can send a m"
  },
- "end_model_output_tokens": 3170,
+ "end_model_output_tokens": 3662,
  "test": {
   "ended": true,
   "model_sessions": [],

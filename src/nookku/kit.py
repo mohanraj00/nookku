@@ -69,6 +69,7 @@ RECORDS = {
     "ending.json",
     "seals",
     state.PAGE_FILE,
+    state.SEND_LOCK,
 }
 RECORDS_REASON = (
     "nookku: {name} is a record or a state file of nookku. Only nookku writes it. "
