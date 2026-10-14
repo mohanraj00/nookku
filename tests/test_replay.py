@@ -9,6 +9,7 @@ import re
 import sys
 import threading
 import time
+import tracemalloc
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -96,6 +97,27 @@ def test_a_long_reply_gives_a_diff_with_no_long_wait() -> None:
     assert [p[0] for p in parts] == ["equal", "delete", "insert", "equal"]
     assert joined(parts, "delete") == "Hi. " + old + " Bye."
     assert joined(parts, "insert") == "Hi. " + new + " Bye."
+
+
+def test_a_diff_keeps_at_most_keep_values() -> None:
+    # Two replies with no equal word need about (2 * 1001) ** 2 / 4 values, more than KEEP.
+    old = " ".join(f"mug{i}" for i in range(1001))
+    new = " ".join(f"teapot{i}" for i in range(1001))
+    budget = replay.Budget()
+    tracemalloc.start()
+    parts = replay.words(old, new, budget)
+    peak = tracemalloc.get_traced_memory()[1]
+    tracemalloc.stop()
+    assert [p[0] for p in parts] == ["delete", "insert"]
+    assert peak < 8 * replay.KEEP + 4_000_000
+    # A diff that stops at KEEP leaves the other steps for the next turns.
+    assert budget.left > 0
+    assert replay.words("a b c", "a x c", budget) == [
+        ["equal", "a "],
+        ["delete", "b"],
+        ["insert", "x"],
+        ["equal", " c"],
+    ]
 
 
 def test_each_diff_gives_the_two_replies_and_deletes_before_inserts() -> None:

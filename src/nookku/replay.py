@@ -11,6 +11,7 @@ reads only the files of the 2 test folders, and it changes no file.
 from __future__ import annotations
 
 import re
+from array import array
 from pathlib import Path
 from typing import Any
 from urllib.parse import unquote
@@ -31,6 +32,11 @@ CONTEXT = 6
 # diff of a long or a hostile reply takes a short time in the replay and in the page server.
 # This value is a design value, not a measurement (the test of a worst-case diff measures it).
 WORK = 5_000_000
+# The most diagonal values that the matcher keeps for one turn, to find the edit script at the
+# end. They grow with the square of the count of edits, and each value is 8 bytes. A turn that
+# needs more gets one delete and one insert for its changed part, as for WORK. This is also a
+# design value, not a measurement.
+KEEP = 1_000_000
 
 
 class ReplayError(ValueError):
@@ -59,14 +65,23 @@ def _edits(a: list[str], b: list[str], budget: Budget) -> list[tuple[str, int]] 
     """The shortest edit script from a to b, with the greedy algorithm of Myers (1986): a list
     of (op, index), with op "equal" or "delete" (an index in a) or "insert" (an index in b).
     None if the script needs more steps than the budget has. Then the budget has no steps left.
+    None also if the script needs to keep more than KEEP values. Then the budget keeps the steps
+    that are left.
 
     The steps grow with (len(a) + len(b)) times the count of edits, and the budget stops them.
     Thus the time has a limit, also for a reply with many equal words."""
     n, m = len(a), len(b)
     v: dict[int, int] = {1: 0}
-    trace: list[dict[int, int]] = []
+    # For each d, the values of v that _back reads: the diagonals from lo to d - 1, in steps of 2.
+    trace: list[tuple[int, array[int]]] = []
+    kept = 0
     for d in range(n + m + 1):
-        trace.append(dict(v))
+        lo = 1 if d == 0 else 1 - d
+        row = array("q", (v[k] for k in range(lo, max(lo, d - 1) + 1, 2)))
+        kept += len(row)
+        if kept > KEEP:
+            return None
+        trace.append((lo, row))
         budget.left -= len(v)
         for k in range(-d, d + 1, 2):
             # Down (an insert) from diagonal k + 1, or right (a delete) from diagonal k - 1.
@@ -87,13 +102,15 @@ def _edits(a: list[str], b: list[str], budget: Budget) -> list[tuple[str, int]] 
     raise AssertionError("unreachable: d = n + m always ends the script")
 
 
-def _back(trace: list[dict[int, int]], x: int, y: int) -> list[tuple[str, int]]:
+def _back(trace: list[tuple[int, array[int]]], x: int, y: int) -> list[tuple[str, int]]:
     """The edit script from the trace of _edits, from the start of a and b."""
     out: list[tuple[str, int]] = []
     for d in range(len(trace) - 1, -1, -1):
-        v, k = trace[d], x - y
-        prev_k = k + 1 if k == -d or (k != d and v[k - 1] < v[k + 1]) else k - 1
-        prev_x = v[prev_k]
+        lo, row = trace[d]
+        k = x - y
+        down = k == -d or (k != d and row[(k - 1 - lo) // 2] < row[(k + 1 - lo) // 2])
+        prev_k = k + 1 if down else k - 1
+        prev_x = row[(prev_k - lo) // 2]
         prev_y = prev_x - prev_k
         while x > prev_x and y > prev_y:
             x, y = x - 1, y - 1
