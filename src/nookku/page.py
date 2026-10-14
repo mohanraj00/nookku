@@ -27,9 +27,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
 from pathlib import Path
 from typing import Any, TextIO
-from urllib.parse import urlsplit
+from urllib.parse import unquote, urlsplit
 
-from nookku import kit, script_save, seal, state
+from nookku import dashboard, kit, script_save, seal, state
 from nookku.record import RecordError, Writer, turns
 
 # The harness of a turn that the page sent (SPEC.md section 2.2).
@@ -41,6 +41,9 @@ FILES = {
     "app.js": ("app.js", "text/javascript; charset=utf-8"),
     "app.css": ("app.css", "text/css; charset=utf-8"),
     "save.js": ("save.js", "text/javascript; charset=utf-8"),
+    "dashboard.html": ("dashboard.html", "text/html; charset=utf-8"),
+    "dashboard.js": ("dashboard.js", "text/javascript; charset=utf-8"),
+    "dashboard.css": ("dashboard.css", "text/css; charset=utf-8"),
 }
 # The page loads only its own files. No inline script, no inline style, no other site.
 CSP = (
@@ -74,6 +77,10 @@ NO_MANIFEST = (
     "nookku: the page cannot read manifest.json of the test, so it sends nothing. Nothing was sent."
 )
 SCRIPTED = "nookku: this test is a scripted test, so the page sends nothing. Nothing was sent."
+OTHER_TEST = (
+    "nookku: the page shows test {shown}, but the running test is {running}. Open the running "
+    "test on the page. Nothing was sent."
+)
 ENDED = (
     "nookku: the test ended during the send, so the page wrote no turn. The record of the test "
     "is sealed and does not change. Reply or error: {shown}"
@@ -111,13 +118,14 @@ def refusal(root: Path, said: str) -> str | None:
     return kit.prompt_refusal(said, root)
 
 
-def send(root: Path, said: str) -> dict[str, Any]:
+def send(root: Path, said: str, test_id: str | None = None) -> dict[str, Any]:
     """Send one message to the running test, and write its turn. Return what the page shows.
 
     Fail closed: the page sends only to a running test that is not a scripted test, in relay
     mode. If the page cannot send the message, it shows the error, and the turn has the error as
     `shown` with `ok: false`. If the test ended during the send, the page writes no turn. The
-    message never goes to a model."""
+    message never goes to a model. If `test_id` is set, the page shows that test, and the page
+    server sends only if that test still runs (#349)."""
     reason = refusal(root, said)
     if reason is not None:
         return {"sent": False, "shown": reason, "ok": False}
@@ -127,16 +135,22 @@ def send(root: Path, said: str) -> dict[str, Any]:
     # Thus the end waits for this send, and a later send sees the closed test.
     sends = state.lock_sends(root)
     try:
-        return _send_locked(root, said)
+        return _send_locked(root, said, test_id)
     finally:
         os.close(sends)
 
 
-def _send_locked(root: Path, said: str) -> dict[str, Any]:
+def _send_locked(root: Path, said: str, test_id: str | None = None) -> dict[str, Any]:
     cur = state.current(root)
     if cur is None:
         return {"sent": False, "shown": NO_TEST, "ok": False}
     folder = Path(cur["dir"])
+    if test_id is not None and test_id != folder.name:
+        return {
+            "sent": False,
+            "shown": OTHER_TEST.format(shown=test_id, running=folder.name),
+            "ok": False,
+        }
     manifest = _manifest(folder)
     if manifest is None:
         return {"sent": False, "shown": NO_MANIFEST, "ok": False}
@@ -153,16 +167,21 @@ def _send_locked(root: Path, said: str) -> dict[str, Any]:
     return {"sent": True, "shown": shown, "ok": ok}
 
 
-def view(root: Path) -> dict[str, Any]:
-    """The test and its turns, for the page: the running test, else the latest test."""
+def view(root: Path, test_id: str | None = None) -> dict[str, Any]:
+    """The test and its turns, for the page: the test with the id `test_id` (from the
+    dashboard), else the running test, else the latest test."""
     cur = state.current(root)
     folder = Path(cur["dir"]) if cur else state.latest_test(root)
+    if test_id is not None:
+        folder = dashboard.find(root, test_id)
+        if folder is None:
+            return {"test": None, "turns": [], "error": "nookku: no test has this id."}
     if folder is None:
         return {"test": None, "turns": [], "error": None}
     manifest = _manifest(folder) or {}
     test = {
         "id": folder.name,
-        "running": cur is not None,
+        "running": cur is not None and Path(cur["dir"]).name == folder.name,
         "started": manifest.get("started"),
         "ended": manifest.get("ended"),
     }
@@ -284,6 +303,11 @@ class _Handler(BaseHTTPRequestHandler):
             self._answer(200, page_file(name), kind)
         elif rest == "api/turns":
             self._json(200, view(self.server.root))
+        elif rest.startswith("api/turns/"):
+            data = view(self.server.root, unquote(rest[len("api/turns/") :]))
+            self._json(200 if data["test"] else 404, data)
+        elif rest == "api/tests" or rest.startswith("api/tests/"):
+            self._json(*dashboard.answer(self.server.root, rest))
         else:
             self._refuse(404, "not found")
 
@@ -324,9 +348,13 @@ class _Handler(BaseHTTPRequestHandler):
         if not isinstance(said, str):
             self._refuse(400, 'the body needs the text "said"')
             return
+        test_id = data.get("test")
+        if test_id is not None and not isinstance(test_id, str):
+            self._refuse(400, 'the "test" of the body must be text')
+            return
         with self.server.lock:
             try:
-                answer = send(self.server.root, said)
+                answer = send(self.server.root, said, test_id)
             except Exception as e:  # each failure must give the page an error, not a reset
                 self._json(500, {"sent": False, "ok": False, "shown": f"nookku: {e}"})
                 return

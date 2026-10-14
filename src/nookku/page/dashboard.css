@@ -1,0 +1,76 @@
+/* The dashboard of the tests (#349). It uses the colors of app.css. */
+.nav {
+  margin: 0 0 12px;
+  font-size: 13px;
+}
+
+a {
+  color: var(--accent);
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0 0 12px;
+}
+
+select {
+  font: inherit;
+  margin-left: 4px;
+  padding: 2px 4px;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+/* A wide table scrolls in its box, so the page itself does not scroll to the side. */
+.table {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+th {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+tbody tr {
+  cursor: pointer;
+}
+
+tbody tr:hover {
+  background: var(--agent);
+}
+
+.bad {
+  color: var(--error-fg);
+  font-weight: 600;
+}
+
+.problem {
+  display: block;
+  font-size: 12px;
+  color: var(--error-fg);
+  white-space: normal;
+}
