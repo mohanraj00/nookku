@@ -184,12 +184,51 @@ def test_a_broken_trace_gives_a_problem_and_no_steps(project: Path) -> None:
 
 
 def test_paths_finds_the_file_targets_of_a_reply() -> None:
-    text = "![a](images/a.png) [b](<docs/b c.mp4>) ![c](file:///tmp/c.gif) ![d](https://x/d.png)"
-    found = export.paths(text)
-    # The list can have more paths than the renderer shows, for example "c.mp4".
-    assert {"docs/b c.mp4", "images/a.png", "/tmp/c.gif"} <= set(found)
-    assert not any("x/d.png" in p for p in found)
-    assert export.paths("x" * (export.RENDER_LIMIT + 1) + " a.png") == []
+    text = (
+        "![a](images/a.png) [b](<docs/b c.mp4>) ![c](file:///tmp/c.gif) ![d](https://x/d.png) "
+        '![e](images/e(1).png) ![f](images/f\\(2\\).png "a title") [g](notes.txt)'
+    )
+    assert export.paths(text) == [
+        "images/a.png", "docs/b c.mp4", "/tmp/c.gif", "images/e(1).png", "images/f(2).png",
+    ]  # fmt: skip
+    assert export.paths("x" * (export.RENDER_LIMIT + 1) + " ![a](a.png)") == []
+
+
+def test_a_path_in_plain_text_adds_no_file(project: Path) -> None:
+    """Only a Markdown link or image of a reply names a file of the export. A path in the prose
+    of a reply does not put the file into the export."""
+    assert export.paths("See images/mug.png and <images/mug.png> and [mug] (images/mug.png)") == []
+    folder = project / ".nookku" / "tests" / TEST_ID
+    data = data_of(export.build(project, folder).decode())
+    assert list(data["media"]) == ["images/mug.png", "images/big.png"]
+
+
+def test_a_number_that_is_not_finite_gives_a_problem_not_a_crash(project: Path) -> None:
+    folder = project / ".nookku" / "tests" / TEST_ID
+    (folder / "manifest.json").write_text('{"started": NaN, "ended": Infinity}')
+    trace = (folder / "trace.jsonl").read_text().replace("1800000001.0", "NaN")
+    (folder / "trace.jsonl").write_text(trace)
+    (folder / "findings.json").write_text('{"findings": [{"check": "x", "turn": NaN}]}')
+    data = data_of(export.build(project, folder).decode())
+    assert data["test"]["started"] is None and data["test"]["ended"] is None
+    assert data["steps"]["1"][0]["ts"] is None
+    assert export.NOT_FINITE in data["errors"]
+
+
+def test_the_export_writes_with_the_folder_descriptor(
+    project: Path, tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """On a system with dir_fd, the export does not use the write by path."""
+    if os.open not in os.supports_dir_fd:
+        pytest.skip("this system has no dir_fd")
+
+    def plain(target: Path, body: bytes) -> Path:
+        raise AssertionError("the export used the write by path")
+
+    monkeypatch.setattr(export, "_write_plain", plain)
+    out = tmp_path_factory.mktemp("share") / "test.html"
+    export.write(project, project / ".nookku" / "tests" / TEST_ID, out)
+    assert data_of(out.read_text())["test"]["id"] == TEST_ID
 
 
 # The offline tree of render.js and export.js: each source must be a data: URI, and no node may

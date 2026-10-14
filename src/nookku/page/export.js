@@ -13,6 +13,8 @@
   let data = null;
   let files = new Map();
   let big = new Set();
+  // The paths of the media files that a reply shows.
+  const used = new Set();
 
   function el(tag, cls, text) {
     const e = document.createElement(tag);
@@ -50,6 +52,7 @@
       if (!files.has(path)) {
         return fileText(path);
       }
+      used.add(path);
       src = files.get(path);
     }
     if (!/^data:/i.test(src)) {
@@ -150,6 +153,29 @@
     }
     box.append(ol);
     return box;
+  }
+
+  // A media file of the data that no reply shows, for example a link in code. The page shows it
+  // here, so the file holds no file that the page does not show.
+  function unused() {
+    const left = [...files.keys()].filter((path) => !used.has(path));
+    if (left.length === 0) return;
+    const box = el("section", "export-files");
+    box.append(el("h2", null, "Other files in this export (" + left.length + ")"));
+    box.append(el("p", "note", "A reply names these files, but it does not show them, for " +
+      "example because the name is in code."));
+    const ol = el("ol");
+    for (const path of left) {
+      const src = files.get(path);
+      const media = /^data:video\//i.test(src)
+        ? { t: "video", a: { src: src, controls: "", preload: "metadata", class: "media" }, c: [] }
+        : { t: "img", a: { src: src, alt: path }, c: [] };
+      const li = el("li");
+      li.append(el("code", null, path), el("br"), NookkuRender.toDom([media], document));
+      ol.append(li);
+    }
+    box.append(ol);
+    document.querySelector("main").append(box);
   }
 
   const SEAL = {
@@ -263,6 +289,7 @@
       if (steps && steps.length) li.append(stepsBlock(steps));
       list.append(li);
     });
+    unused();
   }
 
   if (typeof module === "object" && module.exports) {

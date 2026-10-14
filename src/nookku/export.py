@@ -25,6 +25,7 @@ import base64
 import contextlib
 import hashlib
 import json
+import math
 import os
 import re
 import time
@@ -52,6 +53,7 @@ SCRIPTS = ("render.js", "export.js")
 
 NO_ID = "nookku: no test has this id."
 NO_TEST = "nookku: no test to export. Start one in the harness with: nookku start"
+NOT_FINITE = "nookku: a file of the test has a number that is not finite. The export shows no value"
 
 
 class ExportError(Exception):
@@ -60,8 +62,8 @@ class ExportError(Exception):
 
 # ---- The files that a reply names ----
 
-_ANGLE = re.compile(r"<([^<>\n]{1,4096})>")
-_TOKEN = re.compile(r"[^\s()<>\[\]\"]+")
+# The longest destination of a link (`LINK_MAX` in page/render.js).
+LINK_MAX = 4096
 _SCHEME = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*:")
 _DRIVE = re.compile(r"^[A-Za-z]:[\\/]")
 
@@ -82,15 +84,70 @@ def _path_of(raw: str) -> str | None:
     return text
 
 
+def _brackets(text: str) -> dict[int, int]:
+    """The index of the "]" that closes each "[", as `brackets` in page/render.js."""
+    match: dict[int, int] = {}
+    opened: list[int] = []
+    j = 0
+    while j < len(text):
+        ch = text[j]
+        if ch == "\\":
+            j += 1
+        elif ch == "[":
+            opened.append(j)
+        elif ch == "]" and opened:
+            match[opened.pop()] = j
+        j += 1
+    return match
+
+
+def _destination(text: str, j: int) -> str | None:
+    """The destination of the link whose label ends at text[j] == "]", with the grammar of
+    `linkAt` in page/render.js, or None. A destination has no "[", so each "[" starts at most
+    one scan."""
+    if text[j + 1 : j + 2] != "(":
+        return None
+    k = j + 2
+    while text[k : k + 1] == " ":
+        k += 1
+    if text[k : k + 1] == "<":
+        close = text.find(">", k, k + LINK_MAX)
+        if close < 0 or "\n" in text[k:close]:
+            return None
+        dest, k = text[k + 1 : close], close + 1
+    else:
+        parens, start = 0, k
+        while k < len(text):
+            ch = text[k]
+            if k - start > LINK_MAX or ch == "[":
+                return None
+            if ch == "\\":
+                k += 1
+            elif ch == "(":
+                parens += 1
+            elif ch == ")":
+                if parens == 0:
+                    break
+                parens -= 1
+            elif ch.isspace():
+                break
+            k += 1
+        dest = re.sub(r"\\([()])", r"\1", text[start:k])
+    if not re.match(r"\s*(?:\"[^\"]*\"|'[^']*')?\s*\)", text[k : k + LINK_MAX]):
+        return None
+    return dest
+
+
 def paths(text: str) -> list[str]:
-    """Each file path in a reply that can be an image or a video of the renderer. The list can
-    have more paths than the renderer shows. A path that the renderer shows and that is not in
-    the list shows as text in the file."""
+    """The file path of each Markdown link or image of a reply that names an image or a video
+    file, with the link grammar of page/render.js. The renderer does not parse a link in code,
+    so the list can have a path that the reply does not show. The file shows each such file
+    in a list at its end, so the file holds no file that it does not show."""
     if len(text) > RENDER_LIMIT:
         return []
-    raws = [m.group(1) for m in _ANGLE.finditer(text)] + _TOKEN.findall(text)
-    found = (_path_of(r) for r in raws)
-    return list(dict.fromkeys(p for p in found if p))
+    found = (_destination(text, j) for j in _brackets(text).values())
+    named = (_path_of(d) for d in found if d is not None)
+    return list(dict.fromkeys(p for p in named if p))
 
 
 def media(root: Path, folder: Path, texts: list[str]) -> tuple[dict[str, str], list[str]]:
@@ -157,9 +214,10 @@ def steps(folder: Path) -> tuple[dict[int, list[dict[str, Any]]], str | None]:
         if isinstance(turn, bool) or not isinstance(turn, int):
             continue
         ts, code = row.get("ts"), row.get("exit_code")
+        number_ts = isinstance(ts, int | float) and not isinstance(ts, bool) and math.isfinite(ts)
         out.setdefault(turn, []).append(
             {
-                "ts": ts if isinstance(ts, int | float) and not isinstance(ts, bool) else None,
+                "ts": ts if number_ts else None,
                 "harness": _cut(row.get("harness")),
                 "kind": _cut(row.get("kind")),
                 "role": _cut(row.get("role")),
@@ -198,10 +256,14 @@ def data(root: Path, folder: Path) -> dict[str, Any]:
     audit = _json_file(folder, "audit.json")
     findings = _json_file(folder, "findings.json")
     summary = dashboard.row(folder, dashboard.running_id(root))
+    # The dashboard row gives each time of the manifest only if it is a finite number.
+    test = shown["test"] and {**shown["test"], "started": summary["started"]}
+    if test:
+        test["ended"] = summary["ended"]
     errors = list(summary["errors"])
     errors += [e for e in (shown["error"], note_rows["error"], trace_error) if e]
-    return {
-        "test": shown["test"],
+    out = {
+        "test": test,
         "summary": summary,
         "turns": turn_rows,
         "steps": {str(k): v for k, v in trace_steps.items()},
@@ -220,6 +282,25 @@ def data(root: Path, folder: Path) -> dict[str, Any]:
         "exported": time.time(),
         "version": __version__,
     }
+    clean, changed = _finite(out)
+    found: dict[str, Any] = clean
+    if changed:
+        found["errors"].append(NOT_FINITE)
+    return found
+
+
+def _finite(value: Any) -> tuple[Any, bool]:
+    """The value with None for each number that is not finite, and True if there was one. JSON
+    has no NaN or Infinity (SPEC.md section 2), and a file of a test can have one."""
+    if isinstance(value, float) and not math.isfinite(value):
+        return None, True
+    if isinstance(value, dict):
+        pairs = [(k, _finite(v)) for k, v in value.items()]
+        return {k: v for k, (v, _) in pairs}, any(c for _, (_, c) in pairs)
+    if isinstance(value, list):
+        items = [_finite(v) for v in value]
+        return [v for v, _ in items], any(c for _, c in items)
+    return value, False
 
 
 def _json_block(value: Any) -> str:
@@ -328,7 +409,8 @@ def write(root: Path, folder: Path, out: Path) -> Path:
         raise ExportError(
             f"{target} is in the state folder, a test folder or a seal home. Give another path."
         )
-    if os.open not in os.supports_dir_fd or os.replace not in os.supports_dir_fd:
+    # `os.rename` names the dir_fd support of `os.replace` too.
+    if os.open not in os.supports_dir_fd or os.rename not in os.supports_dir_fd:
         # A system with no `dir_fd` (Windows): the path check above is the only check.
         return _write_plain(target, body)
     try:
