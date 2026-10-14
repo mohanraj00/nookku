@@ -129,15 +129,24 @@ const NookkuTrace = (function () {
     if (!list) {
       return;
     }
-    const ok = answer !== null && answer.test === test;
+    if (answer === null || answer.test !== test) {
+      // No answer for this test, or the last answer was an error: the page shows no old steps.
+      for (const node of list.querySelectorAll(":scope > li.trace")) {
+        if (node.previousSibling) {
+          node.previousSibling._trace = null;
+        }
+        node.remove();
+      }
+      return;
+    }
     for (const owner of list.querySelectorAll(":scope > li[data-turn]")) {
-      const turn = ok ? answer.turns[Number(owner.dataset.turn)] : undefined;
+      const turn = answer.turns[Number(owner.dataset.turn)];
       if (turn) {
         place(owner, turn, false);
       }
     }
     const waiting = list.querySelector(":scope > li.pending");
-    if (waiting && ok && answer.pending.length > 0) {
+    if (waiting && answer.pending.length > 0) {
       place(waiting, { steps: answer.pending, exchange: null, started: null, ended: null }, true);
     }
     // A block whose owner is gone or moved goes too.
@@ -168,9 +177,7 @@ const NookkuTrace = (function () {
       const resp = await fetch(url, { cache: "no-store" });
       const data = await resp.json();
       showError(data.error);
-      if (!data.error) {
-        answer = data;
-      }
+      answer = data.error ? null : data;
     } catch (e) {
       // app.js shows the error when the page server does not answer.
       return;

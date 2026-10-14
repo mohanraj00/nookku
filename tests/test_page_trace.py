@@ -81,6 +81,33 @@ def test_after_the_end_the_steps_come_from_trace_jsonl(tmp_path: Path) -> None:
     assert [shape(t["steps"]) for t in ended["turns"]] == [shape(t["steps"]) for t in live["turns"]]
 
 
+def test_a_text_with_u2028_in_trace_jsonl_keeps_its_step(tmp_path: Path) -> None:
+    folder = toy_shop(tmp_path)
+    trace.build(folder)
+    lines = (folder / "trace.jsonl").read_text(encoding="utf-8").split("\n")
+    row = json.loads(lines[0])
+    row["output"] = "line one\u2028line two"
+    lines[0] = json.dumps(row, ensure_ascii=False)
+    (folder / "trace.jsonl").write_text("\n".join(lines), encoding="utf-8")
+    data = page_trace.steps(folder, running=False)
+    outputs = [s["output"] for t in data["turns"] for s in t["steps"]]
+    assert "line one\u2028line two" in outputs
+
+
+def test_a_running_test_reads_the_live_rows_and_not_trace_jsonl(tmp_path: Path) -> None:
+    folder = toy_shop(tmp_path)
+    # `nookku trace` during the test writes a trace.jsonl that does not change after that.
+    trace.build(folder)
+    row = json.loads((folder / "backend.jsonl").read_text().splitlines()[0])
+    row |= {"started": 1791273615.0, "ts": 1791273615.5, "path": "/new"}
+    with (folder / "backend.jsonl").open("a") as f:
+        f.write(json.dumps(row) + "\n")
+    names = [s["name"] for s in page_trace.steps(folder, running=True)["turns"][1]["steps"]]
+    assert "GET /new" in names
+    names = [s["name"] for s in page_trace.steps(folder, running=False)["turns"][1]["steps"]]
+    assert "GET /new" not in names
+
+
 def test_a_running_test_shows_the_steps_that_wait_for_a_reply(tmp_path: Path) -> None:
     folder = toy_shop(tmp_path)
     data = page_trace.steps(folder, running=True)

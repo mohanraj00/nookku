@@ -13,13 +13,12 @@ page puts it in with textContent, never as HTML.
 
 from __future__ import annotations
 
-import json
 import threading
 from pathlib import Path
 from typing import Any
 from urllib.parse import unquote
 
-from nookku import audit, backend, dashboard, model_api, otlp, state, trace
+from nookku import audit, backend, dashboard, evaluation, model_api, otlp, state, trace
 from nookku.record import Exchange, RecordError, read_rows, turns
 
 ROUTE = "api/trace"
@@ -45,24 +44,14 @@ def _signature(folder: Path, running: bool) -> Any:
     return tuple(out)
 
 
-def _trace_rows(path: Path) -> list[dict[str, Any]]:
-    """The rows of trace.jsonl. A line that is not a JSON object is not a step."""
-    out = []
-    for line in path.read_text(encoding="utf-8").splitlines():
-        try:
-            row = json.loads(line)
-        except ValueError:
-            continue
-        if isinstance(row, dict):
-            out.append(row)
-    return out
-
-
-def items(folder: Path, spans: list[tuple[float, float]]) -> list[dict[str, Any]]:
-    """The trace rows of a test, each with its turn: from trace.jsonl if it exists, else from the
-    live sources, with the turn rule of SPEC.md section 8.3."""
-    if (folder / TRACE).exists():
-        return _trace_rows(folder / TRACE)
+def items(folder: Path, spans: list[tuple[float, float]], running: bool) -> list[dict[str, Any]]:
+    """The trace rows of a test, each with its turn. For a test that ended, the rows come from
+    trace.jsonl if it exists. Else they come from the live sources, with the turn rule of SPEC.md
+    section 8.3. A running test always uses the live sources, because `nookku trace` during the
+    test writes a trace.jsonl that does not change after that."""
+    if not running and (folder / TRACE).exists():
+        # The reader of the evaluation: it splits on \n only and stops at a bad line.
+        return evaluation._items(folder / TRACE)
     found: list[dict[str, Any]] = []
     readers = ((otlp.FILE, trace.read_otel), (backend.FILE, trace.read_backend))
     for name, reader in (*readers, (model_api.FILE, trace.read_model_api)):
@@ -89,7 +78,7 @@ def steps(folder: Path, running: bool) -> dict[str, Any]:
     rows = [r for _, r in lines]
     exchanges = [Exchange(n, r["input"], r["status"], r["reply"]) for n, r in lines]
     spans = trace.windows(rows)
-    found = items(folder, spans)
+    found = items(folder, spans, running)
     by_turn: dict[int, list[dict[str, Any]]] = {}
     for row in found:
         if isinstance(row.get("turn"), int):
