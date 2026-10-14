@@ -276,6 +276,26 @@ CASES_BY_NAME: dict[str, tuple[list | None, list | None, dict]] = {
             ],
         },
     ),
+    # The chat page writes turns with the harness "pane" and no session (SPEC.md sections 2.2
+    # and 5). A test can mix them with turns of the harness chat. The audit matches them the same.
+    "pane_turns_clean": (
+        CLEAN_TAP,
+        [
+            {**turn(M1, R1, v="0.2"), "harness": "pane", "ok": True},
+            {**turn(M2, R2, v="0.2"), "ok": True, "session": "s1"},
+            {**turn(M3, R3, v="0.2"), "harness": "pane", "ok": True},
+        ],
+        {"exit": 0, "breaks": []},
+    ),
+    "pane_turn_altered_reply": (
+        CLEAN_TAP,
+        [
+            {**turn(M1, R1, v="0.2"), "harness": "pane", "ok": True},
+            {**turn(M2, R2.replace("Café", "Care"), v="0.2"), "harness": "pane", "ok": True},
+            {**turn(M3, R3, v="0.2"), "harness": "pane", "ok": True},
+        ],
+        {"exit": 1, "breaks": [["altered_reply", 2, 2]]},
+    ),
     "optional_turn_fields": (
         CLEAN_TAP,
         [{**t, "ok": True, "session": "s1"} for t in CLEAN_RELAY],

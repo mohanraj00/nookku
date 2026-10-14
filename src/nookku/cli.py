@@ -298,6 +298,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     view.add_argument("--root", type=Path, default=Path.cwd())
     view.add_argument("--no-follow", action="store_true", help="print the turns so far and stop")
     view.add_argument("--record", type=Path, help="the relay record (default: from the config)")
+    view.add_argument("--text", action="store_true", help="the text view (the default)")
+    _page_parser(sub)
 
     ver = sub.add_parser("verify", help="check that no record of a test changed after its end")
     ver.add_argument(
@@ -410,6 +412,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
     if args.command == "run":
         return _run_command(args)
+    if args.command == "page":
+        return _page_command(args)
     if args.command in ("start", "end", "status", "check"):
         return _test_command(args)
     if args.command == "trace":
@@ -612,6 +616,21 @@ def _trace_command(root: Path, test: str | None, as_json: bool) -> int:
         print(f"  {f['check']} ({', '.join(where)}): {f['detail']}")
     print(f"File: {folder / 'trace.jsonl'}")
     return 0
+
+
+def _page_parser(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+    page = sub.add_parser("page", help="serve the chat page: talk to the agent of a test")
+    page.add_argument("--root", type=Path, default=Path.cwd())
+    page.add_argument(
+        "--port", type=int, default=0, help="the port on 127.0.0.1 (default: a free port)"
+    )
+
+
+def _page_command(args: argparse.Namespace) -> int:
+    """nookku page: the chat page on 127.0.0.1 (SPEC.md section 5, "Chat page")."""
+    from nookku import page
+
+    return page.serve(args.root.resolve(), args.port)
 
 
 def _run_command(args: argparse.Namespace) -> int:

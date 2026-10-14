@@ -31,7 +31,7 @@ from nookku.record import RecordError, Writer, turns
 
 # The state functions are in nookku.state. These names keep the imports of bridge working.
 from nookku.state import TIMEOUT as TIMEOUT
-from nookku.state import TOKEN_KEY
+from nookku.state import TOKEN_KEY, lock_sends
 from nookku.state import _children as _children
 from nookku.state import _started as _started
 from nookku.state import alive as alive
@@ -329,10 +329,15 @@ def finish_stopped(folder: Path) -> dict[str, Any]:
         )
         log(warning)
         print(f"nookku: {warning}", file=sys.stderr)
-    manifest.update(ended=time.time(), killed=True)
-    _write_json(path, manifest)
-
-    _collect(folder, script.copy_in(folder), log)
+    # Wait for a send of the chat page, and keep each later send out until the seal (SPEC.md 5).
+    # The test folder is <root>/.nookku/tests/<test>.
+    sends = lock_sends(folder.parents[2])
+    try:
+        manifest.update(ended=time.time(), killed=True)
+        _write_json(path, manifest)
+        _collect(folder, script.copy_in(folder), log)
+    finally:
+        os.close(sends)
     return manifest
 
 
@@ -747,6 +752,8 @@ def run(
     stop.wait()
 
     _log("ending")
+    # Wait for a send of the chat page, and keep each later send out until the seal (SPEC.md 5).
+    sends = lock_sends(root)
     tap.shutdown()
     watcher.stop()
     watcher.poll()
@@ -822,6 +829,7 @@ def run(
     _write_json(folder / "manifest.json", manifest)
     _collect(folder, copy)
     (state(root) / "current.json").unlink(missing_ok=True)
+    os.close(sends)
     tap.server_close()
     _log(f"test {test} ended")
     return 0

@@ -29,6 +29,52 @@ TOKEN_HEADER = "X-Nookku-Token"
 TOKEN_KEY = "tap_token"
 
 
+# The page file in the state folder: the port and the pid of the chat page server (SPEC.md section
+# 5, "Chat page"). It never holds the page token, because a model tool call can read it.
+PAGE_FILE = "page.json"
+
+
+def page_info(root: Path) -> dict[str, Any] | None:
+    """The page file of the project, or None if it does not exist or is not valid."""
+    try:
+        data = json.loads((state(root) / PAGE_FILE).read_text())
+    except (OSError, ValueError):
+        return None
+    if not isinstance(data, dict) or type(data.get("port")) is not int:
+        return None
+    return data
+
+
+# The page lock in the state folder. The chat page server holds it for its whole life, so that
+# only one page server runs for each project.
+PAGE_LOCK = "page.lock"
+# The send lock in the state folder. A page send holds it from its checks to its turn row, and
+# the end of a test holds it from the tap shutdown to the seal (SPEC.md section 5, "Chat page").
+SEND_LOCK = "send.lock"
+
+
+def lock_sends(root: Path) -> int:
+    """Take the send lock of the project, and wait for it if necessary. Return its file
+    descriptor. `os.close` of the descriptor gives the lock back."""
+    import fcntl
+
+    folder = state(root)
+    folder.mkdir(parents=True, exist_ok=True)
+    fd = os.open(folder / SEND_LOCK, os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX)
+    except BaseException:
+        os.close(fd)
+        raise
+    return fd
+
+
+def page_port(root: Path) -> int | None:
+    """The port of the chat page of the project, or None. The guard denies a call to it."""
+    info = page_info(root)
+    return info["port"] if info else None
+
+
 def public(cur: dict[str, Any]) -> dict[str, Any]:
     """current.json with no tap token, for output that a log or a tool result can keep."""
     return {k: v for k, v in cur.items() if k != TOKEN_KEY}

@@ -114,6 +114,8 @@ def test_state_rest(word: str, rest: list[str] | None) -> None:
         ("sudo -u shop nookku hook", "nookku hook"),
         ("env A=1 bash -lc 'nookku end'", "nookku end"),
         ("pipx run nookku run --script s.jsonl", "nookku run"),
+        ("nookku page", "nookku page"),
+        ("uv run nookku page --port 8080", "nookku page"),
         ("echo $(nookku start)", "nookku start"),
         ("uv run --python python3 nookku start", "nookku start"),
         ("env -u HOME python3 -m nookku end", "nookku end"),

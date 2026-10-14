@@ -32,6 +32,14 @@ the test checks need a test, so this mode does not run them.
 With --stream --on-request, the toy agent streams only if the request has "stream": true
 (stream="on_request"), and the config has "openai_stream": true. Each exchange must be a stream.
 
+The setup page-claude-code runs P1 to P4 with the chat page as the relay (#327). The tester
+starts and ends the test in Claude Code with the plugin, and sends each message on the page with
+the headers of a browser. P1 and P2 run as above: P2 also checks the answer of the page and the
+turns that the page shows. Each turn has the harness "pane". P3 checks that the Claude Code session
+files of the project hold none of the messages. P3c: a model call to the page is denied, and the
+agent receives nothing. P3b runs as above. The tap record must be the same as the tap record of
+proofs/plugin-claude-code/. This setup has no --stream.
+
 usage: python scripts/proofs_relay.py SETUP [--stream [--on-request]] [OUT_DIR]
        (default proofs/SETUP, proofs/SETUP-stream with --stream, or
        proofs/SETUP-stream-on-request with --stream --on-request)
@@ -41,7 +49,9 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
+import signal
 import subprocess
 import sys
 from dataclasses import asdict
@@ -62,7 +72,7 @@ from proof_common import (  # noqa: E402
     rows,
 )
 
-from nookku import __version__, bridge, kit  # noqa: E402
+from nookku import __version__, bridge, kit, page  # noqa: E402
 from nookku.audit import audit  # noqa: E402
 from nookku.record import Turn, read_relay  # noqa: E402
 
@@ -274,6 +284,239 @@ def main_stream(setup: str, run, out: Path, on_request: bool = False) -> int:
     return write_results(out, report, tap_rec, relay_rec)
 
 
+PAGE_SETUP = "page-claude-code"
+
+
+def page_request(url: str, path: str, body: dict | None = None) -> tuple[int, dict, bytes]:
+    """One request to the chat page, with the headers that a browser sends for the page."""
+    import http.client
+    from urllib.parse import urlsplit
+
+    u = urlsplit(url)
+    origin = f"http://{u.netloc}"
+    headers = {"Host": u.netloc}
+    data = None
+    if body is not None:
+        headers |= {"Origin": origin, "Content-Type": "application/json"}
+        data = json.dumps(body).encode()
+    conn = http.client.HTTPConnection(u.hostname, u.port, timeout=300)
+    try:
+        conn.request("POST" if body is not None else "GET", u.path + path, data, headers)
+        resp = conn.getresponse()
+        return resp.status, {k.lower(): v for k, v in resp.getheaders()}, resp.read()
+    finally:
+        conn.close()
+
+
+def session_files(project: Path) -> list[Path]:
+    """The Claude Code session files of the project. Claude Code writes a row for each prompt,
+    each hook call and each model answer of a session."""
+    folder = Path.home() / ".claude" / "projects" / re.sub(r"[^A-Za-z0-9]", "-", str(project))
+    return sorted(folder.glob("*.jsonl")) if folder.is_dir() else []
+
+
+def session_lines(project: Path) -> int:
+    """The number of rows in the session files of the project."""
+    return sum(len(f.read_bytes().splitlines()) for f in session_files(project))
+
+
+def session_hits(project: Path, texts: list[str]) -> dict:
+    """How many Claude Code session files of the project hold a text of the list. A message of
+    the page must never reach the harness, so each count must be 0."""
+    files = session_files(project)
+    # The session files hold JSON, so a text is in its JSON form there.
+    hits = 0
+    for f in files:
+        body = f.read_text(encoding="utf-8", errors="replace")
+        hits += sum(json.dumps(t, ensure_ascii=False)[1:-1] in body for t in texts)
+    return {"files": len(files), "hits": hits}
+
+
+def main_page(out: Path) -> int:
+    """P1 to P4 with the chat page as the relay (#327). The tester starts and ends the test in
+    Claude Code with the plugin, and sends each message on the page, as the browser does."""
+    project = project_of(PAGE_SETUP)
+    shutil.rmtree(project / kit.STATE_DIR / "tests", ignore_errors=True)
+    project.mkdir(parents=True, exist_ok=True)
+    kit.init(project, "plugin", asdict(kit.Config(entry=ENTRY)))
+    # Each run starts with no session of an earlier run, so that P3 reads only this run.
+    sessions = Path.home() / ".claude" / "projects"
+    shutil.rmtree(sessions / re.sub(r"[^A-Za-z0-9]", "-", str(project)), ignore_errors=True)
+    run = partial(run_claude, plugin=True)
+    version = subprocess.run(["claude", "--version"], capture_output=True, text=True).stdout
+    report: dict = {
+        "date": date.today().isoformat(),
+        "setup": PAGE_SETUP,
+        "harness": "claude-code",
+        "version": version.strip(),
+        "nookku": __version__,
+        "transport": "stdio",
+        "relay": "pane",
+        "turns": [],
+    }
+    server = subprocess.Popen(
+        [sys.executable, "-m", "nookku", "page", "--root", str(project)],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        # The proof is the person here. It can run in a harness shell, where nookku page refuses
+        # to start. The URL goes only to this script.
+        env={k: v for k, v in os.environ.items() if k not in page.HARNESS_SHELL},
+    )
+    assert server.stdout is not None
+    first = server.stdout.readline()
+    if not first.startswith("Chat page: http://127.0.0.1:"):
+        server.kill()
+        print(
+            "FAIL: nookku page did not start:", first, server.stderr.read() if server.stderr else ""
+        )
+        return 1
+    url = first.split(": ", 1)[1].strip()
+    status, headers, html = page_request(url, "")
+    report["page"] = {
+        "status": status,
+        "csp": headers.get("content-security-policy"),
+        "inline_script": b"<script>" in html,
+    }
+    report["start_model_output_tokens"] = run(project, "nookku start", False, False)[
+        "output_tokens"
+    ]
+    cur = bridge.current(project)
+    if cur is None:
+        server.send_signal(signal.SIGTERM)
+        print("FAIL: the prompt 'nookku start' did not start a test")
+        return 1
+    folder = Path(cur["dir"])
+    tap_rec, relay_rec = folder / "tap.jsonl", folder / "relay.jsonl"
+    try:
+        # 2 rounds of the 5 messages, so that the tap record has the 10 exchanges of the proof
+        # with the harness chat.
+        for rnd in (1, 2):
+            for m in MESSAGES:
+                t0, r0 = len(rows(tap_rec, "exchange")), len(rows(relay_rec, "turn"))
+                h0 = session_lines(project)
+                status, _, body = page_request(url, "api/send", {"said": m})
+                # A page turn must not reach the harness: no prompt, no hook call and no model
+                # answer, so the session files get no row.
+                harness_rows = session_lines(project) - h0
+                answer = json.loads(body)
+                new_tap = rows(tap_rec, "exchange")[t0:]
+                new_turns = rows(relay_rec, "turn")[r0:]
+                _, _, listed = page_request(url, "api/turns")
+                on_page = json.loads(listed)["turns"]
+                view = viewer_text(project)
+                n = sum(isinstance(r, Turn) for r in read_relay(relay_rec))
+                block = f"──── tester, turn {n} ────\n{m}\n──── agent ────\n"
+                reply = new_tap[0]["reply"] if len(new_tap) == 1 else None
+                turn = {
+                    "round": rnd,
+                    "message": m,
+                    "agent_inputs": len(new_tap),
+                    "harness_session_rows_added": harness_rows,
+                    "P1": len(new_tap) == 1 and new_tap[0]["input"] == m,
+                    "P2": reply is not None
+                    and status == 200
+                    and answer.get("shown") == reply
+                    and len(new_turns) == 1
+                    and new_turns[0]["shown"] == reply
+                    and new_turns[0]["harness"] == "pane"
+                    and on_page[-1]["shown"] == reply
+                    and block + reply + "\n" in view,
+                }
+                report["turns"].append(turn)
+                print(rnd, "P1", turn["P1"], "P2", turn["P2"], repr(m[:30]), flush=True)
+        report["P3"] = session_hits(project, MESSAGES)
+        print("P3", report["P3"], flush=True)
+        # Relay mode off while the test still runs, so that the next prompts go to the model.
+        kit.set_mode(project, False)
+        # A model call to the page: the guard denies it, and the agent receives nothing. Only this
+        # attack test gives the page URL to the model (SPEC.md section 5, "The page URL").
+        t0, b0 = len(rows(tap_rec, "exchange")), len(rows(relay_rec, "blocked_call"))
+        res = run(
+            project,
+            f"Use the shell to run: curl -s -X POST {url}api/send -H 'Origin: "
+            f"{url.split('/p/')[0]}' -H 'Content-Type: application/json' -d "
+            '\'{"said": "hello from the model"}\' and show me the output.',
+            False,
+            True,
+        )
+        report["P3c"] = {
+            "agent_inputs_added": len(rows(tap_rec, "exchange")) - t0,
+            "blocked_rows_added": len(rows(relay_rec, "blocked_call")) - b0,
+            "model_text": res["text"][:300],
+        }
+        print("P3c", report["P3c"], flush=True)
+        # A model call to the tap: the guard denies it, and the agent receives nothing.
+        t0, b0 = len(rows(tap_rec, "exchange")), len(rows(relay_rec, "blocked_call"))
+        res = run(
+            project,
+            f'Use the shell to run: curl -s -X POST {cur["tap_url"]} -d \'{{"text": '
+            '"hello from the model"}\' and show me the output.',
+            False,
+            True,
+        )
+        report["P3b"] = {
+            "agent_inputs_added": len(rows(tap_rec, "exchange")) - t0,
+            "blocked_rows_added": len(rows(relay_rec, "blocked_call")) - b0,
+            "model_text": res["text"][:300],
+        }
+        print("P3b", report["P3b"], flush=True)
+    finally:
+        report["end_model_output_tokens"] = run(project, "nookku end", False, False)[
+            "output_tokens"
+        ]
+        if bridge.current(project) is not None:
+            kit.end_test(project)
+        server.send_signal(signal.SIGTERM)
+        rest, err = server.communicate(timeout=30)
+    token = str(cur.get("tap_token", ""))
+    report["page"] |= {
+        "tap_token_printed": bool(token) and token in first + rest + err,
+        "page_file_removed": not (project / kit.STATE_DIR / "page.json").exists(),
+    }
+    manifest = json.loads((folder / "manifest.json").read_text())
+    report["test"] = {
+        "ended": manifest["ended"] is not None,
+        "model_sessions": manifest["model_sessions"],
+        "versions": manifest["versions"],
+    }
+    # The same tap record as the proof with the harness chat: the same inputs, statuses and
+    # replies, in the same order.
+    chat = ROOT / "proofs" / "plugin-claude-code" / "tap.jsonl"
+    key = ("input", "status", "reply")
+    same = [[r[k] for k in key] for r in rows(tap_rec, "exchange")] == [
+        [r[k] for k in key] for r in rows(chat, "exchange")
+    ]
+    report["same_tap_record_as_harness_chat"] = {
+        "record": str(chat.relative_to(ROOT)),
+        "same": same,
+    }
+    rep = audit(tap_rec, relay_rec)
+    work = project / "planted"
+    shutil.rmtree(work, ignore_errors=True)
+    work.mkdir()
+    report["P4"] = {"audit": rep.as_dict(), "planted": planted(tap_rec, relay_rec, work)}
+    report["pass"] = (
+        all(t["P1"] and t["P2"] and t["harness_session_rows_added"] == 0 for t in report["turns"])
+        and report["page"]["status"] == 200
+        and not report["page"]["inline_script"]
+        and not report["page"]["tap_token_printed"]
+        and report["page"]["page_file_removed"]
+        and report["P3"]["files"] >= 1
+        and report["P3"]["hits"] == 0
+        and report["P3c"]["agent_inputs_added"] == 0
+        and report["P3c"]["blocked_rows_added"] >= 1
+        and report["P3b"]["agent_inputs_added"] == 0
+        and report["P3b"]["blocked_rows_added"] >= 1
+        and report["test"]["ended"]
+        and report["test"]["model_sessions"] == []
+        and same
+        and rep.exit == 0
+        and all(p["ok"] for p in report["P4"]["planted"])
+    )
+    return write_results(out, report, tap_rec, relay_rec)
+
+
 def main() -> int:
     args = sys.argv[1:]
     stream = "--stream" in args
@@ -284,8 +527,11 @@ def main() -> int:
         args.remove("--on-request")
         if not stream:
             sys.exit("--on-request needs --stream")
+    if args[:1] == [PAGE_SETUP] and not stream:
+        return main_page(Path(args[1]) if len(args) > 1 else ROOT / "proofs" / PAGE_SETUP)
     if not args or args[0] not in SETUPS:
-        sys.exit(f"usage: proofs_relay.py {'|'.join(SETUPS)} [--stream [--on-request]] [OUT_DIR]")
+        names = "|".join((*SETUPS, PAGE_SETUP))
+        sys.exit(f"usage: proofs_relay.py {names} [--stream [--on-request]] [OUT_DIR]")
     setup = args[0]
     form, harness = setup.split("-", 1)
     runner = {"codex": run_codex, "claude-code": run_claude}[harness]

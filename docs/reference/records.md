@@ -15,6 +15,9 @@ verbatim-relay 0.3.x and earlier used `.verbatim-relay/`. The first `nookku` com
 | `nookku-state` | `nookku init`, `nookku start` | A marker of the state folder. `init` refuses a root in a marked folder, also through a symlink with another name ([#148](https://github.com/mohanraj00/nookku/issues/148)). |
 | `mode` | the [relays](glossary.md#relay) | `on` or `off`: [relay mode](glossary.md#relay-mode). It survives a restart of the [harness](glossary.md#harness) ([SPEC.md section 7.2](../../SPEC.md#72-start-and-end)). |
 | `current.json` | the [bridge](glossary.md#bridge) | The running test: its id, its folder, the [tap](glossary.md#tap) URL, the tap token, the pid and the start time of the bridge. The token is a secret: each relay sends it to the tap ([SPEC.md section 4.2](../../SPEC.md#42-stdio-mode)). Thus the file has mode `0600`, so only the owner can read it. The file exists only while a test runs. |
+| `page.json` | `nookku page` | The port and the pid of the [chat page](cli.md#nookku-page) server, never the token or the URL. The guard denies a model tool call to this port ([SPEC.md section 5](../../SPEC.md#5-relays)). The file has mode `0600`. It exists only while the page server runs. |
+| `page.lock` | `nookku page` | An empty lock file. The page server holds it while it runs, so that only one page server runs for each project ([SPEC.md section 5](../../SPEC.md#5-relays)). |
+| `send.lock` | `nookku page`, the end of a test | An empty lock file. A send of the chat page and the end of a test take turns with it, so that the end waits for a send that is in progress ([SPEC.md section 5](../../SPEC.md#5-relays)). |
 | `ending.json` | `nookku end` | The harness session that ends the test, for the bridge. |
 | `relay.jsonl` | the relays | With no entry: the [relay record](glossary.md#relay-record) ([how-to/http-tap.md](../how-to/http-tap.md)). |
 | `tests/<test-id>/` | the bridge, the relays, the tap | One folder for each test (see below). |
@@ -29,7 +32,7 @@ Each test is a new conversation, with a new test id and a new entry process. The
 
 | File | Content | Format |
 |---|---|---|
-| `relay.jsonl` | What you typed and saw. In a [scripted test](glossary.md#scripted-test), each row has `"harness": "script"`. | [SPEC.md section 2.2](../../SPEC.md#22-relay-record) |
+| `relay.jsonl` | What you typed and saw. In a [scripted test](glossary.md#scripted-test), each row has `"harness": "script"`. A turn that the chat page sent has `"harness": "pane"`. | [SPEC.md section 2.2](../../SPEC.md#22-relay-record) |
 | `script.jsonl` or `script.json` | Only in a scripted test: a copy of the script file. | [SPEC.md section 7.10](../../SPEC.md#710-scripted-tests) |
 | `tap.jsonl` | What the entry received and sent, and the model sessions that the tap found. | [SPEC.md section 2.1](../../SPEC.md#21-tap-record) |
 | `app.log` | The stderr of the entry and your app. | text |

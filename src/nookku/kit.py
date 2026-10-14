@@ -60,7 +60,18 @@ DENY_REASON = "nookku: only the tester talks to the agent."
 # The files and folders of the state folder that only nookku writes, also when no test runs
 # (SPEC.md section 5). In a test folder, only report.md may change (SPEC.md section 9). `seals`
 # is the folder of the seal copies in the nookku home.
-RECORDS = {"tests", "current.json", "mode", "relay.jsonl", "tap.jsonl", "ending.json", "seals"}
+RECORDS = {
+    "tests",
+    "current.json",
+    "mode",
+    "relay.jsonl",
+    "tap.jsonl",
+    "ending.json",
+    "seals",
+    state.PAGE_FILE,
+    state.SEND_LOCK,
+    state.PAGE_LOCK,
+}
 RECORDS_REASON = (
     "nookku: {name} is a record or a state file of nookku. Only nookku writes it. "
     "A command may read it."
@@ -86,6 +97,7 @@ IMPORT_REASON = (
 ATTACHMENTS_REASON = "nookku: the relay does not send attachments. Nothing was sent."
 # Prompts that the relay runs and never relays (SPEC.md section 5).
 CONTROL = {"nookku start", "nookku end", "nookku status"}
+NO_PROMPT = "nookku: the hook input has no prompt text. Nothing was sent."
 # The refusal of a message near a control prompt in relay mode (#146).
 NEAR_CONTROL_REASON = (
     "nookku: nothing was sent. The message is near a control prompt. The control prompts are: "
@@ -285,6 +297,23 @@ def near_control(said: str, limit: int) -> bool:
     )
 
 
+def prompt_refusal(said: Any, root: Path) -> str | None:
+    """The reason to refuse a prompt in relay mode before it is sent, or None (SPEC.md section 5).
+    The hook and the chat page use this one rule. A refused message is not a turn, so the relay
+    writes no row for it."""
+    if not isinstance(said, str):
+        return NO_PROMPT
+    found = lone_surrogate(said)
+    if found:
+        # A relayed message is never changed, so the relay refuses it.
+        return f"nookku: nothing was sent. The message has {found}."
+    rules = _policy(root)
+    limit = rules["control_distance"] if rules is not None else None
+    if near_control(said, policy.KEYS["control_distance"].default if limit is None else limit):
+        return NEAR_CONTROL_REASON
+    return None
+
+
 def _relay_test(
     cur: dict[str, Any], said: str, harness: str, session: str | None
 ) -> dict[str, Any]:
@@ -332,17 +361,9 @@ def handle(event: dict[str, Any], root: Path, harness: str) -> dict[str, Any] | 
             config = Config.load(root)
         except (OSError, ValueError, TypeError) as e:
             return _block(f"nookku: relay mode is on, but the config is broken: {e}")
-        if not isinstance(said, str):
-            return _block("nookku: the hook input has no prompt text. Nothing was sent.")
-        found = lone_surrogate(said)
-        if found:
-            # A relayed message is never changed, so the relay refuses it (SPEC.md section 5).
-            return _block(f"nookku: nothing was sent. The message has {found}.")
-        rules = _policy(root)
-        limit = rules["control_distance"] if rules is not None else None
-        if near_control(said, policy.KEYS["control_distance"].default if limit is None else limit):
-            # A refused message is not a turn, so the relay writes no row (SPEC.md section 5).
-            return _block(NEAR_CONTROL_REASON)
+        refused = prompt_refusal(said, root)
+        if refused is not None or not isinstance(said, str):
+            return _block(refused or NO_PROMPT)
         if config.entry:
             cur = state.current(root)
             if cur is None:
@@ -409,13 +430,17 @@ def handle(event: dict[str, Any], root: Path, harness: str) -> dict[str, Any] | 
         ):
             return _deny(Path(cur["dir"]) / "relay.jsonl", harness, tool, full, ENTRY_REASON)
         urls = [loaded.tap_url, loaded.agent_url] if loaded else []
-        pattern = deny_pattern([*urls, cur["tap_url"] if cur else ""])
+        port = state.page_port(root)
+        page = f"http://127.0.0.1:{port}/" if port is not None else ""
+        pattern = deny_pattern([*urls, cur["tap_url"] if cur else "", page])
         if pattern is None or not pattern.search(text):
             return None
         if cur is not None:
             return _deny(Path(cur["dir"]) / "relay.jsonl", harness, tool, full)
         if loaded is not None:
             return _deny(loaded.record_path(root), harness, tool, full)
+        if page:
+            return _deny(_last_record(root), harness, tool, full)
     return None
 
 

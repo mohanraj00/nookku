@@ -1,0 +1,166 @@
+:root {
+  --bg: #ffffff;
+  --fg: #1d1d1f;
+  --muted: #5f6368;
+  --tester: #e8f0fe;
+  --agent: #f1f3f4;
+  --error-bg: #fce8e6;
+  --error-fg: #a50e0e;
+  --line: #dadce0;
+  --accent: #1a73e8;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+header,
+main,
+footer {
+  width: 100%;
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+header {
+  border-bottom: 1px solid var(--line);
+}
+
+h1 {
+  font-size: 18px;
+  margin: 12px 0 4px;
+}
+
+#test {
+  color: var(--muted);
+  margin: 0 0 12px;
+  font-size: 13px;
+}
+
+main {
+  flex: 1;
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+#turns {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.turn {
+  margin: 0 0 8px;
+}
+
+.who {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0 0 2px;
+}
+
+/* pre-wrap shows each space and each line end of a text as it is. */
+.text {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+}
+
+.tester .text {
+  background: var(--tester);
+}
+
+.agent .text {
+  background: var(--agent);
+}
+
+.relay-error .text,
+#error {
+  background: var(--error-bg);
+  color: var(--error-fg);
+}
+
+.pending .text {
+  opacity: 0.6;
+}
+
+.mark {
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+  margin: 8px 0 16px;
+}
+
+footer {
+  position: sticky;
+  bottom: 0;
+  background: var(--bg);
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+label {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.send {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+textarea {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  resize: vertical;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+button {
+  font: inherit;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #ffffff;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+#error {
+  padding: 8px 12px;
+  border-radius: 8px;
+  white-space: pre-wrap;
+  margin: 0 0 8px;
+}
+
+.note {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 4px 0 0;
+}
