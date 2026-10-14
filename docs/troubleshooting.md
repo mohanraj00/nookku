@@ -45,7 +45,7 @@ First, look in the [test folder](reference/glossary.md#test-folder) `.nookku/tes
 
 ### `nookku: cannot read .nookku/config.json: <reason>`
 
-(config.py) **Cause.** The file does not exist, or it is not valid JSON. `init` gives this error too, and then it writes nothing. `nookku view` and `nookku transcript` use the defaults if the file does not exist. If the file exists and is not valid, they give this error, or the error of the key, and exit with 2. If the config breaks while `nookku view` follows a project with no entry, the view adds `The view reads the config again when it changes.`, shows the error one time and continues to wait.
+(config.py) **Cause.** The file does not exist, or it is not valid JSON. `init` gives this error too, and then it writes nothing. `nookku view` and `nookku transcript` use the defaults if the file does not exist. If the file exists and is not valid, they give this error, or the error of the key, and exit with 2. If the config breaks while `nookku view` follows a project with no entry, the view adds `The view reads the config again when it changes.`, shows the error one time and continues to wait. `transcript --trace --compact` and `transcript --trace --no-compact` do not read the config, so they do not give this error.
 
 **Fix.** Correct the JSON. To write a new file, remove the file and run `nookku init`.
 
