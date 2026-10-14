@@ -746,7 +746,7 @@ def _start_page(root: Path, test: str, out: TextIO) -> None:
     """Start the chat page with the test (#328). A page that fails does not stop the test."""
     from nookku import page_auto
 
-    text = page_auto.after_start(root, test)
+    text = page_auto.after_start(root, test, out)
     if text:
         print(text, file=out, flush=True)
 

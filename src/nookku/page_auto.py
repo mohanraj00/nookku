@@ -33,7 +33,7 @@ import sys
 import threading
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, TextIO
 from urllib.parse import urlsplit
 
 from nookku import page, state
@@ -86,23 +86,23 @@ def harness_shell() -> str | None:
     return next((name for name in page.HARNESS_SHELL if os.environ.get(name)), None)
 
 
-def may_print_url() -> bool:
-    """True if the output of this command goes only to a person: a terminal out of a harness
-    shell. The output of a hook or of a plugin command goes to a pipe."""
+def may_print_url(out: TextIO) -> bool:
+    """True if the text goes only to a person: out is a terminal, out of a harness shell. The
+    output of a hook or of a plugin command goes to a pipe."""
     try:
-        return sys.stdout.isatty() and harness_shell() is None
+        return out.isatty() and harness_shell() is None
     except (AttributeError, ValueError):
         return False
 
 
-def after_start(root: Path, test: str) -> str | None:
-    """Start the chat page of the test that started now. Return the text to show, or None if the
-    config turns the page off. Never raise, and never return the URL to a text that the model can
-    see."""
+def after_start(root: Path, test: str, out: TextIO) -> str | None:
+    """Start the chat page of the test that started now. Return the text to show on out, or None
+    if the config turns the page off. Never raise. The text holds the page URL only if out goes
+    only to a person."""
     if not enabled(root):
         return None
     try:
-        return _start(root, test, may_print_url())
+        return _start(root, test, may_print_url(out))
     except Exception as e:  # a failed page must not stop the test
         return FAILED.format(reason=e)
 
@@ -193,15 +193,35 @@ def _wait_end(root: Path) -> str | None:
     if info is None or not isinstance(info.get("test"), str):
         return None
     pid = info.get("pid")
-    if type(pid) is not int or pid <= 0 or _runs(root, info["test"]):
+    if type(pid) is not int or pid <= 0 or _runs(root, info["test"]) or not _held(root):
         return None
     # The server removes its page file before its process exits, so wait for the process.
     deadline = time.monotonic() + END_WAIT
     while state.alive(pid) and time.monotonic() < deadline:
         time.sleep(0.1)
-    if not state.alive(pid):
+    # Send a signal only to the page server: it holds the page lock, and the page file still
+    # names it. A server writes its own pid into the page file after it takes the lock.
+    if not state.alive(pid) or not _held(root) or state.page_info(root) != info:
         return None
     return None if _stop(pid) else NOT_STOPPED.format(pid=pid)
+
+
+def _held(root: Path) -> bool:
+    """True if a page server holds the page lock. A page file with no holder of the lock is stale:
+    its pid can be a new process with no relation to the page."""
+    import fcntl
+
+    try:
+        fd = os.open(state.state(root) / state.PAGE_LOCK, os.O_RDWR)
+    except OSError:
+        return False
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        return True
+    finally:
+        os.close(fd)
+    return False
 
 
 def _runs(root: Path, test: str) -> bool:

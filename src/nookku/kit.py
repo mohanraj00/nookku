@@ -243,8 +243,9 @@ def start_test(root: Path, tester_session: str | None = None) -> str:
     )
     from nookku import page_auto
 
-    # The chat page starts with the test (#328). The text never holds the page URL here.
-    shown = page_auto.after_start(root, cur["test"])
+    # The chat page starts with the test (#328). The caller prints the text to stdout: the hook
+    # output or `nookku mode start`. The text holds the URL only if stdout is a terminal.
+    shown = page_auto.after_start(root, cur["test"], sys.stdout)
     return f"{text}\n{shown}" if shown else text
 
 

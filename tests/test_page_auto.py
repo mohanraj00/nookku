@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import fcntl
 import json
 import os
 import re
@@ -136,7 +137,7 @@ def test_the_page_server_stops_after_the_grace_time_with_no_page(running: Any) -
 
 def test_with_no_browser_and_no_terminal_no_url_and_no_server(running: Any) -> None:
     root, folder = running
-    text = page_auto.after_start(root, folder.name)
+    text = page_auto.after_start(root, folder.name, sys.stdout)
     assert text == page_auto.NO_BROWSER
     assert state.page_info(root) is None
     assert not (root / ".nookku" / state.PAGE_FILE).exists()
@@ -150,8 +151,8 @@ def test_the_hook_text_never_holds_the_page_url(
     root, folder = running
     # The output of a hook is a pipe, also in a harness shell.
     monkeypatch.setenv("CLAUDECODE", "1")
-    assert not page_auto.may_print_url()
-    text = page_auto.after_start(root, folder.name)
+    assert not page_auto.may_print_url(sys.stdout)
+    text = page_auto.after_start(root, folder.name, sys.stdout)
     assert text is not None and URL.search(text) is None and "/p/" not in text
 
 
@@ -169,8 +170,8 @@ def test_a_start_in_a_terminal_prints_the_url_and_end_stops_the_page(
     running: Any, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     root, folder = running
-    monkeypatch.setattr(page_auto, "may_print_url", lambda: True)
-    text = page_auto.after_start(root, folder.name)
+    monkeypatch.setattr(page_auto, "may_print_url", lambda out: True)
+    text = page_auto.after_start(root, folder.name, sys.stdout)
     assert text is not None
     url = URL.search(text)
     assert url is not None, text
@@ -181,7 +182,7 @@ def test_a_start_in_a_terminal_prints_the_url_and_end_stops_the_page(
     with urllib.request.urlopen(url.group(0) + "api/turns", timeout=10) as resp:
         assert json.loads(resp.read())["test"]["id"] == folder.name
     # A page server of the project runs, so a second start starts no second page.
-    again = page_auto.after_start(root, folder.name)
+    again = page_auto.after_start(root, folder.name, sys.stdout)
     assert again is not None and "a page server of this project runs" in again
     assert "The test continues." in again
     (root / ".nookku" / "current.json").unlink()
@@ -205,19 +206,60 @@ def test_end_does_not_stop_a_page_that_the_tester_started(running: Any) -> None:
         os.close(lock)
 
 
+def sleeper(root: Path, test: str) -> subprocess.Popen[bytes]:
+    """A process that only sleeps, and a page file of a page server of the test that names it."""
+    proc = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
+    state._children[proc.pid] = proc
+    info = {"port": 1, "pid": proc.pid, "test": test}
+    (root / ".nookku" / state.PAGE_FILE).write_text(json.dumps(info))
+    return proc
+
+
 def test_end_stops_a_page_server_that_does_not_stop(
     running: Any, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     root, folder = running
-    # A page server that ignores the end of its test: a process that only sleeps.
-    proc = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
-    state._children[proc.pid] = proc
-    info = {"port": 1, "pid": proc.pid, "test": folder.name}
-    (root / ".nookku" / state.PAGE_FILE).write_text(json.dumps(info))
+    # A page server that ignores the end of its test. It holds the page lock.
+    proc = sleeper(root, folder.name)
+    lock = os.open(root / ".nookku" / state.PAGE_LOCK, os.O_RDWR | os.O_CREAT, 0o600)
+    fcntl.flock(lock, fcntl.LOCK_EX)
     (root / ".nookku" / "current.json").unlink()
     monkeypatch.setattr(page_auto, "END_WAIT", 0.5)
-    assert page_auto.after_end(root) is None
+    try:
+        assert page_auto.after_end(root) is None
+    finally:
+        os.close(lock)
     assert proc.poll() is not None
+
+
+def test_end_sends_no_signal_to_the_pid_of_a_stale_page_file(running: Any) -> None:
+    root, folder = running
+    # The page server died, and a new process with no relation to the page got its pid. No
+    # process holds the page lock.
+    proc = sleeper(root, folder.name)
+    (root / ".nookku" / state.PAGE_LOCK).touch()
+    (root / ".nookku" / "current.json").unlink()
+    try:
+        began = time.monotonic()
+        assert page_auto.after_end(root) is None
+        assert time.monotonic() - began < 1
+        assert proc.poll() is None
+    finally:
+        proc.kill()
+        proc.wait()
+
+
+def test_the_url_goes_only_to_a_terminal(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    class Terminal:
+        def isatty(self) -> bool:
+            return True
+
+    # stdout can be a terminal while the text goes to a file, for example stderr of --json.
+    with (tmp_path / "log").open("w") as log:
+        assert not page_auto.may_print_url(log)
+    assert page_auto.may_print_url(Terminal())  # type: ignore[arg-type]
+    monkeypatch.setenv("CLAUDECODE", "1")
+    assert not page_auto.may_print_url(Terminal())  # type: ignore[arg-type]
 
 
 def test_a_page_that_cannot_start_does_not_stop_the_test(
@@ -245,7 +287,7 @@ def test_a_toy_shop_test_starts_the_page_and_end_leaves_no_process(
     (root / ".nookku").mkdir(parents=True)
     conf = {"entry": [sys.executable, str(TOY_SHOP)], "models": []}
     (root / ".nookku" / "config.json").write_text(json.dumps(conf))
-    monkeypatch.setattr(page_auto, "may_print_url", lambda: True)
+    monkeypatch.setattr(page_auto, "may_print_url", lambda out: True)
     assert main(["start", "--root", str(root)]) == 0
     out = capsys.readouterr().out
     cur = bridge.current(root)
@@ -272,7 +314,7 @@ def test_a_toy_shop_end_stops_the_page_after_the_end(
     (root / ".nookku").mkdir(parents=True)
     conf = {"entry": [sys.executable, str(TOY_SHOP)], "models": []}
     (root / ".nookku" / "config.json").write_text(json.dumps(conf))
-    monkeypatch.setattr(page_auto, "may_print_url", lambda: True)
+    monkeypatch.setattr(page_auto, "may_print_url", lambda out: True)
     assert main(["start", "--root", str(root)]) == 0
     pid = page_pid(root)
     assert pid is not None and state.alive(pid)
@@ -285,7 +327,7 @@ def test_a_toy_shop_end_stops_the_page_after_the_end(
 def test_the_config_key_page_false_starts_no_page(running: Any) -> None:
     root, folder = running
     (root / ".nookku" / "config.json").write_text(json.dumps({"page": False}))
-    assert page_auto.after_start(root, folder.name) is None
+    assert page_auto.after_start(root, folder.name, sys.stdout) is None
     (root / ".nookku" / "config.json").write_text(json.dumps({"page": "no"}))
     with pytest.raises(Exception, match="'page' must be true or false"):
         kit.Config.load(root)
