@@ -36,7 +36,7 @@ from types import MappingProxyType
 from typing import Any, BinaryIO, TextIO
 from urllib.parse import unquote, urlsplit
 
-from nookku import dashboard, kit, page_trace, script_save, seal, state
+from nookku import dashboard, kit, notes, page_trace, script_save, seal, state
 from nookku.record import RecordError, Writer, turns
 
 # The harness of a turn that the page sent (SPEC.md section 2.2).
@@ -47,6 +47,8 @@ FILES = {
     "": ("index.html", "text/html; charset=utf-8"),
     "app.js": ("app.js", "text/javascript; charset=utf-8"),
     "app.css": ("app.css", "text/css; charset=utf-8"),
+    "notes.js": ("notes.js", "text/javascript; charset=utf-8"),
+    "notes.css": ("notes.css", "text/css; charset=utf-8"),
     "save.js": ("save.js", "text/javascript; charset=utf-8"),
     "render.js": ("render.js", "text/javascript; charset=utf-8"),
     "render.css": ("render.css", "text/css; charset=utf-8"),
@@ -540,6 +542,11 @@ class _Handler(BaseHTTPRequestHandler):
             self._answer(200, page_file(name), kind)
         elif rest == "api/turns":
             self._json(200, view(self.server.root))
+        elif rest == notes.VIEW_ROUTE:
+            self._json(200, notes.view(self.server.root))
+        elif rest.startswith(notes.VIEW_ROUTE + "/"):
+            data = notes.view(self.server.root, unquote(rest[len(notes.VIEW_ROUTE) + 1 :]))
+            self._json(200 if data["test"] else 404, data)
         elif rest.startswith("files/"):
             self._file(unquote(rest[len("files/") :]))
         elif rest.startswith("api/turns/"):
@@ -576,7 +583,7 @@ class _Handler(BaseHTTPRequestHandler):
         rest = self._route()
         if rest is None:
             return
-        if rest not in ("api/send", script_save.ROUTE, "api/open"):
+        if rest not in ("api/send", script_save.ROUTE, notes.ADD_ROUTE, "api/open"):
             self._refuse(404, "not found")
             return
         data = self._body()
@@ -584,6 +591,9 @@ class _Handler(BaseHTTPRequestHandler):
             return
         if rest == script_save.ROUTE:
             self._json(*script_save.answer(self.server.root, data))
+            return
+        if rest == notes.ADD_ROUTE:
+            self._note(data)
             return
         if rest == "api/open":
             try:
@@ -605,6 +615,26 @@ class _Handler(BaseHTTPRequestHandler):
             except Exception as e:  # each failure must give the page an error, not a reset
                 self._json(500, {"sent": False, "ok": False, "shown": f"nookku: {e}"})
                 return
+        self._json(200, answer)
+
+    def _note(self, data: Any) -> None:
+        """Write one note of the tester (SPEC.md section 2.3)."""
+        problem = notes.bad_body(data)
+        if problem:
+            self._refuse(400, problem)
+            return
+        # No page lock: a note takes the send lock (notes.add), so it cannot go into a sealed test.
+        try:
+            answer = notes.add(
+                self.server.root,
+                data["test"],
+                data["turn"],
+                data.get("rating"),
+                data.get("comment"),
+            )
+        except Exception as e:  # each failure must give the page an error, not a reset
+            self._json(500, {"saved": False, "error": f"nookku: {e}"})
+            return
         self._json(200, answer)
 
     def _file(self, name: str) -> None:

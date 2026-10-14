@@ -69,8 +69,9 @@ def _step(row: dict[str, Any]) -> dict[str, Any]:
 def steps(folder: Path, running: bool) -> dict[str, Any]:
     """The steps and the time of each turn of `relay.jsonl`, in the order of the page.
 
-    `turns[i]` belongs to turn i of the page. `pending` holds the rows after the last exchange of
-    a running test: the steps of a message that waits for its reply."""
+    `turns[i]` belongs to turn i + 1 of the page (`data-turn` on the page). `pending` holds the
+    rows after the last exchange of a running test: the steps of a message that waits for its
+    reply."""
     relay = turns(folder / "relay.jsonl", missing_ok=True)
     # One read of tap.jsonl, so that the rows and the exchanges agree while the tap writes.
     tap = read_rows("tap", folder / "tap.jsonl", missing_ok=True)

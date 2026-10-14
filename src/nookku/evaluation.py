@@ -291,13 +291,15 @@ def _compact(order: list[tuple[int, dict[str, Any]]]) -> dict[int, dict[str, Any
 def transcript(folder: Path, compact: bool = False) -> str:
     """The exact conversation of a test as the agent received and sent it, with the trace.
 
-    If tap.jsonl or trace.jsonl is invalid, the first line says so, and the transcript shows no
-    turn: a changed text must not look exact. With compact, a repeated text of a model item shows
-    one time, and then a reference to it (_compact).
+    If tap.jsonl, trace.jsonl or notes.jsonl is invalid, the first line says so, and the
+    transcript shows no turn: a changed text must not look exact. With compact, a repeated text of
+    a model item shows one time, and then a reference to it (_compact).
     """
     try:
         tap = read_rows("tap", folder / "tap.jsonl", missing_ok=True)
         items = _items(folder / "trace.jsonl")
+        # The evaluation reads the notes of the tester (SPEC.md section 2.3), so they must be valid.
+        read_rows("notes", folder / "notes.jsonl", missing_ok=True)
     except RecordError as e:
         return (
             f"Record: INVALID. {e}. Do not trust these records. This transcript shows no turn.\n"

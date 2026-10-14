@@ -140,7 +140,8 @@ const NookkuTrace = (function () {
       return;
     }
     for (const owner of list.querySelectorAll(":scope > li[data-turn]")) {
-      const turn = answer.turns[Number(owner.dataset.turn)];
+      // `data-turn` is the 1-based number of the turn on the page.
+      const turn = answer.turns[Number(owner.dataset.turn) - 1];
       if (turn) {
         place(owner, turn, false);
       }
