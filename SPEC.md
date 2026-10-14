@@ -710,7 +710,7 @@ The transcript shows a scripted turn as `script, turn N`, never as a typed turn.
 - The diff pairs turn n of the old test with turn n of the new test. A turn that only one test has is a changed turn.
 - The reply of a turn is the tap `reply` (section 2.1), not the relay `shown`, because the tap records what the agent sent. The turns pair with the tap exchanges as in step 1 of the audit (section 3.2). A turn with no paired exchange, or with a null reply, has no reply.
 - A turn changed if the reply is not the same, byte for byte. The word diff splits each reply into words and runs of white space, and compares them with `difflib.SequenceMatcher`, with no junk heuristic. The equal and deleted parts give the old reply, and the equal and inserted parts give the new reply.
-- `replay` adds to the lines of `run`: the count of changed turns, each changed reply with `[-deleted words-]` and `{+inserted words+}`, and the 2 test ids to select on the dashboard. With `--json`, the result also has `diff`, with the data of `api/diff` (section 5, "Diff page"), or null. A changed reply does not change the exit code: it is the exit code of `run`.
+- `replay` adds to the lines of `run`: the count of changed turns, each changed reply with `[-deleted words-]` and `{+inserted words+}`, the test of a changed turn that has no reply, and the 2 test ids to select on the dashboard. With `--json`, the result also has `diff`, with the data of `api/diff` (section 5, "Diff page"), or null. A changed reply does not change the exit code: it is the exit code of `run`.
 - If a record of either test is not valid, the diff has no turns and an error.
 
 ## 8. Trace

@@ -169,8 +169,13 @@ def report(root: Path, old: Path | None, new: Path) -> tuple[list[str], dict[str
             lines.append(f"Turn {row['n']}: only in the new test.")
         elif row["said_new"] is None:
             lines.append(f"Turn {row['n']}: only in test {old.name}.")
-        elif row["said_changed"]:
-            lines.append(f"Turn {row['n']}: the message is not the same.")
+        else:
+            if row["said_changed"]:
+                lines.append(f"Turn {row['n']}: the message is not the same.")
+            # The word diff shows no reply as empty text, so name the test with no reply here.
+            for test, reply in ((old.name, row["reply_old"]), (new.name, row["reply_new"])):
+                if reply is None:
+                    lines.append(f"Turn {row['n']}: test {test} has no reply in the tap record.")
         lines.append(f"Turn {row['n']} reply: {_marked(row['words'])}")
     lines.append(
         f"Diff page: run nookku page, open the dashboard, and select tests {old.name} "

@@ -128,6 +128,18 @@ def test_a_null_reply_and_a_missing_exchange_have_no_reply(tmp_path: Path) -> No
     assert replay.replies(folder)[-1] == ("Lost?", None)
 
 
+def test_the_report_names_the_test_with_no_reply_next_to_an_empty_reply(tmp_path: Path) -> None:
+    new = list(TURNS)
+    new[0] = (TURNS[0][0], None, "nookku: the agent sent no reply")
+    old_folder = make_test(tmp_path, OLD, [(TURNS[0][0], "", "")], 1_800_000_000.0)
+    new_folder = make_test(tmp_path, NEW, new[:1], 1_800_000_600.0)
+    lines, data = replay.report(tmp_path, old_folder, new_folder)
+    # An empty reply and no reply give the same empty word diff, but the turn changed.
+    assert data["diff"]["changed"] == 1 and data["diff"]["turns"][0]["words"] == []
+    assert f"Turn 1: test {NEW} has no reply in the tap record." in lines
+    assert not any(OLD in line and "no reply" in line for line in lines)
+
+
 def test_an_invalid_record_gives_an_error_and_no_turns(tmp_path: Path) -> None:
     pair(tmp_path, TURNS)
     folder = tmp_path / ".nookku" / "tests" / NEW
