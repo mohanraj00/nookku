@@ -1,5 +1,6 @@
 // The chat page of nookku (#327). Each text of the agent or the tester goes into the page with
-// textContent, never as HTML, so that a reply cannot run code on the page.
+// textContent, or as DOM nodes from render.js (#347), never as HTML, so that a reply cannot run
+// code on the page.
 "use strict";
 
 const POLL_MS = 1000;
@@ -85,7 +86,7 @@ function render(data) {
     } else if (turn.ok === false) {
       list.append(block("relay-error", "relay error", turn.shown));
     } else {
-      list.append(block("agent", "agent", turn.shown));
+      list.append(NookkuRender.reply(document, "agent", "agent", turn.shown));
     }
   }
   if (data.turns.length > shownCount) {

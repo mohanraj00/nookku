@@ -1,0 +1,177 @@
+/* The styles of a reply that render.js shows as Markdown (#347). */
+
+[hidden] {
+  display: none !important;
+}
+
+.md {
+  white-space: normal;
+}
+
+.md > :first-child {
+  margin-top: 0;
+}
+
+.md > :last-child {
+  margin-bottom: 0;
+}
+
+.md p,
+.md ul,
+.md ol,
+.md blockquote,
+.md .table,
+.md .code {
+  margin: 0 0 8px;
+}
+
+.md h1,
+.md h2,
+.md h3,
+.md h4,
+.md h5,
+.md h6 {
+  margin: 12px 0 6px;
+  line-height: 1.25;
+}
+
+.md h1 {
+  font-size: 1.4em;
+}
+
+.md h2 {
+  font-size: 1.25em;
+}
+
+.md h3 {
+  font-size: 1.1em;
+}
+
+.md h4,
+.md h5,
+.md h6 {
+  font-size: 1em;
+}
+
+.md ul,
+.md ol {
+  padding-left: 24px;
+}
+
+.md li > p {
+  margin: 0;
+}
+
+.md blockquote {
+  padding: 0 0 0 12px;
+  border-left: 3px solid var(--line);
+  color: var(--muted);
+}
+
+.md code {
+  font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  background: var(--bg);
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+
+.md pre {
+  margin: 0;
+  padding: 8px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.md pre code {
+  padding: 0;
+  background: none;
+}
+
+.md .lang {
+  margin: 0 0 2px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.md .table {
+  overflow-x: auto;
+}
+
+.md table {
+  border-collapse: collapse;
+}
+
+.md th,
+.md td {
+  border: 1px solid var(--line);
+  padding: 4px 8px;
+  text-align: left;
+}
+
+.md th.center,
+.md td.center {
+  text-align: center;
+}
+
+.md th.right,
+.md td.right {
+  text-align: right;
+}
+
+.md hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 12px 0;
+}
+
+.md a {
+  color: var(--accent);
+}
+
+.md img,
+.md video {
+  display: block;
+  max-width: 100%;
+  max-height: 480px;
+  margin: 4px 0;
+  border-radius: 6px;
+}
+
+.md iframe.svg {
+  display: block;
+  width: 100%;
+  max-width: 480px;
+  height: 320px;
+  margin: 4px 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.md .file {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.md button.open,
+.who button.toggle {
+  padding: 1px 8px;
+  font-size: 12px;
+  border-radius: 6px;
+}
+
+.who button.toggle {
+  background: none;
+  color: var(--accent);
+  border: 1px solid var(--line);
+}
+
+.open-note {
+  margin-left: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
