@@ -67,7 +67,16 @@ def shop(tmp_path: Path) -> Iterator[tuple[Path, page.PageServer, Path]]:
         agent.stop(grace=1)
 
 
-def post_note(server: page.PageServer, body: Any) -> tuple[int, dict[str, Any]]:
+# The test of the shop fixture (test_page.make_folder).
+SHOP_TEST = "20261013-090000-ab12"
+
+
+def post_note(
+    server: page.PageServer, body: Any, test: str | None = SHOP_TEST
+) -> tuple[int, dict[str, Any]]:
+    """Post a note. A dict body gets the test id that the page shows, if it has none."""
+    if isinstance(body, dict) and test is not None:
+        body = {"test": test, **body}
     status, _, data = request(server, "POST", base(server) + notes.ADD_ROUTE, body)
     answer: dict[str, Any] = json.loads(data)
     return status, answer
@@ -121,9 +130,20 @@ def test_a_note_that_breaks_the_rule_gets_400_and_no_row(shop: Any, body: Any) -
     assert not (folder / notes.NOTES).exists()
 
 
+@pytest.mark.parametrize("test", [None, 7])
+def test_a_note_needs_the_id_of_the_test_that_the_page_shows(shop: Any, test: Any) -> None:
+    _, server, folder = shop
+    body = {"turn": 1, "rating": "up", "comment": None}
+    status, answer = post_note(server, body if test is None else {**body, "test": test}, None)
+    assert status == 400 and answer["error"].startswith("nookku page: ")
+    assert not (folder / notes.NOTES).exists()
+
+
 def test_a_comment_with_a_lone_surrogate_gets_400(shop: Any) -> None:
     _, server, folder = shop
-    data = b'{"turn": 1, "rating": "up", "comment": "Hi \\ud83d"}'
+    data = (
+        b'{"test": "%s", "turn": 1, "rating": "up", "comment": "Hi \\ud83d"}' % SHOP_TEST.encode()
+    )
     status, answer = post_note(server, data)
     assert status == 400 and "lone surrogate U+D83D" in answer["error"]
     assert not (folder / notes.NOTES).exists()
@@ -133,6 +153,17 @@ def test_a_note_needs_a_turn_of_the_relay_record(shop: Any) -> None:
     _, server, folder = shop
     status, answer = post_note(server, {"turn": 3, "rating": "up", "comment": None})
     assert status == 200 and answer == {"saved": False, "error": notes.NO_TURN.format(turn=3)}
+    assert not (folder / notes.NOTES).exists()
+
+
+def test_a_note_for_another_test_is_refused(shop: Any) -> None:
+    # The page can still show an earlier test, with turns of the same numbers.
+    _, server, folder = shop
+    answer = post_note(
+        server, {"turn": 1, "rating": "up", "comment": None}, "20261012-080000-0000"
+    )[1]
+    other = notes.OTHER_TEST.format(shown="20261012-080000-0000", current=SHOP_TEST)
+    assert answer == {"saved": False, "error": other}
     assert not (folder / notes.NOTES).exists()
 
 
@@ -202,7 +233,7 @@ def test_the_notes_files_have_no_html_from_text_and_the_csp(tmp_path: Path) -> N
             assert status == 200
             assert headers["content-security-policy"] == page.CSP
         # A note needs the token and the Origin, as a send does.
-        body = {"turn": 1, "rating": "up", "comment": None}
+        body = {"test": SHOP_TEST, "turn": 1, "rating": "up", "comment": None}
         assert request(server, "POST", "/p/wrong/" + notes.ADD_ROUTE, body)[0] == 404
         assert (
             request(server, "POST", base(server) + notes.ADD_ROUTE, body, {"Origin": ""})[0] == 403
@@ -228,13 +259,14 @@ def test_a_toy_shop_test_with_2_notes_is_sealed_and_evaluated(
     try:
         for said in ("Where is my order 4471?", "Can I return the teapot?"):
             assert send(server, said)["ok"] is True
-        assert post_note(server, {"turn": 1, "rating": "up", "comment": None})[1]["saved"]
+        up = {"turn": 1, "rating": "up", "comment": None}
+        assert post_note(server, up, folder.name)[1]["saved"]
         body = {"turn": 2, "rating": "down", "comment": "It did not say how to return it."}
-        assert post_note(server, body)[1]["saved"]
+        assert post_note(server, body, folder.name)[1]["saved"]
         manifest = bridge.end(root)
         assert manifest is not None
         # After the end, the page writes no note.
-        late = post_note(server, {"turn": 1, "rating": "down", "comment": None})[1]
+        late = post_note(server, {"turn": 1, "rating": "down", "comment": None}, folder.name)[1]
         assert late["saved"] is False
     finally:
         server.shutdown()
@@ -246,8 +278,18 @@ def test_a_toy_shop_test_with_2_notes_is_sealed_and_evaluated(
     assert seal.verify(folder)["intact"]
     prompt = evaluation.prompt(folder)
     assert "notes.jsonl" in prompt and "Tester notes" in prompt
+    assert evaluation.transcript(folder).startswith("Seal: intact")
     # A change to notes.jsonl after the end breaks the seal.
     path = folder / notes.NOTES
     path.write_text(path.read_text().replace('"down"', '"up"'))
     result = seal.verify(folder)
     assert not result["intact"] and result["changed"] == [notes.NOTES]
+
+
+def test_an_invalid_notes_record_makes_the_transcript_invalid(tmp_path: Path) -> None:
+    folder = tmp_path / "20261013-090000-ab12"
+    folder.mkdir()
+    (folder / "notes.jsonl").write_text('{"v": "0.2", "type": "note", "turn": 1}\n')
+    text = evaluation.transcript(folder)
+    assert text.startswith("Record: INVALID. ")
+    assert "notes.jsonl: line 1: missing field 'ts'" in text.split("\n")[0]

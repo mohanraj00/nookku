@@ -334,7 +334,11 @@ class _Handler(BaseHTTPRequestHandler):
         # No page lock: a note takes the send lock (notes.add), so it cannot go into a sealed test.
         try:
             answer = notes.add(
-                self.server.root, data["turn"], data.get("rating"), data.get("comment")
+                self.server.root,
+                data["test"],
+                data["turn"],
+                data.get("rating"),
+                data.get("comment"),
             )
         except Exception as e:  # each failure must give the page an error, not a reset
             self._json(500, {"saved": False, "error": f"nookku: {e}"})

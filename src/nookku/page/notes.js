@@ -7,8 +7,9 @@
 const NOTES_POLL_MS = 1000;
 const UP = "\u{1F44D}";
 const DOWN = "\u{1F44E}";
-// The last note of each turn, by turn number, and if the test of these notes runs.
+// The last note of each turn, by turn number, the test of these notes, and if it runs.
 let lastNotes = new Map();
+let notesTest = null;
 let notesRunning = false;
 
 function noteText(note) {
@@ -70,18 +71,21 @@ function showNote(li) {
     bar = noteBar(li);
     li.append(bar);
   }
-  const note = lastNotes.get(Number(li.dataset.turn));
+  // A block of another test gets no note and shows no note of this test.
+  const same = li.dataset.test === notesTest;
+  const open = notesRunning && same;
+  const note = same ? lastNotes.get(Number(li.dataset.turn)) : undefined;
   for (const button of bar.querySelectorAll(".notebar-rate")) {
     const on = note !== undefined && note.rating === button.dataset.rating;
     button.setAttribute("aria-pressed", on ? "true" : "false");
-    button.disabled = !notesRunning || bar.dataset.busy === "1";
+    button.disabled = !open || bar.dataset.busy === "1";
   }
   const comment = bar.querySelector(".notebar-comment");
   if (comment.dataset.dirty !== "1" && document.activeElement !== comment) {
     comment.value = note && note.comment ? note.comment : "";
   }
-  comment.disabled = !notesRunning;
-  bar.querySelector(".notebar-save").disabled = !notesRunning || bar.dataset.busy === "1";
+  comment.disabled = !open;
+  bar.querySelector(".notebar-save").disabled = !open || bar.dataset.busy === "1";
   if (bar.dataset.error !== "1") {
     bar.querySelector(".notebar-status").textContent = noteText(note);
   }
@@ -96,11 +100,16 @@ function showAllNotes() {
 async function saveNote(li, clicked) {
   const bar = li.querySelector(".notebar");
   const turn = Number(li.dataset.turn);
-  const note = lastNotes.get(turn);
+  const note = li.dataset.test === notesTest ? lastNotes.get(turn) : undefined;
   const comment = bar.querySelector(".notebar-comment");
   // A thumb sets the rating. "Save comment" keeps the rating of the last note.
   const rating = clicked !== null ? clicked : note ? note.rating : null;
-  const body = { turn: turn, rating: rating, comment: comment.value === "" ? null : comment.value };
+  const body = {
+    test: li.dataset.test,
+    turn: turn,
+    rating: rating,
+    comment: comment.value === "" ? null : comment.value,
+  };
   const status = bar.querySelector(".notebar-status");
   bar.dataset.busy = "1";
   bar.dataset.error = "";
@@ -132,6 +141,7 @@ async function refreshNotes() {
   try {
     const resp = await fetch("api/notes", { cache: "no-store" });
     const data = await resp.json();
+    notesTest = data.test;
     notesRunning = data.running === true && !data.error;
     lastNotes = new Map();
     for (const note of data.notes || []) {

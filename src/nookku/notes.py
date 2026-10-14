@@ -28,14 +28,20 @@ MAX_COMMENT = 10_000
 NO_TEST = "nookku: no test runs, so the page writes no note."
 CLOSED = "nookku: the test ended, so the page writes no note. The record of the test is sealed."
 NO_TURN = "nookku: the test has no turn {turn}, so the page writes no note."
+OTHER_TEST = (
+    "nookku: the page shows test {shown}, but test {current} runs, so the page writes no note."
+)
 BAD_RELAY = "nookku: the page cannot read the relay record, so it writes no note: {error}"
 
 
 def bad_body(data: Any) -> str | None:
     """The reason to refuse the body of a note with 400, or None. The body is a JSON object with
-    `turn`, `rating` and `comment`, with the rule of a note row (`record.note_problem`)."""
+    `test` (the id of the test that the page shows), and `turn`, `rating` and `comment` with the
+    rule of a note row (`record.note_problem`)."""
     if not isinstance(data, dict):
         return "the body must be a JSON object"
+    if not isinstance(data.get("test"), str):
+        return 'the body needs "test", the id of the test that the page shows'
     comment = data.get("comment")
     problem = note_problem(data.get("turn"), data.get("rating"), comment)
     if problem:
@@ -48,26 +54,33 @@ def bad_body(data: Any) -> str | None:
     return None
 
 
-def add(root: Path, turn: int, rating: str | None, comment: str | None) -> dict[str, Any]:
+def add(
+    root: Path, test: str, turn: int, rating: str | None, comment: str | None
+) -> dict[str, Any]:
     """Write one note to the running test. Return what the page shows.
 
-    Fail closed: the page writes a note only to a running test that did not end, and only for a
-    turn that the relay record has."""
+    Fail closed: the page writes a note only to a running test that did not end, only if it is
+    the test that the page showed (`test`), and only for a turn that the relay record has."""
     if state.current(root) is None:
         return {"saved": False, "error": NO_TEST}
     # The end of the test holds this lock from the tap shutdown to the seal.
     sends = state.lock_sends(root)
     try:
-        return _add_locked(root, turn, rating, comment)
+        return _add_locked(root, test, turn, rating, comment)
     finally:
         os.close(sends)
 
 
-def _add_locked(root: Path, turn: int, rating: str | None, comment: str | None) -> dict[str, Any]:
+def _add_locked(
+    root: Path, test: str, turn: int, rating: str | None, comment: str | None
+) -> dict[str, Any]:
     cur = state.current(root)
     if cur is None:
         return {"saved": False, "error": NO_TEST}
     folder = Path(cur["dir"])
+    # A turn number names a turn only in one test. The page can show an earlier test.
+    if test != folder.name:
+        return {"saved": False, "error": OTHER_TEST.format(shown=test, current=folder.name)}
     # Here, because the page module imports this module. A note uses the closed rule of a send.
     from nookku import page
 

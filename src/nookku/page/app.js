@@ -89,6 +89,7 @@ function render(data) {
     }
     // notes.js puts the note controls of the turn on this block (#352).
     list.lastElementChild.dataset.turn = String(number);
+    list.lastElementChild.dataset.test = test.id;
   }
   if (data.turns.length > shownCount) {
     shownCount = data.turns.length;
