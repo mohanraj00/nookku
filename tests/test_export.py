@@ -121,7 +121,8 @@ def test_the_page_route_sends_the_file_with_no_token(project: Path) -> None:
         assert status == 200
         assert headers["content-disposition"] == f'attachment; filename="{TEST_ID}.html"'
         assert server.token.encode() not in body
-        assert b"127.0.0.1" not in body
+        # render.js names 127.0.0.1 in a comment, so check the address of this server.
+        assert f"127.0.0.1:{server.server_address[1]}".encode() not in body
         assert data_of(body.decode())["test"]["id"] == TEST_ID
         status, _, _ = request(server, "GET", base(server) + "api/export/no-such-test")
         assert status == 404
@@ -240,6 +241,16 @@ def test_a_number_that_is_not_finite_gives_a_problem_not_a_crash(project: Path) 
     assert data["test"]["started"] is None and data["test"]["ended"] is None
     assert data["steps"]["1"][0]["ts"] is None
     assert export.NOT_FINITE in data["errors"]
+
+
+def test_the_export_defines_each_color_that_its_styles_use(project: Path) -> None:
+    html = export.build(project, project / ".nookku" / "tests" / TEST_ID).decode()
+    style = re.search(r"<style>(.*?)</style>", html, re.S)
+    assert style
+    used = set(re.findall(r"var\((--[\w-]+)", style.group(1)))
+    defined = set(re.findall(r"(--[\w-]+)\s*:", style.group(1)))
+    assert used and used <= defined
+    assert "prefers-color-scheme: dark" in style.group(1)
 
 
 def test_with_no_dir_fd_the_export_writes_nothing(

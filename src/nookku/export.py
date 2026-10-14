@@ -52,8 +52,9 @@ NO_DIR_FD = (
 MAX_STEP_TEXT = 4000
 # The renderer shows a longer reply as text with no media (`LIMIT` in page/render.js).
 RENDER_LIMIT = 200_000
-# The page files that go into the export, in this order.
-STYLES = ("app.css", "render.css", "export.css")
+# The page files that go into the export, in this order. theme.css defines the colors of the
+# other files, for a light and a dark system theme (#355). It comes last, as on the pages.
+STYLES = ("app.css", "render.css", "export.css", "theme.css")
 SCRIPTS = ("render.js", "export.js")
 
 NO_ID = "nookku: no test has this id."
