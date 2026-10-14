@@ -29,6 +29,9 @@ const state = atom({ plugin: 'nookku', key: 'state' } as const, { view: '' } as 
 
 // The timer of the poll. A hot reload starts the module again, and the next read starts a timer.
 let poll: Timer | null = null
+// The count of failed status reads in a row. The poll stops after MAX_FAILURES (1 minute).
+const MAX_FAILURES = 12
+let failures = 0
 
 // The output of the nookku command, with no change. If the command fails, its error output.
 async function runCli($: any, args: string[]): Promise<{ ok: boolean; out: string }> {
@@ -67,8 +70,15 @@ async function showStatus($: any): Promise<void> {
     error,
   }))
   if (open) void $.ui.open({ id: PANE, title: 'nookku' })
-  // A failed read does not tell if the test runs, so the poll stays as it is and tries again.
-  if (pane !== null) setPoll($, running !== null)
+  // A failed read does not tell if the test runs, so the poll runs and tries again, up to
+  // MAX_FAILURES reads in a row. Then the next /nookku command or control prompt tries again.
+  if (pane !== null) {
+    failures = 0
+    setPoll($, running !== null)
+  } else {
+    failures += 1
+    setPoll($, failures < MAX_FAILURES)
+  }
 }
 
 // Read the state each POLL_MS while a test runs. Stop after the test.
