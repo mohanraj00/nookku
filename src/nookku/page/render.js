@@ -29,7 +29,8 @@
   ]);
   const ATTRS = new Set([
     "href", "src", "alt", "title", "class", "target", "rel", "start", "sandbox", "controls",
-    "preload", "loading", "referrerpolicy", "data-path", "type",
+    "preload", "loading", "referrerpolicy", "data-path", "type", "data-kind", "data-src",
+    "data-alt",
   ]);
   const NONE = { kind: "none" };
 
@@ -106,7 +107,22 @@
   }
 
   function mediaNode(kind, t, alt) {
-    const src = source(t);
+    if (t.kind === "web") {
+      // A web file loads only after a click, so that the agent cannot make the page call a
+      // server of its choice when the tester only reads the reply.
+      const host = new URL(t.url).host;
+      return node("span", { class: "remote" }, [
+        node("button", {
+          type: "button", class: "load", "data-kind": kind, "data-src": t.url, "data-alt": alt,
+        }, ["Load the " + (kind === "svg" ? "SVG" : kind) + " from " + host]),
+        " ",
+        node("code", {}, [t.url]),
+      ]);
+    }
+    return element(kind, source(t), alt);
+  }
+
+  function element(kind, src, alt) {
     if (kind === "image") {
       return node("img", { src: src, alt: alt, loading: "lazy", referrerpolicy: "no-referrer" });
     }
@@ -572,6 +588,7 @@
   function safeUrl(name, value) {
     if (name === "href") return /^(https?|mailto):/i.test(value);
     if (name === "src") return /^(https:|data:|files\/)/i.test(value);
+    if (name === "data-src") return /^https:/i.test(value);
     return true;
   }
 
@@ -669,16 +686,30 @@
     }
   }
 
+  // A click on "Load" shows a web image, video or SVG in place of the button.
+  function load(button) {
+    const kind = button.getAttribute("data-kind");
+    const src = button.getAttribute("data-src") || "";
+    if (["image", "video", "svg"].includes(kind) && /^https:/i.test(src)) {
+      const alt = button.getAttribute("data-alt") || "";
+      button.parentNode.replaceWith(domNode(element(kind, src, alt), button.ownerDocument));
+    }
+  }
+
   function listen(doc) {
     doc.addEventListener("click", (event) => {
-      const button = event.target.closest && event.target.closest("button.open");
-      if (button) {
+      const button = event.target.closest && event.target.closest("button.open, button.load");
+      if (button && button.classList.contains("open")) {
         openFile(button);
+      } else if (button) {
+        load(button);
       }
     });
   }
 
-  const api = { render: render, toDom: toDom, target: target, reply: reply, LIMIT: LIMIT };
+  const api = {
+    render: render, toDom: toDom, target: target, reply: reply, load: load, LIMIT: LIMIT,
+  };
   if (typeof module === "object" && module.exports) {
     module.exports = api;
   } else {

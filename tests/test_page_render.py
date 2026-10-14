@@ -38,7 +38,15 @@ const doc = { createElement: (t) => new El(t), createTextNode: (t) => ({ text: S
   createDocumentFragment: () => new El("#fragment") };
 const input = JSON.parse(require("fs").readFileSync(0, "utf8"));
 const out = {};
-if (input.tree !== undefined) {
+if (input.load !== undefined) {
+  const button = new El("button");
+  button.setAttribute("data-kind", input.load.kind);
+  button.setAttribute("data-src", input.load.src);
+  button.getAttribute = (k) => button.attrs[k] ?? null;
+  button.ownerDocument = doc;
+  button.parentNode = { replaceWith: (e) => { out.replaced = e.tag; } };
+  render.load(button);
+} else if (input.tree !== undefined) {
   render.toDom(input.tree, doc);
 } else {
   out.tree = render.render(input.text);
@@ -177,8 +185,8 @@ def test_a_toy_shop_reply_shows_markdown_a_table_media_and_a_file() -> None:
     assert [e["a"].get("class") for e in th] == ["left", "center", "right"]
     imgs = [e["a"] for e in found if e["t"] == "img"]
     assert imgs[0]["src"] == "files/images%2Ftrain.png" and imgs[0]["alt"] == "The train"
-    assert imgs[1]["src"] == "https://example.com/banner"
-    assert imgs[2]["src"] == "data:image/png;base64,iVBORw0KGgo="
+    assert imgs[1]["src"] == "data:image/png;base64,iVBORw0KGgo="
+    assert len(imgs) == 2
     videos = [e["a"] for e in found if e["t"] == "video"]
     assert videos == [
         {"src": "files/media%2Fkite.mp4", "controls": "", "preload": "metadata", "class": "media"}
@@ -187,7 +195,17 @@ def test_a_toy_shop_reply_shows_markdown_a_table_media_and_a_file() -> None:
     assert len(frames) == 1 and frames[0]["src"] == "files/art%2Flogo.svg"
     assert frames[0]["sandbox"] == ""
     buttons = [e["a"] for e in found if e["t"] == "button"]
-    assert buttons == [{"type": "button", "class": "open", "data-path": "docs/receipt.pdf"}]
+    # A web image loads only after a click on its button.
+    assert buttons == [
+        {
+            "type": "button",
+            "class": "load",
+            "data-kind": "image",
+            "data-src": "https://example.com/banner",
+            "data-alt": "A banner",
+        },
+        {"type": "button", "class": "open", "data-path": "docs/receipt.pdf"},
+    ]
     links = [e["a"]["href"] for e in found if e["t"] == "a"]
     assert links == ["https://example.com/help"]
     # A chart fence shows as code, with no chart library.
@@ -452,3 +470,26 @@ def test_a_file_that_changes_after_the_check_is_refused(
     real.unlink()
     real.symlink_to(outside / "secret.png")
     assert page.open_checked(root, "a.png") is None
+
+
+@needs_node
+@pytest.mark.parametrize(
+    ("kind", "src", "want"),
+    [
+        ("image", "https://example.com/a.png", "img"),
+        ("video", "https://example.com/a.mp4", "video"),
+        ("svg", "https://example.com/a.svg", "iframe"),
+        ("image", "javascript:alert(1)", None),
+        ("script", "https://example.com/a.js", None),
+    ],
+)
+def test_a_click_on_load_shows_only_a_web_image_video_or_svg(
+    kind: str, src: str, want: str | None
+) -> None:
+    out = node({"load": {"kind": kind, "src": src}})
+    assert out.get("replaced") == want
+    made = [e for e in out["made"] if e["tag"] != "button"]
+    if want == "iframe":
+        assert made[0]["attrs"]["sandbox"] == ""
+    if want is None:
+        assert made == []
