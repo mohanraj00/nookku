@@ -290,17 +290,20 @@ def test_each_answer_has_a_strict_csp(tmp_path: Path) -> None:
 def test_the_page_has_no_inline_script_no_cdn_and_no_html_from_text() -> None:
     folder = resources.files("nookku").joinpath("page")
     html = folder.joinpath("index.html").read_text()
-    scripts = ["app.js", "save.js"]
+    scripts = ["render.js", "app.js", "save.js"]
     js = "".join(folder.joinpath(name).read_text() for name in scripts)
-    css = folder.joinpath("app.css").read_text()
+    css = folder.joinpath("app.css").read_text() + folder.joinpath("render.css").read_text()
     assert re.findall(r"<script[^>]*>", html) == [f'<script src="{s}" defer>' for s in scripts]
-    assert all(name in page.FILES for name in scripts)
+    assert all(name in page.FILES for name in [*scripts, "render.css"])
     assert not re.search(r"\son\w+=", html)
     assert "style=" not in html
     for text in (html, js, css):
         assert not re.search(r"https?://", text)
-    # The page puts each text of the agent and the tester in with textContent.
-    assert "innerHTML" not in js and "insertAdjacentHTML" not in js and "outerHTML" not in js
+    # The page puts each text of the agent and the tester in with textContent, or as DOM nodes
+    # from render.js (#347).
+    for name in ("innerHTML", "insertAdjacentHTML", "outerHTML", "document.write", "eval("):
+        assert name not in js
+    assert "new Function" not in js and "DOMParser" not in js
 
 
 def test_each_message_and_reply_keeps_each_byte(live: Any) -> None:
