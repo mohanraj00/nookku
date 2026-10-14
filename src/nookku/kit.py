@@ -308,9 +308,9 @@ def handle(event: dict[str, Any], root: Path, harness: str) -> dict[str, Any] | 
     if name == "UserPromptSubmit":
         said = event.get("prompt")
         session = event.get("session_id") if isinstance(event.get("session_id"), str) else None
-        # In print mode, Claude Code can send the prompt to the model API in a title request.
-        # The relay refuses to start a test and to relay a message there (SPEC.md section 5).
-        in_print_mode = harness == "claude-code" and print_mode.refused(os.environ)
+        # Out of the interactive CLI, Claude Code can send the prompt to the model API in a title
+        # request. The relay refuses to start a test and to relay a message (SPEC.md section 5).
+        in_print_mode = print_mode.applies(os.environ, harness)
         if in_print_mode and isinstance(said, str) and said.strip() == "nookku start":
             return _block(print_mode.REASON)
         if isinstance(said, str) and said.strip() in CONTROL:

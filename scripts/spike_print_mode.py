@@ -20,7 +20,11 @@ for a session title (an output schema with only a "title" property).
 A second UserPromptSubmit hook writes what a hook can see: the value of CLAUDE_CODE_ENTRYPOINT,
 and if CLAUDE_AGENT_SDK_VERSION and CLAUDE_CODE_DISABLE_TERMINAL_TITLE are set.
 
-usage: python scripts/spike_print_mode.py [--repeat N] [OUT]
+The plugin command /nookku start runs `nookku mode start`. With --slash, the script runs only
+`claude -p "/nookku start"` with the plugin, in each environment, and adds the results to OUT
+under "slash_start". It records if relay mode is on after the command.
+
+usage: python scripts/spike_print_mode.py [--repeat N] [--slash] [OUT]
        (default N: 3, default OUT: proofs/spikes/print-mode.json)
 """
 
@@ -317,14 +321,52 @@ def summary(runs: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def slash_start(env_name: str) -> dict[str, Any]:
+    """Print mode with the prompt /nookku start, with the plugin. The tap is closed, because the
+    command sends no message."""
+    p = ROOT / ".proof" / "print-mode" / "slash"
+    shutil.rmtree(p, ignore_errors=True)
+    p.mkdir(parents=True)
+    kit.init(p, "plugin", {"tap_url": "http://127.0.0.1:9/"})
+    proc = subprocess.run(
+        ["claude", "-p", "/nookku start", *args("plugin")],
+        cwd=p,
+        env=environment(env_name, {}),
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        timeout=300,
+    )
+    out = {
+        "exit": proc.returncode,
+        "refused": print_mode.REASON in proc.stdout,
+        "relay_mode_on": kit.is_on(p),
+    }
+    kit.set_mode(p, False)
+    return out
+
+
 def main() -> int:
     argv = sys.argv[1:]
     repeat = 3
     if argv[:1] == ["--repeat"]:
         repeat = int(argv[1])
         argv = argv[2:]
+    slash = argv[:1] == ["--slash"]
+    argv = argv[1:] if slash else argv
     out = Path(argv[0]) if argv else ROOT / "proofs" / "spikes" / "print-mode.json"
     version = subprocess.run(["claude", "--version"], capture_output=True, text=True)
+    if slash:
+        data = json.loads(out.read_text(encoding="utf-8"))
+        data["slash_start"] = {
+            "date": date.today().isoformat(),
+            "claude-code": version.stdout.split()[0],
+            "nookku": __version__,
+            "cases": {name: [slash_start(name) for _ in range(repeat)] for name in ENVIRONMENTS},
+        }
+        out.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        print(f"wrote {out}")
+        return 0
     cases = []
     for form in FORMS:
         for mode in INPUTS:

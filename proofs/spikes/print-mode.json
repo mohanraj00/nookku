@@ -1704,5 +1704,63 @@
         }
       ]
     }
-  ]
+  ],
+  "slash_start": {
+    "date": "2026-10-13",
+    "claude-code": "2.1.296",
+    "nookku": "0.4.3",
+    "cases": {
+      "terminal": [
+        {
+          "exit": 0,
+          "refused": true,
+          "relay_mode_on": false
+        },
+        {
+          "exit": 0,
+          "refused": true,
+          "relay_mode_on": false
+        },
+        {
+          "exit": 0,
+          "refused": true,
+          "relay_mode_on": false
+        }
+      ],
+      "agent-sdk": [
+        {
+          "exit": 0,
+          "refused": true,
+          "relay_mode_on": false
+        },
+        {
+          "exit": 0,
+          "refused": true,
+          "relay_mode_on": false
+        },
+        {
+          "exit": 0,
+          "refused": true,
+          "relay_mode_on": false
+        }
+      ],
+      "agent-sdk-no-title": [
+        {
+          "exit": 0,
+          "refused": false,
+          "relay_mode_on": true
+        },
+        {
+          "exit": 0,
+          "refused": false,
+          "relay_mode_on": true
+        },
+        {
+          "exit": 0,
+          "refused": false,
+          "relay_mode_on": true
+        }
+      ]
+    }
+  }
 }

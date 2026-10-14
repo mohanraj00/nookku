@@ -11,7 +11,7 @@ from collections.abc import Iterator, Sequence
 from importlib import resources
 from pathlib import Path
 
-from nookku import __version__, bridge, evaluation, kit, seal, stdio, trace
+from nookku import __version__, bridge, evaluation, kit, print_mode, seal, stdio, trace
 from nookku.adapters import make
 from nookku.audit import audit, render
 from nookku.config import KEYS as CONFIG_KEYS
@@ -448,6 +448,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         root = args.root.resolve()
         # The /nookku command of the plugin runs `nookku mode`, with the words of its menu.
         args.state = {"start": "on", "end": "off"}.get(args.state, args.state)
+        if (
+            args.state == "on"
+            and print_mode.VARIABLE in os.environ
+            and print_mode.refused(os.environ)
+        ):
+            # Claude Code runs this command, out of the interactive CLI (SPEC.md section 5).
+            print(print_mode.REASON)
+            return 0
         if args.state != "status" and bridge.has_entry(root):
             session = args.tester_session
             print(
