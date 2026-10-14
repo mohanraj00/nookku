@@ -8,6 +8,7 @@ same token, `Host` and `Origin` checks as the chat page (SPEC.md section 5, "Das
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 from typing import Any
 
@@ -60,12 +61,27 @@ def _count(data: dict[str, Any] | None, key: str, name: str) -> tuple[int | None
     return len(found), None
 
 
-def _seal_state(folder: Path) -> str:
-    """intact, broken or none, with the rule of `nookku verify` (SPEC.md section 7.4)."""
-    result = seal.verify(folder)
+def _seal_state(folder: Path) -> tuple[str, str | None]:
+    """intact, broken or none, with the rule of `nookku verify` (SPEC.md section 7.4), and an
+    error. If a file cannot be read, the state is unknown, and only this row shows the error."""
+    try:
+        result = seal.verify(folder)
+    except OSError as e:
+        return "unknown", f"seal: cannot read a file: {e.strerror or type(e).__name__}"
     if not result["sealed"] and result["copy"] == "none":
-        return "none"
-    return "intact" if result["intact"] else "broken"
+        return "none", None
+    return ("intact" if result["intact"] else "broken"), None
+
+
+def _time(manifest: dict[str, Any], key: str) -> tuple[float | None, str | None]:
+    """A time of the manifest, or None. A time that is not a finite number gives an error, because
+    the JSON of the answer cannot hold NaN or Infinity (SPEC.md section 2)."""
+    value = manifest.get(key)
+    if value is None:
+        return None, None
+    if isinstance(value, bool) or not isinstance(value, int | float) or not math.isfinite(value):
+        return None, f"manifest.json: {key} is not a finite number"
+    return float(value), None
 
 
 def row(folder: Path, running: str | None) -> dict[str, Any]:
@@ -83,6 +99,9 @@ def row(folder: Path, running: str | None) -> dict[str, Any]:
     if error is not None and test_state != "running":
         errors.append(error)
     manifest = manifest or {}
+    started, start_error = _time(manifest, "started")
+    ended, end_error = _time(manifest, "ended")
+    errors += [e for e in (start_error, end_error) if e]
     try:
         turn_count: int | None = len(turns(folder / "relay.jsonl", missing_ok=True))
     except RecordError as e:
@@ -98,11 +117,12 @@ def row(folder: Path, running: str | None) -> dict[str, Any]:
     findings, count_error = _count(findings_data, "findings", "findings.json")
     errors += [e for e in (error, count_error) if e]
     # The files of a running test still change, and it has no seal yet.
-    seal_state = "none" if test_state == "running" else _seal_state(folder)
+    seal_state, error = ("none", None) if test_state == "running" else _seal_state(folder)
+    errors += [error] if error else []
     return {
         "id": folder.name,
-        "started": manifest.get("started"),
-        "ended": manifest.get("ended"),
+        "started": started,
+        "ended": ended,
         "state": test_state,
         "turns": turn_count,
         "breaks": breaks,
@@ -112,12 +132,22 @@ def row(folder: Path, running: str | None) -> dict[str, Any]:
     }
 
 
+def _is_text(name: str) -> bool:
+    try:
+        name.encode("utf-8")
+    except UnicodeEncodeError:
+        return False
+    return True
+
+
 def rows(
     root: Path, test_state: str = "all", has: str = "all", order: str = "newest"
 ) -> list[dict[str, Any]]:
     """The rows of the tests that pass the filters, sorted by the start time."""
     running = running_id(root)
-    found = [row(folder, running) for folder in state.tests_newest_first(root)]
+    # A folder name that is not UTF-8 text is not a test id, and the answer cannot hold it.
+    folders = [f for f in state.tests_newest_first(root) if _is_text(f.name)]
+    found = [row(folder, running) for folder in folders]
     if test_state != "all":
         found = [r for r in found if r["state"] == test_state]
     if has == "break":

@@ -262,6 +262,37 @@ def test_a_file_that_cannot_be_read_gives_no_count_and_a_problem(
     assert invalid["errors"] == ["audit.json: a record is missing or not valid (exit 2)"]
 
 
+def test_a_damaged_test_changes_only_its_own_row(
+    project: Path, server: page.PageServer, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Python reads NaN and Infinity, but the JSON of the answer cannot hold them.
+    folder = project / ".nookku" / "tests" / TESTS[0]["id"]
+    (folder / "manifest.json").write_text('{"started": NaN, "ended": 1e999}')
+    real = seal.verify
+
+    def verify(test: Path, base: Path | None = None) -> dict[str, Any]:
+        if test.name == TESTS[1]["id"]:
+            raise PermissionError(13, "Permission denied")
+        return real(test, base)
+
+    monkeypatch.setattr(seal, "verify", verify)
+    status, _, body = get(server, "api/tests")
+    assert status == 200
+    # The answer is strict JSON: no NaN and no Infinity.
+    rows = {r["id"]: r for r in json.loads(body, parse_constant=pytest.fail)["tests"]}
+    assert len(rows) == 3
+    times = rows[TESTS[0]["id"]]
+    assert times["started"] is None and times["ended"] is None
+    assert times["errors"] == [
+        "manifest.json: started is not a finite number",
+        "manifest.json: ended is not a finite number",
+    ]
+    unread = rows[TESTS[1]["id"]]
+    assert unread["seal"] == "unknown"
+    assert unread["errors"] == ["seal: cannot read a file: Permission denied"]
+    assert rows[TESTS[2]["id"]]["seal"] == "intact"
+
+
 def test_the_dashboard_has_no_inline_script_and_no_html_from_text() -> None:
     folder = resources.files("nookku").joinpath("page")
     html = folder.joinpath("dashboard.html").read_text()
