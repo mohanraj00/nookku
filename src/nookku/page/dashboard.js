@@ -52,6 +52,7 @@ function testRow(test) {
     name.append(problem);
   }
   tr.append(
+    pickCell(test),
     name,
     cell(when(test.started)),
     cell(test.state),

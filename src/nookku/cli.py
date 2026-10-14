@@ -7,9 +7,10 @@ import json
 import os
 import shlex
 import sys
-from collections.abc import Iterator, Sequence
+from collections.abc import Callable, Iterator, Sequence
 from importlib import resources
 from pathlib import Path
+from typing import Any
 
 from nookku import __version__, bridge, evaluation, kit, print_mode, seal, state, stdio, trace
 from nookku.adapters import make
@@ -301,6 +302,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     view.add_argument("--text", action="store_true", help="the text view (the default)")
     _page_parser(sub)
     _script_parser(sub)
+    _replay_parser(sub)
 
     ver = sub.add_parser("verify", help="check that no record of a test changed after its end")
     ver.add_argument(
@@ -417,6 +419,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _page_command(args)
     if args.command == "script":
         return _script_command(args)
+    if args.command == "replay":
+        return _replay_command(args)
     if args.command in ("start", "end", "status", "check"):
         return _test_command(args)
     if args.command == "trace":
@@ -665,8 +669,13 @@ def _script_command(args: argparse.Namespace) -> int:
     return 0
 
 
-def _run_command(args: argparse.Namespace) -> int:
-    """nookku run --script: a scripted test (SPEC.md section 7.10)."""
+# After a scripted test: the lines and the JSON part that nookku replay adds to the result.
+AfterRun = Callable[[Path, Path], tuple[list[str], dict[str, Any]]]
+
+
+def _run_command(args: argparse.Namespace, after: AfterRun | None = None) -> int:
+    """nookku run --script: a scripted test (SPEC.md section 7.10). `after` gets the root and
+    the test folder, and gives more lines and more JSON keys."""
     root = args.root.resolve()
     script_path = args.script if args.script.is_absolute() else Path.cwd() / args.script
     try:
@@ -674,15 +683,50 @@ def _run_command(args: argparse.Namespace) -> int:
     except bridge.BridgeError as e:
         print(json.dumps({"error": str(e)}) if args.json else f"nookku: {e}")
         return 1
+    more: dict[str, Any] = {}
+    if after is not None:
+        added, more = after(root, folder)
+        lines = [*lines, *added]
     show = evaluation.enabled(root) if args.evaluate is None else args.evaluate
     prompt = evaluation.prompt(folder) if show else None
     if args.json:
-        print(json.dumps({"pass": passed, "report": lines, "evaluation": prompt}))
+        print(json.dumps({"pass": passed, "report": lines, "evaluation": prompt, **more}))
     else:
         print("\n".join(lines))
         if prompt:
             print(f"\n{prompt}")
     return 0 if passed else 1
+
+
+def _replay_parser(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+    rep = sub.add_parser("replay", help="run a saved script again, and show the changed replies")
+    rep.add_argument("script", type=Path, help="the script file, as nookku script save writes it")
+    rep.add_argument(
+        "--base", help="the test id to compare with (default: the name of the script file)"
+    )
+    rep.add_argument("--entry", help="the name of an entry in the config key entries")
+    rep.add_argument("--root", type=Path, default=Path.cwd())
+    rep.add_argument("--json", action="store_true", help="print the result as JSON")
+    rep.add_argument(
+        "--evaluate",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="print the evaluation prompt at the end (default: the config key evaluate)",
+    )
+
+
+def _replay_command(args: argparse.Namespace) -> int:
+    """nookku replay: run a script as nookku run --script does, then compare the new test with
+    the source test of the script (SPEC.md section 7.10, "Replay")."""
+    from nookku import replay
+
+    root = args.root.resolve()
+    try:
+        old = replay.base(root, args.script, args.base)
+    except replay.ReplayError as e:
+        print(json.dumps({"error": str(e)}) if args.json else f"nookku: {e}")
+        return 2
+    return _run_command(args, lambda root, new: replay.report(root, old, new))
 
 
 def _waiting(test: str) -> str:
