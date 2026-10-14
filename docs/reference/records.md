@@ -69,3 +69,4 @@ The folders in [conformance/](../../conformance/) are the executable form of SPE
 | [conformance/trace/](../../conformance/trace/) | the trace and the [findings](glossary.md#findings) | [tests/test_trace.py](../../tests/test_trace.py) |
 | [conformance/seal/](../../conformance/seal/) | `verify` | [tests/test_seal.py](../../tests/test_seal.py) |
 | [conformance/otlp/](../../conformance/otlp/) | the OTLP receiver | [tests/test_otlp.py](../../tests/test_otlp.py) |
+| [conformance/evaluation/](../../conformance/evaluation/) | the rule for a check test, which gets no evaluation | [tests/test_evaluation.py](../../tests/test_evaluation.py) |

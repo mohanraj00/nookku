@@ -1,0 +1,18 @@
+{
+ "evaluated": true,
+ "manifest": {
+  "check": false
+ },
+ "relay": [
+  {
+   "harness": "nookku-check",
+   "said": "Hello",
+   "said_sha256": "185f8db32271fe25f561a6fc938b2e264306ec304eda518007d1764826381969",
+   "shown": "Toy shop: Hello",
+   "shown_sha256": "6ed8d2edcf35e75a65abd058dae7d5ffa711e6f0237313fda88c3b53c432b433",
+   "ts": 1.0,
+   "type": "turn",
+   "v": "0.1"
+  }
+ ]
+}

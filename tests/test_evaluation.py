@@ -41,22 +41,39 @@ def test_a_check_test_gets_no_evaluation(tmp_path: Path) -> None:
     relay = Writer(folder / "relay.jsonl")
     row = {"type": "turn", "said": "Hello", "shown": "Hi", "ok": True}
     relay.append({**row, "harness": bridge.CHECK_HARNESS})
-    assert evaluation.is_check(folder)
+    assert evaluation.is_check(folder, {})
     assert evaluation.pending(root) is None
     assert evaluation.config_note(root) is None
     answer = kit.handle(event(root, "nookku end"), root, "codex")
     assert answer is not None and answer["decision"] == "block"
     # A turn from a harness makes it a test of the tester again.
     relay.append({**row, "harness": "codex"})
-    assert not evaluation.is_check(folder)
+    assert not evaluation.is_check(folder, {})
     assert evaluation.pending(root) == folder
+
+
+CHECK_CASES = sorted((CASE.parent.parent / "evaluation").glob("*.json"))
+
+
+@pytest.mark.parametrize("case", CHECK_CASES, ids=[c.stem for c in CHECK_CASES])
+def test_the_manifest_key_check_or_else_the_turns_make_a_check_test(
+    tmp_path: Path, case: Path
+) -> None:
+    data = json.loads(case.read_text("utf-8"))
+    root = project(tmp_path)
+    folder = root / ".nookku" / "tests" / TEST
+    manifest = json.loads((folder / "manifest.json").read_text())
+    (folder / "manifest.json").write_text(json.dumps({**manifest, **data["manifest"]}))
+    rows = [r if isinstance(r, str) else json.dumps(r) for r in data["relay"]]
+    (folder / "relay.jsonl").write_text("".join(r + "\n" for r in rows))
+    assert evaluation.pending(root) == (folder if data["evaluated"] else None)
 
 
 def test_a_test_with_no_turns_or_a_broken_relay_record_is_not_a_check_test(tmp_path: Path) -> None:
     folder = project(tmp_path) / ".nookku" / "tests" / TEST
-    assert not evaluation.is_check(folder)
+    assert not evaluation.is_check(folder, {})
     (folder / "relay.jsonl").write_text("{broken\n")
-    assert not evaluation.is_check(folder)
+    assert not evaluation.is_check(folder, {})
 
 
 def test_no_evaluation_if_the_config_turns_it_off_or_the_test_runs(tmp_path: Path) -> None:

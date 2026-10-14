@@ -248,6 +248,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     br.add_argument("--tester-session")
     br.add_argument("--entry-name")
     br.add_argument("--script-source")
+    br.add_argument("--check", action="store_true")
 
     mode = sub.add_parser("mode", help="switch relay mode on or off (with an entry: start or end)")
     mode.add_argument(
@@ -369,6 +370,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             args.tester_session,
             entry_name=args.entry_name,
             script_source=args.script_source,
+            check=args.check,
         )
     if args.command == "run":
         return _run_command(args)
