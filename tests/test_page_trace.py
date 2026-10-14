@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 from importlib import resources
@@ -41,10 +42,19 @@ def toy_shop(root: Path) -> Path:
 
 
 def end(folder: Path) -> None:
-    """Write `ended` into the manifest, as the end of a test does."""
+    """Write `ended` into the manifest, as the end of a test does, and keep trace.jsonl older."""
     manifest = json.loads((folder / "manifest.json").read_text())
     manifest["ended"] = 1791273650.0
     (folder / "manifest.json").write_text(json.dumps(manifest))
+    if (folder / "trace.jsonl").exists():
+        older = (folder / "manifest.json").stat().st_mtime_ns - 1_000_000_000
+        os.utime(folder / "trace.jsonl", ns=(older, older))
+
+
+def end_and_build(folder: Path) -> None:
+    """The end of a test: write `ended`, then build the trace."""
+    end(folder)
+    trace.build(folder)
 
 
 def expected(turn: int) -> list[tuple[str, str | None, Any]]:
@@ -81,8 +91,7 @@ def test_the_steps_are_grouped_by_the_turn_of_their_reply(tmp_path: Path) -> Non
 def test_after_the_end_the_steps_come_from_trace_jsonl(tmp_path: Path) -> None:
     folder = toy_shop(tmp_path)
     live = page_trace.steps(folder, running=False)
-    trace.build(folder)
-    end(folder)
+    end_and_build(folder)
     (folder / "backend.jsonl").unlink()
     (folder / "model_api.jsonl").unlink()
     ended = page_trace.steps(folder, running=False)
@@ -91,8 +100,7 @@ def test_after_the_end_the_steps_come_from_trace_jsonl(tmp_path: Path) -> None:
 
 def test_a_text_with_u2028_in_trace_jsonl_keeps_its_step(tmp_path: Path) -> None:
     folder = toy_shop(tmp_path)
-    trace.build(folder)
-    end(folder)
+    end_and_build(folder)
     lines = (folder / "trace.jsonl").read_text(encoding="utf-8").split("\n")
     row = json.loads(lines[0])
     row["output"] = "line one\u2028line two"
@@ -115,9 +123,13 @@ def test_a_test_with_no_end_reads_the_live_rows_and_not_trace_jsonl(tmp_path: Pa
     for running in (True, False):
         found = page_trace.steps(folder, running=running)["turns"][1]["steps"]
         assert "GET /new" in [s["name"] for s in found]
+    # The end writes `ended`, and its build fails: the trace.jsonl from before the end is old.
     end(folder)
     found = page_trace.steps(folder, running=False)["turns"][1]["steps"]
-    assert "GET /new" not in [s["name"] for s in found]
+    assert "GET /new" in [s["name"] for s in found]
+    # The build of the end replaces trace.jsonl.
+    trace.build(folder)
+    assert page_trace.built_after_end(folder)
 
 
 def test_the_cache_keeps_the_answers_of_a_few_tests_only(tmp_path: Path) -> None:

@@ -55,12 +55,23 @@ def _signature(folder: Path, running: bool) -> Any:
     return tuple(out)
 
 
-def items(folder: Path, spans: list[tuple[float, float]], ended: bool) -> list[dict[str, Any]]:
-    """The trace rows of a test, each with its turn. For a test whose manifest has `ended`, the
-    rows come from trace.jsonl if it exists. Else they come from the live sources, with the turn
-    rule of SPEC.md section 8.3. A test that runs, or that stopped with no end, uses the live
-    sources, because `nookku trace` before the end writes a trace.jsonl that does not change."""
-    if ended and (folder / TRACE).exists():
+def built_after_end(folder: Path) -> bool:
+    """True if the manifest has `ended` and trace.jsonl is newer than the manifest. The end writes
+    `ended` into the manifest before it builds the trace. Thus a trace.jsonl from `nookku trace`
+    before the end, or from an end whose build failed, is older than the manifest."""
+    if (state.manifest_of(folder) or {}).get("ended") is None:
+        return False
+    try:
+        return (folder / TRACE).stat().st_mtime_ns >= (folder / "manifest.json").stat().st_mtime_ns
+    except OSError:
+        return False
+
+
+def items(folder: Path, spans: list[tuple[float, float]]) -> list[dict[str, Any]]:
+    """The trace rows of a test, each with its turn. If the end built trace.jsonl, the rows come
+    from it. Else they come from the live sources, with the turn rule of SPEC.md section 8.3: for
+    a running test, a test that stopped with no end, and an end whose build failed."""
+    if built_after_end(folder):
         # The reader of the evaluation: it splits on \n only and stops at a bad line.
         return evaluation._items(folder / TRACE)
     found: list[dict[str, Any]] = []
@@ -90,8 +101,7 @@ def steps(folder: Path, running: bool) -> dict[str, Any]:
     rows = [r for _, r in lines]
     exchanges = [Exchange(n, r["input"], r["status"], r["reply"]) for n, r in lines]
     spans = trace.windows(rows)
-    ended = (state.manifest_of(folder) or {}).get("ended") is not None
-    found = items(folder, spans, ended)
+    found = items(folder, spans)
     by_turn: dict[int, list[dict[str, Any]]] = {}
     for row in found:
         if isinstance(row.get("turn"), int):
