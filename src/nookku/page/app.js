@@ -96,10 +96,27 @@ function render(data) {
   el("send").disabled = sending || !test.running;
 }
 
+// The dashboard opens the page of one test with #<test id> (#349). The page then shows that
+// test. It can send only if that test runs.
+function turnsUrl() {
+  let id = "";
+  try {
+    id = decodeURIComponent(window.location.hash.slice(1));
+  } catch (e) {
+    id = window.location.hash.slice(1);
+  }
+  return id ? "api/turns/" + encodeURIComponent(id) : "api/turns";
+}
+
 async function refresh() {
   try {
-    const resp = await fetch("api/turns", { cache: "no-store" });
-    render(await resp.json());
+    const url = turnsUrl();
+    const resp = await fetch(url, { cache: "no-store" });
+    const data = await resp.json();
+    // The hash can change during the request. Then a later request shows the new test.
+    if (url === turnsUrl()) {
+      render(data);
+    }
   } catch (e) {
     pollError = "nookku: the page server does not answer. Start it again with: nookku page";
     showError(pollError);
@@ -123,7 +140,8 @@ async function send() {
     const resp = await fetch("api/send", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ said: said }),
+      // The server sends only if the test that the page shows still runs.
+      body: JSON.stringify({ said: said, test: shownTest }),
     });
     const data = await resp.json();
     // A poll can fail while the send waits. The result of the send replaces its error.
@@ -144,6 +162,7 @@ async function send() {
 
 document.addEventListener("DOMContentLoaded", () => {
   el("send").addEventListener("click", send);
+  window.addEventListener("hashchange", refresh);
   refresh();
   setInterval(refresh, POLL_MS);
 });
