@@ -159,6 +159,7 @@ The audit counts `blocked_call` rows and `model_session` rows. It does not match
 - If the tap cannot write the row of a stream, it writes the error to stderr and closes the connection to the caller. It does not send the end of a chunked body. With a `Content-Length`, the tap holds the last byte of the body until the row is in the record, so it does not send that byte. Thus the caller can see that the response is not complete. It does not send a second status, and it does not write a second row.
 - If the message that the adapter extracts has a lone surrogate (section 2), the tap writes an `unparsed` row. It still forwards the request without change.
 - If the reply of a 2xx response has a lone surrogate, the tap returns status 502 and not the agent's response. It writes an `exchange` row with `status: null`, `reply: null` and an `error` that names the lone surrogate.
+- **No request checks.** The tap in HTTP mode checks no token, no `Origin` and no `Content-Type`, because a token changes the forwarded request, and the other checks stop clients of the app. The callers of this tap are the app's own clients, and the tap forwards their requests without change. A token header would go to the agent, or the tap would remove it, and both change the forwarded request. If the tap refused an `Origin` header, a browser client of the app could not use the tap. If it refused other types, an agent that reads another type could not use it. Thus a web page in the tester's browser can send a request through this tap, the same as to the agent itself. The stdio tap of a test has these checks (section 4.2).
 
 #### Adapters
 
@@ -193,6 +194,8 @@ Each adapter maps onto the agent contract (section 6):
 `nookku tap --cmd -- <command>` starts the command as the agent and talks to it with the agent contract (section 6). The tap listens on a local HTTP endpoint, the same as in HTTP mode. The relay posts each contract input line to it.
 
 - The tap starts the agent in its own process group, with the test root as its working directory. The agent's stderr goes to `app.log` in the test folder.
+- **Token.** The tap has a random token of 32 bytes, as URL-safe base64 text. A test writes it to `current.json` as `tap_token`, next to `tap_url`, and only the owner can read that file (mode `0600`). A relay sends the token in the header `X-Nookku-Token` with each `POST`. `nookku start --json` and `nookku status --json` do not print the token. `nookku tap --cmd` takes the token from the variable `NOOKKU_TAP_TOKEN`, which must have 43 characters or more. If the variable has no value, the tap makes a token and writes it to stderr.
+- **Refusals.** The tap refuses a `POST` with no `X-Nookku-Token` header, with a wrong token or with two such headers. It also refuses a `POST` with an `Origin` header, and a `POST` with a `Content-Type` that is not `application/json`. The tap ignores the parameters of the type, for example `; charset=utf-8`. For each refusal, the tap returns status 403 with a body `{"error": "nookku tap: <reason>"}`, and closes the connection. It writes no row and sends nothing to the agent. Thus a web page in the tester's browser cannot put a message into the test. The page does not know the token. A browser sends `Origin` with each cross-site `POST`. A request with the token header needs a preflight `OPTIONS`, and the tap refuses it with 405. The case is `requests_not_from_a_relay_are_refused` in [`conformance/contract/`](conformance/contract/).
 - The tap accepts a `POST` with a body that is a valid contract input on one line: no `\n` and no `\r` bytes. It writes the body to the agent's stdin without change, then one `\n`. If the body is not valid, the tap returns status 400, writes an `unparsed` row and does not send the body.
 - If the `message` of an input has a lone surrogate (section 2), the tap returns status 400, writes an `unparsed` row and does not send the body.
 - The tap sends one request at a time. It reads lines from the agent's stdout until it gets a JSON object with the request `id`. That line is the reply line.
@@ -216,7 +219,7 @@ Each timeout on the relay path ends before the next one, so that each part gets 
 
 | Order | Timeout | Seconds |
 |---|---|---|
-| 1 | The agent timeout of the tap, the same in HTTP mode and stdio mode | [240](src/nookku/stdio.py#L24) |
+| 1 | The agent timeout of the tap, the same in HTTP mode and stdio mode | [240](src/nookku/stdio.py#L27) |
 | 2 | The tap answers the relay, at most 5 seconds after the agent timeout | [245](tests/test_timeouts.py#L21) |
 | 3 | The relay waits for the tap of a test (section 7) | [270](src/nookku/state.py#L20) |
 | 3 | The relay waits for the tap of section 4.1 | [280](src/nookku/kit.py#L33) |
@@ -417,7 +420,7 @@ After the end of the test, the check reads `audit.json` in the test folder (sect
 
 ### 7.2 Start and end
 
-`start` creates the test folder and starts the bridge, a background process that runs the tap in stdio mode. The bridge writes `.nookku/current.json` with the test id, the test folder, the tap URL, its own pid and the string `pid_start`. Then `start` switches relay mode on. With an entry, relay mode is the file `.nookku/mode` for both relays, so it survives a restart of the harness or a reload of the plugin.
+`start` creates the test folder and starts the bridge, a background process that runs the tap in stdio mode. The bridge writes `.nookku/current.json` with the test id, the test folder, the tap URL, the tap token `tap_token` (section 4.2), its own pid and the string `pid_start`. The file has mode `0600`, because it holds the token. Then `start` switches relay mode on. With an entry, relay mode is the file `.nookku/mode` for both relays, so it survives a restart of the harness or a reload of the plugin.
 
 `pid_start` is the start time of the bridge process. The OS can give the pid of a stopped process to a new process, so the pid and `pid_start` together identify the bridge. On Linux, `pid_start` is `proc:` and field 22 of `/proc/<pid>/stat`. On other systems, it is `ps:` and the output of `ps -o lstart= -p <pid>` with `TZ=UTC0` and `LC_ALL=C`, with each run of spaces as one space. A reader compares the value only for equality. If the bridge cannot read its start time, it does not start.
 

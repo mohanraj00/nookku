@@ -173,7 +173,7 @@ If the entry returns an error, crashes or does not answer in [240 seconds](../sr
 
 ### `the agent printed <n> lines on stdout but no reply line for <id> in 240 s, so the tap stopped it. Use nookku.agent.serve() or write logs to stderr. The first line: '<text>'`
 
-(stdio.py) **Cause.** The entry or your app wrote logs on stdout, and no line with the request id came. `<text>` is the [first 80 bytes](../src/nookku/stdio.py#L175) of the first stray line. `nookku check` says `The entry printed lines on stdout, but no reply line.`
+(stdio.py) **Cause.** The entry or your app wrote logs on stdout, and no line with the request id came. `<text>` is the [first 80 bytes](../src/nookku/stdio.py#L180) of the first stray line. `nookku check` says `The entry printed lines on stdout, but no reply line.`
 
 **Fix.** Write logs to stderr. In Python, use `nookku.agent.serve()`, which sends all other output to stderr ([how-to/connect-your-agent.md](how-to/connect-your-agent.md)).
 
