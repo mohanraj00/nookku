@@ -217,6 +217,35 @@ def test_end_finishes_the_folder_of_a_hung_bridge(
     assert "stopped before the end" in bridge.summary(manifest)
 
 
+def test_end_stops_the_entry_of_a_killed_bridge(
+    tmp_path: Path, homes: tuple, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # This entry does not stop at the end of its stdin.
+    root = project(tmp_path, [sys.executable, "-c", "import time; time.sleep(600)"])
+    cur = bridge.start(root)
+    folder = Path(cur["dir"])
+    entry = json.loads((folder / "manifest.json").read_text())["entry_pid"]
+    os.kill(cur["pid"], 9)
+    _wait_dead(cur["pid"])
+    assert bridge.alive(entry)
+    monkeypatch.setattr(bridge, "START_WAIT", 0.0)
+    manifest = bridge.end(root)
+    assert manifest is not None and manifest["killed"] is True
+    assert not bridge.alive(entry)
+    assert seal.verify(folder)["intact"]
+
+
+def test_an_older_stopped_test_stays_stopped_after_a_new_test(tmp_path: Path) -> None:
+    root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
+    tests = root / ".nookku" / "tests"
+    now = time.time()
+    for name, started, ended in (("old", now - 100, None), ("new", now - 50, now - 40)):
+        (tests / name).mkdir(parents=True)
+        manifest = {"test": name, "started": started, "ended": ended}
+        (tests / name / "manifest.json").write_text(json.dumps(manifest))
+    assert bridge.stopped(root) == tests / "old"
+
+
 def test_end_names_the_test_and_the_wait(
     tmp_path: Path, homes: tuple, capsys: pytest.CaptureFixture
 ) -> None:

@@ -216,30 +216,53 @@ def start(
 
 
 def stopped(root: Path) -> Path | None:
-    """The folder of the latest test if its bridge stopped with no end, else None (#164).
+    """The folder of the latest test whose bridge stopped with no end, else None (#164).
 
     The caller makes sure that no test runs. A test that started less than START_WAIT ago can
-    still be in its start, so it is not stopped."""
-    folder = latest_test(root)
-    if folder is None:
-        return None
-    try:
-        manifest = json.loads((folder / "manifest.json").read_text())
-    except (OSError, ValueError):
-        return None
-    if not isinstance(manifest, dict) or manifest.get("ended") is not None:
-        return None
-    started = manifest.get("started")
-    if not isinstance(started, (int, float)) or time.time() - started < START_WAIT:
-        return None
-    return folder
+    still be in its start, so it is not stopped. An older stopped test stays stopped after a new
+    test, so this looks at each test folder, not only at the latest one."""
+    tests = state(root) / "tests"
+    found: list[tuple[float, str, Path]] = []
+    for folder in tests.iterdir() if tests.is_dir() else []:
+        try:
+            manifest = json.loads((folder / "manifest.json").read_text())
+        except (OSError, ValueError):
+            continue
+        if not isinstance(manifest, dict) or manifest.get("ended") is not None:
+            continue
+        started = manifest.get("started")
+        if isinstance(started, (int, float)) and time.time() - started >= START_WAIT:
+            found.append((float(started), folder.name, folder))
+    return max(found, default=(0.0, "", None))[2]
+
+
+def _stop_entry(manifest: dict[str, Any], grace: float = 5.0) -> None:
+    """Stop the process group of the entry of a stopped bridge, if the entry still runs. The pid
+    and its start time identify the entry, as for the bridge (SPEC.md section 7.2)."""
+    entry = {"pid": manifest.get("entry_pid"), "pid_start": manifest.get("entry_pid_start")}
+    if not is_bridge(entry):
+        return
+    pid = int(manifest["entry_pid"])
+    with contextlib.suppress(OSError):
+        os.killpg(pid, signal.SIGTERM)
+    deadline = time.monotonic() + grace
+    while is_bridge(entry) and time.monotonic() < deadline:
+        time.sleep(0.1)
+    # The OS does not give the id of a process group with a process in it to a new process.
+    with contextlib.suppress(OSError):
+        os.killpg(pid, signal.SIGKILL)
+    deadline = time.monotonic() + grace
+    while alive(pid) and time.monotonic() < deadline:
+        time.sleep(0.1)
 
 
 def finish_stopped(folder: Path) -> dict[str, Any]:
     """Finish the folder of a test whose bridge stopped with no end (SPEC.md section 7.2).
-    Mark the test as killed, then write the trace, the audit and the seal from the records."""
+    Stop the entry and mark the test as killed. Then write the trace, the audit and the seal from
+    the records."""
     path = folder / "manifest.json"
     manifest: dict[str, Any] = json.loads(path.read_text())
+    _stop_entry(manifest)
     manifest.update(ended=time.time(), killed=True)
     _write_json(path, manifest)
 
@@ -610,6 +633,9 @@ def run(
     if agent.proc.poll() is not None:
         print(f"nookku bridge: the entry exited at start:\n{agent.tail()}", file=sys.stderr)
         return 1
+    # end can stop the entry if the bridge stops with no end (#164).
+    manifest.update(entry_pid=agent.proc.pid, entry_pid_start=process_start(agent.proc.pid))
+    _write_json(folder / "manifest.json", manifest)
     stop = threading.Event()
     for sig in (signal.SIGTERM, signal.SIGINT):
         signal.signal(sig, lambda *_: stop.set())

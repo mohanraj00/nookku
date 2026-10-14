@@ -8,7 +8,7 @@ nookku: relay mode is on, but no test runs. Start one with: nookku start. Nothin
 
 The [plugin](../reference/glossary.md#plugin) shows the same text with `Type /nookku start`, or "the test stopped, and no test runs" ([claude-code-plugin.md](claude-code-plugin.md)). In both relays, the message does not go to the model.
 
-The output on this page is the real output of each step. I used a toy shop project like the one of [getting-started.md](../getting-started.md), with nookku 0.4.3 and the change of issue #164, on macOS. I started a test, gave one message to `nookku hook --harness claude-code`, as Claude Code does, and stopped the bridge with `kill -9`. I shortened the paths of the folders to `.../`. The test id, the pid and the times are different on your machine.
+The output on this page is the real output of each step. I used a toy shop project like the one of [getting-started.md](../getting-started.md), with the nookku code of the commit that added this output, on macOS. I started a test, gave one message to `nookku hook --harness claude-code`, as Claude Code does, and stopped the bridge with `kill -9`. I shortened the paths of the folders to `.../`. The test id, the pid and the times are different on your machine.
 
 Run each command in the project root, in a shell.
 
@@ -24,7 +24,7 @@ Test 20261013-192120-5c8c stopped with no end. Folder: .../toy-shop/.nookku/test
 To write its audit and its seal, run: nookku end
 ```
 
-[Relay mode](../reference/glossary.md#relay-mode) is on, but no test runs. The second line names the test that stopped and its folder. The third line gives the next step. If a test runs, the first line names it:
+[Relay mode](../reference/glossary.md#relay-mode) is on, but no test runs. The second line names the test that stopped and its folder. If more than one test stopped, it names the one that started last. The third line gives the next step. If a test runs, the first line names it:
 
 ```text
 relay mode is on. Test 20261011-185435-1c1b runs on http://127.0.0.1:49439/.
@@ -49,7 +49,7 @@ Audit: nookku audit --tap .../toy-shop/.nookku/tests/20261013-192120-5c8c/tap.js
 To evaluate the test, type this prompt in your harness: nookku end
 ```
 
-`end` switches relay mode off. Then it finishes the folder of the stopped test. It writes `killed: true` and the end time into `manifest.json`, and writes the [trace](../reference/glossary.md#trace), `audit.json` and the [seal](../reference/glossary.md#seal) from the records that exist. It does not copy the model sessions of the app, because the bridge did not find them. If no test runs and no test stopped, `end` prints `No test runs. Relay mode is off.`
+`end` switches relay mode off. Then it finishes the folder of the stopped test. If the [entry](../reference/glossary.md#entry) of the test still runs, `end` stops it first. Then `end` writes `killed: true` and the end time into `manifest.json`, and writes the [trace](../reference/glossary.md#trace), `audit.json` and the [seal](../reference/glossary.md#seal) from the records that exist. It does not copy the model sessions of the app, because the bridge did not find them. If no test runs and no test stopped, `end` prints `No test runs. Relay mode is off.`
 
 If the bridge runs but does not stop, `end` waits [120 seconds](../../src/nookku/bridge.py), and then stops the bridge with SIGKILL. It prints one line when it starts to wait. I made this case with `kill -STOP` on the bridge of a new test. `end` printed the first line at once, and the other lines after 120 seconds:
 
