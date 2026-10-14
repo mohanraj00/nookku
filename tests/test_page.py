@@ -290,11 +290,12 @@ def test_each_answer_has_a_strict_csp(tmp_path: Path) -> None:
 def test_the_page_has_no_inline_script_no_cdn_and_no_html_from_text() -> None:
     folder = resources.files("nookku").joinpath("page")
     html = folder.joinpath("index.html").read_text()
-    scripts = ["render.js", "app.js", "save.js"]
+    scripts = ["render.js", "app.js", "save.js", "notes.js", "trace.js"]
     js = "".join(folder.joinpath(name).read_text() for name in scripts)
-    css = folder.joinpath("app.css").read_text() + folder.joinpath("render.css").read_text()
+    styles = ["app.css", "render.css", "notes.css", "trace.css"]
+    css = "".join(folder.joinpath(name).read_text() for name in styles)
     assert re.findall(r"<script[^>]*>", html) == [f'<script src="{s}" defer>' for s in scripts]
-    assert all(name in page.FILES for name in [*scripts, "render.css"])
+    assert all(name in page.FILES for name in [*scripts, *styles])
     assert not re.search(r"\son\w+=", html)
     assert "style=" not in html
     for text in (html, js, css):

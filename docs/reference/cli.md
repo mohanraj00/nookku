@@ -139,6 +139,37 @@ Only a person runs `nookku script`: the relay denies it from the model, with eac
 | 1 | The `relay.jsonl` of the test is not valid or has no turn, or the command cannot write the file. |
 | 2 | No test has this id. |
 
+### `nookku replay`
+
+```text
+nookku replay SCRIPT [--base TEST] [--entry NAME] [--root PATH] [--json] [--evaluate | --no-evaluate]
+```
+
+Run a saved script again after a fix, and see which replies changed ([SPEC.md section 7.10](../../SPEC.md#710-scripted-tests)). `replay` runs the script as `nookku run --script` does. Then it compares the new test with the source test of the script, turn by turn. The source test is the test id in the name of the script file, as `nookku script save` names it. The diff uses the reply that the [tap](glossary.md#tap) recorded, not the reply that the harness showed.
+
+The output has the lines of `nookku run`, and then:
+
+- the count of changed turns;
+- each changed reply, with `[-deleted words-]` and `{+inserted words+}`;
+- the 2 test ids to select on the dashboard of `nookku page`, which shows the 2 tests side by side.
+
+A changed reply does not change the exit code. Only a person runs `nookku replay`: the relay denies it from the model, with each policy.
+
+| Flag | Default | Meaning |
+|---|---|---|
+| `SCRIPT` | required | The script file, for example `.nookku/scripts/<test id>.jsonl`. |
+| `--base TEST` | the name of the script file | The test id to compare with. |
+| `--entry NAME` | the key `entry` | A name in the config key `entries`. |
+| `--root PATH` | the current folder | The project. |
+| `--json` | off | Print `{"pass": ..., "report": [...], "evaluation": ..., "diff": ...}`. |
+| `--no-evaluate`, `--evaluate` | the config key `evaluate` | Print the evaluation prompt at the end, or not. |
+
+| Exit code | Meaning |
+|---|---|
+| 0 | The audit of the new test is clean. |
+| 1 | As for `nookku run`. |
+| 2 | `--base` names no test. Nothing ran. |
+
 ### `nookku mode`
 
 ```text
@@ -167,8 +198,10 @@ Serve the chat page: a local web page where you talk to the agent of the running
 
 - The page shows the turns of the running test, else of the latest test, with the start and the end of the test. It asks the server for new turns each [1 second](../../src/nookku/page/app.js#L5).
 - The link "All tests" opens the dashboard: one row for each test of the project, with the start time, the state, the count of turns, [breaks](glossary.md#break) and [findings](glossary.md#findings), and the seal state. Filter the rows by state, and by a break or a finding. Sort them by date. A click on a row opens the chat page of that test. If the test ended, that page is read-only. The dashboard reads the test folders and changes no file. It asks the server for new rows each [5 seconds](../../src/nookku/page/dashboard.js#L5) ([SPEC.md section 5](../../SPEC.md#5-relays)).
+- On the dashboard, select 2 tests with their check boxes, then click "Compare". The diff page shows the 2 tests side by side, turn by turn, with the counts of breaks and findings of each test at the top. It marks each changed reply, and it shows the deleted and the inserted words. The older test is on the left.
 - When you send a message, the page server sends it to the [tap](glossary.md#tap) with the relay function of the hook, and writes a turn with `"harness": "pane"` ([SPEC.md section 5](../../SPEC.md#5-relays)). The message does not go into the harness, so the [harness model](glossary.md#harness-model) cannot see it.
 - Start and end the test in the harness, with `nookku start` and `nookku end`. The page does not run these prompts.
+- Under each reply, you can give a thumbs up, a thumbs down and a comment. The page server writes each note to `notes.jsonl` in the test folder. It writes a note only while the test runs, and the seal covers the file. The evaluation reads your notes and cites them in `report.md` ([SPEC.md section 2.3](../../SPEC.md#23-notes-record)).
 - The page sends only if relay mode is on and the test is not a [scripted test](glossary.md#scripted-test). After `nookku end` begins, the page sends nothing.
 - If no test runs, or the page server cannot send the message, the page shows the error. Nothing goes to a model.
 - The page shows a reply of the agent as Markdown: headings, emphasis, lists, links, tables, block quotes and code. HTML in a reply shows as text. The button "Text" shows the exact text of the reply. A `mermaid` or `vega-lite` fence shows as code.

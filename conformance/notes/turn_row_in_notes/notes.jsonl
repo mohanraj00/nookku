@@ -1,0 +1,2 @@
+{"v": "0.2", "type": "note", "ts": 1791273630.0, "turn": 1, "rating": "up", "comment": "Fast and correct. The order 4471 is right.", "comment_sha256": "344f4c7bfc2cb0786feb4ef6b8a741fb9e5937a15725e22840db52d6a3052dc7"}
+{"v": "0.2", "type": "turn", "ts": 1.0, "harness": "claude-code", "said": "Hi", "said_sha256": "3639efcd08abb273b1619e82e78c29a7df02c1051b1820e99fc395dcaa3326b8", "shown": "Hello", "shown_sha256": "185f8db32271fe25f561a6fc938b2e264306ec304eda518007d1764826381969"}
