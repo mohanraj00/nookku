@@ -42,6 +42,10 @@ def bad_body(data: Any) -> str | None:
         return "the body must be a JSON object"
     if not isinstance(data.get("test"), str):
         return 'the body needs "test", the id of the test that the page shows'
+    # The answer can name the test, and UTF-8 cannot encode a lone surrogate.
+    found = lone_surrogate(data["test"])
+    if found:
+        return f'"test" has {found}'
     comment = data.get("comment")
     problem = note_problem(data.get("turn"), data.get("rating"), comment)
     if problem:

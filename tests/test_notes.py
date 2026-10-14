@@ -149,6 +149,15 @@ def test_a_comment_with_a_lone_surrogate_gets_400(shop: Any) -> None:
     assert not (folder / notes.NOTES).exists()
 
 
+def test_a_test_id_with_a_lone_surrogate_gets_400(shop: Any) -> None:
+    # The answer for another test names the test, and UTF-8 cannot encode a lone surrogate.
+    _, server, folder = shop
+    data = b'{"test": "x\\ud83d", "turn": 1, "rating": "up", "comment": null}'
+    status, answer = post_note(server, data)
+    assert status == 400 and "lone surrogate U+D83D" in answer["error"]
+    assert not (folder / notes.NOTES).exists()
+
+
 def test_a_note_needs_a_turn_of_the_relay_record(shop: Any) -> None:
     _, server, folder = shop
     status, answer = post_note(server, {"turn": 3, "rating": "up", "comment": None})
