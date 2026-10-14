@@ -1,0 +1,76 @@
+{
+ "v": "0.2",
+ "test": "20261006-080000-me01",
+ "turns": 2,
+ "items": 3,
+ "sessions": [
+  {
+   "harness": "codex",
+   "session": "019a0b1c-2d3e-7f40-8a5b-6c7d8e9f0a1b",
+   "file": "sessions/codex/rollout-2026-10-06T08-00-00-019a0b1c-2d3e-7f40-8a5b-6c7d8e9f0a1b.jsonl",
+   "inferred": false,
+   "version": "0.162.1",
+   "items": 3,
+   "ignored": {
+    "event_msg.task_complete": 4,
+    "event_msg.task_started": 1,
+    "session_meta": 1
+   }
+  }
+ ],
+ "otel": null,
+ "backend": null,
+ "model_api": null,
+ "counts": {
+  "agent_error": 0,
+  "repeated_reply": 0,
+  "reply_not_from_model": 0,
+  "tool_error": 0,
+  "command_failed": 0,
+  "span_error": 0,
+  "backend_error": 0,
+  "model_api_error": 0,
+  "model_error": 3,
+  "turn_without_model": 0,
+  "item_between_turns": 0,
+  "otel_tool_not_in_session": 0,
+  "server_not_from_app": 0,
+  "session_inferred": 0,
+  "version_untested": 0
+ },
+ "findings": [
+  {
+   "check": "model_error",
+   "turn": 1,
+   "detail": "server_overloaded: Selected model is at capacity. Please try a different model.",
+   "harness": "codex",
+   "session": "019a0b1c-2d3e-7f40-8a5b-6c7d8e9f0a1b",
+   "source": {
+    "file": "sessions/codex/rollout-2026-10-06T08-00-00-019a0b1c-2d3e-7f40-8a5b-6c7d8e9f0a1b.jsonl",
+    "line": 4
+   }
+  },
+  {
+   "check": "model_error",
+   "turn": null,
+   "detail": "stream disconnected",
+   "harness": "codex",
+   "session": "019a0b1c-2d3e-7f40-8a5b-6c7d8e9f0a1b",
+   "source": {
+    "file": "sessions/codex/rollout-2026-10-06T08-00-00-019a0b1c-2d3e-7f40-8a5b-6c7d8e9f0a1b.jsonl",
+    "line": 8
+   }
+  },
+  {
+   "check": "model_error",
+   "turn": null,
+   "detail": "{\"codex_error_info\": \"other\"}",
+   "harness": "codex",
+   "session": "019a0b1c-2d3e-7f40-8a5b-6c7d8e9f0a1b",
+   "source": {
+    "file": "sessions/codex/rollout-2026-10-06T08-00-00-019a0b1c-2d3e-7f40-8a5b-6c7d8e9f0a1b.jsonl",
+    "line": 9
+   }
+  }
+ ]
+}
