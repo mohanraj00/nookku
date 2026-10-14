@@ -7,6 +7,7 @@
 <title>Nookku tests</title>
 <link rel="stylesheet" href="app.css">
 <link rel="stylesheet" href="dashboard.css">
+<script src="compare.js" defer></script>
 <script src="dashboard.js" defer></script>
 </head>
 <body>
@@ -41,10 +42,12 @@
   </form>
   <p id="error" role="alert" hidden></p>
   <p id="count" class="note"></p>
+  <p class="compare"><button type="button" id="compare" disabled>Compare</button> <span id="picked" class="note"></span></p>
   <div class="table">
     <table>
       <thead>
         <tr>
+          <th scope="col">Pick</th>
           <th scope="col">Test</th>
           <th scope="col">Started</th>
           <th scope="col">State</th>
