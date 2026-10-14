@@ -254,6 +254,9 @@ def test_a_long_or_deep_reply_does_not_stop_the_page() -> None:
         "- a\n" + "\n" * 100_000 + "  b\n",
         "**[x](a *b _c `d " * 11_000,
     ],
+    # A short id: pytest puts the id in the environment of node, and Linux refuses an
+    # environment string over 128 KiB.
+    ids=["brackets", "links", "angles", "stars", "under", "ticks", "lt", "http", "list", "mixed"],
 )
 def test_a_reply_of_many_open_marks_renders_in_linear_time(text: str) -> None:
     """Each of these texts took quadratic time in a first form of the renderer. On a laptop,
