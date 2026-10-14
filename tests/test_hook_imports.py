@@ -20,6 +20,7 @@ ALLOWED = {
     "nookku.hook",
     "nookku.kit",
     "nookku.policy",
+    "nookku.print_mode",
     "nookku.record",
     "nookku.seal",
     "nookku.state",

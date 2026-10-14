@@ -1,0 +1,1766 @@
+{
+  "issue": "https://github.com/mohanraj00/nookku/issues/199",
+  "upstream": "https://github.com/anthropics/claude-code/issues/100695",
+  "date": "2026-10-13",
+  "versions": {
+    "claude-code": "2.1.296",
+    "nookku": "0.4.3",
+    "python": "3.13.12"
+  },
+  "model": "haiku",
+  "method": "scripts/spike_print_mode.py",
+  "environments": {
+    "terminal": {},
+    "agent-sdk": {
+      "CLAUDE_AGENT_SDK_VERSION": "0.2.164"
+    },
+    "agent-sdk-no-title": {
+      "CLAUDE_AGENT_SDK_VERSION": "0.2.164",
+      "CLAUDE_CODE_DISABLE_TERMINAL_TITLE": "1"
+    }
+  },
+  "prompts": {
+    "first": "PM-FIRST-5e1a: is the toy mug in stock?",
+    "second": "PM-SECOND-9b3c: do you ship the teapot to Chennai?"
+  },
+  "source_inspection": {
+    "version": "2.1.296",
+    "purpose": "The request with no tools and 1 message asks for a session title. Its output schema has only a title property, and the first prompt is in its user message.",
+    "skip_condition": "Claude Code skips the title request if CLAUDE_CODE_DISABLE_TERMINAL_TITLE is set, or if essential traffic mode is on. In print mode (CLAUDE_CODE_ENTRYPOINT sdk-cli), it also skips it if CLAUDE_AGENT_SDK_VERSION is not set and no remote session is named, but only while a server-side feature flag allows the skip.",
+    "consequence": "In a plain terminal, print mode sent no title request in this capture, but a change of the server-side flag can turn the request on. So the relay refuses print mode in each environment, unless CLAUDE_CODE_DISABLE_TERMINAL_TITLE is true."
+  },
+  "cases": [
+    {
+      "form": "plugin",
+      "input": "text",
+      "environment": "terminal",
+      "summary": {
+        "runs": 3,
+        "first_prompt_in_a_model_request": 0,
+        "second_prompt_in_a_model_request": 0,
+        "title_requests": 0,
+        "title_requests_with_the_first_prompt": 0,
+        "relayed_prompts": 0,
+        "runs_with_the_refusal": 3,
+        "entrypoints_that_the_hook_saw": [
+          "sdk-cli"
+        ]
+      },
+      "runs": [
+        {
+          "exit": 0,
+          "blocked_shown": 1,
+          "refused": 1,
+          "model": [],
+          "relayed": 0,
+          "hook_saw": [
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": false,
+              "title_off": null
+            }
+          ]
+        },
+        {
+          "exit": 0,
+          "blocked_shown": 1,
+          "refused": 1,
+          "model": [],
+          "relayed": 0,
+          "hook_saw": [
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": false,
+              "title_off": null
+            }
+          ]
+        },
+        {
+          "exit": 0,
+          "blocked_shown": 1,
+          "refused": 1,
+          "model": [],
+          "relayed": 0,
+          "hook_saw": [
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": false,
+              "title_off": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "form": "plugin",
+      "input": "text",
+      "environment": "agent-sdk",
+      "summary": {
+        "runs": 3,
+        "first_prompt_in_a_model_request": 3,
+        "second_prompt_in_a_model_request": 0,
+        "title_requests": 3,
+        "title_requests_with_the_first_prompt": 3,
+        "relayed_prompts": 0,
+        "runs_with_the_refusal": 3,
+        "entrypoints_that_the_hook_saw": [
+          "sdk-cli"
+        ]
+      },
+      "runs": [
+        {
+          "exit": 0,
+          "blocked_shown": 1,
+          "refused": 1,
+          "model": [
+            {
+              "path": "/v1/messages",
+              "status": 200,
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PM-FIRST-5e1a": [
+                  "messages[0].user"
+                ],
+                "PM-SECOND-9b3c": []
+              },
+              "title_schema": true
+            }
+          ],
+          "relayed": 0,
+          "hook_saw": [
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": true,
+              "title_off": null
+            }
+          ]
+        },
+        {
+          "exit": 0,
+          "blocked_shown": 1,
+          "refused": 1,
+          "model": [
+            {
+              "path": "/v1/messages",
+              "status": 200,
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PM-FIRST-5e1a": [
+                  "messages[0].user"
+                ],
+                "PM-SECOND-9b3c": []
+              },
+              "title_schema": true
+            }
+          ],
+          "relayed": 0,
+          "hook_saw": [
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": true,
+              "title_off": null
+            }
+          ]
+        },
+        {
+          "exit": 0,
+          "blocked_shown": 1,
+          "refused": 1,
+          "model": [
+            {
+              "path": "/v1/messages",
+              "status": 200,
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PM-FIRST-5e1a": [
+                  "messages[0].user"
+                ],
+                "PM-SECOND-9b3c": []
+              },
+              "title_schema": true
+            }
+          ],
+          "relayed": 0,
+          "hook_saw": [
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": true,
+              "title_off": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "form": "plugin",
+      "input": "text",
+      "environment": "agent-sdk-no-title",
+      "summary": {
+        "runs": 3,
+        "first_prompt_in_a_model_request": 0,
+        "second_prompt_in_a_model_request": 0,
+        "title_requests": 0,
+        "title_requests_with_the_first_prompt": 0,
+        "relayed_prompts": 3,
+        "runs_with_the_refusal": 0,
+        "entrypoints_that_the_hook_saw": [
+          "sdk-cli"
+        ]
+      },
+      "runs": [
+        {
+          "exit": 0,
+          "blocked_shown": 1,
+          "refused": 0,
+          "model": [],
+          "relayed": 1,
+          "hook_saw": [
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": true,
+              "title_off": "1"
+            }
+          ]
+        },
+        {
+          "exit": 0,
+          "blocked_shown": 1,
+          "refused": 0,
+          "model": [],
+          "relayed": 1,
+          "hook_saw": [
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": true,
+              "title_off": "1"
+            }
+          ]
+        },
+        {
+          "exit": 0,
+          "blocked_shown": 1,
+          "refused": 0,
+          "model": [],
+          "relayed": 1,
+          "hook_saw": [
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": true,
+              "title_off": "1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "form": "plugin",
+      "input": "stream-json",
+      "environment": "terminal",
+      "summary": {
+        "runs": 3,
+        "first_prompt_in_a_model_request": 0,
+        "second_prompt_in_a_model_request": 0,
+        "title_requests": 0,
+        "title_requests_with_the_first_prompt": 0,
+        "relayed_prompts": 0,
+        "runs_with_the_refusal": 3,
+        "entrypoints_that_the_hook_saw": [
+          "sdk-cli"
+        ]
+      },
+      "runs": [
+        {
+          "exit": 0,
+          "blocked_shown": 2,
+          "refused": 2,
+          "model": [],
+          "relayed": 0,
+          "hook_saw": [
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": false,
+              "title_off": null
+            },
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": false,
+              "title_off": null
+            }
+          ]
+        },
+        {
+          "exit": 0,
+          "blocked_shown": 2,
+          "refused": 2,
+          "model": [],
+          "relayed": 0,
+          "hook_saw": [
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": false,
+              "title_off": null
+            },
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": false,
+              "title_off": null
+            }
+          ]
+        },
+        {
+          "exit": 0,
+          "blocked_shown": 2,
+          "refused": 2,
+          "model": [],
+          "relayed": 0,
+          "hook_saw": [
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": false,
+              "title_off": null
+            },
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": false,
+              "title_off": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "form": "plugin",
+      "input": "stream-json",
+      "environment": "agent-sdk",
+      "summary": {
+        "runs": 3,
+        "first_prompt_in_a_model_request": 3,
+        "second_prompt_in_a_model_request": 0,
+        "title_requests": 3,
+        "title_requests_with_the_first_prompt": 3,
+        "relayed_prompts": 0,
+        "runs_with_the_refusal": 3,
+        "entrypoints_that_the_hook_saw": [
+          "sdk-cli"
+        ]
+      },
+      "runs": [
+        {
+          "exit": 0,
+          "blocked_shown": 2,
+          "refused": 2,
+          "model": [
+            {
+              "path": "/v1/messages",
+              "status": 200,
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PM-FIRST-5e1a": [
+                  "messages[0].user"
+                ],
+                "PM-SECOND-9b3c": []
+              },
+              "title_schema": true
+            }
+          ],
+          "relayed": 0,
+          "hook_saw": [
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": true,
+              "title_off": null
+            },
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": true,
+              "title_off": null
+            }
+          ]
+        },
+        {
+          "exit": 0,
+          "blocked_shown": 2,
+          "refused": 2,
+          "model": [
+            {
+              "path": "/v1/messages",
+              "status": 200,
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PM-FIRST-5e1a": [
+                  "messages[0].user"
+                ],
+                "PM-SECOND-9b3c": []
+              },
+              "title_schema": true
+            }
+          ],
+          "relayed": 0,
+          "hook_saw": [
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": true,
+              "title_off": null
+            },
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": true,
+              "title_off": null
+            }
+          ]
+        },
+        {
+          "exit": 0,
+          "blocked_shown": 2,
+          "refused": 2,
+          "model": [
+            {
+              "path": "/v1/messages",
+              "status": 200,
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PM-FIRST-5e1a": [
+                  "messages[0].user"
+                ],
+                "PM-SECOND-9b3c": []
+              },
+              "title_schema": true
+            }
+          ],
+          "relayed": 0,
+          "hook_saw": [
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": true,
+              "title_off": null
+            },
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": true,
+              "title_off": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "form": "plugin",
+      "input": "stream-json",
+      "environment": "agent-sdk-no-title",
+      "summary": {
+        "runs": 3,
+        "first_prompt_in_a_model_request": 0,
+        "second_prompt_in_a_model_request": 0,
+        "title_requests": 0,
+        "title_requests_with_the_first_prompt": 0,
+        "relayed_prompts": 6,
+        "runs_with_the_refusal": 0,
+        "entrypoints_that_the_hook_saw": [
+          "sdk-cli"
+        ]
+      },
+      "runs": [
+        {
+          "exit": 0,
+          "blocked_shown": 2,
+          "refused": 0,
+          "model": [],
+          "relayed": 2,
+          "hook_saw": [
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": true,
+              "title_off": "1"
+            },
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": true,
+              "title_off": "1"
+            }
+          ]
+        },
+        {
+          "exit": 0,
+          "blocked_shown": 2,
+          "refused": 0,
+          "model": [],
+          "relayed": 2,
+          "hook_saw": [
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": true,
+              "title_off": "1"
+            },
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": true,
+              "title_off": "1"
+            }
+          ]
+        },
+        {
+          "exit": 0,
+          "blocked_shown": 2,
+          "refused": 0,
+          "model": [],
+          "relayed": 2,
+          "hook_saw": [
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": true,
+              "title_off": "1"
+            },
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": true,
+              "title_off": "1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "form": "plugin",
+      "input": "tty",
+      "environment": "terminal",
+      "summary": {
+        "runs": 3,
+        "first_prompt_in_a_model_request": 0,
+        "second_prompt_in_a_model_request": 0,
+        "title_requests": 0,
+        "title_requests_with_the_first_prompt": 0,
+        "relayed_prompts": 6,
+        "runs_with_the_refusal": 0,
+        "entrypoints_that_the_hook_saw": [
+          "cli"
+        ]
+      },
+      "runs": [
+        {
+          "blocked_shown": 2,
+          "refused_shown": false,
+          "model": [
+            {
+              "path": "/v1/messages",
+              "status": 429,
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PM-FIRST-5e1a": [],
+                "PM-SECOND-9b3c": []
+              },
+              "title_schema": false
+            }
+          ],
+          "relayed": 2,
+          "hook_saw": [
+            {
+              "entrypoint": "cli",
+              "agent_sdk_version_set": false,
+              "title_off": null
+            },
+            {
+              "entrypoint": "cli",
+              "agent_sdk_version_set": false,
+              "title_off": null
+            }
+          ]
+        },
+        {
+          "blocked_shown": 2,
+          "refused_shown": false,
+          "model": [
+            {
+              "path": "/v1/messages",
+              "status": 429,
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PM-FIRST-5e1a": [],
+                "PM-SECOND-9b3c": []
+              },
+              "title_schema": false
+            }
+          ],
+          "relayed": 2,
+          "hook_saw": [
+            {
+              "entrypoint": "cli",
+              "agent_sdk_version_set": false,
+              "title_off": null
+            },
+            {
+              "entrypoint": "cli",
+              "agent_sdk_version_set": false,
+              "title_off": null
+            }
+          ]
+        },
+        {
+          "blocked_shown": 2,
+          "refused_shown": false,
+          "model": [
+            {
+              "path": "/v1/messages",
+              "status": 429,
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PM-FIRST-5e1a": [],
+                "PM-SECOND-9b3c": []
+              },
+              "title_schema": false
+            }
+          ],
+          "relayed": 2,
+          "hook_saw": [
+            {
+              "entrypoint": "cli",
+              "agent_sdk_version_set": false,
+              "title_off": null
+            },
+            {
+              "entrypoint": "cli",
+              "agent_sdk_version_set": false,
+              "title_off": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "form": "plugin",
+      "input": "tty",
+      "environment": "agent-sdk",
+      "summary": {
+        "runs": 3,
+        "first_prompt_in_a_model_request": 0,
+        "second_prompt_in_a_model_request": 0,
+        "title_requests": 0,
+        "title_requests_with_the_first_prompt": 0,
+        "relayed_prompts": 6,
+        "runs_with_the_refusal": 0,
+        "entrypoints_that_the_hook_saw": [
+          "cli"
+        ]
+      },
+      "runs": [
+        {
+          "blocked_shown": 2,
+          "refused_shown": false,
+          "model": [
+            {
+              "path": "/v1/messages",
+              "status": 429,
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PM-FIRST-5e1a": [],
+                "PM-SECOND-9b3c": []
+              },
+              "title_schema": false
+            }
+          ],
+          "relayed": 2,
+          "hook_saw": [
+            {
+              "entrypoint": "cli",
+              "agent_sdk_version_set": true,
+              "title_off": null
+            },
+            {
+              "entrypoint": "cli",
+              "agent_sdk_version_set": true,
+              "title_off": null
+            }
+          ]
+        },
+        {
+          "blocked_shown": 2,
+          "refused_shown": false,
+          "model": [
+            {
+              "path": "/v1/messages",
+              "status": 429,
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PM-FIRST-5e1a": [],
+                "PM-SECOND-9b3c": []
+              },
+              "title_schema": false
+            }
+          ],
+          "relayed": 2,
+          "hook_saw": [
+            {
+              "entrypoint": "cli",
+              "agent_sdk_version_set": true,
+              "title_off": null
+            },
+            {
+              "entrypoint": "cli",
+              "agent_sdk_version_set": true,
+              "title_off": null
+            }
+          ]
+        },
+        {
+          "blocked_shown": 2,
+          "refused_shown": false,
+          "model": [
+            {
+              "path": "/v1/messages",
+              "status": 429,
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PM-FIRST-5e1a": [],
+                "PM-SECOND-9b3c": []
+              },
+              "title_schema": false
+            }
+          ],
+          "relayed": 2,
+          "hook_saw": [
+            {
+              "entrypoint": "cli",
+              "agent_sdk_version_set": true,
+              "title_off": null
+            },
+            {
+              "entrypoint": "cli",
+              "agent_sdk_version_set": true,
+              "title_off": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "form": "plugin",
+      "input": "tty",
+      "environment": "agent-sdk-no-title",
+      "summary": {
+        "runs": 3,
+        "first_prompt_in_a_model_request": 0,
+        "second_prompt_in_a_model_request": 0,
+        "title_requests": 0,
+        "title_requests_with_the_first_prompt": 0,
+        "relayed_prompts": 6,
+        "runs_with_the_refusal": 0,
+        "entrypoints_that_the_hook_saw": [
+          "cli"
+        ]
+      },
+      "runs": [
+        {
+          "blocked_shown": 2,
+          "refused_shown": false,
+          "model": [
+            {
+              "path": "/v1/messages",
+              "status": 429,
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PM-FIRST-5e1a": [],
+                "PM-SECOND-9b3c": []
+              },
+              "title_schema": false
+            }
+          ],
+          "relayed": 2,
+          "hook_saw": [
+            {
+              "entrypoint": "cli",
+              "agent_sdk_version_set": true,
+              "title_off": "1"
+            },
+            {
+              "entrypoint": "cli",
+              "agent_sdk_version_set": true,
+              "title_off": "1"
+            }
+          ]
+        },
+        {
+          "blocked_shown": 2,
+          "refused_shown": false,
+          "model": [
+            {
+              "path": "/v1/messages",
+              "status": 429,
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PM-FIRST-5e1a": [],
+                "PM-SECOND-9b3c": []
+              },
+              "title_schema": false
+            }
+          ],
+          "relayed": 2,
+          "hook_saw": [
+            {
+              "entrypoint": "cli",
+              "agent_sdk_version_set": true,
+              "title_off": "1"
+            },
+            {
+              "entrypoint": "cli",
+              "agent_sdk_version_set": true,
+              "title_off": "1"
+            }
+          ]
+        },
+        {
+          "blocked_shown": 2,
+          "refused_shown": false,
+          "model": [
+            {
+              "path": "/v1/messages",
+              "status": 429,
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PM-FIRST-5e1a": [],
+                "PM-SECOND-9b3c": []
+              },
+              "title_schema": false
+            }
+          ],
+          "relayed": 2,
+          "hook_saw": [
+            {
+              "entrypoint": "cli",
+              "agent_sdk_version_set": true,
+              "title_off": "1"
+            },
+            {
+              "entrypoint": "cli",
+              "agent_sdk_version_set": true,
+              "title_off": "1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "form": "hooks",
+      "input": "text",
+      "environment": "terminal",
+      "summary": {
+        "runs": 3,
+        "first_prompt_in_a_model_request": 0,
+        "second_prompt_in_a_model_request": 0,
+        "title_requests": 0,
+        "title_requests_with_the_first_prompt": 0,
+        "relayed_prompts": 0,
+        "runs_with_the_refusal": 3,
+        "entrypoints_that_the_hook_saw": [
+          "sdk-cli"
+        ]
+      },
+      "runs": [
+        {
+          "exit": 0,
+          "blocked_shown": 1,
+          "refused": 1,
+          "model": [],
+          "relayed": 0,
+          "hook_saw": [
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": false,
+              "title_off": null
+            }
+          ]
+        },
+        {
+          "exit": 0,
+          "blocked_shown": 1,
+          "refused": 1,
+          "model": [],
+          "relayed": 0,
+          "hook_saw": [
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": false,
+              "title_off": null
+            }
+          ]
+        },
+        {
+          "exit": 0,
+          "blocked_shown": 1,
+          "refused": 1,
+          "model": [],
+          "relayed": 0,
+          "hook_saw": [
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": false,
+              "title_off": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "form": "hooks",
+      "input": "text",
+      "environment": "agent-sdk",
+      "summary": {
+        "runs": 3,
+        "first_prompt_in_a_model_request": 3,
+        "second_prompt_in_a_model_request": 0,
+        "title_requests": 3,
+        "title_requests_with_the_first_prompt": 3,
+        "relayed_prompts": 0,
+        "runs_with_the_refusal": 3,
+        "entrypoints_that_the_hook_saw": [
+          "sdk-cli"
+        ]
+      },
+      "runs": [
+        {
+          "exit": 0,
+          "blocked_shown": 1,
+          "refused": 1,
+          "model": [
+            {
+              "path": "/v1/messages",
+              "status": 200,
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PM-FIRST-5e1a": [
+                  "messages[0].user"
+                ],
+                "PM-SECOND-9b3c": []
+              },
+              "title_schema": true
+            }
+          ],
+          "relayed": 0,
+          "hook_saw": [
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": true,
+              "title_off": null
+            }
+          ]
+        },
+        {
+          "exit": 0,
+          "blocked_shown": 1,
+          "refused": 1,
+          "model": [
+            {
+              "path": "/v1/messages",
+              "status": 200,
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PM-FIRST-5e1a": [
+                  "messages[0].user"
+                ],
+                "PM-SECOND-9b3c": []
+              },
+              "title_schema": true
+            }
+          ],
+          "relayed": 0,
+          "hook_saw": [
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": true,
+              "title_off": null
+            }
+          ]
+        },
+        {
+          "exit": 0,
+          "blocked_shown": 1,
+          "refused": 1,
+          "model": [
+            {
+              "path": "/v1/messages",
+              "status": 200,
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PM-FIRST-5e1a": [
+                  "messages[0].user"
+                ],
+                "PM-SECOND-9b3c": []
+              },
+              "title_schema": true
+            }
+          ],
+          "relayed": 0,
+          "hook_saw": [
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": true,
+              "title_off": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "form": "hooks",
+      "input": "text",
+      "environment": "agent-sdk-no-title",
+      "summary": {
+        "runs": 3,
+        "first_prompt_in_a_model_request": 0,
+        "second_prompt_in_a_model_request": 0,
+        "title_requests": 0,
+        "title_requests_with_the_first_prompt": 0,
+        "relayed_prompts": 3,
+        "runs_with_the_refusal": 0,
+        "entrypoints_that_the_hook_saw": [
+          "sdk-cli"
+        ]
+      },
+      "runs": [
+        {
+          "exit": 0,
+          "blocked_shown": 1,
+          "refused": 0,
+          "model": [],
+          "relayed": 1,
+          "hook_saw": [
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": true,
+              "title_off": "1"
+            }
+          ]
+        },
+        {
+          "exit": 0,
+          "blocked_shown": 1,
+          "refused": 0,
+          "model": [],
+          "relayed": 1,
+          "hook_saw": [
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": true,
+              "title_off": "1"
+            }
+          ]
+        },
+        {
+          "exit": 0,
+          "blocked_shown": 1,
+          "refused": 0,
+          "model": [],
+          "relayed": 1,
+          "hook_saw": [
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": true,
+              "title_off": "1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "form": "hooks",
+      "input": "stream-json",
+      "environment": "terminal",
+      "summary": {
+        "runs": 3,
+        "first_prompt_in_a_model_request": 0,
+        "second_prompt_in_a_model_request": 0,
+        "title_requests": 0,
+        "title_requests_with_the_first_prompt": 0,
+        "relayed_prompts": 0,
+        "runs_with_the_refusal": 3,
+        "entrypoints_that_the_hook_saw": [
+          "sdk-cli"
+        ]
+      },
+      "runs": [
+        {
+          "exit": 0,
+          "blocked_shown": 2,
+          "refused": 2,
+          "model": [],
+          "relayed": 0,
+          "hook_saw": [
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": false,
+              "title_off": null
+            },
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": false,
+              "title_off": null
+            }
+          ]
+        },
+        {
+          "exit": 0,
+          "blocked_shown": 2,
+          "refused": 2,
+          "model": [],
+          "relayed": 0,
+          "hook_saw": [
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": false,
+              "title_off": null
+            },
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": false,
+              "title_off": null
+            }
+          ]
+        },
+        {
+          "exit": 0,
+          "blocked_shown": 2,
+          "refused": 2,
+          "model": [],
+          "relayed": 0,
+          "hook_saw": [
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": false,
+              "title_off": null
+            },
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": false,
+              "title_off": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "form": "hooks",
+      "input": "stream-json",
+      "environment": "agent-sdk",
+      "summary": {
+        "runs": 3,
+        "first_prompt_in_a_model_request": 3,
+        "second_prompt_in_a_model_request": 0,
+        "title_requests": 3,
+        "title_requests_with_the_first_prompt": 3,
+        "relayed_prompts": 0,
+        "runs_with_the_refusal": 3,
+        "entrypoints_that_the_hook_saw": [
+          "sdk-cli"
+        ]
+      },
+      "runs": [
+        {
+          "exit": 0,
+          "blocked_shown": 2,
+          "refused": 2,
+          "model": [
+            {
+              "path": "/v1/messages",
+              "status": 200,
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PM-FIRST-5e1a": [
+                  "messages[0].user"
+                ],
+                "PM-SECOND-9b3c": []
+              },
+              "title_schema": true
+            }
+          ],
+          "relayed": 0,
+          "hook_saw": [
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": true,
+              "title_off": null
+            },
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": true,
+              "title_off": null
+            }
+          ]
+        },
+        {
+          "exit": 0,
+          "blocked_shown": 2,
+          "refused": 2,
+          "model": [
+            {
+              "path": "/v1/messages",
+              "status": 200,
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PM-FIRST-5e1a": [
+                  "messages[0].user"
+                ],
+                "PM-SECOND-9b3c": []
+              },
+              "title_schema": true
+            }
+          ],
+          "relayed": 0,
+          "hook_saw": [
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": true,
+              "title_off": null
+            },
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": true,
+              "title_off": null
+            }
+          ]
+        },
+        {
+          "exit": 0,
+          "blocked_shown": 2,
+          "refused": 2,
+          "model": [
+            {
+              "path": "/v1/messages",
+              "status": 200,
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PM-FIRST-5e1a": [
+                  "messages[0].user"
+                ],
+                "PM-SECOND-9b3c": []
+              },
+              "title_schema": true
+            }
+          ],
+          "relayed": 0,
+          "hook_saw": [
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": true,
+              "title_off": null
+            },
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": true,
+              "title_off": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "form": "hooks",
+      "input": "stream-json",
+      "environment": "agent-sdk-no-title",
+      "summary": {
+        "runs": 3,
+        "first_prompt_in_a_model_request": 0,
+        "second_prompt_in_a_model_request": 0,
+        "title_requests": 0,
+        "title_requests_with_the_first_prompt": 0,
+        "relayed_prompts": 6,
+        "runs_with_the_refusal": 0,
+        "entrypoints_that_the_hook_saw": [
+          "sdk-cli"
+        ]
+      },
+      "runs": [
+        {
+          "exit": 0,
+          "blocked_shown": 2,
+          "refused": 0,
+          "model": [],
+          "relayed": 2,
+          "hook_saw": [
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": true,
+              "title_off": "1"
+            },
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": true,
+              "title_off": "1"
+            }
+          ]
+        },
+        {
+          "exit": 0,
+          "blocked_shown": 2,
+          "refused": 0,
+          "model": [],
+          "relayed": 2,
+          "hook_saw": [
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": true,
+              "title_off": "1"
+            },
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": true,
+              "title_off": "1"
+            }
+          ]
+        },
+        {
+          "exit": 0,
+          "blocked_shown": 2,
+          "refused": 0,
+          "model": [],
+          "relayed": 2,
+          "hook_saw": [
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": true,
+              "title_off": "1"
+            },
+            {
+              "entrypoint": "sdk-cli",
+              "agent_sdk_version_set": true,
+              "title_off": "1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "form": "hooks",
+      "input": "tty",
+      "environment": "terminal",
+      "summary": {
+        "runs": 3,
+        "first_prompt_in_a_model_request": 0,
+        "second_prompt_in_a_model_request": 0,
+        "title_requests": 0,
+        "title_requests_with_the_first_prompt": 0,
+        "relayed_prompts": 6,
+        "runs_with_the_refusal": 0,
+        "entrypoints_that_the_hook_saw": [
+          "cli"
+        ]
+      },
+      "runs": [
+        {
+          "blocked_shown": 2,
+          "refused_shown": false,
+          "model": [
+            {
+              "path": "/v1/messages",
+              "status": 429,
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PM-FIRST-5e1a": [],
+                "PM-SECOND-9b3c": []
+              },
+              "title_schema": false
+            }
+          ],
+          "relayed": 2,
+          "hook_saw": [
+            {
+              "entrypoint": "cli",
+              "agent_sdk_version_set": false,
+              "title_off": null
+            },
+            {
+              "entrypoint": "cli",
+              "agent_sdk_version_set": false,
+              "title_off": null
+            }
+          ]
+        },
+        {
+          "blocked_shown": 2,
+          "refused_shown": false,
+          "model": [
+            {
+              "path": "/v1/messages",
+              "status": 429,
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PM-FIRST-5e1a": [],
+                "PM-SECOND-9b3c": []
+              },
+              "title_schema": false
+            }
+          ],
+          "relayed": 2,
+          "hook_saw": [
+            {
+              "entrypoint": "cli",
+              "agent_sdk_version_set": false,
+              "title_off": null
+            },
+            {
+              "entrypoint": "cli",
+              "agent_sdk_version_set": false,
+              "title_off": null
+            }
+          ]
+        },
+        {
+          "blocked_shown": 2,
+          "refused_shown": false,
+          "model": [
+            {
+              "path": "/v1/messages",
+              "status": 429,
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PM-FIRST-5e1a": [],
+                "PM-SECOND-9b3c": []
+              },
+              "title_schema": false
+            }
+          ],
+          "relayed": 2,
+          "hook_saw": [
+            {
+              "entrypoint": "cli",
+              "agent_sdk_version_set": false,
+              "title_off": null
+            },
+            {
+              "entrypoint": "cli",
+              "agent_sdk_version_set": false,
+              "title_off": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "form": "hooks",
+      "input": "tty",
+      "environment": "agent-sdk",
+      "summary": {
+        "runs": 3,
+        "first_prompt_in_a_model_request": 0,
+        "second_prompt_in_a_model_request": 0,
+        "title_requests": 0,
+        "title_requests_with_the_first_prompt": 0,
+        "relayed_prompts": 6,
+        "runs_with_the_refusal": 0,
+        "entrypoints_that_the_hook_saw": [
+          "cli"
+        ]
+      },
+      "runs": [
+        {
+          "blocked_shown": 2,
+          "refused_shown": false,
+          "model": [
+            {
+              "path": "/v1/messages",
+              "status": 429,
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PM-FIRST-5e1a": [],
+                "PM-SECOND-9b3c": []
+              },
+              "title_schema": false
+            }
+          ],
+          "relayed": 2,
+          "hook_saw": [
+            {
+              "entrypoint": "cli",
+              "agent_sdk_version_set": true,
+              "title_off": null
+            },
+            {
+              "entrypoint": "cli",
+              "agent_sdk_version_set": true,
+              "title_off": null
+            }
+          ]
+        },
+        {
+          "blocked_shown": 2,
+          "refused_shown": false,
+          "model": [
+            {
+              "path": "/v1/messages",
+              "status": 429,
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PM-FIRST-5e1a": [],
+                "PM-SECOND-9b3c": []
+              },
+              "title_schema": false
+            }
+          ],
+          "relayed": 2,
+          "hook_saw": [
+            {
+              "entrypoint": "cli",
+              "agent_sdk_version_set": true,
+              "title_off": null
+            },
+            {
+              "entrypoint": "cli",
+              "agent_sdk_version_set": true,
+              "title_off": null
+            }
+          ]
+        },
+        {
+          "blocked_shown": 2,
+          "refused_shown": false,
+          "model": [
+            {
+              "path": "/v1/messages",
+              "status": 429,
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PM-FIRST-5e1a": [],
+                "PM-SECOND-9b3c": []
+              },
+              "title_schema": false
+            }
+          ],
+          "relayed": 2,
+          "hook_saw": [
+            {
+              "entrypoint": "cli",
+              "agent_sdk_version_set": true,
+              "title_off": null
+            },
+            {
+              "entrypoint": "cli",
+              "agent_sdk_version_set": true,
+              "title_off": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "form": "hooks",
+      "input": "tty",
+      "environment": "agent-sdk-no-title",
+      "summary": {
+        "runs": 3,
+        "first_prompt_in_a_model_request": 0,
+        "second_prompt_in_a_model_request": 0,
+        "title_requests": 0,
+        "title_requests_with_the_first_prompt": 0,
+        "relayed_prompts": 6,
+        "runs_with_the_refusal": 0,
+        "entrypoints_that_the_hook_saw": [
+          "cli"
+        ]
+      },
+      "runs": [
+        {
+          "blocked_shown": 2,
+          "refused_shown": false,
+          "model": [
+            {
+              "path": "/v1/messages",
+              "status": 429,
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PM-FIRST-5e1a": [],
+                "PM-SECOND-9b3c": []
+              },
+              "title_schema": false
+            }
+          ],
+          "relayed": 2,
+          "hook_saw": [
+            {
+              "entrypoint": "cli",
+              "agent_sdk_version_set": true,
+              "title_off": "1"
+            },
+            {
+              "entrypoint": "cli",
+              "agent_sdk_version_set": true,
+              "title_off": "1"
+            }
+          ]
+        },
+        {
+          "blocked_shown": 2,
+          "refused_shown": false,
+          "model": [
+            {
+              "path": "/v1/messages",
+              "status": 429,
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PM-FIRST-5e1a": [],
+                "PM-SECOND-9b3c": []
+              },
+              "title_schema": false
+            }
+          ],
+          "relayed": 2,
+          "hook_saw": [
+            {
+              "entrypoint": "cli",
+              "agent_sdk_version_set": true,
+              "title_off": "1"
+            },
+            {
+              "entrypoint": "cli",
+              "agent_sdk_version_set": true,
+              "title_off": "1"
+            }
+          ]
+        },
+        {
+          "blocked_shown": 2,
+          "refused_shown": false,
+          "model": [
+            {
+              "path": "/v1/messages",
+              "status": 429,
+              "model": "claude-haiku-5-5",
+              "tools": 0,
+              "messages": 1,
+              "found": {
+                "PM-FIRST-5e1a": [],
+                "PM-SECOND-9b3c": []
+              },
+              "title_schema": false
+            }
+          ],
+          "relayed": 2,
+          "hook_saw": [
+            {
+              "entrypoint": "cli",
+              "agent_sdk_version_set": true,
+              "title_off": "1"
+            },
+            {
+              "entrypoint": "cli",
+              "agent_sdk_version_set": true,
+              "title_off": "1"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "slash_start": {
+    "date": "2026-10-13",
+    "claude-code": "2.1.296",
+    "nookku": "0.4.3",
+    "cases": {
+      "terminal": [
+        {
+          "exit": 0,
+          "refused": true,
+          "relay_mode_on": false
+        },
+        {
+          "exit": 0,
+          "refused": true,
+          "relay_mode_on": false
+        },
+        {
+          "exit": 0,
+          "refused": true,
+          "relay_mode_on": false
+        }
+      ],
+      "agent-sdk": [
+        {
+          "exit": 0,
+          "refused": true,
+          "relay_mode_on": false
+        },
+        {
+          "exit": 0,
+          "refused": true,
+          "relay_mode_on": false
+        },
+        {
+          "exit": 0,
+          "refused": true,
+          "relay_mode_on": false
+        }
+      ],
+      "agent-sdk-no-title": [
+        {
+          "exit": 0,
+          "refused": false,
+          "relay_mode_on": true
+        },
+        {
+          "exit": 0,
+          "refused": false,
+          "relay_mode_on": true
+        },
+        {
+          "exit": 0,
+          "refused": false,
+          "relay_mode_on": true
+        }
+      ]
+    }
+  }
+}

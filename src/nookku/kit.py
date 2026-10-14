@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any, TextIO
 from urllib.parse import urlsplit
 
-from nookku import commands, policy, seal, state
+from nookku import commands, policy, print_mode, seal, state
 from nookku.adapters import AdapterError, History, StreamError, is_stream, make
 from nookku.config import FILE as CONFIG_FILE
 from nookku.config import OLD_STATE_DIR, check, move_old_state, read_config
@@ -308,6 +308,11 @@ def handle(event: dict[str, Any], root: Path, harness: str) -> dict[str, Any] | 
     if name == "UserPromptSubmit":
         said = event.get("prompt")
         session = event.get("session_id") if isinstance(event.get("session_id"), str) else None
+        # Out of the interactive CLI, Claude Code can send the prompt to the model API in a title
+        # request. The relay refuses to start a test and to relay a message (SPEC.md section 5).
+        in_print_mode = print_mode.applies(os.environ, harness)
+        if in_print_mode and isinstance(said, str) and said.strip() == "nookku start":
+            return _block(print_mode.REASON)
         if isinstance(said, str) and said.strip() in CONTROL:
             from nookku import evaluation
 
@@ -320,6 +325,9 @@ def handle(event: dict[str, Any], root: Path, harness: str) -> dict[str, Any] | 
             return _context(f"{text}\n\n{evaluation.prompt(folder)}")
         if not is_on(root):
             return None
+        if in_print_mode:
+            # A refused message is not a turn, so the relay writes no row.
+            return _block(print_mode.REASON)
         try:
             config = Config.load(root)
         except (OSError, ValueError, TypeError) as e:

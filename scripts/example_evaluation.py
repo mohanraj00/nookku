@@ -21,6 +21,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path[:0] = [str(ROOT / "src")]
 
+from proof_common import NO_TITLE  # noqa: E402
+
 from nookku.adapters import make  # noqa: E402
 from nookku.audit import audit  # noqa: E402
 from nookku.record import Turn, read_relay  # noqa: E402
@@ -42,7 +44,11 @@ PROMPT = (
 )
 PLUGIN = ["--plugin-dir", str(ROOT / "plugins" / "claude-code")]
 # The transcript tool of the plugin runs the nookku command of this checkout.
-ENV = {**os.environ, "PATH": f"{ROOT / '.venv' / 'bin'}{os.pathsep}{os.environ['PATH']}"}
+ENV = {
+    **os.environ,
+    **NO_TITLE,
+    "PATH": f"{ROOT / '.venv' / 'bin'}{os.pathsep}{os.environ['PATH']}",
+}
 
 
 def settings(tap_url: str, record: Path, on: bool) -> list[str]:
