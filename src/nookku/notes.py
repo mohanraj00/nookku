@@ -15,7 +15,7 @@ import os
 from pathlib import Path
 from typing import Any
 
-from nookku import state
+from nookku import dashboard, state
 from nookku.record import RecordError, Writer, lone_surrogate, note_problem, read_rows, turns
 
 NOTES = "notes.jsonl"
@@ -31,6 +31,7 @@ NO_TURN = "nookku: the test has no turn {turn}, so the page writes no note."
 OTHER_TEST = (
     "nookku: the page shows test {shown}, but test {current} runs, so the page writes no note."
 )
+NO_ID = "nookku: no test has this id."
 BAD_RELAY = "nookku: the page cannot read the relay record, so it writes no note: {error}"
 
 
@@ -101,14 +102,20 @@ def _add_locked(
     return {"saved": True, "error": None}
 
 
-def view(root: Path) -> dict[str, Any]:
-    """The notes of the test that the page shows: the running test, else the latest test. For
-    each turn, the page shows the last note."""
+def view(root: Path, test_id: str | None = None) -> dict[str, Any]:
+    """The notes of the test that the page shows: the test with the id `test_id` (from the
+    dashboard), else the running test, else the latest test. For each turn, the page shows the
+    last note."""
     cur = state.current(root)
     folder = Path(cur["dir"]) if cur else state.latest_test(root)
+    if test_id is not None:
+        folder = dashboard.find(root, test_id)
+        if folder is None:
+            return {"test": None, "running": False, "notes": [], "error": NO_ID}
     if folder is None:
         return {"test": None, "running": False, "notes": [], "error": None}
-    out: dict[str, Any] = {"test": folder.name, "running": cur is not None, "error": None}
+    running = cur is not None and Path(cur["dir"]).name == folder.name
+    out: dict[str, Any] = {"test": folder.name, "running": running, "error": None}
     try:
         rows = read_rows("notes", folder / NOTES, missing_ok=True)
     except RecordError as e:

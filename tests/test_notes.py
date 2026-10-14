@@ -17,7 +17,7 @@ import pytest
 from test_page import TOY_ENTRY, base, make_folder, request, send, start_page, write_current
 
 from nookku import bridge, evaluation, kit, notes, page, seal, state
-from nookku.record import RecordError, read_rows, turns
+from nookku.record import RecordError, Writer, read_rows, turns
 from nookku.stdio import Agent, StdioTap, start_in_thread
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -174,6 +174,35 @@ def test_a_note_for_another_test_is_refused(shop: Any) -> None:
     other = notes.OTHER_TEST.format(shown="20261012-080000-0000", current=SHOP_TEST)
     assert answer == {"saved": False, "error": other}
     assert not (folder / notes.NOTES).exists()
+
+
+def test_the_page_shows_the_notes_of_the_test_that_the_dashboard_opened(shop: Any) -> None:
+    root, server, folder = shop
+    assert post_note(server, {"turn": 1, "rating": "up", "comment": None})[1]["saved"]
+    # An earlier test of the toy shop, with a note of its own on turn 1.
+    old = root / ".nookku" / "tests" / "20261012-080000-0000"
+    old.mkdir()
+    (old / "manifest.json").write_text(json.dumps({"started": 1_700_000_000.0, "ended": 1.0}))
+    Writer(old / notes.NOTES).append(
+        {"type": "note", "turn": 1, "rating": "down", "comment": "It gave no order date."}
+    )
+    status, _, body = request(server, "GET", base(server) + notes.VIEW_ROUTE + "/" + old.name)
+    shown = json.loads(body)
+    assert status == 200 and shown["test"] == old.name and shown["running"] is False
+    assert [(n["turn"], n["rating"], n["comment"]) for n in shown["notes"]] == [
+        (1, "down", "It gave no order date.")
+    ]
+    status, _, body = request(server, "GET", base(server) + notes.VIEW_ROUTE + "/" + folder.name)
+    shown = json.loads(body)
+    assert status == 200 and shown["running"] is True
+    assert [(n["turn"], n["rating"]) for n in shown["notes"]] == [(1, "up")]
+    status, _, body = request(server, "GET", base(server) + notes.VIEW_ROUTE + "/..%2F..")
+    assert status == 404 and json.loads(body) == {
+        "test": None,
+        "running": False,
+        "notes": [],
+        "error": notes.NO_ID,
+    }
 
 
 def test_a_broken_relay_record_gives_no_note(shop: Any) -> None:

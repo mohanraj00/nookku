@@ -104,7 +104,7 @@ The page posts a note to `api/note`, with the token path and the checks of a `PO
 - the page server can read `manifest.json` of the test as a JSON object, the manifest has no `ended`, and the test folder has no `audit.json` and no `seal.json`;
 - `relay.jsonl` can be read, and it has the turn of the note.
 
-Else the page server writes nothing, and the page shows the reason. Thus no note goes into the folder after the end of the test writes its seal. The seal covers `notes.jsonl` (section 7.4). `api/notes` gives the notes of the test that the page shows.
+Else the page server writes nothing, and the page shows the reason. Thus no note goes into the folder after the end of the test writes its seal. The seal covers `notes.jsonl` (section 7.4). `api/notes` gives the notes of the running test, else the latest test. `api/notes/<test id>` gives the notes of the test that the dashboard opened, or 404 if no test has this id.
 
 A note is the opinion of the tester, not a finding. The evaluation prompt (section 9.2) tells the model to read `notes.jsonl`, to check each note against the records, and to cite each note as `notes.jsonl:N` in a "Tester notes" table of `report.md`. The prompt tells the model not to report an issue only because of a note. `nookku transcript --trace` reads `notes.jsonl` with the reader of this section. If a line is not valid, the transcript is `Record: INVALID.` with the error (section 9.2), so the model does not judge the app and does not read the notes.
 

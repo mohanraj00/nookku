@@ -137,9 +137,20 @@ async function saveNote(li, clicked) {
   }
 }
 
+// The dashboard opens the page of one test with #<test id> (#349). Show the notes of that test.
+function notesUrl() {
+  let id = "";
+  try {
+    id = decodeURIComponent(window.location.hash.slice(1));
+  } catch (e) {
+    id = window.location.hash.slice(1);
+  }
+  return id ? "api/notes/" + encodeURIComponent(id) : "api/notes";
+}
+
 async function refreshNotes() {
   try {
-    const resp = await fetch("api/notes", { cache: "no-store" });
+    const resp = await fetch(notesUrl(), { cache: "no-store" });
     const data = await resp.json();
     notesTest = data.test;
     notesRunning = data.running === true && !data.error;

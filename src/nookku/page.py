@@ -307,6 +307,9 @@ class _Handler(BaseHTTPRequestHandler):
             self._json(200, view(self.server.root))
         elif rest == notes.VIEW_ROUTE:
             self._json(200, notes.view(self.server.root))
+        elif rest.startswith(notes.VIEW_ROUTE + "/"):
+            data = notes.view(self.server.root, unquote(rest[len(notes.VIEW_ROUTE) + 1 :]))
+            self._json(200 if data["test"] else 404, data)
         elif rest.startswith("api/turns/"):
             data = view(self.server.root, unquote(rest[len("api/turns/") :]))
             self._json(200 if data["test"] else 404, data)
