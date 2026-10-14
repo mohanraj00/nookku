@@ -525,6 +525,41 @@ def test_the_sample_report_of_the_readme_is_an_excerpt_of_its_data() -> None:
     assert f"The full report has {rows} rows and {notes} notes." in section
 
 
+CAPTURE = re.compile(
+    r'<img src="https://raw\.githubusercontent\.com/mohanraj00/nookku/main/([^"]+\.png)" '
+    r'alt="([^"]+)"'
+)
+
+
+def test_the_capture_of_the_chat_page_has_its_record_and_shows_on_pypi(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # PyPI shows only an absolute image URL. The record of the run is next to the image (#307).
+    section = _sections(ROOT / "README.md", "##")["Try it with no model"]
+    found = CAPTURE.search(section)
+    assert found, "the try has no capture with an absolute URL and alt text"
+    image = ROOT / found.group(1)
+    data = image.read_bytes()
+    assert data.startswith(b"\x89PNG\r\n\x1a\n") and len(data) < 300_000
+    assert len(found.group(2).split()) >= 10
+    folder = image.parent
+    assert f"({folder.relative_to(ROOT)}/test/)" in section
+    assert f"({folder.relative_to(ROOT)}/capture.json)" in section
+    method = json.loads((folder / "capture.json").read_text(encoding="utf-8"))
+    test = folder / method["record"]
+    relay = [json.loads(line) for line in (test / "relay.jsonl").read_text("utf-8").splitlines()]
+    script = (test / "script.jsonl").read_text(encoding="utf-8").splitlines()
+    assert [turn["said"] for turn in relay] == [json.loads(line)["said"] for line in script]
+    tap, rel = str(test / "tap.jsonl"), str(test / "relay.jsonl")
+    assert cli.main(["audit", "--tap", tap, "--relay", rel]) == 0
+    capsys.readouterr()
+    # The page URL, its token and the local paths of the run stay out of the repo.
+    for path in folder.rglob("*"):
+        if path.is_file() and path.suffix in {".json", ".jsonl"}:
+            text = path.read_text(encoding="utf-8")
+            assert not re.search(r"https?://|127\.0\.0\.1|/p/|/Users/|/home/|/tmp/", text), path
+
+
 # Reference pages -----------------------------------------------------------------------------
 
 

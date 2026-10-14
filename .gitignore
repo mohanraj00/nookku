@@ -23,4 +23,6 @@ bench/logs/
 tap.jsonl
 # The proofs commit the tap record of each run as their data.
 !proofs/**/tap.jsonl
+# The capture of the chat page in the README commits the tap record of its run (#307).
+!docs/assets/chat-page/test/tap.jsonl
 .gstack/
