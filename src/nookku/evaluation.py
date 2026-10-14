@@ -13,7 +13,7 @@ from importlib import resources
 from pathlib import Path
 from typing import Any
 
-from . import bridge, seal
+from . import bridge, seal, state
 from .config import ConfigError, read_config
 from .record import RecordError, read_rows, turns
 
@@ -49,24 +49,34 @@ def is_check(folder: Path, manifest: dict[str, Any]) -> bool:
     return bool(found) and all(t.harness == bridge.CHECK_HARNESS for t in found)
 
 
-def _ended(root: Path) -> Path | None:
-    """The latest test, if no test runs, it ended, it has no report and it is not a check test."""
-    if bridge.current(root) is not None:
-        return None
-    folder = bridge.latest_test(root)
-    if folder is None or (folder / REPORT).exists():
-        return None
+def _manifest(folder: Path) -> dict[str, Any] | None:
     try:
         manifest = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
-    if not isinstance(manifest, dict) or is_check(folder, manifest):
+    return manifest if isinstance(manifest, dict) else None
+
+
+def _ended(root: Path) -> Path | None:
+    """The latest test that is not a check test, if no test runs, it ended and it has no report
+    (SPEC.md section 9.1). A check test after the test of the tester does not hide that test. A
+    test with a manifest that cannot be read is not a check test, so it gets no evaluation, and
+    a test before it gets none."""
+    if bridge.current(root) is not None:
         return None
-    return folder if manifest.get("ended") is not None else None
+    for folder in state.tests_newest_first(root):
+        manifest = _manifest(folder)
+        if manifest is not None and is_check(folder, manifest):
+            continue
+        if manifest is None or (folder / REPORT).exists():
+            return None
+        return folder if manifest.get("ended") is not None else None
+    return None
 
 
 def pending(root: Path) -> Path | None:
-    """The latest test, if it ended, has no report and the configuration lets it be evaluated."""
+    """The latest test that is not a check test, if it ended, has no report and the configuration
+    lets it be evaluated."""
     return _ended(root) if enabled(root) else None
 
 

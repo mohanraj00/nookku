@@ -57,7 +57,7 @@ ls .nookku/tests/
 20261011-184952-8a8d
 ```
 
-`nookku check` also makes a test folder. Do not read the check tests as your tests. The manifest of a check test has `"check": true`, and the test has one turn from the [harness](../reference/glossary.md#harness) `nookku-check`. The model does not evaluate a check test, also if the check stopped before its turn. To find the check tests:
+`nookku check` also makes a test folder. Do not read the check tests as your tests. The manifest of a check test has `"check": true`, and the test has one turn from the [harness](../reference/glossary.md#harness) `nookku-check`. The model does not evaluate a check test, also if the check stopped before its turn. A check test after your test does not stop the [evaluation](../reference/glossary.md#evaluation) of your test. To find the check tests:
 
 ```bash
 grep -l '"check": true' .nookku/tests/*/manifest.json

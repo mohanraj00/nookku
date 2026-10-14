@@ -172,7 +172,7 @@ stateDiagram-v2
 ```
 
 - There are 2 ways to end a test ([SPEC.md section 9.1](../SPEC.md#91-start)). The prompt `nookku end` ends the test and starts the [evaluation](reference/glossary.md#evaluation) in one step. `nookku end` in a shell, or `/nookku end` in the plugin, ends the test with no evaluation.
-- A later prompt `nookku end` starts the evaluation of the latest test, if that test ended and has no `report.md`. A new test with `nookku start` becomes the latest test, so the test before it gets no evaluation.
+- A later prompt `nookku end` starts the evaluation of the latest test that is not a check test, if that test ended and has no `report.md`. A test of `nookku check` does not stop the evaluation of the test before it. A new test with `nookku start` becomes the latest test, so the test before it gets no evaluation.
 - If the configuration has `"evaluate": false`, no test gets an evaluation ([reference/config.md](reference/config.md#test-keys)).
 - If the bridge stops before its end steps, `current.json` stays. `start`, `end` and `status` check if the bridge of `current.json` runs. If it does not run, they remove the stale file ([SPEC.md section 7.2](../SPEC.md#72-start-and-end)). The relay does this check before each prompt. A test with a stale `current.json` has no end time, so it gets no evaluation.
 

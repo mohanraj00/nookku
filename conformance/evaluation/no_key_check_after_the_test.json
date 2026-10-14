@@ -1,0 +1,36 @@
+{
+ "evaluated": true,
+ "later": [
+  {
+   "evaluated": false,
+   "manifest": {},
+   "relay": [
+    {
+     "harness": "nookku-check",
+     "said": "Hello",
+     "said_sha256": "185f8db32271fe25f561a6fc938b2e264306ec304eda518007d1764826381969",
+     "shown": "Toy shop: Hello",
+     "shown_sha256": "6ed8d2edcf35e75a65abd058dae7d5ffa711e6f0237313fda88c3b53c432b433",
+     "ts": 1.0,
+     "type": "turn",
+     "v": "0.1"
+    }
+   ]
+  }
+ ],
+ "manifest": {
+  "check": false
+ },
+ "relay": [
+  {
+   "harness": "codex",
+   "said": "Do you sell teapots?",
+   "said_sha256": "c45c8aa6427fffeac2c389891dc285888f6211920accc19a9c87ae8f34fbb521",
+   "shown": "Toy shop: yes",
+   "shown_sha256": "9ed8e283eb32a6a2a47f8f7c39e2ec39cadaebbccc27ad25b1867debf5bb6146",
+   "ts": 1.0,
+   "type": "turn",
+   "v": "0.1"
+  }
+ ]
+}

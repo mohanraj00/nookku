@@ -114,11 +114,18 @@ def _started(folder: Path) -> float:
         return float("inf")
 
 
-def latest_test(root: Path) -> Path | None:
-    """The test that started last. 2 test ids of the same second differ only by a random part."""
+def tests_newest_first(root: Path) -> list[Path]:
+    """The test folders, the test that started last first. 2 test ids of the same second differ
+    only by a random part."""
     tests = state(root) / "tests"
     dirs = [p for p in tests.iterdir() if p.is_dir()] if tests.is_dir() else []
-    return max(dirs, key=lambda d: (_started(d), d.name), default=None)
+    return sorted(dirs, key=lambda d: (_started(d), d.name), reverse=True)
+
+
+def latest_test(root: Path) -> Path | None:
+    """The test that started last."""
+    found = tests_newest_first(root)
+    return found[0] if found else None
 
 
 def history(relay: Path) -> History:

@@ -804,9 +804,13 @@ A test needs an evaluation if all of these are true:
 
 - `evaluate` in the configuration is not `false`;
 - no test runs;
-- the latest test (the one with the greatest `started` in its manifest) has an `ended` time;
-- its folder has no `report.md`;
-- it is not a check test. A check test is a test of `nookku check`. If the manifest has the key `check`, the test is a check test only if `check` is `true`. A manifest of a Nookku version that does not write the key has no key `check`. Then the test is a check test if its relay record has turns, and each turn has the harness `nookku-check`. A relay record that cannot be read does not make a check test.
+- the test is the latest test that is not a check test. The latest test is the one with the greatest `started` in its manifest;
+- the test has an `ended` time;
+- its folder has no `report.md`.
+
+A check test is a test of `nookku check`. If the manifest has the key `check`, the test is a check test only if `check` is `true`. A manifest of a Nookku version that does not write the key has no key `check`. Then the test is a check test if its relay record has turns, and each turn has the harness `nookku-check`. A relay record that cannot be read does not make a check test. A manifest that cannot be read does not make a check test. Then that test gets no evaluation, and no test before it gets one.
+
+A check test does not hide the test before it. For example, the tester ends a test with `nookku end` in a shell, runs `nookku check`, and then types the prompt `nookku end`. The prompt starts the evaluation of the test of the tester. A test that is not a check test hides each test before it. So after a new test with `nookku start`, the tests before it get no evaluation.
 
 The relay reads `evaluate` with the one reader of `config.json` (section 7.1). If the file cannot be read or breaks the rule for its keys, no evaluation starts. A broken file must not start an evaluation that the tester turned off. Then, if the other conditions are true, the end text has one more line: `nookku: no evaluation starts: <error>. Correct the file, then type: nookku end`.
 

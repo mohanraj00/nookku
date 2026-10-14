@@ -64,9 +64,59 @@ def test_the_manifest_key_check_or_else_the_turns_make_a_check_test(
     folder = root / ".nookku" / "tests" / TEST
     manifest = json.loads((folder / "manifest.json").read_text())
     (folder / "manifest.json").write_text(json.dumps({**manifest, **data["manifest"]}))
-    rows = [r if isinstance(r, str) else json.dumps(r) for r in data["relay"]]
-    (folder / "relay.jsonl").write_text("".join(r + "\n" for r in rows))
-    assert evaluation.pending(root) == (folder if data["evaluated"] else None)
+    write_relay(folder, data["relay"])
+    # "later" holds the tests that started after this test (#298). At most one test of the case
+    # has "evaluated": true. Else, no test gets an evaluation.
+    expected = folder if data["evaluated"] else None
+    for n, test in enumerate(data.get("later", []), 1):
+        later = folder.parent / f"20261006-0800{n:02d}-cc01"
+        later.mkdir()
+        started = {"started": 1.0 + n, "ended": 2.0 + n}
+        (later / "manifest.json").write_text(json.dumps({**started, **test["manifest"]}))
+        write_relay(later, test["relay"])
+        if test.get("report"):
+            (later / evaluation.REPORT).write_text("# Report\n")
+        if test["evaluated"]:
+            assert expected is None
+            expected = later
+    assert evaluation.pending(root) == expected
+
+
+def write_relay(folder: Path, rows: list) -> None:
+    lines = [r if isinstance(r, str) else json.dumps(r) for r in rows]
+    (folder / "relay.jsonl").write_text("".join(r + "\n" for r in lines))
+
+
+def test_nookku_end_after_check_evaluates_the_test_of_the_tester(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # The 3 steps of #298: the tester ends a test in a shell, runs nookku check, and then types
+    # the prompt nookku end. The prompt starts the evaluation of the test of the tester.
+    root = project(tmp_path)
+    folder = root / ".nookku" / "tests" / TEST
+    check = folder.parent / "20261006-090000-cc02"
+    check.mkdir()
+    (check / "manifest.json").write_text(json.dumps({"started": 3.0, "ended": 4.0, "check": True}))
+    assert bridge.latest_test(root) == check
+    assert evaluation.pending(root) == folder
+    answer = kit.handle(event(root, "nookku end"), root, "codex")
+    assert answer is not None and answer.get("decision") != "block"
+    assert f"# Evaluate test {TEST}" in answer["hookSpecificOutput"]["additionalContext"]
+    assert main(["end", "--evaluation", "--root", str(root)]) == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["evaluation"].startswith(f"# Evaluate test {TEST}")
+    # After the report, the check test does not get the evaluation.
+    (folder / evaluation.REPORT).write_text("# Report\n")
+    assert evaluation.pending(root) is None
+
+
+def test_a_test_with_a_broken_manifest_hides_the_tests_before_it(tmp_path: Path) -> None:
+    # A manifest that cannot be read does not make a check test, so the rule stops there.
+    root = project(tmp_path)
+    later = root / ".nookku" / "tests" / "20261006-090000-cc02"
+    later.mkdir()
+    (later / "manifest.json").write_text('{"started": 3.0, "ended"')
+    assert evaluation.pending(root) is None
 
 
 def test_a_test_with_no_turns_or_a_broken_relay_record_is_not_a_check_test(tmp_path: Path) -> None:

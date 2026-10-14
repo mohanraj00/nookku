@@ -71,7 +71,7 @@ PASS proves the connection, not the reply. PASS means that:
 - the audit of the test exits with 0;
 - the test found a model session and its session file for each harness in `models`.
 
-`check` ends its test. The model does not evaluate a check test, so `nookku end` after `check` starts no evaluation ([SPEC.md section 9.1](../../SPEC.md#91-start)).
+`check` ends its test. The model does not evaluate a check test. If your test ended before `check` and has no `report.md`, the prompt `nookku end` after `check` starts the evaluation of your test. Else it starts no evaluation ([SPEC.md section 9.1](../../SPEC.md#91-start)).
 
 `check` does not judge the text of the reply. A fallback reply of the app also passes. [how-to/connect-your-agent.md](../how-to/connect-your-agent.md#make-sure-that-check-runs-your-real-app) shows how to make sure that the entry runs your real app.
 
