@@ -67,7 +67,8 @@ def running(tmp_path: Path) -> Iterator[tuple[Path, Path]]:
 def test_each_wait_ends_before_the_hook_deadline() -> None:
     assert bridge.START_WAIT + page_auto.START_WAIT < kit.HOOK_DEADLINE
     # The page server reports its status before the start stops to wait for it.
-    assert page_auto.OPEN_WAIT + 2 < page_auto.START_WAIT
+    assert page_auto.OPEN_WAIT < page_auto.LAUNCH_WAIT
+    assert page_auto.LAUNCH_WAIT + 2 < page_auto.START_WAIT
     end = bridge.END_WAIT + page_auto.END_WAIT + page_auto.STOP_WAIT
     assert end < kit.HOOK_DEADLINE
     # The page asks for its turns each second, so it can show the end in the grace time.
@@ -344,3 +345,46 @@ def test_the_page_server_does_not_look_up_the_host_name(
     server = page_auto.AutoPageServer(tmp_path, "t-1")
     server.server_close()
     assert server.server_name == page.HOST
+
+
+FETCH = """
+import sys, urllib.request
+with urllib.request.urlopen(sys.argv[2], timeout=10) as resp:
+    open(sys.argv[1], "w").write(f"{resp.status} {resp.url}")
+"""
+
+
+@pytest.fixture
+def browser(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """A computer with a display and no SSH. BROWSER names the browser command of a test."""
+    monkeypatch.delenv("SSH_CONNECTION")
+    monkeypatch.delenv("SSH_TTY", raising=False)
+    monkeypatch.setenv("DISPLAY", ":0")
+    return tmp_path / "browser.txt"
+
+
+def test_a_browser_that_gets_the_page_opens_it(
+    running: Any, browser: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root, folder = running
+    script = root / "fetch.py"
+    script.write_text(FETCH)
+    monkeypatch.setenv("BROWSER", f"{sys.executable} {script} {browser} %s")
+    assert page_auto.after_start(root, folder.name, sys.stdout) == page_auto.OPENED
+    info = state.page_info(root)
+    assert info is not None
+    status, url = browser.read_text().split(" ", 1)
+    # The browser got the launch URL, and the redirect gave it the page.
+    assert status == "200" and URL.fullmatch(url)
+
+
+def test_a_browser_command_that_does_not_get_the_page_gives_no_browser(
+    running: Any, browser: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root, folder = running
+    # The command returns 0, but no request of the launch URL comes.
+    monkeypatch.setenv("BROWSER", "true %s")
+    began = time.monotonic()
+    assert page_auto.after_start(root, folder.name, sys.stdout) == page_auto.NO_BROWSER
+    assert page_auto.LAUNCH_WAIT <= time.monotonic() - began < page_auto.START_WAIT
+    assert state.page_info(root) is None

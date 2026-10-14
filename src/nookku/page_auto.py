@@ -41,10 +41,13 @@ from nookku import page, state
 # The config key that turns the start of the page with the test on or off (SPEC.md section 7.1).
 CONFIG_KEY = "page"
 # The wait of `nookku start` for the page server to say if the browser opened.
-START_WAIT = 10.0
+START_WAIT = 15.0
 # The wait of the page server for the browser command. A browser command that runs longer got the
 # URL, for example a new browser that runs in the foreground.
 OPEN_WAIT = 5.0
+# The wait of the page server, from the browser command, for the request of the launch URL. A new
+# browser can take seconds to start. With no request, the browser did not open.
+LAUNCH_WAIT = 10.0
 # The wait of the page server after the end of its test, for the page to show the end. The page
 # asks for its turns each second (src/nookku/page/app.js).
 END_GRACE = 3.0
@@ -244,6 +247,8 @@ class AutoPageServer(page.PageServer):
         self.test = test
         self.code = secrets.token_urlsafe(32)
         self.code_used = False
+        # Set when the first request with the code got the page URL.
+        self.launched = threading.Event()
         self.code_lock = threading.Lock()
         self.ended = threading.Event()
         self.shown_end = threading.Event()
@@ -286,6 +291,7 @@ class _AutoHandler(page._Handler):
         if not first:
             self._refuse(404, "not found")
             return
+        self.server.launched.set()
         self.send_response(303)
         self.send_header("Location", f"/p/{self.server.token}/")
         self.send_header("Content-Length", "0")
@@ -321,6 +327,18 @@ def _open_browser(url: str) -> bool:
     opener.join(OPEN_WAIT)
     # A browser command that runs in the foreground did not return, but it got the URL.
     return result[0] if result else True
+
+
+def _launched(server: AutoPageServer) -> bool:
+    """Open the browser, and return True only if a request of the launch URL came in LAUNCH_WAIT.
+    Else the launch URL gets no page URL any more: a browser command can return before it opens
+    the page, and its arguments can stay in the process list."""
+    began = time.monotonic()
+    if _can_open() and _open_browser(server.launch_url):
+        server.launched.wait(max(0.0, LAUNCH_WAIT - (time.monotonic() - began)))
+    with server.code_lock:
+        server.code_used = True
+    return server.launched.is_set()
 
 
 def _watch(server: AutoPageServer) -> None:
@@ -372,7 +390,7 @@ def serve(root: Path, test: str, status_fd: int, print_url: bool) -> int:
     # The status to report after the cleanup, so that the start sees no page file.
     last: dict[str, Any] | None = None
     try:
-        if _can_open() and _open_browser(server.launch_url):
+        if _launched(server):
             report({"status": "opened"})
         elif print_url:
             report({"status": "no-browser", "url": server.url})
