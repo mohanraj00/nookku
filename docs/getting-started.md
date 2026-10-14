@@ -298,6 +298,7 @@ cat .nookku/tests/20261013-050805-40fa/findings.json
   "span_error": 0,
   "backend_error": 0,
   "model_api_error": 0,
+  "model_error": 0,
   "turn_without_model": 0,
   "item_between_turns": 0,
   "otel_tool_not_in_session": 0,

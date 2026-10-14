@@ -53,7 +53,7 @@ If a message gets an error, read [troubleshooting.md](../troubleshooting.md#duri
 
 ## What the model can do
 
-The model reads the exact conversation of the latest test with the read-only `transcript` tool of the MCP server `nookku mcp`. In Claude Code, its name is `mcp__plugin_nookku_nookku__transcript`. The tool gives the text of `nookku transcript` in pages, with a hash of each page ([SPEC.md section 5](../../SPEC.md#5-relays)). So the model gets the same text as with the project hooks.
+The model reads the exact conversation of the latest test with the read-only `transcript` tool of the MCP server `nookku mcp`. In Claude Code, its name is `mcp__plugin_nookku_nookku__transcript`. The tool gives the text of `nookku transcript` in pages, with a hash of each page ([SPEC.md section 5](../../SPEC.md#5-relays)). So the model gets the same text as with the project hooks. With no test id, the tool skips each check test that ended, as `nookku transcript` does.
 
 During a test, the model cannot send a message to the agent, and it cannot change the files in `.nookku/`. The relay denies each tool call that writes into `.nookku/`. It also denies each other tool call that names `.nookku`, also a read command such as `cat`. Only the file tools can read these files ([SPEC.md section 5](../../SPEC.md#5-relays)).
 

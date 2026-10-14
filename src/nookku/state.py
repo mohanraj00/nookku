@@ -14,10 +14,14 @@ if TYPE_CHECKING:
 from nookku import contract
 from nookku.adapters import History
 from nookku.config import STATE_DIR as STATE_DIR
-from nookku.record import turns
+from nookku.record import RecordError, turns
 
 # Longer than the tap's wait for the agent, shorter than the hook deadline (kit.HOOK_DEADLINE).
 TIMEOUT = 270
+# The harness of the turn of `nookku check`. bridge.CHECK_HARNESS has the same value, and a test
+# checks it. This module does not import bridge, so that a hook event stays fast (#214).
+CHECK_HARNESS = "nookku-check"
+
 # The header of the tap token (SPEC.md section 4.2). A browser cannot send this header to the tap
 # without a preflight, and the tap refuses a preflight.
 TOKEN_HEADER = "X-Nookku-Token"
@@ -152,11 +156,53 @@ def _started(folder: Path) -> float:
         return float("inf")
 
 
-def latest_test(root: Path) -> Path | None:
-    """The test that started last. 2 test ids of the same second differ only by a random part."""
+def tests_newest_first(root: Path) -> list[Path]:
+    """The test folders, the test that started last first. 2 test ids of the same second differ
+    only by a random part."""
     tests = state(root) / "tests"
     dirs = [p for p in tests.iterdir() if p.is_dir()] if tests.is_dir() else []
-    return max(dirs, key=lambda d: (_started(d), d.name), default=None)
+    return sorted(dirs, key=lambda d: (_started(d), d.name), reverse=True)
+
+
+def latest_test(root: Path) -> Path | None:
+    """The test that started last."""
+    found = tests_newest_first(root)
+    return found[0] if found else None
+
+
+def manifest_of(folder: Path) -> dict[str, Any] | None:
+    """The manifest of a test, or None if it cannot be read or is not a JSON object."""
+    try:
+        manifest = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return manifest if isinstance(manifest, dict) else None
+
+
+def is_check(folder: Path, manifest: dict[str, Any]) -> bool:
+    """True if the test is a test of `nookku check` (SPEC.md section 9.1). If the manifest has the
+    key `check`, the key decides. A manifest of an older Nookku version has no such key: then
+    the test has turns, and each one has the harness `nookku-check`. A relay record that cannot
+    be read is not a check test."""
+    if "check" in manifest:
+        return manifest["check"] is True
+    try:
+        found = turns(folder / "relay.jsonl", missing_ok=True)
+    except RecordError:
+        return False
+    return bool(found) and all(t.harness == CHECK_HARNESS for t in found)
+
+
+def tester_test(root: Path) -> Path | None:
+    """The latest test that is not a check test that ended (SPEC.md section 9.1). A check test
+    with no end time, or a test with a manifest that cannot be read, stops the search: it is
+    the result. The evaluation, its denies and the default test of `transcript` use this test."""
+    for folder in tests_newest_first(root):
+        manifest = manifest_of(folder)
+        ended = manifest is not None and manifest.get("ended") is not None
+        if not (ended and manifest is not None and is_check(folder, manifest)):
+            return folder
+    return None
 
 
 def history(relay: Path) -> History:

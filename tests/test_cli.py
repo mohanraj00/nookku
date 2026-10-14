@@ -676,6 +676,30 @@ def test_mode_on_with_no_entry_and_an_unknown_key_keeps_relay_mode_off(
     assert kit.is_on(tmp_path)
 
 
+@pytest.mark.parametrize("was_on", [False, True])
+def test_mode_on_with_no_config_keeps_the_mode_file_and_says_the_mode(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], was_on: bool
+) -> None:
+    # #357: with no config.json, mode on does not change the mode file, and its text is true.
+    kit.set_mode(tmp_path, was_on)
+    mode = kit.mode_path(tmp_path).read_text()
+    assert main(["mode", "on", "--root", str(tmp_path)]) == 0
+    if was_on:
+        text = (
+            "nookku: this project has no .nookku/config.json. Relay mode is still on, "
+            "so the relay blocks each prompt. Write the config with: nookku init plugin. "
+            "Or switch relay mode off with: nookku mode off\n"
+        )
+    else:
+        text = (
+            "nookku: this project has no .nookku/config.json, so relay mode stays off. "
+            "Write it with: nookku init plugin\n"
+        )
+    assert capsys.readouterr().out == text
+    assert kit.mode_path(tmp_path).read_text() == mode
+    assert kit.is_on(tmp_path) is was_on
+
+
 def test_init_remove_prints_each_change(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["init", "codex", "--root", str(tmp_path)]) == 0
     capsys.readouterr()

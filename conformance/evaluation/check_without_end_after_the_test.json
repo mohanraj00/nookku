@@ -1,0 +1,28 @@
+{
+ "evaluated": false,
+ "later": [
+  {
+   "evaluated": false,
+   "manifest": {
+    "check": true,
+    "ended": null
+   },
+   "relay": []
+  }
+ ],
+ "manifest": {
+  "check": false
+ },
+ "relay": [
+  {
+   "harness": "codex",
+   "said": "Do you sell teapots?",
+   "said_sha256": "c45c8aa6427fffeac2c389891dc285888f6211920accc19a9c87ae8f34fbb521",
+   "shown": "Toy shop: yes",
+   "shown_sha256": "9ed8e283eb32a6a2a47f8f7c39e2ec39cadaebbccc27ad25b1867debf5bb6146",
+   "ts": 1.0,
+   "type": "turn",
+   "v": "0.1"
+  }
+ ]
+}

@@ -143,7 +143,7 @@ tester ──> harness ──> relay ──────> tap ──stdin/stdout�
 
 [docs/architecture.md](docs/architecture.md#data-flow) shows this flow with each part, and has diagrams of one turn, the test lifecycle and the trace.
 
-Two processes write two records, and the audit compares them byte for byte. It reports 8 break classes ([SPEC.md section 3.3](SPEC.md#33-break-classes)). It fails closed: it never reports clean on a record that it cannot read. 67 audit cases, 21 contract cases, 18 trace cases, 11 seal cases and 7 receiver cases in [conformance/](conformance/) test the spec ([cases](conformance/build.py), [tests](tests/)).
+Two processes write two records, and the audit compares them byte for byte. It reports 8 break classes ([SPEC.md section 3.3](SPEC.md#33-break-classes)). It fails closed: it never reports clean on a record that it cannot read. 67 audit cases, 21 contract cases, 19 trace cases, 11 seal cases and 7 receiver cases in [conformance/](conformance/) test the spec ([cases](conformance/build.py), [tests](tests/)).
 
 A test also records what your app did. It copies the session files of the app's own Agent SDK or Codex sessions. It records the backend calls, the direct model calls and the OpenTelemetry spans of the app. [docs/architecture.md](docs/architecture.md) shows each part.
 
@@ -161,6 +161,17 @@ A test also records what your app did. It copies the session files of the app's 
 Data: [plugin in Claude Code](proofs/plugin-claude-code/results.json), [plugin in Codex](proofs/plugin-codex/results.json), [project hooks in Claude Code](proofs/hooks-claude-code/results.json), [project hooks in Codex](proofs/hooks-codex/results.json), [evaluation](docs/results.md#p5-the-model-judges-the-record-not-its-memory). Method: [docs/results.md](docs/results.md#1-proofs).
 
 Under pressure, the mechanism had **0 breaks in 1,000 turns**. The test had 40 scripted conversations in each harness, 5 or 20 turns long. They had refusals, HTTP 500 errors, questions back to the tester and ambiguous messages. Each turn was a new harness call. I registered the design before the first run. Method, data and the one deviation: [docs/results.md](docs/results.md#2-benchmark-under-pressure).
+
+## How Nookku is different
+
+- **An independent record.** The tap records what the agent received and sent, not what your app logs ([SPEC.md section 4](SPEC.md#4-tap)).
+- **A proof that the record is exact.** The audit compares the two records byte for byte and names each break in 8 classes ([SPEC.md section 3](SPEC.md#3-audit), [break classes](SPEC.md#33-break-classes)). The seal shows each file that changed after the end of a test ([SPEC.md section 7.4](SPEC.md#74-seal)). Data: [proofs](docs/results.md#1-proofs).
+- **No model between you and your agent.** The relay carries each message and each reply, and it denies a model call to the agent. The deny is best effort. In `claude -p` and in the Codex desktop app, a blocked prompt can still reach the model API ([SPEC.md section 5](SPEC.md#5-relays), [limits](docs/limits.md)). Data: [P1 to P4](docs/results.md#1-proofs).
+- **No change to your agent.** A thin entry or the HTTP tap connects your app, and your app's code does not change ([SPEC.md section 6](SPEC.md#6-agent-contract-version-1), [HTTP mode](SPEC.md#41-http-mode)).
+- **Local.** Nookku has no hosted service of its own, and the records stay in `.nookku/tests/`. At the end of a test, the harness model reads them, so they go to the model provider of your harness ([FAQ](docs/faq.md#does-nookku-send-my-data-to-a-server)). The package has no runtime dependencies ([pyproject.toml](pyproject.toml)).
+- **The judge reads the record, not its memory.** After a test, the model has no memory of the conversation, and it reads the transcript ([P5](docs/results.md#p5-the-model-judges-the-record-not-its-memory)).
+
+Nookku does not do these: data sets at scale, production monitoring and hosted team review. Each test is one conversation, from your harness or from a script ([SPEC.md section 7](SPEC.md#7-tests)).
 
 ## Docs
 

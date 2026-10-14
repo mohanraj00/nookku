@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any, TextIO
 from urllib.parse import urlsplit
 
-from nookku import commands, policy, seal, state
+from nookku import commands, policy, print_mode, seal, state
 from nookku.adapters import AdapterError, History, StreamError, is_stream, make
 from nookku.config import FILE as CONFIG_FILE
 from nookku.config import OLD_STATE_DIR, check, move_old_state, read_config
@@ -335,6 +335,11 @@ def handle(event: dict[str, Any], root: Path, harness: str) -> dict[str, Any] | 
     if name == "UserPromptSubmit":
         said = event.get("prompt")
         session = event.get("session_id") if isinstance(event.get("session_id"), str) else None
+        # Out of the interactive CLI, Claude Code can send the prompt to the model API in a title
+        # request. The relay refuses to start a test and to relay a message (SPEC.md section 5).
+        in_print_mode = print_mode.applies(os.environ, harness)
+        if in_print_mode and isinstance(said, str) and said.strip() == "nookku start":
+            return _block(print_mode.REASON)
         if isinstance(said, str) and said.strip() in CONTROL:
             from nookku import evaluation
 
@@ -347,6 +352,9 @@ def handle(event: dict[str, Any], root: Path, harness: str) -> dict[str, Any] | 
             return _context(f"{text}\n\n{evaluation.prompt(folder)}")
         if not is_on(root):
             return None
+        if in_print_mode:
+            # A refused message is not a turn, so the relay writes no row.
+            return _block(print_mode.REASON)
         try:
             config = Config.load(root)
         except (OSError, ValueError, TypeError) as e:
@@ -540,8 +548,9 @@ def _names_entry(entry: list[str], text: str, tool: str, tool_input: Any) -> boo
 
 
 def _last_record(root: Path) -> Path:
-    """After a test, a deny goes to denied.jsonl, so that the sealed relay.jsonl does not change."""
-    last = state.latest_test(root)
+    """After a test, a deny goes to denied.jsonl, so that the sealed relay.jsonl does not change.
+    A check test that ended does not take the denies of the evaluation of the test before it."""
+    last = state.tester_test(root) or state.latest_test(root)
     return last / seal.DENIED if last else root / STATE_DIR / "relay.jsonl"
 
 
@@ -1096,9 +1105,10 @@ def existing_test(root: Path, test: str) -> Path:
 
 
 def _latest(root: Path) -> Path | None:
-    """The latest test, with the same check as a test id: a symbolic link in the tests folder
-    must not take the transcript to a folder outside the project."""
-    last = state.latest_test(root)
+    """The latest test that is not a check test that ended (state.tester_test), with the same
+    check as a test id: a symbolic link in the tests folder must not take the transcript to a
+    folder outside the project."""
+    last = state.tester_test(root) or state.latest_test(root)
     return None if last is None else folder_of_test(root, last.name)
 
 

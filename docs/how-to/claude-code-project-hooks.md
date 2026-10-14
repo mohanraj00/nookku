@@ -42,7 +42,7 @@ If a message gets an error, read [troubleshooting.md](../troubleshooting.md#duri
 
 ## What the model can do
 
-The model reads the exact conversation of the latest test with `nookku transcript`. The command prints the exact turns, and the `transcript` tool of the plugin gives the model the same text.
+The model reads the exact conversation of the latest test with `nookku transcript`. A check test that ended does not count: after `nookku check`, the scope is the test before it ([SPEC.md section 9.1](../../SPEC.md#91-start)). The command prints the exact turns, and the `transcript` tool of the plugin gives the model the same text.
 
 During a test, the model cannot send a message to the agent, and it cannot change the files in `.nookku/`. The relay denies each tool call that writes into `.nookku/`. It also denies each other tool call that names `.nookku`, also a read command such as `cat`. Only the file tools can read these files ([SPEC.md section 5](../../SPEC.md#5-relays)).
 

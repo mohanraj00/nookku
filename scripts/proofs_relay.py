@@ -62,7 +62,15 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path[:0] = [str(ROOT / "src"), str(ROOT / "tests"), str(Path(__file__).parent)]
 
-from proof_common import ADVERSARIAL, ENTRY, MESSAGES, json_lines, planted, rows  # noqa: E402
+from proof_common import (  # noqa: E402
+    ADVERSARIAL,
+    ENTRY,
+    MESSAGES,
+    NO_TITLE,
+    json_lines,
+    planted,
+    rows,
+)
 
 from nookku import __version__, bridge, kit  # noqa: E402
 from nookku.audit import audit  # noqa: E402
@@ -78,7 +86,7 @@ SETUPS = ("plugin-claude-code", "plugin-codex", "hooks-claude-code", "hooks-code
 def environment(plugin: bool, harness: str) -> dict[str, str]:
     """The environment of the harness. The plugin hooks run nookku from PATH, so the bin folder
     of this Python comes first. The plugin in Codex uses the CODEX_HOME of its trust step."""
-    env = dict(os.environ)
+    env = {**os.environ, **NO_TITLE}
     if plugin:
         env["PATH"] = f"{Path(sys.executable).parent}{os.pathsep}{env.get('PATH', '')}"
         if harness == "codex":

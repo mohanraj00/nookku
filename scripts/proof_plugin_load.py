@@ -39,6 +39,8 @@ from typing import Any
 ROOT = Path(__file__).resolve().parent.parent
 sys.path[:0] = [str(ROOT / "src")]
 
+from proof_common import NO_TITLE  # noqa: E402
+
 from nookku import __version__, kit  # noqa: E402
 from nookku.config import STATE_DIR  # noqa: E402
 from nookku.mcp import tool_name  # noqa: E402
@@ -116,7 +118,7 @@ def run(cmd: list[str], cwd: Path, env: dict[str, str] | None = None) -> str:
 
 def claude(prompt: str, cwd: Path, plugin: Path, *extra: str) -> str:
     cmd = ["claude", "-p", prompt, "--plugin-dir", str(plugin), "--model", "haiku"]
-    other = {**os.environ, "CLAUDE_PROJECT_DIR": str(cwd.parent / "other-project")}
+    other = {**os.environ, **NO_TITLE, "CLAUDE_PROJECT_DIR": str(cwd.parent / "other-project")}
     return run([*cmd, "--setting-sources", "project", *extra], cwd, other)
 
 
@@ -145,6 +147,7 @@ def claude_code(work: Path) -> dict[str, Any]:
         [*cmd, "--setting-sources", "project"],
         cwd=project,
         input=image_prompt(),
+        env={**os.environ, **NO_TITLE},
         capture_output=True,
         text=True,
         timeout=300,

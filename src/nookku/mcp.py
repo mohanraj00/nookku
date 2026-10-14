@@ -53,7 +53,11 @@ TOOLS = [
             "properties": {
                 "page": {"type": "integer", "minimum": 1, "description": "Default: 1."},
                 "trace": {"type": "boolean", "description": "Add the trace of the test."},
-                "test": {"type": "string", "description": "A test id. Default: the latest."},
+                "test": {
+                    "type": "string",
+                    "description": "A test id. Default: the latest test, with no check test that "
+                    "ended.",
+                },
                 "all": {"type": "boolean", "description": "All sessions of the record."},
                 "compact": {
                     "type": "boolean",

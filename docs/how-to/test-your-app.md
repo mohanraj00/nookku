@@ -220,7 +220,7 @@ nookku: <path> is a record or a state file of nookku. Only nookku writes it. A c
 
 If you deny a command, the model does not get its output. In Claude Code, a deny with no message tells the model to stop and wait for you. Then the model does not write `report.md`. To continue, type a reply, for example "Do not run that command. Continue with the other steps."
 
-If the latest test has no `report.md`, the prompt `nookku end` starts its evaluation again ([SPEC.md section 9.1](../../SPEC.md#91-start)). The end text is then "Nookku: no test runs. Relay mode is off."
+If the latest test has no `report.md`, the prompt `nookku end` starts its evaluation again. A test of `nookku check` after your test does not change this ([SPEC.md section 9.1](../../SPEC.md#91-start)). The end text is then "Nookku: no test runs. Relay mode is off."
 
 ## 8. Read the results
 

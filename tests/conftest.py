@@ -28,3 +28,11 @@ def claude_home(tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.Mo
     home = tmp_path_factory.mktemp("claude-home")
     monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(home))
     return home
+
+
+@pytest.fixture(autouse=True)
+def interactive_harness(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A hook of a test runs as in the interactive CLI, also when a print mode session runs
+    pytest. The print mode tests set these variables (#199)."""
+    monkeypatch.setenv("CLAUDE_CODE_ENTRYPOINT", "cli")
+    monkeypatch.delenv("CLAUDE_CODE_DISABLE_TERMINAL_TITLE", raising=False)

@@ -11,7 +11,7 @@ from collections.abc import Iterator, Sequence
 from importlib import resources
 from pathlib import Path
 
-from nookku import __version__, bridge, evaluation, kit, seal, state, stdio, trace
+from nookku import __version__, bridge, evaluation, kit, print_mode, seal, state, stdio, trace
 from nookku.adapters import make
 from nookku.audit import audit, render
 from nookku.config import KEYS as CONFIG_KEYS
@@ -98,6 +98,39 @@ def _relay_on(root: Path) -> str | None:
     old = root / OLD_STATE_DIR / "mode"
     if kit.is_on(root) or (old.is_file() and old.read_text().strip() == "on"):
         return "relay mode is on. Switch it off first: nookku mode off"
+    return None
+
+
+def _mode_on_refusal(root: Path) -> str | None:
+    """Give the reason why `mode on` refuses to switch relay mode on, or None.
+
+    A refusal does not change the mode file.
+    """
+    if not (root / kit.STATE_DIR / "config.json").exists():
+        if kit.is_on(root):
+            # Do not switch relay mode off here. If it is off, the next prompt goes to the model.
+            return (
+                "this project has no .nookku/config.json. Relay mode is still on, "
+                "so the relay blocks each prompt. Write the config with: nookku init plugin. "
+                "Or switch relay mode off with: nookku mode off"
+            )
+        return (
+            "this project has no .nookku/config.json, so relay mode stays off. "
+            "Write it with: nookku init plugin"
+        )
+    # A config with no entry (direct HTTP mode) follows the same rule for its keys.
+    try:
+        read_config(root)
+    except ConfigError as e:
+        return str(e)
+    from nookku import claude_gate, codex_gate
+
+    both = claude_gate.problem(root)
+    if both is not None:
+        return both
+    gate = codex_gate.check(root)
+    if gate["problems"]:
+        return codex_gate.refusal(gate)
     return None
 
 
@@ -457,36 +490,24 @@ def main(argv: Sequence[str] | None = None) -> int:
         root = args.root.resolve()
         # The /nookku command of the plugin runs `nookku mode`, with the words of its menu.
         args.state = {"start": "on", "end": "off"}.get(args.state, args.state)
+        if (
+            args.state == "on"
+            and print_mode.VARIABLE in os.environ
+            and print_mode.refused(os.environ)
+        ):
+            # Claude Code runs this command, out of the interactive CLI (SPEC.md section 5).
+            print(print_mode.REASON)
+            return 0
         if args.state != "status" and bridge.has_entry(root):
             session = args.tester_session
             print(
                 kit.start_test(root, session) if args.state == "on" else kit.end_test(root, session)
             )
             return 0
-        if args.state == "on" and not (root / kit.STATE_DIR / "config.json").exists():
-            # Without a config, each relayed prompt is blocked, so relay mode stays off.
-            print(
-                "nookku: this project has no .nookku/config.json, so relay mode stays off. "
-                "Write it with: nookku init plugin"
-            )
-            return 0
-        if args.state == "on" and (root / kit.STATE_DIR / "config.json").exists():
-            # A config with no entry (direct HTTP mode) follows the same rule for its keys.
-            try:
-                read_config(root)
-            except ConfigError as e:
-                print(f"nookku: {e}")
-                return 0
         if args.state == "on":
-            from nookku import claude_gate, codex_gate
-
-            both = claude_gate.problem(root)
-            if both is not None:
-                print(f"nookku: {both}")
-                return 0
-            gate = codex_gate.check(root)
-            if gate["problems"]:
-                print(f"nookku: {codex_gate.refusal(gate)}")
+            refusal = _mode_on_refusal(root)
+            if refusal is not None:
+                print(f"nookku: {refusal}")
                 return 0
         if args.state != "status":
             kit.set_mode(root, args.state == "on")
@@ -632,6 +653,18 @@ def _run_command(args: argparse.Namespace) -> int:
     return 0 if passed else 1
 
 
+def _waiting(test: str) -> str:
+    return f"Ending test {test}. Waiting up to {bridge.END_WAIT:g} s for the bridge to stop."
+
+
+def _stopped(folder: Path) -> str:
+    """The text of `status` for a test whose bridge stopped with no end (#164)."""
+    return (
+        f"Test {folder.name} stopped with no end. Folder: {folder}\n"
+        "To write its audit and its seal, run: nookku end"
+    )
+
+
 def _test_command(args: argparse.Namespace) -> int:
     root = args.root.resolve()
     if args.command == "start":
@@ -649,6 +682,9 @@ def _test_command(args: argparse.Namespace) -> int:
         return 0
     if args.command == "end":
         kit.set_mode(root, False)
+        running = bridge.current(root)
+        if running is not None and not (args.json or args.evaluation):
+            print(_waiting(running["test"]), flush=True)
         ended = bridge.end(root)
         text = bridge.summary(ended) if ended else "No test runs. Relay mode is off."
         if args.evaluation:
@@ -681,6 +717,9 @@ def _test_command(args: argparse.Namespace) -> int:
             print(json.dumps({"on": on, "test": test, "text": line, "attachments": refuse}))
         else:
             print(kit.status(root).removeprefix("nookku: "))
+            folder = bridge.stopped(root) if running is None else None
+            if folder is not None:
+                print(_stopped(folder))
         return 0
     try:
         passed, lines = bridge.check(root)

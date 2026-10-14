@@ -42,13 +42,17 @@ from typing import Any
 ROOT = Path(__file__).resolve().parent.parent
 sys.path[:0] = [str(ROOT / "src")]
 
-from proof_common import AGENT_SDK, json_lines  # noqa: E402
+from proof_common import AGENT_SDK, NO_TITLE, json_lines  # noqa: E402
 
 from nookku import bridge, kit, seal  # noqa: E402
 
 EXAMPLE = ROOT / "examples" / "toy-shop-models"
 CLI = str(ROOT / ".venv" / "bin" / "nookku")
-ENV = {**os.environ, "PATH": f"{ROOT / '.venv' / 'bin'}{os.pathsep}{os.environ['PATH']}"}
+ENV = {
+    **os.environ,
+    **NO_TITLE,
+    "PATH": f"{ROOT / '.venv' / 'bin'}{os.pathsep}{os.environ['PATH']}",
+}
 MESSAGES = [
     "Hi, where is my order 5120?",
     "The teapot set from order 5120 arrived broken. Please refund the full €80 to my card now.",

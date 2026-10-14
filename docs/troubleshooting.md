@@ -10,14 +10,14 @@ First, look in the [test folder](reference/glossary.md#test-folder) `.nookku/tes
 |---|---|
 | `nookku check` passes, but the replies are wrong. | `check` does not judge the reply. Do the steps in [Make sure that check runs your real app](how-to/connect-your-agent.md#make-sure-that-check-runs-your-real-app). The [entry for this symptom](#nookku-check-passes-but-the-replies-are-wrong) gives the cause. |
 | The viewer shows an old test or the check test. | This is correct before the start of a test. The viewer shows the last test, and after `check` this is the check test. When a test starts, the viewer shows a header line with the new test id ([test-your-app.md](how-to/test-your-app.md#start-the-viewer)). If no new header comes, run `nookku status` to see if a test runs ([recover-a-stuck-test.md](how-to/recover-a-stuck-test.md#1-run-status)). |
-| `transcript`, `trace` or `verify` shows the check test, not your test. | These commands use the latest test. If you ran `check` after your test, give the id of your test ([read-the-results.md](how-to/read-the-results.md#1-find-the-test-id)). |
+| `trace` or `verify` shows the check test, not your test. | These commands use the latest test. If you ran `check` after your test, give the id of your test ([read-the-results.md](how-to/read-the-results.md#1-find-the-test-id)). |
 | A prompt went to the model in [relay mode](reference/glossary.md#relay-mode). | In relay mode, the [relay](reference/glossary.md#relay) blocks each prompt. Run `nookku status`. If it says `relay mode is off.`, start a test with the prompt `nookku start`. If relay mode is on, the hooks did not run. In Codex, trust the hooks ([In Codex, the model answers my test messages](#in-codex-the-model-answers-my-test-messages)). In Claude Code, install the relay again ([project hooks](how-to/claude-code-project-hooks.md#install), [plugin](how-to/claude-code-plugin.md#install)). |
 | Codex does not run the hooks. | Codex runs [project hooks](reference/glossary.md#project-hooks) only after a person trusts them. Do the trust step ([codex.md](how-to/codex.md#install), [In Codex, the model answers my test messages](#in-codex-the-model-answers-my-test-messages)). |
 | Each message reaches the agent two times. | The [plugin](reference/glossary.md#plugin) and the project hooks both run. Use one form ([Each message reaches the agent two times](#each-message-reaches-the-agent-two-times)). |
 | The app's sessions show in `claude --resume` or `codex resume`. | The app runs its [harness](reference/glossary.md#harness) in the project root. Run it in a subfolder ([The app's sessions show in `claude --resume` or `codex resume`](#the-apps-sessions-show-in-claude---resume-or-codex-resume)). |
 | A test does not start. | Find the error text in [Start a test](#start-a-test). |
 | The test does not end, or each prompt says that no test runs. | Follow [recover-a-stuck-test.md](how-to/recover-a-stuck-test.md). |
-| No `report.md` after the end. | The model writes `report.md` only after the prompt `nookku end`. `nookku end` in a shell, or `/nookku end` in the plugin, ends the test with no [evaluation](reference/glossary.md#evaluation). If `evaluate` is `false` in the configuration, no evaluation starts. If you denied a command of the evaluation, the model can stop. Type the prompt `nookku end` again. If the latest test has no `report.md`, this prompt starts its evaluation ([SPEC.md section 9.1](../SPEC.md#91-start), [test-your-app.md](how-to/test-your-app.md#7-allow-the-evaluation-commands)). In Codex, the sandbox must let the model write in the project ([codex.md](how-to/codex.md#use)). |
+| No `report.md` after the end. | The model writes `report.md` only after the prompt `nookku end`. `nookku end` in a shell, or `/nookku end` in the plugin, ends the test with no [evaluation](reference/glossary.md#evaluation). If `evaluate` is `false` in the configuration, no evaluation starts. If you denied a command of the evaluation, the model can stop. Type the prompt `nookku end` again. If the latest test has no `report.md`, this prompt starts its evaluation. A check test that ended does not count: after `nookku check`, the prompt evaluates the test before it ([SPEC.md section 9.1](../SPEC.md#91-start), [test-your-app.md](how-to/test-your-app.md#7-allow-the-evaluation-commands)). In Codex, the sandbox must let the model write in the project ([codex.md](how-to/codex.md#use)). |
 | The [audit](reference/glossary.md#audit) exits with 1 or 2. | Read the [break](reference/glossary.md#break) or the error in `audit.json` ([read-the-results.md](how-to/read-the-results.md#3-read-the-audit)). For each error text, read [Audit, verify and trace](#audit-verify-and-trace). |
 | `nookku verify` says `Seal: BROKEN`. | A file of the test folder changed after the end of the test. Do not trust the changed files. Run a new test ([Audit, verify and trace](#audit-verify-and-trace)). |
 
@@ -225,6 +225,17 @@ If the entry returns an error, crashes or does not answer in [240 seconds](../sr
 
 **Fix.** None. A shell command that only reads the entry, for example `cat entry.py`, can run. But during a test, the relays deny each tool call that names `.nookku`, except a read with a file tool such as `Read` ([SPEC.md section 5](../SPEC.md#5-relays)). Thus `cat .nookku/entry.py` is denied.
 
+### `nookku: nothing was sent. Claude Code does not run as the interactive CLI, and then it can send a prompt to the model API in a title request. Use the interactive CLI, or set CLAUDE_CODE_DISABLE_TERMINAL_TITLE=1 in the environment that starts Claude Code. Read docs/troubleshooting.md.`
+
+(print_mode.py) **Cause.** Claude Code does not run as the interactive CLI. For example, it runs as `claude -p`, in an Agent SDK app, or in the panel of an editor extension. Then Claude Code can send the first prompt of a session to the model API in a request that makes the session title. A hook cannot stop this request, so the relay refuses. It did not start a test, did not send the message and wrote no turn. This prompt can be in the title request already. The data is in [limits.md](limits.md) and [SPEC.md section 5](../SPEC.md#5-relays).
+
+**Fix.** Do one of these steps:
+
+1. Run `claude` in a terminal, with no `-p`. The relay accepts the interactive CLI. In an editor, use its integrated terminal.
+2. Set `CLAUDE_CODE_DISABLE_TERMINAL_TITLE=1` in the environment that starts Claude Code, for example in your shell profile. Then start Claude Code again. This variable stops the title request ([print mode data](../proofs/spikes/print-mode.json)).
+
+`nookku end` and `nookku status` still run.
+
 ### `nookku: the relay does not send attachments. Nothing was sent.`
 
 (kit.py, shown by register.tsx) **Cause.** In relay mode, the Claude Code plugin got a prompt with an attachment or an image. A command hook gets only the text of a prompt, so the project hooks and the Codex plugin cannot refuse it ([limits.md](limits.md)).
@@ -292,6 +303,12 @@ If the entry returns an error, crashes or does not answer in [240 seconds](../sr
 (bridge.py) **Cause.** The bridge did not write the end time in the manifest. For example, it did not stop in the wait time of `end`.
 
 **Fix.** Read `bridge.log`. Run `nookku trace` to build the [trace](reference/glossary.md#trace) again.
+
+### `The bridge stopped before the end, so end wrote the audit and the seal from the records.`
+
+(bridge.py) **Cause.** The bridge stopped with no end, for example after `kill -9` or a restart, or it did not stop in the wait time of `end`. `end` finished the folder: `killed: true` in `manifest.json`, the trace, `audit.json` and the seal. The test has no copied model sessions.
+
+**Fix.** Read `bridge.log`. To see what to do next, read [recover-a-stuck-test.md](how-to/recover-a-stuck-test.md).
 
 ### `FAIL: No claude-code model session was identified.`
 
