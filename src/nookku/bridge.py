@@ -14,6 +14,7 @@ import subprocess
 import sys
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -140,10 +141,16 @@ def _tail(path: Path, n: int = 20) -> str:
         return ""
 
 
+# The time that start waits for the bridge (#164).
+START_WAIT = 30.0
+# The time that end waits for the bridge to stop, before it sends SIGKILL.
+END_WAIT = 120.0
+
+
 def start(
     root: Path,
     tester_session: str | None = None,
-    wait: float = 30.0,
+    wait: float = START_WAIT,
     entry_name: str | None = None,
     script_path: Path | None = None,
 ) -> dict[str, Any]:
@@ -208,16 +215,55 @@ def start(
     raise BridgeError(f"the test did not start in {wait:g} s:\n{_tail(folder / 'bridge.log')}")
 
 
+def stopped(root: Path) -> Path | None:
+    """The folder of the latest test if its bridge stopped with no end, else None (#164).
+
+    The caller makes sure that no test runs. A test that started less than START_WAIT ago can
+    still be in its start, so it is not stopped."""
+    folder = latest_test(root)
+    if folder is None:
+        return None
+    try:
+        manifest = json.loads((folder / "manifest.json").read_text())
+    except (OSError, ValueError):
+        return None
+    if not isinstance(manifest, dict) or manifest.get("ended") is not None:
+        return None
+    started = manifest.get("started")
+    if not isinstance(started, (int, float)) or time.time() - started < START_WAIT:
+        return None
+    return folder
+
+
+def finish_stopped(folder: Path) -> dict[str, Any]:
+    """Finish the folder of a test whose bridge stopped with no end (SPEC.md section 7.2).
+    Mark the test as killed, then write the trace, the audit and the seal from the records."""
+    path = folder / "manifest.json"
+    manifest: dict[str, Any] = json.loads(path.read_text())
+    manifest.update(ended=time.time(), killed=True)
+    _write_json(path, manifest)
+
+    def log(message: str) -> None:
+        with (folder / "bridge.log").open("a", encoding="utf-8") as f:
+            f.write(f"nookku end: {message}\n")
+
+    _collect(folder, script.copy_in(folder), log)
+    return manifest
+
+
 def end(
-    root: Path, wait: float = 120.0, tester_session: str | None = None
+    root: Path, wait: float = END_WAIT, tester_session: str | None = None
 ) -> dict[str, Any] | None:
     """Stop the running test and wait for the bridge to collect. Return the manifest.
+
+    If no test runs, but the bridge of the latest test stopped with no end, finish that test.
 
     `tester_session` is the harness session that ends the test. It is not a session of the app,
     also if it starts after the last turn."""
     cur = current(root)
     if cur is None:
-        return None
+        folder = stopped(root)
+        return None if folder is None else finish_stopped(folder)
     if tester_session:
         _write_json(state(root) / ENDING, {"test": cur["test"], "tester_session": tester_session})
     pid = cur["pid"]
@@ -228,14 +274,17 @@ def end(
     deadline = time.monotonic() + wait
     while is_bridge(cur) and time.monotonic() < deadline:
         time.sleep(0.2)
-    if is_bridge(cur):
+    killed = is_bridge(cur)
+    if killed:
         os.kill(pid, signal.SIGKILL)
         (state(root) / "current.json").unlink(missing_ok=True)
-    manifest = Path(cur["dir"]) / "manifest.json"
+    folder = Path(cur["dir"])
     try:
-        data: dict[str, Any] = json.loads(manifest.read_text())
+        data: dict[str, Any] = json.loads((folder / "manifest.json").read_text())
     except (OSError, ValueError):
-        data = {"test": cur["test"], "dir": cur["dir"]}
+        return {"test": cur["test"], "dir": cur["dir"]}
+    if killed and data.get("ended") is None:
+        return finish_stopped(folder)
     return data
 
 
@@ -279,6 +328,11 @@ def summary(manifest: dict[str, Any]) -> str:
     ]
     if manifest.get("ended") is None:
         lines.append("The bridge did not finish its collection. See bridge.log in the folder.")
+    if manifest.get("killed"):
+        lines.append(
+            "The bridge stopped before the end, so end wrote the audit and the seal from the "
+            "records. The test has no model sessions. See bridge.log in the folder."
+        )
     changed = gate_changed(manifest)
     if changed:
         lines.append(
@@ -650,25 +704,32 @@ def run(
     except Exception as e:  # the test must still end
         manifest["codex_gate"]["end"] = {"codex": None, "hooks": [], "problems": [repr(e)]}
     _write_json(folder / "manifest.json", manifest)
-    try:
-        _log(trace.summary(trace.build(folder)))
-    except Exception as e:  # the test must still end
-        _log(f"the trace failed: {e!r}")
-    try:
-        report = audit(folder / "tap.jsonl", relay, copy).as_dict()
-        _write_json(folder / "audit.json", report)
-    except Exception as e:  # the test must still end
-        _log(f"the audit failed: {e!r}")
-    try:
-        error = seal.write(folder)
-        if error:
-            _log(f"the seal has no copy outside the project: {error}")
-    except Exception as e:  # the test must still end
-        _log(f"the seal failed: {e!r}")
+    _collect(folder, copy)
     (state(root) / "current.json").unlink(missing_ok=True)
     tap.server_close()
     _log(f"test {test} ended")
     return 0
+
+
+def _collect(folder: Path, copy: Path | None, log: Callable[[str], None] | None = None) -> None:
+    """Write the trace, the audit and the seal of a test folder (SPEC.md section 7.2, steps 5
+    to 7). Each step writes its error to the log, and the test still ends."""
+    log = log or _log
+    try:
+        log(trace.summary(trace.build(folder)))
+    except Exception as e:
+        log(f"the trace failed: {e!r}")
+    try:
+        report = audit(folder / "tap.jsonl", folder / "relay.jsonl", copy).as_dict()
+        _write_json(folder / "audit.json", report)
+    except Exception as e:
+        log(f"the audit failed: {e!r}")
+    try:
+        error = seal.write(folder)
+        if error:
+            log(f"the seal has no copy outside the project: {error}")
+    except Exception as e:
+        log(f"the seal failed: {e!r}")
 
 
 def audit_problems(folder: Path) -> tuple[int | None, list[str]]:

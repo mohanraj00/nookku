@@ -434,6 +434,10 @@ If no process with the pid runs, or if the start time of that process is not `pi
 7. Writes the seal (section 7.4). If the seal fails, the bridge writes the error to `bridge.log`.
 8. Removes `current.json`.
 
+`end` waits up to 120 seconds for the bridge to stop. Then it stops the bridge with SIGKILL.
+
+A bridge can stop before it ends the test, for example after SIGKILL or a restart. Then the latest test (the one with the greatest `started` in its manifest) has no `ended` time. If no test runs, and the latest test has no `ended` time and started 30 seconds or more ago, the bridge of that test stopped. `end` then finishes the test folder, also after it stopped a bridge with SIGKILL. It writes `ended`, the time of this step, and `killed: true` into the manifest. Then it does steps 5 to 7 from the records that exist, and writes each error to `bridge.log`. It does not identify or copy model sessions. A test that started less than 30 seconds ago can still be in its start, so `end` does not finish it. `status` names such a stopped test, its folder, and the command `nookku end`.
+
 The test folder:
 
 ```text
@@ -444,7 +448,7 @@ The test folder:
   sessions/codex/<rollout file>
 ```
 
-`manifest.json` holds the test id, the project root, the entry, the models, the start and end times, the versions of Nookku, Claude Code and Codex, the SHA-256 of each configuration file in `.nookku/`, `policy`: the value of each policy key (section 7.9), `trace`: the value of each config key of the trace checks (`repeated_reply`, `model_reply_field` and `model_reply_match`, section 8.6), the tester's harness session ids, and `codex_gate`: the result of the Codex hook gate at the start and at the end of the test (section 7.8). `entry_name` is the name of the entry in `entries`, or `null` for the default entry. `script` is `null`, or for a scripted test `source`, the absolute path of the script file, `file`, the name of its copy, and `sha256`, the SHA-256 of the copy (section 7.10).
+`manifest.json` holds the test id, the project root, the entry, the models, the start and end times, the versions of Nookku, Claude Code and Codex, the SHA-256 of each configuration file in `.nookku/`, `policy`: the value of each policy key (section 7.9), `trace`: the value of each config key of the trace checks (`repeated_reply`, `model_reply_field` and `model_reply_match`, section 8.6), the tester's harness session ids, and `codex_gate`: the result of the Codex hook gate at the start and at the end of the test (section 7.8). `entry_name` is the name of the entry in `entries`, or `null` for the default entry. `script` is `null`, or for a scripted test `source`, the absolute path of the script file, `file`, the name of its copy, and `sha256`, the SHA-256 of the copy (section 7.10). `killed` is `true` if `end` finished the folder after the bridge stopped. A manifest with no `killed` is a test that its bridge ended.
 
 ### 7.3 Model sessions
 

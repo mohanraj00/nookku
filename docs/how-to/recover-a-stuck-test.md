@@ -8,7 +8,7 @@ nookku: relay mode is on, but no test runs. Start one with: nookku start. Nothin
 
 The [plugin](../reference/glossary.md#plugin) shows the same text with `Type /nookku start`, or "the test stopped, and no test runs" ([claude-code-plugin.md](claude-code-plugin.md)). In both relays, the message does not go to the model.
 
-The output on this page is the real output of each step. I used the toy shop project of [getting-started.md](../getting-started.md) with nookku 0.4.0 on macOS. I started a test, gave one message to `nookku hook --harness claude-code`, as Claude Code does, and stopped the bridge with `kill -9`. I shortened the paths of the folders to `.../`. The test id, the pid and the times are different on your machine.
+The output on this page is the real output of each step. I used a toy shop project like the one of [getting-started.md](../getting-started.md), with nookku 0.4.3 and the change of issue #164, on macOS. I started a test, gave one message to `nookku hook --harness claude-code`, as Claude Code does, and stopped the bridge with `kill -9`. I shortened the paths of the folders to `.../`. The test id, the pid and the times are different on your machine.
 
 Run each command in the project root, in a shell.
 
@@ -20,15 +20,19 @@ nookku status
 
 ```text
 relay mode is on. No test runs.
+Test 20261013-192120-5c8c stopped with no end. Folder: .../toy-shop/.nookku/tests/20261013-192120-5c8c
+To write its audit and its seal, run: nookku end
 ```
 
-[Relay mode](../reference/glossary.md#relay-mode) is on, but no test runs. Thus the bridge does not run. If a test runs, the line names it:
+[Relay mode](../reference/glossary.md#relay-mode) is on, but no test runs. The second line names the test that stopped and its folder. The third line gives the next step. If a test runs, the first line names it:
 
 ```text
 relay mode is on. Test 20261011-185435-1c1b runs on http://127.0.0.1:49439/.
 ```
 
 If the line names a test, the bridge runs. Then step 2 stops it.
+
+`status` names a stopped test only 30 seconds or more after its start, because a test that started less than 30 seconds ago can still be in its start ([SPEC.md section 7.2](../../SPEC.md#72-start-and-end)).
 
 ## 2. Run `end` in a shell
 
@@ -37,18 +41,26 @@ nookku end
 ```
 
 ```text
-No test runs. Relay mode is off.
+Test 20261013-192120-5c8c ended: 1 turns, 0 model sessions.
+Folder: .../toy-shop/.nookku/tests/20261013-192120-5c8c
+The bridge stopped before the end, so end wrote the audit and the seal from the records. The test has no model sessions. See bridge.log in the folder.
+Trace: 0 model items in 1 turns, no findings.
+Audit: nookku audit --tap .../toy-shop/.nookku/tests/20261013-192120-5c8c/tap.jsonl --relay .../toy-shop/.nookku/tests/20261013-192120-5c8c/relay.jsonl
+To evaluate the test, type this prompt in your harness: nookku end
 ```
 
-`end` switches relay mode off. If no test runs, it does nothing more.
+`end` switches relay mode off. Then it finishes the folder of the stopped test. It writes `killed: true` and the end time into `manifest.json`, and writes the [trace](../reference/glossary.md#trace), `audit.json` and the [seal](../reference/glossary.md#seal) from the records that exist. It does not copy the model sessions of the app, because the bridge did not find them. If no test runs and no test stopped, `end` prints `No test runs. Relay mode is off.`
 
-If the bridge runs but does not stop, `end` waits [120 seconds](../../src/nookku/bridge.py), and then stops the bridge with SIGKILL. I made this case with `kill -STOP` on the bridge. After 120 seconds, `end` printed:
+If the bridge runs but does not stop, `end` waits [120 seconds](../../src/nookku/bridge.py), and then stops the bridge with SIGKILL. It prints one line when it starts to wait. I made this case with `kill -STOP` on the bridge of a new test. `end` printed the first line at once, and the other lines after 120 seconds:
 
 ```text
-Test 20261011-185222-03fd ended: 1 turns, 0 model sessions.
-Folder: .../toy-shop/.nookku/tests/20261011-185222-03fd
-The bridge did not finish its collection. See bridge.log in the folder.
-Audit: nookku audit --tap .../toy-shop/.nookku/tests/20261011-185222-03fd/tap.jsonl --relay .../toy-shop/.nookku/tests/20261011-185222-03fd/relay.jsonl
+Ending test 20261013-192152-322d. Waiting up to 120 s for the bridge to stop.
+Test 20261013-192152-322d ended: 0 turns, 0 model sessions.
+Folder: .../toy-shop/.nookku/tests/20261013-192152-322d
+The bridge stopped before the end, so end wrote the audit and the seal from the records. The test has no model sessions. See bridge.log in the folder.
+Trace: 0 model items in 0 turns, no findings.
+Audit: nookku audit --tap .../toy-shop/.nookku/tests/20261013-192152-322d/tap.jsonl --relay .../toy-shop/.nookku/tests/20261013-192152-322d/relay.jsonl
+To evaluate the test, type this prompt in your harness: nookku end
 ```
 
 ## 3. Run `mode off`
@@ -79,7 +91,7 @@ The bridge writes `.nookku/current.json` when a test starts, and removes it when
 
 A pid and its start time identify the bridge, because the OS can give the pid of a stopped process to a new process. If no process has the pid, or if that process has another start time, no test runs ([SPEC.md section 7.2](../../SPEC.md#72-start-and-end)). Then `status`, `start` and `end` remove the file. The relays also do this check before each prompt.
 
-To see a stale file, look before you run `status`, `start` or `end`, because they remove it:
+To see a stale file, look before you run `status`, `start` or `end`, because they remove it. This example is from an earlier test:
 
 ```bash
 cat .nookku/current.json
@@ -114,28 +126,17 @@ cat .nookku/current.json
 cat: .nookku/current.json: No such file or directory
 ```
 
-The folder of the stuck test stays. It has `relay.jsonl`, `tap.jsonl`, `app.log`, `bridge.log` and `manifest.json`, and the files that the app wrote in `app-state/`. It has no `audit.json` and no [seal](../reference/glossary.md#seal), because the bridge did not finish the test. `verify` says so and exits with 2:
+The folder of the stuck test stays. Before `end`, it has `relay.jsonl`, `tap.jsonl`, `app.log`, `bridge.log` and `manifest.json`, and the files that the app wrote in `app-state/`. It has no `audit.json` and no seal, because the bridge did not finish the test. `status` names the test (step 1), and `end` finishes the folder (step 2). After `end`, `verify` checks the seal:
 
 ```bash
-nookku verify 20261011-185432-0da0
+nookku verify 20261013-192120-5c8c
 ```
 
 ```text
-Test 20261011-185432-0da0. Seal: none. The records of this test have no seal.
+Test 20261013-192120-5c8c. Seal: intact. No record changed after the end of the test.
 ```
 
-You can still [audit](../reference/glossary.md#audit) the 2 records by hand:
-
-```bash
-nookku audit --tap .nookku/tests/20261011-185432-0da0/tap.jsonl --relay .nookku/tests/20261011-185432-0da0/relay.jsonl
-```
-
-```text
-1 turns, 1 exchanges, 0 blocked model calls, 0 model sessions, 0 breaks
-Result: clean (exit 0)
-```
-
-Use this audit with care. The test has no seal, so nothing shows a change to a record after the bridge stopped.
+Use this seal with care. `end` wrote it after the bridge stopped, so it does not show a change to a record between the stop of the bridge and the run of `end`.
 
 ## 5. Start a new test
 

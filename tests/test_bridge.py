@@ -2,6 +2,7 @@ import hashlib
 import io
 import json
 import os
+import signal
 import subprocess
 import sys
 import time
@@ -154,6 +155,76 @@ def test_a_stale_current_file_is_removed(tmp_path: Path) -> None:
     current.write_text(json.dumps({"test": "x", "pid": dead.pid, "dir": "", "tap_url": ""}))
     assert bridge.current(root) is None
     assert not current.exists()
+
+
+def _wait_dead(pid: int) -> None:
+    deadline = time.monotonic() + 10
+    while bridge.alive(pid) and time.monotonic() < deadline:
+        time.sleep(0.05)
+
+
+def test_end_finishes_the_folder_of_a_killed_bridge(
+    tmp_path: Path, homes: tuple, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+) -> None:
+    root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
+    cur = bridge.start(root)
+    folder = Path(cur["dir"])
+    shown, ok = bridge.send(cur, "What is the refund policy?")
+    Writer(folder / "relay.jsonl").append(
+        {
+            "type": "turn",
+            "harness": "codex",
+            "said": "What is the refund policy?",
+            "shown": shown,
+            "ok": ok,
+        }
+    )
+    os.kill(cur["pid"], 9)
+    _wait_dead(cur["pid"])
+    # A test that started less than START_WAIT ago can still be in its start.
+    assert bridge.stopped(root) is None
+    monkeypatch.setattr(bridge, "START_WAIT", 0.0)
+    assert main(["status", "--root", str(root)]) == 0
+    out = capsys.readouterr().out
+    assert f"Test {cur['test']} stopped with no end. Folder: {folder}\n" in out
+    assert "To write its audit and its seal, run: nookku end" in out
+    assert not (root / ".nookku" / "current.json").exists()
+    assert main(["end", "--root", str(root)]) == 0
+    out = capsys.readouterr().out
+    assert out.startswith(f"Test {cur['test']} ended: 1 turns, 0 model sessions.")
+    assert "The bridge stopped before the end, so end wrote the audit and the seal" in out
+    manifest = json.loads((folder / "manifest.json").read_text())
+    assert manifest["killed"] is True and manifest["ended"] >= manifest["started"]
+    assert json.loads((folder / "audit.json").read_text())["exit"] == 0
+    assert seal.verify(folder)["intact"]
+    assert "nookku end: Trace:" in (folder / "bridge.log").read_text()
+    # The test is finished, so status names no stopped test, and end finds no test.
+    assert bridge.stopped(root) is None
+    assert bridge.end(root) is None
+
+
+def test_end_finishes_the_folder_of_a_hung_bridge(
+    tmp_path: Path, homes: tuple, capsys: pytest.CaptureFixture
+) -> None:
+    root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
+    cur = bridge.start(root)
+    folder = Path(cur["dir"])
+    os.kill(cur["pid"], signal.SIGSTOP)
+    manifest = bridge.end(root, wait=0.5)
+    _wait_dead(cur["pid"])
+    assert manifest is not None and manifest["killed"] is True
+    assert seal.verify(folder)["intact"]
+    assert "stopped before the end" in bridge.summary(manifest)
+
+
+def test_end_names_the_test_and_the_wait(
+    tmp_path: Path, homes: tuple, capsys: pytest.CaptureFixture
+) -> None:
+    root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
+    cur = bridge.start(root)
+    assert main(["end", "--root", str(root)]) == 0
+    first = capsys.readouterr().out.splitlines()[0]
+    assert first == f"Ending test {cur['test']}. Waiting up to 120 s for the bridge to stop."
 
 
 def test_a_live_process_that_is_not_the_bridge_gets_no_signal(tmp_path: Path) -> None:
