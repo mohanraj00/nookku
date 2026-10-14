@@ -133,6 +133,8 @@ async function refresh() {
     }
   } catch (e) {
     if (poll > shownPoll) {
+      // An older poll that answers later must not hide this error or show older turns.
+      shownPoll = poll;
       pollError = "nookku: the page server does not answer. Start it again with: nookku page";
       showError(pollError);
     }

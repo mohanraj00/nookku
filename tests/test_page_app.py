@@ -46,8 +46,9 @@ global.NookkuRender = { reply: () => new El("li") };
 global.setInterval = () => 0;
 // Each fetch waits until the check resolves it.
 const pending = [];
-global.fetch = (url, init) => new Promise((resolve) => {
-  pending.push({ url: url, init: init, answer: (data) => resolve({ json: async () => data }) });
+global.fetch = (url, init) => new Promise((resolve, reject) => {
+  pending.push({ url: url, init: init, answer: (data) => resolve({ json: async () => data }),
+    fail: () => reject(new Error("no answer")) });
 });
 const tick = () => new Promise((r) => setTimeout(r, 0));
 function turns(n) {
@@ -101,6 +102,29 @@ ANSWERS_CHECK = """
 })();
 """
 
+FAILED_POLL_CHECK = """
+(async () => {
+  const out = {};
+  // The first poll waits. A send starts a second request, and its end starts a third poll,
+  // which fails. Then the old answer of the first poll comes.
+  const poll1 = pending.shift();
+  ids.said.value = "hi 2";
+  ids.send.listeners.click[0]();
+  await tick();
+  pending.shift().answer({ sent: true, ok: true, shown: "reply 2" });
+  await tick(); await tick();
+  const turnsAfterSend = ids.turns.kids.length;
+  pending.shift().fail();
+  await tick(); await tick();
+  out.error = ids.error.textContent;
+  poll1.answer(turns(1));
+  await tick(); await tick();
+  out.errorAfterOld = ids.error.textContent;
+  out.sameTurns = ids.turns.kids.length === turnsAfterSend;
+  process.stdout.write(JSON.stringify(out));
+})();
+"""
+
 DRAFT_CHECK = """
 (async () => {
   const out = {};
@@ -136,3 +160,11 @@ def test_a_send_keeps_the_text_that_the_tester_typed_during_the_send() -> None:
     out = run(DRAFT_CHECK)
     assert out["unchanged"] == ""
     assert out["typed"] == "the next message"
+
+
+@needs_node
+def test_an_old_poll_answer_after_a_failed_poll_keeps_the_error() -> None:
+    out = run(FAILED_POLL_CHECK)
+    assert str(out["error"]).startswith("nookku: the page server does not answer")
+    assert out["errorAfterOld"] == out["error"]
+    assert out["sameTurns"] is True

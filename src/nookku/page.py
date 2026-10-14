@@ -44,7 +44,7 @@ from types import MappingProxyType
 from typing import Any, BinaryIO, TextIO
 from urllib.parse import unquote, urlsplit
 
-from nookku import dashboard, kit, notes, page_trace, replay, script_save, seal, state
+from nookku import dashboard, kit, notes, page_trace, replay, script_save, state
 from nookku.record import RecordError, Writer, finite, id_problem, turns
 
 # The harness of a turn that the page sent (SPEC.md section 2.2).
@@ -159,15 +159,6 @@ def _manifest(folder: Path) -> dict[str, Any] | None:
     return data if isinstance(data, dict) else None
 
 
-def _closed(folder: Path) -> bool:
-    """True if the test ended, or its end wrote the audit or the seal. Then the record must not
-    change."""
-    if (folder / "audit.json").exists() or (folder / seal.SEAL).exists():
-        return True
-    manifest = _manifest(folder)
-    return manifest is None or manifest.get("ended") is not None
-
-
 def refusal(root: Path, said: str) -> str | None:
     """The reason to refuse a message before the page sends it, or None. The rules of the
     prompt are the rules of the hook (`kit.prompt_refusal`). An exact control prompt runs only
@@ -214,12 +205,12 @@ def _send_locked(root: Path, said: str, test_id: str | None = None) -> dict[str,
     if manifest is None:
         return {"sent": False, "shown": NO_MANIFEST, "ok": False}
     # `nookku end` switches relay mode off before it stops the test.
-    if not kit.is_on(root) or _closed(folder):
+    if not kit.is_on(root) or state.closed(folder):
         return {"sent": False, "shown": RELAY_OFF, "ok": False}
     if manifest.get("script") is not None:
         return {"sent": False, "shown": SCRIPTED, "ok": False}
     shown, ok = kit.checked(*state.send(cur, said))
-    if _closed(folder):
+    if state.closed(folder):
         return {"sent": False, "shown": ENDED.format(shown=shown), "ok": False}
     row = {"type": "turn", "harness": HARNESS, "said": said, "shown": shown, "ok": ok}
     Writer(folder / "relay.jsonl").append(row)
