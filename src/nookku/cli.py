@@ -101,6 +101,39 @@ def _relay_on(root: Path) -> str | None:
     return None
 
 
+def _mode_on_refusal(root: Path) -> str | None:
+    """Give the reason why `mode on` refuses to switch relay mode on, or None.
+
+    A refusal does not change the mode file.
+    """
+    if not (root / kit.STATE_DIR / "config.json").exists():
+        if kit.is_on(root):
+            # Do not switch relay mode off here. If it is off, the next prompt goes to the model.
+            return (
+                "this project has no .nookku/config.json. Relay mode is still on, "
+                "so the relay blocks each prompt. Write the config with: nookku init plugin. "
+                "Or switch relay mode off with: nookku mode off"
+            )
+        return (
+            "this project has no .nookku/config.json, so relay mode stays off. "
+            "Write it with: nookku init plugin"
+        )
+    # A config with no entry (direct HTTP mode) follows the same rule for its keys.
+    try:
+        read_config(root)
+    except ConfigError as e:
+        return str(e)
+    from nookku import claude_gate, codex_gate
+
+    both = claude_gate.problem(root)
+    if both is not None:
+        return both
+    gate = codex_gate.check(root)
+    if gate["problems"]:
+        return codex_gate.refusal(gate)
+    return None
+
+
 def _remove_hooks(root: Path, harness: str) -> int:
     """init --remove (#163): remove the project hooks, but not while a test or relay mode is
     on. Without the hooks, a message in relay mode would go to the model."""
@@ -459,30 +492,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                 kit.start_test(root, session) if args.state == "on" else kit.end_test(root, session)
             )
             return 0
-        if args.state == "on" and not (root / kit.STATE_DIR / "config.json").exists():
-            # Without a config, each relayed prompt is blocked, so relay mode stays off.
-            print(
-                "nookku: this project has no .nookku/config.json, so relay mode stays off. "
-                "Write it with: nookku init plugin"
-            )
-            return 0
-        if args.state == "on" and (root / kit.STATE_DIR / "config.json").exists():
-            # A config with no entry (direct HTTP mode) follows the same rule for its keys.
-            try:
-                read_config(root)
-            except ConfigError as e:
-                print(f"nookku: {e}")
-                return 0
         if args.state == "on":
-            from nookku import claude_gate, codex_gate
-
-            both = claude_gate.problem(root)
-            if both is not None:
-                print(f"nookku: {both}")
-                return 0
-            gate = codex_gate.check(root)
-            if gate["problems"]:
-                print(f"nookku: {codex_gate.refusal(gate)}")
+            refusal = _mode_on_refusal(root)
+            if refusal is not None:
+                print(f"nookku: {refusal}")
                 return 0
         if args.state != "status":
             kit.set_mode(root, args.state == "on")
