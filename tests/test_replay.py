@@ -82,6 +82,20 @@ def test_one_changed_reply_gives_one_changed_turn_and_its_words(tmp_path: Path) 
     assert joined(words, "insert") == new[1][1]
 
 
+def test_a_long_reply_gives_a_diff_with_no_long_wait() -> None:
+    common = " ".join(["the blue mug"] * 3000)
+    # One changed word in a long reply: the equal start and end need no matcher.
+    parts = replay.words(common + " costs 8.", common + " costs 9.")
+    assert [p for p in parts if p[0] != "equal"] == [["delete", "8."], ["insert", "9."]]
+    # A changed part with more than MAX_TOKENS tokens is one delete and one insert.
+    old = " ".join(["mug teapot"] * replay.MAX_TOKENS)
+    new = " ".join(["teapot mug"] * replay.MAX_TOKENS)
+    parts = replay.words("Hi. " + old + " Bye.", "Hi. " + new + " Bye.")
+    assert [p[0] for p in parts] == ["equal", "delete", "insert", "equal"]
+    assert joined(parts, "delete") == "Hi. " + old + " Bye."
+    assert joined(parts, "insert") == "Hi. " + new + " Bye."
+
+
 def test_the_diff_uses_the_tap_reply_not_the_shown_text(tmp_path: Path) -> None:
     new = list(TURNS)
     # The relay showed other text, but the agent sent the same reply: no change.

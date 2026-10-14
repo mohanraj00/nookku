@@ -26,6 +26,11 @@ ROUTE = "api/diff"
 WORD = re.compile(r"\s+|\S+")
 # In the terminal, a run of equal words longer than this shows only its first and last words.
 CONTEXT = 6
+# The most words and runs of white space on one side of the part between the equal start and the
+# equal end of 2 replies that the matcher compares. The time of the matcher grows fast with the
+# count, so a larger part gets one delete and one insert. Thus a long reply cannot stop the replay
+# or the page server.
+MAX_TOKENS = 2000
 
 
 class ReplayError(ValueError):
@@ -57,12 +62,27 @@ def words(old: str, new: str) -> list[list[str]]:
         else:
             parts.append([op, "".join(tokens)])
 
-    for op, i, j, k, m in difflib.SequenceMatcher(None, a, b, autojunk=False).get_opcodes():
-        if op == "equal":
-            add("equal", a[i:j])
-        else:
-            add("delete", a[i:j])
-            add("insert", b[k:m])
+    # The equal start and the equal end need no matcher.
+    start = 0
+    while start < min(len(a), len(b)) and a[start] == b[start]:
+        start += 1
+    end = 0
+    while end < min(len(a), len(b)) - start and a[-1 - end] == b[-1 - end]:
+        end += 1
+    mid_a, mid_b = a[start : len(a) - end], b[start : len(b) - end]
+    add("equal", a[:start])
+    if max(len(mid_a), len(mid_b)) > MAX_TOKENS:
+        add("delete", mid_a)
+        add("insert", mid_b)
+    else:
+        matcher = difflib.SequenceMatcher(None, mid_a, mid_b, autojunk=False)
+        for op, i, j, k, m in matcher.get_opcodes():
+            if op == "equal":
+                add("equal", mid_a[i:j])
+            else:
+                add("delete", mid_a[i:j])
+                add("insert", mid_b[k:m])
+    add("equal", a[len(a) - end :])
     return parts
 
 
