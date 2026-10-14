@@ -11,7 +11,7 @@ from collections.abc import Iterator, Sequence
 from importlib import resources
 from pathlib import Path
 
-from nookku import __version__, bridge, evaluation, kit, print_mode, seal, stdio, trace
+from nookku import __version__, bridge, evaluation, kit, print_mode, seal, state, stdio, trace
 from nookku.adapters import make
 from nookku.audit import audit, render
 from nookku.config import KEYS as CONFIG_KEYS
@@ -248,6 +248,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     br.add_argument("--tester-session")
     br.add_argument("--entry-name")
     br.add_argument("--script-source")
+    br.add_argument("--check", action="store_true")
 
     mode = sub.add_parser("mode", help="switch relay mode on or off (with an entry: start or end)")
     mode.add_argument(
@@ -354,7 +355,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.cmd:
             log = args.log or args.record.parent / "app.log"
             agent = stdio.Agent(command, Path.cwd(), log, timeout=args.timeout)
-            stdio.serve(stdio.StdioTap(args.listen, agent, args.record))
+            token = os.environ.get(stdio.TOKEN_ENV) or None
+            if token is not None and len(token) < stdio.TOKEN_MIN:
+                tap.error(f"{stdio.TOKEN_ENV} must have {stdio.TOKEN_MIN} characters or more")
+            stdio.serve(stdio.StdioTap(args.listen, agent, args.record, token))
             return 0
         adapter = make(args.adapter, args.message_field, args.reply_field)
         serve(Tap(args.listen, args.agent, args.record, adapter, timeout=args.timeout))
@@ -369,6 +373,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             args.tester_session,
             entry_name=args.entry_name,
             script_source=args.script_source,
+            check=args.check,
         )
     if args.command == "run":
         return _run_command(args)
@@ -626,7 +631,7 @@ def _test_command(args: argparse.Namespace) -> int:
             return 1
         kit.set_mode(root, True)
         if args.json:
-            print(json.dumps(cur))
+            print(json.dumps(state.public(cur)))
         else:
             print(f"Test {cur['test']} started on {cur['tap_url']}. Relay mode is on.")
             print(kit.end_ways(root))
@@ -661,7 +666,8 @@ def _test_command(args: argparse.Namespace) -> int:
             # prompt with an attachment. Each is null if relay mode is off.
             line = kit.status(root).removeprefix("nookku: ") if on else None
             refuse = kit.ATTACHMENTS_REASON if on else None
-            print(json.dumps({"on": on, "test": running, "text": line, "attachments": refuse}))
+            test = state.public(running) if running else None
+            print(json.dumps({"on": on, "test": test, "text": line, "attachments": refuse}))
         else:
             print(kit.status(root).removeprefix("nookku: "))
         return 0

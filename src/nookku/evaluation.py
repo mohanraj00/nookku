@@ -35,9 +35,13 @@ def enabled(root: Path) -> bool:
     return conf.get("evaluate", True) is not False
 
 
-def is_check(folder: Path) -> bool:
-    """True if the test is a test of `nookku check`: it has turns, and each one has the harness
-    `nookku-check`. A relay record that cannot be read is not a check test (SPEC.md section 9.1)."""
+def is_check(folder: Path, manifest: dict[str, Any]) -> bool:
+    """True if the test is a test of `nookku check` (SPEC.md section 9.1). If the manifest has the
+    key `check`, the key decides. A manifest of an older Nookku version has no such key: then
+    the test has turns, and each one has the harness `nookku-check`. A relay record that cannot
+    be read is not a check test."""
+    if "check" in manifest:
+        return manifest["check"] is True
     try:
         found = turns(folder / "relay.jsonl", missing_ok=True)
     except RecordError:
@@ -50,11 +54,13 @@ def _ended(root: Path) -> Path | None:
     if bridge.current(root) is not None:
         return None
     folder = bridge.latest_test(root)
-    if folder is None or (folder / REPORT).exists() or is_check(folder):
+    if folder is None or (folder / REPORT).exists():
         return None
     try:
         manifest = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
     except (OSError, ValueError):
+        return None
+    if not isinstance(manifest, dict) or is_check(folder, manifest):
         return None
     return folder if manifest.get("ended") is not None else None
 

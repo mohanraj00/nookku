@@ -11,6 +11,7 @@ The proofs show that each [relay](../reference/glossary.md#relay) is exact in a 
 - The proofs run in 4 setups: `plugin-claude-code`, `plugin-codex`, `hooks-claude-code` and `hooks-codex`. A setup is a form of the relay (the [plugin](../reference/glossary.md#plugin) or the [project hooks](../reference/glossary.md#project-hooks)) and a harness.
 - In Claude Code, the plugin proofs load the plugin from this repo with `--plugin-dir`. You do not install it.
 - In Codex, the plugin proofs use the `CODEX_HOME` of [proof_codex_gate.py](../../scripts/proof_codex_gate.py), `.proof/codex-gate/codex-home`. That script installs the plugin of this checkout there.
+- Run each proof of the setup `hooks-codex` in the main checkout of the repo, not in a git worktree. In a git worktree, Codex reads the project hooks from the main checkout, so the proof does not use the hooks of the worktree.
 - The plugin hooks run `nookku` from `PATH`. The scripts put the `nookku` of this checkout first.
 - Codex runs each command of the model in a login shell, which reads your shell profile again. If the profile puts another `nookku` first on `PATH`, the model runs that one. Remove it before the proofs, for example with `uv tool uninstall nookku`.
 - Some proofs use a real model and cost tokens. The proofs of the proxies and the backend need no model.

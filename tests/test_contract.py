@@ -12,6 +12,7 @@ import pytest
 from nookku import contract
 from nookku.audit import audit
 from nookku.record import Writer, lone_surrogate
+from nookku.state import TOKEN_HEADER, tap_headers
 from nookku.stdio import Agent, StdioTap, start_in_thread
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -35,13 +36,27 @@ for i, raw in enumerate(sys.stdin.buffer):
 """
 
 
-def post(url: str, body: str) -> tuple[int, bytes]:
-    req = urllib.request.Request(url, data=body.encode("utf-8"), method="POST")
+def post(
+    tap: StdioTap, body: str, headers: dict[str, str | None] | None = None
+) -> tuple[int, bytes]:
+    """POST a body to the tap as a relay does. A value of None in `headers` removes that header."""
+    sent = {**tap_headers(tap.token), **(headers or {})}
+    kept = {k: v for k, v in sent.items() if v is not None}
+    req = urllib.request.Request(tap.url, data=body.encode("utf-8"), method="POST", headers=kept)
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
             return resp.status, resp.read()
     except urllib.error.HTTPError as e:
         return e.code, e.read()
+
+
+def case_request(request: str | dict, token: str) -> tuple[str, dict[str, str | None]]:
+    """The body and the headers of one request of a case. A request is a body, or an object
+    with the body, the token ("right", "none" or "wrong") and other headers."""
+    if isinstance(request, str):
+        return request, {}
+    given = {"right": token, "none": None, "wrong": "not-the-tap-token"}[request["token"]]
+    return request["body"], {TOKEN_HEADER: given, **request.get("headers", {})}
 
 
 @pytest.mark.parametrize("case_dir", CASES, ids=[c.name for c in CASES])
@@ -56,15 +71,16 @@ def test_contract_case(case_dir: Path, tmp_path: Path) -> None:
     start_in_thread(tap)
     try:
         statuses = []
-        for body in case["requests"]:
-            statuses.append(post(tap.url, body)[0])
+        for request in case["requests"]:
+            statuses.append(post(tap, *case_request(request, tap.token))[0])
             time.sleep(0.2)
     finally:
         tap.shutdown()
         agent.stop(grace=1)
     assert statuses == case["http"]
     sent = got.read_bytes() if got.exists() else b""
-    assert sent == b"".join(case["requests"][i].encode() + b"\n" for i in case["forwarded"])
+    bodies = [case_request(r, "")[0] for r in case["requests"]]
+    assert sent == b"".join(bodies[i].encode() + b"\n" for i in case["forwarded"])
     rows = [json.loads(x) for x in (tmp_path / "tap.jsonl").read_text().split("\n") if x]
     assert len(rows) == len(case["rows"])
     for row, want in zip(rows, case["rows"], strict=True):
@@ -86,9 +102,7 @@ def test_a_lone_surrogate_in_a_reply_is_named(tmp_path: Path) -> None:
     agent.start()
     start_in_thread(tap)
     try:
-        status, body = post(
-            tap.url, contract.request("m-1", "t-1", "Where is my mug?", []).decode()
-        )
+        status, body = post(tap, contract.request("m-1", "t-1", "Where is my mug?", []).decode())
     finally:
         tap.shutdown()
         agent.stop(grace=1)
@@ -109,9 +123,7 @@ def test_an_error_after_a_crash_shows_the_end_of_the_log(tmp_path: Path) -> None
     agent.start()
     start_in_thread(tap)
     try:
-        status, body = post(
-            tap.url, contract.request("m-1", "t-1", "Where is my mug?", []).decode()
-        )
+        status, body = post(tap, contract.request("m-1", "t-1", "Where is my mug?", []).decode())
     finally:
         tap.shutdown()
         agent.stop(grace=1)
@@ -250,7 +262,7 @@ def test_output_before_serve_goes_to_the_log(tmp_path: Path) -> None:
     start_in_thread(tap)
     said = "Do you sell mugs?"
     try:
-        status, body = post(tap.url, contract.request("m-1", "t-1", said, []).decode())
+        status, body = post(tap, contract.request("m-1", "t-1", said, []).decode())
     finally:
         tap.shutdown()
         agent.stop(grace=1)
@@ -284,7 +296,7 @@ def test_a_stray_line_before_the_reply_is_not_the_reply(tmp_path: Path) -> None:
     start_in_thread(tap)
     try:
         answers = [
-            post(tap.url, contract.request(rid, "t-1", "Where is my mug?", []).decode())
+            post(tap, contract.request(rid, "t-1", "Where is my mug?", []).decode())
             for rid in ("m-1", "m-2")
         ]
     finally:
@@ -316,9 +328,7 @@ def test_a_timeout_after_stray_lines_names_them_and_the_fix(tmp_path: Path) -> N
     agent.start()
     start_in_thread(tap)
     try:
-        status, body = post(
-            tap.url, contract.request("m-1", "t-1", "Where is my mug?", []).decode()
-        )
+        status, body = post(tap, contract.request("m-1", "t-1", "Where is my mug?", []).decode())
     finally:
         tap.shutdown()
         agent.stop(grace=1)
@@ -346,9 +356,7 @@ def test_an_agent_that_writes_stray_lines_all_the_time_still_times_out(tmp_path:
     start_in_thread(tap)
     began = time.monotonic()
     try:
-        status, body = post(
-            tap.url, contract.request("m-1", "t-1", "Where is my mug?", []).decode()
-        )
+        status, body = post(tap, contract.request("m-1", "t-1", "Where is my mug?", []).decode())
     finally:
         tap.shutdown()
         agent.stop(grace=1)
@@ -428,7 +436,7 @@ def test_a_record_error_gives_502(tmp_path: Path, capsys, message: str | None) -
             {"v": 1, "id": "m-1", "session": "t-1", "message": message, "history": []}
         )
     try:
-        status, out = post(tap.url, body)
+        status, out = post(tap, body)
     finally:
         tap.shutdown()
         agent.stop(grace=1)
@@ -450,7 +458,7 @@ def test_a_record_error_of_a_stray_line_keeps_the_message_from_the_agent(
         while agent._lines.empty() and time.monotonic() < deadline:
             time.sleep(0.01)
         assert not agent._lines.empty()
-        status, out = post(tap.url, contract.request("m-1", "t-1", "Where is my mug?", []).decode())
+        status, out = post(tap, contract.request("m-1", "t-1", "Where is my mug?", []).decode())
     finally:
         tap.shutdown()
         agent.stop(grace=1)
@@ -479,7 +487,7 @@ def test_a_record_name_that_is_not_utf_8_still_gives_502(tmp_path: Path) -> None
     tap.writer.append = full_disk  # type: ignore[method-assign]
     start_in_thread(tap)
     try:
-        status, out = post(tap.url, "not a contract line")
+        status, out = post(tap, "not a contract line")
     finally:
         tap.shutdown()
     error = CANNOT_WRITE.replace("tap.jsonl", "tap\\udcff.jsonl")

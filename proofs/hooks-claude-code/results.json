@@ -90,9 +90,9 @@
  "P3b": {
   "agent_inputs_added": 0,
   "blocked_rows": 1,
-  "model_text": "The command did not run. A PreToolUse hook stopped it before the request went out. The hook gave this message:\n\n```\nnookku: only the tester talks to the agent.\n```\n\nThe Nookku guard blocks this request on purpose. The guard does not let the model send a message to the agent. Only the tester can send"
+  "model_text": "The Nookku `PreToolUse:Bash` hook stopped the command before it ran. No request went to `127.0.0.1:56464`, so I have no output to show you.\n\nThe hook gave this message:\n\n```\nnookku: only the tester talks to the agent.\n```\n\nThe guard does not let the model send a message to the agent under test. Only"
  },
- "end_model_output_tokens": 3106,
+ "end_model_output_tokens": 3116,
  "test": {
   "ended": true,
   "model_sessions": [],

@@ -5,11 +5,13 @@ import os
 import subprocess
 import sys
 import time
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 import pytest
 
-from nookku import bridge, evaluation, kit, mcp, policy, seal, stdio, trace
+from nookku import bridge, evaluation, kit, mcp, policy, seal, state, stdio, trace
 from nookku.audit import CHECKS, audit
 from nookku.cli import main
 from nookku.record import RecordError, Writer
@@ -93,6 +95,64 @@ def test_a_test_relays_and_records_both_sides(tmp_path: Path, homes: tuple) -> N
     # The last step of the end seals the folder, with a copy outside the project.
     assert seal.verify(folder)["intact"] and seal.verify(folder)["copy"] == "same"
     assert bridge.end(root) is None
+
+
+def test_the_tap_of_a_test_takes_only_requests_with_its_token(tmp_path: Path, homes: tuple) -> None:
+    root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
+    cur = bridge.start(root)
+    current = root / ".nookku" / "current.json"
+    body = json.dumps({"v": 1, "id": "m-1", "session": "t", "message": "Hi", "history": []})
+    good = state.tap_headers(cur[state.TOKEN_KEY])
+    refused = [
+        {"Content-Type": "application/json"},
+        {**good, state.TOKEN_HEADER: "not-the-tap-token"},
+        {**good, "Origin": "https://example.com"},
+        {**good, "Content-Type": "text/plain"},
+    ]
+    try:
+        # current.json holds the token, so only the owner can read it.
+        assert len(cur[state.TOKEN_KEY]) >= 40 and current.stat().st_mode & 0o777 == 0o600
+        statuses = []
+        for headers in refused:
+            req = urllib.request.Request(cur["tap_url"], body.encode(), headers, method="POST")
+            with pytest.raises(urllib.error.HTTPError) as e:
+                urllib.request.urlopen(req, timeout=10)
+            statuses.append(e.value.code)
+        shown, ok = bridge.send(cur, "What is the refund policy?")
+    finally:
+        bridge.end(root)
+    assert statuses == [403] * 4
+    assert ok and shown.startswith("Our refund policy")
+    rows = [json.loads(x) for x in (Path(cur["dir"]) / "tap.jsonl").read_text().splitlines()]
+    # Only the relayed message reached the entry.
+    assert [r["input"] for r in rows if r["type"] == "exchange"] == ["What is the refund policy?"]
+    answers = Path(cur["dir"]) / "app-state" / "answers.jsonl"
+    assert len(answers.read_text().splitlines()) == 1
+
+
+def test_start_and_status_print_no_tap_token(tmp_path: Path, homes: tuple, capsys) -> None:
+    root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
+    try:
+        assert main(["start", "--root", str(root), "--json"]) == 0
+        started = json.loads(capsys.readouterr().out)
+        assert main(["status", "--root", str(root), "--json"]) == 0
+        status = json.loads(capsys.readouterr().out)
+        cur = bridge.current(root)
+    finally:
+        main(["end", "--root", str(root)])
+    assert cur is not None and cur[state.TOKEN_KEY]
+    assert started == status["test"] == state.public(cur)
+    assert state.TOKEN_KEY not in started
+
+
+def test_a_relay_with_no_token_fails_closed(tmp_path: Path, homes: tuple) -> None:
+    root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
+    cur = bridge.start(root)
+    try:
+        shown, ok = bridge.send({k: v for k, v in cur.items() if k != state.TOKEN_KEY}, "Hi")
+    finally:
+        bridge.end(root)
+    assert not ok and shown.startswith("nookku: HTTP 403: nookku tap:")
 
 
 def test_the_entry_keeps_its_state_in_the_sealed_test_folder(tmp_path: Path, homes: tuple) -> None:
@@ -304,7 +364,7 @@ def test_check_gives_the_fix_for_logs_on_stdout(
     root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
     folder = tmp_path / "test"
     folder.mkdir()
-    monkeypatch.setattr(bridge, "start", lambda root: {"test": "t-1", "dir": str(folder)})
+    monkeypatch.setattr(bridge, "start", lambda root, **_: {"test": "t-1", "dir": str(folder)})
     monkeypatch.setattr(bridge, "send", lambda cur, said: (f"nookku: HTTP 504: {error}", False))
     monkeypatch.setattr(bridge, "end", lambda root: {})
     # The tap wrote an unparsed row for each stray line, so the audit exits with 2.
@@ -326,7 +386,7 @@ def test_check_gives_one_line_for_the_stray_lines(
     root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
     folder = tmp_path / "test"
     folder.mkdir()
-    monkeypatch.setattr(bridge, "start", lambda root: {"test": "t-1", "dir": str(folder)})
+    monkeypatch.setattr(bridge, "start", lambda root, **_: {"test": "t-1", "dir": str(folder)})
     monkeypatch.setattr(bridge, "send", lambda cur, said: ("Toy shop: hi", True))
     monkeypatch.setattr(bridge, "end", lambda root: {})
     stray = [
@@ -433,6 +493,30 @@ def test_a_clean_entry_passes_the_check(tmp_path: Path, homes: tuple) -> None:
     passed, lines = bridge.check(root)
     assert passed, lines
     assert lines[-2:] == ["Audit: exit 0", "PASS"]
+
+
+def test_a_check_that_stops_before_the_reply_gets_no_evaluation(
+    tmp_path: Path, homes: tuple, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Ctrl-C during the send: the check ends its test with no turn (#297).
+    root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
+
+    def stop(cur: dict, said: str) -> tuple[str, bool]:
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(bridge, "send", stop)
+    with pytest.raises(KeyboardInterrupt):
+        bridge.check(root)
+    folder = bridge.latest_test(root)
+    assert folder is not None
+    manifest = json.loads((folder / "manifest.json").read_text())
+    assert manifest["check"] is True and manifest["ended"] is not None
+    assert bridge.history(folder / "relay.jsonl") == []
+    assert evaluation.pending(root) is None
+    # A test of the tester is not a check test.
+    bridge.start(root)
+    assert bridge.end(root)["check"] is False
+    assert evaluation.pending(root) == bridge.latest_test(root)
 
 
 def test_check_fails_closed_without_a_valid_audit(tmp_path: Path) -> None:

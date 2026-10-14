@@ -18,6 +18,22 @@ from nookku.record import turns
 
 # Longer than the tap's wait for the agent, shorter than the hook deadline (kit.HOOK_DEADLINE).
 TIMEOUT = 270
+# The header of the tap token (SPEC.md section 4.2). A browser cannot send this header to the tap
+# without a preflight, and the tap refuses a preflight.
+TOKEN_HEADER = "X-Nookku-Token"
+# The key of the tap token in current.json.
+TOKEN_KEY = "tap_token"
+
+
+def public(cur: dict[str, Any]) -> dict[str, Any]:
+    """current.json with no tap token, for output that a log or a tool result can keep."""
+    return {k: v for k, v in cur.items() if k != TOKEN_KEY}
+
+
+def tap_headers(token: str) -> dict[str, str]:
+    """The headers of a POST to the stdio tap. A page server of the bridge, or a process that
+    reads current.json, sends each message with these headers."""
+    return {"Content-Type": "application/json", TOKEN_HEADER: token}
 
 
 def state(root: Path) -> Path:
@@ -140,9 +156,10 @@ def send(cur: dict[str, Any], said: str, timeout: float = TIMEOUT) -> tuple[str,
 
     rid = uuid.uuid4().hex
     body = contract.request(rid, cur["test"], said, history(Path(cur["dir"]) / "relay.jsonl"))
-    req = urllib.request.Request(
-        cur["tap_url"], data=body, method="POST", headers={"Content-Type": "application/json"}
-    )
+    # A current.json with no token gets a 403 from the tap, so the relay fails closed.
+    token = cur.get(TOKEN_KEY)
+    headers = tap_headers(token if isinstance(token, str) else "")
+    req = urllib.request.Request(cur["tap_url"], data=body, method="POST", headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             out = resp.read()

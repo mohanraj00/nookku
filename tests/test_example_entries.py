@@ -20,6 +20,7 @@ import pytest
 from nookku import contract
 from nookku.audit import audit
 from nookku.record import Writer
+from nookku.state import tap_headers
 from nookku.stdio import Agent, StdioTap, start_in_thread
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -42,8 +43,8 @@ def lines(*requests: tuple[str, str]) -> bytes:
     return b"".join(contract.request(rid, "t-1", said, []) + b"\n" for rid, said in requests)
 
 
-def post(url: str, body: bytes) -> tuple[int, bytes]:
-    req = urllib.request.Request(url, data=body, method="POST")
+def post(tap: StdioTap, body: bytes) -> tuple[int, bytes]:
+    req = urllib.request.Request(tap.url, data=body, method="POST", headers=tap_headers(tap.token))
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
             return resp.status, resp.read()
@@ -82,7 +83,7 @@ def test_the_node_entry_passes_the_audit_through_the_stdio_tap(tmp_path: Path) -
     relay = Writer(tmp_path / "relay.jsonl")
     try:
         for rid, said in (("m-1", "do you ship to delhi?"), ("m-2", ODD)):
-            status, body = post(tap.url, contract.request(rid, "t-1", said, []))
+            status, body = post(tap, contract.request(rid, "t-1", said, []))
             assert status == 200
             shown, _ = contract.parse_reply(body, rid)
             relay.append({"type": "turn", "harness": "codex", "said": said, "shown": shown})
