@@ -37,6 +37,7 @@ CHECKS = (
     "span_error",
     "backend_error",
     "model_api_error",
+    "model_error",
     "turn_without_model",
     "item_between_turns",
     "otel_tool_not_in_session",
@@ -293,6 +294,45 @@ def read_codex(path: Path, session: str, file: str) -> tuple[list[dict[str, Any]
         else:
             ignored[f"item_completed.{item.get('type')}"] += 1
     return items, {"version": version, "ignored": dict(sorted(ignored.items()))}
+
+
+def _codex_error_class(info: Any) -> str | None:
+    """The class of a Codex model error from its codex_error_info: a string, or an object with 1
+    key, for example {"http_connection_failed": {"http_status_code": 503}}. The key is the class.
+    An http_status_code in the value of the key adds the status."""
+    if isinstance(info, str):
+        return info
+    if not isinstance(info, dict) or len(info) != 1:
+        return None
+    kind, value = next(iter(info.items()))
+    code = value.get("http_status_code") if isinstance(value, dict) else None
+    if isinstance(code, int) and not isinstance(code, bool):
+        return f"{kind} (status {code})"
+    return str(kind)
+
+
+def read_codex_errors(path: Path) -> list[dict[str, Any]]:
+    """The model errors of a Codex rollout file: each task_complete event with an error, with
+    its line, its time and its detail. The event ends a turn of the harness."""
+    found: list[dict[str, Any]] = []
+    for n, row in _lines(path, Counter()):
+        if not isinstance(row, dict) or row.get("type") != "event_msg":
+            continue
+        payload = row.get("payload")
+        if not isinstance(payload, dict) or payload.get("type") != "task_complete":
+            continue
+        error = payload.get("error")
+        if error is None:
+            continue
+        if isinstance(error, str):
+            detail = error
+        elif isinstance(error, dict) and isinstance(error.get("message"), str):
+            kind = _codex_error_class(error.get("codex_error_info"))
+            detail = f"{kind}: {error['message']}" if kind else error["message"]
+        else:
+            detail = json_text(error)
+        found.append({"line": n, "ts": _time(row.get("timestamp")), "detail": detail})
+    return found
 
 
 READERS = {"claude-code": read_claude, "codex": read_codex}
@@ -649,13 +689,15 @@ def windows(exchanges: list[dict[str, Any]]) -> list[tuple[float, float]]:
     return out
 
 
+def _turn(ts: float | None, spans: list[tuple[float, float]]) -> int | None:
+    """The 1-based number of the exchange whose window holds the time `ts`, or None."""
+    return next((i for i, (a, b) in enumerate(spans, 1) if ts is not None and a <= ts <= b), None)
+
+
 def assign(items: list[dict[str, Any]], spans: list[tuple[float, float]]) -> None:
     """Set the turn of each item: the 1-based number of the exchange whose window holds it."""
     for it in items:
-        ts = it["ts"]
-        it["turn"] = next(
-            (i for i, (a, b) in enumerate(spans, 1) if ts is not None and a <= ts <= b), None
-        )
+        it["turn"] = _turn(it["ts"], spans)
 
 
 def _finding(check: str, turn: int | None, detail: str, **where: Any) -> dict[str, Any]:
@@ -771,10 +813,12 @@ def check(
     sessions: list[dict[str, Any]],
     servers: list[dict[str, Any]] | None = None,
     keys: dict[str, Any] | None = None,
+    errors: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     """The findings of SPEC.md section 8.6. They do not change the audit's exit code. `servers`
     holds the MCP servers that the Claude Code session files name (read_claude_servers).
-    `keys` holds the config keys of the checks that the manifest records (trace_keys)."""
+    `keys` holds the config keys of the checks that the manifest records (trace_keys).
+    `errors` holds the model errors of the Codex session files (read_codex_errors)."""
     keys = {**TRACE_KEYS, **(keys or {})}
     out: list[dict[str, Any]] = []
     session_items = [it for it in items if it["kind"] in SESSION_KINDS]
@@ -813,6 +857,11 @@ def check(
         first = spans[0][0] if spans else None
         if it["turn"] is None and first is not None and it["ts"] is not None and it["ts"] >= first:
             out.append(_finding("item_between_turns", None, f"a {it['kind']} item", **where))
+    for e in errors or []:
+        turn = _turn(e["ts"], spans)
+        where = {"harness": e["harness"], "session": e["session"]}
+        where["source"] = {"file": e["file"], "line": e["line"]}
+        out.append(_finding("model_error", turn, e["detail"], **where))
     if any(s.get("items") for s in sessions):
         used = {it["turn"] for it in session_items}
         for i in range(1, len(exchanges) + 1):
@@ -848,6 +897,7 @@ def build(folder: Path) -> dict[str, Any]:
     items: list[dict[str, Any]] = []
     sessions: list[dict[str, Any]] = []
     servers: list[dict[str, Any]] = []
+    errors: list[dict[str, Any]] = []
     for s in manifest.get("model_sessions", []):
         info: dict[str, Any] = {
             "harness": s["harness"],
@@ -867,6 +917,9 @@ def build(folder: Path) -> dict[str, Any]:
             if s["harness"] == "claude-code":
                 where = {"harness": s["harness"], "session": s["session"], "file": s["file"]}
                 servers += [{**where, **x} for x in read_claude_servers(folder / s["file"])]
+            if s["harness"] == "codex":
+                where = {"harness": s["harness"], "session": s["session"], "file": s["file"]}
+                errors += [{**where, **x} for x in read_codex_errors(folder / s["file"])]
         sessions.append(info)
     otel = None
     if (folder / otlp.FILE).exists():
@@ -882,7 +935,7 @@ def build(folder: Path) -> dict[str, Any]:
         items += found
     items.sort(key=lambda it: it["ts"] if it["ts"] is not None else float("inf"))
     assign(items, spans)
-    findings = check(exchanges, spans, items, sessions, servers, trace_keys(manifest))
+    findings = check(exchanges, spans, items, sessions, servers, trace_keys(manifest), errors)
     lines = [json_text({k: v for k, v in it.items() if k != CALL_ID}) + "\n" for it in items]
     (folder / "trace.jsonl").write_text("".join(lines), encoding="utf-8")
     counts = Counter(f["check"] for f in findings)
