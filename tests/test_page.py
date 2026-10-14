@@ -575,10 +575,16 @@ def test_of_2_servers_that_start_at_the_same_time_one_runs(tmp_path: Path) -> No
         for _ in range(2)
     ]
     try:
-        deadline = time.monotonic() + 30
+        # A loaded CI runner can need many seconds to start 2 Python processes.
+        deadline = time.monotonic() + 120
         while sum(p.poll() is not None for p in procs) < 1 and time.monotonic() < deadline:
             time.sleep(0.05)
         done = [p for p in procs if p.poll() is not None]
+        if not done:
+            for p in procs:
+                p.send_signal(signal.SIGTERM)
+            outputs = [p.communicate(timeout=10) for p in procs]
+            pytest.fail(f"no server exited in 120 s: {outputs}")
         assert len(done) == 1 and done[0].returncode == 1
         running = next(p for p in procs if p.poll() is None)
         assert state.page_info(tmp_path) == {
