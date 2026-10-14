@@ -29,7 +29,7 @@ from pathlib import Path
 from typing import Any, TextIO
 from urllib.parse import urlsplit
 
-from nookku import kit, seal, state
+from nookku import kit, script_save, seal, state
 from nookku.record import RecordError, Writer, turns
 
 # The harness of a turn that the page sent (SPEC.md section 2.2).
@@ -40,6 +40,7 @@ FILES = {
     "": ("index.html", "text/html; charset=utf-8"),
     "app.js": ("app.js", "text/javascript; charset=utf-8"),
     "app.css": ("app.css", "text/css; charset=utf-8"),
+    "save.js": ("save.js", "text/javascript; charset=utf-8"),
 }
 # The page loads only its own files. No inline script, no inline style, no other site.
 CSP = (
@@ -193,6 +194,10 @@ class PageServer(ThreadingHTTPServer):
         return f"http://{HOST}:{self.server_address[1]}/p/{self.token}/"
 
 
+# The value of _Handler._body after a refusal. JSON gives no value that is this object.
+_REFUSED = object()
+
+
 class _Handler(BaseHTTPRequestHandler):
     server: PageServer
     server_version = "nookku-page"
@@ -282,29 +287,38 @@ class _Handler(BaseHTTPRequestHandler):
         else:
             self._refuse(404, "not found")
 
-    def do_POST(self) -> None:
-        rest = self._route()
-        if rest is None:
-            return
-        if rest != "api/send":
-            self._refuse(404, "not found")
-            return
+    def _body(self) -> Any:
+        """The JSON body of a POST, or _REFUSED after a refusal."""
         kind = (self.headers.get("Content-Type") or "").split(";")[0].strip().lower()
         if kind != "application/json":
             self._refuse(415, "the Content-Type must be application/json")
-            return
+            return _REFUSED
         try:
             size = int(self.headers.get("Content-Length") or "")
         except ValueError:
             self._refuse(411, "the request needs a Content-Length")
-            return
+            return _REFUSED
         if size < 0 or size > MAX_BODY:
             self._refuse(413, "the message is too large")
-            return
+            return _REFUSED
         try:
-            data = json.loads(self.rfile.read(size))
+            return json.loads(self.rfile.read(size))
         except (ValueError, RecursionError):
             self._refuse(400, "the body is not JSON")
+            return _REFUSED
+
+    def do_POST(self) -> None:
+        rest = self._route()
+        if rest is None:
+            return
+        if rest not in ("api/send", script_save.ROUTE):
+            self._refuse(404, "not found")
+            return
+        data = self._body()
+        if data is _REFUSED:
+            return
+        if rest == script_save.ROUTE:
+            self._json(*script_save.answer(self.server.root, data))
             return
         said = data.get("said") if isinstance(data, dict) else None
         if not isinstance(said, str):
