@@ -162,6 +162,17 @@ Data: [plugin in Claude Code](proofs/plugin-claude-code/results.json), [plugin i
 
 Under pressure, the mechanism had **0 breaks in 1,000 turns**. The test had 40 scripted conversations in each harness, 5 or 20 turns long. They had refusals, HTTP 500 errors, questions back to the tester and ambiguous messages. Each turn was a new harness call. I registered the design before the first run. Method, data and the one deviation: [docs/results.md](docs/results.md#2-benchmark-under-pressure).
 
+## How Nookku is different
+
+- **An independent record.** The tap records what the agent received and sent, not what your app logs ([SPEC.md section 4](SPEC.md#4-tap)).
+- **A proof that the record is exact.** The audit compares the two records byte for byte and names each break in 8 classes ([SPEC.md section 3](SPEC.md#3-audit), [break classes](SPEC.md#33-break-classes)). The seal shows each file that changed after the end of a test ([SPEC.md section 7.4](SPEC.md#74-seal)). Data: [proofs](docs/results.md#1-proofs).
+- **No model between you and your agent.** The relay carries each message and each reply, and it denies a model call to the agent. The deny is best effort ([SPEC.md section 5](SPEC.md#5-relays), [limits](docs/limits.md)). Data: [P1 to P4](docs/results.md#1-proofs).
+- **No change to your agent.** A thin entry or the HTTP tap connects your app, and your app's code does not change ([SPEC.md section 6](SPEC.md#6-agent-contract-version-1), [HTTP mode](SPEC.md#41-http-mode)).
+- **Local.** Nookku has no hosted service, and the records stay on your machine ([FAQ](docs/faq.md#does-nookku-send-my-data-to-a-server)). The package has no runtime dependencies ([pyproject.toml](pyproject.toml)).
+- **The judge reads the record, not its memory.** After a test, the model has no memory of the conversation, and it reads the transcript ([P5](docs/results.md#p5-the-model-judges-the-record-not-its-memory)).
+
+Nookku does not do these: data sets at scale, production monitoring and hosted team review. Each test is one conversation, from your harness or from a script ([SPEC.md section 7](SPEC.md#7-tests)).
+
 ## Docs
 
 The how-to rows are in the order of the tasks of a test: choose, connect, run, read the results, fix. The row after them has the tasks that maintain Nookku.
