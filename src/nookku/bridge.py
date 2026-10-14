@@ -144,6 +144,9 @@ def _tail(path: Path, n: int = 20) -> str:
 
 # The time that start waits for the bridge (#164).
 START_WAIT = 30.0
+# The time that the bridge waits for an entry that exits at start. An entry that exits in this
+# time stops the test. The bridge does not wait the full time for an entry that exits (#300).
+START_CHECK = 0.3
 # The time that end waits for the bridge to stop, before it sends SIGKILL.
 END_WAIT = 120.0
 
@@ -604,6 +607,15 @@ def codex_sessions(
     return out
 
 
+def _exits_at_start(proc: subprocess.Popen[bytes], wait: float = START_CHECK) -> bool:
+    """True if the entry exits in `wait` seconds. The function returns when the entry exits."""
+    try:
+        proc.wait(timeout=wait)
+    except subprocess.TimeoutExpired:
+        return False
+    return True
+
+
 def _log(message: str) -> None:
     """One progress line in bridge.log, so that a test that does not start shows its last step."""
     print(f"nookku bridge: {message}", file=sys.stderr, flush=True)
@@ -703,9 +715,8 @@ def run(
         print(f"nookku bridge: cannot start the entry {config.entry}: {e}", file=sys.stderr)
         return 1
     _log(f"entry started: {config.entry}")
-    time.sleep(0.3)
     assert agent.proc is not None
-    if agent.proc.poll() is not None:
+    if _exits_at_start(agent.proc):
         print(f"nookku bridge: the entry exited at start:\n{agent.tail()}", file=sys.stderr)
         return 1
     # end can stop the entry if the bridge stops with no end (#164).
