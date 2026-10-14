@@ -292,12 +292,22 @@ test('after a failed first read, the poll tries again for 1 minute', {}, async (
   out.status = statusWith(RUNNING)
   await clock.advance(5_000)
   expect(f.opened).toEqual(['nookku'])
-  // A read that always fails stops after 12 reads in a row.
+  // The last state has a running test, so a read that fails more than 12 times does not stop
+  // the poll.
   out.status = { exitCode: 1, stdout: '', stderr: 'nookku: a read failed\n' }
   const reads = () => f.runs.filter(argv => argv[1] === 'status' && argv[2] === '--json').length
-  const before = reads()
+  let before = reads()
   for (let i = 0; i < 20; i++) await clock.advance(5_000)
-  expect(reads() - before).toBe(12)
+  expect(reads() - before).toBe(20)
+  out.status = statusWith({ ...RUNNING, state: 'ended', open: false })
+  await clock.advance(5_000)
+  expect(reads() - before).toBe(21)
+  // With no running test in the last state, a read that always fails stops after 12 reads.
+  out.status = { exitCode: 1, stdout: '', stderr: 'nookku: a read failed\n' }
+  await $.command.run({ command: 'nookku', args: 'status' } as any)
+  before = reads()
+  for (let i = 0; i < 20; i++) await clock.advance(5_000)
+  expect(reads() - before).toBe(11)
 })
 
 test('the prompt nookku start opens the pane', {}, async ($, on) => {

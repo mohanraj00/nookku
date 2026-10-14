@@ -70,14 +70,15 @@ async function showStatus($: any): Promise<void> {
     error,
   }))
   if (open) void $.ui.open({ id: PANE, title: 'nookku' })
-  // A failed read does not tell if the test runs, so the poll runs and tries again, up to
-  // MAX_FAILURES reads in a row. Then the next /nookku command or control prompt tries again.
+  // A failed read does not tell if the test runs, so the poll runs and tries again. If the last
+  // state that the plugin read has a running test, the poll does not stop. Else it stops after
+  // MAX_FAILURES reads in a row, and the next /nookku command or control prompt tries again.
   if (pane !== null) {
     failures = 0
     setPoll($, running !== null)
   } else {
     failures += 1
-    setPoll($, failures < MAX_FAILURES)
+    setPoll($, before.pane?.state === 'running' || failures < MAX_FAILURES)
   }
 }
 
