@@ -30,7 +30,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parent.parent
 sys.path[:0] = [str(ROOT / "src"), str(ROOT / "tests")]
 
-from proof_common import json_lines  # noqa: E402
+from proof_common import NO_TITLE, json_lines  # noqa: E402
 from toy_agent import ToyAgent  # noqa: E402
 
 from nookku import kit  # noqa: E402
@@ -54,7 +54,11 @@ READ = {
 PLUGIN_CODEX_HOME = ROOT / ".proof" / "codex-gate" / "codex-home"
 SHELLS = ("bash", "sh", "zsh")
 SETUPS = ("plugin-claude-code", "plugin-codex", "hooks-claude-code", "hooks-codex")
-ENV = {**os.environ, "PATH": f"{ROOT / '.venv' / 'bin'}{os.pathsep}{os.environ['PATH']}"}
+ENV = {
+    **os.environ,
+    **NO_TITLE,
+    "PATH": f"{ROOT / '.venv' / 'bin'}{os.pathsep}{os.environ['PATH']}",
+}
 
 
 def claude(

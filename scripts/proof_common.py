@@ -15,6 +15,9 @@ ENTRY = [sys.executable, str(ROOT / "tests" / "toy_entry.py")]
 # The Agent SDK of the toy apps. A new release bundles a new Claude Code, and the session reader is
 # tested only for the versions in TESTED of trace.py (#35). Change this pin only with the proofs.
 AGENT_SDK = "claude-agent-sdk==0.2.164"
+# In print mode, the relay refuses a test unless this variable stops the title request of Claude
+# Code, which can hold a blocked prompt (SPEC.md section 5, #199).
+NO_TITLE = {"CLAUDE_CODE_DISABLE_TERMINAL_TITLE": "1"}
 
 
 def json_lines(text: str) -> list[Any]:
