@@ -402,11 +402,11 @@
   // ---- Blocks ----
 
   const FENCE = /^( {0,3})(`{3,}|~{3,})\s*([^\s`]*)[^`]*$/;
-  const HEADING = /^ {0,3}(#{1,6})(?:[ \t]+(.*?))?(?:[ \t]+#+)?[ \t]*$/;
+  const HEADING = /^ {0,3}(#{1,6})(?=[ \t]|$)/;
   const RULE = /^ {0,3}([-*_])(?:[ \t]*\1){2,}[ \t]*$/;
   const QUOTE = /^ {0,3}> ?/;
   const ITEM = /^( {0,12})([-*+]|\d{1,9}[.)])([ \t]+|$)/;
-  const SEPARATOR = /^[ \t]*\|?[ \t]*:?-+:?[ \t]*(\|[ \t]*:?-+:?[ \t]*)*\|?[ \t]*$/;
+  const SEPARATOR_CELL = /^:?-+:?$/;
 
   function blank(line) {
     return /^\s*$/.test(line);
@@ -433,12 +433,41 @@
     return out;
   }
 
+  function space(c) {
+    return c === " " || c === "\t";
+  }
+
+  // A heading line, as {level, text}, or null. The text has no closing "#" marks. The loops
+  // read the line from its end one time, with no backtracking regular expression.
+  function heading(line) {
+    const m = HEADING.exec(line);
+    if (!m) return null;
+    const text = line.slice(m[0].length);
+    let end = text.length;
+    while (end > 0 && space(text[end - 1])) end--;
+    let k = end;
+    while (k > 0 && text[k - 1] === "#") k--;
+    if (k < end && (k === 0 || space(text[k - 1]))) end = k;
+    while (end > 0 && space(text[end - 1])) end--;
+    let start = 0;
+    while (start < end && space(text[start])) start++;
+    return { level: m[1].length, text: text.slice(start, end) };
+  }
+
+  // A separator line of a table, such as "| --- | :-: |". The check reads each cell one time,
+  // with no backtracking regular expression over the full line, so the time is linear.
+  function separator(line) {
+    let text = line.trim();
+    if (text.startsWith("|")) text = text.slice(1);
+    if (text.endsWith("|")) text = text.slice(0, -1);
+    return text.split("|").every((cell) => SEPARATOR_CELL.test(cell.trim()));
+  }
+
   function isTable(lines, i) {
     return (
       i + 1 < lines.length &&
       lines[i].includes("|") &&
-      SEPARATOR.test(lines[i + 1]) &&
-      lines[i + 1].includes("-") &&
+      separator(lines[i + 1]) &&
       cells(lines[i]).length === cells(lines[i + 1]).length
     );
   }
@@ -446,7 +475,7 @@
   function starts(lines, i) {
     const line = lines[i];
     return (
-      FENCE.test(line) || HEADING.test(line) || RULE.test(line) || QUOTE.test(line) ||
+      FENCE.test(line) || heading(line) || RULE.test(line) || QUOTE.test(line) ||
       ITEM.test(line) || isTable(lines, i)
     );
   }
@@ -570,9 +599,9 @@
         out.push(codeBlock(m[3], body.join("\n")));
         continue;
       }
-      m = HEADING.exec(line);
-      if (m) {
-        out.push(node("h" + m[1].length, {}, inline(m[2] || "", depth)));
+      const h = heading(line);
+      if (h) {
+        out.push(node("h" + h.level, {}, inline(h.text, depth)));
         i++;
         continue;
       }

@@ -253,10 +253,25 @@ def test_a_long_or_deep_reply_does_not_stop_the_page() -> None:
         "http " * 39_000,
         "- a\n" + "\n" * 100_000 + "  b\n",
         "**[x](a *b _c `d " * 11_000,
+        "a|b\n" + " " * 190_000 + "x",
+        "# a" + " " * 190_000 + "x",
     ],
     # A short id: pytest puts the id in the environment of node, and Linux refuses an
     # environment string over 128 KiB.
-    ids=["brackets", "links", "angles", "stars", "under", "ticks", "lt", "http", "list", "mixed"],
+    ids=[
+        "brackets",
+        "links",
+        "angles",
+        "stars",
+        "under",
+        "ticks",
+        "lt",
+        "http",
+        "list",
+        "mixed",
+        "table",
+        "heading",
+    ],
 )
 def test_a_reply_of_many_open_marks_renders_in_linear_time(text: str) -> None:
     """Each of these texts took quadratic time in a first form of the renderer. On a laptop,
@@ -381,6 +396,30 @@ def test_a_path_outside_the_project_or_the_test_folder_is_refused(
     finally:
         server.shutdown()
         server.server_close()
+    # The page server removes the private copies when it stops.
+    assert not opened[0].parent.exists()
+
+
+def test_a_failed_open_removes_its_copy(
+    project: tuple[Path, Path, Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """If the system app does not start, no copy stays in the temporary folder."""
+    root, _, _ = project
+    (root / "notes.pdf").write_bytes(b"%PDF")
+    given: list[Path] = []
+
+    def fail(path: Path) -> str:
+        given.append(path)
+        return "no app"
+
+    monkeypatch.setattr(page, "launch", fail)
+    copies: list[Path] = []
+    assert page.open_answer(root, {"path": "notes.pdf"}, copies) == (
+        500,
+        {"opened": False, "error": "no app"},
+    )
+    assert len(given) == 1 and not given[0].parent.exists()
+    assert copies == []
 
 
 def test_open_needs_the_token_and_the_origin_of_the_page(
@@ -493,20 +532,14 @@ def test_a_file_that_changes_after_the_check_is_refused(
     assert page.open_checked(root, "images/a.png") is None
 
 
-def test_the_check_with_no_dir_fd_compares_the_open_file(
+def test_a_system_with_no_dir_fd_refuses_the_file(
     project: tuple[Path, Path, Path], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """On a system with no dir_fd, the server checks the path again after the open, and the open
-    file must be the file at the checked path."""
+    """With no dir_fd, the server cannot check the open file atomically, so it refuses it."""
     root, _, _ = project
     (root / "a.png").write_bytes(b"A")
-    (root / "b.png").write_bytes(b"B")
-    checked = page.allowed_file
-    found = page._open_by_path(root, "a.png", (root / "a.png").resolve())
-    assert found is not None
-    os.close(found[0])
-    monkeypatch.setattr(page, "allowed_file", lambda base, name: checked(base, "b.png"))
-    assert page._open_by_path(root, "a.png", (root / "a.png").resolve()) is None
+    monkeypatch.setattr(os, "supports_dir_fd", set())
+    assert page.open_checked(root, "a.png") is None
 
 
 @needs_node

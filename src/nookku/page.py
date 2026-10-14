@@ -280,7 +280,9 @@ def open_checked(root: Path, name: str) -> tuple[int, Path] | None:
     if path is None:
         return None
     if os.open not in os.supports_dir_fd:
-        return _open_by_path(root, name, path)
+        # A system with no `dir_fd` (Windows) cannot do this walk. A check of the path before
+        # and after the open is not atomic, so the server refuses the file.
+        return None
     folder = _shown_test(root)
     top = root.resolve()
     # A test folder outside the project, for example through a symlink of the state folder.
@@ -309,28 +311,6 @@ def open_checked(root: Path, name: str) -> tuple[int, Path] | None:
     except OSError:
         pass
     os.close(file)
-    return None
-
-
-def _open_by_path(root: Path, name: str, path: Path) -> tuple[int, Path] | None:
-    """open_checked for a system with no `dir_fd` (Windows): open the path, check it again, and
-    the open file must be the file at the checked path (the same device and inode)."""
-    try:
-        fd = os.open(path, os.O_RDONLY | getattr(os, "O_BINARY", 0))
-    except OSError:
-        return None
-    try:
-        opened = os.fstat(fd)
-        again = allowed_file(root, name)
-        if (
-            stat.S_ISREG(opened.st_mode)
-            and again is not None
-            and os.path.samestat(opened, os.stat(again))
-        ):
-            return fd, again
-    except OSError:
-        pass
-    os.close(fd)
     return None
 
 
@@ -376,9 +356,15 @@ def launch(path: Path) -> str | None:
     return None
 
 
-def open_answer(root: Path, data: Any) -> tuple[int, dict[str, Any]]:
+def open_answer(
+    root: Path, data: Any, copies: list[Path] | None = None
+) -> tuple[int, dict[str, Any]]:
     """Open a file that a reply names, after a click on "Open" on the page (#347). The page
-    server opens only a file in the project or the test folder, of a type in OPEN_TYPES."""
+    server opens only a file in the project or the test folder, of a type in OPEN_TYPES.
+
+    The function adds the private folder of each opened copy to `copies`, and the page server
+    removes these folders when it stops. If the system app does not start, the function
+    removes the folder at once."""
     name = data.get("path") if isinstance(data, dict) else None
     if not isinstance(name, str):
         return 400, {"opened": False, "error": 'nookku page: the body needs the text "path"'}
@@ -392,15 +378,23 @@ def open_answer(root: Path, data: Any) -> tuple[int, dict[str, Any]]:
             return 403, {"opened": False, "error": OPEN_TYPE_REFUSED.format(suffix=suffix)}
         # The system app gets a copy of the checked file, in a new private folder, so that a
         # change of the path after the check cannot give it another file.
-        copy = Path(tempfile.mkdtemp(prefix="nookku-open-")) / path.name
-        with copy.open("xb") as dst:
-            shutil.copyfileobj(src, dst)
+        private = Path(tempfile.mkdtemp(prefix="nookku-open-"))
+        copy = private / path.name
+        try:
+            with copy.open("xb") as dst:
+                shutil.copyfileobj(src, dst)
+        except OSError:
+            shutil.rmtree(private, ignore_errors=True)
+            raise
     try:
         error = launch(copy)
     except OSError as e:
         error = f"nookku: the system app did not start: {e}. Nothing was opened."
     if error is not None:
+        shutil.rmtree(private, ignore_errors=True)
         return 500, {"opened": False, "error": error}
+    if copies is not None:
+        copies.append(private)
     return 200, {"opened": True, "error": None}
 
 
@@ -418,6 +412,14 @@ class PageServer(ThreadingHTTPServer):
         port = self.server_address[1]
         self.hosts = {f"{HOST}:{port}", f"localhost:{port}"}
         self.origins = {f"http://{h}" for h in self.hosts}
+        # The private folders of the copies that "Open" gave to the system app.
+        self.copies: list[Path] = []
+
+    def server_close(self) -> None:
+        super().server_close()
+        for folder in self.copies:
+            shutil.rmtree(folder, ignore_errors=True)
+        self.copies.clear()
 
     @property
     def url(self) -> str:
@@ -557,7 +559,7 @@ class _Handler(BaseHTTPRequestHandler):
             return
         if rest == "api/open":
             try:
-                self._json(*open_answer(self.server.root, data))
+                self._json(*open_answer(self.server.root, data, self.server.copies))
             except Exception as e:  # each failure must give the page an error, not a reset
                 self._json(500, {"opened": False, "error": f"nookku: {e}. Nothing was opened."})
             return
