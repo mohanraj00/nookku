@@ -492,3 +492,36 @@ def test_a_record_name_that_is_not_utf_8_still_gives_502(tmp_path: Path) -> None
         tap.shutdown()
     error = CANNOT_WRITE.replace("tap.jsonl", "tap\\udcff.jsonl")
     assert (status, json.loads(out)) == (502, {"error": error})
+
+
+def test_the_tap_refuses_a_preflight_and_each_method_that_is_not_post(tmp_path: Path) -> None:
+    # A request with the token header needs a preflight OPTIONS. The tap refuses it with 405, so
+    # a browser never sends the request (SPEC.md section 4.2).
+    import http.client
+
+    script = tmp_path / "agent.py"
+    script.write_text("import sys\nsys.stdin.read()\n")
+    agent = Agent([sys.executable, str(script)], tmp_path, tmp_path / "app.log", timeout=5)
+    tap = StdioTap(("127.0.0.1", 0), agent, tmp_path / "tap.jsonl")
+    agent.start()
+    start_in_thread(tap)
+    host, port = tap.server_address[:2]
+    preflight = {
+        "Origin": "http://shop.example",
+        "Access-Control-Request-Method": "POST",
+        "Access-Control-Request-Headers": TOKEN_HEADER,
+    }
+    statuses = {}
+    try:
+        for method in ("OPTIONS", "GET", "HEAD", "PUT", "PATCH", "DELETE"):
+            conn = http.client.HTTPConnection(str(host), int(port), timeout=10)
+            conn.request(method, "/", headers=preflight)
+            resp = conn.getresponse()
+            statuses[method] = resp.status
+            assert "Access-Control-Allow-Origin" not in resp.headers
+            conn.close()
+    finally:
+        tap.shutdown()
+        agent.stop(grace=1)
+    assert statuses == dict.fromkeys(statuses, 405)
+    assert not (tmp_path / "tap.jsonl").exists()

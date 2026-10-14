@@ -86,10 +86,8 @@ def _add_locked(
     # A turn number names a turn only in one test. The page can show an earlier test.
     if test != folder.name:
         return {"saved": False, "error": OTHER_TEST.format(shown=test, current=folder.name)}
-    # Here, because the page module imports this module. A note uses the closed rule of a send.
-    from nookku import page
-
-    if page._closed(folder):
+    # A note uses the closed rule of a send.
+    if state.closed(folder):
         return {"saved": False, "error": CLOSED}
     try:
         count = len(turns(folder / "relay.jsonl", missing_ok=True))

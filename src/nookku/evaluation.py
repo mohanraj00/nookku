@@ -41,9 +41,9 @@ is_check = state.is_check
 
 def _ended(root: Path) -> Path | None:
     """The latest test that is not a check test that ended, if no test runs, the test ended, it
-    has no report and it is not a check test (SPEC.md section 9.1). A check test that ended does
-    not hide the test before it. A check test with no end time, or a test with a manifest that
-    cannot be read, gets no evaluation, and no test before it gets one."""
+    has no report, its entry started and it is not a check test (SPEC.md section 9.1). A check
+    test that ended does not hide the test before it. A check test with no end time, or a test
+    with a manifest that cannot be read, gets no evaluation, and no test before it gets one."""
     if bridge.current(root) is not None:
         return None
     folder = state.tester_test(root)
@@ -51,6 +51,9 @@ def _ended(root: Path) -> Path | None:
         return None
     manifest = state.manifest_of(folder)
     if manifest is None or manifest.get("ended") is None or is_check(folder, manifest):
+        return None
+    # A test whose entry did not start has no turn to evaluate (SPEC.md section 7.2).
+    if manifest.get("start_failed") is True:
         return None
     return folder
 

@@ -457,6 +457,58 @@ def test_an_entry_that_exits_at_start_is_reported(tmp_path: Path, homes: tuple) 
     assert bridge.current(root) is None
 
 
+def test_a_test_whose_entry_did_not_start_is_not_stopped_and_gets_no_evaluation(
+    tmp_path: Path, homes: tuple, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from nookku import evaluation
+
+    root = project(tmp_path, ["/bin/sh", "-c", "exit 1"])
+    with pytest.raises(bridge.BridgeError):
+        bridge.start(root)
+    folder = bridge.latest_test(root)
+    assert folder is not None
+    deadline = time.monotonic() + 10
+    while json.loads((folder / "manifest.json").read_text())["ended"] is None:
+        assert time.monotonic() < deadline
+        time.sleep(0.05)
+    manifest = json.loads((folder / "manifest.json").read_text())
+    assert manifest["start_failed"] is True and manifest["ended"] >= manifest["started"]
+    # The test is not a stopped test also after START_WAIT, so end does not finish it.
+    monkeypatch.setattr(bridge, "START_WAIT", 0.0)
+    assert bridge.stopped(root) is None
+    assert bridge.end(root) is None
+    assert evaluation.pending(root) is None
+
+
+def test_end_finishes_a_stopped_test_with_an_entry_pid_larger_than_a_c_int(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
+    folder = root / ".nookku" / "tests" / "t-1"
+    folder.mkdir(parents=True)
+    manifest = {"test": "t-1", "started": time.time() - 100, "ended": None}
+    manifest.update(entry_pid=2**70, entry_pid_start="ps:x")
+    (folder / "manifest.json").write_text(json.dumps(manifest))
+    assert not bridge.alive(2**70)
+    monkeypatch.setattr(bridge, "START_WAIT", 0.0)
+    ended = bridge.end(root)
+    assert ended is not None and ended["killed"] is True
+    assert seal.verify(folder)["intact"]
+
+
+def test_end_of_a_test_with_a_manifest_that_is_not_an_object_does_not_fail(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
+    folder = root / ".nookku" / "tests" / "t-1"
+    folder.mkdir(parents=True)
+    (folder / "manifest.json").write_text("[1, 2]")
+    # A bridge pid that the OS cannot have does not run.
+    cur = {"test": "t-1", "dir": str(folder), "pid": 2**70, "pid_start": "ps:x"}
+    monkeypatch.setattr(bridge, "current", lambda root: cur)
+    assert bridge.end(root, wait=0.2) == {"test": "t-1", "dir": str(folder)}
+
+
 def test_the_start_check_does_not_wait_for_an_entry_that_exits() -> None:
     proc = subprocess.Popen(["/bin/sh", "-c", "exit 1"], stdout=subprocess.PIPE)
     began = time.monotonic()
