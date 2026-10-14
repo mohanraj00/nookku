@@ -75,8 +75,13 @@ function apiUrl() {
 
 async function refresh() {
   try {
-    const resp = await fetch(apiUrl(), { cache: "no-store" });
+    const url = apiUrl();
+    const resp = await fetch(url, { cache: "no-store" });
     const data = await resp.json();
+    // A filter can change during the request. Then the request of the new filter shows its rows.
+    if (url !== apiUrl()) {
+      return;
+    }
     if (data.error || !Array.isArray(data.tests)) {
       showError(data.error || "nookku: the page server gave no tests.");
       return;

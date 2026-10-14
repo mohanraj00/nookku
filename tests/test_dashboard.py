@@ -276,6 +276,9 @@ def test_the_dashboard_has_no_inline_script_and_no_html_from_text() -> None:
     # The chat page links to the dashboard, and the dashboard opens a test with #<id>.
     assert 'href="dashboard.html"' in folder.joinpath("index.html").read_text()
     assert '"./#" + encodeURIComponent(id)' in js
+    # A poll answer for an old filter or an old test does not replace the current view.
+    assert "if (url !== apiUrl())" in js
+    assert "if (url === turnsUrl())" in folder.joinpath("app.js").read_text()
 
 
 def post_send(srv: page.PageServer, body: dict[str, Any]) -> tuple[int, dict[str, Any]]:
