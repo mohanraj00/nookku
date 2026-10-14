@@ -4074,6 +4074,42 @@ EVALUATION_CASES: dict[str, dict] = {
     },
     "no_key_no_turns": {"manifest": {}, "relay": [], "evaluated": True},
     "no_key_broken_relay_record": {"manifest": {}, "relay": ["{broken"], "evaluated": True},
+    # `later` holds the tests that started after the test, each one ended. A later test can have
+    # `report: true`. At most one test of a case has `evaluated: true` (#298).
+    # The tester ended the test in a shell and then ran nookku check.
+    "check_after_the_test": {
+        "manifest": {"check": False},
+        "relay": [TESTER_TURN],
+        "later": [{"manifest": {"check": True}, "relay": [CHECK_TURN], "evaluated": False}],
+        "evaluated": True,
+    },
+    "no_key_check_after_the_test": {
+        "manifest": {"check": False},
+        "relay": [TESTER_TURN],
+        "later": [{"manifest": {}, "relay": [CHECK_TURN], "evaluated": False}],
+        "evaluated": True,
+    },
+    # A test that is not a check test hides each test before it.
+    "test_after_the_test": {
+        "manifest": {"check": False},
+        "relay": [TESTER_TURN],
+        "later": [{"manifest": {"check": False}, "relay": [TESTER_TURN], "evaluated": True}],
+        "evaluated": False,
+    },
+    "check_after_a_test_with_a_report": {
+        "manifest": {"check": False},
+        "relay": [TESTER_TURN],
+        "later": [
+            {
+                "manifest": {"check": False},
+                "relay": [TESTER_TURN],
+                "report": True,
+                "evaluated": False,
+            },
+            {"manifest": {"check": True}, "relay": [CHECK_TURN], "evaluated": False},
+        ],
+        "evaluated": False,
+    },
 }
 
 
