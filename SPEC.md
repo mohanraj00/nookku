@@ -693,6 +693,13 @@ The policy key `scripts` (section 7.9) decides who runs a scripted test. With `p
 
 The transcript shows a scripted turn as `script, turn N`, never as a typed turn.
 
+**Save a test as a script.** `nookku script save [TEST]` writes a script from a test, so the tester can send the same messages again after a fix. The "Save as script" button of the chat page (section 5) does the same for the test that the page shows.
+
+- The script is JSONL: one `{"said": "..."}` row for each `turn` row of the relay record, in file order. Each `said` is the text of the turn, byte for byte. Each control character in a message, also a line feed, is a JSON escape, so each row is one line. Each other character stays as it is, also U+2028. `run` reads the script with no change.
+- The path is `.nookku/scripts/<test id>.jsonl`. The form of a script has no other field, so the file name records the source test id. When `run` runs the script, the manifest of the new test records this path in `script.source`.
+- The command reads the relay record with the reader of section 2, so a `said` with a lone surrogate gives an error. It writes no script if the record is not valid or has no turn. Before it writes, it reads the script again with the reader of `run`, and writes nothing if a message is not the same.
+- The page server takes the button request with the checks of each page `POST` (section 5). The body is a JSON object with the text `test`. The test id must name a folder in `.nookku/tests/`, else the page shows the error and nothing is written.
+
 ## 8. Trace
 
 The trace is one record of the model items of the app in a test. It ties each item to a turn. `nookku trace [TEST]` builds it again from the files in the test folder.

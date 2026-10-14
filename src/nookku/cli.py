@@ -300,6 +300,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     view.add_argument("--record", type=Path, help="the relay record (default: from the config)")
     view.add_argument("--text", action="store_true", help="the text view (the default)")
     _page_parser(sub)
+    _script_parser(sub)
 
     ver = sub.add_parser("verify", help="check that no record of a test changed after its end")
     ver.add_argument(
@@ -414,6 +415,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_command(args)
     if args.command == "page":
         return _page_command(args)
+    if args.command == "script":
+        return _script_command(args)
     if args.command in ("start", "end", "status", "check"):
         return _test_command(args)
     if args.command == "trace":
@@ -631,6 +634,35 @@ def _page_command(args: argparse.Namespace) -> int:
     from nookku import page
 
     return page.serve(args.root.resolve(), args.port)
+
+
+def _script_parser(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+    scr = sub.add_parser("script", help="save a test as a script for nookku run --script")
+    scr.add_argument("action", choices=["save"], help="save: write the said text of each turn")
+    scr.add_argument(
+        "test",
+        nargs="?",
+        help="the test id or the path of the test folder (default: the latest test)",
+    )
+    scr.add_argument("--root", type=Path, default=Path.cwd())
+
+
+def _script_command(args: argparse.Namespace) -> int:
+    """nookku script save: write a test as a script (SPEC.md section 7.10)."""
+    from nookku import script_save
+
+    root = args.root.resolve()
+    folder = _test_folder(root, args.test)
+    if folder is None:
+        return 2
+    try:
+        path, count = script_save.save(root, folder.name)
+    except script_save.SaveError as e:
+        print(f"nookku: the script was not saved. {e}", file=sys.stderr)
+        return 1
+    print(f"Saved {count} messages of test {folder.name} to {path}")
+    print(f"Run it with: {script_save.run_text(root, path)}")
+    return 0
 
 
 def _run_command(args: argparse.Namespace) -> int:
