@@ -232,7 +232,7 @@ def test_nookku_mode_start_refuses_print_mode(
     """The /nookku command of the plugin runs nookku mode start."""
     root, _ = project
     monkeypatch.setenv("CLAUDE_CODE_ENTRYPOINT", "sdk-cli")
-    assert cli.main(["mode", "start", "--root", str(root)]) == 0
+    assert cli.main(["mode", "start", "--root", str(root)]) == 1
     assert capsys.readouterr().out.strip() == print_mode.REASON
     assert not kit.is_on(root)
 

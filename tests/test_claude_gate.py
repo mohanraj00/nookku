@@ -64,12 +64,24 @@ def test_start_refuses_a_test_with_both_on(tmp_path: Path, claude_home: Path) ->
     assert not (tmp_path / ".nookku" / "tests").exists()
 
 
+def test_mode_on_with_an_entry_refuses_a_test_with_both_on_and_exits_with_1(
+    tmp_path: Path, claude_home: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # #248: with an entry, mode on starts a test. If the test does not start, it exits with 1.
+    kit.init(tmp_path, "claude-code", ENTRY)
+    _enable(claude_home / "settings.json", True)
+    assert main(["mode", "on", "--root", str(tmp_path)]) == 1
+    assert "two times" in capsys.readouterr().out
+    assert not kit.is_on(tmp_path)
+    assert not (tmp_path / ".nookku" / "tests").exists()
+
+
 def test_mode_on_keeps_relay_mode_off_with_both_on(
     tmp_path: Path, claude_home: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     kit.init(tmp_path, "claude-code", {})
     _enable(tmp_path / ".claude" / "settings.json", True)
-    assert main(["mode", "--root", str(tmp_path), "on"]) == 0
+    assert main(["mode", "--root", str(tmp_path), "on"]) == 1
     found = tmp_path / ".claude" / "settings.local.json"
     assert f"nookku: {claude_gate.PROBLEM.format(file=found)}" in capsys.readouterr().out
     assert not kit.is_on(tmp_path)

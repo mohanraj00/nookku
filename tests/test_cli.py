@@ -603,7 +603,7 @@ def test_an_unknown_key_stops_start_check_and_the_project_hooks_with_one_message
     assert main(["start", "--root", str(tmp_path), "--json"]) == 1
     assert json.loads(capsys.readouterr().out) == {"error": cause}
     # mode on starts a test, so it shows the same message and keeps relay mode off.
-    assert main(["mode", "on", "--root", str(tmp_path)]) == 0
+    assert main(["mode", "on", "--root", str(tmp_path)]) == 1
     assert capsys.readouterr().out == f"nookku: {cause}\n"
     assert not kit.is_on(tmp_path)
     assert not (tmp_path / ".nookku" / "tests").exists()
@@ -649,7 +649,7 @@ def test_a_wrong_type_stops_init_start_check_mode_on_and_the_project_hooks_with_
     for command in ("start", "check"):
         assert main([command, "--root", str(tmp_path)]) == 1
         assert capsys.readouterr().out.startswith(f"nookku: {cause}")
-    assert main(["mode", "on", "--root", str(tmp_path)]) == 0
+    assert main(["mode", "on", "--root", str(tmp_path)]) == 1
     assert capsys.readouterr().out.startswith(f"nookku: {cause}")
     assert not kit.is_on(tmp_path)
     assert not (tmp_path / ".nookku" / "tests").exists()
@@ -667,7 +667,7 @@ def test_mode_on_with_no_entry_and_an_unknown_key_keeps_relay_mode_off(
     path = tmp_path / ".nookku" / "config.json"
     path.parent.mkdir()
     path.write_text(json.dumps({"agent_url": "http://127.0.0.1:9000/", "tpa_url": "x"}))
-    assert main(["mode", "on", "--root", str(tmp_path)]) == 0
+    assert main(["mode", "on", "--root", str(tmp_path)]) == 1
     cause = ".nookku/config.json has unknown keys: ['tpa_url']. Correct or remove them."
     assert capsys.readouterr().out == f"nookku: {cause}\n"
     assert not kit.is_on(tmp_path)
@@ -683,7 +683,7 @@ def test_mode_on_with_no_config_keeps_the_mode_file_and_says_the_mode(
     # #357: with no config.json, mode on does not change the mode file, and its text is true.
     kit.set_mode(tmp_path, was_on)
     mode = kit.mode_path(tmp_path).read_text()
-    assert main(["mode", "on", "--root", str(tmp_path)]) == 0
+    assert main(["mode", "on", "--root", str(tmp_path)]) == 1
     if was_on:
         text = (
             "nookku: this project has no .nookku/config.json. Relay mode is still on, "

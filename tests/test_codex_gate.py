@@ -223,7 +223,7 @@ def test_start_refuses_a_test_with_an_untrusted_hook(
     with pytest.raises(bridge.BridgeError, match="PreToolUse is untrusted"):
         bridge.start(root)
     assert not (root / kit.STATE_DIR / "tests").exists()
-    assert main(["mode", "on", "--root", str(root)]) == 0
+    assert main(["mode", "on", "--root", str(root)]) == 1
     assert "the Codex hooks of nookku are not ready" in capsys.readouterr().out
     assert not kit.is_on(root)
 
@@ -236,7 +236,7 @@ def test_mode_on_with_no_entry_refuses_an_untrusted_hook(
     kit.init(root, "plugin", {})
     hooks = plugin_hooks(tmp_path, UserPromptSubmit={"enabled": False})
     fake_codex(tmp_path, monkeypatch, answer_with(hooks))
-    assert main(["mode", "on", "--root", str(root)]) == 0
+    assert main(["mode", "on", "--root", str(root)]) == 1
     out = capsys.readouterr().out
     assert "- the plugin hook UserPromptSubmit is disabled." in out
     assert not kit.is_on(root)
