@@ -42,6 +42,27 @@
 
   // ---- What a link or an image names ----
 
+  // True if the URL goes to this computer (a loopback host). A cookie has no port, so the browser
+  // sends the session cookie of the page to each port of the page host (SPEC.md section 5,
+  // "Replies"). The URL parser gives the host in its normal form, for example 127.1 as 127.0.0.1.
+  function loopback(text) {
+    let host;
+    try {
+      host = new URL(text).hostname.toLowerCase().replace(/\.$/, "");
+    } catch (e) {
+      return true;
+    }
+    return (
+      host === "localhost" ||
+      host.endsWith(".localhost") ||
+      /^127\.\d+\.\d+\.\d+$/.test(host) ||
+      host === "0.0.0.0" ||
+      host === "[::1]" ||
+      host === "[::]" ||
+      /^\[::ffff:(7f[0-9a-f]{2}:[0-9a-f]{1,4}|0:0)\]$/.test(host)
+    );
+  }
+
   // Return the kind of the target: "web" (an http or https URL), "mail", "data", "path" (a file
   // path, or a file URL), or "none" (the page does not show it, for example a script URL).
   function target(raw) {
@@ -61,7 +82,8 @@
     try {
       if (name === "http" || name === "https") {
         const url = new URL(text);
-        return url.protocol === name + ":"
+        // A loopback URL shows as text, so that no click sends the session cookie to it.
+        return url.protocol === name + ":" && !loopback(url.href)
           ? { kind: "web", url: url.href, secure: name === "https", path: url.pathname }
           : NONE;
       }
@@ -654,6 +676,7 @@
   // ---- DOM ----
 
   function safeUrl(name, value) {
+    if (/^https?:/i.test(value) && loopback(value)) return false;
     if (name === "href") return /^(https?|mailto):/i.test(value);
     if (name === "src") return /^(https:|data:|files\/)/i.test(value);
     if (name === "data-src") return /^https:/i.test(value);
@@ -758,7 +781,7 @@
   function load(button) {
     const kind = button.getAttribute("data-kind");
     const src = button.getAttribute("data-src") || "";
-    if (["image", "video", "svg"].includes(kind) && /^https:/i.test(src)) {
+    if (["image", "video", "svg"].includes(kind) && /^https:/i.test(src) && !loopback(src)) {
       const alt = button.getAttribute("data-alt") || "";
       button.parentNode.replaceWith(domNode(element(kind, src, alt), button.ownerDocument));
     }
