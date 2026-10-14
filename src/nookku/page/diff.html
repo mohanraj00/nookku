@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Nookku diff</title>
+<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="dashboard.css">
+<link rel="stylesheet" href="diff.css">
+<script src="diff.js" defer></script>
+</head>
+<body>
+<header>
+  <h1>Nookku diff</h1>
+  <p class="nav"><a href="dashboard.html">All tests</a></p>
+</header>
+<main>
+  <p id="error" role="alert" hidden></p>
+  <div class="table">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Side</th>
+          <th scope="col">Test</th>
+          <th scope="col">State</th>
+          <th scope="col" class="num">Turns</th>
+          <th scope="col" class="num">Breaks</th>
+          <th scope="col" class="num">Findings</th>
+        </tr>
+      </thead>
+      <tbody id="tests"></tbody>
+    </table>
+  </div>
+  <p id="summary" class="summary"></p>
+  <ol id="turns" class="turns"></ol>
+  <p class="note">The diff compares the reply that the tap recorded for each turn, not the reply that the harness showed. Turn n of the old test pairs with turn n of the new test.</p>
+</main>
+</body>
+</html>
