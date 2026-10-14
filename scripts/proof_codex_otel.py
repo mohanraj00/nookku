@@ -22,7 +22,7 @@ sys.path[:0] = [str(ROOT / "src")]
 
 from proof_common import json_lines  # noqa: E402
 
-from nookku import otlp  # noqa: E402
+from nookku import __version__, otlp  # noqa: E402
 from nookku.stdio import start_in_thread  # noqa: E402
 
 PROMPT = "Reply with one word: done."
@@ -53,6 +53,7 @@ def main() -> int:
     rows = [x for x in record.read_text().split("\n") if x] if record.exists() else []
     result = {
         "date": date.today().isoformat(),
+        "nookku": __version__,
         "codex": version.strip(),
         "command": [*cmd[:-1], "<temporary folder>", PROMPT],
         "variables": variables | {"OTEL_EXPORTER_OTLP_ENDPOINT": "<receiver URL>"},

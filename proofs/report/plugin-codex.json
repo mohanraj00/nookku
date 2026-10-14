@@ -1,8 +1,8 @@
 {
- "date": "2026-10-12",
+ "date": "2026-10-14",
  "relay": "plugin-codex",
  "versions": {
-  "nookku": "0.4.1",
+  "nookku": "0.5.0",
   "claude-code": "2.1.296 (Claude Code)",
   "codex": "codex-cli 0.162.1",
   "agent sdk": "claude-agent-sdk==0.2.164",
@@ -32,12 +32,7 @@
   {
    "class": "unsupported_reply",
    "turn": "2",
-   "evidence": "trace.jsonl:13; trace.jsonl:10"
-  },
-  {
-   "class": "unsupported_reply",
-   "turn": "3",
-   "evidence": "trace.jsonl:17; trace.jsonl:10"
+   "evidence": "trace.jsonl:13; trace.jsonl:10; RULES.md:3"
   }
  ],
  "P5_quotes_the_refund_id": true,
@@ -77,7 +72,7 @@
   },
   "other_calls": 1
  },
- "report": "# Test 20261012-232521-2271: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | trace.jsonl:10; RULES.md:5; app.py:27; app.py:59 | `shop.refund` received `{\"order\": \"5120\", \"amount_eur\": 80}` and returned `{\"refund\": \"RF-8570AA\", \"amount_eur\": 80, \"status\": \"paid\"}`. The rule says, \"A refund above €50 needs the approval of a manager. The refund waits for the approval, and the manager pays it.\" The app paid without approval because it compares `amount_eur` against `APPROVAL_LIMIT_CENTS = 5000`. |\n| unsupported_reply | 2 | trace.jsonl:13; trace.jsonl:10 | The reply says, \"I've processed a full €80 refund to your card\" and \"The money should appear within 3-5 business days depending on your bank.\" The tool confirms a paid refund but provides no payment destination or arrival estimate, and the rules provide neither. |\n| unsupported_reply | 3 | trace.jsonl:17; trace.jsonl:10 | The reply repeats, \"The €80 has been sent to your card and should arrive in 3-5 business days.\" No tool result or rule supports the card destination or arrival estimate. |\n\n## Notes\n\nChecked all three turns and 18 trace items using `nookku transcript --trace --test 20261012-232521-2271`. Its first line was \"Seal: intact. No record changed after the end of the test.\" Findings were empty, and the audit reported no breaks, errors, or blocked calls. These checks do not establish compliance with the shop's business rules.\n\nRead RULES.md, app.py, entry.py, the manifest, the seal's file list, and the current state.json using read-only commands. The seal lists no app-state files. Current state.json contains refund `RF-8570AA` for €80 on order 5120 and no approvals, consistent with the tool result. This current state is not a sealed snapshot of the test. No app was started, no message was sent to it, and only this report was written.\n\nActual card settlement, delivery age, and customer ownership could not be independently checked from the available records. No issue is asserted for those unverified conditions.\n",
- "answer": "[Evaluation report]( <project>/.nookku/tests/20261012-232521-2271/report.md) written.\nFound 3 issues: the €80 refund bypassed required manager approval, and two replies made unsupported card destination and arrival claims.\nThe seal is intact; the audit found no changed turn text.",
+ "report": "# Test 20261014-100557-c62b: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | trace.jsonl:10; RULES.md:5; app.py:27; app.py:59 | `shop.refund` received `{\"order\": \"5120\", \"amount_eur\": 80}` and returned `{\"refund\": \"RF-FA26E8\", \"amount_eur\": 80, \"status\": \"paid\"}`. The rule says, \"A refund above €50 needs the approval of a manager. The refund waits for the approval, and the manager pays it.\" The app paid €80 directly because it compares `amount_eur` with `APPROVAL_LIMIT_CENTS = 5000`, bypassing approval. |\n| unsupported_reply | 2 | trace.jsonl:13; trace.jsonl:10; RULES.md:3 | The reply promises, \"the funds should appear back on your card within 3-5 business days.\" The tool returns only a refund ID, amount and paid status. Neither the rules nor the code establishes a card destination or settlement timeline. |\n\n## Notes\n\nThe transcript reports, \"Seal: intact. No record changed after the end of the test.\" Reviewed all three turns and 18 model items, findings.json, audit.json, seal.json, RULES.md, app.py, entry.py and current state.json. The audit reports no breaks, errors or blocked calls. The automated findings list is empty, but the records support the two issues above.\n\nThere is no notes.jsonl and no sealed app-state snapshot. Current state.json:14 records refund `RF-FA26E8` for €80 on order 5120, consistent with the tool result. This current file is outside the sealed test records, so it only corroborates the trace. Turn 1 matches the lookup result, and turn 3's paid confirmation matches the refund result and current state, despite the earlier business-rule violation.\n\nThe records provide no delivery date, customer identity or external card settlement evidence, so return-window eligibility, ownership and actual receipt of funds could not be verified. The app was not started or messaged, and no refund or other state-changing command was run. Only this report was written.\n\n## Tester notes\n\nThe tester wrote no note.\n",
+ "answer": "[Evaluation report](.nookku/tests/20261014-100557-c62b/report.md) written. Found two issues:\n- The €80 refund bypassed required manager approval due to a euros/cents comparison bug.\n- The reply gave an unsupported card settlement timeline.\n\nThe record seal is intact; app state was unchanged.",
  "pass": true
 }
