@@ -268,7 +268,12 @@
       endMark.textContent = "The test ended" + (ended ? " at " + ended : "") + ".";
       endMark.hidden = false;
     }
-    summary();
+    try {
+      summary();
+    } catch (e) {
+      // A damaged file of the test must not stop the chat.
+      document.getElementById("summary").append(el("p", "note", "nookku: the summary failed."));
+    }
     const notes = new Map();
     for (const note of data.notes) notes.set(note.turn, note);
     const list = document.getElementById("turns");

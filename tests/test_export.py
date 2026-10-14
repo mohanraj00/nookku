@@ -296,3 +296,31 @@ def test_the_export_script_makes_no_html_from_text() -> None:
         for bad in ("innerHTML", "insertAdjacentHTML", "outerHTML", "document.write", "eval("):
             assert bad not in js
         assert "new Function" not in js and "DOMParser" not in js and "fetch(" not in js
+
+
+def test_an_item_that_is_not_an_object_gives_a_problem(project: Path) -> None:
+    folder = project / ".nookku" / "tests" / TEST_ID
+    (folder / "audit.json").write_text('{"exit": 1, "breaks": [null, {"class": "x"}]}')
+    (folder / "findings.json").write_text('{"findings": ["text"]}')
+    data = data_of(export.build(project, folder).decode())
+    assert data["breaks"] == [{"class": "x"}]
+    assert data["findings"] == []
+    assert "audit.json: 1 items of breaks are not JSON objects" in data["errors"]
+    assert "findings.json: 1 items of findings are not JSON objects" in data["errors"]
+
+
+def test_the_hash_of_the_csp_is_of_the_text_with_lf_only(
+    project: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A checkout on Windows can give the page files CR LF. The HTML parser makes LF of each
+    CR LF before the CSP check, so the hash must be of the text with LF."""
+    original = page.page_file
+    monkeypatch.setattr(page, "page_file", lambda name: original(name).replace(b"\n", b"\r\n"))
+    html = export.build(project, project / ".nookku" / "tests" / TEST_ID).decode()
+    assert "\r" not in html
+    scripts = re.findall(r"<script>(.*?)</script>", html, re.S)
+    assert [export._sha(s) for s in scripts] == [
+        export._sha(original(n).decode()) for n in export.SCRIPTS
+    ]
+    for script in scripts:
+        assert export._sha(script) in html

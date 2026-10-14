@@ -268,13 +268,9 @@ def data(root: Path, folder: Path) -> dict[str, Any]:
         "turns": turn_rows,
         "steps": {str(k): v for k, v in trace_steps.items()},
         "notes": note_rows["notes"],
-        "breaks": audit.get("breaks") if audit and isinstance(audit.get("breaks"), list) else [],
+        "breaks": _objects(audit, "breaks", "audit.json", errors),
         "audit_exit": audit.get("exit") if audit else None,
-        "findings": (
-            findings.get("findings")
-            if findings and isinstance(findings.get("findings"), list)
-            else []
-        ),
+        "findings": _objects(findings, "findings", "findings.json", errors),
         "media": files,
         "big": big,
         "max_media": MAX_MEDIA,
@@ -303,6 +299,18 @@ def _finite(value: Any) -> tuple[Any, bool]:
     return value, False
 
 
+def _objects(data: dict[str, Any] | None, key: str, name: str, errors: list[str]) -> list[Any]:
+    """The JSON objects of the list `key` of a file. Each other item gives a problem text, so a
+    damaged file cannot stop the page of the export."""
+    found = data.get(key) if data else None
+    if not isinstance(found, list):
+        return []
+    items = [x for x in found if isinstance(x, dict)]
+    if len(items) < len(found):
+        errors.append(f"{name}: {len(found) - len(items)} items of {key} are not JSON objects")
+    return items
+
+
 def _json_block(value: Any) -> str:
     """JSON for a `<script type="application/json">` block. ASCII only, so a lone surrogate is a
     `\\u` escape. Each `<`, `>` and `&` is a `\\u` escape, so no text can end the block."""
@@ -311,7 +319,9 @@ def _json_block(value: Any) -> str:
 
 
 def _inline(name: str, end: str) -> str:
-    text = page.page_file(name).decode("utf-8")
+    """A page file as inline text. The HTML parser changes each CR LF and CR to LF before the
+    browser checks the hash of the CSP, so the text has LF only."""
+    text = page.page_file(name).decode("utf-8").replace("\r\n", "\n").replace("\r", "\n")
     if end in text.lower() or "<!--" in text:
         raise ExportError(f"the page file {name} cannot go inline")
     return text
