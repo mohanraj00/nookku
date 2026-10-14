@@ -78,6 +78,7 @@ function render(data) {
     shownCount = 0;
     shownTest = test.id;
   }
+  let index = shownCount;
   for (const turn of data.turns.slice(shownCount)) {
     const sender = turn.harness === "script" ? "script" : "tester";
     list.append(block("tester", sender + " (" + turn.harness + ")", turn.said));
@@ -88,6 +89,8 @@ function render(data) {
     } else {
       list.append(NookkuRender.reply(document, "agent", "agent", turn.shown));
     }
+    // trace.js puts the trace steps of turn `index` after its reply (#353).
+    list.lastElementChild.dataset.turn = String(index++);
   }
   if (data.turns.length > shownCount) {
     shownCount = data.turns.length;
