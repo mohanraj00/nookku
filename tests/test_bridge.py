@@ -240,6 +240,24 @@ def test_check_finds_the_model_sessions_of_the_app(tmp_path: Path, homes: tuple)
     assert findings["counts"]["turn_without_model"] == 0
 
 
+def test_check_finds_the_sessions_of_an_app_in_a_subfolder(tmp_path: Path, homes: tuple) -> None:
+    # The work-around of docs/troubleshooting.md (#124): the app runs its harness in a subfolder,
+    # so that its sessions stay out of the session list of the tester.
+    script = tmp_path / "app.py"
+    script.write_text(FIXTURE_APP)
+    start = f"import os, runpy; os.chdir('.toy-shop-work'); runpy.run_path({str(script)!r})"
+    root = project(tmp_path, [sys.executable, "-c", start], ["claude-code", "codex"])
+    (root / ".toy-shop-work").mkdir()
+    passed, lines = bridge.check(root)
+    assert passed, lines
+    folder = bridge.latest_test(root)
+    assert folder is not None
+    manifest = json.loads((folder / "manifest.json").read_text())
+    found = {(s["harness"], s["session"]) for s in manifest["model_sessions"]}
+    assert {("claude-code", CLAUDE_SID), ("codex", APP_THREAD)} <= found
+    assert (folder / "sessions" / "claude-code" / f"{CLAUDE_SID}.jsonl").exists()
+
+
 def test_the_tester_thread_is_not_an_app_session(tmp_path: Path, homes: tuple) -> None:
     script = tmp_path / "app.py"
     script.write_text(FIXTURE_APP)

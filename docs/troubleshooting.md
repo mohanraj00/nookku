@@ -14,6 +14,7 @@ First, look in the [test folder](reference/glossary.md#test-folder) `.nookku/tes
 | A prompt went to the model in [relay mode](reference/glossary.md#relay-mode). | In relay mode, the [relay](reference/glossary.md#relay) blocks each prompt. Run `nookku status`. If it says `relay mode is off.`, start a test with the prompt `nookku start`. If relay mode is on, the hooks did not run. In Codex, trust the hooks ([In Codex, the model answers my test messages](#in-codex-the-model-answers-my-test-messages)). In Claude Code, install the relay again ([project hooks](how-to/claude-code-project-hooks.md#install), [plugin](how-to/claude-code-plugin.md#install)). |
 | Codex does not run the hooks. | Codex runs [project hooks](reference/glossary.md#project-hooks) only after a person trusts them. Do the trust step ([codex.md](how-to/codex.md#install), [In Codex, the model answers my test messages](#in-codex-the-model-answers-my-test-messages)). |
 | Each message reaches the agent two times. | The [plugin](reference/glossary.md#plugin) and the project hooks both run. Use one form ([Each message reaches the agent two times](#each-message-reaches-the-agent-two-times)). |
+| The app's sessions show in `claude --resume` or `codex resume`. | The app runs its [harness](reference/glossary.md#harness) in the project root. Run it in a subfolder ([The app's sessions show in `claude --resume` or `codex resume`](#the-apps-sessions-show-in-claude---resume-or-codex-resume)). |
 | A test does not start. | Find the error text in [Start a test](#start-a-test). |
 | The test does not end, or each prompt says that no test runs. | Follow [recover-a-stuck-test.md](how-to/recover-a-stuck-test.md). |
 | No `report.md` after the end. | The model writes `report.md` only after the prompt `nookku end`. `nookku end` in a shell, or `/nookku end` in the plugin, ends the test with no [evaluation](reference/glossary.md#evaluation). If `evaluate` is `false` in the configuration, no evaluation starts. If you denied a command of the evaluation, the model can stop. Type the prompt `nookku end` again. If the latest test has no `report.md`, this prompt starts its evaluation ([SPEC.md section 9.1](../SPEC.md#91-start), [test-your-app.md](how-to/test-your-app.md#7-allow-the-evaluation-commands)). In Codex, the sandbox must let the model write in the project ([codex.md](how-to/codex.md#use)). |
@@ -329,6 +330,22 @@ If the entry wrote 2 or more stray lines, the check gives one line for all of th
 **Cause.** `check` does not judge the reply. It passes with any reply line, also a fallback text of your app. For example, the entry starts the app with the wrong interpreter, with no environment file, or in the wrong working folder. Then the app can send its fallback text for each message.
 
 **Fix.** Do the 4 steps in [Make sure that check runs your real app](how-to/connect-your-agent.md#make-sure-that-check-runs-your-real-app).
+
+### The app's sessions show in `claude --resume` or `codex resume`
+
+**Cause.** The harness of your app keeps its session files with the sessions of its working folder. Claude Code writes them to `~/.claude/projects/<folder>/`, with the name of the working folder. `claude --resume` lists the sessions of the current folder, and `codex resume` filters by the working folder in the same way. If your app runs its harness in the project root, each test adds the sessions of the app to your list. Nookku does not change or move these files ([SPEC.md section 7.3](../SPEC.md#73-model-sessions)).
+
+**Fix.** Run the harness of the app in a subfolder of the project, for example `.toy-shop-work/`:
+
+1. Make the subfolder. Add it to `.gitignore` if it must stay out of git.
+2. Give the subfolder to the harness of the app. In the Agent SDK, use the `cwd` option. In the Codex SDK, use the `workingDirectory` option of the thread.
+3. Run `nookku check`. It must find the model sessions of the app.
+
+A different working folder can change what the harness loads, for example the project settings. Make sure that the app still gives its usual replies.
+
+The test still finds the sessions. The tap identifies a Claude Code session by the process of the entry, and the bridge reads its file in each folder of `~/.claude/projects/`. A Codex session must run in the project folder or below it, so a subfolder is correct ([SPEC.md section 7.3](../SPEC.md#73-model-sessions)).
+
+If your app needs the project root as its working folder, the sessions stay in your list. The test folder keeps a copy of each session file in `sessions/`, so you can remove the original files after the test. Do not remove the file of a session that the app resumes later, because the app cannot then resume it.
 
 ## Audit, verify and trace
 
