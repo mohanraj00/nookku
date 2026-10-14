@@ -166,9 +166,9 @@ Under pressure, the mechanism had **0 breaks in 1,000 turns**. The test had 40 s
 
 - **An independent record.** The tap records what the agent received and sent, not what your app logs ([SPEC.md section 4](SPEC.md#4-tap)).
 - **A proof that the record is exact.** The audit compares the two records byte for byte and names each break in 8 classes ([SPEC.md section 3](SPEC.md#3-audit), [break classes](SPEC.md#33-break-classes)). The seal shows each file that changed after the end of a test ([SPEC.md section 7.4](SPEC.md#74-seal)). Data: [proofs](docs/results.md#1-proofs).
-- **No model between you and your agent.** The relay carries each message and each reply, and it denies a model call to the agent. The deny is best effort ([SPEC.md section 5](SPEC.md#5-relays), [limits](docs/limits.md)). Data: [P1 to P4](docs/results.md#1-proofs).
+- **No model between you and your agent.** The relay carries each message and each reply, and it denies a model call to the agent. The deny is best effort. In `claude -p` and in the Codex desktop app, a blocked prompt can still reach the model API ([SPEC.md section 5](SPEC.md#5-relays), [limits](docs/limits.md)). Data: [P1 to P4](docs/results.md#1-proofs).
 - **No change to your agent.** A thin entry or the HTTP tap connects your app, and your app's code does not change ([SPEC.md section 6](SPEC.md#6-agent-contract-version-1), [HTTP mode](SPEC.md#41-http-mode)).
-- **Local.** Nookku has no hosted service, and the records stay on your machine ([FAQ](docs/faq.md#does-nookku-send-my-data-to-a-server)). The package has no runtime dependencies ([pyproject.toml](pyproject.toml)).
+- **Local.** Nookku has no hosted service of its own, and the records stay in `.nookku/tests/`. At the end of a test, the harness model reads them, so they go to the model provider of your harness ([FAQ](docs/faq.md#does-nookku-send-my-data-to-a-server)). The package has no runtime dependencies ([pyproject.toml](pyproject.toml)).
 - **The judge reads the record, not its memory.** After a test, the model has no memory of the conversation, and it reads the transcript ([P5](docs/results.md#p5-the-model-judges-the-record-not-its-memory)).
 
 Nookku does not do these: data sets at scale, production monitoring and hosted team review. Each test is one conversation, from your harness or from a script ([SPEC.md section 7](SPEC.md#7-tests)).
