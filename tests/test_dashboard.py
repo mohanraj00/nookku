@@ -14,7 +14,7 @@ from typing import Any
 
 import pytest
 
-from nookku import bridge, dashboard, page, seal
+from nookku import bridge, dashboard, kit, page, seal
 from nookku.audit import audit
 from nookku.record import Writer
 
@@ -276,3 +276,54 @@ def test_the_dashboard_has_no_inline_script_and_no_html_from_text() -> None:
     # The chat page links to the dashboard, and the dashboard opens a test with #<id>.
     assert 'href="dashboard.html"' in folder.joinpath("index.html").read_text()
     assert '"./#" + encodeURIComponent(id)' in js
+
+
+def post_send(srv: page.PageServer, body: dict[str, Any]) -> tuple[int, dict[str, Any]]:
+    port = srv.server_address[1]
+    headers = {
+        "Host": f"127.0.0.1:{port}",
+        "Origin": f"http://127.0.0.1:{port}",
+        "Content-Type": "application/json",
+    }
+    conn = http.client.HTTPConnection("127.0.0.1", port, timeout=30)
+    try:
+        conn.request("POST", f"/p/{srv.token}/api/send", json.dumps(body), headers)
+        resp = conn.getresponse()
+        data: dict[str, Any] = json.loads(resp.read())
+        return resp.status, data
+    finally:
+        conn.close()
+
+
+def test_a_send_goes_only_to_the_test_that_the_page_shows(
+    project: Path, server: page.PageServer
+) -> None:
+    folder = project / ".nookku" / "tests" / "20261013-093000-dd44"
+    folder.mkdir()
+    (folder / "manifest.json").write_text(json.dumps({"started": 1_800_001_800.0, "ended": None}))
+    cur = {
+        "v": 1,
+        "test": folder.name,
+        "dir": str(folder),
+        # Nothing listens on port 9, so a send that passes each check gives an error turn.
+        "tap_url": "http://127.0.0.1:9",
+        "tap_token": "t" * 43,
+        "pid": os.getpid(),
+        "pid_start": bridge.process_start(os.getpid()),
+    }
+    (project / ".nookku" / "current.json").write_text(json.dumps(cur))
+    kit.set_mode(project, True)
+    # The page shows an older test, and the running test is another one.
+    status, answer = post_send(server, {"said": "Is the mug in stock?", "test": TESTS[2]["id"]})
+    assert status == 200
+    assert answer == {
+        "sent": False,
+        "shown": page.OTHER_TEST.format(shown=TESTS[2]["id"], running=folder.name),
+        "ok": False,
+    }
+    assert not (folder / "relay.jsonl").exists()
+    status, answer = post_send(server, {"said": "Is the mug in stock?", "test": folder.name})
+    assert status == 200 and answer["sent"] is True and answer["ok"] is False
+    assert len((folder / "relay.jsonl").read_text().splitlines()) == 1
+    status, _ = post_send(server, {"said": "Hi", "test": 7})
+    assert status == 400
