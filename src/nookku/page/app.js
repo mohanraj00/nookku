@@ -51,6 +51,8 @@ function pollResult(error) {
 function render(data) {
   pollResult(data.error);
   const test = data.test;
+  // save.js reads the id of the test that the page shows.
+  el("test").dataset.id = test ? test.id : "";
   const list = el("turns");
   if (!test) {
     el("test").textContent = "No test yet. Start one in the harness with: nookku start";
