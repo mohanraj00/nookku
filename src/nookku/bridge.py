@@ -30,6 +30,7 @@ from nookku.record import RecordError, Writer, turns
 
 # The state functions are in nookku.state. These names keep the imports of bridge working.
 from nookku.state import TIMEOUT as TIMEOUT
+from nookku.state import TOKEN_KEY
 from nookku.state import _children as _children
 from nookku.state import _started as _started
 from nookku.state import alive as alive
@@ -472,9 +473,17 @@ def _log(message: str) -> None:
     print(f"nookku bridge: {message}", file=sys.stderr, flush=True)
 
 
-def _write_json(path: Path, data: dict[str, Any]) -> None:
+def _write_json(path: Path, data: dict[str, Any], mode: int | None = None) -> None:
+    """Write the file in one step. With `mode`, only the file has that mode, from its start."""
     tmp = path.with_name(path.name + ".tmp")
-    tmp.write_text(json.dumps(data, indent=1, ensure_ascii=False) + "\n")
+    text = json.dumps(data, indent=1, ensure_ascii=False) + "\n"
+    if mode is None:
+        tmp.write_text(text)
+    else:
+        tmp.unlink(missing_ok=True)
+        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, mode)
+        with os.fdopen(fd, "w") as f:
+            f.write(text)
     tmp.replace(path)
 
 
@@ -576,9 +585,13 @@ def run(
             "test": test,
             "dir": str(folder),
             "tap_url": tap.url,
+            # A relay or a page server sends this token with each message (SPEC.md 4.2).
+            TOKEN_KEY: tap.token,
             "pid": os.getpid(),
             "pid_start": pid_start,
         },
+        # The file holds the tap token, so only the owner can read it.
+        mode=0o600,
     )
     _log(f"test {test} on {tap.url}")
     stop.wait()

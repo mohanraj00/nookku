@@ -459,7 +459,9 @@ CASES_BY_NAME: dict[str, tuple[list | None, list | None, dict]] = {
 }
 
 
-# The stdio cases. Each request is the body that the relay posts. Each agent step says what the
+# The stdio cases. Each request is the body that the relay posts, with the tap token and the
+# Content-Type application/json. A request can also be an object: the body, the token ("right",
+# "none" or "wrong") and more headers (SPEC.md section 4.2). Each agent step says what the
 # scripted agent does with one input line: write `lines`, `exit` with a code, or `sleep` seconds.
 # `forwarded` is the index of each request that the agent must receive, byte for byte.
 # A row lists only the fields to compare. The tap's timeout is 1 second in these cases.
@@ -482,6 +484,21 @@ STRAY = {"type": "unparsed", "method": "STDIO", "path": "stdout"}
 TIMED_OUT = {"type": "exchange", "input": TRICKY, "status": None, "reply": None}
 
 CONTRACT_CASES: dict[str, dict] = {
+    # A request that is not from a relay gets 403. The agent gets no line and the tap writes no
+    # row. Thus the first line of the agent is the reply to the last request.
+    "requests_not_from_a_relay_are_refused": {
+        "requests": [
+            {"body": req(TRICKY), "token": "none"},
+            {"body": req(TRICKY), "token": "wrong"},
+            {"body": req(TRICKY), "token": "right", "headers": {"Origin": "https://example.com"}},
+            {"body": req(TRICKY), "token": "right", "headers": {"Content-Type": "text/plain"}},
+            req(TRICKY, HISTORY),
+        ],
+        "agent": [{"lines": [out(reply=R1)]}],
+        "forwarded": [4],
+        "http": [403, 403, 403, 403, 200],
+        "rows": [EXCHANGE_OK],
+    },
     "reply_is_exact": {
         "requests": [req(TRICKY, HISTORY)],
         "agent": [{"lines": [out(reply=R1)]}],
