@@ -21,9 +21,9 @@ from typing import Any
 
 import pytest
 
-from nookku import bridge, kit, page, seal, state
+from nookku import bridge, kit, page, script, seal, state
 from nookku.audit import audit
-from nookku.record import Turn, read_relay
+from nookku.record import Turn, Writer, read_relay
 from nookku.stdio import Agent, StdioTap, start_in_thread
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -212,7 +212,7 @@ def test_a_post_must_be_json(tmp_path: Path) -> None:
 def test_each_answer_has_a_strict_csp(tmp_path: Path) -> None:
     server = start_page(tmp_path)
     try:
-        for path in ("", "app.js", "app.css", "api/turns", "nothing"):
+        for path in ("", "app.js", "save.js", "app.css", "api/turns", "nothing"):
             _, headers, _ = request(server, "GET", base(server) + path)
             csp = headers["content-security-policy"]
             assert "default-src 'none'" in csp
@@ -230,9 +230,11 @@ def test_each_answer_has_a_strict_csp(tmp_path: Path) -> None:
 def test_the_page_has_no_inline_script_no_cdn_and_no_html_from_text() -> None:
     folder = resources.files("nookku").joinpath("page")
     html = folder.joinpath("index.html").read_text()
-    js = folder.joinpath("app.js").read_text()
+    scripts = ["app.js", "save.js"]
+    js = "".join(folder.joinpath(name).read_text() for name in scripts)
     css = folder.joinpath("app.css").read_text()
-    assert re.findall(r"<script[^>]*>", html) == ['<script src="app.js" defer>']
+    assert re.findall(r"<script[^>]*>", html) == [f'<script src="{s}" defer>' for s in scripts]
+    assert all(name in page.FILES for name in scripts)
     assert not re.search(r"\son\w+=", html)
     assert "style=" not in html
     for text in (html, js, css):
@@ -761,3 +763,27 @@ def test_a_page_send_slower_than_the_end_wait_keeps_the_seal_true(
     turns = [r for r in read_relay(folder / "relay.jsonl") if isinstance(r, Turn)]
     assert [(t.harness, t.said, t.ok) for t in turns] == [("pane", "Hi", False)]
     assert seal.verify(folder)["intact"]
+
+
+def test_the_page_saves_the_test_as_a_script(tmp_path: Path) -> None:
+    folder = make_folder(tmp_path)
+    for said in MESSAGES:
+        Writer(folder / "relay.jsonl").append(
+            {"type": "turn", "harness": "pane", "said": said, "shown": "ok", "ok": True}
+        )
+    server = start_page(tmp_path)
+    try:
+        url = base(server) + "api/save-script"
+        status, _, body = request(server, "POST", url, {"test": folder.name})
+        assert status == 200 and json.loads(body)["saved"], body
+        path = tmp_path / ".nookku" / "scripts" / f"{folder.name}.jsonl"
+        assert script.parse(path.read_bytes())[0] == MESSAGES
+        # The save has the checks of each POST: Origin, Content-Type and the body.
+        assert request(server, "POST", url, {"test": folder.name}, {"Origin": ""})[0] == 403
+        assert request(server, "POST", url, b"{}", {"Content-Type": "text/plain"})[0] == 415
+        assert request(server, "POST", url, b"not json")[0] == 400
+        status, _, body = request(server, "POST", url, {"test": "../x"})
+        assert status == 200 and not json.loads(body)["saved"]
+    finally:
+        server.shutdown()
+        server.server_close()
