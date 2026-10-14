@@ -517,8 +517,9 @@ def test_each_answer_of_http_server_itself_has_the_headers(tmp_path: Path) -> No
             status_line = head.split(b"\r\n", 1)[0]
             assert status_line.startswith(b"HTTP/1.0") and code in status_line, line[:20]
             assert b"Content-Security-Policy: " + page.CSP.encode() in head, line[:20]
-        # An HTTP/0.9 answer has no headers, so the page gives no answer.
-        assert raw(server, b"GET /\r\n") == b""
+        # An HTTP/0.9 answer has no headers, so the page gives no answer. Python 3.12 and earlier
+        # read headers after an HTTP/0.9 request line, so the request ends with a blank line.
+        assert raw(server, b"GET /\r\n\r\n") == b""
     finally:
         server.shutdown()
         server.server_close()
