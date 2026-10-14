@@ -27,9 +27,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
 from pathlib import Path
 from typing import Any, TextIO
-from urllib.parse import urlsplit
+from urllib.parse import unquote, urlsplit
 
-from nookku import kit, seal, state
+from nookku import dashboard, kit, seal, state
 from nookku.record import RecordError, Writer, turns
 
 # The harness of a turn that the page sent (SPEC.md section 2.2).
@@ -40,6 +40,9 @@ FILES = {
     "": ("index.html", "text/html; charset=utf-8"),
     "app.js": ("app.js", "text/javascript; charset=utf-8"),
     "app.css": ("app.css", "text/css; charset=utf-8"),
+    "dashboard.html": ("dashboard.html", "text/html; charset=utf-8"),
+    "dashboard.js": ("dashboard.js", "text/javascript; charset=utf-8"),
+    "dashboard.css": ("dashboard.css", "text/css; charset=utf-8"),
 }
 # The page loads only its own files. No inline script, no inline style, no other site.
 CSP = (
@@ -152,16 +155,21 @@ def _send_locked(root: Path, said: str) -> dict[str, Any]:
     return {"sent": True, "shown": shown, "ok": ok}
 
 
-def view(root: Path) -> dict[str, Any]:
-    """The test and its turns, for the page: the running test, else the latest test."""
+def view(root: Path, test_id: str | None = None) -> dict[str, Any]:
+    """The test and its turns, for the page: the test with the id `test_id` (from the
+    dashboard), else the running test, else the latest test."""
     cur = state.current(root)
     folder = Path(cur["dir"]) if cur else state.latest_test(root)
+    if test_id is not None:
+        folder = dashboard.find(root, test_id)
+        if folder is None:
+            return {"test": None, "turns": [], "error": "nookku: no test has this id."}
     if folder is None:
         return {"test": None, "turns": [], "error": None}
     manifest = _manifest(folder) or {}
     test = {
         "id": folder.name,
-        "running": cur is not None,
+        "running": cur is not None and Path(cur["dir"]).name == folder.name,
         "started": manifest.get("started"),
         "ended": manifest.get("ended"),
     }
@@ -279,6 +287,11 @@ class _Handler(BaseHTTPRequestHandler):
             self._answer(200, page_file(name), kind)
         elif rest == "api/turns":
             self._json(200, view(self.server.root))
+        elif rest.startswith("api/turns/"):
+            data = view(self.server.root, unquote(rest[len("api/turns/") :]))
+            self._json(200 if data["test"] else 404, data)
+        elif rest == "api/tests" or rest.startswith("api/tests/"):
+            self._json(*dashboard.answer(self.server.root, rest))
         else:
             self._refuse(404, "not found")
 

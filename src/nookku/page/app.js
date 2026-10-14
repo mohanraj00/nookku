@@ -93,9 +93,21 @@ function render(data) {
   el("send").disabled = sending || !test.running;
 }
 
+// The dashboard opens the page of one test with #<test id> (#349). The page then shows that
+// test. It can send only if that test runs.
+function turnsUrl() {
+  let id = "";
+  try {
+    id = decodeURIComponent(window.location.hash.slice(1));
+  } catch (e) {
+    id = window.location.hash.slice(1);
+  }
+  return id ? "api/turns/" + encodeURIComponent(id) : "api/turns";
+}
+
 async function refresh() {
   try {
-    const resp = await fetch("api/turns", { cache: "no-store" });
+    const resp = await fetch(turnsUrl(), { cache: "no-store" });
     render(await resp.json());
   } catch (e) {
     pollError = "nookku: the page server does not answer. Start it again with: nookku page";
@@ -141,6 +153,7 @@ async function send() {
 
 document.addEventListener("DOMContentLoaded", () => {
   el("send").addEventListener("click", send);
+  window.addEventListener("hashchange", refresh);
   refresh();
   setInterval(refresh, POLL_MS);
 });
