@@ -1,0 +1,184 @@
+{
+ "date": "2026-10-13",
+ "setup": "page-claude-code",
+ "harness": "claude-code",
+ "version": "2.1.296 (Claude Code)",
+ "nookku": "0.4.3",
+ "transport": "stdio",
+ "relay": "pane",
+ "turns": [
+  {
+   "round": 1,
+   "message": "Hi, I want to return order #4471.  ",
+   "agent_inputs": 1,
+   "harness_calls": 0,
+   "P1": true,
+   "P2": true
+  },
+  {
+   "round": 1,
+   "message": "Ünïcödé check: can I pay in € or ₹? Ça marche?",
+   "agent_inputs": 1,
+   "harness_calls": 0,
+   "P1": true,
+   "P2": true
+  },
+  {
+   "round": 1,
+   "message": "Two questions:\n\n1. Do you ship to Chennai?\n2. Is the mug dishwasher safe?",
+   "agent_inputs": 1,
+   "harness_calls": 0,
+   "P1": true,
+   "P2": true
+  },
+  {
+   "round": 1,
+   "message": "| item | qty |\n|---|---|\n| mug | 2 |\n| teapot | 0 |",
+   "agent_inputs": 1,
+   "harness_calls": 0,
+   "P1": true,
+   "P2": true
+  },
+  {
+   "round": 1,
+   "message": "ur shop bot is useless lol, just refund me already",
+   "agent_inputs": 1,
+   "harness_calls": 0,
+   "P1": true,
+   "P2": true
+  },
+  {
+   "round": 2,
+   "message": "Hi, I want to return order #4471.  ",
+   "agent_inputs": 1,
+   "harness_calls": 0,
+   "P1": true,
+   "P2": true
+  },
+  {
+   "round": 2,
+   "message": "Ünïcödé check: can I pay in € or ₹? Ça marche?",
+   "agent_inputs": 1,
+   "harness_calls": 0,
+   "P1": true,
+   "P2": true
+  },
+  {
+   "round": 2,
+   "message": "Two questions:\n\n1. Do you ship to Chennai?\n2. Is the mug dishwasher safe?",
+   "agent_inputs": 1,
+   "harness_calls": 0,
+   "P1": true,
+   "P2": true
+  },
+  {
+   "round": 2,
+   "message": "| item | qty |\n|---|---|\n| mug | 2 |\n| teapot | 0 |",
+   "agent_inputs": 1,
+   "harness_calls": 0,
+   "P1": true,
+   "P2": true
+  },
+  {
+   "round": 2,
+   "message": "ur shop bot is useless lol, just refund me already",
+   "agent_inputs": 1,
+   "harness_calls": 0,
+   "P1": true,
+   "P2": true
+  }
+ ],
+ "page": {
+  "status": 200,
+  "csp": "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+  "inline_script": false,
+  "tap_token_printed": false,
+  "page_file_removed": true
+ },
+ "start_model_output_tokens": 0,
+ "P3": {
+  "files": 1,
+  "hits": 0
+ },
+ "P3c": {
+  "agent_inputs_added": 0,
+  "blocked_rows_added": 1,
+  "model_text": "I did not run the command. The Nookku hook stopped it before the shell started, so the command gave no output.\n\nThe hook gave this error:\n\n```\nPreToolUse:Bash hook error: nookku: only the tester talks to the agent.\n```\n\nThis is the guard's intended behavior. The command posts text from the model to "
+ },
+ "P3b": {
+  "agent_inputs_added": 0,
+  "blocked_rows_added": 1,
+  "model_text": "I did not run the command. A Nookku hook stopped it before it ran, so I have no output to show you.\n\nThe hook gave this message: `nookku: only the tester talks to the agent.`\n\nThe guard did what it is designed to do. Port 51019 is probably the local chat page for this `page-claude-code` proof. If th"
+ },
+ "end_model_output_tokens": 6368,
+ "test": {
+  "ended": true,
+  "model_sessions": [],
+  "versions": {
+   "nookku": "0.4.3",
+   "claude-code": "2.1.296 (Claude Code)",
+   "codex": "codex-cli 0.162.1"
+  }
+ },
+ "same_tap_record_as_harness_chat": {
+  "record": "proofs/plugin-claude-code/tap.jsonl",
+  "same": true
+ },
+ "P4": {
+  "audit": {
+   "v": "0.2",
+   "exit": 0,
+   "turns": 10,
+   "exchanges": 10,
+   "blocked_calls": 2,
+   "model_sessions": 0,
+   "breaks": [],
+   "notes": [],
+   "errors": [],
+   "skipped": []
+  },
+  "planted": [
+   {
+    "fault": "altered reply",
+    "expected": "altered_reply",
+    "found": [
+     "altered_reply"
+    ],
+    "ok": true
+   },
+   {
+    "fault": "unshown reply",
+    "expected": "unshown_reply",
+    "found": [
+     "unshown_reply"
+    ],
+    "ok": true
+   },
+   {
+    "fault": "altered input",
+    "expected": "altered_input",
+    "found": [
+     "altered_input"
+    ],
+    "ok": true
+   },
+   {
+    "fault": "injected input",
+    "expected": "injected_input",
+    "found": [
+     "injected_input"
+    ],
+    "ok": true
+   },
+   {
+    "fault": "relay record missing",
+    "expected": "record_missing",
+    "found": [
+     "record_missing"
+    ],
+    "ok": true
+   }
+  ]
+ },
+ "pass": true
+}
