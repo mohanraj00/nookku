@@ -52,6 +52,13 @@ USED = (
     "this page URL was used. Open the page in the browser that opened it, or stop nookku page and "
     "start it again"
 )
+# The text of a GET of SESSION_PATH with no session cookie, for example after "Open chat" in a
+# browser that has no session (#348). It gives no session.
+NO_SESSION = (
+    "nookku: this browser has no session of the chat page. Open the page in the browser that "
+    "opened it at the start of the test. Else end the test and start a new one, or run nookku "
+    "page in a separate terminal.\n"
+)
 # The files of the page, in src/nookku/page/, and their media types.
 FILES = {
     "": ("index.html", "text/html; charset=utf-8"),
@@ -565,7 +572,11 @@ class _Handler(BaseHTTPRequestHandler):
             return None
         if parts.path.startswith(SESSION_PATH):
             if not self._has_session():
-                self._refuse(404, "not found")
+                if self.command == "GET" and parts.path == SESSION_PATH:
+                    # The page itself: tell the person how to get a session. Give no session.
+                    self._answer(404, NO_SESSION.encode(), "text/plain; charset=utf-8")
+                else:
+                    self._refuse(404, "not found")
                 return None
             return parts.path[len(SESSION_PATH) :]
         token, sep, rest = parts.path[len("/p/") :].partition("/")

@@ -215,7 +215,7 @@ Serve the chat page: a local web page where you talk to the agent of the running
 - Only you get the URL, in the terminal of `nookku page`. Do not give the URL to the harness model, because with it the model can send messages as you. The server writes only its port and its pid to `.nookku/page.json`, and the guard denies a model tool call to that port. The guard also denies a model command that runs `nookku page`.
 - The "Save as script" button writes the test that the page shows as a script, the same as `nookku script save`.
 - `nookku start` starts the page with the test, so you do not have to run `nookku page` ([`nookku start`](#nookku-start)). If a page server of the project runs already, `start` starts no second page.
-- `nookku page --open` opens the chat page of the running test in your browser, with a new one-time launch URL. It prints no URL, so you can run it in the harness. If no page server runs, it starts one. The "Open chat" button of the Claude Code pane runs it. The guard denies it from the model.
+- `nookku page --open` opens the chat page of the running test in your browser, at the session URL `/p/s/`. This URL holds no secret. The page opens only in the browser that got the session at the start of the test. It makes no new session and starts no page server. It prints no URL, so you can run it in the harness. If the browser has no session, the page tells you how to get a new one: end the test and start a new one, or run `nookku page` in a separate terminal. The "Open chat" button of the Claude Code pane runs it. The guard denies it from the model.
 - One page server runs for each project. Stop the page with Ctrl-C. The page also stops when the terminal closes.
 - The relay in the harness chat still works, for example over SSH, in CI and in `codex exec`.
 
@@ -223,7 +223,7 @@ Serve the chat page: a local web page where you talk to the agent of the running
 |---|---|---|
 | `--root PATH` | the current folder | The project. |
 | `--port PORT` | a free port | The port on `127.0.0.1`. |
-| `--open` | off | Open the chat page of the running test in the browser, with a new launch URL. Print no URL. Exit with 1 if the page did not open. |
+| `--open` | off | Open the chat page of the running test in the browser, at the session URL, which holds no secret. Make no session. Print no URL. Exit with 1 if the page did not open. |
 
 | Exit code | Meaning |
 |---|---|

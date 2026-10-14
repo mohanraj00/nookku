@@ -4,33 +4,32 @@ The pane shows the text of `nookku status --json`. The harness can show a pane o
 output to the model, so the pane holds no secret: no page URL, no token, no launch code and no
 cookie (SPEC.md section 5, "Pane").
 
-"Open chat" runs `nookku page --open`. It never prints a URL. It asks the page server of the
-running test to make a new launch code and to give it to the browser. If no page server runs, it
-starts one, as the start of a test does. Only the browser gets the new launch URL, so a process
-that runs `nookku page --open` gets no secret.
+"Open chat" runs `nookku page --open`. It gives the browser the session URL of the chat page,
+`http://127.0.0.1:<port>/p/s/`. This URL holds no token and no code. Only the session cookie of
+the start launch opens the page. No route makes a session or a launch code after the start
+launch, so a local process that runs `nookku page --open` or calls the page gets no session.
 """
 
 from __future__ import annotations
 
-import contextlib
-import http.client
-import json
-import secrets
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from nookku import dashboard, page, page_auto, state
 from nookku.record import RecordError, turns
 
-if TYPE_CHECKING:
-    from nookku.page_auto import _AutoHandler
-
-# The path of the request for a new launch code. Only a POST with no Origin gets it.
-ROUTE = "/o/new"
-# The wait of `nookku page --open` for the answer of the page server.
-OPEN_ANSWER_WAIT = page_auto.LAUNCH_WAIT + page_auto.REUSE_WAIT + 5.0
-
-OPENED = "The chat page opened in your browser."
+OPENED = (
+    "The chat page opened in your browser. If the browser shows no session, use the browser "
+    "that opened the page at the start of the test."
+)
+NO_BROWSER = (
+    "nookku: the browser did not open. Open the chat page in the browser that opened it at the "
+    "start of the test."
+)
+NO_PAGE = (
+    "nookku: the chat page of the test does not run. Run nookku page in a separate terminal, or "
+    "end the test and start a new one."
+)
 NO_TEST = "nookku: no test runs, so the chat page has no test. Start one with: nookku start"
 MANUAL = (
     "nookku: the chat page runs from nookku page. Open it with the URL that nookku page printed "
@@ -45,22 +44,9 @@ PANE_MANUAL = (
     "Chat page: runs from nookku page. Open it with the URL in the terminal of that command."
 )
 PANE_NO_PAGE = (
-    "Chat page: does not run. Press Open chat to start it, or run nookku page in a separate "
-    "terminal."
+    "Chat page: does not run. Run nookku page in a separate terminal, or end the test and "
+    "start a new one."
 )
-ANSWERS = {
-    "opened": OPENED,
-    "no-browser": (
-        "nookku: the browser did not open. The chat page still runs. If it is open in your "
-        "browser, use it there."
-    ),
-    "reused": (
-        "nookku: another process used the new launch URL of the chat page first, so the page "
-        "stopped. To use the page, run nookku page in a separate terminal."
-    ),
-    "busy": "nookku: the chat page is already opening in your browser.",
-    "ended": "nookku: the test of the chat page ended.",
-}
 
 
 def pane_state(root: Path) -> dict[str, Any]:
@@ -70,7 +56,7 @@ def pane_state(root: Path) -> dict[str, Any]:
     no file."""
     data = _pane_data(root)
     data["lines"] = pane_lines(data)
-    data["open"] = data["state"] == "running" and data["page"] != "manual"
+    data["open"] = data["state"] == "running" and data["page"] == "test"
     return data
 
 
@@ -121,85 +107,24 @@ def page_state(root: Path) -> str:
 
 
 def open_chat(root: Path) -> tuple[int, str]:
-    """`nookku page --open`: give the browser a new launch URL of the chat page of the running
-    test. Return the exit code and the text to print. The text never holds a URL."""
+    """`nookku page --open`: give the browser the session URL of the chat page of the running
+    test. Return the exit code and the text to print. The text never holds a URL. Make no session,
+    no launch code and no page server."""
     test = dashboard.running_id(root)
     if test is None:
         return 1, NO_TEST
     info = state.page_info(root)
     if info is None or not page_auto._held(root):
-        # No page server runs: start one, as the start of a test does. The text has no URL.
-        text = page_auto._start(root, test, print_url=False)
-        return (0 if text == page_auto.OPENED else 1), text
+        return 1, NO_PAGE
     if not isinstance(info.get("test"), str):
         return 1, MANUAL
     if info["test"] != test:
         return 1, OTHER_TEST.format(test=info["test"])
-    status = _ask(info["port"])
-    return (0 if status == "opened" else 1), ANSWERS.get(
-        status, f"nookku: the chat page did not open: {status}"
-    )
+    if not page_auto._can_open() or not page_auto._open_browser(session_url(info["port"])):
+        return 1, NO_BROWSER
+    return 0, OPENED
 
 
-def _ask(port: int) -> str:
-    """Ask the page server for a new launch code. Return its status. Go direct to 127.0.0.1, with
-    no proxy of the environment."""
-    conn = http.client.HTTPConnection(page.HOST, port, timeout=OPEN_ANSWER_WAIT)
-    try:
-        conn.request(
-            "POST",
-            ROUTE,
-            body=b"{}",
-            headers={"Host": f"{page.HOST}:{port}", "Content-Type": "application/json"},
-        )
-        resp = conn.getresponse()
-        data = json.loads(resp.read())
-    except (OSError, ValueError, http.client.HTTPException) as e:
-        return f"no answer from the page server ({e})"
-    finally:
-        conn.close()
-    status = data.get("status") if isinstance(data, dict) else None
-    return status if isinstance(status, str) else "the page server gave no status"
-
-
-def relaunch(handler: _AutoHandler) -> None:
-    """The answer of the page server to `POST /o/new`: make a new launch code, and give it only to
-    the browser. The answer holds only a status.
-
-    A browser always sends `Origin` with a POST, and a POST with `Content-Type: application/json`
-    from another site needs a preflight, which the page refuses (405). Thus a web page cannot
-    ask for a launch. A local process can ask, but it gets no secret."""
-    server = handler.server
-    hosts = handler.headers.get_all("Host") or []
-    if len(hosts) != 1 or hosts[0].lower() not in server.hosts:
-        handler._refuse(403, "wrong Host header")
-        return
-    if handler.headers.get_all("Origin"):
-        handler._refuse(403, "a launch takes no Origin header")
-        return
-    kind = (handler.headers.get("Content-Type") or "").split(";")[0].strip().lower()
-    if kind != "application/json":
-        handler._refuse(415, "the Content-Type must be application/json")
-        return
-    if server.ended.is_set():
-        handler._json(409, {"status": "ended"})
-        return
-    if not server.relaunch_lock.acquire(blocking=False):
-        handler._json(409, {"status": "busy"})
-        return
-    try:
-        with server.code_lock:
-            # The old code has no use now. The session stays, so an open page keeps working.
-            server.code = secrets.token_urlsafe(32)
-            server.code_used = False
-            server.launched.clear()
-        if page_auto._launched(server):
-            status = "opened"
-        elif server.reused.is_set():
-            status = "reused"
-        else:
-            status = "no-browser"
-    finally:
-        server.relaunch_lock.release()
-    with contextlib.suppress(OSError):
-        handler._json(200, {"status": status})
+def session_url(port: int) -> str:
+    """The session URL of the chat page. It holds no token and no code."""
+    return f"http://{page.HOST}:{port}{page.SESSION_PATH}"

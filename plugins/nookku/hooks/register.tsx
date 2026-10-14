@@ -7,7 +7,7 @@
 // mode, the prompt hook drops a prompt with an attachment. The core gives the mode and the text.
 //
 // The pane holds no secret (SPEC.md section 5, "Pane"). "Open chat" runs `nookku page --open`,
-// which gives a new launch URL only to the browser and prints no URL. The pane sends no message.
+// which gives the browser the session URL, with no secret, and prints no URL. It sends no message.
 
 import { atom, read, update } from 'claude-code'
 import type { Register, Timer } from 'claude-code'
@@ -97,7 +97,7 @@ async function refreshView($: any): Promise<void> {
   await update($, state, s => ({ ...s, view: r.out.split('\n').slice(-PANE_LINES).join('\n') }))
 }
 
-// "Open chat": `nookku page --open` gives the browser a new launch URL of the chat page, and
+// "Open chat": `nookku page --open` gives the browser the session URL of the chat page, and
 // prints no URL. The plugin shows its output in a toast and in the pane.
 async function openChat($: any): Promise<void> {
   const r = await runCli($, ['page', '--open'])

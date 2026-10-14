@@ -265,8 +265,6 @@ class AutoPageServer(page.PageServer):
         # Set when a second request had the code. Then the server stops.
         self.reused = threading.Event()
         self.code_lock = threading.Lock()
-        # One new launch code at a time, for "Open chat" of the plugin pane (#348).
-        self.relaunch_lock = threading.Lock()
         self.ended = threading.Event()
         self.shown_end = threading.Event()
 
@@ -291,16 +289,6 @@ class _AutoHandler(page._Handler):
         if ended and self.routed == "api/turns":
             # The page got its turns after the end of the test, so it shows the end.
             self.server.shown_end.set()
-
-    def do_POST(self) -> None:
-        parts = urlsplit(self.path)
-        if parts.path == "/o/new" and not parts.query:
-            # A new launch code for "Open chat" of the plugin pane (#348).
-            from nookku import page_open
-
-            page_open.relaunch(self)
-            return
-        super().do_POST()
 
     def _route(self) -> str | None:
         self.routed = super()._route()

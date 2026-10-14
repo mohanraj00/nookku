@@ -217,11 +217,11 @@ test('Open chat runs nookku page --open, and the pane holds no URL', {}, async (
 test('if the chat page does not run, the pane says so and gives the command', {}, async ($, on) => {
   mock.clock(on)
   paneFakes(on)
-  fakes(on, { status: statusWith({ ...RUNNING, page: 'none', lines: [RUNNING.lines[0], 'Chat page: does not run. Press Open chat to start it, or run nookku page in a separate terminal.'] }), view: { exitCode: 0, stdout: '' } })
+  fakes(on, { status: statusWith({ ...RUNNING, page: 'none', open: false, lines: [RUNNING.lines[0], 'Chat page: does not run. Run nookku page in a separate terminal, or end the test and start a new one.'] }), view: { exitCode: 0, stdout: '' } })
   await $.command.run({ command: 'nookku', args: 'status' } as any)
   const ui = await mountPane($)
-  expect(await ui.find({ text: /does not run\. Press Open chat to start it, or run nookku page/ })).toBeTruthy()
-  expect(await ui.find({ key: 'open-chat' })).toBeTruthy()
+  expect(await ui.find({ text: /does not run\. Run nookku page in a separate terminal/ })).toBeTruthy()
+  expect(await ui.find({ key: 'open-chat' })).toBeUndefined()
 })
 
 test('after the end, the pane shows the ended test and no Open chat', {}, async ($, on) => {

@@ -1,10 +1,12 @@
 """The pane of the Claude Code plugin and "Open chat" (#348). The pane holds no secret, and
-`nookku page --open` gives a new launch URL only to the browser."""
+`nookku page --open` gives the browser only the session URL, which holds no secret. No route makes
+a session or a launch code after the start launch."""
 
 from __future__ import annotations
 
 import json
 import os
+import secrets
 import signal
 import sys
 import threading
@@ -87,7 +89,7 @@ def test_the_pane_state_shows_the_running_test_and_its_turns(running: Any) -> No
         "turns": 2,
         "page": "none",
         "lines": [f"Test {folder.name}: running, 2 turns", page_open.PANE_NO_PAGE],
-        "open": True,
+        "open": False,
     }
 
 
@@ -136,6 +138,25 @@ def test_open_with_a_page_of_nookku_page_names_its_terminal(running: Any) -> Non
         (root / ".nookku" / state.PAGE_FILE).unlink()
 
 
+def test_open_with_no_page_server_starts_none_and_gives_the_step(
+    running: Any, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root, _ = running
+    assert main(["page", "--open", "--root", str(root)]) == 1
+    assert capsys.readouterr().out.strip() == page_open.NO_PAGE
+    assert page_open.page_state(root) == "none" and state.page_info(root) is None
+
+
+def record(opened: list[str]) -> Any:
+    """A browser that opens each URL. It writes the URL to `opened`."""
+
+    def open_browser(url: str) -> bool:
+        opened.append(url)
+        return True
+
+    return open_browser
+
+
 @pytest.fixture
 def server(running: Any) -> Iterator[page_auto.AutoPageServer]:
     root, folder = running
@@ -146,62 +167,71 @@ def server(running: Any) -> Iterator[page_auto.AutoPageServer]:
     srv.server_close()
 
 
-def test_a_launch_needs_no_origin_json_and_the_right_host(
+def test_no_route_makes_a_session_or_a_launch_code_after_the_start_launch(
     server: page_auto.AutoPageServer,
 ) -> None:
-    # A browser always sends Origin with a POST, so a web page cannot ask for a launch.
-    assert request(server, "POST", page_open.ROUTE, {})[0] == 403
+    port = server.server_address[1]
+    status, headers, _ = request(server, "GET", f"/o/{server.code}")
+    assert status == 303 and "set-cookie" in headers
+    code, session = server.code, server.session
     no_origin = {"Origin": ""}
-    assert request(server, "POST", page_open.ROUTE, {}, no_origin | {"Host": "x.test"})[0] == 403
-    text = no_origin | {"Content-Type": "text/plain"}
-    assert request(server, "POST", page_open.ROUTE, {}, text)[0] == 415
-    assert request(server, "POST", f"{page_open.ROUTE}?x=1", {}, no_origin)[0] == 403
-
-
-def test_a_launch_with_no_browser_makes_a_new_code_and_answers_no_secret(
-    server: page_auto.AutoPageServer,
-) -> None:
-    old = server.launch_url.split(str(server.server_address[1]), 1)[1]
-    status, _, body = request(server, "POST", page_open.ROUTE, {}, {"Origin": ""})
-    assert status == 200 and json.loads(body) == {"status": "no-browser"}
-    assert server.code not in body.decode() and server.token not in body.decode()
-    # The old code has no use, and the new code has no use after the launch wait.
-    assert request(server, "GET", old)[0] == 404
-    new = server.launch_url.split(str(server.server_address[1]), 1)[1]
-    assert new != old and request(server, "GET", new)[0] == 404
+    tries = [
+        ("POST", "/o/new", {}, no_origin),
+        ("POST", "/o/new", {}, None),
+        ("GET", "/o/new", None, None),
+        ("GET", f"/o/{secrets.token_urlsafe(32)}", None, None),
+        ("GET", page.SESSION_PATH, None, None),
+        ("GET", f"/p/{server.token}/", None, None),
+        ("POST", f"{page.SESSION_PATH}api/open", {}, None),
+    ]
+    for method, path, body, headers in tries:
+        status, got, _ = request(server, method, path, body, headers)
+        assert status >= 400 and "set-cookie" not in got, (method, path)
+    assert (server.code, server.session, server.code_used) == (code, session, True)
     assert not server.reused.is_set()
+    # The page itself tells a browser with no session how to get one, and gives none.
+    status, got, body = request(server, "GET", page.SESSION_PATH)
+    assert status == 404 and body.decode() == page.NO_SESSION
+    assert "set-cookie" not in got
+    # The browser with the session cookie of the start launch opens the session URL.
+    cookie = {"Cookie": f"{server.cookie_name}={session}", "Host": f"127.0.0.1:{port}"}
+    assert request(server, "GET", page.SESSION_PATH, None, cookie)[0] == 200
 
 
-def test_a_launch_after_the_end_of_the_test_is_refused(server: page_auto.AutoPageServer) -> None:
-    server.ended.set()
-    status, _, body = request(server, "POST", page_open.ROUTE, {}, {"Origin": ""})
-    assert status == 409 and json.loads(body) == {"status": "ended"}
-
-
-def test_open_starts_the_page_then_gives_the_browser_a_new_launch_and_prints_no_url(
-    running: Any, browser: Path, capsys: pytest.CaptureFixture[str]
+def test_open_gives_the_browser_only_the_session_url_and_prints_no_url(
+    server: page_auto.AutoPageServer,
+    running: Any,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
-    root, _ = running
-    # No page server runs, so open starts one, as the start of a test does.
-    assert main(["page", "--open", "--root", str(root)]) == 0
-    first = capsys.readouterr().out
-    assert first.strip() == page_auto.OPENED
-    assert page_open.page_state(root) == "test"
-    status, url = browser.read_text().split(" ", 1)
-    assert status == "200" and url.endswith(page.SESSION_PATH)
-    browser.unlink()
-    # The page server runs, so open asks it for a new launch code.
-    assert main(["page", "--open", "--root", str(root)]) == 0
-    second = capsys.readouterr().out
-    assert second.strip() == page_open.OPENED
-    status, url = browser.read_text().split(" ", 1)
-    assert status == "200" and url.endswith(page.SESSION_PATH)
-    for text in (first, second):
-        assert not any(part in text for part in SECRET_PARTS)
+    root, folder = running
+    port = server.server_address[1]
+    _, lock = page.claim_page_file(root, port, test=folder.name)
+    opened: list[str] = []
+    monkeypatch.setattr(page_auto, "_can_open", lambda: True)
+    monkeypatch.setattr(page_auto, "_open_browser", record(opened))
+    try:
+        assert page_open.page_state(root) == "test" and page_open.pane_state(root)["open"]
+        code, session = server.code, server.session
+        assert main(["page", "--open", "--root", str(root)]) == 0
+        out = capsys.readouterr().out
+        assert out.strip() == page_open.OPENED
+        assert not any(part in out for part in SECRET_PARTS)
+        assert opened == [f"http://127.0.0.1:{port}{page.SESSION_PATH}"]
+        assert (server.code, server.session, server.code_used) == (code, session, False)
+        # A browser that cannot open gets the step, and still no URL.
+        monkeypatch.setattr(page_auto, "_open_browser", lambda url: False)
+        assert page_open.open_chat(root) == (1, page_open.NO_BROWSER)
+    finally:
+        os.close(lock)
+        (root / ".nookku" / state.PAGE_FILE).unlink()
 
 
 def test_a_toy_shop_test_shows_its_state_and_open_chat_opens_the_page(
-    tmp_path: Path, browser: Path, capsys: pytest.CaptureFixture[str]
+    tmp_path: Path,
+    browser: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     root = tmp_path / "shop"
     (root / ".nookku").mkdir(parents=True)
@@ -210,14 +240,17 @@ def test_a_toy_shop_test_shows_its_state_and_open_chat_opens_the_page(
     (root / ".nookku" / "config.json").write_text(json.dumps(conf))
     assert main(["start", "--root", str(root)]) == 0
     capsys.readouterr()
+    opened: list[str] = []
+    monkeypatch.setattr(page_auto, "_open_browser", record(opened))
     try:
-        browser.unlink()
+        # The start launch gave the browser a session.
+        status, url = browser.read_text().split(" ", 1)
+        assert status == "200" and url.endswith(page.SESSION_PATH)
         pane = page_open.pane_state(root)
         assert pane["state"] == "running" and pane["page"] == "test" and pane["open"]
         assert main(["page", "--open", "--root", str(root)]) == 0
         assert capsys.readouterr().out.strip() == page_open.OPENED
-        status, url = browser.read_text().split(" ", 1)
-        assert status == "200" and url.endswith(page.SESSION_PATH)
+        assert opened == [url]
     finally:
         assert main(["end", "--root", str(root)]) == 0
     capsys.readouterr()
