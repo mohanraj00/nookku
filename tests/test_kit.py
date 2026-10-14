@@ -12,6 +12,7 @@ from toy_agent import ToyAgent, shop_reply
 from nookku import bridge, cli, kit
 from nookku.adapters import make
 from nookku.audit import audit
+from nookku.config import FILE as CONFIG_FILE
 from nookku.record import (
     BlockedCall,
     RecordError,
@@ -768,7 +769,7 @@ def test_the_view_follows_the_record_of_a_config_that_comes_later(setup, monkeyp
         f"──── tester, turn 1 ────\nRefund policy?\n──── agent ────\n"
         f"{shop_reply('Refund policy?')}\n"
     )
-    assert err.getvalue().count("nookku: cannot read the config: ") == 1
+    assert err.getvalue().count("nookku: cannot read .nookku/config.json: ") == 1
     assert err.getvalue().endswith(". The view reads the config again when it changes.\n")
 
 
@@ -962,3 +963,19 @@ def test_both_relays_give_one_status_text(setup, monkeypatch, capsys, on, runnin
     assert capsys.readouterr().out == f"{text}\n"
     assert cli.main(["status", "--root", str(root), "--json"]) == 0
     assert json.loads(capsys.readouterr().out)["text"] == (text if on else None)
+
+
+@pytest.mark.parametrize(
+    ("text", "error"),
+    [
+        ("{", "nookku: cannot read .nookku/config.json: Expecting property name"),
+        ('{"colour": 1}', "nookku: .nookku/config.json has unknown keys: ['colour']."),
+    ],
+)
+def test_the_view_gives_the_config_error_one_time(tmp_path, capsys, text, error):
+    (tmp_path / kit.STATE_DIR).mkdir()
+    (tmp_path / CONFIG_FILE).write_text(text)
+    assert cli.main(["view", "--root", str(tmp_path), "--no-follow"]) == 2
+    err = capsys.readouterr().err
+    assert err.startswith(error)
+    assert err.count("cannot read") <= 1

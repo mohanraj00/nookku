@@ -45,7 +45,7 @@ First, look in the [test folder](reference/glossary.md#test-folder) `.nookku/tes
 
 ### `nookku: cannot read .nookku/config.json: <reason>`
 
-(config.py) **Cause.** The file does not exist, or it is not valid JSON. `init` gives this error too, and then it writes nothing.
+(config.py) **Cause.** The file does not exist, or it is not valid JSON. `init` gives this error too, and then it writes nothing. `nookku view` and `nookku transcript` use the defaults if the file does not exist. If the file exists and is not valid, they give this error, or the error of the key, and exit with 2. If the config breaks while `nookku view` follows a project with no entry, the view adds `The view reads the config again when it changes.`, shows the error one time and continues to wait.
 
 **Fix.** Correct the JSON. To write a new file, remove the file and run `nookku init`.
 
@@ -247,12 +247,6 @@ If the entry returns an error, crashes or does not answer in [240 seconds](../sr
 (kit.py) **Cause.** `nookku view` read a relay record with an invalid line. A line changed after the writer wrote it, or another program wrote it. The view shows this error one time and continues to wait. With `--no-follow`, it shows `nookku: <path>: line <n>: <reason>` and exits with 2.
 
 **Fix.** Do not edit a record. Find the program that wrote the line. After the end of the test, run `nookku verify` to see which files changed.
-
-### `nookku: cannot read the config: <reason>`
-
-(cli.py and kit.py, from `nookku view` and `nookku transcript`) **Cause.** `config.json` exists, but it is not valid JSON or it breaks the rule for its keys. `<reason>` is the error that `start` gives for the same file. The command exits with 2. If the config breaks while `nookku view` follows a project with no entry, the view adds `The view reads the config again when it changes.`, shows the error one time and continues to wait. `transcript --trace` does not read the config, so it does not give this error.
-
-**Fix.** Correct the file. [reference/config.md](reference/config.md) lists each key.
 
 ### `nookku: both the nookku plugin and the project hooks of nookku init claude-code are on in Claude Code, so each message would go to the agent two times. Remove one of them: run claude plugin disable --scope local nookku@nookku, or remove the nookku hooks from <file>. A running Claude Code session keeps a plugin that it loaded, so then run /reload-plugins or restart it.`
 

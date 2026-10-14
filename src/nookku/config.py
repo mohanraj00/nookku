@@ -17,7 +17,8 @@ from urllib.parse import urlsplit
 from nookku.record import lone_surrogate
 
 STATE_DIR = ".nookku"
-FILE = f"{STATE_DIR}/config.json"
+NAME = "config.json"
+FILE = f"{STATE_DIR}/{NAME}"
 # The state folder of verbatim-relay 0.3.x and earlier. The first run of nookku moves it.
 OLD_STATE_DIR = ".verbatim-relay"
 # The message of nookku check if config.json has no check_message (SPEC.md section 7.1).
@@ -45,7 +46,7 @@ def move_old_state(root: Path) -> str | None:
             f"then remove {old}."
         )
     # Change the config first. If that fails, the old folder stays, and the next run tries again.
-    error = _move_record_key(old / "config.json")
+    error = _move_record_key(old / NAME)
     if error:
         return error
     try:
@@ -124,6 +125,15 @@ class Config:
     @classmethod
     def load(cls, root: Path) -> Config:
         return cls(**read_config(root))
+
+    @classmethod
+    def load_or_default(cls, root: Path) -> Config:
+        """The config of the project, or the defaults if config.json does not exist. The plugin
+        has no config file. Raise ConfigError if the file exists and cannot be read or breaks
+        the rule for its keys."""
+        if not (root / FILE).exists():
+            return cls()
+        return cls.load(root)
 
     def record_path(self, root: Path) -> Path:
         return root / self.record
