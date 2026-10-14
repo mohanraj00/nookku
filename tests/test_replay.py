@@ -262,6 +262,7 @@ def test_the_diff_page_has_no_inline_script_and_no_html_from_text() -> None:
     html = page.page_file("diff.html").decode()
     assert re.findall(r"<script[^>]*>", html) == [
         '<script src="theme.js">',
+        '<script src="key.js">',
         '<script src="diff.js" defer>',
         '<script src="keys.js" defer>',
     ]

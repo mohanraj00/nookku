@@ -70,13 +70,18 @@
     if (text === "" || /[\u0000-\u001f\u007f]/.test(text)) {
       return NONE;
     }
+    // A path that starts with 2 slashes or backslashes is a network path on Windows (UNC). A
+    // check of it sends the credentials of the person to that host, so the page does not show it.
+    if (/^[\\/]{2}/.test(text)) {
+      return NONE;
+    }
     if (/^[A-Za-z]:[\\/]/.test(text)) {
       return { kind: "path", path: text };
     }
     const scheme = /^([A-Za-z][A-Za-z0-9+.-]*):/.exec(text);
     if (!scheme) {
-      // A fragment, a query or a URL with no scheme is not a file.
-      return /^[#?]|^\/\//.test(text) ? NONE : { kind: "path", path: text };
+      // A fragment or a query is not a file.
+      return /^[#?]/.test(text) ? NONE : { kind: "path", path: text };
     }
     const name = scheme[1].toLowerCase();
     try {
@@ -95,7 +100,8 @@
       }
       if (name === "file") {
         const url = new URL(text);
-        return url.host === "" ? { kind: "path", path: decodeURIComponent(url.pathname) } : NONE;
+        const path = decodeURIComponent(url.pathname);
+        return url.host === "" && !/^[\\/]{2}/.test(path) ? { kind: "path", path: path } : NONE;
       }
     } catch (e) {
       return NONE;
@@ -423,12 +429,25 @@
 
   // ---- Blocks ----
 
-  const FENCE = /^( {0,3})(`{3,}|~{3,})\s*([^\s`]*)[^`]*$/;
+  // The start of a fence. fence() checks the rest of the line with no regular expression: a
+  // regular expression with 2 parts that both match a space took quadratic time on a long line.
+  const FENCE_START = /^( {0,3})(`{3,}|~{3,})/;
   const HEADING = /^ {0,3}(#{1,6})(?=[ \t]|$)/;
   const RULE = /^ {0,3}([-*_])(?:[ \t]*\1){2,}[ \t]*$/;
   const QUOTE = /^ {0,3}> ?/;
   const ITEM = /^( {0,12})([-*+]|\d{1,9}[.)])([ \t]+|$)/;
   const SEPARATOR_CELL = /^:?-+:?$/;
+
+  // The indent, the marker and the language of a fence line, or null. The rest of the line after
+  // the marker must have no backtick. The language is its first word.
+  function fence(line) {
+    const m = FENCE_START.exec(line);
+    if (!m) return null;
+    const rest = line.slice(m[0].length);
+    if (rest.indexOf("`") !== -1) return null;
+    const lang = /^[^\s`]*/.exec(rest.replace(/^\s+/, ""))[0];
+    return [m[0], m[1], m[2], lang];
+  }
 
   function blank(line) {
     return /^\s*$/.test(line);
@@ -497,7 +516,7 @@
   function starts(lines, i) {
     const line = lines[i];
     return (
-      FENCE.test(line) || heading(line) || RULE.test(line) || QUOTE.test(line) ||
+      fence(line) || heading(line) || RULE.test(line) || QUOTE.test(line) ||
       ITEM.test(line) || isTable(lines, i)
     );
   }
@@ -606,7 +625,7 @@
         i++;
         continue;
       }
-      let m = FENCE.exec(line);
+      let m = fence(line);
       if (m) {
         const fence = m[2];
         const indent = m[1].length;
@@ -691,9 +710,16 @@
       return doc.createTextNode("");
     }
     const e = doc.createElement(n.t);
+    // key.js loads a file of the page server with the page key (SPEC.md section 5, "Session").
+    const page = root.NookkuPage;
     for (const name of Object.keys(n.a)) {
       const value = String(n.a[name]);
-      if (ATTRS.has(name) && safeUrl(name, value)) {
+      if (!ATTRS.has(name) || !safeUrl(name, value)) {
+        continue;
+      }
+      if (name === "src" && value.startsWith(FILES) && page) {
+        page.fileSrc(e, value);
+      } else {
         e.setAttribute(name, value);
       }
     }

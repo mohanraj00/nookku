@@ -245,12 +245,14 @@ def test_a_toy_shop_test_shows_its_state_and_open_chat_opens_the_page(
     try:
         # The start launch gave the browser a session.
         status, url = browser.read_text().split(" ", 1)
-        assert status == "200" and url.endswith(page.SESSION_PATH)
+        # The page key comes only in the fragment of the redirect.
+        assert status == "200" and url.split("#k=")[0].endswith(page.SESSION_PATH)
         pane = page_open.pane_state(root)
         assert pane["state"] == "running" and pane["page"] == "test" and pane["open"]
         assert main(["page", "--open", "--root", str(root)]) == 0
         assert capsys.readouterr().out.strip() == page_open.OPENED
-        assert opened == [url]
+        # Open chat gives no key: the new tab asks the open tab of the page for it (key.js).
+        assert opened == [url.split("#")[0]]
     finally:
         assert main(["end", "--root", str(root)]) == 0
     capsys.readouterr()

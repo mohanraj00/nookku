@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from test_page import make_folder, request, write_current
+from test_page import cookie_only, make_folder, request, session_headers, write_current
 
 from nookku import bridge, kit, page, page_auto, state
 from nookku.cli import main
@@ -97,11 +97,16 @@ def test_the_launch_url_gives_a_session_one_time_and_a_second_use_stops_the_page
         assert request(server, "GET", f"{path}?x=1")[0] == 404
         # The wrong requests do not use the code.
         status, headers, _ = request(server, "GET", path)
-        # The redirect holds no secret, and the browser history gets no URL that works.
-        assert status == 303 and headers["location"] == page.SESSION_PATH
+        # The redirect gives the page key only in the fragment, which the browser sends to no
+        # server. The page removes it, so the browser history gets no URL that works.
+        assert status == 303
+        assert headers["location"] == f"{page.SESSION_PATH}#k={server.page_key}"
         assert "content-security-policy" in headers
-        cookie = {"Cookie": headers["set-cookie"].split(";", 1)[0]}
-        assert request(server, "GET", page.SESSION_PATH, headers=cookie)[0] == 200
+        both = session_headers(status, headers)
+        assert request(server, "GET", page.SESSION_PATH, headers=cookie_only(both))[0] == 200
+        assert request(server, "GET", page.SESSION_PATH + "api/turns", headers=both)[0] == 200
+        got = request(server, "GET", page.SESSION_PATH + "api/turns", headers=cookie_only(both))
+        assert got[0] == 404
         assert request(server, "GET", f"/p/{server.token}/")[0] == 404
         assert not stopped.is_set()
         # A second request with the code: one of the two was not the browser.
@@ -420,8 +425,9 @@ def test_a_browser_that_gets_the_page_opens_it(
     assert info is not None
     status, url = browser.read_text().split(" ", 1)
     # The browser got the launch URL, and the redirect gave it the page with its session.
-    assert status == "200" and url.endswith(page.SESSION_PATH)
-    assert url.split("/")[-2] == "s"
+    # The page key comes only in the fragment of the redirect.
+    assert status == "200" and url.split("#k=")[0].endswith(page.SESSION_PATH)
+    assert url.split("#")[0].split("/")[-2] == "s"
 
 
 def test_a_second_use_of_the_launch_url_stops_the_page_and_the_start_says_so(
