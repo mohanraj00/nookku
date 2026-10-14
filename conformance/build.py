@@ -459,7 +459,9 @@ CASES_BY_NAME: dict[str, tuple[list | None, list | None, dict]] = {
 }
 
 
-# The stdio cases. Each request is the body that the relay posts. Each agent step says what the
+# The stdio cases. Each request is the body that the relay posts, with the tap token and the
+# Content-Type application/json. A request can also be an object: the body, the token ("right",
+# "none" or "wrong") and more headers (SPEC.md section 4.2). Each agent step says what the
 # scripted agent does with one input line: write `lines`, `exit` with a code, or `sleep` seconds.
 # `forwarded` is the index of each request that the agent must receive, byte for byte.
 # A row lists only the fields to compare. The tap's timeout is 1 second in these cases.
@@ -482,6 +484,21 @@ STRAY = {"type": "unparsed", "method": "STDIO", "path": "stdout"}
 TIMED_OUT = {"type": "exchange", "input": TRICKY, "status": None, "reply": None}
 
 CONTRACT_CASES: dict[str, dict] = {
+    # A request that is not from a relay gets 403. The agent gets no line and the tap writes no
+    # row. Thus the first line of the agent is the reply to the last request.
+    "requests_not_from_a_relay_are_refused": {
+        "requests": [
+            {"body": req(TRICKY), "token": "none"},
+            {"body": req(TRICKY), "token": "wrong"},
+            {"body": req(TRICKY), "token": "right", "headers": {"Origin": "https://example.com"}},
+            {"body": req(TRICKY), "token": "right", "headers": {"Content-Type": "text/plain"}},
+            req(TRICKY, HISTORY),
+        ],
+        "agent": [{"lines": [out(reply=R1)]}],
+        "forwarded": [4],
+        "http": [403, 403, 403, 403, 200],
+        "rows": [EXCHANGE_OK],
+    },
     "reply_is_exact": {
         "requests": [req(TRICKY, HISTORY)],
         "agent": [{"lines": [out(reply=R1)]}],
@@ -785,6 +802,7 @@ def counts(**n: int) -> dict:
         "span_error",
         "backend_error",
         "model_api_error",
+        "model_error",
         "turn_without_model",
         "item_between_turns",
         "otel_tool_not_in_session",
@@ -1405,6 +1423,122 @@ VERSION_CASE = {
                 "detail": "version 0.161.0, tested: 0.160.0, 0.162.1",
                 "harness": "codex",
                 "session": CX,
+            },
+        ],
+    },
+}
+
+# A Codex turn that ends with a model error (SPEC.md section 8.6). The lines copy the shapes of
+# a session file of codex-cli 0.162.1. In turn 1, the model is at capacity: the task_complete
+# event has an error object and the turn has no model answer. Turn 2 ends with no error. After the
+# last turn, a task_complete has a string error, one has an error object with no message, and
+# one has a codex_error_info object with 1 key and a status, as codex-cli 0.162.1 writes it.
+OVERLOADED = "Selected model is at capacity. Please try a different model."
+
+
+def task_complete(t: float, answer: str | None, **more: Any) -> dict:
+    """One task_complete line of a Codex rollout file. `more` can add an error."""
+    payload = {"type": "task_complete", "turn_id": f"t{t:g}", "last_agent_message": answer}
+    payload |= {**more, "started_at": int(T0 + t) - 1, "completed_at": int(T0 + t)}
+    return {"timestamp": iso(T0 + t), "type": "event_msg", "payload": payload}
+
+
+def cx_text(t: float, kind: str, text: str) -> dict:
+    content = [{"type": "text", "text": text, "text_elements": []}]
+    return cx_line(t, {"type": kind, "id": f"m{t:g}", "content": content})
+
+
+CODEX_ERROR_CASE = {
+    "tap": [
+        window(10, 20, reply="Sorry, I cannot answer now."),
+        window(30, 40, reply="Your order 4471 is delivered."),
+    ],
+    "manifest": {
+        "test": "20261006-080000-me01",
+        "model_sessions": [{**CX_SESSION, "inferred": False, "pid": 4474}],
+    },
+    "sessions": {
+        CX_FILE: [
+            {
+                "timestamp": iso(T0 + 1),
+                "type": "session_meta",
+                "payload": {"id": CX, "cwd": "/toy-shop", "cli_version": "0.162.1"},
+            },
+            {"timestamp": iso(T0 + 10), "type": "event_msg", "payload": {"type": "task_started"}},
+            cx_text(11, "UserMessage", "Where is my order 4471?"),
+            task_complete(
+                12, None, error={"message": OVERLOADED, "codex_error_info": "server_overloaded"}
+            ),
+            cx_text(31, "UserMessage", "Where is my order 4471?"),
+            cx_text(32, "AgentMessage", "Your order 4471 is delivered."),
+            task_complete(33, "Your order 4471 is delivered."),
+            task_complete(50, None, error="stream disconnected"),
+            task_complete(51, None, error={"codex_error_info": "other"}),
+            task_complete(
+                52,
+                None,
+                error={
+                    "message": "stream disconnected before completion",
+                    "codex_error_info": {"http_connection_failed": {"http_status_code": 503}},
+                },
+            ),
+        ],
+    },
+    "trace": [
+        item(1, "codex", 11, "message", 3, role="user", output="Where is my order 4471?"),
+        item(2, "codex", 31, "message", 5, role="user", output="Where is my order 4471?"),
+        item(
+            2, "codex", 32, "message", 6, role="assistant", output="Your order 4471 is delivered."
+        ),
+    ],
+    "findings": {
+        "v": "0.2",
+        "test": "20261006-080000-me01",
+        "turns": 2,
+        "items": 3,
+        "sessions": [
+            {
+                "harness": "codex",
+                "session": CX,
+                "file": CX_FILE,
+                "inferred": False,
+                "version": "0.162.1",
+                "items": 3,
+                "ignored": {
+                    "event_msg.task_complete": 5,
+                    "event_msg.task_started": 1,
+                    "session_meta": 1,
+                },
+            }
+        ],
+        "otel": None,
+        "backend": None,
+        "model_api": None,
+        "counts": counts(model_error=4),
+        "findings": [
+            {
+                "check": "model_error",
+                "turn": 1,
+                "detail": f"server_overloaded: {OVERLOADED}",
+                **where("codex", 4),
+            },
+            {
+                "check": "model_error",
+                "turn": None,
+                "detail": "stream disconnected",
+                **where("codex", 8),
+            },
+            {
+                "check": "model_error",
+                "turn": None,
+                "detail": '{"codex_error_info": "other"}',
+                **where("codex", 9),
+            },
+            {
+                "check": "model_error",
+                "turn": None,
+                "detail": "http_connection_failed (status 503): stream disconnected before completion",
+                **where("codex", 10),
             },
         ],
     },
@@ -3314,6 +3448,7 @@ TRACE_CASES = {
     "claude_code_toy_shop": CLAUDE_CASE,
     "codex_toy_shop": CODEX_CASE,
     "untested_versions": VERSION_CASE,
+    "codex_model_error": CODEX_ERROR_CASE,
     "no_model_sessions": NO_MODEL_CASE,
     "otel_toy_shop": OTEL_CASE,
     "otel_structured_output": STRUCTURED_CASE,

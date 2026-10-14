@@ -1,15 +1,19 @@
+import contextlib
 import hashlib
 import io
 import json
 import os
+import signal
 import subprocess
 import sys
 import time
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 import pytest
 
-from nookku import bridge, evaluation, kit, mcp, policy, seal, stdio, trace
+from nookku import bridge, evaluation, kit, mcp, policy, seal, state, stdio, trace
 from nookku.audit import CHECKS, audit
 from nookku.cli import main
 from nookku.record import RecordError, Writer
@@ -95,6 +99,64 @@ def test_a_test_relays_and_records_both_sides(tmp_path: Path, homes: tuple) -> N
     assert bridge.end(root) is None
 
 
+def test_the_tap_of_a_test_takes_only_requests_with_its_token(tmp_path: Path, homes: tuple) -> None:
+    root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
+    cur = bridge.start(root)
+    current = root / ".nookku" / "current.json"
+    body = json.dumps({"v": 1, "id": "m-1", "session": "t", "message": "Hi", "history": []})
+    good = state.tap_headers(cur[state.TOKEN_KEY])
+    refused = [
+        {"Content-Type": "application/json"},
+        {**good, state.TOKEN_HEADER: "not-the-tap-token"},
+        {**good, "Origin": "https://example.com"},
+        {**good, "Content-Type": "text/plain"},
+    ]
+    try:
+        # current.json holds the token, so only the owner can read it.
+        assert len(cur[state.TOKEN_KEY]) >= 40 and current.stat().st_mode & 0o777 == 0o600
+        statuses = []
+        for headers in refused:
+            req = urllib.request.Request(cur["tap_url"], body.encode(), headers, method="POST")
+            with pytest.raises(urllib.error.HTTPError) as e:
+                urllib.request.urlopen(req, timeout=10)
+            statuses.append(e.value.code)
+        shown, ok = bridge.send(cur, "What is the refund policy?")
+    finally:
+        bridge.end(root)
+    assert statuses == [403] * 4
+    assert ok and shown.startswith("Our refund policy")
+    rows = [json.loads(x) for x in (Path(cur["dir"]) / "tap.jsonl").read_text().splitlines()]
+    # Only the relayed message reached the entry.
+    assert [r["input"] for r in rows if r["type"] == "exchange"] == ["What is the refund policy?"]
+    answers = Path(cur["dir"]) / "app-state" / "answers.jsonl"
+    assert len(answers.read_text().splitlines()) == 1
+
+
+def test_start_and_status_print_no_tap_token(tmp_path: Path, homes: tuple, capsys) -> None:
+    root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
+    try:
+        assert main(["start", "--root", str(root), "--json"]) == 0
+        started = json.loads(capsys.readouterr().out)
+        assert main(["status", "--root", str(root), "--json"]) == 0
+        status = json.loads(capsys.readouterr().out)
+        cur = bridge.current(root)
+    finally:
+        main(["end", "--root", str(root)])
+    assert cur is not None and cur[state.TOKEN_KEY]
+    assert started == status["test"] == state.public(cur)
+    assert state.TOKEN_KEY not in started
+
+
+def test_a_relay_with_no_token_fails_closed(tmp_path: Path, homes: tuple) -> None:
+    root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
+    cur = bridge.start(root)
+    try:
+        shown, ok = bridge.send({k: v for k, v in cur.items() if k != state.TOKEN_KEY}, "Hi")
+    finally:
+        bridge.end(root)
+    assert not ok and shown.startswith("nookku: HTTP 403: nookku tap:")
+
+
 def test_the_entry_keeps_its_state_in_the_sealed_test_folder(tmp_path: Path, homes: tuple) -> None:
     root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
     cur = bridge.start(root)
@@ -154,6 +216,193 @@ def test_a_stale_current_file_is_removed(tmp_path: Path) -> None:
     current.write_text(json.dumps({"test": "x", "pid": dead.pid, "dir": "", "tap_url": ""}))
     assert bridge.current(root) is None
     assert not current.exists()
+
+
+def _wait_dead(pid: int) -> None:
+    deadline = time.monotonic() + 10
+    while bridge.alive(pid) and time.monotonic() < deadline:
+        time.sleep(0.05)
+
+
+def test_end_finishes_the_folder_of_a_killed_bridge(
+    tmp_path: Path, homes: tuple, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+) -> None:
+    root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
+    cur = bridge.start(root)
+    folder = Path(cur["dir"])
+    shown, ok = bridge.send(cur, "What is the refund policy?")
+    Writer(folder / "relay.jsonl").append(
+        {
+            "type": "turn",
+            "harness": "codex",
+            "said": "What is the refund policy?",
+            "shown": shown,
+            "ok": ok,
+        }
+    )
+    os.kill(cur["pid"], 9)
+    _wait_dead(cur["pid"])
+    # A test that started less than START_WAIT ago can still be in its start.
+    assert bridge.stopped(root) is None
+    monkeypatch.setattr(bridge, "START_WAIT", 0.0)
+    assert main(["status", "--root", str(root)]) == 0
+    out = capsys.readouterr().out
+    assert f"Test {cur['test']} stopped with no end. Folder: {folder}\n" in out
+    assert "To write its audit and its seal, run: nookku end" in out
+    assert not (root / ".nookku" / "current.json").exists()
+    assert main(["end", "--root", str(root)]) == 0
+    out = capsys.readouterr().out
+    assert out.startswith(f"Test {cur['test']} ended: 1 turns, 0 model sessions.")
+    assert "The bridge stopped before the end, so end wrote the audit and the seal" in out
+    manifest = json.loads((folder / "manifest.json").read_text())
+    assert manifest["killed"] is True and manifest["ended"] >= manifest["started"]
+    assert json.loads((folder / "audit.json").read_text())["exit"] == 0
+    assert seal.verify(folder)["intact"]
+    assert "nookku end: Trace:" in (folder / "bridge.log").read_text()
+    # The test is finished, so status names no stopped test, and end finds no test.
+    assert bridge.stopped(root) is None
+    assert bridge.end(root) is None
+
+
+def test_end_finishes_the_folder_of_a_hung_bridge(
+    tmp_path: Path, homes: tuple, capsys: pytest.CaptureFixture
+) -> None:
+    root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
+    cur = bridge.start(root)
+    folder = Path(cur["dir"])
+    os.kill(cur["pid"], signal.SIGSTOP)
+    manifest = bridge.end(root, wait=0.5)
+    _wait_dead(cur["pid"])
+    assert manifest is not None and manifest["killed"] is True
+    assert seal.verify(folder)["intact"]
+    assert "stopped before the end" in bridge.summary(manifest)
+
+
+def test_end_stops_the_entry_of_a_killed_bridge(
+    tmp_path: Path, homes: tuple, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # This entry does not stop at the end of its stdin.
+    root = project(tmp_path, [sys.executable, "-c", "import time; time.sleep(600)"])
+    cur = bridge.start(root)
+    folder = Path(cur["dir"])
+    entry = json.loads((folder / "manifest.json").read_text())["entry_pid"]
+    os.kill(cur["pid"], 9)
+    _wait_dead(cur["pid"])
+    assert bridge.alive(entry)
+    monkeypatch.setattr(bridge, "START_WAIT", 0.0)
+    manifest = bridge.end(root)
+    assert manifest is not None and manifest["killed"] is True
+    assert not bridge.alive(entry)
+    assert seal.verify(folder)["intact"]
+
+
+def test_an_older_stopped_test_stays_stopped_after_a_new_test(tmp_path: Path) -> None:
+    root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
+    tests = root / ".nookku" / "tests"
+    now = time.time()
+    for name, started, ended in (("old", now - 100, None), ("new", now - 50, now - 40)):
+        (tests / name).mkdir(parents=True)
+        manifest = {"test": name, "started": started, "ended": ended}
+        (tests / name / "manifest.json").write_text(json.dumps(manifest))
+    assert bridge.stopped(root) == tests / "old"
+    # Of 2 stopped tests, the one that started last is the stopped test.
+    (tests / "older").mkdir()
+    (tests / "older" / "manifest.json").write_text(json.dumps({"started": now - 200}))
+    assert bridge.stopped(root) == tests / "old"
+
+
+def test_end_stops_the_group_of_an_entry_that_stopped(
+    tmp_path: Path, homes: tuple, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+) -> None:
+    # The entry starts a helper in its group, then stops at the end of its stdin.
+    shell = f"sleep 600 & exec {sys.executable} -c 'import sys; sys.stdin.read()'"
+    root = project(tmp_path, ["sh", "-c", shell])
+    cur = bridge.start(root)
+    folder = Path(cur["dir"])
+    entry = json.loads((folder / "manifest.json").read_text())["entry_pid"]
+    os.kill(cur["pid"], 9)
+    _wait_dead(cur["pid"])
+    _wait_dead(entry)
+    assert not bridge.alive(entry) and bridge._group(entry)
+    monkeypatch.setattr(bridge, "START_WAIT", 0.0)
+    try:
+        manifest = bridge.end(root)
+        assert manifest is not None and manifest["killed"] is True
+        if sys.platform.startswith("linux"):
+            # The helper has the test id in its environment, so end stops it.
+            assert not bridge._group(entry)
+            assert seal.verify(folder)["intact"]
+        else:
+            # Only Linux lets nookku read the environment, so end sends no signal and warns.
+            assert bridge._group(entry)
+            err = capsys.readouterr().err
+            assert f"have the process group id of the entry of test {cur['test']}" in err
+            assert f"run: nookku verify {cur['test']}" in err
+    finally:
+        with contextlib.suppress(OSError):
+            os.killpg(entry, 9)
+
+
+def test_a_group_with_another_test_id_gets_no_signal() -> None:
+    # The leader of the group exits, and a process with no test id stays in the group. This is
+    # the group of a new process that got the pid of the entry after the entry stopped.
+    shell = subprocess.Popen(["sh", "-c", "sleep 600 &"], start_new_session=True)
+    shell.wait()
+    try:
+        members = bridge._members(shell.pid)
+        assert members and shell.pid not in members
+        manifest = {"test": "t-1", "entry_pid": shell.pid, "entry_pid_start": "ps:x"}
+        assert bridge._stop_entry(manifest, grace=0.2) == members
+        assert bridge._group(shell.pid)
+    finally:
+        with contextlib.suppress(OSError):
+            os.killpg(shell.pid, 9)
+
+
+def test_a_live_pid_with_another_start_time_is_not_the_entry() -> None:
+    other = subprocess.Popen(["sleep", "60"], start_new_session=True)
+    try:
+        manifest = {"entry_pid": other.pid, "entry_pid_start": "ps:Thu Jan 1 00:00:00 1970"}
+        bridge._stop_entry(manifest, grace=0.2)
+        assert other.poll() is None
+    finally:
+        other.kill()
+        other.wait()
+
+
+def test_check_does_not_finish_an_older_stopped_test(tmp_path: Path) -> None:
+    root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
+    old = root / ".nookku" / "tests" / "old"
+    old.mkdir(parents=True)
+    (old / "manifest.json").write_text(json.dumps({"started": time.time() - 100}))
+    assert bridge.end(root, find_stopped=False) is None
+    assert "killed" not in json.loads((old / "manifest.json").read_text())
+
+
+def test_end_finishes_a_bridge_that_hangs_after_it_wrote_the_end_time(
+    tmp_path: Path, homes: tuple
+) -> None:
+    root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
+    cur = bridge.start(root)
+    folder = Path(cur["dir"])
+    os.kill(cur["pid"], signal.SIGSTOP)
+    # The bridge wrote `ended`, then hung before the audit and the seal.
+    manifest = json.loads((folder / "manifest.json").read_text())
+    (folder / "manifest.json").write_text(json.dumps({**manifest, "ended": time.time()}))
+    ended = bridge.end(root, wait=0.5)
+    _wait_dead(cur["pid"])
+    assert ended is not None and ended["killed"] is True
+    assert (folder / "audit.json").exists() and seal.verify(folder)["intact"]
+
+
+def test_end_names_the_test_and_the_wait(
+    tmp_path: Path, homes: tuple, capsys: pytest.CaptureFixture
+) -> None:
+    root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
+    cur = bridge.start(root)
+    assert main(["end", "--root", str(root)]) == 0
+    first = capsys.readouterr().out.splitlines()[0]
+    assert first == f"Ending test {cur['test']}. Waiting up to 120 s for the bridge to stop."
 
 
 def test_a_live_process_that_is_not_the_bridge_gets_no_signal(tmp_path: Path) -> None:
@@ -293,6 +542,12 @@ def test_check_fails_without_a_model_session(tmp_path: Path, homes: tuple) -> No
     assert any("No claude-code model session" in line for line in lines)
 
 
+def own_end(root: Path, find_stopped: bool = True) -> dict:
+    """An end for check and run_script: they must end only their own test (#164)."""
+    assert find_stopped is False
+    return {}
+
+
 def test_check_gives_the_fix_for_logs_on_stdout(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -306,7 +561,7 @@ def test_check_gives_the_fix_for_logs_on_stdout(
     folder.mkdir()
     monkeypatch.setattr(bridge, "start", lambda root, **_: {"test": "t-1", "dir": str(folder)})
     monkeypatch.setattr(bridge, "send", lambda cur, said: (f"nookku: HTTP 504: {error}", False))
-    monkeypatch.setattr(bridge, "end", lambda root: {})
+    monkeypatch.setattr(bridge, "end", own_end)
     # The tap wrote an unparsed row for each stray line, so the audit exits with 2.
     detail = "line 1: STDIO stdout: a stray line on stdout: 'toy shop: loading catalog'"
     row = {"class": "tap_unparsed", "record": "tap", "detail": detail}
@@ -328,7 +583,7 @@ def test_check_gives_one_line_for_the_stray_lines(
     folder.mkdir()
     monkeypatch.setattr(bridge, "start", lambda root, **_: {"test": "t-1", "dir": str(folder)})
     monkeypatch.setattr(bridge, "send", lambda cur, said: ("Toy shop: hi", True))
-    monkeypatch.setattr(bridge, "end", lambda root: {})
+    monkeypatch.setattr(bridge, "end", own_end)
     stray = [
         {
             "class": "tap_unparsed",
@@ -834,13 +1089,17 @@ def relay_turns(folder: Path) -> list[dict]:
 
 @pytest.mark.parametrize("form", ["jsonl", "json"])
 def test_run_script_sends_each_message_of_the_script(
-    tmp_path: Path, homes: tuple, form: str
+    tmp_path: Path, homes: tuple, form: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     app = tmp_path / "app.py"
     app.write_text(ECHO_APP)
     root = project(tmp_path, [sys.executable, str(app)])
     path = write_script(tmp_path / f"turns.{form}", form, SCRIPT)
+    real_end, calls = bridge.end, []
+    monkeypatch.setattr(bridge, "end", lambda root, **kw: calls.append(kw) or real_end(root, **kw))
     passed, lines, folder = bridge.run_script(root, path)
+    # run_script ends only its own test, never an older stopped test.
+    assert calls == [{"find_stopped": False}]
     assert passed, lines
     assert lines[1:] == ["Turns: 3 of 3 messages", "Audit: exit 0", lines[3], "PASS"]
     # The output gives no reply: the evaluation reads the records.

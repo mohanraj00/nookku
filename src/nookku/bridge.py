@@ -14,6 +14,7 @@ import subprocess
 import sys
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -30,6 +31,7 @@ from nookku.record import RecordError, Writer, turns
 
 # The state functions are in nookku.state. These names keep the imports of bridge working.
 from nookku.state import TIMEOUT as TIMEOUT
+from nookku.state import TOKEN_KEY
 from nookku.state import _children as _children
 from nookku.state import _started as _started
 from nookku.state import alive as alive
@@ -140,10 +142,16 @@ def _tail(path: Path, n: int = 20) -> str:
         return ""
 
 
+# The time that start waits for the bridge (#164).
+START_WAIT = 30.0
+# The time that end waits for the bridge to stop, before it sends SIGKILL.
+END_WAIT = 120.0
+
+
 def start(
     root: Path,
     tester_session: str | None = None,
-    wait: float = 30.0,
+    wait: float = START_WAIT,
     entry_name: str | None = None,
     script_path: Path | None = None,
     check: bool = False,
@@ -213,16 +221,135 @@ def start(
     raise BridgeError(f"the test did not start in {wait:g} s:\n{_tail(folder / 'bridge.log')}")
 
 
+def stopped(root: Path) -> Path | None:
+    """The folder of the latest test whose bridge stopped with no end, else None (#164).
+
+    The caller makes sure that no test runs. A test that started less than START_WAIT ago can
+    still be in its start, so it is not stopped. An older stopped test stays stopped after a new
+    test, so this looks at each test folder, not only at the latest one."""
+    tests = state(root) / "tests"
+    found: list[tuple[float, str, Path]] = []
+    for folder in tests.iterdir() if tests.is_dir() else []:
+        try:
+            manifest = json.loads((folder / "manifest.json").read_text())
+        except (OSError, ValueError):
+            continue
+        if not isinstance(manifest, dict) or manifest.get("ended") is not None:
+            continue
+        started = manifest.get("started")
+        if isinstance(started, (int, float)) and time.time() - started >= START_WAIT:
+            found.append((float(started), folder.name, folder))
+    return max(found, default=(0.0, "", None))[2]
+
+
+def _group(pid: int) -> bool:
+    """True if a process group with the id `pid` has a process in it."""
+    try:
+        os.killpg(pid, 0)
+    except ProcessLookupError:
+        return False
+    except OSError:
+        return True
+    return True
+
+
+def _members(pgid: int) -> list[int]:
+    """The pids of the processes in the process group `pgid`, from ps."""
+    try:
+        out = subprocess.run(
+            ["ps", "-A", "-o", "pid=,pgid="], capture_output=True, text=True, check=False
+        ).stdout
+    except OSError:
+        return []
+    rows = [line.split() for line in out.splitlines()]
+    return [int(r[0]) for r in rows if len(r) == 2 and r[1] == str(pgid) and r[0].isdigit()]
+
+
+def _of_test(pid: int, test: str) -> bool:
+    """True if the environment of `pid` gives the id of this test (TEST_ID). Only Linux lets
+    nookku read it (/proc/<pid>/environ), so on other systems this is False (fail closed)."""
+    try:
+        env = Path(f"/proc/{pid}/environ").read_bytes().split(b"\0")
+    except OSError:
+        return False
+    return f"{TEST_ID}={test}".encode() in env
+
+
+def _stop_entry(manifest: dict[str, Any], grace: float = 5.0) -> list[int]:
+    """Stop the process group of the entry of a stopped bridge, if a process of it still runs.
+    Return the pids of the group that got no signal, because nookku cannot prove that they are
+    processes of the test.
+
+    The entry starts in its own process group, so its pid is the group id. The pid and its start
+    time identify the entry, as for the bridge (SPEC.md section 7.2). If the entry stopped, other
+    processes can have the group id, also after the OS gave the pid to a new process. Then each
+    of them must have the id of this test in its environment, else no process gets a signal."""
+    pid, start = manifest.get("entry_pid"), manifest.get("entry_pid_start")
+    if type(pid) is not int or pid <= 0 or not isinstance(start, str):
+        return []
+    if alive(pid):
+        if process_start(pid) != start:
+            return []
+    else:
+        members = _members(pid)
+        unproven = [m for m in members if not _of_test(m, str(manifest.get("test")))]
+        if unproven or not members:
+            return unproven
+    for sig in (signal.SIGTERM, signal.SIGKILL):
+        with contextlib.suppress(OSError):
+            os.killpg(pid, sig)
+        deadline = time.monotonic() + grace
+        while _group(pid) and time.monotonic() < deadline:
+            time.sleep(0.1)
+    return []
+
+
+def finish_stopped(folder: Path) -> dict[str, Any]:
+    """Finish the folder of a test whose bridge stopped with no end (SPEC.md section 7.2).
+    Stop the entry and mark the test as killed. Then write the trace, the audit and the seal from
+    the records."""
+    path = folder / "manifest.json"
+    manifest: dict[str, Any] = json.loads(path.read_text())
+
+    def log(message: str) -> None:
+        with (folder / "bridge.log").open("a", encoding="utf-8") as f:
+            f.write(f"nookku end: {message}\n")
+
+    unproven = _stop_entry(manifest)
+    if unproven:
+        pids = ", ".join(map(str, unproven))
+        warning = (
+            f"warning: the processes {pids} have the process group id of the entry of test "
+            f"{manifest.get('test')}, but nookku cannot prove that they belong to the test, so "
+            "it sent them no signal. If they belong to the test, stop them, then run: nookku "
+            f"verify {manifest.get('test')}"
+        )
+        log(warning)
+        print(f"nookku: {warning}", file=sys.stderr)
+    manifest.update(ended=time.time(), killed=True)
+    _write_json(path, manifest)
+
+    _collect(folder, script.copy_in(folder), log)
+    return manifest
+
+
 def end(
-    root: Path, wait: float = 120.0, tester_session: str | None = None
+    root: Path,
+    wait: float = END_WAIT,
+    tester_session: str | None = None,
+    find_stopped: bool = True,
 ) -> dict[str, Any] | None:
     """Stop the running test and wait for the bridge to collect. Return the manifest.
+
+    If no test runs, but the bridge of a test stopped with no end, finish that test. A caller
+    that ends only its own test turns this off with `find_stopped=False`.
 
     `tester_session` is the harness session that ends the test. It is not a session of the app,
     also if it starts after the last turn."""
     cur = current(root)
     if cur is None:
-        return None
+        folder = stopped(root) if find_stopped else None
+        return None if folder is None else finish_stopped(folder)
     if tester_session:
         _write_json(state(root) / ENDING, {"test": cur["test"], "tester_session": tester_session})
     pid = cur["pid"]
@@ -233,14 +360,19 @@ def end(
     deadline = time.monotonic() + wait
     while is_bridge(cur) and time.monotonic() < deadline:
         time.sleep(0.2)
-    if is_bridge(cur):
+    killed = is_bridge(cur)
+    if killed:
         os.kill(pid, signal.SIGKILL)
         (state(root) / "current.json").unlink(missing_ok=True)
-    manifest = Path(cur["dir"]) / "manifest.json"
+    folder = Path(cur["dir"])
     try:
-        data: dict[str, Any] = json.loads(manifest.read_text())
+        data: dict[str, Any] = json.loads((folder / "manifest.json").read_text())
     except (OSError, ValueError):
-        data = {"test": cur["test"], "dir": cur["dir"]}
+        return {"test": cur["test"], "dir": cur["dir"]}
+    # The bridge writes `ended` before the trace, the audit and the seal. It can hang in them.
+    unsealed = not (folder / "audit.json").exists() or not (folder / seal.SEAL).exists()
+    if killed and (data.get("ended") is None or unsealed):
+        return finish_stopped(folder)
     return data
 
 
@@ -284,6 +416,11 @@ def summary(manifest: dict[str, Any]) -> str:
     ]
     if manifest.get("ended") is None:
         lines.append("The bridge did not finish its collection. See bridge.log in the folder.")
+    if manifest.get("killed"):
+        lines.append(
+            "The bridge stopped before the end, so end wrote the audit and the seal from the "
+            "records. The test has no model sessions. See bridge.log in the folder."
+        )
     changed = gate_changed(manifest)
     if changed:
         lines.append(
@@ -472,9 +609,17 @@ def _log(message: str) -> None:
     print(f"nookku bridge: {message}", file=sys.stderr, flush=True)
 
 
-def _write_json(path: Path, data: dict[str, Any]) -> None:
+def _write_json(path: Path, data: dict[str, Any], mode: int | None = None) -> None:
+    """Write the file in one step. With `mode`, only the file has that mode, from its start."""
     tmp = path.with_name(path.name + ".tmp")
-    tmp.write_text(json.dumps(data, indent=1, ensure_ascii=False) + "\n")
+    text = json.dumps(data, indent=1, ensure_ascii=False) + "\n"
+    if mode is None:
+        tmp.write_text(text)
+    else:
+        tmp.unlink(missing_ok=True)
+        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, mode)
+        with os.fdopen(fd, "w") as f:
+            f.write(text)
     tmp.replace(path)
 
 
@@ -563,6 +708,9 @@ def run(
     if agent.proc.poll() is not None:
         print(f"nookku bridge: the entry exited at start:\n{agent.tail()}", file=sys.stderr)
         return 1
+    # end can stop the entry if the bridge stops with no end (#164).
+    manifest.update(entry_pid=agent.proc.pid, entry_pid_start=process_start(agent.proc.pid))
+    _write_json(folder / "manifest.json", manifest)
     stop = threading.Event()
     for sig in (signal.SIGTERM, signal.SIGINT):
         signal.signal(sig, lambda *_: stop.set())
@@ -576,9 +724,13 @@ def run(
             "test": test,
             "dir": str(folder),
             "tap_url": tap.url,
+            # A relay or a page server sends this token with each message (SPEC.md 4.2).
+            TOKEN_KEY: tap.token,
             "pid": os.getpid(),
             "pid_start": pid_start,
         },
+        # The file holds the tap token, so only the owner can read it.
+        mode=0o600,
     )
     _log(f"test {test} on {tap.url}")
     stop.wait()
@@ -657,25 +809,32 @@ def run(
     except Exception as e:  # the test must still end
         manifest["codex_gate"]["end"] = {"codex": None, "hooks": [], "problems": [repr(e)]}
     _write_json(folder / "manifest.json", manifest)
-    try:
-        _log(trace.summary(trace.build(folder)))
-    except Exception as e:  # the test must still end
-        _log(f"the trace failed: {e!r}")
-    try:
-        report = audit(folder / "tap.jsonl", relay, copy).as_dict()
-        _write_json(folder / "audit.json", report)
-    except Exception as e:  # the test must still end
-        _log(f"the audit failed: {e!r}")
-    try:
-        error = seal.write(folder)
-        if error:
-            _log(f"the seal has no copy outside the project: {error}")
-    except Exception as e:  # the test must still end
-        _log(f"the seal failed: {e!r}")
+    _collect(folder, copy)
     (state(root) / "current.json").unlink(missing_ok=True)
     tap.server_close()
     _log(f"test {test} ended")
     return 0
+
+
+def _collect(folder: Path, copy: Path | None, log: Callable[[str], None] | None = None) -> None:
+    """Write the trace, the audit and the seal of a test folder (SPEC.md section 7.2, steps 5
+    to 7). Each step writes its error to the log, and the test still ends."""
+    log = log or _log
+    try:
+        log(trace.summary(trace.build(folder)))
+    except Exception as e:
+        log(f"the trace failed: {e!r}")
+    try:
+        report = audit(folder / "tap.jsonl", folder / "relay.jsonl", copy).as_dict()
+        _write_json(folder / "audit.json", report)
+    except Exception as e:
+        log(f"the audit failed: {e!r}")
+    try:
+        error = seal.write(folder)
+        if error:
+            log(f"the seal has no copy outside the project: {error}")
+    except Exception as e:
+        log(f"the seal failed: {e!r}")
 
 
 def audit_problems(folder: Path) -> tuple[int | None, list[str]]:
@@ -780,7 +939,7 @@ def run_script(
                 break
         time.sleep(2 * POLL)
     finally:
-        manifest = end(root) or {}
+        manifest = end(root, find_stopped=False) or {}
     lines = [f"Test {cur['test']}: {cur['dir']}", f"Turns: {sent} of {len(messages)} messages"]
     code, problems = audit_problems(folder)
     if failed is not None:
@@ -819,7 +978,7 @@ def check(root: Path) -> tuple[bool, list[str]]:
         )
         time.sleep(2 * POLL)
     finally:
-        manifest = end(root) or {}
+        manifest = end(root, find_stopped=False) or {}
     lines = [f"Test {cur['test']}: {cur['dir']}", f"Reply: {shown}"]
     problems = [] if ok else ["The entry sent no reply."]
     if not ok and STRAY_HINT in shown:

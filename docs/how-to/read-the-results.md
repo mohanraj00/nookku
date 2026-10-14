@@ -185,6 +185,7 @@ cat .nookku/tests/20261011-184952-8a8d/findings.json
   "span_error": 0,
   "backend_error": 0,
   "model_api_error": 0,
+  "model_error": 0,
   "turn_without_model": 0,
   "item_between_turns": 0,
   "otel_tool_not_in_session": 0,
@@ -217,7 +218,7 @@ Each finding in `findings.json` has `check`, `turn` and `detail`. A finding abou
 
 ### Trace checks
 
-The trace has 14 trace checks ([trace.py](../../src/nookku/trace.py)). `findings.json` sorts the findings in the order of this table.
+The trace has 15 trace checks ([trace.py](../../src/nookku/trace.py)). `findings.json` sorts the findings in the order of this table.
 
 | Check | Finding |
 |---|---|
@@ -229,6 +230,7 @@ The trace has 14 trace checks ([trace.py](../../src/nookku/trace.py)). `findings
 | `span_error` | An OpenTelemetry span of the app has an error. |
 | `backend_error` | A call to a backend got no answer, or a status of 500 or more. |
 | `model_api_error` | A direct call to a model API has an error, or a status of 400 or more. |
+| `model_error` | A Codex turn ended with a model error: the `task_complete` event of the Codex session file has an error, for example `server_overloaded` when the model is at capacity. |
 | `turn_without_model` | A turn has no `message`, `tool_call` or `command` item from a session file. A turn with only an OTLP, backend or model API item still gets this finding. This check runs only if the trace has at least 1 item from a session file. |
 | `item_between_turns` | A model item has no turn, but it occurred at or after the start of turn 1. |
 | `otel_tool_not_in_session` | A harness log says that a tool ran, but the session file of that harness has no call with its tool use id. If the log has no id, the session file has no call of that tool in that turn. |

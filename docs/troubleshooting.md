@@ -10,7 +10,7 @@ First, look in the [test folder](reference/glossary.md#test-folder) `.nookku/tes
 |---|---|
 | `nookku check` passes, but the replies are wrong. | `check` does not judge the reply. Do the steps in [Make sure that check runs your real app](how-to/connect-your-agent.md#make-sure-that-check-runs-your-real-app). The [entry for this symptom](#nookku-check-passes-but-the-replies-are-wrong) gives the cause. |
 | The viewer shows an old test or the check test. | This is correct before the start of a test. The viewer shows the last test, and after `check` this is the check test. When a test starts, the viewer shows a header line with the new test id ([test-your-app.md](how-to/test-your-app.md#start-the-viewer)). If no new header comes, run `nookku status` to see if a test runs ([recover-a-stuck-test.md](how-to/recover-a-stuck-test.md#1-run-status)). |
-| `transcript`, `trace` or `verify` shows the check test, not your test. | These commands use the latest test. If you ran `check` after your test, give the id of your test ([read-the-results.md](how-to/read-the-results.md#1-find-the-test-id)). |
+| `trace` or `verify` shows the check test, not your test. | These commands use the latest test. If you ran `check` after your test, give the id of your test ([read-the-results.md](how-to/read-the-results.md#1-find-the-test-id)). |
 | A prompt went to the model in [relay mode](reference/glossary.md#relay-mode). | In relay mode, the [relay](reference/glossary.md#relay) blocks each prompt. Run `nookku status`. If it says `relay mode is off.`, start a test with the prompt `nookku start`. If relay mode is on, the hooks did not run. In Codex, trust the hooks ([In Codex, the model answers my test messages](#in-codex-the-model-answers-my-test-messages)). In Claude Code, install the relay again ([project hooks](how-to/claude-code-project-hooks.md#install), [plugin](how-to/claude-code-plugin.md#install)). |
 | Codex does not run the hooks. | Codex runs [project hooks](reference/glossary.md#project-hooks) only after a person trusts them. Do the trust step ([codex.md](how-to/codex.md#install), [In Codex, the model answers my test messages](#in-codex-the-model-answers-my-test-messages)). |
 | Each message reaches the agent two times. | The [plugin](reference/glossary.md#plugin) and the project hooks both run. Use one form ([Each message reaches the agent two times](#each-message-reaches-the-agent-two-times)). |
@@ -173,7 +173,7 @@ If the entry returns an error, crashes or does not answer in [240 seconds](../sr
 
 ### `the agent printed <n> lines on stdout but no reply line for <id> in 240 s, so the tap stopped it. Use nookku.agent.serve() or write logs to stderr. The first line: '<text>'`
 
-(stdio.py) **Cause.** The entry or your app wrote logs on stdout, and no line with the request id came. `<text>` is the [first 80 bytes](../src/nookku/stdio.py#L175) of the first stray line. `nookku check` says `The entry printed lines on stdout, but no reply line.`
+(stdio.py) **Cause.** The entry or your app wrote logs on stdout, and no line with the request id came. `<text>` is the [first 80 bytes](../src/nookku/stdio.py#L180) of the first stray line. `nookku check` says `The entry printed lines on stdout, but no reply line.`
 
 **Fix.** Write logs to stderr. In Python, use `nookku.agent.serve()`, which sends all other output to stderr ([how-to/connect-your-agent.md](how-to/connect-your-agent.md)).
 
@@ -292,6 +292,12 @@ If the entry returns an error, crashes or does not answer in [240 seconds](../sr
 (bridge.py) **Cause.** The bridge did not write the end time in the manifest. For example, it did not stop in the wait time of `end`.
 
 **Fix.** Read `bridge.log`. Run `nookku trace` to build the [trace](reference/glossary.md#trace) again.
+
+### `The bridge stopped before the end, so end wrote the audit and the seal from the records.`
+
+(bridge.py) **Cause.** The bridge stopped with no end, for example after `kill -9` or a restart, or it did not stop in the wait time of `end`. `end` finished the folder: `killed: true` in `manifest.json`, the trace, `audit.json` and the seal. The test has no copied model sessions.
+
+**Fix.** Read `bridge.log`. To see what to do next, read [recover-a-stuck-test.md](how-to/recover-a-stuck-test.md).
 
 ### `FAIL: No claude-code model session was identified.`
 
