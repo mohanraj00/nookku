@@ -841,7 +841,9 @@ def test_init_start_and_end_a_test(tmp_path: Path, capsys: pytest.CaptureFixture
     status = json.loads(capsys.readouterr().out)
     text = kit.status(tmp_path)[8:]
     refuse = kit.ATTACHMENTS_REASON
+    pane = status.pop("pane")
     assert status == {"on": True, "test": started, "text": text, "attachments": refuse}
+    assert pane["test"] == started["test"] and pane["state"] == "running" and pane["turns"] == 0
     assert status["text"].startswith(f"relay mode is on. Test {started['test']} runs on ")
     assert main(["start", "--root", str(tmp_path)]) == 1
     assert "runs already" in capsys.readouterr().out

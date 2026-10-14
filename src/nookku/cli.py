@@ -636,12 +636,23 @@ def _page_parser(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> No
     page.add_argument("--auto-test", help=argparse.SUPPRESS)
     page.add_argument("--status-fd", type=int, help=argparse.SUPPRESS)
     page.add_argument("--print-url", action="store_true", help=argparse.SUPPRESS)
+    page.add_argument(
+        "--open",
+        action="store_true",
+        help="open the chat page of the running test in the browser; print no URL",
+    )
 
 
 def _page_command(args: argparse.Namespace) -> int:
     """nookku page: the chat page on 127.0.0.1 (SPEC.md section 5, "Chat page")."""
     from nookku import page
 
+    if args.open:
+        from nookku import page_open
+
+        code, text = page_open.open_chat(args.root.resolve())
+        print(text, flush=True)
+        return code
     if args.auto_test is not None and args.status_fd is not None:
         from nookku import page_auto
 
@@ -801,7 +812,15 @@ def _test_command(args: argparse.Namespace) -> int:
             line = kit.status(root).removeprefix("nookku: ") if on else None
             refuse = kit.ATTACHMENTS_REASON if on else None
             test = state.public(running) if running else None
-            print(json.dumps({"on": on, "test": test, "text": line, "attachments": refuse}))
+            from nookku import page_open
+
+            # pane is the data of the pane of the plugin (#348). It holds no secret.
+            pane = page_open.pane_state(root)
+            print(
+                json.dumps(
+                    {"on": on, "test": test, "text": line, "attachments": refuse, "pane": pane}
+                )
+            )
         else:
             print(kit.status(root).removeprefix("nookku: "))
             folder = bridge.stopped(root) if running is None else None
