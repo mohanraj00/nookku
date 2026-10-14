@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import http.client
+import itertools
 import json
 import re
 import sys
 import threading
+import time
+import tracemalloc
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -87,13 +90,79 @@ def test_a_long_reply_gives_a_diff_with_no_long_wait() -> None:
     # One changed word in a long reply: the equal start and end need no matcher.
     parts = replay.words(common + " costs 8.", common + " costs 9.")
     assert [p for p in parts if p[0] != "equal"] == [["delete", "8."], ["insert", "9."]]
-    # A changed part with more than MAX_TOKENS tokens is one delete and one insert.
-    old = " ".join(["mug teapot"] * replay.MAX_TOKENS)
-    new = " ".join(["teapot mug"] * replay.MAX_TOKENS)
-    parts = replay.words("Hi. " + old + " Bye.", "Hi. " + new + " Bye.")
+    # A changed part that needs more steps than the budget has is one delete and one insert.
+    old = " ".join(f"mug{i}" for i in range(2000))
+    new = " ".join(f"teapot{i}" for i in range(2000))
+    parts = replay.words("Hi. " + old + " Bye.", "Hi. " + new + " Bye.", replay.Budget(1000))
     assert [p[0] for p in parts] == ["equal", "delete", "insert", "equal"]
     assert joined(parts, "delete") == "Hi. " + old + " Bye."
     assert joined(parts, "insert") == "Hi. " + new + " Bye."
+
+
+def test_a_diff_keeps_at_most_keep_values() -> None:
+    # Two replies with no equal word need about (2 * 1001) ** 2 / 4 values, more than KEEP.
+    old = " ".join(f"mug{i}" for i in range(1001))
+    new = " ".join(f"teapot{i}" for i in range(1001))
+    budget = replay.Budget()
+    tracemalloc.start()
+    parts = replay.words(old, new, budget)
+    peak = tracemalloc.get_traced_memory()[1]
+    tracemalloc.stop()
+    assert [p[0] for p in parts] == ["delete", "insert"]
+    assert peak < 8 * replay.KEEP + 4_000_000
+    # A diff that stops at KEEP leaves the other steps for the next turns.
+    assert budget.left > 0
+    assert replay.words("a b c", "a x c", budget) == [
+        ["equal", "a "],
+        ["delete", "b"],
+        ["insert", "x"],
+        ["equal", " c"],
+    ]
+
+
+def test_a_change_of_words_in_a_row_is_one_delete_and_one_insert() -> None:
+    parts = replay.words("I can't start a refund yet.", "I haven't started a refund.")
+    assert parts == [
+        ["equal", "I "],
+        ["delete", "can't start"],
+        ["insert", "haven't started"],
+        ["equal", " a "],
+        ["delete", "refund yet."],
+        ["insert", "refund."],
+    ]
+    assert (
+        replay._marked(parts) == "I [-can't start-]{+haven't started+} a [-refund yet.-]{+refund.+}"
+    )
+    colored = replay._marked(parts, color=True)
+    assert "\033[31m[-can't start-]\033[0m" in colored
+    assert "\033[32m{+haven't started+}\033[0m" in colored
+
+
+def test_each_diff_gives_the_two_replies_and_deletes_before_inserts() -> None:
+    texts = ["", "a", "a b", "b a c", "a  c\nd", "c a b a", "e d c b a", "a a a b"]
+    for old in texts:
+        for new in texts:
+            parts = replay.words(old, new)
+            assert joined(parts, "delete") == old and joined(parts, "insert") == new
+            ops = [p[0] for p in parts]
+            assert all(o != n for o, n in itertools.pairwise(ops)), (old, new)
+            assert ("insert", "delete") not in set(itertools.pairwise(ops))
+
+
+def test_a_worst_case_diff_of_many_turns_ends_fast(tmp_path: Path) -> None:
+    # Each turn has 2000 distinct words, and each word changed. A matcher with no budget can need
+    # many seconds for one such turn. The budget is for all 30 turns together.
+    old_turns = [(f"Ask {n}", " ".join(f"mug{n}x{i}" for i in range(2000)), "-") for n in range(30)]
+    new_turns = [(s, r.replace("mug", "pot"), r) for s, r, _ in old_turns]
+    old = make_test(tmp_path, OLD, old_turns, 1_800_000_000.0)
+    new = make_test(tmp_path, NEW, new_turns, 1_800_000_600.0)
+    started = time.monotonic()
+    result = replay.diff(tmp_path, old, new)
+    assert time.monotonic() - started < 5
+    assert result["changed"] == 30
+    for row in result["turns"]:
+        assert joined(row["words"], "delete") == row["reply_old"]
+        assert joined(row["words"], "insert") == row["reply_new"]
 
 
 def test_the_diff_uses_the_tap_reply_not_the_shown_text(tmp_path: Path) -> None:
@@ -233,6 +302,7 @@ def test_the_diff_page_has_no_inline_script_and_no_html_from_text() -> None:
     html = page.page_file("diff.html").decode()
     assert re.findall(r"<script[^>]*>", html) == [
         '<script src="theme.js">',
+        '<script src="key.js">',
         '<script src="diff.js" defer>',
         '<script src="keys.js" defer>',
     ]

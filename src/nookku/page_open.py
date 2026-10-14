@@ -5,9 +5,11 @@ output to the model, so the pane holds no secret: no page URL, no token, no laun
 cookie (SPEC.md section 5, "Pane").
 
 "Open chat" runs `nookku page --open`. It gives the browser the session URL of the chat page,
-`http://127.0.0.1:<port>/p/s/`. This URL holds no token and no code. Only the session cookie of
-the start launch opens the page. No route makes a session or a launch code after the start
-launch, so a local process that runs `nookku page --open` or calls the page gets no session.
+`http://127.0.0.1:<port>/p/s/`. This URL holds no token, no code and no page key. Only the
+session cookie of the start launch opens the page. No route makes a session or a launch code after
+the start launch, so a local process that runs `nookku page --open` or calls the page gets no
+session. The new tab gets the page key from an open tab of the page in the same browser (SPEC.md
+section 5, "Session").
 """
 
 from __future__ import annotations
@@ -19,8 +21,9 @@ from nookku import dashboard, page, page_auto, state
 from nookku.record import RecordError, turns
 
 OPENED = (
-    "The chat page opened in your browser. If the browser shows no session, use the browser "
-    "that opened the page at the start of the test."
+    "The chat page opened in your browser. If the browser shows no session or no key, use the "
+    "browser that opened the page at the start of the test, and keep the first tab of the page "
+    "open."
 )
 NO_BROWSER = (
     "nookku: the browser did not open. Open the chat page in the browser that opened it at the "

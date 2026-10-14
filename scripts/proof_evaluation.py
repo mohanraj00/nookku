@@ -33,7 +33,7 @@ sys.path[:0] = [str(ROOT / "src"), str(ROOT / "tests")]
 from proof_common import NO_TITLE, json_lines  # noqa: E402
 from toy_agent import ToyAgent  # noqa: E402
 
-from nookku import kit  # noqa: E402
+from nookku import __version__, kit  # noqa: E402
 from nookku.adapters import make  # noqa: E402
 from nookku.audit import audit  # noqa: E402
 from nookku.mcp import tool_name  # noqa: E402
@@ -220,6 +220,7 @@ def main() -> int:
         "date": date.today().isoformat(),
         "relay": relay,
         "version": version,
+        "nookku": __version__,
         "answers": {"memory_sha256": sha256(answers["memory"]), "read": answers["read"]},
         "audit_exit": rep.exit,
         "turns": rep.turns,

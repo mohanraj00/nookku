@@ -150,7 +150,7 @@ Run a saved script again after a fix, and see which replies changed ([SPEC.md se
 The output has the lines of `nookku run`, and then:
 
 - the count of changed turns;
-- each changed reply, with `[-deleted words-]` and `{+inserted words+}`;
+- each changed reply, with `[-deleted words-]` and `{+inserted words+}`. A change of 2 or more words in a row shows as one deleted part and one inserted part. At a terminal, the deleted words are red and the inserted words are green. Set `NO_COLOR` to get no color;
 - the 2 test ids to select on the dashboard of `nookku page`, which shows the 2 tests side by side.
 
 A changed reply does not change the exit code. Only a person runs `nookku replay`: the relay denies it from the model, with each policy.
@@ -212,12 +212,13 @@ Serve the chat page: a local web page where you talk to the agent of the running
 - The page shows an image or a video that a reply names as an `https:` URL, a `data:` URI or a file path. A relative path starts at the project root. The page shows a file only if it is in the project or in the folder of the test, and not in `.nookku/` outside the test folder. The page shows an SVG in a sandbox, with no scripts. A file of an `https:` URL loads only after you click its "Load" button, which shows the URL.
 - For another file, for example a PDF, the page shows an "Open" button. A click opens a copy of the file with the system app. The page server removes the copies when it stops. The page does not open a program, a script, an HTML file or an SVG. On Windows, the page does not show or open a file path, because the server cannot check the open file there ([SPEC.md section 5](../../SPEC.md#5-relays)).
 - The server listens only on `127.0.0.1`. The URL has a random token. The server refuses a request with a wrong `Host` or `Origin` header.
+- The first open of the URL gives the browser a session cookie and a page key. The page keeps the key in the memory of its tab, and sends it with each request. A request of data needs the cookie and the key, because a browser also sends the cookie to another port of `127.0.0.1` ([SPEC.md section 5](../../SPEC.md#5-relays), "Session"). A reload of the tab keeps the key. If you close each tab of the page, the page has no key: end the test and start a new one, or run `nookku page` again.
 - Run `nookku page` in a separate terminal. Do not run it with `!` in the harness, because the harness shows the output to the model. In a harness shell, `nookku page` refuses to start.
 - Only you get the URL, in the terminal of `nookku page`. Do not give the URL to the harness model, because with it the model can send messages as you. The server writes only its port and its pid to `.nookku/page.json`, and the guard denies a model tool call to that port. The guard also denies a model command that runs `nookku page`.
 - The "Save as script" button writes the test that the page shows as a script, the same as `nookku script save`.
 - The "Export" button downloads one HTML file of the test that the page shows, the same as [`nookku export`](#nookku-export).
 - `nookku start` starts the page with the test, so you do not have to run `nookku page` ([`nookku start`](#nookku-start)). If a page server of the project runs already, `start` starts no second page.
-- `nookku page --open` opens the chat page of the running test in your browser, at the session URL `/p/s/`. This URL holds no secret. The page opens only in the browser that got the session at the start of the test. It makes no new session and starts no page server. It prints no URL, so you can run it in the harness. If the browser has no session, the page tells you how to get a new one: end the test and start a new one, or run `nookku page` in a separate terminal. The "Open chat" button of the Claude Code pane runs it. The guard denies it from the model.
+- `nookku page --open` opens the chat page of the running test in your browser, at the session URL `/p/s/`. This URL holds no secret. The page opens only in the browser that got the session at the start of the test. The new tab gets the page key from the open tab of the page, so keep that tab open. It makes no new session and starts no page server. It prints no URL, so you can run it in the harness. If the browser has no session, the page tells you how to get a new one: end the test and start a new one, or run `nookku page` in a separate terminal. The "Open chat" button of the Claude Code pane runs it. The guard denies it from the model.
 - One page server runs for each project. Stop the page with Ctrl-C. The page also stops when the terminal closes.
 - The relay in the harness chat still works, for example over SSH, in CI and in `codex exec`.
 

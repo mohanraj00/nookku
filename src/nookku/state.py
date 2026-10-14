@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     import subprocess
 
-from nookku import contract
+from nookku import contract, seal
 from nookku.adapters import History
 from nookku.config import STATE_DIR as STATE_DIR
 from nookku.record import RecordError, turns
@@ -48,8 +48,9 @@ def page_info(root: Path) -> dict[str, Any] | None:
 # The page lock in the state folder. The chat page server holds it for its whole life, so that
 # only one page server runs for each project.
 PAGE_LOCK = "page.lock"
-# The send lock in the state folder. A page send holds it from its checks to its turn row, and
-# the end of a test holds it from the tap shutdown to the seal (SPEC.md section 5, "Chat page").
+# The send lock in the state folder. A send of the hook relay or of the page holds it from its
+# checks to its turn row. The end of a test holds it from the tap shutdown to the seal (SPEC.md
+# section 5, "Chat page").
 SEND_LOCK = "send.lock"
 
 
@@ -108,11 +109,13 @@ _children: dict[int, subprocess.Popen[bytes]] = {}
 
 
 def alive(pid: int) -> bool:
+    """True if a process with this pid runs. A pid that the OS cannot have, for example one
+    larger than a C int in a manifest, is not a running process."""
     if pid in _children:
         return _children[pid].poll() is None
     try:
         os.kill(pid, 0)
-    except ProcessLookupError:
+    except (ProcessLookupError, OverflowError, ValueError):
         return False
     except PermissionError:
         return True
@@ -201,6 +204,16 @@ def manifest_of(folder: Path) -> dict[str, Any] | None:
     except (OSError, ValueError):
         return None
     return manifest if isinstance(manifest, dict) else None
+
+
+def closed(folder: Path) -> bool:
+    """True if the test ended, or its end wrote the audit or the seal. Then its records must not
+    change. A test with a manifest that cannot be read is also closed (fail closed). A send of
+    the hook relay or of the chat page, and a note, use this one rule (SPEC.md section 5)."""
+    if (folder / "audit.json").exists() or (folder / seal.SEAL).exists():
+        return True
+    manifest = manifest_of(folder)
+    return manifest is None or manifest.get("ended") is not None
 
 
 def is_check(folder: Path, manifest: dict[str, Any]) -> bool:

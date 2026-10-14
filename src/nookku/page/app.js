@@ -10,6 +10,11 @@ let sending = false;
 // The error of the last poll, if any. A later poll that succeeds removes it, but not the error
 // of a send.
 let pollError = null;
+// The number of the last poll, and of the last poll that the page showed. An answer can come
+// after the answer of a later poll. The page shows only an answer of a later poll, so that an
+// old answer does not make the chat again (and remove a comment that the tester types).
+let pollCount = 0;
+let shownPoll = 0;
 
 function el(id) {
   return document.getElementById(id);
@@ -115,17 +120,24 @@ function turnsUrl() {
 }
 
 async function refresh() {
+  pollCount += 1;
+  const poll = pollCount;
   try {
     const url = turnsUrl();
     const resp = await fetch(url, { cache: "no-store" });
     const data = await resp.json();
     // The hash can change during the request. Then a later request shows the new test.
-    if (url === turnsUrl()) {
+    if (url === turnsUrl() && poll > shownPoll) {
+      shownPoll = poll;
       render(data);
     }
   } catch (e) {
-    pollError = "nookku: the page server does not answer. Start it again with: nookku page";
-    showError(pollError);
+    if (poll > shownPoll) {
+      // An older poll that answers later must not hide this error or show older turns.
+      shownPoll = poll;
+      pollError = "nookku: the page server does not answer. Start it again with: nookku page";
+      showError(pollError);
+    }
   }
 }
 
@@ -159,7 +171,10 @@ async function send() {
     pollError = null;
     tellSend(said, Boolean(data.sent));
     if (data.sent) {
-      box.value = "";
+      // The tester can type the next message during the send. Keep that text.
+      if (box.value === said) {
+        box.value = "";
+      }
     } else {
       showError(data.shown || data.error || "nookku: nothing was sent.");
     }

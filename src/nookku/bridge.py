@@ -31,7 +31,7 @@ from nookku.record import RecordError, Writer, turns
 
 # The state functions are in nookku.state. These names keep the imports of bridge working.
 from nookku.state import TIMEOUT as TIMEOUT
-from nookku.state import TOKEN_KEY, lock_sends
+from nookku.state import TOKEN_KEY, lock_sends, manifest_of
 from nookku.state import _children as _children
 from nookku.state import _started as _started
 from nookku.state import alive as alive
@@ -373,9 +373,8 @@ def end(
         os.kill(pid, signal.SIGKILL)
         (state(root) / "current.json").unlink(missing_ok=True)
     folder = Path(cur["dir"])
-    try:
-        data: dict[str, Any] = json.loads((folder / "manifest.json").read_text())
-    except (OSError, ValueError):
+    data = manifest_of(folder)
+    if data is None:
         return {"test": cur["test"], "dir": cur["dir"]}
     # The bridge writes `ended` before the trace, the audit and the seal. It can hang in them.
     unsealed = not (folder / "audit.json").exists() or not (folder / seal.SEAL).exists()
@@ -640,6 +639,16 @@ def _write_json(path: Path, data: dict[str, Any], mode: int | None = None) -> No
     tmp.replace(path)
 
 
+def _start_failed(folder: Path, manifest: dict[str, Any]) -> int:
+    """Mark a test whose entry did not start, and return the exit code of the bridge.
+
+    The manifest gets `ended` and `start_failed: true` (SPEC.md section 7.2). Thus the test is
+    not a stopped test, so `end` does not finish it, and it gets no evaluation."""
+    manifest.update(ended=time.time(), start_failed=True)
+    _write_json(folder / "manifest.json", manifest)
+    return 1
+
+
 def run(
     root: Path,
     test: str,
@@ -718,12 +727,12 @@ def run(
         agent.start()
     except OSError as e:
         print(f"nookku bridge: cannot start the entry {config.entry}: {e}", file=sys.stderr)
-        return 1
+        return _start_failed(folder, manifest)
     _log(f"entry started: {config.entry}")
     assert agent.proc is not None
     if _exits_at_start(agent.proc):
         print(f"nookku bridge: the entry exited at start:\n{agent.tail()}", file=sys.stderr)
-        return 1
+        return _start_failed(folder, manifest)
     # end can stop the entry if the bridge stops with no end (#164).
     manifest.update(entry_pid=agent.proc.pid, entry_pid_start=process_start(agent.proc.pid))
     _write_json(folder / "manifest.json", manifest)

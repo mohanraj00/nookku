@@ -782,7 +782,9 @@ def _replay_command(args: argparse.Namespace) -> int:
     except replay.ReplayError as e:
         print(json.dumps({"error": str(e)}) if args.json else f"nookku: {e}")
         return 2
-    return _run_command(args, lambda root, new: replay.report(root, old, new))
+    # Color only for a person at a terminal (https://no-color.org).
+    color = not args.json and sys.stdout.isatty() and "NO_COLOR" not in os.environ
+    return _run_command(args, lambda root, new: replay.report(root, old, new, color))
 
 
 def _waiting(test: str) -> str:

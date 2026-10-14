@@ -1,8 +1,8 @@
 {
- "date": "2026-10-12",
+ "date": "2026-10-14",
  "relay": "plugin-codex",
  "versions": {
-  "nookku": "0.4.1",
+  "nookku": "0.5.0",
   "claude-code": "2.1.296 (Claude Code)",
   "codex": "codex-cli 0.162.1",
   "agent sdk": "claude-agent-sdk==0.2.164",
@@ -50,12 +50,12 @@
   {
    "class": "business_rule",
    "turn": "2",
-   "evidence": "Turn 2; trace.jsonl:15; trace.jsonl:16; RULES.md:5; services.py:44"
+   "evidence": "trace.jsonl:11, trace.jsonl:15, trace.jsonl:16, trace.jsonl:18; RULES.md:5; services.py:44; stock.json:6"
   },
   {
    "class": "state_mismatch",
    "turn": "2",
-   "evidence": "trace.jsonl:18; trace.jsonl:15; trace.jsonl:16; app.py:72; RULES.md:6"
+   "evidence": "trace.jsonl:18; state.json:18; app.py:69; stock.py:77"
   }
  ],
  "T2_cites_both_reserve_calls": true,
@@ -94,7 +94,7 @@
   "ignored": {}
  },
  "counts": {},
- "report": "# Test 20261012-233033-d983: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | Turn 2; trace.jsonl:15; trace.jsonl:16; RULES.md:5; services.py:44 | The tester asked, \"Please reserve 1 teapot set for my order 6210.\" The app sent two successful `POST /reserve` requests with `{\"order\": \"6210\", \"sku\": \"teapot-set\", \"qty\": 1}`, creating `RS-06F972` with `\"left\": 2` and `RS-712EFD` with `\"left\": 1`. This holds two items and breaks the rule, \"A reservation holds the number of items that the customer asked for, and no more.\" The retry loop runs twice without stopping on success. |\n| state_mismatch | 2 | trace.jsonl:18; trace.jsonl:15; trace.jsonl:16; app.py:72; RULES.md:6 | The reply says, \"I've reserved 1 teapot set for order 6210 under reservation ID RS-712EFD.\" The stock service actually created two reservations of one item each for that order. The tool returns only the second reservation and the requested `qty`, concealing the extra hold. The reported total disagrees with the recorded backend state and the rule that the agent tells the customer how many items it reserved. |\n\n## Notes\n\nChecked all three turns and their model/tool/backend records using `nookku transcript --trace --test 20261012-233033-d983`. The transcript reports, \"Seal: intact. No record changed after the end of the test.\" Read findings.json and audit.json: no automated findings, audit breaks, errors, or blocked calls were recorded. These results do not detect the duplicate successful reservation.\n\nRead RULES.md and all six Python project files. Checked current stock.json and state.json with read-only commands. stock.json corroborates two reservations for order 6210, `RS-06F972` and `RS-712EFD`, each with `\"qty\": 1`, and one teapot set left. Current project state is supporting evidence; the sealed backend records independently establish both issues. The stock replies in turns 1 and 3 match their GET results.\n\nNo app-state snapshot files were available in the test folder. No project test files were present in the file listing. Did not start the app, send it messages, or mutate its state. Only this report was written. Return, refund, and order-privacy behavior were not exercised by this test.\n",
- "answer": "Found two issues: the app reserved two sets instead of one, then reported only one reservation.\nThe test seal is intact; the audit found no altered exchanges.\nSaved the [evaluation report](<project>/.nookku/tests/20261012-233033-d983/report.md).",
+ "report": "# Test 20261014-100654-3a3d: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | trace.jsonl:11, trace.jsonl:15, trace.jsonl:16, trace.jsonl:18; RULES.md:5; services.py:44; stock.json:6 | The tester asked \"Please reserve 1 teapot set for my order 6210.\" Both backend requests sent `{\"order\": \"6210\", \"sku\": \"teapot-set\", \"qty\": 1}` and succeeded, creating `RS-D66734` with `\"left\": 2` and `RS-03298A` with `\"left\": 1`. The app held two units, violating \"A reservation holds the number of items that the customer asked for, and no more.\" Its reply, \"I've reserved 1 teapot set\", also understated the total held. The helper loops twice without stopping after success. |\n| state_mismatch | 2 | trace.jsonl:18; state.json:18; app.py:69; stock.py:77 | The app said \"Your order is confirmed!\" Current order 6210 instead has `\"status\": \"waiting for stock\"`. The reservation result establishes a stock hold, not order confirmation, and the reservation code does not update the order status. |\n\n## Notes\n\nThe seal is intact. Reviewed all three transcript turns and 31 model items, findings.json, audit.json, the five Python source files, RULES.md, and current stock.json and state.json using read-only commands. Findings contains no findings; audit reports no breaks or errors. These automated results do not rule out the two issues above.\n\nCurrent stock.json contains both recorded reservations for order 6210, each with `\"qty\": 1`, and one remaining teapot set. Turn 1's stock count of three and turn 3's stock count of one match their GET results. The model called the correct tools with the requested arguments; the duplicate action occurred inside the reservation helper.\n\nNo notes.jsonl or app-state snapshot files were available. Current project state is not a sealed test snapshot, so historical state conclusions rely on the sealed trace. The order confirmation claim has no supporting tool result or business rule in that trace; the current order file also contradicts it. No app or service was started, no message was sent, and no state was changed. Only this report was written.\n\n## Tester notes\n\nThe tester wrote no note.\n",
+ "answer": "[Evaluation report](.nookku/tests/20261014-100654-3a3d/report.md) written. The seal is intact.\n\nFound two issues: the app reserved two units instead of one, and claimed order confirmation without supporting state.",
  "pass": true
 }

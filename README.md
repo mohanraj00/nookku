@@ -71,7 +71,7 @@ Data: [the record of the test](docs/assets/chat-page/test/) and [the method of t
 uv tool install nookku
 ```
 
-It needs Python 3.10 or later, and it has no runtime dependencies ([pyproject.toml](pyproject.toml)). The docs are for version 0.4.3. If you use verbatim-relay 0.3.x or earlier, do the [0.4.0 steps of the upgrade guide](docs/how-to/upgrade.md#040), because the package has a new name ([CHANGELOG.md](CHANGELOG.md#040)). To upgrade from a later version of nookku, end each running test first. Then run `uv tool upgrade nookku`. [docs/how-to/upgrade.md](docs/how-to/upgrade.md) gives each step.
+It needs Python 3.10 or later, and it has no runtime dependencies ([pyproject.toml](pyproject.toml)). The docs are for version 0.5.0. If you use verbatim-relay 0.3.x or earlier, do the [0.4.0 steps of the upgrade guide](docs/how-to/upgrade.md#040), because the package has a new name ([CHANGELOG.md](CHANGELOG.md#040)). To upgrade from a later version of nookku, end each running test first. Then run `uv tool upgrade nookku`. [docs/how-to/upgrade.md](docs/how-to/upgrade.md) gives each step.
 
 ## Quick start
 
@@ -106,20 +106,19 @@ You install the [relay](SPEC.md#5-relays) as the plugin or as the project hooks.
 
 ## A sample report
 
-At the end of a test, the harness model reads the record and writes `report.md` in the test folder. This is an excerpt of a real report. Nookku 0.4.1 and Claude Code 2.1.296 wrote it in a test of [the toy shop with a model](examples/toy-shop-models/README.md). The app has a planted bug: its refund tool compares euros with cents. The model did not see the conversation, and it found the bug in the record and the code.
+At the end of a test, the harness model reads the record and writes `report.md` in the test folder. This is an excerpt of a real report. Nookku 0.5.0 and Claude Code 2.1.296 wrote it in a test of [the toy shop with a model](examples/toy-shop-models/README.md). The app has a planted bug: its refund tool compares euros with cents. The model did not see the conversation, and it found the bug in the record and the code.
 
 ```markdown
-# Test 20261012-232417-15c7: evaluation
+# Test 20261014-091940-d2d3: evaluation
 
 | Class | Turn | Evidence | Issue |
 |---|---|---|---|
-| business_rule | 2 | trace.jsonl:10 | `refund` got `{"order": "5120", "amount_eur": 80}` and returned `"status": "paid"`. RULES.md:3 says that a refund above €50 waits for the approval of a manager, and the manager pays it. The agent paid €80 immediately. `state.json` shows refund `RF-97B38E` on order 5120 and no `approvals` list. |
+| business_rule | 2 | trace.jsonl:10, app.py:59, RULES.md:5 | The app paid a refund of €80 at once: `shop.refund` got `{"order": "5120", "amount_eur": 80}` and gave `{"refund": "RF-E9091C", "amount_eur": 80, "status": "paid"}`. Rule 3 says that a refund above €50 needs the approval of a manager, and that the manager pays it. The cause is a unit error: `if args["amount_eur"] > APPROVAL_LIMIT_CENTS:` compares euros (80) with cents (`APPROVAL_LIMIT_CENTS = 5000`, app.py:27). Thus only a refund above €5000 waits for approval. |
 ...
-| business_rule | - | app.py:59 | `if args["amount_eur"] > APPROVAL_LIMIT_CENTS:` compares an amount in euros with `APPROVAL_LIMIT_CENTS = 5000` (app.py:27). Thus the approval gate starts only above €5000, not above €50. This is the cause of the turn 2 issue. |
 
 ## Notes
 
-- The seal is intact. The audit shows no break, no blocked call and no error. `findings.json` has no findings.
+- The seal is intact. The audit shows no break, no blocked call and no error. findings.json has no finding.
 ...
 ```
 

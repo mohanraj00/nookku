@@ -328,7 +328,12 @@ def test_the_export_script_makes_no_html_from_text() -> None:
         assert not re.search(r"https?://", js)
         for bad in ("innerHTML", "insertAdjacentHTML", "outerHTML", "document.write", "eval("):
             assert bad not in js
-        assert "new Function" not in js and "DOMParser" not in js and "fetch(" not in js
+        assert "new Function" not in js and "DOMParser" not in js
+    # The export file loads nothing. The button gets only the export, with the page key that
+    # key.js adds (SPEC.md section 5, "Session").
+    assert "fetch(" not in (PAGE / "export.js").read_text()
+    button = (PAGE / "export_button.js").read_text()
+    assert re.findall(r"fetch\(([^,]*),", button) == ['"api/export/" + encodeURIComponent(test)']
 
 
 def test_an_item_that_is_not_an_object_gives_a_problem(project: Path) -> None:

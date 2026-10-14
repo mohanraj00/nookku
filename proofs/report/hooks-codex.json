@@ -1,8 +1,8 @@
 {
- "date": "2026-10-12",
+ "date": "2026-10-14",
  "relay": "hooks-codex",
  "versions": {
-  "nookku": "0.4.1",
+  "nookku": "0.5.0",
   "claude-code": "2.1.296 (Claude Code)",
   "codex": "codex-cli 0.162.1",
   "agent sdk": "claude-agent-sdk==0.2.164",
@@ -27,17 +27,17 @@
   {
    "class": "business_rule",
    "turn": "2",
-   "evidence": "trace.jsonl:10; RULES.md:5; app.py:27,59; state.json:14"
+   "evidence": "trace.jsonl:10; RULES.md:5; app.py:27,59"
   },
   {
    "class": "unsupported_reply",
    "turn": "2",
-   "evidence": "trace.jsonl:13; trace.jsonl:10; RULES.md:3–6"
+   "evidence": "trace.jsonl:13; trace.jsonl:10; app.py:64-67"
   },
   {
    "class": "unsupported_reply",
-   "turn": "2, 3",
-   "evidence": "trace.jsonl:13,17; trace.jsonl:10; app.py:64–67"
+   "turn": "3",
+   "evidence": "trace.jsonl:17; trace.jsonl:10"
   }
  ],
  "P5_quotes_the_refund_id": true,
@@ -77,7 +77,7 @@
   },
   "other_calls": 1
  },
- "report": "# Test 20261012-232745-36dd: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | trace.jsonl:10; RULES.md:5; app.py:27,59; state.json:14 | `shop.refund` received `{\"order\": \"5120\", \"amount_eur\": 80}` and returned `{\"refund\": \"RF-E5F3F3\", \"amount_eur\": 80, \"status\": \"paid\"}`. Rule 3 says, \"A refund above €50 needs the approval of a manager. The refund waits for the approval, and the manager pays it.\" The app paid the refund without an approval request. The implementation compares `amount_eur` with `APPROVAL_LIMIT_CENTS = 5000`, so €80 bypasses approval. Current state contains the €80 refund and no approval entry. |\n| unsupported_reply | 2 | trace.jsonl:13; trace.jsonl:10; RULES.md:3–6 | The reply promises, \"The amount should appear back on your card within 3-5 business days.\" The tool result reports only a refund ID, amount, and `\"status\": \"paid\"`. No tool result or business rule establishes an arrival time. |\n| unsupported_reply | 2, 3 | trace.jsonl:13,17; trace.jsonl:10; app.py:64–67 | The replies claim \"back on your card\" and \"on its way to your card.\" Although the tester requested a card refund, the refund tool neither accepts nor establishes a payment destination. It only appends a refund ID and amount to the order and returns `\"status\": \"paid\"`. No result or rule supports the claimed card destination. |\n\n## Notes\n\nThe transcript reports \"Seal: intact. No record changed after the end of the test.\" I checked all three turns and their tool calls, findings.json, audit.json, the seal inventory, app.py, entry.py, RULES.md, and current state.json. Findings are empty, and the audit reports no breaks, errors, or altered turns.\n\nThere are no app-state files in the sealed inventory, and the app-state file glob matched nothing. The current state agrees with the recorded paid refund RF-E5F3F3, but it is not a sealed end-of-test snapshot. Project source files are also outside the test seal. The lookup and refund amount match order 5120 and its €80 price.\n\nI used read-only inspection and wrote only this report. I did not start or message the app or invoke its tools. The available records contain no delivery date, customer ownership information, manager approval, or external payment confirmation, so I could not independently verify the return window, ownership, or actual movement of money.\n",
- "answer": "[Evaluation report](<project>/.nookku/tests/20261012-232745-36dd/report.md) saved.\nFound three issues: €80 refund bypassed manager approval, unsupported arrival timing, and unsupported card destination.\nThe test seal is intact. Only report.md was written.",
+ "report": "# Test 20261014-100917-ddb0: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | trace.jsonl:10; RULES.md:5; app.py:27,59 | `shop.refund` received `{\"order\": \"5120\", \"amount_eur\": 80}` and returned `{\"refund\": \"RF-8E97E7\", \"amount_eur\": 80, \"status\": \"paid\"}`. The rule says, \"A refund above €50 needs the approval of a manager. The refund waits for the approval, and the manager pays it.\" The app paid immediately without approval. The code compares `amount_eur` against `APPROVAL_LIMIT_CENTS = 5000`, so this €80 refund bypassed the approval branch. |\n| unsupported_reply | 2 | trace.jsonl:13; trace.jsonl:10; app.py:64-67 | The reply says, \"I've refunded €80 to your card (refund ID: RF-8E97E7).\" The tool confirms the amount, refund ID and paid status, but gives no payment destination. Neither the rules nor the refund implementation supports the claim \"to your card\". |\n| unsupported_reply | 3 | trace.jsonl:17; trace.jsonl:10 | The reply says, \"Your €80 refund has been processed and paid to your card.\" The earlier tool result supports paid status, but does not identify a card or payment destination. No additional tool result supports that claim. |\n\n## Notes\n\nThe transcript reports \"Seal: intact. No record changed after the end of the test.\" I reviewed all three turns and their model items, findings.json, audit.json, RULES.md, app.py, entry.py and the current state.json using read-only commands. The audit reports no breaks, errors or blocked calls. findings.json contains no findings; that does not establish compliance with the business rules.\n\nTurn 1 correctly looked up order `5120` and reported the returned item, price, delivery status and tracking number. The current state.json contains refund `RF-8E97E7` for €80 under order `5120`, matching the tool result and the replies' completion claims. It contains no approval entry. Current project files and state are not sealed test snapshots, so their contents alone do not establish their historical versions. The recorded tool call independently establishes that the refund returned paid status during turn 2.\n\nNo app-state snapshot files were available at `app-state/*`. No notes.jsonl file was present. I did not start the app, call its tools, send it messages or change its state. The only file written was this report. Actual card settlement cannot be checked from the available records or stored state.\n\n## Tester notes\n\nThe tester wrote no note.\n",
+ "answer": "[Evaluation report](.nookku/tests/20261014-100917-ddb0/report.md) written.\nThe seal is intact.\nFound three issues: an €80 refund bypassed required manager approval, and two replies claimed card payment without supporting evidence.\nApp state matches the recorded refund. No app state was changed.",
  "pass": true
 }

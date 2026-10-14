@@ -9,10 +9,13 @@ sends for the page.
 Security: the server listens only on 127.0.0.1. The page URL holds a random token, and only the
 person gets the URL: `nookku page` prints it to its terminal. The first GET of the page URL gives
 the browser a session cookie and a redirect to SESSION_PATH, a path with no secret. Then the token
-has no use, so the browser history does not hold a URL that works. The page file holds only the
-port and the pid. Each request must have a correct `Host`, and a correct `Origin` if it has one. A
-`POST` must have `Origin`. Each answer has a strict Content Security Policy, and the page loads
-only its own files, and the images, videos and SVGs that a reply names (#347).
+has no use, so the browser history does not hold a URL that works. The redirect also gives the
+page key in the URL fragment. The browser does not send a fragment to a server. The page script
+keeps the key and sends it in the header PAGE_HEADER. Each request of data needs the cookie and
+the key, because a browser sends the cookie also to another port of the host. The page file holds
+only the port and the pid. Each request must have a correct `Host`, and a correct `Origin` if it
+has one. A `POST` must have `Origin`. Each answer has a strict Content Security Policy, and the
+page loads only its own files, and the images, videos and SVGs that a reply names (#347).
 """
 
 from __future__ import annotations
@@ -31,6 +34,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
 from collections.abc import Mapping
 from http.cookies import CookieError, SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -40,14 +44,22 @@ from types import MappingProxyType
 from typing import Any, BinaryIO, TextIO
 from urllib.parse import unquote, urlsplit
 
-from nookku import dashboard, kit, notes, page_trace, replay, script_save, seal, state
-from nookku.record import RecordError, Writer, turns
+from nookku import dashboard, kit, notes, page_trace, replay, script_save, state
+from nookku.record import RecordError, Writer, finite, id_problem, turns
 
 # The harness of a turn that the page sent (SPEC.md section 2.2).
 HARNESS = "pane"
 HOST = "127.0.0.1"
 # The path of the page after the browser got its session cookie. The path holds no secret.
 SESSION_PATH = "/p/s/"
+# The header that holds the page key. Only the script of the page has the key (SPEC.md section 5,
+# "Session").
+PAGE_HEADER = "X-Nookku-Page"
+# The text of a request of data with the session cookie and no correct page key.
+NO_KEY = (
+    "this tab has no key of the chat page. Use the tab that opened the page at the start of the "
+    "test. Keep that tab open, and Open chat gives the key to a new tab"
+)
 USED = (
     "this page URL was used. Open the page in the browser that opened it, or stop nookku page and "
     "start it again"
@@ -84,13 +96,17 @@ FILES = {
     "theme.js": ("theme.js", "text/javascript; charset=utf-8"),
     "keys.css": ("keys.css", "text/css; charset=utf-8"),
     "keys.js": ("keys.js", "text/javascript; charset=utf-8"),
+    # The page key in the memory of the page (SPEC.md section 5, "Session").
+    "key.js": ("key.js", "text/javascript; charset=utf-8"),
     "search.js": ("search.js", "text/javascript; charset=utf-8"),
 }
 # The page loads only its own files. No inline script, no inline style, no script of another site.
 # A reply can name an image, a video or an SVG as an https: URL, a data: URI or a file (#347).
+# The page loads a file of the page server with its page key, and shows it as a blob: URL.
 CSP = (
     "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; "
-    "img-src 'self' data: https:; media-src 'self' data: https:; frame-src 'self' data: https:; "
+    "img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; "
+    "frame-src 'self' data: blob: https:; "
     "base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
 )
 HEADERS = {
@@ -143,15 +159,6 @@ def _manifest(folder: Path) -> dict[str, Any] | None:
     return data if isinstance(data, dict) else None
 
 
-def _closed(folder: Path) -> bool:
-    """True if the test ended, or its end wrote the audit or the seal. Then the record must not
-    change."""
-    if (folder / "audit.json").exists() or (folder / seal.SEAL).exists():
-        return True
-    manifest = _manifest(folder)
-    return manifest is None or manifest.get("ended") is not None
-
-
 def refusal(root: Path, said: str) -> str | None:
     """The reason to refuse a message before the page sends it, or None. The rules of the
     prompt are the rules of the hook (`kit.prompt_refusal`). An exact control prompt runs only
@@ -198,12 +205,12 @@ def _send_locked(root: Path, said: str, test_id: str | None = None) -> dict[str,
     if manifest is None:
         return {"sent": False, "shown": NO_MANIFEST, "ok": False}
     # `nookku end` switches relay mode off before it stops the test.
-    if not kit.is_on(root) or _closed(folder):
+    if not kit.is_on(root) or state.closed(folder):
         return {"sent": False, "shown": RELAY_OFF, "ok": False}
     if manifest.get("script") is not None:
         return {"sent": False, "shown": SCRIPTED, "ok": False}
     shown, ok = kit.checked(*state.send(cur, said))
-    if _closed(folder):
+    if state.closed(folder):
         return {"sent": False, "shown": ENDED.format(shown=shown), "ok": False}
     row = {"type": "turn", "harness": HARNESS, "said": said, "shown": shown, "ok": ok}
     Writer(folder / "relay.jsonl").append(row)
@@ -292,6 +299,13 @@ def _shown_test(root: Path) -> Path | None:
     return Path(cur["dir"]) if cur else state.latest_test(root)
 
 
+def unc(name: str) -> bool:
+    """True if the name starts with 2 slashes or backslashes: on Windows, a network path (UNC) or
+    a device path. On Windows, a check of such a path connects to the host and sends the
+    credentials of the person (NTLM). Thus the page refuses each such name on each system."""
+    return len(name) >= 2 and name[0] in "\\/" and name[1] in "\\/"
+
+
 def allowed_file(root: Path, name: str, shown: Path | None = None) -> Path | None:
     """The real path of a file that a reply names, or None if the page must refuse it.
 
@@ -299,7 +313,7 @@ def allowed_file(root: Path, name: str, shown: Path | None = None) -> Path | Non
     in the project or in the folder of the shown test. A file in the state folder is refused,
     except in the shown test folder, because the state folder holds the tap token. The export
     (#354) gives `shown`, the folder of the test that it exports."""
-    if not name or "\x00" in name:
+    if not name or "\x00" in name or unc(name):
         return None
     path = Path(name)
     if not path.is_absolute():
@@ -462,6 +476,11 @@ class PageServer(ThreadingHTTPServer):
         # The value of the session cookie. It is not the token, so the cookie and the history
         # never hold the same secret.
         self.session = secrets.token_urlsafe(32)
+        # The page key: only the script of the page holds it (SPEC.md section 5, "Session").
+        self.page_key = secrets.token_urlsafe(32)
+        # A random cookie name. A cookie is not for one port, so 2 page servers need 2 names. The
+        # name does not give the port to a server on another port that gets the cookie.
+        self._cookie_name = f"nookku_{secrets.token_hex(8)}"
         self.token_used = False
         self.auth_lock = threading.Lock()
         # One message at a time, so that each message gets the history of the turns before it.
@@ -490,8 +509,7 @@ class PageServer(ThreadingHTTPServer):
 
     @property
     def cookie_name(self) -> str:
-        # A cookie is not for one port, so the name holds the port.
-        return f"nookku_page_{self.server_address[1]}"
+        return self._cookie_name
 
     def set_cookie(self) -> str:
         """The Set-Cookie value of the session. It has no Expires, so the browser does not keep it
@@ -548,7 +566,14 @@ class _Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def _json(self, status: int, data: dict[str, Any]) -> None:
-        body = json.dumps(data, ensure_ascii=False).encode()
+        # A file of a test can hold a number that is not finite, for example NaN in an OTLP
+        # attribute. JSON has no NaN, and the page could not read the answer. Send null for it.
+        clean, _ = finite(data)
+        try:
+            body = json.dumps(clean, ensure_ascii=False, allow_nan=False).encode()
+        except UnicodeEncodeError:
+            # A lone surrogate cannot be UTF-8. JSON can give it as an escape.
+            body = json.dumps(clean, allow_nan=False).encode()
         self._answer(status, body, "application/json; charset=utf-8")
 
     def _refuse(self, status: int, reason: str) -> None:
@@ -580,7 +605,13 @@ class _Handler(BaseHTTPRequestHandler):
                 else:
                     self._refuse(404, "not found")
                 return None
-            return parts.path[len(SESSION_PATH) :]
+            rest = parts.path[len(SESSION_PATH) :]
+            # A file of the page itself holds no data, so it loads with the cookie only. Each
+            # other request needs the page key too.
+            if rest not in FILES and not self._has_key():
+                self._refuse(404, NO_KEY)
+                return None
+            return rest
         token, sep, rest = parts.path[len("/p/") :].partition("/")
         if not hmac.compare_digest(token.encode(), self.server.token.encode()) or not sep:
             self._refuse(404, "not found")
@@ -612,11 +643,20 @@ class _Handler(BaseHTTPRequestHandler):
             got.value.encode(), self.server.session.encode()
         )
 
+    def _has_key(self) -> bool:
+        """True if the request has the page key of this server in PAGE_HEADER."""
+        keys = self.headers.get_all(PAGE_HEADER) or []
+        return len(keys) == 1 and hmac.compare_digest(
+            keys[0].encode(), self.server.page_key.encode()
+        )
+
     def redirect_with_session(self) -> None:
-        """Give the browser the session cookie, and send it to SESSION_PATH."""
+        """Give the browser the session cookie, and send it to SESSION_PATH. The fragment of the
+        Location gives the page key to the script of the page. The browser sends no fragment to a
+        server, and the page removes it from the address bar and the history."""
         self.send_response(303)
         self.send_header("Set-Cookie", self.server.set_cookie())
-        self.send_header("Location", SESSION_PATH)
+        self.send_header("Location", f"{SESSION_PATH}#k={self.server.page_key}")
         self.send_header("Content-Length", "0")
         self.end_headers()
 
@@ -716,6 +756,10 @@ class _Handler(BaseHTTPRequestHandler):
         if test_id is not None and not isinstance(test_id, str):
             self._refuse(400, 'the "test" of the body must be text')
             return
+        found = id_problem(test_id) if test_id is not None else None
+        if found:
+            self._refuse(400, f'the "test" of the body has {found}')
+            return
         with self.server.lock:
             try:
                 answer = send(self.server.root, said, test_id)
@@ -788,6 +832,11 @@ class _Handler(BaseHTTPRequestHandler):
             pass
 
 
+# The wait of a page server for the page lock, if another process holds it. A check of the lock
+# holds it for much less than this time.
+CLAIM_WAIT = 0.2
+
+
 class PageRunning(Exception):
     """Another page server of the project runs."""
 
@@ -803,13 +852,21 @@ def claim_page_file(root: Path, port: int, test: str | None = None) -> tuple[Pat
     folder = state.state(root)
     folder.mkdir(parents=True, exist_ok=True)
     lock = os.open(folder / state.PAGE_LOCK, os.O_RDWR | os.O_CREAT, 0o600)
-    try:
-        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except OSError:
-        os.close(lock)
-        info = state.page_info(root)
-        pid = f" (pid {info.get('pid')})" if info else ""
-        raise PageRunning(f"a page server of this project runs{pid}") from None
+    # A check of the lock (page_auto._held, for example from `nookku status --json`) takes it for
+    # a short time. Try again for CLAIM_WAIT, so that such a check does not stop the start.
+    deadline = time.monotonic() + CLAIM_WAIT
+    while True:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            break
+        except OSError:
+            if time.monotonic() < deadline:
+                time.sleep(0.02)
+                continue
+            os.close(lock)
+            info = state.page_info(root)
+            pid = f" (pid {info.get('pid')})" if info else ""
+            raise PageRunning(f"a page server of this project runs{pid}") from None
     path = folder / state.PAGE_FILE
     try:
         new = folder / f".{state.PAGE_FILE}.{os.getpid()}"

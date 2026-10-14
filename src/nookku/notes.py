@@ -16,7 +16,15 @@ from pathlib import Path
 from typing import Any
 
 from nookku import dashboard, state
-from nookku.record import RecordError, Writer, lone_surrogate, note_problem, read_rows, turns
+from nookku.record import (
+    RecordError,
+    Writer,
+    id_problem,
+    lone_surrogate,
+    note_problem,
+    read_rows,
+    turns,
+)
 
 NOTES = "notes.jsonl"
 # The routes of the page server, after the token.
@@ -44,7 +52,7 @@ def bad_body(data: Any) -> str | None:
     if not isinstance(data.get("test"), str):
         return 'the body needs "test", the id of the test that the page shows'
     # The answer can name the test, and UTF-8 cannot encode a lone surrogate.
-    found = lone_surrogate(data["test"])
+    found = id_problem(data["test"])
     if found:
         return f'"test" has {found}'
     comment = data.get("comment")
@@ -86,10 +94,8 @@ def _add_locked(
     # A turn number names a turn only in one test. The page can show an earlier test.
     if test != folder.name:
         return {"saved": False, "error": OTHER_TEST.format(shown=test, current=folder.name)}
-    # Here, because the page module imports this module. A note uses the closed rule of a send.
-    from nookku import page
-
-    if page._closed(folder):
+    # A note uses the closed rule of a send.
+    if state.closed(folder):
         return {"saved": False, "error": CLOSED}
     try:
         count = len(turns(folder / "relay.jsonl", missing_ok=True))

@@ -300,6 +300,7 @@ def test_the_dashboard_has_no_inline_script_and_no_html_from_text() -> None:
     css = folder.joinpath("dashboard.css").read_text()
     assert re.findall(r"<script[^>]*>", html) == [
         '<script src="theme.js">',
+        '<script src="key.js">',
         '<script src="compare.js" defer>',
         '<script src="dashboard.js" defer>',
         '<script src="search.js" defer>',
@@ -315,7 +316,7 @@ def test_the_dashboard_has_no_inline_script_and_no_html_from_text() -> None:
     assert '"./#" + encodeURIComponent(id)' in js
     # A poll answer for an old filter or an old test does not replace the current view.
     assert "if (url !== apiUrl())" in js
-    assert "if (url === turnsUrl())" in folder.joinpath("app.js").read_text()
+    assert "if (url === turnsUrl() && poll > shownPoll)" in folder.joinpath("app.js").read_text()
 
 
 def post_send(srv: page.PageServer, body: dict[str, Any]) -> tuple[int, dict[str, Any]]:

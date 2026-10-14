@@ -101,7 +101,7 @@ FAIL: tap_unparsed: tap line 1: STDIO stdout: a stray line on stdout: 'toy shop 
 
 `check` proves only the connection: one message goes in, one reply comes out, and the audit is clean. It does not test the replies of your app. The test in step 6 does that.
 
-## 5. Install the relay, and start the viewer
+## 5. Install the relay
 
 The [relay](../reference/glossary.md#relay) carries each message to the tap and each reply back to you. Use one relay. [choose-a-relay.md](choose-a-relay.md) compares the plugin and the project hooks.
 
@@ -132,11 +132,11 @@ Then trust the hooks. Start `codex` in the project once, and accept the hooks pr
 
 ### Plugin in Claude Code
 
-Install the plugin as [claude-code-plugin.md](claude-code-plugin.md#install) says. The plugin shows each reply in the chat, so you do not need the viewer.
+Install the plugin as [claude-code-plugin.md](claude-code-plugin.md#install) says. The plugin shows each reply in the chat and in the Nookku pane.
 
 ### Start the viewer
 
-With the project hooks, open a second terminal in the project folder, and start the viewer:
+This step is optional. In step 6, `nookku start` opens the [chat page](../reference/cli.md#nookku-page) of the test in your browser, and the page shows each turn. To see the turns in a terminal too, open a second terminal in the project folder, and start the viewer:
 
 ```bash
 nookku view
@@ -152,19 +152,19 @@ Hello from nookku check. What can you help me with?
 Which item is this about: the mug or the teapot?
 ```
 
-This is correct. Keep the viewer open. When your test starts, the viewer follows to it. It shows a header line with the new test id, then each turn.
+This is correct. When your test starts, the viewer follows to it. It shows a header line with the new test id, then each turn.
 
 ## 6. Run the test
 
-In the harness, type the prompt `nookku start`. With the plugin, you can also type `/nookku start`. The relay starts the test and switches [relay mode](../reference/glossary.md#relay-mode) on. The model does not receive the prompt. The project hooks in Claude Code show:
+In the harness, type the prompt `nookku start`. With the plugin, you can also type `/nookku start`. The relay starts the test and switches [relay mode](../reference/glossary.md#relay-mode) on. The model does not receive the prompt. The start also opens the chat page of the test in your browser. The project hooks in Claude Code show:
 
 ```text
 nookku: test 20261011-185047-267f started. Relay mode is on: each message goes to the entry. To end the test and start the evaluation, type the prompt nookku end. To end the test with no evaluation, run nookku end in a shell.
 ```
 
-Type your test messages, one at a time. The model does not run. For each message, Claude Code shows the reply of your app as the reason of a blocked prompt, byte for byte. The model does not get this text.
+Type your test messages, one at a time, in the harness or on the chat page. The model does not run. For each message, Claude Code shows the reply of your app as the reason of a blocked prompt, byte for byte. The model does not get this text.
 
-The viewer also shows each turn. For 3 messages to the toy shop:
+The chat page shows each turn. If you started the viewer, it also shows each turn. For 3 messages to the toy shop, the viewer shows:
 
 ```text
 ════ test 20261011-185047-267f ════
