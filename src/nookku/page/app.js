@@ -111,6 +111,8 @@ async function send() {
   }
   sending = true;
   el("send").disabled = true;
+  // The box now shows the result of this send, so a later poll must not remove it.
+  pollError = null;
   showError("");
   const pending = block("tester pending", "tester (sending)", said);
   el("turns").append(pending);
@@ -121,6 +123,8 @@ async function send() {
       body: JSON.stringify({ said: said }),
     });
     const data = await resp.json();
+    // A poll can fail while the send waits. The result of the send replaces its error.
+    pollError = null;
     if (data.sent) {
       box.value = "";
     } else {

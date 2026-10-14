@@ -323,44 +323,53 @@ class PageRunning(Exception):
     """Another page server of the project runs."""
 
 
-def claim_page_file(root: Path, port: int) -> Path:
+def claim_page_file(root: Path, port: int) -> tuple[Path, int]:
     """Write the page file: the port and the pid of this server, with no token (SPEC.md section
-    5). Take over the file of a page server that does not run. Raise PageRunning if one runs."""
+    5). Return its path and the descriptor of the page lock. The server holds the lock for its
+    whole life, so a second server cannot take it. Raise PageRunning if another server holds it.
+    A page file with no holder of the lock is stale, and this server takes it over."""
+    import fcntl
+
     folder = state.state(root)
     folder.mkdir(parents=True, exist_ok=True)
-    path = folder / state.PAGE_FILE
-    info = state.page_info(root)
-    if info is not None and _alive(info):
-        raise PageRunning(f"a page server of this project runs (pid {info['pid']})")
-    path.unlink(missing_ok=True)
-    data = {"port": port, "pid": os.getpid(), "pid_start": state.process_start(os.getpid())}
+    lock = os.open(folder / state.PAGE_LOCK, os.O_RDWR | os.O_CREAT, 0o600)
     try:
-        # O_EXCL: of 2 servers that start at the same time, only one gets the file.
-        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-    except FileExistsError:
-        raise PageRunning("another page server of this project starts now") from None
-    with os.fdopen(fd, "w") as f:
-        f.write(json.dumps(data) + "\n")
-    return path
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        os.close(lock)
+        info = state.page_info(root)
+        pid = f" (pid {info.get('pid')})" if info else ""
+        raise PageRunning(f"a page server of this project runs{pid}") from None
+    path = folder / state.PAGE_FILE
+    try:
+        new = folder / f".{state.PAGE_FILE}.{os.getpid()}"
+        fd = os.open(new, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w") as f:
+            f.write(json.dumps({"port": port, "pid": os.getpid()}) + "\n")
+        os.replace(new, path)
+    except BaseException:
+        os.close(lock)
+        raise
+    return path, lock
 
 
-def _alive(info: dict[str, Any]) -> bool:
-    """True if the process of the page file runs and has its start time."""
-    pid, start = info.get("pid"), info.get("pid_start")
-    if type(pid) is not int or pid <= 0 or not state.alive(pid):
-        return False
-    return start is None or state.process_start(pid) == start
-
-
-def _owns(root: Path) -> bool:
-    info = state.page_info(root)
-    return info is not None and info.get("pid") == os.getpid()
+HARNESS_SHELL = ("CLAUDECODE", "CODEX_THREAD_ID", "CODEX_SANDBOX", "CODEX_SANDBOX_NETWORK_DISABLED")
+IN_HARNESS = (
+    "nookku: nookku page runs in a shell of a coding harness ({name} is set). The harness can "
+    "show the output to the model, and the page URL gives the model the right to send as you. "
+    "Run nookku page in a separate terminal, not with ! in the harness. Nothing was started."
+)
 
 
 def serve(root: Path, port: int = 0, out: TextIO | None = None) -> int:
     """Run the page server until it gets a signal. Print the page URL only to this terminal.
     Never print the tap token."""
     out = out or sys.stdout
+    # The URL must never go into a text that the model sees (SPEC.md section 5, "The page URL").
+    shell = next((name for name in HARNESS_SHELL if os.environ.get(name)), None)
+    if shell is not None:
+        print(IN_HARNESS.format(name=shell), file=sys.stderr)
+        return 1
     if not 0 <= port <= 65535:
         print(f"nookku: the port {port} is not valid. Use 0 to 65535.", file=sys.stderr)
         return 1
@@ -371,7 +380,7 @@ def serve(root: Path, port: int = 0, out: TextIO | None = None) -> int:
         print(f"nookku: cannot start the page on {HOST}:{port}: {reason}", file=sys.stderr)
         return 1
     try:
-        claim_page_file(root, server.server_address[1])
+        path, lock = claim_page_file(root, server.server_address[1])
     except (PageRunning, OSError) as e:
         server.server_close()
         print(f"nookku: cannot start the page: {e}. Stop that server first.", file=sys.stderr)
@@ -391,6 +400,7 @@ def serve(root: Path, port: int = 0, out: TextIO | None = None) -> int:
         for sig in (signal.SIGTERM, signal.SIGHUP, signal.SIGINT):
             signal.signal(sig, signal.SIG_IGN)
         server.server_close()
-        if _owns(root):
-            (state.state(root) / state.PAGE_FILE).unlink(missing_ok=True)
+        # This server holds the page lock, so the page file is its own file.
+        path.unlink(missing_ok=True)
+        os.close(lock)
     return 0

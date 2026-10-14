@@ -21,7 +21,7 @@ from typing import Any
 
 import pytest
 
-from nookku import bridge, kit, page, state
+from nookku import bridge, kit, page, seal, state
 from nookku.audit import audit
 from nookku.record import Turn, read_relay
 from nookku.stdio import Agent, StdioTap, start_in_thread
@@ -89,6 +89,13 @@ def make_folder(root: Path) -> Path:
     folder.mkdir(parents=True)
     (folder / "manifest.json").write_text(json.dumps({"started": 1_800_000_000.0, "ended": None}))
     return folder
+
+
+@pytest.fixture(autouse=True)
+def no_harness_shell(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The tests can run in a harness shell, but nookku page refuses to start in one."""
+    for name in page.HARNESS_SHELL:
+        monkeypatch.delenv(name, raising=False)
 
 
 @pytest.fixture
@@ -337,12 +344,12 @@ def test_the_guard_denies_a_model_call_to_the_page(tmp_path: Path) -> None:
     server = page.PageServer(tmp_path)
     try:
         port = server.server_address[1]
-        path = page.claim_page_file(tmp_path, port)
+        path, lock = page.claim_page_file(tmp_path, port)
         assert stat.S_IMODE(path.stat().st_mode) == 0o600
         assert state.page_port(tmp_path) == port
         # A model tool call can read the page file, so it never holds the page token.
         assert server.token not in path.read_text()
-        assert set(json.loads(path.read_text())) == {"port", "pid", "pid_start"}
+        assert set(json.loads(path.read_text())) == {"port", "pid"}
         for command in (
             f'curl -X POST {server.url}api/send -d \'{{"said": "hi"}}\'',
             f"curl http://localhost:{port}/",
@@ -374,6 +381,7 @@ def test_the_guard_denies_a_model_call_to_the_page(tmp_path: Path) -> None:
             "tool_input": {"command": f"curl http://127.0.0.1:{port + 1}/"},
         }
         assert kit.handle(other, tmp_path, "claude-code") is None
+        os.close(lock)
     finally:
         server.server_close()
 
@@ -542,22 +550,67 @@ def test_a_second_page_server_is_refused_and_a_stale_file_is_taken_over(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     (tmp_path / ".nookku").mkdir()
-    path = page.claim_page_file(tmp_path, 1234)
+    path, lock = page.claim_page_file(tmp_path, 1234)
     with pytest.raises(page.PageRunning):
         page.claim_page_file(tmp_path, 5678)
     assert page.serve(tmp_path, 0) == 1
     assert "a page server of this project runs" in capsys.readouterr().err
     assert state.page_port(tmp_path) == 1234
+    # A server that stopped with no cleanup leaves its file, but no process holds the lock.
+    os.close(lock)
+    path, lock = page.claim_page_file(tmp_path, 5678)
+    assert json.loads(path.read_text()) == {"port": 5678, "pid": os.getpid()}
+    os.close(lock)
+
+
+def test_of_2_servers_that_start_at_the_same_time_one_runs(tmp_path: Path) -> None:
+    (tmp_path / ".nookku").mkdir()
+    procs = [
+        subprocess.Popen(
+            [sys.executable, "-m", "nookku", "page", "--root", str(tmp_path)],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        for _ in range(2)
+    ]
+    try:
+        deadline = time.monotonic() + 30
+        while sum(p.poll() is not None for p in procs) < 1 and time.monotonic() < deadline:
+            time.sleep(0.05)
+        done = [p for p in procs if p.poll() is not None]
+        assert len(done) == 1 and done[0].returncode == 1
+        running = next(p for p in procs if p.poll() is None)
+        assert state.page_info(tmp_path) == {
+            "port": state.page_port(tmp_path),
+            "pid": running.pid,
+        }
+    finally:
+        for p in procs:
+            if p.poll() is None:
+                p.send_signal(signal.SIGTERM)
+            p.communicate(timeout=10)
+    assert not (tmp_path / ".nookku" / state.PAGE_FILE).exists()
+
+
+@pytest.mark.parametrize(
+    "name", ["CLAUDECODE", "CODEX_THREAD_ID", "CODEX_SANDBOX", "CODEX_SANDBOX_NETWORK_DISABLED"]
+)
+def test_the_page_refuses_to_start_in_a_harness_shell(tmp_path: Path, name: str) -> None:
+    (tmp_path / ".nookku").mkdir()
     done = subprocess.run(
-        [sys.executable, "-c", "import os; print(os.getpid())"],
-        check=True,
+        [sys.executable, "-m", "nookku", "page", "--root", str(tmp_path)],
         capture_output=True,
         text=True,
+        timeout=30,
+        check=False,
+        env={**os.environ, name: "1"},
     )
-    path.write_text(json.dumps({"port": 1234, "pid": int(done.stdout), "pid_start": "ps:old"}))
-    page.claim_page_file(tmp_path, 5678)
-    assert json.loads(path.read_text())["pid"] == os.getpid()
-    assert state.page_port(tmp_path) == 5678
+    assert done.returncode == 1
+    assert done.stdout == ""
+    assert "/p/" not in done.stderr and "http" not in done.stderr
+    assert f"({name} is set)" in done.stderr and "separate terminal" in done.stderr
+    assert not (tmp_path / ".nookku" / state.PAGE_FILE).exists()
 
 
 @pytest.mark.parametrize("port", ["-1", "65536", "99999999999999999999"])
@@ -633,14 +686,72 @@ def test_the_end_waits_for_a_send_in_progress(live: Any, monkeypatch: pytest.Mon
     assert [(t.harness, t.said, t.ok) for t in turns] == [("pane", "Hi", True)]
 
 
-def test_the_guard_denies_a_model_write_to_the_send_lock(tmp_path: Path) -> None:
+@pytest.mark.parametrize("name", ["send.lock", "page.lock"])
+def test_the_guard_denies_a_model_write_to_a_lock(tmp_path: Path, name: str) -> None:
     (tmp_path / ".nookku").mkdir()
     event = {
         "hook_event_name": "PreToolUse",
         "tool_name": "Bash",
-        "tool_input": {"command": "flock .nookku/send.lock sleep 600"},
+        "tool_input": {"command": f"flock .nookku/{name} sleep 600"},
         "cwd": str(tmp_path),
     }
     answer = kit.handle(event, tmp_path, "claude-code")
     assert answer is not None
     assert answer["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+
+# A toy shop entry that needs 4 s for each reply.
+SLOW_ENTRY = """
+import json, sys, time
+for raw in sys.stdin.buffer:
+    request = json.loads(raw)
+    time.sleep(4)
+    out = {"v": 1, "id": request["id"], "reply": "Toy shop: " + request["message"]}
+    sys.stdout.write(json.dumps(out) + "\\n")
+    sys.stdout.flush()
+"""
+
+
+def test_a_page_send_slower_than_the_end_wait_keeps_the_seal_true(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(tmp_path / "claude-home"))
+    monkeypatch.setenv("CODEX_HOME", str(tmp_path / "codex-home"))
+    root = tmp_path / "shop"
+    (root / ".nookku").mkdir(parents=True)
+    conf = {"entry": [sys.executable, "-c", SLOW_ENTRY], "models": []}
+    (root / ".nookku" / "config.json").write_text(json.dumps(conf))
+    cur = bridge.start(root)
+    folder = Path(cur["dir"])
+    kit.set_mode(root, True)
+    done: list[float] = []
+    real = state.send
+
+    def slow_send(cur: dict[str, Any], said: str) -> tuple[str, bool]:
+        # The end kills the bridge during this send, so the send fails. The page then needs 2 s
+        # more before it writes the turn.
+        out = real(cur, said)
+        time.sleep(2)
+        done.append(time.time())
+        return out
+
+    monkeypatch.setattr(state, "send", slow_send)
+    server = start_page(root)
+    answers: list[dict[str, Any]] = []
+    try:
+        sender = threading.Thread(target=lambda: answers.append(send(server, "Hi")))
+        sender.start()
+        time.sleep(0.5)
+        # The end waits 1 s for the bridge. The bridge waits for the page send, so the end
+        # kills the bridge and finishes the folder itself.
+        manifest = bridge.end(root, wait=1.0)
+        sender.join(timeout=30)
+    finally:
+        server.shutdown()
+        server.server_close()
+    assert manifest is not None and manifest["killed"] is True
+    assert len(done) == 1 and manifest["ended"] >= done[0]
+    assert answers and answers[0]["ok"] is False
+    turns = [r for r in read_relay(folder / "relay.jsonl") if isinstance(r, Turn)]
+    assert [(t.harness, t.said, t.ok) for t in turns] == [("pane", "Hi", False)]
+    assert seal.verify(folder)["intact"]

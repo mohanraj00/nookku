@@ -72,7 +72,7 @@ from proof_common import (  # noqa: E402
     rows,
 )
 
-from nookku import __version__, bridge, kit  # noqa: E402
+from nookku import __version__, bridge, kit, page  # noqa: E402
 from nookku.audit import audit  # noqa: E402
 from nookku.record import Turn, read_relay  # noqa: E402
 
@@ -359,6 +359,9 @@ def main_page(out: Path) -> int:
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
+        # The proof is the person here. It can run in a harness shell, where nookku page refuses
+        # to start. The URL goes only to this script.
+        env={k: v for k, v in os.environ.items() if k not in page.HARNESS_SHELL},
     )
     assert server.stdout is not None
     first = server.stdout.readline()

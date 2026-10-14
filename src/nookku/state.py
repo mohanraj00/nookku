@@ -45,6 +45,9 @@ def page_info(root: Path) -> dict[str, Any] | None:
     return data
 
 
+# The page lock in the state folder. The chat page server holds it for its whole life, so that
+# only one page server runs for each project.
+PAGE_LOCK = "page.lock"
 # The send lock in the state folder. A page send holds it from its checks to its turn row, and
 # the end of a test holds it from the tap shutdown to the seal (SPEC.md section 5, "Chat page").
 SEND_LOCK = "send.lock"

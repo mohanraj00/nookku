@@ -329,10 +329,15 @@ def finish_stopped(folder: Path) -> dict[str, Any]:
         )
         log(warning)
         print(f"nookku: {warning}", file=sys.stderr)
-    manifest.update(ended=time.time(), killed=True)
-    _write_json(path, manifest)
-
-    _collect(folder, script.copy_in(folder), log)
+    # Wait for a send of the chat page, and keep each later send out until the seal (SPEC.md 5).
+    # The test folder is <root>/.nookku/tests/<test>.
+    sends = lock_sends(folder.parents[2])
+    try:
+        manifest.update(ended=time.time(), killed=True)
+        _write_json(path, manifest)
+        _collect(folder, script.copy_in(folder), log)
+    finally:
+        os.close(sends)
     return manifest
 
 
