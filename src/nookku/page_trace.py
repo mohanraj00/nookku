@@ -23,12 +23,23 @@ from nookku.record import Exchange, RecordError, read_rows, turns
 
 ROUTE = "api/trace"
 TRACE = "trace.jsonl"
-# The files that change the answer. The cache keeps one answer for each test folder while these
+# The files that change the answer. The cache keeps the answer of a test folder while these
 # files do not change.
-SOURCES = ("relay.jsonl", "tap.jsonl", TRACE, otlp.FILE, backend.FILE, model_api.FILE)
+SOURCES = (
+    "manifest.json",
+    "relay.jsonl",
+    "tap.jsonl",
+    TRACE,
+    otlp.FILE,
+    backend.FILE,
+    model_api.FILE,
+)
 # The fields of a trace row that the page does not show.
 HIDDEN = frozenset({"v", "type", "turn", trace.CALL_ID})
 
+# The cache keeps the answers of the last few test folders only, so a page server that shows many
+# tests does not keep all of their rows.
+CACHE_SIZE = 4
 _cache: dict[Path, tuple[Any, dict[str, Any]]] = {}
 _lock = threading.Lock()
 
@@ -44,12 +55,12 @@ def _signature(folder: Path, running: bool) -> Any:
     return tuple(out)
 
 
-def items(folder: Path, spans: list[tuple[float, float]], running: bool) -> list[dict[str, Any]]:
-    """The trace rows of a test, each with its turn. For a test that ended, the rows come from
-    trace.jsonl if it exists. Else they come from the live sources, with the turn rule of SPEC.md
-    section 8.3. A running test always uses the live sources, because `nookku trace` during the
-    test writes a trace.jsonl that does not change after that."""
-    if not running and (folder / TRACE).exists():
+def items(folder: Path, spans: list[tuple[float, float]], ended: bool) -> list[dict[str, Any]]:
+    """The trace rows of a test, each with its turn. For a test whose manifest has `ended`, the
+    rows come from trace.jsonl if it exists. Else they come from the live sources, with the turn
+    rule of SPEC.md section 8.3. A test that runs, or that stopped with no end, uses the live
+    sources, because `nookku trace` before the end writes a trace.jsonl that does not change."""
+    if ended and (folder / TRACE).exists():
         # The reader of the evaluation: it splits on \n only and stops at a bad line.
         return evaluation._items(folder / TRACE)
     found: list[dict[str, Any]] = []
@@ -79,7 +90,8 @@ def steps(folder: Path, running: bool) -> dict[str, Any]:
     rows = [r for _, r in lines]
     exchanges = [Exchange(n, r["input"], r["status"], r["reply"]) for n, r in lines]
     spans = trace.windows(rows)
-    found = items(folder, spans, running)
+    ended = (state.manifest_of(folder) or {}).get("ended") is not None
+    found = items(folder, spans, ended)
     by_turn: dict[int, list[dict[str, Any]]] = {}
     for row in found:
         if isinstance(row.get("turn"), int):
@@ -139,5 +151,8 @@ def answer(root: Path, rest: str) -> tuple[int, dict[str, Any]]:
     except (RecordError, OSError, UnicodeDecodeError) as e:
         return 200, {"test": folder.name, "turns": [], "pending": [], "error": f"nookku: {e}"}
     with _lock:
+        _cache.pop(folder, None)
         _cache[folder] = (sign, data)
+        while len(_cache) > CACHE_SIZE:
+            del _cache[next(iter(_cache))]
     return 200, data

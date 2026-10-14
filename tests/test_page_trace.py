@@ -40,6 +40,13 @@ def toy_shop(root: Path) -> Path:
     return folder
 
 
+def end(folder: Path) -> None:
+    """Write `ended` into the manifest, as the end of a test does."""
+    manifest = json.loads((folder / "manifest.json").read_text())
+    manifest["ended"] = 1791273650.0
+    (folder / "manifest.json").write_text(json.dumps(manifest))
+
+
 def expected(turn: int) -> list[tuple[str, str | None, Any]]:
     """The steps of a turn in the expected traces of the 2 conformance cases."""
     rows = []
@@ -75,6 +82,7 @@ def test_after_the_end_the_steps_come_from_trace_jsonl(tmp_path: Path) -> None:
     folder = toy_shop(tmp_path)
     live = page_trace.steps(folder, running=False)
     trace.build(folder)
+    end(folder)
     (folder / "backend.jsonl").unlink()
     (folder / "model_api.jsonl").unlink()
     ended = page_trace.steps(folder, running=False)
@@ -84,6 +92,7 @@ def test_after_the_end_the_steps_come_from_trace_jsonl(tmp_path: Path) -> None:
 def test_a_text_with_u2028_in_trace_jsonl_keeps_its_step(tmp_path: Path) -> None:
     folder = toy_shop(tmp_path)
     trace.build(folder)
+    end(folder)
     lines = (folder / "trace.jsonl").read_text(encoding="utf-8").split("\n")
     row = json.loads(lines[0])
     row["output"] = "line one\u2028line two"
@@ -94,18 +103,29 @@ def test_a_text_with_u2028_in_trace_jsonl_keeps_its_step(tmp_path: Path) -> None
     assert "line one\u2028line two" in outputs
 
 
-def test_a_running_test_reads_the_live_rows_and_not_trace_jsonl(tmp_path: Path) -> None:
+def test_a_test_with_no_end_reads_the_live_rows_and_not_trace_jsonl(tmp_path: Path) -> None:
     folder = toy_shop(tmp_path)
-    # `nookku trace` during the test writes a trace.jsonl that does not change after that.
+    # `nookku trace` before the end writes a trace.jsonl that does not change after that.
     trace.build(folder)
     row = json.loads((folder / "backend.jsonl").read_text().splitlines()[0])
     row |= {"started": 1791273615.0, "ts": 1791273615.5, "path": "/new"}
     with (folder / "backend.jsonl").open("a") as f:
         f.write(json.dumps(row) + "\n")
-    names = [s["name"] for s in page_trace.steps(folder, running=True)["turns"][1]["steps"]]
-    assert "GET /new" in names
-    names = [s["name"] for s in page_trace.steps(folder, running=False)["turns"][1]["steps"]]
-    assert "GET /new" not in names
+    # A running test, and a test whose bridge stopped with no end, use the live rows.
+    for running in (True, False):
+        found = page_trace.steps(folder, running=running)["turns"][1]["steps"]
+        assert "GET /new" in [s["name"] for s in found]
+    end(folder)
+    found = page_trace.steps(folder, running=False)["turns"][1]["steps"]
+    assert "GET /new" not in [s["name"] for s in found]
+
+
+def test_the_cache_keeps_the_answers_of_a_few_tests_only(tmp_path: Path) -> None:
+    for n in range(page_trace.CACHE_SIZE + 3):
+        root = tmp_path / str(n)
+        toy_shop(root)
+        assert page_trace.answer(root, "api/trace")[0] == 200
+    assert len(page_trace._cache) <= page_trace.CACHE_SIZE
 
 
 def test_a_running_test_shows_the_steps_that_wait_for_a_reply(tmp_path: Path) -> None:

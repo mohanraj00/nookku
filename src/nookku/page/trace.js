@@ -177,6 +177,10 @@ const NookkuTrace = (function () {
     try {
       const resp = await fetch(url, { cache: "no-store" });
       const data = await resp.json();
+      // The shown test can change during the request. Then a later request shows the new test.
+      if ((document.getElementById("test").dataset.id || "") !== id) {
+        return;
+      }
       showError(data.error);
       answer = data.error ? null : data;
     } catch (e) {
