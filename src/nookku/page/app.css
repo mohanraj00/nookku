@@ -1,14 +1,4 @@
-:root {
-  --bg: #ffffff;
-  --fg: #1d1d1f;
-  --muted: #5f6368;
-  --tester: #e8f0fe;
-  --agent: #f1f3f4;
-  --error-bg: #fce8e6;
-  --error-fg: #a50e0e;
-  --line: #dadce0;
-  --accent: #1a73e8;
-}
+/* The colors are the variables of theme.css (#355). */
 
 * {
   box-sizing: border-box;
@@ -143,7 +133,7 @@ button {
   border: 0;
   border-radius: 8px;
   background: var(--accent);
-  color: #ffffff;
+  color: var(--on-accent);
   cursor: pointer;
 }
 

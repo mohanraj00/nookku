@@ -5,10 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="no-referrer">
 <title>Nookku tests</title>
+<script src="theme.js"></script>
 <link rel="stylesheet" href="app.css">
 <link rel="stylesheet" href="dashboard.css">
 <script src="compare.js" defer></script>
 <script src="dashboard.js" defer></script>
+<script src="search.js" defer></script>
+<script src="keys.js" defer></script>
+<link rel="stylesheet" href="keys.css">
+<link rel="stylesheet" href="theme.css">
 </head>
 <body>
 <header>
@@ -39,6 +44,10 @@
         <option value="oldest">Oldest first</option>
       </select>
     </label>
+    <label>Search
+      <input id="search" type="search" autocomplete="off" aria-describedby="search-result">
+    </label>
+    <span id="search-result" class="note" role="status"></span>
   </form>
   <p id="error" role="alert" hidden></p>
   <p id="count" class="note"></p>

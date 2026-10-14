@@ -231,7 +231,11 @@ def test_the_page_serves_the_diff_with_the_checks_of_the_page(server: page.PageS
 
 def test_the_diff_page_has_no_inline_script_and_no_html_from_text() -> None:
     html = page.page_file("diff.html").decode()
-    assert re.findall(r"<script[^>]*>", html) == ['<script src="diff.js" defer>']
+    assert re.findall(r"<script[^>]*>", html) == [
+        '<script src="theme.js">',
+        '<script src="diff.js" defer>',
+        '<script src="keys.js" defer>',
+    ]
     assert not re.search(r"\son\w+=", html) and "style=" not in html
     for name in ("diff.html", "diff.js", "diff.css", "compare.js"):
         text = page.page_file(name).decode()

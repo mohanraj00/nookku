@@ -61,6 +61,12 @@ FILES = {
     "diff.html": ("diff.html", "text/html; charset=utf-8"),
     "diff.js": ("diff.js", "text/javascript; charset=utf-8"),
     "diff.css": ("diff.css", "text/css; charset=utf-8"),
+    # The themes and the keyboard shortcuts of the pages (#355).
+    "theme.css": ("theme.css", "text/css; charset=utf-8"),
+    "theme.js": ("theme.js", "text/javascript; charset=utf-8"),
+    "keys.css": ("keys.css", "text/css; charset=utf-8"),
+    "keys.js": ("keys.js", "text/javascript; charset=utf-8"),
+    "search.js": ("search.js", "text/javascript; charset=utf-8"),
 }
 # The page loads only its own files. No inline script, no inline style, no script of another site.
 # A reply can name an image, a video or an SVG as an https: URL, a data: URI or a file (#347).

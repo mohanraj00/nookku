@@ -129,6 +129,11 @@ async function refresh() {
   }
 }
 
+// keys.js keeps the last message that the page did not send, for the Up key (#355).
+function tellSend(said, sent) {
+  document.dispatchEvent(new CustomEvent("nookku:send", { detail: { said: said, sent: sent } }));
+}
+
 async function send() {
   const box = el("said");
   const said = box.value;
@@ -152,12 +157,14 @@ async function send() {
     const data = await resp.json();
     // A poll can fail while the send waits. The result of the send replaces its error.
     pollError = null;
+    tellSend(said, Boolean(data.sent));
     if (data.sent) {
       box.value = "";
     } else {
       showError(data.shown || data.error || "nookku: nothing was sent.");
     }
   } catch (e) {
+    tellSend(said, false);
     showError("nookku: the page server does not answer. Nothing was sent.");
   } finally {
     pending.remove();

@@ -234,7 +234,11 @@ def test_the_page_has_no_inline_script_no_cdn_and_no_html_from_text() -> None:
     js = "".join(folder.joinpath(name).read_text() for name in scripts)
     styles = ["app.css", "render.css", "notes.css", "trace.css"]
     css = "".join(folder.joinpath(name).read_text() for name in styles)
-    assert re.findall(r"<script[^>]*>", html) == [f'<script src="{s}" defer>' for s in scripts]
+    # theme.js runs before the first paint, without defer (#355).
+    tags = re.findall(r"<script[^>]*>", html)
+    assert tags == ['<script src="theme.js">'] + [
+        f'<script src="{s}" defer>' for s in [*scripts, "keys.js"]
+    ]
     assert all(name in page.FILES for name in [*scripts, *styles])
     assert not re.search(r"\son\w+=", html)
     assert "style=" not in html
