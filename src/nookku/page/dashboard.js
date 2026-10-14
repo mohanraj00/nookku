@@ -43,6 +43,8 @@ function open(id) {
 function testRow(test) {
   const tr = document.createElement("tr");
   tr.tabIndex = 0;
+  // keys.js finds the row of the same test again after a poll (#355).
+  tr.dataset.id = test.id;
   tr.title = "Open the chat page of this test";
   const name = cell(test.id);
   for (const text of test.errors) {
