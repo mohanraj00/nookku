@@ -23,15 +23,17 @@ import re
 import secrets
 import shutil
 import signal
+import stat
 import subprocess
 import sys
+import tempfile
 import threading
 from collections.abc import Mapping
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any, TextIO
+from typing import Any, BinaryIO, TextIO
 from urllib.parse import unquote, urlsplit
 
 from nookku import kit, seal, state
@@ -265,6 +267,37 @@ def allowed_file(root: Path, name: str) -> Path | None:
     return None
 
 
+def open_checked(root: Path, name: str) -> tuple[int, Path] | None:
+    """Open a file that a reply names, and check the open file, not only its path. Return the
+    descriptor and the real path, or None.
+
+    A process of the test can change a path after a check, for example to a symlink to a file
+    outside the project. Thus the server opens the file first, with no symlink at the last part
+    of the path. Then it checks the path again, and the open file must be the file at the
+    checked path (the same device and inode)."""
+    path = allowed_file(root, name)
+    if path is None:
+        return None
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
+    try:
+        fd = os.open(path, flags)
+    except OSError:
+        return None
+    try:
+        opened = os.fstat(fd)
+        again = allowed_file(root, name)
+        if (
+            stat.S_ISREG(opened.st_mode)
+            and again is not None
+            and os.path.samestat(opened, os.stat(again))
+        ):
+            return fd, again
+    except OSError:
+        pass
+    os.close(fd)
+    return None
+
+
 def byte_range(header: str | None, size: int) -> tuple[int, int] | None:
     """The first and the last byte of a `Range: bytes=a-b` header. None if there is no header or
     if the server ignores it (for example more than one range). Raise ValueError if the range is
@@ -313,14 +346,21 @@ def open_answer(root: Path, data: Any) -> tuple[int, dict[str, Any]]:
     name = data.get("path") if isinstance(data, dict) else None
     if not isinstance(name, str):
         return 400, {"opened": False, "error": 'nookku page: the body needs the text "path"'}
-    path = allowed_file(root, name)
-    if path is None:
+    found = open_checked(root, name)
+    if found is None:
         return 403, {"opened": False, "error": OPEN_REFUSED}
-    if path.suffix.lower() not in OPEN_TYPES:
-        suffix = path.suffix or "(no extension)"
-        return 403, {"opened": False, "error": OPEN_TYPE_REFUSED.format(suffix=suffix)}
+    fd, path = found
+    with os.fdopen(fd, "rb") as src:
+        if path.suffix.lower() not in OPEN_TYPES:
+            suffix = path.suffix or "(no extension)"
+            return 403, {"opened": False, "error": OPEN_TYPE_REFUSED.format(suffix=suffix)}
+        # The system app gets a copy of the checked file, in a new private folder, so that a
+        # change of the path after the check cannot give it another file.
+        copy = Path(tempfile.mkdtemp(prefix="nookku-open-")) / path.name
+        with copy.open("xb") as dst:
+            shutil.copyfileobj(src, dst)
     try:
-        error = launch(path)
+        error = launch(copy)
     except OSError as e:
         error = f"nookku: the system app did not start: {e}. Nothing was opened."
     if error is not None:
@@ -487,16 +527,18 @@ class _Handler(BaseHTTPRequestHandler):
     def _file(self, name: str) -> None:
         """Send an image, a video or an SVG of the project or the test folder (#347). Accept one
         byte range, because a browser asks for a range of a video."""
-        path = allowed_file(self.server.root, name)
-        kind = MEDIA.get(path.suffix.lower()) if path is not None else None
-        if path is None or kind is None:
+        found = open_checked(self.server.root, name)
+        kind = MEDIA.get(found[1].suffix.lower()) if found is not None else None
+        if found is None or kind is None:
+            if found is not None:
+                os.close(found[0])
             self._refuse(404, FILE_REFUSED)
             return
-        try:
-            size = path.stat().st_size
-        except OSError:
-            self._refuse(404, FILE_REFUSED)
-            return
+        with os.fdopen(found[0], "rb") as f:
+            self._send_file(f, kind)
+
+    def _send_file(self, f: BinaryIO, kind: str) -> None:
+        size = os.fstat(f.fileno()).st_size
         try:
             span = byte_range(self.headers.get("Range"), size)
         except ValueError:
@@ -513,15 +555,14 @@ class _Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
         self.end_headers()
         try:
-            with path.open("rb") as f:
-                f.seek(start)
-                left = end - start + 1
-                while left > 0:
-                    chunk = f.read(min(left, 1 << 16))
-                    if not chunk:
-                        break
-                    self.wfile.write(chunk)
-                    left -= len(chunk)
+            f.seek(start)
+            left = end - start + 1
+            while left > 0:
+                chunk = f.read(min(left, 1 << 16))
+                if not chunk:
+                    break
+                self.wfile.write(chunk)
+                left -= len(chunk)
         except OSError:
             # The browser closed the connection, for example when it stops a video.
             pass
