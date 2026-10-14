@@ -448,11 +448,34 @@ def test_a_pid_that_changes_owner_after_the_check_gets_no_signal(
 
 
 def test_an_entry_that_exits_at_start_is_reported(tmp_path: Path, homes: tuple) -> None:
-    script = "import sys; print('no toy shop database', file=sys.stderr); sys.exit(1)"
-    root = project(tmp_path, [sys.executable, "-c", script])
+    # A shell starts in milliseconds. A new Python process can need more than START_CHECK on a
+    # busy CI runner, and then the test started with no error (#300).
+    script = "echo 'no toy shop database' >&2; exit 1"
+    root = project(tmp_path, ["/bin/sh", "-c", script])
     with pytest.raises(bridge.BridgeError, match="no toy shop database"):
         bridge.start(root)
     assert bridge.current(root) is None
+
+
+def test_the_start_check_does_not_wait_for_an_entry_that_exits() -> None:
+    proc = subprocess.Popen(["/bin/sh", "-c", "exit 1"], stdout=subprocess.PIPE)
+    began = time.monotonic()
+    assert bridge._exits_at_start(proc, wait=60.0)
+    assert time.monotonic() - began < 30.0
+    assert proc.returncode == 1
+    assert proc.stdout is not None
+    proc.stdout.close()
+
+
+def test_the_start_check_passes_an_entry_that_runs() -> None:
+    proc = subprocess.Popen(["/bin/sh", "-c", "read line"], stdin=subprocess.PIPE)
+    try:
+        assert not bridge._exits_at_start(proc, wait=0.05)
+        assert proc.poll() is None
+    finally:
+        assert proc.stdin is not None
+        proc.stdin.close()
+        proc.wait()
 
 
 def test_no_entry_is_an_error(tmp_path: Path) -> None:
