@@ -186,7 +186,8 @@ Switch relay mode on or off. With an entry, `on` starts a test and `off` ends it
 
 | Exit code | Meaning |
 |---|---|
-| 0 | Always. If a test does not start, the text names the cause. |
+| 0 | `off` or `status` ran, `on` switched relay mode on, or `on` with an entry started a test. |
+| 1 | `on` refused relay mode, and the text names the cause. For example, `config.json` is broken or does not exist, the Claude Code or Codex hooks are not ready, Claude Code does not run as the interactive CLI, or the test did not start ([#248](https://github.com/mohanraj00/nookku/issues/248)). |
 
 ### `nookku page`
 

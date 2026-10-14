@@ -507,19 +507,22 @@ def main(argv: Sequence[str] | None = None) -> int:
             and print_mode.refused(os.environ)
         ):
             # Claude Code runs this command, out of the interactive CLI (SPEC.md section 5).
+            # Each refusal of `mode on` exits with 1, so a script sees it (#248).
             print(print_mode.REASON)
-            return 0
+            return 1
         if args.state != "status" and bridge.has_entry(root):
             session = args.tester_session
-            print(
-                kit.start_test(root, session) if args.state == "on" else kit.end_test(root, session)
-            )
-            return 0
+            if args.state == "off":
+                print(kit.end_test(root, session))
+                return 0
+            started, text = kit.try_start_test(root, session)
+            print(text)
+            return 0 if started else 1
         if args.state == "on":
             refusal = _mode_on_refusal(root)
             if refusal is not None:
                 print(f"nookku: {refusal}")
-                return 0
+                return 1
         if args.state != "status":
             kit.set_mode(root, args.state == "on")
         print(f"Relay mode is {'on' if kit.is_on(root) else 'off'}.")

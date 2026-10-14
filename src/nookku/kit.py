@@ -231,12 +231,18 @@ def end_ways(root: Path) -> str:
 
 def start_test(root: Path, tester_session: str | None = None) -> str:
     """Start a test and switch relay mode on. Return the text to show."""
+    return try_start_test(root, tester_session)[1]
+
+
+def try_start_test(root: Path, tester_session: str | None = None) -> tuple[bool, str]:
+    """Start a test and switch relay mode on. Return True and the text to show. If the test
+    does not start, return False and the refusal. `nookku mode on` then exits with 1 (#248)."""
     from nookku import bridge
 
     try:
         cur = bridge.start(root, tester_session)
     except bridge.BridgeError as e:
-        return f"nookku: {e}"
+        return False, f"nookku: {e}"
     set_mode(root, True)
     # The plugin and the project hooks show this text.
     # `nookku start` in a shell gives the same ways.
@@ -249,7 +255,7 @@ def start_test(root: Path, tester_session: str | None = None) -> str:
     # The chat page starts with the test (#328). The caller prints the text to stdout: the hook
     # output or `nookku mode start`. The text holds the URL only if stdout is a terminal.
     shown = page_auto.after_start(root, cur["test"], sys.stdout)
-    return f"{text}\n{shown}" if shown else text
+    return True, f"{text}\n{shown}" if shown else text
 
 
 def end_test(root: Path, tester_session: str | None = None) -> str:
