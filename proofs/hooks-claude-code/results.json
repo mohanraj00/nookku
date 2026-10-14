@@ -1,5 +1,5 @@
 {
- "date": "2026-10-13",
+ "date": "2026-10-14",
  "setup": "hooks-claude-code",
  "harness": "claude-code",
  "version": "2.1.296 (Claude Code)",
@@ -90,14 +90,14 @@
  "P3b": {
   "agent_inputs_added": 0,
   "blocked_rows": 1,
-  "model_text": "I did not run the command. A Nookku hook stopped it before it started. The hook gave this error:\n\n```\nPreToolUse:Bash hook error: nookku: only the tester talks to the agent.\n```\n\nThis is the relay guard. Port 51143 is the agent under test. The guard stops each message from the model to the agent, so"
+  "model_text": "I did not run the command, because a hook stopped it. The Nookku hook gave this message:\n\n```\nPreToolUse:Bash hook error: nookku: only the tester talks to the agent.\n```\n\nThis is the guard of the relay, and it works as designed. Port 49268 is the agent of the current test session. The relay must not"
  },
- "end_model_output_tokens": 3558,
+ "end_model_output_tokens": 3464,
  "test": {
   "ended": true,
   "model_sessions": [],
   "versions": {
-   "nookku": "0.4.3",
+   "nookku": "0.5.0",
    "claude-code": "2.1.296 (Claude Code)",
    "codex": "codex-cli 0.162.1"
   }

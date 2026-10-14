@@ -1,9 +1,9 @@
 {
- "date": "2026-10-13",
+ "date": "2026-10-14",
  "setup": "plugin-claude-code",
  "harness": "claude-code",
  "version": "2.1.296 (Claude Code)",
- "nookku": "0.4.1",
+ "nookku": "0.5.0",
  "transport": "http-stream",
  "agent_streams": "always",
  "openai_stream": false,

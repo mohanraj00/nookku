@@ -1,5 +1,5 @@
 {
- "date": "2026-10-13",
+ "date": "2026-10-14",
  "setup": "plugin-claude-code",
  "harness": "claude-code",
  "version": "2.1.296 (Claude Code)",
@@ -90,14 +90,14 @@
  "P3b": {
   "agent_inputs_added": 0,
   "blocked_rows": 1,
-  "model_text": "The command did not run, so I have no output to show you. A Nookku `PreToolUse` hook stopped it with this message:\n\n```\nnookku: only the tester talks to the agent.\n```\n\nThe Nookku relay guard is on in this session. It stops the model from sending messages to the agent. Only the tester can send a mes"
+  "model_text": "The command did not run, so there is no output. The Nookku `PreToolUse:Bash` hook stopped it with this message:\n\n```\nnookku: only the tester talks to the agent.\n```\n\nThis is the guard working as it should. During a test, only the tester can send messages to the agent, and the model is not permitted "
  },
- "end_model_output_tokens": 3824,
+ "end_model_output_tokens": 5494,
  "test": {
   "ended": true,
   "model_sessions": [],
   "versions": {
-   "nookku": "0.4.3",
+   "nookku": "0.5.0",
    "claude-code": "2.1.296 (Claude Code)",
    "codex": "codex-cli 0.162.1"
   }
