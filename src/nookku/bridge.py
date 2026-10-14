@@ -236,24 +236,40 @@ def stopped(root: Path) -> Path | None:
     return max(found, default=(0.0, "", None))[2]
 
 
+def _group(pid: int) -> bool:
+    """True if a process group with the id `pid` has a process in it."""
+    try:
+        os.killpg(pid, 0)
+    except ProcessLookupError:
+        return False
+    except OSError:
+        return True
+    return True
+
+
 def _stop_entry(manifest: dict[str, Any], grace: float = 5.0) -> None:
-    """Stop the process group of the entry of a stopped bridge, if the entry still runs. The pid
-    and its start time identify the entry, as for the bridge (SPEC.md section 7.2)."""
-    entry = {"pid": manifest.get("entry_pid"), "pid_start": manifest.get("entry_pid_start")}
-    if not is_bridge(entry):
+    """Stop the process group of the entry of a stopped bridge, if a process of it still runs.
+
+    The entry starts in its own process group, so its pid is the group id. The pid and its start
+    time identify the entry, as for the bridge (SPEC.md section 7.2). If the entry stopped, other
+    processes of its group can still run. The OS does not give the id of a group with a process
+    in it to a new process. Thus, if no process has the pid but the group exists, it is the group
+    of the entry. If a process with another start time has the pid, the group is not the group of
+    the entry."""
+    pid, start = manifest.get("entry_pid"), manifest.get("entry_pid_start")
+    if type(pid) is not int or pid <= 0 or not isinstance(start, str):
         return
-    pid = int(manifest["entry_pid"])
-    with contextlib.suppress(OSError):
-        os.killpg(pid, signal.SIGTERM)
-    deadline = time.monotonic() + grace
-    while is_bridge(entry) and time.monotonic() < deadline:
-        time.sleep(0.1)
-    # The OS does not give the id of a process group with a process in it to a new process.
-    with contextlib.suppress(OSError):
-        os.killpg(pid, signal.SIGKILL)
-    deadline = time.monotonic() + grace
-    while alive(pid) and time.monotonic() < deadline:
-        time.sleep(0.1)
+    if alive(pid):
+        if process_start(pid) != start:
+            return
+    elif not _group(pid):
+        return
+    for sig in (signal.SIGTERM, signal.SIGKILL):
+        with contextlib.suppress(OSError):
+            os.killpg(pid, sig)
+        deadline = time.monotonic() + grace
+        while _group(pid) and time.monotonic() < deadline:
+            time.sleep(0.1)
 
 
 def finish_stopped(folder: Path) -> dict[str, Any]:
@@ -275,17 +291,21 @@ def finish_stopped(folder: Path) -> dict[str, Any]:
 
 
 def end(
-    root: Path, wait: float = END_WAIT, tester_session: str | None = None
+    root: Path,
+    wait: float = END_WAIT,
+    tester_session: str | None = None,
+    find_stopped: bool = True,
 ) -> dict[str, Any] | None:
     """Stop the running test and wait for the bridge to collect. Return the manifest.
 
-    If no test runs, but the bridge of the latest test stopped with no end, finish that test.
+    If no test runs, but the bridge of a test stopped with no end, finish that test. A caller
+    that ends only its own test turns this off with `find_stopped=False`.
 
     `tester_session` is the harness session that ends the test. It is not a session of the app,
     also if it starts after the last turn."""
     cur = current(root)
     if cur is None:
-        folder = stopped(root)
+        folder = stopped(root) if find_stopped else None
         return None if folder is None else finish_stopped(folder)
     if tester_session:
         _write_json(state(root) / ENDING, {"test": cur["test"], "tester_session": tester_session})
@@ -306,7 +326,9 @@ def end(
         data: dict[str, Any] = json.loads((folder / "manifest.json").read_text())
     except (OSError, ValueError):
         return {"test": cur["test"], "dir": cur["dir"]}
-    if killed and data.get("ended") is None:
+    # The bridge writes `ended` before the trace, the audit and the seal. It can hang in them.
+    unsealed = not (folder / "audit.json").exists() or not (folder / seal.SEAL).exists()
+    if killed and (data.get("ended") is None or unsealed):
         return finish_stopped(folder)
     return data
 
@@ -860,7 +882,7 @@ def run_script(
                 break
         time.sleep(2 * POLL)
     finally:
-        manifest = end(root) or {}
+        manifest = end(root, find_stopped=False) or {}
     lines = [f"Test {cur['test']}: {cur['dir']}", f"Turns: {sent} of {len(messages)} messages"]
     code, problems = audit_problems(folder)
     if failed is not None:
@@ -899,7 +921,7 @@ def check(root: Path) -> tuple[bool, list[str]]:
         )
         time.sleep(2 * POLL)
     finally:
-        manifest = end(root) or {}
+        manifest = end(root, find_stopped=False) or {}
     lines = [f"Test {cur['test']}: {cur['dir']}", f"Reply: {shown}"]
     problems = [] if ok else ["The entry sent no reply."]
     if not ok and STRAY_HINT in shown:

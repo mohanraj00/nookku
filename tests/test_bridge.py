@@ -244,6 +244,66 @@ def test_an_older_stopped_test_stays_stopped_after_a_new_test(tmp_path: Path) ->
         manifest = {"test": name, "started": started, "ended": ended}
         (tests / name / "manifest.json").write_text(json.dumps(manifest))
     assert bridge.stopped(root) == tests / "old"
+    # Of 2 stopped tests, the one that started last is the stopped test.
+    (tests / "older").mkdir()
+    (tests / "older" / "manifest.json").write_text(json.dumps({"started": now - 200}))
+    assert bridge.stopped(root) == tests / "old"
+
+
+def test_end_stops_the_group_of_an_entry_that_stopped(
+    tmp_path: Path, homes: tuple, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The entry starts a helper in its group, then stops at the end of its stdin.
+    shell = f"sleep 600 & exec {sys.executable} -c 'import sys; sys.stdin.read()'"
+    root = project(tmp_path, ["sh", "-c", shell])
+    cur = bridge.start(root)
+    folder = Path(cur["dir"])
+    entry = json.loads((folder / "manifest.json").read_text())["entry_pid"]
+    os.kill(cur["pid"], 9)
+    _wait_dead(cur["pid"])
+    _wait_dead(entry)
+    assert not bridge.alive(entry) and bridge._group(entry)
+    monkeypatch.setattr(bridge, "START_WAIT", 0.0)
+    manifest = bridge.end(root)
+    assert manifest is not None and manifest["killed"] is True
+    assert not bridge._group(entry)
+    assert seal.verify(folder)["intact"]
+
+
+def test_a_live_pid_with_another_start_time_is_not_the_entry() -> None:
+    other = subprocess.Popen(["sleep", "60"], start_new_session=True)
+    try:
+        manifest = {"entry_pid": other.pid, "entry_pid_start": "ps:Thu Jan 1 00:00:00 1970"}
+        bridge._stop_entry(manifest, grace=0.2)
+        assert other.poll() is None
+    finally:
+        other.kill()
+        other.wait()
+
+
+def test_check_does_not_finish_an_older_stopped_test(tmp_path: Path) -> None:
+    root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
+    old = root / ".nookku" / "tests" / "old"
+    old.mkdir(parents=True)
+    (old / "manifest.json").write_text(json.dumps({"started": time.time() - 100}))
+    assert bridge.end(root, find_stopped=False) is None
+    assert "killed" not in json.loads((old / "manifest.json").read_text())
+
+
+def test_end_finishes_a_bridge_that_hangs_after_it_wrote_the_end_time(
+    tmp_path: Path, homes: tuple
+) -> None:
+    root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
+    cur = bridge.start(root)
+    folder = Path(cur["dir"])
+    os.kill(cur["pid"], signal.SIGSTOP)
+    # The bridge wrote `ended`, then hung before the audit and the seal.
+    manifest = json.loads((folder / "manifest.json").read_text())
+    (folder / "manifest.json").write_text(json.dumps({**manifest, "ended": time.time()}))
+    ended = bridge.end(root, wait=0.5)
+    _wait_dead(cur["pid"])
+    assert ended is not None and ended["killed"] is True
+    assert (folder / "audit.json").exists() and seal.verify(folder)["intact"]
 
 
 def test_end_names_the_test_and_the_wait(
@@ -388,7 +448,7 @@ def test_check_gives_the_fix_for_logs_on_stdout(
     folder.mkdir()
     monkeypatch.setattr(bridge, "start", lambda root: {"test": "t-1", "dir": str(folder)})
     monkeypatch.setattr(bridge, "send", lambda cur, said: (f"nookku: HTTP 504: {error}", False))
-    monkeypatch.setattr(bridge, "end", lambda root: {})
+    monkeypatch.setattr(bridge, "end", lambda root, **_: {})
     # The tap wrote an unparsed row for each stray line, so the audit exits with 2.
     detail = "line 1: STDIO stdout: a stray line on stdout: 'toy shop: loading catalog'"
     row = {"class": "tap_unparsed", "record": "tap", "detail": detail}
@@ -410,7 +470,7 @@ def test_check_gives_one_line_for_the_stray_lines(
     folder.mkdir()
     monkeypatch.setattr(bridge, "start", lambda root: {"test": "t-1", "dir": str(folder)})
     monkeypatch.setattr(bridge, "send", lambda cur, said: ("Toy shop: hi", True))
-    monkeypatch.setattr(bridge, "end", lambda root: {})
+    monkeypatch.setattr(bridge, "end", lambda root, **_: {})
     stray = [
         {
             "class": "tap_unparsed",
