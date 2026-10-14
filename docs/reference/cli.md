@@ -118,6 +118,8 @@ nookku script save [TEST] [--root PATH]
 
 Save a test as a script ([SPEC.md section 7.10](../../SPEC.md#710-scripted-tests)). After you fix a defect, send the same messages again with `nookku run --script`. The command writes the `said` text of each turn of the test to `.nookku/scripts/<test id>.jsonl`, byte for byte. The file name records the source test id. The command prints the path and the `nookku run` command. The "Save as script" button of the chat page (`nookku page`) does the same for the test that the page shows.
 
+Only a person runs `nookku script`: the relay denies it from the model, with each policy. The guard also denies a model write to `.nookku/scripts/`, so the model cannot change a saved script before you run it.
+
 | Flag | Default | Meaning |
 |---|---|---|
 | `ACTION` | required | `save`. |

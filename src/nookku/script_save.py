@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+import shlex
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -85,8 +86,16 @@ def save(root: Path, test: str) -> tuple[Path, int]:
 
 
 def run_text(root: Path, path: Path) -> str:
-    """The command that runs a saved script, with the path from the project folder."""
-    return f"nookku run --script {path.relative_to(root)}"
+    """The command that runs a saved script. In the project folder, the path is relative to it.
+    In another folder, the command gives the project with --root and the full path of the script,
+    because `run` reads a relative script path from the current folder."""
+    try:
+        here = Path.cwd().resolve()
+    except OSError:
+        here = None
+    if here == root:
+        return f"nookku run --script {shlex.quote(str(path.relative_to(root)))}"
+    return f"nookku run --root {shlex.quote(str(root))} --script {shlex.quote(str(path))}"
 
 
 def answer(root: Path, body: Any) -> tuple[int, dict[str, Any]]:

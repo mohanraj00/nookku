@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shlex
 import sys
 import threading
 from pathlib import Path
@@ -101,9 +102,10 @@ def test_a_test_with_no_turn_or_a_bad_id_writes_no_script(tmp_path: Path) -> Non
 
 
 def test_the_command_saves_the_latest_or_the_named_test(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     write_test(tmp_path, MESSAGES[:2])
+    monkeypatch.chdir(tmp_path)
     assert main(["script", "save", "--root", str(tmp_path)]) == 0
     out = capsys.readouterr().out
     path = tmp_path / ".nookku" / "scripts" / f"{TEST_ID}.jsonl"
@@ -117,12 +119,26 @@ def test_the_command_saves_the_latest_or_the_named_test(
     assert "has no turn" in capsys.readouterr().err
 
 
+def test_the_run_command_gives_the_project_from_another_folder(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = (tmp_path / "toy shop").resolve()
+    write_test(root, MESSAGES[:1])
+    path, _ = script_save.save(root, TEST_ID)
+    monkeypatch.chdir(tmp_path)
+    text = script_save.run_text(root, path)
+    assert text == f"nookku run --root '{root}' --script '{path}'"
+    words = shlex.split(text)
+    assert words[words.index("--root") + 1] == str(root)
+    assert words[words.index("--script") + 1] == str(path)
+
+
 def test_the_page_answer_saves_only_a_test_id(tmp_path: Path) -> None:
     write_test(tmp_path, MESSAGES)
     status, answer = script_save.answer(tmp_path, {"test": TEST_ID})
     assert status == 200 and answer["saved"] and answer["messages"] == len(MESSAGES)
     assert answer["path"] == str(tmp_path / ".nookku" / "scripts" / f"{TEST_ID}.jsonl")
-    assert "nookku run --script .nookku/scripts/" in answer["text"]
+    assert answer["text"].endswith(script_save.run_text(tmp_path, Path(answer["path"])))
     for body in ({}, {"test": 1}, ["x"], None):
         assert script_save.answer(tmp_path, body)[0] == 400
     status, answer = script_save.answer(tmp_path, {"test": "../../x"})
@@ -182,6 +198,9 @@ def test_the_guard_denies_a_model_write_to_a_saved_script(tmp_path: Path) -> Non
     assert _decision(tmp_path, "Write", {"file_path": str(path), "content": "x"}) == "deny"
     assert _decision(tmp_path, "Bash", {"command": f"echo '{{}}' > {name}"}) == "deny"
     assert _decision(tmp_path, "Bash", {"command": f"rm -rf .nookku/{kit.SCRIPTS}"}) == "deny"
+    # The model may not run the writer itself, with each policy.
+    for command in (f"nookku script save {TEST_ID}", "uv run nookku script save"):
+        assert _decision(tmp_path, "Bash", {"command": command}) == "deny"
     # A read stays free.
     assert _decision(tmp_path, "Read", {"file_path": str(path)}) is None
     assert _decision(tmp_path, "Bash", {"command": f"cat {name}"}) is None
@@ -189,3 +208,4 @@ def test_the_guard_denies_a_model_write_to_a_saved_script(tmp_path: Path) -> Non
     policy.set_key(tmp_path, "scripts", "model")
     assert _decision(tmp_path, "Bash", {"command": f"nookku run --script {name}"}) == "deny"
     assert _decision(tmp_path, "Bash", {"command": "nookku run --script a.jsonl"}) is None
+    assert _decision(tmp_path, "Bash", {"command": "nookku script save"}) == "deny"
