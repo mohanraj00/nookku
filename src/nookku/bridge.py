@@ -253,29 +253,55 @@ def _group(pid: int) -> bool:
     return True
 
 
-def _stop_entry(manifest: dict[str, Any], grace: float = 5.0) -> None:
+def _members(pgid: int) -> list[int]:
+    """The pids of the processes in the process group `pgid`, from ps."""
+    try:
+        out = subprocess.run(
+            ["ps", "-A", "-o", "pid=,pgid="], capture_output=True, text=True, check=False
+        ).stdout
+    except OSError:
+        return []
+    rows = [line.split() for line in out.splitlines()]
+    return [int(r[0]) for r in rows if len(r) == 2 and r[1] == str(pgid) and r[0].isdigit()]
+
+
+def _of_test(pid: int, test: str) -> bool:
+    """True if the environment of `pid` gives the id of this test (TEST_ID). Only Linux lets
+    nookku read it (/proc/<pid>/environ), so on other systems this is False (fail closed)."""
+    try:
+        env = Path(f"/proc/{pid}/environ").read_bytes().split(b"\0")
+    except OSError:
+        return False
+    return f"{TEST_ID}={test}".encode() in env
+
+
+def _stop_entry(manifest: dict[str, Any], grace: float = 5.0) -> list[int]:
     """Stop the process group of the entry of a stopped bridge, if a process of it still runs.
+    Return the pids of the group that got no signal, because nookku cannot prove that they are
+    processes of the test.
 
     The entry starts in its own process group, so its pid is the group id. The pid and its start
     time identify the entry, as for the bridge (SPEC.md section 7.2). If the entry stopped, other
-    processes of its group can still run. The OS does not give the id of a group with a process
-    in it to a new process. Thus, if no process has the pid but the group exists, it is the group
-    of the entry. If a process with another start time has the pid, the group is not the group of
-    the entry."""
+    processes can have the group id, also after the OS gave the pid to a new process. Then each
+    of them must have the id of this test in its environment, else no process gets a signal."""
     pid, start = manifest.get("entry_pid"), manifest.get("entry_pid_start")
     if type(pid) is not int or pid <= 0 or not isinstance(start, str):
-        return
+        return []
     if alive(pid):
         if process_start(pid) != start:
-            return
-    elif not _group(pid):
-        return
+            return []
+    else:
+        members = _members(pid)
+        unproven = [m for m in members if not _of_test(m, str(manifest.get("test")))]
+        if unproven or not members:
+            return unproven
     for sig in (signal.SIGTERM, signal.SIGKILL):
         with contextlib.suppress(OSError):
             os.killpg(pid, sig)
         deadline = time.monotonic() + grace
         while _group(pid) and time.monotonic() < deadline:
             time.sleep(0.1)
+    return []
 
 
 def finish_stopped(folder: Path) -> dict[str, Any]:
@@ -284,13 +310,24 @@ def finish_stopped(folder: Path) -> dict[str, Any]:
     the records."""
     path = folder / "manifest.json"
     manifest: dict[str, Any] = json.loads(path.read_text())
-    _stop_entry(manifest)
-    manifest.update(ended=time.time(), killed=True)
-    _write_json(path, manifest)
 
     def log(message: str) -> None:
         with (folder / "bridge.log").open("a", encoding="utf-8") as f:
             f.write(f"nookku end: {message}\n")
+
+    unproven = _stop_entry(manifest)
+    if unproven:
+        pids = ", ".join(map(str, unproven))
+        warning = (
+            f"warning: the processes {pids} have the process group id of the entry of test "
+            f"{manifest.get('test')}, but nookku cannot prove that they belong to the test, so "
+            "it sent them no signal. If they belong to the test, stop them, then run: nookku "
+            f"verify {manifest.get('test')}"
+        )
+        log(warning)
+        print(f"nookku: {warning}", file=sys.stderr)
+    manifest.update(ended=time.time(), killed=True)
+    _write_json(path, manifest)
 
     _collect(folder, script.copy_in(folder), log)
     return manifest

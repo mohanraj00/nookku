@@ -1,3 +1,4 @@
+import contextlib
 import hashlib
 import io
 import json
@@ -311,7 +312,7 @@ def test_an_older_stopped_test_stays_stopped_after_a_new_test(tmp_path: Path) ->
 
 
 def test_end_stops_the_group_of_an_entry_that_stopped(
-    tmp_path: Path, homes: tuple, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, homes: tuple, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
 ) -> None:
     # The entry starts a helper in its group, then stops at the end of its stdin.
     shell = f"sleep 600 & exec {sys.executable} -c 'import sys; sys.stdin.read()'"
@@ -324,10 +325,38 @@ def test_end_stops_the_group_of_an_entry_that_stopped(
     _wait_dead(entry)
     assert not bridge.alive(entry) and bridge._group(entry)
     monkeypatch.setattr(bridge, "START_WAIT", 0.0)
-    manifest = bridge.end(root)
-    assert manifest is not None and manifest["killed"] is True
-    assert not bridge._group(entry)
-    assert seal.verify(folder)["intact"]
+    try:
+        manifest = bridge.end(root)
+        assert manifest is not None and manifest["killed"] is True
+        if sys.platform.startswith("linux"):
+            # The helper has the test id in its environment, so end stops it.
+            assert not bridge._group(entry)
+            assert seal.verify(folder)["intact"]
+        else:
+            # Only Linux lets nookku read the environment, so end sends no signal and warns.
+            assert bridge._group(entry)
+            err = capsys.readouterr().err
+            assert f"have the process group id of the entry of test {cur['test']}" in err
+            assert f"run: nookku verify {cur['test']}" in err
+    finally:
+        with contextlib.suppress(OSError):
+            os.killpg(entry, 9)
+
+
+def test_a_group_with_another_test_id_gets_no_signal() -> None:
+    # The leader of the group exits, and a process with no test id stays in the group. This is
+    # the group of a new process that got the pid of the entry after the entry stopped.
+    shell = subprocess.Popen(["sh", "-c", "sleep 600 &"], start_new_session=True)
+    shell.wait()
+    try:
+        members = bridge._members(shell.pid)
+        assert members and shell.pid not in members
+        manifest = {"test": "t-1", "entry_pid": shell.pid, "entry_pid_start": "ps:x"}
+        assert bridge._stop_entry(manifest, grace=0.2) == members
+        assert bridge._group(shell.pid)
+    finally:
+        with contextlib.suppress(OSError):
+            os.killpg(shell.pid, 9)
 
 
 def test_a_live_pid_with_another_start_time_is_not_the_entry() -> None:
@@ -513,6 +542,12 @@ def test_check_fails_without_a_model_session(tmp_path: Path, homes: tuple) -> No
     assert any("No claude-code model session" in line for line in lines)
 
 
+def own_end(root: Path, find_stopped: bool = True) -> dict:
+    """An end for check and run_script: they must end only their own test (#164)."""
+    assert find_stopped is False
+    return {}
+
+
 def test_check_gives_the_fix_for_logs_on_stdout(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -526,7 +561,7 @@ def test_check_gives_the_fix_for_logs_on_stdout(
     folder.mkdir()
     monkeypatch.setattr(bridge, "start", lambda root, **_: {"test": "t-1", "dir": str(folder)})
     monkeypatch.setattr(bridge, "send", lambda cur, said: (f"nookku: HTTP 504: {error}", False))
-    monkeypatch.setattr(bridge, "end", lambda root, **_: {})
+    monkeypatch.setattr(bridge, "end", own_end)
     # The tap wrote an unparsed row for each stray line, so the audit exits with 2.
     detail = "line 1: STDIO stdout: a stray line on stdout: 'toy shop: loading catalog'"
     row = {"class": "tap_unparsed", "record": "tap", "detail": detail}
@@ -548,7 +583,7 @@ def test_check_gives_one_line_for_the_stray_lines(
     folder.mkdir()
     monkeypatch.setattr(bridge, "start", lambda root, **_: {"test": "t-1", "dir": str(folder)})
     monkeypatch.setattr(bridge, "send", lambda cur, said: ("Toy shop: hi", True))
-    monkeypatch.setattr(bridge, "end", lambda root, **_: {})
+    monkeypatch.setattr(bridge, "end", own_end)
     stray = [
         {
             "class": "tap_unparsed",
@@ -1054,13 +1089,17 @@ def relay_turns(folder: Path) -> list[dict]:
 
 @pytest.mark.parametrize("form", ["jsonl", "json"])
 def test_run_script_sends_each_message_of_the_script(
-    tmp_path: Path, homes: tuple, form: str
+    tmp_path: Path, homes: tuple, form: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     app = tmp_path / "app.py"
     app.write_text(ECHO_APP)
     root = project(tmp_path, [sys.executable, str(app)])
     path = write_script(tmp_path / f"turns.{form}", form, SCRIPT)
+    real_end, calls = bridge.end, []
+    monkeypatch.setattr(bridge, "end", lambda root, **kw: calls.append(kw) or real_end(root, **kw))
     passed, lines, folder = bridge.run_script(root, path)
+    # run_script ends only its own test, never an older stopped test.
+    assert calls == [{"find_stopped": False}]
     assert passed, lines
     assert lines[1:] == ["Turns: 3 of 3 messages", "Audit: exit 0", lines[3], "PASS"]
     # The output gives no reply: the evaluation reads the records.
