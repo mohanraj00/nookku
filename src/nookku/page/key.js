@@ -103,7 +103,12 @@
 
   // A file of the page server, for an img, a video or an iframe. An element cannot send a header,
   // so the page loads the file with the key and gives the element a blob: URL. Each file loads
-  // one time.
+  // one time, and the page keeps it until the tab closes. Thus the page loads a file only up to
+  // FILE_MAX bytes, and all files together only up to SUM_MAX bytes. These limits are design
+  // values, not measurements. A video plays only after its whole file loads.
+  const FILE_MAX = 32 * 1024 * 1024;
+  const SUM_MAX = 128 * 1024 * 1024;
+  let held = 0;
   const loaded = new Map();
   function fileSrc(element, src) {
     if (!loaded.has(src)) {
@@ -111,17 +116,27 @@
         src,
         root.fetch(src, { cache: "no-store" }).then((resp) => {
           if (!resp.ok) {
-            throw new Error("nookku: the page server refused the file");
+            throw new Error("the file did not load");
           }
+          const length = resp.headers.get("Content-Length");
+          const size = length === null ? NaN : Number(length);
+          if (!(size >= 0) || size > FILE_MAX || held + size > SUM_MAX) {
+            if (resp.body) {
+              resp.body.cancel();
+            }
+            throw new Error("the file is larger than the limit of the page");
+          }
+          held += size;
           return resp.blob().then((blob) => URL.createObjectURL(blob));
         })
       );
     }
     loaded.get(src).then(
       (url) => element.setAttribute("src", url),
-      () => {
+      (e) => {
         loaded.delete(src);
-        element.setAttribute("data-error", "the file did not load");
+        const known = e instanceof Error && e.message.startsWith("the file");
+        element.setAttribute("data-error", known ? e.message : "the file did not load");
       }
     );
   }

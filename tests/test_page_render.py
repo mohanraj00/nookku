@@ -725,7 +725,7 @@ def test_a_tab_with_no_key_sends_no_key(hash_: str) -> None:
     assert out["sent"][0] == {"url": "api/turns", "key": None}
 
 
-FILE_HARNESS = """
+KEY_FILE_HARNESS = """
 const loads = [];
 globalThis.NookkuPage = { fileSrc: (e, src) => loads.push({ tag: e.tag, src: src }) };
 const render = require(process.argv[1]);
@@ -749,7 +749,7 @@ def test_the_page_loads_a_file_of_its_server_with_the_page_key() -> None:
     assert NODE is not None
     text = "![t](images/train.png) ![k](kite.mp4) ![l](logo.svg) ![d](data:image/png;base64,AA==)"
     done = subprocess.run(
-        [NODE, "-e", FILE_HARNESS, str(RENDER)],
+        [NODE, "-e", KEY_FILE_HARNESS, str(RENDER)],
         input=text,
         capture_output=True,
         text=True,
@@ -810,3 +810,64 @@ def test_the_server_refuses_a_network_path_before_it_checks_it(
     assert checked == []
     assert not page.unc("images/train.png") and not page.unc("/tmp/a.png")
     assert not page.unc("C:\\shop\\a.png")
+
+
+SIZE_HARNESS = """
+const input = JSON.parse(require("fs").readFileSync(0, "utf8"));
+const out = { cancelled: 0, elements: [] };
+const win = {
+  location: { hash: "#k=" + "A".repeat(43), pathname: "/p/s/", origin: "http://127.0.0.1:5000",
+    href: "http://127.0.0.1:5000/p/s/" },
+  history: { replaceState: () => {} },
+  sessionStorage: null, BroadcastChannel: undefined, Headers: Headers,
+  setTimeout: setTimeout, clearTimeout: clearTimeout,
+  fetch: async (url) => ({
+    ok: true,
+    headers: new Headers(
+      input.sizes[url] === null ? {} : { "Content-Length": String(input.sizes[url]) }),
+    body: { cancel: () => { out.cancelled += 1; } },
+    blob: async () => new Blob(["x"]),
+  }),
+};
+global.window = win;
+require(process.argv[1]);
+(async () => {
+  for (const src of Object.keys(input.sizes)) {
+    const attrs = { name: src };
+    win.NookkuPage.fileSrc({ setAttribute: (k, v) => { attrs[k] = v; } }, src);
+    out.elements.push(attrs);
+  }
+  await new Promise((r) => setTimeout(r, 50));
+  process.stdout.write(JSON.stringify(out));
+})();
+"""
+
+
+@needs_node
+def test_the_page_loads_a_file_only_up_to_its_limits() -> None:
+    mib = 1024 * 1024
+    sizes = {"f/a.png": 30 * mib, "f/b.mp4": 33 * mib, "f/c.png": None, "f/d.mp4": 30 * mib}
+    sizes |= {"f/e.mp4": 30 * mib, "f/f.mp4": 30 * mib, "f/h.mp4": 30 * mib, "f/g.png": 10}
+    done = subprocess.run(
+        [NODE or "node", "-e", SIZE_HARNESS, str(KEY)],
+        input=json.dumps({"sizes": sizes}),
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=True,
+    )
+    out = json.loads(done.stdout)
+    errors = {e["name"]: e.get("data-error") for e in out["elements"]}
+    too_large = "the file is larger than the limit of the page"
+    # 32 MiB for one file, 128 MiB for all files, and no size is no load.
+    assert errors == {
+        "f/a.png": None,
+        "f/b.mp4": too_large,
+        "f/c.png": too_large,
+        "f/d.mp4": None,
+        "f/e.mp4": None,
+        "f/f.mp4": None,
+        "f/h.mp4": too_large,
+        "f/g.png": None,
+    }
+    assert out["cancelled"] == 3

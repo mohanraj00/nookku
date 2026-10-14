@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import re
 from array import array
+from math import isqrt
 from pathlib import Path
 from typing import Any
 from urllib.parse import unquote
@@ -37,6 +38,9 @@ WORK = 5_000_000
 # needs more gets one delete and one insert for its changed part, as for WORK. This is also a
 # design value, not a measurement.
 KEEP = 1_000_000
+# The trace keeps d values for each d from 1, so it holds more than KEEP values before d gets
+# to DEPTH.
+DEPTH = isqrt(2 * KEEP) + 2
 
 
 class ReplayError(ValueError):
@@ -71,13 +75,16 @@ def _edits(a: list[str], b: list[str], budget: Budget) -> list[tuple[str, int]] 
     The steps grow with (len(a) + len(b)) times the count of edits, and the budget stops them.
     Thus the time has a limit, also for a reply with many equal words."""
     n, m = len(a), len(b)
+    # KEEP stops the loop before d gets to DEPTH, so the frontier needs at most 2 * DEPTH + 3
+    # values, also for a very long reply.
+    depth = min(n + m, DEPTH)
     # v[k + off] is the furthest x on diagonal k. A list slice copies the values in C.
-    off = n + m + 1
+    off = depth + 1
     v = [0] * (2 * off + 1)
     # For each d, the values of v that _back reads: the diagonals from lo to d - 1, in steps of 2.
     trace: list[tuple[int, array[int]]] = []
     kept = 0
-    for d in range(n + m + 1):
+    for d in range(depth + 1):
         lo = 1 if d == 0 else 1 - d
         row = array("q", v[lo + off : max(lo, d - 1) + off + 1 : 2])
         kept += len(row)
@@ -102,7 +109,9 @@ def _edits(a: list[str], b: list[str], budget: Budget) -> list[tuple[str, int]] 
         if budget.left < 0:
             budget.left = 0
             return None
-    raise AssertionError("unreachable: d = n + m always ends the script")
+    if depth == n + m:
+        raise AssertionError("unreachable: d = n + m always ends the script")
+    return None
 
 
 def _back(trace: list[tuple[int, array[int]]], x: int, y: int) -> list[tuple[str, int]]:
