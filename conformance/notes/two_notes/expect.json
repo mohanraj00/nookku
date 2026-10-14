@@ -1,0 +1,19 @@
+{
+ "notes": [
+  {
+   "turn": 1,
+   "rating": "up",
+   "comment": "Fast and correct. The order 4471 is right."
+  },
+  {
+   "turn": 2,
+   "rating": "down",
+   "comment": null
+  },
+  {
+   "turn": 2,
+   "rating": "down",
+   "comment": "  The refund date is wrong.\n\nIt says Monday.  "
+  }
+ ]
+}

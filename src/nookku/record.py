@@ -124,7 +124,7 @@ class RecordError(Exception):
 # type name -> {field: allowed types}; a text field also requires its hash field
 _STR, _NUM, _INT_OR_NONE, _STR_OR_NONE = (str,), (int, float), (int, type(None)), (str, type(None))
 _BOOL = (bool,)
-_TEXT_FIELDS = {"input", "reply", "said", "shown"}
+_TEXT_FIELDS = {"input", "reply", "said", "shown", "comment"}
 _SCHEMA: dict[str, dict[str, dict[str, tuple[type, ...]]]] = {
     "tap": {
         "exchange": {"ts": _NUM, "input": _STR, "status": _INT_OR_NONE, "reply": _STR_OR_NONE},
@@ -141,9 +141,15 @@ _SCHEMA: dict[str, dict[str, dict[str, tuple[type, ...]]]] = {
         "turn": {"ts": _NUM, "harness": _STR, "said": _STR, "shown": _STR_OR_NONE},
         "blocked_call": {"ts": _NUM, "harness": _STR, "tool": _STR, "detail": _STR},
     },
+    # The notes of the tester (SPEC.md section 2.3).
+    "notes": {
+        "note": {"ts": _NUM, "turn": (int,), "rating": _STR_OR_NONE, "comment": _STR_OR_NONE},
+    },
 }
+# The ratings of a note. null is no rating.
+RATINGS = ("up", "down")
 # Types and optional fields that a "0.1" row must not have.
-_SINCE_02 = {"model_session", "started", "originator", "stream"}
+_SINCE_02 = {"model_session", "started", "originator", "stream", "note"}
 _HEX64 = re.compile(r"[0-9a-f]{64}")
 # Optional fields: (row type, field) -> allowed types
 _OPTIONAL: dict[tuple[str, str], tuple[type, ...]] = {
@@ -227,6 +233,10 @@ def _validate(kind: str, path: Path, n: int, raw: str) -> dict[str, Any]:
             )
         if failed and row["v"] != FAILED_STREAM_VERSION:
             raise bad(f"a failed stream must have version {FAILED_STREAM_VERSION}")
+    if row["type"] == "note":
+        problem = note_problem(row["turn"], row["rating"], row["comment"])
+        if problem:
+            raise bad(problem)
     for (kind_, name), types in _OPTIONAL.items():
         value = row.get(name)
         if row["type"] != kind_ or name not in row:
@@ -240,10 +250,25 @@ def _validate(kind: str, path: Path, n: int, raw: str) -> dict[str, Any]:
     return row
 
 
-def read_rows(kind: str, path: Path, missing_ok: bool = False) -> list[tuple[int, dict[str, Any]]]:
-    """Each row of a tap record (kind `tap`) or a relay record (kind `relay`), with its line.
+def note_problem(turn: Any, rating: Any, comment: Any) -> str | None:
+    """The rule of a note (SPEC.md section 2.3): the reason that the note is not valid, or None.
+    The reader and the page server use this one rule."""
+    if type(turn) is not int or turn < 1:
+        return "field 'turn' must be an integer of 1 or more"
+    if rating is not None and rating not in RATINGS:
+        return "field 'rating' must be 'up', 'down' or null"
+    if comment is not None and not isinstance(comment, str):
+        return "field 'comment' must be a string or null"
+    if rating is None and not comment:
+        return "a note needs a rating or a comment that is not empty"
+    return None
 
-    This is the one reader of the two records. An invalid line or a wrong hash stops the read with
+
+def read_rows(kind: str, path: Path, missing_ok: bool = False) -> list[tuple[int, dict[str, Any]]]:
+    """Each row of a tap record (kind `tap`), a relay record (kind `relay`) or a notes record
+    (kind `notes`), with its line.
+
+    This is the one reader of the records. An invalid line or a wrong hash stops the read with
     a RecordError that names the file and the line. With missing_ok, a file that does not exist
     gives no rows.
     """
