@@ -293,6 +293,7 @@ The follow-up capture records a title-description schema match, without request 
   When no test runs, a tool call can change `config.json` and the files of the entry. The relay denies a write to a record or a state file of nookku:
   - the state folder itself;
   - `tests/`, except `report.md` in a test folder;
+  - `scripts/`, the saved scripts (section 7.10);
   - `current.json`, `mode`, `relay.jsonl`, `tap.jsonl`, `ending.json`, `page.json`, `page.lock` and `send.lock`;
   - `seals/`, the seal copies in the nookku home.
 
@@ -697,6 +698,7 @@ The transcript shows a scripted turn as `script, turn N`, never as a typed turn.
 
 - The script is JSONL: one `{"said": "..."}` row for each `turn` row of the relay record, in file order. Each `said` is the text of the turn, byte for byte. Each control character in a message, also a line feed, is a JSON escape, so each row is one line. Each other character stays as it is, also U+2028. `run` reads the script with no change.
 - The path is `.nookku/scripts/<test id>.jsonl`. The form of a script has no other field, so the file name records the source test id. When `run` runs the script, the manifest of the new test records this path in `script.source`.
+- The guard protects `scripts/` as a state file (section 5), so a model tool call cannot change a saved script before the tester runs it. A model command can read it. With the policy key `scripts` set to `model`, a model call that runs `nookku run` or `run_script` with this path is denied too, because the guard cannot tell a run from a write.
 - The command reads the relay record with the reader of section 2, so a `said` with a lone surrogate gives an error. It writes no script if the record is not valid or has no turn. Before it writes, it reads the script again with the reader of `run`, and writes nothing if a message is not the same.
 - The page server takes the button request with the checks of each page `POST` (section 5). The body is a JSON object with the text `test`. The test id must name a folder in `.nookku/tests/`, else the page shows the error and nothing is written.
 

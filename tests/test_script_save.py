@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from nookku import bridge, script, script_save
+from nookku import bridge, kit, policy, script, script_save
 from nookku.audit import audit
 from nookku.cli import main
 from nookku.record import Writer
@@ -138,3 +138,31 @@ def test_a_script_saved_from_a_toy_shop_test_runs_with_no_script_mismatch(
     manifest = json.loads((folder / "manifest.json").read_text())
     assert manifest["script"]["source"] == str(path.resolve())
     assert cur["test"] in manifest["script"]["source"]
+
+
+def _decision(root: Path, tool: str, tool_input: dict[str, str]) -> str | None:
+    event = {
+        "hook_event_name": "PreToolUse",
+        "tool_name": tool,
+        "tool_input": tool_input,
+        "cwd": str(root),
+    }
+    answer = kit.handle(event, root, "claude-code")
+    return None if answer is None else answer["hookSpecificOutput"]["permissionDecision"]
+
+
+def test_the_guard_denies_a_model_write_to_a_saved_script(tmp_path: Path) -> None:
+    write_test(tmp_path, MESSAGES)
+    path, _ = script_save.save(tmp_path, TEST_ID)
+    name = f".nookku/scripts/{TEST_ID}.jsonl"
+    # With no test, a model write would change the messages of the next scripted test.
+    assert _decision(tmp_path, "Write", {"file_path": str(path), "content": "x"}) == "deny"
+    assert _decision(tmp_path, "Bash", {"command": f"echo '{{}}' > {name}"}) == "deny"
+    assert _decision(tmp_path, "Bash", {"command": f"rm -rf .nookku/{kit.SCRIPTS}"}) == "deny"
+    # A read stays free.
+    assert _decision(tmp_path, "Read", {"file_path": str(path)}) is None
+    assert _decision(tmp_path, "Bash", {"command": f"cat {name}"}) is None
+    # The guard cannot tell a run from a write, so a model run of the path is denied too.
+    policy.set_key(tmp_path, "scripts", "model")
+    assert _decision(tmp_path, "Bash", {"command": f"nookku run --script {name}"}) == "deny"
+    assert _decision(tmp_path, "Bash", {"command": "nookku run --script a.jsonl"}) is None

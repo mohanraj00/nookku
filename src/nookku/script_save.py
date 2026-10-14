@@ -16,8 +16,8 @@ from typing import Any
 from nookku import kit, script, state
 from nookku.record import RecordError, turns
 
-# The folder of the saved scripts, in the state folder of the project.
-FOLDER = "scripts"
+# The folder of the saved scripts, in the state folder of the project. The guard protects it.
+FOLDER = kit.SCRIPTS
 # The path of the page request that saves a script, after the token.
 ROUTE = "api/save-script"
 
