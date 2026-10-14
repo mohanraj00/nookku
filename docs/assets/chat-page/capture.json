@@ -1,0 +1,19 @@
+{
+  "image": "chat-page.png",
+  "test": "20261014-060228-74b1",
+  "record": "test/",
+  "date": "2026-10-14",
+  "os": "macOS",
+  "nookku": "0.4.3 at commit f1f7a6e of main",
+  "harness": "none: a scripted test",
+  "model": "none",
+  "steps": [
+    "cp examples/toy-shop/agent.py examples/toy-shop/script.jsonl <new project folder>",
+    "nookku init plugin --entry \"python3 agent.py\"",
+    "nookku run --script script.jsonl --no-evaluate",
+    "nookku page, in a shell with no harness variables",
+    "Google Chrome 155.0.8059.40 --headless --window-size=1000,1240 --screenshot, light theme, on the page URL"
+  ],
+  "output": "Turns: 3 of 3 messages. Audit: exit 0. Trace: 0 model items in 3 turns, no findings. PASS",
+  "kept": "relay.jsonl, tap.jsonl, audit.json, findings.json and script.jsonl of the test folder, with no change. manifest.json and seal.json are not kept, because they hold the local paths of the run. The page URL and its token are not kept."
+}

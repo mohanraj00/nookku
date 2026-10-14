@@ -59,7 +59,11 @@ Trace: 0 model items in 3 turns, no findings.
 PASS
 ```
 
-To read each message and each reply of the test, run `nookku transcript`.
+To read each message and each reply of the test, run `nookku transcript`. To see the test on the [chat page](docs/reference/cli.md#nookku-page), run `nookku page` in a separate terminal, and open the URL that it prints. This is the page of that test:
+
+<img src="https://raw.githubusercontent.com/mohanraj00/nookku/main/docs/assets/chat-page/chat-page.png" alt="The Nookku chat page of a scripted test of the toy shop agent. It shows 3 turns. The agent replies with a numbered refund policy, the shipping cities, and a table of 2 prices. Under each reply are a thumbs up, a thumbs down, a comment box and the turn time. The page ends with the message box." width="700">
+
+Data: [the record of the test](docs/assets/chat-page/test/) and [the method of the capture](docs/assets/chat-page/capture.json), with nookku 0.4.3 and no harness or model.
 
 ## Install
 
@@ -80,10 +84,9 @@ In your clone of this repo, put the project hooks into Claude Code:
 ```bash
 nookku init claude-code --entry "python3 examples/toy-shop/agent.py"
 nookku check        # one message through the entry: PASS proves the connection, not the reply
-nookku view         # in a second terminal: each reply shows here
 ```
 
-In Claude Code, type the prompt `nookku start`, then your test messages, then `nookku end`. The end of the test writes `audit.json` in the [test folder](docs/reference/glossary.md#test-folder) `.nookku/tests/<test-id>/`. Then the model evaluates the test and writes `report.md`. [docs/getting-started.md](docs/getting-started.md) shows each step with its real output.
+In Claude Code, type the prompt `nookku start`. The start also opens the chat page in your browser. Type your test messages in the page or in Claude Code. The page shows each turn. Then type the prompt `nookku end` in Claude Code. The end of the test writes `audit.json` in the [test folder](docs/reference/glossary.md#test-folder) `.nookku/tests/<test-id>/`. Then the model evaluates the test and writes `report.md`. [docs/getting-started.md](docs/getting-started.md) shows each step with its real output.
 
 Optional: to see the audit again, run it by hand:
 
@@ -99,7 +102,7 @@ Nookku adapts to your app through a thin [entry](docs/reference/glossary.md#entr
 
 ### Choose a relay
 
-You install the [relay](SPEC.md#5-relays) as the plugin or as the project hooks. Both work in Claude Code and in Codex, with the same rules. Both show each reply as the reason of a blocked prompt, and in `nookku view`. [docs/how-to/choose-a-relay.md](docs/how-to/choose-a-relay.md) compares them. Then read the guide of your setup: [Claude Code plugin](docs/how-to/claude-code-plugin.md), [Claude Code project hooks](docs/how-to/claude-code-project-hooks.md) or [Codex](docs/how-to/codex.md).
+You install the [relay](SPEC.md#5-relays) as the plugin or as the project hooks. Both work in Claude Code and in Codex, with the same rules. Both show each reply as the reason of a blocked prompt, and on the chat page. [docs/how-to/choose-a-relay.md](docs/how-to/choose-a-relay.md) compares them. Then read the guide of your setup: [Claude Code plugin](docs/how-to/claude-code-plugin.md), [Claude Code project hooks](docs/how-to/claude-code-project-hooks.md) or [Codex](docs/how-to/codex.md).
 
 ## A sample report
 
