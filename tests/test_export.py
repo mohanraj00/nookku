@@ -14,6 +14,7 @@ from typing import Any
 import pytest
 from test_dashboard import make_test
 from test_page import base, request, start_page
+from test_page_trace import end_and_build, expected, shape, toy_shop
 
 from nookku import cli, export, page, seal
 from nookku.record import Writer
@@ -180,7 +181,33 @@ def test_a_broken_trace_gives_a_problem_and_no_steps(project: Path) -> None:
     (folder / "trace.jsonl").write_text("not json\n")
     data = data_of(export.build(project, folder).decode())
     assert data["steps"] == {}
-    assert any("trace.jsonl:1" in e for e in data["errors"])
+    assert any(e.startswith("trace.jsonl: line 1") for e in data["errors"]), data["errors"]
+
+
+def test_the_steps_go_to_the_turn_that_the_audit_pairs_with_their_exchange(
+    tmp_path: Path,
+) -> None:
+    # The tap has no exchange for turn 1, so exchange 1 belongs to turn 2.
+    folder = toy_shop(tmp_path)
+    end_and_build(folder)
+    data = data_of(export.build(tmp_path, folder).decode())
+    assert "1" not in data["steps"]
+    assert shape(data["steps"]["2"]) == expected(1)
+    assert shape(data["steps"]["3"]) == expected(2)
+
+
+def test_a_text_with_u2028_in_the_trace_keeps_its_step(tmp_path: Path) -> None:
+    folder = toy_shop(tmp_path)
+    end_and_build(folder)
+    lines = (folder / "trace.jsonl").read_text(encoding="utf-8").split("\n")
+    row = json.loads(lines[0])
+    row["output"] = "line one\u2028line two"
+    lines[0] = json.dumps(row, ensure_ascii=False)
+    (folder / "trace.jsonl").write_text("\n".join(lines), encoding="utf-8")
+    data = data_of(export.build(tmp_path, folder).decode())
+    outputs = [s["output"] for rows in data["steps"].values() for s in rows]
+    assert "line one\u2028line two" in outputs
+    assert not data["errors"]
 
 
 def test_paths_finds_the_file_targets_of_a_reply() -> None:
@@ -215,20 +242,15 @@ def test_a_number_that_is_not_finite_gives_a_problem_not_a_crash(project: Path) 
     assert export.NOT_FINITE in data["errors"]
 
 
-def test_the_export_writes_with_the_folder_descriptor(
+def test_with_no_dir_fd_the_export_writes_nothing(
     project: Path, tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """On a system with dir_fd, the export does not use the write by path."""
-    if os.open not in os.supports_dir_fd:
-        pytest.skip("this system has no dir_fd")
-
-    def plain(target: Path, body: bytes) -> Path:
-        raise AssertionError("the export used the write by path")
-
-    monkeypatch.setattr(export, "_write_plain", plain)
+    """A system with no dir_fd (Windows) cannot check the open folder, so the export refuses."""
+    monkeypatch.setattr(os, "supports_dir_fd", set())
     out = tmp_path_factory.mktemp("share") / "test.html"
-    export.write(project, project / ".nookku" / "tests" / TEST_ID, out)
-    assert data_of(out.read_text())["test"]["id"] == TEST_ID
+    with pytest.raises(export.ExportError, match="dir_fd"):
+        export.write(project, project / ".nookku" / "tests" / TEST_ID, out)
+    assert list(out.parent.iterdir()) == []
 
 
 # The offline tree of render.js and export.js: each source must be a data: URI, and no node may

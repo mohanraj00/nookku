@@ -304,8 +304,9 @@ Write a test as one HTML file, so you can give it to a person who does not have 
 
 - The file loads nothing from the network. A link or a web image shows as text with its URL.
 - The file runs no script and no HTML from the agent. It holds no page URL and no page token.
-- An image or a video file that a reply names with a Markdown link or image goes into the file, with the file rule of the chat page. A path in the text of a reply adds no file. If a reply names a file only in code, the file shows it in a list at its end. A file larger than [4 MiB](../../src/nookku/export.py#L40-L43), or a file after a sum of 32 MiB, shows as its path. These limits are chosen values, not measurements.
+- An image or a video file that a reply names with a Markdown link or image goes into the file, with the file rule of the chat page. A path in the text of a reply adds no file. If a reply names a file only in code, the file shows it in a list at its end. A file larger than [4 MiB](../../src/nookku/export.py#L41-L44), or a file after a sum of 32 MiB, shows as its path. These limits are chosen values, not measurements.
 - The command reads the test and changes no record. It does not write into `.nookku/`, into a test folder or into the seal home.
+- On a system that cannot open a file relative to a folder (Windows), the command writes nothing and exits with 1. Use the "Export" button of the chat page there.
 
 | Argument or flag | Default | Meaning |
 |---|---|---|

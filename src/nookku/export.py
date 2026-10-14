@@ -33,7 +33,8 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import unquote, urlsplit
 
-from nookku import __version__, dashboard, notes, page, seal, state
+from nookku import __version__, dashboard, notes, page, page_trace, seal, state
+from nookku.record import RecordError
 
 # The route of the page server, after the token: api/export/<test id>.
 ROUTE = "api/export"
@@ -43,6 +44,10 @@ MAX_MEDIA = 4 << 20
 MAX_TOTAL = 32 << 20
 # The most file paths of one export that the export reads.
 MAX_PATHS = 200
+NO_DIR_FD = (
+    "this system cannot open a file relative to a folder (dir_fd), so the export cannot check"
+    " the output folder. Use the Export button of the chat page."
+)
 # The longest text of a trace step in the file. A longer text is cut, with a note.
 MAX_STEP_TEXT = 4000
 # The renderer shows a longer reply as text with no media (`LIMIT` in page/render.js).
@@ -192,46 +197,39 @@ def _cut(value: Any) -> str | None:
 
 
 def steps(folder: Path) -> tuple[dict[int, list[dict[str, Any]]], str | None]:
-    """The model items of trace.jsonl (SPEC.md section 8.2) for each turn, and an error. A test
-    with no trace.jsonl has no steps and no error."""
-    out: dict[int, list[dict[str, Any]]] = {}
+    """The trace steps of each turn of relay.jsonl, and an error. The key is the number of the
+    turn on the page. The chat page reads the same steps (`page_trace.steps`): it pairs each turn
+    with its tap exchange as the audit does (SPEC.md section 3.2), so a missing or extra record
+    does not move the steps to another turn. A test with no trace has no steps and no error."""
     try:
-        lines = (folder / "trace.jsonl").read_text(encoding="utf-8").splitlines()
-    except FileNotFoundError:
-        return out, None
-    except (OSError, ValueError) as e:
-        return out, f"trace.jsonl: {e}"
-    for number, line in enumerate(lines, 1):
-        if not line.strip():
-            continue
-        try:
-            row = json.loads(line)
-        except ValueError:
-            return {}, f"trace.jsonl:{number}: not valid JSON"
-        if not isinstance(row, dict) or row.get("type") != "model_item":
-            return {}, f"trace.jsonl:{number}: not a model_item row"
-        turn = row.get("turn")
-        if isinstance(turn, bool) or not isinstance(turn, int):
-            continue
-        ts, code = row.get("ts"), row.get("exit_code")
-        number_ts = isinstance(ts, int | float) and not isinstance(ts, bool) and math.isfinite(ts)
-        out.setdefault(turn, []).append(
-            {
-                "ts": ts if number_ts else None,
-                "harness": _cut(row.get("harness")),
-                "kind": _cut(row.get("kind")),
-                "role": _cut(row.get("role")),
-                "server": _cut(row.get("server")),
-                "name": _cut(row.get("name")),
-                "input": _cut(row.get("input")),
-                "output": _cut(row.get("output")),
-                "error": _cut(row.get("error")),
-                "exit_code": code if isinstance(code, int) and not isinstance(code, bool) else None,
-                "internal": row.get("harness_internal") is True,
-                "line": number,
-            }
-        )
+        found = page_trace.steps(folder, running=False)
+    except (RecordError, OSError, ValueError) as e:
+        # A problem text names the file relative to the test folder, not a local path.
+        return {}, str(e).replace(f"{folder}{os.sep}", "")
+    out: dict[int, list[dict[str, Any]]] = {}
+    for number, turn in enumerate(found["turns"], 1):
+        rows = [_step(row) for row in turn["steps"]]
+        if rows:
+            out[number] = rows
     return out, None
+
+
+def _step(row: dict[str, Any]) -> dict[str, Any]:
+    ts, code = row.get("ts"), row.get("exit_code")
+    number_ts = isinstance(ts, int | float) and not isinstance(ts, bool) and math.isfinite(ts)
+    return {
+        "ts": ts if number_ts else None,
+        "harness": _cut(row.get("harness")),
+        "kind": _cut(row.get("kind")),
+        "role": _cut(row.get("role")),
+        "server": _cut(row.get("server")),
+        "name": _cut(row.get("name")),
+        "input": _cut(row.get("input")),
+        "output": _cut(row.get("output")),
+        "error": _cut(row.get("error")),
+        "exit_code": code if isinstance(code, int) and not isinstance(code, bool) else None,
+        "internal": row.get("harness_internal") is True,
+    }
 
 
 # ---- The data of the file ----
@@ -421,8 +419,10 @@ def write(root: Path, folder: Path, out: Path) -> Path:
         )
     # `os.rename` names the dir_fd support of `os.replace` too.
     if os.open not in os.supports_dir_fd or os.rename not in os.supports_dir_fd:
-        # A system with no `dir_fd` (Windows): the path check above is the only check.
-        return _write_plain(target, body)
+        # A system with no `dir_fd` (Windows) cannot check the open folder. A check of the path
+        # only is not atomic: a link can replace a folder after the check. Thus the export
+        # refuses the write.
+        raise ExportError(NO_DIR_FD)
     try:
         fd = os.open(parent, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
     except OSError as e:
@@ -463,20 +463,6 @@ def _replace_at(fd: int, name: str, body: bytes, target: Path) -> None:
         with contextlib.suppress(OSError):
             os.unlink(temp, dir_fd=fd)
         raise ExportError(f"cannot write {target}: {e.strerror}") from e
-
-
-def _write_plain(target: Path, body: bytes) -> Path:
-    if target.is_symlink() or (target.exists() and not target.is_file()):
-        raise ExportError(f"{target} exists and is not a regular file. Give another path.")
-    temp = target.with_name(f".{target.name}.{os.getpid()}.{time.time_ns()}.tmp")
-    try:
-        with open(temp, "xb") as f:
-            f.write(body)
-        os.replace(temp, target)
-    except OSError as e:
-        temp.unlink(missing_ok=True)
-        raise ExportError(f"cannot write {target}: {e.strerror}") from e
-    return target
 
 
 # ---- The page route ----

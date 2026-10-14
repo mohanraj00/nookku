@@ -134,7 +134,7 @@
     if (s.name) parts.push(s.server ? s.server + "/" + s.name : s.name);
     if (s.exit_code !== null) parts.push("exit " + s.exit_code);
     if (s.internal) parts.push("harness tool");
-    return parts.filter((p) => p).join(" · ") + " [trace.jsonl:" + s.line + "]";
+    return parts.filter((p) => p).join(" · ");
   }
 
   function stepsBlock(list) {
