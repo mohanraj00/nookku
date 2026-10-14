@@ -37,7 +37,7 @@ def enabled(root: Path) -> bool:
 
 def is_check(folder: Path, manifest: dict[str, Any]) -> bool:
     """True if the test is a test of `nookku check` (SPEC.md section 9.1). If the manifest has the
-    key `check`, the key decides. A manifest of Nookku 0.4.1 or earlier has no such key: then
+    key `check`, the key decides. A manifest of an older Nookku version has no such key: then
     the test has turns, and each one has the harness `nookku-check`. A relay record that cannot
     be read is not a check test."""
     if "check" in manifest:

@@ -806,7 +806,7 @@ A test needs an evaluation if all of these are true:
 - no test runs;
 - the latest test (the one with the greatest `started` in its manifest) has an `ended` time;
 - its folder has no `report.md`;
-- it is not a check test. A check test is a test of `nookku check`. If the manifest has the key `check`, the test is a check test only if `check` is `true`. A manifest of Nookku 0.4.1 or earlier has no key `check`. Then the test is a check test if its relay record has turns, and each turn has the harness `nookku-check`. A relay record that cannot be read does not make a check test.
+- it is not a check test. A check test is a test of `nookku check`. If the manifest has the key `check`, the test is a check test only if `check` is `true`. A manifest of a Nookku version that does not write the key has no key `check`. Then the test is a check test if its relay record has turns, and each turn has the harness `nookku-check`. A relay record that cannot be read does not make a check test.
 
 The relay reads `evaluate` with the one reader of `config.json` (section 7.1). If the file cannot be read or breaks the rule for its keys, no evaluation starts. A broken file must not start an evaluation that the tester turned off. Then, if the other conditions are true, the end text has one more line: `nookku: no evaluation starts: <error>. Correct the file, then type: nookku end`.
 

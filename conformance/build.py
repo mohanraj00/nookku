@@ -4065,7 +4065,7 @@ EVALUATION_CASES: dict[str, dict] = {
         "evaluated": True,
     },
     "check_not_a_boolean": {"manifest": {"check": "true"}, "relay": [], "evaluated": True},
-    # A manifest of Nookku 0.4.1 has no key check: the turns decide.
+    # A manifest of an older Nookku version has no key check: the turns decide.
     "no_key_check_turns_only": {"manifest": {}, "relay": [CHECK_TURN], "evaluated": False},
     "no_key_tester_turn": {
         "manifest": {},
