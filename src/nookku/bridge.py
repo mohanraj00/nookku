@@ -31,6 +31,7 @@ from nookku.record import RecordError, Writer, turns
 
 # The state functions are in nookku.state. These names keep the imports of bridge working.
 from nookku.state import TIMEOUT as TIMEOUT
+from nookku.state import TOKEN_KEY
 from nookku.state import _children as _children
 from nookku.state import _started as _started
 from nookku.state import alive as alive
@@ -153,11 +154,14 @@ def start(
     wait: float = START_WAIT,
     entry_name: str | None = None,
     script_path: Path | None = None,
+    check: bool = False,
 ) -> dict[str, Any]:
     """Start a test in a background bridge process. Return the contents of current.json.
 
     With script_path, the test is scripted: the script is read before the test starts, and its
     bytes are copied into the test folder, so that the seal covers them (SPEC.md section 7.10).
+    With check, the test is a test of `nookku check`: the first manifest records this, so that no
+    evaluation starts, also if the check stops before its turn (SPEC.md section 9.1).
     """
     load_config(root, entry_name)
     copy: tuple[str, bytes] | None = None
@@ -190,6 +194,8 @@ def start(
         argv += ["--tester-session", tester_session]
     if entry_name is not None:
         argv += ["--entry-name", entry_name]
+    if check:
+        argv.append("--check")
     if copy is not None and script_path is not None:
         (folder / copy[0]).write_bytes(copy[1])
         argv += ["--script-source", str(script_path.resolve())]
@@ -566,9 +572,17 @@ def _log(message: str) -> None:
     print(f"nookku bridge: {message}", file=sys.stderr, flush=True)
 
 
-def _write_json(path: Path, data: dict[str, Any]) -> None:
+def _write_json(path: Path, data: dict[str, Any], mode: int | None = None) -> None:
+    """Write the file in one step. With `mode`, only the file has that mode, from its start."""
     tmp = path.with_name(path.name + ".tmp")
-    tmp.write_text(json.dumps(data, indent=1, ensure_ascii=False) + "\n")
+    text = json.dumps(data, indent=1, ensure_ascii=False) + "\n"
+    if mode is None:
+        tmp.write_text(text)
+    else:
+        tmp.unlink(missing_ok=True)
+        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, mode)
+        with os.fdopen(fd, "w") as f:
+            f.write(text)
     tmp.replace(path)
 
 
@@ -579,6 +593,7 @@ def run(
     timeout: float = AGENT_TIMEOUT,
     entry_name: str | None = None,
     script_source: str | None = None,
+    check: bool = False,
 ) -> int:
     """The bridge process: run the tap and the entry until SIGTERM, then collect."""
     root = root.resolve()
@@ -614,6 +629,7 @@ def run(
         "tester_sessions": [tester_session] if tester_session else [],
         "model_sessions": [],
         "codex_gate": {"start": _start_gate(folder), "end": None},
+        "check": check,
     }
     _write_json(folder / "manifest.json", manifest)
     _log("manifest written")
@@ -671,9 +687,13 @@ def run(
             "test": test,
             "dir": str(folder),
             "tap_url": tap.url,
+            # A relay or a page server sends this token with each message (SPEC.md 4.2).
+            TOKEN_KEY: tap.token,
             "pid": os.getpid(),
             "pid_start": pid_start,
         },
+        # The file holds the tap token, so only the owner can read it.
+        mode=0o600,
     )
     _log(f"test {test} on {tap.url}")
     stop.wait()
@@ -906,7 +926,7 @@ def check(root: Path) -> tuple[bool, list[str]]:
 
     The check passes only if the audit of its own test is clean (SPEC.md section 7.1)."""
     config = load_config(root)
-    cur = start(root)
+    cur = start(root, check=True)
     relay = Path(cur["dir"]) / "relay.jsonl"
     try:
         shown, ok = send(cur, config.check_message)

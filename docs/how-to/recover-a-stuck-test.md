@@ -87,7 +87,7 @@ Now each prompt goes to the model again.
 
 ## 4. Learn what a stale `current.json` is
 
-The bridge writes `.nookku/current.json` when a test starts, and removes it when the test ends. The file names the test, its folder, the [tap](../reference/glossary.md#tap) URL, the pid of the bridge and `pid_start`, the start time of the bridge ([reference/records.md](../reference/records.md#the-state-folder)). If the bridge stops with no end, for example after `kill -9` or a restart, the file stays. This file is stale.
+The bridge writes `.nookku/current.json` when a test starts, and removes it when the test ends. The file names the test, its folder, the [tap](../reference/glossary.md#tap) URL, the tap token `tap_token`, the pid of the bridge and `pid_start`, the start time of the bridge ([reference/records.md](../reference/records.md#the-state-folder)). If the bridge stops with no end, for example after `kill -9` or a restart, the file stays. This file is stale.
 
 A pid and its start time identify the bridge, because the OS can give the pid of a stopped process to a new process. If no process has the pid, or if that process has another start time, no test runs ([SPEC.md section 7.2](../../SPEC.md#72-start-and-end)). Then `status`, `start` and `end` remove the file. The relays also do this check before each prompt.
 
@@ -103,6 +103,7 @@ cat .nookku/current.json
  "test": "20261011-185432-0da0",
  "dir": ".../toy-shop/.nookku/tests/20261011-185432-0da0",
  "tap_url": "http://127.0.0.1:49413/",
+ "tap_token": "<43 random characters>",
  "pid": 9220,
  "pid_start": "ps:Mon Oct 12 01:54:32 2026"
 }

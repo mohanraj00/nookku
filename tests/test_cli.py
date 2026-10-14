@@ -82,7 +82,9 @@ def test_the_help_lists_no_internal_command_and_each_command_still_runs(
     calls: list[tuple[tuple[Any, ...], dict[str, Any]]] = []
     monkeypatch.setattr(bridge, "run", lambda *args, **kw: calls.append((args, kw)) or 0)
     assert main(["bridge", "--root", str(tmp_path), "--test", "t-1"]) == 0
-    assert calls == [((tmp_path, "t-1", None), {"entry_name": None, "script_source": None})]
+    assert calls == [
+        ((tmp_path, "t-1", None), {"entry_name": None, "script_source": None, "check": False})
+    ]
     served: list[Path] = []
     monkeypatch.setattr(mcp, "serve", lambda root: served.append(root) or 0)
     assert main(["mcp", "--root", str(tmp_path)]) == 0
@@ -159,6 +161,51 @@ def test_tap_command_end_to_end(tmp_path):
     relay = Writer(tmp_path / "relay.jsonl")
     relay.append({"type": "turn", "harness": "codex", "said": said, "shown": shown})
     assert main(["audit", "--tap", str(record), "--relay", str(relay.path)]) == 0
+
+
+def test_the_stdio_tap_command_takes_its_token_from_the_environment(tmp_path):
+    import os
+    import socket
+    import urllib.error
+    import urllib.request
+
+    from nookku import contract, stdio
+
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        port = s.getsockname()[1]
+    entry = Path(__file__).resolve().parent.parent / "examples" / "toy-shop" / "agent.py"
+    cmd = [sys.executable, "-m", "nookku", "tap", "--record", str(tmp_path / "tap.jsonl")]
+    cmd += ["--listen", f"127.0.0.1:{port}", "--cmd", "--", sys.executable, str(entry)]
+    token = "toy-shop-token-" + "x" * 29
+    env = {**os.environ, stdio.TOKEN_ENV: token}
+    proc = subprocess.Popen(cmd, stderr=subprocess.PIPE, text=True, env=env, cwd=tmp_path)
+    url, body = f"http://127.0.0.1:{port}/", contract.request("m-1", "t-1", "Hi", [])
+    try:
+        assert proc.stderr is not None and "listening on" in proc.stderr.readline()
+        # The caller gave the token, so the tap does not write it to stderr.
+        assert "X-Nookku-Token" not in proc.stderr.readline()
+        refused = urllib.request.Request(url, body, state.tap_headers("other"), method="POST")
+        with pytest.raises(urllib.error.HTTPError) as e:
+            urllib.request.urlopen(refused, timeout=10)
+        req = urllib.request.Request(url, body, state.tap_headers(token), method="POST")
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            status = resp.status
+    finally:
+        proc.terminate()
+        proc.wait(timeout=10)
+    assert e.value.code == 403 and status == 200
+
+
+def test_the_stdio_tap_command_refuses_a_short_token(tmp_path, monkeypatch, capsys):
+    from nookku import stdio
+
+    monkeypatch.setenv(stdio.TOKEN_ENV, "a")
+    cmd = ["tap", "--record", str(tmp_path / "tap.jsonl"), "--cmd", "--", "true"]
+    with pytest.raises(SystemExit) as e:
+        main(cmd)
+    assert e.value.code == 2 and "43 characters or more" in capsys.readouterr().err
+    assert not (tmp_path / "tap.jsonl").exists()
 
 
 def test_transcript_without_a_config_uses_the_default_record(tmp_path, capsys):
