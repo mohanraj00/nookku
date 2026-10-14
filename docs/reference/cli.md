@@ -62,7 +62,7 @@ Show relay mode and the running test, for example `relay mode is on. Test <test-
 | Flag | Default | Meaning |
 |---|---|---|
 | `--root PATH` | the current folder | The project. |
-| `--json` | off | Print `{"on": ..., "test": ..., "text": ..., "attachments": ...}`. `test` is `current.json` with no `tap_token`, or `null`. `text` is the status line of the plugin. `attachments` is the text that refuses a prompt with an attachment in the plugin. Each is `null` if relay mode is off. |
+| `--json` | off | Print `{"on": ..., "test": ..., "text": ..., "attachments": ..., "pane": ...}`. `test` is `current.json` with no `tap_token`, or `null`. `text` is the status line of the plugin. `attachments` is the text that refuses a prompt with an attachment in the plugin. Each of `text` and `attachments` is `null` if relay mode is off. `pane` is the data of the Claude Code pane: `test`, `state`, `turns` and `page` ([SPEC.md section 5](../../SPEC.md#5-relays), "Pane"). |
 
 | Exit code | Meaning |
 |---|---|
@@ -192,7 +192,7 @@ Switch relay mode on or off. With an entry, `on` starts a test and `off` ends it
 ### `nookku page`
 
 ```text
-nookku page [--root PATH] [--port PORT]
+nookku page [--root PATH] [--port PORT] [--open]
 ```
 
 Serve the chat page: a local web page where you talk to the agent of the running test. The command prints the page URL. Open it in your browser. Stop the page with Ctrl-C.
@@ -217,6 +217,7 @@ Serve the chat page: a local web page where you talk to the agent of the running
 - The "Save as script" button writes the test that the page shows as a script, the same as `nookku script save`.
 - The "Export" button downloads one HTML file of the test that the page shows, the same as [`nookku export`](#nookku-export).
 - `nookku start` starts the page with the test, so you do not have to run `nookku page` ([`nookku start`](#nookku-start)). If a page server of the project runs already, `start` starts no second page.
+- `nookku page --open` opens the chat page of the running test in your browser, at the session URL `/p/s/`. This URL holds no secret. The page opens only in the browser that got the session at the start of the test. It makes no new session and starts no page server. It prints no URL, so you can run it in the harness. If the browser has no session, the page tells you how to get a new one: end the test and start a new one, or run `nookku page` in a separate terminal. The "Open chat" button of the Claude Code pane runs it. The guard denies it from the model.
 - One page server runs for each project. Stop the page with Ctrl-C. The page also stops when the terminal closes.
 - The relay in the harness chat still works, for example over SSH, in CI and in `codex exec`.
 
@@ -224,6 +225,7 @@ Serve the chat page: a local web page where you talk to the agent of the running
 |---|---|---|
 | `--root PATH` | the current folder | The project. |
 | `--port PORT` | a free port | The port on `127.0.0.1`. |
+| `--open` | off | Open the chat page of the running test in the browser, at the session URL, which holds no secret. Make no session. Print no URL. Exit with 1 if the page did not open. |
 
 | Exit code | Meaning |
 |---|---|
