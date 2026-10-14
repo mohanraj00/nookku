@@ -172,7 +172,28 @@ def words(old: str, new: str, budget: Budget | None = None) -> list[list[str]]:
                 if i >= 0:
                     add("equal", [mid_a[i]])
     add("equal", a[len(a) - end :])
-    return parts
+    return _grouped(parts)
+
+
+def _grouped(parts: list[list[str]]) -> list[list[str]]:
+    """The parts with each equal run of only white space between 2 changes put into the change,
+    in both the delete and the insert. Thus "[-a-]{+b+} [-c-]{+d+}" becomes "[-a c-]{+b d+}"."""
+    out: list[list[str]] = []
+    deleted = inserted = ""
+    for n, (op, text) in enumerate(parts):
+        if op == "delete":
+            deleted += text
+        elif op == "insert":
+            inserted += text
+        elif (deleted or inserted) and n + 1 < len(parts) and not text.strip():
+            deleted += text
+            inserted += text
+        else:
+            out += [[o, t] for o, t in (("delete", deleted), ("insert", inserted)) if t]
+            deleted = inserted = ""
+            out.append([op, text])
+    out += [[o, t] for o, t in (("delete", deleted), ("insert", inserted)) if t]
+    return out
 
 
 def diff(root: Path, old: Path, new: Path) -> dict[str, Any]:
@@ -239,26 +260,30 @@ def base(root: Path, script_path: Path, test: str | None) -> Path | None:
     return dashboard.find(root, script_path.stem)
 
 
-def _marked(parts: list[list[str]]) -> str:
-    """The word diff as one line of text: [-old words-] and {+new words+}. A long run of equal
-    words shows only its ends."""
+def _marked(parts: list[list[str]], color: bool = False) -> str:
+    """The word diff as one line of text: [-old words-] and {+new words+}, in red and green if
+    color is true. A long run of equal words shows only its ends."""
     out = []
     for op, text in parts:
-        if op == "delete":
-            out.append(f"[-{text}-]")
-        elif op == "insert":
-            out.append(f"{{+{text}+}}")
-        else:
+        if op == "equal":
             tokens = WORD.findall(text)
             if len(tokens) > 4 * CONTEXT:
                 text = "".join(tokens[: 2 * CONTEXT]) + " ... " + "".join(tokens[-2 * CONTEXT :])
-            out.append(text)
-    # repr shows a line feed and each other control character as an escape, on one line.
-    return repr("".join(out))[1:-1]
+        # repr shows a line feed and each other control character as an escape, on one line.
+        text = repr(text)[1:-1]
+        if op == "delete":
+            text = f"\033[31m[-{text}-]\033[0m" if color else f"[-{text}-]"
+        elif op == "insert":
+            text = f"\033[32m{{+{text}+}}\033[0m" if color else f"{{+{text}+}}"
+        out.append(text)
+    return "".join(out)
 
 
-def report(root: Path, old: Path | None, new: Path) -> tuple[list[str], dict[str, Any]]:
-    """The lines and the JSON part of the replay, after the run of the script."""
+def report(
+    root: Path, old: Path | None, new: Path, color: bool = False
+) -> tuple[list[str], dict[str, Any]]:
+    """The lines and the JSON part of the replay, after the run of the script. If color is true,
+    the lines mark the deleted words in red and the inserted words in green."""
     if old is None:
         text = (
             "Replay: no test to compare with. The script name is not a test id. "
@@ -287,9 +312,9 @@ def report(root: Path, old: Path | None, new: Path) -> tuple[list[str], dict[str
             for test, reply in ((old.name, row["reply_old"]), (new.name, row["reply_new"])):
                 if reply is None:
                     lines.append(f"Turn {row['n']}: test {test} has no reply in the tap record.")
-        lines.append(f"Turn {row['n']} reply: {_marked(row['words'])}")
+        lines.append(f"Turn {row['n']} reply: {_marked(row['words'], color)}")
     lines.append(
-        f"Diff page: run nookku page, open the dashboard, and select tests {old.name} "
-        f"and {new.name}."
+        f"Diff page: run nookku page in a terminal outside the harness. On the page, click "
+        f'"All tests", select tests {old.name} and {new.name}, and click "Compare".'
     )
     return lines, {"diff": result}

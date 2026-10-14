@@ -150,7 +150,7 @@ Run a saved script again after a fix, and see which replies changed ([SPEC.md se
 The output has the lines of `nookku run`, and then:
 
 - the count of changed turns;
-- each changed reply, with `[-deleted words-]` and `{+inserted words+}`;
+- each changed reply, with `[-deleted words-]` and `{+inserted words+}`. A change of 2 or more words in a row shows as one deleted part and one inserted part. At a terminal, the deleted words are red and the inserted words are green. Set `NO_COLOR` to get no color;
 - the 2 test ids to select on the dashboard of `nookku page`, which shows the 2 tests side by side.
 
 A changed reply does not change the exit code. Only a person runs `nookku replay`: the relay denies it from the model, with each policy.

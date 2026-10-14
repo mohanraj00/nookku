@@ -120,6 +120,24 @@ def test_a_diff_keeps_at_most_keep_values() -> None:
     ]
 
 
+def test_a_change_of_words_in_a_row_is_one_delete_and_one_insert() -> None:
+    parts = replay.words("I can't start a refund yet.", "I haven't started a refund.")
+    assert parts == [
+        ["equal", "I "],
+        ["delete", "can't start"],
+        ["insert", "haven't started"],
+        ["equal", " a "],
+        ["delete", "refund yet."],
+        ["insert", "refund."],
+    ]
+    assert (
+        replay._marked(parts) == "I [-can't start-]{+haven't started+} a [-refund yet.-]{+refund.+}"
+    )
+    colored = replay._marked(parts, color=True)
+    assert "\033[31m[-can't start-]\033[0m" in colored
+    assert "\033[32m{+haven't started+}\033[0m" in colored
+
+
 def test_each_diff_gives_the_two_replies_and_deletes_before_inserts() -> None:
     texts = ["", "a", "a b", "b a c", "a  c\nd", "c a b a", "e d c b a", "a a a b"]
     for old in texts:
