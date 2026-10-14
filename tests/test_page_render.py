@@ -338,6 +338,12 @@ def test_the_page_serves_an_image_a_video_and_an_svg_of_the_project(
         # The page itself keeps its own strict CSP.
         _, headers, _ = request(server, "GET", base(server))
         assert headers["content-security-policy"] == page.CSP
+        # The browser asks for a file under the session path, with the session cookie.
+        cookie = headers["set-cookie"].split(";", 1)[0]
+        path = page.SESSION_PATH + "files/images%2Ftrain.png"
+        status, _, body = request(server, "GET", path, headers={"Cookie": cookie})
+        assert status == 200 and body == b"\x89PNG fake"
+        assert request(server, "GET", path)[0] == 404
     finally:
         server.shutdown()
         server.server_close()
@@ -551,6 +557,7 @@ def test_a_system_with_no_dir_fd_refuses_the_file(
         ("svg", "https://example.com/a.svg", "iframe"),
         ("image", "javascript:alert(1)", None),
         ("script", "https://example.com/a.js", None),
+        ("image", "https://127.0.0.1:9999/a.png", None),
     ],
 )
 def test_a_click_on_load_shows_only_a_web_image_video_or_svg(
@@ -563,3 +570,42 @@ def test_a_click_on_load_shows_only_a_web_image_video_or_svg(
         assert made[0]["attrs"]["sandbox"] == ""
     if want is None:
         assert made == []
+
+
+LOOPBACK = [
+    "http://127.0.0.1:9999/p/s/",
+    "http://LOCALHOST:9999/p/s/",
+    "https://localhost./p/s/",
+    "http://shop.localhost:9999/",
+    "http://127.1:9999/",
+    "http://0x7f000001/",
+    "http://127.8.9.10/",
+    "http://0.0.0.0:9999/",
+    "http://[::1]:9999/",
+    "http://[0:0:0:0:0:0:0:1]/",
+    "http://[::ffff:127.0.0.1]/",
+    "http://[::]:9999/",
+]
+
+
+@needs_node
+@pytest.mark.parametrize("url", LOOPBACK)
+def test_a_reply_link_or_media_to_a_loopback_host_shows_as_text(url: str) -> None:
+    # A cookie has no port: a click on a link to another port of 127.0.0.1 would send the
+    # session cookie of the page to it.
+    text = f"[status]({url}) <{url}> {url} ![a]({url}x.png) ![b]({url}x.mp4)"
+    out = node({"text": text})
+    for e in walk(out["tree"]) + [{"a": m["attrs"]} for m in out["made"]]:
+        for name in ("href", "src", "data-src"):
+            assert name not in e["a"], e
+    assert "status" in texts(out["tree"])
+    tree = [{"t": "a", "a": {"href": url}, "c": ["a"]}, {"t": "img", "a": {"src": url}, "c": []}]
+    made = node({"tree": tree})["made"]
+    assert made[0]["attrs"] == {} and made[1]["attrs"] == {}
+
+
+@needs_node
+def test_a_reply_link_to_another_host_stays_a_link() -> None:
+    out = node({"text": "[help](https://example.com/help) http://127.0.0.2.example.com/"})
+    hrefs = [e["a"]["href"] for e in walk(out["tree"]) if e["t"] == "a"]
+    assert hrefs == ["https://example.com/help", "http://127.0.0.2.example.com/"]

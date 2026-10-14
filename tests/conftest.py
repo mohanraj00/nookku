@@ -36,3 +36,12 @@ def interactive_harness(monkeypatch: pytest.MonkeyPatch) -> None:
     pytest. The print mode tests set these variables (#199)."""
     monkeypatch.setenv("CLAUDE_CODE_ENTRYPOINT", "cli")
     monkeypatch.delenv("CLAUDE_CODE_DISABLE_TERMINAL_TITLE", raising=False)
+
+
+@pytest.fixture(autouse=True)
+def no_auto_page(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A test start opens no browser and starts no page server. The tests of the page start
+    (#328) in tests/test_page_auto.py turn it on again."""
+    from nookku import page_auto
+
+    monkeypatch.setattr(page_auto, "enabled", lambda root: False)

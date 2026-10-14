@@ -6,11 +6,13 @@ harness, so the harness model cannot see it. The browser cannot post to the tap 
 `Origin`, and the tap refuses a request with `Origin` (SPEC.md section 4.2). Thus the page server
 sends for the page.
 
-Security: the server listens only on 127.0.0.1. Each URL holds a random token, and only the person
-gets the URL: `nookku page` prints it to its terminal. The page file holds only the port and the
-pid. Each request must have a correct `Host`, and a correct `Origin` if it has one. A `POST` must
-have `Origin`. Each answer has a strict Content Security Policy, and the page loads only its own
-files, and the images, videos and SVGs that a reply names (#347).
+Security: the server listens only on 127.0.0.1. The page URL holds a random token, and only the
+person gets the URL: `nookku page` prints it to its terminal. The first GET of the page URL gives
+the browser a session cookie and a redirect to SESSION_PATH, a path with no secret. Then the token
+has no use, so the browser history does not hold a URL that works. The page file holds only the
+port and the pid. Each request must have a correct `Host`, and a correct `Origin` if it has one. A
+`POST` must have `Origin`. Each answer has a strict Content Security Policy, and the page loads
+only its own files, and the images, videos and SVGs that a reply names (#347).
 """
 
 from __future__ import annotations
@@ -23,12 +25,14 @@ import re
 import secrets
 import shutil
 import signal
+import socketserver
 import stat
 import subprocess
 import sys
 import tempfile
 import threading
 from collections.abc import Mapping
+from http.cookies import CookieError, SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
 from pathlib import Path
@@ -42,6 +46,12 @@ from nookku.record import RecordError, Writer, turns
 # The harness of a turn that the page sent (SPEC.md section 2.2).
 HARNESS = "pane"
 HOST = "127.0.0.1"
+# The path of the page after the browser got its session cookie. The path holds no secret.
+SESSION_PATH = "/p/s/"
+USED = (
+    "this page URL was used. Open the page in the browser that opened it, or stop nookku page and "
+    "start it again"
+)
 # The files of the page, in src/nookku/page/, and their media types.
 FILES = {
     "": ("index.html", "text/html; charset=utf-8"),
@@ -440,6 +450,11 @@ class PageServer(ThreadingHTTPServer):
         super().__init__((HOST, port), _Handler)
         self.root = root
         self.token = token or secrets.token_urlsafe(32)
+        # The value of the session cookie. It is not the token, so the cookie and the history
+        # never hold the same secret.
+        self.session = secrets.token_urlsafe(32)
+        self.token_used = False
+        self.auth_lock = threading.Lock()
         # One message at a time, so that each message gets the history of the turns before it.
         self.lock = threading.Lock()
         port = self.server_address[1]
@@ -454,9 +469,25 @@ class PageServer(ThreadingHTTPServer):
             shutil.rmtree(folder, ignore_errors=True)
         self.copies.clear()
 
+    def server_bind(self) -> None:
+        # HTTPServer.server_bind looks up the name of the host with socket.getfqdn. On some
+        # computers, this lookup takes seconds (#328). The page does not use the name.
+        socketserver.TCPServer.server_bind(self)
+        self.server_name, self.server_port = HOST, self.server_address[1]
+
     @property
     def url(self) -> str:
         return f"http://{HOST}:{self.server_address[1]}/p/{self.token}/"
+
+    @property
+    def cookie_name(self) -> str:
+        # A cookie is not for one port, so the name holds the port.
+        return f"nookku_page_{self.server_address[1]}"
+
+    def set_cookie(self) -> str:
+        """The Set-Cookie value of the session. It has no Expires, so the browser does not keep it
+        after it closes."""
+        return f"{self.cookie_name}={self.session}; Path={SESSION_PATH}; HttpOnly; SameSite=Strict"
 
 
 # The value of _Handler._body after a refusal. JSON gives no value that is this object.
@@ -532,11 +563,49 @@ class _Handler(BaseHTTPRequestHandler):
         if parts.query or not parts.path.startswith("/p/"):
             self._refuse(404, "not found")
             return None
+        if parts.path.startswith(SESSION_PATH):
+            if not self._has_session():
+                self._refuse(404, "not found")
+                return None
+            return parts.path[len(SESSION_PATH) :]
         token, sep, rest = parts.path[len("/p/") :].partition("/")
         if not hmac.compare_digest(token.encode(), self.server.token.encode()) or not sep:
             self._refuse(404, "not found")
             return None
+        with self.server.auth_lock:
+            first = rest == "" and self.command == "GET" and not self.server.token_used
+            used = self.server.token_used
+            self.server.token_used |= first
+        if first:
+            self.redirect_with_session()
+            return None
+        if used:
+            self._refuse(404, USED)
+            return None
         return rest
+
+    def _has_session(self) -> bool:
+        """True if the request has the session cookie of this server."""
+        lines = self.headers.get_all("Cookie") or []
+        if len(lines) != 1:
+            return False
+        jar: SimpleCookie = SimpleCookie()
+        try:
+            jar.load(lines[0])
+        except CookieError:
+            return False
+        got = jar.get(self.server.cookie_name)
+        return got is not None and hmac.compare_digest(
+            got.value.encode(), self.server.session.encode()
+        )
+
+    def redirect_with_session(self) -> None:
+        """Give the browser the session cookie, and send it to SESSION_PATH."""
+        self.send_response(303)
+        self.send_header("Set-Cookie", self.server.set_cookie())
+        self.send_header("Location", SESSION_PATH)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
 
     def _other(self) -> None:
         self._refuse(405, "the page takes only GET and POST")
@@ -697,11 +766,12 @@ class PageRunning(Exception):
     """Another page server of the project runs."""
 
 
-def claim_page_file(root: Path, port: int) -> tuple[Path, int]:
+def claim_page_file(root: Path, port: int, test: str | None = None) -> tuple[Path, int]:
     """Write the page file: the port and the pid of this server, with no token (SPEC.md section
-    5). Return its path and the descriptor of the page lock. The server holds the lock for its
-    whole life, so a second server cannot take it. Raise PageRunning if another server holds it.
-    A page file with no holder of the lock is stale, and this server takes it over."""
+    5). A server that `start` started also writes its test (#328). Return its path and the
+    descriptor of the page lock. The server holds the lock for its whole life, so a second server
+    cannot take it. Raise PageRunning if another server holds it. A page file with no holder of
+    the lock is stale, and this server takes it over."""
     import fcntl
 
     folder = state.state(root)
@@ -719,7 +789,10 @@ def claim_page_file(root: Path, port: int) -> tuple[Path, int]:
         new = folder / f".{state.PAGE_FILE}.{os.getpid()}"
         fd = os.open(new, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
         with os.fdopen(fd, "w") as f:
-            f.write(json.dumps({"port": port, "pid": os.getpid()}) + "\n")
+            data: dict[str, Any] = {"port": port, "pid": os.getpid()}
+            if test is not None:
+                data["test"] = test
+            f.write(json.dumps(data) + "\n")
         os.replace(new, path)
     except BaseException:
         os.close(lock)
@@ -765,7 +838,11 @@ def serve(root: Path, port: int = 0, out: TextIO | None = None) -> int:
         signal.signal(sig, signal.default_int_handler)
     try:
         print(f"Chat page: {server.url}", file=out, flush=True)
-        print("Open this URL in your browser. Stop the page with Ctrl-C.", file=out, flush=True)
+        print(
+            "Open this URL one time, in one browser. Stop the page with Ctrl-C.",
+            file=out,
+            flush=True,
+        )
         server.serve_forever()
     except KeyboardInterrupt:
         pass

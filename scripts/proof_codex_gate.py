@@ -79,6 +79,9 @@ def project() -> None:
     PROJECT.mkdir(parents=True, exist_ok=True)
     if not (PROJECT / STATE_DIR / "config.json").exists():
         run(["nookku", "init", "plugin", "--entry", f"{sys.executable} {TOY_SHOP}"], PROJECT)
+    # A proof opens no browser tab.
+    path = PROJECT / STATE_DIR / "config.json"
+    path.write_text(json.dumps(json.loads(path.read_text()) | {"page": False}, indent=2) + "\n")
 
 
 def gate() -> dict[str, Any]:

@@ -10,7 +10,7 @@ import sys
 from collections.abc import Callable, Iterator, Sequence
 from importlib import resources
 from pathlib import Path
-from typing import Any
+from typing import Any, TextIO
 
 from nookku import __version__, bridge, evaluation, kit, print_mode, seal, state, stdio, trace
 from nookku.adapters import make
@@ -32,6 +32,7 @@ LIST_KEYS = {
     "openai_stream",
     "repeated_reply",
     "transcript_compact",
+    "page",
 }
 # The plain string flags of init. A flag that the user does not give is None.
 STRING_KEYS = [k for k in CONFIG_KEYS if k not in LIST_KEYS]
@@ -631,12 +632,20 @@ def _page_parser(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> No
     page.add_argument(
         "--port", type=int, default=0, help="the port on 127.0.0.1 (default: a free port)"
     )
+    # The page server that start starts (#328). Internal options: they have no help.
+    page.add_argument("--auto-test", help=argparse.SUPPRESS)
+    page.add_argument("--status-fd", type=int, help=argparse.SUPPRESS)
+    page.add_argument("--print-url", action="store_true", help=argparse.SUPPRESS)
 
 
 def _page_command(args: argparse.Namespace) -> int:
     """nookku page: the chat page on 127.0.0.1 (SPEC.md section 5, "Chat page")."""
     from nookku import page
 
+    if args.auto_test is not None and args.status_fd is not None:
+        from nookku import page_auto
+
+        return page_auto.serve(args.root.resolve(), args.auto_test, args.status_fd, args.print_url)
     return page.serve(args.root.resolve(), args.port)
 
 
@@ -755,6 +764,7 @@ def _test_command(args: argparse.Namespace) -> int:
         else:
             print(f"Test {cur['test']} started on {cur['tap_url']}. Relay mode is on.")
             print(kit.end_ways(root))
+        _start_page(root, cur["test"], sys.stderr if args.json else sys.stdout)
         return 0
     if args.command == "end":
         kit.set_mode(root, False)
@@ -762,6 +772,7 @@ def _test_command(args: argparse.Namespace) -> int:
         if running is not None and not (args.json or args.evaluation):
             print(_waiting(running["test"]), flush=True)
         ended = bridge.end(root)
+        _end_page(root)
         text = bridge.summary(ended) if ended else "No test runs. Relay mode is off."
         if args.evaluation:
             folder = evaluation.pending(root)
@@ -804,6 +815,24 @@ def _test_command(args: argparse.Namespace) -> int:
         return 1
     print(json.dumps({"pass": passed, "report": lines}) if args.json else "\n".join(lines))
     return 0 if passed else 1
+
+
+def _start_page(root: Path, test: str, out: TextIO) -> None:
+    """Start the chat page with the test (#328). A page that fails does not stop the test."""
+    from nookku import page_auto
+
+    text = page_auto.after_start(root, test, out)
+    if text:
+        print(text, file=out, flush=True)
+
+
+def _end_page(root: Path) -> None:
+    """Wait for the chat page of the test to stop (#328)."""
+    from nookku import page_auto
+
+    error = page_auto.after_end(root)
+    if error:
+        print(error, file=sys.stderr, flush=True)
 
 
 def _policy(root: Path, action: str | None, key: str | None, value: str | None) -> int:
