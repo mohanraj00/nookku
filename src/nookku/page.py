@@ -10,7 +10,7 @@ Security: the server listens only on 127.0.0.1. Each URL holds a random token, a
 gets the URL: `nookku page` prints it to its terminal. The page file holds only the port and the
 pid. Each request must have a correct `Host`, and a correct `Origin` if it has one. A `POST` must
 have `Origin`. Each answer has a strict Content Security Policy, and the page loads only its own
-files.
+files, and the images, videos and SVGs that a reply names (#347).
 """
 
 from __future__ import annotations
@@ -19,15 +19,20 @@ import errno
 import hmac
 import json
 import os
+import re
 import secrets
+import shutil
 import signal
+import subprocess
 import sys
 import threading
+from collections.abc import Mapping
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any, TextIO
-from urllib.parse import urlsplit
+from urllib.parse import unquote, urlsplit
 
 from nookku import kit, seal, state
 from nookku.record import RecordError, Writer, turns
@@ -40,11 +45,15 @@ FILES = {
     "": ("index.html", "text/html; charset=utf-8"),
     "app.js": ("app.js", "text/javascript; charset=utf-8"),
     "app.css": ("app.css", "text/css; charset=utf-8"),
+    "render.js": ("render.js", "text/javascript; charset=utf-8"),
+    "render.css": ("render.css", "text/css; charset=utf-8"),
 }
-# The page loads only its own files. No inline script, no inline style, no other site.
+# The page loads only its own files. No inline script, no inline style, no script of another site.
+# A reply can name an image, a video or an SVG as an https: URL, a data: URI or a file (#347).
 CSP = (
     "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; "
-    "img-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+    "img-src 'self' data: https:; media-src 'self' data: https:; frame-src 'self' data: https:; "
+    "base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
 )
 HEADERS = {
     "Content-Security-Policy": CSP,
@@ -173,6 +182,152 @@ def view(root: Path) -> dict[str, Any]:
     return {"test": test, "turns": rows, "error": None}
 
 
+# The files that the page shows in a reply (#347), and their media types. The page shows an SVG
+# only in a sandboxed iframe.
+MEDIA = {
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".gif": "image/gif",
+    ".webp": "image/webp",
+    ".avif": "image/avif",
+    ".bmp": "image/bmp",
+    ".ico": "image/x-icon",
+    ".svg": "image/svg+xml",
+    ".mp4": "video/mp4",
+    ".m4v": "video/mp4",
+    ".webm": "video/webm",
+    ".ogv": "video/ogg",
+    ".mov": "video/quicktime",
+}
+# The files that "Open" gives to the system app. The list has no program, no script, no HTML and
+# no SVG, because the system app can run them.
+OPEN_TYPES = frozenset(
+    {
+        ".pdf", ".txt", ".csv", ".tsv", ".md", ".json", ".log",
+        ".rtf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".odt", ".ods", ".odp",
+        ".png", ".jpg", ".jpeg", ".gif", ".webp", ".avif", ".bmp",
+        ".mp3", ".wav", ".m4a", ".ogg", ".flac",
+        ".mp4", ".m4v", ".webm", ".ogv", ".mov",
+    }
+)  # fmt: skip
+# A file answer runs no script, also if a person opens its URL in a tab: the CSP sandbox gives it
+# no origin of its own. The page can show it in an iframe.
+FILE_CSP = (
+    "default-src 'none'; img-src data:; style-src 'unsafe-inline'; frame-ancestors 'self'; sandbox"
+)
+FILE_HEADERS = {"Content-Security-Policy": FILE_CSP, "X-Frame-Options": "SAMEORIGIN"}
+FILE_REFUSED = (
+    "the page shows only an image, a video or an SVG in the project or the test folder, "
+    "and not a file in the state folder"
+)
+OPEN_REFUSED = (
+    "nookku: the page opens only a file in the project or the test folder, and not a file in the "
+    "state folder. Nothing was opened."
+)
+OPEN_TYPE_REFUSED = (
+    "nookku: the page does not open a file of the type {suffix}, because the system app can run "
+    "it. Nothing was opened."
+)
+NO_OPENER = "nookku: this system has no app to open a file ({name}). Nothing was opened."
+
+
+def _shown_test(root: Path) -> Path | None:
+    """The test folder that the page shows: the running test, else the latest test."""
+    cur = state.current(root)
+    return Path(cur["dir"]) if cur else state.latest_test(root)
+
+
+def allowed_file(root: Path, name: str) -> Path | None:
+    """The real path of a file that a reply names, or None if the page must refuse it.
+
+    A relative path starts at the project root. The real path, after each symlink, must be a file
+    in the project or in the folder of the shown test. A file in the state folder is refused,
+    except in the shown test folder, because the state folder holds the tap token."""
+    if not name or "\x00" in name:
+        return None
+    path = Path(name)
+    if not path.is_absolute():
+        path = root / path
+    try:
+        real = path.resolve(strict=True)
+        if not real.is_file():
+            return None
+        folder = _shown_test(root)
+        if folder is not None and real.is_relative_to(folder.resolve()):
+            return real
+        if real.is_relative_to(root.resolve()) and not real.is_relative_to(
+            state.state(root).resolve()
+        ):
+            return real
+    except (OSError, RuntimeError, ValueError):
+        return None
+    return None
+
+
+def byte_range(header: str | None, size: int) -> tuple[int, int] | None:
+    """The first and the last byte of a `Range: bytes=a-b` header. None if there is no header or
+    if the server ignores it (for example more than one range). Raise ValueError if the range is
+    not valid."""
+    if header is None:
+        return None
+    m = re.fullmatch(r"\s*bytes=(\d*)-(\d*)\s*", header)
+    if m is None:
+        return None
+    first, last = m.groups()
+    if first == "" and last == "":
+        raise ValueError(header)
+    if first == "":
+        start, end = max(size - int(last), 0), size - 1
+    else:
+        start = int(first)
+        end = min(int(last), size - 1) if last else size - 1
+    if start >= size or start > end:
+        raise ValueError(header)
+    return start, end
+
+
+def launch(path: Path) -> str | None:
+    """Open a file with the system app. Return an error, or None. The path is absolute, so that
+    the app cannot read it as an option."""
+    if sys.platform == "win32":
+        os.startfile(str(path))  # type: ignore[attr-defined]  # only on Windows
+        return None
+    name = "open" if sys.platform == "darwin" else "xdg-open"
+    program = shutil.which(name)
+    if program is None:
+        return NO_OPENER.format(name=name)
+    subprocess.Popen(
+        [program, str(path)],
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True,
+    )
+    return None
+
+
+def open_answer(root: Path, data: Any) -> tuple[int, dict[str, Any]]:
+    """Open a file that a reply names, after a click on "Open" on the page (#347). The page
+    server opens only a file in the project or the test folder, of a type in OPEN_TYPES."""
+    name = data.get("path") if isinstance(data, dict) else None
+    if not isinstance(name, str):
+        return 400, {"opened": False, "error": 'nookku page: the body needs the text "path"'}
+    path = allowed_file(root, name)
+    if path is None:
+        return 403, {"opened": False, "error": OPEN_REFUSED}
+    if path.suffix.lower() not in OPEN_TYPES:
+        suffix = path.suffix or "(no extension)"
+        return 403, {"opened": False, "error": OPEN_TYPE_REFUSED.format(suffix=suffix)}
+    try:
+        error = launch(path)
+    except OSError as e:
+        error = f"nookku: the system app did not start: {e}. Nothing was opened."
+    if error is not None:
+        return 500, {"opened": False, "error": error}
+    return 200, {"opened": True, "error": None}
+
+
 class PageServer(ThreadingHTTPServer):
     """The page server of one project. It listens only on 127.0.0.1."""
 
@@ -221,9 +376,12 @@ class _Handler(BaseHTTPRequestHandler):
             self.request_version = "HTTP/1.0"
         super().send_error(code, message, explain)
 
+    # The headers that replace some of HEADERS for one answer, for example a file (#347).
+    overrides: Mapping[str, str] = MappingProxyType({})
+
     def end_headers(self) -> None:
         # Each answer has the security headers, also an error that http.server makes itself.
-        for name, value in HEADERS.items():
+        for name, value in {**HEADERS, **self.overrides}.items():
             self.send_header(name, value)
         super().end_headers()
 
@@ -279,6 +437,8 @@ class _Handler(BaseHTTPRequestHandler):
             self._answer(200, page_file(name), kind)
         elif rest == "api/turns":
             self._json(200, view(self.server.root))
+        elif rest.startswith("files/"):
+            self._file(unquote(rest[len("files/") :]))
         else:
             self._refuse(404, "not found")
 
@@ -286,7 +446,7 @@ class _Handler(BaseHTTPRequestHandler):
         rest = self._route()
         if rest is None:
             return
-        if rest != "api/send":
+        if rest not in ("api/send", "api/open"):
             self._refuse(404, "not found")
             return
         kind = (self.headers.get("Content-Type") or "").split(";")[0].strip().lower()
@@ -306,6 +466,12 @@ class _Handler(BaseHTTPRequestHandler):
         except (ValueError, RecursionError):
             self._refuse(400, "the body is not JSON")
             return
+        if rest == "api/open":
+            try:
+                self._json(*open_answer(self.server.root, data))
+            except Exception as e:  # each failure must give the page an error, not a reset
+                self._json(500, {"opened": False, "error": f"nookku: {e}. Nothing was opened."})
+            return
         said = data.get("said") if isinstance(data, dict) else None
         if not isinstance(said, str):
             self._refuse(400, 'the body needs the text "said"')
@@ -317,6 +483,48 @@ class _Handler(BaseHTTPRequestHandler):
                 self._json(500, {"sent": False, "ok": False, "shown": f"nookku: {e}"})
                 return
         self._json(200, answer)
+
+    def _file(self, name: str) -> None:
+        """Send an image, a video or an SVG of the project or the test folder (#347). Accept one
+        byte range, because a browser asks for a range of a video."""
+        path = allowed_file(self.server.root, name)
+        kind = MEDIA.get(path.suffix.lower()) if path is not None else None
+        if path is None or kind is None:
+            self._refuse(404, FILE_REFUSED)
+            return
+        try:
+            size = path.stat().st_size
+        except OSError:
+            self._refuse(404, FILE_REFUSED)
+            return
+        try:
+            span = byte_range(self.headers.get("Range"), size)
+        except ValueError:
+            self.overrides = {"Content-Range": f"bytes */{size}"}
+            self._refuse(416, "the range is not valid")
+            return
+        start, end = span or (0, size - 1)
+        self.overrides = FILE_HEADERS
+        self.send_response(206 if span else 200)
+        self.send_header("Content-Type", kind)
+        self.send_header("Content-Length", str(max(end - start + 1, 0)))
+        self.send_header("Accept-Ranges", "bytes")
+        if span:
+            self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
+        self.end_headers()
+        try:
+            with path.open("rb") as f:
+                f.seek(start)
+                left = end - start + 1
+                while left > 0:
+                    chunk = f.read(min(left, 1 << 16))
+                    if not chunk:
+                        break
+                    self.wfile.write(chunk)
+                    left -= len(chunk)
+        except OSError:
+            # The browser closed the connection, for example when it stops a video.
+            pass
 
 
 class PageRunning(Exception):

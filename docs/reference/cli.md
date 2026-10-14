@@ -141,6 +141,9 @@ Serve the chat page: a local web page where you talk to the agent of the running
 - Start and end the test in the harness, with `nookku start` and `nookku end`. The page does not run these prompts.
 - The page sends only if relay mode is on and the test is not a [scripted test](glossary.md#scripted-test). After `nookku end` begins, the page sends nothing.
 - If no test runs, or the page server cannot send the message, the page shows the error. Nothing goes to a model.
+- The page shows a reply of the agent as Markdown: headings, emphasis, lists, links, tables, block quotes and code. HTML in a reply shows as text. The button "Text" shows the exact text of the reply. A `mermaid` or `vega-lite` fence shows as code.
+- The page shows an image or a video that a reply names as an `https:` URL, a `data:` URI or a file path. A relative path starts at the project root. The page shows a file only if it is in the project or in the folder of the test, and not in `.nookku/` outside the test folder. The page shows an SVG in a sandbox, with no scripts.
+- For another file, for example a PDF, the page shows an "Open" button. A click opens the file with the system app. The page does not open a program, a script, an HTML file or an SVG ([SPEC.md section 5](../../SPEC.md#5-relays)).
 - The server listens only on `127.0.0.1`. The URL has a random token. The server refuses a request with a wrong `Host` or `Origin` header.
 - Run `nookku page` in a separate terminal. Do not run it with `!` in the harness, because the harness shows the output to the model. In a harness shell, `nookku page` refuses to start.
 - Only you get the URL, in the terminal of `nookku page`. Do not give the URL to the harness model, because with it the model can send messages as you. The server writes only its port and its pid to `.nookku/page.json`, and the guard denies a model tool call to that port. The guard also denies a model command that runs `nookku page`.
