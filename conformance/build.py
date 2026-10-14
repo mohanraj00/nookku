@@ -4074,7 +4074,7 @@ EVALUATION_CASES: dict[str, dict] = {
     },
     "no_key_no_turns": {"manifest": {}, "relay": [], "evaluated": True},
     "no_key_broken_relay_record": {"manifest": {}, "relay": ["{broken"], "evaluated": True},
-    # `later` holds the tests that started after the test, each one ended. A later test can have
+    # `later` holds the tests that started after the test. A later test can have
     # `report: true`. At most one test of a case has `evaluated: true` (#298).
     # The tester ended the test in a shell and then ran nookku check.
     "check_after_the_test": {
@@ -4107,6 +4107,40 @@ EVALUATION_CASES: dict[str, dict] = {
                 "evaluated": False,
             },
             {"manifest": {"check": True}, "relay": [CHECK_TURN], "evaluated": False},
+        ],
+        "evaluated": False,
+    },
+    # A later test ends, unless its manifest has `ended: null`. A check test with no end time
+    # hides the tests before it: the check starts or stopped before its end steps.
+    "check_without_end_after_the_test": {
+        "manifest": {"check": False},
+        "relay": [TESTER_TURN],
+        "later": [{"manifest": {"check": True, "ended": None}, "relay": [], "evaluated": False}],
+        "evaluated": False,
+    },
+    "test_without_end_after_the_test": {
+        "manifest": {"check": False},
+        "relay": [TESTER_TURN],
+        "later": [
+            {
+                "manifest": {"check": False, "ended": None},
+                "relay": [TESTER_TURN],
+                "evaluated": False,
+            }
+        ],
+        "evaluated": False,
+    },
+    # `manifest_text` is a manifest that cannot be read. It does not make a check test.
+    "broken_manifest_after_the_test": {
+        "manifest": {"check": False},
+        "relay": [TESTER_TURN],
+        "later": [
+            {
+                "manifest": {},
+                "manifest_text": '{"started": 3.0, "check": true, "ended"',
+                "relay": [CHECK_TURN],
+                "evaluated": False,
+            }
         ],
         "evaluated": False,
     },

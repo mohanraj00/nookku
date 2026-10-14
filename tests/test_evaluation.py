@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from nookku import bridge, evaluation, kit, mcp, trace
+from nookku import bridge, evaluation, kit, mcp, state, trace
 from nookku.cli import main
 from nookku.record import Writer
 
@@ -71,8 +71,11 @@ def test_the_manifest_key_check_or_else_the_turns_make_a_check_test(
     for n, test in enumerate(data.get("later", []), 1):
         later = folder.parent / f"20261006-0800{n:02d}-cc01"
         later.mkdir()
+        # A later test ends, unless its manifest has "ended": null. "manifest_text" is a manifest
+        # that cannot be read.
         started = {"started": 1.0 + n, "ended": 2.0 + n}
-        (later / "manifest.json").write_text(json.dumps({**started, **test["manifest"]}))
+        text = test.get("manifest_text") or json.dumps({**started, **test["manifest"]})
+        (later / "manifest.json").write_text(text)
         write_relay(later, test["relay"])
         if test.get("report"):
             (later / evaluation.REPORT).write_text("# Report\n")
@@ -105,6 +108,15 @@ def test_nookku_end_after_check_evaluates_the_test_of_the_tester(
     assert main(["end", "--evaluation", "--root", str(root)]) == 0
     out = json.loads(capsys.readouterr().out)
     assert out["evaluation"].startswith(f"# Evaluate test {TEST}")
+    # During the evaluation, a deny goes to the test under evaluation, not to the check test, and
+    # transcript with no test id gives that test.
+    write = {"command": f"rm .nookku/tests/{TEST}/trace.jsonl"}
+    pre = {"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": write}
+    denied = kit.handle(pre, root, "codex")
+    assert denied is not None and "permissionDecisionReason" in denied["hookSpecificOutput"]
+    assert (folder / "denied.jsonl").exists() and not (check / "denied.jsonl").exists()
+    assert TEST in kit.transcript_text(root, trace=True).split("\n")[1]
+    assert bridge.CHECK_HARNESS == state.CHECK_HARNESS
     # After the report, the check test does not get the evaluation.
     (folder / evaluation.REPORT).write_text("# Report\n")
     assert evaluation.pending(root) is None

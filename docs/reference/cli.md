@@ -149,12 +149,12 @@ If the [relay record](glossary.md#relay-record) has an invalid line, `view` show
 
 ### `nookku transcript`
 
-Print the exact conversation for the model to evaluate ([SPEC.md section 5](../../SPEC.md#5-relays)). With an entry, the scope is the latest test.
+Print the exact conversation for the model to evaluate ([SPEC.md section 5](../../SPEC.md#5-relays)). With an entry, the scope is the latest test. A check test that ended does not count: after `nookku check`, the scope is the test before it ([SPEC.md section 9.1](../../SPEC.md#91-start)).
 
 | Flag | Default | Meaning |
 |---|---|---|
 | `--root PATH` | the current folder | The project. |
-| `--test ID` | the latest test | The test to print: the test id, or the path of the test folder. |
+| `--test ID` | the latest test that is not a check test that ended | The test to print: the test id, or the path of the test folder. |
 | `--trace` | off | Print each turn as the app got it (from `tap.jsonl`), with the model items and the [findings](glossary.md#findings) of that turn ([SPEC.md section 9.2](../../SPEC.md#92-evaluation-prompt)). It ignores `--record`, `--all` and `--session`. |
 | `--all` | off | With no entry: each session of the record, not only the latest one. |
 | `--session ID` | none | Only the turns of this harness session. |

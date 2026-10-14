@@ -517,8 +517,9 @@ def _names_entry(entry: list[str], text: str, tool: str, tool_input: Any) -> boo
 
 
 def _last_record(root: Path) -> Path:
-    """After a test, a deny goes to denied.jsonl, so that the sealed relay.jsonl does not change."""
-    last = state.latest_test(root)
+    """After a test, a deny goes to denied.jsonl, so that the sealed relay.jsonl does not change.
+    A check test that ended does not take the denies of the evaluation of the test before it."""
+    last = state.tester_test(root) or state.latest_test(root)
     return last / seal.DENIED if last else root / STATE_DIR / "relay.jsonl"
 
 
@@ -1073,9 +1074,10 @@ def existing_test(root: Path, test: str) -> Path:
 
 
 def _latest(root: Path) -> Path | None:
-    """The latest test, with the same check as a test id: a symbolic link in the tests folder
-    must not take the transcript to a folder outside the project."""
-    last = state.latest_test(root)
+    """The latest test that is not a check test that ended (state.tester_test), with the same
+    check as a test id: a symbolic link in the tests folder must not take the transcript to a
+    folder outside the project."""
+    last = state.tester_test(root) or state.latest_test(root)
     return None if last is None else folder_of_test(root, last.name)
 
 
