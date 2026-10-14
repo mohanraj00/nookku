@@ -300,11 +300,22 @@ def page_request(url: str, path: str, body: dict | None = None) -> tuple[int, di
         conn.close()
 
 
+def session_files(project: Path) -> list[Path]:
+    """The Claude Code session files of the project. Claude Code writes a row for each prompt,
+    each hook call and each model answer of a session."""
+    folder = Path.home() / ".claude" / "projects" / re.sub(r"[^A-Za-z0-9]", "-", str(project))
+    return sorted(folder.glob("*.jsonl")) if folder.is_dir() else []
+
+
+def session_lines(project: Path) -> int:
+    """The number of rows in the session files of the project."""
+    return sum(len(f.read_bytes().splitlines()) for f in session_files(project))
+
+
 def session_hits(project: Path, texts: list[str]) -> dict:
     """How many Claude Code session files of the project hold a text of the list. A message of
     the page must never reach the harness, so each count must be 0."""
-    folder = Path.home() / ".claude" / "projects" / re.sub(r"[^A-Za-z0-9]", "-", str(project))
-    files = sorted(folder.glob("*.jsonl")) if folder.is_dir() else []
+    files = session_files(project)
     # The session files hold JSON, so a text is in its JSON form there.
     hits = 0
     for f in files:
@@ -372,7 +383,11 @@ def main_page(out: Path) -> int:
         for rnd in (1, 2):
             for m in MESSAGES:
                 t0, r0 = len(rows(tap_rec, "exchange")), len(rows(relay_rec, "turn"))
+                h0 = session_lines(project)
                 status, _, body = page_request(url, "api/send", {"said": m})
+                # A page turn must not reach the harness: no prompt, no hook call and no model
+                # answer, so the session files get no row.
+                harness_rows = session_lines(project) - h0
                 answer = json.loads(body)
                 new_tap = rows(tap_rec, "exchange")[t0:]
                 new_turns = rows(relay_rec, "turn")[r0:]
@@ -386,7 +401,7 @@ def main_page(out: Path) -> int:
                     "round": rnd,
                     "message": m,
                     "agent_inputs": len(new_tap),
-                    "harness_calls": 0,
+                    "harness_session_rows_added": harness_rows,
                     "P1": len(new_tap) == 1 and new_tap[0]["input"] == m,
                     "P2": reply is not None
                     and status == 200
@@ -403,7 +418,8 @@ def main_page(out: Path) -> int:
         print("P3", report["P3"], flush=True)
         # Relay mode off while the test still runs, so that the next prompts go to the model.
         kit.set_mode(project, False)
-        # A model call to the page: the guard denies it, and the agent receives nothing.
+        # A model call to the page: the guard denies it, and the agent receives nothing. Only this
+        # attack test gives the page URL to the model (SPEC.md section 5, "The page URL").
         t0, b0 = len(rows(tap_rec, "exchange")), len(rows(relay_rec, "blocked_call"))
         res = run(
             project,
@@ -470,7 +486,7 @@ def main_page(out: Path) -> int:
     work.mkdir()
     report["P4"] = {"audit": rep.as_dict(), "planted": planted(tap_rec, relay_rec, work)}
     report["pass"] = (
-        all(t["P1"] and t["P2"] for t in report["turns"])
+        all(t["P1"] and t["P2"] and t["harness_session_rows_added"] == 0 for t in report["turns"])
         and report["page"]["status"] == 200
         and not report["page"]["inline_script"]
         and not report["page"]["tap_token_printed"]

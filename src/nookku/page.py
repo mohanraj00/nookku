@@ -6,13 +6,16 @@ harness, so the harness model cannot see it. The browser cannot post to the tap 
 `Origin`, and the tap refuses a request with `Origin` (SPEC.md section 4.2). Thus the page server
 sends for the page.
 
-Security: the server listens only on 127.0.0.1. Each URL holds a random token. Each request must
-have a correct `Host`, and a correct `Origin` if it has one. A `POST` must have `Origin`. Each
-answer has a strict Content Security Policy, and the page loads only its own files.
+Security: the server listens only on 127.0.0.1. Each URL holds a random token, and only the person
+gets the URL: `nookku page` prints it to its terminal. The page file holds only the port and the
+pid. Each request must have a correct `Host`, and a correct `Origin` if it has one. A `POST` must
+have `Origin`. Each answer has a strict Content Security Policy, and the page loads only its own
+files.
 """
 
 from __future__ import annotations
 
+import errno
 import hmac
 import json
 import os
@@ -23,11 +26,11 @@ import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import Any, TextIO
 from urllib.parse import urlsplit
 
-from nookku import kit, policy, state
-from nookku.record import RecordError, Writer, lone_surrogate, turns
+from nookku import kit, seal, state
+from nookku.record import RecordError, Writer, turns
 
 # The harness of a turn that the page sent (SPEC.md section 2.2).
 HARNESS = "pane"
@@ -55,51 +58,26 @@ HEADERS = {
 }
 # A tester message is text. 1 MiB is much more than a chat message.
 MAX_BODY = 1 << 20
+# The wait for each read or write on a connection of the browser. The page answers each request
+# at once, except a send, and a send does not use the connection while it waits for the tap.
+SOCKET_TIMEOUT = 30
 CONTROL_REASON = (
     "nookku: the page does not run control prompts. Type {said} in the harness. Nothing was sent."
 )
 NO_TEST = "nookku: no test runs. Start one in the harness with: nookku start. Nothing was sent."
+RELAY_OFF = (
+    "nookku: relay mode is off, so the page sends nothing. The test ends, or a person switched "
+    "relay mode off. Nothing was sent."
+)
+SCRIPTED = "nookku: this test is a scripted test, so the page sends nothing. Nothing was sent."
+ENDED = (
+    "nookku: the test ended during the send, so the page wrote no turn. The record of the test "
+    "is sealed and does not change. Reply or error: {shown}"
+)
 
 
 def page_file(name: str) -> bytes:
     return resources.files("nookku").joinpath("page").joinpath(name).read_bytes()
-
-
-def refusal(root: Path, said: Any) -> str | None:
-    """The reason to refuse a message before the page sends it, or None. These are the rules of
-    the hook (SPEC.md section 5), and the page writes no turn for a refused message."""
-    if not isinstance(said, str) or not said.strip():
-        return "nookku: the message is empty. Nothing was sent."
-    found = lone_surrogate(said)
-    if found:
-        return f"nookku: nothing was sent. The message has {found}."
-    if said.strip() in kit.CONTROL:
-        return CONTROL_REASON.format(said=said.strip())
-    try:
-        limit = policy.read(root)["control_distance"]
-    except policy.PolicyError:
-        # A broken policy file gives the default, as in the hook.
-        limit = policy.KEYS["control_distance"].default
-    if kit.near_control(said, limit):
-        return kit.NEAR_CONTROL_REASON
-    return None
-
-
-def send(root: Path, said: Any) -> dict[str, Any]:
-    """Send one message to the running test, and write its turn. Return what the page shows.
-
-    Fail closed: if the page cannot send the message, it shows the error, and the turn has the
-    error as `shown` with `ok: false`. The message never goes to a model."""
-    reason = refusal(root, said)
-    if reason is not None:
-        return {"sent": False, "shown": reason, "ok": False}
-    cur = state.current(root)
-    if cur is None:
-        return {"sent": False, "shown": NO_TEST, "ok": False}
-    shown, ok = kit.checked(*state.send(cur, said))
-    row = {"type": "turn", "harness": HARNESS, "said": said, "shown": shown, "ok": ok}
-    Writer(Path(cur["dir"]) / "relay.jsonl").append(row)
-    return {"sent": True, "shown": shown, "ok": ok}
 
 
 def _manifest(folder: Path) -> dict[str, Any]:
@@ -108,6 +86,50 @@ def _manifest(folder: Path) -> dict[str, Any]:
     except (OSError, ValueError):
         return {}
     return data if isinstance(data, dict) else {}
+
+
+def _closed(folder: Path) -> bool:
+    """True if the test ended, or its end wrote the audit or the seal. Then the record must not
+    change."""
+    if (folder / "audit.json").exists() or (folder / seal.SEAL).exists():
+        return True
+    return _manifest(folder).get("ended") is not None
+
+
+def refusal(root: Path, said: str) -> str | None:
+    """The reason to refuse a message before the page sends it, or None. The rules of the
+    prompt are the rules of the hook (`kit.prompt_refusal`). An exact control prompt runs only
+    in the harness. The page writes no turn for a refused message."""
+    if said.strip() in kit.CONTROL:
+        return CONTROL_REASON.format(said=said.strip())
+    return kit.prompt_refusal(said, root)
+
+
+def send(root: Path, said: str) -> dict[str, Any]:
+    """Send one message to the running test, and write its turn. Return what the page shows.
+
+    Fail closed: the page sends only to a running test that is not a scripted test, in relay
+    mode. If the page cannot send the message, it shows the error, and the turn has the error as
+    `shown` with `ok: false`. If the test ended during the send, the page writes no turn. The
+    message never goes to a model."""
+    reason = refusal(root, said)
+    if reason is not None:
+        return {"sent": False, "shown": reason, "ok": False}
+    cur = state.current(root)
+    if cur is None:
+        return {"sent": False, "shown": NO_TEST, "ok": False}
+    folder = Path(cur["dir"])
+    # `nookku end` switches relay mode off before it stops the test.
+    if not kit.is_on(root) or _closed(folder):
+        return {"sent": False, "shown": RELAY_OFF, "ok": False}
+    if _manifest(folder).get("script") is not None:
+        return {"sent": False, "shown": SCRIPTED, "ok": False}
+    shown, ok = kit.checked(*state.send(cur, said))
+    if _closed(folder):
+        return {"sent": False, "shown": ENDED.format(shown=shown), "ok": False}
+    row = {"type": "turn", "harness": HARNESS, "said": said, "shown": shown, "ok": ok}
+    Writer(folder / "relay.jsonl").append(row)
+    return {"sent": True, "shown": shown, "ok": ok}
 
 
 def view(root: Path) -> dict[str, Any]:
@@ -157,21 +179,40 @@ class _Handler(BaseHTTPRequestHandler):
     sys_version = ""
     # The answers of the page are small, and a keep-alive connection is not necessary.
     protocol_version = "HTTP/1.0"
-    METHODS: ClassVar[set[str]] = {"GET", "POST"}
+    timeout = SOCKET_TIMEOUT
 
     def log_message(self, format: str, *args: Any) -> None:
         # The default log writes each path, and each path holds the page token.
         pass
 
-    def _answer(self, status: int, body: bytes, kind: str) -> None:
-        self.send_response(status)
+    def parse_request(self) -> bool:
+        if not super().parse_request():
+            return False
+        if self.request_version == "HTTP/0.9":
+            # An HTTP/0.9 answer has no headers, so it cannot have the CSP.
+            self.close_connection = True
+            return False
+        return True
+
+    def send_error(self, code: int, message: str | None = None, explain: str | None = None) -> None:
+        # http.server writes no headers for a request of the version HTTP/0.9, and the version
+        # stays HTTP/0.9 if the request line is not valid. Then the error must still have the CSP.
+        if self.request_version == "HTTP/0.9":
+            self.request_version = "HTTP/1.0"
+        super().send_error(code, message, explain)
+
+    def end_headers(self) -> None:
+        # Each answer has the security headers, also an error that http.server makes itself.
         for name, value in HEADERS.items():
             self.send_header(name, value)
+        super().end_headers()
+
+    def _answer(self, status: int, body: bytes, kind: str) -> None:
+        self.send_response(status)
         self.send_header("Content-Type", kind)
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
-        if self.command != "HEAD":
-            self.wfile.write(body)
+        self.wfile.write(body)
 
     def _json(self, status: int, data: dict[str, Any]) -> None:
         body = json.dumps(data, ensure_ascii=False).encode()
@@ -203,6 +244,11 @@ class _Handler(BaseHTTPRequestHandler):
             self._refuse(404, "not found")
             return None
         return rest
+
+    def _other(self) -> None:
+        self._refuse(405, "the page takes only GET and POST")
+
+    do_HEAD = do_PUT = do_DELETE = do_PATCH = do_OPTIONS = do_CONNECT = do_TRACE = _other
 
     def do_GET(self) -> None:
         rest = self._route()
@@ -237,10 +283,13 @@ class _Handler(BaseHTTPRequestHandler):
             return
         try:
             data = json.loads(self.rfile.read(size))
-        except ValueError:
+        except (ValueError, RecursionError):
             self._refuse(400, "the body is not JSON")
             return
         said = data.get("said") if isinstance(data, dict) else None
+        if not isinstance(said, str):
+            self._refuse(400, 'the body needs the text "said"')
+            return
         with self.server.lock:
             try:
                 answer = send(self.server.root, said)
@@ -250,41 +299,78 @@ class _Handler(BaseHTTPRequestHandler):
         self._json(200, answer)
 
 
-def write_page_file(root: Path, server: PageServer) -> Path:
-    """Write the page file of the project: the URL that the guard denies (SPEC.md section 5)."""
-    from nookku.bridge import _write_json
+class PageRunning(Exception):
+    """Another page server of the project runs."""
 
+
+def claim_page_file(root: Path, port: int) -> Path:
+    """Write the page file: the port and the pid of this server, with no token (SPEC.md section
+    5). Take over the file of a page server that does not run. Raise PageRunning if one runs."""
     folder = state.state(root)
     folder.mkdir(parents=True, exist_ok=True)
     path = folder / state.PAGE_FILE
-    # The URL holds the page token, so only the owner can read the file.
-    _write_json(path, {"url": server.url, "pid": os.getpid()}, mode=0o600)
+    info = state.page_info(root)
+    if info is not None and _alive(info):
+        raise PageRunning(f"a page server of this project runs (pid {info['pid']})")
+    path.unlink(missing_ok=True)
+    data = {"port": port, "pid": os.getpid(), "pid_start": state.process_start(os.getpid())}
+    try:
+        # O_EXCL: of 2 servers that start at the same time, only one gets the file.
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    except FileExistsError:
+        raise PageRunning("another page server of this project starts now") from None
+    with os.fdopen(fd, "w") as f:
+        f.write(json.dumps(data) + "\n")
     return path
 
 
-def serve(root: Path, port: int = 0, out: Any = None) -> int:
-    """Run the page server until it gets a signal. Print the page URL. Never print the tap token."""
+def _alive(info: dict[str, Any]) -> bool:
+    """True if the process of the page file runs and has its start time."""
+    pid, start = info.get("pid"), info.get("pid_start")
+    if type(pid) is not int or pid <= 0 or not state.alive(pid):
+        return False
+    return start is None or state.process_start(pid) == start
+
+
+def _owns(root: Path) -> bool:
+    info = state.page_info(root)
+    return info is not None and info.get("pid") == os.getpid()
+
+
+def serve(root: Path, port: int = 0, out: TextIO | None = None) -> int:
+    """Run the page server until it gets a signal. Print the page URL only to this terminal.
+    Never print the tap token."""
     out = out or sys.stdout
+    if not 0 <= port <= 65535:
+        print(f"nookku: the port {port} is not valid. Use 0 to 65535.", file=sys.stderr)
+        return 1
     try:
         server = PageServer(root, port)
     except OSError as e:
-        print(f"nookku: cannot start the page on {HOST}:{port}: {e}", file=sys.stderr)
+        reason = "the port is in use" if e.errno == errno.EADDRINUSE else str(e)
+        print(f"nookku: cannot start the page on {HOST}:{port}: {reason}", file=sys.stderr)
         return 1
-    path = write_page_file(root, server)
-    # SIGTERM stops the page as Ctrl-C does, so that the page file goes away.
-    signal.signal(signal.SIGTERM, signal.default_int_handler)
-    print(f"Chat page: {server.url}", file=out, flush=True)
-    print("Open this URL in your browser. Stop the page with Ctrl-C.", file=out, flush=True)
     try:
+        claim_page_file(root, server.server_address[1])
+    except (PageRunning, OSError) as e:
+        server.server_close()
+        print(f"nookku: cannot start the page: {e}. Stop that server first.", file=sys.stderr)
+        return 1
+    # SIGTERM and SIGHUP (the terminal closes) stop the page as Ctrl-C does, so that the page
+    # file goes away.
+    for sig in (signal.SIGTERM, signal.SIGHUP):
+        signal.signal(sig, signal.default_int_handler)
+    try:
+        print(f"Chat page: {server.url}", file=out, flush=True)
+        print("Open this URL in your browser. Stop the page with Ctrl-C.", file=out, flush=True)
         server.serve_forever()
     except KeyboardInterrupt:
         pass
     finally:
         # A second signal, for example from a wrapper that forwards it, must not stop the cleanup.
-        signal.signal(signal.SIGTERM, signal.SIG_IGN)
-        signal.signal(signal.SIGINT, signal.SIG_IGN)
+        for sig in (signal.SIGTERM, signal.SIGHUP, signal.SIGINT):
+            signal.signal(sig, signal.SIG_IGN)
         server.server_close()
-        # Another page server can write the file after this one. Then its file stays.
-        if state.page_url(root) == server.url:
-            path.unlink(missing_ok=True)
+        if _owns(root):
+            (state.state(root) / state.PAGE_FILE).unlink(missing_ok=True)
     return 0

@@ -139,8 +139,11 @@ Serve the chat page: a local web page where you talk to the agent of the running
 - The page shows the turns of the running test, else of the latest test, with the start and the end of the test. It asks the server for new turns each [1 second](../../src/nookku/page/app.js#L5).
 - When you send a message, the page server sends it to the [tap](glossary.md#tap) with the relay function of the hook, and writes a turn with `"harness": "pane"` ([SPEC.md section 5](../../SPEC.md#5-relays)). The message does not go into the harness, so the [harness model](glossary.md#harness-model) cannot see it.
 - Start and end the test in the harness, with `nookku start` and `nookku end`. The page does not run these prompts.
+- The page sends only if relay mode is on and the test is not a [scripted test](glossary.md#scripted-test). After `nookku end` begins, the page sends nothing.
 - If no test runs, or the page server cannot send the message, the page shows the error. Nothing goes to a model.
-- The server listens only on `127.0.0.1`. The URL has a random token. The server refuses a request with a wrong `Host` or `Origin` header. The server writes the URL to `.nookku/page.json`, and the guard denies a model tool call to it.
+- The server listens only on `127.0.0.1`. The URL has a random token. The server refuses a request with a wrong `Host` or `Origin` header.
+- Only you get the URL, in the terminal of `nookku page`. Do not give the URL to the harness model, because with it the model can send messages as you. The server writes only its port and its pid to `.nookku/page.json`, and the guard denies a model tool call to that port. The guard also denies a model command that runs `nookku page`.
+- One page server runs for each project. Stop the page with Ctrl-C. The page also stops when the terminal closes.
 - The relay in the harness chat still works, for example over SSH, in CI and in `codex exec`.
 
 | Flag | Default | Meaning |
@@ -151,7 +154,7 @@ Serve the chat page: a local web page where you talk to the agent of the running
 | Exit code | Meaning |
 |---|---|
 | 0 | The page stopped. |
-| 1 | The server cannot listen on the port. |
+| 1 | The port is not valid, the server cannot listen on the port, or a page server of this project runs. |
 
 ## Commands that read a test
 

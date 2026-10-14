@@ -8,6 +8,7 @@ import json
 import os
 import re
 import signal
+import socket
 import stat
 import subprocess
 import sys
@@ -99,6 +100,7 @@ def live(tmp_path: Path) -> Iterator[tuple[Path, page.PageServer, StdioTap, Path
     agent.start()
     start_in_thread(tap)
     write_current(tmp_path, folder, tap.url, tap.token)
+    kit.set_mode(tmp_path, True)
     server = start_page(tmp_path)
     try:
         yield tmp_path, server, tap, folder
@@ -294,6 +296,7 @@ def test_a_tap_that_refuses_the_message_gives_an_error_turn(live: Any, token: st
 def test_an_unreachable_tap_gives_an_error_turn(tmp_path: Path) -> None:
     folder = make_folder(tmp_path)
     write_current(tmp_path, folder, "http://127.0.0.1:9/", "t" * 43)
+    kit.set_mode(tmp_path, True)
     server = start_page(tmp_path)
     try:
         answer = send(server, "Hi")
@@ -310,9 +313,8 @@ def test_an_unreachable_tap_gives_an_error_turn(tmp_path: Path) -> None:
     ("said", "reason"),
     [
         ("nookku end", page.CONTROL_REASON.format(said="nookku end")),
+        ("  nookku end ", page.CONTROL_REASON.format(said="nookku end")),
         ("nookku stop", kit.NEAR_CONTROL_REASON),
-        ("", "nookku: the message is empty. Nothing was sent."),
-        (None, "nookku: the message is empty. Nothing was sent."),
         ("Is the mug \ud83d in stock?", None),
     ],
 )
@@ -334,14 +336,19 @@ def test_the_guard_denies_a_model_call_to_the_page(tmp_path: Path) -> None:
     (tmp_path / ".nookku").mkdir()
     server = page.PageServer(tmp_path)
     try:
-        path = page.write_page_file(tmp_path, server)
-        assert stat.S_IMODE(path.stat().st_mode) == 0o600
-        assert state.page_url(tmp_path) == server.url
         port = server.server_address[1]
+        path = page.claim_page_file(tmp_path, port)
+        assert stat.S_IMODE(path.stat().st_mode) == 0o600
+        assert state.page_port(tmp_path) == port
+        # A model tool call can read the page file, so it never holds the page token.
+        assert server.token not in path.read_text()
+        assert set(json.loads(path.read_text())) == {"port", "pid", "pid_start"}
         for command in (
             f'curl -X POST {server.url}api/send -d \'{{"said": "hi"}}\'',
             f"curl http://localhost:{port}/",
             f"exec 3<>/dev/tcp/127.0.0.1/{port}",
+            "nookku page",
+            "uv run nookku page --port 8080",
         ):
             event = {
                 "hook_event_name": "PreToolUse",
@@ -371,7 +378,10 @@ def test_the_guard_denies_a_model_call_to_the_page(tmp_path: Path) -> None:
         server.server_close()
 
 
-def test_the_page_command_prints_no_tap_token_and_removes_its_file(tmp_path: Path) -> None:
+@pytest.mark.parametrize("sig", [signal.SIGTERM, signal.SIGHUP, signal.SIGINT])
+def test_the_page_command_prints_no_tap_token_and_removes_its_file(
+    tmp_path: Path, sig: signal.Signals
+) -> None:
     folder = make_folder(tmp_path)
     write_current(tmp_path, folder, "http://127.0.0.1:9/", "secret-tap-token-" + "x" * 30)
     proc = subprocess.Popen(
@@ -388,9 +398,11 @@ def test_the_page_command_prints_no_tap_token_and_removes_its_file(tmp_path: Pat
         deadline = time.monotonic() + 10
         while not page_file.exists() and time.monotonic() < deadline:
             time.sleep(0.05)
-        assert state.page_url(tmp_path) == line.split(": ", 1)[1].strip()
+        url = line.split(": ", 1)[1].strip()
+        assert f"http://127.0.0.1:{state.page_port(tmp_path)}/p/" in url
+        assert url.split("/p/")[1].strip("/") not in page_file.read_text()
     finally:
-        proc.send_signal(signal.SIGTERM)
+        proc.send_signal(sig)
         out, err = proc.communicate(timeout=10)
     assert "secret-tap-token" not in line + out + err
     assert proc.returncode == 0
@@ -406,3 +418,158 @@ def test_view_text_is_the_terminal_view(tmp_path: Path, capsys: pytest.CaptureFi
     Writer(tmp_path / ".nookku" / "relay.jsonl").append(row)
     assert main(["view", "--text", "--no-follow", "--root", str(tmp_path)]) == 0
     assert "──── tester, turn 1 ────\nHi\n──── agent ────\nHello  \n" in capsys.readouterr().out
+
+
+def test_the_page_sends_only_in_relay_mode_and_not_for_a_scripted_test(live: Any) -> None:
+    root, server, _, folder = live
+    kit.set_mode(root, False)
+    assert send(server, "Hi") == {"sent": False, "shown": page.RELAY_OFF, "ok": False}
+    kit.set_mode(root, True)
+    manifest = json.loads((folder / "manifest.json").read_text())
+    (folder / "manifest.json").write_text(json.dumps(manifest | {"script": "s.jsonl"}))
+    assert send(server, "Hi") == {"sent": False, "shown": page.SCRIPTED, "ok": False}
+    assert not (folder / "relay.jsonl").exists()
+    assert not (folder / "tap.jsonl").exists() or (folder / "tap.jsonl").read_text() == ""
+
+
+@pytest.mark.parametrize("closed", ["ended", "audit.json", "seal.json"])
+def test_the_page_sends_nothing_after_the_end_began(live: Any, closed: str) -> None:
+    _, server, _, folder = live
+    if closed == "ended":
+        manifest = json.loads((folder / "manifest.json").read_text())
+        (folder / "manifest.json").write_text(json.dumps(manifest | {"ended": 1_800_000_100.0}))
+    else:
+        (folder / closed).write_text("{}")
+    assert send(server, "Hi") == {"sent": False, "shown": page.RELAY_OFF, "ok": False}
+    assert not (folder / "relay.jsonl").exists()
+    assert not (folder / "tap.jsonl").exists() or (folder / "tap.jsonl").read_text() == ""
+
+
+@pytest.mark.parametrize("ok", [True, False])
+def test_a_test_sealed_during_the_send_gets_no_turn(
+    live: Any, monkeypatch: pytest.MonkeyPatch, ok: bool
+) -> None:
+    _, server, _, folder = live
+
+    def sealed_send(cur: dict[str, Any], said: str) -> tuple[str, bool]:
+        (folder / "seal.json").write_text("{}")
+        return ("Your order ships today.", True) if ok else ("nookku: HTTP 503: gone", False)
+
+    monkeypatch.setattr(state, "send", sealed_send)
+    answer = send(server, "Hi")
+    assert answer["sent"] is False and answer["ok"] is False
+    assert answer["shown"].startswith("nookku: the test ended during the send")
+    assert not (folder / "relay.jsonl").exists()
+
+
+@pytest.mark.parametrize("said", ["", "   ", "\n\t", "nookku stop", "nookku  end", "Hi \udc00"])
+def test_the_page_uses_the_prompt_rules_of_the_hook(live: Any, said: str) -> None:
+    root, server, _, folder = live
+    hook = kit.prompt_refusal(said, root)
+    assert page.refusal(root, said) == hook
+    answer = send(server, said)
+    if hook is None:
+        assert answer["sent"] is True and answer["ok"] is True
+        turns = [r for r in read_relay(folder / "relay.jsonl") if isinstance(r, Turn)]
+        assert [t.said for t in turns] == [said]
+    else:
+        assert answer == {"sent": False, "shown": hook, "ok": False}
+
+
+def test_a_said_that_is_not_text_or_a_deep_json_body_gets_400(tmp_path: Path) -> None:
+    server = start_page(tmp_path)
+    try:
+        for body in ({"said": None}, {"said": 1}, ["Hi"], b"[" * 100_000 + b"]" * 100_000):
+            status, headers, _ = request(server, "POST", base(server) + "api/send", body)
+            assert status == 400, body if not isinstance(body, bytes) else "deep"
+            assert headers["content-security-policy"] == page.CSP
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def raw(server: page.PageServer, data: bytes) -> bytes:
+    with socket.create_connection(("127.0.0.1", server.server_address[1]), timeout=10) as conn:
+        conn.sendall(data)
+        got = b""
+        while chunk := conn.recv(65536):
+            got += chunk
+        return got
+
+
+def test_each_answer_of_http_server_itself_has_the_headers(tmp_path: Path) -> None:
+    server = start_page(tmp_path)
+    port = server.server_address[1]
+    try:
+        for method in ("HEAD", "PUT", "DELETE", "PATCH", "OPTIONS"):
+            status, headers, _ = request(server, method, base(server))
+            assert status == 405, method
+            assert headers["content-security-policy"] == page.CSP, method
+        host = f"Host: 127.0.0.1:{port}\r\n\r\n".encode()
+        for line, code in (
+            (b"FOO / HTTP/1.1\r\n", b" 501 "),
+            (b"GET / HTTP/9.9\r\n", b" 505 "),
+            (b"GET /" + b"a" * 70_000 + b" HTTP/1.1\r\n", b" 414 "),
+            (b"GET / HTTP/1.1 x\r\n", b" 400 "),
+        ):
+            got = raw(server, line + host)
+            head = got.split(b"\r\n\r\n", 1)[0]
+            status_line = head.split(b"\r\n", 1)[0]
+            assert status_line.startswith(b"HTTP/1.0") and code in status_line, line[:20]
+            assert b"Content-Security-Policy: " + page.CSP.encode() in head, line[:20]
+        # An HTTP/0.9 answer has no headers, so the page gives no answer.
+        assert raw(server, b"GET /\r\n") == b""
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_a_silent_connection_times_out(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    assert page._Handler.timeout == page.SOCKET_TIMEOUT > 0
+    monkeypatch.setattr(page._Handler, "timeout", 0.5)
+    server = start_page(tmp_path)
+    try:
+        started = time.monotonic()
+        assert raw(server, b"") == b""
+        assert time.monotonic() - started < 5
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_a_second_page_server_is_refused_and_a_stale_file_is_taken_over(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    (tmp_path / ".nookku").mkdir()
+    path = page.claim_page_file(tmp_path, 1234)
+    with pytest.raises(page.PageRunning):
+        page.claim_page_file(tmp_path, 5678)
+    assert page.serve(tmp_path, 0) == 1
+    assert "a page server of this project runs" in capsys.readouterr().err
+    assert state.page_port(tmp_path) == 1234
+    done = subprocess.run(
+        [sys.executable, "-c", "import os; print(os.getpid())"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    path.write_text(json.dumps({"port": 1234, "pid": int(done.stdout), "pid_start": "ps:old"}))
+    page.claim_page_file(tmp_path, 5678)
+    assert json.loads(path.read_text())["pid"] == os.getpid()
+    assert state.page_port(tmp_path) == 5678
+
+
+@pytest.mark.parametrize("port", ["-1", "65536", "99999999999999999999"])
+def test_a_bad_port_gives_a_clean_error(tmp_path: Path, port: str) -> None:
+    (tmp_path / ".nookku").mkdir()
+    done = subprocess.run(
+        [sys.executable, "-m", "nookku", "page", "--root", str(tmp_path), "--port", port],
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+    assert done.returncode == 1
+    assert "Traceback" not in done.stderr
+    assert "is not valid" in done.stderr
+    assert not (tmp_path / ".nookku" / state.PAGE_FILE).exists()

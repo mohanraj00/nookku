@@ -25,18 +25,26 @@ TOKEN_HEADER = "X-Nookku-Token"
 TOKEN_KEY = "tap_token"
 
 
-# The page file in the state folder: the URL of the chat page (SPEC.md section 5, "Chat page").
+# The page file in the state folder: the port and the pid of the chat page server (SPEC.md section
+# 5, "Chat page"). It never holds the page token, because a model tool call can read it.
 PAGE_FILE = "page.json"
 
 
-def page_url(root: Path) -> str | None:
-    """The URL of the chat page of the project, or None. The guard denies a call to it."""
+def page_info(root: Path) -> dict[str, Any] | None:
+    """The page file of the project, or None if it does not exist or is not valid."""
     try:
         data = json.loads((state(root) / PAGE_FILE).read_text())
     except (OSError, ValueError):
         return None
-    url = data.get("url") if isinstance(data, dict) else None
-    return url if isinstance(url, str) else None
+    if not isinstance(data, dict) or type(data.get("port")) is not int:
+        return None
+    return data
+
+
+def page_port(root: Path) -> int | None:
+    """The port of the chat page of the project, or None. The guard denies a call to it."""
+    info = page_info(root)
+    return info["port"] if info else None
 
 
 def public(cur: dict[str, Any]) -> dict[str, Any]:

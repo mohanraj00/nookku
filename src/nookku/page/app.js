@@ -94,7 +94,7 @@ async function refresh() {
 async function send() {
   const box = el("said");
   const said = box.value;
-  if (sending || said.trim() === "") {
+  if (sending || said === "") {
     return;
   }
   sending = true;
