@@ -57,6 +57,8 @@ if (input.load !== undefined) {
   render.load(button);
 } else if (input.tree !== undefined) {
   render.toDom(input.tree, doc);
+} else if (input.forTest !== undefined) {
+  out.tree = render.forTest(input.forTest)(render.render(input.text));
 } else {
   out.tree = render.render(input.text);
   const li = render.reply(doc, "agent", "agent", input.text);
@@ -479,6 +481,155 @@ def test_the_running_test_folder_is_allowed_also_outside_the_project(
     try:
         status, _, body = get_file(server, str(folder / "shot.png"))
         assert status == 200 and body == b"shot"
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+@needs_node
+def test_for_test_adds_the_encoded_test_id_only_to_a_file_of_the_page_server() -> None:
+    """The chat page of a test that the dashboard opened names that test in each file (#398)."""
+    out = node({"text": TOY_REPLY, "forTest": "a&b?c d"})
+    found = walk(out["tree"])
+    sources = [e["a"]["src"] for e in found if "src" in e["a"]]
+    query = "?test=a%26b%3Fc%20d"
+    assert sources == [
+        "files/images%2Ftrain.png" + query,
+        "files/media%2Fkite.mp4" + query,
+        "files/art%2Flogo.svg" + query,
+        "data:image/png;base64,iVBORw0KGgo=",
+    ]
+    # The change does not change a text of the reply.
+    plain = walk(node({"text": TOY_REPLY})["tree"])
+    assert [texts(e["c"]) for e in found] == [texts(e["c"]) for e in plain]
+
+
+def older_test(root: Path, name: str = "20261012-080000-cd34") -> Path:
+    """A test that ended before the test of make_folder started."""
+    folder = root / ".nookku" / "tests" / name
+    folder.mkdir(parents=True)
+    (folder / "manifest.json").write_text(json.dumps({"started": 1.0, "ended": 2.0}))
+    return folder
+
+
+def get_test_file(
+    server: page.PageServer, path: str, query: str, **headers: str
+) -> tuple[int, dict[str, str], bytes]:
+    from urllib.parse import quote
+
+    url = base(server) + "files/" + quote(path, safe="") + "?" + query
+    return request(server, "GET", url, headers=headers)
+
+
+def test_a_file_of_an_older_test_opens_from_the_dashboard(
+    project: tuple[Path, Path, Path],
+) -> None:
+    """The dashboard opens the chat page of an older test. The page names that test in the query,
+    and the server sends the file of its folder (#398)."""
+    root, folder, _ = project
+    old = older_test(root)
+    (old / "chart.png").write_bytes(b"OLD-CHART")
+    (folder / "chart.png").write_bytes(b"NEW-CHART")
+    (root / "train.png").write_bytes(b"train")
+    query = f"test={old.name}"
+    server = start_page(root)
+    try:
+        # With no test, the server sends only a file of the shown test: the latest test.
+        assert get_file(server, str(old / "chart.png"))[0] == 404
+        status, headers, body = get_test_file(server, str(old / "chart.png"), query)
+        assert status == 200 and body == b"OLD-CHART"
+        assert headers["content-security-policy"] == page.FILE_CSP
+        status, _, body = get_test_file(server, str(old / "chart.png"), query, Range="bytes=4-")
+        assert status == 206 and body == b"CHART"
+        # A file of the project still opens.
+        assert get_test_file(server, "train.png", query)[2] == b"train"
+        # The page of the latest test can name its own test.
+        status, _, body = get_test_file(server, str(folder / "chart.png"), f"test={folder.name}")
+        assert status == 200 and body == b"NEW-CHART"
+        # The page asks under the session path. The cookie and the page key are still necessary.
+        _, headers, _ = request(server, "GET", base(server))
+        both = session_headers(303, headers)
+        name = str(old / "chart.png").replace("/", "%2F")
+        path = page.SESSION_PATH + "files/" + name + "?" + query
+        status, _, body = request(server, "GET", path, headers=both)
+        assert status == 200 and body == b"OLD-CHART"
+        wrong = {**cookie_only(both), page.PAGE_HEADER: "x" * len(server.page_key)}
+        for headers in (cookie_only(both), {page.PAGE_HEADER: both[page.PAGE_HEADER]}, wrong, {}):
+            status, _, body = request(server, "GET", path, headers=headers)
+            assert status == 404 and b"OLD-CHART" not in body, headers
+        # The Host and Origin checks stay.
+        status, _, body = request(server, "GET", path, headers={**both, "Host": "example.com"})
+        assert status == 403 and b"OLD-CHART" not in body
+        evil = {**both, "Origin": "http://evil.example"}
+        assert request(server, "GET", path, headers=evil)[0] == 403
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_a_path_outside_the_older_test_folder_is_refused(
+    project: tuple[Path, Path, Path],
+) -> None:
+    root, folder, outside = project
+    old = older_test(root)
+    (outside / "secret.png").write_bytes(b"SECRET-BYTES")
+    (old / "link.png").symlink_to(outside / "secret.png")
+    (folder / "shot.png").write_bytes(b"OTHER-TEST")
+    (old / "sub").mkdir()
+    (old / "sub" / "up.png").symlink_to(folder / "shot.png")
+    (root / ".nookku" / "state.png").write_bytes(b"STATE-BYTES")
+    (old / "notes.pdf").write_bytes(b"%PDF")
+    names = [
+        str(outside / "secret.png"),
+        str(old / ".." / ".." / ".." / ".." / "outside" / "secret.png"),
+        str(old / "link.png"),
+        str(old / "sub" / "up.png"),
+        # A file of another test folder is in the state folder, so it is refused.
+        str(folder / "shot.png"),
+        ".nookku/state.png",
+        str(old / "notes.pdf"),
+        str(old / "missing.png"),
+    ]
+    server = start_page(root)
+    try:
+        for name in names:
+            status, _, body = get_test_file(server, name, f"test={old.name}")
+            assert status == 404, name
+            assert b"SECRET" not in body and b"OTHER-TEST" not in body and b"STATE" not in body
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_a_bad_or_unknown_test_id_of_a_file_is_refused(
+    project: tuple[Path, Path, Path],
+) -> None:
+    root, folder, outside = project
+    (folder / "chart.png").write_bytes(b"CHART")
+    (outside / "secret.png").write_bytes(b"SECRET-BYTES")
+    # A symlink in the test folders is not a test folder.
+    link = "20261011-070000-ef56"
+    (root / ".nookku" / "tests" / link).symlink_to(outside)
+    chart = str(folder / "chart.png")
+    own = f"test={folder.name}"
+    bad = ["test=", "x=1", f"{own}&{own}", "test=%00", "test=%FF", f"{own}&x=1", "test", "&"]
+    unknown = ["test=nope", "test=..", "test=.", "test=%2E%2E%2Ftests", f"test=..%2F{folder.name}"]
+    server = start_page(root)
+    try:
+        for query in [*bad, f"Test={folder.name}"]:
+            status, _, body = get_test_file(server, chart, query)
+            assert status == 400, query
+            assert b"CHART" not in body
+        for query in [*unknown, f"test={link}"]:
+            status, _, body = get_test_file(server, chart, query)
+            assert status == 404, query
+            assert json.loads(body) == {"error": f"nookku page: {page.NO_TEST}"}
+        status, _, body = get_test_file(server, str(outside / "secret.png"), f"test={link}")
+        assert status == 404 and b"SECRET" not in body
+        # Only a file route takes a query.
+        for route in ("api/turns", f"api/turns/{folder.name}", "api/tests", ""):
+            assert request(server, "GET", base(server) + route + "?" + own)[0] == 404, route
+        assert get_test_file(server, chart, own)[2] == b"CHART"
     finally:
         server.shutdown()
         server.server_close()

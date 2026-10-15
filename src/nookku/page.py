@@ -42,7 +42,7 @@ from importlib import resources
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any, BinaryIO, TextIO
-from urllib.parse import unquote, urlsplit
+from urllib.parse import parse_qsl, unquote, urlsplit
 
 from nookku import dashboard, kit, notes, page_end, page_trace, replay, script_save, state
 from nookku.record import RecordError, Writer, finite, id_problem, turns
@@ -297,12 +297,50 @@ OPEN_TYPE_REFUSED = (
     "it. Nothing was opened."
 )
 NO_OPENER = "nookku: this system has no app to open a file ({name}). Nothing was opened."
+# The dashboard opens the chat page of an older test, and the page asks for each file of a reply
+# with `files/<path>?test=<test id>` (#398). Only a file route takes a query.
+FILE_ROUTE = re.compile(r"/p/[^/]+/files/")
+FILE_QUERY = 'the query of a file must be "test=<test id>" only'
+NO_TEST = "no test has this id"
 
 
 def _shown_test(root: Path) -> Path | None:
     """The test folder that the page shows: the running test, else the latest test."""
     cur = state.current(root)
     return Path(cur["dir"]) if cur else state.latest_test(root)
+
+
+def file_test(query: str) -> tuple[str | None, str | None]:
+    """The test id of the query of a file route, and the reason to refuse the query. An empty
+    query names no test: the page then shows the running test, else the latest test."""
+    if not query:
+        return None, None
+    try:
+        pairs = parse_qsl(
+            query, keep_blank_values=True, strict_parsing=True, errors="strict", max_num_fields=1
+        )
+    except ValueError:
+        return None, FILE_QUERY
+    if len(pairs) != 1 or pairs[0][0] != "test" or not pairs[0][1]:
+        return None, FILE_QUERY
+    found = id_problem(pairs[0][1])
+    if found:
+        return None, f"the test id has {found}"
+    return pairs[0][1], None
+
+
+def older_test(root: Path, test_id: str) -> Path | None:
+    """The folder of the test with this id, or None. The id must be the name of a folder in the
+    test folders, and the folder must not be a symlink. Thus a symlink in the test folders cannot
+    give the page a folder outside them."""
+    folder = dashboard.find(root, test_id)
+    if folder is None or folder.is_symlink():
+        return None
+    try:
+        tests = (state.state(root) / "tests").resolve(strict=True)
+        return folder if folder.resolve(strict=True).parent == tests else None
+    except (OSError, RuntimeError):
+        return None
 
 
 def unc(name: str) -> bool:
@@ -603,7 +641,7 @@ class _Handler(BaseHTTPRequestHandler):
             self._refuse(403, "a POST needs the Origin header")
             return None
         parts = urlsplit(self.path)
-        if parts.query or not parts.path.startswith("/p/"):
+        if not parts.path.startswith("/p/") or (parts.query and not FILE_ROUTE.match(parts.path)):
             self._refuse(404, "not found")
             return None
         if parts.path.startswith(SESSION_PATH):
@@ -689,7 +727,7 @@ class _Handler(BaseHTTPRequestHandler):
             data = notes.view(self.server.root, unquote(rest[len(notes.VIEW_ROUTE) + 1 :]))
             self._json(200 if data["test"] else 404, data)
         elif rest.startswith("files/"):
-            self._file(unquote(rest[len("files/") :]))
+            self._file(unquote(rest[len("files/") :]), urlsplit(self.path).query)
         elif rest.startswith("api/turns/"):
             data = view(self.server.root, unquote(rest[len("api/turns/") :]))
             self._json(200 if data["test"] else 404, data)
@@ -820,10 +858,21 @@ class _Handler(BaseHTTPRequestHandler):
             return
         self._json(200, answer)
 
-    def _file(self, name: str) -> None:
+    def _file(self, name: str, query: str = "") -> None:
         """Send an image, a video or an SVG of the project or the test folder (#347). Accept one
-        byte range, because a browser asks for a range of a video."""
-        found = open_checked(self.server.root, name)
+        byte range, because a browser asks for a range of a video. The query can name the test
+        folder: the dashboard opens the page of an older test (#398)."""
+        test_id, problem = file_test(query)
+        if problem:
+            self._refuse(400, problem)
+            return
+        shown = None
+        if test_id is not None:
+            shown = older_test(self.server.root, test_id)
+            if shown is None:
+                self._refuse(404, NO_TEST)
+                return
+        found = open_checked(self.server.root, name, shown)
         kind = MEDIA.get(found[1].suffix.lower()) if found is not None else None
         if found is None or kind is None:
             if found is not None:

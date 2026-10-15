@@ -780,6 +780,24 @@
     return { toggle: toggle, shown: shown, raw: raw };
   }
 
+  // A change for parts: each file of the page server names the test `id`, with the query
+  // "?test=<id>" (#398). The dashboard opens the page of an older test, and the server then
+  // checks each file against the folder of that test. The id goes into the URL only encoded.
+  function forTest(id) {
+    const query = "?test=" + encodeURIComponent(String(id));
+    function walk(n) {
+      if (typeof n === "string") {
+        return n;
+      }
+      const a = Object.assign({}, n.a);
+      if (typeof a.src === "string" && a.src.startsWith(FILES)) {
+        a.src += query;
+      }
+      return node(n.t, a, n.c.map(walk));
+    }
+    return (tree) => tree.map(walk);
+  }
+
   // A turn of the agent, as the export shows it: a label with the button, the reply as
   // Markdown, and the exact text.
   function reply(doc, cls, who, text, change) {
@@ -841,7 +859,7 @@
 
   const api = {
     render: render, toDom: toDom, target: target, reply: reply, parts: parts, load: load,
-    LIMIT: LIMIT,
+    forTest: forTest, LIMIT: LIMIT,
   };
   if (typeof module === "object" && module.exports) {
     module.exports = api;
