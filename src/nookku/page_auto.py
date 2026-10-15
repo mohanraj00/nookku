@@ -191,10 +191,11 @@ def _read_line(fd: int, timeout: float) -> bytes:
 def _stop(pid: int, start: str | None = None) -> bool:
     """Send SIGTERM to pid and wait STOP_WAIT for it to stop. Return True if it stopped.
 
-    With `start`, send the signal only if pid is the process with this start time. On Linux, a
-    pidfd holds the process from the check to the signal. If the process stops in that time, the
-    signal goes to no process, also if the OS gives its pid to a new process. Other systems have
-    no pidfd. There the check and the signal are 2 steps, as for the entry of a stopped bridge."""
+    With `start`, send the signal only if pid is the process with this start time. If the OS gives
+    a pidfd (Linux), the pidfd holds the process from the check to the signal. If the process
+    stops in that time, the signal goes to no process, also if the OS gives its pid to a new
+    process. With no pidfd (macOS), the check and the signal are 2 steps, as for the entry of a
+    stopped bridge."""
     fd = _pidfd(pid) if start is not None else None
     try:
         if start is not None and not state.same_process(pid, start):
@@ -216,7 +217,7 @@ def _stop(pid: int, start: str | None = None) -> bool:
 
 
 def _pidfd(pid: int) -> int | None:
-    """A pidfd of the process of pid (Linux 5.3 or later), or None."""
+    """A pidfd of the process of pid, or None if the OS gives no pidfd (`os.pidfd_open`)."""
     opener = getattr(os, "pidfd_open", None)
     if opener is None or not hasattr(signal, "pidfd_send_signal"):
         return None
