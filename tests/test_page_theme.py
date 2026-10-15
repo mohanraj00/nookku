@@ -53,6 +53,11 @@ TEXT_PAIRS = [
 CONTROL_PAIRS = [
     ("control-line", "bg"),
     ("control-line", "surface"),
+    # The key help puts the border of a key on raise.
+    ("control-line", "raise"),
+    # The border of a failed bubble, the alert and the end confirm.
+    ("error-line", "surface"),
+    ("error-line", "bg"),
     ("focus", "bg"),
     ("focus", "surface"),
 ]
