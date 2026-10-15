@@ -79,6 +79,10 @@ REUSED_PAGE = (
     "terminal.\n"
 )
 NOT_STOPPED = "nookku: the chat page (pid {pid}) did not stop. Stop it with: kill {pid}"
+NOT_CONFIRMED = (
+    "nookku: nookku cannot confirm that pid {pid} is the chat page, so it sent no signal. If "
+    "ps -p {pid} shows nookku page, stop it with: kill {pid}"
+)
 
 
 def enabled(root: Path) -> bool:
@@ -221,6 +225,11 @@ def _stop_ended(root: Path) -> str | None:
     # names it. A server writes its own pid into the page file after it takes the lock.
     if not state.alive(pid) or state.page_info(root) != info:
         return None
+    # The OS can give the pid to a new process. The pid and pid_start identify the server, as for
+    # the bridge. A page file of an older version has no pid_start: then send no signal, and tell
+    # the tester how to stop the server (#397).
+    if not state.same_process(pid, info.get("pid_start")):
+        return NOT_CONFIRMED.format(pid=pid)
     return None if _stop(pid) else NOT_STOPPED.format(pid=pid)
 
 
