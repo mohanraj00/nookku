@@ -109,6 +109,19 @@ input[type="checkbox"] {
   font-weight: 600;
 }
 
+/* On a touch screen, the box and the filters are larger, so that a finger can hit them. */
+@media (pointer: coarse) {
+  input[type="checkbox"] {
+    width: 24px;
+    height: 24px;
+  }
+
+  .filters select,
+  .filters input {
+    min-height: 44px;
+  }
+}
+
 .problem {
   display: block;
   margin-top: 2px;
