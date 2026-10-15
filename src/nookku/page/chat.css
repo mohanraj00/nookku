@@ -318,7 +318,20 @@ body.chat {
 
 .sys + .tools,
 .quiet + .tools {
-  margin-left: 0;
+  margin: -6px 0 0;
+}
+
+/* A turn with no reply has no trace steps, and a message that was not sent gets no rating. The
+   comment stays, so that the tester can note the problem. */
+.turn > .tools .trace-none,
+.turn:has(> .sys) .notebar-rate {
+  display: none;
+}
+
+/* The note box and the trace panel of a turn are empty until the tester writes a note or opens
+   the steps. An empty one must not add a gap of the grid. */
+.turn > div:not([class]):not(:has(> :not([hidden]):not(:empty))) {
+  display: none;
 }
 
 /* The wait for a reply. */
@@ -466,6 +479,7 @@ body.chat {
 
 .box:focus-within {
   border-color: var(--focus);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 22%, transparent), var(--shadow);
 }
 
 .box textarea {
@@ -556,6 +570,14 @@ body.chat {
   padding: 10px 10px 10px 16px;
   font-size: 13.5px;
   color: var(--muted);
+}
+
+/* On a touch screen, the send button is 44 px, so that a finger can hit it. */
+@media (pointer: coarse) {
+  .sendbtn {
+    width: 44px;
+    height: 44px;
+  }
 }
 
 @container (max-width: 640px) {

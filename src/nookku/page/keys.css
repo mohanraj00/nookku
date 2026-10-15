@@ -6,6 +6,12 @@ ol.turns > li:focus,
   outline-offset: 2px;
 }
 
+/* A turn of the chat page has no padding. The ring keeps a gap, so that it does not touch the
+   bubble of the tester. */
+#turns > li:focus {
+  outline-offset: 6px;
+}
+
 .keys-help {
   max-width: 440px;
   padding: 16px;
