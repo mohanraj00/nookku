@@ -23,6 +23,12 @@ An Agent SDK session in your app also reads `ANTHROPIC_BASE_URL`, so its calls a
 
 In the object form, `null` takes the URL from the variable. An empty URL stops the start of the test.
 
+`nookku init --model-api API[=URL]` writes the object form, so you do not edit the file. Give the flag one time for each API. `API` alone gives `null`. For example, this run writes the object of the last row ([cli.md](../reference/cli.md#nookku-init)):
+
+```bash
+nookku init claude-code --model-api anthropic --model-api openai=http://127.0.0.1:9002/v1
+```
+
 The proof [proofs/model-api/](../../proofs/model-api/results.json) shows calls with the same bytes at the entry, the toy API and the record. It also shows streams that reached the entry before their end ([method](../../scripts/proof_model_api.py), [summary](../results.md#direct-model-calls)).
 
 ## OpenTelemetry

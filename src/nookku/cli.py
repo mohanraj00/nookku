@@ -17,7 +17,7 @@ from nookku.adapters import make
 from nookku.audit import audit, render
 from nookku.config import FILE as CONFIG_FILE
 from nookku.config import KEYS as CONFIG_KEYS
-from nookku.config import OLD_STATE_DIR, ConfigError, move_old_state, read_config
+from nookku.config import MODEL_APIS, OLD_STATE_DIR, ConfigError, move_old_state, read_config
 from nookku.record import RecordError
 from nookku.tap import Tap, serve
 
@@ -55,6 +55,18 @@ def _listen(value: str) -> tuple[str, int]:
     if not host or not port.isdigit():
         raise argparse.ArgumentTypeError("use HOST:PORT, for example 127.0.0.1:8800")
     return host.strip("[]"), int(port)
+
+
+def _model_api(value: str) -> tuple[str, str | None]:
+    """One value of init --model-api: API, or API=URL. API alone takes the URL from its variable
+    (SPEC.md section 7.7)."""
+    name, sep, url = value.partition("=")
+    if name not in MODEL_APIS or (sep and not url):
+        raise argparse.ArgumentTypeError(
+            f"use API or API=URL, with the API {' or '.join(MODEL_APIS)}, for example "
+            "openai=http://127.0.0.1:9002/v1"
+        )
+    return name, url if sep else None
 
 
 def _git_top(root: Path) -> Path | None:
@@ -229,6 +241,23 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--models", help="the app's model harnesses: claude-code, codex or both (comma)"
     )
     ini.add_argument(
+        "--backend",
+        nargs=3,
+        action="append",
+        metavar=("NAME", "ENV", "URL"),
+        help="the config key backends: one backend of the app. Give the flag one time for each "
+        "backend. The flags replace the full list",
+    )
+    ini.add_argument(
+        "--model-api",
+        type=_model_api,
+        action="append",
+        metavar="API[=URL]",
+        help="the config key model_api: one model API to record, anthropic or openai, with its "
+        "upstream URL or with no URL. Give the flag one time for each API. The flags replace "
+        "the full key",
+    )
+    ini.add_argument(
         "--remove",
         action="store_true",
         help="remove the project hooks of nookku, and keep each other hook and .nookku/",
@@ -363,7 +392,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         # The default root also gets the move of the old state folder below.
         args.root = project_root()
     if args.command == "init" and args.remove:
-        given = [k for k in (*STRING_KEYS, "entry", "models") if getattr(args, k)]
+        given = [
+            k for k in (*STRING_KEYS, "entry", "models", "backend", "model_api") if getattr(args, k)
+        ]
         # --no-openai-stream gives False, so check for None, not for a true value.
         given += [k for k in ("openai_stream", "repeated_reply") if getattr(args, k) is not None]
         if args.harness == "plugin" or given:
@@ -459,6 +490,19 @@ def main(argv: Sequence[str] | None = None) -> int:
             changes["openai_stream"] = args.openai_stream
         if args.repeated_reply is not None:
             changes["repeated_reply"] = args.repeated_reply
+        if args.backend is not None:
+            changes["backends"] = [
+                {"name": name, "env": env, "url": url} for name, env, url in args.backend
+            ]
+        if args.model_api is not None:
+            apis = dict(args.model_api)
+            if len(apis) != len(args.model_api):
+                print(
+                    "nookku: give each API to --model-api one time. Nothing was written.",
+                    file=sys.stderr,
+                )
+                return 1
+            changes["model_api"] = apis
         try:
             done = kit.init(root, args.harness, changes)
         except ValueError as e:

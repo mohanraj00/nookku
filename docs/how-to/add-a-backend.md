@@ -10,7 +10,13 @@ If your app reads the URL from a file and not from the environment, let the [ent
 
 ## 2. Add the backend to the configuration
 
-Add `backends` to `.nookku/config.json`:
+Run `nookku init` with your [relay](../reference/glossary.md#relay) and one `--backend` flag for each backend. Give the name, the variable of step 1 and the real URL:
+
+```bash
+nookku init claude-code --backend stock STOCK_URL http://127.0.0.1:9001
+```
+
+This writes `backends` into `.nookku/config.json`, and keeps each other key:
 
 ```json
 {
@@ -26,7 +32,7 @@ Add `backends` to `.nookku/config.json`:
 
 Each `name` and each `env` can occur only once. A backend must not use `ANTHROPIC_BASE_URL` or `OPENAI_BASE_URL` while the model API proxy records that API ([record-model-calls.md](record-model-calls.md)).
 
-`nookku init` writes a new `config.json` with an empty `backends` list. If you run `init` again, it keeps your backends. It changes only the keys of the flags that you give.
+`nookku init` with no `--backend` flag writes a new `config.json` with an empty `backends` list. If you run `init` again with no `--backend` flag, it keeps your backends. It changes only the keys of the flags that you give. The `--backend` flags of one run replace the full list, so give each backend in that run.
 
 ## 3. Run a test
 
