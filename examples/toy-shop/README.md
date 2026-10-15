@@ -20,4 +20,13 @@ From the repo root, run the command of your relay, then follow its guide:
 | Project hooks in Claude Code | `nookku init claude-code --entry "python3 examples/toy-shop/agent.py"` | [Claude Code project hooks](../../docs/how-to/claude-code-project-hooks.md) |
 | Project hooks in Codex | `nookku init codex --entry "python3 examples/toy-shop/agent.py"` | [Codex](../../docs/how-to/codex.md) |
 
-For the HTTP agent, read [docs/how-to/http-tap.md](../../docs/how-to/http-tap.md).
+The agent uses the Python standard library only. In a copy of this folder outside the repo, run the same command in the copy, with the entry `python3 agent.py`.
+
+For the HTTP agent, use the entry [http_entry.py](http_entry.py). It imports the `nookku` package, so its entry command gets the package with `uv run --with nookku`:
+
+| Folder | Entry |
+|---|---|
+| The repo root | `uv run --with nookku python3 examples/toy-shop/http_entry.py` |
+| A copy of this folder | `uv run --with nookku python3 http_entry.py` |
+
+For the HTTP tap with no entry, read [docs/how-to/http-tap.md](../../docs/how-to/http-tap.md).

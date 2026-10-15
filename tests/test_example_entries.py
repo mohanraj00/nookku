@@ -7,12 +7,14 @@ from __future__ import annotations
 import json
 import os
 import re
+import shlex
 import shutil
 import socket
 import subprocess
 import sys
 import urllib.error
 import urllib.request
+from itertools import pairwise
 from pathlib import Path
 
 import pytest
@@ -148,3 +150,41 @@ FENCE = re.compile(r"^```[a-z]*\n(.*?)^```$", re.MULTILINE | re.DOTALL)
 def test_the_guide_shows_the_example_with_no_change(example: Path) -> None:
     blocks = FENCE.findall(GUIDE.read_text(encoding="utf-8"))
     assert example.read_text(encoding="utf-8") in blocks
+
+
+EXAMPLES = ROOT / "examples"
+IMPORTS_NOOKKU = re.compile(r"^(?:from|import) nookku\b", re.MULTILINE)
+SCRIPT = (".py", ".mjs")
+
+
+def documented_entries() -> list[tuple[Path, list[str]]]:
+    """Each entry command that the README of an example or the HTTP entry gives, with the
+    folder of the example."""
+    found: list[tuple[Path, list[str]]] = []
+    for readme in sorted(EXAMPLES.glob("*/README.md")):
+        text = readme.read_text(encoding="utf-8")
+        commands = re.findall(r'--entry "([^"]+)"', text)
+        commands += re.findall(r"`((?:uv run|python3|node) [^`]+)`", text)
+        found += [(readme.parent, shlex.split(c)) for c in commands]
+    text = HTTP_ENTRY.read_text(encoding="utf-8")
+    for raw in re.findall(r'"entry": (\[.*\])', text):
+        found.append((HTTP_ENTRY.parent, json.loads(raw)))
+    return [(folder, argv) for folder, argv in found if any(a.endswith(SCRIPT) for a in argv)]
+
+
+ENTRIES = documented_entries()
+
+
+@pytest.mark.parametrize(
+    "folder, argv", ENTRIES, ids=[f"{f.name}:{' '.join(a)}" for f, a in ENTRIES]
+)
+def test_each_documented_entry_has_the_packages_of_its_script(
+    folder: Path, argv: list[str]
+) -> None:
+    # A copy of an example outside the repo has no nookku project, so an entry that imports
+    # nookku gets it with uv run --with nookku (#393).
+    script = next(a for a in argv if a.endswith(SCRIPT))
+    path = ROOT / script if script.startswith("examples/") else folder / script
+    assert path.is_file(), path
+    if IMPORTS_NOOKKU.search(path.read_text(encoding="utf-8")):
+        assert argv[:2] == ["uv", "run"] and ("--with", "nookku") in pairwise(argv), argv

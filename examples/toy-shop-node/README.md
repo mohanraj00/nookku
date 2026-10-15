@@ -14,4 +14,6 @@ Choose one relay before you run `nookku init`, and do not install the 2 forms in
 nookku init claude-code --entry "node examples/toy-shop-node/entry.mjs"
 ```
 
+The entry needs no package. In a copy of this folder outside the repo, run the same command in the copy, with the entry `node entry.mjs`.
+
 [docs/how-to/connect-your-agent.md](../../docs/how-to/connect-your-agent.md#in-node) tells how to use it for your app.

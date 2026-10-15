@@ -7,9 +7,10 @@ case-note model.
   state.json. toy_model.py is a toy note model.
 - The shop's rules are in RULES.md.
 
-It needs claude-agent-sdk, which is not a dependency of nookku:
+It needs claude-agent-sdk, which is not a dependency of nookku. The entry also imports nookku.
+In a copy of this folder:
 
-    uv run --with claude-agent-sdk python examples/toy-shop-full/entry.py
+    uv run --with claude-agent-sdk --with nookku python3 entry.py
 """
 
 from __future__ import annotations
