@@ -250,7 +250,7 @@ def answer(root: Path, rest: str) -> tuple[int, dict[str, Any]]:
     folders."""
     parts = rest[len(ROUTE) + 1 :].split("/") if rest.startswith(ROUTE + "/") else []
     if len(parts) != 2:
-        return 404, {"error": "nookku page: not found"}
+        return 404, {"error": "nookku chat: not found"}
     folders = [dashboard.find(root, unquote(p)) for p in parts]
     if folders[0] is None or folders[1] is None:
         return 404, {"error": "nookku: no test has this id."}
@@ -323,7 +323,7 @@ def report(
                     lines.append(f"Turn {row['n']}: test {test} has no reply in the tap record.")
         lines.append(f"Turn {row['n']} reply: {_marked(row['words'], color)}")
     lines.append(
-        f"Diff page: run nookku page in a terminal outside the harness. On the page, click "
+        f"Diff page: run nookku chat in a terminal outside the harness. On the page, click "
         f'"All tests", select tests {old.name} and {new.name}, and click "Compare".'
     )
     return lines, {"diff": result}

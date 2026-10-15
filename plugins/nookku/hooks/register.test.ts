@@ -197,17 +197,17 @@ test('a test start opens the pane one time, with the test, its state and its tur
   expect(await ui.find({ type: 'Text', text: `Test ${TEST}: running, 2 turns` })).toBeTruthy()
   expect(await ui.find({ text: 'Chat page: runs.' })).toBeTruthy()
   expect(await ui.find({ key: 'open-chat' })).toBeTruthy()
-  expect(f.runs.some(argv => argv[1] === 'page')).toBe(false)
+  expect(f.runs.some(argv => argv[1] === 'chat')).toBe(false)
 })
 
-test('Open chat runs nookku page --open, and the pane holds no URL', {}, async ($, on) => {
+test('Open chat runs nookku chat --open, and the pane holds no URL', {}, async ($, on) => {
   mock.clock(on)
   const p = paneFakes(on)
-  const f = fakes(on, { status: statusWith(RUNNING), page: { exitCode: 0, stdout: OPENED }, view: { exitCode: 0, stdout: VIEW } })
+  const f = fakes(on, { status: statusWith(RUNNING), chat: { exitCode: 0, stdout: OPENED }, view: { exitCode: 0, stdout: VIEW } })
   await $.command.run({ command: 'nookku', args: 'status' } as any)
   const ui = await mountPane($)
   await ui.press({ key: 'open-chat' })
-  expect(f.runs.filter(argv => argv[1] === 'page')).toEqual([['nookku', 'page', '--open']])
+  expect(f.runs.filter(argv => argv[1] === 'chat')).toEqual([['nookku', 'chat', '--open']])
   expect(p.toasts).toEqual([OPENED.trim()])
   expect(await ui.find({ text: OPENED.trim() })).toBeTruthy()
   const shown = await ui.findAll({})
@@ -217,10 +217,10 @@ test('Open chat runs nookku page --open, and the pane holds no URL', {}, async (
 test('if the chat page does not run, the pane says so and gives the command', {}, async ($, on) => {
   mock.clock(on)
   paneFakes(on)
-  fakes(on, { status: statusWith({ ...RUNNING, page: 'none', open: false, lines: [RUNNING.lines[0], 'Chat page: does not run. Run nookku page in a separate terminal, or end the test and start a new one.'] }), view: { exitCode: 0, stdout: '' } })
+  fakes(on, { status: statusWith({ ...RUNNING, page: 'none', open: false, lines: [RUNNING.lines[0], 'Chat page: does not run. Run nookku chat in a separate terminal, or end the test and start a new one.'] }), view: { exitCode: 0, stdout: '' } })
   await $.command.run({ command: 'nookku', args: 'status' } as any)
   const ui = await mountPane($)
-  expect(await ui.find({ text: /does not run\. Run nookku page in a separate terminal/ })).toBeTruthy()
+  expect(await ui.find({ text: /does not run\. Run nookku chat in a separate terminal/ })).toBeTruthy()
   expect(await ui.find({ key: 'open-chat' })).toBeUndefined()
 })
 
@@ -234,13 +234,13 @@ test('after the end, the pane shows the ended test and no Open chat', {}, async 
   expect(await ui.find({ key: 'open-chat' })).toBeUndefined()
 })
 
-test('a page server of nookku page gets no Open chat', {}, async ($, on) => {
+test('a page server of nookku chat gets no Open chat', {}, async ($, on) => {
   mock.clock(on)
   paneFakes(on)
-  fakes(on, { status: statusWith({ ...RUNNING, page: 'manual', lines: [RUNNING.lines[0], 'Chat page: runs from nookku page. Open it with the URL in the terminal of that command.'], open: false }), view: { exitCode: 0, stdout: '' } })
+  fakes(on, { status: statusWith({ ...RUNNING, page: 'manual', lines: [RUNNING.lines[0], 'Chat page: runs from nookku chat. Open it with the URL in the terminal of that command.'], open: false }), view: { exitCode: 0, stdout: '' } })
   await $.command.run({ command: 'nookku', args: 'status' } as any)
   const ui = await mountPane($)
-  expect(await ui.find({ text: /runs from nookku page/ })).toBeTruthy()
+  expect(await ui.find({ text: /runs from nookku chat/ })).toBeTruthy()
   expect(await ui.find({ key: 'open-chat' })).toBeUndefined()
 })
 

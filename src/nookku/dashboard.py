@@ -163,6 +163,6 @@ def answer(root: Path, rest: str) -> tuple[int, dict[str, Any]]:
     if parts and (
         len(parts) != 3 or parts[0] not in STATES or parts[1] not in HAS or parts[2] not in ORDERS
     ):
-        return 404, {"error": "nookku page: not found"}
+        return 404, {"error": "nookku chat: not found"}
     test_state, has, order = parts or (STATES[0], HAS[0], ORDERS[0])
     return 200, {"tests": rows(root, test_state, has, order), "error": None}

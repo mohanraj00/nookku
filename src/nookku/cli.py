@@ -47,6 +47,12 @@ STRING_KEYS = [k for k in CONFIG_KEYS if k not in LIST_KEYS]
 # The relays and the bridge run these commands. A tester does not run them
 # (docs/reference/cli.md, "Internal commands").
 INTERNAL_COMMANDS = frozenset({"hook", "mcp", "bridge"})
+# The old name of `nookku chat`. It works the same for one release, with a note on stderr (#394).
+OLD_CHAT = "page"
+OLD_CHAT_NOTE = (
+    "nookku: the name of this command changes to nookku chat. "
+    "The name nookku page goes away in a later release."
+)
 
 
 class _Commands(dict[str, argparse.ArgumentParser]):
@@ -340,7 +346,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     view.add_argument("--no-follow", action="store_true", help="print the turns so far and stop")
     view.add_argument("--record", type=Path, help="the relay record (default: from the config)")
     view.add_argument("--text", action="store_true", help="the text view (the default)")
-    _page_parser(sub)
+    _chat_parser(sub)
     _script_parser(sub)
     _export_parser(sub)
     _replay_parser(sub)
@@ -458,8 +464,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
     if args.command == "run":
         return _run_command(args)
-    if args.command == "page":
-        return _page_command(args)
+    if args.command in ("chat", OLD_CHAT):
+        return _chat_command(args)
     if args.command == "script":
         return _script_command(args)
     if args.command == "export":
@@ -684,8 +690,10 @@ def _trace_command(root: Path, test: str | None, as_json: bool) -> int:
     return 0
 
 
-def _page_parser(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    page = sub.add_parser("page", help="serve the chat page: talk to the agent of a test")
+def _chat_parser(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+    page = sub.add_parser(
+        "chat", aliases=[OLD_CHAT], help="serve the chat page: talk to the agent of a test"
+    )
     page.add_argument("--root", type=Path, default=Path.cwd())
     page.add_argument(
         "--port", type=int, default=0, help="the port on 127.0.0.1 (default: a free port)"
@@ -701,10 +709,12 @@ def _page_parser(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> No
     )
 
 
-def _page_command(args: argparse.Namespace) -> int:
-    """nookku page: the chat page on 127.0.0.1 (SPEC.md section 5, "Chat page")."""
+def _chat_command(args: argparse.Namespace) -> int:
+    """nookku chat: the chat page on 127.0.0.1 (SPEC.md section 5, "Chat page")."""
     from nookku import page
 
+    if args.command == OLD_CHAT:
+        print(OLD_CHAT_NOTE, file=sys.stderr, flush=True)
     if args.open:
         from nookku import page_open
 

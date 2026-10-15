@@ -1,5 +1,5 @@
 """The pane of the Claude Code plugin and "Open chat" (#348). The pane holds no secret, and
-`nookku page --open` gives the browser only the session URL, which holds no secret. No route makes
+`nookku chat --open` gives the browser only the session URL, which holds no secret. No route makes
 a session or a launch code after the start launch."""
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ import pytest
 from test_page import make_folder, request, write_current
 from test_page_auto import FETCH, page_pid, wait_gone
 
-from nookku import page, page_auto, page_open, state
+from nookku import cli, page, page_auto, page_open, state
 from nookku.cli import main
 from nookku.record import Writer
 
@@ -121,8 +121,21 @@ def test_status_json_gives_the_pane_state_with_no_secret(
 def test_open_with_no_test_prints_the_step_to_start_one(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    assert main(["page", "--open", "--root", str(tmp_path)]) == 1
+    assert main(["chat", "--open", "--root", str(tmp_path)]) == 1
     assert capsys.readouterr().out.strip() == page_open.NO_TEST
+
+
+def test_the_old_name_page_works_the_same_and_prints_one_note_on_stderr(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # nookku page is the old name of nookku chat, for one release (#394).
+    assert main(["chat", "--open", "--root", str(tmp_path)]) == 1
+    new = capsys.readouterr()
+    assert main(["page", "--open", "--root", str(tmp_path)]) == 1
+    old = capsys.readouterr()
+    assert old.out == new.out and new.err == ""
+    assert old.err == cli.OLD_CHAT_NOTE + "\n"
+    assert "nookku chat" in old.err and "nookku page" in old.err
 
 
 def test_open_with_a_page_of_nookku_page_names_its_terminal(running: Any) -> None:
@@ -142,7 +155,7 @@ def test_open_with_no_page_server_starts_none_and_gives_the_step(
     running: Any, capsys: pytest.CaptureFixture[str]
 ) -> None:
     root, _ = running
-    assert main(["page", "--open", "--root", str(root)]) == 1
+    assert main(["chat", "--open", "--root", str(root)]) == 1
     assert capsys.readouterr().out.strip() == page_open.NO_PAGE
     assert page_open.page_state(root) == "none" and state.page_info(root) is None
 
@@ -213,7 +226,7 @@ def test_open_gives_the_browser_only_the_session_url_and_prints_no_url(
     try:
         assert page_open.page_state(root) == "test" and page_open.pane_state(root)["open"]
         code, session = server.code, server.session
-        assert main(["page", "--open", "--root", str(root)]) == 0
+        assert main(["chat", "--open", "--root", str(root)]) == 0
         out = capsys.readouterr().out
         assert out.strip() == page_open.OPENED
         assert not any(part in out for part in SECRET_PARTS)
@@ -249,7 +262,7 @@ def test_a_toy_shop_test_shows_its_state_and_open_chat_opens_the_page(
         assert status == "200" and url.split("#k=")[0].endswith(page.SESSION_PATH)
         pane = page_open.pane_state(root)
         assert pane["state"] == "running" and pane["page"] == "test" and pane["open"]
-        assert main(["page", "--open", "--root", str(root)]) == 0
+        assert main(["chat", "--open", "--root", str(root)]) == 0
         assert capsys.readouterr().out.strip() == page_open.OPENED
         # Open chat gives no key: the new tab asks the open tab of the page for it (key.js).
         assert opened == [url.split("#")[0]]
@@ -260,12 +273,12 @@ def test_a_toy_shop_test_shows_its_state_and_open_chat_opens_the_page(
     pane = page_open.pane_state(root)
     assert pane["state"] == "ended" and pane["page"] == "test" and pane["open"]
     assert pane["lines"][1] == page_open.PANE_ENDED_PAGE
-    assert main(["page", "--open", "--root", str(root)]) == 0
+    assert main(["chat", "--open", "--root", str(root)]) == 0
     assert capsys.readouterr().out.strip() == page_open.OPENED
     # The end with the evaluation stops the page, also for a test that ended before.
     assert main(["end", "--evaluation", "--root", str(root)]) == 0
     capsys.readouterr()
     pane = page_open.pane_state(root)
     assert pane["state"] == "ended" and pane["page"] == "none" and not pane["open"]
-    assert main(["page", "--open", "--root", str(root)]) == 1
+    assert main(["chat", "--open", "--root", str(root)]) == 1
     assert capsys.readouterr().out.strip() == page_open.NO_TEST

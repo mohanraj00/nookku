@@ -350,7 +350,7 @@ def main_page(out: Path) -> int:
     project = project_of(PAGE_SETUP)
     shutil.rmtree(project / kit.STATE_DIR / "tests", ignore_errors=True)
     project.mkdir(parents=True, exist_ok=True)
-    # The proof starts nookku page itself, so the start opens no second page.
+    # The proof starts nookku chat itself, so the start opens no second page.
     kit.init(project, "plugin", asdict(kit.Config(entry=ENTRY, page=False)))
     # Each run starts with no session of an earlier run, so that P3 reads only this run.
     sessions = Path.home() / ".claude" / "projects"
@@ -368,11 +368,11 @@ def main_page(out: Path) -> int:
         "turns": [],
     }
     server = subprocess.Popen(
-        [sys.executable, "-m", "nookku", "page", "--root", str(project)],
+        [sys.executable, "-m", "nookku", "chat", "--root", str(project)],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
-        # The proof is the person here. It can run in a harness shell, where nookku page refuses
+        # The proof is the person here. It can run in a harness shell, where nookku chat refuses
         # to start. The URL goes only to this script.
         env={k: v for k, v in os.environ.items() if k not in page.HARNESS_SHELL},
     )
@@ -381,7 +381,7 @@ def main_page(out: Path) -> int:
     if not first.startswith("Chat page: http://127.0.0.1:"):
         server.kill()
         print(
-            "FAIL: nookku page did not start:", first, server.stderr.read() if server.stderr else ""
+            "FAIL: nookku chat did not start:", first, server.stderr.read() if server.stderr else ""
         )
         return 1
     url = first.split(": ", 1)[1].strip()

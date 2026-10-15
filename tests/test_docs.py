@@ -595,8 +595,13 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def _commands() -> dict[str, argparse.ArgumentParser]:
+    """Each command by its first name. An alias, such as page for chat, has no section."""
     sub = next(a for a in _parser()._actions if isinstance(a, argparse._SubParsersAction))
-    return dict(sub.choices)
+    commands: dict[str, argparse.ArgumentParser] = {}
+    for name, parser in sub.choices.items():
+        if parser not in commands.values():
+            commands[name] = parser
+    return commands
 
 
 def _documented(action: argparse.Action) -> list[str]:

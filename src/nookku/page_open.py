@@ -4,10 +4,10 @@ The pane shows the text of `nookku status --json`. The harness can show a pane o
 output to the model, so the pane holds no secret: no page URL, no token, no launch code and no
 cookie (SPEC.md section 5, "Pane").
 
-"Open chat" runs `nookku page --open`. It gives the browser the session URL of the chat page,
+"Open chat" runs `nookku chat --open`. It gives the browser the session URL of the chat page,
 `http://127.0.0.1:<port>/p/s/`. This URL holds no token, no code and no page key. Only the
 session cookie of the start launch opens the page. No route makes a session or a launch code after
-the start launch, so a local process that runs `nookku page --open` or calls the page gets no
+the start launch, so a local process that runs `nookku chat --open` or calls the page gets no
 session. The new tab gets the page key from an open tab of the page in the same browser (SPEC.md
 section 5, "Session").
 """
@@ -30,12 +30,12 @@ NO_BROWSER = (
     "start of the test."
 )
 NO_PAGE = (
-    "nookku: the chat page of the test does not run. Run nookku page in a separate terminal, or "
+    "nookku: the chat page of the test does not run. Run nookku chat in a separate terminal, or "
     "end the test and start a new one."
 )
 NO_TEST = "nookku: no test runs, so the chat page has no test. Start one with: nookku start"
 MANUAL = (
-    "nookku: the chat page runs from nookku page. Open it with the URL that nookku page printed "
+    "nookku: the chat page runs from nookku chat. Open it with the URL that nookku chat printed "
     "in its terminal."
 )
 OTHER_TEST = (
@@ -49,10 +49,10 @@ PANE_ENDED_PAGE = (
     "The prompt nookku end stops it."
 )
 PANE_MANUAL = (
-    "Chat page: runs from nookku page. Open it with the URL in the terminal of that command."
+    "Chat page: runs from nookku chat. Open it with the URL in the terminal of that command."
 )
 PANE_NO_PAGE = (
-    "Chat page: does not run. Run nookku page in a separate terminal, or end the test and "
+    "Chat page: does not run. Run nookku chat in a separate terminal, or end the test and "
     "start a new one."
 )
 
@@ -117,7 +117,7 @@ def _pane_data(root: Path) -> dict[str, Any]:
 
 def page_state(root: Path) -> str:
     """`test` if a page server that a test start started runs, `manual` if a page server of
-    `nookku page` runs, else `none`."""
+    `nookku chat` runs, else `none`."""
     info = state.page_info(root)
     if info is None or not page_auto._held(root):
         return "none"
@@ -125,7 +125,7 @@ def page_state(root: Path) -> str:
 
 
 def open_chat(root: Path) -> tuple[int, str]:
-    """`nookku page --open`: give the browser the session URL of the chat page of the running
+    """`nookku chat --open`: give the browser the session URL of the chat page of the running
     test, else of the latest test, if its page still runs after an end with no evaluation. Return
     the exit code and the text to print. The text never holds a URL. Make no session, no launch
     code and no page server."""

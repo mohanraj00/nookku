@@ -6,7 +6,7 @@
 // One exception: a command hook gets only the text of a prompt, not its attachments. So in relay
 // mode, the prompt hook drops a prompt with an attachment. The core gives the mode and the text.
 //
-// The pane holds no secret (SPEC.md section 5, "Pane"). "Open chat" runs `nookku page --open`,
+// The pane holds no secret (SPEC.md section 5, "Pane"). "Open chat" runs `nookku chat --open`,
 // which gives the browser the session URL, with no secret, and prints no URL. It sends no message.
 
 import { atom, read, update } from 'claude-code'
@@ -97,10 +97,10 @@ async function refreshView($: any): Promise<void> {
   await update($, state, s => ({ ...s, view: r.out.split('\n').slice(-PANE_LINES).join('\n') }))
 }
 
-// "Open chat": `nookku page --open` gives the browser the session URL of the chat page, and
+// "Open chat": `nookku chat --open` gives the browser the session URL of the chat page, and
 // prints no URL. The plugin shows its output in a toast and in the pane.
 async function openChat($: any): Promise<void> {
-  const r = await runCli($, ['page', '--open'])
+  const r = await runCli($, ['chat', '--open'])
   const note = r.out.trim()
   if (note) $.ui.toast(note)
   await update($, state, s => ({ ...s, note }))
