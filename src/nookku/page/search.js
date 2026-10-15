@@ -17,6 +17,19 @@
     }
     document.getElementById("search-result").textContent =
       query === "" ? "" : shown + " of " + rows.length + " tests have this text.";
+    // With rows but no hit, show the empty state in place of a table with no rows. With no rows,
+    // dashboard.js shows the empty state.
+    if (rows.length > 0) {
+      const none = shown === 0;
+      document.getElementById("table").hidden = none;
+      document.getElementById("empty").hidden = !none;
+      if (none) {
+        document.getElementById("empty-title").textContent = "No test has this text";
+        document.getElementById("empty-text").textContent =
+          "Change the search text to see more tests.";
+        document.getElementById("empty-cmd").hidden = true;
+      }
+    }
   }
 
   document.addEventListener("DOMContentLoaded", () => {
