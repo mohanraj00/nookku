@@ -474,6 +474,9 @@ class PageServer(ThreadingHTTPServer):
     """The page server of one project. It listens only on 127.0.0.1."""
 
     daemon_threads = True
+    # A cold load asks for about 20 files at the same time. With the default backlog of 5, the
+    # system refused some of them, and the page showed with no style.
+    request_queue_size = 64
 
     def __init__(self, root: Path, port: int = 0, token: str | None = None) -> None:
         super().__init__((HOST, port), _Handler)
