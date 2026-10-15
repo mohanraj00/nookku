@@ -303,6 +303,15 @@ out.after = checked();
 picks[0].listeners.click[0]();
 picks[3].listeners.click[0]();
 out.auto = Object.assign({}, document.documentElement.dataset);
+const key = (b, k) => {
+  const e = { key: k, stopped: false, preventDefault() { this.stopped = true; } };
+  b.listeners.keydown[0](e);
+  return e.stopped;
+};
+out.keys = [key(picks[0], "ArrowRight"), key(picks[1], "ArrowLeft"), key(picks[0], "ArrowLeft"),
+  key(picks[3], "End"), key(picks[5], "Home"), key(picks[3], "a")];
+out.byKeys = checked();
+out.focus = picks.indexOf(document.activeElement);
 process.stdout.write(JSON.stringify(out));
 """
 
@@ -318,6 +327,11 @@ def test_the_menu_sets_the_theme_and_the_width_if_the_browser_refuses_the_storag
     assert out["dark"] == {"theme": "dark", "width": "narrow"}
     assert out["after"] == ["false", "false", "true", "false", "true", "false"]
     assert out["auto"] == {}
+    # The arrow keys move in one group and go round. Home and End go to the ends.
+    # Another key does nothing.
+    assert out["keys"] == [True, True, True, True, True, False]
+    assert out["byKeys"] == ["false", "false", "true", "true", "false", "false"]
+    assert out["focus"] == 3
 
 
 def test_the_chat_page_has_the_menu_of_the_theme_and_the_width() -> None:

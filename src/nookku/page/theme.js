@@ -65,11 +65,35 @@
         button.tabIndex = on ? 0 : -1;
       }
     }
+    // The arrow keys, Home and End select a choice of the same group, as in a radio group.
+    const STEPS = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 };
+    function move(button, event) {
+      const group = buttons.filter((b) => b.dataset.pick === button.dataset.pick);
+      const at = group.indexOf(button);
+      let next = null;
+      if (event.key in STEPS) {
+        next = group[(at + STEPS[event.key] + group.length) % group.length];
+      } else if (event.key === "Home") {
+        next = group[0];
+      } else if (event.key === "End") {
+        next = group[group.length - 1];
+      }
+      if (!next) {
+        return;
+      }
+      event.preventDefault();
+      set(next.dataset.pick, next.dataset.v);
+      show();
+      if (typeof next.focus === "function") {
+        next.focus();
+      }
+    }
     for (const button of buttons) {
       button.addEventListener("click", () => {
         set(button.dataset.pick, button.dataset.v);
         show();
       });
+      button.addEventListener("keydown", (event) => move(button, event));
     }
     show();
   }
