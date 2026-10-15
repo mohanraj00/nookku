@@ -57,19 +57,27 @@ def end(root: Path, test_id: str) -> dict[str, Any]:
     # The steps of `nookku end` in a shell: relay mode off, then the end of the bridge. No
     # evaluation, and the chat page continues.
     kit.set_mode(root, False)
-    ended = bridge.end(root, find_stopped=False, test=test_id)
+    try:
+        ended = bridge.end(root, find_stopped=False, test=test_id)
+    except BaseException:
+        _give_back_mode(root)
+        raise
     if ended is None:
-        return {"ended": False, "error": _give_back_mode(root, test_id)}
+        now = _give_back_mode(root)
+        if now is None or now == test_id:
+            return {"ended": False, "error": NOT_ENDED}
+        return {"ended": False, "error": OTHER_TEST.format(shown=test_id, running=now)}
     return {"ended": True, "text": bridge.summary(ended)}
 
 
-def _give_back_mode(root: Path, test_id: str) -> str:
-    """The end did not end test_id. If another test runs now, it started after the first check,
-    and its start set relay mode on before this request set it off. Set relay mode on again, else
-    a message of the harness of that test can reach the model. On is the safe side: with relay
-    mode on, the hook sends each prompt of the tester to the relay. Return the error text."""
+def _give_back_mode(root: Path) -> str | None:
+    """The end did not end the test, or it failed. If a test runs now, set relay mode on again,
+    else a message of the harness of that test can reach the model. The test can be test_id, if
+    its end failed, or another test that started after the first check. On is the safe side: with
+    relay mode on, the hook sends each prompt of the tester to the relay. Return the id of the
+    running test, or None."""
     now = state.current(root)
-    if now is None or now["test"] == test_id:
-        return NOT_ENDED
+    if now is None:
+        return None
     kit.set_mode(root, True)
-    return OTHER_TEST.format(shown=test_id, running=now["test"])
+    return str(now["test"])

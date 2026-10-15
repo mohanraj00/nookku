@@ -135,6 +135,24 @@ def test_when_the_bridge_does_not_end_the_test_the_page_says_so(
     monkeypatch.setattr(bridge, "end", lambda *args, **kwargs: None)
     status, data = end(server, {"test": folder.name}, session(server))
     assert status == 200 and data == {"ended": False, "error": page_end.NOT_ENDED}
+    assert kit.is_on(server.root)
+
+
+def test_when_the_end_of_the_bridge_fails_relay_mode_goes_on_again(
+    server: page.PageServer, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The bridge end raises after the page set relay mode off. The test still runs, so relay
+    mode must go on again, else the next prompt reaches the model (security review of #403)."""
+    folder = fake_test(server.root)
+
+    def fails(*args: Any, **kwargs: Any) -> None:
+        assert not kit.is_on(server.root)
+        raise OSError("the bridge exited")
+
+    monkeypatch.setattr(bridge, "end", fails)
+    status, _ = end(server, {"test": folder.name}, session(server))
+    assert status == 500
+    assert kit.is_on(server.root)
 
 
 def test_with_no_test_the_page_ends_nothing(server: page.PageServer) -> None:
