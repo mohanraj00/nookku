@@ -330,15 +330,17 @@ def file_test(query: str) -> tuple[str | None, str | None]:
 
 
 def older_test(root: Path, test_id: str) -> Path | None:
-    """The folder of the test with this id, or None. The id must be the name of a folder in the
-    test folders, and the folder must not be a symlink. Thus a symlink in the test folders cannot
-    give the page a folder outside them."""
+    """The real path of the folder of the test with this id, or None. The id must be the name of
+    a folder in the test folders, and the folder must not be a symlink. Thus a symlink in the
+    test folders cannot give the page a folder outside them. Give the real path to open_checked
+    with `pinned`, so that a change of the folder after this check cannot move it."""
     folder = dashboard.find(root, test_id)
     if folder is None or folder.is_symlink():
         return None
     try:
         tests = (state.state(root) / "tests").resolve(strict=True)
-        return folder if folder.resolve(strict=True).parent == tests else None
+        real = folder.resolve(strict=True)
+        return real if real.parent == tests else None
     except (OSError, RuntimeError):
         return None
 
@@ -378,14 +380,17 @@ def allowed_file(root: Path, name: str, shown: Path | None = None) -> Path | Non
     return None
 
 
-def open_checked(root: Path, name: str, shown: Path | None = None) -> tuple[int, Path] | None:
+def open_checked(
+    root: Path, name: str, shown: Path | None = None, pinned: bool = False
+) -> tuple[int, Path] | None:
     """Open a file that a reply names, and check the open file, not only its path. Return the
     descriptor and the real path, or None.
 
     A process of the test can change a path after a check, for example a folder to a symlink to
     a folder outside the project. Thus the server opens each part of the checked real path
     relative to the descriptor of the folder before it, and follows no symlink. The open file
-    is then the file at the checked path."""
+    is then the file at the checked path. If `pinned` is true, `shown` is the real path of a test
+    folder from older_test, and the server does not resolve it again (#398)."""
     path = allowed_file(root, name, shown)
     if path is None:
         return None
@@ -397,7 +402,17 @@ def open_checked(root: Path, name: str, shown: Path | None = None) -> tuple[int,
     top = root.resolve()
     # A test folder outside the project, for example through a symlink of the state folder.
     outside = not path.is_relative_to(top)
-    if outside and folder is not None and path.is_relative_to(folder.resolve()):
+    if pinned and shown is not None:
+        # A change of the test folder to a symlink after the check moves the real path of the
+        # file. Thus the file must be in the checked folder, or in the project and not in the
+        # state folder. The walk opens the test folder with O_NOFOLLOW, from the project root
+        # or from the test folders.
+        in_project = not outside and not path.is_relative_to(state.state(root).resolve())
+        if not path.is_relative_to(shown) and not in_project:
+            return None
+        if outside:
+            top = shown.parent
+    elif outside and folder is not None and path.is_relative_to(folder.resolve()):
         top = folder.resolve()
     parts = path.relative_to(top).parts
     nofollow = getattr(os, "O_NOFOLLOW", 0)
@@ -872,7 +887,7 @@ class _Handler(BaseHTTPRequestHandler):
             if shown is None:
                 self._refuse(404, NO_TEST)
                 return
-        found = open_checked(self.server.root, name, shown)
+        found = open_checked(self.server.root, name, shown, pinned=shown is not None)
         kind = MEDIA.get(found[1].suffix.lower()) if found is not None else None
         if found is None or kind is None:
             if found is not None:

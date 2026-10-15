@@ -601,6 +601,36 @@ def test_a_path_outside_the_older_test_folder_is_refused(
         server.server_close()
 
 
+@pytest.mark.parametrize("state_outside", [False, True])
+def test_an_older_test_folder_that_changes_to_a_symlink_after_the_check_is_refused(
+    tmp_path: Path, state_outside: bool
+) -> None:
+    """A process of the test can change the checked test folder to a symlink before the open.
+    The server then must not open the target of the symlink (#398)."""
+    root = tmp_path / "shop"
+    root.mkdir()
+    if state_outside:
+        # The state folder is a symlink to a folder outside the project.
+        (tmp_path / "state").mkdir()
+        (root / ".nookku").symlink_to(tmp_path / "state")
+    else:
+        (root / ".nookku").mkdir()
+    old = older_test(root)
+    (old / "chart.png").write_bytes(b"OLD-CHART")
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "chart.png").write_bytes(b"SECRET-BYTES")
+    shown = page.older_test(root, old.name)
+    assert shown is not None
+    found = page.open_checked(root, str(old / "chart.png"), shown, pinned=True)
+    assert found is not None
+    os.close(found[0])
+    old.rename(tmp_path / "moved")
+    old.symlink_to(outside)
+    assert page.open_checked(root, str(old / "chart.png"), shown, pinned=True) is None
+    assert page.older_test(root, old.name) is None
+
+
 def test_a_bad_or_unknown_test_id_of_a_file_is_refused(
     project: tuple[Path, Path, Path],
 ) -> None:
