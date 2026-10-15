@@ -30,10 +30,10 @@ The toy shop apps in this repo use these options:
 - [examples/toy-shop-models/app.py](../../examples/toy-shop-models/app.py): 2 tools and a planted bug.
 - [examples/toy-shop-full/app.py](../../examples/toy-shop-full/app.py): 3 tools, a stock service and a direct model call.
 
-Each one needs `claude-agent-sdk`, which is not a dependency of Nookku:
+Each one needs `claude-agent-sdk`, which is not a dependency of Nookku. The entry also imports the `nookku` package. In a copy of the example folder, the entry command gets both packages:
 
 ```bash
-uv run --with claude-agent-sdk python3 examples/toy-shop-full/entry.py
+uv run --with claude-agent-sdk --with nookku python3 entry.py
 ```
 
 ## Check the result

@@ -11,12 +11,12 @@ The app has a planted bug for the evaluation proof. This README does not describ
 
 ## Run it
 
-The app needs `claude-agent-sdk`, which is not a dependency of Nookku.
+The app needs `claude-agent-sdk`, which is not a dependency of Nookku. The entry also imports the `nookku` package for the agent contract. The entry command gets both packages with `uv run --with`, so it runs in any folder. The app writes its state into its own folder. Thus copy this folder to a new folder outside the repo, for example with `cp -R examples/toy-shop-models ~/toy-shop-models`, and run `nookku init` in the copy.
 
-Choose one relay before you run `nookku init`, and do not install the 2 forms in the same project ([docs/how-to/choose-a-relay.md](../../docs/how-to/choose-a-relay.md)). From the repo root, run `nookku init` with your relay: `plugin`, `claude-code` or `codex`. This example uses the project hooks in Claude Code:
+Choose one relay before you run `nookku init`, and do not install the 2 forms in the same project ([docs/how-to/choose-a-relay.md](../../docs/how-to/choose-a-relay.md)). Run `nookku init` with your relay: `plugin`, `claude-code` or `codex`. This example uses the project hooks in Claude Code:
 
 ```bash
-nookku init claude-code --entry "uv run --with claude-agent-sdk python3 examples/toy-shop-models/entry.py" --models claude-code
+nookku init claude-code --entry "uv run --with claude-agent-sdk --with nookku python3 entry.py" --models claude-code
 ```
 
 The flag `--models claude-code` tells Nookku that the app runs its own Claude Code session.

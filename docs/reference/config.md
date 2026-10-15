@@ -74,7 +74,7 @@ The full toy shop, with a stock service and a note model on local ports:
 
 ```json
 {
-  "entry": ["uv", "run", "--with", "claude-agent-sdk", "python3", "examples/toy-shop-full/entry.py"],
+  "entry": ["uv", "run", "--with", "claude-agent-sdk", "--with", "nookku", "python3", "entry.py"],
   "models": ["claude-code"],
   "backends": [{"name": "stock", "env": "STOCK_URL", "url": "http://127.0.0.1:9001"}],
   "model_api": {"anthropic": null, "openai": "http://127.0.0.1:9002/v1"}

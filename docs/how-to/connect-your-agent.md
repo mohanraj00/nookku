@@ -245,9 +245,11 @@ I recommend the entry. [examples/toy-shop/http_entry.py](../../examples/toy-shop
 """An entry for the toy shop HTTP agent. It starts the server, then sends each message to it.
 
 The entry starts the server, so the server gets the environment of the test and its output goes
-to app.log. Run it from the repo root, with a Python that has nookku:
+to app.log. It imports nookku, so the entry gets nookku with uv. From the repo root:
 
-    {"entry": [".venv/bin/python", "examples/toy-shop/http_entry.py"]}
+    {"entry": ["uv", "run", "--with", "nookku", "python3", "examples/toy-shop/http_entry.py"]}
+
+In a copy of this folder, the last argument is http_entry.py.
 """
 
 from __future__ import annotations
@@ -315,7 +317,7 @@ finally:
 The configuration:
 
 ```json
-{"entry": [".venv/bin/python", "examples/toy-shop/http_entry.py"], "models": [], "agent_url": "http://127.0.0.1:8700/"}
+{"entry": ["uv", "run", "--with", "nookku", "python3", "examples/toy-shop/http_entry.py"], "models": [], "agent_url": "http://127.0.0.1:8700/"}
 ```
 
 Obey these rules for an HTTP server:
