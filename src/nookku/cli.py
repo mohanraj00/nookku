@@ -821,7 +821,8 @@ def _test_command(args: argparse.Namespace) -> int:
         if running is not None and not (args.json or args.evaluation):
             print(_waiting(running["test"]), flush=True)
         ended = bridge.end(root)
-        _end_page(root)
+        # Only the end with the evaluation stops the chat page of the test (SPEC.md section 5).
+        _end_page(root, stop=args.evaluation)
         text = bridge.summary(ended) if ended else "No test runs. Relay mode is off."
         if args.evaluation:
             folder = evaluation.pending(root)
@@ -883,11 +884,11 @@ def _start_page(root: Path, test: str, out: TextIO) -> None:
         print(text, file=out, flush=True)
 
 
-def _end_page(root: Path) -> None:
-    """Wait for the chat page of the test to stop (#328)."""
+def _end_page(root: Path, stop: bool) -> None:
+    """Stop the chat page of the test if stop is True (#328, #391)."""
     from nookku import page_auto
 
-    error = page_auto.after_end(root)
+    error = page_auto.after_end(root, stop)
     if error:
         print(error, file=sys.stderr, flush=True)
 

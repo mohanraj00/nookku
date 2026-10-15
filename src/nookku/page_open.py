@@ -39,10 +39,15 @@ MANUAL = (
     "in its terminal."
 )
 OTHER_TEST = (
-    "nookku: the chat page of test {test} still runs. It stops in a few seconds. Then try again."
+    "nookku: the chat page runs for test {test}, not for the test that this command opens. "
+    "Type the prompt nookku end to stop it, or start a new test."
 )
 PANE_NO_TEST = "No test runs. Start one with: /nookku start"
 PANE_PAGE = "Chat page: runs. Open chat opens it in your browser."
+PANE_ENDED_PAGE = (
+    "Chat page: runs, so you can export the test or save it as a script. Open chat opens it. "
+    "The prompt nookku end stops it."
+)
 PANE_MANUAL = (
     "Chat page: runs from nookku page. Open it with the URL in the terminal of that command."
 )
@@ -59,8 +64,16 @@ def pane_state(root: Path) -> dict[str, Any]:
     no file."""
     data = _pane_data(root)
     data["lines"] = pane_lines(data)
-    data["open"] = data["state"] == "running" and data["page"] == "test"
+    # After an end with no evaluation, the page of the test still runs (#391).
+    data["open"] = data["page"] == "test" and _page_test(root) == data["test"]
     return data
+
+
+def _page_test(root: Path) -> str | None:
+    """The test of the page server that a test start started, or None."""
+    info = state.page_info(root)
+    test = info.get("test") if info else None
+    return test if isinstance(test, str) else None
 
 
 def pane_lines(data: dict[str, Any]) -> list[str]:
@@ -69,7 +82,9 @@ def pane_lines(data: dict[str, Any]) -> list[str]:
         return [PANE_NO_TEST]
     turns = "turns not known" if data["turns"] is None else f"{data['turns']} turns"
     lines = [f"Test {data['test']}: {data['state']}, {turns}"]
-    if data["page"] == "test":
+    if data["page"] == "test" and data["state"] != "running":
+        lines.append(PANE_ENDED_PAGE)
+    elif data["page"] == "test":
         lines.append(PANE_PAGE)
     elif data["page"] == "manual":
         lines.append(PANE_MANUAL)
@@ -111,11 +126,16 @@ def page_state(root: Path) -> str:
 
 def open_chat(root: Path) -> tuple[int, str]:
     """`nookku page --open`: give the browser the session URL of the chat page of the running
-    test. Return the exit code and the text to print. The text never holds a URL. Make no session,
-    no launch code and no page server."""
+    test, else of the latest test, if its page still runs after an end with no evaluation. Return
+    the exit code and the text to print. The text never holds a URL. Make no session, no launch
+    code and no page server."""
     test = dashboard.running_id(root)
     if test is None:
-        return 1, NO_TEST
+        latest = state.latest_test(root)
+        # After an end with no evaluation, the page of the latest test still runs (#391).
+        if latest is None or _page_test(root) != latest.name or not page_auto._held(root):
+            return 1, NO_TEST
+        test = latest.name
     info = state.page_info(root)
     if info is None or not page_auto._held(root):
         return 1, NO_PAGE

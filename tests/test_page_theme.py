@@ -40,6 +40,8 @@ TEXT_PAIRS = [
     ("muted", "raise"),
     ("muted", "ok-bg"),
     ("accent", "surface"),
+    ("error-fg", "surface"),
+    ("error-fg", "raise"),
     ("accent", "raise"),
     ("ok", "bg"),
     ("ok", "surface"),

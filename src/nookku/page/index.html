@@ -17,6 +17,7 @@
 <link rel="stylesheet" href="notes.css">
 <script src="notes.js" defer></script>
 <script src="export_button.js" defer></script>
+<script src="end_button.js" defer></script>
 <script src="trace.js" defer></script>
 <script src="menu.js" defer></script>
 <script src="keys.js" defer></script>
@@ -33,12 +34,14 @@
     <span id="test" class="testid"></span>
   </div>
   <div class="actions">
+    <button id="end-test" class="btn wide danger" type="button" aria-controls="endconfirm" hidden><svg class="ico" viewBox="0 0 16 16" aria-hidden="true" data-icon="stop"></svg>End test</button>
     <button id="save-script" class="btn wide" type="button"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true" data-icon="script"></svg>Save as script</button>
     <button id="export" class="btn wide" type="button"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true" data-icon="export"></svg>Export</button>
     <a class="btn wide" href="dashboard.html"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true" data-icon="list"></svg>All tests</a>
     <div class="more">
       <button id="more" class="btn icon outline" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="menu" aria-label="More actions"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true" data-icon="more"></svg></button>
       <div id="menu" class="menu" hidden>
+        <button id="end-test-menu" class="btn narrow-only danger" type="button" data-click="end-test" hidden><svg class="ico" viewBox="0 0 16 16" aria-hidden="true" data-icon="stop"></svg>End test</button>
         <button class="btn narrow-only" type="button" data-click="save-script"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true" data-icon="script"></svg>Save as script</button>
         <button class="btn narrow-only" type="button" data-click="export"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true" data-icon="export"></svg>Export</button>
         <a class="btn narrow-only" href="dashboard.html"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true" data-icon="list"></svg>All tests</a>
@@ -61,7 +64,7 @@
   </div>
 </header>
 <div id="banner" class="banner" role="alert" hidden><svg class="ico" viewBox="0 0 16 16" aria-hidden="true" data-icon="alert"></svg><p id="banner-text"></p></div>
-<div id="status" class="status"><span id="save-result" role="status"></span><span id="export-result" role="status"></span></div>
+<div id="status" class="status"><span id="save-result" role="status"></span><span id="export-result" role="status"></span><span id="end-result" role="status"></span></div>
 <main id="scroll" class="scroll">
   <div class="col">
     <div id="start" class="divider" hidden></div>
@@ -74,6 +77,7 @@
 <footer class="dock">
   <div class="dock-in">
     <div id="error" class="alert" role="alert" hidden><svg class="ico" viewBox="0 0 16 16" aria-hidden="true" data-icon="alert"></svg><p id="error-text"></p><button id="error-close" class="btn icon x" type="button" aria-label="Close the error"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true" data-icon="x"></svg></button></div>
+    <div id="endconfirm" class="confirm" role="group" aria-labelledby="endconfirm-text" hidden><svg class="ico" viewBox="0 0 16 16" aria-hidden="true" data-icon="stop"></svg><p id="endconfirm-text">End this test? The agent gets no more messages, and the test gets its audit and its seal. This page stays open, so you can export the test and save it as a script. To start the evaluation after the end, type the prompt nookku end in the harness.</p><div class="row2"><button id="endconfirm-yes" class="btn danger-fill" type="button">End test</button><button id="endconfirm-no" class="btn outline" type="button">Cancel</button></div></div>
     <div id="box" class="box">
       <label class="sr-only" for="said">Message to the agent</label>
       <textarea id="said" rows="1" autocomplete="off" placeholder="Message the agent"></textarea>

@@ -1,4 +1,4 @@
-"""The start of the chat page with a test, and its stop at the end of the test (#328)."""
+"""The start of the chat page with a test, and its stop after the test (#328, #391)."""
 
 from __future__ import annotations
 
@@ -69,12 +69,9 @@ def test_each_wait_ends_before_the_hook_deadline() -> None:
     # The page server reports its status before the start stops to wait for it.
     assert page_auto.OPEN_WAIT < page_auto.LAUNCH_WAIT
     assert page_auto.LAUNCH_WAIT + 2 < page_auto.START_WAIT
-    end = bridge.END_WAIT + page_auto.END_WAIT + page_auto.STOP_WAIT
-    assert end < kit.HOOK_DEADLINE
-    # The page asks for its turns each second, so it can show the end in the grace time.
-    js = (ROOT / "src" / "nookku" / "page" / "app.js").read_text()
-    poll = int(re.search(r"POLL_MS = (\d+);", js).group(1))  # type: ignore[union-attr]
-    assert 2 * poll / 1000 < page_auto.END_GRACE < page_auto.END_WAIT
+    assert bridge.END_WAIT + page_auto.STOP_WAIT < kit.HOOK_DEADLINE
+    # A start first stops the page of the test before it.
+    assert bridge.START_WAIT + page_auto.STOP_WAIT + page_auto.START_WAIT < kit.HOOK_DEADLINE
 
 
 def test_the_launch_url_gives_a_session_one_time_and_a_second_use_stops_the_page(
@@ -134,42 +131,20 @@ def test_the_code_after_the_launch_wait_gets_404_and_the_page_runs(tmp_path: Pat
         server.server_close()
 
 
-def test_the_page_server_stops_after_the_page_shows_the_end(running: Any) -> None:
+def test_the_page_server_serves_after_the_end_of_its_test(running: Any) -> None:
     root, folder = running
     server = page_auto.AutoPageServer(root, folder.name)
-    stopped = threading.Event()
-
-    def serve() -> None:
-        server.serve_forever()
-        stopped.set()
-
-    threading.Thread(target=serve, daemon=True).start()
-    threading.Thread(target=page_auto._watch, args=(server,), daemon=True).start()
+    threading.Thread(target=server.serve_forever, daemon=True).start()
     try:
-        time.sleep(4 * page_auto.WATCH)
-        assert not server.ended.is_set()
         (root / ".nookku" / "current.json").unlink()
-        assert server.ended.wait(5)
-        began = time.monotonic()
-        status, _, body = request(server, "GET", f"/p/{server.token}/api/turns")
-        assert status == 200 and json.loads(body)["test"]["running"] is False
-        assert stopped.wait(5)
-        # The page showed the end, so the server did not wait for the grace time.
-        assert time.monotonic() - began < page_auto.END_GRACE
+        # The tester can still export the test and save it as a script (#391).
+        for _ in range(2):
+            status, _, body = request(server, "GET", f"/p/{server.token}/api/turns")
+            assert status == 200 and json.loads(body)["test"]["running"] is False
+            time.sleep(0.5)
     finally:
+        server.shutdown()
         server.server_close()
-
-
-def test_the_page_server_stops_after_the_grace_time_with_no_page(running: Any) -> None:
-    root, folder = running
-    server = page_auto.AutoPageServer(root, folder.name)
-    threading.Thread(target=page_auto._watch, args=(server,), daemon=True).start()
-    (root / ".nookku" / "current.json").unlink()
-    began = time.monotonic()
-    server.serve_forever()
-    server.server_close()
-    took = time.monotonic() - began
-    assert page_auto.END_GRACE <= took < page_auto.END_GRACE + 2
 
 
 def test_with_no_browser_and_no_terminal_no_url_and_no_server(running: Any) -> None:
@@ -223,9 +198,12 @@ def test_a_start_in_a_terminal_prints_the_url_and_end_stops_the_page(
     assert again is not None and "a page server of this project runs" in again
     assert "The test continues." in again
     (root / ".nookku" / "current.json").unlink()
+    # An end with no evaluation keeps the page. The end with the evaluation stops it.
+    assert page_auto.after_end(root, False) is None
+    assert state.alive(info["pid"]) and state.page_info(root) == info
     began = time.monotonic()
-    assert page_auto.after_end(root) is None
-    assert time.monotonic() - began < page_auto.END_WAIT
+    assert page_auto.after_end(root, True) is None
+    assert time.monotonic() - began < page_auto.STOP_WAIT + 1
     assert wait_gone(info["pid"], 1) and state.page_info(root) is None
 
 
@@ -235,7 +213,7 @@ def test_end_does_not_stop_a_page_that_the_tester_started(running: Any) -> None:
     path, lock = page.claim_page_file(root, 1)
     try:
         began = time.monotonic()
-        assert page_auto.after_end(root) is None
+        assert page_auto.after_end(root, True) is None
         assert time.monotonic() - began < 1
         assert state.page_info(root) == {"port": 1, "pid": os.getpid()}
     finally:
@@ -252,18 +230,30 @@ def sleeper(root: Path, test: str) -> subprocess.Popen[bytes]:
     return proc
 
 
-def test_end_stops_a_page_server_that_does_not_stop(
-    running: Any, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_only_the_end_with_the_evaluation_stops_the_page_server(running: Any) -> None:
     root, folder = running
-    # A page server that ignores the end of its test. It holds the page lock.
+    # A page server of the test. It holds the page lock.
     proc = sleeper(root, folder.name)
     lock = os.open(root / ".nookku" / state.PAGE_LOCK, os.O_RDWR | os.O_CREAT, 0o600)
     fcntl.flock(lock, fcntl.LOCK_EX)
-    (root / ".nookku" / "current.json").unlink()
-    monkeypatch.setattr(page_auto, "END_WAIT", 0.5)
     try:
-        assert page_auto.after_end(root) is None
+        # The test runs, so no end stops its page.
+        assert page_auto.after_end(root, True) is None and proc.poll() is None
+        (root / ".nookku" / "current.json").unlink()
+        assert page_auto.after_end(root, False) is None and proc.poll() is None
+        assert page_auto.after_end(root, True) is None
+    finally:
+        os.close(lock)
+    assert proc.poll() is not None
+
+
+def test_a_new_start_stops_the_page_server_of_the_test_before(running: Any) -> None:
+    root, folder = running
+    proc = sleeper(root, "20260101-000000-0000")
+    lock = os.open(root / ".nookku" / state.PAGE_LOCK, os.O_RDWR | os.O_CREAT, 0o600)
+    fcntl.flock(lock, fcntl.LOCK_EX)
+    try:
+        page_auto._start(root, folder.name, print_url=False)
     finally:
         os.close(lock)
     assert proc.poll() is not None
@@ -278,7 +268,7 @@ def test_end_sends_no_signal_to_the_pid_of_a_stale_page_file(running: Any) -> No
     (root / ".nookku" / "current.json").unlink()
     try:
         began = time.monotonic()
-        assert page_auto.after_end(root) is None
+        assert page_auto.after_end(root, True) is None
         assert time.monotonic() - began < 1
         assert proc.poll() is None
     finally:
@@ -344,21 +334,50 @@ def test_a_toy_shop_test_starts_the_page_and_end_leaves_no_process(
     assert not state.alive(pid)
 
 
-def test_a_toy_shop_end_stops_the_page_after_the_end(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
+def shop(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     root = tmp_path / "shop"
     (root / ".nookku").mkdir(parents=True)
     conf = {"entry": [sys.executable, str(TOY_SHOP)], "models": []}
     (root / ".nookku" / "config.json").write_text(json.dumps(conf))
     monkeypatch.setattr(page_auto, "may_print_url", lambda out: True)
+    return root
+
+
+def test_a_toy_shop_page_lives_after_a_shell_end_and_a_new_start_replaces_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root = shop(tmp_path, monkeypatch)
+    assert main(["start", "--root", str(root)]) == 0
+    first = page_pid(root)
+    assert first is not None and state.alive(first)
+    assert main(["end", "--root", str(root)]) == 0
+    assert "did not stop" not in capsys.readouterr().err
+    # The tester can still export the test from the page (#391).
+    assert state.alive(first) and page_pid(root) == first
+    assert main(["start", "--root", str(root)]) == 0
+    second = page_pid(root)
+    try:
+        assert wait_gone(first, 1) and second is not None and second != first
+        assert state.alive(second)
+    finally:
+        assert main(["end", "--evaluation", "--root", str(root)]) == 0
+    assert wait_gone(second, 1) and state.page_info(root) is None
+
+
+def test_a_toy_shop_page_lives_after_mode_end_and_the_prompt_end_stops_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root = shop(tmp_path, monkeypatch)
     assert main(["start", "--root", str(root)]) == 0
     pid = page_pid(root)
-    assert pid is not None and state.alive(pid)
-    assert main(["end", "--root", str(root)]) == 0
-    out = capsys.readouterr()
-    assert "did not stop" not in out.err
-    assert not state.alive(pid) and state.page_info(root) is None
+    assert pid is not None
+    # `nookku mode end` is /nookku end of the plugin: an end with no evaluation.
+    assert main(["mode", "end", "--root", str(root)]) == 0
+    assert bridge.current(root) is None and state.alive(pid)
+    # The prompt nookku end stops the page, also for a test that ended before.
+    event = {"hook_event_name": "UserPromptSubmit", "prompt": "nookku end"}
+    kit.handle(event, root, "claude-code")
+    assert wait_gone(pid, 1) and state.page_info(root) is None
 
 
 def test_the_config_key_page_false_starts_no_page(running: Any) -> None:

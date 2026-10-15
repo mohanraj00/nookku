@@ -827,6 +827,61 @@ kbd {
   gap: 8px;
 }
 
+.endcard .endnote {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* ---- "End test" and its confirm (end_button.js) ---- */
+
+.btn.danger {
+  color: var(--error-fg);
+}
+
+.btn.danger-fill {
+  background: var(--error-bg);
+  border-color: var(--error-line);
+  color: var(--error-fg);
+  font-weight: 600;
+}
+
+.btn.danger-fill:hover {
+  background: var(--error-bg);
+  border-color: var(--error-fg);
+}
+
+.confirm {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  border-radius: 12px;
+  border: 1px solid var(--error-line);
+  background: var(--surface);
+  font-size: 13.5px;
+  box-shadow: var(--shadow);
+}
+
+.confirm > .ico {
+  margin-top: 3px;
+  color: var(--error-fg);
+}
+
+.confirm p {
+  flex: 1;
+  min-width: 220px;
+  margin: 0;
+}
+
+.confirm .row2 {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
 /* ---- The message box ---- */
 
 .dock {

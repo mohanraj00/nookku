@@ -364,11 +364,19 @@ function endCard(test, turns) {
   all.append(...icon("list"), make("span", null, "All tests"));
   actions.append(exportButton, saveButton, all);
   const ended = typeof test.ended === "number";
-  card.replaceChildren(
-    make("h3", null, ended ? "This test ended" : "This test stopped"),
-    row,
-    actions,
-  );
+  const parts = [make("h3", null, ended ? "This test ended" : "This test stopped"), row, actions];
+  if (ended) {
+    // The prompt starts the evaluation of the latest test of the tester (SPEC.md section 9.1).
+    parts.push(
+      make(
+        "p",
+        "endnote",
+        "To evaluate the latest test, type the prompt nookku end in the harness. " +
+          "This also stops this page.",
+      ),
+    );
+  }
+  card.replaceChildren(...parts);
   card.hidden = false;
 }
 
@@ -396,6 +404,12 @@ function showState(test, turns) {
   }
   for (const mirror of document.querySelectorAll("#menu [data-click]")) {
     mirror.disabled = !test;
+  }
+  // "End test" ends only the shown test, and only while it runs (end_button.js).
+  el("end-test").hidden = !running;
+  el("end-test-menu").hidden = !running;
+  if (!running) {
+    el("endconfirm").hidden = true;
   }
   el("box").hidden = ended;
   el("foot").hidden = ended;
@@ -604,6 +618,9 @@ document.addEventListener("nookku:notes", (e) => {
     endCard(shownData.test, shownData.turns.length);
   }
 });
+
+// end_button.js ended the test. Show the end now, not at the next poll.
+document.addEventListener("nookku:ended", () => refresh());
 
 document.addEventListener("DOMContentLoaded", () => {
   el("send").addEventListener("click", send);

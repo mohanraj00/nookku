@@ -50,6 +50,7 @@ const NookkuIcons = (function () {
     term: [["rect", { x: 2, y: 3, width: 12, height: 10, rx: 1.5 }], P("m5 7 2 1.5L5 10M8.5 10.5H11")],
     x: [P("m4.5 4.5 7 7M11.5 4.5l-7 7")],
     flag: [P("M4 13.5V3M4 3.5h7.5l-1.5 2.5 1.5 2.5H4")],
+    stop: [["circle", { cx: 8, cy: 8, r: 6 }], ["rect", { x: 6, y: 6, width: 4, height: 4, rx: 0.5 }]],
   };
 
   // Put the shapes of the icon `name` into the SVG element `svg`, in place of its children.

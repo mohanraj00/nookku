@@ -256,6 +256,15 @@ def test_a_toy_shop_test_shows_its_state_and_open_chat_opens_the_page(
     finally:
         assert main(["end", "--root", str(root)]) == 0
     capsys.readouterr()
+    # An end with no evaluation keeps the page, so the tester can export the test (#391).
+    pane = page_open.pane_state(root)
+    assert pane["state"] == "ended" and pane["page"] == "test" and pane["open"]
+    assert pane["lines"][1] == page_open.PANE_ENDED_PAGE
+    assert main(["page", "--open", "--root", str(root)]) == 0
+    assert capsys.readouterr().out.strip() == page_open.OPENED
+    # The end with the evaluation stops the page, also for a test that ended before.
+    assert main(["end", "--evaluation", "--root", str(root)]) == 0
+    capsys.readouterr()
     pane = page_open.pane_state(root)
     assert pane["state"] == "ended" and pane["page"] == "none" and not pane["open"]
     assert main(["page", "--open", "--root", str(root)]) == 1

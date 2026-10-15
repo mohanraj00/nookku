@@ -359,6 +359,7 @@ def test_the_page_has_no_inline_script_no_cdn_and_no_html_from_text() -> None:
     folder = resources.files("nookku").joinpath("page")
     html = folder.joinpath("index.html").read_text()
     scripts = ["icons.js", "render.js", "app.js", "save.js", "notes.js", "export_button.js"]
+    scripts += ["end_button.js"]
     scripts += ["trace.js", "menu.js"]
     js = "".join(folder.joinpath(name).read_text() for name in [*scripts, "key.js"])
     # icons.js names the SVG namespace. It is a name, not a file that the page loads.

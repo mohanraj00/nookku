@@ -1,8 +1,10 @@
-"""Start the chat page with a test, and stop it at the end of the test (#328).
+"""Start the chat page with a test, and stop it after the test (#328, #391).
 
 `nookku start` (and the prompt `nookku start`, and `nookku mode start`) starts a page server in a
-separate process, and the page server opens the page in the browser. The page server stops itself
-after the page showed the end of its test. `nookku end` waits for it, and stops it if necessary.
+separate process, and the page server opens the page in the browser. After an end with no
+evaluation (`nookku end` in a shell, `nookku mode end` or "End test" on the page), the page server
+continues, so the tester can export the test and save it as a script. The prompt `nookku end`, the
+end with the evaluation, stops it. The next start also stops it.
 
 The page URL holds the page token. The URL never goes into a text that the model sees (SPEC.md
 section 5, "The page URL"). The start runs in a hook or in a shell, and the model can read their
@@ -50,20 +52,17 @@ LAUNCH_WAIT = 10.0
 # The wait of the page server after the first request of the launch URL, for a second request.
 # Another process that reads the process list can make the first request before the browser.
 REUSE_WAIT = 1.0
-# The wait of the page server after the end of its test, for the page to show the end. The page
-# asks for its turns each second (src/nookku/page/app.js).
-END_GRACE = 3.0
-# The wait of `nookku end` for the page server to stop by itself. Then it sends SIGTERM, and waits
-# STOP_WAIT more.
-END_WAIT = END_GRACE + 3.0
+# The wait for the page server of an ended test to stop after SIGTERM.
 STOP_WAIT = 2.0
-# The interval of the check of the page server: does its test still run?
-WATCH = 0.25
 
-OPENED = "The chat page opened in your browser. It stops at the end of the test."
+OPENED = (
+    "The chat page opened in your browser. It stops when you type the prompt nookku end, or at "
+    "the next start."
+)
 NO_BROWSER_URL = (
     "The browser did not open. Open this URL of the chat page: {url}\n"
-    "Do not give this URL to the harness model. The page stops at the end of the test."
+    "Do not give this URL to the harness model. The page stops when you type the prompt "
+    "nookku end, or at the next start."
 )
 NO_BROWSER = (
     "The browser did not open, so the chat page did not start. To use the page, run nookku page "
@@ -121,6 +120,10 @@ def after_start(root: Path, test: str, out: TextIO) -> str | None:
 
 
 def _start(root: Path, test: str, print_url: bool) -> str:
+    # The page server of the test before this one can still run. This test replaces it.
+    stopped = _stop_ended(root)
+    if stopped is not None:
+        return FAILED.format(reason=stopped.removeprefix("nookku: "))
     read, write = os.pipe()
     command = [sys.executable, "-m", "nookku", "page", "--root", str(root)]
     command += ["--auto-test", test, "--status-fd", str(write)]
@@ -191,30 +194,32 @@ def _stop(pid: int) -> bool:
     return not state.alive(pid)
 
 
-def after_end(root: Path) -> str | None:
-    """Wait for the chat page that `start` started to stop, after the end of its test. Stop it if
-    it does not stop in END_WAIT. Return an error text, or None. Never raise. A page that the
-    tester started with `nookku page` has no test in its page file, and keeps running."""
+def after_end(root: Path, stop: bool) -> str | None:
+    """After the end of a test: stop the chat page that `start` started, if stop is True and its
+    test does not run. The prompt `nookku end`, the end with the evaluation, sets stop. Another end
+    keeps the page, so the tester can export the test. Return an error text, or None. Never raise.
+    A page that the tester started with `nookku page` has no test in its page file, and keeps
+    running."""
+    if not stop:
+        return None
     try:
-        return _wait_end(root)
+        return _stop_ended(root)
     except Exception as e:  # a failed page must not change the end of the test
         return f"nookku: cannot stop the chat page: {e}"
 
 
-def _wait_end(root: Path) -> str | None:
+def _stop_ended(root: Path) -> str | None:
+    """Stop the page server that `start` started, if its test does not run. Return an error text,
+    or None."""
     info = state.page_info(root)
     if info is None or not isinstance(info.get("test"), str):
         return None
     pid = info.get("pid")
     if type(pid) is not int or pid <= 0 or _runs(root, info["test"]) or not _held(root):
         return None
-    # The server removes its page file before its process exits, so wait for the process.
-    deadline = time.monotonic() + END_WAIT
-    while state.alive(pid) and time.monotonic() < deadline:
-        time.sleep(0.1)
     # Send a signal only to the page server: it holds the page lock, and the page file still
     # names it. A server writes its own pid into the page file after it takes the lock.
-    if not state.alive(pid) or not _held(root) or state.page_info(root) != info:
+    if not state.alive(pid) or state.page_info(root) != info:
         return None
     return None if _stop(pid) else NOT_STOPPED.format(pid=pid)
 
@@ -248,8 +253,8 @@ def _runs(root: Path, test: str) -> bool:
 
 
 class AutoPageServer(page.PageServer):
-    """The page server that `start` starts. It serves the launch URL one time, and it stops after
-    the page showed the end of its test."""
+    """The page server that `start` starts. It serves the launch URL one time. It stops on
+    SIGTERM: from the prompt `nookku end`, or from the next start."""
 
     def __init__(self, root: Path, test: str) -> None:
         super().__init__(root)
@@ -262,8 +267,6 @@ class AutoPageServer(page.PageServer):
         # Set when a second request had the code. Then the server stops.
         self.reused = threading.Event()
         self.code_lock = threading.Lock()
-        self.ended = threading.Event()
-        self.shown_end = threading.Event()
 
     @property
     def launch_url(self) -> str:
@@ -272,24 +275,13 @@ class AutoPageServer(page.PageServer):
 
 class _AutoHandler(page._Handler):
     server: AutoPageServer
-    # The path after the session or the token, if the last check let the request in.
-    routed: str | None = None
 
     def do_GET(self) -> None:
         parts = urlsplit(self.path)
         if parts.path.startswith("/o/"):
             self._launch(parts.path[len("/o/") :], parts.query)
             return
-        ended = self.server.ended.is_set()
-        self.routed = None
         super().do_GET()
-        if ended and self.routed == "api/turns":
-            # The page got its turns after the end of the test, so it shows the end.
-            self.server.shown_end.set()
-
-    def _route(self) -> str | None:
-        self.routed = super()._route()
-        return self.routed
 
     def _launch(self, code: str, query: str) -> None:
         """The launch URL: one redirect to the page URL, for the first request with the code."""
@@ -372,25 +364,10 @@ def _launched(server: AutoPageServer) -> bool:
     return not server.reused.wait(REUSE_WAIT)
 
 
-def _watch(server: AutoPageServer) -> None:
-    """Stop the server after the end of its test: when the page showed the end, or END_GRACE after
-    the end."""
-    ended_at: float | None = None
-    while True:
-        if ended_at is None and not _runs(server.root, server.test):
-            ended_at = time.monotonic()
-            server.ended.set()
-        if ended_at is not None and (
-            server.shown_end.is_set() or time.monotonic() - ended_at >= END_GRACE
-        ):
-            server.shutdown()
-            return
-        time.sleep(WATCH)
-
-
 def serve(root: Path, test: str, status_fd: int, print_url: bool) -> int:
     """The page server that `start` starts (`nookku page --auto-test`). Write one JSON line to
-    status_fd: the status, and the page URL only with print_url. Then serve until the test ends."""
+    status_fd: the status, and the page URL only with print_url. Then serve until a signal stops
+    the server."""
     status = os.fdopen(status_fd, "w")
 
     def report(data: dict[str, Any]) -> None:
@@ -432,7 +409,6 @@ def serve(root: Path, test: str, status_fd: int, print_url: bool) -> int:
             # Nobody has the URL, so the server has no use.
             last = {"status": "no-browser"}
             return 0
-        threading.Thread(target=_watch, args=(server,), daemon=True).start()
         # The main thread gets the signals, so it waits in short steps.
         while serving.is_alive():
             serving.join(0.5)

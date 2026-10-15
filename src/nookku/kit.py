@@ -258,15 +258,16 @@ def try_start_test(root: Path, tester_session: str | None = None) -> tuple[bool,
     return True, f"{text}\n{shown}" if shown else text
 
 
-def end_test(root: Path, tester_session: str | None = None) -> str:
-    """Switch relay mode off and end the running test. Return the text to show."""
+def end_test(root: Path, tester_session: str | None = None, stop_page: bool = False) -> str:
+    """Switch relay mode off and end the running test. Return the text to show. With stop_page,
+    the end with the evaluation, also stop the chat page of the test (SPEC.md section 5)."""
     from nookku import bridge
 
     set_mode(root, False)
     manifest = bridge.end(root, tester_session=tester_session)
     from nookku import page_auto
 
-    error = page_auto.after_end(root)
+    error = page_auto.after_end(root, stop_page)
     if manifest is None:
         return "nookku: no test runs. Relay mode is off."
     text = "nookku: relay mode is off.\n" + bridge.summary(manifest)
@@ -287,7 +288,8 @@ def _control(said: str, root: Path, session: str | None) -> str:
     if word == "start":
         return start_test(root, session)
     if word == "end":
-        return end_test(root, session)
+        # The prompt nookku end is the end with the evaluation, so it also stops the chat page.
+        return end_test(root, session, stop_page=True)
     return status(root)
 
 

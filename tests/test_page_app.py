@@ -62,7 +62,8 @@ function walk(n, out) { out = out || []; out.push(n); (n.kids || []).forEach((k)
 function find(n, cls) { return walk(n).filter((k) => k.classList && k.classList.contains(cls)); }
 for (const id of ["test", "pill", "start", "end", "empty", "endcard", "turns", "error",
     "error-text", "error-close", "banner", "banner-text", "said", "send", "bridge", "count", "box",
-    "endbar", "foot", "scroll", "save-script", "export"]) {
+    "endbar", "foot", "scroll", "save-script", "export", "end-test", "end-test-menu",
+    "endconfirm"]) {
   new El(id === "said" ? "textarea" : "div", id);
 }
 global.document = {
@@ -197,7 +198,8 @@ const state = () => ({
   endbar: !ids.endbar.hidden, said: !ids.said.disabled, bridge: ids.bridge.textContent,
   bridgeTitle: ids.bridge.title, end: ids.end.hidden ? null : ids.end.textContent,
   card: ids.endcard.hidden ? null : ids.endcard.textContent, save: !ids["save-script"].disabled,
-  test: ids.test.textContent, turns: ids.turns.kids.length });
+  test: ids.test.textContent, turns: ids.turns.kids.length,
+  endTest: [!ids["end-test"].hidden, !ids["end-test-menu"].hidden] });
 """
 
 
@@ -261,6 +263,10 @@ def test_the_header_the_box_and_the_empty_states_follow_the_test() -> None:
     assert (end["pill"], end["box"], end["endbar"], end["said"]) == ("Ended", False, True, False)
     assert end["end"].startswith("Test ended at ") and end["card"].startswith("This test ended")
     assert "2 turns" in end["card"] and "28 min 31 s" in end["card"]
+    # "End test" shows only while the shown test runs (#391).
+    assert none["endTest"] == end["endTest"] == [False, False]
+    assert first["endTest"] == chat["endTest"] == [True, True]
+    assert "type the prompt nookku end in the harness" in end["card"]
     assert "1 thumbs up" in out["notes"]["card"] and "1 comment" in out["notes"]["card"]
 
 
