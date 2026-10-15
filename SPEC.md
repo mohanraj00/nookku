@@ -597,6 +597,8 @@ The conformance cases in `conformance/otlp/` test the receiver.
 
 A backend is a service that the app calls over HTTP, for example a stock service. The app reads the URL of the backend from the environment variable `env`. The entry can also give that URL to an app that reads it from a file.
 
+Each `url` is an `http` or `https` URL with a host, and with a valid port or no port. The reader of the config refuses another value (section 7.1), so `start`, `check` and `init` stop before a write.
+
 During a test, the bridge runs one proxy for each backend in `backends`, on `127.0.0.1` at a free port, before it starts the entry. It gives the entry the URL of the proxy in the variable `env`, in place of the value that the entry has.
 
 - The proxy forwards each request to `url`: the method, the path and the query after the path of `url`, the headers, and the body. It sends each header of the app once, in its order, except `Host` and the hop-by-hop headers. The app does not know that it speaks to a proxy, so `Proxy-Authorization` goes to the backend. The proxy adds only `Host` and `Content-Length`. A request body with `Transfer-Encoding: chunked` goes to the backend with a `Content-Length`.
@@ -636,7 +638,7 @@ An app can call a model API directly with an SDK, with no harness session. Durin
 | `anthropic` | `ANTHROPIC_BASE_URL` | `https://api.anthropic.com` |
 | `openai` | `OPENAI_BASE_URL` | `https://api.openai.com/v1` |
 
-The proxy forwards to the URL that `model_api` gives for the API, else to the value that the bridge has in the variable, else to the URL of the table. A URL in `model_api` is necessary if the tester's harness also reads the variable, for example Codex and `OPENAI_BASE_URL`. It gives the entry the URL of the proxy in the variable. A value that is not an `http` or `https` URL stops the start of the test. An empty URL in `model_api` also stops it: the proxy does not then use the variable.
+The proxy forwards to the URL that `model_api` gives for the API, else to the value that the bridge has in the variable, else to the URL of the table. A URL in `model_api` is necessary if the tester's harness also reads the variable, for example Codex and `OPENAI_BASE_URL`. It gives the entry the URL of the proxy in the variable. A value that is not an `http` or `https` URL with a host, or that has a port that is not valid, stops the start of the test. `nookku init --model-api` applies the same rule, and writes nothing (section 7.1). An empty URL in `model_api` also stops it: the proxy does not then use the variable.
 
 - The proxy forwards each request as a backend proxy does (section 7.6).
 - It removes the values of secret headers and secret query parameters from the row as a backend proxy does (section 7.6).

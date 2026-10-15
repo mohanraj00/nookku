@@ -192,9 +192,13 @@ def _check_types(data: dict[str, Any]) -> None:
 
 
 def is_http_url(url: str) -> bool:
-    """True if url is an http or https URL with a host: the rule for the URL of a backend and of
-    a model API (SPEC.md sections 7.6 and 7.7)."""
+    """True if url is an http or https URL with a host and a valid port, or no port: the rule for
+    the URL of a backend and of a model API (SPEC.md sections 7.6 and 7.7)."""
     parts = urlsplit(url)
+    try:
+        parts.port  # noqa: B018 - the property raises ValueError for a bad port
+    except ValueError:
+        return False
     return parts.scheme in ("http", "https") and bool(parts.hostname)
 
 

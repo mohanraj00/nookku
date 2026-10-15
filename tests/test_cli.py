@@ -396,6 +396,7 @@ def test_a_new_file_with_no_model_api_flag_records_each_api(tmp_path: Path) -> N
     [
         ([*STOCK, *STOCK], "each backend needs its own 'name' and 'env'"),
         (["--backend", "stock", "STOCK_URL", "ftp://h"], "'url' must be an http or https URL"),
+        (["--backend", "stock", "STOCK_URL", "http://h:99999"], "'url' must be an http or https"),
         (["--model-api", "openai", "--model-api", "openai=http://h"], "each API to --model-api"),
     ],
 )
@@ -415,6 +416,7 @@ def test_init_writes_nothing_for_a_bad_backend_or_model_api(
         ["--model-api", "openai="],
         ["--model-api", "openai=ftp://host"],
         ["--model-api", "anthropic=http://"],
+        ["--model-api", "openai=http://h:notaport"],
         ["--backend", "stock", "STOCK_URL"],
     ],
 )
