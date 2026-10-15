@@ -307,6 +307,22 @@ def test_end_sends_no_signal_to_a_pid_with_another_start_time(running: Any, star
         proc.wait()
 
 
+def test_the_stop_checks_the_start_time_again_before_the_signal(tmp_path: Path) -> None:
+    # The page server can stop after the first check, and the OS can give its pid to a new
+    # process. The stop checks the start time again, with a pidfd on Linux, and sends no signal.
+    proc = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
+    state._children[proc.pid] = proc
+    try:
+        assert page_auto._stop(proc.pid, "ps:Thu Jan  1 00:00:00 1970")
+        assert proc.poll() is None
+        start = state.process_start(proc.pid)
+        assert start is not None and page_auto._stop(proc.pid, start)
+        assert proc.wait(10) == -signal.SIGTERM
+    finally:
+        proc.kill()
+        proc.wait()
+
+
 def test_the_url_goes_only_to_a_terminal(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     class Terminal:
         def isatty(self) -> bool:
