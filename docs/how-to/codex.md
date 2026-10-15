@@ -1,6 +1,6 @@
 # Test an agent in Codex
 
-In Codex, you install the [relay](../reference/glossary.md#relay) as the [plugin](../reference/glossary.md#plugin) or as the [project hooks](../reference/glossary.md#project-hooks). Both run `nookku hook`, with the same rules. [choose-a-relay.md](choose-a-relay.md) compares them. Codex has no surface that shows hook text in `codex exec`, so the [chat page](../reference/cli.md#nookku-page) of the test shows each reply. `nookku view` in a second terminal is optional.
+In Codex, you install the [relay](../reference/glossary.md#relay) as the [plugin](../reference/glossary.md#plugin) or as the [project hooks](../reference/glossary.md#project-hooks). Both run `nookku hook`, with the same rules. [choose-a-relay.md](choose-a-relay.md) compares them. Codex has no surface that shows hook text in `codex exec`, so the [chat page](../reference/cli.md#nookku-chat) of the test shows each reply. `nookku view` in a second terminal is optional.
 
 The plugin loads in Codex 0.162.1: Codex lists its 2 hooks, its MCP tools and its skill ([data](../../proofs/plugin/load.json), [method](../../scripts/proof_plugin_load.py)). The proofs P1 to P4 ran on the project hooks in codex-cli 0.162.1 ([data](../../proofs/hooks-codex/results.json)).
 
@@ -50,7 +50,7 @@ The plugin loads in Codex 0.162.1: Codex lists its 2 hooks, its MCP tools and it
 
 ## Use
 
-1. Start `codex` in the project and type the prompt `nookku start`. The relay checks the hooks, starts your app through the tap and switches relay mode on. It does not send this prompt to the model. The start also opens the [chat page](../reference/cli.md#nookku-page) of the test in your browser.
+1. Start `codex` in the project and type the prompt `nookku start`. The relay checks the hooks, starts your app through the tap and switches relay mode on. It does not send this prompt to the model. The start also opens the [chat page](../reference/cli.md#nookku-chat) of the test in your browser.
 2. Type your test messages in Codex or on the chat page. Codex shows each reply as the reason of the blocked prompt. `codex exec` does not show it, so the chat page also shows each turn. The model does not run in a relay turn: the proofs record 0 output tokens for each one ([data](../../proofs/hooks-codex/results.json)).
 3. Optional: to see the turns in a terminal, run `nookku view` in a second terminal.
 4. Type the prompt `nookku end`. The relay stops your app, copies its session files into the test folder, builds the [trace](../reference/glossary.md#trace) and switches relay mode off. Then the prompt goes to Codex with the [evaluation](../reference/glossary.md#evaluation) prompt, and Codex writes `report.md` in the test folder. The [Claude Code project hooks guide](claude-code-project-hooks.md#evaluation) explains the evaluation. Codex needs a sandbox that can write in the project to write the report, for example `workspace-write`.

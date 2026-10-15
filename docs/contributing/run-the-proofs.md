@@ -9,7 +9,7 @@ The proofs show that each [relay](../reference/glossary.md#relay) is exact in a 
 - Install the dev tools: `uv sync`.
 - Install the harnesses that the proof needs: `claude` for Claude Code, `codex` for Codex.
 - The proofs run in 4 setups: `plugin-claude-code`, `plugin-codex`, `hooks-claude-code` and `hooks-codex`. A setup is a form of the relay (the [plugin](../reference/glossary.md#plugin) or the [project hooks](../reference/glossary.md#project-hooks)) and a harness.
-- The setup `page-claude-code` runs P1 to P4 with the [chat page](../reference/cli.md#nookku-page) as the relay. The [tester](../reference/glossary.md#tester) starts and ends the test in Claude Code with the plugin, and sends each message on the page. It has no `--stream`.
+- The setup `page-claude-code` runs P1 to P4 with the [chat page](../reference/cli.md#nookku-chat) as the relay. The [tester](../reference/glossary.md#tester) starts and ends the test in Claude Code with the plugin, and sends each message on the page. It has no `--stream`.
 - In Claude Code, the plugin proofs load the plugin from this repo with `--plugin-dir`. You do not install it.
 - In Codex, the plugin proofs use the `CODEX_HOME` of [proof_codex_gate.py](../../scripts/proof_codex_gate.py), `.proof/codex-gate/codex-home`. That script installs the plugin of this checkout there.
 - Run each proof of the setup `hooks-codex` in the main checkout of the repo, not in a git worktree. In a git worktree, Codex reads the project hooks from the main checkout, so the proof does not use the hooks of the worktree.

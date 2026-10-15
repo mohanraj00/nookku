@@ -136,7 +136,7 @@ Install the plugin as [claude-code-plugin.md](claude-code-plugin.md#install) say
 
 ### Start the viewer
 
-This step is optional. In step 6, `nookku start` opens the [chat page](../reference/cli.md#nookku-page) of the test in your browser, and the page shows each turn. To see the turns in a terminal too, open a second terminal in the project folder, and start the viewer:
+This step is optional. In step 6, `nookku start` opens the [chat page](../reference/cli.md#nookku-chat) of the test in your browser, and the page shows each turn. To see the turns in a terminal too, open a second terminal in the project folder, and start the viewer:
 
 ```bash
 nookku view
@@ -162,7 +162,7 @@ In the harness, type the prompt `nookku start`. With the plugin, you can also ty
 nookku: test 20261011-185047-267f started. Relay mode is on: each message goes to the entry. To end the test and start the evaluation, type the prompt nookku end. To end the test with no evaluation, run nookku end in a shell.
 ```
 
-Type your test messages, one at a time, in the harness or on the chat page. The model does not run. For each message, Claude Code shows the reply of your app as the reason of a blocked prompt, byte for byte. The model does not get this text.
+Type your test messages, one at a time, in the harness or on the chat page. The model does not run. For each message, Claude Code shows the reply of your app as the reason of a blocked prompt, byte for byte. The model does not get this text. If you type a message on the chat page, its reply shows only on the page, not in the harness.
 
 The chat page shows each turn. If you started the viewer, it also shows each turn. For 3 messages to the toy shop, the viewer shows:
 
@@ -196,7 +196,9 @@ Trace: 0 model items in 3 turns, no findings.
 Audit: nookku audit --tap .../tap.jsonl --relay .../relay.jsonl
 ```
 
-The toy shop has no model sessions. If your app runs its own model sessions, the counts of model sessions and model items are more than 0. To end the test with no evaluation, run `nookku end` in a shell.
+The toy shop has no model sessions. If your app runs its own model sessions, the counts of model sessions and model items are more than 0. To end the test with no evaluation, run `nookku end` in a shell. You can also click "End test" on the chat page, which does the same. After an end with no evaluation, the chat page continues, so "Export" and "Save as script" still work. To start the evaluation, type the prompt `nookku end` in the harness. That also stops the chat page.
+
+To give the test to a person, click "Export" on the chat page, or run `nookku export`. Both give the same file, `<test id>.html` ([`nookku export`](../reference/cli.md#nookku-export)). The button saves it in the download folder of your browser, and the command saves it in the current folder.
 
 ## 7. Allow the evaluation commands
 
