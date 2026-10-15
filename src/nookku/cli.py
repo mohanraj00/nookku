@@ -400,6 +400,11 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     # argparse reads this list for the invalid-choice error.
     sub.choices = _Commands(sub.choices)
+    # The note comes before the parse, so that `nookku page --help` and an error of the parse
+    # also print it. The command name is the first word: the global flags take no value.
+    words = list(sys.argv[1:] if argv is None else argv)
+    if words[:1] == [OLD_CHAT]:
+        print(OLD_CHAT_NOTE, file=sys.stderr, flush=True)
     args = parser.parse_args(argv)
     if args.command == "mcp" and args.root is None:
         from nookku.mcp import project_root
@@ -713,8 +718,6 @@ def _chat_command(args: argparse.Namespace) -> int:
     """nookku chat: the chat page on 127.0.0.1 (SPEC.md section 5, "Chat page")."""
     from nookku import page
 
-    if args.command == OLD_CHAT:
-        print(OLD_CHAT_NOTE, file=sys.stderr, flush=True)
     if args.open:
         from nookku import page_open
 

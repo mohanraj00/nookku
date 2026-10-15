@@ -136,6 +136,12 @@ def test_the_old_name_page_works_the_same_and_prints_one_note_on_stderr(
     assert old.out == new.out and new.err == ""
     assert old.err == cli.OLD_CHAT_NOTE + "\n"
     assert "nookku chat" in old.err and "nookku page" in old.err
+    # The help of the old name also gives the note, because a tester can look there first.
+    with pytest.raises(SystemExit) as stop:
+        main(["page", "--help"])
+    assert stop.value.code == 0
+    shown = capsys.readouterr()
+    assert shown.err == cli.OLD_CHAT_NOTE + "\n" and "--open" in shown.out
 
 
 def test_open_with_a_page_of_nookku_page_names_its_terminal(running: Any) -> None:

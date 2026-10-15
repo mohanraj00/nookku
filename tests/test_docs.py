@@ -253,6 +253,9 @@ def test_the_tutorial_output_comes_from_one_run() -> None:
     folders = TEST_ID.findall(listing.group(1))
     assert len(folders) == 2
     assert sorted(set(TEST_ID.findall(text))) == sorted(folders)
+    # The data of the run has the same 2 test ids (scripts/proof_tutorial.py).
+    data = (ROOT / "proofs" / "tutorial" / "output.txt").read_text(encoding="utf-8")
+    assert sorted(set(TEST_ID.findall(data))) == sorted(folders)
 
 
 # The map of the docs ---------------------------------------------------------------------------

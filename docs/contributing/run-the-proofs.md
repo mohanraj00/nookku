@@ -47,6 +47,7 @@ If a hook changes, trust it again. A new plugin script also needs a new run of `
 | Codex and the `OTEL_*` variables | `uv run python scripts/proof_codex_otel.py` | `proofs/otel/codex.json` |
 | Benchmark under pressure | `uv run python bench/run.py mechanism claude-code` or `codex`, then `uv run python bench/score.py` | `bench/runs/`, `bench/results.json` |
 | Worked evaluation | `uv run python scripts/example_evaluation.py` | `examples/toy-shop/evaluation.json` |
+| The output of the tutorial, no model | `uv run python scripts/proof_tutorial.py` | `proofs/tutorial/output.txt` |
 
 These scripts print `PASS` or `FAIL` and the path of their results file: `proofs_relay.py`, `proof_sessions.py`, `proof_trace.py`, `proof_backend.py`, `proof_model_api.py`, `proof_report.py` and `proof_telemetry.py`. The docstring of each script lists what it checks.
 
