@@ -17,7 +17,14 @@ from nookku.adapters import make
 from nookku.audit import audit, render
 from nookku.config import FILE as CONFIG_FILE
 from nookku.config import KEYS as CONFIG_KEYS
-from nookku.config import MODEL_APIS, OLD_STATE_DIR, ConfigError, move_old_state, read_config
+from nookku.config import (
+    MODEL_APIS,
+    OLD_STATE_DIR,
+    ConfigError,
+    is_http_url,
+    move_old_state,
+    read_config,
+)
 from nookku.record import RecordError
 from nookku.tap import Tap, serve
 
@@ -61,9 +68,11 @@ def _model_api(value: str) -> tuple[str, str | None]:
     """One value of init --model-api: API, or API=URL. API alone takes the URL from its variable
     (SPEC.md section 7.7)."""
     name, sep, url = value.partition("=")
-    if name not in MODEL_APIS or (sep and not url):
+    # The test checks the same URL rule at start. init checks it first, so it writes nothing.
+    if name not in MODEL_APIS or (sep and not is_http_url(url)):
         raise argparse.ArgumentTypeError(
-            f"use API or API=URL, with the API {' or '.join(MODEL_APIS)}, for example "
+            f"use API or API=URL, with the API {' or '.join(MODEL_APIS)} and an http or https "
+            "URL, for example "
             "openai=http://127.0.0.1:9002/v1"
         )
     return name, url if sep else None

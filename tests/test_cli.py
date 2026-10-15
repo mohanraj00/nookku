@@ -413,6 +413,8 @@ def test_init_writes_nothing_for_a_bad_backend_or_model_api(
     [
         ["--model-api", "gemini"],
         ["--model-api", "openai="],
+        ["--model-api", "openai=ftp://host"],
+        ["--model-api", "anthropic=http://"],
         ["--backend", "stock", "STOCK_URL"],
     ],
 )

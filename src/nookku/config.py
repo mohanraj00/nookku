@@ -191,6 +191,13 @@ def _check_types(data: dict[str, Any]) -> None:
         raise ConfigError(f"{FILE}: {e}") from None
 
 
+def is_http_url(url: str) -> bool:
+    """True if url is an http or https URL with a host: the rule for the URL of a backend and of
+    a model API (SPEC.md sections 7.6 and 7.7)."""
+    parts = urlsplit(url)
+    return parts.scheme in ("http", "https") and bool(parts.hostname)
+
+
 def parse_backends(raw: Any) -> list[tuple[str, str, str]]:
     """The `backends` key: the name, the variable and the URL of each backend (SPEC.md section
     7.6). Raise ValueError if it is not valid. The proxy module uses it too, so one rule applies.
@@ -205,7 +212,7 @@ def parse_backends(raw: Any) -> list[tuple[str, str, str]]:
             isinstance(b.get(k), str) for k in ("name", "env", "url")
         ):
             raise ValueError("each backend needs the strings 'name', 'env' and 'url'")
-        if urlsplit(b["url"]).scheme not in ("http", "https") or not urlsplit(b["url"]).hostname:
+        if not is_http_url(b["url"]):
             raise ValueError(f"backend {b['name']}: 'url' must be an http or https URL")
         out.append((b["name"], b["env"], b["url"].rstrip("/")))
     names = [name for name, _, _ in out]

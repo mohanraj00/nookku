@@ -367,7 +367,7 @@ Write the config, and the [project hooks](glossary.md#project-hooks) of a harnes
 
 If `config.json` exists, `init` keeps each key and changes only the keys of the flags that you give. For example, a second run keeps `backends` and `"evaluate": false`. It prints the keys that it changed and the keys that it kept. A new `config.json` gets each key. The default of a flag applies only to a new file.
 
-If `config.json` has an unknown key, or if `config.json` or the hook file is not valid JSON, `init` writes nothing. Correct the file, then run `init` again. If a flag gives a value that breaks the rule of its key, for example a backend URL that is not `http` or `https`, or one API two times in `--model-api`, `init` also writes nothing.
+If `config.json` has an unknown key, or if `config.json` or the hook file is not valid JSON, `init` writes nothing. Correct the file, then run `init` again. If a flag gives a value that breaks the rule of its key, for example a backend URL or a model API URL that is not `http` or `https`, or one API two times in `--model-api`, `init` also writes nothing.
 
 For example, this run writes the backend and the model APIs of the [full toy shop](../../examples/toy-shop-full/README.md#run-it), and keeps each other key:
 

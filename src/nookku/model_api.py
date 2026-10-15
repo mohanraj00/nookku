@@ -13,11 +13,10 @@ import codecs
 import json
 from collections.abc import Mapping
 from typing import Any
-from urllib.parse import urlsplit
 
 from . import backend
 from .adapters import StreamError, sse_events
-from .config import parse_model_api
+from .config import is_http_url, parse_model_api
 
 FILE = "model_api.jsonl"
 # The API name: the variable of its SDK and the URL if the entry has no value in the variable.
@@ -44,7 +43,7 @@ def backends(apis: Mapping[str, str | None], environ: Mapping[str, str]) -> list
         env, default = APIS[name]
         # A URL in the configuration is used as it is, also if it is empty, so that it is checked.
         url = configured if configured is not None else (environ.get(env) or default)
-        if urlsplit(url).scheme not in ("http", "https") or not urlsplit(url).hostname:
+        if not is_http_url(url):
             raise ValueError(f"the URL of {name} ({env}) must be an http or https URL: {url!r}")
         out.append(backend.Backend(name, env, url.rstrip("/")))
     return out
