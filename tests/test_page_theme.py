@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from nookku import page
+from nookku import export, page
 
 NODE = shutil.which("node")
 needs_node = pytest.mark.skipif(NODE is None, reason="node is not on PATH")
@@ -58,6 +58,9 @@ CONTROL_PAIRS = [
     # The border of a failed bubble, the alert and the end confirm.
     ("error-line", "surface"),
     ("error-line", "bg"),
+    # The rings of the eyes mark in the header.
+    ("logo-line", "surface"),
+    ("logo-line", "bg"),
     ("focus", "bg"),
     ("focus", "surface"),
 ]
@@ -116,6 +119,18 @@ def test_each_color_pair_meets_wcag_aa(theme: str) -> None:
 
 
 @pytest.mark.parametrize("name", PAGES)
+def test_each_page_has_the_eyes_mark_and_the_logo_icon(name: str) -> None:
+    html = (FOLDER / name).read_text()
+    head = html[: html.index("</head>")]
+    assert head.count('<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,') == 1
+    assert export.ICON in head
+    assert export.MARK + '<span class="word">Nookku</span>' in html
+    assert 'class="mark"' not in html
+    # The page CSP must allow a data: image, so that the tab shows the icon.
+    assert "data:" in page.CSP.split("img-src", 1)[1].split(";", 1)[0]
+
+
+@pytest.mark.parametrize("name", PAGES)
 def test_each_page_loads_the_theme_and_the_keys(name: str) -> None:
     html = (FOLDER / name).read_text()
     # theme.js runs in <head> before the first paint. theme.css comes last, so its rules win.
@@ -141,7 +156,7 @@ def test_each_page_has_the_header_and_the_menu_of_the_chat_page(name: str) -> No
     links = re.findall(r'<link rel="stylesheet" href="([^"]+)">', html)
     assert links[0] == "app.css"
     assert '<header class="top">' in html
-    assert '<span class="mark" aria-hidden="true">N</span>' in html
+    assert export.MARK + '<span class="word">Nookku</span>' in html
     assert '<script src="icons.js" defer></script>' in html
     assert '<script src="menu.js" defer></script>' in html
     picks = {"theme": ["auto", "light", "dark"], "width": ["auto", "narrow", "wide"]}

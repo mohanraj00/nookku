@@ -26,6 +26,12 @@
   --error-bg: #fdecea;
   --error-line: #d96b61;
   --focus: #1f5fbf;
+  /* The 3 colors of the logo, and the rings of the eyes mark in the header. */
+  --ink: #12203a;
+  --paper: #f3f6fa;
+  --marigold: #d9822b;
+  --logo-line: #12203a;
+  --on-logo-line: #f3f6fa;
   --shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 4px 16px rgba(16, 24, 40, 0.06);
 }
 
@@ -51,6 +57,11 @@
   --error-bg: #351c1a;
   --error-line: #a8534b;
   --focus: #8cb4f5;
+  --ink: #12203a;
+  --paper: #f3f6fa;
+  --marigold: #d9822b;
+  --logo-line: #f3f6fa;
+  --on-logo-line: #12203a;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 16px rgba(0, 0, 0, 0.25);
 }
 
@@ -78,6 +89,11 @@
     --error-bg: #351c1a;
     --error-line: #a8534b;
     --focus: #8cb4f5;
+    --ink: #12203a;
+    --paper: #f3f6fa;
+    --marigold: #d9822b;
+    --logo-line: #f3f6fa;
+    --on-logo-line: #12203a;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 16px rgba(0, 0, 0, 0.25);
   }
 }

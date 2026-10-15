@@ -21,7 +21,7 @@ from typing import Any
 
 import pytest
 
-from nookku import bridge, kit, page, script, seal, state
+from nookku import bridge, export, kit, page, script, seal, state
 from nookku.audit import audit
 from nookku.record import Turn, Writer, read_relay
 from nookku.stdio import Agent, StdioTap, start_in_thread
@@ -375,7 +375,8 @@ def test_the_page_has_no_inline_script_no_cdn_and_no_html_from_text() -> None:
     assert all(name in page.FILES for name in [*scripts, *styles])
     assert not re.search(r"\son\w+=", html)
     assert "style=" not in html
-    for text in (html, js, css):
+    # The logo icon is a data: URL. The SVG namespace in it is a name, not a file to load.
+    for text in (html.replace(export.ICON, ""), js, css):
         assert not re.search(r"https?://", text)
     # The page puts each text of the agent and the tester in with textContent, or as DOM nodes
     # from render.js (#347).

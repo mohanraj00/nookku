@@ -14,7 +14,7 @@ from typing import Any
 
 import pytest
 
-from nookku import bridge, dashboard, kit, page, seal
+from nookku import bridge, dashboard, export, kit, page, seal
 from nookku.audit import audit
 from nookku.record import Writer
 
@@ -310,7 +310,8 @@ def test_the_dashboard_has_no_inline_script_and_no_html_from_text() -> None:
     ]
     assert not re.search(r"\son\w+=", html)
     assert "style=" not in html
-    for text in (html, js, css):
+    # The logo icon is a data: URL. The SVG namespace in it is a name, not a file to load.
+    for text in (html.replace(export.ICON, ""), js, css):
         assert not re.search(r"https?://", text)
     assert "innerHTML" not in js and "insertAdjacentHTML" not in js and "outerHTML" not in js
     # The chat page links to the dashboard, and the dashboard opens a test with #<id>.

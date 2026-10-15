@@ -317,6 +317,25 @@ def _sha(text: str) -> str:
     return "'sha256-" + base64.b64encode(hashlib.sha256(text.encode()).digest()).decode() + "'"
 
 
+# The eyes of the Nookku logo in the header, and the logo icon in the tab. The pages have the
+# same 2 tags. The icon is a data: URL, which the img-src of the CSP allows.
+MARK = (
+    '<svg class="mark-eyes" viewBox="10 37 108 54" aria-hidden="true" focusable="false">'
+    '<circle class="ring" cx="37" cy="64" r="22"/><circle class="ring" cx="91" cy="64" r="22"/>'
+    '<circle class="pupil" cx="45" cy="64" r="9"/><circle class="pupil" cx="99" cy="64" r="9"/>'
+    "</svg>"
+)
+ICON = (
+    '<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,'
+    "%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'%3E"
+    "%3Crect width='128' height='128' rx='28' fill='%2312203a'/%3E"
+    "%3Ccircle cx='37' cy='64' r='22' fill='none' stroke='%23f3f6fa' stroke-width='10'/%3E"
+    "%3Ccircle cx='91' cy='64' r='22' fill='none' stroke='%23f3f6fa' stroke-width='10'/%3E"
+    "%3Ccircle cx='45' cy='64' r='9' fill='%23d9822b'/%3E"
+    "%3Ccircle cx='99' cy='64' r='9' fill='%23d9822b'/%3E%3C/svg%3E\">"
+)
+
+
 def build(root: Path, folder: Path) -> bytes:
     """The HTML file of the export of one test folder."""
     style = "\n".join(_inline(n, "</style") for n in STYLES)
@@ -335,6 +354,7 @@ def build(root: Path, folder: Path) -> bytes:
 <meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Nookku test</title>
+{ICON}
 <style>{style}</style>
 <script type="application/json" id="nookku-data">{_json_block(data(root, folder))}</script>
 {tags}</head>
@@ -342,7 +362,7 @@ def build(root: Path, folder: Path) -> bytes:
 <div class="app">
 <header class="top">
   <div class="brand">
-    <span class="mark" aria-hidden="true">N</span><span class="word">Nookku</span>
+    {MARK}<span class="word">Nookku</span>
   </div>
   <span class="sep" aria-hidden="true"></span>
   <div class="testinfo">

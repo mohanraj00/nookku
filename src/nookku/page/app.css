@@ -138,16 +138,23 @@ kbd {
   white-space: nowrap;
 }
 
-.mark {
-  width: 22px;
+/* The mark is the two eyes of the Nookku logo: the circles of nookku-mark.svg, cropped to the
+   eyes. The rings are logo-line (ink in light, paper in dark). The pupils are marigold. */
+.mark-eyes {
+  display: block;
+  width: 44px;
   height: 22px;
-  border-radius: 6px;
-  background: var(--accent);
-  color: var(--on-accent);
-  display: grid;
-  place-items: center;
-  font-size: 12px;
-  font-weight: 700;
+  flex: none;
+}
+
+.mark-eyes .ring {
+  fill: none;
+  stroke: var(--logo-line);
+  stroke-width: 10;
+}
+
+.mark-eyes .pupil {
+  fill: var(--marigold);
 }
 
 .sep {
