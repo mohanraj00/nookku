@@ -6,9 +6,13 @@
 
 const NookkuEnd = (function () {
   const el = (id) => document.getElementById(id);
+  const CHANGED = "nookku: the page now shows another test, so the page ended nothing.";
   let ending = false;
+  // The id of the test that the tester agreed to end: the shown test when the confirm opened.
+  let asked = null;
 
   function show(open) {
+    asked = open ? el("test").dataset.id || null : null;
     el("endconfirm").hidden = !open;
     el("end-test").setAttribute("aria-expanded", open ? "true" : "false");
     if (open) {
@@ -21,8 +25,15 @@ const NookkuEnd = (function () {
   }
 
   async function confirm() {
-    const test = el("test").dataset.id || "";
-    if (ending || test === "") {
+    const test = asked;
+    if (ending || test === null) {
+      return;
+    }
+    // The shown test changed after the confirm opened: end nothing, so that no other test ends
+    // with no confirm of its own.
+    if ((el("test").dataset.id || null) !== test) {
+      show(false);
+      result(CHANGED);
       return;
     }
     ending = true;

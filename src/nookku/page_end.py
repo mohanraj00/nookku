@@ -59,5 +59,17 @@ def end(root: Path, test_id: str) -> dict[str, Any]:
     kit.set_mode(root, False)
     ended = bridge.end(root, find_stopped=False, test=test_id)
     if ended is None:
-        return {"ended": False, "error": NOT_ENDED}
+        return {"ended": False, "error": _give_back_mode(root, test_id)}
     return {"ended": True, "text": bridge.summary(ended)}
+
+
+def _give_back_mode(root: Path, test_id: str) -> str:
+    """The end did not end test_id. If another test runs now, it started after the first check,
+    and its start set relay mode on before this request set it off. Set relay mode on again, else
+    a message of the harness of that test can reach the model. On is the safe side: with relay
+    mode on, the hook sends each prompt of the tester to the relay. Return the error text."""
+    now = state.current(root)
+    if now is None or now["test"] == test_id:
+        return NOT_ENDED
+    kit.set_mode(root, True)
+    return OTHER_TEST.format(shown=test_id, running=now["test"])

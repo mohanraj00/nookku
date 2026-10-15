@@ -456,8 +456,13 @@ function render(data) {
   pollResult(data.error);
   const test = data.test;
   shownData = data;
-  // save.js, export_button.js and trace.js read the id of the test that the page shows.
-  el("test").dataset.id = test ? test.id : "";
+  // save.js, export_button.js and trace.js read the id of the test that the page shows. If the
+  // shown test changes, close the confirm of "End test": it was for the test before.
+  const shownId = test ? test.id : "";
+  if (el("test").dataset.id !== shownId) {
+    el("endconfirm").hidden = true;
+  }
+  el("test").dataset.id = shownId;
   const list = el("turns");
   if (!test) {
     el("start").hidden = true;

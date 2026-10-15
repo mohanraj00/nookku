@@ -106,6 +106,37 @@ def test_the_page_refuses_the_end_while_it_sends_a_message(server: page.PageServ
     assert kit.is_on(server.root)
 
 
+def test_a_test_that_starts_during_the_end_keeps_relay_mode_on(
+    server: page.PageServer, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Test A ends in another process and test B starts after the first check of the page. The
+    page must not leave B with relay mode off (code review of #403)."""
+    root = server.root
+    folder = fake_test(root)
+    other = root / ".nookku" / "tests" / "20261013-100000-cd34"
+
+    def other_starts(*args: Any, **kwargs: Any) -> None:
+        other.mkdir(parents=True)
+        write_current(root, other, "http://127.0.0.1:9/", "y" * 43)
+        assert not kit.is_on(root)
+        return None
+
+    monkeypatch.setattr(bridge, "end", other_starts)
+    status, data = end(server, {"test": folder.name}, session(server))
+    assert status == 200 and data["ended"] is False
+    assert data["error"] == page_end.OTHER_TEST.format(shown=folder.name, running=other.name)
+    assert kit.is_on(root)
+
+
+def test_when_the_bridge_does_not_end_the_test_the_page_says_so(
+    server: page.PageServer, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    folder = fake_test(server.root)
+    monkeypatch.setattr(bridge, "end", lambda *args, **kwargs: None)
+    status, data = end(server, {"test": folder.name}, session(server))
+    assert status == 200 and data == {"ended": False, "error": page_end.NOT_ENDED}
+
+
 def test_with_no_test_the_page_ends_nothing(server: page.PageServer) -> None:
     status, data = end(server, {"test": "20261013-090000-ab12"}, session(server))
     assert status == 200 and data == {"ended": False, "error": page_end.NO_TEST}
@@ -187,9 +218,19 @@ listeners.DOMContentLoaded.forEach((fn) => fn());
   await ids["endconfirm-yes"].listeners.click[0]();
   out.refused = [ids["end-result"].textContent, ids.endconfirm.hidden, events.length];
   answer = "down";
+  // A click on "End test" again opens the confirm again.
+  ids["end-test"].listeners.click[0]();
   await ids["endconfirm-yes"].listeners.click[0]();
   out.down = ids["end-result"].textContent;
   answer = { ended: true, text: "ended" };
+  // The confirm opened for one test, but the page now shows another test: end nothing.
+  ids["end-test"].listeners.click[0]();
+  ids.test.dataset.id = "20261013-100000-cd34";
+  const before = sent.length;
+  await ids["endconfirm-yes"].listeners.click[0]();
+  out.changed = [ids["end-result"].textContent, ids.endconfirm.hidden, sent.length - before];
+  ids.test.dataset.id = "20261013-090000-ab12";
+  ids["end-test"].listeners.click[0]();
   await ids["endconfirm-yes"].listeners.click[0]();
   out.ended = events.map((e) => [e.type, e.detail.test]);
   out.sent = sent;
@@ -211,5 +252,10 @@ def test_the_button_asks_first_and_sends_only_the_shown_test(tmp_path: Path) -> 
     assert out["open"] is True and out["cancel"] is True
     assert out["refused"] == ["nookku: no test runs, so the page ended nothing.", True, 0]
     assert out["down"] == "nookku: the page server does not answer. The test runs."
+    assert out["changed"] == [
+        "nookku: the page now shows another test, so the page ended nothing.",
+        True,
+        0,
+    ]
     assert out["ended"] == [["nookku:ended", "20261013-090000-ab12"]]
     assert out["sent"] == [["api/end", "POST", {"test": "20261013-090000-ab12"}]] * 3
