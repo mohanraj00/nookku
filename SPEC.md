@@ -597,7 +597,7 @@ The conformance cases in `conformance/otlp/` test the receiver.
 
 A backend is a service that the app calls over HTTP, for example a stock service. The app reads the URL of the backend from the environment variable `env`. The entry can also give that URL to an app that reads it from a file.
 
-Each `url` is an `http` or `https` URL with a host, and with a valid port or no port. The reader of the config refuses another value (section 7.1), so `start`, `check` and `init` stop before a write.
+Each `env` is a variable name of letters, digits and `_`, and it does not start with a digit. Each `url` is an `http` or `https` URL with a host, and with a valid port or no port. The reader of the config refuses another value (section 7.1), so `start`, `check` and `init` stop before a write.
 
 During a test, the bridge runs one proxy for each backend in `backends`, on `127.0.0.1` at a free port, before it starts the entry. It gives the entry the URL of the proxy in the variable `env`, in place of the value that the entry has.
 

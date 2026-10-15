@@ -397,6 +397,8 @@ def test_a_new_file_with_no_model_api_flag_records_each_api(tmp_path: Path) -> N
         ([*STOCK, *STOCK], "each backend needs its own 'name' and 'env'"),
         (["--backend", "stock", "STOCK_URL", "ftp://h"], "'url' must be an http or https URL"),
         (["--backend", "stock", "STOCK_URL", "http://h:99999"], "'url' must be an http or https"),
+        (["--backend", "stock", "A=B", "http://h"], "'env' must be a variable name"),
+        (["--backend", "stock", "", "http://h"], "'env' must be a variable name"),
         (["--model-api", "openai", "--model-api", "openai=http://h"], "each API to --model-api"),
     ],
 )
