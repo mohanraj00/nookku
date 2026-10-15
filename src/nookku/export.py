@@ -52,10 +52,11 @@ NO_DIR_FD = (
 MAX_STEP_TEXT = 4000
 # The renderer shows a longer reply as text with no media (`LIMIT` in page/render.js).
 RENDER_LIMIT = 200_000
-# The page files that go into the export, in this order. theme.css defines the colors of the
-# other files, for a light and a dark system theme (#355). It comes last, as on the pages.
+# The page files that go into the export, in this order. app.css gives the file the header, the
+# buttons and the pills of the chat page (#391). theme.css defines the colors of the other files,
+# for a light and a dark system theme (#355). It comes last, as on the pages.
 STYLES = ("app.css", "render.css", "export.css", "theme.css")
-SCRIPTS = ("render.js", "export.js")
+SCRIPTS = ("icons.js", "render.js", "export.js")
 
 NO_ID = "nookku: no test has this id."
 NO_TEST = "nookku: no test to export. Start one in the harness with: nookku start"
@@ -338,19 +339,27 @@ def build(root: Path, folder: Path) -> bytes:
 <script type="application/json" id="nookku-data">{_json_block(data(root, folder))}</script>
 {tags}</head>
 <body>
-<header>
-  <h1>Nookku test</h1>
-  <p id="test"></p>
+<div class="app">
+<header class="top">
+  <div class="brand">
+    <span class="mark" aria-hidden="true">N</span><span class="word">Nookku</span>
+  </div>
+  <span class="sep" aria-hidden="true"></span>
+  <div class="testinfo">
+    <span id="pill" class="pill end">Export</span>
+    <h1 id="test" class="testid">Nookku test</h1>
+  </div>
 </header>
-<main>
-  <section id="summary" aria-label="Summary"></section>
-  <p id="start" class="mark" hidden></p>
+<main class="page">
+  <section id="summary" class="card summary" aria-label="Summary"></section>
+  <div id="start" class="divider" hidden></div>
   <ol id="turns"></ol>
-  <p id="end" class="mark" hidden></p>
+  <div id="end" class="divider" hidden></div>
+  <p class="note foot-note">
+    An export of a nookku test. This file loads nothing from the network.
+  </p>
 </main>
-<footer>
-  <p class="note">An export of a nookku test. This file loads nothing from the network.</p>
-</footer>
+</div>
 </body>
 </html>
 """

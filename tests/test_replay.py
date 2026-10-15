@@ -303,7 +303,9 @@ def test_the_diff_page_has_no_inline_script_and_no_html_from_text() -> None:
     assert re.findall(r"<script[^>]*>", html) == [
         '<script src="theme.js">',
         '<script src="key.js">',
+        '<script src="icons.js" defer>',
         '<script src="diff.js" defer>',
+        '<script src="menu.js" defer>',
         '<script src="keys.js" defer>',
     ]
     assert not re.search(r"\son\w+=", html) and "style=" not in html

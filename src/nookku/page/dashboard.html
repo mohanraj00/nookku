@@ -9,21 +9,51 @@
 <script src="key.js"></script>
 <link rel="stylesheet" href="app.css">
 <link rel="stylesheet" href="dashboard.css">
+<script src="icons.js" defer></script>
 <script src="compare.js" defer></script>
 <script src="dashboard.js" defer></script>
 <script src="search.js" defer></script>
+<script src="menu.js" defer></script>
 <script src="keys.js" defer></script>
 <link rel="stylesheet" href="keys.css">
 <link rel="stylesheet" href="theme.css">
 </head>
 <body>
-<header>
-  <h1>Nookku tests</h1>
-  <p class="nav"><a href="./">Chat page</a></p>
+<div class="app">
+<header class="top">
+  <div class="brand"><span class="mark" aria-hidden="true">N</span><span class="word">Nookku</span></div>
+  <span class="sep" aria-hidden="true"></span>
+  <div class="testinfo">
+    <h1 class="title">All tests</h1>
+    <span id="count" class="pill none t-num"></span>
+  </div>
+  <div class="actions">
+    <a class="btn wide" href="./"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true" data-icon="chat"></svg>Chat page</a>
+    <div class="more">
+      <button id="more" class="btn icon outline" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="menu" aria-label="More actions"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true" data-icon="more"></svg></button>
+      <div id="menu" class="menu" hidden>
+        <a class="btn narrow-only" href="./"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true" data-icon="chat"></svg>Chat page</a>
+        <hr class="narrow-only">
+        <div class="lbl" id="theme-label">Theme</div>
+        <div class="pick" role="radiogroup" aria-labelledby="theme-label">
+          <button type="button" role="radio" data-pick="theme" data-v="auto">Auto</button>
+          <button type="button" role="radio" data-pick="theme" data-v="light">Light</button>
+          <button type="button" role="radio" data-pick="theme" data-v="dark">Dark</button>
+        </div>
+        <div class="lbl" id="width-label">Width</div>
+        <div class="pick" role="radiogroup" aria-labelledby="width-label">
+          <button type="button" role="radio" data-pick="width" data-v="auto">Auto</button>
+          <button type="button" role="radio" data-pick="width" data-v="narrow">Narrow</button>
+          <button type="button" role="radio" data-pick="width" data-v="wide">Wide</button>
+        </div>
+        <p class="hint">Auto follows the system and the window. Keys: j and k move between tests. / goes to the search. ? shows all keys.</p>
+      </div>
+    </div>
+  </div>
 </header>
-<main>
+<main class="page">
   <form id="filters" class="filters">
-    <label>State
+    <label class="field">State
       <select id="state">
         <option value="all">All</option>
         <option value="running">Running</option>
@@ -32,32 +62,34 @@
         <option value="unknown">Unknown</option>
       </select>
     </label>
-    <label>Show
+    <label class="field">Show
       <select id="has">
         <option value="all">All tests</option>
         <option value="break">Tests with a break</option>
         <option value="finding">Tests with a finding</option>
       </select>
     </label>
-    <label>Sort
+    <label class="field">Sort
       <select id="order">
         <option value="newest">Newest first</option>
         <option value="oldest">Oldest first</option>
       </select>
     </label>
-    <label>Search
-      <input id="search" type="search" autocomplete="off" aria-describedby="search-result">
+    <label class="field grow">Search
+      <input id="search" type="search" autocomplete="off" placeholder="Test id, state or seal" aria-describedby="search-result">
     </label>
-    <span id="search-result" class="note" role="status"></span>
   </form>
-  <p id="error" role="alert" hidden></p>
-  <p id="count" class="note"></p>
-  <p class="compare"><button type="button" id="compare" disabled>Compare</button> <span id="picked" class="note"></span></p>
-  <div class="table">
+  <div id="error" class="alert" role="alert" hidden><svg class="ico" viewBox="0 0 16 16" aria-hidden="true" data-icon="alert"></svg><p id="error-text"></p></div>
+  <div class="bar">
+    <button type="button" id="compare" class="btn outline" disabled><svg class="ico" viewBox="0 0 16 16" aria-hidden="true" data-icon="text"></svg>Compare</button>
+    <span id="picked" class="note"></span>
+    <span id="search-result" class="note" role="status"></span>
+  </div>
+  <div id="table" class="card table dash">
     <table>
       <thead>
         <tr>
-          <th scope="col">Pick</th>
+          <th scope="col"><span class="sr-only">Pick</span></th>
           <th scope="col">Test</th>
           <th scope="col">Started</th>
           <th scope="col">State</th>
@@ -70,7 +102,14 @@
       <tbody id="tests"></tbody>
     </table>
   </div>
-  <p class="note">The dashboard reads the files of each test folder. It changes no file. A dash means that the test has no such file yet.</p>
+  <div id="empty" class="empty" hidden>
+    <div class="glyph"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true" data-icon="list"></svg></div>
+    <h2 id="empty-title">No tests yet</h2>
+    <p id="empty-text">To start a test, run this in the harness:</p>
+    <span id="empty-cmd" class="cmd">nookku start</span>
+  </div>
+  <p class="note foot-note">The dashboard reads the files of each test folder. It changes no file. A dash means that the test has no such file yet.</p>
 </main>
+</div>
 </body>
 </html>

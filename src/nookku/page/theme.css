@@ -2,7 +2,7 @@
    The light theme is the default. The dark theme applies if the system asks for it and the
    tester did not select a theme, or if the tester selected it. Each text color pair meets
    WCAG AA (4.5:1), and the border of a control meets 3:1. tests/test_page_theme.py checks it.
-   --agent is the old name of --raise. The dashboard, the diff page and the export use it. */
+   --agent is the old name of --raise. keys.css uses it. */
 
 :root {
   color-scheme: light;

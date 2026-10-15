@@ -101,8 +101,8 @@ def test_the_export_holds_the_chat_the_steps_the_notes_the_audit_and_the_seal(
 
 def test_no_text_can_end_a_script_block_and_the_page_makes_no_external_url(project: Path) -> None:
     html = export.build(project, project / ".nookku" / "tests" / TEST_ID).decode()
-    # 1 data block and 2 scripts: the "</script>" texts of the agent and the note are escapes.
-    assert html.count("</script>") == 3
+    # 1 data block and 3 scripts: the "</script>" texts of the agent and the note are escapes.
+    assert html.count("</script>") == 1 + len(export.SCRIPTS) == 4
     assert "alert(" not in outside_data(html).split("<script>", 1)[0]
     page_html = outside_data(html)
     assert not re.search(r"\b(src|href)\s*=", page_html.split("<body>", 1)[1])
@@ -320,6 +320,14 @@ def test_the_page_has_the_export_button() -> None:
     assert 'id="export"' in html
     assert '<script src="export_button.js" defer></script>' in html
     assert "export_button.js" in page.FILES
+
+
+def test_the_export_has_the_header_of_the_chat_page(project: Path) -> None:
+    """The export has the style of the chat page (#391): app.css and the header with the mark."""
+    html = export.build(project, project / ".nookku" / "tests" / TEST_ID).decode()
+    assert export.STYLES[0] == "app.css" and export.STYLES[-1] == "theme.css"
+    assert '<header class="top">' in html and 'class="mark"' in html
+    assert '<span id="pill" class="pill end">' in html
 
 
 def test_the_export_script_makes_no_html_from_text() -> None:

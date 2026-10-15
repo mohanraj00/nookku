@@ -9,9 +9,34 @@ function el(id) {
 }
 
 function showError(text) {
-  const box = el("error");
-  box.textContent = text || "";
-  box.hidden = !text;
+  el("error-text").textContent = text || "";
+  el("error").hidden = !text;
+}
+
+// The class of the pill of each state and each seal. A value that is not here shows as "none".
+const STATE_PILL = { running: "run", ended: "end", stopped: "warn" };
+const SEAL_PILL = { intact: "ok", broken: "bad", unknown: "warn" };
+
+// A cell with the value in a pill.
+function pillCell(text, kind) {
+  const td = document.createElement("td");
+  const pill = document.createElement("span");
+  pill.className = "pill " + (kind || "none");
+  pill.textContent = text;
+  td.append(pill);
+  return td;
+}
+
+// With no rows, the page shows an empty state in place of the table.
+function showEmpty(n) {
+  const filtered = el("state").value !== "all" || el("has").value !== "all";
+  el("empty").hidden = n !== 0;
+  el("table").hidden = n === 0;
+  el("empty-title").textContent = filtered ? "No test matches the filters" : "No tests yet";
+  el("empty-text").textContent = filtered
+    ? "Change the State or the Show filter to see more tests."
+    : "To start a test, run this in the harness:";
+  el("empty-cmd").hidden = filtered;
 }
 
 function when(ts) {
@@ -57,11 +82,11 @@ function testRow(test) {
     pickCell(test),
     name,
     cell(when(test.started)),
-    cell(test.state),
+    pillCell(test.state, STATE_PILL[test.state]),
     cell(typeof test.turns === "number" ? String(test.turns) : "-", "num"),
     countCell(test.breaks),
     countCell(test.findings),
-    cell(test.seal, test.seal === "broken" ? "bad" : ""),
+    pillCell(test.seal, SEAL_PILL[test.seal]),
   );
   tr.addEventListener("click", () => open(test.id));
   tr.addEventListener("keydown", (e) => {
@@ -92,7 +117,8 @@ async function refresh() {
     showError("");
     el("tests").replaceChildren(...data.tests.map(testRow));
     const n = data.tests.length;
-    el("count").textContent = n === 1 ? "1 test." : n + " tests.";
+    el("count").textContent = n === 1 ? "1 test" : n + " tests";
+    showEmpty(n);
   } catch (e) {
     showError("nookku: the page server does not answer. Start it again with: nookku page");
   }

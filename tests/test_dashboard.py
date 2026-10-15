@@ -301,9 +301,11 @@ def test_the_dashboard_has_no_inline_script_and_no_html_from_text() -> None:
     assert re.findall(r"<script[^>]*>", html) == [
         '<script src="theme.js">',
         '<script src="key.js">',
+        '<script src="icons.js" defer>',
         '<script src="compare.js" defer>',
         '<script src="dashboard.js" defer>',
         '<script src="search.js" defer>',
+        '<script src="menu.js" defer>',
         '<script src="keys.js" defer>',
     ]
     assert not re.search(r"\son\w+=", html)

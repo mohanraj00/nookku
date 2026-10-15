@@ -1,6 +1,18 @@
-/* The styles of a test export (#354). */
-footer {
-  position: static;
+/* The styles of a test export (#354, #391). app.css gives the header, the pills and the dividers
+   of the chat page. This file gives the chat of the chat page: the messages of the tester on the
+   right and the replies of the agent on the left. The file has no theme menu, so the theme
+   follows the system. */
+
+.page {
+  max-width: 860px;
+}
+
+/* ---- The summary ---- */
+
+.summary {
+  padding: 14px 18px;
+  margin: 0 0 24px;
+  font-size: 13.5px;
 }
 
 .export-summary {
@@ -10,7 +22,7 @@ footer {
 
 .export-list,
 .export-steps {
-  margin: 4px 0 8px;
+  margin: 6px 0;
   font-size: 13px;
 }
 
@@ -20,12 +32,146 @@ footer {
   color: var(--muted);
 }
 
-.export-note {
+.export-list ol {
   margin: 4px 0 0;
+  padding-left: 20px;
+  overflow-wrap: anywhere;
+}
+
+/* ---- The chat ---- */
+
+#turns {
+  list-style: none;
+  margin: 22px 0;
+  padding: 0;
+  display: grid;
+  gap: 22px;
+}
+
+/* pre-wrap shows each space and each line end of a text as it is. */
+.text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.msg {
+  display: grid;
+  gap: 6px;
+  justify-items: end;
+}
+
+.bubble {
+  max-width: min(78%, 560px);
+  margin: 0;
+  background: var(--tester);
+  color: var(--tester-fg);
+  padding: 10px 14px;
+  border-radius: 16px 16px 4px 16px;
+  font: inherit;
+}
+
+.msg .who {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.turn.agent {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 12px;
+}
+
+.avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--raise);
+  border: 1px solid var(--line);
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+}
+
+.reply {
+  min-width: 0;
+}
+
+.reply .who {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 3px 0 4px;
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+.reply .who small {
+  font-weight: 400;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.reply > .text {
+  margin: 0;
+}
+
+.reply > pre.text {
+  font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  background: var(--raise);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.sys {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--error-bg);
+  color: var(--error-fg);
+  border: 1px solid var(--error-line);
+  font-size: 13.5px;
+}
+
+.sys .ico {
+  margin-top: 3px;
+}
+
+.sys .who {
+  margin: 0 0 2px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.sys pre {
+  margin: 0;
+  font: inherit;
+}
+
+/* ---- The notes and the trace steps under a reply ---- */
+
+.export-note {
+  margin: 10px 0 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--tester);
+  color: var(--tester-fg);
+  font-size: 13.5px;
+}
+
+.export-note .who {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .export-note .text {
-  background: var(--tester);
+  margin: 2px 0 0;
+  font: inherit;
 }
 
 .export-step-list {
@@ -34,23 +180,49 @@ footer {
 }
 
 .export-step {
-  margin: 0 0 6px;
+  margin: 0 0 8px;
+}
+
+.export-step .who {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
 }
 
 .export-step .text {
-  background: var(--agent);
-  font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+  margin: 2px 0 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--raise);
+  border: 1px solid var(--line);
+  font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 .export-step-error .text {
   background: var(--error-bg);
   color: var(--error-fg);
+  border-color: var(--error-line);
 }
 
 .export-step-label {
   font-size: 11px;
   color: var(--muted);
-  margin: 2px 0 0;
+  margin: 4px 0 0;
+}
+
+/* ---- The other files and the media ---- */
+
+.export-files {
+  margin: 24px 0 0;
+}
+
+.export-files h2 {
+  font-size: 14px;
+  margin: 0 0 4px;
+}
+
+.export-files ol {
+  padding-left: 20px;
 }
 
 .link code,
@@ -61,4 +233,16 @@ footer {
 
 img.svg {
   max-width: 100%;
+}
+
+.foot-note {
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+  margin-top: 24px;
+}
+
+@container (max-width: 640px) {
+  .bubble {
+    max-width: 88%;
+  }
 }

@@ -10,19 +10,50 @@
 <link rel="stylesheet" href="app.css">
 <link rel="stylesheet" href="dashboard.css">
 <link rel="stylesheet" href="diff.css">
+<script src="icons.js" defer></script>
 <script src="diff.js" defer></script>
+<script src="menu.js" defer></script>
 <script src="keys.js" defer></script>
 <link rel="stylesheet" href="keys.css">
 <link rel="stylesheet" href="theme.css">
 </head>
 <body>
-<header>
-  <h1>Nookku diff</h1>
-  <p class="nav"><a href="dashboard.html">All tests</a></p>
+<div class="app">
+<header class="top">
+  <div class="brand"><span class="mark" aria-hidden="true">N</span><span class="word">Nookku</span></div>
+  <span class="sep" aria-hidden="true"></span>
+  <div class="testinfo">
+    <h1 class="title">Compare 2 tests</h1>
+  </div>
+  <div class="actions">
+    <a class="btn wide" href="dashboard.html"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true" data-icon="list"></svg>All tests</a>
+    <a class="btn wide" href="./"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true" data-icon="chat"></svg>Chat page</a>
+    <div class="more">
+      <button id="more" class="btn icon outline" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="menu" aria-label="More actions"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true" data-icon="more"></svg></button>
+      <div id="menu" class="menu" hidden>
+        <a class="btn narrow-only" href="dashboard.html"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true" data-icon="list"></svg>All tests</a>
+        <a class="btn narrow-only" href="./"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true" data-icon="chat"></svg>Chat page</a>
+        <hr class="narrow-only">
+        <div class="lbl" id="theme-label">Theme</div>
+        <div class="pick" role="radiogroup" aria-labelledby="theme-label">
+          <button type="button" role="radio" data-pick="theme" data-v="auto">Auto</button>
+          <button type="button" role="radio" data-pick="theme" data-v="light">Light</button>
+          <button type="button" role="radio" data-pick="theme" data-v="dark">Dark</button>
+        </div>
+        <div class="lbl" id="width-label">Width</div>
+        <div class="pick" role="radiogroup" aria-labelledby="width-label">
+          <button type="button" role="radio" data-pick="width" data-v="auto">Auto</button>
+          <button type="button" role="radio" data-pick="width" data-v="narrow">Narrow</button>
+          <button type="button" role="radio" data-pick="width" data-v="wide">Wide</button>
+        </div>
+        <p class="hint">Auto follows the system and the window. Keys: j and k move between turns. ? shows all keys.</p>
+      </div>
+    </div>
+  </div>
 </header>
-<main>
-  <p id="error" role="alert" hidden></p>
-  <div class="table">
+<main class="page">
+  <div id="error" class="alert" role="alert" hidden><svg class="ico" viewBox="0 0 16 16" aria-hidden="true" data-icon="alert"></svg><p id="error-text"></p></div>
+  <div class="card table pair">
     <table>
       <thead>
         <tr>
@@ -41,5 +72,6 @@
   <ol id="turns" class="turns"></ol>
   <p class="note">The diff compares the reply that the tap recorded for each turn, not the reply that the harness showed. Turn n of the old test pairs with turn n of the new test.</p>
 </main>
+</div>
 </body>
 </html>

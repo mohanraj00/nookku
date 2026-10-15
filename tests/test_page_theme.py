@@ -120,11 +120,28 @@ def test_each_page_loads_the_theme_and_the_keys(name: str) -> None:
     assert links[-2:] == ["keys.css", "theme.css"]
     for ref in re.findall(r'(?:src|href)="([^"#]+\.(?:js|css))"', html):
         assert ref in page.FILES, ref
-    for new in ("theme.css", "theme.js", "keys.css", "keys.js", "search.js", "menu.js", "chat.css"):
+    names = ("theme.css", "theme.js", "keys.css", "keys.js", "search.js", "menu.js", "chat.css")
+    for new in (*names, "app.css"):
         text = page.page_file(new).decode()
         assert not re.search(r"https?://", text), new
         for sink in ("innerHTML", "insertAdjacentHTML", "outerHTML", "eval(", "fetch("):
             assert sink not in text, new
+
+
+@pytest.mark.parametrize("name", PAGES)
+def test_each_page_has_the_header_and_the_menu_of_the_chat_page(name: str) -> None:
+    """Each page has the same style (#391): app.css first, the header with the mark, and the
+    menu with the theme and the width."""
+    html = (FOLDER / name).read_text()
+    links = re.findall(r'<link rel="stylesheet" href="([^"]+)">', html)
+    assert links[0] == "app.css"
+    assert '<header class="top">' in html
+    assert '<span class="mark" aria-hidden="true">N</span>' in html
+    assert '<script src="icons.js" defer></script>' in html
+    assert '<script src="menu.js" defer></script>' in html
+    picks = {"theme": ["auto", "light", "dark"], "width": ["auto", "narrow", "wide"]}
+    for pick, values in picks.items():
+        assert re.findall(rf'data-pick="{pick}" data-v="(\w+)"', html) == values
 
 
 # A small DOM for node. It has only what theme.js and keys.js use.
