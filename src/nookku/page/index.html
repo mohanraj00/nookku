@@ -79,7 +79,7 @@
 <footer class="dock">
   <div class="dock-in">
     <div id="error" class="alert" role="alert" hidden><svg class="ico" viewBox="0 0 16 16" aria-hidden="true" data-icon="alert"></svg><p id="error-text"></p><button id="error-close" class="btn icon x" type="button" aria-label="Close the error"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true" data-icon="x"></svg></button></div>
-    <div id="endconfirm" class="confirm" role="group" aria-labelledby="endconfirm-text" hidden><svg class="ico" viewBox="0 0 16 16" aria-hidden="true" data-icon="stop"></svg><p id="endconfirm-text">End this test? The agent gets no more messages, and the test gets its audit and its seal. This page stays open, so you can export the test and save it as a script. To start the evaluation after the end, type the prompt nookku end in the harness.</p><div class="row2"><button id="endconfirm-yes" class="btn danger-fill" type="button">End test</button><button id="endconfirm-no" class="btn outline" type="button">Cancel</button></div></div>
+    <div id="endconfirm" class="confirm" role="group" aria-labelledby="endconfirm-text" hidden><svg class="ico" viewBox="0 0 16 16" aria-hidden="true" data-icon="stop"></svg><p id="endconfirm-text">This ends the test with no evaluation, and Export and Save as script continue to work. For the evaluation, type the prompt <code>nookku end</code> in the harness.</p><div class="row2"><button id="endconfirm-yes" class="btn danger-fill" type="button">End test</button><button id="endconfirm-no" class="btn outline" type="button">Cancel</button></div></div>
     <div id="box" class="box">
       <label class="sr-only" for="said">Message to the agent</label>
       <textarea id="said" rows="1" autocomplete="off" placeholder="Message the agent"></textarea>

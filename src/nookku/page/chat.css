@@ -448,6 +448,10 @@ body.chat {
   margin: 0;
 }
 
+.confirm code {
+  font: 13px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
 .confirm .row2 {
   display: flex;
   gap: 8px;
