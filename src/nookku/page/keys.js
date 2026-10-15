@@ -14,9 +14,9 @@
     ["?", "Show this list"],
     ["Esc", "Close this list"],
   ];
-  // The items of j and k: the tester message of each turn on the chat page, each turn on the
-  // diff page and each test on the dashboard.
-  const ITEMS = "#turns > li.tester, ol.turns > li.turn, #tests > tr";
+  // The items of j and k: each turn on the chat page and on the diff page, and each test on the
+  // dashboard.
+  const ITEMS = "#turns > li[data-turn], ol.turns > li.turn, #tests > tr";
   // The input types that take no text. A key on such a control can be a shortcut.
   const NO_TEXT = ["button", "checkbox", "radio", "submit", "reset", "range", "color", "file"];
 

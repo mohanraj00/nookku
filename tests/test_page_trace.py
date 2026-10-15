@@ -183,29 +183,31 @@ def test_a_tap_record_that_is_not_valid_gives_an_error(tmp_path: Path) -> None:
 HARNESS = """
 const trace = require(process.argv[2]);
 class El {
-  constructor(tag) { this.tag = tag; this.kids = []; this.className = ""; }
+  constructor(tag) { this.tag = tag; this.kids = []; this.className = ""; this.attrs = {}; }
   append(...cs) { this.kids.push(...cs); }
+  setAttribute(k, v) { this.attrs[k] = String(v); }
   set textContent(v) { this.kids = [{ text: String(v) }]; }
   get textContent() { return this.kids.map((k) => k.text !== undefined ? k.text : k.textContent)
     .join(""); }
 }
 global.document = { createElement: (t) => new El(t) };
 const input = JSON.parse(require("fs").readFileSync(0, "utf8"));
-const li = trace.block(input, false);
+const box = trace.block(input, false);
 const tags = [];
-(function walk(n) { if (n.tag) { tags.push(n.tag); n.kids.forEach(walk); } })(li);
-process.stdout.write(JSON.stringify({ text: li.textContent, tags: tags }));
+const titles = [];
+(function walk(n) {
+  if (n.tag) { tags.push(n.tag); if (n.title) titles.push(n.title); n.kids.forEach(walk); }
+})(box);
+const said = trace.summary(input, false);
+const waiting = trace.summary(input, true);
+process.stdout.write(JSON.stringify({ text: box.textContent, tags: tags, titles: titles,
+  label: box.attrs["aria-label"], steps: said.steps, time: said.time, waiting: waiting.steps }));
 """
 
 
-@pytest.mark.skipif(NODE is None, reason="node is not on PATH")
-def test_a_step_shows_as_text_and_not_as_html(tmp_path: Path) -> None:
+def run_trace(tmp_path: Path, turn: dict[str, Any]) -> dict[str, Any]:
     script = tmp_path / "harness.js"
     script.write_text(HARNESS)
-    evil = '<img src=x onerror="alert(1)">'
-    step = {"harness": "backend", "kind": "http", "name": "GET /stock", "ts": 12.5}
-    step |= {"input": {"q": evil}, "output": evil, "error": None, "exit_code": 200}
-    turn = {"exchange": 1, "started": 10.0, "ended": 20.0, "steps": [step]}
     done = subprocess.run(
         [str(NODE), str(script), str(TRACE_JS)],
         input=json.dumps(turn),
@@ -213,7 +215,27 @@ def test_a_step_shows_as_text_and_not_as_html(tmp_path: Path) -> None:
         text=True,
         check=True,
     )
-    out = json.loads(done.stdout)
-    assert "Turn time 10.0 s, 1 trace step" in out["text"]
-    assert "+2.5 s backend http GET /stock status 200" in out["text"]
+    out: dict[str, Any] = json.loads(done.stdout)
+    return out
+
+
+@pytest.mark.skipif(NODE is None, reason="node is not on PATH")
+def test_a_step_shows_as_text_and_not_as_html(tmp_path: Path) -> None:
+    evil = '<img src=x onerror="alert(1)">'
+    step = {"harness": "backend", "kind": "http", "name": "GET /stock", "ts": 12.5}
+    step |= {"input": {"q": evil}, "output": evil, "error": None, "exit_code": 200}
+    turn = {"exchange": 1, "started": 10.0, "ended": 20.0, "steps": [step]}
+    out = run_trace(tmp_path, turn)
+    assert out["label"] == "Turn time 10.0 s, 1 trace step"
+    assert (out["steps"], out["time"], out["waiting"]) == ("1 step", "10.0 s", "1 step so far")
+    # The row shows 4 columns, and its title holds the full line.
+    assert out["titles"] == ["+2.5 s backend http GET /stock status 200"]
+    assert "+2.5 sbackend httpGET /stockstatus 200" in out["text"]
     assert evil in out["text"] and "img" not in out["tags"]
+
+
+@pytest.mark.skipif(NODE is None, reason="node is not on PATH")
+def test_a_turn_with_no_exchange_says_so(tmp_path: Path) -> None:
+    out = run_trace(tmp_path, {"exchange": None, "started": None, "ended": None, "steps": []})
+    assert out["label"] == "The tap has no exchange for this turn, so it has no time and no steps"
+    assert out["steps"] == "0 steps" and out["time"] is None

@@ -358,9 +358,12 @@ def test_each_answer_has_a_strict_csp(tmp_path: Path) -> None:
 def test_the_page_has_no_inline_script_no_cdn_and_no_html_from_text() -> None:
     folder = resources.files("nookku").joinpath("page")
     html = folder.joinpath("index.html").read_text()
-    scripts = ["render.js", "app.js", "save.js", "notes.js", "export_button.js", "trace.js"]
+    scripts = ["icons.js", "render.js", "app.js", "save.js", "notes.js", "export_button.js"]
+    scripts += ["trace.js", "menu.js"]
     js = "".join(folder.joinpath(name).read_text() for name in [*scripts, "key.js"])
-    styles = ["app.css", "render.css", "notes.css", "trace.css"]
+    # icons.js names the SVG namespace. It is a name, not a file that the page loads.
+    js = js.replace('"http://www.w3.org/2000/svg"', "SVG_NS")
+    styles = ["chat.css", "render.css", "notes.css", "trace.css"]
     css = "".join(folder.joinpath(name).read_text() for name in styles)
     # theme.js runs before the first paint, without defer (#355).
     tags = re.findall(r"<script[^>]*>", html)

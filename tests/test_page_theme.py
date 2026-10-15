@@ -32,9 +32,28 @@ TEXT_PAIRS = [
     ("error-fg", "error-bg"),
     ("error-fg", "bg"),
     ("error-fg", "agent"),
+    # The chat page (#391).
+    ("fg", "surface"),
+    ("fg", "raise"),
+    ("tester-fg", "tester"),
+    ("muted", "surface"),
+    ("muted", "raise"),
+    ("muted", "ok-bg"),
+    ("accent", "surface"),
+    ("accent", "raise"),
+    ("ok", "bg"),
+    ("ok", "surface"),
+    ("ok", "ok-bg"),
+    ("warn-fg", "warn-bg"),
+    ("error-fg", "surface"),
 ]
-# The border of a control and its background. WCAG AA asks for 3:1 (1.4.11).
-CONTROL_PAIRS = [("control-line", "bg")]
+# The border of a control and its background, and the focus ring. WCAG AA asks for 3:1 (1.4.11).
+CONTROL_PAIRS = [
+    ("control-line", "bg"),
+    ("control-line", "surface"),
+    ("focus", "bg"),
+    ("focus", "surface"),
+]
 
 
 def block(css: str, selector: str) -> dict[str, str]:
@@ -99,7 +118,7 @@ def test_each_page_loads_the_theme_and_the_keys(name: str) -> None:
     assert links[-2:] == ["keys.css", "theme.css"]
     for ref in re.findall(r'(?:src|href)="([^"#]+\.(?:js|css))"', html):
         assert ref in page.FILES, ref
-    for new in ("theme.css", "theme.js", "keys.css", "keys.js", "search.js"):
+    for new in ("theme.css", "theme.js", "keys.css", "keys.js", "search.js", "menu.js", "chat.css"):
         text = page.page_file(new).decode()
         assert not re.search(r"https?://", text), new
         for sink in ("innerHTML", "insertAdjacentHTML", "outerHTML", "eval(", "fetch("):
@@ -260,3 +279,53 @@ def test_the_theme_switch_works_if_the_browser_refuses_the_storage(tmp_path: Pat
     out = run_node(tmp_path, THEME_CHECK, "theme.js")
     assert out["start"] == "auto" and out["label"] == "Theme: auto"
     assert out["seen"] == ["light", "dark", "auto"]
+
+
+PICKS_CHECK = """
+Object.defineProperty(window, "localStorage", { get() { throw new Error("blocked"); } });
+const picks = [];
+for (const [pick, v] of [["theme", "auto"], ["theme", "light"], ["theme", "dark"],
+    ["width", "auto"], ["width", "narrow"], ["width", "wide"]]) {
+  const b = make("button"); b.dataset.pick = pick; b.dataset.v = v; picks.push(b);
+}
+items = picks;
+const header = make("header", "header");
+require(process.argv[2]);
+const out = { start: Object.assign({}, document.documentElement.dataset) };
+(listeners.DOMContentLoaded || []).forEach((fn) => fn());
+out.button = header.kids.length;
+const checked = () => picks.map((b) => b.attrs["aria-checked"]);
+out.before = checked();
+picks[2].listeners.click[0]();
+picks[4].listeners.click[0]();
+out.dark = Object.assign({}, document.documentElement.dataset);
+out.after = checked();
+picks[0].listeners.click[0]();
+picks[3].listeners.click[0]();
+out.auto = Object.assign({}, document.documentElement.dataset);
+process.stdout.write(JSON.stringify(out));
+"""
+
+
+@needs_node
+def test_the_menu_sets_the_theme_and_the_width_if_the_browser_refuses_the_storage(
+    tmp_path: Path,
+) -> None:
+    out = run_node(tmp_path, PICKS_CHECK, "theme.js")
+    # Auto is the default of both. A page with the menu gets no "Theme" button.
+    assert out["start"] == {} and out["button"] == 0
+    assert out["before"] == ["true", "false", "false", "true", "false", "false"]
+    assert out["dark"] == {"theme": "dark", "width": "narrow"}
+    assert out["after"] == ["false", "false", "true", "false", "true", "false"]
+    assert out["auto"] == {}
+
+
+def test_the_chat_page_has_the_menu_of_the_theme_and_the_width() -> None:
+    html = (FOLDER / "index.html").read_text()
+    picks = re.findall(r'data-pick="(\w+)" data-v="(\w+)"', html)
+    assert picks == [
+        ("theme", "auto"), ("theme", "light"), ("theme", "dark"),
+        ("width", "auto"), ("width", "narrow"), ("width", "wide"),
+    ]  # fmt: skip
+    # The page does not say "byte for byte" to the tester (#391).
+    assert "byte for byte" not in html

@@ -743,20 +743,19 @@
 
   // ---- The block of a reply on the page ----
 
-  // A turn of the agent: the reply as Markdown, and a button that shows the exact text. The
-  // export (#354) gives `change`, a function that changes the tree before toDom makes nodes.
-  function reply(doc, cls, who, text, change) {
-    const li = doc.createElement("li");
-    li.className = "turn " + cls;
-    const label = doc.createElement("p");
-    label.className = "who";
-    label.appendChild(doc.createTextNode(who + " "));
+  // The parts of a reply: the reply as Markdown (`shown`), its exact text (`raw`, hidden) and a
+  // button that shows the one or the other (`toggle`). The export (#354) gives `change`, a
+  // function that changes the tree before toDom makes nodes. The chat page puts the parts into
+  // its own layout (#391).
+  function parts(doc, text, change) {
     const toggle = doc.createElement("button");
     toggle.type = "button";
     toggle.className = "toggle";
-    toggle.textContent = "Text";
     toggle.title = "Show the exact text of the reply";
-    label.appendChild(toggle);
+    toggle.setAttribute("aria-pressed", "false");
+    const label = doc.createElement("span");
+    label.textContent = "Text";
+    toggle.appendChild(label);
     const raw = doc.createElement("pre");
     raw.className = "text";
     raw.textContent = text;
@@ -775,9 +774,23 @@
     toggle.addEventListener("click", () => {
       raw.hidden = !raw.hidden;
       shown.hidden = !shown.hidden;
-      toggle.textContent = raw.hidden ? "Text" : "Markdown";
+      label.textContent = raw.hidden ? "Text" : "Markdown";
+      toggle.setAttribute("aria-pressed", raw.hidden ? "false" : "true");
     });
-    li.append(label, shown, raw);
+    return { toggle: toggle, shown: shown, raw: raw };
+  }
+
+  // A turn of the agent, as the export shows it: a label with the button, the reply as
+  // Markdown, and the exact text.
+  function reply(doc, cls, who, text, change) {
+    const li = doc.createElement("li");
+    li.className = "turn " + cls;
+    const label = doc.createElement("p");
+    label.className = "who";
+    label.appendChild(doc.createTextNode(who + " "));
+    const made = parts(doc, text, change);
+    label.appendChild(made.toggle);
+    li.append(label, made.shown, made.raw);
     return li;
   }
 
@@ -827,7 +840,8 @@
   }
 
   const api = {
-    render: render, toDom: toDom, target: target, reply: reply, load: load, LIMIT: LIMIT,
+    render: render, toDom: toDom, target: target, reply: reply, parts: parts, load: load,
+    LIMIT: LIMIT,
   };
   if (typeof module === "object" && module.exports) {
     module.exports = api;

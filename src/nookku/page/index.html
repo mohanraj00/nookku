@@ -7,9 +7,10 @@
 <title>Nookku chat</title>
 <script src="theme.js"></script>
 <script src="key.js"></script>
-<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="chat.css">
 <link rel="stylesheet" href="render.css">
 <link rel="stylesheet" href="trace.css">
+<script src="icons.js" defer></script>
 <script src="render.js" defer></script>
 <script src="app.js" defer></script>
 <script src="save.js" defer></script>
@@ -17,31 +18,78 @@
 <script src="notes.js" defer></script>
 <script src="export_button.js" defer></script>
 <script src="trace.js" defer></script>
+<script src="menu.js" defer></script>
 <script src="keys.js" defer></script>
 <link rel="stylesheet" href="keys.css">
 <link rel="stylesheet" href="theme.css">
 </head>
-<body>
-<header>
-  <h1>Nookku chat</h1>
-  <p id="test">No test yet.</p>
-  <p class="save"><button id="save-script" type="button">Save as script</button> <span id="save-result" role="status"></span></p>
-  <p class="save"><button id="export" type="button">Export</button> <span id="export-result" role="status"></span></p>
-  <p class="nav"><a href="dashboard.html">All tests</a></p>
-</header>
-<main>
-  <p id="start" class="mark" hidden></p>
-  <ol id="turns"></ol>
-  <p id="end" class="mark" hidden></p>
-</main>
-<footer>
-  <p id="error" role="alert" hidden></p>
-  <label for="said">Message to the agent</label>
-  <div class="send">
-    <textarea id="said" rows="3" autocomplete="off"></textarea>
-    <button id="send" type="button">Send</button>
+<body class="chat">
+<div class="app">
+<header class="top">
+  <div class="brand"><span class="mark" aria-hidden="true">N</span><span class="word">Nookku</span></div>
+  <span class="sep" aria-hidden="true"></span>
+  <div class="testinfo">
+    <span id="pill" class="pill none">No test</span>
+    <span id="test" class="testid"></span>
   </div>
-  <p class="note">Nookku sends each message byte for byte. The harness model does not see it.</p>
+  <div class="actions">
+    <button id="save-script" class="btn wide" type="button"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true" data-icon="script"></svg>Save as script</button>
+    <button id="export" class="btn wide" type="button"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true" data-icon="export"></svg>Export</button>
+    <a class="btn wide" href="dashboard.html"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true" data-icon="list"></svg>All tests</a>
+    <div class="more">
+      <button id="more" class="btn icon outline" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="menu" aria-label="More actions"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true" data-icon="more"></svg></button>
+      <div id="menu" class="menu" hidden>
+        <button class="btn narrow-only" type="button" data-click="save-script"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true" data-icon="script"></svg>Save as script</button>
+        <button class="btn narrow-only" type="button" data-click="export"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true" data-icon="export"></svg>Export</button>
+        <a class="btn narrow-only" href="dashboard.html"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true" data-icon="list"></svg>All tests</a>
+        <hr class="narrow-only">
+        <div class="lbl" id="theme-label">Theme</div>
+        <div class="pick" role="radiogroup" aria-labelledby="theme-label">
+          <button type="button" role="radio" data-pick="theme" data-v="auto">Auto</button>
+          <button type="button" role="radio" data-pick="theme" data-v="light">Light</button>
+          <button type="button" role="radio" data-pick="theme" data-v="dark">Dark</button>
+        </div>
+        <div class="lbl" id="width-label">Width</div>
+        <div class="pick" role="radiogroup" aria-labelledby="width-label">
+          <button type="button" role="radio" data-pick="width" data-v="auto">Auto</button>
+          <button type="button" role="radio" data-pick="width" data-v="narrow">Narrow</button>
+          <button type="button" role="radio" data-pick="width" data-v="wide">Wide</button>
+        </div>
+        <p class="hint">Auto follows the system and the window. Keys: j and k move between turns. ? shows all keys.</p>
+      </div>
+    </div>
+  </div>
+</header>
+<div id="banner" class="banner" role="alert" hidden><svg class="ico" viewBox="0 0 16 16" aria-hidden="true" data-icon="alert"></svg><p id="banner-text"></p></div>
+<div id="status" class="status"><span id="save-result" role="status"></span><span id="export-result" role="status"></span></div>
+<main id="scroll" class="scroll">
+  <div class="col">
+    <div id="start" class="divider" hidden></div>
+    <div id="empty" class="empty" hidden></div>
+    <ol id="turns"></ol>
+    <div id="end" class="divider" hidden></div>
+    <div id="endcard" class="endcard" hidden></div>
+  </div>
+</main>
+<footer class="dock">
+  <div class="dock-in">
+    <div id="error" class="alert" role="alert" hidden><svg class="ico" viewBox="0 0 16 16" aria-hidden="true" data-icon="alert"></svg><p id="error-text"></p><button id="error-close" class="btn icon x" type="button" aria-label="Close the error"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true" data-icon="x"></svg></button></div>
+    <div id="box" class="box">
+      <label class="sr-only" for="said">Message to the agent</label>
+      <textarea id="said" rows="1" autocomplete="off" placeholder="Message the agent"></textarea>
+      <div class="boxbar">
+        <span id="bridge" class="bridge off">Bridge mode off</span>
+        <span id="count" class="count t-num" aria-live="off"></span>
+        <button id="send" class="sendbtn" type="button" aria-label="Send" disabled><svg class="ico" viewBox="0 0 16 16" aria-hidden="true" data-icon="send"></svg><span class="spin" aria-hidden="true"></span></button>
+      </div>
+    </div>
+    <div id="endbar" class="endbar" hidden>
+      <span><span class="bridge off" title="This test ended, so the page sends nothing.">Bridge mode off</span> This test ended. To start a new test, run this in the harness:</span>
+      <span class="cmd">nookku start <button class="btn outline copy-cmd" type="button" data-copy="nookku start"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true" data-icon="copy"></svg>Copy</button></span>
+    </div>
+    <div id="foot" class="foot"><span><kbd>Enter</kbd> sends</span><span class="k2"><kbd>Shift</kbd> <kbd>Enter</kbd> new line</span><span class="k3"><kbd>↑</kbd> last unsent message</span></div>
+  </div>
 </footer>
+</div>
 </body>
 </html>

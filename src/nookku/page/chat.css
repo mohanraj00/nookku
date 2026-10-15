@@ -1,0 +1,1009 @@
+/* The layout of the chat page (#391). The colors are the variables of theme.css. The page uses
+   system fonts only. On a window of 640 px or less, the 3 header actions go into the menu, so
+   that the header does not stack. */
+
+* {
+  box-sizing: border-box;
+}
+
+body.chat {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.app {
+  container-type: inline-size;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.app button {
+  font: inherit;
+  color: inherit;
+}
+
+.app :focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.ico {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.t-num {
+  font-variant-numeric: tabular-nums;
+}
+
+kbd {
+  font: 11.5px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  padding: 0 5px;
+  background: var(--surface);
+  color: var(--fg);
+}
+
+/* ---- Buttons ---- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: none;
+  cursor: pointer;
+  font-size: 13.5px;
+  white-space: nowrap;
+  color: var(--fg);
+  text-decoration: none;
+}
+
+.btn:hover {
+  background: var(--raise);
+}
+
+.btn:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.btn:disabled:hover {
+  background: none;
+}
+
+.btn.outline {
+  border-color: var(--line);
+  background: var(--surface);
+}
+
+.btn.primary {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.btn.icon {
+  width: 32px;
+  padding: 0;
+  justify-content: center;
+}
+
+/* ---- Header ---- */
+
+.top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 20px;
+  height: 56px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  flex: none;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.mark {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: var(--accent);
+  color: var(--on-accent);
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.sep {
+  width: 1px;
+  height: 22px;
+  background: var(--line);
+  flex: none;
+}
+
+.testinfo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.testid {
+  font: 13px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: var(--muted);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.pill,
+.bridge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 9px 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+  flex: none;
+}
+
+.pill::before,
+.bridge::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.pill.run,
+.bridge {
+  color: var(--ok);
+  background: var(--ok-bg);
+}
+
+.pill.run::before {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.pill.end,
+.pill.none,
+.bridge.off {
+  color: var(--muted);
+  background: var(--raise);
+}
+
+.bridge {
+  cursor: help;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+
+.more {
+  position: relative;
+}
+
+.menu {
+  position: absolute;
+  right: 0;
+  top: 40px;
+  width: 240px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  padding: 6px;
+  z-index: 5;
+  display: grid;
+}
+
+.menu .btn {
+  justify-content: flex-start;
+  width: 100%;
+  height: 36px;
+}
+
+.menu .narrow-only {
+  display: none;
+}
+
+.menu hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 6px 0;
+}
+
+.menu .lbl {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 6px 10px 4px;
+}
+
+.menu .pick {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+  margin: 0 6px 6px;
+  padding: 2px;
+  border-radius: 8px;
+  background: var(--raise);
+}
+
+.menu .pick button {
+  border: 0;
+  background: none;
+  border-radius: 6px;
+  padding: 4px 0;
+  font-size: 12.5px;
+  cursor: pointer;
+  color: var(--muted);
+}
+
+.menu .pick button[aria-checked="true"] {
+  background: var(--surface);
+  color: var(--fg);
+  box-shadow: var(--shadow);
+}
+
+.menu .hint {
+  font-size: 12px;
+  color: var(--muted);
+  padding: 2px 10px 4px;
+  margin: 0;
+}
+
+@container (max-width: 640px) {
+  .top {
+    padding: 0 12px;
+    gap: 10px;
+  }
+
+  .brand .word,
+  .sep,
+  .actions .wide {
+    display: none;
+  }
+
+  .menu .btn.narrow-only {
+    display: flex;
+  }
+
+  .menu hr.narrow-only {
+    display: block;
+  }
+}
+
+/* ---- The banner of a poll error, and the result of an action ---- */
+
+.banner {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 20px;
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+  font-size: 13.5px;
+  border-bottom: 1px solid var(--line);
+  flex: none;
+}
+
+.banner .ico {
+  margin-top: 3px;
+}
+
+.banner p,
+.alert p {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.app code,
+.cmd {
+  font: 12.5px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  padding: 6px 20px;
+  font-size: 13px;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  flex: none;
+  overflow-wrap: anywhere;
+}
+
+.status span:empty,
+.status:not(:has(span:not(:empty))) {
+  display: none;
+}
+
+/* ---- The conversation ---- */
+
+.scroll {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.col,
+.dock-in {
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+:root[data-width="narrow"] .col,
+:root[data-width="narrow"] .dock-in {
+  max-width: 600px;
+}
+
+:root[data-width="wide"] .col,
+:root[data-width="wide"] .dock-in {
+  max-width: 1060px;
+}
+
+.col {
+  padding: 24px 24px 8px;
+  display: grid;
+  gap: 22px;
+}
+
+#turns {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 22px;
+}
+
+#turns:empty {
+  display: none;
+}
+
+.turn {
+  display: grid;
+  gap: 14px;
+  border-radius: 12px;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.divider::before,
+.divider::after {
+  content: "";
+  flex: 1;
+  border-top: 1px solid var(--line);
+}
+
+/* A message of the tester. */
+.msg {
+  display: grid;
+  gap: 6px;
+  justify-items: end;
+}
+
+/* pre-wrap shows each space and each line end of a text as it is. */
+.bubble {
+  max-width: min(78%, 560px);
+  margin: 0;
+  background: var(--tester);
+  color: var(--tester-fg);
+  padding: 10px 14px;
+  border-radius: 16px 16px 4px 16px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+}
+
+.msg.sending .bubble {
+  opacity: 0.7;
+}
+
+.msg.failed .bubble {
+  background: var(--surface);
+  color: var(--fg);
+  border: 1px dashed var(--error-line);
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px 10px;
+  align-items: center;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.meta .src {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 7px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  line-height: 18px;
+}
+
+.meta .src .ico {
+  width: 12px;
+  height: 12px;
+}
+
+.meta .state {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.meta .state .ico {
+  width: 14px;
+  height: 14px;
+}
+
+.meta .state.ok {
+  color: var(--ok);
+}
+
+.meta .state.bad {
+  color: var(--error-fg);
+  font-weight: 600;
+}
+
+.spin {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  animation: rot 0.8s linear infinite;
+  display: inline-block;
+  flex: none;
+}
+
+@keyframes rot {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* A reply of the agent: no bubble, so that long Markdown reads like a document. */
+.agent {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 12px;
+}
+
+.avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--raise);
+  border: 1px solid var(--line);
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+}
+
+.reply {
+  min-width: 0;
+}
+
+.reply .who {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 3px 0 4px;
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  flex-wrap: wrap;
+  color: var(--fg);
+}
+
+.reply .who small {
+  font-weight: 400;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.reply .text {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.reply pre.text {
+  font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  background: var(--raise);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  white-space: pre-wrap;
+}
+
+.tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  margin: 6px 0 0 -8px;
+  color: var(--muted);
+}
+
+.tools .btn {
+  height: 28px;
+  padding: 0 8px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.tools .btn.icon {
+  width: 28px;
+  padding: 0;
+}
+
+.tools .btn[aria-pressed="true"] {
+  color: var(--accent);
+  background: var(--raise);
+}
+
+.tools .btn.done {
+  color: var(--ok);
+}
+
+.tools .gap {
+  flex: 1;
+}
+
+.tools .slot {
+  display: contents;
+}
+
+/* The row of a failed send, and of a turn with no reply. */
+.sys {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--error-bg);
+  color: var(--error-fg);
+  font-size: 13.5px;
+}
+
+.sys .ico,
+.quiet .ico {
+  margin-top: 3px;
+}
+
+.sys pre {
+  margin: 0;
+  font: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.sys .act {
+  margin-top: 6px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.sys .btn {
+  height: 28px;
+  font-size: 12.5px;
+  color: var(--error-fg);
+  border-color: var(--error-line);
+}
+
+.sys .note {
+  font-size: 12.5px;
+}
+
+.quiet {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px dashed var(--control-line);
+  color: var(--muted);
+  font-size: 13.5px;
+}
+
+.sys + .tools,
+.quiet + .tools {
+  margin-left: 0;
+}
+
+/* The wait for a reply. */
+.dots {
+  display: inline-flex;
+  gap: 4px;
+  padding: 10px 0 6px;
+  vertical-align: middle;
+}
+
+.dots i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--muted);
+  animation: dot 1.2s infinite ease-in-out;
+}
+
+.dots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.dots i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes dot {
+  0%,
+  80%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+
+  40% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+.wait {
+  font-size: 13px;
+  color: var(--muted);
+  margin-left: 6px;
+}
+
+/* ---- Empty states and the end ---- */
+
+.empty {
+  margin: 40px auto 0;
+  max-width: 460px;
+  text-align: center;
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+}
+
+.empty .glyph {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--raise);
+  border: 1px solid var(--line);
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+}
+
+.empty .glyph .ico {
+  width: 22px;
+  height: 22px;
+}
+
+.empty h2 {
+  font-size: 18px;
+  margin: 4px 0 0;
+  text-wrap: balance;
+}
+
+.empty p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.empty .small {
+  font-size: 12.5px;
+  margin-top: 6px;
+}
+
+.empty .small .ico {
+  width: 14px;
+  height: 14px;
+  vertical-align: -3px;
+}
+
+.cmd {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13.5px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 4px 4px 4px 12px;
+  color: var(--fg);
+}
+
+.cmd .btn {
+  height: 26px;
+  font: 12.5px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  justify-content: center;
+  font-size: 12.5px;
+  color: var(--muted);
+  margin-top: 6px;
+}
+
+.endcard {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 16px 18px;
+  display: grid;
+  gap: 10px;
+}
+
+.endcard h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.endcard .stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  font-size: 13px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.endcard .row2 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* ---- The message box ---- */
+
+.dock {
+  flex: none;
+  padding: 8px 24px 14px;
+  background: var(--bg);
+}
+
+.dock-in {
+  display: grid;
+  gap: 8px;
+}
+
+.alert {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--error-bg);
+  color: var(--error-fg);
+  font-size: 13.5px;
+  border: 1px solid var(--error-line);
+}
+
+.alert .ico {
+  margin-top: 3px;
+}
+
+.alert p {
+  flex: 1;
+  min-width: 0;
+}
+
+.alert .x {
+  height: 24px;
+  width: 24px;
+  color: var(--error-fg);
+}
+
+.box {
+  border: 1px solid var(--control-line);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  padding: 10px 10px 8px 14px;
+  display: grid;
+  gap: 6px;
+}
+
+.box:focus-within {
+  border-color: var(--focus);
+}
+
+.box textarea {
+  border: 0;
+  outline: 0;
+  resize: none;
+  font: inherit;
+  background: none;
+  color: var(--fg);
+  min-height: 26px;
+  max-height: 240px;
+  padding: 2px 0;
+  width: 100%;
+  overflow-y: hidden;
+}
+
+.box textarea::placeholder {
+  color: var(--muted);
+}
+
+.box textarea:focus-visible {
+  outline: 0;
+}
+
+.boxbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.boxbar .count {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.sendbtn {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 0;
+  background: var(--accent);
+  color: var(--on-accent);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex: none;
+}
+
+.sendbtn:disabled {
+  background: var(--raise);
+  color: var(--muted);
+  cursor: default;
+}
+
+.sendbtn .spin {
+  width: 14px;
+  height: 14px;
+  display: none;
+}
+
+.sendbtn.busy .spin {
+  display: inline-block;
+}
+
+.sendbtn.busy .ico {
+  display: none;
+}
+
+.foot {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.endbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 14px;
+  padding: 10px 10px 10px 16px;
+  font-size: 13.5px;
+  color: var(--muted);
+}
+
+@container (max-width: 640px) {
+  .col {
+    padding: 16px 14px 8px;
+    gap: 18px;
+  }
+
+  #turns {
+    gap: 18px;
+  }
+
+  .bubble {
+    max-width: 88%;
+  }
+
+  .dock {
+    padding: 6px 10px 10px;
+  }
+
+  .foot .k2,
+  .foot .k3 {
+    display: none;
+  }
+
+  .status,
+  .banner {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

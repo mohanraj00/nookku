@@ -99,6 +99,10 @@ FILES = {
     # The page key in the memory of the page (SPEC.md section 5, "Session").
     "key.js": ("key.js", "text/javascript; charset=utf-8"),
     "search.js": ("search.js", "text/javascript; charset=utf-8"),
+    # The layout, the icons and the header menu of the chat page (#391).
+    "chat.css": ("chat.css", "text/css; charset=utf-8"),
+    "icons.js": ("icons.js", "text/javascript; charset=utf-8"),
+    "menu.js": ("menu.js", "text/javascript; charset=utf-8"),
 }
 # The page loads only its own files. No inline script, no inline style, no script of another site.
 # A reply can name an image, a video or an SVG as an https: URL, a data: URI or a file (#347).

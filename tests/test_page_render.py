@@ -149,8 +149,9 @@ def texts(tree: Any) -> str:
 def test_a_reply_with_script_onerror_and_a_script_link_runs_no_script() -> None:
     out = node({"text": HOSTILE})
     tags = {e["tag"] for e in out["made"]}
-    assert tags <= {"li", "p", "button", "pre", "div", "a", "strong", "code", "br", "table",
-                    "thead", "tbody", "tr", "th", "td"}  # fmt: skip
+    # The span is the label of the button "Text" (#391).
+    assert tags <= {"li", "p", "button", "span", "pre", "div", "a", "strong", "code", "br",
+                    "table", "thead", "tbody", "tr", "th", "td"}  # fmt: skip
     assert "script" not in tags and "iframe" not in tags and "img" not in tags
     for e in out["made"]:
         for name, value in e["attrs"].items():
