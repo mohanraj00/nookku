@@ -15,10 +15,11 @@ ol.turns > li:focus,
 .keys-help {
   max-width: 440px;
   padding: 16px;
-  border: 1px solid var(--control-line);
-  border-radius: 8px;
-  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
   color: var(--fg);
+  box-shadow: var(--shadow);
 }
 
 .keys-help::backdrop {
@@ -26,14 +27,14 @@ ol.turns > li:focus,
 }
 
 .keys-help h2 {
-  font-size: 16px;
+  font-size: 15px;
   margin: 0 0 8px;
 }
 
 .keys-help table {
   border-collapse: collapse;
   margin: 0 0 12px;
-  font-size: 14px;
+  font-size: 13.5px;
 }
 
 .keys-help th,
@@ -46,18 +47,9 @@ ol.turns > li:focus,
   color: var(--fg);
 }
 
+/* The key names use the kbd style of app.css, as in the foot of the chat page. */
 .keys-help kbd {
-  font: 12px/1.4 ui-monospace, "SF Mono", Menlo, monospace;
-  padding: 1px 6px;
-  border: 1px solid var(--control-line);
-  border-radius: 4px;
-  background: var(--agent);
-  color: var(--fg);
   white-space: nowrap;
-}
-
-.keys-help button {
-  padding: 4px 16px;
 }
 
 /* The search box of the dashboard. The / key goes to it. */

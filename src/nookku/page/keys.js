@@ -127,6 +127,7 @@
     table.append(body);
     const close = make("button", "Close");
     close.type = "button";
+    close.className = "btn outline";
     close.addEventListener("click", () => dialog.close());
     // A click on the backdrop closes the list.
     dialog.addEventListener("click", (e) => {
