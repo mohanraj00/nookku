@@ -52,10 +52,11 @@ NO_DIR_FD = (
 MAX_STEP_TEXT = 4000
 # The renderer shows a longer reply as text with no media (`LIMIT` in page/render.js).
 RENDER_LIMIT = 200_000
-# The page files that go into the export, in this order. theme.css defines the colors of the
-# other files, for a light and a dark system theme (#355). It comes last, as on the pages.
+# The page files that go into the export, in this order. app.css gives the file the header, the
+# buttons and the pills of the chat page (#391). theme.css defines the colors of the other files,
+# for a light and a dark system theme (#355). It comes last, as on the pages.
 STYLES = ("app.css", "render.css", "export.css", "theme.css")
-SCRIPTS = ("render.js", "export.js")
+SCRIPTS = ("icons.js", "render.js", "export.js")
 
 NO_ID = "nookku: no test has this id."
 NO_TEST = "nookku: no test to export. Start one in the harness with: nookku start"
@@ -316,6 +317,25 @@ def _sha(text: str) -> str:
     return "'sha256-" + base64.b64encode(hashlib.sha256(text.encode()).digest()).decode() + "'"
 
 
+# The eyes of the Nookku logo in the header, and the logo icon in the tab. The pages have the
+# same 2 tags. The icon is a data: URL, which the img-src of the CSP allows.
+MARK = (
+    '<svg class="mark-eyes" viewBox="10 37 108 54" aria-hidden="true" focusable="false">'
+    '<circle class="ring" cx="37" cy="64" r="22"/><circle class="ring" cx="91" cy="64" r="22"/>'
+    '<circle class="pupil" cx="45" cy="64" r="9"/><circle class="pupil" cx="99" cy="64" r="9"/>'
+    "</svg>"
+)
+ICON = (
+    '<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,'
+    "%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'%3E"
+    "%3Crect width='128' height='128' rx='28' fill='%2312203a'/%3E"
+    "%3Ccircle cx='37' cy='64' r='22' fill='none' stroke='%23f3f6fa' stroke-width='10'/%3E"
+    "%3Ccircle cx='91' cy='64' r='22' fill='none' stroke='%23f3f6fa' stroke-width='10'/%3E"
+    "%3Ccircle cx='45' cy='64' r='9' fill='%23d9822b'/%3E"
+    "%3Ccircle cx='99' cy='64' r='9' fill='%23d9822b'/%3E%3C/svg%3E\">"
+)
+
+
 def build(root: Path, folder: Path) -> bytes:
     """The HTML file of the export of one test folder."""
     style = "\n".join(_inline(n, "</style") for n in STYLES)
@@ -334,23 +354,32 @@ def build(root: Path, folder: Path) -> bytes:
 <meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Nookku test</title>
+{ICON}
 <style>{style}</style>
 <script type="application/json" id="nookku-data">{_json_block(data(root, folder))}</script>
 {tags}</head>
 <body>
-<header>
-  <h1>Nookku test</h1>
-  <p id="test"></p>
+<div class="app">
+<header class="top">
+  <div class="brand">
+    {MARK}<span class="word">Nookku</span>
+  </div>
+  <span class="sep" aria-hidden="true"></span>
+  <div class="testinfo">
+    <span id="pill" class="pill end">Export</span>
+    <h1 id="test" class="testid">Nookku test</h1>
+  </div>
 </header>
-<main>
-  <section id="summary" aria-label="Summary"></section>
-  <p id="start" class="mark" hidden></p>
+<main class="page">
+  <section id="summary" class="card summary" aria-label="Summary"></section>
+  <div id="start" class="divider" hidden></div>
   <ol id="turns"></ol>
-  <p id="end" class="mark" hidden></p>
+  <div id="end" class="divider" hidden></div>
+  <p class="note foot-note">
+    An export of a nookku test. This file loads nothing from the network.
+  </p>
 </main>
-<footer>
-  <p class="note">An export of a nookku test. This file loads nothing from the network.</p>
-</footer>
+</div>
 </body>
 </html>
 """

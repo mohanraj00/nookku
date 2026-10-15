@@ -7,9 +7,18 @@ function el(id) {
 }
 
 function showError(text) {
-  const box = el("error");
-  box.textContent = text || "";
-  box.hidden = !text;
+  el("error-text").textContent = text || "";
+  el("error").hidden = !text;
+}
+
+// The class of the pill of each state. A state that is not here shows as "none".
+const STATE_PILL = { running: "run", ended: "end", stopped: "warn" };
+
+function pill(text, kind) {
+  const node = document.createElement("span");
+  node.className = "pill " + (kind || "none");
+  node.textContent = text;
+  return node;
 }
 
 function cell(text, cls) {
@@ -18,6 +27,12 @@ function cell(text, cls) {
   if (cls) {
     td.className = cls;
   }
+  return td;
+}
+
+function pillCell(state) {
+  const td = document.createElement("td");
+  td.append(pill(state, STATE_PILL[state]));
   return td;
 }
 
@@ -41,7 +56,7 @@ function testRow(side, test) {
   tr.append(
     cell(side),
     name,
-    cell(test.state),
+    pillCell(test.state),
     cell(typeof test.turns === "number" ? String(test.turns) : "-", "num"),
     countCell(test.breaks),
     countCell(test.findings),
@@ -63,11 +78,11 @@ function side(title, said, reply, words, mark) {
   const box = element("div", "", "side");
   box.append(element("h3", title));
   if (said === null) {
-    box.append(element("p", "This test has no such turn.", "reply none"));
+    box.append(element("p", "This test has no such turn.", "reply missing"));
     return box;
   }
   if (reply === null) {
-    box.append(element("p", "No reply in the tap record.", "reply none"));
+    box.append(element("p", "No reply in the tap record.", "reply missing"));
     return box;
   }
   const text = element("p", "", "reply");
@@ -84,14 +99,16 @@ function side(title, said, reply, words, mark) {
 
 function turnItem(turn, oldId, newId) {
   const li = element("li", "", turn.changed ? "turn changed" : "turn");
-  li.append(element("h2", "Turn " + turn.n + (turn.changed ? ": changed" : ": same")));
+  const head = element("h2", "Turn " + turn.n + " ");
+  head.append(pill(turn.changed ? "Changed" : "Same", turn.changed ? "warn" : "ok"));
+  li.append(head);
   if (turn.said_old === null || turn.said_new === null) {
     const only = turn.said_old === null ? newId : oldId;
     li.append(element("p", "Only test " + only + " has this turn.", "said"));
   }
   if (turn.said_changed && turn.said_old !== null && turn.said_new !== null) {
-    li.append(element("p", "Message of " + oldId + ": " + turn.said_old, "said"));
-    li.append(element("p", "Message of " + newId + ": " + turn.said_new, "said"));
+    li.append(element("p", "Old message: " + turn.said_old, "said"));
+    li.append(element("p", "New message: " + turn.said_new, "said"));
   } else {
     li.append(element("p", "Message: " + (turn.said_old ?? turn.said_new), "said"));
   }

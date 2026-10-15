@@ -15,6 +15,8 @@
   let big = new Set();
   // The paths of the media files that a reply shows.
   const used = new Set();
+  // The name of each source of a message, as the chat page shows it (SOURCES in app.js).
+  const SOURCES = { pane: "page", "claude-code": "Claude Code", codex: "Codex", script: "script" };
 
   function el(tag, cls, text) {
     const e = document.createElement(tag);
@@ -110,10 +112,42 @@
 
   // ---- The parts of the page ----
 
-  function block(cls, who, text) {
-    const li = el("li", "turn " + cls);
-    li.append(el("p", "who", who), el("pre", "text", text));
+  // The icon of icons.js, or nothing if the file has no icons.
+  function icon(name) {
+    return typeof NookkuIcons === "undefined" ? [] : [NookkuIcons.icon(name)];
+  }
+
+  // A message of the tester or of a script: a bubble on the right, as on the chat page.
+  function testerItem(who, text) {
+    const li = el("li", "turn tester");
+    const msg = el("div", "msg");
+    msg.append(el("pre", "bubble text", text), el("p", "who", who));
+    li.append(msg);
     return li;
+  }
+
+  // A reply of the agent: an avatar and the reply, with no bubble, as on the chat page.
+  function agentItem(li, number) {
+    const avatar = el("div", "avatar");
+    avatar.append(...icon("bot"));
+    const reply = el("div", "reply");
+    reply.append(...li.childNodes);
+    const who = reply.querySelector(".who");
+    if (who) who.insertBefore(el("small", null, "turn " + number), who.querySelector(".toggle"));
+    li.append(avatar, reply);
+    return reply;
+  }
+
+  // A turn where the relay could not send the message (red, as on the chat page), or showed no
+  // reply (grey, because it is not an error of the relay).
+  function relayItem(who, text, quiet) {
+    const li = el("li", "turn relay-error");
+    const box = el("div", quiet ? "sys quiet" : "sys");
+    const body = el("div");
+    body.append(el("p", "who", who), el("pre", "text", text));
+    box.append(...icon("alert"), body);
+    li.append(box);
+    return { li: li, slot: body };
   }
 
   function noteBlock(note) {
@@ -257,7 +291,11 @@
       return;
     }
     document.title = "Nookku test " + test.id;
-    document.getElementById("test").textContent = "Test " + test.id + ".";
+    document.getElementById("test").textContent = test.id;
+    const pill = document.getElementById("pill");
+    const state = data.summary && data.summary.state;
+    pill.textContent = state === "running" ? "Running" : state === "ended" ? "Ended" : "Export";
+    pill.className = "pill " + (state === "running" ? "run" : "end");
     const started = when(test.started);
     const startMark = document.getElementById("start");
     startMark.textContent = "The test started" + (started ? " at " + started : "") + ".";
@@ -279,19 +317,21 @@
     const list = document.getElementById("turns");
     data.turns.forEach((turn, i) => {
       const number = i + 1;
-      const sender = turn.harness === "script" ? "script" : "tester";
-      list.append(block("tester", sender + " (" + turn.harness + ")", turn.said));
+      const sender = SOURCES[turn.harness] || turn.harness;
+      list.append(testerItem(sender, turn.said));
       let li;
+      let slot;
       if (turn.shown === null) {
-        li = block("relay-error", "relay", "(the relay showed no reply)");
+        ({ li: li, slot: slot } = relayItem("relay", "The relay showed no reply for this turn.", true));
       } else if (turn.ok === false) {
-        li = block("relay-error", "relay error", turn.shown);
+        ({ li: li, slot: slot } = relayItem("relay error", turn.shown));
       } else {
-        li = NookkuRender.reply(document, "agent", "agent", turn.shown, offline);
+        li = NookkuRender.reply(document, "agent", "Agent", turn.shown, offline);
+        slot = agentItem(li, number);
       }
-      if (notes.has(number)) li.append(noteBlock(notes.get(number)));
+      if (notes.has(number)) slot.append(noteBlock(notes.get(number)));
       const steps = data.steps[String(number)];
-      if (steps && steps.length) li.append(stepsBlock(steps));
+      if (steps && steps.length) slot.append(stepsBlock(steps));
       list.append(li);
     });
     unused();

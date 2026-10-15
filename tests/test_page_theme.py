@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from nookku import page
+from nookku import export, page
 
 NODE = shutil.which("node")
 needs_node = pytest.mark.skipif(NODE is None, reason="node is not on PATH")
@@ -32,9 +32,38 @@ TEXT_PAIRS = [
     ("error-fg", "error-bg"),
     ("error-fg", "bg"),
     ("error-fg", "agent"),
+    # The chat page (#391).
+    ("fg", "surface"),
+    ("fg", "raise"),
+    ("tester-fg", "tester"),
+    ("muted", "surface"),
+    ("muted", "raise"),
+    ("muted", "ok-bg"),
+    ("accent", "surface"),
+    ("error-fg", "surface"),
+    ("error-fg", "raise"),
+    ("accent", "raise"),
+    ("ok", "bg"),
+    ("ok", "surface"),
+    ("ok", "ok-bg"),
+    ("warn-fg", "warn-bg"),
+    ("error-fg", "surface"),
 ]
-# The border of a control and its background. WCAG AA asks for 3:1 (1.4.11).
-CONTROL_PAIRS = [("control-line", "bg")]
+# The border of a control and its background, and the focus ring. WCAG AA asks for 3:1 (1.4.11).
+CONTROL_PAIRS = [
+    ("control-line", "bg"),
+    ("control-line", "surface"),
+    # The key help puts the border of a key on raise.
+    ("control-line", "raise"),
+    # The border of a failed bubble, the alert and the end confirm.
+    ("error-line", "surface"),
+    ("error-line", "bg"),
+    # The rings of the eyes mark in the header.
+    ("logo-line", "surface"),
+    ("logo-line", "bg"),
+    ("focus", "bg"),
+    ("focus", "surface"),
+]
 
 
 def block(css: str, selector: str) -> dict[str, str]:
@@ -90,6 +119,18 @@ def test_each_color_pair_meets_wcag_aa(theme: str) -> None:
 
 
 @pytest.mark.parametrize("name", PAGES)
+def test_each_page_has_the_eyes_mark_and_the_logo_icon(name: str) -> None:
+    html = (FOLDER / name).read_text()
+    head = html[: html.index("</head>")]
+    assert head.count('<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,') == 1
+    assert export.ICON in head
+    assert export.MARK + '<span class="word">Nookku</span>' in html
+    assert 'class="mark"' not in html
+    # The page CSP must allow a data: image, so that the tab shows the icon.
+    assert "data:" in page.CSP.split("img-src", 1)[1].split(";", 1)[0]
+
+
+@pytest.mark.parametrize("name", PAGES)
 def test_each_page_loads_the_theme_and_the_keys(name: str) -> None:
     html = (FOLDER / name).read_text()
     # theme.js runs in <head> before the first paint. theme.css comes last, so its rules win.
@@ -99,11 +140,28 @@ def test_each_page_loads_the_theme_and_the_keys(name: str) -> None:
     assert links[-2:] == ["keys.css", "theme.css"]
     for ref in re.findall(r'(?:src|href)="([^"#]+\.(?:js|css))"', html):
         assert ref in page.FILES, ref
-    for new in ("theme.css", "theme.js", "keys.css", "keys.js", "search.js"):
+    names = ("theme.css", "theme.js", "keys.css", "keys.js", "search.js", "menu.js", "chat.css")
+    for new in (*names, "app.css"):
         text = page.page_file(new).decode()
         assert not re.search(r"https?://", text), new
         for sink in ("innerHTML", "insertAdjacentHTML", "outerHTML", "eval(", "fetch("):
             assert sink not in text, new
+
+
+@pytest.mark.parametrize("name", PAGES)
+def test_each_page_has_the_header_and_the_menu_of_the_chat_page(name: str) -> None:
+    """Each page has the same style (#391): app.css first, the header with the mark, and the
+    menu with the theme and the width."""
+    html = (FOLDER / name).read_text()
+    links = re.findall(r'<link rel="stylesheet" href="([^"]+)">', html)
+    assert links[0] == "app.css"
+    assert '<header class="top">' in html
+    assert export.MARK + '<span class="word">Nookku</span>' in html
+    assert '<script src="icons.js" defer></script>' in html
+    assert '<script src="menu.js" defer></script>' in html
+    picks = {"theme": ["auto", "light", "dark"], "width": ["auto", "narrow", "wide"]}
+    for pick, values in picks.items():
+        assert re.findall(rf'data-pick="{pick}" data-v="(\w+)"', html) == values
 
 
 # A small DOM for node. It has only what theme.js and keys.js use.
@@ -260,3 +318,67 @@ def test_the_theme_switch_works_if_the_browser_refuses_the_storage(tmp_path: Pat
     out = run_node(tmp_path, THEME_CHECK, "theme.js")
     assert out["start"] == "auto" and out["label"] == "Theme: auto"
     assert out["seen"] == ["light", "dark", "auto"]
+
+
+PICKS_CHECK = """
+Object.defineProperty(window, "localStorage", { get() { throw new Error("blocked"); } });
+const picks = [];
+for (const [pick, v] of [["theme", "auto"], ["theme", "light"], ["theme", "dark"],
+    ["width", "auto"], ["width", "narrow"], ["width", "wide"]]) {
+  const b = make("button"); b.dataset.pick = pick; b.dataset.v = v; picks.push(b);
+}
+items = picks;
+const header = make("header", "header");
+require(process.argv[2]);
+const out = { start: Object.assign({}, document.documentElement.dataset) };
+(listeners.DOMContentLoaded || []).forEach((fn) => fn());
+out.button = header.kids.length;
+const checked = () => picks.map((b) => b.attrs["aria-checked"]);
+out.before = checked();
+picks[2].listeners.click[0]();
+picks[4].listeners.click[0]();
+out.dark = Object.assign({}, document.documentElement.dataset);
+out.after = checked();
+picks[0].listeners.click[0]();
+picks[3].listeners.click[0]();
+out.auto = Object.assign({}, document.documentElement.dataset);
+const key = (b, k) => {
+  const e = { key: k, stopped: false, preventDefault() { this.stopped = true; } };
+  b.listeners.keydown[0](e);
+  return e.stopped;
+};
+out.keys = [key(picks[0], "ArrowRight"), key(picks[1], "ArrowLeft"), key(picks[0], "ArrowLeft"),
+  key(picks[3], "End"), key(picks[5], "Home"), key(picks[3], "a")];
+out.byKeys = checked();
+out.focus = picks.indexOf(document.activeElement);
+process.stdout.write(JSON.stringify(out));
+"""
+
+
+@needs_node
+def test_the_menu_sets_the_theme_and_the_width_if_the_browser_refuses_the_storage(
+    tmp_path: Path,
+) -> None:
+    out = run_node(tmp_path, PICKS_CHECK, "theme.js")
+    # Auto is the default of both. A page with the menu gets no "Theme" button.
+    assert out["start"] == {} and out["button"] == 0
+    assert out["before"] == ["true", "false", "false", "true", "false", "false"]
+    assert out["dark"] == {"theme": "dark", "width": "narrow"}
+    assert out["after"] == ["false", "false", "true", "false", "true", "false"]
+    assert out["auto"] == {}
+    # The arrow keys move in one group and go round. Home and End go to the ends.
+    # Another key does nothing.
+    assert out["keys"] == [True, True, True, True, True, False]
+    assert out["byKeys"] == ["false", "false", "true", "true", "false", "false"]
+    assert out["focus"] == 3
+
+
+def test_the_chat_page_has_the_menu_of_the_theme_and_the_width() -> None:
+    html = (FOLDER / "index.html").read_text()
+    picks = re.findall(r'data-pick="(\w+)" data-v="(\w+)"', html)
+    assert picks == [
+        ("theme", "auto"), ("theme", "light"), ("theme", "dark"),
+        ("width", "auto"), ("width", "narrow"), ("width", "wide"),
+    ]  # fmt: skip
+    # The page does not say "byte for byte" to the tester (#391).
+    assert "byte for byte" not in html

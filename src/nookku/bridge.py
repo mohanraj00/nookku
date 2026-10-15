@@ -346,11 +346,13 @@ def end(
     wait: float = END_WAIT,
     tester_session: str | None = None,
     find_stopped: bool = True,
+    test: str | None = None,
 ) -> dict[str, Any] | None:
     """Stop the running test and wait for the bridge to collect. Return the manifest.
 
     If no test runs, but the bridge of a test stopped with no end, finish that test. A caller
-    that ends only its own test turns this off with `find_stopped=False`.
+    that ends only its own test turns this off with `find_stopped=False`. If `test` is set, end
+    the running test only if it has this id, else return None (the "End test" button, #391).
 
     `tester_session` is the harness session that ends the test. It is not a session of the app,
     also if it starts after the last turn."""
@@ -358,6 +360,8 @@ def end(
     if cur is None:
         folder = stopped(root) if find_stopped else None
         return None if folder is None else finish_stopped(folder)
+    if test is not None and cur["test"] != test:
+        return None
     if tester_session:
         _write_json(state(root) / ENDING, {"test": cur["test"], "tester_session": tester_session})
     pid = cur["pid"]

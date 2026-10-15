@@ -21,7 +21,7 @@ from typing import Any
 
 import pytest
 
-from nookku import bridge, kit, page, script, seal, state
+from nookku import bridge, export, kit, page, script, seal, state
 from nookku.audit import audit
 from nookku.record import Turn, Writer, read_relay
 from nookku.stdio import Agent, StdioTap, start_in_thread
@@ -355,12 +355,49 @@ def test_each_answer_has_a_strict_csp(tmp_path: Path) -> None:
         server.server_close()
 
 
+def test_a_cold_load_gets_each_file_of_the_page_in_parallel(tmp_path: Path) -> None:
+    """A browser asks for each file of the page at the same time. The server must answer each
+    request: with a backlog of 5, a cold load lost some files, and the page had no style."""
+    server = start_page(tmp_path)
+    try:
+        cookie = cookie_only(session(server))
+        names = sorted(page.FILES)
+        paths = [names[i % len(names)] for i in range(20)]
+        start = threading.Barrier(len(paths))
+        got: dict[int, tuple[int, bytes] | BaseException] = {}
+
+        def load(i: int) -> None:
+            start.wait()
+            try:
+                status, _, body = request(
+                    server, "GET", page.SESSION_PATH + paths[i], headers=cookie
+                )
+                got[i] = (status, body)
+            except OSError as error:
+                got[i] = error
+
+        threads = [threading.Thread(target=load, args=(i,)) for i in range(len(paths))]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(30)
+        for i, rest in enumerate(paths):
+            assert got[i] == (200, page.page_file(page.FILES[rest][0])), rest
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
 def test_the_page_has_no_inline_script_no_cdn_and_no_html_from_text() -> None:
     folder = resources.files("nookku").joinpath("page")
     html = folder.joinpath("index.html").read_text()
-    scripts = ["render.js", "app.js", "save.js", "notes.js", "export_button.js", "trace.js"]
+    scripts = ["icons.js", "render.js", "app.js", "save.js", "notes.js", "export_button.js"]
+    scripts += ["end_button.js"]
+    scripts += ["trace.js", "menu.js"]
     js = "".join(folder.joinpath(name).read_text() for name in [*scripts, "key.js"])
-    styles = ["app.css", "render.css", "notes.css", "trace.css"]
+    # icons.js names the SVG namespace. It is a name, not a file that the page loads.
+    js = js.replace('"http://www.w3.org/2000/svg"', "SVG_NS")
+    styles = ["chat.css", "render.css", "notes.css", "trace.css"]
     css = "".join(folder.joinpath(name).read_text() for name in styles)
     # theme.js runs before the first paint, without defer (#355).
     tags = re.findall(r"<script[^>]*>", html)
@@ -371,7 +408,8 @@ def test_the_page_has_no_inline_script_no_cdn_and_no_html_from_text() -> None:
     assert all(name in page.FILES for name in [*scripts, *styles])
     assert not re.search(r"\son\w+=", html)
     assert "style=" not in html
-    for text in (html, js, css):
+    # The logo icon is a data: URL. The SVG namespace in it is a name, not a file to load.
+    for text in (html.replace(export.ICON, ""), js, css):
         assert not re.search(r"https?://", text)
     # The page puts each text of the agent and the tester in with textContent, or as DOM nodes
     # from render.js (#347).

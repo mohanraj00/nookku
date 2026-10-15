@@ -1,38 +1,73 @@
-/* The trace steps and the time of each turn under its reply (#353). */
+/* The trace steps and the time of each turn under its reply (#353, #391). */
 .trace {
-  margin: -4px 0 12px;
-  font-size: 13px;
-  color: var(--muted);
-}
-
-.trace-summary {
-  cursor: pointer;
+  margin-top: 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  overflow: hidden;
 }
 
 .trace-steps {
-  margin: 4px 0 0;
-  padding: 0 0 0 20px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
 
-.trace-step summary {
+.trace-step {
+  border-top: 1px solid var(--line);
+}
+
+.trace-step:first-child {
+  border-top: 0;
+}
+
+.trace-row {
+  display: grid;
+  grid-template-columns: 64px 120px minmax(0, 1fr) auto;
+  gap: 10px;
+  padding: 7px 12px;
+  font: 12.5px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  align-items: baseline;
   cursor: pointer;
-  font-family: ui-monospace, "SF Mono", Menlo, monospace;
-  font-size: 12px;
-  overflow-wrap: anywhere;
+  list-style: none;
 }
 
-.trace-failed summary {
+.trace-row::-webkit-details-marker {
+  display: none;
+}
+
+.trace-row:hover {
+  background: var(--raise);
+}
+
+.trace-at,
+.trace-kind,
+.trace-result {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.trace-n {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--fg);
+}
+
+.trace-failed .trace-n,
+.trace-failed .trace-result {
   color: var(--error-fg);
 }
 
 .trace-field {
-  margin: 4px 0 8px;
+  margin: 0 12px 8px;
 }
 
 .trace-name {
   margin: 0;
   font-size: 11px;
   text-transform: uppercase;
+  color: var(--muted);
 }
 
 /* pre-wrap shows each space and each line end of a step as it is. */
@@ -43,14 +78,38 @@
   overflow: auto;
   border: 1px solid var(--line);
   border-radius: 6px;
-  background: var(--agent);
+  background: var(--raise);
   color: var(--fg);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  font: 12px/1.4 ui-monospace, "SF Mono", Menlo, monospace;
+  font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.trace-toggle .ico {
+  transition: transform 0.15s ease;
+}
+
+.trace-toggle[aria-expanded="true"] .ico {
+  transform: rotate(90deg);
+}
+
+.trace-none {
+  font-size: 12px;
+  padding: 0 8px;
 }
 
 .trace-error {
   color: var(--error-fg);
   font-size: 13px;
+  margin: 0;
+}
+
+@container (max-width: 640px) {
+  .trace-row {
+    grid-template-columns: 52px minmax(0, 1fr) auto;
+  }
+
+  .trace-kind {
+    display: none;
+  }
 }

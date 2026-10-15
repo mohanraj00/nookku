@@ -16,7 +16,7 @@ from typing import Any
 
 import pytest
 
-from nookku import bridge, kit, page, policy, replay, script_save
+from nookku import bridge, export, kit, page, policy, replay, script_save
 from nookku.cli import main
 from nookku.record import Writer
 
@@ -303,12 +303,15 @@ def test_the_diff_page_has_no_inline_script_and_no_html_from_text() -> None:
     assert re.findall(r"<script[^>]*>", html) == [
         '<script src="theme.js">',
         '<script src="key.js">',
+        '<script src="icons.js" defer>',
         '<script src="diff.js" defer>',
+        '<script src="menu.js" defer>',
         '<script src="keys.js" defer>',
     ]
     assert not re.search(r"\son\w+=", html) and "style=" not in html
     for name in ("diff.html", "diff.js", "diff.css", "compare.js"):
-        text = page.page_file(name).decode()
+        # The logo icon is a data: URL. The SVG namespace in it is a name, not a file to load.
+        text = page.page_file(name).decode().replace(export.ICON, "")
         assert not re.search(r"https?://", text), name
         for sink in ("innerHTML", "insertAdjacentHTML", "outerHTML"):
             assert sink not in text, name

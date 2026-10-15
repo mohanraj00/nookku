@@ -1,156 +1,588 @@
-/* The colors are the variables of theme.css (#355). */
+/* The shared styles of each page of nookku (#391): the chat page, All tests, the diff page and
+   the exported file. The colors are the variables of theme.css. The pages use system fonts only.
+   On a window of 640 px or less, the header actions go into the menu, so that the header does
+   not stack. */
 
 * {
   box-sizing: border-box;
+}
+
+/* A hidden element stays hidden, also if a class of this file gives it a display. */
+[hidden] {
+  display: none !important;
 }
 
 body {
   margin: 0;
   background: var(--bg);
   color: var(--fg);
-  font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
+  font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
-header,
-main,
-footer {
-  width: 100%;
-  max-width: 860px;
-  margin: 0 auto;
-  padding: 0 16px;
+.app {
+  container-type: inline-size;
 }
 
-header {
-  border-bottom: 1px solid var(--line);
-}
-
-h1 {
-  font-size: 18px;
-  margin: 12px 0 4px;
-}
-
-#test {
-  color: var(--muted);
-  margin: 0 0 12px;
-  font-size: 13px;
-}
-
-main {
-  flex: 1;
-  padding-top: 12px;
-  padding-bottom: 12px;
-}
-
-#turns {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.turn {
-  margin: 0 0 8px;
-}
-
-.who {
-  font-size: 12px;
-  color: var(--muted);
-  margin: 0 0 2px;
-}
-
-/* pre-wrap shows each space and each line end of a text as it is. */
-.text {
-  margin: 0;
-  padding: 8px 12px;
-  border-radius: 8px;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
+.app button {
   font: inherit;
+  color: inherit;
 }
 
-.tester .text {
-  background: var(--tester);
+.app :focus-visible,
+.keys-help :focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 6px;
 }
 
-.agent .text {
-  background: var(--agent);
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
-.relay-error .text,
-#error {
-  background: var(--error-bg);
-  color: var(--error-fg);
+.ico {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
-.pending .text {
-  opacity: 0.6;
+.t-num {
+  font-variant-numeric: tabular-nums;
 }
 
-.mark {
-  color: var(--muted);
-  font-size: 13px;
-  text-align: center;
-  margin: 8px 0 16px;
-}
-
-footer {
-  position: sticky;
-  bottom: 0;
-  background: var(--bg);
-  border-top: 1px solid var(--line);
-  padding-top: 8px;
-  padding-bottom: 8px;
-}
-
-label {
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.send {
-  display: flex;
-  gap: 8px;
-  align-items: stretch;
-}
-
-textarea {
-  flex: 1;
-  min-width: 0;
-  font: inherit;
-  padding: 8px;
+kbd {
+  font: 11.5px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   border: 1px solid var(--line);
-  border-radius: 8px;
-  resize: vertical;
-  background: var(--bg);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  padding: 0 5px;
+  background: var(--surface);
   color: var(--fg);
 }
 
-button {
-  font: inherit;
-  padding: 0 16px;
-  border: 0;
+/* ---- Buttons ---- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 10px;
   border-radius: 8px;
+  border: 1px solid transparent;
+  background: none;
+  cursor: pointer;
+  font-size: 13.5px;
+  white-space: nowrap;
+  color: var(--fg);
+  text-decoration: none;
+}
+
+.btn:hover {
+  background: var(--raise);
+}
+
+.btn:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.btn:disabled:hover {
+  background: none;
+}
+
+.btn.outline {
+  border-color: var(--line);
+  background: var(--surface);
+}
+
+.btn.primary {
   background: var(--accent);
   color: var(--on-accent);
-  cursor: pointer;
 }
 
-button:disabled {
-  opacity: 0.5;
-  cursor: default;
+.btn.icon {
+  width: 32px;
+  padding: 0;
+  justify-content: center;
 }
 
-#error {
-  padding: 8px 12px;
+/* ---- Header ---- */
+
+.top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 20px;
+  height: 56px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  flex: none;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+/* The mark is the two eyes of the Nookku logo: the circles of nookku-mark.svg, cropped to the
+   eyes. The rings are logo-line (ink in light, paper in dark). The pupils are marigold. */
+.mark-eyes {
+  display: block;
+  width: 44px;
+  height: 22px;
+  flex: none;
+}
+
+.mark-eyes .ring {
+  fill: none;
+  stroke: var(--logo-line);
+  stroke-width: 10;
+}
+
+.mark-eyes .pupil {
+  fill: var(--marigold);
+}
+
+.sep {
+  width: 1px;
+  height: 22px;
+  background: var(--line);
+  flex: none;
+}
+
+.testinfo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.testid {
+  font: 13px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: var(--muted);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.pill,
+.bridge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 9px 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+  flex: none;
+}
+
+.pill::before,
+.bridge::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.pill.run,
+.bridge {
+  color: var(--ok);
+  background: var(--ok-bg);
+}
+
+.pill.run::before {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.pill.end,
+.pill.none,
+.bridge.off {
+  color: var(--muted);
+  background: var(--raise);
+}
+
+.bridge {
+  cursor: help;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+
+.more {
+  position: relative;
+}
+
+.menu {
+  position: absolute;
+  right: 0;
+  top: 40px;
+  width: 240px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  padding: 6px;
+  z-index: 5;
+  display: grid;
+}
+
+.menu .btn {
+  justify-content: flex-start;
+  width: 100%;
+  height: 36px;
+}
+
+.menu .narrow-only {
+  display: none;
+}
+
+.menu hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 6px 0;
+}
+
+.menu .lbl {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 6px 10px 4px;
+}
+
+.menu .pick {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+  margin: 0 6px 6px;
+  padding: 2px;
   border-radius: 8px;
+  background: var(--raise);
+}
+
+.menu .pick button {
+  border: 0;
+  background: none;
+  border-radius: 6px;
+  padding: 4px 0;
+  font-size: 12.5px;
+  cursor: pointer;
+  color: var(--muted);
+}
+
+.menu .pick button[aria-checked="true"] {
+  background: var(--surface);
+  color: var(--fg);
+  font-weight: 600;
+  /* The ring has the color of a control border, so the selected item meets 3:1 in each theme. */
+  box-shadow: inset 0 0 0 1px var(--control-line), var(--shadow);
+}
+
+.menu .hint {
+  font-size: 12px;
+  color: var(--muted);
+  padding: 2px 10px 4px;
+  margin: 0;
+}
+
+/* A count in the header is not a state, so it has no dot. */
+.title + .pill::before {
+  display: none;
+}
+
+/* On a touch screen, each control is at least 44 px high, so that a finger can hit it. */
+@media (pointer: coarse) {
+  .btn,
+  .menu .btn,
+  .menu .pick button {
+    min-height: 44px;
+  }
+
+  .btn.icon {
+    min-width: 44px;
+  }
+
+  .cmd .btn {
+    min-height: 36px;
+  }
+}
+
+@container (max-width: 640px) {
+  .top {
+    padding: 0 12px;
+    gap: 10px;
+  }
+
+  .brand .word,
+  .sep,
+  .actions .wide {
+    display: none;
+  }
+
+  .menu .btn.narrow-only {
+    display: flex;
+  }
+
+  .menu hr.narrow-only {
+    display: block;
+  }
+}
+
+/* ---- The banner of a poll error, and the result of an action ---- */
+
+.banner {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 20px;
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+  font-size: 13.5px;
+  border-bottom: 1px solid var(--line);
+  flex: none;
+}
+
+.banner .ico {
+  margin-top: 3px;
+}
+
+.banner p,
+.alert p {
+  margin: 0;
   white-space: pre-wrap;
-  margin: 0 0 8px;
+  overflow-wrap: anywhere;
+}
+
+.app code,
+.cmd {
+  font: 12.5px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.divider::before,
+.divider::after {
+  content: "";
+  flex: 1;
+  border-top: 1px solid var(--line);
+}
+
+/* ---- Empty states and the end ---- */
+
+.empty {
+  margin: 40px auto 0;
+  max-width: 460px;
+  text-align: center;
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+}
+
+.empty .glyph {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--raise);
+  border: 1px solid var(--line);
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+}
+
+.empty .glyph .ico {
+  width: 22px;
+  height: 22px;
+}
+
+.empty h2 {
+  font-size: 18px;
+  margin: 4px 0 0;
+  text-wrap: balance;
+}
+
+.empty p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.empty .small {
+  font-size: 12.5px;
+  margin-top: 6px;
+}
+
+.empty .small .ico {
+  width: 14px;
+  height: 14px;
+  vertical-align: -3px;
+}
+
+.cmd {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13.5px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 4px 4px 4px 12px;
+  color: var(--fg);
+}
+
+.cmd .btn {
+  height: 26px;
+  font: 12.5px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* ---- "End test" and its confirm (end_button.js) ---- */
+
+.btn.danger {
+  color: var(--error-fg);
+}
+
+/* The button that ends the test in the confirm: a solid color, because the end cannot be undone. */
+.btn.danger-fill {
+  background: var(--error-fg);
+  border-color: var(--error-fg);
+  color: var(--surface);
+  font-weight: 600;
+}
+
+.btn.danger-fill:hover {
+  background: var(--error-fg);
+  border-color: var(--fg);
+}
+
+.alert {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--error-bg);
+  color: var(--error-fg);
+  font-size: 13.5px;
+  border: 1px solid var(--error-line);
+}
+
+.alert .ico {
+  margin-top: 3px;
+}
+
+.alert p {
+  flex: 1;
+  min-width: 0;
+}
+
+.alert .x {
+  height: 24px;
+  width: 24px;
+  color: var(--error-fg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* ---- The pages with one column of content: All tests, the diff page and the export ---- */
+
+.title {
+  font-size: 14.5px;
+  font-weight: 600;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.page {
+  width: 100%;
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 24px 24px 40px;
+}
+
+:root[data-width="narrow"] .page {
+  max-width: 760px;
+}
+
+:root[data-width="wide"] .page {
+  max-width: 1280px;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
 }
 
 .note {
-  font-size: 12px;
+  font-size: 12.5px;
   color: var(--muted);
   margin: 4px 0 0;
+}
+
+.pill:empty {
+  display: none;
+}
+
+.pill.ok {
+  color: var(--ok);
+  background: var(--ok-bg);
+}
+
+.pill.warn {
+  color: var(--warn-fg);
+  background: var(--warn-bg);
+}
+
+.pill.bad {
+  color: var(--error-fg);
+  background: var(--error-bg);
+}
+
+.page > .alert {
+  margin: 0 0 16px;
+}
+
+@container (max-width: 640px) {
+  .page {
+    padding: 16px 12px 40px;
+  }
 }

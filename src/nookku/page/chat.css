@@ -1,0 +1,615 @@
+/* The layout of the chat page (#391). app.css holds the styles that each page shares: the
+   header, the menu, the buttons, the pills, the empty states and the alerts. */
+
+body.chat {
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.app {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  padding: 6px 20px;
+  font-size: 13px;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  flex: none;
+  overflow-wrap: anywhere;
+}
+
+.status span:empty,
+.status:not(:has(span:not(:empty))) {
+  display: none;
+}
+
+/* ---- The conversation ---- */
+
+.scroll {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.col,
+.dock-in {
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+:root[data-width="narrow"] .col,
+:root[data-width="narrow"] .dock-in {
+  max-width: 600px;
+}
+
+:root[data-width="wide"] .col,
+:root[data-width="wide"] .dock-in {
+  max-width: 1060px;
+}
+
+.col {
+  padding: 24px 24px 8px;
+  display: grid;
+  gap: 22px;
+}
+
+#turns {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 22px;
+}
+
+#turns:empty {
+  display: none;
+}
+
+.turn {
+  display: grid;
+  gap: 14px;
+  border-radius: 12px;
+}
+
+/* A message of the tester. */
+.msg {
+  display: grid;
+  gap: 6px;
+  justify-items: end;
+}
+
+/* pre-wrap shows each space and each line end of a text as it is. */
+.bubble {
+  max-width: min(78%, 560px);
+  margin: 0;
+  background: var(--tester);
+  color: var(--tester-fg);
+  padding: 10px 14px;
+  border-radius: 16px 16px 4px 16px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+}
+
+.msg.sending .bubble {
+  opacity: 0.7;
+}
+
+.msg.failed .bubble {
+  background: var(--surface);
+  color: var(--fg);
+  border: 1px dashed var(--error-line);
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px 10px;
+  align-items: center;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.meta .src {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 6px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  line-height: 18px;
+}
+
+.meta .src .ico {
+  width: 12px;
+  height: 12px;
+}
+
+.meta .state {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.meta .state .ico {
+  width: 14px;
+  height: 14px;
+}
+
+.meta .state.ok {
+  color: var(--ok);
+}
+
+.meta .state.bad {
+  color: var(--error-fg);
+  font-weight: 600;
+}
+
+.spin {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  animation: rot 0.8s linear infinite;
+  display: inline-block;
+  flex: none;
+}
+
+@keyframes rot {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* A reply of the agent: no bubble, so that long Markdown reads like a document. */
+.agent {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 12px;
+}
+
+.avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--raise);
+  border: 1px solid var(--line);
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+}
+
+.reply {
+  min-width: 0;
+}
+
+.reply .who {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 3px 0 4px;
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  flex-wrap: wrap;
+  color: var(--fg);
+}
+
+.reply .who small {
+  font-weight: 400;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.reply .text {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.reply pre.text {
+  font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  background: var(--raise);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  white-space: pre-wrap;
+}
+
+.tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  margin: 6px 0 0 -8px;
+  color: var(--muted);
+}
+
+.tools .btn {
+  height: 28px;
+  padding: 0 8px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.tools .btn.icon {
+  width: 28px;
+  padding: 0;
+}
+
+.tools .btn[aria-pressed="true"] {
+  color: var(--accent);
+  background: var(--raise);
+}
+
+.tools .btn.done {
+  color: var(--ok);
+}
+
+.tools .gap {
+  flex: 1;
+}
+
+.tools .slot {
+  display: contents;
+}
+
+/* The row of a failed send, and of a turn with no reply. */
+.sys {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--error-bg);
+  color: var(--error-fg);
+  font-size: 13.5px;
+}
+
+.sys .ico,
+.quiet .ico {
+  margin-top: 3px;
+}
+
+.sys pre {
+  margin: 0;
+  font: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.sys .act {
+  margin-top: 6px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.sys .btn {
+  height: 28px;
+  font-size: 12.5px;
+  color: var(--error-fg);
+  border-color: var(--error-line);
+}
+
+.sys .note {
+  font-size: 12.5px;
+}
+
+.quiet {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px dashed var(--control-line);
+  color: var(--muted);
+  font-size: 13.5px;
+}
+
+.sys + .tools,
+.quiet + .tools {
+  margin: -6px 0 0;
+}
+
+/* A turn with no reply has no trace steps, and a message that was not sent gets no rating. The
+   comment stays, so that the tester can note the problem. */
+.turn > .tools .trace-none,
+.turn:has(> .sys) .notebar-rate {
+  display: none;
+}
+
+/* The note box and the trace panel of a turn are empty until the tester writes a note or opens
+   the steps. An empty one must not add a gap of the grid. */
+.turn > div:not([class]):not(:has(> :not([hidden]):not(:empty))) {
+  display: none;
+}
+
+/* The wait for a reply. */
+.dots {
+  display: inline-flex;
+  gap: 4px;
+  padding: 10px 0 6px;
+  vertical-align: middle;
+}
+
+.dots i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--muted);
+  animation: dot 1.2s infinite ease-in-out;
+}
+
+.dots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.dots i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes dot {
+  0%,
+  80%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+
+  40% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+.wait {
+  font-size: 13px;
+  color: var(--muted);
+  margin-left: 6px;
+}
+
+.keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  justify-content: center;
+  font-size: 12.5px;
+  color: var(--muted);
+  margin-top: 6px;
+}
+
+.endcard {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 16px;
+  display: grid;
+  gap: 10px;
+}
+
+.endcard h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.endcard .stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  font-size: 13px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.endcard .row2 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.endcard .endnote {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.confirm {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  border-radius: 12px;
+  border: 1px solid var(--error-line);
+  background: var(--surface);
+  font-size: 13.5px;
+  box-shadow: var(--shadow);
+}
+
+.confirm > .ico {
+  margin-top: 3px;
+  color: var(--error-fg);
+}
+
+.confirm p {
+  flex: 1;
+  min-width: 220px;
+  margin: 0;
+}
+
+.confirm code {
+  font: 13px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.confirm .row2 {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+/* ---- The message box ---- */
+
+.dock {
+  flex: none;
+  padding: 8px 24px 14px;
+  background: var(--bg);
+}
+
+.dock-in {
+  display: grid;
+  gap: 8px;
+}
+
+.box {
+  border: 1px solid var(--control-line);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  padding: 10px 10px 8px 14px;
+  display: grid;
+  gap: 6px;
+}
+
+.box:focus-within {
+  border-color: var(--focus);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 22%, transparent), var(--shadow);
+}
+
+.box textarea {
+  border: 0;
+  outline: 0;
+  resize: none;
+  font: inherit;
+  background: none;
+  color: var(--fg);
+  min-height: 26px;
+  max-height: 240px;
+  padding: 2px 0;
+  width: 100%;
+  overflow-y: hidden;
+}
+
+.box textarea::placeholder {
+  color: var(--muted);
+}
+
+.box textarea:focus-visible {
+  outline: 0;
+}
+
+.boxbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.boxbar .count {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.sendbtn {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 0;
+  background: var(--accent);
+  color: var(--on-accent);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex: none;
+}
+
+.sendbtn:disabled {
+  background: var(--raise);
+  color: var(--muted);
+  cursor: default;
+}
+
+.sendbtn .spin {
+  width: 14px;
+  height: 14px;
+  display: none;
+}
+
+.sendbtn.busy .spin {
+  display: inline-block;
+}
+
+.sendbtn.busy .ico {
+  display: none;
+}
+
+.foot {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.endbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 14px;
+  padding: 10px 10px 10px 16px;
+  font-size: 13.5px;
+  color: var(--muted);
+}
+
+/* On a touch screen, the send button is 44 px, so that a finger can hit it. */
+@media (pointer: coarse) {
+  .sendbtn {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+@container (max-width: 640px) {
+  .col {
+    padding: 16px 14px 8px;
+    gap: 16px;
+  }
+
+  #turns {
+    gap: 16px;
+  }
+
+  .bubble {
+    max-width: 88%;
+  }
+
+  .dock {
+    padding: 6px 10px 10px;
+  }
+
+  .foot .k2,
+  .foot .k3 {
+    display: none;
+  }
+
+  .status,
+  .banner {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+}

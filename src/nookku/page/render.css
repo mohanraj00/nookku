@@ -58,6 +58,20 @@
   padding-left: 24px;
 }
 
+/* A reply is in an item of the list of turns, so the browser gives its top list the marker of a
+   nested list. Give each level the marker of its own depth in the reply. */
+.md ul {
+  list-style-type: disc;
+}
+
+.md ul ul {
+  list-style-type: circle;
+}
+
+.md ul ul ul {
+  list-style-type: square;
+}
+
 .md li > p {
   margin: 0;
 }

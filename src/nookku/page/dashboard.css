@@ -1,28 +1,49 @@
-/* The dashboard of the tests (#349). It uses the colors of app.css. */
-.nav {
-  margin: 0 0 12px;
-  font-size: 13px;
-}
-
-a {
-  color: var(--accent);
-}
+/* The dashboard of the tests (#349, #391). app.css holds the header, the buttons, the pills and
+   the empty state. The diff page also uses the table of this file. */
 
 .filters {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 10px 12px;
+  margin: 0 0 16px;
+  align-items: flex-end;
+}
+
+.field {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.field.grow {
+  flex: 1;
+  min-width: 200px;
+}
+
+.field select,
+.field input {
+  font: 13.5px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--control-line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--fg);
+  width: 100%;
+}
+
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
   margin: 0 0 12px;
 }
 
-select {
-  font: inherit;
-  margin-left: 4px;
-  padding: 2px 4px;
-  background: var(--bg);
-  color: var(--fg);
-  border: 1px solid var(--line);
-  border-radius: 6px;
+.bar .note {
+  margin: 0;
 }
 
 /* A wide table scrolls in its box, so the page itself does not scroll to the side. */
@@ -33,21 +54,33 @@ select {
 table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 14px;
+  font-size: 13.5px;
 }
 
 th,
 td {
   text-align: left;
-  padding: 6px 8px;
+  padding: 10px 12px;
   border-bottom: 1px solid var(--line);
   white-space: nowrap;
+  vertical-align: middle;
+}
+
+tbody tr:last-child td {
+  border-bottom: 0;
 }
 
 th {
-  font-size: 12px;
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: var(--muted);
   font-weight: 600;
+  background: var(--raise);
+}
+
+td:nth-child(2) {
+  font: 13px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 .num {
@@ -55,12 +88,20 @@ th {
   font-variant-numeric: tabular-nums;
 }
 
-tbody tr {
+#tests tr[tabindex] {
   cursor: pointer;
 }
 
-tbody tr:hover {
-  background: var(--agent);
+#tests tr[tabindex]:hover {
+  background: var(--raise);
+}
+
+input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+  margin: 0;
+  vertical-align: middle;
 }
 
 .bad {
@@ -68,9 +109,117 @@ tbody tr:hover {
   font-weight: 600;
 }
 
+/* On a touch screen, the box and the filters are larger, so that a finger can hit them. */
+@media (pointer: coarse) {
+  input[type="checkbox"] {
+    width: 24px;
+    height: 24px;
+  }
+
+  .filters select,
+  .filters input {
+    min-height: 44px;
+  }
+}
+
 .problem {
   display: block;
-  font-size: 12px;
+  margin-top: 2px;
+  font: 12px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   color: var(--error-fg);
   white-space: normal;
+}
+
+.foot-note {
+  margin-top: 16px;
+}
+
+/* On a narrow window, each row of a test is a card: the test id on the first line, then the
+   state, the counts and the seal. A label before each count names it. */
+@container (max-width: 640px) {
+  .table.dash,
+  .table.pair {
+    overflow-x: visible;
+  }
+
+  .dash table,
+  .dash tbody,
+  .pair table,
+  .pair tbody {
+    display: block;
+  }
+
+  .dash thead,
+  .pair thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .dash tr,
+  .pair tr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 12px;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .dash tr:last-child,
+  .pair tr:last-child {
+    border-bottom: 0;
+  }
+
+  .dash td,
+  .pair td {
+    border: 0;
+    padding: 0;
+  }
+
+  .dash td:nth-child(2),
+  .pair td:nth-child(2) {
+    flex: 1 1 60%;
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .dash td:nth-child(3) {
+    flex-basis: 100%;
+    order: 1;
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+
+  .dash td.num,
+  .pair td.num,
+  .dash td:nth-child(8) {
+    font-size: 12.5px;
+  }
+
+  .dash td:nth-child(5)::before,
+  .pair td:nth-child(4)::before {
+    content: "Turns ";
+    color: var(--muted);
+  }
+
+  .dash td:nth-child(6)::before,
+  .pair td:nth-child(5)::before {
+    content: "Breaks ";
+    color: var(--muted);
+  }
+
+  .dash td:nth-child(7)::before,
+  .pair td:nth-child(6)::before {
+    content: "Findings ";
+    color: var(--muted);
+  }
+
+  .dash td:nth-child(8)::before {
+    content: "Seal ";
+    color: var(--muted);
+  }
 }

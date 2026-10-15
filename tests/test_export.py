@@ -101,10 +101,13 @@ def test_the_export_holds_the_chat_the_steps_the_notes_the_audit_and_the_seal(
 
 def test_no_text_can_end_a_script_block_and_the_page_makes_no_external_url(project: Path) -> None:
     html = export.build(project, project / ".nookku" / "tests" / TEST_ID).decode()
-    # 1 data block and 2 scripts: the "</script>" texts of the agent and the note are escapes.
-    assert html.count("</script>") == 3
+    # 1 data block and 3 scripts: the "</script>" texts of the agent and the note are escapes.
+    assert html.count("</script>") == 1 + len(export.SCRIPTS) == 4
     assert "alert(" not in outside_data(html).split("<script>", 1)[0]
-    page_html = outside_data(html)
+    # The only link is the logo icon of the tab, a data: URL. The svg namespace in it is a name,
+    # not a request.
+    assert export.ICON.startswith('<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,')
+    page_html = outside_data(html).replace(export.ICON, "", 1)
     assert not re.search(r"\b(src|href)\s*=", page_html.split("<body>", 1)[1])
     assert not re.search(r"<(link|iframe|img|video|object|embed)\b", page_html)
     csp = re.search(r'http-equiv="Content-Security-Policy" content="([^"]*)"', html)
@@ -322,6 +325,14 @@ def test_the_page_has_the_export_button() -> None:
     assert "export_button.js" in page.FILES
 
 
+def test_the_export_has_the_header_of_the_chat_page(project: Path) -> None:
+    """The export has the style of the chat page (#391): app.css and the header with the mark."""
+    html = export.build(project, project / ".nookku" / "tests" / TEST_ID).decode()
+    assert export.STYLES[0] == "app.css" and export.STYLES[-1] == "theme.css"
+    assert '<header class="top">' in html and export.MARK in html
+    assert '<span id="pill" class="pill end">' in html
+
+
 def test_the_export_script_makes_no_html_from_text() -> None:
     for name in ("export.js", "export_button.js"):
         js = (PAGE / name).read_text()
@@ -362,3 +373,12 @@ def test_the_hash_of_the_csp_is_of_the_text_with_lf_only(
     ]
     for script in scripts:
         assert export._sha(script) in html
+
+
+def test_the_export_has_the_eyes_mark_and_the_logo_icon(project: Path) -> None:
+    html = export.build(project, project / ".nookku" / "tests" / TEST_ID).decode()
+    head = html[: html.index("</head>")]
+    assert export.ICON in head
+    assert export.MARK + '<span class="word">Nookku</span>' in html
+    # The CSP of the export allows a data: image, so that the tab shows the icon.
+    assert "img-src data:;" in head

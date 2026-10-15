@@ -44,7 +44,7 @@ from types import MappingProxyType
 from typing import Any, BinaryIO, TextIO
 from urllib.parse import unquote, urlsplit
 
-from nookku import dashboard, kit, notes, page_trace, replay, script_save, state
+from nookku import dashboard, kit, notes, page_end, page_trace, replay, script_save, state
 from nookku.record import RecordError, Writer, finite, id_problem, turns
 
 # The harness of a turn that the page sent (SPEC.md section 2.2).
@@ -99,6 +99,12 @@ FILES = {
     # The page key in the memory of the page (SPEC.md section 5, "Session").
     "key.js": ("key.js", "text/javascript; charset=utf-8"),
     "search.js": ("search.js", "text/javascript; charset=utf-8"),
+    # The layout, the icons and the header menu of the chat page (#391).
+    "chat.css": ("chat.css", "text/css; charset=utf-8"),
+    "icons.js": ("icons.js", "text/javascript; charset=utf-8"),
+    "menu.js": ("menu.js", "text/javascript; charset=utf-8"),
+    # The "End test" button of the chat page (#391).
+    "end_button.js": ("end_button.js", "text/javascript; charset=utf-8"),
 }
 # The page loads only its own files. No inline script, no inline style, no script of another site.
 # A reply can name an image, a video or an SVG as an https: URL, a data: URI or a file (#347).
@@ -468,6 +474,9 @@ class PageServer(ThreadingHTTPServer):
     """The page server of one project. It listens only on 127.0.0.1."""
 
     daemon_threads = True
+    # A cold load asks for about 20 files at the same time. With the default backlog of 5, the
+    # system refused some of them, and the page showed with no style.
+    request_queue_size = 64
 
     def __init__(self, root: Path, port: int = 0, token: str | None = None) -> None:
         super().__init__((HOST, port), _Handler)
@@ -730,7 +739,7 @@ class _Handler(BaseHTTPRequestHandler):
         rest = self._route()
         if rest is None:
             return
-        if rest not in ("api/send", script_save.ROUTE, notes.ADD_ROUTE, "api/open"):
+        if rest not in ("api/send", script_save.ROUTE, notes.ADD_ROUTE, "api/open", page_end.ROUTE):
             self._refuse(404, "not found")
             return
         data = self._body()
@@ -741,6 +750,9 @@ class _Handler(BaseHTTPRequestHandler):
             return
         if rest == notes.ADD_ROUTE:
             self._note(data)
+            return
+        if rest == page_end.ROUTE:
+            self._end(data)
             return
         if rest == "api/open":
             try:
@@ -766,6 +778,26 @@ class _Handler(BaseHTTPRequestHandler):
             except Exception as e:  # each failure must give the page an error, not a reset
                 self._json(500, {"sent": False, "ok": False, "shown": f"nookku: {e}"})
                 return
+        self._json(200, answer)
+
+    def _end(self, data: Any) -> None:
+        """End the running test from the page, with no evaluation (#391)."""
+        problem = page_end.bad_body(data)
+        if problem:
+            self._refuse(400, problem)
+            return
+        # A send of the page holds this lock while it waits for the reply. The end does not wait
+        # for it: the tester sees the reply first, then ends the test.
+        if not self.server.lock.acquire(blocking=False):
+            self._json(409, {"ended": False, "error": page_end.SENDING})
+            return
+        try:
+            answer = page_end.end(self.server.root, data["test"])
+        except Exception as e:  # each failure must give the page an error, not a reset
+            self._json(500, {"ended": False, "error": f"nookku: {e}"})
+            return
+        finally:
+            self.server.lock.release()
         self._json(200, answer)
 
     def _note(self, data: Any) -> None:
