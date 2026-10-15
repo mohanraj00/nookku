@@ -23,7 +23,13 @@ The app needs `claude-agent-sdk`, which is not a dependency of Nookku. Do these 
    nookku init claude-code --entry "uv run --with claude-agent-sdk python3 examples/toy-shop-full/entry.py" --models claude-code
    ```
 
-3. Add the keys `backends` and `model_api` of the full toy shop to `.nookku/config.json`. [docs/reference/config.md](../../docs/reference/config.md#nookkuconfigjson) shows the complete configuration, and [docs/how-to/add-a-backend.md](../../docs/how-to/add-a-backend.md) explains the backend.
+3. Run `nookku init` again, with the stock service and the note model. Use the same relay as in step 2. You do not edit `.nookku/config.json`:
+
+   ```bash
+   nookku init claude-code --backend stock STOCK_URL http://127.0.0.1:9001 --model-api anthropic --model-api openai=http://127.0.0.1:9002/v1
+   ```
+
+   This run keeps the keys of step 2, and writes the keys `backends` and `model_api`. [docs/reference/config.md](../../docs/reference/config.md#examples) shows the complete configuration, and [docs/how-to/add-a-backend.md](../../docs/how-to/add-a-backend.md) explains the backend.
 4. Start the stock service and the toy note model on local ports, each one in its own shell:
 
    ```bash

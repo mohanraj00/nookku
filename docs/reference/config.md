@@ -37,8 +37,8 @@ These keys configure a test ([SPEC.md section 7.1](../../SPEC.md#71-configuratio
 | `models` | list of strings | `[]` | The [harnesses](glossary.md#harness) that the app uses for its own model sessions: `claude-code`, `codex`, both or none. `nookku check` fails if it does not find a session for each one. |
 | `evaluate` | boolean | `true` | `false` stops the [evaluation](glossary.md#evaluation) at the end of a test ([SPEC.md section 9](../../SPEC.md#9-evaluation)). |
 | `otel` | boolean | `true` | `false` stops the OTLP receiver of a test ([SPEC.md section 7.5](../../SPEC.md#75-otlp-receiver)). |
-| `backends` | list of objects | `[]` | The backends of the app, each with the strings `name`, `env` and `url`. Each `name` and each `env` occurs only once ([how-to/add-a-backend.md](../how-to/add-a-backend.md)). |
-| `model_api` | boolean, list or object | `true` | The model APIs to record: `true` for all, `false` for none, a list of `anthropic` and `openai`, or an object from these names to the upstream URL or `null` ([how-to/record-model-calls.md](../how-to/record-model-calls.md)). |
+| `backends` | list of objects | `[]` | The backends of the app, each with the strings `name`, `env` and `url`. `env` is a variable name of letters, digits and `_`. Each `name` and each `env` occurs only once ([how-to/add-a-backend.md](../how-to/add-a-backend.md)). `nookku init --backend NAME ENV URL` writes it ([cli.md](cli.md#nookku-init)). |
+| `model_api` | boolean, list or object | `true` | The model APIs to record: `true` for all, `false` for none, a list of `anthropic` and `openai`, or an object from these names to the upstream URL or `null` ([how-to/record-model-calls.md](../how-to/record-model-calls.md)). `nookku init --model-api API[=URL]` writes the object form ([cli.md](cli.md#nookku-init)). |
 | `entries` | object | `{}` | More entries for a [scripted test](glossary.md#scripted-test), by name, for example `{"replay": ["python3", "replay_entry.py"]}`. `nookku run --entry replay` uses one. `entry` stays the default entry ([how-to/test-your-app.md](../how-to/test-your-app.md#run-a-scripted-test)). |
 | `check_message` | string | `Hello from nookku check. What can you help me with?` | The one message that `nookku check` sends. It must have a character that is not white space, and no lone surrogate. Set it to a message that your app answers normally, for example a question about a product of the shop. |
 | `repeated_reply` | integer | `2` | The count of consecutive turns with the same reply that gives a `repeated_reply` [finding](glossary.md#findings) of the [trace](glossary.md#trace) ([SPEC.md section 8.6](../../SPEC.md#86-findings)). `0` turns the check off. A value of 1 or less than 0 is an error. The manifest of each test records the value. |
@@ -70,7 +70,7 @@ The toy shop with the project hooks:
 {"entry": ["python3", "agent.py"], "models": []}
 ```
 
-The full toy shop, with a stock service and a note model on local ports:
+The full toy shop, with a stock service and a note model on local ports. The `init` commands of its [README](../../examples/toy-shop-full/README.md#run-it) write this file, with the default of each other key:
 
 ```json
 {

@@ -367,7 +367,13 @@ Write the config, and the [project hooks](glossary.md#project-hooks) of a harnes
 
 If `config.json` exists, `init` keeps each key and changes only the keys of the flags that you give. For example, a second run keeps `backends` and `"evaluate": false`. It prints the keys that it changed and the keys that it kept. A new `config.json` gets each key. The default of a flag applies only to a new file.
 
-If `config.json` has an unknown key, or if `config.json` or the hook file is not valid JSON, `init` writes nothing. Correct the file, then run `init` again.
+If `config.json` has an unknown key, or if `config.json` or the hook file is not valid JSON, `init` writes nothing. Correct the file, then run `init` again. If a flag gives a value that breaks the rule of its key, for example a backend URL or a model API URL that is not `http` or `https`, or one API two times in `--model-api`, `init` also writes nothing.
+
+For example, this run writes the backend and the model APIs of the [full toy shop](../../examples/toy-shop-full/README.md#run-it), and keeps each other key:
+
+```bash
+nookku init claude-code --backend stock STOCK_URL http://127.0.0.1:9001 --model-api anthropic --model-api openai=http://127.0.0.1:9002/v1
+```
 
 The output starts with `Project root:` and the absolute root, then gives the absolute path of each file that `init` wrote. If the root is in a state folder or a test folder, for example `.nookku/tests/<id>`, the target of a `.nookku` symlink, or a copied test folder, `init` writes nothing, exits with 1 and names the project folder to use ([code](../../src/nookku/cli.py), [test](../../tests/test_cli.py)). If the root has no `config.json` and is not the top level of its git work tree, `init` prints a warning that names the top level. It still writes the files.
 
@@ -389,6 +395,8 @@ The output starts with `Project root:` and the absolute root, then gives the abs
 | `--model-reply-field PATH` | empty | The config key `model_reply_field`: the dot path of the client text in a structured model output. |
 | `--model-reply-match MODE` | `normalized` | The config key `model_reply_match`: `exact`, `normalized` or `off`. |
 | `--repeated-reply COUNT` | `2` | The config key `repeated_reply`: the count of consecutive turns with the same reply that gives a finding. `0` turns the check off. |
+| `--backend NAME ENV URL` | none | The config key `backends`: one backend, with its name, the variable of its URL and its real URL ([how-to/add-a-backend.md](../how-to/add-a-backend.md)). Give the flag one time for each backend. The flags replace the full list. |
+| `--model-api API[=URL]` | none | The config key `model_api`: one model API to record, `anthropic` or `openai`. `API=URL` gives the upstream URL, and `API` alone takes the URL from the variable ([how-to/record-model-calls.md](../how-to/record-model-calls.md)). Give the flag one time for each API. The flags replace the full key with the object form. With no flag, a new file gets `true`. |
 | `--remove` | off | Remove the project hooks of nookku, and keep each other hook and key. `HARNESS` must be `claude-code` or `codex`. It takes no other flag. |
 
 [config.md](config.md#nookkuconfigjson) explains each key.

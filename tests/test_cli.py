@@ -1,4 +1,6 @@
 import json
+import re
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -357,6 +359,95 @@ def test_init_takes_the_model_reply_flags(tmp_path: Path) -> None:
     assert main([*args, "--model-reply-match", "exact"]) == 0
     conf = json.loads((tmp_path / ".nookku" / "config.json").read_text())
     assert (conf["model_reply_field"], conf["model_reply_match"]) == ("output.client_text", "exact")
+
+
+STOCK = ["--backend", "stock", "STOCK_URL", "http://127.0.0.1:9001"]
+
+
+def test_init_takes_the_backend_and_model_api_flags(tmp_path: Path) -> None:
+    root = ["init", "codex", "--root", str(tmp_path)]
+    pay = ["--backend", "pay", "PAY_URL", "https://pay.example/"]
+    apis = ["--model-api", "anthropic", "--model-api", "openai=http://127.0.0.1:9002/v1"]
+    assert main([*root, *STOCK, *pay, *apis]) == 0
+    path = tmp_path / ".nookku" / "config.json"
+    conf = json.loads(path.read_text())
+    assert conf["backends"] == [
+        {"name": "stock", "env": "STOCK_URL", "url": "http://127.0.0.1:9001"},
+        {"name": "pay", "env": "PAY_URL", "url": "https://pay.example/"},
+    ]
+    assert conf["model_api"] == {"anthropic": None, "openai": "http://127.0.0.1:9002/v1"}
+    # A run with no flag keeps both keys. The flags of a run replace the full key.
+    assert main(root) == 0
+    assert json.loads(path.read_text()) == conf
+    assert main([*root, *STOCK, "--model-api", "openai"]) == 0
+    conf = json.loads(path.read_text())
+    assert conf["backends"] == [conf["backends"][0]] and conf["backends"][0]["name"] == "stock"
+    assert conf["model_api"] == {"openai": None}
+
+
+def test_a_new_file_with_no_model_api_flag_records_each_api(tmp_path: Path) -> None:
+    assert main(["init", "codex", "--root", str(tmp_path), *STOCK]) == 0
+    conf = json.loads((tmp_path / ".nookku" / "config.json").read_text())
+    assert conf["model_api"] is True
+
+
+@pytest.mark.parametrize(
+    "flags, error",
+    [
+        ([*STOCK, *STOCK], "each backend needs its own 'name' and 'env'"),
+        (["--backend", "stock", "STOCK_URL", "ftp://h"], "'url' must be an http or https URL"),
+        (["--backend", "stock", "STOCK_URL", "http://h:99999"], "'url' must be an http or https"),
+        (["--backend", "stock", "A=B", "http://h"], "'env' must be a variable name"),
+        (["--backend", "stock", "", "http://h"], "'env' must be a variable name"),
+        (["--model-api", "openai", "--model-api", "openai=http://h"], "each API to --model-api"),
+    ],
+)
+def test_init_writes_nothing_for_a_bad_backend_or_model_api(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], flags: list[str], error: str
+) -> None:
+    assert main(["init", "codex", "--root", str(tmp_path), *flags]) == 1
+    err = capsys.readouterr().err
+    assert error in err and "Nothing was written." in err
+    assert not (tmp_path / ".nookku" / "config.json").exists()
+
+
+@pytest.mark.parametrize(
+    "flags",
+    [
+        ["--model-api", "gemini"],
+        ["--model-api", "openai="],
+        ["--model-api", "openai=ftp://host"],
+        ["--model-api", "anthropic=http://"],
+        ["--model-api", "openai=http://h:notaport"],
+        ["--backend", "stock", "STOCK_URL"],
+    ],
+)
+def test_init_refuses_a_malformed_backend_or_model_api_flag(
+    tmp_path: Path, flags: list[str]
+) -> None:
+    with pytest.raises(SystemExit) as e:
+        main(["init", "codex", "--root", str(tmp_path), *flags])
+    assert e.value.code == 2
+    assert not (tmp_path / ".nookku").exists()
+
+
+def test_the_init_commands_of_the_full_toy_shop_write_the_documented_config(
+    tmp_path: Path,
+) -> None:
+    # A tester writes the config of examples/toy-shop-full/ with no hand edit (#392).
+    repo = Path(__file__).resolve().parent.parent
+    readme = (repo / "examples" / "toy-shop-full" / "README.md").read_text()
+    runs = re.findall(r"^ *(nookku init .+)$", readme, re.MULTILINE)
+    assert len(runs) == 2
+    for run in runs:
+        assert main([*shlex.split(run)[1:], "--root", str(tmp_path)]) == 0
+    page = (repo / "docs" / "reference" / "config.md").read_text()
+    shown = page.split("The full toy shop, with a stock service", 1)[1]
+    found = re.search(r"```json\n(.*?)```", shown, re.DOTALL)
+    assert found is not None
+    block = json.loads(found[1])
+    conf = json.loads((tmp_path / ".nookku" / "config.json").read_text())
+    assert {k: conf[k] for k in block} == block
 
 
 def test_init_refuses_an_unknown_model_reply_match(
@@ -779,6 +870,8 @@ def test_init_remove_refuses_with_old_relay_mode_on_and_does_not_move_it(
         ["codex", "--entry", "python3 a.py"],
         ["codex", "--openai-stream"],
         ["codex", "--no-openai-stream"],
+        ["codex", *STOCK],
+        ["codex", "--model-api", "openai"],
     ],
 )
 def test_init_remove_takes_no_config_flag(
