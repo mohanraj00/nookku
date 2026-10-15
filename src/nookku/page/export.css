@@ -141,6 +141,12 @@
   margin-top: 3px;
 }
 
+.sys.quiet {
+  background: none;
+  color: var(--muted);
+  border: 1px dashed var(--control-line);
+}
+
 .sys .who {
   margin: 0 0 2px;
   font-size: 12px;

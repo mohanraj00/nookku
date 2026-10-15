@@ -15,6 +15,8 @@
   let big = new Set();
   // The paths of the media files that a reply shows.
   const used = new Set();
+  // The name of each source of a message, as the chat page shows it (SOURCES in app.js).
+  const SOURCES = { pane: "page", "claude-code": "Claude Code", codex: "Codex", script: "script" };
 
   function el(tag, cls, text) {
     const e = document.createElement(tag);
@@ -136,10 +138,11 @@
     return reply;
   }
 
-  // A turn where the relay could not send the message, or showed no reply.
-  function relayItem(who, text) {
+  // A turn where the relay could not send the message (red, as on the chat page), or showed no
+  // reply (grey, because it is not an error of the relay).
+  function relayItem(who, text, quiet) {
     const li = el("li", "turn relay-error");
-    const box = el("div", "sys");
+    const box = el("div", quiet ? "sys quiet" : "sys");
     const body = el("div");
     body.append(el("p", "who", who), el("pre", "text", text));
     box.append(...icon("alert"), body);
@@ -314,12 +317,12 @@
     const list = document.getElementById("turns");
     data.turns.forEach((turn, i) => {
       const number = i + 1;
-      const sender = turn.harness === "script" ? "script" : "tester · " + turn.harness;
+      const sender = SOURCES[turn.harness] || turn.harness;
       list.append(testerItem(sender, turn.said));
       let li;
       let slot;
       if (turn.shown === null) {
-        ({ li: li, slot: slot } = relayItem("relay", "The relay showed no reply for this turn."));
+        ({ li: li, slot: slot } = relayItem("relay", "The relay showed no reply for this turn.", true));
       } else if (turn.ok === false) {
         ({ li: li, slot: slot } = relayItem("relay error", turn.shown));
       } else {
