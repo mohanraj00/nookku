@@ -100,15 +100,15 @@ function side(title, said, reply, words, mark) {
 function turnItem(turn, oldId, newId) {
   const li = element("li", "", turn.changed ? "turn changed" : "turn");
   const head = element("h2", "Turn " + turn.n + " ");
-  head.append(pill(turn.changed ? "Changed" : "Same", turn.changed ? "bad" : "ok"));
+  head.append(pill(turn.changed ? "Changed" : "Same", turn.changed ? "warn" : "ok"));
   li.append(head);
   if (turn.said_old === null || turn.said_new === null) {
     const only = turn.said_old === null ? newId : oldId;
     li.append(element("p", "Only test " + only + " has this turn.", "said"));
   }
   if (turn.said_changed && turn.said_old !== null && turn.said_new !== null) {
-    li.append(element("p", "Message of " + oldId + ": " + turn.said_old, "said"));
-    li.append(element("p", "Message of " + newId + ": " + turn.said_new, "said"));
+    li.append(element("p", "Old message: " + turn.said_old, "said"));
+    li.append(element("p", "New message: " + turn.said_new, "said"));
   } else {
     li.append(element("p", "Message: " + (turn.said_old ?? turn.said_new), "said"));
   }

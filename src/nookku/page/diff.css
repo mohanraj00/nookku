@@ -25,10 +25,6 @@
   padding: 14px 16px;
 }
 
-.turn.changed {
-  border-color: var(--error-line);
-}
-
 .turn h2 {
   display: flex;
   align-items: center;
@@ -83,11 +79,13 @@ del {
   color: var(--error-fg);
 }
 
+/* An added word: green with an underline, so that it does not look like a link, and the
+   underline marks it also with no color. */
 ins {
-  background: var(--tester);
-  color: var(--accent);
-  font-weight: 600;
+  background: var(--ok-bg);
+  color: var(--ok);
   text-decoration: underline;
+  text-decoration-color: currentColor;
 }
 
 .missing {
