@@ -1,53 +1,84 @@
-/* The colors of the pages and the 2 themes (#355). Each page loads this file last.
+/* The colors of the pages and the 2 themes (#355, #391). Each page loads this file last.
    The light theme is the default. The dark theme applies if the system asks for it and the
    tester did not select a theme, or if the tester selected it. Each text color pair meets
-   WCAG AA (4.5:1), and the border of a control meets 3:1. tests/test_page_theme.py checks it. */
+   WCAG AA (4.5:1), and the border of a control meets 3:1. tests/test_page_theme.py checks it.
+   --agent is the old name of --raise. The dashboard, the diff page and the export use it. */
 
 :root {
   color-scheme: light;
-  --bg: #ffffff;
-  --fg: #1d1d1f;
-  --muted: #5f6368;
-  --tester: #e8f0fe;
-  --agent: #f1f3f4;
-  --error-bg: #fce8e6;
-  --error-fg: #a50e0e;
-  --line: #dadce0;
-  --control-line: #80868b;
-  --accent: #1967d2;
+  --bg: #f9fafb;
+  --surface: #ffffff;
+  --raise: #f2f4f7;
+  --fg: #16191d;
+  --muted: #59626d;
+  --line: #e2e6eb;
+  --control-line: #868f9a;
+  --tester: #e8effa;
+  --tester-fg: #12233f;
+  --agent: #f2f4f7;
+  --accent: #1f5fbf;
   --on-accent: #ffffff;
+  --ok: #1b7a45;
+  --ok-bg: #e5f4ec;
+  --warn-fg: #8a5a00;
+  --warn-bg: #fdf3dc;
+  --error-fg: #a3231a;
+  --error-bg: #fdecea;
+  --error-line: #e3a49d;
+  --focus: #1f5fbf;
+  --shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 4px 16px rgba(16, 24, 40, 0.06);
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #18191b;
-  --fg: #e8eaed;
-  --muted: #a8adb3;
-  --tester: #1c2e4a;
-  --agent: #26282b;
-  --error-bg: #3d1f1f;
-  --error-fg: #f6aea9;
-  --line: #3c4043;
-  --control-line: #80868b;
-  --accent: #8ab4f8;
+  --bg: #111316;
+  --surface: #181b1f;
+  --raise: #1f2328;
+  --fg: #e5e8ec;
+  --muted: #9aa3ad;
+  --line: #2a2f36;
+  --control-line: #6f7884;
+  --tester: #1c2a3e;
+  --tester-fg: #dce7f8;
+  --agent: #1f2328;
+  --accent: #8cb4f5;
   --on-accent: #0b1a33;
+  --ok: #73d39f;
+  --ok-bg: #16291f;
+  --warn-fg: #f0c674;
+  --warn-bg: #2d2412;
+  --error-fg: #f4aba4;
+  --error-bg: #351c1a;
+  --error-line: #6e3530;
+  --focus: #8cb4f5;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 16px rgba(0, 0, 0, 0.25);
 }
 
 /* The same values as the dark theme above. The test checks that the 2 blocks are equal. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --bg: #18191b;
-    --fg: #e8eaed;
-    --muted: #a8adb3;
-    --tester: #1c2e4a;
-    --agent: #26282b;
-    --error-bg: #3d1f1f;
-    --error-fg: #f6aea9;
-    --line: #3c4043;
-    --control-line: #80868b;
-    --accent: #8ab4f8;
+    --bg: #111316;
+    --surface: #181b1f;
+    --raise: #1f2328;
+    --fg: #e5e8ec;
+    --muted: #9aa3ad;
+    --line: #2a2f36;
+    --control-line: #6f7884;
+    --tester: #1c2a3e;
+    --tester-fg: #dce7f8;
+    --agent: #1f2328;
+    --accent: #8cb4f5;
     --on-accent: #0b1a33;
+    --ok: #73d39f;
+    --ok-bg: #16291f;
+    --warn-fg: #f0c674;
+    --warn-bg: #2d2412;
+    --error-fg: #f4aba4;
+    --error-bg: #351c1a;
+    --error-line: #6e3530;
+    --focus: #8cb4f5;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 16px rgba(0, 0, 0, 0.25);
   }
 }
 
@@ -58,6 +89,7 @@ input[type="search"] {
   border-color: var(--control-line);
 }
 
+/* The theme button of the pages that have no menu (the dashboard and the diff page). */
 .theme {
   margin: 0 0 12px;
   font-size: 13px;
