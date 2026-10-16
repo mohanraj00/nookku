@@ -15,6 +15,8 @@ The proofs show that each [relay](../reference/glossary.md#relay) is exact in a 
 - Run each proof of the setup `hooks-codex` in the main checkout of the repo, not in a git worktree. In a git worktree, Codex reads the project hooks from the main checkout, so the proof does not use the hooks of the worktree.
 - The plugin hooks run `nookku` from `PATH`. The scripts put the `nookku` of this checkout first.
 - Codex runs each command of the model in a login shell, which reads your shell profile again. If the profile puts another `nookku` first on `PATH`, the model runs that one. Remove it before the proofs, for example with `uv tool uninstall nookku`.
+- In Claude Code, `proof_report.py`, `proof_evaluation.py` and `proof_tutorial.py` give each session only the settings of the project and only the nookku MCP server. Thus no hook, plugin, permission rule or MCP server of your user configuration reaches the model ([proof_common.py](../../scripts/proof_common.py)). Claude Code still loads the mods of `~/.claude/mods`, and no flag stops them. If a plugin that is not built in loads, the proof stops. Before these proofs, move `~/.claude/mods` to a different folder. Move it back after the run.
+- In Codex, the setup `hooks-codex` uses your own `CODEX_HOME`, so the MCP servers of your Codex configuration load.
 - Some proofs use a real model and cost tokens. The proofs of the proxies and the backend need no model.
 
 ## Trust the Codex hooks once
