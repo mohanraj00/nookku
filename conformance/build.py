@@ -4190,32 +4190,61 @@ GUARD_CASES: dict[str, dict] = {
 }
 
 
-# Near-miss control prompts in relay mode (SPEC.md section 5, #146). A refused message gets the
-# refusal and is not a turn. Each other message goes to the agent.
+# Near-miss control prompts (SPEC.md section 5, #146). In relay mode, a refused message gets the
+# refusal and is not a turn, and each other message goes to the agent. `mode_off_hint` is the
+# control prompt that the hook names with relay mode off, or None if the prompt goes to the model
+# (#401). With relay mode off, only the edit distance counts, and not the first word nookku.
 CONTROL_CASES: dict[str, dict] = {
-    "wrong_command_word": {"prompt": "nookku stop", "refused": True},
-    "capital_letter": {"prompt": "Nookku start", "refused": True},
-    "two_spaces": {"prompt": "nookku  end", "refused": True},
-    "name_alone": {"prompt": "nookku", "refused": True},
-    "one_letter_short": {"prompt": "nookk end", "refused": True},
-    "two_edits": {"prompt": "noku status", "refused": True},
-    "three_edits": {"prompt": "nok stat", "refused": False},
-    "shop_question_about_relays": {"prompt": "Do you sell relay switches?", "refused": False},
-    "shop_word_near_the_name": {"prompt": "Is the nook table in stock?", "refused": False},
+    "wrong_command_word": {"prompt": "nookku stop", "refused": True, "mode_off_hint": None},
+    "capital_letter": {"prompt": "Nookku start", "refused": True, "mode_off_hint": "nookku start"},
+    "two_spaces": {"prompt": "nookku  end", "refused": True, "mode_off_hint": "nookku end"},
+    "name_alone": {"prompt": "nookku", "refused": True, "mode_off_hint": None},
+    "one_letter_short": {"prompt": "nookk end", "refused": True, "mode_off_hint": "nookku end"},
+    "one_letter_short_in_the_middle": {
+        "prompt": "nooku end",
+        "refused": True,
+        "mode_off_hint": "nookku end",
+    },
+    "two_edits": {"prompt": "noku status", "refused": True, "mode_off_hint": "nookku status"},
+    "three_edits": {"prompt": "nok stat", "refused": False, "mode_off_hint": None},
+    "question_about_nookku": {
+        "prompt": "tell me about nookku",
+        "refused": False,
+        "mode_off_hint": None,
+    },
+    "shop_question_about_relays": {
+        "prompt": "Do you sell relay switches?",
+        "refused": False,
+        "mode_off_hint": None,
+    },
+    "shop_word_near_the_name": {
+        "prompt": "Is the nook table in stock?",
+        "refused": False,
+        "mode_off_hint": None,
+    },
     "distance_zero_turns_off_the_rule": {
         "prompt": "nookku stop",
         "policy_text": '{"control_distance": 0}\n',
         "refused": False,
+        "mode_off_hint": None,
+    },
+    "distance_zero_turns_off_the_rule_with_mode_off": {
+        "prompt": "nooku end",
+        "policy_text": '{"control_distance": 0}\n',
+        "refused": False,
+        "mode_off_hint": None,
     },
     "distance_one": {
         "prompt": "noku status",
         "policy_text": '{"control_distance": 1}\n',
         "refused": False,
+        "mode_off_hint": None,
     },
     "broken_policy_uses_the_default": {
         "prompt": "nookk end",
         "policy_text": '{"control_distance": -1}\n',
         "refused": True,
+        "mode_off_hint": "nookku end",
     },
 }
 

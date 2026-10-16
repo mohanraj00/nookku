@@ -108,6 +108,10 @@ NEAR_CONTROL_REASON = (
     "nookku: nothing was sent. The message is near a control prompt. The control prompts are: "
     "nookku start, nookku end, nookku status."
 )
+# The refusal of a prompt near a control prompt when relay mode is off (Gate 1 of v0.5.1, #401).
+NEAR_CONTROL_OFF_REASON = (
+    "nookku: did you mean the prompt {control}? Nothing was sent to the model."
+)
 
 
 def mode_path(root: Path) -> Path:
@@ -340,6 +344,25 @@ def near_control(said: str, limit: int) -> bool:
     )
 
 
+def _control_distance(root: Path) -> int:
+    """The control_distance key of the policy file. If the file is not valid, the default."""
+    rules = _policy(root)
+    limit = rules["control_distance"] if rules is not None else None
+    return policy.KEYS["control_distance"].default if limit is None else int(limit)
+
+
+def near_control_off(said: str, limit: int) -> str | None:
+    """The control prompt that a prompt is near when relay mode is off, or None (SPEC.md section
+    5). Only the edit distance counts: a prompt with the first word nookku can ask the model about
+    nookku. A limit of 0 turns off the rule."""
+    words = said.split()
+    if limit <= 0 or said.strip() in CONTROL or not words:
+        return None
+    text = " ".join(words).casefold()
+    found = sorted((_edit_distance(text, c, limit), c) for c in CONTROL)[0]
+    return found[1] if found[0] <= limit else None
+
+
 def prompt_refusal(said: Any, root: Path) -> str | None:
     """The reason to refuse a prompt in relay mode before it is sent, or None (SPEC.md section 5).
     The hook and the chat page use this one rule. A refused message is not a turn, so the relay
@@ -350,9 +373,7 @@ def prompt_refusal(said: Any, root: Path) -> str | None:
     if found:
         # A relayed message is never changed, so the relay refuses it.
         return f"nookku: nothing was sent. The message has {found}."
-    rules = _policy(root)
-    limit = rules["control_distance"] if rules is not None else None
-    if near_control(said, policy.KEYS["control_distance"].default if limit is None else limit):
+    if near_control(said, _control_distance(root)):
         return NEAR_CONTROL_REASON
     return None
 
@@ -420,7 +441,11 @@ def handle(event: dict[str, Any], root: Path, harness: str) -> dict[str, Any] | 
             # The prompt goes on to the model, which evaluates the test (SPEC.md section 9).
             return _context(f"{text}\n\n{evaluation.prompt(folder)}")
         if not is_on(root):
-            return None
+            # A typo of a control prompt must not go to the model as a normal prompt (#401).
+            if not isinstance(said, str):
+                return None
+            near = near_control_off(said, _control_distance(root))
+            return _block(NEAR_CONTROL_OFF_REASON.format(control=near)) if near else None
         if in_print_mode:
             # A refused message is not a turn, so the relay writes no row.
             return _block(print_mode.REASON)
