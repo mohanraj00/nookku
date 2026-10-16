@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import signal
 import subprocess
@@ -67,18 +68,17 @@ def home_pids(ps_output: str, home: Path) -> list[int]:
 
     The app-server daemon of Codex runs a binary in its CODEX_HOME, so its command line names
     the home. A process with only the name codex, or with the path of a different home, does not
-    match.
+    match. The match does not split the command line at spaces, so a home path with a space
+    also matches.
     """
+    # The home path starts the command line or follows a space or "=". It ends the command
+    # line or comes before a space or a separator.
+    path = re.compile(rf"(?:^|[\s=]){re.escape(str(home))}(?:$|[\s{re.escape(os.sep)}])")
     pids = []
     for line in ps_output.splitlines():
         pid, _, command = line.strip().partition(" ")
-        if not pid.isdigit():
-            continue
-        for word in command.split():
-            path = word.rpartition("=")[2]
-            if path == str(home) or path.startswith(str(home) + os.sep):
-                pids.append(int(pid))
-                break
+        if pid.isdigit() and path.search(command.strip()):
+            pids.append(int(pid))
     return pids
 
 
