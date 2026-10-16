@@ -73,4 +73,8 @@ The folders in [conformance/](../../conformance/) are the executable form of SPE
 | [conformance/trace/](../../conformance/trace/) | the trace and the [findings](glossary.md#findings) | [tests/test_trace.py](../../tests/test_trace.py) |
 | [conformance/seal/](../../conformance/seal/) | `verify` | [tests/test_seal.py](../../tests/test_seal.py) |
 | [conformance/otlp/](../../conformance/otlp/) | the OTLP receiver | [tests/test_otlp.py](../../tests/test_otlp.py) |
+| [conformance/policy/](../../conformance/policy/) | the deny of each model tool call that can change the [policy file](glossary.md#policy-file) | [tests/test_policy.py](../../tests/test_policy.py) |
+| [conformance/guard/](../../conformance/guard/) | the denies of model tool calls on the state folder: test files, drive commands and the read check ([SPEC.md section 5](../../SPEC.md#5-relays)) | [tests/test_guard.py](../../tests/test_guard.py) |
+| [conformance/control/](../../conformance/control/) | the refusal of a message near a [control prompt](glossary.md#control-prompt) in [relay mode](glossary.md#relay-mode) | [tests/test_kit.py](../../tests/test_kit.py) |
 | [conformance/evaluation/](../../conformance/evaluation/) | the rule for a check test, which gets no evaluation and does not hide the test before it | [tests/test_evaluation.py](../../tests/test_evaluation.py) |
+| [conformance/notes/](../../conformance/notes/) | the notes record | [tests/test_notes.py](../../tests/test_notes.py) |

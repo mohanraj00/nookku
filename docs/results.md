@@ -224,6 +224,7 @@ uv run python scripts/proof_sessions.py
 uv run python scripts/proof_trace.py
 uv run python scripts/proof_backend.py
 uv run python scripts/proof_model_api.py
+uv run python scripts/proof_api_hello.py
 uv run python scripts/proof_codex_otel.py
 uv run python scripts/proof_report.py plugin-claude-code
 uv run python scripts/proof_report.py plugin-codex
