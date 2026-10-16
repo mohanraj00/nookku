@@ -10,6 +10,11 @@ on:
 
 permissions: {}
 
+# A run by hand and a scheduled run must not both open an issue for the same version.
+concurrency:
+  group: claude-code-release
+  cancel-in-progress: false
+
 jobs:
   # This job runs the code of the npm package. Thus it has no token that can write.
   check:
@@ -29,7 +34,8 @@ jobs:
         id: latest
         run: |
           version="$(npm view @anthropic-ai/claude-code version)"
-          if ! printf '%s' "$version" | grep -Eqx '[0-9]+\.[0-9]+\.[0-9]+'; then
+          # The regex examines the full value, so a value with a newline fails.
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "npm gave a version that is not X.Y.Z: $version" >&2
             exit 1
           fi
@@ -94,8 +100,10 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           title="Claude Code $VERSION fails the plugin checks"
-          # One issue for each version, also if a person closed it.
-          if gh issue list --state all --search "\"$title\" in:title" --json title --jq '.[].title' \
+          # One issue for each version, also if a person closed it. Only an issue of this
+          # workflow counts, so that an issue of another user cannot stop the alert.
+          if gh issue list --state all --author app/github-actions \
+              --search "\"$title\" in:title" --json title --jq '.[].title' \
               | grep -Fqx "$title"; then
             echo "An issue for Claude Code $VERSION exists. I do not open a new one."
             exit 0
