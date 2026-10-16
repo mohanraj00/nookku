@@ -173,6 +173,7 @@ A check is a test, a lint rule, a conformance case or a CI step. "Review" means 
 - `tests/test_package.py::test_no_runtime_dependencies`
 - CI job `lint`: `uv run ruff check .`, `uv run ruff format --check .` and `uv run mypy` (`strict = true` in `pyproject.toml`).
 - CI job `claude-code-plugin`: `claude plugin validate plugins/nookku`.
+- Workflow `claude-code-release.yml`: the same check on the latest Claude Code, each day ([run-the-proofs.md](run-the-proofs.md#a-new-claude-code-release)).
 - GPL or AGPL dependency: review item in CLAUDE.md.
 
 ## 10. Docs and claims
