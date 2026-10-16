@@ -45,7 +45,7 @@ These keys configure a test ([SPEC.md section 7.1](../../SPEC.md#71-configuratio
 | `model_reply_field` | string | empty | The dot path of the client text in a structured model output, for example `reply` or `output.client_text`. The `reply_not_from_model` check of the trace then compares the reply with the value at this path, not with the full model text ([SPEC.md section 8.6](../../SPEC.md#86-findings)). Empty compares the full text. A path with an empty part, for example `output..text`, is an error. The manifest of each test records the value. |
 | `model_reply_match` | string | `normalized` | How the `reply_not_from_model` check compares: `exact` (the reply contains the model text, byte for byte), `normalized` (the same after white space and case are normalized) or `off` (no check). The manifest of each test records the value. |
 | `transcript_compact` | boolean | `false` | `true` makes `nookku transcript --trace` show a repeated prompt one time. `--compact` and `--no-compact` override it ([cli.md](cli.md#nookku-transcript)). |
-| `page` | boolean | `true` | `nookku start` starts the [chat page](cli.md#nookku-page) and opens it in the browser. `nookku end` stops it. `false` turns this off, for example for a test in CI or over SSH ([cli.md](cli.md#nookku-start)). |
+| `page` | boolean | `true` | `nookku start` starts the [chat page](cli.md#nookku-chat) and opens it in the browser. The prompt `nookku end` stops it. `nookku end` in a shell and "End test" on the page keep it, so you can export the test. `false` turns this off, for example for a test in CI or over SSH ([cli.md](cli.md#nookku-start)). |
 
 ### Relay keys
 

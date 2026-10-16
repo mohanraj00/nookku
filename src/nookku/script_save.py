@@ -103,10 +103,10 @@ def answer(root: Path, body: Any) -> tuple[int, dict[str, Any]]:
     object with the text `test`, the id of the test that the page shows."""
     test = body.get("test") if isinstance(body, dict) else None
     if not isinstance(test, str):
-        return 400, {"saved": False, "error": 'nookku page: the body needs the text "test"'}
+        return 400, {"saved": False, "error": 'nookku chat: the body needs the text "test"'}
     found = id_problem(test)
     if found:
-        return 400, {"saved": False, "error": f'nookku page: "test" has {found}'}
+        return 400, {"saved": False, "error": f'nookku chat: "test" has {found}'}
     try:
         path, count = save(root, test)
     except SaveError as e:

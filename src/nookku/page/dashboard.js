@@ -120,7 +120,7 @@ async function refresh() {
     el("count").textContent = n === 1 ? "1 test" : n + " tests";
     showEmpty(n);
   } catch (e) {
-    showError("nookku: the page server does not answer. Start it again with: nookku page");
+    showError("nookku: the page server does not answer. Start it again with: nookku chat");
   }
 }
 

@@ -65,23 +65,23 @@ NO_BROWSER_URL = (
     "nookku end, or at the next start."
 )
 NO_BROWSER = (
-    "The browser did not open, so the chat page did not start. To use the page, run nookku page "
+    "The browser did not open, so the chat page did not start. To use the page, run nookku chat "
     "in a separate terminal."
 )
 FAILED = "nookku: the chat page did not start: {reason}. The test continues."
 REUSED = (
     "another process used the launch URL of the page first, so the page stopped. To use the "
-    "page, run nookku page in a separate terminal"
+    "page, run nookku chat in a separate terminal"
 )
 REUSED_PAGE = (
     "nookku: another process used the launch URL of this chat page first. The chat page "
-    "stopped, and its session has no use now. To use the page, run nookku page in a separate "
+    "stopped, and its session has no use now. To use the page, run nookku chat in a separate "
     "terminal.\n"
 )
 NOT_STOPPED = "nookku: the chat page (pid {pid}) did not stop. Stop it with: kill {pid}"
 NOT_CONFIRMED = (
     "nookku: nookku cannot confirm that pid {pid} is the chat page, so it sent no signal. If "
-    "ps -p {pid} shows nookku page, stop it with: kill {pid}"
+    "ps -p {pid} shows a nookku chat page, stop it with: kill {pid}"
 )
 
 
@@ -129,7 +129,7 @@ def _start(root: Path, test: str, print_url: bool) -> str:
     if stopped is not None:
         return FAILED.format(reason=stopped.removeprefix("nookku: "))
     read, write = os.pipe()
-    command = [sys.executable, "-m", "nookku", "page", "--root", str(root)]
+    command = [sys.executable, "-m", "nookku", "chat", "--root", str(root)]
     command += ["--auto-test", test, "--status-fd", str(write)]
     command += ["--print-url"] if print_url else []
     try:
@@ -231,7 +231,7 @@ def after_end(root: Path, stop: bool) -> str | None:
     """After the end of a test: stop the chat page that `start` started, if stop is True and its
     test does not run. The prompt `nookku end`, the end with the evaluation, sets stop. Another end
     keeps the page, so the tester can export the test. Return an error text, or None. Never raise.
-    A page that the tester started with `nookku page` has no test in its page file, and keeps
+    A page that the tester started with `nookku chat` has no test in its page file, and keeps
     running."""
     if not stop:
         return None
@@ -403,7 +403,7 @@ def _launched(server: AutoPageServer) -> bool:
 
 
 def serve(root: Path, test: str, status_fd: int, print_url: bool) -> int:
-    """The page server that `start` starts (`nookku page --auto-test`). Write one JSON line to
+    """The page server that `start` starts (`nookku chat --auto-test`). Write one JSON line to
     status_fd: the status, and the page URL only with print_url. Then serve until a signal stops
     the server."""
     status = os.fdopen(status_fd, "w")

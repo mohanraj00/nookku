@@ -7,7 +7,7 @@ harness, so the harness model cannot see it. The browser cannot post to the tap 
 sends for the page.
 
 Security: the server listens only on 127.0.0.1. The page URL holds a random token, and only the
-person gets the URL: `nookku page` prints it to its terminal. The first GET of the page URL gives
+person gets the URL: `nookku chat` prints it to its terminal. The first GET of the page URL gives
 the browser a session cookie and a redirect to SESSION_PATH, a path with no secret. Then the token
 has no use, so the browser history does not hold a URL that works. The redirect also gives the
 page key in the URL fragment. The browser does not send a fragment to a server. The page script
@@ -61,7 +61,7 @@ NO_KEY = (
     "test. Keep that tab open, and Open chat gives the key to a new tab"
 )
 USED = (
-    "this page URL was used. Open the page in the browser that opened it, or stop nookku page and "
+    "this page URL was used. Open the page in the browser that opened it, or stop nookku chat and "
     "start it again"
 )
 # The text of a GET of SESSION_PATH with no session cookie, for example after "Open chat" in a
@@ -69,7 +69,7 @@ USED = (
 NO_SESSION = (
     "nookku: this browser has no session of the chat page. Open the page in the browser that "
     "opened it at the start of the test. Else end the test and start a new one, or run nookku "
-    "page in a separate terminal.\n"
+    "chat in a separate terminal.\n"
 )
 # The files of the page, in src/nookku/page/, and their media types.
 FILES = {
@@ -495,7 +495,7 @@ def open_answer(
     removes the folder at once."""
     name = data.get("path") if isinstance(data, dict) else None
     if not isinstance(name, str):
-        return 400, {"opened": False, "error": 'nookku page: the body needs the text "path"'}
+        return 400, {"opened": False, "error": 'nookku chat: the body needs the text "path"'}
     found = open_checked(root, name)
     if found is None:
         return 403, {"opened": False, "error": OPEN_REFUSED}
@@ -642,7 +642,7 @@ class _Handler(BaseHTTPRequestHandler):
         self._answer(status, body, "application/json; charset=utf-8")
 
     def _refuse(self, status: int, reason: str) -> None:
-        self._json(status, {"error": f"nookku page: {reason}"})
+        self._json(status, {"error": f"nookku chat: {reason}"})
 
     def _route(self) -> str | None:
         """The part of the path after the token, or None after a refusal. Check the Host, the
@@ -987,9 +987,9 @@ def claim_page_file(root: Path, port: int, test: str | None = None) -> tuple[Pat
 
 HARNESS_SHELL = ("CLAUDECODE", "CODEX_THREAD_ID", "CODEX_SANDBOX", "CODEX_SANDBOX_NETWORK_DISABLED")
 IN_HARNESS = (
-    "nookku: nookku page runs in a shell of a coding harness ({name} is set). The harness can "
+    "nookku: nookku chat runs in a shell of a coding harness ({name} is set). The harness can "
     "show the output to the model, and the page URL gives the model the right to send as you. "
-    "Run nookku page in a separate terminal, not with ! in the harness. Nothing was started."
+    "Run nookku chat in a separate terminal, not with ! in the harness. Nothing was started."
 )
 
 

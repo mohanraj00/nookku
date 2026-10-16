@@ -2,7 +2,7 @@
 
 In this tutorial, you test the toy shop agent of this repo in Claude Code. You install Nookku, run a test with 3 messages, and read the [audit](reference/glossary.md#audit), the report of the model and the [findings](reference/glossary.md#findings). You use the [project hooks](reference/glossary.md#project-hooks), because they need no global install in Claude Code. To compare the project hooks with the [plugin](reference/glossary.md#plugin), read [how-to/choose-a-relay.md](how-to/choose-a-relay.md).
 
-The output on this page comes from one run of this tutorial. I did the run on 2026-10-13, on macOS, with nookku 0.4.1 and Claude Code 2.1.296. I shortened the paths of the folders to `.../`. The test id and the times are different on your machine. The model output of steps 7 and 9 is a sample, because the model's answer is different on each run. The chat page of steps 5 and 6 came after this run ([#328](https://github.com/mohanraj00/nookku/issues/328)), so its line in step 6 is the text of the code, not of the run.
+The output on this page comes from one run of this tutorial, on 2026-10-15, on macOS, with nookku 0.5.0 and the changes of [#394](https://github.com/mohanraj00/nookku/issues/394) ([data](../proofs/tutorial/output.txt), [method](../scripts/proof_tutorial.py)). In this run, Claude Code did not run. The script gave each prompt to the project hooks as a Claude Code hook event, and `curl` opened the chat page. Thus the text of steps 6 and 7 is the text that the hooks give to Claude Code. I shortened the paths of the folders to `.../`. The test id and the times are different on your machine. The model output of steps 7 and 9 is a sample from an earlier run of this tutorial in Claude Code. The model's answer is different on each run, so the sample shows `<test-id>` in place of its test id.
 
 ## What you need
 
@@ -18,10 +18,10 @@ nookku --version
 ```
 
 ```text
-nookku 0.4.1
+nookku 0.5.0
 ```
 
-This tutorial needs nookku 0.4.1 or later. If you use verbatim-relay 0.3.x or earlier, the package has a new name, so `uv tool upgrade nookku` cannot upgrade it. Do the [0.4.0 steps of the upgrade guide](how-to/upgrade.md#040) in its place.
+This tutorial needs nookku 0.5.0 or later. If you use verbatim-relay 0.3.x or earlier, the package has a new name, so `uv tool upgrade nookku` cannot upgrade it. Do the [0.4.0 steps of the upgrade guide](how-to/upgrade.md#040) in its place.
 
 ## 2. Make a project for the toy shop
 
@@ -79,7 +79,7 @@ nookku check
 ```
 
 ```text
-Test 20261013-050627-8c72: .../toy-shop/.nookku/tests/20261013-050627-8c72
+Test 20261015-170554-4b58: .../toy-shop/.nookku/tests/20261015-170554-4b58
 Reply: Which item is this about: the mug or the teapot?
 Audit: exit 0
 PASS
@@ -89,9 +89,17 @@ PASS proves the connection, not the reply. `check` sent one message to the entry
 
 ## 5. The chat page
 
-The project hooks show each reply in the chat only as the reason of a blocked prompt. In the CLI, the start of a long reply can go off the screen. Thus `nookku start` in step 6 also starts the [chat page](reference/cli.md#nookku-page) and opens it in your browser. You do not start a viewer by hand. The page shows each turn of the test, and you can also type your messages in the page. `nookku end` stops the page after the page shows the end of the test.
+The project hooks show each reply in the chat only as the reason of a blocked prompt. In the CLI, the start of a long reply can go off the screen. Thus `nookku start` in step 6 also starts the [chat page](reference/cli.md#nookku-chat) and opens it in your browser. The chat page is the main view of a test. You do not start a viewer by hand.
 
-If the browser cannot open, for example over SSH, the start tells you to run `nookku page` in a separate terminal. To see the turns as text, run `nookku view` in a second terminal. To turn the page off, set the config key [`page`](reference/config.md#test-keys) to `false`.
+On the chat page:
+
+- The header shows the Nookku mark (2 eyes), the state of the test (for example "Running") and the test id.
+- The label under the message box shows `Bridge mode on` while the test runs. Then the page sends your message to the agent, and the [harness model](reference/glossary.md#harness-model) does not see it. `Bridge mode off` tells you that the page sends nothing.
+- The page shows each turn of the test, also the turns that you type in the [harness](reference/glossary.md#harness). You can also type your messages on the page. The reply to a message from the page shows only on the page, not in Claude Code.
+- The "⋯" menu at the right of the header sets the theme and the width of the page. Auto is the default of each.
+- "All tests" opens the dashboard of the tests of the project. On the dashboard, "Compare" opens the diff page of 2 tests.
+
+If the browser cannot open, for example over SSH, the start tells you to run `nookku chat` in a separate terminal. To see the turns as text in a terminal, `nookku view` is the alternative. To turn the page off, set the config key [`page`](reference/config.md#test-keys) to `false`.
 
 ## 6. Run the test
 
@@ -104,20 +112,20 @@ claude
 Type the prompt `nookku start`. The hook starts the test and blocks the prompt, so the model does not receive it. Claude Code shows this text:
 
 ```text
-nookku: test 20261013-050805-40fa started. Relay mode is on: each message goes to the entry. To end the test and start the evaluation, type the prompt nookku end. To end the test with no evaluation, run nookku end in a shell.
+nookku: test 20261015-170558-e50a started. Relay mode is on: each message goes to the entry. To end the test and start the evaluation, type the prompt nookku end. To end the test with no evaluation, run nookku end in a shell.
 The chat page opened in your browser. It stops when you type the prompt nookku end, or at the next start.
 ```
 
-Type these 3 messages, one at a time:
+Type these 3 messages in Claude Code, one at a time:
 
 1. `hi, the mug i ordered came with a crack in the handle`
 2. `ok what is your refund policy`
 3. `do you ship to delhi?`
 
-For each message, Claude Code shows the agent's reply as the reason of a blocked prompt. The model does not run, and it does not get the reply. The chat page also shows each turn. In my run, `nookku view` in a second terminal showed the turns as text:
+For each message, Claude Code shows the agent's reply as the reason of a blocked prompt. The model does not run, and it does not get the reply. The chat page also shows each turn. To see the turns as text, run `nookku view` in a second terminal. In my run, it showed:
 
 ```text
-════ test 20261013-050805-40fa ════
+════ test 20261015-170558-e50a ════
 ──── tester, turn 1 ────
 hi, the mug i ordered came with a crack in the handle
 ──── agent ────
@@ -138,7 +146,9 @@ We ship to Chennai and Pune. Delivery takes 3 to 5 days.
 
 ## 7. End the test
 
-Type the prompt `nookku end`. The hook ends the test: it stops the agent, builds the [trace](reference/glossary.md#trace), writes the audit and [seals](reference/glossary.md#seal) the [test folder](reference/glossary.md#test-folder). Then the prompt goes to the model with the [evaluation](reference/glossary.md#evaluation) prompt.
+Type the prompt `nookku end`. The hook ends the test: it stops the agent, builds the [trace](reference/glossary.md#trace), writes the audit and [seals](reference/glossary.md#seal) the [test folder](reference/glossary.md#test-folder). Then the prompt goes to the model with the [evaluation](reference/glossary.md#evaluation) prompt. The prompt also stops the chat page.
+
+Do not use the "End test" button of the chat page for this tutorial. The button ends the test with no evaluation, the same as `nookku end` in a shell. After it, the page continues, so "Export" and "Save as script" still work. To start the evaluation after that, type the prompt `nookku end` in Claude Code.
 
 The model now reads the record of the test. Claude Code asks you to allow its commands. Allow these commands:
 
@@ -149,15 +159,15 @@ The model now reads the record of the test. Claude Code asks you to allow its co
 
 Deny a command that changes `agent.py` or runs the agent. [Allow the evaluation commands](how-to/test-your-app.md#7-allow-the-evaluation-commands) lists each command, and tells you what to do after a deny.
 
-The model gives a short summary. In my run, it was:
+The model gives a short summary. In the earlier run, it was:
 
 ```text
-I evaluated test 20261013-050805-40fa and wrote the report. The seal is intact, and the findings and the audit are clean.
+I evaluated test <test-id> and wrote the report. The seal is intact, and the findings and the audit are clean.
 
 1. I found 1 issue. It is a missing_action in turn 1. You said that the mug had a crack, but the app asked "the mug or the teapot?" The app did not offer a refund. The rule at agent.py:23 says "Damaged items: full refund".
 2. The cause: the message has no keyword that the app knows, so the app sent its default reply (agent.py:27, agent.py:31).
 3. In turns 2 and 3, the replies agree with the fixed rules of the app. The turn 3 reply does not answer "Delhi" directly. I added this to the notes and did not report it as an issue.
-4. The report is at .nookku/tests/20261013-050805-40fa/report.md.
+4. The report is at .nookku/tests/<test-id>/report.md.
 ```
 
 The model's answer is different on each run.
@@ -171,7 +181,7 @@ ls .nookku/tests/
 ```
 
 ```text
-20261013-050627-8c72   20261013-050805-40fa
+20261015-170554-4b58   20261015-170558-e50a
 ```
 
 The first folder is the test of `nookku check`. The second is your test.
@@ -179,7 +189,7 @@ The first folder is the test of `nookku check`. The second is your test.
 The end of the test already wrote the audit of its two records in `audit.json` in the test folder. To see the audit as text, run it again. This command is optional:
 
 ```bash
-nookku audit --tap .nookku/tests/20261013-050805-40fa/tap.jsonl --relay .nookku/tests/20261013-050805-40fa/relay.jsonl
+nookku audit --tap .nookku/tests/20261015-170558-e50a/tap.jsonl --relay .nookku/tests/20261015-170558-e50a/relay.jsonl
 ```
 
 ```text
@@ -211,11 +221,11 @@ The exit code is 0 for clean, 1 for a break, and 2 if a record is missing or inv
 The model wrote `report.md` in the test folder:
 
 ```bash
-cat .nookku/tests/20261013-050805-40fa/report.md
+cat .nookku/tests/20261015-170558-e50a/report.md
 ```
 
 ```markdown
-# Test 20261013-050805-40fa: evaluation
+# Test <test-id>: evaluation
 
 | Class | Turn | Evidence | Issue |
 |---|---|---|---|
@@ -241,7 +251,7 @@ nookku verify
 ```
 
 ```text
-Test 20261013-050805-40fa. Seal: intact. No record changed after the end of the test.
+Test 20261015-170558-e50a. Seal: intact. No record changed after the end of the test.
 ```
 
 ## 10. Read the trace and the findings
@@ -256,19 +266,19 @@ In my run, the output was:
 
 ```text
 Trace: 0 model items in 3 turns, no findings.
-File: .../toy-shop/.nookku/tests/20261013-050805-40fa/trace.jsonl
+File: .../toy-shop/.nookku/tests/20261015-170558-e50a/trace.jsonl
 ```
 
 With no test id, `trace` uses the latest test. The toy shop has no model, so the trace has no model items and no findings. Read the findings file:
 
 ```bash
-cat .nookku/tests/20261013-050805-40fa/findings.json
+cat .nookku/tests/20261015-170558-e50a/findings.json
 ```
 
 ```json
 {
  "v": "0.2",
- "test": "20261013-050805-40fa",
+ "test": "20261015-170558-e50a",
  "turns": 3,
  "items": 0,
  "sessions": [],

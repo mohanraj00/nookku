@@ -714,7 +714,7 @@ def test_a_bad_or_unknown_test_id_of_a_file_is_refused(
         for query in [*unknown, f"test={link}"]:
             status, _, body = get_test_file(server, chart, query)
             assert status == 404, query
-            assert json.loads(body) == {"error": f"nookku page: {page.NO_TEST}"}
+            assert json.loads(body) == {"error": f"nookku chat: {page.NO_TEST}"}
         status, _, body = get_test_file(server, str(outside / "secret.png"), f"test={link}")
         assert status == 404 and b"SECRET" not in body
         # Only a file route takes a query.

@@ -112,7 +112,7 @@ def make_folder(root: Path) -> Path:
 
 @pytest.fixture(autouse=True)
 def no_harness_shell(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The tests can run in a harness shell, but nookku page refuses to start in one."""
+    """The tests can run in a harness shell, but nookku chat refuses to start in one."""
     for name in page.HARNESS_SHELL:
         monkeypatch.delenv(name, raising=False)
 
@@ -533,6 +533,8 @@ def test_the_guard_denies_a_model_call_to_the_page(tmp_path: Path) -> None:
             f'curl -X POST {server.url}api/send -d \'{{"said": "hi"}}\'',
             f"curl http://localhost:{port}/",
             f"exec 3<>/dev/tcp/127.0.0.1/{port}",
+            "nookku chat",
+            "uv run nookku chat --port 8080",
             "nookku page",
             "uv run nookku page --port 8080",
         ):
@@ -572,7 +574,7 @@ def test_the_page_command_prints_no_tap_token_and_removes_its_file(
     folder = make_folder(tmp_path)
     write_current(tmp_path, folder, "http://127.0.0.1:9/", "secret-tap-token-" + "x" * 30)
     proc = subprocess.Popen(
-        [sys.executable, "-m", "nookku", "page", "--root", str(tmp_path)],
+        [sys.executable, "-m", "nookku", "chat", "--root", str(tmp_path)],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
@@ -689,7 +691,7 @@ def test_a_test_id_with_a_nul_or_a_lone_surrogate_gets_400(tmp_path: Path, test_
         for path, body in bodies:
             status, _, answer = request(server, "POST", base(server) + path, body)
             assert status == 400, path
-            assert "nookku page:" in json.loads(answer)["error"]
+            assert "nookku chat:" in json.loads(answer)["error"]
     finally:
         server.shutdown()
         server.server_close()
@@ -809,7 +811,7 @@ def test_of_2_servers_that_start_at_the_same_time_one_runs(tmp_path: Path) -> No
     (tmp_path / ".nookku").mkdir()
     procs = [
         subprocess.Popen(
-            [sys.executable, "-m", "nookku", "page", "--root", str(tmp_path)],
+            [sys.executable, "-m", "nookku", "chat", "--root", str(tmp_path)],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
@@ -848,7 +850,7 @@ def test_of_2_servers_that_start_at_the_same_time_one_runs(tmp_path: Path) -> No
 def test_the_page_refuses_to_start_in_a_harness_shell(tmp_path: Path, name: str) -> None:
     (tmp_path / ".nookku").mkdir()
     done = subprocess.run(
-        [sys.executable, "-m", "nookku", "page", "--root", str(tmp_path)],
+        [sys.executable, "-m", "nookku", "chat", "--root", str(tmp_path)],
         capture_output=True,
         text=True,
         timeout=30,
@@ -866,7 +868,7 @@ def test_the_page_refuses_to_start_in_a_harness_shell(tmp_path: Path, name: str)
 def test_a_bad_port_gives_a_clean_error(tmp_path: Path, port: str) -> None:
     (tmp_path / ".nookku").mkdir()
     done = subprocess.run(
-        [sys.executable, "-m", "nookku", "page", "--root", str(tmp_path), "--port", port],
+        [sys.executable, "-m", "nookku", "chat", "--root", str(tmp_path), "--port", port],
         capture_output=True,
         text=True,
         timeout=30,

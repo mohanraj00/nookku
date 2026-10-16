@@ -118,7 +118,7 @@ Do the steps above. Two changes need more care:
 1. End each running test with the CLI of 0.4.3 before you install 0.5.0. A test that 0.4.3 started has no token in `current.json`, and the stdio [tap](../reference/glossary.md#tap) of 0.5.0 accepts a request only with its token ([#346](https://github.com/mohanraj00/nookku/issues/346)).
 2. If a script of yours starts `nookku tap --cmd`, set the variable `NOOKKU_TAP_TOKEN` to a random value of 43 characters or more, or read the token that the tap writes to stderr at start. Send the token in the header `X-Nookku-Token` with each `POST` ([cli.md](../reference/cli.md#nookku-tap)). `nookku start` does this for you.
 
-`nookku start` now also starts the [chat page](../reference/cli.md#nookku-page) and opens it in your browser. To turn this off, set the config key [`page`](../reference/config.md#test-keys) to `false`.
+`nookku start` now also starts the [chat page](../reference/cli.md#nookku-chat) and opens it in your browser. To turn this off, set the config key [`page`](../reference/config.md#test-keys) to `false`.
 
 ### 0.4.0
 

@@ -6,6 +6,8 @@ import http.client
 import itertools
 import json
 import re
+import shutil
+import subprocess
 import sys
 import threading
 import time
@@ -317,6 +319,57 @@ def test_the_diff_page_has_no_inline_script_and_no_html_from_text() -> None:
             assert sink not in text, name
     # An answer for an old hash does not replace the diff of the current hash.
     assert "if (hash !== window.location.hash)" in page.page_file("diff.js").decode()
+
+
+# A small DOM for compare.js: each element by its id, and the boxes that pickCell makes.
+COMPARE_DOM = """
+const ids = {};
+const boxes = [];
+function el(tag) {
+  return { tag, kids: [], listeners: {}, attrs: {}, disabled: false, textContent: "",
+    append(c) { this.kids.push(c); }, setAttribute(k, v) { this.attrs[k] = v; },
+    addEventListener(k, fn) { (this.listeners[k] = this.listeners[k] || []).push(fn); } };
+}
+for (const id of ["compare", "picked"]) ids[id] = el("button");
+const window = { location: { href: "" } };
+const document = {
+  createElement(tag) { const e = el(tag); if (tag === "input") boxes.push(e); return e; },
+  getElementById(id) { return ids[id]; },
+  addEventListener(kind, fn) { fn(); },
+};
+"""
+
+
+def test_compare_opens_the_diff_only_with_2_tests_the_older_on_the_left() -> None:
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("node is not on PATH")
+    script = (
+        COMPARE_DOM
+        + page.page_file("compare.js").decode()
+        + """
+const tests = [{id: "new", started: 20}, {id: "old", started: 10}, {id: "third", started: 30}];
+const states = [];
+const pick = (i) => {
+  pickCell(tests[i]);
+  const box = boxes[boxes.length - 1];
+  box.checked = true;
+  box.listeners.change.forEach((fn) => fn());
+  states.push(ids.compare.disabled);
+};
+pick(0); pick(1);
+ids.compare.listeners.click.forEach((fn) => fn());
+const opened = window.location.href;
+pick(2);
+console.log(JSON.stringify({ states, opened, text: ids.picked.textContent }));
+"""
+    )
+    out = subprocess.run([node, "-e", script], capture_output=True, text=True, check=True)
+    result = json.loads(out.stdout)
+    # 1 test: no compare. 2 tests: compare. 3 tests: no compare.
+    assert result["states"] == [True, False, True]
+    assert result["opened"] == "diff.html#old/new"
+    assert result["text"] == "Select 2 tests to compare. 3 selected."
 
 
 def test_the_guard_denies_a_model_replay_with_each_policy(tmp_path: Path) -> None:

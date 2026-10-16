@@ -1,6 +1,6 @@
 # Test an agent with the project hooks in Claude Code
 
-The [project hooks](../reference/glossary.md#project-hooks) install the [relay](../reference/glossary.md#relay) in one project. `nookku init` writes 2 command hooks that run `nookku hook`, the same command as the [plugin](../reference/glossary.md#plugin). They show each reply as the reason of a blocked prompt, and on the [chat page](../reference/cli.md#nookku-page) of the test. `nookku view` in a second terminal is optional. Use them if you cannot install plugins. To compare them with the plugin, read [choose-a-relay.md](choose-a-relay.md). For Codex, read [codex.md](codex.md).
+The [project hooks](../reference/glossary.md#project-hooks) install the [relay](../reference/glossary.md#relay) in one project. `nookku init` writes 2 command hooks that run `nookku hook`, the same command as the [plugin](../reference/glossary.md#plugin). They show each reply as the reason of a blocked prompt, and on the [chat page](../reference/cli.md#nookku-chat) of the test. `nookku view` in a second terminal is optional. Use them if you cannot install plugins. To compare them with the plugin, read [choose-a-relay.md](choose-a-relay.md). For Codex, read [codex.md](codex.md).
 
 **Warning:** Do not also enable the plugin in this project. With both forms, each message goes to the agent two times ([choose-a-relay.md](choose-a-relay.md#switch-from-one-form-to-the-other)).
 
@@ -20,7 +20,7 @@ It writes `.nookku/config.json` and adds [2 hooks](../../src/nookku/kit.py) to `
 
 ## Run a test
 
-1. Start Claude Code in the project and type the prompt `nookku start`. The relay starts the test and does not send this prompt to the model. The start also opens the [chat page](../reference/cli.md#nookku-page) of the test in your browser.
+1. Start Claude Code in the project and type the prompt `nookku start`. The relay starts the test and does not send this prompt to the model. The start also opens the [chat page](../reference/cli.md#nookku-chat) of the test in your browser.
 2. Type your test messages in Claude Code or on the chat page. Claude Code shows each reply as the reason of a blocked prompt. The chat page shows each turn.
 3. Optional: to see the turns in a terminal, run `nookku view` in a second terminal. It shows each turn of the latest test, and it follows to the next test.
 4. Type the prompt `nookku end`. The relay ends the test, and the model evaluates it and writes `report.md` (see [Evaluation](#evaluation)).

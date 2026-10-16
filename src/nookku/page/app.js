@@ -543,7 +543,7 @@ async function refresh() {
       shownPoll = poll;
       pollResult(
         "The page server does not answer. The page tries again each second. To start it " +
-          "again, run nookku page in a separate terminal.",
+          "again, run nookku chat in a separate terminal.",
       );
     }
   }

@@ -126,7 +126,7 @@ def test_a_note_goes_to_notes_jsonl_and_not_to_the_two_records(shop: Any) -> Non
 def test_a_note_that_breaks_the_rule_gets_400_and_no_row(shop: Any, body: Any) -> None:
     _, server, folder = shop
     status, answer = post_note(server, body)
-    assert status == 400 and answer["error"].startswith("nookku page: ")
+    assert status == 400 and answer["error"].startswith("nookku chat: ")
     assert not (folder / notes.NOTES).exists()
 
 
@@ -135,7 +135,7 @@ def test_a_note_needs_the_id_of_the_test_that_the_page_shows(shop: Any, test: An
     _, server, folder = shop
     body = {"turn": 1, "rating": "up", "comment": None}
     status, answer = post_note(server, body if test is None else {**body, "test": test}, None)
-    assert status == 400 and answer["error"].startswith("nookku page: ")
+    assert status == 400 and answer["error"].startswith("nookku chat: ")
     assert not (folder / notes.NOTES).exists()
 
 

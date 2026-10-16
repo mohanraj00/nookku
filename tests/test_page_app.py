@@ -234,7 +234,7 @@ def test_a_send_keeps_the_text_that_the_tester_typed_during_the_send() -> None:
 def test_an_old_poll_answer_after_a_failed_poll_keeps_the_error() -> None:
     out = run(FAILED_POLL_CHECK)
     assert str(out["error"]).startswith("The page server does not answer")
-    assert "nookku page" in str(out["error"]) and out["bannerShown"] is True
+    assert "nookku chat" in str(out["error"]) and out["bannerShown"] is True
     assert out["errorAfterOld"] == out["error"]
     assert out["sameTurns"] is True and out["bannerAfter"] is True
 
