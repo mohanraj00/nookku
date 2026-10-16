@@ -5,7 +5,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
-from proof_codex_gate import home_pids, signal_same, stop_home
+from proof_codex_gate import home_pids, home_start, signal_same, stop_home
 
 from nookku import state
 
@@ -71,3 +71,20 @@ def test_a_pid_with_a_different_start_time_gets_no_signal(tmp_path: Path) -> Non
     finally:
         proc.kill()
         proc.wait()
+
+
+def test_home_start_binds_the_start_time_only_to_a_process_of_the_home(tmp_path: Path) -> None:
+    home = tmp_path / "codex-home"
+    inside = sleeper(home / "bin" / "codex")
+    outside = sleeper(tmp_path / "codex-home-other" / "bin" / "codex")
+    try:
+        assert home_start(inside.pid, home) == state.process_start(inside.pid)
+        assert home_start(outside.pid, home) is None
+        inside.kill()
+        inside.wait()
+        assert home_start(inside.pid, home) is None
+    finally:
+        inside.kill()
+        outside.kill()
+        inside.wait()
+        outside.wait()

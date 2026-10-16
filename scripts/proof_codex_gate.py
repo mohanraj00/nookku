@@ -86,23 +86,40 @@ def stop_home(home: Path, timeout: float = 10.0) -> None:
     """Stop each process of home, and wait until it stops.
 
     The function sends SIGTERM for timeout seconds, then SIGKILL for timeout seconds more. It
-    reads the process list again before each signal. It records the start time of each pid when
-    it first finds the pid, and it signals a pid only while the pid has that start time. Thus a
-    pid that the OS gives to a new process gets no signal. If a process does not stop, the
-    function stops the script.
+    reads the process list again before each signal. When it first finds a pid, it records the
+    start time of the pid with home_start. It signals a pid only while the pid has that start
+    time. Thus a pid that the OS gives to a new process gets no signal. If a process does not
+    stop, the function stops the script.
     """
     start = time.monotonic()
-    starts: dict[int, str | None] = {}
+    starts: dict[int, str] = {}
     while pids := home_pids(ps(), home):
         waited = time.monotonic() - start
         if waited > 2 * timeout:
             raise SystemExit(f"cannot stop the Codex processes of {home}: {pids}")
         sig = signal.SIGTERM if waited < timeout else signal.SIGKILL
         for pid in pids:
-            first = starts.setdefault(pid, state.process_start(pid))
-            if first is not None:
-                signal_same(pid, first, sig)
+            if pid not in starts and (found := home_start(pid, home)) is not None:
+                starts[pid] = found
+            if pid in starts:
+                signal_same(pid, starts[pid], sig)
         time.sleep(0.2)
+
+
+def home_start(pid: int, home: Path) -> str | None:
+    """Return the start time of pid if pid is a process of home now, or None.
+
+    The process list can be old: the OS can give the pid to a new process after ps. Thus the
+    function reads the start time first, then the command line of the pid. Then it checks that
+    the pid still has that start time. If the command line has a path in home, that start time
+    identifies a process of home.
+    """
+    start = state.process_start(pid)
+    cmd = ["ps", "-ww", "-o", "command=", "-p", str(pid)]
+    command = subprocess.run(cmd, capture_output=True, text=True, check=False).stdout.strip()
+    if start is None or not home_pids(f"{pid} {command}", home):
+        return None
+    return start if state.same_process(pid, start) else None
 
 
 def signal_same(pid: int, start: str, sig: signal.Signals) -> None:
