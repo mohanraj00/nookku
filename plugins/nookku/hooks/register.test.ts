@@ -63,6 +63,17 @@ test('/nookku and /nookku status show nookku status, which names the running tes
   expect(f.runs.some(argv => argv[1] === 'mode')).toBe(false)
 })
 
+test('the status line names a test that stopped with no end, with the text of nookku status --json', {}, async ($, on) => {
+  const text =
+    'relay mode is on. No test runs. Test 20261005-120000-ab12 stopped with no end. ' +
+    'Folder: /shop/.nookku/tests/20261005-120000-ab12 To write its audit and its seal, run: nookku end'
+  const stopped = { test: '20261005-120000-ab12', folder: '/shop/.nookku/tests/20261005-120000-ab12' }
+  const json = { exitCode: 0, stdout: JSON.stringify({ on: true, test: null, text, stopped }) + '\n' }
+  const f = fakes(on, { mode: { exitCode: 0, stdout: 'Relay mode is on.\n' }, status: json, view: { exitCode: 0, stdout: '' } })
+  await $.command.run({ command: 'nookku', args: 'on' } as any)
+  expect(f.status.at(-1)).toBe(text)
+})
+
 test('if the nookku command fails, /nookku shows its error output', {}, async ($, on) => {
   fakes(on, { mode: { exitCode: 127, stdout: '', stderr: 'nookku: command not found\n' } })
   const shown: any = await $.command.run({ command: 'nookku', args: 'on' } as any)

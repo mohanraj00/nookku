@@ -4,6 +4,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
@@ -1045,6 +1046,34 @@ def test_both_relays_give_one_status_text(setup, monkeypatch, capsys, on, runnin
     assert capsys.readouterr().out == f"{text}\n"
     assert cli.main(["status", "--root", str(root), "--json"]) == 0
     assert json.loads(capsys.readouterr().out)["text"] == (text if on else None)
+
+
+def test_each_form_of_the_status_names_a_stopped_test(setup, capsys):
+    """The CLI, the prompt nookku status, the status line and `nookku status --json` name the
+    test that stopped with no end, with the same data (#396)."""
+    root, _, _ = setup
+    kit.set_mode(root, True)
+    folder = bridge.state(root) / "tests" / "20261007-080000-aaaa"
+    folder.mkdir(parents=True)
+    (folder / "manifest.json").write_text(json.dumps({"started": time.time() - 60}))
+    text = (
+        "relay mode is on. No test runs.\n"
+        f"Test {folder.name} stopped with no end. Folder: {folder}\n"
+        "To write its audit and its seal, run: nookku end"
+    )
+    answer = kit.handle(prompt("nookku status"), root, "claude-code")
+    assert answer is not None and answer["reason"] == f"nookku: {text}"
+    assert cli.main(["status", "--root", str(root)]) == 0
+    assert capsys.readouterr().out == f"{text}\n"
+    assert cli.main(["status", "--root", str(root), "--json"]) == 0
+    data = json.loads(capsys.readouterr().out)
+    assert data["text"] == text.replace("\n", " ")
+    assert data["stopped"] == {"test": folder.name, "folder": str(folder)}
+    # After the end, no form names the test.
+    (folder / "manifest.json").write_text(json.dumps({"started": 1.0, "ended": 2.0}))
+    assert kit.status(root) == "nookku: relay mode is on. No test runs."
+    assert cli.main(["status", "--root", str(root), "--json"]) == 0
+    assert json.loads(capsys.readouterr().out)["stopped"] is None
 
 
 @pytest.mark.parametrize(
