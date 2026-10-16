@@ -575,7 +575,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.state == "on":
             refusal = _mode_on_refusal(root)
             if refusal is not None:
-                print(f"nookku: {refusal}")
+                print(kit.prefixed(refusal))
                 return 1
         if args.state != "status":
             kit.set_mode(root, args.state == "on")

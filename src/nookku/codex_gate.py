@@ -259,8 +259,9 @@ def refusal(result: dict[str, Any]) -> str:
     """The text that refuses a test, for a result with problems."""
     lines = "\n".join(f"- {p}" for p in result["problems"])
     return (
-        "the Codex hooks of nookku are not ready, so relay mode stays off. Codex skips a hook "
-        "that is not trusted, and then a message goes to the model.\n"
+        "the Codex hooks of nookku are not ready, so nookku refuses the test and does not change "
+        "relay mode. Codex skips a hook that is not trusted, and then a message goes to the "
+        "model.\n"
         f"{lines}\n"
         "Start codex in this project, type /hooks, check each nookku hook and trust it. Then "
         "start the test again."

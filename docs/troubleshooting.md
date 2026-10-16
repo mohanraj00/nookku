@@ -225,9 +225,11 @@ If the entry returns an error, crashes or does not answer in [240 seconds](../sr
 
 **Fix.** None. A shell command that only reads the entry, for example `cat entry.py`, can run. But during a test, the relays deny each tool call that names `.nookku`, except a read with a file tool such as `Read` ([SPEC.md section 5](../SPEC.md#5-relays)). Thus `cat .nookku/entry.py` is denied.
 
-### `nookku: nothing was sent. Claude Code does not run as the interactive CLI, and then it can send a prompt to the model API in a title request. Use the interactive CLI, or set CLAUDE_CODE_DISABLE_TERMINAL_TITLE=1 in the environment that starts Claude Code. Read docs/troubleshooting.md.`
+### Claude Code does not run as the interactive CLI
 
-(print_mode.py) **Cause.** Claude Code does not run as the interactive CLI. For example, it runs as `claude -p`, in an Agent SDK app, or in the panel of an editor extension. Then Claude Code can send the first prompt of a session to the model API in a request that makes the session title. A hook cannot stop this request, so the relay refuses. It did not start a test, did not send the message and wrote no turn. This prompt can be in the title request already. The data is in [limits.md](limits.md) and [SPEC.md section 5](../SPEC.md#5-relays).
+(print_mode.py) The relay shows `nookku: nothing was sent. Claude Code does not run as the interactive CLI, and then it can send a prompt to the model API in a title request. Use the interactive CLI, or set CLAUDE_CODE_DISABLE_TERMINAL_TITLE=1 in the environment that starts Claude Code. The fix: https://github.com/mohanraj00/nookku/blob/v<version>/docs/troubleshooting.md#claude-code-does-not-run-as-the-interactive-cli`. `<version>` is the installed version of nookku, so the link opens the docs of that version.
+
+**Cause.** Claude Code does not run as the interactive CLI. For example, it runs as `claude -p`, in an Agent SDK app, or in the panel of an editor extension. Then Claude Code can send the first prompt of a session to the model API in a request that makes the session title. A hook cannot stop this request, so the relay refuses. It did not start a test, did not send the message and wrote no turn. This prompt can be in the title request already. The data is in [limits.md](limits.md) and [SPEC.md section 5](../SPEC.md#5-relays).
 
 **Fix.** Do one of these steps:
 
@@ -250,7 +252,7 @@ If the entry returns an error, crashes or does not answer in [240 seconds](../sr
 
 ### `nookku: both the nookku plugin and the project hooks of nookku init claude-code are on in Claude Code, so each message would go to the agent two times. Remove one of them: run claude plugin disable --scope local nookku@nookku, or remove the nookku hooks from <file>. A running Claude Code session keeps a plugin that it loaded, so then run /reload-plugins or restart it.`
 
-(claude_gate.py) **Cause.** A Claude Code settings file enables the nookku plugin, and `.claude/settings.local.json` or `.claude/settings.json` has the hooks of `nookku init claude-code`. `start` and `mode on` refuse the test, and relay mode stays off ([SPEC.md section 7.8](../SPEC.md#78-codex-hook-gate)).
+(claude_gate.py) **Cause.** A Claude Code settings file enables the nookku plugin, and `.claude/settings.local.json` or `.claude/settings.json` has the hooks of `nookku init claude-code`. `start` and `mode on` refuse the test and do not change relay mode ([SPEC.md section 7.8](../SPEC.md#78-codex-hook-gate)).
 
 **Fix.** Keep one form. Run `claude plugin disable --scope local nookku@nookku`, or remove the nookku hooks from `<file>`. `<file>` is the settings file that has the hooks: `.claude/settings.local.json`, `.claude/settings.json`, or in a linked git worktree the local file of the main checkout. If `<file>` is `.claude/settings.local.json` of the project, `nookku init --remove claude-code` removes the hooks. [how-to/choose-a-relay.md](how-to/choose-a-relay.md#switch-from-one-form-to-the-other) gives the steps. If you turned off the plugin, run `/reload-plugins` in each Claude Code session of the project, or restart it. A session keeps a loaded plugin, and nookku cannot see it. Then start the test again.
 

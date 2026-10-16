@@ -791,6 +791,25 @@ def test_mode_on_with_no_config_keeps_the_mode_file_and_says_the_mode(
     assert kit.is_on(tmp_path) is was_on
 
 
+def test_a_refusal_of_mode_on_has_the_prefix_one_time(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # #395: the mode text added "nookku: " to a refusal that had it, and showed it 2 times.
+    kit.init(tmp_path, "plugin", {"entry": [sys.executable, "-c", "pass"]})
+
+    def refuse(*args: Any, **kwargs: Any) -> dict[str, Any]:
+        raise bridge.BridgeError("nookku: the test cannot start.")
+
+    monkeypatch.setattr(bridge, "start", refuse)
+    assert main(["mode", "on", "--root", str(tmp_path)]) == 1
+    assert capsys.readouterr().out == "nookku: the test cannot start.\n"
+    monkeypatch.setattr("nookku.claude_gate.problem", lambda root: "nookku: both are on.")
+    (tmp_path / ".nookku" / "config.json").write_text("{}")
+    assert main(["mode", "on", "--root", str(tmp_path)]) == 1
+    assert capsys.readouterr().out == "nookku: both are on.\n"
+    assert kit.prefixed("relay mode is on.") == "nookku: relay mode is on."
+
+
 def test_init_remove_prints_each_change(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["init", "codex", "--root", str(tmp_path)]) == 0
     capsys.readouterr()

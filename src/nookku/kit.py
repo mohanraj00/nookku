@@ -56,6 +56,8 @@ FILE_TOOLS = {
 WRITE_TOOLS = {"Write", "Edit", "MultiEdit", "NotebookEdit", "apply_patch"}
 # The input fields of a file tool that give its target path.
 PATH_FIELDS = ("file_path", "notebook_path", "path")
+# The prefix of each text that nookku shows to the person.
+PREFIX = "nookku: "
 DENY_REASON = "nookku: only the tester talks to the agent."
 # The files and folders of the state folder that only nookku writes, also when no test runs
 # (SPEC.md section 5). In a test folder, only report.md may change (SPEC.md section 9). `seals`
@@ -205,6 +207,12 @@ def checked(shown: str, ok: bool) -> tuple[str, bool]:
     return shown, True
 
 
+def prefixed(text: str) -> str:
+    """The text with the prefix "nookku: " one time. A refusal of the core can have the prefix
+    already, and then the mode text showed it 2 times (#395)."""
+    return text if text.startswith(PREFIX) else PREFIX + text
+
+
 def _block(reason: str) -> dict[str, Any]:
     """Block the prompt. Both harnesses show the reason to the person and not to the model (#176,
     #193), so the reason of a relayed prompt is the text to show, byte for byte."""
@@ -242,7 +250,7 @@ def try_start_test(root: Path, tester_session: str | None = None) -> tuple[bool,
     try:
         cur = bridge.start(root, tester_session)
     except bridge.BridgeError as e:
-        return False, f"nookku: {e}"
+        return False, prefixed(str(e))
     set_mode(root, True)
     # The plugin and the project hooks show this text.
     # `nookku start` in a shell gives the same ways.
