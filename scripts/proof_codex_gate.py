@@ -31,9 +31,13 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
+import signal
 import subprocess
 import sys
+import time
+from contextlib import suppress
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -41,7 +45,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parent.parent
 sys.path[:0] = [str(ROOT / "src")]
 
-from nookku import __version__, codex_gate  # noqa: E402
+from nookku import __version__, codex_gate, state  # noqa: E402
 from nookku.config import STATE_DIR  # noqa: E402
 
 PLUGIN = ROOT / "plugins" / "nookku"
@@ -57,6 +61,94 @@ def run(cmd: list[str], cwd: Path = ROOT) -> subprocess.CompletedProcess[str]:
     env = {**os.environ, "CODEX_HOME": str(HOME)}
     env.pop("NOOKKU_CODEX", None)
     return subprocess.run(cmd, cwd=cwd, env=env, capture_output=True, text=True, timeout=300)
+
+
+def home_pids(ps_output: str, home: Path) -> list[int]:
+    """Return the pids of `ps -o pid=,command=` whose command line has a path in home.
+
+    The app-server daemon of Codex runs a binary in its CODEX_HOME, so its command line names
+    the home. A process with only the name codex, or with the path of a different home, does not
+    match. The match does not split the command line at spaces, so a home path with a space
+    also matches.
+    """
+    # The home path starts the command line or follows a space or "=". It ends the command
+    # line or comes before a space or a separator.
+    path = re.compile(rf"(?:^|[\s=]){re.escape(str(home))}(?:$|[\s{re.escape(os.sep)}])")
+    pids = []
+    for line in ps_output.splitlines():
+        pid, _, command = line.strip().partition(" ")
+        if pid.isdigit() and path.search(command.strip()):
+            pids.append(int(pid))
+    return pids
+
+
+def stop_home(home: Path, timeout: float = 10.0) -> None:
+    """Stop each process of home, and wait until it stops.
+
+    The function sends SIGTERM for timeout seconds, then SIGKILL for timeout seconds more. It
+    reads the process list again before each signal. When it first finds a pid, it records the
+    start time of the pid with home_start. It signals a pid only while the pid has that start
+    time. Thus a pid that the OS gives to a new process gets no signal. If a process does not
+    stop, the function stops the script.
+    """
+    start = time.monotonic()
+    starts: dict[int, str] = {}
+    while pids := home_pids(ps(), home):
+        waited = time.monotonic() - start
+        if waited > 2 * timeout:
+            raise SystemExit(f"cannot stop the Codex processes of {home}: {pids}")
+        sig = signal.SIGTERM if waited < timeout else signal.SIGKILL
+        for pid in pids:
+            if pid not in starts and (found := home_start(pid, home)) is not None:
+                starts[pid] = found
+            if pid in starts:
+                signal_same(pid, starts[pid], sig)
+        time.sleep(0.2)
+
+
+def home_start(pid: int, home: Path) -> str | None:
+    """Return the start time of pid if pid is a process of home now, or None.
+
+    The process list can be old: the OS can give the pid to a new process after ps. Thus the
+    function reads the start time first, then the command line of the pid. Then it checks that
+    the pid still has that start time. If the command line has a path in home, that start time
+    identifies a process of home.
+    """
+    start = state.process_start(pid)
+    cmd = ["ps", "-ww", "-o", "command=", "-p", str(pid)]
+    command = subprocess.run(cmd, capture_output=True, text=True, check=False).stdout.strip()
+    if start is None or not home_pids(f"{pid} {command}", home):
+        return None
+    return start if state.same_process(pid, start) else None
+
+
+def signal_same(pid: int, start: str, sig: signal.Signals) -> None:
+    """Send sig to pid only if pid is the process with the start time start.
+
+    If the OS gives a pidfd (Linux), the pidfd holds the process from the check to the signal.
+    With no pidfd (macOS), the check and the signal are separate steps, as in page_auto._stop.
+    """
+    fd = None
+    opener = getattr(os, "pidfd_open", None)
+    if opener is not None and hasattr(signal, "pidfd_send_signal"):
+        with suppress(OSError):
+            fd = opener(pid)
+    try:
+        if not state.same_process(pid, start):
+            return
+        with suppress(ProcessLookupError):
+            if fd is not None:
+                signal.pidfd_send_signal(fd, sig)
+            else:
+                os.kill(pid, sig)
+    finally:
+        if fd is not None:
+            os.close(fd)
+
+
+def ps() -> str:
+    cmd = ["ps", "-A", "-ww", "-o", "pid=", "-o", "command="]
+    return subprocess.run(cmd, capture_output=True, text=True, check=True).stdout
 
 
 def install() -> Path:
@@ -187,9 +279,9 @@ def main() -> int:
         return 2
     reset = "--trusted" not in sys.argv
     if reset and HOME.exists():
-        # Part A needs hooks that no person trusted. The app-server of the old home keeps its
-        # control socket, so stop it first.
-        subprocess.run(["pkill", "-f", str(HOME)], check=False)
+        # Part A needs hooks that no person trusted. The app-server daemon of the old home writes
+        # to the home, so stop it and wait until it stops (#400).
+        stop_home(HOME)
         shutil.rmtree(HOME)
     installed = install()
     project()
