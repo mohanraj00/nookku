@@ -405,13 +405,14 @@ def open_checked(
     if pinned and shown is not None:
         # A change of the test folder to a symlink after the check moves the real path of the
         # file. Thus the file must be in the checked folder, or in the project and not in the
-        # state folder. The walk opens the test folder with O_NOFOLLOW, from the project root
-        # or from the test folders.
+        # state folder. A real path has no symlink. Thus for a test folder outside the project,
+        # the walk starts at the root of the file system, and opens each folder of the path
+        # with O_NOFOLLOW. A change of the test folders to a symlink then gives no file.
         in_project = not outside and not path.is_relative_to(state.state(root).resolve())
         if not path.is_relative_to(shown) and not in_project:
             return None
         if outside:
-            top = shown.parent
+            top = Path(path.anchor)
     elif outside and folder is not None and path.is_relative_to(folder.resolve()):
         top = folder.resolve()
     parts = path.relative_to(top).parts

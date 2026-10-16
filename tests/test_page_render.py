@@ -631,6 +631,44 @@ def test_an_older_test_folder_that_changes_to_a_symlink_after_the_check_is_refus
     assert page.older_test(root, old.name) is None
 
 
+def test_a_change_of_the_outside_test_folders_to_a_symlink_after_the_check_is_refused(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The state folder is outside the project. A process of the test changes the test folders
+    to a symlink to a folder with the same test id and file name, after the check of the path
+    and before the walk (#398)."""
+    root = tmp_path / "shop"
+    root.mkdir()
+    (tmp_path / "state").mkdir()
+    (root / ".nookku").symlink_to(tmp_path / "state")
+    old = older_test(root)
+    (old / "chart.png").write_bytes(b"OLD-CHART")
+    other = tmp_path / "other" / "tests" / old.name
+    other.mkdir(parents=True)
+    (other / "chart.png").write_bytes(b"SECRET-BYTES")
+    shown = page.older_test(root, old.name)
+    assert shown is not None
+    name = str(shown / "chart.png")
+    found = page.open_checked(root, name, shown, pinned=True)
+    assert found is not None
+    os.close(found[0])
+    check = page.allowed_file
+    tests = tmp_path / "state" / "tests"
+
+    def check_then_swap(*args: Any) -> Path | None:
+        path = check(*args)
+        tests.rename(tmp_path / "moved")
+        tests.symlink_to(other.parent)
+        return path
+
+    monkeypatch.setattr(page, "allowed_file", check_then_swap)
+    found = page.open_checked(root, name, shown, pinned=True)
+    if found is not None:
+        with os.fdopen(found[0], "rb") as f:
+            assert f.read() != b"SECRET-BYTES"
+    assert found is None
+
+
 def test_a_bad_or_unknown_test_id_of_a_file_is_refused(
     project: tuple[Path, Path, Path],
 ) -> None:
