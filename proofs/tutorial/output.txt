@@ -1,4 +1,5 @@
-Run of docs/getting-started.md on 2026-10-15, nookku 0.5.0.
+Run of docs/getting-started.md on 2026-10-16, nookku 0.5.0.
+Claude Code and the model ran.
 
 $ nookku --version
 nookku 0.5.0
@@ -19,14 +20,14 @@ Do not also enable the nookku Claude Code plugin in this project, or each messag
 [exit 0]
 
 $ nookku check
-Test 20261015-170554-4b58: .../toy-shop/.nookku/tests/20261015-170554-4b58
+Test 20261016-034517-d820: .../toy-shop/.nookku/tests/20261016-034517-d820
 Reply: Which item is this about: the mug or the teapot?
 Audit: exit 0
 PASS
 [exit 0]
 
 > prompt: nookku start
-nookku: test 20261015-170558-e50a started. Relay mode is on: each message goes to the entry. To end the test and start the evaluation, type the prompt nookku end. To end the test with no evaluation, run nookku end in a shell.
+nookku: test 20261016-034536-4543 started. Relay mode is on: each message goes to the entry. To end the test and start the evaluation, type the prompt nookku end. To end the test with no evaluation, run nookku end in a shell.
 The chat page opened in your browser. It stops when you type the prompt nookku end, or at the next start.
 [exit 0]
 
@@ -47,7 +48,7 @@ We ship to Chennai and Pune. Delivery takes 3 to 5 days.
 [exit 0]
 
 $ nookku view --no-follow
-════ test 20261015-170558-e50a ════
+════ test 20261016-034536-4543 ════
 ──── tester, turn 1 ────
 hi, the mug i ordered came with a crack in the handle
 ──── agent ────
@@ -67,20 +68,15 @@ We ship to Chennai and Pune. Delivery takes 3 to 5 days.
 [exit 0]
 
 > prompt: nookku end
-nookku: relay mode is off.
-Test 20261015-170558-e50a ended: 3 turns, 0 model sessions.
-Folder: .../toy-shop/.nookku/tests/20261015-170558-e50a
-Trace: 0 model items in 3 turns, no findings.
-Audit: nookku audit --tap .../toy-shop/.nookku/tests/20261015-170558-e50a/tap.jsonl --relay .../toy-shop/.nookku/tests/20261015-170558-e50a/relay.jsonl
-[the evaluation prompt follows]
+[the model answer, below]
 [exit 0]
 
 $ ls .nookku/tests/
-20261015-170554-4b58
-20261015-170558-e50a
+20261016-034517-d820
+20261016-034536-4543
 [exit 0]
 
-$ nookku audit --tap .nookku/tests/20261015-170558-e50a/tap.jsonl --relay .nookku/tests/20261015-170558-e50a/relay.jsonl
+$ nookku audit --tap .nookku/tests/20261016-034536-4543/tap.jsonl --relay .nookku/tests/20261016-034536-4543/relay.jsonl
 3 turns, 3 exchanges, 0 blocked model calls, 0 model sessions, 0 breaks
 Result: clean (exit 0)
 [exit 0]
@@ -95,18 +91,18 @@ Result: breaks found (exit 1)
 [exit 1]
 
 $ nookku verify
-Test 20261015-170558-e50a. Seal: intact. No record changed after the end of the test.
+Test 20261016-034536-4543. Seal: intact. No record changed after the end of the test.
 [exit 0]
 
 $ nookku trace
 Trace: 0 model items in 3 turns, no findings.
-File: .../toy-shop/.nookku/tests/20261015-170558-e50a/trace.jsonl
+File: .../toy-shop/.nookku/tests/20261016-034536-4543/trace.jsonl
 [exit 0]
 
-$ cat .nookku/tests/20261015-170558-e50a/findings.json
+$ cat .nookku/tests/20261016-034536-4543/findings.json
 {
  "v": "0.2",
- "test": "20261015-170558-e50a",
+ "test": "20261016-034536-4543",
  "turns": 3,
  "items": 0,
  "sessions": [],
@@ -133,3 +129,30 @@ $ cat .nookku/tests/20261015-170558-e50a/findings.json
  "findings": []
 }
 [exit 0]
+
+==== The model's summary of step 7 ====
+I wrote the report to `.nookku/tests/20261016-034536-4543/report.md`. The records are intact: the seal is unbroken, the audit shows no changed turns, and you left no notes.
+
+- **Turn 1 had 2 issues, both missing actions.** You said your mug came with a cracked handle. The app's own rule is "Damaged items: full refund", but it didn't mention the damage or offer a refund. Instead it asked "the mug or the teapot?", which you had already answered. This happens because the message has no keyword the app knows (`refund`, `ship`, `price`), so it gives its default answer (`agent.py:27`, `agent.py:31`).
+- **Turns 2 and 3 had no issues.** Both replies match the app's fixed answers. Turn 3 only answers the Delhi question indirectly, by listing the cities it ships to (Chennai and Pune).
+- **No model or tool calls to check:** the app only matches keywords and keeps no memory between messages, so the trace is empty.
+==== The model's report.md of step 9 ====
+# Test 20261016-034536-4543: evaluation
+
+| Class | Turn | Evidence | Issue |
+|---|---|---|---|
+| missing_action | 1 | turn 1; agent.py:23, agent.py:27, agent.py:31; app-state/answers.jsonl:1 | The tester wrote "the mug i ordered came with a crack in the handle". The app's own rule is "1. Damaged items: full refund." (agent.py:23), but the app did not acknowledge the damage or offer the refund. It sent the fallback "Which item is this about: the mug or the teapot?" (agent.py:27), because none of the keywords `refund`, `ship` or `price` is in the message (agent.py:31). The app state records the turn as `"topic": "other"`. |
+| missing_action | 1 | turn 1; agent.py:27 | The app asked "the mug or the teapot?" even though the tester had already named the item ("the mug i ordered"). The question asks for a fact the tester already gave. |
+
+## Notes
+
+- Seal: intact ("Seal: intact. No record changed after the end of the test."). Audit: 3 turns, 3 exchanges, no breaks, no errors. findings.json: 0 items, no findings.
+- trace.jsonl is empty: the app has no model sessions, no tool calls and no backend calls. It is a fixed keyword matcher (agent.py:22-35). So no `wrong_tool` or `wrong_arguments` issue is possible, and each reply comes from a fixed string in `REPLIES` or `FALLBACK`.
+- Turn 2: the reply matches `REPLIES["refund"]` (agent.py:23) exactly. It is supported by the app's rule. It does not connect the policy to the damaged mug from turn 1, because the app keeps no conversation context (agent.py:42-51); that gap is already covered by the turn 1 rows.
+- Turn 3: the tester asked "do you ship to delhi?". The reply "We ship to Chennai and Pune. Delivery takes 3 to 5 days." matches `REPLIES["ship"]` (agent.py:24). It answers only indirectly (it does not say "no" for Delhi), but it agrees with the only rule, so I do not report it as an issue.
+- app-state/answers.jsonl has 3 lines with topics `other`, `refund`, `ship`; they agree with the replies of turns 1, 2 and 3.
+- The project has no rules document, docs, specs or tests other than agent.py, so the strings in `REPLIES` are the only business rules I could check against. I could not check order data (for example, whether the tester ordered a mug), because the app has no order store.
+
+## Tester notes
+
+The tester wrote no note.

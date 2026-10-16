@@ -256,6 +256,9 @@ def test_the_tutorial_output_comes_from_one_run() -> None:
     # The data of the run has the same 2 test ids (scripts/proof_tutorial.py).
     data = (ROOT / "proofs" / "tutorial" / "output.txt").read_text(encoding="utf-8")
     assert sorted(set(TEST_ID.findall(data))) == sorted(folders)
+    # The versions of the run come from the same run.
+    run = json.loads((ROOT / "proofs" / "tutorial" / "run.json").read_text(encoding="utf-8"))
+    assert sorted(run["tests"]) == sorted(folders)
 
 
 # The map of the docs ---------------------------------------------------------------------------
