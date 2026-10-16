@@ -1435,7 +1435,7 @@ VERSION_CASE = {
             {
                 "check": "version_untested",
                 "turn": None,
-                "detail": "version 2.1.999, tested: 2.1.286, 2.1.292",
+                "detail": "version 2.1.999, tested: 2.1.286, 2.1.292, 2.1.301",
                 "harness": "claude-code",
                 "session": CC,
             },
