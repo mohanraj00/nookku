@@ -12,9 +12,12 @@ With --model, Claude Code 2.1 or later and the model run. The script gives each 
 `claude -p`, with the user settings off and with CLAUDE_CODE_DISABLE_TERMINAL_TITLE=1, the fix for
 print mode (docs/troubleshooting.md). The prompt `nookku end` starts the evaluation. The model can
 run only the commands of step 7 of the tutorial. The output then also has the summary of step 7
-and the report of step 9. The script also writes proofs/tutorial/run.json, with the versions and
-each line of agent.py that the summary or the report cites. A model text that shares 8 words in a
-row with an instruction file stays out of the repo.
+and the report of step 9. A model text that shares 8 words in a row with an instruction file
+stays out of the repo.
+
+Each run also writes proofs/tutorial/run.json, with the versions, so the 2 files always come from
+the same run. With --model, it also has each line of agent.py that the summary or the report
+cites.
 
 usage: python scripts/proof_tutorial.py [--model]
 """
@@ -187,26 +190,23 @@ def main() -> int:
     finally:
         shutil.rmtree(work, ignore_errors=True)
     text = "\n".join(lines)
+    run |= {"model": sorted(models)}
     if model:
         summary, report_text = answers.get("nookku end", ""), answers.get("report.md", "")
         hidden = private(summary) or private(report_text)
         for name, body in (("summary of step 7", summary), ("report.md of step 9", report_text)):
             text += f"\n==== The model's {name} ====\n"
             text += "[not kept: it shares 8 words with an instruction file]\n" if hidden else body
-        run |= {
-            "model": sorted(models),
-            "kept": not hidden,
-            "cites": cites(summary + report_text),
-        }
+        run |= {"kept": not hidden, "cites": cites(summary + report_text)}
     OUT.parent.mkdir(parents=True, exist_ok=True)
     # The model can also name the folder without the /private link of macOS.
     for path in (str(work), str(work).removeprefix("/private")):
         text = text.replace(path, "...")
     OUT.write_text(text.replace(str(Path.home()), "~"), encoding="utf-8")
     print(f"Wrote {OUT}")
-    if model:
-        RUN.write_text(json.dumps(run, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
-        print(f"Wrote {RUN}")
+    # The 2 files always come from the same run, also with no model.
+    RUN.write_text(json.dumps(run, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+    print(f"Wrote {RUN}")
     return 0
 
 

@@ -240,7 +240,7 @@ The trace has 15 trace checks ([trace.py](../../src/nookku/trace.py)). `findings
 
 ## 5. Read the report
 
-If the harness model evaluated the test, it wrote `report.md` in the test folder ([SPEC.md section 9.3](../../SPEC.md#93-report)). The report has one table with the columns Class, Turn, Evidence and Issue, and one row for each issue. This row comes from the report of the tutorial test ([getting-started.md](../getting-started.md#9-read-the-report)). That test ran on 2026-10-16 with nookku 0.5.0 ([data](../../proofs/tutorial/output.txt)):
+If the harness model evaluated the test, it wrote `report.md` in the test folder ([SPEC.md section 9.3](../../SPEC.md#93-report)). The report has one table with the columns Class, Turn, Evidence and Issue, and one row for each issue. This row comes from the report of the tutorial test ([getting-started.md](../getting-started.md#9-read-the-report)). That test ran on 2026-10-16 with nookku 0.5.0 ([data](../../proofs/tutorial/output.txt), [method](../../scripts/proof_tutorial.py)):
 
 ```markdown
 | Class | Turn | Evidence | Issue |
