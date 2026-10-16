@@ -66,6 +66,9 @@ The evaluation got only the transcript tool of the nookku MCP server, and no oth
 
 - Claude Code lets a model read the files of the project with no permission. In a first run with the built-in tools, the model read `agent.py`. So that run was not an evaluation of the words only.
 - `--tools ""` removes only the built-in tools. In a second run, the MCP servers of my user settings were also in the context of the model. So the script now uses `--strict-mcp-config` with the nookku server only. It stores the tools of the session, and it fails if the session has a different tool.
+- The plugins and the hooks of my user settings also loaded in the evaluation session, and the mods of `~/.claude/mods` too. A hook can add text to the context of the model. So the script now reads no user settings (`--setting-sources project,local`), turns all hooks off (`disableAllHooks`), and fails if a plugin of the session is not built into Claude Code. If the check fails, the script writes no result.
+
+The run below is from before the last change. Its session had only the transcript tool, but it also loaded the plugins of my user settings and 6 mods of `~/.claude/mods`. On my machine, Claude Code loads these mods also with no user settings. So the new script refuses the session, and the run below stays until a run with no mods.
 
 The full transcript and the model's answer are in [examples/toy-shop/evaluation.json](../examples/toy-shop/evaluation.json). The script is [scripts/example_evaluation.py](../scripts/example_evaluation.py). It reads the records of the [test folder](reference/glossary.md#test-folder) `.nookku/tests/20261016-042234-9a71/`.
 
