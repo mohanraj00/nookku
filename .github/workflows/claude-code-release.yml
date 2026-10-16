@@ -36,16 +36,21 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
       - name: Install the latest Claude Code
         id: install
+        timeout-minutes: 5
         env:
           VERSION: ${{ steps.latest.outputs.version }}
         run: npm install -g "@anthropic-ai/claude-code@$VERSION"
       - name: Validate the plugin
         id: validate
+        # A step timeout fails the step. A job timeout cancels the job, and then the report job
+        # does not run. Thus each step stops well before the job timeout of 20 minutes.
+        timeout-minutes: 5
         run: |
           set -o pipefail
           claude plugin validate plugins/nookku 2>&1 | tee -a check.log
       - name: Test the plugin
         id: test
+        timeout-minutes: 5
         # Also run the tests if the validation fails, so that the issue gives both results.
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: |
