@@ -7,7 +7,11 @@ result or its error, in the correct turn. Each run makes about 8 model calls.
 The results keep no model text: a message shows only its SHA-256 and its length. The tool
 outputs come from the toy tools.
 
-usage: python scripts/proof_trace.py [OUT_DIR]   (default proofs/trace)
+usage: python scripts/proof_trace.py [OUT_DIR] [AGENT_SDK]
+
+OUT_DIR is proofs/trace by default. AGENT_SDK is a pip requirement, for example
+claude-agent-sdk==0.2.168. It replaces the pin of scripts/proof_common.py for this run only, to
+test the session files of the Claude Code that a different SDK bundles.
 """
 
 from __future__ import annotations
@@ -99,10 +103,13 @@ def scrub(text: str) -> str:
 
 def main() -> int:
     out = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "proofs" / "trace"
+    entry = [*ENTRY]
+    if len(sys.argv) > 2:
+        entry[ENTRY.index("--with") + 1] = sys.argv[2]
     project = ROOT / ".proof" / "trace"
     shutil.rmtree(project, ignore_errors=True)
     (project / ".nookku").mkdir(parents=True)
-    config = {"entry": ENTRY, "models": ["claude-code", "codex"]}
+    config = {"entry": entry, "models": ["claude-code", "codex"]}
     (project / ".nookku" / "config.json").write_text(json.dumps(config))
     cur = bridge.start(project, wait=120)
     try:
@@ -120,7 +127,7 @@ def main() -> int:
         for h, t, k, n, a, r in EXPECT
     ]
     sdk = subprocess.run(
-        [*ENTRY[:7], "python", "-c", "import claude_agent_sdk as s; print(s.__version__)"],
+        [*entry[:7], "python", "-c", "import claude_agent_sdk as s; print(s.__version__)"],
         capture_output=True,
         text=True,
     ).stdout.strip()

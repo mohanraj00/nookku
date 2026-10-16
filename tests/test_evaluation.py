@@ -489,6 +489,7 @@ def test_the_transcript_shows_version_untested_one_time_for_each_version(tmp_pat
     text = evaluation.transcript(folder)
     loose = text.split("Findings with no turn:\n")[1].split("\n════")[0]
     assert loose.splitlines() == [
-        "- version_untested: version 2.1.999, tested: 2.1.286, 2.1.292 (claude-code, 5 sessions)",
+        "- version_untested: version 2.1.999, tested: 2.1.286, 2.1.292, 2.1.301"
+        " (claude-code, 5 sessions)",
         "- version_untested: version 0.161.0, tested: 0.160.0, 0.162.1 (codex, 1 session)",
     ]
