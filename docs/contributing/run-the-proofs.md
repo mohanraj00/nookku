@@ -52,6 +52,24 @@ If a hook changes, trust it again. A new plugin script also needs a new run of `
 
 These scripts print `PASS` or `FAIL` and the path of their results file: `proofs_relay.py`, `proof_sessions.py`, `proof_trace.py`, `proof_backend.py`, `proof_model_api.py`, `proof_report.py` and `proof_telemetry.py`. The docstring of each script lists what it checks.
 
+## A new Claude Code release
+
+The plugin uses function hooks, which are early access and can change between releases. CI pins the tested Claude Code version in the job `claude-code-plugin` of [ci.yml](../../.github/workflows/ci.yml).
+
+The workflow [claude-code-release.yml](../../.github/workflows/claude-code-release.yml) checks the latest release. It runs each day at 06:23 UTC:
+
+1. It installs the latest `@anthropic-ai/claude-code` from npm.
+2. It runs `claude plugin validate plugins/nookku` and `claude plugin test plugins/nookku`, as the CI job does.
+3. If a check fails, it opens an issue with the title `Claude Code <version> fails the plugin checks`. The issue has the version, a link to the run and the end of the log. The workflow opens one issue for each version, also if a person closed the issue.
+
+To start the workflow by hand, run `gh workflow run claude-code-release.yml`, or use "Run workflow" on the Actions page. GitHub stops a scheduled workflow after 60 days with no activity in a public repo ([GitHub docs](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/disable-and-enable-workflows)). Then start it again on the Actions page.
+
+The checks need no model, so they cannot replace the proofs. Before you change the CI pin to a new version:
+
+1. Run P1 to P5 again with that version, as [The commands](#the-commands) says.
+2. Commit the results with the version that they record.
+3. Change the pin in `ci.yml` and the version in [faq.md](../faq.md). `tests/test_docs.py` checks that the pin, the FAQ and the results name the same version.
+
 ## After a run
 
 1. Read the results file. A fail is a result too: keep it, and say why in [results.md](../results.md).

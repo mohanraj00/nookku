@@ -1,0 +1,83 @@
+name: Claude Code release check
+
+# The plugin uses function hooks, which are early access and can change between releases.
+# ci.yml pins the tested Claude Code version. This workflow runs the plugin checks of ci.yml on
+# the latest release each day. If the checks fail, it opens one issue for that version (#3).
+on:
+  schedule:
+    - cron: "23 6 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  claude-code-latest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Find the latest Claude Code version
+        id: latest
+        run: |
+          version="$(npm view @anthropic-ai/claude-code version)"
+          if ! printf '%s' "$version" | grep -Eqx '[0-9]+\.[0-9]+\.[0-9]+'; then
+            echo "npm gave a version that is not X.Y.Z: $version" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Install the latest Claude Code
+        env:
+          VERSION: ${{ steps.latest.outputs.version }}
+        run: |
+          set -o pipefail
+          npm install -g "@anthropic-ai/claude-code@$VERSION" 2>&1 | tee -a check.log
+      - name: Validate the plugin
+        run: |
+          set -o pipefail
+          claude plugin validate plugins/nookku 2>&1 | tee -a check.log
+      - name: Test the plugin
+        run: |
+          set -o pipefail
+          claude plugin test plugins/nookku 2>&1 | tee -a check.log
+      - name: Open an issue for the failed version
+        if: failure() && steps.latest.outputs.version != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ steps.latest.outputs.version }}
+          PIN: ${{ github.server_url }}/${{ github.repository }}/blob/main/.github/workflows/ci.yml
+          PROOFS: ${{ github.server_url }}/${{ github.repository }}/blob/main/docs/contributing/run-the-proofs.md
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="Claude Code $VERSION fails the plugin checks"
+          # One issue for each version, also if a person closed it.
+          if gh issue list --state all --search "\"$title\" in:title" --json title --jq '.[].title' \
+              | grep -Fqx "$title"; then
+            echo "An issue for Claude Code $VERSION exists. I do not open a new one."
+            exit 0
+          fi
+          touch check.log
+          {
+            echo "The scheduled check ran \`claude plugin validate plugins/nookku\` and \`claude plugin test plugins/nookku\` with Claude Code $VERSION. A check failed."
+            echo
+            echo "- Run: $RUN_URL"
+            echo "- The CI pin: [ci.yml]($PIN)"
+            echo
+            echo "Do not change the CI pin to $VERSION before you do these steps:"
+            echo
+            echo "1. Fix the plugin, or report the defect to Claude Code."
+            echo "2. Run the proofs P1 to P5 again with Claude Code $VERSION, as [run-the-proofs.md]($PROOFS) says. They need a model, so they are local."
+            echo "3. Commit the results with the version that they record."
+            echo
+            echo "The last 200 lines of the log:"
+            echo
+            echo "~~~~~~~~~~"
+            tail -n 200 check.log | cut -c 1-300
+            echo "~~~~~~~~~~"
+          } > issue.md
+          gh issue create --title "$title" --label bug --body-file issue.md
