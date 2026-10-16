@@ -949,3 +949,61 @@ def test_init_start_and_end_a_test(tmp_path: Path, capsys: pytest.CaptureFixture
     assert main(["trace", "no-such-test", "--root", str(tmp_path)]) == 2
     assert main(["end", "--root", str(tmp_path)]) == 0
     assert "No test runs. Relay mode is off." in capsys.readouterr().out
+
+
+# The text of the start refusal with no entry. A change of the text changes this test too.
+NO_ENTRY = (
+    ".nookku/config.json has no 'entry' command, so the test cannot start. Write the command "
+    'that starts your agent with: nookku init <relay> --entry "<command>". <relay> is plugin, '
+    "claude-code or codex."
+)
+
+
+@pytest.mark.parametrize("relay", ["plugin", "codex", "claude-code"])
+def test_init_with_no_entry_ends_with_the_command_that_writes_it(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], relay: str
+) -> None:
+    # A new tester ran init with no flags, and start then refused with no fix (Gate 1 of #401).
+    assert main(["init", relay, "--root", str(tmp_path)]) == 0
+    assert json.loads((tmp_path / ".nookku" / "config.json").read_text())["entry"] == []
+    assert capsys.readouterr().out.splitlines()[-1] == (
+        "Note: .nookku/config.json has no entry, so a test cannot start yet. Write the "
+        f'command that starts your agent with: nookku init {relay} --entry "python3 agent.py". '
+        "Replace python3 agent.py with your command."
+    )
+
+
+@pytest.mark.parametrize(
+    "flags", [["--entry", "python3 agent.py"], ["--agent-url", "http://127.0.0.1:8700/"]]
+)
+def test_init_with_an_entry_or_an_agent_url_gives_no_note(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], flags: list[str]
+) -> None:
+    assert main(["init", "plugin", "--root", str(tmp_path), *flags]) == 0
+    assert "has no entry" not in capsys.readouterr().out
+    # A second init with no flag keeps the key, so it gives no note too.
+    assert main(["init", "plugin", "--root", str(tmp_path)]) == 0
+    assert "has no entry" not in capsys.readouterr().out
+
+
+def test_each_start_with_no_entry_gives_the_command_that_writes_it(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert main(["init", "plugin", "--root", str(tmp_path)]) == 0
+    capsys.readouterr()
+    assert main(["start", "--root", str(tmp_path)]) == 1
+    assert capsys.readouterr().out == f"nookku: {NO_ENTRY}\n"
+    assert main(["start", "--root", str(tmp_path), "--json"]) == 1
+    assert json.loads(capsys.readouterr().out) == {"error": NO_ENTRY}
+    assert main(["check", "--root", str(tmp_path)]) == 1
+    assert capsys.readouterr().out == f"nookku: {NO_ENTRY}\n"
+    turns = tmp_path / "turns.jsonl"
+    turns.write_text('{"said": "Do you sell teapots?"}\n', "utf-8")
+    assert main(["run", "--script", str(turns), "--root", str(tmp_path)]) == 1
+    assert capsys.readouterr().out == f"nookku: {NO_ENTRY}\n"
+    # The prompt nookku start of the plugin and of the project hooks. Start still refuses.
+    event = {"hook_event_name": "UserPromptSubmit", "prompt": "nookku start", "session_id": "s1"}
+    answer = kit.handle(event, tmp_path, "claude-code")
+    assert answer is not None and answer["reason"] == f"nookku: {NO_ENTRY}"
+    assert not kit.is_on(tmp_path)
+    assert state.current(tmp_path) is None

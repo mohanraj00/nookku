@@ -307,6 +307,42 @@ def read_config(root: Path) -> dict[str, Any]:
     return check(_load(root))
 
 
+def entry_command(relay: str = "<relay>", command: str = "<command>") -> str:
+    """The command that writes the key entry. The note of init and the start refusal use it."""
+    return f'nookku init {relay} --entry "{command}"'
+
+
+# The refusal of a test with no entry (SPEC.md section 7.1). `start`, `check`, `run`, the prompt
+# nookku start and the run_script tool of `nookku mcp` all get it from `bridge.load_config`.
+NO_ENTRY = (
+    f"{FILE} has no 'entry' command, so the test cannot start. Write the command that starts "
+    f"your agent with: {entry_command()}. <relay> is plugin, claude-code or codex."
+)
+
+
+def no_entry_note(relay: str) -> str:
+    """The note of `nookku init <relay>` if the config has nothing that starts or reaches an
+    agent (`needs_entry`)."""
+    return (
+        f"Note: {FILE} has no entry, so a test cannot start yet. Write the command that starts "
+        f"your agent with: {entry_command(relay, 'python3 agent.py')}. Replace python3 agent.py "
+        "with your command."
+    )
+
+
+def needs_entry(root: Path) -> bool:
+    """True if config.json has no entry (the rule of `has_entry`, which start uses) and no
+    `agent_url`. Then nothing starts or reaches an agent."""
+    if has_entry(root):
+        return False
+    try:
+        data = _load(root)
+    except ConfigError:
+        return True
+    url = data.get("agent_url") if isinstance(data, dict) else None
+    return not (isinstance(url, str) and url)
+
+
 def has_entry(root: Path) -> bool:
     """True if config.json has a list `entry` with at least one item. This does not check the
     other keys. A file with an entry and an error still has an entry, so that `start` shows the

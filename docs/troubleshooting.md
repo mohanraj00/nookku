@@ -37,11 +37,11 @@ First, look in the [test folder](reference/glossary.md#test-folder) `.nookku/tes
 
 ## Start a test
 
-### `nookku: .nookku/config.json has no 'entry' command`
+### `nookku: .nookku/config.json has no 'entry' command, so the test cannot start`
 
-(bridge.py) **Cause.** `config.json` has no `entry`, or it is empty.
+(config.py, bridge.py) **Cause.** `config.json` has no `entry`, or it is empty. For example, you ran `nookku init claude-code` with no `--entry`. Then `init` ends with the note `Note: .nookku/config.json has no entry, so a test cannot start yet.` `nookku start`, the prompt `nookku start`, `check`, `run` and the `run_script` tool of `nookku mcp` refuse the test. Relay mode stays off.
 
-**Fix.** Add the entry: `nookku init <harness> --entry "<command>"`, or ask the [harness model](reference/glossary.md#harness-model) to run `nookku setup` ([how-to/connect-your-agent.md](how-to/connect-your-agent.md)).
+**Fix.** Write the command that starts your agent: `nookku init <relay> --entry "<command>"`, with the relay that you use (`plugin`, `claude-code` or `codex`). For example, `nookku init claude-code --entry "python3 agent.py"`. The key `entry` is in [reference/config.md](reference/config.md#test-keys). You can also ask the [harness model](reference/glossary.md#harness-model) to run `nookku setup` ([how-to/connect-your-agent.md](how-to/connect-your-agent.md)).
 
 ### `nookku: cannot read .nookku/config.json: <reason>`
 

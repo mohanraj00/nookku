@@ -24,6 +24,7 @@ from nookku.audit import audit
 from nookku.config import CHECK_MESSAGE as CHECK_MESSAGE
 from nookku.config import FILE as CONFIG_FILE
 from nookku.config import HARNESSES as HARNESSES
+from nookku.config import NO_ENTRY as NO_ENTRY
 from nookku.config import STATE_DIR as STATE_DIR
 from nookku.config import ConfigError, read_config
 from nookku.config import has_entry as has_entry
@@ -118,7 +119,7 @@ def load_config(root: Path, entry_name: str | None = None) -> TestConfig:
             )
         entry = entries[entry_name]
     if not (isinstance(entry, list) and entry and all(isinstance(a, str) for a in entry)):
-        raise BridgeError(f"{CONFIG_FILE} has no 'entry' command")
+        raise BridgeError(NO_ENTRY)
     try:
         backends = backend.parse(data.get("backends"))
         apis = model_api.backends(model_api.parse(data.get("model_api")), os.environ)

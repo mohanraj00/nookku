@@ -19,7 +19,7 @@ An unknown command or flag prints the usage and exits with 2. The error of an un
 
 ### `nookku start`
 
-Start a test: run the [entry](glossary.md#entry) through the [tap](glossary.md#tap) and switch [relay mode](glossary.md#relay-mode) on ([SPEC.md section 7.2](../../SPEC.md#72-start-and-end)). It needs an `entry` in `.nookku/config.json`. The start text gives the same ways to end the test as the [plugin](glossary.md#plugin) and the [project hooks](glossary.md#project-hooks): the prompt `nookku end`, which also starts the [evaluation](glossary.md#evaluation), and `nookku end` in a shell. If `evaluate` is `false`, the text does not name the evaluation ([SPEC.md section 9.1](../../SPEC.md#91-start)).
+Start a test: run the [entry](glossary.md#entry) through the [tap](glossary.md#tap) and switch [relay mode](glossary.md#relay-mode) on ([SPEC.md section 7.2](../../SPEC.md#72-start-and-end)). It needs an `entry` in `.nookku/config.json`. With no entry, `start` starts no test, exits with 1 and prints `nookku: .nookku/config.json has no 'entry' command, so the test cannot start. Write the command that starts your agent with: nookku init <relay> --entry "<command>". <relay> is plugin, claude-code or codex.` The prompt `nookku start`, `check` and `run` give the same text ([troubleshooting](../troubleshooting.md#nookku-nookkuconfigjson-has-no-entry-command-so-the-test-cannot-start)). The start text gives the same ways to end the test as the [plugin](glossary.md#plugin) and the [project hooks](glossary.md#project-hooks): the prompt `nookku end`, which also starts the [evaluation](glossary.md#evaluation), and `nookku end` in a shell. If `evaluate` is `false`, the text does not name the evaluation ([SPEC.md section 9.1](../../SPEC.md#91-start)).
 
 `start` also starts the [chat page](#nookku-chat) of the test and opens it in your browser. The prompt `nookku start` and `/nookku start` in the plugin do the same. After `end` in a shell, the page continues, so you can export the test. The prompt `nookku end` and the next `start` stop the page ([SPEC.md section 5](../../SPEC.md#5-relays)).
 
@@ -398,6 +398,8 @@ nookku init claude-code --backend stock STOCK_URL http://127.0.0.1:9001 --model-
 ```
 
 The output starts with `Project root:` and the absolute root, then gives the absolute path of each file that `init` wrote. If the root is in a state folder or a test folder, for example `.nookku/tests/<id>`, the target of a `.nookku` symlink, or a copied test folder, `init` writes nothing, exits with 1 and names the project folder to use ([code](../../src/nookku/cli.py), [test](../../tests/test_cli.py)). If the root has no `config.json` and is not the top level of its git work tree, `init` prints a warning that names the top level. It still writes the files.
+
+If the config has no `entry` and no `agent_url` after the run, the last line of the output is a note: `Note: .nookku/config.json has no entry, so a test cannot start yet. Write the command that starts your agent with: nookku init <harness> --entry "python3 agent.py". Replace python3 agent.py with your command.` `<harness>` is the harness of the run. The exit code stays 0. With `agent_url` and no entry, the relay sends each message to the tap of `tap_url` ([how-to/http-tap.md](../how-to/http-tap.md)), so `init` gives no note.
 
 | Argument or flag | Default | Meaning |
 |---|---|---|
