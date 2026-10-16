@@ -215,17 +215,26 @@ def test_end_does_not_stop_a_page_that_the_tester_started(running: Any) -> None:
         began = time.monotonic()
         assert page_auto.after_end(root, True) is None
         assert time.monotonic() - began < 1
-        assert state.page_info(root) == {"port": 1, "pid": os.getpid()}
+        pid_start = state.process_start(os.getpid())
+        assert state.page_info(root) == {"port": 1, "pid": os.getpid(), "pid_start": pid_start}
     finally:
         path.unlink()
         os.close(lock)
 
 
-def sleeper(root: Path, test: str) -> subprocess.Popen[bytes]:
-    """A process that only sleeps, and a page file of a page server of the test that names it."""
+REAL = object()
+
+
+def sleeper(root: Path, test: str, start: object = REAL) -> subprocess.Popen[bytes]:
+    """A process that only sleeps, and a page file of a page server of the test that names it.
+    The page file has the real start time of the process, else `start`. None gives no
+    `pid_start`, as in a page file of an older version."""
     proc = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
     state._children[proc.pid] = proc
-    info = {"port": 1, "pid": proc.pid, "test": test}
+    info: dict[str, Any] = {"port": 1, "pid": proc.pid, "test": test}
+    info["pid_start"] = state.process_start(proc.pid) if start is REAL else start
+    if info["pid_start"] is None:
+        del info["pid_start"]
     (root / ".nookku" / state.PAGE_FILE).write_text(json.dumps(info))
     return proc
 
@@ -271,6 +280,44 @@ def test_end_sends_no_signal_to_the_pid_of_a_stale_page_file(running: Any) -> No
         assert page_auto.after_end(root, True) is None
         assert time.monotonic() - began < 1
         assert proc.poll() is None
+    finally:
+        proc.kill()
+        proc.wait()
+
+
+@pytest.mark.parametrize("start", ["ps:Thu Jan  1 00:00:00 1970", None])
+def test_end_sends_no_signal_to_a_pid_with_another_start_time(running: Any, start: object) -> None:
+    root, folder = running
+    # The pid of the page file runs, and a process holds the page lock. But the start time of the
+    # process is not pid_start, or the page file of an older version has no pid_start (#397).
+    proc = sleeper(root, folder.name, start)
+    lock = os.open(root / ".nookku" / state.PAGE_LOCK, os.O_RDWR | os.O_CREAT, 0o600)
+    fcntl.flock(lock, fcntl.LOCK_EX)
+    (root / ".nookku" / "current.json").unlink()
+    try:
+        text = page_auto.after_end(root, True)
+        assert text == page_auto.NOT_CONFIRMED.format(pid=proc.pid)
+        # The next start also sends no signal, and says why it starts no page.
+        text = page_auto.after_start(root, folder.name, sys.stdout)
+        assert text is not None and f"pid {proc.pid}" in text and "The test continues." in text
+        assert proc.poll() is None
+    finally:
+        os.close(lock)
+        proc.kill()
+        proc.wait()
+
+
+def test_the_stop_checks_the_start_time_again_before_the_signal(tmp_path: Path) -> None:
+    # The page server can stop after the first check, and the OS can give its pid to a new
+    # process. The stop checks the start time again, with a pidfd on Linux, and sends no signal.
+    proc = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
+    state._children[proc.pid] = proc
+    try:
+        assert page_auto._stop(proc.pid, "ps:Thu Jan  1 00:00:00 1970")
+        assert proc.poll() is None
+        start = state.process_start(proc.pid)
+        assert start is not None and page_auto._stop(proc.pid, start)
+        assert proc.wait(10) == -signal.SIGTERM
     finally:
         proc.kill()
         proc.wait()

@@ -874,11 +874,11 @@ class PageRunning(Exception):
 
 
 def claim_page_file(root: Path, port: int, test: str | None = None) -> tuple[Path, int]:
-    """Write the page file: the port and the pid of this server, with no token (SPEC.md section
-    5). A server that `start` started also writes its test (#328). Return its path and the
-    descriptor of the page lock. The server holds the lock for its whole life, so a second server
-    cannot take it. Raise PageRunning if another server holds it. A page file with no holder of
-    the lock is stale, and this server takes it over."""
+    """Write the page file: the port, the pid and the pid start time of this server, with no
+    token (SPEC.md section 5). A server that `start` started also writes its test (#328). Return
+    its path and the descriptor of the page lock. The server holds the lock for its whole life,
+    so a second server cannot take it. Raise PageRunning if another server holds it. A page file
+    with no holder of the lock is stale, and this server takes it over."""
     import fcntl
 
     folder = state.state(root)
@@ -904,7 +904,10 @@ def claim_page_file(root: Path, port: int, test: str | None = None) -> tuple[Pat
         new = folder / f".{state.PAGE_FILE}.{os.getpid()}"
         fd = os.open(new, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
         with os.fdopen(fd, "w") as f:
-            data: dict[str, Any] = {"port": port, "pid": os.getpid()}
+            # The pid and its start time identify this server, as for the bridge. If the start
+            # time is not known (None), no end sends a signal to this server.
+            me = os.getpid()
+            data: dict[str, Any] = {"port": port, "pid": me, "pid_start": state.process_start(me)}
             if test is not None:
                 data["test"] = test
             f.write(json.dumps(data) + "\n")
