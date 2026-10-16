@@ -364,4 +364,4 @@ A repeated text then shows as `(compact: the same text as [trace.jsonl:N], sha25
 
 ## Examples
 
-[evaluation-example.md](../evaluation-example.md) has 2 worked [evaluations](../reference/glossary.md#evaluation) of the toy shop. The first has a report with 4 rows, the trace lines that the report cites, and what the model got right and wrong. The second is an evaluation of the words only, with no trace.
+[evaluation-example.md](../evaluation-example.md) has 2 worked [evaluations](../reference/glossary.md#evaluation) of the toy shop. The first has a report with 4 rows, the trace lines that the report cites, and what the model got right and wrong. The second is an evaluation of the words only: the model reads the transcript and the trace of the test, and no file of the app.
