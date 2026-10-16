@@ -669,6 +669,29 @@ def test_a_change_of_the_outside_test_folders_to_a_symlink_after_the_check_is_re
     assert found is None
 
 
+def test_a_test_folder_that_changes_to_a_symlink_to_another_test_is_refused(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A process of the test changes the folder of test A to a symlink to test B, after the
+    symlink check and before the resolve. A request for test A then must not give test B
+    (#398)."""
+    root = tmp_path / "shop"
+    (root / ".nookku").mkdir(parents=True)
+    a = older_test(root, "20261012-080000-aaaa")
+    b = older_test(root, "20261012-090000-bbbb")
+    real_is_symlink = Path.is_symlink
+
+    def check_then_swap(self: Path) -> bool:
+        found = real_is_symlink(self)
+        if self == a:
+            a.rename(tmp_path / "moved")
+            a.symlink_to(b)
+        return found
+
+    monkeypatch.setattr(Path, "is_symlink", check_then_swap)
+    assert page.older_test(root, a.name) is None
+
+
 def test_a_bad_or_unknown_test_id_of_a_file_is_refused(
     project: tuple[Path, Path, Path],
 ) -> None:

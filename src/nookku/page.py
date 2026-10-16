@@ -340,7 +340,9 @@ def older_test(root: Path, test_id: str) -> Path | None:
     try:
         tests = (state.state(root) / "tests").resolve(strict=True)
         real = folder.resolve(strict=True)
-        return real if real.parent == tests else None
+        # The real folder must have the requested id. Thus a change of the folder to a symlink
+        # to another test folder, after the symlink check, gives no folder.
+        return real if real.parent == tests and real.name == test_id else None
     except (OSError, RuntimeError):
         return None
 
