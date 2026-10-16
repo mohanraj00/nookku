@@ -26,6 +26,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parent.parent
 sys.path[:0] = [str(ROOT / "src"), str(ROOT / "scripts")]
 
+from proof_common import json_lines  # noqa: E402
 from proof_report import ENV, private, relay_runner, run_test, scrub  # noqa: E402
 
 from nookku import kit, mcp  # noqa: E402
@@ -47,9 +48,21 @@ PROMPT = (
     "is the tone right, is each answer accurate? Quote the turns that you judge."
 )
 # The evaluation reads the transcript and nothing else. Claude Code lets the model read the files
-# of the project with no permission, so the evaluation gets no built-in tool.
-TOOLS = [mcp.tool_name("claude-code", "transcript")]
-WORDS_ONLY = ["--tools", "", f"--allowedTools={','.join(TOOLS)}"]
+# of the project with no permission, so the evaluation gets no built-in tool. --tools does not
+# limit the MCP tools, so the evaluation gets only the nookku server of the plugin, with no other
+# MCP server of the user, the project or a plugin.
+SERVER = json.loads((ROOT / "plugins" / "nookku" / ".mcp.json").read_text())["mcpServers"]
+SERVERS = {"mcpServers": {mcp.SERVER: {k: SERVER[mcp.SERVER][k] for k in ("command", "args")}}}
+TRANSCRIPT = f"mcp__{mcp.SERVER}__transcript"
+OTHER_TOOLS = [f"mcp__{mcp.SERVER}__{t['name']}" for t in mcp.TOOLS if t["name"] != "transcript"]
+WORDS_ONLY = [
+    "--tools",
+    "",
+    "--strict-mcp-config",
+    f"--mcp-config={json.dumps(SERVERS)}",
+    f"--allowedTools={TRANSCRIPT}",
+    f"--disallowedTools={','.join(OTHER_TOOLS)}",
+]
 
 
 def free_port() -> int:
@@ -76,9 +89,11 @@ def setup(project: Path, python: str = sys.executable) -> None:
     (project / kit.STATE_DIR / "mode").write_text("off\n")
 
 
-def collect(folder: Path, answer: dict[str, Any], project: Path) -> dict[str, Any]:
-    """The result of the run, from the records of the test folder and the answer of the model.
-    An answer that shares 8 words with an instruction file stays out of the result."""
+def collect(
+    folder: Path, answer: dict[str, Any], tools: list[str], project: Path
+) -> dict[str, Any]:
+    """The result of the run, from the records of the test folder, and the answer and the tools of
+    the model. An answer that shares 8 words with an instruction file stays out of the result."""
     audit = json.loads((folder / "audit.json").read_text(encoding="utf-8"))
     manifest = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
     text = answer.get("result") or ""
@@ -91,15 +106,15 @@ def collect(folder: Path, answer: dict[str, Any], project: Path) -> dict[str, An
         "turns": audit["turns"],
         "transcript": [{"said": t.said, "shown": t.shown} for t in turns(folder / "relay.jsonl")],
         "prompt": PROMPT,
-        "tools": TOOLS,
+        "tools": tools,
         "evaluation": None if private(text) else scrub(text, project),
     }
 
 
-def ask(prompt: str, project: Path, extra: list[str]) -> dict[str, Any]:
-    """The JSON answer of one claude -p run."""
+def ask(prompt: str, project: Path, extra: list[str]) -> tuple[dict[str, Any], list[str]]:
+    """The result event of one claude -p run, and the tools that its init event names."""
     p = subprocess.run(
-        ["claude", "-p", "--output-format", "json", *extra, prompt],
+        ["claude", "-p", "--output-format", "stream-json", "--verbose", *extra, prompt],
         capture_output=True,
         text=True,
         stdin=subprocess.DEVNULL,
@@ -107,8 +122,11 @@ def ask(prompt: str, project: Path, extra: list[str]) -> dict[str, Any]:
         env=ENV,
         timeout=900,
     )
-    out: dict[str, Any] = json.loads(p.stdout[p.stdout.index("{") :]) if "{" in p.stdout else {}
-    return out
+    events = json_lines(p.stdout)
+    init = [e for e in events if e.get("type") == "system" and e.get("subtype") == "init"]
+    results = [e for e in events if e.get("type") == "result"]
+    tools = [str(t) for t in init[0].get("tools", [])] if init else []
+    return (results[-1] if results else {}), tools
 
 
 def main() -> int:
@@ -120,15 +138,17 @@ def main() -> int:
         print("FAIL: the test did not start")
         return 1
     folder, _ = ran
-    plugin = ["--plugin-dir", str(ROOT / "plugins" / "nookku")]
-    answer = ask(PROMPT, project, [*plugin, *WORDS_ONLY])
-    result = collect(folder, answer, project)
+    answer, tools = ask(PROMPT, project, WORDS_ONLY)
+    result = collect(folder, answer, tools, project)
     out = EXAMPLE / "evaluation.json"
     out.write_text(json.dumps(result, indent=1, ensure_ascii=False) + "\n")
     print(json.dumps({k: result[k] for k in ("versions", "models", "audit_exit", "turns")}))
     if result["evaluation"] is None:
         print("The answer shares 8 words with an instruction file. The result does not keep it.")
     shutil.rmtree(project, ignore_errors=True)
+    if tools != [TRANSCRIPT]:
+        print(f"FAIL: the evaluation had the tools {tools}, not only {TRANSCRIPT}")
+        return 1
     return 0 if result["audit_exit"] == 0 and result["turns"] == len(MESSAGES) else 1
 
 
