@@ -39,6 +39,7 @@ If a hook changes, trust it again. A new plugin script also needs a new run of `
 | [Trace](../reference/glossary.md#trace) of the model sessions | `uv run python scripts/proof_trace.py` | `proofs/trace/` |
 | Backend proxy, no model | `uv run python scripts/proof_backend.py` | `proofs/backend/` |
 | Model API proxy, no model | `uv run python scripts/proof_model_api.py` | `proofs/model-api/` |
+| The `HEAD /api/hello` call of Claude Code, no model | `uv run python scripts/proof_api_hello.py` | `proofs/model-api/hello.json` |
 | P5 to P8, evaluation at the end of a test | `uv run python scripts/proof_report.py <setup>` | `proofs/report/<setup>.json` |
 | Full telemetry | `uv run python scripts/proof_telemetry.py <setup>` | `proofs/telemetry/<setup>.json` |
 | P5, the model judges the record | `uv run python scripts/proof_evaluation.py <setup>` | `proofs/evaluation/<setup>.json` |
