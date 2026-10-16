@@ -1,10 +1,13 @@
+import signal
 import subprocess
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
-from proof_codex_gate import home_pids, stop_home
+from proof_codex_gate import home_pids, signal_same, stop_home
+
+from nookku import state
 
 HOME = Path("/work/.proof/codex-gate/codex-home")
 DAEMON = f"{HOME}/packages/app-server-daemon/bin/codex app-server --listen unix:// --managed-daemon"
@@ -54,3 +57,17 @@ def test_stop_home_stops_the_processes_of_the_home_and_waits_for_them(tmp_path: 
         outside.kill()
         inside.wait()
         outside.wait()
+
+
+def test_a_pid_with_a_different_start_time_gets_no_signal(tmp_path: Path) -> None:
+    proc = sleeper(tmp_path / "codex-home" / "bin" / "codex")
+    try:
+        start = state.process_start(proc.pid)
+        assert start is not None
+        signal_same(proc.pid, start + " of an older process", signal.SIGTERM)
+        assert proc.poll() is None
+        signal_same(proc.pid, start, signal.SIGTERM)
+        assert proc.wait(timeout=5) == -signal.SIGTERM
+    finally:
+        proc.kill()
+        proc.wait()

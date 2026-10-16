@@ -45,7 +45,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parent.parent
 sys.path[:0] = [str(ROOT / "src")]
 
-from nookku import __version__, codex_gate  # noqa: E402
+from nookku import __version__, codex_gate, state  # noqa: E402
 from nookku.config import STATE_DIR  # noqa: E402
 
 PLUGIN = ROOT / "plugins" / "nookku"
@@ -86,19 +86,47 @@ def stop_home(home: Path, timeout: float = 10.0) -> None:
     """Stop each process of home, and wait until it stops.
 
     The function sends SIGTERM for timeout seconds, then SIGKILL for timeout seconds more. It
-    reads the process list again before each signal, so it signals only the pids that run in
-    home at that time. If a process does not stop, the function stops the script.
+    reads the process list again before each signal. It records the start time of each pid when
+    it first finds the pid, and it signals a pid only while the pid has that start time. Thus a
+    pid that the OS gives to a new process gets no signal. If a process does not stop, the
+    function stops the script.
     """
     start = time.monotonic()
+    starts: dict[int, str | None] = {}
     while pids := home_pids(ps(), home):
         waited = time.monotonic() - start
         if waited > 2 * timeout:
             raise SystemExit(f"cannot stop the Codex processes of {home}: {pids}")
         sig = signal.SIGTERM if waited < timeout else signal.SIGKILL
         for pid in pids:
-            with suppress(ProcessLookupError):
-                os.kill(pid, sig)
+            first = starts.setdefault(pid, state.process_start(pid))
+            if first is not None:
+                signal_same(pid, first, sig)
         time.sleep(0.2)
+
+
+def signal_same(pid: int, start: str, sig: signal.Signals) -> None:
+    """Send sig to pid only if pid is the process with the start time start.
+
+    If the OS gives a pidfd (Linux), the pidfd holds the process from the check to the signal.
+    With no pidfd (macOS), the check and the signal are separate steps, as in page_auto._stop.
+    """
+    fd = None
+    opener = getattr(os, "pidfd_open", None)
+    if opener is not None and hasattr(signal, "pidfd_send_signal"):
+        with suppress(OSError):
+            fd = opener(pid)
+    try:
+        if not state.same_process(pid, start):
+            return
+        with suppress(ProcessLookupError):
+            if fd is not None:
+                signal.pidfd_send_signal(fd, sig)
+            else:
+                os.kill(pid, sig)
+    finally:
+        if fd is not None:
+            os.close(fd)
 
 
 def ps() -> str:
