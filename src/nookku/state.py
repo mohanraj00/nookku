@@ -29,8 +29,9 @@ TOKEN_HEADER = "X-Nookku-Token"
 TOKEN_KEY = "tap_token"
 
 
-# The page file in the state folder: the port and the pid of the chat page server (SPEC.md section
-# 5, "Chat page"). It never holds the page token, because a model tool call can read it.
+# The page file in the state folder: the port, the pid and the pid start time of the chat page
+# server (SPEC.md section 5, "Chat page"). It never holds the page token, because a model tool
+# call can read it.
 PAGE_FILE = "page.json"
 
 
@@ -154,12 +155,17 @@ def process_start(pid: int) -> str | None:
     return f"ps:{text}" if out.returncode == 0 and text else None
 
 
-def is_bridge(cur: dict[str, Any]) -> bool:
-    """True if the process of `pid` runs and has the start time `pid_start` of current.json."""
-    pid, start = cur.get("pid"), cur.get("pid_start")
+def same_process(pid: object, start: object) -> bool:
+    """True if a process with `pid` runs and has the start time `start` (see process_start).
+    A value of the wrong type, for example no start time in an older file, is False."""
     if type(pid) is not int or pid <= 0 or not isinstance(start, str) or not alive(pid):
         return False
     return process_start(pid) == start
+
+
+def is_bridge(cur: dict[str, Any]) -> bool:
+    """True if the process of `pid` runs and has the start time `pid_start` of current.json."""
+    return same_process(cur.get("pid"), cur.get("pid_start"))
 
 
 def current(root: Path) -> dict[str, Any] | None:

@@ -79,6 +79,10 @@ REUSED_PAGE = (
     "terminal.\n"
 )
 NOT_STOPPED = "nookku: the chat page (pid {pid}) did not stop. Stop it with: kill {pid}"
+NOT_CONFIRMED = (
+    "nookku: nookku cannot confirm that pid {pid} is the chat page, so it sent no signal. If "
+    "ps -p {pid} shows a nookku chat page, stop it with: kill {pid}"
+)
 
 
 def enabled(root: Path) -> bool:
@@ -184,14 +188,43 @@ def _read_line(fd: int, timeout: float) -> bytes:
     return data.split(b"\n", 1)[0]
 
 
-def _stop(pid: int) -> bool:
-    """Send SIGTERM to pid and wait STOP_WAIT for it to stop. Return True if it stopped."""
-    with contextlib.suppress(ProcessLookupError):
-        os.kill(pid, signal.SIGTERM)
-    deadline = time.monotonic() + STOP_WAIT
-    while state.alive(pid) and time.monotonic() < deadline:
-        time.sleep(0.05)
-    return not state.alive(pid)
+def _stop(pid: int, start: str | None = None) -> bool:
+    """Send SIGTERM to pid and wait STOP_WAIT for it to stop. Return True if it stopped.
+
+    With `start`, send the signal only if pid is the process with this start time. If the OS gives
+    a pidfd (Linux), the pidfd holds the process from the check to the signal. If the process
+    stops in that time, the signal goes to no process, also if the OS gives its pid to a new
+    process. With no pidfd (macOS), the check and the signal are separate steps, as for the entry
+    of a stopped bridge."""
+    fd = _pidfd(pid) if start is not None else None
+    try:
+        if start is not None and not state.same_process(pid, start):
+            return True  # the process stopped, so no process gets the signal
+        if fd is not None:
+            with contextlib.suppress(ProcessLookupError):
+                signal.pidfd_send_signal(fd, signal.SIGTERM)  # type: ignore[attr-defined,unused-ignore]
+            # A pidfd is readable when its process stops.
+            return bool(select.select([fd], [], [], STOP_WAIT)[0])
+        with contextlib.suppress(ProcessLookupError):
+            os.kill(pid, signal.SIGTERM)
+        deadline = time.monotonic() + STOP_WAIT
+        while state.alive(pid) and time.monotonic() < deadline:
+            time.sleep(0.05)
+        return not state.alive(pid)
+    finally:
+        if fd is not None:
+            os.close(fd)
+
+
+def _pidfd(pid: int) -> int | None:
+    """A pidfd of the process of pid, or None if the OS gives no pidfd (`os.pidfd_open`)."""
+    opener = getattr(os, "pidfd_open", None)
+    if opener is None or not hasattr(signal, "pidfd_send_signal"):
+        return None
+    try:
+        return int(opener(pid))
+    except OSError:  # no such process, or the kernel has no pidfd
+        return None
 
 
 def after_end(root: Path, stop: bool) -> str | None:
@@ -221,7 +254,12 @@ def _stop_ended(root: Path) -> str | None:
     # names it. A server writes its own pid into the page file after it takes the lock.
     if not state.alive(pid) or state.page_info(root) != info:
         return None
-    return None if _stop(pid) else NOT_STOPPED.format(pid=pid)
+    # The OS can give the pid to a new process. The pid and pid_start identify the server, as for
+    # the bridge. A page file of an older version has no pid_start: then send no signal, and tell
+    # the tester how to stop the server (#397).
+    if not state.same_process(pid, info.get("pid_start")):
+        return NOT_CONFIRMED.format(pid=pid)
+    return None if _stop(pid, info["pid_start"]) else NOT_STOPPED.format(pid=pid)
 
 
 def _held(root: Path) -> bool:

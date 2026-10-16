@@ -528,7 +528,7 @@ def test_the_guard_denies_a_model_call_to_the_page(tmp_path: Path) -> None:
         assert state.page_port(tmp_path) == port
         # A model tool call can read the page file, so it never holds the page token.
         assert server.token not in path.read_text()
-        assert set(json.loads(path.read_text())) == {"port", "pid"}
+        assert set(json.loads(path.read_text())) == {"port", "pid", "pid_start"}
         for command in (
             f'curl -X POST {server.url}api/send -d \'{{"said": "hi"}}\'',
             f"curl http://localhost:{port}/",
@@ -781,7 +781,12 @@ def test_a_second_page_server_is_refused_and_a_stale_file_is_taken_over(
     # A server that stopped with no cleanup leaves its file, but no process holds the lock.
     os.close(lock)
     path, lock = page.claim_page_file(tmp_path, 5678)
-    assert json.loads(path.read_text()) == {"port": 5678, "pid": os.getpid()}
+    pid_start = state.process_start(os.getpid())
+    assert json.loads(path.read_text()) == {
+        "port": 5678,
+        "pid": os.getpid(),
+        "pid_start": pid_start,
+    }
     os.close(lock)
 
 
@@ -829,6 +834,7 @@ def test_of_2_servers_that_start_at_the_same_time_one_runs(tmp_path: Path) -> No
         assert state.page_info(tmp_path) == {
             "port": state.page_port(tmp_path),
             "pid": running.pid,
+            "pid_start": state.process_start(running.pid),
         }
     finally:
         for p in procs:

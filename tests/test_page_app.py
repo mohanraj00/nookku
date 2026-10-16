@@ -78,7 +78,10 @@ global.window = { location: { hash: "" }, addEventListener: () => {} };
 global.CustomEvent = class {
   constructor(type, init) { this.type = type; this.detail = init.detail; }
 };
-global.NookkuRender = { parts: (doc, text) => {
+// Each call of parts records the test of its change, or null if it has no change (#398).
+const changes = [];
+global.NookkuRender = { forTest: (id) => ({ test: id }), parts: (doc, text, change) => {
+  changes.push(change === undefined ? null : change.test);
   const shown = new El("div"); shown.textContent = text;
   const raw = new El("pre"); raw.textContent = text; raw.hidden = true;
   return { toggle: new El("button"), shown: shown, raw: raw };
@@ -383,3 +386,28 @@ def test_the_count_shows_code_points_and_the_box_grows_to_its_limit() -> None:
     )
     assert out["count"] == "3 characters" and out["height"] == "240px"
     assert out["none"] == "" and out["off"] is True
+
+
+FILE_TEST_CHECK = """
+pending.shift().answer(turns(2));
+await ticks();
+out.noHash = changes.splice(0);
+// The dashboard opens the page of a test with #<test id>.
+window.location.hash = "#t1";
+timer();
+const poll = pending.shift();
+out.url = poll.url;
+poll.answer(answer([{ said: "hi", shown: "![train](train.png)", ok: true, harness: "pane" }]));
+await ticks();
+out.withHash = changes.splice(0);
+"""
+
+
+@needs_node
+def test_a_page_that_the_dashboard_opened_names_its_test_in_each_file() -> None:
+    """The dashboard opens the page of an older test. Each file of a reply then names that test,
+    because the file route serves only the shown test without it (#398)."""
+    out = run(FILE_TEST_CHECK)
+    assert out["noHash"] == [None, None]
+    assert out["url"] == "api/turns/t1"
+    assert out["withHash"] == ["t1"]

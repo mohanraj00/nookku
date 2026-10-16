@@ -150,8 +150,9 @@ function toolRow(middle) {
   return { row: row, notes: notes, steps: steps };
 }
 
-// The reply of the agent: an avatar, no bubble, and the tool row under it.
-function agentNode(turn, number) {
+// The reply of the agent: an avatar, no bubble, and the tool row under it. If the dashboard opened
+// the page of a test (`fileTest`), each file of the reply names that test (#398).
+function agentNode(turn, number, fileTest) {
   const box = make("div", "agent");
   const avatar = make("div", "avatar");
   avatar.append(...icon("bot"));
@@ -164,7 +165,8 @@ function agentNode(turn, number) {
     small.append(document.createTextNode(" · shown on this page only"));
   }
   who.append(small);
-  const parts = NookkuRender.parts(document, turn.shown);
+  const change = fileTest ? NookkuRender.forTest(fileTest) : undefined;
+  const parts = NookkuRender.parts(document, turn.shown, change);
   parts.toggle.classList.add("btn");
   parts.toggle.prepend(...icon("text"));
   const copy = button("icon copy", "", "copy");
@@ -225,7 +227,7 @@ function turnNode(turn, number, test) {
   // notes.js and trace.js fill these slots (#352, #353).
   const slots = { sent: tester.sent };
   if (turn.shown !== null && turn.ok !== false) {
-    const agent = agentNode(turn, number);
+    const agent = agentNode(turn, number, hashId() ? test : "");
     li.append(agent.node);
     Object.assign(slots, {
       time: agent.time,
@@ -510,13 +512,16 @@ function render(data) {
 
 // The dashboard opens the page of one test with #<test id> (#349). The page then shows that
 // test. It can send only if that test runs.
-function turnsUrl() {
-  let id = "";
+function hashId() {
   try {
-    id = decodeURIComponent(window.location.hash.slice(1));
+    return decodeURIComponent(window.location.hash.slice(1));
   } catch (e) {
-    id = window.location.hash.slice(1);
+    return window.location.hash.slice(1);
   }
+}
+
+function turnsUrl() {
+  const id = hashId();
   return id ? "api/turns/" + encodeURIComponent(id) : "api/turns";
 }
 
