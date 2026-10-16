@@ -32,8 +32,11 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import signal
 import subprocess
 import sys
+import time
+from contextlib import suppress
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -57,6 +60,50 @@ def run(cmd: list[str], cwd: Path = ROOT) -> subprocess.CompletedProcess[str]:
     env = {**os.environ, "CODEX_HOME": str(HOME)}
     env.pop("NOOKKU_CODEX", None)
     return subprocess.run(cmd, cwd=cwd, env=env, capture_output=True, text=True, timeout=300)
+
+
+def home_pids(ps_output: str, home: Path) -> list[int]:
+    """Return the pids of `ps -o pid=,command=` whose command line has a path in home.
+
+    The app-server daemon of Codex runs a binary in its CODEX_HOME, so its command line names
+    the home. A process with only the name codex, or with the path of a different home, does not
+    match.
+    """
+    pids = []
+    for line in ps_output.splitlines():
+        pid, _, command = line.strip().partition(" ")
+        if not pid.isdigit():
+            continue
+        for word in command.split():
+            path = word.rpartition("=")[2]
+            if path == str(home) or path.startswith(str(home) + os.sep):
+                pids.append(int(pid))
+                break
+    return pids
+
+
+def stop_home(home: Path, timeout: float = 10.0) -> None:
+    """Stop each process of home, and wait until it stops.
+
+    The function sends SIGTERM for timeout seconds, then SIGKILL for timeout seconds more. It
+    reads the process list again before each signal, so it signals only the pids that run in
+    home at that time. If a process does not stop, the function stops the script.
+    """
+    start = time.monotonic()
+    while pids := home_pids(ps(), home):
+        waited = time.monotonic() - start
+        if waited > 2 * timeout:
+            raise SystemExit(f"cannot stop the Codex processes of {home}: {pids}")
+        sig = signal.SIGTERM if waited < timeout else signal.SIGKILL
+        for pid in pids:
+            with suppress(ProcessLookupError):
+                os.kill(pid, sig)
+        time.sleep(0.2)
+
+
+def ps() -> str:
+    cmd = ["ps", "-A", "-ww", "-o", "pid=", "-o", "command="]
+    return subprocess.run(cmd, capture_output=True, text=True, check=True).stdout
 
 
 def install() -> Path:
@@ -187,9 +234,9 @@ def main() -> int:
         return 2
     reset = "--trusted" not in sys.argv
     if reset and HOME.exists():
-        # Part A needs hooks that no person trusted. The app-server of the old home keeps its
-        # control socket, so stop it first.
-        subprocess.run(["pkill", "-f", str(HOME)], check=False)
+        # Part A needs hooks that no person trusted. The app-server daemon of the old home writes
+        # to the home, so stop it and wait until it stops (#400).
+        stop_home(HOME)
         shutil.rmtree(HOME)
     installed = install()
     project()
