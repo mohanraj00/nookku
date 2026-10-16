@@ -23,6 +23,8 @@ from nookku.config import (
     ConfigError,
     is_http_url,
     move_old_state,
+    needs_entry,
+    no_entry_note,
     read_config,
 )
 from nookku.record import RecordError
@@ -561,6 +563,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "or each message is sent two times."
             )
         _warn_both_on(root, args.harness)
+        if needs_entry(root):
+            # The last line, so that the tester sees it. The exit status stays 0.
+            print(no_entry_note(args.harness))
         return 0
     if args.command == "mode":
         root = args.root.resolve()
