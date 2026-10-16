@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import secrets
 import signal
 import sys
@@ -142,6 +143,18 @@ def test_the_old_name_page_works_the_same_and_prints_one_note_on_stderr(
     assert stop.value.code == 0
     shown = capsys.readouterr()
     assert shown.err == cli.OLD_CHAT_NOTE + "\n" and "--open" in shown.out
+
+
+def test_no_text_of_the_package_gives_the_old_name_but_the_note() -> None:
+    # A text that a string splits over 2 lines counts too (#407).
+    package = Path(cli.__file__).parent
+    for path in sorted(package.rglob("*")):
+        if path.suffix not in (".py", ".js", ".html", ".md"):
+            continue
+        text = re.sub(r"[\s\"'+]+", " ", path.read_text(encoding="utf-8"))
+        if "nookku page" in text:
+            assert path.name == "cli.py", path
+    assert re.sub(r"[\s\"'+]+", " ", page.NO_SESSION).count("run nookku chat") == 1
 
 
 def test_open_with_a_page_of_nookku_page_names_its_terminal(running: Any) -> None:

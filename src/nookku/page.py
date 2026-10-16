@@ -69,7 +69,7 @@ USED = (
 NO_SESSION = (
     "nookku: this browser has no session of the chat page. Open the page in the browser that "
     "opened it at the start of the test. Else end the test and start a new one, or run nookku "
-    "page in a separate terminal.\n"
+    "chat in a separate terminal.\n"
 )
 # The files of the page, in src/nookku/page/, and their media types.
 FILES = {

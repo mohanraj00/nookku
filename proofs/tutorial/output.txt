@@ -5,8 +5,8 @@ nookku 0.5.0
 [exit 0]
 
 $ echo '{"v": 1, "id": "1", "session": "s1", "message": "do you ship to delhi?", "history": []}' | python3 agent.py
-{"v": 1, "id": "1", "reply": "We ship to Chennai and Pune. Delivery takes 3 to 5 days.  "}
 toy shop agent: ready
+{"v": 1, "id": "1", "reply": "We ship to Chennai and Pune. Delivery takes 3 to 5 days.  "}
 [exit 0]
 
 $ nookku init claude-code --entry "python3 agent.py"
@@ -19,14 +19,14 @@ Do not also enable the nookku Claude Code plugin in this project, or each messag
 [exit 0]
 
 $ nookku check
-Test 20261015-163634-5ece: .../toy-shop/.nookku/tests/20261015-163634-5ece
+Test 20261015-170554-4b58: .../toy-shop/.nookku/tests/20261015-170554-4b58
 Reply: Which item is this about: the mug or the teapot?
 Audit: exit 0
 PASS
 [exit 0]
 
 > prompt: nookku start
-nookku: test 20261015-163638-98ac started. Relay mode is on: each message goes to the entry. To end the test and start the evaluation, type the prompt nookku end. To end the test with no evaluation, run nookku end in a shell.
+nookku: test 20261015-170558-e50a started. Relay mode is on: each message goes to the entry. To end the test and start the evaluation, type the prompt nookku end. To end the test with no evaluation, run nookku end in a shell.
 The chat page opened in your browser. It stops when you type the prompt nookku end, or at the next start.
 [exit 0]
 
@@ -47,7 +47,7 @@ We ship to Chennai and Pune. Delivery takes 3 to 5 days.
 [exit 0]
 
 $ nookku view --no-follow
-════ test 20261015-163638-98ac ════
+════ test 20261015-170558-e50a ════
 ──── tester, turn 1 ────
 hi, the mug i ordered came with a crack in the handle
 ──── agent ────
@@ -68,19 +68,19 @@ We ship to Chennai and Pune. Delivery takes 3 to 5 days.
 
 > prompt: nookku end
 nookku: relay mode is off.
-Test 20261015-163638-98ac ended: 3 turns, 0 model sessions.
-Folder: .../toy-shop/.nookku/tests/20261015-163638-98ac
+Test 20261015-170558-e50a ended: 3 turns, 0 model sessions.
+Folder: .../toy-shop/.nookku/tests/20261015-170558-e50a
 Trace: 0 model items in 3 turns, no findings.
-Audit: nookku audit --tap .../toy-shop/.nookku/tests/20261015-163638-98ac/tap.jsonl --relay .../toy-shop/.nookku/tests/20261015-163638-98ac/relay.jsonl
+Audit: nookku audit --tap .../toy-shop/.nookku/tests/20261015-170558-e50a/tap.jsonl --relay .../toy-shop/.nookku/tests/20261015-170558-e50a/relay.jsonl
 [the evaluation prompt follows]
 [exit 0]
 
 $ ls .nookku/tests/
-20261015-163634-5ece
-20261015-163638-98ac
+20261015-170554-4b58
+20261015-170558-e50a
 [exit 0]
 
-$ nookku audit --tap .nookku/tests/20261015-163638-98ac/tap.jsonl --relay .nookku/tests/20261015-163638-98ac/relay.jsonl
+$ nookku audit --tap .nookku/tests/20261015-170558-e50a/tap.jsonl --relay .nookku/tests/20261015-170558-e50a/relay.jsonl
 3 turns, 3 exchanges, 0 blocked model calls, 0 model sessions, 0 breaks
 Result: clean (exit 0)
 [exit 0]
@@ -95,18 +95,18 @@ Result: breaks found (exit 1)
 [exit 1]
 
 $ nookku verify
-Test 20261015-163638-98ac. Seal: intact. No record changed after the end of the test.
+Test 20261015-170558-e50a. Seal: intact. No record changed after the end of the test.
 [exit 0]
 
 $ nookku trace
 Trace: 0 model items in 3 turns, no findings.
-File: .../toy-shop/.nookku/tests/20261015-163638-98ac/trace.jsonl
+File: .../toy-shop/.nookku/tests/20261015-170558-e50a/trace.jsonl
 [exit 0]
 
-$ cat .nookku/tests/20261015-163638-98ac/findings.json
+$ cat .nookku/tests/20261015-170558-e50a/findings.json
 {
  "v": "0.2",
- "test": "20261015-163638-98ac",
+ "test": "20261015-170558-e50a",
  "turns": 3,
  "items": 0,
  "sessions": [],

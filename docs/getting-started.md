@@ -79,7 +79,7 @@ nookku check
 ```
 
 ```text
-Test 20261015-163634-5ece: .../toy-shop/.nookku/tests/20261015-163634-5ece
+Test 20261015-170554-4b58: .../toy-shop/.nookku/tests/20261015-170554-4b58
 Reply: Which item is this about: the mug or the teapot?
 Audit: exit 0
 PASS
@@ -112,7 +112,7 @@ claude
 Type the prompt `nookku start`. The hook starts the test and blocks the prompt, so the model does not receive it. Claude Code shows this text:
 
 ```text
-nookku: test 20261015-163638-98ac started. Relay mode is on: each message goes to the entry. To end the test and start the evaluation, type the prompt nookku end. To end the test with no evaluation, run nookku end in a shell.
+nookku: test 20261015-170558-e50a started. Relay mode is on: each message goes to the entry. To end the test and start the evaluation, type the prompt nookku end. To end the test with no evaluation, run nookku end in a shell.
 The chat page opened in your browser. It stops when you type the prompt nookku end, or at the next start.
 ```
 
@@ -125,7 +125,7 @@ Type these 3 messages in Claude Code, one at a time:
 For each message, Claude Code shows the agent's reply as the reason of a blocked prompt. The model does not run, and it does not get the reply. The chat page also shows each turn. To see the turns as text, run `nookku view` in a second terminal. In my run, it showed:
 
 ```text
-════ test 20261015-163638-98ac ════
+════ test 20261015-170558-e50a ════
 ──── tester, turn 1 ────
 hi, the mug i ordered came with a crack in the handle
 ──── agent ────
@@ -181,7 +181,7 @@ ls .nookku/tests/
 ```
 
 ```text
-20261015-163634-5ece   20261015-163638-98ac
+20261015-170554-4b58   20261015-170558-e50a
 ```
 
 The first folder is the test of `nookku check`. The second is your test.
@@ -189,7 +189,7 @@ The first folder is the test of `nookku check`. The second is your test.
 The end of the test already wrote the audit of its two records in `audit.json` in the test folder. To see the audit as text, run it again. This command is optional:
 
 ```bash
-nookku audit --tap .nookku/tests/20261015-163638-98ac/tap.jsonl --relay .nookku/tests/20261015-163638-98ac/relay.jsonl
+nookku audit --tap .nookku/tests/20261015-170558-e50a/tap.jsonl --relay .nookku/tests/20261015-170558-e50a/relay.jsonl
 ```
 
 ```text
@@ -221,7 +221,7 @@ The exit code is 0 for clean, 1 for a break, and 2 if a record is missing or inv
 The model wrote `report.md` in the test folder:
 
 ```bash
-cat .nookku/tests/20261015-163638-98ac/report.md
+cat .nookku/tests/20261015-170558-e50a/report.md
 ```
 
 ```markdown
@@ -251,7 +251,7 @@ nookku verify
 ```
 
 ```text
-Test 20261015-163638-98ac. Seal: intact. No record changed after the end of the test.
+Test 20261015-170558-e50a. Seal: intact. No record changed after the end of the test.
 ```
 
 ## 10. Read the trace and the findings
@@ -266,19 +266,19 @@ In my run, the output was:
 
 ```text
 Trace: 0 model items in 3 turns, no findings.
-File: .../toy-shop/.nookku/tests/20261015-163638-98ac/trace.jsonl
+File: .../toy-shop/.nookku/tests/20261015-170558-e50a/trace.jsonl
 ```
 
 With no test id, `trace` uses the latest test. The toy shop has no model, so the trace has no model items and no findings. Read the findings file:
 
 ```bash
-cat .nookku/tests/20261015-163638-98ac/findings.json
+cat .nookku/tests/20261015-170558-e50a/findings.json
 ```
 
 ```json
 {
  "v": "0.2",
- "test": "20261015-163638-98ac",
+ "test": "20261015-170558-e50a",
  "turns": 3,
  "items": 0,
  "sessions": [],

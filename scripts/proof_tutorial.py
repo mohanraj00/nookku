@@ -52,10 +52,18 @@ def main() -> int:
     lines = [f"Run of docs/getting-started.md on {date.today()}, nookku {__version__}.", ""]
 
     def shell(command: str) -> None:
+        # One pipe for stdout and stderr keeps the order of the lines of the 2 streams.
         done = subprocess.run(
-            command, shell=True, cwd=shop, env=env, capture_output=True, text=True, timeout=300
+            command,
+            shell=True,
+            cwd=shop,
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            timeout=300,
         )
-        lines.extend([f"$ {command}", done.stdout + done.stderr + f"[exit {done.returncode}]", ""])
+        lines.extend([f"$ {command}", done.stdout + f"[exit {done.returncode}]", ""])
 
     def prompt(text: str) -> None:
         event = {"hook_event_name": "UserPromptSubmit", "session_id": "tutorial", "cwd": str(shop)}
