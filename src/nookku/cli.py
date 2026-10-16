@@ -844,14 +844,6 @@ def _waiting(test: str) -> str:
     return f"Ending test {test}. Waiting up to {bridge.END_WAIT:g} s for the bridge to stop."
 
 
-def _stopped(folder: Path) -> str:
-    """The text of `status` for a test whose bridge stopped with no end (#164)."""
-    return (
-        f"Test {folder.name} stopped with no end. Folder: {folder}\n"
-        "To write its audit and its seal, run: nookku end"
-    )
-
-
 def _test_command(args: argparse.Namespace) -> int:
     root = args.root.resolve()
     if args.command == "start":
@@ -899,25 +891,32 @@ def _test_command(args: argparse.Namespace) -> int:
         running = bridge.current(root)
         if args.json:
             on = kit.is_on(root)
-            # text is the status line of the plugin, and attachments is the text that refuses a
-            # prompt with an attachment. Each is null if relay mode is off.
-            line = kit.status(root).removeprefix("nookku: ") if on else None
+            # text is the status line of the plugin, on one line, and attachments is the text
+            # that refuses a prompt with an attachment. Each is null if relay mode is off.
+            line = kit.status(root).removeprefix("nookku: ").replace("\n", " ") if on else None
             refuse = kit.ATTACHMENTS_REASON if on else None
             test = state.public(running) if running else None
+            # stopped names the test that stopped with no end, or is null (#396).
+            folder = kit.stopped(root)
+            stopped = {"test": folder.name, "folder": str(folder)} if folder else None
             from nookku import page_open
 
             # pane is the data of the pane of the plugin (#348). It holds no secret.
             pane = page_open.pane_state(root)
             print(
                 json.dumps(
-                    {"on": on, "test": test, "text": line, "attachments": refuse, "pane": pane}
+                    {
+                        "on": on,
+                        "test": test,
+                        "text": line,
+                        "attachments": refuse,
+                        "pane": pane,
+                        "stopped": stopped,
+                    }
                 )
             )
         else:
             print(kit.status(root).removeprefix("nookku: "))
-            folder = bridge.stopped(root) if running is None else None
-            if folder is not None:
-                print(_stopped(folder))
         return 0
     try:
         passed, lines = bridge.check(root)

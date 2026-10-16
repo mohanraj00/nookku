@@ -274,13 +274,27 @@ def end_test(root: Path, tester_session: str | None = None, stop_page: bool = Fa
     return f"{text}\n{error}" if error else text
 
 
+def stopped(root: Path) -> Path | None:
+    """The folder of the latest test whose bridge stopped with no end, if no test runs (#164)."""
+    from nookku import bridge
+
+    return None if state.current(root) else bridge.stopped(root)
+
+
 def status(root: Path) -> str:
     """The status text of the prompt nookku status. `nookku status`, the status line of the
     plugin and the status tool of `nookku mcp` show the same text, so both relays give one text
-    (#117)."""
+    (#117). If no test runs and a test stopped with no end, the text names that test (#396)."""
     cur = state.current(root)
     test = f"Test {cur['test']} runs on {cur['tap_url']}." if cur else "No test runs."
-    return f"nookku: relay mode is {'on' if is_on(root) else 'off'}. {test}"
+    text = f"nookku: relay mode is {'on' if is_on(root) else 'off'}. {test}"
+    folder = None if cur else stopped(root)
+    if folder is not None:
+        text += (
+            f"\nTest {folder.name} stopped with no end. Folder: {folder}\n"
+            "To write its audit and its seal, run: nookku end"
+        )
+    return text
 
 
 def _control(said: str, root: Path, session: str | None) -> str:
