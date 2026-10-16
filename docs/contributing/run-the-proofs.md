@@ -60,7 +60,9 @@ The workflow [claude-code-release.yml](../../.github/workflows/claude-code-relea
 
 1. It installs the latest `@anthropic-ai/claude-code` from npm.
 2. It runs `claude plugin validate plugins/nookku` and `claude plugin test plugins/nookku`, as the CI job does.
-3. If a check fails, it opens an issue with the title `Claude Code <version> fails the plugin checks`. The issue has the version, a link to the run and the end of the log. The workflow opens one issue for each version, also if a person closed the issue.
+3. If a check fails, a second job opens an issue with the title `Claude Code <version> fails the plugin checks`. The issue has the version, the result of each check, a link to the run and the end of the log. The workflow opens one issue for each version, also if a person closed the issue.
+
+The job that runs Claude Code has only `contents: read`. Only the second job can write issues, and it runs no code of the npm package. If the install fails, the run fails and opens no issue.
 
 To start the workflow by hand, run `gh workflow run claude-code-release.yml`, or use "Run workflow" on the Actions page. GitHub stops a scheduled workflow after 60 days with no activity in a public repo ([GitHub docs](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/disable-and-enable-workflows)). Then start it again on the Actions page.
 
