@@ -447,6 +447,39 @@ def test_a_message_near_a_control_prompt_is_refused_and_not_recorded(setup, case
         assert [t.said for t in read_relay(record(root))] == [data["prompt"]]
 
 
+@pytest.mark.parametrize("harness", ["claude-code", "codex"])
+@pytest.mark.parametrize("case", CONTROL_CASES, ids=[c.stem for c in CONTROL_CASES])
+def test_a_prompt_near_a_control_prompt_is_blocked_with_relay_mode_off(setup, case, harness):
+    root, tap_rec, agent = setup
+    data = json.loads(case.read_text("utf-8"))
+    if "policy_text" in data:
+        (root / ".nookku" / "policy.json").write_text(data["policy_text"])
+    kit.set_mode(root, False)
+    answer = kit.handle(prompt(data["prompt"]), root, harness)
+    if data["mode_off_hint"] is None:
+        assert answer is None
+    else:
+        reason = kit.NEAR_CONTROL_OFF_REASON.format(control=data["mode_off_hint"])
+        assert answer == {"decision": "block", "reason": reason}
+    assert agent.received == []
+    assert not record(root).exists()
+    assert not tap_rec.exists()
+
+
+def test_a_typo_of_nookku_end_after_the_end_names_the_prompt_to_type(setup):
+    # Gate 1 of v0.5.1 (#401): after "End test" on the chat page, relay mode is off.
+    root, _, _ = setup
+    kit.set_mode(root, False)
+    answer = kit.handle(prompt("nooku end"), root, "claude-code")
+    assert answer == {
+        "decision": "block",
+        "reason": "nookku: did you mean the prompt nookku end? Nothing was sent to the model.",
+    }
+    assert kit.handle(prompt("tell me about nookku"), root, "claude-code") is None
+    (root / ".nookku" / "policy.json").write_text('{"control_distance": 0}\n')
+    assert kit.handle(prompt("nooku end"), root, "claude-code") is None
+
+
 @pytest.mark.parametrize("on", [True, False])
 def test_a_crash_blocks_only_in_relay_mode(tmp_path, on):
     kit.set_mode(tmp_path, on)

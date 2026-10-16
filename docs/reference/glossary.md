@@ -36,7 +36,7 @@ SPEC.md: [section 7.2](../../SPEC.md#72-start-and-end).
 
 ## Control prompt
 
-A prompt that the relay runs and never relays: `nookku start`, `nookku end` or `nookku status`. It must be exact. In relay mode, the relay refuses a message that is near a control prompt, for example `nookku stop`, and sends nothing.
+A prompt that the relay runs and never relays: `nookku start`, `nookku end` or `nookku status`. It must be exact. In relay mode, the relay refuses a message that is near a control prompt, for example `nookku stop`, and sends nothing. With relay mode off, the hook blocks a prompt a few edits from a control prompt, for example `nooku end`, and names the control prompt to type.
 
 SPEC.md: [section 5](../../SPEC.md#5-relays), [section 7.9](../../SPEC.md#79-policy-file).
 

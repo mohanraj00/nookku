@@ -141,6 +141,12 @@ If the entry returns an error, crashes or does not answer in [240 seconds](../sr
 
 **Fix.** Type the exact control prompt, for example `nookku end`. If a real test message gets this refusal, lower the policy key `control_distance` with `nookku policy set control_distance 1`, or turn off the rule with `nookku policy set control_distance 0` ([config.md](reference/config.md)).
 
+### `nookku: did you mean the prompt nookku end? Nothing was sent to the model.`
+
+(kit.py) **Cause.** Relay mode is off, and the prompt is a few edits from a [control prompt](reference/glossary.md#control-prompt), for example `nooku end`. For example, the test ended with "End test" on the chat page, and then a prompt with a typo went to the harness. The hook did not send the prompt to the model, so no tool call ran ([SPEC.md section 5](../SPEC.md#5-relays)). The text names the control prompt that is nearest.
+
+**Fix.** Type the control prompt that the text names, for example `nookku end`. If a real prompt to the model gets this text, lower the policy key `control_distance` with `nookku policy set control_distance 1`, or turn off the rule with `nookku policy set control_distance 0` ([config.md](reference/config.md)).
+
 ### `nookku tap: cannot write the record <name>. The error output of the tap gives the cause.`
 
 (tap.py, stdio.py) **Cause.** The [tap](reference/glossary.md#tap) cannot write a row to its record, for example because the disk is full or the folder is not writable. The tap does not send the agent's response, so the relay shows this error and the message has no reply ([SPEC.md section 4.1](../SPEC.md#41-http-mode), [section 4.2](../SPEC.md#42-stdio-mode)). The tap writes the record path and the cause to its error output (stderr), in the line `nookku tap: cannot write the record <path>: <reason>`. In a test with an entry, the tap runs in the bridge, so this line is in `bridge.log`.

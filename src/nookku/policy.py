@@ -124,14 +124,14 @@ KEYS: dict[str, Key] = {
         lambda v: v in ("person", "model"),
         "who runs nookku run --script: person or model",
     ),
-    # The edit distance at which relay mode refuses a message near a control prompt (#146). The
-    # value 0 turns off the rule.
+    # The edit distance at which the hook refuses a message near a control prompt (#146), in relay
+    # mode and with relay mode off (#401). The value 0 turns off the rule.
     "control_distance": Key(
         2,
         _distance,
         lambda v: isinstance(v, int) and not isinstance(v, bool) and v >= 0,
-        "the edit distance at which relay mode refuses a message near a control prompt; 0 "
-        "turns off the rule",
+        "the edit distance at which nookku refuses a message near a control prompt; 0 turns "
+        "off the rule",
     ),
 }
 
