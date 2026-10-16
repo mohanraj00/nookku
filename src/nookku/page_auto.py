@@ -194,8 +194,8 @@ def _stop(pid: int, start: str | None = None) -> bool:
     With `start`, send the signal only if pid is the process with this start time. If the OS gives
     a pidfd (Linux), the pidfd holds the process from the check to the signal. If the process
     stops in that time, the signal goes to no process, also if the OS gives its pid to a new
-    process. With no pidfd (macOS), the check and the signal are 2 steps, as for the entry of a
-    stopped bridge."""
+    process. With no pidfd (macOS), the check and the signal are separate steps, as for the entry
+    of a stopped bridge."""
     fd = _pidfd(pid) if start is not None else None
     try:
         if start is not None and not state.same_process(pid, start):
