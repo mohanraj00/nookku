@@ -1,0 +1,74 @@
+{
+ "date": "2026-10-16",
+ "tests": [
+  "20261016-034517-d820",
+  "20261016-034536-4543"
+ ],
+ "nookku": "0.5.0",
+ "claude-code": "2.1.301 (Claude Code)",
+ "codex": "codex-cli 0.162.1",
+ "model": [
+  "claude-opus-5-5"
+ ],
+ "kept": true,
+ "cites": [
+  {
+   "cite": "agent.py:22-35",
+   "source": [
+    "REPLIES = {",
+    "    \"refund\": \"Our refund policy:\\n\\n1. Damaged items: full refund.\\n2. Change of mind: 30 days.\\n\",",
+    "    \"ship\": \"We ship to Chennai and Pune. Delivery takes 3 to 5 days.  \",",
+    "    \"price\": \"| item | price |\\n|---|---|\\n| blue mug | € 8 |\\n| teapot | € 24 |\",",
+    "}",
+    "FALLBACK = \"Which item is this about: the mug or the teapot?\"",
+    "",
+    "",
+    "def answer(text: str) -> str:",
+    "    return next((r for k, r in REPLIES.items() if k in text.lower()), FALLBACK)",
+    "",
+    "",
+    "def topic(text: str) -> str:",
+    "    return next((k for k in REPLIES if k in text.lower()), \"other\")"
+   ]
+  },
+  {
+   "cite": "agent.py:23",
+   "source": [
+    "    \"refund\": \"Our refund policy:\\n\\n1. Damaged items: full refund.\\n2. Change of mind: 30 days.\\n\","
+   ]
+  },
+  {
+   "cite": "agent.py:24",
+   "source": [
+    "    \"ship\": \"We ship to Chennai and Pune. Delivery takes 3 to 5 days.  \","
+   ]
+  },
+  {
+   "cite": "agent.py:27",
+   "source": [
+    "FALLBACK = \"Which item is this about: the mug or the teapot?\""
+   ]
+  },
+  {
+   "cite": "agent.py:31",
+   "source": [
+    "    return next((r for k, r in REPLIES.items() if k in text.lower()), FALLBACK)"
+   ]
+  },
+  {
+   "cite": "agent.py:42-51",
+   "source": [
+    "    for raw in sys.stdin.buffer:",
+    "        request = json.loads(raw)",
+    "        out = {\"v\": 1, \"id\": request[\"id\"], \"reply\": answer(request[\"message\"])}",
+    "        if log is not None:",
+    "            log.parent.mkdir(exist_ok=True)",
+    "            row = {\"test\": os.environ.get(\"NOOKKU_TEST_ID\"), \"id\": request[\"id\"]}",
+    "            with log.open(\"a\", encoding=\"utf-8\") as f:",
+    "                f.write(json.dumps({**row, \"topic\": topic(request[\"message\"])}) + \"\\n\")",
+    "        sys.stdout.buffer.write(json.dumps(out, ensure_ascii=False).encode() + b\"\\n\")",
+    "        sys.stdout.buffer.flush()"
+   ]
+  }
+ ]
+}

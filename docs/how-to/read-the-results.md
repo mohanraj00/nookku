@@ -240,12 +240,12 @@ The trace has 15 trace checks ([trace.py](../../src/nookku/trace.py)). `findings
 
 ## 5. Read the report
 
-If the harness model evaluated the test, it wrote `report.md` in the test folder ([SPEC.md section 9.3](../../SPEC.md#93-report)). The report has one table with the columns Class, Turn, Evidence and Issue, and one row for each issue. This row comes from the report of the tutorial test ([getting-started.md](../getting-started.md#9-read-the-report)). That test ran with verbatim-relay 0.3.0. In its `agent.py`, each line of the rules was 5 lines higher than in the current file:
+If the harness model evaluated the test, it wrote `report.md` in the test folder ([SPEC.md section 9.3](../../SPEC.md#93-report)). The report has one table with the columns Class, Turn, Evidence and Issue, and one row for each issue. This row comes from the report of the tutorial test ([getting-started.md](../getting-started.md#9-read-the-report)). That test ran on 2026-10-16 with nookku 0.5.0 ([data](../../proofs/tutorial/output.txt)):
 
 ```markdown
 | Class | Turn | Evidence | Issue |
 |---|---|---|---|
-| missing_action | 1 | Turn 1; `agent.py:22`, `agent.py:26` | The tester said "the mug i ordered came with a crack in the handle". The app replied "Which item is this about: the mug or the teapot?". ... |
+| missing_action | 1 | turn 1; agent.py:23, agent.py:27, agent.py:31; app-state/answers.jsonl:1 | The tester wrote "the mug i ordered came with a crack in the handle". The app's own rule is "1. Damaged items: full refund." (agent.py:23), but the app did not acknowledge the damage or offer the refund. ... |
 ```
 
 The issue classes:
@@ -263,21 +263,23 @@ Turn is the turn number, or `-` if the issue has no turn. Evidence has 3 forms:
 
 - `trace.jsonl:N`: line N of `trace.jsonl`. Read it with `sed -n 'Np' trace.jsonl`.
 - A turn: the turn in the transcript (step 6).
-- A source line, for example `agent.py:22`: line 22 of that file of your app.
+- A source line, for example `agent.py:23`: line 23 of that file of your app.
 
-The report is a model answer, so check each piece of evidence. Open each line and compare it with the issue. For the row above, the lines of the current toy shop agent are 27 and 31:
+The report is a model answer, so check each piece of evidence. Open each line and compare it with the issue. For the row above, open lines 23, 27 and 31 of the toy shop agent:
 
 ```bash
+sed -n 23p agent.py
 sed -n 27p agent.py
 sed -n 31p agent.py
 ```
 
 ```text
+    "refund": "Our refund policy:\n\n1. Damaged items: full refund.\n2. Change of mind: 30 days.\n",
 FALLBACK = "Which item is this about: the mug or the teapot?"
     return next((r for k, r in REPLIES.items() if k in text.lower()), FALLBACK)
 ```
 
-Line 27 is the reply of turn 1, and line 31 sends it for each message with no keyword. The evidence agrees with the issue. If a line does not agree, do not trust that row.
+Line 23 is the refund rule. Line 27 is the reply of turn 1, and line 31 sends it for each message with no keyword. The evidence agrees with the issue. If a line does not agree, do not trust that row.
 
 ## 6. Read the transcript with the trace
 
