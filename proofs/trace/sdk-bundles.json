@@ -1,0 +1,29 @@
+{
+ "date": "2026-10-16",
+ "releases": [
+  {
+   "claude-agent-sdk": "0.2.163",
+   "claude-code": "2.1.286"
+  },
+  {
+   "claude-agent-sdk": "0.2.164",
+   "claude-code": "2.1.292"
+  },
+  {
+   "claude-agent-sdk": "0.2.165",
+   "claude-code": "2.1.294"
+  },
+  {
+   "claude-agent-sdk": "0.2.166",
+   "claude-code": "2.1.299"
+  },
+  {
+   "claude-agent-sdk": "0.2.167",
+   "claude-code": "2.1.300"
+  },
+  {
+   "claude-agent-sdk": "0.2.168",
+   "claude-code": "2.1.301"
+  }
+ ]
+}
