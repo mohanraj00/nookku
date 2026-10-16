@@ -16,16 +16,22 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
+from nookku import __version__
+
 VARIABLE = "CLAUDE_CODE_ENTRYPOINT"
 # The values that the data shows as the interactive CLI.
 INTERACTIVE = ("cli",)
 OFF_SWITCH = "CLAUDE_CODE_DISABLE_TERMINAL_TITLE"
 # The values that Claude Code reads as true.
 TRUE = ("1", "true", "yes", "on")
+# The fix in the docs of the installed version. A tester who installed nookku from PyPI has no
+# local docs, so the link names the release tag (#395).
+ANCHOR = "claude-code-does-not-run-as-the-interactive-cli"
+DOCS = f"https://github.com/mohanraj00/nookku/blob/v{__version__}/docs/troubleshooting.md#{ANCHOR}"
 REASON = (
     "nookku: nothing was sent. Claude Code does not run as the interactive CLI, and then it can "
     "send a prompt to the model API in a title request. Use the interactive CLI, or set "
-    f"{OFF_SWITCH}=1 in the environment that starts Claude Code. Read docs/troubleshooting.md."
+    f"{OFF_SWITCH}=1 in the environment that starts Claude Code. The fix: {DOCS}"
 )
 # The white space that JavaScript trim() removes from an ASCII value. Python str.strip() also
 # removes other characters, for example U+001F and U+0085, and then a value that Claude Code reads

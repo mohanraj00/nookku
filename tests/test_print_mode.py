@@ -7,15 +7,17 @@ import sys
 from pathlib import Path
 
 import pytest
+from test_docs import anchors
 from toy_agent import ToyAgent, shop_reply
 
-from nookku import cli, kit, print_mode, state
+from nookku import __version__, cli, kit, print_mode, state
 from nookku.adapters import make
 from nookku.record import read_tap
 from nookku.tap import Tap, start_in_thread
 
 QUESTION = "Is the toy mug in stock?"
-HOOK = Path(__file__).resolve().parent.parent / "plugins" / "nookku" / "hooks" / "nookku-hook.sh"
+ROOT = Path(__file__).resolve().parent.parent
+HOOK = ROOT / "plugins" / "nookku" / "hooks" / "nookku-hook.sh"
 
 
 @pytest.fixture
@@ -244,3 +246,14 @@ def test_nookku_mode_start_in_a_shell_has_no_print_mode_check(
     monkeypatch.delenv("CLAUDE_CODE_ENTRYPOINT")
     assert cli.main(["mode", "start", "--root", str(root)]) == 0
     assert kit.is_on(root)
+
+
+def test_the_refusal_links_to_the_fix_in_the_docs_of_the_installed_version() -> None:
+    # #395: a tester who installed nookku from PyPI has no docs/troubleshooting.md on disk.
+    url = (
+        f"https://github.com/mohanraj00/nookku/blob/v{__version__}/docs/troubleshooting.md"
+        f"#{print_mode.ANCHOR}"
+    )
+    assert print_mode.REASON.endswith(f" The fix: {url}")
+    assert "Read docs/" not in print_mode.REASON
+    assert print_mode.ANCHOR in anchors(ROOT / "docs" / "troubleshooting.md")

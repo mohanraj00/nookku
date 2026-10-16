@@ -245,6 +245,33 @@ def test_mode_on_with_no_entry_refuses_an_untrusted_hook(
     assert kit.is_on(root)
 
 
+@pytest.mark.parametrize("was_on", [False, True])
+def test_the_refusal_says_that_relay_mode_does_not_change(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    was_on: bool,
+) -> None:
+    # #395: the refusal does not change the mode file, so it must not say that the mode is off.
+    root = tmp_path / "project"
+    root.mkdir()
+    kit.init(root, "plugin", {})
+    kit.set_mode(root, was_on)
+    fake_codex(
+        tmp_path,
+        monkeypatch,
+        answer_with(plugin_hooks(tmp_path, PreToolUse={"trustStatus": "untrusted"})),
+    )
+    assert main(["mode", "on", "--root", str(root)]) == 1
+    out = capsys.readouterr().out
+    assert out.startswith(
+        "nookku: the Codex hooks of nookku are not ready, so nookku refuses the test and does "
+        "not change relay mode. "
+    )
+    assert "stays off" not in out
+    assert kit.is_on(root) is was_on
+
+
 def gate(hooks: list[dict[str, Any]], problems: list[str] | None = None) -> dict[str, Any]:
     return {"codex": True, "hooks": hooks, "problems": problems or []}
 
