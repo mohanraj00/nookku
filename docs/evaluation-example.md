@@ -60,15 +60,21 @@ The app and the evaluation are model answers. They are different on each run.
 
 ## An evaluation of the words only
 
-This test is from before the trace and the automatic evaluation. It is one test of the [toy shop agent](../examples/toy-shop/http_agent.py) through the Claude Code plugin. I played a customer with a cracked mug. Then I switched [relay mode](reference/glossary.md#relay-mode) off and asked the model to evaluate the agent from the transcript.
+This is one test of the [toy shop agent](../examples/toy-shop/agent.py) through the Claude Code plugin, with nookku 0.5.0. The agent is the HTTP server [http_agent.py](../examples/toy-shop/http_agent.py), and the [entry](reference/glossary.md#entry) [http_entry.py](../examples/toy-shop/http_entry.py) sends each message to it. I typed `nookku start`, played a customer with a cracked mug, and typed `nookku end`. The config turns the automatic evaluation off (`"evaluate": false`). Then I asked the model to evaluate the agent from the transcript.
 
-The full transcript and the model's answer are in [examples/toy-shop/evaluation.json](../examples/toy-shop/evaluation.json). The script is [scripts/example_evaluation.py](../scripts/example_evaluation.py).
+The model got only the transcript tool of the plugin, and no built-in tool. Claude Code lets a model read the files of the project with no permission. In a first run with the built-in tools, the model read `agent.py`, so that run was not an evaluation of the words only. The test project was a temporary folder outside this repo.
+
+The full transcript and the model's answer are in [examples/toy-shop/evaluation.json](../examples/toy-shop/evaluation.json). The script is [scripts/example_evaluation.py](../scripts/example_evaluation.py). It reads the records of the [test folder](reference/glossary.md#test-folder) `.nookku/tests/20261016-034731-901c/`.
 
 | Setup | Value |
 |---|---|
-| Harness | Claude Code 2.1.290, default model `claude-opus-5-5` |
-| Relay | the plugin in this repo, JSON adapter |
+| Date | 2026-10-16 |
+| Harness | Claude Code 2.1.301, default model `claude-opus-5-5` |
+| Relay | the plugin in this repo, nookku 0.5.0 at commit `aa02414` |
 | Audit | exit 0, 7 turns, no breaks |
+| Tools of the evaluation | `mcp__plugin_nookku_nookku__transcript` only |
+
+The `versions` key of the results file comes from the manifest of the test. It also names `codex-cli 0.162.1`, the Codex on PATH. The test did not use Codex.
 
 ### The test
 
@@ -94,24 +100,24 @@ is the tone right, is each answer accurate? Quote the turns that you judge.
 ### What the model found
 
 - **The agent did not apply its own policy.** The customer reported a damaged item in turn 1 and asked for money in turn 3. Rule 1 of turn 5 says "Damaged items: full refund", but the agent did not start a refund, and it did not ask for an order number or a photo.
-- **A loop.** The model says that "in 4 of 7 turns" the agent asks the same question again, after the tester answered it. After "THE MUG", the agent did not change its reply, apologize or escalate. The model says that a human agent must take over at this point.
+- **A loop.** The agent asks the same question again after the tester answered it. The model quotes the `repeated_reply` [finding](reference/glossary.md#findings) of the trace for turns 1, 2, 3 and 4. After "THE MUG", the agent did not change its reply or apologize.
 - **Answers that are not answers.** Turn 6 does not say "yes" or "no" to Delhi. Turn 7 names the teapot and gets no price.
-- **A vague rule.** "Change of mind: 30 days" does not say if the 30 days give a refund, an exchange or a time limit.
-- **A probable cause.** The agent sends the question for each message that is not about the policy or shipping. The model gives 2 possible causes: the agent does not keep the item in the conversation state, or the item check is a fallback that never passes. It asks for the trace to find the correct one.
-- **Fixes.** The model gives 5 fixes. For example: get the item from the message, never send the same question 2 times, and answer a yes or no question with "yes" or "no" first.
+- **A vague rule.** "Change of mind: 30 days" does not say if the 30 days give a full refund, a partial refund or a return window.
+- **A probable cause.** The model says that the question step probably runs on each message that does not match a different intent. Turns 5 and 6 had the keywords "refund policy" and "ship", and only these 2 turns got a different reply. The trace has 0 model items, so the model says that it cannot confirm the cause.
+- **Limits.** The model says that it has no source policy. So it checked turns 5 and 6 only against the questions.
 
-The model got the cause wrong, and its count is lower than the transcript:
+The model got the cause nearly right, but its counts are wrong:
 
-- **The count.** The question is in 5 of 7 turns: 1, 2, 3, 4 and 7. The model counts 4, the repeats after turn 1. But the tester named the mug in turn 1 too, so the reply of turn 1 is also a question that the tester already answered.
-- **The cause.** The agent has no item check ([agent.py](../examples/toy-shop/agent.py)). It looks for the words "refund", "ship" and "price" in the message, and it sends the question for each other message. So turn 3 ("money back") and turn 7 ("how much") get the question, although the agent has a price table. The second cause of the model is near, because the question is the fallback. But its first fix, "get the item from the message", does not repair turn 3 or turn 7.
+- **The count.** The question is in 5 of 7 turns: 1, 2, 3, 4 and 7. The model says "Four of its 7 replies were the same text". Later it says "All three" and names turns 1 to 4 and turn 7, which are 5 turns.
+- **The cause.** The agent looks for the words "refund", "ship" and "price" in the message, and it sends the question for each other message ([agent.py](../examples/toy-shop/agent.py)). So turn 3 ("money back") and turn 7 ("how much") get the question, although the agent has a price table. The model's cause agrees with this. It does not say that the agent misses "money back" and "how much" because they are not the keywords.
 
-### What changed after #10
+The answer uses short sentences and simple words. The user instruction file of Claude Code on my machine asks for this style. Before the script stores the answer, it checks that the answer shares no 8 words in a row with an instruction file, and it removes the local paths.
 
-In an earlier run, the model read the `ok` field as a pass mark for the reply and said not to trust it. Now the transcript tool gives the rendered transcript of `nookku transcript`, with a legend at the top: `ok` means that the agent answered and the relay showed its reply, and it does not judge the reply. The transcript shows no hashes. In this run, the answer does not name `ok` ([#10](https://github.com/mohanraj00/nookku/issues/10)).
+### What changed since the run of 2026-10-07
 
-The model also asked for the trace. This run has no [test folder](reference/glossary.md#test-folder), so the relay answered "no test folder", and the model wrote this as a limit of its evaluation.
+The run of 2026-10-07 used the TypeScript plugin of 0.3 and Claude Code 2.1.290. That run had no test folder, so the transcript tool answered "no test folder", and the model had no trace. This run has a test folder, so the transcript tool gives the trace and the findings of the test. The model used the `repeated_reply` finding as evidence for the loop.
 
-The model judges from the transcript only. It cannot see the agent's code, so it can find a fault but not always its cause.
+The model judges from the transcript and the trace only. It cannot see the agent's code, so it can find a fault but not always its cause.
 
 ### Run it again
 
@@ -119,4 +125,4 @@ The model judges from the transcript only. It cannot see the agent's code, so it
 uv run python scripts/example_evaluation.py
 ```
 
-The script starts the toy shop agent and the [tap](reference/glossary.md#tap), and runs `claude -p` with the plugin from this repo. The model's answer is different on each run.
+The script starts a test of the toy shop HTTP agent in a temporary folder, and runs `claude -p` with the plugin from this repo. The script puts `.venv/bin` of this checkout first on PATH, and the entry runs with the Python of this checkout. So the hooks, the transcript tool and the entry use the `nookku` of this checkout. The model's answer is different on each run.
