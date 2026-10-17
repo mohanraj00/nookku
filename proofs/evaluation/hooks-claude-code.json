@@ -1,11 +1,16 @@
 {
- "date": "2026-10-14",
+ "date": "2026-10-16",
  "relay": "hooks-claude-code",
- "version": "2.1.296 (Claude Code)",
- "nookku": "0.5.0",
+ "version": "2.1.301 (Claude Code)",
+ "nookku": "0.5.1",
+ "plugins": [
+  "cc-plugin-agents-md@builtin",
+  "cc-plugin-plugin-authoring@builtin",
+  "cc-plugin-telemetry@builtin"
+ ],
  "answers": {
   "memory_sha256": "c627c09c14e58e44bc51622dac392958ec88244e414b508020634f53cfcd1e69",
-  "read": "The order code is `ZX-4471-Q`.\n\nIn turn 1 of the latest session, you typed this text to the agent: `My order code is ZX-4471-Q.  ` The line has two spaces after the full stop.\n\nThese messages went through the relay to the agent. They did not come to me, so this conversation does not show them."
+  "read": "In turn 1 of the latest session, you gave the agent the order code **`ZX-4471-Q`**.\n\nYour full message in turn 1 was:\n\n```\nMy order code is ZX-4471-Q.  \n```\n\nThat line ends with two spaces after the period. The agent repeated the line back with the two spaces, so the relay kept those bytes."
  },
  "audit_exit": 0,
  "turns": 2,

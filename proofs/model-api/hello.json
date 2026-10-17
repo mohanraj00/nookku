@@ -1,8 +1,8 @@
 {
- "date": "2026-10-13",
+ "date": "2026-10-16",
  "versions": {
-  "claude-code": "2.1.296 (Claude Code)",
-  "python": "3.13.12",
+  "claude-code": "2.1.301 (Claude Code)",
+  "python": "3.12.13",
   "os": "Darwin"
  },
  "method": "scripts/proof_api_hello.py",
@@ -21,7 +21,7 @@
   {
    "method": "POST",
    "path": "/v1/messages",
-   "user_agent": "claude-cli/2.1.296",
+   "user_agent": "claude-cli/2.1.301",
    "content_length": "4055",
    "transfer_encoding": null,
    "body_size": 4055
@@ -29,10 +29,10 @@
   {
    "method": "POST",
    "path": "/v1/messages",
-   "user_agent": "claude-cli/2.1.296",
-   "content_length": "85243",
+   "user_agent": "claude-cli/2.1.301",
+   "content_length": "85864",
    "transfer_encoding": null,
-   "body_size": 85243
+   "body_size": 85864
   }
  ],
  "key_in_record": false,

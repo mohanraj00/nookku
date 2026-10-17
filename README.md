@@ -106,23 +106,18 @@ You install the [relay](SPEC.md#5-relays) as the plugin or as the project hooks.
 
 ## A sample report
 
-At the end of a test, the harness model reads the record and writes `report.md` in the test folder. This is an excerpt of a real report. Nookku 0.5.0 and Claude Code 2.1.296 wrote it in a test of [the toy shop with a model](examples/toy-shop-models/README.md). The app has a planted bug: its refund tool compares euros with cents. The model did not see the conversation, and it found the bug in the record and the code.
+At the end of a test, the harness model reads the record and writes `report.md` in the test folder. This is an excerpt of a real report. Nookku 0.5.1 and Claude Code 2.1.301 wrote it in a test of [the toy shop with a model](examples/toy-shop-models/README.md). The app has a planted bug: its refund tool compares euros with cents. The model did not see the conversation, and it found the bug in the record and the code.
 
 ```markdown
-# Test 20261014-091940-d2d3: evaluation
+# Test 20261016-185314-6170: evaluation
 
 | Class | Turn | Evidence | Issue |
 |---|---|---|---|
-| business_rule | 2 | trace.jsonl:10, app.py:59, RULES.md:5 | The app paid a refund of €80 at once: `shop.refund` got `{"order": "5120", "amount_eur": 80}` and gave `{"refund": "RF-E9091C", "amount_eur": 80, "status": "paid"}`. Rule 3 says that a refund above €50 needs the approval of a manager, and that the manager pays it. The cause is a unit error: `if args["amount_eur"] > APPROVAL_LIMIT_CENTS:` compares euros (80) with cents (`APPROVAL_LIMIT_CENTS = 5000`, app.py:27). Thus only a refund above €5000 waits for approval. |
-...
-
-## Notes
-
-- The seal is intact. The audit shows no break, no blocked call and no error. findings.json has no finding.
+| business_rule | 2 | trace.jsonl:10, app.py:60, RULES.md:5 | `refund` got `{"order": "5120", "amount_eur": 80}` and returned `"status": "paid"`. RULES.md:5 says "A refund above €50 needs the approval of a manager. The refund waits for the approval, and the manager pays it." The app paid it at once with no approval. The cause is in the code: app.py:60 checks `args["amount_eur"] > APPROVAL_LIMIT_CENTS`, which compares euros to `5000` cents (app.py:28). So only refunds above €5000 wait for a manager. state.json agrees: order 5120 has `"refunds": [{"refund": "RF-4DCA74", "amount_eur": 80}]` and there is no `approvals` list. |
 ...
 ```
 
-The full report has 3 rows and 8 notes. Data: [proofs/report/plugin-claude-code.json](proofs/report/plugin-claude-code.json). Method: [docs/results.md](docs/results.md#p5-and-p6-the-evaluation-at-the-end-of-a-test). A report is a model answer, so check its evidence. [Read the results of a test](docs/how-to/read-the-results.md) tells you how.
+The full report has 3 rows and 6 notes. Data: [proofs/report/plugin-claude-code.json](proofs/report/plugin-claude-code.json). Method: [docs/results.md](docs/results.md#p5-and-p6-the-evaluation-at-the-end-of-a-test). A report is a model answer, so check its evidence. [Read the results of a test](docs/how-to/read-the-results.md) tells you how.
 
 ## How it works
 
@@ -151,7 +146,7 @@ A test also records what your app did. It copies the session files of the app's 
 
 ## Results
 
-| Proof | Plugin, Claude Code 2.1.296 | Plugin, Codex 0.162.1 | Project hooks, Claude Code 2.1.296 | Project hooks, Codex 0.162.1 |
+| Proof | Plugin, Claude Code 2.1.301 | Plugin, Codex 0.162.1 | Project hooks, Claude Code 2.1.301 | Project hooks, Codex 0.162.1 |
 |---|---|---|---|---|
 | Messages reach the agent byte for byte | 10/10 | 10/10 | 10/10 | 10/10 |
 | Replies reach the tester byte for byte | 10/10 | 10/10 | 10/10 | 10/10 |

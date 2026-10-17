@@ -4,7 +4,7 @@ The [project hooks](../reference/glossary.md#project-hooks) install the [relay](
 
 **Warning:** Do not also enable the plugin in this project. With both forms, each message goes to the agent two times ([choose-a-relay.md](choose-a-relay.md#switch-from-one-form-to-the-other)).
 
-The proofs ran on Claude Code 2.1.296 ([data](../../proofs/hooks-claude-code/results.json)). [getting-started.md](../getting-started.md) shows each step of the project hooks with the toy shop, and the real output of each step.
+The proofs ran on Claude Code 2.1.301 ([data](../../proofs/hooks-claude-code/results.json)). [getting-started.md](../getting-started.md) shows each step of the project hooks with the toy shop, and the real output of each step.
 
 Before you start, connect a test to your app: [connect-your-agent.md](connect-your-agent.md).
 

@@ -20,12 +20,12 @@ The 5 test messages have trailing spaces, non-ASCII text (`Ünïcödé`, `€`, 
 
 | Form | Harness | P1 | P2 | P3 | P3b | P4 | Data |
 |---|---|---|---|---|---|---|---|
-| Plugin | Claude Code 2.1.296 | 10/10 | 10/10 | 5/5 | pass | 5/5 | [results](../proofs/plugin-claude-code/results.json) |
+| Plugin | Claude Code 2.1.301 | 10/10 | 10/10 | 5/5 | pass | 5/5 | [results](../proofs/plugin-claude-code/results.json) |
 | Plugin | Codex 0.162.1 | 10/10 | 10/10 | 5/5 | pass | 5/5 | [results](../proofs/plugin-codex/results.json) |
-| Project hooks | Claude Code 2.1.296 | 10/10 | 10/10 | 5/5 | pass | 5/5 | [results](../proofs/hooks-claude-code/results.json) |
+| Project hooks | Claude Code 2.1.301 | 10/10 | 10/10 | 5/5 | pass | 5/5 | [results](../proofs/hooks-claude-code/results.json) |
 | Project hooks | Codex 0.162.1 | 10/10 | 10/10 | 5/5 | pass | 5/5 | [results](../proofs/hooks-codex/results.json) |
 
-The runs of the first table ran on 2026-10-14 with nookku 0.5.0 (the keys `date` and `test.versions.nookku` of each results file). In each setup, the model used 0 output tokens in every relay turn. The hook blocks the prompt before the model runs. The plugin in Codex ran in the `CODEX_HOME` of [proof_codex_gate.py](../scripts/proof_codex_gate.py), where I trusted its hooks. In both Codex setups, `nookku start` ran the hook gate first ([SPEC.md section 7.8](../SPEC.md#78-codex-hook-gate)).
+The Claude Code runs of the first table ran on 2026-10-16 with nookku 0.5.1, and the Codex runs ran on 2026-10-14 with nookku 0.5.0 (the keys `date` and `test.versions.nookku` of each results file). Codex had no usage on 2026-10-16, so the Codex proofs did not run again on 0.5.1. The Codex code of the relay did not change after 0.5.0: only the text of the hook gate refusal changed. In each setup, the model used 0 output tokens in every relay turn. The hook blocks the prompt before the model runs. The plugin in Codex ran in the `CODEX_HOME` of [proof_codex_gate.py](../scripts/proof_codex_gate.py), where I trusted its hooks. In both Codex setups, `nookku start` ran the hook gate first ([SPEC.md section 7.8](../SPEC.md#78-codex-hook-gate)).
 
 **The chat page.** The setup `page-claude-code` runs the same proofs with the [chat page](reference/cli.md#nookku-chat) as the relay ([#327](https://github.com/mohanraj00/nookku/issues/327)). The tester starts and ends the test in Claude Code with the plugin, and sends the 5 messages 2 times on the page, with the headers of a browser. P2 also checks the answer of the page and the turns that the page shows. P3 is different: the proof counts the rows of the Claude Code session files of the project before and after each page turn. A page turn must add 0 rows, and the files must hold 0 of the messages. P3c: the model tries to call the page with `curl`, the guard denies it, and the agent receives nothing. The tap record has the same inputs, statuses and replies as the tap record of `plugin-claude-code`.
 
@@ -41,16 +41,16 @@ With `--stream --on-request`, the toy agent streams only if the request has `"st
 
 | Form | Harness | Agent streams | P1 | P2 | Streamed exchanges | P4 | Data |
 |---|---|---|---|---|---|---|---|
-| Plugin | Claude Code 2.1.296 | always | 10/10 | 10/10 | 10 | 5/5 | [results](../proofs/plugin-claude-code-stream/results.json) |
+| Plugin | Claude Code 2.1.301 | always | 10/10 | 10/10 | 10 | 5/5 | [results](../proofs/plugin-claude-code-stream/results.json) |
 | Plugin | Codex 0.162.1 | always | 10/10 | 10/10 | 10 | 5/5 | [results](../proofs/plugin-codex-stream/results.json) |
-| Project hooks | Claude Code 2.1.296 | always | 10/10 | 10/10 | 10 | 5/5 | [results](../proofs/hooks-claude-code-stream/results.json) |
+| Project hooks | Claude Code 2.1.301 | always | 10/10 | 10/10 | 10 | 5/5 | [results](../proofs/hooks-claude-code-stream/results.json) |
 | Project hooks | Codex 0.162.1 | always | 10/10 | 10/10 | 10 | 5/5 | [results](../proofs/hooks-codex-stream/results.json) |
-| Plugin | Claude Code 2.1.296 | on request | 10/10 | 10/10 | 10 | 5/5 | [results](../proofs/plugin-claude-code-stream-on-request/results.json) |
+| Plugin | Claude Code 2.1.301 | on request | 10/10 | 10/10 | 10 | 5/5 | [results](../proofs/plugin-claude-code-stream-on-request/results.json) |
 | Plugin | Codex 0.162.1 | on request | 10/10 | 10/10 | 10 | 5/5 | [results](../proofs/plugin-codex-stream-on-request/results.json) |
-| Project hooks | Claude Code 2.1.296 | on request | 10/10 | 10/10 | 10 | 5/5 | [results](../proofs/hooks-claude-code-stream-on-request/results.json) |
+| Project hooks | Claude Code 2.1.301 | on request | 10/10 | 10/10 | 10 | 5/5 | [results](../proofs/hooks-claude-code-stream-on-request/results.json) |
 | Project hooks | Codex 0.162.1 | on request | 10/10 | 10/10 | 10 | 5/5 | [results](../proofs/hooks-codex-stream-on-request/results.json) |
 
-In the 8 streamed runs, the model also used 0 output tokens in every relay turn. Each streamed result records nookku 0.5.0 in the key `nookku` and 2026-10-14 in the key `date`.
+In the 8 streamed runs, the model also used 0 output tokens in every relay turn. Each Claude Code streamed result records nookku 0.5.1 in the key `nookku` and 2026-10-16 in the key `date`. Each Codex streamed result records nookku 0.5.0 and 2026-10-14.
 
 Each results file has the records of the test next to it: `tap.jsonl` and `relay.jsonl`. The P5 proofs below and the benchmark ran before tests existed, with the tap in front of an HTTP agent.
 
@@ -60,8 +60,8 @@ Each results file has the records of the test next to it: `tap.jsonl` and `relay
 
 | Harness of the app | Nookku | Found by | Session file copied | Data |
 |---|---|---|---|---|
-| Claude Agent SDK 0.2.164 | 0.5.0 | its process | yes | [results](../proofs/sessions/results.json) |
-| codex-cli 0.162.1, app-server | 0.5.0 | its folder and time | yes | [results](../proofs/sessions/results.json) |
+| Claude Agent SDK 0.2.164 | 0.5.1 | its process | yes | [results](../proofs/sessions/results.json) |
+| codex-cli 0.162.1, app-server | 0.5.1 | its folder and time | yes | [results](../proofs/sessions/results.json) |
 
 The Agent SDK runs its own bundled Claude Code. The `claude-code` version in the results is the `claude` command on `PATH`, not the bundled one. The results keep no model reply.
 
@@ -83,6 +83,8 @@ The Agent SDK runs its own bundled Claude Code. The `claude-code` version in the
 | codex-cli 0.162.1, app-server (earlier run) | 0.4.0 | 12 | 4/4 | [results](../proofs/trace/results-nookku-0.4.0.json) |
 | Claude Code 2.1.286, bundled in Claude Agent SDK 0.2.163 (earlier run) | | 11 | 2/2 | [results](../proofs/trace/results-2.1.286.json) |
 | codex-cli 0.160.0, app-server (earlier run) | | 13 | 4/4 | [results](../proofs/trace/results-0.160.0.json) |
+
+The trace proof did not run again on nookku 0.5.1. It also runs a Codex thread, and Codex had no usage on 2026-10-16. After 0.5.0, the trace code changed only in its list of tested versions.
 
 No Agent SDK release bundles Claude Code 2.1.293. On 2026-10-16, I read the bundled version of the 6 releases from 0.2.163 to 0.2.168 ([data](../proofs/trace/sdk-bundles.json), method: [scripts/proof_sdk_bundles.py](../scripts/proof_sdk_bundles.py)). Agent SDK 0.2.164 bundles 2.1.292, and the next release, 0.2.165, bundles 2.1.294. Thus I ran the proof with the newest Agent SDK on 2026-10-16, 0.2.168, which bundles 2.1.301. The second argument of the script sets the Agent SDK of the run, and the pin of the other proofs stays at 0.2.164. The 2.1.301 session file has 3 new line types (`api-request`, `api-request-blob` and `api-request-shape`). The reader counts them and keeps no item from them. The 10 session items have the same kinds, tools and turns as in the 2.1.292 run. Claude Code 2.1.293 to 2.1.300 have no proof. Agent SDK releases bundle 3 of these versions: 2.1.294, 2.1.299 and 2.1.300 ([data](../proofs/trace/sdk-bundles.json)). A session file of these versions gives a `version_untested` [finding](reference/glossary.md#findings).
 
@@ -133,9 +135,9 @@ The API key was not in the record. The seal of the test folder was intact.
 
 | Form | Harness | P5a | P5b | Data |
 |---|---|---|---|---|
-| Plugin | Claude Code 2.1.296 | pass | pass | [results](../proofs/evaluation/plugin-claude-code.json) |
+| Plugin | Claude Code 2.1.301 | pass | pass | [results](../proofs/evaluation/plugin-claude-code.json) |
 | Plugin | Codex 0.162.1 | pass | pass | [results](../proofs/evaluation/plugin-codex.json) |
-| Project hooks | Claude Code 2.1.296 | pass | pass | [results](../proofs/evaluation/hooks-claude-code.json) |
+| Project hooks | Claude Code 2.1.301 | pass | pass | [results](../proofs/evaluation/hooks-claude-code.json) |
 | Project hooks | Codex 0.162.1 | pass | pass | [results](../proofs/evaluation/hooks-codex.json) |
 
 The plugin reads the transcript with its MCP `transcript` tool. The project hooks read it with `nookku transcript` in the shell.
@@ -154,14 +156,14 @@ The session resumes between turns, so P5b also shows that the transcript survive
 
 | Form | Harness | Issues in the report | P6 | P5 | P7 | P8 | Isolation | Result | Data |
 |---|---|---|---|---|---|---|---|---|---|
-| Plugin | Claude Code 2.1.296 | 3 | pass | pass | pass | pass | temporary project | pass | [results](../proofs/report/plugin-claude-code.json) |
+| Plugin | Claude Code 2.1.301 | 3 | pass | pass | pass | pass | temporary project | pass | [results](../proofs/report/plugin-claude-code.json) |
 | Plugin | Codex 0.162.1 | 2 | pass | pass | pass | pass | project outside the repo, 0 commands outside it | pass | [results](../proofs/report/plugin-codex.json) |
-| Project hooks | Claude Code 2.1.296 | 6 | pass | pass | pass | pass | temporary project | pass | [results](../proofs/report/hooks-claude-code.json) |
+| Project hooks | Claude Code 2.1.301 | 3 | pass | pass | pass | pass | temporary project | pass | [results](../proofs/report/hooks-claude-code.json) |
 | Project hooks | Codex 0.162.1 | 3 | pass | pass | pass | pass | trusted project, 0 commands outside it | pass | [results](../proofs/report/hooks-codex.json) |
 | Project hooks | Claude Code 2.1.290 | 1 | **fail** | pass | pass | pass | temporary project | **fail** (earlier run, 2026-10-06) | [results](../proofs/report/hooks-claude-code-run1.json) |
 | Plugin of 0.3 | Claude Code 2.1.290 | 4 | pass | pass | pass | pass | temporary project | pass (earlier run, the worked example) | [results](../proofs/report/plugin.json) |
 
-The app's session files are from Claude Code 2.1.292, bundled in Agent SDK 0.2.164. In an earlier run of the project hooks in Claude Code (2026-10-06), the report had only 1 row (`unsupported_reply`, turn 2) and missed the refund, although the trace had the refund call in turn 2. The table keeps that run. The runs since 2026-10-07 use an isolated Agent SDK session ([#28](https://github.com/mohanraj00/nookku/issues/28)), and each one passed. The table also keeps the run of the TypeScript plugin of 0.3, because [evaluation-example.md](evaluation-example.md) shows its report. A report is a model answer, so P6 can fail when the model does not look at a call. The Agent SDK session reads `ANTHROPIC_BASE_URL`, so its calls went through the model API proxy ([SPEC.md section 7.7](../SPEC.md#77-model-api-proxies)). In the 4 runs of 2026-10-14, the proxy marked 5, 5, 5 and 5 calls as harness calls and kept no text of them. In each run, 1 other call was not a model call (`other_calls`). The trace kept 0 items from `model_api.jsonl` (`model_api` in each results file). In an earlier run, the relay denied a command of the evaluating model that started with a variable assignment, `T=.nookku/tests/...`. So the read check now passes a part with only variable assignments. A report is a model answer, and it changes on each run. Before the script stores a report or an answer, it checks that the text shares no 8 words in a row with an instruction file on this machine, and it removes the local paths. [docs/evaluation-example.md](evaluation-example.md#a-test-with-an-automatic-report) shows one report and what the model got wrong.
+The app's session files are from Claude Code 2.1.292, bundled in Agent SDK 0.2.164. In an earlier run of the project hooks in Claude Code (2026-10-06), the report had only 1 row (`unsupported_reply`, turn 2) and missed the refund, although the trace had the refund call in turn 2. The table keeps that run. The runs since 2026-10-07 use an isolated Agent SDK session ([#28](https://github.com/mohanraj00/nookku/issues/28)), and each one passed. The table also keeps the run of the TypeScript plugin of 0.3, because [evaluation-example.md](evaluation-example.md) shows its report. A report is a model answer, so P6 can fail when the model does not look at a call. The Agent SDK session reads `ANTHROPIC_BASE_URL`, so its calls went through the model API proxy ([SPEC.md section 7.7](../SPEC.md#77-model-api-proxies)). In the 2 Claude Code runs of 2026-10-16 and the 2 Codex runs of 2026-10-14, the proxy marked 5, 5, 5 and 5 calls as harness calls and kept no text of them. In each run, 1 other call was not a model call (`other_calls`). The trace kept 0 items from `model_api.jsonl` (`model_api` in each results file). In an earlier run, the relay denied a command of the evaluating model that started with a variable assignment, `T=.nookku/tests/...`. So the read check now passes a part with only variable assignments. A report is a model answer, and it changes on each run. Before the script stores a report or an answer, it checks that the text shares no 8 words in a row with an instruction file on this machine, and it removes the local paths. [docs/evaluation-example.md](evaluation-example.md#a-test-with-an-automatic-report) shows one report and what the model got wrong.
 
 **Changes to the method after the first runs.** I changed 3 things after I saw results. All runs before these changes are not in the data.
 
@@ -179,9 +181,9 @@ The app's session files are from Claude Code 2.1.292, bundled in Agent SDK 0.2.1
 
 | Form | Harness | Items by turn (session, backend, model API) | Rows that cite both reserve calls | T1 | T2 | P5 | P7 | Result | Data |
 |---|---|---|---|---|---|---|---|---|---|
-| Plugin | Claude Code 2.1.296 | 3, 1, 2 / 3, 2, 2 / 3, 1, 2 | `business_rule`, turn 2 | pass | pass | pass | pass | pass | [results](../proofs/telemetry/plugin-claude-code.json) |
+| Plugin | Claude Code 2.1.301 | 3, 1, 2 / 3, 2, 2 / 3, 1, 2 | `business_rule`, turn 2 | pass | pass | pass | pass | pass | [results](../proofs/telemetry/plugin-claude-code.json) |
 | Plugin | Codex 0.162.1 | 3, 1, 2 / 3, 2, 2 / 3, 1, 2 | `business_rule`, turn 2 | pass | pass | pass | pass | pass | [results](../proofs/telemetry/plugin-codex.json) |
-| Project hooks | Claude Code 2.1.296 | 3, 1, 2 / 3, 2, 2 / 3, 1, 2 | `business_rule`, turn 2 | pass | pass | pass | pass | pass | [results](../proofs/telemetry/hooks-claude-code.json) |
+| Project hooks | Claude Code 2.1.301 | 3, 1, 2 / 3, 2, 2 / 3, 1, 2 | `business_rule`, turn 2 | pass | pass | pass | pass | pass | [results](../proofs/telemetry/hooks-claude-code.json) |
 | Project hooks | Codex 0.162.1 | 3, 1, 2 / 3, 2, 2 / 3, 1, 2 | `business_rule`, turn 2; `state_mismatch`, turn 2 | pass | pass | pass | pass | pass | [results](../proofs/telemetry/hooks-codex.json) |
 
 In each run, the stock service had 2 reservations for the 1 teapot set that the tester asked for. The Agent SDK is pinned to 0.2.164, which bundles Claude Code 2.1.292 ([#35](https://github.com/mohanraj00/nookku/issues/35)). In each of the 4 runs, the proxy marked 6 of its calls as harness calls and kept no text of them. The toy note model gives a fixed answer, so this proof does not show a real model behind the direct call. [proofs/model-api/](../proofs/model-api/results.json) shows the proxy with the stream formats of both APIs.
