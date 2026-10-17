@@ -64,6 +64,11 @@ def end(root: Path, test_id: str) -> dict[str, Any]:
         raise
     if ended is None:
         now = _give_back_mode(root)
+        # Another process, for example `nookku end` in a shell, can end the test after the check
+        # above. Then the test ended, and the page says so.
+        done = state.manifest_of(Path(cur["dir"])) or {}
+        if now is None and done.get("ended"):
+            return {"ended": True, "text": bridge.summary(done)}
         if now is None or now == test_id:
             return {"ended": False, "error": NOT_ENDED}
         return {"ended": False, "error": OTHER_TEST.format(shown=test_id, running=now)}

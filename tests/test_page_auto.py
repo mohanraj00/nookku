@@ -427,6 +427,35 @@ def test_a_toy_shop_page_lives_after_mode_end_and_the_prompt_end_stops_it(
     assert wait_gone(pid, 1) and state.page_info(root) is None
 
 
+def test_a_start_with_page_false_stops_the_page_server_of_the_test_before(running: Any) -> None:
+    """The page of an ended test must not show the new test, also when the new test has no page
+    (release review of v0.5.1)."""
+    root, folder = running
+    (root / ".nookku" / "config.json").write_text(json.dumps({"page": False}))
+    proc = sleeper(root, "20260101-000000-0000")
+    lock = os.open(root / ".nookku" / state.PAGE_LOCK, os.O_RDWR | os.O_CREAT, 0o600)
+    fcntl.flock(lock, fcntl.LOCK_EX)
+    try:
+        assert page_auto.after_start(root, folder.name, sys.stdout) is None
+    finally:
+        os.close(lock)
+    assert proc.poll() is not None
+
+
+def test_a_failed_stop_at_a_start_with_page_false_names_the_chat_page(
+    running: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root, folder = running
+    (root / ".nookku" / "config.json").write_text(json.dumps({"page": False}))
+
+    def fails(root: Path) -> None:
+        raise OSError("toy shop error")
+
+    monkeypatch.setattr(page_auto, "_stop_ended", fails)
+    shown = page_auto.after_start(root, folder.name, sys.stdout)
+    assert shown == "nookku: cannot stop the chat page: toy shop error"
+
+
 def test_the_config_key_page_false_starts_no_page(running: Any) -> None:
     root, folder = running
     (root / ".nookku" / "config.json").write_text(json.dumps({"page": False}))

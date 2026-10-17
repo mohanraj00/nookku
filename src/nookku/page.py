@@ -964,8 +964,16 @@ def claim_page_file(root: Path, port: int, test: str | None = None) -> tuple[Pat
                 continue
             os.close(lock)
             info = state.page_info(root)
-            pid = f" (pid {info.get('pid')})" if info else ""
-            raise PageRunning(f"a page server of this project runs{pid}") from None
+            pid = info.get("pid") if info else None
+            # The OS can give the pid of a stale page file to a new process. Name the pid only if
+            # its start time is pid_start (#397).
+            if not state.same_process(pid, info.get("pid_start") if info else None):
+                raise PageRunning("a page server of this project runs. Stop it first") from None
+            # No nookku command stops a page server of an ended test, so give the step (#401).
+            raise PageRunning(
+                f"a page server of this project runs (pid {pid}). Stop that server first. If "
+                f"ps -p {pid} shows a nookku chat page, stop it with: kill {pid}"
+            ) from None
     path = folder / state.PAGE_FILE
     try:
         new = folder / f".{state.PAGE_FILE}.{os.getpid()}"
@@ -1015,7 +1023,7 @@ def serve(root: Path, port: int = 0, out: TextIO | None = None) -> int:
         path, lock = claim_page_file(root, server.server_address[1])
     except (PageRunning, OSError) as e:
         server.server_close()
-        print(f"nookku: cannot start the page: {e}. Stop that server first.", file=sys.stderr)
+        print(f"nookku: cannot start the page: {e}", file=sys.stderr)
         return 1
     # SIGTERM and SIGHUP (the terminal closes) stop the page as Ctrl-C does, so that the page
     # file goes away.
