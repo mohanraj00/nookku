@@ -780,6 +780,13 @@ def test_a_second_page_server_is_refused_and_a_stale_file_is_taken_over(
     assert "a page server of this project runs" in err
     # No nookku command stops that server, so the text gives the step.
     assert f"kill {os.getpid()}" in err
+    # A pid with another start time can be a new process, so the text names no pid.
+    info = json.loads(path.read_text())
+    path.write_text(json.dumps(info | {"pid_start": "0"}))
+    with pytest.raises(page.PageRunning) as refused:
+        page.claim_page_file(tmp_path, 5678)
+    assert "kill" not in str(refused.value)
+    path.write_text(json.dumps(info))
     assert state.page_port(tmp_path) == 1234
     # A server that stopped with no cleanup leaves its file, but no process holds the lock.
     os.close(lock)

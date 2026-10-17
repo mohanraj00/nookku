@@ -442,6 +442,20 @@ def test_a_start_with_page_false_stops_the_page_server_of_the_test_before(runnin
     assert proc.poll() is not None
 
 
+def test_a_failed_stop_at_a_start_with_page_false_names_the_chat_page(
+    running: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root, folder = running
+    (root / ".nookku" / "config.json").write_text(json.dumps({"page": False}))
+
+    def fails(root: Path) -> None:
+        raise OSError("toy shop error")
+
+    monkeypatch.setattr(page_auto, "_stop_ended", fails)
+    shown = page_auto.after_start(root, folder.name, sys.stdout)
+    assert shown == "nookku: cannot stop the chat page: toy shop error"
+
+
 def test_the_config_key_page_false_starts_no_page(running: Any) -> None:
     root, folder = running
     (root / ".nookku" / "config.json").write_text(json.dumps({"page": False}))

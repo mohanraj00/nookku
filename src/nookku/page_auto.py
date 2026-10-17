@@ -121,7 +121,7 @@ def after_start(root: Path, test: str, out: TextIO) -> str | None:
         try:
             stopped = _stop_ended(root)
         except Exception as e:  # a failed stop must not stop the test
-            stopped = str(e)
+            stopped = f"nookku: cannot stop the chat page: {e}"
         return stopped
     try:
         return _start(root, test, may_print_url(out))

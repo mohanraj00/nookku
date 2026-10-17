@@ -965,7 +965,9 @@ def claim_page_file(root: Path, port: int, test: str | None = None) -> tuple[Pat
             os.close(lock)
             info = state.page_info(root)
             pid = info.get("pid") if info else None
-            if type(pid) is not int or pid <= 0:
+            # The OS can give the pid of a stale page file to a new process. Name the pid only if
+            # its start time is pid_start (#397).
+            if not state.same_process(pid, info.get("pid_start") if info else None):
                 raise PageRunning("a page server of this project runs. Stop it first") from None
             # No nookku command stops a page server of an ended test, so give the step (#401).
             raise PageRunning(
