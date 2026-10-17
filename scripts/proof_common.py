@@ -63,7 +63,8 @@ def claude_events(stdout: str) -> tuple[dict[str, Any], list[str]]:
     result = next((e for e in reversed(events) if e.get("type") == "result"), {})
     if init is None:
         sys.exit(f"the claude output has no init event: {stdout.strip()[-300:]}")
-    if not isinstance(init.get("plugins"), list) or not isinstance(init.get("mcp_servers"), list):
+    lists = [init.get("plugins"), init.get("mcp_servers")]
+    if not all(isinstance(x, list) and all(isinstance(i, dict) for i in x) for x in lists):
         sys.exit("the init event has no list of plugins or of MCP servers")
     servers = [str(s.get("name")) for s in init["mcp_servers"]]
     if set(servers) - set(nookku_servers()["mcpServers"]):

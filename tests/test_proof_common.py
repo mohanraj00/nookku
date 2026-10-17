@@ -15,6 +15,8 @@ from proof_common import (
     nookku_servers,
 )
 
+from nookku.mcp import SERVER
+
 # U+2028, U+2029 and U+0085, written as escapes.
 SEPARATORS = "".join(chr(c) for c in (0x2028, 0x2029, 0x85))
 
@@ -45,7 +47,8 @@ def test_a_proof_session_reads_no_user_settings_and_no_user_mcp_server() -> None
     plugin = claude_isolated(plugin=True)
     assert plugin[plugin.index("--plugin-dir") + 1] == str(PLUGIN_DIR)
     assert f"--mcp-config={json.dumps(nookku_servers())}" in plugin
-    assert list(nookku_servers()["mcpServers"]) == ["nookku"]
+    # proof_evaluation.py approves the transcript tool by the name of SERVER.
+    assert list(nookku_servers()["mcpServers"]) == [SERVER]
 
 
 def test_only_built_in_plugins_and_the_plugin_of_this_checkout_are_expected() -> None:
@@ -73,6 +76,13 @@ def test_the_result_and_the_plugins_of_a_clean_session() -> None:
 
 def test_an_init_event_with_no_plugin_list_stops_the_proof() -> None:
     init = {"type": "system", "subtype": "init", "mcp_servers": []}
+    with pytest.raises(SystemExit, match="no list of plugins"):
+        claude_events(json.dumps(init))
+
+
+def test_an_init_event_with_a_server_that_is_not_an_object_stops_the_proof() -> None:
+    init = _init("builtin")
+    init["mcp_servers"] = ["nookku"]
     with pytest.raises(SystemExit, match="no list of plugins"):
         claude_events(json.dumps(init))
 
