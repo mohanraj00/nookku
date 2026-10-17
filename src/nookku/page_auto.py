@@ -113,10 +113,16 @@ def may_print_url(out: TextIO) -> bool:
 
 def after_start(root: Path, test: str, out: TextIO) -> str | None:
     """Start the chat page of the test that started now. Return the text to show on out, or None
-    if the config turns the page off. Never raise. The text holds the page URL only if out goes
-    only to a person."""
+    if the config turns the page off and no page of an ended test failed to stop. Never raise.
+    The text holds the page URL only if out goes only to a person."""
     if not enabled(root):
-        return None
+        # The page of the test before this one can still run. With no page for this test, it must
+        # not show this test (SPEC.md section 5).
+        try:
+            stopped = _stop_ended(root)
+        except Exception as e:  # a failed stop must not stop the test
+            stopped = str(e)
+        return stopped
     try:
         return _start(root, test, may_print_url(out))
     except Exception as e:  # a failed page must not stop the test

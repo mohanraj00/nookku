@@ -138,6 +138,29 @@ def test_when_the_bridge_does_not_end_the_test_the_page_says_so(
     assert kit.is_on(server.root)
 
 
+def test_when_another_process_ends_the_test_first_the_page_says_that_it_ended(
+    server: page.PageServer, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`nookku end` in a shell ends the test after the first check of the page (release review
+    of v0.5.1)."""
+    root = server.root
+    folder = fake_test(root, test="20261013-090000-ab12", dir="")
+    manifest = json.loads((folder / "manifest.json").read_text())
+    manifest |= {"test": folder.name, "dir": str(folder)}
+    (folder / "manifest.json").write_text(json.dumps(manifest))
+
+    def shell_end(*args: Any, **kwargs: Any) -> None:
+        (folder / "manifest.json").write_text(json.dumps(manifest | {"ended": 1_800_000_060.0}))
+        (root / ".nookku" / "current.json").unlink()
+        return None
+
+    monkeypatch.setattr(bridge, "end", shell_end)
+    status, data = end(server, {"test": folder.name}, session(server))
+    assert status == 200 and data["ended"] is True
+    assert data["text"].startswith(f"Test {folder.name} ended")
+    assert not kit.is_on(root)
+
+
 def test_when_the_end_of_the_bridge_fails_relay_mode_goes_on_again(
     server: page.PageServer, monkeypatch: pytest.MonkeyPatch
 ) -> None:
