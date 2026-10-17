@@ -42,7 +42,13 @@ from typing import Any
 ROOT = Path(__file__).resolve().parent.parent
 sys.path[:0] = [str(ROOT / "src")]
 
-from proof_common import AGENT_SDK, NO_TITLE, json_lines  # noqa: E402
+from proof_common import (  # noqa: E402
+    AGENT_SDK,
+    NO_TITLE,
+    claude_events,
+    claude_isolated,
+    json_lines,
+)
 
 from nookku import bridge, kit, seal  # noqa: E402
 
@@ -59,8 +65,14 @@ MESSAGES = [
     "Thank you. Is it done?",
 ]
 REFUND_TURN = 2
-# The evaluation needs to run the CLI, read files and write report.md. Nothing else.
-CLAUDE_TOOLS = ["--allowedTools=Bash(nookku:*),Bash(cat:*),Bash(ls:*),Read,Grep,Glob,Write"]
+# The evaluation needs to run the CLI, read files and write report.md. Nothing else. --tools
+# removes the other built-in tools, and --allowedTools approves these.
+CLAUDE_TOOLS = [
+    "--tools=Bash,Read,Grep,Glob,Write",
+    "--allowedTools=Bash(nookku:*),Bash(cat:*),Bash(ls:*),Read,Grep,Glob,Write",
+]
+# The plugins of each Claude Code session of the last test.
+PLUGINS: set[str] = set()
 # A model answer can quote instruction files. These hold the instructions on this machine.
 INSTRUCTIONS = [
     Path.home() / ".claude" / "CLAUDE.md",
@@ -72,7 +84,7 @@ INSTRUCTIONS = [
 
 def claude(prompt: str, cwd: Path, extra: list[str]) -> str:
     p = subprocess.run(
-        ["claude", "-p", "--output-format", "json", *extra, prompt],
+        ["claude", "-p", *extra, prompt],
         capture_output=True,
         text=True,
         stdin=subprocess.DEVNULL,
@@ -80,7 +92,8 @@ def claude(prompt: str, cwd: Path, extra: list[str]) -> str:
         env=ENV,
         timeout=900,
     )
-    d = json.loads(p.stdout[p.stdout.index("{") :]) if "{" in p.stdout else {}
+    d, plugins = claude_events(p.stdout)
+    PLUGINS.update(plugins)
     return d.get("result") or f"(no answer; exit {p.returncode}: {p.stderr.strip()[-300:]})"
 
 
@@ -205,10 +218,8 @@ def relay_runner(relay: str) -> tuple[Path, Run, str, str, list[str]]:
     start, end = "nookku start", "nookku end"
     if harness == "claude-code":
         project = Path(tempfile.mkdtemp(prefix="nookku-report-")).resolve()
-        base: list[str] = []
-        if form == "plugin":
-            base = ["--plugin-dir", str(ROOT / "plugins" / "nookku")]
-        else:
+        base = claude_isolated(form == "plugin")
+        if form != "plugin":
             kit.init(project, "claude-code", {})
 
         def run(prompt: str, extra: list[str]) -> str:
@@ -306,6 +317,8 @@ def main() -> int:
                 for s in json.loads((folder / "findings.json").read_text())["sessions"]
             },
         },
+        # The plugins of the Claude Code sessions: only built-in plugins and nookku.
+        "plugins": sorted(PLUGINS) if relay.endswith("claude-code") else None,
         "turns": audit["turns"],
         "audit_exit": audit["exit"],
         "refund_calls": [{"line": n, "turn": it["turn"], "input": it["input"]} for n, it in calls],

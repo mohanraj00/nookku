@@ -9,7 +9,8 @@ gives the project hooks a Claude Code hook event, so the output is the text that
 Claude Code. Thus steps 7 and 9 have no model output.
 
 With --model, Claude Code 2.1 or later and the model run. The script gives each prompt to
-`claude -p`, with the user settings off and with CLAUDE_CODE_DISABLE_TERMINAL_TITLE=1, the fix for
+`claude -p`, with no user settings, user plugin or user MCP server, and with
+CLAUDE_CODE_DISABLE_TERMINAL_TITLE=1, the fix for
 print mode (docs/troubleshooting.md). The prompt `nookku end` starts the evaluation. The model can
 run only the commands of step 7 of the tutorial. The output then also has the summary of step 7
 and the report of step 9. A model text that shares 8 words in a row with an instruction file
@@ -38,7 +39,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parent.parent
 sys.path[:0] = [str(ROOT / "src")]
 
-from proof_common import NO_TITLE  # noqa: E402
+from proof_common import NO_TITLE, claude_events, claude_isolated  # noqa: E402
 from proof_report import private  # noqa: E402
 
 from nookku import __version__  # noqa: E402
@@ -57,8 +58,9 @@ CONTRACT_LINE = json.dumps(
 CASE = "nookku/conformance/cases/several_breaks"
 # The commands that step 7 of the tutorial tells the tester to allow.
 TOOLS = [
+    "--tools=Bash,Read,Grep,Glob,Write",
     "--allowedTools=Bash(nookku transcript:*),Bash(cat:*),Bash(sed -n:*),Bash(jq:*),"
-    "Bash(grep:*),Read,Grep,Glob,Write"
+    "Bash(grep:*),Read,Grep,Glob,Write",
 ]
 # Claude Code puts these lines around the reason of a blocked prompt in print mode.
 BLOCKED = "UserPromptSubmit operation blocked by hook:\n"
@@ -99,6 +101,7 @@ def main() -> int:
     lines += ["Claude Code and the model ran." if model else "Claude Code did not run.", ""]
     answers: dict[str, str] = {}
     models: set[str] = set()
+    plugins: set[str] = set()
 
     def shell(command: str) -> None:
         # One pipe for stdout and stderr keeps the order of the lines of the 2 streams.
@@ -136,7 +139,7 @@ def main() -> int:
         return shown, done.returncode
 
     def claude(text: str) -> tuple[str, int]:
-        cmd = ["claude", "-p", "--output-format", "json", "--setting-sources", "project,local"]
+        cmd = ["claude", "-p", *claude_isolated(plugin=False)]
         if text == "nookku end":
             cmd += TOOLS
         done = subprocess.run(
@@ -148,8 +151,8 @@ def main() -> int:
             text=True,
             timeout=1800,
         )
-        out = done.stdout
-        data = json.loads(out[out.index("{") :]) if "{" in out else {}
+        data, loaded = claude_events(done.stdout)
+        plugins.update(loaded)
         models.update(data.get("modelUsage") or {})
         result = str(data.get("result") or f"(no answer: {done.stderr.strip()[-300:]})")
         if result.startswith(BLOCKED):
@@ -190,7 +193,7 @@ def main() -> int:
     finally:
         shutil.rmtree(work, ignore_errors=True)
     text = "\n".join(lines)
-    run |= {"model": sorted(models)}
+    run |= {"model": sorted(models), "plugins": sorted(plugins)}
     if model:
         summary, report_text = answers.get("nookku end", ""), answers.get("report.md", "")
         hidden = private(summary) or private(report_text)

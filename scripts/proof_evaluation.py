@@ -30,7 +30,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parent.parent
 sys.path[:0] = [str(ROOT / "src"), str(ROOT / "tests")]
 
-from proof_common import NO_TITLE, json_lines  # noqa: E402
+from proof_common import NO_TITLE, claude_events, claude_isolated, json_lines  # noqa: E402
 from toy_agent import ToyAgent  # noqa: E402
 
 from nookku import __version__, kit  # noqa: E402
@@ -61,10 +61,14 @@ ENV = {
 }
 
 
+# The plugins of each Claude Code session of the last run.
+PLUGINS: set[str] = set()
+
+
 def claude(
     prompt: str, session: str | None, cwd: Path, extra: list[str], env: dict[str, str] = ENV
 ) -> tuple[str, str]:
-    cmd = ["claude", "-p", "--output-format", "json", *extra]
+    cmd = ["claude", "-p", *extra]
     if session:
         cmd += ["--resume", session]
     p = subprocess.run(
@@ -76,7 +80,8 @@ def claude(
         env=env,
         timeout=300,
     )
-    d = json.loads(p.stdout[p.stdout.index("{") :]) if "{" in p.stdout else {}
+    d, plugins = claude_events(p.stdout)
+    PLUGINS.update(plugins)
     return d.get("result") or "", d.get("session_id") or session or ""
 
 
@@ -185,12 +190,13 @@ def main() -> int:
         read = READ["plugin" if plugin else "hooks"]
         if harness == "claude-code":
             run = partial(claude, env=env)
-            # Only the settings of the project. An installed plugin of the user takes no part.
-            relay_args = ["--setting-sources", "project,local"]
-            if plugin:
-                relay_args += ["--plugin-dir", str(ROOT / "plugins" / "nookku")]
+            # Only the settings of the project and the nookku MCP server. An installed plugin or
+            # an MCP server of the user takes no part.
+            relay_args = claude_isolated(plugin)
             tool = tool_name("claude-code", "transcript") if plugin else "Bash(nookku transcript*)"
-            read_args = [*relay_args, f"--allowedTools={tool}"]
+            # The read gets only the tool of the transcript, so it cannot read the record files.
+            only = "--tools=" if plugin else "--tools=Bash"
+            read_args = [*relay_args, only, f"--allowedTools={tool}"]
         else:
             run = partial(codex, env=env, calls=calls)
             # codex exec resume does not take -s, so set the sandbox as config
@@ -221,6 +227,8 @@ def main() -> int:
         "relay": relay,
         "version": version,
         "nookku": __version__,
+        # The plugins of the Claude Code sessions: only built-in plugins and nookku.
+        "plugins": sorted(PLUGINS) if harness == "claude-code" else None,
         "answers": {"memory_sha256": sha256(answers["memory"]), "read": answers["read"]},
         "audit_exit": rep.exit,
         "turns": rep.turns,
