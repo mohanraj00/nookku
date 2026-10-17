@@ -33,7 +33,7 @@ The Claude Code runs of the first table ran on 2026-10-16 with nookku 0.5.1, and
 |---|---|---|---|---|---|---|---|---|---|
 | Chat page | Claude Code 2.1.301 | 10/10 | 10/10 | 0 of 5 messages in 1 session file | pass | pass | 5/5 | yes | [results](../proofs/page-claude-code/results.json) |
 
-The chat page run used nookku 0.5.0 with the page design and the "End test" button of #391 on 2026-10-15 (the keys `nookku` and `date` of the results file).
+The chat page run used nookku 0.5.1 on 2026-10-17 (the keys `nookku` and `date` of the results file).
 
 With a streamed agent, the proof scripts take `--stream`. The toy agent sends each reply as Chat Completions SSE events, and the tap with the `openai` adapter forwards them. The relay runs in HTTP mode with no entry, so P3b does not run. P4 audits the records and finds each planted fault.
 
