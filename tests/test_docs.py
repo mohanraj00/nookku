@@ -16,7 +16,7 @@ from typing import Any
 import pytest
 from test_timeouts import ANSWER
 
-from nookku import __version__, audit, bridge, cli, config, kit, stdio, trace
+from nookku import __version__, audit, bridge, cli, config, kit, print_mode, stdio, trace
 
 ROOT = Path(__file__).resolve().parent.parent
 DOCS = ROOT / "docs"
@@ -871,3 +871,9 @@ def test_ci_pins_the_claude_code_version_of_the_plugin_proofs_and_the_faq_names_
     assert pins == sorted(tested)
     faq = (DOCS / "faq.md").read_text(encoding="utf-8")
     assert f"CI pins Claude Code {pins[0]} " in faq
+
+
+def test_the_print_mode_refusal_links_a_heading_of_the_troubleshooting_page() -> None:
+    """The link names the release tag, so the heading must be in the docs of this version."""
+    assert print_mode.ANCHOR in anchors(DOCS / "troubleshooting.md")
+    assert print_mode.DOCS.startswith(f"https://github.com/mohanraj00/nookku/blob/v{__version__}/")

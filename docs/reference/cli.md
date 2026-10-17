@@ -49,7 +49,7 @@ End the test: switch relay mode off, stop the entry and collect its sessions, th
 |---|---|---|
 | `--root PATH` | the current folder | The project. |
 | `--json` | off | Print the manifest of the test as JSON, or `null` if no test ran. |
-| `--evaluation` | off | Print one JSON object: `text`, the end text, and `evaluation`, the evaluation prompt or `null` ([SPEC.md section 9.1](../../SPEC.md#91-start)). The plugin uses it. |
+| `--evaluation` | off | Print one JSON object: `text`, the end text, and `evaluation`, the evaluation prompt or `null` ([SPEC.md section 9.1](../../SPEC.md#91-start)). It is for a [relay](glossary.md#relay) of your own that starts the evaluation. The plugin does not use it. |
 
 | Exit code | Meaning |
 |---|---|
@@ -203,7 +203,7 @@ Serve the chat page: a local web page where you talk to the agent of the running
 
 - **Header.** Each page starts with the same header: the Nookku mark (2 eyes) and the name "Nookku". On the chat page, the header then shows the state of the test (No test, Running, Ended or Stopped), the test id, and the buttons "End test", "Save as script", "Export" and "All tests".
 - **"⋯" menu.** The "⋯" button at the right of the header opens the menu. "Theme" sets Auto, Light or Dark. "Width" sets the width of the conversation: Auto, Narrow or Wide. Auto is the default of each. The Auto theme follows the system, and the Auto width follows the window. The browser keeps your choices for each page. The exported file has the same style, and its theme follows the system.
-- **Narrow window.** On a window of [640 px](../../src/nookku/page/app.css#L307) or less, a chosen value, the "⋯" menu also holds "End test", "Save as script", "Export" and "All tests".
+- **Narrow window.** If the page is [640 px](../../src/nookku/page/app.css#L339) wide or less, a chosen value, the "⋯" menu also holds "End test", "Save as script", "Export" and "All tests".
 - **"All tests".** This button opens the dashboard: one row for each test of the project, with the start time, the state, the count of turns, [breaks](glossary.md#break) and [findings](glossary.md#findings), and the seal state. Filter the rows by state, and by a break or a finding. Sort them by date. The search shows only the tests that hold the search text, and it sends no request. A click on a row opens the chat page of that test. If the test ended, that page is read-only. The dashboard reads the test folders and changes no file. It asks the server for new rows each [5 seconds](../../src/nookku/page/dashboard.js#L5) ([SPEC.md section 5](../../SPEC.md#5-relays)).
 - **Diff page.** On the dashboard, select 2 tests with their check boxes, then click "Compare". "Compare" works only with 2 selected tests ([compare.js](../../src/nookku/page/compare.js#L11), checked by `tests/test_replay.py::test_compare_opens_the_diff_only_with_2_tests_the_older_on_the_left`). The diff page "Compare 2 tests" shows the 2 tests side by side, turn by turn, with the counts of breaks and findings of each test at the top. It marks each changed reply, and it shows the deleted and the inserted words. The older test is on the left. Its header has "All tests" and "Chat page".
 - **Colors.** Each text color pair meets WCAG AA in the light and the dark theme. The test `tests/test_page_theme.py` checks the [colors](../../src/nookku/page/theme.css).

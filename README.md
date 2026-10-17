@@ -63,7 +63,7 @@ To read each message and each reply of the test, run `nookku transcript`. To see
 
 <img src="https://raw.githubusercontent.com/mohanraj00/nookku/main/docs/assets/chat-page/chat-page.png" alt="The Nookku chat page of a scripted test of the toy shop agent. It shows 3 turns. The agent replies with a numbered refund policy, the shipping cities, and a table of 2 prices. Under each reply are a thumbs up, a thumbs down, a comment box and the turn time. The page ends with the message box." width="700">
 
-Data: [the record of the test](docs/assets/chat-page/test/) and [the method of the capture](docs/assets/chat-page/capture.json), with nookku 0.4.3 and no harness or model.
+Data: [the record of the test](docs/assets/chat-page/test/) and [the method of the capture](docs/assets/chat-page/capture.json), with nookku 0.4.3 and no harness or model. In 0.4.3, the command `nookku chat` had the name `nookku page`.
 
 ## Install
 
@@ -71,7 +71,7 @@ Data: [the record of the test](docs/assets/chat-page/test/) and [the method of t
 uv tool install nookku
 ```
 
-It needs Python 3.10 or later, and it has no runtime dependencies ([pyproject.toml](pyproject.toml)). The docs are for version 0.5.0. If you use verbatim-relay 0.3.x or earlier, do the [0.4.0 steps of the upgrade guide](docs/how-to/upgrade.md#040), because the package has a new name ([CHANGELOG.md](CHANGELOG.md#040)). To upgrade from a later version of nookku, end each running test first. Then run `uv tool upgrade nookku`. [docs/how-to/upgrade.md](docs/how-to/upgrade.md) gives each step.
+It needs Python 3.10 or later, and it has no runtime dependencies ([pyproject.toml](pyproject.toml)). The docs are for version 0.5.1. If you use verbatim-relay 0.3.x or earlier, do the [0.4.0 steps of the upgrade guide](docs/how-to/upgrade.md#040), because the package has a new name ([CHANGELOG.md](CHANGELOG.md#040)). To upgrade from a later version of nookku, end each running test first. Then run `uv tool upgrade nookku`. [docs/how-to/upgrade.md](docs/how-to/upgrade.md) gives each step.
 
 ## Quick start
 
