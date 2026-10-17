@@ -36,7 +36,7 @@ from toy_agent import ToyAgent  # noqa: E402
 from nookku import __version__, kit  # noqa: E402
 from nookku.adapters import make  # noqa: E402
 from nookku.audit import audit  # noqa: E402
-from nookku.mcp import tool_name  # noqa: E402
+from nookku.mcp import SERVER  # noqa: E402
 from nookku.record import sha256  # noqa: E402
 from nookku.tap import Tap, start_in_thread  # noqa: E402
 
@@ -193,7 +193,8 @@ def main() -> int:
             # Only the settings of the project and the nookku MCP server. An installed plugin or
             # an MCP server of the user takes no part.
             relay_args = claude_isolated(plugin)
-            tool = tool_name("claude-code", "transcript") if plugin else "Bash(nookku transcript*)"
+            # --mcp-config gives the server its own name, not the name of a plugin server.
+            tool = f"mcp__{SERVER}__transcript" if plugin else "Bash(nookku transcript*)"
             # The read gets only the tool of the transcript, so it cannot read the record files.
             only = "--tools=" if plugin else "--tools=Bash"
             read_args = [*relay_args, only, f"--allowedTools={tool}"]

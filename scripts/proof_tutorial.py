@@ -193,7 +193,8 @@ def main() -> int:
     finally:
         shutil.rmtree(work, ignore_errors=True)
     text = "\n".join(lines)
-    run |= {"model": sorted(models), "plugins": sorted(plugins)}
+    # With no --model, Claude Code does not run, so the run has no plugins.
+    run |= {"model": sorted(models), "plugins": sorted(plugins) if model else None}
     if model:
         summary, report_text = answers.get("nookku end", ""), answers.get("report.md", "")
         hidden = private(summary) or private(report_text)

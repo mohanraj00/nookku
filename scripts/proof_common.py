@@ -25,10 +25,12 @@ NO_TITLE = {"CLAUDE_CODE_DISABLE_TERMINAL_TITLE": "1"}
 # the mods of ~/.claude/mods, and no flag stops them, so each run checks the plugins of its init
 # event (#401).
 PLUGIN_DIR = ROOT / "plugins" / "nookku"
-_SERVERS = json.loads((PLUGIN_DIR / ".mcp.json").read_text())["mcpServers"]
-NOOKKU_SERVERS = {
-    "mcpServers": {n: {k: s[k] for k in ("command", "args")} for n, s in _SERVERS.items()}
-}
+
+
+def nookku_servers() -> dict[str, Any]:
+    """The MCP servers of the plugin, with only the command and the arguments of each."""
+    servers = json.loads((PLUGIN_DIR / ".mcp.json").read_text())["mcpServers"]
+    return {"mcpServers": {n: {k: s[k] for k in ("command", "args")} for n, s in servers.items()}}
 
 
 def claude_isolated(plugin: bool) -> list[str]:
@@ -36,7 +38,7 @@ def claude_isolated(plugin: bool) -> list[str]:
     args = ["--output-format", "stream-json", "--verbose"]
     args += ["--setting-sources", "project,local", "--strict-mcp-config"]
     if plugin:
-        args += ["--plugin-dir", str(PLUGIN_DIR), f"--mcp-config={json.dumps(NOOKKU_SERVERS)}"]
+        args += ["--plugin-dir", str(PLUGIN_DIR), f"--mcp-config={json.dumps(nookku_servers())}"]
     return args
 
 
@@ -49,13 +51,23 @@ def foreign_plugins(init: dict[str, Any]) -> list[str]:
 def claude_events(stdout: str) -> tuple[dict[str, Any], list[str]]:
     """The result event of a claude -p stream-json output, and the plugins of its init event.
 
-    Stop the proof if the output has no init event, or if a plugin of the user or a mod loaded,
-    because the text of that plugin can reach the model."""
+    Stop the proof if the output has no init event or no plugin list, if a plugin of the user or
+    a mod loaded, or if an MCP server other than nookku loaded. The text of such a plugin or
+    server can reach the model.
+
+    The check reads the output after the session ends. The first prompt of each proof is a
+    relayed message or `nookku start`, and the hook blocks it before the model. Thus no model
+    turn of a session with a mod occurs before the check stops the proof."""
     events = json_lines(stdout)
     init = next((e for e in events if e.get("subtype") == "init"), None)
     result = next((e for e in reversed(events) if e.get("type") == "result"), {})
     if init is None:
         sys.exit(f"the claude output has no init event: {stdout.strip()[-300:]}")
+    if not isinstance(init.get("plugins"), list) or not isinstance(init.get("mcp_servers"), list):
+        sys.exit("the init event has no list of plugins or of MCP servers")
+    servers = [str(s.get("name")) for s in init["mcp_servers"]]
+    if set(servers) - set(nookku_servers()["mcpServers"]):
+        sys.exit(f"an MCP server other than nookku loaded: {servers}")
     other = foreign_plugins(init)
     if other:
         sys.exit(

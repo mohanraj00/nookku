@@ -136,6 +136,8 @@ def main() -> int:
             "agent sdk": AGENT_SDK,
             "session files": {s["harness"]: s["version"] for s in findings["sessions"]},
         },
+        # The plugins of the Claude Code sessions: only built-in plugins and nookku.
+        "plugins": sorted(pr.PLUGINS) if relay.endswith("claude-code") else None,
         "turns": audit["turns"],
         "audit_exit": audit["exit"],
         "items_by_turn": turns,
