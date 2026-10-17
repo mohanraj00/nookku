@@ -63,7 +63,7 @@ To read each message and each reply of the test, run `nookku transcript`. To see
 
 <img src="https://raw.githubusercontent.com/mohanraj00/nookku/main/docs/assets/chat-page/chat-page.png" alt="The Nookku chat page of a scripted test of the toy shop agent. It shows 3 turns. The agent replies with a numbered refund policy, the shipping cities, and a table of 2 prices. Under each reply are a thumbs up, a thumbs down, a comment box and the turn time. The page ends with the message box." width="700">
 
-Data: [the record of the test](docs/assets/chat-page/test/) and [the method of the capture](docs/assets/chat-page/capture.json), with nookku 0.4.3 and no harness or model.
+Data: [the record of the test](docs/assets/chat-page/test/) and [the method of the capture](docs/assets/chat-page/capture.json), with nookku 0.4.3 and no harness or model. In 0.4.3, the command `nookku chat` had the name `nookku page`.
 
 ## Install
 
@@ -71,7 +71,7 @@ Data: [the record of the test](docs/assets/chat-page/test/) and [the method of t
 uv tool install nookku
 ```
 
-It needs Python 3.10 or later, and it has no runtime dependencies ([pyproject.toml](pyproject.toml)). The docs are for version 0.5.0. If you use verbatim-relay 0.3.x or earlier, do the [0.4.0 steps of the upgrade guide](docs/how-to/upgrade.md#040), because the package has a new name ([CHANGELOG.md](CHANGELOG.md#040)). To upgrade from a later version of nookku, end each running test first. Then run `uv tool upgrade nookku`. [docs/how-to/upgrade.md](docs/how-to/upgrade.md) gives each step.
+It needs Python 3.10 or later, and it has no runtime dependencies ([pyproject.toml](pyproject.toml)). The docs are for version 0.5.1. If you use verbatim-relay 0.3.x or earlier, do the [0.4.0 steps of the upgrade guide](docs/how-to/upgrade.md#040), because the package has a new name ([CHANGELOG.md](CHANGELOG.md#040)). To upgrade from a later version of nookku, end each running test first. Then run `uv tool upgrade nookku`. [docs/how-to/upgrade.md](docs/how-to/upgrade.md) gives each step.
 
 ## Quick start
 
@@ -106,23 +106,18 @@ You install the [relay](SPEC.md#5-relays) as the plugin or as the project hooks.
 
 ## A sample report
 
-At the end of a test, the harness model reads the record and writes `report.md` in the test folder. This is an excerpt of a real report. Nookku 0.5.0 and Claude Code 2.1.296 wrote it in a test of [the toy shop with a model](examples/toy-shop-models/README.md). The app has a planted bug: its refund tool compares euros with cents. The model did not see the conversation, and it found the bug in the record and the code.
+At the end of a test, the harness model reads the record and writes `report.md` in the test folder. This is an excerpt of a real report. Nookku 0.5.1 and Claude Code 2.1.301 wrote it in a test of [the toy shop with a model](examples/toy-shop-models/README.md). The app has a planted bug: its refund tool compares euros with cents. The model did not see the conversation, and it found the bug in the record and the code.
 
 ```markdown
-# Test 20261014-091940-d2d3: evaluation
+# Test 20261016-185314-6170: evaluation
 
 | Class | Turn | Evidence | Issue |
 |---|---|---|---|
-| business_rule | 2 | trace.jsonl:10, app.py:59, RULES.md:5 | The app paid a refund of €80 at once: `shop.refund` got `{"order": "5120", "amount_eur": 80}` and gave `{"refund": "RF-E9091C", "amount_eur": 80, "status": "paid"}`. Rule 3 says that a refund above €50 needs the approval of a manager, and that the manager pays it. The cause is a unit error: `if args["amount_eur"] > APPROVAL_LIMIT_CENTS:` compares euros (80) with cents (`APPROVAL_LIMIT_CENTS = 5000`, app.py:27). Thus only a refund above €5000 waits for approval. |
-...
-
-## Notes
-
-- The seal is intact. The audit shows no break, no blocked call and no error. findings.json has no finding.
+| business_rule | 2 | trace.jsonl:10, app.py:60, RULES.md:5 | `refund` got `{"order": "5120", "amount_eur": 80}` and returned `"status": "paid"`. RULES.md:5 says "A refund above €50 needs the approval of a manager. The refund waits for the approval, and the manager pays it." The app paid it at once with no approval. The cause is in the code: app.py:60 checks `args["amount_eur"] > APPROVAL_LIMIT_CENTS`, which compares euros to `5000` cents (app.py:28). So only refunds above €5000 wait for a manager. state.json agrees: order 5120 has `"refunds": [{"refund": "RF-4DCA74", "amount_eur": 80}]` and there is no `approvals` list. |
 ...
 ```
 
-The full report has 3 rows and 8 notes. Data: [proofs/report/plugin-claude-code.json](proofs/report/plugin-claude-code.json). Method: [docs/results.md](docs/results.md#p5-and-p6-the-evaluation-at-the-end-of-a-test). A report is a model answer, so check its evidence. [Read the results of a test](docs/how-to/read-the-results.md) tells you how.
+The full report has 3 rows and 6 notes. Data: [proofs/report/plugin-claude-code.json](proofs/report/plugin-claude-code.json). Method: [docs/results.md](docs/results.md#p5-and-p6-the-evaluation-at-the-end-of-a-test). A report is a model answer, so check its evidence. [Read the results of a test](docs/how-to/read-the-results.md) tells you how.
 
 ## How it works
 
@@ -151,7 +146,7 @@ A test also records what your app did. It copies the session files of the app's 
 
 ## Results
 
-| Proof | Plugin, Claude Code 2.1.296 | Plugin, Codex 0.162.1 | Project hooks, Claude Code 2.1.296 | Project hooks, Codex 0.162.1 |
+| Proof | Plugin, Claude Code 2.1.301 | Plugin, Codex 0.162.1 | Project hooks, Claude Code 2.1.301 | Project hooks, Codex 0.162.1 |
 |---|---|---|---|---|
 | Messages reach the agent byte for byte | 10/10 | 10/10 | 10/10 | 10/10 |
 | Replies reach the tester byte for byte | 10/10 | 10/10 | 10/10 | 10/10 |
@@ -160,7 +155,7 @@ A test also records what your app did. It copies the session files of the app's 
 | Audit finds planted faults | 5/5 | 5/5 | 5/5 | 5/5 |
 | After the test, the model has no memory of the conversation, and reads it from the transcript | yes | yes | yes | yes |
 
-Data: [plugin in Claude Code](proofs/plugin-claude-code/results.json), [plugin in Codex](proofs/plugin-codex/results.json), [project hooks in Claude Code](proofs/hooks-claude-code/results.json), [project hooks in Codex](proofs/hooks-codex/results.json), [evaluation](docs/results.md#p5-the-model-judges-the-record-not-its-memory). Method: [docs/results.md](docs/results.md#1-proofs).
+The Claude Code columns ran on nookku 0.5.1, and the Codex columns ran on nookku 0.5.0. Data: [plugin in Claude Code](proofs/plugin-claude-code/results.json), [plugin in Codex](proofs/plugin-codex/results.json), [project hooks in Claude Code](proofs/hooks-claude-code/results.json), [project hooks in Codex](proofs/hooks-codex/results.json), [evaluation](docs/results.md#p5-the-model-judges-the-record-not-its-memory). Method: [docs/results.md](docs/results.md#1-proofs).
 
 Under pressure, the mechanism had **0 breaks in 1,000 turns**. The test had 40 scripted conversations in each harness, 5 or 20 turns long. They had refusals, HTTP 500 errors, questions back to the tester and ambiguous messages. Each turn was a new harness call. I registered the design before the first run. Method, data and the one deviation: [docs/results.md](docs/results.md#2-benchmark-under-pressure).
 

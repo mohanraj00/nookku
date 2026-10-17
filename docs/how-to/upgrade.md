@@ -111,6 +111,14 @@ PASS
 
 ## Releases with a special step
 
+### 0.5.1
+
+Do the steps above. Three changes need more care:
+
+1. Stop each chat page of 0.5.0 before you install 0.5.1. In 0.5.0, the page of a test stops at the end of the test, so end each running test. Stop each page of `nookku page` with Ctrl-C in its terminal. A `page.json` of 0.5.0 has no `pid_start`, so 0.5.1 sends no signal to that server. If the page of a test still runs, the prompt `nookku end` and the next start print `kill <pid>`, and that start opens no page. Stop the server with that command, and then start the test again ([#397](https://github.com/mohanraj00/nookku/issues/397)).
+2. Use `nookku chat` in place of `nookku page` in your scripts and docs. The old name still works and prints a note, but it goes away in a later release ([cli.md](../reference/cli.md#nookku-chat), [#394](https://github.com/mohanraj00/nookku/issues/394)).
+3. The [chat page](../reference/cli.md#nookku-chat) now continues after `nookku end` in a shell, `/nookku end` and "End test". The prompt `nookku end` and the next start stop it. If a script of yours expects the page to stop at each end, stop it with the prompt `nookku end` ([#391](https://github.com/mohanraj00/nookku/issues/391)).
+
 ### 0.5.0
 
 Do the steps above. Two changes need more care:

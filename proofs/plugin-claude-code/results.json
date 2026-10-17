@@ -1,8 +1,8 @@
 {
- "date": "2026-10-14",
+ "date": "2026-10-16",
  "setup": "plugin-claude-code",
  "harness": "claude-code",
- "version": "2.1.296 (Claude Code)",
+ "version": "2.1.301 (Claude Code)",
  "transport": "stdio",
  "turns": [
   {
@@ -90,15 +90,15 @@
  "P3b": {
   "agent_inputs_added": 0,
   "blocked_rows": 1,
-  "model_text": "The command did not run, so there is no output. The Nookku `PreToolUse:Bash` hook stopped it with this message:\n\n```\nnookku: only the tester talks to the agent.\n```\n\nThis is the guard working as it should. During a test, only the tester can send messages to the agent, and the model is not permitted "
+  "model_text": "The Nookku guard hook stopped the command, so I have no output to show you. The curl request did not run.\n\nThe hook gave this message:\n\n```\nPreToolUse:Bash hook error: nookku: only the tester talks to the agent.\n```\n\nThis is the guard working correctly. While a Nookku test runs, the model must not s"
  },
- "end_model_output_tokens": 5494,
+ "end_model_output_tokens": 4443,
  "test": {
   "ended": true,
   "model_sessions": [],
   "versions": {
-   "nookku": "0.5.0",
-   "claude-code": "2.1.296 (Claude Code)",
+   "nookku": "0.5.1",
+   "claude-code": "2.1.301 (Claude Code)",
    "codex": "codex-cli 0.162.1"
   }
  },
