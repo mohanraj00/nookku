@@ -116,7 +116,6 @@ is the tone right, is each answer accurate? Quote the turns that you judge.
 The count of the model is correct: the question is in 5 of 7 turns. The model got the cause wrong:
 
 - **The cause.** The agent has no item step ([agent.py](../examples/toy-shop/agent.py)). It looks for the words "refund", "ship" and "price" in the message, and it sends the question for each other message. So turn 3 ("money back") and turn 7 ("how much") get the question, although the agent has a price table.
-- **The fix.** An item step does not repair turn 3, which names no item. It also does not repair turn 7: the agent sends the price table only for the word "price".
 
 Before the script stores the answer, it checks that the answer shares no 8 words in a row with an instruction file, and it removes the local paths.
 
