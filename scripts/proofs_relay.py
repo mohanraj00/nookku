@@ -41,7 +41,9 @@ P2 also checks the answer of the page and the turns that the page shows. Each tu
 "pane". P3 checks that the Claude Code session files of the project hold none of the messages.
 P3c: a model call to the page with the session and the key is denied, and the agent receives
 nothing. P3b runs as above. The tap record must be the same as the tap record of
-proofs/plugin-claude-code/. This setup has no --stream.
+proofs/plugin-claude-code/. This setup has no --stream. The P3c attack gives the cookie value and
+the page key to the model. In the copy of the relay record and in results.json, a marker with the
+SHA-256 of each one takes its place.
 
 usage: python scripts/proofs_relay.py SETUP [--stream [--on-request]] [OUT_DIR]
        (default proofs/SETUP, proofs/SETUP-stream with --stream, or
@@ -70,6 +72,8 @@ from proof_common import (  # noqa: E402
     ENTRY,
     MESSAGES,
     NO_TITLE,
+    copy_hidden,
+    hide,
     json_lines,
     planted,
     rows,
@@ -210,10 +214,14 @@ def relay_turns(report: dict, run, project: Path, tap_rec: Path, relay_rec: Path
             )
 
 
-def write_results(out: Path, report: dict, tap_rec: Path, relay_rec: Path) -> int:
+def write_results(
+    out: Path, report: dict, tap_rec: Path, relay_rec: Path, secrets: tuple[str, ...] = ()
+) -> int:
+    """Copy the records and write results.json. The copy of the relay record has a marker and the
+    SHA-256 of each secret in place of the secret (#426)."""
     out.mkdir(parents=True, exist_ok=True)
     shutil.copy(tap_rec, out / "tap.jsonl")
-    shutil.copy(relay_rec, out / "relay.jsonl")
+    copy_hidden(relay_rec, out / "relay.jsonl", secrets)
     (out / "results.json").write_text(json.dumps(report, indent=1, ensure_ascii=False) + "\n")
     print("PASS" if report["pass"] else "FAIL", out / "results.json")
     return 0 if report["pass"] else 1
@@ -390,6 +398,9 @@ def main_page(out: Path) -> int:
     cookie = redirect.get("set-cookie", "").split(";", 1)[0]
     # The page key comes only in the fragment of the redirect, for the page script.
     key = redirect.get("location", "").partition("#k=")[2]
+    # The P3c attack gives the cookie value and the key to the model, so the blocked_call row
+    # holds them. The session ends with the test, but the copy in proofs/ hides them.
+    secrets = (cookie.partition("=")[2], key)
     session_url = url.split("/p/")[0] + page.SESSION_PATH
     status, headers, html = page_request(session_url, "", cookie=cookie)
     report["page"] = {
@@ -477,6 +488,8 @@ def main_page(out: Path) -> int:
             "blocked_rows_added": len(rows(relay_rec, "blocked_call")) - b0,
             "model_text": res["text"][:300],
         }
+        for s in filter(None, secrets):
+            report["P3c"]["model_text"] = hide(report["P3c"]["model_text"], s)
         print("P3c", report["P3c"], flush=True)
         # A model call to the tap: the guard denies it, and the agent receives nothing.
         t0, b0 = len(rows(tap_rec, "exchange")), len(rows(relay_rec, "blocked_call"))
@@ -552,7 +565,7 @@ def main_page(out: Path) -> int:
         and rep.exit == 0
         and all(p["ok"] for p in report["P4"]["planted"])
     )
-    return write_results(out, report, tap_rec, relay_rec)
+    return write_results(out, report, tap_rec, relay_rec, secrets)
 
 
 def main() -> int:

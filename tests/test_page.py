@@ -800,19 +800,34 @@ def test_a_second_page_server_is_refused_and_a_stale_file_is_taken_over(
     os.close(lock)
 
 
-def test_a_short_check_of_the_page_lock_does_not_stop_a_start(tmp_path: Path) -> None:
+def test_a_short_check_of_the_page_lock_does_not_stop_a_start(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """`nookku status --json` checks the lock with page_auto._held, which takes it for a short
-    time. A page server that starts during that check waits, and then takes the lock."""
+    time. A page server that starts during that check waits, and then takes the lock.
+
+    The check ends in the first wait of claim_page_file, and the clock of page.py does not move.
+    So the test has no timer and no race with CLAIM_WAIT (#419)."""
     import fcntl
+    from types import SimpleNamespace
 
     folder = tmp_path / ".nookku"
     folder.mkdir()
     check = os.open(folder / state.PAGE_LOCK, os.O_RDWR | os.O_CREAT, 0o600)
     fcntl.flock(check, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    threading.Timer(0.05, os.close, (check,)).start()
+    waits: list[float] = []
+
+    def wait(seconds: float) -> None:
+        if not waits:
+            os.close(check)
+        waits.append(seconds)
+
+    monkeypatch.setattr(page, "time", SimpleNamespace(monotonic=lambda: 0.0, sleep=wait))
     path, lock = page.claim_page_file(tmp_path, 1234)
     try:
         assert json.loads(path.read_text())["port"] == 1234
+        # The first try found the lock of the check, so the server waited 1 time.
+        assert len(waits) == 1
     finally:
         os.close(lock)
 

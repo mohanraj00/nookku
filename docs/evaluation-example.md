@@ -2,16 +2,16 @@
 
 ## A test with an automatic report
 
-This is one test of the [toy shop with a model session](../examples/toy-shop-models/) through the Claude Code [plugin](reference/glossary.md#plugin). The app runs a Claude Agent SDK session with 2 tools: `lookup_order` and `refund`. [RULES.md](../examples/toy-shop-models/RULES.md) says that a refund above €50 needs a manager approval. The `refund` tool checks this rule, but it compares the amount in euros with a limit in cents. That is the planted bug: the tool pays €80 with no approval.
+This is one test of the [toy shop with a model session](../examples/toy-shop-models/) through the Claude Code [plugin](reference/glossary.md#plugin), with nookku 0.5.1. The app runs a Claude Agent SDK session with 2 tools: `lookup_order` and `refund`. [RULES.md](../examples/toy-shop-models/RULES.md) says that a refund above €50 needs a manager approval. The `refund` tool checks this rule, but it compares the amount in euros with a limit in cents. That is the planted bug: the tool pays €80 with no approval.
 
 I typed 3 messages. Then I typed the prompt `nookku end`. The plugin ended the test and gave the model the [evaluation](reference/glossary.md#evaluation) prompt ([evaluate.md](../src/nookku/evaluate.md)). I typed nothing else. The test project was a temporary folder outside this repo, so the model could not read this page.
 
-The data and the report are in [proofs/report/plugin.json](../proofs/report/plugin.json). The script is [scripts/proof_report.py](../scripts/proof_report.py).
+The data and the report are in [proofs/report/plugin-claude-code.json](../proofs/report/plugin-claude-code.json). The script is [scripts/proof_report.py](../scripts/proof_report.py), with the setup `plugin-claude-code`.
 
 | Setup | Value |
 |---|---|
-| [Harness](reference/glossary.md#harness) | Claude Code 2.1.290, default model |
-| [Relay](reference/glossary.md#relay) | the plugin in this repo |
+| [Harness](reference/glossary.md#harness) | Claude Code 2.1.301, default model |
+| [Relay](reference/glossary.md#relay) | the plugin of nookku 0.5.1 |
 | App's session files | Claude Code 2.1.292, bundled in Agent SDK 0.2.164 |
 | [Audit](reference/glossary.md#audit) | exit 0, 3 turns, no [breaks](reference/glossary.md#break) |
 
@@ -23,7 +23,7 @@ The data and the report are in [proofs/report/plugin.json](../proofs/report/plug
 | 2 | The teapot set from order 5120 arrived broken. Please refund the full €80 to my card now. |
 | 3 | Thank you. Is it done? |
 
-The results file keeps the report and not the replies. The report quotes 2 replies: "Your €80 refund has been processed and paid to your card" (turn 2) and "Your €80 refund has been successfully processed and sent to your card." (turn 3).
+The results file keeps the report and not the replies. The report quotes 2 replies: "you should see it within 3-5 business days." (turn 2) and "will appear in your account within 3-5 business days" (turn 3).
 
 The words alone do not show the bug. The [trace](reference/glossary.md#trace) does: in turn 2, the app called `refund` with `{"order": "5120", "amount_eur": 80}`, and the result was `"status": "paid"` (`trace.jsonl:10`). The trace also has the OpenTelemetry events of the app's Agent SDK session, so the refund call is in the trace 2 times: from the session file and from `otel.jsonl`.
 
@@ -31,28 +31,28 @@ The words alone do not show the bug. The [trace](reference/glossary.md#trace) do
 
 | Class | Turn | Evidence | Issue (shortened) |
 |---|---|---|---|
-| business_rule | 2 | trace.jsonl:10 | The app paid a refund above €50 with no manager approval. The issue quotes rule 3 of RULES.md. `state.json` has the paid refund RF-ED9794 on order 5120 and no `approvals` list. |
-| business_rule | - | app.py:59 | `if args["amount_eur"] > APPROVAL_LIMIT_CENTS:` compares euros with cents (`APPROVAL_LIMIT_CENTS = 5000`, app.py:27). So the tool pays each refund up to €5000 with no approval. |
-| unsupported_reply | 2 | trace.jsonl:13 | "paid to your card": the `refund` tool has no payment method argument (app.py:53), so no tool result supports it. |
-| unsupported_reply | 3 | trace.jsonl:17 | "sent to your card": no tool call occurred in turn 3, and no tool result says that the money went to the card. |
+| business_rule | 2 | trace.jsonl:10, app.py:60, RULES.md:5 | The app paid the €80 refund at once with no manager approval. The issue quotes rule 3 of RULES.md. The cause: `if args["amount_eur"] > APPROVAL_LIMIT_CENTS:` (app.py:60) compares euros with `5000` cents (app.py:28). `state.json` has the paid refund RF-4DCA74 on order 5120 and no `approvals` list. |
+| unsupported_reply | 2 | trace.jsonl:13 | "within 3-5 business days": no tool result and no rule gives a payout time. The `refund` result has only the refund id, the amount and `"status": "paid"`. |
+| unsupported_reply | 3 | trace.jsonl:17 | The reply gives the payout time again, with no tool call. Also, "your refund is complete" is true only because of the bug: under rule 3, the refund must wait for a manager. |
 
-The notes start with "The [seal](reference/glossary.md#seal) is intact." The model read the transcript with the trace, `RULES.md`, `app.py`, `entry.py` and `state.json`. It could not check rule 1 (30 days from delivery), because the state has no delivery date.
+The first note says that the [seal](reference/glossary.md#seal) is intact. The model read the transcript with the trace, `state.json`, `RULES.md` and `app.py`. It could not check rule 1 (30 days from delivery), because the order data has no delivery date.
 
 ### What the model got right and wrong
 
-- The first `business_rule` row finds the planted bug in turn 2. It cites the refund call, quotes the rule, and checks the state.
-- The second `business_rule` row gives the cause, and it cites the correct lines: the limit at `app.py:27` and the comparison at `app.py:59`. It is the same fault as the first row, in a row with no turn. So the report has 4 rows but only 1 bug. The answer of the model says "4 issues".
-- The first `unsupported_reply` row is correct: the `refund` tool takes no payment method. But the tester asked for the refund "to my card" in turn 2, so this is a small issue.
-- The second `unsupported_reply` row is partly correct. "Sent to your card" is more than the tool result says. But the main issue of turn 3 is different: the reply says that the refund is complete, and rule 3 says that it must wait for a manager. The report does not say this.
-- The report names the rule as "rule 3" and quotes its text. That is correct. The rule is on line 5 of `RULES.md`, and the report gives no line number for it.
+- The `business_rule` row finds the planted bug in turn 2. It cites the refund call, the rule and the comparison, and it checks the state.
+- The row cites the correct lines: the rule at `RULES.md:5`, the limit at `app.py:28` and the comparison at `app.py:60`. The report of 0.3 gave the same bug in 2 rows. This report gives 1 row for 1 bug.
+- The 2 `unsupported_reply` rows are correct: no tool result and no rule gives a payout time. They are small issues, next to the refund with no approval.
+- The turn 3 row also names the main issue of turn 3: the reply says that the refund is complete, but rule 3 says that it must wait for a manager. The report of 0.3 missed this.
+- I found no wrong claim in the 3 rows. The report does not say that the app has no tool to ask a manager for an approval.
 
 The model saw no message of the test. It quoted the refund id, which is random for each run, and exact parts of the replies. So it judged the records and not its memory.
 
 ### Run it again
 
 ```bash
-uv run python scripts/proof_report.py plugin
+uv run python scripts/proof_report.py plugin-claude-code
 uv run python scripts/proof_report.py hooks-claude-code
+uv run python scripts/proof_report.py plugin-codex
 uv run python scripts/proof_report.py hooks-codex
 ```
 

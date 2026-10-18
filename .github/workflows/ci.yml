@@ -48,10 +48,16 @@ jobs:
       - run: uv sync --python ${{ matrix.python }}
       - run: uv run pytest --cov --cov-report=term-missing
 
+  # This job runs the code of the npm package. Thus it has no token that can write, and the
+  # checkout keeps no token on disk.
   claude-code-plugin:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Install the tested Claude Code version
         run: npm install -g @anthropic-ai/claude-code@2.1.301
       - run: claude plugin validate plugins/nookku
