@@ -1,0 +1,42 @@
+{
+ "v": "0.2",
+ "test": "20261017-080000-ar01",
+ "turns": 1,
+ "items": 3,
+ "sessions": [
+  {
+   "harness": "claude-code",
+   "session": "4f1c2a7e-0d3b-4c55-9a61-2b8e5d7c9f10",
+   "file": "sessions/claude-code/4f1c2a7e-0d3b-4c55-9a61-2b8e5d7c9f10.jsonl",
+   "inferred": false,
+   "version": "2.1.301",
+   "items": 3,
+   "ignored": {
+    "api-request": 2,
+    "api-request-blob": 2,
+    "api-request-shape": 1
+   }
+  }
+ ],
+ "otel": null,
+ "backend": null,
+ "model_api": null,
+ "counts": {
+  "agent_error": 0,
+  "repeated_reply": 0,
+  "reply_not_from_model": 0,
+  "tool_error": 0,
+  "command_failed": 0,
+  "span_error": 0,
+  "backend_error": 0,
+  "model_api_error": 0,
+  "model_error": 0,
+  "turn_without_model": 0,
+  "item_between_turns": 0,
+  "otel_tool_not_in_session": 0,
+  "server_not_from_app": 0,
+  "session_inferred": 0,
+  "version_untested": 0
+ },
+ "findings": []
+}

@@ -7,11 +7,13 @@ result or its error, in the correct turn. Each run makes about 8 model calls.
 The results keep no model text: a message shows only its SHA-256 and its length. The tool
 outputs come from the toy tools.
 
-usage: python scripts/proof_trace.py [OUT_DIR] [AGENT_SDK]
+usage: python scripts/proof_trace.py [OUT_DIR] [AGENT_SDK] [CLAUDE]
 
 OUT_DIR is proofs/trace by default. AGENT_SDK is a pip requirement, for example
 claude-agent-sdk==0.2.168. It replaces the pin of scripts/proof_common.py for this run only, to
-test the session files of the Claude Code that a different SDK bundles.
+test the session files of the Claude Code that a different SDK bundles. CLAUDE is the path of a
+Claude Code program. The SDK runs it in place of its bundled Claude Code (the `cli_path` option),
+to test a version that no SDK release bundles. The results add its version to `claude-agent-sdk`.
 """
 
 from __future__ import annotations
@@ -106,6 +108,9 @@ def main() -> int:
     entry = [*ENTRY]
     if len(sys.argv) > 2:
         entry[ENTRY.index("--with") + 1] = sys.argv[2]
+    cli = sys.argv[3] if len(sys.argv) > 3 else None
+    if cli:
+        entry += ["--cli", cli]
     project = ROOT / ".proof" / "trace"
     shutil.rmtree(project, ignore_errors=True)
     (project / ".nookku").mkdir(parents=True)
@@ -132,6 +137,9 @@ def main() -> int:
         text=True,
     ).stdout.strip()
     versions = {s["harness"]: s["version"] for s in findings["sessions"]}
+    if cli:
+        run = subprocess.run([cli, "--version"], capture_output=True, text=True)
+        sdk += f" with cli_path {run.stdout.strip()}"
     report = {
         "date": date.today().isoformat(),
         "versions": {"session files": versions, "claude-agent-sdk": sdk, **manifest["versions"]},
