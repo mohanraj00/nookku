@@ -1065,6 +1065,46 @@ def test_the_proxy_records_the_backend_calls(tmp_path: Path, homes: tuple) -> No
     assert seal.verify(folder)["intact"]
 
 
+MCP_APP = """
+import json, os, shlex, subprocess, sys
+
+server = subprocess.Popen(shlex.split(os.environ["STOCK_MCP_COMMAND"]),
+    stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+for raw in sys.stdin.buffer:
+    request = json.loads(raw)
+    call = {"jsonrpc": "2.0", "id": 1, "method": "tools/call",
+        "params": {"name": "check_stock", "arguments": {"product": "mug"}}}
+    server.stdin.write((json.dumps(call) + "\\n").encode())
+    server.stdin.flush()
+    answer = json.loads(server.stdout.readline())
+    text = answer["result"]["content"][0]["text"]
+    sys.stdout.write(json.dumps({"v": 1, "id": request["id"], "reply": text}) + "\\n")
+    sys.stdout.flush()
+"""
+
+
+def test_the_stdio_wrapper_records_the_mcp_calls(tmp_path: Path, homes: tuple) -> None:
+    from test_mcp_proxy import stdio_part
+
+    root = project(tmp_path, [sys.executable, "-c", MCP_APP])
+    egress = {"registered": time.time(), "answer": discovery.make(mcp_servers=[stdio_part()])}
+    cur = bridge.start(root, "tester-1", egress=egress)
+    try:
+        shown, ok = bridge.send(cur, "Do you have the mug?")
+    finally:
+        bridge.end(root)
+    assert ok and "12" in shown
+    folder = Path(cur["dir"])
+    manifest = json.loads((folder / "manifest.json").read_text())
+    assert manifest["egress"]["proxies"] == {"stock": "stdio"}
+    assert manifest["egress"]["unseen"] == []
+    items = [json.loads(x) for x in (folder / "trace.jsonl").read_text().splitlines()]
+    assert [(it["harness"], it["kind"], it["turn"], it["name"]) for it in items] == [
+        ("mcp", "tool_call", 1, "check_stock")
+    ]
+    assert seal.verify(folder)["intact"]
+
+
 MODEL_APP = """
 import json, os, sys, urllib.request
 

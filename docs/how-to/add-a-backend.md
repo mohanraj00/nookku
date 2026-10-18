@@ -49,6 +49,15 @@ nookku transcript --trace
 nookku trace
 ```
 
+## MCP servers
+
+An MCP server of your app gets a proxy in the same way, if the app reads the server from a variable ([SPEC.md section 7.12](../../SPEC.md#712-mcp-proxies)):
+
+- For an `http` server, the variable holds its URL. The proxy records each call to `mcp.jsonl`.
+- For a `stdio` server, the variable holds the command line of the server. The app splits the line into words and starts it. During a test, the variable holds the `nookku mcp-stdio` command, which starts the server and records each line to `mcp.jsonl`.
+
+A server with no variable has no proxy. The start text names it with `(no proxy)`. The trace shows each `tools/call` of `mcp.jsonl` as a `tool_call` item, and the check `tool_error` finds each call with an error.
+
 ## Example
 
 [examples/toy-shop-full/](../../examples/toy-shop-full/app.py) has a stock service and a planted bug that only the backend calls show. After 1 `reserve` tool call, the app reserves the items 2 times. In the telemetry proof, each report cited both `POST /reserve` calls of turn 2 ([results](../results.md#full-telemetry-with-one-app), [method](../../scripts/proof_telemetry.py)).

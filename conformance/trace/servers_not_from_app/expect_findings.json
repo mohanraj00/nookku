@@ -19,6 +19,7 @@
  "otel": null,
  "backend": null,
  "model_api": null,
+ "mcp": null,
  "counts": {
   "agent_error": 0,
   "repeated_reply": 0,

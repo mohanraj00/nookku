@@ -541,6 +541,21 @@ The MCP server that gives the model the read-only tools `transcript` and `status
 |---|---|
 | 0 | stdin ended. |
 
+### `nookku mcp-stdio`
+
+The wrapper of a stdio MCP server of the agent ([SPEC.md section 7.12](../../SPEC.md#712-mcp-proxies)). The bridge writes this command into the variable of each stdio MCP server that the egress answer names with a variable. The app starts the command in place of the server. The wrapper starts the server, copies each byte between the app and the server with no change, and writes each line to `mcp.jsonl`.
+
+| Flag | Default | Meaning |
+|---|---|---|
+| `--folder PATH` | required | The test folder. |
+| `--name NAME` | required | The name of the server in the egress answer. |
+| `SERVER` | required | The command of the server and its arguments, after `--`. |
+
+| Exit code | Meaning |
+|---|---|
+| the code of the server | The server exited. |
+| 127 | The server could not start. |
+
 ### `nookku bridge`
 
 The background process of a test ([architecture.md](../architecture.md#the-bridge)). `start` runs it.

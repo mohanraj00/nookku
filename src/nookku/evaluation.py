@@ -321,7 +321,7 @@ def transcript(folder: Path, compact: bool = False) -> str:
         "tap.jsonl. A model item comes from the app's own model sessions, or from the "
         "OpenTelemetry spans and logs of the app (otel.jsonl), or from the calls of the app to "
         "its backends (backend.jsonl), or from its direct calls to a model API "
-        "(model_api.jsonl). [trace.jsonl:N] is "
+        "(model_api.jsonl), or from its calls to its MCP servers (mcp.jsonl). [trace.jsonl:N] is "
         f"line N of {folder / 'trace.jsonl'}.\n",
     ]
     if compact:

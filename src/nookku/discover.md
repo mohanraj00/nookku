@@ -8,7 +8,7 @@ Read the code of the agent, its configuration and its `.env` example files. The 
 
 1. Each model API that the agent calls directly with an SDK: `anthropic` or `openai`, the variable that holds its base URL, and its upstream URL.
 2. Each HTTP backend: a name, the variable that holds its URL, and its upstream URL.
-3. Each MCP server that the agent calls: a name, its transport (`stdio` or `http`), the variable that holds its command or its URL (or `null`), and its command (a list of words) or its URL.
+3. Each MCP server that the agent calls: a name, its transport (`stdio` or `http`), the variable that holds its command or its URL (or `null`), and its command (a list of words) or its URL. For a `stdio` server, give a variable only if the agent reads the command line of the server from it and splits the line into words. Nookku puts its proxy into the variable, so a server with no variable has no proxy.
 4. Each database: a name, its kind (for example `postgres` or `sqlite`), the variable that holds its address (or `null`), and its address as `host:port/database`, or its file (or `null`).
 5. Each other part that the agent calls, for example a queue or a file share: a name, its kind and a short detail.
 

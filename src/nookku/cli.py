@@ -44,7 +44,7 @@ LIST_KEYS = {
 STRING_KEYS = [k for k in CONFIG_KEYS if k not in LIST_KEYS]
 # The relays and the bridge run these commands. A tester does not run them
 # (docs/reference/cli.md, "Internal commands").
-INTERNAL_COMMANDS = frozenset({"hook", "mcp", "bridge"})
+INTERNAL_COMMANDS = frozenset({"hook", "mcp", "mcp-stdio", "bridge"})
 # The old name of `nookku chat`. It works the same for one release, with a note on stderr (#394).
 OLD_CHAT = "page"
 OLD_CHAT_NOTE = (
@@ -385,6 +385,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     mcp = sub.add_parser("mcp")
     mcp.add_argument("--root", type=Path, help="the project (default: here)")
 
+    # The wrapper of a stdio MCP server of the egress answer (SPEC.md section 7.12). The bridge
+    # writes this command into the variable of the server. An internal command has no help.
+    wrap = sub.add_parser("mcp-stdio")
+    wrap.add_argument("--folder", type=Path, required=True)
+    wrap.add_argument("--name", required=True)
+    wrap.add_argument("server", nargs="+")
+
     pol = sub.add_parser(
         "policy", help="print the policy keys, or change one (only a person, in a shell)"
     )
@@ -406,6 +413,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     if words[:1] == [OLD_CHAT]:
         print(OLD_CHAT_NOTE, file=sys.stderr, flush=True)
     args = parser.parse_args(argv)
+    if args.command == "mcp-stdio":
+        from nookku import mcp_proxy
+
+        # It copies the bytes of the app and the server, so it prints nothing of its own.
+        return mcp_proxy.run_stdio(args.folder, args.name, args.server)
     if args.command == "mcp" and args.root is None:
         from nookku.mcp import project_root
 
