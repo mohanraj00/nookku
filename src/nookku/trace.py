@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
-from . import backend, mcp_proxy, model_api, otlp
+from . import backend, db_proxy, mcp_proxy, model_api, otlp
 from .adapters import AdapterError, pick
 from .config import MATCHES
 from .record import VERSION, json_text, read_rows
@@ -38,6 +38,7 @@ CHECKS = (
     "span_error",
     "backend_error",
     "model_api_error",
+    "database_error",
     "unseen_call",
     "model_error",
     "turn_without_model",
@@ -512,6 +513,90 @@ def read_mcp(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         items.append(it)
     return items, {
         "file": mcp_proxy.FILE,
+        "rows": rows,
+        "items": len(items),
+        "ignored": dict(ignored),
+    }
+
+
+def _query_name(query: Any) -> str:
+    words = query.split() if isinstance(query, str) else []
+    return words[0].upper() if words else "query"
+
+
+def _done(it: dict[str, Any], rows: list[Any], tags: list[str], line: int) -> None:
+    lines = [json.dumps(r, ensure_ascii=False) for r in rows] + tags
+    it["output"] = "\n".join(lines) if lines else None
+    it["source"]["result_line"] = line
+
+
+def read_database(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """The queries of database.jsonl (SPEC.md section 8.4)."""
+    ignored: Counter[str] = Counter()
+    rows = 0
+    items: list[dict[str, Any]] = []
+    # The open queries of each connection, oldest first, with their rows and command tags.
+    queues: dict[tuple[str, Any], list[tuple[dict[str, Any], bool, list[Any], list[str]]]] = {}
+    statements: dict[tuple[tuple[str, Any], str], Any] = {}
+    portals: dict[tuple[tuple[str, Any], str], tuple[Any, Any]] = {}
+    for n, row in _lines(path, ignored):
+        rows += 1
+        if not isinstance(row, dict) or row.get("type") != "message":
+            ignored[str(row.get("type")) if isinstance(row, dict) else "invalid_json"] += 1
+            continue
+        name = str(row.get("database") or "")
+        conn = (name, row.get("connection"))
+        queue = queues.setdefault(conn, [])
+        f = row["fields"] if isinstance(row.get("fields"), dict) else {}
+        tag = row.get("tag")
+        if row.get("direction") == "to_server":
+            if tag == "P":
+                statements[(conn, str(f.get("statement")))] = f.get("query")
+            elif tag == "B":
+                query = statements.get((conn, str(f.get("statement"))))
+                portals[(conn, str(f.get("portal")))] = (query, f.get("parameters"))
+            elif tag in ("Q", "E"):
+                it = _item("database", name, db_proxy.FILE, n, row.get("ts"))
+                if tag == "Q":
+                    query, params = f.get("query"), None
+                else:
+                    query, params = portals.get((conn, str(f.get("portal"))), (None, None))
+                it.update(kind="query", name=_query_name(query))
+                it["input"] = {"query": query, "parameters": params}
+                items.append(it)
+                queue.append((it, tag == "E", [], []))
+            continue
+        if not queue:
+            continue
+        it, extended, values, tags = queue[0]
+        if tag == "D":
+            values.append(f.get("values"))
+        elif tag == "C":
+            tags.append(str(f.get("command")))
+            if extended:
+                _done(it, values, tags, n)
+                queue.pop(0)
+        elif tag == "E":
+            it["error"] = str(f.get("message") or "error")
+            if extended:
+                _done(it, values, tags, n)
+                queue.pop(0)
+        elif tag == "Z":
+            # Ready: each open query has its result. After an error, the database skips each
+            # execute up to the next sync.
+            for it, extended, values, tags in queue:
+                if extended and it["error"] is None:
+                    it["error"] = "the database did not run it: an earlier error"
+                _done(it, values, tags, n)
+            queue.clear()
+    for queue in queues.values():
+        for it, _, values, tags in queue:
+            it["error"] = it["error"] or "no result in database.jsonl"
+            it["output"] = (
+                "\n".join([json.dumps(r, ensure_ascii=False) for r in values] + tags) or None
+            )
+    return items, {
+        "file": db_proxy.FILE,
         "rows": rows,
         "items": len(items),
         "ignored": dict(ignored),
@@ -1004,6 +1089,9 @@ def check(
             what = it["error"] or f"status {it['exit_code']}"
             detail = f"{it['session']}: {it['input']['path']}: {what}"
             out.append(_finding("model_api_error", it["turn"], detail, **where))
+        if it["kind"] == "query" and it["error"] is not None:
+            detail = f"{it['session']}: {it['name']}: {it['error']}"
+            out.append(_finding("database_error", it["turn"], detail, **where))
         if it["kind"] == "span" and it["error"] is not None:
             detail = f"{it['service'] or 'a service'}: {it['name']}: {it['error']}"
             out.append(_finding("span_error", it["turn"], detail, **where))
@@ -1097,6 +1185,10 @@ def build(folder: Path) -> dict[str, Any]:
     if (folder / mcp_proxy.FILE).exists():
         found, servers_mcp = read_mcp(folder / mcp_proxy.FILE)
         items += found
+    queries = None
+    if (folder / db_proxy.FILE).exists():
+        found, queries = read_database(folder / db_proxy.FILE)
+        items += found
     items.sort(key=lambda it: it["ts"] if it["ts"] is not None else float("inf"))
     assign(items, spans)
     keys, seen = trace_keys(manifest), egress_seen(manifest)
@@ -1114,6 +1206,7 @@ def build(folder: Path) -> dict[str, Any]:
         "backend": calls,
         "model_api": direct,
         "mcp": servers_mcp,
+        "database": queries,
         "counts": {c: counts[c] for c in CHECKS},
         "findings": findings,
     }

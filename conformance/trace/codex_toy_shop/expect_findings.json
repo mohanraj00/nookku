@@ -25,6 +25,7 @@
  "backend": null,
  "model_api": null,
  "mcp": null,
+ "database": null,
  "counts": {
   "agent_error": 0,
   "repeated_reply": 0,
@@ -34,6 +35,7 @@
   "span_error": 0,
   "backend_error": 0,
   "model_api_error": 0,
+  "database_error": 0,
   "unseen_call": 0,
   "model_error": 0,
   "turn_without_model": 1,

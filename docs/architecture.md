@@ -38,10 +38,12 @@ flowchart TB
     app -->|HTTP| bproxy --> backend[Backend service]
     app -->|HTTP| mproxy --> api[Model API]
     app -->|HTTP or stdio| mcpproxy[MCP proxy] --> mcpserver[MCP server]
+    app -->|Postgres protocol| dbproxy[Postgres proxy] --> database[Postgres database]
     app -->|OTLP| otlp
     bproxy -.->|writes| backendrec[(backend.jsonl)]
     mproxy -.->|writes| modelrec[(model_api.jsonl)]
     mcpproxy -.->|writes| mcprec[(mcp.jsonl)]
+    dbproxy -.->|writes| dbrec[(database.jsonl)]
     otlp -.->|writes| otelrec[(otel.jsonl)]
     app -.->|the harness binary writes| hsessions[(Harness session files)]
     hsessions -->|the bridge copies| sessions[(sessions/)]
@@ -206,7 +208,7 @@ At the end of a test, the bridge writes the SHA-256 of each file of the test fol
 
 ## The trace and the findings
 
-The trace, `trace.jsonl`, joins the session files, `otel.jsonl`, `backend.jsonl`, `model_api.jsonl` and `mcp.jsonl` into one record. Each item has its turn and a pointer to its line in the source file ([SPEC.md section 8](../SPEC.md#8-trace)). 16 checks write `findings.json`, for example a tool call that failed or a turn in which no model ran ([SPEC.md section 8.6](../SPEC.md#86-findings)). The [findings](reference/glossary.md#findings) do not change the exit code of the audit.
+The trace, `trace.jsonl`, joins the session files, `otel.jsonl`, `backend.jsonl`, `model_api.jsonl`, `mcp.jsonl` and `database.jsonl` into one record. Each item has its turn and a pointer to its line in the source file ([SPEC.md section 8](../SPEC.md#8-trace)). 17 checks write `findings.json`, for example a tool call that failed or a turn in which no model ran ([SPEC.md section 8.6](../SPEC.md#86-findings)). The [findings](reference/glossary.md#findings) do not change the exit code of the audit.
 
 ```mermaid
 flowchart TB
@@ -216,16 +218,18 @@ flowchart TB
     backendrec[(backend.jsonl)] --> breader[Backend reader]
     modelrec[(model_api.jsonl)] --> mreader[Model API reader]
     mcprec[(mcp.jsonl)] --> mcpreader[MCP reader]
+    dbrec[(database.jsonl)] --> dbreader[Database reader]
     sreaders -->|messages, tool calls, commands| items[Items in time order]
     oreader -->|spans and logs| items
     breader -->|HTTP calls| items
     mreader -->|messages| items
     mcpreader -->|tool calls| items
+    dbreader -->|queries| items
     taprec[(tap.jsonl)] -->|exchange rows| windows[Turn windows: from started to ts of each exchange]
     items --> assign[Give each item the turn whose window holds its time]
     windows --> assign
     assign -.->|writes| tracerec[(trace.jsonl)]
-    assign --> checks[16 checks]
+    assign --> checks[17 checks]
     sreaders -->|sessions and MCP servers| checks
     taprec -->|status of each exchange| checks
     checks -.->|writes| findingsrec[(findings.json)]

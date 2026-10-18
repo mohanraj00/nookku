@@ -222,7 +222,9 @@ def parts(answer: dict[str, list[dict[str, Any]]]) -> list[Part]:
         out.append(Part("MCP server", p["name"], line, p["env"] is not None))
     for p in answer["databases"]:
         where = p["env"] or p["address"] or "no variable"
-        out.append(Part("database", p["name"], f"{p['kind']}, {where}", False))
+        # Only a Postgres database with a variable has a proxy (SPEC.md section 7.13).
+        proxy = p["kind"] == "postgres" and p["env"] is not None
+        out.append(Part("database", p["name"], f"{p['kind']}, {where}", proxy))
     for p in answer["other"]:
         out.append(Part("other", p["name"], f"{p['kind']}, {p['detail']}", False))
     return out

@@ -22,6 +22,7 @@ from typing import Any
 from nookku import (
     __version__,
     backend,
+    db_proxy,
     discovery,
     mcp_proxy,
     model_api,
@@ -140,6 +141,7 @@ def egress_proxies(
     7.11). Raise BridgeError if the URL of a model API is not valid."""
     try:
         apis = model_api.backends(answer["model_apis"], environ)
+        db_proxy.databases(answer["databases"], environ)
     except ValueError as e:
         raise BridgeError(f"the egress answer: {e}") from None
     return backend.from_answer(answer["backends"]), apis
@@ -812,8 +814,21 @@ def run(
     env.update(wrappers)
     for name in wrappers:
         _log(f"MCP server wrapper: {name}")
+    # The Postgres databases that have a variable (SPEC.md section 7.13). egress_proxies checked
+    # each value.
+    db_lock = threading.Lock()
+    dbs = [
+        db_proxy.Proxy(d, folder / db_proxy.FILE, db_lock)
+        for d in db_proxy.databases(egress["answer"]["databases"], os.environ)
+    ]
+    for d in dbs:
+        start_in_thread(d)
+        # The log line has no value of the variable: the URL can hold a password.
+        _log(f"database {d.database.name}: {d.database.env} -> {d.url}")
+    env.update(db_proxy.environment(dbs, os.environ))
     every = proxies.proxies + apis.proxies + mcp.proxies
     manifest["egress"]["proxies"] = {p.backend.name: p.url for p in every}
+    manifest["egress"]["proxies"].update({d.database.name: d.url for d in dbs})
     # A stdio server has no address. Its value is STDIO (SPEC.md section 7.12).
     manifest["egress"]["proxies"].update(
         {p["name"]: mcp_proxy.STDIO for p in servers if p["env"] in wrappers}
@@ -876,6 +891,8 @@ def run(
     apis.stop()
     mcp.stop()
     mcp_proxy.close(folder)
+    for d in dbs:
+        d.stop()
     ended = time.time()
     relay = folder / "relay.jsonl"
     tester = set(manifest["tester_sessions"])

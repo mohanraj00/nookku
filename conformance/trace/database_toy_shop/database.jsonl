@@ -1,0 +1,21 @@
+{"v": 1, "type": "connect", "database": "shop-db", "connection": 1, "ts": 1791273610.5, "parameters": {"user": "shop", "database": "shop"}, "declined": ["ssl"], "error": null}
+{"v": 1, "type": "message", "database": "shop-db", "connection": 1, "ts": 1791273610.6, "direction": "to_server", "tag": "p", "size": 8, "fields": null}
+{"v": 1, "type": "message", "database": "shop-db", "connection": 1, "ts": 1791273610.7, "direction": "from_server", "tag": "R", "size": 8, "fields": {"auth": 0}}
+{"v": 1, "type": "message", "database": "shop-db", "connection": 1, "ts": 1791273611.0, "direction": "to_server", "tag": "Q", "size": 8, "fields": {"query": "SELECT left FROM stock WHERE sku = 'teapot-set'"}}
+{"v": 1, "type": "message", "database": "shop-db", "connection": 1, "ts": 1791273611.1, "direction": "from_server", "tag": "T", "size": 8, "fields": {"columns": ["left"]}}
+{"v": 1, "type": "message", "database": "shop-db", "connection": 1, "ts": 1791273611.1, "direction": "from_server", "tag": "D", "size": 8, "fields": {"values": ["3"]}}
+{"v": 1, "type": "message", "database": "shop-db", "connection": 1, "ts": 1791273611.1, "direction": "from_server", "tag": "C", "size": 8, "fields": {"command": "SELECT 1"}}
+{"v": 1, "type": "message", "database": "shop-db", "connection": 1, "ts": 1791273611.1, "direction": "from_server", "tag": "Z", "size": 8, "fields": {"status": "I"}}
+{"v": 1, "type": "message", "database": "shop-db", "connection": 1, "ts": 1791273631.0, "direction": "to_server", "tag": "P", "size": 8, "fields": {"statement": "", "query": "SELECT left FROM stock WHERE sku = $1"}}
+{"v": 1, "type": "message", "database": "shop-db", "connection": 1, "ts": 1791273631.0, "direction": "to_server", "tag": "B", "size": 8, "fields": {"portal": "", "statement": "", "parameters": ["mug"]}}
+{"v": 1, "type": "message", "database": "shop-db", "connection": 1, "ts": 1791273631.0, "direction": "to_server", "tag": "E", "size": 8, "fields": {"portal": ""}}
+{"v": 1, "type": "message", "database": "shop-db", "connection": 1, "ts": 1791273631.0, "direction": "to_server", "tag": "S", "size": 8, "fields": null}
+{"v": 1, "type": "message", "database": "shop-db", "connection": 1, "ts": 1791273631.1, "direction": "from_server", "tag": "1", "size": 8, "fields": null}
+{"v": 1, "type": "message", "database": "shop-db", "connection": 1, "ts": 1791273631.1, "direction": "from_server", "tag": "2", "size": 8, "fields": null}
+{"v": 1, "type": "message", "database": "shop-db", "connection": 1, "ts": 1791273631.1, "direction": "from_server", "tag": "D", "size": 8, "fields": {"values": ["12"]}}
+{"v": 1, "type": "message", "database": "shop-db", "connection": 1, "ts": 1791273631.1, "direction": "from_server", "tag": "C", "size": 8, "fields": {"command": "SELECT 1"}}
+{"v": 1, "type": "message", "database": "shop-db", "connection": 1, "ts": 1791273631.1, "direction": "from_server", "tag": "Z", "size": 8, "fields": {"status": "I"}}
+{"v": 1, "type": "message", "database": "shop-db", "connection": 1, "ts": 1791273632.0, "direction": "to_server", "tag": "Q", "size": 8, "fields": {"query": "SELECT * FROM nope"}}
+{"v": 1, "type": "message", "database": "shop-db", "connection": 1, "ts": 1791273632.1, "direction": "from_server", "tag": "E", "size": 8, "fields": {"severity": "ERROR", "code": "42P01", "message": "relation \"nope\" does not exist"}}
+{"v": 1, "type": "message", "database": "shop-db", "connection": 1, "ts": 1791273632.1, "direction": "from_server", "tag": "Z", "size": 8, "fields": {"status": "I"}}
+{"v": 1, "type": "message", "database": "shop-db", "connection": 1, "ts": 1791273645.0, "direction": "to_server", "tag": "Q", "size": 8, "fields": {"query": "SELECT 1"}}
