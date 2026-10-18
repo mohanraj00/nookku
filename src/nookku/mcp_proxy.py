@@ -124,19 +124,21 @@ def _write_all(fd: int, data: bytes) -> None:
 
 
 def _copy(src: int, dst: int | None, recorder: Recorder, after: Any = None) -> None:
-    """Copy each byte from src to dst, and record it. Stop at the end of src."""
+    """Record each line from src, then copy its bytes to dst. Stop at the end of src. A line is
+    in the record before the other side can answer it, so a response row never comes before
+    its request row."""
     try:
         while True:
             data = os.read(src, CHUNK)
             if not data:
                 break
+            recorder.add(data)
             if dst is not None:
                 try:
                     _write_all(dst, data)
                 except OSError:
                     # The reader went away. The record still keeps each line.
                     dst = None
-            recorder.add(data)
     except OSError:
         pass
     finally:
