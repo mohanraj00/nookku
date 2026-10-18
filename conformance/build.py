@@ -3666,6 +3666,7 @@ UNSEEN_STDIO_CASE = {
         "backend": None,
         "model_api": None,
         "mcp": None,
+        "database": None,
         "counts": counts(unseen_call=1),
         "findings": [unseen(1, 1, "MCP tools/call at no network address")],
     },

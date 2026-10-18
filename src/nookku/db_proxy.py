@@ -171,20 +171,33 @@ def fields(direction: str, tag: bytes, data: bytes) -> dict[str, Any] | None:
 
 
 class Messages:
-    """The typed messages of one direction of a connection, from the bytes as they come."""
+    """The typed messages of one direction of a connection, from the bytes as they come: the tag,
+    the body and the size of each message. A message with a body longer than RECORD_LIMIT has no
+    body here, because the record keeps no fields of it. Thus a long row uses no memory."""
 
     def __init__(self) -> None:
-        self.buffer = b""
+        self.buffer = bytearray()
+        # The bytes of a long message that did not come yet.
+        self.skip = 0
 
-    def add(self, data: bytes) -> Iterator[tuple[bytes, bytes]]:
+    def add(self, data: bytes) -> Iterator[tuple[bytes, bytes | None, int]]:
+        if self.skip:
+            n = min(self.skip, len(data))
+            self.skip -= n
+            data = data[n:]
         self.buffer += data
         while len(self.buffer) >= 5:
-            size = int.from_bytes(self.buffer[1:5], "big")
+            tag, size = bytes(self.buffer[:1]), int.from_bytes(self.buffer[1:5], "big")
+            if size - 4 > backend.RECORD_LIMIT:
+                yield tag, None, size
+                self.skip = max(1 + size - len(self.buffer), 0)
+                del self.buffer[: 1 + size]
+                continue
             if len(self.buffer) < 1 + size:
                 return
-            tag, body = self.buffer[:1], self.buffer[5 : 1 + size]
-            self.buffer = self.buffer[1 + size :]
-            yield tag, body
+            body = bytes(self.buffer[5 : 1 + size])
+            del self.buffer[: 1 + size]
+            yield tag, body, size
 
 
 def _read(sock: socket.socket, size: int) -> bytes:
@@ -309,7 +322,7 @@ class Handler(socketserver.BaseRequestHandler):
         messages = Messages()
         try:
             while data := src.recv(CHUNK):
-                for tag, body in messages.add(data):
+                for tag, body, size in messages.add(data):
                     # A password or SASL message of the app: the record keeps its size only.
                     secret = direction == "to_server" and tag == b"p"
                     self.server.row(
@@ -317,8 +330,8 @@ class Handler(socketserver.BaseRequestHandler):
                         "message",
                         direction=direction,
                         tag=tag.decode("latin-1"),
-                        size=len(body) + 4,
-                        fields=None if secret else fields(direction, tag, body),
+                        size=size,
+                        fields=None if secret or body is None else fields(direction, tag, body),
                     )
                 dst.sendall(data)
         except OSError:

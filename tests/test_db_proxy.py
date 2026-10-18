@@ -177,3 +177,13 @@ def test_only_a_postgres_database_with_a_variable_gets_a_proxy() -> None:
     parts[2] = {**parts[2], "env": "LOG_DB"}
     answer = discovery.parse(discovery.make(databases=parts))
     assert [p.proxy for p in discovery.parts(answer)] == [True, False, False]
+
+
+def test_the_reader_keeps_no_body_of_a_long_message(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(db_proxy.backend, "RECORD_LIMIT", 10)
+    long = message(b"D", (1).to_bytes(2, "big") + (20).to_bytes(4, "big") + b"x" * 20)
+    data = long + message(b"C", b"SELECT 1\0")
+    reader = db_proxy.Messages()
+    # The long message comes in 3 parts, and a short message follows it in the last part.
+    got = [m for part in (data[:3], data[3:12], data[12:]) for m in reader.add(part)]
+    assert got == [(b"D", None, len(long) - 1), (b"C", b"SELECT 1\0", 13)]

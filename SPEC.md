@@ -867,7 +867,7 @@ The `fields` of a message:
 | `from_server` `Z` (ready for query) | `status` |
 | `from_server` `R` (authentication) | `auth`: the authentication type, with no other byte |
 
-Each other message, and a message longer than 1 MiB, has `fields` `null`. A `to_server` `p` message (a password or a SASL message) always has `fields` `null`, so the record never holds a password. The query texts and the values are not secret to the record, as the bodies of a backend call (section 7.6).
+Each other message, and a message longer than 1 MiB, has `fields` `null`. The proxy copies the bytes of a message longer than 1 MiB when they come, and it does not keep them. A `to_server` `p` message (a password or a SASL message) always has `fields` `null`, so the record never holds a password. The query texts and the values are not secret to the record, as the bodies of a backend call (section 7.6).
 
 At the end of the test, the bridge stops the proxies after it stops the entry. A proxy then writes no row and closes each open connection. Thus each row is in `database.jsonl` before the trace and the seal.
 
