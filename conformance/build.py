@@ -5306,6 +5306,34 @@ DISCOVERY_CASES: dict[str, dict] = {
         ),
         "expect": {"error": "databases[0]: the address has a user or a password. Give host:port."},
     },
+    "address_with_secret_query": {
+        "answer": answer_with(
+            "databases",
+            {
+                "name": "shop",
+                "kind": "postgres",
+                "env": None,
+                "address": "db.toy.test:5432/shop?password=toy",
+            },
+        ),
+        "expect": {"error": "databases[0]: the address has a value of the secret key 'password'."},
+    },
+    "address_with_secret_word": {
+        "answer": answer_with(
+            "databases",
+            {
+                "name": "shop",
+                "kind": "postgres",
+                "env": None,
+                "address": "host=db.toy.test password=toy",
+            },
+        ),
+        "expect": {"error": "databases[0]: the address has a value of the secret key 'password'."},
+    },
+    "url_that_does_not_parse": {
+        "answer": answer_with("backends", {"name": "stock", "env": "STOCK_URL", "url": "http://["}),
+        "expect": {"error": "backends[0] 'url' must be an http or https URL with a host"},
+    },
     "empty_name": {
         "answer": answer_with("other", {"name": " ", "kind": "smtp", "detail": "mail"}),
         "expect": {"error": "other[0] 'name' must be a text"},

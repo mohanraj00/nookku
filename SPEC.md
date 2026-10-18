@@ -800,7 +800,7 @@ The rule of the answer:
 - Each `env` is a variable name of letters, digits and `_`, and does not start with a digit. It is not a variable that the bridge gives the entry: `NOOKKU_TEST_DIR`, `NOOKKU_TEST_ID` or a variable of section 7.5. Each `env` that is not `null` occurs one time in the answer.
 - Each part has its own name. The name of a model API is its `api`. So one API occurs one time.
 - Each `url` is an `http` or `https` URL with a host, and with a valid port or no port.
-- The answer holds the names of the variables, never their values. A `url` with a user or a password is refused. A `url` with a value of a secret query parameter (the rule of section 7.6) is refused. An `address` with `@` is refused.
+- The answer holds the names of the variables, never their values. A `url` with a user or a password is refused. A `url` with a value of a secret query parameter (the rule of section 7.6) is refused. An `address` with `@` is refused. An `address` with a value of a secret key (the rule of section 7.6) in a `key=value` word is refused, for example `shop?password=x` or `host=db password=x`. A word ends at a space, `;`, `&` or `?`. A `url` that the URL parser cannot read, for example `http://[`, is refused as a `url` that is not an http or https URL.
 
 The error texts are in [`src/nookku/discovery.py`](src/nookku/discovery.py). The conformance cases in `conformance/discovery/` give an answer and the lines and the unseen parts of the start text, or the error.
 

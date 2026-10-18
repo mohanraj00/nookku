@@ -183,8 +183,8 @@ ENV_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 def is_http_url(url: str) -> bool:
     """True if url is an http or https URL with a host and a valid port, or no port: the rule for
     the URL of a backend and of a model API (SPEC.md sections 7.6, 7.7 and 7.11)."""
-    parts = urlsplit(url)
     try:
+        parts = urlsplit(url)
         parts.port  # noqa: B018 - the property raises ValueError for a bad port
     except ValueError:
         return False
