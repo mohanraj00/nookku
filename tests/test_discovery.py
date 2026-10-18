@@ -221,3 +221,15 @@ def test_the_guard_lets_the_model_register_and_protects_the_answer_during_a_test
         assert answer["hookSpecificOutput"]["permissionDecision"] == "deny"
     finally:
         bridge.end(root)
+
+
+def test_a_command_with_a_secret_value_is_refused() -> None:
+    def part(*command: str) -> dict:
+        server = {"name": "stock", "transport": "stdio", "env": None, "url": None}
+        return {**server, "command": ["toy-stock-mcp", *command]}
+
+    for command in (["--token", "x"], ["--api-key=x"], ["password=x"], ["-secret", "x"]):
+        with pytest.raises(discovery.AnswerError, match="secret key"):
+            discovery.parse(discovery.make(mcp_servers=[part(*command)]))
+    for command in (["--token"], ["--verbose", "x"], ["--token="], ["mode=fast"]):
+        discovery.parse(discovery.make(mcp_servers=[part(*command)]))

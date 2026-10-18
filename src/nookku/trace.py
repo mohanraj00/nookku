@@ -830,6 +830,8 @@ CALL_DB = ("db.system.name", "db.system")
 CALL_MCP = "mcp.method.name"
 SERVER_KEYS = ("http.route", "http.target", "url.path")
 DEFAULT_PORTS = {"http": 80, "https": 443}
+# The detail of an HTTP call with a URL that the URL parser cannot read.
+BAD_URL = "(a URL that does not parse)"
 
 
 def _address(host: Any, port: Any) -> str | None:
@@ -840,11 +842,11 @@ def _address(host: Any, port: Any) -> str | None:
 
 def _url_address(url: str) -> tuple[str | None, str]:
     """The host:port of a URL, and the URL with no user, query or fragment, for the detail."""
-    parts = urlsplit(url)
     try:
+        parts = urlsplit(url)
         port = parts.port or DEFAULT_PORTS.get(parts.scheme)
     except ValueError:
-        return None, ""
+        return None, BAD_URL
     host = parts.hostname
     shown = f"{parts.scheme}://{host}" + (f":{parts.port}" if parts.port else "") + parts.path
     return _address(host, port), shown
