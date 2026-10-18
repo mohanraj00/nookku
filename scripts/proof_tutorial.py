@@ -93,8 +93,10 @@ def main() -> int:
     env |= {"BROWSER": "curl -s -o /dev/null %s"}
     for name in ("CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT"):
         env.pop(name, None)
+    # No mod of this machine loads, and no mod name gets into the output.
+    env |= NO_MODS
     if model:
-        env |= NO_TITLE | NO_MODS
+        env |= NO_TITLE
     else:
         # The interactive CLI gives the hooks this entrypoint (src/nookku/print_mode.py).
         env |= {"CLAUDE_CODE_ENTRYPOINT": "cli"}

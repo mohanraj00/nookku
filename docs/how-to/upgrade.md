@@ -113,6 +113,14 @@ PASS
 
 ## Releases with a special step
 
+### 0.5.2
+
+Do the steps above. Three changes need more care:
+
+1. Remove the keys `backends` and `model_api` from each `.nookku/config.json`. Nookku 0.5.2 refuses a config that has them, and the error names the keys. `nookku init` writes nothing while the keys are there. In your scripts, remove the flags `--backend` and `--model-api` of `nookku init` ([config.md](../reference/config.md#no-egress-keys), [#423](https://github.com/mohanraj00/nookku/issues/423)).
+2. The first prompt `nookku start` of each project starts no test. The [harness model](../reference/glossary.md#harness-model) reads the code of the app and runs `nookku register` with the egress answer. Check the lines of the answer, and type `nookku start` again in the next 30 minutes. A script that runs `nookku start` in a shell must run `nookku register` first ([SPEC.md section 7.11](../../SPEC.md#711-egress-discovery), [getting-started.md](../getting-started.md)).
+3. The model API proxy records only the model APIs of the answer. In 0.5.1, it recorded both APIs by default. If a model API of your agent is not in the report, check the answer ([SPEC.md section 7.11](../../SPEC.md#711-egress-discovery)).
+
 ### 0.5.1
 
 Do the steps above. Three changes need more care:

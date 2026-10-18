@@ -2,6 +2,24 @@
 
 Each date is the day of the upload to PyPI, in UTC ([nookku](https://pypi.org/project/nookku/#history), [verbatim-relay](https://pypi.org/project/verbatim-relay/#history)). 0.2.0 has no upload, so its date is the day of [its tag](https://github.com/mohanraj00/nookku/commit/v0.2.0).
 
+## 0.5.2
+
+Released 2026-10-18.
+
+This release finds the egress of the agent at each start. It records the calls of the agent to its MCP servers and to its Postgres databases. The records get 2 new files, `mcp.jsonl` and `database.jsonl`, and the manifest gets the answer of the discovery. The tap record, the relay record and the audit do not change.
+
+**Upgrade.** Remove the config keys `backends` and `model_api`. Nookku 0.5.2 refuses a `config.json` that has them. `nookku init` no longer takes `--backend` and `--model-api`. The first `nookku start` of each project gives the discovery task to the harness model. [The upgrade guide](docs/how-to/upgrade.md#052) gives each step.
+
+- **Egress discovery.** At each start, the harness model reads the code of the app and runs `nookku register` with the model APIs, backends, MCP servers and databases of the agent. A start needs an answer that is 30 minutes old or less. With no answer, no test starts and relay mode stays off. The answer holds the name of each variable, never its value. The manifest records the answer under the seal. `nookku check` uses the answer, and `nookku replay` uses the answer of its old test ([SPEC.md section 7.11](SPEC.md#711-egress-discovery), [#423](https://github.com/mohanraj00/nookku/issues/423)).
+- **Model APIs.** The model API proxy now records only the APIs of the answer. Nookku 0.5.1 recorded both APIs by default ([SPEC.md section 7.11](SPEC.md#711-egress-discovery), [#423](https://github.com/mohanraj00/nookku/issues/423)).
+- **MCP proxies.** An HTTP proxy records each call of the agent to an MCP server over HTTP, with streamed answers. The command `nookku mcp-stdio` wraps an MCP server over stdio. Both write `mcp.jsonl`, and the trace reads it ([SPEC.md section 7.12](SPEC.md#712-mcp-proxies), [#423](https://github.com/mohanraj00/nookku/issues/423)).
+- **Postgres proxies.** A proxy speaks the Postgres protocol 3.0 between the app and each database of the answer, and writes `database.jsonl`. It uses TLS to the database if the database agrees. It removes secret values from the record. The trace check `database_error` finds a query that failed ([SPEC.md section 7.13](SPEC.md#713-postgres-proxies), [#423](https://github.com/mohanraj00/nookku/issues/423)).
+- **Coverage.** The trace check `unseen_call` finds a call to an address that no proxy and no receiver of the test sees. The report has a Coverage table with a recommendation for each part that no proxy sees ([SPEC.md section 8.6](SPEC.md#86-findings), [#423](https://github.com/mohanraj00/nookku/issues/423)).
+- **Mods in an evaluation.** The evaluation prompt names each mod folder of `CLAUDE_CODE_PLUGIN_DIRS`. It tells the model not to follow a mod, and to name each mod in the notes of `report.md`. The proofs give each Claude Code session no mod, and the Codex proofs stop if a user MCP server loads ([SPEC.md section 9.2](SPEC.md#92-evaluation-prompt), [#424](https://github.com/mohanraj00/nookku/issues/424)).
+- **Harness versions.** The trace proof ran on Claude Code 2.1.293 to 2.1.296 and 2.1.299 to 2.1.301. The Agent SDK pin of the proofs is 0.2.168 ([results.md](docs/results.md#trace-of-the-model-sessions), [#425](https://github.com/mohanraj00/nookku/issues/425)).
+- **Cleanup.** The proof list names `scripts/proof_sdk_bundles.py`. The page proof record keeps no session cookie or page key. A flaky test of the page lock has no timer now. The CI job of the plugin has only `contents: read` ([#426](https://github.com/mohanraj00/nookku/issues/426)).
+- **Proofs.** The proofs of the 4 relay setups, the chat page, the model sessions, the trace, the report, the telemetry, the evaluation, the Codex hook gate and the tutorial ran on 0.5.2. They used Claude Code 2.1.302 and codex-cli 0.162.1. CI pins Claude Code 2.1.302 ([results.md](docs/results.md#1-proofs), [getting-started.md](docs/getting-started.md), [#427](https://github.com/mohanraj00/nookku/issues/427)).
+
 ## 0.5.1
 
 Released 2026-10-17.

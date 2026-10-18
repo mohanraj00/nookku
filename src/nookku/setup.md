@@ -75,7 +75,7 @@ A PASS does not prove that the entry runs the app correctly. `check` does not ju
 
 1. Compare the `Reply:` line with a normal reply of the app to the same message. If the app declines the message in normal use, for example because it is out of scope, set `check_message` to a message that the app answers. Then run `check` again. If the reply is an error text, or is different from the normal reply of the app, the setup is not done. Correct the entry and run `check` again.
 2. Search `app.log` in the test folder of the check test for errors and tracebacks. Also search it for warnings about a fallback or a missing configuration. If a line shows that the entry does not start or call the app correctly, correct the entry and run `check` again. Ignore a warning that the app also writes in normal use.
-3. If the entry is in Node and reads its input with `node:readline`, change the entry. Read stdin and split it only on `\n`. In Node 25, `node:readline` also splits a line at U+2028 and U+2029, and the relays send these characters unescaped. A message with one of them then arrives in 2 parts. Read the [warning for Node](https://github.com/mohanraj00/nookku/blob/v0.5.1/docs/how-to/connect-your-agent.md#in-node).
+3. If the entry is in Node and reads its input with `node:readline`, change the entry. Read stdin and split it only on `\n`. In Node 25, `node:readline` also splits a line at U+2028 and U+2029, and the relays send these characters unescaped. A message with one of them then arrives in 2 parts. Read the [warning for Node](https://github.com/mohanraj00/nookku/blob/v0.5.2/docs/how-to/connect-your-agent.md#in-node).
 
 ## 5. Hand over
 
