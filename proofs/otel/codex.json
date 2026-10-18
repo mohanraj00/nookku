@@ -1,6 +1,6 @@
 {
- "date": "2026-10-14",
- "nookku": "0.5.0",
+ "date": "2026-10-17",
+ "nookku": "0.5.1",
  "codex": "codex-cli 0.162.1",
  "command": [
   "codex",
