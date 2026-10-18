@@ -4,9 +4,11 @@ import json
 import shlex
 import subprocess
 import sys
+import threading
 from pathlib import Path
 from urllib.parse import urlsplit
 
+import pytest
 from toy_model_server import ModelServer
 
 from nookku import backend, discovery, mcp_proxy, trace
@@ -56,6 +58,22 @@ def test_the_stdio_wrapper_changes_no_byte_and_records_each_line(tmp_path: Path)
     assert {(r["v"], r["type"], r["server"], r["transport"]) for r in found} == {
         (1, "message", "stock", "stdio")
     }
+
+
+def test_the_recorder_keeps_only_the_first_bytes_of_a_long_line(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(backend, "RECORD_LIMIT", 8)
+    recorder = mcp_proxy.Recorder(tmp_path, "stock", "from_server", threading.Lock())
+    long = b'{"image": "' + b"A" * 40 + b'"}\n'
+    # The line comes in 3 parts, and a short line follows it in the last part.
+    for part in (long[:5], long[5:30], long[30:] + b"ok\n"):
+        recorder.add(part)
+    recorder.finish()
+    first, second = (r["body"] for r in rows(tmp_path))
+    assert (first["size"], first["sha256"]) == (len(long), hashlib.sha256(long).hexdigest())
+    assert first["cut"] is True and first["text"] == long[:8].decode()
+    assert second == backend.body_row(b"ok\n")
 
 
 def test_the_stdio_wrapper_writes_no_row_after_the_end_of_the_test(tmp_path: Path) -> None:

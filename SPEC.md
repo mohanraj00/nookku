@@ -831,7 +831,7 @@ A stdio row has these fields:
 | `server`, `transport` | The `name` of the server, and `"stdio"`. |
 | `ts` | The Unix time of the row. |
 | `direction` | `to_server` (from the app) or `from_server` (from the server). |
-| `body` | The line with its `\n`, as a body of a `backend.jsonl` row (section 7.6). |
+| `body` | The line with its `\n`, as a body of a `backend.jsonl` row (section 7.6). The wrapper keeps only the first 1 MiB of a line, and it counts `size` and `sha256` of all the line as the bytes come. |
 
 The wrappers of a test write each row with one write to a file opened with `O_APPEND`, so the rows of 2 wrappers stay apart. At the end of the test, the bridge stops the HTTP proxies after it stops the entry, as in section 7.6. Then it writes the empty file `.mcp-closed` in the test folder. A wrapper writes no row after this file exists. Thus each row is in `mcp.jsonl` before the trace and the seal. A stdio server has no network address, so its value in `proxies` of the manifest is `stdio`.
 
