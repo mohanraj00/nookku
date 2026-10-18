@@ -159,6 +159,8 @@ Write the same loop in the language of your app. [examples/toy-shop/agent.py](..
 
 ## Check the connection
 
+`check` needs a fresh egress answer ([cli.md](../reference/cli.md#nookku-register)). If you have none, type the prompt `nookku start` in the harness first, or run `nookku register` with the answer.
+
 ```bash
 nookku check
 ```

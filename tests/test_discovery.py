@@ -228,8 +228,21 @@ def test_a_command_with_a_secret_value_is_refused() -> None:
         server = {"name": "stock", "transport": "stdio", "env": None, "url": None}
         return {**server, "command": ["toy-stock-mcp", *command]}
 
-    for command in (["--token", "x"], ["--api-key=x"], ["password=x"], ["-secret", "x"]):
+    for command in (
+        ["--token", "x"],
+        ["--api-key=x"],
+        ["password=x"],
+        ["-secret", "x"],
+        ["-c", "server --token x"],
+        ["-c", "TOKEN=x server 'a"],
+    ):
         with pytest.raises(discovery.AnswerError, match="secret key"):
             discovery.parse(discovery.make(mcp_servers=[part(*command)]))
-    for command in (["--token"], ["--verbose", "x"], ["--token="], ["mode=fast"]):
+    for command in (
+        ["--token"],
+        ["--verbose", "x"],
+        ["--token="],
+        ["mode=fast"],
+        ["-c", "server --verbose"],
+    ):
         discovery.parse(discovery.make(mcp_servers=[part(*command)]))

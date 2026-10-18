@@ -74,6 +74,8 @@ If an item is not correct, tell the model what to correct, or correct the file y
 
 ## 4. Run check
 
+`check` needs a fresh egress answer ([cli.md](../reference/cli.md#nookku-register)). If you have none, type the prompt `nookku start` in the harness first, or run `nookku register` with the answer.
+
 ```bash
 nookku check
 ```
