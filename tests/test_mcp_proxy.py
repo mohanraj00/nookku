@@ -1,3 +1,4 @@
+import base64
 import hashlib
 import http.client
 import json
@@ -163,6 +164,42 @@ def test_the_http_proxy_keeps_only_the_first_bytes_of_a_long_stream(tmp_path: Pa
     body = row["response_body"]
     assert (body["size"], body["sha256"]) == (len(whole), hashlib.sha256(whole).hexdigest())
     assert body["cut"] is True and body["text"] == whole[:8].decode()
+
+
+def test_an_open_stream_keeps_its_events_at_the_end_of_the_test(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(backend, "DRAIN", 0.2)
+    reply = {"jsonrpc": "2.0", "id": 2, "result": {"content": [{"type": "text", "text": "12"}]}}
+    event = b"event: message\ndata: " + json.dumps(reply).encode() + b"\n\n"
+    with ModelServer() as server:
+        # The server sends 1 event, then keeps the stream open.
+        server.parts = [event, b": end\n\n"]
+        server.release.clear()
+        servers = [backend.Backend("stock", "STOCK_MCP_URL", server.url + "/mcp")]
+        proxies = backend.Proxies(servers, tmp_path / mcp_proxy.FILE, mcp_proxy.HttpProxy)
+        env = proxies.start()
+        try:
+            conn = connect(env["STOCK_MCP_URL"])
+            conn.request("POST", "/mcp", body=json.dumps(CALL).encode(), headers={})
+            assert conn.getresponse().read1(65536) == event
+        finally:
+            proxies.stop()
+            server.release.set()
+    (row,) = rows(tmp_path)
+    assert row["error"] == backend.STREAM_ENDED and row["status"] == 200
+    assert row["response_body"]["text"] == event.decode()
+    items, _ = trace.read_mcp(tmp_path / mcp_proxy.FILE)
+    assert [(it["output"], it["error"]) for it in items] == [("12", None)]
+
+
+def test_a_cut_stream_gives_the_events_before_the_cut() -> None:
+    reply = {"jsonrpc": "2.0", "id": 2, "result": {}}
+    text = "data: " + json.dumps(reply) + '\n\ndata: {"jsonrpc": "2.0", "id'
+    assert trace._rpc({"cut": True, "text": text}) == [reply]
+    data = text.encode() + "é".encode()[:1]
+    assert trace._rpc({"cut": True, "base64": base64.b64encode(data).decode()}) == [reply]
+    assert trace._rpc({"cut": True, "text": json.dumps(reply)}) == []
 
 
 def message(direction: str, body: dict | str, ts: float) -> dict:

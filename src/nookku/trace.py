@@ -453,11 +453,16 @@ def read_backend(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
 
 def _rpc(body: Any) -> list[dict[str, Any]]:
     """The JSON-RPC messages of a body in mcp.jsonl: one message, a batch, or the `data` lines
-    of an event stream."""
-    text = body.get("text") if isinstance(body, dict) and not body.get("cut") else None
+    of an event stream. Of a cut body, only the events that end before the cut."""
+    text = body.get("text") if isinstance(body, dict) else None
+    if isinstance(body, dict) and body.get("cut"):
+        if not isinstance(text, str) and isinstance(body.get("base64"), str):
+            # The cut can split a letter. The bytes after the last complete event are not read.
+            text = base64.b64decode(body["base64"]).decode("utf-8", "replace")
+        text = text.rpartition("\n\n")[0] if isinstance(text, str) else None
     if not isinstance(text, str):
         return []
-    value = _json(text)
+    value = _json(text) if not (isinstance(body, dict) and body.get("cut")) else None
     if value is None:
         values = [_json(line[5:].strip()) for line in text.split("\n") if line.startswith("data:")]
     else:
