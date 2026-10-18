@@ -58,7 +58,7 @@
   {
    "check": "version_untested",
    "turn": null,
-   "detail": "version 2.1.999, tested: 2.1.286, 2.1.292, 2.1.301",
+   "detail": "version 2.1.999, tested: 2.1.286, 2.1.292, 2.1.293, 2.1.294, 2.1.295, 2.1.296, 2.1.299, 2.1.300, 2.1.301",
    "harness": "claude-code",
    "session": "4f1c2a7e-0d3b-4c55-9a61-2b8e5d7c9f10"
   },

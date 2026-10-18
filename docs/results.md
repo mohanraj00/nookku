@@ -60,7 +60,7 @@ Each results file has the records of the test next to it: `tap.jsonl` and `relay
 
 | Harness of the app | Nookku | Found by | Session file copied | Data |
 |---|---|---|---|---|
-| Claude Agent SDK 0.2.164 | 0.5.1 | its process | yes | [results](../proofs/sessions/results.json) |
+| Claude Agent SDK 0.2.168 | 0.5.1 | its process | yes | [results](../proofs/sessions/results.json) |
 | codex-cli 0.162.1, app-server | 0.5.1 | its folder and time | yes | [results](../proofs/sessions/results.json) |
 
 The Agent SDK runs its own bundled Claude Code. The `claude-code` version in the results is the `claude` command on `PATH`, not the bundled one. The results keep no model reply.
@@ -71,10 +71,24 @@ The Agent SDK runs its own bundled Claude Code. The `claude-code` version in the
 
 | Session file | Nookku | Items | Expected calls found | Data |
 |---|---|---|---|---|
-| Claude Code 2.1.301, bundled in Claude Agent SDK 0.2.168 | 0.5.1 | 10 | 2/2 | [results](../proofs/trace/results-2.1.301.json) |
-| codex-cli 0.162.1, app-server (run with Agent SDK 0.2.168) | 0.5.1 | 16 | 4/4 | [results](../proofs/trace/results-2.1.301.json) |
-| Claude Code 2.1.292, bundled in Claude Agent SDK 0.2.164 | 0.5.1 | 10 | 2/2 | [results](../proofs/trace/results.json) |
+| Claude Code 2.1.301, bundled in Claude Agent SDK 0.2.168 | 0.5.1 | 10 | 2/2 | [results](../proofs/trace/results.json) |
 | codex-cli 0.162.1, app-server | 0.5.1 | 12 | 4/4 | [results](../proofs/trace/results.json) |
+| Claude Code 2.1.300, bundled in Claude Agent SDK 0.2.167 | 0.5.1 | 10 | 2/2 | [results](../proofs/trace/results-2.1.300.json) |
+| codex-cli 0.162.1, app-server (run with Agent SDK 0.2.167) | 0.5.1 | 18 | 4/4 | [results](../proofs/trace/results-2.1.300.json) |
+| Claude Code 2.1.299, bundled in Claude Agent SDK 0.2.166 | 0.5.1 | 10 | 2/2 | [results](../proofs/trace/results-2.1.299.json) |
+| codex-cli 0.162.1, app-server (run with Agent SDK 0.2.166) | 0.5.1 | 12 | 4/4 | [results](../proofs/trace/results-2.1.299.json) |
+| Claude Code 2.1.296, Agent SDK 0.2.164 with `cli_path` | 0.5.1 | 10 | 2/2 | [results](../proofs/trace/results-2.1.296.json) |
+| codex-cli 0.162.1, app-server (run with Claude Code 2.1.296) | 0.5.1 | 12 | 4/4 | [results](../proofs/trace/results-2.1.296.json) |
+| Claude Code 2.1.295, Agent SDK 0.2.164 with `cli_path` | 0.5.1 | 10 | 2/2 | [results](../proofs/trace/results-2.1.295.json) |
+| codex-cli 0.162.1, app-server (run with Claude Code 2.1.295) | 0.5.1 | 12 | 4/4 | [results](../proofs/trace/results-2.1.295.json) |
+| Claude Code 2.1.294, bundled in Claude Agent SDK 0.2.165 | 0.5.1 | 10 | 2/2 | [results](../proofs/trace/results-2.1.294.json) |
+| codex-cli 0.162.1, app-server (run with Agent SDK 0.2.165) | 0.5.1 | 12 | 4/4 | [results](../proofs/trace/results-2.1.294.json) |
+| Claude Code 2.1.293, Agent SDK 0.2.164 with `cli_path` | 0.5.1 | 10 | 2/2 | [results](../proofs/trace/results-2.1.293.json) |
+| codex-cli 0.162.1, app-server (run with Claude Code 2.1.293) | 0.5.1 | 12 | 4/4 | [results](../proofs/trace/results-2.1.293.json) |
+| Claude Code 2.1.301, bundled in Claude Agent SDK 0.2.168 (earlier run) | 0.5.1 | 10 | 2/2 | [results](../proofs/trace/results-2.1.301.json) |
+| codex-cli 0.162.1, app-server (earlier run with Agent SDK 0.2.168) | 0.5.1 | 16 | 4/4 | [results](../proofs/trace/results-2.1.301.json) |
+| Claude Code 2.1.292, bundled in Claude Agent SDK 0.2.164 (earlier run) | 0.5.1 | 10 | 2/2 | [results](../proofs/trace/results-2.1.292.json) |
+| codex-cli 0.162.1, app-server (earlier run) | 0.5.1 | 12 | 4/4 | [results](../proofs/trace/results-2.1.292.json) |
 | Claude Code 2.1.292, bundled in Claude Agent SDK 0.2.164 (earlier run) | 0.5.0 | 10 | 2/2 | [results](../proofs/trace/results-nookku-0.5.0.json) |
 | codex-cli 0.162.1, app-server (earlier run) | 0.5.0 | 12 | 4/4 | [results](../proofs/trace/results-nookku-0.5.0.json) |
 | Claude Code 2.1.292, bundled in Claude Agent SDK 0.2.164 (earlier run) | 0.4.2 | 10 | 2/2 | [results](../proofs/trace/results-nookku-0.4.2.json) |
@@ -86,11 +100,15 @@ The Agent SDK runs its own bundled Claude Code. The `claude-code` version in the
 | Claude Code 2.1.286, bundled in Claude Agent SDK 0.2.163 (earlier run) | | 11 | 2/2 | [results](../proofs/trace/results-2.1.286.json) |
 | codex-cli 0.160.0, app-server (earlier run) | | 13 | 4/4 | [results](../proofs/trace/results-0.160.0.json) |
 
-No Agent SDK release bundles Claude Code 2.1.293. On 2026-10-16, I read the bundled version of the 6 releases from 0.2.163 to 0.2.168 ([data](../proofs/trace/sdk-bundles.json), method: [scripts/proof_sdk_bundles.py](../scripts/proof_sdk_bundles.py)). Agent SDK 0.2.164 bundles 2.1.292, and the next release, 0.2.165, bundles 2.1.294. Thus I ran the proof with 0.2.168, the newest Agent SDK on 2026-10-16, which bundles 2.1.301. The second argument of the script sets the Agent SDK of the run, and the pin of the other proofs stays at 0.2.164. The 2.1.301 session file has 3 new line types (`api-request`, `api-request-blob` and `api-request-shape`). The reader counts them and keeps no item from them. The 10 session items have the same kinds, tools and turns as in the 2.1.292 run. Claude Code 2.1.293 to 2.1.300 have no proof. Agent SDK releases bundle 3 of these versions: 2.1.294, 2.1.299 and 2.1.300 ([data](../proofs/trace/sdk-bundles.json)). A session file of these versions gives a `version_untested` [finding](reference/glossary.md#findings).
+On 2026-10-16, I read the bundled Claude Code version of the 6 Agent SDK releases from 0.2.163 to 0.2.168 ([data](../proofs/trace/sdk-bundles.json), method: [scripts/proof_sdk_bundles.py](../scripts/proof_sdk_bundles.py)). 3 of these releases bundle a version from 2.1.293 to 2.1.300: 0.2.165 bundles 2.1.294, 0.2.166 bundles 2.1.299 and 0.2.167 bundles 2.1.300. On 2026-10-17, I ran the proof with each of these 3 releases. The second argument of the script sets the Agent SDK of the run. No Agent SDK release bundles 2.1.293, 2.1.295 or 2.1.296. For these 3 versions, I installed the npm package `@anthropic-ai/claude-code` of the version, and gave its `claude` program to Agent SDK 0.2.164 as `cli_path`. The third argument of the script sets this path, and the results add the version of the program to `claude-agent-sdk`. npm has no package of Claude Code 2.1.297 or 2.1.298, and no Agent SDK release bundles them. Thus these 2 versions have no proof, and a session file of them gives a `version_untested` [finding](reference/glossary.md#findings). Each of the 6 runs passed. Each Claude Code session file gave 10 items, with the same kinds, tools and turns.
+
+The session files of 2.1.300 and 2.1.301 have 3 line types that the earlier versions do not have: `api-request`, `api-request-blob` and `api-request-shape` ([2.1.300 data](../proofs/trace/results-2.1.300.json), [2.1.301 data](../proofs/trace/results.json)). I read the fields of these lines in the 2.1.301 session file of the run. An `api-request-shape` line holds the system prompt and the tool definitions of the harness. An `api-request-blob` line holds parts of a request: the text that the harness adds, a user message, or a tool call. Each user message and each tool call in them is also in a `user` or `assistant` line of the file. An `api-request` line holds the model parameters and hashes of a request. Thus these lines give no new trace item, and the reader counts them and keeps no item ([SPEC.md section 8.4](../SPEC.md#84-readers)). The conformance case [claude_code_api_requests](../conformance/trace/claude_code_api_requests) shows this.
+
+On 2026-10-17, I moved the Agent SDK pin of [scripts/proof_common.py](../scripts/proof_common.py) from 0.2.164 to 0.2.168, the newest Agent SDK on 2026-10-16. Then I ran the trace proof ([results.json](../proofs/trace/results.json)) and the sessions proof ([results](../proofs/sessions/results.json)) again. Both passed. The report proofs and the telemetry proofs above still use the app's session files of 2.1.292 (Agent SDK 0.2.164). I did not run them again with the new pin, because each setup needs a person. A Claude Code setup stops if a mod of `~/.claude/mods` loads, and a person must move that folder for the run. A Codex setup needs the Codex hooks that the maintainer trusted in the main checkout.
 
 The run of nookku 0.4.1 failed. In turn 1, the Codex model gave no answer: the `task_complete` event of the Codex session file has the error `server_overloaded` ("Selected model is at capacity"). Thus the Codex thread made no `lookup_order` call in turn 1. In turn 2, the model called `lookup_order` for order 9999 and then for order 4471. The trace put both calls in turn 2, which agrees with the session file. The trace gave no finding for the failed Codex turn, because the Codex reader ignores `task_complete` events. The 0.4.0, 0.4.2, 0.5.0 and 0.5.1 runs of the same versions passed.
 
-In the runs of Claude Code 2.1.292 and 2.1.301 and codex-cli 0.162.1, with nookku 0.4.0, 0.4.1, 0.5.0 and 0.5.1, the findings are 2 `tool_error` (order 9999, one in each harness), 1 `command_failed` (`cat returns.txt`) and 1 `session_inferred` (the Codex session). The earlier codex-cli 0.160.0 run and the 0.4.2 run had 1 more `command_failed`: an `rg` search for that file by the Codex model. The number of Codex items changes with the answers of the model. In the 0.4.2 run, the Codex model wrote 1 message before its call or command in each of the 4 turns, and it made the `rg` search. Thus that run has 17 items and the 0.5.0 run has 12. The 0.5.1 run with Agent SDK 0.2.168 has 16 Codex items and no `rg` search. The results keep no model text: each message shows only its SHA-256 and its length. Each OpenTelemetry log of the harness, which holds the prompt and the answer, shows only its attribute names and the SHA-256 and length of its values.
+In the runs of Claude Code 2.1.292 to 2.1.301 and codex-cli 0.162.1, with nookku 0.4.0, 0.4.1, 0.5.0 and 0.5.1, the findings are 2 `tool_error` (order 9999, one in each harness), 1 `command_failed` (`cat returns.txt`) and 1 `session_inferred` (the Codex session). The earlier codex-cli 0.160.0 run and the 0.4.2 run had 1 more `command_failed`: an `rg` search for that file by the Codex model. The number of Codex items changes with the answers of the model. In the 0.4.2 run, the Codex model wrote 1 message before its call or command in each of the 4 turns, and it made the `rg` search. Thus that run has 17 items and the 0.5.0 run has 12. The earlier 0.5.1 run with Agent SDK 0.2.168 has 16 Codex items, and the run with Agent SDK 0.2.167 has 18. Neither run has an `rg` search. The results keep no model text: each message shows only its SHA-256 and its length. Each OpenTelemetry log of the harness, which holds the prompt and the answer, shows only its attribute names and the SHA-256 and length of its values.
 
 ### Backend calls
 
@@ -186,7 +204,7 @@ The app's session files are from Claude Code 2.1.292, bundled in Agent SDK 0.2.1
 | Project hooks | Claude Code 2.1.301 | 3, 1, 2 / 3, 2, 2 / 3, 1, 2 | `business_rule`, turn 2 | pass | pass | pass | pass | pass | [results](../proofs/telemetry/hooks-claude-code.json) |
 | Project hooks | Codex 0.162.1 | 3, 1, 2 / 3, 2, 2 / 3, 1, 2 | `business_rule`, turn 2; `unsupported_reply`, turn 3 | pass | pass | pass | pass | pass | [results](../proofs/telemetry/hooks-codex.json) |
 
-In each run, the stock service had 2 reservations for the 1 teapot set that the tester asked for. The Agent SDK is pinned to 0.2.164, which bundles Claude Code 2.1.292 ([#35](https://github.com/mohanraj00/nookku/issues/35)). In each of the 4 runs, the proxy marked 6 of its calls as harness calls and kept no text of them. The toy note model gives a fixed answer, so this proof does not show a real model behind the direct call. [proofs/model-api/](../proofs/model-api/results.json) shows the proxy with the stream formats of both APIs.
+In each run, the stock service had 2 reservations for the 1 teapot set that the tester asked for. These runs used Agent SDK 0.2.164, which bundles Claude Code 2.1.292 ([#35](https://github.com/mohanraj00/nookku/issues/35)). The pin is now 0.2.168 (see [Trace of the model sessions](#trace-of-the-model-sessions)). In each of the 4 runs, the proxy marked 6 of its calls as harness calls and kept no text of them. The toy note model gives a fixed answer, so this proof does not show a real model behind the direct call. [proofs/model-api/](../proofs/model-api/results.json) shows the proxy with the stream formats of both APIs.
 
 ## 2. Benchmark under pressure
 

@@ -1360,6 +1360,8 @@ CODEX_CASE = {
 # Versions: a Claude Code file from an untested version, a Codex file from an untested version
 # with no items, and a session that has no file. Turn 1 has items, so no turn_without_model.
 UNTESTED_FILE = f"sessions/codex/rollout-2026-10-06T08-00-00-{CX}.jsonl"
+# The Claude Code versions of TESTED in src/nookku/trace.py, as the detail of a finding shows them.
+CC_TESTED = "2.1.286, 2.1.292, 2.1.293, 2.1.294, 2.1.295, 2.1.296, 2.1.299, 2.1.300, 2.1.301"
 VERSION_CASE = {
     "tap": [window(10, 20, reply="Hello.")],
     "manifest": {
@@ -1435,7 +1437,7 @@ VERSION_CASE = {
             {
                 "check": "version_untested",
                 "turn": None,
-                "detail": "version 2.1.999, tested: 2.1.286, 2.1.292, 2.1.301",
+                "detail": "version 2.1.999, tested: " + CC_TESTED,
                 "harness": "claude-code",
                 "session": CC,
             },
@@ -3466,10 +3468,138 @@ DECISIONS_CASE = {
     },
 }
 
+# Claude Code 2.1.300 and 2.1.301: the lines api-request-shape, api-request-blob and api-request
+# hold the model requests of the harness. Each message and tool call in them is also in a user or
+# an assistant line. The other parts are the harness's own instructions. Thus the reader counts
+# these lines and keeps no item from them (SPEC.md section 8.4). The shapes copy a real session
+# file of Claude Code 2.1.301, with toy shop content.
+API_SHAPE = "5" * 64
+API_REQUEST_LOOKUP = use("t1", "mcp__shop__lookup_order", {"order": "4471"})
+
+
+def api_request(t: float, keep: int, **more: Any) -> dict:
+    """One api-request line of a Claude Code 2.1.301 session file."""
+    row = {
+        "type": "api-request",
+        "sessionId": CC,
+        "id": f"0b7e4c1a-0000-4000-8000-00000000000{keep}",
+        "timestamp": iso(T0 + t),
+        "version": "2.1.301",
+        "querySource": "sdk",
+        "shapeHash": API_SHAPE,
+        "params": {"model": "toy-model", "max_tokens": 1000},
+        "keep": keep,
+        "tail": ["6" * 64],
+        "requestDigest": "7" * 64,
+    }
+    return {**row, **more}
+
+
+def api_blob(role: str, content: list) -> dict:
+    """One api-request-blob line of a Claude Code 2.1.301 session file."""
+    return {
+        "type": "api-request-blob",
+        "sessionId": CC,
+        "hash": "8" * 64,
+        "message": {"role": role, "content": content},
+    }
+
+
+API_REQUEST_CASE = {
+    "tap": [window(10, 20, reply="Order 4471 was delivered.")],
+    "manifest": {"test": "20261017-080000-ar01", "model_sessions": [CC_SESSION]},
+    "sessions": {
+        CC_FILE: [
+            {
+                "type": "api-request-shape",
+                "sessionId": CC,
+                "shapeHash": API_SHAPE,
+                "timestamp": iso(T0 + 10.5),
+                "version": "2.1.301",
+                "shape": {
+                    "system": [{"type": "text", "text": "You are the toy shop support agent."}],
+                    "tools": [
+                        {
+                            "name": "mcp__shop__lookup_order",
+                            "description": "Look up a toy shop order by its number",
+                            "input_schema": {"type": "object"},
+                        }
+                    ],
+                },
+            },
+            api_blob("user", [{"type": "text", "text": "Where is my order 4471?"}]),
+            cc_line("user", 11, "Where is my order 4471?", version="2.1.301"),
+            api_request(11.5, 0),
+            cc_line("assistant", 12, [API_REQUEST_LOOKUP], version="2.1.301"),
+            cc_line(
+                "user",
+                12.5,
+                [cc_result("t1", [{"type": "text", "text": '{"status": "delivered"}'}])],
+                version="2.1.301",
+            ),
+            api_blob("assistant", [API_REQUEST_LOOKUP]),
+            api_request(12.6, 2, base="0b7e4c1a-0000-4000-8000-000000000000"),
+            cc_line(
+                "assistant",
+                13,
+                [{"type": "text", "text": "Order 4471 was delivered."}],
+                version="2.1.301",
+            ),
+        ]
+    },
+    "trace": [
+        item(1, "claude-code", 11, "message", 3, role="user", output="Where is my order 4471?"),
+        item(
+            1,
+            "claude-code",
+            12,
+            "tool_call",
+            5,
+            server="shop",
+            name="lookup_order",
+            input={"order": "4471"},
+            output='{"status": "delivered"}',
+            result_line=6,
+        ),
+        item(
+            1,
+            "claude-code",
+            13,
+            "message",
+            9,
+            role="assistant",
+            output="Order 4471 was delivered.",
+        ),
+    ],
+    "findings": {
+        "v": "0.2",
+        "test": "20261017-080000-ar01",
+        "turns": 1,
+        "items": 3,
+        "sessions": [
+            {
+                "harness": "claude-code",
+                "session": CC,
+                "file": CC_FILE,
+                "inferred": False,
+                "version": "2.1.301",
+                "items": 3,
+                "ignored": {"api-request": 2, "api-request-blob": 2, "api-request-shape": 1},
+            }
+        ],
+        "otel": None,
+        "backend": None,
+        "model_api": None,
+        "counts": counts(),
+        "findings": [],
+    },
+}
+
 TRACE_CASES = {
     "claude_code_toy_shop": CLAUDE_CASE,
     "codex_toy_shop": CODEX_CASE,
     "untested_versions": VERSION_CASE,
+    "claude_code_api_requests": API_REQUEST_CASE,
     "codex_model_error": CODEX_ERROR_CASE,
     "no_model_sessions": NO_MODEL_CASE,
     "otel_toy_shop": OTEL_CASE,
