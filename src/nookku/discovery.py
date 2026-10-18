@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shlex
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -131,6 +132,31 @@ def _secret_free_address(where: str, address: str) -> None:
             raise AnswerError(f"{where}: the address has a value of the secret key {key!r}.")
 
 
+def _secret_free_command(where: str, command: list[str]) -> None:
+    """Refuse a command with a value of a secret key: a `key=value` or `--key=value` word, or a
+    `--key` option with a next word. A word with a space, for example the program of `sh -c`, is
+    split into its shell words first."""
+    from nookku.backend import secret
+
+    words = []
+    for arg in command:
+        words.append(arg)
+        if any(c.isspace() for c in arg):
+            try:
+                words.extend(shlex.split(arg))
+            except ValueError:
+                words.extend(arg.split())
+    for n, word in enumerate(words):
+        key, eq, value = word.partition("=")
+        name = key.lstrip("-")
+        given = bool(value) if eq else key.startswith("-") and n + 1 < len(words)
+        if name and given and secret(name):
+            raise AnswerError(
+                f"{where}: the command has a value of the secret key {name!r}. "
+                "Give the value in a variable of the server."
+            )
+
+
 def _url(where: str, value: Any, null: bool = False) -> str | None:
     url = _string(f"{where} 'url'", value, null)
     if url is None:
@@ -175,6 +201,8 @@ def _part(kind: str, n: int, raw: Any) -> dict[str, Any]:
             and all(isinstance(a, str) and a and not lone_surrogate(a) for a in command)
         ):
             raise AnswerError(f"{where} 'command' must be a list of texts")
+        if stdio:
+            _secret_free_command(where, command)
         if not stdio:
             _url(where, raw["url"])
     elif kind == "databases":

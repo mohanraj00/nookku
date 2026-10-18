@@ -3603,6 +3603,75 @@ UNSEEN_CASE = {
 }
 
 
+# The coverage check with stdio MCP servers (SPEC.md section 8.6, `unseen_call`). The server stock
+# has a wrapper, and the server files has no variable, so it has no wrapper. A span does not name
+# its server, so the MCP call with no network address gives a finding.
+STDIO_SERVERS = [
+    {
+        "name": "stock",
+        "transport": "stdio",
+        "env": "STOCK_MCP_COMMAND",
+        "command": ["toy-stock-mcp"],
+        "url": None,
+    },
+    {
+        "name": "files",
+        "transport": "stdio",
+        "env": None,
+        "command": ["toy-files-mcp", "--root", "data"],
+        "url": None,
+    },
+]
+UNSEEN_STDIO_SPAN = (11, "tools/call", {"mcp.method.name": "tools/call"})
+UNSEEN_STDIO_CASE = {
+    "tap": [window(10, 20)],
+    "manifest": {
+        "test": "20261017-090000-eg02",
+        "model_sessions": [],
+        "egress": {
+            "registered": T0,
+            "answer": {
+                **EGRESS_ANSWER,
+                "backends": [],
+                "databases": [],
+                "mcp_servers": STDIO_SERVERS,
+            },
+            "unseen": ["files"],
+            "proxies": {"stock": "stdio"},
+            "receiver": "http://127.0.0.1:41000",
+        },
+    },
+    "sessions": {},
+    "otel": [app_span(*UNSEEN_STDIO_SPAN)],
+    "trace": [
+        oitem(
+            1,
+            "otel",
+            TRACE_ID,
+            UNSEEN_STDIO_SPAN[0],
+            "span",
+            1,
+            name=UNSEEN_STDIO_SPAN[1],
+            input=UNSEEN_STDIO_SPAN[2],
+            service="toy-shop",
+        )
+    ],
+    "findings": {
+        "v": "0.2",
+        "test": "20261017-090000-eg02",
+        "turns": 1,
+        "items": 1,
+        "sessions": [],
+        "otel": {"file": "otel.jsonl", "rows": 1, "items": 1, "ignored": {}},
+        "backend": None,
+        "model_api": None,
+        "mcp": None,
+        "counts": counts(unseen_call=1),
+        "findings": [unseen(1, 1, "MCP tools/call at no network address")],
+    },
+}
+
+
 # MCP calls (SPEC.md sections 7.12 and 8.4): the rows of mcp.jsonl as the proxies write them. In
 # turn 1, an HTTP call with an event stream. In turn 2, a stdio tool call with an error result, a
 # notification, a tool call with no response, and a row that is not a call or a message.
@@ -3986,6 +4055,7 @@ TRACE_CASES = {
     "reply_not_from_model_off": REPLY_OFF_CASE,
     "reply_not_from_model_field": REPLY_FIELD_CASE,
     "unseen_calls": UNSEEN_CASE,
+    "unseen_calls_stdio": UNSEEN_STDIO_CASE,
     "mcp_toy_shop": MCP_CASE,
     "database_toy_shop": DATABASE_CASE,
 }
@@ -5566,6 +5636,22 @@ DISCOVERY_CASES: dict[str, dict] = {
             ],
         },
         "expect": {"error": "each part needs its own 'env'"},
+    },
+    "command_with_secret": {
+        "answer": answer_with(
+            "mcp_servers",
+            {
+                "name": "stock",
+                "transport": "stdio",
+                "env": None,
+                "command": ["toy-stock-mcp", "--token", "toy-123"],
+                "url": None,
+            },
+        ),
+        "expect": {
+            "error": "mcp_servers[0]: the command has a value of the secret key 'token'. "
+            "Give the value in a variable of the server."
+        },
     },
     "stdio_with_url": {
         "answer": answer_with(

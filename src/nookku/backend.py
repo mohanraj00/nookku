@@ -43,6 +43,7 @@ NOT_RETURNED = (HOP_BY_HOP - {"proxy-authenticate"}) | {"content-length"}
 # At the end of the test, the time to wait for the calls that did not end.
 DRAIN = 10.0
 ENDED = "the test ended before the backend answered"
+STREAM_ENDED = "the test ended before the stream ended"
 
 
 @dataclass
@@ -107,6 +108,40 @@ def body_row(data: bytes, encoding: str | None = None) -> dict[str, Any]:
     return out
 
 
+class StreamBody:
+    """The bytes of a response stream as they come: the size and the SHA-256 of all of them, and
+    the first `keep` bytes, or all of them if `keep` is None."""
+
+    def __init__(self, keep: int | None, encoding: str | None) -> None:
+        self.keep = keep
+        self.encoding = encoding
+        self.size = 0
+        self.digest = hashlib.sha256()
+        self.parts: list[bytes] = []
+        self.kept = 0
+
+    def add(self, part: bytes) -> None:
+        self.size += len(part)
+        self.digest.update(part)
+        if self.keep is None or self.kept < self.keep:
+            part = part if self.keep is None else part[: self.keep - self.kept]
+            self.parts.append(part)
+            self.kept += len(part)
+
+    @property
+    def data(self) -> bytes:
+        return b"".join(self.parts)
+
+    def row(self) -> dict[str, Any]:
+        data = self.data
+        if self.size == len(data):
+            return body_row(data, self.encoding)
+        # The proxy did not keep all of the stream. The row shows its first bytes as they came.
+        body = body_row(data)
+        body.update(size=self.size, sha256=self.digest.hexdigest(), cut=True)
+        return body
+
+
 def read_chunked(rfile: Any) -> bytes:
     """A request body with Transfer-Encoding: chunked."""
     out = b""
@@ -127,6 +162,12 @@ class Proxy(ThreadingHTTPServer):
     daemon_threads = True
     # True: send each part of the response to the app when it comes (SPEC.md section 7.7).
     streaming = False
+    # The most bytes of a stream that the proxy keeps, or None for all of them. The row still
+    # has the size and the SHA-256 of all of the stream.
+    keep: int | None = None
+    # True: at the end of the test, the row of an open stream keeps the bytes that came, with the
+    # error STREAM_ENDED. Else it has no response.
+    partial = False
 
     def __init__(self, backend: Backend, record: Path, lock: threading.Condition) -> None:
         super().__init__(("127.0.0.1", 0), Handler)
@@ -135,6 +176,8 @@ class Proxy(ThreadingHTTPServer):
         self.lock = lock
         # The rows of the calls that did not end, by their id.
         self.open: dict[int, dict[str, Any]] = {}
+        # The bytes of each open stream, by the id of its row, if `partial` is True.
+        self.streams: dict[int, StreamBody] = {}
         self.closed = False
         target = urlsplit(backend.url)
         self.scheme = target.scheme
@@ -173,16 +216,22 @@ class Proxy(ThreadingHTTPServer):
     def end(self, row: dict[str, Any]) -> None:
         """Write the row of the call, if the proxy did not write it at the end of the test."""
         with self.lock:
+            self.streams.pop(id(row), None)
             if self.open.pop(id(row), None) is not None:
                 self._write(row)
             self.lock.notify_all()
 
     def close(self) -> None:
         """Write a row for each open call, then write no more rows. Hold the lock."""
-        for row in self.open.values():
-            row.update(ts=time.time(), error=ENDED)
+        for key, row in self.open.items():
+            stream = self.streams.get(key)
+            if stream is not None:
+                row.update(ts=time.time(), response_body=stream.row(), error=STREAM_ENDED)
+            else:
+                row.update(ts=time.time(), error=ENDED)
             self._write(row)
         self.open.clear()
+        self.streams.clear()
         self.closed = True
 
     def _write(self, row: dict[str, Any]) -> None:
@@ -294,7 +343,12 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.flush()
         except OSError:
             app = False
-        parts: list[bytes] = []
+        encoding = resp.getheader("Content-Encoding")
+        stream = StreamBody(proxy.keep, encoding)
+        if proxy.partial:
+            with proxy.lock:
+                row.update(status=resp.status, response_headers=headers_row(returned))
+                proxy.streams[id(row)] = stream
         error = None
         while not bodyless:
             try:
@@ -304,7 +358,11 @@ class Handler(BaseHTTPRequestHandler):
                 break
             if not part:
                 break
-            parts.append(part)
+            if proxy.partial:
+                with proxy.lock:
+                    stream.add(part)
+            else:
+                stream.add(part)
             if app:
                 # The record keeps all of the stream, also if the app went away.
                 try:
@@ -324,13 +382,12 @@ class Handler(BaseHTTPRequestHandler):
                 pass
         if error is not None or not app:
             self.close_connection = True
-        out = b"".join(parts)
-        encoding = resp.getheader("Content-Encoding")
+        out = stream.data
         row.update(
             ts=time.time(),
             status=resp.status,
             response_headers=headers_row(returned),
-            response_body=body_row(out, encoding),
+            response_body=stream.row(),
             error=error,
         )
         proxy.complete(row, out, encoding)

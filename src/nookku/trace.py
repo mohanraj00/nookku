@@ -454,11 +454,16 @@ def read_backend(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
 
 def _rpc(body: Any) -> list[dict[str, Any]]:
     """The JSON-RPC messages of a body in mcp.jsonl: one message, a batch, or the `data` lines
-    of an event stream."""
-    text = body.get("text") if isinstance(body, dict) and not body.get("cut") else None
+    of an event stream. Of a cut body, only the events that end before the cut."""
+    text = body.get("text") if isinstance(body, dict) else None
+    if isinstance(body, dict) and body.get("cut"):
+        if not isinstance(text, str) and isinstance(body.get("base64"), str):
+            # The cut can split a letter. The bytes after the last complete event are not read.
+            text = base64.b64decode(body["base64"]).decode("utf-8", "replace")
+        text = text.rpartition("\n\n")[0] if isinstance(text, str) else None
     if not isinstance(text, str):
         return []
-    value = _json(text)
+    value = _json(text) if not (isinstance(body, dict) and body.get("cut")) else None
     if value is None:
         values = [_json(line[5:].strip()) for line in text.split("\n") if line.startswith("data:")]
     else:
@@ -995,6 +1000,8 @@ CALL_DB = ("db.system.name", "db.system")
 CALL_MCP = "mcp.method.name"
 SERVER_KEYS = ("http.route", "http.target", "url.path")
 DEFAULT_PORTS = {"http": 80, "https": 443}
+# The detail of an HTTP call with a URL that the URL parser cannot read.
+BAD_URL = "(a URL that does not parse)"
 
 
 def _address(host: Any, port: Any) -> str | None:
@@ -1005,11 +1012,11 @@ def _address(host: Any, port: Any) -> str | None:
 
 def _url_address(url: str) -> tuple[str | None, str]:
     """The host:port of a URL, and the URL with no user, query or fragment, for the detail."""
-    parts = urlsplit(url)
     try:
+        parts = urlsplit(url)
         port = parts.port or DEFAULT_PORTS.get(parts.scheme)
     except ValueError:
-        return None, ""
+        return None, BAD_URL
     host = parts.hostname
     shown = f"{parts.scheme}://{host}" + (f":{parts.port}" if parts.port else "") + parts.path
     return _address(host, port), shown
@@ -1023,8 +1030,20 @@ def egress_seen(manifest: dict[str, Any]) -> set[str] | None:
         return None
     urls = [*egress["proxies"].values(), egress.get("receiver")]
     seen = {a for u in urls if isinstance(u, str) for a in [_url_address(u)[0]] if a}
-    # A stdio wrapper sees the MCP calls with no network address.
-    return seen | ({mcp_proxy.STDIO} if mcp_proxy.STDIO in egress["proxies"].values() else set())
+    # The wrappers see the MCP calls with no network address only if each stdio server of the
+    # answer has a wrapper. A span does not name its server, so one server with no wrapper can
+    # make each of these calls.
+    answer = egress.get("answer")
+    servers = answer.get("mcp_servers") if isinstance(answer, dict) else None
+    stdio = (
+        [s for s in servers if isinstance(s, dict) and s.get("transport") == "stdio"]
+        if isinstance(servers, list)
+        else []
+    )
+    wrapped = bool(stdio) and all(
+        egress["proxies"].get(s.get("name")) == mcp_proxy.STDIO for s in stdio
+    )
+    return seen | ({mcp_proxy.STDIO} if wrapped else set())
 
 
 def unseen_calls(items: list[dict[str, Any]], seen: set[str]) -> list[dict[str, Any]]:

@@ -46,11 +46,14 @@ uv tool install nookku
 git clone https://github.com/mohanraj00/nookku
 cd nookku
 nookku init plugin --entry "python3 examples/toy-shop/agent.py"
+nookku register <<'EOF'
+{"model_apis": [], "backends": [], "mcp_servers": [], "databases": [], "other": []}
+EOF
 nookku check
 nookku run --script examples/toy-shop/script.jsonl --no-evaluate
 ```
 
-`nookku check` sends one message and shows the reply. `nookku run` sends each message of [the script](examples/toy-shop/script.jsonl) to the agent ([CLI reference](docs/reference/cli.md#nookku-run)). It prints the test id and the test folder, then this:
+`nookku register` gives the egress answer: the toy shop calls no service, so the answer has 5 empty lists ([SPEC.md section 7.11](SPEC.md#711-egress-discovery)). `nookku check` sends one message and shows the reply. `nookku run` sends each message of [the script](examples/toy-shop/script.jsonl) to the agent ([CLI reference](docs/reference/cli.md#nookku-run)). It prints the test id and the test folder, then this:
 
 ```text
 Turns: 3 of 3 messages
@@ -83,6 +86,9 @@ In your clone of this repo, put the project hooks into Claude Code:
 
 ```bash
 nookku init claude-code --entry "python3 examples/toy-shop/agent.py"
+nookku register <<'EOF'
+{"model_apis": [], "backends": [], "mcp_servers": [], "databases": [], "other": []}
+EOF
 nookku check        # one message through the entry: PASS proves the connection, not the reply
 ```
 
@@ -140,7 +146,7 @@ tester ──> harness ──> relay ──────> tap ──stdin/stdout�
 
 [docs/architecture.md](docs/architecture.md#data-flow) shows this flow with each part, and has diagrams of one turn, the test lifecycle and the trace.
 
-Two processes write two records, and the audit compares them byte for byte. It reports 8 break classes ([SPEC.md section 3.3](SPEC.md#33-break-classes)). It fails closed: it never reports clean on a record that it cannot read. 67 audit cases, 21 contract cases, 23 trace cases, 13 seal cases, 16 notes cases, 7 receiver cases and 23 discovery cases in [conformance/](conformance/) test the spec ([cases](conformance/build.py), [tests](tests/)).
+Two processes write two records, and the audit compares them byte for byte. It reports 8 break classes ([SPEC.md section 3.3](SPEC.md#33-break-classes)). It fails closed: it never reports clean on a record that it cannot read. 67 audit cases, 21 contract cases, 23 trace cases, 13 seal cases, 16 notes cases, 7 receiver cases and 24 discovery cases in [conformance/](conformance/) test the spec ([cases](conformance/build.py), [tests](tests/)).
 
 A test also records what your app did. It copies the session files of the app's own Agent SDK or Codex sessions. It records the backend calls, the direct model calls and the OpenTelemetry spans of the app. [docs/architecture.md](docs/architecture.md) shows each part.
 
