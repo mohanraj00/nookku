@@ -39,8 +39,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parent.parent
 sys.path[:0] = [str(ROOT / "src")]
 
-from proof_common import NO_TITLE, claude_events, claude_isolated  # noqa: E402
-from proof_report import private  # noqa: E402
+from proof_common import NO_TITLE, claude_events, claude_isolated, private  # noqa: E402
 
 from nookku import __version__  # noqa: E402
 

@@ -48,6 +48,7 @@ from proof_common import (  # noqa: E402
     claude_events,
     claude_isolated,
     json_lines,
+    private,
 )
 
 from nookku import bridge, kit, seal  # noqa: E402
@@ -73,13 +74,6 @@ CLAUDE_TOOLS = [
 ]
 # The plugins of each Claude Code session of the last test.
 PLUGINS: set[str] = set()
-# A model answer can quote instruction files. These hold the instructions on this machine.
-INSTRUCTIONS = [
-    Path.home() / ".claude" / "CLAUDE.md",
-    Path.home() / ".codex" / "AGENTS.md",
-    ROOT / "CLAUDE.md",
-    ROOT / "AGENTS.md",
-]
 
 
 def claude(prompt: str, cwd: Path, extra: list[str]) -> str:
@@ -193,18 +187,6 @@ def quotes_a_reply(report: str, replies: list[str], size: int = 20) -> bool:
 def scrub(text: str, project: Path) -> str:
     """The text without the local paths of this machine."""
     return text.replace(str(project), "<project>").replace(str(Path.home()), "~")
-
-
-def private(text: str) -> bool:
-    """True if the text shares 8 words in a row with an instruction file."""
-    words = re.findall(r"\w+", text.lower())
-    grams = {" ".join(words[i : i + 8]) for i in range(len(words) - 7)}
-    for path in INSTRUCTIONS:
-        if path.exists():
-            other = re.findall(r"\w+", path.read_text(encoding="utf-8").lower())
-            if grams & {" ".join(other[i : i + 8]) for i in range(len(other) - 7)}:
-                return True
-    return False
 
 
 Run = Callable[[str, list[str]], str]
