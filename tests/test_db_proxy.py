@@ -201,6 +201,8 @@ def test_a_database_that_does_not_answer_gives_a_connect_row(tmp_path: Path) -> 
         ("postgresql://db.toy.test/shop?hostaddr=203.0.113.1", "has the query parameter hostaddr"),
         ("postgresql://db.toy.test/shop?host=/var/run", "has the query parameter host"),
         ("postgresql://db.toy.test/shop?port=6543", "has the query parameter port"),
+        ("postgresql://db.toy.test/shop?host=", "has the query parameter host"),
+        ("postgresql://db.toy.test/shop?service=", "has the query parameter service"),
         ("postgresql://127.0.0.1/shop?gssencmode=require", "has gssencmode=require"),
     ],
 )

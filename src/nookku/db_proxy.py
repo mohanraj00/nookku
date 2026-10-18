@@ -67,7 +67,7 @@ def _upstream(part: dict[str, Any], value: str | None) -> Database:
         raise ValueError(f"{where} has a port that is not valid") from None
     if url.scheme not in SCHEMES or not url.hostname:
         raise ValueError(f"{where} must hold a postgres:// or postgresql:// URL with a host")
-    query = dict(parse_qsl(url.query))
+    query = dict(parse_qsl(url.query, keep_blank_values=True))
     moved = [k for k in ADDRESS_KEYS if k in query]
     if moved:
         raise ValueError(
