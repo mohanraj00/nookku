@@ -1,10 +1,12 @@
+import hashlib
+import http.client
 import json
 import shlex
 import subprocess
 import sys
 from pathlib import Path
+from urllib.parse import urlsplit
 
-from test_model_api import connect
 from toy_model_server import ModelServer
 
 from nookku import backend, discovery, mcp_proxy, trace
@@ -12,6 +14,11 @@ from nookku import backend, discovery, mcp_proxy, trace
 SERVER = Path(__file__).resolve().parent / "toy_mcp_server.py"
 CALL = {"jsonrpc": "2.0", "id": 2, "method": "tools/call"}
 CALL["params"] = {"name": "check_stock", "arguments": {"product": "mug"}}
+
+
+def connect(url: str) -> http.client.HTTPConnection:
+    parts = urlsplit(url)
+    return http.client.HTTPConnection(parts.hostname or "", parts.port, timeout=10)
 
 
 def rows(folder: Path) -> list[dict]:
@@ -70,7 +77,7 @@ def test_only_a_server_with_a_variable_gets_a_proxy(tmp_path: Path) -> None:
     plain = {**http, "name": "mail", "env": None}
     parts = [http, plain, stdio_part(), stdio_part(None) | {"name": "files"}]
     assert [(b.name, b.env, b.url) for b in mcp_proxy.http_servers(parts)] == [
-        ("tickets", "TICKETS_MCP_URL", "https://tickets.toy.test/mcp")
+        ("tickets", "TICKETS_MCP_URL", "https://tickets.toy.test/mcp/")
     ]
     assert list(mcp_proxy.stdio_environment(parts, tmp_path)) == ["STOCK_MCP_COMMAND"]
     answer = discovery.parse(discovery.make(mcp_servers=parts))
@@ -83,12 +90,15 @@ def test_the_http_proxy_sends_each_event_when_it_comes(tmp_path: Path) -> None:
     with ModelServer() as server:
         server.parts = parts
         server.release.clear()
-        servers = [backend.Backend("stock", "STOCK_MCP_URL", server.url)]
+        servers = [backend.Backend("stock", "STOCK_MCP_URL", server.url + "/mcp")]
         proxies = backend.Proxies(servers, tmp_path / mcp_proxy.FILE, mcp_proxy.HttpProxy)
         env = proxies.start()
         try:
+            # The variable keeps the endpoint path, and the server gets the same path.
+            endpoint = urlsplit(env["STOCK_MCP_URL"]).path
+            assert endpoint == "/mcp"
             conn = connect(env["STOCK_MCP_URL"])
-            conn.request("POST", "/mcp", body=json.dumps(CALL).encode(), headers={})
+            conn.request("POST", endpoint, body=json.dumps(CALL).encode(), headers={})
             resp = conn.getresponse()
             first = resp.read1(65536)
             server.release.set()
@@ -98,6 +108,7 @@ def test_the_http_proxy_sends_each_event_when_it_comes(tmp_path: Path) -> None:
             proxies.stop()
     assert first == parts[0]
     assert got == b"".join(parts)
+    assert [s["path"] for s in server.seen] == ["/mcp"]
     (row,) = rows(tmp_path)
     assert row["server"] == "stock" and row["transport"] == "http" and "backend" not in row
     items, info = trace.read_mcp(tmp_path / mcp_proxy.FILE)
@@ -106,6 +117,34 @@ def test_the_http_proxy_sends_each_event_when_it_comes(tmp_path: Path) -> None:
     ]
     assert items[0]["input"] == {"product": "mug"}
     assert info == {"file": mcp_proxy.FILE, "rows": 1, "items": 1, "ignored": {}}
+
+
+class SmallProxy(mcp_proxy.HttpProxy):
+    keep = 8
+
+
+def test_the_http_proxy_keeps_only_the_first_bytes_of_a_long_stream(tmp_path: Path) -> None:
+    parts = [b": open\n\n", b": still open\n\n", b": end\n\n"]
+    with ModelServer() as server:
+        server.parts = parts
+        servers = [backend.Backend("stock", "STOCK_MCP_URL", server.url + "/mcp")]
+        proxies = backend.Proxies(servers, tmp_path / mcp_proxy.FILE, SmallProxy)
+        env = proxies.start()
+        try:
+            conn = connect(env["STOCK_MCP_URL"])
+            conn.request("POST", "/mcp", body=json.dumps(CALL).encode(), headers={})
+            got = conn.getresponse().read()
+            conn.close()
+        finally:
+            proxies.stop()
+    # The app gets each byte. The record keeps the first 8 bytes, with the size and the
+    # SHA-256 of all of the stream.
+    whole = b"".join(parts)
+    assert got == whole
+    (row,) = rows(tmp_path)
+    body = row["response_body"]
+    assert (body["size"], body["sha256"]) == (len(whole), hashlib.sha256(whole).hexdigest())
+    assert body["cut"] is True and body["text"] == whole[:8].decode()
 
 
 def message(direction: str, body: dict | str, ts: float) -> dict:
@@ -150,8 +189,17 @@ def test_the_reader_gives_the_result_or_the_error_of_each_tool_call(tmp_path: Pa
 def test_a_stdio_wrapper_sees_the_mcp_calls_with_no_address() -> None:
     span = trace._item("otel", "t", "otel.jsonl", 1, 1.0)
     span.update(kind="span", input={"mcp.method.name": "tools/call"})
-    egress = {"proxies": {"stock": mcp_proxy.STDIO}, "receiver": None}
-    assert trace.unseen_calls([span], trace.egress_seen({"egress": egress}) or set()) == []
-    egress["proxies"] = {}
-    (finding,) = trace.unseen_calls([span], trace.egress_seen({"egress": egress}) or set())
+    answer = discovery.make(mcp_servers=[stdio_part()])
+    egress = {"answer": answer, "proxies": {"stock": mcp_proxy.STDIO}, "receiver": None}
+
+    def found() -> list[dict]:
+        return trace.unseen_calls([span], trace.egress_seen({"egress": egress}) or set())
+
+    assert found() == []
+    # A second stdio server with no wrapper can make the call, so the call is not seen.
+    answer["mcp_servers"].append(stdio_part(None) | {"name": "files"})
+    (finding,) = found()
     assert finding["detail"] == "MCP tools/call at no network address: no proxy saw this call"
+    answer["mcp_servers"].pop()
+    egress["proxies"] = {}
+    assert len(found()) == 1

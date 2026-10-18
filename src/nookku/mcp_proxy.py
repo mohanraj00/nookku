@@ -21,6 +21,7 @@ import threading
 import time
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 from nookku import backend
 from nookku.record import json_text
@@ -36,9 +37,26 @@ STDIO = "stdio"
 
 
 class HttpProxy(backend.Proxy):
-    """A recording proxy for one MCP server over HTTP. Its rows go to mcp.jsonl."""
+    """A recording proxy for one MCP server over HTTP. Its rows go to mcp.jsonl.
+
+    The variable of the app gets the URL of the proxy with the path and the query of the MCP URL.
+    The proxy sends each path of the app with no change, so the server gets its own endpoint.
+    """
 
     streaming = True
+    # An MCP server can send a stream with no end. The proxy keeps only the bytes that the record
+    # shows (SPEC.md section 7.12).
+    keep = backend.RECORD_LIMIT
+
+    def __init__(self, server: backend.Backend, record: Path, lock: threading.Condition) -> None:
+        super().__init__(server, record, lock)
+        target = urlsplit(server.url)
+        self.endpoint = target.path + ("?" + target.query if target.query else "")
+        self.base_path = ""
+
+    @property
+    def url(self) -> str:
+        return super().url + self.endpoint
 
     def describe(self, row: dict[str, Any], headers: list[tuple[str, str]], body: bytes) -> None:
         row["server"] = row.pop("backend")
@@ -48,7 +66,7 @@ class HttpProxy(backend.Proxy):
 def http_servers(parts: list[dict[str, Any]]) -> list[backend.Backend]:
     """The HTTP servers of the answer that have a variable."""
     return [
-        backend.Backend(p["name"], p["env"], p["url"].rstrip("/"))
+        backend.Backend(p["name"], p["env"], p["url"])
         for p in parts
         if p["transport"] == "http" and p["env"] is not None
     ]

@@ -127,6 +127,9 @@ class Proxy(ThreadingHTTPServer):
     daemon_threads = True
     # True: send each part of the response to the app when it comes (SPEC.md section 7.7).
     streaming = False
+    # The most bytes of a stream that the proxy keeps, or None for all of them. The row still
+    # has the size and the SHA-256 of all of the stream.
+    keep: int | None = None
 
     def __init__(self, backend: Backend, record: Path, lock: threading.Condition) -> None:
         super().__init__(("127.0.0.1", 0), Handler)
@@ -295,6 +298,7 @@ class Handler(BaseHTTPRequestHandler):
         except OSError:
             app = False
         parts: list[bytes] = []
+        kept, size, digest = 0, 0, hashlib.sha256()
         error = None
         while not bodyless:
             try:
@@ -304,7 +308,12 @@ class Handler(BaseHTTPRequestHandler):
                 break
             if not part:
                 break
-            parts.append(part)
+            size += len(part)
+            digest.update(part)
+            if proxy.keep is None or kept < proxy.keep:
+                part_kept = part if proxy.keep is None else part[: proxy.keep - kept]
+                parts.append(part_kept)
+                kept += len(part_kept)
             if app:
                 # The record keeps all of the stream, also if the app went away.
                 try:
@@ -326,11 +335,16 @@ class Handler(BaseHTTPRequestHandler):
             self.close_connection = True
         out = b"".join(parts)
         encoding = resp.getheader("Content-Encoding")
+        body = body_row(out, encoding)
+        if size > len(out):
+            # The proxy did not keep all of the stream. The row shows its first bytes as they came.
+            body = body_row(out)
+            body.update(size=size, sha256=digest.hexdigest(), cut=True)
         row.update(
             ts=time.time(),
             status=resp.status,
             response_headers=headers_row(returned),
-            response_body=body_row(out, encoding),
+            response_body=body,
             error=error,
         )
         proxy.complete(row, out, encoding)

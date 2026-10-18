@@ -940,8 +940,20 @@ def egress_seen(manifest: dict[str, Any]) -> set[str] | None:
         return None
     urls = [*egress["proxies"].values(), egress.get("receiver")]
     seen = {a for u in urls if isinstance(u, str) for a in [_url_address(u)[0]] if a}
-    # A stdio wrapper sees the MCP calls with no network address.
-    return seen | ({mcp_proxy.STDIO} if mcp_proxy.STDIO in egress["proxies"].values() else set())
+    # The wrappers see the MCP calls with no network address only if each stdio server of the
+    # answer has a wrapper. A span does not name its server, so one server with no wrapper can
+    # make each of these calls.
+    answer = egress.get("answer")
+    servers = answer.get("mcp_servers") if isinstance(answer, dict) else None
+    stdio = (
+        [s for s in servers if isinstance(s, dict) and s.get("transport") == "stdio"]
+        if isinstance(servers, list)
+        else []
+    )
+    wrapped = bool(stdio) and all(
+        egress["proxies"].get(s.get("name")) == mcp_proxy.STDIO for s in stdio
+    )
+    return seen | ({mcp_proxy.STDIO} if wrapped else set())
 
 
 def unseen_calls(items: list[dict[str, Any]], seen: set[str]) -> list[dict[str, Any]]:

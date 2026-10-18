@@ -1,0 +1,42 @@
+{
+ "test": "20261017-090000-eg02",
+ "model_sessions": [],
+ "egress": {
+  "registered": 1791273600.0,
+  "answer": {
+   "model_apis": [],
+   "backends": [],
+   "mcp_servers": [
+    {
+     "name": "stock",
+     "transport": "stdio",
+     "env": "STOCK_MCP_COMMAND",
+     "command": [
+      "toy-stock-mcp"
+     ],
+     "url": null
+    },
+    {
+     "name": "files",
+     "transport": "stdio",
+     "env": null,
+     "command": [
+      "toy-files-mcp",
+      "--root",
+      "data"
+     ],
+     "url": null
+    }
+   ],
+   "databases": [],
+   "other": []
+  },
+  "unseen": [
+   "files"
+  ],
+  "proxies": {
+   "stock": "stdio"
+  },
+  "receiver": "http://127.0.0.1:41000"
+ }
+}
