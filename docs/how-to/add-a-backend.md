@@ -62,7 +62,7 @@ A server with no variable has no proxy. The start text names it with `(no proxy)
 
 A Postgres database of your app gets a proxy if the app reads its `postgres://` URL from a variable, for example `DATABASE_URL` ([SPEC.md section 7.13](../../SPEC.md#713-postgres-proxies)). The variable must have its value in the [harness](../reference/glossary.md#harness) when the test starts. During the test, the URL has the address of the proxy, with the same user, password and database. The proxy records each query and its rows to `database.jsonl`, and never the password. The trace shows each query as a `query` item, and the check `database_error` finds each query with an error.
 
-The proxy speaks no TLS, so use a URL with no `sslmode`, or with `sslmode=disable` or `prefer`.
+The app speaks no TLS to the proxy, so use a URL with no `sslmode`, or with `sslmode=disable`, `allow` or `prefer`. The proxy uses TLS to the database if the database agrees. Give the address only in the host and the port of the URL, not in a `host` or `hostaddr` query parameter.
 
 ## Example
 

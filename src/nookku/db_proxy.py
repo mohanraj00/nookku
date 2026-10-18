@@ -15,6 +15,7 @@ import contextlib
 import itertools
 import socket
 import socketserver
+import ssl
 import threading
 import time
 from collections.abc import Iterator
@@ -36,6 +37,9 @@ GSS_REQUEST = 80877104
 CANCEL_REQUEST = 80877102
 # The sslmode values that need TLS. The proxy declines TLS, so these modes cannot connect.
 TLS_MODES = ("require", "verify-ca", "verify-full")
+# The query parameters of a URL that give libpq another address than the host of the URL. The
+# app would then connect past the proxy.
+ADDRESS_KEYS = ("host", "hostaddr", "port", "service")
 # A startup packet is short. A longer one is not a packet of the protocol.
 STARTUP_LIMIT = 10000
 CHUNK = 65536
@@ -47,6 +51,8 @@ class Database(NamedTuple):
     env: str
     host: str
     port: int
+    # True: the proxy asks the database for TLS, as the sslmode allow or prefer of the app does.
+    tls: bool = False
 
 
 def _upstream(part: dict[str, Any], value: str | None) -> Database:
@@ -60,13 +66,20 @@ def _upstream(part: dict[str, Any], value: str | None) -> Database:
         raise ValueError(f"{where} has a port that is not valid") from None
     if url.scheme not in SCHEMES or not url.hostname:
         raise ValueError(f"{where} must hold a postgres:// or postgresql:// URL with a host")
-    mode = dict(parse_qsl(url.query)).get("sslmode")
+    query = dict(parse_qsl(url.query))
+    moved = [k for k in ADDRESS_KEYS if k in query]
+    if moved:
+        raise ValueError(
+            f"{where} has the query parameter {moved[0]}, which gives another address than "
+            "the host of the URL. Give the address only in the host and the port of the URL."
+        )
+    mode = query.get("sslmode", "prefer")
     if mode in TLS_MODES:
         raise ValueError(
-            f"{where} has sslmode={mode}. The proxy speaks no TLS, so give "
+            f"{where} has sslmode={mode}. The app cannot speak TLS to the proxy, so give "
             "sslmode=disable, allow or prefer for the test."
         )
-    return Database(part["name"], part["env"], url.hostname, port)
+    return Database(part["name"], part["env"], url.hostname, port, mode != "disable")
 
 
 def databases(parts: list[dict[str, Any]], environ: Any) -> list[Database]:
@@ -140,8 +153,18 @@ def fields(direction: str, tag: bytes, data: bytes) -> dict[str, Any] | None:
                 formats = [
                     int.from_bytes(data[at + 2 + 2 * i : at + 4 + 2 * i], "big") for i in range(n)
                 ]
-                params, _ = _values(data, at + 2 + 2 * n, formats)
-                return {"portal": portal, "statement": statement, "parameters": params}
+                params, at = _values(data, at + 2 + 2 * n, formats)
+                count = int.from_bytes(data[at : at + 2], "big")
+                results = [
+                    int.from_bytes(data[at + 2 + 2 * i : at + 4 + 2 * i], "big")
+                    for i in range(count)
+                ]
+                return {
+                    "portal": portal,
+                    "statement": statement,
+                    "parameters": params,
+                    "results": results,
+                }
             if tag == b"E":
                 return {"portal": _cstrings(data)[0]}
             return None
@@ -198,6 +221,29 @@ class Messages:
             body = bytes(self.buffer[5 : 1 + size])
             del self.buffer[: 1 + size]
             yield tag, body, size
+
+
+def _connect(db: Database) -> socket.socket:
+    """A connection to the database. If `tls` is True, the proxy asks for TLS. If the database
+    agrees, the connection uses TLS with no check of the certificate, as libpq does for the
+    sslmode prefer. If the database declines, the connection stays plain, as for prefer."""
+    up = socket.create_connection((db.host, db.port), timeout=TIMEOUT)
+    if not db.tls:
+        return up
+    try:
+        up.sendall((8).to_bytes(4, "big") + SSL_REQUEST.to_bytes(4, "big"))
+        answer = up.recv(1)
+        if answer == b"N":
+            return up
+        if answer != b"S":
+            raise OSError(f"the database gave {answer!r} to the TLS request")
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        context.check_hostname = False
+        context.verify_mode = ssl.CERT_NONE
+        return context.wrap_socket(up, server_hostname=db.host)
+    except BaseException:
+        up.close()
+        raise
 
 
 def _read(sock: socket.socket, size: int) -> bytes:
@@ -264,8 +310,8 @@ class Handler(socketserver.BaseRequestHandler):
         n = next(proxy.ids)
         db = proxy.database
         try:
-            up = socket.create_connection((db.host, db.port), timeout=TIMEOUT)
-        except OSError as e:
+            up = _connect(db)
+        except (OSError, ssl.SSLError) as e:
             proxy.row(n, "connect", parameters=None, declined=[], error=f"no connection: {e}")
             return
         up.settimeout(None)

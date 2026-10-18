@@ -8,10 +8,12 @@ from __future__ import annotations
 
 import socket
 import socketserver
+import ssl
 import threading
 from typing import Any
 
 PASSWORD = b"toy-pw-123"
+SSL_REQUEST = 80877103
 STOCK = {"teapot-set": "3", "mug": "12"}
 
 
@@ -58,10 +60,26 @@ class Handler(socketserver.BaseRequestHandler):
         self.server.sent += data
         self.request.sendall(data)
 
+    def _startup(self) -> None:
+        """Read the startup packet. Answer a TLS request first: S with a TLS context, else N.
+        The bytes of the TLS request are not in `got`."""
+        head = self.request.recv(8, socket.MSG_WAITALL)
+        if len(head) == 8 and int.from_bytes(head[4:], "big") == SSL_REQUEST:
+            self.server.ssl_requests += 1
+            if self.server.context is None:
+                self.request.sendall(b"N")
+            else:
+                self.request.sendall(b"S")
+                self.request = self.server.context.wrap_socket(self.request, server_side=True)
+                self.server.tls_used = True
+            head = self._read(8)
+        else:
+            self.server.got += head
+        self._read(int.from_bytes(head[:4], "big") - 8)
+
     def handle(self) -> None:
         try:
-            size = int.from_bytes(self._read(4), "big")
-            self._read(size - 4)
+            self._startup()
             self._send(message(b"R", (3).to_bytes(4, "big")))
             tag, body = self._message()
             ok = tag == b"p" and body == PASSWORD + b"\0"
@@ -106,10 +124,13 @@ class PgServer(socketserver.ThreadingTCPServer):
     daemon_threads = True
     allow_reuse_address = True
 
-    def __init__(self) -> None:
+    def __init__(self, context: ssl.SSLContext | None = None) -> None:
         super().__init__(("127.0.0.1", 0), Handler)
         self.got = b""
         self.sent = b""
+        self.context = context
+        self.ssl_requests = 0
+        self.tls_used = False
 
     @property
     def url(self) -> str:

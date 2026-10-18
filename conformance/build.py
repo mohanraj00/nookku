@@ -3814,7 +3814,7 @@ PG_ROWS = [
     pg(11.1, "from_server", "C", {"command": "SELECT 1"}),
     pg(11.1, "from_server", "Z", {"status": "I"}),
     pg(31, "to_server", "P", {"statement": "", "query": STOCK_BY_SKU}),
-    pg(31, "to_server", "B", {"portal": "", "statement": "", "parameters": ["mug"]}),
+    pg(31, "to_server", "B", {"portal": "", "statement": "", "parameters": ["mug"], "results": []}),
     pg(31, "to_server", "E", {"portal": ""}),
     pg(31, "to_server", "S"),
     pg(31.1, "from_server", "1"),
@@ -3905,6 +3905,53 @@ DATABASE_CASE = {
 }
 
 
+# Database queries with binary results and other ends (SPEC.md section 8.4). The Bind asks the
+# column in binary, so the value of the data row gives its bytes as base64. The first execute
+# stops at its row limit (s), and the second one is an empty query (I). Neither is an error.
+FORMATS_ROWS = [
+    pg(11, "to_server", "P", {"statement": "", "query": STOCK_BY_SKU}),
+    pg(
+        11, "to_server", "B", {"portal": "", "statement": "", "parameters": ["mug"], "results": [1]}
+    ),
+    pg(11, "to_server", "E", {"portal": ""}),
+    pg(11.1, "to_server", "E", {"portal": ""}),
+    pg(11.5, "from_server", "D", {"values": ["\u0000\u0000\u0000\f"]}),
+    pg(11.6, "from_server", "s"),
+    pg(11.7, "from_server", "I"),
+    pg(11.8, "from_server", "Z", {"status": "I"}),
+]
+DATABASE_FORMATS_CASE = {
+    "tap": [window(10, 20)],
+    "manifest": {"test": "20261018-080000-db02", "model_sessions": []},
+    "sessions": {},
+    "database": FORMATS_ROWS,
+    "trace": [
+        ditem(
+            1,
+            11,
+            3,
+            STOCK_BY_SKU,
+            input={"parameters": ["mug"]},
+            output='[{"base64": "AAAADA=="}]',
+            result_line=6,
+        ),
+        ditem(1, 11.1, 4, STOCK_BY_SKU, input={"parameters": ["mug"]}, result_line=7),
+    ],
+    "findings": {
+        "v": "0.2",
+        "test": "20261018-080000-db02",
+        "turns": 1,
+        "items": 2,
+        "sessions": [],
+        "otel": None,
+        "backend": None,
+        "model_api": None,
+        "mcp": None,
+        "database": {"file": "database.jsonl", "rows": 8, "items": 2, "ignored": {}},
+        "counts": counts(),
+        "findings": [],
+    },
+}
 # Claude Code 2.1.300 and 2.1.301: the lines api-request-shape, api-request-blob and api-request
 # hold the model requests of the harness. Each message and tool call in them is also in a user or
 # an assistant line. The other parts are the harness's own instructions. Thus the reader counts
@@ -4059,6 +4106,7 @@ TRACE_CASES = {
     "unseen_calls_stdio": UNSEEN_STDIO_CASE,
     "mcp_toy_shop": MCP_CASE,
     "database_toy_shop": DATABASE_CASE,
+    "database_formats": DATABASE_FORMATS_CASE,
 }
 
 

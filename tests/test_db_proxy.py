@@ -1,5 +1,8 @@
 import json
+import shutil
 import socket
+import ssl
+import subprocess
 import threading
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -76,21 +79,28 @@ def run(proxy_url: str) -> bytes:
     return got
 
 
-def start(server: PgServer, tmp_path: Path) -> tuple[db_proxy.Proxy, dict[str, str]]:
-    environ = {"DATABASE_URL": server.url + "?sslmode=prefer"}
+def start(
+    server: PgServer, tmp_path: Path, mode: str = "prefer"
+) -> tuple[db_proxy.Proxy, dict[str, str]]:
+    environ = {"DATABASE_URL": server.url + f"?sslmode={mode}"}
     (database,) = db_proxy.databases([PART], environ)
     proxy = db_proxy.Proxy(database, tmp_path / db_proxy.FILE, threading.Lock())
     threading.Thread(target=proxy.serve_forever, daemon=True).start()
     return proxy, db_proxy.environment([proxy], environ)
 
 
-def test_the_proxy_changes_no_byte_and_never_records_the_password(tmp_path: Path) -> None:
+@pytest.mark.parametrize(("mode", "asked"), [("prefer", 1), ("allow", 1), ("disable", 0)])
+def test_the_proxy_changes_no_byte_and_never_records_the_password(
+    tmp_path: Path, mode: str, asked: int
+) -> None:
     with PgServer() as server:
-        proxy, env = start(server, tmp_path)
+        proxy, env = start(server, tmp_path, mode)
         try:
             got = run(env["DATABASE_URL"])
         finally:
             proxy.stop()
+    # The proxy asks the database for TLS, as the sslmode of the app does. This server says N.
+    assert server.ssl_requests == asked and not server.tls_used
     # The app gets the N of the proxy, then each byte of the server.
     assert got == b"N" + server.sent
     # The server gets each byte of the app, except the TLS request.
@@ -101,7 +111,7 @@ def test_the_proxy_changes_no_byte_and_never_records_the_password(tmp_path: Path
         PASSWORD.decode(),
         proxy.server_address[1],
     )
-    assert url.path == "/shop" and url.query == "sslmode=prefer"
+    assert url.path == "/shop" and url.query == f"sslmode={mode}"
     text = (tmp_path / db_proxy.FILE).read_text()
     assert PASSWORD.decode() not in text
     found = rows(tmp_path / db_proxy.FILE)
@@ -109,6 +119,36 @@ def test_the_proxy_changes_no_byte_and_never_records_the_password(tmp_path: Path
     assert found[0]["parameters"] == {"user": "shop", "database": "shop"}
     (secret,) = [r for r in found if r.get("tag") == "p"]
     assert secret["fields"] is None and secret["size"] == len(PASSWORD) + 5
+
+
+def tls_context(folder: Path) -> ssl.SSLContext:
+    """A TLS context of the toy server, with a new self-signed certificate."""
+    if shutil.which("openssl") is None:
+        pytest.skip("this test needs openssl")
+    key, cert = folder / "key.pem", folder / "cert.pem"
+    subprocess.run(
+        [
+            *("openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1"),
+            *("-subj", "/CN=db.toy.test", "-keyout", str(key), "-out", str(cert)),
+        ],
+        check=True,
+        capture_output=True,
+    )
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context.load_cert_chain(cert, key)
+    return context
+
+
+def test_the_proxy_speaks_tls_to_a_database_that_agrees(tmp_path: Path) -> None:
+    with PgServer(tls_context(tmp_path)) as server:
+        proxy, env = start(server, tmp_path)
+        try:
+            got = run(env["DATABASE_URL"])
+        finally:
+            proxy.stop()
+    assert server.tls_used
+    assert got == b"N" + server.sent
+    assert server.got == b"".join(SESSION[1:])
 
 
 def test_the_reader_gives_each_query_with_its_rows_or_its_error(tmp_path: Path) -> None:
@@ -158,6 +198,9 @@ def test_a_database_that_does_not_answer_gives_a_connect_row(tmp_path: Path) -> 
         ("postgresql:///shop?host=/var/run", "must hold a postgres:// or postgresql:// URL"),
         ("postgresql://127.0.0.1:99999/shop", "has a port that is not valid"),
         ("postgresql://127.0.0.1/shop?sslmode=require", "has sslmode=require"),
+        ("postgresql://db.toy.test/shop?hostaddr=203.0.113.1", "has the query parameter hostaddr"),
+        ("postgresql://db.toy.test/shop?host=/var/run", "has the query parameter host"),
+        ("postgresql://db.toy.test/shop?port=6543", "has the query parameter port"),
     ],
 )
 def test_a_variable_that_is_not_a_postgres_url_stops_the_start(
@@ -172,7 +215,7 @@ def test_only_a_postgres_database_with_a_variable_gets_a_proxy() -> None:
     parts = [PART, {**PART, "name": "cart", "env": None}, {**PART, "name": "log", "kind": "sqlite"}]
     environ = {"DATABASE_URL": "postgres://127.0.0.1/shop"}
     assert db_proxy.databases(parts, environ) == [
-        db_proxy.Database("shop-db", "DATABASE_URL", "127.0.0.1", 5432)
+        db_proxy.Database("shop-db", "DATABASE_URL", "127.0.0.1", 5432, tls=True)
     ]
     parts[2] = {**parts[2], "env": "LOG_DB"}
     answer = discovery.parse(discovery.make(databases=parts))
@@ -187,3 +230,31 @@ def test_the_reader_keeps_no_body_of_a_long_message(monkeypatch: pytest.MonkeyPa
     # The long message comes in 3 parts, and a short message follows it in the last part.
     got = [m for part in (data[:3], data[3:12], data[12:]) for m in reader.add(part)]
     assert got == [(b"D", None, len(long) - 1), (b"C", b"SELECT 1\0", 13)]
+
+
+def data_row(direction: str, tag: str, ts: float, **fields: object) -> dict:
+    row = {"v": 1, "type": "message", "database": "shop-db", "connection": 1, "ts": ts}
+    return {**row, "direction": direction, "tag": tag, "size": 0, "fields": fields or None}
+
+
+def test_the_reader_ends_an_execute_at_an_empty_query_or_a_suspended_portal(
+    tmp_path: Path,
+) -> None:
+    query = "SELECT left FROM stock"
+    found = [
+        data_row("to_server", "P", 1.0, statement="", query=query),
+        data_row("to_server", "B", 1.1, portal="", statement="", parameters=[], results=[1]),
+        data_row("to_server", "E", 1.2, portal=""),
+        data_row("to_server", "E", 1.3, portal=""),
+        data_row("from_server", "D", 2.0, values=["\u0000\u0000\u0000\f"]),
+        data_row("from_server", "s", 2.1),
+        data_row("from_server", "I", 2.2),
+        data_row("from_server", "Z", 2.3, status="I"),
+    ]
+    (tmp_path / db_proxy.FILE).write_text("".join(json.dumps(r) + "\n" for r in found))
+    items, _ = trace.read_database(tmp_path / db_proxy.FILE)
+    # A binary column of the Bind gives base64 of the bytes of the value.
+    assert [(it["output"], it["error"]) for it in items] == [
+        ('[{"base64": "AAAADA=="}]', None),
+        (None, None),
+    ]

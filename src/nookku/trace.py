@@ -548,6 +548,23 @@ def _done(it: dict[str, Any], rows: list[Any], tags: list[str], line: int) -> No
     it["source"]["result_line"] = line
 
 
+def _binary(values: Any, formats: list[Any]) -> Any:
+    """The values of a data row, with base64 for each column that the Bind asked in binary. The
+    proxy gives the UTF-8 text of bytes that are UTF-8, so the text gives the same bytes."""
+    if not isinstance(values, list):
+        return values
+    out = []
+    for i, v in enumerate(values):
+        if len(formats) > 1:
+            fmt = formats[i] if i < len(formats) else 0
+        else:
+            fmt = formats[0] if formats else 0
+        if fmt == 1 and isinstance(v, str):
+            v = {"base64": base64.b64encode(v.encode("utf-8")).decode()}
+        out.append(v)
+    return out
+
+
 def read_database(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """The queries of database.jsonl (SPEC.md section 8.4)."""
     ignored: Counter[str] = Counter()
@@ -556,7 +573,9 @@ def read_database(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     # The open queries of each connection, oldest first, with their rows and command tags.
     queues: dict[tuple[str, Any], list[tuple[dict[str, Any], bool, list[Any], list[str]]]] = {}
     statements: dict[tuple[tuple[str, Any], str], Any] = {}
-    portals: dict[tuple[tuple[str, Any], str], tuple[Any, Any]] = {}
+    portals: dict[tuple[tuple[str, Any], str], tuple[Any, Any, list[Any]]] = {}
+    # The result formats of each open extended query, by its item.
+    results: dict[int, list[Any]] = {}
     for n, row in _lines(path, ignored):
         rows += 1
         if not isinstance(row, dict) or row.get("type") != "message":
@@ -572,13 +591,18 @@ def read_database(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
                 statements[(conn, str(f.get("statement")))] = f.get("query")
             elif tag == "B":
                 query = statements.get((conn, str(f.get("statement"))))
-                portals[(conn, str(f.get("portal")))] = (query, f.get("parameters"))
+                given = f.get("results")
+                formats: list[Any] = given if isinstance(given, list) else []
+                portals[(conn, str(f.get("portal")))] = (query, f.get("parameters"), formats)
             elif tag in ("Q", "E"):
                 it = _item("database", name, db_proxy.FILE, n, row.get("ts"))
                 if tag == "Q":
                     query, params = f.get("query"), None
                 else:
-                    query, params = portals.get((conn, str(f.get("portal"))), (None, None))
+                    query, params, formats = portals.get(
+                        (conn, str(f.get("portal"))), (None, None, [])
+                    )
+                    results[id(it)] = formats
                 it.update(kind="query", name=_query_name(query))
                 it["input"] = {"query": query, "parameters": params}
                 items.append(it)
@@ -588,7 +612,13 @@ def read_database(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
             continue
         it, extended, values, tags = queue[0]
         if tag == "D":
-            values.append(f.get("values"))
+            values.append(_binary(f.get("values"), results.get(id(it), [])))
+        elif tag in ("I", "s"):
+            # An empty query, or a portal that stops at its row limit: the execute ends with
+            # no error.
+            if extended:
+                _done(it, values, tags, n)
+                queue.pop(0)
         elif tag == "C":
             tags.append(str(f.get("command")))
             if extended:
