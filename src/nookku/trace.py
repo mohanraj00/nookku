@@ -570,8 +570,12 @@ def read_database(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     ignored: Counter[str] = Counter()
     rows = 0
     items: list[dict[str, Any]] = []
-    # The open queries of each connection, oldest first, with their rows and command tags.
-    queues: dict[tuple[str, Any], list[tuple[dict[str, Any], bool, list[Any], list[str]]]] = {}
+    # The open queries of each connection, oldest first, with their rows, command tags and batch.
+    # A batch ends at a Sync or at a simple query, and one ReadyForQuery ends the oldest batch.
+    queues: dict[tuple[str, Any], list[tuple[dict[str, Any], bool, list[Any], list[str], int]]] = {}
+    batches: dict[tuple[str, Any], int] = {}
+    # The batches of each connection that have their end but no ReadyForQuery, oldest first.
+    ends: dict[tuple[str, Any], list[int]] = {}
     statements: dict[tuple[tuple[str, Any], str], Any] = {}
     portals: dict[tuple[tuple[str, Any], str], tuple[Any, Any, list[Any]]] = {}
     # The result formats of each open extended query, by its item.
@@ -587,7 +591,10 @@ def read_database(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         f = row["fields"] if isinstance(row.get("fields"), dict) else {}
         tag = row.get("tag")
         if row.get("direction") == "to_server":
-            if tag == "P":
+            if tag == "S":
+                ends.setdefault(conn, []).append(batches.get(conn, 0))
+                batches[conn] = batches.get(conn, 0) + 1
+            elif tag == "P":
                 statements[(conn, str(f.get("statement")))] = f.get("query")
             elif tag == "B":
                 query = statements.get((conn, str(f.get("statement"))))
@@ -606,11 +613,18 @@ def read_database(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
                 it.update(kind="query", name=_query_name(query))
                 it["input"] = {"query": query, "parameters": params}
                 items.append(it)
-                queue.append((it, tag == "E", [], []))
+                queue.append((it, tag == "E", [], [], batches.get(conn, 0)))
+                if tag == "Q":
+                    ends.setdefault(conn, []).append(batches.get(conn, 0))
+                    batches[conn] = batches.get(conn, 0) + 1
             continue
+        if tag == "Z":
+            # A ReadyForQuery ends its batch, also if each query of the batch has its end.
+            pending = ends.get(conn)
+            batch = pending.pop(0) if pending else batches.get(conn, 0)
         if not queue:
             continue
-        it, extended, values, tags = queue[0]
+        it, extended, values, tags, _ = queue[0]
         if tag == "D":
             values.append(_binary(f.get("values"), results.get(id(it), [])))
         elif tag in ("I", "s"):
@@ -630,15 +644,15 @@ def read_database(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
                 _done(it, values, tags, n)
                 queue.pop(0)
         elif tag == "Z":
-            # Ready: each open query has its result. After an error, the database skips each
-            # execute up to the next sync.
-            for it, extended, values, tags in queue:
+            # Ready: each open query of the oldest batch has its result. After an error, the
+            # database skips each execute up to the next sync.
+            while queue and queue[0][4] <= batch:
+                it, extended, values, tags, _ = queue.pop(0)
                 if extended and it["error"] is None:
                     it["error"] = "the database did not run it: an earlier error"
                 _done(it, values, tags, n)
-            queue.clear()
     for queue in queues.values():
-        for it, _, values, tags in queue:
+        for it, _, values, tags, _ in queue:
             it["error"] = it["error"] or "no result in database.jsonl"
             it["output"] = (
                 "\n".join([json.dumps(r, ensure_ascii=False) for r in values] + tags) or None

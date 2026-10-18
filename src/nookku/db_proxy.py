@@ -13,6 +13,7 @@ from __future__ import annotations
 import base64
 import contextlib
 import itertools
+import re
 import socket
 import socketserver
 import ssl
@@ -79,6 +80,11 @@ def _upstream(part: dict[str, Any], value: str | None) -> Database:
             f"{where} has sslmode={mode}. The app cannot speak TLS to the proxy, so give "
             "sslmode=disable, allow or prefer for the test."
         )
+    if query.get("gssencmode") == "require":
+        raise ValueError(
+            f"{where} has gssencmode=require. The proxy speaks no GSSAPI encryption, so give "
+            "gssencmode=disable or prefer for the test."
+        )
     return Database(part["name"], part["env"], url.hostname, port, mode != "disable")
 
 
@@ -101,6 +107,24 @@ def environment(proxies: list[Proxy], environ: Any) -> dict[str, str]:
         user = url.netloc.rpartition("@")[0]
         netloc = (user + "@" if user else "") + f"127.0.0.1:{p.server_address[1]}"
         out[p.database.env] = urlunsplit(url._replace(netloc=netloc))
+    return out
+
+
+# One setting in the options parameter: "-c name=value" or "--name=value". A backslash escapes
+# a space in the value.
+OPTION = re.compile(r"((?:-c\s*|--)([A-Za-z0-9_.-]+)=)((?:\\.|\S)*)")
+
+
+def parameters_row(params: dict[str, str]) -> dict[str, str]:
+    """The startup parameters with the secret values removed: a parameter with a secret name,
+    and a setting with a secret name in the options parameter."""
+    out = {}
+    for k, v in params.items():
+        if backend.secret(k):
+            v = backend.REMOVED
+        elif k == "options":
+            v = OPTION.sub(lambda m: m[1] + backend.REMOVED if backend.secret(m[2]) else m[0], v)
+        out[k] = v
     return out
 
 
@@ -358,7 +382,9 @@ class Handler(socketserver.BaseRequestHandler):
             words = _cstrings(body[4:])
             params = dict(zip(words[0::2], words[1::2], strict=False))
             params.pop("", None)
-            self.server.row(n, "connect", parameters=params, declined=declined, error=None)
+            self.server.row(
+                n, "connect", parameters=parameters_row(params), declined=declined, error=None
+            )
             return True
 
     def _copy(self, src: socket.socket, dst: socket.socket, direction: str, n: int) -> None:

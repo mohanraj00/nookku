@@ -201,6 +201,7 @@ def test_a_database_that_does_not_answer_gives_a_connect_row(tmp_path: Path) -> 
         ("postgresql://db.toy.test/shop?hostaddr=203.0.113.1", "has the query parameter hostaddr"),
         ("postgresql://db.toy.test/shop?host=/var/run", "has the query parameter host"),
         ("postgresql://db.toy.test/shop?port=6543", "has the query parameter port"),
+        ("postgresql://127.0.0.1/shop?gssencmode=require", "has gssencmode=require"),
     ],
 )
 def test_a_variable_that_is_not_a_postgres_url_stops_the_start(
@@ -257,4 +258,50 @@ def test_the_reader_ends_an_execute_at_an_empty_query_or_a_suspended_portal(
     assert [(it["output"], it["error"]) for it in items] == [
         ('[{"base64": "AAAADA=="}]', None),
         (None, None),
+    ]
+
+
+def test_the_connect_row_has_no_secret_startup_value() -> None:
+    params = {
+        "user": "shop",
+        "app.api_key": "k1",
+        "options": r"-c app.api_key=k2\ k3 --search_path=public -capp.token=k4",
+    }
+    assert db_proxy.parameters_row(params) == {
+        "user": "shop",
+        "app.api_key": "<removed>",
+        "options": "-c app.api_key=<removed> --search_path=public -capp.token=<removed>",
+    }
+
+
+def test_the_reader_ends_one_batch_at_each_ready(tmp_path: Path) -> None:
+    query = "SELECT left FROM stock WHERE sku = $1"
+    bind = {"portal": "", "statement": "", "parameters": ["mug"], "results": []}
+    found = [
+        data_row("to_server", "P", 1.0, statement="", query=query),
+        data_row("to_server", "B", 1.1, **bind),
+        data_row("to_server", "E", 1.2, portal=""),
+        data_row("to_server", "S", 1.3),
+        data_row("to_server", "B", 1.4, **bind),
+        data_row("to_server", "E", 1.5, portal=""),
+        data_row("to_server", "S", 1.6),
+        data_row("to_server", "B", 1.7, **bind),
+        data_row("to_server", "E", 1.8, portal=""),
+        data_row("to_server", "S", 1.9),
+        data_row("from_server", "C", 1.95, command="SELECT 0"),
+        data_row("from_server", "Z", 1.96, status="I"),
+        data_row("from_server", "E", 2.0, message="stock is locked"),
+        data_row("from_server", "Z", 2.1, status="I"),
+        data_row("from_server", "D", 2.2, values=["12"]),
+        data_row("from_server", "C", 2.3, command="SELECT 1"),
+        data_row("from_server", "Z", 2.4, status="I"),
+    ]
+    (tmp_path / db_proxy.FILE).write_text("".join(json.dumps(r) + "\n" for r in found))
+    items, _ = trace.read_database(tmp_path / db_proxy.FILE)
+    # The error of the second batch does not stop the third batch, after its own Sync. The
+    # ReadyForQuery of the first batch comes after its execute has its end.
+    assert [(it["output"], it["error"]) for it in items] == [
+        ("SELECT 0", None),
+        (None, "stock is locked"),
+        ('["12"]\nSELECT 1', None),
     ]

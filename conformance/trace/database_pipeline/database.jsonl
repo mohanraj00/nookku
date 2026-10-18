@@ -1,0 +1,12 @@
+{"v": 1, "type": "message", "database": "shop-db", "connection": 1, "ts": 1791273611.0, "direction": "to_server", "tag": "P", "size": 8, "fields": {"statement": "", "query": "SELECT left FROM stock WHERE sku = $1"}}
+{"v": 1, "type": "message", "database": "shop-db", "connection": 1, "ts": 1791273611.0, "direction": "to_server", "tag": "B", "size": 8, "fields": {"portal": "", "statement": "", "parameters": ["mug"], "results": []}}
+{"v": 1, "type": "message", "database": "shop-db", "connection": 1, "ts": 1791273611.0, "direction": "to_server", "tag": "E", "size": 8, "fields": {"portal": ""}}
+{"v": 1, "type": "message", "database": "shop-db", "connection": 1, "ts": 1791273611.0, "direction": "to_server", "tag": "S", "size": 8, "fields": null}
+{"v": 1, "type": "message", "database": "shop-db", "connection": 1, "ts": 1791273611.1, "direction": "to_server", "tag": "B", "size": 8, "fields": {"portal": "", "statement": "", "parameters": ["mug"], "results": []}}
+{"v": 1, "type": "message", "database": "shop-db", "connection": 1, "ts": 1791273611.1, "direction": "to_server", "tag": "E", "size": 8, "fields": {"portal": ""}}
+{"v": 1, "type": "message", "database": "shop-db", "connection": 1, "ts": 1791273611.1, "direction": "to_server", "tag": "S", "size": 8, "fields": null}
+{"v": 1, "type": "message", "database": "shop-db", "connection": 1, "ts": 1791273611.5, "direction": "from_server", "tag": "E", "size": 8, "fields": {"message": "stock is locked"}}
+{"v": 1, "type": "message", "database": "shop-db", "connection": 1, "ts": 1791273611.6, "direction": "from_server", "tag": "Z", "size": 8, "fields": {"status": "I"}}
+{"v": 1, "type": "message", "database": "shop-db", "connection": 1, "ts": 1791273611.7, "direction": "from_server", "tag": "D", "size": 8, "fields": {"values": ["12"]}}
+{"v": 1, "type": "message", "database": "shop-db", "connection": 1, "ts": 1791273611.8, "direction": "from_server", "tag": "C", "size": 8, "fields": {"command": "SELECT 1"}}
+{"v": 1, "type": "message", "database": "shop-db", "connection": 1, "ts": 1791273611.9, "direction": "from_server", "tag": "Z", "size": 8, "fields": {"status": "I"}}

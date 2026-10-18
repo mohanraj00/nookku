@@ -3952,6 +3952,72 @@ DATABASE_FORMATS_CASE = {
         "findings": [],
     },
 }
+# Two batches in one pipeline: an error in the first batch does not stop the second batch,
+# after its own Sync. Each ReadyForQuery ends the oldest batch (SPEC.md section 8.4).
+PIPELINE_BIND = {"portal": "", "statement": "", "parameters": ["mug"], "results": []}
+PIPELINE_ROWS = [
+    pg(11, "to_server", "P", {"statement": "", "query": STOCK_BY_SKU}),
+    pg(11, "to_server", "B", PIPELINE_BIND),
+    pg(11, "to_server", "E", {"portal": ""}),
+    pg(11, "to_server", "S"),
+    pg(11.1, "to_server", "B", PIPELINE_BIND),
+    pg(11.1, "to_server", "E", {"portal": ""}),
+    pg(11.1, "to_server", "S"),
+    pg(11.5, "from_server", "E", {"message": "stock is locked"}),
+    pg(11.6, "from_server", "Z", {"status": "I"}),
+    pg(11.7, "from_server", "D", {"values": ["12"]}),
+    pg(11.8, "from_server", "C", {"command": "SELECT 1"}),
+    pg(11.9, "from_server", "Z", {"status": "I"}),
+]
+DATABASE_PIPELINE_CASE = {
+    "tap": [window(10, 20)],
+    "manifest": {"test": "20261018-090000-db03", "model_sessions": []},
+    "sessions": {},
+    "database": PIPELINE_ROWS,
+    "trace": [
+        ditem(
+            1,
+            11,
+            3,
+            STOCK_BY_SKU,
+            input={"parameters": ["mug"]},
+            error="stock is locked",
+            result_line=8,
+        ),
+        ditem(
+            1,
+            11.1,
+            6,
+            STOCK_BY_SKU,
+            input={"parameters": ["mug"]},
+            output='["12"]\nSELECT 1',
+            result_line=11,
+        ),
+    ],
+    "findings": {
+        "v": "0.2",
+        "test": "20261018-090000-db03",
+        "turns": 1,
+        "items": 2,
+        "sessions": [],
+        "otel": None,
+        "backend": None,
+        "model_api": None,
+        "mcp": None,
+        "database": {"file": "database.jsonl", "rows": 12, "items": 2, "ignored": {}},
+        "counts": counts(database_error=1),
+        "findings": [
+            {
+                "check": "database_error",
+                "turn": 1,
+                "detail": "shop-db: SELECT: stock is locked",
+                "harness": "database",
+                "session": "shop-db",
+                "source": {"file": "database.jsonl", "line": 3, "result_line": 8},
+            }
+        ],
+    },
+}
 # Claude Code 2.1.300 and 2.1.301: the lines api-request-shape, api-request-blob and api-request
 # hold the model requests of the harness. Each message and tool call in them is also in a user or
 # an assistant line. The other parts are the harness's own instructions. Thus the reader counts
@@ -4107,6 +4173,7 @@ TRACE_CASES = {
     "mcp_toy_shop": MCP_CASE,
     "database_toy_shop": DATABASE_CASE,
     "database_formats": DATABASE_FORMATS_CASE,
+    "database_pipeline": DATABASE_PIPELINE_CASE,
 }
 
 
