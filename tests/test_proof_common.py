@@ -1,3 +1,4 @@
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -10,12 +11,16 @@ from proof_common import (
     PLUGIN_DIR,
     claude_events,
     claude_isolated,
+    copy_hidden,
     foreign_plugins,
+    hide,
     json_lines,
     nookku_servers,
 )
 
+from nookku.audit import audit
 from nookku.mcp import SERVER
+from nookku.record import Writer
 
 # U+2028, U+2029 and U+0085, written as escapes.
 SEPARATORS = "".join(chr(c) for c in (0x2028, 0x2029, 0x85))
@@ -74,17 +79,73 @@ def test_the_result_and_the_plugins_of_a_clean_session() -> None:
     assert plugins == ["builtin@x", "nookku@x"]
 
 
+def _stop_text(init: dict) -> str:
+    with pytest.raises(SystemExit) as stopped:
+        claude_events(json.dumps(init))
+    return str(stopped.value)
+
+
 def test_an_init_event_with_no_plugin_list_stops_the_proof() -> None:
     init = {"type": "system", "subtype": "init", "mcp_servers": []}
-    with pytest.raises(SystemExit, match="no list of plugins"):
-        claude_events(json.dumps(init))
+    assert _stop_text(init) == "the init event has no list of plugins"
+
+
+def test_an_init_event_with_no_server_list_stops_the_proof() -> None:
+    init = _init("builtin")
+    del init["mcp_servers"]
+    assert _stop_text(init) == "the init event has no list of MCP servers"
 
 
 def test_an_init_event_with_a_server_that_is_not_an_object_stops_the_proof() -> None:
     init = _init("builtin")
     init["mcp_servers"] = ["nookku"]
-    with pytest.raises(SystemExit, match="no list of plugins"):
-        claude_events(json.dumps(init))
+    assert _stop_text(init) == (
+        "an item of the MCP servers list of the init event is not an object: ['nookku']"
+    )
+
+
+def test_an_init_event_with_a_plugin_that_is_not_an_object_stops_the_proof() -> None:
+    init = _init("builtin")
+    init["plugins"].append("toy-mod")
+    assert _stop_text(init) == (
+        "an item of the plugins list of the init event is not an object: ['toy-mod']"
+    )
+
+
+# A toy page key and a toy cookie value. They are not secrets of a real page.
+KEY = "toyKey0123456789toyKey0123456789toyKey01234"
+COOKIE = "toyCookie0123456789toyCookie0123456789toyCo"
+
+
+def test_a_secret_becomes_a_marker_with_its_sha256() -> None:
+    digest = hashlib.sha256(KEY.encode()).hexdigest()
+    assert hide(f"-H 'X-Nookku-Page: {KEY}' -d x", KEY) == (
+        f"-H 'X-Nookku-Page: <secret removed, sha256 {digest}>' -d x"
+    )
+    # The detail of a blocked_call row can end in the first part of a secret.
+    assert hide(f"-H 'X-Nookku-Page: {KEY[:20]}", KEY) == (
+        f"-H 'X-Nookku-Page: <secret removed, sha256 {digest}>"
+    )
+    assert hide("no secret here", KEY) == "no secret here"
+
+
+def test_the_copy_of_a_relay_record_hides_the_secrets_and_gives_the_same_audit(
+    tmp_path: Path,
+) -> None:
+    tap, relay = tmp_path / "tap.jsonl", tmp_path / "relay.jsonl"
+    rec = Writer(relay)
+    rec.append({"type": "turn", "harness": "claude-code", "said": "hi", "shown": "hello"})
+    detail = json.dumps({"command": f"curl -H 'Cookie: n={COOKIE}' -H 'X-Nookku-Page: {KEY}'"})
+    rec.append({"type": "blocked_call", "harness": "claude-code", "tool": "Bash", "detail": detail})
+    Writer(tap).append({"type": "exchange", "input": "hi", "status": 200, "reply": "hello"})
+    out = tmp_path / "copy.jsonl"
+    copy_hidden(relay, out, (COOKIE, KEY, ""))
+    text = out.read_text(encoding="utf-8")
+    assert COOKIE not in text and KEY not in text
+    assert text.count("<secret removed, sha256 ") == 2
+    # The turn line keeps its bytes, and the audit of the copy is the same.
+    assert text.split("\n")[0] == relay.read_text(encoding="utf-8").split("\n")[0]
+    assert audit(tap, out).as_dict() == audit(tap, relay).as_dict()
 
 
 def test_an_mcp_server_of_the_user_stops_the_proof() -> None:

@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
+import re
 import shutil
 import sys
 from pathlib import Path
@@ -14,7 +16,7 @@ ENTRY = [sys.executable, str(ROOT / "tests" / "toy_entry.py")]
 
 # The Agent SDK of the toy apps. A new release bundles a new Claude Code, and the session reader is
 # tested only for the versions in TESTED of trace.py (#35). Change this pin only with the proofs.
-AGENT_SDK = "claude-agent-sdk==0.2.164"
+AGENT_SDK = "claude-agent-sdk==0.2.168"
 # In print mode, the relay refuses a test unless this variable stops the title request of Claude
 # Code, which can hold a blocked prompt (SPEC.md section 5, #199).
 NO_TITLE = {"CLAUDE_CODE_DISABLE_TERMINAL_TITLE": "1"}
@@ -25,6 +27,25 @@ NO_TITLE = {"CLAUDE_CODE_DISABLE_TERMINAL_TITLE": "1"}
 # the mods of ~/.claude/mods, and no flag stops them, so each run checks the plugins of its init
 # event (#401).
 PLUGIN_DIR = ROOT / "plugins" / "nookku"
+# A model answer can quote instruction files. These hold the instructions on this machine.
+INSTRUCTIONS = [
+    Path.home() / ".claude" / "CLAUDE.md",
+    Path.home() / ".codex" / "AGENTS.md",
+    ROOT / "CLAUDE.md",
+    ROOT / "AGENTS.md",
+]
+
+
+def private(text: str) -> bool:
+    """True if the text shares 8 words in a row with an instruction file."""
+    words = re.findall(r"\w+", text.lower())
+    grams = {" ".join(words[i : i + 8]) for i in range(len(words) - 7)}
+    for path in INSTRUCTIONS:
+        if path.exists():
+            other = re.findall(r"\w+", path.read_text(encoding="utf-8").lower())
+            if grams & {" ".join(other[i : i + 8]) for i in range(len(other) - 7)}:
+                return True
+    return False
 
 
 def nookku_servers() -> dict[str, Any]:
@@ -63,9 +84,13 @@ def claude_events(stdout: str) -> tuple[dict[str, Any], list[str]]:
     result = next((e for e in reversed(events) if e.get("type") == "result"), {})
     if init is None:
         sys.exit(f"the claude output has no init event: {stdout.strip()[-300:]}")
-    lists = [init.get("plugins"), init.get("mcp_servers")]
-    if not all(isinstance(x, list) and all(isinstance(i, dict) for i in x) for x in lists):
-        sys.exit("the init event has no list of plugins or of MCP servers")
+    for key, name in (("plugins", "plugins"), ("mcp_servers", "MCP servers")):
+        items = init.get(key)
+        if not isinstance(items, list):
+            sys.exit(f"the init event has no list of {name}")
+        bad = [i for i in items if not isinstance(i, dict)]
+        if bad:
+            sys.exit(f"an item of the {name} list of the init event is not an object: {bad}")
     servers = [str(s.get("name")) for s in init["mcp_servers"]]
     if set(servers) - set(nookku_servers()["mcpServers"]):
         sys.exit(f"an MCP server other than nookku loaded: {servers}")
@@ -85,6 +110,41 @@ def json_lines(text: str) -> list[Any]:
     can hold these characters unescaped (#31).
     """
     return [json.loads(x) for x in text.split("\n") if x.startswith("{")]
+
+
+def hide(text: str, secret: str) -> str:
+    """The text with a marker and the SHA-256 of the secret in place of the secret. The detail of
+    a blocked_call row keeps 300 code points, so its end can hold the first part of a secret. A
+    first part of 8 characters or more at the end also becomes the marker."""
+    marker = f"<secret removed, sha256 {hashlib.sha256(secret.encode()).hexdigest()}>"
+    text = text.replace(secret, marker)
+    for n in range(len(secret) - 1, 7, -1):
+        if text.endswith(secret[:n]):
+            return text[:-n] + marker
+    return text
+
+
+def copy_hidden(src: Path, dst: Path, secrets: tuple[str, ...]) -> None:
+    """Copy a relay record, with each secret in the detail of a blocked_call row hidden. The other
+    lines keep their bytes. The detail has no hash and the audit only counts these rows, so the
+    copy gives the same audit (SPEC.md section 2.2). Stop if a secret is still in the copy."""
+    secrets = tuple(s for s in secrets if s)
+    lines = []
+    for line in src.read_text(encoding="utf-8").split("\n"):
+        if not line:
+            continue
+        row = json.loads(line)
+        if row.get("type") == "blocked_call":
+            detail = row["detail"]
+            for s in secrets:
+                detail = hide(detail, s)
+            if detail != row["detail"]:
+                line = json.dumps(row | {"detail": detail}, ensure_ascii=False)
+        lines.append(line)
+    text = "".join(x + "\n" for x in lines)
+    if any(s in text for s in secrets):
+        sys.exit(f"a secret of the proof is still in the copy of {src.name}")
+    dst.write_text(text, encoding="utf-8")
 
 
 MESSAGES = [
