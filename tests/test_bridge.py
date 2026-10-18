@@ -1105,6 +1105,87 @@ def test_the_stdio_wrapper_records_the_mcp_calls(tmp_path: Path, homes: tuple) -
     assert seal.verify(folder)["intact"]
 
 
+PG_APP = """
+import json, os, socket, sys
+from urllib.parse import urlsplit
+
+def message(tag, body=b""):
+    return tag + (len(body) + 4).to_bytes(4, "big") + body
+
+def until(sock, end):
+    out = b""
+    while not any(out[i:i + 1] == end for i in _starts(out)):
+        out += sock.recv(65536)
+    return out
+
+def _starts(out):
+    at = 0
+    while at + 5 <= len(out) and at + 1 + int.from_bytes(out[at + 1:at + 5], "big") <= len(out):
+        yield at
+        at += 1 + int.from_bytes(out[at + 1:at + 5], "big")
+
+url = urlsplit(os.environ["DATABASE_URL"])
+sock = socket.create_connection((url.hostname, url.port), timeout=10)
+sock.sendall((8).to_bytes(4, "big") + (80877103).to_bytes(4, "big"))
+assert sock.recv(1) == b"N"
+params = b"user\\0" + url.username.encode() + b"\\0database\\0shop\\0\\0"
+sock.sendall((len(params) + 8).to_bytes(4, "big") + (196608).to_bytes(4, "big") + params)
+until(sock, b"R")
+sock.sendall(message(b"p", url.password.encode() + b"\\0"))
+until(sock, b"Z")
+for raw in sys.stdin.buffer:
+    request = json.loads(raw)
+    sock.sendall(message(b"Q", b"SELECT left FROM stock WHERE sku = 'teapot-set'\\0"))
+    got = until(sock, b"Z")
+    row = got[got.index(b"D") + 11:]
+    left = row[:row.index(b"C")].decode()
+    reply = f"{left} teapot sets left."
+    sys.stdout.write(json.dumps({"v": 1, "id": request["id"], "reply": reply}) + "\\n")
+    sys.stdout.flush()
+"""
+
+
+def test_the_postgres_proxy_records_the_queries(
+    tmp_path: Path, homes: tuple, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from toy_pg_server import PASSWORD, PgServer
+
+    root = project(tmp_path, [sys.executable, "-c", PG_APP])
+    part = {"name": "shop-db", "kind": "postgres", "env": "DATABASE_URL", "address": None}
+    egress = {"registered": time.time(), "answer": discovery.make(databases=[part])}
+    with PgServer() as server:
+        monkeypatch.setenv("DATABASE_URL", server.url)
+        cur = bridge.start(root, "tester-1", egress=egress)
+        try:
+            shown, ok = bridge.send(cur, "Do you have the teapot set?")
+        finally:
+            bridge.end(root)
+    assert ok and shown == "3 teapot sets left."
+    folder = Path(cur["dir"])
+    manifest = json.loads((folder / "manifest.json").read_text())
+    assert manifest["egress"]["proxies"]["shop-db"].startswith("postgresql://127.0.0.1:")
+    assert manifest["egress"]["unseen"] == []
+    for name in ("manifest.json", "database.jsonl", "bridge.log", "trace.jsonl"):
+        assert PASSWORD.decode() not in (folder / name).read_text(), name
+    items = [json.loads(x) for x in (folder / "trace.jsonl").read_text().splitlines()]
+    assert [(it["harness"], it["kind"], it["turn"], it["output"]) for it in items] == [
+        ("database", "query", 1, '["3"]\nSELECT 1')
+    ]
+    assert seal.verify(folder)["intact"]
+
+
+def test_a_database_variable_with_no_value_stops_the_start(
+    tmp_path: Path, homes: tuple, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = project(tmp_path, [sys.executable, "-c", PG_APP])
+    part = {"name": "shop-db", "kind": "postgres", "env": "DATABASE_URL", "address": None}
+    egress = {"registered": time.time(), "answer": discovery.make(databases=[part])}
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    with pytest.raises(bridge.BridgeError, match="the variable DATABASE_URL has no value"):
+        bridge.start(root, "tester-1", egress=egress)
+    assert bridge.current(root) is None
+
+
 MODEL_APP = """
 import json, os, sys, urllib.request
 

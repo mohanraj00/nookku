@@ -1,0 +1,74 @@
+{
+ "v": "0.2",
+ "test": "20261006-080000-db01",
+ "turns": 2,
+ "items": 4,
+ "sessions": [],
+ "otel": null,
+ "backend": null,
+ "model_api": null,
+ "mcp": null,
+ "database": {
+  "file": "database.jsonl",
+  "rows": 21,
+  "items": 4,
+  "ignored": {
+   "connect": 1
+  }
+ },
+ "counts": {
+  "agent_error": 0,
+  "repeated_reply": 0,
+  "reply_not_from_model": 0,
+  "tool_error": 0,
+  "command_failed": 0,
+  "span_error": 0,
+  "backend_error": 0,
+  "model_api_error": 0,
+  "database_error": 2,
+  "unseen_call": 0,
+  "model_error": 0,
+  "turn_without_model": 0,
+  "item_between_turns": 1,
+  "otel_tool_not_in_session": 0,
+  "server_not_from_app": 0,
+  "session_inferred": 0,
+  "version_untested": 0
+ },
+ "findings": [
+  {
+   "check": "database_error",
+   "turn": 2,
+   "detail": "shop-db: SELECT: relation \"nope\" does not exist",
+   "harness": "database",
+   "session": "shop-db",
+   "source": {
+    "file": "database.jsonl",
+    "line": 18,
+    "result_line": 20
+   }
+  },
+  {
+   "check": "database_error",
+   "turn": null,
+   "detail": "shop-db: SELECT: no result in database.jsonl",
+   "harness": "database",
+   "session": "shop-db",
+   "source": {
+    "file": "database.jsonl",
+    "line": 21
+   }
+  },
+  {
+   "check": "item_between_turns",
+   "turn": null,
+   "detail": "a query item",
+   "harness": "database",
+   "session": "shop-db",
+   "source": {
+    "file": "database.jsonl",
+    "line": 21
+   }
+  }
+ ]
+}

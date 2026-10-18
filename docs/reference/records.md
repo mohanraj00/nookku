@@ -40,7 +40,7 @@ Each test is a new conversation, with a new test id and a new entry process. The
 | `bridge.log` | The steps of the bridge, and each error of the [trace](glossary.md#trace), the [audit](glossary.md#audit) or the seal. | text |
 | `manifest.json` | The test id, the times, the entry, the harness versions and the SHA-256 of each configuration file. | [SPEC.md section 7.2](../../SPEC.md#72-start-and-end) |
 | `sessions/` | A copy of each session file of your app's model sessions. | [SPEC.md section 7.3](../../SPEC.md#73-model-sessions) |
-| `trace.jsonl` | Each message, tool call and command of those sessions, and each item of `otel.jsonl`, `backend.jsonl`, `model_api.jsonl` and `mcp.jsonl`, with its result, its turn and its line in the source file. | [SPEC.md section 8.2](../../SPEC.md#82-trace-record) |
+| `trace.jsonl` | Each message, tool call and command of those sessions, and each item of `otel.jsonl`, `backend.jsonl`, `model_api.jsonl`, `mcp.jsonl` and `database.jsonl`, with its result, its turn and its line in the source file. | [SPEC.md section 8.2](../../SPEC.md#82-trace-record) |
 | `findings.json` | The checks of the trace: failed tools and commands, agent errors, turns with no model item, and more. | [SPEC.md section 8.6](../../SPEC.md#86-findings) |
 | `audit.json` | The audit of the two records, as `nookku audit --json` prints it. | [SPEC.md section 3](../../SPEC.md#3-audit) |
 | `seal.json` | The SHA-256 of each other file at the end of the test. `nookku verify` shows if a file changed after the end. | [SPEC.md section 7.4](../../SPEC.md#74-seal) |
@@ -49,6 +49,7 @@ Each test is a new conversation, with a new test id and a new entry process. The
 | `backend.jsonl` | The calls of your app to its backends. | [SPEC.md section 7.6](../../SPEC.md#76-backend-proxies) |
 | `model_api.jsonl` | The direct calls of your app to a model API. | [SPEC.md section 7.7](../../SPEC.md#77-model-api-proxies) |
 | `mcp.jsonl` | The calls of your app to its MCP servers. | [SPEC.md section 7.12](../../SPEC.md#712-mcp-proxies) |
+| `database.jsonl` | The messages of your app and its Postgres databases. | [SPEC.md section 7.13](../../SPEC.md#713-postgres-proxies) |
 | `otel.jsonl` | The OpenTelemetry spans and logs of your app, if it sent any. | [SPEC.md section 7.5](../../SPEC.md#75-otlp-receiver) |
 
 The seal does not contain `report.md`, `bridge.log`, `seal.json` and `denied.jsonl`, because these files change after the end.
@@ -61,7 +62,7 @@ The seal does not contain `report.md`, `bridge.log`, `seal.json` and `denied.jso
 | [Agent contract](glossary.md#agent-contract) | `1` | [SPEC.md section 6](../../SPEC.md#6-agent-contract-version-1) |
 | Trace row | `"0.3"` | [SPEC.md section 8.2](../../SPEC.md#82-trace-record) |
 | Seal | `1` | [SPEC.md section 7.4](../../SPEC.md#74-seal) |
-| `otel.jsonl`, `backend.jsonl`, `model_api.jsonl` and `mcp.jsonl` rows | `1` | [SPEC.md sections 7.5 to 7.7 and 7.12](../../SPEC.md#7-tests) |
+| `otel.jsonl`, `backend.jsonl`, `model_api.jsonl`, `mcp.jsonl` and `database.jsonl` rows | `1` | [SPEC.md sections 7.5 to 7.7, 7.12 and 7.13](../../SPEC.md#7-tests) |
 
 ## Conformance cases
 

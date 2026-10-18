@@ -58,6 +58,12 @@ An MCP server of your app gets a proxy in the same way, if the app reads the ser
 
 A server with no variable has no proxy. The start text names it with `(no proxy)`. The trace shows each `tools/call` of `mcp.jsonl` as a `tool_call` item, and the check `tool_error` finds each call with an error.
 
+## Postgres databases
+
+A Postgres database of your app gets a proxy if the app reads its `postgres://` URL from a variable, for example `DATABASE_URL` ([SPEC.md section 7.13](../../SPEC.md#713-postgres-proxies)). The variable must have its value in the [harness](../reference/glossary.md#harness) when the test starts. During the test, the URL has the address of the proxy, with the same user, password and database. The proxy records each query and its rows to `database.jsonl`, and never the password. The trace shows each query as a `query` item, and the check `database_error` finds each query with an error.
+
+The app speaks no TLS to the proxy, so use a URL with no `sslmode`, or with `sslmode=disable`, `allow` or `prefer`. Do not use `gssencmode=require`. The proxy uses TLS to the database if the database agrees. Give the address only in the host and the port of the URL, not in a `host` or `hostaddr` query parameter.
+
 ## Example
 
 [examples/toy-shop-full/](../../examples/toy-shop-full/app.py) has a stock service and a planted bug that only the backend calls show. After 1 `reserve` tool call, the app reserves the items 2 times. In the telemetry proof, each report cited both `POST /reserve` calls of turn 2 ([results](../results.md#full-telemetry-with-one-app), [method](../../scripts/proof_telemetry.py)).

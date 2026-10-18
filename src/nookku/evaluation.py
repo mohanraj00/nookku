@@ -178,6 +178,12 @@ def render_item(it: dict[str, Any], line: int) -> str:
         if it["error"] is not None:
             return out + f"error:\n{_cut(it['error'], line)}\n"
         return out + f"response:\n{_cut(it['output'] or '', line)}\n"
+    if it["kind"] == "query":
+        out = f"{head}: database {it['session']}: {it['name']}\n"
+        out += f"request: {_cut(_value(it['input']), line)}\n"
+        if it["error"] is not None:
+            out += f"error:\n{_cut(it['error'], line)}\n"
+        return out + f"result:\n{_cut(it['output'] or '', line)}\n"
     if it["kind"] in ("span", "log"):
         who = it["service"] or "a service"
         out = f"{head}: {who} {it['kind']} {it['name'] or '(no name)'}\n"
@@ -322,7 +328,8 @@ def transcript(folder: Path, compact: bool = False) -> str:
         "tap.jsonl. A model item comes from the app's own model sessions, or from the "
         "OpenTelemetry spans and logs of the app (otel.jsonl), or from the calls of the app to "
         "its backends (backend.jsonl), or from its direct calls to a model API "
-        "(model_api.jsonl), or from its calls to its MCP servers (mcp.jsonl). [trace.jsonl:N] is "
+        "(model_api.jsonl), or from its calls to its MCP servers (mcp.jsonl) and its Postgres "
+        "databases (database.jsonl). [trace.jsonl:N] is "
         f"line N of {folder / 'trace.jsonl'}.\n",
     ]
     if compact:

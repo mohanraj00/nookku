@@ -124,7 +124,7 @@ def test_a_start_takes_the_answer_into_the_manifest_and_removes_it(tmp_path: Pat
     answer = {
         **EMPTY,
         "backends": [STOCK],
-        "databases": [{"name": "shop", "kind": "postgres", "env": "DATABASE_URL", "address": None}],
+        "databases": [{"name": "shop", "kind": "mysql", "env": "DATABASE_URL", "address": None}],
     }
     registered = discovery.register(root, answer)["registered"]
     text = kit.start_test(root, "t")
@@ -141,7 +141,7 @@ def test_a_start_takes_the_answer_into_the_manifest_and_removes_it(tmp_path: Pat
         assert not (Path(cur["dir"]) / bridge.EGRESS_FILE).exists()
         assert not discovery.path(root).exists()
         assert "- backend stock: STOCK_URL -> http://127.0.0.1:9 (proxy)" in text
-        assert "- database shop: postgres, DATABASE_URL (no proxy)" in text
+        assert "- database shop: mysql, DATABASE_URL (no proxy)" in text
     finally:
         bridge.end(root)
     # The next test needs a new answer.

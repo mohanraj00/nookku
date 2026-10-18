@@ -826,6 +826,7 @@ def counts(**n: int) -> dict:
         "span_error",
         "backend_error",
         "model_api_error",
+        "database_error",
         "unseen_call",
         "model_error",
         "turn_without_model",
@@ -994,6 +995,7 @@ CLAUDE_CASE = {
         "backend": None,
         "model_api": None,
         "mcp": None,
+        "database": None,
         "counts": counts(agent_error=1, tool_error=3, turn_without_model=1, item_between_turns=2),
         "findings": [
             {"check": "agent_error", "turn": 2, "detail": "the agent gave status 500"},
@@ -1311,6 +1313,7 @@ CODEX_CASE = {
         "backend": None,
         "model_api": None,
         "mcp": None,
+        "database": None,
         "counts": counts(
             tool_error=3,
             command_failed=2,
@@ -1438,6 +1441,7 @@ VERSION_CASE = {
         "backend": None,
         "model_api": None,
         "mcp": None,
+        "database": None,
         "counts": counts(version_untested=2),
         "findings": [
             {
@@ -1545,6 +1549,7 @@ CODEX_ERROR_CASE = {
         "backend": None,
         "model_api": None,
         "mcp": None,
+        "database": None,
         "counts": counts(model_error=4),
         "findings": [
             {
@@ -1592,6 +1597,7 @@ NO_MODEL_CASE = {
         "backend": None,
         "model_api": None,
         "mcp": None,
+        "database": None,
         "counts": counts(),
         "findings": [],
     },
@@ -1658,6 +1664,7 @@ def repeated_case(test: str, keys: dict | None, found: list[dict]) -> dict:
             "backend": None,
             "model_api": None,
             "mcp": None,
+            "database": None,
             "counts": counts(
                 agent_error=1, repeated_reply=sum(f["check"] == "repeated_reply" for f in found)
             ),
@@ -1755,6 +1762,7 @@ def reply_case(test: str, keys: dict | None, structured: bool, found: list[dict]
             "backend": None,
             "model_api": None,
             "mcp": None,
+            "database": None,
             "counts": counts(
                 reply_not_from_model=len(found), turn_without_model=len(without_model)
             ),
@@ -2026,6 +2034,7 @@ OTEL_CASE = {
         "backend": None,
         "model_api": None,
         "mcp": None,
+        "database": None,
         "counts": counts(span_error=2, item_between_turns=1, otel_tool_not_in_session=1),
         "findings": [
             {
@@ -2239,6 +2248,7 @@ STRUCTURED_CASE = {
         "backend": None,
         "model_api": None,
         "mcp": None,
+        "database": None,
         "counts": counts(tool_error=2, otel_tool_not_in_session=2),
         "findings": [
             {
@@ -2407,6 +2417,7 @@ BACKEND_CASE = {
         "backend": {"file": "backend.jsonl", "rows": 5, "items": 4, "ignored": {"note": 1}},
         "model_api": None,
         "mcp": None,
+        "database": None,
         "counts": counts(backend_error=2, item_between_turns=1),
         "findings": [
             {
@@ -2780,6 +2791,7 @@ MODEL_API_CASE = {
             "other_calls": 1,
         },
         "mcp": None,
+        "database": None,
         "counts": counts(model_api_error=1),
         "findings": [
             {
@@ -3032,6 +3044,7 @@ RESPONSES_CASE = {
             "other_calls": 1,
         },
         "mcp": None,
+        "database": None,
         "counts": counts(model_api_error=1),
         "findings": [
             {
@@ -3174,6 +3187,7 @@ SERVERS_CASE = {
         "backend": None,
         "model_api": None,
         "mcp": None,
+        "database": None,
         "counts": counts(server_not_from_app=3),
         "findings": [
             {
@@ -3480,6 +3494,7 @@ DECISIONS_CASE = {
             "other_calls": 0,
         },
         "mcp": None,
+        "database": None,
         "counts": counts(),
         "findings": [],
     },
@@ -3576,6 +3591,7 @@ UNSEEN_CASE = {
         "backend": None,
         "model_api": None,
         "mcp": None,
+        "database": None,
         "counts": counts(unseen_call=4),
         "findings": [
             unseen(2, 1, "HTTP https://stock.toy.test/stock at stock.toy.test:443"),
@@ -3650,6 +3666,7 @@ UNSEEN_STDIO_CASE = {
         "backend": None,
         "model_api": None,
         "mcp": None,
+        "database": None,
         "counts": counts(unseen_call=1),
         "findings": [unseen(1, 1, "MCP tools/call at no network address")],
     },
@@ -3744,6 +3761,7 @@ MCP_CASE = {
         "backend": None,
         "model_api": None,
         "mcp": {"file": "mcp.jsonl", "rows": 6, "items": 3, "ignored": {"note": 1}},
+        "database": None,
         "counts": counts(tool_error=2),
         "findings": [
             {
@@ -3767,6 +3785,239 @@ MCP_CASE = {
 }
 
 
+# Database queries (SPEC.md sections 7.13 and 8.4): the rows of database.jsonl as the Postgres
+# proxy writes them. In turn 1, a password message and a simple query. In turn 2, an extended
+# query and a query that fails. Between the turns, a query with no result at the end of the file.
+def pg(t: float, direction: str, tag: str, fields: dict | None = None) -> dict:
+    row = {"v": 1, "type": "message", "database": "shop-db", "connection": 1, "ts": T0 + t}
+    return {**row, "direction": direction, "tag": tag, "size": 8, "fields": fields}
+
+
+STOCK_QUERY = "SELECT left FROM stock WHERE sku = 'teapot-set'"
+STOCK_BY_SKU = "SELECT left FROM stock WHERE sku = $1"
+PG_ROWS = [
+    {
+        "v": 1,
+        "type": "connect",
+        "database": "shop-db",
+        "connection": 1,
+        "ts": T0 + 10.5,
+        "parameters": {"user": "shop", "database": "shop"},
+        "declined": ["ssl"],
+        "error": None,
+    },
+    pg(10.6, "to_server", "p"),
+    pg(10.7, "from_server", "R", {"auth": 0}),
+    pg(11, "to_server", "Q", {"query": STOCK_QUERY}),
+    pg(11.1, "from_server", "T", {"columns": ["left"]}),
+    pg(11.1, "from_server", "D", {"values": ["3"]}),
+    pg(11.1, "from_server", "C", {"command": "SELECT 1"}),
+    pg(11.1, "from_server", "Z", {"status": "I"}),
+    pg(31, "to_server", "P", {"statement": "", "query": STOCK_BY_SKU}),
+    pg(31, "to_server", "B", {"portal": "", "statement": "", "parameters": ["mug"], "results": []}),
+    pg(31, "to_server", "E", {"portal": ""}),
+    pg(31, "to_server", "S"),
+    pg(31.1, "from_server", "1"),
+    pg(31.1, "from_server", "2"),
+    pg(31.1, "from_server", "D", {"values": ["12"]}),
+    pg(31.1, "from_server", "C", {"command": "SELECT 1"}),
+    pg(31.1, "from_server", "Z", {"status": "I"}),
+    pg(32, "to_server", "Q", {"query": "SELECT * FROM nope"}),
+    pg(
+        32.1,
+        "from_server",
+        "E",
+        {"severity": "ERROR", "code": "42P01", "message": 'relation "nope" does not exist'},
+    ),
+    pg(32.1, "from_server", "Z", {"status": "I"}),
+    pg(45, "to_server", "Q", {"query": "SELECT 1"}),
+]
+
+
+def ditem(turn: int | None, ts: float, line: int, query: str, **fields: Any) -> dict:
+    """An expected trace row from database.jsonl."""
+    row = item(turn, "claude-code", ts, "query", line, **fields)
+    row.update(harness="database", session="shop-db", name="SELECT")
+    row["input"] = {"query": query, "parameters": fields.get("input", {}).get("parameters")}
+    row["source"]["file"] = "database.jsonl"
+    return row
+
+
+NOPE = 'relation "nope" does not exist'
+DATABASE_CASE = {
+    "tap": [window(10, 20), window(30, 40)],
+    "manifest": {"test": "20261006-080000-db01", "model_sessions": []},
+    "sessions": {},
+    "database": PG_ROWS,
+    "trace": [
+        ditem(1, 11, 4, STOCK_QUERY, output='["3"]\nSELECT 1', result_line=8),
+        ditem(
+            2,
+            31,
+            11,
+            STOCK_BY_SKU,
+            input={"parameters": ["mug"]},
+            output='["12"]\nSELECT 1',
+            result_line=16,
+        ),
+        ditem(2, 32, 18, "SELECT * FROM nope", error=NOPE, result_line=20),
+        ditem(None, 45, 21, "SELECT 1", error="no result in database.jsonl"),
+    ],
+    "findings": {
+        "v": "0.2",
+        "test": "20261006-080000-db01",
+        "turns": 2,
+        "items": 4,
+        "sessions": [],
+        "otel": None,
+        "backend": None,
+        "model_api": None,
+        "mcp": None,
+        "database": {"file": "database.jsonl", "rows": 21, "items": 4, "ignored": {"connect": 1}},
+        "counts": counts(database_error=2, item_between_turns=1),
+        "findings": [
+            {
+                "check": "database_error",
+                "turn": 2,
+                "detail": f"shop-db: SELECT: {NOPE}",
+                "harness": "database",
+                "session": "shop-db",
+                "source": {"file": "database.jsonl", "line": 18, "result_line": 20},
+            },
+            {
+                "check": "database_error",
+                "turn": None,
+                "detail": "shop-db: SELECT: no result in database.jsonl",
+                "harness": "database",
+                "session": "shop-db",
+                "source": {"file": "database.jsonl", "line": 21},
+            },
+            {
+                "check": "item_between_turns",
+                "turn": None,
+                "detail": "a query item",
+                "harness": "database",
+                "session": "shop-db",
+                "source": {"file": "database.jsonl", "line": 21},
+            },
+        ],
+    },
+}
+
+
+# Database queries with binary results and other ends (SPEC.md section 8.4). The Bind asks the
+# column in binary, so the value of the data row gives its bytes as base64. The first execute
+# stops at its row limit (s), and the second one is an empty query (I). Neither is an error.
+FORMATS_ROWS = [
+    pg(11, "to_server", "P", {"statement": "", "query": STOCK_BY_SKU}),
+    pg(
+        11, "to_server", "B", {"portal": "", "statement": "", "parameters": ["mug"], "results": [1]}
+    ),
+    pg(11, "to_server", "E", {"portal": ""}),
+    pg(11.1, "to_server", "E", {"portal": ""}),
+    pg(11.5, "from_server", "D", {"values": ["\u0000\u0000\u0000\f"]}),
+    pg(11.6, "from_server", "s"),
+    pg(11.7, "from_server", "I"),
+    pg(11.8, "from_server", "Z", {"status": "I"}),
+]
+DATABASE_FORMATS_CASE = {
+    "tap": [window(10, 20)],
+    "manifest": {"test": "20261018-080000-db02", "model_sessions": []},
+    "sessions": {},
+    "database": FORMATS_ROWS,
+    "trace": [
+        ditem(
+            1,
+            11,
+            3,
+            STOCK_BY_SKU,
+            input={"parameters": ["mug"]},
+            output='[{"base64": "AAAADA=="}]',
+            result_line=6,
+        ),
+        ditem(1, 11.1, 4, STOCK_BY_SKU, input={"parameters": ["mug"]}, result_line=7),
+    ],
+    "findings": {
+        "v": "0.2",
+        "test": "20261018-080000-db02",
+        "turns": 1,
+        "items": 2,
+        "sessions": [],
+        "otel": None,
+        "backend": None,
+        "model_api": None,
+        "mcp": None,
+        "database": {"file": "database.jsonl", "rows": 8, "items": 2, "ignored": {}},
+        "counts": counts(),
+        "findings": [],
+    },
+}
+# Two batches in one pipeline: an error in the first batch does not stop the second batch,
+# after its own Sync. Each ReadyForQuery ends the oldest batch (SPEC.md section 8.4).
+PIPELINE_BIND = {"portal": "", "statement": "", "parameters": ["mug"], "results": []}
+PIPELINE_ROWS = [
+    pg(11, "to_server", "P", {"statement": "", "query": STOCK_BY_SKU}),
+    pg(11, "to_server", "B", PIPELINE_BIND),
+    pg(11, "to_server", "E", {"portal": ""}),
+    pg(11, "to_server", "S"),
+    pg(11.1, "to_server", "B", PIPELINE_BIND),
+    pg(11.1, "to_server", "E", {"portal": ""}),
+    pg(11.1, "to_server", "S"),
+    pg(11.5, "from_server", "E", {"message": "stock is locked"}),
+    pg(11.6, "from_server", "Z", {"status": "I"}),
+    pg(11.7, "from_server", "D", {"values": ["12"]}),
+    pg(11.8, "from_server", "C", {"command": "SELECT 1"}),
+    pg(11.9, "from_server", "Z", {"status": "I"}),
+]
+DATABASE_PIPELINE_CASE = {
+    "tap": [window(10, 20)],
+    "manifest": {"test": "20261018-090000-db03", "model_sessions": []},
+    "sessions": {},
+    "database": PIPELINE_ROWS,
+    "trace": [
+        ditem(
+            1,
+            11,
+            3,
+            STOCK_BY_SKU,
+            input={"parameters": ["mug"]},
+            error="stock is locked",
+            result_line=8,
+        ),
+        ditem(
+            1,
+            11.1,
+            6,
+            STOCK_BY_SKU,
+            input={"parameters": ["mug"]},
+            output='["12"]\nSELECT 1',
+            result_line=11,
+        ),
+    ],
+    "findings": {
+        "v": "0.2",
+        "test": "20261018-090000-db03",
+        "turns": 1,
+        "items": 2,
+        "sessions": [],
+        "otel": None,
+        "backend": None,
+        "model_api": None,
+        "mcp": None,
+        "database": {"file": "database.jsonl", "rows": 12, "items": 2, "ignored": {}},
+        "counts": counts(database_error=1),
+        "findings": [
+            {
+                "check": "database_error",
+                "turn": 1,
+                "detail": "shop-db: SELECT: stock is locked",
+                "harness": "database",
+                "session": "shop-db",
+                "source": {"file": "database.jsonl", "line": 3, "result_line": 8},
+            }
+        ],
+    },
+}
 # Claude Code 2.1.300 and 2.1.301: the lines api-request-shape, api-request-blob and api-request
 # hold the model requests of the harness. Each message and tool call in them is also in a user or
 # an assistant line. The other parts are the harness's own instructions. Thus the reader counts
@@ -3890,6 +4141,7 @@ API_REQUEST_CASE = {
         "backend": None,
         "model_api": None,
         "mcp": None,
+        "database": None,
         "counts": counts(),
         "findings": [],
     },
@@ -3919,6 +4171,9 @@ TRACE_CASES = {
     "unseen_calls": UNSEEN_CASE,
     "unseen_calls_stdio": UNSEEN_STDIO_CASE,
     "mcp_toy_shop": MCP_CASE,
+    "database_toy_shop": DATABASE_CASE,
+    "database_formats": DATABASE_FORMATS_CASE,
+    "database_pipeline": DATABASE_PIPELINE_CASE,
 }
 
 
@@ -5398,11 +5653,11 @@ DISCOVERY_CASES: dict[str, dict] = {
                 "- backend stock: STOCK_URL -> http://127.0.0.1:9100 (proxy)",
                 "- MCP server files: stdio toy-files-mcp --root data (no proxy)",
                 "- MCP server tickets: http TICKETS_MCP_URL -> https://tickets.toy.test/mcp (proxy)",
-                "- database shop: postgres, DATABASE_URL (no proxy)",
+                "- database shop: postgres, DATABASE_URL (proxy)",
                 "- database cart: sqlite, data/cart.db (no proxy)",
                 "- other mail: smtp, sends the order mail (no proxy)",
             ],
-            "unseen": ["files", "shop", "cart", "mail"],
+            "unseen": ["files", "cart", "mail"],
         },
     },
     # A stdio server with a variable gets the wrapper (SPEC.md section 7.12).
@@ -5601,6 +5856,7 @@ def main() -> None:
         write(d / "backend.jsonl", case.get("backend"))
         write(d / "model_api.jsonl", case.get("model_api"))
         write(d / "mcp.jsonl", case.get("mcp"))
+        write(d / "database.jsonl", case.get("database"))
         write(d / "expect_trace.jsonl", case["trace"])
         text = json.dumps(case["findings"], indent=1, ensure_ascii=False)
         (d / "expect_findings.json").write_text(text + "\n")

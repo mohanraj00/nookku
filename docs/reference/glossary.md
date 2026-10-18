@@ -150,6 +150,6 @@ SPEC.md: [section 1](../../SPEC.md#1-parts).
 
 ## Trace
 
-`trace.jsonl` in the test folder: one record of the model items of your app in a test. It joins the session files, `otel.jsonl`, `backend.jsonl`, `model_api.jsonl` and `mcp.jsonl`. Each item has its turn and its line in the source file. `nookku trace` builds it again.
+`trace.jsonl` in the test folder: one record of the model items of your app in a test. It joins the session files, `otel.jsonl`, `backend.jsonl`, `model_api.jsonl`, `mcp.jsonl` and `database.jsonl`. Each item has its turn and its line in the source file. `nookku trace` builds it again.
 
 SPEC.md: [section 8](../../SPEC.md#8-trace).

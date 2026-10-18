@@ -62,13 +62,12 @@
    "- backend stock: STOCK_URL -> http://127.0.0.1:9100 (proxy)",
    "- MCP server files: stdio toy-files-mcp --root data (no proxy)",
    "- MCP server tickets: http TICKETS_MCP_URL -> https://tickets.toy.test/mcp (proxy)",
-   "- database shop: postgres, DATABASE_URL (no proxy)",
+   "- database shop: postgres, DATABASE_URL (proxy)",
    "- database cart: sqlite, data/cart.db (no proxy)",
    "- other mail: smtp, sends the order mail (no proxy)"
   ],
   "unseen": [
    "files",
-   "shop",
    "cart",
    "mail"
   ]

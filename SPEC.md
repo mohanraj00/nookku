@@ -514,7 +514,7 @@ The test folder:
 ```text
 .nookku/tests/<test-id>/
   manifest.json  relay.jsonl  tap.jsonl  app.log  bridge.log
-  otel.jsonl  backend.jsonl  model_api.jsonl  mcp.jsonl  .mcp-closed  trace.jsonl  findings.json  audit.json  seal.json  report.md  denied.jsonl
+  otel.jsonl  backend.jsonl  model_api.jsonl  mcp.jsonl  .mcp-closed  database.jsonl  trace.jsonl  findings.json  audit.json  seal.json  report.md  denied.jsonl
   sessions/claude-code/<session>.jsonl
   sessions/codex/<rollout file>
 ```
@@ -791,7 +791,7 @@ A fresh answer is the answer of `.nookku/discovery.json` with a `registered` tim
 | `model_apis` | `api`: `anthropic` or `openai`. `env`: the variable of its base URL. `url`: the upstream URL, or `null` (section 7.7). | yes (section 7.7) |
 | `backends` | `name`, `env`, `url`: the upstream URL (section 7.6). | yes (section 7.6) |
 | `mcp_servers` | `name`. `transport`: `stdio` or `http`. `env`: the variable that holds the command or the URL, or `null`. `command`: a list of words for `stdio`, else `null`. `url`: the URL for `http`, else `null`. | yes if `env` is not `null` (section 7.12) |
-| `databases` | `name`. `kind`: for example `postgres` or `sqlite`. `env`: the variable of its address, or `null`. `address`: `host:port/database`, a file, or `null`. | no |
+| `databases` | `name`. `kind`: for example `postgres` or `sqlite`. `env`: the variable of its address, or `null`. `address`: `host:port/database`, a file, or `null`. | yes for the `kind` `postgres` if `env` is not `null` (section 7.13) |
 | `other` | `name`, `kind`, `detail`: for example a queue or a mail service. | no |
 
 The rule of the answer:
@@ -836,6 +836,41 @@ A stdio row has these fields:
 
 The wrappers of a test write each row with one write to a file opened with `O_APPEND`, so the rows of 2 wrappers stay apart. At the end of the test, the bridge stops the HTTP proxies after it stops the entry, as in section 7.6. Then it writes the empty file `.mcp-closed` in the test folder. A wrapper writes no row after this file exists. Thus each row is in `mcp.jsonl` before the trace and the seal. A stdio server has no network address, so its value in `proxies` of the manifest is `stdio`.
 
+### 7.13 Postgres proxies
+
+An app can call a Postgres database ([`src/nookku/db_proxy.py`](src/nookku/db_proxy.py)). A database of the egress answer (section 7.11) has a proxy only if its `kind` is `postgres` and its `env` is not `null`. Each other database is in `unseen`.
+
+**The variable.** The proxy takes the address of the database from the value of `env` that the bridge has, because the value can hold the user and the password, and the answer never holds them. The value must be a `postgres://` or `postgresql://` URL with a host. A value with no host, a port that is not valid, a query parameter `host`, `hostaddr`, `port` or `service`, also with an empty value (libpq would connect to that address, past the proxy), an `sslmode` of `require`, `verify-ca` or `verify-full`, or a `gssencmode` of `require` stops the start of the test with an error that names the variable. A variable with no value also stops the start. The port is 5432 if the URL has no port. The bridge gives the entry the same URL in `env`, with the host and the port of the proxy (`127.0.0.1` and a free port). The user, the password, the database and the query of the URL do not change. Nookku never writes the value into a record, the manifest or a log. `proxies` of the manifest holds `postgresql://127.0.0.1:<port>`.
+
+**The copy.** The proxy speaks the Postgres protocol 3.0 over TCP to the app and to the database. It copies each byte of each direction with no change, with one exception at the start of a connection. To an `SSLRequest` or a `GSSENCRequest` of the app, the proxy answers `N` (no encryption) itself, and does not send the request to the database. The app then sends its startup packet. Thus the proxy can read each message, and it speaks no TLS to the app. To the database, the proxy does what the `sslmode` of the URL tells the app to do. For `allow` or `prefer` (the default), it sends an `SSLRequest`. If the database answers `S`, the connection uses TLS, with no check of the certificate, as libpq does for `prefer`. If the database answers `N`, the connection stays plain. For `disable`, the proxy sends no `SSLRequest`. Thus the connection to the database is never less safe than the connection of the app with no proxy. If the database does not answer, the proxy closes the connection to the app. The proxy writes the row of each message of each direction before it sends the message. Thus the row of a request comes before the row of its response. The recording never stops the copy: if a row cannot be written, the proxy copies the bytes and writes no row.
+
+The proxy writes these rows to `database.jsonl`. Each row has `v` (`1`), `type`, `database` (the `name` of the database), `connection` (the number of the connection, from 1, for each proxy) and `ts` (the Unix time of the row):
+
+| `type` | More fields |
+|---|---|
+| `connect` | `parameters`: the parameters of the startup packet, for example `user` and `database`, or `null`. The value of a parameter with a secret name (the rule of section 7.6) is `<removed>`. In `options`, the value of each `-c name=value` or `--name=value` setting with a secret name is `<removed>`. The proxy still sends the startup packet with no change. `declined`: `ssl` or `gss` for each request that the proxy answered with `N`. `error`: `no connection: <reason>` if the database did not answer, `no startup` if the app sent no valid startup packet, else `null`. |
+| `cancel` | None. The app sent a `CancelRequest`. The proxy sends it to the database and closes the connection. |
+| `message` | `direction`: `to_server` or `from_server`. `tag`: the type byte of the message. `size`: the length field of the message. `fields`: the fields below, or `null`. |
+
+The `fields` of a message:
+
+| Direction and tag | `fields` |
+|---|---|
+| `to_server` `Q` (query) | `query` |
+| `to_server` `P` (parse) | `statement`, `query` |
+| `to_server` `B` (bind) | `portal`, `statement`, `parameters`: each value as text, `null` for NULL, or `{"base64": ...}` for a binary value or bytes that are not UTF-8. `results`: the result format codes (`0` text, `1` binary) |
+| `to_server` `E` (execute) | `portal` |
+| `from_server` `T` (row description) | `columns`: the column names |
+| `from_server` `D` (data row) | `values`: each value as text if its bytes are UTF-8, `null` for NULL, else `{"base64": ...}`. The proxy does not know the format of a column, so the text of a binary value gives its bytes again as UTF-8. |
+| `from_server` `C` (command complete) | `command`, for example `SELECT 1` |
+| `from_server` `E` (error), `N` (notice) | `severity`, `code`, `message` and `detail`, if the message has them |
+| `from_server` `Z` (ready for query) | `status` |
+| `from_server` `R` (authentication) | `auth`: the authentication type, with no other byte |
+
+Each other message, and a message longer than 1 MiB, has `fields` `null`. The proxy copies the bytes of a message longer than 1 MiB when they come, and it does not keep them. A `to_server` `p` message (a password or a SASL message) always has `fields` `null`, so the record never holds a password. The query texts and the values are not secret to the record, as the bodies of a backend call (section 7.6).
+
+At the end of the test, the bridge stops the proxies after it stops the entry. A proxy then writes no row and closes each open connection. Thus each row is in `database.jsonl` before the trace and the seal.
+
 ## 8. Trace
 
 The trace is one record of the model items of the app in a test. It ties each item to a turn. `nookku trace [TEST]` builds it again from the files in the test folder.
@@ -851,10 +886,11 @@ A test has 3 sources. Each one is independent of the others in a different way:
 | `backend.jsonl` | the backend proxies, from the calls of the app to its backends | the app's code. It records the bytes on the wire. |
 | `model_api.jsonl` | the model API proxies, from the direct calls of the app to a model API | the app's code. It records the bytes on the wire. |
 | `mcp.jsonl` | the MCP proxies, from the calls of the app to its MCP servers | the app's code. It records the bytes on the wire or on the pipe. |
+| `database.jsonl` | the Postgres proxies, from the messages of the app and its Postgres databases | the app's code. It records the messages on the wire. |
 | `otel.jsonl` | the OTLP receiver, from the spans and logs that the app and its harness send | the session files. It is not independent of the app's code, because the app sends it. |
 | The app's state | the app | nothing. The evaluating session reads it and judges it. |
 
-The trace reads `tap.jsonl`, `sessions/`, `otel.jsonl`, `backend.jsonl`, `model_api.jsonl` and `mcp.jsonl`. It does not read the app's state. It reads `tap.jsonl` with the reader of section 2. If `tap.jsonl` is not valid, the trace stops with that error: `nookku trace` exits with code 2, and the end of a test writes no trace.
+The trace reads `tap.jsonl`, `sessions/`, `otel.jsonl`, `backend.jsonl`, `model_api.jsonl`, `mcp.jsonl` and `database.jsonl`. It does not read the app's state. It reads `tap.jsonl` with the reader of section 2. If `tap.jsonl` is not valid, the trace stops with that error: `nookku trace` exits with code 2, and the end of a test writes no trace.
 
 ### 8.2 Trace record
 
@@ -865,10 +901,10 @@ The trace reads `tap.jsonl`, `sessions/`, `otel.jsonl`, `backend.jsonl`, `model_
 | `v` | string | `"0.3"` |
 | `type` | string | `"model_item"` |
 | `turn` | integer or null | The number of the turn (section 8.3), or `null`. |
-| `harness` | string | `claude-code` or `codex`. For a row of `otel.jsonl`: the harness of its `service` (section 7.5), or `otel` for the app. For a row of `backend.jsonl`: `backend`. For a row of `model_api.jsonl`: `model_api`. For a row of `mcp.jsonl`: `mcp`. |
-| `session` | string | The session id from the manifest. For a span: its `trace_id`. For a log: its `session.id` or `conversation.id` attribute, else its `trace_id`, else `""`. For an `http` item: the backend name. For a `model_api` item: the API name. For an `mcp` item: the server name. |
+| `harness` | string | `claude-code` or `codex`. For a row of `otel.jsonl`: the harness of its `service` (section 7.5), or `otel` for the app. For a row of `backend.jsonl`: `backend`. For a row of `model_api.jsonl`: `model_api`. For a row of `mcp.jsonl`: `mcp`. For a row of `database.jsonl`: `database`. |
+| `session` | string | The session id from the manifest. For a span: its `trace_id`. For a log: its `session.id` or `conversation.id` attribute, else its `trace_id`, else `""`. For an `http` item: the backend name. For a `model_api` item: the API name. For an `mcp` item: the server name. For a `database` item: the database name. |
 | `ts` | number or null | The Unix time of the item. |
-| `kind` | string | `message`, `tool_call` or `command`. From `otel.jsonl`: `span` or `log`. From `backend.jsonl`: `http`. From `model_api.jsonl`: `message` or `tool_call`. From `mcp.jsonl`: `tool_call`. |
+| `kind` | string | `message`, `tool_call` or `command`. From `otel.jsonl`: `span` or `log`. From `backend.jsonl`: `http`. From `model_api.jsonl`: `message` or `tool_call`. From `mcp.jsonl`: `tool_call`. From `database.jsonl`: `query`. |
 | `role` | string or null | For a message: `user` (the app to the model) or `assistant` (the model to the app). |
 | `server` | string or null | For a tool call: the MCP server or the dynamic tool namespace. |
 | `name` | string or null | For a tool call: the tool name, without the MCP prefix. For a span: its name. For a log: its event name, without the harness prefix for a harness log. For an `http` item: the method and the path, for example `GET /stock`. |
@@ -878,7 +914,7 @@ The trace reads `tap.jsonl`, `sessions/`, `otel.jsonl`, `backend.jsonl`, `model_
 | `exit_code` | integer or null | For a command: its exit code. For an `http` item: the status of the backend. For a `model_api` assistant message: the status of the API. |
 | `harness_internal` | boolean | `true` for a tool that the harness gives to the model, not the app (section 8.5). |
 | `service` | string or null | For a row from `otel.jsonl`: its `service`. Else `null`. |
-| `source` | object | `file`: the session file, `otel.jsonl`, `backend.jsonl`, `model_api.jsonl` or `mcp.jsonl`, relative to the test folder. `line`: the 1-based line of the item. For a Claude Code tool call, `result_line`: the line of its result. |
+| `source` | object | `file`: the session file, `otel.jsonl`, `backend.jsonl`, `model_api.jsonl`, `mcp.jsonl` or `database.jsonl`, relative to the test folder. `line`: the 1-based line of the item. For a Claude Code tool call, `result_line`: the line of its result. |
 
 The trace has no `<field>_sha256` fields. The session files hold the original bytes.
 
@@ -888,7 +924,7 @@ Turn `n` is the `n`-th `exchange` row of `tap.jsonl`. Its window is from `starte
 
 ### 8.4 Readers
 
-Each reader reads the copied session file of one model session in the manifest. It never fails on a line. It counts each line that it does not keep, by type, in `findings.json`. It counts a blank line (a line with only white space) as `blank`. The empty text after the last `\n` of a file is not a line. The `rows` count of `otel`, `backend`, `model_api` and `mcp` in `findings.json` does not include a blank line.
+Each reader reads the copied session file of one model session in the manifest. It never fails on a line. It counts each line that it does not keep, by type, in `findings.json`. It counts a blank line (a line with only white space) as `blank`. The empty text after the last `\n` of a file is not a line. The `rows` count of `otel`, `backend`, `model_api`, `mcp` and `database` in `findings.json` does not include a blank line.
 
 **Claude Code** (`sessions/claude-code/<session>.jsonl`). The reader keeps the lines of type `user` and `assistant` that have no `isMeta`. `ts` is the line's `timestamp`. From the `message.content` of each line:
 
@@ -936,13 +972,23 @@ The reader takes the version from `cli_version` of the `session_meta` line.
 
 **MCP calls** (`mcp.jsonl`). The reader keeps each `call` row and each `message` row, and counts each other row by its type. It reads the JSON-RPC messages of each row, in the order of the file: the request body (to the server, at `started`) and the response body (from the server, at `ts`) of a `call` row, and the `body` of a `message` row (at `ts`, in its `direction`). A body is one message, a list of messages (a batch), or an event stream: then each `data:` line is one message. Of a cut body, the reader reads only the events that end before the cut, with an empty line. It reads the text of the body, or else its `base64` as UTF-8, with a mark for each byte that is not UTF-8. A cut body that is not an event stream has no message. Each message to the server with the `method` `tools/call` and an `id` gives a `tool_call` item. `ts` is the time of the request. `server` is the server name, `name` is `params.name`, and `input` is `params.arguments`. The response is the first later message from the same server with the same `id` and no `method`. Its line is `result_line`. A JSON-RPC `error` gives `error` from its `message`. Else the text of `result.content` is `output`, or `error` if `result.isError` is `true`. With no response, `error` is the `error` of the `call` row, else `no response in mcp.jsonl`. Each other message is not kept. An `mcp` item is a call of the app, not an item of the model, so the check `turn_without_model` does not count it (section 8.6).
 
+**Database queries** (`database.jsonl`). The reader keeps each `message` row, and counts each other row by its type. It reads the messages of each connection in the order of the file. A `to_server` `Q` gives a `query` item, with the `query` of the message. A `to_server` `E` gives a `query` item, with the `query` of the last `P` of the statement of the last `B` of its portal, and the `parameters` of that `B`. `ts` is the `ts` of the message, `session` is the database name, `name` is the first word of the query in upper case (or `query`), and `input` is an object with `query` and `parameters` (`null` for a `Q`). The database answers the queries of a connection in their order. Thus each `from_server` message belongs to the oldest open query of its connection:
+
+- a `D` adds its `values` to the rows of the query. For an `E` query, each value of a column that the `results` of its `B` give as binary (`1`) is `{"base64": ...}` of the UTF-8 bytes of its text. One code is for each column, one code is for all columns, and no code is text;
+- a `C` adds its `command`. It ends an `E` query;
+- an `I` (empty query) or an `s` (portal suspended) ends an `E` query with no error;
+- an `E` gives `error` from its `message`. It ends an `E` query;
+- a batch of a connection ends at each `to_server` `S` (sync) and at each `Q` query. A `Z` ends each open query of the oldest batch that has no `Z` yet. The queries of a later batch stay open. An `E` query of that batch that is still open and has no error gets the error `the database did not run it: an earlier error`, because the database skips each execute after an error up to the next sync.
+
+`output` is one line for each row (its values as a JSON list), then one line for each command, or `null` if there is no line. `result_line` is the line of the message that ended the query. A query that has not ended at the end of the file gets the error `no result in database.jsonl`.
+
 ### 8.5 Harness tools
 
 These tools come from the harness, not from the app: `ToolSearch` in Claude Code. The trace keeps their items and marks them `harness_internal: true`.
 
 ### 8.6 Findings
 
-`findings.json` holds the test id, the number of turns and items, one entry for each model session (its version, its item count and its counts of lines not kept), `otel`, `backend`, `model_api` and `mcp` (the file, its row count, its item count and its counts of rows not kept, or `null` if the test has no such file; `model_api` also has `harness_calls`, the count of harness calls by harness, and `other_calls`), a count for each check, and the findings. The findings do not change the exit code of the audit. The audit measures the words only.
+`findings.json` holds the test id, the number of turns and items, one entry for each model session (its version, its item count and its counts of lines not kept), `otel`, `backend`, `model_api`, `mcp` and `database` (the file, its row count, its item count and its counts of rows not kept, or `null` if the test has no such file; `model_api` also has `harness_calls`, the count of harness calls by harness, and `other_calls`), a count for each check, and the findings. The findings do not change the exit code of the audit. The audit measures the words only.
 
 | Check | Finding |
 |---|---|
@@ -954,6 +1000,7 @@ These tools come from the harness, not from the app: `ToolSearch` in Claude Code
 | `span_error` | A span with an `error`. |
 | `backend_error` | An `http` item with an `error`, or with a status of 500 or more. |
 | `model_api_error` | A `model_api` assistant message with an `error`, or with a status of 400 or more. |
+| `database_error` | A `query` item with an `error`. `detail` is `<database>: <name>: <error>`. |
 | `unseen_call` | A call of the app that no proxy saw (section 7.11). The check runs only if the manifest has `egress` with `proxies`. A call is a span or a log of the app (`harness` `otel`) with one of these attributes of the OpenTelemetry semantic conventions: `url.full` or `http.url` (an HTTP call), `db.system.name` or `db.system` (a database call), or `mcp.method.name` (an MCP call). A span or a log with `http.route`, `http.target` or `url.path` is a call to the app, not a call of the app, so it is not a call. The address of an HTTP call is the host and the port of its URL, with port 80 for `http` and 443 for `https`. The address of another call is `server.address` and `server.port`, or `server.address` alone if it has no integer port. The host is in lowercase. A call to the address of a proxy in `proxies`, or of the OTLP receiver in `receiver`, is seen. An MCP call with no network address is seen if the answer has at least 1 `stdio` MCP server, and each `stdio` MCP server of the answer has the value `stdio` in `proxies` (section 7.12). A span does not name its server, so 1 `stdio` server with no wrapper makes each of these calls unseen. Each other call gives a finding, also a call with no address. `detail` is `HTTP <URL with no user, query or fragment>` (or `HTTP (a URL that does not parse)` for a URL with no address that the URL parser can read, for example `http://[`), `database <system>` or `MCP <method>`, then ` at <address>` or ` at no network address`, then `: no proxy saw this call`. |
 | `model_error` | A line of a Codex session file of type `event_msg` with a payload of type `task_complete` and an `error` that is not `null`. Codex writes it when a turn of the harness ends with a model error. The reader does not make an item from it, and it still counts the line as a line that it does not keep (section 8.4). The turn is the turn of the line's `timestamp` (section 8.3). If the error is an object with a `message` string, `detail` is `<class>: <message>`, for example `server_overloaded: Selected model is at capacity. Please try a different model.`. The class comes from `codex_error_info`. If it is a string, the class is the string. If it is an object with 1 key, the class is the key. If the value of the key is an object with an integer `http_status_code`, ` (status <code>)` follows the key, for example `http_connection_failed (status 503)`. Else the error has no class, and `detail` is only `<message>`. If the error is a string, `detail` is the string. For another error, `detail` is the JSON of the error. The finding has `harness`, `session` and `source` (the file and the line). |
 | `turn_without_model` | A turn with no `message`, `tool_call` or `command` item that is not an `mcp` item. This check runs only if a session reader kept at least 1 item. |
