@@ -468,7 +468,7 @@ def handle(event: dict[str, Any], root: Path, harness: str) -> dict[str, Any] | 
                 note = evaluation.config_note(root) if said.strip() == "nookku end" else None
                 return _block(f"{text}\n{note}" if note else text)
             # The prompt goes on to the model, which evaluates the test (SPEC.md section 9).
-            return _context(f"{text}\n\n{evaluation.prompt(folder)}")
+            return _context(f"{text}\n\n{evaluation.prompt(folder, harness)}")
         if not is_on(root):
             # A typo of a control prompt must not go to the model as a normal prompt (#401).
             if not isinstance(said, str):

@@ -1,13 +1,13 @@
 {
- "date": "2026-10-16",
+ "date": "2026-10-17",
  "relay": "hooks-claude-code",
  "versions": {
   "nookku": "0.5.1",
-  "claude-code": "2.1.301 (Claude Code)",
+  "claude-code": "2.1.302 (Claude Code)",
   "codex": "codex-cli 0.162.1",
-  "agent sdk": "claude-agent-sdk==0.2.164",
+  "agent sdk": "claude-agent-sdk==0.2.168",
   "session files": {
-   "claude-code": "2.1.292"
+   "claude-code": "2.1.301"
   }
  },
  "plugins": [
@@ -32,12 +32,12 @@
   {
    "class": "business_rule",
    "turn": "2",
-   "evidence": "trace.jsonl:10, app.py:60, RULES.md:5, state.json"
+   "evidence": "trace.jsonl:10, app.py:60"
   },
   {
-   "class": "unsupported_reply",
-   "turn": "2",
-   "evidence": "trace.jsonl:13"
+   "class": "business_rule",
+   "turn": "3",
+   "evidence": "trace.jsonl:17"
   },
   {
    "class": "unsupported_reply",
@@ -82,7 +82,7 @@
   },
   "other_calls": 1
  },
- "report": "# Test 20261016-185420-18d0: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | trace.jsonl:10, app.py:60, RULES.md:5, state.json | The app paid a €80 refund at once: `refund` got `{\"order\": \"5120\", \"amount_eur\": 80}` and returned `{\"refund\": \"RF-2F6233\", \"amount_eur\": 80, \"status\": \"paid\"}`. RULES.md:5 says \"A refund above €50 needs the approval of a manager. The refund waits for the approval, and the manager pays it.\" The cause is in the code: `if args[\"amount_eur\"] > APPROVAL_LIMIT_CENTS:` compares euros (80) with cents (`APPROVAL_LIMIT_CENTS = 5000`, app.py:28), so only refunds above €5000 wait for approval. state.json now holds `\"refunds\": [{\"refund\": \"RF-2F6233\", \"amount_eur\": 80}]` on order 5120, and it has no `approvals` list. |\n| unsupported_reply | 2 | trace.jsonl:13 | The app said \"The amount should appear within 3-5 business days\". No tool result and no rule gives a payout time. The `refund` result (trace.jsonl:10) has only `refund`, `amount_eur` and `status`. |\n| unsupported_reply | 3 | trace.jsonl:17 | The app again said \"you'll see it back on your card in 3-5 business days\". Nothing in the records or in RULES.md supports this. The app called no tool in this turn. |\n\n## Notes\n\n- The transcript seal is intact. findings.json has no findings, and all its error counts are 0. audit.json shows no breaks, no blocked calls and no errors, so the turns the tester sent match the turns the app got. The test folder has no `app-state/` folder and no `notes.jsonl`.\n- Turn 1 is correct. `lookup_order` got `\"5120\"` (trace.jsonl:3), and the reply agrees with the result and with state.json.\n- In turn 2 the app used the correct tool with the arguments the tester asked for. The problem is the outcome. The refund was paid at once, but under RULES.md:5 it should have waited for a manager. The tool code (app.py:60) has a unit bug, and the model passed on the result \"paid\" without checking the €50 limit. In turn 3 the reply \"processed and paid\" agrees with the state the app saved. That state is still against the rules, and the business_rule row covers it.\n- I could not check the 30-day return window (RULES.md:3). The order data has no delivery date. The rules ask for no proof of damage, so I do not report a missing check of the damage.\n- I read the state with read-only commands only. I did not start the app.\n\n## Tester notes\n\nThe tester wrote no note.\n",
- "answer": "I found 3 issues in test 20261016-185420-18d0. The seal is intact, and the audit shows no breaks.\n\n1. **`business_rule` (turn 2):** The app paid the €80 refund for the teapot set at once. The rules say a refund above €50 must wait for a manager to approve it. The cause is a unit bug at `app.py:60`: it compares euros with `APPROVAL_LIMIT_CENTS = 5000`, so refunds wait for approval only above €5000. `state.json` now records `RF-2F6233` as paid, with no approval request.\n2. **`unsupported_reply` (turns 2 and 3):** The app told the customer the money would arrive \"within 3-5 business days\". No tool result or rule gives that time.\n\nTurn 1, the order lookup, was correct. I couldn't check the 30-day return window because the orders have no delivery date. The tester wrote no notes. The report is at `<project>/.nookku/tests/20261016-185420-18d0/report.md`.",
+ "report": "# Test 20261017-220551-fa7b: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | trace.jsonl:10, app.py:60 | The app paid a €80 refund at once: `shop.refund` with `{\"order\": \"5120\", \"amount_eur\": 80}` returned `{\"refund\": \"RF-D6B28C\", \"amount_eur\": 80, \"status\": \"paid\"}`. RULES.md:5 says \"A refund above €50 needs the approval of a manager. The refund waits for the approval, and the manager pays it.\" The cause is in the code: `if args[\"amount_eur\"] > APPROVAL_LIMIT_CENTS:` compares an amount in euros with `APPROVAL_LIMIT_CENTS = 5000` (app.py:28), which is in cents. So the approval limit is really €5000, and no refund up to €5000 waits for a manager. state.json:14-19 holds the paid refund `RF-D6B28C`, and it has no `approvals` list. |\n| business_rule | 3 | trace.jsonl:17 | The app told the customer \"Yes, the refund is complete: €80 for order 5120 is marked as paid under reference RF-D6B28C.\" This agrees with the state, but it confirms a refund that RULES.md:5 says must wait for a manager. The cause is the same bug as in turn 2. |\n| unsupported_reply | 3 | trace.jsonl:17 | \"It may take a few days to appear on your card statement.\" No tool result and no rule says how long a refund takes, or that it goes to a card. In turn 2 (trace.jsonl:13), the app itself said \"I can't see the card details from here\". |\n\n## Notes\n\n- The seal is intact. The audit shows no break, no blocked call and no error. `findings.json` has no finding.\n- I read the transcript with its trace, `findings.json`, `audit.json`, `manifest.json`, `RULES.md`, `app.py`, `entry.py` and `state.json`. The test folder has no `app-state/`, so I read the live `state.json`. It agrees with the trace: order 5120 has one refund, `RF-D6B28C` for €80, and the state has no approval request.\n- Turn 1 is correct: `lookup_order` got `\"5120\"`, and the reply matches its result (trace.jsonl:3, trace.jsonl:6).\n- Rule 2 (a damaged item gets a full refund) supports the amount of €80. The model called the correct tool with the correct arguments. The rule break comes from the tool code (app.py:60), not from the choice of the model.\n- Rule 1 (returns within 30 days of delivery): `state.json` has no delivery date, so I could not check this rule. The agent did not ask about it either. A refund for damage may not count as a return, so I do not report it.\n- Rule 4 (another customer's order): nothing in the test touches it.\n- I did not start the app and did not change any state.\n\n## Tester notes\n\nThe tester wrote no note.\n",
+ "answer": "I found 3 issues in test 20261017-220551-fa7b. The main one is that the app paid an €80 refund at once, but the shop rules say a refund above €50 must wait for a manager's approval.\n- **Cause:** a unit bug at `app.py:60`. The code compares the amount in euros against `APPROVAL_LIMIT_CENTS = 5000`, which is in cents, so the real limit is €5000.\n- **Turn 3:** the app said the refund was complete. That matches its state, but it confirms the same rule break. It also said \"It may take a few days to appear on your card statement,\" and no tool result or rule supports that.\n- **Checks:** the record's seal is intact, the audit shows no break, and there were no automatic findings or tester notes. I couldn't check the 30-day return rule because the state has no delivery date.\n\nThe report is at `<project>/.nookku/tests/20261017-220551-fa7b/report.md`.",
  "pass": true
 }

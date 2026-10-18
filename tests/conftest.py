@@ -47,6 +47,13 @@ def no_auto_page(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(page_auto, "enabled", lambda root: False)
 
 
+@pytest.fixture(autouse=True)
+def no_mods(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A test gets no mod of the Claude Code session that runs pytest. The mod tests set the
+    variable (#424)."""
+    monkeypatch.delenv("CLAUDE_CODE_PLUGIN_DIRS", raising=False)
+
+
 def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line(
         "markers", "real_discovery: the test reads only the egress answers that it registers"

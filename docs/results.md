@@ -153,9 +153,9 @@ The API key was not in the record. The seal of the test folder was intact.
 
 | Form | Harness | P5a | P5b | Data |
 |---|---|---|---|---|
-| Plugin | Claude Code 2.1.301 | pass | pass | [results](../proofs/evaluation/plugin-claude-code.json) |
+| Plugin | Claude Code 2.1.302 | pass | pass | [results](../proofs/evaluation/plugin-claude-code.json) |
 | Plugin | Codex 0.162.1 | pass | pass | [results](../proofs/evaluation/plugin-codex.json) |
-| Project hooks | Claude Code 2.1.301 | pass | pass | [results](../proofs/evaluation/hooks-claude-code.json) |
+| Project hooks | Claude Code 2.1.302 | pass | pass | [results](../proofs/evaluation/hooks-claude-code.json) |
 | Project hooks | Codex 0.162.1 | pass | pass | [results](../proofs/evaluation/hooks-codex.json) |
 
 The plugin reads the transcript with its MCP `transcript` tool. The project hooks read it with `nookku transcript` in the shell.
@@ -176,7 +176,7 @@ The session resumes between turns, so P5b also shows that the transcript survive
 |---|---|---|---|---|---|---|---|---|---|
 | Plugin | Claude Code 2.1.301 | 3 | pass | pass | pass | pass | temporary project | pass | [results](../proofs/report/plugin-claude-code.json) |
 | Plugin | Codex 0.162.1 | 2 | pass | pass | pass | pass | project outside the repo, 0 commands outside it | pass | [results](../proofs/report/plugin-codex.json) |
-| Project hooks | Claude Code 2.1.301 | 3 | pass | pass | pass | pass | temporary project | pass | [results](../proofs/report/hooks-claude-code.json) |
+| Project hooks | Claude Code 2.1.302 | 3 | pass | pass | pass | pass | temporary project | pass | [results](../proofs/report/hooks-claude-code.json) |
 | Project hooks | Codex 0.162.1 | 2 | pass | pass | pass | pass | trusted project, 0 commands outside it | pass | [results](../proofs/report/hooks-codex.json) |
 | Project hooks | Claude Code 2.1.290 | 1 | **fail** | pass | pass | pass | temporary project | **fail** (earlier run, 2026-10-06) | [results](../proofs/report/hooks-claude-code-run1.json) |
 | Plugin of 0.3 | Claude Code 2.1.290 | 4 | pass | pass | pass | pass | temporary project | pass (earlier run) | [results](../proofs/report/plugin.json) |

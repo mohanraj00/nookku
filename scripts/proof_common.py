@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -23,10 +25,17 @@ NO_TITLE = {"CLAUDE_CODE_DISABLE_TERMINAL_TITLE": "1"}
 
 # A proof session reads only the settings of the project, so no user hook, plugin or permission
 # rule applies. It gets no MCP server of the user. --strict-mcp-config also removes the server of a
-# --plugin-dir plugin, so the plugin form names the nookku server again. Claude Code still loads
-# the mods of ~/.claude/mods, and no flag stops them, so each run checks the plugins of its init
-# event (#401).
+# --plugin-dir plugin, so the plugin form names the nookku server again. Claude Code loads the mods
+# from the folders of CLAUDE_CODE_PLUGIN_DIRS. If the variable is not in the environment, Claude
+# Code also reads it from the user settings, with --setting-sources project,local. An empty value
+# loads no mod (#424). Each run also checks the plugins of its init event (#401).
 PLUGIN_DIR = ROOT / "plugins" / "nookku"
+NO_MODS = {"CLAUDE_CODE_PLUGIN_DIRS": ""}
+# Each Codex setup has its own CODEX_HOME, so no MCP server, plugin or AGENTS.md of the user loads
+# (#424). A person logs in and trusts the hooks in each home once (run-the-proofs.md).
+# The plugin setups use the home of scripts/proof_codex_gate.py, with the plugin of this checkout.
+PLUGIN_CODEX_HOME = ROOT / ".proof" / "codex-gate" / "codex-home"
+HOOKS_CODEX_HOME = ROOT / ".proof" / "codex-hooks" / "codex-home"
 # A model answer can quote instruction files. These hold the instructions on this machine.
 INSTRUCTIONS = [
     Path.home() / ".claude" / "CLAUDE.md",
@@ -97,10 +106,38 @@ def claude_events(stdout: str) -> tuple[dict[str, Any], list[str]]:
     other = foreign_plugins(init)
     if other:
         sys.exit(
-            f"a plugin that is not built in loaded: {other}. Move ~/.claude/mods to a different "
-            "folder for the proof run, and move it back after the run."
+            f"a plugin that is not built in loaded: {other}. Give the session an empty "
+            "CLAUDE_CODE_PLUGIN_DIRS (NO_MODS)."
         )
     return result, sorted(str(p.get("source")) for p in init.get("plugins", []))
+
+
+def codex_home(plugin: bool, project: Path) -> Path:
+    """The CODEX_HOME of a Codex setup. Stop the proof if the home is not there, or if Codex
+    in the project with this home has an MCP server other than nookku. The text of such a server
+    can reach the model."""
+    home = PLUGIN_CODEX_HOME if plugin else HOOKS_CODEX_HOME
+    if not home.is_dir():
+        sys.exit(
+            f"{home} is not there. Do the steps of docs/contributing/run-the-proofs.md "
+            "(Trust the Codex hooks once), then run the proof again."
+        )
+    p = subprocess.run(
+        ["codex", "mcp", "list", "--json"],
+        capture_output=True,
+        text=True,
+        cwd=project,
+        env={**os.environ, "CODEX_HOME": str(home)},
+        timeout=60,
+    )
+    try:
+        servers = json.loads(p.stdout)
+        names = [str(s["name"]) for s in servers if s.get("enabled") is not False]
+    except (ValueError, TypeError, KeyError, AttributeError):
+        sys.exit(f"codex mcp list gave no list of servers (exit {p.returncode}): {p.stderr[-300:]}")
+    if p.returncode != 0 or set(names) - set(nookku_servers()["mcpServers"]):
+        sys.exit(f"an MCP server other than nookku loads in {home}: {names}")
+    return home
 
 
 def json_lines(text: str) -> list[Any]:
