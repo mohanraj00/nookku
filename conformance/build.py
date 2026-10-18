@@ -993,6 +993,7 @@ CLAUDE_CASE = {
         "otel": None,
         "backend": None,
         "model_api": None,
+        "mcp": None,
         "counts": counts(agent_error=1, tool_error=3, turn_without_model=1, item_between_turns=2),
         "findings": [
             {"check": "agent_error", "turn": 2, "detail": "the agent gave status 500"},
@@ -1309,6 +1310,7 @@ CODEX_CASE = {
         "otel": None,
         "backend": None,
         "model_api": None,
+        "mcp": None,
         "counts": counts(
             tool_error=3,
             command_failed=2,
@@ -1435,6 +1437,7 @@ VERSION_CASE = {
         "otel": None,
         "backend": None,
         "model_api": None,
+        "mcp": None,
         "counts": counts(version_untested=2),
         "findings": [
             {
@@ -1541,6 +1544,7 @@ CODEX_ERROR_CASE = {
         "otel": None,
         "backend": None,
         "model_api": None,
+        "mcp": None,
         "counts": counts(model_error=4),
         "findings": [
             {
@@ -1587,6 +1591,7 @@ NO_MODEL_CASE = {
         "otel": None,
         "backend": None,
         "model_api": None,
+        "mcp": None,
         "counts": counts(),
         "findings": [],
     },
@@ -1652,6 +1657,7 @@ def repeated_case(test: str, keys: dict | None, found: list[dict]) -> dict:
             "otel": None,
             "backend": None,
             "model_api": None,
+            "mcp": None,
             "counts": counts(
                 agent_error=1, repeated_reply=sum(f["check"] == "repeated_reply" for f in found)
             ),
@@ -1748,6 +1754,7 @@ def reply_case(test: str, keys: dict | None, structured: bool, found: list[dict]
             "otel": None,
             "backend": None,
             "model_api": None,
+            "mcp": None,
             "counts": counts(
                 reply_not_from_model=len(found), turn_without_model=len(without_model)
             ),
@@ -2018,6 +2025,7 @@ OTEL_CASE = {
         "otel": {"file": "otel.jsonl", "rows": 7, "items": 6, "ignored": {"error": 1}},
         "backend": None,
         "model_api": None,
+        "mcp": None,
         "counts": counts(span_error=2, item_between_turns=1, otel_tool_not_in_session=1),
         "findings": [
             {
@@ -2230,6 +2238,7 @@ STRUCTURED_CASE = {
         "otel": {"file": "otel.jsonl", "rows": 5, "items": 5, "ignored": {}},
         "backend": None,
         "model_api": None,
+        "mcp": None,
         "counts": counts(tool_error=2, otel_tool_not_in_session=2),
         "findings": [
             {
@@ -2397,6 +2406,7 @@ BACKEND_CASE = {
         "otel": None,
         "backend": {"file": "backend.jsonl", "rows": 5, "items": 4, "ignored": {"note": 1}},
         "model_api": None,
+        "mcp": None,
         "counts": counts(backend_error=2, item_between_turns=1),
         "findings": [
             {
@@ -2769,6 +2779,7 @@ MODEL_API_CASE = {
             "harness_calls": {"claude-code": 1},
             "other_calls": 1,
         },
+        "mcp": None,
         "counts": counts(model_api_error=1),
         "findings": [
             {
@@ -3020,6 +3031,7 @@ RESPONSES_CASE = {
             "harness_calls": {},
             "other_calls": 1,
         },
+        "mcp": None,
         "counts": counts(model_api_error=1),
         "findings": [
             {
@@ -3161,6 +3173,7 @@ SERVERS_CASE = {
         "otel": None,
         "backend": None,
         "model_api": None,
+        "mcp": None,
         "counts": counts(server_not_from_app=3),
         "findings": [
             {
@@ -3466,6 +3479,7 @@ DECISIONS_CASE = {
             "harness_calls": {},
             "other_calls": 0,
         },
+        "mcp": None,
         "counts": counts(),
         "findings": [],
     },
@@ -3561,12 +3575,193 @@ UNSEEN_CASE = {
         "otel": {"file": "otel.jsonl", "rows": 7, "items": 7, "ignored": {}},
         "backend": None,
         "model_api": None,
+        "mcp": None,
         "counts": counts(unseen_call=4),
         "findings": [
             unseen(2, 1, "HTTP https://stock.toy.test/stock at stock.toy.test:443"),
             unseen(4, 2, "database postgresql at db.toy.test:5432"),
             unseen(5, 2, "database sqlite at no network address"),
             unseen(6, 2, "MCP tools/call at no network address"),
+        ],
+    },
+}
+
+
+# The coverage check with stdio MCP servers (SPEC.md section 8.6, `unseen_call`). The server stock
+# has a wrapper, and the server files has no variable, so it has no wrapper. A span does not name
+# its server, so the MCP call with no network address gives a finding.
+STDIO_SERVERS = [
+    {
+        "name": "stock",
+        "transport": "stdio",
+        "env": "STOCK_MCP_COMMAND",
+        "command": ["toy-stock-mcp"],
+        "url": None,
+    },
+    {
+        "name": "files",
+        "transport": "stdio",
+        "env": None,
+        "command": ["toy-files-mcp", "--root", "data"],
+        "url": None,
+    },
+]
+UNSEEN_STDIO_SPAN = (11, "tools/call", {"mcp.method.name": "tools/call"})
+UNSEEN_STDIO_CASE = {
+    "tap": [window(10, 20)],
+    "manifest": {
+        "test": "20261017-090000-eg02",
+        "model_sessions": [],
+        "egress": {
+            "registered": T0,
+            "answer": {
+                **EGRESS_ANSWER,
+                "backends": [],
+                "databases": [],
+                "mcp_servers": STDIO_SERVERS,
+            },
+            "unseen": ["files"],
+            "proxies": {"stock": "stdio"},
+            "receiver": "http://127.0.0.1:41000",
+        },
+    },
+    "sessions": {},
+    "otel": [app_span(*UNSEEN_STDIO_SPAN)],
+    "trace": [
+        oitem(
+            1,
+            "otel",
+            TRACE_ID,
+            UNSEEN_STDIO_SPAN[0],
+            "span",
+            1,
+            name=UNSEEN_STDIO_SPAN[1],
+            input=UNSEEN_STDIO_SPAN[2],
+            service="toy-shop",
+        )
+    ],
+    "findings": {
+        "v": "0.2",
+        "test": "20261017-090000-eg02",
+        "turns": 1,
+        "items": 1,
+        "sessions": [],
+        "otel": {"file": "otel.jsonl", "rows": 1, "items": 1, "ignored": {}},
+        "backend": None,
+        "model_api": None,
+        "mcp": None,
+        "counts": counts(unseen_call=1),
+        "findings": [unseen(1, 1, "MCP tools/call at no network address")],
+    },
+}
+
+
+# MCP calls (SPEC.md sections 7.12 and 8.4): the rows of mcp.jsonl as the proxies write them. In
+# turn 1, an HTTP call with an event stream. In turn 2, a stdio tool call with an error result, a
+# notification, a tool call with no response, and a row that is not a call or a message.
+def rpc_call(n: int, tool: str, arguments: dict) -> dict:
+    params = {"name": tool, "arguments": arguments}
+    return {"jsonrpc": "2.0", "id": n, "method": "tools/call", "params": params}
+
+
+def rpc_result(n: int, text: str, error: bool = False) -> dict:
+    result: dict[str, Any] = {"content": [{"type": "text", "text": text}]}
+    if error:
+        result["isError"] = True
+    return {"jsonrpc": "2.0", "id": n, "result": result}
+
+
+def mcp_message(t: float, direction: str, message: dict) -> dict:
+    row = {"v": 1, "type": "message", "server": "stock", "transport": "stdio", "ts": T0 + t}
+    return {**row, "direction": direction, "body": body(json.dumps(message) + "\n")}
+
+
+def mitem(turn: int, server: str, ts: float, line: int, tool: str, **fields: Any) -> dict:
+    """An expected trace row from mcp.jsonl."""
+    row = item(turn, "claude-code", ts, "tool_call", line, **fields)
+    row.update(harness="mcp", session=server, server=server, name=tool)
+    row["source"]["file"] = "mcp.jsonl"
+    return row
+
+
+TICKET = rpc_call(1, "open_ticket", {"order": "5120"})
+TICKET_CALL = {
+    **call(12, "tickets", "POST", "/mcp", 200, request=body(json.dumps(TICKET))),
+    "response_body": body(sse([rpc_result(1, "ticket 77 open")], named=False)),
+}
+TICKET_CALL["server"] = TICKET_CALL.pop("backend")
+TICKET_CALL["transport"] = "http"
+MCP_CASE = {
+    "tap": [window(10, 20), window(30, 40)],
+    "manifest": {"test": "20261006-080000-mc01", "model_sessions": []},
+    "sessions": {},
+    "mcp": [
+        TICKET_CALL,
+        mcp_message(32, "to_server", rpc_call(7, "check_stock", {"product": "teapot"})),
+        mcp_message(32.1, "from_server", {"jsonrpc": "2.0", "method": "notifications/progress"}),
+        mcp_message(32.2, "from_server", rpc_result(7, "no such product", error=True)),
+        mcp_message(33, "to_server", rpc_call(8, "check_stock", {"product": "mug"})),
+        {"v": 1, "type": "note", "detail": "a row that is not a call or a message"},
+    ],
+    "trace": [
+        mitem(
+            1,
+            "tickets",
+            12,
+            1,
+            "open_ticket",
+            input={"order": "5120"},
+            output="ticket 77 open",
+            result_line=1,
+        ),
+        mitem(
+            2,
+            "stock",
+            32,
+            2,
+            "check_stock",
+            input={"product": "teapot"},
+            error="no such product",
+            result_line=4,
+        ),
+        mitem(
+            2,
+            "stock",
+            33,
+            5,
+            "check_stock",
+            input={"product": "mug"},
+            error="no response in mcp.jsonl",
+        ),
+    ],
+    "findings": {
+        "v": "0.2",
+        "test": "20261006-080000-mc01",
+        "turns": 2,
+        "items": 3,
+        "sessions": [],
+        "otel": None,
+        "backend": None,
+        "model_api": None,
+        "mcp": {"file": "mcp.jsonl", "rows": 6, "items": 3, "ignored": {"note": 1}},
+        "counts": counts(tool_error=2),
+        "findings": [
+            {
+                "check": "tool_error",
+                "turn": 2,
+                "detail": "check_stock: no such product",
+                "harness": "mcp",
+                "session": "stock",
+                "source": {"file": "mcp.jsonl", "line": 2, "result_line": 4},
+            },
+            {
+                "check": "tool_error",
+                "turn": 2,
+                "detail": "check_stock: no response in mcp.jsonl",
+                "harness": "mcp",
+                "session": "stock",
+                "source": {"file": "mcp.jsonl", "line": 5},
+            },
         ],
     },
 }
@@ -3694,6 +3889,7 @@ API_REQUEST_CASE = {
         "otel": None,
         "backend": None,
         "model_api": None,
+        "mcp": None,
         "counts": counts(),
         "findings": [],
     },
@@ -3721,6 +3917,8 @@ TRACE_CASES = {
     "reply_not_from_model_off": REPLY_OFF_CASE,
     "reply_not_from_model_field": REPLY_FIELD_CASE,
     "unseen_calls": UNSEEN_CASE,
+    "unseen_calls_stdio": UNSEEN_STDIO_CASE,
+    "mcp_toy_shop": MCP_CASE,
 }
 
 
@@ -5199,12 +5397,29 @@ DISCOVERY_CASES: dict[str, dict] = {
                 "the default (proxy)",
                 "- backend stock: STOCK_URL -> http://127.0.0.1:9100 (proxy)",
                 "- MCP server files: stdio toy-files-mcp --root data (no proxy)",
-                "- MCP server tickets: http https://tickets.toy.test/mcp (no proxy)",
+                "- MCP server tickets: http TICKETS_MCP_URL -> https://tickets.toy.test/mcp (proxy)",
                 "- database shop: postgres, DATABASE_URL (no proxy)",
                 "- database cart: sqlite, data/cart.db (no proxy)",
                 "- other mail: smtp, sends the order mail (no proxy)",
             ],
-            "unseen": ["files", "tickets", "shop", "cart", "mail"],
+            "unseen": ["files", "shop", "cart", "mail"],
+        },
+    },
+    # A stdio server with a variable gets the wrapper (SPEC.md section 7.12).
+    "mcp_stdio_with_variable": {
+        "answer": answer_with(
+            "mcp_servers",
+            {
+                "name": "files",
+                "transport": "stdio",
+                "env": "FILES_MCP_COMMAND",
+                "command": ["toy-files-mcp"],
+                "url": None,
+            },
+        ),
+        "expect": {
+            "lines": ["- MCP server files: stdio FILES_MCP_COMMAND -> toy-files-mcp (proxy)"],
+            "unseen": [],
         },
     },
     "no_part": {
@@ -5385,6 +5600,7 @@ def main() -> None:
         write(d / "otel.jsonl", case.get("otel"))
         write(d / "backend.jsonl", case.get("backend"))
         write(d / "model_api.jsonl", case.get("model_api"))
+        write(d / "mcp.jsonl", case.get("mcp"))
         write(d / "expect_trace.jsonl", case["trace"])
         text = json.dumps(case["findings"], indent=1, ensure_ascii=False)
         (d / "expect_findings.json").write_text(text + "\n")

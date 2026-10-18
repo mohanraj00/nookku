@@ -19,7 +19,18 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from nookku import __version__, backend, discovery, model_api, otlp, policy, script, seal, trace
+from nookku import (
+    __version__,
+    backend,
+    discovery,
+    mcp_proxy,
+    model_api,
+    otlp,
+    policy,
+    script,
+    seal,
+    trace,
+)
 from nookku.audit import audit
 from nookku.config import CHECK_MESSAGE as CHECK_MESSAGE
 from nookku.config import FILE as CONFIG_FILE
@@ -789,7 +800,24 @@ def run(
     env.update({TEST_DIR: str(folder.resolve()), TEST_ID: test})
     for p in apis.proxies:
         _log(f"model API {p.backend.name}: {p.backend.env}={p.url} -> {p.backend.url}")
-    manifest["egress"]["proxies"] = {p.backend.name: p.url for p in proxies.proxies + apis.proxies}
+    # The MCP servers that have a variable (SPEC.md section 7.12).
+    servers = egress["answer"]["mcp_servers"]
+    mcp = backend.Proxies(
+        mcp_proxy.http_servers(servers), folder / mcp_proxy.FILE, mcp_proxy.HttpProxy
+    )
+    env.update(mcp.start())
+    for p in mcp.proxies:
+        _log(f"MCP server {p.backend.name}: {p.backend.env}={p.url} -> {p.backend.url}")
+    wrappers = mcp_proxy.stdio_environment(servers, folder)
+    env.update(wrappers)
+    for name in wrappers:
+        _log(f"MCP server wrapper: {name}")
+    every = proxies.proxies + apis.proxies + mcp.proxies
+    manifest["egress"]["proxies"] = {p.backend.name: p.url for p in every}
+    # A stdio server has no address. Its value is STDIO (SPEC.md section 7.12).
+    manifest["egress"]["proxies"].update(
+        {p["name"]: mcp_proxy.STDIO for p in servers if p["env"] in wrappers}
+    )
     agent = Agent(config.entry, root, folder / "app.log", timeout=timeout, env=env)
     tap = StdioTap(("127.0.0.1", 0), agent, folder / "tap.jsonl")
     _log(f"tap bound to {tap.url}")
@@ -846,6 +874,8 @@ def run(
         receiver.server_close()
     proxies.stop()
     apis.stop()
+    mcp.stop()
+    mcp_proxy.close(folder)
     ended = time.time()
     relay = folder / "relay.jsonl"
     tester = set(manifest["tester_sessions"])

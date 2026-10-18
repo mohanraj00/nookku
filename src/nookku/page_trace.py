@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import unquote
 
-from nookku import audit, backend, dashboard, evaluation, model_api, otlp, state, trace
+from nookku import audit, backend, dashboard, evaluation, mcp_proxy, model_api, otlp, state, trace
 from nookku.record import Exchange, RecordError, read_rows, turns
 
 ROUTE = "api/trace"
@@ -33,6 +33,7 @@ SOURCES = (
     otlp.FILE,
     backend.FILE,
     model_api.FILE,
+    mcp_proxy.FILE,
 )
 # The fields of a trace row that the page does not show.
 HIDDEN = frozenset({"v", "type", "turn", trace.CALL_ID})
@@ -76,7 +77,8 @@ def items(folder: Path, spans: list[tuple[float, float]]) -> list[dict[str, Any]
         return evaluation._items(folder / TRACE)
     found: list[dict[str, Any]] = []
     readers = ((otlp.FILE, trace.read_otel), (backend.FILE, trace.read_backend))
-    for name, reader in (*readers, (model_api.FILE, trace.read_model_api)):
+    more = ((model_api.FILE, trace.read_model_api), (mcp_proxy.FILE, trace.read_mcp))
+    for name, reader in (*readers, *more):
         if (folder / name).exists():
             found += reader(folder / name)[0]
     found.sort(key=lambda it: it["ts"] if it["ts"] is not None else float("inf"))

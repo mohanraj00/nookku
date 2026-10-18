@@ -18,6 +18,7 @@ Each test has one folder, `.nookku/tests/<test-id>/`. The comment on each line t
   otel.jsonl         the OTLP receiver, if the app sends spans or logs        sealed
   backend.jsonl      a backend proxy, if the app calls a backend              sealed
   model_api.jsonl    a model API proxy, if the app calls a model API          sealed
+  mcp.jsonl          an MCP proxy, if the app calls an MCP server             sealed
   sessions/
     claude-code/<session>.jsonl   the bridge, at the end (step 3)             sealed
     codex/<rollout file>          the bridge, at the end (step 3)             sealed

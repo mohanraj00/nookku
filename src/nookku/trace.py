@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
-from . import backend, model_api, otlp
+from . import backend, mcp_proxy, model_api, otlp
 from .adapters import AdapterError, pick
 from .config import MATCHES
 from .record import VERSION, json_text, read_rows
@@ -451,6 +451,91 @@ def read_backend(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     }
 
 
+def _rpc(body: Any) -> list[dict[str, Any]]:
+    """The JSON-RPC messages of a body in mcp.jsonl: one message, a batch, or the `data` lines
+    of an event stream. Of a cut body, only the events that end before the cut."""
+    text = body.get("text") if isinstance(body, dict) else None
+    if isinstance(body, dict) and body.get("cut"):
+        if not isinstance(text, str) and isinstance(body.get("base64"), str):
+            # The cut can split a letter. The bytes after the last complete event are not read.
+            text = base64.b64decode(body["base64"]).decode("utf-8", "replace")
+        text = text.rpartition("\n\n")[0] if isinstance(text, str) else None
+    if not isinstance(text, str):
+        return []
+    value = _json(text) if not (isinstance(body, dict) and body.get("cut")) else None
+    if value is None:
+        values = [_json(line[5:].strip()) for line in text.split("\n") if line.startswith("data:")]
+    else:
+        values = [value]
+    out: list[dict[str, Any]] = []
+    for v in values:
+        out += [m for m in (v if isinstance(v, list) else [v]) if isinstance(m, dict)]
+    return out
+
+
+def _mcp_result(message: dict[str, Any]) -> tuple[str | None, str | None]:
+    """The output and the error of the response to a tool call."""
+    if isinstance(message.get("error"), dict):
+        return None, str(message["error"].get("message") or "error")
+    result = message["result"] if isinstance(message.get("result"), dict) else {}
+    text = _text(result.get("content"), ("text",))
+    return (None, text or "error") if result.get("isError") is True else (text, None)
+
+
+def read_mcp(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """The tool calls of mcp.jsonl (SPEC.md section 8.4)."""
+    ignored: Counter[str] = Counter()
+    rows = 0
+    # Each JSON-RPC message, in the order of the record: line, ts, server, to the server.
+    messages: list[tuple[int, Any, str, bool, dict[str, Any]]] = []
+    failed: dict[int, str] = {}
+    for n, row in _lines(path, ignored):
+        rows += 1
+        if not isinstance(row, dict) or row.get("type") not in ("call", "message"):
+            ignored[str(row.get("type")) if isinstance(row, dict) else "invalid_json"] += 1
+            continue
+        kind = row["type"]
+        server = str(row.get("server") or "")
+        if kind == "message":
+            up = row.get("direction") == "to_server"
+            messages += [(n, row.get("ts"), server, up, m) for m in _rpc(row.get("body"))]
+            continue
+        messages += [
+            (n, row.get("started"), server, True, m) for m in _rpc(row.get("request_body"))
+        ]
+        messages += [(n, row.get("ts"), server, False, m) for m in _rpc(row.get("response_body"))]
+        if row.get("error") is not None:
+            failed[n] = str(row["error"])
+    items: list[dict[str, Any]] = []
+    for i, (n, ts, server, up, m) in enumerate(messages):
+        if not up or m.get("method") != "tools/call" or "id" not in m:
+            continue
+        params = m["params"] if isinstance(m.get("params"), dict) else {}
+        it = _item("mcp", server, mcp_proxy.FILE, n, ts)
+        it.update(kind="tool_call", server=server, name=params.get("name"))
+        it["input"] = params.get("arguments")
+        answer = next(
+            (
+                (ln, r)
+                for ln, _, srv, to, r in messages[i + 1 :]
+                if not to and srv == server and r.get("id") == m["id"] and "method" not in r
+            ),
+            None,
+        )
+        if answer is None:
+            it["error"] = failed.get(n, "no response in mcp.jsonl")
+        else:
+            it["output"], it["error"] = _mcp_result(answer[1])
+            it["source"]["result_line"] = answer[0]
+        items.append(it)
+    return items, {
+        "file": mcp_proxy.FILE,
+        "rows": rows,
+        "items": len(items),
+        "ignored": dict(ignored),
+    }
+
+
 def _request(row: dict[str, Any]) -> dict[str, Any]:
     """The JSON of the request body of a model_api.jsonl row, or {} if the record has no JSON."""
     body = row.get("request_body")
@@ -859,7 +944,21 @@ def egress_seen(manifest: dict[str, Any]) -> set[str] | None:
     if not isinstance(egress, dict) or not isinstance(egress.get("proxies"), dict):
         return None
     urls = [*egress["proxies"].values(), egress.get("receiver")]
-    return {a for u in urls if isinstance(u, str) for a in [_url_address(u)[0]] if a}
+    seen = {a for u in urls if isinstance(u, str) for a in [_url_address(u)[0]] if a}
+    # The wrappers see the MCP calls with no network address only if each stdio server of the
+    # answer has a wrapper. A span does not name its server, so one server with no wrapper can
+    # make each of these calls.
+    answer = egress.get("answer")
+    servers = answer.get("mcp_servers") if isinstance(answer, dict) else None
+    stdio = (
+        [s for s in servers if isinstance(s, dict) and s.get("transport") == "stdio"]
+        if isinstance(servers, list)
+        else []
+    )
+    wrapped = bool(stdio) and all(
+        egress["proxies"].get(s.get("name")) == mcp_proxy.STDIO for s in stdio
+    )
+    return seen | ({mcp_proxy.STDIO} if wrapped else set())
 
 
 def unseen_calls(items: list[dict[str, Any]], seen: set[str]) -> list[dict[str, Any]]:
@@ -885,6 +984,8 @@ def unseen_calls(items: list[dict[str, Any]], seen: set[str]) -> list[dict[str, 
             continue
         if address is not None and address in seen:
             continue
+        if address is None and db is None and isinstance(mcp, str) and mcp_proxy.STDIO in seen:
+            continue
         detail = f"{what} at {address or 'no network address'}: no proxy saw this call"
         where = {"harness": it["harness"], "session": it["session"], "source": it["source"]}
         out.append(_finding("unseen_call", it["turn"], detail, **where))
@@ -909,7 +1010,8 @@ def check(
     `errors` holds the model errors of the Codex session files (read_codex_errors)."""
     keys = {**TRACE_KEYS, **(keys or {})}
     out: list[dict[str, Any]] = []
-    session_items = [it for it in items if it["kind"] in SESSION_KINDS]
+    # A call to an MCP server is a call of the app, not an item of the model.
+    session_items = [it for it in items if it["kind"] in SESSION_KINDS and it["harness"] != "mcp"]
     for i, r in enumerate(exchanges, 1):
         if r.get("status") != 200:
             what = "a timeout or a crash" if r.get("status") is None else f"status {r['status']}"
@@ -1023,6 +1125,10 @@ def build(folder: Path) -> dict[str, Any]:
     if (folder / model_api.FILE).exists():
         found, direct = read_model_api(folder / model_api.FILE)
         items += found
+    servers_mcp = None
+    if (folder / mcp_proxy.FILE).exists():
+        found, servers_mcp = read_mcp(folder / mcp_proxy.FILE)
+        items += found
     items.sort(key=lambda it: it["ts"] if it["ts"] is not None else float("inf"))
     assign(items, spans)
     keys, seen = trace_keys(manifest), egress_seen(manifest)
@@ -1039,6 +1145,7 @@ def build(folder: Path) -> dict[str, Any]:
         "otel": otel,
         "backend": calls,
         "model_api": direct,
+        "mcp": servers_mcp,
         "counts": {c: counts[c] for c in CHECKS},
         "findings": findings,
     }

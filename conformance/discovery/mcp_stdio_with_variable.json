@@ -1,0 +1,25 @@
+{
+ "answer": {
+  "model_apis": [],
+  "backends": [],
+  "mcp_servers": [
+   {
+    "name": "files",
+    "transport": "stdio",
+    "env": "FILES_MCP_COMMAND",
+    "command": [
+     "toy-files-mcp"
+    ],
+    "url": null
+   }
+  ],
+  "databases": [],
+  "other": []
+ },
+ "expect": {
+  "lines": [
+   "- MCP server files: stdio FILES_MCP_COMMAND -> toy-files-mcp (proxy)"
+  ],
+  "unseen": []
+ }
+}

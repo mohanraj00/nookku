@@ -14,6 +14,7 @@
   "harness_calls": {},
   "other_calls": 1
  },
+ "mcp": null,
  "counts": {
   "agent_error": 0,
   "repeated_reply": 0,

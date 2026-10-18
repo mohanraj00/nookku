@@ -260,7 +260,10 @@ def parts(answer: dict[str, list[dict[str, Any]]]) -> list[Part]:
         out.append(Part("backend", p["name"], f"{p['env']} -> {p['url']}", True))
     for p in answer["mcp_servers"]:
         target = " ".join(p["command"]) if p["transport"] == "stdio" else p["url"]
-        out.append(Part("MCP server", p["name"], f"{p['transport']} {target}", False))
+        # A proxy needs the variable: nookku cannot change a command or a URL in the code.
+        where = f"{p['env']} -> " if p["env"] else ""
+        line = f"{p['transport']} {where}{target}"
+        out.append(Part("MCP server", p["name"], line, p["env"] is not None))
     for p in answer["databases"]:
         where = p["env"] or p["address"] or "no variable"
         out.append(Part("database", p["name"], f"{p['kind']}, {where}", False))
