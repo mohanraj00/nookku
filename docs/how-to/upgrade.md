@@ -96,6 +96,8 @@ Do not skip this step. If Codex does not trust the hooks, it does not run them, 
 
 ## 5. Run `check`
 
+`check` needs a fresh egress answer ([cli.md](../reference/cli.md#nookku-register)). If you have none, type the prompt `nookku start` first, or run `nookku register` with the answer.
+
 ```bash
 nookku check
 ```

@@ -255,3 +255,12 @@ def test_a_blank_line_is_counted_and_the_end_of_the_file_is_not(tmp_path: Path) 
     backend_file.write_text('\n{"type": "start"}\n')
     _, info = trace.read_backend(backend_file)
     assert (info["rows"], info["ignored"]) == (1, {"blank": 1, "start": 1})
+
+
+def test_a_url_that_does_not_parse_gives_a_call_with_no_address() -> None:
+    span = trace._item("otel", "t", "otel.jsonl", 1, 1.0)
+    span.update(kind="span", input={"url.full": "http://["})
+    (finding,) = trace.unseen_calls([span], set())
+    assert finding["detail"] == (
+        "HTTP (a URL that does not parse) at no network address: no proxy saw this call"
+    )

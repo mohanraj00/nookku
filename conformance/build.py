@@ -5428,6 +5428,22 @@ DISCOVERY_CASES: dict[str, dict] = {
         },
         "expect": {"error": "each part needs its own 'env'"},
     },
+    "command_with_secret": {
+        "answer": answer_with(
+            "mcp_servers",
+            {
+                "name": "stock",
+                "transport": "stdio",
+                "env": None,
+                "command": ["toy-stock-mcp", "--token", "toy-123"],
+                "url": None,
+            },
+        ),
+        "expect": {
+            "error": "mcp_servers[0]: the command has a value of the secret key 'token'. "
+            "Give the value in a variable of the server."
+        },
+    },
     "stdio_with_url": {
         "answer": answer_with(
             "mcp_servers",
