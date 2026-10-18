@@ -30,7 +30,14 @@ from typing import Any
 ROOT = Path(__file__).resolve().parent.parent
 sys.path[:0] = [str(ROOT / "src"), str(ROOT / "tests")]
 
-from proof_common import NO_TITLE, claude_events, claude_isolated, json_lines  # noqa: E402
+from proof_common import (  # noqa: E402
+    NO_MODS,
+    NO_TITLE,
+    claude_events,
+    claude_isolated,
+    codex_home,
+    json_lines,
+)
 from toy_agent import ToyAgent  # noqa: E402
 
 from nookku import __version__, kit  # noqa: E402
@@ -50,13 +57,12 @@ READ = {
     "plugin": "Use the nookku transcript tool. Quote the order code that I gave the agent.",
     "hooks": ("Run `nookku transcript` in the shell. Quote the order code that I gave the agent."),
 }
-# The CODEX_HOME of scripts/proof_codex_gate.py, with the plugin of this checkout and its trust.
-PLUGIN_CODEX_HOME = ROOT / ".proof" / "codex-gate" / "codex-home"
 SHELLS = ("bash", "sh", "zsh")
 SETUPS = ("plugin-claude-code", "plugin-codex", "hooks-claude-code", "hooks-codex")
 ENV = {
     **os.environ,
     **NO_TITLE,
+    **NO_MODS,
     "PATH": f"{ROOT / '.venv' / 'bin'}{os.pathsep}{os.environ['PATH']}",
 }
 
@@ -185,8 +191,8 @@ def main() -> int:
         (project / kit.STATE_DIR).mkdir(parents=True, exist_ok=True)
         (project / kit.STATE_DIR / "config.json").write_text(json.dumps(conf.__dict__) + "\n")
         env = dict(ENV)
-        if plugin and harness == "codex":
-            env["CODEX_HOME"] = str(PLUGIN_CODEX_HOME)
+        if harness == "codex":
+            env["CODEX_HOME"] = str(codex_home(plugin, project))
         read = READ["plugin" if plugin else "hooks"]
         if harness == "claude-code":
             run = partial(claude, env=env)

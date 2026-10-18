@@ -15,8 +15,8 @@ The proofs show that each [relay](../reference/glossary.md#relay) is exact in a 
 - Run each proof of the setup `hooks-codex` in the main checkout of the repo, not in a git worktree. In a git worktree, Codex reads the project hooks from the main checkout, so the proof does not use the hooks of the worktree.
 - The plugin hooks run `nookku` from `PATH`. The scripts put the `nookku` of this checkout first.
 - Codex runs each command of the model in a login shell, which reads your shell profile again. If the profile puts another `nookku` first on `PATH`, the model runs that one. Remove it before the proofs, for example with `uv tool uninstall nookku`.
-- In Claude Code, `proof_report.py`, `proof_evaluation.py` and `proof_tutorial.py` give each session only the settings of the project and only the nookku MCP server. Thus no hook, plugin, permission rule or MCP server of your user configuration reaches the model ([proof_common.py](../../scripts/proof_common.py)). Claude Code still loads the mods of `~/.claude/mods`, and no flag stops them. If a plugin that is not built in loads, the proof stops. Before these proofs, move `~/.claude/mods` to a different folder. Move it back after the run.
-- In Codex, the setup `hooks-codex` uses your own `CODEX_HOME`, so the MCP servers of your Codex configuration load.
+- In Claude Code, `proof_report.py`, `proof_evaluation.py` and `proof_tutorial.py` give each session only the settings of the project and only the nookku MCP server. Thus no hook, plugin, permission rule or MCP server of your user configuration reaches the model ([proof_common.py](../../scripts/proof_common.py)). Claude Code loads a mod from each folder of `CLAUDE_CODE_PLUGIN_DIRS`, also from the user settings. Each proof session gets an empty `CLAUDE_CODE_PLUGIN_DIRS`, so no mod loads. If a plugin that is not built in loads, the proof stops.
+- In Codex, each setup has its own `CODEX_HOME`, so no MCP server, plugin or `AGENTS.md` of your Codex configuration loads. The plugin setups use `.proof/codex-gate/codex-home`. The setup `hooks-codex` uses `.proof/codex-hooks/codex-home`. Before each Codex run, the proof runs `codex mcp list --json` in the project with that home. If an MCP server other than nookku is in the list, the proof stops ([proof_common.py](../../scripts/proof_common.py)).
 - Some proofs use a real model and cost tokens. The proofs of the proxies and the backend need no model.
 
 ## Trust the Codex hooks once
@@ -24,8 +24,12 @@ The proofs show that each [relay](../reference/glossary.md#relay) is exact in a 
 Codex runs a hook only after a person trusts it. Never try to skip the trust step. `nookku start` refuses a test with an untrusted hook ([SPEC.md section 7.8](../../SPEC.md#78-codex-hook-gate)). Trust these hooks once:
 
 1. **The plugin.** Run `uv run python scripts/proof_codex_gate.py`. Then start `CODEX_HOME=.proof/codex-gate/codex-home codex -C .proof/codex-gate/project`, type `/hooks`, and trust the 2 nookku hooks. Each run of the script without `--trusted` makes a new `CODEX_HOME`, so that part A starts with hooks that no person trusted. After each such run, trust the hooks again.
-2. **The project hooks.** Write them with the Python of this checkout: `.venv/bin/python3 -m nookku init codex --root .proof/codex`. Start `codex -C .proof/codex`, type `/hooks`, and trust the 2 nookku hooks.
-3. **The project hooks of the [evaluation](../reference/glossary.md#evaluation) proofs.** Do step 2 in `~/.nookku-proof/codex`. That project is outside the repo, so that the evaluating model cannot read the docs that describe the planted bug ([proof_report.py](../../scripts/proof_report.py)).
+2. **The project hooks.** These steps use the `CODEX_HOME` of the setup `hooks-codex`, `.proof/codex-hooks/codex-home`:
+   1. Make the folder: `mkdir -p .proof/codex-hooks/codex-home`.
+   2. Log in: `CODEX_HOME=.proof/codex-hooks/codex-home codex login`.
+   3. Write the hooks with the Python of this checkout: `.venv/bin/python3 -m nookku init codex --root .proof/codex`.
+   4. Start `CODEX_HOME=.proof/codex-hooks/codex-home codex -C .proof/codex`, type `/hooks`, and trust the 2 nookku hooks.
+3. **The project hooks of the [evaluation](../reference/glossary.md#evaluation) proofs.** Do steps 2.3 and 2.4 in `~/.nookku-proof/codex`, with the same `CODEX_HOME`. That project is outside the repo, so that the evaluating model cannot read the docs that describe the planted bug ([proof_report.py](../../scripts/proof_report.py)).
 
 If a hook changes, trust it again. A new plugin script also needs a new run of `proof_codex_gate.py` and a new trust step.
 

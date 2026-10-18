@@ -18,9 +18,9 @@ P8  The trace has the Agent SDK `tool_result` event of the refund in turn 2, fro
 The evaluating model must not see this script or the docs, which describe the bug. So each
 project is outside the repo. In Claude Code, each setup uses a temporary folder. Codex runs only
 the hooks that a person trusted. So the project hooks in Codex use ~/.nookku-proof/codex, with the
-hooks of `nookku init codex`. The plugin in Codex uses ~/.nookku-proof/plugin-codex, with the
-CODEX_HOME of scripts/proof_codex_gate.py. For Codex, the proof also fails if a command of the
-evaluation names a parent folder or a path of the repo.
+hooks of `nookku init codex` and the CODEX_HOME .proof/codex-hooks/codex-home. The plugin in Codex
+uses ~/.nookku-proof/plugin-codex, with the CODEX_HOME of scripts/proof_codex_gate.py. For Codex,
+the proof also fails if a command of the evaluation names a parent folder or a path of the repo.
 
 usage: python scripts/proof_report.py plugin-claude-code|plugin-codex|hooks-claude-code|hooks-codex
 """
@@ -44,9 +44,11 @@ sys.path[:0] = [str(ROOT / "src")]
 
 from proof_common import (  # noqa: E402
     AGENT_SDK,
+    NO_MODS,
     NO_TITLE,
     claude_events,
     claude_isolated,
+    codex_home,
     json_lines,
     private,
 )
@@ -58,6 +60,7 @@ CLI = str(ROOT / ".venv" / "bin" / "nookku")
 ENV = {
     **os.environ,
     **NO_TITLE,
+    **NO_MODS,
     "PATH": f"{ROOT / '.venv' / 'bin'}{os.pathsep}{os.environ['PATH']}",
 }
 MESSAGES = [
@@ -97,8 +100,6 @@ COMMANDS: list[str] = []
 CODEX_PROJECT = Path.home() / ".nookku-proof" / "codex"
 # The project of the plugin in Codex, outside the repo. Its hooks come from the plugin.
 CODEX_PLUGIN_PROJECT = Path.home() / ".nookku-proof" / "plugin-codex"
-# The CODEX_HOME of scripts/proof_codex_gate.py, with the plugin of this checkout and its trust.
-PLUGIN_CODEX_HOME = ROOT / ".proof" / "codex-gate" / "codex-home"
 SETUPS = ("plugin-claude-code", "plugin-codex", "hooks-claude-code", "hooks-codex")
 
 
@@ -212,12 +213,12 @@ def relay_runner(relay: str) -> tuple[Path, Run, str, str, list[str]]:
         # The plugin of this checkout, in the CODEX_HOME where the maintainer trusted its hooks.
         project = CODEX_PLUGIN_PROJECT
         project.mkdir(parents=True, exist_ok=True)
-        env = {**ENV, "CODEX_HOME": str(PLUGIN_CODEX_HOME)}
+        env = {**ENV, "CODEX_HOME": str(codex_home(True, project))}
     else:
         # Its hooks name this root. Codex runs them only after a person trusts them, so the
         # script never writes them.
         project = CODEX_PROJECT
-        env = ENV
+        env = {**ENV, "CODEX_HOME": str(codex_home(False, project))}
 
     def run(prompt: str, extra: list[str]) -> str:
         return codex(prompt, project, extra, env)
