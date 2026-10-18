@@ -182,16 +182,8 @@ def test_https_uses_tls_and_the_config_is_checked() -> None:
         assert p.host_header == "pay.example.com:8443"
     finally:
         p.server_close()
-    assert backend.parse(None) == []
-    with pytest.raises(ValueError, match="own 'name'"):
-        backend.parse(
-            [
-                {"name": "a", "env": "A", "url": "http://x"},
-                {"name": "a", "env": "B", "url": "http://y"},
-            ]
-        )
-    with pytest.raises(ValueError, match="http or https"):
-        backend.parse([{"name": "a", "env": "A", "url": "ftp://x"}])
+    found = backend.from_answer([{"name": "a", "env": "A", "url": "http://x/"}])
+    assert found == [backend.Backend("a", "A", "http://x")]
 
 
 def test_repeated_headers_go_through_and_no_header_is_added(tmp_path: Path) -> None:

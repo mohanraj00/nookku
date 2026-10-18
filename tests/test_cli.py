@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import egress_folder
 import pytest
 
 from nookku import __version__, bridge, kit, mcp, state
@@ -361,74 +362,30 @@ def test_init_takes_the_model_reply_flags(tmp_path: Path) -> None:
     assert (conf["model_reply_field"], conf["model_reply_match"]) == ("output.client_text", "exact")
 
 
-STOCK = ["--backend", "stock", "STOCK_URL", "http://127.0.0.1:9001"]
-
-
-def test_init_takes_the_backend_and_model_api_flags(tmp_path: Path) -> None:
-    root = ["init", "codex", "--root", str(tmp_path)]
-    pay = ["--backend", "pay", "PAY_URL", "https://pay.example/"]
-    apis = ["--model-api", "anthropic", "--model-api", "openai=http://127.0.0.1:9002/v1"]
-    assert main([*root, *STOCK, *pay, *apis]) == 0
-    path = tmp_path / ".nookku" / "config.json"
-    conf = json.loads(path.read_text())
-    assert conf["backends"] == [
-        {"name": "stock", "env": "STOCK_URL", "url": "http://127.0.0.1:9001"},
-        {"name": "pay", "env": "PAY_URL", "url": "https://pay.example/"},
-    ]
-    assert conf["model_api"] == {"anthropic": None, "openai": "http://127.0.0.1:9002/v1"}
-    # A run with no flag keeps both keys. The flags of a run replace the full key.
-    assert main(root) == 0
-    assert json.loads(path.read_text()) == conf
-    assert main([*root, *STOCK, "--model-api", "openai"]) == 0
-    conf = json.loads(path.read_text())
-    assert conf["backends"] == [conf["backends"][0]] and conf["backends"][0]["name"] == "stock"
-    assert conf["model_api"] == {"openai": None}
-
-
-def test_a_new_file_with_no_model_api_flag_records_each_api(tmp_path: Path) -> None:
-    assert main(["init", "codex", "--root", str(tmp_path), *STOCK]) == 0
-    conf = json.loads((tmp_path / ".nookku" / "config.json").read_text())
-    assert conf["model_api"] is True
-
-
-@pytest.mark.parametrize(
-    "flags, error",
-    [
-        ([*STOCK, *STOCK], "each backend needs its own 'name' and 'env'"),
-        (["--backend", "stock", "STOCK_URL", "ftp://h"], "'url' must be an http or https URL"),
-        (["--backend", "stock", "STOCK_URL", "http://h:99999"], "'url' must be an http or https"),
-        (["--backend", "stock", "A=B", "http://h"], "'env' must be a variable name"),
-        (["--backend", "stock", "", "http://h"], "'env' must be a variable name"),
-        (["--model-api", "openai", "--model-api", "openai=http://h"], "each API to --model-api"),
-    ],
-)
-def test_init_writes_nothing_for_a_bad_backend_or_model_api(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str], flags: list[str], error: str
-) -> None:
-    assert main(["init", "codex", "--root", str(tmp_path), *flags]) == 1
-    err = capsys.readouterr().err
-    assert error in err and "Nothing was written." in err
-    assert not (tmp_path / ".nookku" / "config.json").exists()
-
-
 @pytest.mark.parametrize(
     "flags",
-    [
-        ["--model-api", "gemini"],
-        ["--model-api", "openai="],
-        ["--model-api", "openai=ftp://host"],
-        ["--model-api", "anthropic=http://"],
-        ["--model-api", "openai=http://h:notaport"],
-        ["--backend", "stock", "STOCK_URL"],
-    ],
+    [["--backend", "stock", "STOCK_URL", "http://127.0.0.1:9001"], ["--model-api", "openai"]],
 )
-def test_init_refuses_a_malformed_backend_or_model_api_flag(
-    tmp_path: Path, flags: list[str]
-) -> None:
+def test_init_has_no_egress_flag(tmp_path: Path, flags: list[str]) -> None:
+    # The egress answer of each start replaces the flags of 0.5.1 (SPEC.md section 7.11).
     with pytest.raises(SystemExit) as e:
         main(["init", "codex", "--root", str(tmp_path), *flags])
     assert e.value.code == 2
     assert not (tmp_path / ".nookku").exists()
+
+
+@pytest.mark.parametrize("key", ["backends", "model_api"])
+def test_init_writes_nothing_with_an_old_egress_key(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], key: str
+) -> None:
+    path = tmp_path / ".nookku" / "config.json"
+    path.parent.mkdir()
+    path.write_text(json.dumps({"entry": ["python3", "agent.py"], key: True}))
+    before = path.read_text()
+    assert main(["init", "codex", "--root", str(tmp_path), "--models", "codex"]) == 1
+    err = capsys.readouterr().err
+    assert f"has the keys ['{key}'] of nookku 0.5.1 and earlier" in err
+    assert path.read_text() == before
 
 
 def test_the_init_commands_of_the_full_toy_shop_write_the_documented_config(
@@ -438,7 +395,7 @@ def test_the_init_commands_of_the_full_toy_shop_write_the_documented_config(
     repo = Path(__file__).resolve().parent.parent
     readme = (repo / "examples" / "toy-shop-full" / "README.md").read_text()
     runs = re.findall(r"^ *(nookku init .+)$", readme, re.MULTILINE)
-    assert len(runs) == 2
+    assert len(runs) == 1
     for run in runs:
         assert main([*shlex.split(run)[1:], "--root", str(tmp_path)]) == 0
     page = (repo / "docs" / "reference" / "config.md").read_text()
@@ -620,8 +577,7 @@ def test_init_again_keeps_the_keys_that_have_no_flag(
     assert main(["init", "codex", "--root", str(tmp_path), "--entry", "python3 agent.py"]) == 0
     assert "A new file. Keys that differ from the default: entry." in capsys.readouterr().out
     path = tmp_path / ".nookku" / "config.json"
-    backends = [{"name": "stock", "env": "STOCK_URL", "url": "http://127.0.0.1:9001"}]
-    first = {**json.loads(path.read_text()), "backends": backends, "evaluate": False}
+    first = {**json.loads(path.read_text()), "otel": False, "evaluate": False}
     path.write_text(json.dumps(first))
     assert main(["init", "codex", "--root", str(tmp_path), "--models", "codex"]) == 0
     assert json.loads(path.read_text()) == {**first, "models": ["codex"]}
@@ -714,11 +670,7 @@ def test_an_unknown_key_stops_start_check_and_the_project_hooks_with_one_message
         ("models", ["claude"], "'models' must be a list of claude-code, codex"),
         ("evaluate", "no", "'evaluate' must be true or false"),
         ("otel", 0, "'otel' must be true or false"),
-        ("backends", {}, "'backends' must be a list"),
-        ("model_api", "openai", "'model_api' must be true, false, a list of: anthropic, openai"),
         # An explicit null is not the same as a key that is not there.
-        ("backends", None, "'backends' must be a list"),
-        ("model_api", None, "'model_api' must be true, false, a list of: anthropic, openai"),
         ("evaluate", None, "'evaluate' must be true or false"),
         ("tap_url", 8800, "'tap_url' must be a string"),
     ],
@@ -889,8 +841,6 @@ def test_init_remove_refuses_with_old_relay_mode_on_and_does_not_move_it(
         ["codex", "--entry", "python3 a.py"],
         ["codex", "--openai-stream"],
         ["codex", "--no-openai-stream"],
-        ["codex", *STOCK],
-        ["codex", "--model-api", "openai"],
     ],
 )
 def test_init_remove_takes_no_config_flag(
@@ -923,15 +873,19 @@ def test_the_shell_start_text_gives_the_same_ways_to_end_a_test(
     evaluate: bool,
 ) -> None:
     cur = {"test": "t-1", "tap_url": "http://127.0.0.1:1/"}
+    cur["dir"] = egress_folder.folder(tmp_path / "t-1")
     monkeypatch.setattr(bridge, "start", lambda root, session=None: cur)
     (tmp_path / ".nookku").mkdir()
     (tmp_path / ".nookku" / "config.json").write_text(json.dumps({"evaluate": evaluate}))
     assert main(["start", "--root", str(tmp_path)]) == 0
     shell = capsys.readouterr().out
     ways = kit.end_ways(tmp_path)
-    assert shell == f"Test t-1 started on http://127.0.0.1:1/. Relay mode is on.\n{ways}\n"
-    # The plugin and the project hooks show kit.start_test, which ends with the same ways.
-    assert kit.start_test(tmp_path).endswith(f"goes to the entry. {ways}")
+    started = "Test t-1 started on http://127.0.0.1:1/. Relay mode is on."
+    assert shell == f"{started}\n{ways}\n{egress_folder.NO_EGRESS}\n"
+    # The plugin and the project hooks show kit.start_test, with the same ways.
+    assert kit.start_test(tmp_path).endswith(
+        f"goes to the entry. {ways}\n{egress_folder.NO_EGRESS}"
+    )
     assert ("evaluation" in ways) is evaluate
 
 

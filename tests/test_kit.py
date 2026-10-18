@@ -8,6 +8,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+import egress_folder
 import pytest
 from toy_agent import ToyAgent, shop_reply
 
@@ -46,27 +47,32 @@ EVALUATION_END = "To end the test and start the evaluation, type the prompt nook
 def test_the_start_text_names_the_prompt_that_starts_the_evaluation(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(bridge, "start", lambda root, session=None: {"test": "t-1"})
+    cur = {"test": "t-1", "dir": egress_folder.folder(tmp_path / "t-1")}
+    monkeypatch.setattr(bridge, "start", lambda root, session=None: cur)
     # A valid config with no evaluate key: the evaluation is on (#119 reads it with read_config).
     (tmp_path / kit.STATE_DIR).mkdir()
     (tmp_path / kit.STATE_DIR / "config.json").write_text("{}", "utf-8")
     text = kit.start_test(tmp_path)
     assert text.startswith("nookku: test t-1 started. Relay mode is on")
     assert f"{EVALUATION_END}. " in text
-    assert text.endswith("To end the test with no evaluation, run nookku end in a shell.")
+    assert text.endswith(
+        f"To end the test with no evaluation, run nookku end in a shell.\n{egress_folder.NO_EGRESS}"
+    )
     assert kit.is_on(tmp_path)
 
 
 def test_the_start_text_does_not_name_the_evaluation_if_it_is_off(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(bridge, "start", lambda root, session=None: {"test": "t-1"})
+    cur = {"test": "t-1", "dir": egress_folder.folder(tmp_path / "t-1")}
+    monkeypatch.setattr(bridge, "start", lambda root, session=None: cur)
     (tmp_path / kit.STATE_DIR).mkdir()
     (tmp_path / kit.STATE_DIR / "config.json").write_text('{"evaluate": false}', "utf-8")
     text = kit.start_test(tmp_path)
     assert text == (
         "nookku: test t-1 started. Relay mode is on: each message goes to the entry. "
-        "To end the test, type the prompt nookku end, or run nookku end in a shell."
+        "To end the test, type the prompt nookku end, or run nookku end in a shell.\n"
+        + egress_folder.NO_EGRESS
     )
     assert "evaluation" not in text
     assert kit.is_on(tmp_path)

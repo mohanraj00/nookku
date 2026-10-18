@@ -1,0 +1,18 @@
+{
+ "answer": {
+  "model_apis": [
+   {
+    "api": "toy",
+    "env": "TOY_URL",
+    "url": null
+   }
+  ],
+  "backends": [],
+  "mcp_servers": [],
+  "databases": [],
+  "other": []
+ },
+ "expect": {
+  "error": "model_apis[0] 'api' must be one of: anthropic, openai"
+ }
+}

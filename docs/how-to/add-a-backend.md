@@ -1,38 +1,35 @@
 # Add a backend
 
-A backend is an HTTP service that your app calls, for example a stock service or a payment service. If you list it in the configuration, each test records each call of the app to it. The [trace](../reference/glossary.md#trace) shows each call in its turn, so the [evaluation](../reference/glossary.md#evaluation) can see what the app did, not only what it said.
+A backend is an HTTP service that your app calls, for example a stock service or a payment service. At each start, the [harness model](../reference/glossary.md#harness-model) finds each backend of your app, and the test records each call of the app to it. The [trace](../reference/glossary.md#trace) shows each call in its turn, so the [evaluation](../reference/glossary.md#evaluation) can see what the app did, not only what it said.
 
 ## 1. Find the variable of the URL
 
-Find the environment variable from which your app reads the URL of the service. The full toy shop reads its stock service URL from `STOCK_URL` ([services.py](../../examples/toy-shop-full/services.py)).
+The app must read the URL of the service from an environment variable. The full toy shop reads its stock service URL from `STOCK_URL` ([services.py](../../examples/toy-shop-full/services.py)).
 
 If your app reads the URL from a file and not from the environment, let the [entry](../reference/glossary.md#entry) give the app the URL from the variable. For example, the entry can write a copy of the app's configuration for the test. Do not change the app's own files.
 
-## 2. Add the backend to the configuration
+## 2. Check the egress answer
 
-Run `nookku init` with your [relay](../reference/glossary.md#relay) and one `--backend` flag for each backend. Give the name, the variable of step 1 and the real URL:
+You do not write the backends into `.nookku/config.json`. When you type `nookku start`, the model reads the code of your app and runs `nookku register` with the egress answer ([SPEC.md section 7.11](../../SPEC.md#711-egress-discovery)). The model then shows one line for each part:
+
+```text
+- backend stock: STOCK_URL -> http://127.0.0.1:9001 (proxy)
+```
+
+- `stock` names the backend in the record and in the trace.
+- `STOCK_URL` is the variable of step 1.
+- The URL is the real URL of the service, `http` or `https`.
+
+If a line is wrong, tell the model. It runs `nookku register` again. Then type `nookku start` again in the next 30 minutes ([`FRESH`](../../src/nookku/discovery.py)).
+
+Each name and each variable can occur only once. You can also run `nookku register` yourself in a shell, with the answer as JSON ([cli.md](../reference/cli.md#nookku-register)):
 
 ```bash
-nookku init claude-code --backend stock STOCK_URL http://127.0.0.1:9001
+nookku register <<'EOF'
+{"model_apis": [], "backends": [{"name": "stock", "env": "STOCK_URL", "url": "http://127.0.0.1:9001"}],
+ "mcp_servers": [], "databases": [], "other": []}
+EOF
 ```
-
-This writes `backends` into `.nookku/config.json`, and keeps each other key:
-
-```json
-{
-  "entry": ["python3", ".nookku/entry.py"],
-  "models": ["claude-code"],
-  "backends": [{"name": "stock", "env": "STOCK_URL", "url": "http://127.0.0.1:9001"}]
-}
-```
-
-- `name` names the backend in the record and in the trace.
-- `env` is the variable of step 1.
-- `url` is the real URL of the service, `http` or `https`.
-
-Each `name` and each `env` can occur only once. A backend must not use `ANTHROPIC_BASE_URL` or `OPENAI_BASE_URL` while the model API proxy records that API ([record-model-calls.md](record-model-calls.md)).
-
-`nookku init` with no `--backend` flag writes a new `config.json` with an empty `backends` list. If you run `init` again with no `--backend` flag, it keeps your backends. It changes only the keys of the flags that you give. The `--backend` flags of one run replace the full list, so give each backend in that run.
 
 ## 3. Run a test
 

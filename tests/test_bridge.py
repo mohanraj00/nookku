@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from nookku import bridge, evaluation, kit, mcp, policy, seal, state, stdio, trace
+from nookku import bridge, discovery, evaluation, kit, mcp, policy, seal, state, stdio, trace
 from nookku.audit import CHECKS, audit
 from nookku.cli import main
 from nookku.record import RecordError, Writer
@@ -180,11 +180,11 @@ def test_the_entry_keeps_its_state_in_the_sealed_test_folder(tmp_path: Path, hom
 @pytest.mark.parametrize("name", [bridge.TEST_DIR, bridge.TEST_ID])
 def test_a_backend_may_not_use_a_test_variable(tmp_path: Path, name: str) -> None:
     root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
-    config = root / ".nookku" / "config.json"
     shop = {"name": "shop", "env": name, "url": "http://127.0.0.1:9000"}
-    config.write_text(json.dumps({**json.loads(config.read_text()), "backends": [shop]}))
+    egress = {"registered": time.time(), "answer": discovery.make(backends=[shop])}
     with pytest.raises(bridge.BridgeError, match=f"the variable {name} of nookku"):
-        bridge.load_config(root)
+        bridge.start(root, egress=egress)
+    assert state.current(root) is None
 
 
 def test_history_is_the_ok_turns_of_the_test(tmp_path: Path) -> None:
@@ -1048,11 +1048,10 @@ def test_the_proxy_records_the_backend_calls(tmp_path: Path, homes: tuple) -> No
     from toy_stock_server import StockServer
 
     root = project(tmp_path, [sys.executable, "-c", STOCK_APP])
-    config = root / ".nookku" / "config.json"
     with StockServer() as stock:
         backends = [{"name": "stock", "env": "STOCK_URL", "url": stock.url}]
-        config.write_text(json.dumps({**json.loads(config.read_text()), "backends": backends}))
-        cur = bridge.start(root, "tester-1")
+        egress = {"registered": time.time(), "answer": discovery.make(backends=backends)}
+        cur = bridge.start(root, "tester-1", egress=egress)
         try:
             shown, ok = bridge.send(cur, "Do you have the teapot set?")
         finally:
@@ -1096,7 +1095,9 @@ def test_the_proxy_records_the_direct_model_calls(
     with ModelServer() as model:
         model.parts = STREAM
         monkeypatch.setenv("ANTHROPIC_BASE_URL", model.url)
-        cur = bridge.start(root, "tester-1")
+        apis = [{"api": "anthropic", "env": "ANTHROPIC_BASE_URL", "url": None}]
+        egress = {"registered": time.time(), "answer": discovery.make(model_apis=apis)}
+        cur = bridge.start(root, "tester-1", egress=egress)
         try:
             shown, ok = bridge.send(cur, "Do you have the teapot set?")
         finally:
@@ -1112,20 +1113,27 @@ def test_the_proxy_records_the_direct_model_calls(
     assert seal.verify(folder)["intact"]
 
 
-def test_a_bad_model_api_config_stops_the_start(tmp_path: Path) -> None:
+def test_a_bad_model_api_answer_stops_the_start(tmp_path: Path) -> None:
     root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
-    config = root / ".nookku" / "config.json"
-    config.write_text(json.dumps({**json.loads(config.read_text()), "model_api": ["toy"]}))
-    with pytest.raises(bridge.BridgeError, match="'model_api' must be"):
-        bridge.start(root)
+    apis = [{"api": "toy", "env": "TOY_URL", "url": None}]
+    egress = {"registered": time.time(), "answer": discovery.make(model_apis=apis)}
+    with pytest.raises(bridge.BridgeError, match="'api' must be one of: anthropic, openai"):
+        bridge.start(root, egress=egress)
+    apis = [{"api": "openai", "env": "OPENAI_BASE_URL", "url": None}]
+    egress = {"registered": time.time(), "answer": discovery.make(model_apis=apis)}
+    with pytest.MonkeyPatch.context() as m:
+        m.setenv("OPENAI_BASE_URL", "ftp://x")
+        with pytest.raises(bridge.BridgeError, match="OPENAI_BASE_URL"):
+            bridge.start(root, egress=egress)
+    assert state.current(root) is None
 
 
-def test_a_bad_backend_config_stops_the_start(tmp_path: Path) -> None:
+def test_a_bad_backend_answer_stops_the_start(tmp_path: Path) -> None:
     root = project(tmp_path, [sys.executable, str(TOY_SHOP)])
-    config = root / ".nookku" / "config.json"
-    config.write_text(json.dumps({**json.loads(config.read_text()), "backends": [{"name": "x"}]}))
-    with pytest.raises(bridge.BridgeError, match="'name', 'env' and 'url'"):
-        bridge.start(root)
+    egress = {"registered": time.time(), "answer": discovery.make(backends=[{"name": "x"}])}
+    with pytest.raises(bridge.BridgeError, match="must have the keys name, env, url"):
+        bridge.start(root, egress=egress)
+    assert state.current(root) is None
 
 
 def test_an_invalid_relay_record_infers_no_codex_session(tmp_path: Path, homes: tuple) -> None:

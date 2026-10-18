@@ -75,7 +75,7 @@ from proof_common import (  # noqa: E402
     rows,
 )
 
-from nookku import __version__, bridge, kit, page  # noqa: E402
+from nookku import __version__, bridge, discovery, kit, page  # noqa: E402
 from nookku.audit import audit  # noqa: E402
 from nookku.record import Turn, read_relay  # noqa: E402
 
@@ -408,6 +408,8 @@ def main_page(out: Path) -> int:
         "csp": headers.get("content-security-policy"),
         "inline_script": b"<script>" in html,
     }
+    # The answer of SPEC.md section 7.11, so that the start prompt starts the test.
+    discovery.register(project, discovery.make(model_apis=discovery.both_apis()))
     report["start_model_output_tokens"] = run(project, "nookku start", False, False)[
         "output_tokens"
     ]
@@ -594,6 +596,8 @@ def main() -> int:
         "transport": "stdio",
         "turns": [],
     }
+    # The answer of SPEC.md section 7.11, so that the start prompt starts the test.
+    discovery.register(project, discovery.make(model_apis=discovery.both_apis()))
     report["start_model_output_tokens"] = run(project, "nookku start", False, False)[
         "output_tokens"
     ]

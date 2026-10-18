@@ -261,6 +261,8 @@ def try_start_test(root: Path, tester_session: str | None = None) -> tuple[bool,
     text = (
         f"nookku: test {cur['test']} started. Relay mode is on: each message goes to the entry. "
         + end_ways(root)
+        + "\n"
+        + bridge.egress_text(Path(cur["dir"]))
     )
     from nookku import page_auto
 
@@ -268,6 +270,27 @@ def try_start_test(root: Path, tester_session: str | None = None) -> tuple[bool,
     # output or `nookku mode start`. The text holds the URL only if stdout is a terminal.
     shown = page_auto.after_start(root, cur["test"], sys.stdout)
     return True, f"{text}\n{shown}" if shown else text
+
+
+DISCOVERY_TEXT = (
+    "nookku: no test started yet. The model now finds the egress of the agent, and shows you each "
+    "part. Check the parts. Then type nookku start again to start the test with them."
+)
+
+
+def needs_discovery(root: Path) -> bool:
+    """True if the prompt nookku start must first send the discovery task to the model: no test
+    runs, the config can start a test, and no fresh egress answer exists (SPEC.md section 7.11).
+    Else the start runs, and it gives its own refusal, for example for a config with no entry."""
+    from nookku import bridge, discovery
+
+    if state.current(root) is not None or discovery.pending(root) is not None:
+        return False
+    try:
+        bridge.load_config(root)
+    except bridge.BridgeError:
+        return False
+    return True
 
 
 def end_test(root: Path, tester_session: str | None = None, stop_page: bool = False) -> str:
@@ -430,6 +453,12 @@ def handle(event: dict[str, Any], root: Path, harness: str) -> dict[str, Any] | 
         in_print_mode = print_mode.applies(os.environ, harness)
         if in_print_mode and isinstance(said, str) and said.strip() == "nookku start":
             return _block(print_mode.REASON)
+        if isinstance(said, str) and said.strip() == "nookku start" and needs_discovery(root):
+            # The prompt goes on to the model, which finds the egress of the agent first. Relay
+            # mode stays off and no test starts (SPEC.md section 7.11).
+            from nookku import discovery
+
+            return _context(f"{DISCOVERY_TEXT}\n\n{discovery.task(root)}")
         if isinstance(said, str) and said.strip() in CONTROL:
             from nookku import evaluation
 

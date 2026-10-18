@@ -42,7 +42,7 @@ sys.path[:0] = [str(FULL)]
 import stock  # noqa: E402
 import toy_model  # noqa: E402
 
-from nookku import seal  # noqa: E402
+from nookku import discovery, seal  # noqa: E402
 
 MESSAGES = [
     "Hi, is the teapot set in stock?",
@@ -72,15 +72,18 @@ def main() -> int:
     model = toy_model.ToyModel(0)
     for server in (shop, model):
         threading.Thread(target=server.serve_forever, daemon=True).start()
-    config = {
-        "backends": [{"name": "stock", "env": "STOCK_URL", "url": shop.url}],
-        # A URL in the config, not OPENAI_BASE_URL, because Codex as the tester's harness also
+    egress = discovery.make(
+        backends=[{"name": "stock", "env": "STOCK_URL", "url": shop.url}],
+        # A URL in the answer, not OPENAI_BASE_URL, because Codex as the tester's harness also
         # reads that variable.
-        "model_api": {"anthropic": None, "openai": model.url},
-    }
-    pr.setup(project, FULL, AGENT_SDK, config)
+        model_apis=[
+            {"api": "anthropic", "env": "ANTHROPIC_BASE_URL", "url": None},
+            {"api": "openai", "env": "OPENAI_BASE_URL", "url": model.url},
+        ],
+    )
+    pr.setup(project, FULL, AGENT_SDK)
     try:
-        ran = pr.run_test(project, run, start, end, end_args, MESSAGES)
+        ran = pr.run_test(project, run, start, end, end_args, MESSAGES, egress)
     finally:
         for server in (shop, model):
             server.shutdown()

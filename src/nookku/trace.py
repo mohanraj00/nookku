@@ -15,6 +15,7 @@ from collections import Counter
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 from . import backend, model_api, otlp
 from .adapters import AdapterError, pick
@@ -37,6 +38,7 @@ CHECKS = (
     "span_error",
     "backend_error",
     "model_api_error",
+    "unseen_call",
     "model_error",
     "turn_without_model",
     "item_between_turns",
@@ -806,6 +808,74 @@ def not_from_model(
     return out
 
 
+# The attributes of an OpenTelemetry span or log that name a call of the app (the semantic
+# conventions of OpenTelemetry): the URL of an HTTP client call, the system of a database call,
+# and the method of an MCP call. A span with a server attribute is a call to the app, not a call
+# of the app, so the coverage check skips it.
+CALL_URL = ("url.full", "http.url")
+CALL_DB = ("db.system.name", "db.system")
+CALL_MCP = "mcp.method.name"
+SERVER_KEYS = ("http.route", "http.target", "url.path")
+DEFAULT_PORTS = {"http": 80, "https": 443}
+
+
+def _address(host: Any, port: Any) -> str | None:
+    if not isinstance(host, str) or not host:
+        return None
+    return f"{host.lower()}:{port}" if type(port) is int else host.lower()
+
+
+def _url_address(url: str) -> tuple[str | None, str]:
+    """The host:port of a URL, and the URL with no user, query or fragment, for the detail."""
+    parts = urlsplit(url)
+    try:
+        port = parts.port or DEFAULT_PORTS.get(parts.scheme)
+    except ValueError:
+        return None, ""
+    host = parts.hostname
+    shown = f"{parts.scheme}://{host}" + (f":{parts.port}" if parts.port else "") + parts.path
+    return _address(host, port), shown
+
+
+def egress_seen(manifest: dict[str, Any]) -> set[str] | None:
+    """The host:port of each proxy and of the OTLP receiver of the test (SPEC.md section 7.11),
+    or None if the manifest has no egress answer. Then the coverage check does not run."""
+    egress = manifest.get("egress")
+    if not isinstance(egress, dict) or not isinstance(egress.get("proxies"), dict):
+        return None
+    urls = [*egress["proxies"].values(), egress.get("receiver")]
+    return {a for u in urls if isinstance(u, str) for a in [_url_address(u)[0]] if a}
+
+
+def unseen_calls(items: list[dict[str, Any]], seen: set[str]) -> list[dict[str, Any]]:
+    """The `unseen_call` findings: each call of the app in its OpenTelemetry spans and logs that
+    goes to an address that no proxy of the test has (SPEC.md section 8.6)."""
+    out = []
+    for it in items:
+        if it["harness"] != "otel" or it["kind"] not in ("span", "log"):
+            continue
+        attrs = it["input"] if isinstance(it["input"], dict) else {}
+        if any(k in attrs for k in SERVER_KEYS):
+            continue
+        url = next((attrs[k] for k in CALL_URL if isinstance(attrs.get(k), str)), None)
+        db = next((attrs[k] for k in CALL_DB if isinstance(attrs.get(k), str)), None)
+        mcp = attrs.get(CALL_MCP)
+        if url is not None:
+            address, shown = _url_address(url)
+            what = f"HTTP {shown}"
+        elif db is not None or isinstance(mcp, str):
+            address = _address(attrs.get("server.address"), attrs.get("server.port"))
+            what = f"database {db}" if db is not None else f"MCP {mcp}"
+        else:
+            continue
+        if address is not None and address in seen:
+            continue
+        detail = f"{what} at {address or 'no network address'}: no proxy saw this call"
+        where = {"harness": it["harness"], "session": it["session"], "source": it["source"]}
+        out.append(_finding("unseen_call", it["turn"], detail, **where))
+    return out
+
+
 def check(
     exchanges: list[dict[str, Any]],
     spans: list[tuple[float, float]],
@@ -814,8 +884,11 @@ def check(
     servers: list[dict[str, Any]] | None = None,
     keys: dict[str, Any] | None = None,
     errors: list[dict[str, Any]] | None = None,
+    seen: set[str] | None = None,
 ) -> list[dict[str, Any]]:
-    """The findings of SPEC.md section 8.6. They do not change the audit's exit code. `servers`
+    """The findings of SPEC.md section 8.6. They do not change the audit's exit code. `seen`
+    holds the addresses of the proxies (egress_seen), or None if the test has no egress answer.
+    `servers`
     holds the MCP servers that the Claude Code session files name (read_claude_servers).
     `keys` holds the config keys of the checks that the manifest records (trace_keys).
     `errors` holds the model errors of the Codex session files (read_codex_errors)."""
@@ -857,6 +930,8 @@ def check(
         first = spans[0][0] if spans else None
         if it["turn"] is None and first is not None and it["ts"] is not None and it["ts"] >= first:
             out.append(_finding("item_between_turns", None, f"a {it['kind']} item", **where))
+    if seen is not None:
+        out += unseen_calls(items, seen)
     for e in errors or []:
         turn = _turn(e["ts"], spans)
         where = {"harness": e["harness"], "session": e["session"]}
@@ -935,7 +1010,8 @@ def build(folder: Path) -> dict[str, Any]:
         items += found
     items.sort(key=lambda it: it["ts"] if it["ts"] is not None else float("inf"))
     assign(items, spans)
-    findings = check(exchanges, spans, items, sessions, servers, trace_keys(manifest), errors)
+    keys, seen = trace_keys(manifest), egress_seen(manifest)
+    findings = check(exchanges, spans, items, sessions, servers, keys, errors, seen)
     lines = [json_text({k: v for k, v in it.items() if k != CALL_ID}) + "\n" for it in items]
     (folder / "trace.jsonl").write_text("".join(lines), encoding="utf-8")
     counts = Counter(f["check"] for f in findings)

@@ -62,6 +62,8 @@ TOOLS = [
     "--allowedTools=Bash(nookku transcript:*),Bash(cat:*),Bash(sed -n:*),Bash(jq:*),"
     "Bash(grep:*),Read,Grep,Glob,Write",
 ]
+# The egress answer of the toy shop (SPEC.md section 7.11): agent.py calls no service.
+NO_EGRESS = '{"model_apis": [], "backends": [], "mcp_servers": [], "databases": [], "other": []}'
 # Claude Code puts these lines around the reason of a blocked prompt in print mode.
 BLOCKED = "UserPromptSubmit operation blocked by hook:\n"
 ORIGINAL = "\n\nOriginal prompt: "
@@ -170,6 +172,7 @@ def main() -> int:
         shell("nookku --version")
         shell(f"echo '{CONTRACT_LINE}' | python3 agent.py")
         shell('nookku init claude-code --entry "python3 agent.py"')
+        shell(f"nookku register <<'EOF'\n{NO_EGRESS}\nEOF")
         shell("nookku check")
         prompt("nookku start")
         for message in MESSAGES:

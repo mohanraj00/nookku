@@ -1,0 +1,77 @@
+{
+ "answer": {
+  "model_apis": [
+   {
+    "api": "anthropic",
+    "env": "ANTHROPIC_BASE_URL",
+    "url": null
+   }
+  ],
+  "backends": [
+   {
+    "name": "stock",
+    "env": "STOCK_URL",
+    "url": "http://127.0.0.1:9100"
+   }
+  ],
+  "mcp_servers": [
+   {
+    "name": "files",
+    "transport": "stdio",
+    "env": null,
+    "command": [
+     "toy-files-mcp",
+     "--root",
+     "data"
+    ],
+    "url": null
+   },
+   {
+    "name": "tickets",
+    "transport": "http",
+    "env": "TICKETS_MCP_URL",
+    "command": null,
+    "url": "https://tickets.toy.test/mcp"
+   }
+  ],
+  "databases": [
+   {
+    "name": "shop",
+    "kind": "postgres",
+    "env": "DATABASE_URL",
+    "address": "127.0.0.1:5432/shop"
+   },
+   {
+    "name": "cart",
+    "kind": "sqlite",
+    "env": null,
+    "address": "data/cart.db"
+   }
+  ],
+  "other": [
+   {
+    "name": "mail",
+    "kind": "smtp",
+    "detail": "sends the order mail"
+   }
+  ]
+ },
+ "expect": {
+  "lines": [
+   "- model API anthropic: ANTHROPIC_BASE_URL -> the URL in ANTHROPIC_BASE_URL or the default (proxy)",
+   "- backend stock: STOCK_URL -> http://127.0.0.1:9100 (proxy)",
+   "- MCP server files: stdio toy-files-mcp --root data (no proxy)",
+   "- MCP server tickets: http https://tickets.toy.test/mcp (no proxy)",
+   "- database shop: postgres, DATABASE_URL (no proxy)",
+   "- database cart: sqlite, data/cart.db (no proxy)",
+   "- other mail: smtp, sends the order mail (no proxy)"
+  ],
+  "unseen": [
+   "files",
+   "tickets",
+   "shop",
+   "cart",
+   "mail"
+  ]
+ }
+}

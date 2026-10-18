@@ -1,0 +1,25 @@
+{
+ "answer": {
+  "model_apis": [],
+  "backends": [
+   {
+    "name": "stock",
+    "env": "STOCK_URL",
+    "url": "http://127.0.0.1:9100"
+   }
+  ],
+  "mcp_servers": [],
+  "databases": [
+   {
+    "name": "shop",
+    "kind": "postgres",
+    "env": "STOCK_URL",
+    "address": null
+   }
+  ],
+  "other": []
+ },
+ "expect": {
+  "error": "each part needs its own 'env'"
+ }
+}

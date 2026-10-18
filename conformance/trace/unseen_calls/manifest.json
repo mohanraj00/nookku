@@ -1,0 +1,34 @@
+{
+ "test": "20261017-090000-eg01",
+ "model_sessions": [],
+ "egress": {
+  "registered": 1791273600.0,
+  "answer": {
+   "model_apis": [],
+   "backends": [
+    {
+     "name": "stock",
+     "env": "STOCK_URL",
+     "url": "https://stock.toy.test"
+    }
+   ],
+   "mcp_servers": [],
+   "databases": [
+    {
+     "name": "shop-db",
+     "kind": "postgres",
+     "env": "DATABASE_URL",
+     "address": null
+    }
+   ],
+   "other": []
+  },
+  "unseen": [
+   "shop-db"
+  ],
+  "proxies": {
+   "stock": "http://127.0.0.1:41001"
+  },
+  "receiver": "http://127.0.0.1:41000"
+ }
+}

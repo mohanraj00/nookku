@@ -37,8 +37,6 @@ These keys configure a test ([SPEC.md section 7.1](../../SPEC.md#71-configuratio
 | `models` | list of strings | `[]` | The [harnesses](glossary.md#harness) that the app uses for its own model sessions: `claude-code`, `codex`, both or none. `nookku check` fails if it does not find a session for each one. |
 | `evaluate` | boolean | `true` | `false` stops the [evaluation](glossary.md#evaluation) at the end of a test ([SPEC.md section 9](../../SPEC.md#9-evaluation)). |
 | `otel` | boolean | `true` | `false` stops the OTLP receiver of a test ([SPEC.md section 7.5](../../SPEC.md#75-otlp-receiver)). |
-| `backends` | list of objects | `[]` | The backends of the app, each with the strings `name`, `env` and `url`. `env` is a variable name of letters, digits and `_`. Each `name` and each `env` occurs only once ([how-to/add-a-backend.md](../how-to/add-a-backend.md)). `nookku init --backend NAME ENV URL` writes it ([cli.md](cli.md#nookku-init)). |
-| `model_api` | boolean, list or object | `true` | The model APIs to record: `true` for all, `false` for none, a list of `anthropic` and `openai`, or an object from these names to the upstream URL or `null` ([how-to/record-model-calls.md](../how-to/record-model-calls.md)). `nookku init --model-api API[=URL]` writes the object form ([cli.md](cli.md#nookku-init)). |
 | `entries` | object | `{}` | More entries for a [scripted test](glossary.md#scripted-test), by name, for example `{"replay": ["python3", "replay_entry.py"]}`. `nookku run --entry replay` uses one. `entry` stays the default entry ([how-to/test-your-app.md](../how-to/test-your-app.md#run-a-scripted-test)). |
 | `check_message` | string | `Hello from nookku check. What can you help me with?` | The one message that `nookku check` sends. It must have a character that is not white space, and no lone surrogate. Set it to a message that your app answers normally, for example a question about a product of the shop. |
 | `repeated_reply` | integer | `2` | The count of consecutive turns with the same reply that gives a `repeated_reply` [finding](glossary.md#findings) of the [trace](glossary.md#trace) ([SPEC.md section 8.6](../../SPEC.md#86-findings)). `0` turns the check off. A value of 1 or less than 0 is an error. The manifest of each test records the value. |
@@ -75,11 +73,13 @@ The full toy shop, with a stock service and a note model on local ports. The `in
 ```json
 {
   "entry": ["uv", "run", "--with", "claude-agent-sdk", "--with", "nookku", "python3", "entry.py"],
-  "models": ["claude-code"],
-  "backends": [{"name": "stock", "env": "STOCK_URL", "url": "http://127.0.0.1:9001"}],
-  "model_api": {"anthropic": null, "openai": "http://127.0.0.1:9002/v1"}
+  "models": ["claude-code"]
 }
 ```
+
+### No egress keys
+
+The file has no `backends` key and no `model_api` key. Nookku 0.5.1 and earlier read these keys. Now the [harness model](glossary.md#harness-model) finds the egress of the agent at each start, and you check its answer ([SPEC.md section 7.11](../../SPEC.md#711-egress-discovery)). A `config.json` with one of these keys gives an error that names them. Remove the keys.
 
 ## `.nookku/policy.json`
 
@@ -113,6 +113,6 @@ The plugin has no options, so no plugin option can change a policy key. Write `.
 | `CODEX_HOME` | the bridge | The Codex folder with the rollout files. The default is `~/.codex`. |
 | `NOOKKU_CODEX` | `start`, `mode on`, the bridge | The `codex` command of the Codex hook gate. The default is `codex`. If the command is not on `PATH`, the gate does not run ([SPEC.md section 7.8](../../SPEC.md#78-codex-hook-gate)). |
 | `NOOKKU_HOME` | the bridge, `verify` | The folder of the copies of the [seals](glossary.md#seal). The default is `~/.nookku` ([SPEC.md section 7.4](../../SPEC.md#74-seal)). |
-| `ANTHROPIC_BASE_URL`, `OPENAI_BASE_URL` | the bridge | The upstream URL of each model API proxy, if `model_api` gives none ([SPEC.md section 7.7](../../SPEC.md#77-model-api-proxies)). |
+| `ANTHROPIC_BASE_URL`, `OPENAI_BASE_URL` | the bridge | The upstream URL of each model API proxy, if the egress answer gives none ([SPEC.md section 7.7](../../SPEC.md#77-model-api-proxies)). |
 
-During a test, the bridge also sets variables for the entry. `NOOKKU_TEST_DIR` is the absolute path of the [test folder](glossary.md#test-folder), and `NOOKKU_TEST_ID` is the test id. The app can keep its state in `$NOOKKU_TEST_DIR/app-state/`, so that the seal covers it ([SPEC.md section 6.1](../../SPEC.md#61-environment-of-the-entry)). The other variables are the `OTEL_*` variables, `CLAUDE_CODE_ENABLE_TELEMETRY=1`, the `env` of each backend, and the two base URLs above ([otlp.py](../../src/nookku/otlp.py), [SPEC.md section 7.5](../../SPEC.md#75-otlp-receiver)).
+During a test, the bridge also sets variables for the entry. `NOOKKU_TEST_DIR` is the absolute path of the [test folder](glossary.md#test-folder), and `NOOKKU_TEST_ID` is the test id. The app can keep its state in `$NOOKKU_TEST_DIR/app-state/`, so that the seal covers it ([SPEC.md section 6.1](../../SPEC.md#61-environment-of-the-entry)). The other variables are the `OTEL_*` variables, `CLAUDE_CODE_ENABLE_TELEMETRY=1`, and the `env` of each backend and each model API of the egress answer ([otlp.py](../../src/nookku/otlp.py), [SPEC.md section 7.5](../../SPEC.md#75-otlp-receiver)).

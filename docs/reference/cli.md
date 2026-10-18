@@ -21,6 +21,8 @@ An unknown command or flag prints the usage and exits with 2. The error of an un
 
 Start a test: run the [entry](glossary.md#entry) through the [tap](glossary.md#tap) and switch [relay mode](glossary.md#relay-mode) on ([SPEC.md section 7.2](../../SPEC.md#72-start-and-end)). It needs an `entry` in `.nookku/config.json`. With no entry, `start` starts no test, exits with 1 and prints `nookku: .nookku/config.json has no 'entry' command, so the test cannot start. Write the command that starts your agent with: nookku init <relay> --entry "<command>". <relay> is plugin, claude-code or codex.` The prompt `nookku start`, `check` and `run` give the same text ([troubleshooting](../troubleshooting.md#nookku-nookkuconfigjson-has-no-entry-command-so-the-test-cannot-start)). The start text gives the same ways to end the test as the [plugin](glossary.md#plugin) and the [project hooks](glossary.md#project-hooks): the prompt `nookku end`, which also starts the [evaluation](glossary.md#evaluation), and `nookku end` in a shell. If `evaluate` is `false`, the text does not name the evaluation ([SPEC.md section 9.1](../../SPEC.md#91-start)).
 
+`start` also needs a fresh egress answer: the answer of [`nookku register`](#nookku-register) from the last 30 minutes ([SPEC.md section 7.11](../../SPEC.md#711-egress-discovery)). With no fresh answer, `start` starts no test, exits with 1 and prints `no test started: nookku has no egress answer from the last 30 minutes. Type the prompt nookku start in the harness, so that the model finds the egress of the agent. Or run nookku register with the answer (SPEC.md section 7.11).` The prompt `nookku start` with no fresh answer starts no test. It sends the discovery task to the [harness model](glossary.md#harness-model), and the model runs `nookku register`. Type `nookku start` again to start the test. The start text names each part of the answer. The start removes the answer, so the next test needs a new answer. `check`, `run` and `mode start` also need a fresh answer, but `check` keeps it.
+
 `start` also starts the [chat page](#nookku-chat) of the test and opens it in your browser. The prompt `nookku start` and `/nookku start` in the plugin do the same. After `end` in a shell, the page continues, so you can export the test. The prompt `nookku end` and the next `start` stop the page ([SPEC.md section 5](../../SPEC.md#5-relays)).
 
 - If the browser cannot open, for example over SSH, `start` in a terminal prints the page URL. The prompt `nookku start` and `/nookku start` never show the URL, because the [harness model](glossary.md#harness-model) can see their output. Then run `nookku chat` in a separate terminal.
@@ -37,7 +39,34 @@ Start a test: run the [entry](glossary.md#entry) through the [tap](glossary.md#t
 | Exit code | Meaning |
 |---|---|
 | 0 | The test started. |
-| 1 | The test did not start: no entry, an invalid configuration (for example an unknown key), a test that runs already, or an entry that exited. The text names the cause. |
+| 1 | The test did not start: no entry, no fresh egress answer, an invalid configuration (for example an unknown key), a test that runs already, or an entry that exited. The text names the cause. |
+
+### `nookku register`
+
+```text
+nookku register [--root PATH] [--file PATH] [--json]
+```
+
+Check an egress answer and keep it for the next start ([SPEC.md section 7.11](../../SPEC.md#711-egress-discovery)). The [harness model](glossary.md#harness-model) runs it after the prompt `nookku start`. You can also run it in a shell. The answer is a JSON object on standard input, or in the file of `--file`, with the 5 lists `model_apis`, `backends`, `mcp_servers`, `databases` and `other`. If the answer does not obey the rule, `register` writes nothing, prints the error and exits with 1. Else it writes `.nookku/discovery.json` and prints one line for each part. A start takes the answer in the next 30 minutes ([`FRESH`](../../src/nookku/discovery.py)). The answer holds the names of the variables, never their values: `register` refuses a URL with a user, a password or a secret query value.
+
+```bash
+nookku register <<'EOF'
+{"model_apis": [{"api": "anthropic", "env": "ANTHROPIC_BASE_URL", "url": null}],
+ "backends": [{"name": "stock", "env": "STOCK_URL", "url": "http://127.0.0.1:9001"}],
+ "mcp_servers": [], "databases": [], "other": []}
+EOF
+```
+
+| Flag | Default | Meaning |
+|---|---|---|
+| `--root PATH` | the current folder | The project. |
+| `--file PATH` | standard input | The file of the answer. |
+| `--json` | off | Print `registered` and `parts`, or `error`, as JSON. |
+
+| Exit code | Meaning |
+|---|---|
+| 0 | The answer is kept. |
+| 1 | The answer does not obey the rule. Nothing was written. |
 
 ### `nookku end`
 
@@ -387,15 +416,9 @@ nookku init --remove HARNESS [--root PATH]
 
 Write the config, and the [project hooks](glossary.md#project-hooks) of a harness. It writes `.nookku/config.json`, the files `.nookku/mode` and `.nookku/nookku-state`, and the hooks: `.codex/hooks.json` for Codex, `.claude/settings.local.json` for Claude Code. It keeps your other hooks, also a hook in the same group as a hook of nookku. With `plugin`, it writes no hooks, because the nookku plugin has them. Do not use the plugin and the project hooks in one project, or each message is sent two times.
 
-If `config.json` exists, `init` keeps each key and changes only the keys of the flags that you give. For example, a second run keeps `backends` and `"evaluate": false`. It prints the keys that it changed and the keys that it kept. A new `config.json` gets each key. The default of a flag applies only to a new file.
+If `config.json` exists, `init` keeps each key and changes only the keys of the flags that you give. For example, a second run keeps `models` and `"evaluate": false`. It prints the keys that it changed and the keys that it kept. A new `config.json` gets each key. The default of a flag applies only to a new file.
 
-If `config.json` has an unknown key, or if `config.json` or the hook file is not valid JSON, `init` writes nothing. Correct the file, then run `init` again. If a flag gives a value that breaks the rule of its key, for example a backend URL or a model API URL that is not `http` or `https`, or one API two times in `--model-api`, `init` also writes nothing.
-
-For example, this run writes the backend and the model APIs of the [full toy shop](../../examples/toy-shop-full/README.md#run-it), and keeps each other key:
-
-```bash
-nookku init claude-code --backend stock STOCK_URL http://127.0.0.1:9001 --model-api anthropic --model-api openai=http://127.0.0.1:9002/v1
-```
+If `config.json` has an unknown key, or if `config.json` or the hook file is not valid JSON, `init` writes nothing. Correct the file, then run `init` again. If a flag gives a value that breaks the rule of its key, `init` also writes nothing. If `config.json` has the key `backends` or `model_api` of nookku 0.5.1 and earlier, `init` writes nothing and names the keys. Remove them: the egress answer replaces them ([SPEC.md section 7.11](../../SPEC.md#711-egress-discovery)).
 
 The output starts with `Project root:` and the absolute root, then gives the absolute path of each file that `init` wrote. If the root is in a state folder or a test folder, for example `.nookku/tests/<id>`, the target of a `.nookku` symlink, or a copied test folder, `init` writes nothing, exits with 1 and names the project folder to use ([code](../../src/nookku/cli.py), [test](../../tests/test_cli.py)). If the root has no `config.json` and is not the top level of its git work tree, `init` prints a warning that names the top level. It still writes the files.
 
@@ -419,8 +442,6 @@ If the config has no `entry` and no `agent_url` after the run, the last line of 
 | `--model-reply-field PATH` | empty | The config key `model_reply_field`: the dot path of the client text in a structured model output. |
 | `--model-reply-match MODE` | `normalized` | The config key `model_reply_match`: `exact`, `normalized` or `off`. |
 | `--repeated-reply COUNT` | `2` | The config key `repeated_reply`: the count of consecutive turns with the same reply that gives a finding. `0` turns the check off. |
-| `--backend NAME ENV URL` | none | The config key `backends`: one backend, with its name, the variable of its URL and its real URL ([how-to/add-a-backend.md](../how-to/add-a-backend.md)). Give the flag one time for each backend. The flags replace the full list. |
-| `--model-api API[=URL]` | none | The config key `model_api`: one model API to record, `anthropic` or `openai`. `API=URL` gives the upstream URL, and `API` alone takes the URL from the variable ([how-to/record-model-calls.md](../how-to/record-model-calls.md)). Give the flag one time for each API. The flags replace the full key with the object form. With no flag, a new file gets `true`. |
 | `--remove` | off | Remove the project hooks of nookku, and keep each other hook and key. `HARNESS` must be `claude-code` or `codex`. It takes no other flag. |
 
 [config.md](config.md#nookkuconfigjson) explains each key.

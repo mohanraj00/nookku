@@ -1,0 +1,18 @@
+{
+ "answer": {
+  "model_apis": [],
+  "backends": [],
+  "mcp_servers": [],
+  "databases": [],
+  "other": [
+   {
+    "name": " ",
+    "kind": "smtp",
+    "detail": "mail"
+   }
+  ]
+ },
+ "expect": {
+  "error": "other[0] 'name' must be a text"
+ }
+}

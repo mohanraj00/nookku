@@ -23,20 +23,22 @@ The app needs `claude-agent-sdk`, which is not a dependency of Nookku. The entry
    nookku init claude-code --entry "uv run --with claude-agent-sdk --with nookku python3 entry.py" --models claude-code
    ```
 
-3. Run `nookku init` again, with the stock service and the note model. Use the same relay as in step 2. You do not edit `.nookku/config.json`:
-
-   ```bash
-   nookku init claude-code --backend stock STOCK_URL http://127.0.0.1:9001 --model-api anthropic --model-api openai=http://127.0.0.1:9002/v1
-   ```
-
-   This run keeps the keys of step 2, and writes the keys `backends` and `model_api`. [docs/reference/config.md](../../docs/reference/config.md#examples) shows the complete configuration, and [docs/how-to/add-a-backend.md](../../docs/how-to/add-a-backend.md) explains the backend.
-4. Start the stock service and the toy note model on local ports, each one in its own shell:
+3. Start the stock service and the toy note model on local ports, each one in its own shell:
 
    ```bash
    python3 stock.py 9001
    python3 toy_model.py 9002
    ```
 
-5. Follow the guide of your relay to run a test.
+4. Type the prompt `nookku start` in the harness. The model reads the code and runs `nookku register` with the egress answer ([SPEC.md section 7.11](../../SPEC.md#711-egress-discovery)). Check that it shows these parts:
+
+   ```text
+   - model API anthropic: ANTHROPIC_BASE_URL -> the URL in ANTHROPIC_BASE_URL or the default (proxy)
+   - model API openai: OPENAI_BASE_URL -> http://127.0.0.1:9002/v1 (proxy)
+   - backend stock: STOCK_URL -> http://127.0.0.1:9001 (proxy)
+   ```
+
+   If a part is wrong, tell the model. For example, the code does not name the port of the note model, so tell the model the URL `http://127.0.0.1:9002/v1` if it gives `null`. [docs/how-to/add-a-backend.md](../../docs/how-to/add-a-backend.md) explains the backend.
+5. Type `nookku start` again, and follow the guide of your relay to run a test.
 
 [scripts/proof_telemetry.py](../../scripts/proof_telemetry.py) uses this app.

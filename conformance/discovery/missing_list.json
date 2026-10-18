@@ -1,0 +1,11 @@
+{
+ "answer": {
+  "model_apis": [],
+  "backends": [],
+  "mcp_servers": [],
+  "databases": []
+ },
+ "expect": {
+  "error": "the answer must have the lists model_apis, backends, mcp_servers, databases, other, and no other key"
+ }
+}

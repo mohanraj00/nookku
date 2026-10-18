@@ -16,10 +16,10 @@ from typing import Any
 
 from . import backend
 from .adapters import StreamError, sse_events
-from .config import is_http_url, parse_model_api
+from .config import is_http_url
 
 FILE = "model_api.jsonl"
-# The API name: the variable of its SDK and the URL if the entry has no value in the variable.
+# The API name: the variable of its SDK and the URL if the variable has no value.
 APIS = {
     "anthropic": ("ANTHROPIC_BASE_URL", "https://api.anthropic.com"),
     "openai": ("OPENAI_BASE_URL", "https://api.openai.com/v1"),
@@ -28,21 +28,14 @@ APIS = {
 HARNESS_AGENTS = (("claude-cli", "claude-code"), ("claude-code", "claude-code"), ("codex", "codex"))
 
 
-def parse(raw: Any) -> dict[str, str | None]:
-    """The `model_api` key of the configuration: the APIs to record, each with the URL from the
-    configuration, or None for the URL from its variable. The rule is in config.parse_model_api,
-    so the reader of config.json gives the same error."""
-    return parse_model_api(raw)
-
-
-def backends(apis: Mapping[str, str | None], environ: Mapping[str, str]) -> list[backend.Backend]:
-    """One backend for each API. Its URL is the URL of the configuration, else the value that the
-    bridge has in the variable, else the default."""
+def backends(parts: list[dict[str, Any]], environ: Mapping[str, str]) -> list[backend.Backend]:
+    """One backend for each model API of a discovery answer (SPEC.md section 7.11). Its URL is
+    the URL of the answer, else the value that the bridge has in the variable, else the default
+    of the API."""
     out = []
-    for name, configured in apis.items():
-        env, default = APIS[name]
-        # A URL in the configuration is used as it is, also if it is empty, so that it is checked.
-        url = configured if configured is not None else (environ.get(env) or default)
+    for p in parts:
+        name, env, given = p["api"], p["env"], p["url"]
+        url = given if given is not None else (environ.get(env) or APIS[name][1])
         if not is_http_url(url):
             raise ValueError(f"the URL of {name} ({env}) must be an http or https URL: {url!r}")
         out.append(backend.Backend(name, env, url.rstrip("/")))

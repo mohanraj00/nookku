@@ -345,7 +345,8 @@ def test_a_page_that_cannot_start_does_not_stop_the_test(
         raise OSError("no process")
 
     monkeypatch.setattr(subprocess, "Popen", broken)
-    monkeypatch.setattr(bridge, "start", lambda root, session=None: {"test": folder.name})
+    cur = {"test": folder.name, "dir": str(folder)}
+    monkeypatch.setattr(bridge, "start", lambda root, session=None: cur)
     text = kit.start_test(root)
     assert text.startswith(f"nookku: test {folder.name} started.")
     assert text.endswith("\nnookku: the chat page did not start: no process. The test continues.")

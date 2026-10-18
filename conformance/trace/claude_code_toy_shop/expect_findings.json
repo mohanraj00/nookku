@@ -33,6 +33,7 @@
   "span_error": 0,
   "backend_error": 0,
   "model_api_error": 0,
+  "unseen_call": 0,
   "model_error": 0,
   "turn_without_model": 1,
   "item_between_turns": 2,

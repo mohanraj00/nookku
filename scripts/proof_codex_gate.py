@@ -45,7 +45,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parent.parent
 sys.path[:0] = [str(ROOT / "src")]
 
-from nookku import __version__, codex_gate, state  # noqa: E402
+from nookku import __version__, codex_gate, discovery, state  # noqa: E402
 from nookku.config import STATE_DIR  # noqa: E402
 
 PLUGIN = ROOT / "plugins" / "nookku"
@@ -203,6 +203,8 @@ def installed_record(installed: Path) -> dict[str, Any]:
 
 
 def part_a(installed: Path) -> dict[str, Any]:
+    # The answer of SPEC.md section 7.11, so that the start starts the test.
+    discovery.register(PROJECT, discovery.make(model_apis=discovery.both_apis()))
     start = run(["nookku", "start"], PROJECT)
     mode = (PROJECT / STATE_DIR / "mode").read_text().strip()
     before = gate()
@@ -246,6 +248,7 @@ def part_a(installed: Path) -> dict[str, Any]:
 
 def part_b(installed: Path) -> dict[str, Any]:
     result = gate()
+    discovery.register(PROJECT, discovery.make(model_apis=discovery.both_apis()))
     started = run(["nookku", "start", "--json"], PROJECT)
     ended = run(["nookku", "end"], PROJECT)
     manifest: dict[str, Any] = {}

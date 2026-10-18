@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from toy_model_server import ModelServer
 
-from nookku import backend, config, model_api
+from nookku import backend, discovery, model_api
 
 TRACE = Path(__file__).resolve().parent.parent / "conformance" / "trace"
 STREAM = [
@@ -24,7 +24,7 @@ def rows(tmp_path: Path) -> list[dict]:
 
 def proxy_for(model: ModelServer, tmp_path: Path, api: str = "anthropic") -> backend.Proxies:
     env = model_api.APIS[api][0]
-    apis = model_api.backends({api: None}, {env: model.url})
+    apis = model_api.backends([{"api": api, "env": env, "url": None}], {env: model.url})
     return backend.Proxies(apis, tmp_path / model_api.FILE, model_api.ModelProxy)
 
 
@@ -286,33 +286,34 @@ def test_a_decisions_error_and_an_answer_of_a_new_type() -> None:
     ]
 
 
-def test_the_config_and_the_urls() -> None:
-    # The reader of config.json checks the names, and APIS gives the URL of each (#121).
-    assert tuple(model_api.APIS) == config.MODEL_APIS
-    assert model_api.parse(None) == {"anthropic": None, "openai": None}
-    assert model_api.parse(True) == {"anthropic": None, "openai": None}
-    assert model_api.parse(False) == {}
-    assert model_api.parse(["openai"]) == {"openai": None}
-    assert model_api.parse({"openai": "http://127.0.0.1:9/v1"}) == {
-        "openai": "http://127.0.0.1:9/v1"
-    }
-    for bad in (["toy"], {"toy": None}, {"openai": 9}):
-        with pytest.raises(ValueError, match="true, false, a list"):
-            model_api.parse(bad)
-    apis = {"anthropic": None, "openai": None}
-    urls = model_api.backends(apis, {"OPENAI_BASE_URL": "https://gw.test/v1/"})
+def api(name: str, url: str | None = None, env: str | None = None) -> dict:
+    """A model API part of an egress answer (SPEC.md section 7.11)."""
+    return {"api": name, "env": env or model_api.APIS[name][0], "url": url}
+
+
+def test_the_urls_of_the_answer() -> None:
+    # The answer and APIS have the same API names.
+    assert tuple(model_api.APIS) == discovery.MODEL_APIS
+    urls = model_api.backends(
+        [api("anthropic"), api("openai")], {"OPENAI_BASE_URL": "https://gw.test/v1/"}
+    )
     assert [(b.env, b.url) for b in urls] == [
         ("ANTHROPIC_BASE_URL", "https://api.anthropic.com"),
         ("OPENAI_BASE_URL", "https://gw.test/v1"),
     ]
-    # A URL in the configuration comes before the variable.
-    urls = model_api.backends({"openai": "http://127.0.0.1:9/v1"}, {"OPENAI_BASE_URL": "https://x"})
+    # A URL in the answer comes before the variable.
+    urls = model_api.backends(
+        [api("openai", "http://127.0.0.1:9/v1")], {"OPENAI_BASE_URL": "https://x"}
+    )
     assert urls[0].url == "http://127.0.0.1:9/v1"
+    # The answer can name another variable. Its value gives the URL.
+    urls = model_api.backends([api("openai", env="TOY_LLM_URL")], {"TOY_LLM_URL": "http://h:1/v1"})
+    assert (urls[0].env, urls[0].url) == ("TOY_LLM_URL", "http://h:1/v1")
     with pytest.raises(ValueError, match="ANTHROPIC_BASE_URL"):
-        model_api.backends({"anthropic": None}, {"ANTHROPIC_BASE_URL": "ftp://x"})
-    # An empty URL in the configuration stops the start. It does not fall back to the variable.
+        model_api.backends([api("anthropic")], {"ANTHROPIC_BASE_URL": "ftp://x"})
+    # An empty URL stops the start. It does not fall back to the variable.
     with pytest.raises(ValueError, match="OPENAI_BASE_URL"):
-        model_api.backends({"openai": ""}, {"OPENAI_BASE_URL": "https://x"})
+        model_api.backends([api("openai", "")], {"OPENAI_BASE_URL": "https://x"})
 
 
 def test_a_lone_surrogate_in_a_result_is_written_as_its_escape(tmp_path: Path) -> None:
