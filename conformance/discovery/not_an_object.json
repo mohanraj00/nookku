@@ -1,0 +1,6 @@
+{
+ "answer": [],
+ "expect": {
+  "error": "the answer must be a JSON object"
+ }
+}

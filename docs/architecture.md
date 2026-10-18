@@ -204,7 +204,7 @@ At the end of a test, the bridge writes the SHA-256 of each file of the test fol
 
 ## The trace and the findings
 
-The trace, `trace.jsonl`, joins the session files, `otel.jsonl`, `backend.jsonl` and `model_api.jsonl` into one record. Each item has its turn and a pointer to its line in the source file ([SPEC.md section 8](../SPEC.md#8-trace)). 15 checks write `findings.json`, for example a tool call that failed or a turn in which no model ran ([SPEC.md section 8.6](../SPEC.md#86-findings)). The [findings](reference/glossary.md#findings) do not change the exit code of the audit.
+The trace, `trace.jsonl`, joins the session files, `otel.jsonl`, `backend.jsonl` and `model_api.jsonl` into one record. Each item has its turn and a pointer to its line in the source file ([SPEC.md section 8](../SPEC.md#8-trace)). 16 checks write `findings.json`, for example a tool call that failed or a turn in which no model ran ([SPEC.md section 8.6](../SPEC.md#86-findings)). The [findings](reference/glossary.md#findings) do not change the exit code of the audit.
 
 ```mermaid
 flowchart TB
@@ -221,7 +221,7 @@ flowchart TB
     items --> assign[Give each item the turn whose window holds its time]
     windows --> assign
     assign -.->|writes| tracerec[(trace.jsonl)]
-    assign --> checks[15 checks]
+    assign --> checks[16 checks]
     sreaders -->|sessions and MCP servers| checks
     taprec -->|status of each exchange| checks
     checks -.->|writes| findingsrec[(findings.json)]

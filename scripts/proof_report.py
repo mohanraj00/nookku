@@ -53,7 +53,7 @@ from proof_common import (  # noqa: E402
     private,
 )
 
-from nookku import bridge, kit, seal  # noqa: E402
+from nookku import bridge, discovery, kit, seal  # noqa: E402
 
 EXAMPLE = ROOT / "examples" / "toy-shop-models"
 CLI = str(ROOT / ".venv" / "bin" / "nookku")
@@ -227,10 +227,20 @@ def relay_runner(relay: str) -> tuple[Path, Run, str, str, list[str]]:
 
 
 def run_test(
-    project: Path, run: Run, start: str, end: str, end_args: list[str], messages: list[str]
+    project: Path,
+    run: Run,
+    start: str,
+    end: str,
+    end_args: list[str],
+    messages: list[str],
+    egress: dict[str, Any] | None = None,
 ) -> tuple[Path, str] | None:
     """Start a test, send the messages, and end it with the evaluation. Return the test folder and
-    the answer of the end prompt, or None if the test did not start."""
+    the answer of the end prompt, or None if the test did not start.
+
+    The script registers the egress answer `egress` before the start (SPEC.md section 7.11), so
+    the start prompt starts the test. The default is both model APIs, as in nookku 0.5.1."""
+    discovery.register(project, egress or discovery.make(model_apis=discovery.both_apis()))
     run(start, [])
     cur = bridge.current(project)
     if cur is None:

@@ -102,10 +102,6 @@ class Config:
     evaluate: bool = True
     # False stops the OTLP receiver of a test (SPEC.md section 7.5).
     otel: bool = True
-    # The backend proxies of a test (SPEC.md section 7.6).
-    backends: list[dict[str, str]] = field(default_factory=list)
-    # The model APIs to record: true, false, a list of names, or names with URLs (SPEC.md 7.7).
-    model_api: bool | list[str] | dict[str, str | None] = True
     # The one message of nookku check (SPEC.md section 7.1).
     check_message: str = CHECK_MESSAGE
     # The count of consecutive turns with the same reply that gives a repeated_reply finding.
@@ -146,8 +142,8 @@ ENTRY_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]*")
 KEYS = tuple(f.name for f in fields(Config))
 # The harnesses that the app can use for its model sessions (the key models).
 HARNESSES = ("claude-code", "codex")
-# The model APIs of the key model_api. model_api.APIS gives the variable and the URL of each.
-MODEL_APIS = ("anthropic", "openai")
+# The keys of nookku 0.5.1 and earlier that discovery replaces (SPEC.md section 7.11).
+OLD_KEYS = ("backends", "model_api")
 # The keys with a string value and no other rule here. check_message and model_reply_field
 # have their own rules below.
 STRING_KEYS = (
@@ -160,9 +156,6 @@ STRING_KEYS = (
     "record",
 )
 BOOLEAN_KEYS = ("openai_stream", "evaluate", "otel", "transcript_compact", "page")
-# The keys whose parser takes None for a key that is not there, and the value of an explicit null.
-NULL_KEYS = ("backends", "model_api")
-_NULL = object()
 
 
 def _check_types(data: dict[str, Any]) -> None:
@@ -181,82 +174,33 @@ def _check_types(data: dict[str, Any]) -> None:
     models = data.get("models", [])
     if not (isinstance(models, list) and all(m in HARNESSES for m in models)):
         raise ConfigError(f"{FILE}: 'models' must be a list of {', '.join(HARNESSES)}")
-    # The parsers take None for a key that is not there. An explicit null is a wrong type, so it
-    # goes in as a value that each parser refuses, and gives the same error text.
-    given = {k: _NULL if k in data and data[k] is None else data.get(k) for k in NULL_KEYS}
-    try:
-        parse_backends(given["backends"])
-        parse_model_api(given["model_api"])
-    except ValueError as e:
-        raise ConfigError(f"{FILE}: {e}") from None
 
 
-# The variable of a backend: the entry gets it, and Popen refuses a name with "=" or NUL.
+# The variable of an egress part: the entry gets it, and Popen refuses a name with "=" or NUL.
 ENV_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 
 
 def is_http_url(url: str) -> bool:
     """True if url is an http or https URL with a host and a valid port, or no port: the rule for
-    the URL of a backend and of a model API (SPEC.md sections 7.6 and 7.7)."""
-    parts = urlsplit(url)
+    the URL of a backend and of a model API (SPEC.md sections 7.6, 7.7 and 7.11)."""
     try:
+        parts = urlsplit(url)
         parts.port  # noqa: B018 - the property raises ValueError for a bad port
     except ValueError:
         return False
     return parts.scheme in ("http", "https") and bool(parts.hostname)
 
 
-def parse_backends(raw: Any) -> list[tuple[str, str, str]]:
-    """The `backends` key: the name, the variable and the URL of each backend (SPEC.md section
-    7.6). Raise ValueError if it is not valid. The proxy module uses it too, so one rule applies.
-    """
-    if raw is None:
-        return []
-    if not isinstance(raw, list):
-        raise ValueError("'backends' must be a list")
-    out: list[tuple[str, str, str]] = []
-    for b in raw:
-        if not isinstance(b, dict) or not all(
-            isinstance(b.get(k), str) for k in ("name", "env", "url")
-        ):
-            raise ValueError("each backend needs the strings 'name', 'env' and 'url'")
-        if not ENV_NAME.fullmatch(b["env"]):
-            raise ValueError(
-                f"backend {b['name']}: 'env' must be a variable name of letters, digits and '_'"
-            )
-        if not is_http_url(b["url"]):
-            raise ValueError(f"backend {b['name']}: 'url' must be an http or https URL")
-        out.append((b["name"], b["env"], b["url"].rstrip("/")))
-    names = [name for name, _, _ in out]
-    if len(set(names)) != len(names) or len({env for _, env, _ in out}) != len(out):
-        raise ValueError("each backend needs its own 'name' and 'env'")
-    return out
-
-
-def parse_model_api(raw: Any) -> dict[str, str | None]:
-    """The `model_api` key: the APIs to record, each with the URL from the configuration, or
-    None for the URL from its variable (SPEC.md section 7.7). Raise ValueError if it is not
-    valid."""
-    if raw is None or raw is True:
-        return dict.fromkeys(MODEL_APIS)
-    if raw is False:
-        return {}
-    if isinstance(raw, list) and all(isinstance(x, str) and x in MODEL_APIS for x in raw):
-        return dict.fromkeys(raw)
-    if isinstance(raw, dict) and all(
-        k in MODEL_APIS and (v is None or isinstance(v, str)) for k, v in raw.items()
-    ):
-        return dict(raw)
-    raise ValueError(
-        f"'model_api' must be true, false, a list of: {', '.join(MODEL_APIS)}, "
-        "or an object from these names to a URL or null"
-    )
-
-
 def check(data: Any) -> dict[str, Any]:
     """Apply the rule for the keys to the parsed file. Return it, or raise ConfigError."""
     if not isinstance(data, dict):
         raise ConfigError(f"{FILE} is not a JSON object")
+    old = [k for k in OLD_KEYS if k in data]
+    if old:
+        raise ConfigError(
+            f"{FILE} has the keys {old} of nookku 0.5.1 and earlier. Nookku now finds the "
+            "egress of the agent at each start (SPEC.md section 7.11). Remove the keys."
+        )
     unknown = sorted(set(data) - set(KEYS))
     if unknown:
         raise ConfigError(f"{FILE} has unknown keys: {unknown}. Correct or remove them.")

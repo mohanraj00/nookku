@@ -1,0 +1,18 @@
+{
+ "answer": {
+  "model_apis": [],
+  "backends": [
+   {
+    "name": "stock",
+    "env": "NOOKKU_TEST_DIR",
+    "url": "http://127.0.0.1:9100"
+   }
+  ],
+  "mcp_servers": [],
+  "databases": [],
+  "other": []
+ },
+ "expect": {
+  "error": "backends[0] 'env' is the variable NOOKKU_TEST_DIR of nookku"
+ }
+}

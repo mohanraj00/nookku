@@ -157,11 +157,13 @@ CASE_FOLDERS = {
     "seal": "seal",
     "receiver": "otlp",
     "notes": "notes",
+    "discovery": "discovery",
 }
 
 
 def _cases(folder: str) -> int:
-    return sum(p.is_dir() for p in (ROOT / "conformance" / folder).iterdir())
+    # A case is a folder, or a JSON file for the discovery cases.
+    return sum(p.is_dir() or p.suffix == ".json" for p in (ROOT / "conformance" / folder).iterdir())
 
 
 def test_the_readme_counts_each_folder_of_conformance_cases() -> None:

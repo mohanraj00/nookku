@@ -1,0 +1,19 @@
+{
+ "answer": {
+  "model_apis": [],
+  "backends": [],
+  "mcp_servers": [],
+  "databases": [
+   {
+    "name": "shop",
+    "kind": "postgres",
+    "env": null,
+    "address": "toy@127.0.0.1:5432"
+   }
+  ],
+  "other": []
+ },
+ "expect": {
+  "error": "databases[0]: the address has a user or a password. Give host:port."
+ }
+}

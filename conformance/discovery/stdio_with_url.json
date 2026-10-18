@@ -1,0 +1,22 @@
+{
+ "answer": {
+  "model_apis": [],
+  "backends": [],
+  "mcp_servers": [
+   {
+    "name": "files",
+    "transport": "stdio",
+    "env": null,
+    "command": [
+     "toy-files-mcp"
+    ],
+    "url": "http://127.0.0.1:9200"
+   }
+  ],
+  "databases": [],
+  "other": []
+ },
+ "expect": {
+  "error": "mcp_servers[0]: a stdio server needs 'command' and a null 'url', an http server needs 'url' and a null 'command'"
+ }
+}

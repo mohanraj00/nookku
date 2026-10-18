@@ -10,6 +10,7 @@ reads only the files of the 2 test folders, and it changes no file.
 
 from __future__ import annotations
 
+import json
 import re
 from array import array
 from math import isqrt
@@ -267,6 +268,23 @@ def base(root: Path, script_path: Path, test: str | None) -> Path | None:
             raise ReplayError(f"no test has the id {test!r}. Give a folder name of .nookku/tests/.")
         return folder
     return dashboard.find(root, script_path.stem)
+
+
+def egress(old: Path | None) -> dict[str, Any] | None:
+    """The egress answer that the old test recorded, for the replay (SPEC.md section 7.11), or
+    None if the old test has no valid answer. Then the replay needs a new answer."""
+    from nookku import discovery
+
+    if old is None:
+        return None
+    try:
+        recorded = json.loads((old / "manifest.json").read_text(encoding="utf-8"))["egress"]
+        return {
+            "registered": recorded["registered"],
+            "answer": discovery.parse(recorded["answer"]),
+        }
+    except (OSError, ValueError, TypeError, KeyError):
+        return None
 
 
 def _marked(parts: list[list[str]], color: bool = False) -> str:

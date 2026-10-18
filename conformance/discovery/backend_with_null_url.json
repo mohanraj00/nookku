@@ -1,0 +1,18 @@
+{
+ "answer": {
+  "model_apis": [],
+  "backends": [
+   {
+    "name": "stock",
+    "env": "STOCK_URL",
+    "url": null
+   }
+  ],
+  "mcp_servers": [],
+  "databases": [],
+  "other": []
+ },
+ "expect": {
+  "error": "backends[0] 'url' must be a text"
+ }
+}

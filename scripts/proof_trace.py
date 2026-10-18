@@ -31,7 +31,7 @@ sys.path[:0] = [str(ROOT / "src"), str(ROOT / "scripts")]
 
 from proof_sessions import ENTRY  # noqa: E402
 
-from nookku import bridge  # noqa: E402
+from nookku import bridge, discovery  # noqa: E402
 
 MESSAGES = [
     "Where is my order 4471?",
@@ -116,6 +116,7 @@ def main() -> int:
     (project / ".nookku").mkdir(parents=True)
     config = {"entry": entry, "models": ["claude-code", "codex"]}
     (project / ".nookku" / "config.json").write_text(json.dumps(config))
+    discovery.register(project, discovery.make(model_apis=discovery.both_apis()))
     cur = bridge.start(project, wait=120)
     try:
         for m in MESSAGES:

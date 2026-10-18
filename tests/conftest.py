@@ -52,3 +52,30 @@ def no_mods(monkeypatch: pytest.MonkeyPatch) -> None:
     """A test gets no mod of the Claude Code session that runs pytest. The mod tests set the
     variable (#424)."""
     monkeypatch.delenv("CLAUDE_CODE_PLUGIN_DIRS", raising=False)
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    config.addinivalue_line(
+        "markers", "real_discovery: the test reads only the egress answers that it registers"
+    )
+
+
+@pytest.fixture(autouse=True)
+def egress_answer(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A test that starts a test gets an answer with no egress part, if it registered no answer
+    (SPEC.md section 7.11). The tests of discovery mark real_discovery and read only their own
+    answers."""
+    if request.node.get_closest_marker("real_discovery"):
+        return
+    import time
+
+    from nookku import discovery
+
+    real = discovery.pending
+
+    def pending(root: Path, now: float | None = None) -> dict | None:
+        found = real(root, now)
+        empty = {kind: [] for kind in discovery.LISTS}
+        return found or {"v": discovery.VERSION, "registered": time.time(), "answer": empty}
+
+    monkeypatch.setattr(discovery, "pending", pending)
