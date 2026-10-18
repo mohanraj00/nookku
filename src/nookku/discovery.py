@@ -10,11 +10,12 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
-from urllib.parse import parse_qsl, urlsplit
+from urllib.parse import parse_qsl, unquote, urlsplit
 
 from nookku.config import ENV_NAME, STATE_DIR, is_http_url
 from nookku.record import lone_surrogate
@@ -115,6 +116,21 @@ def _env(where: str, value: Any, null: bool = False) -> str | None:
     return env
 
 
+def _secret_free_address(where: str, address: str) -> None:
+    """Refuse a database address with a user, or with a value of a secret key: in a query after
+    `?`, or in a `key=value` word."""
+    from nookku.backend import secret
+
+    if "@" in address:
+        raise AnswerError(f"{where}: the address has a user or a password. Give host:port.")
+    words = [w for w in re.split(r"[\s;&?]+", address) if "=" in w]
+    for word in words:
+        key, _, value = word.partition("=")
+        key = unquote(key)
+        if value and secret(key):
+            raise AnswerError(f"{where}: the address has a value of the secret key {key!r}.")
+
+
 def _url(where: str, value: Any, null: bool = False) -> str | None:
     url = _string(f"{where} 'url'", value, null)
     if url is None:
@@ -166,8 +182,8 @@ def _part(kind: str, n: int, raw: Any) -> dict[str, Any]:
         _string(f"{where} 'kind'", raw["kind"])
         _env(where, raw["env"], null=True)
         address = _string(f"{where} 'address'", raw["address"], null=True)
-        if address is not None and "@" in address:
-            raise AnswerError(f"{where}: the address has a user or a password. Give host:port.")
+        if address is not None:
+            _secret_free_address(where, address)
     else:
         for key in keys:
             _string(f"{where} '{key}'", raw[key])

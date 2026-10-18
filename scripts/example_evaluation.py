@@ -26,8 +26,8 @@ from typing import Any, NamedTuple
 ROOT = Path(__file__).resolve().parent.parent
 sys.path[:0] = [str(ROOT / "src"), str(ROOT / "scripts")]
 
-from proof_common import json_lines  # noqa: E402
-from proof_report import ENV, private, relay_runner, run_test, scrub  # noqa: E402
+from proof_common import json_lines, private  # noqa: E402
+from proof_report import ENV, relay_runner, run_test, scrub  # noqa: E402
 
 from nookku import kit, mcp  # noqa: E402
 from nookku.record import turns  # noqa: E402
@@ -173,15 +173,16 @@ def finish(folder: Path, session: Session, project: Path, out: Path) -> int:
 
 def main() -> int:
     project, run, start, end, _ = relay_runner("plugin-claude-code")
-    setup(project)
-    ENV["TOY_SHOP_PORT"] = str(free_port())
-    ran = run_test(project, run, start, end, [], MESSAGES)
-    if ran is None:
-        print("FAIL: the test did not start")
-        return 1
-    folder, _ = ran
-    session = ask(PROMPT, project, WORDS_ONLY)
+    # Remove the temporary project also if a step raises an error, for example a timeout of ask().
     try:
+        setup(project)
+        ENV["TOY_SHOP_PORT"] = str(free_port())
+        ran = run_test(project, run, start, end, [], MESSAGES)
+        if ran is None:
+            print("FAIL: the test did not start")
+            return 1
+        folder, _ = ran
+        session = ask(PROMPT, project, WORDS_ONLY)
         return finish(folder, session, project, EXAMPLE / "evaluation.json")
     finally:
         shutil.rmtree(project, ignore_errors=True)
