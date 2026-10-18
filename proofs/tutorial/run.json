@@ -1,11 +1,11 @@
 {
- "date": "2026-10-16",
+ "date": "2026-10-18",
  "tests": [
-  "20261016-185843-29f5",
-  "20261016-185848-1fc6"
+  "20261018-122748-bf16",
+  "20261018-122751-7001"
  ],
- "nookku": "0.5.1",
- "claude-code": "2.1.301 (Claude Code)",
+ "nookku": "0.5.2",
+ "claude-code": "2.1.302 (Claude Code)",
  "codex": "codex-cli 0.162.1",
  "model": [
   "claude-opus-5-5"

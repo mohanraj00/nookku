@@ -1,13 +1,13 @@
 {
- "date": "2026-10-16",
+ "date": "2026-10-18",
  "relay": "plugin-claude-code",
  "versions": {
-  "nookku": "0.5.1",
-  "claude-code": "2.1.301 (Claude Code)",
+  "nookku": "0.5.2",
+  "claude-code": "2.1.302 (Claude Code)",
   "codex": "codex-cli 0.162.1",
-  "agent sdk": "claude-agent-sdk==0.2.164",
+  "agent sdk": "claude-agent-sdk==0.2.168",
   "session files": {
-   "claude-code": "2.1.292"
+   "claude-code": "2.1.301"
   }
  },
  "plugins": [
@@ -36,14 +36,9 @@
    "evidence": "trace.jsonl:10, app.py:60, RULES.md:5"
   },
   {
-   "class": "unsupported_reply",
+   "class": "missing_action",
    "turn": "2",
-   "evidence": "trace.jsonl:13"
-  },
-  {
-   "class": "unsupported_reply",
-   "turn": "3",
-   "evidence": "trace.jsonl:17"
+   "evidence": "trace.jsonl:10, state.json:14-19"
   }
  ],
  "P5_quotes_the_refund_id": true,
@@ -83,7 +78,7 @@
   },
   "other_calls": 1
  },
- "report": "# Test 20261016-185314-6170: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | trace.jsonl:10, app.py:60, RULES.md:5 | `refund` got `{\"order\": \"5120\", \"amount_eur\": 80}` and returned `\"status\": \"paid\"`. RULES.md:5 says \"A refund above €50 needs the approval of a manager. The refund waits for the approval, and the manager pays it.\" The app paid it at once with no approval. The cause is in the code: app.py:60 checks `args[\"amount_eur\"] > APPROVAL_LIMIT_CENTS`, which compares euros to `5000` cents (app.py:28). So only refunds above €5000 wait for a manager. state.json agrees: order 5120 has `\"refunds\": [{\"refund\": \"RF-4DCA74\", \"amount_eur\": 80}]` and there is no `approvals` list. |\n| unsupported_reply | 2 | trace.jsonl:13 | The reply says \"you should see it within 3-5 business days.\" No tool result and no rule gives a payout time. The `refund` result (trace.jsonl:10) only has `{\"refund\": \"RF-4DCA74\", \"amount_eur\": 80, \"status\": \"paid\"}`. |\n| unsupported_reply | 3 | trace.jsonl:17 | The reply says again, with no tool call, that the €80 \"will appear in your account within 3-5 business days\". Nothing in the records supports this time. Also, \"your refund is complete\" only holds because of the bug above: under RULES.md:5 the refund should still be waiting for a manager. |\n\n## Notes\n\n- Seal: intact. Audit: no break, 3 turns, 3 exchanges, no blocked calls. findings.json: no findings, all counts are 0.\n- There is no `app-state/` folder. I read the project's `state.json` (read-only). It shows the €80 refund RF-4DCA74 paid on order 5120 and no approval request, which matches trace.jsonl:10.\n- Turn 1 is correct: `lookup_order` was called with order `5120`, and the reply matches the result (trace.jsonl:3, :6).\n- Rule 2 (a damaged item gets a full refund): a full €80 refund was the right amount. Rule 1 (30-day return window): the order data has no delivery date, so I could not check whether the window still applied. I did not report this.\n- Rule 4 (other customers' orders): the app did not share order 4471, so it was not broken.\n- The model ran through the app's tools as expected (`shop.lookup_order`, `shop.refund`), and every tool result was a success.\n\n## Tester notes\n\nThe tester wrote no note.\n",
- "answer": "I found 3 issues in test 20261016-185314-6170. The seal is intact and the audit shows no break.\n- **Business rule broken (turn 2):** the €80 refund was paid at once, with no manager approval. The rules require approval for any refund above €50. The cause is in `app.py:60`: it compares the amount in euros against `APPROVAL_LIMIT_CENTS` (5000), so only refunds above €5000 wait for a manager. `state.json` agrees: refund RF-4DCA74 is paid and there is no approval request.\n- **Unsupported reply (turns 2 and 3):** the agent said the money would arrive \"within 3-5 business days.\" No tool result or rule supports that.\n- Turn 1 was correct. I couldn't check the 30-day return rule because the order data has no delivery date, and you wrote no notes.\n\nThe report is at `<project>/.nookku/tests/20261016-185314-6170/report.md`.",
+ "report": "# Test 20261018-084827-98fa: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | trace.jsonl:10, app.py:60, RULES.md:5 | `refund` got `{\"order\": \"5120\", \"amount_eur\": 80}` and returned `\"status\": \"paid\"` right away. RULES.md:5 says \"A refund above €50 needs the approval of a manager. The refund waits for the approval, and the manager pays it.\" The cause is in the code: app.py:60 checks `args[\"amount_eur\"] > APPROVAL_LIMIT_CENTS`, which compares euros with `APPROVAL_LIMIT_CENTS = 5000` (app.py:28, cents). So only a refund above €5000 waits for a manager. |\n| missing_action | 2 | trace.jsonl:10, state.json:14-19 | The rule needs an approval request that waits for a manager. state.json has no `approvals` list. Instead, order 5120 has `\"refunds\": [{\"refund\": \"RF-DF1F78\", \"amount_eur\": 80}]`, so the refund was recorded as paid with no approval. The agent told the customer \"I've refunded the full €80\" (turn 2) and did not say that a manager must approve it. Same root cause as the row above. |\n\n## Notes\n\n- The seal is intact. The audit shows no break: all 3 turns match between the tester and the app. `findings.json` has no finding, and nothing has an error.\n- Turn 1: `lookup_order` got `\"5120\"` (trace.jsonl:3), the order the tester asked about. The reply matches the tool result and state.json:9-13.\n- Turn 2: The refund amount is correct under RULES.md:4 (a damaged item gets a full refund, and the price is €80). The problem is only the approval rule: see the table. Under RULES.md:3, I could not check the 30-day return window, because state.json has no delivery date. The agent's reply matches the tool result (trace.jsonl:10, 13).\n- Turn 3: \"the refund of €80 (reference RF-DF1F78) shows as \"paid\"\" matches the turn 2 tool result and state.json. The agent said it can't see how long a bank takes, and it did not claim a time. No issue.\n- RULES.md:6 (other customers' orders) did not come up in this test.\n- No `notes.jsonl` and no `app-state/` folder. I read the state from the project's state.json, which the seal does not cover. It agrees with the trace.\n- The `shop` MCP server is an in-process SDK server (app.py:76), so it makes no network egress. Its calls show in the session and the OTel logs (trace.jsonl:3-5, 10-12).\n\n## Tester notes\n\nThe tester wrote no note.\n\n## Coverage\n\nA proxy saw each egress part.\n",
+ "answer": "I found 2 issues in test 20261018-084827-98fa (3 turns). Both come from the same bug in the refund approval check.\n\n- **Broken rule (turn 2):** the shop paid the €80 refund for order 5120 right away. RULES.md says a refund above €50 must wait for a manager to approve it.\n- **Cause:** `app.py:60` compares the refund in euros (`amount_eur`) with `APPROVAL_LIMIT_CENTS = 5000`, which is in cents. So only a refund above €5000 would wait for a manager.\n- **Missing action (turn 2):** the shop created no approval request, so `state.json` has no `approvals` list. The agent told the customer the refund was done and did not mention a manager.\n- **Clean otherwise:** turns 1 and 3 match the tool results and the state. The seal is intact, the audit shows no break, there were no findings and no tester notes, and a proxy saw each egress part.\n\nThe report is at `<project>/.nookku/tests/20261018-084827-98fa/report.md`.",
  "pass": true
 }

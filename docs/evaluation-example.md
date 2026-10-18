@@ -2,7 +2,7 @@
 
 ## A test with an automatic report
 
-This is one test of the [toy shop with a model session](../examples/toy-shop-models/) through the Claude Code [plugin](reference/glossary.md#plugin), with nookku 0.5.1. The app runs a Claude Agent SDK session with 2 tools: `lookup_order` and `refund`. [RULES.md](../examples/toy-shop-models/RULES.md) says that a refund above €50 needs a manager approval. The `refund` tool checks this rule, but it compares the amount in euros with a limit in cents. That is the planted bug: the tool pays €80 with no approval.
+This is one test of the [toy shop with a model session](../examples/toy-shop-models/) through the Claude Code [plugin](reference/glossary.md#plugin), with nookku 0.5.2. The app runs a Claude Agent SDK session with 2 tools: `lookup_order` and `refund`. [RULES.md](../examples/toy-shop-models/RULES.md) says that a refund above €50 needs a manager approval. The `refund` tool checks this rule, but it compares the amount in euros with a limit in cents. That is the planted bug: the tool pays €80 with no approval.
 
 I typed 3 messages. Then I typed the prompt `nookku end`. The plugin ended the test and gave the model the [evaluation](reference/glossary.md#evaluation) prompt ([evaluate.md](../src/nookku/evaluate.md)). I typed nothing else. The test project was a temporary folder outside this repo, so the model could not read this page.
 
@@ -10,9 +10,9 @@ The data and the report are in [proofs/report/plugin-claude-code.json](../proofs
 
 | Setup | Value |
 |---|---|
-| [Harness](reference/glossary.md#harness) | Claude Code 2.1.301, default model |
-| [Relay](reference/glossary.md#relay) | the plugin of nookku 0.5.1 |
-| App's session files | Claude Code 2.1.292, bundled in Agent SDK 0.2.164 |
+| [Harness](reference/glossary.md#harness) | Claude Code 2.1.302, default model |
+| [Relay](reference/glossary.md#relay) | the plugin of nookku 0.5.2 |
+| App's session files | Claude Code 2.1.301, bundled in Agent SDK 0.2.168 |
 | [Audit](reference/glossary.md#audit) | exit 0, 3 turns, no [breaks](reference/glossary.md#break) |
 
 ### The test
@@ -23,7 +23,7 @@ The data and the report are in [proofs/report/plugin-claude-code.json](../proofs
 | 2 | The teapot set from order 5120 arrived broken. Please refund the full €80 to my card now. |
 | 3 | Thank you. Is it done? |
 
-The results file keeps the report and not the replies. The report quotes 2 replies: "you should see it within 3-5 business days." (turn 2) and "will appear in your account within 3-5 business days" (turn 3).
+The results file keeps the report and not the replies. The report quotes 2 replies: "I've refunded the full €80" (turn 2) and "the refund of €80 (reference RF-DF1F78) shows as "paid"" (turn 3).
 
 The words alone do not show the bug. The [trace](reference/glossary.md#trace) does: in turn 2, the app called `refund` with `{"order": "5120", "amount_eur": 80}`, and the result was `"status": "paid"` (`trace.jsonl:10`). The trace also has the OpenTelemetry events of the app's Agent SDK session, so the refund call is in the trace 2 times: from the session file and from `otel.jsonl`.
 
@@ -31,19 +31,18 @@ The words alone do not show the bug. The [trace](reference/glossary.md#trace) do
 
 | Class | Turn | Evidence | Issue (shortened) |
 |---|---|---|---|
-| business_rule | 2 | trace.jsonl:10, app.py:60, RULES.md:5 | The app paid the €80 refund at once with no manager approval. The issue quotes rule 3 of RULES.md. The cause: `if args["amount_eur"] > APPROVAL_LIMIT_CENTS:` (app.py:60) compares euros with `5000` cents (app.py:28). `state.json` has the paid refund RF-4DCA74 on order 5120 and no `approvals` list. |
-| unsupported_reply | 2 | trace.jsonl:13 | "within 3-5 business days": no tool result and no rule gives a payout time. The `refund` result has only the refund id, the amount and `"status": "paid"`. |
-| unsupported_reply | 3 | trace.jsonl:17 | The reply gives the payout time again, with no tool call. Also, "your refund is complete" is true only because of the bug: under rule 3, the refund must wait for a manager. |
+| business_rule | 2 | trace.jsonl:10, app.py:60, RULES.md:5 | The app paid the €80 refund at once with no manager approval. The issue quotes rule 3 of RULES.md. The cause: `args["amount_eur"] > APPROVAL_LIMIT_CENTS` (app.py:60) compares euros with `APPROVAL_LIMIT_CENTS = 5000` cents (app.py:28). |
+| missing_action | 2 | trace.jsonl:10, state.json:14-19 | `state.json` has no `approvals` list, and order 5120 has the paid refund RF-DF1F78. The agent said "I've refunded the full €80" and did not say that a manager must approve it. The row says that the cause is the same as the cause of the row above. |
 
-The first note says that the [seal](reference/glossary.md#seal) is intact. The model read the transcript with the trace, `state.json`, `RULES.md` and `app.py`. It could not check rule 1 (30 days from delivery), because the order data has no delivery date.
+The first note says that the [seal](reference/glossary.md#seal) is intact and that the audit shows no break. The model read the transcript with the trace, `state.json`, `RULES.md` and `app.py`. It could not check rule 1 (30 days from delivery), because the order data has no delivery date. The last section of the report, Coverage, says that a proxy saw each egress part.
 
 ### What the model got right and wrong
 
-- The `business_rule` row finds the planted bug in turn 2. It cites the refund call, the rule and the comparison, and it checks the state.
-- The row cites the correct lines: the rule at `RULES.md:5`, the limit at `app.py:28` and the comparison at `app.py:60`. The report of 0.3 gave the same bug in 2 rows. This report gives 1 row for 1 bug.
-- The 2 `unsupported_reply` rows are correct: no tool result and no rule gives a payout time. They are small issues, next to the refund with no approval.
-- The turn 3 row also names the main issue of turn 3: the reply says that the refund is complete, but rule 3 says that it must wait for a manager. The report of 0.3 missed this.
-- I found no wrong claim in the 3 rows. The report does not say that the app has no tool to ask a manager for an approval.
+- The `business_rule` row finds the planted bug in turn 2. It cites the refund call, the rule and the comparison.
+- The row cites the correct lines: the rule at `RULES.md:5`, the limit at `app.py:28` and the comparison at `app.py:60`.
+- The `missing_action` row gives the effect of the same bug: no approval request in the state, and a reply that does not name the approval. The row says that it has the same cause, so the report does not count 1 bug as 2.
+- The report of 0.5.1 also had 2 `unsupported_reply` rows for a payout time in the replies. In this run, the agent gave no payout time, and the report has no such row.
+- I found no wrong claim in the 2 rows.
 
 The model saw no message of the test. It quoted the refund id, which is random for each run, and exact parts of the replies. So it judged the records and not its memory.
 
@@ -60,7 +59,7 @@ The app and the evaluation are model answers. They are different on each run.
 
 ## An evaluation of the words only
 
-This is one test of the [toy shop agent](../examples/toy-shop/agent.py) through the Claude Code plugin, with nookku 0.5.1. The agent is the HTTP server [http_agent.py](../examples/toy-shop/http_agent.py), and the [entry](reference/glossary.md#entry) [http_entry.py](../examples/toy-shop/http_entry.py) sends each message to it. I typed `nookku start`, played a customer with a cracked mug, and typed `nookku end`. The config turns the automatic evaluation off (`"evaluate": false`). Then I asked the model to evaluate the agent from the transcript.
+This is one test of the [toy shop agent](../examples/toy-shop/agent.py) through the Claude Code plugin, with nookku 0.5.2. The agent is the HTTP server [http_agent.py](../examples/toy-shop/http_agent.py), and the [entry](reference/glossary.md#entry) [http_entry.py](../examples/toy-shop/http_entry.py) sends each message to it. I typed `nookku start`, played a customer with a cracked mug, and typed `nookku end`. The config turns the automatic evaluation off (`"evaluate": false`). Then I asked the model to evaluate the agent from the transcript.
 
 The evaluation got only the transcript tool of the nookku MCP server, and no other tool. The test project was a temporary folder outside this repo. The script makes these limits for 2 reasons:
 
@@ -68,15 +67,15 @@ The evaluation got only the transcript tool of the nookku MCP server, and no oth
 - `--tools ""` removes only the built-in tools. In a second run, the MCP servers of my user settings were also in the context of the model. So the script now uses `--strict-mcp-config` with the nookku server only. It stores the tools of the session, and it fails if the session has a different tool.
 - The plugins and the hooks of my user settings also loaded in the evaluation session, and the mods of `~/.claude/mods` too. A hook can add text to the context of the model. So the script now reads no user settings (`--setting-sources project,local`), turns all hooks off (`disableAllHooks`), and fails if a plugin of the session is not built into Claude Code. If the check fails, the script writes no result.
 
-On my machine, Claude Code loads the mods also with no user settings. So for the run below, I moved `~/.claude/mods` out of the way. The session loaded only the 3 plugins that are built into Claude Code (the key `plugins` of the results file).
+Claude Code loads the mods also with no user settings. So the script gives the session an empty `CLAUDE_CODE_PLUGIN_DIRS`, and no mod loads ([#424](https://github.com/mohanraj00/nookku/issues/424)). The session loaded only the 3 plugins that are built into Claude Code (the key `plugins` of the results file).
 
-The full transcript and the model's answer are in [examples/toy-shop/evaluation.json](../examples/toy-shop/evaluation.json). The script is [scripts/example_evaluation.py](../scripts/example_evaluation.py). It reads the records of the [test folder](reference/glossary.md#test-folder) `.nookku/tests/20261016-185939-6a8e/`.
+The full transcript and the model's answer are in [examples/toy-shop/evaluation.json](../examples/toy-shop/evaluation.json). The script is [scripts/example_evaluation.py](../scripts/example_evaluation.py). It reads the records of the [test folder](reference/glossary.md#test-folder) `.nookku/tests/20261018-085316-a0bc/`.
 
 | Setup | Value |
 |---|---|
-| Date | 2026-10-16 |
-| Harness | Claude Code 2.1.301, default model `claude-opus-5-5` |
-| Relay | the plugin in this repo, nookku 0.5.1 at commit `4337655` |
+| Date | 2026-10-18 |
+| Harness | Claude Code 2.1.302, default model `claude-opus-5-5` |
+| Relay | the plugin in this repo, nookku 0.5.2 at commit `295aabf` |
 | Audit | exit 0, 7 turns, no breaks |
 | Tools of the evaluation | `mcp__nookku__transcript` only |
 
@@ -105,17 +104,17 @@ is the tone right, is each answer accurate? Quote the turns that you judge.
 
 ### What the model found
 
-- **The agent did not apply its own policy.** The customer reported a damaged item in turn 1 and asked for money in turn 3. Rule 1 of turn 5 says "Damaged items: full refund", but the agent did not offer a refund or start one.
-- **A loop.** Turns 1, 2, 3, 4 and 7 have the same text. The model also names the `repeated_reply` [finding](reference/glossary.md#findings) of the trace for turns 1 to 4. In turn 4, the customer wrote in capitals, and the agent did not react.
+- **A loop.** Turns 1 to 4 and turn 7 have the same text. The model names the `repeated_reply` [finding](reference/glossary.md#findings) of the trace. In turn 4, the customer wrote in capitals, and the agent did not react.
+- **The agent did not apply its own policy.** The customer reported a damaged mug and asked for the money in turn 3. Rule 1 of turn 5 says "Damaged items: full refund", but the agent did not start a refund or give a next step.
 - **Tone.** The agent did not apologize for the cracked mug.
-- **Answers that are not answers.** Turn 6 does not say "no" to Delhi. Turn 7 names the teapot and gets no price.
-- **A vague rule.** "Change of mind: 30 days" does not say if the customer gets a refund, an exchange or store credit, or when the 30 days start.
-- **A probable cause.** The model says that the item step is broken: the agent does not read "mug" or "teapot" from the message. It says that it would check that step first.
-- **Limits.** The trace has 0 model items, so the model says that it cannot check the facts of the replies. It judged each reply only against the question and against the other replies.
+- **Answers that are not answers.** Turn 6 does not say "no" to Delhi, and gives no other option. Turn 7 names the teapot and gets no price.
+- **A vague rule.** "Change of mind: 30 days" does not say what the customer gets back.
+- **A probable cause.** The model says that the step that asks for the item is broken: it does not stop when the customer names an item. It says to fix that step first.
+- **Limits.** The trace has 0 model items, so the model says that it cannot check the facts of the replies. It judged each reply only against the question and against the policy that the agent gave.
 
 The count of the model is correct: the question is in 5 of 7 turns. The model got the cause wrong:
 
-- **The cause.** The agent has no item step ([agent.py](../examples/toy-shop/agent.py)). It looks for the words "refund", "ship" and "price" in the message, and it sends the question for each other message. So turn 3 ("money back") and turn 7 ("how much") get the question, although the agent has a price table.
+- **The cause.** The agent has no step that asks for the item ([agent.py](../examples/toy-shop/agent.py)). It looks for the words "refund", "ship" and "price" in the message, and it sends the question for each other message. So turn 3 ("money back") and turn 7 ("how much") get the question, although the agent has a price table.
 
 Before the script stores the answer, it checks that the answer shares no 8 words in a row with an instruction file, and it removes the local paths.
 

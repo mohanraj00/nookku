@@ -74,7 +74,7 @@ Data: [the record of the test](docs/assets/chat-page/test/) and [the method of t
 uv tool install nookku
 ```
 
-It needs Python 3.10 or later, and it has no runtime dependencies ([pyproject.toml](pyproject.toml)). The docs are for version 0.5.1. If you use verbatim-relay 0.3.x or earlier, do the [0.4.0 steps of the upgrade guide](docs/how-to/upgrade.md#040), because the package has a new name ([CHANGELOG.md](CHANGELOG.md#040)). To upgrade from a later version of nookku, end each running test first. Then run `uv tool upgrade nookku`. [docs/how-to/upgrade.md](docs/how-to/upgrade.md) gives each step.
+It needs Python 3.10 or later, and it has no runtime dependencies ([pyproject.toml](pyproject.toml)). The docs are for version 0.5.2. If you use verbatim-relay 0.3.x or earlier, do the [0.4.0 steps of the upgrade guide](docs/how-to/upgrade.md#040), because the package has a new name ([CHANGELOG.md](CHANGELOG.md#040)). To upgrade from a later version of nookku, end each running test first. Then run `uv tool upgrade nookku`. [docs/how-to/upgrade.md](docs/how-to/upgrade.md) gives each step.
 
 ## Quick start
 
@@ -112,18 +112,19 @@ You install the [relay](SPEC.md#5-relays) as the plugin or as the project hooks.
 
 ## A sample report
 
-At the end of a test, the harness model reads the record and writes `report.md` in the test folder. This is an excerpt of a real report. Nookku 0.5.1 and Claude Code 2.1.301 wrote it in a test of [the toy shop with a model](examples/toy-shop-models/README.md). The app has a planted bug: its refund tool compares euros with cents. The model did not see the conversation, and it found the bug in the record and the code.
+At the end of a test, the harness model reads the record and writes `report.md` in the test folder. This is an excerpt of a real report. Nookku 0.5.2 and Claude Code 2.1.302 wrote it in a test of [the toy shop with a model](examples/toy-shop-models/README.md). The app has a planted bug: its refund tool compares euros with cents. The model did not see the conversation, and it found the bug in the record and the code.
 
 ```markdown
-# Test 20261016-185314-6170: evaluation
+# Test 20261018-084827-98fa: evaluation
 
 | Class | Turn | Evidence | Issue |
 |---|---|---|---|
-| business_rule | 2 | trace.jsonl:10, app.py:60, RULES.md:5 | `refund` got `{"order": "5120", "amount_eur": 80}` and returned `"status": "paid"`. RULES.md:5 says "A refund above €50 needs the approval of a manager. The refund waits for the approval, and the manager pays it." The app paid it at once with no approval. The cause is in the code: app.py:60 checks `args["amount_eur"] > APPROVAL_LIMIT_CENTS`, which compares euros to `5000` cents (app.py:28). So only refunds above €5000 wait for a manager. state.json agrees: order 5120 has `"refunds": [{"refund": "RF-4DCA74", "amount_eur": 80}]` and there is no `approvals` list. |
+| business_rule | 2 | trace.jsonl:10, app.py:60, RULES.md:5 | `refund` got `{"order": "5120", "amount_eur": 80}` and returned `"status": "paid"` right away. RULES.md:5 says "A refund above €50 needs the approval of a manager. The refund waits for the approval, and the manager pays it." The cause is in the code: app.py:60 checks `args["amount_eur"] > APPROVAL_LIMIT_CENTS`, which compares euros with `APPROVAL_LIMIT_CENTS = 5000` (app.py:28, cents). So only a refund above €5000 waits for a manager. |
+| missing_action | 2 | trace.jsonl:10, state.json:14-19 | The rule needs an approval request that waits for a manager. state.json has no `approvals` list. Instead, order 5120 has `"refunds": [{"refund": "RF-DF1F78", "amount_eur": 80}]`, so the refund was recorded as paid with no approval. The agent told the customer "I've refunded the full €80" (turn 2) and did not say that a manager must approve it. Same root cause as the row above. |
 ...
 ```
 
-The full report has 3 rows and 6 notes. Data: [proofs/report/plugin-claude-code.json](proofs/report/plugin-claude-code.json). Method: [docs/results.md](docs/results.md#p5-and-p6-the-evaluation-at-the-end-of-a-test). A report is a model answer, so check its evidence. [Read the results of a test](docs/how-to/read-the-results.md) tells you how.
+The full report has 2 rows and 7 notes. Data: [proofs/report/plugin-claude-code.json](proofs/report/plugin-claude-code.json). Method: [docs/results.md](docs/results.md#p5-and-p6-the-evaluation-at-the-end-of-a-test). A report is a model answer, so check its evidence. [Read the results of a test](docs/how-to/read-the-results.md) tells you how.
 
 ## How it works
 
@@ -152,7 +153,7 @@ A test also records what your app did. It copies the session files of the app's 
 
 ## Results
 
-| Proof | Plugin, Claude Code 2.1.301 | Plugin, Codex 0.162.1 | Project hooks, Claude Code 2.1.301 | Project hooks, Codex 0.162.1 |
+| Proof | Plugin, Claude Code 2.1.302 | Plugin, Codex 0.162.1 | Project hooks, Claude Code 2.1.302 | Project hooks, Codex 0.162.1 |
 |---|---|---|---|---|
 | Messages reach the agent byte for byte | 10/10 | 10/10 | 10/10 | 10/10 |
 | Replies reach the tester byte for byte | 10/10 | 10/10 | 10/10 | 10/10 |
@@ -161,7 +162,7 @@ A test also records what your app did. It copies the session files of the app's 
 | Audit finds planted faults | 5/5 | 5/5 | 5/5 | 5/5 |
 | After the test, the model has no memory of the conversation, and reads it from the transcript | yes | yes | yes | yes |
 
-All columns ran on nookku 0.5.1. Data: [plugin in Claude Code](proofs/plugin-claude-code/results.json), [plugin in Codex](proofs/plugin-codex/results.json), [project hooks in Claude Code](proofs/hooks-claude-code/results.json), [project hooks in Codex](proofs/hooks-codex/results.json), [evaluation](docs/results.md#p5-the-model-judges-the-record-not-its-memory). Method: [docs/results.md](docs/results.md#1-proofs).
+All columns ran on nookku 0.5.2. Data: [plugin in Claude Code](proofs/plugin-claude-code/results.json), [plugin in Codex](proofs/plugin-codex/results.json), [project hooks in Claude Code](proofs/hooks-claude-code/results.json), [project hooks in Codex](proofs/hooks-codex/results.json), [evaluation](docs/results.md#p5-the-model-judges-the-record-not-its-memory). Method: [docs/results.md](docs/results.md#1-proofs).
 
 Under pressure, the mechanism had **0 breaks in 1,000 turns**. The test had 40 scripted conversations in each harness, 5 or 20 turns long. They had refusals, HTTP 500 errors, questions back to the tester and ambiguous messages. Each turn was a new harness call. I registered the design before the first run. Method, data and the one deviation: [docs/results.md](docs/results.md#2-benchmark-under-pressure).
 
