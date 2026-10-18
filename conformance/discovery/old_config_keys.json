@@ -1,0 +1,15 @@
+{
+ "answer": {
+  "backends": [
+   {
+    "name": "stock",
+    "env": "STOCK_URL",
+    "url": "http://127.0.0.1:9100"
+   }
+  ],
+  "model_api": true
+ },
+ "expect": {
+  "error": "the answer must have the lists model_apis, backends, mcp_servers, databases, other, and no other key"
+ }
+}

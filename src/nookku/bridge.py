@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from nookku import __version__, backend, model_api, otlp, policy, script, seal, trace
+from nookku import __version__, backend, discovery, model_api, otlp, policy, script, seal, trace
 from nookku.audit import audit
 from nookku.config import CHECK_MESSAGE as CHECK_MESSAGE
 from nookku.config import FILE as CONFIG_FILE
@@ -85,10 +85,6 @@ class TestConfig:
     models: list[str]
     # False stops the OTLP receiver (SPEC.md section 7.5).
     otel: bool = True
-    # The backend proxies (SPEC.md section 7.6).
-    backends: list[backend.Backend] = field(default_factory=list)
-    # The model APIs to record, with their URLs (SPEC.md section 7.7).
-    model_apis: list[backend.Backend] = field(default_factory=list)
     # Each key of the policy file with its value (SPEC.md section 7.9).
     policy: dict[str, Any] = field(default_factory=dict)
     # The one message of nookku check (SPEC.md section 7.1).
@@ -120,20 +116,22 @@ def load_config(root: Path, entry_name: str | None = None) -> TestConfig:
         entry = entries[entry_name]
     if not (isinstance(entry, list) and entry and all(isinstance(a, str) for a in entry)):
         raise BridgeError(NO_ENTRY)
-    try:
-        backends = backend.parse(data.get("backends"))
-        apis = model_api.backends(model_api.parse(data.get("model_api")), os.environ)
-    except ValueError as e:
-        raise BridgeError(f"{CONFIG_FILE}: {e}") from None
-    if {b.env for b in backends} & {a.env for a in apis}:
-        raise BridgeError(f"{CONFIG_FILE}: a backend uses the variable of a model API")
-    reserved = sorted({b.env for b in backends} & {TEST_DIR, TEST_ID})
-    if reserved:
-        raise BridgeError(f"{CONFIG_FILE}: a backend uses the variable {reserved[0]} of nookku")
     otel = data.get("otel", True) is not False
     message = data.get("check_message", CHECK_MESSAGE)
     keys = {k: data.get(k, default) for k, default in trace.TRACE_KEYS.items()}
-    return TestConfig(entry, models, otel, backends, apis, rules, message, keys, entry_name)
+    return TestConfig(entry, models, otel, rules, message, keys, entry_name)
+
+
+def egress_proxies(
+    answer: dict[str, Any], environ: dict[str, str] | os._Environ[str]
+) -> tuple[list[backend.Backend], list[backend.Backend]]:
+    """The backend proxies and the model API proxies of a discovery answer (SPEC.md section
+    7.11). Raise BridgeError if the URL of a model API is not valid."""
+    try:
+        apis = model_api.backends(answer["model_apis"], environ)
+    except ValueError as e:
+        raise BridgeError(f"the egress answer: {e}") from None
+    return backend.from_answer(answer["backends"]), apis
 
 
 def _tail(path: Path, n: int = 20) -> str:
@@ -159,8 +157,12 @@ def start(
     entry_name: str | None = None,
     script_path: Path | None = None,
     check: bool = False,
+    egress: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Start a test in a background bridge process. Return the contents of current.json.
+
+    The test uses the egress answer `egress`, else the pending answer of `nookku register`,
+    which the start then removes (SPEC.md section 7.11). With no answer, no test starts.
 
     With script_path, the test is scripted: the script is read before the test starts, and its
     bytes are copied into the test folder, so that the seal covers them (SPEC.md section 7.10).
@@ -186,6 +188,16 @@ def start(
     gate = codex_gate.check(root)
     if gate["problems"]:
         raise BridgeError(codex_gate.refusal(gate))
+    pending = egress is None
+    egress = discovery.pending(root) if egress is None else egress
+    if egress is None:
+        raise BridgeError(discovery.no_answer())
+    # A given answer gets the same check as the pending answer.
+    try:
+        egress = {"registered": egress["registered"], "answer": discovery.parse(egress["answer"])}
+    except (discovery.AnswerError, KeyError, TypeError) as e:
+        raise BridgeError(f"the egress answer: {e}") from None
+    egress_proxies(egress["answer"], os.environ)
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     test = f"{stamp}-{secrets.token_hex(2)}"
     folder = state(root) / "tests" / test
@@ -193,6 +205,7 @@ def start(
     _mark(state(root))
     # The bridge puts the result in the manifest, and removes this file.
     _write_json(folder / GATE_FILE, gate)
+    _write_json(folder / EGRESS_FILE, egress)
     argv = [sys.executable, "-m", "nookku", "bridge", "--root", str(root), "--test", test]
     if tester_session:
         argv += ["--tester-session", tester_session]
@@ -217,6 +230,8 @@ def start(
     while time.monotonic() < deadline:
         cur = current(root)
         if cur is not None and cur.get("test") == test:
+            if pending:
+                discovery.take(root)
             return cur
         if proc.poll() is not None:
             raise BridgeError(f"the test did not start:\n{_tail(folder / 'bridge.log')}")
@@ -389,6 +404,8 @@ def end(
 
 
 GATE_FILE = "codex-gate.json"
+# start writes the egress answer here, and the bridge moves it into the manifest.
+EGRESS_FILE = "egress-answer.json"
 
 
 def _start_gate(folder: Path) -> dict[str, Any] | None:
@@ -400,6 +417,35 @@ def _start_gate(folder: Path) -> dict[str, Any] | None:
         return None
     path.unlink(missing_ok=True)
     return gate
+
+
+def _start_egress(folder: Path) -> dict[str, Any] | None:
+    """The egress answer that start wrote, or None. The bridge checks it again."""
+    path = folder / EGRESS_FILE
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        answer = discovery.parse(data["answer"])
+        registered = data["registered"]
+    except (OSError, ValueError, TypeError, KeyError):
+        return None
+    path.unlink(missing_ok=True)
+    return {"registered": registered, "answer": answer}
+
+
+def egress_text(folder: Path) -> str:
+    """The lines of the start text that name each egress part of the test (SPEC.md 7.11)."""
+    try:
+        manifest = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
+        answer = discovery.parse(manifest["egress"]["answer"])
+    except (OSError, ValueError, TypeError, KeyError):
+        return "The manifest has no valid egress answer. See bridge.log in the test folder."
+    text = "Egress of the agent:\n" + "\n".join(discovery.lines(answer))
+    if discovery.unseen(answer):
+        text += (
+            "\nNo proxy sees a part with no proxy. The report recommends a way to see its calls, "
+            "for example logs or OpenTelemetry spans."
+        )
+    return text
 
 
 def gate_changed(manifest: dict[str, Any]) -> str | None:
@@ -672,6 +718,15 @@ def run(
     if pid_start is None:
         print("nookku bridge: cannot read the start time of its process", file=sys.stderr)
         return 1
+    egress = _start_egress(folder)
+    if egress is None:
+        print("nookku bridge: the test folder has no valid egress answer", file=sys.stderr)
+        return 1
+    try:
+        backends, model_apis = egress_proxies(egress["answer"], os.environ)
+    except BridgeError as e:
+        print(f"nookku bridge: {e}", file=sys.stderr)
+        return 1
     started = time.time()
     manifest: dict[str, Any] = {
         "v": "0.2",
@@ -698,6 +753,13 @@ def run(
         "model_sessions": [],
         "codex_gate": {"start": _start_gate(folder), "end": None},
         "check": check,
+        # The accepted answer, the parts that no proxy sees, and the URL of each proxy.
+        "egress": {
+            **egress,
+            "unseen": discovery.unseen(egress["answer"]),
+            "proxies": {},
+            "receiver": None,
+        },
     }
     _write_json(folder / "manifest.json", manifest)
     _log("manifest written")
@@ -714,17 +776,20 @@ def run(
     if receiver:
         start_in_thread(receiver)
         _log(f"OTLP receiver on {receiver.url}")
-    proxies = backend.Proxies(config.backends, folder / backend.FILE)
+        # The coverage check skips the calls to the receiver (SPEC.md section 8.6).
+        manifest["egress"]["receiver"] = receiver.url
+    proxies = backend.Proxies(backends, folder / backend.FILE)
     env.update(proxies.start())
     for p in proxies.proxies:
         _log(f"backend {p.backend.name}: {p.backend.env}={p.url} -> {p.backend.url}")
-    apis = backend.Proxies(config.model_apis, folder / model_api.FILE, model_api.ModelProxy)
+    apis = backend.Proxies(model_apis, folder / model_api.FILE, model_api.ModelProxy)
     env.update(apis.start())
     # The app can keep its state in the test folder, for example in app-state/, so that the seal
     # covers it (SPEC.md section 6.1).
     env.update({TEST_DIR: str(folder.resolve()), TEST_ID: test})
     for p in apis.proxies:
         _log(f"model API {p.backend.name}: {p.backend.env}={p.url} -> {p.backend.url}")
+    manifest["egress"]["proxies"] = {p.backend.name: p.url for p in proxies.proxies + apis.proxies}
     agent = Agent(config.entry, root, folder / "app.log", timeout=timeout, env=env)
     tap = StdioTap(("127.0.0.1", 0), agent, folder / "tap.jsonl")
     _log(f"tap bound to {tap.url}")
@@ -943,7 +1008,10 @@ def _audit_break(found: dict[str, Any]) -> str:
 
 
 def run_script(
-    root: Path, script_path: Path, entry_name: str | None = None
+    root: Path,
+    script_path: Path,
+    entry_name: str | None = None,
+    egress: dict[str, Any] | None = None,
 ) -> tuple[bool, list[str], Path]:
     """Run a scripted test (SPEC.md section 7.10). Return (passed, the report lines, the test
     folder).
@@ -956,7 +1024,7 @@ def run_script(
         messages = script.read(script_path)[0]
     except script.ScriptError as e:
         raise BridgeError(str(e)) from None
-    cur = start(root, entry_name=entry_name, script_path=script_path)
+    cur = start(root, entry_name=entry_name, script_path=script_path, egress=egress)
     folder = Path(cur["dir"])
     relay = folder / "relay.jsonl"
     sent, failed = 0, None
@@ -996,7 +1064,11 @@ def check(root: Path) -> tuple[bool, list[str]]:
 
     The check passes only if the audit of its own test is clean (SPEC.md section 7.1)."""
     config = load_config(root)
-    cur = start(root, check=True)
+    # A check uses the fresh answer and keeps it, so the test after the check can use it.
+    egress = discovery.pending(root)
+    if egress is None:
+        raise BridgeError(discovery.no_answer())
+    cur = start(root, check=True, egress=egress)
     relay = Path(cur["dir"]) / "relay.jsonl"
     try:
         shown, ok = send(cur, config.check_message)

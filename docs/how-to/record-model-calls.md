@@ -4,30 +4,25 @@ A test records 2 more sources by default: the direct model calls of your app, an
 
 ## Direct model calls
 
-If your app calls the Anthropic or the OpenAI API with an SDK, the [bridge](../reference/glossary.md#bridge) records these calls. During a test, it runs a recording proxy for each API, and gives your app the proxy URL in `ANTHROPIC_BASE_URL` and `OPENAI_BASE_URL`. The proxy forwards to the value that you had in the variable, else to the public API. It sends each part of a streamed response to your app when the part comes. It writes each call to `model_api.jsonl`, with the text, the tool calls and the stop reason, and without the API key. The trace shows each call in its turn, and the check `model_api_error` finds each call with an error or a status of 400 or more. [SPEC.md section 7.7](../../SPEC.md#77-model-api-proxies) defines the proxy and the API paths that it reads.
+If your app calls the Anthropic or the OpenAI API with an SDK, the [bridge](../reference/glossary.md#bridge) records these calls. At each start, the [harness model](../reference/glossary.md#harness-model) finds each model API that your app calls, and gives it in the egress answer ([SPEC.md section 7.11](../../SPEC.md#711-egress-discovery)). During a test, the bridge runs a recording proxy for each API of the answer, and gives your app the proxy URL in the variable of the answer, for example `ANTHROPIC_BASE_URL`. The proxy forwards to the URL of the answer, else to the value that you had in the variable, else to the public API. It sends each part of a streamed response to your app when the part comes. It writes each call to `model_api.jsonl`, with the text, the tool calls and the stop reason, and without the API key. The trace shows each call in its turn, and the check `model_api_error` finds each call with an error or a status of 400 or more. [SPEC.md section 7.7](../../SPEC.md#77-model-api-proxies) defines the proxy and the API paths that it reads.
 
-1. Check that your SDK reads its URL from `ANTHROPIC_BASE_URL` or `OPENAI_BASE_URL`. If your app gives the SDK a fixed URL, let the [entry](../reference/glossary.md#entry) give the SDK the URL from the variable.
-2. Run a test. You need no configuration: `model_api` is `true` by default.
+1. Check that your SDK reads its URL from a variable, for example `ANTHROPIC_BASE_URL` or `OPENAI_BASE_URL`. If your app gives the SDK a fixed URL, let the [entry](../reference/glossary.md#entry) give the SDK the URL from the variable.
+2. Type `nookku start`. Check that the model shows a line for each API, for example `- model API anthropic: ANTHROPIC_BASE_URL -> the URL in ANTHROPIC_BASE_URL or the default (proxy)`. Then type `nookku start` again.
 3. Read the calls with `nookku transcript --trace`.
 
 An Agent SDK session in your app also reads `ANTHROPIC_BASE_URL`, so its calls also go through the proxy. The record keeps only the size and the SHA-256 of these calls, because they hold the instructions of Claude Code. The session file already gives their turns.
 
 ### Change which APIs the proxy records
 
-| Case | `model_api` in `.nookku/config.json` |
+Nookku 0.5.1 and earlier recorded both APIs by default. Now the proxy records only the APIs of the answer. Tell the model to change the answer in these cases:
+
+| Case | The answer |
 |---|---|
-| Record both APIs (the default) | `true` |
-| Record no API | `false` |
-| Your app uses Codex with a ChatGPT login: `OPENAI_BASE_URL` can send Codex to the public API | `["anthropic"]` or `false` |
-| The upstream URL is not in the environment, or the [tester](../reference/glossary.md#tester)'s [harness](../reference/glossary.md#harness) reads the same variable | `{"anthropic": null, "openai": "http://127.0.0.1:9002/v1"}` |
+| Your app uses Codex with a ChatGPT login: `OPENAI_BASE_URL` can send Codex to the public API | no `openai` part |
+| The upstream URL is not in the environment, or the [tester](../reference/glossary.md#tester)'s [harness](../reference/glossary.md#harness) reads the same variable | the URL in `url`, for example `{"api": "openai", "env": "OPENAI_BASE_URL", "url": "http://127.0.0.1:9002/v1"}` |
+| The SDK reads another variable | that variable in `env` |
 
-In the object form, `null` takes the URL from the variable. An empty URL stops the start of the test.
-
-`nookku init --model-api API[=URL]` writes the object form, so you do not edit the file. Give the flag one time for each API. `API` alone gives `null`. For example, this run writes the object of the last row ([cli.md](../reference/cli.md#nookku-init)):
-
-```bash
-nookku init claude-code --model-api anthropic --model-api openai=http://127.0.0.1:9002/v1
-```
+A `null` URL takes the URL from the variable. An empty URL stops the start of the test.
 
 The proof [proofs/model-api/](../../proofs/model-api/results.json) shows calls with the same bytes at the entry, the toy API and the record. It also shows streams that reached the entry before their end ([method](../../scripts/proof_model_api.py), [summary](../results.md#direct-model-calls)).
 

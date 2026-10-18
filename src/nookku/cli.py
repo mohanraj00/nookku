@@ -18,10 +18,8 @@ from nookku.audit import audit, render
 from nookku.config import FILE as CONFIG_FILE
 from nookku.config import KEYS as CONFIG_KEYS
 from nookku.config import (
-    MODEL_APIS,
     OLD_STATE_DIR,
     ConfigError,
-    is_http_url,
     move_old_state,
     needs_entry,
     no_entry_note,
@@ -37,8 +35,6 @@ LIST_KEYS = {
     "models",
     "evaluate",
     "otel",
-    "backends",
-    "model_api",
     "openai_stream",
     "repeated_reply",
     "transcript_compact",
@@ -72,18 +68,30 @@ def _listen(value: str) -> tuple[str, int]:
     return host.strip("[]"), int(port)
 
 
-def _model_api(value: str) -> tuple[str, str | None]:
-    """One value of init --model-api: API, or API=URL. API alone takes the URL from its variable
-    (SPEC.md section 7.7)."""
-    name, sep, url = value.partition("=")
-    # The test checks the same URL rule at start. init checks it first, so it writes nothing.
-    if name not in MODEL_APIS or (sep and not is_http_url(url)):
-        raise argparse.ArgumentTypeError(
-            f"use API or API=URL, with the API {' or '.join(MODEL_APIS)} and an http or https "
-            "URL, for example "
-            "openai=http://127.0.0.1:9002/v1"
-        )
-    return name, url if sep else None
+def _register(args: argparse.Namespace) -> int:
+    """nookku register: check the egress answer and keep it for the next start (SPEC.md section
+    7.11). An answer that breaks the rule writes nothing."""
+    from nookku import discovery
+
+    root = args.root.resolve()
+    try:
+        text = args.file.read_text(encoding="utf-8") if args.file else sys.stdin.read()
+        data = discovery.register(root, json.loads(text))
+    except (OSError, UnicodeDecodeError, ValueError) as e:
+        error = f"the answer is not valid, so nothing was written: {e}"
+        print(json.dumps({"error": error}) if args.json else f"nookku: {error}")
+        return 1
+    if args.json:
+        print(json.dumps({"registered": data["registered"], "parts": data["answer"]}))
+        return 0
+    print("nookku: the egress answer is registered. The next start uses these parts:")
+    print("\n".join(discovery.lines(data["answer"])))
+    print(
+        "Show these parts to the tester. If they are correct, the tester types the prompt "
+        f"nookku start in the next {discovery.FRESH // 60} minutes. If a part is wrong, run "
+        "nookku register again with the correct answer."
+    )
+    return 0
 
 
 def _git_top(root: Path) -> Path | None:
@@ -258,27 +266,17 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--models", help="the app's model harnesses: claude-code, codex or both (comma)"
     )
     ini.add_argument(
-        "--backend",
-        nargs=3,
-        action="append",
-        metavar=("NAME", "ENV", "URL"),
-        help="the config key backends: one backend of the app. Give the flag one time for each "
-        "backend. The flags replace the full list",
-    )
-    ini.add_argument(
-        "--model-api",
-        type=_model_api,
-        action="append",
-        metavar="API[=URL]",
-        help="the config key model_api: one model API to record, anthropic or openai, with its "
-        "upstream URL or with no URL. Give the flag one time for each API. The flags replace "
-        "the full key",
-    )
-    ini.add_argument(
         "--remove",
         action="store_true",
         help="remove the project hooks of nookku, and keep each other hook and .nookku/",
     )
+
+    reg = sub.add_parser(
+        "register", help="give the egress answer for the next start (the harness model runs it)"
+    )
+    reg.add_argument("--root", type=Path, default=Path.cwd())
+    reg.add_argument("--file", type=Path, help="read the answer from this file, not from stdin")
+    reg.add_argument("--json", action="store_true", help="print the result as JSON")
 
     for name, text in (
         ("start", "start a test: run the entry through the tap and switch relay mode on"),
@@ -414,9 +412,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         # The default root also gets the move of the old state folder below.
         args.root = project_root()
     if args.command == "init" and args.remove:
-        given = [
-            k for k in (*STRING_KEYS, "entry", "models", "backend", "model_api") if getattr(args, k)
-        ]
+        given = [k for k in (*STRING_KEYS, "entry", "models") if getattr(args, k)]
         # --no-openai-stream gives False, so check for None, not for a true value.
         given += [k for k in ("openai_stream", "repeated_reply") if getattr(args, k) is not None]
         if args.harness == "plugin" or given:
@@ -457,6 +453,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         adapter = make(args.adapter, args.message_field, args.reply_field)
         serve(Tap(args.listen, args.agent, args.record, adapter, timeout=args.timeout))
         return 0
+    if args.command == "register":
+        return _register(args)
     if args.command == "setup":
         print(resources.files("nookku").joinpath("setup.md").read_text(encoding="utf-8"))
         return 0
@@ -512,19 +510,6 @@ def main(argv: Sequence[str] | None = None) -> int:
             changes["openai_stream"] = args.openai_stream
         if args.repeated_reply is not None:
             changes["repeated_reply"] = args.repeated_reply
-        if args.backend is not None:
-            changes["backends"] = [
-                {"name": name, "env": env, "url": url} for name, env, url in args.backend
-            ]
-        if args.model_api is not None:
-            apis = dict(args.model_api)
-            if len(apis) != len(args.model_api):
-                print(
-                    "nookku: give each API to --model-api one time. Nothing was written.",
-                    file=sys.stderr,
-                )
-                return 1
-            changes["model_api"] = apis
         try:
             done = kit.init(root, args.harness, changes)
         except ValueError as e:
@@ -800,13 +785,18 @@ def _export_command(args: argparse.Namespace) -> int:
 AfterRun = Callable[[Path, Path], tuple[list[str], dict[str, Any]]]
 
 
-def _run_command(args: argparse.Namespace, after: AfterRun | None = None) -> int:
+def _run_command(
+    args: argparse.Namespace,
+    after: AfterRun | None = None,
+    egress: dict[str, Any] | None = None,
+) -> int:
     """nookku run --script: a scripted test (SPEC.md section 7.10). `after` gets the root and
-    the test folder, and gives more lines and more JSON keys."""
+    the test folder, and gives more lines and more JSON keys. `egress` is the recorded egress
+    answer of a replay, else the test uses the pending answer (SPEC.md section 7.11)."""
     root = args.root.resolve()
     script_path = args.script if args.script.is_absolute() else Path.cwd() / args.script
     try:
-        passed, lines, folder = bridge.run_script(root, script_path, args.entry)
+        passed, lines, folder = bridge.run_script(root, script_path, args.entry, egress)
     except bridge.BridgeError as e:
         print(json.dumps({"error": str(e)}) if args.json else f"nookku: {e}")
         return 1
@@ -855,7 +845,9 @@ def _replay_command(args: argparse.Namespace) -> int:
         return 2
     # Color only for a person at a terminal (https://no-color.org).
     color = not args.json and sys.stdout.isatty() and "NO_COLOR" not in os.environ
-    return _run_command(args, lambda root, new: replay.report(root, old, new, color))
+    return _run_command(
+        args, lambda root, new: replay.report(root, old, new, color), replay.egress(old)
+    )
 
 
 def _waiting(test: str) -> str:
@@ -876,6 +868,7 @@ def _test_command(args: argparse.Namespace) -> int:
         else:
             print(f"Test {cur['test']} started on {cur['tap_url']}. Relay mode is on.")
             print(kit.end_ways(root))
+            print(bridge.egress_text(Path(cur["dir"])))
         _start_page(root, cur["test"], sys.stderr if args.json else sys.stdout)
         return 0
     if args.command == "end":

@@ -23,7 +23,6 @@ from typing import Any
 from urllib.parse import unquote_plus, urlsplit
 
 from . import stdio
-from .config import parse_backends
 from .record import json_text
 from .tap import HOP_BY_HOP
 
@@ -53,10 +52,9 @@ class Backend:
     url: str
 
 
-def parse(raw: Any) -> list[Backend]:
-    """The `backends` key of the configuration. Raise ValueError if it is not valid. The rule is
-    in config.parse_backends, so the reader of config.json gives the same error."""
-    return [Backend(name, env, url) for name, env, url in parse_backends(raw)]
+def from_answer(parts: list[dict[str, Any]]) -> list[Backend]:
+    """The backends of a discovery answer (SPEC.md section 7.11). discovery.parse checked them."""
+    return [Backend(p["name"], p["env"], p["url"].rstrip("/")) for p in parts]
 
 
 def secret(name: str) -> bool:

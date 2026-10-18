@@ -29,7 +29,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path[:0] = [str(ROOT / "src")]
 
-from nookku import __version__, bridge, model_api, seal, stdio  # noqa: E402
+from nookku import __version__, bridge, discovery, model_api, seal, stdio  # noqa: E402
 
 KEY = "sk-toy-proof-k3y"
 SEEN: list[dict[str, object]] = []
@@ -257,6 +257,7 @@ def main() -> int:
     (project / "entry.py").write_text(ENTRY)
     config = {"entry": [sys.executable, "entry.py"], "models": [], "otel": False}
     (project / ".nookku" / "config.json").write_text(json.dumps(config))
+    discovery.register(project, discovery.make(model_apis=discovery.both_apis()))
     cur = bridge.start(project)
     try:
         shown, ok = bridge.send(cur, "I was charged twice. How many teapot sets are left?")

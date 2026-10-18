@@ -185,6 +185,7 @@ cat .nookku/tests/20261011-184952-8a8d/findings.json
   "span_error": 0,
   "backend_error": 0,
   "model_api_error": 0,
+  "unseen_call": 0,
   "model_error": 0,
   "turn_without_model": 0,
   "item_between_turns": 0,
@@ -218,7 +219,7 @@ Each finding in `findings.json` has `check`, `turn` and `detail`. A finding abou
 
 ### Trace checks
 
-The trace has 15 trace checks ([trace.py](../../src/nookku/trace.py)). `findings.json` sorts the findings in the order of this table.
+The trace has 16 trace checks ([trace.py](../../src/nookku/trace.py)). `findings.json` sorts the findings in the order of this table.
 
 | Check | Finding |
 |---|---|
@@ -230,6 +231,7 @@ The trace has 15 trace checks ([trace.py](../../src/nookku/trace.py)). `findings
 | `span_error` | An OpenTelemetry span of the app has an error. |
 | `backend_error` | A call to a backend got no answer, or a status of 500 or more. |
 | `model_api_error` | A direct call to a model API has an error, or a status of 400 or more. |
+| `unseen_call` | An OpenTelemetry span of the app names a call to an address that no proxy and no receiver of the test has. The egress answer missed this part, or the app called it with no proxy ([SPEC.md section 7.11](../../SPEC.md#711-egress-discovery)). |
 | `model_error` | A Codex turn ended with a model error: the `task_complete` event of the Codex session file has an error, for example `server_overloaded` when the model is at capacity. |
 | `turn_without_model` | A turn has no `message`, `tool_call` or `command` item from a session file. A turn with only an OTLP, backend or model API item still gets this finding. This check runs only if the trace has at least 1 item from a session file. |
 | `item_between_turns` | A model item has no turn, but it occurred at or after the start of turn 1. |

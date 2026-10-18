@@ -7,6 +7,7 @@ the seal cases (section 7.4). `otlp/` holds the receiver cases (section 7.5). `p
 deny cases of the policy file (sections 5 and 7.9). `guard/` holds the deny cases of the state
 folder (section 5). `evaluation/` holds the cases of the rule for a check test (section 9.1).
 `notes/` holds the cases of the notes record (section 2.3).
+`discovery/` holds the cases of the egress answer (section 7.11).
 
 Never fill an expectation by running the audit. CI runs this script and fails if the files change.
 
@@ -35,6 +36,7 @@ GUARD = Path(__file__).parent / "guard"
 CONTROL = Path(__file__).parent / "control"
 EVALUATION = Path(__file__).parent / "evaluation"
 NOTES = Path(__file__).parent / "notes"
+DISCOVERY = Path(__file__).parent / "discovery"
 
 
 def sha(text: str | None) -> str | None:
@@ -824,6 +826,7 @@ def counts(**n: int) -> dict:
         "span_error",
         "backend_error",
         "model_api_error",
+        "unseen_call",
         "model_error",
         "turn_without_model",
         "item_between_turns",
@@ -3468,6 +3471,107 @@ DECISIONS_CASE = {
     },
 }
 
+# The coverage check (SPEC.md section 8.6, `unseen_call`). The manifest has an egress answer with
+# one backend proxy and the OTLP receiver. The spans of the app name 7 calls: a call to the proxy
+# and a call to the receiver are seen, a span of a server is not a call of the app, and 4 calls go
+# to an address that no proxy has. The detail of an HTTP call has no query, so no secret value.
+EGRESS_ANSWER = {
+    "model_apis": [],
+    "backends": [{"name": "stock", "env": "STOCK_URL", "url": "https://stock.toy.test"}],
+    "mcp_servers": [],
+    "databases": [{"name": "shop-db", "kind": "postgres", "env": "DATABASE_URL", "address": None}],
+    "other": [],
+}
+UNSEEN_SPANS = [
+    (11, "GET", {"http.request.method": "GET", "url.full": "http://127.0.0.1:41001/stock?sku=mug"}),
+    (
+        12,
+        "GET",
+        {
+            "http.request.method": "GET",
+            "url.full": "https://stock.toy.test/stock?sku=mug&api_key=toy-123",
+        },
+    ),
+    (
+        13,
+        "POST /chat",
+        {
+            "http.request.method": "POST",
+            "http.route": "/chat",
+            "url.full": "http://127.0.0.1:8000/chat",
+        },
+    ),
+    (
+        31,
+        "SELECT shop",
+        {"db.system.name": "postgresql", "server.address": "DB.toy.test", "server.port": 5432},
+    ),
+    (32, "SELECT cart", {"db.system": "sqlite"}),
+    (33, "tools/call", {"mcp.method.name": "tools/call"}),
+    (34, "POST", {"http.method": "POST", "http.url": "http://127.0.0.1:41000/v1/traces"}),
+]
+
+
+def unseen(line: int, turn: int, detail: str) -> dict:
+    return {
+        "check": "unseen_call",
+        "turn": turn,
+        "detail": f"{detail}: no proxy saw this call",
+        "harness": "otel",
+        "session": TRACE_ID,
+        "source": {"file": "otel.jsonl", "line": line},
+    }
+
+
+UNSEEN_CASE = {
+    "tap": [window(10, 20), window(30, 40)],
+    "manifest": {
+        "test": "20261017-090000-eg01",
+        "model_sessions": [],
+        "egress": {
+            "registered": T0,
+            "answer": EGRESS_ANSWER,
+            "unseen": ["shop-db"],
+            "proxies": {"stock": "http://127.0.0.1:41001"},
+            "receiver": "http://127.0.0.1:41000",
+        },
+    },
+    "sessions": {},
+    "otel": [app_span(t, name, attrs) for t, name, attrs in UNSEEN_SPANS],
+    "trace": [
+        oitem(
+            1 if t < 20 else 2,
+            "otel",
+            TRACE_ID,
+            t,
+            "span",
+            n,
+            name=name,
+            input=attrs,
+            service="toy-shop",
+        )
+        for n, (t, name, attrs) in enumerate(UNSEEN_SPANS, 1)
+    ],
+    "findings": {
+        "v": "0.2",
+        "test": "20261017-090000-eg01",
+        "turns": 2,
+        "items": 7,
+        "sessions": [],
+        "otel": {"file": "otel.jsonl", "rows": 7, "items": 7, "ignored": {}},
+        "backend": None,
+        "model_api": None,
+        "counts": counts(unseen_call=4),
+        "findings": [
+            unseen(2, 1, "HTTP https://stock.toy.test/stock at stock.toy.test:443"),
+            unseen(4, 2, "database postgresql at db.toy.test:5432"),
+            unseen(5, 2, "database sqlite at no network address"),
+            unseen(6, 2, "MCP tools/call at no network address"),
+        ],
+    },
+}
+
+
 # Claude Code 2.1.300 and 2.1.301: the lines api-request-shape, api-request-blob and api-request
 # hold the model requests of the harness. Each message and tool call in them is also in a user or
 # an assistant line. The other parts are the harness's own instructions. Thus the reader counts
@@ -3616,6 +3720,7 @@ TRACE_CASES = {
     "reply_not_from_model_exact": REPLY_EXACT_CASE,
     "reply_not_from_model_off": REPLY_OFF_CASE,
     "reply_not_from_model_field": REPLY_FIELD_CASE,
+    "unseen_calls": UNSEEN_CASE,
 }
 
 
@@ -5041,6 +5146,217 @@ def write(path: Path, rows: list | None) -> None:
     path.write_text("".join(line + "\n" for line in lines), encoding="utf-8")
 
 
+# The egress answer of `nookku register` (SPEC.md section 7.11). Each case is an answer, and the
+# start lines and the unseen parts that the rule gives, or the error that it gives.
+TOY_ANSWER = {
+    "model_apis": [{"api": "anthropic", "env": "ANTHROPIC_BASE_URL", "url": None}],
+    "backends": [{"name": "stock", "env": "STOCK_URL", "url": "http://127.0.0.1:9100"}],
+    "mcp_servers": [
+        {
+            "name": "files",
+            "transport": "stdio",
+            "env": None,
+            "command": ["toy-files-mcp", "--root", "data"],
+            "url": None,
+        },
+        {
+            "name": "tickets",
+            "transport": "http",
+            "env": "TICKETS_MCP_URL",
+            "command": None,
+            "url": "https://tickets.toy.test/mcp",
+        },
+    ],
+    "databases": [
+        {
+            "name": "shop",
+            "kind": "postgres",
+            "env": "DATABASE_URL",
+            "address": "127.0.0.1:5432/shop",
+        },
+        {"name": "cart", "kind": "sqlite", "env": None, "address": "data/cart.db"},
+    ],
+    "other": [{"name": "mail", "kind": "smtp", "detail": "sends the order mail"}],
+}
+EMPTY_ANSWER = {k: [] for k in ("model_apis", "backends", "mcp_servers", "databases", "other")}
+
+
+def answer_with(kind: str, part: dict) -> dict:
+    return {**EMPTY_ANSWER, kind: [part]}
+
+
+STOCK = {"name": "stock", "env": "STOCK_URL", "url": "http://127.0.0.1:9100"}
+LISTS_ERROR = (
+    "the answer must have the lists model_apis, backends, mcp_servers, databases, other, "
+    "and no other key"
+)
+DISCOVERY_CASES: dict[str, dict] = {
+    "toy_shop": {
+        "answer": TOY_ANSWER,
+        "expect": {
+            "lines": [
+                "- model API anthropic: ANTHROPIC_BASE_URL -> the URL in ANTHROPIC_BASE_URL or "
+                "the default (proxy)",
+                "- backend stock: STOCK_URL -> http://127.0.0.1:9100 (proxy)",
+                "- MCP server files: stdio toy-files-mcp --root data (no proxy)",
+                "- MCP server tickets: http https://tickets.toy.test/mcp (no proxy)",
+                "- database shop: postgres, DATABASE_URL (no proxy)",
+                "- database cart: sqlite, data/cart.db (no proxy)",
+                "- other mail: smtp, sends the order mail (no proxy)",
+            ],
+            "unseen": ["files", "tickets", "shop", "cart", "mail"],
+        },
+    },
+    "no_part": {
+        "answer": EMPTY_ANSWER,
+        "expect": {"lines": ["- no egress part: the agent calls no service"], "unseen": []},
+    },
+    "not_an_object": {"answer": [], "expect": {"error": "the answer must be a JSON object"}},
+    "missing_list": {
+        "answer": {k: v for k, v in EMPTY_ANSWER.items() if k != "other"},
+        "expect": {"error": LISTS_ERROR},
+    },
+    # The keys backends and model_api of nookku 0.5.1 are not an answer.
+    "old_config_keys": {
+        "answer": {"backends": [STOCK], "model_api": True},
+        "expect": {"error": LISTS_ERROR},
+    },
+    "extra_part_key": {
+        "answer": answer_with("backends", {**STOCK, "token": "toy-123"}),
+        "expect": {"error": "backends[0] must have the keys name, env, url, and no other key"},
+    },
+    "url_with_password": {
+        "answer": answer_with("backends", {**STOCK, "url": "http://toy:pw@127.0.0.1:9100"}),
+        "expect": {
+            "error": "backends[0]: the URL has a user or a password. Give the variable only."
+        },
+    },
+    "url_with_secret_query": {
+        "answer": answer_with("backends", {**STOCK, "url": "http://127.0.0.1:9100/?api_key=toy"}),
+        "expect": {"error": "backends[0]: the URL has a value of the secret parameter 'api_key'."},
+    },
+    "url_with_empty_secret_query": {
+        "answer": answer_with("backends", {**STOCK, "url": "http://127.0.0.1:9100/?api_key="}),
+        "expect": {
+            "lines": ["- backend stock: STOCK_URL -> http://127.0.0.1:9100/?api_key= (proxy)"],
+            "unseen": [],
+        },
+    },
+    "url_not_http": {
+        "answer": answer_with("backends", {**STOCK, "url": "ftp://stock.toy.test"}),
+        "expect": {"error": "backends[0] 'url' must be an http or https URL with a host"},
+    },
+    "backend_with_null_url": {
+        "answer": answer_with("backends", {**STOCK, "url": None}),
+        "expect": {"error": "backends[0] 'url' must be a text"},
+    },
+    "reserved_variable": {
+        "answer": answer_with("backends", {**STOCK, "env": "NOOKKU_TEST_DIR"}),
+        "expect": {"error": "backends[0] 'env' is the variable NOOKKU_TEST_DIR of nookku"},
+    },
+    "bad_variable": {
+        "answer": answer_with("backends", {**STOCK, "env": "STOCK-URL"}),
+        "expect": {"error": "backends[0] 'env' must be a variable name of letters, digits and '_'"},
+    },
+    "unknown_model_api": {
+        "answer": answer_with("model_apis", {"api": "toy", "env": "TOY_URL", "url": None}),
+        "expect": {"error": "model_apis[0] 'api' must be one of: anthropic, openai"},
+    },
+    # A model API uses its api as its name, so a backend with the same name is refused.
+    "same_name": {
+        "answer": {
+            **EMPTY_ANSWER,
+            "model_apis": [{"api": "openai", "env": "OPENAI_BASE_URL", "url": None}],
+            "backends": [{**STOCK, "name": "openai"}],
+        },
+        "expect": {
+            "error": "each part needs its own name (a model API uses its 'api' as its name)"
+        },
+    },
+    "same_variable": {
+        "answer": {
+            **EMPTY_ANSWER,
+            "backends": [STOCK],
+            "databases": [
+                {"name": "shop", "kind": "postgres", "env": "STOCK_URL", "address": None}
+            ],
+        },
+        "expect": {"error": "each part needs its own 'env'"},
+    },
+    "command_with_secret": {
+        "answer": answer_with(
+            "mcp_servers",
+            {
+                "name": "stock",
+                "transport": "stdio",
+                "env": None,
+                "command": ["toy-stock-mcp", "--token", "toy-123"],
+                "url": None,
+            },
+        ),
+        "expect": {
+            "error": "mcp_servers[0]: the command has a value of the secret key 'token'. "
+            "Give the value in a variable of the server."
+        },
+    },
+    "stdio_with_url": {
+        "answer": answer_with(
+            "mcp_servers",
+            {
+                "name": "files",
+                "transport": "stdio",
+                "env": None,
+                "command": ["toy-files-mcp"],
+                "url": "http://127.0.0.1:9200",
+            },
+        ),
+        "expect": {
+            "error": "mcp_servers[0]: a stdio server needs 'command' and a null 'url', "
+            "an http server needs 'url' and a null 'command'"
+        },
+    },
+    "address_with_user": {
+        "answer": answer_with(
+            "databases",
+            {"name": "shop", "kind": "postgres", "env": None, "address": "toy@127.0.0.1:5432"},
+        ),
+        "expect": {"error": "databases[0]: the address has a user or a password. Give host:port."},
+    },
+    "address_with_secret_query": {
+        "answer": answer_with(
+            "databases",
+            {
+                "name": "shop",
+                "kind": "postgres",
+                "env": None,
+                "address": "db.toy.test:5432/shop?password=toy",
+            },
+        ),
+        "expect": {"error": "databases[0]: the address has a value of the secret key 'password'."},
+    },
+    "address_with_secret_word": {
+        "answer": answer_with(
+            "databases",
+            {
+                "name": "shop",
+                "kind": "postgres",
+                "env": None,
+                "address": "host=db.toy.test password=toy",
+            },
+        ),
+        "expect": {"error": "databases[0]: the address has a value of the secret key 'password'."},
+    },
+    "url_that_does_not_parse": {
+        "answer": answer_with("backends", {"name": "stock", "env": "STOCK_URL", "url": "http://["}),
+        "expect": {"error": "backends[0] 'url' must be an http or https URL with a host"},
+    },
+    "empty_name": {
+        "answer": answer_with("other", {"name": " ", "kind": "smtp", "detail": "mail"}),
+        "expect": {"error": "other[0] 'name' must be a text"},
+    },
+}
+
+
 def main() -> None:
     shutil.rmtree(CASES, ignore_errors=True)
     for name, (tap, relay, expect) in CASES_BY_NAME.items():
@@ -5100,12 +5416,18 @@ def main() -> None:
     for name, case in EVALUATION_CASES.items():
         text = json.dumps(case, indent=1, sort_keys=True) + "\n"
         (EVALUATION / f"{name}.json").write_text(text, encoding="utf-8")
+    shutil.rmtree(DISCOVERY, ignore_errors=True)
+    DISCOVERY.mkdir()
+    for name, case in DISCOVERY_CASES.items():
+        text = json.dumps(case, indent=1, ensure_ascii=False) + "\n"
+        (DISCOVERY / f"{name}.json").write_text(text, encoding="utf-8")
     print(
         f"{len(CASES_BY_NAME)} audit cases, {len(CONTRACT_CASES)} contract cases, "
         f"{len(TRACE_CASES)} trace cases, {len(SEAL_CASES)} seal cases, "
         f"{len(OTLP_CASES)} receiver cases, {len(POLICY_CASES)} policy cases, "
         f"{len(GUARD_CASES)} guard cases, {len(CONTROL_CASES)} control cases, "
-        f"{len(EVALUATION_CASES)} evaluation cases and {len(NOTES_CASES)} notes cases written"
+        f"{len(EVALUATION_CASES)} evaluation cases, {len(NOTES_CASES)} notes cases and "
+        f"{len(DISCOVERY_CASES)} discovery cases written"
     )
 
 

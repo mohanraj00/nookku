@@ -1,0 +1,15 @@
+{
+ "answer": {
+  "model_apis": [],
+  "backends": [],
+  "mcp_servers": [],
+  "databases": [],
+  "other": []
+ },
+ "expect": {
+  "lines": [
+   "- no egress part: the agent calls no service"
+  ],
+  "unseen": []
+ }
+}

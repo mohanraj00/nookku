@@ -25,7 +25,7 @@ sys.path[:0] = [str(ROOT / "src")]
 
 from proof_common import json_lines  # noqa: E402
 
-from nookku import __version__, backend, bridge, seal, stdio  # noqa: E402
+from nookku import __version__, backend, bridge, discovery, seal, stdio  # noqa: E402
 
 SEEN: list[dict[str, str]] = []
 
@@ -98,15 +98,11 @@ def main() -> int:
         "entry": [sys.executable, "entry.py"],
         "models": [],
         "otel": False,
-        "backends": [
-            {
-                "name": "stock",
-                "env": "STOCK_URL",
-                "url": f"http://127.0.0.1:{stock.server_address[1]}",
-            }
-        ],
     }
     (project / ".nookku" / "config.json").write_text(json.dumps(config))
+    url = f"http://127.0.0.1:{stock.server_address[1]}"
+    stock_part = {"name": "stock", "env": "STOCK_URL", "url": url}
+    discovery.register(project, discovery.make(backends=[stock_part]))
     cur = bridge.start(project)
     try:
         shown, ok = bridge.send(cur, "Scan, check and import the teapot sets.")

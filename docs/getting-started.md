@@ -72,7 +72,21 @@ If the nookku plugin is on in Claude Code, `init` also prints a warning with the
 
 `init` prints the absolute paths. Here `...` stands for the folders above `toy-shop`. `config.json` holds the [entry](reference/glossary.md#entry): the command that the [tap](reference/glossary.md#tap) starts for each test. `settings.local.json` holds two hooks. The `UserPromptSubmit` hook takes each prompt before the model sees it. The `PreToolUse` hook denies a model tool call that names the agent or changes a file of the test.
 
-Check the connection with one message:
+Each test needs an egress answer: the list of each service that the agent calls ([SPEC.md section 7.11](../SPEC.md#711-egress-discovery)). Nookku starts a recording proxy for each part of the answer. For your own app, you type the prompt `nookku start`, and the [harness model](reference/glossary.md#harness-model) reads the code and gives the answer. Then you check its lines and type `nookku start` again. The toy shop calls no service, so here you give the answer yourself, with 5 empty lists:
+
+```bash
+nookku register <<'EOF'
+{"model_apis": [], "backends": [], "mcp_servers": [], "databases": [], "other": []}
+EOF
+```
+
+```text
+nookku: the egress answer is registered. The next start uses these parts:
+- no egress part: the agent calls no service
+Show these parts to the tester. If they are correct, the tester types the prompt nookku start in the next 30 minutes. If a part is wrong, run nookku register again with the correct answer.
+```
+
+Check the connection with one message. `check` keeps the answer for the test of step 6:
 
 ```bash
 nookku check
@@ -113,6 +127,8 @@ Type the prompt `nookku start`. The hook starts the test and blocks the prompt, 
 
 ```text
 nookku: test 20261016-185848-1fc6 started. Relay mode is on: each message goes to the entry. To end the test and start the evaluation, type the prompt nookku end. To end the test with no evaluation, run nookku end in a shell.
+Egress of the agent:
+- no egress part: the agent calls no service
 The chat page opened in your browser. It stops when you type the prompt nookku end, or at the next start.
 ```
 
@@ -299,6 +315,7 @@ cat .nookku/tests/20261016-185848-1fc6/findings.json
   "span_error": 0,
   "backend_error": 0,
   "model_api_error": 0,
+  "unseen_call": 0,
   "model_error": 0,
   "turn_without_model": 0,
   "item_between_turns": 0,

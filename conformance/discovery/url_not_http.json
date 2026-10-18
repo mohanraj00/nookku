@@ -1,0 +1,18 @@
+{
+ "answer": {
+  "model_apis": [],
+  "backends": [
+   {
+    "name": "stock",
+    "env": "STOCK_URL",
+    "url": "ftp://stock.toy.test"
+   }
+  ],
+  "mcp_servers": [],
+  "databases": [],
+  "other": []
+ },
+ "expect": {
+  "error": "backends[0] 'url' must be an http or https URL with a host"
+ }
+}

@@ -22,7 +22,7 @@ sys.path[:0] = [str(ROOT / "src")]
 
 from proof_common import AGENT_SDK  # noqa: E402
 
-from nookku import bridge  # noqa: E402
+from nookku import bridge, discovery  # noqa: E402
 
 ENTRY = [
     "uv",
@@ -44,6 +44,7 @@ def main() -> int:
     (project / ".nookku").mkdir(parents=True)
     config = {"entry": ENTRY, "models": ["claude-code", "codex"]}
     (project / ".nookku" / "config.json").write_text(json.dumps(config))
+    discovery.register(project, discovery.make(model_apis=discovery.both_apis()))
     passed, lines = bridge.check(project)
     print("\n".join(lines))
     folder = bridge.latest_test(project)
