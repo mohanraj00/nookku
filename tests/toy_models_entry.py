@@ -5,7 +5,10 @@ one `codex app-server` thread. The Codex thread has `lookup_order` as a dynamic 
 server `check_stock` (tests/toy_mcp_server.py) and a shell for returns questions. The entry speaks
 the agent contract. It needs claude-agent-sdk:
 
-    uv run --with claude-agent-sdk python tests/toy_models_entry.py
+    uv run --with claude-agent-sdk python tests/toy_models_entry.py [--cli CLAUDE]
+
+With --cli, the Agent SDK runs the Claude Code at the path CLAUDE (the `cli_path` option), in
+place of the Claude Code that the SDK bundles.
 """
 
 from __future__ import annotations
@@ -140,6 +143,8 @@ async def main() -> None:
         strict_mcp_config=True,
         env={"CLAUDE_CODE_PLUGIN_DIRS": ""},
     )
+    if "--cli" in sys.argv:
+        options.cli_path = sys.argv[sys.argv.index("--cli") + 1]
     loop = asyncio.get_running_loop()
     codex = await loop.run_in_executor(None, CodexThread, os.getcwd())
     async with ClaudeSDKClient(options=options) as client:

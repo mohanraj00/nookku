@@ -40,6 +40,7 @@ If a hook changes, trust it again. A new plugin script also needs a new run of `
 | Model sessions of the app | `uv run python scripts/proof_sessions.py` | `proofs/sessions/` |
 | [Trace](../reference/glossary.md#trace) of the model sessions | `uv run python scripts/proof_trace.py` | `proofs/trace/` |
 | The trace with the Claude Code of a different Agent SDK | `uv run python scripts/proof_trace.py <out-dir> claude-agent-sdk==<version>` | `<out-dir>/results.json` |
+| The trace with a Claude Code that no Agent SDK bundles | `uv run python scripts/proof_trace.py <out-dir> claude-agent-sdk==<version> <path of claude>` | `<out-dir>/results.json` |
 | The Claude Code version of each Agent SDK release, no model | `uv run python scripts/proof_sdk_bundles.py <version>...` | `proofs/trace/sdk-bundles.json` |
 | Backend proxy, no model | `uv run python scripts/proof_backend.py` | `proofs/backend/` |
 | Model API proxy, no model | `uv run python scripts/proof_model_api.py` | `proofs/model-api/` |
