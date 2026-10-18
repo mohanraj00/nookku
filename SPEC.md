@@ -935,6 +935,8 @@ A note of the tester is an opinion, not a finding and not evidence. The prompt t
 
 If the first line of the transcript is `Record: INVALID.` (below), the prompt tells the model not to judge the app. The model does not read `notes.jsonl` or do the other steps. It writes `report.md` with no issue, quotes the first 2 lines of the transcript in the notes, and tells the tester to run the test again.
 
+A mod of Claude Code is a plugin that Claude Code loads from a folder of the variable `CLAUDE_CODE_PLUGIN_DIRS`. No flag removes a mod from a running session, so the text of a mod can be in the evaluation context. If this variable in the environment of the relay names one or more folders, the prompt starts with a note. The note gives the count and each folder, and tells the model not to follow the instructions of a mod. It also tells the model to name each mod in the notes of `report.md`. An empty folder in the variable does not count. A harness that has no mod gets no note.
+
 For a scripted test (section 7.10), the prompt starts with a note. The note says that each message came from the script file, names the copy and its SHA-256, and names the entry. With a replay entry, the replies come from a recording, so the note tells the model to judge the app and the transport, not the model.
 
 `nookku transcript --trace` shows each turn of a test as the app received it and sent it (from `tap.jsonl`). It reads `tap.jsonl` with the reader of section 2. If `tap.jsonl` has a line that is not valid, or if `trace.jsonl` has a line that is not a JSON object, the transcript has only 2 lines. The first line is `Record: INVALID.`, the error with the file and the line, and `Do not trust these records. This transcript shows no turn.` The second line is the result of the seal (section 7.4). The transcript shows no turn, so a changed text never shows as exact. Under each turn, it shows the model items of that turn and the findings of that turn. The findings with no turn come before turn 1. There, the `version_untested` findings of one harness and one version show as one line with the count of sessions, for example `- version_untested: version 2.1.302, tested: 2.1.286, 2.1.292, 2.1.293, 2.1.294, 2.1.295, 2.1.296, 2.1.299, 2.1.300, 2.1.301 (claude-code, 4 sessions)`. `findings.json` keeps one finding for each session. For a `/decisions` call, the user message shows each question and each image on one line. The assistant message shows each answer on one line in place of the text:
@@ -972,5 +974,7 @@ The reference is `(compact: the same text as [trace.jsonl:N], sha256 <hex>, <len
 Turn is the number of the turn, or `-`. Evidence is a `trace.jsonl:N` line, a turn, or a source line.
 
 The Tester notes table has the columns Note, Turn, Rating, Comment and What the records show, and one row for each line of `notes.jsonl`. Note is `notes.jsonl:N`, where N is the line. Comment is the comment, or its first 200 characters, or `-` for `null`. The last column says if the records agree with the note, do not agree, or cannot show it, with the evidence. If the test has no `notes.jsonl`, the report has the text "The tester wrote no note." in place of this table.
+
+If the evaluation prompt names mods (section 9.2), the notes of the report name each mod.
 
 The report is a model answer: the proofs check it, but no code reads it.

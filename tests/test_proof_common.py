@@ -1,5 +1,6 @@
 import hashlib
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -8,9 +9,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 import pytest
 from proof_common import (
     AGENT_SDK,
+    NO_MODS,
     PLUGIN_DIR,
     claude_events,
     claude_isolated,
+    codex_home,
     copy_hidden,
     foreign_plugins,
     hide,
@@ -65,6 +68,63 @@ def test_a_mod_stops_the_proof() -> None:
     out = json.dumps(_init("builtin", "/home/toy/.claude/mods/toy-mod"))
     with pytest.raises(SystemExit, match="toy-mod@x"):
         claude_events(out + "\n" + json.dumps({"type": "result", "result": "ok"}))
+
+
+def test_each_claude_session_of_a_proof_gets_no_mod() -> None:
+    # An empty CLAUDE_CODE_PLUGIN_DIRS loads no mod, also if the user settings name mods (#424).
+    import proof_evaluation
+    import proof_report
+
+    assert NO_MODS == {"CLAUDE_CODE_PLUGIN_DIRS": ""}
+    for env in (proof_evaluation.ENV, proof_report.ENV):
+        assert env["CLAUDE_CODE_PLUGIN_DIRS"] == ""
+
+
+def _fake_codex(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, servers: str) -> Path:
+    """A codex command on PATH that prints the servers for `codex mcp list --json`, and a home."""
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir(parents=True)
+    (bin_dir / "codex").write_text(f"#!/bin/sh\ncat <<'EOF'\n{servers}\nEOF\n")
+    (bin_dir / "codex").chmod(0o755)
+    monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ['PATH']}")
+    home = tmp_path / "codex-home"
+    home.mkdir()
+    monkeypatch.setattr("proof_common.HOOKS_CODEX_HOME", home)
+    return home
+
+
+def test_a_codex_home_with_only_the_nookku_server_passes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home = _fake_codex(tmp_path, monkeypatch, json.dumps([{"name": SERVER, "enabled": True}]))
+    assert codex_home(False, tmp_path) == home
+    _fake_codex(tmp_path / "none", monkeypatch, "[]")
+    codex_home(False, tmp_path)
+
+
+@pytest.mark.parametrize(
+    "servers",
+    [
+        json.dumps([{"name": SERVER}, {"name": "toy_docs", "enabled": True}]),
+        json.dumps([{"name": "toy_docs"}]),
+        "not json",
+        json.dumps({"name": SERVER}),
+        json.dumps([{"enabled": True}]),
+    ],
+)
+def test_a_user_mcp_server_or_a_bad_list_stops_a_codex_proof(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, servers: str
+) -> None:
+    # The text of a user MCP server can reach the model (#424).
+    _fake_codex(tmp_path, monkeypatch, servers)
+    with pytest.raises(SystemExit):
+        codex_home(False, tmp_path)
+
+
+def test_a_codex_proof_with_no_home_stops(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("proof_common.HOOKS_CODEX_HOME", tmp_path / "missing")
+    with pytest.raises(SystemExit, match="Trust the Codex hooks once"):
+        codex_home(False, tmp_path)
 
 
 def test_an_output_with_no_init_event_stops_the_proof() -> None:

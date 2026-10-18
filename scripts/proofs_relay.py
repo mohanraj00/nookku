@@ -20,9 +20,9 @@ The tester starts and ends the test (SPEC.md section 7) with the prompts `nookku
 The plugin hooks run `nookku` from PATH, so this script puts the bin folder of its Python first.
 
 Codex runs a hook only after a person trusts it. Never try to skip the trust step. Before a Codex
-setup, the maintainer trusts .proof/codex/.codex/hooks.json (project hooks, in the user CODEX_HOME),
-or the plugin hooks in the CODEX_HOME of proof_codex_gate.py. `nookku start` refuses a test with an
-untrusted hook (SPEC.md section 7.8).
+setup, the maintainer trusts .proof/codex/.codex/hooks.json (project hooks, in the CODEX_HOME
+.proof/codex-hooks/codex-home), or the plugin hooks in the CODEX_HOME of proof_codex_gate.py.
+`nookku start` refuses a test with an untrusted hook (SPEC.md section 7.8).
 
 With --stream, the agent streams each reply (SSE): the toy shop agent of the tests with stream=True
 (tests/toy_agent.py), behind a tap in this process with the openai adapter. The relay runs in HTTP
@@ -71,7 +71,9 @@ from proof_common import (  # noqa: E402
     ADVERSARIAL,
     ENTRY,
     MESSAGES,
+    NO_MODS,
     NO_TITLE,
+    codex_home,
     copy_hidden,
     hide,
     json_lines,
@@ -85,19 +87,17 @@ from nookku.record import Turn, read_relay  # noqa: E402
 
 CODEX_MODEL = "gpt-5.6-luna"
 PLUGIN = ROOT / "plugins" / "nookku"
-# The CODEX_HOME of scripts/proof_codex_gate.py, with the plugin of this checkout and its trust.
-PLUGIN_CODEX_HOME = ROOT / ".proof" / "codex-gate" / "codex-home"
 SETUPS = ("plugin-claude-code", "plugin-codex", "hooks-claude-code", "hooks-codex")
 
 
-def environment(plugin: bool, harness: str) -> dict[str, str]:
+def environment(plugin: bool, harness: str, project: Path) -> dict[str, str]:
     """The environment of the harness. The plugin hooks run nookku from PATH, so the bin folder
-    of this Python comes first. The plugin in Codex uses the CODEX_HOME of its trust step."""
-    env = {**os.environ, **NO_TITLE}
+    of this Python comes first. Each Codex setup uses the CODEX_HOME of its trust step."""
+    env = {**os.environ, **NO_TITLE, **NO_MODS}
     if plugin:
         env["PATH"] = f"{Path(sys.executable).parent}{os.pathsep}{env.get('PATH', '')}"
-        if harness == "codex":
-            env["CODEX_HOME"] = str(PLUGIN_CODEX_HOME)
+    if harness == "codex":
+        env["CODEX_HOME"] = str(codex_home(plugin, project))
     return env
 
 
@@ -128,7 +128,7 @@ def run_codex(
         capture_output=True,
         text=True,
         timeout=300,
-        env=environment(plugin, "codex"),
+        env=environment(plugin, "codex", project),
     )
     events = json_lines(p.stdout)
     usage = next((e["usage"] for e in events if e.get("type") == "turn.completed"), {})
@@ -160,7 +160,7 @@ def run_claude(
         stdin=subprocess.DEVNULL,
         cwd=project,
         timeout=300,
-        env=environment(plugin, "claude-code"),
+        env=environment(plugin, "claude-code", project),
     )
     events = json_lines(p.stdout)
     result = next((e for e in events if e.get("type") == "result"), {})

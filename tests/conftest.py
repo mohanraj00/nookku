@@ -45,3 +45,10 @@ def no_auto_page(monkeypatch: pytest.MonkeyPatch) -> None:
     from nookku import page_auto
 
     monkeypatch.setattr(page_auto, "enabled", lambda root: False)
+
+
+@pytest.fixture(autouse=True)
+def no_mods(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A test gets no mod of the Claude Code session that runs pytest. The mod tests set the
+    variable (#424)."""
+    monkeypatch.delenv("CLAUDE_CODE_PLUGIN_DIRS", raising=False)

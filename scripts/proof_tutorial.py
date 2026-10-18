@@ -39,7 +39,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parent.parent
 sys.path[:0] = [str(ROOT / "src")]
 
-from proof_common import NO_TITLE, claude_events, claude_isolated, private  # noqa: E402
+from proof_common import NO_MODS, NO_TITLE, claude_events, claude_isolated, private  # noqa: E402
 
 from nookku import __version__  # noqa: E402
 
@@ -92,7 +92,7 @@ def main() -> int:
     for name in ("CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT"):
         env.pop(name, None)
     if model:
-        env |= NO_TITLE
+        env |= NO_TITLE | NO_MODS
     else:
         # The interactive CLI gives the hooks this entrypoint (src/nookku/print_mode.py).
         env |= {"CLAUDE_CODE_ENTRYPOINT": "cli"}

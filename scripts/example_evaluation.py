@@ -51,9 +51,9 @@ PROMPT = (
 # of the project with no permission, so the evaluation gets no built-in tool. --tools does not
 # limit the MCP tools, so the evaluation gets only the nookku server of the plugin, with no other
 # MCP server of the user, the project or a plugin. The evaluation also reads no user settings, so
-# no plugin of the user loads, and it runs no hook. Claude Code still loads its built-in plugins
-# and the mods of ~/.claude/mods, so the script stores the plugins of the session and fails if a
-# plugin is not built in.
+# no plugin of the user loads, and it runs no hook. ENV gives an empty CLAUDE_CODE_PLUGIN_DIRS, so
+# no mod loads (#424). Claude Code still loads its built-in plugins, so the script stores the
+# plugins of the session and fails if a plugin is not built in.
 SERVER = json.loads((ROOT / "plugins" / "nookku" / ".mcp.json").read_text())["mcpServers"]
 SERVERS = {"mcpServers": {mcp.SERVER: {k: SERVER[mcp.SERVER][k] for k in ("command", "args")}}}
 TRANSCRIPT = f"mcp__{mcp.SERVER}__transcript"
