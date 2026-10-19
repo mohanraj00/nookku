@@ -253,11 +253,12 @@ const NookkuTrace = (function () {
     box.hidden = !error;
   }
 
-  async function refresh() {
+  // The interval calls refresh(true): a poll, not an action of the tester (#439).
+  async function refresh(auto) {
     const id = document.getElementById("test").dataset.id || "";
     const url = id ? "api/trace/" + encodeURIComponent(id) : "api/trace";
     try {
-      const resp = await fetch(url, { cache: "no-store" });
+      const resp = await fetch(url, { cache: "no-store", poll: auto === true });
       const data = await resp.json();
       // The shown test can change during the request. Then a later request shows the new test.
       if ((document.getElementById("test").dataset.id || "") !== id) {
@@ -277,7 +278,7 @@ const NookkuTrace = (function () {
     // app.js adds and removes the turns. Each change puts the known steps in place at once.
     new MutationObserver(attach).observe(list, { childList: true });
     refresh();
-    setInterval(refresh, POLL_MS);
+    setInterval(() => refresh(true), POLL_MS);
   }
 
   if (typeof document !== "undefined" && document.addEventListener) {

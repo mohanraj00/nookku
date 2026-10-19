@@ -715,12 +715,19 @@ def _chat_parser(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> No
         action="store_true",
         help="open the chat page of the running test in the browser; print no URL",
     )
+    page.add_argument("--stop", action="store_true", help="stop the page server of this project")
 
 
 def _chat_command(args: argparse.Namespace) -> int:
     """nookku chat: the chat page on 127.0.0.1 (SPEC.md section 5, "Chat page")."""
     from nookku import page
 
+    if args.stop:
+        from nookku import page_auto
+
+        code, text = page_auto.stop(args.root.resolve())
+        print(text, file=sys.stderr if code else sys.stdout, flush=True)
+        return code
     if args.open:
         from nookku import page_open
 

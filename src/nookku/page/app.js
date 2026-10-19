@@ -525,12 +525,13 @@ function turnsUrl() {
   return id ? "api/turns/" + encodeURIComponent(id) : "api/turns";
 }
 
-async function refresh() {
+// The interval calls refresh(true): a poll, not an action of the tester.
+async function refresh(auto) {
   pollCount += 1;
   const poll = pollCount;
   try {
     const url = turnsUrl();
-    const resp = await fetch(url, { cache: "no-store" });
+    const resp = await fetch(url, { cache: "no-store", poll: auto === true });
     const data = await resp.json();
     // The hash can change during the request. Then a later request shows the new test.
     if (url === turnsUrl() && poll > shownPoll) {
@@ -541,9 +542,10 @@ async function refresh() {
     if (poll > shownPoll) {
       // An older poll that answers later must not hide this error or show older turns.
       shownPoll = poll;
+      // A fetch fails only if no server answers on the port: the page server stopped (#439).
       pollResult(
-        "The page server does not answer. The page tries again each second. To start it " +
-          "again, run nookku chat in a separate terminal.",
+        "The page server stopped. To start the page again, run nookku chat in a separate " +
+          "terminal, or start a test with the prompt nookku start.",
       );
     }
   }
@@ -643,6 +645,6 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   window.addEventListener("hashchange", refresh);
   refresh();
-  setInterval(refresh, POLL_MS);
+  setInterval(() => refresh(true), POLL_MS);
   setInterval(tick, 1000);
 });

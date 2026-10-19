@@ -969,10 +969,10 @@ def claim_page_file(root: Path, port: int, test: str | None = None) -> tuple[Pat
             # its start time is pid_start (#397).
             if not state.same_process(pid, info.get("pid_start") if info else None):
                 raise PageRunning("a page server of this project runs. Stop it first") from None
-            # No nookku command stops a page server of an ended test, so give the step (#401).
+            # The pid and pid_start identify the server, so `nookku chat --stop` can stop it (#439).
             raise PageRunning(
-                f"a page server of this project runs (pid {pid}). Stop that server first. If "
-                f"ps -p {pid} shows a nookku chat page, stop it with: kill {pid}"
+                f"a page server of this project runs (pid {pid}). Stop it first with: "
+                "nookku chat --stop"
             ) from None
     path = folder / state.PAGE_FILE
     try:

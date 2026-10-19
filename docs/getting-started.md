@@ -129,7 +129,7 @@ Type the prompt `nookku start`. The hook starts the test and blocks the prompt, 
 nookku: test 20261018-122751-7001 started. Relay mode is on: each message goes to the entry. To end the test and start the evaluation, type the prompt nookku end. To end the test with no evaluation, run nookku end in a shell.
 Egress of the agent:
 - no egress part: the agent calls no service
-The chat page opened in your browser. It stops when you type the prompt nookku end, or at the next start.
+The chat page opened in your browser. It stops when you type the prompt nookku end, at the next start, or after 15 minutes with no use and no test.
 ```
 
 Type these 3 messages in Claude Code, one at a time:
