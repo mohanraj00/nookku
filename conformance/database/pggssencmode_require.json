@@ -1,0 +1,9 @@
+{
+ "value": "postgresql://shop@db.toy.test/shop",
+ "environ": {
+  "PGGSSENCMODE": "require"
+ },
+ "expect": {
+  "error": "the database shop-db: the variable DATABASE_URL has gssencmode=require (or PGGSSENCMODE). The proxy speaks no GSSAPI encryption, so give gssencmode=disable or prefer for the test."
+ }
+}

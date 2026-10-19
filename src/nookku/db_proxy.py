@@ -65,6 +65,7 @@ REFUSED = {
 # value that makes libpq refuse sslmode=disable.
 PLAIN_REFUSED = {"PGSSLROOTCERT": SYSTEM_ROOTS, "PGSSLNEGOTIATION": "direct"}
 # The variables that give libpq another address than the host of the URL, also for the app.
+# libpq ignores an empty value.
 ADDRESS_VARS = ("PGHOSTADDR", "PGSERVICE")
 TLS_VERSIONS = {
     "TLSv1": ssl.TLSVersion.TLSv1,
@@ -213,7 +214,7 @@ def _upstream(part: dict[str, Any], value: str | None, environ: Any) -> Database
             f"{where} has the query parameter {moved[0]}, which gives another address than "
             "the host of the URL. Give the address only in the host and the port of the URL."
         )
-    moved = [v for v in ADDRESS_VARS if v in environ]
+    moved = [v for v in ADDRESS_VARS if environ.get(v)]
     if moved:
         raise ValueError(
             f"{where}: the app has {moved[0]}, which gives libpq another address than the host "

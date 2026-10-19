@@ -1,0 +1,12 @@
+{
+ "value": "postgresql://shop@db.toy.test/shop",
+ "environ": {
+  "PGHOSTADDR": "",
+  "PGSERVICE": ""
+ },
+ "expect": {
+  "sslmode": "prefer",
+  "rootcert": null,
+  "app_query": "sslmode=disable"
+ }
+}

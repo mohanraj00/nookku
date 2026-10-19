@@ -5894,6 +5894,44 @@ DATABASE_CASES: dict[str, dict] = {
             "its value in the URL."
         },
     },
+    "pghostaddr_in_the_environment": {
+        "value": DB_URL,
+        "environ": {"PGHOSTADDR": "203.0.113.1"},
+        "expect": {
+            "error": f"{DB_WHERE}: the app has PGHOSTADDR, which gives libpq another address "
+            "than the host of the URL. The app would connect past the proxy. Remove PGHOSTADDR "
+            "for the test."
+        },
+    },
+    "pgservice_in_the_environment": {
+        "value": DB_URL,
+        "environ": {"PGSERVICE": "toy-shop"},
+        "expect": {
+            "error": f"{DB_WHERE}: the app has PGSERVICE, which gives libpq another address "
+            "than the host of the URL. The app would connect past the proxy. Remove PGSERVICE "
+            "for the test."
+        },
+    },
+    "empty_pghostaddr_and_pgservice": {
+        "value": DB_URL,
+        "environ": {"PGHOSTADDR": "", "PGSERVICE": ""},
+        "expect": {"sslmode": "prefer", "rootcert": None, "app_query": "sslmode=disable"},
+    },
+    "pggssencmode_require": {
+        "value": DB_URL,
+        "environ": {"PGGSSENCMODE": "require"},
+        "expect": {
+            "error": f"{DB_WHERE} has gssencmode=require (or PGGSSENCMODE). The proxy speaks no "
+            "GSSAPI encryption, so give gssencmode=disable or prefer for the test."
+        },
+    },
+    "minimum_tls_above_the_maximum": {
+        "value": DB_URL + "?ssl_min_protocol_version=TLSv1.3&ssl_max_protocol_version=TLSv1.2",
+        "expect": {
+            "error": f"{DB_WHERE} has ssl_min_protocol_version=TLSv1.3, which is above "
+            "ssl_max_protocol_version=TLSv1.2"
+        },
+    },
     "no_tls_parameter_in_the_app_url": {
         "value": DB_URL + "?sslmode=require&sslnegotiation=direct&connect_timeout=5"
         "&ssl_min_protocol_version=TLSv1.3",

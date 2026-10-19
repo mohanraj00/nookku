@@ -1,0 +1,9 @@
+{
+ "value": "postgresql://shop@db.toy.test/shop",
+ "environ": {
+  "PGSERVICE": "toy-shop"
+ },
+ "expect": {
+  "error": "the database shop-db: the variable DATABASE_URL: the app has PGSERVICE, which gives libpq another address than the host of the URL. The app would connect past the proxy. Remove PGSERVICE for the test."
+ }
+}
