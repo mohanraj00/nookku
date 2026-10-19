@@ -3922,10 +3922,12 @@ UNSEEN_STDIO_CASE = {
 
 
 # The coverage check with driver databases (SPEC.md section 8.6, `unseen_call`). shop has a proxy.
-# stock is also Postgres, but its proxy cannot connect, so it has a driver trace: only a call to its
-# address is seen. cart is SQLite with a driver trace and no proxy of its system, so each SQLite
-# call is seen. A Postgres call around the proxy and a MySQL call give a finding. The 2 spans at 31
-# have the same time, and each driver query comes right after its span (section 8.4).
+# stock is also Postgres on the same server, but its proxy cannot connect, so it has a driver
+# trace: only a Postgres call to its host:port and to its database stock is seen. cart is SQLite
+# with a driver trace and no proxy of its system, so each SQLite call is seen. A Postgres call
+# around the proxy to the database shop, an HTTP call to the address of stock and a MySQL call give
+# a finding. The 2 spans at 31 have the same time, and each driver query comes right after its span
+# (section 8.4).
 UNSEEN_DRIVER_DATABASES = [
     {
         "name": "shop",
@@ -3938,27 +3940,21 @@ UNSEEN_DRIVER_DATABASES = [
         "name": "stock",
         "kind": "Postgres",
         "env": None,
-        "address": "DB2.toy.test:5432/stock",
+        "address": "DB.toy.test:5432/stock",
         "record": "driver",
     },
     {"name": "cart", "kind": "sqlite", "env": None, "address": "data/cart.db", "record": "driver"},
 ]
+PG_AT_DB = {"db.system.name": "postgresql", "server.address": "db.toy.test", "server.port": 5432}
 UNSEEN_DRIVER_SPANS = [
     (
         11,
         "SELECT shop",
         {"db.system.name": "postgresql", "server.address": "127.0.0.1", "server.port": 41002},
     ),
-    (
-        12,
-        "SELECT shop",
-        {"db.system.name": "postgresql", "server.address": "db.toy.test", "server.port": 5432},
-    ),
-    (
-        31,
-        "SELECT stock",
-        {"db.system.name": "postgresql", "server.address": "db2.toy.test", "server.port": 5432},
-    ),
+    (12, "SELECT shop", {**PG_AT_DB, "db.namespace": "shop"}),
+    (13, "GET", {"http.request.method": "GET", "url.full": "http://db.toy.test:5432/health"}),
+    (31, "SELECT stock", {**PG_AT_DB, "db.namespace": "stock"}),
     (31, "SELECT cart", {"db.system": "SQLite"}),
     (
         33,
@@ -3966,6 +3962,14 @@ UNSEEN_DRIVER_SPANS = [
         {"db.system.name": "mysql", "server.address": "mysql.toy.test", "server.port": 3306},
     ),
 ]
+
+
+def unseen_driver_span(n: int) -> dict:
+    t, name, attrs = UNSEEN_DRIVER_SPANS[n - 1]
+    turn = 1 if t < 20 else 2
+    return oitem(turn, "otel", TRACE_ID, t, "span", n, name=name, input=attrs, service="toy-shop")
+
+
 UNSEEN_DRIVER_CASE = {
     "tap": [window(10, 20), window(30, 40)],
     "manifest": {
@@ -3983,45 +3987,34 @@ UNSEEN_DRIVER_CASE = {
     "sessions": {},
     "otel": [app_span(*span) for span in UNSEEN_DRIVER_SPANS],
     "trace": [
-        row
-        for n, (t, name, attrs) in enumerate(UNSEEN_DRIVER_SPANS, 1)
-        for row in (
-            oitem(
-                1 if t < 20 else 2,
-                "otel",
-                TRACE_ID,
-                t,
-                "span",
-                n,
-                name=name,
-                input=attrs,
-                service="toy-shop",
-            ),
-            qitem(
-                1 if t < 20 else 2,
-                attrs.get("db.system.name") or attrs["db.system"],
-                t,
-                n,
-                "query",
-                None,
-            ),
-        )
+        unseen_driver_span(1),
+        qitem(1, "postgresql", 11, 1, "query", None),
+        unseen_driver_span(2),
+        qitem(1, "shop", 12, 2, "query", None),
+        unseen_driver_span(3),
+        unseen_driver_span(4),
+        qitem(2, "stock", 31, 4, "query", None),
+        unseen_driver_span(5),
+        qitem(2, "SQLite", 31, 5, "query", None),
+        unseen_driver_span(6),
+        qitem(2, "mysql", 33, 6, "query", None),
     ],
     "findings": {
         "v": "0.2",
         "test": "20261019-090000-eg03",
         "turns": 2,
-        "items": 10,
+        "items": 11,
         "sessions": [],
-        "otel": {"file": "otel.jsonl", "rows": 5, "items": 5, "ignored": {}},
+        "otel": {"file": "otel.jsonl", "rows": 6, "items": 6, "ignored": {}},
         "backend": None,
         "model_api": None,
         "mcp": None,
         "database": None,
-        "counts": counts(unseen_call=2),
+        "counts": counts(unseen_call=3),
         "findings": [
             unseen(2, 1, "database postgresql at db.toy.test:5432"),
-            unseen(5, 2, "database mysql at mysql.toy.test:3306"),
+            unseen(3, 1, "HTTP http://db.toy.test:5432/health at db.toy.test:5432"),
+            unseen(6, 2, "database mysql at mysql.toy.test:3306"),
         ],
     },
 }
@@ -6387,6 +6380,33 @@ DISCOVERY_CASES: dict[str, dict] = {
             {"name": "shop", "kind": "postgres", "env": None, "address": None, "record": "logs"},
         ),
         "expect": {"error": "databases[0] 'record' must be one of: proxy, driver"},
+    },
+    # Next to a proxy database of the same kind, the coverage check needs the address of a driver
+    # database (SPEC.md section 8.6).
+    "driver_with_no_address_next_to_a_proxy": {
+        "answer": {
+            **EMPTY_ANSWER,
+            "databases": [
+                {
+                    "name": "shop",
+                    "kind": "postgres",
+                    "env": "DATABASE_URL",
+                    "address": None,
+                    "record": "proxy",
+                },
+                {
+                    "name": "stock",
+                    "kind": "postgres",
+                    "env": None,
+                    "address": "db.toy.test/stock",
+                    "record": "driver",
+                },
+            ],
+        },
+        "expect": {
+            "error": "databases[1]: a proxy database has the same kind, so a driver database "
+            "needs the address host:port or host:port/database"
+        },
     },
     "database_with_no_record": {
         "answer": answer_with(

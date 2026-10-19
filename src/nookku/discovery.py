@@ -35,6 +35,12 @@ MCP_TRANSPORTS = ("stdio", "http")
 # How the test records the calls of a database (SPEC.md section 7.11): the Postgres proxy, or the
 # OpenTelemetry spans of the driver in the app process.
 RECORDS = ("proxy", "driver")
+# The database system of the semantic conventions for a `kind` that is not the same word.
+SYSTEMS = {"postgres": "postgresql"}
+# An address that the coverage check can compare with a span: host:port or host:port/database.
+HOST_PORT = re.compile(
+    r"(?:\[(?P<v6>[^\]]+)\]|(?P<host>[^\s:/\[\]]+)):(?P<port>\d{1,5})(?:/(?P<db>[^\s/?;&]+))?"
+)
 # The variables that the bridge gives the entry. A part must not use one of them.
 RESERVED = frozenset(
     {
@@ -253,7 +259,31 @@ def parse(raw: Any) -> dict[str, list[dict[str, Any]]]:
     envs = [p["env"] for kind in LISTS[:4] for p in out[kind] if p["env"] is not None]
     if len(set(envs)) != len(envs):
         raise AnswerError("each part needs its own 'env'")
+    # The coverage check can tell a driver call from a call around a proxy of the same system
+    # only by the address of the driver database (SPEC.md section 8.6).
+    proxied = {db_system(p["kind"]) for p in out["databases"] if p["record"] == "proxy"}
+    for n, p in enumerate(out["databases"]):
+        shared = p["record"] == "driver" and db_system(p["kind"]) in proxied
+        if shared and driver_address(p["address"]) is None:
+            raise AnswerError(
+                f"databases[{n}]: a proxy database has the same kind, so a driver database "
+                "needs the address host:port or host:port/database"
+            )
     return out
+
+
+def db_system(name: str) -> str:
+    """The database system of a `kind` of the answer or of a span attribute, in lowercase."""
+    return SYSTEMS.get(name.lower(), name.lower())
+
+
+def driver_address(address: Any) -> tuple[str, int, str | None] | None:
+    """The host in lowercase, the port and the database of an address `host:port` or
+    `host:port/database`, else None (SPEC.md section 8.6)."""
+    m = HOST_PORT.fullmatch(address) if isinstance(address, str) else None
+    if m is None or not 0 < int(m["port"]) < 65536:
+        return None
+    return (m["v6"] or m["host"]).lower(), int(m["port"]), m["db"]
 
 
 def make(**given: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:

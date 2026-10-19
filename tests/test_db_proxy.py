@@ -581,9 +581,9 @@ def test_only_a_database_with_record_proxy_gets_a_proxy() -> None:
     driver = {"record": "driver"}
     parts = [
         PART,
-        {**PART, **driver, "name": "cart", "env": None},
+        {**PART, **driver, "name": "cart", "env": None, "address": "db:5432/cart"},
         {**PART, **driver, "name": "log", "kind": "sqlite", "env": "LOG_DB"},
-        {**PART, **driver, "name": "stock-db", "env": "STOCK_DB_URL"},
+        {**PART, **driver, "name": "stock-db", "env": "STOCK_DB_URL", "address": "db:5432/stock"},
     ]
     environ = {"DATABASE_URL": "postgres://127.0.0.1/shop", "STOCK_DB_URL": "postgres://db/stock"}
     assert db_proxy.databases(parts, environ) == [

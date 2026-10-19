@@ -19,7 +19,7 @@
      "name": "stock",
      "kind": "Postgres",
      "env": null,
-     "address": "DB2.toy.test:5432/stock",
+     "address": "DB.toy.test:5432/stock",
      "record": "driver"
     },
     {

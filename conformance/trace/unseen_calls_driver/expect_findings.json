@@ -2,12 +2,12 @@
  "v": "0.2",
  "test": "20261019-090000-eg03",
  "turns": 2,
- "items": 10,
+ "items": 11,
  "sessions": [],
  "otel": {
   "file": "otel.jsonl",
-  "rows": 5,
-  "items": 5,
+  "rows": 6,
+  "items": 6,
   "ignored": {}
  },
  "backend": null,
@@ -24,7 +24,7 @@
   "backend_error": 0,
   "model_api_error": 0,
   "database_error": 0,
-  "unseen_call": 2,
+  "unseen_call": 3,
   "model_error": 0,
   "turn_without_model": 0,
   "item_between_turns": 0,
@@ -47,13 +47,24 @@
   },
   {
    "check": "unseen_call",
+   "turn": 1,
+   "detail": "HTTP http://db.toy.test:5432/health at db.toy.test:5432: no proxy saw this call",
+   "harness": "otel",
+   "session": "0af7651916cd43dd8448eb211c80319c",
+   "source": {
+    "file": "otel.jsonl",
+    "line": 3
+   }
+  },
+  {
+   "check": "unseen_call",
    "turn": 2,
    "detail": "database mysql at mysql.toy.test:3306: no proxy saw this call",
    "harness": "otel",
    "session": "0af7651916cd43dd8448eb211c80319c",
    "source": {
     "file": "otel.jsonl",
-    "line": 5
+    "line": 6
    }
   }
  ]
