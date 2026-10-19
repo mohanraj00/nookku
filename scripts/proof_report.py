@@ -119,7 +119,10 @@ def codex(prompt: str, cwd: Path, extra: list[str], env: dict[str, str] = ENV) -
         for e in events
         if e.get("type") == "item.completed" and e["item"].get("type") == "agent_message"
     ]
-    return texts[-1] if texts else f"(no answer; exit {p.returncode}: {p.stderr.strip()[-300:]})"
+    # Codex writes a model error, for example a usage limit, as an event, not to stderr.
+    errors = [str(e.get("message")) for e in events if e.get("type") == "error"]
+    why = errors[-1] if errors else p.stderr.strip()[-300:]
+    return texts[-1] if texts else f"(no answer; exit {p.returncode}: {why})"
 
 
 # The files of each example app. The Codex project is the same for each proof, so setup removes the
@@ -136,6 +139,13 @@ APP_FILES = {
         "stock.json",
         "toy_model.py",
     ),
+    "toy-shop-egress": (
+        "app.py",
+        "entry.py",
+        "toy_mcp.py",
+        "catalog_mcp.py",
+        "notes_mcp.py",
+    ),
 }
 
 
@@ -144,13 +154,16 @@ def setup(
     example: Path = EXAMPLE,
     sdk: str = AGENT_SDK,
     config: dict[str, Any] | None = None,
+    packages: tuple[str, ...] = (),
 ) -> None:
-    """Copy the app into the project, with a new state, and configure the test."""
+    """Copy the app into the project, with a new state, and configure the test. The entry gets
+    the Agent SDK `sdk` and each package of `packages`."""
     for name in {n for names in APP_FILES.values() for n in names}:
         (project / name).unlink(missing_ok=True)
     for name in APP_FILES[example.name]:
         shutil.copy(example / name, project / name)
     entry = ["uv", "run", "--quiet", "--project", str(ROOT), "--with", sdk]
+    entry += [w for p in packages for w in ("--with", p)]
     entry += ["python", str(project / "entry.py")]
     (project / kit.STATE_DIR).mkdir(parents=True, exist_ok=True)
     # A proof opens no browser tab.
@@ -234,13 +247,16 @@ def run_test(
     end_args: list[str],
     messages: list[str],
     egress: dict[str, Any] | None = None,
+    registered: bool = False,
 ) -> tuple[Path, str] | None:
     """Start a test, send the messages, and end it with the evaluation. Return the test folder and
     the answer of the end prompt, or None if the test did not start.
 
     The script registers the egress answer `egress` before the start (SPEC.md section 7.11), so
-    the start prompt starts the test. The default is both model APIs, as in nookku 0.5.1."""
-    discovery.register(project, egress or discovery.make(model_apis=discovery.both_apis()))
+    the start prompt starts the test. The default is both model APIs, as in nookku 0.5.1. If
+    `registered`, the harness model already registered its answer, and the script registers none."""
+    if not registered:
+        discovery.register(project, egress or discovery.make(model_apis=discovery.both_apis()))
     run(start, [])
     cur = bridge.current(project)
     if cur is None:

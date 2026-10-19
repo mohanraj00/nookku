@@ -93,6 +93,7 @@ claude plugin validate plugins/nookku && claude plugin test plugins/nookku
 - `scripts/proof_api_hello.py` runs `claude -p` with a toy model API, with no model, and records the `HEAD /api/hello` call of Claude Code. It writes `proofs/model-api/hello.json`.
 - `scripts/proof_report.py <setup>` runs a test of `examples/toy-shop-models/` and the evaluation at its end (P5 extended, P6, P7 and P8), and writes `proofs/report/`.
 - `scripts/proof_telemetry.py <setup>` runs a test of `examples/toy-shop-full/` with all telemetry sources and the evaluation at its end, and writes `proofs/telemetry/`.
+- `scripts/proof_egress.py <setup>` runs a test of `examples/toy-shop-egress/`, with the discovery answer of the harness model, 2 MCP servers, a Postgres database in Docker and a SQLite database with a driver trace. It writes `proofs/egress/`.
 - `scripts/proof_codex_otel.py` checks if Codex sends OpenTelemetry data from the `OTEL_*` variables of a test, and writes `proofs/otel/codex.json`.
 - `scripts/proof_sdk_bundles.py <version>...` records the Claude Code version that each given Claude Agent SDK release bundles, with no model, and writes `proofs/trace/sdk-bundles.json`.
 - `scripts/proof_sessions.py` checks that `nookku check` finds the model sessions of a toy shop app, one in each harness, and writes `proofs/sessions/`.

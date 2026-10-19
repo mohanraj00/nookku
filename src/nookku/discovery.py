@@ -24,6 +24,8 @@ from nookku.record import lone_surrogate
 VERSION = 1
 # The pending answer, until the next start takes it.
 NAME = "discovery.json"
+# The file of the answer that the discovery task tells the model to write (discover.md).
+ANSWER_FILE = "egress.json"
 # A start takes only an answer that is newer than this. It is a design value, not a measurement:
 # the code of the agent can change after the answer, so an old answer must not start a test.
 FRESH = 30 * 60
@@ -36,7 +38,9 @@ MCP_TRANSPORTS = ("stdio", "http")
 # OpenTelemetry spans of the driver in the app process.
 RECORDS = ("proxy", "driver")
 # The database system of the semantic conventions for a `kind` that is not the same word.
-SYSTEMS = {"postgres": "postgresql"}
+# A kind of the answer that is not the system name of OpenTelemetry, for example the name of a
+# Python module.
+SYSTEMS = {"postgres": "postgresql", "sqlite3": "sqlite", "mongo": "mongodb"}
 # An address that the coverage check can compare with a span: host:port or host:port/database.
 HOST_PORT = re.compile(
     r"(?:\[(?P<v6>[^\]]+)\]|(?P<host>[^\s:/\[\]]+)):(?P<port>\d{1,5})(?:/(?P<db>[^\s/?;&]+))?"
@@ -374,8 +378,10 @@ def pending(root: Path, now: float | None = None) -> dict[str, Any] | None:
 
 
 def take(root: Path) -> None:
-    """Remove the pending answer after a start used it. The next test needs a new answer."""
+    """Remove the pending answer and the answer file after a start used it. The next test needs
+    a new answer, and a failed write of the model must not leave the old answer file."""
     path(root).unlink(missing_ok=True)
+    (root / STATE_DIR / ANSWER_FILE).unlink(missing_ok=True)
 
 
 def no_answer() -> str:

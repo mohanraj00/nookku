@@ -1,0 +1,189 @@
+{
+ "date": "2026-10-19",
+ "relay": "hooks-claude-code",
+ "discovery_registered": true,
+ "discovery_attempts": 1,
+ "discovery_answer": "I registered the egress answer and haven't started the test. `nookku register` printed:\n\n```\nnookku: the egress answer is registered. The next start uses these parts:\n- model API anthropic: ANTHROPIC_BASE_URL -> the URL in ANTHROPIC_BASE_URL or the default (proxy)\n- MCP server catalog: http CATALOG_MCP_URL -> http://127.0.0.1:9310/mcp (proxy)\n- MCP server notes: stdio NOTES_MCP_COMMAND -> python3 notes_mcp.py (proxy)\n- database shop: postgres, DATABASE_URL (proxy)\n- database returns: sqlite, returns.db (driver trace)\n```\n\nWhere each part comes from in `app.py`:\n- **anthropic:** the Claude Agent SDK session calls the Anthropic API. It's on the `haiku` model.\n- **catalog:** the HTTP MCP server at `CATALOG_MCP_URL`, set at `app.py:36`.\n- **notes:** the stdio MCP server. The agent splits the command line in `NOTES_MCP_COMMAND` into words (`app.py:120`), so nookku can put its proxy there.\n- **shop:** Postgres at the `postgres://` URL in `DATABASE_URL`, read with psycopg. It's recorded through the proxy.\n- **returns:** the SQLite file `returns.db`, written with `sqlite3`. It has no variable, so it's recorded with a driver trace.\n\nI found no other HTTP backends and no other services. I left the in-process `shop` tool server out because it runs inside the agent and calls nothing outside. I also left out `notes.json`: only the notes MCP server writes it, so the notes proxy covers it.\n\n**Driver trace:** I didn't change any code. `app.py:45-69` already sets up the SQLite and psycopg instrumentation, sends spans over OTLP/HTTP and uses the standard `OTEL_*` variables. It turns on only when `OTEL_EXPORTER_OTLP_ENDPOINT` is set, and nookku sets that during the test. The SQLite trace records the statement text but **not the rows of each answer**, and it **can hide parameter values**. The psycopg instrumentation is also turned on, so Postgres calls may show up both in the proxy record and as spans.\n\nPlease check the parts. If they're right, type `nookku start` within 30 minutes. If one is wrong, tell me what to change and I'll register the answer again.",
+ "E2_app_files_changed": [],
+ "versions": {
+  "nookku": "0.5.2",
+  "claude-code": "2.1.302 (Claude Code)",
+  "codex": "codex-cli 0.162.1",
+  "agent sdk": "claude-agent-sdk==0.2.168",
+  "app packages": [
+   "psycopg[binary]==3.3.6",
+   "opentelemetry-sdk==1.44.0",
+   "opentelemetry-exporter-otlp-proto-http==1.44.0",
+   "opentelemetry-instrumentation-psycopg==0.65b0",
+   "opentelemetry-instrumentation-sqlite3==0.65b0"
+  ],
+  "postgres": "postgres:16-alpine",
+  "session files": {
+   "claude-code": "2.1.301"
+  }
+ },
+ "plugins": [
+  "cc-plugin-agents-md@builtin",
+  "cc-plugin-plugin-authoring@builtin",
+  "cc-plugin-telemetry@builtin"
+ ],
+ "turns": 3,
+ "audit_exit": 0,
+ "answer": {
+  "model_apis": [
+   {
+    "api": "anthropic",
+    "env": "ANTHROPIC_BASE_URL",
+    "url": null
+   }
+  ],
+  "backends": [],
+  "mcp_servers": [
+   {
+    "name": "catalog",
+    "transport": "http",
+    "env": "CATALOG_MCP_URL",
+    "command": null,
+    "url": "http://127.0.0.1:9310/mcp"
+   },
+   {
+    "name": "notes",
+    "transport": "stdio",
+    "env": "NOTES_MCP_COMMAND",
+    "command": [
+     "python3",
+     "notes_mcp.py"
+    ],
+    "url": null
+   }
+  ],
+  "databases": [
+   {
+    "name": "shop",
+    "kind": "postgres",
+    "env": "DATABASE_URL",
+    "address": "127.0.0.1:55432/shop",
+    "record": "proxy"
+   },
+   {
+    "name": "returns",
+    "kind": "sqlite",
+    "env": null,
+    "address": "returns.db",
+    "record": "driver"
+   }
+  ],
+  "other": []
+ },
+ "unseen": [],
+ "driver": [
+  "returns"
+ ],
+ "proxies": [
+  "anthropic",
+  "catalog",
+  "notes",
+  "shop"
+ ],
+ "sslmode": {
+  "shop": "prefer"
+ },
+ "E1_manifest_has_the_answer": true,
+ "session_calls": {
+  "find_product": [
+   2
+  ],
+  "add_note": [
+   3
+  ],
+  "lookup_order": [
+   1
+  ],
+  "start_return": [
+   3
+  ]
+ },
+ "mcp_calls": [
+  {
+   "turn": 2,
+   "server": "catalog",
+   "name": "find_product"
+  },
+  {
+   "turn": 3,
+   "server": "notes",
+   "name": "add_note"
+  }
+ ],
+ "database_queries": [
+  {
+   "turn": 1,
+   "name": "BEGIN",
+   "input": {
+    "query": "BEGIN",
+    "parameters": null
+   }
+  },
+  {
+   "turn": 1,
+   "name": "SELECT",
+   "input": {
+    "query": "SELECT id, status, items FROM orders WHERE id = $1",
+    "parameters": [
+     "7310"
+    ]
+   }
+  },
+  {
+   "turn": 1,
+   "name": "COMMIT",
+   "input": {
+    "query": "COMMIT",
+    "parameters": null
+   }
+  }
+ ],
+ "driver_queries": [
+  {
+   "turn": 3,
+   "name": "CREATE",
+   "input": {
+    "query": "CREATE TABLE IF NOT EXISTS returns (id TEXT, order_id TEXT, sku TEXT, reason TEXT)",
+    "parameters": null
+   }
+  },
+  {
+   "turn": 3,
+   "name": "INSERT",
+   "input": {
+    "query": "INSERT INTO returns VALUES (?, ?, ?, ?)",
+    "parameters": null
+   }
+  }
+ ],
+ "calls_with_no_record": {
+  "find_product": [],
+  "add_note": [],
+  "lookup_order": [],
+  "start_return": []
+ },
+ "postgres_driver_queries": 0,
+ "E3_each_call_has_a_record": true,
+ "postgres_spans": 1,
+ "postgres_span_addresses": [
+  "127.0.0.1:49278"
+ ],
+ "postgres_proxy": "postgresql://127.0.0.1:49278",
+ "unseen_call": 0,
+ "counts": {},
+ "seal": {
+  "sealed": true,
+  "intact": true,
+  "changed": [],
+  "missing": [],
+  "added": [],
+  "copy": "same"
+ },
+ "E4_no_unseen_call": true,
+ "pass": true
+}

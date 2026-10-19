@@ -2,7 +2,7 @@
  "v": "0.2",
  "test": "20261017-090000-eg01",
  "turns": 2,
- "items": 9,
+ "items": 7,
  "sessions": [],
  "otel": {
   "file": "otel.jsonl",

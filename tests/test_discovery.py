@@ -104,7 +104,8 @@ def test_the_start_prompt_with_no_answer_sends_the_task_and_starts_nothing(
     assert out is not None
     context = out["hookSpecificOutput"]["additionalContext"]
     assert context.startswith(kit.DISCOVERY_TEXT)
-    assert "nookku register" in context
+    assert "nookku register --file .nookku/egress.json" in context
+    assert "<<" not in context
     assert str(root) in context
     assert state.current(root) is None
     assert not kit.is_on(root)
@@ -231,8 +232,11 @@ def test_the_guard_lets_the_model_register_and_protects_the_answer_during_a_test
         event = {"hook_event_name": "PreToolUse", "tool_name": name, "tool_input": tool_input}
         return kit.handle(event, root, "claude-code")
 
-    register = {"command": "nookku register <<'EOF'\n" + json.dumps(EMPTY) + "\nEOF"}
+    # The form of the task in discover.md: the answer file, then register --file.
+    answer_file = {"file_path": str(root / ".nookku" / "egress.json"), "content": "{}"}
+    register = {"command": "nookku register --file .nookku/egress.json"}
     write = {"file_path": str(discovery.path(root)), "content": json.dumps(EMPTY)}
+    assert tool("Write", answer_file) is None
     assert tool("Bash", register) is None
     discovery.register(root, EMPTY)
     kit.start_test(root, "t")
@@ -267,3 +271,43 @@ def test_a_command_with_a_secret_value_is_refused() -> None:
         ["-c", "server --verbose"],
     ):
         discovery.parse(discovery.make(mcp_servers=[part(*command)]))
+
+
+def test_the_example_of_the_task_obeys_the_rule() -> None:
+    # The task and the rule agree: a database file goes into `address`, not into a key of its own.
+    text = (Path(discovery.__file__).parent / "discover.md").read_text(encoding="utf-8")
+    block = text.split("```json\n", 1)[1].split("```", 1)[0]
+    answer = discovery.parse(json.loads(block))
+    assert [d["address"] for d in answer["databases"]] == ["127.0.0.1:5432/shop", "returns.db"]
+
+
+def test_the_answer_file_is_used_once(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # An old answer file must not give the next answer, if a write of the model fails.
+    root = project(tmp_path)
+    answer_file = root / ".nookku" / discovery.ANSWER_FILE
+    answer_file.write_text(json.dumps({**EMPTY, "backends": [STOCK]}))
+    monkeypatch.chdir(root)
+    assert main(["register", "--root", str(root), "--file", ".nookku/egress.json"]) == 0
+    assert not answer_file.exists()
+    # A refused answer stays, so that the model can correct it.
+    answer_file.write_text(json.dumps({**EMPTY, "model_apis": [{"api": "toy"}]}))
+    assert main(["register", "--root", str(root), "--file", str(answer_file)]) == 1
+    assert answer_file.exists()
+    # A start removes the answer file with the pending answer.
+    discovery.take(root)
+    assert not answer_file.exists() and discovery.pending(root) is None
+    # Another file of --file stays.
+    other = tmp_path / "answer.json"
+    other.write_text(json.dumps(EMPTY))
+    assert main(["register", "--root", str(root), "--file", str(other)]) == 0
+    assert other.exists()
+    capsys.readouterr()
+
+
+def test_a_kind_with_the_name_of_a_module_is_its_system() -> None:
+    assert discovery.db_system("sqlite3") == "sqlite"
+    assert discovery.db_system("Postgres") == "postgresql"
+    assert discovery.db_system("mongo") == "mongodb"
+    assert discovery.db_system("mysql") == "mysql"
