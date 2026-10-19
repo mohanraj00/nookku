@@ -101,10 +101,11 @@ function apiUrl() {
   return "api/tests/" + [el("state").value, el("has").value, el("order").value].join("/");
 }
 
-async function refresh() {
+// The interval calls refresh(true): a poll, not an action of the tester (#439).
+async function refresh(auto) {
   try {
     const url = apiUrl();
-    const resp = await fetch(url, { cache: "no-store" });
+    const resp = await fetch(url, { cache: "no-store", poll: auto === true });
     const data = await resp.json();
     // A filter can change during the request. Then the request of the new filter shows its rows.
     if (url !== apiUrl()) {
@@ -120,7 +121,10 @@ async function refresh() {
     el("count").textContent = n === 1 ? "1 test" : n + " tests";
     showEmpty(n);
   } catch (e) {
-    showError("nookku: the page server does not answer. Start it again with: nookku chat");
+    showError(
+      "nookku: the page server stopped. To start the page again, run nookku chat in a " +
+        "separate terminal, or start a test with the prompt nookku start.",
+    );
   }
 }
 
@@ -130,5 +134,5 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   el("filters").addEventListener("submit", (e) => e.preventDefault());
   refresh();
-  setInterval(refresh, POLL_MS);
+  setInterval(() => refresh(true), POLL_MS);
 });

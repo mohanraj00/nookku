@@ -169,7 +169,10 @@ async function load() {
     if (hash !== window.location.hash) {
       return;
     }
-    showError("nookku: the page server does not answer. Start it again with: nookku chat");
+    showError(
+      "nookku: the page server stopped. To start the page again, run nookku chat in a " +
+        "separate terminal, or start a test with the prompt nookku start.",
+    );
   }
 }
 

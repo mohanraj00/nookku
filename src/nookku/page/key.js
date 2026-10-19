@@ -15,6 +15,9 @@
 (function (root) {
   const NAME = "nookku-page-key";
   const HEADER = "X-Nookku-Page";
+  // A request with init.poll is a poll that the page makes by itself. It gets this header, so that
+  // the page server does not count it as a use of the tester (page_auto.POLL_HEADER, #439).
+  const POLL = "X-Nookku-Poll";
   // The wait of a new tab for the key from another tab of the page.
   const ASK_MS = 500;
   let key = null;
@@ -97,6 +100,10 @@
     if (key !== null) {
       headers.set(HEADER, key);
     }
+    if (options.poll === true) {
+      headers.set(POLL, "1");
+    }
+    delete options.poll;
     options.headers = headers;
     return plain(input, options);
   };

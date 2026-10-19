@@ -778,8 +778,8 @@ def test_a_second_page_server_is_refused_and_a_stale_file_is_taken_over(
     assert page.serve(tmp_path, 0) == 1
     err = capsys.readouterr().err
     assert "a page server of this project runs" in err
-    # No nookku command stops that server, so the text gives the step.
-    assert f"kill {os.getpid()}" in err
+    # The text names the pid and the command that stops that server (#439).
+    assert f"(pid {os.getpid()})" in err and "nookku chat --stop" in err
     # A pid with another start time can be a new process, so the text names no pid.
     info = json.loads(path.read_text())
     path.write_text(json.dumps(info | {"pid_start": "0"}))

@@ -233,7 +233,7 @@ def test_a_send_keeps_the_text_that_the_tester_typed_during_the_send() -> None:
 @needs_node
 def test_an_old_poll_answer_after_a_failed_poll_keeps_the_error() -> None:
     out = run(FAILED_POLL_CHECK)
-    assert str(out["error"]).startswith("The page server does not answer")
+    assert str(out["error"]).startswith("The page server stopped.")
     assert "nookku chat" in str(out["error"]) and out["bannerShown"] is True
     assert out["errorAfterOld"] == out["error"]
     assert out["sameTurns"] is True and out["bannerAfter"] is True
@@ -411,3 +411,70 @@ def test_a_page_that_the_dashboard_opened_names_its_test_in_each_file() -> None:
     assert out["noHash"] == [None, None]
     assert out["url"] == "api/turns/t1"
     assert out["withHash"] == ["t1"]
+
+
+POLL_FLAG_CHECK = """
+// The first request at DOMContentLoaded and a request after a send are uses of the tester. A
+// request of the interval is a poll (#439).
+const first = pending.shift();
+out.first = first.init.poll;
+first.answer(turns(0));
+await ticks();
+timer();
+const polled = pending.shift();
+out.interval = polled.init.poll;
+polled.answer(turns(0));
+await ticks();
+type("hi");
+ids.send.listeners.click[0]();
+await tick();
+pending.shift().answer({ sent: true, ok: true, shown: "reply" });
+await ticks();
+out.afterSend = pending.shift().init.poll;
+"""
+
+
+@needs_node
+def test_only_a_request_of_the_interval_is_a_poll() -> None:
+    out = run(POLL_FLAG_CHECK)
+    assert out == {"first": False, "interval": True, "afterSend": False}
+
+
+KEY = APP.with_name("key.js")
+KEY_POLL_CHECK = """
+const sent = [];
+const root = {
+  location: { hash: "#k=" + "k".repeat(43), href: "http://127.0.0.1:1/p/s/",
+    origin: "http://127.0.0.1:1", pathname: "/p/s/" },
+  history: { replaceState: () => {} },
+  sessionStorage: { setItem: () => {}, getItem: () => null },
+  Headers: Headers,
+  setTimeout: setTimeout,
+  clearTimeout: clearTimeout,
+  fetch: async (input, init) => { sent.push(init); return {}; },
+};
+global.window = root;
+require(process.argv[1]);
+(async () => {
+  await root.fetch("api/turns", { cache: "no-store", poll: true });
+  await root.fetch("api/turns", { cache: "no-store", poll: false });
+  await root.fetch("api/turns", { cache: "no-store" });
+  process.stdout.write(JSON.stringify(sent.map((init) => [
+    init.headers.get("X-Nookku-Poll"), "poll" in init, init.headers.get("X-Nookku-Page") !== null,
+  ])));
+})();
+"""
+
+
+@needs_node
+def test_key_js_gives_the_poll_header_only_to_a_poll() -> None:
+    assert NODE is not None
+    done = subprocess.run(
+        [NODE, "-e", KEY_POLL_CHECK, str(KEY)], capture_output=True, text=True, timeout=60
+    )
+    assert done.returncode == 0, done.stderr
+    # The header name is the name that the page server reads.
+    from nookku import page_auto
+
+    assert page_auto.POLL_HEADER == "X-Nookku-Poll"
+    assert json.loads(done.stdout) == [["1", False, True], [None, False, True], [None, False, True]]

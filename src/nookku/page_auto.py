@@ -4,7 +4,9 @@
 separate process, and the page server opens the page in the browser. After an end with no
 evaluation (`nookku end` in a shell, `nookku mode end` or "End test" on the page), the page server
 continues, so the tester can export the test and save it as a script. The prompt `nookku end`, the
-end with the evaluation, stops it. The next start also stops it.
+end with the evaluation, stops it. The next start also stops it. With no test, it stops itself after
+IDLE_LIMIT with no request of the tester (#439). `nookku chat --stop` stops the page server of the
+project.
 
 The page URL holds the page token. The URL never goes into a text that the model sees (SPEC.md
 section 5, "The page URL"). The start runs in a hook or in a shell, and the model can read their
@@ -35,6 +37,7 @@ import subprocess
 import sys
 import threading
 import time
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any, TextIO
 from urllib.parse import urlsplit
@@ -54,15 +57,22 @@ LAUNCH_WAIT = 10.0
 REUSE_WAIT = 1.0
 # The wait for the page server of an ended test to stop after SIGTERM.
 STOP_WAIT = 2.0
+# The time with no request of the tester after which the page server stops, if no test runs (#439).
+IDLE_LIMIT = 15 * 60.0
+# The time between 2 checks for a running test. A running test counts as a request.
+ACTIVE_CHECK = 60.0
+# The header of a request that the page makes by itself each few seconds (key.js). Such a poll is
+# not a request of the tester, so it does not keep the page server on.
+POLL_HEADER = "X-Nookku-Poll"
 
 OPENED = (
-    "The chat page opened in your browser. It stops when you type the prompt nookku end, or at "
-    "the next start."
+    "The chat page opened in your browser. It stops when you type the prompt nookku end, at the "
+    "next start, or after 15 minutes with no use and no test."
 )
 NO_BROWSER_URL = (
     "The browser did not open. Open this URL of the chat page: {url}\n"
     "Do not give this URL to the harness model. The page stops when you type the prompt "
-    "nookku end, or at the next start."
+    "nookku end, at the next start, or after 15 minutes with no use and no test."
 )
 NO_BROWSER = (
     "The browser did not open, so the chat page did not start. To use the page, run nookku chat "
@@ -83,6 +93,8 @@ NOT_CONFIRMED = (
     "nookku: nookku cannot confirm that pid {pid} is the chat page, so it sent no signal. If "
     "ps -p {pid} shows a nookku chat page, stop it with: kill {pid}"
 )
+STOPPED = "The chat page of this project stopped."
+NONE_RUNS = "No chat page of this project runs."
 
 
 def enabled(root: Path) -> bool:
@@ -251,10 +263,26 @@ def _stop_ended(root: Path) -> str | None:
     """Stop the page server that `start` started, if its test does not run. Return an error text,
     or None."""
     info = state.page_info(root)
-    if info is None or not isinstance(info.get("test"), str):
+    if info is None or not isinstance(info.get("test"), str) or _runs(root, info["test"]):
         return None
+    return _stop_server(root, info)
+
+
+def stop(root: Path) -> tuple[int, str]:
+    """`nookku chat --stop`: stop the page server of this project, with the checks of the stop at
+    the end of a test. It also stops a page server that `nookku chat` started, and the page server
+    of a running test. The test continues. Return the exit code and the text."""
+    info = state.page_info(root)
+    if info is None or not _held(root):
+        return 0, NONE_RUNS
+    error = _stop_server(root, info)
+    return (0, STOPPED) if error is None else (1, error)
+
+
+def _stop_server(root: Path, info: dict[str, Any]) -> str | None:
+    """Stop the page server of the page file info. Return an error text, or None."""
     pid = info.get("pid")
-    if type(pid) is not int or pid <= 0 or _runs(root, info["test"]) or not _held(root):
+    if type(pid) is not int or pid <= 0 or not _held(root):
         return None
     # Send a signal only to the page server: it holds the page lock, and the page file still
     # names it. A server writes its own pid into the page file after it takes the lock.
@@ -296,12 +324,26 @@ def _runs(root: Path, test: str) -> bool:
     return isinstance(cur, dict) and cur.get("test") == test and state.is_bridge(cur)
 
 
+def _active(root: Path) -> bool:
+    """True if a test of the project runs. Read current.json and change nothing."""
+    try:
+        cur = json.loads((state.state(root) / "current.json").read_text())
+    except (OSError, ValueError):
+        return False
+    return isinstance(cur, dict) and state.is_bridge(cur)
+
+
 class AutoPageServer(page.PageServer):
     """The page server that `start` starts. It serves the launch URL one time. It stops on
-    SIGTERM: from the prompt `nookku end`, or from the next start."""
+    SIGTERM: from the prompt `nookku end`, from the next start, or from `nookku chat --stop`. It
+    also stops after IDLE_LIMIT with no request of the tester, if no test runs (`idle`)."""
 
-    def __init__(self, root: Path, test: str) -> None:
+    def __init__(self, root: Path, test: str, clock: Callable[[], float] = time.monotonic) -> None:
         super().__init__(root)
+        self.clock = clock
+        # The time of the last request of the tester, or of the last check that saw a test run.
+        self.last_use = clock()
+        self.last_check = self.last_use
         self.RequestHandlerClass = _AutoHandler
         self.test = test
         self.code = secrets.token_urlsafe(32)
@@ -316,9 +358,41 @@ class AutoPageServer(page.PageServer):
     def launch_url(self) -> str:
         return f"http://{page.HOST}:{self.server_address[1]}/o/{self.code}"
 
+    def used(self) -> None:
+        """A request of the tester came. The idle time starts again."""
+        self.last_use = self.clock()
+
+    def idle(self) -> bool:
+        """True if the server must stop: no request of the tester came in IDLE_LIMIT, and no test
+        runs. A running test counts as a request, so the idle time starts at the end of the test.
+        Check for a running test each ACTIVE_CHECK, and again before the stop."""
+        now = self.clock()
+        if now - self.last_check >= ACTIVE_CHECK:
+            self.last_check = now
+            if _active(self.root):
+                self.last_use = now
+        if now - self.last_use < IDLE_LIMIT:
+            return False
+        if _active(self.root):
+            self.last_use = now
+            return False
+        return True
+
 
 class _AutoHandler(page._Handler):
     server: AutoPageServer
+
+    def _route(self) -> str | None:
+        rest = super()._route()
+        # Only a request with the session or the token counts, so that another local process does
+        # not keep the server on. A poll of the page does not count.
+        if rest is not None and not self.headers.get_all(POLL_HEADER):
+            self.server.used()
+        return rest
+
+    def redirect_with_session(self) -> None:
+        super().redirect_with_session()
+        self.server.used()
 
     def do_GET(self) -> None:
         parts = urlsplit(self.path)
@@ -454,7 +528,7 @@ def serve(root: Path, test: str, status_fd: int, print_url: bool) -> int:
             last = {"status": "no-browser"}
             return 0
         # The main thread gets the signals, so it waits in short steps.
-        while serving.is_alive():
+        while serving.is_alive() and not server.idle():
             serving.join(0.5)
     except KeyboardInterrupt:
         pass

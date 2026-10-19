@@ -185,9 +185,10 @@ function notesUrl() {
   return id ? "api/notes/" + encodeURIComponent(id) : "api/notes";
 }
 
-async function refreshNotes() {
+// The interval calls refreshNotes(true): a poll, not an action of the tester (#439).
+async function refreshNotes(auto) {
   try {
-    const resp = await fetch(notesUrl(), { cache: "no-store" });
+    const resp = await fetch(notesUrl(), { cache: "no-store", poll: auto === true });
     const data = await resp.json();
     notesTest = data.test;
     notesRunning = data.running === true && !data.error;
@@ -205,5 +206,5 @@ document.addEventListener("DOMContentLoaded", () => {
   // app.js adds the turns. Put the note controls on each new turn at once.
   new MutationObserver(showAllNotes).observe(document.getElementById("turns"), { childList: true });
   refreshNotes();
-  setInterval(refreshNotes, NOTES_POLL_MS);
+  setInterval(() => refreshNotes(true), NOTES_POLL_MS);
 });
