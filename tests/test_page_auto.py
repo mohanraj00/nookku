@@ -738,11 +738,14 @@ def test_chat_stop_sends_no_signal_to_a_pid_with_another_start_time(
 
 
 def test_chat_stop_says_no_stop_if_it_sent_no_signal_and_the_lock_is_held(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     (tmp_path / ".nookku").mkdir()
     lock = os.open(tmp_path / ".nookku" / state.PAGE_LOCK, os.O_RDWR | os.O_CREAT, 0o600)
     fcntl.flock(lock, fcntl.LOCK_EX)
+    # The text gives the absolute path of the lock, also for a --root from another folder.
+    lock_path = str((tmp_path / ".nookku" / state.PAGE_LOCK).resolve())
+    assert os.path.isabs(lock_path)
     page_file = tmp_path / ".nookku" / state.PAGE_FILE
     dead = subprocess.Popen([sys.executable, "-c", ""])
     dead.wait()
@@ -754,6 +757,10 @@ def test_chat_stop_says_no_stop_if_it_sent_no_signal_and_the_lock_is_held(
             else:
                 page_file.write_text(json.dumps(data))
             assert main(["chat", "--stop", "--root", str(tmp_path)]) == 1
-            assert capsys.readouterr().err.strip() == page_auto.NOT_KNOWN
+            assert capsys.readouterr().err.strip() == page_auto.NOT_KNOWN.format(lock=lock_path)
+        # A relative --root from another folder gives the same absolute path.
+        monkeypatch.chdir(tmp_path.parent)
+        assert main(["chat", "--stop", "--root", tmp_path.name]) == 1
+        assert capsys.readouterr().err.strip() == page_auto.NOT_KNOWN.format(lock=lock_path)
     finally:
         os.close(lock)

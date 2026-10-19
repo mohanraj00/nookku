@@ -32,6 +32,7 @@ import json
 import os
 import secrets
 import select
+import shlex
 import signal
 import subprocess
 import sys
@@ -97,8 +98,8 @@ STOPPED = "The chat page of this project stopped."
 NONE_RUNS = "No chat page of this project runs."
 NOT_KNOWN = (
     "nookku: a process holds the page lock of this project, but nookku cannot confirm that it is "
-    "the chat page, so it sent no signal. Find its pid with: lsof .nookku/page.lock. If ps -p "
-    "<pid> shows a nookku chat page, stop it with: kill <pid>"
+    "the chat page, so it sent no signal. Find its pid with: lsof {lock} (macOS), or with: "
+    "fuser {lock} (Linux). If ps -p <pid> shows a nookku chat page, stop it with: kill <pid>"
 )
 
 
@@ -279,13 +280,17 @@ def stop(root: Path) -> tuple[int, str]:
     of a running test. The test continues. Return the exit code and the text."""
     if not _held(root):
         return 0, NONE_RUNS
+    # The absolute path of the lock, so that the command of the text works from each folder.
+    not_known = NOT_KNOWN.format(
+        lock=shlex.quote(str(state.state(root).resolve() / state.PAGE_LOCK))
+    )
     info = state.page_info(root)
-    error = NOT_KNOWN if info is None else _stop_server(root, info)
+    error = not_known if info is None else _stop_server(root, info)
     if error is not None:
         return 1, error
     # _stop_server also sends no signal if the page file names no running pid, or if it changed.
     # Then a process still holds the lock, and "stopped" is not true.
-    return (1, NOT_KNOWN) if _held(root) else (0, STOPPED)
+    return (1, not_known) if _held(root) else (0, STOPPED)
 
 
 def _stop_server(root: Path, info: dict[str, Any]) -> str | None:
