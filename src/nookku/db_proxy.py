@@ -64,6 +64,8 @@ REFUSED = {
 # The variables that libpq reads also for the plain connection of the app to the proxy, and the
 # value that makes libpq refuse sslmode=disable.
 PLAIN_REFUSED = {"PGSSLROOTCERT": SYSTEM_ROOTS, "PGSSLNEGOTIATION": "direct"}
+# The variables that give libpq another address than the host of the URL, also for the app.
+ADDRESS_VARS = ("PGHOSTADDR", "PGSERVICE")
 TLS_VERSIONS = {
     "TLSv1": ssl.TLSVersion.TLSv1,
     "TLSv1.1": ssl.TLSVersion.TLSv1_1,
@@ -166,18 +168,30 @@ def _tls(where: str, query: dict[str, str], environ: Any) -> dict[str, Any]:
         )
     if mode == "disable":
         return {"sslmode": mode}
+    low = _version(where, "ssl_min_protocol_version", given["ssl_min_protocol_version"])
+    high = _version(where, "ssl_max_protocol_version", given["ssl_max_protocol_version"])
+    low = low or DEFAULT_MIN_TLS
+    if high and TLS_VERSIONS[low] > TLS_VERSIONS[high]:
+        raise ValueError(
+            f"{where} has ssl_min_protocol_version={low}, which is above "
+            f"ssl_max_protocol_version={high}"
+        )
+    rootcert = _rootcert(where, mode, root)
     crl, crldir = given["sslcrl"], given["sslcrldir"]
-    default_crl = Path.home() / ".postgresql" / "root.crl"
-    if not crl and not crldir and default_crl.is_file():
-        crl = str(default_crl)
+    if rootcert in (None, SYSTEM_ROOTS):
+        # libpq loads the revocation lists only with a file of root certificates.
+        crl = crldir = None
+    else:
+        default_crl = Path.home() / ".postgresql" / "root.crl"
+        if not crl and not crldir and default_crl.is_file():
+            crl = str(default_crl)
     return {
         "sslmode": mode,
-        "rootcert": _rootcert(where, mode, root),
+        "rootcert": rootcert,
         "crl": _path(where, "sslcrl", crl) if crl else None,
         "crldir": _path(where, "sslcrldir", crldir, folder=True) if crldir else None,
-        "min_tls": _version(where, "ssl_min_protocol_version", given["ssl_min_protocol_version"])
-        or DEFAULT_MIN_TLS,
-        "max_tls": _version(where, "ssl_max_protocol_version", given["ssl_max_protocol_version"]),
+        "min_tls": low,
+        "max_tls": high,
     }
 
 
@@ -199,10 +213,16 @@ def _upstream(part: dict[str, Any], value: str | None, environ: Any) -> Database
             f"{where} has the query parameter {moved[0]}, which gives another address than "
             "the host of the URL. Give the address only in the host and the port of the URL."
         )
-    if query.get("gssencmode") == "require":
+    moved = [v for v in ADDRESS_VARS if v in environ]
+    if moved:
         raise ValueError(
-            f"{where} has gssencmode=require. The proxy speaks no GSSAPI encryption, so give "
-            "gssencmode=disable or prefer for the test."
+            f"{where}: the app has {moved[0]}, which gives libpq another address than the host "
+            f"of the URL. The app would connect past the proxy. Remove {moved[0]} for the test."
+        )
+    if query.get("gssencmode", environ.get("PGGSSENCMODE")) == "require":
+        raise ValueError(
+            f"{where} has gssencmode=require (or PGGSSENCMODE). The proxy speaks no GSSAPI "
+            "encryption, so give gssencmode=disable or prefer for the test."
         )
     for var, bad in PLAIN_REFUSED.items():
         if environ.get(var) == bad:

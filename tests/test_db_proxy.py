@@ -476,11 +476,17 @@ def test_the_variable_gives_each_conformance_result(case: Path) -> None:
             "file that does not exist: /no/a\\+b.crt",
         ),
         ("postgresql://127.0.0.1/shop?sslrootcert=root.crt", "relative sslrootcert path"),
-        ("postgresql://127.0.0.1/shop?sslcrl=root.crl", "relative sslcrl path"),
-        ("postgresql://127.0.0.1/shop?sslcrl=/no/root.crl", "sslcrl file that does not exist"),
-        ("postgresql://127.0.0.1/shop?sslcrldir=/no/crl", "sslcrldir folder that does not"),
         ("postgresql://127.0.0.1/shop?ssl_min_protocol_version=TLSv9", "TLSv9, which is not"),
         ("postgresql://127.0.0.1/shop?ssl_max_protocol_version=tls", "tls, which is not"),
+        (
+            "postgresql://127.0.0.1/shop?ssl_min_protocol_version=TLSv1.3"
+            "&ssl_max_protocol_version=TLSv1.2",
+            "TLSv1.3, which is above ssl_max_protocol_version=TLSv1.2",
+        ),
+        (
+            "postgresql://127.0.0.1/shop?ssl_max_protocol_version=TLSv1.1",
+            "TLSv1.2, which is above ssl_max_protocol_version=TLSv1.1",
+        ),
         ("postgresql://127.0.0.1/shop?requiressl=1", "has requiressl"),
         ("postgresql://127.0.0.1/shop?sslcertmode=require", "has sslcertmode=require"),
     ],
@@ -504,6 +510,10 @@ def test_a_variable_that_is_not_a_postgres_url_stops_the_start(
         ({"PGSSLCERTMODE": "require"}, "or PGSSLCERTMODE"),
         ({"PGREQUIRESSL": "1"}, "or PGREQUIRESSL"),
         ({"PGSSLMINPROTOCOLVERSION": "TLSv9"}, "TLSv9, which is not"),
+        # libpq would connect the app past the proxy, in plain text.
+        ({"PGHOSTADDR": "203.0.113.1"}, "the app has PGHOSTADDR"),
+        ({"PGSERVICE": "shop"}, "the app has PGSERVICE"),
+        ({"PGGSSENCMODE": "require"}, "has gssencmode=require"),
     ],
 )
 def test_a_variable_of_libpq_that_the_proxy_refuses_stops_the_start(
@@ -512,6 +522,43 @@ def test_a_variable_of_libpq_that_the_proxy_refuses_stops_the_start(
     environ = {"DATABASE_URL": "postgresql://shop@db.toy.test/shop", **env}
     with pytest.raises(ValueError, match=text):
         db_proxy.databases([PART], environ)
+
+
+@pytest.mark.parametrize(
+    ("query", "text"),
+    [
+        ("sslcrl=root.crl", "relative sslcrl path"),
+        ("sslcrl=/no/root.crl", "sslcrl file that does not exist"),
+        ("sslcrldir=/no/crl", "sslcrldir folder that does not"),
+    ],
+)
+def test_a_revocation_list_that_the_proxy_cannot_read_stops_the_start(
+    tmp_path: Path, query: str, text: str
+) -> None:
+    root, _ = certificate(tmp_path, "toy-root", "DNS:toy-root")
+    environ = {"DATABASE_URL": f"postgresql://shop@db.toy.test/shop?sslrootcert={root}&{query}"}
+    with pytest.raises(ValueError, match=text):
+        db_proxy.databases([PART], environ)
+
+
+def test_the_system_roots_and_no_root_file_load_no_revocation_list(home: Path) -> None:
+    # As libpq does: the lists go only with a file of root certificates. A list of a private
+    # root then does not stop a database with a public certificate.
+    (home / ".postgresql").mkdir()
+    (home / ".postgresql" / "root.crl").write_text("")
+    for query in ("sslrootcert=system", "sslmode=require&sslcrl=/no/root.crl"):
+        environ = {"DATABASE_URL": f"postgresql://shop@db.toy.test/shop?{query}"}
+        (database,) = db_proxy.databases([PART], environ)
+        assert (database.crl, database.crldir) == (None, None)
+
+
+def test_a_root_file_loads_the_default_revocation_list(tmp_path: Path, home: Path) -> None:
+    root, _ = certificate(tmp_path, "toy-root", "DNS:toy-root")
+    (home / ".postgresql").mkdir()
+    (home / ".postgresql" / "root.crl").write_text("")
+    environ = {"DATABASE_URL": f"postgresql://shop@db.toy.test/shop?sslrootcert={root}"}
+    (database,) = db_proxy.databases([PART], environ)
+    assert database.crl == str(home / ".postgresql" / "root.crl")
 
 
 def test_the_url_wins_over_the_variables_of_libpq() -> None:
