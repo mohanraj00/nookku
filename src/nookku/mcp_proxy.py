@@ -44,7 +44,6 @@ class HttpProxy(backend.Proxy):
     The proxy sends each path of the app with no change, so the server gets its own endpoint.
     """
 
-    streaming = True
     # An MCP server can send a stream with no end. The proxy keeps only the bytes that the record
     # shows (SPEC.md section 7.12).
     keep = backend.RECORD_LIMIT

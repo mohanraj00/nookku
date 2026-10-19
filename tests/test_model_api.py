@@ -1,3 +1,4 @@
+import hashlib
 import http.client
 import json
 from pathlib import Path
@@ -5,7 +6,7 @@ from pathlib import Path
 import pytest
 from toy_model_server import ModelServer
 
-from nookku import backend, discovery, model_api
+from nookku import backend, discovery, model_api, trace
 
 TRACE = Path(__file__).resolve().parent.parent / "conformance" / "trace"
 STREAM = [
@@ -330,3 +331,83 @@ def test_a_lone_surrogate_in_a_result_is_written_as_its_escape(tmp_path: Path) -
             proxies.stop()
     assert status == 200 and got == sent
     assert rows(tmp_path)[0]["result"]["text"] == "3 mugs \\ud83d left"
+
+
+def big_stream(count: int) -> list[bytes]:
+    """A stream with a long text: one delta event for each part after the first."""
+    delta = b'event: content_block_delta\ndata: {"type": "content_block_delta", "index": 0, '
+    parts = [STREAM[0]]
+    for n in range(count):
+        parts.append(delta + b'"delta": {"type": "text_delta", "text": "mug %05d "}}\n\n' % n)
+    return [*parts, STREAM[2]]
+
+
+def test_a_response_larger_than_the_limit_is_cut_in_the_record_and_named_in_the_trace(
+    tmp_path: Path,
+) -> None:
+    parts = big_stream(2000)
+    sent = b"".join(parts)
+    with ModelServer() as model:
+        model.parts = parts
+        proxies = proxy_for(model, tmp_path)
+        proxies.proxies[0].keep = 1000
+        env = proxies.start()
+        try:
+            req = b'{"stream": true, "messages": [{"role": "user", "content": "Mugs?"}]}'
+            status, got = post(env["ANTHROPIC_BASE_URL"], "/v1/messages", req, {})
+        finally:
+            proxies.stop()
+    # Each byte goes to the app, also after the limit.
+    assert status == 200 and got == sent and len(sent) > 100_000
+    row = rows(tmp_path)[0]
+    body = row["response_body"]
+    assert (body["size"], body["sha256"], body["cut"]) == (
+        len(sent),
+        hashlib.sha256(sent).hexdigest(),
+        True,
+    )
+    assert body["text"].encode() == sent[:1000]
+    # The result is of the events that end before the cut.
+    kept = model_api.whole_events(sent[:1000])
+    shown = model_api.result("anthropic", "/v1/messages", kept, True)
+    assert row["result"] == {**shown, "cut": True}
+    assert row["result"]["text"].startswith("mug 00000 mug 00001 ")
+    assert row["result"]["stop_reason"] is None and row["error"] is None
+    items, _ = trace.read_model_api(tmp_path / model_api.FILE)
+    assistant = next(it for it in items if it["role"] == "assistant")
+    note = f"the record holds the first 1000 of {len(sent)} bytes"
+    assert assistant["input"]["cut"] == note and assistant["error"] is None
+
+
+def test_a_cut_json_response_has_no_json_error() -> None:
+    proxy = model_api.ModelProxy.__new__(model_api.ModelProxy)
+    proxy.backend = backend.Backend("openai", "OPENAI_BASE_URL", "http://127.0.0.1:1")
+    proxy.keep = 10
+    row = {"harness": None, "path": "/chat/completions", "response_headers": []}
+    proxy.complete(row, b'{"model": ', None, cut=True)
+    assert row["result"]["cut"] is True and row["result"]["error"] is None
+    proxy.complete(row, b'{"model": ', None)
+    assert row["result"]["error"] == model_api.NOT_JSON and "cut" not in row["result"]
+
+
+def test_whole_events_ends_at_the_last_blank_line() -> None:
+    assert (
+        model_api.whole_events(b"data: 1\n\ndata: 2\r\n\r\ndata: 3")
+        == b"data: 1\n\ndata: 2\r\n\r\n"
+    )
+    assert model_api.whole_events(b"data: 1\r\ndata: 2\r\n") == b""
+    assert model_api.whole_events(b"data: 1\r\rdata") == b"data: 1\r\r"
+
+
+def test_the_parsers_give_the_results_of_the_cut_case() -> None:
+    lines = (TRACE / "model_api_cut" / model_api.FILE).read_text().split("\n")
+    calls = [json.loads(x) for x in lines if x]
+    assert len(calls) == 2
+    for row in calls:
+        assert row["response_body"]["cut"] is True
+        kept = row["response_body"]["text"].encode()
+        proxy = model_api.ModelProxy.__new__(model_api.ModelProxy)
+        proxy.backend = backend.Backend(row["api"], "UNUSED", "http://127.0.0.1:1")
+        got = {**row, "harness": None, "result": None}
+        proxy.complete(got, kept, None, cut=True)
+        assert got["result"] == row["result"]

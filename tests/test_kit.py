@@ -1129,3 +1129,12 @@ def test_the_view_gives_the_config_error_one_time(tmp_path, capsys, text, error)
     err = capsys.readouterr().err
     assert err.startswith(error)
     assert err.count("cannot read") <= 1
+
+
+@pytest.mark.parametrize("value", [0, -1, True, 2.0, "2", None])
+def test_record_limit_must_be_a_count_of_1_or_more(tmp_path, value):
+    kit.init(tmp_path, "codex", {})
+    path = tmp_path / ".nookku" / "config.json"
+    path.write_text(json.dumps({**json.loads(path.read_text()), "record_limit": value}))
+    with pytest.raises(ValueError, match="'record_limit' must be a whole number of bytes"):
+        kit.Config.load(tmp_path)

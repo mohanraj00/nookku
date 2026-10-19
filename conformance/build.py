@@ -3500,6 +3500,132 @@ DECISIONS_CASE = {
     },
 }
 
+# A cut response (SPEC.md sections 7.6, 7.7 and 8.4). The proxy keeps only the first
+# `record_limit` bytes of a response. In turn 1, a streamed Anthropic call: the record holds the
+# first 4 events and a part of the fifth, so the result has only the text of the first 4 events.
+# In turn 2, a JSON call that the cut stops: the result has no JSON error, because the cut is the
+# reason. Each assistant message names the cut in its input.
+CUT_EVENTS = [
+    {
+        "type": "message_start",
+        "message": {"id": "msg_9", "model": "claude-toy", "usage": {"input_tokens": 40}},
+    },
+    {"type": "content_block_start", "index": 0, "content_block": {"type": "text", "text": ""}},
+    {"type": "content_block_delta", "index": 0, "delta": {"type": "text_delta", "text": "Mugs "}},
+    {"type": "content_block_delta", "index": 0, "delta": {"type": "text_delta", "text": "left: "}},
+    {"type": "content_block_delta", "index": 0, "delta": {"type": "text_delta", "text": "12."}},
+    {"type": "message_delta", "delta": {"stop_reason": "end_turn"}, "usage": {"output_tokens": 9}},
+    {"type": "message_stop"},
+]
+CUT_STREAM = sse(CUT_EVENTS).encode()
+CUT_STREAM_KEPT = sse(CUT_EVENTS[:4]).encode() + sse(CUT_EVENTS[4:5]).encode()[:30]
+CUT_JSON = json.dumps(
+    {
+        "id": "chatcmpl-9",
+        "model": "gpt-toy",
+        "choices": [{"index": 0, "message": {"content": "Refund sent."}}],
+    }
+).encode()
+CUT_JSON_KEPT = CUT_JSON[:40]
+MUGS_ASK = "How many mugs are left?"
+
+
+def cut_body(data: bytes, kept: bytes) -> dict:
+    return {
+        "size": len(data),
+        "sha256": hashlib.sha256(data).hexdigest(),
+        "cut": True,
+        "text": kept.decode(),
+    }
+
+
+def cut_note(data: bytes, kept: bytes) -> str:
+    return f"the record holds the first {len(kept)} of {len(data)} bytes"
+
+
+CUT_CASE = {
+    "tap": [window(10, 20, reply="Mugs left: "), window(30, 40)],
+    "manifest": {"test": "20261018-090000-ct01", "model_sessions": []},
+    "sessions": {},
+    "model_api": [
+        mcall(
+            11,
+            "anthropic",
+            MESSAGES,
+            200,
+            {
+                "model": "claude-toy",
+                "stream": True,
+                "messages": [{"role": "user", "content": MUGS_ASK}],
+            },
+            stream=True,
+            took=2,
+            response_body=cut_body(CUT_STREAM, CUT_STREAM_KEPT),
+            result=result(
+                model="claude-toy", text="Mugs left: ", usage={"input_tokens": 40}, cut=True
+            ),
+        ),
+        mcall(
+            31,
+            "openai",
+            COMPLETIONS,
+            200,
+            {"model": "gpt-toy", "messages": REFUND_MESSAGES},
+            response_body=cut_body(CUT_JSON, CUT_JSON_KEPT),
+            result=result(cut=True),
+        ),
+    ],
+    "trace": [
+        mitem(1, "anthropic", 11, 1, "message", role="user", output=MUGS_ASK),
+        mitem(
+            1,
+            "anthropic",
+            13,
+            1,
+            "message",
+            role="assistant",
+            input={
+                **info(MESSAGES, "claude-toy", None, {"input_tokens": 40}),
+                "cut": cut_note(CUT_STREAM, CUT_STREAM_KEPT),
+            },
+            output="Mugs left: ",
+            exit_code=200,
+        ),
+        mitem(2, "openai", 31, 2, "message", role="user", output=REFUND_ASK),
+        mitem(
+            2,
+            "openai",
+            32,
+            2,
+            "message",
+            role="assistant",
+            input={**info(COMPLETIONS, None, None, None), "cut": cut_note(CUT_JSON, CUT_JSON_KEPT)},
+            exit_code=200,
+        ),
+    ],
+    "findings": {
+        "v": "0.2",
+        "test": "20261018-090000-ct01",
+        "turns": 2,
+        "items": 4,
+        "sessions": [],
+        "otel": None,
+        "backend": None,
+        "model_api": {
+            "file": "model_api.jsonl",
+            "rows": 2,
+            "items": 4,
+            "ignored": {},
+            "harness_calls": {},
+            "other_calls": 0,
+        },
+        "mcp": None,
+        "database": None,
+        "counts": counts(),
+        "findings": [],
+    },
+}
+
 # The coverage check (SPEC.md section 8.6, `unseen_call`). The manifest has an egress answer with
 # one backend proxy and the OTLP receiver. The spans of the app name 7 calls: a call to the proxy
 # and a call to the receiver are seen, a span of a server is not a call of the app, and 4 calls go
@@ -4161,6 +4287,7 @@ TRACE_CASES = {
     "model_api_responses": RESPONSES_CASE,
     "servers_not_from_app": SERVERS_CASE,
     "model_api_decisions": DECISIONS_CASE,
+    "model_api_cut": CUT_CASE,
     "repeated_reply": REPEATED_CASE,
     "repeated_reply_three": REPEATED_THREE_CASE,
     "repeated_reply_off": REPEATED_OFF_CASE,

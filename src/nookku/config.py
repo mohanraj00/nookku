@@ -117,6 +117,9 @@ class Config:
     page: bool = True
     # More entries of a scripted test, by name (SPEC.md section 7.10). entry stays the default.
     entries: dict[str, list[str]] = field(default_factory=dict)
+    # The most bytes of a body that a backend or model API proxy keeps in the record (SPEC.md
+    # section 7.6). The app always gets all of the bytes.
+    record_limit: int = 1024 * 1024
 
     @classmethod
     def load(cls, root: Path) -> Config:
@@ -216,6 +219,9 @@ def check(data: Any) -> dict[str, Any]:
         raise ConfigError(
             f"{FILE}: 'repeated_reply' must be 0 (off) or a whole number of 2 or more"
         )
+    limit = data.get("record_limit", 1)
+    if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1:
+        raise ConfigError(f"{FILE}: 'record_limit' must be a whole number of bytes, 1 or more")
     path = data.get("model_reply_field", "")
     if not isinstance(path, str) or (path and not all(path.split("."))):
         raise ConfigError(

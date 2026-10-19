@@ -1,4 +1,6 @@
+import base64
 import gzip
+import hashlib
 import http.client
 import json
 import os
@@ -268,3 +270,42 @@ def test_a_lone_surrogate_in_a_row_is_written_as_its_escape(tmp_path: Path) -> N
             proxies.stop()
     assert status == 200
     assert rows(tmp_path)[0]["note"] == "a mug \\ud83d"
+
+
+def test_a_response_larger_than_the_limit_goes_to_the_app_and_the_row_is_cut(
+    tmp_path: Path,
+) -> None:
+    answer = os.urandom(300_000)
+    with StockServer() as stock:
+        stock.answer_body = answer
+        b = backend.Backend("stock", "STOCK_URL", stock.url)
+        proxies = backend.Proxies([b], tmp_path / backend.FILE, keep=100)
+        env = proxies.start()
+        try:
+            _, _, got = request(env["STOCK_URL"], "GET", "/stock", None, {})
+        finally:
+            proxies.stop()
+    assert got == answer
+    body = rows(tmp_path)[0]["response_body"]
+    assert (body["size"], body["sha256"], body["cut"]) == (
+        len(answer),
+        hashlib.sha256(answer).hexdigest(),
+        True,
+    )
+    assert base64.b64decode(body["base64"]) == answer[:100]
+
+
+def test_a_stream_body_keeps_only_its_first_bytes() -> None:
+    stream = backend.StreamBody(10, None)
+    for _ in range(1000):
+        stream.add(b"0123456789abcdef")
+    assert (stream.size, stream.kept, stream.data, stream.cut) == (16000, 10, b"0123456789", True)
+    assert sum(len(p) for p in stream.parts) == 10
+
+
+def test_the_start_of_a_cut_gzip_body_is_decoded() -> None:
+    text = os.urandom(2000).hex().encode()
+    data = gzip.compress(text)[:1000]
+    assert backend.decode(data, "gzip") is None
+    assert backend.decode_start(data, "gzip", 20) == text[:20]
+    assert backend.decode_start(b"not gzip", "gzip", 20) is None
