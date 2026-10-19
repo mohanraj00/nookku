@@ -1,0 +1,27 @@
+{
+ "answer": {
+  "model_apis": [],
+  "backends": [],
+  "mcp_servers": [],
+  "databases": [
+   {
+    "name": "shop",
+    "kind": "postgres",
+    "env": "DATABASE_URL",
+    "address": null,
+    "record": "proxy"
+   },
+   {
+    "name": "stock",
+    "kind": "postgres",
+    "env": null,
+    "address": "db.toy.test/stock",
+    "record": "driver"
+   }
+  ],
+  "other": []
+ },
+ "expect": {
+  "error": "databases[1]: a proxy database has the same kind, so a driver database needs the address host:port or host:port/database"
+ }
+}

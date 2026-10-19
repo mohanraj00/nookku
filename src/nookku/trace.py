@@ -20,6 +20,7 @@ from urllib.parse import urlsplit
 from . import backend, db_proxy, mcp_proxy, model_api, otlp
 from .adapters import AdapterError, pick
 from .config import MATCHES
+from .discovery import db_system, driver_address
 from .record import VERSION, json_text, read_rows
 
 # The version of a trace row. 0.3 adds the kinds span and log, and the field service.
@@ -1062,9 +1063,54 @@ CALL_URL = ("url.full", "http.url")
 CALL_DB = ("db.system.name", "db.system")
 CALL_MCP = "mcp.method.name"
 SERVER_KEYS = ("http.route", "http.target", "url.path")
+SERVER_ADDRESS = ("server.address", "server.port")
 DEFAULT_PORTS = {"http": 80, "https": 443}
 # The detail of an HTTP call with a URL that the URL parser cannot read.
 BAD_URL = "(a URL that does not parse)"
+# The attributes of a database span that give the query text, the database and each parameter,
+# the new name of the semantic conventions first (SPEC.md section 8.4).
+DB_TEXT = ("db.query.text", "db.statement")
+DB_NAME = ("db.namespace", "db.name")
+DB_OPERATION = ("db.operation.name", "db.operation")
+DB_PARAMETER = "db.query.parameter."
+# The start of the marks in `seen` of the databases with a driver trace (egress_seen). A mark is
+# not an address, because it has a space, so only a database span can match it.
+DRIVER_SEEN = "driver trace "
+
+
+def _first(attrs: dict[str, Any], keys: tuple[str, ...]) -> str | None:
+    return next((attrs[k] for k in keys if isinstance(attrs.get(k), str)), None)
+
+
+def _db_system(it: dict[str, Any]) -> str | None:
+    """The database system of a span of the app that is a call to a database, else None."""
+    if it["harness"] != "otel" or it["kind"] != "span" or not isinstance(it["input"], dict):
+        return None
+    if any(k in it["input"] for k in SERVER_KEYS):
+        return None
+    return _first(it["input"], CALL_DB)
+
+
+def with_driver_queries(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The items, with a `query` item right after each database span of the app: the driver
+    trace (SPEC.md section 8.4). A span has no rows, so the item has no output."""
+    out = []
+    for it in items:
+        out.append(it)
+        system = _db_system(it)
+        if system is None:
+            continue
+        attrs = it["input"]
+        query = _first(attrs, DB_TEXT)
+        params = {k[len(DB_PARAMETER) :]: v for k, v in attrs.items() if k.startswith(DB_PARAMETER)}
+        q = _item(
+            "driver", _first(attrs, DB_NAME) or system, otlp.FILE, it["source"]["line"], it["ts"]
+        )
+        q.update(kind="query", name=_query_name(query or _first(attrs, DB_OPERATION)))
+        q.update(input={"query": query, "parameters": params or None}, error=it["error"])
+        q["service"] = it["service"]
+        out.append(q)
+    return out
 
 
 def _address(host: Any, port: Any) -> str | None:
@@ -1106,7 +1152,33 @@ def egress_seen(manifest: dict[str, Any]) -> set[str] | None:
     wrapped = bool(stdio) and all(
         egress["proxies"].get(s.get("name")) == mcp_proxy.STDIO for s in stdio
     )
-    return seen | ({mcp_proxy.STDIO} if wrapped else set())
+    return seen | ({mcp_proxy.STDIO} if wrapped else set()) | _driver_seen(answer)
+
+
+def _driver_seen(answer: Any) -> set[str]:
+    """The marks and the addresses of the databases with a driver trace (SPEC.md section 8.6). A
+    span does not name the database of the answer. Thus a driver database makes each call of its
+    system seen, if no `record: proxy` database has the same system. Else only a call of its
+    system to the host:port of its `address`, and to its database if the address names one, is
+    seen. Thus a call around the proxy still gives a finding."""
+    databases = answer.get("databases") if isinstance(answer, dict) else None
+    parts = [d for d in databases if isinstance(d, dict)] if isinstance(databases, list) else []
+    kinds = [(d, db_system(d["kind"])) for d in parts if isinstance(d.get("kind"), str)]
+    proxied = {k for d, k in kinds if d.get("record") == "proxy"}
+    out = set()
+    for d, kind in kinds:
+        if d.get("record") != "driver":
+            continue
+        if kind not in proxied:
+            out.add(DRIVER_SEEN + kind)
+        elif (where := driver_address(d.get("address"))) is not None:
+            host, port, database = where
+            out.add(_driver_mark(kind, f"{host}:{port}", database))
+    return out
+
+
+def _driver_mark(system: str, address: str, database: str | None) -> str:
+    return DRIVER_SEEN + " ".join([system, address] + ([database] if database else []))
 
 
 def unseen_calls(items: list[dict[str, Any]], seen: set[str]) -> list[dict[str, Any]]:
@@ -1126,7 +1198,10 @@ def unseen_calls(items: list[dict[str, Any]], seen: set[str]) -> list[dict[str, 
             address, shown = _url_address(url)
             what = f"HTTP {shown}"
         elif db is not None or isinstance(mcp, str):
-            address = _address(attrs.get("server.address"), attrs.get("server.port"))
+            # The old semantic conventions, which many instrumentations write by default.
+            old = "server.address" not in attrs
+            host, port = ("net.peer.name", "net.peer.port") if old else SERVER_ADDRESS
+            address = _address(attrs.get(host), attrs.get(port))
             what = f"database {db}" if db is not None else f"MCP {mcp}"
         else:
             continue
@@ -1134,6 +1209,16 @@ def unseen_calls(items: list[dict[str, Any]], seen: set[str]) -> list[dict[str, 
             continue
         if address is None and db is None and isinstance(mcp, str) and mcp_proxy.STDIO in seen:
             continue
+        if db is not None:
+            system, database = db_system(db), _first(attrs, DB_NAME)
+            marks = {DRIVER_SEEN + system}
+            if address is not None:
+                marks |= {
+                    _driver_mark(system, address, None),
+                    _driver_mark(system, address, database),
+                }
+            if marks & seen:
+                continue
         detail = f"{what} at {address or 'no network address'}: no proxy saw this call"
         where = {"harness": it["harness"], "session": it["session"], "source": it["source"]}
         out.append(_finding("unseen_call", it["turn"], detail, **where))
@@ -1187,7 +1272,8 @@ def check(
         if it["kind"] == "query" and it["error"] is not None:
             detail = f"{it['session']}: {it['name']}: {it['error']}"
             out.append(_finding("database_error", it["turn"], detail, **where))
-        if it["kind"] == "span" and it["error"] is not None:
+        # The driver query of a database span gives its database_error.
+        if it["kind"] == "span" and it["error"] is not None and _db_system(it) is None:
             detail = f"{it['service'] or 'a service'}: {it['name']}: {it['error']}"
             out.append(_finding("span_error", it["turn"], detail, **where))
         harness_event = it["kind"] == "log" and it["harness"] in ("claude-code", "codex")
@@ -1267,7 +1353,7 @@ def build(folder: Path) -> dict[str, Any]:
     otel = None
     if (folder / otlp.FILE).exists():
         found, otel = read_otel(folder / otlp.FILE)
-        items += found
+        items += with_driver_queries(found)
     calls = None
     if (folder / backend.FILE).exists():
         found, calls = read_backend(folder / backend.FILE)

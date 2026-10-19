@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from nookku import trace
+from nookku import discovery, trace
 
 CASES = sorted((Path(__file__).resolve().parent.parent / "conformance" / "trace").iterdir())
 
@@ -264,3 +264,83 @@ def test_a_url_that_does_not_parse_gives_a_call_with_no_address() -> None:
     assert finding["detail"] == (
         "HTTP (a URL that does not parse) at no network address: no proxy saw this call"
     )
+
+
+def _db_span(line: int, ts: float, attrs: dict) -> dict:
+    span = trace._item("otel", "t", "otel.jsonl", line, ts)
+    span.update(kind="span", input=attrs)
+    return span
+
+
+def test_a_driver_database_does_not_hide_a_call_around_the_proxy() -> None:
+    shop = {"name": "shop", "kind": "postgres", "env": "DATABASE_URL", "address": None}
+    cart = {"name": "cart", "kind": "sqlite", "env": None, "address": None, "record": "driver"}
+    around = {"db.system.name": "postgresql", "server.address": "db.toy.test", "server.port": 5432}
+    spans = [_db_span(1, 1.0, around)]
+
+    def seen(*databases: dict) -> set[str]:
+        answer = {"databases": list(databases)}
+        proxies = {"shop": "postgresql://127.0.0.1:41002"}
+        manifest = {"egress": {"answer": answer, "proxies": proxies, "receiver": None}}
+        found = trace.egress_seen(manifest)
+        assert found is not None
+        return found
+
+    assert len(trace.unseen_calls(spans, seen({**shop, "record": "proxy"}))) == 1
+    assert len(trace.unseen_calls(spans, seen({**shop, "record": "proxy"}, cart))) == 1
+    sqlite = [_db_span(2, 2.0, {"db.system": "sqlite"})]
+    assert trace.unseen_calls(sqlite, seen({**shop, "record": "proxy"}, cart)) == []
+
+
+def test_a_driver_address_is_seen_only_for_its_system_and_database() -> None:
+    shop = {"name": "shop", "kind": "postgres", "env": "DATABASE_URL", "address": None}
+    stock = {"name": "stock", "kind": "postgres", "env": None, "record": "driver"}
+    server = {"server.address": "db.toy.test", "server.port": 5432}
+    pg = {"db.system.name": "postgresql", **server}
+
+    def unseen(address: str, *attrs: dict) -> list[int]:
+        answer = {"databases": [{**shop, "record": "proxy"}, {**stock, "address": address}]}
+        proxies = {"shop": "postgresql://127.0.0.1:41002"}
+        manifest = {"egress": {"answer": answer, "proxies": proxies, "receiver": None}}
+        seen = trace.egress_seen(manifest)
+        assert seen is not None
+        spans = [_db_span(n, float(n), a) for n, a in enumerate(attrs, 1)]
+        return [f["source"]["line"] for f in trace.unseen_calls(spans, seen)]
+
+    http = {"url.full": "http://db.toy.test:5432/"}
+    mysql = {**server, "db.system.name": "mysql"}
+    assert unseen("db.toy.test:5432", pg, http, mysql) == [2, 3]
+    stock_call, shop_call = {**pg, "db.namespace": "stock"}, {**pg, "db.name": "shop"}
+    assert unseen("DB.toy.test:5432/stock", stock_call, shop_call, pg) == [2, 3]
+    peer = {"db.system": "postgresql", "net.peer.name": "DB.toy.test", "net.peer.port": 5432}
+    assert unseen("db.toy.test:5432/stock", {**peer, "db.name": "stock"}, peer) == [2]
+    both = {**peer, "server.address": "other.toy.test", "db.name": "stock"}
+    assert unseen("db.toy.test:5432/stock", both) == [1]
+
+
+def test_a_driver_database_next_to_a_proxy_needs_a_host_and_port() -> None:
+    shop = {"name": "shop", "kind": "postgres", "env": "DATABASE_URL", "address": None}
+    stock = {"name": "stock", "kind": "Postgres", "env": None, "record": "driver"}
+    for address in [None, "db.toy.test/stock", "postgres://db.toy.test/stock", "db:0"]:
+        databases = [{**shop, "record": "proxy"}, {**stock, "address": address}]
+        with pytest.raises(discovery.AnswerError, match="needs the address host:port"):
+            discovery.parse(discovery.make(databases=databases))
+    for address in ["db.toy.test:5432", "[::1]:5432/stock"]:
+        databases = [{**shop, "record": "proxy"}, {**stock, "address": address}]
+        discovery.parse(discovery.make(databases=databases))
+    discovery.parse(discovery.make(databases=[{**stock, "address": None}]))
+
+
+def test_each_driver_query_comes_right_after_its_span() -> None:
+    spans = [
+        _db_span(1, 5.0, {"db.system.name": "sqlite", "db.query.text": "SELECT 1"}),
+        _db_span(2, 5.0, {"db.system.name": "sqlite", "db.query.text": "INSERT INTO cart"}),
+    ]
+    items = trace.with_driver_queries(spans)
+    items.sort(key=lambda it: it["ts"])
+    assert [(it["kind"], it["source"]["line"]) for it in items] == [
+        ("span", 1),
+        ("query", 1),
+        ("span", 2),
+        ("query", 2),
+    ]

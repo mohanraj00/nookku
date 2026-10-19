@@ -1,0 +1,23 @@
+{
+ "answer": {
+  "model_apis": [],
+  "backends": [],
+  "mcp_servers": [],
+  "databases": [
+   {
+    "name": "shop",
+    "kind": "postgres",
+    "env": "DATABASE_URL",
+    "address": null,
+    "record": "driver"
+   }
+  ],
+  "other": []
+ },
+ "expect": {
+  "lines": [
+   "- database shop: postgres, DATABASE_URL (driver trace)"
+  ],
+  "unseen": []
+ }
+}

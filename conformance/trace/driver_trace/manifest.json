@@ -1,0 +1,36 @@
+{
+ "test": "20261018-090000-dr01",
+ "model_sessions": [],
+ "egress": {
+  "registered": 1791273600.0,
+  "answer": {
+   "model_apis": [],
+   "backends": [],
+   "mcp_servers": [],
+   "databases": [
+    {
+     "name": "shop",
+     "kind": "postgres",
+     "env": "DATABASE_URL",
+     "address": null,
+     "record": "driver"
+    },
+    {
+     "name": "cart",
+     "kind": "sqlite",
+     "env": null,
+     "address": "data/cart.db",
+     "record": "driver"
+    }
+   ],
+   "other": []
+  },
+  "unseen": [],
+  "driver": [
+   "shop",
+   "cart"
+  ],
+  "proxies": {},
+  "receiver": "http://127.0.0.1:41000"
+ }
+}

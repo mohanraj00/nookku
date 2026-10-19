@@ -3702,7 +3702,15 @@ EGRESS_ANSWER = {
     "model_apis": [],
     "backends": [{"name": "stock", "env": "STOCK_URL", "url": "https://stock.toy.test"}],
     "mcp_servers": [],
-    "databases": [{"name": "shop-db", "kind": "postgres", "env": "DATABASE_URL", "address": None}],
+    "databases": [
+        {
+            "name": "shop-db",
+            "kind": "postgres",
+            "env": "DATABASE_URL",
+            "address": None,
+            "record": "proxy",
+        }
+    ],
     "other": [],
 }
 UNSEEN_SPANS = [
@@ -3735,6 +3743,31 @@ UNSEEN_SPANS = [
 ]
 
 
+def qitem(
+    turn: int | None,
+    session: str,
+    ts: float,
+    line: int,
+    name: str,
+    query: str | None,
+    parameters: dict | None = None,
+    **fields: Any,
+) -> dict:
+    """An expected driver query from a database span of otel.jsonl (SPEC.md section 8.4)."""
+    return oitem(
+        turn,
+        "driver",
+        session,
+        ts,
+        "query",
+        line,
+        name=name,
+        input={"query": query, "parameters": parameters},
+        service="toy-shop",
+        **fields,
+    )
+
+
 def unseen(line: int, turn: int, detail: str) -> dict:
     return {
         "check": "unseen_call",
@@ -3761,25 +3794,46 @@ UNSEEN_CASE = {
     },
     "sessions": {},
     "otel": [app_span(t, name, attrs) for t, name, attrs in UNSEEN_SPANS],
+    # The 2 database spans also give a driver query each (SPEC.md section 8.4). They have no
+    # db.namespace and no query text, so the session is the system and the name is "query".
     "trace": [
+        *[
+            oitem(
+                1 if t < 20 else 2,
+                "otel",
+                TRACE_ID,
+                t,
+                "span",
+                n,
+                name=name,
+                input=attrs,
+                service="toy-shop",
+            )
+            for n, (t, name, attrs) in enumerate(UNSEEN_SPANS[:4], 1)
+        ],
+        qitem(2, "postgresql", 31, 4, "query", None),
         oitem(
-            1 if t < 20 else 2,
+            2,
             "otel",
             TRACE_ID,
-            t,
+            32,
             "span",
-            n,
-            name=name,
-            input=attrs,
+            5,
+            name="SELECT cart",
+            input=UNSEEN_SPANS[4][2],
             service="toy-shop",
-        )
-        for n, (t, name, attrs) in enumerate(UNSEEN_SPANS, 1)
+        ),
+        qitem(2, "sqlite", 32, 5, "query", None),
+        *[
+            oitem(2, "otel", TRACE_ID, t, "span", n, name=name, input=attrs, service="toy-shop")
+            for n, (t, name, attrs) in enumerate(UNSEEN_SPANS[5:], 6)
+        ],
     ],
     "findings": {
         "v": "0.2",
         "test": "20261017-090000-eg01",
         "turns": 2,
-        "items": 7,
+        "items": 9,
         "sessions": [],
         "otel": {"file": "otel.jsonl", "rows": 7, "items": 7, "ignored": {}},
         "backend": None,
@@ -3863,6 +3917,261 @@ UNSEEN_STDIO_CASE = {
         "database": None,
         "counts": counts(unseen_call=1),
         "findings": [unseen(1, 1, "MCP tools/call at no network address")],
+    },
+}
+
+
+# The coverage check with driver databases (SPEC.md section 8.6, `unseen_call`). shop has a proxy.
+# stock is also Postgres on the same server, but its proxy cannot connect, so it has a driver
+# trace: only a Postgres call to its host:port and to its database stock is seen. Its span has the
+# old attributes net.peer.name, net.peer.port and db.name. cart is SQLite
+# with a driver trace and no proxy of its system, so each SQLite call is seen. A Postgres call
+# around the proxy to the database shop, an HTTP call to the address of stock and a MySQL call give
+# a finding. The 2 spans at 31 have the same time, and each driver query comes right after its span
+# (section 8.4).
+UNSEEN_DRIVER_DATABASES = [
+    {
+        "name": "shop",
+        "kind": "postgres",
+        "env": "DATABASE_URL",
+        "address": None,
+        "record": "proxy",
+    },
+    {
+        "name": "stock",
+        "kind": "Postgres",
+        "env": None,
+        "address": "DB.toy.test:5432/stock",
+        "record": "driver",
+    },
+    {"name": "cart", "kind": "sqlite", "env": None, "address": "data/cart.db", "record": "driver"},
+]
+PG_AT_DB = {"db.system.name": "postgresql", "server.address": "db.toy.test", "server.port": 5432}
+UNSEEN_DRIVER_SPANS = [
+    (
+        11,
+        "SELECT shop",
+        {"db.system.name": "postgresql", "server.address": "127.0.0.1", "server.port": 41002},
+    ),
+    (12, "SELECT shop", {**PG_AT_DB, "db.namespace": "shop"}),
+    (13, "GET", {"http.request.method": "GET", "url.full": "http://db.toy.test:5432/health"}),
+    (
+        31,
+        "SELECT stock",
+        {
+            "db.system": "postgresql",
+            "net.peer.name": "db.toy.test",
+            "net.peer.port": 5432,
+            "db.name": "stock",
+        },
+    ),
+    (31, "SELECT cart", {"db.system": "SQLite"}),
+    (
+        33,
+        "SELECT orders",
+        {"db.system.name": "mysql", "server.address": "mysql.toy.test", "server.port": 3306},
+    ),
+]
+
+
+def unseen_driver_span(n: int) -> dict:
+    t, name, attrs = UNSEEN_DRIVER_SPANS[n - 1]
+    turn = 1 if t < 20 else 2
+    return oitem(turn, "otel", TRACE_ID, t, "span", n, name=name, input=attrs, service="toy-shop")
+
+
+UNSEEN_DRIVER_CASE = {
+    "tap": [window(10, 20), window(30, 40)],
+    "manifest": {
+        "test": "20261019-090000-eg03",
+        "model_sessions": [],
+        "egress": {
+            "registered": T0,
+            "answer": {**EGRESS_ANSWER, "backends": [], "databases": UNSEEN_DRIVER_DATABASES},
+            "unseen": [],
+            "driver": ["stock", "cart"],
+            "proxies": {"shop": "postgresql://127.0.0.1:41002"},
+            "receiver": "http://127.0.0.1:41000",
+        },
+    },
+    "sessions": {},
+    "otel": [app_span(*span) for span in UNSEEN_DRIVER_SPANS],
+    "trace": [
+        unseen_driver_span(1),
+        qitem(1, "postgresql", 11, 1, "query", None),
+        unseen_driver_span(2),
+        qitem(1, "shop", 12, 2, "query", None),
+        unseen_driver_span(3),
+        unseen_driver_span(4),
+        qitem(2, "stock", 31, 4, "query", None),
+        unseen_driver_span(5),
+        qitem(2, "SQLite", 31, 5, "query", None),
+        unseen_driver_span(6),
+        qitem(2, "mysql", 33, 6, "query", None),
+    ],
+    "findings": {
+        "v": "0.2",
+        "test": "20261019-090000-eg03",
+        "turns": 2,
+        "items": 11,
+        "sessions": [],
+        "otel": {"file": "otel.jsonl", "rows": 6, "items": 6, "ignored": {}},
+        "backend": None,
+        "model_api": None,
+        "mcp": None,
+        "database": None,
+        "counts": counts(unseen_call=3),
+        "findings": [
+            unseen(2, 1, "database postgresql at db.toy.test:5432"),
+            unseen(3, 1, "HTTP http://db.toy.test:5432/health at db.toy.test:5432"),
+            unseen(6, 2, "database mysql at mysql.toy.test:3306"),
+        ],
+    },
+}
+
+
+# The driver trace (SPEC.md sections 7.11, 8.4 and 8.6). The proxy of shop cannot connect, and
+# cart is a SQLite file, so the answer gives each one `record: driver`. Each database span of the
+# app gives a driver query: with the new attribute names, with the old names, and with no query
+# text. A span has no rows, so a driver query has no output. The span of the error gives a
+# database_error and no span_error. The span of the app server is not a database call. One
+# database with a driver trace makes each database call seen, so no unseen_call comes.
+DRIVER_DATABASES = [
+    {
+        "name": "shop",
+        "kind": "postgres",
+        "env": "DATABASE_URL",
+        "address": None,
+        "record": "driver",
+    },
+    {"name": "cart", "kind": "sqlite", "env": None, "address": "data/cart.db", "record": "driver"},
+]
+STOCK_BY_SKU_TEXT = "SELECT qty FROM stock WHERE sku = $1"
+MISSING_TABLE = 'relation "nope" does not exist'
+CART_INSERT = "INSERT INTO cart (sku, qty) VALUES (?, ?)"
+DRIVER_SPANS = [
+    (
+        11,
+        "SELECT shop",
+        {
+            "db.system.name": "postgresql",
+            "db.namespace": "shop",
+            "db.query.text": STOCK_BY_SKU_TEXT,
+            "db.query.parameter.0": "mug",
+            "server.address": "db.toy.test",
+            "server.port": 5432,
+        },
+    ),
+    (
+        31,
+        "INSERT cart",
+        {"db.system": "sqlite", "db.name": "cart", "db.statement": CART_INSERT},
+    ),
+    (32, "SELECT", {"db.system.name": "postgresql", "db.operation.name": "select"}),
+    (33, "POST /chat", {"http.request.method": "POST", "http.route": "/chat"}),
+]
+DRIVER_CASE = {
+    "tap": [window(10, 20), window(30, 40)],
+    "manifest": {
+        "test": "20261018-090000-dr01",
+        "model_sessions": [],
+        "egress": {
+            "registered": T0,
+            "answer": {**EGRESS_ANSWER, "backends": [], "databases": DRIVER_DATABASES},
+            "unseen": [],
+            "driver": ["shop", "cart"],
+            "proxies": {},
+            "receiver": "http://127.0.0.1:41000",
+        },
+    },
+    "sessions": {},
+    "otel": [
+        app_span(*DRIVER_SPANS[0]),
+        app_span(*DRIVER_SPANS[1]),
+        app_span(*DRIVER_SPANS[2], code=2, message=MISSING_TABLE),
+        app_span(*DRIVER_SPANS[3], code=2, message="timeout"),
+    ],
+    "trace": [
+        oitem(
+            1,
+            "otel",
+            TRACE_ID,
+            11,
+            "span",
+            1,
+            name="SELECT shop",
+            input=DRIVER_SPANS[0][2],
+            service="toy-shop",
+        ),
+        qitem(1, "shop", 11, 1, "SELECT", STOCK_BY_SKU_TEXT, {"0": "mug"}),
+        oitem(
+            2,
+            "otel",
+            TRACE_ID,
+            31,
+            "span",
+            2,
+            name="INSERT cart",
+            input=DRIVER_SPANS[1][2],
+            service="toy-shop",
+        ),
+        qitem(2, "cart", 31, 2, "INSERT", CART_INSERT),
+        oitem(
+            2,
+            "otel",
+            TRACE_ID,
+            32,
+            "span",
+            3,
+            name="SELECT",
+            input=DRIVER_SPANS[2][2],
+            error=MISSING_TABLE,
+            service="toy-shop",
+        ),
+        qitem(2, "postgresql", 32, 3, "SELECT", None, error=MISSING_TABLE),
+        oitem(
+            2,
+            "otel",
+            TRACE_ID,
+            33,
+            "span",
+            4,
+            name="POST /chat",
+            input=DRIVER_SPANS[3][2],
+            error="timeout",
+            service="toy-shop",
+        ),
+    ],
+    "findings": {
+        "v": "0.2",
+        "test": "20261018-090000-dr01",
+        "turns": 2,
+        "items": 7,
+        "sessions": [],
+        "otel": {"file": "otel.jsonl", "rows": 4, "items": 4, "ignored": {}},
+        "backend": None,
+        "model_api": None,
+        "mcp": None,
+        "database": None,
+        "counts": counts(span_error=1, database_error=1),
+        "findings": [
+            {
+                "check": "span_error",
+                "turn": 2,
+                "detail": "toy-shop: POST /chat: timeout",
+                "harness": "otel",
+                "session": TRACE_ID,
+                "source": {"file": "otel.jsonl", "line": 4},
+            },
+            {
+                "check": "database_error",
+                "turn": 2,
+                "detail": f"postgresql: SELECT: {MISSING_TABLE}",
+                "harness": "driver",
+                "session": "postgresql",
+                "source": {"file": "otel.jsonl", "line": 3},
+            },
+        ],
     },
 }
 
@@ -4365,6 +4674,8 @@ TRACE_CASES = {
     "reply_not_from_model_field": REPLY_FIELD_CASE,
     "unseen_calls": UNSEEN_CASE,
     "unseen_calls_stdio": UNSEEN_STDIO_CASE,
+    "driver_trace": DRIVER_CASE,
+    "unseen_calls_driver": UNSEEN_DRIVER_CASE,
     "mcp_toy_shop": MCP_CASE,
     "database_toy_shop": DATABASE_CASE,
     "database_formats": DATABASE_FORMATS_CASE,
@@ -5821,8 +6132,15 @@ TOY_ANSWER = {
             "kind": "postgres",
             "env": "DATABASE_URL",
             "address": "127.0.0.1:5432/shop",
+            "record": "proxy",
         },
-        {"name": "cart", "kind": "sqlite", "env": None, "address": "data/cart.db"},
+        {
+            "name": "cart",
+            "kind": "sqlite",
+            "env": None,
+            "address": "data/cart.db",
+            "record": "driver",
+        },
     ],
     "other": [{"name": "mail", "kind": "smtp", "detail": "sends the order mail"}],
 }
@@ -5834,6 +6152,9 @@ def answer_with(kind: str, part: dict) -> dict:
 
 
 STOCK = {"name": "stock", "env": "STOCK_URL", "url": "http://127.0.0.1:9100"}
+DRIVER_ONLY = (
+    "databases[0]: only a postgres database with a variable has a proxy. Give 'record' driver."
+)
 LISTS_ERROR = (
     "the answer must have the lists model_apis, backends, mcp_servers, databases, other, "
     "and no other key"
@@ -5849,10 +6170,10 @@ DISCOVERY_CASES: dict[str, dict] = {
                 "- MCP server files: stdio toy-files-mcp --root data (no proxy)",
                 "- MCP server tickets: http TICKETS_MCP_URL -> https://tickets.toy.test/mcp (proxy)",
                 "- database shop: postgres, DATABASE_URL (proxy)",
-                "- database cart: sqlite, data/cart.db (no proxy)",
+                "- database cart: sqlite, data/cart.db (driver trace)",
                 "- other mail: smtp, sends the order mail (no proxy)",
             ],
-            "unseen": ["files", "cart", "mail"],
+            "unseen": ["files", "mail"],
         },
     },
     # A stdio server with a variable gets the wrapper (SPEC.md section 7.12).
@@ -5943,7 +6264,13 @@ DISCOVERY_CASES: dict[str, dict] = {
             **EMPTY_ANSWER,
             "backends": [STOCK],
             "databases": [
-                {"name": "shop", "kind": "postgres", "env": "STOCK_URL", "address": None}
+                {
+                    "name": "shop",
+                    "kind": "postgres",
+                    "env": "STOCK_URL",
+                    "address": None,
+                    "record": "proxy",
+                }
             ],
         },
         "expect": {"error": "each part needs its own 'env'"},
@@ -5983,7 +6310,13 @@ DISCOVERY_CASES: dict[str, dict] = {
     "address_with_user": {
         "answer": answer_with(
             "databases",
-            {"name": "shop", "kind": "postgres", "env": None, "address": "toy@127.0.0.1:5432"},
+            {
+                "name": "shop",
+                "kind": "postgres",
+                "env": None,
+                "address": "toy@127.0.0.1:5432",
+                "record": "driver",
+            },
         ),
         "expect": {"error": "databases[0]: the address has a user or a password. Give host:port."},
     },
@@ -5995,6 +6328,7 @@ DISCOVERY_CASES: dict[str, dict] = {
                 "kind": "postgres",
                 "env": None,
                 "address": "db.toy.test:5432/shop?password=toy",
+                "record": "driver",
             },
         ),
         "expect": {"error": "databases[0]: the address has a value of the secret key 'password'."},
@@ -6007,9 +6341,91 @@ DISCOVERY_CASES: dict[str, dict] = {
                 "kind": "postgres",
                 "env": None,
                 "address": "host=db.toy.test password=toy",
+                "record": "driver",
             },
         ),
         "expect": {"error": "databases[0]: the address has a value of the secret key 'password'."},
+    },
+    # The driver trace records a database that no proxy can see (SPEC.md section 7.11): a
+    # database that is not Postgres, or a Postgres database whose proxy cannot connect.
+    "record_driver": {
+        "answer": answer_with(
+            "databases",
+            {
+                "name": "shop",
+                "kind": "postgres",
+                "env": "DATABASE_URL",
+                "address": None,
+                "record": "driver",
+            },
+        ),
+        "expect": {
+            "lines": ["- database shop: postgres, DATABASE_URL (driver trace)"],
+            "unseen": [],
+        },
+    },
+    "record_proxy_for_sqlite": {
+        "answer": answer_with(
+            "databases",
+            {
+                "name": "cart",
+                "kind": "sqlite",
+                "env": "CART_DB",
+                "address": None,
+                "record": "proxy",
+            },
+        ),
+        "expect": {"error": DRIVER_ONLY},
+    },
+    "record_proxy_with_no_variable": {
+        "answer": answer_with(
+            "databases",
+            {"name": "shop", "kind": "postgres", "env": None, "address": None, "record": "proxy"},
+        ),
+        "expect": {"error": DRIVER_ONLY},
+    },
+    "record_that_is_not_known": {
+        "answer": answer_with(
+            "databases",
+            {"name": "shop", "kind": "postgres", "env": None, "address": None, "record": "logs"},
+        ),
+        "expect": {"error": "databases[0] 'record' must be one of: proxy, driver"},
+    },
+    # Next to a proxy database of the same kind, the coverage check needs the address of a driver
+    # database (SPEC.md section 8.6).
+    "driver_with_no_address_next_to_a_proxy": {
+        "answer": {
+            **EMPTY_ANSWER,
+            "databases": [
+                {
+                    "name": "shop",
+                    "kind": "postgres",
+                    "env": "DATABASE_URL",
+                    "address": None,
+                    "record": "proxy",
+                },
+                {
+                    "name": "stock",
+                    "kind": "postgres",
+                    "env": None,
+                    "address": "db.toy.test/stock",
+                    "record": "driver",
+                },
+            ],
+        },
+        "expect": {
+            "error": "databases[1]: a proxy database has the same kind, so a driver database "
+            "needs the address host:port or host:port/database"
+        },
+    },
+    "database_with_no_record": {
+        "answer": answer_with(
+            "databases", {"name": "shop", "kind": "postgres", "env": None, "address": None}
+        ),
+        "expect": {
+            "error": "databases[0] must have the keys name, kind, env, address, record, "
+            "and no other key"
+        },
     },
     "url_that_does_not_parse": {
         "answer": answer_with("backends", {"name": "stock", "env": "STOCK_URL", "url": "http://["}),

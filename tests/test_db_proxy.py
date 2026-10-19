@@ -15,7 +15,13 @@ from nookku import db_proxy, discovery, trace
 
 ROOT = Path(__file__).resolve().parent.parent
 CASES = sorted((ROOT / "conformance" / "database").glob("*.json"))
-PART = {"name": "shop-db", "kind": "postgres", "env": "DATABASE_URL", "address": None}
+PART = {
+    "name": "shop-db",
+    "kind": "postgres",
+    "env": "DATABASE_URL",
+    "address": None,
+    "record": "proxy",
+}
 SSL = (8).to_bytes(4, "big") + db_proxy.SSL_REQUEST.to_bytes(4, "big")
 STARTUP = b"user\0shop\0database\0shop\0\0"
 STARTUP = (len(STARTUP) + 8).to_bytes(4, "big") + (196608).to_bytes(4, "big") + STARTUP
@@ -571,15 +577,22 @@ def test_the_url_wins_over_the_variables_of_libpq() -> None:
     assert (database.sslmode, database.rootcert, database.crl) == ("disable", None, None)
 
 
-def test_only_a_postgres_database_with_a_variable_gets_a_proxy() -> None:
-    parts = [PART, {**PART, "name": "cart", "env": None}, {**PART, "name": "log", "kind": "sqlite"}]
-    environ = {"DATABASE_URL": "postgres://127.0.0.1/shop"}
+def test_only_a_database_with_record_proxy_gets_a_proxy() -> None:
+    driver = {"record": "driver"}
+    parts = [
+        PART,
+        {**PART, **driver, "name": "cart", "env": None, "address": "db:5432/cart"},
+        {**PART, **driver, "name": "log", "kind": "sqlite", "env": "LOG_DB"},
+        {**PART, **driver, "name": "stock-db", "env": "STOCK_DB_URL", "address": "db:5432/stock"},
+    ]
+    environ = {"DATABASE_URL": "postgres://127.0.0.1/shop", "STOCK_DB_URL": "postgres://db/stock"}
     assert db_proxy.databases(parts, environ) == [
         db_proxy.Database("shop-db", "DATABASE_URL", "127.0.0.1", 5432, "prefer", None)
     ]
-    parts[2] = {**parts[2], "env": "LOG_DB"}
     answer = discovery.parse(discovery.make(databases=parts))
-    assert [p.proxy for p in discovery.parts(answer)] == [True, False, False]
+    assert [p.proxy for p in discovery.parts(answer)] == [True, False, False, False]
+    assert discovery.drivers(answer) == ["cart", "log", "stock-db"]
+    assert discovery.unseen(answer) == []
 
 
 def test_the_reader_keeps_no_body_of_a_long_message(monkeypatch: pytest.MonkeyPatch) -> None:

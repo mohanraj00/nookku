@@ -1151,7 +1151,13 @@ def test_the_postgres_proxy_records_the_queries(
     from toy_pg_server import PASSWORD, PgServer
 
     root = project(tmp_path, [sys.executable, "-c", PG_APP])
-    part = {"name": "shop-db", "kind": "postgres", "env": "DATABASE_URL", "address": None}
+    part = {
+        "name": "shop-db",
+        "kind": "postgres",
+        "env": "DATABASE_URL",
+        "address": None,
+        "record": "proxy",
+    }
     egress = {"registered": time.time(), "answer": discovery.make(databases=[part])}
     with PgServer() as server:
         monkeypatch.setenv("DATABASE_URL", server.url)
@@ -1179,12 +1185,88 @@ def test_a_database_variable_with_no_value_stops_the_start(
     tmp_path: Path, homes: tuple, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     root = project(tmp_path, [sys.executable, "-c", PG_APP])
-    part = {"name": "shop-db", "kind": "postgres", "env": "DATABASE_URL", "address": None}
+    part = {
+        "name": "shop-db",
+        "kind": "postgres",
+        "env": "DATABASE_URL",
+        "address": None,
+        "record": "proxy",
+    }
     egress = {"registered": time.time(), "answer": discovery.make(databases=[part])}
     monkeypatch.delenv("DATABASE_URL", raising=False)
     with pytest.raises(bridge.BridgeError, match="the variable DATABASE_URL has no value"):
         bridge.start(root, "tester-1", egress=egress)
     assert bridge.current(root) is None
+
+
+# A toy shop app with an instrumented SQLite driver: each query gives one database span, with the
+# attributes of the semantic conventions, to the endpoint that the bridge gives it. The app has no
+# OpenTelemetry package, so it sends the OTLP JSON itself.
+DRIVER_APP = """
+import json, os, sqlite3, sys, time, urllib.request
+
+url = os.environ["OTEL_EXPORTER_OTLP_ENDPOINT"] + "/v1/traces"
+db = sqlite3.connect(":memory:")
+db.execute("CREATE TABLE stock (sku TEXT, qty INTEGER)")
+db.execute("INSERT INTO stock VALUES ('teapot-set', 3)")
+
+
+def query(text, *args):
+    start = time.time_ns()
+    rows = db.execute(text, args).fetchall()
+    attrs = [
+        {"key": "db.system.name", "value": {"stringValue": "sqlite"}},
+        {"key": "db.namespace", "value": {"stringValue": "cart"}},
+        {"key": "db.query.text", "value": {"stringValue": text}},
+    ]
+    span = {"traceId": "0af7651916cd43dd8448eb211c80319c", "spanId": "b7ad6b7169203332",
+            "name": "SELECT cart", "startTimeUnixNano": str(start),
+            "endTimeUnixNano": str(time.time_ns()), "attributes": attrs}
+    res = {"attributes": [{"key": "service.name", "value": {"stringValue": "toy-shop"}}]}
+    body = {"resourceSpans": [{"resource": res, "scopeSpans": [{"spans": [span]}]}]}
+    req = urllib.request.Request(url, json.dumps(body).encode(),
+                                 {"Content-Type": "application/json"}, method="POST")
+    urllib.request.urlopen(req, timeout=5).read()
+    return rows
+
+
+for raw in sys.stdin.buffer:
+    request = json.loads(raw)
+    (qty,) = query("SELECT qty FROM stock WHERE sku = ?", "teapot-set")[0]
+    out = {"v": 1, "id": request["id"], "reply": f"{qty} teapot sets left."}
+    sys.stdout.write(json.dumps(out) + "\\n")
+    sys.stdout.flush()
+"""
+
+
+def test_the_driver_trace_gives_the_database_calls(tmp_path: Path, homes: tuple) -> None:
+    root = project(tmp_path, [sys.executable, "-c", DRIVER_APP])
+    cart = {"name": "cart", "kind": "sqlite", "env": None, "address": None, "record": "driver"}
+    egress = {"registered": time.time(), "answer": discovery.make(databases=[cart])}
+    cur = bridge.start(root, "tester-1", egress=egress)
+    try:
+        shown, ok = bridge.send(cur, "Do you have the teapot set?")
+    finally:
+        bridge.end(root)
+    assert ok and shown == "3 teapot sets left."
+    folder = Path(cur["dir"])
+    manifest = json.loads((folder / "manifest.json").read_text())
+    assert (manifest["egress"]["unseen"], manifest["egress"]["driver"]) == ([], ["cart"])
+    assert manifest["egress"]["proxies"] == {}
+    items = [json.loads(x) for x in (folder / "trace.jsonl").read_text().splitlines()]
+    assert [(it["harness"], it["kind"], it["turn"]) for it in items] == [
+        ("otel", "span", 1),
+        ("driver", "query", 1),
+    ]
+    query = items[1]
+    assert (query["session"], query["name"], query["output"]) == ("cart", "SELECT", None)
+    assert query["input"] == {"query": "SELECT qty FROM stock WHERE sku = ?", "parameters": None}
+    findings = json.loads((folder / "findings.json").read_text())
+    assert findings["counts"]["unseen_call"] == 0
+    text = evaluation.transcript(folder)
+    assert "database cart (driver trace from the app process): SELECT" in text
+    assert evaluation.DRIVER_RESULT in text
+    assert seal.verify(folder)["intact"]
 
 
 MODEL_APP = """

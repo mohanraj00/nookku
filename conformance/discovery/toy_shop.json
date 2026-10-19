@@ -39,13 +39,15 @@
     "name": "shop",
     "kind": "postgres",
     "env": "DATABASE_URL",
-    "address": "127.0.0.1:5432/shop"
+    "address": "127.0.0.1:5432/shop",
+    "record": "proxy"
    },
    {
     "name": "cart",
     "kind": "sqlite",
     "env": null,
-    "address": "data/cart.db"
+    "address": "data/cart.db",
+    "record": "driver"
    }
   ],
   "other": [
@@ -63,12 +65,11 @@
    "- MCP server files: stdio toy-files-mcp --root data (no proxy)",
    "- MCP server tickets: http TICKETS_MCP_URL -> https://tickets.toy.test/mcp (proxy)",
    "- database shop: postgres, DATABASE_URL (proxy)",
-   "- database cart: sqlite, data/cart.db (no proxy)",
+   "- database cart: sqlite, data/cart.db (driver trace)",
    "- other mail: smtp, sends the order mail (no proxy)"
   ],
   "unseen": [
    "files",
-   "cart",
    "mail"
   ]
  }

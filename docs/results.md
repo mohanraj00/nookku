@@ -122,6 +122,10 @@ In the runs of Claude Code 2.1.292 to 2.1.301 and codex-cli 0.162.1, with nookku
 
 The record cuts the third request body at 1 MiB, but the stock service got all of its bytes. The [seal](reference/glossary.md#seal) of the [test folder](reference/glossary.md#test-folder) was intact.
 
+### Database calls from the driver trace
+
+[scripts/proof_driver_trace.py](../scripts/proof_driver_trace.py) runs a test of a toy shop app that reads its stock from a SQLite file. The app uses the OpenTelemetry instrumentation of the sqlite3 driver, and the egress answer gives the database `record: driver`. It needs no model. In the run with nookku 0.5.2 and opentelemetry-instrumentation-sqlite3 0.65b0, the 1 query of the turn is 1 driver query in the trace, with its statement text and no parameter values. The transcript names its source as the driver trace from the app process, and the seal is intact ([results](../proofs/driver-trace/results.json)).
+
 ### Direct model calls
 
 [scripts/proof_model_api.py](../scripts/proof_model_api.py) runs a test with an entry that makes 5 calls to a toy model API through the model API proxies: a streamed Anthropic call, a streamed OpenAI Chat Completions call, an Anthropic call with a JSON answer, a streamed OpenAI Responses call and an OpenAI Decisions call with a JSON answer. For a streamed call, the toy API sends the first event and then waits until the entry says that it has that event. The proof compares the SHA-256 of each body at 3 places: the entry, the toy API and `model_api.jsonl`. It also compares the result in the record with the result that the toy API sent: the text, or for the Decisions call its 3 answers (a choice, a predicate and a refusal). It needs no model.
@@ -248,6 +252,7 @@ uv run python scripts/proof_sessions.py
 uv run python scripts/proof_trace.py
 uv run python scripts/proof_backend.py
 uv run python scripts/proof_model_api.py
+uv run python scripts/proof_driver_trace.py
 uv run python scripts/proof_api_hello.py
 uv run python scripts/proof_codex_otel.py
 uv run python scripts/proof_report.py plugin-claude-code
