@@ -5830,7 +5830,8 @@ DISCOVERY_CASES: dict[str, dict] = {
 
 
 # The cases of the variable of a Postgres proxy (SPEC.md section 7.13). The home of a case has no
-# .postgresql/root.crt. `app_query` is the query of the URL that the app gets.
+# .postgresql/root.crt and no .postgresql/root.crl. `environ` holds the other variables of the
+# app, if the case has them. `app_query` is the query of the URL that the app gets.
 DB_URL = "postgresql://shop@db.toy.test/shop"
 DB_WHERE = "the database shop-db: the variable DATABASE_URL"
 DATABASE_CASES: dict[str, dict] = {
@@ -5855,7 +5856,58 @@ DATABASE_CASES: dict[str, dict] = {
         "expect": {
             "sslmode": "verify-full",
             "rootcert": "system",
-            "app_query": "sslrootcert=system&sslmode=disable",
+            "app_query": "sslmode=disable",
+        },
+    },
+    "system_roots_give_verify_full_by_default": {
+        "value": DB_URL + "?sslrootcert=system",
+        "expect": {"sslmode": "verify-full", "rootcert": "system", "app_query": "sslmode=disable"},
+    },
+    "system_roots_with_a_weaker_sslmode": {
+        "value": DB_URL + "?sslmode=require&sslrootcert=system",
+        "expect": {
+            "error": f"{DB_WHERE} has sslmode=require with sslrootcert=system. libpq refuses "
+            "this pair. Give sslmode=verify-full, or the file of the root certificate in "
+            "sslrootcert."
+        },
+    },
+    "pgsslmode_if_the_url_has_no_sslmode": {
+        "value": DB_URL + "?application_name=toy+shop",
+        "environ": {"PGSSLMODE": "require"},
+        "expect": {
+            "sslmode": "require",
+            "rootcert": None,
+            "app_query": "application_name=toy+shop&sslmode=disable",
+        },
+    },
+    "the_url_wins_over_pgsslmode": {
+        "value": DB_URL + "?sslmode=disable",
+        "environ": {"PGSSLMODE": "verify-full"},
+        "expect": {"sslmode": "disable", "rootcert": None, "app_query": "sslmode=disable"},
+    },
+    "pgsslrootcert_system_and_the_plain_app": {
+        "value": DB_URL + "?sslmode=verify-full",
+        "environ": {"PGSSLROOTCERT": "system"},
+        "expect": {
+            "error": f"{DB_WHERE}: the app has PGSSLROOTCERT=system, and libpq refuses it with "
+            "sslmode=disable, which the app uses to the proxy. Remove PGSSLROOTCERT, and give "
+            "its value in the URL."
+        },
+    },
+    "no_tls_parameter_in_the_app_url": {
+        "value": DB_URL + "?sslmode=require&sslnegotiation=direct&connect_timeout=5"
+        "&ssl_min_protocol_version=TLSv1.3",
+        "expect": {
+            "sslmode": "require",
+            "rootcert": None,
+            "app_query": "connect_timeout=5&sslmode=disable",
+        },
+    },
+    "relative_root_file": {
+        "value": DB_URL + "?sslmode=verify-ca&sslrootcert=certs/root.crt",
+        "expect": {
+            "error": f"{DB_WHERE} has a relative sslrootcert path: certs/root.crt. Give an "
+            "absolute path."
         },
     },
     "verify_ca_with_no_root_certificate": {

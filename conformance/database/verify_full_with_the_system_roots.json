@@ -3,6 +3,6 @@
  "expect": {
   "sslmode": "verify-full",
   "rootcert": "system",
-  "app_query": "sslrootcert=system&sslmode=disable"
+  "app_query": "sslmode=disable"
  }
 }

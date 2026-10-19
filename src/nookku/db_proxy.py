@@ -24,7 +24,7 @@ import time
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any, NamedTuple
-from urllib.parse import parse_qsl, unquote_plus, urlsplit, urlunsplit
+from urllib.parse import unquote, urlsplit, urlunsplit
 
 from nookku import backend
 from nookku.record import json_text
@@ -42,8 +42,36 @@ CANCEL_REQUEST = 80877102
 SSL_MODES = ("disable", "allow", "prefer", "require", "verify-ca", "verify-full")
 # The sslmode values that need TLS. If the database declines TLS, the connection stops.
 TLS_MODES = ("require", "verify-ca", "verify-full")
-# The sslrootcert value that tells libpq to use the trusted roots of the system.
+# The sslrootcert value that tells libpq to use the trusted roots of the system. libpq 16 and
+# later then use verify-full by default, and refuse a weaker sslmode.
 SYSTEM_ROOTS = "system"
+# The TLS parameters of a URL that the proxy uses, and the variable that libpq reads if the URL
+# does not have the parameter.
+TLS_KEYS = {
+    "sslmode": "PGSSLMODE",
+    "sslrootcert": "PGSSLROOTCERT",
+    "sslcrl": "PGSSLCRL",
+    "sslcrldir": "PGSSLCRLDIR",
+    "ssl_min_protocol_version": "PGSSLMINPROTOCOLVERSION",
+    "ssl_max_protocol_version": "PGSSLMAXPROTOCOLVERSION",
+}
+# The settings of the app that the proxy cannot do, by the parameter or the variable, with the
+# value that stops the start. requiressl is the old form of sslmode=require.
+REFUSED = {
+    "requiressl": ("requiressl", "PGREQUIRESSL", None),
+    "sslcertmode=require": ("sslcertmode", "PGSSLCERTMODE", "require"),
+}
+# The variables that libpq reads also for the plain connection of the app to the proxy, and the
+# value that makes libpq refuse sslmode=disable.
+PLAIN_REFUSED = {"PGSSLROOTCERT": SYSTEM_ROOTS, "PGSSLNEGOTIATION": "direct"}
+TLS_VERSIONS = {
+    "TLSv1": ssl.TLSVersion.TLSv1,
+    "TLSv1.1": ssl.TLSVersion.TLSv1_1,
+    "TLSv1.2": ssl.TLSVersion.TLSv1_2,
+    "TLSv1.3": ssl.TLSVersion.TLSv1_3,
+}
+# The minimum TLS version of libpq if the app gives none.
+DEFAULT_MIN_TLS = "TLSv1.2"
 # The query parameters of a URL that give libpq another address than the host of the URL. The
 # app would then connect past the proxy.
 ADDRESS_KEYS = ("host", "hostaddr", "port", "service")
@@ -58,24 +86,48 @@ class Database(NamedTuple):
     env: str
     host: str
     port: int
-    # The sslmode of the app URL, or prefer, the default of libpq.
+    # The sslmode of the app: the URL, else PGSSLMODE, else prefer, the default of libpq.
     sslmode: str = "prefer"
     # The file of the root certificates that the proxy trusts, SYSTEM_ROOTS, or None. If it is
     # not None, require checks the certificate as verify-ca does, as libpq does.
     rootcert: str | None = None
+    # The file and the folder of the certificate revocation lists, or None.
+    crl: str | None = None
+    crldir: str | None = None
+    # The minimum and the maximum TLS version, for example TLSv1.2, or None for no maximum.
+    min_tls: str = DEFAULT_MIN_TLS
+    max_tls: str | None = None
 
 
-def _rootcert(where: str, mode: str, query: dict[str, str]) -> str | None:
-    """The root certificates of the URL: sslrootcert, else the default file of libpq if it
-    exists. Raise ValueError if verify-ca or verify-full has no root certificates."""
-    given = query.get("sslrootcert")
+def _query(text: str) -> dict[str, str]:
+    """The parameters of a URL query. As in libpq, only %XX changes: a + stays a +."""
+    out = {}
+    for part in text.split("&"):
+        if part:
+            key, _, value = part.partition("=")
+            out[unquote(key)] = unquote(value)
+    return out
+
+
+def _path(where: str, key: str, given: str, folder: bool = False) -> str:
+    """The absolute path of a file (or a folder) that the app gives. Raise ValueError if the
+    path is relative, because libpq reads it from the folder of the app, not of the bridge."""
+    path = Path(given)
+    if not path.is_absolute():
+        raise ValueError(f"{where} has a relative {key} path: {given}. Give an absolute path.")
+    if not (path.is_dir() if folder else path.is_file()):
+        kind = "folder" if folder else "file"
+        raise ValueError(f"{where} has an {key} {kind} that does not exist: {given}")
+    return str(path)
+
+
+def _rootcert(where: str, mode: str, given: str | None) -> str | None:
+    """The root certificates: sslrootcert, else the default file of libpq if it exists. Raise
+    ValueError if verify-ca or verify-full has no root certificates."""
     if given == SYSTEM_ROOTS:
         return given
     if given:
-        path = Path(given)
-        if not path.is_file():
-            raise ValueError(f"{where} has an sslrootcert file that does not exist: {given}")
-        return str(path)
+        return _path(where, "sslrootcert", given)
     default = Path.home() / ".postgresql" / "root.crt"
     if default.is_file():
         return str(default)
@@ -87,7 +139,49 @@ def _rootcert(where: str, mode: str, query: dict[str, str]) -> str | None:
     return None
 
 
-def _upstream(part: dict[str, Any], value: str | None) -> Database:
+def _version(where: str, key: str, given: str | None) -> str | None:
+    if given and given not in TLS_VERSIONS:
+        raise ValueError(f"{where} has {key}={given}, which is not a TLS version of libpq")
+    return given or None
+
+
+def _tls(where: str, query: dict[str, str], environ: Any) -> dict[str, Any]:
+    """The TLS settings of the proxy to the database, from the URL, else from the variables of
+    libpq, as libpq does. Raise ValueError for a setting that libpq or the proxy refuses."""
+    given = {k: query[k] if k in query else environ.get(v) for k, v in TLS_KEYS.items()}
+    for name, (key, var, bad) in REFUSED.items():
+        value = query[key] if key in query else environ.get(var)
+        if value is not None and bad in (None, value):
+            raise ValueError(f"{where} has {name} (or {var}), which the proxy cannot do")
+    mode, root = given["sslmode"], given["sslrootcert"]
+    if root == SYSTEM_ROOTS and mode is None:
+        mode = "verify-full"
+    mode = "prefer" if mode is None else mode
+    if mode not in SSL_MODES:
+        raise ValueError(f"{where} has sslmode={mode}, which is not an sslmode of libpq")
+    if root == SYSTEM_ROOTS and mode != "verify-full":
+        raise ValueError(
+            f"{where} has sslmode={mode} with sslrootcert=system. libpq refuses this pair. "
+            "Give sslmode=verify-full, or the file of the root certificate in sslrootcert."
+        )
+    if mode == "disable":
+        return {"sslmode": mode}
+    crl, crldir = given["sslcrl"], given["sslcrldir"]
+    default_crl = Path.home() / ".postgresql" / "root.crl"
+    if not crl and not crldir and default_crl.is_file():
+        crl = str(default_crl)
+    return {
+        "sslmode": mode,
+        "rootcert": _rootcert(where, mode, root),
+        "crl": _path(where, "sslcrl", crl) if crl else None,
+        "crldir": _path(where, "sslcrldir", crldir, folder=True) if crldir else None,
+        "min_tls": _version(where, "ssl_min_protocol_version", given["ssl_min_protocol_version"])
+        or DEFAULT_MIN_TLS,
+        "max_tls": _version(where, "ssl_max_protocol_version", given["ssl_max_protocol_version"]),
+    }
+
+
+def _upstream(part: dict[str, Any], value: str | None, environ: Any) -> Database:
     where = f"the database {part['name']}: the variable {part['env']}"
     if not value:
         raise ValueError(f"{where} has no value. The proxy needs the postgres URL in it.")
@@ -98,40 +192,47 @@ def _upstream(part: dict[str, Any], value: str | None) -> Database:
         raise ValueError(f"{where} has a port that is not valid") from None
     if url.scheme not in SCHEMES or not url.hostname:
         raise ValueError(f"{where} must hold a postgres:// or postgresql:// URL with a host")
-    query = dict(parse_qsl(url.query, keep_blank_values=True))
+    query = _query(url.query)
     moved = [k for k in ADDRESS_KEYS if k in query]
     if moved:
         raise ValueError(
             f"{where} has the query parameter {moved[0]}, which gives another address than "
             "the host of the URL. Give the address only in the host and the port of the URL."
         )
-    mode = query.get("sslmode", "prefer")
-    if mode not in SSL_MODES:
-        raise ValueError(f"{where} has sslmode={mode}, which is not an sslmode of libpq")
     if query.get("gssencmode") == "require":
         raise ValueError(
             f"{where} has gssencmode=require. The proxy speaks no GSSAPI encryption, so give "
             "gssencmode=disable or prefer for the test."
         )
-    rootcert = None if mode == "disable" else _rootcert(where, mode, query)
-    return Database(part["name"], part["env"], url.hostname, port, mode, rootcert)
+    for var, bad in PLAIN_REFUSED.items():
+        if environ.get(var) == bad:
+            raise ValueError(
+                f"{where}: the app has {var}={bad}, and libpq refuses it with sslmode=disable, "
+                f"which the app uses to the proxy. Remove {var}, and give its value in the URL."
+            )
+    return Database(part["name"], part["env"], url.hostname, port, **_tls(where, query, environ))
 
 
 def databases(parts: list[dict[str, Any]], environ: Any) -> list[Database]:
     """The Postgres databases of the answer that have a variable, with the upstream address from
     the value of the variable. Raise ValueError if a value is not a postgres URL."""
     return [
-        _upstream(p, environ.get(p["env"]))
+        _upstream(p, environ.get(p["env"]), environ)
         for p in parts
         if p["kind"] in KINDS and p["env"] is not None
     ]
 
 
 def _plain(query: str) -> str:
-    """The query with sslmode=disable in place of each sslmode, or at the end. The other
-    parameters keep their bytes."""
-    parts = [q for q in query.split("&") if q and unquote_plus(q.partition("=")[0]) != "sslmode"]
+    """The query with no TLS parameter and with sslmode=disable at the end, because the app
+    speaks plain text to the proxy. The other parameters keep their bytes."""
+    parts = [q for q in query.split("&") if q and not _tls_key(unquote(q.partition("=")[0]))]
     return "&".join([*parts, "sslmode=disable"])
+
+
+def _tls_key(key: str) -> bool:
+    """True for a TLS parameter of libpq: each one starts with ssl, and requiressl."""
+    return key.startswith("ssl") or key == "requiressl"
 
 
 def environment(proxies: list[Proxy], environ: Any) -> dict[str, str]:
@@ -289,6 +390,9 @@ def _context(db: Database) -> ssl.SSLContext:
     verify-full also checks the host name. require checks nothing, but with root certificates it
     checks the chain as verify-ca does. allow and prefer check nothing, as libpq does."""
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    context.minimum_version = TLS_VERSIONS[db.min_tls]
+    if db.max_tls:
+        context.maximum_version = TLS_VERSIONS[db.max_tls]
     verify = db.sslmode in ("verify-ca", "verify-full") or (
         db.sslmode == "require" and db.rootcert is not None
     )
@@ -301,6 +405,10 @@ def _context(db: Database) -> ssl.SSLContext:
         context.load_default_certs()
     else:
         context.load_verify_locations(cafile=db.rootcert)
+    if db.crl or db.crldir:
+        # As libpq does, check each certificate of the chain against the lists.
+        context.load_verify_locations(cafile=db.crl, capath=db.crldir)
+        context.verify_flags |= ssl.VERIFY_CRL_CHECK_CHAIN
     return context
 
 

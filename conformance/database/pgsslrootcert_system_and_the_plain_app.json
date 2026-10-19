@@ -1,0 +1,9 @@
+{
+ "value": "postgresql://shop@db.toy.test/shop?sslmode=verify-full",
+ "environ": {
+  "PGSSLROOTCERT": "system"
+ },
+ "expect": {
+  "error": "the database shop-db: the variable DATABASE_URL: the app has PGSSLROOTCERT=system, and libpq refuses it with sslmode=disable, which the app uses to the proxy. Remove PGSSLROOTCERT, and give its value in the URL."
+ }
+}
