@@ -279,7 +279,7 @@ Serve the chat page: a local web page where you talk to the agent of the running
 | `--root PATH` | the current folder | The project. |
 | `--port PORT` | a free port | The port on `127.0.0.1`. |
 | `--open` | off | Open the chat page of the running test in the browser, at the session URL, which holds no secret. Make no session. Print no URL. Exit with 1 if the page did not open. |
-| `--stop` | off | Stop the page server of this project with `SIGTERM`, with the pid and start time checks of the end ([SPEC.md section 5](../../SPEC.md#5-relays)). Print `The chat page of this project stopped.` or `No chat page of this project runs.` and exit with 0. If the checks fail, or a process still holds `page.lock` after the stop, or the server does not stop in 2 seconds, send no further signal, print the `kill <pid>` step and exit with 1. If `page.json` names no pid that `--stop` can check, the text gives the absolute path of `page.lock`, with `lsof` (macOS) and `fuser` (Linux) to find the pid. The guard denies it from the model. |
+| `--stop` | off | Stop the page server of this project with `SIGTERM`, with the pid and start time checks of the end ([SPEC.md section 5](../../SPEC.md#5-relays)). Print `The chat page of this project stopped.` or `No chat page of this project runs.` and exit with 0. If the checks fail, or a process still holds `page.lock` after the stop, or the server does not stop in [2 seconds](../../src/nookku/page_auto.py) (`STOP_WAIT`), send no further signal, print the `kill <pid>` step and exit with 1. If `page.json` names no pid that `--stop` can check, the text gives the absolute path of `page.lock`, with `lsof` (macOS) and `fuser` (Linux) to find the pid. The guard denies it from the model. |
 
 | Exit code | Meaning |
 |---|---|

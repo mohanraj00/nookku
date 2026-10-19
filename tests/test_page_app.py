@@ -478,3 +478,73 @@ def test_key_js_gives_the_poll_header_only_to_a_poll() -> None:
 
     assert page_auto.POLL_HEADER == "X-Nookku-Poll"
     assert json.loads(done.stdout) == [["1", False, True], [None, False, True], [None, False, True]]
+
+
+# A small DOM for the other scripts of the pages. It records init.poll of each request, runs
+# DOMContentLoaded, then each interval, then a change of each filter of the dashboard.
+OTHER_POLL_CHECK = """
+const polls = [];
+const intervals = [];
+const loaded = [];
+const els = {};
+function elem() {
+  return {
+    dataset: {}, listeners: {}, style: {}, hidden: false, value: "", textContent: "", children: [],
+    addEventListener(t, f) { (this.listeners[t] = this.listeners[t] || []).push(f); },
+    setAttribute() {}, removeAttribute() {}, before() {}, append() {}, appendChild() {},
+    replaceChildren() {}, querySelectorAll() { return []; }, querySelector() { return null; },
+    classList: { add() {}, remove() {}, toggle() {}, contains() { return false; } },
+  };
+}
+global.document = {
+  getElementById(id) { return els[id] || (els[id] = elem()); },
+  createElement() { return elem(); },
+  addEventListener(t, f) { if (t === "DOMContentLoaded") loaded.push(f); },
+  dispatchEvent() {}, querySelectorAll() { return []; }, querySelector() { return null; },
+};
+global.window = { location: { hash: "" }, addEventListener() {} };
+global.CustomEvent = class { constructor(type, init) { this.type = type; this.detail = init; } };
+global.MutationObserver = class { observe() {} };
+global.setInterval = (f) => { intervals.push(f); };
+global.fetch = async (url, init) => {
+  polls.push(init.poll);
+  return { json: async () => ({ error: "x" }) };
+};
+const tick = () => new Promise((r) => setImmediate(r));
+require(process.argv[1]);
+(async () => {
+  loaded.forEach((f) => f());
+  await tick();
+  out = { first: polls.splice(0), interval: [], change: [] };
+  intervals.forEach((f) => f());
+  await tick();
+  out.interval = polls.splice(0);
+  for (const id of ["state", "has", "order"]) {
+    (els[id] && els[id].listeners.change || []).forEach((f) => f({ type: "change" }));
+  }
+  await tick();
+  out.change = polls.splice(0);
+  process.stdout.write(JSON.stringify(out));
+})();
+"""
+
+
+@needs_node
+@pytest.mark.parametrize(
+    ("name", "change"),
+    [("dashboard.js", [False, False, False]), ("notes.js", []), ("trace.js", [])],
+)
+def test_the_other_pages_mark_only_a_request_of_the_interval_as_a_poll(
+    name: str, change: list[bool]
+) -> None:
+    assert NODE is not None
+    done = subprocess.run(
+        [NODE, "-e", "let out;\n" + OTHER_POLL_CHECK, str(APP.with_name(name))],
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=False,
+    )
+    assert done.returncode == 0, done.stderr
+    # A filter change of the dashboard gives refresh an Event, and an Event is not a poll.
+    assert json.loads(done.stdout) == {"first": [False], "interval": [True], "change": change}

@@ -663,7 +663,9 @@ def held_sleeper(
 
 
 LOCKER = """
-import fcntl, os, sys, time
+import fcntl, os, signal, sys, time
+if sys.argv[2] == "ignore":
+    signal.signal(signal.SIGTERM, signal.SIG_IGN)
 fd = os.open(sys.argv[1], os.O_RDWR | os.O_CREAT, 0o600)
 fcntl.flock(fd, fcntl.LOCK_EX)
 print("held", flush=True)
@@ -671,12 +673,12 @@ time.sleep(60)
 """
 
 
-def locker(root: Path, test: str) -> subprocess.Popen[str]:
+def locker(root: Path, test: str, term: str = "stop") -> subprocess.Popen[str]:
     """A process that holds the page lock, as a page server does, and its page file. The lock
-    goes away with the process."""
+    goes away with the process. With term "ignore", the process ignores SIGTERM."""
     lock = root / ".nookku" / state.PAGE_LOCK
     proc = subprocess.Popen(
-        [sys.executable, "-c", LOCKER, str(lock)], stdout=subprocess.PIPE, text=True
+        [sys.executable, "-c", LOCKER, str(lock), term], stdout=subprocess.PIPE, text=True
     )
     state._children[proc.pid] = proc
     assert proc.stdout is not None and proc.stdout.readline().strip() == "held"
@@ -703,6 +705,22 @@ def test_chat_stop_stops_the_page_server_of_this_project_only(
         assert proc.poll() is None
     finally:
         os.close(lock)
+        proc.kill()
+        proc.wait()
+
+
+def test_chat_stop_sends_no_further_signal_if_the_server_does_not_stop(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (tmp_path / ".nookku").mkdir()
+    monkeypatch.setattr(page_auto, "STOP_WAIT", 0.3)
+    proc = locker(tmp_path, "t-1", "ignore")
+    try:
+        assert main(["chat", "--stop", "--root", str(tmp_path)]) == 1
+        assert capsys.readouterr().err.strip() == page_auto.NOT_STOPPED.format(pid=proc.pid)
+        # The process ignored SIGTERM, and the stop sent no SIGKILL.
+        assert proc.poll() is None
+    finally:
         proc.kill()
         proc.wait()
 
