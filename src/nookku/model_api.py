@@ -411,13 +411,15 @@ class ModelProxy(backend.Proxy):
         if row["harness"]:
             _omit(row["response_body"])
             return
-        if cut:
-            # The record holds only the start of the response. The result is of that start: of
-            # the events that end before the cut, or a JSON body that is not complete.
-            data = backend.decode_start(body, encoding, self.limit) or body
-            data = whole_events(data) if row["stream"] else data
-        else:
-            data = backend.decode(body, encoding) or body
+        data = backend.decode(body, encoding, self.limit, partial=cut)
+        if data is None:
+            data = body
+        elif len(data) > self.limit:
+            data, cut = data[: self.limit], True
+        if cut and row["stream"]:
+            # The result is of the start of the response only: of the events that end before
+            # the cut. A JSON body that the cut stops is not complete.
+            data = whole_events(data)
         row["result"] = result(self.backend.name, row["path"], data, row["stream"])
         if cut and row["result"] is not None:
             # The cut is the reason why a JSON body is not complete. The trace names the cut.

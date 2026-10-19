@@ -411,3 +411,22 @@ def test_the_parsers_give_the_results_of_the_cut_case() -> None:
         got = {**row, "harness": None, "result": None}
         proxy.complete(got, kept, None, cut=True)
         assert got["result"] == row["result"]
+
+
+def test_a_gzip_bomb_gives_a_cut_result(tmp_path: Path) -> None:
+    text = b'{"model": "gpt-toy", "choices": [{"message": {"content": "' + b" " * 5_000_000
+    with ModelServer() as model:
+        model.parts = [text]
+        model.content_type = "application/json"
+        model.gzip = True
+        proxies = proxy_for(model, tmp_path, "openai")
+        proxies.proxies[0].keep = 100_000
+        env = proxies.start()
+        try:
+            status, got = post(env["OPENAI_BASE_URL"], "/chat/completions", b"{}", {})
+        finally:
+            proxies.stop()
+    assert status == 200 and len(got) < 100_000
+    row = rows(tmp_path)[0]
+    assert row["response_body"]["cut"] is True and row["response_body"]["decoded"] == "gzip"
+    assert row["result"]["cut"] is True and row["result"]["error"] is None

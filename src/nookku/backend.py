@@ -10,7 +10,7 @@ parameters. The row keeps only the first bytes of a large body.
 from __future__ import annotations
 
 import base64
-import gzip
+import codecs
 import hashlib
 import http.client
 import json
@@ -81,41 +81,59 @@ def query_row(query: str) -> str:
     return "&".join(parts)
 
 
-def decode(data: bytes, encoding: str | None) -> bytes | None:
-    """The decoded bytes of a gzip or deflate body, or None."""
+def decode(data: bytes, encoding: str | None, limit: int, partial: bool = False) -> bytes | None:
+    """The decoded bytes of a gzip or deflate body, or None. The decode stops after `limit` + 1
+    bytes, so a small body that decodes to many bytes does not use the memory of the test. A
+    longer result than `limit` thus shows that the decoded body is longer. With `partial`, a body
+    that stops early gives the bytes that it decodes. Else it gives None, as a broken body does.
+    """
     if encoding not in ("gzip", "deflate") or not data:
         return None
+    out: list[bytes] = []
+    room, rest = limit + 1, data
     try:
-        return gzip.decompress(data) if encoding == "gzip" else zlib.decompress(data)
-    except (OSError, EOFError, zlib.error):
-        return None
-
-
-def decode_start(data: bytes, encoding: str | None, limit: int) -> bytes | None:
-    """The first `limit` decoded bytes of the start of a gzip or deflate body, or None."""
-    if encoding not in ("gzip", "deflate") or not data:
-        return None
-    try:
-        return zlib.decompressobj(31 if encoding == "gzip" else 15).decompress(data, limit)
+        # A gzip body can have more than one member, and each member starts a new decoder.
+        while rest and room > 0:
+            decoder = zlib.decompressobj(31 if encoding == "gzip" else 15)
+            part = decoder.decompress(rest, room)
+            out.append(part)
+            room -= len(part)
+            if not decoder.eof:
+                if room > 0 and not partial:
+                    return None
+                break
+            rest = decoder.unused_data if encoding == "gzip" else b""
     except zlib.error:
         return None
+    return b"".join(out)
 
 
-def body_row(data: bytes, encoding: str | None = None, limit: int | None = None) -> dict[str, Any]:
+def body_row(
+    data: bytes, encoding: str | None = None, limit: int | None = None, cut: bool = False
+) -> dict[str, Any]:
     """A body in the record: its size, its SHA-256 and its text (UTF-8) or base64.
 
     For a gzip or deflate body, `text` is the decoded body, so that the record can be read. The
-    record keeps the first `limit` bytes, or RECORD_LIMIT bytes if `limit` is None.
+    record keeps the first `limit` bytes, or RECORD_LIMIT bytes if `limit` is None. `cut` is True
+    if `data` is only the start of the body.
     """
     limit = RECORD_LIMIT if limit is None else limit
     out: dict[str, Any] = {"size": len(data), "sha256": hashlib.sha256(data).hexdigest()}
-    shown = decode(data, encoding)
+    shown = decode(data, encoding, limit)
     if shown is not None:
         out["decoded"] = encoding
     else:
         shown = data
-    out["cut"] = len(shown) > limit
+    out["cut"] = cut or len(shown) > limit
     shown = shown[:limit]
+    if out["cut"]:
+        # The cut can split a UTF-8 character. The text then ends before that character.
+        decoder = codecs.getincrementaldecoder("utf-8")()
+        try:
+            decoder.decode(shown)
+            shown = shown[: len(shown) - len(decoder.getstate()[0])]
+        except UnicodeDecodeError:
+            pass  # The body is not UTF-8, so the row keeps all of its start as base64.
     try:
         out["text"] = shown.decode("utf-8")
     except UnicodeDecodeError:
@@ -156,7 +174,7 @@ class StreamBody:
         if not self.cut:
             return body_row(data, self.encoding, self.keep)
         # The proxy did not keep all of the stream. The row shows its first bytes as they came.
-        body = body_row(data, None, self.keep)
+        body = body_row(data, None, self.keep, cut=True)
         body.update(size=self.size, sha256=self.digest.hexdigest(), cut=True)
         return body
 
@@ -182,9 +200,6 @@ class Proxy(ThreadingHTTPServer):
     # The most bytes of a body that the record keeps, or None for RECORD_LIMIT. The proxy keeps
     # no more bytes of a response. The row still has the size and the SHA-256 of all of them.
     keep: int | None = None
-    # True: at the end of the test, the row of an open stream keeps the bytes that came, with the
-    # error STREAM_ENDED. Else it has no response.
-    partial = False
 
     def __init__(self, backend: Backend, record: Path, lock: threading.Condition) -> None:
         super().__init__(("127.0.0.1", 0), Handler)
@@ -193,7 +208,9 @@ class Proxy(ThreadingHTTPServer):
         self.lock = lock
         # The rows of the calls that did not end, by their id.
         self.open: dict[int, dict[str, Any]] = {}
-        # The bytes of each open stream, by the id of its row, if `partial` is True.
+        # The bytes of each open stream, by the id of its row. The app gets the status before the
+        # body ends, so at the end of the test the row of an open stream keeps the status, the
+        # headers and the bytes that came, with the error STREAM_ENDED.
         self.streams: dict[int, StreamBody] = {}
         self.closed = False
         target = urlsplit(backend.url)
@@ -337,9 +354,21 @@ class Handler(BaseHTTPRequestHandler):
         """
         proxy, out_headers = self.server, resp.getheaders()
         returned = [(k, v) for k, v in out_headers if k.lower() not in NOT_RETURNED]
-        length = resp.getheader("Content-Length")
         bodyless = self.command == "HEAD" or resp.status in (204, 304)
-        chunked = length is None and not bodyless
+        # A response with no body keeps the Content-Length of the backend. Else the framing to the
+        # app comes from http.client, which reads the body: a chunked body, or a Content-Length
+        # that is not one valid count, goes to the app chunked. Thus the app never gets a length
+        # that does not agree with the bytes that follow it.
+        if bodyless:
+            length = resp.getheader("Content-Length")
+        else:
+            length = str(resp.length) if resp.length is not None and not resp.chunked else None
+        # An HTTP/1.0 client does not read chunks. It gets the body with no framing, and the end of
+        # the connection ends the body.
+        unframed = length is None and not bodyless and self.request_version == "HTTP/1.0"
+        chunked = length is None and not bodyless and not unframed
+        if unframed:
+            self.close_connection = True
         app = True
         try:
             self.send_response_only(resp.status)
@@ -355,10 +384,9 @@ class Handler(BaseHTTPRequestHandler):
             app = False
         encoding = resp.getheader("Content-Encoding")
         stream = StreamBody(proxy.limit, encoding)
-        if proxy.partial:
-            with proxy.lock:
-                row.update(status=resp.status, response_headers=headers_row(returned))
-                proxy.streams[id(row)] = stream
+        with proxy.lock:
+            row.update(status=resp.status, response_headers=headers_row(returned))
+            proxy.streams[id(row)] = stream
         error = None
         while not bodyless:
             try:
@@ -368,10 +396,7 @@ class Handler(BaseHTTPRequestHandler):
                 break
             if not part:
                 break
-            if proxy.partial:
-                with proxy.lock:
-                    stream.add(part)
-            else:
+            with proxy.lock:
                 stream.add(part)
             if app:
                 # The row counts all of the stream, also if the app went away.

@@ -47,9 +47,6 @@ class HttpProxy(backend.Proxy):
     # An MCP server can send a stream with no end. The proxy keeps only the bytes that the record
     # shows (SPEC.md section 7.12).
     keep = backend.RECORD_LIMIT
-    # A GET stream of a server can stay open until the end of the test. Its row then keeps the
-    # events that came.
-    partial = True
 
     def __init__(self, server: backend.Backend, record: Path, lock: threading.Condition) -> None:
         super().__init__(server, record, lock)
