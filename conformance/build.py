@@ -3921,6 +3921,112 @@ UNSEEN_STDIO_CASE = {
 }
 
 
+# The coverage check with driver databases (SPEC.md section 8.6, `unseen_call`). shop has a proxy.
+# stock is also Postgres, but its proxy cannot connect, so it has a driver trace: only a call to its
+# address is seen. cart is SQLite with a driver trace and no proxy of its system, so each SQLite
+# call is seen. A Postgres call around the proxy and a MySQL call give a finding. The 2 spans at 31
+# have the same time, and each driver query comes right after its span (section 8.4).
+UNSEEN_DRIVER_DATABASES = [
+    {
+        "name": "shop",
+        "kind": "postgres",
+        "env": "DATABASE_URL",
+        "address": None,
+        "record": "proxy",
+    },
+    {
+        "name": "stock",
+        "kind": "Postgres",
+        "env": None,
+        "address": "DB2.toy.test:5432/stock",
+        "record": "driver",
+    },
+    {"name": "cart", "kind": "sqlite", "env": None, "address": "data/cart.db", "record": "driver"},
+]
+UNSEEN_DRIVER_SPANS = [
+    (
+        11,
+        "SELECT shop",
+        {"db.system.name": "postgresql", "server.address": "127.0.0.1", "server.port": 41002},
+    ),
+    (
+        12,
+        "SELECT shop",
+        {"db.system.name": "postgresql", "server.address": "db.toy.test", "server.port": 5432},
+    ),
+    (
+        31,
+        "SELECT stock",
+        {"db.system.name": "postgresql", "server.address": "db2.toy.test", "server.port": 5432},
+    ),
+    (31, "SELECT cart", {"db.system": "SQLite"}),
+    (
+        33,
+        "SELECT orders",
+        {"db.system.name": "mysql", "server.address": "mysql.toy.test", "server.port": 3306},
+    ),
+]
+UNSEEN_DRIVER_CASE = {
+    "tap": [window(10, 20), window(30, 40)],
+    "manifest": {
+        "test": "20261019-090000-eg03",
+        "model_sessions": [],
+        "egress": {
+            "registered": T0,
+            "answer": {**EGRESS_ANSWER, "backends": [], "databases": UNSEEN_DRIVER_DATABASES},
+            "unseen": [],
+            "driver": ["stock", "cart"],
+            "proxies": {"shop": "postgresql://127.0.0.1:41002"},
+            "receiver": "http://127.0.0.1:41000",
+        },
+    },
+    "sessions": {},
+    "otel": [app_span(*span) for span in UNSEEN_DRIVER_SPANS],
+    "trace": [
+        row
+        for n, (t, name, attrs) in enumerate(UNSEEN_DRIVER_SPANS, 1)
+        for row in (
+            oitem(
+                1 if t < 20 else 2,
+                "otel",
+                TRACE_ID,
+                t,
+                "span",
+                n,
+                name=name,
+                input=attrs,
+                service="toy-shop",
+            ),
+            qitem(
+                1 if t < 20 else 2,
+                attrs.get("db.system.name") or attrs["db.system"],
+                t,
+                n,
+                "query",
+                None,
+            ),
+        )
+    ],
+    "findings": {
+        "v": "0.2",
+        "test": "20261019-090000-eg03",
+        "turns": 2,
+        "items": 10,
+        "sessions": [],
+        "otel": {"file": "otel.jsonl", "rows": 5, "items": 5, "ignored": {}},
+        "backend": None,
+        "model_api": None,
+        "mcp": None,
+        "database": None,
+        "counts": counts(unseen_call=2),
+        "findings": [
+            unseen(2, 1, "database postgresql at db.toy.test:5432"),
+            unseen(5, 2, "database mysql at mysql.toy.test:3306"),
+        ],
+    },
+}
+
+
 # The driver trace (SPEC.md sections 7.11, 8.4 and 8.6). The proxy of shop cannot connect, and
 # cart is a SQLite file, so the answer gives each one `record: driver`. Each database span of the
 # app gives a driver query: with the new attribute names, with the old names, and with no query
@@ -4566,6 +4672,7 @@ TRACE_CASES = {
     "unseen_calls": UNSEEN_CASE,
     "unseen_calls_stdio": UNSEEN_STDIO_CASE,
     "driver_trace": DRIVER_CASE,
+    "unseen_calls_driver": UNSEEN_DRIVER_CASE,
     "mcp_toy_shop": MCP_CASE,
     "database_toy_shop": DATABASE_CASE,
     "database_formats": DATABASE_FORMATS_CASE,

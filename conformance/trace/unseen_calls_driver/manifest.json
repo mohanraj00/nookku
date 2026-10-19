@@ -1,0 +1,45 @@
+{
+ "test": "20261019-090000-eg03",
+ "model_sessions": [],
+ "egress": {
+  "registered": 1791273600.0,
+  "answer": {
+   "model_apis": [],
+   "backends": [],
+   "mcp_servers": [],
+   "databases": [
+    {
+     "name": "shop",
+     "kind": "postgres",
+     "env": "DATABASE_URL",
+     "address": null,
+     "record": "proxy"
+    },
+    {
+     "name": "stock",
+     "kind": "Postgres",
+     "env": null,
+     "address": "DB2.toy.test:5432/stock",
+     "record": "driver"
+    },
+    {
+     "name": "cart",
+     "kind": "sqlite",
+     "env": null,
+     "address": "data/cart.db",
+     "record": "driver"
+    }
+   ],
+   "other": []
+  },
+  "unseen": [],
+  "driver": [
+   "stock",
+   "cart"
+  ],
+  "proxies": {
+   "shop": "postgresql://127.0.0.1:41002"
+  },
+  "receiver": "http://127.0.0.1:41000"
+ }
+}

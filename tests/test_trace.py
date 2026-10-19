@@ -264,3 +264,44 @@ def test_a_url_that_does_not_parse_gives_a_call_with_no_address() -> None:
     assert finding["detail"] == (
         "HTTP (a URL that does not parse) at no network address: no proxy saw this call"
     )
+
+
+def _db_span(line: int, ts: float, attrs: dict) -> dict:
+    span = trace._item("otel", "t", "otel.jsonl", line, ts)
+    span.update(kind="span", input=attrs)
+    return span
+
+
+def test_a_driver_database_does_not_hide_a_call_around_the_proxy() -> None:
+    shop = {"name": "shop", "kind": "postgres", "env": "DATABASE_URL", "address": None}
+    cart = {"name": "cart", "kind": "sqlite", "env": None, "address": None, "record": "driver"}
+    around = {"db.system.name": "postgresql", "server.address": "db.toy.test", "server.port": 5432}
+    spans = [_db_span(1, 1.0, around)]
+
+    def seen(*databases: dict) -> set[str]:
+        answer = {"databases": list(databases)}
+        proxies = {"shop": "postgresql://127.0.0.1:41002"}
+        manifest = {"egress": {"answer": answer, "proxies": proxies, "receiver": None}}
+        found = trace.egress_seen(manifest)
+        assert found is not None
+        return found
+
+    assert len(trace.unseen_calls(spans, seen({**shop, "record": "proxy"}))) == 1
+    assert len(trace.unseen_calls(spans, seen({**shop, "record": "proxy"}, cart))) == 1
+    sqlite = [_db_span(2, 2.0, {"db.system": "sqlite"})]
+    assert trace.unseen_calls(sqlite, seen({**shop, "record": "proxy"}, cart)) == []
+
+
+def test_each_driver_query_comes_right_after_its_span() -> None:
+    spans = [
+        _db_span(1, 5.0, {"db.system.name": "sqlite", "db.query.text": "SELECT 1"}),
+        _db_span(2, 5.0, {"db.system.name": "sqlite", "db.query.text": "INSERT INTO cart"}),
+    ]
+    items = trace.with_driver_queries(spans)
+    items.sort(key=lambda it: it["ts"])
+    assert [(it["kind"], it["source"]["line"]) for it in items] == [
+        ("span", 1),
+        ("query", 1),
+        ("span", 2),
+        ("query", 2),
+    ]
