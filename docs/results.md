@@ -63,7 +63,7 @@ Each results file has the records of the test next to it: `tap.jsonl` and `relay
 | Claude Agent SDK 0.2.168 | 0.5.3 | its process | yes | [results](../proofs/sessions/results.json) |
 | codex-cli 0.162.1, app-server | 0.5.3 | its folder and time | yes | [results](../proofs/sessions/results.json) |
 
-The Agent SDK runs its own bundled Claude Code. The `claude-code` version in the results is the `claude` command on `PATH`, not the bundled one. The results keep no model reply. In the run of 2026-10-19, the Codex model gave an empty answer, because the Codex account had no usage left. The thread still wrote its session file, and the check found it. This proof checks only that the check finds each session, so it passed.
+The Agent SDK runs its own bundled Claude Code. The `claude-code` version in the results is the `claude` command on `PATH`, not the bundled one. The results keep no model reply. The run of 2026-10-19 used a Codex account with no usage left. The data shows `session_file: true` for the Codex thread, so the check found its session file. This proof checks only that the check finds each session, so it passed.
 
 ### Trace of the model sessions
 
@@ -108,7 +108,7 @@ The session files of 2.1.300 and 2.1.301 have 3 line types that the earlier vers
 
 On 2026-10-17, I moved the Agent SDK pin of [scripts/proof_common.py](../scripts/proof_common.py) from 0.2.164 to 0.2.168, the newest Agent SDK on 2026-10-16. Then I ran the trace proof ([results.json](../proofs/trace/results.json)) and the sessions proof ([results](../proofs/sessions/results.json)) again. Both passed. On 2026-10-18 and 2026-10-19, the report proofs and the telemetry proofs below also ran with this pin, so the app's session files are from Claude Code 2.1.301 (the key `versions` of each results file).
 
-The run of nookku 0.5.3 on 2026-10-19 failed, because the Codex account had no usage left. The Claude Code part passed. Each of the 4 Codex turns ended with the error "You’ve hit your usage limit" in the Codex session file. The trace gave 4 `model_error` findings, 1 for each Codex turn, and the Codex session gave only the 4 user messages. So the Codex rows of 0.5.2 stay the current data until a run after 2026-10-24 ([#437](https://github.com/mohanraj00/nookku/issues/437)).
+The run of nookku 0.5.3 on 2026-10-19 failed, because the Codex account had no usage left. The Claude Code part passed. The trace gave 4 `model_error` findings, and the Codex session gave only 4 items. The 4 items are the 4 user messages, with no reply and no tool call. The data does not keep the error text of Codex. So the Codex rows of 0.5.2 stay the current data until a run after 2026-10-24 ([#437](https://github.com/mohanraj00/nookku/issues/437)).
 
 The run of nookku 0.4.1 failed. In turn 1, the Codex model gave no answer: the `task_complete` event of the Codex session file has the error `server_overloaded` ("Selected model is at capacity"). Thus the Codex thread made no `lookup_order` call in turn 1. In turn 2, the model called `lookup_order` for order 9999 and then for order 4471. The trace put both calls in turn 2, which agrees with the session file. The trace gave no finding for the failed Codex turn, because the Codex reader ignores `task_complete` events. The 0.4.0, 0.4.2, 0.5.0 and 0.5.1 runs of the same versions passed.
 
@@ -228,12 +228,12 @@ In each run, the stock service had 2 reservations for the 1 teapot set that the 
 | Plugin | Claude Code 2.1.302 | 1 | 1, 1, 1, 1 | pass | pass | pass | pass | pass | [results](../proofs/egress/plugin-claude-code.json) |
 | Project hooks | Claude Code 2.1.302 | 1 | 1, 1, 1, 1 | pass | pass | pass | pass | pass | [results](../proofs/egress/hooks-claude-code.json) |
 | Plugin | Claude Code 2.1.302 | 1 | 1, 1, 1, 1 | **fail** | pass | pass | pass | **fail** (first run of 2026-10-19) | [results](../proofs/egress/plugin-claude-code-run1.json) |
-| Plugin | Codex 0.162.1, run of [#449](https://github.com/mohanraj00/nookku/pull/449) | 3 | none | not run | pass | not run | not run | no model turn | [results](../proofs/egress/plugin-codex.json) |
-| Project hooks | Codex | not run | none | not run | not run | not run | not run | not run | none |
+| Plugin | Codex 0.162.1, run of [#449](https://github.com/mohanraj00/nookku/pull/449), new run in [#437](https://github.com/mohanraj00/nookku/issues/437) | 3 | none | not run | pass | not run | not run | no model turn | [results](../proofs/egress/plugin-codex.json) |
+| Project hooks | Codex | not run | none | not run | not run | not run | not run | not run, see [#437](https://github.com/mohanraj00/nookku/issues/437) | none |
 
 The Claude Code rows ran with nookku 0.5.3 on 2026-10-19. The first run of the plugin failed E1. The answer of the model was correct for the 2 MCP servers and the 2 databases, but it also had an `other` part: the file `notes.json`, which the notes MCP server writes. The manifest then named that part in `unseen`, and E1 needs an empty `unseen`. All other checks passed. No code of nookku caused the fail: the discovery task does not say if a file that an MCP server writes is an egress part, and the 2 answers are different readings of it. I ran the proof again 1 time, and that run passed. The table keeps the failed run.
 
-The Codex account had no usage left on 2026-10-19, so Codex did not answer the discovery task. The results file has the error of Codex. The project hooks in Codex did not run: their trusted hooks run the nookku code of the main checkout, which was 0.5.2. These rows need a new run.
+The Codex account had no usage left on 2026-10-19, so Codex did not answer the discovery task. The results file has the error of Codex. The project hooks in Codex did not run: their trusted hooks run the nookku code of the main checkout, which was 0.5.2. These rows need a new run ([#437](https://github.com/mohanraj00/nookku/issues/437)).
 
 The discovery in Claude Code runs in the Bash sandbox of Claude Code, which writes only in the project. The Write tool of the model can edit only the answer file, but Bash in the sandbox can write each file in the project. E2 checks only the 5 Python files of the app (`app.py`, `entry.py`, `toy_mcp.py`, `catalog_mcp.py` and `notes_mcp.py`). It does not find a new file or a change in `.nookku/`. The Codex rows are from the run before the change of the discovery task to the answer file.
 

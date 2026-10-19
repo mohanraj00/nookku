@@ -46,7 +46,7 @@ The plugin loads in Codex 0.162.1: Codex lists its 2 hooks, its MCP tools and it
 
 3. **Trust the hooks.** Codex runs a hook only after a person trusts it. Start `codex` in the project, type `/hooks`, check the 2 nookku hooks and trust them. Codex stores the trust in `~/.codex/config.toml`. If a hook changes, for example after a new `nookku init` or a new plugin version, you must trust it again. A change to `.nookku/config.json` or to the entry does not need new trust.
 
-   Do not skip this step. Codex skips a hook that you did not trust, and then the model gets your test message. So `nookku start` and `nookku mode on` read the hooks with `codex app-server` and refuse a test if a nookku hook is missing, disabled, not trusted or modified ([SPEC.md section 7.8](../../SPEC.md#78-codex-hook-gate), [data](../../proofs/codex-gate/gate.json)). The project hooks show in Codex only after you trust the project.
+   Do not skip this step. Codex skips a hook that you did not trust, and then the model gets your test message. So `nookku start` and `nookku mode on` read the hooks with `codex app-server` and refuse a test if a nookku hook is missing, disabled, not trusted or modified ([SPEC.md section 7.8](../../SPEC.md#78-codex-hook-gate), [data of nookku 0.5.2](../../proofs/codex-gate/gate.json), [#437](https://github.com/mohanraj00/nookku/issues/437)). The project hooks show in Codex only after you trust the project.
 
 ## Use
 
