@@ -113,6 +113,16 @@ PASS
 
 ## Releases with a special step
 
+### 0.5.3
+
+Do the steps above. Three changes need more care:
+
+1. The egress answer needs the key `record` for each database: `proxy` (the Postgres proxy) or `driver` (the driver [trace](../reference/glossary.md#trace) of the app). Only a Postgres database with a variable can have `proxy`. A start does not use an answer of 0.5.2, so the first prompt `nookku start` after the upgrade gives the discovery task again. Check the lines of the new answer, and type `nookku start` again in the next 30 minutes ([SPEC.md section 7.11](../../SPEC.md#711-egress-discovery), [#441](https://github.com/mohanraj00/nookku/issues/441)).
+2. The register step of the discovery task changed. The [harness model](../reference/glossary.md#harness-model) writes the answer to `.nookku/egress.json` with its file tool, and runs `nookku register --file .nookku/egress.json`. A valid answer removes the file. If a script of yours gives `nookku register` an answer, add `record` to each database of the answer ([SPEC.md section 7.11](../../SPEC.md#711-egress-discovery), [#449](https://github.com/mohanraj00/nookku/pull/449)).
+3. For a database with `record: driver`, the harness model adds the OpenTelemetry instrumentation of the driver to your agent and tells you the change. Read the change before you start the test. `nookku replay` of a test of 0.5.2 with a database needs a new answer, because the old answer has no `record` ([SPEC.md section 7.11](../../SPEC.md#711-egress-discovery)).
+
+The page server that `nookku start` starts now stops after 15 idle minutes. To stop a page server yourself, run `nookku chat --stop` ([cli.md](../reference/cli.md#nookku-chat)).
+
 ### 0.5.2
 
 Do the steps above. Three changes need more care:

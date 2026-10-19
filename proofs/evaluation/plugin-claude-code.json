@@ -1,8 +1,8 @@
 {
- "date": "2026-10-18",
+ "date": "2026-10-19",
  "relay": "plugin-claude-code",
  "version": "2.1.302 (Claude Code)",
- "nookku": "0.5.2",
+ "nookku": "0.5.3",
  "plugins": [
   "cc-plugin-agents-md@builtin",
   "cc-plugin-plugin-authoring@builtin",
@@ -11,7 +11,7 @@
  ],
  "answers": {
   "memory_sha256": "c627c09c14e58e44bc51622dac392958ec88244e414b508020634f53cfcd1e69",
-  "read": "In turn 1 of the latest session, you gave the agent this order code:\n\n> ZX-4471-Q\n\nYour full message was: «My order code is ZX-4471-Q.  » The message ends with 2 spaces after the period."
+  "read": "The order code is **ZX-4471-Q**.\n\nIt is in turn 1 of the latest test session. The tester block says:\n\n> My order code is ZX-4471-Q.\n\nThe original text has two spaces after the period.\n\nThe agent repeated the message back without changes. It did not answer about the order. In both turns, the agent replied with the same table, which shows only the mug at € 8."
  },
  "audit_exit": 0,
  "turns": 2,

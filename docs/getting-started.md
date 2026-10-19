@@ -2,7 +2,7 @@
 
 In this tutorial, you test the toy shop agent of this repo in Claude Code. You install Nookku, run a test with 3 messages, and read the [audit](reference/glossary.md#audit), the report of the model and the [findings](reference/glossary.md#findings). You use the [project hooks](reference/glossary.md#project-hooks), because they need no global install in Claude Code. To compare the project hooks with the [plugin](reference/glossary.md#plugin), read [how-to/choose-a-relay.md](how-to/choose-a-relay.md).
 
-The output on this page comes from one run of this tutorial, on 2026-10-18, on macOS, with nookku 0.5.2 from the release branch at commit `295aabf` and Claude Code 2.1.302. The model was `claude-opus-5-5` ([data](../proofs/tutorial/output.txt), [versions](../proofs/tutorial/run.json), [method](../scripts/proof_tutorial.py)). The script ran the commands of each step in a shell, and gave each prompt to `claude -p`, with the user settings off. Print mode needs `CLAUDE_CODE_DISABLE_TERMINAL_TITLE=1` ([troubleshooting](troubleshooting.md#claude-code-does-not-run-as-the-interactive-cli)), so the script set it. The script allowed the commands of step 7 before the prompt `nookku end`, and `curl` opened the chat page. I shortened the paths of the folders to `.../`. The test id and the times are different on your machine. The model output of steps 7 and 9 is a sample, because the model's answer is different on each run.
+The output on this page comes from one run of this tutorial, on 2026-10-19, on macOS, with nookku 0.5.3 from the release branch on the base commit `a57e0cf` and Claude Code 2.1.302. The model was `claude-opus-5-5` ([data](../proofs/tutorial/output.txt), [versions](../proofs/tutorial/run.json), [method](../scripts/proof_tutorial.py)). The script ran the commands of each step in a shell, and gave each prompt to `claude -p`, with the user settings off. Print mode needs `CLAUDE_CODE_DISABLE_TERMINAL_TITLE=1` ([troubleshooting](troubleshooting.md#claude-code-does-not-run-as-the-interactive-cli)), so the script set it. The script allowed the commands of step 7 before the prompt `nookku end`, and `curl` opened the chat page. I shortened the paths of the folders to `.../`. The test id and the times are different on your machine. The model output of steps 7 and 9 is a sample, because the model's answer is different on each run.
 
 ## What you need
 
@@ -18,10 +18,10 @@ nookku --version
 ```
 
 ```text
-nookku 0.5.2
+nookku 0.5.3
 ```
 
-This tutorial needs nookku 0.5.2 or later. If you use verbatim-relay 0.3.x or earlier, the package has a new name, so `uv tool upgrade nookku` cannot upgrade it. Do the [0.4.0 steps of the upgrade guide](how-to/upgrade.md#040) in its place.
+This tutorial needs nookku 0.5.3 or later. If you use verbatim-relay 0.3.x or earlier, the package has a new name, so `uv tool upgrade nookku` cannot upgrade it. Do the [0.4.0 steps of the upgrade guide](how-to/upgrade.md#040) in its place.
 
 ## 2. Make a project for the toy shop
 
@@ -93,7 +93,7 @@ nookku check
 ```
 
 ```text
-Test 20261018-122748-bf16: .../toy-shop/.nookku/tests/20261018-122748-bf16
+Test 20261019-144114-24cf: .../toy-shop/.nookku/tests/20261019-144114-24cf
 Reply: Which item is this about: the mug or the teapot?
 Audit: exit 0
 PASS
@@ -126,7 +126,7 @@ claude
 Type the prompt `nookku start`. The hook starts the test and blocks the prompt, so the model does not receive it. Claude Code shows this text:
 
 ```text
-nookku: test 20261018-122751-7001 started. Relay mode is on: each message goes to the entry. To end the test and start the evaluation, type the prompt nookku end. To end the test with no evaluation, run nookku end in a shell.
+nookku: test 20261019-144117-cfcd started. Relay mode is on: each message goes to the entry. To end the test and start the evaluation, type the prompt nookku end. To end the test with no evaluation, run nookku end in a shell.
 Egress of the agent:
 - no egress part: the agent calls no service
 The chat page opened in your browser. It stops when you type the prompt nookku end, at the next start, or after 15 minutes with no use and no test.
@@ -141,7 +141,7 @@ Type these 3 messages in Claude Code, one at a time:
 For each message, Claude Code shows the agent's reply as the reason of a blocked prompt. The model does not run, and it does not get the reply. The chat page also shows each turn. To see the turns as text, run `nookku view` in a second terminal. In my run, it showed:
 
 ```text
-════ test 20261018-122751-7001 ════
+════ test 20261019-144117-cfcd ════
 ──── tester, turn 1 ────
 hi, the mug i ordered came with a crack in the handle
 ──── agent ────
@@ -178,11 +178,12 @@ Deny a command that changes `agent.py` or runs the agent. [Allow the evaluation 
 The model gives a short summary. In my run, it was:
 
 ```text
-I found 1 issue in test 20261018-122751-7001. The seal is intact, the audit shows no breaks, and there are no findings or model items, because the app is a keyword matcher with no model or tools.
+I found one issue in test 20261019-144117-cfcd. The seal is intact, the audit has no breaks, and there are no findings.
+- **Turn 1 (`missing_action`):** you reported a cracked mug, and the app asked "the mug or the teapot?" even though you had already said it was the mug. It didn't offer the full refund that its own policy gives for damaged items (`agent.py:23`). The app only matches the keywords refund, ship and price (`agent.py:31`), so your message got the default reply.
+- **Turns 2 and 3:** the replies match the app's fixed answers. The Delhi answer only lists Chennai and Pune instead of saying "no". It's a weak answer but not a wrong one.
+- **Trace:** it's empty because the app uses no model, tools or outside services. A proxy saw each egress part, and there were no notes from you to compare against.
 
-- **Turn 1 (`missing_action`):** you reported that the mug came with a cracked handle. The app asked "the mug or the teapot?", but you had already said it was the mug. It also never offered the damage refund that its own policy promises ("Damaged items: full refund", `agent.py:23`). The message had no keyword the app knows, so it gave its default reply.
-- **Turns 2 and 3:** the refund and shipping replies match the rules in the code. The Delhi reply only lists Chennai and Pune instead of saying "no" directly, which I didn't count as an issue.
-- **Other:** you left no notes, and there were no unseen egress calls. The full report is in `.nookku/tests/20261018-122751-7001/report.md`.
+The report is at `.nookku/tests/20261019-144117-cfcd/report.md`.
 ```
 
 The model's answer is different on each run.
@@ -196,7 +197,7 @@ ls .nookku/tests/
 ```
 
 ```text
-20261018-122748-bf16   20261018-122751-7001
+20261019-144114-24cf   20261019-144117-cfcd
 ```
 
 The first folder is the test of `nookku check`. The second is your test.
@@ -204,7 +205,7 @@ The first folder is the test of `nookku check`. The second is your test.
 The end of the test already wrote the audit of its two records in `audit.json` in the test folder. To see the audit as text, run it again. This command is optional:
 
 ```bash
-nookku audit --tap .nookku/tests/20261018-122751-7001/tap.jsonl --relay .nookku/tests/20261018-122751-7001/relay.jsonl
+nookku audit --tap .nookku/tests/20261019-144117-cfcd/tap.jsonl --relay .nookku/tests/20261019-144117-cfcd/relay.jsonl
 ```
 
 ```text
@@ -236,25 +237,25 @@ The exit code is 0 for clean, 1 for a break, and 2 if a record is missing or inv
 The model wrote `report.md` in the test folder:
 
 ```bash
-cat .nookku/tests/20261018-122751-7001/report.md
+cat .nookku/tests/20261019-144117-cfcd/report.md
 ```
 
 ```markdown
-# Test 20261018-122751-7001: evaluation
+# Test 20261019-144117-cfcd: evaluation
 
 | Class | Turn | Evidence | Issue |
 |---|---|---|---|
-| missing_action | 1 | tap.jsonl:1, agent.py:27, agent.py:31 | The tester said "the mug i ordered came with a crack in the handle". The app replied "Which item is this about: the mug or the teapot?", but the tester had already named the mug. The app also said nothing about the damage, though its own rule (agent.py:23) is "Damaged items: full refund." The message has no keyword from `REPLIES`, so `answer()` gave the `FALLBACK` text, and `app-state/answers.jsonl:1` logged it with `"topic": "other"`. |
+| missing_action | 1 | turn 1; agent.py:27, agent.py:31 | The tester said "the mug i ordered came with a crack in the handle". The app replied "Which item is this about: the mug or the teapot?", but the tester had already named the mug. The app did not act on the damaged item or offer the rule it states itself, "Damaged items: full refund." (agent.py:23). The reply is the `FALLBACK` text. The app matches only the keywords `refund`, `ship` and `price` (agent.py:31), and the message has none of them. |
 
 ## Notes
 
-- Seal: intact ("No record changed after the end of the test."). Audit: 3 turns, 3 exchanges, no breaks, no errors. `relay.jsonl` and `tap.jsonl` match for each turn (same `said`/`input` and `shown`/`reply` hashes).
-- `findings.json` has no findings, and `trace.jsonl` is empty: 0 model items, 0 model sessions. That fits the code. `agent.py` is a keyword matcher from the standard library only. It calls no model, no tool and no backend, so the `wrong_tool` and `wrong_arguments` classes do not apply.
-- Business rules: the project has no rules document, specs or tests. The only rules are the reply texts in `agent.py:22-27`, so I judged against those.
-- Turn 2: the reply is exactly `REPLIES["refund"]` (agent.py:23). It agrees with the rules.
-- Turn 3: the reply is exactly `REPLIES["ship"]` (agent.py:24). It agrees with the rules and implies that the shop does not ship to Delhi, but it never says "no" directly. The reply also ends with two trailing spaces, which is cosmetic. I did not report either point as an issue.
-- State: `app-state/answers.jsonl` has 3 lines with the topics `other`, `refund` and `ship`. They agree with the replies of turns 1–3. The state has no order or refund records, so I could not check any order the tester talked about.
-- I did not start the app or send it a message.
+- Seal: intact. The audit has no break, no error and no skipped turn. `findings.json` has no finding.
+- `trace.jsonl` is empty, and the test has 0 model sessions. The app is a keyword matcher with no model and no tool (agent.py:22-35), so the transcript has no tool call or query to check. I judged each reply against the code and the rules in `REPLIES`.
+- `app-state/answers.jsonl` has 3 lines with the topics `other`, `refund` and `ship`. They agree with the 3 replies and with `topic()` (agent.py:34-35).
+- Turn 2: the reply is the `refund` text of agent.py:23 word for word. No issue.
+- Turn 3: the tester asked "do you ship to delhi?". The app replied "We ship to Chennai and Pune. Delivery takes 3 to 5 days.", which is agent.py:24. The rule supports this reply, but the reply does not say "no" about Delhi outright. The tester has to work that out from the list. This is a weak answer, not a wrong one, so I did not list it as an issue.
+- The project has no rules document, spec or tests other than agent.py. The only business rules I could check are the texts in `REPLIES`.
+- `denied.jsonl` is in the test folder. It probably records a shell command of mine that the relay denied during this evaluation, a `for` loop over the test folder. It does not record the app.
 
 ## Tester notes
 
@@ -274,7 +275,7 @@ nookku verify
 ```
 
 ```text
-Test 20261018-122751-7001. Seal: intact. No record changed after the end of the test.
+Test 20261019-144117-cfcd. Seal: intact. No record changed after the end of the test.
 ```
 
 ## 10. Read the trace and the findings
@@ -289,19 +290,19 @@ In my run, the output was:
 
 ```text
 Trace: 0 model items in 3 turns, no findings.
-File: .../toy-shop/.nookku/tests/20261018-122751-7001/trace.jsonl
+File: .../toy-shop/.nookku/tests/20261019-144117-cfcd/trace.jsonl
 ```
 
 With no test id, `trace` uses the latest test. The toy shop has no model, so the trace has no model items and no findings. Read the findings file:
 
 ```bash
-cat .nookku/tests/20261018-122751-7001/findings.json
+cat .nookku/tests/20261019-144117-cfcd/findings.json
 ```
 
 ```json
 {
  "v": "0.2",
- "test": "20261018-122751-7001",
+ "test": "20261019-144117-cfcd",
  "turns": 3,
  "items": 0,
  "sessions": [],

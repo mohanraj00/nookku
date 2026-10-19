@@ -1,8 +1,8 @@
 {
- "date": "2026-10-18",
+ "date": "2026-10-19",
  "relay": "hooks-claude-code",
  "version": "2.1.302 (Claude Code)",
- "nookku": "0.5.2",
+ "nookku": "0.5.3",
  "plugins": [
   "cc-plugin-agents-md@builtin",
   "cc-plugin-plugin-authoring@builtin",
@@ -10,7 +10,7 @@
  ],
  "answers": {
   "memory_sha256": "c627c09c14e58e44bc51622dac392958ec88244e414b508020634f53cfcd1e69",
-  "read": "You gave the agent this order code in turn 1:\n\n> My order code is ZX-4471-Q.\n\nThe code is `ZX-4471-Q`.\n\nThe agent's reply in turn 1 repeats the same code."
+  "read": "The order code that you gave the agent in turn 1 is:\n\n```\nZX-4471-Q\n```\n\nYour full message in turn 1 was `My order code is ZX-4471-Q.  `. It ends with two spaces after the period. The agent's reply echoed the message with the same two spaces."
  },
  "audit_exit": 0,
  "turns": 2,
