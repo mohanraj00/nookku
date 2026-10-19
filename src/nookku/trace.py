@@ -408,14 +408,29 @@ def read_otel(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     return items, {"file": otlp.FILE, "rows": rows, "items": len(items), "ignored": dict(ignored)}
 
 
+def cut_note(body: dict[str, Any]) -> str:
+    """The note of a cut body in backend.jsonl or model_api.jsonl: the count of bytes that the
+    record holds, and the size of all of the body."""
+    text, data = body.get("text"), body.get("base64")
+    try:
+        kept = len(text.encode()) if isinstance(text, str) else len(base64.b64decode(str(data)))
+    except ValueError:
+        kept = 0
+    size = body.get("size")
+    if body.get("decoded"):
+        encoding = body["decoded"]
+        return (
+            f"the record holds the first {kept} decoded bytes of a {encoding} body of {size} bytes"
+        )
+    return f"the record holds the first {kept} of {size} bytes"
+
+
 def _body(body: Any) -> str | None:
     """The text of a body in backend.jsonl, or a note for a binary body."""
     if not isinstance(body, dict) or not body.get("size"):
         return None
     if isinstance(body.get("text"), str):
-        return str(body["text"]) + (
-            "\n(cut: the record holds the first 1 MiB)" if body.get("cut") else ""
-        )
+        return str(body["text"]) + (f"\n(cut: {cut_note(body)})" if body.get("cut") else "")
     return f"({body['size']} bytes that are not UTF-8: base64 in backend.jsonl)"
 
 
@@ -819,6 +834,10 @@ def read_model_api(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         info = {k: result.get(k) for k in ("model", "stop_reason", "usage")}
         if form == "decisions":
             info["answers"] = result.get("answers") or []
+        body = row.get("response_body")
+        if result.get("cut") and isinstance(body, dict) and body.get("cut"):
+            # The result is of the start of the response only (SPEC.md section 7.7).
+            info["cut"] = cut_note(body)
         it.update(
             kind="message",
             role="assistant",

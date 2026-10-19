@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import codecs
 import json
+import re
 from collections.abc import Mapping
 from typing import Any
 
@@ -24,6 +25,9 @@ APIS = {
     "anthropic": ("ANTHROPIC_BASE_URL", "https://api.anthropic.com"),
     "openai": ("OPENAI_BASE_URL", "https://api.openai.com/v1"),
 }
+NOT_JSON = "the response is not JSON"
+# A blank line of an event stream: 2 line ends (SPEC.md section 4.1).
+BLANK_LINE = re.compile(rb"(?:\r\n|\r(?!\n)|\n){2}")
 # The start of the User-Agent of a harness, and the harness name.
 HARNESS_AGENTS = (("claude-cli", "claude-code"), ("claude-code", "claude-code"), ("codex", "codex"))
 
@@ -131,7 +135,7 @@ def anthropic(data: bytes, stream: bool) -> dict[str, Any]:
     if not stream:
         body = _json(data.decode("utf-8", errors="replace"))
         if not isinstance(body, dict):
-            out["error"] = "the response is not JSON"
+            out["error"] = NOT_JSON
             return out
         out.update(model=body.get("model"), stop_reason=body.get("stop_reason"))
         out.update(usage=body.get("usage"), error=_error(body))
@@ -176,7 +180,7 @@ def openai(data: bytes, stream: bool) -> dict[str, Any]:
     if not stream:
         body = _json(data.decode("utf-8", errors="replace"))
         if not isinstance(body, dict):
-            out["error"] = "the response is not JSON"
+            out["error"] = NOT_JSON
             return out
         out.update(model=body.get("model"), usage=body.get("usage"), error=_error(body))
         choices = body.get("choices") if isinstance(body.get("choices"), list) else []
@@ -265,7 +269,7 @@ def responses(data: bytes, stream: bool) -> dict[str, Any]:
     if not stream:
         body = _json(data.decode("utf-8", errors="replace"))
         if not isinstance(body, dict):
-            out["error"] = "the response is not JSON"
+            out["error"] = NOT_JSON
             return out
         _responses_status(out, body)
         _responses_output(out, body.get("output"))
@@ -334,7 +338,7 @@ def decisions(data: bytes, stream: bool) -> dict[str, Any]:
     out = {**_empty(), "answers": []}
     body = _json(data.decode("utf-8", errors="replace"))
     if not isinstance(body, dict):
-        out["error"] = "the response is not JSON"
+        out["error"] = NOT_JSON
         return out
     out.update(model=body.get("model"), usage=body.get("usage"), error=_error(body))
     answers = body.get("answers")
@@ -368,6 +372,14 @@ def result(api: str, path: str, data: bytes, stream: bool) -> dict[str, Any] | N
     return None if form is None else PARSERS[form](data, stream)
 
 
+def whole_events(data: bytes) -> bytes:
+    """The start of a cut event stream up to the end of its last complete event."""
+    end = 0
+    for found in BLANK_LINE.finditer(data):
+        end = found.end()
+    return data[:end]
+
+
 def _omit(body: Any) -> None:
     """Remove the text of a body of a harness call. Its size and SHA-256 stay."""
     if isinstance(body, dict):
@@ -380,8 +392,6 @@ def _omit(body: Any) -> None:
 class ModelProxy(backend.Proxy):
     """One recording proxy for one model API."""
 
-    streaming = True
-
     def describe(self, row: dict[str, Any], headers: list[tuple[str, str]], body: bytes) -> None:
         name = row.pop("backend")
         old = dict(row)
@@ -392,12 +402,27 @@ class ModelProxy(backend.Proxy):
         if row["harness"]:
             _omit(row["request_body"])
 
-    def complete(self, row: dict[str, Any], body: bytes, encoding: str | None) -> None:
+    def complete(
+        self, row: dict[str, Any], body: bytes, encoding: str | None, cut: bool = False
+    ) -> None:
         headers = row["response_headers"] or []
         kind = next((v for k, v in headers if k.lower() == "content-type"), "")
         row["stream"] = "text/event-stream" in kind.lower()
         if row["harness"]:
             _omit(row["response_body"])
             return
-        data = backend.decode(body, encoding) or body
+        data = backend.decode(body, encoding, self.limit, partial=cut)
+        if data is None:
+            data = body
+        elif len(data) > self.limit:
+            data, cut = data[: self.limit], True
+        if cut and row["stream"]:
+            # The result is of the start of the response only: of the events that end before
+            # the cut. A JSON body that the cut stops is not complete.
+            data = whole_events(data)
         row["result"] = result(self.backend.name, row["path"], data, row["stream"])
+        if cut and row["result"] is not None:
+            # The cut is the reason why a JSON body is not complete. The trace names the cut.
+            if row["result"]["error"] == NOT_JSON:
+                row["result"]["error"] = None
+            row["result"]["cut"] = True

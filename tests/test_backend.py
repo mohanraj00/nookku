@@ -1,12 +1,17 @@
+import base64
 import gzip
+import hashlib
 import http.client
 import json
 import os
+import socket
+import socketserver
 import threading
 import time
 from pathlib import Path
 
 import pytest
+from toy_model_server import ModelServer
 from toy_stock_server import StockServer
 
 from nookku import backend
@@ -268,3 +273,193 @@ def test_a_lone_surrogate_in_a_row_is_written_as_its_escape(tmp_path: Path) -> N
             proxies.stop()
     assert status == 200
     assert rows(tmp_path)[0]["note"] == "a mug \\ud83d"
+
+
+def test_a_response_larger_than_the_limit_goes_to_the_app_and_the_row_is_cut(
+    tmp_path: Path,
+) -> None:
+    answer = os.urandom(300_000)
+    with StockServer() as stock:
+        stock.answer_body = answer
+        b = backend.Backend("stock", "STOCK_URL", stock.url)
+        proxies = backend.Proxies([b], tmp_path / backend.FILE, keep=100)
+        env = proxies.start()
+        try:
+            _, _, got = request(env["STOCK_URL"], "GET", "/stock", None, {})
+        finally:
+            proxies.stop()
+    assert got == answer
+    body = rows(tmp_path)[0]["response_body"]
+    assert (body["size"], body["sha256"], body["cut"]) == (
+        len(answer),
+        hashlib.sha256(answer).hexdigest(),
+        True,
+    )
+    assert base64.b64decode(body["base64"]) == answer[:100]
+
+
+def test_a_stream_body_keeps_only_its_first_bytes() -> None:
+    stream = backend.StreamBody(10, None)
+    for _ in range(1000):
+        stream.add(b"0123456789abcdef")
+    assert (stream.size, stream.kept, stream.data, stream.cut) == (16000, 10, b"0123456789", True)
+    assert sum(len(p) for p in stream.parts) == 10
+
+
+def test_the_start_of_a_cut_gzip_body_is_decoded() -> None:
+    text = os.urandom(2000).hex().encode()
+    data = gzip.compress(text)[:1000]
+    assert backend.decode(data, "gzip", 100_000) is None
+    assert backend.decode(data, "gzip", 100) == text[:101]
+    assert backend.decode(data, "gzip", 19, partial=True) == text[:20]
+    assert backend.decode(b"not gzip", "gzip", 20, partial=True) is None
+    two = gzip.compress(b"tea") + gzip.compress(b"pot")
+    assert backend.decode(two, "gzip", 100) == b"teapot"
+
+
+def test_a_gzip_bomb_decodes_only_up_to_the_limit(tmp_path: Path) -> None:
+    bomb = gzip.compress(bytes(50 * 1024 * 1024))
+    assert len(bomb) < 100_000
+    assert backend.decode(bomb, "gzip", 1000) == bytes(1001)
+    body = backend.body_row(bomb, "gzip", 1000)
+    assert (body["size"], body["cut"], body["decoded"], body["text"]) == (
+        len(bomb),
+        True,
+        "gzip",
+        "\0" * 1000,
+    )
+    with StockServer() as stock:
+        stock.answer_body = bomb
+        stock.answer_headers = [("Content-Encoding", "gzip")]
+        b = backend.Backend("stock", "STOCK_URL", stock.url)
+        proxies = backend.Proxies([b], tmp_path / backend.FILE, keep=100_000)
+        env = proxies.start()
+        try:
+            _, _, got = request(env["STOCK_URL"], "GET", "/stock", None, {})
+        finally:
+            proxies.stop()
+    assert got == bomb
+    # The bomb is shorter than the limit, so the proxy keeps all of it and decodes it with the
+    # same bound.
+    assert rows(tmp_path)[0]["response_body"] == backend.body_row(bomb, "gzip", 100_000)
+
+
+class RawBackend(socketserver.TCPServer):
+    """A backend that sends one response as raw bytes, also a response that breaks the framing
+    rules of HTTP."""
+
+    allow_reuse_address = True
+
+    def __init__(self, answer: bytes) -> None:
+        self.answer = answer
+        super().__init__(("127.0.0.1", 0), RawHandler)
+
+    @property
+    def url(self) -> str:
+        return f"http://127.0.0.1:{self.server_address[1]}"
+
+
+class RawHandler(socketserver.BaseRequestHandler):
+    server: RawBackend
+
+    def handle(self) -> None:
+        self.request.recv(65536)
+        self.request.sendall(self.server.answer)
+
+
+FORGED = b"HTTP/1.1 200 OK\r\nContent-Length: 6\r\n\r\nforged"
+
+
+@pytest.mark.parametrize(
+    "head",
+    [
+        b"Transfer-Encoding: chunked\r\nContent-Length: 5\r\n",
+        b"Transfer-Encoding: chunked\r\nContent-Length: -1\r\n",
+        b"Transfer-Encoding: chunked\r\nContent-Length: five\r\n",
+    ],
+)
+def test_the_app_gets_the_framing_of_the_bytes_and_not_a_wrong_length(
+    tmp_path: Path, head: bytes
+) -> None:
+    data = b"HELLO" + FORGED
+    answer = b"HTTP/1.1 200 OK\r\n" + head + b"\r\n%x\r\n%s\r\n0\r\n\r\n" % (len(data), data)
+    server = RawBackend(answer)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        proxies = proxy_for(None, tmp_path, server.url)  # type: ignore[arg-type]
+        env = proxies.start()
+        try:
+            host, port = env["STOCK_URL"].removeprefix("http://").split(":")
+            with socket.create_connection((host, int(port)), timeout=10) as conn:
+                conn.sendall(b"GET /stock HTTP/1.1\r\nHost: x\r\n\r\n")
+                got = b""
+                while not got.endswith(b"0\r\n\r\n"):
+                    part = conn.recv(65536)
+                    if not part:
+                        break
+                    got += part
+        finally:
+            proxies.stop()
+    finally:
+        server.shutdown()
+        server.server_close()
+    head_part, _, rest = got.partition(b"\r\n\r\n")
+    assert b"content-length" not in head_part.lower()
+    assert b"transfer-encoding: chunked" in head_part.lower()
+    # The forged response is inside the one chunked body, so the app reads it as body bytes.
+    assert rest == b"%x\r\n%s\r\n0\r\n\r\n" % (len(data), data)
+
+
+def test_a_body_that_streams_at_the_end_of_the_test_keeps_its_status_and_bytes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(backend, "DRAIN", 0.2)
+    with ModelServer() as server:
+        server.parts = [b"first part, ", b"last part"]
+        server.release.clear()
+        b = backend.Backend("stock", "STOCK_URL", server.url)
+        proxies = backend.Proxies([b], tmp_path / backend.FILE)
+        env = proxies.start()
+        host, port = env["STOCK_URL"].removeprefix("http://").split(":")
+        conn = http.client.HTTPConnection(host, int(port), timeout=10)
+        conn.request("POST", "/stock", body=b"{}")
+        resp = conn.getresponse()
+        # The app has the status and the first part before the body ends.
+        assert resp.status == 200 and resp.read1(65536) == b"first part, "
+        proxies.stop()
+        server.release.set()
+        conn.close()
+    row = rows(tmp_path)[0]
+    assert (row["status"], row["error"]) == (200, backend.STREAM_ENDED)
+    assert row["response_body"]["text"] == "first part, "
+
+
+def test_an_http_1_0_client_gets_the_body_with_no_chunks(tmp_path: Path) -> None:
+    server = RawBackend(b"HTTP/1.1 200 OK\r\nConnection: close\r\n\r\nhello toy shop")
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        proxies = proxy_for(None, tmp_path, server.url)  # type: ignore[arg-type]
+        env = proxies.start()
+        try:
+            host, port = env["STOCK_URL"].removeprefix("http://").split(":")
+            with socket.create_connection((host, int(port)), timeout=10) as conn:
+                conn.sendall(b"GET /stock HTTP/1.0\r\nConnection: keep-alive\r\n\r\n")
+                got = b""
+                while part := conn.recv(65536):
+                    got += part
+        finally:
+            proxies.stop()
+    finally:
+        server.shutdown()
+        server.server_close()
+    head, _, rest = got.partition(b"\r\n\r\n")
+    assert b"transfer-encoding" not in head.lower() and rest == b"hello toy shop"
+
+
+def test_a_cut_in_a_character_keeps_the_text_before_it() -> None:
+    stream = backend.StreamBody(5, None)
+    stream.add("abcdé more".encode())
+    body = stream.row()
+    assert (body["cut"], body["text"], body["size"]) == (True, "abcd", 11)
+    assert "base64" not in body
+    assert backend.body_row(b"\xff\xfe\xfd\xfc\xfb\xfa", None, 3)["base64"] == "//79"

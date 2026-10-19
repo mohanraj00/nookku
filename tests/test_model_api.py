@@ -1,3 +1,4 @@
+import hashlib
 import http.client
 import json
 from pathlib import Path
@@ -5,7 +6,7 @@ from pathlib import Path
 import pytest
 from toy_model_server import ModelServer
 
-from nookku import backend, discovery, model_api
+from nookku import backend, discovery, model_api, trace
 
 TRACE = Path(__file__).resolve().parent.parent / "conformance" / "trace"
 STREAM = [
@@ -330,3 +331,153 @@ def test_a_lone_surrogate_in_a_result_is_written_as_its_escape(tmp_path: Path) -
             proxies.stop()
     assert status == 200 and got == sent
     assert rows(tmp_path)[0]["result"]["text"] == "3 mugs \\ud83d left"
+
+
+def big_stream(count: int) -> list[bytes]:
+    """A stream with a long text: one delta event for each part after the first."""
+    delta = b'event: content_block_delta\ndata: {"type": "content_block_delta", "index": 0, '
+    parts = [STREAM[0]]
+    for n in range(count):
+        parts.append(delta + b'"delta": {"type": "text_delta", "text": "mug %05d "}}\n\n' % n)
+    return [*parts, STREAM[2]]
+
+
+def test_a_response_larger_than_the_limit_is_cut_in_the_record_and_named_in_the_trace(
+    tmp_path: Path,
+) -> None:
+    parts = big_stream(2000)
+    sent = b"".join(parts)
+    with ModelServer() as model:
+        model.parts = parts
+        proxies = proxy_for(model, tmp_path)
+        proxies.proxies[0].keep = 1000
+        env = proxies.start()
+        try:
+            req = b'{"stream": true, "messages": [{"role": "user", "content": "Mugs?"}]}'
+            status, got = post(env["ANTHROPIC_BASE_URL"], "/v1/messages", req, {})
+        finally:
+            proxies.stop()
+    # Each byte goes to the app, also after the limit.
+    assert status == 200 and got == sent and len(sent) > 100_000
+    row = rows(tmp_path)[0]
+    body = row["response_body"]
+    assert (body["size"], body["sha256"], body["cut"]) == (
+        len(sent),
+        hashlib.sha256(sent).hexdigest(),
+        True,
+    )
+    assert body["text"].encode() == sent[:1000]
+    # The result is of the events that end before the cut.
+    kept = model_api.whole_events(sent[:1000])
+    shown = model_api.result("anthropic", "/v1/messages", kept, True)
+    assert row["result"] == {**shown, "cut": True}
+    assert row["result"]["text"].startswith("mug 00000 mug 00001 ")
+    assert row["result"]["stop_reason"] is None and row["error"] is None
+    items, _ = trace.read_model_api(tmp_path / model_api.FILE)
+    assistant = next(it for it in items if it["role"] == "assistant")
+    note = f"the record holds the first 1000 of {len(sent)} bytes"
+    assert assistant["input"]["cut"] == note and assistant["error"] is None
+
+
+def test_a_cut_json_response_has_no_json_error() -> None:
+    proxy = model_api.ModelProxy.__new__(model_api.ModelProxy)
+    proxy.backend = backend.Backend("openai", "OPENAI_BASE_URL", "http://127.0.0.1:1")
+    proxy.keep = 10
+    row = {"harness": None, "path": "/chat/completions", "response_headers": []}
+    proxy.complete(row, b'{"model": ', None, cut=True)
+    assert row["result"]["cut"] is True and row["result"]["error"] is None
+    proxy.complete(row, b'{"model": ', None)
+    assert row["result"]["error"] == model_api.NOT_JSON and "cut" not in row["result"]
+
+
+def test_whole_events_ends_at_the_last_blank_line() -> None:
+    assert (
+        model_api.whole_events(b"data: 1\n\ndata: 2\r\n\r\ndata: 3")
+        == b"data: 1\n\ndata: 2\r\n\r\n"
+    )
+    assert model_api.whole_events(b"data: 1\r\ndata: 2\r\n") == b""
+    assert model_api.whole_events(b"data: 1\r\rdata") == b"data: 1\r\r"
+
+
+def test_the_parsers_give_the_results_of_the_cut_case() -> None:
+    lines = (TRACE / "model_api_cut" / model_api.FILE).read_text().split("\n")
+    calls = [json.loads(x) for x in lines if x]
+    # The harness row keeps no text, so it gives no result. The proxy reads each other row with
+    # cut=True: a cut body, or a stream that is open at the end of the test.
+    calls = [row for row in calls if not row["harness"]]
+    assert len(calls) == 3 and [row["response_body"]["cut"] for row in calls] == [True, True, False]
+    for row in calls:
+        kept = row["response_body"]["text"].encode()
+        proxy = model_api.ModelProxy.__new__(model_api.ModelProxy)
+        proxy.backend = backend.Backend(row["api"], "UNUSED", "http://127.0.0.1:1")
+        got = {**row, "harness": None, "result": None}
+        proxy.complete(got, kept, None, cut=True)
+        assert got["result"] == row["result"]
+
+
+def test_a_gzip_bomb_gives_a_cut_result(tmp_path: Path) -> None:
+    text = b'{"model": "gpt-toy", "choices": [{"message": {"content": "' + b" " * 5_000_000
+    with ModelServer() as model:
+        model.parts = [text]
+        model.content_type = "application/json"
+        model.gzip = True
+        proxies = proxy_for(model, tmp_path, "openai")
+        proxies.proxies[0].keep = 100_000
+        env = proxies.start()
+        try:
+            status, got = post(env["OPENAI_BASE_URL"], "/chat/completions", b"{}", {})
+        finally:
+            proxies.stop()
+    assert status == 200 and len(got) < 100_000
+    row = rows(tmp_path)[0]
+    assert row["response_body"]["cut"] is True and row["response_body"]["decoded"] == "gzip"
+    assert row["result"]["cut"] is True and row["result"]["error"] is None
+
+
+@pytest.mark.parametrize("agent", ["claude-cli/2.1.290 (external, sdk-py)", "toy-shop/1.0"])
+def test_a_stream_that_is_open_at_the_end_of_the_test_gets_its_row(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, agent: str
+) -> None:
+    monkeypatch.setattr(backend, "DRAIN", 0.2)
+    with ModelServer() as model:
+        model.parts = [STREAM[0] + STREAM[1], STREAM[2]]
+        model.release.clear()
+        proxies = proxy_for(model, tmp_path)
+        env = proxies.start()
+        conn = connect(env["ANTHROPIC_BASE_URL"])
+        conn.request(
+            "POST", "/v1/messages", body=b'{"stream": true}', headers={"User-Agent": agent}
+        )
+        resp = conn.getresponse()
+        assert resp.read1(65536) == STREAM[0] + STREAM[1]
+        proxies.stop()
+        model.release.set()
+        conn.close()
+    row = rows(tmp_path)[0]
+    assert (row["error"], row["stream"]) == (backend.STREAM_ENDED, True)
+    if agent.startswith("claude-cli"):
+        # A harness call keeps no text, also if the test ends before its stream ends.
+        assert "teapot" not in (tmp_path / model_api.FILE).read_text()
+        assert row["response_body"]["omitted"] and row["result"] is None
+    else:
+        result = row["result"]
+        assert (result["text"], result["cut"]) == ("3 teapot sets € left.", True)
+
+
+def test_a_call_that_ends_after_the_end_of_the_test_does_not_change_its_row(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(backend, "DRAIN", 0)
+    with ModelServer() as model:
+        proxies = proxy_for(model, tmp_path)
+        proxies.start()
+        proxy = proxies.proxies[0]
+        row = {"v": 1, "type": "call", "harness": None, "path": "/v1/messages", "error": None}
+        assert proxy.begin(row)
+        proxies.stop()
+        written = dict(row)
+        # The call ends after the proxy wrote its row. The end does not change the row.
+        text = {"size": 13, "text": "3 teapot sets"}
+        proxy.end(row, {"response_body": text}, b"3 teapot sets", None)
+    assert row == written and row["error"] == backend.ENDED
+    assert rows(tmp_path) == [written]

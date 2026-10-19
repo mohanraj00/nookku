@@ -105,6 +105,8 @@ class TestConfig:
     trace: dict[str, Any] = field(default_factory=dict)
     # The name of the entry in entries, or None for the default entry (SPEC.md section 7.10).
     entry_name: str | None = None
+    # The most bytes of a body that a backend or model API proxy keeps (SPEC.md section 7.6).
+    record_limit: int = backend.RECORD_LIMIT
 
 
 def load_config(root: Path, entry_name: str | None = None) -> TestConfig:
@@ -131,7 +133,8 @@ def load_config(root: Path, entry_name: str | None = None) -> TestConfig:
     otel = data.get("otel", True) is not False
     message = data.get("check_message", CHECK_MESSAGE)
     keys = {k: data.get(k, default) for k, default in trace.TRACE_KEYS.items()}
-    return TestConfig(entry, models, otel, rules, message, keys, entry_name)
+    limit = data.get("record_limit", backend.RECORD_LIMIT)
+    return TestConfig(entry, models, otel, rules, message, keys, entry_name, limit)
 
 
 def egress_proxies(
@@ -792,11 +795,13 @@ def run(
         _log(f"OTLP receiver on {receiver.url}")
         # The coverage check skips the calls to the receiver (SPEC.md section 8.6).
         manifest["egress"]["receiver"] = receiver.url
-    proxies = backend.Proxies(backends, folder / backend.FILE)
+    proxies = backend.Proxies(backends, folder / backend.FILE, keep=config.record_limit)
     env.update(proxies.start())
     for p in proxies.proxies:
         _log(f"backend {p.backend.name}: {p.backend.env}={p.url} -> {p.backend.url}")
-    apis = backend.Proxies(model_apis, folder / model_api.FILE, model_api.ModelProxy)
+    apis = backend.Proxies(
+        model_apis, folder / model_api.FILE, model_api.ModelProxy, config.record_limit
+    )
     env.update(apis.start())
     # The app can keep its state in the test folder, for example in app-state/, so that the seal
     # covers it (SPEC.md section 6.1).

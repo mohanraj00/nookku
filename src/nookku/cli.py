@@ -39,6 +39,7 @@ LIST_KEYS = {
     "repeated_reply",
     "transcript_compact",
     "page",
+    "record_limit",
 }
 # The plain string flags of init. A flag that the user does not give is None.
 STRING_KEYS = [k for k in CONFIG_KEYS if k not in LIST_KEYS]

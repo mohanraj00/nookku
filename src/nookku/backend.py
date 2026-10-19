@@ -2,14 +2,15 @@
 
 During a test, the bridge runs one recording proxy for each backend in the configuration, and gives
 the entry the proxy URL in the backend's environment variable. The proxy forwards each request to
-the real URL and sends the response back with no change. It writes one row for each call to
-backend.jsonl, without the values of secret headers and secret query parameters.
+the real URL and sends each part of the response back with no change when it comes. It writes one
+row for each call to backend.jsonl, without the values of secret headers and secret query
+parameters. The row keeps only the first bytes of a large body.
 """
 
 from __future__ import annotations
 
 import base64
-import gzip
+import codecs
 import hashlib
 import http.client
 import json
@@ -23,14 +24,16 @@ from typing import Any
 from urllib.parse import unquote_plus, urlsplit
 
 from . import stdio
+from .config import Config
 from .record import json_text
 from .tap import HOP_BY_HOP
 
 FILE = "backend.jsonl"
 VERSION = 1
 TIMEOUT = 120
-# A body larger than this goes into the record cut. The app always gets all of the bytes.
-RECORD_LIMIT = 1024 * 1024
+# The default of the config key record_limit: a body larger than this goes into the record cut.
+# The app always gets all of the bytes (SPEC.md section 7.6).
+RECORD_LIMIT = Config.record_limit
 # The rule for the names of secret headers and secret query parameters: a name in SECRET_HEADERS
 # or SECRET_NAMES, or a name that contains a part in SECRET_PARTS. Case does not apply.
 SECRET_HEADERS = {"authorization", "proxy-authorization", "cookie", "set-cookie"}
@@ -78,29 +81,59 @@ def query_row(query: str) -> str:
     return "&".join(parts)
 
 
-def decode(data: bytes, encoding: str | None) -> bytes | None:
-    """The decoded bytes of a gzip or deflate body, or None."""
+def decode(data: bytes, encoding: str | None, limit: int, partial: bool = False) -> bytes | None:
+    """The decoded bytes of a gzip or deflate body, or None. The decode stops after `limit` + 1
+    bytes, so a small body that decodes to many bytes does not use the memory of the test. A
+    longer result than `limit` thus shows that the decoded body is longer. With `partial`, a body
+    that stops early gives the bytes that it decodes. Else it gives None, as a broken body does.
+    """
     if encoding not in ("gzip", "deflate") or not data:
         return None
+    out: list[bytes] = []
+    room, rest = limit + 1, data
     try:
-        return gzip.decompress(data) if encoding == "gzip" else zlib.decompress(data)
-    except (OSError, EOFError, zlib.error):
+        # A gzip body can have more than one member, and each member starts a new decoder.
+        while rest and room > 0:
+            decoder = zlib.decompressobj(31 if encoding == "gzip" else 15)
+            part = decoder.decompress(rest, room)
+            out.append(part)
+            room -= len(part)
+            if not decoder.eof:
+                if room > 0 and not partial:
+                    return None
+                break
+            rest = decoder.unused_data if encoding == "gzip" else b""
+    except zlib.error:
         return None
+    return b"".join(out)
 
 
-def body_row(data: bytes, encoding: str | None = None) -> dict[str, Any]:
+def body_row(
+    data: bytes, encoding: str | None = None, limit: int | None = None, cut: bool = False
+) -> dict[str, Any]:
     """A body in the record: its size, its SHA-256 and its text (UTF-8) or base64.
 
-    For a gzip or deflate body, `text` is the decoded body, so that the record can be read.
+    For a gzip or deflate body, `text` is the decoded body, so that the record can be read. The
+    record keeps the first `limit` bytes, or RECORD_LIMIT bytes if `limit` is None. `cut` is True
+    if `data` is only the start of the body.
     """
+    limit = RECORD_LIMIT if limit is None else limit
     out: dict[str, Any] = {"size": len(data), "sha256": hashlib.sha256(data).hexdigest()}
-    shown = decode(data, encoding)
+    shown = decode(data, encoding, limit)
     if shown is not None:
         out["decoded"] = encoding
     else:
         shown = data
-    out["cut"] = len(shown) > RECORD_LIMIT
-    shown = shown[:RECORD_LIMIT]
+    out["cut"] = cut or len(shown) > limit
+    shown = shown[:limit]
+    if out["cut"]:
+        # The cut can split a UTF-8 character. The text then ends before that character.
+        decoder = codecs.getincrementaldecoder("utf-8")()
+        try:
+            decoder.decode(shown)
+            shown = shown[: len(shown) - len(decoder.getstate()[0])]
+        except UnicodeDecodeError:
+            pass  # The body is not UTF-8, so the row keeps all of its start as base64.
     try:
         out["text"] = shown.decode("utf-8")
     except UnicodeDecodeError:
@@ -110,9 +143,9 @@ def body_row(data: bytes, encoding: str | None = None) -> dict[str, Any]:
 
 class StreamBody:
     """The bytes of a response stream as they come: the size and the SHA-256 of all of them, and
-    the first `keep` bytes, or all of them if `keep` is None."""
+    the first `keep` bytes. The proxy never holds more bytes of a response."""
 
-    def __init__(self, keep: int | None, encoding: str | None) -> None:
+    def __init__(self, keep: int, encoding: str | None) -> None:
         self.keep = keep
         self.encoding = encoding
         self.size = 0
@@ -123,8 +156,8 @@ class StreamBody:
     def add(self, part: bytes) -> None:
         self.size += len(part)
         self.digest.update(part)
-        if self.keep is None or self.kept < self.keep:
-            part = part if self.keep is None else part[: self.keep - self.kept]
+        if self.kept < self.keep:
+            part = part[: self.keep - self.kept]
             self.parts.append(part)
             self.kept += len(part)
 
@@ -132,12 +165,16 @@ class StreamBody:
     def data(self) -> bytes:
         return b"".join(self.parts)
 
+    @property
+    def cut(self) -> bool:
+        return self.size > self.kept
+
     def row(self) -> dict[str, Any]:
         data = self.data
-        if self.size == len(data):
-            return body_row(data, self.encoding)
+        if not self.cut:
+            return body_row(data, self.encoding, self.keep)
         # The proxy did not keep all of the stream. The row shows its first bytes as they came.
-        body = body_row(data)
+        body = body_row(data, None, self.keep, cut=True)
         body.update(size=self.size, sha256=self.digest.hexdigest(), cut=True)
         return body
 
@@ -160,14 +197,9 @@ class Proxy(ThreadingHTTPServer):
     """One recording proxy for one backend."""
 
     daemon_threads = True
-    # True: send each part of the response to the app when it comes (SPEC.md section 7.7).
-    streaming = False
-    # The most bytes of a stream that the proxy keeps, or None for all of them. The row still
-    # has the size and the SHA-256 of all of the stream.
+    # The most bytes of a body that the record keeps, or None for RECORD_LIMIT. The proxy keeps
+    # no more bytes of a response. The row still has the size and the SHA-256 of all of them.
     keep: int | None = None
-    # True: at the end of the test, the row of an open stream keeps the bytes that came, with the
-    # error STREAM_ENDED. Else it has no response.
-    partial = False
 
     def __init__(self, backend: Backend, record: Path, lock: threading.Condition) -> None:
         super().__init__(("127.0.0.1", 0), Handler)
@@ -176,7 +208,9 @@ class Proxy(ThreadingHTTPServer):
         self.lock = lock
         # The rows of the calls that did not end, by their id.
         self.open: dict[int, dict[str, Any]] = {}
-        # The bytes of each open stream, by the id of its row, if `partial` is True.
+        # The bytes of each open stream, by the id of its row. The app gets the status before the
+        # body ends, so at the end of the test the row of an open stream keeps the status, the
+        # headers and the bytes that came, with the error STREAM_ENDED.
         self.streams: dict[int, StreamBody] = {}
         self.closed = False
         target = urlsplit(backend.url)
@@ -194,6 +228,10 @@ class Proxy(ThreadingHTTPServer):
         host, port = self.server_address[:2]
         return f"http://{host!s}:{port}"
 
+    @property
+    def limit(self) -> int:
+        return RECORD_LIMIT if self.keep is None else self.keep
+
     def connect(self) -> http.client.HTTPConnection:
         if self.scheme == "https":
             return http.client.HTTPSConnection(self.host, self.port, timeout=TIMEOUT)
@@ -202,8 +240,11 @@ class Proxy(ThreadingHTTPServer):
     def describe(self, row: dict[str, Any], headers: list[tuple[str, str]], body: bytes) -> None:
         """Add to the row of a new call. A subclass can change it."""
 
-    def complete(self, row: dict[str, Any], body: bytes, encoding: str | None) -> None:
-        """Add to the row of a call that has its response. A subclass can change it."""
+    def complete(
+        self, row: dict[str, Any], body: bytes, encoding: str | None, cut: bool = False
+    ) -> None:
+        """Add to the row of a call that has its response. A subclass can change it. `body` is
+        the start of the response that the proxy kept, and `cut` is True if it is not all of it."""
 
     def begin(self, row: dict[str, Any]) -> bool:
         """Add the call to the open calls. Return False if the proxy is closed."""
@@ -213,11 +254,23 @@ class Proxy(ThreadingHTTPServer):
             self.open[id(row)] = row
             return True
 
-    def end(self, row: dict[str, Any]) -> None:
-        """Write the row of the call, if the proxy did not write it at the end of the test."""
+    def end(
+        self,
+        row: dict[str, Any],
+        fields: dict[str, Any],
+        body: bytes | None = None,
+        encoding: str | None = None,
+        cut: bool = False,
+    ) -> None:
+        """Add `fields` to the row of the call, complete it with `body` if given, and write it.
+        If the proxy wrote the row at the end of the test, do none of this. Hold the lock, so
+        that the end of the test and the call do not change the row at the same time."""
         with self.lock:
             self.streams.pop(id(row), None)
             if self.open.pop(id(row), None) is not None:
+                row.update(fields)
+                if body is not None:
+                    self.complete(row, body, encoding, cut)
                 self._write(row)
             self.lock.notify_all()
 
@@ -227,6 +280,8 @@ class Proxy(ThreadingHTTPServer):
             stream = self.streams.get(key)
             if stream is not None:
                 row.update(ts=time.time(), response_body=stream.row(), error=STREAM_ENDED)
+                # The stream did not end, so the bytes that came are the start of the response.
+                self.complete(row, stream.data, stream.encoding, cut=True)
             else:
                 row.update(ts=time.time(), error=ENDED)
             self._write(row)
@@ -270,7 +325,7 @@ class Handler(BaseHTTPRequestHandler):
             "path": path,
             "query": query_row(query) if query else None,
             "request_headers": headers_row(sent),
-            "request_body": body_row(body, self.headers.get("Content-Encoding")),
+            "request_body": body_row(body, self.headers.get("Content-Encoding"), proxy.limit),
             "status": None,
             "response_headers": None,
             "response_body": None,
@@ -283,42 +338,27 @@ class Handler(BaseHTTPRequestHandler):
             return
         conn = proxy.connect()
         try:
-            # The low-level calls send each header of the app once, in its order, and add no
-            # Accept-Encoding header.
-            conn.putrequest(
-                method, proxy.base_path + self.path, skip_host=True, skip_accept_encoding=True
-            )
-            conn.putheader("Host", proxy.host_header)
-            for name, value in sent:
-                conn.putheader(name, value)
-            if body or method in ("POST", "PUT", "PATCH"):
-                conn.putheader("Content-Length", str(len(body)))
-            conn.endheaders(body or None)
-            resp = conn.getresponse()
-            if proxy.streaming:
-                self._stream(resp, row)
+            try:
+                # The low-level calls send each header of the app once, in its order, and add no
+                # Accept-Encoding header.
+                conn.putrequest(
+                    method, proxy.base_path + self.path, skip_host=True, skip_accept_encoding=True
+                )
+                conn.putheader("Host", proxy.host_header)
+                for name, value in sent:
+                    conn.putheader(name, value)
+                if body or method in ("POST", "PUT", "PATCH"):
+                    conn.putheader("Content-Length", str(len(body)))
+                conn.endheaders(body or None)
+                resp = conn.getresponse()
+            except (OSError, http.client.HTTPException) as e:
+                proxy.end(row, {"ts": time.time(), "error": f"the backend did not answer: {e}"})
+                data = json.dumps({"error": f"nookku backend proxy: {e}"}).encode()
+                self._send(502, [("Content-Type", "application/json")], data)
                 return
-            status, out_headers, out = resp.status, resp.getheaders(), resp.read()
-        except (OSError, http.client.HTTPException) as e:
-            row.update(ts=time.time(), error=f"the backend did not answer: {e}")
-            proxy.end(row)
-            data = json.dumps({"error": f"nookku backend proxy: {e}"}).encode()
-            self._send(502, [("Content-Type", "application/json")], data)
-            return
+            self._stream(resp, row)
         finally:
             conn.close()
-        returned = [(k, v) for k, v in out_headers if k.lower() not in NOT_RETURNED]
-        encoding = next((v for k, v in out_headers if k.lower() == "content-encoding"), None)
-        row.update(
-            ts=time.time(),
-            status=status,
-            response_headers=headers_row(returned),
-            response_body=body_row(out, encoding),
-        )
-        proxy.complete(row, out, encoding)
-        proxy.end(row)
-        length = next((v for k, v in out_headers if k.lower() == "content-length"), None)
-        self._send(status, returned, out, length if method == "HEAD" else None)
 
     def _stream(self, resp: http.client.HTTPResponse, row: dict[str, Any]) -> None:
         """Send each part of the response to the app when it comes, then write the row.
@@ -327,9 +367,21 @@ class Handler(BaseHTTPRequestHandler):
         """
         proxy, out_headers = self.server, resp.getheaders()
         returned = [(k, v) for k, v in out_headers if k.lower() not in NOT_RETURNED]
-        length = resp.getheader("Content-Length")
         bodyless = self.command == "HEAD" or resp.status in (204, 304)
-        chunked = length is None and not bodyless
+        # A response with no body keeps the Content-Length of the backend. Else the framing to the
+        # app comes from http.client, which reads the body: a chunked body, or a Content-Length
+        # that is not one valid count, goes to the app chunked. Thus the app never gets a length
+        # that does not agree with the bytes that follow it.
+        if bodyless:
+            length = resp.getheader("Content-Length")
+        else:
+            length = str(resp.length) if resp.length is not None and not resp.chunked else None
+        # An HTTP/1.0 client does not read chunks. It gets the body with no framing, and the end of
+        # the connection ends the body.
+        unframed = length is None and not bodyless and self.request_version == "HTTP/1.0"
+        chunked = length is None and not bodyless and not unframed
+        if unframed:
+            self.close_connection = True
         app = True
         try:
             self.send_response_only(resp.status)
@@ -344,11 +396,10 @@ class Handler(BaseHTTPRequestHandler):
         except OSError:
             app = False
         encoding = resp.getheader("Content-Encoding")
-        stream = StreamBody(proxy.keep, encoding)
-        if proxy.partial:
-            with proxy.lock:
-                row.update(status=resp.status, response_headers=headers_row(returned))
-                proxy.streams[id(row)] = stream
+        stream = StreamBody(proxy.limit, encoding)
+        with proxy.lock:
+            row.update(status=resp.status, response_headers=headers_row(returned))
+            proxy.streams[id(row)] = stream
         error = None
         while not bodyless:
             try:
@@ -358,13 +409,10 @@ class Handler(BaseHTTPRequestHandler):
                 break
             if not part:
                 break
-            if proxy.partial:
-                with proxy.lock:
-                    stream.add(part)
-            else:
+            with proxy.lock:
                 stream.add(part)
             if app:
-                # The record keeps all of the stream, also if the app went away.
+                # The row counts all of the stream, also if the app went away.
                 try:
                     self.wfile.write(b"%x\r\n%s\r\n" % (len(part), part) if chunked else part)
                     self.wfile.flush()
@@ -382,25 +430,20 @@ class Handler(BaseHTTPRequestHandler):
                 pass
         if error is not None or not app:
             self.close_connection = True
-        out = stream.data
-        row.update(
-            ts=time.time(),
-            status=resp.status,
-            response_headers=headers_row(returned),
-            response_body=stream.row(),
-            error=error,
-        )
-        proxy.complete(row, out, encoding)
-        proxy.end(row)
+        fields = {
+            "ts": time.time(),
+            "status": resp.status,
+            "response_headers": headers_row(returned),
+            "response_body": stream.row(),
+            "error": error,
+        }
+        proxy.end(row, fields, stream.data, encoding, stream.cut)
 
-    def _send(
-        self, status: int, headers: list[tuple[str, str]], body: bytes, length: str | None = None
-    ) -> None:
+    def _send(self, status: int, headers: list[tuple[str, str]], body: bytes) -> None:
         self.send_response_only(status)
         for name, value in headers:
             self.send_header(name, value)
-        # A HEAD response has no body, but it keeps the Content-Length of the backend.
-        self.send_header("Content-Length", length if length is not None else str(len(body)))
+        self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         if self.command != "HEAD":
             self.wfile.write(body)
@@ -409,9 +452,20 @@ class Handler(BaseHTTPRequestHandler):
 class Proxies:
     """The proxies of a test, with one record file."""
 
-    def __init__(self, backends: list[Backend], record: Path, kind: type[Proxy] = Proxy) -> None:
+    def __init__(
+        self,
+        backends: list[Backend],
+        record: Path,
+        kind: type[Proxy] = Proxy,
+        keep: int | None = None,
+    ) -> None:
+        """`keep` is the most bytes of a body that the record keeps, or None for the default of
+        the kind."""
         self.lock = threading.Condition()
         self.proxies = [kind(b, record, self.lock) for b in backends]
+        for p in self.proxies:
+            if keep is not None:
+                p.keep = keep
 
     def start(self) -> dict[str, str]:
         """Start each proxy. Return the variables that give the entry the proxy URLs."""

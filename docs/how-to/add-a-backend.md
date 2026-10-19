@@ -36,9 +36,9 @@ EOF
 During a test, the [bridge](../reference/glossary.md#bridge) runs a recording proxy for each backend, and gives your app the proxy URL in `env`. The proxy forwards each byte to `url` and back. It writes each call to `backend.jsonl` in the [test folder](../reference/glossary.md#test-folder), with the method, the path, the headers, the bodies and the status ([SPEC.md section 7.6](../../SPEC.md#76-backend-proxies)).
 
 - It removes the values of secret headers and secret query parameters from the record, for example `Authorization` or `api_key=`. The service still gets them.
-- It reads the whole response before it sends it, so a streamed response arrives at your app in 1 piece.
+- It sends each part of the response to your app when the part comes.
 - If the service does not answer, the proxy sends status 502 to your app.
-- A body longer than 1 MiB is cut in the record, but the service and your app get each byte ([proof](../results.md#backend-calls)).
+- A body longer than `record_limit` (1 MiB by default, [config.md](../reference/config.md)) is cut in the record, but the service and your app get each byte ([proof](../results.md#backend-calls)). The proxy keeps only the first part of a large response in memory.
 
 ## 4. Read the calls
 
