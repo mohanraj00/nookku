@@ -94,6 +94,11 @@ claude plugin validate plugins/nookku && claude plugin test plugins/nookku
 - `scripts/proof_telemetry.py <setup>` runs a test of `examples/toy-shop-full/` with all telemetry sources and the evaluation at its end, and writes `proofs/telemetry/`.
 - `scripts/proof_codex_otel.py` checks if Codex sends OpenTelemetry data from the `OTEL_*` variables of a test, and writes `proofs/otel/codex.json`.
 - `scripts/proof_sdk_bundles.py <version>...` records the Claude Code version that each given Claude Agent SDK release bundles, with no model, and writes `proofs/trace/sdk-bundles.json`.
+- `scripts/proof_sessions.py` checks that `nookku check` finds the model sessions of a toy shop app, one in each harness, and writes `proofs/sessions/`.
+- `scripts/proof_trace.py` checks that the trace reads real model sessions of a toy shop app (SPEC.md section 8), and writes `proofs/trace/`.
+- `scripts/proof_plugin_load.py` checks that the plugin folder loads in Claude Code and in Codex, and writes `proofs/plugin/load.json`.
+- `scripts/proof_codex_gate.py` runs the Codex hook gate against a real Codex, and writes `proofs/codex-gate/gate.json`. Part B runs with `--trusted`, after the maintainer trusts the hooks.
+- `scripts/proof_tutorial.py` runs the commands of `docs/getting-started.md` in a new toy shop project, and writes `proofs/tutorial/`. With `--model`, Claude Code and the model also run.
 - `scripts/proof_evaluation.py <setup>` runs P5 (the model judges the record, not its memory) and writes `proofs/evaluation/`. Never store a model answer that can quote the harness's own instruction files. Codex runs a hook only after a person trusts it. The maintainer trusts the Codex hooks of the proofs once ([run-the-proofs.md](docs/contributing/run-the-proofs.md#trust-the-codex-hooks-once)). Never try to skip the trust step.
 
 `scripts/example_evaluation.py` runs the worked evaluation in `docs/evaluation-example.md` and writes `examples/toy-shop/evaluation.json`. The model's answer changes on each run, so update the doc with the data.

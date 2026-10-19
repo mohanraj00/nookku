@@ -158,11 +158,12 @@ CASE_FOLDERS = {
     "receiver": "otlp",
     "notes": "notes",
     "discovery": "discovery",
+    "database": "database",
 }
 
 
 def _cases(folder: str) -> int:
-    # A case is a folder, or a JSON file for the discovery cases.
+    # A case is a folder, or a JSON file for the discovery and the database cases.
     return sum(p.is_dir() or p.suffix == ".json" for p in (ROOT / "conformance" / folder).iterdir())
 
 

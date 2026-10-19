@@ -1,0 +1,6 @@
+{
+ "value": "postgresql://shop@db.toy.test/shop?sslmode=verify-ca&sslrootcert=certs/root.crt",
+ "expect": {
+  "error": "the database shop-db: the variable DATABASE_URL has a relative sslrootcert path: certs/root.crt. Give an absolute path."
+ }
+}

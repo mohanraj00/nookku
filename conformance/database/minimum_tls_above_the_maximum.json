@@ -1,0 +1,6 @@
+{
+ "value": "postgresql://shop@db.toy.test/shop?ssl_min_protocol_version=TLSv1.3&ssl_max_protocol_version=TLSv1.2",
+ "expect": {
+  "error": "the database shop-db: the variable DATABASE_URL has ssl_min_protocol_version=TLSv1.3, which is above ssl_max_protocol_version=TLSv1.2"
+ }
+}

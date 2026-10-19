@@ -1164,6 +1164,7 @@ def test_the_postgres_proxy_records_the_queries(
     folder = Path(cur["dir"])
     manifest = json.loads((folder / "manifest.json").read_text())
     assert manifest["egress"]["proxies"]["shop-db"].startswith("postgresql://127.0.0.1:")
+    assert manifest["egress"]["sslmode"] == {"shop-db": "prefer"}
     assert manifest["egress"]["unseen"] == []
     for name in ("manifest.json", "database.jsonl", "bridge.log", "trace.jsonl"):
         assert PASSWORD.decode() not in (folder / name).read_text(), name

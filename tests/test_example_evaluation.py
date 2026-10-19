@@ -1,6 +1,9 @@
 import json
 import re
+import socket
 import sys
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
@@ -29,19 +32,32 @@ def test_setup_configures_a_test_of_the_http_agent_with_no_evaluation(tmp_path: 
         assert (tmp_path / name).read_bytes() == (ex.EXAMPLE / name).read_bytes()
 
 
+@contextmanager
+def held_port() -> Iterator[int]:
+    """Get a port from the OS, and keep it until the end of the block. The socket binds the
+    wildcard address and does not listen, so the toy shop server can bind 127.0.0.1 on the same
+    port. While the socket is open, the OS gives the port to no other process (#438)."""
+    with socket.socket() as s:
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        s.bind(("", 0))
+        port: int = s.getsockname()[1]
+        yield port
+
+
 def test_the_result_comes_from_the_records_of_the_test_folder(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setenv("TOY_SHOP_PORT", str(ex.free_port()))
     ex.setup(tmp_path)
-    cur = bridge.start(tmp_path)
-    try:
-        for said in ex.MESSAGES[:2]:
-            shown, ok = bridge.send(cur, said)
-            row = {"type": "turn", "harness": "claude-code", "said": said, "shown": shown}
-            Writer(Path(cur["dir"]) / "relay.jsonl").append({**row, "ok": ok})
-    finally:
-        bridge.end(tmp_path)
+    with held_port() as port:
+        monkeypatch.setenv("TOY_SHOP_PORT", str(port))
+        cur = bridge.start(tmp_path)
+        try:
+            for said in ex.MESSAGES[:2]:
+                shown, ok = bridge.send(cur, said)
+                row = {"type": "turn", "harness": "claude-code", "said": said, "shown": shown}
+                Writer(Path(cur["dir"]) / "relay.jsonl").append({**row, "ok": ok})
+        finally:
+            bridge.end(tmp_path)
     folder = Path(cur["dir"])
     answer = {"result": f"The agent at {tmp_path} loops.", "modelUsage": {"toy-model": {}}}
     result = ex.collect(folder, ex.Session(answer, [ex.TRANSCRIPT], BUILT_IN), tmp_path)

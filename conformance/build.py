@@ -8,6 +8,7 @@ deny cases of the policy file (sections 5 and 7.9). `guard/` holds the deny case
 folder (section 5). `evaluation/` holds the cases of the rule for a check test (section 9.1).
 `notes/` holds the cases of the notes record (section 2.3).
 `discovery/` holds the cases of the egress answer (section 7.11).
+`database/` holds the cases of the variable of a Postgres proxy (section 7.13).
 
 Never fill an expectation by running the audit. CI runs this script and fails if the files change.
 
@@ -37,6 +38,7 @@ CONTROL = Path(__file__).parent / "control"
 EVALUATION = Path(__file__).parent / "evaluation"
 NOTES = Path(__file__).parent / "notes"
 DISCOVERY = Path(__file__).parent / "discovery"
+DATABASE = Path(__file__).parent / "database"
 
 
 def sha(text: str | None) -> str | None:
@@ -6020,6 +6022,146 @@ DISCOVERY_CASES: dict[str, dict] = {
 }
 
 
+# The cases of the variable of a Postgres proxy (SPEC.md section 7.13). The home of a case has no
+# .postgresql/root.crt and no .postgresql/root.crl. `environ` holds the other variables of the
+# app, if the case has them. `app_query` is the query of the URL that the app gets.
+DB_URL = "postgresql://shop@db.toy.test/shop"
+DB_WHERE = "the database shop-db: the variable DATABASE_URL"
+DATABASE_CASES: dict[str, dict] = {
+    "prefer_by_default": {
+        "value": DB_URL,
+        "expect": {"sslmode": "prefer", "rootcert": None, "app_query": "sslmode=disable"},
+    },
+    "disable": {
+        "value": DB_URL + "?sslmode=disable",
+        "expect": {"sslmode": "disable", "rootcert": None, "app_query": "sslmode=disable"},
+    },
+    "require_keeps_the_other_parameters": {
+        "value": DB_URL + "?sslmode=require&application_name=toy%20shop",
+        "expect": {
+            "sslmode": "require",
+            "rootcert": None,
+            "app_query": "application_name=toy%20shop&sslmode=disable",
+        },
+    },
+    "verify_full_with_the_system_roots": {
+        "value": DB_URL + "?sslrootcert=system&sslmode=verify-full",
+        "expect": {
+            "sslmode": "verify-full",
+            "rootcert": "system",
+            "app_query": "sslmode=disable",
+        },
+    },
+    "system_roots_give_verify_full_by_default": {
+        "value": DB_URL + "?sslrootcert=system",
+        "expect": {"sslmode": "verify-full", "rootcert": "system", "app_query": "sslmode=disable"},
+    },
+    "system_roots_with_a_weaker_sslmode": {
+        "value": DB_URL + "?sslmode=require&sslrootcert=system",
+        "expect": {
+            "error": f"{DB_WHERE} has sslmode=require with sslrootcert=system. libpq refuses "
+            "this pair. Give sslmode=verify-full, or the file of the root certificate in "
+            "sslrootcert."
+        },
+    },
+    "pgsslmode_if_the_url_has_no_sslmode": {
+        "value": DB_URL + "?application_name=toy+shop",
+        "environ": {"PGSSLMODE": "require"},
+        "expect": {
+            "sslmode": "require",
+            "rootcert": None,
+            "app_query": "application_name=toy+shop&sslmode=disable",
+        },
+    },
+    "the_url_wins_over_pgsslmode": {
+        "value": DB_URL + "?sslmode=disable",
+        "environ": {"PGSSLMODE": "verify-full"},
+        "expect": {"sslmode": "disable", "rootcert": None, "app_query": "sslmode=disable"},
+    },
+    "pgsslrootcert_system_and_the_plain_app": {
+        "value": DB_URL + "?sslmode=verify-full",
+        "environ": {"PGSSLROOTCERT": "system"},
+        "expect": {
+            "error": f"{DB_WHERE}: the app has PGSSLROOTCERT=system, and libpq refuses it with "
+            "sslmode=disable, which the app uses to the proxy. Remove PGSSLROOTCERT, and give "
+            "its value in the URL."
+        },
+    },
+    "pghostaddr_in_the_environment": {
+        "value": DB_URL,
+        "environ": {"PGHOSTADDR": "203.0.113.1"},
+        "expect": {
+            "error": f"{DB_WHERE}: the app has PGHOSTADDR, which gives libpq another address "
+            "than the host of the URL. The app would connect past the proxy. Remove PGHOSTADDR "
+            "for the test."
+        },
+    },
+    "pgservice_in_the_environment": {
+        "value": DB_URL,
+        "environ": {"PGSERVICE": "toy-shop"},
+        "expect": {
+            "error": f"{DB_WHERE}: the app has PGSERVICE, which gives libpq another address "
+            "than the host of the URL. The app would connect past the proxy. Remove PGSERVICE "
+            "for the test."
+        },
+    },
+    "empty_pghostaddr_and_pgservice": {
+        "value": DB_URL,
+        "environ": {"PGHOSTADDR": "", "PGSERVICE": ""},
+        "expect": {"sslmode": "prefer", "rootcert": None, "app_query": "sslmode=disable"},
+    },
+    "pggssencmode_require": {
+        "value": DB_URL,
+        "environ": {"PGGSSENCMODE": "require"},
+        "expect": {
+            "error": f"{DB_WHERE} has gssencmode=require (or PGGSSENCMODE). The proxy speaks no "
+            "GSSAPI encryption, so give gssencmode=disable or prefer for the test."
+        },
+    },
+    "minimum_tls_above_the_maximum": {
+        "value": DB_URL + "?ssl_min_protocol_version=TLSv1.3&ssl_max_protocol_version=TLSv1.2",
+        "expect": {
+            "error": f"{DB_WHERE} has ssl_min_protocol_version=TLSv1.3, which is above "
+            "ssl_max_protocol_version=TLSv1.2"
+        },
+    },
+    "no_tls_parameter_in_the_app_url": {
+        "value": DB_URL + "?sslmode=require&sslnegotiation=direct&connect_timeout=5"
+        "&ssl_min_protocol_version=TLSv1.3",
+        "expect": {
+            "sslmode": "require",
+            "rootcert": None,
+            "app_query": "connect_timeout=5&sslmode=disable",
+        },
+    },
+    "relative_root_file": {
+        "value": DB_URL + "?sslmode=verify-ca&sslrootcert=certs/root.crt",
+        "expect": {
+            "error": f"{DB_WHERE} has a relative sslrootcert path: certs/root.crt. Give an "
+            "absolute path."
+        },
+    },
+    "verify_ca_with_no_root_certificate": {
+        "value": DB_URL + "?sslmode=verify-ca",
+        "expect": {
+            "error": f"{DB_WHERE} has sslmode=verify-ca and no root certificate. Give the file "
+            "of the root certificate in sslrootcert, or sslrootcert=system."
+        },
+    },
+    "root_file_that_does_not_exist": {
+        "value": DB_URL + "?sslmode=verify-full&sslrootcert=/no/toy-shop/root.crt",
+        "expect": {
+            "error": f"{DB_WHERE} has an sslrootcert file that does not exist: "
+            "/no/toy-shop/root.crt"
+        },
+    },
+    "sslmode_that_libpq_does_not_have": {
+        "value": DB_URL + "?sslmode=on",
+        "expect": {"error": f"{DB_WHERE} has sslmode=on, which is not an sslmode of libpq"},
+    },
+}
+
+
 def main() -> None:
     shutil.rmtree(CASES, ignore_errors=True)
     for name, (tap, relay, expect) in CASES_BY_NAME.items():
@@ -6086,13 +6228,19 @@ def main() -> None:
     for name, case in DISCOVERY_CASES.items():
         text = json.dumps(case, indent=1, ensure_ascii=False) + "\n"
         (DISCOVERY / f"{name}.json").write_text(text, encoding="utf-8")
+    shutil.rmtree(DATABASE, ignore_errors=True)
+    DATABASE.mkdir()
+    for name, case in DATABASE_CASES.items():
+        text = json.dumps(case, indent=1, ensure_ascii=False) + "\n"
+        (DATABASE / f"{name}.json").write_text(text, encoding="utf-8")
     print(
         f"{len(CASES_BY_NAME)} audit cases, {len(CONTRACT_CASES)} contract cases, "
         f"{len(TRACE_CASES)} trace cases, {len(SEAL_CASES)} seal cases, "
         f"{len(OTLP_CASES)} receiver cases, {len(POLICY_CASES)} policy cases, "
         f"{len(GUARD_CASES)} guard cases, {len(CONTROL_CASES)} control cases, "
-        f"{len(EVALUATION_CASES)} evaluation cases, {len(NOTES_CASES)} notes cases and "
-        f"{len(DISCOVERY_CASES)} discovery cases written"
+        f"{len(EVALUATION_CASES)} evaluation cases, {len(NOTES_CASES)} notes cases, "
+        f"{len(DISCOVERY_CASES)} discovery cases and {len(DATABASE_CASES)} database cases "
+        "written"
     )
 
 
