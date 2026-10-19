@@ -254,11 +254,23 @@ class Proxy(ThreadingHTTPServer):
             self.open[id(row)] = row
             return True
 
-    def end(self, row: dict[str, Any]) -> None:
-        """Write the row of the call, if the proxy did not write it at the end of the test."""
+    def end(
+        self,
+        row: dict[str, Any],
+        fields: dict[str, Any],
+        body: bytes | None = None,
+        encoding: str | None = None,
+        cut: bool = False,
+    ) -> None:
+        """Add `fields` to the row of the call, complete it with `body` if given, and write it.
+        If the proxy wrote the row at the end of the test, do none of this. Hold the lock, so
+        that the end of the test and the call do not change the row at the same time."""
         with self.lock:
             self.streams.pop(id(row), None)
             if self.open.pop(id(row), None) is not None:
+                row.update(fields)
+                if body is not None:
+                    self.complete(row, body, encoding, cut)
                 self._write(row)
             self.lock.notify_all()
 
@@ -340,8 +352,7 @@ class Handler(BaseHTTPRequestHandler):
                 conn.endheaders(body or None)
                 resp = conn.getresponse()
             except (OSError, http.client.HTTPException) as e:
-                row.update(ts=time.time(), error=f"the backend did not answer: {e}")
-                proxy.end(row)
+                proxy.end(row, {"ts": time.time(), "error": f"the backend did not answer: {e}"})
                 data = json.dumps({"error": f"nookku backend proxy: {e}"}).encode()
                 self._send(502, [("Content-Type", "application/json")], data)
                 return
@@ -419,16 +430,14 @@ class Handler(BaseHTTPRequestHandler):
                 pass
         if error is not None or not app:
             self.close_connection = True
-        out = stream.data
-        row.update(
-            ts=time.time(),
-            status=resp.status,
-            response_headers=headers_row(returned),
-            response_body=stream.row(),
-            error=error,
-        )
-        proxy.complete(row, out, encoding, stream.cut)
-        proxy.end(row)
+        fields = {
+            "ts": time.time(),
+            "status": resp.status,
+            "response_headers": headers_row(returned),
+            "response_body": stream.row(),
+            "error": error,
+        }
+        proxy.end(row, fields, stream.data, encoding, stream.cut)
 
     def _send(self, status: int, headers: list[tuple[str, str]], body: bytes) -> None:
         self.send_response_only(status)

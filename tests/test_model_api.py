@@ -402,9 +402,11 @@ def test_whole_events_ends_at_the_last_blank_line() -> None:
 def test_the_parsers_give_the_results_of_the_cut_case() -> None:
     lines = (TRACE / "model_api_cut" / model_api.FILE).read_text().split("\n")
     calls = [json.loads(x) for x in lines if x]
-    assert len(calls) == 2
+    # The harness row keeps no text, so it gives no result. The proxy reads each other row with
+    # cut=True: a cut body, or a stream that is open at the end of the test.
+    calls = [row for row in calls if not row["harness"]]
+    assert len(calls) == 3 and [row["response_body"]["cut"] for row in calls] == [True, True, False]
     for row in calls:
-        assert row["response_body"]["cut"] is True
         kept = row["response_body"]["text"].encode()
         proxy = model_api.ModelProxy.__new__(model_api.ModelProxy)
         proxy.backend = backend.Backend(row["api"], "UNUSED", "http://127.0.0.1:1")
@@ -460,3 +462,22 @@ def test_a_stream_that_is_open_at_the_end_of_the_test_gets_its_row(
     else:
         result = row["result"]
         assert (result["text"], result["cut"]) == ("3 teapot sets € left.", True)
+
+
+def test_a_call_that_ends_after_the_end_of_the_test_does_not_change_its_row(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(backend, "DRAIN", 0)
+    with ModelServer() as model:
+        proxies = proxy_for(model, tmp_path)
+        proxies.start()
+        proxy = proxies.proxies[0]
+        row = {"v": 1, "type": "call", "harness": None, "path": "/v1/messages", "error": None}
+        assert proxy.begin(row)
+        proxies.stop()
+        written = dict(row)
+        # The call ends after the proxy wrote its row. The end does not change the row.
+        text = {"size": 13, "text": "3 teapot sets"}
+        proxy.end(row, {"response_body": text}, b"3 teapot sets", None)
+    assert row == written and row["error"] == backend.ENDED
+    assert rows(tmp_path) == [written]

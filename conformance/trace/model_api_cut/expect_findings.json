@@ -1,17 +1,19 @@
 {
  "v": "0.2",
  "test": "20261018-090000-ct01",
- "turns": 2,
- "items": 4,
+ "turns": 3,
+ "items": 6,
  "sessions": [],
  "otel": null,
  "backend": null,
  "model_api": {
   "file": "model_api.jsonl",
-  "rows": 2,
-  "items": 4,
+  "rows": 4,
+  "items": 6,
   "ignored": {},
-  "harness_calls": {},
+  "harness_calls": {
+   "claude-code": 1
+  },
   "other_calls": 0
  },
  "mcp": null,
@@ -24,7 +26,7 @@
   "command_failed": 0,
   "span_error": 0,
   "backend_error": 0,
-  "model_api_error": 0,
+  "model_api_error": 1,
   "database_error": 0,
   "unseen_call": 0,
   "model_error": 0,
@@ -35,5 +37,17 @@
   "session_inferred": 0,
   "version_untested": 0
  },
- "findings": []
+ "findings": [
+  {
+   "check": "model_api_error",
+   "turn": 3,
+   "detail": "anthropic: /v1/messages: the test ended before the stream ended",
+   "harness": "model_api",
+   "session": "anthropic",
+   "source": {
+    "file": "model_api.jsonl",
+    "line": 3
+   }
+  }
+ ]
 }

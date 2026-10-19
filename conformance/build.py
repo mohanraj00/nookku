@@ -3504,7 +3504,10 @@ DECISIONS_CASE = {
 # `record_limit` bytes of a response. In turn 1, a streamed Anthropic call: the record holds the
 # first 4 events and a part of the fifth, so the result has only the text of the first 4 events.
 # In turn 2, a JSON call that the cut stops: the result has no JSON error, because the cut is the
-# reason. Each assistant message names the cut in its input.
+# reason. Each assistant message names the cut in its input. In turn 3, the test ends before 2
+# streams end: an app call and a harness call. The proxy reads the result of the app call from the
+# events that came, with `cut: true`. Its body is not cut, so the trace gives no cut note, and the
+# error names the cause and gives a model_api_error finding. The harness row keeps no text.
 CUT_EVENTS = [
     {
         "type": "message_start",
@@ -3527,6 +3530,8 @@ CUT_JSON = json.dumps(
     }
 ).encode()
 CUT_JSON_KEPT = CUT_JSON[:40]
+OPEN_STREAM = sse(CUT_EVENTS[:5]).encode()
+STREAM_ENDED = "the test ended before the stream ended"
 MUGS_ASK = "How many mugs are left?"
 
 
@@ -3544,7 +3549,11 @@ def cut_note(data: bytes, kept: bytes) -> str:
 
 
 CUT_CASE = {
-    "tap": [window(10, 20, reply="Mugs left: "), window(30, 40)],
+    "tap": [
+        window(10, 20, reply="Mugs left: "),
+        window(30, 40),
+        window(50, 60, reply="Mugs left: 12."),
+    ],
     "manifest": {"test": "20261018-090000-ct01", "model_sessions": []},
     "sessions": {},
     "model_api": [
@@ -3574,6 +3583,41 @@ CUT_CASE = {
             response_body=cut_body(CUT_JSON, CUT_JSON_KEPT),
             result=result(cut=True),
         ),
+        {
+            **mcall(
+                51,
+                "anthropic",
+                MESSAGES,
+                200,
+                {
+                    "model": "claude-toy",
+                    "stream": True,
+                    "messages": [{"role": "user", "content": MUGS_ASK}],
+                },
+                stream=True,
+                took=8,
+                response=OPEN_STREAM.decode(),
+                result=result(
+                    model="claude-toy", text="Mugs left: 12.", usage={"input_tokens": 40}, cut=True
+                ),
+            ),
+            "error": STREAM_ENDED,
+        },
+        {
+            **mcall(
+                52,
+                "anthropic",
+                MESSAGES,
+                200,
+                None,
+                harness="claude-code",
+                stream=True,
+                took=7,
+                request_body=omitted(HARNESS_REQUEST),
+                response_body=omitted(OPEN_STREAM.decode()),
+            ),
+            "error": STREAM_ENDED,
+        },
     ],
     "trace": [
         mitem(1, "anthropic", 11, 1, "message", role="user", output=MUGS_ASK),
@@ -3602,27 +3646,49 @@ CUT_CASE = {
             input={**info(COMPLETIONS, None, None, None), "cut": cut_note(CUT_JSON, CUT_JSON_KEPT)},
             exit_code=200,
         ),
+        mitem(3, "anthropic", 51, 3, "message", role="user", output=MUGS_ASK),
+        mitem(
+            3,
+            "anthropic",
+            59,
+            3,
+            "message",
+            role="assistant",
+            input=info(MESSAGES, "claude-toy", None, {"input_tokens": 40}),
+            output="Mugs left: 12.",
+            error=STREAM_ENDED,
+            exit_code=200,
+        ),
     ],
     "findings": {
         "v": "0.2",
         "test": "20261018-090000-ct01",
-        "turns": 2,
-        "items": 4,
+        "turns": 3,
+        "items": 6,
         "sessions": [],
         "otel": None,
         "backend": None,
         "model_api": {
             "file": "model_api.jsonl",
-            "rows": 2,
-            "items": 4,
+            "rows": 4,
+            "items": 6,
             "ignored": {},
-            "harness_calls": {},
+            "harness_calls": {"claude-code": 1},
             "other_calls": 0,
         },
         "mcp": None,
         "database": None,
-        "counts": counts(),
-        "findings": [],
+        "counts": counts(model_api_error=1),
+        "findings": [
+            {
+                "check": "model_api_error",
+                "turn": 3,
+                "detail": f"anthropic: /v1/messages: {STREAM_ENDED}",
+                "harness": "model_api",
+                "session": "anthropic",
+                "source": {"file": "model_api.jsonl", "line": 3},
+            },
+        ],
     },
 }
 
