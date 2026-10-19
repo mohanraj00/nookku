@@ -312,6 +312,10 @@ def test_a_driver_address_is_seen_only_for_its_system_and_database() -> None:
     assert unseen("db.toy.test:5432", pg, http, mysql) == [2, 3]
     stock_call, shop_call = {**pg, "db.namespace": "stock"}, {**pg, "db.name": "shop"}
     assert unseen("DB.toy.test:5432/stock", stock_call, shop_call, pg) == [2, 3]
+    peer = {"db.system": "postgresql", "net.peer.name": "DB.toy.test", "net.peer.port": 5432}
+    assert unseen("db.toy.test:5432/stock", {**peer, "db.name": "stock"}, peer) == [2]
+    both = {**peer, "server.address": "other.toy.test", "db.name": "stock"}
+    assert unseen("db.toy.test:5432/stock", both) == [1]
 
 
 def test_a_driver_database_next_to_a_proxy_needs_a_host_and_port() -> None:

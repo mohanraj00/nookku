@@ -1063,6 +1063,7 @@ CALL_URL = ("url.full", "http.url")
 CALL_DB = ("db.system.name", "db.system")
 CALL_MCP = "mcp.method.name"
 SERVER_KEYS = ("http.route", "http.target", "url.path")
+SERVER_ADDRESS = ("server.address", "server.port")
 DEFAULT_PORTS = {"http": 80, "https": 443}
 # The detail of an HTTP call with a URL that the URL parser cannot read.
 BAD_URL = "(a URL that does not parse)"
@@ -1197,7 +1198,10 @@ def unseen_calls(items: list[dict[str, Any]], seen: set[str]) -> list[dict[str, 
             address, shown = _url_address(url)
             what = f"HTTP {shown}"
         elif db is not None or isinstance(mcp, str):
-            address = _address(attrs.get("server.address"), attrs.get("server.port"))
+            # The old semantic conventions, which many instrumentations write by default.
+            old = "server.address" not in attrs
+            host, port = ("net.peer.name", "net.peer.port") if old else SERVER_ADDRESS
+            address = _address(attrs.get(host), attrs.get(port))
             what = f"database {db}" if db is not None else f"MCP {mcp}"
         else:
             continue

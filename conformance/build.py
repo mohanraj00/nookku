@@ -3923,7 +3923,8 @@ UNSEEN_STDIO_CASE = {
 
 # The coverage check with driver databases (SPEC.md section 8.6, `unseen_call`). shop has a proxy.
 # stock is also Postgres on the same server, but its proxy cannot connect, so it has a driver
-# trace: only a Postgres call to its host:port and to its database stock is seen. cart is SQLite
+# trace: only a Postgres call to its host:port and to its database stock is seen. Its span has the
+# old attributes net.peer.name, net.peer.port and db.name. cart is SQLite
 # with a driver trace and no proxy of its system, so each SQLite call is seen. A Postgres call
 # around the proxy to the database shop, an HTTP call to the address of stock and a MySQL call give
 # a finding. The 2 spans at 31 have the same time, and each driver query comes right after its span
@@ -3954,7 +3955,16 @@ UNSEEN_DRIVER_SPANS = [
     ),
     (12, "SELECT shop", {**PG_AT_DB, "db.namespace": "shop"}),
     (13, "GET", {"http.request.method": "GET", "url.full": "http://db.toy.test:5432/health"}),
-    (31, "SELECT stock", {**PG_AT_DB, "db.namespace": "stock"}),
+    (
+        31,
+        "SELECT stock",
+        {
+            "db.system": "postgresql",
+            "net.peer.name": "db.toy.test",
+            "net.peer.port": 5432,
+            "db.name": "stock",
+        },
+    ),
     (31, "SELECT cart", {"db.system": "SQLite"}),
     (
         33,
