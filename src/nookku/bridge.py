@@ -771,6 +771,7 @@ def run(
             **egress,
             "unseen": discovery.unseen(egress["answer"]),
             "proxies": {},
+            "sslmode": {},
             "receiver": None,
         },
     }
@@ -829,6 +830,8 @@ def run(
     every = proxies.proxies + apis.proxies + mcp.proxies
     manifest["egress"]["proxies"] = {p.backend.name: p.url for p in every}
     manifest["egress"]["proxies"].update({d.database.name: d.url for d in dbs})
+    # The sslmode of each proxy to its database (SPEC.md section 7.13).
+    manifest["egress"]["sslmode"] = {d.database.name: d.database.sslmode for d in dbs}
     # A stdio server has no address. Its value is STDIO (SPEC.md section 7.12).
     manifest["egress"]["proxies"].update(
         {p["name"]: mcp_proxy.STDIO for p in servers if p["env"] in wrappers}

@@ -1,0 +1,11 @@
+{
+ "value": "postgresql://shop@db.toy.test/shop?sslmode=disable",
+ "environ": {
+  "PGSSLMODE": "verify-full"
+ },
+ "expect": {
+  "sslmode": "disable",
+  "rootcert": null,
+  "app_query": "sslmode=disable"
+ }
+}

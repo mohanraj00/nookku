@@ -1,0 +1,6 @@
+{
+ "value": "postgresql://shop@db.toy.test/shop?sslmode=verify-full&sslrootcert=/no/toy-shop/root.crt",
+ "expect": {
+  "error": "the database shop-db: the variable DATABASE_URL has an sslrootcert file that does not exist: /no/toy-shop/root.crt"
+ }
+}
