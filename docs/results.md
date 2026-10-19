@@ -210,6 +210,25 @@ The app's session files are from Claude Code 2.1.301, bundled in Agent SDK 0.2.1
 
 In each run, the stock service had 2 reservations for the 1 teapot set that the tester asked for. These runs used Agent SDK 0.2.168, which bundles Claude Code 2.1.301 ([#35](https://github.com/mohanraj00/nookku/issues/35), [Trace of the model sessions](#trace-of-the-model-sessions)). In each of the 4 runs, the proxy marked 6 of its calls as harness calls and kept no text of them. The toy note model gives a fixed answer, so this proof does not show a real model behind the direct call. [proofs/model-api/](../proofs/model-api/results.json) shows the proxy with the stream formats of both APIs.
 
+### Egress discovery, the MCP proxies and the Postgres proxy
+
+[scripts/proof_egress.py](../scripts/proof_egress.py) runs a test of the [egress toy shop](../examples/toy-shop-egress/app.py) in each relay. The app is an Agent SDK session with a [catalog MCP server](../examples/toy-shop-egress/catalog_mcp.py) over HTTP, a [notes MCP server](../examples/toy-shop-egress/notes_mcp.py) over stdio, the orders in Postgres 16 (in Docker) and the returns in a SQLite file. The app sends the OpenTelemetry spans of its psycopg and sqlite3 drivers. The tester types `nookku start`, and the [harness model](reference/glossary.md#harness-model) reads the app and runs `nookku register` with its egress answer. The script gives no part of the answer. The test has 3 turns and no evaluation.
+
+- **E1:** the manifest has the answer: the HTTP server with `CATALOG_MCP_URL`, the stdio server with `NOTES_MCP_COMMAND`, the Postgres database with `DATABASE_URL` and `record: proxy`, and the SQLite database with `record: driver`. `unseen` is empty.
+- **E2:** the model changed no file of the app.
+- **E3:** each call of the session to a tool of the 2 MCP servers has a `tools/call` in `mcp.jsonl`, with the same arguments in the same turn. Each order lookup has its query in `database.jsonl`, and each return has its `INSERT` as a driver query.
+- **E4:** the psycopg span goes to the address of the Postgres proxy, `unseen_call` finds 0 calls, the audit finds no break and the seal is intact.
+
+| Form | Harness | Discovery attempts | Session calls (MCP HTTP, MCP stdio, Postgres, SQLite) | E1 | E2 | E3 | E4 | Result | Data |
+|---|---|---|---|---|---|---|---|---|---|
+| Plugin | Claude Code 2.1.302 | 2 | 1, 1, 1, 1 | pass | pass | pass | pass | pass | [results](../proofs/egress/plugin-claude-code.json) |
+| Project hooks | Claude Code 2.1.302 | 1 | 1, 1, 1, 1 | pass | pass | pass | pass | pass | [results](../proofs/egress/hooks-claude-code.json) |
+| Plugin | Codex 0.162.1 | 3 | none | not run | pass | not run | not run | no model turn | [results](../proofs/egress/plugin-codex.json) |
+
+The Codex account had no usage left on 2026-10-19, so Codex did not answer the discovery task. The results file has the error of Codex. The project hooks in Codex did not run: their trusted hooks run the nookku code of the main checkout, which was 0.5.2. These rows need a new run.
+
+In the first discovery attempt of the plugin run, Claude Code refused the `nookku register <<'EOF'` command of the discovery task, with the reason "Contains brace with quote character". The model then gave a `file` key for the SQLite database, and `nookku register` refused it. The next attempt registered a valid answer. The discovery in Claude Code runs in the Bash sandbox of Claude Code, which writes only in the project. The trace also makes a driver query from the psycopg span of the Postgres database with `record: proxy` (SPEC.md section 8.4), so the transcript shows that query 2 times ([data](../proofs/egress/plugin-claude-code.json), key `driver_queries`).
+
 ## 2. Benchmark under pressure
 
 The question: does the mechanism stay exact in long, messy conversations with the agent?
@@ -263,6 +282,10 @@ uv run python scripts/proof_telemetry.py plugin-claude-code
 uv run python scripts/proof_telemetry.py plugin-codex
 uv run python scripts/proof_telemetry.py hooks-claude-code
 uv run python scripts/proof_telemetry.py hooks-codex
+uv run python scripts/proof_egress.py plugin-claude-code
+uv run python scripts/proof_egress.py plugin-codex
+uv run python scripts/proof_egress.py hooks-claude-code
+uv run python scripts/proof_egress.py hooks-codex
 uv run python scripts/proof_evaluation.py plugin-claude-code
 uv run python scripts/proof_evaluation.py plugin-codex
 uv run python scripts/proof_evaluation.py hooks-claude-code
