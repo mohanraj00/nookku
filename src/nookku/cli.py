@@ -82,6 +82,10 @@ def _register(args: argparse.Namespace) -> int:
         error = f"the answer is not valid, so nothing was written: {e}"
         print(json.dumps({"error": error}) if args.json else f"nookku: {error}")
         return 1
+    # The answer file of the task is used once: an old file must not give the next answer.
+    answer_file = discovery.path(root).with_name(discovery.ANSWER_FILE)
+    if args.file and args.file.resolve() == answer_file:
+        answer_file.unlink(missing_ok=True)
     if args.json:
         print(json.dumps({"registered": data["registered"], "parts": data["answer"]}))
         return 0

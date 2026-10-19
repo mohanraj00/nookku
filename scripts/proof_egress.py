@@ -68,10 +68,10 @@ MESSAGES = [
 DISCOVERY_ATTEMPTS = 3
 TOOLS = ("find_product", "add_note", "lookup_order", "start_return")
 # The discovery reads the code, writes the answer file and runs nookku register --file
-# (src/nookku/discover.md). Claude Code can edit only the answer file, because the app already has
-# the instrumentation of its drivers. Its Bash runs in the sandbox of Claude Code, which can write
-# only in the project, as Codex runs in its workspace-write sandbox. An allow list refuses a loop
-# or a pipe that only reads.
+# (src/nookku/discover.md). The Write tool of Claude Code can edit only the answer file, because
+# the app already has the instrumentation of its drivers. Its Bash runs in the sandbox of Claude
+# Code, which can write each file in the project, as Codex runs in its workspace-write sandbox. E2
+# finds a change of a file of the app. An allow list refuses a loop or a pipe that only reads.
 SANDBOX = {"sandbox": {"enabled": True, "autoAllowBashIfSandboxed": True}}
 CLAUDE_DISCOVERY = [
     "--tools=Bash,Read,Grep,Glob,Write",

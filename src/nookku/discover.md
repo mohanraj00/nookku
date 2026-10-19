@@ -49,4 +49,4 @@ If `nookku register` refuses the answer, correct each error that it names in the
 
 ## Then
 
-Show the tester each line that `nookku register` printed. Tell the tester to check the parts, and then to type the prompt `nookku start` in the next {minutes} minutes. If the tester says that a part is wrong, correct the answer and run `nookku register` again. Do not start the test, and do not change the code of the agent, except for the driver trace.
+Show the tester each line that `nookku register` printed. Tell the tester to check the parts, and then to type the prompt `nookku start` in the next {minutes} minutes. If the tester says that a part is wrong, write the correct answer to the file again and run the command again. A valid answer removes the file. Do not start the test, and do not change the code of the agent, except for the driver trace.

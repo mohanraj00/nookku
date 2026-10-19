@@ -367,6 +367,8 @@ def test_a_driver_query_comes_only_from_a_span_of_a_driver_database() -> None:
 
     assert queries({"databases": [{**shop, **proxy}, {**stock, **driver}]}) == [2]
     assert queries({"databases": [{**shop, **proxy}, {**returns, **driver}]}) == [3]
+    sqlite3 = {**returns, "kind": "sqlite3"}
+    assert queries({"databases": [{**shop, **proxy}, {**sqlite3, **driver}]}) == [3]
     assert queries({"databases": [{**shop, **driver}]}) == [1, 2]
     assert queries({"databases": [{**shop, **proxy}]}) == []
     assert queries(None) == []

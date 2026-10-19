@@ -228,7 +228,7 @@ In each run, the stock service had 2 reservations for the 1 teapot set that the 
 
 The Codex account had no usage left on 2026-10-19, so Codex did not answer the discovery task. The results file has the error of Codex. The project hooks in Codex did not run: their trusted hooks run the nookku code of the main checkout, which was 0.5.2. These rows need a new run.
 
-The discovery in Claude Code runs in the Bash sandbox of Claude Code, which writes only in the project. The model can edit only the answer file. The Codex rows are from the run before the change of the discovery task to the answer file.
+The discovery in Claude Code runs in the Bash sandbox of Claude Code, which writes only in the project. The Write tool of the model can edit only the answer file, but Bash in the sandbox can write each file in the project. E2 finds such a change. The Codex rows are from the run before the change of the discovery task to the answer file.
 
 ## 2. Benchmark under pressure
 

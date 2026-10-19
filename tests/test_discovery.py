@@ -279,3 +279,35 @@ def test_the_example_of_the_task_obeys_the_rule() -> None:
     block = text.split("```json\n", 1)[1].split("```", 1)[0]
     answer = discovery.parse(json.loads(block))
     assert [d["address"] for d in answer["databases"]] == ["127.0.0.1:5432/shop", "returns.db"]
+
+
+def test_the_answer_file_is_used_once(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # An old answer file must not give the next answer, if a write of the model fails.
+    root = project(tmp_path)
+    answer_file = root / ".nookku" / discovery.ANSWER_FILE
+    answer_file.write_text(json.dumps({**EMPTY, "backends": [STOCK]}))
+    monkeypatch.chdir(root)
+    assert main(["register", "--root", str(root), "--file", ".nookku/egress.json"]) == 0
+    assert not answer_file.exists()
+    # A refused answer stays, so that the model can correct it.
+    answer_file.write_text(json.dumps({**EMPTY, "model_apis": [{"api": "toy"}]}))
+    assert main(["register", "--root", str(root), "--file", str(answer_file)]) == 1
+    assert answer_file.exists()
+    # A start removes the answer file with the pending answer.
+    discovery.take(root)
+    assert not answer_file.exists() and discovery.pending(root) is None
+    # Another file of --file stays.
+    other = tmp_path / "answer.json"
+    other.write_text(json.dumps(EMPTY))
+    assert main(["register", "--root", str(root), "--file", str(other)]) == 0
+    assert other.exists()
+    capsys.readouterr()
+
+
+def test_a_kind_with_the_name_of_a_module_is_its_system() -> None:
+    assert discovery.db_system("sqlite3") == "sqlite"
+    assert discovery.db_system("Postgres") == "postgresql"
+    assert discovery.db_system("mongo") == "mongodb"
+    assert discovery.db_system("mysql") == "mysql"
