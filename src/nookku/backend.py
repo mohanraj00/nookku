@@ -268,6 +268,8 @@ class Proxy(ThreadingHTTPServer):
             stream = self.streams.get(key)
             if stream is not None:
                 row.update(ts=time.time(), response_body=stream.row(), error=STREAM_ENDED)
+                # The stream did not end, so the bytes that came are the start of the response.
+                self.complete(row, stream.data, stream.encoding, cut=True)
             else:
                 row.update(ts=time.time(), error=ENDED)
             self._write(row)

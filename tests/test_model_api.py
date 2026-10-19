@@ -430,3 +430,33 @@ def test_a_gzip_bomb_gives_a_cut_result(tmp_path: Path) -> None:
     row = rows(tmp_path)[0]
     assert row["response_body"]["cut"] is True and row["response_body"]["decoded"] == "gzip"
     assert row["result"]["cut"] is True and row["result"]["error"] is None
+
+
+@pytest.mark.parametrize("agent", ["claude-cli/2.1.290 (external, sdk-py)", "toy-shop/1.0"])
+def test_a_stream_that_is_open_at_the_end_of_the_test_gets_its_row(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, agent: str
+) -> None:
+    monkeypatch.setattr(backend, "DRAIN", 0.2)
+    with ModelServer() as model:
+        model.parts = [STREAM[0] + STREAM[1], STREAM[2]]
+        model.release.clear()
+        proxies = proxy_for(model, tmp_path)
+        env = proxies.start()
+        conn = connect(env["ANTHROPIC_BASE_URL"])
+        conn.request(
+            "POST", "/v1/messages", body=b'{"stream": true}', headers={"User-Agent": agent}
+        )
+        resp = conn.getresponse()
+        assert resp.read1(65536) == STREAM[0] + STREAM[1]
+        proxies.stop()
+        model.release.set()
+        conn.close()
+    row = rows(tmp_path)[0]
+    assert (row["error"], row["stream"]) == (backend.STREAM_ENDED, True)
+    if agent.startswith("claude-cli"):
+        # A harness call keeps no text, also if the test ends before its stream ends.
+        assert "teapot" not in (tmp_path / model_api.FILE).read_text()
+        assert row["response_body"]["omitted"] and row["result"] is None
+    else:
+        result = row["result"]
+        assert (result["text"], result["cut"]) == ("3 teapot sets € left.", True)

@@ -834,9 +834,10 @@ def read_model_api(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         info = {k: result.get(k) for k in ("model", "stop_reason", "usage")}
         if form == "decisions":
             info["answers"] = result.get("answers") or []
-        if result.get("cut") and isinstance(row.get("response_body"), dict):
+        body = row.get("response_body")
+        if result.get("cut") and isinstance(body, dict) and body.get("cut"):
             # The result is of the start of the response only (SPEC.md section 7.7).
-            info["cut"] = cut_note(row["response_body"])
+            info["cut"] = cut_note(body)
         it.update(
             kind="message",
             role="assistant",
