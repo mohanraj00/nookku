@@ -95,6 +95,11 @@ NOT_CONFIRMED = (
 )
 STOPPED = "The chat page of this project stopped."
 NONE_RUNS = "No chat page of this project runs."
+NOT_KNOWN = (
+    "nookku: a process holds the page lock of this project, but nookku cannot confirm that it is "
+    "the chat page, so it sent no signal. Find its pid with: lsof .nookku/page.lock. If ps -p "
+    "<pid> shows a nookku chat page, stop it with: kill <pid>"
+)
 
 
 def enabled(root: Path) -> bool:
@@ -272,11 +277,15 @@ def stop(root: Path) -> tuple[int, str]:
     """`nookku chat --stop`: stop the page server of this project, with the checks of the stop at
     the end of a test. It also stops a page server that `nookku chat` started, and the page server
     of a running test. The test continues. Return the exit code and the text."""
-    info = state.page_info(root)
-    if info is None or not _held(root):
+    if not _held(root):
         return 0, NONE_RUNS
-    error = _stop_server(root, info)
-    return (0, STOPPED) if error is None else (1, error)
+    info = state.page_info(root)
+    error = NOT_KNOWN if info is None else _stop_server(root, info)
+    if error is not None:
+        return 1, error
+    # _stop_server also sends no signal if the page file names no running pid, or if it changed.
+    # Then a process still holds the lock, and "stopped" is not true.
+    return (1, NOT_KNOWN) if _held(root) else (0, STOPPED)
 
 
 def _stop_server(root: Path, info: dict[str, Any]) -> str | None:
@@ -384,9 +393,10 @@ class _AutoHandler(page._Handler):
 
     def _route(self) -> str | None:
         rest = super()._route()
-        # Only a request with the session or the token counts, so that another local process does
-        # not keep the server on. A poll of the page does not count.
-        if rest is not None and not self.headers.get_all(POLL_HEADER):
+        # Only a request with the page key counts. A file of the page loads with the cookie only,
+        # and a page on another port of 127.0.0.1 can make the browser send that cookie. A poll of
+        # the page does not count.
+        if rest is not None and self._has_key() and not self.headers.get_all(POLL_HEADER):
             self.server.used()
         return rest
 

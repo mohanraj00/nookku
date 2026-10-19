@@ -583,6 +583,12 @@ def test_the_page_server_stops_after_the_idle_limit_with_no_test(tmp_path: Path)
         assert request(server, "GET", page.SESSION_PATH + "api/turns", headers=poll)[0] == 200
         assert request(server, "GET", page.SESSION_PATH + "api/turns")[0] == 404
         assert request(server, "GET", f"/p/{'a' * 43}/api/turns")[0] == 404
+        # A file of the page loads with the cookie only. A page on another port of 127.0.0.1 can
+        # make the browser send it, so it does not count.
+        assert (
+            request(server, "GET", page.SESSION_PATH + "app.js", headers=cookie_only(both))[0]
+            == 200
+        )
         clock.now += 1
         assert server.idle()
     finally:
@@ -656,6 +662,29 @@ def held_sleeper(
     return proc, lock
 
 
+LOCKER = """
+import fcntl, os, sys, time
+fd = os.open(sys.argv[1], os.O_RDWR | os.O_CREAT, 0o600)
+fcntl.flock(fd, fcntl.LOCK_EX)
+print("held", flush=True)
+time.sleep(60)
+"""
+
+
+def locker(root: Path, test: str) -> subprocess.Popen[str]:
+    """A process that holds the page lock, as a page server does, and its page file. The lock
+    goes away with the process."""
+    lock = root / ".nookku" / state.PAGE_LOCK
+    proc = subprocess.Popen(
+        [sys.executable, "-c", LOCKER, str(lock)], stdout=subprocess.PIPE, text=True
+    )
+    state._children[proc.pid] = proc
+    assert proc.stdout is not None and proc.stdout.readline().strip() == "held"
+    info = {"port": 1, "pid": proc.pid, "pid_start": state.process_start(proc.pid), "test": test}
+    (root / ".nookku" / state.PAGE_FILE).write_text(json.dumps(info))
+    return proc
+
+
 def test_chat_stop_stops_the_page_server_of_this_project_only(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -667,15 +696,10 @@ def test_chat_stop_stops_the_page_server_of_this_project_only(
         assert main(["chat", "--stop", "--root", str(mine)]) == 0
         assert capsys.readouterr().out.strip() == page_auto.NONE_RUNS
         assert proc.poll() is None
-        lock2 = os.open(mine / ".nookku" / state.PAGE_LOCK, os.O_RDWR | os.O_CREAT, 0o600)
-        mine_proc = sleeper(mine, "t-2")
-        fcntl.flock(lock2, fcntl.LOCK_EX)
-        try:
-            assert main(["chat", "--stop", "--root", str(mine)]) == 0
-            assert capsys.readouterr().out.strip() == page_auto.STOPPED
-            assert mine_proc.wait(10) == -signal.SIGTERM
-        finally:
-            os.close(lock2)
+        mine_proc = locker(mine, "t-2")
+        assert main(["chat", "--stop", "--root", str(mine)]) == 0
+        assert capsys.readouterr().out.strip() == page_auto.STOPPED
+        assert mine_proc.wait(10) == -signal.SIGTERM
         assert proc.poll() is None
     finally:
         os.close(lock)
@@ -687,14 +711,15 @@ def test_chat_stop_also_stops_the_page_of_a_running_test(
     running: Any, capsys: pytest.CaptureFixture[str]
 ) -> None:
     root, folder = running
-    proc, lock = held_sleeper(root, folder.name)
+    proc = locker(root, folder.name)
     try:
         assert main(["chat", "--stop", "--root", str(root)]) == 0
         assert proc.wait(10) == -signal.SIGTERM
         # The test continues.
         assert (root / ".nookku" / "current.json").exists()
     finally:
-        os.close(lock)
+        proc.kill()
+        proc.wait()
 
 
 def test_chat_stop_sends_no_signal_to_a_pid_with_another_start_time(
@@ -710,3 +735,25 @@ def test_chat_stop_sends_no_signal_to_a_pid_with_another_start_time(
         os.close(lock)
         proc.kill()
         proc.wait()
+
+
+def test_chat_stop_says_no_stop_if_it_sent_no_signal_and_the_lock_is_held(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    (tmp_path / ".nookku").mkdir()
+    lock = os.open(tmp_path / ".nookku" / state.PAGE_LOCK, os.O_RDWR | os.O_CREAT, 0o600)
+    fcntl.flock(lock, fcntl.LOCK_EX)
+    page_file = tmp_path / ".nookku" / state.PAGE_FILE
+    dead = subprocess.Popen([sys.executable, "-c", ""])
+    dead.wait()
+    try:
+        # No page file, a pid that is not a number, and a pid that does not run.
+        for data in (None, {"port": 1, "pid": "x"}, {"port": 1, "pid": dead.pid, "pid_start": "s"}):
+            if data is None:
+                page_file.unlink(missing_ok=True)
+            else:
+                page_file.write_text(json.dumps(data))
+            assert main(["chat", "--stop", "--root", str(tmp_path)]) == 1
+            assert capsys.readouterr().err.strip() == page_auto.NOT_KNOWN
+    finally:
+        os.close(lock)
