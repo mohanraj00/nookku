@@ -8,6 +8,7 @@ deny cases of the policy file (sections 5 and 7.9). `guard/` holds the deny case
 folder (section 5). `evaluation/` holds the cases of the rule for a check test (section 9.1).
 `notes/` holds the cases of the notes record (section 2.3).
 `discovery/` holds the cases of the egress answer (section 7.11).
+`database/` holds the cases of the variable of a Postgres proxy (section 7.13).
 
 Never fill an expectation by running the audit. CI runs this script and fails if the files change.
 
@@ -37,6 +38,7 @@ CONTROL = Path(__file__).parent / "control"
 EVALUATION = Path(__file__).parent / "evaluation"
 NOTES = Path(__file__).parent / "notes"
 DISCOVERY = Path(__file__).parent / "discovery"
+DATABASE = Path(__file__).parent / "database"
 
 
 def sha(text: str | None) -> str | None:
@@ -5827,6 +5829,56 @@ DISCOVERY_CASES: dict[str, dict] = {
 }
 
 
+# The cases of the variable of a Postgres proxy (SPEC.md section 7.13). The home of a case has no
+# .postgresql/root.crt. `app_query` is the query of the URL that the app gets.
+DB_URL = "postgresql://shop@db.toy.test/shop"
+DB_WHERE = "the database shop-db: the variable DATABASE_URL"
+DATABASE_CASES: dict[str, dict] = {
+    "prefer_by_default": {
+        "value": DB_URL,
+        "expect": {"sslmode": "prefer", "rootcert": None, "app_query": "sslmode=disable"},
+    },
+    "disable": {
+        "value": DB_URL + "?sslmode=disable",
+        "expect": {"sslmode": "disable", "rootcert": None, "app_query": "sslmode=disable"},
+    },
+    "require_keeps_the_other_parameters": {
+        "value": DB_URL + "?sslmode=require&application_name=toy%20shop",
+        "expect": {
+            "sslmode": "require",
+            "rootcert": None,
+            "app_query": "application_name=toy%20shop&sslmode=disable",
+        },
+    },
+    "verify_full_with_the_system_roots": {
+        "value": DB_URL + "?sslrootcert=system&sslmode=verify-full",
+        "expect": {
+            "sslmode": "verify-full",
+            "rootcert": "system",
+            "app_query": "sslrootcert=system&sslmode=disable",
+        },
+    },
+    "verify_ca_with_no_root_certificate": {
+        "value": DB_URL + "?sslmode=verify-ca",
+        "expect": {
+            "error": f"{DB_WHERE} has sslmode=verify-ca and no root certificate. Give the file "
+            "of the root certificate in sslrootcert, or sslrootcert=system."
+        },
+    },
+    "root_file_that_does_not_exist": {
+        "value": DB_URL + "?sslmode=verify-full&sslrootcert=/no/toy-shop/root.crt",
+        "expect": {
+            "error": f"{DB_WHERE} has an sslrootcert file that does not exist: "
+            "/no/toy-shop/root.crt"
+        },
+    },
+    "sslmode_that_libpq_does_not_have": {
+        "value": DB_URL + "?sslmode=on",
+        "expect": {"error": f"{DB_WHERE} has sslmode=on, which is not an sslmode of libpq"},
+    },
+}
+
+
 def main() -> None:
     shutil.rmtree(CASES, ignore_errors=True)
     for name, (tap, relay, expect) in CASES_BY_NAME.items():
@@ -5893,13 +5945,19 @@ def main() -> None:
     for name, case in DISCOVERY_CASES.items():
         text = json.dumps(case, indent=1, ensure_ascii=False) + "\n"
         (DISCOVERY / f"{name}.json").write_text(text, encoding="utf-8")
+    shutil.rmtree(DATABASE, ignore_errors=True)
+    DATABASE.mkdir()
+    for name, case in DATABASE_CASES.items():
+        text = json.dumps(case, indent=1, ensure_ascii=False) + "\n"
+        (DATABASE / f"{name}.json").write_text(text, encoding="utf-8")
     print(
         f"{len(CASES_BY_NAME)} audit cases, {len(CONTRACT_CASES)} contract cases, "
         f"{len(TRACE_CASES)} trace cases, {len(SEAL_CASES)} seal cases, "
         f"{len(OTLP_CASES)} receiver cases, {len(POLICY_CASES)} policy cases, "
         f"{len(GUARD_CASES)} guard cases, {len(CONTROL_CASES)} control cases, "
-        f"{len(EVALUATION_CASES)} evaluation cases, {len(NOTES_CASES)} notes cases and "
-        f"{len(DISCOVERY_CASES)} discovery cases written"
+        f"{len(EVALUATION_CASES)} evaluation cases, {len(NOTES_CASES)} notes cases, "
+        f"{len(DISCOVERY_CASES)} discovery cases and {len(DATABASE_CASES)} database cases "
+        "written"
     )
 
 

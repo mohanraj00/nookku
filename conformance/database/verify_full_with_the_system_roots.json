@@ -1,0 +1,8 @@
+{
+ "value": "postgresql://shop@db.toy.test/shop?sslrootcert=system&sslmode=verify-full",
+ "expect": {
+  "sslmode": "verify-full",
+  "rootcert": "system",
+  "app_query": "sslrootcert=system&sslmode=disable"
+ }
+}

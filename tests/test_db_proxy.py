@@ -5,6 +5,7 @@ import ssl
 import subprocess
 import threading
 from pathlib import Path
+from types import SimpleNamespace
 from urllib.parse import urlsplit
 
 import pytest
@@ -12,6 +13,8 @@ from toy_pg_server import PASSWORD, PgServer, message
 
 from nookku import db_proxy, discovery, trace
 
+ROOT = Path(__file__).resolve().parent.parent
+CASES = sorted((ROOT / "conformance" / "database").glob("*.json"))
 PART = {"name": "shop-db", "kind": "postgres", "env": "DATABASE_URL", "address": None}
 SSL = (8).to_bytes(4, "big") + db_proxy.SSL_REQUEST.to_bytes(4, "big")
 STARTUP = b"user\0shop\0database\0shop\0\0"
@@ -79,10 +82,20 @@ def run(proxy_url: str) -> bytes:
     return got
 
 
+@pytest.fixture(autouse=True)
+def home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """A home with no ~/.postgresql/root.crt, so that the default root file of libpq is not
+    the file of the person who runs the tests."""
+    folder = tmp_path / "home"
+    folder.mkdir()
+    monkeypatch.setenv("HOME", str(folder))
+    return folder
+
+
 def start(
-    server: PgServer, tmp_path: Path, mode: str = "prefer"
+    server: PgServer, tmp_path: Path, mode: str = "prefer", query: str = ""
 ) -> tuple[db_proxy.Proxy, dict[str, str]]:
-    environ = {"DATABASE_URL": server.url + f"?sslmode={mode}"}
+    environ = {"DATABASE_URL": server.url + f"?sslmode={mode}{query}"}
     (database,) = db_proxy.databases([PART], environ)
     proxy = db_proxy.Proxy(database, tmp_path / db_proxy.FILE, threading.Lock())
     threading.Thread(target=proxy.serve_forever, daemon=True).start()
@@ -111,7 +124,8 @@ def test_the_proxy_changes_no_byte_and_never_records_the_password(
         PASSWORD.decode(),
         proxy.server_address[1],
     )
-    assert url.path == "/shop" and url.query == f"sslmode={mode}"
+    # The app speaks plain text to the proxy on 127.0.0.1.
+    assert url.path == "/shop" and url.query == "sslmode=disable"
     text = (tmp_path / db_proxy.FILE).read_text()
     assert PASSWORD.decode() not in text
     found = rows(tmp_path / db_proxy.FILE)
@@ -121,21 +135,29 @@ def test_the_proxy_changes_no_byte_and_never_records_the_password(
     assert secret["fields"] is None and secret["size"] == len(PASSWORD) + 5
 
 
-def tls_context(folder: Path) -> ssl.SSLContext:
-    """A TLS context of the toy server, with a new self-signed certificate."""
+def certificate(folder: Path, name: str, san: str) -> tuple[Path, Path]:
+    """A new self-signed certificate with the common name and the subjectAltName, and its key."""
     if shutil.which("openssl") is None:
         pytest.skip("this test needs openssl")
-    key, cert = folder / "key.pem", folder / "cert.pem"
+    key, cert = folder / f"{name}.key", folder / f"{name}.pem"
     subprocess.run(
         [
             *("openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1"),
-            *("-subj", "/CN=db.toy.test", "-keyout", str(key), "-out", str(cert)),
+            *("-subj", f"/CN={name}", "-addext", f"subjectAltName={san}"),
+            *("-keyout", str(key), "-out", str(cert)),
         ],
         check=True,
         capture_output=True,
     )
+    return cert, key
+
+
+def tls_context(
+    folder: Path, name: str = "db.toy.test", san: str = "DNS:db.toy.test"
+) -> ssl.SSLContext:
+    """A TLS context of the toy server, with a new self-signed certificate."""
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-    context.load_cert_chain(cert, key)
+    context.load_cert_chain(*certificate(folder, name, san))
     return context
 
 
@@ -149,6 +171,111 @@ def test_the_proxy_speaks_tls_to_a_database_that_agrees(tmp_path: Path) -> None:
     assert server.tls_used
     assert got == b"N" + server.sent
     assert server.got == b"".join(SESSION[1:])
+
+
+@pytest.mark.parametrize("mode", ["require", "verify-ca", "verify-full"])
+def test_each_tls_mode_speaks_tls_to_the_database(tmp_path: Path, mode: str) -> None:
+    # The certificate has the address of the URL, so each check passes.
+    context = tls_context(tmp_path, "shop-db", "IP:127.0.0.1")
+    with PgServer(context) as server:
+        root = "" if mode == "require" else f"&sslrootcert={tmp_path / 'shop-db.pem'}"
+        proxy, env = start(server, tmp_path, mode, root)
+        try:
+            got = run(env["DATABASE_URL"])
+        finally:
+            proxy.stop()
+    assert server.tls_used
+    assert got == b"N" + server.sent
+    assert server.got == b"".join(SESSION[1:])
+    assert urlsplit(env["DATABASE_URL"]).query.endswith("sslmode=disable")
+    assert proxy.database.sslmode == mode
+
+
+def stopped(proxy: db_proxy.Proxy, tmp_path: Path) -> dict:
+    """Connect an app to the proxy and expect the end of the connection. Give the connect row."""
+    try:
+        with socket.create_connection(("127.0.0.1", proxy.server_address[1]), timeout=10) as s:
+            # The proxy connects to the database before it reads a byte of the app.
+            assert s.recv(1) == b""
+    finally:
+        proxy.stop()
+    (row,) = rows(tmp_path / db_proxy.FILE)
+    assert row["type"] == "connect" and row["error"].startswith("no connection:")
+    return row
+
+
+@pytest.mark.parametrize(
+    ("mode", "root", "text"),
+    [
+        # The certificate is for db.toy.test, and the URL has 127.0.0.1.
+        ("verify-full", "server", "IP address mismatch"),
+        # The root certificate is not the one that signed the certificate of the database.
+        ("verify-ca", "other", "certificate verify failed"),
+        ("verify-full", "other", "certificate verify failed"),
+        # require with a root certificate checks the chain as verify-ca does, as libpq does.
+        ("require", "other", "certificate verify failed"),
+    ],
+)
+def test_a_certificate_that_does_not_match_stops_the_connection(
+    tmp_path: Path, mode: str, root: str, text: str
+) -> None:
+    certificate(tmp_path, "other", "DNS:other.toy.test")
+    with PgServer(tls_context(tmp_path)) as server:
+        rootcert = tmp_path / ("db.toy.test.pem" if root == "server" else "other.pem")
+        proxy, _ = start(server, tmp_path, mode, f"&sslrootcert={rootcert}")
+        row = stopped(proxy, tmp_path)
+    assert text in row["error"]
+    # No byte of the app went to the database.
+    assert server.got == b""
+
+
+def test_verify_ca_does_not_check_the_host_name(tmp_path: Path) -> None:
+    with PgServer(tls_context(tmp_path)) as server:
+        root = f"&sslrootcert={tmp_path / 'db.toy.test.pem'}"
+        proxy, env = start(server, tmp_path, "verify-ca", root)
+        try:
+            got = run(env["DATABASE_URL"])
+        finally:
+            proxy.stop()
+    assert server.tls_used and got == b"N" + server.sent
+
+
+def test_the_default_root_file_of_libpq_makes_require_check_the_chain(
+    tmp_path: Path, home: Path
+) -> None:
+    other, _ = certificate(tmp_path, "other", "DNS:other.toy.test")
+    (home / ".postgresql").mkdir()
+    (home / ".postgresql" / "root.crt").write_bytes(other.read_bytes())
+    with PgServer(tls_context(tmp_path)) as server:
+        proxy, _ = start(server, tmp_path, "require")
+        row = stopped(proxy, tmp_path)
+    assert "certificate verify failed" in row["error"]
+
+
+@pytest.mark.parametrize("mode", ["require", "verify-ca", "verify-full"])
+def test_a_tls_mode_never_falls_back_to_plain_text(tmp_path: Path, mode: str) -> None:
+    cert, _ = certificate(tmp_path, "shop-db", "IP:127.0.0.1")
+    # This server declines TLS.
+    with PgServer() as server:
+        proxy, _ = start(server, tmp_path, mode, f"&sslrootcert={cert}")
+        row = stopped(proxy, tmp_path)
+    assert server.ssl_requests == 1 and server.got == b""
+    assert f"sslmode={mode} needs it" in row["error"]
+
+
+def test_the_app_url_has_sslmode_disable_and_keeps_the_other_parameters() -> None:
+    environ = {
+        "DATABASE_URL": "postgresql://shop@db.toy.test/shop?application_name=a%20b"
+        "&sslmode=require&connect_timeout=5"
+    }
+    (database,) = db_proxy.databases([PART], environ)
+    proxy = db_proxy.Proxy(database, Path("unused.jsonl"), threading.Lock())
+    try:
+        url = urlsplit(db_proxy.environment([proxy], environ)["DATABASE_URL"])
+    finally:
+        proxy.server_close()
+    assert url.query == "application_name=a%20b&connect_timeout=5&sslmode=disable"
+    assert (url.hostname, url.port) == ("127.0.0.1", proxy.server_address[1])
 
 
 def test_the_reader_gives_each_query_with_its_rows_or_its_error(tmp_path: Path) -> None:
@@ -190,6 +317,22 @@ def test_a_database_that_does_not_answer_gives_a_connect_row(tmp_path: Path) -> 
     assert row["type"] == "connect" and row["error"].startswith("no connection:")
 
 
+@pytest.mark.parametrize("case", CASES, ids=[c.stem for c in CASES])
+def test_the_variable_gives_each_conformance_result(case: Path) -> None:
+    data = json.loads(case.read_text(encoding="utf-8"))
+    environ, expect = {"DATABASE_URL": data["value"]}, data["expect"]
+    if "error" in expect:
+        with pytest.raises(ValueError) as e:
+            db_proxy.databases([PART], environ)
+        assert str(e.value) == expect["error"]
+        return
+    (database,) = db_proxy.databases([PART], environ)
+    assert (database.sslmode, database.rootcert) == (expect["sslmode"], expect["rootcert"])
+    proxy = SimpleNamespace(database=database, server_address=("127.0.0.1", 5999))
+    url = db_proxy.environment([proxy], environ)["DATABASE_URL"]  # type: ignore[list-item]
+    assert url == f"postgresql://shop@127.0.0.1:5999/shop?{expect['app_query']}"
+
+
 @pytest.mark.parametrize(
     ("value", "text"),
     [
@@ -197,7 +340,13 @@ def test_a_database_that_does_not_answer_gives_a_connect_row(tmp_path: Path) -> 
         ("mysql://shop@127.0.0.1/shop", "must hold a postgres:// or postgresql:// URL"),
         ("postgresql:///shop?host=/var/run", "must hold a postgres:// or postgresql:// URL"),
         ("postgresql://127.0.0.1:99999/shop", "has a port that is not valid"),
-        ("postgresql://127.0.0.1/shop?sslmode=require", "has sslmode=require"),
+        ("postgresql://127.0.0.1/shop?sslmode=on", "has sslmode=on, which is not"),
+        ("postgresql://127.0.0.1/shop?sslmode=verify-ca", "has sslmode=verify-ca and no root"),
+        ("postgresql://127.0.0.1/shop?sslmode=verify-full", "has sslmode=verify-full and no"),
+        (
+            "postgresql://127.0.0.1/shop?sslmode=verify-full&sslrootcert=/no/root.crt",
+            "has an sslrootcert file that does not exist",
+        ),
         ("postgresql://db.toy.test/shop?hostaddr=203.0.113.1", "has the query parameter hostaddr"),
         ("postgresql://db.toy.test/shop?host=/var/run", "has the query parameter host"),
         ("postgresql://db.toy.test/shop?port=6543", "has the query parameter port"),
@@ -218,7 +367,7 @@ def test_only_a_postgres_database_with_a_variable_gets_a_proxy() -> None:
     parts = [PART, {**PART, "name": "cart", "env": None}, {**PART, "name": "log", "kind": "sqlite"}]
     environ = {"DATABASE_URL": "postgres://127.0.0.1/shop"}
     assert db_proxy.databases(parts, environ) == [
-        db_proxy.Database("shop-db", "DATABASE_URL", "127.0.0.1", 5432, tls=True)
+        db_proxy.Database("shop-db", "DATABASE_URL", "127.0.0.1", 5432, "prefer", None)
     ]
     parts[2] = {**parts[2], "env": "LOG_DB"}
     answer = discovery.parse(discovery.make(databases=parts))

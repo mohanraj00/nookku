@@ -1,0 +1,8 @@
+{
+ "value": "postgresql://shop@db.toy.test/shop?sslmode=disable",
+ "expect": {
+  "sslmode": "disable",
+  "rootcert": null,
+  "app_query": "sslmode=disable"
+ }
+}

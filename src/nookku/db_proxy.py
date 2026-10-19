@@ -3,9 +3,11 @@ database of the egress answer that has a variable.
 
 The proxy speaks the Postgres wire protocol to the app and to the database. It copies each byte
 of a connection with no change, except at the start: it declines a TLS request of the app, so that
-it can read the messages. It writes each message of each direction to database.jsonl. It never
-writes the password: the variable keeps its value for the app, and the record keeps only the
-size of an authentication message of the app.
+it can read the messages. The app speaks plain text to the proxy, only on 127.0.0.1. The proxy
+speaks TLS to the database as the sslmode of the app tells it, and it never falls back to plain
+text for require, verify-ca or verify-full. It writes each message of each direction to
+database.jsonl. It never writes the password: the variable keeps its value for the app, and the
+record keeps only the size of an authentication message of the app.
 """
 
 from __future__ import annotations
@@ -22,7 +24,7 @@ import time
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any, NamedTuple
-from urllib.parse import parse_qsl, urlsplit, urlunsplit
+from urllib.parse import parse_qsl, unquote_plus, urlsplit, urlunsplit
 
 from nookku import backend
 from nookku.record import json_text
@@ -36,8 +38,12 @@ DEFAULT_PORT = 5432
 SSL_REQUEST = 80877103
 GSS_REQUEST = 80877104
 CANCEL_REQUEST = 80877102
-# The sslmode values that need TLS. The proxy declines TLS, so these modes cannot connect.
+# The sslmode values of libpq. The proxy uses the sslmode of the app to the database.
+SSL_MODES = ("disable", "allow", "prefer", "require", "verify-ca", "verify-full")
+# The sslmode values that need TLS. If the database declines TLS, the connection stops.
 TLS_MODES = ("require", "verify-ca", "verify-full")
+# The sslrootcert value that tells libpq to use the trusted roots of the system.
+SYSTEM_ROOTS = "system"
 # The query parameters of a URL that give libpq another address than the host of the URL. The
 # app would then connect past the proxy.
 ADDRESS_KEYS = ("host", "hostaddr", "port", "service")
@@ -52,8 +58,33 @@ class Database(NamedTuple):
     env: str
     host: str
     port: int
-    # True: the proxy asks the database for TLS, as the sslmode allow or prefer of the app does.
-    tls: bool = False
+    # The sslmode of the app URL, or prefer, the default of libpq.
+    sslmode: str = "prefer"
+    # The file of the root certificates that the proxy trusts, SYSTEM_ROOTS, or None. If it is
+    # not None, require checks the certificate as verify-ca does, as libpq does.
+    rootcert: str | None = None
+
+
+def _rootcert(where: str, mode: str, query: dict[str, str]) -> str | None:
+    """The root certificates of the URL: sslrootcert, else the default file of libpq if it
+    exists. Raise ValueError if verify-ca or verify-full has no root certificates."""
+    given = query.get("sslrootcert")
+    if given == SYSTEM_ROOTS:
+        return given
+    if given:
+        path = Path(given)
+        if not path.is_file():
+            raise ValueError(f"{where} has an sslrootcert file that does not exist: {given}")
+        return str(path)
+    default = Path.home() / ".postgresql" / "root.crt"
+    if default.is_file():
+        return str(default)
+    if mode in ("verify-ca", "verify-full"):
+        raise ValueError(
+            f"{where} has sslmode={mode} and no root certificate. Give the file of the root "
+            "certificate in sslrootcert, or sslrootcert=system."
+        )
+    return None
 
 
 def _upstream(part: dict[str, Any], value: str | None) -> Database:
@@ -75,17 +106,15 @@ def _upstream(part: dict[str, Any], value: str | None) -> Database:
             "the host of the URL. Give the address only in the host and the port of the URL."
         )
     mode = query.get("sslmode", "prefer")
-    if mode in TLS_MODES:
-        raise ValueError(
-            f"{where} has sslmode={mode}. The app cannot speak TLS to the proxy, so give "
-            "sslmode=disable, allow or prefer for the test."
-        )
+    if mode not in SSL_MODES:
+        raise ValueError(f"{where} has sslmode={mode}, which is not an sslmode of libpq")
     if query.get("gssencmode") == "require":
         raise ValueError(
             f"{where} has gssencmode=require. The proxy speaks no GSSAPI encryption, so give "
             "gssencmode=disable or prefer for the test."
         )
-    return Database(part["name"], part["env"], url.hostname, port, mode != "disable")
+    rootcert = None if mode == "disable" else _rootcert(where, mode, query)
+    return Database(part["name"], part["env"], url.hostname, port, mode, rootcert)
 
 
 def databases(parts: list[dict[str, Any]], environ: Any) -> list[Database]:
@@ -98,15 +127,23 @@ def databases(parts: list[dict[str, Any]], environ: Any) -> list[Database]:
     ]
 
 
+def _plain(query: str) -> str:
+    """The query with sslmode=disable in place of each sslmode, or at the end. The other
+    parameters keep their bytes."""
+    parts = [q for q in query.split("&") if q and unquote_plus(q.partition("=")[0]) != "sslmode"]
+    return "&".join([*parts, "sslmode=disable"])
+
+
 def environment(proxies: list[Proxy], environ: Any) -> dict[str, str]:
-    """The variable of each database: its URL with the address of the proxy. The user, the
-    password, the database and the query stay."""
+    """The variable of each database: its URL with the address of the proxy and
+    sslmode=disable, because the app speaks plain text to the proxy on 127.0.0.1. The user, the
+    password, the database and the other query parameters stay."""
     out = {}
     for p in proxies:
         url = urlsplit(environ[p.database.env])
         user = url.netloc.rpartition("@")[0]
         netloc = (user + "@" if user else "") + f"127.0.0.1:{p.server_address[1]}"
-        out[p.database.env] = urlunsplit(url._replace(netloc=netloc))
+        out[p.database.env] = urlunsplit(url._replace(netloc=netloc, query=_plain(url.query)))
     return out
 
 
@@ -247,24 +284,44 @@ class Messages:
             yield tag, body, size
 
 
+def _context(db: Database) -> ssl.SSLContext:
+    """The TLS context of the sslmode. verify-ca checks the chain to a root certificate, and
+    verify-full also checks the host name. require checks nothing, but with root certificates it
+    checks the chain as verify-ca does. allow and prefer check nothing, as libpq does."""
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    verify = db.sslmode in ("verify-ca", "verify-full") or (
+        db.sslmode == "require" and db.rootcert is not None
+    )
+    if not verify:
+        context.check_hostname = False
+        context.verify_mode = ssl.CERT_NONE
+        return context
+    context.check_hostname = db.sslmode == "verify-full"
+    if db.rootcert == SYSTEM_ROOTS:
+        context.load_default_certs()
+    else:
+        context.load_verify_locations(cafile=db.rootcert)
+    return context
+
+
 def _connect(db: Database) -> socket.socket:
-    """A connection to the database. If `tls` is True, the proxy asks for TLS. If the database
-    agrees, the connection uses TLS with no check of the certificate, as libpq does for the
-    sslmode prefer. If the database declines, the connection stays plain, as for prefer."""
+    """A connection to the database, with the sslmode of the app. For disable, the connection is
+    plain. For allow and prefer, the proxy asks for TLS, and the connection stays plain if the
+    database declines. For require, verify-ca and verify-full, a decline or a failed check raises
+    OSError: the connection never falls back to plain text."""
     up = socket.create_connection((db.host, db.port), timeout=TIMEOUT)
-    if not db.tls:
+    if db.sslmode == "disable":
         return up
     try:
         up.sendall((8).to_bytes(4, "big") + SSL_REQUEST.to_bytes(4, "big"))
         answer = up.recv(1)
-        if answer == b"N":
+        if answer == b"N" and db.sslmode not in TLS_MODES:
             return up
+        if answer == b"N":
+            raise OSError(f"the database declined TLS, and sslmode={db.sslmode} needs it")
         if answer != b"S":
             raise OSError(f"the database gave {answer!r} to the TLS request")
-        context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-        context.check_hostname = False
-        context.verify_mode = ssl.CERT_NONE
-        return context.wrap_socket(up, server_hostname=db.host)
+        return _context(db).wrap_socket(up, server_hostname=db.host)
     except BaseException:
         up.close()
         raise
