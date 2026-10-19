@@ -1,0 +1,20 @@
+{
+ "answer": {
+  "model_apis": [],
+  "backends": [],
+  "mcp_servers": [],
+  "databases": [
+   {
+    "name": "shop",
+    "kind": "postgres",
+    "env": null,
+    "address": null,
+    "record": "proxy"
+   }
+  ],
+  "other": []
+ },
+ "expect": {
+  "error": "databases[0]: only a postgres database with a variable has a proxy. Give 'record' driver."
+ }
+}

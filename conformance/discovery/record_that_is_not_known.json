@@ -1,0 +1,20 @@
+{
+ "answer": {
+  "model_apis": [],
+  "backends": [],
+  "mcp_servers": [],
+  "databases": [
+   {
+    "name": "shop",
+    "kind": "postgres",
+    "env": null,
+    "address": null,
+    "record": "logs"
+   }
+  ],
+  "other": []
+ },
+ "expect": {
+  "error": "databases[0] 'record' must be one of: proxy, driver"
+ }
+}

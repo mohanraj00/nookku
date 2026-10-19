@@ -235,12 +235,12 @@ def _upstream(part: dict[str, Any], value: str | None, environ: Any) -> Database
 
 
 def databases(parts: list[dict[str, Any]], environ: Any) -> list[Database]:
-    """The Postgres databases of the answer that have a variable, with the upstream address from
+    """The Postgres databases of the answer with `record: proxy`, with the upstream address from
     the value of the variable. Raise ValueError if a value is not a postgres URL."""
     return [
         _upstream(p, environ.get(p["env"]), environ)
         for p in parts
-        if p["kind"] in KINDS and p["env"] is not None
+        if p["kind"] in KINDS and p["env"] is not None and p["record"] == "proxy"
     ]
 
 

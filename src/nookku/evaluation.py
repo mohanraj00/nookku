@@ -23,6 +23,11 @@ REPORT = "report.md"
 CUT = 2000
 # In compact mode, a shorter text always shows: its reference is almost as long as the text.
 COMPACT_MIN = 200
+# The result line of a query from the driver trace (SPEC.md section 8.4).
+DRIVER_RESULT = (
+    "result: none. A driver trace has no rows, and it can hide parameter values. "
+    "Check the state with a read-only query.\n"
+)
 
 
 def enabled(root: Path) -> bool:
@@ -179,10 +184,15 @@ def render_item(it: dict[str, Any], line: int) -> str:
             return out + f"error:\n{_cut(it['error'], line)}\n"
         return out + f"response:\n{_cut(it['output'] or '', line)}\n"
     if it["kind"] == "query":
-        out = f"{head}: database {it['session']}: {it['name']}\n"
+        # The source of a query: the Postgres proxy, or the driver trace of the app process.
+        driver = it["harness"] == "driver"
+        source = "driver trace from the app process" if driver else "proxy"
+        out = f"{head}: database {it['session']} ({source}): {it['name']}\n"
         out += f"request: {_cut(_value(it['input']), line)}\n"
         if it["error"] is not None:
             out += f"error:\n{_cut(it['error'], line)}\n"
+        if driver:
+            return out + DRIVER_RESULT
         return out + f"result:\n{_cut(it['output'] or '', line)}\n"
     if it["kind"] in ("span", "log"):
         who = it["service"] or "a service"
@@ -206,18 +216,18 @@ def render_item(it: dict[str, Any], line: int) -> str:
     return out + f"result:\n{_cut(it['output'] or '', line)}\n"
 
 
-def _finding(f: dict[str, Any], lines: dict[tuple[str, int], int]) -> str:
+def _finding(f: dict[str, Any], lines: dict[tuple[Any, str, int], int]) -> str:
     where = ""
     source = f.get("source")
     if isinstance(source, dict):
-        n = lines.get((source["file"], source["line"]))
+        n = lines.get((f.get("harness"), source["file"], source["line"]))
         where = f" [trace.jsonl:{n}]" if n else f" [{source['file']}:{source['line']}]"
     elif f.get("harness"):
         where = f" ({f['harness']} session {f['session']})"
     return f"- {f['check']}: {f['detail']}{where}\n"
 
 
-def _loose(findings: list[dict[str, Any]], lines: dict[tuple[str, int], int]) -> str:
+def _loose(findings: list[dict[str, Any]], lines: dict[tuple[Any, str, int], int]) -> str:
     """The lines of the findings with no turn. The version_untested findings of one harness and
     one version show as one line with the count of sessions. findings.json keeps each one."""
     rows: list[str | tuple[str, str]] = []
@@ -320,7 +330,11 @@ def transcript(folder: Path, compact: bool = False) -> str:
         findings = json.loads((folder / "findings.json").read_text(encoding="utf-8"))["findings"]
     except (OSError, ValueError, KeyError):
         findings = []
-    lines = {(it["source"]["file"], it["source"]["line"]): n for n, it in enumerate(items, 1)}
+    # A driver query has the source line of its span, so the harness tells the two items apart.
+    lines = {
+        (it["harness"], it["source"]["file"], it["source"]["line"]): n
+        for n, it in enumerate(items, 1)
+    }
     out = [
         seal.summary(seal.verify(folder)) + "\n",
         f"nookku transcript with trace, test {folder.name}: {len(exchanges)} turns, "
@@ -329,7 +343,8 @@ def transcript(folder: Path, compact: bool = False) -> str:
         "OpenTelemetry spans and logs of the app (otel.jsonl), or from the calls of the app to "
         "its backends (backend.jsonl), or from its direct calls to a model API "
         "(model_api.jsonl), or from its calls to its MCP servers (mcp.jsonl) and its Postgres "
-        "databases (database.jsonl). [trace.jsonl:N] is "
+        "databases (database.jsonl), or from the database spans of the app (the driver trace). "
+        "[trace.jsonl:N] is "
         f"line N of {folder / 'trace.jsonl'}.\n",
     ]
     if compact:

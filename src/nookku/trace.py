@@ -1065,6 +1065,48 @@ SERVER_KEYS = ("http.route", "http.target", "url.path")
 DEFAULT_PORTS = {"http": 80, "https": 443}
 # The detail of an HTTP call with a URL that the URL parser cannot read.
 BAD_URL = "(a URL that does not parse)"
+# The attributes of a database span that give the query text, the database and each parameter,
+# the new name of the semantic conventions first (SPEC.md section 8.4).
+DB_TEXT = ("db.query.text", "db.statement")
+DB_NAME = ("db.namespace", "db.name")
+DB_OPERATION = ("db.operation.name", "db.operation")
+DB_PARAMETER = "db.query.parameter."
+# The mark in `seen` of a test with a driver trace. It is not an address, because it has a space.
+DRIVER_SEEN = "driver trace"
+
+
+def _first(attrs: dict[str, Any], keys: tuple[str, ...]) -> str | None:
+    return next((attrs[k] for k in keys if isinstance(attrs.get(k), str)), None)
+
+
+def _db_system(it: dict[str, Any]) -> str | None:
+    """The database system of a span of the app that is a call to a database, else None."""
+    if it["harness"] != "otel" or it["kind"] != "span" or not isinstance(it["input"], dict):
+        return None
+    if any(k in it["input"] for k in SERVER_KEYS):
+        return None
+    return _first(it["input"], CALL_DB)
+
+
+def driver_queries(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """A `query` item for each database span of the app: the driver trace (SPEC.md section 8.4).
+    A span has no rows, so the item has no output."""
+    out = []
+    for it in items:
+        system = _db_system(it)
+        if system is None:
+            continue
+        attrs = it["input"]
+        query = _first(attrs, DB_TEXT)
+        params = {k[len(DB_PARAMETER) :]: v for k, v in attrs.items() if k.startswith(DB_PARAMETER)}
+        q = _item(
+            "driver", _first(attrs, DB_NAME) or system, otlp.FILE, it["source"]["line"], it["ts"]
+        )
+        q.update(kind="query", name=_query_name(query or _first(attrs, DB_OPERATION)))
+        q.update(input={"query": query, "parameters": params or None}, error=it["error"])
+        q["service"] = it["service"]
+        out.append(q)
+    return out
 
 
 def _address(host: Any, port: Any) -> str | None:
@@ -1106,7 +1148,13 @@ def egress_seen(manifest: dict[str, Any]) -> set[str] | None:
     wrapped = bool(stdio) and all(
         egress["proxies"].get(s.get("name")) == mcp_proxy.STDIO for s in stdio
     )
-    return seen | ({mcp_proxy.STDIO} if wrapped else set())
+    # A span does not name the database of the answer, so one database with a driver trace makes
+    # each database call seen (SPEC.md section 8.6).
+    databases = answer.get("databases") if isinstance(answer, dict) else None
+    driver = isinstance(databases, list) and any(
+        isinstance(d, dict) and d.get("record") == "driver" for d in databases
+    )
+    return seen | ({mcp_proxy.STDIO} if wrapped else set()) | ({DRIVER_SEEN} if driver else set())
 
 
 def unseen_calls(items: list[dict[str, Any]], seen: set[str]) -> list[dict[str, Any]]:
@@ -1133,6 +1181,8 @@ def unseen_calls(items: list[dict[str, Any]], seen: set[str]) -> list[dict[str, 
         if address is not None and address in seen:
             continue
         if address is None and db is None and isinstance(mcp, str) and mcp_proxy.STDIO in seen:
+            continue
+        if db is not None and DRIVER_SEEN in seen:
             continue
         detail = f"{what} at {address or 'no network address'}: no proxy saw this call"
         where = {"harness": it["harness"], "session": it["session"], "source": it["source"]}
@@ -1187,7 +1237,8 @@ def check(
         if it["kind"] == "query" and it["error"] is not None:
             detail = f"{it['session']}: {it['name']}: {it['error']}"
             out.append(_finding("database_error", it["turn"], detail, **where))
-        if it["kind"] == "span" and it["error"] is not None:
+        # The driver query of a database span gives its database_error.
+        if it["kind"] == "span" and it["error"] is not None and _db_system(it) is None:
             detail = f"{it['service'] or 'a service'}: {it['name']}: {it['error']}"
             out.append(_finding("span_error", it["turn"], detail, **where))
         harness_event = it["kind"] == "log" and it["harness"] in ("claude-code", "codex")
@@ -1267,7 +1318,7 @@ def build(folder: Path) -> dict[str, Any]:
     otel = None
     if (folder / otlp.FILE).exists():
         found, otel = read_otel(folder / otlp.FILE)
-        items += found
+        items += found + driver_queries(found)
     calls = None
     if (folder / backend.FILE).exists():
         found, calls = read_backend(folder / backend.FILE)

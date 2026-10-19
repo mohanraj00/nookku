@@ -1,0 +1,19 @@
+{
+ "answer": {
+  "model_apis": [],
+  "backends": [],
+  "mcp_servers": [],
+  "databases": [
+   {
+    "name": "shop",
+    "kind": "postgres",
+    "env": null,
+    "address": null
+   }
+  ],
+  "other": []
+ },
+ "expect": {
+  "error": "databases[0] must have the keys name, kind, env, address, record, and no other key"
+ }
+}

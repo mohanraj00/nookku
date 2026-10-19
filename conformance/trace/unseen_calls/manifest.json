@@ -18,7 +18,8 @@
      "name": "shop-db",
      "kind": "postgres",
      "env": "DATABASE_URL",
-     "address": null
+     "address": null,
+     "record": "proxy"
     }
    ],
    "other": []

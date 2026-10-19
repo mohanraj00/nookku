@@ -1,0 +1,37 @@
+{
+ "date": "2026-10-18",
+ "versions": {
+  "nookku": "0.5.2",
+  "python": "3.13.12",
+  "os": "Darwin",
+  "app_packages": [
+   "opentelemetry-sdk==1.44.0",
+   "opentelemetry-exporter-otlp-proto-http==1.44.0",
+   "opentelemetry-instrumentation-sqlite3==0.65b0"
+  ]
+ },
+ "reply": "3 teapot sets left.",
+ "unseen": [],
+ "driver": [
+  "stock"
+ ],
+ "proxies": {},
+ "driver_queries": [
+  {
+   "turn": 1,
+   "session": "sqlite",
+   "name": "SELECT",
+   "input": {
+    "query": "SELECT qty FROM stock WHERE sku = ?",
+    "parameters": null
+   }
+  }
+ ],
+ "unseen_call": 0,
+ "transcript_lines": [
+  "[trace.jsonl:2] driver query: database sqlite (driver trace from the app process): SELECT"
+ ],
+ "transcript_says_no_rows": true,
+ "seal_intact": true,
+ "pass": true
+}

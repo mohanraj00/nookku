@@ -124,7 +124,15 @@ def test_a_start_takes_the_answer_into_the_manifest_and_removes_it(tmp_path: Pat
     answer = {
         **EMPTY,
         "backends": [STOCK],
-        "databases": [{"name": "shop", "kind": "mysql", "env": "DATABASE_URL", "address": None}],
+        "databases": [
+            {
+                "name": "shop",
+                "kind": "mysql",
+                "env": "DATABASE_URL",
+                "address": None,
+                "record": "driver",
+            }
+        ],
     }
     registered = discovery.register(root, answer)["registered"]
     text = kit.start_test(root, "t")
@@ -135,18 +143,31 @@ def test_a_start_takes_the_answer_into_the_manifest_and_removes_it(tmp_path: Pat
         egress = manifest["egress"]
         assert egress["registered"] == registered
         assert egress["answer"] == discovery.parse(answer)
-        assert egress["unseen"] == ["shop"]
+        assert egress["unseen"] == []
+        assert egress["driver"] == ["shop"]
         assert set(egress["proxies"]) == {"stock"}
         assert egress["receiver"].startswith("http://127.0.0.1:")
         assert not (Path(cur["dir"]) / bridge.EGRESS_FILE).exists()
         assert not discovery.path(root).exists()
         assert "- backend stock: STOCK_URL -> http://127.0.0.1:9 (proxy)" in text
-        assert "- database shop: mysql, DATABASE_URL (no proxy)" in text
+        assert "- database shop: mysql, DATABASE_URL (driver trace)" in text
+        assert "A driver trace has no rows and can hide parameter values." in text
     finally:
         bridge.end(root)
     # The next test needs a new answer.
     with pytest.raises(bridge.BridgeError):
         bridge.start(root)
+
+
+def test_a_driver_trace_needs_the_otlp_receiver(tmp_path: Path) -> None:
+    root = project(tmp_path)
+    conf = root / ".nookku" / "config.json"
+    conf.write_text(json.dumps({**json.loads(conf.read_text()), "otel": False}))
+    cart = {"name": "cart", "kind": "sqlite", "env": None, "address": "cart.db", "record": "driver"}
+    discovery.register(root, {**EMPTY, "databases": [cart]})
+    with pytest.raises(bridge.BridgeError, match="the database cart has 'record' driver"):
+        bridge.start(root)
+    assert state.current(root) is None
 
 
 def test_a_replay_uses_the_answer_of_its_old_test(tmp_path: Path) -> None:

@@ -14,7 +14,8 @@
     "name": "shop",
     "kind": "postgres",
     "env": "STOCK_URL",
-    "address": null
+    "address": null,
+    "record": "proxy"
    }
   ],
   "other": []

@@ -32,6 +32,9 @@ LISTS = ("model_apis", "backends", "mcp_servers", "databases", "other")
 # The model APIs that a proxy can read (SPEC.md section 7.7).
 MODEL_APIS = ("anthropic", "openai")
 MCP_TRANSPORTS = ("stdio", "http")
+# How the test records the calls of a database (SPEC.md section 7.11): the Postgres proxy, or the
+# OpenTelemetry spans of the driver in the app process.
+RECORDS = ("proxy", "driver")
 # The variables that the bridge gives the entry. A part must not use one of them.
 RESERVED = frozenset(
     {
@@ -56,7 +59,7 @@ PART_KEYS = {
     "model_apis": ("api", "env", "url"),
     "backends": ("name", "env", "url"),
     "mcp_servers": ("name", "transport", "env", "command", "url"),
-    "databases": ("name", "kind", "env", "address"),
+    "databases": ("name", "kind", "env", "address", "record"),
     "other": ("name", "kind", "detail"),
 }
 
@@ -79,6 +82,12 @@ class Part:
     name: str
     line: str
     proxy: bool
+    # True for a database with `record: driver`: its driver spans record its calls.
+    driver: bool = False
+
+    @property
+    def seen_by(self) -> str:
+        return "proxy" if self.proxy else "driver trace" if self.driver else "no proxy"
 
 
 def path(root: Path) -> Path:
@@ -212,6 +221,14 @@ def _part(kind: str, n: int, raw: Any) -> dict[str, Any]:
         address = _string(f"{where} 'address'", raw["address"], null=True)
         if address is not None:
             _secret_free_address(where, address)
+        if raw["record"] not in RECORDS:
+            raise AnswerError(f"{where} 'record' must be one of: {', '.join(RECORDS)}")
+        # Only a Postgres database with a variable can have a proxy (SPEC.md section 7.13).
+        if raw["record"] == "proxy" and (raw["kind"] != "postgres" or raw["env"] is None):
+            raise AnswerError(
+                f"{where}: only a postgres database with a variable has a proxy. "
+                "Give 'record' driver."
+            )
     else:
         for key in keys:
             _string(f"{where} '{key}'", raw[key])
@@ -266,9 +283,9 @@ def parts(answer: dict[str, list[dict[str, Any]]]) -> list[Part]:
         out.append(Part("MCP server", p["name"], line, p["env"] is not None))
     for p in answer["databases"]:
         where = p["env"] or p["address"] or "no variable"
-        # Only a Postgres database with a variable has a proxy (SPEC.md section 7.13).
-        proxy = p["kind"] == "postgres" and p["env"] is not None
-        out.append(Part("database", p["name"], f"{p['kind']}, {where}", proxy))
+        # parse lets `proxy` only for a Postgres database with a variable (SPEC.md section 7.13).
+        proxy = p["record"] == "proxy"
+        out.append(Part("database", p["name"], f"{p['kind']}, {where}", proxy, not proxy))
     for p in answer["other"]:
         out.append(Part("other", p["name"], f"{p['kind']}, {p['detail']}", False))
     return out
@@ -278,15 +295,18 @@ def lines(answer: dict[str, list[dict[str, Any]]]) -> list[str]:
     """One line for each part: its kind, its name, its target, and if a proxy sees it."""
     if not any(answer.values()):
         return ["- no egress part: the agent calls no service"]
-    return [
-        f"- {p.kind} {p.name}: {p.line} ({'proxy' if p.proxy else 'no proxy'})"
-        for p in parts(answer)
-    ]
+    return [f"- {p.kind} {p.name}: {p.line} ({p.seen_by})" for p in parts(answer)]
 
 
 def unseen(answer: dict[str, list[dict[str, Any]]]) -> list[str]:
-    """The names of the parts that no proxy sees. The report recommends a way to see their calls."""
-    return [p.name for p in parts(answer) if not p.proxy]
+    """The names of the parts that no proxy and no driver trace sees. The report recommends a way
+    to see their calls."""
+    return [p.name for p in parts(answer) if p.seen_by == "no proxy"]
+
+
+def drivers(answer: dict[str, list[dict[str, Any]]]) -> list[str]:
+    """The names of the databases that the driver trace records (SPEC.md section 7.11)."""
+    return [p["name"] for p in answer["databases"] if p["record"] == "driver"]
 
 
 def register(root: Path, raw: Any, now: float | None = None) -> dict[str, Any]:

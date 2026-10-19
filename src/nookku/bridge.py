@@ -138,10 +138,17 @@ def load_config(root: Path, entry_name: str | None = None) -> TestConfig:
 
 
 def egress_proxies(
-    answer: dict[str, Any], environ: dict[str, str] | os._Environ[str]
+    answer: dict[str, Any], environ: dict[str, str] | os._Environ[str], otel: bool = True
 ) -> tuple[list[backend.Backend], list[backend.Backend]]:
     """The backend proxies and the model API proxies of a discovery answer (SPEC.md section
-    7.11). Raise BridgeError if the URL of a model API is not valid."""
+    7.11). Raise BridgeError if the URL of a model API is not valid, or if a database has a
+    driver trace and the config stops the OTLP receiver."""
+    drivers = discovery.drivers(answer)
+    if drivers and not otel:
+        raise BridgeError(
+            f"the egress answer: the database {drivers[0]} has 'record' driver, but the config "
+            "has otel: false. The driver trace needs the OTLP receiver (SPEC.md section 7.11)."
+        )
     try:
         apis = model_api.backends(answer["model_apis"], environ)
         db_proxy.databases(answer["databases"], environ)
@@ -185,7 +192,7 @@ def start(
     With check, the test is a test of `nookku check`: the first manifest records this, so that no
     evaluation starts, also if the check stops before its turn (SPEC.md section 9.1).
     """
-    load_config(root, entry_name)
+    config = load_config(root, entry_name)
     copy: tuple[str, bytes] | None = None
     if script_path is not None:
         try:
@@ -213,7 +220,7 @@ def start(
         egress = {"registered": egress["registered"], "answer": discovery.parse(egress["answer"])}
     except (discovery.AnswerError, KeyError, TypeError) as e:
         raise BridgeError(f"the egress answer: {e}") from None
-    egress_proxies(egress["answer"], os.environ)
+    egress_proxies(egress["answer"], os.environ, config.otel)
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     test = f"{stamp}-{secrets.token_hex(2)}"
     folder = state(root) / "tests" / test
@@ -460,6 +467,11 @@ def egress_text(folder: Path) -> str:
         text += (
             "\nNo proxy sees a part with no proxy. The report recommends a way to see its calls, "
             "for example logs or OpenTelemetry spans."
+        )
+    if discovery.drivers(answer):
+        text += (
+            "\nThe OpenTelemetry spans of its driver record each database with a driver trace. "
+            "A driver trace has no rows and can hide parameter values."
         )
     return text
 
@@ -739,7 +751,7 @@ def run(
         print("nookku bridge: the test folder has no valid egress answer", file=sys.stderr)
         return 1
     try:
-        backends, model_apis = egress_proxies(egress["answer"], os.environ)
+        backends, model_apis = egress_proxies(egress["answer"], os.environ, config.otel)
     except BridgeError as e:
         print(f"nookku bridge: {e}", file=sys.stderr)
         return 1
@@ -773,6 +785,7 @@ def run(
         "egress": {
             **egress,
             "unseen": discovery.unseen(egress["answer"]),
+            "driver": discovery.drivers(egress["answer"]),
             "proxies": {},
             "sslmode": {},
             "receiver": None,

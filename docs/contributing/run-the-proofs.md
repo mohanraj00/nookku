@@ -48,6 +48,7 @@ If a hook changes, trust it again. A new plugin script also needs a new run of `
 | The Claude Code version of each Agent SDK release, no model | `uv run python scripts/proof_sdk_bundles.py <version>...` | `proofs/trace/sdk-bundles.json` |
 | Backend proxy, no model | `uv run python scripts/proof_backend.py` | `proofs/backend/` |
 | Model API proxy, no model | `uv run python scripts/proof_model_api.py` | `proofs/model-api/` |
+| Driver trace of a database, no model | `uv run python scripts/proof_driver_trace.py` | `proofs/driver-trace/` |
 | The `HEAD /api/hello` call of Claude Code, no model | `uv run python scripts/proof_api_hello.py` | `proofs/model-api/hello.json` |
 | P5 to P8, evaluation at the end of a test | `uv run python scripts/proof_report.py <setup>` | `proofs/report/<setup>.json` |
 | Full telemetry | `uv run python scripts/proof_telemetry.py <setup>` | `proofs/telemetry/<setup>.json` |
@@ -60,7 +61,7 @@ If a hook changes, trust it again. A new plugin script also needs a new run of `
 | The output of the tutorial, no model | `uv run python scripts/proof_tutorial.py` | `proofs/tutorial/output.txt`, `proofs/tutorial/run.json`. This run replaces the data of the `--model` run. |
 | The output of the tutorial, with Claude Code and the model | `uv run python scripts/proof_tutorial.py --model` | `proofs/tutorial/output.txt`, `proofs/tutorial/run.json` |
 
-These scripts print `PASS` or `FAIL` and the path of their results file: `proofs_relay.py`, `proof_sessions.py`, `proof_trace.py`, `proof_backend.py`, `proof_model_api.py`, `proof_report.py` and `proof_telemetry.py`. The docstring of each script lists what it checks.
+These scripts print `PASS` or `FAIL` and the path of their results file: `proofs_relay.py`, `proof_sessions.py`, `proof_trace.py`, `proof_backend.py`, `proof_model_api.py`, `proof_driver_trace.py`, `proof_report.py` and `proof_telemetry.py`. The docstring of each script lists what it checks.
 
 ## A new Claude Code release
 
