@@ -3,7 +3,7 @@
  "relay": "hooks-claude-code",
  "discovery_registered": true,
  "discovery_attempts": 1,
- "discovery_answer": "I've registered the agent's egress parts with nookku. This is what `nookku register` printed:\n\n```\nnookku: the egress answer is registered. The next start uses these parts:\n- model API anthropic: ANTHROPIC_BASE_URL -> the URL in ANTHROPIC_BASE_URL or the default (proxy)\n- MCP server catalog: http CATALOG_MCP_URL -> http://127.0.0.1:9310/mcp (proxy)\n- MCP server notes: stdio NOTES_MCP_COMMAND -> python3 notes_mcp.py (proxy)\n- database shop: postgres, DATABASE_URL (proxy)\n- database returns: sqlite, <project>/returns.db (driver trace)\nShow these parts to the tester. If they are correct, the tester types the prompt nookku start in the next 30 minutes. If a part is wrong, run nookku register again with the correct answer.\n```\n\nWhere each part comes from in the code:\n- **Model API:** The agent talks to Claude through the Claude Agent SDK (model `haiku`), and the Claude Code program the SDK runs reads `ANTHROPIC_BASE_URL`.\n- **No HTTP backends and no other parts.** The notes server writes `notes.json`, but that happens inside the notes MCP server, not in the agent.\n- **catalog:** `CATALOG_MCP_URL`, defaulting to `http://127.0.0.1:9310/mcp` (`app.py:36`).\n- **notes:** `NOTES_MCP_COMMAND`. The agent splits the command line into words with `shlex.split` (`app.py:37`, `app.py:120`).\n- **shop (Postgres):** The agent's `psycopg` connects with the `postgres://` URL in `DATABASE_URL` (`app.py:35`), so the proxy can record it. The registered address leaves out the user and password.\n- **returns (SQLite):** The file path is fixed and no variable controls it (`app.py:38`), so it is recorded by driver trace.\n\n**Driver trace:** I didn't change any code. `app.py:45-69` already sets this up: it turns on the `sqlite3` and `psycopg` OpenTelemetry instrumentations and sends spans with the OTLP exporter over HTTP. It reads the standard `OTEL_*` variables and only starts when `OTEL_EXPORTER_OTLP_ENDPOINT` is set. The `sqlite3` instrumentation includes the statement text by default. Two limits: a driver trace has no rows, and it can hide parameter values. So for `returns` you'll see the SQL statements but not the values that were inserted.\n\nThe shell check blocked my first two tries, which piped the JSON in directly. I built the same JSON with a short Python command instead.\n\nPlease check the parts above. If they're right, type `nookku start` within the next 30 minutes. If a part is wrong, tell me which one and I'll register again.",
+ "discovery_answer": "I registered the egress answer and haven't started the test. `nookku register` printed:\n\n```\nnookku: the egress answer is registered. The next start uses these parts:\n- model API anthropic: ANTHROPIC_BASE_URL -> the URL in ANTHROPIC_BASE_URL or the default (proxy)\n- MCP server catalog: http CATALOG_MCP_URL -> http://127.0.0.1:9310/mcp (proxy)\n- MCP server notes: stdio NOTES_MCP_COMMAND -> python3 notes_mcp.py (proxy)\n- database shop: postgres, DATABASE_URL (proxy)\n- database returns: sqlite, returns.db (driver trace)\n```\n\nWhere each part comes from in `app.py`:\n- **anthropic:** the Claude Agent SDK session calls the Anthropic API. It's on the `haiku` model.\n- **catalog:** the HTTP MCP server at `CATALOG_MCP_URL`, set at `app.py:36`.\n- **notes:** the stdio MCP server. The agent splits the command line in `NOTES_MCP_COMMAND` into words (`app.py:120`), so nookku can put its proxy there.\n- **shop:** Postgres at the `postgres://` URL in `DATABASE_URL`, read with psycopg. It's recorded through the proxy.\n- **returns:** the SQLite file `returns.db`, written with `sqlite3`. It has no variable, so it's recorded with a driver trace.\n\nI found no other HTTP backends and no other services. I left the in-process `shop` tool server out because it runs inside the agent and calls nothing outside. I also left out `notes.json`: only the notes MCP server writes it, so the notes proxy covers it.\n\n**Driver trace:** I didn't change any code. `app.py:45-69` already sets up the SQLite and psycopg instrumentation, sends spans over OTLP/HTTP and uses the standard `OTEL_*` variables. It turns on only when `OTEL_EXPORTER_OTLP_ENDPOINT` is set, and nookku sets that during the test. The SQLite trace records the statement text but **not the rows of each answer**, and it **can hide parameter values**. The psycopg instrumentation is also turned on, so Postgres calls may show up both in the proxy record and as spans.\n\nPlease check the parts. If they're right, type `nookku start` within 30 minutes. If one is wrong, tell me what to change and I'll register the answer again.",
  "E2_app_files_changed": [],
  "versions": {
   "nookku": "0.5.2",
@@ -69,7 +69,7 @@
     "name": "returns",
     "kind": "sqlite",
     "env": null,
-    "address": "<project>/returns.db",
+    "address": "returns.db",
     "record": "driver"
    }
   ],
@@ -145,14 +145,6 @@
  ],
  "driver_queries": [
   {
-   "turn": 1,
-   "name": "SELECT",
-   "input": {
-    "query": "SELECT id, status, items FROM orders WHERE id = %s",
-    "parameters": null
-   }
-  },
-  {
    "turn": 3,
    "name": "CREATE",
    "input": {
@@ -175,12 +167,13 @@
   "lookup_order": [],
   "start_return": []
  },
+ "postgres_driver_queries": 0,
  "E3_each_call_has_a_record": true,
  "postgres_spans": 1,
  "postgres_span_addresses": [
-  "127.0.0.1:58132"
+  "127.0.0.1:49278"
  ],
- "postgres_proxy": "postgresql://127.0.0.1:58132",
+ "postgres_proxy": "postgresql://127.0.0.1:49278",
  "unseen_call": 0,
  "counts": {},
  "seal": {

@@ -336,7 +336,8 @@ def test_each_driver_query_comes_right_after_its_span() -> None:
         _db_span(1, 5.0, {"db.system.name": "sqlite", "db.query.text": "SELECT 1"}),
         _db_span(2, 5.0, {"db.system.name": "sqlite", "db.query.text": "INSERT INTO cart"}),
     ]
-    items = trace.with_driver_queries(spans)
+    returns = {"name": "returns", "kind": "sqlite", "env": None, "address": "returns.db"}
+    items = trace.with_driver_queries(spans, {"databases": [{**returns, "record": "driver"}]})
     items.sort(key=lambda it: it["ts"])
     assert [(it["kind"], it["source"]["line"]) for it in items] == [
         ("span", 1),
@@ -344,3 +345,28 @@ def test_each_driver_query_comes_right_after_its_span() -> None:
         ("span", 2),
         ("query", 2),
     ]
+
+
+def test_a_driver_query_comes_only_from_a_span_of_a_driver_database() -> None:
+    # A span of the proxy database gives no driver query: the proxy records the query, and a
+    # second item would show it 2 times in the transcript.
+    shop = {"name": "shop", "kind": "postgres", "env": "DATABASE_URL", "address": None}
+    stock = {"name": "stock", "kind": "postgres", "env": None, "address": "db.toy.test:5432"}
+    returns = {"name": "returns", "kind": "sqlite", "env": None, "address": "returns.db"}
+    proxy, driver = {"record": "proxy"}, {"record": "driver"}
+    pg = {"db.system.name": "postgresql", "db.query.text": "SELECT 1"}
+    spans = [
+        _db_span(1, 1.0, {**pg, "server.address": "127.0.0.1", "server.port": 41002}),
+        _db_span(2, 2.0, {**pg, "server.address": "db.toy.test", "server.port": 5432}),
+        _db_span(3, 3.0, {"db.system.name": "sqlite", "db.query.text": "SELECT 2"}),
+    ]
+
+    def queries(answer: object) -> list[int]:
+        items = trace.with_driver_queries(spans, answer)
+        return [it["source"]["line"] for it in items if it["kind"] == "query"]
+
+    assert queries({"databases": [{**shop, **proxy}, {**stock, **driver}]}) == [2]
+    assert queries({"databases": [{**shop, **proxy}, {**returns, **driver}]}) == [3]
+    assert queries({"databases": [{**shop, **driver}]}) == [1, 2]
+    assert queries({"databases": [{**shop, **proxy}]}) == []
+    assert queries(None) == []

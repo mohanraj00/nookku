@@ -104,7 +104,8 @@ def test_the_start_prompt_with_no_answer_sends_the_task_and_starts_nothing(
     assert out is not None
     context = out["hookSpecificOutput"]["additionalContext"]
     assert context.startswith(kit.DISCOVERY_TEXT)
-    assert "nookku register" in context
+    assert "nookku register --file .nookku/egress.json" in context
+    assert "<<" not in context
     assert str(root) in context
     assert state.current(root) is None
     assert not kit.is_on(root)
@@ -231,8 +232,11 @@ def test_the_guard_lets_the_model_register_and_protects_the_answer_during_a_test
         event = {"hook_event_name": "PreToolUse", "tool_name": name, "tool_input": tool_input}
         return kit.handle(event, root, "claude-code")
 
-    register = {"command": "nookku register <<'EOF'\n" + json.dumps(EMPTY) + "\nEOF"}
+    # The form of the task in discover.md: the answer file, then register --file.
+    answer_file = {"file_path": str(root / ".nookku" / "egress.json"), "content": "{}"}
+    register = {"command": "nookku register --file .nookku/egress.json"}
     write = {"file_path": str(discovery.path(root)), "content": json.dumps(EMPTY)}
+    assert tool("Write", answer_file) is None
     assert tool("Bash", register) is None
     discovery.register(root, EMPTY)
     kit.start_test(root, "t")
@@ -267,3 +271,11 @@ def test_a_command_with_a_secret_value_is_refused() -> None:
         ["-c", "server --verbose"],
     ):
         discovery.parse(discovery.make(mcp_servers=[part(*command)]))
+
+
+def test_the_example_of_the_task_obeys_the_rule() -> None:
+    # The task and the rule agree: a database file goes into `address`, not into a key of its own.
+    text = (Path(discovery.__file__).parent / "discover.md").read_text(encoding="utf-8")
+    block = text.split("```json\n", 1)[1].split("```", 1)[0]
+    answer = discovery.parse(json.loads(block))
+    assert [d["address"] for d in answer["databases"]] == ["127.0.0.1:5432/shop", "returns.db"]

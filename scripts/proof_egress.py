@@ -67,14 +67,15 @@ MESSAGES = [
 ]
 DISCOVERY_ATTEMPTS = 3
 TOOLS = ("find_product", "add_note", "lookup_order", "start_return")
-# The discovery reads the code and runs nookku register. Claude Code gets no tool that edits a
-# file, because the app already has the instrumentation of its drivers. Its Bash runs in the
-# sandbox of Claude Code, which can write only in the project, as Codex runs in its
-# workspace-write sandbox. An allow list refuses a loop or a pipe that only reads.
+# The discovery reads the code, writes the answer file and runs nookku register --file
+# (src/nookku/discover.md). Claude Code can edit only the answer file, because the app already has
+# the instrumentation of its drivers. Its Bash runs in the sandbox of Claude Code, which can write
+# only in the project, as Codex runs in its workspace-write sandbox. An allow list refuses a loop
+# or a pipe that only reads.
 SANDBOX = {"sandbox": {"enabled": True, "autoAllowBashIfSandboxed": True}}
 CLAUDE_DISCOVERY = [
-    "--tools=Bash,Read,Grep,Glob",
-    "--allowedTools=Read,Grep,Glob",
+    "--tools=Bash,Read,Grep,Glob,Write",
+    "--allowedTools=Read,Grep,Glob,Edit(./.nookku/egress.json)",
     f"--settings={json.dumps(SANDBOX)}",
 ]
 
@@ -128,7 +129,9 @@ def e1(answer: dict[str, Any], egress: dict[str, Any], catalog: str) -> bool:
     parts = by_kind(answer)
     http, stdio, pg, lite = parts["http"], parts["stdio"], parts["postgres"], parts["sqlite"]
     return (
-        len(http) == 1
+        len(answer["mcp_servers"]) == 2
+        and len(answer["databases"]) == 2
+        and len(http) == 1
         and http[0]["env"] == "CATALOG_MCP_URL"
         and http[0]["url"] == catalog
         and len(stdio) == 1
@@ -183,10 +186,11 @@ def main() -> int:
     pr.setup(project, EGRESS, config={"evaluate": False}, packages=PACKAGES)
     discovery.take(project)
     before = digest(project)
-    container = postgres()
-    catalog = catalog_mcp.CatalogServer()
-    threading.Thread(target=catalog.serve_forever, daemon=True).start()
+    container = catalog = None
     try:
+        container = postgres()
+        catalog = catalog_mcp.CatalogServer()
+        threading.Thread(target=catalog.serve_forever, daemon=True).start()
         extra = CLAUDE_DISCOVERY if relay.endswith("claude-code") else end_args
         # A model can register its answer with a command that the proof does not allow, for
         # example a pipe from python3. Then the next start prompt sends the task again.
@@ -201,9 +205,11 @@ def main() -> int:
         if pending is not None:
             ran = pr.run_test(project, run, start, end, end_args, MESSAGES, registered=True)
     finally:
-        catalog.shutdown()
-        catalog.server_close()
-        subprocess.run(["docker", "stop", container], capture_output=True)
+        if catalog is not None:
+            catalog.shutdown()
+            catalog.server_close()
+        if container is not None:
+            subprocess.run(["docker", "stop", container], capture_output=True)
     hidden = pr.private(found)
     result: dict[str, Any] = {
         "date": date.today().isoformat(),
@@ -265,6 +271,8 @@ def main() -> int:
             calls["start_return"], driver, lambda c, r: "insert into returns" in text(r)
         ),
     }
+    # The proxy records the Postgres queries, so the trace gives no driver query of them.
+    twice = [r for r in driver if "from orders" in text(r)]
     sealed = seal.verify(folder)
     result.update(
         {
@@ -296,7 +304,10 @@ def main() -> int:
                 {"turn": r["turn"], "name": r["name"], "input": r["input"]} for r in driver
             ],
             "calls_with_no_record": missing,
-            "E3_each_call_has_a_record": all(calls[t] for t in TOOLS) and not any(missing.values()),
+            "postgres_driver_queries": len(twice),
+            "E3_each_call_has_a_record": (
+                all(calls[t] for t in TOOLS) and not any(missing.values()) and not twice
+            ),
             "postgres_spans": len(spans),
             "postgres_span_addresses": span_hosts,
             "postgres_proxy": proxy,
@@ -322,8 +333,12 @@ def main() -> int:
     return write(relay, result)
 
 
-def version(cli: str) -> str:
-    p = subprocess.run([cli, "--version"], capture_output=True, text=True, timeout=60)
+def version(cli: str) -> str | None:
+    """The version of a harness CLI, or None if it is not installed."""
+    try:
+        p = subprocess.run([cli, "--version"], capture_output=True, text=True, timeout=60)
+    except FileNotFoundError:
+        return None
     return p.stdout.strip()
 
 

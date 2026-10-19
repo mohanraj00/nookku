@@ -3794,8 +3794,8 @@ UNSEEN_CASE = {
     },
     "sessions": {},
     "otel": [app_span(t, name, attrs) for t, name, attrs in UNSEEN_SPANS],
-    # The 2 database spans also give a driver query each (SPEC.md section 8.4). They have no
-    # db.namespace and no query text, so the session is the system and the name is "query".
+    # The answer has no database with `record: driver`, so the 2 database spans give no driver
+    # query (SPEC.md section 8.4).
     "trace": [
         *[
             oitem(
@@ -3811,29 +3811,16 @@ UNSEEN_CASE = {
             )
             for n, (t, name, attrs) in enumerate(UNSEEN_SPANS[:4], 1)
         ],
-        qitem(2, "postgresql", 31, 4, "query", None),
-        oitem(
-            2,
-            "otel",
-            TRACE_ID,
-            32,
-            "span",
-            5,
-            name="SELECT cart",
-            input=UNSEEN_SPANS[4][2],
-            service="toy-shop",
-        ),
-        qitem(2, "sqlite", 32, 5, "query", None),
         *[
             oitem(2, "otel", TRACE_ID, t, "span", n, name=name, input=attrs, service="toy-shop")
-            for n, (t, name, attrs) in enumerate(UNSEEN_SPANS[5:], 6)
+            for n, (t, name, attrs) in enumerate(UNSEEN_SPANS[4:], 5)
         ],
     ],
     "findings": {
         "v": "0.2",
         "test": "20261017-090000-eg01",
         "turns": 2,
-        "items": 9,
+        "items": 7,
         "sessions": [],
         "otel": {"file": "otel.jsonl", "rows": 7, "items": 7, "ignored": {}},
         "backend": None,
@@ -3928,7 +3915,8 @@ UNSEEN_STDIO_CASE = {
 # with a driver trace and no proxy of its system, so each SQLite call is seen. A Postgres call
 # around the proxy to the database shop, an HTTP call to the address of stock and a MySQL call give
 # a finding. The 2 spans at 31 have the same time, and each driver query comes right after its span
-# (section 8.4).
+# (section 8.4). Only the spans of stock and cart give a driver query: no driver database covers
+# the other database spans.
 UNSEEN_DRIVER_DATABASES = [
     {
         "name": "shop",
@@ -3998,22 +3986,19 @@ UNSEEN_DRIVER_CASE = {
     "otel": [app_span(*span) for span in UNSEEN_DRIVER_SPANS],
     "trace": [
         unseen_driver_span(1),
-        qitem(1, "postgresql", 11, 1, "query", None),
         unseen_driver_span(2),
-        qitem(1, "shop", 12, 2, "query", None),
         unseen_driver_span(3),
         unseen_driver_span(4),
         qitem(2, "stock", 31, 4, "query", None),
         unseen_driver_span(5),
         qitem(2, "SQLite", 31, 5, "query", None),
         unseen_driver_span(6),
-        qitem(2, "mysql", 33, 6, "query", None),
     ],
     "findings": {
         "v": "0.2",
         "test": "20261019-090000-eg03",
         "turns": 2,
-        "items": 11,
+        "items": 8,
         "sessions": [],
         "otel": {"file": "otel.jsonl", "rows": 6, "items": 6, "ignored": {}},
         "backend": None,
@@ -4171,6 +4156,95 @@ DRIVER_CASE = {
                 "session": "postgresql",
                 "source": {"file": "otel.jsonl", "line": 3},
             },
+        ],
+    },
+}
+
+
+# The driver trace next to a proxy (SPEC.md section 8.4). shop has the Postgres proxy and cart has
+# a driver trace. The span of the shop query gives no driver query, because the proxy records
+# this query in database.jsonl, and a second item shows it 2 times in the transcript. The span of
+# cart gives a driver query. The shop spans go to the proxy, so no unseen_call comes. The second
+# shop span has an error and no driver query, so it gives a span_error.
+PROXY_DRIVER_SPANS = [
+    (
+        11,
+        "SELECT shop",
+        {
+            "db.system.name": "postgresql",
+            "db.namespace": "shop",
+            "db.query.text": STOCK_BY_SKU_TEXT,
+            "server.address": "127.0.0.1",
+            "server.port": 41002,
+        },
+    ),
+    (12, "INSERT cart", {"db.system": "sqlite", "db.name": "cart", "db.statement": CART_INSERT}),
+    (
+        13,
+        "SELECT",
+        {"db.system.name": "postgresql", "server.address": "127.0.0.1", "server.port": 41002},
+    ),
+]
+
+
+def proxy_driver_span(n: int, **fields: Any) -> dict:
+    t, name, attrs = PROXY_DRIVER_SPANS[n - 1]
+    return oitem(
+        1, "otel", TRACE_ID, t, "span", n, name=name, input=attrs, service="toy-shop", **fields
+    )
+
+
+PROXY_DRIVER_CASE = {
+    "tap": [window(10, 20)],
+    "manifest": {
+        "test": "20261019-090000-dr02",
+        "model_sessions": [],
+        "egress": {
+            "registered": T0,
+            "answer": {
+                **EGRESS_ANSWER,
+                "backends": [],
+                "databases": [UNSEEN_DRIVER_DATABASES[0], UNSEEN_DRIVER_DATABASES[2]],
+            },
+            "unseen": [],
+            "driver": ["cart"],
+            "proxies": {"shop": "postgresql://127.0.0.1:41002"},
+            "receiver": "http://127.0.0.1:41000",
+        },
+    },
+    "sessions": {},
+    "otel": [
+        app_span(*PROXY_DRIVER_SPANS[0]),
+        app_span(*PROXY_DRIVER_SPANS[1]),
+        app_span(*PROXY_DRIVER_SPANS[2], code=2, message=MISSING_TABLE),
+    ],
+    "trace": [
+        proxy_driver_span(1),
+        proxy_driver_span(2),
+        qitem(1, "cart", 12, 2, "INSERT", CART_INSERT),
+        proxy_driver_span(3, error=MISSING_TABLE),
+    ],
+    "findings": {
+        "v": "0.2",
+        "test": "20261019-090000-dr02",
+        "turns": 1,
+        "items": 4,
+        "sessions": [],
+        "otel": {"file": "otel.jsonl", "rows": 3, "items": 3, "ignored": {}},
+        "backend": None,
+        "model_api": None,
+        "mcp": None,
+        "database": None,
+        "counts": counts(span_error=1),
+        "findings": [
+            {
+                "check": "span_error",
+                "turn": 1,
+                "detail": f"toy-shop: SELECT: {MISSING_TABLE}",
+                "harness": "otel",
+                "session": TRACE_ID,
+                "source": {"file": "otel.jsonl", "line": 3},
+            }
         ],
     },
 }
@@ -4676,6 +4750,7 @@ TRACE_CASES = {
     "unseen_calls_stdio": UNSEEN_STDIO_CASE,
     "driver_trace": DRIVER_CASE,
     "unseen_calls_driver": UNSEEN_DRIVER_CASE,
+    "driver_trace_proxy": PROXY_DRIVER_CASE,
     "mcp_toy_shop": MCP_CASE,
     "database_toy_shop": DATABASE_CASE,
     "database_formats": DATABASE_FORMATS_CASE,
