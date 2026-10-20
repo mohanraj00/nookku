@@ -207,10 +207,12 @@ def summarize(folder: Path) -> dict[str, Any]:
                 unknown = f"the session file of {name} has model items and no model call"
                 calls = []
                 break
+            # The reader refuses a string that is not printable, so each id is clean here.
+            session = _clean(str(s["session"]))
             for c in found:
-                calls.append((s["harness"], s["session"], {**c, "turn": _turn(c["ts"], spans)}))
+                calls.append((s["harness"], session, {**c, "turn": _turn(c["ts"], spans)}))
         else:
-            calls += [("model_api", api, c) for api, c in _direct_calls(items)]
+            calls += [("model_api", _clean(api), c) for api, c in _direct_calls(items)]
     outside = None if unknown is not None else sum(1 for _, _, c in calls if c["turn"] is None)
     turns = []
     for n, ex in enumerate(exchanges, 1):

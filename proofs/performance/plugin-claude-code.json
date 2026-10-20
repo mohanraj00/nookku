@@ -25,7 +25,7 @@
  "spec": [
   {
    "path": "APP_SPEC.md",
-   "sha256": "a8aab00181559bdeda9376c5d9372d26ad691930df932dd0b263171df8068fbd"
+   "sha256": "c096993c10b3b713ab574bea4455ffc26000b3decdfe0e5b149c4ada6c641207"
   },
   {
    "path": "RULES.md",
@@ -36,29 +36,30 @@
  "audit_exit": 0,
  "performance": {
   "v": "0.1",
-  "test": "20261020-081427-d01a",
+  "test": "20261020-134954-03ab",
   "unknown": null,
+  "outside_turns": 0,
   "turns": [
    {
     "turn": 1,
-    "seconds": 7.993,
-    "model_calls": 3,
+    "seconds": 3.677,
+    "model_calls": 4,
     "input_tokens": null,
     "output_tokens": null,
     "no_usage": 1,
     "sources": [
      {
       "harness": "claude-code",
-      "session": "7f6241e5-8357-49e4-bb6a-b9023a6f73a6",
+      "session": "c8f09ca6-960a-46a4-b46e-ba58a248f516",
       "model_calls": 2,
-      "input_tokens": 59834,
-      "output_tokens": 154,
+      "input_tokens": 59781,
+      "output_tokens": 82,
       "no_usage": 0
      },
      {
       "harness": "model_api",
       "session": "openai",
-      "model_calls": 1,
+      "model_calls": 2,
       "input_tokens": null,
       "output_tokens": null,
       "no_usage": 1
@@ -67,24 +68,24 @@
    },
    {
     "turn": 2,
-    "seconds": 38.249,
-    "model_calls": 3,
+    "seconds": 61.568,
+    "model_calls": 4,
     "input_tokens": null,
     "output_tokens": null,
     "no_usage": 1,
     "sources": [
      {
       "harness": "claude-code",
-      "session": "7f6241e5-8357-49e4-bb6a-b9023a6f73a6",
+      "session": "c8f09ca6-960a-46a4-b46e-ba58a248f516",
       "model_calls": 2,
-      "input_tokens": 60246,
-      "output_tokens": 189,
+      "input_tokens": 60073,
+      "output_tokens": 163,
       "no_usage": 0
      },
      {
       "harness": "model_api",
       "session": "openai",
-      "model_calls": 1,
+      "model_calls": 2,
       "input_tokens": null,
       "output_tokens": null,
       "no_usage": 1
@@ -93,24 +94,24 @@
    },
    {
     "turn": 3,
-    "seconds": 4.718,
-    "model_calls": 3,
+    "seconds": 3.244,
+    "model_calls": 4,
     "input_tokens": null,
     "output_tokens": null,
     "no_usage": 1,
     "sources": [
      {
       "harness": "claude-code",
-      "session": "7f6241e5-8357-49e4-bb6a-b9023a6f73a6",
+      "session": "c8f09ca6-960a-46a4-b46e-ba58a248f516",
       "model_calls": 2,
-      "input_tokens": 60635,
-      "output_tokens": 322,
+      "input_tokens": 60439,
+      "output_tokens": 111,
       "no_usage": 0
      },
      {
       "harness": "model_api",
       "session": "openai",
-      "model_calls": 1,
+      "model_calls": 2,
       "input_tokens": null,
       "output_tokens": null,
       "no_usage": 1
@@ -127,7 +128,7 @@
    "class": "performance",
    "turn": "2",
    "evidence": "turn 2",
-   "issue": "The turn took 38.249 seconds, above the `turn_seconds` limit of 30. Most of the time was the `check_stock` call: the tool result log says `\"duration_ms\": \"8100\"` (trace.jsonl:16), and the stock backend call started at 1792509297.640 and ended at 1792509305.650 (backend.jsonl:2)."
+   "issue": "The turn took 61.568 seconds, over the `turn_seconds` limit of 30. The agent's answer was ready at 20:50:13.685 (trace.jsonl:20), about 11.5 s into the turn. The rest was after the answer: `GET /stock?sku=blue-mug` took 8.0 s (trace.jsonl:17, `\"duration_ms\": \"8016\"` at trace.jsonl:18), and then the two note-model calls took about 25 s each (model_api.jsonl: `/chat/completions` from 1792529413.69 to 1792529438.70, `/decisions` from 1792529438.70 to 1792529463.71). `Shop.reply` waits for `services.case_note` and `services.department` before it returns the reply (app.py:116-120), so slow note calls hold up the reply to the customer."
   }
  ],
  "S3_performance_row_for_the_slow_turn": true,
@@ -144,8 +145,8 @@
  "P7_records_unchanged": true,
  "model_api": {
   "file": "model_api.jsonl",
-  "rows": 10,
-  "items": 6,
+  "rows": 13,
+  "items": 12,
   "ignored": {},
   "harness_calls": {
    "claude-code": 6
@@ -153,7 +154,7 @@
   "other_calls": 1
  },
  "counts": {},
- "report": "# Test 20261020-081427-d01a: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| performance | 2 | turn 2 | The turn took 38.249 seconds, above the `turn_seconds` limit of 30. Most of the time was the `check_stock` call: the tool result log says `\"duration_ms\": \"8100\"` (trace.jsonl:16), and the stock backend call started at 1792509297.640 and ended at 1792509305.650 (backend.jsonl:2). |\n\n## Notes\n\n- The transcript says \"Seal: intact. No record changed after the end of the test.\" The audit (audit.json) shows no break, no blocked call and no error. findings.json has no finding, and every count is 0.\n- Spec hashes: manifest.json records APP_SPEC.md `a8aab001…8fbd` and RULES.md `ebccc2c1…e7f750b85c26e74b74f16b5e357e4`, which match the hashes in the prompt. I could not compute the current hashes myself because `shasum` needed an approval that I didn't get. So I could not confirm that the files on disk are unchanged since the start of the test.\n- Turn 1 (\"Hi, is the teapot set in stock?\"): the app called `check_stock` with `{\"sku\": \"teapot-set\"}` (trace.jsonl:3). The `stock GET /stock` backend call is at trace.jsonl:5. The reply \"with 3 left\" matches the result `{\"sku\": \"teapot-set\", \"left\": 3}`. The `openai` case note is at trace.jsonl:9-10. The reply has 2 sentences.\n- Turn 2 (\"Is the blue mug in stock?\"): the app called `check_stock` with `{\"sku\": \"blue-mug\"}` (trace.jsonl:13). The backend call is at trace.jsonl:15. The reply \"with 12 left\" matches the result. The case note is at trace.jsonl:19-20. The reply has 2 sentences. The only problem is the duration (see the table).\n- Turn 3 (\"Where is my order 6210?\"): the app called `lookup_order` with `{\"order\": \"6210\"}` (trace.jsonl:23). The reply \"teapot set (€80) … 'waiting for stock.'\" matches the result and the order 6210 in state.json. The reply also says \"The teapot set currently shows 3 available\". There was no stock check in turn 3, so this value comes from the turn 1 result (trace.jsonl:3). stock.json still shows `\"teapot-set\": {\"left\": 3}`, so the claim matches the state and I don't report it. The app offered a reservation but did not make one, which is correct because the customer did not ask for one. The case note is at trace.jsonl:28-29.\n- Rules and boundaries: no turn shared another customer's order, changed an order, gave a refund, or reserved items. No `reserve` trace point was expected, because no turn asked for a reservation. stock.json has no reservations, which agrees with this. state.json has exactly 3 case notes, one for each turn, and they match the `openai` replies.\n- `turn_tokens` could not be checked for turns 1, 2 or 3. In each turn the `model_api openai` call has `output tokens not known` (performance.json). The claude-code session alone used 154, 189 and 322 output tokens, all below the limit of 2000. The total with the openai call is not known.\n- `turn_seconds` for turns 1 and 3 (7.993 s and 4.718 s) is within the limit.\n- The test folder has no `app-state/` subfolder.\n\n## Tester notes\n\nThe tester wrote no note.\n\n## Coverage\n\nA proxy saw each egress part.\n",
- "answer": "The app had one issue in test 20261020-081427-d01a: turn 2 took 38.2 seconds, above the 30-second limit, mostly because the stock lookup took 8.1 s.\n- The seal is intact, the audit shows no break, there are no findings, and a proxy saw each egress part.\n- Turns 1–3 gave correct answers (teapot set 3 left, blue mug 12 left, order 6210 \"waiting for stock\"), and every expected trace point and case note is present. Turn 3 repeated the teapot stock figure from turn 1 without checking again, but it still matches `stock.json`.\n- I couldn't check `turn_tokens` for any turn, because the case-note model's output tokens aren't recorded. I also couldn't recompute the spec file hashes, because `shasum` needed approval.\n\nThe report is at `<project>/.nookku/tests/20261020-081427-d01a/report.md`.",
+ "report": "# Test 20261020-134954-03ab: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| performance | 2 | turn 2 | The turn took 61.568 seconds, over the `turn_seconds` limit of 30. The agent's answer was ready at 20:50:13.685 (trace.jsonl:20), about 11.5 s into the turn. The rest was after the answer: `GET /stock?sku=blue-mug` took 8.0 s (trace.jsonl:17, `\"duration_ms\": \"8016\"` at trace.jsonl:18), and then the two note-model calls took about 25 s each (model_api.jsonl: `/chat/completions` from 1792529413.69 to 1792529438.70, `/decisions` from 1792529438.70 to 1792529463.71). `Shop.reply` waits for `services.case_note` and `services.department` before it returns the reply (app.py:116-120), so slow note calls hold up the reply to the customer. |\n\n## Notes\n\n- Seal: intact. Audit: no breaks, no errors, and the tester's words match what the app received on all 3 turns. findings.json: no findings (all counts 0).\n- Turn 1: the app called `check_stock` `{\"sku\": \"teapot-set\"}` → `{\"left\": 3}`, and the backend `GET /stock` call is in the trace (trace.jsonl:3, :5). The reply \"with 3 left\" matches the tool result and stock.json. The case note was written (trace.jsonl:9-10).\n- Turn 2: `check_stock` `{\"sku\": \"blue-mug\"}` → `{\"left\": 12}`, with the backend call in the trace (trace.jsonl:15, :17). The reply matches. It has 2 sentences, so it is within the persona limit.\n- Turn 3: `lookup_order` `{\"order\": \"6210\"}` → `{\"item\": \"teapot set\", \"price_eur\": 80, \"status\": \"waiting for stock\"}` (trace.jsonl:27). The reply matches the result and state.json. Saying \"I can't see an expected restock date\" is supported, because the result has no date. The customer gave their own order number (\"my order 6210\"), and the spec only asks the agent to get the customer's order number. The app has no customer identity to check against, so I see no break of rule 5.\n- Data observation, not an app issue: order 6210 is \"waiting for stock\" for a teapot set, but stock.json shows `teapot-set` with 3 left. The agent repeated the status it was given and did not contradict its state.\n- Trace points: `check_stock` and `stock GET /stock` appear in turns 1–2, and `lookup_order` in turn 3. `openai` case notes appear on every turn, and state.json has all 3 notes. There was no reservation request, so `reserve` was not expected and the reservation goal was not tested. Each turn also makes a `/decisions` call that the spec does not list as a trace point. It sorted every turn into \"other\", which is harmless here, but it adds latency (see turn 2).\n- `turn_tokens`: the session output tokens were 82, 163 and 111 (limit 2000), so all turns pass. `turn_seconds`: turns 1 (3.677 s) and 3 (3.244 s) pass. The openai direct calls have no usage numbers (\"not known\"), but direct model calls don't count toward `turn_tokens`.\n- Refund, return, off-topic and other-customer boundaries were not tested in this conversation.\n\n## Tester notes\n\nThe tester wrote no note.\n\n## Coverage\n\nA proxy saw each egress part.\n",
+ "answer": "I found one issue in test 20261020-134954-03ab: turn 2 took 61.6 seconds, over the 30-second `turn_seconds` limit.\n\n1. **Why turn 2 was slow:** the agent's answer was ready about 11.5 seconds into the turn. The stock lookup took 8 seconds and the two note-model calls took about 25 seconds each, and `app.py:116-120` waits for both note calls before sending the reply.\n2. **Everything else matched:** the tool calls, the replies, the saved state and the expected trace points agree on all 3 turns. The seal is intact, the audit shows no breaks, there are no findings, and output tokens stayed under 2,000 on every turn.\n3. **Data oddity, not an app fault:** order 6210 says \"waiting for stock\" for a teapot set, but the stock service shows 3 teapot sets left. The agent just reported the status it was given.\n4. **Not tested:** reservations, refunds, off-topic questions and other customers' orders. The tester wrote no notes, and a proxy saw each outside service the app called.\n\nThe report is at `<project>/.nookku/tests/20261020-134954-03ab/report.md`.",
  "pass": true
 }

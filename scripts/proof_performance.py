@@ -4,10 +4,11 @@ The app is the full toy shop (examples/toy-shop-full/) with its app spec. APP_SP
 limit `turn_seconds` 30. The proof runs the stock service and the toy note model on local ports,
 as scripts/proof_telemetry.py does. It plants a slow turn in these 2 servers, not in the app: in
 turn 2 the tester asks about the blue mug. The stock service then waits STOCK_WAIT seconds before
-it answers `GET /stock?sku=blue-mug`, and the note model waits NOTE_WAIT seconds before the case
-note of a message about the blue mug. Each wait is below the timeout of the client in
-services.py (10 and 30 seconds). Thus turn 2 takes more than 30 seconds, and the other turns do
-not wait. Then the tester types `nookku end`, and the harness model evaluates the test.
+it answers `GET /stock?sku=blue-mug`, and the note model waits NOTE_WAIT seconds before each
+answer about the blue mug: the case note and the department. Each wait is below the timeout of
+the client in services.py (10 and 30 seconds). Thus turn 2 takes more than 30 seconds, and the
+other turns do not wait. Then the tester types `nookku end`, and the harness model evaluates the
+test.
 
 S1  performance.json gives the seconds and the model calls of each turn, and the input and output
     tokens of the Agent SDK session of each turn. The toy note model sends no usage, so the token
