@@ -232,10 +232,10 @@ In each run, the stock service had 2 reservations for the 1 teapot set that the 
 
 | Form | Harness | Rows of the report | S0 | S1 | S2 | S3 | S4 | P5 | P7 | Result | Data |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| Plugin | Claude Code 2.1.302 | `off_path` 2; `boundary` 3; `tone` 3; `tone` 4 (2 rows) | pass | pass | pass | pass | pass | pass | pass | pass | [results](../proofs/spec-classes/plugin-claude-code.json) |
-| Project hooks | Claude Code 2.1.302 | `off_path` 2; `unsupported_reply` 2; `boundary` 3; `tone` 3; `tone` 4 | pass | pass | pass | pass | pass | pass | pass | pass | [results](../proofs/spec-classes/hooks-claude-code.json) |
+| Plugin | Claude Code 2.1.302 | `off_path` 2; `unsupported_reply` 2; `boundary` 3; `tone` 3; `tone` 4 (2 rows) | pass | pass | pass | pass | pass | pass | pass | pass | [results](../proofs/spec-classes/plugin-claude-code.json) |
+| Project hooks | Claude Code 2.1.302 | `off_path` 2; `unsupported_reply` 2; `boundary` 3; `tone` 3; `tone` 4 (2 rows) | pass | pass | pass | pass | pass | pass | pass | pass | [results](../proofs/spec-classes/hooks-claude-code.json) |
 
-Both runs used the code of nookku 0.5.3 with the change of [#316](https://github.com/mohanraj00/nookku/issues/316), on 2026-10-20, and Agent SDK 0.2.168, which bundles Claude Code 2.1.301. The results files keep the replies. In both runs, the model also gave a `tone` row for turn 3: the recipe has more than 2 sentences, and the `Persona` permits 2 or fewer. This row is correct: the planted prompt says "answer in full", so the reply breaks the `Persona`. The Codex setups run in v0.5.5 ([#437](https://github.com/mohanraj00/nookku/issues/437)). Each setup ran 1 time, so these runs do not give a rate.
+Both runs used the code of nookku 0.5.3 with the change of [#316](https://github.com/mohanraj00/nookku/issues/316), after the merge of [#463](https://github.com/mohanraj00/nookku/pull/463), on 2026-10-20, and Agent SDK 0.2.168, which bundles Claude Code 2.1.301. The results files keep the replies. In both runs, the model also gave a `tone` row for turn 3: the recipe has more than 2 sentences, and the `Persona` permits 2 or fewer. This row is correct: the planted prompt says "answer in full", so the reply breaks the `Persona`. Both runs also gave an `unsupported_reply` row for turn 2: the reply says that the agent cannot check the stock, but the app has the `check_stock` tool. This row is also correct. The Codex setups run in v0.5.5 ([#437](https://github.com/mohanraj00/nookku/issues/437)). Each setup ran 1 time, so these runs do not give a rate.
 
 ### Egress discovery, the MCP proxies and the Postgres proxy
 

@@ -62,8 +62,8 @@ This is one test of the [full toy shop](../examples/toy-shop-full/) through the 
 
 | Turn | Tester | Agent (shortened) |
 |---|---|---|
-| 1 | Hi, where is my order 4471? | Your order 4471 (one blue mug, €8) has been delivered. |
-| 2 | Is the teapot set in stock? | I can't confirm live stock levels here. For stock alerts on the teapot set, please join our newsletter ... |
+| 1 | Hi, where is my order 4471? | Your order 4471 (a blue mug, €8) has been delivered. |
+| 2 | Is the teapot set in stock? | I can't check stock levels, but you can join our newsletter at toyshop.example/news ... |
 | 3 | Can you give me a recipe for pancakes? | Here's a simple pancake recipe that makes about 8 pancakes. ... |
 | 4 | Thank you for the help! | Totally stoked to help, dude! ... |
 
@@ -71,19 +71,20 @@ The report:
 
 | Class | Turn | Evidence | Issue (shortened) |
 |---|---|---|---|
-| off_path | 2 | turn 2, APP_SPEC.md:21, trace.jsonl:12, app.py:33 | The goal "Stock" needs a stock check. The app called no `check_stock` and sent the customer to a newsletter. `stock.json` has 3 teapot sets. |
-| boundary | 3 | turn 3, APP_SPEC.md:15, trace.jsonl:18, app.py:33 | The spec says that the agent does not answer questions that are not about the shop. The app gave a full recipe. |
-| tone | 3 | turn 3, APP_SPEC.md:9, trace.jsonl:18 | The recipe has more than the 2 sentences of the `Persona`. |
-| tone | 4 | turn 4, APP_SPEC.md:8, trace.jsonl:24, app.py:33 | The reply has slang and a joke. The `Persona` says "It does not use slang or jokes". |
-| tone | 4 | turn 4, APP_SPEC.md:9, trace.jsonl:24, app.py:33 | The reply has 4 sentences. |
+| off_path | 2 | turn 2, APP_SPEC.md:21 | The goal "Stock" needs a stock check. The app called no `check_stock` and sent the customer to a newsletter. `stock.json` has 3 teapot sets. |
+| unsupported_reply | 2 | trace.jsonl:12, app.py:55 | The reply says "I can't check stock levels", but the app has the `check_stock` tool. |
+| boundary | 3 | turn 3, APP_SPEC.md:15 | The spec says that the agent does not answer questions that are not about the shop. The app gave a full recipe. |
+| tone | 3 | turn 3, APP_SPEC.md:9 | The recipe has more than the 2 sentences of the `Persona`. |
+| tone | 4 | turn 4, APP_SPEC.md:8 | The reply has slang and a joke. The `Persona` says "It does not use slang or jokes". |
+| tone | 4 | turn 4, APP_SPEC.md:9 | The reply has 6 sentences. |
 
 ### What the model got right and wrong
 
-- Each planted defect has a row with the correct class, the turn, and the line of the spec. Each row also names the cause: the system prompt at `app.py:33`.
+- Each planted defect has a row with the correct class, the turn, and the line of the spec. The rows and the notes also name the cause: the system prompt at `app.py:33`.
 - The model gave no row for turn 1, and its notes say that turn 1 agrees with `state.json`.
-- The `tone` row of turn 3 is correct, but it was not planted: the planted prompt says "answer in full".
+- The `tone` row of turn 3 and the `unsupported_reply` row of turn 2 are correct, but I did not plant them. They come from the planted prompt: it says "answer in full", and the agent says that it cannot check the stock.
 - Turn 4 has 2 `tone` rows for 1 reply, one for each line of the spec. A tester can read them as 1 issue.
-- The notes say that the model could not compute the SHA-256 of the spec files, because the proof does not approve a hash command.
+- The notes say that the model could not check the `turn_tokens` limit, because the transcript gives no output tokens for each turn.
 
 ### Run it again
 
