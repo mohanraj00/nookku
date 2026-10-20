@@ -24,7 +24,7 @@ from nookku.config import (
     needs_entry,
     no_entry_note,
     read_config,
-    spec_files,
+    spec_hashes,
 )
 from nookku.record import RecordError
 from nookku.tap import Tap, serve
@@ -533,7 +533,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.repeated_reply is not None:
             changes["repeated_reply"] = args.repeated_reply
         try:
-            spec_files(root, changes.get("spec", []))
+            spec_hashes(root, changes.get("spec", []))
             done = kit.init(root, args.harness, changes)
         except ValueError as e:
             print(f"nookku: {str(e).rstrip('.')}. Nothing was written.", file=sys.stderr)
