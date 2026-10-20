@@ -97,6 +97,9 @@ def test_read_names_a_missing_or_broken_file(tmp_path: Path) -> None:
     (tmp_path / performance.FILE).write_text("{")
     data, problem = performance.read(tmp_path, 1)
     assert data is None and str(problem).startswith("performance.json cannot be read")
+    (tmp_path / performance.FILE).write_text("[" * 100_000 + "]" * 100_000)
+    data, problem = performance.read(tmp_path, 1)
+    assert data is None and str(problem).startswith("performance.json cannot be read")
 
 
 def test_the_transcript_shows_the_performance_of_each_turn(tmp_path: Path) -> None:

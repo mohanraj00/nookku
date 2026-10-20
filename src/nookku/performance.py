@@ -291,7 +291,7 @@ def read(folder: Path, count: int) -> tuple[dict[str, Any] | None, str | None]:
         data = json.loads((folder / FILE).read_text(encoding="utf-8"))
     except FileNotFoundError:
         return None, f"the test folder has no {FILE}"
-    except (OSError, ValueError) as e:
+    except (OSError, ValueError, RecursionError) as e:  # RecursionError: JSON that nests too deep
         return None, f"{FILE} cannot be read ({e})"
     turns = data.get("turns") if isinstance(data, dict) else None
     if not isinstance(turns, list) or len(turns) != count:
