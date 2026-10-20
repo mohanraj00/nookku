@@ -62,7 +62,7 @@ def test_the_note_checks_each_spec_file_again_at_the_end(tmp_path: Path, case: P
     if "manifest_spec" in expect:
         manifest["spec"] = [
             {**f, "sha256": hashlib.sha256((root / f["path"]).read_bytes()).hexdigest()}
-            if f["sha256"] == "<sha256>"
+            if isinstance(f, dict) and f["sha256"] == "<sha256>"
             else f
             for f in expect["manifest_spec"]
         ]
