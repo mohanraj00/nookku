@@ -62,6 +62,7 @@ The [tester](glossary.md#tester) or the model writes the paths, so Nookku does n
 - After symlinks resolve, each path must be a regular file in the project. A path outside the project, for example `../secrets.md` or `/etc/hosts`, is an error.
 - A path in the state folder `.nookku/` is an error.
 - A file of more than 1 MiB is an error.
+- The list has 20 paths or fewer, and no 2 paths name the same file.
 - `nookku init --spec` and `nookku start` check each path. If a path does not follow these rules, `init` writes nothing, and `start` starts no test.
 - The manifest of each test records each path and the SHA-256 of its file at the start. At the end, the evaluation prompt checks each path and its SHA-256 again. If a file changed or moved out of the project, the prompt tells the model not to read it.
 

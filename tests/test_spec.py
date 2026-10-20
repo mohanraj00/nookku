@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -128,3 +129,11 @@ def test_the_manifest_of_a_test_records_the_spec(
     sha = hashlib.sha256(b"# Spec\n").hexdigest()
     assert first["spec"] == [{"path": "APP_SPEC.md", "sha256": sha}]
     assert manifest is not None and manifest["spec"] == first["spec"]
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="root can read each file")
+def test_an_unreadable_spec_file_gives_the_cause(tmp_path: Path) -> None:
+    (tmp_path / "APP_SPEC.md").write_text("# Spec\n")
+    (tmp_path / "APP_SPEC.md").chmod(0)
+    with pytest.raises(ConfigError, match=r"cannot read the spec file 'APP_SPEC\.md': Permission"):
+        spec_hashes(tmp_path, ["APP_SPEC.md"])
