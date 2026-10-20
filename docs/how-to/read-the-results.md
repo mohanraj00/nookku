@@ -246,12 +246,12 @@ The trace has 17 trace checks ([trace.py](../../src/nookku/trace.py)). `findings
 
 ## 5. Read the report
 
-If the harness model evaluated the test, it wrote `report.md` in the test folder ([SPEC.md section 9.3](../../SPEC.md#93-report)). The report has one table with the columns Class, Turn, Evidence and Issue, and one row for each issue. This row comes from the report of the tutorial test ([getting-started.md](../getting-started.md#9-read-the-report)). That test ran on 2026-10-18 with nookku 0.5.2 ([data](../../proofs/tutorial/output.txt), [method](../../scripts/proof_tutorial.py)):
+If the harness model evaluated the test, it wrote `report.md` in the test folder ([SPEC.md section 9.3](../../SPEC.md#93-report)). The report has one table with the columns Class, Turn, Evidence and Issue, and one row for each issue. This row comes from the report of the tutorial test ([getting-started.md](../getting-started.md#9-read-the-report)). That test ran on 2026-10-19 with nookku 0.5.3 ([data](../../proofs/tutorial/output.txt), [method](../../scripts/proof_tutorial.py)):
 
 ```markdown
 | Class | Turn | Evidence | Issue |
 |---|---|---|---|
-| missing_action | 1 | tap.jsonl:1, agent.py:27, agent.py:31 | The tester said "the mug i ordered came with a crack in the handle". The app replied "Which item is this about: the mug or the teapot?", but the tester had already named the mug. ... |
+| missing_action | 1 | turn 1; agent.py:27, agent.py:31 | The tester said "the mug i ordered came with a crack in the handle". The app replied "Which item is this about: the mug or the teapot?", but the tester had already named the mug. ... |
 ```
 
 The issue classes:

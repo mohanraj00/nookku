@@ -2,7 +2,7 @@
 
 In Codex, you install the [relay](../reference/glossary.md#relay) as the [plugin](../reference/glossary.md#plugin) or as the [project hooks](../reference/glossary.md#project-hooks). Both run `nookku hook`, with the same rules. [choose-a-relay.md](choose-a-relay.md) compares them. Codex has no surface that shows hook text in `codex exec`, so the [chat page](../reference/cli.md#nookku-chat) of the test shows each reply. `nookku view` in a second terminal is optional.
 
-The plugin loads in Codex 0.162.1: Codex lists its 2 hooks, its MCP tools and its skill ([data](../../proofs/plugin/load.json), [method](../../scripts/proof_plugin_load.py)). The proofs P1 to P4 ran on the project hooks in codex-cli 0.162.1 ([data](../../proofs/hooks-codex/results.json)).
+The plugin loads in Codex 0.162.1: Codex lists its 2 hooks, its MCP tools and its skill ([data](../../proofs/plugin/load.json), [method](../../scripts/proof_plugin_load.py)). The proofs P1 to P4 ran on the project hooks in codex-cli 0.162.1 with nookku 0.5.2 ([data](../../proofs/hooks-codex/results.json)). The Codex proofs of 0.5.3 run after 2026-10-24 ([#437](https://github.com/mohanraj00/nookku/issues/437)).
 
 **Warning:** Do not use the plugin and the project hooks in one project. With both, each message goes to the agent two times. `nookku start` refuses a test if both are on.
 
@@ -46,7 +46,7 @@ The plugin loads in Codex 0.162.1: Codex lists its 2 hooks, its MCP tools and it
 
 3. **Trust the hooks.** Codex runs a hook only after a person trusts it. Start `codex` in the project, type `/hooks`, check the 2 nookku hooks and trust them. Codex stores the trust in `~/.codex/config.toml`. If a hook changes, for example after a new `nookku init` or a new plugin version, you must trust it again. A change to `.nookku/config.json` or to the entry does not need new trust.
 
-   Do not skip this step. Codex skips a hook that you did not trust, and then the model gets your test message. So `nookku start` and `nookku mode on` read the hooks with `codex app-server` and refuse a test if a nookku hook is missing, disabled, not trusted or modified ([SPEC.md section 7.8](../../SPEC.md#78-codex-hook-gate), [data](../../proofs/codex-gate/gate.json)). The project hooks show in Codex only after you trust the project.
+   Do not skip this step. Codex skips a hook that you did not trust, and then the model gets your test message. So `nookku start` and `nookku mode on` read the hooks with `codex app-server` and refuse a test if a nookku hook is missing, disabled, not trusted or modified ([SPEC.md section 7.8](../../SPEC.md#78-codex-hook-gate), [data of nookku 0.5.2](../../proofs/codex-gate/gate.json), [#437](https://github.com/mohanraj00/nookku/issues/437)). The project hooks show in Codex only after you trust the project.
 
 ## Use
 
@@ -63,7 +63,7 @@ At the end, the relay also builds the trace of the app's model sessions: `trace.
 
 If your app runs Codex sessions, the relay finds them at the end of the test. It takes each rollout file that changed during the test and ran in the project folder or below it. It does not take your own session. If your app starts its threads with `ephemeral: true`, Codex writes no rollout file, and the test has no copy.
 
-The OTLP receiver of a test ([record-model-calls.md](record-model-calls.md#opentelemetry)) also runs in Codex. Codex does not read the `OTEL_*` variables: with codex-cli 0.162.1, `codex exec` with these variables completed its turn and sent 0 rows to the receiver ([data](../../proofs/otel/codex.json), [method](../../scripts/proof_codex_otel.py)). Codex reads its OpenTelemetry settings from the `[otel]` table of its configuration. So the receiver gets no events from your app's Codex threads, unless your app configures that table.
+The OTLP receiver of a test ([record-model-calls.md](record-model-calls.md#opentelemetry)) also runs in Codex. Codex does not read the `OTEL_*` variables: with codex-cli 0.162.1 and nookku 0.5.2, `codex exec` with these variables completed its turn and sent 0 rows to the receiver ([data](../../proofs/otel/codex.json), [method](../../scripts/proof_codex_otel.py)). Codex reads its OpenTelemetry settings from the `[otel]` table of its configuration. So the receiver gets no events from your app's Codex threads, unless your app configures that table.
 
 If your app uses Codex with a ChatGPT login, the model API proxy can send Codex to the public API. Read [record-model-calls.md](record-model-calls.md#direct-model-calls) for the fix.
 

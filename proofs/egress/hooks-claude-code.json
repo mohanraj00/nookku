@@ -3,10 +3,10 @@
  "relay": "hooks-claude-code",
  "discovery_registered": true,
  "discovery_attempts": 1,
- "discovery_answer": "I registered the egress answer and haven't started the test. `nookku register` printed:\n\n```\nnookku: the egress answer is registered. The next start uses these parts:\n- model API anthropic: ANTHROPIC_BASE_URL -> the URL in ANTHROPIC_BASE_URL or the default (proxy)\n- MCP server catalog: http CATALOG_MCP_URL -> http://127.0.0.1:9310/mcp (proxy)\n- MCP server notes: stdio NOTES_MCP_COMMAND -> python3 notes_mcp.py (proxy)\n- database shop: postgres, DATABASE_URL (proxy)\n- database returns: sqlite, returns.db (driver trace)\n```\n\nWhere each part comes from in `app.py`:\n- **anthropic:** the Claude Agent SDK session calls the Anthropic API. It's on the `haiku` model.\n- **catalog:** the HTTP MCP server at `CATALOG_MCP_URL`, set at `app.py:36`.\n- **notes:** the stdio MCP server. The agent splits the command line in `NOTES_MCP_COMMAND` into words (`app.py:120`), so nookku can put its proxy there.\n- **shop:** Postgres at the `postgres://` URL in `DATABASE_URL`, read with psycopg. It's recorded through the proxy.\n- **returns:** the SQLite file `returns.db`, written with `sqlite3`. It has no variable, so it's recorded with a driver trace.\n\nI found no other HTTP backends and no other services. I left the in-process `shop` tool server out because it runs inside the agent and calls nothing outside. I also left out `notes.json`: only the notes MCP server writes it, so the notes proxy covers it.\n\n**Driver trace:** I didn't change any code. `app.py:45-69` already sets up the SQLite and psycopg instrumentation, sends spans over OTLP/HTTP and uses the standard `OTEL_*` variables. It turns on only when `OTEL_EXPORTER_OTLP_ENDPOINT` is set, and nookku sets that during the test. The SQLite trace records the statement text but **not the rows of each answer**, and it **can hide parameter values**. The psycopg instrumentation is also turned on, so Postgres calls may show up both in the proxy record and as spans.\n\nPlease check the parts. If they're right, type `nookku start` within 30 minutes. If one is wrong, tell me what to change and I'll register the answer again.",
+ "discovery_answer": "I registered the agent's egress parts with nookku. `nookku register` accepted them and printed:\n\n```\nnookku: the egress answer is registered. The next start uses these parts:\n- model API anthropic: ANTHROPIC_BASE_URL -> the URL in ANTHROPIC_BASE_URL or the default (proxy)\n- MCP server catalog: http CATALOG_MCP_URL -> http://127.0.0.1:9310/mcp (proxy)\n- MCP server notes: stdio NOTES_MCP_COMMAND -> python3 notes_mcp.py (proxy)\n- database shop: postgres, DATABASE_URL (proxy)\n- database returns: sqlite, returns.db (driver trace)\n```\n\n**I didn't change any code for the driver trace.** `app.py:45-69` already instruments sqlite3 (and psycopg) with OpenTelemetry. It sends spans with the OTLP HTTP exporter whenever `OTEL_EXPORTER_OTLP_ENDPOINT` is set, and the SQL statement text is on by default. The packages it needs are already in the entry command in `.nookku/config.json`.\n\nBecause `returns.db` is recorded through a driver trace rather than a proxy, the record for it won't contain result rows, and it may hide parameter values. For example, the values in the `INSERT INTO returns` statement may appear only as `?`.\n\n**Other details:**\n- No secrets are in the answer. The default `DATABASE_URL` contains a password, so I listed only its address, `127.0.0.1:55432/shop`.\n- There are no `.env` example files and no plain HTTP backends.\n- The notes server writes to `notes.json`, but that's the MCP server's own file, not something the agent itself calls, so I left it out.\n\nPlease check the parts above. If they're correct, type `nookku start` within the next 30 minutes to start the test. If a part is wrong, tell me and I'll fix the answer and register it again.",
  "E2_app_files_changed": [],
  "versions": {
-  "nookku": "0.5.2",
+  "nookku": "0.5.3",
   "claude-code": "2.1.302 (Claude Code)",
   "codex": "codex-cli 0.162.1",
   "agent sdk": "claude-agent-sdk==0.2.168",
@@ -171,9 +171,9 @@
  "E3_each_call_has_a_record": true,
  "postgres_spans": 1,
  "postgres_span_addresses": [
-  "127.0.0.1:49278"
+  "127.0.0.1:59675"
  ],
- "postgres_proxy": "postgresql://127.0.0.1:49278",
+ "postgres_proxy": "postgresql://127.0.0.1:59675",
  "unseen_call": 0,
  "counts": {},
  "seal": {
