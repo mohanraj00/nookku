@@ -39,7 +39,7 @@ from nookku.config import FILE as CONFIG_FILE
 from nookku.config import HARNESSES as HARNESSES
 from nookku.config import NO_ENTRY as NO_ENTRY
 from nookku.config import STATE_DIR as STATE_DIR
-from nookku.config import ConfigError, read_config, spec_files
+from nookku.config import ConfigError, read_config, spec_hashes
 from nookku.config import has_entry as has_entry
 from nookku.record import RecordError, Writer, turns
 
@@ -122,11 +122,7 @@ def load_config(root: Path, entry_name: str | None = None) -> TestConfig:
     try:
         data = read_config(root)
         rules = policy.read(root)
-        paths = data.get("spec") or []
-        spec = [
-            {"path": p, "sha256": hashlib.sha256(f.read_bytes()).hexdigest()}
-            for p, f in zip(paths, spec_files(root, paths), strict=True)
-        ]
+        spec = spec_hashes(root, data.get("spec") or [])
     except (ConfigError, policy.PolicyError) as e:
         raise BridgeError(str(e)) from None
     except OSError as e:
