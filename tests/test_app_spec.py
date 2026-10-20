@@ -29,11 +29,13 @@ def test_a_long_heading_line_is_read_in_linear_time() -> None:
 
 
 def test_a_closing_heading_mark_is_not_part_of_the_text() -> None:
-    texts = ["## Trace points ##", "## Trace points#", "##", "#Trace points"]
+    texts = ["## Trace points ##", "## Trace points#", "##", "#Trace points", "   # a", "    # a"]
     assert [app_spec._heading(t) for t in texts] == [
         "Trace points",
         "Trace points#",
         "",
+        None,
+        "a",
         None,
     ]
 
@@ -168,6 +170,25 @@ def test_each_unread_record_gives_one_detail() -> None:
         "APP_SPEC.md: x The trace does not check it.",
     ]
     assert app_spec.unread(None) == []
+
+
+def test_the_trace_gives_200_unread_details_at_most() -> None:
+    records = [{"file": "APP_SPEC.md", "line": n, "problem": "x"} for n in range(1, 302)]
+    details = app_spec.unread(records)
+    assert len(details) == 200
+    assert details[-1] == "102 more records of trace_points_unread."
+
+
+def test_a_spec_with_many_bad_parts_gives_200_records_at_most() -> None:
+    text = "## Trace points\n" * 1_000_000
+    start = time.monotonic()
+    points, unread = app_spec.read([("APP_SPEC.md", text)] * 3)
+    assert points == []
+    assert len(unread) == 200
+    assert unread[-1]["problem"] == (
+        "This part and 2999800 more parts of the sections are not trace points."
+    )
+    assert time.monotonic() - start < 30
 
 
 def test_a_failure_of_the_check_gives_a_finding_and_not_a_crash(

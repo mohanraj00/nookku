@@ -1,0 +1,28 @@
+{
+ "files": [
+  [
+   "APP_SPEC.md",
+   "## Trace points\n\nName | Source | When\n---|---|---\n`reserve` | `session` | Turn 2\n| `shop.reply` | `otel` | Each turn\n`openai` | `model_api` | Each turn |\n"
+  ]
+ ],
+ "expect": {
+  "points": [
+   {
+    "name": "reserve",
+    "source": "session",
+    "when": "Turn 2"
+   },
+   {
+    "name": "shop.reply",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "openai",
+    "source": "model_api",
+    "when": "Each turn"
+   }
+  ],
+  "unread": []
+ }
+}

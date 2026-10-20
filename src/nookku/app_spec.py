@@ -17,7 +17,11 @@ SOURCES = ("session", "backend", "model_api", "otel")
 SESSION_HARNESSES = ("claude-code", "codex")
 # The most trace points that the bridge records from all spec files (docs/limits.md).
 MAX_POINTS = 200
-HEADING = re.compile(r"(#{1,6})(?:[ \t]+(.*))?$")
+# The most records of trace_points_unread, with the record of the limit of trace points.
+MAX_RECORDS = 200
+# CommonMark: 0 to 3 spaces before a heading or a code fence.
+HEADING = re.compile(r" {0,3}(#{1,6})(?:[ \t]+(.*))?$")
+FENCE = re.compile(r" {0,3}(`{3,}|~{3,})")
 EACH_TURN = re.compile(r"each turn", re.IGNORECASE)
 # 9 digits at most: a longer number is not a turn of a test, and `int` stays fast.
 ONE_TURN = re.compile(r"turn ([1-9][0-9]{0,8})", re.IGNORECASE)
@@ -30,12 +34,16 @@ LIMIT = (
 
 
 def _cells(line: str) -> list[str] | None:
-    """The cells of a Markdown table row, or None if the line is not a row. A `\\|` is a `|`
-    in a cell."""
+    """The cells of a Markdown table row, or None if the line has no `|`. The `|` at the start
+    and at the end are optional, as in GitHub Markdown. A `\\|` is a `|` in a cell."""
     line = line.strip()
-    if not (line.startswith("|") and line.endswith("|") and len(line) > 1):
+    if not re.search(r"(?<!\\)\|", line):
         return None
-    parts = re.split(r"(?<!\\)\|", line[1:-1])
+    if line.startswith("|"):
+        line = line[1:]
+    if line.endswith("|") and not line.endswith("\\|"):
+        line = line[:-1]
+    parts = re.split(r"(?<!\\)\|", line)
     return [p.strip().replace("\\|", "|") for p in parts]
 
 
@@ -61,65 +69,98 @@ def read(files: list[tuple[str, str]]) -> tuple[list[dict[str, str]], list[dict[
     section that is not a trace point. `files` holds the path and the text of each file, in
     the order of the config. A section starts at a heading of any level with the text `Trace
     points`. It ends at the next heading or after its first table. The header row must have
-    the columns Name, Source and When, in any order, and can have more columns."""
-    out: list[dict[str, str]] = []
-    unread: list[dict[str, Any]] = []
+    the columns Name, Source and When, in any order, and can have more columns. The reader
+    skips the lines of a fenced code block."""
+    reader = _Reader()
     for path, text in files:
-        _read_file(path, text, out, unread)
-    return out, unread
+        reader.file(path, text)
+    return reader.points, reader.records()
 
 
-def _read_file(
-    path: str, text: str, out: list[dict[str, str]], unread: list[dict[str, Any]]
-) -> None:
-    start: int | None = None
-    columns: list[str] | None = None
-    rows = 0
+class _Reader:
+    def __init__(self) -> None:
+        self.points: list[dict[str, str]] = []
+        self.kept: list[dict[str, Any]] = []
+        self.more = 0
+        self.limit: dict[str, Any] | None = None
 
-    def close() -> None:
-        if start is not None and (columns is None or rows == 0):
-            problem = NO_TABLE if columns is None else NO_ROWS
-            unread.append({"file": path, "line": start, "problem": problem})
+    def note(self, path: str, n: int, problem: str) -> None:
+        if len(self.kept) < MAX_RECORDS:
+            self.kept.append({"file": path, "line": n, "problem": problem})
+        else:
+            self.more += 1
 
-    for n, line in enumerate(text.splitlines(), 1):
-        heading = _heading(line)
-        cells = None if heading is not None else _cells(line)
-        if heading is not None or (cells is None and columns is not None):
-            close()
-            start, columns = None, None
-        if heading is not None:
-            if heading.lower() == SECTION:
-                start, rows = n, 0
-            continue
-        if start is None or cells is None:
-            continue
-        if columns is None:
-            columns = [_plain(c).lower() for c in cells]
-            if not all(c in columns for c in COLUMNS):
-                columns = None
-                close()
-                start = None
-            continue
-        if all(re.fullmatch(r":?-+:?", c) for c in cells):
-            continue
-        rows += 1
-        row = dict(zip(columns, cells, strict=False))
-        problem = None
-        if len(cells) != len(columns):
-            problem = f"The row has {len(cells)} cells, and the header has {len(columns)}."
-        elif not _plain(row["name"]):
-            problem = "The row has no Name."
-        elif len(out) >= MAX_POINTS:
-            if any(r["problem"] == LIMIT for r in unread):
+    def records(self) -> list[dict[str, Any]]:
+        """The records, 200 at most. The record of the limit of trace points always stays. If
+        there are more records, the last kept record gives the count of the others."""
+        tail = [self.limit] if self.limit else []
+        room = MAX_RECORDS - len(tail)
+        kept = self.kept
+        if len(kept) + self.more > room:
+            first, more = kept[room - 1], len(kept) + self.more - room
+            problem = f"This part and {more} more parts of the sections are not trace points."
+            kept = [*kept[: room - 1], {**first, "problem": problem}]
+        return kept + tail
+
+    def file(self, path: str, text: str) -> None:
+        start: int | None = None
+        columns: list[str] | None = None
+        rows = 0
+        fence: str | None = None
+
+        def close() -> None:
+            if start is not None and (columns is None or rows == 0):
+                self.note(path, start, NO_TABLE if columns is None else NO_ROWS)
+
+        for n, line in enumerate(text.splitlines(), 1):
+            if fence is not None:
+                if line.strip().startswith(fence) and set(line.strip()) == {fence[0]}:
+                    fence = None
                 continue
-            problem = LIMIT
-        if problem is not None:
-            if len(unread) < MAX_POINTS:
-                unread.append({"file": path, "line": n, "problem": problem})
-            continue
-        name, source = _plain(row["name"]), _plain(row["source"])
-        out.append({"name": name, "source": source, "when": row["when"]})
-    close()
+            if m := FENCE.match(line):
+                fence = m.group(1)
+                if columns is not None:
+                    close()
+                    start, columns = None, None
+                continue
+            heading = _heading(line)
+            cells = None if heading is not None else _cells(line)
+            if heading is not None or (cells is None and columns is not None):
+                close()
+                start, columns = None, None
+            if heading is not None:
+                if heading.lower() == SECTION:
+                    start, rows = n, 0
+                continue
+            if start is None or cells is None:
+                continue
+            if columns is None:
+                columns = [_plain(c).lower() for c in cells]
+                if not all(c in columns for c in COLUMNS):
+                    columns = None
+                    close()
+                    start = None
+                continue
+            if all(re.fullmatch(r":?-+:?", c) for c in cells):
+                continue
+            rows += 1
+            self.row(path, n, columns, cells)
+        close()
+
+    def row(self, path: str, n: int, columns: list[str], cells: list[str]) -> None:
+        row = dict(zip(columns, cells, strict=False))
+        if len(cells) != len(columns):
+            self.note(
+                path, n, f"The row has {len(cells)} cells, and the header has {len(columns)}."
+            )
+        elif not _plain(row["name"]):
+            self.note(path, n, "The row has no Name.")
+        elif len(self.points) >= MAX_POINTS:
+            if self.limit is None:
+                self.limit = {"file": path, "line": n, "problem": LIMIT}
+        else:
+            name, source = _plain(row["name"]), _plain(row["source"])
+            self.points.append({"name": name, "source": source, "when": row["when"]})
 
 
 def rule(point: dict[str, Any]) -> tuple[str, Any] | None:
@@ -242,7 +283,8 @@ def valid(points: Any) -> list[dict[str, str]]:
 
 
 def unread(records: Any) -> list[str]:
-    """The detail of each record of the manifest key `trace_points_unread`."""
+    """The detail of each record of the manifest key `trace_points_unread`, 200 at most. If
+    there are more, the last detail gives their count."""
     if not isinstance(records, list):
         return []
     out = []
@@ -251,4 +293,7 @@ def unread(records: Any) -> list[str]:
             line = r.get("line")
             where = f" line {line}" if isinstance(line, int) else ""
             out.append(f"{r['file']}{where}: {r['problem']} The trace does not check it.")
+    if len(out) > MAX_RECORDS:
+        more = len(out) - MAX_RECORDS + 1
+        out = [*out[: MAX_RECORDS - 1], f"{more} more records of trace_points_unread."]
     return out

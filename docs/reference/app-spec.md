@@ -63,7 +63,7 @@ The case of the words, the backticks and a `.` at the end do not matter. A turn 
 
 The model of the evaluation reads the spec, but no check of the trace covers these trace points.
 
-The section can have a heading of any level, and the table can have more columns than `Name`, `Source` and `When`, in any order. If the [bridge](glossary.md#bridge) cannot read a part of the section, the trace gives the finding `trace_points_unread` with the file and the line: a section with no table, a table with no rows, a row with a different count of cells, or a row with no `Name`. The bridge keeps 200 trace points at most ([limits](../limits.md)).
+The section can have a heading of any level, and the table can have more columns than `Name`, `Source` and `When`, in any order. The `|` at the start and at the end of a row are optional. The [bridge](glossary.md#bridge) does not read a section or a table in a fenced code block. If the bridge cannot read a part of the section, the trace gives the finding `trace_points_unread` with the file and the line: a section with no table, a table with no rows, a row with a different count of cells, or a row with no `Name`. The bridge keeps 200 trace points and 200 of these records at most ([limits](../limits.md)).
 
 ## Example: the toy shop
 
