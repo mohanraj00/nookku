@@ -14,7 +14,7 @@ import json
 from collections import Counter
 from collections.abc import Iterator
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 from urllib.parse import urlsplit
 
 from . import backend, db_proxy, mcp_proxy, model_api, otlp
@@ -52,6 +52,7 @@ CHECKS = (
     "span_error",
     "backend_error",
     "model_api_error",
+    "questions_lost",
     "database_error",
     "unseen_call",
     "model_error",
@@ -107,7 +108,7 @@ def _lines(path: Path, ignored: Counter[str]) -> Iterator[tuple[int, Any]]:
             continue
         try:
             yield n, json.loads(raw)
-        except ValueError:
+        except (ValueError, RecursionError):  # RecursionError: JSON that nests too deep
             yield n, None
 
 
@@ -361,7 +362,7 @@ def _json(text: Any) -> Any:
         return None
     try:
         return json.loads(text)
-    except ValueError:
+    except (ValueError, RecursionError):
         return None
 
 
@@ -737,11 +738,6 @@ def _results(form: str, request: dict[str, Any]) -> dict[str, tuple[str, bool]]:
     return out
 
 
-# The options of a question of the Decisions API: the list in the question, and the field of each
-# option in the list.
-DECISION_OPTIONS = {"choice": ("choices", "value"), "score": ("levels", "label")}
-
-
 def _image(url: Any) -> dict[str, Any]:
     """The media type, the size and the SHA-256 of an inline image (a base64 data URL). The trace
     keeps no image data. An image that is not base64 data gives no size and no SHA-256."""
@@ -760,21 +756,13 @@ def _image(url: Any) -> dict[str, Any]:
     return out
 
 
-def _question(question: dict[str, Any]) -> dict[str, Any]:
-    """The name, the type and the options of a question of the Decisions API."""
-    kind = question.get("type")
-    spec = DECISION_OPTIONS.get(kind) if isinstance(kind, str) else None
-    given = question.get(spec[0]) if spec else None
-    options = None
-    if spec and isinstance(given, list):
-        options = [o.get(spec[1]) for o in given if isinstance(o, dict)]
-    return {"name": question.get("name"), "type": kind, "options": options}
-
-
-def _decision_request(request: dict[str, Any]) -> tuple[str | None, dict[str, Any]] | None:
+def _decision_request(
+    request: dict[str, Any], row: dict[str, Any]
+) -> tuple[str | None, dict[str, Any]] | None:
     """The user text, the questions and the images of a request to the Decisions API, or None if
     the request has none of them. The text is a string `input`, or the joined text of the user
-    messages of `input`."""
+    messages of `input`. The questions come from the request body if the record has all of it.
+    Else they are the `questions` of the row, which the proxy read from the whole body."""
     given = request.get("input")
     texts = [given] if isinstance(given, str) else []
     images = []
@@ -793,11 +781,51 @@ def _decision_request(request: dict[str, Any]) -> tuple[str | None, dict[str, An
                 images.append(_image(part.get("image_url")))
     asked = request.get("questions")
     questions = [
-        _question(q) for q in (asked if isinstance(asked, list) else []) if isinstance(q, dict)
+        model_api.question(q)
+        for q in (asked if isinstance(asked, list) else [])
+        if isinstance(q, dict)
     ]
+    if not _whole_request(row) and isinstance(row.get("questions"), list):
+        questions = [q for q in row["questions"] if isinstance(q, dict)]
     if not (texts or images or questions):
         return None
     return ("\n".join(texts) if texts else None), {"questions": questions, "images": images}
+
+
+def _whole_request(row: dict[str, Any]) -> bool:
+    """True if the record has all of the request body of a row as a JSON object."""
+    body = row.get("request_body")
+    text = body.get("text") if isinstance(body, dict) and not body.get("cut") else None
+    return isinstance(text, str) and isinstance(_json(text), dict)
+
+
+def _cut_or_encoded(row: dict[str, Any]) -> bool:
+    """True if the record does not have the request body of a row as it came: the body is cut, or
+    it has a Content-Encoding."""
+    body = row.get("request_body")
+    if not isinstance(body, dict) or body.get("cut"):
+        return True
+    headers = row.get("request_headers")
+    pairs = headers if isinstance(headers, list) else []
+    return any(isinstance(h, list) and h and str(h[0]).lower() == "content-encoding" for h in pairs)
+
+
+def _questions_lost(row: dict[str, Any]) -> int | Literal[False] | None:
+    """The count of the questions of a /decisions call that the record does not have, None if the
+    record cannot give the count, or False if it has each question."""
+    if _whole_request(row):
+        return False
+    kept, count = row.get("questions"), row.get("questions_count")
+    if "questions_count" in row:
+        if not (isinstance(kept, list) and isinstance(count, int) and not isinstance(count, bool)):
+            # The proxy could not read the body. If the record has all of its bytes as they came,
+            # the body is not a JSON object, so it has no questions.
+            return None if _cut_or_encoded(row) else False
+        return count - len(kept) if count > len(kept) else False
+    # A row of an older proxy has no count: if its body is cut, its questions are not in the
+    # record.
+    body = row.get("request_body")
+    return None if isinstance(body, dict) and body.get("cut") else False
 
 
 def read_model_api(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
@@ -825,7 +853,7 @@ def read_model_api(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         api = str(row.get("api") or "")
         said, asked = _said(form, request), None
         if form == "decisions":
-            said, asked = _decision_request(request) or (None, None)
+            said, asked = _decision_request(request, row) or (None, None)
         if said is not None or asked is not None:
             it = _item("model_api", api, model_api.FILE, n, row.get("started"))
             it.update(kind="message", role="user", input=asked, output=said)
@@ -835,6 +863,9 @@ def read_model_api(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         info = {k: result.get(k) for k in ("model", "stop_reason", "usage")}
         if form == "decisions":
             info["answers"] = result.get("answers") or []
+            lost = _questions_lost(row)
+            if lost is not False:
+                info["questions_lost"] = lost
         body = row.get("response_body")
         if result.get("cut") and isinstance(body, dict) and body.get("cut"):
             # The result is of the start of the response only (SPEC.md section 7.7).
@@ -999,7 +1030,7 @@ def _structured(text: str) -> Any:
     for part in parts:
         try:
             return json.loads(part)
-        except ValueError:
+        except (ValueError, RecursionError):
             continue
     return None
 
@@ -1284,6 +1315,17 @@ def check(
             what = it["error"] or f"status {it['exit_code']}"
             detail = f"{it['session']}: {it['input']['path']}: {what}"
             out.append(_finding("model_api_error", it["turn"], detail, **where))
+        if model_call and "questions_lost" in it["input"]:
+            lost = it["input"]["questions_lost"]
+            what = (
+                "the record does not have the questions of the request"
+                if lost is None
+                else f"{lost} questions of the request are not in the record"
+                if lost != 1
+                else "1 question of the request is not in the record"
+            )
+            detail = f"{it['session']}: {it['input']['path']}: {what}"
+            out.append(_finding("questions_lost", it["turn"], detail, **where))
         if it["kind"] == "query" and it["error"] is not None:
             detail = f"{it['session']}: {it['name']}: {it['error']}"
             out.append(_finding("database_error", it["turn"], detail, **where))

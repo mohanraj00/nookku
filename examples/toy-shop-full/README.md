@@ -2,7 +2,7 @@
 
 This is the toy shop support agent with all telemetry sources. It shows how a test records each action of an app: its model session, its calls to a backend and its direct model calls.
 
-- [app.py](app.py) is the agent: one Claude Agent SDK session with tools. After each reply, it asks a note model for a case note.
+- [app.py](app.py) is the agent: one Claude Agent SDK session with tools. After each reply, it asks a note model for a case note, and asks the Decisions API of the note model for the department of the message.
 - [entry.py](entry.py) is the entry. It speaks the agent contract on stdin and stdout ([SPEC.md section 6](../../SPEC.md#6-agent-contract-version-1)).
 - [services.py](services.py) calls the stock service at `STOCK_URL` and the note model at `OPENAI_BASE_URL`.
 - [stock.py](stock.py) is the stock service. It keeps its state in [stock.json](stock.json), or in the file of `TOY_STOCK_STATE`.

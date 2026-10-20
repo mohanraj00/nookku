@@ -4,7 +4,11 @@
 A toy model API runs on a local port, as the Anthropic and the OpenAI API of a test. A test runs an
 entry that, for one message, makes 5 calls through the proxies: a streamed Anthropic call, a
 streamed OpenAI Chat Completions call, an Anthropic call with a JSON answer, a streamed OpenAI
-Responses call and an OpenAI Decisions call with a JSON answer. For a streamed call, the toy API
+Responses call and an OpenAI Decisions call with a JSON answer. Then the entry makes 2 more
+Decisions calls: the call of the full toy shop app (`department` in
+examples/toy-shop-full/services.py), and a call with a photo that makes the request body longer
+than the record limit of 1 MiB. The record must keep each question of the 2 calls with its
+instructions, and the audit must give no questions_lost finding. For a streamed call, the toy API
 sends the first event and then waits until the entry says that it has that event. Thus the proof
 fails if the proxy holds the stream until its end. The proof compares the SHA-256 of each body at 3
 places: the entry, the toy API and model_api.jsonl. It checks the result in the record (the text,
@@ -142,9 +146,32 @@ ANSWERS = [
     {"type": "refusal", "name": "mood", "value": None, "probabilities": None, "confidence": None},
 ]
 
-# The entry makes the 5 calls for one message, and replies with what it sent and got.
+# The question of the full toy shop app, as the record keeps it (SPEC.md section 7.7).
+APP_QUESTION = {
+    "name": "department",
+    "type": "choice",
+    "instructions": "Which department should handle this complaint?",
+    "options": ["billing", "shipping", "other"],
+}
+# The questions of the entry, as the record keeps them.
+ENTRY_QUESTIONS = [
+    {
+        "name": "department",
+        "type": "choice",
+        "instructions": "Which department?",
+        "options": ["billing", "shipping", "other"],
+    },
+    {"name": "urgent", "type": "predicate", "instructions": "Is it urgent?", "options": None},
+    {"name": "mood", "type": "choice", "instructions": "The mood?", "options": ["calm", "angry"]},
+]
+FULL = ROOT / "examples" / "toy-shop-full"
+
+# The entry makes the 5 calls for one message, then the 2 Decisions calls, and replies with what
+# it sent and got.
 ENTRY = """
-import hashlib, json, os, sys, urllib.request
+import base64, hashlib, json, os, sys, urllib.request
+sys.path.insert(0, os.environ["TOY_FULL"])
+import services
 
 def sha(b):
     return hashlib.sha256(b).hexdigest()
@@ -182,6 +209,18 @@ for raw in sys.stdin.buffer:
                 urllib.request.urlopen(os.environ["TOY_RELEASE"], data=b"", timeout=5).read()
             got = first + r.read()
         out.append({"sent": sha(body.encode()), "got": sha(got), "first": len(first)})
+    # The call of the full toy shop app hides its bodies. The toy API and the record compare them.
+    out.append({"sent": None, "got": None, "department": services.department(request["message"])})
+    photo = "data:image/png;base64," + base64.b64encode(b"teapot " * 160_000).decode()
+    content = [{"type": "input_text", "text": request["message"]},
+               {"type": "input_image", "image_url": photo}]
+    body = json.dumps({"model": "toy-decide", "questions": questions,
+                       "input": [{"role": "user", "content": content}]}).encode()
+    req = urllib.request.Request(os.environ["OPENAI_BASE_URL"] + "/decisions", data=body)
+    req.add_header("Content-Type", "application/json")
+    with urllib.request.urlopen(req, timeout=30) as r:
+        got = r.read()
+    out.append({"sent": sha(body), "got": sha(got), "first": len(got)})
     reply = {"v": 1, "id": request["id"], "reply": json.dumps(out)}
     sys.stdout.write(json.dumps(reply) + "\\n")
     sys.stdout.flush()
@@ -251,6 +290,7 @@ def main() -> int:
         OPENAI_BASE_URL=f"{url}/v1",
         TOY_RELEASE=f"{url}/release",
         TOY_KEY=KEY,
+        TOY_FULL=str(FULL),
     )
     project = Path(tempfile.mkdtemp(prefix="nookku-model-api-"))
     (project / ".nookku").mkdir()
@@ -275,23 +315,37 @@ def main() -> int:
         "Order 5120 has 2 teapot sets.",
         SHIPS,
     ]
-    # The text of each call, and the answers of the decision.
-    expect = [("text", t) for t in texts] + [("answers", ANSWERS)]
+    # The text of each call, and the answers of the decisions.
+    expect = [("text", t) for t in texts] + [("answers", ANSWERS)] * 3
     calls = []
     for i, (e, s, r) in enumerate(zip(entry, SEEN, rows, strict=True)):
+        if e["sent"] is None:
+            e = {**e, "sent": s["got"], "got": s["sent"]}
         calls.append(
             {
                 "call": i + 1,
                 "api": r["api"],
                 "path": s["path"],
                 "stream": r["stream"],
+                "request_size": r["request_body"]["size"],
                 "response_size": r["response_body"]["size"],
                 "request_same": e["sent"] == s["got"] == r["request_body"]["sha256"],
                 "response_same": s["sent"] == e["got"] == r["response_body"]["sha256"],
                 "first_part_before_the_end": s["released_by_entry"],
                 "result_in_record": (r["result"] or {}).get(expect[i][0]) == expect[i][1],
+                "request_cut": r["request_body"]["cut"],
             }
         )
+        if r["path"].endswith("/decisions"):
+            calls[-1]["questions_in_record"] = r.get("questions")
+            calls[-1]["questions_count"] = r.get("questions_count")
+    findings = json.loads((folder / "findings.json").read_text())
+    items = [json.loads(x) for x in (folder / "trace.jsonl").read_text().split("\n") if x]
+    asked = [
+        it["input"]["questions"]
+        for it in items
+        if it.get("harness") == "model_api" and it["role"] == "user" and it["input"]
+    ]
     result = {
         "date": date.today().isoformat(),
         "versions": {
@@ -300,13 +354,24 @@ def main() -> int:
             "os": os.uname().sysname,
         },
         "calls": calls,
+        "app_department": entry[5].get("department") if len(entry) > 5 else None,
+        "questions_in_trace": asked,
+        "questions_lost": findings["counts"]["questions_lost"],
         "key_in_record": KEY in record,
         "seal_intact": seal.verify(folder)["intact"],
     }
+    decided = [c for c in calls if "questions_in_record" in c]
     result["pass"] = (
-        len(calls) == 5
+        len(calls) == 7
         and all(c["request_same"] and c["response_same"] and c["result_in_record"] for c in calls)
-        and [c["first_part_before_the_end"] for c in calls] == [True, True, None, True, None]
+        and [c["first_part_before_the_end"] for c in calls] == [True, True, None, True] + [None] * 3
+        and [c["request_cut"] for c in calls] == [False] * 6 + [True]
+        and [c["questions_in_record"] for c in decided]
+        == [ENTRY_QUESTIONS, [APP_QUESTION], ENTRY_QUESTIONS]
+        and [c["questions_count"] for c in decided] == [3, 1, 3]
+        and asked == [ENTRY_QUESTIONS, [APP_QUESTION], ENTRY_QUESTIONS]
+        and result["app_department"] == "billing"
+        and result["questions_lost"] == 0
         and not result["key_in_record"]
         and result["seal_intact"]
     )

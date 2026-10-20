@@ -1,12 +1,14 @@
+import gzip
 import hashlib
 import http.client
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 from toy_model_server import ModelServer
 
-from nookku import backend, discovery, model_api, trace
+from nookku import backend, discovery, model_api, record, trace
 
 TRACE = Path(__file__).resolve().parent.parent / "conformance" / "trace"
 STREAM = [
@@ -481,3 +483,163 @@ def test_a_call_that_ends_after_the_end_of_the_test_does_not_change_its_row(
         proxy.end(row, {"response_body": text}, b"3 teapot sets", None)
     assert row == written and row["error"] == backend.ENDED
     assert rows(tmp_path) == [written]
+
+
+TOY_QUESTIONS = [
+    {
+        "type": "choice",
+        "name": "department",
+        "instructions": "Which department should handle this complaint?",
+        "choices": [{"value": "billing"}, {"value": "shipping"}],
+    },
+    {"type": "predicate", "name": "damaged", "instructions": "Is the teapot damaged?"},
+]
+
+
+def test_the_row_of_a_decisions_call_keeps_each_question_after_a_cut(tmp_path: Path) -> None:
+    photo = "data:image/png;base64," + "A" * 4000
+    content = [{"type": "input_text", "text": "My teapot broke."}]
+    content.append({"type": "input_image", "image_url": photo})
+    request = {"input": [{"role": "user", "content": content}], "questions": TOY_QUESTIONS}
+    sent = json.dumps(request).encode()
+    answer = b'{"model": "toy-decide", "answers": []}'
+    with ModelServer() as model:
+        model.parts = [answer]
+        model.content_type = "application/json"
+        proxies = proxy_for(model, tmp_path, "openai")
+        proxies.proxies[0].keep = 1000
+        env = proxies.start()
+        try:
+            status, got = post(env["OPENAI_BASE_URL"], "/v1/decisions", sent, {})
+        finally:
+            proxies.stop()
+    # The proxy forwards each byte of the request and of the response.
+    assert status == 200 and got == answer and model.seen[0]["body"] == sent
+    row = rows(tmp_path)[0]
+    assert row["request_body"]["cut"] is True
+    assert row["questions_count"] == 2
+    assert row["questions"] == [
+        {
+            "name": "department",
+            "type": "choice",
+            "instructions": "Which department should handle this complaint?",
+            "options": ["billing", "shipping"],
+        },
+        {
+            "name": "damaged",
+            "type": "predicate",
+            "instructions": "Is the teapot damaged?",
+            "options": None,
+        },
+    ]
+    items, _ = trace.read_model_api(tmp_path / model_api.FILE)
+    assert items[0]["input"]["questions"] == row["questions"]
+    assert "questions_lost" not in items[1]["input"]
+
+
+def test_the_questions_of_a_row_stop_at_the_record_limit() -> None:
+    data = json.dumps({"questions": TOY_QUESTIONS}).encode()
+    first = model_api.question(TOY_QUESTIONS[0])
+    size = len(json.dumps([first]))
+    assert model_api.questions(data, None, size) == ([first], 2)
+    assert model_api.questions(data, None, size - 1) == ([], 2)
+    both = [first, model_api.question(TOY_QUESTIONS[1])]
+    assert model_api.questions(data, None, len(json.dumps(both))) == (both, 2)
+
+
+def test_a_decisions_body_that_the_proxy_cannot_read_gives_no_questions() -> None:
+    assert model_api.questions(b"<html>busy</html>", None, 1000) == (None, None)
+    assert model_api.questions(b"[" * 100_000, None, 1000) == (None, None)
+    # A JSON object with no list of questions has 0 questions.
+    assert model_api.questions(b'{"questions": "all"}', None, 1000) == ([], 0)
+    assert model_api.questions(b'{"input": "Hi"}', None, 1000) == ([], 0)
+    zipped = gzip.compress(json.dumps({"questions": TOY_QUESTIONS}).encode())
+    assert model_api.questions(zipped, "gzip", 1000)[1] == 2
+    # The encoding name `GZIP` is not `gzip`, so the proxy does not decode the body.
+    assert model_api.questions(zipped, "GZIP", 1000) == (None, None)
+
+
+def test_the_proxy_does_not_parse_a_body_larger_than_its_parse_limit() -> None:
+    data = json.dumps({"questions": TOY_QUESTIONS, "pad": "x" * 4000}).encode()
+    most = model_api.PARSE_TIMES * 200
+    assert len(data) > most
+    assert model_api.questions(data, None, 200) == (None, None)
+    zipped = gzip.compress(data)
+    assert len(zipped) < most
+    assert model_api.questions(zipped, "gzip", 200) == (None, None)
+    assert model_api.questions(data, None, len(data))[1] == 2
+
+
+def test_the_limit_counts_utf8_bytes_and_not_ascii_escapes() -> None:
+    # A JSON escape of "é" has 6 bytes, and its UTF-8 has 2.
+    asked = [{"type": "predicate", "name": f"q{n}", "instructions": "é" * 1000} for n in range(4)]
+    data = json.dumps({"questions": asked}, ensure_ascii=False).encode()
+    found = [model_api.question(q) for q in asked]
+    size = len(json.dumps(found, ensure_ascii=False).encode())
+    assert len(json.dumps(found)) > 2 * size
+    assert model_api.questions(data, None, size) == (found, 4)
+    # A lone surrogate counts as its escape text, as the row writes it.
+    data = b'{"questions": [{"type": "predicate", "name": "\\ud83d"}]}'
+    kept, _ = model_api.questions(data, None, 1000)
+    assert kept == [{"name": "\ud83d", "type": "predicate", "instructions": None, "options": None}]
+    # The limit is the size of that text: 7 bytes for the escape, not 6.
+    written = len(record.json_text(kept).encode())
+    assert model_api.questions(data, None, written) == (kept, 1)
+    assert model_api.questions(data, None, written - 1) == ([], 1)
+
+
+def test_the_proxy_only_counts_the_questions_after_the_limit(monkeypatch: Any) -> None:
+    made = []
+    question = model_api.question
+    monkeypatch.setattr(model_api, "question", lambda q: made.append(q) or question(q))
+    data = json.dumps({"questions": [{}] * 3000}).encode()
+    kept, count = model_api.questions(data, None, 1000)
+    assert count == 3000 and kept is not None and 0 < len(kept) < 30
+    # The proxy made the kept questions and the first question that did not fit.
+    assert len(made) == len(kept) + 1
+
+
+def test_a_deep_value_of_a_question_is_kept_as_its_json_text(tmp_path: Path) -> None:
+    # 500 levels parse in each Python version of CI.
+    deep = "[" * 500 + "]" * 500
+    data = (
+        '{"questions": [{"type": "choice", "name": "mug", "instructions": '
+        + deep
+        + ', "choices": [{"value": '
+        + deep
+        + "}]}]}"
+    ).encode()
+    kept, count = model_api.questions(data, None, 1 << 20)
+    assert count == 1 and kept is not None
+    assert kept[0]["instructions"] is None or isinstance(kept[0]["instructions"], str)
+    assert all(o is None or isinstance(o, str) for o in kept[0]["options"])
+    # The row reads again, so the trace has the question.
+    row = {
+        "type": "call",
+        "api": "openai",
+        "path": "/v1/decisions",
+        "harness": None,
+        "request_body": {"cut": True, "text": "{"},
+        "questions": kept,
+        "questions_count": count,
+        "result": None,
+    }
+    path = tmp_path / model_api.FILE
+    path.write_text(json.dumps(row) + "\n", encoding="utf-8")
+    items, _ = trace.read_model_api(path)
+    assert items[0]["input"]["questions"] == kept
+
+
+def test_a_harness_call_and_another_path_get_no_questions(tmp_path: Path) -> None:
+    sent = json.dumps({"questions": TOY_QUESTIONS}).encode()
+    with ModelServer() as model:
+        model.content_type = "application/json"
+        proxies = proxy_for(model, tmp_path, "openai")
+        env = proxies.start()
+        try:
+            post(env["OPENAI_BASE_URL"], "/v1/decisions", sent, {"User-Agent": "codex/0.162.1"})
+            post(env["OPENAI_BASE_URL"], "/v1/chat/completions", sent, {})
+        finally:
+            proxies.stop()
+    for row in rows(tmp_path):
+        assert "questions" not in row and "questions_count" not in row
