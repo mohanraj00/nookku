@@ -1,0 +1,97 @@
+{
+ "date": "2026-10-20",
+ "relay": "plugin-claude-code",
+ "versions": {
+  "nookku": "0.5.3",
+  "claude-code": "2.1.302 (Claude Code)",
+  "codex": "codex-cli 0.162.1",
+  "agent sdk": "claude-agent-sdk==0.2.168",
+  "session files": {
+   "claude-code": "2.1.301"
+  }
+ },
+ "plugins": [
+  "cc-plugin-agents-md@builtin",
+  "cc-plugin-plugin-authoring@builtin",
+  "cc-plugin-telemetry@builtin",
+  "nookku@inline"
+ ],
+ "spec": [
+  {
+   "path": "APP_SPEC.md",
+   "sha256": "0659cf58f22f8b9f8a5ed65b86f31e2da924e4a3b5793445204645ae841f0826"
+  },
+  {
+   "path": "RULES.md",
+   "sha256": "ebccc2c18240a3e55fcfd229b8241ac7312e7f750b85c26e74b74f16b5e357e4"
+  }
+ ],
+ "turns": 4,
+ "audit_exit": 0,
+ "tool_calls": [
+  {
+   "line": 3,
+   "turn": 1,
+   "name": "lookup_order"
+  }
+ ],
+ "S0_planted_defect_of_turn_2": true,
+ "report_written": true,
+ "issues": [
+  {
+   "class": "missing_action",
+   "turn": "2",
+   "evidence": "trace.jsonl:11-12, app.py:33, stock.json:2"
+  },
+  {
+   "class": "unsupported_reply",
+   "turn": "2",
+   "evidence": "trace.jsonl:12"
+  },
+  {
+   "class": "off_path",
+   "turn": "2",
+   "evidence": "turn 2, APP_SPEC.md:20"
+  },
+  {
+   "class": "boundary",
+   "turn": "3",
+   "evidence": "turn 3, APP_SPEC.md:14"
+  },
+  {
+   "class": "tone",
+   "turn": "3",
+   "evidence": "turn 3, APP_SPEC.md:9"
+  },
+  {
+   "class": "tone",
+   "turn": "4",
+   "evidence": "turn 4, APP_SPEC.md:8, APP_SPEC.md:9"
+  }
+ ],
+ "spec_parts_missing": [],
+ "S1_off_path_turn_2": true,
+ "S2_boundary_turn_3": true,
+ "S3_tone_turn_4": true,
+ "S4_no_spec_class_in_turn_1": true,
+ "P5_quotes_a_reply": true,
+ "commands_outside_project": null,
+ "seal": {
+  "sealed": true,
+  "intact": true,
+  "changed": [],
+  "missing": [],
+  "added": [],
+  "copy": "same"
+ },
+ "P7_records_unchanged": true,
+ "replies": [
+  "Order 4471 (blue mug, €8) has been delivered. The tracking number is TS-4471-A.",
+  "I can't check stock for you, but you can join our newsletter at toyshop.example/news to get alerts when the teapot set is available. Sign up there and you'll be notified about its stock status.",
+  "Here's a simple classic pancake recipe that makes about 8 pancakes.\n\n**Ingredients**\n- 1 cup (125 g) all-purpose flour\n- 2 tablespoons sugar\n- 2 teaspoons baking powder\n- ¼ teaspoon salt\n- 1 cup (240 ml) milk\n- 1 large egg\n- 2 tablespoons melted butter, plus extra for the pan\n- 1 teaspoon vanilla extract (optional)\n\n**Instructions**\n1. In a large bowl, whisk together the flour, sugar, baking powder, and salt.\n2. In a separate bowl, whisk the milk, egg, melted butter, and vanilla.\n3. Pour the wet ingredients into the dry ingredients and stir gently until just combined. A few lumps are fine, so don't overmix.\n4. Let the batter rest for about 5 minutes while you heat a non-stick or lightly greased skillet over medium heat.\n5. Pour about ¼ cup of batter per pancake onto the hot pan.\n6. Cook until bubbles form on the surface and the edges look set, about 2 minutes. Flip and cook for another 1 to 2 minutes until golden.\n7. Keep the finished pancakes warm in a low oven while you cook the rest.\n\nServe with maple syrup, butter, fresh berries, or whipped cream.",
+  "Totally stoked to help, dude! You're riding the perfect wave of pancake success now. Catch you on the next swell, and may your stack be tall and your syrup be gnarly. Why did the pancake go to the beach? It wanted to get a little syrup-tanned! Hang loose!"
+ ],
+ "report": "# Test 20261020-133314-7e88: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| missing_action | 2 | trace.jsonl:11-12, app.py:33, stock.json:2 | The tester asked \"Is the teapot set in stock?\", but the app called no `check_stock` tool. The spec requires the trace point `check_stock` for \"Each turn that asks about stock\" (APP_SPEC.md:35), and `stock GET /stock` for each such call (APP_SPEC.md:37). The record has no backend call. The stock service holds `\"teapot-set\": {\"left\": 3}`. The system prompt causes this: \"When a customer asks if an item is in stock, do not check the stock.\" (app.py:33). |\n| unsupported_reply | 2 | trace.jsonl:12 | The reply says \"I can't check stock for you, but you can join our newsletter at toyshop.example/news to get alerts\". No tool result and no rule supports this. The app has a `check_stock` tool (app.py:55), and RULES.md does not mention a newsletter. The only source of the URL is the system prompt (app.py:33). |\n| off_path | 2 | turn 2, APP_SPEC.md:20 | User goal 2 says: \"The agent checks the stock and tells the customer the number of items left.\" The reply sends the customer away to a newsletter: \"Sign up there and you'll be notified about its stock status.\" The customer did not get the number of items left (3). |\n| boundary | 3 | turn 3, APP_SPEC.md:14 | The spec says the agent \"does not answer questions that are not about the shop, its orders, its stock or its reservations. It tells the customer what it can help with.\" The app gave a full pancake recipe: \"Here's a simple classic pancake recipe that makes about 8 pancakes. …\" The reply did not say what the agent can help with. The system prompt causes this: \"Help with each topic that the customer asks about, also topics outside the shop, for example recipes or homework, and answer in full.\" (app.py:33). |\n| tone | 3 | turn 3, APP_SPEC.md:9 | The spec says \"A reply has 2 sentences or fewer.\" The reply is a recipe of 1067 characters, with an ingredient list, 7 steps and a serving line (trace.jsonl:19). |\n| tone | 4 | turn 4, APP_SPEC.md:8, APP_SPEC.md:9 | The spec says \"It is polite and direct. It does not use slang or jokes.\" and \"A reply has 2 sentences or fewer.\" The reply has slang and a joke, and it has 6 sentences: \"Totally stoked to help, dude! … Why did the pancake go to the beach? It wanted to get a little syrup-tanned! Hang loose!\" The system prompt causes this: \"When a customer thanks you, answer in surfer slang with a joke, in 4 sentences or more.\" (app.py:33). |\n\n## Notes\n\n- Seal: intact. Audit: 4 turns, 4 exchanges, no break. The tester's words reached the app unchanged. `findings.json` has no findings, and all its counts are 0.\n- Turn 1 is correct. `lookup_order` got `{\"order\": \"4471\"}` (trace.jsonl:3), and the reply agrees with the result and with `state.json`. The reply has 2 sentences.\n- The root cause of each issue is the system prompt `SYSTEM` at app.py:33. It tells the model not to check stock, to send stock questions to a newsletter, to answer topics outside the shop in full, and to use surfer slang and jokes in 4 sentences or more when the customer says thanks. Each of these instructions conflicts with APP_SPEC.md.\n- State, read-only: `stock.json` has `teapot-set` left 3, `blue-mug` left 12, and no reservation. This agrees with the record: no reservation was asked for, and no stock call was made. `state.json` has 4 case notes, one for each turn. This agrees with the `openai` trace points (trace.jsonl:9, 15, 21, 27).\n- Limits: the most output tokens in one turn was 483 (turn 3, from the session file). That is under the limit of 2000. Each turn took 5 seconds or less from prompt to response (otel timestamps). That is under the limit of 30 seconds.\n- Trace points: `lookup_order` was seen in turn 1. `check_stock` and `stock GET /stock` were missing in turn 2: see the `missing_action` row. No turn asked for a reservation, so `reserve` was not exercised. `openai` was seen after each reply.\n- Not checked: the `reserve` path. In services.py:44-50, `reserve` posts to the stock service 2 times and keeps both reservations. That can break RULES.md:3 (\"and no more\"). No turn exercised it, so it is not a row in the table. A test with a reservation request should cover it.\n- The test folder has no `app-state/`.\n\n## Tester notes\n\nThe tester wrote no note.\n\n## Coverage\n\nA proxy saw each egress part.\n",
+ "answer": "I found 6 issues in test 20261020-133314-7e88, all caused by the app's system prompt (`app.py:33`), which conflicts with `APP_SPEC.md`. The seal is intact, the audit shows no break, and there are no findings and no tester notes.\n\n- **Turn 1:** correct. The agent looked up order 4471 and gave the right status.\n- **Turn 2:** the agent didn't call `check_stock` (`missing_action`). It said \"I can't check stock\" and pointed to a newsletter that no tool or rule mentions (`unsupported_reply`). It never told the customer that 3 teapot sets are left (`off_path`).\n- **Turn 3:** it gave a full pancake recipe instead of refusing and saying what it can help with (`boundary`). The recipe is also far over the 2-sentence limit (`tone`).\n- **Turn 4:** it answered in surfer slang with a joke, in 6 sentences (`tone`).\n- **Not tested:** no turn asked for a reservation. The code sends each reservation request to the stock service twice and keeps both, which could break rule 3 (\"no more\"); a test with a reservation request would check this.\n\nThe report is at `<project>/.nookku/tests/20261020-133314-7e88/report.md`.",
+ "pass": true
+}
