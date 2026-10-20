@@ -1,6 +1,18 @@
 {
  "files": [
-  "## Trace points\n\n## Limits\n\n| Name | Source | When |\n|---|---|---|\n| `reserve` | `session` | Turn 2 |\n"
+  [
+   "APP_SPEC.md",
+   "## Trace points\n\n## Limits\n\n| Name | Source | When |\n|---|---|---|\n| `reserve` | `session` | Turn 2 |\n"
+  ]
  ],
- "expect": []
+ "expect": {
+  "points": [],
+  "unread": [
+   {
+    "file": "APP_SPEC.md",
+    "line": 1,
+    "problem": "The section has no table with the columns Name, Source and When."
+   }
+  ]
+ }
 }

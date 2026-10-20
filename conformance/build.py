@@ -838,6 +838,7 @@ def counts(**n: int) -> dict:
         "session_inferred",
         "version_untested",
         "missing_trace_point",
+        "trace_points_unread",
     )
     return {c: n.get(c, 0) for c in checks}
 
@@ -4740,9 +4741,10 @@ POINTS = [
     {"name": "shop.reply", "source": "otel", "when": "each turn"},
     {"name": "audit_log", "source": "database", "when": "Each turn."},
 ]
-# The trace checks a known source with the When forms `Each turn`, `Turn N` and
-# `Each <tool> tool call`.
-POINTS_CHECKED = [False, True, True, True, True, True, True, False]
+# The count of items that the 3 turns need for each point. The trace checks a known source with
+# the When forms `Each turn`, `Turn N` and `Each <tool> tool call`, else the count is None. A
+# `Turn 5` in a test of 3 turns needs 0 items, so the trace does not check it.
+POINTS_NEEDED = [None, 1, 0, 3, 4, 3, 3, None]
 
 
 def point_use(t: float, tid: str, sku: str) -> list[dict]:
@@ -4916,7 +4918,10 @@ POINT_CASE = {
         },
         "mcp": None,
         "database": None,
-        "trace_points": [{**p, "checked": c} for p, c in zip(POINTS, POINTS_CHECKED, strict=True)],
+        "trace_points": [
+            {**p, "checked": bool(n), "needed": n}
+            for p, n in zip(POINTS, POINTS_NEEDED, strict=True)
+        ],
         "counts": counts(missing_trace_point=3),
         "findings": [
             point_found(
@@ -4930,6 +4935,94 @@ POINT_CASE = {
                 "turn. When: Each check_stock tool call.",
             ),
             point_found(3, "openai (model_api): 0 of 1 items in this turn. When: Each turn."),
+        ],
+    },
+}
+
+# The edge cases of the trace points: the full MCP name of a tool, a tool name that no tool call
+# has, a turn number with too many digits, and the parts of the spec that the bridge did not read.
+EDGE_POINTS = [
+    {
+        "name": "stock GET /stock",
+        "source": "backend",
+        "when": "Each `mcp__shop__check_stock` tool call.",
+    },
+    {"name": "mcp__shop__check_stock", "source": "session", "when": "Turn 1"},
+    {"name": "stock GET /stock", "source": "backend", "when": "Each check_stok tool call."},
+    {"name": "shop.reply", "source": "otel", "when": "Turn " + "9" * 5000},
+]
+EDGE_UNREAD = [
+    {"file": "APP_SPEC.md", "line": 14, "problem": "The row has 4 cells, and the header has 3."},
+    {
+        "file": "RULES.md",
+        "line": 3,
+        "problem": "The section has no table with the columns Name, Source and When.",
+    },
+]
+EDGE_CASE = {
+    "tap": [window(10, 20, reply=POINT_REPLIES[0])],
+    "manifest": {
+        "test": "20261020-090000-tp02",
+        "model_sessions": [CC_SESSION],
+        "trace_points": EDGE_POINTS,
+        "trace_points_unread": EDGE_UNREAD,
+    },
+    "sessions": {
+        CC_FILE: [
+            cc_line("user", 11, "Is the teapot set in stock?"),
+            *point_use(12, "t1", "teapot-set"),
+            cc_line("assistant", 13, [{"type": "text", "text": POINT_REPLIES[0]}]),
+        ]
+    },
+    "trace": [
+        item(1, "claude-code", 11, "message", 1, role="user", output="Is the teapot set in stock?"),
+        point_tool(1, 12, 2, "teapot-set"),
+        item(1, "claude-code", 13, "message", 4, role="assistant", output=POINT_REPLIES[0]),
+    ],
+    "findings": {
+        "v": "0.2",
+        "test": "20261020-090000-tp02",
+        "turns": 1,
+        "items": 3,
+        "sessions": [
+            {
+                "harness": "claude-code",
+                "session": CC,
+                "file": CC_FILE,
+                "inferred": False,
+                "version": "2.1.286",
+                "items": 3,
+                "ignored": {},
+            }
+        ],
+        "otel": None,
+        "backend": None,
+        "model_api": None,
+        "mcp": None,
+        "database": None,
+        "trace_points": [
+            {**p, "checked": bool(n), "needed": n}
+            for p, n in zip(EDGE_POINTS, [1, 1, 0, None], strict=True)
+        ],
+        "counts": counts(missing_trace_point=1, trace_points_unread=2),
+        "findings": [
+            point_found(
+                1,
+                "stock GET /stock (backend): 0 of 1 items for 1 mcp__shop__check_stock tool "
+                "call in this turn. When: Each mcp__shop__check_stock tool call.",
+            ),
+            {
+                "check": "trace_points_unread",
+                "turn": None,
+                "detail": "APP_SPEC.md line 14: The row has 4 cells, and the header has 3. "
+                "The trace does not check it.",
+            },
+            {
+                "check": "trace_points_unread",
+                "turn": None,
+                "detail": "RULES.md line 3: The section has no table with the columns Name, "
+                "Source and When. The trace does not check it.",
+            },
         ],
     },
 }
@@ -4967,6 +5060,7 @@ TRACE_CASES = {
     "database_formats": DATABASE_FORMATS_CASE,
     "database_pipeline": DATABASE_PIPELINE_CASE,
     "trace_points_toy_shop": POINT_CASE,
+    "trace_points_edges": EDGE_CASE,
 }
 
 

@@ -1,0 +1,1019 @@
+{
+ "files": [
+  [
+   "APP_SPEC.md",
+   "## Trace points\n\n| Name | Source | When |\n|---|---|---|\n| `p0` | `otel` | Each turn |\n| `p1` | `otel` | Each turn |\n| `p2` | `otel` | Each turn |\n| `p3` | `otel` | Each turn |\n| `p4` | `otel` | Each turn |\n| `p5` | `otel` | Each turn |\n| `p6` | `otel` | Each turn |\n| `p7` | `otel` | Each turn |\n| `p8` | `otel` | Each turn |\n| `p9` | `otel` | Each turn |\n| `p10` | `otel` | Each turn |\n| `p11` | `otel` | Each turn |\n| `p12` | `otel` | Each turn |\n| `p13` | `otel` | Each turn |\n| `p14` | `otel` | Each turn |\n| `p15` | `otel` | Each turn |\n| `p16` | `otel` | Each turn |\n| `p17` | `otel` | Each turn |\n| `p18` | `otel` | Each turn |\n| `p19` | `otel` | Each turn |\n| `p20` | `otel` | Each turn |\n| `p21` | `otel` | Each turn |\n| `p22` | `otel` | Each turn |\n| `p23` | `otel` | Each turn |\n| `p24` | `otel` | Each turn |\n| `p25` | `otel` | Each turn |\n| `p26` | `otel` | Each turn |\n| `p27` | `otel` | Each turn |\n| `p28` | `otel` | Each turn |\n| `p29` | `otel` | Each turn |\n| `p30` | `otel` | Each turn |\n| `p31` | `otel` | Each turn |\n| `p32` | `otel` | Each turn |\n| `p33` | `otel` | Each turn |\n| `p34` | `otel` | Each turn |\n| `p35` | `otel` | Each turn |\n| `p36` | `otel` | Each turn |\n| `p37` | `otel` | Each turn |\n| `p38` | `otel` | Each turn |\n| `p39` | `otel` | Each turn |\n| `p40` | `otel` | Each turn |\n| `p41` | `otel` | Each turn |\n| `p42` | `otel` | Each turn |\n| `p43` | `otel` | Each turn |\n| `p44` | `otel` | Each turn |\n| `p45` | `otel` | Each turn |\n| `p46` | `otel` | Each turn |\n| `p47` | `otel` | Each turn |\n| `p48` | `otel` | Each turn |\n| `p49` | `otel` | Each turn |\n| `p50` | `otel` | Each turn |\n| `p51` | `otel` | Each turn |\n| `p52` | `otel` | Each turn |\n| `p53` | `otel` | Each turn |\n| `p54` | `otel` | Each turn |\n| `p55` | `otel` | Each turn |\n| `p56` | `otel` | Each turn |\n| `p57` | `otel` | Each turn |\n| `p58` | `otel` | Each turn |\n| `p59` | `otel` | Each turn |\n| `p60` | `otel` | Each turn |\n| `p61` | `otel` | Each turn |\n| `p62` | `otel` | Each turn |\n| `p63` | `otel` | Each turn |\n| `p64` | `otel` | Each turn |\n| `p65` | `otel` | Each turn |\n| `p66` | `otel` | Each turn |\n| `p67` | `otel` | Each turn |\n| `p68` | `otel` | Each turn |\n| `p69` | `otel` | Each turn |\n| `p70` | `otel` | Each turn |\n| `p71` | `otel` | Each turn |\n| `p72` | `otel` | Each turn |\n| `p73` | `otel` | Each turn |\n| `p74` | `otel` | Each turn |\n| `p75` | `otel` | Each turn |\n| `p76` | `otel` | Each turn |\n| `p77` | `otel` | Each turn |\n| `p78` | `otel` | Each turn |\n| `p79` | `otel` | Each turn |\n| `p80` | `otel` | Each turn |\n| `p81` | `otel` | Each turn |\n| `p82` | `otel` | Each turn |\n| `p83` | `otel` | Each turn |\n| `p84` | `otel` | Each turn |\n| `p85` | `otel` | Each turn |\n| `p86` | `otel` | Each turn |\n| `p87` | `otel` | Each turn |\n| `p88` | `otel` | Each turn |\n| `p89` | `otel` | Each turn |\n| `p90` | `otel` | Each turn |\n| `p91` | `otel` | Each turn |\n| `p92` | `otel` | Each turn |\n| `p93` | `otel` | Each turn |\n| `p94` | `otel` | Each turn |\n| `p95` | `otel` | Each turn |\n| `p96` | `otel` | Each turn |\n| `p97` | `otel` | Each turn |\n| `p98` | `otel` | Each turn |\n| `p99` | `otel` | Each turn |\n| `p100` | `otel` | Each turn |\n| `p101` | `otel` | Each turn |\n| `p102` | `otel` | Each turn |\n| `p103` | `otel` | Each turn |\n| `p104` | `otel` | Each turn |\n| `p105` | `otel` | Each turn |\n| `p106` | `otel` | Each turn |\n| `p107` | `otel` | Each turn |\n| `p108` | `otel` | Each turn |\n| `p109` | `otel` | Each turn |\n| `p110` | `otel` | Each turn |\n| `p111` | `otel` | Each turn |\n| `p112` | `otel` | Each turn |\n| `p113` | `otel` | Each turn |\n| `p114` | `otel` | Each turn |\n| `p115` | `otel` | Each turn |\n| `p116` | `otel` | Each turn |\n| `p117` | `otel` | Each turn |\n| `p118` | `otel` | Each turn |\n| `p119` | `otel` | Each turn |\n| `p120` | `otel` | Each turn |\n| `p121` | `otel` | Each turn |\n| `p122` | `otel` | Each turn |\n| `p123` | `otel` | Each turn |\n| `p124` | `otel` | Each turn |\n| `p125` | `otel` | Each turn |\n| `p126` | `otel` | Each turn |\n| `p127` | `otel` | Each turn |\n| `p128` | `otel` | Each turn |\n| `p129` | `otel` | Each turn |\n| `p130` | `otel` | Each turn |\n| `p131` | `otel` | Each turn |\n| `p132` | `otel` | Each turn |\n| `p133` | `otel` | Each turn |\n| `p134` | `otel` | Each turn |\n| `p135` | `otel` | Each turn |\n| `p136` | `otel` | Each turn |\n| `p137` | `otel` | Each turn |\n| `p138` | `otel` | Each turn |\n| `p139` | `otel` | Each turn |\n| `p140` | `otel` | Each turn |\n| `p141` | `otel` | Each turn |\n| `p142` | `otel` | Each turn |\n| `p143` | `otel` | Each turn |\n| `p144` | `otel` | Each turn |\n| `p145` | `otel` | Each turn |\n| `p146` | `otel` | Each turn |\n| `p147` | `otel` | Each turn |\n| `p148` | `otel` | Each turn |\n| `p149` | `otel` | Each turn |\n| `p150` | `otel` | Each turn |\n| `p151` | `otel` | Each turn |\n| `p152` | `otel` | Each turn |\n| `p153` | `otel` | Each turn |\n| `p154` | `otel` | Each turn |\n| `p155` | `otel` | Each turn |\n| `p156` | `otel` | Each turn |\n| `p157` | `otel` | Each turn |\n| `p158` | `otel` | Each turn |\n| `p159` | `otel` | Each turn |\n| `p160` | `otel` | Each turn |\n| `p161` | `otel` | Each turn |\n| `p162` | `otel` | Each turn |\n| `p163` | `otel` | Each turn |\n| `p164` | `otel` | Each turn |\n| `p165` | `otel` | Each turn |\n| `p166` | `otel` | Each turn |\n| `p167` | `otel` | Each turn |\n| `p168` | `otel` | Each turn |\n| `p169` | `otel` | Each turn |\n| `p170` | `otel` | Each turn |\n| `p171` | `otel` | Each turn |\n| `p172` | `otel` | Each turn |\n| `p173` | `otel` | Each turn |\n| `p174` | `otel` | Each turn |\n| `p175` | `otel` | Each turn |\n| `p176` | `otel` | Each turn |\n| `p177` | `otel` | Each turn |\n| `p178` | `otel` | Each turn |\n| `p179` | `otel` | Each turn |\n| `p180` | `otel` | Each turn |\n| `p181` | `otel` | Each turn |\n| `p182` | `otel` | Each turn |\n| `p183` | `otel` | Each turn |\n| `p184` | `otel` | Each turn |\n| `p185` | `otel` | Each turn |\n| `p186` | `otel` | Each turn |\n| `p187` | `otel` | Each turn |\n| `p188` | `otel` | Each turn |\n| `p189` | `otel` | Each turn |\n| `p190` | `otel` | Each turn |\n| `p191` | `otel` | Each turn |\n| `p192` | `otel` | Each turn |\n| `p193` | `otel` | Each turn |\n| `p194` | `otel` | Each turn |\n| `p195` | `otel` | Each turn |\n| `p196` | `otel` | Each turn |\n| `p197` | `otel` | Each turn |\n| `p198` | `otel` | Each turn |\n| `p199` | `otel` | Each turn |\n| `p200` | `otel` | Each turn |\n| `p201` | `otel` | Each turn |\n"
+  ]
+ ],
+ "expect": {
+  "points": [
+   {
+    "name": "p0",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p1",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p2",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p3",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p4",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p5",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p6",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p7",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p8",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p9",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p10",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p11",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p12",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p13",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p14",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p15",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p16",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p17",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p18",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p19",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p20",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p21",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p22",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p23",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p24",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p25",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p26",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p27",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p28",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p29",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p30",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p31",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p32",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p33",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p34",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p35",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p36",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p37",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p38",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p39",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p40",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p41",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p42",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p43",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p44",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p45",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p46",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p47",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p48",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p49",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p50",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p51",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p52",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p53",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p54",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p55",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p56",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p57",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p58",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p59",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p60",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p61",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p62",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p63",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p64",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p65",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p66",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p67",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p68",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p69",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p70",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p71",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p72",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p73",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p74",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p75",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p76",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p77",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p78",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p79",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p80",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p81",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p82",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p83",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p84",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p85",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p86",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p87",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p88",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p89",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p90",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p91",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p92",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p93",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p94",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p95",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p96",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p97",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p98",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p99",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p100",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p101",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p102",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p103",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p104",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p105",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p106",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p107",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p108",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p109",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p110",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p111",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p112",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p113",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p114",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p115",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p116",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p117",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p118",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p119",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p120",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p121",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p122",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p123",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p124",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p125",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p126",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p127",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p128",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p129",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p130",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p131",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p132",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p133",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p134",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p135",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p136",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p137",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p138",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p139",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p140",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p141",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p142",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p143",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p144",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p145",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p146",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p147",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p148",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p149",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p150",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p151",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p152",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p153",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p154",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p155",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p156",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p157",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p158",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p159",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p160",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p161",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p162",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p163",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p164",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p165",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p166",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p167",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p168",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p169",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p170",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p171",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p172",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p173",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p174",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p175",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p176",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p177",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p178",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p179",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p180",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p181",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p182",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p183",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p184",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p185",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p186",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p187",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p188",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p189",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p190",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p191",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p192",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p193",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p194",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p195",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p196",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p197",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p198",
+    "source": "otel",
+    "when": "Each turn"
+   },
+   {
+    "name": "p199",
+    "source": "otel",
+    "when": "Each turn"
+   }
+  ],
+  "unread": [
+   {
+    "file": "APP_SPEC.md",
+    "line": 205,
+    "problem": "The spec has more than 200 trace points. This row and the next rows are not read."
+   }
+  ]
+ }
+}

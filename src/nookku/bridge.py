@@ -113,6 +113,8 @@ class TestConfig:
     spec: list[dict[str, str]] = field(default_factory=list)
     # The rows of the Trace points table of the app spec (SPEC.md sections 7.2 and 8.6).
     trace_points: list[dict[str, str]] = field(default_factory=list)
+    # Each part of a Trace points section that is not a trace point: its file, line and problem.
+    trace_points_unread: list[dict[str, Any]] = field(default_factory=list)
 
 
 def load_config(root: Path, entry_name: str | None = None) -> TestConfig:
@@ -126,7 +128,8 @@ def load_config(root: Path, entry_name: str | None = None) -> TestConfig:
         rules = policy.read(root)
         contents = spec_contents(root, data.get("spec") or [])
         spec = [h for h, _ in contents]
-        points = app_spec.read([b.decode("utf-8", "replace") for _, b in contents])
+        files = [(h["path"], b.decode("utf-8", "replace")) for h, b in contents]
+        points, unread = app_spec.read(files)
     except (ConfigError, policy.PolicyError) as e:
         raise BridgeError(str(e)) from None
     entry, models = data.get("entry") or [], data.get("models") or []
@@ -144,7 +147,9 @@ def load_config(root: Path, entry_name: str | None = None) -> TestConfig:
     message = data.get("check_message", CHECK_MESSAGE)
     keys = {k: data.get(k, default) for k, default in trace.TRACE_KEYS.items()}
     limit = data.get("record_limit", backend.RECORD_LIMIT)
-    return TestConfig(entry, models, otel, rules, message, keys, entry_name, limit, spec, points)
+    return TestConfig(
+        entry, models, otel, rules, message, keys, entry_name, limit, spec, points, unread
+    )
 
 
 def egress_proxies(
@@ -789,6 +794,7 @@ def run(
         "trace": config.trace,
         "spec": config.spec,
         "trace_points": config.trace_points,
+        "trace_points_unread": config.trace_points_unread,
         "tester_sessions": [tester_session] if tester_session else [],
         "model_sessions": [],
         "codex_gate": {"start": _start_gate(folder), "end": None},

@@ -41,49 +41,57 @@
    "name": "check_stock",
    "source": "session",
    "when": "Each turn that asks about stock.",
-   "checked": false
+   "checked": false,
+   "needed": null
   },
   {
    "name": "check_stock",
    "source": "session",
    "when": "Turn 2.",
-   "checked": true
+   "checked": true,
+   "needed": 1
   },
   {
    "name": "lookup_order",
    "source": "session",
    "when": "Turn 5",
-   "checked": true
+   "checked": false,
+   "needed": 0
   },
   {
    "name": "assistant",
    "source": "session",
    "when": "Each turn.",
-   "checked": true
+   "checked": true,
+   "needed": 3
   },
   {
    "name": "stock GET /stock",
    "source": "backend",
    "when": "Each `check_stock` tool call.",
-   "checked": true
+   "checked": true,
+   "needed": 4
   },
   {
    "name": "openai",
    "source": "model_api",
    "when": "Each turn.",
-   "checked": true
+   "checked": true,
+   "needed": 3
   },
   {
    "name": "shop.reply",
    "source": "otel",
    "when": "each turn",
-   "checked": true
+   "checked": true,
+   "needed": 3
   },
   {
    "name": "audit_log",
    "source": "database",
    "when": "Each turn.",
-   "checked": false
+   "checked": false,
+   "needed": null
   }
  ],
  "counts": {
@@ -104,7 +112,8 @@
   "server_not_from_app": 0,
   "session_inferred": 0,
   "version_untested": 0,
-  "missing_trace_point": 3
+  "missing_trace_point": 3,
+  "trace_points_unread": 0
  },
  "findings": [
   {

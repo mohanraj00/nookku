@@ -12,7 +12,7 @@ With no spec, the model finds the business rules in the code, the docs and the t
 
 A spec can have a part in a second file. For example, the toy shop keeps its rules in `RULES.md`, and its `Boundaries` section links to it. A file with no known section is a list of business rules.
 
-Use the section names exactly. Today the evaluation prompt names the files, and the model reads them as the rules of the app. The checks of tone and boundaries ([#316](https://github.com/mohanraj00/nookku/issues/316)), of speed ([#317](https://github.com/mohanraj00/nookku/issues/317)) and of [trace](glossary.md#trace) points ([#318](https://github.com/mohanraj00/nookku/issues/318)) will find each part by its section name.
+Use the section names exactly. Today the evaluation prompt names the files, and the model reads them as the rules of the app. The [trace](glossary.md#trace) reads the `Trace points` section itself ([Trace points](#trace-points)). The checks of tone and boundaries ([#316](https://github.com/mohanraj00/nookku/issues/316)) and of speed ([#317](https://github.com/mohanraj00/nookku/issues/317)) will find each part by its section name.
 
 ## Parts
 
@@ -41,9 +41,9 @@ The `Source` of a trace point is the record that shows it ([records.md](records.
 
 | Source | The record shows ... |
 |---|---|
-| `session` | a tool call or a message of a model session of the app. `Name` is the tool or the role. |
+| `session` | a tool call or a message of a model session of the app. `Name` is the tool or the role. For an MCP tool, the short name (`check_stock`) and the full name (`mcp__shop__check_stock`) both match. |
 | `backend` | a call to a backend. `Name` is the backend and the method and path, for example `stock GET /stock`. |
-| `model_api` | a direct model call through a model API proxy. `Name` is the model API. |
+| `model_api` | a direct model call of the app through a model API proxy. `Name` is the model API. A call of the [harness](glossary.md#harness) and a call to another path are not items, so they do not count ([limits](../limits.md)). |
 | `otel` | an OpenTelemetry span or log of the app. `Name` is the span name or the event name. |
 
 The `When` says the turns where the trace point must occur. The [trace](glossary.md#trace) checks 3 forms itself, with no model, and gives the [finding](glossary.md#findings) `missing_trace_point` for each turn that does not have the trace point ([SPEC.md section 8.6](../../SPEC.md#86-findings)):
@@ -52,9 +52,18 @@ The `When` says the turns where the trace point must occur. The [trace](glossary
 |---|---|
 | `Each turn` | 1 time or more in each turn. |
 | `Turn N` | 1 time or more in turn `N`, for example `Turn 2`. |
-| `Each <tool> tool call` | 1 time for each call of the tool in the session file, in the same turn. For example, `Each check_stock tool call`. |
+| `Each <tool> tool call` | 1 time for each call of the tool in the session file, in the same turn. For example, `Each check_stock tool call` or `Each mcp__shop__check_stock tool call`. |
 
-The case of the words, the backticks and a `.` at the end do not matter. The trace does not check a `When` in other words, for example `Each turn that asks about an order`, or a source that is not in the table above. `trace_points` in `findings.json` shows each trace point with `checked: false`. The model of the evaluation reads the spec, but no check of the trace covers these trace points.
+The case of the words, the backticks and a `.` at the end do not matter. A turn is the time from the message to the reply. A trace point that the app sends after the reply is in no turn, so it does not count. Send it before the reply.
+
+`trace_points` in `findings.json` shows each trace point with `needed`, the count of items that the test needed, and `checked`. `checked` is `false` if no turn needed the trace point:
+
+- The trace does not check a `When` in other words, for example `Each turn that asks about an order`, or a source that is not in the table above. Then `needed` is `null`.
+- A `Turn N` after the last turn, or an `Each <tool> tool call` with a tool that no call has, needs 0 items. A typo in the tool name gives this result, so look for `checked: false`.
+
+The model of the evaluation reads the spec, but no check of the trace covers these trace points.
+
+The section can have a heading of any level, and the table can have more columns than `Name`, `Source` and `When`, in any order. If the [bridge](glossary.md#bridge) cannot read a part of the section, the trace gives the finding `trace_points_unread` with the file and the line: a section with no table, a table with no rows, a row with a different count of cells, or a row with no `Name`. The bridge keeps 200 trace points at most ([limits](../limits.md)).
 
 ## Example: the toy shop
 

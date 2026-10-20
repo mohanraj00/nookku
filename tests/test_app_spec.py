@@ -1,11 +1,12 @@
 """The trace points of the app spec (SPEC.md sections 7.2 and 8.6)."""
 
 import json
+import time
 from pathlib import Path
 
 import pytest
 
-from nookku import app_spec, bridge
+from nookku import app_spec, bridge, trace
 
 CASES = sorted(
     (Path(__file__).resolve().parent.parent / "conformance" / "trace_points").glob("*.json")
@@ -15,7 +16,26 @@ CASES = sorted(
 @pytest.mark.parametrize("case", CASES, ids=[c.stem for c in CASES])
 def test_each_case_gives_its_trace_points(case: Path) -> None:
     data = json.loads(case.read_text(encoding="utf-8"))
-    assert app_spec.read(data["files"]) == data["expect"]
+    points, unread = app_spec.read([(path, text) for path, text in data["files"]])
+    assert {"points": points, "unread": unread} == data["expect"]
+
+
+def test_a_long_heading_line_is_read_in_linear_time() -> None:
+    # A regex with three white space parts takes 15 s for 2000 spaces. The parse must not.
+    line = "# a" + " " * 200_000 + "x\n"
+    start = time.monotonic()
+    assert app_spec.read([("APP_SPEC.md", line * 5)]) == ([], [])
+    assert time.monotonic() - start < 2
+
+
+def test_a_closing_heading_mark_is_not_part_of_the_text() -> None:
+    texts = ["## Trace points ##", "## Trace points#", "##", "#Trace points"]
+    assert [app_spec._heading(t) for t in texts] == [
+        "Trace points",
+        "Trace points#",
+        "",
+        None,
+    ]
 
 
 @pytest.mark.parametrize(
@@ -27,6 +47,9 @@ def test_each_case_gives_its_trace_points(case: Path) -> None:
         ("backend", "Each `check_stock` tool call.", ("each_call", "check_stock")),
         ("model_api", "Each turn that asks about stock.", None),
         ("session", "Turn 0", None),
+        ("session", "Turn 999999999", ("turn", 999999999)),
+        ("session", "Turn " + "9" * 10, None),
+        ("session", "Turn " + "9" * 5000, None),
         ("session", "Each turn, after the reply", None),
         ("database", "Each turn", None),
         ("mcp", "Each turn", None),
@@ -90,27 +113,88 @@ def test_an_item_of_another_source_does_not_count() -> None:
     ]
 
 
-@pytest.mark.parametrize("points", [None, "x", {}, 3])
-def test_a_manifest_with_no_list_has_no_trace_points(points: object) -> None:
-    assert app_spec.summary(points) is None
+def test_a_full_mcp_tool_name_matches_the_short_name() -> None:
+    points = [
+        {
+            "name": "stock GET /stock",
+            "source": "backend",
+            "when": "Each mcp__shop__check_stock tool call",
+        },
+        {"name": "mcp__shop__check_stock", "source": "session", "when": "Turn 1"},
+    ]
+    items = [_item(1, "claude-code", "tool_call", "check_stock", server="shop")]
+    assert [turn for turn, _ in app_spec.missing(points, items, 1)] == [1]
+    assert [p["needed"] for p in app_spec.summary(points, items, 1) or []] == [1, 1]
+
+
+def test_a_point_that_no_turn_needs_is_not_checked() -> None:
+    points = [
+        {"name": "stock GET /stock", "source": "backend", "when": "Each check_stok tool call"},
+        {"name": "x", "source": "otel", "when": "Turn 4"},
+        {"name": "y", "source": "otel", "when": "Each turn after the reply"},
+    ]
+    items = [_item(1, "claude-code", "tool_call", "check_stock")]
+    assert app_spec.missing(points, items, 3) == []
+    assert [(p["checked"], p["needed"]) for p in app_spec.summary(points, items, 3) or []] == [
+        (False, 0),
+        (False, 0),
+        (False, None),
+    ]
+
+
+@pytest.mark.parametrize("points", [None, "x", {}, 3, [], [{"name": "a"}]])
+def test_a_manifest_with_no_valid_point_has_no_trace_points(points: object) -> None:
+    assert app_spec.summary(points, [], 1) is None
     assert app_spec.valid(points) == []
 
 
 def test_a_point_with_a_field_that_is_not_text_is_dropped() -> None:
     good = {"name": "a", "source": "otel", "when": "Each turn", "more": 1}
     points = [good, {"name": "b", "source": "otel"}, {"name": 1, "source": "otel", "when": "x"}, 5]
-    assert app_spec.summary(points) == [
-        {"name": "a", "source": "otel", "when": "Each turn", "checked": True}
+    assert app_spec.summary(points, [], 1) == [
+        {"name": "a", "source": "otel", "when": "Each turn", "checked": True, "needed": 1}
+    ]
+
+
+def test_each_unread_record_gives_one_detail() -> None:
+    records = [
+        {"file": "APP_SPEC.md", "line": 5, "problem": "The row has no Name."},
+        {"file": "APP_SPEC.md", "problem": "x"},
+        {"file": 3, "problem": "x"},
+        "x",
+    ]
+    assert app_spec.unread(records) == [
+        "APP_SPEC.md line 5: The row has no Name. The trace does not check it.",
+        "APP_SPEC.md: x The trace does not check it.",
+    ]
+    assert app_spec.unread(None) == []
+
+
+def test_a_failure_of_the_check_gives_a_finding_and_not_a_crash(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail(*_: object) -> list[tuple[int, str]]:
+        raise ValueError("bad row")
+
+    monkeypatch.setattr(app_spec, "missing", fail)
+    points = [{"name": "a", "source": "otel", "when": "Each turn"}]
+    found = trace.check([], [], [], [], points=points)
+    assert [(f["check"], f["detail"]) for f in found] == [
+        ("trace_points_unread", "The trace could not check the trace points: ValueError.")
     ]
 
 
 def test_the_start_records_the_trace_points_of_the_spec(tmp_path: Path) -> None:
     (tmp_path / ".nookku").mkdir()
-    spec = "## Trace points\n\n| Name | Source | When |\n|---|---|---|\n| `x` | `otel` | Turn 1 |\n"
+    spec = "## Trace points\n\n| Name | Source | When |\n|---|---|---|\n"
+    spec += "| `x` | `otel` | Turn 1 |\n| | otel | Turn 2 |\n"
     (tmp_path / "APP_SPEC.md").write_bytes(spec.encode() + b"\xff\n")
     (tmp_path / "RULES.md").write_text("# Rules\n")
     config = {"entry": ["python3", "agent.py"], "spec": ["APP_SPEC.md", "RULES.md"]}
     (tmp_path / ".nookku" / "config.json").write_text(json.dumps(config))
     loaded = bridge.load_config(tmp_path)
     assert loaded.trace_points == [{"name": "x", "source": "otel", "when": "Turn 1"}]
+    assert loaded.trace_points_unread == [
+        {"file": "APP_SPEC.md", "line": 6, "problem": "The row has no Name."}
+    ]
     assert [f["path"] for f in loaded.spec] == ["APP_SPEC.md", "RULES.md"]

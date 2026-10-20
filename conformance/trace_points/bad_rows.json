@@ -1,12 +1,34 @@
 {
  "files": [
-  "## Trace points\n\n| Name | Source | When |\n|---|---|---|\n| `reserve` | `session` |\n| | `session` | Turn 1 |\n| `a` | `b` | `c` | `d` |\n| `lookup_order` | `session` | Turn 1 \\| turn 2 |\n|:---|:---:|---:|\n"
+  [
+   "APP_SPEC.md",
+   "## Trace points\n\n| Name | Source | When |\n|---|---|---|\n| `reserve` | `session` |\n| | `session` | Turn 1 |\n| `a` | `b` | `c` | `d` |\n| `lookup_order` | `session` | Turn 1 \\| turn 2 |\n|:---|:---:|---:|\n"
+  ]
  ],
- "expect": [
-  {
-   "name": "lookup_order",
-   "source": "session",
-   "when": "Turn 1 | turn 2"
-  }
- ]
+ "expect": {
+  "points": [
+   {
+    "name": "lookup_order",
+    "source": "session",
+    "when": "Turn 1 | turn 2"
+   }
+  ],
+  "unread": [
+   {
+    "file": "APP_SPEC.md",
+    "line": 5,
+    "problem": "The row has 2 cells, and the header has 3."
+   },
+   {
+    "file": "APP_SPEC.md",
+    "line": 6,
+    "problem": "The row has no Name."
+   },
+   {
+    "file": "APP_SPEC.md",
+    "line": 7,
+    "problem": "The row has 4 cells, and the header has 3."
+   }
+  ]
+ }
 }

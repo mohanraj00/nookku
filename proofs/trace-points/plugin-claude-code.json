@@ -24,31 +24,36 @@
    "name": "lookup_order",
    "source": "session",
    "when": "Each turn that asks about an order.",
-   "checked": false
+   "checked": false,
+   "needed": null
   },
   {
    "name": "check_stock",
    "source": "session",
    "when": "Each turn that asks about stock or a reservation.",
-   "checked": false
+   "checked": false,
+   "needed": null
   },
   {
    "name": "reserve",
    "source": "session",
    "when": "Each turn that asks for a reservation.",
-   "checked": false
+   "checked": false,
+   "needed": null
   },
   {
    "name": "stock GET /stock",
    "source": "backend",
    "when": "Each `check_stock` tool call.",
-   "checked": true
+   "checked": true,
+   "needed": 3
   },
   {
    "name": "openai",
    "source": "model_api",
    "when": "Each turn.",
-   "checked": true
+   "checked": true,
+   "needed": 3
   }
  ],
  "by_turn": [
@@ -94,5 +99,24 @@
   "tool_error": 1,
   "missing_trace_point": 1
  },
+ "findings": [
+  {
+   "check": "tool_error",
+   "turn": 2,
+   "detail": "check_stock: {\"error\": \"no such item: robot-kit\"}",
+   "harness": "claude-code",
+   "session": "a9ff9f4b-d8ff-4610-8463-282d25264a3a",
+   "source": {
+    "file": "sessions/claude-code/a9ff9f4b-d8ff-4610-8463-282d25264a3a.jsonl",
+    "line": 35,
+    "result_line": 36
+   }
+  },
+  {
+   "check": "missing_trace_point",
+   "turn": 2,
+   "detail": "openai (model_api): 0 of 1 items in this turn. When: Each turn."
+  }
+ ],
  "pass": true
 }

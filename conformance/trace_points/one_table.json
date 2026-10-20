@@ -1,22 +1,28 @@
 {
  "files": [
-  "# Spec\n\n## Persona\n\n- Polite.\n\n## Trace points\n\n| Name | Source | When |\n|---|---|---|\n| `check_stock` | `session` | Each turn that asks about stock. |\n| `stock GET /stock` | `backend` | Each `check_stock` tool call. |\n| `openai` | `model_api` | Each turn. |\n"
+  [
+   "APP_SPEC.md",
+   "# Spec\n\n## Persona\n\n- Polite.\n\n## Trace points\n\n| Name | Source | When |\n|---|---|---|\n| `check_stock` | `session` | Each turn that asks about stock. |\n| `stock GET /stock` | `backend` | Each `check_stock` tool call. |\n| `openai` | `model_api` | Each turn. |\n"
+  ]
  ],
- "expect": [
-  {
-   "name": "check_stock",
-   "source": "session",
-   "when": "Each turn that asks about stock."
-  },
-  {
-   "name": "stock GET /stock",
-   "source": "backend",
-   "when": "Each `check_stock` tool call."
-  },
-  {
-   "name": "openai",
-   "source": "model_api",
-   "when": "Each turn."
-  }
- ]
+ "expect": {
+  "points": [
+   {
+    "name": "check_stock",
+    "source": "session",
+    "when": "Each turn that asks about stock."
+   },
+   {
+    "name": "stock GET /stock",
+    "source": "backend",
+    "when": "Each `check_stock` tool call."
+   },
+   {
+    "name": "openai",
+    "source": "model_api",
+    "when": "Each turn."
+   }
+  ],
+  "unread": []
+ }
 }

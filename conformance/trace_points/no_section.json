@@ -1,6 +1,12 @@
 {
  "files": [
-  "# Spec\n\n## Limits\n\n| Limit | Value | Meaning |\n|---|---|---|\n| `turn_seconds` | 30 | The most seconds. |\n"
+  [
+   "APP_SPEC.md",
+   "# Spec\n\n## Limits\n\n| Limit | Value | Meaning |\n|---|---|---|\n| `turn_seconds` | 30 | The most seconds. |\n"
+  ]
  ],
- "expect": []
+ "expect": {
+  "points": [],
+  "unread": []
+ }
 }

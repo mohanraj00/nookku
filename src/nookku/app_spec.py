@@ -8,15 +8,25 @@ the items of each turn. It needs no model, so a test can check the result each t
 from __future__ import annotations
 
 import re
+from collections import Counter
 from typing import Any
 
 SECTION = "trace points"
-HEADER = ["name", "source", "when"]
+COLUMNS = ("name", "source", "when")
 SOURCES = ("session", "backend", "model_api", "otel")
 SESSION_HARNESSES = ("claude-code", "codex")
+# The most trace points that the bridge records from all spec files (docs/limits.md).
+MAX_POINTS = 200
+HEADING = re.compile(r"(#{1,6})(?:[ \t]+(.*))?$")
 EACH_TURN = re.compile(r"each turn", re.IGNORECASE)
-ONE_TURN = re.compile(r"turn ([1-9][0-9]*)", re.IGNORECASE)
+# 9 digits at most: a longer number is not a turn of a test, and `int` stays fast.
+ONE_TURN = re.compile(r"turn ([1-9][0-9]{0,8})", re.IGNORECASE)
 EACH_CALL = re.compile(r"each (\S+) tool call", re.IGNORECASE)
+NO_TABLE = "The section has no table with the columns Name, Source and When."
+NO_ROWS = "The table of the section has no rows."
+LIMIT = (
+    f"The spec has more than {MAX_POINTS} trace points. This row and the next rows are not read."
+)
 
 
 def _cells(line: str) -> list[str] | None:
@@ -33,36 +43,83 @@ def _plain(cell: str) -> str:
     return cell.replace("`", "").strip()
 
 
-def read(texts: list[str]) -> list[dict[str, str]]:
-    """The rows of the first table under each `## Trace points` heading of the texts, in the
-    order of the texts. The table must have the columns Name, Source and When. A row with
-    another count of cells, or with an empty Name, is not a trace point."""
-    out = []
-    for text in texts:
-        inside, table = False, None
-        for line in text.splitlines():
-            heading = re.match(r"(#{1,6})\s+(.*?)\s*#*\s*$", line)
-            if heading and len(heading.group(1)) <= 2:
-                inside, table = heading.group(2).strip().lower() == SECTION, None
+def _heading(line: str) -> str | None:
+    """The text of a Markdown heading line with no closing `#` marks, or None if the line is
+    not a heading. The parse time is linear in the length of the line."""
+    m = HEADING.match(line)
+    if m is None:
+        return None
+    text = (m.group(2) or "").rstrip()
+    bare = text.rstrip("#")
+    if bare != text and (bare == "" or bare[-1] in " \t"):
+        text = bare.rstrip()
+    return text
+
+
+def read(files: list[tuple[str, str]]) -> tuple[list[dict[str, str]], list[dict[str, Any]]]:
+    """The trace points of the spec files, and a record of each part of a `Trace points`
+    section that is not a trace point. `files` holds the path and the text of each file, in
+    the order of the config. A section starts at a heading of any level with the text `Trace
+    points`. It ends at the next heading or after its first table. The header row must have
+    the columns Name, Source and When, in any order, and can have more columns."""
+    out: list[dict[str, str]] = []
+    unread: list[dict[str, Any]] = []
+    for path, text in files:
+        _read_file(path, text, out, unread)
+    return out, unread
+
+
+def _read_file(
+    path: str, text: str, out: list[dict[str, str]], unread: list[dict[str, Any]]
+) -> None:
+    start: int | None = None
+    columns: list[str] | None = None
+    rows = 0
+
+    def close() -> None:
+        if start is not None and (columns is None or rows == 0):
+            problem = NO_TABLE if columns is None else NO_ROWS
+            unread.append({"file": path, "line": start, "problem": problem})
+
+    for n, line in enumerate(text.splitlines(), 1):
+        heading = _heading(line)
+        cells = None if heading is not None else _cells(line)
+        if heading is not None or (cells is None and columns is not None):
+            close()
+            start, columns = None, None
+        if heading is not None:
+            if heading.lower() == SECTION:
+                start, rows = n, 0
+            continue
+        if start is None or cells is None:
+            continue
+        if columns is None:
+            columns = [_plain(c).lower() for c in cells]
+            if not all(c in columns for c in COLUMNS):
+                columns = None
+                close()
+                start = None
+            continue
+        if all(re.fullmatch(r":?-+:?", c) for c in cells):
+            continue
+        rows += 1
+        row = dict(zip(columns, cells, strict=False))
+        problem = None
+        if len(cells) != len(columns):
+            problem = f"The row has {len(cells)} cells, and the header has {len(columns)}."
+        elif not _plain(row["name"]):
+            problem = "The row has no Name."
+        elif len(out) >= MAX_POINTS:
+            if any(r["problem"] == LIMIT for r in unread):
                 continue
-            if not inside:
-                continue
-            cells = _cells(line)
-            if cells is None:
-                if table is not None:
-                    inside = False
-                continue
-            if table is None:
-                table = [c.lower() for c in cells] == HEADER
-                if not table:
-                    inside = False
-                continue
-            if all(re.fullmatch(r":?-+:?", c) for c in cells):
-                continue
-            if len(cells) == len(HEADER) and _plain(cells[0]):
-                name, source, when = cells
-                out.append({"name": _plain(name), "source": _plain(source), "when": when})
-    return out
+            problem = LIMIT
+        if problem is not None:
+            if len(unread) < MAX_POINTS:
+                unread.append({"file": path, "line": n, "problem": problem})
+            continue
+        name, source = _plain(row["name"]), _plain(row["source"])
+        out.append({"name": name, "source": source, "when": row["when"]})
+    close()
 
 
 def rule(point: dict[str, Any]) -> tuple[str, Any] | None:
@@ -81,31 +138,62 @@ def rule(point: dict[str, Any]) -> tuple[str, Any] | None:
     return None
 
 
-def matches(point: dict[str, str], it: dict[str, Any]) -> bool:
-    """True if a trace item shows the trace point (docs/reference/app-spec.md, Trace points)."""
-    name, source = point["name"], point["source"]
+def _tool_names(it: dict[str, Any]) -> list[str]:
+    """The names of a tool call: its name and, for an MCP tool, its full name
+    `mcp__<server>__<tool>`."""
+    names = [str(it["name"])]
+    if it.get("server"):
+        names.append(f"mcp__{it['server']}__{it['name']}")
+    return names
+
+
+def _keys(it: dict[str, Any]) -> list[tuple[str, str]]:
+    """The (source, name) of each trace point that a trace item shows
+    (docs/reference/app-spec.md, Trace points)."""
     kind, harness, role = str(it["kind"]), str(it["harness"]), it["role"]
-    if source == "session":
-        if harness not in SESSION_HARNESSES:
-            return False
-        tool = kind == "tool_call" and it["name"] == name
-        return tool or (kind == "message" and role == name)
-    if source == "backend":
-        return kind == "http" and f"{it['session']} {it['name']}" == name
-    if source == "model_api":
-        return harness == "model_api" and role == "assistant" and it["session"] == name
-    return harness == "otel" and kind in ("span", "log") and it["name"] == name
+    if harness in SESSION_HARNESSES:
+        if kind == "tool_call" and it["name"] is not None:
+            return [("session", n) for n in _tool_names(it)]
+        return [("session", str(role))] if kind == "message" and role else []
+    if kind == "http":
+        return [("backend", f"{it['session']} {it['name']}")]
+    if harness == "model_api":
+        return [("model_api", str(it["session"]))] if role == "assistant" else []
+    if harness == "otel" and kind in ("span", "log"):
+        return [("otel", str(it["name"]))]
+    return []
 
 
-def _tool_calls(items: list[dict[str, Any]], tool: str) -> list[dict[str, Any]]:
-    return [
-        it
-        for it in items
-        if it["harness"] in SESSION_HARNESSES
-        and it["kind"] == "tool_call"
-        and it["name"] == tool
-        and not it["harness_internal"]
-    ]
+class Index:
+    """The count of the items of each trace point and of each app tool call in each turn. The
+    check reads the items one time, so its cost is the items plus the trace points."""
+
+    def __init__(self, items: list[dict[str, Any]], turns: int) -> None:
+        self.turns = turns
+        self.seen: Counter[tuple[str, str, int]] = Counter()
+        self.calls: dict[str, Counter[int]] = {}
+        for it in items:
+            turn = it["turn"]
+            if turn is None:
+                continue
+            for source, name in _keys(it):
+                self.seen[(source, name, turn)] += 1
+            app_call = it["kind"] == "tool_call" and not it["harness_internal"]
+            if app_call and it["harness"] in SESSION_HARNESSES and it["name"] is not None:
+                for name in _tool_names(it):
+                    self.calls.setdefault(name, Counter())[turn] += 1
+
+    def need(self, point: dict[str, Any]) -> dict[int, int] | None:
+        """The count of items that each turn needs for the trace point, or None if the trace
+        cannot check its When. A `Turn N` after the last turn needs nothing."""
+        form = rule(point)
+        if form is None:
+            return None
+        if form[0] == "each_turn":
+            return dict.fromkeys(range(1, self.turns + 1), 1)
+        if form[0] == "turn":
+            return {form[1]: 1} if form[1] <= self.turns else {}
+        return dict(sorted(self.calls.get(form[1], Counter()).items()))
 
 
 def missing(
@@ -113,38 +201,32 @@ def missing(
 ) -> list[tuple[int, str]]:
     """The turn and the detail of each trace point that did not occur in a turn where its When
     needs it. A turn needs as many items as its When gives: 1 for `Each turn` and `Turn N`, and
-    1 for each tool call for `Each <tool> tool call`. A `Turn N` after the last turn needs
-    nothing."""
-    out = []
+    1 for each tool call for `Each <tool> tool call`."""
+    index, out = Index(items, turns), []
     for point in points:
         form = rule(point)
-        if form is None:
-            continue
-        seen = [it["turn"] for it in items if matches(point, it)]
-        need = dict.fromkeys(range(1, turns + 1), 1) if form[0] == "each_turn" else {}
-        if form[0] == "turn" and form[1] <= turns:
-            need[form[1]] = 1
-        if form[0] == "each_call":
-            for it in _tool_calls(items, form[1]):
-                if it["turn"] is not None:
-                    need[it["turn"]] = need.get(it["turn"], 0) + 1
-        for turn in sorted(need):
-            found = seen.count(turn)
-            if found < need[turn]:
-                detail = f"{point['name']} ({point['source']}): {found} of {need[turn]} items"
-                if form[0] == "each_call":
-                    calls = "tool call" if need[turn] == 1 else "tool calls"
-                    detail += f" for {need[turn]} {form[1]} {calls}"
+        for turn, count in (index.need(point) or {}).items():
+            found = index.seen[(point["source"], point["name"], turn)]
+            if found < count:
+                detail = f"{point['name']} ({point['source']}): {found} of {count} items"
+                if form is not None and form[0] == "each_call":
+                    calls = "tool call" if count == 1 else "tool calls"
+                    detail += f" for {count} {form[1]} {calls}"
                 out.append((turn, f"{detail} in this turn. When: {_plain(point['when'])}"))
     return out
 
 
-def summary(points: Any) -> list[dict[str, Any]] | None:
-    """Each trace point of the manifest with `checked`: true if the trace checks its When.
-    None if the manifest has no trace points."""
-    if not isinstance(points, list):
-        return None
-    return [{**p, "checked": rule(p) is not None} for p in valid(points)]
+def summary(points: Any, items: list[dict[str, Any]], turns: int) -> list[dict[str, Any]] | None:
+    """Each trace point of the manifest with `needed`, the count of items that the turns of
+    the test needed, and `checked`, true if `needed` is 1 or more. `needed` is null if the trace
+    cannot check the When. None if the manifest has no valid trace point."""
+    index = Index(items, turns)
+    out = []
+    for p in valid(points):
+        need = index.need(p)
+        needed = None if need is None else sum(need.values())
+        out.append({**p, "checked": bool(needed), "needed": needed})
+    return out or None
 
 
 def valid(points: Any) -> list[dict[str, str]]:
@@ -157,3 +239,16 @@ def valid(points: Any) -> list[dict[str, str]]:
         for p in points
         if isinstance(p, dict) and all(isinstance(p.get(k), str) for k in keys)
     ]
+
+
+def unread(records: Any) -> list[str]:
+    """The detail of each record of the manifest key `trace_points_unread`."""
+    if not isinstance(records, list):
+        return []
+    out = []
+    for r in records:
+        if isinstance(r, dict) and all(isinstance(r.get(k), str) for k in ("file", "problem")):
+            line = r.get("line")
+            where = f" line {line}" if isinstance(line, int) else ""
+            out.append(f"{r['file']}{where}: {r['problem']} The trace does not check it.")
+    return out

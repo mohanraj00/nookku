@@ -1,6 +1,0 @@
-{
- "files": [
-  "## Trace points\n\n| Name | When | Source |\n|---|---|---|\n| `reserve` | Turn 2 | `session` |\n"
- ],
- "expect": []
-}

@@ -40,7 +40,8 @@
   "server_not_from_app": 3,
   "session_inferred": 0,
   "version_untested": 0,
-  "missing_trace_point": 0
+  "missing_trace_point": 0,
+  "trace_points_unread": 0
  },
  "findings": [
   {

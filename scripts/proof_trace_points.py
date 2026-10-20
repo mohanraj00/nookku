@@ -151,6 +151,7 @@ def main() -> int:
         "seal": {k: v for k, v in sealed.items() if k != "test"},
         "P7_records_unchanged": sealed["intact"],
         "counts": {k: v for k, v in findings["counts"].items() if v},
+        "findings": findings["findings"],
     }
     result["pass"] = (
         audit["exit"] == 0
