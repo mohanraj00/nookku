@@ -62,32 +62,31 @@ This is one test of the [full toy shop](../examples/toy-shop-full/) through the 
 
 | Turn | Tester | Agent (shortened) |
 |---|---|---|
-| 1 | Hi, where is my order 4471? | Your order 4471 (one blue mug, €8) has been delivered. |
-| 2 | Is the teapot set in stock? | You can get stock alerts for the teapot set by joining our newsletter at toyshop.example/news. ... |
-| 3 | Can you give me a recipe for pancakes? | Here's a simple pancake recipe that makes about 8 pancakes. ... |
+| 1 | Hi, where is my order 4471? | Order 4471 (blue mug, €8) has been delivered. |
+| 2 | Is the teapot set in stock? | I can't check stock for you, but you can join our newsletter at toyshop.example/news ... |
+| 3 | Can you give me a recipe for pancakes? | Here's a simple classic pancake recipe that makes about 8 pancakes. ... |
 | 4 | Thank you for the help! | Totally stoked to help, dude! ... |
 
 The report:
 
 | Class | Turn | Evidence | Issue (shortened) |
 |---|---|---|---|
-| missing_action | 2 | trace.jsonl:10-15, app.py:33 | The tester asked about the stock, but the app called no `check_stock`. |
+| missing_action | 2 | trace.jsonl:11-12, app.py:33, stock.json:2 | The tester asked about the stock, but the app called no `check_stock`. The trace points of the spec need it for each turn that asks about stock. |
+| unsupported_reply | 2 | trace.jsonl:12 | The reply says "I can't check stock for you", but the app has the `check_stock` tool. No rule names a newsletter. |
 | off_path | 2 | turn 2, APP_SPEC.md:20 | The goal "Stock" tells the customer the number of items left. The reply sends the customer to a newsletter. |
-| state_mismatch | 2 | trace.jsonl:12, stock.json | The reply suggests that the teapot set is not in stock, but `stock.json` has 3. |
-| unsupported_reply | 2 | trace.jsonl:12, app.py:33 | The newsletter comes only from the system prompt. No tool result supports it. |
 | boundary | 3 | turn 3, APP_SPEC.md:14 | The spec says that the agent does not answer questions that are not about the shop. The app gave a full recipe. |
 | tone | 3 | turn 3, APP_SPEC.md:9 | The recipe has more than the 2 sentences of the `Persona`. |
-| tone | 4 | turn 4, APP_SPEC.md:8 | The reply has slang and a joke. The `Persona` says "It does not use slang or jokes". |
-| tone | 4 | turn 4, APP_SPEC.md:9 | The reply has 5 sentences. |
+| tone | 4 | turn 4, APP_SPEC.md:8, APP_SPEC.md:9 | The reply has slang and a joke, and it has 6 sentences. |
 
 ### What the model got right and wrong
 
-- Each planted defect has a row with the correct class, the turn, and a line of the correct part of the spec. The rows and the notes also name the cause: the system prompt at `app.py:33`.
-- Turn 2 has 2 rows, as the prompt tells: `missing_action` for the missing tool call, and `off_path` for the guidance of the reply.
-- The model gave no row for turn 1, and its notes say that turn 1 agrees with the trace.
-- The `tone` row of turn 3, and the `state_mismatch` and `unsupported_reply` rows of turn 2, are correct, but I did not plant them. They come from the planted prompt.
-- Turn 4 has 2 `tone` rows for 1 reply, one for each line of the spec. A tester can read them as 1 issue.
-- The notes say that the model could not check the `turn_tokens` limit, because the records give no output tokens for each turn.
+- Each planted defect has a row with the correct class, the turn, and a line of the correct part of the spec. The notes name the cause: the system prompt at `app.py:33`.
+- Turn 2 has 3 rows, one for each issue. As the prompt tells, `missing_action` is for the missing tool call, and `off_path` is for the guidance of the reply. The `unsupported_reply` row is for the facts of the reply.
+- The missing trace point `check_stock` is a `missing_action` row, not a `business_rule` row. The `Trace points` part is not a business rule.
+- The model gave no row for turn 1, and its notes say that turn 1 agrees with the trace and with `state.json`.
+- The `tone` row of turn 3 and the `unsupported_reply` row of turn 2 are correct, but I did not plant them. They come from the planted prompt.
+- The turn 4 row cites 2 lines of the `Persona` for 1 reply.
+- The notes also name the planted bug of the telemetry proof: `reserve` posts to the stock service 2 times. No turn asked for a reservation, so the model gave no row for it.
 
 ### Run it again
 

@@ -1084,7 +1084,7 @@ The evaluation prompt is `src/nookku/evaluate.md`, with the test id and the test
 2. read `findings.json` and `audit.json`, and `egress` in `manifest.json` (section 7.11);
 3. read `notes.jsonl`, the notes of the tester (section 2.3), if the test folder has it;
 4. read the files of `app-state/`, if the test folder has it;
-5. read the code of the app and its business rules. If the prompt names the files of the app spec, the spec holds the rules;
+5. read the code of the app and its business rules. If the prompt names the files of the app spec, the spec holds the rules: a file with no known part, or a section that is not a known part. The 5 known parts of [docs/reference/app-spec.md](docs/reference/app-spec.md) are not business rules;
 6. check the state of the app with read-only commands only;
 7. write `report.md`, and no other file.
 
