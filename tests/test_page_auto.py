@@ -596,6 +596,30 @@ def test_the_page_server_stops_after_the_idle_limit_with_no_test(tmp_path: Path)
         server.server_close()
 
 
+def test_the_page_server_counts_the_session_request_before_its_response(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    clock = Clock()
+    server = page_auto.AutoPageServer(tmp_path, "t-1", clock=clock)
+    seen: list[float] = []
+    send = page._Handler.send_response
+
+    def record(handler: page._Handler, code: int, message: str | None = None) -> None:
+        seen.append(server.last_use)
+        send(handler, code, message)
+
+    monkeypatch.setattr(page._Handler, "send_response", record)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        clock.now += 5
+        assert request(server, "GET", f"/p/{server.token}/")[0] == 303
+        # The idle time started again before the browser had the response (#439).
+        assert seen == [clock.now]
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
 def test_a_running_test_keeps_the_page_server_on(running: Any) -> None:
     root, folder = running
     clock = Clock()

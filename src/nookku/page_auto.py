@@ -406,8 +406,10 @@ class _AutoHandler(page._Handler):
         return rest
 
     def redirect_with_session(self) -> None:
-        super().redirect_with_session()
+        # Record the request before the response goes out. Else the browser can have the response
+        # before the idle time starts again.
         self.server.used()
+        super().redirect_with_session()
 
     def do_GET(self) -> None:
         parts = urlsplit(self.path)
