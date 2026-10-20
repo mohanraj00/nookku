@@ -1,6 +1,7 @@
 import json
 import re
 import shlex
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -396,6 +397,8 @@ def test_the_init_commands_of_the_full_toy_shop_write_the_documented_config(
     readme = (repo / "examples" / "toy-shop-full" / "README.md").read_text()
     runs = re.findall(r"^ *(nookku init .+)$", readme, re.MULTILINE)
     assert len(runs) == 1
+    # The README runs init in a copy of the folder, so the files of the spec exist.
+    shutil.copytree(repo / "examples" / "toy-shop-full", tmp_path, dirs_exist_ok=True)
     for run in runs:
         assert main([*shlex.split(run)[1:], "--root", str(tmp_path)]) == 0
     page = (repo / "docs" / "reference" / "config.md").read_text()

@@ -1,0 +1,7 @@
+{
+ "files": {},
+ "spec": [
+  "APP_SPEC.md"
+ ],
+ "error": ".nookku/config.json: the spec file 'APP_SPEC.md' is not a file"
+}

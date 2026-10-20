@@ -54,6 +54,7 @@ Look up a fact.
 
 - [CLI](reference/cli.md): each command, flag and exit code.
 - [Configuration](reference/config.md): each key of `.nookku/config.json` and each environment variable.
+- [App spec](reference/app-spec.md): the parts of the spec that the evaluation reads, with the toy shop as the example.
 - [Records and files](reference/records.md): each file of a test, with links to its format in SPEC.md.
 - [Glossary](reference/glossary.md): each term of the docs, with a link to its section in SPEC.md.
 - [SPEC.md](../SPEC.md): the specification of the records, the audit, the tap, the relays, the [agent contract](reference/glossary.md#agent-contract), the tests, the [trace](reference/glossary.md#trace) and the evaluation.

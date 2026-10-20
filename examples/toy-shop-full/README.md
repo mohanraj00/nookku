@@ -8,6 +8,7 @@ This is the toy shop support agent with all telemetry sources. It shows how a te
 - [stock.py](stock.py) is the stock service. It keeps its state in [stock.json](stock.json), or in the file of `TOY_STOCK_STATE`.
 - [toy_model.py](toy_model.py) is a toy note model with fixed answers. It needs no API key and no network.
 - [RULES.md](RULES.md) holds the shop's rules.
+- [APP_SPEC.md](APP_SPEC.md) is the app spec: the persona, the boundaries, the user goals, the limits and the trace points ([docs/reference/app-spec.md](../../docs/reference/app-spec.md)).
 - [state.json](state.json) holds the orders. Set `TOY_SHOP_STATE` to use a different file.
 
 The app has a planted bug for the telemetry proof. This README does not describe the bug, so that a model that reads this folder does not learn it.
@@ -20,7 +21,7 @@ The app needs `claude-agent-sdk`, which is not a dependency of Nookku. The entry
 2. Run `nookku init` with your relay: `plugin`, `claude-code` or `codex`. This example uses the project hooks in Claude Code:
 
    ```bash
-   nookku init claude-code --entry "uv run --with claude-agent-sdk --with nookku python3 entry.py" --models claude-code
+   nookku init claude-code --entry "uv run --with claude-agent-sdk --with nookku python3 entry.py" --models claude-code --spec APP_SPEC.md,RULES.md
    ```
 
 3. Start the stock service and the toy note model on local ports, each one in its own shell:

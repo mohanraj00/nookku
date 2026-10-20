@@ -1,0 +1,9 @@
+{
+ "files": {
+  ".nookku/tests/t1/manifest.json": "{}\n"
+ },
+ "spec": [
+  ".nookku/tests/t1/manifest.json"
+ ],
+ "error": ".nookku/config.json: the spec file '.nookku/tests/t1/manifest.json' is in the state folder .nookku"
+}

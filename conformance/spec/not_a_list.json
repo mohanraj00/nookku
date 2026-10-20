@@ -1,0 +1,5 @@
+{
+ "files": {},
+ "spec": "APP_SPEC.md",
+ "error": ".nookku/config.json: 'spec' must be a list of file paths"
+}

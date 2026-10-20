@@ -24,6 +24,7 @@ from nookku.config import (
     needs_entry,
     no_entry_note,
     read_config,
+    spec_hashes,
 )
 from nookku.record import RecordError
 from nookku.tap import Tap, serve
@@ -40,6 +41,7 @@ LIST_KEYS = {
     "transcript_compact",
     "page",
     "record_limit",
+    "spec",
 }
 # The plain string flags of init. A flag that the user does not give is None.
 STRING_KEYS = [k for k in CONFIG_KEYS if k not in LIST_KEYS]
@@ -270,6 +272,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     ini.add_argument(
         "--models", help="the app's model harnesses: claude-code, codex or both (comma)"
     )
+    ini.add_argument("--spec", help="the files of the app spec, relative to the root (comma)")
     ini.add_argument(
         "--remove",
         action="store_true",
@@ -429,7 +432,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         # The default root also gets the move of the old state folder below.
         args.root = project_root()
     if args.command == "init" and args.remove:
-        given = [k for k in (*STRING_KEYS, "entry", "models") if getattr(args, k)]
+        given = [k for k in (*STRING_KEYS, "entry", "models", "spec") if getattr(args, k)]
         # --no-openai-stream gives False, so check for None, not for a true value.
         given += [k for k in ("openai_stream", "repeated_reply") if getattr(args, k) is not None]
         if args.harness == "plugin" or given:
@@ -522,12 +525,15 @@ def main(argv: Sequence[str] | None = None) -> int:
             changes["entry"] = shlex.split(args.entry)
         if args.models is not None:
             changes["models"] = [m.strip() for m in args.models.split(",") if m.strip()]
+        if args.spec is not None:
+            changes["spec"] = [p.strip() for p in args.spec.split(",") if p.strip()]
         if args.openai_stream is not None:
             # --openai-stream gives True and --no-openai-stream gives False (#120).
             changes["openai_stream"] = args.openai_stream
         if args.repeated_reply is not None:
             changes["repeated_reply"] = args.repeated_reply
         try:
+            spec_hashes(root, changes.get("spec", []))
             done = kit.init(root, args.harness, changes)
         except ValueError as e:
             print(f"nookku: {str(e).rstrip('.')}. Nothing was written.", file=sys.stderr)

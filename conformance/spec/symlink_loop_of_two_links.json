@@ -1,0 +1,11 @@
+{
+ "files": {},
+ "links": {
+  "a.md": "b.md",
+  "b.md": "a.md"
+ },
+ "spec": [
+  "a.md"
+ ],
+ "error": ".nookku/config.json: the spec file 'a.md' is not a file"
+}

@@ -1,0 +1,7 @@
+{
+ "files": {},
+ "spec": [
+  1
+ ],
+ "error": ".nookku/config.json: 'spec' must be a list of file paths"
+}

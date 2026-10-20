@@ -1,0 +1,11 @@
+{
+ "files": {
+  "docs/spec.md": "# Spec\n"
+ },
+ "spec": [
+  "docs/../docs/spec.md"
+ ],
+ "paths": [
+  "docs/spec.md"
+ ]
+}
