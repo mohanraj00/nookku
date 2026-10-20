@@ -25,6 +25,7 @@ Each test has one folder, `.nookku/tests/<test-id>/`. The comment on each line t
     codex/<rollout file>          the bridge, at the end (step 3)             sealed
   trace.jsonl        the bridge, at the end (step 5)                          sealed
   findings.json      the bridge, at the end (step 5)                          sealed
+  performance.json   the bridge, at the end (step 5)                          sealed
   audit.json         the bridge, at the end (step 6)                          sealed
   seal.json          the bridge, at the end (step 7)                          not sealed
   bridge.log         the bridge, from the start to the end                    not sealed
@@ -32,7 +33,7 @@ Each test has one folder, `.nookku/tests/<test-id>/`. The comment on each line t
   denied.jsonl       the relay, after the end, for each denied tool call      not sealed
 ```
 
-- `nookku trace` writes `trace.jsonl` and `findings.json` again, and writes their new SHA-256 to the seal.
+- `nookku trace` writes `trace.jsonl`, `findings.json` and `performance.json` again, and writes their new SHA-256 to the seal.
 - A file exists only if its writer has data. The toy shop has no model, no backend and no telemetry, so its folder has no `sessions/`, `otel.jsonl`, `backend.jsonl` or `model_api.jsonl`.
 
 [reference/records.md](../reference/records.md#the-test-folder) gives the format of each file.
@@ -264,6 +265,7 @@ The issue classes:
 | `unsupported_reply` | said a fact that no tool result and no rule supports. |
 | `missing_action` | did not do an action that the request or a rule needs. |
 | `state_mismatch` | gave a reply or a trace that does not agree with its state. |
+| `performance` | had a turn above a limit of the `Limits` of the [app spec](../reference/app-spec.md#limits). |
 
 Turn is the turn number, or `-` if the issue has no turn. Evidence has 3 forms:
 

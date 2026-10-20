@@ -1,0 +1,158 @@
+{
+ "date": "2026-10-20",
+ "relay": "hooks-claude-code",
+ "versions": {
+  "nookku": "0.5.3",
+  "claude-code": "2.1.302 (Claude Code)",
+  "codex": "codex-cli 0.162.1",
+  "agent sdk": "claude-agent-sdk==0.2.168",
+  "session files": {
+   "claude-code": "2.1.301"
+  }
+ },
+ "plugins": [
+  "cc-plugin-agents-md@builtin",
+  "cc-plugin-plugin-authoring@builtin",
+  "cc-plugin-telemetry@builtin"
+ ],
+ "planted": {
+  "turn": 2,
+  "stock_wait": 8,
+  "note_wait": 25
+ },
+ "limit_turn_seconds": 30,
+ "spec": [
+  {
+   "path": "APP_SPEC.md",
+   "sha256": "a8aab00181559bdeda9376c5d9372d26ad691930df932dd0b263171df8068fbd"
+  },
+  {
+   "path": "RULES.md",
+   "sha256": "ebccc2c18240a3e55fcfd229b8241ac7312e7f750b85c26e74b74f16b5e357e4"
+  }
+ ],
+ "turns": 3,
+ "audit_exit": 0,
+ "performance": {
+  "v": "0.1",
+  "test": "20261020-081959-ff89",
+  "unknown": null,
+  "turns": [
+   {
+    "turn": 1,
+    "seconds": 8.208,
+    "model_calls": 3,
+    "input_tokens": null,
+    "output_tokens": null,
+    "no_usage": 1,
+    "sources": [
+     {
+      "harness": "claude-code",
+      "session": "d29da3fd-89c9-46b8-a7d0-9c3ff936b240",
+      "model_calls": 2,
+      "input_tokens": 59783,
+      "output_tokens": 82,
+      "no_usage": 0
+     },
+     {
+      "harness": "model_api",
+      "session": "openai",
+      "model_calls": 1,
+      "input_tokens": null,
+      "output_tokens": null,
+      "no_usage": 1
+     }
+    ]
+   },
+   {
+    "turn": 2,
+    "seconds": 36.903,
+    "model_calls": 3,
+    "input_tokens": null,
+    "output_tokens": null,
+    "no_usage": 1,
+    "sources": [
+     {
+      "harness": "claude-code",
+      "session": "d29da3fd-89c9-46b8-a7d0-9c3ff936b240",
+      "model_calls": 2,
+      "input_tokens": 60080,
+      "output_tokens": 168,
+      "no_usage": 0
+     },
+     {
+      "harness": "model_api",
+      "session": "openai",
+      "model_calls": 1,
+      "input_tokens": null,
+      "output_tokens": null,
+      "no_usage": 1
+     }
+    ]
+   },
+   {
+    "turn": 3,
+    "seconds": 3.559,
+    "model_calls": 3,
+    "input_tokens": null,
+    "output_tokens": null,
+    "no_usage": 1,
+    "sources": [
+     {
+      "harness": "claude-code",
+      "session": "d29da3fd-89c9-46b8-a7d0-9c3ff936b240",
+      "model_calls": 2,
+      "input_tokens": 60451,
+      "output_tokens": 103,
+      "no_usage": 0
+     },
+     {
+      "harness": "model_api",
+      "session": "openai",
+      "model_calls": 1,
+      "input_tokens": null,
+      "output_tokens": null,
+      "no_usage": 1
+     }
+    ]
+   }
+  ]
+ },
+ "S1_each_turn_has_seconds_calls_and_session_tokens": true,
+ "S2_only_the_slow_turn_is_above_the_limit": true,
+ "report_written": true,
+ "issues": [
+  {
+   "class": "performance",
+   "turn": "2",
+   "evidence": "turn 2",
+   "issue": "The turn took 36.903 seconds, above the `turn_seconds` limit of 30. Most of the time was the `check_stock` tool call: `\"duration_ms\": \"8062\"` (trace.jsonl:16), and the claude-code session spent the rest of the turn."
+  }
+ ],
+ "S3_performance_row_for_the_slow_turn": true,
+ "S4_no_performance_row_for_another_turn": true,
+ "commands_outside_project": null,
+ "seal": {
+  "sealed": true,
+  "intact": true,
+  "changed": [],
+  "missing": [],
+  "added": [],
+  "copy": "same"
+ },
+ "P7_records_unchanged": true,
+ "model_api": {
+  "file": "model_api.jsonl",
+  "rows": 10,
+  "items": 6,
+  "ignored": {},
+  "harness_calls": {
+   "claude-code": 6
+  },
+  "other_calls": 1
+ },
+ "counts": {},
+ "report": "# Test 20261020-081959-ff89: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| performance | 2 | turn 2 | The turn took 36.903 seconds, above the `turn_seconds` limit of 30. Most of the time was the `check_stock` tool call: `\"duration_ms\": \"8062\"` (trace.jsonl:16), and the claude-code session spent the rest of the turn. |\n\n## Notes\n\n- Seal: \"Seal: intact. No record changed after the end of the test.\" The audit shows no break (`\"breaks\": []`), so the turn numbers of `relay.jsonl` and the transcript agree. `findings.json` has no finding, and every count is 0.\n- Spec files: `manifest.json` records the same SHA-256 values as the prompt for `APP_SPEC.md` and `RULES.md`. I could not compute the current SHA-256 of the files, because the command to hash them needed approval. I read both files and used them as the rules.\n- Turn 1: `check_stock` with `{\"sku\": \"teapot-set\"}` (trace.jsonl:3). The backend `GET /stock` call returned `{\"sku\": \"teapot-set\", \"left\": 3}` (trace.jsonl:5). The reply \"with 3 left\" agrees with the result and with `stock.json`.\n- Turn 2: `check_stock` with `{\"sku\": \"blue-mug\"}` (trace.jsonl:13). The backend returned `\"left\": 12` (trace.jsonl:15). The reply has 2 sentences and agrees with `stock.json`.\n- Turn 3: `lookup_order` with `{\"order\": \"6210\"}` (trace.jsonl:23). The result `{\"item\": \"teapot set\", \"price_eur\": 80, \"status\": \"waiting for stock\"}` agrees with `state.json`. The reply gives that status and invents no tracking or location. The customer gave their own order number, so rule 5 was not at risk.\n- Trace points: `check_stock` and `stock GET /stock` appear in turns 1 and 2, and `lookup_order` appears in turn 3. Each turn has the `openai` case note (trace.jsonl:10, 20, 29). The 3 notes are in `state.json`. No turn asked for a reservation, so `reserve` was not tested, and `stock.json` has no reservation.\n- `turn_seconds`: turn 1 took 8.208 s and turn 3 took 3.559 s, both within the limit. Turn 2 is the issue above.\n- `turn_tokens`: the only model session, claude-code, used 82, 168 and 103 output tokens in turns 1–3, all under 2000. The `model_api openai` line is the case-note call, not a model session, and its tokens are `not known`.\n- Not tested: refunds, returns, other customers' orders, off-topic questions and reservations.\n- The read-only checks were reading `state.json`, `stock.json` and the app code. The manifest lists no database.\n\n## Tester notes\n\nThe tester wrote no note.\n\n## Coverage\n\nA proxy saw each egress part.\n",
+ "answer": "The app got the tool calls and replies right in all 3 turns, but turn 2 took 36.9 seconds, above the 30-second `turn_seconds` limit.\n\n- **Turn 2 performance:** the stock check took 8.1 s of that time.\n- **Turns 1–3:** the stock counts (3 and 12) and the status of order 6210 (\"waiting for stock\") match `stock.json` and `state.json`. The test had no findings and no audit breaks, and the seal is intact. A proxy saw every external call.\n- **Not tested:** reservations, refunds, other customers' orders and off-topic questions. You left no notes.\n- **Not checked:** I couldn't confirm the current hashes of `APP_SPEC.md` and `RULES.md`, because the hash command needed approval. The values recorded at the start of the test match the expected ones.\n\nThe report is at `<project>/.nookku/tests/20261020-081959-ff89/report.md`.",
+ "pass": true
+}

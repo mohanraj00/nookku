@@ -1,0 +1,19 @@
+{
+ "v": "0.1",
+ "test": "20261020-080000-pf02",
+ "unknown": null,
+ "turns": [
+  {
+   "turn": 1,
+   "seconds": 10.0,
+   "model_calls": 4,
+   "input_tokens": null,
+   "output_tokens": null,
+   "no_usage": 1,
+   "sources": [
+    {"harness": "model_api", "session": "anthropic", "model_calls": 1, "input_tokens": 105, "output_tokens": 9, "no_usage": 0},
+    {"harness": "model_api", "session": "openai", "model_calls": 3, "input_tokens": null, "output_tokens": null, "no_usage": 1}
+   ]
+  }
+ ]
+}

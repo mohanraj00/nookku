@@ -1,0 +1,9 @@
+{
+ "v": "0.1",
+ "test": "20261020-080000-pf04",
+ "unknown": "the session file of 019a0b1c-2d3e-7f40-8a5b-6c7d8e9f0a2c has model items and no model call",
+ "turns": [
+  {"turn": 1, "seconds": null, "model_calls": null, "input_tokens": null, "output_tokens": null, "no_usage": null, "sources": null},
+  {"turn": 2, "seconds": 10.0, "model_calls": null, "input_tokens": null, "output_tokens": null, "no_usage": null, "sources": null}
+ ]
+}

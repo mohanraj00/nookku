@@ -1,0 +1,18 @@
+{
+ "v": "0.1",
+ "test": "20261020-080000-pf03",
+ "unknown": null,
+ "turns": [
+  {
+   "turn": 1,
+   "seconds": 10.0,
+   "model_calls": 2,
+   "input_tokens": 2100,
+   "output_tokens": 42,
+   "no_usage": 0,
+   "sources": [
+    {"harness": "codex", "session": "019a0b1c-2d3e-7f40-8a5b-6c7d8e9f0a2c", "model_calls": 2, "input_tokens": 2100, "output_tokens": 42, "no_usage": 0}
+   ]
+  }
+ ]
+}

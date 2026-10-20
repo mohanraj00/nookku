@@ -214,6 +214,25 @@ The app's session files are from Claude Code 2.1.301, bundled in Agent SDK 0.2.1
 
 In each run, the stock service had 2 reservations for the 1 teapot set that the tester asked for. These runs used Agent SDK 0.2.168, which bundles Claude Code 2.1.301 ([#35](https://github.com/mohanraj00/nookku/issues/35), [Trace of the model sessions](#trace-of-the-model-sessions)). In each of the 4 runs, the proxy marked 6 of its calls as harness calls and kept no text of them. The Claude Code runs used nookku 0.5.3 on 2026-10-19. The toy note model gives a fixed answer, so this proof does not show a real model behind the direct call. [proofs/model-api/](../proofs/model-api/results.json) shows the proxy with the stream formats of both APIs.
 
+### Time and tokens of each turn
+
+[scripts/proof_performance.py](../scripts/proof_performance.py) runs a test of the [full toy shop](../examples/toy-shop-full/app.py) with its [app spec](../examples/toy-shop-full/APP_SPEC.md) in each Claude Code relay. The spec has the limit `turn_seconds` 30. The proof plants a slow turn in its 2 toy servers, not in the app. In turn 2 the tester asks about the blue mug. The stock service then waits 8 seconds before it answers, and the note model waits 25 seconds before the case note. The other turns do not wait. At the end, the [bridge](reference/glossary.md#bridge) writes `performance.json` ([SPEC.md section 8.7](../SPEC.md#87-performance)), and the [harness model](reference/glossary.md#harness-model) evaluates the test.
+
+- **S1:** `performance.json` gives the seconds and the model calls of each turn, and the input and output tokens of the Agent SDK session of each turn.
+- **S2:** the plant worked: only turn 2 is above 30 seconds.
+- **S3:** `report.md` has a `performance` row for turn 2.
+- **S4:** `report.md` has no `performance` row for another turn.
+- **P7:** as for the evaluation proofs below.
+
+| Form | Harness | Seconds of turns 1, 2, 3 | Agent SDK calls, output tokens of turns 1, 2, 3 | `performance` rows | S1 | S2 | S3 | S4 | P7 | Result | Data |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| plugin | Claude Code 2.1.302 | 7.993, 38.249, 4.718 | 2, 154; 2, 189; 2, 322 | 1 | pass | pass | pass | pass | pass | PASS | [plugin-claude-code.json](../proofs/performance/plugin-claude-code.json) |
+| hooks | Claude Code 2.1.302 | 8.208, 36.903, 3.559 | 2, 82; 2, 168; 2, 103 | 1 | pass | pass | pass | pass | pass | PASS | [hooks-claude-code.json](../proofs/performance/hooks-claude-code.json) |
+
+Each turn also has 1 direct call to the toy note model. The toy note model sends no `usage`, so the token totals of each turn are `null`: the records do not hold them. The Agent SDK session has its own tokens in `sources`. The model API proxy marked 6 calls as harness calls in each run, and the session file has 6 calls: 2 in each turn. These runs used nookku 0.5.3 with this change, and Agent SDK 0.2.168, which bundles Claude Code 2.1.301. The Codex rows run in v0.5.5 ([#437](https://github.com/mohanraj00/nookku/issues/437)).
+
+In both runs the model found the slow turn, but it gave an incorrect cause. It said that the `check_stock` call took most of the time. The stock wait is 8 seconds of the turn, and the note wait is 25 seconds. The `performance` class checks only the limit, so S3 does not check the cause. A check of the time of each call is outside the scope of #317.
+
 ### Egress discovery, the MCP proxies and the Postgres proxy
 
 [scripts/proof_egress.py](../scripts/proof_egress.py) runs a test of the [egress toy shop](../examples/toy-shop-egress/app.py) in each relay. The app is an Agent SDK session with a [catalog MCP server](../examples/toy-shop-egress/catalog_mcp.py) over HTTP, a [notes MCP server](../examples/toy-shop-egress/notes_mcp.py) over stdio, the orders in Postgres 16 (in Docker) and the returns in a SQLite file. The app sends the OpenTelemetry spans of its psycopg and sqlite3 drivers. The tester types `nookku start`, and the [harness model](reference/glossary.md#harness-model) reads the app, writes its egress answer to `.nookku/egress.json` and runs `nookku register --file .nookku/egress.json`. The script gives no part of the answer. The test has 3 turns and no evaluation.
@@ -290,6 +309,8 @@ uv run python scripts/proof_telemetry.py plugin-claude-code
 uv run python scripts/proof_telemetry.py plugin-codex
 uv run python scripts/proof_telemetry.py hooks-claude-code
 uv run python scripts/proof_telemetry.py hooks-codex
+uv run python scripts/proof_performance.py plugin-claude-code
+uv run python scripts/proof_performance.py hooks-claude-code
 uv run python scripts/proof_egress.py plugin-claude-code
 uv run python scripts/proof_egress.py plugin-codex
 uv run python scripts/proof_egress.py hooks-claude-code

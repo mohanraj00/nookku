@@ -12,7 +12,18 @@ from importlib import resources
 from pathlib import Path
 from typing import Any, TextIO
 
-from nookku import __version__, bridge, evaluation, kit, print_mode, seal, state, stdio, trace
+from nookku import (
+    __version__,
+    bridge,
+    evaluation,
+    kit,
+    performance,
+    print_mode,
+    seal,
+    state,
+    stdio,
+    trace,
+)
 from nookku.adapters import make
 from nookku.audit import audit, render
 from nookku.config import FILE as CONFIG_FILE
@@ -683,7 +694,7 @@ def _trace_command(root: Path, test: str | None, as_json: bool) -> int:
         print("nookku: no test folder with a manifest.", file=sys.stderr)
         return 2
     check = seal.verify(folder)
-    rebuilt = ("trace.jsonl", "findings.json")
+    rebuilt = ("trace.jsonl", "findings.json", performance.FILE)
     sources = [x for k in ("changed", "missing", "added") for x in check[k] if x not in rebuilt]
     # A rebuild changes only the trace files. It needs sources that agree with an intact seal.
     broken = sources or check["copy"] in ("different", "missing") or not check["sealed"]
@@ -692,6 +703,7 @@ def _trace_command(root: Path, test: str | None, as_json: bool) -> int:
         return 2
     try:
         report = trace.build(folder)
+        performance.build(folder)
     except RecordError as e:
         print(f"nookku: the trace was not rebuilt. {e}", file=sys.stderr)
         return 2

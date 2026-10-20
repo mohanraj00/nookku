@@ -562,6 +562,9 @@ def test_check_finds_the_model_sessions_of_the_app(tmp_path: Path, homes: tuple)
     assert findings["counts"]["version_untested"] == len(manifest["model_sessions"])
     assert findings["counts"]["session_inferred"] == len(manifest["model_sessions"]) - 1
     assert findings["counts"]["turn_without_model"] == 0
+    # The fixture files have no model call: the end still writes the time of the turn.
+    turns = json.loads((folder / "performance.json").read_text())["turns"]
+    assert [t["turn"] for t in turns] == [1] and turns[0]["seconds"] is not None
 
 
 def test_check_finds_the_sessions_of_an_app_in_a_subfolder(tmp_path: Path, homes: tuple) -> None:
