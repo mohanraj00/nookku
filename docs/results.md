@@ -132,7 +132,7 @@ The record cuts the third request body at 1 MiB, but the stock service got all o
 
 ### Direct model calls
 
-[scripts/proof_model_api.py](../scripts/proof_model_api.py) runs a test with an entry that makes 5 calls to a toy model API through the model API proxies: a streamed Anthropic call, a streamed OpenAI Chat Completions call, an Anthropic call with a JSON answer, a streamed OpenAI Responses call and an OpenAI Decisions call with a JSON answer. For a streamed call, the toy API sends the first event and then waits until the entry says that it has that event. The proof compares the SHA-256 of each body at 3 places: the entry, the toy API and `model_api.jsonl`. It also compares the result in the record with the result that the toy API sent: the text, or for the Decisions call its 3 answers (a choice, a predicate and a refusal). It needs no model.
+[scripts/proof_model_api.py](../scripts/proof_model_api.py) runs a test with an entry that makes 7 calls to a toy model API through the model API proxies: a streamed Anthropic call, a streamed OpenAI Chat Completions call, an Anthropic call with a JSON answer, a streamed OpenAI Responses call and an OpenAI Decisions call with a JSON answer. For a streamed call, the toy API sends the first event and then waits until the entry says that it has that event. The proof compares the SHA-256 of each body at 3 places: the entry, the toy API and `model_api.jsonl`. It also compares the result in the record with the result that the toy API sent: the text, or for a Decisions call its 3 answers (a choice, a predicate and a refusal). Then the entry makes 2 more Decisions calls: the `department` call of the full toy shop app ([services.py](../examples/toy-shop-full/services.py)), and a call with a photo. The photo makes the request body 1,493,915 bytes, more than the record limit of 1 MiB. The record kept each question of the 3 Decisions calls with its instructions, also after the cut, and the audit gave 0 `questions_lost` findings. It needs no model.
 
 | Call | Response | Same at all 3 places | First part before the end | Result in the record | Data |
 |---|---|---|---|---|---|
@@ -141,6 +141,8 @@ The record cuts the third request body at 1 MiB, but the stock service got all o
 | Anthropic, JSON | 122 bytes | yes | not a stream | yes | [results](../proofs/model-api/results.json) |
 | OpenAI Responses, stream | 8,531 bytes | yes | yes | yes | [results](../proofs/model-api/results.json) |
 | OpenAI Decisions, JSON | 435 bytes | yes | not a stream | yes | [results](../proofs/model-api/results.json) |
+| OpenAI Decisions, the toy shop app | 435 bytes | yes | not a stream | yes | [results](../proofs/model-api/results.json) |
+| OpenAI Decisions, request body cut | 435 bytes | yes | not a stream | yes | [results](../proofs/model-api/results.json) |
 
 The API key was not in the record. The seal of the test folder was intact.
 
@@ -199,7 +201,7 @@ The app's session files are from Claude Code 2.1.301, bundled in Agent SDK 0.2.1
 
 ### Full telemetry with one app
 
-[scripts/proof_telemetry.py](../scripts/proof_telemetry.py) runs a test of the [full toy shop](../examples/toy-shop-full/app.py) in each relay. The app has 3 parts: an Agent SDK session with 3 tools, a [stock service](../examples/toy-shop-full/stock.py) over HTTP, and a direct call to a case-note model after each reply, with the OpenAI Chat Completions API and a stream. The proof runs the stock service and a [toy note model](../examples/toy-shop-full/toy_model.py) on local ports, because the proof machine has no OpenAI API key that the proof may use. The Agent SDK session uses the real Anthropic API through the model API proxy. The app has a planted bug that only the backend calls show: after 1 `reserve` tool call, the app reserves the items 2 times, because its retry loop has no break. The model tells the customer the number that it asked for.
+[scripts/proof_telemetry.py](../scripts/proof_telemetry.py) runs a test of the [full toy shop](../examples/toy-shop-full/app.py) in each relay. The app has 3 parts: an Agent SDK session with 3 tools, a [stock service](../examples/toy-shop-full/stock.py) over HTTP, and 2 direct calls to a case-note model after each reply: one with the OpenAI Chat Completions API and a stream, and one with the OpenAI Decisions API for the department of the message. The app makes the Decisions call since [#104](https://github.com/mohanraj00/nookku/issues/104). The recorded runs below are from the app before #104, so they have no Decisions call. The proof runs the stock service and a [toy note model](../examples/toy-shop-full/toy_model.py) on local ports, because the proof machine has no OpenAI API key that the proof may use. The Agent SDK session uses the real Anthropic API through the model API proxy. The app has a planted bug that only the backend calls show: after 1 `reserve` tool call, the app reserves the items 2 times, because its retry loop has no break. The model tells the customer the number that it asked for.
 
 - **T1:** each of the 3 turns has items from 3 sources: the session file of the Agent SDK, the backend proxy and the model API proxy.
 - **T2:** `report.md` has a row for turn 2 that cites the trace lines of both `POST /reserve` calls of turn 2. A row that cites only 1 call does not show that the app reserved 2 times.

@@ -18,6 +18,7 @@ from typing import Any
 from . import backend
 from .adapters import StreamError, sse_events
 from .config import is_http_url
+from .record import json_text
 
 FILE = "model_api.jsonl"
 # The API name: the variable of its SDK and the URL if the variable has no value.
@@ -55,7 +56,7 @@ def harness(headers: list[tuple[str, str]]) -> str | None:
 def _json(text: str) -> Any:
     try:
         return json.loads(text)
-    except ValueError:
+    except (ValueError, RecursionError):  # RecursionError: JSON that nests too deep
         return None
 
 
@@ -348,6 +349,72 @@ def decisions(data: bytes, stream: bool) -> dict[str, Any]:
     return out
 
 
+# The options of a question of the Decisions API: the list in the question, and the field of each
+# option in the list.
+DECISION_OPTIONS = {"choice": ("choices", "value"), "score": ("levels", "label")}
+
+
+# The proxy reads the questions of a /decisions call from at most this many times record_limit
+# bytes of its body. A chosen value, not a measurement: a parse uses many times the memory of the
+# body, and a longer body gets no questions in the record and a questions_lost finding.
+PARSE_TIMES = 16
+
+
+def _scalar(value: Any) -> Any:
+    """A string, a number, a boolean or None as it is. Another value as its JSON text, so that the
+    record holds no deep value. None if the value has no JSON text."""
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    try:
+        return json.dumps(value, ensure_ascii=False)
+    except (ValueError, RecursionError):
+        return None
+
+
+def question(asked: dict[str, Any]) -> dict[str, Any]:
+    """The name, the type, the instructions and the options of a question of the Decisions API."""
+    kind = asked.get("type")
+    spec = DECISION_OPTIONS.get(kind) if isinstance(kind, str) else None
+    given = asked.get(spec[0]) if spec else None
+    options = None
+    if spec and isinstance(given, list):
+        options = [_scalar(o.get(spec[1])) for o in given if isinstance(o, dict)]
+    out = {"name": _scalar(asked.get("name")), "type": _scalar(kind)}
+    return {**out, "instructions": _scalar(asked.get("instructions")), "options": options}
+
+
+def questions(
+    data: bytes, encoding: str | None, limit: int
+) -> tuple[list[dict[str, Any]] | None, int | None]:
+    """The questions of the whole request body of a /decisions call, and their count. The list
+    keeps each question in order while its JSON has at most `limit` bytes of UTF-8, so the count
+    can be larger than the list. A JSON object with no list `questions` has no questions. (None,
+    None) if the proxy cannot read the body: it is not a JSON object, or it has more than
+    PARSE_TIMES * `limit` bytes."""
+    most = PARSE_TIMES * limit
+    decoded = backend.decode(data, encoding, most)
+    body = data if decoded is None else decoded
+    if len(body) > most:
+        return None, None
+    request = _json(body.decode("utf-8", errors="replace"))
+    if not isinstance(request, dict):
+        return None, None
+    asked = request.get("questions")
+    items = [q for q in asked if isinstance(q, dict)] if isinstance(asked, list) else []
+    kept: list[dict[str, Any]] = []
+    size = 2  # the brackets of the list
+    for q in items:
+        # The UTF-8 bytes of the question as the row writes it (record.json_text), and the ", "
+        # that the writer puts between items. After the first question that does not fit, the
+        # proxy only counts the questions.
+        one = question(q)
+        size += len(json_text(one).encode("utf-8")) + (2 if kept else 0)
+        if size > limit:
+            break
+        kept.append(one)
+    return kept, len(items)
+
+
 # The model calls: the API, the end of the path, and the format of the call. The format selects
 # the parser of the result here and the reader of the request in the trace. To read a new model
 # call, add one row here and one parser to PARSERS.
@@ -401,6 +468,10 @@ class ModelProxy(backend.Proxy):
         # A harness call holds the harness's own instructions. The record keeps no text of it.
         if row["harness"]:
             _omit(row["request_body"])
+        elif call_format(name, row["path"]) == "decisions":
+            # The questions come from the whole body, so a cut of the body drops no question.
+            encoding = next((v for k, v in headers if k.lower() == "content-encoding"), None)
+            row["questions"], row["questions_count"] = questions(body, encoding, self.limit)
 
     def complete(
         self, row: dict[str, Any], body: bytes, encoding: str | None, cut: bool = False

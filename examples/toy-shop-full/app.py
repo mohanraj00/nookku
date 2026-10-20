@@ -114,6 +114,7 @@ class Shop:
             if isinstance(m, ResultMessage):
                 answer = m.result or ""
         state = load()
-        state.setdefault("notes", []).append(services.case_note(message, answer))
+        note = services.case_note(message, answer)
+        state.setdefault("notes", []).append(f"{services.department(message)}: {note}")
         save(state)
         return answer

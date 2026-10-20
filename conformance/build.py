@@ -828,6 +828,7 @@ def counts(**n: int) -> dict:
         "span_error",
         "backend_error",
         "model_api_error",
+        "questions_lost",
         "database_error",
         "unseen_call",
         "model_error",
@@ -3385,6 +3386,14 @@ DRESULT_2 = [
     },
 ]
 V1_DECISIONS = "/v1/decisions"
+
+
+def dq(asked: dict, options: list | None) -> dict:
+    """A question of a /decisions call as the trace keeps it (SPEC.md section 8.4)."""
+    keep = ("name", "type", "instructions")
+    return {**{k: asked[k] for k in keep}, "options": options}
+
+
 DECISIONS = "/decisions"
 DMODEL = "toy-decide"
 DECISIONS_CASE = {
@@ -3421,14 +3430,10 @@ DECISIONS_CASE = {
             role="user",
             input={
                 "questions": [
-                    {"name": "damaged", "type": "predicate", "options": None},
-                    {
-                        "name": "department",
-                        "type": "choice",
-                        "options": ["billing", "shipping", "other"],
-                    },
-                    {"name": "severity", "type": "score", "options": ["Low", "Medium", "High"]},
-                    {"name": "mood", "type": "choice", "options": ["calm", "angry"]},
+                    dq(DQUESTIONS[0], None),
+                    dq(DQUESTIONS[1], ["billing", "shipping", "other"]),
+                    dq(DQUESTIONS[2], ["Low", "Medium", "High"]),
+                    dq(DQUESTIONS[3], ["calm", "angry"]),
                 ],
                 "images": [
                     {
@@ -3459,12 +3464,8 @@ DECISIONS_CASE = {
             role="user",
             input={
                 "questions": [
-                    {
-                        "name": "department",
-                        "type": "choice",
-                        "options": ["billing", "shipping", "other"],
-                    },
-                    {"name": "refund_due", "type": "choice", "options": [True, False]},
+                    dq(DQUESTIONS_2[0], ["billing", "shipping", "other"]),
+                    dq(DQUESTIONS_2[1], [True, False]),
                 ],
                 "images": [],
             },
@@ -3692,6 +3693,202 @@ CUT_CASE = {
                 "session": "anthropic",
                 "source": {"file": "model_api.jsonl", "line": 3},
             },
+        ],
+    },
+}
+
+# The questions of a /decisions call when the proxy cuts the request body (SPEC.md sections 7.7,
+# 8.4 and 8.6). In turn 1, a photo makes the body longer than `record_limit`. The proxy read the
+# questions from the whole body, so the trace keeps each question and its instructions, and gives
+# no finding. The cut body has no text and no image for the trace. In turns 2 and 3, a small
+# `record_limit` kept only 1 of 2 and 1 of 3 questions: a questions_lost finding gives the count.
+# In turn 4, a row of an older proxy has no questions and a cut body. In turn 5, the proxy could not
+# read a gzip body with the encoding `GZIP`: the row has questions null and the body is not cut.
+# Both findings say that the record does not have the questions. In turn 6, the body is not cut,
+# and its questions have instructions with letters that are not ASCII. The trace reads the
+# questions from the body, also if the list of the row is shorter, and gives no finding. In turn
+# 7, the body is not cut, has no encoding and is not JSON: it has no questions, so no finding.
+BIG_PHOTO_URL = "data:image/png;base64," + base64.b64encode(PHOTO * 40).decode()
+CUT_DREQUEST = json.dumps(
+    {
+        "model": DMODEL,
+        "input": [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "input_text", "text": COMPLAINT},
+                    {"type": "input_image", "image_url": BIG_PHOTO_URL},
+                ],
+            }
+        ],
+        "questions": DQUESTIONS_2,
+    }
+).encode()
+CUT_DREQUEST_KEPT = CUT_DREQUEST[:200]
+DEPARTMENT_OPTIONS = ["billing", "shipping", "other"]
+KEPT_DQUESTIONS = [dq(DQUESTIONS_2[0], DEPARTMENT_OPTIONS), dq(DQUESTIONS_2[1], [True, False])]
+CAFE_QUESTIONS = [
+    {
+        "type": "choice",
+        "name": "département",
+        "instructions": "Quel service traite cette plainte ? Le café est arrivé froid.",
+        "choices": DEPARTMENTS,
+    },
+    {"type": "predicate", "name": "urgent", "instructions": "La plainte est-elle urgente ?"},
+]
+CAFE_REQUEST = json.dumps({"model": DMODEL, "input": CHARGED, "questions": CAFE_QUESTIONS})
+# Fixed bytes, not gzip.compress: its output changes with the zlib version.
+GZIP_DREQUEST = b"\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\x03toy gzip body \xff\xfe"
+
+
+def dcall(t: float, request_body: dict, **row: Any) -> dict:
+    """A row of a /decisions call with the answers of DANSWERS_2, and more fields of the row."""
+    out = mcall(
+        t,
+        "openai",
+        V1_DECISIONS,
+        200,
+        None,
+        request_body=request_body,
+        response=json.dumps({"model": DMODEL, "answers": DANSWERS_2, "usage": dusage(60)}),
+        result=result(model=DMODEL, usage=dusage(60), answers=DRESULT_2),
+    )
+    return {**out, **row}
+
+
+def danswer(turn: int, ts: float, line: int, **lost: Any) -> dict:
+    """The expected assistant item of a dcall row."""
+    found = {**info(V1_DECISIONS, DMODEL, None, dusage(60)), "answers": DRESULT_2, **lost}
+    return mitem(turn, "openai", ts, line, "message", role="assistant", input=found, exit_code=200)
+
+
+def lost_finding(turn: int, line: int, what: str) -> dict:
+    return {
+        "check": "questions_lost",
+        "turn": turn,
+        "detail": f"openai: /v1/decisions: {what}",
+        "harness": "model_api",
+        "session": "openai",
+        "source": {"file": "model_api.jsonl", "line": line},
+    }
+
+
+NO_QUESTIONS = "the record does not have the questions of the request"
+DECISIONS_CUT_CASE = {
+    "tap": [window(10 + 20 * n, 20 + 20 * n) for n in range(7)],
+    "manifest": {"test": "20261020-090000-dq01", "model_sessions": []},
+    "sessions": {},
+    "model_api": [
+        dcall(
+            11,
+            cut_body(CUT_DREQUEST, CUT_DREQUEST_KEPT),
+            questions=KEPT_DQUESTIONS,
+            questions_count=2,
+        ),
+        dcall(
+            31,
+            cut_body(CUT_DREQUEST, CUT_DREQUEST_KEPT),
+            questions=KEPT_DQUESTIONS[:1],
+            questions_count=2,
+        ),
+        dcall(
+            51,
+            cut_body(CUT_DREQUEST, CUT_DREQUEST_KEPT),
+            questions=KEPT_DQUESTIONS[:1],
+            questions_count=3,
+        ),
+        dcall(71, cut_body(CUT_DREQUEST, CUT_DREQUEST_KEPT)),
+        dcall(
+            91,
+            body(data=GZIP_DREQUEST),
+            request_headers=[*MSENT, ["Content-Encoding", "GZIP"]],
+            questions=None,
+            questions_count=None,
+        ),
+        dcall(
+            111,
+            body(CAFE_REQUEST),
+            questions=[dq(CAFE_QUESTIONS[0], DEPARTMENT_OPTIONS)],
+            questions_count=2,
+        ),
+        dcall(131, body("<html>busy</html>"), questions=None, questions_count=None),
+    ],
+    "trace": [
+        mitem(
+            1,
+            "openai",
+            11,
+            1,
+            "message",
+            role="user",
+            input={"questions": KEPT_DQUESTIONS, "images": []},
+        ),
+        danswer(1, 12, 1),
+        mitem(
+            2,
+            "openai",
+            31,
+            2,
+            "message",
+            role="user",
+            input={"questions": KEPT_DQUESTIONS[:1], "images": []},
+        ),
+        danswer(2, 32, 2, questions_lost=1),
+        mitem(
+            3,
+            "openai",
+            51,
+            3,
+            "message",
+            role="user",
+            input={"questions": KEPT_DQUESTIONS[:1], "images": []},
+        ),
+        danswer(3, 52, 3, questions_lost=2),
+        danswer(4, 72, 4, questions_lost=None),
+        danswer(5, 92, 5, questions_lost=None),
+        mitem(
+            6,
+            "openai",
+            111,
+            6,
+            "message",
+            role="user",
+            input={
+                "questions": [
+                    dq(CAFE_QUESTIONS[0], DEPARTMENT_OPTIONS),
+                    dq(CAFE_QUESTIONS[1], None),
+                ],
+                "images": [],
+            },
+            output=CHARGED,
+        ),
+        danswer(6, 112, 6),
+        danswer(7, 132, 7),
+    ],
+    "findings": {
+        "v": "0.2",
+        "test": "20261020-090000-dq01",
+        "turns": 7,
+        "items": 11,
+        "sessions": [],
+        "otel": None,
+        "backend": None,
+        "model_api": {
+            "file": "model_api.jsonl",
+            "rows": 7,
+            "items": 11,
+            "ignored": {},
+            "harness_calls": {},
+            "other_calls": 0,
+        },
+        "mcp": None,
+        "database": None,
+        "counts": counts(questions_lost=4),
+        "findings": [
+            lost_finding(2, 2, "1 question of the request is not in the record"),
+            lost_finding(3, 3, "2 questions of the request are not in the record"),
+            lost_finding(4, 4, NO_QUESTIONS),
+            lost_finding(5, 5, NO_QUESTIONS),
         ],
     },
 }
@@ -5043,6 +5240,7 @@ TRACE_CASES = {
     "servers_not_from_app": SERVERS_CASE,
     "model_api_decisions": DECISIONS_CASE,
     "model_api_cut": CUT_CASE,
+    "model_api_decisions_cut": DECISIONS_CUT_CASE,
     "repeated_reply": REPEATED_CASE,
     "repeated_reply_three": REPEATED_THREE_CASE,
     "repeated_reply_off": REPEATED_OFF_CASE,
