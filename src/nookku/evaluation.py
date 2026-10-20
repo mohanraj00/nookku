@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 from collections import Counter
 from importlib import resources
 from pathlib import Path
@@ -101,12 +102,16 @@ def _items(path: Path) -> list[dict[str, Any]]:
     for n, raw in enumerate(lines, 1):
         try:
             item = json.loads(raw)
-        except ValueError:
+        except (ValueError, RecursionError):  # RecursionError: JSON that nests too deep
             raise RecordError("record_invalid", path, f"line {n}: not JSON") from None
         if not isinstance(item, dict):
             raise RecordError("record_invalid", path, f"line {n}: not a JSON object")
         out.append(item)
     return out
+
+
+# The characters that can end a line: the control characters, and the line ends of str.splitlines.
+LINE_END = re.compile("[\x00-\x1f\x7f\x85\u2028\u2029]")
 
 
 def _cut(text: str, line: int) -> str:
@@ -143,17 +148,30 @@ def decision(answer: dict[str, Any]) -> str:
     return out
 
 
-def _asked(asked: Any) -> str:
-    """The questions and the images of a request to the Decisions API, one on each line."""
+def _one_line(text: str) -> str:
+    """A text with each character that can end a line as its JSON escape, so that the text of a
+    question stays on its line."""
+    return LINE_END.sub(lambda m: f"\\u{ord(m.group()):04x}", text)
+
+
+def _asked(asked: Any, line: int) -> str:
+    """The questions and the images of a request to the Decisions API, one on each line. Long
+    instructions show their start and name the line of the item."""
     if not isinstance(asked, dict):
         return ""
     out = ""
     for q in asked.get("questions") or []:
         options = q.get("options")
-        shown = f": {', '.join(_value(o) for o in options)}" if options else ""
+        shown = f": {', '.join(_one_line(_value(o)) for o in options)}" if options else ""
         said = q.get("instructions")
-        told = f"; instructions: {json.dumps(said, ensure_ascii=False)}" if said else ""
-        out += f"question {q.get('name') or '(no name)'} ({q.get('type')}){shown}{told}\n"
+        told = ""
+        if said:
+            said = said if isinstance(said, str) else _value(said)
+            more = f" (cut at {CUT} characters: the full text is in trace.jsonl:{line})"
+            text = _one_line(json.dumps(said[:CUT], ensure_ascii=False))
+            told = f"; instructions: {text}{more if len(said) > CUT else ''}"
+        name = _one_line(_value(q.get("name") or "(no name)"))
+        out += f"question {name} ({_one_line(str(q.get('type')))}){shown}{told}\n"
     for i in asked.get("images") or []:
         size = f"{i['size']} bytes" if i.get("size") is not None else "not base64"
         out += f"image: {i.get('media_type')}, {size}, sha256 {i.get('sha256')}\n"
@@ -166,7 +184,7 @@ def render_item(it: dict[str, Any], line: int) -> str:
     if it["kind"] == "message":
         out = f"{head}, {it['role']}:\n{_cut(it['output'] or '', line)}\n"
         if it["harness"] == "model_api" and it["role"] == "user":
-            out += _asked(it["input"])
+            out += _asked(it["input"], line)
         if it["harness"] == "model_api" and it["role"] == "assistant":
             status = it["exit_code"] if it["exit_code"] is not None else "no answer"
             out = f"{head}, assistant: {it['session']} {it['input']['path']}, status {status}:\n"

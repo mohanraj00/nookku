@@ -546,14 +546,71 @@ def test_the_questions_of_a_row_stop_at_the_record_limit() -> None:
     assert model_api.questions(data, None, len(json.dumps(both))) == (both, 2)
 
 
-def test_a_decisions_body_with_no_list_of_questions_gives_no_questions() -> None:
+def test_a_decisions_body_that_the_proxy_cannot_read_gives_no_questions() -> None:
     assert model_api.questions(b"<html>busy</html>", None, 1000) == (None, None)
-    assert model_api.questions(b'{"questions": "all"}', None, 1000) == (None, None)
     assert model_api.questions(b"[" * 100_000, None, 1000) == (None, None)
+    # A JSON object with no list of questions has 0 questions.
+    assert model_api.questions(b'{"questions": "all"}', None, 1000) == ([], 0)
+    assert model_api.questions(b'{"input": "Hi"}', None, 1000) == ([], 0)
     zipped = gzip.compress(json.dumps({"questions": TOY_QUESTIONS}).encode())
     assert model_api.questions(zipped, "gzip", 1000)[1] == 2
-    # A gzip body that decodes to more than the limit is not read.
-    assert model_api.questions(zipped, "gzip", 50) == (None, None)
+    # The encoding name `GZIP` is not `gzip`, so the proxy does not decode the body.
+    assert model_api.questions(zipped, "GZIP", 1000) == (None, None)
+
+
+def test_the_proxy_does_not_parse_a_body_larger_than_its_parse_limit() -> None:
+    data = json.dumps({"questions": TOY_QUESTIONS, "pad": "x" * 4000}).encode()
+    most = model_api.PARSE_TIMES * 200
+    assert len(data) > most
+    assert model_api.questions(data, None, 200) == (None, None)
+    zipped = gzip.compress(data)
+    assert len(zipped) < most
+    assert model_api.questions(zipped, "gzip", 200) == (None, None)
+    assert model_api.questions(data, None, len(data))[1] == 2
+
+
+def test_the_limit_counts_utf8_bytes_and_not_ascii_escapes() -> None:
+    # A JSON escape of "é" has 6 bytes, and its UTF-8 has 2.
+    asked = [{"type": "predicate", "name": f"q{n}", "instructions": "é" * 1000} for n in range(4)]
+    data = json.dumps({"questions": asked}, ensure_ascii=False).encode()
+    found = [model_api.question(q) for q in asked]
+    size = len(json.dumps(found, ensure_ascii=False).encode())
+    assert len(json.dumps(found)) > 2 * size
+    assert model_api.questions(data, None, size) == (found, 4)
+    # A lone surrogate counts as its escape text, as the row writes it.
+    data = b'{"questions": [{"type": "predicate", "name": "\\ud83d"}]}'
+    kept, _ = model_api.questions(data, None, 1000)
+    assert kept == [{"name": "\ud83d", "type": "predicate", "instructions": None, "options": None}]
+
+
+def test_a_deep_value_of_a_question_is_kept_as_its_json_text(tmp_path: Path) -> None:
+    deep = "[" * 5000 + "]" * 5000
+    data = (
+        '{"questions": [{"type": "choice", "name": "mug", "instructions": '
+        + deep
+        + ', "choices": [{"value": '
+        + deep
+        + "}]}]}"
+    ).encode()
+    kept, count = model_api.questions(data, None, 1 << 20)
+    assert count == 1 and kept is not None
+    assert kept[0]["instructions"] is None or isinstance(kept[0]["instructions"], str)
+    assert all(o is None or isinstance(o, str) for o in kept[0]["options"])
+    # The row reads again, so the trace has the question.
+    row = {
+        "type": "call",
+        "api": "openai",
+        "path": "/v1/decisions",
+        "harness": None,
+        "request_body": {"cut": True, "text": "{"},
+        "questions": kept,
+        "questions_count": count,
+        "result": None,
+    }
+    path = tmp_path / model_api.FILE
+    path.write_text(json.dumps(row) + "\n", encoding="utf-8")
+    items, _ = trace.read_model_api(path)
+    assert items[0]["input"]["questions"] == kept
 
 
 def test_a_harness_call_and_another_path_get_no_questions(tmp_path: Path) -> None:

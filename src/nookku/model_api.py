@@ -353,6 +353,23 @@ def decisions(data: bytes, stream: bool) -> dict[str, Any]:
 DECISION_OPTIONS = {"choice": ("choices", "value"), "score": ("levels", "label")}
 
 
+# The proxy reads the questions of a /decisions call from at most this many times record_limit
+# bytes of its body. A chosen value, not a measurement: a parse uses many times the memory of the
+# body, and a longer body gets no questions in the record and a questions_lost finding.
+PARSE_TIMES = 16
+
+
+def _scalar(value: Any) -> Any:
+    """A string, a number, a boolean or None as it is. Another value as its JSON text, so that the
+    record holds no deep value. None if the value has no JSON text."""
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    try:
+        return json.dumps(value, ensure_ascii=False)
+    except (ValueError, RecursionError):
+        return None
+
+
 def question(asked: dict[str, Any]) -> dict[str, Any]:
     """The name, the type, the instructions and the options of a question of the Decisions API."""
     kind = asked.get("type")
@@ -360,29 +377,36 @@ def question(asked: dict[str, Any]) -> dict[str, Any]:
     given = asked.get(spec[0]) if spec else None
     options = None
     if spec and isinstance(given, list):
-        options = [o.get(spec[1]) for o in given if isinstance(o, dict)]
-    out = {"name": asked.get("name"), "type": kind}
-    return {**out, "instructions": asked.get("instructions"), "options": options}
+        options = [_scalar(o.get(spec[1])) for o in given if isinstance(o, dict)]
+    out = {"name": _scalar(asked.get("name")), "type": _scalar(kind)}
+    return {**out, "instructions": _scalar(asked.get("instructions")), "options": options}
 
 
 def questions(
     data: bytes, encoding: str | None, limit: int
 ) -> tuple[list[dict[str, Any]] | None, int | None]:
     """The questions of the whole request body of a /decisions call, and their count. The list
-    keeps each question in order while its JSON has at most `limit` bytes, so the count can be
-    larger than the list. (None, None) if the body is not a JSON object with a list of questions."""
-    decoded = backend.decode(data, encoding, limit)
-    if decoded is not None and len(decoded) > limit:
+    keeps each question in order while its JSON has at most `limit` bytes of UTF-8, so the count
+    can be larger than the list. A JSON object with no list `questions` has no questions. (None,
+    None) if the proxy cannot read the body: it is not a JSON object, or it has more than
+    PARSE_TIMES * `limit` bytes."""
+    most = PARSE_TIMES * limit
+    decoded = backend.decode(data, encoding, most)
+    body = data if decoded is None else decoded
+    if len(body) > most:
         return None, None
-    request = _json((data if decoded is None else decoded).decode("utf-8", errors="replace"))
-    asked = request.get("questions") if isinstance(request, dict) else None
-    if not isinstance(asked, list):
+    request = _json(body.decode("utf-8", errors="replace"))
+    if not isinstance(request, dict):
         return None, None
-    found = [question(q) for q in asked if isinstance(q, dict)]
+    asked = request.get("questions")
+    found = [question(q) for q in asked if isinstance(q, dict)] if isinstance(asked, list) else []
     kept: list[dict[str, Any]] = []
     size = 2  # the brackets of the list
     for q in found:
-        size += len(json.dumps(q)) + (2 if kept else 0)  # json.dumps puts ", " between items
+        # The UTF-8 bytes of the question, and the ", " that json.dumps puts between items. The row
+        # writes a lone surrogate as its escape text (SPEC.md section 2), as backslashreplace does.
+        text = json.dumps(q, ensure_ascii=False).encode("utf-8", errors="backslashreplace")
+        size += len(text) + (2 if kept else 0)
         if size > limit:
             break
         kept.append(q)

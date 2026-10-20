@@ -1,15 +1,15 @@
 {
  "v": "0.2",
  "test": "20261020-090000-dq01",
- "turns": 3,
- "items": 5,
+ "turns": 6,
+ "items": 10,
  "sessions": [],
  "otel": null,
  "backend": null,
  "model_api": {
   "file": "model_api.jsonl",
-  "rows": 3,
-  "items": 5,
+  "rows": 6,
+  "items": 10,
   "ignored": {},
   "harness_calls": {},
   "other_calls": 0
@@ -25,7 +25,7 @@
   "span_error": 0,
   "backend_error": 0,
   "model_api_error": 0,
-  "questions_lost": 2,
+  "questions_lost": 4,
   "database_error": 0,
   "unseen_call": 0,
   "model_error": 0,
@@ -51,12 +51,34 @@
   {
    "check": "questions_lost",
    "turn": 3,
-   "detail": "openai: /v1/decisions: the request body is cut, and the record does not have its questions",
+   "detail": "openai: /v1/decisions: 2 questions of the request are not in the record",
    "harness": "model_api",
    "session": "openai",
    "source": {
     "file": "model_api.jsonl",
     "line": 3
+   }
+  },
+  {
+   "check": "questions_lost",
+   "turn": 4,
+   "detail": "openai: /v1/decisions: the record does not have the questions of the request",
+   "harness": "model_api",
+   "session": "openai",
+   "source": {
+    "file": "model_api.jsonl",
+    "line": 4
+   }
+  },
+  {
+   "check": "questions_lost",
+   "turn": 5,
+   "detail": "openai: /v1/decisions: the record does not have the questions of the request",
+   "harness": "model_api",
+   "session": "openai",
+   "source": {
+    "file": "model_api.jsonl",
+    "line": 5
    }
   }
  ]

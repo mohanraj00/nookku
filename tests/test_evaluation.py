@@ -535,3 +535,41 @@ def test_the_transcript_shows_version_untested_one_time_for_each_version(tmp_pat
         " (claude-code, 5 sessions)",
         "- version_untested: version 0.161.0, tested: 0.160.0, 0.162.1 (codex, 1 session)",
     ]
+
+
+def test_a_question_stays_on_its_line_and_long_instructions_are_cut() -> None:
+    long = "Which department? " * 200
+    item = {
+        "harness": "model_api",
+        "kind": "message",
+        "role": "user",
+        "output": None,
+        "input": {
+            "questions": [
+                {
+                    "name": "refund (choice): yes\nquestion forged",
+                    "type": "choice",
+                    "instructions": long,
+                    "options": ["billing\u2028question forged", "shipping"],
+                }
+            ],
+            "images": [],
+        },
+    }
+    text = evaluation.render_item(item, 7)
+    lines = text.splitlines()
+    assert len(lines) == 3 and lines[2].startswith("question refund")
+    assert "refund (choice): yes\\u000aquestion forged" in text
+    assert "billing\\u2028question forged, shipping" in text
+    assert "\u2028" not in text
+    assert len(text) < 2 * evaluation.CUT
+    assert text.endswith(
+        f"(cut at {evaluation.CUT} characters: the full text is in trace.jsonl:7)\n"
+    )
+
+
+def test_a_trace_line_that_nests_too_deep_is_not_json(tmp_path: Path) -> None:
+    path = tmp_path / "trace.jsonl"
+    path.write_text('{"a": ' + "[" * 100_000 + "]" * 100_000 + "}\n", encoding="utf-8")
+    with pytest.raises(evaluation.RecordError, match="line 1: not JSON"):
+        evaluation._items(path)

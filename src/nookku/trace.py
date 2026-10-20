@@ -108,7 +108,7 @@ def _lines(path: Path, ignored: Counter[str]) -> Iterator[tuple[int, Any]]:
             continue
         try:
             yield n, json.loads(raw)
-        except ValueError:
+        except (ValueError, RecursionError):  # RecursionError: JSON that nests too deep
             yield n, None
 
 
@@ -362,7 +362,7 @@ def _json(text: Any) -> Any:
         return None
     try:
         return json.loads(text)
-    except ValueError:
+    except (ValueError, RecursionError):
         return None
 
 
@@ -761,8 +761,8 @@ def _decision_request(
 ) -> tuple[str | None, dict[str, Any]] | None:
     """The user text, the questions and the images of a request to the Decisions API, or None if
     the request has none of them. The text is a string `input`, or the joined text of the user
-    messages of `input`. The questions are the `questions` of the row, from the whole body. A row
-    of an older proxy has no such list, so they then come from the request body."""
+    messages of `input`. The questions come from the request body if the record has all of it.
+    Else they are the `questions` of the row, which the proxy read from the whole body."""
     given = request.get("input")
     texts = [given] if isinstance(given, str) else []
     images = []
@@ -785,21 +785,32 @@ def _decision_request(
         for q in (asked if isinstance(asked, list) else [])
         if isinstance(q, dict)
     ]
-    if isinstance(row.get("questions"), list):
+    if not _whole_request(row) and isinstance(row.get("questions"), list):
         questions = [q for q in row["questions"] if isinstance(q, dict)]
     if not (texts or images or questions):
         return None
     return ("\n".join(texts) if texts else None), {"questions": questions, "images": images}
 
 
+def _whole_request(row: dict[str, Any]) -> bool:
+    """True if the record has all of the request body of a row as a JSON object."""
+    body = row.get("request_body")
+    text = body.get("text") if isinstance(body, dict) and not body.get("cut") else None
+    return isinstance(text, str) and isinstance(_json(text), dict)
+
+
 def _questions_lost(row: dict[str, Any]) -> int | Literal[False] | None:
     """The count of the questions of a /decisions call that the record does not have, None if the
     record cannot give the count, or False if it has each question."""
+    if _whole_request(row):
+        return False
     kept, count = row.get("questions"), row.get("questions_count")
-    if isinstance(kept, list) and isinstance(count, int) and not isinstance(count, bool):
+    if "questions_count" in row:
+        if not (isinstance(kept, list) and isinstance(count, int) and not isinstance(count, bool)):
+            return None  # A body that the proxy could not read gives no list and no count.
         return count - len(kept) if count > len(kept) else False
-    # A row of an older proxy, or a body that the proxy could not read: if the body is cut, its
-    # questions are not in the record, and the record does not give their count.
+    # A row of an older proxy has no count: if its body is cut, its questions are not in the
+    # record.
     body = row.get("request_body")
     return None if isinstance(body, dict) and body.get("cut") else False
 
@@ -1006,7 +1017,7 @@ def _structured(text: str) -> Any:
     for part in parts:
         try:
             return json.loads(part)
-        except ValueError:
+        except (ValueError, RecursionError):
             continue
     return None
 
@@ -1294,7 +1305,7 @@ def check(
         if model_call and "questions_lost" in it["input"]:
             lost = it["input"]["questions_lost"]
             what = (
-                "the request body is cut, and the record does not have its questions"
+                "the record does not have the questions of the request"
                 if lost is None
                 else f"{lost} questions of the request are not in the record"
                 if lost != 1

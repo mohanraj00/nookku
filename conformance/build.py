@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import base64
 import datetime
+import gzip
 import hashlib
 import json
 import shutil
@@ -3698,10 +3699,13 @@ CUT_CASE = {
 # The questions of a /decisions call when the proxy cuts the request body (SPEC.md sections 7.7,
 # 8.4 and 8.6). In turn 1, a photo makes the body longer than `record_limit`. The proxy read the
 # questions from the whole body, so the trace keeps each question and its instructions, and gives
-# no finding. The cut body has no text and no image for the trace. In turn 2, a small
-# `record_limit` kept only 1 of the 2 questions: a questions_lost finding gives the count. In
-# turn 3, a row of an older proxy has no questions and a cut body: the finding says that the
-# record does not have the questions.
+# no finding. The cut body has no text and no image for the trace. In turns 2 and 3, a small
+# `record_limit` kept only 1 of 2 and 1 of 3 questions: a questions_lost finding gives the count.
+# In turn 4, a row of an older proxy has no questions and a cut body. In turn 5, the proxy could not
+# read a gzip body with the encoding `GZIP`: the row has questions null and the body is not cut.
+# Both findings say that the record does not have the questions. In turn 6, the body is not cut,
+# and its questions have instructions with letters that are not ASCII. The trace reads the
+# questions from the body, also if the list of the row is shorter, and gives no finding.
 BIG_PHOTO_URL = "data:image/png;base64," + base64.b64encode(PHOTO * 40).decode()
 CUT_DREQUEST = json.dumps(
     {
@@ -3721,48 +3725,82 @@ CUT_DREQUEST = json.dumps(
 CUT_DREQUEST_KEPT = CUT_DREQUEST[:200]
 DEPARTMENT_OPTIONS = ["billing", "shipping", "other"]
 KEPT_DQUESTIONS = [dq(DQUESTIONS_2[0], DEPARTMENT_OPTIONS), dq(DQUESTIONS_2[1], [True, False])]
+CAFE_QUESTIONS = [
+    {
+        "type": "choice",
+        "name": "département",
+        "instructions": "Quel service traite cette plainte ? Le café est arrivé froid.",
+        "choices": DEPARTMENTS,
+    },
+    {"type": "predicate", "name": "urgent", "instructions": "La plainte est-elle urgente ?"},
+]
+CAFE_REQUEST = json.dumps({"model": DMODEL, "input": CHARGED, "questions": CAFE_QUESTIONS})
+GZIP_DREQUEST = gzip.compress(json.dumps({"questions": DQUESTIONS_2}).encode(), mtime=0)
+
+
+def dcall(t: float, request_body: dict, **row: Any) -> dict:
+    """A row of a /decisions call with the answers of DANSWERS_2, and more fields of the row."""
+    out = mcall(
+        t,
+        "openai",
+        V1_DECISIONS,
+        200,
+        None,
+        request_body=request_body,
+        response=json.dumps({"model": DMODEL, "answers": DANSWERS_2, "usage": dusage(60)}),
+        result=result(model=DMODEL, usage=dusage(60), answers=DRESULT_2),
+    )
+    return {**out, **row}
+
+
+def danswer(turn: int, ts: float, line: int, **lost: Any) -> dict:
+    """The expected assistant item of a dcall row."""
+    found = {**info(V1_DECISIONS, DMODEL, None, dusage(60)), "answers": DRESULT_2, **lost}
+    return mitem(turn, "openai", ts, line, "message", role="assistant", input=found, exit_code=200)
+
+
+def lost_finding(turn: int, line: int, what: str) -> dict:
+    return {
+        "check": "questions_lost",
+        "turn": turn,
+        "detail": f"openai: /v1/decisions: {what}",
+        "harness": "model_api",
+        "session": "openai",
+        "source": {"file": "model_api.jsonl", "line": line},
+    }
+
+
+NO_QUESTIONS = "the record does not have the questions of the request"
 DECISIONS_CUT_CASE = {
-    "tap": [window(10, 20), window(30, 40), window(50, 60)],
+    "tap": [window(10 + 20 * n, 20 + 20 * n) for n in range(6)],
     "manifest": {"test": "20261020-090000-dq01", "model_sessions": []},
     "sessions": {},
     "model_api": [
-        {
-            **mcall(
-                11,
-                "openai",
-                V1_DECISIONS,
-                200,
-                None,
-                request_body=cut_body(CUT_DREQUEST, CUT_DREQUEST_KEPT),
-                response=json.dumps({"model": DMODEL, "answers": DANSWERS_2, "usage": dusage(60)}),
-                result=result(model=DMODEL, usage=dusage(60), answers=DRESULT_2),
-            ),
-            "questions": KEPT_DQUESTIONS,
-            "questions_count": 2,
-        },
-        {
-            **mcall(
-                31,
-                "openai",
-                V1_DECISIONS,
-                200,
-                None,
-                request_body=cut_body(CUT_DREQUEST, CUT_DREQUEST_KEPT),
-                response=json.dumps({"model": DMODEL, "answers": DANSWERS_2, "usage": dusage(60)}),
-                result=result(model=DMODEL, usage=dusage(60), answers=DRESULT_2),
-            ),
-            "questions": KEPT_DQUESTIONS[:1],
-            "questions_count": 2,
-        },
-        mcall(
+        dcall(
+            11,
+            cut_body(CUT_DREQUEST, CUT_DREQUEST_KEPT),
+            questions=KEPT_DQUESTIONS,
+            questions_count=2,
+        ),
+        dcall(
+            31,
+            cut_body(CUT_DREQUEST, CUT_DREQUEST_KEPT),
+            questions=KEPT_DQUESTIONS[:1],
+            questions_count=2,
+        ),
+        dcall(
             51,
-            "openai",
-            V1_DECISIONS,
-            200,
-            None,
-            request_body=cut_body(CUT_DREQUEST, CUT_DREQUEST_KEPT),
-            response=json.dumps({"model": DMODEL, "answers": DANSWERS_2, "usage": dusage(60)}),
-            result=result(model=DMODEL, usage=dusage(60), answers=DRESULT_2),
+            cut_body(CUT_DREQUEST, CUT_DREQUEST_KEPT),
+            questions=KEPT_DQUESTIONS[:1],
+            questions_count=3,
+        ),
+        dcall(71, cut_body(CUT_DREQUEST, CUT_DREQUEST_KEPT)),
+        dcall(91, body(data=GZIP_DREQUEST), questions=None, questions_count=None),
+        dcall(
+            111,
+            body(CAFE_REQUEST),
+            questions=[dq(CAFE_QUESTIONS[0], DEPARTMENT_OPTIONS)],
+            questions_count=2,
         ),
     ],
     "trace": [
@@ -3775,16 +3813,7 @@ DECISIONS_CUT_CASE = {
             role="user",
             input={"questions": KEPT_DQUESTIONS, "images": []},
         ),
-        mitem(
-            1,
-            "openai",
-            12,
-            1,
-            "message",
-            role="assistant",
-            input={**info(V1_DECISIONS, DMODEL, None, dusage(60)), "answers": DRESULT_2},
-            exit_code=200,
-        ),
+        danswer(1, 12, 1),
         mitem(
             2,
             "openai",
@@ -3794,72 +3823,61 @@ DECISIONS_CUT_CASE = {
             role="user",
             input={"questions": KEPT_DQUESTIONS[:1], "images": []},
         ),
-        mitem(
-            2,
-            "openai",
-            32,
-            2,
-            "message",
-            role="assistant",
-            input={
-                **info(V1_DECISIONS, DMODEL, None, dusage(60)),
-                "answers": DRESULT_2,
-                "questions_lost": 1,
-            },
-            exit_code=200,
-        ),
+        danswer(2, 32, 2, questions_lost=1),
         mitem(
             3,
             "openai",
-            52,
+            51,
             3,
             "message",
-            role="assistant",
-            input={
-                **info(V1_DECISIONS, DMODEL, None, dusage(60)),
-                "answers": DRESULT_2,
-                "questions_lost": None,
-            },
-            exit_code=200,
+            role="user",
+            input={"questions": KEPT_DQUESTIONS[:1], "images": []},
         ),
+        danswer(3, 52, 3, questions_lost=2),
+        danswer(4, 72, 4, questions_lost=None),
+        danswer(5, 92, 5, questions_lost=None),
+        mitem(
+            6,
+            "openai",
+            111,
+            6,
+            "message",
+            role="user",
+            input={
+                "questions": [
+                    dq(CAFE_QUESTIONS[0], DEPARTMENT_OPTIONS),
+                    dq(CAFE_QUESTIONS[1], None),
+                ],
+                "images": [],
+            },
+            output=CHARGED,
+        ),
+        danswer(6, 112, 6),
     ],
     "findings": {
         "v": "0.2",
         "test": "20261020-090000-dq01",
-        "turns": 3,
-        "items": 5,
+        "turns": 6,
+        "items": 10,
         "sessions": [],
         "otel": None,
         "backend": None,
         "model_api": {
             "file": "model_api.jsonl",
-            "rows": 3,
-            "items": 5,
+            "rows": 6,
+            "items": 10,
             "ignored": {},
             "harness_calls": {},
             "other_calls": 0,
         },
         "mcp": None,
         "database": None,
-        "counts": counts(questions_lost=2),
+        "counts": counts(questions_lost=4),
         "findings": [
-            {
-                "check": "questions_lost",
-                "turn": 2,
-                "detail": "openai: /v1/decisions: 1 question of the request is not in the record",
-                "harness": "model_api",
-                "session": "openai",
-                "source": {"file": "model_api.jsonl", "line": 2},
-            },
-            {
-                "check": "questions_lost",
-                "turn": 3,
-                "detail": "openai: /v1/decisions: the request body is cut, and the record does "
-                "not have its questions",
-                "harness": "model_api",
-                "session": "openai",
-                "source": {"file": "model_api.jsonl", "line": 3},
-            },
+            lost_finding(2, 2, "1 question of the request is not in the record"),
+            lost_finding(3, 3, "2 questions of the request are not in the record"),
+            lost_finding(4, 4, NO_QUESTIONS),
+            lost_finding(5, 5, NO_QUESTIONS),
         ],
     },
 }

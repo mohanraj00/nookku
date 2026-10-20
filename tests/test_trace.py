@@ -372,3 +372,10 @@ def test_a_driver_query_comes_only_from_a_span_of_a_driver_database() -> None:
     assert queries({"databases": [{**shop, **driver}]}) == [1, 2]
     assert queries({"databases": [{**shop, **proxy}]}) == []
     assert queries(None) == []
+
+
+def test_a_row_that_nests_too_deep_counts_as_invalid_json(tmp_path: Path) -> None:
+    path = tmp_path / "model_api.jsonl"
+    path.write_text('{"type": "call", "a": ' + "[" * 100_000 + "]" * 100_000 + "}\n")
+    items, info = trace.read_model_api(path)
+    assert items == [] and info["ignored"] == {"invalid_json": 1}
