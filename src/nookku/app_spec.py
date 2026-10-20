@@ -22,6 +22,7 @@ MAX_RECORDS = 200
 # CommonMark: 0 to 3 spaces before a heading or a code fence.
 HEADING = re.compile(r" {0,3}(#{1,6})(?:[ \t]+(.*))?$")
 FENCE = re.compile(r" {0,3}(`{3,}|~{3,})")
+CLOSE_FENCE = re.compile(r" {0,3}(`{3,}|~{3,})[ \t]*")
 EACH_TURN = re.compile(r"each turn", re.IGNORECASE)
 # 9 digits at most: a longer number is not a turn of a test, and `int` stays fast.
 ONE_TURN = re.compile(r"turn ([1-9][0-9]{0,8})", re.IGNORECASE)
@@ -114,7 +115,8 @@ class _Reader:
 
         for n, line in enumerate(text.splitlines(), 1):
             if fence is not None:
-                if line.strip().startswith(fence) and set(line.strip()) == {fence[0]}:
+                end = CLOSE_FENCE.fullmatch(line)
+                if end and end.group(1).startswith(fence) and set(end.group(1)) == {fence[0]}:
                     fence = None
                 continue
             if m := FENCE.match(line):
