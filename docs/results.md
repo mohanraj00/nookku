@@ -214,6 +214,29 @@ The app's session files are from Claude Code 2.1.301, bundled in Agent SDK 0.2.1
 
 In each run, the stock service had 2 reservations for the 1 teapot set that the tester asked for. These runs used Agent SDK 0.2.168, which bundles Claude Code 2.1.301 ([#35](https://github.com/mohanraj00/nookku/issues/35), [Trace of the model sessions](#trace-of-the-model-sessions)). In each of the 4 runs, the proxy marked 6 of its calls as harness calls and kept no text of them. The Claude Code runs used nookku 0.5.3 on 2026-10-19. The toy note model gives a fixed answer, so this proof does not show a real model behind the direct call. [proofs/model-api/](../proofs/model-api/results.json) shows the proxy with the stream formats of both APIs.
 
+### The issue classes of the app spec
+
+[scripts/proof_spec_classes.py](../scripts/proof_spec_classes.py) runs a test of the [full toy shop](../examples/toy-shop-full/app.py) with its [app spec](reference/app-spec.md): [APP_SPEC.md](../examples/toy-shop-full/APP_SPEC.md) and [RULES.md](../examples/toy-shop-full/RULES.md). The proof plants 3 defects in a copy of `app.py`. It changes only the system prompt of the agent, and the example in the repo does not change. The tester sends 4 messages:
+
+| Turn | Tester | Planted defect | Part of the spec | Class |
+|---|---|---|---|---|
+| 1 | Hi, where is my order 4471? | none | | none |
+| 2 | Is the teapot set in stock? | The agent does not check the stock. It sends the customer to a newsletter. | `User goals`, goal 2 | `off_path` |
+| 3 | Can you give me a recipe for pancakes? | The agent answers each topic, also topics outside the shop. | `Boundaries` | `boundary` |
+| 4 | Thank you for the help! | The agent answers in slang with a joke, in 4 sentences or more. | `Persona` | `tone` |
+
+- **S0:** the agent did the planted defect of turn 2: turn 2 has no `check_stock` call.
+- **S1, S2 and S3:** `report.md` has an `off_path` row for turn 2, a `boundary` row for turn 3 and a `tone` row for turn 4. The evidence of each row names a line of `APP_SPEC.md`.
+- **S4:** `report.md` has no row of these 3 classes for turn 1.
+- **P5 and P7:** as for the evaluation proofs above. P5 here needs an exact quote of a reply.
+
+| Form | Harness | Rows of the report | S0 | S1 | S2 | S3 | S4 | P5 | P7 | Result | Data |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| Plugin | Claude Code 2.1.302 | `off_path` 2; `boundary` 3; `tone` 3; `tone` 4 (2 rows) | pass | pass | pass | pass | pass | pass | pass | pass | [results](../proofs/spec-classes/plugin-claude-code.json) |
+| Project hooks | Claude Code 2.1.302 | `off_path` 2; `unsupported_reply` 2; `boundary` 3; `tone` 3; `tone` 4 | pass | pass | pass | pass | pass | pass | pass | pass | [results](../proofs/spec-classes/hooks-claude-code.json) |
+
+Both runs used the code of nookku 0.5.3 with the change of [#316](https://github.com/mohanraj00/nookku/issues/316), on 2026-10-20, and Agent SDK 0.2.168, which bundles Claude Code 2.1.301. The results files keep the replies. In both runs, the model also gave a `tone` row for turn 3: the recipe has more than 2 sentences, and the `Persona` permits 2 or fewer. This row is correct: the planted prompt says "answer in full", so the reply breaks the `Persona`. The Codex setups run in v0.5.5 ([#437](https://github.com/mohanraj00/nookku/issues/437)). Each setup ran 1 time, so these runs do not give a rate.
+
 ### Egress discovery, the MCP proxies and the Postgres proxy
 
 [scripts/proof_egress.py](../scripts/proof_egress.py) runs a test of the [egress toy shop](../examples/toy-shop-egress/app.py) in each relay. The app is an Agent SDK session with a [catalog MCP server](../examples/toy-shop-egress/catalog_mcp.py) over HTTP, a [notes MCP server](../examples/toy-shop-egress/notes_mcp.py) over stdio, the orders in Postgres 16 (in Docker) and the returns in a SQLite file. The app sends the OpenTelemetry spans of its psycopg and sqlite3 drivers. The tester types `nookku start`, and the [harness model](reference/glossary.md#harness-model) reads the app, writes its egress answer to `.nookku/egress.json` and runs `nookku register --file .nookku/egress.json`. The script gives no part of the answer. The test has 3 turns and no evaluation.
@@ -290,6 +313,8 @@ uv run python scripts/proof_telemetry.py plugin-claude-code
 uv run python scripts/proof_telemetry.py plugin-codex
 uv run python scripts/proof_telemetry.py hooks-claude-code
 uv run python scripts/proof_telemetry.py hooks-codex
+uv run python scripts/proof_spec_classes.py plugin-claude-code
+uv run python scripts/proof_spec_classes.py hooks-claude-code
 uv run python scripts/proof_egress.py plugin-claude-code
 uv run python scripts/proof_egress.py plugin-codex
 uv run python scripts/proof_egress.py hooks-claude-code

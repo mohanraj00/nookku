@@ -28,8 +28,13 @@ Find each issue of the app. Each issue has one of these classes:
 | `unsupported_reply` | said a fact that no tool result and no rule supports. |
 | `missing_action` | did not do an action that the request or a rule needs. |
 | `state_mismatch` | gave a reply or a trace that does not agree with its state. |
+| `tone` | gave a reply that does not agree with the `Persona` of the app spec. |
+| `boundary` | did an action or answered a topic that the `Boundaries` of the app spec say it must refuse. |
+| `off_path` | did not guide the user to a goal of the `User goals` of the app spec, or guided the user away from it. |
 
 Each issue needs evidence: a `trace.jsonl:N` line, a turn of the transcript, or a source line such as `app.py:42`. Quote the exact argument, result or text. If you have no evidence, do not report the issue.
+
+Use `tone`, `boundary` and `off_path` only if the app spec has the part. Each row of these classes needs 2 pieces of evidence: the turn of the transcript and the line of the spec, for example `turn 3, APP_SPEC.md:9`. Quote the reply and the line of the spec. If an issue breaks a part of the spec and also fits another class, use the class of the part of the spec.
 
 A note of the tester can show you where to look. Do not report an issue only because of a note. Check each note against the records, the code and the state of the app.
 

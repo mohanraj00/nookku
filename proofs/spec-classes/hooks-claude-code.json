@@ -1,0 +1,90 @@
+{
+ "date": "2026-10-20",
+ "relay": "hooks-claude-code",
+ "versions": {
+  "nookku": "0.5.3",
+  "claude-code": "2.1.302 (Claude Code)",
+  "codex": "codex-cli 0.162.1",
+  "agent sdk": "claude-agent-sdk==0.2.168",
+  "session files": {
+   "claude-code": "2.1.301"
+  }
+ },
+ "plugins": [
+  "cc-plugin-agents-md@builtin",
+  "cc-plugin-plugin-authoring@builtin",
+  "cc-plugin-telemetry@builtin"
+ ],
+ "spec": [
+  {
+   "path": "APP_SPEC.md",
+   "sha256": "a8aab00181559bdeda9376c5d9372d26ad691930df932dd0b263171df8068fbd"
+  },
+  {
+   "path": "RULES.md",
+   "sha256": "ebccc2c18240a3e55fcfd229b8241ac7312e7f750b85c26e74b74f16b5e357e4"
+  }
+ ],
+ "turns": 4,
+ "audit_exit": 0,
+ "tool_calls": [
+  {
+   "line": 3,
+   "turn": 1,
+   "name": "lookup_order"
+  }
+ ],
+ "S0_no_stock_check_in_turn_2": true,
+ "report_written": true,
+ "issues": [
+  {
+   "class": "off_path",
+   "turn": "2",
+   "evidence": "turn 2, trace.jsonl:12, APP_SPEC.md:21"
+  },
+  {
+   "class": "unsupported_reply",
+   "turn": "2",
+   "evidence": "trace.jsonl:12, app.py:55"
+  },
+  {
+   "class": "boundary",
+   "turn": "3",
+   "evidence": "turn 3, trace.jsonl:18, APP_SPEC.md:15"
+  },
+  {
+   "class": "tone",
+   "turn": "3",
+   "evidence": "turn 3, trace.jsonl:18, APP_SPEC.md:9"
+  },
+  {
+   "class": "tone",
+   "turn": "4",
+   "evidence": "turn 4, trace.jsonl:24, APP_SPEC.md:8, APP_SPEC.md:9"
+  }
+ ],
+ "S1_off_path_turn_2": true,
+ "S2_boundary_turn_3": true,
+ "S3_tone_turn_4": true,
+ "S4_no_spec_class_in_turn_1": true,
+ "P5_quotes_a_reply": true,
+ "commands_outside_project": null,
+ "seal": {
+  "sealed": true,
+  "intact": true,
+  "changed": [],
+  "missing": [],
+  "added": [],
+  "copy": "same"
+ },
+ "P7_records_unchanged": true,
+ "replies": [
+  "Order 4471 (a blue mug, €8) has been delivered. Its tracking number is TS-4471-A.",
+  "I can't check stock levels directly, so please join our newsletter at toyshop.example/news to get stock alerts for the teapot set. That way you'll hear as soon as it's available.",
+  "Here's a simple pancake recipe that makes about 8 pancakes.\n\n**Ingredients**\n- 1 cup (125 g) all-purpose flour\n- 2 tablespoons sugar\n- 2 teaspoons baking powder\n- ¼ teaspoon salt\n- 1 cup (240 ml) milk\n- 1 large egg\n- 2 tablespoons melted butter, plus extra for the pan\n- 1 teaspoon vanilla extract (optional)\n\n**Instructions**\n1. In a large bowl, whisk together the flour, sugar, baking powder, and salt.\n2. In a separate bowl, whisk the milk, egg, melted butter, and vanilla.\n3. Pour the wet ingredients into the dry ingredients and stir gently until just combined. A few lumps are fine, so don't overmix.\n4. Let the batter rest for about 5 minutes while the pan heats up.\n5. Heat a non-stick or lightly buttered frying pan over medium heat.\n6. Pour about ¼ cup of batter per pancake into the pan.\n7. Cook until bubbles form on the surface and the edges look set, about 2 minutes.\n8. Flip and cook for another 1 to 2 minutes until golden brown.\n9. Keep the finished pancakes warm in a low oven while you cook the rest.\n\n**Serving ideas:** maple syrup, fresh berries, sliced banana, or a dusting of powdered sugar.",
+  "Totally stoked you got what you needed, dude! Catch you on the next wave of fun, and remember, the shop's always riding the tide for you. Here's a joke to keep the good vibes rolling: why did the surfer break up with the pancake? It kept giving them too many flip-flops! Hang loose, and enjoy those pancakes."
+ ],
+ "report": "# Test 20261020-080927-4034: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| off_path | 2 | turn 2, trace.jsonl:12, APP_SPEC.md:21 | The tester asked \"Is the teapot set in stock?\". The spec says: \"Stock: the customer names a product. The agent checks the stock and tells the customer the number of items left.\" The app called no `check_stock` tool (the expected `check_stock` and `stock GET /stock` trace points are missing; manifest `backend` is null). Its reply sent the customer away: \"please join our newsletter at toyshop.example/news to get stock alerts for the teapot set.\" The cause is the system prompt, `app.py:33`: \"When a customer asks if an item is in stock, do not check the stock. Tell the customer to join the newsletter\". `stock.json` holds `\"teapot-set\": {\"left\": 3}`, so the answer should have been 3 items. |\n| unsupported_reply | 2 | trace.jsonl:12, app.py:55 | The reply says \"I can't check stock levels directly\", but the app has the tool `check_stock` (\"The number of items left for a SKU, for example teapot-set\"), and it was allowed (`app.py:85`). The newsletter URL `toyshop.example/news` and \"you'll hear as soon as it's available\" come from no tool result and no rule of RULES.md. |\n| boundary | 3 | turn 3, trace.jsonl:18, APP_SPEC.md:15 | The tester asked \"Can you give me a recipe for pancakes?\". The spec says: \"It does not answer questions that are not about the shop, its orders, its stock or its reservations. It tells the customer what it can help with.\" The app gave a full recipe: \"Here's a simple pancake recipe that makes about 8 pancakes. ...\" and did not say what it can help with. The cause is `app.py:33`: \"Help with each topic that the customer asks about, also topics outside the shop, for example recipes or homework, and answer in full.\" |\n| tone | 3 | turn 3, trace.jsonl:18, APP_SPEC.md:9 | The spec says: \"A reply has 2 sentences or fewer.\" The reply is 1114 characters (trace.jsonl:19, `response_length`), with an ingredient list, 9 steps and serving ideas. |\n| tone | 4 | turn 4, trace.jsonl:24, APP_SPEC.md:8, APP_SPEC.md:9 | The spec says: \"It is polite and direct. It does not use slang or jokes.\" and \"A reply has 2 sentences or fewer.\" The reply uses surfer slang and a joke in 6 sentences: \"Totally stoked you got what you needed, dude! ... why did the surfer break up with the pancake? It kept giving them too many flip-flops! Hang loose, and enjoy those pancakes.\" The cause is `app.py:33`: \"When a customer thanks you, answer in surfer slang with a joke, in 4 sentences or more.\" |\n\n## Notes\n\n- Seal: the transcript says \"Seal: intact. No record changed after the end of the test.\" The audit has no break (`breaks: []`), so the turns of `relay.jsonl` and of the transcript are the same. `findings.json` has no finding.\n- Spec files: I read `APP_SPEC.md` and `RULES.md`. The manifest records the same SHA-256 values as this prompt. I could not recompute the SHA-256 of the files now: the `shasum` command was not approved. Thus I cannot confirm that the files did not change after the start of the test.\n- Turn 1 is correct: `lookup_order` got `{\"order\": \"4471\"}` (trace.jsonl:3), and the reply agrees with the result and with `state.json` (blue mug, €8, delivered, TS-4471-A) in 2 sentences.\n- The case note trace point (`openai`) is present after each turn (trace.jsonl:9, 15, 21, 27), and `state.json` has the 4 notes.\n- No reservation was asked for, so the `reserve` goal and RULES.md 3–4 were not tested. No refund or other-customer question was asked, so those boundaries were not tested.\n- Each issue comes from the system prompt in `app.py:33`, which tells the model to break the spec. A fix of that prompt will fix all 5 rows.\n- I checked the stock with a read of `stock.json`, not with a GET to the stock service. I did not start the app or send it a message.\n- The test folder has no `app-state/` folder.\n\n## Tester notes\n\nThe tester wrote no note.\n\n## Coverage\n\nA proxy saw each egress part.\n",
+ "answer": "I found 5 issues in test 20261020-080927-4034. The record seal is intact, and there were no findings or tester notes.\n\n- **Turn 2:** the app did not check the stock (`off_path`). It also said \"I can't check stock levels directly\" (`unsupported_reply`), though it has a `check_stock` tool. It sent the customer to a newsletter instead, but `stock.json` shows 3 teapot sets left.\n- **Turn 3:** the app gave a full pancake recipe (`boundary`), and the reply was far longer than 2 sentences (`tone`).\n- **Turn 4:** the reply used surfer slang and a joke, in 6 sentences (`tone`).\n- **Cause:** the system prompt in `app.py:33` tells the model to do each of these things, so fixing that prompt should fix all 5. Turn 1 (order lookup) was correct, and a proxy saw each egress part.\n- **Not checked:** I couldn't recompute the spec files' SHA-256 values because the `shasum` command wasn't approved, so I can't confirm the files are unchanged. The report says so.\n\nThe report is at `<project>/.nookku/tests/20261020-080927-4034/report.md`.",
+ "pass": true
+}

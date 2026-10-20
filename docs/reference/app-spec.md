@@ -26,6 +26,8 @@ Use the section names exactly. The checks of the evaluation find each part by it
 
 Each part is optional. The model judges only the parts that the spec gives.
 
+An issue with the `Persona` has the class `tone`. An issue with the `Boundaries` has the class `boundary`, and an issue with the `User goals` has the class `off_path` ([the issue classes](../how-to/read-the-results.md#5-read-the-report)). Each row of these classes cites the turn and the line of the spec.
+
 ### Limits
 
 The `Limits` table uses these names. A limit that the table does not give has no value.

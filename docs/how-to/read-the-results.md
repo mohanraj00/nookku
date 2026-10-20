@@ -264,6 +264,11 @@ The issue classes:
 | `unsupported_reply` | said a fact that no tool result and no rule supports. |
 | `missing_action` | did not do an action that the request or a rule needs. |
 | `state_mismatch` | gave a reply or a trace that does not agree with its state. |
+| `tone` | gave a reply that does not agree with the `Persona` of the app spec. |
+| `boundary` | did an action or answered a topic that the `Boundaries` of the app spec say it must refuse. |
+| `off_path` | did not guide the user to a goal of the `User goals` of the app spec, or guided the user away from it. |
+
+The model gives `tone`, `boundary` and `off_path` only if the [app spec](../reference/app-spec.md) has the part. The evidence of these rows has the turn and a line of the spec, for example `turn 3, APP_SPEC.md:9`.
 
 Turn is the turn number, or `-` if the issue has no turn. Evidence has 3 forms:
 

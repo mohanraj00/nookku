@@ -1129,8 +1129,11 @@ The reference is `(compact: the same text as [trace.jsonl:N], sha256 <hex>, <len
 | `unsupported_reply` | said a fact that no tool result and no rule supports. |
 | `missing_action` | did not do an action that the request or a rule needs. |
 | `state_mismatch` | gave a reply or a trace that does not agree with its state. |
+| `tone` | gave a reply that does not agree with the `Persona` of the app spec. |
+| `boundary` | did an action or answered a topic that the `Boundaries` of the app spec say it must refuse. |
+| `off_path` | did not guide the user to a goal of the `User goals` of the app spec, or guided the user away from it. |
 
-Turn is the number of the turn, or `-`. Evidence is a `trace.jsonl:N` line, a turn, or a source line.
+Turn is the number of the turn, or `-`. Evidence is a `trace.jsonl:N` line, a turn, or a source line. A row of `tone`, `boundary` or `off_path` comes only from a part of the app spec (section 9.2), and its evidence has the turn and a line of the spec.
 
 The Tester notes table has the columns Note, Turn, Rating, Comment and What the records show, and one row for each line of `notes.jsonl`. Note is `notes.jsonl:N`, where N is the line. Comment is the comment, or its first 200 characters, or `-` for `null`. The last column says if the records agree with the note, do not agree, or cannot show it, with the evidence. If the test has no `notes.jsonl`, the report has the text "The tester wrote no note." in place of this table.
 
