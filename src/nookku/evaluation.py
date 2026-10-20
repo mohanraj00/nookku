@@ -151,7 +151,9 @@ def _asked(asked: Any) -> str:
     for q in asked.get("questions") or []:
         options = q.get("options")
         shown = f": {', '.join(_value(o) for o in options)}" if options else ""
-        out += f"question {q.get('name') or '(no name)'} ({q.get('type')}){shown}\n"
+        said = q.get("instructions")
+        told = f"; instructions: {json.dumps(said, ensure_ascii=False)}" if said else ""
+        out += f"question {q.get('name') or '(no name)'} ({q.get('type')}){shown}{told}\n"
     for i in asked.get("images") or []:
         size = f"{i['size']} bytes" if i.get("size") is not None else "not base64"
         out += f"image: {i.get('media_type')}, {size}, sha256 {i.get('sha256')}\n"

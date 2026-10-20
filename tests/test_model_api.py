@@ -1,3 +1,4 @@
+import gzip
 import hashlib
 import http.client
 import json
@@ -481,3 +482,90 @@ def test_a_call_that_ends_after_the_end_of_the_test_does_not_change_its_row(
         proxy.end(row, {"response_body": text}, b"3 teapot sets", None)
     assert row == written and row["error"] == backend.ENDED
     assert rows(tmp_path) == [written]
+
+
+TOY_QUESTIONS = [
+    {
+        "type": "choice",
+        "name": "department",
+        "instructions": "Which department should handle this complaint?",
+        "choices": [{"value": "billing"}, {"value": "shipping"}],
+    },
+    {"type": "predicate", "name": "damaged", "instructions": "Is the teapot damaged?"},
+]
+
+
+def test_the_row_of_a_decisions_call_keeps_each_question_after_a_cut(tmp_path: Path) -> None:
+    photo = "data:image/png;base64," + "A" * 4000
+    content = [{"type": "input_text", "text": "My teapot broke."}]
+    content.append({"type": "input_image", "image_url": photo})
+    request = {"input": [{"role": "user", "content": content}], "questions": TOY_QUESTIONS}
+    sent = json.dumps(request).encode()
+    answer = b'{"model": "toy-decide", "answers": []}'
+    with ModelServer() as model:
+        model.parts = [answer]
+        model.content_type = "application/json"
+        proxies = proxy_for(model, tmp_path, "openai")
+        proxies.proxies[0].keep = 1000
+        env = proxies.start()
+        try:
+            status, got = post(env["OPENAI_BASE_URL"], "/v1/decisions", sent, {})
+        finally:
+            proxies.stop()
+    # The proxy forwards each byte of the request and of the response.
+    assert status == 200 and got == answer and model.seen[0]["body"] == sent
+    row = rows(tmp_path)[0]
+    assert row["request_body"]["cut"] is True
+    assert row["questions_count"] == 2
+    assert row["questions"] == [
+        {
+            "name": "department",
+            "type": "choice",
+            "instructions": "Which department should handle this complaint?",
+            "options": ["billing", "shipping"],
+        },
+        {
+            "name": "damaged",
+            "type": "predicate",
+            "instructions": "Is the teapot damaged?",
+            "options": None,
+        },
+    ]
+    items, _ = trace.read_model_api(tmp_path / model_api.FILE)
+    assert items[0]["input"]["questions"] == row["questions"]
+    assert "questions_lost" not in items[1]["input"]
+
+
+def test_the_questions_of_a_row_stop_at_the_record_limit() -> None:
+    data = json.dumps({"questions": TOY_QUESTIONS}).encode()
+    first = model_api.question(TOY_QUESTIONS[0])
+    size = len(json.dumps([first]))
+    assert model_api.questions(data, None, size) == ([first], 2)
+    assert model_api.questions(data, None, size - 1) == ([], 2)
+    both = [first, model_api.question(TOY_QUESTIONS[1])]
+    assert model_api.questions(data, None, len(json.dumps(both))) == (both, 2)
+
+
+def test_a_decisions_body_with_no_list_of_questions_gives_no_questions() -> None:
+    assert model_api.questions(b"<html>busy</html>", None, 1000) == (None, None)
+    assert model_api.questions(b'{"questions": "all"}', None, 1000) == (None, None)
+    assert model_api.questions(b"[" * 100_000, None, 1000) == (None, None)
+    zipped = gzip.compress(json.dumps({"questions": TOY_QUESTIONS}).encode())
+    assert model_api.questions(zipped, "gzip", 1000)[1] == 2
+    # A gzip body that decodes to more than the limit is not read.
+    assert model_api.questions(zipped, "gzip", 50) == (None, None)
+
+
+def test_a_harness_call_and_another_path_get_no_questions(tmp_path: Path) -> None:
+    sent = json.dumps({"questions": TOY_QUESTIONS}).encode()
+    with ModelServer() as model:
+        model.content_type = "application/json"
+        proxies = proxy_for(model, tmp_path, "openai")
+        env = proxies.start()
+        try:
+            post(env["OPENAI_BASE_URL"], "/v1/decisions", sent, {"User-Agent": "codex/0.162.1"})
+            post(env["OPENAI_BASE_URL"], "/v1/chat/completions", sent, {})
+        finally:
+            proxies.stop()
+    for row in rows(tmp_path):
+        assert "questions" not in row and "questions_count" not in row

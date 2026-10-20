@@ -180,7 +180,7 @@ def test_a_decisions_request_keeps_no_image_data(tmp_path: Path) -> None:
     items, _ = trace.read_model_api(path)
     assert items[0]["output"] is None
     assert items[0]["input"] == {
-        "questions": [{"name": "mug", "type": "choice", "options": None}],
+        "questions": [{"name": "mug", "type": "choice", "instructions": None, "options": None}],
         "images": [
             {
                 "media_type": "image/jpeg",

@@ -1,5 +1,5 @@
 {
- "date": "2026-10-19",
+ "date": "2026-10-20",
  "versions": {
   "nookku": "0.5.3",
   "python": "3.13.12",
@@ -11,57 +11,232 @@
    "api": "anthropic",
    "path": "/v1/messages",
    "stream": true,
+   "request_size": 114,
    "response_size": 6549,
    "request_same": true,
    "response_same": true,
    "first_part_before_the_end": true,
-   "result_in_record": true
+   "result_in_record": true,
+   "request_cut": false
   },
   {
    "call": 2,
    "api": "openai",
    "path": "/v1/chat/completions",
    "stream": true,
+   "request_size": 114,
    "response_size": 3564,
    "request_same": true,
    "response_same": true,
    "first_part_before_the_end": true,
-   "result_in_record": true
+   "result_in_record": true,
+   "request_cut": false
   },
   {
    "call": 3,
    "api": "anthropic",
    "path": "/v1/messages",
    "stream": false,
+   "request_size": 115,
    "response_size": 122,
    "request_same": true,
    "response_same": true,
    "first_part_before_the_end": null,
-   "result_in_record": true
+   "result_in_record": true,
+   "request_cut": false
   },
   {
    "call": 4,
    "api": "openai",
    "path": "/v1/responses",
    "stream": true,
+   "request_size": 114,
    "response_size": 8531,
    "request_same": true,
    "response_same": true,
    "first_part_before_the_end": true,
-   "result_in_record": true
+   "result_in_record": true,
+   "request_cut": false
   },
   {
    "call": 5,
    "api": "openai",
    "path": "/v1/decisions",
    "stream": false,
+   "request_size": 450,
    "response_size": 435,
    "request_same": true,
    "response_same": true,
    "first_part_before_the_end": null,
-   "result_in_record": true
+   "result_in_record": true,
+   "request_cut": false,
+   "questions_in_record": [
+    {
+     "name": "department",
+     "type": "choice",
+     "instructions": "Which department?",
+     "options": [
+      "billing",
+      "shipping",
+      "other"
+     ]
+    },
+    {
+     "name": "urgent",
+     "type": "predicate",
+     "instructions": "Is it urgent?",
+     "options": null
+    },
+    {
+     "name": "mood",
+     "type": "choice",
+     "instructions": "The mood?",
+     "options": [
+      "calm",
+      "angry"
+     ]
+    }
+   ],
+   "questions_count": 3
+  },
+  {
+   "call": 6,
+   "api": "openai",
+   "path": "/v1/decisions",
+   "stream": false,
+   "request_size": 450,
+   "response_size": 435,
+   "request_same": true,
+   "response_same": true,
+   "first_part_before_the_end": null,
+   "result_in_record": true,
+   "request_cut": false,
+   "questions_in_record": [
+    {
+     "name": "department",
+     "type": "choice",
+     "instructions": "Which department should handle this complaint?",
+     "options": [
+      "billing",
+      "shipping",
+      "other"
+     ]
+    }
+   ],
+   "questions_count": 1
+  },
+  {
+   "call": 7,
+   "api": "openai",
+   "path": "/v1/decisions",
+   "stream": false,
+   "request_size": 1493915,
+   "response_size": 435,
+   "request_same": true,
+   "response_same": true,
+   "first_part_before_the_end": null,
+   "result_in_record": true,
+   "request_cut": true,
+   "questions_in_record": [
+    {
+     "name": "department",
+     "type": "choice",
+     "instructions": "Which department?",
+     "options": [
+      "billing",
+      "shipping",
+      "other"
+     ]
+    },
+    {
+     "name": "urgent",
+     "type": "predicate",
+     "instructions": "Is it urgent?",
+     "options": null
+    },
+    {
+     "name": "mood",
+     "type": "choice",
+     "instructions": "The mood?",
+     "options": [
+      "calm",
+      "angry"
+     ]
+    }
+   ],
+   "questions_count": 3
   }
  ],
+ "app_department": "billing",
+ "questions_in_trace": [
+  [
+   {
+    "name": "department",
+    "type": "choice",
+    "instructions": "Which department?",
+    "options": [
+     "billing",
+     "shipping",
+     "other"
+    ]
+   },
+   {
+    "name": "urgent",
+    "type": "predicate",
+    "instructions": "Is it urgent?",
+    "options": null
+   },
+   {
+    "name": "mood",
+    "type": "choice",
+    "instructions": "The mood?",
+    "options": [
+     "calm",
+     "angry"
+    ]
+   }
+  ],
+  [
+   {
+    "name": "department",
+    "type": "choice",
+    "instructions": "Which department should handle this complaint?",
+    "options": [
+     "billing",
+     "shipping",
+     "other"
+    ]
+   }
+  ],
+  [
+   {
+    "name": "department",
+    "type": "choice",
+    "instructions": "Which department?",
+    "options": [
+     "billing",
+     "shipping",
+     "other"
+    ]
+   },
+   {
+    "name": "urgent",
+    "type": "predicate",
+    "instructions": "Is it urgent?",
+    "options": null
+   },
+   {
+    "name": "mood",
+    "type": "choice",
+    "instructions": "The mood?",
+    "options": [
+     "calm",
+     "angry"
+    ]
+   }
+  ]
+ ],
+ "questions_lost": 0,
  "key_in_record": false,
  "seal_intact": true,
  "pass": true

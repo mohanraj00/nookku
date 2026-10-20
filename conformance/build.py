@@ -828,6 +828,7 @@ def counts(**n: int) -> dict:
         "span_error",
         "backend_error",
         "model_api_error",
+        "questions_lost",
         "database_error",
         "unseen_call",
         "model_error",
@@ -3383,6 +3384,14 @@ DRESULT_2 = [
     },
 ]
 V1_DECISIONS = "/v1/decisions"
+
+
+def dq(asked: dict, options: list | None) -> dict:
+    """A question of a /decisions call as the trace keeps it (SPEC.md section 8.4)."""
+    keep = ("name", "type", "instructions")
+    return {**{k: asked[k] for k in keep}, "options": options}
+
+
 DECISIONS = "/decisions"
 DMODEL = "toy-decide"
 DECISIONS_CASE = {
@@ -3419,14 +3428,10 @@ DECISIONS_CASE = {
             role="user",
             input={
                 "questions": [
-                    {"name": "damaged", "type": "predicate", "options": None},
-                    {
-                        "name": "department",
-                        "type": "choice",
-                        "options": ["billing", "shipping", "other"],
-                    },
-                    {"name": "severity", "type": "score", "options": ["Low", "Medium", "High"]},
-                    {"name": "mood", "type": "choice", "options": ["calm", "angry"]},
+                    dq(DQUESTIONS[0], None),
+                    dq(DQUESTIONS[1], ["billing", "shipping", "other"]),
+                    dq(DQUESTIONS[2], ["Low", "Medium", "High"]),
+                    dq(DQUESTIONS[3], ["calm", "angry"]),
                 ],
                 "images": [
                     {
@@ -3457,12 +3462,8 @@ DECISIONS_CASE = {
             role="user",
             input={
                 "questions": [
-                    {
-                        "name": "department",
-                        "type": "choice",
-                        "options": ["billing", "shipping", "other"],
-                    },
-                    {"name": "refund_due", "type": "choice", "options": [True, False]},
+                    dq(DQUESTIONS_2[0], ["billing", "shipping", "other"]),
+                    dq(DQUESTIONS_2[1], [True, False]),
                 ],
                 "images": [],
             },
@@ -3688,6 +3689,175 @@ CUT_CASE = {
                 "detail": f"anthropic: /v1/messages: {STREAM_ENDED}",
                 "harness": "model_api",
                 "session": "anthropic",
+                "source": {"file": "model_api.jsonl", "line": 3},
+            },
+        ],
+    },
+}
+
+# The questions of a /decisions call when the proxy cuts the request body (SPEC.md sections 7.7,
+# 8.4 and 8.6). In turn 1, a photo makes the body longer than `record_limit`. The proxy read the
+# questions from the whole body, so the trace keeps each question and its instructions, and gives
+# no finding. The cut body has no text and no image for the trace. In turn 2, a small
+# `record_limit` kept only 1 of the 2 questions: a questions_lost finding gives the count. In
+# turn 3, a row of an older proxy has no questions and a cut body: the finding says that the
+# record does not have the questions.
+BIG_PHOTO_URL = "data:image/png;base64," + base64.b64encode(PHOTO * 40).decode()
+CUT_DREQUEST = json.dumps(
+    {
+        "model": DMODEL,
+        "input": [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "input_text", "text": COMPLAINT},
+                    {"type": "input_image", "image_url": BIG_PHOTO_URL},
+                ],
+            }
+        ],
+        "questions": DQUESTIONS_2,
+    }
+).encode()
+CUT_DREQUEST_KEPT = CUT_DREQUEST[:200]
+DEPARTMENT_OPTIONS = ["billing", "shipping", "other"]
+KEPT_DQUESTIONS = [dq(DQUESTIONS_2[0], DEPARTMENT_OPTIONS), dq(DQUESTIONS_2[1], [True, False])]
+DECISIONS_CUT_CASE = {
+    "tap": [window(10, 20), window(30, 40), window(50, 60)],
+    "manifest": {"test": "20261020-090000-dq01", "model_sessions": []},
+    "sessions": {},
+    "model_api": [
+        {
+            **mcall(
+                11,
+                "openai",
+                V1_DECISIONS,
+                200,
+                None,
+                request_body=cut_body(CUT_DREQUEST, CUT_DREQUEST_KEPT),
+                response=json.dumps({"model": DMODEL, "answers": DANSWERS_2, "usage": dusage(60)}),
+                result=result(model=DMODEL, usage=dusage(60), answers=DRESULT_2),
+            ),
+            "questions": KEPT_DQUESTIONS,
+            "questions_count": 2,
+        },
+        {
+            **mcall(
+                31,
+                "openai",
+                V1_DECISIONS,
+                200,
+                None,
+                request_body=cut_body(CUT_DREQUEST, CUT_DREQUEST_KEPT),
+                response=json.dumps({"model": DMODEL, "answers": DANSWERS_2, "usage": dusage(60)}),
+                result=result(model=DMODEL, usage=dusage(60), answers=DRESULT_2),
+            ),
+            "questions": KEPT_DQUESTIONS[:1],
+            "questions_count": 2,
+        },
+        mcall(
+            51,
+            "openai",
+            V1_DECISIONS,
+            200,
+            None,
+            request_body=cut_body(CUT_DREQUEST, CUT_DREQUEST_KEPT),
+            response=json.dumps({"model": DMODEL, "answers": DANSWERS_2, "usage": dusage(60)}),
+            result=result(model=DMODEL, usage=dusage(60), answers=DRESULT_2),
+        ),
+    ],
+    "trace": [
+        mitem(
+            1,
+            "openai",
+            11,
+            1,
+            "message",
+            role="user",
+            input={"questions": KEPT_DQUESTIONS, "images": []},
+        ),
+        mitem(
+            1,
+            "openai",
+            12,
+            1,
+            "message",
+            role="assistant",
+            input={**info(V1_DECISIONS, DMODEL, None, dusage(60)), "answers": DRESULT_2},
+            exit_code=200,
+        ),
+        mitem(
+            2,
+            "openai",
+            31,
+            2,
+            "message",
+            role="user",
+            input={"questions": KEPT_DQUESTIONS[:1], "images": []},
+        ),
+        mitem(
+            2,
+            "openai",
+            32,
+            2,
+            "message",
+            role="assistant",
+            input={
+                **info(V1_DECISIONS, DMODEL, None, dusage(60)),
+                "answers": DRESULT_2,
+                "questions_lost": 1,
+            },
+            exit_code=200,
+        ),
+        mitem(
+            3,
+            "openai",
+            52,
+            3,
+            "message",
+            role="assistant",
+            input={
+                **info(V1_DECISIONS, DMODEL, None, dusage(60)),
+                "answers": DRESULT_2,
+                "questions_lost": None,
+            },
+            exit_code=200,
+        ),
+    ],
+    "findings": {
+        "v": "0.2",
+        "test": "20261020-090000-dq01",
+        "turns": 3,
+        "items": 5,
+        "sessions": [],
+        "otel": None,
+        "backend": None,
+        "model_api": {
+            "file": "model_api.jsonl",
+            "rows": 3,
+            "items": 5,
+            "ignored": {},
+            "harness_calls": {},
+            "other_calls": 0,
+        },
+        "mcp": None,
+        "database": None,
+        "counts": counts(questions_lost=2),
+        "findings": [
+            {
+                "check": "questions_lost",
+                "turn": 2,
+                "detail": "openai: /v1/decisions: 1 question of the request is not in the record",
+                "harness": "model_api",
+                "session": "openai",
+                "source": {"file": "model_api.jsonl", "line": 2},
+            },
+            {
+                "check": "questions_lost",
+                "turn": 3,
+                "detail": "openai: /v1/decisions: the request body is cut, and the record does "
+                "not have its questions",
+                "harness": "model_api",
+                "session": "openai",
                 "source": {"file": "model_api.jsonl", "line": 3},
             },
         ],
@@ -4739,6 +4909,7 @@ TRACE_CASES = {
     "servers_not_from_app": SERVERS_CASE,
     "model_api_decisions": DECISIONS_CASE,
     "model_api_cut": CUT_CASE,
+    "model_api_decisions_cut": DECISIONS_CUT_CASE,
     "repeated_reply": REPEATED_CASE,
     "repeated_reply_three": REPEATED_THREE_CASE,
     "repeated_reply_off": REPEATED_OFF_CASE,

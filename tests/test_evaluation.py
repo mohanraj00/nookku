@@ -262,10 +262,11 @@ def test_each_decision_shows_on_one_line_and_a_refusal_is_not_an_error(tmp_path:
     assert text == (
         "[trace.jsonl:1] model_api message, user:\n"
         "My teapot set arrived with a broken lid.\n"
-        "question damaged (predicate)\n"
-        "question department (choice): billing, shipping, other\n"
-        "question severity (score): Low, Medium, High\n"
-        "question mood (choice): calm, angry\n"
+        'question damaged (predicate); instructions: "Does the photo show a damaged item?"\n'
+        "question department (choice): billing, shipping, other; instructions: "
+        '"Which department should handle this complaint?"\n'
+        'question severity (score): Low, Medium, High; instructions: "How severe is the problem?"\n'
+        'question mood (choice): calm, angry; instructions: "Is the customer calm or angry?"\n'
         "image: image/png, 43 bytes, sha256 "
         "8408fd233fa12533815c36b05827df10defdc749b48e092da75d2004ce847cca\n"
         "[trace.jsonl:2] model_api message, assistant: openai /v1/decisions, status 200:\n"
@@ -275,8 +276,10 @@ def test_each_decision_shows_on_one_line_and_a_refusal_is_not_an_error(tmp_path:
         "mood: refusal (the model did not answer this question)\n"
         "[trace.jsonl:3] model_api message, user:\n"
         "I was charged twice for order 5120.\n"
-        "question department (choice): billing, shipping, other\n"
-        "question refund_due (choice): true, false\n"
+        "question department (choice): billing, shipping, other; instructions: "
+        '"Which department should handle this complaint?"\n'
+        "question refund_due (choice): true, false; instructions: "
+        '"Does the customer have a right to a refund?"\n'
         "[trace.jsonl:4] model_api message, assistant: openai /decisions, status 200:\n"
         "department: billing (0.95), confidence 0.93\n"
         "refund_due: true (0.8), confidence 0.7\n"

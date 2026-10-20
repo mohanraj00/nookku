@@ -55,7 +55,7 @@ def harness(headers: list[tuple[str, str]]) -> str | None:
 def _json(text: str) -> Any:
     try:
         return json.loads(text)
-    except ValueError:
+    except (ValueError, RecursionError):  # RecursionError: JSON that nests too deep
         return None
 
 
@@ -348,6 +348,47 @@ def decisions(data: bytes, stream: bool) -> dict[str, Any]:
     return out
 
 
+# The options of a question of the Decisions API: the list in the question, and the field of each
+# option in the list.
+DECISION_OPTIONS = {"choice": ("choices", "value"), "score": ("levels", "label")}
+
+
+def question(asked: dict[str, Any]) -> dict[str, Any]:
+    """The name, the type, the instructions and the options of a question of the Decisions API."""
+    kind = asked.get("type")
+    spec = DECISION_OPTIONS.get(kind) if isinstance(kind, str) else None
+    given = asked.get(spec[0]) if spec else None
+    options = None
+    if spec and isinstance(given, list):
+        options = [o.get(spec[1]) for o in given if isinstance(o, dict)]
+    out = {"name": asked.get("name"), "type": kind}
+    return {**out, "instructions": asked.get("instructions"), "options": options}
+
+
+def questions(
+    data: bytes, encoding: str | None, limit: int
+) -> tuple[list[dict[str, Any]] | None, int | None]:
+    """The questions of the whole request body of a /decisions call, and their count. The list
+    keeps each question in order while its JSON has at most `limit` bytes, so the count can be
+    larger than the list. (None, None) if the body is not a JSON object with a list of questions."""
+    decoded = backend.decode(data, encoding, limit)
+    if decoded is not None and len(decoded) > limit:
+        return None, None
+    request = _json((data if decoded is None else decoded).decode("utf-8", errors="replace"))
+    asked = request.get("questions") if isinstance(request, dict) else None
+    if not isinstance(asked, list):
+        return None, None
+    found = [question(q) for q in asked if isinstance(q, dict)]
+    kept: list[dict[str, Any]] = []
+    size = 2  # the brackets of the list
+    for q in found:
+        size += len(json.dumps(q)) + (2 if kept else 0)  # json.dumps puts ", " between items
+        if size > limit:
+            break
+        kept.append(q)
+    return kept, len(found)
+
+
 # The model calls: the API, the end of the path, and the format of the call. The format selects
 # the parser of the result here and the reader of the request in the trace. To read a new model
 # call, add one row here and one parser to PARSERS.
@@ -401,6 +442,10 @@ class ModelProxy(backend.Proxy):
         # A harness call holds the harness's own instructions. The record keeps no text of it.
         if row["harness"]:
             _omit(row["request_body"])
+        elif call_format(name, row["path"]) == "decisions":
+            # The questions come from the whole body, so a cut of the body drops no question.
+            encoding = next((v for k, v in headers if k.lower() == "content-encoding"), None)
+            row["questions"], row["questions_count"] = questions(body, encoding, self.limit)
 
     def complete(
         self, row: dict[str, Any], body: bytes, encoding: str | None, cut: bool = False
