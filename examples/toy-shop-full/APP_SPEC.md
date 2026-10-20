@@ -16,7 +16,7 @@ The spec of the toy shop support agent. The parts are in [docs/reference/app-spe
 
 ## User goals
 
-1. Order status: the customer gives an order number. The agent looks up the order and tells the customer its status.
+1. Order status: the customer gives an order number. If the customer gives no number, the agent asks for the order number of the customer. The agent looks up the order and tells the customer its status.
 2. Stock: the customer names a product. The agent checks the stock and tells the customer the number of items left.
 3. Reservation: the customer asks to reserve items for an order. The agent checks the stock, reserves the number of items that the customer asked for, and tells the customer the number that it reserved.
 

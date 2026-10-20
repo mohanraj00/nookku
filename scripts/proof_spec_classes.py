@@ -155,12 +155,13 @@ def main() -> int:
 
     spec = parts((project / "APP_SPEC.md").read_text(encoding="utf-8"))
 
+    # A part that the spec does not have fails the check of its class.
+    missing_parts = sorted(p for p in PARTS.values() if p not in spec)
+
     def found(cls: str) -> bool:
-        turn = EXPECTED[cls]
-        return any(
-            r["class"] == cls
-            and r["turn"] == str(turn)
-            and cites(r["evidence"], turn, spec[PARTS[cls]])
+        turn, lines = EXPECTED[cls], spec.get(PARTS[cls])
+        return lines is not None and any(
+            r["class"] == cls and r["turn"] == str(turn) and cites(r["evidence"], turn, lines)
             for r in issues
         )
 
@@ -191,6 +192,7 @@ def main() -> int:
         ),
         "report_written": report_path.exists(),
         "issues": [{k: r[k] for k in ("class", "turn", "evidence")} for r in issues],
+        "spec_parts_missing": missing_parts,
         "S1_off_path_turn_2": found("off_path"),
         "S2_boundary_turn_3": found("boundary"),
         "S3_tone_turn_4": found("tone"),
