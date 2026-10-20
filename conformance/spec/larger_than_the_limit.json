@@ -1,0 +1,10 @@
+{
+ "files": {},
+ "sizes": {
+  "APP_SPEC.md": 1048577
+ },
+ "spec": [
+  "APP_SPEC.md"
+ ],
+ "error": ".nookku/config.json: the spec file 'APP_SPEC.md' has more than 1048576 bytes"
+}

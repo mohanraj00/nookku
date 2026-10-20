@@ -39,7 +39,7 @@ from nookku.config import FILE as CONFIG_FILE
 from nookku.config import HARNESSES as HARNESSES
 from nookku.config import NO_ENTRY as NO_ENTRY
 from nookku.config import STATE_DIR as STATE_DIR
-from nookku.config import ConfigError, read_config, spec_files
+from nookku.config import ConfigError, read_config, spec_contents
 from nookku.config import has_entry as has_entry
 from nookku.record import RecordError, Writer, turns
 
@@ -124,17 +124,11 @@ def load_config(root: Path, entry_name: str | None = None) -> TestConfig:
     try:
         data = read_config(root)
         rules = policy.read(root)
-        paths = data.get("spec") or []
-        texts = [f.read_bytes() for f in spec_files(root, paths)]
-        spec = [
-            {"path": p, "sha256": hashlib.sha256(b).hexdigest()}
-            for p, b in zip(paths, texts, strict=True)
-        ]
-        points = app_spec.read([b.decode("utf-8", "replace") for b in texts])
+        contents = spec_contents(root, data.get("spec") or [])
+        spec = [h for h, _ in contents]
+        points = app_spec.read([b.decode("utf-8", "replace") for _, b in contents])
     except (ConfigError, policy.PolicyError) as e:
         raise BridgeError(str(e)) from None
-    except OSError as e:
-        raise BridgeError(f"cannot read a spec file: {e}") from None
     entry, models = data.get("entry") or [], data.get("models") or []
     if entry_name is not None:
         entries = data.get("entries") or {}

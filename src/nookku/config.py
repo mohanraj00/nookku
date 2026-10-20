@@ -6,7 +6,9 @@ one rule applies to its keys. Each part then checks the values that it uses.
 
 from __future__ import annotations
 
+import errno
 import json
+import os
 import re
 import sys
 from dataclasses import dataclass, field, fields
@@ -181,8 +183,16 @@ def _check_types(data: dict[str, Any]) -> None:
     if not (isinstance(models, list) and all(m in HARNESSES for m in models)):
         raise ConfigError(f"{FILE}: 'models' must be a list of {', '.join(HARNESSES)}")
     spec = data.get("spec", [])
-    if not (isinstance(spec, list) and all(isinstance(p, str) and p.strip() for p in spec)):
+    if not (
+        isinstance(spec, list)
+        and all(isinstance(p, str) and p.strip() and "\x00" not in p for p in spec)
+    ):
         raise ConfigError(f"{FILE}: 'spec' must be a list of file paths")
+    if len(spec) > SPEC_COUNT:
+        raise ConfigError(f"{FILE}: 'spec' must have {SPEC_COUNT} paths or fewer")
+    twice = sorted({p for p in spec if spec.count(p) > 1})
+    if twice:
+        raise ConfigError(f"{FILE}: 'spec' has the path {twice[0]!r} more than one time")
 
 
 # The variable of an egress part: the entry gets it, and Popen refuses a name with "=" or NUL.
@@ -248,20 +258,105 @@ def check(data: Any) -> dict[str, Any]:
     return data
 
 
-def spec_files(root: Path, spec: list[str]) -> list[Path]:
-    """The resolved file of each path of the config key spec. The tester or the model writes the
-    paths, so each one must be a file in the project after symlinks resolve (SPEC.md section
-    7.1). Raise ConfigError for the first path that breaks this rule."""
+# The most bytes of one spec file (SPEC.md section 7.1). A spec is text for a model, so 1 MiB is
+# a chosen bound, not a measurement.
+SPEC_LIMIT = 1024 * 1024
+# The most paths of the config key spec. A spec has 5 parts, so 20 files is a chosen bound.
+SPEC_COUNT = 20
+
+
+def spec_file(root: Path, path: str) -> Path:
+    """The resolved file of one path of the config key spec. The tester or the model writes the
+    path, so it must be a file in the project after symlinks resolve, and not in the state
+    folder (SPEC.md section 7.1). Raise ConfigError if it breaks this rule."""
     top = root.resolve()
-    files = []
-    for path in spec:
+    try:
         file = (top / path).resolve()
-        if not file.is_relative_to(top):
-            raise ConfigError(f"{FILE}: the spec file {path!r} is not in the project folder")
-        if not file.is_file():
-            raise ConfigError(f"{FILE}: the spec file {path!r} is not a file")
-        files.append(file)
-    return files
+    # Python 3.10 to 3.12 raise RuntimeError for a symlink loop.
+    except (OSError, ValueError, RuntimeError):
+        raise ConfigError(f"{FILE}: the spec file {path!r} is not a file") from None
+    if not file.is_relative_to(top):
+        raise ConfigError(f"{FILE}: the spec file {path!r} is not in the project folder")
+    parts = file.relative_to(top).parts
+    if parts and parts[0].casefold() in (STATE_DIR, OLD_STATE_DIR):
+        raise ConfigError(f"{FILE}: the spec file {path!r} is in the state folder {STATE_DIR}")
+    if not file.is_file():
+        raise ConfigError(f"{FILE}: the spec file {path!r} is not a file")
+    return file
+
+
+def spec_sha256(root: Path, path: str) -> str:
+    """The SHA-256 of one spec file (spec_bytes). Raise ConfigError."""
+    import hashlib
+
+    return hashlib.sha256(spec_bytes(root, path)).hexdigest()
+
+
+def spec_bytes(root: Path, path: str) -> bytes:
+    """The bytes of one spec file. The file is opened with no follow of a last symlink and
+    must be a regular file of SPEC_LIMIT bytes or less, so a file that changes after the check
+    cannot make the read follow a symlink, block or take all of the memory. Raise ConfigError."""
+    import stat
+
+    file = spec_file(root, path)
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
+    try:
+        checked = os.stat(file)
+        fd = os.open(file, flags)
+    except OSError as e:
+        if e.errno == errno.ELOOP:
+            raise ConfigError(f"{FILE}: the spec file {path!r} is not a file") from None
+        raise ConfigError(f"{FILE}: cannot read the spec file {path!r}: {e.strerror}") from None
+    with os.fdopen(fd, "rb") as f:
+        try:
+            info = os.fstat(f.fileno())
+            if not stat.S_ISREG(info.st_mode):
+                raise ConfigError(f"{FILE}: the spec file {path!r} is not a file")
+            # A folder of the path can change between the check and the open.
+            if (info.st_dev, info.st_ino) != (checked.st_dev, checked.st_ino):
+                raise ConfigError(f"{FILE}: the spec file {path!r} changed during the check")
+            if info.st_size > SPEC_LIMIT:
+                raise ConfigError(
+                    f"{FILE}: the spec file {path!r} has more than {SPEC_LIMIT} bytes"
+                )
+            blocks, size = [], 0
+            for block in iter(lambda: f.read(1 << 16), b""):
+                size += len(block)
+                if size > SPEC_LIMIT:
+                    raise ConfigError(
+                        f"{FILE}: the spec file {path!r} has more than {SPEC_LIMIT} bytes"
+                    )
+                blocks.append(block)
+        except OSError as e:
+            raise ConfigError(f"{FILE}: cannot read the spec file {path!r}: {e.strerror}") from None
+    return b"".join(blocks)
+
+
+def spec_hashes(root: Path, spec: list[str]) -> list[dict[str, str]]:
+    """The path and the SHA-256 of each file of the config key spec, as the manifest records
+    them (SPEC.md section 7.2). Raise ConfigError for the first path that breaks the rule."""
+    return [h for h, _ in spec_contents(root, spec)]
+
+
+def spec_contents(root: Path, spec: list[str]) -> list[tuple[dict[str, str], bytes]]:
+    """For each file of the config key spec: its path and SHA-256 (spec_hashes) and the bytes
+    that give the SHA-256, from one read. Raise ConfigError for the first path that breaks the
+    rule."""
+    import hashlib
+
+    seen: dict[Path, str] = {}
+    for path in spec:
+        file = spec_file(root, path)
+        if file in seen:
+            raise ConfigError(
+                f"{FILE}: the spec paths {seen[file]!r} and {path!r} name the same file"
+            )
+        seen[file] = path
+    out = []
+    for path in spec:
+        data = spec_bytes(root, path)
+        out.append(({"path": path, "sha256": hashlib.sha256(data).hexdigest()}, data))
+    return out
 
 
 def _load(root: Path) -> Any:
