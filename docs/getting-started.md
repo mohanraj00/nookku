@@ -320,6 +320,7 @@ cat .nookku/tests/20261019-144117-cfcd/findings.json
   "span_error": 0,
   "backend_error": 0,
   "model_api_error": 0,
+  "questions_lost": 0,
   "database_error": 0,
   "unseen_call": 0,
   "model_error": 0,

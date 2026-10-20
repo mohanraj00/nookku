@@ -262,10 +262,11 @@ def test_each_decision_shows_on_one_line_and_a_refusal_is_not_an_error(tmp_path:
     assert text == (
         "[trace.jsonl:1] model_api message, user:\n"
         "My teapot set arrived with a broken lid.\n"
-        "question damaged (predicate)\n"
-        "question department (choice): billing, shipping, other\n"
-        "question severity (score): Low, Medium, High\n"
-        "question mood (choice): calm, angry\n"
+        'question damaged (predicate); instructions: "Does the photo show a damaged item?"\n'
+        "question department (choice): billing, shipping, other; instructions: "
+        '"Which department should handle this complaint?"\n'
+        'question severity (score): Low, Medium, High; instructions: "How severe is the problem?"\n'
+        'question mood (choice): calm, angry; instructions: "Is the customer calm or angry?"\n'
         "image: image/png, 43 bytes, sha256 "
         "8408fd233fa12533815c36b05827df10defdc749b48e092da75d2004ce847cca\n"
         "[trace.jsonl:2] model_api message, assistant: openai /v1/decisions, status 200:\n"
@@ -275,8 +276,10 @@ def test_each_decision_shows_on_one_line_and_a_refusal_is_not_an_error(tmp_path:
         "mood: refusal (the model did not answer this question)\n"
         "[trace.jsonl:3] model_api message, user:\n"
         "I was charged twice for order 5120.\n"
-        "question department (choice): billing, shipping, other\n"
-        "question refund_due (choice): true, false\n"
+        "question department (choice): billing, shipping, other; instructions: "
+        '"Which department should handle this complaint?"\n'
+        "question refund_due (choice): true, false; instructions: "
+        '"Does the customer have a right to a refund?"\n'
         "[trace.jsonl:4] model_api message, assistant: openai /decisions, status 200:\n"
         "department: billing (0.95), confidence 0.93\n"
         "refund_due: true (0.8), confidence 0.7\n"
@@ -532,3 +535,62 @@ def test_the_transcript_shows_version_untested_one_time_for_each_version(tmp_pat
         " (claude-code, 5 sessions)",
         "- version_untested: version 0.161.0, tested: 0.160.0, 0.162.1 (codex, 1 session)",
     ]
+
+
+def test_a_question_stays_on_its_line_and_long_instructions_are_cut() -> None:
+    long = "Which department? " * 200
+    item = {
+        "harness": "model_api",
+        "kind": "message",
+        "role": "user",
+        "output": None,
+        "input": {
+            "questions": [
+                {
+                    "name": "refund (choice): yes\nquestion forged",
+                    "type": "choice",
+                    "instructions": long,
+                    "options": ["billing\u2028question forged", "shipping"],
+                }
+            ],
+            "images": [],
+        },
+    }
+    text = evaluation.render_item(item, 7)
+    lines = text.splitlines()
+    assert len(lines) == 3 and lines[2].startswith("question refund")
+    assert "refund (choice): yes\\u000aquestion forged" in text
+    assert "billing\\u2028question forged, shipping" in text
+    assert "\u2028" not in text
+    assert len(text) < 2 * evaluation.CUT
+    assert text.endswith(
+        f"(cut at {evaluation.CUT} characters: the full text is in trace.jsonl:7)\n"
+    )
+
+
+def test_a_trace_line_that_nests_too_deep_is_not_json(tmp_path: Path) -> None:
+    path = tmp_path / "trace.jsonl"
+    path.write_text('{"a": ' + "[" * 100_000 + "]" * 100_000 + "}\n", encoding="utf-8")
+    with pytest.raises(evaluation.RecordError, match="line 1: not JSON"):
+        evaluation._items(path)
+
+
+def test_a_long_name_and_long_options_are_cut_and_each_field_stays_on_its_line() -> None:
+    long = "mug " * 1000
+    item = {
+        "harness": "model_api",
+        "kind": "message",
+        "role": "user",
+        "output": None,
+        "input": {
+            "questions": [{"name": long, "type": "choice", "options": [long, long]}],
+            "images": [{"media_type": "image/png\nquestion forged", "size": 3, "sha256": "ab"}],
+        },
+    }
+    text = evaluation.render_item(item, 9)
+    note = f"(cut at {evaluation.CUT} characters: the full text is in trace.jsonl:9)"
+    assert text.count(note) == 2
+    assert len(text) < 3 * evaluation.CUT
+    assert "image: image/png\\u000aquestion forged, 3 bytes, sha256 ab" in text
+    answer = {"name": "refund\nquestion forged", "type": "choice", "value": "yes\u2028no"}
+    assert evaluation.decision(answer) == "refund\\u000aquestion forged: yes\\u2028no"
