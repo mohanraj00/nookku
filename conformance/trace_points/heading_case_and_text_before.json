@@ -1,0 +1,12 @@
+{
+ "files": [
+  "## trace POINTS ##\n\nThe app sends these.\n\n| Name | Source | When |\n|---|---|---|\n| `reserve` | `session` | Turn 2 |\n"
+ ],
+ "expect": [
+  {
+   "name": "reserve",
+   "source": "session",
+   "when": "Turn 2"
+  }
+ ]
+}

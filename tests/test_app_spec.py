@@ -1,0 +1,116 @@
+"""The trace points of the app spec (SPEC.md sections 7.2 and 8.6)."""
+
+import json
+from pathlib import Path
+
+import pytest
+
+from nookku import app_spec, bridge
+
+CASES = sorted(
+    (Path(__file__).resolve().parent.parent / "conformance" / "trace_points").glob("*.json")
+)
+
+
+@pytest.mark.parametrize("case", CASES, ids=[c.stem for c in CASES])
+def test_each_case_gives_its_trace_points(case: Path) -> None:
+    data = json.loads(case.read_text(encoding="utf-8"))
+    assert app_spec.read(data["files"]) == data["expect"]
+
+
+@pytest.mark.parametrize(
+    ("source", "when", "form"),
+    [
+        ("otel", "Each turn", ("each_turn", None)),
+        ("backend", " each TURN. ", ("each_turn", None)),
+        ("session", "Turn 3.", ("turn", 3)),
+        ("backend", "Each `check_stock` tool call.", ("each_call", "check_stock")),
+        ("model_api", "Each turn that asks about stock.", None),
+        ("session", "Turn 0", None),
+        ("session", "Each turn, after the reply", None),
+        ("database", "Each turn", None),
+        ("mcp", "Each turn", None),
+    ],
+)
+def test_only_a_known_source_and_when_form_is_checked(source: str, when: str, form: object) -> None:
+    assert app_spec.rule({"name": "x", "source": source, "when": when}) == form
+
+
+def _item(turn: int | None, harness: str, kind: str, name: str | None, **more: object) -> dict:
+    it = {"turn": turn, "harness": harness, "kind": kind, "name": name, "role": None}
+    return {"session": "s", "harness_internal": False, **it, **more}
+
+
+def test_a_tool_call_needs_one_item_for_each_call_in_its_turn() -> None:
+    point = {
+        "name": "stock GET /stock",
+        "source": "backend",
+        "when": "Each `check_stock` tool call",
+    }
+    items = [
+        _item(1, "claude-code", "tool_call", "check_stock"),
+        _item(1, "claude-code", "tool_call", "check_stock"),
+        _item(1, "backend", "http", "GET /stock", session="stock"),
+        _item(2, "codex", "tool_call", "check_stock"),
+        _item(2, "backend", "http", "GET /stock", session="stock"),
+        # A call with no turn needs nothing, and a harness tool is not a tool of the app.
+        _item(None, "claude-code", "tool_call", "check_stock"),
+        _item(3, "claude-code", "tool_call", "check_stock", harness_internal=True),
+    ]
+    assert app_spec.missing([point], items, 3) == [
+        (
+            1,
+            "stock GET /stock (backend): 1 of 2 items for 2 check_stock tool calls in this "
+            "turn. When: Each check_stock tool call",
+        ),
+    ]
+
+
+def test_an_item_of_another_source_does_not_count() -> None:
+    points = [
+        {"name": "openai", "source": "model_api", "when": "Each turn"},
+        {"name": "lookup_order", "source": "session", "when": "Turn 1"},
+        {"name": "user", "source": "session", "when": "Turn 2"},
+        {"name": "shop.reply", "source": "otel", "when": "Turn 1"},
+    ]
+    items = [
+        # The user message of a model API call is not the call: its assistant message is.
+        _item(1, "model_api", "message", None, role="user", session="openai"),
+        _item(1, "mcp", "tool_call", "lookup_order"),
+        _item(2, "model_api", "message", None, role="user", session="openai"),
+        _item(1, "claude-code", "span", "shop.reply"),
+    ]
+    found = app_spec.missing(points, items, 2)
+    assert [(turn, detail.split(" (")[0]) for turn, detail in found] == [
+        (1, "openai"),
+        (2, "openai"),
+        (1, "lookup_order"),
+        (2, "user"),
+        (1, "shop.reply"),
+    ]
+
+
+@pytest.mark.parametrize("points", [None, "x", {}, 3])
+def test_a_manifest_with_no_list_has_no_trace_points(points: object) -> None:
+    assert app_spec.summary(points) is None
+    assert app_spec.valid(points) == []
+
+
+def test_a_point_with_a_field_that_is_not_text_is_dropped() -> None:
+    good = {"name": "a", "source": "otel", "when": "Each turn", "more": 1}
+    points = [good, {"name": "b", "source": "otel"}, {"name": 1, "source": "otel", "when": "x"}, 5]
+    assert app_spec.summary(points) == [
+        {"name": "a", "source": "otel", "when": "Each turn", "checked": True}
+    ]
+
+
+def test_the_start_records_the_trace_points_of_the_spec(tmp_path: Path) -> None:
+    (tmp_path / ".nookku").mkdir()
+    spec = "## Trace points\n\n| Name | Source | When |\n|---|---|---|\n| `x` | `otel` | Turn 1 |\n"
+    (tmp_path / "APP_SPEC.md").write_bytes(spec.encode() + b"\xff\n")
+    (tmp_path / "RULES.md").write_text("# Rules\n")
+    config = {"entry": ["python3", "agent.py"], "spec": ["APP_SPEC.md", "RULES.md"]}
+    (tmp_path / ".nookku" / "config.json").write_text(json.dumps(config))
+    loaded = bridge.load_config(tmp_path)
+    assert loaded.trace_points == [{"name": "x", "source": "otel", "when": "Turn 1"}]
+    assert [f["path"] for f in loaded.spec] == ["APP_SPEC.md", "RULES.md"]

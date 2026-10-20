@@ -1,0 +1,12 @@
+{
+ "files": [
+  "## Trace points\n\n| Name | Source | When |\n|---|---|---|\n| `reserve` | `session` |\n| | `session` | Turn 1 |\n| `a` | `b` | `c` | `d` |\n| `lookup_order` | `session` | Turn 1 \\| turn 2 |\n|:---|:---:|---:|\n"
+ ],
+ "expect": [
+  {
+   "name": "lookup_order",
+   "source": "session",
+   "when": "Turn 1 | turn 2"
+  }
+ ]
+}

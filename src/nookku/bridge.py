@@ -21,6 +21,7 @@ from typing import Any
 
 from nookku import (
     __version__,
+    app_spec,
     backend,
     db_proxy,
     discovery,
@@ -110,6 +111,8 @@ class TestConfig:
     # Each file of the app spec: its path as the config gives it and its SHA-256 (SPEC.md
     # section 7.2).
     spec: list[dict[str, str]] = field(default_factory=list)
+    # The rows of the Trace points table of the app spec (SPEC.md sections 7.2 and 8.6).
+    trace_points: list[dict[str, str]] = field(default_factory=list)
 
 
 def load_config(root: Path, entry_name: str | None = None) -> TestConfig:
@@ -122,10 +125,12 @@ def load_config(root: Path, entry_name: str | None = None) -> TestConfig:
         data = read_config(root)
         rules = policy.read(root)
         paths = data.get("spec") or []
+        texts = [f.read_bytes() for f in spec_files(root, paths)]
         spec = [
-            {"path": p, "sha256": hashlib.sha256(f.read_bytes()).hexdigest()}
-            for p, f in zip(paths, spec_files(root, paths), strict=True)
+            {"path": p, "sha256": hashlib.sha256(b).hexdigest()}
+            for p, b in zip(paths, texts, strict=True)
         ]
+        points = app_spec.read([b.decode("utf-8", "replace") for b in texts])
     except (ConfigError, policy.PolicyError) as e:
         raise BridgeError(str(e)) from None
     except OSError as e:
@@ -145,7 +150,7 @@ def load_config(root: Path, entry_name: str | None = None) -> TestConfig:
     message = data.get("check_message", CHECK_MESSAGE)
     keys = {k: data.get(k, default) for k, default in trace.TRACE_KEYS.items()}
     limit = data.get("record_limit", backend.RECORD_LIMIT)
-    return TestConfig(entry, models, otel, rules, message, keys, entry_name, limit, spec)
+    return TestConfig(entry, models, otel, rules, message, keys, entry_name, limit, spec, points)
 
 
 def egress_proxies(
@@ -789,6 +794,7 @@ def run(
         "policy": config.policy,
         "trace": config.trace,
         "spec": config.spec,
+        "trace_points": config.trace_points,
         "tester_sessions": [tester_session] if tester_session else [],
         "model_sessions": [],
         "codex_gate": {"start": _start_gate(folder), "end": None},

@@ -1,0 +1,54 @@
+{
+ "test": "20261020-080000-tp01",
+ "model_sessions": [
+  {
+   "harness": "claude-code",
+   "session": "4f1c2a7e-0d3b-4c55-9a61-2b8e5d7c9f10",
+   "pid": 4471,
+   "inferred": false,
+   "file": "sessions/claude-code/4f1c2a7e-0d3b-4c55-9a61-2b8e5d7c9f10.jsonl"
+  }
+ ],
+ "trace_points": [
+  {
+   "name": "check_stock",
+   "source": "session",
+   "when": "Each turn that asks about stock."
+  },
+  {
+   "name": "check_stock",
+   "source": "session",
+   "when": "Turn 2."
+  },
+  {
+   "name": "lookup_order",
+   "source": "session",
+   "when": "Turn 5"
+  },
+  {
+   "name": "assistant",
+   "source": "session",
+   "when": "Each turn."
+  },
+  {
+   "name": "stock GET /stock",
+   "source": "backend",
+   "when": "Each `check_stock` tool call."
+  },
+  {
+   "name": "openai",
+   "source": "model_api",
+   "when": "Each turn."
+  },
+  {
+   "name": "shop.reply",
+   "source": "otel",
+   "when": "each turn"
+  },
+  {
+   "name": "audit_log",
+   "source": "database",
+   "when": "Each turn."
+  }
+ ]
+}

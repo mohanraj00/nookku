@@ -46,6 +46,16 @@ The `Source` of a trace point is the record that shows it ([records.md](records.
 | `model_api` | a direct model call through a model API proxy. `Name` is the model API. |
 | `otel` | an OpenTelemetry span or log of the app. `Name` is the span name or the event name. |
 
+The `When` says the turns where the trace point must occur. The [trace](glossary.md#trace) checks 3 forms itself, with no model, and gives the [finding](glossary.md#findings) `missing_trace_point` for each turn that does not have the trace point ([SPEC.md section 8.6](../../SPEC.md#86-findings)):
+
+| When | The trace point must occur ... |
+|---|---|
+| `Each turn` | 1 time or more in each turn. |
+| `Turn N` | 1 time or more in turn `N`, for example `Turn 2`. |
+| `Each <tool> tool call` | 1 time for each call of the tool in the session file, in the same turn. For example, `Each check_stock tool call`. |
+
+The case of the words, the backticks and a `.` at the end do not matter. The trace does not check a `When` in other words, for example `Each turn that asks about an order`, or a source that is not in the table above. `trace_points` in `findings.json` shows each trace point with `checked: false`. The model of the evaluation reads the spec, but no check of the trace covers these trace points.
+
 ## Example: the toy shop
 
 The [full toy shop](../../examples/toy-shop-full/README.md) has the spec [APP_SPEC.md](../../examples/toy-shop-full/APP_SPEC.md), with its rules in [RULES.md](../../examples/toy-shop-full/RULES.md). Its config has:

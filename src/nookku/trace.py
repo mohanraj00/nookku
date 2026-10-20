@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
-from . import backend, db_proxy, mcp_proxy, model_api, otlp
+from . import app_spec, backend, db_proxy, mcp_proxy, model_api, otlp
 from .adapters import AdapterError, pick
 from .config import MATCHES
 from .discovery import db_system, driver_address
@@ -61,6 +61,7 @@ CHECKS = (
     "server_not_from_app",
     "session_inferred",
     "version_untested",
+    "missing_trace_point",
 )
 # The default of the config key repeated_reply: the count of consecutive turns with the same
 # reply that gives a repeated_reply finding (SPEC.md section 8.6).
@@ -1247,13 +1248,15 @@ def check(
     keys: dict[str, Any] | None = None,
     errors: list[dict[str, Any]] | None = None,
     seen: set[str] | None = None,
+    points: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     """The findings of SPEC.md section 8.6. They do not change the audit's exit code. `seen`
     holds the addresses of the proxies (egress_seen), or None if the test has no egress answer.
     `servers`
     holds the MCP servers that the Claude Code session files name (read_claude_servers).
     `keys` holds the config keys of the checks that the manifest records (trace_keys).
-    `errors` holds the model errors of the Codex session files (read_codex_errors)."""
+    `errors` holds the model errors of the Codex session files (read_codex_errors).
+    `points` holds the trace points of the app spec in the manifest (app_spec.valid)."""
     keys = {**TRACE_KEYS, **(keys or {})}
     out: list[dict[str, Any]] = []
     # A call to an MCP server is a call of the app, not an item of the model.
@@ -1327,6 +1330,8 @@ def check(
         if s.get("version") is not None and s["version"] not in tested:
             detail = f"version {s.get('version')}, tested: {', '.join(tested)}"
             out.append(_finding("version_untested", None, detail, **where))
+    for turn, detail in app_spec.missing(points or [], items, len(exchanges)):
+        out.append(_finding("missing_trace_point", turn, detail))
     order = {c: n for n, c in enumerate(CHECKS)}
     big = len(exchanges) + 1
     out.sort(key=lambda f: (order[f["check"]], f["turn"] if f["turn"] is not None else big))
@@ -1391,7 +1396,8 @@ def build(folder: Path) -> dict[str, Any]:
     items.sort(key=lambda it: it["ts"] if it["ts"] is not None else float("inf"))
     assign(items, spans)
     keys, seen = trace_keys(manifest), egress_seen(manifest)
-    findings = check(exchanges, spans, items, sessions, servers, keys, errors, seen)
+    points = app_spec.valid(manifest.get("trace_points"))
+    findings = check(exchanges, spans, items, sessions, servers, keys, errors, seen, points)
     lines = [json_text({k: v for k, v in it.items() if k != CALL_ID}) + "\n" for it in items]
     (folder / "trace.jsonl").write_text("".join(lines), encoding="utf-8")
     counts = Counter(f["check"] for f in findings)
@@ -1406,6 +1412,7 @@ def build(folder: Path) -> dict[str, Any]:
         "model_api": direct,
         "mcp": servers_mcp,
         "database": queries,
+        "trace_points": app_spec.summary(manifest.get("trace_points")),
         "counts": {c: counts[c] for c in CHECKS},
         "findings": findings,
     }

@@ -1,0 +1,19 @@
+{
+ "files": [
+  "## Trace points\n\n| Name | Source | When |\n|---|---|---|\n| `reserve` | `session` | Turn 2 |\n",
+  "# Rules\n\n- No refunds.\n",
+  "## Trace points\n\n| Name | Source | When |\n|---|---|---|\n| `shop.reply` | `otel` | Each turn |\n"
+ ],
+ "expect": [
+  {
+   "name": "reserve",
+   "source": "session",
+   "when": "Turn 2"
+  },
+  {
+   "name": "shop.reply",
+   "source": "otel",
+   "when": "Each turn"
+  }
+ ]
+}

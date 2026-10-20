@@ -9,6 +9,7 @@
  "model_api": null,
  "mcp": null,
  "database": null,
+ "trace_points": null,
  "counts": {
   "agent_error": 1,
   "repeated_reply": 2,
@@ -26,7 +27,8 @@
   "otel_tool_not_in_session": 0,
   "server_not_from_app": 0,
   "session_inferred": 0,
-  "version_untested": 0
+  "version_untested": 0,
+  "missing_trace_point": 0
  },
  "findings": [
   {

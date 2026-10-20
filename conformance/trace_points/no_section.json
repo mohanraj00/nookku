@@ -1,0 +1,6 @@
+{
+ "files": [
+  "# Spec\n\n## Limits\n\n| Limit | Value | Meaning |\n|---|---|---|\n| `turn_seconds` | 30 | The most seconds. |\n"
+ ],
+ "expect": []
+}

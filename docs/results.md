@@ -214,6 +214,22 @@ The app's session files are from Claude Code 2.1.301, bundled in Agent SDK 0.2.1
 
 In each run, the stock service had 2 reservations for the 1 teapot set that the tester asked for. These runs used Agent SDK 0.2.168, which bundles Claude Code 2.1.301 ([#35](https://github.com/mohanraj00/nookku/issues/35), [Trace of the model sessions](#trace-of-the-model-sessions)). In each of the 4 runs, the proxy marked 6 of its calls as harness calls and kept no text of them. The Claude Code runs used nookku 0.5.3 on 2026-10-19. The toy note model gives a fixed answer, so this proof does not show a real model behind the direct call. [proofs/model-api/](../proofs/model-api/results.json) shows the proxy with the stream formats of both APIs.
 
+### Expected trace points
+
+[scripts/proof_trace_points.py](../scripts/proof_trace_points.py) runs a test of a copy of the [full toy shop](../examples/toy-shop-full/app.py) with its [app spec](../examples/toy-shop-full/APP_SPEC.md) ([#318](https://github.com/mohanraj00/nookku/issues/318)). The spec has 5 trace points. The trace checks 2 of them with no model, because their `When` has a form that the trace knows ([app-spec.md](reference/app-spec.md#trace-points)): `openai` (`model_api`, `Each turn.`) and `stock GET /stock` (`backend`, `Each check_stock tool call.`). The proof plants one change in the copy, not in the example: the app sends no case note in turn 2. The tester asks about the stock in each of the 3 turns. The Agent SDK session uses the real Anthropic API, and the stock service and the toy note model run on local ports, as in the telemetry proof above.
+
+- **TP1:** `findings.json` has 1 `missing_trace_point` finding: `openai` in turn 2. It has no other `missing_trace_point` finding.
+- **TP2:** the trace has a case note call in turns 1 and 3, and none in turn 2.
+- **TP3:** the trace checks `stock GET /stock`, and each turn has 1 backend call or more for each `check_stock` tool call.
+- **P7:** after the evaluation, `nookku verify` finds the test folder intact.
+
+| Form | Harness | Case notes by turn | Finding | TP1 | TP2 | TP3 | P7 | Result | Data |
+|---|---|---|---|---|---|---|---|---|---|
+| Plugin | Claude Code 2.1.302 | 1 / 0 / 1 | `openai (model_api): 0 of 1 items in this turn. When: Each turn.`, turn 2 | pass | pass | pass | pass | pass | [results](../proofs/trace-points/plugin-claude-code.json) |
+| Project hooks | Claude Code 2.1.302 | 1 / 0 / 1 | `openai (model_api): 0 of 1 items in this turn. When: Each turn.`, turn 2 | pass | pass | pass | pass | pass | [results](../proofs/trace-points/hooks-claude-code.json) |
+
+The runs used nookku 0.5.3 with the code of this check on 2026-10-20, with Agent SDK 0.2.168, which bundles Claude Code 2.1.301 (the key `versions` of each results file). The Codex setups run in v0.5.5 ([#437](https://github.com/mohanraj00/nookku/issues/437)). The other 3 trace points of the spec have a `When` in other words, for example `Each turn that asks about an order`. The trace does not check them, and `trace_points` in `findings.json` shows them with `checked: false`. The finding needs no model, so the [conformance case](../conformance/trace/trace_points_toy_shop/) checks the same rule in each CI run.
+
 ### Egress discovery, the MCP proxies and the Postgres proxy
 
 [scripts/proof_egress.py](../scripts/proof_egress.py) runs a test of the [egress toy shop](../examples/toy-shop-egress/app.py) in each relay. The app is an Agent SDK session with a [catalog MCP server](../examples/toy-shop-egress/catalog_mcp.py) over HTTP, a [notes MCP server](../examples/toy-shop-egress/notes_mcp.py) over stdio, the orders in Postgres 16 (in Docker) and the returns in a SQLite file. The app sends the OpenTelemetry spans of its psycopg and sqlite3 drivers. The tester types `nookku start`, and the [harness model](reference/glossary.md#harness-model) reads the app, writes its egress answer to `.nookku/egress.json` and runs `nookku register --file .nookku/egress.json`. The script gives no part of the answer. The test has 3 turns and no evaluation.
@@ -290,6 +306,8 @@ uv run python scripts/proof_telemetry.py plugin-claude-code
 uv run python scripts/proof_telemetry.py plugin-codex
 uv run python scripts/proof_telemetry.py hooks-claude-code
 uv run python scripts/proof_telemetry.py hooks-codex
+uv run python scripts/proof_trace_points.py plugin-claude-code
+uv run python scripts/proof_trace_points.py hooks-claude-code
 uv run python scripts/proof_egress.py plugin-claude-code
 uv run python scripts/proof_egress.py plugin-codex
 uv run python scripts/proof_egress.py hooks-claude-code

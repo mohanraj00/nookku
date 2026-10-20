@@ -1,0 +1,6 @@
+{
+ "files": [
+  "## Trace points\n\n## Limits\n\n| Name | Source | When |\n|---|---|---|\n| `reserve` | `session` | Turn 2 |\n"
+ ],
+ "expect": []
+}

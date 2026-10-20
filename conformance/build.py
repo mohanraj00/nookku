@@ -837,6 +837,7 @@ def counts(**n: int) -> dict:
         "server_not_from_app",
         "session_inferred",
         "version_untested",
+        "missing_trace_point",
     )
     return {c: n.get(c, 0) for c in checks}
 
@@ -4724,6 +4725,216 @@ API_REQUEST_CASE = {
     },
 }
 
+# The trace points of the app spec (SPEC.md section 8.6, missing_trace_point). The app checks the
+# stock in each turn. Turn 2 has no call to the stock backend for its check_stock call, turn 3 has
+# 1 call for 2 check_stock calls, and turn 3 has no case note.
+POINT_REPLIES = ["We have 3 teapot sets.", "We still have 3.", "We have 3 and 5 robot kits."]
+POINT_NOTE = {"model": "note-toy", "messages": [{"role": "user", "content": "Case note."}]}
+POINTS = [
+    {"name": "check_stock", "source": "session", "when": "Each turn that asks about stock."},
+    {"name": "check_stock", "source": "session", "when": "Turn 2."},
+    {"name": "lookup_order", "source": "session", "when": "Turn 5"},
+    {"name": "assistant", "source": "session", "when": "Each turn."},
+    {"name": "stock GET /stock", "source": "backend", "when": "Each `check_stock` tool call."},
+    {"name": "openai", "source": "model_api", "when": "Each turn."},
+    {"name": "shop.reply", "source": "otel", "when": "each turn"},
+    {"name": "audit_log", "source": "database", "when": "Each turn."},
+]
+# The trace checks a known source with the When forms `Each turn`, `Turn N` and
+# `Each <tool> tool call`.
+POINTS_CHECKED = [False, True, True, True, True, True, True, False]
+
+
+def point_use(t: float, tid: str, sku: str) -> list[dict]:
+    """The tool_use line and the tool_result line of one check_stock call."""
+    call_line = cc_line("assistant", t, [use(tid, "mcp__shop__check_stock", {"sku": sku})])
+    left = [{"type": "text", "text": f"{sku}: 3 left"}]
+    return [call_line, cc_line("user", t + 0.5, [cc_result(tid, left)])]
+
+
+def point_stock(t: float, sku: str) -> dict:
+    return call(t, "stock", "GET", "/stock", 200, query=f"sku={sku}", response=body("3"))
+
+
+def point_note(t: float) -> dict:
+    note = json.dumps({"choices": [{"message": {"role": "assistant", "content": "Noted."}}]})
+    return {
+        **mcall(t, "openai", COMPLETIONS, 200, POINT_NOTE, response=note),
+        "result": result(model="note-toy", text="Noted.", stop_reason="stop"),
+    }
+
+
+def point_row(turn: int, harness: str, ts: float, kind: str, line: int, **fields: Any) -> dict:
+    """An expected trace row of a file that is not a session file."""
+    files = {"backend": "backend.jsonl", "model_api": "model_api.jsonl", "otel": "otel.jsonl"}
+    row = item(turn, "claude-code", ts, kind, line)
+    row.update(harness=harness, source={"file": files[harness], "line": line})
+    return {**row, **fields}
+
+
+def point_tool(turn: int, ts: float, line: int, sku: str) -> dict:
+    return item(
+        turn,
+        "claude-code",
+        ts,
+        "tool_call",
+        line,
+        server="shop",
+        name="check_stock",
+        input={"sku": sku},
+        output=f"{sku}: 3 left",
+        result_line=line + 1,
+    )
+
+
+def point_stock_row(turn: int, ts: float, line: int, sku: str) -> dict:
+    stock_input = {"query": f"sku={sku}", "headers": SENT, "body": None}
+    return point_row(
+        turn,
+        "backend",
+        ts,
+        "http",
+        line,
+        session="stock",
+        name="GET /stock",
+        input=stock_input,
+        output="3",
+        exit_code=200,
+    )
+
+
+def point_note_rows(turn: int, ts: float, line: int) -> list[dict]:
+    asked = point_row(turn, "model_api", ts, "message", line, session="openai", role="user")
+    answer = info(COMPLETIONS, "note-toy", "stop", None)
+    return [
+        {**asked, "output": "Case note."},
+        point_row(
+            turn,
+            "model_api",
+            ts + 1,
+            "message",
+            line,
+            session="openai",
+            role="assistant",
+            input=answer,
+            output="Noted.",
+            exit_code=200,
+        ),
+    ]
+
+
+def point_span_row(turn: int, ts: float, line: int) -> dict:
+    return point_row(
+        turn,
+        "otel",
+        ts,
+        "span",
+        line,
+        session=TRACE_ID,
+        name="shop.reply",
+        input={},
+        service="toy-shop",
+    )
+
+
+def point_found(turn: int, detail: str) -> dict:
+    return {"check": "missing_trace_point", "turn": turn, "detail": detail}
+
+
+POINT_CASE = {
+    "tap": [
+        window(10, 20, reply=POINT_REPLIES[0]),
+        window(30, 40, reply=POINT_REPLIES[1]),
+        window(50, 60, reply=POINT_REPLIES[2]),
+    ],
+    "manifest": {
+        "test": "20261020-080000-tp01",
+        "model_sessions": [CC_SESSION],
+        "trace_points": POINTS,
+    },
+    "sessions": {
+        CC_FILE: [
+            cc_line("user", 11, "Is the teapot set in stock?"),
+            *point_use(12, "t1", "teapot-set"),
+            cc_line("assistant", 13, [{"type": "text", "text": POINT_REPLIES[0]}]),
+            cc_line("user", 31, "Is it still in stock?"),
+            *point_use(32, "t2", "teapot-set"),
+            cc_line("assistant", 33, [{"type": "text", "text": POINT_REPLIES[1]}]),
+            cc_line("user", 51, "And the robot kit?"),
+            *point_use(52, "t3", "teapot-set"),
+            *point_use(53, "t4", "robot-kit"),
+            cc_line("assistant", 54, [{"type": "text", "text": POINT_REPLIES[2]}]),
+        ]
+    },
+    "otel": [app_span(t, "shop.reply", {}) for t in (11.2, 31.2, 51.2)],
+    "backend": [point_stock(12.1, "teapot-set"), point_stock(52.1, "teapot-set")],
+    "model_api": [point_note(15), point_note(35)],
+    "trace": [
+        item(1, "claude-code", 11, "message", 1, role="user", output="Is the teapot set in stock?"),
+        point_span_row(1, 11.2, 1),
+        point_tool(1, 12, 2, "teapot-set"),
+        point_stock_row(1, 12.1, 1, "teapot-set"),
+        item(1, "claude-code", 13, "message", 4, role="assistant", output=POINT_REPLIES[0]),
+        *point_note_rows(1, 15, 1),
+        item(2, "claude-code", 31, "message", 5, role="user", output="Is it still in stock?"),
+        point_span_row(2, 31.2, 2),
+        point_tool(2, 32, 6, "teapot-set"),
+        item(2, "claude-code", 33, "message", 8, role="assistant", output=POINT_REPLIES[1]),
+        *point_note_rows(2, 35, 2),
+        item(3, "claude-code", 51, "message", 9, role="user", output="And the robot kit?"),
+        point_span_row(3, 51.2, 3),
+        point_tool(3, 52, 10, "teapot-set"),
+        point_stock_row(3, 52.1, 2, "teapot-set"),
+        point_tool(3, 53, 12, "robot-kit"),
+        item(3, "claude-code", 54, "message", 14, role="assistant", output=POINT_REPLIES[2]),
+    ],
+    "findings": {
+        "v": "0.2",
+        "test": "20261020-080000-tp01",
+        "turns": 3,
+        "items": 19,
+        "sessions": [
+            {
+                "harness": "claude-code",
+                "session": CC,
+                "file": CC_FILE,
+                "inferred": False,
+                "version": "2.1.286",
+                "items": 10,
+                "ignored": {},
+            }
+        ],
+        "otel": {"file": "otel.jsonl", "rows": 3, "items": 3, "ignored": {}},
+        "backend": {"file": "backend.jsonl", "rows": 2, "items": 2, "ignored": {}},
+        "model_api": {
+            "file": "model_api.jsonl",
+            "rows": 2,
+            "items": 4,
+            "ignored": {},
+            "harness_calls": {},
+            "other_calls": 0,
+        },
+        "mcp": None,
+        "database": None,
+        "trace_points": [{**p, "checked": c} for p, c in zip(POINTS, POINTS_CHECKED, strict=True)],
+        "counts": counts(missing_trace_point=3),
+        "findings": [
+            point_found(
+                2,
+                "stock GET /stock (backend): 0 of 1 items for 1 check_stock tool call in this "
+                "turn. When: Each check_stock tool call.",
+            ),
+            point_found(
+                3,
+                "stock GET /stock (backend): 1 of 2 items for 2 check_stock tool calls in this "
+                "turn. When: Each check_stock tool call.",
+            ),
+            point_found(3, "openai (model_api): 0 of 1 items in this turn. When: Each turn."),
+        ],
+    },
+}
+
+
 TRACE_CASES = {
     "claude_code_toy_shop": CLAUDE_CASE,
     "codex_toy_shop": CODEX_CASE,
@@ -4755,6 +4966,7 @@ TRACE_CASES = {
     "database_toy_shop": DATABASE_CASE,
     "database_formats": DATABASE_FORMATS_CASE,
     "database_pipeline": DATABASE_PIPELINE_CASE,
+    "trace_points_toy_shop": POINT_CASE,
 }
 
 
@@ -6684,7 +6896,11 @@ def main() -> None:
         write(d / "mcp.jsonl", case.get("mcp"))
         write(d / "database.jsonl", case.get("database"))
         write(d / "expect_trace.jsonl", case["trace"])
-        text = json.dumps(case["findings"], indent=1, ensure_ascii=False)
+        # A case with no trace points in its manifest has "trace_points": null.
+        findings = dict(case["findings"])
+        rest = {k: findings.pop(k) for k in ("trace_points", "counts", "findings") if k in findings}
+        findings = {**findings, "trace_points": rest.pop("trace_points", None), **rest}
+        text = json.dumps(findings, indent=1, ensure_ascii=False)
         (d / "expect_findings.json").write_text(text + "\n")
     shutil.rmtree(OTLP, ignore_errors=True)
     for name, case in OTLP_CASES.items():
