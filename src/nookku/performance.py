@@ -20,10 +20,23 @@ FILE = "performance.json"
 VERSION = "0.1"
 # A message that Claude Code writes itself, for example after an API error. It is not a call.
 SYNTHETIC = "<synthetic>"
+# The largest count that a record can give: the largest integer that a JSON number holds exactly.
+MOST = 2**53 - 1
 
 
 def _int(value: Any) -> int | None:
-    return value if isinstance(value, int) and not isinstance(value, bool) else None
+    """A count from a record, or None if the value is not an integer from 0 to MOST."""
+    ok = isinstance(value, int) and not isinstance(value, bool) and 0 <= value <= MOST
+    return value if ok else None
+
+
+def _clean(text: str) -> str:
+    """`text` with each character that is not printable as an escape, for example a new line as
+    `\\u000a`. Thus a record string cannot add a line to the transcript."""
+    return "".join(
+        c if c.isprintable() else f"\\u{ord(c):04x}" if ord(c) <= 0xFFFF else f"\\U{ord(c):08x}"
+        for c in text
+    )
 
 
 def _call(ts: float | None, tokens: tuple[int | None, int | None]) -> dict[str, Any]:
@@ -37,7 +50,7 @@ def anthropic_tokens(usage: Any) -> tuple[int | None, int | None]:
         return None, None
     parts = [usage.get(k, 0) for k in ("cache_creation_input_tokens", "cache_read_input_tokens")]
     known = _int(usage.get("input_tokens")) is not None and all(_int(p) is not None for p in parts)
-    total = usage["input_tokens"] + sum(parts) if known else None
+    total = _int(usage["input_tokens"] + sum(parts)) if known else None
     return total, _int(usage.get("output_tokens"))
 
 
@@ -129,7 +142,7 @@ def _answered(items: list[dict[str, Any]], harness: str, session: str) -> bool:
 
 def _sum(calls: list[dict[str, Any]], key: str) -> int | None:
     values = [c[key] for c in calls]
-    return None if any(v is None for v in values) else sum(values)
+    return None if any(v is None for v in values) else _int(sum(values))
 
 
 def _totals(calls: list[dict[str, Any]]) -> dict[str, Any]:
@@ -148,7 +161,13 @@ def _unknown(folder: Path, manifest: dict[str, Any]) -> str | None:
     for s in sessions:
         file = s.get("file")
         if s.get("harness") not in READERS or not file or not (folder / file).is_file():
-            return f"the model session {s.get('session')} ({s.get('harness')}) has no session file"
+            name = _clean(f"{s.get('session')} ({s.get('harness')})")
+            return f"the model session {name} has no session file"
+    egress = manifest.get("egress")
+    answer = egress.get("answer") if isinstance(egress, dict) else None
+    if not isinstance(answer, dict) or not isinstance(answer.get("model_apis"), list):
+        # The model API proxies start only from the egress answer (SPEC.md section 7.11).
+        return "the test has no egress answer, so no proxy recorded the direct model calls"
     found = {s.get("harness") for s in sessions}
     calls_path = folder / model_api.FILE
     if not sessions and not calls_path.exists():
@@ -182,13 +201,15 @@ def summarize(folder: Path) -> dict[str, Any]:
         for s in manifest.get("model_sessions") or []:
             found = READERS[s["harness"]](folder / s["file"])
             if not found and _answered(items, s["harness"], s["session"]):
-                unknown = f"the session file of {s['session']} has model items and no model call"
+                name = _clean(str(s["session"]))
+                unknown = f"the session file of {name} has model items and no model call"
                 calls = []
                 break
             for c in found:
                 calls.append((s["harness"], s["session"], {**c, "turn": _turn(c["ts"], spans)}))
         else:
             calls += [("model_api", api, c) for api, c in _direct_calls(items)]
+    outside = None if unknown is not None else sum(1 for _, _, c in calls if c["turn"] is None)
     turns = []
     for n, ex in enumerate(exchanges, 1):
         started = ex.get("started")
@@ -208,7 +229,13 @@ def summarize(folder: Path) -> dict[str, Any]:
                 for h, s in keys
             ]
         turns.append(row)
-    return {"v": VERSION, "test": manifest.get("test"), "unknown": unknown, "turns": turns}
+    return {
+        "v": VERSION,
+        "test": manifest.get("test"),
+        "unknown": unknown,
+        "outside_turns": outside,
+        "turns": turns,
+    }
 
 
 def build(folder: Path) -> dict[str, Any]:
@@ -219,7 +246,11 @@ def build(folder: Path) -> dict[str, Any]:
 
 
 def _number(value: Any) -> bool:
-    return _int(value) is not None and value >= 0
+    return _int(value) is not None
+
+
+def _text(value: Any) -> bool:
+    return isinstance(value, str) and value.isprintable()
 
 
 def _known(row: Any) -> bool:
@@ -241,13 +272,12 @@ def _valid(row: Any, n: int, unknown: Any) -> bool:
         return False
     if unknown is not None:
         counts = ("model_calls", "input_tokens", "output_tokens", "no_usage", "sources")
-        return isinstance(unknown, str) and all(row.get(k) is None for k in counts)
+        return _text(unknown) and all(row.get(k) is None for k in counts)
     sources = row.get("sources")
     return (
         _known(row)
         and isinstance(sources, list)
-        and all(_known(x) and isinstance(x.get("harness"), str) for x in sources)
-        and all(isinstance(x.get("session"), str) for x in sources)
+        and all(_known(x) and _text(x.get("harness")) and _text(x.get("session")) for x in sources)
     )
 
 
@@ -262,6 +292,9 @@ def read(folder: Path, count: int) -> tuple[dict[str, Any] | None, str | None]:
     turns = data.get("turns") if isinstance(data, dict) else None
     if not isinstance(turns, list) or len(turns) != count:
         return None, f"{FILE} does not have {count} turns"
+    outside = data.get("outside_turns")
+    if not (outside is None if data.get("unknown") is not None else _number(outside)):
+        return None, f"outside_turns of {FILE} is not valid"
     for n, row in enumerate(turns, 1):
         if not _valid(row, n, data.get("unknown")):
             return None, f"turn {n} of {FILE} is not valid"
@@ -274,11 +307,12 @@ def _value(value: Any, unit: str) -> str:
 
 def line(data: dict[str, Any], n: int) -> str:
     """The lines of turn `n` in the transcript, for example `4.212 seconds, 3 model calls, 1520
-    input tokens, 210 output tokens`, then one line for each source."""
+    input tokens, 210 output tokens`, then one line for each source, then the output tokens of
+    the model sessions together. Each record string is escaped with _clean."""
     turn, unknown = data["turns"][n - 1], data["unknown"]
     parts = [_value(turn["seconds"], "seconds")]
     if unknown is not None:
-        return f"{parts[0]}. The model calls and the tokens are not known: {unknown}."
+        return f"{parts[0]}. The model calls and the tokens are not known: {_clean(unknown)}."
     parts.append(f"{turn['model_calls']} model calls")
     parts.append(_value(turn["input_tokens"], "input tokens"))
     parts.append(_value(turn["output_tokens"], "output tokens"))
@@ -287,8 +321,10 @@ def line(data: dict[str, Any], n: int) -> str:
         text += f" ({turn['no_usage']} of {turn['model_calls']} model calls have no usage)"
     for s in turn["sources"]:
         text += (
-            f"\n  - {s['harness']} {s['session']}: {s['model_calls']} model calls, "
-            f"{_value(s['input_tokens'], 'input tokens')}, "
+            f"\n  - {_clean(s['harness'])} {_clean(s['session'])}: {s['model_calls']} model "
+            f"calls, {_value(s['input_tokens'], 'input tokens')}, "
             f"{_value(s['output_tokens'], 'output tokens')}"
         )
-    return text
+    sessions = [s for s in turn["sources"] if s["harness"] in READERS]
+    total = _sum(sessions, "output_tokens")
+    return text + f"\n  - model sessions together: {_value(total, 'output tokens')}"

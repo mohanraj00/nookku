@@ -33,7 +33,7 @@ The `Limits` table uses these names. A limit that the table does not give has no
 | Limit | Value |
 |---|---|
 | `turn_seconds` | The most seconds from the message to the reply of one turn. |
-| `turn_tokens` | The most model output tokens in one turn, for each model session of the app together. |
+| `turn_tokens` | The most output tokens of the model sessions of the app together in one turn. A direct model call of the app does not count. |
 
 The evaluation reads the seconds and the tokens of each turn from `performance.json` ([SPEC.md section 8.7](../../SPEC.md#87-performance)). A turn above a limit is an issue of the class `performance`. If the records do not hold a value, the model does not judge that limit for that turn, and it says so in the notes.
 

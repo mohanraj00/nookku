@@ -33,7 +33,7 @@ Find each issue of the app. Each issue has one of these classes:
 Report a `performance` issue only if the app spec has a `Limits` table. Compare each turn with each limit:
 
 - `turn_seconds`: the seconds of the turn.
-- `turn_tokens`: the output tokens of the turn, for all the model sessions of the app together. A line of a `performance` block that starts with `claude-code` or `codex` is a model session.
+- `turn_tokens`: the output tokens of the line `model sessions together` of the `performance` block of the turn.
 
 The evidence is the turn, for example `turn 2`. In the issue, give the value and the limit. If a value is `not known`, do not guess it. Say in the notes which turn and which limit you could not check.
 

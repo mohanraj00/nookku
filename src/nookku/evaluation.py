@@ -320,8 +320,16 @@ def _performance(folder: Path, count: int) -> tuple[dict[str, Any] | None, str]:
     return data, (
         "Performance: under each turn, the seconds from the message to the reply (tap.jsonl), "
         f"and the model calls and the tokens of the app ({performance.FILE}). The input tokens "
-        "include the cached tokens. A value that is `not known` is not in the records.\n"
+        "include the cached tokens. A value that is `not known` is not in the records."
+        f"{_outside(data.get('outside_turns'))}\n"
     )
+
+
+def _outside(count: Any) -> str:
+    if not count:
+        return ""
+    calls = "1 model call of the app is" if count == 1 else f"{count} model calls of the app are"
+    return f" {calls} in no turn, so no turn counts them."
 
 
 def transcript(folder: Path, compact: bool = False) -> str:

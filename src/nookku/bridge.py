@@ -125,8 +125,6 @@ def load_config(root: Path, entry_name: str | None = None) -> TestConfig:
         spec = spec_hashes(root, data.get("spec") or [])
     except (ConfigError, policy.PolicyError) as e:
         raise BridgeError(str(e)) from None
-    except OSError as e:
-        raise BridgeError(f"cannot read a spec file: {e}") from None
     entry, models = data.get("entry") or [], data.get("models") or []
     if entry_name is not None:
         entries = data.get("entries") or {}

@@ -2,7 +2,16 @@
  "v": "0.1",
  "test": "20261020-080000-pf05",
  "unknown": "the model session 5a2b3c4d-1e2f-4a5b-8c6d-7e8f9a0b1c2d (claude-code) has no session file",
+ "outside_turns": null,
  "turns": [
-  {"turn": 1, "seconds": 10.0, "model_calls": null, "input_tokens": null, "output_tokens": null, "no_usage": null, "sources": null}
+  {
+   "turn": 1,
+   "seconds": 10.0,
+   "model_calls": null,
+   "input_tokens": null,
+   "output_tokens": null,
+   "no_usage": null,
+   "sources": null
+  }
  ]
 }

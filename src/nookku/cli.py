@@ -703,11 +703,17 @@ def _trace_command(root: Path, test: str | None, as_json: bool) -> int:
         return 2
     try:
         report = trace.build(folder)
-        performance.build(folder)
     except RecordError as e:
         print(f"nookku: the trace was not rebuilt. {e}", file=sys.stderr)
         return 2
-    seal.update(folder, list(rebuilt))
+    names = list(rebuilt)
+    try:
+        performance.build(folder)
+    except Exception as e:
+        # The seal keeps the hash of the old file, so a changed old file shows as changed.
+        print(f"nookku: {performance.FILE} was not rebuilt: {e!r}", file=sys.stderr)
+        names.remove(performance.FILE)
+    seal.update(folder, names)
     if as_json:
         print(json.dumps(report, indent=1, ensure_ascii=False))
         return 0
