@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import base64
 import datetime
-import gzip
 import hashlib
 import json
 import shutil
@@ -3735,7 +3734,8 @@ CAFE_QUESTIONS = [
     {"type": "predicate", "name": "urgent", "instructions": "La plainte est-elle urgente ?"},
 ]
 CAFE_REQUEST = json.dumps({"model": DMODEL, "input": CHARGED, "questions": CAFE_QUESTIONS})
-GZIP_DREQUEST = gzip.compress(json.dumps({"questions": DQUESTIONS_2}).encode(), mtime=0)
+# Fixed bytes, not gzip.compress: its output changes with the zlib version.
+GZIP_DREQUEST = b"\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\x03toy gzip body \xff\xfe"
 
 
 def dcall(t: float, request_body: dict, **row: Any) -> dict:

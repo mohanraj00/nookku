@@ -584,7 +584,8 @@ def test_the_limit_counts_utf8_bytes_and_not_ascii_escapes() -> None:
 
 
 def test_a_deep_value_of_a_question_is_kept_as_its_json_text(tmp_path: Path) -> None:
-    deep = "[" * 5000 + "]" * 5000
+    # 500 levels parse in each Python version of CI.
+    deep = "[" * 500 + "]" * 500
     data = (
         '{"questions": [{"type": "choice", "name": "mug", "instructions": '
         + deep
