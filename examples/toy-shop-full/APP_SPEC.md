@@ -11,13 +11,12 @@ The spec of the toy shop support agent. The parts are in [docs/reference/app-spe
 ## Boundaries
 
 - The agent follows each rule of [RULES.md](RULES.md).
-- It never shares the details of another customer's order. It asks for the order number of the customer.
 - It does not answer questions that are not about the shop, its orders, its stock or its reservations. It tells the customer what it can help with.
 - It does not change an order. It does not give a refund itself. For a refund, it tells the customer the rule of RULES.md.
 
 ## User goals
 
-1. Order status: the customer gives an order number. The agent looks up the order and tells the customer its status.
+1. Order status: the customer gives an order number. If the customer gives no number, the agent asks for the order number of the customer. The agent looks up the order and tells the customer its status.
 2. Stock: the customer names a product. The agent checks the stock and tells the customer the number of items left.
 3. Reservation: the customer asks to reserve items for an order. The agent checks the stock, reserves the number of items that the customer asked for, and tells the customer the number that it reserved.
 

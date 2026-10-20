@@ -1136,7 +1136,7 @@ The evaluation prompt is `src/nookku/evaluate.md`, with the test id and the test
 2. read `findings.json` and `audit.json`, and `egress` in `manifest.json` (section 7.11);
 3. read `notes.jsonl`, the notes of the tester (section 2.3), if the test folder has it;
 4. read the files of `app-state/`, if the test folder has it;
-5. read the code of the app and its business rules. If the prompt names the files of the app spec, the spec holds the rules;
+5. read the code of the app and its business rules. If the prompt names the files of the app spec, the spec holds the rules: a file with no known part, or a section that is not a known part. The 5 known parts of [docs/reference/app-spec.md](docs/reference/app-spec.md) are not business rules;
 6. check the state of the app with read-only commands only;
 7. write `report.md`, and no other file.
 
@@ -1181,9 +1181,12 @@ The reference is `(compact: the same text as [trace.jsonl:N], sha256 <hex>, <len
 | `unsupported_reply` | said a fact that no tool result and no rule supports. |
 | `missing_action` | did not do an action that the request or a rule needs. |
 | `state_mismatch` | gave a reply or a trace that does not agree with its state. |
+| `tone` | gave a reply that does not agree with the `Persona` of the app spec. |
+| `boundary` | did an action or answered a topic that the `Boundaries` of the app spec say it must refuse. |
+| `off_path` | did not guide the user to a goal of the `User goals` of the app spec, or guided the user away from it. |
 | `performance` | had a turn above a limit of the `Limits` of the app spec: `turn_seconds` or `turn_tokens` (section 8.7). |
 
-Turn is the number of the turn, or `-`. Evidence is a `trace.jsonl:N` line, a turn, or a source line.
+Turn is the number of the turn, or `-`. Evidence is a `trace.jsonl:N` line, a turn, or a source line. A row of `tone`, `boundary` or `off_path` comes only from a part of the app spec (section 9.2), and its evidence has the turn and a line of that part. Each issue has one class, and the evaluation prompt gives the order: if an issue fits one of the first 6 classes, the row has that class. The `Persona`, the `Boundaries` and the `User goals` are not business rules. A break of a rule of a rules document is `business_rule`, also if the `Boundaries` link to the rule, and a missing tool call is `missing_action`. The guidance of the same reply is a different issue, with the class `off_path`. `boundary` is only for a topic or an action that the `Boundaries` refuse and that no business rule covers. `off_path` is only for the guidance of the user to a goal of `User goals`.
 
 The Tester notes table has the columns Note, Turn, Rating, Comment and What the records show, and one row for each line of `notes.jsonl`. Note is `notes.jsonl:N`, where N is the line. Comment is the comment, or its first 200 characters, or `-` for `null`. The last column says if the records agree with the note, do not agree, or cannot show it, with the evidence. If the test has no `notes.jsonl`, the report has the text "The tester wrote no note." in place of this table.
 
