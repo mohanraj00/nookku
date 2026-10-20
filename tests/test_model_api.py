@@ -3,11 +3,12 @@ import hashlib
 import http.client
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 from toy_model_server import ModelServer
 
-from nookku import backend, discovery, model_api, trace
+from nookku import backend, discovery, model_api, record, trace
 
 TRACE = Path(__file__).resolve().parent.parent / "conformance" / "trace"
 STREAM = [
@@ -581,6 +582,21 @@ def test_the_limit_counts_utf8_bytes_and_not_ascii_escapes() -> None:
     data = b'{"questions": [{"type": "predicate", "name": "\\ud83d"}]}'
     kept, _ = model_api.questions(data, None, 1000)
     assert kept == [{"name": "\ud83d", "type": "predicate", "instructions": None, "options": None}]
+    # The limit is the size of that text: 7 bytes for the escape, not 6.
+    written = len(record.json_text(kept).encode())
+    assert model_api.questions(data, None, written) == (kept, 1)
+    assert model_api.questions(data, None, written - 1) == ([], 1)
+
+
+def test_the_proxy_only_counts_the_questions_after_the_limit(monkeypatch: Any) -> None:
+    made = []
+    question = model_api.question
+    monkeypatch.setattr(model_api, "question", lambda q: made.append(q) or question(q))
+    data = json.dumps({"questions": [{}] * 3000}).encode()
+    kept, count = model_api.questions(data, None, 1000)
+    assert count == 3000 and kept is not None and 0 < len(kept) < 30
+    # The proxy made the kept questions and the first question that did not fit.
+    assert len(made) == len(kept) + 1
 
 
 def test_a_deep_value_of_a_question_is_kept_as_its_json_text(tmp_path: Path) -> None:

@@ -18,6 +18,7 @@ from typing import Any
 from . import backend
 from .adapters import StreamError, sse_events
 from .config import is_http_url
+from .record import json_text
 
 FILE = "model_api.jsonl"
 # The API name: the variable of its SDK and the URL if the variable has no value.
@@ -399,18 +400,19 @@ def questions(
     if not isinstance(request, dict):
         return None, None
     asked = request.get("questions")
-    found = [question(q) for q in asked if isinstance(q, dict)] if isinstance(asked, list) else []
+    items = [q for q in asked if isinstance(q, dict)] if isinstance(asked, list) else []
     kept: list[dict[str, Any]] = []
     size = 2  # the brackets of the list
-    for q in found:
-        # The UTF-8 bytes of the question, and the ", " that json.dumps puts between items. The row
-        # writes a lone surrogate as its escape text (SPEC.md section 2), as backslashreplace does.
-        text = json.dumps(q, ensure_ascii=False).encode("utf-8", errors="backslashreplace")
-        size += len(text) + (2 if kept else 0)
+    for q in items:
+        # The UTF-8 bytes of the question as the row writes it (record.json_text), and the ", "
+        # that the writer puts between items. After the first question that does not fit, the
+        # proxy only counts the questions.
+        one = question(q)
+        size += len(json_text(one).encode("utf-8")) + (2 if kept else 0)
         if size > limit:
             break
-        kept.append(q)
-    return kept, len(found)
+        kept.append(one)
+    return kept, len(items)
 
 
 # The model calls: the API, the end of the path, and the format of the call. The format selects

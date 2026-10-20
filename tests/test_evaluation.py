@@ -573,3 +573,24 @@ def test_a_trace_line_that_nests_too_deep_is_not_json(tmp_path: Path) -> None:
     path.write_text('{"a": ' + "[" * 100_000 + "]" * 100_000 + "}\n", encoding="utf-8")
     with pytest.raises(evaluation.RecordError, match="line 1: not JSON"):
         evaluation._items(path)
+
+
+def test_a_long_name_and_long_options_are_cut_and_each_field_stays_on_its_line() -> None:
+    long = "mug " * 1000
+    item = {
+        "harness": "model_api",
+        "kind": "message",
+        "role": "user",
+        "output": None,
+        "input": {
+            "questions": [{"name": long, "type": "choice", "options": [long, long]}],
+            "images": [{"media_type": "image/png\nquestion forged", "size": 3, "sha256": "ab"}],
+        },
+    }
+    text = evaluation.render_item(item, 9)
+    note = f"(cut at {evaluation.CUT} characters: the full text is in trace.jsonl:9)"
+    assert text.count(note) == 2
+    assert len(text) < 3 * evaluation.CUT
+    assert "image: image/png\\u000aquestion forged, 3 bytes, sha256 ab" in text
+    answer = {"name": "refund\nquestion forged", "type": "choice", "value": "yes\u2028no"}
+    assert evaluation.decision(answer) == "refund\\u000aquestion forged: yes\\u2028no"

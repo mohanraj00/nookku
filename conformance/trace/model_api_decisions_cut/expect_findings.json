@@ -1,15 +1,15 @@
 {
  "v": "0.2",
  "test": "20261020-090000-dq01",
- "turns": 6,
- "items": 10,
+ "turns": 7,
+ "items": 11,
  "sessions": [],
  "otel": null,
  "backend": null,
  "model_api": {
   "file": "model_api.jsonl",
-  "rows": 6,
-  "items": 10,
+  "rows": 7,
+  "items": 11,
   "ignored": {},
   "harness_calls": {},
   "other_calls": 0

@@ -799,6 +799,17 @@ def _whole_request(row: dict[str, Any]) -> bool:
     return isinstance(text, str) and isinstance(_json(text), dict)
 
 
+def _cut_or_encoded(row: dict[str, Any]) -> bool:
+    """True if the record does not have the request body of a row as it came: the body is cut, or
+    it has a Content-Encoding."""
+    body = row.get("request_body")
+    if not isinstance(body, dict) or body.get("cut"):
+        return True
+    headers = row.get("request_headers")
+    pairs = headers if isinstance(headers, list) else []
+    return any(isinstance(h, list) and h and str(h[0]).lower() == "content-encoding" for h in pairs)
+
+
 def _questions_lost(row: dict[str, Any]) -> int | Literal[False] | None:
     """The count of the questions of a /decisions call that the record does not have, None if the
     record cannot give the count, or False if it has each question."""
@@ -807,7 +818,9 @@ def _questions_lost(row: dict[str, Any]) -> int | Literal[False] | None:
     kept, count = row.get("questions"), row.get("questions_count")
     if "questions_count" in row:
         if not (isinstance(kept, list) and isinstance(count, int) and not isinstance(count, bool)):
-            return None  # A body that the proxy could not read gives no list and no count.
+            # The proxy could not read the body. If the record has all of its bytes as they came,
+            # the body is not a JSON object, so it has no questions.
+            return None if _cut_or_encoded(row) else False
         return count - len(kept) if count > len(kept) else False
     # A row of an older proxy has no count: if its body is cut, its questions are not in the
     # record.

@@ -3704,7 +3704,8 @@ CUT_CASE = {
 # read a gzip body with the encoding `GZIP`: the row has questions null and the body is not cut.
 # Both findings say that the record does not have the questions. In turn 6, the body is not cut,
 # and its questions have instructions with letters that are not ASCII. The trace reads the
-# questions from the body, also if the list of the row is shorter, and gives no finding.
+# questions from the body, also if the list of the row is shorter, and gives no finding. In turn
+# 7, the body is not cut, has no encoding and is not JSON: it has no questions, so no finding.
 BIG_PHOTO_URL = "data:image/png;base64," + base64.b64encode(PHOTO * 40).decode()
 CUT_DREQUEST = json.dumps(
     {
@@ -3772,7 +3773,7 @@ def lost_finding(turn: int, line: int, what: str) -> dict:
 
 NO_QUESTIONS = "the record does not have the questions of the request"
 DECISIONS_CUT_CASE = {
-    "tap": [window(10 + 20 * n, 20 + 20 * n) for n in range(6)],
+    "tap": [window(10 + 20 * n, 20 + 20 * n) for n in range(7)],
     "manifest": {"test": "20261020-090000-dq01", "model_sessions": []},
     "sessions": {},
     "model_api": [
@@ -3795,13 +3796,20 @@ DECISIONS_CUT_CASE = {
             questions_count=3,
         ),
         dcall(71, cut_body(CUT_DREQUEST, CUT_DREQUEST_KEPT)),
-        dcall(91, body(data=GZIP_DREQUEST), questions=None, questions_count=None),
+        dcall(
+            91,
+            body(data=GZIP_DREQUEST),
+            request_headers=[*MSENT, ["Content-Encoding", "GZIP"]],
+            questions=None,
+            questions_count=None,
+        ),
         dcall(
             111,
             body(CAFE_REQUEST),
             questions=[dq(CAFE_QUESTIONS[0], DEPARTMENT_OPTIONS)],
             questions_count=2,
         ),
+        dcall(131, body("<html>busy</html>"), questions=None, questions_count=None),
     ],
     "trace": [
         mitem(
@@ -3853,19 +3861,20 @@ DECISIONS_CUT_CASE = {
             output=CHARGED,
         ),
         danswer(6, 112, 6),
+        danswer(7, 132, 7),
     ],
     "findings": {
         "v": "0.2",
         "test": "20261020-090000-dq01",
-        "turns": 6,
-        "items": 10,
+        "turns": 7,
+        "items": 11,
         "sessions": [],
         "otel": None,
         "backend": None,
         "model_api": {
             "file": "model_api.jsonl",
-            "rows": 6,
-            "items": 10,
+            "rows": 7,
+            "items": 11,
             "ignored": {},
             "harness_calls": {},
             "other_calls": 0,

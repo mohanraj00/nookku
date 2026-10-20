@@ -127,11 +127,11 @@ def _value(value: Any) -> str:
 def decision(answer: dict[str, Any]) -> str:
     """One answer of a call to the Decisions API on one line, for example
     `department: billing (0.95), confidence 0.93`. For a choice, the number in brackets is the
-    probability of the chosen value."""
+    probability of the chosen value. Each character that can end a line shows as its escape."""
     name = answer.get("name") if answer.get("name") is not None else "(no name)"
     kind, value = answer.get("type"), answer.get("value")
     if kind == "refusal":
-        return f"{name}: refusal (the model did not answer this question)"
+        return _one_line(f"{name}: refusal (the model did not answer this question)")
     if kind == "predicate":
         out = f"{name}: probability {_value(value)}"
     elif kind == "score":
@@ -145,7 +145,7 @@ def decision(answer: dict[str, Any]) -> str:
                 break
     if answer.get("confidence") is not None:
         out += f", confidence {_value(answer['confidence'])}"
-    return out
+    return _one_line(out)
 
 
 def _one_line(text: str) -> str:
@@ -160,21 +160,26 @@ def _asked(asked: Any, line: int) -> str:
     if not isinstance(asked, dict):
         return ""
     out = ""
+    more = f" (cut at {CUT} characters: the full text is in trace.jsonl:{line})"
+
+    def short(text: str) -> str:
+        return _one_line(text[:CUT]) + (more if len(text) > CUT else "")
+
     for q in asked.get("questions") or []:
         options = q.get("options")
-        shown = f": {', '.join(_one_line(_value(o)) for o in options)}" if options else ""
+        shown = f": {short(', '.join(_value(o) for o in options))}" if options else ""
         said = q.get("instructions")
         told = ""
         if said:
             said = said if isinstance(said, str) else _value(said)
-            more = f" (cut at {CUT} characters: the full text is in trace.jsonl:{line})"
             text = _one_line(json.dumps(said[:CUT], ensure_ascii=False))
             told = f"; instructions: {text}{more if len(said) > CUT else ''}"
-        name = _one_line(_value(q.get("name") or "(no name)"))
-        out += f"question {name} ({_one_line(str(q.get('type')))}){shown}{told}\n"
+        name = short(_value(q.get("name") or "(no name)"))
+        out += f"question {name} ({short(str(q.get('type')))}){shown}{told}\n"
     for i in asked.get("images") or []:
         size = f"{i['size']} bytes" if i.get("size") is not None else "not base64"
-        out += f"image: {i.get('media_type')}, {size}, sha256 {i.get('sha256')}\n"
+        kind, digest = short(str(i.get("media_type"))), _one_line(str(i.get("sha256")))
+        out += f"image: {kind}, {size}, sha256 {digest}\n"
     return out
 
 
