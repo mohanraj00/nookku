@@ -28,7 +28,7 @@ def test_case(case: Path, tmp_path: Path) -> None:
 
 
 def test_each_case_has_its_expected_file() -> None:
-    assert len(CASES) == 5
+    assert len(CASES) == 6
     assert all((c / "expect_performance.json").is_file() for c in CASES)
 
 

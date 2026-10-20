@@ -8,4 +8,5 @@ Each folder is a test folder with the expected `performance.json` (SPEC.md secti
 | `model_api_direct` | The direct calls of `model_api.jsonl`: Chat Completions, Messages and Responses usage. A cut result has no usage. |
 | `codex_token_count` | One call for each `token_count` event with `last_token_usage`. An event with no `info` is not a call. An event with the same `total_token_usage` as the call before it is a repeat. |
 | `codex_no_token_count` | A session file with model items and no call: the calls and the tokens are not known. A 0.1 exchange has no `started`, so its seconds are not known. |
+| `partial_usage` | A cache key with `null` is 0. A call with input tokens and no output tokens: the turn has its input tokens, and its output tokens are `null`. |
 | `missing_session_file` | A model session with no session file: the calls and the tokens are not known. |

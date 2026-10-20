@@ -48,7 +48,9 @@ def anthropic_tokens(usage: Any) -> tuple[int | None, int | None]:
     tokens of `input_tokens`, of `cache_creation_input_tokens` and of `cache_read_input_tokens`."""
     if not isinstance(usage, dict):
         return None, None
-    parts = [usage.get(k, 0) for k in ("cache_creation_input_tokens", "cache_read_input_tokens")]
+    # A cache key that is not there or is null is 0: the call read and wrote no cache.
+    keys = ("cache_creation_input_tokens", "cache_read_input_tokens")
+    parts = [0 if usage.get(k) is None else usage[k] for k in keys]
     known = _int(usage.get("input_tokens")) is not None and all(_int(p) is not None for p in parts)
     total = _int(usage["input_tokens"] + sum(parts)) if known else None
     return total, _int(usage.get("output_tokens"))
