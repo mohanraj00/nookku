@@ -120,6 +120,9 @@ class Config:
     # The most bytes of a body that a backend or model API proxy keeps in the record (SPEC.md
     # section 7.6). The app always gets all of the bytes.
     record_limit: int = 1024 * 1024
+    # The files of the app spec, relative to the project root. The evaluation reads them first
+    # (SPEC.md section 9.2, docs/reference/app-spec.md).
+    spec: list[str] = field(default_factory=list)
 
     @classmethod
     def load(cls, root: Path) -> Config:
@@ -177,6 +180,9 @@ def _check_types(data: dict[str, Any]) -> None:
     models = data.get("models", [])
     if not (isinstance(models, list) and all(m in HARNESSES for m in models)):
         raise ConfigError(f"{FILE}: 'models' must be a list of {', '.join(HARNESSES)}")
+    spec = data.get("spec", [])
+    if not (isinstance(spec, list) and all(isinstance(p, str) and p.strip() for p in spec)):
+        raise ConfigError(f"{FILE}: 'spec' must be a list of file paths")
 
 
 # The variable of an egress part: the entry gets it, and Popen refuses a name with "=" or NUL.
@@ -240,6 +246,22 @@ def check(data: Any) -> dict[str, Any]:
         if not (isinstance(argv, list) and argv and all(isinstance(a, str) for a in argv)):
             raise ConfigError(f"{FILE}: the entry {name!r} must be a list of strings")
     return data
+
+
+def spec_files(root: Path, spec: list[str]) -> list[Path]:
+    """The resolved file of each path of the config key spec. The tester or the model writes the
+    paths, so each one must be a file in the project after symlinks resolve (SPEC.md section
+    7.1). Raise ConfigError for the first path that breaks this rule."""
+    top = root.resolve()
+    files = []
+    for path in spec:
+        file = (top / path).resolve()
+        if not file.is_relative_to(top):
+            raise ConfigError(f"{FILE}: the spec file {path!r} is not in the project folder")
+        if not file.is_file():
+            raise ConfigError(f"{FILE}: the spec file {path!r} is not a file")
+        files.append(file)
+    return files
 
 
 def _load(root: Path) -> Any:

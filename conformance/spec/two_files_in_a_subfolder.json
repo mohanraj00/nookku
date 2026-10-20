@@ -1,0 +1,14 @@
+{
+ "files": {
+  "docs/spec.md": "# Spec\n",
+  "RULES.md": "1. A rule.\n"
+ },
+ "spec": [
+  "docs/spec.md",
+  "RULES.md"
+ ],
+ "paths": [
+  "docs/spec.md",
+  "RULES.md"
+ ]
+}

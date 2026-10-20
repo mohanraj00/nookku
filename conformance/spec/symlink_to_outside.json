@@ -1,0 +1,13 @@
+{
+ "files": {},
+ "outside": {
+  "secret.md": "x\n"
+ },
+ "links": {
+  "APP_SPEC.md": "../outside/secret.md"
+ },
+ "spec": [
+  "APP_SPEC.md"
+ ],
+ "error": ".nookku/config.json: the spec file 'APP_SPEC.md' is not in the project folder"
+}

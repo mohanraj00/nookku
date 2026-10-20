@@ -432,6 +432,7 @@ If the config has no `entry` and no `agent_url` after the run, the last line of 
 | `--root PATH` | the current folder | The project. |
 | `--entry COMMAND` | none | The entry command of a test, as one string. The shell rules split it into arguments. |
 | `--models LIST` | none | The app's model harnesses, separated by commas: `claude-code`, `codex` or both. |
+| `--spec LIST` | none | The config key `spec`: the files of the [app spec](app-spec.md), separated by commas, relative to the root. Each one must be a file in the project, or `init` writes nothing. |
 | `--tap-url URL` | `http://127.0.0.1:8800/` | The config key `tap_url`. |
 | `--agent-url URL` | empty | The config key `agent_url`. |
 | `--adapter NAME` | `json` | The config key `adapter`. |

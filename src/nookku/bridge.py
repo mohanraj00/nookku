@@ -38,7 +38,7 @@ from nookku.config import FILE as CONFIG_FILE
 from nookku.config import HARNESSES as HARNESSES
 from nookku.config import NO_ENTRY as NO_ENTRY
 from nookku.config import STATE_DIR as STATE_DIR
-from nookku.config import ConfigError, read_config
+from nookku.config import ConfigError, read_config, spec_files
 from nookku.config import has_entry as has_entry
 from nookku.record import RecordError, Writer, turns
 
@@ -107,18 +107,29 @@ class TestConfig:
     entry_name: str | None = None
     # The most bytes of a body that a backend or model API proxy keeps (SPEC.md section 7.6).
     record_limit: int = backend.RECORD_LIMIT
+    # Each file of the app spec: its path as the config gives it and its SHA-256 (SPEC.md
+    # section 7.2).
+    spec: list[dict[str, str]] = field(default_factory=list)
 
 
 def load_config(root: Path, entry_name: str | None = None) -> TestConfig:
     """The test keys of `.nookku/config.json`. Raise BridgeError if the file breaks the
     rule of `config.read_config`, if there is no entry, or if the policy file is not valid. Also
     return the policy keys (SPEC.md section 7.9). With entry_name, the entry is that entry of
-    entries, and an unknown name raises BridgeError (SPEC.md section 7.10)."""
+    entries, and an unknown name raises BridgeError (SPEC.md section 7.10). A spec path that is
+    not a file in the project also raises BridgeError (SPEC.md section 7.1)."""
     try:
         data = read_config(root)
         rules = policy.read(root)
+        paths = data.get("spec") or []
+        spec = [
+            {"path": p, "sha256": hashlib.sha256(f.read_bytes()).hexdigest()}
+            for p, f in zip(paths, spec_files(root, paths), strict=True)
+        ]
     except (ConfigError, policy.PolicyError) as e:
         raise BridgeError(str(e)) from None
+    except OSError as e:
+        raise BridgeError(f"cannot read a spec file: {e}") from None
     entry, models = data.get("entry") or [], data.get("models") or []
     if entry_name is not None:
         entries = data.get("entries") or {}
@@ -134,7 +145,7 @@ def load_config(root: Path, entry_name: str | None = None) -> TestConfig:
     message = data.get("check_message", CHECK_MESSAGE)
     keys = {k: data.get(k, default) for k, default in trace.TRACE_KEYS.items()}
     limit = data.get("record_limit", backend.RECORD_LIMIT)
-    return TestConfig(entry, models, otel, rules, message, keys, entry_name, limit)
+    return TestConfig(entry, models, otel, rules, message, keys, entry_name, limit, spec)
 
 
 def egress_proxies(
@@ -777,6 +788,7 @@ def run(
         "config_sha256": config_hashes(root),
         "policy": config.policy,
         "trace": config.trace,
+        "spec": config.spec,
         "tester_sessions": [tester_session] if tester_session else [],
         "model_sessions": [],
         "codex_gate": {"start": _start_gate(folder), "end": None},
