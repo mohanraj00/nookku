@@ -12,7 +12,7 @@ With no spec, the model finds the business rules in the code, the docs and the t
 
 A spec can have a part in a second file. For example, the toy shop keeps its rules in `RULES.md`, and its `Boundaries` section links to it. A file with no known section is a list of business rules.
 
-Use the section names exactly. Today the evaluation prompt names the files, and the model reads them as the rules of the app. The [trace](glossary.md#trace) reads the `Trace points` section itself ([Trace points](#trace-points)). The checks of tone and boundaries ([#316](https://github.com/mohanraj00/nookku/issues/316)) and of speed ([#317](https://github.com/mohanraj00/nookku/issues/317)) will find each part by its section name.
+Use the section names exactly. The evaluation prompt names the files, and the model reads them as the rules of the app. The model finds the `Persona`, the `Boundaries` and the `User goals` by their section names. The [trace](glossary.md#trace) reads the `Trace points` section itself ([Trace points](#trace-points)). The check of speed ([#317](https://github.com/mohanraj00/nookku/issues/317)) will find each part by its section name.
 
 ## Parts
 
@@ -25,6 +25,8 @@ Use the section names exactly. Today the evaluation prompt names the files, and 
 | `Trace points` | The spans or the events that the app must send, as the [trace](glossary.md#trace) shows them | A table of `Name`, `Source` and `When`. The sources are below. |
 
 Each part is optional.
+
+An issue with the `Persona` has the class `tone`. An issue with the `Boundaries` has the class `boundary`, and an issue with the `User goals` has the class `off_path` ([the issue classes](../how-to/read-the-results.md#5-read-the-report)). Each row of these classes cites the turn and a line of the part. An issue with a rule of `RULES.md` stays `business_rule`, also if the `Boundaries` link to it.
 
 ### Limits
 

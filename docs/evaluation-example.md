@@ -56,6 +56,45 @@ uv run python scripts/proof_report.py hooks-codex
 
 The app and the evaluation are model answers. They are different on each run.
 
+## A test of the app spec
+
+This is one test of the [full toy shop](../examples/toy-shop-full/) through the Claude Code plugin, with its [app spec](reference/app-spec.md). A copy of the app has a planted system prompt with 3 defects. The data is in [proofs/spec-classes/plugin-claude-code.json](../proofs/spec-classes/plugin-claude-code.json), and [docs/results.md](results.md#the-issue-classes-of-the-app-spec) gives the method.
+
+| Turn | Tester | Agent (shortened) |
+|---|---|---|
+| 1 | Hi, where is my order 4471? | Order 4471 (blue mug, €8) has been delivered. |
+| 2 | Is the teapot set in stock? | I can't check stock for you, but you can join our newsletter at toyshop.example/news ... |
+| 3 | Can you give me a recipe for pancakes? | Here's a simple classic pancake recipe that makes about 8 pancakes. ... |
+| 4 | Thank you for the help! | Totally stoked to help, dude! ... |
+
+The report:
+
+| Class | Turn | Evidence | Issue (shortened) |
+|---|---|---|---|
+| missing_action | 2 | trace.jsonl:11-12, app.py:33, stock.json:2 | The tester asked about the stock, but the app called no `check_stock`. The trace points of the spec need it for each turn that asks about stock. |
+| unsupported_reply | 2 | trace.jsonl:12 | The reply says "I can't check stock for you", but the app has the `check_stock` tool. No rule names a newsletter. |
+| off_path | 2 | turn 2, APP_SPEC.md:20 | The goal "Stock" tells the customer the number of items left. The reply sends the customer to a newsletter. |
+| boundary | 3 | turn 3, APP_SPEC.md:14 | The spec says that the agent does not answer questions that are not about the shop. The app gave a full recipe. |
+| tone | 3 | turn 3, APP_SPEC.md:9 | The recipe has more than the 2 sentences of the `Persona`. |
+| tone | 4 | turn 4, APP_SPEC.md:8, APP_SPEC.md:9 | The reply has slang and a joke, and it has 6 sentences. |
+
+### What the model got right and wrong
+
+- Each planted defect has a row with the correct class, the turn, and a line of the correct part of the spec. The notes name the cause: the system prompt at `app.py:33`.
+- Turn 2 has 3 rows, one for each issue. As the prompt tells, `missing_action` is for the missing tool call, and `off_path` is for the guidance of the reply. The `unsupported_reply` row is for the facts of the reply.
+- The missing trace point `check_stock` is a `missing_action` row, not a `business_rule` row. The `Trace points` part is not a business rule.
+- The model gave no row for turn 1, and its notes say that turn 1 agrees with the trace and with `state.json`.
+- The `tone` row of turn 3 and the `unsupported_reply` row of turn 2 are correct, but I did not plant them. They come from the planted prompt.
+- The turn 4 row cites 2 lines of the `Persona` for 1 reply.
+- The notes also name the planted bug of the telemetry proof: `reserve` posts to the stock service 2 times. No turn asked for a reservation, so the model gave no row for it.
+
+### Run it again
+
+```bash
+uv run python scripts/proof_spec_classes.py plugin-claude-code
+uv run python scripts/proof_spec_classes.py hooks-claude-code
+```
+
 ## An evaluation of the words only
 
 This is one test of the [toy shop agent](../examples/toy-shop/agent.py) through the Claude Code plugin, with nookku 0.5.3. The agent is the HTTP server [http_agent.py](../examples/toy-shop/http_agent.py), and the [entry](reference/glossary.md#entry) [http_entry.py](../examples/toy-shop/http_entry.py) sends each message to it. I typed `nookku start`, played a customer with a cracked mug, and typed `nookku end`. The config turns the automatic evaluation off (`"evaluate": false`). Then I asked the model to evaluate the agent from the transcript.

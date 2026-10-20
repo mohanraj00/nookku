@@ -232,6 +232,29 @@ In each run, the stock service had 2 reservations for the 1 teapot set that the 
 
 Each run also has 1 `tool_error` finding in turn 2: `check_stock` gave `no such item: robot-kit` (the key `findings` of each results file). The stock list of the toy shop has no robot kit, so this is the correct answer of the tool. The stock service got the call (`by_turn`, `stock_calls`), so the error does not change TP3. The runs used nookku 0.5.3 with the code of this check on 2026-10-20, with Agent SDK 0.2.168, which bundles Claude Code 2.1.301 (the key `versions` of each results file). The Codex setups run in v0.5.5 ([#437](https://github.com/mohanraj00/nookku/issues/437)). The other 3 trace points of the spec have a `When` in other words, for example `Each turn that asks about an order`. The trace does not check them, and `trace_points` in `findings.json` shows them with `checked: false` and `needed: null`. The 2 checked points have `needed: 3`. The finding needs no model, so the [conformance case](../conformance/trace/trace_points_toy_shop/) checks the same rule in each CI run.
 
+### The issue classes of the app spec
+
+[scripts/proof_spec_classes.py](../scripts/proof_spec_classes.py) runs a test of the [full toy shop](../examples/toy-shop-full/app.py) with its [app spec](reference/app-spec.md): [APP_SPEC.md](../examples/toy-shop-full/APP_SPEC.md) and [RULES.md](../examples/toy-shop-full/RULES.md). The proof plants 3 defects in a copy of `app.py`. It changes only the system prompt of the agent, and the example in the repo does not change. The tester sends 4 messages:
+
+| Turn | Tester | Planted defect | Part of the spec | Class |
+|---|---|---|---|---|
+| 1 | Hi, where is my order 4471? | none | | none |
+| 2 | Is the teapot set in stock? | The agent does not check the stock. It sends the customer to a newsletter. | `User goals`, goal 2 | `off_path` |
+| 3 | Can you give me a recipe for pancakes? | The agent answers each topic, also topics outside the shop. | `Boundaries` | `boundary` |
+| 4 | Thank you for the help! | The agent answers in slang with a joke, in 4 sentences or more. | `Persona` | `tone` |
+
+- **S0:** turn 1 has the `lookup_order` call, and turn 2 has no `check_stock` call. Thus the agent did the planted defect of turn 2.
+- **S1, S2 and S3:** `report.md` has an `off_path` row for turn 2, a `boundary` row for turn 3 and a `tone` row for turn 4. The evidence of each row names its turn and a line of the correct part of `APP_SPEC.md`.
+- **S4:** `report.md` has no row of these 3 classes for turn 1.
+- **P5 and P7:** as for the evaluation proofs above. P5 here needs an exact quote of a reply.
+
+| Form | Harness | Rows of the report | S0 | S1 | S2 | S3 | S4 | P5 | P7 | Result | Data |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| Plugin | Claude Code 2.1.302 | `missing_action` 2; `unsupported_reply` 2; `off_path` 2; `boundary` 3; `tone` 3; `tone` 4 | pass | pass | pass | pass | pass | pass | pass | pass | [results](../proofs/spec-classes/plugin-claude-code.json) |
+| Project hooks | Claude Code 2.1.302 | `missing_action` 2; `unsupported_reply` 2; `off_path` 2; `boundary` 3; `tone` 3; `tone` 4 | pass | pass | pass | pass | pass | pass | pass | pass | [results](../proofs/spec-classes/hooks-claude-code.json) |
+
+Both runs used the code of nookku 0.5.3 with the change of [#316](https://github.com/mohanraj00/nookku/issues/316), after the merge of [#463](https://github.com/mohanraj00/nookku/pull/463), on 2026-10-20, and Agent SDK 0.2.168, which bundles Claude Code 2.1.301. The results files keep the replies. In both runs, the model also gave a `tone` row for turn 3: the recipe has more than 2 sentences, and the `Persona` permits 2 or fewer. This row is correct: the planted prompt says "answer in full", so the reply breaks the `Persona`. Turn 2 has a `missing_action` row for the missing `check_stock` call and an `off_path` row for the newsletter. The prompt gives this order: a missing tool call is `missing_action`, and the guidance of the same reply is a different issue, with the class `off_path`. Both runs also gave an `unsupported_reply` row for turn 2: the newsletter comes only from the system prompt, and no tool result supports it. These rows are also correct. The Codex setups of this proof run in v0.5.5. At the release gate of v0.5.4, I add `proof_spec_classes.py` to [#437](https://github.com/mohanraj00/nookku/issues/437), so that this issue tracks these runs. Each setup ran 1 time, so these runs do not give a rate.
+
 ### Egress discovery, the MCP proxies and the Postgres proxy
 
 [scripts/proof_egress.py](../scripts/proof_egress.py) runs a test of the [egress toy shop](../examples/toy-shop-egress/app.py) in each relay. The app is an Agent SDK session with a [catalog MCP server](../examples/toy-shop-egress/catalog_mcp.py) over HTTP, a [notes MCP server](../examples/toy-shop-egress/notes_mcp.py) over stdio, the orders in Postgres 16 (in Docker) and the returns in a SQLite file. The app sends the OpenTelemetry spans of its psycopg and sqlite3 drivers. The tester types `nookku start`, and the [harness model](reference/glossary.md#harness-model) reads the app, writes its egress answer to `.nookku/egress.json` and runs `nookku register --file .nookku/egress.json`. The script gives no part of the answer. The test has 3 turns and no evaluation.
@@ -310,6 +333,8 @@ uv run python scripts/proof_telemetry.py hooks-claude-code
 uv run python scripts/proof_telemetry.py hooks-codex
 uv run python scripts/proof_trace_points.py plugin-claude-code
 uv run python scripts/proof_trace_points.py hooks-claude-code
+uv run python scripts/proof_spec_classes.py plugin-claude-code
+uv run python scripts/proof_spec_classes.py hooks-claude-code
 uv run python scripts/proof_egress.py plugin-claude-code
 uv run python scripts/proof_egress.py plugin-codex
 uv run python scripts/proof_egress.py hooks-claude-code

@@ -94,6 +94,7 @@ claude plugin validate plugins/nookku && claude plugin test plugins/nookku
 - `scripts/proof_report.py <setup>` runs a test of `examples/toy-shop-models/` and the evaluation at its end (P5 extended, P6, P7 and P8), and writes `proofs/report/`.
 - `scripts/proof_telemetry.py <setup>` runs a test of `examples/toy-shop-full/` with all telemetry sources and the evaluation at its end, and writes `proofs/telemetry/`.
 - `scripts/proof_trace_points.py <setup>` runs a test of a copy of `examples/toy-shop-full/` with its app spec and one planted missing trace point. It checks the finding `missing_trace_point` of the trace, and writes `proofs/trace-points/`.
+- `scripts/proof_spec_classes.py <setup>` runs a test of `examples/toy-shop-full/` with its app spec and 3 planted defects: one each for `tone`, `boundary` and `off_path`. It writes `proofs/spec-classes/`.
 - `scripts/proof_egress.py <setup>` runs a test of `examples/toy-shop-egress/`, with the discovery answer of the harness model, 2 MCP servers, a Postgres database in Docker and a SQLite database with a driver trace. It writes `proofs/egress/`.
 - `scripts/proof_codex_otel.py` checks if Codex sends OpenTelemetry data from the `OTEL_*` variables of a test, and writes `proofs/otel/codex.json`.
 - `scripts/proof_sdk_bundles.py <version>...` records the Claude Code version that each given Claude Agent SDK release bundles, with no model, and writes `proofs/trace/sdk-bundles.json`.

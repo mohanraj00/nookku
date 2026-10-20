@@ -13,7 +13,7 @@ The test folder is `{folder}`.
    Each database query of the transcript names its source. `proxy` is the Postgres proxy: it is outside the app process, and it records the rows of each answer. `driver trace from the app process` is a span of the database driver of the app. A driver trace has no rows, and it can hide parameter values. Thus do not judge the rows of a query from a driver trace. Check the state of the database with a read-only query.
 3. If the test folder has the file `notes.jsonl`, read it. Each line is a note of the tester on one turn: `turn`, `rating` (`up`, `down` or `null`) and `comment` (text or `null`). `turn` is the number of the turn in `relay.jsonl`, from 1. If the audit shows no break, it is also the number of the turn in the transcript. If a turn has more than one note, the last note is the current opinion of the tester. A note is the opinion of the tester. It is not a finding and not evidence. The seal covers this file.
 4. If the test folder has the subfolder `app-state/`, read its files. The app wrote its own state there during the test, and the seal covers it.
-5. Read the code of the app and its business rules. If this prompt names the files of the app spec, the spec holds the business rules. Else find the rules in a rules document, the docs, the specs, the comments and the tests.
+5. Read the code of the app and its business rules. If this prompt names the files of the app spec, the spec holds the business rules: a file with no known part, for example a rules document, or a `##` section that is not a known part. The known parts are `Persona`, `Boundaries`, `User goals`, `Limits` and `Trace points`, and they are not business rules. Else find the rules in a rules document, the docs, the specs, the comments and the tests.
 6. Check the state of the app with read-only commands only: for example, read a file, run a SELECT query, or send a GET request. Do not change the state. Do not start the app, and do not send a message to it.
 
 ## Judge
@@ -28,8 +28,20 @@ Find each issue of the app. Each issue has one of these classes:
 | `unsupported_reply` | said a fact that no tool result and no rule supports. |
 | `missing_action` | did not do an action that the request or a rule needs. |
 | `state_mismatch` | gave a reply or a trace that does not agree with its state. |
+| `tone` | gave a reply that does not agree with the `Persona` of the app spec. |
+| `boundary` | did an action or answered a topic that the `Boundaries` of the app spec say it must refuse. |
+| `off_path` | did not guide the user to a goal of the `User goals` of the app spec, or guided the user away from it. |
 
 Each issue needs evidence: a `trace.jsonl:N` line, a turn of the transcript, or a source line such as `app.py:42`. Quote the exact argument, result or text. If you have no evidence, do not report the issue.
+
+Use `tone`, `boundary` and `off_path` only if the app spec has the part. Give each issue one class. If an issue fits one of the first 6 classes and also a class of the spec, use the class of the first 6:
+
+- A break of a business rule is `business_rule`, also if the `Boundaries` of the spec link to the rule.
+- A missing tool call is `missing_action`. The guidance of the reply is a different issue. If the reply does not guide the user to a goal of `User goals`, or guides the user away from it, give an `off_path` row for this issue.
+- Use `boundary` only for a topic or an action that the `Boundaries` refuse and that no business rule covers.
+- Use `off_path` only for the guidance of the user to a goal of `User goals`.
+
+Each row of these 3 classes needs 2 pieces of evidence: the turn of the transcript and a line of the part of the spec, for example `turn 3, APP_SPEC.md:9`. Quote the reply and the line of the spec.
 
 A note of the tester can show you where to look. Do not report an issue only because of a note. Check each note against the records, the code and the state of the app.
 
