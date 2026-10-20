@@ -12,7 +12,7 @@ With no spec, the model finds the business rules in the code, the docs and the t
 
 A spec can have a part in a second file. For example, the toy shop keeps its rules in `RULES.md`, and its `Boundaries` section links to it. A file with no known section is a list of business rules.
 
-Use the section names exactly. The checks of the evaluation find each part by its name.
+Use the section names exactly. Today the evaluation prompt names the files, and the model reads them as the rules of the app. The checks of tone and boundaries ([#316](https://github.com/mohanraj00/nookku/issues/316)), of speed ([#317](https://github.com/mohanraj00/nookku/issues/317)) and of [trace](glossary.md#trace) points ([#318](https://github.com/mohanraj00/nookku/issues/318)) will find each part by its section name.
 
 ## Parts
 
@@ -24,7 +24,7 @@ Use the section names exactly. The checks of the evaluation find each part by it
 | `Limits` | The maximum cost of a turn | A table of `Limit`, `Value` and `Meaning`. The names are below. |
 | `Trace points` | The spans or the events that the app must send, as the [trace](glossary.md#trace) shows them | A table of `Name`, `Source` and `When`. The sources are below. |
 
-Each part is optional. The model judges only the parts that the spec gives.
+Each part is optional.
 
 ### Limits
 
@@ -59,6 +59,10 @@ The [full toy shop](../../examples/toy-shop-full/README.md) has the spec [APP_SP
 The [tester](glossary.md#tester) or the model writes the paths, so Nookku does not trust them ([SPEC.md section 7.1](../../SPEC.md#71-configuration)):
 
 - Each path is relative to the project root.
-- After symlinks resolve, each path must be a file in the project. A path outside the project, for example `../secrets.md` or `/etc/hosts`, is an error.
-- `nookku init --spec` and `nookku start` check each path. If a path does not follow this rule, `init` writes nothing, and `start` starts no test.
-- The manifest of each test records each path and the SHA-256 of its file at the start. If a file changes after the start, the model says so in the report.
+- After symlinks resolve, each path must be a regular file in the project. A path outside the project, for example `../secrets.md` or `/etc/hosts`, is an error.
+- A path in the state folder `.nookku/` is an error.
+- A file of more than 1 MiB is an error.
+- `nookku init --spec` and `nookku start` check each path. If a path does not follow these rules, `init` writes nothing, and `start` starts no test.
+- The manifest of each test records each path and the SHA-256 of its file at the start. At the end, the evaluation prompt checks each path and its SHA-256 again. If a file changed or moved out of the project, the prompt tells the model not to read it.
+
+Do not name a file with secrets as a spec file, for example `.env`. The evaluation model reads each spec file, and its text can go into `report.md`.
