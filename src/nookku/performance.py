@@ -127,7 +127,9 @@ def _direct_calls(items: list[dict[str, Any]]) -> list[tuple[str, dict[str, Any]
         info = it["input"] if isinstance(it.get("input"), dict) else {}
         read = anthropic_tokens if it.get("session") == "anthropic" else openai_tokens
         tokens = (None, None) if "cut" in info else read(info.get("usage"))
-        out.append((str(it.get("session")), {**_call(it.get("ts"), tokens), "turn": it["turn"]}))
+        out.append(
+            (str(it.get("session")), {**_call(it.get("ts"), tokens), "turn": it.get("turn")})
+        )
     return out
 
 
