@@ -12,10 +12,14 @@ The example in the repo does not change. The planted prompt tells the agent to:
 Turn 1 asks about an order, and the planted prompt does not change it. The tester then types
 `nookku end`, and the harness model evaluates the test with no other prompt.
 
-S0  The agent did the planted defect of turn 2: the session of turn 2 has no `check_stock` call.
-S1  report.md has an `off_path` row for turn 2, with a line of APP_SPEC.md in its evidence.
-S2  report.md has a `boundary` row for turn 3, with a line of APP_SPEC.md in its evidence.
-S3  report.md has a `tone` row for turn 4, with a line of APP_SPEC.md in its evidence.
+S0  The app session of turn 1 has the `lookup_order` call, and the app session of turn 2 has no
+    `check_stock` call: the agent did the planted defect of turn 2.
+S1  report.md has an `off_path` row for turn 2. Its evidence names turn 2 and a line of the
+    `User goals` of APP_SPEC.md.
+S2  report.md has a `boundary` row for turn 3. Its evidence names turn 3 and a line of the
+    `Boundaries` of APP_SPEC.md.
+S3  report.md has a `tone` row for turn 4. Its evidence names turn 4 and a line of the `Persona`
+    of APP_SPEC.md.
 S4  report.md has no row of these 3 classes for turn 1.
 P5  report.md holds an exact quote of 20 or more characters from a reply of the agent.
 P7  After the evaluation, `nookku verify` finds the test folder intact.
@@ -64,6 +68,8 @@ MESSAGES = [
 ]
 CONTROL_TURN = 1
 EXPECTED = {"off_path": 2, "boundary": 3, "tone": 4}
+# The part of the spec of each class.
+PARTS = {"off_path": "User goals", "boundary": "Boundaries", "tone": "Persona"}
 SPEC = ["APP_SPEC.md", "RULES.md"]
 
 
@@ -81,9 +87,19 @@ def plant(project: Path) -> None:
     path.write_text(text, encoding="utf-8")
 
 
-def cites_the_spec(evidence: str) -> bool:
-    """True if the evidence names a line of APP_SPEC.md, for example APP_SPEC.md:9."""
-    return re.search(r"APP_SPEC\.md:\d+", evidence) is not None
+def parts(spec: str) -> dict[str, range]:
+    """The line numbers of each `##` part of the spec, from 1, without the heading."""
+    lines = spec.split("\n")
+    heads = [(n, x[3:].strip()) for n, x in enumerate(lines, 1) if x.startswith("## ")]
+    ends = [n for n, _ in heads[1:]] + [len(lines) + 1]
+    return {name: range(n + 1, end) for (n, name), end in zip(heads, ends, strict=True)}
+
+
+def cites(evidence: str, turn: int, lines: range) -> bool:
+    """True if the evidence names the turn and a line of APP_SPEC.md in `lines`."""
+    said = re.search(rf"\bturn {turn}\b", evidence, re.I) is not None
+    cited = {int(n) for n in re.findall(r"APP_SPEC\.md:(\d+)", evidence)}
+    return said and any(n in lines for n in cited)
 
 
 def main() -> int:
@@ -93,7 +109,9 @@ def main() -> int:
     project, run, start, end, end_args = pr.relay_runner(relay)
     for name in pr.APP_FILES[FULL.name]:
         (project / name).unlink(missing_ok=True)
-    (project / "stock.json").write_text((FULL / "stock.json").read_text())
+    (project / "stock.json").write_text(
+        (FULL / "stock.json").read_text(encoding="utf-8"), encoding="utf-8"
+    )
     shop = stock.StockService(0, project / "stock.json")
     model = toy_model.ToyModel(0)
     for server in (shop, model):
@@ -118,9 +136,14 @@ def main() -> int:
         return 1
     folder, answer = ran
 
-    trace = [json.loads(x) for x in (folder / "trace.jsonl").read_text().split("\n") if x]
-    exchanges = [json.loads(x) for x in (folder / "tap.jsonl").read_text().split("\n") if x]
+    trace = [
+        json.loads(x) for x in (folder / "trace.jsonl").read_text(encoding="utf-8").split("\n") if x
+    ]
+    exchanges = [
+        json.loads(x) for x in (folder / "tap.jsonl").read_text(encoding="utf-8").split("\n") if x
+    ]
     replies = [r["reply"] for r in exchanges if r.get("type") == "exchange" and r.get("reply")]
+    # The app is an Agent SDK session in each setup, so its session items are of claude-code.
     tools = [
         {"line": n, "turn": it["turn"], "name": it["name"]}
         for n, it in enumerate(trace, 1)
@@ -130,15 +153,20 @@ def main() -> int:
     report = report_path.read_text(encoding="utf-8") if report_path.exists() else ""
     issues = pr.rows(report)
 
-    def found(cls: str, turn: int) -> bool:
+    spec = parts((project / "APP_SPEC.md").read_text(encoding="utf-8"))
+
+    def found(cls: str) -> bool:
+        turn = EXPECTED[cls]
         return any(
-            r["class"] == cls and r["turn"] == str(turn) and cites_the_spec(r["evidence"])
+            r["class"] == cls
+            and r["turn"] == str(turn)
+            and cites(r["evidence"], turn, spec[PARTS[cls]])
             for r in issues
         )
 
-    audit = json.loads((folder / "audit.json").read_text())
-    manifest = json.loads((folder / "manifest.json").read_text())
-    findings = json.loads((folder / "findings.json").read_text())
+    audit = json.loads((folder / "audit.json").read_text(encoding="utf-8"))
+    manifest = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
+    findings = json.loads((folder / "findings.json").read_text(encoding="utf-8"))
     sealed = seal.verify(folder)
     hidden = pr.private(report) or pr.private(answer) or any(pr.private(r) for r in replies)
     result = {
@@ -155,14 +183,17 @@ def main() -> int:
         "turns": audit["turns"],
         "audit_exit": audit["exit"],
         "tool_calls": tools,
-        "S0_no_stock_check_in_turn_2": not any(
+        "S0_planted_defect_of_turn_2": any(
+            t["turn"] == CONTROL_TURN and t["name"].endswith("lookup_order") for t in tools
+        )
+        and not any(
             t["turn"] == EXPECTED["off_path"] and t["name"].endswith("check_stock") for t in tools
         ),
         "report_written": report_path.exists(),
         "issues": [{k: r[k] for k in ("class", "turn", "evidence")} for r in issues],
-        "S1_off_path_turn_2": found("off_path", EXPECTED["off_path"]),
-        "S2_boundary_turn_3": found("boundary", EXPECTED["boundary"]),
-        "S3_tone_turn_4": found("tone", EXPECTED["tone"]),
+        "S1_off_path_turn_2": found("off_path"),
+        "S2_boundary_turn_3": found("boundary"),
+        "S3_tone_turn_4": found("tone"),
         "S4_no_spec_class_in_turn_1": not any(
             r["class"] in EXPECTED and r["turn"] == str(CONTROL_TURN) for r in issues
         ),
@@ -179,7 +210,7 @@ def main() -> int:
     }
     result["pass"] = (
         audit["exit"] == 0
-        and result["S0_no_stock_check_in_turn_2"]
+        and result["S0_planted_defect_of_turn_2"]
         and result["S1_off_path_turn_2"]
         and result["S2_boundary_turn_3"]
         and result["S3_tone_turn_4"]
@@ -190,7 +221,9 @@ def main() -> int:
     )
     out = pr.ROOT / "proofs" / "spec-classes"
     out.mkdir(parents=True, exist_ok=True)
-    (out / f"{relay}.json").write_text(json.dumps(result, indent=1, ensure_ascii=False) + "\n")
+    (out / f"{relay}.json").write_text(
+        json.dumps(result, indent=1, ensure_ascii=False) + "\n", encoding="utf-8"
+    )
     print(json.dumps({k: v for k, v in result.items() if k not in ("replies", "report", "answer")}))
     print("PASS" if result["pass"] else "FAIL", out / f"{relay}.json")
     return 0 if result["pass"] else 1

@@ -62,29 +62,31 @@ This is one test of the [full toy shop](../examples/toy-shop-full/) through the 
 
 | Turn | Tester | Agent (shortened) |
 |---|---|---|
-| 1 | Hi, where is my order 4471? | Your order 4471 (a blue mug, €8) has been delivered. |
-| 2 | Is the teapot set in stock? | I can't check stock levels, but you can join our newsletter at toyshop.example/news ... |
-| 3 | Can you give me a recipe for pancakes? | Here's a simple pancake recipe that makes about 8 pancakes. ... |
+| 1 | Hi, where is my order 4471? | Your order 4471 (one blue mug, €8) has been delivered. |
+| 2 | Is the teapot set in stock? | You can get stock alerts for the teapot set by joining our newsletter at toyshop.example/news. ... |
+| 3 | Can you give me a recipe for pancakes? | Here's a simple recipe for fluffy pancakes (makes about 8): ... |
 | 4 | Thank you for the help! | Totally stoked to help, dude! ... |
 
 The report:
 
 | Class | Turn | Evidence | Issue (shortened) |
 |---|---|---|---|
-| off_path | 2 | turn 2, APP_SPEC.md:21 | The goal "Stock" needs a stock check. The app called no `check_stock` and sent the customer to a newsletter. `stock.json` has 3 teapot sets. |
-| unsupported_reply | 2 | trace.jsonl:12, app.py:55 | The reply says "I can't check stock levels", but the app has the `check_stock` tool. |
-| boundary | 3 | turn 3, APP_SPEC.md:15 | The spec says that the agent does not answer questions that are not about the shop. The app gave a full recipe. |
+| missing_action | 2 | trace.jsonl:11-12, APP_SPEC.md:35, app.py:33 | The tester asked about the stock, but the app called no `check_stock`. |
+| off_path | 2 | turn 2, APP_SPEC.md:20 | The goal "Stock" tells the customer the number of items left. The reply sends the customer to a newsletter. |
+| unsupported_reply | 2 | trace.jsonl:12, stock.json | The reply says that the customer hears "as soon as it's available", but `stock.json` has 3 teapot sets. |
+| boundary | 3 | turn 3, APP_SPEC.md:14 | The spec says that the agent does not answer questions that are not about the shop. The app gave a full recipe. |
 | tone | 3 | turn 3, APP_SPEC.md:9 | The recipe has more than the 2 sentences of the `Persona`. |
 | tone | 4 | turn 4, APP_SPEC.md:8 | The reply has slang and a joke. The `Persona` says "It does not use slang or jokes". |
-| tone | 4 | turn 4, APP_SPEC.md:9 | The reply has 6 sentences. |
+| tone | 4 | turn 4, APP_SPEC.md:9 | The reply has 5 sentences. |
 
 ### What the model got right and wrong
 
-- Each planted defect has a row with the correct class, the turn, and the line of the spec. The rows and the notes also name the cause: the system prompt at `app.py:33`.
-- The model gave no row for turn 1, and its notes say that turn 1 agrees with `state.json`.
-- The `tone` row of turn 3 and the `unsupported_reply` row of turn 2 are correct, but I did not plant them. They come from the planted prompt: it says "answer in full", and the agent says that it cannot check the stock.
+- Each planted defect has a row with the correct class, the turn, and a line of the correct part of the spec. The rows and the notes also name the cause: the system prompt at `app.py:33`.
+- Turn 2 has 2 rows, as the prompt tells: `missing_action` for the missing tool call, and `off_path` for the guidance of the reply.
+- The model gave no row for turn 1, and its notes say that turn 1 agrees with the trace.
+- The `tone` row of turn 3 and the `unsupported_reply` row of turn 2 are correct, but I did not plant them. They come from the planted prompt.
 - Turn 4 has 2 `tone` rows for 1 reply, one for each line of the spec. A tester can read them as 1 issue.
-- The notes say that the model could not check the `turn_tokens` limit, because the transcript gives no output tokens for each turn.
+- The notes say that the model could not check the `turn_tokens` limit, because the records give no output tokens for each turn.
 
 ### Run it again
 

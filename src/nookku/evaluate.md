@@ -34,7 +34,14 @@ Find each issue of the app. Each issue has one of these classes:
 
 Each issue needs evidence: a `trace.jsonl:N` line, a turn of the transcript, or a source line such as `app.py:42`. Quote the exact argument, result or text. If you have no evidence, do not report the issue.
 
-Use `tone`, `boundary` and `off_path` only if the app spec has the part. Each row of these classes needs 2 pieces of evidence: the turn of the transcript and the line of the spec, for example `turn 3, APP_SPEC.md:9`. Quote the reply and the line of the spec. If an issue breaks a part of the spec and also fits another class, use the class of the part of the spec.
+Use `tone`, `boundary` and `off_path` only if the app spec has the part. The classes do not overlap. If an issue fits one of the first 6 classes, use that class:
+
+- A break of a business rule is `business_rule`, also if the `Boundaries` of the spec link to the rule.
+- A missing tool call is `missing_action`. If the reply also does not guide the user to a goal of `User goals`, or guides the user away from it, give a second row of class `off_path` for the guidance.
+- Use `boundary` only for a topic or an action that the `Boundaries` refuse and that no business rule covers.
+- Use `off_path` only for the guidance of the user to a goal of `User goals`.
+
+Each row of these 3 classes needs 2 pieces of evidence: the turn of the transcript and a line of the part of the spec, for example `turn 3, APP_SPEC.md:9`. Quote the reply and the line of the spec.
 
 A note of the tester can show you where to look. Do not report an issue only because of a note. Check each note against the records, the code and the state of the app.
 

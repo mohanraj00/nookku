@@ -1133,7 +1133,7 @@ The reference is `(compact: the same text as [trace.jsonl:N], sha256 <hex>, <len
 | `boundary` | did an action or answered a topic that the `Boundaries` of the app spec say it must refuse. |
 | `off_path` | did not guide the user to a goal of the `User goals` of the app spec, or guided the user away from it. |
 
-Turn is the number of the turn, or `-`. Evidence is a `trace.jsonl:N` line, a turn, or a source line. A row of `tone`, `boundary` or `off_path` comes only from a part of the app spec (section 9.2), and its evidence has the turn and a line of the spec.
+Turn is the number of the turn, or `-`. Evidence is a `trace.jsonl:N` line, a turn, or a source line. A row of `tone`, `boundary` or `off_path` comes only from a part of the app spec (section 9.2), and its evidence has the turn and a line of that part. The classes do not overlap, and the evaluation prompt gives the order: if an issue fits one of the first 6 classes, the row has that class. A break of a business rule is `business_rule`, also if the `Boundaries` link to the rule, and a missing tool call is `missing_action`. `boundary` is only for a topic or an action that the `Boundaries` refuse and that no business rule covers. `off_path` is only for the guidance of the user to a goal of `User goals`.
 
 The Tester notes table has the columns Note, Turn, Rating, Comment and What the records show, and one row for each line of `notes.jsonl`. Note is `notes.jsonl:N`, where N is the line. Comment is the comment, or its first 200 characters, or `-` for `null`. The last column says if the records agree with the note, do not agree, or cannot show it, with the evidence. If the test has no `notes.jsonl`, the report has the text "The tester wrote no note." in place of this table.
 
