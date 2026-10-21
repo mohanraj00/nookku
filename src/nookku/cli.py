@@ -12,7 +12,18 @@ from importlib import resources
 from pathlib import Path
 from typing import Any, TextIO
 
-from nookku import __version__, bridge, evaluation, kit, print_mode, seal, state, stdio, trace
+from nookku import (
+    __version__,
+    bridge,
+    evaluation,
+    kit,
+    performance,
+    print_mode,
+    seal,
+    state,
+    stdio,
+    trace,
+)
 from nookku.adapters import make
 from nookku.audit import audit, render
 from nookku.config import FILE as CONFIG_FILE
@@ -683,7 +694,7 @@ def _trace_command(root: Path, test: str | None, as_json: bool) -> int:
         print("nookku: no test folder with a manifest.", file=sys.stderr)
         return 2
     check = seal.verify(folder)
-    rebuilt = ("trace.jsonl", "findings.json")
+    rebuilt = ("trace.jsonl", "findings.json", performance.FILE)
     sources = [x for k in ("changed", "missing", "added") for x in check[k] if x not in rebuilt]
     # A rebuild changes only the trace files. It needs sources that agree with an intact seal.
     broken = sources or check["copy"] in ("different", "missing") or not check["sealed"]
@@ -695,7 +706,14 @@ def _trace_command(root: Path, test: str | None, as_json: bool) -> int:
     except RecordError as e:
         print(f"nookku: the trace was not rebuilt. {e}", file=sys.stderr)
         return 2
-    seal.update(folder, list(rebuilt))
+    names = list(rebuilt)
+    try:
+        performance.build(folder)
+    except Exception as e:
+        # The seal keeps the hash of the old file, so a changed old file shows as changed.
+        print(f"nookku: {performance.FILE} was not rebuilt: {e!r}", file=sys.stderr)
+        names.remove(performance.FILE)
+    seal.update(folder, names)
     if as_json:
         print(json.dumps(report, indent=1, ensure_ascii=False))
         return 0

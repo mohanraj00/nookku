@@ -505,7 +505,7 @@ If no process with the pid runs, or if the start time of that process is not `pi
 2. Identifies the Codex sessions (section 7.3). If `relay.jsonl` is invalid, the bridge does not know each tester session, so it identifies no Codex session and writes the error to `bridge.log`.
 3. Copies the session file of each identified model session into `sessions/` in the test folder.
 4. Writes the end time and the tester's harness sessions into the manifest.
-5. Builds the trace (section 8): `trace.jsonl` and `findings.json`. If the trace fails, the bridge writes the error to `bridge.log`, and the test still ends.
+5. Builds the trace (section 8): `trace.jsonl` and `findings.json`. Then it writes `performance.json` (section 8.7). If the trace or `performance.json` fails, the bridge writes the error to `bridge.log`, and the test still ends.
 6. Writes `audit.json`: the audit of `tap.jsonl` against `relay.jsonl` (section 3), in the form of `nookku audit --json`. If the audit fails, the bridge writes the error to `bridge.log`.
 7. Writes the seal (section 7.4). If the seal fails, the bridge writes the error to `bridge.log`.
 8. Removes `current.json`.
@@ -519,7 +519,7 @@ The test folder:
 ```text
 .nookku/tests/<test-id>/
   manifest.json  relay.jsonl  tap.jsonl  app.log  bridge.log
-  otel.jsonl  backend.jsonl  model_api.jsonl  mcp.jsonl  .mcp-closed  database.jsonl  trace.jsonl  findings.json  audit.json  seal.json  report.md  denied.jsonl
+  otel.jsonl  backend.jsonl  model_api.jsonl  mcp.jsonl  .mcp-closed  database.jsonl  trace.jsonl  findings.json  performance.json  audit.json  seal.json  report.md  denied.jsonl
   sessions/claude-code/<session>.jsonl
   sessions/codex/<rollout file>
 ```
@@ -567,7 +567,7 @@ The seal shows if a file of the test folder changed after the end of the test. I
 
 `verify` exits with 0 if `intact` is true, and with 2 if it is false. `nookku transcript --trace` shows the result in its first line, or in its second line if a record is not valid (section 9.2).
 
-`nookku trace` rebuilds `trace.jsonl` and `findings.json`. If a seal or a copy exists, it rebuilds them only if each other sealed file agrees with the seal, `seal.json` exists, and the copy is not `different` or `missing`. Then it writes the new SHA-256 of the 2 files to the seal and to the copy.
+`nookku trace` rebuilds `trace.jsonl`, `findings.json` and `performance.json`. If a seal or a copy exists, it rebuilds them only if each other sealed file agrees with the seal, `seal.json` exists, and the copy is not `different` or `missing`. Then it writes the new SHA-256 of the 3 files to the seal and to the copy. A test of Nookku 0.5.3 or earlier has no `performance.json`, so the rebuild adds it to the seal.
 
 The conformance cases in `conformance/seal/` test `verify`.
 
@@ -1054,6 +1054,53 @@ These tools come from the harness, not from the app: `ToolSearch` in Claude Code
 
 Each finding has `check`, `turn` and `detail`. A finding about an item also has `harness`, `session` and `source`. The findings are sorted by check, in the order of the table, then by turn, and then in the order of the items. A finding with no turn comes after the findings with a turn.
 
+### 8.7 Performance
+
+`performance.json` gives the time, the model calls and the tokens of each turn. The evaluation compares them with the `Limits` of the app spec ([docs/reference/app-spec.md](docs/reference/app-spec.md#limits)). It is one JSON object (0.1). The writer writes each lone surrogate in a string as its escape text (section 2). It has these fields:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `v` | string | `"0.1"` |
+| `test` | string or null | The test id from the manifest. |
+| `unknown` | string or null | Why the records cannot give each model call of the app, or `null` if they can. The reasons are below. |
+| `outside_turns` | integer or null | The count of calls in no turn window, for example a call after the last reply. No turn counts them. `null` if `unknown` is not `null`. |
+| `turns` | list | One object for each turn of section 8.3, in the order of the turns. |
+
+Each turn has these fields:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `turn` | integer | The number of the turn. |
+| `seconds` | number or null | `ts` minus `started` of the `exchange` row, rounded to 3 decimals: the time from the message to the reply that the tap measured. `null` for a row with no `started` (0.1). |
+| `model_calls` | integer or null | The count of model calls in the turn. `null` if `unknown` is not `null`. |
+| `input_tokens` | integer or null | The sum of the input tokens of the calls of the turn, with the cached tokens. `null` if a call of the turn has no input tokens, or if `unknown` is not `null`. |
+| `output_tokens` | integer or null | The sum of the output tokens of the calls of the turn. `null` if a call of the turn has no output tokens, or if `unknown` is not `null`. Thus a turn can have its input tokens and no output tokens, or the opposite. |
+| `no_usage` | integer or null | The count of calls of the turn with no input or no output tokens. `null` if `unknown` is not `null`. |
+| `sources` | list or null | One object for each model session and each model API that has a call in the turn, sorted by `harness` and then `session`: `harness` and `session` as in section 8.2, and `model_calls`, `input_tokens`, `output_tokens` and `no_usage` of its calls. `null` if `unknown` is not `null`. |
+
+A value that the records do not hold is `null`, never 0. A count is an integer from 0 to 2^53 - 1. A token value of a record that is not such an integer is not known. A sum above 2^53 - 1 is not known. A turn with no call has `model_calls` 0, `input_tokens` 0 and `output_tokens` 0: the records show no call.
+
+A call is in turn `n` if its time is in the window of turn `n` (section 8.3). The calls come from these records:
+
+- **Claude Code** session file. Each line of type `assistant` that has a `message` and no `isMeta` belongs to a call. Claude Code writes one line for each content block of a message, and each line has the same `message.id` and `usage`. Thus the lines with one `message.id` are one call, else the lines with one `requestId`, else one line is one call. A message with the `model` `<synthetic>` is not a call: Claude Code writes it itself, for example after an API error. The time of a call is the `timestamp` of its first line. Its usage is the `message.usage` of its last line. The input tokens are `input_tokens` plus `cache_creation_input_tokens` and `cache_read_input_tokens` (0 if a key is not there or is `null`).
+- **Codex** rollout file. Each line of type `event_msg` with a payload of type `token_count` and an object `info.last_token_usage` is one call. A line with the same `info.total_token_usage` as the call before it is a repeat, not a call. Its time is the `timestamp` of the line. The tokens are `input_tokens` and `output_tokens` of `last_token_usage`. Codex counts the cached tokens in `input_tokens`.
+- **Direct calls**: each `model_api` assistant message of `trace.jsonl` (section 8.4) is one call, with the turn and the time of the item. The tokens come from `usage` of its `input`. For the API `anthropic`, the rule of Claude Code applies. For another API, the tokens are `prompt_tokens` and `completion_tokens` (Chat Completions), else `input_tokens` and `output_tokens` (Responses). These include the cached tokens. A call with `cut` in its `input` has no usage: a cut result can hold the usage of the start of the response only. The count of direct calls trusts the egress answer (section 7.11). A proxy records the calls to each API of `model_apis` only. If the app also calls an API that the answer does not name, no record holds that call, and the count is too low. The summary does not read the `unseen_call` findings (section 8.6): such a finding can name a call to a backend or to a database, and a span does not say if its URL is a model API. The evaluation reads these findings.
+
+A call of a harness that the model API proxy saw (section 7.7) is not a second call. It is a call of the harness session, and its session file has it. The performance proof ([docs/results.md](docs/results.md#time-and-tokens-of-each-turn)) measured this for the Agent SDK session of the full toy shop: in each of 2 runs, the proxy saw 6 harness calls, and the session file gave 6 calls ([plugin-claude-code.json](proofs/performance/plugin-claude-code.json), [hooks-claude-code.json](proofs/performance/hooks-claude-code.json), keys `model_api.harness_calls` and `performance`). Nookku does not compare the 2 counts, because a harness can make a call that it does not write in the session file.
+
+`unknown` is the first of these reasons, in this order:
+
+| Reason | Text |
+|---|---|
+| A model session of the manifest has no reader or no file in the test folder. | `the model session <session> (<harness>) has no session file` |
+| The manifest has no egress answer with a `model_apis` list (section 7.11). The model API proxies start only from this answer, so no record holds the direct model calls of the app. A test of nookku 0.5.1 or earlier has no egress answer. | `the test has no egress answer, so no proxy recorded the direct model calls` |
+| The manifest has no model session, and the test folder has no `model_api.jsonl`. | `the test has no model session and no model_api.jsonl` |
+| The test folder has `model_api.jsonl` and no `trace.jsonl`. | `the test folder has model_api.jsonl and no trace.jsonl` |
+| `model_api.jsonl` has a harness call of a harness with no model session in the manifest. | `model_api.jsonl has <n> call(s) of <harness>, and no session file of it` (`1 call` or `<n> calls`) |
+| A session file gives no call, but the trace has a reply, a tool call or a command of that session. | `the session file of <session> has model items and no model call` |
+
+The cases in [`conformance/performance/`](conformance/performance/) give the input records and the expected `performance.json`. The Codex rule comes from the rollout files of codex-cli 0.162.0-alpha.17.2. No proof checks it with a real Codex yet. That proof is in v0.5.5 ([#437](https://github.com/mohanraj00/nookku/issues/437)).
+
 ## 9. Evaluation
 
 At the end of a test, the harness model evaluates the app. It writes `report.md` in the test folder.
@@ -1103,7 +1150,7 @@ If `spec` in the manifest names one or more files (section 7.2), the prompt star
 
 For a scripted test (section 7.10), the prompt starts with a note. The note says that each message came from the script file, names the copy and its SHA-256, and names the entry. With a replay entry, the replies come from a recording, so the note tells the model to judge the app and the transport, not the model.
 
-`nookku transcript --trace` shows each turn of a test as the app received it and sent it (from `tap.jsonl`). It reads `tap.jsonl` with the reader of section 2. If `tap.jsonl` has a line that is not valid, or if `trace.jsonl` has a line that is not a JSON object, the transcript has only 2 lines. The first line is `Record: INVALID.`, the error with the file and the line, and `Do not trust these records. This transcript shows no turn.` The second line is the result of the seal (section 7.4). The transcript shows no turn, so a changed text never shows as exact. Under each turn, it shows the model items of that turn and the findings of that turn. The findings with no turn come before turn 1. There, the `version_untested` findings of one harness and one version show as one line with the count of sessions, for example `- version_untested: version 2.1.302, tested: 2.1.286, 2.1.292, 2.1.293, 2.1.294, 2.1.295, 2.1.296, 2.1.299, 2.1.300, 2.1.301 (claude-code, 4 sessions)`. `findings.json` keeps one finding for each session. For a `/decisions` call, the user message shows each question and each image on one line. A question shows as `question <name> (<type>): <options>; instructions: <instructions as a JSON string>`, for example `question department (choice): billing, shipping, other; instructions: "Which department should handle this complaint?"`. A question with no options has no `: <options>` part. A question with no instructions has no `; instructions:` part. If the instructions, the name, the type or the options (with their `, `) have more than 2,000 characters, the line shows their start and names the line of the item in `trace.jsonl`. The media type of an image has the same cut. In the name, the type, the options, the media type and each answer line, each control character and each character that can end a line (U+0085, U+2028 and U+2029) shows as its JSON escape, for example `\u000a`. Thus a question shows on one line. The assistant message shows each answer on one line in place of the text:
+`nookku transcript --trace` shows each turn of a test as the app received it and sent it (from `tap.jsonl`). It reads `tap.jsonl` with the reader of section 2. If `tap.jsonl` has a line that is not valid, or if `trace.jsonl` has a line that is not a JSON object, the transcript has only 2 lines. The first line is `Record: INVALID.`, the error with the file and the line, and `Do not trust these records. This transcript shows no turn.` The second line is the result of the seal (section 7.4). The transcript shows no turn, so a changed text never shows as exact. Under each turn, it shows the model items of that turn and the findings of that turn. Then a `performance` block gives the turn from `performance.json` (section 8.7): the seconds, the model calls and the input and output tokens, then one line for each source, and then the line `model sessions together` with the sum of the output tokens of the `claude-code` and `codex` sources. The limit `turn_tokens` of the app spec compares with this line (section 9.3). A `null` value shows as `<name> not known`, for example `input tokens not known`. If `unknown` is not `null`, the block gives the seconds and the reason. Each string of `performance.json` shows with each character that is not printable as an escape, for example a new line as `\u000a`. Thus a session id cannot add a line to the transcript. The reader also refuses a file with such a character in `unknown`, `harness` or `session`. The head of the transcript says how to read the block, and it gives `outside_turns` if it is more than 0. If `performance.json` is missing or not valid, the head says so and gives the problem, and no turn has the block. The findings with no turn come before turn 1. There, the `version_untested` findings of one harness and one version show as one line with the count of sessions, for example `- version_untested: version 2.1.302, tested: 2.1.286, 2.1.292, 2.1.293, 2.1.294, 2.1.295, 2.1.296, 2.1.299, 2.1.300, 2.1.301 (claude-code, 4 sessions)`. `findings.json` keeps one finding for each session. For a `/decisions` call, the user message shows each question and each image on one line. A question shows as `question <name> (<type>): <options>; instructions: <instructions as a JSON string>`, for example `question department (choice): billing, shipping, other; instructions: "Which department should handle this complaint?"`. A question with no options has no `: <options>` part. A question with no instructions has no `; instructions:` part. If the instructions, the name, the type or the options (with their `, `) have more than 2,000 characters, the line shows their start and names the line of the item in `trace.jsonl`. The media type of an image has the same cut. In the name, the type, the options, the media type and each answer line, each control character and each character that can end a line (U+0085, U+2028 and U+2029) shows as its JSON escape, for example `\u000a`. Thus a question shows on one line. The assistant message shows each answer on one line in place of the text:
 
 | Type | Line |
 |---|---|
@@ -1137,6 +1184,7 @@ The reference is `(compact: the same text as [trace.jsonl:N], sha256 <hex>, <len
 | `tone` | gave a reply that does not agree with the `Persona` of the app spec. |
 | `boundary` | did an action or answered a topic that the `Boundaries` of the app spec say it must refuse. |
 | `off_path` | did not guide the user to a goal of the `User goals` of the app spec, or guided the user away from it. |
+| `performance` | had a turn above a limit of the `Limits` of the app spec: `turn_seconds` or `turn_tokens` (section 8.7). |
 
 Turn is the number of the turn, or `-`. Evidence is a `trace.jsonl:N` line, a turn, or a source line. A row of `tone`, `boundary` or `off_path` comes only from a part of the app spec (section 9.2), and its evidence has the turn and a line of that part. Each issue has one class, and the evaluation prompt gives the order: if an issue fits one of the first 6 classes, the row has that class. The `Persona`, the `Boundaries` and the `User goals` are not business rules. A break of a rule of a rules document is `business_rule`, also if the `Boundaries` link to the rule, and a missing tool call is `missing_action`. The guidance of the same reply is a different issue, with the class `off_path`. `boundary` is only for a topic or an action that the `Boundaries` refuse and that no business rule covers. `off_path` is only for the guidance of the user to a goal of `User goals`.
 

@@ -27,6 +27,7 @@ from nookku import (
     mcp_proxy,
     model_api,
     otlp,
+    performance,
     policy,
     script,
     seal,
@@ -996,6 +997,10 @@ def _collect(folder: Path, copy: Path | None, log: Callable[[str], None] | None 
         log(trace.summary(trace.build(folder)))
     except Exception as e:
         log(f"the trace failed: {e!r}")
+    try:
+        performance.build(folder)
+    except Exception as e:
+        log(f"the turn summary failed: {e!r}")
     try:
         report = audit(folder / "tap.jsonl", folder / "relay.jsonl", copy).as_dict()
         _write_json(folder / "audit.json", report)

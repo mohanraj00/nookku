@@ -6,7 +6,7 @@ The test folder is `{folder}`.
 
 ## Read
 
-1. Run `nookku transcript --trace --test {test}`. If its first line starts with `Record: INVALID`, go to "Invalid record" below. Else, its first line says if a record changed after the end of the test. If the seal is broken, say so in the notes, and do not trust the changed files. Then the transcript shows each turn as the app received it and sent it. Under each turn, it shows the model items of the app: the messages, the tool calls with their input and result, and the commands.
+1. Run `nookku transcript --trace --test {test}`. If its first line starts with `Record: INVALID`, go to "Invalid record" below. Else, its first line says if a record changed after the end of the test. If the seal is broken, say so in the notes, and do not trust the changed files. Then the transcript shows each turn as the app received it and sent it. Under each turn, it shows the model items of the app: the messages, the tool calls with their input and result, and the commands. Then the `performance` block gives the seconds of the turn, its model calls, and its input and output tokens.
 2. Read `findings.json` and `audit.json` in the test folder. A finding is a fact, not yet an issue. The audit shows if the words of a turn changed between the tester and the app.
    To read a file of the test folder in a shell, use `cat`, `sed -n`, `jq` or `grep`. The relay denies other commands that name `.nookku`.
    Read `egress` in `manifest.json`: the egress parts of the agent, `unseen` (the parts that no proxy saw), `driver` (the databases that the driver trace records) and `proxies`. Each `unseen_call` finding is a call of the app that no proxy saw.
@@ -31,6 +31,14 @@ Find each issue of the app. Each issue has one of these classes:
 | `tone` | gave a reply that does not agree with the `Persona` of the app spec. |
 | `boundary` | did an action or answered a topic that the `Boundaries` of the app spec say it must refuse. |
 | `off_path` | did not guide the user to a goal of the `User goals` of the app spec, or guided the user away from it. |
+| `performance` | had a turn above a limit of the app spec. |
+
+Report a `performance` issue only if the app spec has a `Limits` table. Compare each turn with each limit:
+
+- `turn_seconds`: the seconds of the turn.
+- `turn_tokens`: the output tokens of the line `model sessions together` of the `performance` block of the turn.
+
+The evidence is the turn, for example `turn 2`. In the issue, give the value and the limit. If a value is `not known`, do not guess it. Say in the notes which turn and which limit you could not check.
 
 Each issue needs evidence: a `trace.jsonl:N` line, a turn of the transcript, or a source line such as `app.py:42`. Quote the exact argument, result or text. If you have no evidence, do not report the issue.
 

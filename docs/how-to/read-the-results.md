@@ -25,6 +25,7 @@ Each test has one folder, `.nookku/tests/<test-id>/`. The comment on each line t
     codex/<rollout file>          the bridge, at the end (step 3)             sealed
   trace.jsonl        the bridge, at the end (step 5)                          sealed
   findings.json      the bridge, at the end (step 5)                          sealed
+  performance.json   the bridge, at the end (step 5)                          sealed
   audit.json         the bridge, at the end (step 6)                          sealed
   seal.json          the bridge, at the end (step 7)                          not sealed
   bridge.log         the bridge, from the start to the end                    not sealed
@@ -32,7 +33,7 @@ Each test has one folder, `.nookku/tests/<test-id>/`. The comment on each line t
   denied.jsonl       the relay, after the end, for each denied tool call      not sealed
 ```
 
-- `nookku trace` writes `trace.jsonl` and `findings.json` again, and writes their new SHA-256 to the seal.
+- `nookku trace` writes `trace.jsonl`, `findings.json` and `performance.json` again, and writes their new SHA-256 to the seal.
 - A file exists only if its writer has data. The toy shop has no model, no backend and no telemetry, so its folder has no `sessions/`, `otel.jsonl`, `backend.jsonl` or `model_api.jsonl`.
 
 [reference/records.md](../reference/records.md#the-test-folder) gives the format of each file.
@@ -269,6 +270,7 @@ The issue classes:
 | `tone` | gave a reply that does not agree with the `Persona` of the app spec. |
 | `boundary` | did an action or answered a topic that the `Boundaries` of the app spec say it must refuse. |
 | `off_path` | did not guide the user to a goal of the `User goals` of the app spec, or guided the user away from it. |
+| `performance` | had a turn above a limit of the `Limits` of the [app spec](../reference/app-spec.md#limits). |
 
 The model gives `tone`, `boundary` and `off_path` only if the [app spec](../reference/app-spec.md) has the part. The evidence of these rows has the turn and a line of the part, for example `turn 3, APP_SPEC.md:9`. Each issue has one class. If an issue fits one of the first 6 classes, the row has that class. The `Persona`, the `Boundaries` and the `User goals` are not business rules. A break of a business rule stays `business_rule`, also if the `Boundaries` link to the rule. A missing tool call stays `missing_action`. The guidance of the same reply is a different issue, with the class `off_path`.
 
