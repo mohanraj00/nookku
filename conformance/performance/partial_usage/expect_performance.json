@@ -1,0 +1,26 @@
+{
+ "v": "0.1",
+ "test": "20261020-080000-pf06",
+ "unknown": null,
+ "outside_turns": 0,
+ "turns": [
+  {
+   "turn": 1,
+   "seconds": 10.0,
+   "model_calls": 2,
+   "input_tokens": 35,
+   "output_tokens": null,
+   "no_usage": 1,
+   "sources": [
+    {
+     "harness": "claude-code",
+     "session": "7c1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f",
+     "model_calls": 2,
+     "input_tokens": 35,
+     "output_tokens": null,
+     "no_usage": 1
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,26 @@
+{
+ "test": "20261020-080000-pf07",
+ "model_sessions": [
+  {
+   "harness": "claude-code",
+   "session": "toy-session\nturn 1: 0 model calls",
+   "pid": 4471,
+   "inferred": false,
+   "file": "sessions/claude-code/toy-session.jsonl"
+  }
+ ],
+ "egress": {
+  "registered": 1792483200.0,
+  "answer": {
+   "model_apis": [],
+   "backends": [],
+   "mcp_servers": [],
+   "databases": [],
+   "other": []
+  },
+  "unseen": [],
+  "driver": [],
+  "proxies": {},
+  "receiver": null
+ }
+}

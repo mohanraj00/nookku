@@ -15,7 +15,7 @@ from importlib import resources
 from pathlib import Path
 from typing import Any
 
-from . import bridge, seal, state
+from . import bridge, performance, seal, state
 from .config import FILE, ConfigError, read_config, spec_sha256
 from .record import RecordError, read_rows
 
@@ -333,6 +333,29 @@ def _compact(order: list[tuple[int, dict[str, Any]]]) -> dict[int, dict[str, Any
     return shown
 
 
+def _performance(folder: Path, count: int) -> tuple[dict[str, Any] | None, str]:
+    """The data of performance.json, or None, and the line of the transcript head about it."""
+    data, problem = performance.read(folder, count)
+    if data is None:
+        return None, (
+            f"Performance: not known: {problem}. `nookku trace {folder.name}` writes the file "
+            "again.\n"
+        )
+    return data, (
+        "Performance: under each turn, the seconds from the message to the reply (tap.jsonl), "
+        f"and the model calls and the tokens of the app ({performance.FILE}). The input tokens "
+        "include the cached tokens. A value that is `not known` is not in the records."
+        f"{_outside(data.get('outside_turns'))}\n"
+    )
+
+
+def _outside(count: Any) -> str:
+    if not count:
+        return ""
+    calls = "1 model call of the app is" if count == 1 else f"{count} model calls of the app are"
+    return f" {calls} in no turn, so no turn counts them."
+
+
 def transcript(folder: Path, compact: bool = False) -> str:
     """The exact conversation of a test as the agent received and sent it, with the trace.
 
@@ -379,6 +402,8 @@ def transcript(folder: Path, compact: bool = False) -> str:
             "text as [trace.jsonl:N], sha256 H, L characters). An OpenTelemetry attribute with "
             "the text of a session item of the same turn also shows in this form.\n"
         )
+    cost, cost_note = _performance(folder, len(exchanges))
+    out.append(cost_note)
     loose = [f for f in findings if f["turn"] is None]
     if loose:
         out.append("\nFindings with no turn:\n" + _loose(loose, lines))
@@ -395,6 +420,8 @@ def transcript(folder: Path, compact: bool = False) -> str:
         found = [f for f in findings if f["turn"] == n]
         if found:
             out.append("──── findings ────\n" + "".join(_finding(f, lines) for f in found))
+        if cost is not None:
+            out.append(f"──── performance ────\n{performance.line(cost, n)}\n")
         reply = ex.get("reply")
         if reply is None:
             reply = f"(no reply: status {ex.get('status')}, {ex.get('error', 'no error text')})"

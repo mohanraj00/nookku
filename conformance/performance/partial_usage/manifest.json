@@ -1,0 +1,26 @@
+{
+ "test": "20261020-080000-pf06",
+ "model_sessions": [
+  {
+   "harness": "claude-code",
+   "session": "7c1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f",
+   "pid": 4471,
+   "inferred": false,
+   "file": "sessions/claude-code/7c1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f.jsonl"
+  }
+ ],
+ "egress": {
+  "registered": 1792483200.0,
+  "answer": {
+   "model_apis": [],
+   "backends": [],
+   "mcp_servers": [],
+   "databases": [],
+   "other": []
+  },
+  "unseen": [],
+  "driver": [],
+  "proxies": {},
+  "receiver": null
+ }
+}

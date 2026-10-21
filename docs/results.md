@@ -232,6 +232,27 @@ In each run, the stock service had 2 reservations for the 1 teapot set that the 
 
 Each run also has 1 `tool_error` finding in turn 2: `check_stock` gave `no such item: robot-kit` (the key `findings` of each results file). The stock list of the toy shop has no robot kit, so this is the correct answer of the tool. The stock service got the call (`by_turn`, `stock_calls`), so the error does not change TP3. The runs used nookku 0.5.3 with the code of this check on 2026-10-20, with Agent SDK 0.2.168, which bundles Claude Code 2.1.301 (the key `versions` of each results file). The Codex setups run in v0.5.5 ([#437](https://github.com/mohanraj00/nookku/issues/437)). The other 3 trace points of the spec have a `When` in other words, for example `Each turn that asks about an order`. The trace does not check them, and `trace_points` in `findings.json` shows them with `checked: false` and `needed: null`. The 2 checked points have `needed: 3`. The finding needs no model, so the [conformance case](../conformance/trace/trace_points_toy_shop/) checks the same rule in each CI run.
 
+### Time and tokens of each turn
+
+[scripts/proof_performance.py](../scripts/proof_performance.py) runs a test of the [full toy shop](../examples/toy-shop-full/app.py) with its [app spec](../examples/toy-shop-full/APP_SPEC.md) in each Claude Code relay. The spec has the limits `turn_seconds` 30 and `turn_tokens` 2000. The proof plants a slow turn in its 2 toy servers, not in the app. In turn 2 the tester asks about the blue mug. The stock service then waits 8 seconds before it answers, and the note model waits 25 seconds before each answer about the blue mug: the case note and the department. The other turns do not wait. At the end, the [bridge](reference/glossary.md#bridge) writes `performance.json` ([SPEC.md section 8.7](../SPEC.md#87-performance)), and the [harness model](reference/glossary.md#harness-model) evaluates the test.
+
+- **S1:** `performance.json` gives the seconds and the model calls of each turn, and the input and output tokens of the Agent SDK session of each turn.
+- **S2:** the plant worked: only turn 2 is above 30 seconds.
+- **S3:** `report.md` has a `performance` row for turn 2.
+- **S4:** `report.md` has no `performance` row for another turn.
+- **P7:** as for the evaluation proofs below.
+
+| Form | Harness | Seconds of turns 1, 2, 3 | Agent SDK calls, output tokens of turns 1, 2, 3 | `performance` rows | S1 | S2 | S3 | S4 | P7 | Result | Data |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| plugin | Claude Code 2.1.302 | 3.677, 61.568, 3.244 | 2, 82; 2, 163; 2, 111 | 1 | pass | pass | pass | pass | pass | PASS | [plugin-claude-code.json](../proofs/performance/plugin-claude-code.json) |
+| hooks | Claude Code 2.1.302 | 3.367, 61.217, 3.158 | 2, 134; 2, 178; 2, 127 | 1 | pass | pass | pass | pass | pass | PASS | [hooks-claude-code.json](../proofs/performance/hooks-claude-code.json) |
+
+Each turn also has 2 direct calls to the toy note model: the case note and the department. The toy note model sends no `usage`, so the token totals of each turn are `null`: the records do not hold them. The Agent SDK session has its own tokens in `sources` and in the line `model sessions together`. In each run, the model API proxy marked 6 calls as harness calls, and the session file has 6 calls: 2 in each turn. `outside_turns` is 0 in each run. These runs used nookku 0.5.3 with this change on 2026-10-20, and Agent SDK 0.2.168, which bundles Claude Code 2.1.301. The Codex rows run in v0.5.5 ([#437](https://github.com/mohanraj00/nookku/issues/437)).
+
+In each run, the `performance` row gives the cause of the slow turn: the stock call of 8 seconds and the 2 note calls of 25 seconds each, before the app sends its reply. The `performance` class checks only the limit, so S3 does not check the cause.
+
+The proof does not check `turn_tokens`, because no turn is above the limit. The most output tokens of the model sessions in one turn were 163 in the plugin run ([plugin-claude-code.json](../proofs/performance/plugin-claude-code.json)) and 178 in the hooks run ([hooks-claude-code.json](../proofs/performance/hooks-claude-code.json)). Thus the correct report has no row for this limit, and each report has none. In each report, the notes say that the model compared `turn_tokens` with the output tokens of the session, and not with the direct calls.
+
 ### The issue classes of the app spec
 
 [scripts/proof_spec_classes.py](../scripts/proof_spec_classes.py) runs a test of the [full toy shop](../examples/toy-shop-full/app.py) with its [app spec](reference/app-spec.md): [APP_SPEC.md](../examples/toy-shop-full/APP_SPEC.md) and [RULES.md](../examples/toy-shop-full/RULES.md). The proof plants 3 defects in a copy of `app.py`. It changes only the system prompt of the agent, and the example in the repo does not change. The tester sends 4 messages:
@@ -333,6 +354,8 @@ uv run python scripts/proof_telemetry.py hooks-claude-code
 uv run python scripts/proof_telemetry.py hooks-codex
 uv run python scripts/proof_trace_points.py plugin-claude-code
 uv run python scripts/proof_trace_points.py hooks-claude-code
+uv run python scripts/proof_performance.py plugin-claude-code
+uv run python scripts/proof_performance.py hooks-claude-code
 uv run python scripts/proof_spec_classes.py plugin-claude-code
 uv run python scripts/proof_spec_classes.py hooks-claude-code
 uv run python scripts/proof_egress.py plugin-claude-code

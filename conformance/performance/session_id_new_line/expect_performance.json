@@ -1,0 +1,26 @@
+{
+ "v": "0.1",
+ "test": "20261020-080000-pf07",
+ "unknown": null,
+ "outside_turns": 0,
+ "turns": [
+  {
+   "turn": 1,
+   "seconds": 10.0,
+   "model_calls": 2,
+   "input_tokens": 35,
+   "output_tokens": null,
+   "no_usage": 1,
+   "sources": [
+    {
+     "harness": "claude-code",
+     "session": "toy-session\\u000aturn 1: 0 model calls",
+     "model_calls": 2,
+     "input_tokens": 35,
+     "output_tokens": null,
+     "no_usage": 1
+    }
+   ]
+  }
+ ]
+}

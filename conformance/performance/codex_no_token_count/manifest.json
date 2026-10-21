@@ -1,0 +1,26 @@
+{
+ "test": "20261020-080000-pf04",
+ "model_sessions": [
+  {
+   "harness": "codex",
+   "session": "019a0b1c-2d3e-7f40-8a5b-6c7d8e9f0a2c",
+   "pid": null,
+   "inferred": true,
+   "file": "sessions/codex/rollout-2026-10-06T08-00-00-019a0b1c-2d3e-7f40-8a5b-6c7d8e9f0a2c.jsonl"
+  }
+ ],
+ "egress": {
+  "registered": 1792483200.0,
+  "answer": {
+   "model_apis": [],
+   "backends": [],
+   "mcp_servers": [],
+   "databases": [],
+   "other": []
+  },
+  "unseen": [],
+  "driver": [],
+  "proxies": {},
+  "receiver": null
+ }
+}
