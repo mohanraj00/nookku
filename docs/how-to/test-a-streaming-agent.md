@@ -75,4 +75,4 @@ If your agent streams in another format, the HTTP tap cannot read the reply. Wri
 
 ## Proofs
 
-The proofs P1 to P4 ran with the HTTP tap and a toy agent that streams Chat Completions events: the plugin and the project hooks, each in Claude Code and in Codex, with an agent that always streams and with an agent that streams on request. The Codex runs are from nookku 0.5.2. In each of the 8 runs, 10 of 10 messages and 10 of 10 replies arrived byte for byte ([table and data](../results.md#1-proofs)). A proof with a streaming entry does not exist yet.
+The proofs P1 to P4 ran with the HTTP tap and a toy agent that streams Chat Completions events: the plugin and the project hooks, each in Claude Code and in Codex, with an agent that always streams and with an agent that streams on request. Each run used nookku 0.5.4. In each of the 8 runs, 10 of 10 messages and 10 of 10 replies arrived byte for byte ([table and data](../results.md#1-proofs)). A proof with a streaming entry does not exist yet.
