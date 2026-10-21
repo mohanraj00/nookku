@@ -1,0 +1,18 @@
+{
+ "files": [
+  [
+   "APP_SPEC.md",
+   "## Trace points\n\n| Name | Source | When |\n|---|---|---|\n\nNo rows.\n"
+  ]
+ ],
+ "expect": {
+  "points": [],
+  "unread": [
+   {
+    "file": "APP_SPEC.md",
+    "line": 1,
+    "problem": "The table of the section has no rows."
+   }
+  ]
+ }
+}

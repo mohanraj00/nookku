@@ -1,0 +1,121 @@
+{
+ "date": "2026-10-20",
+ "relay": "hooks-claude-code",
+ "versions": {
+  "nookku": "0.5.3",
+  "claude-code": "2.1.302 (Claude Code)",
+  "codex": "codex-cli 0.162.1",
+  "agent sdk": "claude-agent-sdk==0.2.168",
+  "session files": {
+   "claude-code": "2.1.301"
+  }
+ },
+ "plugins": [
+  "cc-plugin-agents-md@builtin",
+  "cc-plugin-plugin-authoring@builtin",
+  "cc-plugin-telemetry@builtin"
+ ],
+ "planted": "the copy of the app sends no case note in turn 2",
+ "turns": 3,
+ "audit_exit": 0,
+ "trace_points": [
+  {
+   "name": "lookup_order",
+   "source": "session",
+   "when": "Each turn that asks about an order.",
+   "checked": false,
+   "needed": null
+  },
+  {
+   "name": "check_stock",
+   "source": "session",
+   "when": "Each turn that asks about stock or a reservation.",
+   "checked": false,
+   "needed": null
+  },
+  {
+   "name": "reserve",
+   "source": "session",
+   "when": "Each turn that asks for a reservation.",
+   "checked": false,
+   "needed": null
+  },
+  {
+   "name": "stock GET /stock",
+   "source": "backend",
+   "when": "Each `check_stock` tool call.",
+   "checked": true,
+   "needed": 3
+  },
+  {
+   "name": "openai",
+   "source": "model_api",
+   "when": "Each turn.",
+   "checked": true,
+   "needed": 3
+  }
+ ],
+ "by_turn": [
+  {
+   "turn": 1,
+   "case_notes": 1,
+   "check_stock_calls": 1,
+   "stock_calls": 1
+  },
+  {
+   "turn": 2,
+   "case_notes": 0,
+   "check_stock_calls": 1,
+   "stock_calls": 1
+  },
+  {
+   "turn": 3,
+   "case_notes": 1,
+   "check_stock_calls": 1,
+   "stock_calls": 1
+  }
+ ],
+ "missing_trace_point": [
+  {
+   "check": "missing_trace_point",
+   "turn": 2,
+   "detail": "openai (model_api): 0 of 1 items in this turn. When: Each turn."
+  }
+ ],
+ "TP1_names_the_point_and_its_turn": true,
+ "TP2_only_turn_2_has_no_note": true,
+ "TP3_each_check_stock_call_has_a_stock_call": true,
+ "seal": {
+  "sealed": true,
+  "intact": true,
+  "changed": [],
+  "missing": [],
+  "added": [],
+  "copy": "same"
+ },
+ "P7_records_unchanged": true,
+ "counts": {
+  "tool_error": 1,
+  "missing_trace_point": 1
+ },
+ "findings": [
+  {
+   "check": "tool_error",
+   "turn": 2,
+   "detail": "check_stock: {\"error\": \"no such item: robot-kit\"}",
+   "harness": "claude-code",
+   "session": "7438b9d3-3f98-4a9a-ac91-a4c68a86544c",
+   "source": {
+    "file": "sessions/claude-code/7438b9d3-3f98-4a9a-ac91-a4c68a86544c.jsonl",
+    "line": 35,
+    "result_line": 36
+   }
+  },
+  {
+   "check": "missing_trace_point",
+   "turn": 2,
+   "detail": "openai (model_api): 0 of 1 items in this turn. When: Each turn."
+  }
+ ],
+ "pass": true
+}

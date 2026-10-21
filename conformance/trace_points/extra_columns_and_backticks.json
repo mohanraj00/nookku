@@ -1,0 +1,18 @@
+{
+ "files": [
+  [
+   "APP_SPEC.md",
+   "## Trace points\n\n| `When` | **x** | `Name` | `Source` |\n|---|---|---|---|\n| Turn 2 | A note. | `reserve` | `session` |\n"
+  ]
+ ],
+ "expect": {
+  "points": [
+   {
+    "name": "reserve",
+    "source": "session",
+    "when": "Turn 2"
+   }
+  ],
+  "unread": []
+ }
+}

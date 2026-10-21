@@ -1,0 +1,136 @@
+{
+ "v": "0.2",
+ "test": "20261020-080000-tp01",
+ "turns": 3,
+ "items": 19,
+ "sessions": [
+  {
+   "harness": "claude-code",
+   "session": "4f1c2a7e-0d3b-4c55-9a61-2b8e5d7c9f10",
+   "file": "sessions/claude-code/4f1c2a7e-0d3b-4c55-9a61-2b8e5d7c9f10.jsonl",
+   "inferred": false,
+   "version": "2.1.286",
+   "items": 10,
+   "ignored": {}
+  }
+ ],
+ "otel": {
+  "file": "otel.jsonl",
+  "rows": 3,
+  "items": 3,
+  "ignored": {}
+ },
+ "backend": {
+  "file": "backend.jsonl",
+  "rows": 2,
+  "items": 2,
+  "ignored": {}
+ },
+ "model_api": {
+  "file": "model_api.jsonl",
+  "rows": 2,
+  "items": 4,
+  "ignored": {},
+  "harness_calls": {},
+  "other_calls": 0
+ },
+ "mcp": null,
+ "database": null,
+ "trace_points": [
+  {
+   "name": "check_stock",
+   "source": "session",
+   "when": "Each turn that asks about stock.",
+   "checked": false,
+   "needed": null
+  },
+  {
+   "name": "check_stock",
+   "source": "session",
+   "when": "Turn 2.",
+   "checked": true,
+   "needed": 1
+  },
+  {
+   "name": "lookup_order",
+   "source": "session",
+   "when": "Turn 5",
+   "checked": false,
+   "needed": 0
+  },
+  {
+   "name": "assistant",
+   "source": "session",
+   "when": "Each turn.",
+   "checked": true,
+   "needed": 3
+  },
+  {
+   "name": "stock GET /stock",
+   "source": "backend",
+   "when": "Each `check_stock` tool call.",
+   "checked": true,
+   "needed": 4
+  },
+  {
+   "name": "openai",
+   "source": "model_api",
+   "when": "Each turn.",
+   "checked": true,
+   "needed": 3
+  },
+  {
+   "name": "shop.reply",
+   "source": "otel",
+   "when": "each turn",
+   "checked": true,
+   "needed": 3
+  },
+  {
+   "name": "audit_log",
+   "source": "database",
+   "when": "Each turn.",
+   "checked": false,
+   "needed": null
+  }
+ ],
+ "counts": {
+  "agent_error": 0,
+  "repeated_reply": 0,
+  "reply_not_from_model": 0,
+  "tool_error": 0,
+  "command_failed": 0,
+  "span_error": 0,
+  "backend_error": 0,
+  "model_api_error": 0,
+  "questions_lost": 0,
+  "database_error": 0,
+  "unseen_call": 0,
+  "model_error": 0,
+  "turn_without_model": 0,
+  "item_between_turns": 0,
+  "otel_tool_not_in_session": 0,
+  "server_not_from_app": 0,
+  "session_inferred": 0,
+  "version_untested": 0,
+  "missing_trace_point": 3,
+  "trace_points_unread": 0
+ },
+ "findings": [
+  {
+   "check": "missing_trace_point",
+   "turn": 2,
+   "detail": "stock GET /stock (backend): 0 of 1 items for 1 check_stock tool call in this turn. When: Each check_stock tool call."
+  },
+  {
+   "check": "missing_trace_point",
+   "turn": 3,
+   "detail": "stock GET /stock (backend): 1 of 2 items for 2 check_stock tool calls in this turn. When: Each check_stock tool call."
+  },
+  {
+   "check": "missing_trace_point",
+   "turn": 3,
+   "detail": "openai (model_api): 0 of 1 items in this turn. When: Each turn."
+  }
+ ]
+}

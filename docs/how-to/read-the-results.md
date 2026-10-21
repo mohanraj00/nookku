@@ -224,7 +224,7 @@ Each finding in `findings.json` has `check`, `turn` and `detail`. A finding abou
 
 ### Trace checks
 
-The trace has 18 trace checks ([trace.py](../../src/nookku/trace.py)). `findings.json` sorts the findings in the order of this table.
+The trace has 20 trace checks ([trace.py](../../src/nookku/trace.py)). `findings.json` sorts the findings in the order of this table.
 
 | Check | Finding |
 |---|---|
@@ -246,6 +246,8 @@ The trace has 18 trace checks ([trace.py](../../src/nookku/trace.py)). `findings
 | `server_not_from_app` | A Claude Code session used an MCP server that the app's configuration cannot give: a claude.ai connector or a plugin server. |
 | `session_inferred` | The tap found a Codex session from its folder and its time, not from its process. |
 | `version_untested` | A session file comes from a harness version that the proofs do not cover. `findings.json` has one finding for each session. The transcript shows one line for each harness and version, with the count of sessions, for example `(claude-code, 4 sessions)`. |
+| `missing_trace_point` | A trace point of the [app spec](../reference/app-spec.md#trace-points) did not occur in a turn where its `When` needs it. `detail` names the trace point, its source, the count of items and the `When`. |
+| `trace_points_unread` | A part of the `Trace points` section of the app spec that the trace does not check, for example a row with a different count of cells. `detail` names the file, the line and the problem. |
 
 ## 5. Read the report
 
@@ -373,6 +375,8 @@ A repeated text then shows as `(compact: the same text as [trace.jsonl:N], sha25
 | The audit exits with 1. | Find the class of each break in the [break classes](#break-classes) table, and do its fix. Then run the test again. Do not trust the report of this test. |
 | A finding. | Find the item in the transcript. If the item shows a fault of the app, fix the app. If it is the correct result, keep it as a fact. |
 | `version_untested`. | Run the proofs for the new harness version ([run-the-proofs.md](../contributing/run-the-proofs.md)). |
+| `missing_trace_point`. | Find the code of the app that sends the trace point, and check why the turn did not send it. If the spec is wrong, correct its `When`. |
+| `trace_points_unread`. | Correct the row or the table at the line that `detail` gives. Then the next test checks the trace point. |
 | `server_not_from_app`. | Give the app's model only the tools of the app ([isolate-agent-sdk.md](isolate-agent-sdk.md)). |
 | A row of the report. | Check its evidence (step 5). If the evidence agrees, fix the app and run the test again. |
 | A clean audit, no findings and no report rows. | The words arrived exactly. Read the transcript yourself, and judge each reply. |

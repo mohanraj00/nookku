@@ -286,10 +286,16 @@ def spec_file(root: Path, path: str) -> Path:
 
 
 def spec_sha256(root: Path, path: str) -> str:
-    """The SHA-256 of one spec file. The file is opened with no follow of a last symlink and
+    """The SHA-256 of one spec file (spec_bytes). Raise ConfigError."""
+    import hashlib
+
+    return hashlib.sha256(spec_bytes(root, path)).hexdigest()
+
+
+def spec_bytes(root: Path, path: str) -> bytes:
+    """The bytes of one spec file. The file is opened with no follow of a last symlink and
     must be a regular file of SPEC_LIMIT bytes or less, so a file that changes after the check
     cannot make the read follow a symlink, block or take all of the memory. Raise ConfigError."""
-    import hashlib
     import stat
 
     file = spec_file(root, path)
@@ -313,22 +319,31 @@ def spec_sha256(root: Path, path: str) -> str:
                 raise ConfigError(
                     f"{FILE}: the spec file {path!r} has more than {SPEC_LIMIT} bytes"
                 )
-            h, size = hashlib.sha256(), 0
+            blocks, size = [], 0
             for block in iter(lambda: f.read(1 << 16), b""):
                 size += len(block)
                 if size > SPEC_LIMIT:
                     raise ConfigError(
                         f"{FILE}: the spec file {path!r} has more than {SPEC_LIMIT} bytes"
                     )
-                h.update(block)
+                blocks.append(block)
         except OSError as e:
             raise ConfigError(f"{FILE}: cannot read the spec file {path!r}: {e.strerror}") from None
-    return h.hexdigest()
+    return b"".join(blocks)
 
 
 def spec_hashes(root: Path, spec: list[str]) -> list[dict[str, str]]:
     """The path and the SHA-256 of each file of the config key spec, as the manifest records
     them (SPEC.md section 7.2). Raise ConfigError for the first path that breaks the rule."""
+    return [h for h, _ in spec_contents(root, spec)]
+
+
+def spec_contents(root: Path, spec: list[str]) -> list[tuple[dict[str, str], bytes]]:
+    """For each file of the config key spec: its path and SHA-256 (spec_hashes) and the bytes
+    that give the SHA-256, from one read. Raise ConfigError for the first path that breaks the
+    rule."""
+    import hashlib
+
     seen: dict[Path, str] = {}
     for path in spec:
         file = spec_file(root, path)
@@ -337,7 +352,11 @@ def spec_hashes(root: Path, spec: list[str]) -> list[dict[str, str]]:
                 f"{FILE}: the spec paths {seen[file]!r} and {path!r} name the same file"
             )
         seen[file] = path
-    return [{"path": path, "sha256": spec_sha256(root, path)} for path in spec]
+    out = []
+    for path in spec:
+        data = spec_bytes(root, path)
+        out.append(({"path": path, "sha256": hashlib.sha256(data).hexdigest()}, data))
+    return out
 
 
 def _load(root: Path) -> Any:

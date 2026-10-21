@@ -35,4 +35,4 @@ The spec of the toy shop support agent. The parts are in [docs/reference/app-spe
 | `check_stock` | `session` | Each turn that asks about stock or a reservation. |
 | `reserve` | `session` | Each turn that asks for a reservation. |
 | `stock GET /stock` | `backend` | Each `check_stock` tool call. |
-| `openai` | `model_api` | Each turn, after the reply: the case note. |
+| `openai` | `model_api` | Each turn. |

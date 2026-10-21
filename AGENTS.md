@@ -93,6 +93,7 @@ claude plugin validate plugins/nookku && claude plugin test plugins/nookku
 - `scripts/proof_api_hello.py` runs `claude -p` with a toy model API, with no model, and records the `HEAD /api/hello` call of Claude Code. It writes `proofs/model-api/hello.json`.
 - `scripts/proof_report.py <setup>` runs a test of `examples/toy-shop-models/` and the evaluation at its end (P5 extended, P6, P7 and P8), and writes `proofs/report/`.
 - `scripts/proof_telemetry.py <setup>` runs a test of `examples/toy-shop-full/` with all telemetry sources and the evaluation at its end, and writes `proofs/telemetry/`.
+- `scripts/proof_trace_points.py <setup>` runs a test of a copy of `examples/toy-shop-full/` with its app spec and one planted missing trace point. It checks the finding `missing_trace_point` of the trace, and writes `proofs/trace-points/`.
 - `scripts/proof_performance.py <setup>` runs a test of `examples/toy-shop-full/` with its app spec and a slow turn that the proof plants in its toy servers, and the evaluation at its end. It writes `proofs/performance/`.
 - `scripts/proof_spec_classes.py <setup>` runs a test of `examples/toy-shop-full/` with its app spec and 3 planted defects: one each for `tone`, `boundary` and `off_path`. It writes `proofs/spec-classes/`.
 - `scripts/proof_egress.py <setup>` runs a test of `examples/toy-shop-egress/`, with the discovery answer of the harness model, 2 MCP servers, a Postgres database in Docker and a SQLite database with a driver trace. It writes `proofs/egress/`.

@@ -1,0 +1,31 @@
+{
+ "files": [
+  [
+   "APP_SPEC.md",
+   "## Trace points\n\n| Name | Source | When |\n|---|---|---|\n| `reserve` | `session` | Turn 2 |\n"
+  ],
+  [
+   "RULES.md",
+   "# Rules\n\n- No refunds.\n"
+  ],
+  [
+   "MORE.md",
+   "## Trace points\n\n| Name | Source | When |\n|---|---|---|\n| `shop.reply` | `otel` | Each turn |\n"
+  ]
+ ],
+ "expect": {
+  "points": [
+   {
+    "name": "reserve",
+    "source": "session",
+    "when": "Turn 2"
+   },
+   {
+    "name": "shop.reply",
+    "source": "otel",
+    "when": "Each turn"
+   }
+  ],
+  "unread": []
+ }
+}

@@ -1,0 +1,18 @@
+{
+ "files": [
+  [
+   "APP_SPEC.md",
+   "## Trace points\n\n| Name | Source | When |\n|---|---|---|\n| `reserve` | `session` | Turn 2 |\n\nA second table is not part of the section.\n\n| Name | Source | When |\n|---|---|---|\n| `lookup_order` | `session` | Turn 1 |\n"
+  ]
+ ],
+ "expect": {
+  "points": [
+   {
+    "name": "reserve",
+    "source": "session",
+    "when": "Turn 2"
+   }
+  ],
+  "unread": []
+ }
+}

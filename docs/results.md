@@ -216,6 +216,22 @@ The app's session files are from Claude Code 2.1.301, bundled in Agent SDK 0.2.1
 
 In each run, the stock service had 2 reservations for the 1 teapot set that the tester asked for. These runs used Agent SDK 0.2.168, which bundles Claude Code 2.1.301 ([#35](https://github.com/mohanraj00/nookku/issues/35), [Trace of the model sessions](#trace-of-the-model-sessions)). In each of the 4 runs, the proxy marked 6 of its calls as harness calls and kept no text of them. The Claude Code runs used nookku 0.5.3 on 2026-10-19. The toy note model gives a fixed answer, so this proof does not show a real model behind the direct call. [proofs/model-api/](../proofs/model-api/results.json) shows the proxy with the stream formats of both APIs.
 
+### Expected trace points
+
+[scripts/proof_trace_points.py](../scripts/proof_trace_points.py) runs a test of a copy of the [full toy shop](../examples/toy-shop-full/app.py) with its [app spec](../examples/toy-shop-full/APP_SPEC.md) ([#318](https://github.com/mohanraj00/nookku/issues/318)). The spec has 5 trace points. The trace checks 2 of them with no model, because their `When` has a form that the trace knows ([app-spec.md](reference/app-spec.md#trace-points)): `openai` (`model_api`, `Each turn.`) and `stock GET /stock` (`backend`, `Each check_stock tool call.`). The proof plants one change in the copy, not in the example: the app sends no case note in turn 2. The tester asks about the stock in each of the 3 turns. The Agent SDK session uses the real Anthropic API, and the stock service and the toy note model run on local ports, as in the telemetry proof above.
+
+- **TP1:** `findings.json` has 1 `missing_trace_point` finding: `openai` in turn 2. It has no other `missing_trace_point` finding.
+- **TP2:** the trace has a case note call in turns 1 and 3, and none in turn 2.
+- **TP3:** the trace checks `stock GET /stock`, and each turn has 1 backend call or more for each `check_stock` tool call.
+- **P7:** after the evaluation, `nookku verify` finds the test folder intact.
+
+| Form | Harness | Case notes by turn | Finding | TP1 | TP2 | TP3 | P7 | Result | Data |
+|---|---|---|---|---|---|---|---|---|---|
+| Plugin | Claude Code 2.1.302 | 1 / 0 / 1 | `openai (model_api): 0 of 1 items in this turn. When: Each turn.`, turn 2 | pass | pass | pass | pass | pass | [results](../proofs/trace-points/plugin-claude-code.json) |
+| Project hooks | Claude Code 2.1.302 | 1 / 0 / 1 | `openai (model_api): 0 of 1 items in this turn. When: Each turn.`, turn 2 | pass | pass | pass | pass | pass | [results](../proofs/trace-points/hooks-claude-code.json) |
+
+Each run also has 1 `tool_error` finding in turn 2: `check_stock` gave `no such item: robot-kit` (the key `findings` of each results file). The stock list of the toy shop has no robot kit, so this is the correct answer of the tool. The stock service got the call (`by_turn`, `stock_calls`), so the error does not change TP3. The runs used nookku 0.5.3 with the code of this check on 2026-10-20, with Agent SDK 0.2.168, which bundles Claude Code 2.1.301 (the key `versions` of each results file). The Codex setups run in v0.5.5 ([#437](https://github.com/mohanraj00/nookku/issues/437)). The other 3 trace points of the spec have a `When` in other words, for example `Each turn that asks about an order`. The trace does not check them, and `trace_points` in `findings.json` shows them with `checked: false` and `needed: null`. The 2 checked points have `needed: 3`. The finding needs no model, so the [conformance case](../conformance/trace/trace_points_toy_shop/) checks the same rule in each CI run.
+
 ### Time and tokens of each turn
 
 [scripts/proof_performance.py](../scripts/proof_performance.py) runs a test of the [full toy shop](../examples/toy-shop-full/app.py) with its [app spec](../examples/toy-shop-full/APP_SPEC.md) in each Claude Code relay. The spec has the limits `turn_seconds` 30 and `turn_tokens` 2000. The proof plants a slow turn in its 2 toy servers, not in the app. In turn 2 the tester asks about the blue mug. The stock service then waits 8 seconds before it answers, and the note model waits 25 seconds before each answer about the blue mug: the case note and the department. The other turns do not wait. At the end, the [bridge](reference/glossary.md#bridge) writes `performance.json` ([SPEC.md section 8.7](../SPEC.md#87-performance)), and the [harness model](reference/glossary.md#harness-model) evaluates the test.
@@ -336,6 +352,8 @@ uv run python scripts/proof_telemetry.py plugin-claude-code
 uv run python scripts/proof_telemetry.py plugin-codex
 uv run python scripts/proof_telemetry.py hooks-claude-code
 uv run python scripts/proof_telemetry.py hooks-codex
+uv run python scripts/proof_trace_points.py plugin-claude-code
+uv run python scripts/proof_trace_points.py hooks-claude-code
 uv run python scripts/proof_performance.py plugin-claude-code
 uv run python scripts/proof_performance.py hooks-claude-code
 uv run python scripts/proof_spec_classes.py plugin-claude-code
