@@ -361,7 +361,9 @@ uv run python scripts/proof_telemetry.py plugin-codex
 uv run python scripts/proof_telemetry.py hooks-claude-code
 uv run python scripts/proof_telemetry.py hooks-codex
 uv run python scripts/proof_trace_points.py plugin-claude-code
+uv run python scripts/proof_trace_points.py plugin-codex
 uv run python scripts/proof_trace_points.py hooks-claude-code
+uv run python scripts/proof_trace_points.py hooks-codex
 uv run python scripts/proof_performance.py plugin-claude-code
 uv run python scripts/proof_performance.py plugin-codex
 uv run python scripts/proof_performance.py hooks-claude-code
