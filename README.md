@@ -179,7 +179,7 @@ Nookku does not do these: data sets at scale, production monitoring and hosted t
 
 ## Docs
 
-The how-to rows are in the order of the tasks of a test: choose, connect, run, read the results, fix. The row after them has the tasks that maintain Nookku.
+The how-to rows are in the order of the tasks of a test: choose, connect, run, read the results, evaluate against a spec, fix. The row after them has the tasks that maintain Nookku.
 
 | Kind | Pages |
 |---|---|
@@ -188,6 +188,7 @@ The how-to rows are in the order of the tasks of a test: choose, connect, run, r
 | How-to: connect your app | [Test your own app](docs/how-to/test-your-app.md), [Connect your agent](docs/how-to/connect-your-agent.md), [HTTP tap](docs/how-to/http-tap.md), [Test a streaming agent](docs/how-to/test-a-streaming-agent.md), [Isolate an Agent SDK session](docs/how-to/isolate-agent-sdk.md), [Add a backend](docs/how-to/add-a-backend.md), [Model calls and OpenTelemetry](docs/how-to/record-model-calls.md) |
 | How-to: run a test | [Claude Code plugin](docs/how-to/claude-code-plugin.md), [Claude Code project hooks](docs/how-to/claude-code-project-hooks.md), [Codex](docs/how-to/codex.md) |
 | How-to: read the results | [Read the results of a test](docs/how-to/read-the-results.md) |
+| How-to: evaluate against a spec | [Evaluate your app against its spec](docs/how-to/evaluate-against-your-spec.md) |
 | How-to: fix | [Troubleshooting](docs/troubleshooting.md), [Recover a stuck test](docs/how-to/recover-a-stuck-test.md) |
 | How-to: maintain | [Upgrade](docs/how-to/upgrade.md), [Remove](docs/how-to/remove.md) |
 | Reference | [CLI](docs/reference/cli.md), [Configuration](docs/reference/config.md), [Records](docs/reference/records.md), [Glossary](docs/reference/glossary.md), [SPEC.md](SPEC.md), [Results](docs/results.md) |

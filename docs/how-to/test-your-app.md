@@ -241,6 +241,8 @@ Result: clean (exit 0)
 
 A report is a model answer, so check its evidence.
 
+With no app spec, the model finds the business rules in the code, the docs and the tests of your app. To evaluate the tone, the boundaries, the user goals, the limits and the trace points of your app, write a spec and name it with `--spec` ([evaluate-against-your-spec.md](evaluate-against-your-spec.md)).
+
 ## Run a scripted test
 
 If your app has fixed conversations in its own tests, run them through the relay with `nookku run`. Then the tap, the audit, the trace and the evaluation cover them, and nobody types each message.

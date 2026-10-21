@@ -77,6 +77,8 @@ The model did not see the conversation while you talked, so it judges the record
 
 After a test, the relay denies model writes to the test folder, except `report.md`. A shell command that names `.nookku` can only read, or write `report.md` ([SPEC.md section 5](../../SPEC.md#5-relays) lists the read programs).
 
+To evaluate your app against its app spec, name the spec files with `nookku init plugin --spec` ([evaluate-against-your-spec.md](evaluate-against-your-spec.md)).
+
 To stop the evaluation, add `"evaluate": false` to `.nookku/config.json`. [evaluation-example.md](../evaluation-example.md) shows a test and its report.
 
 ## Audit

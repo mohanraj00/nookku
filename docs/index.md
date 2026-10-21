@@ -12,7 +12,7 @@ Do each step, and learn how the parts work.
 
 ## Test your app
 
-How-to guides. Each guide does one task. The guides are in the order of the tasks: choose a [relay](reference/glossary.md#relay), connect your app, run a test, read the results.
+How-to guides. Each guide does one task. The guides are in the order of the tasks: choose a [relay](reference/glossary.md#relay), connect your app, run a test, read the results, evaluate the app against its spec.
 
 ### Choose
 
@@ -37,6 +37,10 @@ How-to guides. Each guide does one task. The guides are in the order of the task
 ### Read the results
 
 - [Read the results of a test](how-to/read-the-results.md): read the [seal](reference/glossary.md#seal), the audit, the findings, the report and the transcript, and decide the next step.
+
+### Evaluate against your spec
+
+- [Evaluate your app against its spec](how-to/evaluate-against-your-spec.md): write the app spec, name its files in the config, and read the `tone`, `boundary`, `off_path` and `performance` rows and the `missing_trace_point` finding.
 
 ## Troubleshooting
 
