@@ -15,7 +15,7 @@
   "cc-plugin-plugin-authoring@builtin",
   "cc-plugin-telemetry@builtin"
  ],
- "planted": "the copy of the app sends no case note in turn 2",
+ "planted": "the copy of the app makes no note model call in turn 2",
  "turns": 3,
  "audit_exit": 0,
  "trace_points": [
@@ -58,19 +58,19 @@
  "by_turn": [
   {
    "turn": 1,
-   "case_notes": 1,
+   "openai_items": 2,
    "check_stock_calls": 1,
    "stock_calls": 1
   },
   {
    "turn": 2,
-   "case_notes": 0,
+   "openai_items": 0,
    "check_stock_calls": 1,
    "stock_calls": 1
   },
   {
    "turn": 3,
-   "case_notes": 1,
+   "openai_items": 2,
    "check_stock_calls": 1,
    "stock_calls": 1
   }
@@ -83,7 +83,7 @@
   }
  ],
  "TP1_names_the_point_and_its_turn": true,
- "TP2_only_turn_2_has_no_note": true,
+ "TP2_only_turn_2_has_no_openai_item": true,
  "TP3_each_check_stock_call_has_a_stock_call": true,
  "seal": {
   "sealed": true,
@@ -104,9 +104,9 @@
    "turn": 2,
    "detail": "check_stock: {\"error\": \"no such item: robot-kit\"}",
    "harness": "claude-code",
-   "session": "7438b9d3-3f98-4a9a-ac91-a4c68a86544c",
+   "session": "bc4a8cad-b4ea-45f4-9228-aa72801edd84",
    "source": {
-    "file": "sessions/claude-code/7438b9d3-3f98-4a9a-ac91-a4c68a86544c.jsonl",
+    "file": "sessions/claude-code/bc4a8cad-b4ea-45f4-9228-aa72801edd84.jsonl",
     "line": 35,
     "result_line": 36
    }
