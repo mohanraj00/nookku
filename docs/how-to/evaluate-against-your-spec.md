@@ -151,7 +151,7 @@ The transcript shows the same values under each turn, in a `performance` block. 
   - model sessions together: 148 output tokens
 ```
 
-`turn_tokens` compares with the line `model sessions together`. A direct model call of the app does not count. In `performance.json`, a value that the records do not hold is `null`, and the transcript shows it as `not known`. `null` is not 0. Here the toy note model sends no `usage`, so the tokens of the 2 `openai` calls are `null`, and the totals of the turn are `null` too. If the records do not hold a value, the model does not judge that limit for that turn, and it says so in the notes of the report.
+`turn_tokens` compares with the line `model sessions together`. A direct model call of the app does not count. In `performance.json`, a value that the records do not hold is `null`, and the transcript shows it as `not known`. `null` is not 0. Here 1 of the 2 `openai` calls has no `usage` (`no_usage` 1 in the data), so the tokens of the `openai` session are `null`, and the totals of the turn are `null` too. If the records do not hold a value, the model does not judge that limit for that turn, and it says so in the notes of the report.
 
 ### The trace point findings
 
