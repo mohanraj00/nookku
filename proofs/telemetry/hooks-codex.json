@@ -1,8 +1,8 @@
 {
- "date": "2026-10-18",
+ "date": "2026-10-20",
  "relay": "hooks-codex",
  "versions": {
-  "nookku": "0.5.2",
+  "nookku": "0.5.4",
   "claude-code": "2.1.302 (Claude Code)",
   "codex": "codex-cli 0.162.1",
   "agent sdk": "claude-agent-sdk==0.2.168",
@@ -18,29 +18,29 @@
    "turn": 1,
    "session": 3,
    "backend": 1,
-   "model_api": 2
+   "model_api": 4
   },
   {
    "turn": 2,
    "session": 3,
    "backend": 2,
-   "model_api": 2
+   "model_api": 4
   },
   {
    "turn": 3,
    "session": 3,
    "backend": 1,
-   "model_api": 2
+   "model_api": 4
   }
  ],
  "T1_each_turn_has_3_sources": true,
  "reserve_calls": [
   {
-   "line": 15,
+   "line": 17,
    "turn": 2
   },
   {
-   "line": 16,
+   "line": 18,
    "turn": 2
   }
  ],
@@ -51,12 +51,12 @@
   {
    "class": "business_rule",
    "turn": "2",
-   "evidence": "trace.jsonl:15; trace.jsonl:16; services.py:44; RULES.md:5"
+   "evidence": "trace.jsonl:17-18; RULES.md:5-6; services.py:40-50; stock.json:4-14"
   },
   {
-   "class": "state_mismatch",
+   "class": "missing_action",
    "turn": "2",
-   "evidence": "trace.jsonl:18; trace.jsonl:15; trace.jsonl:16; stock.json"
+   "evidence": "turn 2; trace.jsonl:15-19; APP_SPEC.md:21"
   }
  ],
  "T2_cites_both_reserve_calls": true,
@@ -80,8 +80,8 @@
  },
  "model_api": {
   "file": "model_api.jsonl",
-  "rows": 10,
-  "items": 6,
+  "rows": 13,
+  "items": 12,
   "ignored": {},
   "harness_calls": {
    "claude-code": 6
@@ -95,7 +95,7 @@
   "ignored": {}
  },
  "counts": {},
- "report": "# Test 20261018-121807-4e23: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | trace.jsonl:15; trace.jsonl:16; services.py:44; RULES.md:5 | The tester requested \"Please reserve 1 teapot set for my order 6210.\" Both backend calls sent `{\"order\": \"6210\", \"sku\": \"teapot-set\", \"qty\": 1}` and succeeded, creating `RS-6047C5` and `RS-D8999B`. Stock fell from 3 to 1. This violates rule 3, \"A reservation holds the number of items that the customer asked for, and no more.\" The loop sends both requests even after success. |\n| state_mismatch | 2 | trace.jsonl:18; trace.jsonl:15; trace.jsonl:16; stock.json | The reply said \"I've reserved 1 teapot set for order 6210. Your reservation number is RS-D8999B.\" The stock service actually held two units for that order under two reservation numbers. The reply omitted the extra reservation and understated the total reserved quantity, contrary to rule 4. |\n\n## Notes\n\nThe seal is intact. The audit reports no breaks, errors, or blocked calls. The findings list is empty, but the backend trace establishes the duplicate reservation.\n\nChecked all three transcript turns and their model and backend records, findings.json, audit.json, manifest.json, RULES.md, and all six Python source files. Read the current stock.json and state.json without changing them. Current stock.json confirms two reservations for order 6210, each with `\"qty\": 1`, and `\"left\": 1`. The three case notes in state.json match the recorded case-note model outputs.\n\nTurn 1 correctly reported 3 available units. Turn 3 correctly reported the backend's remaining stock of 1. No separate unsupported-stock issue is warranted. The reservation quantity discrepancy originates in turn 2.\n\nThere is no notes.jsonl and no app-state snapshot was available. Current project state is corroborating evidence, not a sealed end-of-test snapshot. No app was started, no message was sent, and no state-changing check was performed. Only this report was written. Returns, refunds, and disclosure of another customer's order were not exercised.\n\n## Tester notes\n\nThe tester wrote no note.\n\n## Coverage\n\nA proxy saw each egress part.\n",
- "answer": "[Evaluation report](.nookku/tests/20261018-121807-4e23/report.md) written.\n\nFound two issues: the app reserved two units instead of one, then reported only one reserved unit. The record seal is intact, and proxies covered every egress part.",
+ "report": "# Test 20261020-185014-4129: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | trace.jsonl:17-18; RULES.md:5-6; services.py:40-50; stock.json:4-14 | The customer requested \"reserve 1 teapot set\", but two successful `POST /reserve` calls each sent `{\"order\": \"6210\", \"sku\": \"teapot-set\", \"qty\": 1}`. They created `RS-D3FEA6` and `RS-CF3F2B`, holding 2 items. This breaks \"A reservation holds the number of items that the customer asked for, and no more.\" The reply reported only \"I've reserved 1 teapot set\". The retry loop sends both requests even after success. |\n| missing_action | 2 | turn 2; trace.jsonl:15-19; APP_SPEC.md:21 | The reservation turn called only `shop.reserve`, without checking stock. The spec requires \"The agent checks the stock, reserves the number of items that the customer asked for\". Turn 1 checked stock for the earlier availability question, but turn 2 performed no fresh check before reserving. |\n\n## Notes\n\nThe seal is intact. The audit has no breaks, and findings.json contains no findings. I checked all three transcript turns, tool arguments and results, backend calls, app code, RULES.md, APP_SPEC.md, and the current stock.json and state.json using read-only commands. Two issues were found. Only this report was written.\n\nThe current stock file confirms two reservations of quantity 1 for order 6210 and 1 teapot set left. The app's reservation tool returns only the last reservation, concealing the first successful hold from the model. Turn 3 accurately reports the remaining stock and flags the unexpected drop; its suggestion that something else might have been reserved is conditional, not an established explanation.\n\nAll turns meet APP_SPEC.md:27-28. Turn durations were 2.675, 2.433 and 2.461 seconds against a 30-second limit. Model sessions together used 82, 139 and 140 output tokens against a 2000-token limit. Direct model API usage is partly unknown but is explicitly excluded from that token limit. No limit was left unchecked.\n\nThere is no notes.jsonl or app-state snapshot available. Current project state corroborates the sealed backend responses but is not itself a sealed snapshot. No database is configured. No app was started and no message was sent to it.\n\n## Tester notes\n\nThe tester wrote no note.\n\n## Coverage\n\nA proxy saw each egress part.\n",
+ "answer": "[Evaluation report](.nookku/tests/20261020-185014-4129/report.md) written.\n\nFound two issues: the app reserved 2 items when asked for 1, and skipped the required stock check before reserving. The seal is intact; all turns met performance limits.",
  "pass": true
 }

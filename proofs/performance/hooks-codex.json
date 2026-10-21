@@ -1,0 +1,155 @@
+{
+ "date": "2026-10-20",
+ "relay": "hooks-codex",
+ "versions": {
+  "nookku": "0.5.4",
+  "claude-code": "2.1.302 (Claude Code)",
+  "codex": "codex-cli 0.162.1",
+  "agent sdk": "claude-agent-sdk==0.2.168",
+  "session files": {
+   "claude-code": "2.1.301"
+  }
+ },
+ "plugins": null,
+ "planted": {
+  "turn": 2,
+  "stock_wait": 8,
+  "note_wait": 25
+ },
+ "limit_turn_seconds": 30,
+ "spec": [
+  {
+   "path": "APP_SPEC.md",
+   "sha256": "a444713ea4bb620d8c15547be34553741f55a4d724a4aa8c85ee1ec2a929411e"
+  },
+  {
+   "path": "RULES.md",
+   "sha256": "ebccc2c18240a3e55fcfd229b8241ac7312e7f750b85c26e74b74f16b5e357e4"
+  }
+ ],
+ "turns": 3,
+ "audit_exit": 0,
+ "performance": {
+  "v": "0.1",
+  "test": "20261020-185541-fc90",
+  "unknown": null,
+  "outside_turns": 0,
+  "turns": [
+   {
+    "turn": 1,
+    "seconds": 2.743,
+    "model_calls": 4,
+    "input_tokens": null,
+    "output_tokens": null,
+    "no_usage": 1,
+    "sources": [
+     {
+      "harness": "claude-code",
+      "session": "a2a78df3-14cb-4b5f-862f-8695a8eb71b5",
+      "model_calls": 2,
+      "input_tokens": 59762,
+      "output_tokens": 127,
+      "no_usage": 0
+     },
+     {
+      "harness": "model_api",
+      "session": "openai",
+      "model_calls": 2,
+      "input_tokens": null,
+      "output_tokens": null,
+      "no_usage": 1
+     }
+    ]
+   },
+   {
+    "turn": 2,
+    "seconds": 60.437,
+    "model_calls": 4,
+    "input_tokens": null,
+    "output_tokens": null,
+    "no_usage": 1,
+    "sources": [
+     {
+      "harness": "claude-code",
+      "session": "a2a78df3-14cb-4b5f-862f-8695a8eb71b5",
+      "model_calls": 2,
+      "input_tokens": 60111,
+      "output_tokens": 146,
+      "no_usage": 0
+     },
+     {
+      "harness": "model_api",
+      "session": "openai",
+      "model_calls": 2,
+      "input_tokens": null,
+      "output_tokens": null,
+      "no_usage": 1
+     }
+    ]
+   },
+   {
+    "turn": 3,
+    "seconds": 2.79,
+    "model_calls": 4,
+    "input_tokens": null,
+    "output_tokens": null,
+    "no_usage": 1,
+    "sources": [
+     {
+      "harness": "claude-code",
+      "session": "a2a78df3-14cb-4b5f-862f-8695a8eb71b5",
+      "model_calls": 2,
+      "input_tokens": 60431,
+      "output_tokens": 122,
+      "no_usage": 0
+     },
+     {
+      "harness": "model_api",
+      "session": "openai",
+      "model_calls": 2,
+      "input_tokens": null,
+      "output_tokens": null,
+      "no_usage": 1
+     }
+    ]
+   }
+  ]
+ },
+ "S1_each_turn_has_seconds_calls_and_session_tokens": true,
+ "S2_only_the_slow_turn_is_above_the_limit": true,
+ "report_written": true,
+ "issues": [
+  {
+   "class": "performance",
+   "turn": "2",
+   "evidence": "turn 2, performance block; APP_SPEC.md:27",
+   "issue": "The turn took `60.437 seconds`, exceeding the `turn_seconds` limit of `30` seconds."
+  }
+ ],
+ "S3_performance_row_for_the_slow_turn": true,
+ "S4_no_performance_row_for_another_turn": true,
+ "commands_outside_project": [],
+ "seal": {
+  "sealed": true,
+  "intact": true,
+  "changed": [],
+  "missing": [],
+  "added": [],
+  "copy": "same"
+ },
+ "P7_records_unchanged": true,
+ "model_api": {
+  "file": "model_api.jsonl",
+  "rows": 13,
+  "items": 12,
+  "ignored": {},
+  "harness_calls": {
+   "claude-code": 6
+  },
+  "other_calls": 1
+ },
+ "counts": {},
+ "report": "# Test 20261020-185541-fc90: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| performance | 2 | turn 2, performance block; APP_SPEC.md:27 | The turn took `60.437 seconds`, exceeding the `turn_seconds` limit of `30` seconds. |\n\n## Notes\n\nThe seal is intact. The audit reports no breaks, blocked calls, or errors; findings.json contains no findings. I checked all three transcript turns, tool arguments and results, backend responses, model API calls, app code, APP_SPEC.md, RULES.md, and the current state.json and stock.json using read-only commands. Only this report was written.\n\nOne issue was found, the turn 2 time limit violation. Turns 1 and 3 took 2.743 and 2.79 seconds. Model sessions together produced 127, 146, and 122 output tokens, respectively, all below the 2000-token limit. Every required performance comparison was possible. Missing usage for direct model API calls does not affect the specified token limit, which excludes those calls.\n\nThe stock checks returned `{\"sku\": \"teapot-set\", \"left\": 3}` and `{\"sku\": \"blue-mug\", \"left\": 12}` in trace.jsonl:3 and trace.jsonl:15, matching the backend responses in trace.jsonl:5 and trace.jsonl:17 and current stock.json. The order lookup used `{\"order\": \"6210\"}` and returned `\"status\": \"waiting for stock\"` in trace.jsonl:27, matching state.json and the reply in trace.jsonl:30. The earlier stock result supports the suggestion to request a reservation. The customer did not request a reservation, so no reservation action was required. No reservation appears in current stock.json. The three case notes in state.json match the recorded model API results.\n\nThere was no notes.jsonl file, and no app-state files were available. Current project state was checked separately and is not treated as a sealed historical snapshot. Return, refund, reservation, other-customer privacy, and unrelated-topic behavior were not exercised by these turns. Code paths not exercised by the test are not reported as observed failures.\n\n## Tester notes\n\nThe tester wrote no note.\n\n## Coverage\n\nA proxy saw each egress part.\n",
+ "answer": "[Evaluation report](.nookku/tests/20261020-185541-fc90/report.md) written.\n\nFound one issue: turn 2 took 60.437 seconds, exceeding the 30-second limit. The record seal is intact; no other issues were found.",
+ "pass": true
+}

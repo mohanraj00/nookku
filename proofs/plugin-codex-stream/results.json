@@ -1,9 +1,9 @@
 {
- "date": "2026-10-18",
+ "date": "2026-10-20",
  "setup": "plugin-codex",
  "harness": "codex",
  "version": "codex-cli 0.162.1",
- "nookku": "0.5.2",
+ "nookku": "0.5.4",
  "transport": "http-stream",
  "agent_streams": "always",
  "openai_stream": false,

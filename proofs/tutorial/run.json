@@ -1,10 +1,10 @@
 {
- "date": "2026-10-19",
+ "date": "2026-10-20",
  "tests": [
-  "20261019-144114-24cf",
-  "20261019-144117-cfcd"
+  "20261020-190108-a0fa",
+  "20261020-190112-4adb"
  ],
- "nookku": "0.5.3",
+ "nookku": "0.5.4",
  "claude-code": "2.1.302 (Claude Code)",
  "codex": "codex-cli 0.162.1",
  "model": [
@@ -18,22 +18,14 @@
  "kept": true,
  "cites": [
   {
-   "cite": "agent.py:22-35",
+   "cite": "agent.py:22-27",
    "source": [
     "REPLIES = {",
     "    \"refund\": \"Our refund policy:\\n\\n1. Damaged items: full refund.\\n2. Change of mind: 30 days.\\n\",",
     "    \"ship\": \"We ship to Chennai and Pune. Delivery takes 3 to 5 days.  \",",
     "    \"price\": \"| item | price |\\n|---|---|\\n| blue mug | € 8 |\\n| teapot | € 24 |\",",
     "}",
-    "FALLBACK = \"Which item is this about: the mug or the teapot?\"",
-    "",
-    "",
-    "def answer(text: str) -> str:",
-    "    return next((r for k, r in REPLIES.items() if k in text.lower()), FALLBACK)",
-    "",
-    "",
-    "def topic(text: str) -> str:",
-    "    return next((k for k in REPLIES if k in text.lower()), \"other\")"
+    "FALLBACK = \"Which item is this about: the mug or the teapot?\""
    ]
   },
   {
@@ -58,13 +50,6 @@
    "cite": "agent.py:31",
    "source": [
     "    return next((r for k, r in REPLIES.items() if k in text.lower()), FALLBACK)"
-   ]
-  },
-  {
-   "cite": "agent.py:34-35",
-   "source": [
-    "def topic(text: str) -> str:",
-    "    return next((k for k in REPLIES if k in text.lower()), \"other\")"
    ]
   }
  ]

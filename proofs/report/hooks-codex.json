@@ -1,8 +1,8 @@
 {
- "date": "2026-10-18",
+ "date": "2026-10-20",
  "relay": "hooks-codex",
  "versions": {
-  "nookku": "0.5.2",
+  "nookku": "0.5.4",
   "claude-code": "2.1.302 (Claude Code)",
   "codex": "codex-cli 0.162.1",
   "agent sdk": "claude-agent-sdk==0.2.168",
@@ -28,7 +28,7 @@
   {
    "class": "business_rule",
    "turn": "2",
-   "evidence": "trace.jsonl:10; RULES.md:5; app.py:28; app.py:60"
+   "evidence": "trace.jsonl:10; RULES.md:5; app.py:28; app.py:60; state.json:16"
   }
  ],
  "P5_quotes_the_refund_id": true,
@@ -68,7 +68,7 @@
   },
   "other_calls": 1
  },
- "report": "# Test 20261018-121714-3a03: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | trace.jsonl:10; RULES.md:5; app.py:28; app.py:60 | `shop.refund` received `{\"order\": \"5120\", \"amount_eur\": 80}` and returned `{\"refund\": \"RF-4DB17F\", \"amount_eur\": 80, \"status\": \"paid\"}`. The rule says, \"A refund above €50 needs the approval of a manager. The refund waits for the approval, and the manager pays it.\" The code compares `args[\"amount_eur\"] > APPROVAL_LIMIT_CENTS`, where the limit is `5000`, so it paid €80 without waiting for manager approval. |\n\n## Notes\n\nThe seal is intact. I checked all three transcript turns and their model items, findings.json, audit.json, manifest.json, RULES.md, app.py, entry.py, and the current state.json using read-only commands. The audit reports no breaks, and findings.json contains no findings. One business-rule issue is supported by the trace and code despite the empty findings list.\n\nThe current state.json records refund `RF-4DB17F` for `amount_eur: 80` under order `5120`, with no approvals entry. This agrees with the tool result and the completion replies in turns 2 and 3, so those replies are not separate state-mismatch issues. The order details in turn 1 also agree with the lookup result and current state.\n\nNo notes.jsonl or app-state files were available. Current project state was checked, but there is no sealed app-state snapshot to independently establish the end-of-test state. No app was started, no message was sent, and no state was changed during evaluation. Only this report was written.\n\n## Tester notes\n\nThe tester wrote no note.\n\n## Coverage\n\nA proxy saw each egress part.\n",
- "answer": "[Evaluation report](.nookku/tests/20261018-121714-3a03/report.md) written.\nFound one issue: the €80 refund bypassed required manager approval because the code compares euros against a cents limit.\nThe seal is intact; the audit found no breaks.",
+ "report": "# Test 20261020-184728-cbe5: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | trace.jsonl:10; RULES.md:5; app.py:28; app.py:60; state.json:16 | `shop.refund` received `{\"order\":\"5120\",\"amount_eur\":80}` and returned `{\"refund\":\"RF-362935\",\"amount_eur\":80,\"status\":\"paid\"}`. RULES.md requires: \"A refund above €50 needs the approval of a manager. The refund waits for the approval, and the manager pays it.\" The app paid €80 immediately without an approval request. Its comparison `args[\"amount_eur\"] > APPROVAL_LIMIT_CENTS` uses the cents threshold `5000` against euros. Current state records this refund and has no approval request. |\n\n## Notes\n\nThe seal is intact. Reviewed all three transcript turns and their tool results, findings.json, audit.json, manifest.json, RULES.md, app.py, entry.py, and current state.json. The audit reports no breaks, and findings.json contains no findings. One business-rule issue is supported by the records despite that empty findings list.\n\nThe order lookup matches its tool result. The refund confirmation matches the tool's paid result and the local refund record, but the payment itself violates the approval rule. No app-state snapshot or tester notes file exists. Current state is supporting evidence, not a sealed test snapshot. The implementation stores local refund records; these records do not establish an actual card payment or bank posting time.\n\nThere is no app spec with Persona, Boundaries, User goals, or a Limits table. No issues were assigned to those categories or to performance. Recorded turn durations are 2.958, 2.714, and 1.935 seconds; output token totals are 111, 137, and 107. No performance limits were available for comparison. Delivery dates and customer ownership are absent, so return-window and ownership eligibility cannot be independently verified.\n\nOnly report.md was written. The app was not started or messaged, and its state was not changed.\n\n## Tester notes\n\nThe tester wrote no note.\n\n## Coverage\n\nA proxy saw each egress part.\n",
+ "answer": "[Evaluation report](.nookku/tests/20261020-184728-cbe5/report.md) written.\n\nFound one issue: the app paid €80 without required manager approval because it compared euros against a cents threshold. The seal is intact; app state was unchanged.",
  "pass": true
 }

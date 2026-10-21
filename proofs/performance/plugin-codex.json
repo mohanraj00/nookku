@@ -1,0 +1,161 @@
+{
+ "date": "2026-10-20",
+ "relay": "plugin-codex",
+ "versions": {
+  "nookku": "0.5.4",
+  "claude-code": "2.1.302 (Claude Code)",
+  "codex": "codex-cli 0.162.1",
+  "agent sdk": "claude-agent-sdk==0.2.168",
+  "session files": {
+   "claude-code": "2.1.301"
+  }
+ },
+ "plugins": null,
+ "planted": {
+  "turn": 2,
+  "stock_wait": 8,
+  "note_wait": 25
+ },
+ "limit_turn_seconds": 30,
+ "spec": [
+  {
+   "path": "APP_SPEC.md",
+   "sha256": "a444713ea4bb620d8c15547be34553741f55a4d724a4aa8c85ee1ec2a929411e"
+  },
+  {
+   "path": "RULES.md",
+   "sha256": "ebccc2c18240a3e55fcfd229b8241ac7312e7f750b85c26e74b74f16b5e357e4"
+  }
+ ],
+ "turns": 3,
+ "audit_exit": 0,
+ "performance": {
+  "v": "0.1",
+  "test": "20261020-185333-519c",
+  "unknown": null,
+  "outside_turns": 0,
+  "turns": [
+   {
+    "turn": 1,
+    "seconds": 2.5,
+    "model_calls": 4,
+    "input_tokens": null,
+    "output_tokens": null,
+    "no_usage": 1,
+    "sources": [
+     {
+      "harness": "claude-code",
+      "session": "cb75d15a-413b-46f2-8ba0-7e70eb403502",
+      "model_calls": 2,
+      "input_tokens": 59725,
+      "output_tokens": 82,
+      "no_usage": 0
+     },
+     {
+      "harness": "model_api",
+      "session": "openai",
+      "model_calls": 2,
+      "input_tokens": null,
+      "output_tokens": null,
+      "no_usage": 1
+     }
+    ]
+   },
+   {
+    "turn": 2,
+    "seconds": 60.739,
+    "model_calls": 4,
+    "input_tokens": null,
+    "output_tokens": null,
+    "no_usage": 1,
+    "sources": [
+     {
+      "harness": "claude-code",
+      "session": "cb75d15a-413b-46f2-8ba0-7e70eb403502",
+      "model_calls": 2,
+      "input_tokens": 60044,
+      "output_tokens": 191,
+      "no_usage": 0
+     },
+     {
+      "harness": "model_api",
+      "session": "openai",
+      "model_calls": 2,
+      "input_tokens": null,
+      "output_tokens": null,
+      "no_usage": 1
+     }
+    ]
+   },
+   {
+    "turn": 3,
+    "seconds": 2.726,
+    "model_calls": 4,
+    "input_tokens": null,
+    "output_tokens": null,
+    "no_usage": 1,
+    "sources": [
+     {
+      "harness": "claude-code",
+      "session": "cb75d15a-413b-46f2-8ba0-7e70eb403502",
+      "model_calls": 2,
+      "input_tokens": 60439,
+      "output_tokens": 121,
+      "no_usage": 0
+     },
+     {
+      "harness": "model_api",
+      "session": "openai",
+      "model_calls": 2,
+      "input_tokens": null,
+      "output_tokens": null,
+      "no_usage": 1
+     }
+    ]
+   }
+  ]
+ },
+ "S1_each_turn_has_seconds_calls_and_session_tokens": true,
+ "S2_only_the_slow_turn_is_above_the_limit": true,
+ "report_written": true,
+ "issues": [
+  {
+   "class": "performance",
+   "turn": "2",
+   "evidence": "turn 2 performance block; APP_SPEC.md:30",
+   "issue": "The turn took \"60.739 seconds\", exceeding the `turn_seconds` limit of 30 seconds."
+  },
+  {
+   "class": "unsupported_reply",
+   "turn": "3",
+   "evidence": "trace.jsonl:30; trace.jsonl:27; trace.jsonl:5",
+   "issue": "The reply says \"it may be reserved or processed soon\". The order lookup only reports \"waiting for stock\", and the earlier stock response reports `{\"sku\": \"teapot-set\", \"left\": 3}`. Neither result nor any shop rule supports this forecast about reservation or processing time."
+  }
+ ],
+ "S3_performance_row_for_the_slow_turn": true,
+ "S4_no_performance_row_for_another_turn": true,
+ "commands_outside_project": [],
+ "seal": {
+  "sealed": true,
+  "intact": true,
+  "changed": [],
+  "missing": [],
+  "added": [],
+  "copy": "same"
+ },
+ "P7_records_unchanged": true,
+ "model_api": {
+  "file": "model_api.jsonl",
+  "rows": 13,
+  "items": 12,
+  "ignored": {},
+  "harness_calls": {
+   "claude-code": 6
+  },
+  "other_calls": 1
+ },
+ "counts": {},
+ "report": "# Test 20261020-185333-519c: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| performance | 2 | turn 2 performance block; APP_SPEC.md:30 | The turn took \"60.739 seconds\", exceeding the `turn_seconds` limit of 30 seconds. |\n| unsupported_reply | 3 | trace.jsonl:30; trace.jsonl:27; trace.jsonl:5 | The reply says \"it may be reserved or processed soon\". The order lookup only reports \"waiting for stock\", and the earlier stock response reports `{\"sku\": \"teapot-set\", \"left\": 3}`. Neither result nor any shop rule supports this forecast about reservation or processing time. |\n\n## Notes\n\nThe transcript reports \"Seal: intact. No record changed after the end of the test.\" The audit has no breaks, errors or blocked calls. The automated findings list is empty; the two issues above come from evaluating the transcript against the spec.\n\nRead APP_SPEC.md, RULES.md, the traced transcript, findings.json, audit.json and manifest.json. Reviewed app.py, entry.py, services.py, stock.py and toy_model.py. Read the current stock.json and state.json without starting the app or sending it a message. No app-state files were available. The current files are not sealed snapshots of test-time state, but they agree with the recorded stock quantities and order 6210 status. State contains the three case notes shown by the model API records.\n\nChecked both limits in every turn. Durations were 2.5, 60.739 and 2.726 seconds against the 30-second limit. Model sessions together produced 82, 191 and 121 output tokens against the 2000-token limit. All limit measurements needed for this evaluation were available. Direct model API usage is partly unknown, but the spec excludes those calls from the token limit.\n\nStock requests used the matching SKUs and reported the returned quantities. Order 6210 was looked up and its recorded status was reported correctly. Replies stayed within two sentences. The required stock backend, session tool and model API trace points appear for the applicable turns. No reservation was requested, so no reserve call was required. Refunds, returns, other-customer access and out-of-scope requests were not exercised. Potential defects in unexercised code paths are not reported as observed test failures.\n\n## Tester notes\n\nThe tester wrote no note.\n\n## Coverage\n\nA proxy saw each egress part.\n",
+ "answer": "Saved the [evaluation report](<project>/.nookku/tests/20261020-185333-519c/report.md).\n\nFound two issues: turn 2 took 60.739 seconds against a 30-second limit; turn 3 made an unsupported forecast about order processing. The record seal is intact.",
+ "pass": true
+}

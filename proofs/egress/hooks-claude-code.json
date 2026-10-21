@@ -1,12 +1,12 @@
 {
- "date": "2026-10-19",
+ "date": "2026-10-20",
  "relay": "hooks-claude-code",
  "discovery_registered": true,
  "discovery_attempts": 1,
- "discovery_answer": "I registered the agent's egress parts with nookku. `nookku register` accepted them and printed:\n\n```\nnookku: the egress answer is registered. The next start uses these parts:\n- model API anthropic: ANTHROPIC_BASE_URL -> the URL in ANTHROPIC_BASE_URL or the default (proxy)\n- MCP server catalog: http CATALOG_MCP_URL -> http://127.0.0.1:9310/mcp (proxy)\n- MCP server notes: stdio NOTES_MCP_COMMAND -> python3 notes_mcp.py (proxy)\n- database shop: postgres, DATABASE_URL (proxy)\n- database returns: sqlite, returns.db (driver trace)\n```\n\n**I didn't change any code for the driver trace.** `app.py:45-69` already instruments sqlite3 (and psycopg) with OpenTelemetry. It sends spans with the OTLP HTTP exporter whenever `OTEL_EXPORTER_OTLP_ENDPOINT` is set, and the SQL statement text is on by default. The packages it needs are already in the entry command in `.nookku/config.json`.\n\nBecause `returns.db` is recorded through a driver trace rather than a proxy, the record for it won't contain result rows, and it may hide parameter values. For example, the values in the `INSERT INTO returns` statement may appear only as `?`.\n\n**Other details:**\n- No secrets are in the answer. The default `DATABASE_URL` contains a password, so I listed only its address, `127.0.0.1:55432/shop`.\n- There are no `.env` example files and no plain HTTP backends.\n- The notes server writes to `notes.json`, but that's the MCP server's own file, not something the agent itself calls, so I left it out.\n\nPlease check the parts above. If they're correct, type `nookku start` within the next 30 minutes to start the test. If a part is wrong, tell me and I'll fix the answer and register it again.",
+ "discovery_answer": "I registered the egress answer. `nookku register` printed:\n\n```\nnookku: the egress answer is registered. The next start uses these parts:\n- model API anthropic: ANTHROPIC_BASE_URL -> the URL in ANTHROPIC_BASE_URL or the default (proxy)\n- MCP server catalog: http CATALOG_MCP_URL -> http://127.0.0.1:9310/mcp (proxy)\n- MCP server notes: stdio NOTES_MCP_COMMAND -> python3 notes_mcp.py (proxy)\n- database shop: postgres, DATABASE_URL (proxy)\n- database returns: sqlite, returns.db (driver trace)\n```\n\n**Where each part comes from in the code**\n- **anthropic:** the Claude Agent SDK starts Claude Code, which calls the Anthropic API. The options at `app.py:140` add only a couple of variables to the environment, so `ANTHROPIC_BASE_URL` still reaches it.\n- **catalog:** an HTTP MCP server at `CATALOG_MCP_URL` (`app.py:36`).\n- **notes:** a stdio MCP server. The app splits the command line in `NOTES_MCP_COMMAND` into words (`app.py:120`).\n- **shop:** Postgres, reached with psycopg through the `postgres://` URL in `DATABASE_URL`. I left the username and password out of the answer.\n- **returns:** SQLite, through the file `returns.db` next to `app.py`. No variable holds its path, so the proxy can't reach it and it's recorded with a driver trace instead.\n- There are no HTTP backends and no other parts.\n\n**Driver trace:** I didn't change any code. The agent already turns on OpenTelemetry instrumentation for both sqlite3 and psycopg when `OTEL_EXPORTER_OTLP_ENDPOINT` is set, and sends spans over OTLP/HTTP (`app.py:45-69`). The sqlite3 instrumentation records statement text by default. Two limits on the `returns` record:\n- A driver trace has no rows.\n- It can hide parameter values. For example, the `INSERT` will probably show as `?` placeholders without the values.\n\nPostgres calls will also show up as driver spans, alongside the proxy record.\n\n**Not listed:** the notes MCP server writes to `notes.json` (or the file in `TOY_NOTES`). That's the server's own file, not something the agent calls, so I left it out. Tell me if you want it listed under `other`.\n\nPlease check the parts. If they're right, type `nookku start` within the next 30 minutes. If one is wrong, tell me which and I'll fix the answer and register it again.",
  "E2_app_files_changed": [],
  "versions": {
-  "nookku": "0.5.3",
+  "nookku": "0.5.4",
   "claude-code": "2.1.302 (Claude Code)",
   "codex": "codex-cli 0.162.1",
   "agent sdk": "claude-agent-sdk==0.2.168",
@@ -171,9 +171,9 @@
  "E3_each_call_has_a_record": true,
  "postgres_spans": 1,
  "postgres_span_addresses": [
-  "127.0.0.1:59675"
+  "127.0.0.1:57005"
  ],
- "postgres_proxy": "postgresql://127.0.0.1:59675",
+ "postgres_proxy": "postgresql://127.0.0.1:57005",
  "unseen_call": 0,
  "counts": {},
  "seal": {

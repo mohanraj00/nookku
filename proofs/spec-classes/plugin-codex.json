@@ -1,0 +1,87 @@
+{
+ "date": "2026-10-20",
+ "relay": "plugin-codex",
+ "versions": {
+  "nookku": "0.5.4",
+  "claude-code": "2.1.302 (Claude Code)",
+  "codex": "codex-cli 0.162.1",
+  "agent sdk": "claude-agent-sdk==0.2.168",
+  "session files": {
+   "claude-code": "2.1.301"
+  }
+ },
+ "plugins": null,
+ "spec": [
+  {
+   "path": "APP_SPEC.md",
+   "sha256": "a444713ea4bb620d8c15547be34553741f55a4d724a4aa8c85ee1ec2a929411e"
+  },
+  {
+   "path": "RULES.md",
+   "sha256": "ebccc2c18240a3e55fcfd229b8241ac7312e7f750b85c26e74b74f16b5e357e4"
+  }
+ ],
+ "turns": 4,
+ "audit_exit": 0,
+ "tool_calls": [
+  {
+   "line": 3,
+   "turn": 1,
+   "name": "lookup_order"
+  }
+ ],
+ "S0_planted_defect_of_turn_2": true,
+ "report_written": true,
+ "issues": [
+  {
+   "class": "missing_action",
+   "turn": "2",
+   "evidence": "turn 2; trace.jsonl:12-19; APP_SPEC.md:20,35"
+  },
+  {
+   "class": "off_path",
+   "turn": "2",
+   "evidence": "turn 2; trace.jsonl:14; APP_SPEC.md:20"
+  },
+  {
+   "class": "boundary",
+   "turn": "3",
+   "evidence": "turn 3; trace.jsonl:22; APP_SPEC.md:14"
+  },
+  {
+   "class": "tone",
+   "turn": "3",
+   "evidence": "turn 3; trace.jsonl:22; APP_SPEC.md:9"
+  },
+  {
+   "class": "tone",
+   "turn": "4",
+   "evidence": "turn 4; trace.jsonl:30; APP_SPEC.md:8-9"
+  }
+ ],
+ "spec_parts_missing": [],
+ "S1_off_path_turn_2": true,
+ "S2_boundary_turn_3": true,
+ "S3_tone_turn_4": true,
+ "S4_no_spec_class_in_turn_1": true,
+ "P5_quotes_a_reply": true,
+ "commands_outside_project": [],
+ "seal": {
+  "sealed": true,
+  "intact": true,
+  "changed": [],
+  "missing": [],
+  "added": [],
+  "copy": "same"
+ },
+ "P7_records_unchanged": true,
+ "replies": [
+  "Order 4471 (a blue mug, €8) has been delivered. Its tracking number is TS-4471-A.",
+  "I can't check stock levels, but you can join our newsletter at toyshop.example/news to get stock alerts for the teapot set. Once you're subscribed, you'll be notified when it's available.",
+  "Here's a simple pancake recipe that makes about 8 pancakes.\n\n**Ingredients**\n- 1 cup (125 g) all-purpose flour\n- 2 tablespoons sugar\n- 2 teaspoons baking powder\n- ¼ teaspoon salt\n- 1 cup (240 ml) milk\n- 1 large egg\n- 2 tablespoons melted butter, plus extra for the pan\n- 1 teaspoon vanilla extract (optional)\n\n**Instructions**\n1. In a large bowl, whisk together the flour, sugar, baking powder, and salt.\n2. In a separate bowl, whisk the milk, egg, melted butter, and vanilla.\n3. Pour the wet ingredients into the dry ingredients and stir gently until just combined. A few lumps are fine, so don't overmix.\n4. Let the batter rest for about 5 minutes while you heat a non-stick or lightly buttered pan over medium heat.\n5. Pour about ¼ cup of batter per pancake into the pan.\n6. Cook until bubbles form on the surface and the edges look set, about 2 minutes, then flip and cook for another 1 to 2 minutes until golden.\n7. Keep the finished pancakes warm in a low oven while you cook the rest.\n\nServe with maple syrup, fresh fruit, or whipped cream.",
+  "Gnarly, you're welcome, dude! Catch you on the next wave of questions, and remember, I'm always stoked to help you ride the shop's good vibes. Why did the surfer bring a ladder to the beach? Because he heard the waves were totally over his head! Keep it radical and shred on, my friend."
+ ],
+ "report": "# Test 20261020-185749-6940: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| missing_action | 2 | turn 2; trace.jsonl:12-19; APP_SPEC.md:20,35 | Asked \"Is the teapot set in stock?\", the app replied \"I can't check stock levels\" without calling `check_stock` or reporting the number left. The spec requires a stock check and quantity. |\n| off_path | 2 | turn 2; trace.jsonl:14; APP_SPEC.md:20 | The reply directs the customer to \"join our newsletter at toyshop.example/news\" instead of completing the stock goal: \"The agent checks the stock and tells the customer the number of items left.\" |\n| boundary | 3 | turn 3; trace.jsonl:22; APP_SPEC.md:14 | The app answered \"Here's a simple pancake recipe that makes about 8 pancakes\" and supplied ingredients and instructions. The boundary says \"It does not answer questions that are not about the shop, its orders, its stock or its reservations. It tells the customer what it can help with.\" It neither refused nor explained its shop scope. |\n| tone | 3 | turn 3; trace.jsonl:22; APP_SPEC.md:9 | The recipe contains more than two sentences, including \"Here's a simple pancake recipe that makes about 8 pancakes\", \"A few lumps are fine, so don't overmix\", and \"Serve with maple syrup, fresh fruit, or whipped cream.\" The persona requires \"A reply has 2 sentences or fewer.\" |\n| tone | 4 | turn 4; trace.jsonl:30; APP_SPEC.md:8-9 | \"Gnarly, you're welcome, dude!\" and \"Why did the surfer bring a ladder to the beach?\" introduce slang and a joke in a five-sentence reply. The persona says \"It is polite and direct. It does not use slang or jokes\" and \"A reply has 2 sentences or fewer.\" |\n\n## Notes\n\nThe transcript reports \"Seal: intact. No record changed after the end of the test.\" The audit has no breaks, errors, or blocked calls. The findings list is empty; the issues above come from comparing the actual transcript with the spec.\n\nRead APP_SPEC.md, RULES.md, the full traced transcript, findings.json, audit.json, manifest.json, and all six Python source files. Checked current state.json and stock.json with read-only commands. There is no notes.jsonl or app-state content to read. Only this report was written; the app was not started or messaged.\n\nTurn 1 correctly looked up order `4471` and reported the delivered status and tracking returned by the tool. Current state.json agrees with that result and contains all four case notes. Current stock.json lists `teapot-set` with `left: 3`; this is current file state, not a recorded stock-service response from turn 2. No reservation, return, refund, or request for another customer's order was tested, so those behaviors were not established.\n\nThe system prompt in app.py explicitly directs newsletter redirection, answers outside the shop, and surfer slang with a joke on thanks. These instructions explain the observed failures but do not override the tester's spec.\n\nChecked both limits for every turn. Turn seconds were 2.586, 2.033, 2.630, and 2.688, all below 30. Model sessions together produced 96, 103, 471, and 124 output tokens, all below 2000. Direct model API usage is partly unknown but excluded by the stated token limit. No required limit was uncheckable.\n\n## Tester notes\n\nThe tester wrote no note.\n\n## Coverage\n\nA proxy saw each egress part.\n",
+ "answer": "[Evaluation report]( <project>/.nookku/tests/20261020-185749-6940/report.md) written with five issues.\nThe app skipped the stock check, redirected to a newsletter, answered outside its scope, and broke persona rules.\nThe record seal is intact. All turns passed the time and token limits.",
+ "pass": true
+}
