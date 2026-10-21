@@ -10,6 +10,8 @@ With no spec, the model finds the business rules in the code, the docs and the t
 2. Give each part below its own `##` section, with the section name of the table.
 3. Name the files in the config: `nookku init <harness> --spec APP_SPEC.md,RULES.md`.
 
+[evaluate-against-your-spec.md](../how-to/evaluate-against-your-spec.md) gives these steps with the output of the toy shop, and tells you how to read the results of the spec.
+
 A spec can have a part in a second file. For example, the toy shop keeps its rules in `RULES.md`, and its `Boundaries` section links to it. A file with no known section is a list of business rules.
 
 Use the section names exactly. The evaluation prompt names the files, and the model reads them as the rules of the app. The model finds the `Persona`, the `Boundaries` and the `User goals` by their section names. The [trace](glossary.md#trace) reads the `Trace points` section itself ([Trace points](#trace-points)). The check of speed ([#317](https://github.com/mohanraj00/nookku/issues/317)) will find each part by its section name.

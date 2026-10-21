@@ -27,7 +27,7 @@ First, look in the [test folder](reference/glossary.md#test-folder) `.nookku/tes
 
 (argparse, from `nookku init`) **Cause.** You have version 0.1.0 from PyPI. It has no tests and no entry. Check with `nookku --version`.
 
-**Fix.** Run `uv tool upgrade nookku`. The docs are for version 0.5.3.
+**Fix.** Run `uv tool upgrade nookku`. The docs are for version 0.5.4.
 
 ### `nookku: command not found`
 

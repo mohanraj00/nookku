@@ -113,6 +113,17 @@ PASS
 
 ## Releases with a special step
 
+### 0.5.4
+
+No special step is necessary. Do the steps above.
+
+To use the new [app spec](../reference/app-spec.md):
+
+1. Write the spec file, for example `APP_SPEC.md` in the project root. [app-spec.md](../reference/app-spec.md) gives its parts.
+2. Run `nookku init <harness> --spec APP_SPEC.md`, with the [harness](../reference/glossary.md#harness) form of the project (`codex`, `claude-code` or `plugin`).
+
+A second `init` keeps the other keys of `.nookku/config.json`. The change to `config.json` does not change the hooks, so Codex needs no new trust. The next test reads the spec ([SPEC.md section 7.1](../../SPEC.md#71-configuration), [#315](https://github.com/mohanraj00/nookku/issues/315)).
+
 ### 0.5.3
 
 Do the steps above. Three changes need more care:

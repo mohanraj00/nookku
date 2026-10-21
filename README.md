@@ -74,7 +74,7 @@ Data: [the record of the test](docs/assets/chat-page/test/) and [the method of t
 uv tool install nookku
 ```
 
-It needs Python 3.10 or later, and it has no runtime dependencies ([pyproject.toml](pyproject.toml)). The docs are for version 0.5.3. If you use verbatim-relay 0.3.x or earlier, do the [0.4.0 steps of the upgrade guide](docs/how-to/upgrade.md#040), because the package has a new name ([CHANGELOG.md](CHANGELOG.md#040)). To upgrade from a later version of nookku, end each running test first. Then run `uv tool upgrade nookku`. [docs/how-to/upgrade.md](docs/how-to/upgrade.md) gives each step.
+It needs Python 3.10 or later, and it has no runtime dependencies ([pyproject.toml](pyproject.toml)). The docs are for version 0.5.4. If you use verbatim-relay 0.3.x or earlier, do the [0.4.0 steps of the upgrade guide](docs/how-to/upgrade.md#040), because the package has a new name ([CHANGELOG.md](CHANGELOG.md#040)). To upgrade from a later version of nookku, end each running test first. Then run `uv tool upgrade nookku`. [docs/how-to/upgrade.md](docs/how-to/upgrade.md) gives each step.
 
 ## Quick start
 
@@ -112,19 +112,19 @@ You install the [relay](SPEC.md#5-relays) as the plugin or as the project hooks.
 
 ## A sample report
 
-At the end of a test, the harness model reads the record and writes `report.md` in the test folder. This is an excerpt of a real report. Nookku 0.5.3 and Claude Code 2.1.302 wrote it, with the project hooks, in a test of [the toy shop with a model](examples/toy-shop-models/README.md). The app has a planted bug: its refund tool compares euros with cents. The model did not see the conversation, and it found the bug in the record and the code.
+At the end of a test, the harness model reads the record and writes `report.md` in the test folder. This is an excerpt of a real report. Nookku 0.5.4 and Claude Code 2.1.302 wrote it, with the project hooks, in a test of [the toy shop with a model](examples/toy-shop-models/README.md). The app has a planted bug: its refund tool compares euros with cents. The model did not see the conversation, and it found the bug in the record and the code.
 
 ```markdown
-# Test 20261019-143526-4c85: evaluation
+# Test 20261020-185356-8fe8: evaluation
 
 | Class | Turn | Evidence | Issue |
 |---|---|---|---|
-| business_rule | 2 | trace.jsonl:10, RULES.md:5 | `refund` got `{"order": "5120", "amount_eur": 80}` and returned `{"refund": "RF-A82873", "amount_eur": 80, "status": "paid"}`. RULES.md:5 says "A refund above €50 needs the approval of a manager. The refund waits for the approval, and the manager pays it." The app paid €80 itself, with no approval. |
-| business_rule | - | app.py:28, app.py:60 | The cause of the turn 2 issue. The approval check `if args["amount_eur"] > APPROVAL_LIMIT_CENTS:` compares an amount in euros with `APPROVAL_LIMIT_CENTS = 5000` (cents). So only a refund above €5000 waits for approval, and any refund from €50.01 to €5000 is paid at once. |
+| business_rule | 2 | trace.jsonl:10, app.py:60, RULES.md:5 | The app paid an €80 refund at once: `shop.refund` got `{"order": "5120", "amount_eur": 80}` and returned `{"refund": "RF-4A679B", "amount_eur": 80, "status": "paid"}`. RULES.md:5 says "A refund above €50 needs the approval of a manager. The refund waits for the approval, and the manager pays it." The cause is a unit error in the tool: `if args["amount_eur"] > APPROVAL_LIMIT_CENTS:` compares euros with `APPROVAL_LIMIT_CENTS = 5000` (app.py:28), so only refunds above €5000 wait for approval. state.json now has the paid refund `RF-4A679B` under order 5120 and no `approvals` list. |
+| unsupported_reply | 2 | trace.jsonl:13 | The reply says "the refund goes back to the original payment method on the order." No tool result and no rule supports this: the refund result (trace.jsonl:10) has no payment method or destination. In turn 3 the app itself says "I assumed the refund goes to your original card, but the system didn't confirm that." |
 ...
 ```
 
-The full report has 4 rows and 6 notes. Data: [proofs/report/hooks-claude-code.json](proofs/report/hooks-claude-code.json). Method: [docs/results.md](docs/results.md#p5-and-p6-the-evaluation-at-the-end-of-a-test). A report is a model answer, so check its evidence. [Read the results of a test](docs/how-to/read-the-results.md) tells you how.
+The full report has 3 rows and 8 notes. Data: [proofs/report/hooks-claude-code.json](proofs/report/hooks-claude-code.json). Method: [docs/results.md](docs/results.md#p5-and-p6-the-evaluation-at-the-end-of-a-test). A report is a model answer, so check its evidence. [Read the results of a test](docs/how-to/read-the-results.md) tells you how.
 
 ## How it works
 
@@ -153,7 +153,7 @@ A test also records what your app did. It copies the session files of the app's 
 
 ## Results
 
-| Proof | Plugin, Claude Code 2.1.302 | Plugin, Codex 0.162.1 (nookku 0.5.2) | Project hooks, Claude Code 2.1.302 | Project hooks, Codex 0.162.1 (nookku 0.5.2) |
+| Proof | Plugin, Claude Code 2.1.302 | Plugin, Codex 0.162.1 | Project hooks, Claude Code 2.1.302 | Project hooks, Codex 0.162.1 |
 |---|---|---|---|---|
 | Messages reach the agent byte for byte | 10/10 | 10/10 | 10/10 | 10/10 |
 | Replies reach the tester byte for byte | 10/10 | 10/10 | 10/10 | 10/10 |
@@ -162,7 +162,7 @@ A test also records what your app did. It copies the session files of the app's 
 | Audit finds planted faults | 5/5 | 5/5 | 5/5 | 5/5 |
 | After the test, the model has no memory of the conversation, and reads it from the transcript | yes | yes | yes | yes |
 
-The Claude Code columns ran on nookku 0.5.3. The Codex columns are from nookku 0.5.2, because the Codex account has no usage until 2026-10-24 ([#437](https://github.com/mohanraj00/nookku/issues/437)). Data: [plugin in Claude Code](proofs/plugin-claude-code/results.json), [plugin in Codex](proofs/plugin-codex/results.json), [project hooks in Claude Code](proofs/hooks-claude-code/results.json), [project hooks in Codex](proofs/hooks-codex/results.json), [evaluation](docs/results.md#p5-the-model-judges-the-record-not-its-memory). Method: [docs/results.md](docs/results.md#1-proofs).
+Each column ran on nookku 0.5.4 on 2026-10-20. Data: [plugin in Claude Code](proofs/plugin-claude-code/results.json), [plugin in Codex](proofs/plugin-codex/results.json), [project hooks in Claude Code](proofs/hooks-claude-code/results.json), [project hooks in Codex](proofs/hooks-codex/results.json), [evaluation](docs/results.md#p5-the-model-judges-the-record-not-its-memory). Method: [docs/results.md](docs/results.md#1-proofs).
 
 Under pressure, the mechanism had **0 breaks in 1,000 turns**. The test had 40 scripted conversations in each harness, 5 or 20 turns long. They had refusals, HTTP 500 errors, questions back to the tester and ambiguous messages. Each turn was a new harness call. I registered the design before the first run. Method, data and the one deviation: [docs/results.md](docs/results.md#2-benchmark-under-pressure).
 
@@ -179,7 +179,7 @@ Nookku does not do these: data sets at scale, production monitoring and hosted t
 
 ## Docs
 
-The how-to rows are in the order of the tasks of a test: choose, connect, run, read the results, fix. The row after them has the tasks that maintain Nookku.
+The how-to rows are in the order of the tasks of a test: choose, connect, run, read the results, evaluate against a spec, fix. The row after them has the tasks that maintain Nookku.
 
 | Kind | Pages |
 |---|---|
@@ -188,6 +188,7 @@ The how-to rows are in the order of the tasks of a test: choose, connect, run, r
 | How-to: connect your app | [Test your own app](docs/how-to/test-your-app.md), [Connect your agent](docs/how-to/connect-your-agent.md), [HTTP tap](docs/how-to/http-tap.md), [Test a streaming agent](docs/how-to/test-a-streaming-agent.md), [Isolate an Agent SDK session](docs/how-to/isolate-agent-sdk.md), [Add a backend](docs/how-to/add-a-backend.md), [Model calls and OpenTelemetry](docs/how-to/record-model-calls.md) |
 | How-to: run a test | [Claude Code plugin](docs/how-to/claude-code-plugin.md), [Claude Code project hooks](docs/how-to/claude-code-project-hooks.md), [Codex](docs/how-to/codex.md) |
 | How-to: read the results | [Read the results of a test](docs/how-to/read-the-results.md) |
+| How-to: evaluate against a spec | [Evaluate your app against its spec](docs/how-to/evaluate-against-your-spec.md) |
 | How-to: fix | [Troubleshooting](docs/troubleshooting.md), [Recover a stuck test](docs/how-to/recover-a-stuck-test.md) |
 | How-to: maintain | [Upgrade](docs/how-to/upgrade.md), [Remove](docs/how-to/remove.md) |
 | Reference | [CLI](docs/reference/cli.md), [Configuration](docs/reference/config.md), [Records](docs/reference/records.md), [Glossary](docs/reference/glossary.md), [SPEC.md](SPEC.md), [Results](docs/results.md) |
