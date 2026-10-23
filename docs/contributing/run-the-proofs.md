@@ -56,6 +56,7 @@ If a hook changes, trust it again. A new plugin script also needs a new run of `
 | The Codex app usage rule | `uv run python scripts/proof_codex_performance.py` | `proofs/performance/codex-app.json` |
 | The issue classes of the app spec | `uv run python scripts/proof_spec_classes.py <setup>` | `proofs/spec-classes/<setup>.json` |
 | Egress discovery, the MCP proxies, the Postgres proxy and the driver trace. It needs Docker. | `uv run python scripts/proof_egress.py <setup>` | `proofs/egress/<setup>.json` |
+| The HTTP [tap](../reference/glossary.md#tap) to an agent at a cluster Service URL, no model. It needs Docker, kind and kubectl. | `uv run python scripts/proof_cluster_tap.py` | `proofs/cluster-tap/` |
 | P5, the model judges the record | `uv run python scripts/proof_evaluation.py <setup>` | `proofs/evaluation/<setup>.json` |
 | The plugin loads in both harnesses | `uv run python scripts/proof_plugin_load.py` | `proofs/plugin/load.json` |
 | The Codex hook gate | `uv run python scripts/proof_codex_gate.py`, then `--trusted` after the trust step | `proofs/codex-gate/gate.json` |
@@ -66,7 +67,7 @@ If a hook changes, trust it again. A new plugin script also needs a new run of `
 | The output of the tutorial, with Claude Code and the model | `uv run python scripts/proof_tutorial.py --model` | `proofs/tutorial/output.txt`, `proofs/tutorial/run.json` |
 | The setup asks and confirms before it builds | `uv run python scripts/proof_setup.py` | `proofs/setup/results.json` |
 
-These scripts print `PASS` or `FAIL` and the path of their results file: `proofs_relay.py`, `proof_sessions.py`, `proof_trace.py`, `proof_backend.py`, `proof_model_api.py`, `proof_driver_trace.py`, `proof_report.py`, `proof_telemetry.py`, `proof_performance.py`, `proof_spec_classes.py`, `proof_egress.py` and `proof_setup.py`. The docstring of each script lists what it checks.
+These scripts print `PASS` or `FAIL` and the path of their results file: `proofs_relay.py`, `proof_sessions.py`, `proof_trace.py`, `proof_backend.py`, `proof_model_api.py`, `proof_driver_trace.py`, `proof_report.py`, `proof_telemetry.py`, `proof_performance.py`, `proof_spec_classes.py`, `proof_egress.py`, `proof_cluster_tap.py` and `proof_setup.py`. The docstring of each script lists what it checks.
 
 ## A new Claude Code release
 
