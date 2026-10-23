@@ -1086,3 +1086,58 @@ def test_the_page_saves_the_test_as_a_script(tmp_path: Path) -> None:
     finally:
         server.shutdown()
         server.server_close()
+
+
+# A page server of 0.5.4 or older: it holds a `flock` on page.lock.
+LEGACY = """
+import fcntl, os, sys, time
+fd = os.open(sys.argv[1], os.O_RDWR | os.O_CREAT, 0o600)
+fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+print("held", flush=True)
+time.sleep(60)
+"""
+# A try of the `flock` of page.lock, as a start of 0.5.4 or older makes it.
+LEGACY_TRY = """
+import fcntl, os, sys
+fd = os.open(sys.argv[1], os.O_RDWR)
+try:
+    fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+except OSError:
+    print("refused")
+else:
+    print("took")
+"""
+
+
+def test_a_page_server_of_an_older_version_and_a_new_one_never_run_together(
+    tmp_path: Path,
+) -> None:
+    """Before #454, the page server held a `flock`. On Linux, `flock` and `lockf` are separate
+    locks, so the claim takes both. On macOS, they are one lock."""
+    (tmp_path / ".nookku").mkdir()
+    lock = tmp_path / ".nookku" / state.PAGE_LOCK
+    old = subprocess.Popen(
+        [sys.executable, "-c", LEGACY, str(lock)], stdout=subprocess.PIPE, text=True
+    )
+    try:
+        assert old.stdout is not None and old.stdout.readline().strip() == "held"
+        with pytest.raises(page.PageRunning):
+            page.claim_page_file(tmp_path, 1234)
+        assert state.page_info(tmp_path) is None
+    finally:
+        old.kill()
+        old.wait()
+        if old.stdout is not None:
+            old.stdout.close()
+    # A new server runs: an old start cannot take the lock either.
+    _, fd = page.claim_page_file(tmp_path, 1234)
+    try:
+        tried = subprocess.run(
+            [sys.executable, "-c", LEGACY_TRY, str(lock)],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        assert tried.stdout.strip() == "refused"
+    finally:
+        os.close(fd)

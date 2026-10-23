@@ -996,6 +996,14 @@ class PageRunning(Exception):
     """Another page server of the project runs."""
 
 
+# The refusal when a page server of 0.5.4 or older holds the `flock` of page.lock (#454).
+LEGACY_RUNNING = (
+    "a page server of an older version of this project runs. Stop it first with Ctrl-C in its "
+    "terminal, or with: lsof .nookku/page.lock (macOS) or fuser .nookku/page.lock (Linux), "
+    "then kill <pid>"
+)
+
+
 def claim_page_file(root: Path, port: int, test: str | None = None) -> tuple[Path, int]:
     """Write the page file: the port, the pid and the pid start time of this server, with no
     token (SPEC.md section 5). A server that `start` started also writes its test (#328). Return
@@ -1029,6 +1037,16 @@ def claim_page_file(root: Path, port: int, test: str | None = None) -> tuple[Pat
             f"a page server of this project runs (pid {pid}). Stop it first with: "
             "nookku chat --stop"
         ) from None
+    # A page server of 0.5.4 or older holds a `flock` on page.lock. On Linux, `flock` and `lockf`
+    # are separate locks, so also take the `flock`: a start must not replace page.json while an
+    # old server runs. On macOS and the BSDs, the 2 locks are one lock, and a `flock` would fail
+    # on the `lockf` of this process. There, the `lockf` above already refuses an old server.
+    if not _FLOCK_BSD:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            os.close(lock)
+            raise PageRunning(LEGACY_RUNNING) from None
     path = folder / state.PAGE_FILE
     try:
         new = folder / f".{state.PAGE_FILE}.{os.getpid()}"
