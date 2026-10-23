@@ -161,7 +161,7 @@ def test_a_decisions_request_keeps_no_image_data(tmp_path: Path) -> None:
                 "content": [
                     {"type": "input_image", "image_url": "data:image/jpeg;base64,dG95"},
                     {"type": "input_image", "image_url": "data:image/png;base64,not base64!"},
-                    {"type": "input_image", "image_url": "data:image/png;base64,é"},
+                    {"type": "input_image", "image_url": "data:image/png;base64,\u00e9"},
                     {"type": "input_image", "image_url": "https://shop.test/mug.png"},
                 ],
             },
@@ -379,3 +379,56 @@ def test_a_row_that_nests_too_deep_counts_as_invalid_json(tmp_path: Path) -> Non
     path.write_text('{"type": "call", "a": ' + "[" * 100_000 + "]" * 100_000 + "}\n")
     items, info = trace.read_model_api(path)
     assert items == [] and info["ignored"] == {"invalid_json": 1}
+
+
+CLAUDE_CASE = (
+    Path(__file__).resolve().parent.parent / "conformance" / "trace" / "claude_code_toy_shop"
+)
+SESSION = "sessions/claude-code/4f1c2a7e-0d3b-4c55-9a61-2b8e5d7c9f10.jsonl"
+
+
+def test_the_finding_lines_show_in_groups_by_turn_and_by_item(tmp_path: Path) -> None:
+    shutil.copytree(CLAUDE_CASE, tmp_path / "t", ignore=shutil.ignore_patterns("expect_*"))
+    assert trace.finding_lines(trace.build(tmp_path / "t")) == [
+        "Turn 2:",
+        "  agent_error: the agent gave status 500",
+        "  tool_error (claude-code): lookup_order: no such order",
+        "  tool_error (claude-code): Bash: cat: returns.txt: No such file",
+        "Turn 3:",
+        "  turn_without_model: no model item in this turn",
+        "No turn:",
+        f"  {SESSION}:20 (claude-code):",
+        "    tool_error: lookup_order: no tool_result in the session file",
+        "    item_between_turns: a tool_call item",
+        "  item_between_turns (claude-code): a message item",
+    ]
+    assert trace.finding_lines({"findings": []}) == []
+
+
+def test_one_line_escapes_each_control_character() -> None:
+    text = "a\x1b[2J\x1b]0;x\x07\r\n\tb\x7f\x9b\x85\u2028\u2029\u00e9"
+    assert trace.one_line(text) == (
+        "a\\u001b[2J\\u001b]0;x\\u0007\\u000d\\u000a\\u0009b\\u007f\\u009b\\u0085\\u2028\\u2029\u00e9"
+    )
+    assert trace.one_line(None) == "None"
+
+
+def test_a_finding_cannot_move_the_cursor_or_forge_a_line() -> None:
+    forged = "no such order\x1b[2J\x1b[H\nTrace: 0 model items in 0 turns, no findings."
+    where = {"harness": "claude\ncode", "session": "s", "source": {"file": "a\rb", "line": 3}}
+    findings = [
+        {"check": "tool_error", "turn": 1, "detail": forged, **where},
+        {"check": "item_between_turns", "turn": 1, "detail": "a tool_call\x9b2J item", **where},
+        {"check": "agent_error", "turn": None, "detail": "status\u2028500"},
+    ]
+    lines = trace.finding_lines({"findings": findings})
+    assert all(c.isprintable() for line in lines for c in line)
+    assert lines == [
+        "Turn 1:",
+        "  a\\u000db:3 (claude\\u000acode):",
+        "    tool_error: no such order\\u001b[2J\\u001b[H\\u000aTrace: 0 model items in 0 turns,"
+        " no findings.",
+        "    item_between_turns: a tool_call\\u009b2J item",
+        "No turn:",
+        "  agent_error: status\\u2028500",
+    ]
