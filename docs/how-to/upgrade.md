@@ -113,6 +113,25 @@ PASS
 
 ## Releases with a special step
 
+### 0.5.5
+
+Stop each chat page of 0.5.4 before you upgrade. A page server of 0.5.4 holds a `flock` on `page.lock`, and 0.5.5 uses a POSIX record lock:
+
+- On Linux, 0.5.5 cannot see the lock of 0.5.4. Then `nookku chat --stop` and `nookku status` do not find the old page server.
+- On macOS, the lock of 0.5.4 blocks the new page server, and `--stop` sends no signal to the old one.
+
+In each project with an open chat page, run:
+
+```bash
+nookku chat --stop
+```
+
+If you started the page with `nookku chat` in a shell, you can press Ctrl-C in that shell. Then do the steps above ([SPEC.md section 5](../../SPEC.md#5-relays), [#454](https://github.com/mohanraj00/nookku/issues/454)).
+
+The page server of `nookku chat` now stops after 15 idle minutes. To keep it, add `--no-idle-stop` ([cli.md](../reference/cli.md#nookku-chat)).
+
+The proxies refuse a request body above 64 MiB. If your app sends a longer body to a backend or a model API, set `body_limit` in `.nookku/config.json` to a larger whole number of bytes ([config.md](../reference/config.md), [#453](https://github.com/mohanraj00/nookku/issues/453)).
+
 ### 0.5.4
 
 No special step is necessary. Do the steps above.
