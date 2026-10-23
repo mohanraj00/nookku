@@ -136,10 +136,20 @@ def test_tap_command_end_to_end(tmp_path):
         s.bind(("127.0.0.1", 0))
         port = s.getsockname()[1]
     record = tmp_path / "tap.jsonl"
+    import faulthandler, time as _t
+    _dump = open(tmp_path / "parent.txt", "w")
+    faulthandler.dump_traceback_later(8, repeat=True, file=_dump)
+    _began = _t.monotonic()
+    _boot = (
+        "import faulthandler, runpy, sys; "
+        f"f = open({str(tmp_path / 'child.txt')!r}, 'w'); "
+        "faulthandler.dump_traceback_later(8, repeat=True, file=f); "
+        "sys.argv = ['nookku'] + sys.argv[1:]; runpy.run_module('nookku', run_name='__main__')"
+    )
     cmd = [
         sys.executable,
-        "-m",
-        "nookku",
+        "-c",
+        _boot,
         "tap",
         "--agent",
         agent.url,
@@ -161,6 +171,14 @@ def test_tap_command_end_to_end(tmp_path):
         proc.terminate()
         proc.wait(timeout=10)
         agent.shutdown()
+    faulthandler.cancel_dump_traceback_later()
+    _dump.close()
+    _took = _t.monotonic() - _began
+    if _took > 5:
+        raise AssertionError(
+            f"DIAG took {_took:.1f}s\nPARENT\n{(tmp_path / 'parent.txt').read_text()[:6000]}"
+            f"\nCHILD\n{(tmp_path / 'child.txt').read_text()[:6000]}"
+        )
     assert shown == shop_reply(said)
     relay = Writer(tmp_path / "relay.jsonl")
     relay.append({"type": "turn", "harness": "codex", "said": said, "shown": shown})
