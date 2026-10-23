@@ -114,7 +114,19 @@ If the project has no app spec, write a draft of it from the answers of step 2, 
 
 - Start the file with the title `# App spec (draft)`, and one line that tells the tester to review each line.
 - Give each part its own `##` section, with these names exactly: `Persona`, `Boundaries` and `User goals`. Add `Limits` or `Trace points` only if the tester gave them.
-- Write each rule as a short list item. Write only what the tester said or what a file of the app says. For a rule from a file, link to the file.
+- In `Persona`, `Boundaries` and `User goals`, write each rule as a short list item.
+- Write `Limits` as a table with the columns `Limit`, `Value` and `Meaning`. A limit is `turn_seconds` or `turn_tokens`.
+- Write `Trace points` as a table with the columns `Name`, `Source` and `When`, one row for each trace point. `Source` is `session`, `backend`, `model_api` or `otel`. A `When` that the trace checks is `Each turn`, `Turn N` or `Each <tool> tool call`. For example:
+
+  ```markdown
+  | Name | Source | When |
+  |---|---|---|
+  | `check_stock` | `session` | Each turn |
+  | `stock GET /stock` | `backend` | Each check_stock tool call |
+  ```
+
+  Do not write trace points as list items. The trace reads only the table, and a list gives the finding `trace_points_unread`.
+- Write only what the tester said or what a file of the app says. For a rule from a file, link to the file.
 - Do not write a secret into the draft. The evaluation model reads it.
 
 ## 5. Check

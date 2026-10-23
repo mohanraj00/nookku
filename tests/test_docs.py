@@ -16,7 +16,7 @@ from typing import Any
 import pytest
 from test_timeouts import ANSWER
 
-from nookku import __version__, audit, bridge, cli, config, kit, print_mode, stdio, trace
+from nookku import __version__, app_spec, audit, bridge, cli, config, kit, print_mode, stdio, trace
 
 ROOT = Path(__file__).resolve().parent.parent
 DOCS = ROOT / "docs"
@@ -496,6 +496,20 @@ def test_the_setup_writes_the_app_spec_draft_with_the_section_names() -> None:
         assert f"`{name}`" in draft, name
     assert "Do not write it in `.nookku/`." in draft
     assert "If the project has an app spec, do not change it" in draft
+
+
+def test_the_setup_draft_trace_points_example_is_a_table_that_the_reader_takes() -> None:
+    # The guide told the model to write each rule as a list item. A Trace points section as a list
+    # gives trace_points_unread and no trace point (#329, review of #495).
+    draft = _sections(SETUP, "###")["4.3. Write the app spec draft"]
+    assert "Do not write trace points as list items." in draft
+    table = re.search(r"```markdown\n(.+?)\n\s*```", draft, re.DOTALL)
+    assert table
+    rows = "\n".join(line.strip() for line in table.group(1).splitlines())
+    text = f"# App spec (draft)\n\n## Trace points\n\n{rows}\n"
+    points, notes = app_spec.read([("APP_SPEC.md", text)])
+    assert notes == []
+    assert [p["name"] for p in points] == ["check_stock", "stock GET /stock"]
 
 
 # The first screen of the README ------------------------------------------------------------------
