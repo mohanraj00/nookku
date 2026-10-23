@@ -15,6 +15,7 @@ from typing import Any, TextIO
 from nookku import (
     __version__,
     bridge,
+    egress_spans,
     evaluation,
     kit,
     performance,
@@ -37,7 +38,7 @@ from nookku.config import (
     read_config,
     spec_hashes,
 )
-from nookku.record import RecordError
+from nookku.record import RecordError, read_manifest
 from nookku.tap import Tap, serve
 
 # Config keys that are not a plain string flag of init.
@@ -54,6 +55,7 @@ LIST_KEYS = {
     "record_limit",
     "body_limit",
     "spec",
+    "egress_ignore",
 }
 # The plain string flags of init. A flag that the user does not give is None.
 STRING_KEYS = [k for k in CONFIG_KEYS if k not in LIST_KEYS]
@@ -336,6 +338,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     trc.add_argument("--root", type=Path, default=Path.cwd())
     trc.add_argument("--json", action="store_true", help="print findings.json")
+    trc.add_argument(
+        "--egress",
+        type=Path,
+        help="the Koodam egress spans of the test (koodam trace --json): copy them into the test "
+        "folder as egress.jsonl and check them",
+    )
 
     sub.add_parser("setup", help="print the guide that connects a test to the app")
 
@@ -512,7 +520,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command in ("start", "end", "status", "check"):
         return _test_command(args)
     if args.command == "trace":
-        return _trace_command(args.root.resolve(), args.test, args.json)
+        return _trace_command(args.root.resolve(), args.test, args.json, args.egress)
     if args.command == "verify":
         folder = _test_folder(args.root.resolve(), args.test)
         if folder is None:
@@ -687,7 +695,7 @@ def _test_folder(root: Path, test: str | None) -> Path | None:
     return folder
 
 
-def _trace_command(root: Path, test: str | None, as_json: bool) -> int:
+def _trace_command(root: Path, test: str | None, as_json: bool, egress: Path | None = None) -> int:
     folder = _test_folder(root, test)
     if folder is None:
         return 2
@@ -702,12 +710,32 @@ def _trace_command(root: Path, test: str | None, as_json: bool) -> int:
     if (check["sealed"] or check["copy"] != "none") and broken:
         print(f"nookku: the trace was not rebuilt. {seal.summary(check)}", file=sys.stderr)
         return 2
+    names = list(rebuilt)
+    if egress is not None:
+        # Check the spans before the copy, so a file that the trace cannot read does not go into
+        # the test folder (SPEC.md section 8.8).
+        try:
+            data = egress.read_bytes()
+            manifest = read_manifest(folder)
+            keys = trace.trace_keys(manifest)
+            start, end = manifest.get("started"), manifest.get("ended")
+            egress_spans.parse(data, egress, start, end, keys["egress_ignore"])
+            egress_spans.copy_in(data, folder)
+        except OSError as e:
+            print(f"nookku: the trace was not rebuilt. {egress}: {e.strerror}", file=sys.stderr)
+            return 2
+        except RecordError as e:
+            print(f"nookku: the trace was not rebuilt. {e}", file=sys.stderr)
+            return 2
+        names.append(egress_spans.FILE)
     try:
         report = trace.build(folder)
     except RecordError as e:
+        # The copied spans passed their check, so the seal takes them, and the next rebuild
+        # does not see them as a file that was added after the end.
+        seal.update(folder, [n for n in names if n == egress_spans.FILE])
         print(f"nookku: the trace was not rebuilt. {e}", file=sys.stderr)
         return 2
-    names = list(rebuilt)
     try:
         performance.build(folder)
     except Exception as e:

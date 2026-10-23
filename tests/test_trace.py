@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from nookku import discovery, trace
+from nookku.record import RecordError
 
 CASES = sorted((Path(__file__).resolve().parent.parent / "conformance" / "trace").iterdir())
 
@@ -20,6 +21,13 @@ def rows(path: Path) -> list[dict]:
 def test_case(case: Path, tmp_path: Path) -> None:
     folder = tmp_path / "test"
     shutil.copytree(case, folder, ignore=shutil.ignore_patterns("expect_*"))
+    if (case / "expect_error.json").exists():
+        error = json.loads((case / "expect_error.json").read_text())
+        with pytest.raises(RecordError) as caught:
+            trace.build(folder)
+        assert caught.value.kind == error["kind"]
+        assert str(caught.value) == f"{folder / error['file']}: {error['message']}"
+        return
     report = trace.build(folder)
     assert rows(folder / "trace.jsonl") == rows(case / "expect_trace.jsonl")
     expect = json.loads((case / "expect_findings.json").read_text())

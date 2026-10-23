@@ -347,7 +347,7 @@ Compare the relay record with the [tap record](glossary.md#tap-record) ([SPEC.md
 ### `nookku trace`
 
 ```text
-nookku trace [TEST] [--root PATH] [--json]
+nookku trace [TEST] [--root PATH] [--json] [--egress FILE]
 ```
 
 Build the trace of a test again, and show its findings ([SPEC.md section 8](../../SPEC.md#8-trace)). The findings show in groups by turn, and each control character of a finding shows as its escape ([read the results](../how-to/read-the-results.md#4-read-the-findings)). It also writes `performance.json` again ([SPEC.md section 8.7](../../SPEC.md#87-performance)). If the test has a seal, it rebuilds only from sources that agree with the seal.
@@ -357,11 +357,21 @@ Build the trace of a test again, and show its findings ([SPEC.md section 8](../.
 | `TEST` | the latest test | The test id, or the path of the test folder. |
 | `--root PATH` | the current folder | The project. |
 | `--json` | off | Print `findings.json`. |
+| `--egress FILE` | none | The Koodam egress spans of the test. The trace checks the file, copies it into the test folder as `egress.jsonl`, adds it to the seal and gives the findings `egress_not_in_discovery` and `egress_denied` ([SPEC.md section 8.8](../../SPEC.md#88-egress-spans)). |
 
 | Exit code | Meaning |
 |---|---|
 | 0 | The trace was built. |
-| 2 | No test folder with a manifest, or the seal is broken and the trace was not rebuilt. |
+| 2 | No test folder with a manifest, the seal is broken, a record is not valid, or the egress file cannot be read or has a span of a later contract version. The trace was not rebuilt. |
+
+If your agent runs in a Koodam Workspace, export the egress spans outside the pod for the time of the test. Then give them to the trace:
+
+```sh
+koodam trace shop --json --since 2026-10-23T09:00:00Z --until 2026-10-23T10:00:00Z > spans.jsonl
+nookku trace --egress spans.jsonl
+```
+
+The trace uses only the spans from `started` to `ended` of the manifest, so a wider export window is not a problem.
 
 ### `nookku export`
 
