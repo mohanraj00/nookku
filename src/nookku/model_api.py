@@ -468,7 +468,9 @@ class ModelProxy(backend.Proxy):
         # A harness call holds the harness's own instructions. The record keeps no text of it.
         if row["harness"]:
             _omit(row["request_body"])
-        elif call_format(name, row["path"]) == "decisions":
+        # A refused request has no body in the record, and its row has no questions (SPEC.md
+        # section 7.7).
+        elif row["request_body"] is not None and call_format(name, row["path"]) == "decisions":
             # The questions come from the whole body, so a cut of the body drops no question.
             encoding = next((v for k, v in headers if k.lower() == "content-encoding"), None)
             row["questions"], row["questions_count"] = questions(body, encoding, self.limit)

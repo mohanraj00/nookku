@@ -2,13 +2,13 @@
  "v": "0.2",
  "test": "20261006-080000-bk01",
  "turns": 2,
- "items": 4,
+ "items": 5,
  "sessions": [],
  "otel": null,
  "backend": {
   "file": "backend.jsonl",
-  "rows": 5,
-  "items": 4,
+  "rows": 6,
+  "items": 5,
   "ignored": {
    "note": 1
   }
@@ -24,7 +24,7 @@
   "tool_error": 0,
   "command_failed": 0,
   "span_error": 0,
-  "backend_error": 2,
+  "backend_error": 3,
   "model_api_error": 0,
   "questions_lost": 0,
   "database_error": 0,
@@ -64,6 +64,17 @@
    }
   },
   {
+   "check": "backend_error",
+   "turn": 2,
+   "detail": "stock: POST /stock/photos: the proxy refused the request: the body is longer than 67108864 bytes",
+   "harness": "backend",
+   "session": "stock",
+   "source": {
+    "file": "backend.jsonl",
+    "line": 4
+   }
+  },
+  {
    "check": "item_between_turns",
    "turn": null,
    "detail": "a http item",
@@ -71,7 +82,7 @@
    "session": "stock",
    "source": {
     "file": "backend.jsonl",
-    "line": 4
+    "line": 5
    }
   }
  ]
