@@ -501,9 +501,7 @@ def test_a_body_longer_than_the_limit_is_refused_and_not_forwarded(tmp_path: Pat
         finally:
             proxies.stop()
     assert refused == 413
-    assert json.loads(got) == {
-        "error": "nookku backend proxy: the body is longer than 1000 bytes"
-    }
+    assert json.loads(got) == {"error": "nookku backend proxy: the body is longer than 1000 bytes"}
     # Only the body of the limit reached the backend.
     assert [len(s["body"]) for s in stock.seen] == [1000]
     first, *others = rows(tmp_path)
@@ -513,6 +511,9 @@ def test_a_body_longer_than_the_limit_is_refused_and_not_forwarded(tmp_path: Pat
         assert row["error"] == "the proxy refused the request: the body is longer than 1000 bytes"
         assert row["request_body"] is None and row["status"] is None
         assert row["response_body"] is None and row["ts"] is not None
+
+
+CHUNKED = b"Transfer-Encoding: chunked\r\n\r\n"
 
 
 @pytest.mark.parametrize(
@@ -525,12 +526,12 @@ def test_a_body_longer_than_the_limit_is_refused_and_not_forwarded(tmp_path: Pat
             "the Content-Length is not one count of 0 or more",
         ),
         (b"Content-Length: 10\r\n\r\nteapot", "the body stopped before its end"),
-        (b"Transfer-Encoding: chunked\r\n\r\n-6\r\nteapot\r\n0\r\n\r\n", "a chunk size is not valid"),
-        (b"Transfer-Encoding: chunked\r\n\r\n0x6\r\nteapot\r\n0\r\n\r\n", "a chunk size is not valid"),
-        (b"Transfer-Encoding: chunked\r\n\r\n6\r\ntea", "the body stopped before its end"),
-        (b"Transfer-Encoding: chunked\r\n\r\n6\r\nteapot\r\n", "the body stopped before its end"),
+        (CHUNKED + b"-6\r\nteapot\r\n0\r\n\r\n", "a chunk size is not valid"),
+        (CHUNKED + b"0x6\r\nteapot\r\n0\r\n\r\n", "a chunk size is not valid"),
+        (CHUNKED + b"6\r\ntea", "the body stopped before its end"),
+        (CHUNKED + b"6\r\nteapot\r\n", "the body stopped before its end"),
         (
-            b"Transfer-Encoding: chunked\r\n\r\n3\r\nteapot\r\n0\r\n\r\n",
+            CHUNKED + b"3\r\nteapot\r\n0\r\n\r\n",
             "a chunk does not end with a line end",
         ),
     ],
