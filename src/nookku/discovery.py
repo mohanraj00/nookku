@@ -50,6 +50,7 @@ RESERVED = frozenset(
     {
         "NOOKKU_TEST_DIR",
         "NOOKKU_TEST_ID",
+        "NOOKKU_TESTS_DIR",
         "OTEL_EXPORTER_OTLP_ENDPOINT",
         "OTEL_EXPORTER_OTLP_PROTOCOL",
         "OTEL_TRACES_EXPORTER",

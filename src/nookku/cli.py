@@ -63,6 +63,31 @@ STRING_KEYS = [k for k in CONFIG_KEYS if k not in LIST_KEYS]
 # The relays and the bridge run these commands. A tester does not run them
 # (docs/reference/cli.md, "Internal commands").
 INTERNAL_COMMANDS = frozenset({"hook", "mcp", "mcp-stdio", "bridge"})
+# The commands that read or write a test. Each one takes --tests-dir (SPEC.md section 7).
+TESTS_COMMANDS = frozenset(
+    {
+        "start",
+        "end",
+        "status",
+        "check",
+        "run",
+        "trace",
+        "bridge",
+        "mode",
+        "view",
+        "chat",
+        "script",
+        "export",
+        "replay",
+        "verify",
+        "transcript",
+        "mcp",
+        "hook",
+    }
+)
+TESTS_DIR_HELP = (
+    f"the folder of the tests (default: ${state.TESTS_ENV}, else .nookku/tests in the project)"
+)
 # The old name of `nookku chat`. It works the same for one release, with a note on stderr (#394).
 OLD_CHAT = "page"
 OLD_CHAT_NOTE = (
@@ -450,6 +475,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     hook.add_argument("--root", type=Path, help="the project (default: from the event)")
     hook.add_argument("--harness", required=True, choices=["claude-code", "codex"])
 
+    for name in sorted(TESTS_COMMANDS):
+        sub.choices[name].add_argument("--tests-dir", metavar="PATH", help=TESTS_DIR_HELP)
     # argparse reads this list for the invalid-choice error.
     sub.choices = _Commands(sub.choices)
     # The note comes before the parse, so that `nookku page --help` and an error of the parse
@@ -468,6 +495,12 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         # The default root also gets the move of the old state folder below.
         args.root = project_root()
+    if args.command in TESTS_COMMANDS or args.command == OLD_CHAT:
+        error = _tests_dir_error(args)
+        if error is not None:
+            print(f"nookku: {error}", file=sys.stderr)
+            # Exit 2 blocks the event in a hook, so the relay fails closed.
+            return 2 if args.command == "hook" else 1
     if args.command == "init" and args.remove:
         given = [k for k in (*STRING_KEYS, "entry", "models", "spec") if getattr(args, k)]
         # --no-openai-stream gives False, so check for None, not for a true value.
@@ -696,6 +729,19 @@ def main(argv: Sequence[str] | None = None) -> int:
         return kit.run_hook(root, args.harness, sys.stdin, sys.stdout)
     parser.print_help(sys.stderr)
     return 2
+
+
+def _tests_dir_error(args: argparse.Namespace) -> str | None:
+    """Keep --tests-dir in NOOKKU_TESTS_DIR, and check the folder of the tests. Return the error,
+    or None. The hook checks the folder in each event, so that a bad value fails closed there."""
+    try:
+        if args.tests_dir is not None:
+            state.set_tests_dir(args.tests_dir)
+        if args.command != "hook":
+            state.tests_dir((args.root or Path.cwd()).resolve())
+    except state.TestsDirError as e:
+        return str(e)
+    return None
 
 
 def _names(keys: list[str]) -> str:

@@ -19,8 +19,9 @@ verbatim-relay 0.3.x and earlier used `.verbatim-relay/`. The first `nookku` com
 | `page.lock` | `nookku chat` | An empty lock file. The page server holds a POSIX record lock on it while it runs, so that only one page server runs for each project. The stop reads the pid of the holder ([SPEC.md section 5](../../SPEC.md#5-relays)). |
 | `send.lock` | `nookku chat`, the end of a test | An empty lock file. A send of the chat page and the end of a test take turns with it, so that the end waits for a send that is in progress ([SPEC.md section 5](../../SPEC.md#5-relays)). |
 | `ending.json` | `nookku end` | The harness session that ends the test, for the bridge. |
+| `runs/<test-id>.json` | The bridge | The [test folder](glossary.md#test-folder) and the entry pid of each test. `nookku end` signals only an entry that this file names. |
 | `relay.jsonl` | the relays | With no entry: the [relay record](glossary.md#relay-record) ([how-to/http-tap.md](../how-to/http-tap.md)). |
-| `tests/<test-id>/` | the bridge, the relays, the tap | One folder for each test (see below). |
+| `tests/<test-id>/` | the bridge, the relays, the tap | One folder for each test (see below). With `--tests-dir` or `NOOKKU_TESTS_DIR`, the tests are in that folder, and the other files stay here ([cli.md](cli.md#the-tests-folder)). |
 
 Add `.nookku/tests/` to `.gitignore` if the conversation must not go into your repo ([SECURITY.md](../../SECURITY.md)).
 
@@ -28,7 +29,7 @@ The bridge also writes a copy of each [seal](glossary.md#seal) to `~/.nookku/sea
 
 ## The test folder
 
-Each test is a new conversation, with a new test id and a new entry process. The [test folder](glossary.md#test-folder) is `.nookku/tests/<test-id>/`. The test id is the start time and a random part, for example `20261007-133823-0b63`.
+Each test is a new conversation, with a new test id and a new entry process. The [test folder](glossary.md#test-folder) is `.nookku/tests/<test-id>/`, or `<tests folder>/<test-id>/` with `--tests-dir` or `NOOKKU_TESTS_DIR`. The test id is the start time and a random part, for example `20261007-133823-0b63`.
 
 | File | Content | Format |
 |---|---|---|
