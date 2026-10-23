@@ -4,7 +4,7 @@ Each date is the day of the upload to PyPI, in UTC ([nookku](https://pypi.org/pr
 
 ## 0.5.5
 
-Released YYYY-MM-DD.
+Released 2026-10-23.
 
 This release hardens the proxies, the chat page, the driver trace and the readers of the test folder. The proxies refuse a request body above `body_limit` bytes, 64 MiB by default. The bridge copies each spec file into the test folder, and the seal covers the copies. The tap record, the relay record and the audit do not change. A refused proxy row has `request_body: null` and an error, the manifest gets `spec_copies`, and `findings.json` gets the count `driver_without_span`.
 
