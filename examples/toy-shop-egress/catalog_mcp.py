@@ -10,6 +10,7 @@ usage: python3 catalog_mcp.py [PORT]   (default 9310)
 from __future__ import annotations
 
 import json
+import socketserver
 import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
@@ -85,6 +86,12 @@ class CatalogServer(ThreadingHTTPServer):
 
     def __init__(self, port: int = PORT) -> None:
         super().__init__(("127.0.0.1", port), Handler)
+
+    def server_bind(self) -> None:
+        # HTTPServer looks up the host name here. On the macOS runners of CI, the lookup took
+        # 35 s (#17). The catalog does not use the name, so it skips the lookup.
+        socketserver.TCPServer.server_bind(self)
+        self.server_name, self.server_port = "127.0.0.1", self.server_address[1]
 
     @property
     def url(self) -> str:

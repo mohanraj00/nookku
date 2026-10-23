@@ -2,6 +2,7 @@
 notes over stdio."""
 
 import json
+import socket
 import subprocess
 import sys
 import threading
@@ -82,3 +83,14 @@ def test_the_notes_server_adds_a_note(tmp_path: Path) -> None:
     assert out[1]["result"]["isError"] is False
     assert out[2]["result"]["isError"] is True
     assert json.loads((tmp_path / "notes.json").read_text()) == [{"order": "7310", "text": "wheel"}]
+
+
+def test_the_catalog_does_not_look_up_the_host_name(monkeypatch: pytest.MonkeyPatch) -> None:
+    # On the macOS runners of CI, socket.getfqdn took 35 s at the start of the catalog (#17).
+    def slow(name: str = "") -> str:
+        raise AssertionError("getfqdn")
+
+    monkeypatch.setattr(socket, "getfqdn", slow)
+    server = catalog_mcp.CatalogServer(0)
+    server.server_close()
+    assert server.url == f"http://127.0.0.1:{server.server_address[1]}/mcp"
