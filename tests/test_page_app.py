@@ -474,9 +474,9 @@ def test_key_js_gives_the_poll_header_only_to_a_poll() -> None:
     )
     assert done.returncode == 0, done.stderr
     # The header name is the name that the page server reads.
-    from nookku import page_auto
+    from nookku import page
 
-    assert page_auto.POLL_HEADER == "X-Nookku-Poll"
+    assert page.POLL_HEADER == "X-Nookku-Poll"
     assert json.loads(done.stdout) == [["1", False, True], [None, False, True], [None, False, True]]
 
 

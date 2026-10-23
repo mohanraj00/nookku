@@ -3,6 +3,7 @@ exact bytes of each message and reply, fail closed, and the guard rule for the p
 
 from __future__ import annotations
 
+import contextlib
 import http.client
 import json
 import os
@@ -768,28 +769,65 @@ def test_a_silent_connection_times_out(tmp_path: Path, monkeypatch: pytest.Monke
         server.server_close()
 
 
+# A process that claims the page file and holds the page lock, as a page server does.
+CLAIMER = """
+import sys, time
+from pathlib import Path
+from nookku import page
+page.claim_page_file(Path(sys.argv[1]), int(sys.argv[2]), sys.argv[3] or None)
+print("held", flush=True)
+time.sleep(60)
+"""
+
+
+@contextlib.contextmanager
+def claimed(root: Path, port: int, test: str | None = None) -> Iterator[subprocess.Popen[str]]:
+    """A process that holds the page lock and the page file of root. A process gets no holder for
+    its own POSIX lock, so the holder in a test is another process (#454)."""
+    proc = subprocess.Popen(
+        [sys.executable, "-c", CLAIMER, str(root), str(port), test or ""],
+        stdout=subprocess.PIPE,
+        text=True,
+    )
+    try:
+        assert proc.stdout is not None and proc.stdout.readline().strip() == "held"
+        yield proc
+    finally:
+        proc.kill()
+        proc.wait()
+        if proc.stdout is not None:
+            proc.stdout.close()
+
+
 def test_a_second_page_server_is_refused_and_a_stale_file_is_taken_over(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     (tmp_path / ".nookku").mkdir()
-    path, lock = page.claim_page_file(tmp_path, 1234)
-    with pytest.raises(page.PageRunning):
-        page.claim_page_file(tmp_path, 5678)
-    assert page.serve(tmp_path, 0) == 1
-    err = capsys.readouterr().err
-    assert "a page server of this project runs" in err
-    # The text names the pid and the command that stops that server (#439).
-    assert f"(pid {os.getpid()})" in err and "nookku chat --stop" in err
-    # A pid with another start time can be a new process, so the text names no pid.
-    info = json.loads(path.read_text())
-    path.write_text(json.dumps(info | {"pid_start": "0"}))
-    with pytest.raises(page.PageRunning) as refused:
-        page.claim_page_file(tmp_path, 5678)
-    assert "kill" not in str(refused.value)
-    path.write_text(json.dumps(info))
-    assert state.page_port(tmp_path) == 1234
+    path = tmp_path / ".nookku" / state.PAGE_FILE
+    with claimed(tmp_path, 1234) as holder:
+        with pytest.raises(page.PageRunning):
+            page.claim_page_file(tmp_path, 5678)
+        assert page.serve(tmp_path, 0) == 1
+        err = capsys.readouterr().err
+        assert "a page server of this project runs" in err
+        # The text names the pid and the command that stops that server (#439).
+        assert f"(pid {holder.pid})" in err and "nookku chat --stop" in err
+        # A pid with another start time can be a new process, so the text names no pid.
+        info = json.loads(path.read_text())
+        path.write_text(json.dumps(info | {"pid_start": "0"}))
+        with pytest.raises(page.PageRunning) as refused:
+            page.claim_page_file(tmp_path, 5678)
+        assert "pid" not in str(refused.value)
+        # A person can write the page file. A pid that does not hold the lock is not named, also
+        # with its real start time (#454).
+        me = {"port": 1, "pid": os.getpid(), "pid_start": state.process_start(os.getpid())}
+        path.write_text(json.dumps(me))
+        with pytest.raises(page.PageRunning) as refused:
+            page.claim_page_file(tmp_path, 5678)
+        assert "pid" not in str(refused.value)
+        path.write_text(json.dumps(info))
+        assert state.page_port(tmp_path) == 1234
     # A server that stopped with no cleanup leaves its file, but no process holds the lock.
-    os.close(lock)
     path, lock = page.claim_page_file(tmp_path, 5678)
     pid_start = state.process_start(os.getpid())
     assert json.loads(path.read_text()) == {
@@ -800,36 +838,29 @@ def test_a_second_page_server_is_refused_and_a_stale_file_is_taken_over(
     os.close(lock)
 
 
-def test_a_short_check_of_the_page_lock_does_not_stop_a_start(
+def test_a_check_of_the_page_lock_does_not_take_it(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """`nookku status --json` checks the lock with page_auto._held, which takes it for a short
-    time. A page server that starts during that check waits, and then takes the lock.
-
-    The check ends in the first wait of claim_page_file, and the clock of page.py does not move.
-    So the test has no timer and no race with CLAIM_WAIT (#419)."""
+    """`nookku status --json` checks the lock. Before #454, the check took the lock for a short
+    time, and a page server that started at that time could fail. Now the check reads the holder
+    with F_GETLK, and takes no lock."""
     import fcntl
-    from types import SimpleNamespace
 
-    folder = tmp_path / ".nookku"
-    folder.mkdir()
-    check = os.open(folder / state.PAGE_LOCK, os.O_RDWR | os.O_CREAT, 0o600)
-    fcntl.flock(check, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    waits: list[float] = []
+    (tmp_path / ".nookku").mkdir()
+    (tmp_path / ".nookku" / state.PAGE_LOCK).touch()
+    with claimed(tmp_path, 1234) as holder:
 
-    def wait(seconds: float) -> None:
-        if not waits:
-            os.close(check)
-        waits.append(seconds)
+        def refuse(*args: Any) -> None:
+            raise AssertionError("the check took the lock")
 
-    monkeypatch.setattr(page, "time", SimpleNamespace(monotonic=lambda: 0.0, sleep=wait))
-    path, lock = page.claim_page_file(tmp_path, 1234)
-    try:
-        assert json.loads(path.read_text())["port"] == 1234
-        # The first try found the lock of the check, so the server waited 1 time.
-        assert len(waits) == 1
-    finally:
-        os.close(lock)
+        with monkeypatch.context() as patch:
+            patch.setattr(fcntl, "flock", refuse)
+            patch.setattr(fcntl, "lockf", refuse)
+            assert page.lock_holder(tmp_path) == holder.pid
+    assert page.lock_holder(tmp_path) is None
+    # No holder: the check leaves the lock free, so a server takes it at once.
+    _, lock = page.claim_page_file(tmp_path, 5678)
+    os.close(lock)
 
 
 def test_of_2_servers_that_start_at_the_same_time_one_runs(tmp_path: Path) -> None:
