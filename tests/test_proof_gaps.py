@@ -11,6 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
 import proof_egress as pe
 import proof_sessions as ps
+import proof_spec_classes as pc
 
 
 def test_discovery_checks_new_removed_and_changed_project_files(tmp_path: Path) -> None:
@@ -102,3 +103,21 @@ def test_a_separator_in_the_claude_answer_cannot_hide_an_empty_codex_answer(tmp_
     }
     (tmp_path / "tap.jsonl").write_text(json.dumps(row) + "\n")
     assert not ps.codex_answered(tmp_path)
+
+
+@pytest.mark.parametrize("path", ["APP_SPEC.md", "spec/1.md", "/toy/test/spec/1.md"])
+def test_a_spec_class_can_cite_its_sealed_spec_copy(path: str) -> None:
+    assert pc.cites(f"turn 2; {path}:20", 2, range(18, 25), "spec/1.md")
+
+
+@pytest.mark.parametrize(
+    "evidence",
+    [
+        "turn 2; spec/2.md:20",
+        "turn 2; OTHER_APP_SPEC.md:20",
+        "turn 2; spec/1.md:9",
+        "turn 3; spec/1.md:20",
+    ],
+)
+def test_a_spec_class_needs_its_own_file_section_and_turn(evidence: str) -> None:
+    assert not pc.cites(evidence, 2, range(18, 25), "spec/1.md")

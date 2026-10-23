@@ -1,0 +1,278 @@
+{
+ "date": "2026-10-23",
+ "base_commit": "3024299478c7a2941e6a9ef52faf46232c178918",
+ "candidate": "0.5.5",
+ "candidate_method": "Use the merged main checkout. Set the package and plugin manifest version fields to 0.5.5 for the run. Apply the spec citation checker change in this PR. Run the listed commands with the checkout Python and its bin folder first on PATH. Use the existing trusted Codex homes. Restore the temporary main checkout files after copying the results to the Codex branch.",
+ "candidate_file_sha256": {
+  "src/nookku/__init__.py": "4ed8ac81c5f8c0117bb52e60d47a0a97a28f807ef50cf5446a5684c67c18938f",
+  "plugins/nookku/.claude-plugin/plugin.json": "300e6624039e60d82a46cc36a210c084c3fdf3fed44a422fe7f972a07c3265fc",
+  "plugins/nookku/.codex-plugin/plugin.json": "1407792c6f621c681dfc7e6cf6b4e8e14eeac4379f48e7e897f57c71dada06f2",
+  "scripts/proof_spec_classes.py": "3f3c358e2a9c5a52176b8716f0ca9fe8388f84ae53e00e0a12f4b44164bc57b2"
+ },
+ "codex": "codex-cli 0.162.1",
+ "claude-code": "2.1.302 (Claude Code)",
+ "trusted_gate": {
+  "command": [
+   "scripts/proof_codex_gate.py",
+   "--trusted"
+  ],
+  "result": "proofs/codex-gate/gate.json",
+  "pass": true
+ },
+ "results": [
+  {
+   "command": [
+    "scripts/proofs_relay.py",
+    "plugin-codex"
+   ],
+   "result": "proofs/plugin-codex/results.json",
+   "nookku": "0.5.5",
+   "codex": "codex-cli 0.162.1",
+   "exit_code": 0
+  },
+  {
+   "command": [
+    "scripts/proofs_relay.py",
+    "plugin-codex",
+    "--stream"
+   ],
+   "result": "proofs/plugin-codex-stream/results.json",
+   "nookku": "0.5.5",
+   "codex": "codex-cli 0.162.1",
+   "exit_code": 0
+  },
+  {
+   "command": [
+    "scripts/proofs_relay.py",
+    "plugin-codex",
+    "--stream",
+    "--on-request"
+   ],
+   "result": "proofs/plugin-codex-stream-on-request/results.json",
+   "nookku": "0.5.5",
+   "codex": "codex-cli 0.162.1",
+   "exit_code": 0
+  },
+  {
+   "command": [
+    "scripts/proof_report.py",
+    "plugin-codex"
+   ],
+   "result": "proofs/report/plugin-codex.json",
+   "nookku": "0.5.5",
+   "codex": "codex-cli 0.162.1",
+   "exit_code": 0
+  },
+  {
+   "command": [
+    "scripts/proof_telemetry.py",
+    "plugin-codex"
+   ],
+   "result": "proofs/telemetry/plugin-codex.json",
+   "nookku": "0.5.5",
+   "codex": "codex-cli 0.162.1",
+   "exit_code": 0
+  },
+  {
+   "command": [
+    "scripts/proof_trace_points.py",
+    "plugin-codex"
+   ],
+   "result": "proofs/trace-points/plugin-codex.json",
+   "nookku": "0.5.5",
+   "codex": "codex-cli 0.162.1",
+   "exit_code": 0
+  },
+  {
+   "command": [
+    "scripts/proof_performance.py",
+    "plugin-codex"
+   ],
+   "result": "proofs/performance/plugin-codex.json",
+   "nookku": "0.5.5",
+   "codex": "codex-cli 0.162.1",
+   "exit_code": 0
+  },
+  {
+   "command": [
+    "scripts/proof_spec_classes.py",
+    "plugin-codex"
+   ],
+   "result": "proofs/spec-classes/plugin-codex.json",
+   "nookku": "0.5.5",
+   "codex": "codex-cli 0.162.1",
+   "exit_code": 0
+  },
+  {
+   "command": [
+    "scripts/proof_egress.py",
+    "plugin-codex"
+   ],
+   "result": "proofs/egress/plugin-codex.json",
+   "nookku": "0.5.5",
+   "codex": "codex-cli 0.162.1",
+   "exit_code": 0
+  },
+  {
+   "command": [
+    "scripts/proof_evaluation.py",
+    "plugin-codex"
+   ],
+   "result": "proofs/evaluation/plugin-codex.json",
+   "nookku": "0.5.5",
+   "codex": "codex-cli 0.162.1",
+   "exit_code": 0
+  },
+  {
+   "command": [
+    "scripts/proofs_relay.py",
+    "hooks-codex"
+   ],
+   "result": "proofs/hooks-codex/results.json",
+   "nookku": "0.5.5",
+   "codex": "codex-cli 0.162.1",
+   "exit_code": 0
+  },
+  {
+   "command": [
+    "scripts/proofs_relay.py",
+    "hooks-codex",
+    "--stream"
+   ],
+   "result": "proofs/hooks-codex-stream/results.json",
+   "nookku": "0.5.5",
+   "codex": "codex-cli 0.162.1",
+   "exit_code": 0
+  },
+  {
+   "command": [
+    "scripts/proofs_relay.py",
+    "hooks-codex",
+    "--stream",
+    "--on-request"
+   ],
+   "result": "proofs/hooks-codex-stream-on-request/results.json",
+   "nookku": "0.5.5",
+   "codex": "codex-cli 0.162.1",
+   "exit_code": 0
+  },
+  {
+   "command": [
+    "scripts/proof_report.py",
+    "hooks-codex"
+   ],
+   "result": "proofs/report/hooks-codex.json",
+   "nookku": "0.5.5",
+   "codex": "codex-cli 0.162.1",
+   "exit_code": 0
+  },
+  {
+   "command": [
+    "scripts/proof_telemetry.py",
+    "hooks-codex"
+   ],
+   "result": "proofs/telemetry/hooks-codex.json",
+   "nookku": "0.5.5",
+   "codex": "codex-cli 0.162.1",
+   "exit_code": 0
+  },
+  {
+   "command": [
+    "scripts/proof_trace_points.py",
+    "hooks-codex"
+   ],
+   "result": "proofs/trace-points/hooks-codex.json",
+   "nookku": "0.5.5",
+   "codex": "codex-cli 0.162.1",
+   "exit_code": 0
+  },
+  {
+   "command": [
+    "scripts/proof_performance.py",
+    "hooks-codex"
+   ],
+   "result": "proofs/performance/hooks-codex.json",
+   "nookku": "0.5.5",
+   "codex": "codex-cli 0.162.1",
+   "exit_code": 0
+  },
+  {
+   "command": [
+    "scripts/proof_spec_classes.py",
+    "hooks-codex"
+   ],
+   "result": "proofs/spec-classes/hooks-codex.json",
+   "nookku": "0.5.5",
+   "codex": "codex-cli 0.162.1",
+   "exit_code": 0
+  },
+  {
+   "command": [
+    "scripts/proof_egress.py",
+    "hooks-codex"
+   ],
+   "result": "proofs/egress/hooks-codex.json",
+   "nookku": "0.5.5",
+   "codex": "codex-cli 0.162.1",
+   "exit_code": 0
+  },
+  {
+   "command": [
+    "scripts/proof_evaluation.py",
+    "hooks-codex"
+   ],
+   "result": "proofs/evaluation/hooks-codex.json",
+   "nookku": "0.5.5",
+   "codex": "codex-cli 0.162.1",
+   "exit_code": 0
+  },
+  {
+   "command": [
+    "scripts/proof_codex_performance.py"
+   ],
+   "result": "proofs/performance/codex-app.json",
+   "nookku": "0.5.5",
+   "codex": "codex-cli 0.162.1",
+   "exit_code": 0
+  },
+  {
+   "command": [
+    "scripts/proof_sessions.py"
+   ],
+   "result": "proofs/sessions/results.json",
+   "nookku": "0.5.5",
+   "codex": "codex-cli 0.162.1",
+   "exit_code": 0
+  },
+  {
+   "command": [
+    "scripts/proof_trace.py"
+   ],
+   "result": "proofs/trace/results.json",
+   "nookku": "0.5.5",
+   "codex": "codex-cli 0.162.1",
+   "exit_code": 0
+  },
+  {
+   "command": [
+    "scripts/proof_codex_otel.py"
+   ],
+   "result": "proofs/otel/codex.json",
+   "nookku": "0.5.5",
+   "codex": "codex-cli 0.162.1",
+   "exit_code": 0
+  }
+ ],
+ "saved_failed_runs": [
+  {
+   "result": "proofs/spec-classes/hooks-codex-run1.json",
+   "cause": "The old checker rejected valid spec/1.md citations. The evaluator found the planted classes and the seal was intact.",
+   "checker": "scripts/proof_spec_classes.py at the base commit"
+  },
+  {
+   "result": "proofs/spec-classes/hooks-codex-run2.json",
+   "cause": "The toy agent gave 3 sentences in control turn 1. The evaluator correctly found a tone defect. The unchanged repeat passed.",
+   "checker": "scripts/proof_spec_classes.py in this PR"
+  }
+ ]
+}
