@@ -102,3 +102,16 @@ def test_a_separator_in_the_claude_answer_cannot_hide_an_empty_codex_answer(tmp_
     }
     (tmp_path / "tap.jsonl").write_text(json.dumps(row) + "\n")
     assert not ps.codex_answered(tmp_path)
+
+
+def test_discovery_accepts_only_added_guard_rows() -> None:
+    row = b'{"type":"blocked_call","harness":"claude-code","tool":"Bash","detail":"cat x"}\n'
+    old = b'{"type":"blocked_call","harness":"claude-code","tool":"Read","detail":"mode"}\n'
+    assert pe.guard_rows(b"", row) == 1
+    assert pe.guard_rows(old, old + row + row) == 2
+    assert pe.guard_rows(old, row) is None
+    assert pe.guard_rows(old, old + row[:-1]) is None
+    assert pe.guard_rows(old[:-1], old[:-1] + row) is None
+    assert pe.guard_rows(b"", b'{"type":"user","text":"toy shop"}\n') is None
+    assert pe.guard_rows(b"", b"[]\n") is None
+    assert pe.guard_rows(b"", b"not json\n") is None
