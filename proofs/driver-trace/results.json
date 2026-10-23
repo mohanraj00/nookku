@@ -1,5 +1,5 @@
 {
- "date": "2026-10-20",
+ "date": "2026-10-22",
  "versions": {
   "nookku": "0.5.4",
   "python": "3.13.12",
@@ -19,7 +19,7 @@
  "driver_queries": [
   {
    "turn": 1,
-   "session": "sqlite",
+   "session": "stock",
    "name": "SELECT",
    "input": {
     "query": "SELECT qty FROM stock WHERE sku = ?",
@@ -28,8 +28,9 @@
   }
  ],
  "unseen_call": 0,
+ "driver_without_span": 0,
  "transcript_lines": [
-  "[trace.jsonl:2] driver query: database sqlite (driver trace from the app process): SELECT"
+  "[trace.jsonl:2] driver query: database stock (driver trace from the app process): SELECT"
  ],
  "transcript_says_no_rows": true,
  "seal_intact": true,

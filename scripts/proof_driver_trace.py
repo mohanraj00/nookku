@@ -4,8 +4,9 @@ A toy shop app reads its stock from a SQLite file. The app uses the OpenTelemetr
 of the sqlite3 driver and the OTLP exporter over HTTP. These packages go into a new virtual
 environment of the app, not into Nookku. The egress answer gives the database `record: driver`. A
 test sends one message, and the app runs 2 queries. The proof checks the manifest, the driver
-queries of the trace, the `unseen_call` count, the lines of the transcript that the report reads,
-and the seal. It needs no model, but it needs the network to install the packages.
+queries of the trace and their database name, the `unseen_call` and `driver_without_span`
+counts, the lines of the transcript that the report reads, and the seal. It needs no model, but
+it needs the network to install the packages.
 
 usage: python scripts/proof_driver_trace.py
 """
@@ -118,6 +119,7 @@ def main() -> int:
         "proxies": manifest["egress"]["proxies"],
         "driver_queries": queries,
         "unseen_call": findings["counts"]["unseen_call"],
+        "driver_without_span": findings["counts"]["driver_without_span"],
         "transcript_lines": lines,
         "transcript_says_no_rows": evaluation.DRIVER_RESULT in text,
         "seal_intact": seal.verify(folder)["intact"],
@@ -130,7 +132,10 @@ def main() -> int:
         and result["driver"] == ["stock"]
         and len(turn) == 1
         and turn[0]["input"]["query"] == "SELECT qty FROM stock WHERE sku = ?"
+        # The span has no db.name: the query gets the name of the database in the answer.
+        and turn[0]["session"] == "stock"
         and result["unseen_call"] == 0
+        and result["driver_without_span"] == 0
         and len(lines) == len(queries)
         and result["transcript_says_no_rows"]
         and result["seal_intact"]

@@ -831,6 +831,7 @@ def counts(**n: int) -> dict:
         "questions_lost",
         "database_error",
         "unseen_call",
+        "driver_without_span",
         "model_error",
         "turn_without_model",
         "item_between_turns",
@@ -4115,7 +4116,8 @@ UNSEEN_STDIO_CASE = {
 # around the proxy to the database shop, an HTTP call to the address of stock and a MySQL call give
 # a finding. The 2 spans at 31 have the same time, and each driver query comes right after its span
 # (section 8.4). Only the spans of stock and cart give a driver query: no driver database covers
-# the other database spans.
+# the other database spans. The cart span has no db.name, so its query has the name cart of the
+# answer.
 UNSEEN_DRIVER_DATABASES = [
     {
         "name": "shop",
@@ -4190,7 +4192,7 @@ UNSEEN_DRIVER_CASE = {
         unseen_driver_span(4),
         qitem(2, "stock", 31, 4, "query", None),
         unseen_driver_span(5),
-        qitem(2, "SQLite", 31, 5, "query", None),
+        qitem(2, "cart", 31, 5, "query", None),
         unseen_driver_span(6),
     ],
     "findings": {
@@ -4219,7 +4221,9 @@ UNSEEN_DRIVER_CASE = {
 # app gives a driver query: with the new attribute names, with the old names, and with no query
 # text. A span has no rows, so a driver query has no output. The span of the error gives a
 # database_error and no span_error. The span of the app server is not a database call. One
-# database with a driver trace makes each database call seen, so no unseen_call comes.
+# database with a driver trace makes each database call seen, so no unseen_call comes. The span of
+# the error has no db.namespace, and only shop covers a Postgres span, so its query has the name
+# shop of the answer.
 DRIVER_DATABASES = [
     {
         "name": "shop",
@@ -4312,7 +4316,7 @@ DRIVER_CASE = {
             error=MISSING_TABLE,
             service="toy-shop",
         ),
-        qitem(2, "postgresql", 32, 3, "SELECT", None, error=MISSING_TABLE),
+        qitem(2, "shop", 32, 3, "SELECT", None, error=MISSING_TABLE),
         oitem(
             2,
             "otel",
@@ -4350,9 +4354,9 @@ DRIVER_CASE = {
             {
                 "check": "database_error",
                 "turn": 2,
-                "detail": f"postgresql: SELECT: {MISSING_TABLE}",
+                "detail": f"shop: SELECT: {MISSING_TABLE}",
                 "harness": "driver",
-                "session": "postgresql",
+                "session": "shop",
                 "source": {"file": "otel.jsonl", "line": 3},
             },
         ],
@@ -4444,6 +4448,87 @@ PROXY_DRIVER_CASE = {
                 "session": TRACE_ID,
                 "source": {"file": "otel.jsonl", "line": 3},
             }
+        ],
+    },
+}
+
+
+# The gaps of the driver trace (SPEC.md sections 8.4 and 8.6, #455). stock is a SQLite file and
+# returns is a Postgres database whose proxy cannot connect. The SQLite instrumentation sets no
+# db.name, so each driver query has the name stock of the answer. The span at 25 comes after the
+# reply of turn 1 and before turn 2. It and its driver query are 1 call, so only the span gives
+# item_between_turns. No Postgres span comes, so returns gives driver_without_span.
+GAPS_DATABASES = [
+    {"name": "stock", "kind": "sqlite", "env": None, "address": "stock.db", "record": "driver"},
+    {
+        "name": "returns",
+        "kind": "postgres",
+        "env": "RETURNS_URL",
+        "address": None,
+        "record": "driver",
+    },
+]
+STOCK_SELECT = "SELECT qty FROM stock WHERE sku = ?"
+STOCK_UPDATE = "UPDATE stock SET qty = qty - 1 WHERE sku = ?"
+GAPS_SPANS = [
+    (11, "SELECT", {"db.system": "sqlite", "db.statement": STOCK_SELECT}),
+    (25, "UPDATE", {"db.system": "sqlite", "db.statement": STOCK_UPDATE}),
+]
+
+
+def gaps_span(n: int, turn: int | None) -> dict:
+    t, name, attrs = GAPS_SPANS[n - 1]
+    return oitem(turn, "otel", TRACE_ID, t, "span", n, name=name, input=attrs, service="toy-shop")
+
+
+DRIVER_GAPS_CASE = {
+    "tap": [window(10, 20), window(30, 40)],
+    "manifest": {
+        "test": "20261022-090000-dg01",
+        "model_sessions": [],
+        "egress": {
+            "registered": T0,
+            "answer": {**EGRESS_ANSWER, "backends": [], "databases": GAPS_DATABASES},
+            "unseen": [],
+            "driver": ["stock", "returns"],
+            "proxies": {},
+            "receiver": "http://127.0.0.1:41000",
+        },
+    },
+    "sessions": {},
+    "otel": [app_span(*span) for span in GAPS_SPANS],
+    "trace": [
+        gaps_span(1, 1),
+        qitem(1, "stock", 11, 1, "SELECT", STOCK_SELECT),
+        gaps_span(2, None),
+        qitem(None, "stock", 25, 2, "UPDATE", STOCK_UPDATE),
+    ],
+    "findings": {
+        "v": "0.2",
+        "test": "20261022-090000-dg01",
+        "turns": 2,
+        "items": 4,
+        "sessions": [],
+        "otel": {"file": "otel.jsonl", "rows": 2, "items": 2, "ignored": {}},
+        "backend": None,
+        "model_api": None,
+        "mcp": None,
+        "database": None,
+        "counts": counts(driver_without_span=1, item_between_turns=1),
+        "findings": [
+            {
+                "check": "driver_without_span",
+                "turn": None,
+                "detail": "returns: no database span of its driver",
+            },
+            {
+                "check": "item_between_turns",
+                "turn": None,
+                "detail": "a span item",
+                "harness": "otel",
+                "session": TRACE_ID,
+                "source": {"file": "otel.jsonl", "line": 2},
+            },
         ],
     },
 }
@@ -5253,6 +5338,7 @@ TRACE_CASES = {
     "driver_trace": DRIVER_CASE,
     "unseen_calls_driver": UNSEEN_DRIVER_CASE,
     "driver_trace_proxy": PROXY_DRIVER_CASE,
+    "driver_trace_gaps": DRIVER_GAPS_CASE,
     "mcp_toy_shop": MCP_CASE,
     "database_toy_shop": DATABASE_CASE,
     "database_formats": DATABASE_FORMATS_CASE,
