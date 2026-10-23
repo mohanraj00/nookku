@@ -1,5 +1,5 @@
 """Proof that the trace reads the model calls of an app from the logs of a LiteLLM gateway (SPEC.md
-section 8.8).
+section 8.9).
 
 A toy model API runs on a local port. LiteLLM runs in Docker, with Postgres for its spend logs,
 and sends the calls of the model `toy` to the toy API. Thus no call costs money. The proof makes

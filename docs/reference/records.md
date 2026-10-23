@@ -51,8 +51,9 @@ Each test is a new conversation, with a new test id and a new entry process. The
 | `model_api.jsonl` | The direct calls of your app to a model API. | [SPEC.md section 7.7](../../SPEC.md#77-model-api-proxies) |
 | `mcp.jsonl` | The calls of your app to its MCP servers. | [SPEC.md section 7.12](../../SPEC.md#712-mcp-proxies) |
 | `database.jsonl` | The messages of your app and its Postgres databases. | [SPEC.md section 7.13](../../SPEC.md#713-postgres-proxies) |
-| `gateway.jsonl` | The model calls of your app that a LiteLLM gateway logged, if you gave `nookku trace --gateway`. | [SPEC.md section 8.8](../../SPEC.md#88-gateway-logs) |
+| `gateway.jsonl` | The model calls of your app that a LiteLLM gateway logged, if you gave `nookku trace --gateway`. | [SPEC.md section 8.9](../../SPEC.md#89-gateway-logs) |
 | `otel.jsonl` | The OpenTelemetry spans and logs of your app, if it sent any. | [SPEC.md section 7.5](../../SPEC.md#75-otlp-receiver) |
+| `egress.jsonl` | The Koodam egress spans of the test, if you gave them to `nookku trace --egress`. | [SPEC.md section 8.8](../../SPEC.md#88-egress-spans) |
 
 The seal does not contain `report.md`, `bridge.log`, `seal.json` and `denied.jsonl`, because these files change after the end.
 

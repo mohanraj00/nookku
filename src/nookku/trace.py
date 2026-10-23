@@ -17,9 +17,9 @@ from pathlib import Path
 from typing import Any, Literal
 from urllib.parse import urlsplit
 
-from . import app_spec, backend, db_proxy, gateway, mcp_proxy, model_api, otlp
+from . import app_spec, backend, db_proxy, egress_spans, gateway, mcp_proxy, model_api, otlp
 from .adapters import AdapterError, pick
-from .config import MATCHES
+from .config import MATCHES, is_host_list
 from .discovery import db_system, driver_address
 from .record import VERSION, json_text, read_manifest, read_rows
 
@@ -56,6 +56,8 @@ CHECKS = (
     "database_error",
     "unseen_call",
     "driver_without_span",
+    "egress_not_in_discovery",
+    "egress_denied",
     "model_error",
     "turn_without_model",
     "item_between_turns",
@@ -74,6 +76,8 @@ TRACE_KEYS: dict[str, Any] = {
     "repeated_reply": REPEATED_REPLY,
     "model_reply_field": "",
     "model_reply_match": "normalized",
+    # The hosts that the checks of the egress spans skip (SPEC.md section 8.8).
+    "egress_ignore": [],
 }
 # The harnesses of the items that hold a model output: the session files and the model APIs.
 MODEL_HARNESSES = ("claude-code", "codex", "model_api", "gateway")
@@ -838,7 +842,7 @@ def _call_items(
     sessions: list[str],
 ) -> list[dict[str, Any]]:
     """The items of the model calls of model_api.jsonl or gateway.jsonl (SPEC.md sections 8.4
-    and 8.8): the user message, the assistant message and the tool calls of each call."""
+    and 8.9): the user message, the assistant message and the tool calls of each call."""
     items: list[dict[str, Any]] = []
     for i, (n, row, form, request) in enumerate(calls):
         api = sessions[i]
@@ -926,7 +930,7 @@ GATEWAY_CUT = "the gateway log holds a cut copy of the response"
 
 
 def read_gateway(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-    """The call rows of gateway.jsonl (SPEC.md section 8.8). They give the items of a model API
+    """The call rows of gateway.jsonl (SPEC.md section 8.9). They give the items of a model API
     call (section 8.4). The session of an item is the key alias of its call."""
     ignored: Counter[str] = Counter()
     other_calls = 0
@@ -1361,6 +1365,7 @@ def check(
     points: list[dict[str, Any]] | None = None,
     unread: list[str] | None = None,
     drivers: list[tuple[str, set[str]]] | None = None,
+    egress: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     """The findings of SPEC.md section 8.6. They do not change the audit's exit code. `seen`
     holds the addresses of the proxies (egress_seen), or None if the test has no egress answer.
@@ -1371,7 +1376,8 @@ def check(
     `points` holds the trace points of the app spec in the manifest (app_spec.valid).
     `unread` holds the details of the parts of the app spec that the trace does not check
     (app_spec.unread).
-    `drivers` holds the name and the marks of each database with a driver trace (driver_marks)."""
+    `drivers` holds the name and the marks of each database with a driver trace (driver_marks).
+    `egress` holds the findings of the egress spans (egress_findings)."""
     keys = {**TRACE_KEYS, **(keys or {})}
     out: list[dict[str, Any]] = []
     # A call to an MCP server is a call of the app, not an item of the model.
@@ -1433,6 +1439,7 @@ def check(
     if seen is not None:
         out += unseen_calls(items, seen)
     out += drivers_without_span(items, drivers or [])
+    out += egress or []
     for e in errors or []:
         turn = _turn(e["ts"], spans)
         where = {"harness": e["harness"], "session": e["session"]}
@@ -1532,14 +1539,27 @@ def build(folder: Path) -> dict[str, Any]:
     if (folder / db_proxy.FILE).exists():
         found, queries = read_database(folder / db_proxy.FILE)
         items += found
+    keys = trace_keys(manifest)
+    egress_info, egress_found = egress_findings(folder, manifest, keys, spans)
     items.sort(key=lambda it: it["ts"] if it["ts"] is not None else float("inf"))
     assign(items, spans)
-    keys, seen = trace_keys(manifest), egress_seen(manifest)
+    seen = egress_seen(manifest)
     drivers = driver_marks(answer)
     points = app_spec.valid(manifest.get("trace_points"))
     unread = app_spec.unread(manifest.get("trace_points_unread"))
     findings = check(
-        exchanges, spans, items, sessions, servers, keys, errors, seen, points, unread, drivers
+        exchanges,
+        spans,
+        items,
+        sessions,
+        servers,
+        keys,
+        errors,
+        seen,
+        points,
+        unread,
+        drivers,
+        egress_found,
     )
     try:
         point_summary = app_spec.summary(manifest.get("trace_points"), items, len(exchanges))
@@ -1559,17 +1579,36 @@ def build(folder: Path) -> dict[str, Any]:
         "model_api": direct,
         "mcp": servers_mcp,
         "database": queries,
+        "egress": egress_info,
         "trace_points": point_summary,
         "counts": {c: counts[c] for c in CHECKS},
         "findings": findings,
     }
     if gateway_calls is not None:
-        # Only a test with gateway logs has the key (SPEC.md section 8.8).
+        # Only a test with gateway logs has the key (SPEC.md section 8.9).
         report["gateway"] = gateway_calls
     text = json_text(report, indent=1) + "\n"
     (folder / "findings.json").write_text(text, encoding="utf-8")
     # The caller prints the report, so it gets the escaped text of findings.json.
     return dict(json.loads(text))
+
+
+def egress_findings(
+    folder: Path, manifest: dict[str, Any], keys: dict[str, Any], spans: list[tuple[float, float]]
+) -> tuple[dict[str, Any] | None, list[dict[str, Any]]]:
+    """The counts and the findings of egress.jsonl in a test folder (SPEC.md section 8.8), or
+    None and no findings if the folder has no such file. A span of a later contract version
+    raises RecordError."""
+    path = folder / egress_spans.FILE
+    if not path.exists():
+        return None, []
+    start, end = manifest.get("started"), manifest.get("ended")
+    found, info = egress_spans.read(path, start, end, keys["egress_ignore"])
+    egress = manifest.get("egress")
+    answer = egress.get("answer") if isinstance(egress, dict) else None
+    out = egress_spans.not_in_discovery(found, egress_spans.answer_hosts(answer))
+    out += egress_spans.denied(found, lambda ts: _turn(ts, spans))
+    return info, out
 
 
 def trace_keys(manifest: dict[str, Any]) -> dict[str, Any]:
@@ -1586,6 +1625,9 @@ def trace_keys(manifest: dict[str, Any]) -> dict[str, Any]:
         out["model_reply_field"] = field
     if keys.get("model_reply_match") in MATCHES:
         out["model_reply_match"] = keys["model_reply_match"]
+    ignore = keys.get("egress_ignore")
+    if is_host_list(ignore):
+        out["egress_ignore"] = ignore
     return out
 
 

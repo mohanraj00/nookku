@@ -1,4 +1,4 @@
-"""The gateway logs of SPEC.md section 8.8."""
+"""The gateway logs of SPEC.md section 8.9."""
 
 import json
 import shutil
@@ -311,4 +311,20 @@ def test_a_plain_http_url_stops_the_trace_with_exit_code_2(
     args = ["trace", "--root", str(tmp_path), "--gateway", "http://gw.toy:4000"]
     assert main([*args, "--key-alias", ALIAS]) == 2
     assert "is not https" in capsys.readouterr().err
+    assert seal.hashes(folder) == before
+
+
+def test_a_failed_gateway_read_does_not_copy_the_egress_spans(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("NOOKKU_HOME", str(tmp_path / "home"))
+    folder = _sealed_test(tmp_path)
+    before = seal.hashes(folder)
+    spans = tmp_path / "spans.jsonl"
+    spans.write_text("")
+    args = ["trace", "--root", str(tmp_path), "--egress", str(spans)]
+    args += ["--gateway", str(tmp_path / "none.json"), "--key-alias", ALIAS]
+    assert main(args) == 2
+    assert "the gateway logs were not read" in capsys.readouterr().err
+    assert not (folder / "egress.jsonl").exists()
     assert seal.hashes(folder) == before

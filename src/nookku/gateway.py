@@ -1,4 +1,4 @@
-"""The gateway logs of SPEC.md section 8.8: the model calls that a LiteLLM gateway logged.
+"""The gateway logs of SPEC.md section 8.9: the model calls that a LiteLLM gateway logged.
 
 If the app gets its model key from a LiteLLM gateway, the spend logs of the gateway have each
 model call of that key. `nookku trace --gateway` reads them from a file or from the gateway API,
@@ -112,7 +112,7 @@ def result(api: str, path: str, response: dict[str, Any] | None) -> dict[str, An
 
 
 def call_row(log: dict[str, Any]) -> dict[str, Any]:
-    """The row of gateway.jsonl for one LiteLLM spend log (SPEC.md section 8.8)."""
+    """The row of gateway.jsonl for one LiteLLM spend log (SPEC.md section 8.9)."""
     given = log.get("metadata")
     meta: dict[str, Any] = given if isinstance(given, dict) else {}
     call_type = str(log.get("call_type") or "")
