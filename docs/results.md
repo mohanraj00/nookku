@@ -335,7 +335,7 @@ The run used nookku 0.5.5, kind v0.33.0 and Kubernetes v1.37.0 on 2026-10-23. Th
 Limits of this proof:
 
 - The tap and the relay run in the same pod, and the relay calls the tap at `127.0.0.1:8800`. The proof does not put the tap in its own pod or behind its own Service.
-- The pods have no NetworkPolicy. In a cluster with a default-deny policy, the harness pod needs an egress rule to the Service. Koodam keeps `workspace.networkPolicy.extraEgress` for this case ([#458](https://github.com/mohanraj00/nookku/issues/458)). The proof in a Koodam Workspace is part of [#461](https://github.com/mohanraj00/nookku/issues/461).
+- The pods have no NetworkPolicy. In a cluster with a default-deny policy, the harness pod needs an egress rule to the Service ([#458](https://github.com/mohanraj00/nookku/issues/458)). The proof in a namespace with a default-deny policy is part of [#461](https://github.com/mohanraj00/nookku/issues/461).
 - C4 is the deny of the guard, which is best effort ([section 3](#3-what-this-does-not-prove)). In the cluster, a model can also reach the app by its pod IP or by another Service name. Such a call goes around the tap, and it is in neither record.
 - The proof uses the HTTP tap with no entry, so there is no test folder, no trace and no seal ([how-to/http-tap.md](how-to/http-tap.md)).
 
