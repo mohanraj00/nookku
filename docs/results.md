@@ -318,6 +318,27 @@ The discovery in Claude Code runs in its Bash sandbox, which can write each file
 
 The Codex egress proofs were run again for [#456](https://github.com/mohanraj00/nookku/issues/456). Both [plugin](../proofs/egress/plugin-codex.json) and [project hooks](../proofs/egress/hooks-codex.json) pass the stricter discovery and project-file checks. Their `versions`, `date`, `answer`, `E2_files_before` and `E2_files_after` fields give the data. The [method](../scripts/proof_egress.py) uses the discovery answer of the harness model.
 
+### The HTTP tap to an agent at a cluster Service URL
+
+[scripts/proof_cluster_tap.py](../scripts/proof_cluster_tap.py) makes a kind cluster. The toy shop agent runs as a Deployment in the namespace `shop`, behind the Service `toy-shop`. A plain pod in the namespace `harness` runs `nookku tap --agent http://toy-shop.shop.svc:8080/` and the project hooks relay of Claude Code with no entry. The proof sends the 5 test messages of P1 as Claude Code hook events to `nookku hook` in the pod. No harness and no model run. The app logs the exact bytes of each request body and each response body.
+
+| # | Check | Result | Data |
+|---|---|---|---|
+| C1 | The Service name resolves to the ClusterIP of the Service in the harness pod. | pass | [results](../proofs/cluster-tap/results.json) |
+| C2 | Each message reaches the app byte for byte: the relay record, the tap record and the request body at the app agree. | 5/5 | [results](../proofs/cluster-tap/results.json), [app log](../proofs/cluster-tap/app.jsonl) |
+| C3 | Each reply reaches the relay byte for byte: the response body at the app, the tap record, the relay record and the text that the relay shows agree. | 5/5 | [results](../proofs/cluster-tap/results.json) |
+| C4 | The guard denies a `curl` call from the model to the Service URL (the option `agent_url`). | pass | [relay record](../proofs/cluster-tap/relay.jsonl) |
+| C5 | The audit finds 0 breaks, and finds each of the 5 planted faults of P4. | 0 breaks, 5/5 | [tap record](../proofs/cluster-tap/tap.jsonl), [relay record](../proofs/cluster-tap/relay.jsonl) |
+
+The run used nookku 0.5.5, kind v0.33.0 and Kubernetes v1.37.0 on 2026-10-23. The key `versions` of the results file gives each version, also the Claude Code version of the hook events.
+
+Limits of this proof:
+
+- The tap and the relay run in the same pod, and the relay calls the tap at `127.0.0.1:8800`. The proof does not put the tap in its own pod or behind its own Service.
+- The pods have no NetworkPolicy. In a cluster with a default-deny policy, the harness pod needs an egress rule to the Service ([#458](https://github.com/mohanraj00/nookku/issues/458)). The proof in a namespace with a default-deny policy is part of [#461](https://github.com/mohanraj00/nookku/issues/461).
+- C4 is the deny of the guard, which is best effort ([section 3](#3-what-this-does-not-prove)). In the cluster, a model can also reach the app by its pod IP or by another Service name. Such a call goes around the tap, and it is in neither record.
+- The proof uses the HTTP tap with no entry, so there is no test folder, no trace and no seal ([how-to/http-tap.md](how-to/http-tap.md)).
+
 ## 2. Benchmark under pressure
 
 The question: does the mechanism stay exact in long, messy conversations with the agent?
@@ -387,6 +408,7 @@ uv run python scripts/proof_egress.py plugin-claude-code
 uv run python scripts/proof_egress.py plugin-codex
 uv run python scripts/proof_egress.py hooks-claude-code
 uv run python scripts/proof_egress.py hooks-codex
+uv run python scripts/proof_cluster_tap.py
 uv run python scripts/proof_evaluation.py plugin-claude-code
 uv run python scripts/proof_evaluation.py plugin-codex
 uv run python scripts/proof_evaluation.py hooks-claude-code

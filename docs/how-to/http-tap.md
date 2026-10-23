@@ -77,6 +77,19 @@ Give the tap the same adapter: `nookku tap --agent URL --record FILE --adapter o
 
 If your agent streams its reply (SSE, `text/event-stream`), use the `openai` adapter. The relay sends `"stream": false`. If your agent streams only on request, set `openai_stream` to `true` (the `init` flag is `--openai-stream`, with no value, and `--no-openai-stream` sets it back to `false`). Then the relay sends `"stream": true`. If the agent streams, the tap sends each part to the relay when it comes. It records the complete reply when the stream ends. The relay shows the reply when the stream is complete. A stream that ends early, sends an error or has a malformed chunk gives an error, not a part of the reply. [SPEC.md section 4.1](../../SPEC.md#41-http-mode) defines the rules.
 
+## An agent in a cluster
+
+If the agent runs in the same Kubernetes cluster as the harness, give the tap the Service URL of the agent:
+
+```bash
+nookku tap --agent http://toy-shop.shop.svc:8080/ --record tap.jsonl
+nookku init claude-code --tap-url http://127.0.0.1:8800/ --agent-url http://toy-shop.shop.svc:8080/
+```
+
+Run the tap in the pod of the harness, so the relay calls it at `127.0.0.1`. Give the Service URL as `agent_url` too, so the guard denies a direct call from the model to the agent. The guard matches the URL text only. A call to the pod IP of the agent or to another Service name goes around the tap. If the namespace of the harness has a default-deny NetworkPolicy, add an egress rule to the Service.
+
+[scripts/proof_cluster_tap.py](../../scripts/proof_cluster_tap.py) tests this setup in a kind cluster, with no model. [results.md](../results.md#the-http-tap-to-an-agent-at-a-cluster-service-url) gives the result and the limits.
+
 ## Security
 
 The tap listens on `127.0.0.1:8800` by default. If you bind it to another address with `--listen`, anyone who can reach that address can talk to your agent through it ([SECURITY.md](../../SECURITY.md)).

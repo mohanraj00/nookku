@@ -97,6 +97,7 @@ claude plugin validate plugins/nookku && claude plugin test plugins/nookku
 - `scripts/proof_performance.py <setup>` runs a test of `examples/toy-shop-full/` with its app spec and a slow turn that the proof plants in its toy servers, and the evaluation at its end. It writes `proofs/performance/`.
 - `scripts/proof_spec_classes.py <setup>` runs a test of `examples/toy-shop-full/` with its app spec and 3 planted defects: one each for `tone`, `boundary` and `off_path`. It writes `proofs/spec-classes/`.
 - `scripts/proof_egress.py <setup>` runs a test of `examples/toy-shop-egress/`, with the discovery answer of the harness model, 2 MCP servers, a Postgres database in Docker and a SQLite database with a driver trace. It writes `proofs/egress/`.
+- `scripts/proof_cluster_tap.py` runs the toy shop agent behind a Service in a kind cluster, and the HTTP tap and the relay in a plain harness pod, with no model. It checks the bytes at the relay, the tap and the app, and writes `proofs/cluster-tap/`.
 - `scripts/proof_codex_otel.py` checks if Codex sends OpenTelemetry data from the `OTEL_*` variables of a test, and writes `proofs/otel/codex.json`.
 - `scripts/proof_sdk_bundles.py <version>...` records the Claude Code version that each given Claude Agent SDK release bundles, with no model, and writes `proofs/trace/sdk-bundles.json`.
 - `scripts/proof_sessions.py` checks that `nookku check` finds the model sessions of a toy shop app, one in each harness, and writes `proofs/sessions/`.
