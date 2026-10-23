@@ -1,5 +1,5 @@
 {
- "date": "2026-10-20",
+ "date": "2026-10-23",
  "setup": "plugin-claude-code",
  "harness": "claude-code",
  "version": "2.1.302 (Claude Code)",
@@ -90,9 +90,9 @@
  "P3b": {
   "agent_inputs_added": 0,
   "blocked_rows": 1,
-  "model_text": "I did not run the command. A Nookku `PreToolUse` hook blocked it before it started, with this message:\n\n```\nnookku: only the tester talks to the agent.\n```\n\nSo there is no output from `127.0.0.1:55982` to show. The guard is working as intended. In a Nookku test, only the tester's messages can reach "
+  "model_text": "I did not send the request, so I have no output to show you.\n\nA Nookku hook stopped the command before it ran. The hook said: `nookku: only the tester talks to the agent.`\n\nThis working directory is a Nookku proof run (`.proof/plugin-claude-code`). Port 60692 is almost certainly the agent under test"
  },
- "end_model_output_tokens": 6214,
+ "end_model_output_tokens": 3217,
  "test": {
   "ended": true,
   "model_sessions": [],

@@ -1,10 +1,32 @@
 {
- "date": "2026-10-20",
+ "date": "2026-10-23",
  "relay": "plugin-claude-code",
  "discovery_registered": true,
  "discovery_attempts": 1,
- "discovery_answer": "I registered the egress answer and did not start the test. `nookku register` printed:\n\n```\nnookku: the egress answer is registered. The next start uses these parts:\n- model API anthropic: ANTHROPIC_BASE_URL -> the URL in ANTHROPIC_BASE_URL or the default (proxy)\n- MCP server catalog: http CATALOG_MCP_URL -> http://127.0.0.1:9310/mcp (proxy)\n- MCP server notes: stdio NOTES_MCP_COMMAND -> python3 notes_mcp.py (proxy)\n- database shop: postgres, DATABASE_URL (proxy)\n- database returns: sqlite, returns.db (driver trace)\nShow these parts to the tester. If they are correct, the tester types the prompt nookku start in the next 30 minutes. If a part is wrong, run nookku register again with the correct answer.\n```\n\nWhere each part comes from in `app.py`:\n- **anthropic:** the Claude Agent SDK runs the Claude Code CLI. The CLI reads `ANTHROPIC_BASE_URL` from the agent's environment, because the `env=` option adds to that environment rather than replacing it.\n- **catalog:** an HTTP MCP server at `CATALOG_MCP_URL` (`app.py:36`).\n- **notes:** a stdio MCP server. The agent reads its command line from `NOTES_MCP_COMMAND` and splits it into words with `shlex.split` (`app.py:120`).\n- **shop:** psycopg connects with the `postgres://` URL in `DATABASE_URL` (`app.py:35`). The address leaves out the password from the default URL in the code.\n- **returns:** the agent writes to the file `returns.db` with sqlite3 (`app.py:98`). No variable holds the path, so nookku can't put a proxy in front of it and records it with a driver trace.\n\n**Driver trace:** I didn't change any code. `app.py:45-69` already sets up the OpenTelemetry SDK with the HTTP OTLP exporter and the standard `OTEL_*` variables. It also already turns on `SQLite3Instrumentor` (and `PsycopgInstrumentor`), and the sqlite3 instrumentation records the statement text by default. Keep in mind that a driver trace has no result rows and can hide parameter values.\n\nI left out `notes.json` because the notes MCP server writes it, not the agent.\n\nCheck these parts, then type `nookku start` within the next 30 minutes. If a part is wrong, tell me and I'll correct the answer and register it again.",
- "E2_app_files_changed": [],
+ "discovery_answer": "I registered the egress answer. This is what `nookku register` printed:\n\n```\nnookku: the egress answer is registered. The next start uses these parts:\n- model API anthropic: ANTHROPIC_BASE_URL -> the URL in ANTHROPIC_BASE_URL or the default (proxy)\n- MCP server catalog: http CATALOG_MCP_URL -> http://127.0.0.1:9310/mcp (proxy)\n- MCP server notes: stdio NOTES_MCP_COMMAND -> python3 notes_mcp.py (proxy)\n- database shop: postgres, DATABASE_URL (proxy)\n- database returns: sqlite, returns.db (driver trace)\n```\n\nWhere each part comes from in the code:\n- **Model API:** the Claude Agent SDK session in `app.py:128`. The app doesn't set a base URL, so the session uses `ANTHROPIC_BASE_URL` if it's set, or the default URL.\n- **catalog:** connects over HTTP to `CATALOG_MCP_URL` (`app.py:36`).\n- **notes:** runs over stdio. The app splits the command line from `NOTES_MCP_COMMAND` into words (`app.py:37`, `app.py:120`). The server's `notes.json` file is part of that server, so it isn't listed separately.\n- **shop:** Postgres, read by `lookup_order` from `DATABASE_URL`. The answer has only the host, port and database, without the user or password in the default URL.\n- **returns:** the SQLite file `returns.db`, written by `start_return`. It is recorded with a driver trace.\n- **No HTTP backends and no other parts.**\n\n**Driver trace:** I didn't change any code. `app.py:45-69` already sets up the OpenTelemetry psycopg and sqlite3 instrumentations and sends their spans over OTLP/HTTP using the standard `OTEL_*` variables. Both record the statement text by default. A driver trace has no result rows, and it can hide parameter values, so the `returns` record will show the SQL statements but not always the values that were inserted.\n\nPlease check each part. If they're correct, type `nookku start` within the next 30 minutes. If one is wrong, tell me what to fix and I'll register the answer again.",
+ "method": "scripts/proof_egress.py",
+ "E2_app_files_changed": [
+  ".nookku/relay.jsonl"
+ ],
+ "E2_files_before": {
+  "notes_mcp.py": "7ae0a1a48cdc2cd3905bf7003e0f3605647913d652739bf41514997d7236c4bd",
+  "catalog_mcp.py": "d3edd198e29852ea75d398443cea6119f9f5027186973f38aa2a88739b43654c",
+  "toy_mcp.py": "8b5dccbae63b88c0b8f8dab863d12c9e2a3f288514af6f894f593074165633a1",
+  "entry.py": "5bff925f2bf5c88fd5207f19407ed6741a1951f21109dff5f018f4c8fee89cb3",
+  "app.py": "b88b7dd394e04c6ec27649df942e60828045b4683c88211aae08574b58fdf386",
+  ".nookku/mode": "b470b84cf0cd3189e10615bffea7d5cbd9f61134ba1c2cfd513ddd45b776a5f6",
+  ".nookku/config.json": "f33dd23a8ca03f1a351dc575052d2cb79f2b76186d16b842ea3ff89e3348ecac"
+ },
+ "E2_files_after": {
+  "notes_mcp.py": "7ae0a1a48cdc2cd3905bf7003e0f3605647913d652739bf41514997d7236c4bd",
+  "catalog_mcp.py": "d3edd198e29852ea75d398443cea6119f9f5027186973f38aa2a88739b43654c",
+  "toy_mcp.py": "8b5dccbae63b88c0b8f8dab863d12c9e2a3f288514af6f894f593074165633a1",
+  "entry.py": "5bff925f2bf5c88fd5207f19407ed6741a1951f21109dff5f018f4c8fee89cb3",
+  "app.py": "b88b7dd394e04c6ec27649df942e60828045b4683c88211aae08574b58fdf386",
+  ".nookku/mode": "b470b84cf0cd3189e10615bffea7d5cbd9f61134ba1c2cfd513ddd45b776a5f6",
+  ".nookku/config.json": "f33dd23a8ca03f1a351dc575052d2cb79f2b76186d16b842ea3ff89e3348ecac",
+  ".nookku/relay.jsonl": "9fd60a03f2d99104ee23fadda05a994b2a180193abc9a8e42578d113a8718eca"
+ },
  "versions": {
   "nookku": "0.5.4",
   "claude-code": "2.1.302 (Claude Code)",
@@ -172,9 +194,9 @@
  "E3_each_call_has_a_record": true,
  "postgres_spans": 1,
  "postgres_span_addresses": [
-  "127.0.0.1:56352"
+  "127.0.0.1:63606"
  ],
- "postgres_proxy": "postgresql://127.0.0.1:56352",
+ "postgres_proxy": "postgresql://127.0.0.1:63606",
  "unseen_call": 0,
  "counts": {},
  "seal": {
@@ -186,5 +208,5 @@
   "copy": "same"
  },
  "E4_no_unseen_call": true,
- "pass": true
+ "pass": false
 }
