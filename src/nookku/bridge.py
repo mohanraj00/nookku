@@ -879,8 +879,14 @@ def run(
         _log(f"OTLP receiver on {receiver.url}")
         # The coverage check skips the calls to the receiver (SPEC.md section 8.6).
         manifest["egress"]["receiver"] = receiver.url
+    # The backend, model API and MCP proxies share one budget for the request bodies.
+    budget = backend.Budget(backend.BODIES_TIMES * config.body_limit)
     proxies = backend.Proxies(
-        backends, folder / backend.FILE, keep=config.record_limit, body_limit=config.body_limit
+        backends,
+        folder / backend.FILE,
+        keep=config.record_limit,
+        body_limit=config.body_limit,
+        budget=budget,
     )
     env.update(proxies.start())
     for p in proxies.proxies:
@@ -891,6 +897,7 @@ def run(
         model_api.ModelProxy,
         config.record_limit,
         config.body_limit,
+        budget,
     )
     env.update(apis.start())
     # The app can keep its state in the test folder, for example in app-state/, so that the seal
@@ -905,6 +912,7 @@ def run(
         folder / mcp_proxy.FILE,
         mcp_proxy.HttpProxy,
         body_limit=config.body_limit,
+        budget=budget,
     )
     env.update(mcp.start())
     for p in mcp.proxies:

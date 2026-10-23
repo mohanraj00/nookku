@@ -2,6 +2,7 @@ import base64
 import gzip
 import hashlib
 import http.client
+import io
 import json
 import os
 import socket
@@ -632,3 +633,136 @@ def test_expect_100_continue_gets_the_refusal_at_once(tmp_path: Path) -> None:
     first, second = rows(tmp_path)
     assert first["error"] == "the proxy refused the request: the body is longer than 1000 bytes"
     assert first["request_body"] is None and second["error"] is None
+
+
+def trailer_request(count: int) -> bytes:
+    lines = b"".join(b"X-Toy-%d: teapot\r\n" % i for i in range(count))
+    return CHUNKED + b"6\r\nteapot\r\n0\r\n" + lines + b"\r\n"
+
+
+def test_the_trailer_lines_of_a_chunked_body_have_a_cap(tmp_path: Path) -> None:
+    head = b"POST /stock HTTP/1.1\r\nHost: shop\r\nConnection: close\r\n"
+    with StockServer() as stock:
+        proxies = proxy_for(stock, tmp_path)
+        env = proxies.start()
+        try:
+            at_cap = raw_request(env["STOCK_URL"], head + trailer_request(backend.TRAILERS))
+            over = raw_request(env["STOCK_URL"], head + trailer_request(backend.TRAILERS + 1))
+        finally:
+            proxies.stop()
+    assert backend.TRAILERS == 100
+    assert at_cap.startswith(b"HTTP/1.1 200 ")
+    reason = "the body has more than 100 trailer lines"
+    assert over.startswith(b"HTTP/1.1 400 ")
+    assert over.endswith(json.dumps({"error": f"nookku backend proxy: {reason}"}).encode())
+    # Only the body with 100 trailer lines went to the backend, with no trailer.
+    assert [s["body"] for s in stock.seen] == [b"teapot"]
+    first, second = rows(tmp_path)
+    assert first["error"] is None
+    assert second["error"] == f"the proxy refused the request: {reason}"
+    assert second["request_body"] is None
+
+
+def test_a_trailer_line_that_is_too_long_is_refused() -> None:
+    long_line = b"X-Toy: " + b"t" * backend.LINE + b"\r\n\r\n"
+    with pytest.raises(backend.Refused) as e:
+        backend.read_chunked(io.BytesIO(b"6\r\nteapot\r\n0\r\n" + long_line), 1000)
+    assert (e.value.status, str(e.value)) == (400, "a trailer line is too long")
+    end = b"6\r\nteapot\r\n0\r\nX-Toy: " + b"t" * (backend.LINE - 9) + b"\r\n\r\n"
+    assert backend.read_chunked(io.BytesIO(end), 1000) == b"teapot"
+
+
+@pytest.mark.parametrize("framing", ["length", "chunked"])
+def test_a_body_that_does_not_fit_in_the_budget_is_refused_and_not_read(framing: str) -> None:
+    budget = backend.Budget(1000)
+    assert budget.take(400)
+    headers = http.client.HTTPMessage()
+
+    def source(body: bytes) -> io.BytesIO:
+        if framing == "chunked":
+            return io.BytesIO(b"%x\r\n%s\r\n0\r\n\r\n" % (len(body), body))
+        return io.BytesIO(body)
+
+    if framing == "chunked":
+        headers["Transfer-Encoding"] = "chunked"
+    # A body that fills the budget to its size goes through, and takes its bytes.
+    headers["Content-Length"] = "600"
+    fits = source(b"t" * 600)
+    assert backend.read_body(headers, fits, 1000, budget) == b"t" * 600
+    assert budget.used == 1000
+    budget.give(600)
+    # One byte more does not fit. The proxy reads no byte of it, and takes no byte.
+    del headers["Content-Length"]
+    headers["Content-Length"] = "601"
+    over = source(b"t" * 601)
+    with pytest.raises(backend.Refused) as e:
+        backend.read_body(headers, over, 1000, budget)
+    assert e.value.status == 503
+    assert str(e.value) == "the proxies hold too many bytes of request bodies (at most 1000)"
+    assert budget.used == 400
+    assert over.tell() == (len(b"259\r\n") if framing == "chunked" else 0)
+
+
+def test_a_body_that_stops_gives_its_bytes_back() -> None:
+    budget = backend.Budget(1000)
+    with pytest.raises(backend.Refused):
+        backend.read_chunked(io.BytesIO(b"6\r\nteapot\r\n6\r\ntea"), 1000, budget)
+    headers = http.client.HTTPMessage()
+    headers["Content-Length"] = "10"
+    with pytest.raises(backend.Refused):
+        backend.read_body(headers, io.BytesIO(b"teapot"), 1000, budget)
+    assert budget.used == 0
+
+
+def test_parallel_bodies_share_one_budget(tmp_path: Path) -> None:
+    with StockServer() as stock:
+        b = backend.Backend("stock", "STOCK_URL", stock.url)
+        budget = backend.Budget(1000)
+        proxies = backend.Proxies([b], tmp_path / backend.FILE, budget=budget)
+        assert proxies.proxies[0].budget is budget
+        env = proxies.start()
+        host, port = env["STOCK_URL"].removeprefix("http://").split(":")
+        try:
+            with socket.create_connection((host, int(port)), timeout=10) as held:
+                # The first request sends one chunk of 600 bytes, and then waits. The proxy holds
+                # the chunk.
+                held.sendall(
+                    b"POST /stock HTTP/1.1\r\nHost: shop\r\nConnection: close\r\n"
+                    + CHUNKED
+                    + b"258\r\n"
+                    + b"a" * 600
+                    + b"\r\n"
+                )
+                deadline = time.monotonic() + 10
+                while budget.used != 600 and time.monotonic() < deadline:
+                    time.sleep(0.01)
+                assert budget.used == 600
+                at_cap, _, _ = request(env["STOCK_URL"], "POST", "/stock", b"b" * 400, {})
+                over, headers, got = request(env["STOCK_URL"], "POST", "/stock", b"c" * 401, {})
+                held.sendall(b"0\r\n\r\n")
+                answer = b""
+                while part := held.recv(65536):
+                    answer += part
+        finally:
+            proxies.stop()
+    assert (at_cap, over) == (200, 503)
+    assert ("Connection", "close") in headers
+    reason = "the proxies hold too many bytes of request bodies (at most 1000)"
+    assert json.loads(got) == {"error": f"nookku backend proxy: {reason}"}
+    assert answer.startswith(b"HTTP/1.1 200 ")
+    # Each byte of the 2 bodies that fit went to the backend. No byte of the refused body did.
+    assert [s["body"] for s in stock.seen] == [b"b" * 400, b"a" * 600]
+    assert budget.used == 0
+    errors = [r["error"] for r in rows(tmp_path)]
+    assert errors == [None, f"the proxy refused the request: {reason}", None]
+
+
+def test_the_budget_of_the_proxies_is_4_times_the_body_limit(tmp_path: Path) -> None:
+    b = backend.Backend("stock", "STOCK_URL", "http://127.0.0.1:9")
+    proxies = backend.Proxies([b], tmp_path / backend.FILE, body_limit=100)
+    try:
+        assert backend.BODIES_TIMES == 4
+        assert proxies.budget.size == 400 and proxies.proxies[0].budget is proxies.budget
+    finally:
+        for p in proxies.proxies:
+            p.server_close()

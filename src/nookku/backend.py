@@ -50,6 +50,16 @@ NOT_RETURNED = (HOP_BY_HOP - {"proxy-authenticate"}) | {"content-length"}
 # body and forwards none of it. This bound is a chosen value, not a measurement (SPEC.md section
 # 7.6).
 BODY_LIMIT = Config.body_limit
+# The proxies of one test hold at most BODIES_TIMES times body_limit bytes of request bodies at one
+# time. Thus many parallel requests do not use more memory than this. The proxy refuses a request
+# whose body does not fit, with status 503. This bound is a chosen value, not a measurement
+# (SPEC.md section 7.6).
+BODIES_TIMES = 4
+# The most trailer lines after the last chunk of a request body. This is the count of header lines
+# that http.server accepts. The proxy drops the trailer lines (SPEC.md section 7.6).
+TRAILERS = 100
+# The most bytes of one line of a chunked body, with its line end.
+LINE = 65537
 DIGITS = re.compile(r"[0-9]+")
 HEX = re.compile(rb"[0-9A-Fa-f]+")
 REFUSED = "the proxy refused the request"
@@ -214,30 +224,80 @@ def stopped() -> Refused:
     return Refused(400, "the body stopped before its end")
 
 
-def read_chunked(rfile: Any, limit: int) -> bytes:
+def busy(budget: Budget) -> Refused:
+    return Refused(
+        503, f"the proxies hold too many bytes of request bodies (at most {budget.size})"
+    )
+
+
+class Budget:
+    """The bytes of the request bodies that the proxies of one test hold at one time. A proxy takes
+    the bytes of a body before it reads them, and gives them back after it forwards the body."""
+
+    def __init__(self, size: int) -> None:
+        self.size = size
+        self.used = 0
+        self._lock = threading.Lock()
+
+    def take(self, count: int) -> bool:
+        """Take `count` bytes. Return False, and take none, if they do not fit."""
+        with self._lock:
+            if self.used + count > self.size:
+                return False
+            self.used += count
+            return True
+
+    def give(self, count: int) -> None:
+        with self._lock:
+            self.used -= count
+
+
+def read_chunked(rfile: Any, limit: int, budget: Budget | None = None) -> bytes:
     """A request body with Transfer-Encoding: chunked. Raise Refused if the body has more than
-    `limit` bytes, if a chunk is not valid, or if the body stops before its last chunk."""
+    `limit` bytes, if a chunk is not valid, if the body stops before its last chunk, if it has more
+    than TRAILERS trailer lines, or if a chunk does not fit in `budget`. The body takes its bytes
+    from `budget`. If this function raises, it gives them back."""
     out = bytearray()
-    while True:
-        line = rfile.readline(65537)
-        if not line.endswith(b"\n"):
-            raise stopped() if len(line) < 65537 else Refused(400, "a chunk size is not valid")
-        size_text = line.split(b";")[0].strip()
-        if not HEX.fullmatch(size_text):
-            raise Refused(400, "a chunk size is not valid")
-        size = int(size_text, 16)
-        if size == 0:
-            while rfile.readline(65537) not in (b"\r\n", b"\n", b""):
-                pass
+    taken = 0
+    try:
+        while True:
+            line = rfile.readline(LINE)
+            if not line.endswith(b"\n"):
+                raise stopped() if len(line) < LINE else Refused(400, "a chunk size is not valid")
+            size_text = line.split(b";")[0].strip()
+            if not HEX.fullmatch(size_text):
+                raise Refused(400, "a chunk size is not valid")
+            size = int(size_text, 16)
+            if size == 0:
+                return trailers(rfile, out)
+            if len(out) + size > limit:
+                raise too_long(limit)
+            if budget is not None:
+                if not budget.take(size):
+                    raise busy(budget)
+                taken += size
+            part = rfile.read(size)
+            if len(part) < size:
+                raise stopped()
+            out += part
+            if rfile.readline(LINE) not in (b"\r\n", b"\n"):
+                raise Refused(400, "a chunk does not end with a line end")
+    except BaseException:
+        if budget is not None:
+            budget.give(taken)
+        raise
+
+
+def trailers(rfile: Any, out: bytearray) -> bytes:
+    """Read and drop the trailer lines and the empty line after the last chunk. Return the body.
+    Raise Refused if a line is too long, or if more than TRAILERS lines come."""
+    for _ in range(TRAILERS + 1):
+        line = rfile.readline(LINE)
+        if line in (b"\r\n", b"\n", b""):
             return bytes(out)
-        if len(out) + size > limit:
-            raise too_long(limit)
-        part = rfile.read(size)
-        if len(part) < size:
-            raise stopped()
-        out += part
-        if rfile.readline(65537) not in (b"\r\n", b"\n"):
-            raise Refused(400, "a chunk does not end with a line end")
+        if not line.endswith(b"\n"):
+            raise stopped() if len(line) < LINE else Refused(400, "a trailer line is too long")
+    raise Refused(400, f"the body has more than {TRAILERS} trailer lines")
 
 
 def chunked(headers: Any) -> bool:
@@ -259,16 +319,25 @@ def declared(headers: Any, limit: int) -> int:
     return size
 
 
-def read_body(headers: Any, rfile: Any, limit: int) -> bytes:
+def read_body(headers: Any, rfile: Any, limit: int, budget: Budget | None = None) -> bytes:
     """The request body. Raise Refused if it has more than `limit` bytes, if its framing is not
-    valid, or if it stops before its end. The proxy reads no byte of a body that is too long."""
+    valid, if it stops before its end, or if it does not fit in `budget`. The proxy reads no byte
+    of a body that is too long or that does not fit. The body takes its bytes from `budget`, and
+    the caller gives them back. If this function raises, it gives them back."""
     if chunked(headers):
-        return read_chunked(rfile, limit)
+        return read_chunked(rfile, limit, budget)
     size = declared(headers, limit)
-    data = rfile.read(size)
-    if len(data) < size:
-        raise stopped()
-    return bytes(data)
+    if budget is not None and not budget.take(size):
+        raise busy(budget)
+    try:
+        data = rfile.read(size)
+        if len(data) < size:
+            raise stopped()
+        return bytes(data)
+    except BaseException:
+        if budget is not None:
+            budget.give(size)
+        raise
 
 
 class Proxy(ThreadingHTTPServer):
@@ -293,6 +362,9 @@ class Proxy(ThreadingHTTPServer):
         # headers and the bytes that came, with the error STREAM_ENDED.
         self.streams: dict[int, StreamBody] = {}
         self.closed = False
+        # The bytes of the request bodies that the proxy holds. Proxies gives one budget to all of
+        # the proxies of a test.
+        self.budget = Budget(BODIES_TIMES * BODY_LIMIT)
         target = urlsplit(backend.url)
         self.scheme = target.scheme
         self.host = target.hostname or ""
@@ -383,6 +455,8 @@ class Handler(BaseHTTPRequestHandler):
 
     # A refusal that the proxy found before the body, for a request with Expect: 100-continue.
     early: Refused | None = None
+    # The bytes of the request body that this handler took from the budget of the proxy.
+    held = 0
 
     def handle_expect_100(self) -> bool:
         """Send 100 Continue, except for a request that the proxy refuses from its headers. Such a
@@ -401,13 +475,26 @@ class Handler(BaseHTTPRequestHandler):
     do_POST = do_PUT = do_PATCH = do_DELETE = do_HEAD = do_OPTIONS = do_GET
 
     def _forward(self) -> None:
+        try:
+            self._call()
+        finally:
+            self._give_back()
+
+    def _give_back(self) -> None:
+        """Give the bytes of the request body back to the budget of the proxy."""
+        if self.held:
+            self.server.budget.give(self.held)
+            self.held = 0
+
+    def _call(self) -> None:
         started = time.time()
         proxy, method = self.server, self.command
         refused, self.early = self.early, None
         try:
             if refused is not None:
                 raise refused
-            body = read_body(self.headers, self.rfile, proxy.body_limit)
+            body = read_body(self.headers, self.rfile, proxy.body_limit, proxy.budget)
+            self.held = len(body)
         except Refused as e:
             # The proxy did not read all of the body, so the connection cannot take one more
             # request.
@@ -457,6 +544,9 @@ class Handler(BaseHTTPRequestHandler):
                 if body or method in ("POST", "PUT", "PATCH"):
                     conn.putheader("Content-Length", str(len(body)))
                 conn.endheaders(body or None)
+                # The body went to the backend, so the proxy holds it no more.
+                body = b""
+                self._give_back()
                 resp = conn.getresponse()
             except (OSError, http.client.HTTPException) as e:
                 proxy.end(row, {"ts": time.time(), "error": f"the backend did not answer: {e}"})
@@ -553,7 +643,7 @@ class Handler(BaseHTTPRequestHandler):
         headers = [("Content-Type", "application/json"), ("Connection", "close")]
         limit = self.server.body_limit
         left = max(DROP_BYTES, DROP_TIMES * limit)
-        if refused.status == 413 and not chunked(self.headers):
+        if refused.status in (413, 503) and not chunked(self.headers):
             # The proxy read no byte of the body, so the Content-Length gives the rest.
             left = min(left, int(self.headers["Content-Length"].strip()))
         try:
@@ -591,15 +681,20 @@ class Proxies:
         kind: type[Proxy] = Proxy,
         keep: int | None = None,
         body_limit: int = BODY_LIMIT,
+        budget: Budget | None = None,
     ) -> None:
         """`keep` is the most bytes of a body that the record keeps, or None for the default of
-        the kind. `body_limit` is the most bytes of a request body that a proxy reads."""
+        the kind. `body_limit` is the most bytes of a request body that a proxy reads. `budget`
+        holds the bytes of the request bodies of all the proxies of the test. If it is None,
+        these proxies get a new budget of BODIES_TIMES times `body_limit`."""
         self.lock = threading.Condition()
+        self.budget = Budget(BODIES_TIMES * body_limit) if budget is None else budget
         self.proxies = [kind(b, record, self.lock) for b in backends]
         for p in self.proxies:
             if keep is not None:
                 p.keep = keep
             p.body_limit = body_limit
+            p.budget = self.budget
 
     def start(self) -> dict[str, str]:
         """Start each proxy. Return the variables that give the entry the proxy URLs."""
