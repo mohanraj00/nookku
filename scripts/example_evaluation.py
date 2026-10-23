@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import json
 import shutil
-import socket
 import subprocess
 import sys
 from datetime import date
@@ -26,7 +25,7 @@ from typing import Any, NamedTuple
 ROOT = Path(__file__).resolve().parent.parent
 sys.path[:0] = [str(ROOT / "src"), str(ROOT / "scripts")]
 
-from proof_common import json_lines, private  # noqa: E402
+from proof_common import held_port, json_lines, private  # noqa: E402
 from proof_report import ENV, relay_runner, run_test, scrub  # noqa: E402
 
 from nookku import kit, mcp  # noqa: E402
@@ -69,13 +68,6 @@ WORDS_ONLY = [
     f"--allowedTools={TRANSCRIPT}",
     f"--disallowedTools={','.join(OTHER_TOOLS)}",
 ]
-
-
-def free_port() -> int:
-    with socket.socket() as s:
-        s.bind(("127.0.0.1", 0))
-        port: int = s.getsockname()[1]
-        return port
 
 
 def setup(project: Path, python: str = sys.executable) -> None:
@@ -176,8 +168,10 @@ def main() -> int:
     # Remove the temporary project also if a step raises an error, for example a timeout of ask().
     try:
         setup(project)
-        ENV["TOY_SHOP_PORT"] = str(free_port())
-        ran = run_test(project, run, start, end, [], MESSAGES)
+        # The socket holds the port until the test ends, so no other process takes it.
+        with held_port() as port:
+            ENV["TOY_SHOP_PORT"] = str(port)
+            ran = run_test(project, run, start, end, [], MESSAGES)
         if ran is None:
             print("FAIL: the test did not start")
             return 1

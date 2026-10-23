@@ -50,6 +50,15 @@ def post(
         return e.code, e.read()
 
 
+def wait_for(path: Path) -> None:
+    """Wait until the agent makes the file `path`. A short tap timeout is for the reply, not for
+    the start of Python. On a busy machine the start can take more than 1 s, and then a stray
+    line comes after the timeout (#452)."""
+    ready = time.monotonic() + 30
+    while not path.exists() and time.monotonic() < ready:
+        time.sleep(0.01)
+
+
 def case_request(request: str | dict, token: str) -> tuple[str, dict[str, str | None]]:
     """The body and the headers of one request of a case. A request is a body, or an object
     with the body, the token ("right", "none" or "wrong") and other headers."""
@@ -70,6 +79,7 @@ def test_contract_case(case_dir: Path, tmp_path: Path) -> None:
     agent.start()
     start_in_thread(tap)
     try:
+        wait_for(got)  # the agent opens got.bin before it reads a line
         statuses = []
         for request in case["requests"]:
             statuses.append(post(tap, *case_request(request, tap.token))[0])
@@ -314,6 +324,7 @@ def test_a_stray_line_before_the_reply_is_not_the_reply(tmp_path: Path) -> None:
 # The entry writes its logs on stdout and never sends a reply line.
 LOGS_ON_STDOUT = """
 import sys
+open(sys.argv[1], "w").close()
 for raw in sys.stdin.buffer:
     for step in ("loading catalog", "looking up the order", "order found"):
         print("toy shop: " + step, flush=True)
@@ -323,11 +334,14 @@ for raw in sys.stdin.buffer:
 def test_a_timeout_after_stray_lines_names_them_and_the_fix(tmp_path: Path) -> None:
     script = tmp_path / "entry.py"
     script.write_text(LOGS_ON_STDOUT)
-    agent = Agent([sys.executable, str(script)], tmp_path, tmp_path / "app.log", timeout=1)
+    ready = tmp_path / "ready"
+    argv = [sys.executable, str(script), str(ready)]
+    agent = Agent(argv, tmp_path, tmp_path / "app.log", timeout=1)
     tap = StdioTap(("127.0.0.1", 0), agent, tmp_path / "tap.jsonl")
     agent.start()
     start_in_thread(tap)
     try:
+        wait_for(ready)
         status, body = post(tap, contract.request("m-1", "t-1", "Where is my mug?", []).decode())
     finally:
         tap.shutdown()

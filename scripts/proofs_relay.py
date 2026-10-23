@@ -77,6 +77,7 @@ from proof_common import (  # noqa: E402
     copy_hidden,
     hide,
     json_lines,
+    new_state,
     planted,
     rows,
 )
@@ -358,8 +359,7 @@ def main_page(out: Path) -> int:
     project = project_of(PAGE_SETUP)
     shutil.rmtree(project / kit.STATE_DIR / "tests", ignore_errors=True)
     project.mkdir(parents=True, exist_ok=True)
-    # init keeps each key of an old config, so each run starts with a new config (#438).
-    (project / kit.CONFIG_FILE).unlink(missing_ok=True)
+    new_state(project)
     # The proof starts nookku chat itself, so the start opens no second page.
     kit.init(project, "plugin", asdict(kit.Config(entry=ENTRY, page=False)))
     # Each run starts with no session of an earlier run, so that P3 reads only this run.
@@ -599,8 +599,7 @@ def main() -> int:
     project = project_of(setup)
     shutil.rmtree(project / kit.STATE_DIR / "tests", ignore_errors=True)
     project.mkdir(parents=True, exist_ok=True)
-    # init keeps each key of an old config, so each run starts with a new config (#438).
-    (project / kit.CONFIG_FILE).unlink(missing_ok=True)
+    new_state(project)
     config = kit.Config(entry=ENTRY, page=False)  # a proof opens no browser tab
     kit.init(project, harness if form == "hooks" else "plugin", asdict(config))
     versions = {"claude-code": ["claude", "--version"], "codex": ["codex", "--version"]}

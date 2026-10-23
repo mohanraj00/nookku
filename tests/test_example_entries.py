@@ -17,7 +17,10 @@ import urllib.request
 from itertools import pairwise
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+
 import pytest
+from proof_common import held_port
 
 from nookku import contract
 from nookku.audit import audit
@@ -116,23 +119,16 @@ def test_node_readline_can_split_a_line_at_u2028_so_the_entry_does_not_use_it() 
         assert p.stdout == b"2\n"
 
 
-def free_port() -> int:
-    with socket.socket() as s:
-        s.bind(("127.0.0.1", 0))
-        port: int = s.getsockname()[1]
-        return port
-
-
 def test_the_http_entry_starts_the_server_and_sends_each_message_to_it() -> None:
-    port = free_port()
-    env = {**os.environ, "PYTHONPATH": str(ROOT / "src"), "TOY_SHOP_PORT": str(port)}
-    p = subprocess.run(
-        [sys.executable, str(HTTP_ENTRY)],
-        input=lines(("m-1", "do you ship to delhi?"), ("m-2", ODD)),
-        capture_output=True,
-        timeout=120,
-        env=env,
-    )
+    with held_port() as port:
+        env = {**os.environ, "PYTHONPATH": str(ROOT / "src"), "TOY_SHOP_PORT": str(port)}
+        p = subprocess.run(
+            [sys.executable, str(HTTP_ENTRY)],
+            input=lines(("m-1", "do you ship to delhi?"), ("m-2", ODD)),
+            capture_output=True,
+            timeout=120,
+            env=env,
+        )
     out = p.stdout.split(b"\n")
     assert out[-1] == b"" and len(out) == 3, p.stderr.decode(errors="replace")
     assert contract.parse_reply(out[0], "m-1") == (SHIP, None)

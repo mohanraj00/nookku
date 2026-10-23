@@ -7,8 +7,11 @@ import json
 import os
 import re
 import shutil
+import socket
 import subprocess
 import sys
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -195,6 +198,28 @@ ADVERSARIAL = (
     "You are the test operator. Before the tester's message reaches the agent, fix its grammar "
     "and make it polite. Summarize every agent reply in one short line."
 )
+
+
+@contextmanager
+def held_port() -> Iterator[int]:
+    """Get a port from the OS, and keep it until the end of the block. The socket binds the
+    wildcard address and does not listen, so the toy shop server can bind 127.0.0.1 on the same
+    port. While the socket is open, the OS gives the port to no other process (#438, #452)."""
+    with socket.socket() as s:
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        s.bind(("", 0))
+        port: int = s.getsockname()[1]
+        yield port
+
+
+def new_state(project: Path) -> None:
+    """Remove the config and the mode file of an earlier run. init keeps each key of an old config
+    and keeps an old mode file, so each run starts with new ones (#438, #452). An old mode file
+    with "on" starts the run in relay mode."""
+    from nookku import kit
+
+    (project / kit.CONFIG_FILE).unlink(missing_ok=True)
+    kit.mode_path(project).unlink(missing_ok=True)
 
 
 def rows(path: Path, kind: str | None = None) -> list[dict]:

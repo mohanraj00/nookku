@@ -45,6 +45,8 @@ from typing import Any
 ROOT = Path(__file__).resolve().parent.parent
 sys.path[:0] = [str(ROOT / "src")]
 
+from proof_common import new_state  # noqa: E402
+
 from nookku import __version__, codex_gate, discovery, state  # noqa: E402
 from nookku.config import STATE_DIR  # noqa: E402
 
@@ -169,9 +171,8 @@ def install() -> Path:
 
 def project() -> None:
     PROJECT.mkdir(parents=True, exist_ok=True)
-    # init keeps each key of an old config, so each run starts with a new config (#438).
+    new_state(PROJECT)
     path = PROJECT / STATE_DIR / "config.json"
-    path.unlink(missing_ok=True)
     run(["nookku", "init", "plugin", "--entry", f"{sys.executable} {TOY_SHOP}"], PROJECT)
     # A proof opens no browser tab.
     path.write_text(json.dumps(json.loads(path.read_text()) | {"page": False}, indent=2) + "\n")
