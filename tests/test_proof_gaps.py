@@ -93,3 +93,12 @@ def test_the_sample_report_check_accepts_the_row_word(
     )
     monkeypatch.setattr(test_docs, "ROOT", tmp_path)
     test_docs.test_the_sample_report_of_the_readme_is_an_excerpt_of_its_data()
+
+
+def test_a_separator_in_the_claude_answer_cannot_hide_an_empty_codex_answer(tmp_path: Path) -> None:
+    row = {
+        "type": "exchange",
+        "reply": "Quoted text\n\nSecond opinion: not the Codex answer.\n\nSecond opinion: ",
+    }
+    (tmp_path / "tap.jsonl").write_text(json.dumps(row) + "\n")
+    assert not ps.codex_answered(tmp_path)

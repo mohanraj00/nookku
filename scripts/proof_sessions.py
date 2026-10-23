@@ -41,19 +41,21 @@ def codex_answered(folder: Path) -> bool:
     """Each combined reply has a nonempty Codex part, not just a Claude Code answer.
 
     The entry writes the final Codex answer after this marker. An earlier commentary message
-    in trace.jsonl cannot make an empty final answer pass.
+    in trace.jsonl cannot make an empty final answer pass. An ambiguous marker fails the proof.
     """
     path = folder / "tap.jsonl"
     if not path.exists():
         return False
     replies = []
+    marker = "\n\nSecond opinion: "
     for raw in path.read_text(encoding="utf-8").split("\n"):
         if not raw:
             continue
         row = json.loads(raw)
         if row.get("type") == "exchange":
             reply = row.get("reply")
-            second = reply.partition("\n\nSecond opinion: ")[2] if isinstance(reply, str) else ""
+            unambiguous = isinstance(reply, str) and reply.count(marker) == 1
+            second = reply.partition(marker)[2] if unambiguous else ""
             replies.append(bool(second.strip()))
     return bool(replies) and all(replies)
 

@@ -307,10 +307,9 @@ The `date` and `versions` fields of each linked result give its tested versions 
 
 The run of the plugin in Claude Code with nookku 0.5.3 on 2026-10-19 failed E1. The answer of the model was correct for the 2 MCP servers and the 2 databases, but it also had an `other` part: the file `notes.json`, which the notes MCP server writes. The manifest then named that part in `unseen`, and E1 needs an empty `unseen`. All other checks passed. No code of nookku caused the fail: the discovery task did not say if a file that an MCP server writes is an egress part, and the 2 answers are different readings of it. I ran the proof again 1 time, and that run passed. The table keeps the failed run.
 
-The discovery in Claude Code runs in its Bash sandbox, which can write each file in the project. The current E2 hashes each project file except the discovery answer files and the test folder. It compares the union of the before and after paths, so it finds added and removed files too. The Claude Code results in the table predate this check; their E2 checked only the app files. The release proofs must run them again with the current method.
+The discovery in Claude Code runs in its Bash sandbox, which can write each file in the project. The current E2 hashes each project file except the discovery answer files and the test folder. It compares the union of the before and after paths, so it finds added and removed files too. The Claude Code results in the table predate the current E1 and E2 checks. Their E1 did not check the model API, and their E2 checked only the app files. The release proofs must run them again with the current method.
 
 The Codex egress proofs were run again for [#456](https://github.com/mohanraj00/nookku/issues/456). Both [plugin](../proofs/egress/plugin-codex.json) and [project hooks](../proofs/egress/hooks-codex.json) pass the stricter discovery and project-file checks. Their `versions`, `date`, `answer`, `E2_files_before` and `E2_files_after` fields give the data. The [method](../scripts/proof_egress.py) uses the discovery answer of the harness model.
-
 
 ## 2. Benchmark under pressure
 
