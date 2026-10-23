@@ -153,6 +153,14 @@ def load_config(root: Path, entry_name: str | None = None) -> TestConfig:
     )
 
 
+# The end of an error of a database proxy at the start. The driver trace is the second path
+# for a database (SPEC.md section 7.11).
+DRIVER_HINT = (
+    "If the proxy cannot connect to this database, give 'record' driver for it in the egress "
+    "answer, and add the OpenTelemetry instrumentation of its driver to the agent."
+)
+
+
 def egress_proxies(
     answer: dict[str, Any], environ: dict[str, str] | os._Environ[str], otel: bool = True
 ) -> tuple[list[backend.Backend], list[backend.Backend]]:
@@ -167,9 +175,12 @@ def egress_proxies(
         )
     try:
         apis = model_api.backends(answer["model_apis"], environ)
-        db_proxy.databases(answer["databases"], environ)
     except ValueError as e:
         raise BridgeError(f"the egress answer: {e}") from None
+    try:
+        db_proxy.databases(answer["databases"], environ)
+    except ValueError as e:
+        raise BridgeError(f"the egress answer: {str(e).rstrip('.')}. {DRIVER_HINT}") from None
     return backend.from_answer(answer["backends"]), apis
 
 

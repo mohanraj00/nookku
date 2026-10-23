@@ -52,6 +52,7 @@
   "questions_lost": 0,
   "database_error": 0,
   "unseen_call": 0,
+  "driver_without_span": 0,
   "model_error": 0,
   "turn_without_model": 0,
   "item_between_turns": 0,

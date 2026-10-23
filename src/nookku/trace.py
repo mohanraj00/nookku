@@ -55,6 +55,7 @@ CHECKS = (
     "questions_lost",
     "database_error",
     "unseen_call",
+    "driver_without_span",
     "model_error",
     "turn_without_model",
     "item_between_turns",
@@ -1128,20 +1129,22 @@ def with_driver_queries(items: list[dict[str, Any]], answer: Any) -> list[dict[s
     """The items, with a `query` item right after each database span of the app that a
     `record: driver` database of the egress answer covers: the driver trace (SPEC.md section
     8.4). A span of a `record: proxy` database gets no item, because the proxy records the query.
-    A span has no rows, so the item has no output."""
-    covered = _driver_seen(answer)
+    A span has no rows, so the item has no output. The session is the database name of the span,
+    else the name of the one driver database that covers it, else the system."""
+    databases = driver_marks(answer)
     out = []
     for it in items:
         out.append(it)
         system = _db_system(it)
-        if system is None or not _db_marks(it["input"]) & covered:
+        marks = _db_marks(it["input"]) if system is not None else set()
+        covers = [name for name, seen in databases if marks & seen]
+        if system is None or not covers:
             continue
         attrs = it["input"]
         query = _first(attrs, DB_TEXT)
         params = {k[len(DB_PARAMETER) :]: v for k, v in attrs.items() if k.startswith(DB_PARAMETER)}
-        q = _item(
-            "driver", _first(attrs, DB_NAME) or system, otlp.FILE, it["source"]["line"], it["ts"]
-        )
+        session = _first(attrs, DB_NAME) or (covers[0] if len(covers) == 1 else system)
+        q = _item("driver", session, otlp.FILE, it["source"]["line"], it["ts"])
         q.update(kind="query", name=_query_name(query or _first(attrs, DB_OPERATION)))
         q.update(input={"query": query, "parameters": params or None}, error=it["error"])
         q["service"] = it["service"]
@@ -1192,7 +1195,12 @@ def egress_seen(manifest: dict[str, Any]) -> set[str] | None:
 
 
 def _driver_seen(answer: Any) -> set[str]:
-    """The marks and the addresses of the databases with a driver trace (SPEC.md section 8.6). A
+    """The marks of all databases with a driver trace (driver_marks)."""
+    return {m for _, marks in driver_marks(answer) for m in marks}
+
+
+def driver_marks(answer: Any) -> list[tuple[str, set[str]]]:
+    """The name and the marks of each database with a driver trace (SPEC.md section 8.6). A
     span does not name the database of the answer. Thus a driver database makes each call of its
     system seen, if no `record: proxy` database has the same system. Else only a call of its
     system to the host:port of its `address`, and to its database if the address names one, is
@@ -1201,16 +1209,31 @@ def _driver_seen(answer: Any) -> set[str]:
     parts = [d for d in databases if isinstance(d, dict)] if isinstance(databases, list) else []
     kinds = [(d, db_system(d["kind"])) for d in parts if isinstance(d.get("kind"), str)]
     proxied = {k for d, k in kinds if d.get("record") == "proxy"}
-    out = set()
+    out = []
     for d, kind in kinds:
         if d.get("record") != "driver":
             continue
+        marks = set()
         if kind not in proxied:
-            out.add(DRIVER_SEEN + kind)
+            marks.add(DRIVER_SEEN + kind)
         elif (where := driver_address(d.get("address"))) is not None:
             host, port, database = where
-            out.add(_driver_mark(kind, f"{host}:{port}", database))
+            marks.add(_driver_mark(kind, f"{host}:{port}", database))
+        out.append((str(d.get("name")), marks))
     return out
+
+
+def drivers_without_span(
+    items: list[dict[str, Any]], drivers: list[tuple[str, set[str]]]
+) -> list[dict[str, Any]]:
+    """The `driver_without_span` findings: each database with a driver trace that no database
+    span of the app covers (SPEC.md section 8.6)."""
+    found = [_db_marks(it["input"]) for it in items if _db_system(it) is not None]
+    return [
+        _finding("driver_without_span", None, f"{name}: no database span of its driver")
+        for name, marks in drivers
+        if not any(m & marks for m in found)
+    ]
 
 
 def _driver_mark(system: str, address: str, database: str | None) -> str:
@@ -1282,6 +1305,7 @@ def check(
     seen: set[str] | None = None,
     points: list[dict[str, Any]] | None = None,
     unread: list[str] | None = None,
+    drivers: list[tuple[str, set[str]]] | None = None,
 ) -> list[dict[str, Any]]:
     """The findings of SPEC.md section 8.6. They do not change the audit's exit code. `seen`
     holds the addresses of the proxies (egress_seen), or None if the test has no egress answer.
@@ -1291,7 +1315,8 @@ def check(
     `errors` holds the model errors of the Codex session files (read_codex_errors).
     `points` holds the trace points of the app spec in the manifest (app_spec.valid).
     `unread` holds the details of the parts of the app spec that the trace does not check
-    (app_spec.unread)."""
+    (app_spec.unread).
+    `drivers` holds the name and the marks of each database with a driver trace (driver_marks)."""
     keys = {**TRACE_KEYS, **(keys or {})}
     out: list[dict[str, Any]] = []
     # A call to an MCP server is a call of the app, not an item of the model.
@@ -1346,10 +1371,13 @@ def check(
             detail = f"{name}: a tool_result event with no tool call in the session file"
             out.append(_finding("otel_tool_not_in_session", it["turn"], detail, **where))
         first = spans[0][0] if spans else None
-        if it["turn"] is None and first is not None and it["ts"] is not None and it["ts"] >= first:
+        late = it["turn"] is None and first is not None and it["ts"] is not None
+        # A driver query and its span are one call: the span gives the finding.
+        if late and it["harness"] != "driver" and it["ts"] >= first:
             out.append(_finding("item_between_turns", None, f"a {it['kind']} item", **where))
     if seen is not None:
         out += unseen_calls(items, seen)
+    out += drivers_without_span(items, drivers or [])
     for e in errors or []:
         turn = _turn(e["ts"], spans)
         where = {"harness": e["harness"], "session": e["session"]}
@@ -1423,13 +1451,12 @@ def build(folder: Path) -> dict[str, Any]:
                 where = {"harness": s["harness"], "session": s["session"], "file": s["file"]}
                 errors += [{**where, **x} for x in read_codex_errors(folder / s["file"])]
         sessions.append(info)
+    egress = manifest.get("egress")
+    answer = egress.get("answer") if isinstance(egress, dict) else None
     otel = None
     if (folder / otlp.FILE).exists():
         found, otel = read_otel(folder / otlp.FILE)
-        egress = manifest.get("egress")
-        items += with_driver_queries(
-            found, egress.get("answer") if isinstance(egress, dict) else None
-        )
+        items += with_driver_queries(found, answer)
     calls = None
     if (folder / backend.FILE).exists():
         found, calls = read_backend(folder / backend.FILE)
@@ -1449,9 +1476,12 @@ def build(folder: Path) -> dict[str, Any]:
     items.sort(key=lambda it: it["ts"] if it["ts"] is not None else float("inf"))
     assign(items, spans)
     keys, seen = trace_keys(manifest), egress_seen(manifest)
+    drivers = driver_marks(answer)
     points = app_spec.valid(manifest.get("trace_points"))
     unread = app_spec.unread(manifest.get("trace_points_unread"))
-    findings = check(exchanges, spans, items, sessions, servers, keys, errors, seen, points, unread)
+    findings = check(
+        exchanges, spans, items, sessions, servers, keys, errors, seen, points, unread, drivers
+    )
     try:
         point_summary = app_spec.summary(manifest.get("trace_points"), items, len(exchanges))
     except Exception:  # check() gives the finding trace_points_unread for the same error.

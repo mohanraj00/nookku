@@ -27,6 +27,7 @@
   "questions_lost": 0,
   "database_error": 1,
   "unseen_call": 0,
+  "driver_without_span": 0,
   "model_error": 0,
   "turn_without_model": 0,
   "item_between_turns": 0,
@@ -52,9 +53,9 @@
   {
    "check": "database_error",
    "turn": 2,
-   "detail": "postgresql: SELECT: relation \"nope\" does not exist",
+   "detail": "shop: SELECT: relation \"nope\" does not exist",
    "harness": "driver",
-   "session": "postgresql",
+   "session": "shop",
    "source": {
     "file": "otel.jsonl",
     "line": 3

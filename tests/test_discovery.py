@@ -171,6 +171,22 @@ def test_a_driver_trace_needs_the_otlp_receiver(tmp_path: Path) -> None:
     assert state.current(root) is None
 
 
+def test_a_proxy_error_at_the_start_names_the_driver_trace(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = project(tmp_path)
+    monkeypatch.delenv("SHOP_DB_URL", raising=False)
+    shop = {"name": "shop", "kind": "postgres", "env": "SHOP_DB_URL", "address": None}
+    discovery.register(root, {**EMPTY, "databases": [{**shop, "record": "proxy"}]})
+    with pytest.raises(bridge.BridgeError) as e:
+        bridge.start(root)
+    assert str(e.value) == (
+        "the egress answer: the database shop: the variable SHOP_DB_URL has no value. The proxy "
+        f"needs the postgres URL in it. {bridge.DRIVER_HINT}"
+    )
+    assert state.current(root) is None
+
+
 def test_a_replay_uses_the_answer_of_its_old_test(tmp_path: Path) -> None:
     old = tmp_path / "old"
     old.mkdir()

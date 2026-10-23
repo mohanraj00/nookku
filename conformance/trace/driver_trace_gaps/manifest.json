@@ -1,0 +1,36 @@
+{
+ "test": "20261022-090000-dg01",
+ "model_sessions": [],
+ "egress": {
+  "registered": 1791273600.0,
+  "answer": {
+   "model_apis": [],
+   "backends": [],
+   "mcp_servers": [],
+   "databases": [
+    {
+     "name": "stock",
+     "kind": "sqlite",
+     "env": null,
+     "address": "stock.db",
+     "record": "driver"
+    },
+    {
+     "name": "returns",
+     "kind": "postgres",
+     "env": "RETURNS_URL",
+     "address": null,
+     "record": "driver"
+    }
+   ],
+   "other": []
+  },
+  "unseen": [],
+  "driver": [
+   "stock",
+   "returns"
+  ],
+  "proxies": {},
+  "receiver": "http://127.0.0.1:41000"
+ }
+}
