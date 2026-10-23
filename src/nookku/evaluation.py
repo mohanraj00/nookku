@@ -198,6 +198,11 @@ def render_item(it: dict[str, Any], line: int) -> str:
                 out += "".join(f"{decision(a)}\n" for a in answers if isinstance(a, dict))
             else:
                 out += f"{_cut(it['output'] or '', line)}\n"
+        if it["harness"] == "gateway" and it["role"] == "assistant":
+            # The gateway log gives no status for a call that it logged as a success.
+            path = _one_line(str(it["input"].get("path")))
+            out = f"{head}, assistant: key {_one_line(str(it['session']))} {path}:\n"
+            out += f"{_cut(it['output'] or '', line)}\n"
         if it.get("error") is not None:
             out += f"error:\n{_cut(it['error'], line)}\n"
         return out

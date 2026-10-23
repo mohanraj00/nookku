@@ -583,7 +583,7 @@ The seal shows if a file of the test folder changed after the end of the test. I
 
 `verify` exits with 0 if `intact` is true, and with 2 if it is false. `nookku transcript --trace` shows the result in its first line, or in its second line if a record is not valid (section 9.2).
 
-`nookku trace` rebuilds `trace.jsonl`, `findings.json` and `performance.json`. If a seal or a copy exists, it rebuilds them only if each other sealed file agrees with the seal, `seal.json` exists, and the copy is not `different` or `missing`. Then it writes the new SHA-256 of the 3 files to the seal and to the copy. A test of Nookku 0.5.3 or earlier has no `performance.json`, so the rebuild adds it to the seal.
+`nookku trace` rebuilds `trace.jsonl`, `findings.json` and `performance.json`. If a seal or a copy exists, it rebuilds them only if each other sealed file agrees with the seal, `seal.json` exists, and the copy is not `different` or `missing`. Then it writes the new SHA-256 of the 3 files to the seal and to the copy. A test of Nookku 0.5.3 or earlier has no `performance.json`, so the rebuild adds it to the seal. If `nookku trace --gateway` writes `gateway.jsonl` (section 8.9), the rebuild also writes its SHA-256 to the seal and to the copy.
 
 The conformance cases in `conformance/seal/` test `verify`.
 
@@ -1161,6 +1161,75 @@ nookku trace [TEST] --egress spans.jsonl
 Each finding has `harness` `egress`, `session` (the host, or `""`) and `source` (`egress.jsonl` and the line of the span). The cases [`conformance/trace/egress_spans/`](conformance/trace/egress_spans/), [`egress_spans_no_answer/`](conformance/trace/egress_spans_no_answer/) and [`egress_spans_version_two/`](conformance/trace/egress_spans_version_two/) give each finding, a span outside the window, an ignored host, a span with no `v`, and a span of version 2.
 
 **The limits.** In a Koodam Workspace, only TLS on port 443 with SNI and HTTP on port 80 reach an external name. A TLS client with no SNI is denied. An external Postgres database, or an app at a private address, needs `workspace.networkPolicy.extraEgress`, and that traffic has no span. A call inside the pod, for example from the app to a proxy of nookku, has no span. Thus the spans show the calls of the proxies of nookku to the upstream hosts, and each call of the app around them.
+
+### 8.9 Gateway logs
+
+An app can get its model key from a LiteLLM gateway. Then the spend logs of the gateway have each model call of that key. In a Koodam cluster, each Agent has 1 gateway key with the alias `kd-<agent uid>`, and a Workspace can have a key with the alias `ws-<namespace>-<name>-<hash8>`. The tester gives the alias to Nookku. Koodam has no key for each test, so the match uses the key alias and the time window of the test.
+
+`nookku trace [TEST] --gateway SOURCE --key-alias ALIAS [--key-alias ALIAS] [--gateway-tag TAG]` reads the logs and writes `gateway.jsonl` in the test folder. Then it builds the trace. `--gateway` needs 1 or more `--key-alias`, and the opposite. Else the command exits with code 2. Nookku sends nothing to the gateway except the read of its logs.
+
+1. If the test has a seal, the command checks it first (section 7.4). If the seal is broken, it reads no log and changes no file.
+2. The test must have `started` and `ended` in the manifest. Else the command stops with `the test has no start or no end time. End the test first.`
+3. It reads the logs from `SOURCE`:
+   - An `http` or `https` URL is the base URL of the gateway API. The command sends `GET <base>/spend/logs?start_date=<day>&end_date=<day>&summarize=false`, with the UTC day of `started` and the UTC day after `ended`. The header is `Authorization: Bearer <key>`, with the key from the variable `NOOKKU_GATEWAY_KEY`. The command refuses a URL with a query, a URL that is not valid, and an empty key. It sends the key only over `https`, or over `http` to a loopback host: `localhost`, a name that ends with `.localhost`, or a loopback IP address. It refuses each other `http` URL before it sends a request, because the key would go over a network as plain text. It does not follow a redirect, so the key goes to no other URL. The wait is 60 seconds.
+   - Any other `SOURCE` is a file: the output of `GET /spend/logs`.
+   - The logs are a JSON list, an object with a `data` list (`GET /spend/logs/v2`), or one JSON object on each line. The command reads at most 256 MiB, a chosen limit, because it holds all of the logs in memory.
+4. It keeps a log if all of these are true. Else it counts the log in `skipped` by the first reason that applies:
+   - `not_a_log`: the log is a JSON object.
+   - `other_key`: `metadata.user_api_key_alias` is one of the `--key-alias` values.
+   - `outside_test`: `startTime` is from `started` to `ended` of the manifest, both ends included. A time with no zone is UTC.
+   - `no_tag`: with `--gateway-tag`, `request_tags` has the tag.
+5. It writes `gateway.jsonl`: a `source` row, then a `call` row for each kept log, sorted by `started`.
+6. It builds the trace. If the test has a seal, it writes the SHA-256 of `gateway.jsonl`, `trace.jsonl`, `findings.json` and `performance.json` to the seal and to the copy. If the build fails after the read, for example because `tap.jsonl` is not valid, the seal still gets the SHA-256 of `gateway.jsonl`, as for `egress.jsonl` (section 8.8).
+
+If the command cannot read the logs, it prints `nookku: the gateway logs were not read: <reason>`, exits with code 2, and changes no file. A later `nookku trace` with no `--gateway` reads `gateway.jsonl` again.
+
+**Clock.** The window uses the clock of the computer that ran the test. `startTime` uses the clock of the gateway. If the 2 clocks differ by more than the time from the start of the test to the first call, the first call can show as `outside_test`. Compare the `kept` count with the count of model calls that you expect.
+
+**Tags.** LiteLLM 1.104.2 keeps the tags of a request in `request_tags`: the `metadata.tags` of the body, and the `x-litellm-tags` header. It also adds a `User-Agent: <agent>` tag. Thus an app can send a tag, and `--gateway-tag` keeps only its calls. The model API proxies of Nookku (section 7.7) add no tag. They forward each byte. The [data](proofs/gateway/results.json) records the LiteLLM version, the tags, the counts of each read and the checks. The [method](scripts/proof_gateway.py) starts LiteLLM and Postgres in Docker with a toy model, so it uses no model. A toy app makes calls with 2 keys, before the test and in 2 turns. Then the method reads the logs from the API and from a file.
+
+`gateway.jsonl` has these rows. Each row has `v: 1` and `gateway: "litellm"`.
+
+| Field | Row | Meaning |
+|---|---|---|
+| `type` | both | `source` or `call`. |
+| `source` | `source` | The URL with no user, no password and no query, or the name of the file. |
+| `key_aliases` | `source` | The `--key-alias` values. |
+| `tag` | `source` | The `--gateway-tag` value, or `null`. |
+| `window` | `source` | `[started, ended]` of the manifest. |
+| `read` | `source` | The Unix time of the read. |
+| `kept` | `source` | The count of `call` rows. |
+| `skipped` | `source` | The count of the skipped logs, by reason. |
+| `request_id` | `call` | The `request_id` of the log. |
+| `call_type` | `call` | The `call_type` of the log, for example `acompletion`. |
+| `api`, `path` | `call` | For `completion` and `acompletion`: `openai` and `/v1/chat/completions`. For `anthropic_messages`: `anthropic` and `/v1/messages`. For `responses` and `aresponses`: `openai` and `/v1/responses`. Else `null`. |
+| `key_alias` | `call` | `metadata.user_api_key_alias`. |
+| `tags` | `call` | The strings of `request_tags`. |
+| `started`, `ts` | `call` | The Unix time of `startTime` and of `endTime`, or `null`. |
+| `status` | `call` | For a log with a `status` that is not `success`: `metadata.error_information.error_code` as an integer, if it has 1 to 3 digits. Else `null`. |
+| `error` | `call` | For a log with a `status` that is not `success`: `metadata.error_information.error_message`, else `the gateway logged the status <status>`. Else `null`. |
+| `request` | `call` | `proxy_server_request`, with no key that can hold a secret (below), or `null`. |
+| `request_cut`, `response_cut` | `call` | True if the request or the response has the cut mark of LiteLLM, `(litellm_truncated skipped `. LiteLLM cuts a long string before it stores the log. |
+| `response` | `call` | The `response` object of the log, or `null` if it is empty. |
+| `result` | `call` | The result of the response (section 7.7), or `null`. LiteLLM can store a response in the form of another API. Thus the shape selects the parser: `choices` for Chat Completions, `output` for Responses, and a `content` list for Messages. LiteLLM 1.104.2 stores the response of an `anthropic_messages` call with `choices` ([data](proofs/gateway/results.json)). |
+
+The request keeps no `metadata`, `litellm_metadata`, `litellm_call_id` or `extra_headers` key, and no key with `api_key`, `secret`, `password` or `authorization` in its name, in any case. LiteLLM puts the hash of the key and the request headers in the first 2. The row keeps no other field of the log, so it has no key and no hash of a key.
+
+**Trace.** The trace reads `gateway.jsonl` if it exists, with the reader of `model_api.jsonl` (section 8.4) and these changes:
+
+- The result of a tool call must come from a later call of the same key alias, because 2 keys are 2 apps that can use the same tool call id.
+- `harness` is `gateway`, `source.file` is `gateway.jsonl`, and `session` is the `key_alias` of the call.
+- A row that is not a `call` is counted by its type. A `call` of another `call_type`, for example `aembedding`, is counted in `other_calls`, and gives no item.
+- A request with `request_cut: true` gives no user message and no tool result.
+- If `response_cut` is `true`, the `input` of the assistant message has `cut: "the gateway log holds a cut copy of the response"`.
+
+A `gateway` assistant message counts as a model text for `reply_not_from_model`, and an error or a status of 400 or more gives `model_api_error` (section 8.6). `findings.json` has a `gateway` key only if the test folder has `gateway.jsonl`: `file`, `rows`, `items`, `ignored` and `other_calls`, as for `model_api`. The case [`conformance/trace/gateway_toy_shop/`](conformance/trace/gateway_toy_shop/) gives the trace. The cases in [`conformance/gateway/`](conformance/gateway/) give the spend logs, the manifest, the options and the expected `gateway.jsonl`.
+
+**Limits.**
+
+- `performance.json` (section 8.7) does not count the calls of `gateway.jsonl`.
+- If a model API proxy and the gateway both record a call, the trace has 2 items for it.
+
 
 ## 9. Evaluation
 

@@ -17,6 +17,7 @@ from nookku import (
     bridge,
     egress_spans,
     evaluation,
+    gateway,
     kit,
     performance,
     print_mode,
@@ -364,6 +365,22 @@ def main(argv: Sequence[str] | None = None) -> int:
     trc.add_argument("--root", type=Path, default=Path.cwd())
     trc.add_argument("--json", action="store_true", help="print findings.json")
     trc.add_argument(
+        "--gateway",
+        metavar="SOURCE",
+        help="read the model calls from the logs of a LiteLLM gateway: a file, or the URL of "
+        f"the gateway with its key in {gateway.KEY_VARIABLE}",
+    )
+    trc.add_argument(
+        "--key-alias",
+        action="append",
+        default=[],
+        metavar="ALIAS",
+        help="with --gateway: keep the calls of this key alias (one or more times)",
+    )
+    trc.add_argument(
+        "--gateway-tag", metavar="TAG", help="with --gateway: keep only the calls with this tag"
+    )
+    trc.add_argument(
         "--egress",
         type=Path,
         help="the Koodam egress spans of the test (koodam trace --json): copy them into the test "
@@ -553,7 +570,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command in ("start", "end", "status", "check"):
         return _test_command(args)
     if args.command == "trace":
-        return _trace_command(args.root.resolve(), args.test, args.json, args.egress)
+        gate = None
+        if args.gateway is not None or args.key_alias or args.gateway_tag is not None:
+            if args.gateway is None or not args.key_alias:
+                print("nookku: --gateway needs --key-alias, and the opposite.", file=sys.stderr)
+                return 2
+            gate = (args.gateway, list(args.key_alias), args.gateway_tag)
+        return _trace_command(args.root.resolve(), args.test, args.json, args.egress, gate)
     if args.command == "verify":
         folder = _test_folder(args.root.resolve(), args.test)
         if folder is None:
@@ -741,7 +764,13 @@ def _test_folder(root: Path, test: str | None) -> Path | None:
     return folder
 
 
-def _trace_command(root: Path, test: str | None, as_json: bool, egress: Path | None = None) -> int:
+def _trace_command(
+    root: Path,
+    test: str | None,
+    as_json: bool,
+    egress: Path | None = None,
+    gate: tuple[str, list[str], str | None] | None = None,
+) -> int:
     folder = _test_folder(root, test)
     if folder is None:
         return 2
@@ -766,20 +795,34 @@ def _trace_command(root: Path, test: str | None, as_json: bool, egress: Path | N
             keys = trace.trace_keys(manifest)
             start, end = manifest.get("started"), manifest.get("ended")
             egress_spans.parse(data, egress, start, end, keys["egress_ignore"])
-            egress_spans.copy_in(data, folder)
         except OSError as e:
             print(f"nookku: the trace was not rebuilt. {egress}: {e.strerror}", file=sys.stderr)
             return 2
         except RecordError as e:
             print(f"nookku: the trace was not rebuilt. {e}", file=sys.stderr)
             return 2
+    if gate is not None:
+        # The gateway logs become a source of the trace (SPEC.md section 8.9).
+        try:
+            gateway.load(folder, read_manifest(folder), *gate)
+        except (gateway.GatewayError, RecordError) as e:
+            print(f"nookku: the gateway logs were not read: {e}", file=sys.stderr)
+            return 2
+        names.append(gateway.FILE)
+    if egress is not None:
+        # The copy comes after the gateway read, so a failed read leaves no new file.
+        try:
+            egress_spans.copy_in(data, folder)
+        except OSError as e:
+            print(f"nookku: the trace was not rebuilt. {egress}: {e.strerror}", file=sys.stderr)
+            return 2
         names.append(egress_spans.FILE)
     try:
         report = trace.build(folder)
     except RecordError as e:
-        # The copied spans passed their check, so the seal takes them, and the next rebuild
-        # does not see them as a file that was added after the end.
-        seal.update(folder, [n for n in names if n == egress_spans.FILE])
+        # The copied spans and the gateway logs passed their checks, so the seal takes them, and
+        # the next rebuild does not see them as files that were added after the end.
+        seal.update(folder, [n for n in names if n in (egress_spans.FILE, gateway.FILE)])
         print(f"nookku: the trace was not rebuilt. {e}", file=sys.stderr)
         return 2
     try:

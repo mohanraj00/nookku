@@ -159,6 +159,7 @@ CASE_FOLDERS = {
     "notes": "notes",
     "discovery": "discovery",
     "database": "database",
+    "gateway": "gateway",
 }
 
 

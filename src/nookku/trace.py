@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any, Literal
 from urllib.parse import urlsplit
 
-from . import app_spec, backend, db_proxy, egress_spans, mcp_proxy, model_api, otlp
+from . import app_spec, backend, db_proxy, egress_spans, gateway, mcp_proxy, model_api, otlp
 from .adapters import AdapterError, pick
 from .config import MATCHES, is_host_list
 from .discovery import db_system, driver_address
@@ -80,7 +80,7 @@ TRACE_KEYS: dict[str, Any] = {
     "egress_ignore": [],
 }
 # The harnesses of the items that hold a model output: the session files and the model APIs.
-MODEL_HARNESSES = ("claude-code", "codex", "model_api")
+MODEL_HARNESSES = ("claude-code", "codex", "model_api", "gateway")
 # The length of the excerpt of a reply in the detail of a finding.
 EXCERPT = 60
 # The kinds that a model session file gives.
@@ -835,10 +835,68 @@ def _questions_lost(row: dict[str, Any]) -> int | Literal[False] | None:
     return None if isinstance(body, dict) and body.get("cut") else False
 
 
+def _call_items(
+    harness: str,
+    file: str,
+    calls: list[tuple[int, dict[str, Any], str, dict[str, Any]]],
+    sessions: list[str],
+) -> list[dict[str, Any]]:
+    """The items of the model calls of model_api.jsonl or gateway.jsonl (SPEC.md sections 8.4
+    and 8.9): the user message, the assistant message and the tool calls of each call."""
+    items: list[dict[str, Any]] = []
+    for i, (n, row, form, request) in enumerate(calls):
+        api = sessions[i]
+        said, asked = _said(form, request), None
+        if form == "decisions":
+            said, asked = _decision_request(request, row) or (None, None)
+        if said is not None or asked is not None:
+            it = _item(harness, api, file, n, row.get("started"))
+            it.update(kind="message", role="user", input=asked, output=said)
+            items.append(it)
+        result: dict[str, Any] = row["result"] if isinstance(row.get("result"), dict) else {}
+        it = _item(harness, api, file, n, row.get("ts"))
+        info = {k: result.get(k) for k in ("model", "stop_reason", "usage")}
+        if form == "decisions":
+            info["answers"] = result.get("answers") or []
+            lost = _questions_lost(row)
+            if lost is not False:
+                info["questions_lost"] = lost
+        body = row.get("response_body")
+        if result.get("cut") and isinstance(body, dict) and body.get("cut"):
+            # The result is of the start of the response only (SPEC.md section 7.7).
+            info["cut"] = cut_note(body)
+        if row.get("response_cut") is True:
+            # A gateway row: LiteLLM cut a string of the response before it stored the log.
+            info["cut"] = GATEWAY_CUT
+        it.update(
+            kind="message",
+            role="assistant",
+            input={"path": row.get("path"), **info},
+            output=result.get("text") or None,
+            error=row.get("error") or result.get("error"),
+            exit_code=row.get("status"),
+        )
+        items.append(it)
+        # A tool call id is unique only in one API format, so a result must have the same format.
+        # Gateway keys are independent apps, so a gateway result must also have the same key alias.
+        later = [
+            _results(f, r)
+            for j, (_, _, f, r) in enumerate(calls[i + 1 :], i + 1)
+            if f == form and (harness != "gateway" or sessions[j] == api)
+        ]
+        for call in result.get("tool_calls") or []:
+            it = _item(harness, api, file, n, row.get("ts"))
+            it.update(kind="tool_call", name=call.get("name"), input=call.get("input"))
+            found = next((r[str(call.get("id"))] for r in later if str(call.get("id")) in r), None)
+            if found is not None:
+                it["error" if found[1] else "output"] = found[0]
+            items.append(it)
+    return items
+
+
 def read_model_api(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """The call rows of model_api.jsonl (SPEC.md section 8.4). The calls of a harness are only
     counted, because its session file has them."""
-    items: list[dict[str, Any]] = []
     ignored: Counter[str] = Counter()
     harness_calls: Counter[str] = Counter()
     other_calls = 0
@@ -856,51 +914,48 @@ def read_model_api(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
             other_calls += 1
         else:
             calls.append((n, row, form, _request(row)))
-    for i, (n, row, form, request) in enumerate(calls):
-        api = str(row.get("api") or "")
-        said, asked = _said(form, request), None
-        if form == "decisions":
-            said, asked = _decision_request(request, row) or (None, None)
-        if said is not None or asked is not None:
-            it = _item("model_api", api, model_api.FILE, n, row.get("started"))
-            it.update(kind="message", role="user", input=asked, output=said)
-            items.append(it)
-        result: dict[str, Any] = row["result"] if isinstance(row.get("result"), dict) else {}
-        it = _item("model_api", api, model_api.FILE, n, row.get("ts"))
-        info = {k: result.get(k) for k in ("model", "stop_reason", "usage")}
-        if form == "decisions":
-            info["answers"] = result.get("answers") or []
-            lost = _questions_lost(row)
-            if lost is not False:
-                info["questions_lost"] = lost
-        body = row.get("response_body")
-        if result.get("cut") and isinstance(body, dict) and body.get("cut"):
-            # The result is of the start of the response only (SPEC.md section 7.7).
-            info["cut"] = cut_note(body)
-        it.update(
-            kind="message",
-            role="assistant",
-            input={"path": row.get("path"), **info},
-            output=result.get("text") or None,
-            error=row.get("error") or result.get("error"),
-            exit_code=row.get("status"),
-        )
-        items.append(it)
-        # A tool call id is unique only in one API format, so a result must have the same format.
-        later = [_results(f, r) for _, _, f, r in calls[i + 1 :] if f == form]
-        for call in result.get("tool_calls") or []:
-            it = _item("model_api", api, model_api.FILE, n, row.get("ts"))
-            it.update(kind="tool_call", name=call.get("name"), input=call.get("input"))
-            found = next((r[str(call.get("id"))] for r in later if str(call.get("id")) in r), None)
-            if found is not None:
-                it["error" if found[1] else "output"] = found[0]
-            items.append(it)
+    sessions = [str(row.get("api") or "") for _, row, _, _ in calls]
+    items = _call_items("model_api", model_api.FILE, calls, sessions)
     return items, {
         "file": model_api.FILE,
         "rows": rows,
         "items": len(items),
         "ignored": dict(ignored),
         "harness_calls": dict(harness_calls),
+        "other_calls": other_calls,
+    }
+
+
+GATEWAY_CUT = "the gateway log holds a cut copy of the response"
+
+
+def read_gateway(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """The call rows of gateway.jsonl (SPEC.md section 8.9). They give the items of a model API
+    call (section 8.4). The session of an item is the key alias of its call."""
+    ignored: Counter[str] = Counter()
+    other_calls = 0
+    calls: list[tuple[int, dict[str, Any], str, dict[str, Any]]] = []
+    rows = 0
+    for n, row in _lines(path, ignored):
+        rows += 1
+        if not isinstance(row, dict) or row.get("type") != "call":
+            ignored[str(row.get("type")) if isinstance(row, dict) else "invalid_json"] += 1
+            continue
+        form = model_api.call_format(str(row.get("api")), str(row.get("path")))
+        if form is None or form == "decisions":
+            other_calls += 1
+            continue
+        given = row.get("request")
+        # A request that LiteLLM cut gives no user message and no tool result.
+        request = given if isinstance(given, dict) and row.get("request_cut") is not True else {}
+        calls.append((n, row, form, request))
+    sessions = [str(row.get("key_alias") or "") for _, row, _, _ in calls]
+    items = _call_items("gateway", gateway.FILE, calls, sessions)
+    return items, {
+        "file": gateway.FILE,
+        "rows": rows,
+        "items": len(items),
+        "ignored": dict(ignored),
         "other_calls": other_calls,
     }
 
@@ -1348,7 +1403,7 @@ def check(
             what = it["error"] or f"status {it['exit_code']}"
             detail = f"{it['session']}: {it['name']}: {what}"
             out.append(_finding("backend_error", it["turn"], detail, **where))
-        model_call = it["harness"] == "model_api" and it["role"] == "assistant"
+        model_call = it["harness"] in ("model_api", "gateway") and it["role"] == "assistant"
         if model_call and (it["error"] is not None or (it["exit_code"] or 0) >= 400):
             what = it["error"] or f"status {it['exit_code']}"
             detail = f"{it['session']}: {it['input']['path']}: {what}"
@@ -1472,6 +1527,10 @@ def build(folder: Path) -> dict[str, Any]:
     if (folder / model_api.FILE).exists():
         found, direct = read_model_api(folder / model_api.FILE)
         items += found
+    gateway_calls = None
+    if (folder / gateway.FILE).exists():
+        found, gateway_calls = read_gateway(folder / gateway.FILE)
+        items += found
     servers_mcp = None
     if (folder / mcp_proxy.FILE).exists():
         found, servers_mcp = read_mcp(folder / mcp_proxy.FILE)
@@ -1525,6 +1584,9 @@ def build(folder: Path) -> dict[str, Any]:
         "counts": {c: counts[c] for c in CHECKS},
         "findings": findings,
     }
+    if gateway_calls is not None:
+        # Only a test with gateway logs has the key (SPEC.md section 8.9).
+        report["gateway"] = gateway_calls
     text = json_text(report, indent=1) + "\n"
     (folder / "findings.json").write_text(text, encoding="utf-8")
     # The caller prints the report, so it gets the escaped text of findings.json.

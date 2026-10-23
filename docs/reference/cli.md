@@ -372,7 +372,7 @@ Compare the relay record with the [tap record](glossary.md#tap-record) ([SPEC.md
 ### `nookku trace`
 
 ```text
-nookku trace [TEST] [--root PATH] [--tests-dir PATH] [--json] [--egress FILE]
+nookku trace [TEST] [--root PATH] [--tests-dir PATH] [--json] [--egress FILE] [--gateway SOURCE --key-alias ALIAS [--key-alias ALIAS] [--gateway-tag TAG]]
 ```
 
 Build the trace of a test again, and show its findings ([SPEC.md section 8](../../SPEC.md#8-trace)). The findings show in groups by turn, and each control character of a finding shows as its escape ([read the results](../how-to/read-the-results.md#4-read-the-findings)). It also writes `performance.json` again ([SPEC.md section 8.7](../../SPEC.md#87-performance)). If the test has a seal, it rebuilds only from sources that agree with the seal.
@@ -384,11 +384,14 @@ Build the trace of a test again, and show its findings ([SPEC.md section 8](../.
 | `--tests-dir PATH` | `$NOOKKU_TESTS_DIR`, else `.nookku/tests` | The [tests folder](#the-tests-folder). |
 | `--json` | off | Print `findings.json`. |
 | `--egress FILE` | none | The Koodam egress spans of the test. The trace checks the file, copies it into the test folder as `egress.jsonl`, adds it to the seal and gives the findings `egress_not_in_discovery` and `egress_denied` ([SPEC.md section 8.8](../../SPEC.md#88-egress-spans)). |
+| `--gateway SOURCE` | none | Read the model calls of the app from the spend logs of a LiteLLM gateway: a file, or the URL of the gateway API. For a URL, put a key that can read the spend logs in `NOOKKU_GATEWAY_KEY`. The URL must be `https`, or `http` to this computer ([SPEC.md section 8.9](../../SPEC.md#89-gateway-logs)). |
+| `--key-alias ALIAS` | none | Keep the logs of this key alias, for example the `kd-<agent uid>` alias of a Koodam Agent. Give it 1 or more times. `--gateway` needs it. |
+| `--gateway-tag TAG` | none | Also keep only the logs with this request tag. |
 
 | Exit code | Meaning |
 |---|---|
 | 0 | The trace was built. |
-| 2 | No test folder with a manifest, the seal is broken, a record is not valid, or the egress file cannot be read or has a span of a later contract version. The trace was not rebuilt. |
+| 2 | No test folder with a manifest, the seal is broken, a record is not valid, or the egress file cannot be read or has a span of a later contract version, or the gateway logs were not read. The trace was not rebuilt. |
 
 If your agent runs in a Koodam Workspace, export the egress spans outside the pod for the time of the test. Then give them to the trace:
 

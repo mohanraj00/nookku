@@ -1,0 +1,120 @@
+{
+ "date": "2026-10-23",
+ "nookku": "0.5.5",
+ "harness": null,
+ "litellm_image": "ghcr.io/berriai/litellm-database:v1.104.2",
+ "litellm_version": "1.104.2",
+ "clock_skew_seconds": 0.004,
+ "aliases": {
+  "agent": "kd-<uuid4>",
+  "workspace": "ws-shop-toy-<hash8>"
+ },
+ "logs": 6,
+ "response_forms": {
+  "acompletion": [
+   "choices"
+  ],
+  "anthropic_messages": [
+   "choices"
+  ]
+ },
+ "url_read": {
+  "kept": 4,
+  "skipped": {
+   "other_key": 1,
+   "outside_test": 1
+  }
+ },
+ "file_read": {
+  "kept": 3,
+  "skipped": {
+   "other_key": 1,
+   "no_tag": 1,
+   "outside_test": 1
+  },
+  "tag": "toy-shop"
+ },
+ "items": [
+  [
+   1,
+   "message",
+   "user",
+   "Is the teapot set in stock?"
+  ],
+  [
+   1,
+   "message",
+   "assistant",
+   null
+  ],
+  [
+   1,
+   "tool_call",
+   "check_stock",
+   "3 left"
+  ],
+  [
+   1,
+   "message",
+   "assistant",
+   "Yes, 3 teapot sets are in stock."
+  ],
+  [
+   2,
+   "message",
+   "user",
+   "Where is order 5120?"
+  ],
+  [
+   2,
+   "message",
+   "assistant",
+   "Order 5120 ships today."
+  ],
+  [
+   2,
+   "message",
+   "user",
+   "Where is order 5120?"
+  ],
+  [
+   2,
+   "message",
+   "assistant",
+   "Order 5120 ships today."
+  ]
+ ],
+ "gateway": {
+  "file": "gateway.jsonl",
+  "rows": 5,
+  "items": 8,
+  "ignored": {
+   "source": 1
+  },
+  "other_calls": 0
+ },
+ "file_gateway": {
+  "file": "gateway.jsonl",
+  "rows": 4,
+  "items": 6,
+  "ignored": {
+   "source": 1
+  },
+  "other_calls": 0
+ },
+ "tags": [
+  "toy-shop"
+ ],
+ "checks": {
+  "url_read_kept_the_app_calls_of_the_test": true,
+  "url_read_skipped_the_workspace_and_the_early_call": true,
+  "items_by_turn": true,
+  "no_findings": true,
+  "seal_intact_after_the_read": true,
+  "litellm_keeps_the_body_tag_and_the_header_tag": true,
+  "litellm_adds_user_agent_tags": true,
+  "file_read_with_a_tag_kept_the_tagged_calls": true,
+  "file_read_seal_intact": true,
+  "no_key_or_key_hash_in_the_test_folder": true
+ }
+}

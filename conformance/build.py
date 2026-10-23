@@ -9,6 +9,7 @@ folder (section 5). `evaluation/` holds the cases of the rule for a check test (
 `notes/` holds the cases of the notes record (section 2.3).
 `discovery/` holds the cases of the egress answer (section 7.11).
 `database/` holds the cases of the variable of a Postgres proxy (section 7.13).
+`gateway/` holds the cases of the read of the gateway logs (section 8.9).
 
 Never fill an expectation by running the audit. CI runs this script and fails if the files change.
 
@@ -39,6 +40,7 @@ EVALUATION = Path(__file__).parent / "evaluation"
 NOTES = Path(__file__).parent / "notes"
 DISCOVERY = Path(__file__).parent / "discovery"
 DATABASE = Path(__file__).parent / "database"
+GATEWAY = Path(__file__).parent / "gateway"
 
 
 def sha(text: str | None) -> str | None:
@@ -2842,6 +2844,477 @@ MODEL_API_CASE = {
 }
 
 
+# Gateway logs (SPEC.md section 8.9). The key aliases are the forms of Koodam: `kd-<agent uid>`
+# for an Agent and `ws-<namespace>-<name>-<hash8>` for a Workspace.
+AGENT_ALIAS = "kd-0f3a9c2e-5b7d-4c1e-9a8b-2d4f6e8a0c1b"
+WORKSPACE_ALIAS = "ws-shop-toy-ab12cd34"
+GATEWAY_COMPLETIONS = "/v1/chat/completions"
+GATEWAY_MESSAGES = "/v1/messages"
+GATEWAY_TOOLS = [{"type": "function", "function": {"name": "check_stock", "parameters": {}}}]
+GATEWAY_CALL = {
+    "id": "call_1",
+    "type": "function",
+    "function": {"name": "check_stock", "arguments": '{"sku": "teapot-set"}'},
+}
+GATEWAY_ASKED = [{"role": "user", "content": ASK}]
+GATEWAY_ANSWERED = [
+    *GATEWAY_ASKED,
+    {"role": "assistant", "content": None, "tool_calls": [GATEWAY_CALL]},
+    {"role": "tool", "tool_call_id": "call_1", "content": "3 left"},
+]
+GATEWAY_USAGE = {"prompt_tokens": 10, "completion_tokens": 20, "total_tokens": 30}
+SHIPS = "Order 5120 ships today."
+WHERE = "Where is order 5120?"
+# The mark of LiteLLM 1.104.2 in a string that it cut before it stored the log.
+LITELLM_CUT = (
+    "... (litellm_truncated skipped 3956 chars. Truncation is a DB storage safeguard.) ..."
+)
+
+
+def completion(text: str | None, calls: list | None = None, stop: str = "stop") -> dict:
+    """A response as LiteLLM stores it: the Chat Completions form, also for other APIs."""
+    message: dict[str, Any] = {"role": "assistant", "content": text, "tool_calls": calls}
+    return {
+        "id": "chatcmpl-toy",
+        "model": "toy",
+        "usage": GATEWAY_USAGE,
+        "object": "chat.completion",
+        "choices": [{"index": 0, "message": message, "finish_reason": stop}],
+    }
+
+
+def gcall(t: float, alias: str, call_type: str, **more: Any) -> dict:
+    """A row of gateway.jsonl as `nookku trace --gateway` writes it."""
+    api, path = {
+        "acompletion": ("openai", GATEWAY_COMPLETIONS),
+        "anthropic_messages": ("anthropic", GATEWAY_MESSAGES),
+    }.get(call_type, (None, None))
+    row = {
+        "v": 1,
+        "type": "call",
+        "gateway": "litellm",
+        "request_id": f"req-{t:g}",
+        "call_type": call_type,
+        "api": api,
+        "path": path,
+        "key_alias": alias,
+        "tags": ["toy-shop", "User-Agent: OpenAI/Python 2.8.1"],
+        "started": T0 + t,
+        "ts": T0 + t + 1,
+        "status": None,
+        "error": None,
+        "request": None,
+        "request_cut": False,
+        "response": None,
+        "response_cut": False,
+        "result": None,
+    }
+    return {**row, **more}
+
+
+def gitem(turn: int, alias: str, ts: float, line: int, kind: str, **fields: Any) -> dict:
+    """An expected trace row from gateway.jsonl."""
+    row = item(turn, "claude-code", ts, kind, line)
+    row.update(harness="gateway", session=alias, source={"file": "gateway.jsonl", "line": line})
+    return {**row, **fields}
+
+
+GATEWAY_SOURCE = {
+    "v": 1,
+    "type": "source",
+    "gateway": "litellm",
+    "source": "http://127.0.0.1:4000",
+    "key_aliases": [AGENT_ALIAS, WORKSPACE_ALIAS],
+    "tag": None,
+    "window": [T0, T0 + 50],
+    "read": T0 + 60,
+    "kept": 6,
+    "skipped": {"other_key": 1},
+}
+# In turn 1, a call that gives a tool call and a call with its result. In turn 2, a call that the
+# gateway logged as a failure, a call of the Workspace key with a request and a response that
+# LiteLLM cut, a call with the reply, and an embedding call, which is not a model call.
+GATEWAY_CASE = {
+    "tap": [window(10, 20, reply="Yes, 3 teapot sets are in stock."), window(30, 40, reply=SHIPS)],
+    "manifest": {"test": "20261006-080000-gw01", "model_sessions": []},
+    "sessions": {},
+    "gateway": [
+        GATEWAY_SOURCE,
+        gcall(
+            11,
+            AGENT_ALIAS,
+            "acompletion",
+            request={"model": "toy", "tools": GATEWAY_TOOLS, "messages": GATEWAY_ASKED},
+            response=completion(None, [GATEWAY_CALL], "tool_calls"),
+            result=result(
+                model="toy",
+                tool_calls=[
+                    {"id": "call_1", "name": "check_stock", "input": {"sku": "teapot-set"}}
+                ],
+                stop_reason="tool_calls",
+                usage=GATEWAY_USAGE,
+            ),
+        ),
+        gcall(
+            14,
+            AGENT_ALIAS,
+            "acompletion",
+            request={"model": "toy", "tools": GATEWAY_TOOLS, "messages": GATEWAY_ANSWERED},
+            response=completion("Yes, 3 teapot sets are in stock."),
+            result=result(
+                model="toy",
+                text="Yes, 3 teapot sets are in stock.",
+                stop_reason="stop",
+                usage=GATEWAY_USAGE,
+            ),
+        ),
+        gcall(31, AGENT_ALIAS, "acompletion", status=429, error="Rate limit reached", tags=[]),
+        gcall(
+            33,
+            WORKSPACE_ALIAS,
+            "anthropic_messages",
+            request={"model": "toy", "messages": [{"role": "user", "content": "A" + LITELLM_CUT}]},
+            request_cut=True,
+            response=completion(SHIPS + LITELLM_CUT),
+            response_cut=True,
+            result=result(
+                model="toy", text=SHIPS + LITELLM_CUT, stop_reason="stop", usage=GATEWAY_USAGE
+            ),
+        ),
+        gcall(
+            36,
+            AGENT_ALIAS,
+            "acompletion",
+            request={"model": "toy", "messages": [{"role": "user", "content": WHERE}]},
+            response=completion(SHIPS),
+            result=result(model="toy", text=SHIPS, stop_reason="stop", usage=GATEWAY_USAGE),
+        ),
+        gcall(38, AGENT_ALIAS, "aembedding"),
+    ],
+    "trace": [
+        gitem(1, AGENT_ALIAS, 11, 2, "message", role="user", output=ASK),
+        gitem(
+            1,
+            AGENT_ALIAS,
+            12,
+            2,
+            "message",
+            role="assistant",
+            input=info(GATEWAY_COMPLETIONS, "toy", "tool_calls", GATEWAY_USAGE),
+        ),
+        gitem(
+            1,
+            AGENT_ALIAS,
+            12,
+            2,
+            "tool_call",
+            name="check_stock",
+            input={"sku": "teapot-set"},
+            output="3 left",
+        ),
+        gitem(
+            1,
+            AGENT_ALIAS,
+            15,
+            3,
+            "message",
+            role="assistant",
+            input=info(GATEWAY_COMPLETIONS, "toy", "stop", GATEWAY_USAGE),
+            output="Yes, 3 teapot sets are in stock.",
+        ),
+        gitem(
+            2,
+            AGENT_ALIAS,
+            32,
+            4,
+            "message",
+            role="assistant",
+            input=info(GATEWAY_COMPLETIONS, None, None, None),
+            error="Rate limit reached",
+            exit_code=429,
+        ),
+        gitem(
+            2,
+            WORKSPACE_ALIAS,
+            34,
+            5,
+            "message",
+            role="assistant",
+            input={
+                **info(GATEWAY_MESSAGES, "toy", "stop", GATEWAY_USAGE),
+                "cut": "the gateway log holds a cut copy of the response",
+            },
+            output=SHIPS + LITELLM_CUT,
+        ),
+        gitem(2, AGENT_ALIAS, 36, 6, "message", role="user", output=WHERE),
+        gitem(
+            2,
+            AGENT_ALIAS,
+            37,
+            6,
+            "message",
+            role="assistant",
+            input=info(GATEWAY_COMPLETIONS, "toy", "stop", GATEWAY_USAGE),
+            output=SHIPS,
+        ),
+    ],
+    "findings": {
+        "v": "0.2",
+        "test": "20261006-080000-gw01",
+        "turns": 2,
+        "items": 8,
+        "sessions": [],
+        "otel": None,
+        "backend": None,
+        "model_api": None,
+        "mcp": None,
+        "database": None,
+        "counts": counts(model_api_error=1),
+        "findings": [
+            {
+                "check": "model_api_error",
+                "turn": 2,
+                "detail": f"{AGENT_ALIAS}: {GATEWAY_COMPLETIONS}: Rate limit reached",
+                "harness": "gateway",
+                "session": AGENT_ALIAS,
+                "source": {"file": "gateway.jsonl", "line": 4},
+            },
+        ],
+        "gateway": {
+            "file": "gateway.jsonl",
+            "rows": 7,
+            "items": 8,
+            "ignored": {"source": 1},
+            "other_calls": 1,
+        },
+    },
+}
+
+
+# The read of the gateway logs (SPEC.md section 8.9): the spend logs of LiteLLM 1.104.2 as
+# GET /spend/logs gives them, the manifest, and the rows that `nookku trace --gateway` must
+# write to gateway.jsonl. The source row has no `read`, because its value is the time of the read.
+KEY_HASH = "854dbec007247ea1e87c9fc9a1c47d1ce789008dbfeadde179a0d012cfb49aae"
+GATEWAY_AGENT = "OpenAI/Python 2.8.1"
+
+
+def spend_log(t: float | str, alias: str, call_type: str, **more: Any) -> dict:
+    """A LiteLLM spend log, with the fields that the read uses and the fields that hold a secret.
+    A text `t` is the startTime as it is."""
+    start = t if isinstance(t, str) else iso(T0 + t)
+    end = t if isinstance(t, str) else iso(T0 + t + 1)
+    log = {
+        "request_id": f"req-{t}",
+        "call_type": call_type,
+        "api_key": KEY_HASH,
+        "spend": 0.0,
+        "startTime": start,
+        "endTime": end,
+        "model": "openai/toy",
+        "metadata": {
+            "status": None,
+            "user_agent": GATEWAY_AGENT,
+            "user_api_key": KEY_HASH,
+            "user_api_key_alias": alias,
+            "error_information": None,
+        },
+        "request_tags": ["toy-shop", f"User-Agent: {GATEWAY_AGENT}"],
+        "status": "success",
+        "proxy_server_request": {},
+        "response": {},
+    }
+    return {**log, **more}
+
+
+def litellm_metadata(tags: list[str]) -> dict:
+    """The metadata that LiteLLM adds to a request before it stores it."""
+    headers = {"host": "127.0.0.1:4000", "user-agent": GATEWAY_AGENT, "x-litellm-tags": "toy-shop"}
+    auth = {"token": KEY_HASH, "key_alias": AGENT_ALIAS, "key_name": "sk-...uejg"}
+    return {"tags": tags, "headers": headers, "user_api_key": KEY_HASH, "user_api_key_auth": auth}
+
+
+SPEND_REQUEST = {
+    "model": "toy",
+    "messages": GATEWAY_ASKED,
+    "tools": GATEWAY_TOOLS,
+    "metadata": litellm_metadata(["toy-shop"]),
+    "litellm_call_id": "4fe341e1-a3b1-44be-8e90-2901d2c345b5",
+    "api_key": "sk-toy-client-key",
+    "Authorization": "Bearer sk-toy-client-key",
+}
+SPEND_MESSAGES = {
+    "model": "toy",
+    "max_tokens": 50,
+    "messages": [{"role": "user", "content": WHERE}],
+}
+SPEND_CUT_REQUEST = {"model": "toy", "input": "A" + LITELLM_CUT}
+SPEND_RESPONSE = {
+    "id": "resp_toy",
+    "object": "response",
+    "model": "toy",
+    "status": "completed",
+    "usage": GATEWAY_USAGE,
+    "output": [{"type": "message", "content": [{"type": "output_text", "text": SHIPS}]}],
+}
+SPEND_FAILURE = {
+    "error_code": "429",
+    "error_class": "RateLimitError",
+    "error_message": "Rate limit reached",
+}
+TOY_SHOP_LOGS = [
+    spend_log(
+        11,
+        AGENT_ALIAS,
+        "acompletion",
+        proxy_server_request=SPEND_REQUEST,
+        response=completion(None, [GATEWAY_CALL], "tool_calls"),
+    ),
+    spend_log(
+        "2026-10-06T08:00:14.000+00:00",
+        AGENT_ALIAS,
+        "anthropic_messages",
+        request_tags=[f"User-Agent: {GATEWAY_AGENT}"],
+        proxy_server_request={**SPEND_MESSAGES, "litellm_metadata": litellm_metadata([])},
+        response=json.dumps(completion(SHIPS)),
+    ),
+    spend_log(20, WORKSPACE_ALIAS, "acompletion"),
+    spend_log(-5, AGENT_ALIAS, "acompletion"),
+    spend_log(
+        "2026-10-06 08:00:31.000000",
+        AGENT_ALIAS,
+        "acompletion",
+        status="failure",
+        request_tags=[],
+        metadata={"user_api_key_alias": AGENT_ALIAS, "error_information": SPEND_FAILURE},
+    ),
+    "not a log",
+    spend_log(
+        33,
+        AGENT_ALIAS,
+        "aresponses",
+        proxy_server_request=SPEND_CUT_REQUEST,
+        response=SPEND_RESPONSE,
+    ),
+    spend_log(36, AGENT_ALIAS, "aembedding", proxy_server_request={"input": ["teapot set"]}),
+]
+GATEWAY_MANIFEST = {"test": "20261006-080000-gw02", "started": T0, "ended": T0 + 50}
+
+
+def gsource(source: str, aliases: list[str], tag: str | None, kept: int, skipped: dict) -> dict:
+    return {
+        "v": 1,
+        "type": "source",
+        "gateway": "litellm",
+        "source": source,
+        "key_aliases": aliases,
+        "tag": tag,
+        "window": [T0, T0 + 50],
+        "kept": kept,
+        "skipped": skipped,
+    }
+
+
+TOOL_ROW = gcall(
+    11,
+    AGENT_ALIAS,
+    "acompletion",
+    request_id="req-11",
+    request={"model": "toy", "messages": GATEWAY_ASKED, "tools": GATEWAY_TOOLS},
+    response=completion(None, [GATEWAY_CALL], "tool_calls"),
+    result=result(
+        model="toy",
+        tool_calls=[{"id": "call_1", "name": "check_stock", "input": {"sku": "teapot-set"}}],
+        stop_reason="tool_calls",
+        usage=GATEWAY_USAGE,
+    ),
+)
+MESSAGES_ROW = gcall(
+    14,
+    AGENT_ALIAS,
+    "anthropic_messages",
+    request_id="req-2026-10-06T08:00:14.000+00:00",
+    tags=[f"User-Agent: {GATEWAY_AGENT}"],
+    ts=T0 + 14,
+    request=SPEND_MESSAGES,
+    response=completion(SHIPS),
+    result=result(model="toy", text=SHIPS, stop_reason="stop", usage=GATEWAY_USAGE),
+)
+GATEWAY_READ_CASES = {
+    "toy_shop": {
+        "source": "spend_logs.json",
+        "logs": TOY_SHOP_LOGS,
+        "key_aliases": [AGENT_ALIAS],
+        "tag": None,
+        "expect": [
+            gsource(
+                "spend_logs.json",
+                [AGENT_ALIAS],
+                None,
+                5,
+                {"other_key": 1, "outside_test": 1, "not_a_log": 1},
+            ),
+            TOOL_ROW,
+            MESSAGES_ROW,
+            gcall(
+                31,
+                AGENT_ALIAS,
+                "acompletion",
+                request_id="req-2026-10-06 08:00:31.000000",
+                tags=[],
+                ts=T0 + 31,
+                status=429,
+                error="Rate limit reached",
+            ),
+            gcall(
+                33,
+                AGENT_ALIAS,
+                "aresponses",
+                request_id="req-33",
+                api="openai",
+                path="/v1/responses",
+                request=SPEND_CUT_REQUEST,
+                request_cut=True,
+                response=SPEND_RESPONSE,
+                result=result(
+                    model="toy", text=SHIPS, stop_reason="completed", usage=GATEWAY_USAGE
+                ),
+            ),
+            gcall(
+                36,
+                AGENT_ALIAS,
+                "aembedding",
+                request_id="req-36",
+                request={"input": ["teapot set"]},
+            ),
+        ],
+    },
+    # The output of GET /spend/logs/v2, with a tag and 2 aliases. A log with no such tag is
+    # skipped.
+    "tag_v2": {
+        "source": "spend_logs_v2.json",
+        "logs": {"data": TOY_SHOP_LOGS[:3], "total": 3, "page": 1},
+        "key_aliases": [AGENT_ALIAS, WORKSPACE_ALIAS],
+        "tag": "toy-shop",
+        "expect": [
+            gsource(
+                "spend_logs_v2.json",
+                [AGENT_ALIAS, WORKSPACE_ALIAS],
+                "toy-shop",
+                2,
+                {"no_tag": 1},
+            ),
+            TOOL_ROW,
+            gcall(
+                20,
+                WORKSPACE_ALIAS,
+                "acompletion",
+                request_id="req-20",
+            ),
+        ],
+    },
+}
+
+
 # A trace case of the OpenAI Responses API (SPEC.md sections 7.7 and 8.4). In turn 1, a streamed
 # call to /responses with a text and a function call, and a JSON call to /v1/responses with the
 # function call output. In turn 2, a streamed call that ends with response.failed, and a GET of a
@@ -5570,6 +6043,7 @@ TRACE_CASES = {
     "model_api_decisions": DECISIONS_CASE,
     "model_api_cut": CUT_CASE,
     "model_api_decisions_cut": DECISIONS_CUT_CASE,
+    "gateway_toy_shop": GATEWAY_CASE,
     "repeated_reply": REPEATED_CASE,
     "repeated_reply_three": REPEATED_THREE_CASE,
     "repeated_reply_off": REPEATED_OFF_CASE,
@@ -7587,6 +8061,7 @@ def main() -> None:
         write(d / "model_api.jsonl", case.get("model_api"))
         write(d / "mcp.jsonl", case.get("mcp"))
         write(d / "database.jsonl", case.get("database"))
+        write(d / "gateway.jsonl", case.get("gateway"))
         write(d / "egress.jsonl", case.get("egress"))
         if "error" in case:
             text = json.dumps(case["error"], indent=1, ensure_ascii=False)
@@ -7601,6 +8076,16 @@ def main() -> None:
         findings = {**findings, "trace_points": rest.pop("trace_points", None), **rest}
         text = json.dumps(findings, indent=1, ensure_ascii=False)
         (d / "expect_findings.json").write_text(text + "\n")
+    shutil.rmtree(GATEWAY, ignore_errors=True)
+    for name, case in GATEWAY_READ_CASES.items():
+        d = GATEWAY / name
+        d.mkdir(parents=True)
+        (d / "manifest.json").write_text(json.dumps(GATEWAY_MANIFEST, indent=1) + "\n")
+        text = json.dumps(case["logs"], indent=1, ensure_ascii=False)
+        (d / case["source"]).write_text(text + "\n", encoding="utf-8")
+        given = {k: case[k] for k in ("source", "key_aliases", "tag")}
+        (d / "case.json").write_text(json.dumps(given, indent=1) + "\n")
+        write(d / "expect_gateway.jsonl", case["expect"])
     shutil.rmtree(OTLP, ignore_errors=True)
     for name, case in OTLP_CASES.items():
         write_otlp_case(OTLP / name, case)
@@ -7645,7 +8130,8 @@ def main() -> None:
         f"{len(OTLP_CASES)} receiver cases, {len(POLICY_CASES)} policy cases, "
         f"{len(GUARD_CASES)} guard cases, {len(CONTROL_CASES)} control cases, "
         f"{len(EVALUATION_CASES)} evaluation cases, {len(NOTES_CASES)} notes cases, "
-        f"{len(DISCOVERY_CASES)} discovery cases and {len(DATABASE_CASES)} database cases "
+        f"{len(DISCOVERY_CASES)} discovery cases, {len(DATABASE_CASES)} database cases and "
+        f"{len(GATEWAY_READ_CASES)} gateway cases "
         "written"
     )
 
