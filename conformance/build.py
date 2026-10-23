@@ -2352,6 +2352,8 @@ def bitem(turn: int | None, name: str, ts: float, line: int, call_name: str, **f
 
 REFUSED = "the backend did not answer: [Errno 61] Connection refused"
 PAY = '{"order": "5120", "amount_eur": 80}'
+# A request body over the limit of the proxy (SPEC.md section 7.6): the row has no request body.
+TOO_LONG = "the proxy refused the request: the body is longer than 67108864 bytes"
 BACKEND_CASE = {
     "tap": [window(10, 20), window(30, 40)],
     "manifest": {"test": "20261006-080000-bk01", "model_sessions": []},
@@ -2376,6 +2378,7 @@ BACKEND_CASE = {
             response=body('{"error": "card service down"}'),
         ),
         call(33, "payments", "POST", "/payments", None, request=body(PAY), error=REFUSED),
+        call(34, "stock", "POST", "/stock/photos", None, request=None, error=TOO_LONG),
         call(45, "stock", "GET", "/stock/image", 200, response=body(data=b"\x89PNG\x00\xff")),
         {"v": 1, "type": "note", "detail": "a row that is not a call"},
     ],
@@ -2410,10 +2413,19 @@ BACKEND_CASE = {
             error=REFUSED,
         ),
         bitem(
+            2,
+            "stock",
+            34,
+            4,
+            "POST /stock/photos",
+            input={"query": None, "headers": SENT, "body": None},
+            error=TOO_LONG,
+        ),
+        bitem(
             None,
             "stock",
             45,
-            4,
+            5,
             "GET /stock/image",
             input={"query": None, "headers": SENT, "body": None},
             output="(6 bytes that are not UTF-8: base64 in backend.jsonl)",
@@ -2424,14 +2436,14 @@ BACKEND_CASE = {
         "v": "0.2",
         "test": "20261006-080000-bk01",
         "turns": 2,
-        "items": 4,
+        "items": 5,
         "sessions": [],
         "otel": None,
-        "backend": {"file": "backend.jsonl", "rows": 5, "items": 4, "ignored": {"note": 1}},
+        "backend": {"file": "backend.jsonl", "rows": 6, "items": 5, "ignored": {"note": 1}},
         "model_api": None,
         "mcp": None,
         "database": None,
-        "counts": counts(backend_error=2, item_between_turns=1),
+        "counts": counts(backend_error=3, item_between_turns=1),
         "findings": [
             {
                 "check": "backend_error",
@@ -2450,12 +2462,20 @@ BACKEND_CASE = {
                 "source": {"file": "backend.jsonl", "line": 3},
             },
             {
+                "check": "backend_error",
+                "turn": 2,
+                "detail": f"stock: POST /stock/photos: {TOO_LONG}",
+                "harness": "backend",
+                "session": "stock",
+                "source": {"file": "backend.jsonl", "line": 4},
+            },
+            {
                 "check": "item_between_turns",
                 "turn": None,
                 "detail": "a http item",
                 "harness": "backend",
                 "session": "stock",
-                "source": {"file": "backend.jsonl", "line": 4},
+                "source": {"file": "backend.jsonl", "line": 5},
             },
         ],
     },

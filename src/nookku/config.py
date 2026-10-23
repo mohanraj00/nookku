@@ -122,6 +122,9 @@ class Config:
     # The most bytes of a body that a backend or model API proxy keeps in the record (SPEC.md
     # section 7.6). The app always gets all of the bytes.
     record_limit: int = 1024 * 1024
+    # The most bytes of a request body that a backend, model API or MCP proxy reads and forwards
+    # (SPEC.md section 7.6). The proxy refuses a longer body. #479 can add a value that streams.
+    body_limit: int = 64 * 1024 * 1024
     # The files of the app spec, relative to the project root. The evaluation reads them first
     # (SPEC.md section 9.2, docs/reference/app-spec.md).
     spec: list[str] = field(default_factory=list)
@@ -238,6 +241,10 @@ def check(data: Any) -> dict[str, Any]:
     limit = data.get("record_limit", 1)
     if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1:
         raise ConfigError(f"{FILE}: 'record_limit' must be a whole number of bytes, 1 or more")
+    # Only a count is valid now, so a value of a later release does not start a test (#479).
+    limit = data.get("body_limit", 1)
+    if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1:
+        raise ConfigError(f"{FILE}: 'body_limit' must be a whole number of bytes, 1 or more")
     path = data.get("model_reply_field", "")
     if not isinstance(path, str) or (path and not all(path.split("."))):
         raise ConfigError(

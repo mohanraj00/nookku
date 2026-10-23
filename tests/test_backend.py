@@ -14,7 +14,7 @@ import pytest
 from toy_model_server import ModelServer
 from toy_stock_server import StockServer
 
-from nookku import backend
+from nookku import backend, bridge
 
 
 def proxy_for(stock: StockServer, tmp_path: Path, url: str | None = None) -> backend.Proxies:
@@ -463,3 +463,172 @@ def test_a_cut_in_a_character_keeps_the_text_before_it() -> None:
     assert (body["cut"], body["text"], body["size"]) == (True, "abcd", 11)
     assert "base64" not in body
     assert backend.body_row(b"\xff\xfe\xfd\xfc\xfb\xfa", None, 3)["base64"] == "//79"
+
+
+def raw_request(url: str, data: bytes) -> bytes:
+    """Send `data` as it is, end the write side, and give all of the answer."""
+    host, port = url.removeprefix("http://").split(":")
+    with socket.create_connection((host, int(port)), timeout=10) as s:
+        s.sendall(data)
+        s.shutdown(socket.SHUT_WR)
+        out = b""
+        while part := s.recv(65536):
+            out += part
+    return out
+
+
+def limited(stock: StockServer, tmp_path: Path, limit: int) -> backend.Proxies:
+    proxies = proxy_for(stock, tmp_path)
+    proxies.proxies[0].body_limit = limit
+    return proxies
+
+
+def test_a_body_longer_than_the_limit_is_refused_and_not_forwarded(tmp_path: Path) -> None:
+    with StockServer() as stock:
+        proxies = limited(stock, tmp_path, 1000)
+        env = proxies.start()
+        try:
+            # A body of exactly the limit goes through.
+            status, _, _ = request(env["STOCK_URL"], "POST", "/stock", b"t" * 1000, {})
+            assert status == 200
+            refused, _, got = request(env["STOCK_URL"], "POST", "/stock", b"t" * 1001, {})
+            host, port = env["STOCK_URL"].removeprefix("http://").split(":")
+            conn = http.client.HTTPConnection(host, int(port), timeout=10)
+            conn.request("POST", "/stock", body=iter([b"t" * 600] * 2), encode_chunked=True)
+            chunked = conn.getresponse()
+            assert chunked.status == 413
+            conn.close()
+        finally:
+            proxies.stop()
+    assert refused == 413
+    assert json.loads(got) == {"error": "nookku backend proxy: the body is longer than 1000 bytes"}
+    # Only the body of the limit reached the backend.
+    assert [len(s["body"]) for s in stock.seen] == [1000]
+    first, *others = rows(tmp_path)
+    assert first["status"] == 200 and first["request_body"]["size"] == 1000
+    assert len(others) == 2
+    for row in others:
+        assert row["error"] == "the proxy refused the request: the body is longer than 1000 bytes"
+        assert row["request_body"] is None and row["status"] is None
+        assert row["response_body"] is None and row["ts"] is not None
+
+
+CHUNKED = b"Transfer-Encoding: chunked\r\n\r\n"
+
+
+@pytest.mark.parametrize(
+    ("data", "reason"),
+    [
+        (b"Content-Length: -1\r\n\r\nteapot", "the Content-Length is not one count of 0 or more"),
+        (b"Content-Length: +6\r\n\r\nteapot", "the Content-Length is not one count of 0 or more"),
+        (
+            b"Content-Length: 6\r\nContent-Length: 7\r\n\r\nteapot",
+            "the Content-Length is not one count of 0 or more",
+        ),
+        (b"Content-Length: 10\r\n\r\nteapot", "the body stopped before its end"),
+        (CHUNKED + b"-6\r\nteapot\r\n0\r\n\r\n", "a chunk size is not valid"),
+        (CHUNKED + b"0x6\r\nteapot\r\n0\r\n\r\n", "a chunk size is not valid"),
+        (CHUNKED + b"6\r\ntea", "the body stopped before its end"),
+        (CHUNKED + b"6\r\nteapot\r\n", "the body stopped before its end"),
+        (
+            CHUNKED + b"3\r\nteapot\r\n0\r\n\r\n",
+            "a chunk does not end with a line end",
+        ),
+    ],
+)
+def test_a_body_with_framing_that_is_not_valid_is_refused(
+    tmp_path: Path, data: bytes, reason: str
+) -> None:
+    with StockServer() as stock:
+        proxies = proxy_for(stock, tmp_path)
+        env = proxies.start()
+        try:
+            got = raw_request(env["STOCK_URL"], b"POST /stock HTTP/1.1\r\nHost: shop\r\n" + data)
+        finally:
+            proxies.stop()
+    # A part of the body never goes to the backend, also if the app stops.
+    assert stock.seen == []
+    assert got.startswith(b"HTTP/1.1 400 ")
+    assert got.endswith(json.dumps({"error": f"nookku backend proxy: {reason}"}).encode())
+    [row] = rows(tmp_path)
+    assert row["error"] == f"the proxy refused the request: {reason}"
+    assert row["request_body"] is None
+
+
+def test_the_proxy_reads_no_byte_of_a_body_that_is_too_long() -> None:
+    class Source:
+        def read(self, size: int) -> bytes:
+            raise AssertionError("the proxy read the body")
+
+    headers = http.client.HTTPMessage()
+    headers["Content-Length"] = str(backend.BODY_LIMIT + 1)
+    with pytest.raises(backend.Refused) as e:
+        backend.read_body(headers, Source(), backend.BODY_LIMIT)
+    assert e.value.status == 413
+    assert backend.Proxy.body_limit == backend.BODY_LIMIT == 64 * 1024 * 1024
+
+
+def test_the_config_key_body_limit_sets_the_limit_of_the_proxy(tmp_path: Path) -> None:
+    (tmp_path / ".nookku").mkdir()
+    conf = {"entry": ["python3", "agent.py"], "body_limit": 100}
+    (tmp_path / ".nookku" / "config.json").write_text(json.dumps(conf))
+    limit = bridge.load_config(tmp_path).body_limit
+    assert limit == 100
+    del conf["body_limit"]
+    (tmp_path / ".nookku" / "config.json").write_text(json.dumps(conf))
+    assert bridge.load_config(tmp_path).body_limit == backend.BODY_LIMIT == 64 * 1024 * 1024
+    with StockServer() as stock:
+        b = backend.Backend("stock", "STOCK_URL", stock.url)
+        proxies = backend.Proxies([b], tmp_path / backend.FILE, body_limit=limit)
+        env = proxies.start()
+        try:
+            ok, _, _ = request(env["STOCK_URL"], "POST", "/stock", b"t" * 100, {})
+            refused, _, _ = request(env["STOCK_URL"], "POST", "/stock", b"t" * 101, {})
+        finally:
+            proxies.stop()
+    assert (ok, refused) == (200, 413)
+    assert [len(s["body"]) for s in stock.seen] == [100]
+    assert rows(tmp_path)[1]["error"].endswith("the body is longer than 100 bytes")
+
+
+def test_a_large_upload_reads_the_refusal_with_no_reset(tmp_path: Path) -> None:
+    sent = b"t" * (10 * 1024 * 1024)
+    with StockServer() as stock:
+        proxies = limited(stock, tmp_path, 1024)
+        env = proxies.start()
+        try:
+            # http.client sends all of the body before it reads the answer.
+            status, headers, got = request(env["STOCK_URL"], "POST", "/stock", sent, {})
+        finally:
+            proxies.stop()
+    assert status == 413 and ("Connection", "close") in headers
+    assert json.loads(got)["error"].endswith("the body is longer than 1024 bytes")
+    assert stock.seen == []
+    assert rows(tmp_path)[0]["request_body"] is None
+
+
+def test_expect_100_continue_gets_the_refusal_at_once(tmp_path: Path) -> None:
+    head = b"POST /stock HTTP/1.1\r\nHost: shop\r\nExpect: 100-continue\r\n"
+    with StockServer() as stock:
+        proxies = limited(stock, tmp_path, 1000)
+        env = proxies.start()
+        try:
+            # The app sends no body. It waits for 100 Continue, and gets the refusal.
+            refused = raw_request(env["STOCK_URL"], head + b"Content-Length: 1001\r\n\r\n")
+            host, port = env["STOCK_URL"].removeprefix("http://").split(":")
+            with socket.create_connection((host, int(port)), timeout=10) as s:
+                s.sendall(head + b"Content-Length: 6\r\nConnection: close\r\n\r\n")
+                assert s.recv(25).startswith(b"HTTP/1.1 100 Continue\r\n")
+                s.sendall(b"teapot")
+                answer = b""
+                while part := s.recv(65536):
+                    answer += part
+        finally:
+            proxies.stop()
+    assert refused.startswith(b"HTTP/1.1 413 ") and b"100 Continue" not in refused
+    # A body within the limit still gets 100 Continue and goes to the backend.
+    assert b"HTTP/1.1 200 " in answer
+    assert [s["body"] for s in stock.seen] == [b"teapot"]
+    first, second = rows(tmp_path)
+    assert first["error"] == "the proxy refused the request: the body is longer than 1000 bytes"
+    assert first["request_body"] is None and second["error"] is None

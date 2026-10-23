@@ -1138,3 +1138,13 @@ def test_record_limit_must_be_a_count_of_1_or_more(tmp_path, value):
     path.write_text(json.dumps({**json.loads(path.read_text()), "record_limit": value}))
     with pytest.raises(ValueError, match="'record_limit' must be a whole number of bytes"):
         kit.Config.load(tmp_path)
+
+
+@pytest.mark.parametrize("value", [0, -1, True, 2.0, "2", "stream", None])
+def test_body_limit_must_be_a_count_of_1_or_more(tmp_path, value):
+    # A value of a later release, for example "stream" or -1 (#479), stops the start now.
+    kit.init(tmp_path, "codex", {})
+    path = tmp_path / ".nookku" / "config.json"
+    path.write_text(json.dumps({**json.loads(path.read_text()), "body_limit": value}))
+    with pytest.raises(ValueError, match="'body_limit' must be a whole number of bytes"):
+        kit.Config.load(tmp_path)
