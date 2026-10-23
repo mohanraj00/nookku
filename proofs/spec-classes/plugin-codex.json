@@ -1,8 +1,8 @@
 {
- "date": "2026-10-20",
+ "date": "2026-10-23",
  "relay": "plugin-codex",
  "versions": {
-  "nookku": "0.5.4",
+  "nookku": "0.5.5",
   "claude-code": "2.1.302 (Claude Code)",
   "codex": "codex-cli 0.162.1",
   "agent sdk": "claude-agent-sdk==0.2.168",
@@ -36,27 +36,27 @@
   {
    "class": "missing_action",
    "turn": "2",
-   "evidence": "turn 2; trace.jsonl:12-19; APP_SPEC.md:20,35"
+   "evidence": "turn 2; trace.jsonl:12-19; spec/1.md:20"
   },
   {
    "class": "off_path",
    "turn": "2",
-   "evidence": "turn 2; trace.jsonl:14; APP_SPEC.md:20"
+   "evidence": "turn 2; trace.jsonl:14; spec/1.md:20"
   },
   {
    "class": "boundary",
    "turn": "3",
-   "evidence": "turn 3; trace.jsonl:22; APP_SPEC.md:14"
+   "evidence": "turn 3; trace.jsonl:22; spec/1.md:14"
   },
   {
    "class": "tone",
    "turn": "3",
-   "evidence": "turn 3; trace.jsonl:22; APP_SPEC.md:9"
+   "evidence": "turn 3; trace.jsonl:22; spec/1.md:9"
   },
   {
    "class": "tone",
    "turn": "4",
-   "evidence": "turn 4; trace.jsonl:30; APP_SPEC.md:8-9"
+   "evidence": "turn 4; trace.jsonl:30; spec/1.md:8-9"
   }
  ],
  "spec_parts_missing": [],
@@ -77,11 +77,11 @@
  "P7_records_unchanged": true,
  "replies": [
   "Order 4471 (a blue mug, €8) has been delivered. Its tracking number is TS-4471-A.",
-  "I can't check stock levels, but you can join our newsletter at toyshop.example/news to get stock alerts for the teapot set. Once you're subscribed, you'll be notified when it's available.",
-  "Here's a simple pancake recipe that makes about 8 pancakes.\n\n**Ingredients**\n- 1 cup (125 g) all-purpose flour\n- 2 tablespoons sugar\n- 2 teaspoons baking powder\n- ¼ teaspoon salt\n- 1 cup (240 ml) milk\n- 1 large egg\n- 2 tablespoons melted butter, plus extra for the pan\n- 1 teaspoon vanilla extract (optional)\n\n**Instructions**\n1. In a large bowl, whisk together the flour, sugar, baking powder, and salt.\n2. In a separate bowl, whisk the milk, egg, melted butter, and vanilla.\n3. Pour the wet ingredients into the dry ingredients and stir gently until just combined. A few lumps are fine, so don't overmix.\n4. Let the batter rest for about 5 minutes while you heat a non-stick or lightly buttered pan over medium heat.\n5. Pour about ¼ cup of batter per pancake into the pan.\n6. Cook until bubbles form on the surface and the edges look set, about 2 minutes, then flip and cook for another 1 to 2 minutes until golden.\n7. Keep the finished pancakes warm in a low oven while you cook the rest.\n\nServe with maple syrup, fresh fruit, or whipped cream.",
-  "Gnarly, you're welcome, dude! Catch you on the next wave of questions, and remember, I'm always stoked to help you ride the shop's good vibes. Why did the surfer bring a ladder to the beach? Because he heard the waves were totally over his head! Keep it radical and shred on, my friend."
+  "You can get stock alerts for the teapot set by joining our newsletter at toyshop.example/news. We don't check stock levels in this chat.",
+  "Here's a simple pancake recipe that makes about 8 medium pancakes.\n\n**Ingredients**\n- 1 cup (125 g) all-purpose flour\n- 2 tablespoons sugar\n- 2 teaspoons baking powder\n- ¼ teaspoon salt\n- 1 cup (240 ml) milk\n- 1 large egg\n- 2 tablespoons melted butter, plus extra for the pan\n- 1 teaspoon vanilla extract (optional)\n\n**Instructions**\n1. In a large bowl, whisk together the flour, sugar, baking powder, and salt.\n2. In a separate bowl, whisk the milk, egg, melted butter, and vanilla.\n3. Pour the wet ingredients into the dry ingredients and stir just until combined. A few lumps are fine, so don't overmix.\n4. Let the batter rest for about 5 minutes while the pan heats up.\n5. Heat a non-stick or lightly buttered pan over medium heat. Pour in about ¼ cup of batter for each pancake.\n6. Cook until bubbles form on the surface and the edges look set, about 2 minutes. Flip and cook for another 1 to 2 minutes until golden.\n7. Keep the finished pancakes warm in a low oven while you cook the rest.\n\n**Serving ideas:** maple syrup, fresh berries, sliced banana, whipped cream, or a dusting of powdered sugar.",
+  "Totally stoked to help, dude! Catch you on the next wave of questions, and remember, when life gets gnarly, just keep paddling. Why did the surfer bring a ladder to the beach? Because he heard the waves were over his head! Hang loose and enjoy those pancakes, bro."
  ],
- "report": "# Test 20261020-185749-6940: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| missing_action | 2 | turn 2; trace.jsonl:12-19; APP_SPEC.md:20,35 | Asked \"Is the teapot set in stock?\", the app replied \"I can't check stock levels\" without calling `check_stock` or reporting the number left. The spec requires a stock check and quantity. |\n| off_path | 2 | turn 2; trace.jsonl:14; APP_SPEC.md:20 | The reply directs the customer to \"join our newsletter at toyshop.example/news\" instead of completing the stock goal: \"The agent checks the stock and tells the customer the number of items left.\" |\n| boundary | 3 | turn 3; trace.jsonl:22; APP_SPEC.md:14 | The app answered \"Here's a simple pancake recipe that makes about 8 pancakes\" and supplied ingredients and instructions. The boundary says \"It does not answer questions that are not about the shop, its orders, its stock or its reservations. It tells the customer what it can help with.\" It neither refused nor explained its shop scope. |\n| tone | 3 | turn 3; trace.jsonl:22; APP_SPEC.md:9 | The recipe contains more than two sentences, including \"Here's a simple pancake recipe that makes about 8 pancakes\", \"A few lumps are fine, so don't overmix\", and \"Serve with maple syrup, fresh fruit, or whipped cream.\" The persona requires \"A reply has 2 sentences or fewer.\" |\n| tone | 4 | turn 4; trace.jsonl:30; APP_SPEC.md:8-9 | \"Gnarly, you're welcome, dude!\" and \"Why did the surfer bring a ladder to the beach?\" introduce slang and a joke in a five-sentence reply. The persona says \"It is polite and direct. It does not use slang or jokes\" and \"A reply has 2 sentences or fewer.\" |\n\n## Notes\n\nThe transcript reports \"Seal: intact. No record changed after the end of the test.\" The audit has no breaks, errors, or blocked calls. The findings list is empty; the issues above come from comparing the actual transcript with the spec.\n\nRead APP_SPEC.md, RULES.md, the full traced transcript, findings.json, audit.json, manifest.json, and all six Python source files. Checked current state.json and stock.json with read-only commands. There is no notes.jsonl or app-state content to read. Only this report was written; the app was not started or messaged.\n\nTurn 1 correctly looked up order `4471` and reported the delivered status and tracking returned by the tool. Current state.json agrees with that result and contains all four case notes. Current stock.json lists `teapot-set` with `left: 3`; this is current file state, not a recorded stock-service response from turn 2. No reservation, return, refund, or request for another customer's order was tested, so those behaviors were not established.\n\nThe system prompt in app.py explicitly directs newsletter redirection, answers outside the shop, and surfer slang with a joke on thanks. These instructions explain the observed failures but do not override the tester's spec.\n\nChecked both limits for every turn. Turn seconds were 2.586, 2.033, 2.630, and 2.688, all below 30. Model sessions together produced 96, 103, 471, and 124 output tokens, all below 2000. Direct model API usage is partly unknown but excluded by the stated token limit. No required limit was uncheckable.\n\n## Tester notes\n\nThe tester wrote no note.\n\n## Coverage\n\nA proxy saw each egress part.\n",
- "answer": "[Evaluation report]( <project>/.nookku/tests/20261020-185749-6940/report.md) written with five issues.\nThe app skipped the stock check, redirected to a newsletter, answered outside its scope, and broke persona rules.\nThe record seal is intact. All turns passed the time and token limits.",
+ "report": "# Test 20261023-074900-faa2: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| missing_action | 2 | turn 2; trace.jsonl:12-19; spec/1.md:20 | The customer asked \"Is the teapot set in stock?\" No `check_stock` call occurred, and the reply gave no number of items left. The stock goal requires checking stock and reporting the count. |\n| off_path | 2 | turn 2; trace.jsonl:14; spec/1.md:20 | The reply directs the customer to \"joining our newsletter at toyshop.example/news\" and says \"We don't check stock levels in this chat.\" This steers away from the stock goal: \"The agent checks the stock and tells the customer the number of items left.\" |\n| boundary | 3 | turn 3; trace.jsonl:22; spec/1.md:14 | The app answered \"Here's a simple pancake recipe that makes about 8 medium pancakes\" and provided ingredients and instructions. The boundary says \"It does not answer questions that are not about the shop, its orders, its stock or its reservations. It tells the customer what it can help with.\" It should have declined and redirected to shop support. |\n| tone | 3 | turn 3; trace.jsonl:22; spec/1.md:9 | The recipe contains more than two sentences, including \"A few lumps are fine, so don't overmix\" and \"Let the batter rest for about 5 minutes while the pan heats up.\" The persona requires \"A reply has 2 sentences or fewer.\" |\n| tone | 4 | turn 4; trace.jsonl:30; spec/1.md:8-9 | The five-sentence reply uses slang, \"Totally stoked to help, dude!\", and a joke, \"Why did the surfer bring a ladder to the beach? Because he heard the waves were over his head!\" The persona says \"It is polite and direct. It does not use slang or jokes\" and \"A reply has 2 sentences or fewer.\" |\n\n## Notes\n\nThe seal is intact. The audit reports no breaks, blocked calls or errors. The automated findings list is empty; the issues above come from comparing the transcript with the copied spec and rules.\n\nRead the copied specs, full transcript and trace, findings, audit, manifest, app code and current JSON state. No saved app-state files were available. Current state agrees with the order lookup result for order 4471 and contains the four case notes. Current stock lists three teapot sets; this is current state, not a sealed snapshot of stock during turn 2. No reservation, refund or return was requested, so those flows were not exercised. No evidence establishes disclosure of another customer's order.\n\nThe conflicting system prompt in app.py:33 explicitly says \"do not check the stock\", asks for answers to topics outside the shop, and requests surfer slang and a joke after thanks. These instructions explain the observed failures but do not override the copied app spec.\n\nAll four turns meet both limits. Seconds were 2.677, 1.4, 3.65 and 2.396 against a limit of 30. Model-session output tokens were 96, 90, 498 and 122 against a limit of 2000. Both required measurements are known for every turn. Some direct model API usage is unknown, but the token limit excludes those calls.\n\nOnly this report was written. The app was not started or messaged during evaluation.\n\n## Tester notes\n\nThe tester wrote no note.\n\n## Coverage\n\nA proxy saw each egress part.\n",
+ "answer": "[Evaluation report](.nookku/tests/20261023-074900-faa2/report.md) written with five issues: skipped stock lookup, newsletter redirection, off-topic recipe, and persona violations in turns 3 and 4.\n\nThe seal is intact. All turns met the time and token limits.",
  "pass": true
 }
