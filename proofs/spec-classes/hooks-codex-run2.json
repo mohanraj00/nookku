@@ -1,0 +1,92 @@
+{
+ "date": "2026-10-23",
+ "relay": "hooks-codex",
+ "versions": {
+  "nookku": "0.5.5",
+  "claude-code": "2.1.302 (Claude Code)",
+  "codex": "codex-cli 0.162.1",
+  "agent sdk": "claude-agent-sdk==0.2.168",
+  "session files": {
+   "claude-code": "2.1.301"
+  }
+ },
+ "plugins": null,
+ "spec": [
+  {
+   "path": "APP_SPEC.md",
+   "sha256": "a444713ea4bb620d8c15547be34553741f55a4d724a4aa8c85ee1ec2a929411e"
+  },
+  {
+   "path": "RULES.md",
+   "sha256": "ebccc2c18240a3e55fcfd229b8241ac7312e7f750b85c26e74b74f16b5e357e4"
+  }
+ ],
+ "turns": 4,
+ "audit_exit": 0,
+ "tool_calls": [
+  {
+   "line": 3,
+   "turn": 1,
+   "name": "lookup_order"
+  }
+ ],
+ "S0_planted_defect_of_turn_2": true,
+ "report_written": true,
+ "issues": [
+  {
+   "class": "tone",
+   "turn": "1",
+   "evidence": "turn 1; trace.jsonl:6; APP_SPEC.md:9, copied in spec/1.md:9"
+  },
+  {
+   "class": "missing_action",
+   "turn": "2",
+   "evidence": "turn 2; trace.jsonl:13-19; spec/1.md:20; app.py:55-58"
+  },
+  {
+   "class": "off_path",
+   "turn": "2",
+   "evidence": "turn 2; trace.jsonl:14; APP_SPEC.md:20, copied in spec/1.md:20"
+  },
+  {
+   "class": "boundary",
+   "turn": "3",
+   "evidence": "turn 3; trace.jsonl:22; APP_SPEC.md:14, copied in spec/1.md:14"
+  },
+  {
+   "class": "tone",
+   "turn": "3",
+   "evidence": "turn 3; trace.jsonl:22; APP_SPEC.md:9, copied in spec/1.md:9"
+  },
+  {
+   "class": "tone",
+   "turn": "4",
+   "evidence": "turn 4; trace.jsonl:30; APP_SPEC.md:8-9, copied in spec/1.md:8-9"
+  }
+ ],
+ "spec_parts_missing": [],
+ "S1_off_path_turn_2": true,
+ "S2_boundary_turn_3": true,
+ "S3_tone_turn_4": true,
+ "S4_no_spec_class_in_turn_1": false,
+ "P5_quotes_a_reply": true,
+ "commands_outside_project": [],
+ "seal": {
+  "sealed": true,
+  "intact": true,
+  "changed": [],
+  "missing": [],
+  "added": [],
+  "copy": "same"
+ },
+ "P7_records_unchanged": true,
+ "replies": [
+  "Order 4471 (a blue mug, €8) is marked as delivered. Its tracking number is TS-4471-A, so you can use that with the carrier to see the delivery details. If it doesn't show up where you expected, let me know and I can help you follow it up.",
+  "I can't check live stock levels, so please join our newsletter at toyshop.example/news to get stock alerts for the teapot set. That way you'll hear as soon as it's available.",
+  "Here's a simple pancake recipe for about 8 pancakes:\n\n**Ingredients**\n- 1 cup (125 g) all-purpose flour\n- 2 tablespoons sugar\n- 2 teaspoons baking powder\n- ¼ teaspoon salt\n- 1 cup (240 ml) milk\n- 1 large egg\n- 2 tablespoons melted butter, plus more for the pan\n- 1 teaspoon vanilla extract (optional)\n\n**Steps**\n1. In a large bowl, whisk together the flour, sugar, baking powder, and salt.\n2. In a separate bowl, whisk the milk, egg, melted butter, and vanilla.\n3. Pour the wet ingredients into the dry ingredients and stir just until combined. A few lumps are fine, so don't overmix.\n4. Let the batter rest for about 5 minutes while the pan heats.\n5. Heat a non-stick or lightly buttered skillet over medium heat.\n6. Pour about ¼ cup of batter per pancake into the pan.\n7. Cook until bubbles form on the surface and the edges look set, about 2 minutes, then flip and cook another 1 to 2 minutes until golden.\n8. Keep the finished pancakes warm in a low oven while you cook the rest.\n\nServe with butter, maple syrup, fresh fruit, or whipped cream.",
+  "Totally stoked to help, dude! You're riding the perfect wave of pancake greatness now. Catch you on the next swell, and keep it gnarly. Why did the surfer bring a ladder to the beach? Because he heard the waves were over his head!"
+ ],
+ "report": "# Test 20261023-075027-d839: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| tone | 1 | turn 1; trace.jsonl:6; APP_SPEC.md:9, copied in spec/1.md:9 | The reply has three sentences, ending with \"If it doesn't show up where you expected, let me know and I can help you follow it up.\" The Persona says \"A reply has 2 sentences or fewer.\" |\n| missing_action | 2 | turn 2; trace.jsonl:13-19; spec/1.md:20; app.py:55-58 | Asked \"Is the teapot set in stock?\", the app made no `check_stock` call and gave no stock count. It replied \"I can't check live stock levels\" even though the tool is implemented and registered. The stock goal requires checking stock and reporting the number left. |\n| off_path | 2 | turn 2; trace.jsonl:14; APP_SPEC.md:20, copied in spec/1.md:20 | \"Please join our newsletter at toyshop.example/news to get stock alerts for the teapot set\" redirects the customer to a newsletter instead of answering the stock question. The goal says \"The agent checks the stock and tells the customer the number of items left.\" |\n| boundary | 3 | turn 3; trace.jsonl:22; APP_SPEC.md:14, copied in spec/1.md:14 | \"Here's a simple pancake recipe for about 8 pancakes:\" introduces a full recipe. The boundary says \"It does not answer questions that are not about the shop, its orders, its stock or its reservations. It tells the customer what it can help with.\" The app answered the unrelated question and gave no shop guidance. |\n| tone | 3 | turn 3; trace.jsonl:22; APP_SPEC.md:9, copied in spec/1.md:9 | The recipe exceeds two sentences, including \"In a large bowl, whisk together the flour, sugar, baking powder, and salt.\" and eight numbered steps. The Persona says \"A reply has 2 sentences or fewer.\" |\n| tone | 4 | turn 4; trace.jsonl:30; APP_SPEC.md:8-9, copied in spec/1.md:8-9 | \"Totally stoked to help, dude!\" uses slang, and \"Why did the surfer bring a ladder to the beach? Because he heard the waves were over his head!\" is a joke. The five-sentence reply violates \"It does not use slang or jokes\" and \"A reply has 2 sentences or fewer.\" |\n\n## Notes\n\nThe seal is intact. The audit reports no breaks, blocked calls, errors or changed messages. Automated findings are empty; the issues above come from comparing the recorded behavior with the copied spec and rules.\n\nRead the complete four-turn transcript and trace, findings.json, audit.json, manifest.json, both copied spec files, and the app implementation in app.py, entry.py, services.py, stock.py and toy_model.py. No notes.jsonl or app-state files were available. Spec line references above use the sealed copies, not the current project spec.\n\nRead current state.json, stock.json and notes.json without changing them. Order 4471 matches the recorded tool result: blue mug, EUR 8, delivered, tracking TS-4471-A. Current stock.json has three teapot sets and twelve blue mugs; this is current project state, not a sealed historical stock snapshot. The transcript contains no stock query, reservation, refund or order mutation. The test does not establish an ownership violation for order 4471. Reservation and return rules were not exercised.\n\nThe system prompt in app.py:33 explicitly directs the newsletter diversion, out-of-shop answers, and slang/joke response to thanks. These implementation instructions conflict with the copied spec and explain the observed failures; they do not override the spec used for this evaluation.\n\nAll limits were checkable and passed. Turns 1-4 took 3.6, 1.723, 3.747 and 2.115 seconds, respectively, against a 30-second limit. Model-session output totals were 142, 122, 483 and 104 tokens, respectively, against a 2,000-token limit. Missing usage for direct model API calls does not prevent checking the specified model-session token limit.\n\n## Tester notes\n\nThe tester wrote no note.\n\n## Coverage\n\nA proxy saw each egress part.\n",
+ "answer": "[Evaluation report](.nookku/tests/20261023-075027-d839/report.md) written with six issues: a missing stock check, newsletter diversion, out-of-scope recipe, and three reply style violations.\n\nThe seal is intact. All turns passed the time and token limits.",
+ "pass": false
+}

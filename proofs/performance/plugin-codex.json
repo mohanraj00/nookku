@@ -1,8 +1,8 @@
 {
- "date": "2026-10-20",
+ "date": "2026-10-23",
  "relay": "plugin-codex",
  "versions": {
-  "nookku": "0.5.4",
+  "nookku": "0.5.5",
   "claude-code": "2.1.302 (Claude Code)",
   "codex": "codex-cli 0.162.1",
   "agent sdk": "claude-agent-sdk==0.2.168",
@@ -31,13 +31,13 @@
  "audit_exit": 0,
  "performance": {
   "v": "0.1",
-  "test": "20261020-185333-519c",
+  "test": "20261023-073024-8afa",
   "unknown": null,
   "outside_turns": 0,
   "turns": [
    {
     "turn": 1,
-    "seconds": 2.5,
+    "seconds": 3.016,
     "model_calls": 4,
     "input_tokens": null,
     "output_tokens": null,
@@ -45,7 +45,7 @@
     "sources": [
      {
       "harness": "claude-code",
-      "session": "cb75d15a-413b-46f2-8ba0-7e70eb403502",
+      "session": "49b25591-e02a-4c8d-9938-e358f439e571",
       "model_calls": 2,
       "input_tokens": 59725,
       "output_tokens": 82,
@@ -63,7 +63,7 @@
    },
    {
     "turn": 2,
-    "seconds": 60.739,
+    "seconds": 62.47,
     "model_calls": 4,
     "input_tokens": null,
     "output_tokens": null,
@@ -71,10 +71,10 @@
     "sources": [
      {
       "harness": "claude-code",
-      "session": "cb75d15a-413b-46f2-8ba0-7e70eb403502",
+      "session": "49b25591-e02a-4c8d-9938-e358f439e571",
       "model_calls": 2,
-      "input_tokens": 60044,
-      "output_tokens": 191,
+      "input_tokens": 60023,
+      "output_tokens": 169,
       "no_usage": 0
      },
      {
@@ -89,7 +89,7 @@
    },
    {
     "turn": 3,
-    "seconds": 2.726,
+    "seconds": 4.256,
     "model_calls": 4,
     "input_tokens": null,
     "output_tokens": null,
@@ -97,10 +97,10 @@
     "sources": [
      {
       "harness": "claude-code",
-      "session": "cb75d15a-413b-46f2-8ba0-7e70eb403502",
+      "session": "49b25591-e02a-4c8d-9938-e358f439e571",
       "model_calls": 2,
-      "input_tokens": 60439,
-      "output_tokens": 121,
+      "input_tokens": 60395,
+      "output_tokens": 180,
       "no_usage": 0
      },
      {
@@ -122,14 +122,8 @@
   {
    "class": "performance",
    "turn": "2",
-   "evidence": "turn 2 performance block; APP_SPEC.md:30",
-   "issue": "The turn took \"60.739 seconds\", exceeding the `turn_seconds` limit of 30 seconds."
-  },
-  {
-   "class": "unsupported_reply",
-   "turn": "3",
-   "evidence": "trace.jsonl:30; trace.jsonl:27; trace.jsonl:5",
-   "issue": "The reply says \"it may be reserved or processed soon\". The order lookup only reports \"waiting for stock\", and the earlier stock response reports `{\"sku\": \"teapot-set\", \"left\": 3}`. Neither result nor any shop rule supports this forecast about reservation or processing time."
+   "evidence": "turn 2 performance block; spec/1.md:27",
+   "issue": "The transcript reports \"62.47 seconds\", exceeding the `turn_seconds` limit of 30 seconds."
   }
  ],
  "S3_performance_row_for_the_slow_turn": true,
@@ -155,7 +149,7 @@
   "other_calls": 1
  },
  "counts": {},
- "report": "# Test 20261020-185333-519c: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| performance | 2 | turn 2 performance block; APP_SPEC.md:30 | The turn took \"60.739 seconds\", exceeding the `turn_seconds` limit of 30 seconds. |\n| unsupported_reply | 3 | trace.jsonl:30; trace.jsonl:27; trace.jsonl:5 | The reply says \"it may be reserved or processed soon\". The order lookup only reports \"waiting for stock\", and the earlier stock response reports `{\"sku\": \"teapot-set\", \"left\": 3}`. Neither result nor any shop rule supports this forecast about reservation or processing time. |\n\n## Notes\n\nThe transcript reports \"Seal: intact. No record changed after the end of the test.\" The audit has no breaks, errors or blocked calls. The automated findings list is empty; the two issues above come from evaluating the transcript against the spec.\n\nRead APP_SPEC.md, RULES.md, the traced transcript, findings.json, audit.json and manifest.json. Reviewed app.py, entry.py, services.py, stock.py and toy_model.py. Read the current stock.json and state.json without starting the app or sending it a message. No app-state files were available. The current files are not sealed snapshots of test-time state, but they agree with the recorded stock quantities and order 6210 status. State contains the three case notes shown by the model API records.\n\nChecked both limits in every turn. Durations were 2.5, 60.739 and 2.726 seconds against the 30-second limit. Model sessions together produced 82, 191 and 121 output tokens against the 2000-token limit. All limit measurements needed for this evaluation were available. Direct model API usage is partly unknown, but the spec excludes those calls from the token limit.\n\nStock requests used the matching SKUs and reported the returned quantities. Order 6210 was looked up and its recorded status was reported correctly. Replies stayed within two sentences. The required stock backend, session tool and model API trace points appear for the applicable turns. No reservation was requested, so no reserve call was required. Refunds, returns, other-customer access and out-of-scope requests were not exercised. Potential defects in unexercised code paths are not reported as observed test failures.\n\n## Tester notes\n\nThe tester wrote no note.\n\n## Coverage\n\nA proxy saw each egress part.\n",
- "answer": "Saved the [evaluation report](<project>/.nookku/tests/20261020-185333-519c/report.md).\n\nFound two issues: turn 2 took 60.739 seconds against a 30-second limit; turn 3 made an unsupported forecast about order processing. The record seal is intact.",
+ "report": "# Test 20261023-073024-8afa: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| performance | 2 | turn 2 performance block; spec/1.md:27 | The transcript reports \"62.47 seconds\", exceeding the `turn_seconds` limit of 30 seconds. |\n\n## Notes\n\nThe transcript begins \"Seal: intact. No record changed after the end of the test.\" The audit reports no breaks, errors or blocked calls, and findings.json contains no findings.\n\nChecked all three turns against the copied app spec and rules, the tool and backend results, app.py, entry.py, services.py, stock.py and toy_model.py. Read the current state.json and stock.json without starting the app or sending it a message. The stock values match the recorded results, and order 6210 remains \"waiting for stock\". The app saved a case note for each turn. No app-state files or tester notes were available. Current project state is corroboration, not a sealed snapshot of test-time state.\n\nThe app checked the requested stock SKUs and looked up the requested order. The replies match those results. Turn 3's availability statement has support in the earlier teapot stock result. No reservation was requested or claimed as completed. Required stock backend and model API trace points appear in the record; the order lookup appears in the model session. No other issue was established by this test. Returns, refunds, reservations, another customer's order and unrelated topics were not exercised.\n\nChecked both limits for every turn. Durations were 3.016, 62.47 and 4.256 seconds against a 30-second limit. Model sessions together used 82, 169 and 180 output tokens against a 2000-token limit. All required limit values were known. Missing usage for direct model API calls does not prevent checking the specified model-session token limit.\n\n## Tester notes\n\nThe tester wrote no note.\n\n## Coverage\n\nA proxy saw each egress part.\n",
+ "answer": "[Evaluation report](.nookku/tests/20261023-073024-8afa/report.md) written.\n\nFound one issue: turn 2 took 62.47 seconds, exceeding the 30-second limit. The seal is intact, and the replies match the recorded tool results.",
  "pass": true
 }
