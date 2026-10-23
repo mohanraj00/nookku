@@ -766,3 +766,34 @@ def test_the_budget_of_the_proxies_is_4_times_the_body_limit(tmp_path: Path) -> 
     finally:
         for p in proxies.proxies:
             p.server_close()
+
+
+def bytes_in_frames(error: BaseException) -> int:
+    """The most bytes of one bytes or bytearray local in the frames of backend.py that the
+    traceback keeps."""
+    most, tb = 0, error.__traceback__
+    while tb is not None:
+        if tb.tb_frame.f_code.co_filename != backend.__file__:
+            tb = tb.tb_next
+            continue
+        for value in tb.tb_frame.f_locals.values():
+            if isinstance(value, (bytes, bytearray)):
+                most = max(most, len(value))
+        tb = tb.tb_next
+    return most
+
+
+def test_a_refused_body_frees_its_bytes_before_it_gives_back_its_budget() -> None:
+    budget = backend.Budget(10_000)
+    # A chunked body of 2 chunks of 600 bytes, then a chunk size that is not valid.
+    data = b"258\r\n" + b"t" * 600 + b"\r\n" + b"258\r\n" + b"t" * 600 + b"\r\nzz\r\n"
+    with pytest.raises(backend.Refused) as chunked_error:
+        backend.read_chunked(io.BytesIO(data), 10_000, budget)
+    headers = http.client.HTTPMessage()
+    headers["Content-Length"] = "1000"
+    with pytest.raises(backend.Refused) as length_error:
+        backend.read_body(headers, io.BytesIO(b"t" * 900), 10_000, budget)
+    assert budget.used == 0
+    # The traceback keeps the frames of the read, but no frame holds the bytes of the body.
+    assert bytes_in_frames(chunked_error.value) < 600
+    assert bytes_in_frames(length_error.value) < 900

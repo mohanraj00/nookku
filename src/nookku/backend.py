@@ -258,6 +258,7 @@ def read_chunked(rfile: Any, limit: int, budget: Budget | None = None) -> bytes:
     than TRAILERS trailer lines, or if a chunk does not fit in `budget`. The body takes its bytes
     from `budget`. If this function raises, it gives them back."""
     out = bytearray()
+    part = b""
     taken = 0
     try:
         while True:
@@ -283,6 +284,10 @@ def read_chunked(rfile: Any, limit: int, budget: Budget | None = None) -> bytes:
             if rfile.readline(LINE) not in (b"\r\n", b"\n"):
                 raise Refused(400, "a chunk does not end with a line end")
     except BaseException:
+        # The traceback keeps this frame. Free the bytes that it holds before the budget gets
+        # them back.
+        out.clear()
+        part = b""
         if budget is not None:
             budget.give(taken)
         raise
@@ -329,12 +334,16 @@ def read_body(headers: Any, rfile: Any, limit: int, budget: Budget | None = None
     size = declared(headers, limit)
     if budget is not None and not budget.take(size):
         raise busy(budget)
+    data = b""
     try:
         data = rfile.read(size)
         if len(data) < size:
             raise stopped()
         return bytes(data)
     except BaseException:
+        # The traceback keeps this frame. Free the bytes that it holds before the budget gets
+        # them back.
+        data = b""
         if budget is not None:
             budget.give(size)
         raise
@@ -497,8 +506,9 @@ class Handler(BaseHTTPRequestHandler):
             self.held = len(body)
         except Refused as e:
             # The proxy did not read all of the body, so the connection cannot take one more
-            # request.
-            body, refused = b"", e
+            # request. The refusal keeps no traceback, so no frame of the read stays alive
+            # during the drain.
+            body, refused = b"", e.with_traceback(None)
             self.close_connection = True
         path, _, query = self.path.partition("?")
         sent = [(k, v) for k, v in self.headers.items() if k.lower() not in NOT_FORWARDED]
