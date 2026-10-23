@@ -13,6 +13,20 @@ nookku [-h] [--version] COMMAND ...
 
 Each command that takes `--root` uses the current folder by default. The root is the project: the folder that holds `.nookku/`.
 
+## The tests folder
+
+Each command that reads or writes a test takes `--tests-dir PATH`: the folder that holds the folders of the tests. The command finds the folder in this order:
+
+1. `--tests-dir PATH`. A relative path starts at the current folder.
+2. The environment variable `NOOKKU_TESTS_DIR`, if it is not empty.
+3. `.nookku/tests/` in the project.
+
+Use it to keep the tests on a mounted volume, for example in a pod. The path must be absolute in `NOOKKU_TESTS_DIR`. It must not be in a state folder, and it must not be the project or a folder above it. If the path does not obey these rules, the command prints the cause and exits with 1, and the hook denies each tool call. The state files, for example `current.json`, stay in `.nookku/` ([SPEC.md section 7](../../SPEC.md#7-tests)).
+
+The hooks of the [harness](glossary.md#harness) get no option. They read `NOOKKU_TESTS_DIR` of the harness. During a test, the guard also protects the folder of the running test. Thus, if you use the option, also set `NOOKKU_TESTS_DIR` to the same folder before you start the harness. Then the guard protects the tests after the end of the test too.
+
+`NOOKKU_TEST_DIR` is a different variable. The [bridge](glossary.md#bridge) gives it to the [entry](glossary.md#entry), and it is the folder of one test ([config.md](config.md#environment-variables)).
+
 An unknown command or flag prints the usage and exits with 2. The error of an unknown command lists the commands, but not the [internal commands](#internal-commands). With no command, `nookku` prints the help and exits with 2.
 
 ## Commands of a test
@@ -33,6 +47,7 @@ Start a test: run the [entry](glossary.md#entry) through the [tap](glossary.md#t
 | Flag | Default | Meaning |
 |---|---|---|
 | `--root PATH` | the current folder | The project. |
+| `--tests-dir PATH` | `$NOOKKU_TESTS_DIR`, else `.nookku/tests` | The [tests folder](#the-tests-folder). |
 | `--json` | off | Print `current.json` of the test as JSON, with no `tap_token`, or `{"error": ...}`. |
 | `--tester-session ID` | none | The [tester](glossary.md#tester)'s [harness](glossary.md#harness) session id. The [bridge](glossary.md#bridge) never takes this session as a session of the app. |
 
@@ -77,6 +92,7 @@ End the test: switch relay mode off, stop the entry and collect its sessions, th
 | Flag | Default | Meaning |
 |---|---|---|
 | `--root PATH` | the current folder | The project. |
+| `--tests-dir PATH` | `$NOOKKU_TESTS_DIR`, else `.nookku/tests` | The [tests folder](#the-tests-folder). |
 | `--json` | off | Print the manifest of the test as JSON, or `null` if no test ran. |
 | `--evaluation` | off | Print one JSON object: `text`, the end text, and `evaluation`, the evaluation prompt or `null` ([SPEC.md section 9.1](../../SPEC.md#91-start)). It is for a [relay](glossary.md#relay) of your own that starts the evaluation. The plugin does not use it. |
 
@@ -91,6 +107,7 @@ Show relay mode and the running test, for example `relay mode is on. Test <test-
 | Flag | Default | Meaning |
 |---|---|---|
 | `--root PATH` | the current folder | The project. |
+| `--tests-dir PATH` | `$NOOKKU_TESTS_DIR`, else `.nookku/tests` | The [tests folder](#the-tests-folder). |
 | `--json` | off | Print `{"on": ..., "test": ..., "text": ..., "attachments": ..., "pane": ..., "stopped": ...}`. `test` is `current.json` with no `tap_token`, or `null`. `text` is the status line of the plugin, on one line. `attachments` is the text that refuses a prompt with an attachment in the plugin. Each of `text` and `attachments` is `null` if relay mode is off. `pane` is the data of the Claude Code pane: `test`, `state`, `turns` and `page` ([SPEC.md section 5](../../SPEC.md#5-relays), "Pane"). `stopped` is `{"test": ..., "folder": ...}` for a test that stopped with no end, or `null` if no test stopped or a test runs. |
 
 | Exit code | Meaning |
@@ -114,6 +131,7 @@ PASS proves the connection, not the reply. PASS means that:
 | Flag | Default | Meaning |
 |---|---|---|
 | `--root PATH` | the current folder | The project. |
+| `--tests-dir PATH` | `$NOOKKU_TESTS_DIR`, else `.nookku/tests` | The [tests folder](#the-tests-folder). |
 | `--json` | off | Print `{"pass": ..., "report": [...]}`. |
 
 | Exit code | Meaning |
@@ -124,7 +142,7 @@ PASS proves the connection, not the reply. PASS means that:
 ### `nookku run`
 
 ```text
-nookku run --script FILE [--entry NAME] [--root PATH] [--json] [--evaluate | --no-evaluate]
+nookku run --script FILE [--entry NAME] [--root PATH] [--tests-dir PATH] [--json] [--evaluate | --no-evaluate]
 ```
 
 Run a [scripted test](glossary.md#scripted-test) ([SPEC.md section 7.10](../../SPEC.md#710-scripted-tests)). It starts a test, sends each message of the script to the entry byte for byte, waits for each reply and ends the test. The script is JSONL with one `{"said": "..."}` row for each turn, or one JSON array of strings. The [test folder](glossary.md#test-folder) gets a copy of the script, and each [relay](glossary.md#relay) row has `"harness": "script"`. `run` does not switch relay mode on.
@@ -138,6 +156,7 @@ By default, only a person runs `nookku run`: the relay denies it from the model.
 | `--script FILE` | required | The script file. |
 | `--entry NAME` | the key `entry` | A name in the config key `entries`. It does not take a command line. |
 | `--root PATH` | the current folder | The project. |
+| `--tests-dir PATH` | `$NOOKKU_TESTS_DIR`, else `.nookku/tests` | The [tests folder](#the-tests-folder). |
 | `--json` | off | Print `{"pass": ..., "report": [...], "evaluation": ...}`. |
 | `--no-evaluate`, `--evaluate` | the config key `evaluate` | Print the evaluation prompt at the end, or not. |
 
@@ -149,7 +168,7 @@ By default, only a person runs `nookku run`: the relay denies it from the model.
 ### `nookku script`
 
 ```text
-nookku script save [TEST] [--root PATH]
+nookku script save [TEST] [--root PATH] [--tests-dir PATH]
 ```
 
 Save a test as a script ([SPEC.md section 7.10](../../SPEC.md#710-scripted-tests)). After you fix a defect, send the same messages again with `nookku run --script`. The command writes the `said` text of each turn of the test to `.nookku/scripts/<test id>.jsonl`, byte for byte. The file name records the source test id. The command prints the path and the `nookku run` command. The "Save as script" button of the chat page (`nookku chat`) does the same for the test that the page shows.
@@ -161,6 +180,7 @@ Only a person runs `nookku script`: the relay denies it from the model, with eac
 | `ACTION` | required | `save`. |
 | `TEST` | the latest test | The test id, or the path of the test folder. |
 | `--root PATH` | the current folder | The project. |
+| `--tests-dir PATH` | `$NOOKKU_TESTS_DIR`, else `.nookku/tests` | The [tests folder](#the-tests-folder). |
 
 | Exit code | Meaning |
 |---|---|
@@ -171,7 +191,7 @@ Only a person runs `nookku script`: the relay denies it from the model, with eac
 ### `nookku replay`
 
 ```text
-nookku replay SCRIPT [--base TEST] [--entry NAME] [--root PATH] [--json] [--evaluate | --no-evaluate]
+nookku replay SCRIPT [--base TEST] [--entry NAME] [--root PATH] [--tests-dir PATH] [--json] [--evaluate | --no-evaluate]
 ```
 
 Run a saved script again after a fix, and see which replies changed ([SPEC.md section 7.10](../../SPEC.md#710-scripted-tests)). `replay` runs the script as `nookku run --script` does. Then it compares the new test with the source test of the script, turn by turn. The source test is the test id in the name of the script file, as `nookku script save` names it. The diff uses the reply that the [tap](glossary.md#tap) recorded, not the reply that the harness showed.
@@ -190,6 +210,7 @@ A changed reply does not change the exit code. Only a person runs `nookku replay
 | `--base TEST` | the name of the script file | The test id to compare with. |
 | `--entry NAME` | the key `entry` | A name in the config key `entries`. |
 | `--root PATH` | the current folder | The project. |
+| `--tests-dir PATH` | `$NOOKKU_TESTS_DIR`, else `.nookku/tests` | The [tests folder](#the-tests-folder). |
 | `--json` | off | Print `{"pass": ..., "report": [...], "evaluation": ..., "diff": ...}`. |
 | `--no-evaluate`, `--evaluate` | the config key `evaluate` | Print the evaluation prompt at the end, or not. |
 
@@ -202,7 +223,7 @@ A changed reply does not change the exit code. Only a person runs `nookku replay
 ### `nookku mode`
 
 ```text
-nookku mode [STATE] [--root PATH] [--tester-session ID]
+nookku mode [STATE] [--root PATH] [--tests-dir PATH] [--tester-session ID]
 ```
 
 Switch relay mode on or off. With an entry, `on` starts a test and `off` ends it. With no entry, it only switches relay mode ([how-to/http-tap.md](../how-to/http-tap.md)). Before it switches relay mode on, it reads `config.json`, if the file exists. If the file is broken, `on` shows the error and does not switch relay mode on ([#109](https://github.com/mohanraj00/nookku/pull/109)). If the file does not exist, `on` tells you to run `nookku init plugin`, and does not switch relay mode on. If relay mode is already on, it stays on, and the relay blocks each prompt that is not a [control prompt](glossary.md#control-prompt) ([SPEC.md section 7.1](../../SPEC.md#71-configuration)). In the Claude Code plugin, a prompt with an attachment gets the attachment refusal, not the config error. The `/nookku` command of the plugin runs `nookku mode` with its words, and shows the output.
@@ -211,6 +232,7 @@ Switch relay mode on or off. With an entry, `on` starts a test and `off` ends it
 |---|---|---|
 | `STATE` | `status` | `on`, `off` or `status`. `start` is the same as `on`, and `end` is the same as `off`. |
 | `--root PATH` | the current folder | The project. |
+| `--tests-dir PATH` | `$NOOKKU_TESTS_DIR`, else `.nookku/tests` | The [tests folder](#the-tests-folder). |
 | `--tester-session ID` | none | The tester's harness session id. With an entry, the test copies this session when it ends. |
 
 | Exit code | Meaning |
@@ -221,7 +243,7 @@ Switch relay mode on or off. With an entry, `on` starts a test and `off` ends it
 ### `nookku chat`
 
 ```text
-nookku chat [--root PATH] [--port PORT] [--open]
+nookku chat [--root PATH] [--tests-dir PATH] [--port PORT] [--open]
 ```
 
 Serve the chat page: a local web page where you talk to the agent of the running test. The chat page is the main view of a test. `nookku view` is the alternative for a terminal ([`nookku view`](#nookku-view)). The command prints the page URL. Open it in your browser. Stop the page with Ctrl-C.
@@ -277,6 +299,7 @@ Serve the chat page: a local web page where you talk to the agent of the running
 | Flag | Default | Meaning |
 |---|---|---|
 | `--root PATH` | the current folder | The project. |
+| `--tests-dir PATH` | `$NOOKKU_TESTS_DIR`, else `.nookku/tests` | The [tests folder](#the-tests-folder). |
 | `--port PORT` | a free port | The port on `127.0.0.1`. |
 | `--no-idle-stop` | off | Do not stop the page server after [15 minutes](../../src/nookku/page.py) (`IDLE_LIMIT`) with no request of yours and no running test. With no flag, the page server stops, removes `page.json` and prints `The chat page stopped after 15 minutes with no use and no test.` |
 | `--open` | off | Open the chat page of the running test in the browser, at the session URL, which holds no secret. Make no session. Print no URL. Exit with 1 if the page did not open. |
@@ -298,6 +321,7 @@ If the [relay record](glossary.md#relay-record) has an invalid line, `view` show
 | Flag | Default | Meaning |
 |---|---|---|
 | `--root PATH` | the current folder | The project. |
+| `--tests-dir PATH` | `$NOOKKU_TESTS_DIR`, else `.nookku/tests` | The [tests folder](#the-tests-folder). |
 | `--no-follow` | off | Print the turns so far and stop. Without it, `view` waits for new turns until you stop it. |
 | `--record FILE` | from the config | The relay record to show. |
 | `--text` | on | The text view for a terminal. It is the only view of `nookku view` now. The chat page is [`nookku chat`](#nookku-chat). |
@@ -314,6 +338,7 @@ Print the exact conversation for the model to evaluate ([SPEC.md section 5](../.
 | Flag | Default | Meaning |
 |---|---|---|
 | `--root PATH` | the current folder | The project. |
+| `--tests-dir PATH` | `$NOOKKU_TESTS_DIR`, else `.nookku/tests` | The [tests folder](#the-tests-folder). |
 | `--test ID` | the latest test that is not a check test that ended | The test to print: the test id, or the path of the test folder. |
 | `--trace` | off | Print each turn as the app got it (from `tap.jsonl`), with the model items and the [findings](glossary.md#findings) of that turn ([SPEC.md section 9.2](../../SPEC.md#92-evaluation-prompt)). It ignores `--record`, `--all` and `--session`. |
 | `--all` | off | With no entry: each session of the record, not only the latest one. |
@@ -347,7 +372,7 @@ Compare the relay record with the [tap record](glossary.md#tap-record) ([SPEC.md
 ### `nookku trace`
 
 ```text
-nookku trace [TEST] [--root PATH] [--json] [--egress FILE]
+nookku trace [TEST] [--root PATH] [--tests-dir PATH] [--json] [--egress FILE]
 ```
 
 Build the trace of a test again, and show its findings ([SPEC.md section 8](../../SPEC.md#8-trace)). The findings show in groups by turn, and each control character of a finding shows as its escape ([read the results](../how-to/read-the-results.md#4-read-the-findings)). It also writes `performance.json` again ([SPEC.md section 8.7](../../SPEC.md#87-performance)). If the test has a seal, it rebuilds only from sources that agree with the seal.
@@ -356,6 +381,7 @@ Build the trace of a test again, and show its findings ([SPEC.md section 8](../.
 |---|---|---|
 | `TEST` | the latest test | The test id, or the path of the test folder. |
 | `--root PATH` | the current folder | The project. |
+| `--tests-dir PATH` | `$NOOKKU_TESTS_DIR`, else `.nookku/tests` | The [tests folder](#the-tests-folder). |
 | `--json` | off | Print `findings.json`. |
 | `--egress FILE` | none | The Koodam egress spans of the test. The trace checks the file, copies it into the test folder as `egress.jsonl`, adds it to the seal and gives the findings `egress_not_in_discovery` and `egress_denied` ([SPEC.md section 8.8](../../SPEC.md#88-egress-spans)). |
 
@@ -376,7 +402,7 @@ The trace uses only the spans from `started` to `ended` of the manifest, so a wi
 ### `nookku export`
 
 ```text
-nookku export [TEST] [--root PATH] [--out FILE]
+nookku export [TEST] [--root PATH] [--tests-dir PATH] [--out FILE]
 ```
 
 Write a test as one HTML file, so you can give it to a person who does not have the project or nookku. The file holds the CSS, the script and the data inline. It shows the chat, the trace steps, the notes, the audit result and the seal state ([SPEC.md section 5](../../SPEC.md#5-relays)).
@@ -391,6 +417,7 @@ Write a test as one HTML file, so you can give it to a person who does not have 
 |---|---|---|
 | `TEST` | the latest test | The test id, or the path of the test folder. |
 | `--root PATH` | the current folder | The project. |
+| `--tests-dir PATH` | `$NOOKKU_TESTS_DIR`, else `.nookku/tests` | The [tests folder](#the-tests-folder). |
 | `--out FILE` | `<test id>.html` in the current folder | The HTML file to write. |
 
 | Exit code | Meaning |
@@ -402,7 +429,7 @@ Write a test as one HTML file, so you can give it to a person who does not have 
 ### `nookku verify`
 
 ```text
-nookku verify [TEST] [--root PATH] [--json]
+nookku verify [TEST] [--root PATH] [--tests-dir PATH] [--json]
 ```
 
 Check that no record of a test changed after its end ([SPEC.md section 7.4](../../SPEC.md#74-seal)). The output starts with the test id, for example `Test 20261011-184952-8a8d. Seal: intact. No record changed after the end of the test.` With no `TEST`, the id shows which test the command checked. `--json` prints only the result of SPEC.md section 7.4.
@@ -411,6 +438,7 @@ Check that no record of a test changed after its end ([SPEC.md section 7.4](../.
 |---|---|---|
 | `TEST` | the latest test | The test id, or the path of the test folder. |
 | `--root PATH` | the current folder | The project. |
+| `--tests-dir PATH` | `$NOOKKU_TESTS_DIR`, else `.nookku/tests` | The [tests folder](#the-tests-folder). |
 | `--json` | off | Print the result as JSON. |
 
 | Exit code | Meaning |
@@ -536,6 +564,7 @@ The hook command that `init` writes into the hook file. It reads one hook event 
 | Flag | Default | Meaning |
 |---|---|---|
 | `--root PATH` | from the event | The project. With no `--root`, a Claude Code hook takes `CLAUDE_PROJECT_DIR`, and each hook then takes the `cwd` of the event, else its working folder. The plugin gives no `--root`. |
+| `--tests-dir PATH` | `$NOOKKU_TESTS_DIR`, else `.nookku/tests` | The [tests folder](#the-tests-folder). |
 | `--harness NAME` | required | `codex` or `claude-code`. |
 
 | Exit code | Meaning |
@@ -550,6 +579,7 @@ The MCP server that gives the model the read-only tools `transcript` and `status
 | Flag | Default | Meaning |
 |---|---|---|
 | `--root PATH` | the current folder | The project. Claude Code and Codex start the server of the plugin in the project. The server does not read `CLAUDE_PROJECT_DIR`, because a Codex can inherit it from a Claude Code session of another project. |
+| `--tests-dir PATH` | `$NOOKKU_TESTS_DIR`, else `.nookku/tests` | The [tests folder](#the-tests-folder). |
 
 | Exit code | Meaning |
 |---|---|
@@ -577,6 +607,7 @@ The background process of a test ([architecture.md](../architecture.md#the-bridg
 | Flag | Default | Meaning |
 |---|---|---|
 | `--root PATH` | required | The project. |
+| `--tests-dir PATH` | `$NOOKKU_TESTS_DIR`, else `.nookku/tests` | The [tests folder](#the-tests-folder). |
 | `--test ID` | required | The test id. |
 | `--tester-session ID` | none | The tester's harness session id. |
 | `--entry-name NAME` | none | The name of the entry in `entries`, from `nookku run --entry`. |

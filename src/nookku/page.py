@@ -346,7 +346,7 @@ def older_test(root: Path, test_id: str) -> Path | None:
     if folder is None or folder.is_symlink():
         return None
     try:
-        tests = (state.state(root) / "tests").resolve(strict=True)
+        tests = state.tests_dir(root).resolve(strict=True)
         real = folder.resolve(strict=True)
         # The real folder must have the requested id. Thus a change of the folder to a symlink
         # to another test folder, after the symlink check, gives no folder.

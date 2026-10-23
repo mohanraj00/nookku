@@ -16,20 +16,25 @@ CASES = sorted((Path(__file__).resolve().parent.parent / "conformance" / "guard"
 SED = '"sed" with these arguments can write.'
 
 
-def _fill(value: Any, root: Path) -> Any:
+def _fill(value: Any, root: Path, tests: Path) -> Any:
     if isinstance(value, str):
-        return value.replace("{root}", str(root))
+        return value.replace("{root}", str(root)).replace("{tests}", str(tests))
     if isinstance(value, dict):
-        return {k: _fill(v, root) for k, v in value.items()}
+        return {k: _fill(v, root, tests) for k, v in value.items()}
     return value
 
 
 @pytest.mark.parametrize("case", CASES, ids=[c.stem for c in CASES])
 def test_conformance(case: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     data = json.loads(case.read_text())
-    root = tmp_path.resolve()
-    folder = root / STATE / "tests" / "t1"
+    root = (tmp_path / "shop").resolve() if "tests_dir" in data else tmp_path.resolve()
+    # A tests folder outside the project, as on a mounted volume (#457).
+    tests = tmp_path.resolve() / "volume" / "tests"
+    folder = (tests if "tests_dir" in data else root / STATE / "tests") / "t1"
     folder.mkdir(parents=True)
+    (root / STATE).mkdir(parents=True, exist_ok=True)
+    if data.get("tests_dir") == "variable":
+        monkeypatch.setenv("NOOKKU_TESTS_DIR", str(tests))
     if "policy_text" in data:
         (root / STATE / "policy.json").write_text(data["policy_text"])
     if data["test"]:
@@ -38,9 +43,10 @@ def test_conformance(case: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(root))
     monkeypatch.chdir(root)
     out = io.StringIO()
-    event = io.StringIO(json.dumps(_fill(data["event"], root)))
+    event = io.StringIO(json.dumps(_fill(data["event"], root, tests)))
     assert kit.run_hook(None, "claude-code", event, out) == 0
-    assert (json.loads(out.getvalue()) if out.getvalue() else None) == data["answer"]
+    answer = json.loads(out.getvalue()) if out.getvalue() else None
+    assert answer == _fill(data["answer"], root, tests)
 
 
 @pytest.mark.parametrize(

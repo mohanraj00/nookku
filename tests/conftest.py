@@ -48,6 +48,14 @@ def no_auto_page(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.fixture(autouse=True)
+def default_tests_dir(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A test uses .nookku/tests, also if the shell of pytest sets NOOKKU_TESTS_DIR. The undo
+    also removes a value that `--tests-dir` of a command in the test sets (#457)."""
+    monkeypatch.setenv("NOOKKU_TESTS_DIR", "")
+    monkeypatch.delenv("NOOKKU_TESTS_DIR")
+
+
+@pytest.fixture(autouse=True)
 def no_mods(monkeypatch: pytest.MonkeyPatch) -> None:
     """A test gets no mod of the Claude Code session that runs pytest. The mod tests set the
     variable (#424)."""

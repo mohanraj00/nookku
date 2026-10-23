@@ -6293,6 +6293,68 @@ GUARD_CASES: dict[str, dict] = {
         "event": bash(f"cat > /tmp/notes.md <<'EOF'\nSee {CONFIG}.\nEOF"),
         "answer": None,
     },
+    # #457: the tests folder of NOOKKU_TESTS_DIR, outside the project. `{tests}` is its absolute
+    # path. "tests_dir": "variable" sets the variable for the hook. "tests_dir": "running" sets no
+    # variable, and the running test is in the folder: a command started it with --tests-dir.
+    "tests_dir_shell_removes_a_record": {
+        "tests_dir": "variable",
+        "event": bash("rm {tests}/t1/tap.jsonl"),
+        "answer": records("{tests}/t1/tap.jsonl", not_read("rm")),
+    },
+    "tests_dir_write_of_a_record": {
+        "tests_dir": "variable",
+        "event": pevent("Write", file_path="{tests}/t1/relay.jsonl", content="{}"),
+        "answer": records("{tests}/t1/relay.jsonl"),
+    },
+    "tests_dir_write_of_the_report": {
+        "tests_dir": "variable",
+        "event": pevent("Write", file_path="{tests}/t1/report.md", content="# Report\n"),
+        "answer": None,
+    },
+    "tests_dir_shell_read_of_a_record": {
+        "tests_dir": "variable",
+        "event": bash("cat {tests}/t1/tap.jsonl"),
+        "answer": None,
+    },
+    "tests_dir_shell_in_the_test_folder": {
+        "tests_dir": "variable",
+        "event": bash("rm tap.jsonl", cwd="{tests}/t1"),
+        # A relative word starts at the cwd of the call.
+        "answer": records("tap.jsonl", not_read("rm")),
+    },
+    "tests_dir_shell_changes_to_the_tests_folder": {
+        "tests_dir": "variable",
+        "event": bash("cd {tests} && rm t1/tap.jsonl"),
+        "answer": records("{tests}", not_read("rm")),
+    },
+    "tests_dir_glob_of_records": {
+        "tests_dir": "variable",
+        "event": bash("rm {tests}/*/tap.jsonl"),
+        "answer": records("{tests}/*/tap.jsonl", not_read("rm")),
+    },
+    "tests_dir_variable_names_a_record": {
+        "tests_dir": "variable",
+        "event": bash('rm "$NOOKKU_TESTS_DIR/t1/tap.jsonl"'),
+        "answer": records("$NOOKKU_TESTS_DIR/t1/tap.jsonl", not_read("rm")),
+    },
+    # Another folder with the name tests is an app folder.
+    "tests_dir_other_folder_named_tests": {
+        "tests_dir": "variable",
+        "event": bash("rm -r build/tests"),
+        "answer": None,
+    },
+    "test_tests_dir_shell_read_of_a_record": {
+        "test": True,
+        "tests_dir": "variable",
+        "event": bash("cat {tests}/t1/tap.jsonl"),
+        "answer": during("{tests}/t1/tap.jsonl"),
+    },
+    "test_tests_dir_running_test_with_no_variable": {
+        "test": True,
+        "tests_dir": "running",
+        "event": bash("cat {tests}/t1/tap.jsonl"),
+        "answer": during("{tests}/t1/tap.jsonl"),
+    },
 }
 
 
@@ -7151,6 +7213,11 @@ DISCOVERY_CASES: dict[str, dict] = {
     "reserved_variable": {
         "answer": answer_with("backends", {**STOCK, "env": "NOOKKU_TEST_DIR"}),
         "expect": {"error": "backends[0] 'env' is the variable NOOKKU_TEST_DIR of nookku"},
+    },
+    # #457: the tests folder of the test command. A part must not move it for the entry.
+    "reserved_tests_folder_variable": {
+        "answer": answer_with("backends", {**STOCK, "env": "NOOKKU_TESTS_DIR"}),
+        "expect": {"error": "backends[0] 'env' is the variable NOOKKU_TESTS_DIR of nookku"},
     },
     "bad_variable": {
         "answer": answer_with("backends", {**STOCK, "env": "STOCK-URL"}),

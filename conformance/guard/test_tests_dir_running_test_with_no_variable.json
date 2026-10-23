@@ -1,0 +1,21 @@
+{
+ "answer": {
+  "hookSpecificOutput": {
+   "hookEventName": "PreToolUse",
+   "permissionDecision": "deny",
+   "permissionDecisionReason": "nookku: a test runs, so a tool call may not name {tests}/t1/tap.jsonl until the test ends. The file tools may read it."
+  }
+ },
+ "event": {
+  "cwd": "{root}",
+  "hook_event_name": "PreToolUse",
+  "tool_input": {
+   "command": "cat {tests}/t1/tap.jsonl"
+  },
+  "tool_name": "Bash"
+ },
+ "links": {},
+ "state": true,
+ "test": true,
+ "tests_dir": "running"
+}

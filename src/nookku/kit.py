@@ -62,11 +62,13 @@ PREFIX = "nookku: "
 DENY_REASON = "nookku: only the tester talks to the agent."
 # The files and folders of the state folder that only nookku writes, also when no test runs
 # (SPEC.md section 5). In a test folder, only report.md may change (SPEC.md section 9). `seals`
-# is the folder of the seal copies in the nookku home. `scripts` holds the saved scripts
-# (SPEC.md section 7.10): a model write would change the messages of the next scripted test.
+# is the folder of the seal copies in the nookku home. `runs` holds the pid data of each entry
+# (SPEC.md section 7.2). `scripts` holds the saved scripts (SPEC.md section 7.10): a model write
+# would change the messages of the next scripted test.
 SCRIPTS = "scripts"
 RECORDS = {
     "tests",
+    "runs",
     SCRIPTS,
     "current.json",
     "mode",
@@ -463,6 +465,11 @@ def handle(event: dict[str, Any], root: Path, harness: str) -> dict[str, Any] | 
         if isinstance(said, str) and said.strip() in CONTROL:
             from nookku import evaluation
 
+            try:
+                state.tests_dir(root)
+            except state.TestsDirError as e:
+                # Fail closed: the control prompt does not go to the model (SPEC.md section 7).
+                return _block(prefixed(f"{e} Nothing was sent."))
             text = _control(said, root, session)
             folder = evaluation.pending(root) if said.strip() == "nookku end" else None
             if folder is None:
@@ -526,7 +533,8 @@ def handle(event: dict[str, Any], root: Path, harness: str) -> dict[str, Any] | 
             record = Path(cur["dir"]) / "relay.jsonl" if cur else _last_record(root)
             return _deny(record, harness, tool, full, reason)
         # These denies need only the state folder, so a broken config does not stop them.
-        written = state_write(event, root, tool, tool_input, cur is not None, extra)
+        tests = guard_tests(root, cur)
+        written = state_write(event, root, tool, tool_input, cur is not None, extra, tests)
         if written is not None and cur is not None:
             reason = TEST_REASON.format(name=written[0])
             return _deny(Path(cur["dir"]) / "relay.jsonl", harness, tool, full, reason)
@@ -696,8 +704,25 @@ def _event_cwd(event: dict[str, Any], tool_input: Any, root: Path) -> Path:
     return root / named if named else root
 
 
-def _in_state(path: Path) -> bool:
-    return commands.state_rest(str(path)) is not None
+def _in_state(path: Path, tests: tuple[str, ...] = ()) -> bool:
+    return commands.state_rest(str(path), tests) is not None
+
+
+def guard_tests(root: Path, cur: dict[str, Any] | None) -> tuple[str, ...]:
+    """The tests folders outside a state folder that the guard protects as `.nookku/tests`
+    (SPEC.md section 5): the folder of NOOKKU_TESTS_DIR, and the folder of the running test's
+    folder. A command can start a test with --tests-dir, and the hook does not see the option.
+    Each folder is given as an absolute path and as its real path. A NOOKKU_TESTS_DIR that
+    breaks the rule raises TestsDirError, and the hook then denies the call (fail closed)."""
+    found = [state.tests_dir(root)]
+    if cur is not None and isinstance(cur.get("dir"), str):
+        found.append(Path(cur["dir"]).parent)
+    out: list[str] = []
+    for folder in found:
+        for path in (os.path.normpath(folder.absolute()), str(folder.resolve())):
+            if commands.state_rest(path) is None and path not in out:
+                out.append(path)
+    return tuple(out)
 
 
 def state_write(
@@ -707,6 +732,7 @@ def state_write(
     tool_input: Any,
     during: bool,
     extra: frozenset[str] = frozenset(),
+    tests: tuple[str, ...] = (),
 ) -> tuple[str, str] | None:
     """The protected path of the state folder that a model tool call can write, with the cause for
     the deny reason, or None (SPEC.md section 5). The cause is "" during a test and for a call
@@ -715,15 +741,22 @@ def state_write(
 
     The rule checks paths, not text. A file tool has its target path. A shell command has the
     words that it can write (commands.write_targets), without the bodies of its here-documents
-    that are data. Another tool has each word of its input."""
+    that are data. Another tool has each word of its input. `tests` holds the tests folders
+    outside a state folder (guard_tests): a path in one of them counts as a path in
+    `.nookku/tests`."""
     cwd = _event_cwd(event, tool_input, root)
+    here = str(cwd)
+
+    def rest_of(word: str) -> list[str] | None:
+        return commands.state_rest(word, tests, here)
+
     if tool in WRITE_TOOLS:
         fields = tool_input if isinstance(tool_input, dict) else {}
         paths: list[str] = [v for f in PATH_FIELDS if isinstance(v := fields.get(f), str) and v]
         for p in [*paths, *commands.patch_targets(tool, tool_input)]:
             full = cwd / p
             for candidate in (p, str(full), str(full.resolve())):
-                rest = commands.state_rest(candidate)
+                rest = rest_of(candidate)
                 if rest is not None and _protected(rest, during):
                     return p, ""
         return None
@@ -731,32 +764,32 @@ def state_write(
         return None
     command = commands.command_of(tool, tool_input)
     if command is None:
-        words = commands.state_words(tool_input)
-        named = (w for w in words if _protected(commands.state_rest(w) or [], during))
+        words = commands.state_words(tool_input, tests, here)
+        named = (w for w in words if _protected(rest_of(w) or [], during))
         return next(((w, "") for w in named), None)
     stripped = commands.strip_data_heredocs(command)
     if during:
-        if _in_state(cwd):
+        if _in_state(cwd, tests):
             return str(cwd), ""
-        return next(((w, "") for w in commands.state_words(stripped)), None)
+        return next(((w, "") for w in commands.state_words(stripped, tests, here)), None)
     found = commands.write_targets(command, extra)
     if found is None:
         # The check cannot parse the command, so each word that names the state folder counts.
-        return next(((w, UNPARSED) for w in commands.state_words(stripped)), None)
+        return next(((w, UNPARSED) for w in commands.state_words(stripped, tests, here)), None)
     for word, cause in found.targets:
         # An argument can be code, for example python3 -c "open('<path>', 'w')". So each path in
         # it counts, not only the whole word.
         for part in [word, *commands.path_words(word)]:
-            rest = commands.state_rest(part)
+            rest = rest_of(part)
             if rest is not None and _protected(rest, during):
                 return part, cause
     if commands.reads_only(command, extra):
         return None
     # A relative word of a command that runs in the state folder does not name the folder.
     for folder in found.folders:
-        if commands.state_rest(folder) is not None:
+        if rest_of(folder) is not None:
             return folder, found.cause
-    return (str(cwd), found.cause) if _in_state(cwd) else None
+    return (str(cwd), found.cause) if _in_state(cwd, tests) else None
 
 
 def blocked_detail(text: str) -> str:
@@ -1184,14 +1217,17 @@ class TranscriptError(Exception):
 
 
 # The name of a test folder. It has no path separator and no drive, on each system.
-TEST_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]*")
-TESTS_HELP = f"A test id is the name of a folder in {STATE_DIR}/tests of the project."
+TEST_ID = state.TEST_ID
+TESTS_HELP = (
+    f"A test id is the name of a folder in the tests folder: {STATE_DIR}/tests of the project, "
+    f"or the folder of --tests-dir or {state.TESTS_ENV}."
+)
 
 
 def folder_of_test(root: Path, test: str) -> Path:
     """The folder of a test id, which must stay in the tests folder of the project. The model
     can give the id to the transcript tool, so a path must not reach another folder."""
-    tests = (root / STATE_DIR / "tests").resolve()
+    tests = state.tests_dir(root).resolve()
     folder = (tests / test).resolve()
     if not TEST_ID.fullmatch(test) or folder.parent != tests:
         raise TranscriptError(f"'{test}' is not a test id. {TESTS_HELP}")
@@ -1203,7 +1239,7 @@ def parse_test_arg(root: Path, arg: str) -> str:
     the test folder. Raise TranscriptError with the expected argument for other text."""
     if TEST_ID.fullmatch(arg):
         return arg
-    tests = (root / STATE_DIR / "tests").resolve()
+    tests = state.tests_dir(root).resolve()
     # The shell expands "~", so the argument is a path as it is. A loop of symbolic links
     # raises RuntimeError or OSError, and then the argument is not a test folder.
     try:

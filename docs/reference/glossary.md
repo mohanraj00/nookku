@@ -138,7 +138,7 @@ SPEC.md: [section 1](../../SPEC.md#1-parts), [section 7](../../SPEC.md#7-tests).
 
 ## Test folder
 
-`.nookku/tests/<test-id>/`: the folder of one test. It holds the two records, the copied session files, the trace, the findings, `audit.json`, the seal and `report.md`. [records.md](records.md#the-test-folder) lists each file.
+`.nookku/tests/<test-id>/`: the folder of one test. With `--tests-dir` or `NOOKKU_TESTS_DIR`, the folder is `<tests folder>/<test-id>/` ([cli.md](cli.md#the-tests-folder)). It holds the two records, the copied session files, the trace, the findings, `audit.json`, the seal and `report.md`. [records.md](records.md#the-test-folder) lists each file.
 
 SPEC.md: [section 7.2](../../SPEC.md#72-start-and-end).
 

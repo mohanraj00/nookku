@@ -47,7 +47,7 @@ from nookku.record import RecordError, Writer, loads, turns
 
 # The state functions are in nookku.state. These names keep the imports of bridge working.
 from nookku.state import TIMEOUT as TIMEOUT
-from nookku.state import TOKEN_KEY, lock_sends, manifest_of
+from nookku.state import TOKEN_KEY, TestsDirError, is_test_id, lock_sends, manifest_of, tests_dir
 from nookku.state import _children as _children
 from nookku.state import _started as _started
 from nookku.state import alive as alive
@@ -64,6 +64,11 @@ from nookku.stdio import TIMEOUT as AGENT_TIMEOUT
 
 # The harness session that ends a test, for the bridge (SPEC.md section 7.2).
 ENDING = "ending.json"
+# The folder of the run files in the state folder: one file for each test, `<test-id>.json`,
+# with the test folder and the pid data of the entry (SPEC.md section 7.2). The tests folder
+# can be on storage that another user can write, so `end` signals only an entry that this file
+# names (#457).
+RUNS = "runs"
 # The variables that give the entry its test folder and its test id (#145).
 TEST_DIR = "NOOKKU_TEST_DIR"
 TEST_ID = "NOOKKU_TEST_ID"
@@ -71,7 +76,7 @@ POLL = 0.5
 # The harness of the one turn of `nookku check`. A test with only such turns gets no evaluation.
 CHECK_HARNESS = "nookku-check"
 # Files in the state folder that a test writes or that switch a mode. They are not configuration.
-NOT_CONFIG = {"tests", "current.json", "mode", "relay.jsonl", "tap.jsonl", ENDING}
+NOT_CONFIG = {"tests", RUNS, "current.json", "mode", "relay.jsonl", "tap.jsonl", ENDING}
 SKIP_DIRS = {"node_modules", ".venv", "__pycache__", ".git"}
 # The check names the first stray lines, and gives the count of all of them.
 STRAY_SHOWN = 3
@@ -279,9 +284,14 @@ def start(
     egress_proxies(egress["answer"], os.environ, config.otel)
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     test = f"{stamp}-{secrets.token_hex(2)}"
-    folder = state(root) / "tests" / test
+    try:
+        tests = tests_dir(root)
+    except TestsDirError as e:
+        raise BridgeError(str(e)) from None
+    folder = tests / test
     folder.mkdir(parents=True)
     _mark(state(root))
+    _write_run(root, test, {"test": test, "dir": str(folder)})
     # The bridge puts the result in the manifest, and removes this file.
     _write_json(folder / GATE_FILE, gate)
     _write_json(folder / EGRESS_FILE, egress)
@@ -325,9 +335,11 @@ def stopped(root: Path) -> Path | None:
     The caller makes sure that no test runs. A test that started less than START_WAIT ago can
     still be in its start, so it is not stopped. An older stopped test stays stopped after a new
     test, so this looks at each test folder, not only at the latest one."""
-    tests = state(root) / "tests"
+    tests = tests_dir(root)
     found: list[tuple[float, str, Path]] = []
     for folder in tests.iterdir() if tests.is_dir() else []:
+        if not is_test_id(folder.name) or _trusted_entry(root, folder) is None:
+            continue
         try:
             manifest = loads((folder / "manifest.json").read_text())
         except (OSError, ValueError):
@@ -373,6 +385,45 @@ def _of_test(pid: int, test: str) -> bool:
     return f"{TEST_ID}={test}".encode() in env
 
 
+def run_path(root: Path, test: str) -> Path:
+    return state(root) / RUNS / f"{test}.json"
+
+
+def _write_run(root: Path, test: str, data: dict[str, Any]) -> None:
+    """Write the run file of a test. Only the owner can read or write it."""
+    path = run_path(root, test)
+    path.parent.mkdir(mode=0o700, exist_ok=True)
+    _write_json(path, data, mode=0o600)
+
+
+def _trusted_entry(root: Path, folder: Path) -> dict[str, Any] | None:
+    """The pid data of the entry of a test that `end` may signal, or None (SPEC.md section 7.2).
+
+    The run file in the state folder must name the test and this folder. A test folder in
+    .nookku/tests is in the state folder, so a test there with no run file, from Nookku 0.5.5 or
+    older, gives the pid data of its manifest. A test folder in another tests folder with no run
+    file gives None: the project state does not name it, so nookku never signals for it."""
+    test = folder.name
+    if not is_test_id(test):
+        return None
+    try:
+        run = loads(run_path(root, test).read_text())
+    except FileNotFoundError:
+        run = None
+    except (OSError, ValueError):
+        return None
+    if isinstance(run, dict):
+        same = run.get("test") == test and isinstance(run.get("dir"), str)
+        if not same or Path(run["dir"]).resolve() != folder.resolve():
+            return None
+        return {"test": test, **{k: run.get(k) for k in ("entry_pid", "entry_pid_start")}}
+    default = (state(root) / "tests").resolve()
+    if run is None and folder.resolve().parent == default:
+        manifest = manifest_of(folder) or {}
+        return {"test": test, **{k: manifest.get(k) for k in ("entry_pid", "entry_pid_start")}}
+    return None
+
+
 def _stop_entry(manifest: dict[str, Any], grace: float = 5.0) -> list[int]:
     """Stop the process group of the entry of a stopped bridge, if a process of it still runs.
     Return the pids of the group that got no signal, because nookku cannot prove that they are
@@ -402,7 +453,7 @@ def _stop_entry(manifest: dict[str, Any], grace: float = 5.0) -> list[int]:
     return []
 
 
-def finish_stopped(folder: Path) -> dict[str, Any]:
+def finish_stopped(root: Path, folder: Path) -> dict[str, Any]:
     """Finish the folder of a test whose bridge stopped with no end (SPEC.md section 7.2).
     Stop the entry and mark the test as killed. Then write the trace, the audit and the seal from
     the records."""
@@ -413,7 +464,11 @@ def finish_stopped(folder: Path) -> dict[str, Any]:
         with (folder / "bridge.log").open("a", encoding="utf-8") as f:
             f.write(f"nookku end: {message}\n")
 
-    unproven = _stop_entry(manifest)
+    # The pid data come from the project state, not from the manifest in the tests folder.
+    entry = _trusted_entry(root, folder)
+    if entry is None:
+        log("no signal: the state folder does not name the entry of this test")
+    unproven = _stop_entry(entry) if entry is not None else []
     if unproven:
         pids = ", ".join(map(str, unproven))
         warning = (
@@ -425,8 +480,8 @@ def finish_stopped(folder: Path) -> dict[str, Any]:
         log(warning)
         print(f"nookku: {warning}", file=sys.stderr)
     # Wait for a send of the chat page, and keep each later send out until the seal (SPEC.md 5).
-    # The test folder is <root>/.nookku/tests/<test>.
-    sends = lock_sends(folder.parents[2])
+    # The test folder can be outside the project (--tests-dir), so the lock comes from the root.
+    sends = lock_sends(root)
     try:
         manifest.update(ended=time.time(), killed=True)
         _write_json(path, manifest)
@@ -454,7 +509,7 @@ def end(
     cur = current(root)
     if cur is None:
         folder = stopped(root) if find_stopped else None
-        return None if folder is None else finish_stopped(folder)
+        return None if folder is None else finish_stopped(root, folder)
     if test is not None and cur["test"] != test:
         return None
     if tester_session:
@@ -478,7 +533,7 @@ def end(
     # The bridge writes `ended` before the trace, the audit and the seal. It can hang in them.
     unsealed = not (folder / "audit.json").exists() or not (folder / seal.SEAL).exists()
     if killed and (data.get("ended") is None or unsealed):
-        return finish_stopped(folder)
+        return finish_stopped(root, folder)
     return data
 
 
@@ -803,7 +858,7 @@ def run(
 ) -> int:
     """The bridge process: run the tap and the entry until SIGTERM, then collect."""
     root = root.resolve()
-    folder = state(root) / "tests" / test
+    folder = tests_dir(root) / test
     config = load_config(root, entry_name)
     copy = script.copy_in(folder)
     pid_start = process_start(os.getpid())
@@ -957,6 +1012,8 @@ def run(
         return _start_failed(folder, manifest)
     # end can stop the entry if the bridge stops with no end (#164).
     manifest.update(entry_pid=agent.proc.pid, entry_pid_start=process_start(agent.proc.pid))
+    pids = {k: manifest[k] for k in ("entry_pid", "entry_pid_start")}
+    _write_run(root, test, {"test": test, "dir": str(folder), **pids})
     _write_json(folder / "manifest.json", manifest)
     stop = threading.Event()
     for sig in (signal.SIGTERM, signal.SIGINT):

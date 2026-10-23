@@ -11,7 +11,7 @@ import fnmatch
 import posixpath
 import re
 import shlex
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import Any, NamedTuple
 
 SHELL_TOOLS = {"Bash", "shell", "local_shell", "exec_command"}
@@ -78,6 +78,9 @@ STATE_WORD = re.compile(r"[^\s\"'`;|&<>(),{}]+")
 # The entry gets the test folder in NOOKKU_TEST_DIR, and a child process of the app, for example
 # its model harness, can inherit it (#145). A word that names the variable names the test folder.
 TEST_DIR_NAME = re.compile(r"[$%]?\{?NOOKKU_TEST_DIR\}?%?", re.IGNORECASE)
+# NOOKKU_TESTS_DIR names the folder of all tests (SPEC.md section 7). A word that names the
+# variable names the tests folder.
+TESTS_DIR_NAME = re.compile(r"[$%]?\{?NOOKKU_TESTS_DIR\}?%?", re.IGNORECASE)
 
 
 def _short(args: list[str], letter: str) -> bool:
@@ -627,12 +630,17 @@ def write_targets(command: str, extra: frozenset[str] = frozenset()) -> Writes |
     return Writes(targets, folders, writes or next((c for _, c in targets), refused))
 
 
-def state_rest(word: str) -> list[str] | None:
+def state_rest(word: str, tests: Sequence[str] = (), cwd: str | None = None) -> list[str] | None:
     """The parts of a path after the state folder `.nookku`, or None if the word names no path in
     a state folder. The match ignores case. A glob part that starts with a dot matches the state
     folder as the shell would. The part after `=` of a word like `of=PATH` is a path too. The
-    variable NOOKKU_TEST_DIR names a test folder."""
+    variable NOOKKU_TEST_DIR names a test folder, and NOOKKU_TESTS_DIR names the tests folder.
+
+    `tests` holds the absolute paths of tests folders outside a state folder (SPEC.md section 7).
+    A path in one of them gives `tests` and the parts after the folder, as a path in
+    `.nookku/tests` does. `cwd` is the folder of a relative word."""
     word = TEST_DIR_NAME.sub(f"{STATE}/tests/NOOKKU_TEST_DIR", word)
+    word = TESTS_DIR_NAME.sub(f"{STATE}/tests", word)
     for piece in [word, *word.split("=")[1:]]:
         if not piece:
             continue
@@ -642,7 +650,39 @@ def state_rest(word: str) -> list[str] | None:
             glob = part.startswith(".") and any(c in part for c in "*?[")
             if low == STATE or (glob and fnmatch.fnmatchcase(STATE, low)):
                 return parts[k + 1 :]
+        rest = _tests_rest(piece, tests, cwd)
+        if rest is not None:
+            return rest
     return None
+
+
+def _tests_rest(piece: str, tests: Sequence[str], cwd: str | None) -> list[str] | None:
+    """`tests` and the parts after a tests folder of `tests`, or None. A relative piece starts
+    at `cwd`, and `~` is the home folder. The match ignores case, and a glob part matches as the
+    shell would."""
+    if not tests:
+        return None
+    path = piece.replace("\\", "/")
+    if path.startswith("~"):
+        path = posixpath.expanduser(path)
+    if not path.startswith("/"):
+        if cwd is None:
+            return None
+        path = posixpath.join(cwd.replace("\\", "/"), path)
+    parts = posixpath.normpath(path).split("/")
+    for folder in tests:
+        top = posixpath.normpath(folder.replace("\\", "/")).split("/")
+        if len(parts) < len(top):
+            continue
+        pairs = zip(parts[: len(top)], top, strict=True)
+        if all(_same_part(given, real) for given, real in pairs):
+            return ["tests", *parts[len(top) :]]
+    return None
+
+
+def _same_part(given: str, real: str) -> bool:
+    given, real = given.casefold(), real.casefold()
+    return given == real or (any(c in given for c in "*?[") and fnmatch.fnmatchcase(real, given))
 
 
 def patch_targets(tool: str, tool_input: Any) -> list[str]:
@@ -671,7 +711,8 @@ def path_words(text: str) -> list[str]:
     return STATE_WORD.findall(text)
 
 
-def state_words(tool_input: Any) -> list[str]:
-    """Each word of each text of a tool input that names a path in a state folder."""
+def state_words(tool_input: Any, tests: Sequence[str] = (), cwd: str | None = None) -> list[str]:
+    """Each word of each text of a tool input that names a path in a state folder or in a tests
+    folder of `tests` (state_rest)."""
     words = [m.group(0) for s in _strings(tool_input) for m in STATE_WORD.finditer(s)]
-    return [w for w in words if state_rest(w) is not None]
+    return [w for w in words if state_rest(w, tests, cwd) is not None]
