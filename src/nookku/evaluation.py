@@ -463,6 +463,8 @@ def spec_note(folder: Path) -> str:
         return ""
     copied = manifest.get("spec_copies") is True
     # The project root is the folder of the state folder of the test, not a value of the manifest.
+    # Only a test folder with no copies uses it, and such a folder is always in .nookku/tests,
+    # because Nookku 0.5.4 and older had no other tests folder.
     root = folder.parent.parent.parent
     good, bad = [], []
     for n, item in enumerate(spec, 1):

@@ -47,7 +47,7 @@ from nookku.record import RecordError, Writer, loads, turns
 
 # The state functions are in nookku.state. These names keep the imports of bridge working.
 from nookku.state import TIMEOUT as TIMEOUT
-from nookku.state import TOKEN_KEY, lock_sends, manifest_of
+from nookku.state import TOKEN_KEY, TestsDirError, is_test_id, lock_sends, manifest_of, tests_dir
 from nookku.state import _children as _children
 from nookku.state import _started as _started
 from nookku.state import alive as alive
@@ -279,7 +279,11 @@ def start(
     egress_proxies(egress["answer"], os.environ, config.otel)
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     test = f"{stamp}-{secrets.token_hex(2)}"
-    folder = state(root) / "tests" / test
+    try:
+        tests = tests_dir(root)
+    except TestsDirError as e:
+        raise BridgeError(str(e)) from None
+    folder = tests / test
     folder.mkdir(parents=True)
     _mark(state(root))
     # The bridge puts the result in the manifest, and removes this file.
@@ -325,9 +329,11 @@ def stopped(root: Path) -> Path | None:
     The caller makes sure that no test runs. A test that started less than START_WAIT ago can
     still be in its start, so it is not stopped. An older stopped test stays stopped after a new
     test, so this looks at each test folder, not only at the latest one."""
-    tests = state(root) / "tests"
+    tests = tests_dir(root)
     found: list[tuple[float, str, Path]] = []
     for folder in tests.iterdir() if tests.is_dir() else []:
+        if not is_test_id(folder.name):
+            continue
         try:
             manifest = loads((folder / "manifest.json").read_text())
         except (OSError, ValueError):
@@ -402,7 +408,7 @@ def _stop_entry(manifest: dict[str, Any], grace: float = 5.0) -> list[int]:
     return []
 
 
-def finish_stopped(folder: Path) -> dict[str, Any]:
+def finish_stopped(root: Path, folder: Path) -> dict[str, Any]:
     """Finish the folder of a test whose bridge stopped with no end (SPEC.md section 7.2).
     Stop the entry and mark the test as killed. Then write the trace, the audit and the seal from
     the records."""
@@ -425,8 +431,8 @@ def finish_stopped(folder: Path) -> dict[str, Any]:
         log(warning)
         print(f"nookku: {warning}", file=sys.stderr)
     # Wait for a send of the chat page, and keep each later send out until the seal (SPEC.md 5).
-    # The test folder is <root>/.nookku/tests/<test>.
-    sends = lock_sends(folder.parents[2])
+    # The test folder can be outside the project (--tests-dir), so the lock comes from the root.
+    sends = lock_sends(root)
     try:
         manifest.update(ended=time.time(), killed=True)
         _write_json(path, manifest)
@@ -454,7 +460,7 @@ def end(
     cur = current(root)
     if cur is None:
         folder = stopped(root) if find_stopped else None
-        return None if folder is None else finish_stopped(folder)
+        return None if folder is None else finish_stopped(root, folder)
     if test is not None and cur["test"] != test:
         return None
     if tester_session:
@@ -478,7 +484,7 @@ def end(
     # The bridge writes `ended` before the trace, the audit and the seal. It can hang in them.
     unsealed = not (folder / "audit.json").exists() or not (folder / seal.SEAL).exists()
     if killed and (data.get("ended") is None or unsealed):
-        return finish_stopped(folder)
+        return finish_stopped(root, folder)
     return data
 
 
@@ -803,7 +809,7 @@ def run(
 ) -> int:
     """The bridge process: run the tap and the entry until SIGTERM, then collect."""
     root = root.resolve()
-    folder = state(root) / "tests" / test
+    folder = tests_dir(root) / test
     config = load_config(root, entry_name)
     copy = script.copy_in(folder)
     pid_start = process_start(os.getpid())

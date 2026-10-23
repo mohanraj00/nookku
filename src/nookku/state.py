@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -90,6 +91,57 @@ def tap_headers(token: str) -> dict[str, str]:
 
 def state(root: Path) -> Path:
     return root / STATE_DIR
+
+
+# The variable that names the folder of the tests (SPEC.md section 7). The option --tests-dir of
+# a command sets it for that command and its child processes. NOOKKU_TEST_DIR is another
+# variable: the bridge gives it to the entry, and it names the folder of one test.
+TESTS_ENV = "NOOKKU_TESTS_DIR"
+# The name of a test folder. It has no path separator and no drive, on each system.
+TEST_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]*")
+
+
+class TestsDirError(ValueError):
+    """The value of NOOKKU_TESTS_DIR or of --tests-dir breaks the rule of SPEC.md section 7."""
+
+
+def is_test_id(name: str) -> bool:
+    return TEST_ID.fullmatch(name) is not None
+
+
+def tests_dir(root: Path) -> Path:
+    """The folder of the tests of the project (SPEC.md section 7): the absolute path in
+    NOOKKU_TESTS_DIR, else <root>/.nookku/tests. An empty variable counts as no variable. A
+    value that breaks the rule raises TestsDirError, so that no command reads or writes a test
+    in another folder."""
+    default = state(root) / "tests"
+    value = os.environ.get(TESTS_ENV)
+    if not value:
+        return default
+    hint = f"Give the absolute path of a folder for the tests in {TESTS_ENV} or --tests-dir."
+    if not os.path.isabs(value):
+        raise TestsDirError(f"{TESTS_ENV} is not an absolute path: {value!r}. {hint}")
+    folder = Path(os.path.normpath(value))
+    if folder == Path(os.path.normpath(default)):
+        return default
+    if any(part.casefold() == STATE_DIR.casefold() for part in folder.parts):
+        raise TestsDirError(f"{TESTS_ENV} names a folder in a state folder: {value!r}. {hint}")
+    project = Path(os.path.normpath(root.absolute()))
+    for top, real in ((folder, project), (folder.resolve(), root.resolve())):
+        if top == real or top in real.parents:
+            raise TestsDirError(
+                f"{TESTS_ENV} names the project or a folder above it: {value!r}. Then each "
+                f"folder of the project looks like a test. {hint}"
+            )
+    return folder
+
+
+def set_tests_dir(value: str) -> None:
+    """Keep the value of --tests-dir in NOOKKU_TESTS_DIR, as an absolute path, so that the
+    command and each child process, for example the bridge, use the same folder."""
+    if not value:
+        raise TestsDirError("--tests-dir needs the path of a folder.")
+    os.environ[TESTS_ENV] = os.path.abspath(value)
 
 
 # A file that marks a state folder, also when a symlink with another name points to it. init
@@ -191,9 +243,12 @@ def _started(folder: Path) -> float:
 
 def tests_newest_first(root: Path) -> list[Path]:
     """The test folders, the test that started last first. 2 test ids of the same second differ
-    only by a random part."""
-    tests = state(root) / "tests"
-    dirs = [p for p in tests.iterdir() if p.is_dir()] if tests.is_dir() else []
+    only by a random part. A folder whose name is not a test id is not a test, for example
+    `lost+found` on a mounted volume (SPEC.md section 7)."""
+    tests = tests_dir(root)
+    dirs = (
+        [p for p in tests.iterdir() if p.is_dir() and is_test_id(p.name)] if tests.is_dir() else []
+    )
     return sorted(dirs, key=lambda d: (_started(d), d.name), reverse=True)
 
 

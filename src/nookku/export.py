@@ -391,7 +391,13 @@ def build(root: Path, folder: Path) -> bytes:
 
 def _guarded(root: Path) -> list[Path]:
     """The folders that hold records or seals. The export never writes into them."""
-    found = [state.state(root), seal.home(), seal.old_home(), *state.tests_newest_first(root)]
+    found = [
+        state.state(root),
+        state.tests_dir(root),
+        seal.home(),
+        seal.old_home(),
+        *state.tests_newest_first(root),
+    ]
     return [p.resolve() for p in found]
 
 

@@ -119,7 +119,7 @@ def test_a_wrong_test_argument_names_the_expected_argument(
 ) -> None:
     seal.write(folder(tmp_path))
     assert main([command, arg, "--root", str(tmp_path)]) == 2
-    assert "A test id is the name of a folder in .nookku/tests" in capsys.readouterr().err
+    assert "A test id is the name of a folder in the tests folder" in capsys.readouterr().err
 
 
 def test_transcript_takes_the_path_of_the_test_folder(

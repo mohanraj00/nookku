@@ -250,7 +250,7 @@ Each timeout on the relay path ends before the next one, so that each part gets 
 |---|---|---|
 | 1 | The agent timeout of the tap, the same in HTTP mode and stdio mode | [240](src/nookku/stdio.py#L27) |
 | 2 | The tap answers the relay, at most 5 seconds after the agent timeout | [245](tests/test_timeouts.py#L21) |
-| 3 | The relay waits for the tap of a test (section 7) | [270](src/nookku/state.py#L20) |
+| 3 | The relay waits for the tap of a test (section 7) | [270](src/nookku/state.py#L21) |
 | 3 | The relay waits for the tap of section 4.1 | [280](src/nookku/kit.py#L33) |
 | 4 | The harness stops the `UserPromptSubmit` hook | [300](src/nookku/kit.py#L36) |
 
@@ -342,8 +342,9 @@ The follow-up capture records a title-description schema match, without request 
   - A shell command writes each output redirect target, and each word of each part that does not pass the read check. If a part does not pass it, each variable assignment of the command is a target too, because a variable can carry a path to a program. A target word can be code, for example the argument of `python3 -c`, so the relay also splits it at spaces, quotes, brackets, commas and shell operators, and checks each part. Before the check, the relay removes the body of each here-document whose program only stores or shows it: `cat`, `tee`, `gh`, `jq`, `wc`, `grep`, `head`, `tail`, `sort`, `git commit`, `git tag` and `git notes`. For each other program, for example `python -`, the body is code, so it stays. If the check cannot parse the command, each word that names the state folder is a target.
   - Each other tool writes each word of its input.
   - A word names a path in a state folder if one of its parts is `.nookku`. The match ignores case, comes after the relay removes each `..`, and takes a glob part that starts with a dot as the shell does. The part after `=`, as in `of=<path>`, is a path too.
+  - If the tests folder is outside the state folder (section 7), a path in it counts as the same path in `.nookku/tests/`. The relay protects 2 such folders: the tests folder of its own `NOOKKU_TESTS_DIR`, and the folder that holds the folder of the running test (`dir` of `current.json`). The relay gets no `--tests-dir` option, so the second folder covers a test that a command started with the option. A word names a path in such a folder if, after the relay removes each `..`, its parts start with the parts of the folder. A relative word starts at the `cwd` of the call, and `~` is the home folder. The match ignores case and takes each glob part as the shell does. The relay compares the word with the absolute path of the folder and with its real path. A word that names `NOOKKU_TESTS_DIR` (`$NOOKKU_TESTS_DIR`, `${NOOKKU_TESTS_DIR}` or `%NOOKKU_TESTS_DIR%`) names `.nookku/tests`. The conformance cases are in [`conformance/guard/`](conformance/guard/), with the names that contain `tests_dir`.
 
-  During a test, the relay denies each tool call, except a read with a file tool, that names a path in `.nookku/`. For a shell command, a read also counts, but the body of a here-document that is data does not. The relay also denies a shell command with a `cwd` in the state folder. The reason is `nookku: a test runs, so a tool call may not name <name> until the test ends. The file tools may read it.`
+  During a test, the relay denies each tool call, except a read with a file tool, that names a path in `.nookku/` or in a tests folder of the rule above. For a shell command, a read also counts, but the body of a here-document that is data does not. The relay also denies a shell command with a `cwd` in the state folder or in such a tests folder. The reason is `nookku: a test runs, so a tool call may not name <name> until the test ends. The file tools may read it.`
 
   When no test runs, a tool call can change `config.json` and the files of the entry. The relay denies a write to a record or a state file of nookku:
   - the state folder itself;
@@ -352,7 +353,7 @@ The follow-up capture records a title-description schema match, without request 
   - `current.json`, `mode`, `relay.jsonl`, `tap.jsonl`, `ending.json`, `page.json`, `page.lock` and `send.lock`;
   - `seals/`, the seal copies in the nookku home.
 
-  It also denies a shell command that does not pass the read check and changes to the state folder with `cd`, or has a `cwd` or a Codex `workdir` in it. The reason is `nookku: <name> is a record or a state file of nookku. Only nookku writes it. A command may read it.` `<name>` is the path as the call gives it. For a shell command, one more sentence gives the cause:
+  It also denies a shell command that does not pass the read check and changes to the state folder or to a tests folder of the rule above with `cd`, or has a `cwd` or a Codex `workdir` in it. The reason is `nookku: <name> is a record or a state file of nookku. Only nookku writes it. A command may read it.` `<name>` is the path as the call gives it. For a shell command, one more sentence gives the cause:
   - `"<program>" is not a read command.` for a program that is not a read program, for example `"rm"` or `"$X"`;
   - `"<program>" with these arguments can write.` for a read program whose arguments fail the read check, for example `sed -i` or `command rm`;
   - `The redirect "<operator>" writes it.` for an output redirect;
@@ -383,7 +384,7 @@ The follow-up capture records a title-description schema match, without request 
   - `sed` needs `-n`, and each of its scripts, without its `/regex/` addresses, has only line addresses and the commands `p`, `P`, `=`, `q`, `Q`, `d` and `n`. An option that the check does not know fails, for example `-i` or `-f`. `sort` has no `-o`. `rg` has no `--pre`. `find` has no `-delete`, `-exec`, `-execdir`, `-ok`, `-okdir`, `-fls`, `-fprint`, `-fprint0` or `-fprintf`. `nookku` runs `transcript`, `audit`, `status` or `view`. `command` needs `-v` or `-V` as its first argument, because without it `command` runs its argument as a program.
   - Each output redirect writes `/dev/null` or a file with the name `report.md`, or it copies a file descriptor.
   - The command has no `(`, `)`, `$(` or backquote, and each quote ends.
-- **Deny fails closed.** The relay applies the denies that need only the state folder before it reads the config. These are the deny of test files, the deny of the entry of the running test (from its `manifest.json`), and the deny of the tap of the running test. Thus a config that does not load does not stop them. If the relay fails on a tool call and the folder `.nookku/` exists, it denies the tool call, also when relay mode is off. Without this folder, only the deny of the policy file applies.
+- **Deny fails closed.** If `NOOKKU_TESTS_DIR` breaks the rule of section 7 and the folder `.nookku/` exists, the relay denies each tool call and blocks each control prompt with the error, so that no test file is left with no deny. The relay applies the denies that need only the state folder before it reads the config. These are the deny of test files, the deny of the entry of the running test (from its `manifest.json`), and the deny of the tap of the running test. Thus a config that does not load does not stop them. If the relay fails on a tool call and the folder `.nookku/` exists, it denies the tool call, also when relay mode is off. Without this folder, only the deny of the policy file applies.
 - The deny of test files and of the entry is best effort, like the deny of the tap. A model can change a file or run the app with a command that does not name it.
 - **History.** For the `openai` adapter, the relay sends the turns of the current session that have `ok: true`, then the new message. In a test, the relay sends the turns of the test that have `ok: true` as `history`. If a line of the relay record is not valid (section 2), the relay stops with that error and sends nothing to the tap.
 
@@ -438,11 +439,21 @@ In a test, the bridge gives the entry 2 variables, together with the variables o
 
 An app can keep its state for the test in the subfolder `app-state/` of the test folder, for example an event log. The seal covers each file of the test folder (section 7.4), so `verify` shows a change to these files after the end of the test. The evaluation reads `app-state/` if it exists. Only the app writes there: the relay denies a model write to the test folder (section 5). A child process of the app, for example its model harness, can inherit `NOOKKU_TEST_DIR`, so during a test the relay also denies a tool call that names the variable. A backend may not use one of these 2 variables as its `env`.
 
+`NOOKKU_TEST_DIR` is not `NOOKKU_TESTS_DIR`. `NOOKKU_TEST_DIR` is the folder of one test, and only the bridge sets it, for the entry. `NOOKKU_TESTS_DIR` is the folder that holds the folders of all tests (section 7), and the tester sets it.
+
 ## 7. Tests
 
 A test runs the entry from `start` to `end`. A new conversation is a new test: each test starts a new entry process with a new test id.
 
 **The state folder.** `.nookku/` in the project holds the configuration and the tests. verbatim-relay 0.3.x and earlier used `.verbatim-relay/`. Each command with a project root moves `.verbatim-relay/` to `.nookku/` before it does its work, with one rename, so each record and each seal stays as it is. A `record` path in `.verbatim-relay/` in `config.json` then changes to the same file in `.nookku/`. If both folders exist, nothing moves: the command stops with exit 1, and the relay blocks the event with exit 2.
+
+**The tests folder.** The tests folder holds one folder for each test (section 7.2). Each command that reads or writes a test finds the tests folder with this order:
+
+1. The option `--tests-dir PATH` of the command. A relative path starts at the current folder. The command keeps the absolute path in `NOOKKU_TESTS_DIR`, so each child process, for example the bridge and the chat page server, uses the same folder.
+2. The environment variable `NOOKKU_TESTS_DIR`. An empty value counts as no value.
+3. `.nookku/tests/` in the project.
+
+Thus a mounted volume can keep the tests when the project folder is removed, for example when a pod stops. The value of the variable must be an absolute path. It must not be in a state folder (a part `.nookku`, in any case), except `.nookku/tests` of the project itself. It must not be the project root or a folder above it, because then each folder of the project looks like a test. If the value breaks a rule, the command stops with exit 1 and the error, and does not read or write a test. A folder in the tests folder is a test folder only if its name is a test id: an ASCII letter or digit, then ASCII letters, digits, `_` and `-`. Thus a folder such as `lost+found` of a volume is not a test. The relay in the harness gets no option: it reads `NOOKKU_TESTS_DIR` of the harness (section 5). Thus set the variable for the harness too, if the tests are not in `.nookku/tests/`. The state files (`current.json`, `mode`, `send.lock` and the others of section 5) stay in `.nookku/`. The seal of a test is in its test folder, and its copy stays in the nookku home (section 7.4). The conformance cases of the guard are in [`conformance/guard/`](conformance/guard/), with the names that contain `tests_dir`.
 
 ### 7.1 Configuration
 
@@ -517,10 +528,10 @@ If no process with the pid runs, or if the start time of that process is not `pi
 
 A bridge can stop before it ends the test, for example after SIGKILL or a restart. Then the manifest of the test has no `ended` time. If no test runs, a test with no `ended` time that started 30 seconds or more ago is a stopped test. A new test does not change this. `end` then finishes the folder of the stopped test with the greatest `started`. `check` and `run` end only their own test, so they do not finish another test. After `end` stops a bridge with SIGKILL, it also finishes the folder of that test if the folder has no `ended` time, no `audit.json` or no seal. If a process of the entry's process group still runs, `end` first stops the group, with SIGTERM and after 5 seconds with SIGKILL. `entry_pid` and `entry_pid_start` in the manifest identify the entry, as `pid` and `pid_start` identify the bridge. The entry starts in its own process group, so `entry_pid` is the group id. If a process with another start time has `entry_pid`, `end` sends no signal. If no process has `entry_pid`, the OS can have given the pid, and thus the group id, to a new process. Then `end` sends a signal to the group only if each process of the group has `NOOKKU_TEST_ID` with the id of this test in its environment (section 6.1). Only Linux lets `end` read the environment of a process, so on other systems this check fails. If the check fails, `end` sends no signal. It still finishes the folder, and prints a warning to stderr and to `bridge.log` that names the pids of the group and the command `nookku verify <test-id>`. Then `end` writes `ended`, the time of this step, and `killed: true` into the manifest. Then it does steps 5 to 7 from the records that exist, and writes each error to `bridge.log`. It does not identify or copy model sessions. A test that started less than 30 seconds ago can still be in its start, so `end` does not finish it. `status` names such a stopped test, its folder, and the command `nookku end`. The prompt `nookku status`, the status line of the plugin and the `status` tool of `nookku mcp` give the same text. The status line puts it on one line. `nookku status --json` also gives the key `stopped`, with `test` and `folder` of the stopped test, or `null` (#396).
 
-The test folder:
+The test folder, in the tests folder (section 7), by default `.nookku/tests/`:
 
 ```text
-.nookku/tests/<test-id>/
+<tests folder>/<test-id>/
   manifest.json  relay.jsonl  tap.jsonl  app.log  bridge.log
   otel.jsonl  backend.jsonl  model_api.jsonl  mcp.jsonl  .mcp-closed  database.jsonl  trace.jsonl  findings.json  performance.json  audit.json  seal.json  report.md  denied.jsonl
   sessions/claude-code/<session>.jsonl
@@ -777,7 +788,7 @@ The transcript shows a scripted turn as `script, turn N`, never as a typed turn.
 - The guard protects `scripts/` as a state file (section 5), so a model tool call cannot change a saved script before the tester runs it. A model command can read it. The relay also denies a model command that runs `nookku script`, with each policy (section 5, "Drive commands").
 - The command prints the `run` command. In the project folder, the script path is relative. In another folder, the command has `--root` and the full script path, because `run` reads a relative script path from the current folder. With the policy key `scripts` set to `model`, a model call that runs `nookku run` or `run_script` with this path is denied too, because the guard cannot tell a run from a write.
 - The command reads the relay record with the reader of section 2, so a `said` with a lone surrogate gives an error. It writes no script if the record is not valid or has no turn. Before it writes, it reads the script again with the reader of `run`, and writes nothing if a message is not the same.
-- The page server takes the button request with the checks of each page `POST` (section 5). The body is a JSON object with the text `test`. The test id must name a folder in `.nookku/tests/`, else the page shows the error and nothing is written.
+- The page server takes the button request with the checks of each page `POST` (section 5). The body is a JSON object with the text `test`. The test id must name a folder in the tests folder (section 7), else the page shows the error and nothing is written.
 
 **Replay.** `nookku replay <script> [--base TEST]` runs the script with the steps of `run` above, then compares the new test with the old test. The old test is `--base`, else the test whose id is the name of the script file, as `nookku script save` names it. If `--base` names no test folder, `replay` runs nothing and exits with 2. If no old test is found, `replay` runs the script and prints that it has no test to compare with.
 

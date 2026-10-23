@@ -264,7 +264,7 @@ def base(root: Path, script_path: Path, test: str | None) -> Path | None:
     if test is not None:
         folder = dashboard.find(root, test)
         if folder is None:
-            raise ReplayError(f"no test has the id {test!r}. Give a folder name of .nookku/tests/.")
+            raise ReplayError(f"no test has the id {test!r}. Give the name of a test folder.")
         return folder
     return dashboard.find(root, script_path.stem)
 
