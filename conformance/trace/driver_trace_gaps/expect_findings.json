@@ -49,7 +49,7 @@
    "turn": null,
    "detail": "a span item",
    "harness": "otel",
-   "session": "4bf92f3577b34da6a3ce929d0e0e4736",
+   "session": "0af7651916cd43dd8448eb211c80319c",
    "source": {
     "file": "otel.jsonl",
     "line": 2
