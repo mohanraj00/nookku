@@ -106,16 +106,54 @@ def test_a_separator_in_the_claude_answer_cannot_hide_an_empty_codex_answer(tmp_
 
 
 def test_discovery_accepts_only_added_guard_rows() -> None:
-    row = b'{"type":"blocked_call","harness":"claude-code","tool":"Bash","detail":"cat x"}\n'
-    old = b'{"type":"blocked_call","harness":"claude-code","tool":"Read","detail":"mode"}\n'
-    assert pe.guard_rows(b"", row) == 1
-    assert pe.guard_rows(old, old + row + row) == 2
-    assert pe.guard_rows(old, row) is None
-    assert pe.guard_rows(old, old + row[:-1]) is None
-    assert pe.guard_rows(old[:-1], old[:-1] + row) is None
-    assert pe.guard_rows(b"", b'{"type":"user","text":"toy shop"}\n') is None
-    assert pe.guard_rows(b"", b"[]\n") is None
-    assert pe.guard_rows(b"", b"not json\n") is None
+    def row(tool: str, detail: str, harness: str = "claude-code") -> bytes:
+        item = {"v": "0.2", "ts": 1.0, "type": "blocked_call", "harness": harness}
+        item |= {"tool": tool, "detail": detail}
+        return json.dumps(item).encode() + b"\n"
+
+    calls = [("Bash", '{"command": "cat .nookku/mode"}'), ("Read", '{"file_path": "x"}')]
+    cc = {"claude-code", "plugin"}
+    bash, read = row(*calls[0]), row(*calls[1])
+    assert pe.guard_rows(b"", bash, cc, calls) == 1
+    assert pe.guard_rows(read, read + bash, cc, calls) == 1
+    assert pe.guard_rows(b"", bash + read, cc, calls) == 2
+    # Each row needs a different call, and the old bytes must stay.
+    assert pe.guard_rows(b"", bash + bash, cc, calls) is None
+    assert pe.guard_rows(read, bash, cc, calls) is None
+    assert pe.guard_rows(b"", bash[:-1], cc, calls) is None
+    assert pe.guard_rows(read[:-1], read[:-1] + bash, cc, calls) is None
+    # A row that the model wrote: no matching call, a short row, another harness or more keys.
+    assert pe.guard_rows(b"", row("Bash", "rm app.py"), cc, calls) is None
+    assert pe.guard_rows(b"", b'{"type":"blocked_call"}\n', cc, calls) is None
+    assert pe.guard_rows(b"", row(*calls[0], harness="codex"), cc, calls) is None
+    assert pe.guard_rows(b"", bash, set(), calls) is None
+    extra = json.loads(bash)
+    extra["note"] = "toy shop"
+    assert pe.guard_rows(b"", json.dumps(extra).encode() + b"\n", cc, calls) is None
+    assert pe.guard_rows(b"", b'{"type":"user","text":"toy shop"}\n', cc, calls) is None
+    assert pe.guard_rows(b"", b"[]\n", cc, calls) is None
+    assert pe.guard_rows(b"", b"not json\n", cc, calls) is None
+
+
+def test_the_tool_calls_of_a_claude_output_give_the_guard_detail() -> None:
+    events = [
+        {"type": "system", "subtype": "init"},
+        {
+            "type": "assistant",
+            "message": {
+                "content": [
+                    {"type": "text", "text": "I read the toy shop."},
+                    {"type": "tool_use", "name": "Bash", "input": {"command": "cat app.py"}},
+                ]
+            },
+        },
+        {"type": "user", "message": {"content": [{"type": "tool_result"}]}},
+        {"type": "assistant", "message": {"content": "no list"}},
+    ]
+    assert pe.pr.tool_calls(events) == [("Bash", '{"command": "cat app.py"}')]
+    long = {"type": "tool_use", "name": "Write", "input": {"content": "x" * 400}}
+    detail = pe.pr.tool_calls([{"type": "assistant", "message": {"content": [long]}}])[0][1]
+    assert len(detail) == 300
 
 
 @pytest.mark.parametrize("path", ["APP_SPEC.md", "spec/1.md", "/toy/test/spec/1.md"])

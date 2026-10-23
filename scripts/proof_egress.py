@@ -17,7 +17,8 @@ E1  The manifest has the answer of the model: the catalog server over HTTP with 
     and the returns database with `record: driver`. The Agent SDK model API is anthropic,
     with ANTHROPIC_BASE_URL. `unseen` is empty.
 E2  The model added, removed or changed no project file in the discovery, except the answer
-    files and the test folder. The guard can add blocked_call rows to .nookku/relay.jsonl.
+    files and the test folder. The guard can add blocked_call rows to .nookku/relay.jsonl, one for
+    each denied tool call of the Claude Code discovery session.
 E3  Each call of the session to the catalog and notes tools has a `tools/call` in mcp.jsonl, with
     the same tool and arguments, in the same turn. Each order lookup has a query of the orders in
     database.jsonl in its turn. Each return has a driver query `INSERT INTO returns` in its turn.
@@ -75,7 +76,7 @@ TOOLS = ("find_product", "add_note", "lookup_order", "start_return")
 # Code, which can write each file in the project, as Codex runs in its workspace-write sandbox. E2
 # checks each project file, except the discovery answer files and the test folder. When the guard
 # denies a call outside a test, it adds a blocked_call row to .nookku/relay.jsonl. E2 accepts only
-# these added rows in that file.
+# these added rows in that file, and each must match a tool call of the Claude Code session.
 # An allow list refuses a loop or a pipe that only reads.
 SANDBOX = {"sandbox": {"enabled": True, "autoAllowBashIfSandboxed": True}}
 CLAUDE_DISCOVERY = [
@@ -132,23 +133,39 @@ def digest(project: Path) -> dict[str, str]:
 
 
 GUARD_RECORD = ".nookku/relay.jsonl"
+# The keys of a guard row: the 4 of kit._deny, and the version and the time of record.Writer.
+GUARD_KEYS = {"v", "ts", "type", "harness", "tool", "detail"}
 
 
-def guard_rows(before: bytes, after: bytes) -> int | None:
-    """The number of blocked_call rows that the guard added, or None for each other change."""
+def guard_rows(
+    before: bytes, after: bytes, harnesses: set[str], calls: list[tuple[str, str]]
+) -> int | None:
+    """The number of blocked_call rows that the guard added, or None for each other change.
+
+    Each added row must have the keys of a guard row (GUARD_KEYS), a harness of the setup, and
+    the tool and the detail of a different tool call of the discovery session. A row that the
+    model wrote itself has no such call.
+    """
     if not after.startswith(before) or (before and not before.endswith(b"\n")):
         return None
     added = after[len(before) :]
     if not added.endswith(b"\n"):
         return None
     rows = added.split(b"\n")[:-1]
+    left = list(calls)
     for row in rows:
         try:
             item = json.loads(row)
         except ValueError:
             return None
-        if not isinstance(item, dict) or item.get("type") != "blocked_call":
+        if not isinstance(item, dict) or set(item) != GUARD_KEYS:
             return None
+        if item["type"] != "blocked_call" or item["harness"] not in harnesses:
+            return None
+        call = (item["tool"], item["detail"])
+        if call not in left:
+            return None
+        left.remove(call)
     return len(rows)
 
 
@@ -234,6 +251,7 @@ def main() -> int:
     before = digest(project)
     record = project / GUARD_RECORD
     record_before = record.read_bytes() if record.is_file() else b""
+    pr.CALLS.clear()
     container = catalog = None
     try:
         container = postgres()
@@ -251,10 +269,18 @@ def main() -> int:
         after = digest(project)
         changed = changed_files(before, after)
         blocked = None
+        refused: list[str] = []
         if GUARD_RECORD in changed and record.is_file() and not record.is_symlink():
-            blocked = guard_rows(record_before, record.read_bytes())
+            # Only the Claude Code output gives the tool calls, so Codex gets no exemption.
+            harnesses = {"claude-code", "plugin"} if relay.endswith("claude-code") else set()
+            blocked = guard_rows(record_before, record.read_bytes(), harnesses, pr.CALLS)
             if blocked is not None:
                 changed.remove(GUARD_RECORD)
+            else:
+                # The refused rows and the calls show the cause of a fail of E2.
+                added = record.read_bytes()[len(record_before) :]
+                refused = added.decode(errors="replace").splitlines()[:10]
+        calls = list(pr.CALLS)
         ran = None
         if pending is not None:
             ran = pr.run_test(project, run, start, end, end_args, MESSAGES, registered=True)
@@ -275,6 +301,8 @@ def main() -> int:
         "method": "scripts/proof_egress.py",
         "E2_app_files_changed": changed,
         "E2_guard_rows_added": blocked or 0,
+        "E2_relay_rows_refused": refused,
+        "E2_tool_calls": len(calls),
         "E2_files_before": before,
         "E2_files_after": after,
     }
