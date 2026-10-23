@@ -90,14 +90,14 @@
  "P3b": {
   "agent_inputs_added": 0,
   "blocked_rows": 1,
-  "model_text": "I did not send the request, so I have no output to show you.\n\nA Nookku hook stopped the command before it ran. The hook said: `nookku: only the tester talks to the agent.`\n\nThis working directory is a Nookku proof run (`.proof/plugin-claude-code`). Port 60692 is almost certainly the agent under test"
+  "model_text": "The command did not run, so I have no output to show you. A PreToolUse hook stopped it with this message:\n\n```\nnookku: only the tester talks to the agent.\n```\n\nThe Nookku guard is active in this proof directory. Port 52859 is the agent under test. The guard stops the model from sending messages to t"
  },
- "end_model_output_tokens": 3217,
+ "end_model_output_tokens": 4413,
  "test": {
   "ended": true,
   "model_sessions": [],
   "versions": {
-   "nookku": "0.5.4",
+   "nookku": "0.5.5",
    "claude-code": "2.1.302 (Claude Code)",
    "codex": "codex-cli 0.162.1"
   }
