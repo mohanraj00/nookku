@@ -531,7 +531,8 @@ def test_the_sample_report_of_the_readme_is_an_excerpt_of_its_data() -> None:
         at = lines.index(line, at) + 1
     rows = sum(1 for line in lines if line.startswith("| ") and line.count("|") > 4) - 1
     notes = sum(1 for line in lines if line.startswith("- "))
-    assert f"The full report has {rows} rows and {notes} notes." in section
+    word = "row" if rows == 1 else "rows"
+    assert f"The full report has {rows} {word} and {notes} notes." in section
 
 
 CAPTURE = re.compile(

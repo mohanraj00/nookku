@@ -1101,7 +1101,7 @@ A call of a harness that the model API proxy saw (section 7.7) is not a second c
 | `model_api.jsonl` has a harness call of a harness with no model session in the manifest. | `model_api.jsonl has <n> call(s) of <harness>, and no session file of it` (`1 call` or `<n> calls`) |
 | A session file gives no call, but the trace has a reply, a tool call or a command of that session. | `the session file of <session> has model items and no model call` |
 
-The cases in [`conformance/performance/`](conformance/performance/) give the input records and the expected `performance.json`. The Codex rule comes from the rollout files of codex-cli 0.162.0-alpha.17.2. No proof checks it with a real Codex yet. That proof is in v0.5.5 ([#437](https://github.com/mohanraj00/nookku/issues/437)).
+The cases in [`conformance/performance/`](conformance/performance/) give the input records and the expected `performance.json`. The Codex rule is checked with a real Codex app session. The [data](proofs/performance/codex-app.json) records the tested Codex version, the usage notifications, the rollout usage and the checks. The [method](scripts/proof_codex_performance.py) compares each turn of `performance.json` with the app-server usage notifications. It records the count of repeated totals; the conformance cases check the repeat rule when the real session has no repeat.
 
 ## 9. Evaluation
 
