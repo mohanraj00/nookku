@@ -14,7 +14,7 @@ import pytest
 from toy_model_server import ModelServer
 from toy_stock_server import StockServer
 
-from nookku import backend
+from nookku import backend, bridge
 
 
 def proxy_for(stock: StockServer, tmp_path: Path, url: str | None = None) -> backend.Proxies:
@@ -566,3 +566,26 @@ def test_the_proxy_reads_no_byte_of_a_body_that_is_too_long() -> None:
         backend.read_body(headers, Source(), backend.BODY_LIMIT)
     assert e.value.status == 413
     assert backend.Proxy.body_limit == backend.BODY_LIMIT == 64 * 1024 * 1024
+
+
+def test_the_config_key_body_limit_sets_the_limit_of_the_proxy(tmp_path: Path) -> None:
+    (tmp_path / ".nookku").mkdir()
+    conf = {"entry": ["python3", "agent.py"], "body_limit": 100}
+    (tmp_path / ".nookku" / "config.json").write_text(json.dumps(conf))
+    limit = bridge.load_config(tmp_path).body_limit
+    assert limit == 100
+    del conf["body_limit"]
+    (tmp_path / ".nookku" / "config.json").write_text(json.dumps(conf))
+    assert bridge.load_config(tmp_path).body_limit == backend.BODY_LIMIT == 64 * 1024 * 1024
+    with StockServer() as stock:
+        b = backend.Backend("stock", "STOCK_URL", stock.url)
+        proxies = backend.Proxies([b], tmp_path / backend.FILE, body_limit=limit)
+        env = proxies.start()
+        try:
+            ok, _, _ = request(env["STOCK_URL"], "POST", "/stock", b"t" * 100, {})
+            refused, _, _ = request(env["STOCK_URL"], "POST", "/stock", b"t" * 101, {})
+        finally:
+            proxies.stop()
+    assert (ok, refused) == (200, 413)
+    assert [len(s["body"]) for s in stock.seen] == [100]
+    assert rows(tmp_path)[1]["error"].endswith("the body is longer than 100 bytes")

@@ -45,10 +45,11 @@ REMOVED = "<removed>"
 # The app does not know that it speaks to a proxy, so the proxy headers go through.
 NOT_FORWARDED = (HOP_BY_HOP - {"proxy-authorization"}) | {"host", "content-length"}
 NOT_RETURNED = (HOP_BY_HOP - {"proxy-authenticate"}) | {"content-length"}
-# The most bytes of a request body that a proxy reads. The proxy holds all of a request body in
-# memory before it forwards it, so it refuses a longer body and forwards none of it. This bound is
-# a chosen value, not a measurement (SPEC.md section 7.6).
-BODY_LIMIT = 64 * 1024 * 1024
+# The default of the config key body_limit: the most bytes of a request body that a proxy reads.
+# The proxy holds all of a request body in memory before it forwards it, so it refuses a longer
+# body and forwards none of it. This bound is a chosen value, not a measurement (SPEC.md section
+# 7.6).
+BODY_LIMIT = Config.body_limit
 DIGITS = re.compile(r"[0-9]+")
 HEX = re.compile(rb"[0-9A-Fa-f]+")
 REFUSED = "the proxy refused the request"
@@ -551,14 +552,16 @@ class Proxies:
         record: Path,
         kind: type[Proxy] = Proxy,
         keep: int | None = None,
+        body_limit: int = BODY_LIMIT,
     ) -> None:
         """`keep` is the most bytes of a body that the record keeps, or None for the default of
-        the kind."""
+        the kind. `body_limit` is the most bytes of a request body that a proxy reads."""
         self.lock = threading.Condition()
         self.proxies = [kind(b, record, self.lock) for b in backends]
         for p in self.proxies:
             if keep is not None:
                 p.keep = keep
+            p.body_limit = body_limit
 
     def start(self) -> dict[str, str]:
         """Start each proxy. Return the variables that give the entry the proxy URLs."""

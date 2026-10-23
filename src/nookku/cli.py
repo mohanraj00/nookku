@@ -52,6 +52,7 @@ LIST_KEYS = {
     "transcript_compact",
     "page",
     "record_limit",
+    "body_limit",
     "spec",
 }
 # The plain string flags of init. A flag that the user does not give is None.

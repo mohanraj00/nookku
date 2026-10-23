@@ -116,6 +116,8 @@ class TestConfig:
     trace_points: list[dict[str, str]] = field(default_factory=list)
     # Each part of a Trace points section that is not a trace point: its file, line and problem.
     trace_points_unread: list[dict[str, Any]] = field(default_factory=list)
+    # The most bytes of a request body that a proxy reads and forwards (SPEC.md section 7.6).
+    body_limit: int = backend.BODY_LIMIT
 
 
 def load_config(root: Path, entry_name: str | None = None) -> TestConfig:
@@ -149,7 +151,18 @@ def load_config(root: Path, entry_name: str | None = None) -> TestConfig:
     keys = {k: data.get(k, default) for k, default in trace.TRACE_KEYS.items()}
     limit = data.get("record_limit", backend.RECORD_LIMIT)
     return TestConfig(
-        entry, models, otel, rules, message, keys, entry_name, limit, spec, points, unread
+        entry,
+        models,
+        otel,
+        rules,
+        message,
+        keys,
+        entry_name,
+        limit,
+        spec,
+        points,
+        unread,
+        body_limit=data.get("body_limit", backend.BODY_LIMIT),
     )
 
 
@@ -827,12 +840,18 @@ def run(
         _log(f"OTLP receiver on {receiver.url}")
         # The coverage check skips the calls to the receiver (SPEC.md section 8.6).
         manifest["egress"]["receiver"] = receiver.url
-    proxies = backend.Proxies(backends, folder / backend.FILE, keep=config.record_limit)
+    proxies = backend.Proxies(
+        backends, folder / backend.FILE, keep=config.record_limit, body_limit=config.body_limit
+    )
     env.update(proxies.start())
     for p in proxies.proxies:
         _log(f"backend {p.backend.name}: {p.backend.env}={p.url} -> {p.backend.url}")
     apis = backend.Proxies(
-        model_apis, folder / model_api.FILE, model_api.ModelProxy, config.record_limit
+        model_apis,
+        folder / model_api.FILE,
+        model_api.ModelProxy,
+        config.record_limit,
+        config.body_limit,
     )
     env.update(apis.start())
     # The app can keep its state in the test folder, for example in app-state/, so that the seal
@@ -843,7 +862,10 @@ def run(
     # The MCP servers that have a variable (SPEC.md section 7.12).
     servers = egress["answer"]["mcp_servers"]
     mcp = backend.Proxies(
-        mcp_proxy.http_servers(servers), folder / mcp_proxy.FILE, mcp_proxy.HttpProxy
+        mcp_proxy.http_servers(servers),
+        folder / mcp_proxy.FILE,
+        mcp_proxy.HttpProxy,
+        body_limit=config.body_limit,
     )
     env.update(mcp.start())
     for p in mcp.proxies:
