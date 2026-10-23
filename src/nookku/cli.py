@@ -718,10 +718,8 @@ def _trace_command(root: Path, test: str | None, as_json: bool) -> int:
         print(json.dumps(report, indent=1, ensure_ascii=False))
         return 0
     print(trace.summary(report))
-    for f in report["findings"]:
-        where = [f"turn {f['turn']}" if f["turn"] is not None else "no turn"]
-        where += [f["harness"]] if f.get("harness") else []
-        print(f"  {f['check']} ({', '.join(where)}): {f['detail']}")
+    for line in trace.finding_lines(report):
+        print(line)
     print(f"File: {folder / 'trace.jsonl'}")
     return 0
 

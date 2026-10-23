@@ -349,7 +349,7 @@ Compare the relay record with the [tap record](glossary.md#tap-record) ([SPEC.md
 nookku trace [TEST] [--root PATH] [--json]
 ```
 
-Build the trace of a test again, and show its findings ([SPEC.md section 8](../../SPEC.md#8-trace)). It also writes `performance.json` again ([SPEC.md section 8.7](../../SPEC.md#87-performance)). If the test has a seal, it rebuilds only from sources that agree with the seal.
+Build the trace of a test again, and show its findings ([SPEC.md section 8](../../SPEC.md#8-trace)). The findings show in groups by turn, and each control character of a finding shows as its escape ([read the results](../how-to/read-the-results.md#4-read-the-findings)). It also writes `performance.json` again ([SPEC.md section 8.7](../../SPEC.md#87-performance)). If the test has a seal, it rebuilds only from sources that agree with the seal.
 
 | Argument or flag | Default | Meaning |
 |---|---|---|

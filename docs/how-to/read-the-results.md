@@ -207,18 +207,24 @@ cat .nookku/tests/20261011-184952-8a8d/findings.json
 
 A finding is a fact, not yet an issue. For example, a tool error can be the correct result of a request for an order that does not exist. The findings do not change the exit code of the audit.
 
-`nookku trace` shows the findings on one line each. This output is from a copy of the conformance case [claude_code_toy_shop](../../conformance/trace/claude_code_toy_shop/), which has a Claude Code session file:
+`nookku trace` shows the findings in groups by turn. The findings with no turn show last, under `No turn:`. In a group, 2 or more findings about the same model item, for example a tool call, show under the file and the line of that item. Each group keeps the order of `findings.json`. This output is from a copy of the conformance case [claude_code_toy_shop](../../conformance/trace/claude_code_toy_shop/), which has a Claude Code session file:
 
 ```text
 Trace: 11 model items in 3 turns, 1 agent_error, 3 tool_error, 1 turn_without_model, 2 item_between_turns.
-  agent_error (turn 2): the agent gave status 500
-  tool_error (turn 2, claude-code): lookup_order: no such order
-  tool_error (turn 2, claude-code): Bash: cat: returns.txt: No such file
-  tool_error (no turn, claude-code): lookup_order: no tool_result in the session file
-  turn_without_model (turn 3): no model item in this turn
-  item_between_turns (no turn, claude-code): a message item
-  item_between_turns (no turn, claude-code): a tool_call item
+Turn 2:
+  agent_error: the agent gave status 500
+  tool_error (claude-code): lookup_order: no such order
+  tool_error (claude-code): Bash: cat: returns.txt: No such file
+Turn 3:
+  turn_without_model: no model item in this turn
+No turn:
+  sessions/claude-code/4f1c2a7e-0d3b-4c55-9a61-2b8e5d7c9f10.jsonl:20 (claude-code):
+    tool_error: lookup_order: no tool_result in the session file
+    item_between_turns: a tool_call item
+  item_between_turns (claude-code): a message item
 ```
+
+A finding detail can hold text of the app, the model or a [tester](../reference/glossary.md#tester). `nookku trace` and `nookku transcript --trace` show each finding on one line. Each control character shows as its escape, for example `\u001b` for the escape character and `\u000a` for a line feed. So a detail cannot move the cursor, clear the terminal or add a line. `findings.json` keeps the text with no change.
 
 Each finding in `findings.json` has `check`, `turn` and `detail`. A finding about a model item also has `harness`, `session` and `source`, the file and the line in `sessions/`.
 

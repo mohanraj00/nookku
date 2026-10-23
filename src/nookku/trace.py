@@ -1530,3 +1530,59 @@ def trace_keys(manifest: dict[str, Any]) -> dict[str, Any]:
 def summary(report: dict[str, Any]) -> str:
     found = ", ".join(f"{n} {c}" for c, n in report["counts"].items() if n) or "no findings"
     return f"Trace: {report['items']} model items in {report['turns']} turns, {found}."
+
+
+# The characters that can move the cursor, clear the terminal or end a line: the C0 and C1
+# control characters, and the line and paragraph separators. Each one shows as its escape.
+_CONTROL = {c: f"\\u{c:04x}" for c in (*range(0x20), *range(0x7F, 0xA0), 0x2028, 0x2029)}
+
+
+def one_line(value: Any) -> str:
+    """The text of a value on one line, with each control character as its escape `\\uXXXX`.
+    A finding detail can hold text of the app, the model or a tester, so the text output of the
+    trace shows each value of a finding with this function."""
+    return str(value).translate(_CONTROL)
+
+
+def _item_key(f: dict[str, Any]) -> tuple[str, str, int] | None:
+    source = f.get("source")
+    if not isinstance(source, dict) or not isinstance(source.get("line"), int):
+        return None
+    return (one_line(f.get("harness") or ""), one_line(source.get("file")), source["line"])
+
+
+def finding_lines(report: dict[str, Any]) -> list[str]:
+    """The lines of the findings of a report for `nookku trace` (#251). The findings show in
+    groups by turn, and the findings with no turn show last. In a group, 2 or more findings
+    about the same item, for example a tool call, show under the file and the line of that item.
+    Each group keeps the order of findings.json."""
+    turns: dict[int | None, list[dict[str, Any]]] = {}
+    for f in report["findings"]:
+        turns.setdefault(f["turn"] if isinstance(f["turn"], int) else None, []).append(f)
+    out: list[str] = []
+    for turn in sorted(turns, key=lambda t: (t is None, t or 0)):
+        out.append(f"Turn {turn}:" if turn is not None else "No turn:")
+        groups: list[list[dict[str, Any]]] = []
+        by_item: dict[tuple[str, str, int], list[dict[str, Any]]] = {}
+        for f in turns[turn]:
+            key = _item_key(f)
+            if key is None:
+                groups.append([f])
+            elif key in by_item:
+                by_item[key].append(f)
+            else:
+                groups.append(by_item.setdefault(key, [f]))
+        for found in groups:
+            key = _item_key(found[0])
+            if key is None or len(found) < 2:
+                out += [_finding_line(f, "  ", True) for f in found]
+                continue
+            harness, file, line = key
+            out.append(f"  {file}:{line}" + (f" ({harness}):" if harness else ":"))
+            out += [_finding_line(f, "    ", False) for f in found]
+    return out
+
+
+def _finding_line(f: dict[str, Any], indent: str, harness: bool) -> str:
+    where = f" ({one_line(f['harness'])})" if harness and f.get("harness") else ""
+    return f"{indent}{one_line(f['check'])}{where}: {one_line(f['detail'])}"
