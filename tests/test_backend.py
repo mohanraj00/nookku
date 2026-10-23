@@ -589,3 +589,46 @@ def test_the_config_key_body_limit_sets_the_limit_of_the_proxy(tmp_path: Path) -
     assert (ok, refused) == (200, 413)
     assert [len(s["body"]) for s in stock.seen] == [100]
     assert rows(tmp_path)[1]["error"].endswith("the body is longer than 100 bytes")
+
+
+def test_a_large_upload_reads_the_refusal_with_no_reset(tmp_path: Path) -> None:
+    sent = b"t" * (10 * 1024 * 1024)
+    with StockServer() as stock:
+        proxies = limited(stock, tmp_path, 1024)
+        env = proxies.start()
+        try:
+            # http.client sends all of the body before it reads the answer.
+            status, headers, got = request(env["STOCK_URL"], "POST", "/stock", sent, {})
+        finally:
+            proxies.stop()
+    assert status == 413 and ("Connection", "close") in headers
+    assert json.loads(got)["error"].endswith("the body is longer than 1024 bytes")
+    assert stock.seen == []
+    assert rows(tmp_path)[0]["request_body"] is None
+
+
+def test_expect_100_continue_gets_the_refusal_at_once(tmp_path: Path) -> None:
+    head = b"POST /stock HTTP/1.1\r\nHost: shop\r\nExpect: 100-continue\r\n"
+    with StockServer() as stock:
+        proxies = limited(stock, tmp_path, 1000)
+        env = proxies.start()
+        try:
+            # The app sends no body. It waits for 100 Continue, and gets the refusal.
+            refused = raw_request(env["STOCK_URL"], head + b"Content-Length: 1001\r\n\r\n")
+            host, port = env["STOCK_URL"].removeprefix("http://").split(":")
+            with socket.create_connection((host, int(port)), timeout=10) as s:
+                s.sendall(head + b"Content-Length: 6\r\nConnection: close\r\n\r\n")
+                assert s.recv(25).startswith(b"HTTP/1.1 100 Continue\r\n")
+                s.sendall(b"teapot")
+                answer = b""
+                while part := s.recv(65536):
+                    answer += part
+        finally:
+            proxies.stop()
+    assert refused.startswith(b"HTTP/1.1 413 ") and b"100 Continue" not in refused
+    # A body within the limit still gets 100 Continue and goes to the backend.
+    assert b"HTTP/1.1 200 " in answer
+    assert [s["body"] for s in stock.seen] == [b"teapot"]
+    first, second = rows(tmp_path)
+    assert first["error"] == "the proxy refused the request: the body is longer than 1000 bytes"
+    assert first["request_body"] is None and second["error"] is None

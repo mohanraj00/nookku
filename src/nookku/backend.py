@@ -53,9 +53,13 @@ BODY_LIMIT = Config.body_limit
 DIGITS = re.compile(r"[0-9]+")
 HEX = re.compile(rb"[0-9A-Fa-f]+")
 REFUSED = "the proxy refused the request"
-# After a refusal, the most bytes and seconds that the proxy reads and drops of what the app still
-# sends. Then the close does not reset the connection before the app reads the refusal.
-DROP_BYTES = 4 * 1024 * 1024
+# After a refusal, the proxy reads and drops the rest of the body while the app still sends it.
+# Thus the close does not reset the connection before the app reads the refusal. The drain ends at
+# the end of the Content-Length, at the end of the connection, after DROP_TIME seconds with no
+# byte, or after the larger of DROP_BYTES and DROP_TIMES times body_limit. These bounds are chosen
+# values, not measurements (SPEC.md section 7.6).
+DROP_BYTES = 256 * 1024 * 1024
+DROP_TIMES = 4
 DROP_TIME = 1.0
 # At the end of the test, the time to wait for the calls that did not end.
 DRAIN = 10.0
@@ -236,20 +240,31 @@ def read_chunked(rfile: Any, limit: int) -> bytes:
             raise Refused(400, "a chunk does not end with a line end")
 
 
-def read_body(headers: Any, rfile: Any, limit: int) -> bytes:
-    """The request body. Raise Refused if it has more than `limit` bytes, if its framing is not
-    valid, or if it stops before its end. The proxy reads no byte of a body that is too long."""
-    if "chunked" in headers.get("Transfer-Encoding", "").lower():
-        return read_chunked(rfile, limit)
+def chunked(headers: Any) -> bool:
+    return "chunked" in headers.get("Transfer-Encoding", "").lower()
+
+
+def declared(headers: Any, limit: int) -> int:
+    """The Content-Length of a request that is not chunked, or 0 if it has none. Raise Refused if
+    it is not one count of 0 or more, or if it is more than `limit`."""
     lengths = {v.strip() for v in headers.get_all("Content-Length") or []}
     if not lengths:
-        return b""
+        return 0
     length = lengths.pop()
     if lengths or not DIGITS.fullmatch(length):
         raise Refused(400, "the Content-Length is not one count of 0 or more")
     size = int(length)
     if size > limit:
         raise too_long(limit)
+    return size
+
+
+def read_body(headers: Any, rfile: Any, limit: int) -> bytes:
+    """The request body. Raise Refused if it has more than `limit` bytes, if its framing is not
+    valid, or if it stops before its end. The proxy reads no byte of a body that is too long."""
+    if chunked(headers):
+        return read_chunked(rfile, limit)
+    size = declared(headers, limit)
     data = rfile.read(size)
     if len(data) < size:
         raise stopped()
@@ -366,6 +381,20 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, format: str, *args: object) -> None:
         pass
 
+    # A refusal that the proxy found before the body, for a request with Expect: 100-continue.
+    early: Refused | None = None
+
+    def handle_expect_100(self) -> bool:
+        """Send 100 Continue, except for a request that the proxy refuses from its headers. Such a
+        request gets the refusal at once, with no 100 Continue, so that the app sends no body."""
+        if not chunked(self.headers):
+            try:
+                declared(self.headers, self.server.body_limit)
+            except Refused as e:
+                self.early = e
+                return True
+        return super().handle_expect_100()
+
     def do_GET(self) -> None:
         self._forward()
 
@@ -374,8 +403,10 @@ class Handler(BaseHTTPRequestHandler):
     def _forward(self) -> None:
         started = time.time()
         proxy, method = self.server, self.command
-        refused: Refused | None = None
+        refused, self.early = self.early, None
         try:
+            if refused is not None:
+                raise refused
             body = read_body(self.headers, self.rfile, proxy.body_limit)
         except Refused as e:
             # The proxy did not read all of the body, so the connection cannot take one more
@@ -516,22 +547,29 @@ class Handler(BaseHTTPRequestHandler):
         proxy.end(row, fields, stream.data, encoding, stream.cut)
 
     def _refuse(self, refused: Refused) -> None:
-        """Send the refusal to the app, then read and drop what the app still sends, for at most
-        DROP_TIME seconds and DROP_BYTES bytes."""
+        """Send the refusal to the app, then read and drop the rest of the body (see DROP_BYTES).
+        The proxy keeps no dropped byte."""
         data = json.dumps({"error": f"nookku backend proxy: {refused}"}).encode()
+        headers = [("Content-Type", "application/json"), ("Connection", "close")]
+        limit = self.server.body_limit
+        left = max(DROP_BYTES, DROP_TIMES * limit)
+        if refused.status == 413 and not chunked(self.headers):
+            # The proxy read no byte of the body, so the Content-Length gives the rest.
+            left = min(left, int(self.headers["Content-Length"].strip()))
         try:
-            self._send(refused.status, [("Content-Type", "application/json")], data)
+            self._send(refused.status, headers, data)
             self.wfile.flush()
             self.connection.shutdown(socket.SHUT_WR)
+            # The timeout applies to each read: the drain ends after DROP_TIME seconds with no
+            # byte.
             self.connection.settimeout(DROP_TIME)
-            deadline, dropped = time.monotonic() + DROP_TIME, 0
-            while dropped < DROP_BYTES and time.monotonic() < deadline:
-                part = self.connection.recv(65536)
+            while left > 0:
+                part = self.rfile.read1(min(left, 65536))
                 if not part:
                     break
-                dropped += len(part)
+                left -= len(part)
         except OSError:
-            pass  # The app went away. The row already records the refusal.
+            pass  # The app went away, or it sent no byte for DROP_TIME. The row has the refusal.
 
     def _send(self, status: int, headers: list[tuple[str, str]], body: bytes) -> None:
         self.send_response_only(status)
