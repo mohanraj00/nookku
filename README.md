@@ -162,7 +162,7 @@ A test also records what your app did. It copies the session files of the app's 
 | Audit finds planted faults | 5/5 | 5/5 | 5/5 | 5/5 |
 | After the test, the model has no memory of the conversation, and reads it from the transcript | yes | yes | yes | yes |
 
-The Claude Code columns ran on nookku 0.5.5 on 2026-10-23. The Codex columns ran on nookku 0.5.4 on 2026-10-20. Data: [plugin in Claude Code](proofs/plugin-claude-code/results.json), [plugin in Codex](proofs/plugin-codex/results.json), [project hooks in Claude Code](proofs/hooks-claude-code/results.json), [project hooks in Codex](proofs/hooks-codex/results.json), [evaluation](docs/results.md#p5-the-model-judges-the-record-not-its-memory). Method: [docs/results.md](docs/results.md#1-proofs).
+Each column ran on nookku 0.5.5 on 2026-10-23. Data: [plugin in Claude Code](proofs/plugin-claude-code/results.json), [plugin in Codex](proofs/plugin-codex/results.json), [project hooks in Claude Code](proofs/hooks-claude-code/results.json), [project hooks in Codex](proofs/hooks-codex/results.json), [evaluation](docs/results.md#p5-the-model-judges-the-record-not-its-memory). Method: [docs/results.md](docs/results.md#1-proofs).
 
 Under pressure, the mechanism had **0 breaks in 1,000 turns**. The test had 40 scripted conversations in each harness, 5 or 20 turns long. They had refusals, HTTP 500 errors, questions back to the tester and ambiguous messages. Each turn was a new harness call. I registered the design before the first run. Method, data and the one deviation: [docs/results.md](docs/results.md#2-benchmark-under-pressure).
 
