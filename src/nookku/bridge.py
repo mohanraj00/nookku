@@ -828,6 +828,8 @@ def run(
         "policy": config.policy,
         "trace": config.trace,
         "spec": config.spec,
+        # The bridge copies the spec files into spec/ (SPEC.md section 7.2).
+        "spec_copies": True,
         "trace_points": config.trace_points,
         "trace_points_unread": config.trace_points_unread,
         "tester_sessions": [tester_session] if tester_session else [],

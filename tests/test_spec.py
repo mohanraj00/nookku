@@ -71,13 +71,16 @@ def test_the_note_checks_each_spec_copy_again_at_the_end(tmp_path: Path, case: P
     for name, target in expect.get("copy_links", {}).items():
         (folder / name).parent.mkdir(parents=True, exist_ok=True)
         (folder / name).symlink_to(target)
-    manifest: dict = {"root": "/not/the/root"}
+    # A test folder from before the copies has no spec_copies in its manifest. Then a
+    # <sha256> is the SHA-256 of the project file.
+    old = expect.get("old_folder", False)
+    manifest: dict = {"root": "/not/the/root"} if old else {"root": "/x", "spec_copies": True}
     if "manifest_spec" in expect:
         manifest["spec"] = [
             {
                 **f,
                 "sha256": hashlib.sha256(
-                    (folder / spec_copy(n, f["path"])).read_bytes()
+                    ((root / f["path"]) if old else (folder / spec_copy(n, f["path"]))).read_bytes()
                 ).hexdigest(),
             }
             if isinstance(f, dict) and f["sha256"] == "<sha256>"
@@ -86,7 +89,7 @@ def test_the_note_checks_each_spec_copy_again_at_the_end(tmp_path: Path, case: P
         ]
     (folder / "manifest.json").write_text(json.dumps(manifest))
     note = evaluation.spec_note(folder)
-    assert note == expect["note"].replace("<folder>", str(folder))
+    assert note == expect["note"].replace("<folder>", str(folder)).replace("<root>", str(root))
 
 
 @pytest.mark.parametrize("case", COPIES, ids=[c.stem for c in COPIES])
@@ -143,7 +146,7 @@ def test_the_prompt_starts_with_the_note(tmp_path: Path) -> None:
     (folder / "spec").mkdir()
     (folder / "spec" / "1.md").write_bytes(b"# Spec\n")
     spec = [{"path": "APP_SPEC.md", "sha256": hashlib.sha256(b"# Spec\n").hexdigest()}]
-    (folder / "manifest.json").write_text(json.dumps({"spec": spec}))
+    (folder / "manifest.json").write_text(json.dumps({"spec": spec, "spec_copies": True}))
     text = evaluation.prompt(folder)
     assert evaluation.spec_note(folder) in text
     assert text.index("Read each copy first") < text.index("# Evaluate test t1")
@@ -169,6 +172,7 @@ def test_the_manifest_of_a_test_records_the_spec(
     sha = hashlib.sha256(b"# Spec\n").hexdigest()
     assert first["spec"] == [{"path": "APP_SPEC.md", "sha256": sha}]
     assert manifest is not None and manifest["spec"] == first["spec"]
+    assert first["spec_copies"] is True
     assert (folder / "spec" / "1.md").read_bytes() == b"# Spec\n"
     sealed = json.loads((folder / "seal.json").read_text())["files"]
     assert sealed["spec/1.md"] == sha
@@ -183,3 +187,18 @@ def test_an_unreadable_spec_file_gives_the_cause(tmp_path: Path) -> None:
     (tmp_path / "APP_SPEC.md").chmod(0)
     with pytest.raises(ConfigError, match=r"cannot read the spec file 'APP_SPEC\.md': Permission"):
         spec_hashes(tmp_path, ["APP_SPEC.md"])
+
+
+def test_only_a_folder_from_before_the_copies_reads_the_project_file(tmp_path: Path) -> None:
+    """A 0.5.4 manifest has no spec_copies, so the note checks the project file. A new manifest
+    with no copy names the copy as missing, and never reads the project file (#481)."""
+    folder = tmp_path / ".nookku" / "tests" / "t1"
+    folder.mkdir(parents=True)
+    (tmp_path / "APP_SPEC.md").write_bytes(b"# Spec\n")
+    spec = [{"path": "APP_SPEC.md", "sha256": hashlib.sha256(b"# Spec\n").hexdigest()}]
+    (folder / "manifest.json").write_text(json.dumps({"spec": spec}))
+    old = evaluation.prompt(folder)
+    assert f'relative to the project root {json.dumps(str(tmp_path))}:\n- "APP_SPEC.md"\n' in old
+    (folder / "manifest.json").write_text(json.dumps({"spec": spec, "spec_copies": True}))
+    new = evaluation.spec_note(folder)
+    assert new.startswith("Do not read") and "the test folder has no copy spec/1.md" in new
