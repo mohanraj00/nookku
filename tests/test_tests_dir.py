@@ -5,12 +5,14 @@ from __future__ import annotations
 import io
 import json
 import os
+import subprocess
 import sys
+import time
 from pathlib import Path
 
 import pytest
 
-from nookku import bridge, commands, kit, seal, state
+from nookku import bridge, commands, discovery, kit, seal, state
 from nookku.cli import main
 from nookku.record import Writer
 
@@ -204,3 +206,65 @@ def test_a_bad_variable_denies_each_tool_call_and_blocks_the_control_prompts(
 )
 def test_a_word_in_the_tests_folder(word: str, rest: list[str] | None) -> None:
     assert commands.state_rest(word, ["/vol/tests"], "/shop") == rest
+
+
+def test_end_never_signals_an_entry_that_the_project_state_does_not_name(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Another user can write a tests folder on shared storage. A planted manifest of a stopped
+    test with the pid data of a live process group must not make `end` signal it (#457)."""
+    root = project(tmp_path)
+    tests = tmp_path / "volume" / "tests"
+    monkeypatch.setenv(state.TESTS_ENV, str(tests))
+    victim = subprocess.Popen(["sleep", "60"], start_new_session=True)
+    try:
+        planted = tests / "20261023-090000-dead"
+        planted.mkdir(parents=True)
+        manifest = {
+            "v": "0.2",
+            "test": planted.name,
+            "dir": str(planted),
+            "started": time.time() - 3600,
+            "ended": None,
+            "entry_pid": victim.pid,
+            "entry_pid_start": bridge.process_start(victim.pid),
+        }
+        (planted / "manifest.json").write_text(json.dumps(manifest))
+        assert bridge.stopped(root) is None
+        assert bridge.end(root) is None
+        # Also a direct finish signals nothing, because no run file names the entry.
+        bridge.finish_stopped(root, planted)
+        time.sleep(0.2)
+        assert victim.poll() is None
+        assert "the state folder does not name the entry" in (planted / "bridge.log").read_text()
+    finally:
+        victim.kill()
+        victim.wait()
+
+
+def test_the_run_file_gives_the_entry_and_not_the_manifest(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = project(tmp_path)
+    tests = tmp_path / "volume" / "tests"
+    monkeypatch.setenv(state.TESTS_ENV, str(tests))
+    cur = bridge.start(root)
+    try:
+        run = json.loads(bridge.run_path(root, cur["test"]).read_text())
+        assert run["dir"] == cur["dir"] and isinstance(run["entry_pid"], int)
+        assert bridge.run_path(root, cur["test"]).stat().st_mode & 0o777 == 0o600
+        # A change of the manifest in the tests folder does not change the entry to signal.
+        folder = Path(cur["dir"])
+        manifest = json.loads((folder / "manifest.json").read_text())
+        manifest["entry_pid"] = 1
+        (folder / "manifest.json").write_text(json.dumps(manifest))
+        entry = bridge._trusted_entry(root, folder)
+        assert entry is not None and entry["entry_pid"] == run["entry_pid"]
+    finally:
+        bridge.end(root)
+
+
+def test_a_part_of_the_egress_answer_cannot_set_the_tests_folder() -> None:
+    part = {"name": "stock", "kind": "http", "url": "http://127.0.0.1:9", "env": "NOOKKU_TESTS_DIR"}
+    with pytest.raises(discovery.AnswerError, match="NOOKKU_TESTS_DIR of nookku"):
+        discovery._env("backends[0]", part["env"])

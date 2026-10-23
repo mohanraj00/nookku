@@ -6994,6 +6994,11 @@ DISCOVERY_CASES: dict[str, dict] = {
         "answer": answer_with("backends", {**STOCK, "env": "NOOKKU_TEST_DIR"}),
         "expect": {"error": "backends[0] 'env' is the variable NOOKKU_TEST_DIR of nookku"},
     },
+    # #457: the tests folder of the test command. A part must not move it for the entry.
+    "reserved_tests_folder_variable": {
+        "answer": answer_with("backends", {**STOCK, "env": "NOOKKU_TESTS_DIR"}),
+        "expect": {"error": "backends[0] 'env' is the variable NOOKKU_TESTS_DIR of nookku"},
+    },
     "bad_variable": {
         "answer": answer_with("backends", {**STOCK, "env": "STOCK-URL"}),
         "expect": {"error": "backends[0] 'env' must be a variable name of letters, digits and '_'"},
