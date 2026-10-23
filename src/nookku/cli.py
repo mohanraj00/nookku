@@ -774,9 +774,9 @@ def _trace_command(
     try:
         report = trace.build(folder)
     except RecordError as e:
-        # The copied spans passed their check, so the seal takes them, and the next rebuild
-        # does not see them as a file that was added after the end.
-        seal.update(folder, [n for n in names if n == egress_spans.FILE])
+        # The copied spans and the gateway logs passed their checks, so the seal takes them, and
+        # the next rebuild does not see them as files that were added after the end.
+        seal.update(folder, [n for n in names if n in (egress_spans.FILE, gateway.FILE)])
         print(f"nookku: the trace was not rebuilt. {e}", file=sys.stderr)
         return 2
     try:

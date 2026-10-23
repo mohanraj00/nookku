@@ -328,3 +328,19 @@ def test_a_failed_gateway_read_does_not_copy_the_egress_spans(
     assert "the gateway logs were not read" in capsys.readouterr().err
     assert not (folder / "egress.jsonl").exists()
     assert seal.hashes(folder) == before
+
+
+def test_a_failed_rebuild_after_the_gateway_read_keeps_the_seal_intact(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("NOOKKU_HOME", str(tmp_path / "home"))
+    folder = _sealed_test(tmp_path)
+    # A tap record that is not valid, sealed as it is: the seal is intact, the build fails.
+    (folder / "tap.jsonl").write_text("not json\n")
+    seal.write(folder, tmp_path / "home")
+    logs = next(c for c in CASES if c.name == "toy_shop") / "spend_logs.json"
+    args = ["trace", "--root", str(tmp_path), "--gateway", str(logs), "--key-alias", ALIAS]
+    assert main(args) == 2
+    assert "the trace was not rebuilt" in capsys.readouterr().err
+    assert (folder / gateway.FILE).exists()
+    assert seal.verify(folder)["intact"]

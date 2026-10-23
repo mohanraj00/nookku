@@ -1167,7 +1167,7 @@ An app can get its model key from a LiteLLM gateway. Then the spend logs of the 
    - `outside_test`: `startTime` is from `started` to `ended` of the manifest, both ends included. A time with no zone is UTC.
    - `no_tag`: with `--gateway-tag`, `request_tags` has the tag.
 5. It writes `gateway.jsonl`: a `source` row, then a `call` row for each kept log, sorted by `started`.
-6. It builds the trace. If the test has a seal, it writes the SHA-256 of `gateway.jsonl`, `trace.jsonl`, `findings.json` and `performance.json` to the seal and to the copy.
+6. It builds the trace. If the test has a seal, it writes the SHA-256 of `gateway.jsonl`, `trace.jsonl`, `findings.json` and `performance.json` to the seal and to the copy. If the build fails after the read, for example because `tap.jsonl` is not valid, the seal still gets the SHA-256 of `gateway.jsonl`, as for `egress.jsonl` (section 8.8).
 
 If the command cannot read the logs, it prints `nookku: the gateway logs were not read: <reason>`, exits with code 2, and changes no file. A later `nookku trace` with no `--gateway` reads `gateway.jsonl` again.
 
