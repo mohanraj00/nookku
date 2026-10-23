@@ -1,12 +1,36 @@
 {
- "date": "2026-10-20",
+ "date": "2026-10-23",
  "relay": "hooks-claude-code",
  "discovery_registered": true,
  "discovery_attempts": 1,
- "discovery_answer": "I registered the egress answer. `nookku register` printed:\n\n```\nnookku: the egress answer is registered. The next start uses these parts:\n- model API anthropic: ANTHROPIC_BASE_URL -> the URL in ANTHROPIC_BASE_URL or the default (proxy)\n- MCP server catalog: http CATALOG_MCP_URL -> http://127.0.0.1:9310/mcp (proxy)\n- MCP server notes: stdio NOTES_MCP_COMMAND -> python3 notes_mcp.py (proxy)\n- database shop: postgres, DATABASE_URL (proxy)\n- database returns: sqlite, returns.db (driver trace)\n```\n\n**Where each part comes from in the code**\n- **anthropic:** the Claude Agent SDK starts Claude Code, which calls the Anthropic API. The options at `app.py:140` add only a couple of variables to the environment, so `ANTHROPIC_BASE_URL` still reaches it.\n- **catalog:** an HTTP MCP server at `CATALOG_MCP_URL` (`app.py:36`).\n- **notes:** a stdio MCP server. The app splits the command line in `NOTES_MCP_COMMAND` into words (`app.py:120`).\n- **shop:** Postgres, reached with psycopg through the `postgres://` URL in `DATABASE_URL`. I left the username and password out of the answer.\n- **returns:** SQLite, through the file `returns.db` next to `app.py`. No variable holds its path, so the proxy can't reach it and it's recorded with a driver trace instead.\n- There are no HTTP backends and no other parts.\n\n**Driver trace:** I didn't change any code. The agent already turns on OpenTelemetry instrumentation for both sqlite3 and psycopg when `OTEL_EXPORTER_OTLP_ENDPOINT` is set, and sends spans over OTLP/HTTP (`app.py:45-69`). The sqlite3 instrumentation records statement text by default. Two limits on the `returns` record:\n- A driver trace has no rows.\n- It can hide parameter values. For example, the `INSERT` will probably show as `?` placeholders without the values.\n\nPostgres calls will also show up as driver spans, alongside the proxy record.\n\n**Not listed:** the notes MCP server writes to `notes.json` (or the file in `TOY_NOTES`). That's the server's own file, not something the agent calls, so I left it out. Tell me if you want it listed under `other`.\n\nPlease check the parts. If they're right, type `nookku start` within the next 30 minutes. If one is wrong, tell me which and I'll fix the answer and register it again.",
+ "discovery_answer": "I registered the egress answer and haven't started the test. `nookku register` printed:\n\n```\nnookku: the egress answer is registered. The next start uses these parts:\n- model API anthropic: ANTHROPIC_BASE_URL -> the URL in ANTHROPIC_BASE_URL or the default (proxy)\n- MCP server catalog: http CATALOG_MCP_URL -> http://127.0.0.1:9310/mcp (proxy)\n- MCP server notes: stdio NOTES_MCP_COMMAND -> python3 notes_mcp.py (proxy)\n- database shop: postgres, DATABASE_URL (proxy)\n- database returns: sqlite, returns.db (driver trace)\n```\n\nWhere each part comes from in `app.py`:\n- **anthropic:** the Claude Agent SDK session (`ClaudeSDKClient` with model `haiku`). The app doesn't set a base URL.\n- **catalog:** an HTTP MCP server at `CATALOG_MCP_URL`, `app.py:36`.\n- **notes:** a stdio MCP server. The app reads its command line from `NOTES_MCP_COMMAND` and splits it into words with `shlex` (`app.py:120`). It writes to `notes.json`, but that file belongs to the server, so I didn't list it as a separate part.\n- **shop:** Postgres. `lookup_order` connects with the `postgres://` URL in `DATABASE_URL` through psycopg. I left the password out of the address I registered.\n- **returns:** SQLite. `start_return` writes to `returns.db` through `sqlite3`. There's no variable for it, so the test records it with a driver trace.\n- **Not listed:** the in-process `shop` SDK MCP server (`create_sdk_mcp_server`). It runs inside the agent, so it makes no outside calls.\n\n**Driver trace:** I didn't need to change the code, because the agent already has it. `telemetry()` in `app.py:45` turns on `SQLite3Instrumentor` and `PsycopgInstrumentor`. It sends the spans with the OTLP HTTP exporter, which reads the standard `OTEL_*` variables, and only when `OTEL_EXPORTER_OTLP_ENDPOINT` is set. Note that a driver trace records the SQL statements but no result rows, and it can hide the parameter values.\n\nPlease check the parts. If they're right, type **`nookku start`** within the next 30 minutes. If a part is wrong, tell me and I'll correct it and register again.",
+ "method": "scripts/proof_egress.py",
  "E2_app_files_changed": [],
+ "E2_guard_rows_added": 0,
+ "E2_files_before": {
+  "notes_mcp.py": "7ae0a1a48cdc2cd3905bf7003e0f3605647913d652739bf41514997d7236c4bd",
+  "catalog_mcp.py": "d3edd198e29852ea75d398443cea6119f9f5027186973f38aa2a88739b43654c",
+  "toy_mcp.py": "8b5dccbae63b88c0b8f8dab863d12c9e2a3f288514af6f894f593074165633a1",
+  "entry.py": "5bff925f2bf5c88fd5207f19407ed6741a1951f21109dff5f018f4c8fee89cb3",
+  "app.py": "b88b7dd394e04c6ec27649df942e60828045b4683c88211aae08574b58fdf386",
+  ".claude/settings.local.json": "629892effe06153d03971e456863856a65efc12b9319a9a663ce64d3181f0032",
+  ".nookku/nookku-state": "7865f36f072b094306fd3bfc1a6e26563a2265d1a427ff21bad350fb04ad61d0",
+  ".nookku/mode": "b470b84cf0cd3189e10615bffea7d5cbd9f61134ba1c2cfd513ddd45b776a5f6",
+  ".nookku/config.json": "bb96d2f902bc381c28a172b36b96a6a4b218ff37b2f817494140ae0cceb4fe53"
+ },
+ "E2_files_after": {
+  "notes_mcp.py": "7ae0a1a48cdc2cd3905bf7003e0f3605647913d652739bf41514997d7236c4bd",
+  "catalog_mcp.py": "d3edd198e29852ea75d398443cea6119f9f5027186973f38aa2a88739b43654c",
+  "toy_mcp.py": "8b5dccbae63b88c0b8f8dab863d12c9e2a3f288514af6f894f593074165633a1",
+  "entry.py": "5bff925f2bf5c88fd5207f19407ed6741a1951f21109dff5f018f4c8fee89cb3",
+  "app.py": "b88b7dd394e04c6ec27649df942e60828045b4683c88211aae08574b58fdf386",
+  ".claude/settings.local.json": "629892effe06153d03971e456863856a65efc12b9319a9a663ce64d3181f0032",
+  ".nookku/nookku-state": "7865f36f072b094306fd3bfc1a6e26563a2265d1a427ff21bad350fb04ad61d0",
+  ".nookku/mode": "b470b84cf0cd3189e10615bffea7d5cbd9f61134ba1c2cfd513ddd45b776a5f6",
+  ".nookku/config.json": "bb96d2f902bc381c28a172b36b96a6a4b218ff37b2f817494140ae0cceb4fe53"
+ },
  "versions": {
-  "nookku": "0.5.4",
+  "nookku": "0.5.5",
   "claude-code": "2.1.302 (Claude Code)",
   "codex": "codex-cli 0.162.1",
   "agent sdk": "claude-agent-sdk==0.2.168",
@@ -171,9 +195,9 @@
  "E3_each_call_has_a_record": true,
  "postgres_spans": 1,
  "postgres_span_addresses": [
-  "127.0.0.1:57005"
+  "127.0.0.1:58849"
  ],
- "postgres_proxy": "postgresql://127.0.0.1:57005",
+ "postgres_proxy": "postgresql://127.0.0.1:58849",
  "unseen_call": 0,
  "counts": {},
  "seal": {

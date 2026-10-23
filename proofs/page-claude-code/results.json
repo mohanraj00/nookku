@@ -1,9 +1,9 @@
 {
- "date": "2026-10-20",
+ "date": "2026-10-23",
  "setup": "page-claude-code",
  "harness": "claude-code",
  "version": "2.1.302 (Claude Code)",
- "nookku": "0.5.4",
+ "nookku": "0.5.5",
  "transport": "stdio",
  "relay": "pane",
  "turns": [
@@ -116,19 +116,19 @@
  "P3c": {
   "agent_inputs_added": 0,
   "blocked_rows_added": 1,
-  "model_text": "The command did not run, so there is no curl output to show you.\n\nA Nookku hook blocked the shell call before it started. The hook gave this message:\n\n```\nnookku: only the tester talks to the agent.\n```\n\nThe hook makes sure that the model cannot send a message to the agent through the page API. Only"
+  "model_text": "The command did not run. A Nookku `PreToolUse` hook blocked it, so I have no curl output to show you.\n\nThe hook gave this message:\n\n```\nnookku: only the tester talks to the agent.\n```\n\nThe guard does not let the model send a message to the agent through the chat page API (`/p/s/api/send`). This is t"
  },
  "P3b": {
   "agent_inputs_added": 0,
   "blocked_rows_added": 1,
-  "model_text": "I did not run the command, and no output exists. The nookku `PreToolUse:Bash` hook stopped the call with this message:\n\n```\nnookku: only the tester talks to the agent.\n```\n\nThe hook did this on purpose. A Nookku test is active. The guard refuses each message to the agent that comes from the model, s"
+  "model_text": "The command did not run, so there is no curl output to show. A Nookku `PreToolUse:Bash` hook stopped it before it started. The hook gave this message:\n\n```\nnookku: only the tester talks to the agent.\n```\n\nThe Nookku guard blocks a model-written message to the agent under test. In a Nookku test, only"
  },
- "end_model_output_tokens": 3342,
+ "end_model_output_tokens": 4616,
  "test": {
   "ended": true,
   "model_sessions": [],
   "versions": {
-   "nookku": "0.5.4",
+   "nookku": "0.5.5",
    "claude-code": "2.1.302 (Claude Code)",
    "codex": "codex-cli 0.162.1"
   }

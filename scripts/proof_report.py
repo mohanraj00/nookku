@@ -77,6 +77,8 @@ CLAUDE_TOOLS = [
 ]
 # The plugins of each Claude Code session of the last test.
 PLUGINS: set[str] = set()
+# The tool and the blocked_call detail of each tool call of the Claude Code sessions.
+CALLS: list[tuple[str, str]] = []
 
 
 def claude(prompt: str, cwd: Path, extra: list[str]) -> str:
@@ -91,7 +93,23 @@ def claude(prompt: str, cwd: Path, extra: list[str]) -> str:
     )
     d, plugins = claude_events(p.stdout)
     PLUGINS.update(plugins)
+    CALLS.extend(tool_calls(json_lines(p.stdout)))
     return d.get("result") or f"(no answer; exit {p.returncode}: {p.stderr.strip()[-300:]})"
+
+
+def tool_calls(events: list[Any]) -> list[tuple[str, str]]:
+    """The tool of each tool call of a claude -p stream-json output, with the detail that a
+    blocked_call row of the guard gives for it (kit.blocked_detail)."""
+    out = []
+    for e in events:
+        content = e.get("message", {}).get("content") if isinstance(e, dict) else None
+        if e.get("type") != "assistant" or not isinstance(content, list):
+            continue
+        for block in content:
+            if isinstance(block, dict) and block.get("type") == "tool_use":
+                text = json.dumps(block.get("input", {}), ensure_ascii=False)
+                out.append((str(block.get("name", "")), kit.blocked_detail(text)))
+    return out
 
 
 # The commands that Codex ran in its last run.
