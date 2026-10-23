@@ -128,6 +128,9 @@ class Config:
     # The files of the app spec, relative to the project root. The evaluation reads them first
     # (SPEC.md section 9.2, docs/reference/app-spec.md).
     spec: list[str] = field(default_factory=list)
+    # The hosts that the checks of the Koodam egress spans skip, for example the git and package
+    # hosts (SPEC.md section 8.8).
+    egress_ignore: list[str] = field(default_factory=list)
 
     @classmethod
     def load(cls, root: Path) -> Config:
@@ -213,6 +216,15 @@ def is_http_url(url: str) -> bool:
     return parts.scheme in ("http", "https") and bool(parts.hostname)
 
 
+def is_host_list(value: Any) -> bool:
+    """True if value is a list of host names: each one a string with at least 1 character and
+    no white space (the config key egress_ignore, SPEC.md section 7.1)."""
+    return isinstance(value, list) and all(
+        isinstance(h, str) and h and not any(c.isspace() for c in h) and lone_surrogate(h) is None
+        for h in value
+    )
+
+
 def check(data: Any) -> dict[str, Any]:
     """Apply the rule for the keys to the parsed file. Return it, or raise ConfigError."""
     if not isinstance(data, dict):
@@ -250,6 +262,8 @@ def check(data: Any) -> dict[str, Any]:
         raise ConfigError(
             f"{FILE}: 'model_reply_field' must be empty or a dot path such as output.client_text"
         )
+    if not is_host_list(data.get("egress_ignore", [])):
+        raise ConfigError(f"{FILE}: 'egress_ignore' must be a list of host names")
     if data.get("model_reply_match", "normalized") not in MATCHES:
         raise ConfigError(f"{FILE}: 'model_reply_match' must be exact, normalized or off")
     entries = data.get("entries", {})
