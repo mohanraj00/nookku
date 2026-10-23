@@ -1,0 +1,277 @@
+[
+ {
+  "request_id": "req-11",
+  "call_type": "acompletion",
+  "api_key": "854dbec007247ea1e87c9fc9a1c47d1ce789008dbfeadde179a0d012cfb49aae",
+  "spend": 0.0,
+  "startTime": "2026-10-06T08:00:11.000Z",
+  "endTime": "2026-10-06T08:00:12.000Z",
+  "model": "openai/toy",
+  "metadata": {
+   "status": null,
+   "user_agent": "OpenAI/Python 2.8.1",
+   "user_api_key": "854dbec007247ea1e87c9fc9a1c47d1ce789008dbfeadde179a0d012cfb49aae",
+   "user_api_key_alias": "kd-0f3a9c2e-5b7d-4c1e-9a8b-2d4f6e8a0c1b",
+   "error_information": null
+  },
+  "request_tags": [
+   "toy-shop",
+   "User-Agent: OpenAI/Python 2.8.1"
+  ],
+  "status": "success",
+  "proxy_server_request": {
+   "model": "toy",
+   "messages": [
+    {
+     "role": "user",
+     "content": "Is the teapot set in stock?"
+    }
+   ],
+   "tools": [
+    {
+     "type": "function",
+     "function": {
+      "name": "check_stock",
+      "parameters": {}
+     }
+    }
+   ],
+   "metadata": {
+    "tags": [
+     "toy-shop"
+    ],
+    "headers": {
+     "host": "127.0.0.1:4000",
+     "user-agent": "OpenAI/Python 2.8.1",
+     "x-litellm-tags": "toy-shop"
+    },
+    "user_api_key": "854dbec007247ea1e87c9fc9a1c47d1ce789008dbfeadde179a0d012cfb49aae",
+    "user_api_key_auth": {
+     "token": "854dbec007247ea1e87c9fc9a1c47d1ce789008dbfeadde179a0d012cfb49aae",
+     "key_alias": "kd-0f3a9c2e-5b7d-4c1e-9a8b-2d4f6e8a0c1b",
+     "key_name": "sk-...uejg"
+    }
+   },
+   "litellm_call_id": "4fe341e1-a3b1-44be-8e90-2901d2c345b5",
+   "api_key": "sk-toy-client-key",
+   "Authorization": "Bearer sk-toy-client-key"
+  },
+  "response": {
+   "id": "chatcmpl-toy",
+   "model": "toy",
+   "usage": {
+    "prompt_tokens": 10,
+    "completion_tokens": 20,
+    "total_tokens": 30
+   },
+   "object": "chat.completion",
+   "choices": [
+    {
+     "index": 0,
+     "message": {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+       {
+        "id": "call_1",
+        "type": "function",
+        "function": {
+         "name": "check_stock",
+         "arguments": "{\"sku\": \"teapot-set\"}"
+        }
+       }
+      ]
+     },
+     "finish_reason": "tool_calls"
+    }
+   ]
+  }
+ },
+ {
+  "request_id": "req-2026-10-06T08:00:14.000+00:00",
+  "call_type": "anthropic_messages",
+  "api_key": "854dbec007247ea1e87c9fc9a1c47d1ce789008dbfeadde179a0d012cfb49aae",
+  "spend": 0.0,
+  "startTime": "2026-10-06T08:00:14.000+00:00",
+  "endTime": "2026-10-06T08:00:14.000+00:00",
+  "model": "openai/toy",
+  "metadata": {
+   "status": null,
+   "user_agent": "OpenAI/Python 2.8.1",
+   "user_api_key": "854dbec007247ea1e87c9fc9a1c47d1ce789008dbfeadde179a0d012cfb49aae",
+   "user_api_key_alias": "kd-0f3a9c2e-5b7d-4c1e-9a8b-2d4f6e8a0c1b",
+   "error_information": null
+  },
+  "request_tags": [
+   "User-Agent: OpenAI/Python 2.8.1"
+  ],
+  "status": "success",
+  "proxy_server_request": {
+   "model": "toy",
+   "max_tokens": 50,
+   "messages": [
+    {
+     "role": "user",
+     "content": "Where is order 5120?"
+    }
+   ],
+   "litellm_metadata": {
+    "tags": [],
+    "headers": {
+     "host": "127.0.0.1:4000",
+     "user-agent": "OpenAI/Python 2.8.1",
+     "x-litellm-tags": "toy-shop"
+    },
+    "user_api_key": "854dbec007247ea1e87c9fc9a1c47d1ce789008dbfeadde179a0d012cfb49aae",
+    "user_api_key_auth": {
+     "token": "854dbec007247ea1e87c9fc9a1c47d1ce789008dbfeadde179a0d012cfb49aae",
+     "key_alias": "kd-0f3a9c2e-5b7d-4c1e-9a8b-2d4f6e8a0c1b",
+     "key_name": "sk-...uejg"
+    }
+   }
+  },
+  "response": "{\"id\": \"chatcmpl-toy\", \"model\": \"toy\", \"usage\": {\"prompt_tokens\": 10, \"completion_tokens\": 20, \"total_tokens\": 30}, \"object\": \"chat.completion\", \"choices\": [{\"index\": 0, \"message\": {\"role\": \"assistant\", \"content\": \"Order 5120 ships today.\", \"tool_calls\": null}, \"finish_reason\": \"stop\"}]}"
+ },
+ {
+  "request_id": "req-20",
+  "call_type": "acompletion",
+  "api_key": "854dbec007247ea1e87c9fc9a1c47d1ce789008dbfeadde179a0d012cfb49aae",
+  "spend": 0.0,
+  "startTime": "2026-10-06T08:00:20.000Z",
+  "endTime": "2026-10-06T08:00:21.000Z",
+  "model": "openai/toy",
+  "metadata": {
+   "status": null,
+   "user_agent": "OpenAI/Python 2.8.1",
+   "user_api_key": "854dbec007247ea1e87c9fc9a1c47d1ce789008dbfeadde179a0d012cfb49aae",
+   "user_api_key_alias": "ws-shop-toy-ab12cd34",
+   "error_information": null
+  },
+  "request_tags": [
+   "toy-shop",
+   "User-Agent: OpenAI/Python 2.8.1"
+  ],
+  "status": "success",
+  "proxy_server_request": {},
+  "response": {}
+ },
+ {
+  "request_id": "req--5",
+  "call_type": "acompletion",
+  "api_key": "854dbec007247ea1e87c9fc9a1c47d1ce789008dbfeadde179a0d012cfb49aae",
+  "spend": 0.0,
+  "startTime": "2026-10-06T07:59:55.000Z",
+  "endTime": "2026-10-06T07:59:56.000Z",
+  "model": "openai/toy",
+  "metadata": {
+   "status": null,
+   "user_agent": "OpenAI/Python 2.8.1",
+   "user_api_key": "854dbec007247ea1e87c9fc9a1c47d1ce789008dbfeadde179a0d012cfb49aae",
+   "user_api_key_alias": "kd-0f3a9c2e-5b7d-4c1e-9a8b-2d4f6e8a0c1b",
+   "error_information": null
+  },
+  "request_tags": [
+   "toy-shop",
+   "User-Agent: OpenAI/Python 2.8.1"
+  ],
+  "status": "success",
+  "proxy_server_request": {},
+  "response": {}
+ },
+ {
+  "request_id": "req-2026-10-06 08:00:31.000000",
+  "call_type": "acompletion",
+  "api_key": "854dbec007247ea1e87c9fc9a1c47d1ce789008dbfeadde179a0d012cfb49aae",
+  "spend": 0.0,
+  "startTime": "2026-10-06 08:00:31.000000",
+  "endTime": "2026-10-06 08:00:31.000000",
+  "model": "openai/toy",
+  "metadata": {
+   "user_api_key_alias": "kd-0f3a9c2e-5b7d-4c1e-9a8b-2d4f6e8a0c1b",
+   "error_information": {
+    "error_code": "429",
+    "error_class": "RateLimitError",
+    "error_message": "Rate limit reached"
+   }
+  },
+  "request_tags": [],
+  "status": "failure",
+  "proxy_server_request": {},
+  "response": {}
+ },
+ "not a log",
+ {
+  "request_id": "req-33",
+  "call_type": "aresponses",
+  "api_key": "854dbec007247ea1e87c9fc9a1c47d1ce789008dbfeadde179a0d012cfb49aae",
+  "spend": 0.0,
+  "startTime": "2026-10-06T08:00:33.000Z",
+  "endTime": "2026-10-06T08:00:34.000Z",
+  "model": "openai/toy",
+  "metadata": {
+   "status": null,
+   "user_agent": "OpenAI/Python 2.8.1",
+   "user_api_key": "854dbec007247ea1e87c9fc9a1c47d1ce789008dbfeadde179a0d012cfb49aae",
+   "user_api_key_alias": "kd-0f3a9c2e-5b7d-4c1e-9a8b-2d4f6e8a0c1b",
+   "error_information": null
+  },
+  "request_tags": [
+   "toy-shop",
+   "User-Agent: OpenAI/Python 2.8.1"
+  ],
+  "status": "success",
+  "proxy_server_request": {
+   "model": "toy",
+   "input": "A... (litellm_truncated skipped 3956 chars. Truncation is a DB storage safeguard.) ..."
+  },
+  "response": {
+   "id": "resp_toy",
+   "object": "response",
+   "model": "toy",
+   "status": "completed",
+   "usage": {
+    "prompt_tokens": 10,
+    "completion_tokens": 20,
+    "total_tokens": 30
+   },
+   "output": [
+    {
+     "type": "message",
+     "content": [
+      {
+       "type": "output_text",
+       "text": "Order 5120 ships today."
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "request_id": "req-36",
+  "call_type": "aembedding",
+  "api_key": "854dbec007247ea1e87c9fc9a1c47d1ce789008dbfeadde179a0d012cfb49aae",
+  "spend": 0.0,
+  "startTime": "2026-10-06T08:00:36.000Z",
+  "endTime": "2026-10-06T08:00:37.000Z",
+  "model": "openai/toy",
+  "metadata": {
+   "status": null,
+   "user_agent": "OpenAI/Python 2.8.1",
+   "user_api_key": "854dbec007247ea1e87c9fc9a1c47d1ce789008dbfeadde179a0d012cfb49aae",
+   "user_api_key_alias": "kd-0f3a9c2e-5b7d-4c1e-9a8b-2d4f6e8a0c1b",
+   "error_information": null
+  },
+  "request_tags": [
+   "toy-shop",
+   "User-Agent: OpenAI/Python 2.8.1"
+  ],
+  "status": "success",
+  "proxy_server_request": {
+   "input": [
+    "teapot set"
+   ]
+  },
+  "response": {}
+ }
+]

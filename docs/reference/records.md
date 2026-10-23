@@ -51,6 +51,7 @@ Each test is a new conversation, with a new test id and a new entry process. The
 | `model_api.jsonl` | The direct calls of your app to a model API. | [SPEC.md section 7.7](../../SPEC.md#77-model-api-proxies) |
 | `mcp.jsonl` | The calls of your app to its MCP servers. | [SPEC.md section 7.12](../../SPEC.md#712-mcp-proxies) |
 | `database.jsonl` | The messages of your app and its Postgres databases. | [SPEC.md section 7.13](../../SPEC.md#713-postgres-proxies) |
+| `gateway.jsonl` | The model calls of your app that a LiteLLM gateway logged, if you gave `nookku trace --gateway`. | [SPEC.md section 8.8](../../SPEC.md#88-gateway-logs) |
 | `otel.jsonl` | The OpenTelemetry spans and logs of your app, if it sent any. | [SPEC.md section 7.5](../../SPEC.md#75-otlp-receiver) |
 
 The seal does not contain `report.md`, `bridge.log`, `seal.json` and `denied.jsonl`, because these files change after the end.
@@ -74,6 +75,7 @@ The folders in [conformance/](../../conformance/) are the executable form of SPE
 | [conformance/cases/](../../conformance/cases/) | the audit | [tests/test_conformance.py](../../tests/test_conformance.py) |
 | [conformance/contract/](../../conformance/contract/) | the agent contract in stdio mode | [tests/test_contract.py](../../tests/test_contract.py) |
 | [conformance/trace/](../../conformance/trace/) | the trace and the [findings](glossary.md#findings) | [tests/test_trace.py](../../tests/test_trace.py) |
+| [conformance/gateway/](../../conformance/gateway/) | the read of the gateway logs | [tests/test_gateway.py](../../tests/test_gateway.py) |
 | [conformance/seal/](../../conformance/seal/) | `verify` | [tests/test_seal.py](../../tests/test_seal.py) |
 | [conformance/otlp/](../../conformance/otlp/) | the OTLP receiver | [tests/test_otlp.py](../../tests/test_otlp.py) |
 | [conformance/policy/](../../conformance/policy/) | the deny of each model tool call that can change the [policy file](glossary.md#policy-file) | [tests/test_policy.py](../../tests/test_policy.py) |

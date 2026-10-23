@@ -16,6 +16,7 @@ from nookku import (
     __version__,
     bridge,
     evaluation,
+    gateway,
     kit,
     performance,
     print_mode,
@@ -37,7 +38,7 @@ from nookku.config import (
     read_config,
     spec_hashes,
 )
-from nookku.record import RecordError
+from nookku.record import RecordError, read_manifest
 from nookku.tap import Tap, serve
 
 # Config keys that are not a plain string flag of init.
@@ -336,6 +337,22 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     trc.add_argument("--root", type=Path, default=Path.cwd())
     trc.add_argument("--json", action="store_true", help="print findings.json")
+    trc.add_argument(
+        "--gateway",
+        metavar="SOURCE",
+        help="read the model calls from the logs of a LiteLLM gateway: a file, or the URL of "
+        f"the gateway with its key in {gateway.KEY_VARIABLE}",
+    )
+    trc.add_argument(
+        "--key-alias",
+        action="append",
+        default=[],
+        metavar="ALIAS",
+        help="with --gateway: keep the calls of this key alias (one or more times)",
+    )
+    trc.add_argument(
+        "--gateway-tag", metavar="TAG", help="with --gateway: keep only the calls with this tag"
+    )
 
     sub.add_parser("setup", help="print the guide that connects a test to the app")
 
@@ -512,7 +529,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command in ("start", "end", "status", "check"):
         return _test_command(args)
     if args.command == "trace":
-        return _trace_command(args.root.resolve(), args.test, args.json)
+        gate = None
+        if args.gateway is not None or args.key_alias or args.gateway_tag is not None:
+            if args.gateway is None or not args.key_alias:
+                print("nookku: --gateway needs --key-alias, and the opposite.", file=sys.stderr)
+                return 2
+            gate = (args.gateway, list(args.key_alias), args.gateway_tag)
+        return _trace_command(args.root.resolve(), args.test, args.json, gate)
     if args.command == "verify":
         folder = _test_folder(args.root.resolve(), args.test)
         if folder is None:
@@ -687,7 +710,12 @@ def _test_folder(root: Path, test: str | None) -> Path | None:
     return folder
 
 
-def _trace_command(root: Path, test: str | None, as_json: bool) -> int:
+def _trace_command(
+    root: Path,
+    test: str | None,
+    as_json: bool,
+    gate: tuple[str, list[str], str | None] | None = None,
+) -> int:
     folder = _test_folder(root, test)
     if folder is None:
         return 2
@@ -702,12 +730,20 @@ def _trace_command(root: Path, test: str | None, as_json: bool) -> int:
     if (check["sealed"] or check["copy"] != "none") and broken:
         print(f"nookku: the trace was not rebuilt. {seal.summary(check)}", file=sys.stderr)
         return 2
+    names = list(rebuilt)
+    if gate is not None:
+        # The gateway logs become a source of the trace (SPEC.md section 8.8).
+        try:
+            gateway.load(folder, read_manifest(folder), *gate)
+        except (gateway.GatewayError, RecordError) as e:
+            print(f"nookku: the gateway logs were not read: {e}", file=sys.stderr)
+            return 2
+        names.append(gateway.FILE)
     try:
         report = trace.build(folder)
     except RecordError as e:
         print(f"nookku: the trace was not rebuilt. {e}", file=sys.stderr)
         return 2
-    names = list(rebuilt)
     try:
         performance.build(folder)
     except Exception as e:
