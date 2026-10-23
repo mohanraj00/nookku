@@ -6,13 +6,15 @@ The tester wants to start a test of the agent in `{root}`. Before the test start
 
 Read the code of the agent, its configuration and its `.env` example files. The entry command is in `.nookku/config.json`. Find each egress part:
 
-1. Each model API that the agent calls directly with an SDK: `anthropic` or `openai`, the variable that holds its base URL, and its upstream URL.
+1. Each model API that the agent calls directly or through a harness SDK: `anthropic` or `openai`, the variable that holds its base URL, and its upstream URL. Include the API of a Claude Agent SDK session: `anthropic`, `ANTHROPIC_BASE_URL`, and `null` if the app does not set a URL. The SDK starts Claude Code, which calls this API. A harness session is not a reason to omit its model API.
 2. Each HTTP backend: a name, the variable that holds its URL, and its upstream URL.
 3. Each MCP server that the agent calls: a name, its transport (`stdio` or `http`), the variable that holds its command or its URL (or `null`), and its command (a list of words) or its URL. For a `stdio` server, give a variable only if the agent reads the command line of the server from it and splits the line into words. Nookku puts its proxy into the variable, so a server with no variable has no proxy.
 4. Each database: a name, its kind (for example `postgres` or `sqlite`), the variable that holds its address (or `null`), its address (`host:port/database`, the path of its file, or `null`), and how the test records its calls (`record`). For a `postgres` database, give the variable only if it holds the `postgres://` URL that the agent connects with. Nookku puts its proxy into that URL.
    - Give `"record": "proxy"` for a `postgres` database with that variable. The proxy is the first choice: it is outside the agent, and it records the rows of each answer.
    - Give `"record": "driver"` for each other database: a database that is not `postgres`, or a `postgres` database to which the proxy cannot connect, for example an agent that does not read a `postgres://` URL from a variable.
 5. Each other part that the agent calls, for example a queue or a file share: a name, its kind and a short detail.
+
+A file that an MCP server reads or writes as part of a tool is inside that server. Do not list it again as a database or an `other` part. The MCP proxy records the tool call. List a database separately if the agent connects to it itself.
 
 The developer configured the authentication of each part. Do not change it. Never write a secret into the answer: give the name of each variable, not its value. A URL or an address must not have a user, a password, a key or a token.
 

@@ -92,6 +92,11 @@ class CodexThread:
         assert self.p.stdout is not None
         while True:
             msg = json.loads(self.p.stdout.readline())
+            # The local performance proof keeps usage notifications, with no model text.
+            usage_file = os.environ.get("NOOKKU_PROOF_CODEX_USAGE")
+            if usage_file and msg.get("method") == "thread/tokenUsage/updated":
+                with Path(usage_file).open("a", encoding="utf-8") as stream:
+                    stream.write(json.dumps(msg["params"]) + "\n")
             if msg.get("method") != "item/tool/call" or "id" not in msg:
                 return msg
             text, ok = lookup(str((msg["params"].get("arguments") or {}).get("order", "")))
@@ -147,6 +152,16 @@ async def main() -> None:
         options.cli_path = sys.argv[sys.argv.index("--cli") + 1]
     loop = asyncio.get_running_loop()
     codex = await loop.run_in_executor(None, CodexThread, os.getcwd())
+    if "--codex-only" in sys.argv:
+        try:
+            while raw := await loop.run_in_executor(None, sys.stdin.buffer.readline):
+                rid, message, _ = contract.parse_request(raw.removesuffix(b"\n"))
+                reply = await loop.run_in_executor(None, codex.turn, message)
+                line = json.dumps({"v": 1, "id": rid, "reply": reply}, ensure_ascii=False)
+                out.write(line.encode() + b"\n")
+        finally:
+            codex.close()
+        return
     async with ClaudeSDKClient(options=options) as client:
         while raw := await loop.run_in_executor(None, sys.stdin.buffer.readline):
             rid, message, _ = contract.parse_request(raw.removesuffix(b"\n"))

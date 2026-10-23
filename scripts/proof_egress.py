@@ -14,8 +14,10 @@ that did not start, with the last answer of the harness.
 
 E1  The manifest has the answer of the model: the catalog server over HTTP with its variable and
     URL, the notes server over stdio with its variable, the orders database with `record: proxy`
-    and the returns database with `record: driver`. `unseen` is empty.
-E2  The model changed no file of the app in the discovery.
+    and the returns database with `record: driver`. The Agent SDK model API is anthropic,
+    with ANTHROPIC_BASE_URL. `unseen` is empty.
+E2  The model added, removed or changed no project file in the discovery, except the answer
+    files and the test folder.
 E3  Each call of the session to the catalog and notes tools has a `tools/call` in mcp.jsonl, with
     the same tool and arguments, in the same turn. Each order lookup has a query of the orders in
     database.jsonl in its turn. Each return has a driver query `INSERT INTO returns` in its turn.
@@ -71,7 +73,7 @@ TOOLS = ("find_product", "add_note", "lookup_order", "start_return")
 # (src/nookku/discover.md). The Write tool of Claude Code can edit only the answer file, because
 # the app already has the instrumentation of its drivers. Its Bash runs in the sandbox of Claude
 # Code, which can write each file in the project, as Codex runs in its workspace-write sandbox. E2
-# checks only the 5 files of APP_FILES: it does not find a new file or a change in .nookku/.
+# checks each project file, except the discovery answer files and the test folder.
 # An allow list refuses a loop or a pipe that only reads.
 SANDBOX = {"sandbox": {"enabled": True, "autoAllowBashIfSandboxed": True}}
 CLAUDE_DISCOVERY = [
@@ -109,9 +111,27 @@ def postgres() -> str:
 
 
 def digest(project: Path) -> dict[str, str]:
-    """The SHA-256 of each file of the app in the project."""
-    names = pr.APP_FILES[EGRESS.name]
-    return {n: hashlib.sha256((project / n).read_bytes()).hexdigest() for n in names}
+    """The SHA-256 of each project file, except the answer files and the test folder.
+
+    register writes discovery.json and removes egress.json. These are the expected changes.
+    Keep config.json and each other state file in the check.
+    """
+    excluded = {f".nookku/{discovery.NAME}", f".nookku/{discovery.ANSWER_FILE}"}
+    out = {}
+    for path in project.rglob("*"):
+        name = path.relative_to(project).as_posix()
+        if name in excluded or name.startswith(".nookku/tests/"):
+            continue
+        if path.is_symlink():
+            out[name] = "symlink:" + str(path.readlink())
+        elif path.is_file():
+            out[name] = hashlib.sha256(path.read_bytes()).hexdigest()
+    return out
+
+
+def changed_files(before: dict[str, str], after: dict[str, str]) -> list[str]:
+    """Each file that was added, removed or changed."""
+    return sorted(n for n in before.keys() | after.keys() if before.get(n) != after.get(n))
 
 
 def by_kind(answer: dict[str, Any]) -> dict[str, Any]:
@@ -130,7 +150,8 @@ def e1(answer: dict[str, Any], egress: dict[str, Any], catalog: str) -> bool:
     parts = by_kind(answer)
     http, stdio, pg, lite = parts["http"], parts["stdio"], parts["postgres"], parts["sqlite"]
     return (
-        len(answer["mcp_servers"]) == 2
+        answer["model_apis"] == [{"api": "anthropic", "env": "ANTHROPIC_BASE_URL", "url": None}]
+        and len(answer["mcp_servers"]) == 2
         and len(answer["databases"]) == 2
         and len(http) == 1
         and http[0]["env"] == "CATALOG_MCP_URL"
@@ -148,6 +169,7 @@ def e1(answer: dict[str, Any], egress: dict[str, Any], catalog: str) -> bool:
         and egress["proxies"].get(stdio[0]["name"]) == "stdio"
         and http[0]["name"] in egress["proxies"]
         and pg[0]["name"] in egress["proxies"]
+        and "anthropic" in egress["proxies"]
     )
 
 
@@ -201,7 +223,8 @@ def main() -> int:
             answers.append(run(start, extra))
             pending = discovery.pending(project)
         found = answers[-1]
-        changed = sorted(n for n, h in digest(project).items() if before[n] != h)
+        after = digest(project)
+        changed = changed_files(before, after)
         ran = None
         if pending is not None:
             ran = pr.run_test(project, run, start, end, end_args, MESSAGES, registered=True)
@@ -219,7 +242,10 @@ def main() -> int:
         "discovery_attempts": len(answers),
         # A text that shares 8 words with an instruction file stays out of the repo.
         "discovery_answer": None if hidden else pr.scrub(found, project),
+        "method": "scripts/proof_egress.py",
         "E2_app_files_changed": changed,
+        "E2_files_before": before,
+        "E2_files_after": after,
     }
     if ran is None:
         result["versions"] = {"claude-code": version("claude"), "codex": version("codex")}

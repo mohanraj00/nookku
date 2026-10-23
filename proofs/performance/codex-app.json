@@ -1,0 +1,254 @@
+{
+ "date": "2026-10-22",
+ "method": "scripts/proof_codex_performance.py",
+ "versions": {
+  "nookku": "0.5.4",
+  "claude-code": "2.1.302 (Claude Code)",
+  "codex": "codex-cli 0.162.1"
+ },
+ "messages": [
+  "Where is my order 4471?",
+  "Where is my order 9999?"
+ ],
+ "repeat_total_events": 0,
+ "rollout_token_count": [
+  {
+   "line": 15,
+   "timestamp": "2026-10-23T00:49:23.273Z",
+   "total_token_usage": {
+    "input_tokens": 23880,
+    "cached_input_tokens": 0,
+    "cache_write_input_tokens": 0,
+    "output_tokens": 22,
+    "reasoning_output_tokens": 0,
+    "total_tokens": 23902
+   },
+   "last_token_usage": {
+    "input_tokens": 23880,
+    "cached_input_tokens": 0,
+    "cache_write_input_tokens": 0,
+    "output_tokens": 22,
+    "reasoning_output_tokens": 0,
+    "total_tokens": 23902
+   },
+   "model_context_window": 475000
+  },
+  {
+   "line": 19,
+   "timestamp": "2026-10-23T00:49:25.163Z",
+   "total_token_usage": {
+    "input_tokens": 47827,
+    "cached_input_tokens": 23680,
+    "cache_write_input_tokens": 0,
+    "output_tokens": 40,
+    "reasoning_output_tokens": 0,
+    "total_tokens": 47867
+   },
+   "last_token_usage": {
+    "input_tokens": 23947,
+    "cached_input_tokens": 23680,
+    "cache_write_input_tokens": 0,
+    "output_tokens": 18,
+    "reasoning_output_tokens": 0,
+    "total_tokens": 23965
+   },
+   "model_context_window": 475000
+  },
+  {
+   "line": 31,
+   "timestamp": "2026-10-23T00:49:27.149Z",
+   "total_token_usage": {
+    "input_tokens": 82564,
+    "cached_input_tokens": 47488,
+    "cache_write_input_tokens": 0,
+    "output_tokens": 62,
+    "reasoning_output_tokens": 0,
+    "total_tokens": 82626
+   },
+   "last_token_usage": {
+    "input_tokens": 34737,
+    "cached_input_tokens": 23808,
+    "cache_write_input_tokens": 0,
+    "output_tokens": 22,
+    "reasoning_output_tokens": 0,
+    "total_tokens": 34759
+   },
+   "model_context_window": 475000
+  },
+  {
+   "line": 35,
+   "timestamp": "2026-10-23T00:49:28.704Z",
+   "total_token_usage": {
+    "input_tokens": 117354,
+    "cached_input_tokens": 82048,
+    "cache_write_input_tokens": 0,
+    "output_tokens": 82,
+    "reasoning_output_tokens": 0,
+    "total_tokens": 117436
+   },
+   "last_token_usage": {
+    "input_tokens": 34790,
+    "cached_input_tokens": 34560,
+    "cache_write_input_tokens": 0,
+    "output_tokens": 20,
+    "reasoning_output_tokens": 0,
+    "total_tokens": 34810
+   },
+   "model_context_window": 475000
+  }
+ ],
+ "usage_notifications": [
+  {
+   "threadId": "01a1663b-d322-7fe1-a047-3eaa113c0237",
+   "turnId": "01a1663b-d541-70e2-a35b-69f6589b2478",
+   "tokenUsage": {
+    "total": {
+     "totalTokens": 23902,
+     "inputTokens": 23880,
+     "cachedInputTokens": 0,
+     "cacheWriteInputTokens": 0,
+     "outputTokens": 22,
+     "reasoningOutputTokens": 0
+    },
+    "last": {
+     "totalTokens": 23902,
+     "inputTokens": 23880,
+     "cachedInputTokens": 0,
+     "cacheWriteInputTokens": 0,
+     "outputTokens": 22,
+     "reasoningOutputTokens": 0
+    },
+    "modelContextWindow": 475000
+   }
+  },
+  {
+   "threadId": "01a1663b-d322-7fe1-a047-3eaa113c0237",
+   "turnId": "01a1663b-d541-70e2-a35b-69f6589b2478",
+   "tokenUsage": {
+    "total": {
+     "totalTokens": 47867,
+     "inputTokens": 47827,
+     "cachedInputTokens": 23680,
+     "cacheWriteInputTokens": 0,
+     "outputTokens": 40,
+     "reasoningOutputTokens": 0
+    },
+    "last": {
+     "totalTokens": 23965,
+     "inputTokens": 23947,
+     "cachedInputTokens": 23680,
+     "cacheWriteInputTokens": 0,
+     "outputTokens": 18,
+     "reasoningOutputTokens": 0
+    },
+    "modelContextWindow": 475000
+   }
+  },
+  {
+   "threadId": "01a1663b-d322-7fe1-a047-3eaa113c0237",
+   "turnId": "01a1663b-eab5-78d1-a905-164abe8f2362",
+   "tokenUsage": {
+    "total": {
+     "totalTokens": 82626,
+     "inputTokens": 82564,
+     "cachedInputTokens": 47488,
+     "cacheWriteInputTokens": 0,
+     "outputTokens": 62,
+     "reasoningOutputTokens": 0
+    },
+    "last": {
+     "totalTokens": 34759,
+     "inputTokens": 34737,
+     "cachedInputTokens": 23808,
+     "cacheWriteInputTokens": 0,
+     "outputTokens": 22,
+     "reasoningOutputTokens": 0
+    },
+    "modelContextWindow": 475000
+   }
+  },
+  {
+   "threadId": "01a1663b-d322-7fe1-a047-3eaa113c0237",
+   "turnId": "01a1663b-eab5-78d1-a905-164abe8f2362",
+   "tokenUsage": {
+    "total": {
+     "totalTokens": 117436,
+     "inputTokens": 117354,
+     "cachedInputTokens": 82048,
+     "cacheWriteInputTokens": 0,
+     "outputTokens": 82,
+     "reasoningOutputTokens": 0
+    },
+    "last": {
+     "totalTokens": 34810,
+     "inputTokens": 34790,
+     "cachedInputTokens": 34560,
+     "cacheWriteInputTokens": 0,
+     "outputTokens": 20,
+     "reasoningOutputTokens": 0
+    },
+    "modelContextWindow": 475000
+   }
+  }
+ ],
+ "performance": {
+  "v": "0.1",
+  "test": "20261022-174916-d354",
+  "unknown": null,
+  "outside_turns": 0,
+  "turns": [
+   {
+    "turn": 1,
+    "seconds": 8.038,
+    "model_calls": 2,
+    "input_tokens": 47827,
+    "output_tokens": 40,
+    "no_usage": 0,
+    "sources": [
+     {
+      "harness": "codex",
+      "session": "01a1663b-d322-7fe1-a047-3eaa113c0237",
+      "model_calls": 2,
+      "input_tokens": 47827,
+      "output_tokens": 40,
+      "no_usage": 0
+     }
+    ]
+   },
+   {
+    "turn": 2,
+    "seconds": 3.537,
+    "model_calls": 2,
+    "input_tokens": 69527,
+    "output_tokens": 42,
+    "no_usage": 0,
+    "sources": [
+     {
+      "harness": "codex",
+      "session": "01a1663b-d322-7fe1-a047-3eaa113c0237",
+      "model_calls": 2,
+      "input_tokens": 69527,
+      "output_tokens": 42,
+      "no_usage": 0
+     }
+    ]
+   }
+  ]
+ },
+ "checks": {
+  "each_turn_has_an_answer": true,
+  "one_codex_app_session": true,
+  "usage_notifications_match_rollout_calls": true,
+  "last_and_total_usage_match_notifications": true,
+  "each_turn_matches_its_notifications": true,
+  "cached_usage_is_present": true,
+  "performance_has_known_usage": true,
+  "each_turn_has_codex_calls": true,
+  "performance_counts_each_call_once": true,
+  "input_tokens_include_cached_tokens": true,
+  "output_tokens_match": true,
+  "no_call_outside_turns": true,
+  "seal_intact": true
+ },
+ "pass": true
+}

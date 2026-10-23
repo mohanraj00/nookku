@@ -37,6 +37,29 @@ ENTRY = [
 ]
 
 
+def codex_answered(folder: Path) -> bool:
+    """Each combined reply has a nonempty Codex part, not just a Claude Code answer.
+
+    The entry writes the final Codex answer after this marker. An earlier commentary message
+    in trace.jsonl cannot make an empty final answer pass. An ambiguous marker fails the proof.
+    """
+    path = folder / "tap.jsonl"
+    if not path.exists():
+        return False
+    replies = []
+    marker = "\n\nSecond opinion: "
+    for raw in path.read_text(encoding="utf-8").split("\n"):
+        if not raw:
+            continue
+        row = json.loads(raw)
+        if row.get("type") == "exchange":
+            reply = row.get("reply")
+            unambiguous = isinstance(reply, str) and reply.count(marker) == 1
+            second = reply.partition(marker)[2] if unambiguous else ""
+            replies.append(bool(second.strip()))
+    return bool(replies) and all(replies)
+
+
 def main() -> int:
     out = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "proofs" / "sessions"
     project = ROOT / ".proof" / "sessions"
@@ -68,9 +91,11 @@ def main() -> int:
     report = {
         "date": date.today().isoformat(),
         "versions": {**manifest["versions"], "claude-agent-sdk": sdk},
+        "method": "scripts/proof_sessions.py",
         "check_passed": passed,
+        "codex_answer_nonempty": codex_answered(folder),
         "sessions": sessions,
-        "pass": passed and harnesses == {"claude-code", "codex"},
+        "pass": passed and harnesses == {"claude-code", "codex"} and codex_answered(folder),
     }
     out.mkdir(parents=True, exist_ok=True)
     (out / "results.json").write_text(json.dumps(report, indent=1) + "\n")
