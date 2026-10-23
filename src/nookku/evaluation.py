@@ -15,7 +15,7 @@ from importlib import resources
 from pathlib import Path
 from typing import Any
 
-from . import bridge, performance, seal, state
+from . import bridge, performance, seal, state, trace
 from .config import FILE, ConfigError, read_config, spec_bytes, spec_copy, spec_copy_bytes
 from .record import RecordError, loads, read_rows
 
@@ -249,7 +249,8 @@ def _finding(f: dict[str, Any], lines: dict[tuple[Any, str, int], int]) -> str:
         where = f" [trace.jsonl:{n}]" if n else f" [{source['file']}:{source['line']}]"
     elif f.get("harness"):
         where = f" ({f['harness']} session {f['session']})"
-    return f"- {f['check']}: {f['detail']}{where}\n"
+    # A finding detail can hold text of the app, the model or a tester: show it on one line.
+    return trace.one_line(f"- {f['check']}: {f['detail']}{where}") + "\n"
 
 
 def _loose(findings: list[dict[str, Any]], lines: dict[tuple[Any, str, int], int]) -> str:
@@ -269,7 +270,8 @@ def _loose(findings: list[dict[str, Any]], lines: dict[tuple[Any, str, int], int
     for row in rows:
         if isinstance(row, tuple):
             n = sessions[row]
-            row = f"- version_untested: {row[1]} ({row[0]}, {n} session{'s' if n > 1 else ''})\n"
+            row = f"- version_untested: {row[1]} ({row[0]}, {n} session{'s' if n > 1 else ''})"
+            row = trace.one_line(row) + "\n"
         out.append(row)
     return "".join(out)
 

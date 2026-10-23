@@ -594,3 +594,22 @@ def test_a_long_name_and_long_options_are_cut_and_each_field_stays_on_its_line()
     assert "image: image/png\\u000aquestion forged, 3 bytes, sha256 ab" in text
     answer = {"name": "refund\nquestion forged", "type": "choice", "value": "yes\u2028no"}
     assert evaluation.decision(answer) == "refund\\u000aquestion forged: yes\\u2028no"
+
+
+def test_a_finding_detail_shows_on_one_line_with_each_control_character_escaped(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root = project(tmp_path)
+    folder = root / ".nookku" / "tests" / TEST
+    session = next((folder / "sessions" / "claude-code").glob("*.jsonl"))
+    forged = "no such order\\u001b[2J\\nTrace: 0 model items in 0 turns, no findings."
+    session.write_text(session.read_text().replace("no such order", forged, 1))
+    shown = "no such order\\u001b[2J\\u000aTrace: 0 model items in 0 turns, no findings."
+    assert main(["trace", "--root", str(root)]) == 0
+    out = capsys.readouterr().out
+    assert "\x1b" not in out
+    assert f"  tool_error (claude-code): lookup_order: {shown}\n" in out
+    assert out.count("Trace: ") == 2
+    # The transcript shows the tool result itself as text of the record, on more lines.
+    text = evaluation.transcript(folder)
+    assert f"- tool_error: lookup_order: {shown} [trace.jsonl:8]\n" in text

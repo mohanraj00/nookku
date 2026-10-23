@@ -718,10 +718,8 @@ def _trace_command(root: Path, test: str | None, as_json: bool) -> int:
         print(json.dumps(report, indent=1, ensure_ascii=False))
         return 0
     print(trace.summary(report))
-    for f in report["findings"]:
-        where = [f"turn {f['turn']}" if f["turn"] is not None else "no turn"]
-        where += [f["harness"]] if f.get("harness") else []
-        print(f"  {f['check']} ({', '.join(where)}): {f['detail']}")
+    for line in trace.finding_lines(report):
+        print(line)
     print(f"File: {folder / 'trace.jsonl'}")
     return 0
 
@@ -744,6 +742,11 @@ def _chat_parser(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> No
         help="open the chat page of the running test in the browser; print no URL",
     )
     page.add_argument("--stop", action="store_true", help="stop the page server of this project")
+    page.add_argument(
+        "--no-idle-stop",
+        action="store_true",
+        help="do not stop the page after 15 minutes with no use and no test",
+    )
 
 
 def _chat_command(args: argparse.Namespace) -> int:
@@ -766,7 +769,7 @@ def _chat_command(args: argparse.Namespace) -> int:
         from nookku import page_auto
 
         return page_auto.serve(args.root.resolve(), args.auto_test, args.status_fd, args.print_url)
-    return page.serve(args.root.resolve(), args.port)
+    return page.serve(args.root.resolve(), args.port, idle_stop=not args.no_idle_stop)
 
 
 def _script_parser(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:

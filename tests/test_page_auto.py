@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import fcntl
+import io
 import json
 import os
 import re
@@ -225,12 +225,33 @@ def test_end_does_not_stop_a_page_that_the_tester_started(running: Any) -> None:
 REAL = object()
 
 
-def sleeper(root: Path, test: str, start: object = REAL) -> subprocess.Popen[bytes]:
+# A process that holds the page lock, as a page server does, if it gets the path of the lock.
+# With "ignore", it ignores SIGTERM.
+LOCKER = """
+import fcntl, os, signal, sys, time
+if sys.argv[2] == "ignore":
+    signal.signal(signal.SIGTERM, signal.SIG_IGN)
+if sys.argv[1]:
+    fd = os.open(sys.argv[1], os.O_RDWR | os.O_CREAT, 0o600)
+    fcntl.lockf(fd, fcntl.LOCK_EX)
+print("held", flush=True)
+time.sleep(60)
+"""
+
+
+def sleeper(
+    root: Path, test: str, start: object = REAL, hold: bool = True, term: str = "stop"
+) -> subprocess.Popen[str]:
     """A process that only sleeps, and a page file of a page server of the test that names it.
-    The page file has the real start time of the process, else `start`. None gives no
-    `pid_start`, as in a page file of an older version."""
-    proc = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
+    With hold, the process holds the page lock, as a page server does. The lock goes away with
+    the process. The page file has the real start time of the process, else `start`. None gives
+    no `pid_start`, as in a page file of an older version."""
+    lock = str(root / ".nookku" / state.PAGE_LOCK) if hold else ""
+    proc = subprocess.Popen(
+        [sys.executable, "-c", LOCKER, lock, term], stdout=subprocess.PIPE, text=True
+    )
     state._children[proc.pid] = proc
+    assert proc.stdout is not None and proc.stdout.readline().strip() == "held"
     info: dict[str, Any] = {"port": 1, "pid": proc.pid, "test": test}
     info["pid_start"] = state.process_start(proc.pid) if start is REAL else start
     if info["pid_start"] is None:
@@ -243,28 +264,18 @@ def test_only_the_end_with_the_evaluation_stops_the_page_server(running: Any) ->
     root, folder = running
     # A page server of the test. It holds the page lock.
     proc = sleeper(root, folder.name)
-    lock = os.open(root / ".nookku" / state.PAGE_LOCK, os.O_RDWR | os.O_CREAT, 0o600)
-    fcntl.flock(lock, fcntl.LOCK_EX)
-    try:
-        # The test runs, so no end stops its page.
-        assert page_auto.after_end(root, True) is None and proc.poll() is None
-        (root / ".nookku" / "current.json").unlink()
-        assert page_auto.after_end(root, False) is None and proc.poll() is None
-        assert page_auto.after_end(root, True) is None
-    finally:
-        os.close(lock)
+    # The test runs, so no end stops its page.
+    assert page_auto.after_end(root, True) is None and proc.poll() is None
+    (root / ".nookku" / "current.json").unlink()
+    assert page_auto.after_end(root, False) is None and proc.poll() is None
+    assert page_auto.after_end(root, True) is None
     assert proc.poll() is not None
 
 
 def test_a_new_start_stops_the_page_server_of_the_test_before(running: Any) -> None:
     root, folder = running
     proc = sleeper(root, "20260101-000000-0000")
-    lock = os.open(root / ".nookku" / state.PAGE_LOCK, os.O_RDWR | os.O_CREAT, 0o600)
-    fcntl.flock(lock, fcntl.LOCK_EX)
-    try:
-        page_auto._start(root, folder.name, print_url=False)
-    finally:
-        os.close(lock)
+    page_auto._start(root, folder.name, print_url=False)
     assert proc.poll() is not None
 
 
@@ -272,7 +283,7 @@ def test_end_sends_no_signal_to_the_pid_of_a_stale_page_file(running: Any) -> No
     root, folder = running
     # The page server died, and a new process with no relation to the page got its pid. No
     # process holds the page lock.
-    proc = sleeper(root, folder.name)
+    proc = sleeper(root, folder.name, hold=False)
     (root / ".nookku" / state.PAGE_LOCK).touch()
     (root / ".nookku" / "current.json").unlink()
     try:
@@ -291,8 +302,6 @@ def test_end_sends_no_signal_to_a_pid_with_another_start_time(running: Any, star
     # The pid of the page file runs, and a process holds the page lock. But the start time of the
     # process is not pid_start, or the page file of an older version has no pid_start (#397).
     proc = sleeper(root, folder.name, start)
-    lock = os.open(root / ".nookku" / state.PAGE_LOCK, os.O_RDWR | os.O_CREAT, 0o600)
-    fcntl.flock(lock, fcntl.LOCK_EX)
     (root / ".nookku" / "current.json").unlink()
     try:
         text = page_auto.after_end(root, True)
@@ -302,7 +311,6 @@ def test_end_sends_no_signal_to_a_pid_with_another_start_time(running: Any, star
         assert text is not None and f"pid {proc.pid}" in text and "The test continues." in text
         assert proc.poll() is None
     finally:
-        os.close(lock)
         proc.kill()
         proc.wait()
 
@@ -434,12 +442,7 @@ def test_a_start_with_page_false_stops_the_page_server_of_the_test_before(runnin
     root, folder = running
     (root / ".nookku" / "config.json").write_text(json.dumps({"page": False}))
     proc = sleeper(root, "20260101-000000-0000")
-    lock = os.open(root / ".nookku" / state.PAGE_LOCK, os.O_RDWR | os.O_CREAT, 0o600)
-    fcntl.flock(lock, fcntl.LOCK_EX)
-    try:
-        assert page_auto.after_start(root, folder.name, sys.stdout) is None
-    finally:
-        os.close(lock)
+    assert page_auto.after_start(root, folder.name, sys.stdout) is None
     assert proc.poll() is not None
 
 
@@ -562,12 +565,20 @@ class Clock:
         return self.now
 
 
-def test_the_page_server_stops_after_the_idle_limit_with_no_test(tmp_path: Path) -> None:
+@pytest.mark.parametrize("auto", [True, False])
+def test_the_page_server_stops_after_the_idle_limit_with_no_test(
+    tmp_path: Path, auto: bool
+) -> None:
+    """The page server of a start, and the page server of `nookku chat` (#454)."""
     clock = Clock()
-    server = page_auto.AutoPageServer(tmp_path, "t-1", clock=clock)
+    server = (
+        page_auto.AutoPageServer(tmp_path, "t-1", clock=clock)
+        if auto
+        else page.PageServer(tmp_path, clock=clock)
+    )
     threading.Thread(target=server.serve_forever, daemon=True).start()
     try:
-        limit = page_auto.IDLE_LIMIT
+        limit = page.IDLE_LIMIT
         clock.now += limit - 1
         assert not server.idle()
         # A request of the tester: the idle time starts again.
@@ -579,7 +590,7 @@ def test_the_page_server_stops_after_the_idle_limit_with_no_test(tmp_path: Path)
         clock.now += limit - 1
         assert not server.idle()
         # A poll of the page, and a request with no session, do not keep the server on.
-        poll = {**both, page_auto.POLL_HEADER: "1"}
+        poll = {**both, page.POLL_HEADER: "1"}
         assert request(server, "GET", page.SESSION_PATH + "api/turns", headers=poll)[0] == 200
         assert request(server, "GET", page.SESSION_PATH + "api/turns")[0] == 404
         assert request(server, "GET", f"/p/{'a' * 43}/api/turns")[0] == 404
@@ -625,7 +636,7 @@ def test_a_running_test_keeps_the_page_server_on(running: Any) -> None:
     clock = Clock()
     server = page_auto.AutoPageServer(root, folder.name, clock=clock)
     try:
-        limit = page_auto.IDLE_LIMIT
+        limit = page.IDLE_LIMIT
         for _ in range(3):
             clock.now += limit
             assert not server.idle()
@@ -644,11 +655,11 @@ def test_the_page_server_sees_a_test_start_before_the_idle_stop(tmp_path: Path) 
     clock = Clock()
     server = page_auto.AutoPageServer(tmp_path, "t-1", clock=clock)
     try:
-        clock.now += page_auto.ACTIVE_CHECK - 1
+        clock.now += page.ACTIVE_CHECK - 1
         assert not server.idle()
         # A test starts after the last check: the check before the stop sees it.
         write_current(tmp_path, make_folder(tmp_path), "http://127.0.0.1:9/", "x" * 43)
-        clock.now += page_auto.IDLE_LIMIT
+        clock.now += page.IDLE_LIMIT
         assert not server.idle()
     finally:
         server.server_close()
@@ -658,7 +669,7 @@ def test_the_auto_page_server_stops_itself_when_idle(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     (tmp_path / ".nookku").mkdir()
-    monkeypatch.setattr(page_auto, "IDLE_LIMIT", 0.3)
+    monkeypatch.setattr(page, "IDLE_LIMIT", 0.3)
     # serve runs in a thread here, and only the main thread can set a signal handler.
     monkeypatch.setattr(signal, "signal", lambda sig, handler: None)
     read, write = os.pipe()
@@ -676,39 +687,10 @@ def test_the_auto_page_server_stops_itself_when_idle(
         os.close(read)
 
 
-def held_sleeper(
-    root: Path, test: str, start: object = REAL
-) -> tuple[subprocess.Popen[bytes], int]:
-    """A sleeper that holds the page lock, as a page server does."""
-    proc = sleeper(root, test, start)
-    lock = os.open(root / ".nookku" / state.PAGE_LOCK, os.O_RDWR | os.O_CREAT, 0o600)
-    fcntl.flock(lock, fcntl.LOCK_EX)
-    return proc, lock
-
-
-LOCKER = """
-import fcntl, os, signal, sys, time
-if sys.argv[2] == "ignore":
-    signal.signal(signal.SIGTERM, signal.SIG_IGN)
-fd = os.open(sys.argv[1], os.O_RDWR | os.O_CREAT, 0o600)
-fcntl.flock(fd, fcntl.LOCK_EX)
-print("held", flush=True)
-time.sleep(60)
-"""
-
-
 def locker(root: Path, test: str, term: str = "stop") -> subprocess.Popen[str]:
-    """A process that holds the page lock, as a page server does, and its page file. The lock
-    goes away with the process. With term "ignore", the process ignores SIGTERM."""
-    lock = root / ".nookku" / state.PAGE_LOCK
-    proc = subprocess.Popen(
-        [sys.executable, "-c", LOCKER, str(lock), term], stdout=subprocess.PIPE, text=True
-    )
-    state._children[proc.pid] = proc
-    assert proc.stdout is not None and proc.stdout.readline().strip() == "held"
-    info = {"port": 1, "pid": proc.pid, "pid_start": state.process_start(proc.pid), "test": test}
-    (root / ".nookku" / state.PAGE_FILE).write_text(json.dumps(info))
-    return proc
+    """A process that holds the page lock, as a page server does, and its page file. With term
+    "ignore", the process ignores SIGTERM."""
+    return sleeper(root, test, term=term)
 
 
 def test_chat_stop_stops_the_page_server_of_this_project_only(
@@ -717,7 +699,7 @@ def test_chat_stop_stops_the_page_server_of_this_project_only(
     mine, other = tmp_path / "mine", tmp_path / "other"
     for root in (mine, other):
         (root / ".nookku").mkdir(parents=True)
-    proc, lock = held_sleeper(other, "t-1")
+    proc = sleeper(other, "t-1")
     try:
         assert main(["chat", "--stop", "--root", str(mine)]) == 0
         assert capsys.readouterr().out.strip() == page_auto.NONE_RUNS
@@ -728,7 +710,6 @@ def test_chat_stop_stops_the_page_server_of_this_project_only(
         assert mine_proc.wait(10) == -signal.SIGTERM
         assert proc.poll() is None
     finally:
-        os.close(lock)
         proc.kill()
         proc.wait()
 
@@ -768,13 +749,12 @@ def test_chat_stop_sends_no_signal_to_a_pid_with_another_start_time(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     (tmp_path / ".nookku").mkdir()
-    proc, lock = held_sleeper(tmp_path, "t-1", "ps:Thu Jan  1 00:00:00 1970")
+    proc = sleeper(tmp_path, "t-1", "ps:Thu Jan  1 00:00:00 1970")
     try:
         assert main(["chat", "--stop", "--root", str(tmp_path)]) == 1
         assert capsys.readouterr().err.strip() == page_auto.NOT_CONFIRMED.format(pid=proc.pid)
         assert proc.poll() is None
     finally:
-        os.close(lock)
         proc.kill()
         proc.wait()
 
@@ -783,8 +763,7 @@ def test_chat_stop_says_no_stop_if_it_sent_no_signal_and_the_lock_is_held(
     tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     (tmp_path / ".nookku").mkdir()
-    lock = os.open(tmp_path / ".nookku" / state.PAGE_LOCK, os.O_RDWR | os.O_CREAT, 0o600)
-    fcntl.flock(lock, fcntl.LOCK_EX)
+    holder = sleeper(tmp_path, "t-1")
     # The text gives the absolute path of the lock, also for a --root from another folder.
     lock_path = str((tmp_path / ".nookku" / state.PAGE_LOCK).resolve())
     assert os.path.isabs(lock_path)
@@ -805,4 +784,59 @@ def test_chat_stop_says_no_stop_if_it_sent_no_signal_and_the_lock_is_held(
         assert main(["chat", "--stop", "--root", tmp_path.name]) == 1
         assert capsys.readouterr().err.strip() == page_auto.NOT_KNOWN.format(lock=lock_path)
     finally:
-        os.close(lock)
+        holder.kill()
+        holder.wait()
+
+
+def test_the_stop_sends_no_signal_to_a_pid_that_does_not_hold_the_lock(
+    running: Any, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A person can write page.json. A page file that names another process of the user, with
+    its real start time, gets no signal to that process (#454)."""
+    root, folder = running
+    holder = sleeper(root, folder.name)
+    other = sleeper(root, folder.name, hold=False)
+    assert page_pid(root) == other.pid and page.lock_holder(root) == holder.pid
+    (root / ".nookku" / "current.json").unlink()
+    try:
+        assert page_auto.after_end(root, True) is None
+        assert main(["chat", "--stop", "--root", str(root)]) == 1
+        lock = str((root / ".nookku" / state.PAGE_LOCK).resolve())
+        assert capsys.readouterr().err.strip() == page_auto.NOT_KNOWN.format(lock=lock)
+        assert other.poll() is None and holder.poll() is None
+    finally:
+        for proc in (holder, other):
+            proc.kill()
+            proc.wait()
+
+
+def test_the_page_server_of_nookku_chat_stops_itself_when_idle(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (tmp_path / ".nookku").mkdir()
+    monkeypatch.setattr(page, "IDLE_LIMIT", 0.3)
+    # serve runs in a thread here, and only the main thread can set a signal handler.
+    monkeypatch.setattr(signal, "signal", lambda sig, handler: None)
+    out = io.StringIO()
+    done: list[int] = []
+    thread = threading.Thread(target=lambda: done.append(page.serve(tmp_path, 0, out)), daemon=True)
+    thread.start()
+    thread.join(10)
+    assert done == [0] and state.page_info(tmp_path) is None
+    lines = out.getvalue().splitlines()
+    assert lines[1:] == [page.IDLE_ON, page.IDLE_STOPPED]
+
+
+@pytest.mark.parametrize(("args", "idle_stop"), [([], True), (["--no-idle-stop"], False)])
+def test_chat_no_idle_stop_turns_the_idle_stop_off(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, args: list[str], idle_stop: bool
+) -> None:
+    got: list[bool] = []
+
+    def serve(root: Path, port: int = 0, out: Any = None, idle_stop: bool = True) -> int:
+        got.append(idle_stop)
+        return 0
+
+    monkeypatch.setattr(page, "serve", serve)
+    assert main(["chat", "--root", str(tmp_path), *args]) == 0
+    assert got == [idle_stop]

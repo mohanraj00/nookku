@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from test_page import make_folder, request, write_current
+from test_page import claimed, make_folder, request, write_current
 from test_page_auto import FETCH, page_pid, wait_gone
 
 from nookku import cli, page, page_auto, page_open, state
@@ -159,14 +159,13 @@ def test_no_text_of_the_package_gives_the_old_name_but_the_note() -> None:
 
 def test_open_with_a_page_of_nookku_page_names_its_terminal(running: Any) -> None:
     root, _ = running
-    _, lock = page.claim_page_file(root, 9)
     try:
-        assert page_open.page_state(root) == "manual"
-        data = page_open.pane_state(root)
-        assert data["lines"][1] == page_open.PANE_MANUAL and not data["open"]
-        assert page_open.open_chat(root) == (1, page_open.MANUAL)
+        with claimed(root, 9):
+            assert page_open.page_state(root) == "manual"
+            data = page_open.pane_state(root)
+            assert data["lines"][1] == page_open.PANE_MANUAL and not data["open"]
+            assert page_open.open_chat(root) == (1, page_open.MANUAL)
     finally:
-        os.close(lock)
         (root / ".nookku" / state.PAGE_FILE).unlink()
 
 
@@ -238,25 +237,24 @@ def test_open_gives_the_browser_only_the_session_url_and_prints_no_url(
 ) -> None:
     root, folder = running
     port = server.server_address[1]
-    _, lock = page.claim_page_file(root, port, test=folder.name)
-    opened: list[str] = []
-    monkeypatch.setattr(page_auto, "_can_open", lambda: True)
-    monkeypatch.setattr(page_auto, "_open_browser", record(opened))
-    try:
-        assert page_open.page_state(root) == "test" and page_open.pane_state(root)["open"]
-        code, session = server.code, server.session
-        assert main(["chat", "--open", "--root", str(root)]) == 0
-        out = capsys.readouterr().out
-        assert out.strip() == page_open.OPENED
-        assert not any(part in out for part in SECRET_PARTS)
-        assert opened == [f"http://127.0.0.1:{port}{page.SESSION_PATH}"]
-        assert (server.code, server.session, server.code_used) == (code, session, False)
-        # A browser that cannot open gets the step, and still no URL.
-        monkeypatch.setattr(page_auto, "_open_browser", lambda url: False)
-        assert page_open.open_chat(root) == (1, page_open.NO_BROWSER)
-    finally:
-        os.close(lock)
-        (root / ".nookku" / state.PAGE_FILE).unlink()
+    with claimed(root, port, test=folder.name):
+        opened: list[str] = []
+        monkeypatch.setattr(page_auto, "_can_open", lambda: True)
+        monkeypatch.setattr(page_auto, "_open_browser", record(opened))
+        try:
+            assert page_open.page_state(root) == "test" and page_open.pane_state(root)["open"]
+            code, session = server.code, server.session
+            assert main(["chat", "--open", "--root", str(root)]) == 0
+            out = capsys.readouterr().out
+            assert out.strip() == page_open.OPENED
+            assert not any(part in out for part in SECRET_PARTS)
+            assert opened == [f"http://127.0.0.1:{port}{page.SESSION_PATH}"]
+            assert (server.code, server.session, server.code_used) == (code, session, False)
+            # A browser that cannot open gets the step, and still no URL.
+            monkeypatch.setattr(page_auto, "_open_browser", lambda url: False)
+            assert page_open.open_chat(root) == (1, page_open.NO_BROWSER)
+        finally:
+            (root / ".nookku" / state.PAGE_FILE).unlink()
 
 
 def test_a_toy_shop_test_shows_its_state_and_open_chat_opens_the_page(

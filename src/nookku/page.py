@@ -35,7 +35,7 @@ import sys
 import tempfile
 import threading
 import time
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from http.cookies import CookieError, SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
@@ -55,6 +55,14 @@ SESSION_PATH = "/p/s/"
 # The header that holds the page key. Only the script of the page has the key (SPEC.md section 5,
 # "Session").
 PAGE_HEADER = "X-Nookku-Page"
+# The time with no request of the tester after which a page server stops, if no test runs (#439).
+# `nookku chat --no-idle-stop` turns this stop off for the page server of `nookku chat` (#454).
+IDLE_LIMIT = 15 * 60.0
+# The time between 2 checks for a running test. A running test counts as a request.
+ACTIVE_CHECK = 60.0
+# The header of a request that the page makes by itself each few seconds (key.js). Such a poll is
+# not a request of the tester, so it does not keep the page server on.
+POLL_HEADER = "X-Nookku-Poll"
 # The text of a request of data with the session cookie and no correct page key.
 NO_KEY = (
     "this tab has no key of the chat page. Use the tab that opened the page at the start of the "
@@ -526,6 +534,15 @@ def open_answer(
     return 200, {"opened": True, "error": None}
 
 
+def _active(root: Path) -> bool:
+    """True if a test of the project runs. Read current.json and change nothing."""
+    try:
+        cur = json.loads((state.state(root) / "current.json").read_text())
+    except (OSError, ValueError):
+        return False
+    return isinstance(cur, dict) and state.is_bridge(cur)
+
+
 class PageServer(ThreadingHTTPServer):
     """The page server of one project. It listens only on 127.0.0.1."""
 
@@ -534,9 +551,19 @@ class PageServer(ThreadingHTTPServer):
     # system refused some of them, and the page showed with no style.
     request_queue_size = 64
 
-    def __init__(self, root: Path, port: int = 0, token: str | None = None) -> None:
+    def __init__(
+        self,
+        root: Path,
+        port: int = 0,
+        token: str | None = None,
+        clock: Callable[[], float] = time.monotonic,
+    ) -> None:
         super().__init__((HOST, port), _Handler)
         self.root = root
+        self.clock = clock
+        # The time of the last request of the tester, or of the last check that saw a test run.
+        self.last_use = clock()
+        self.last_check = self.last_use
         self.token = token or secrets.token_urlsafe(32)
         # The value of the session cookie. It is not the token, so the cookie and the history
         # never hold the same secret.
@@ -571,6 +598,26 @@ class PageServer(ThreadingHTTPServer):
     @property
     def url(self) -> str:
         return f"http://{HOST}:{self.server_address[1]}/p/{self.token}/"
+
+    def used(self) -> None:
+        """A request of the tester came. The idle time starts again."""
+        self.last_use = self.clock()
+
+    def idle(self) -> bool:
+        """True if the server must stop: no request of the tester came in IDLE_LIMIT, and no test
+        runs. A running test counts as a request, so the idle time starts at the end of the test.
+        Check for a running test each ACTIVE_CHECK, and again before the stop."""
+        now = self.clock()
+        if now - self.last_check >= ACTIVE_CHECK:
+            self.last_check = now
+            if _active(self.root):
+                self.last_use = now
+        if now - self.last_use < IDLE_LIMIT:
+            return False
+        if _active(self.root):
+            self.last_use = now
+            return False
+        return True
 
     @property
     def cookie_name(self) -> str:
@@ -645,6 +692,17 @@ class _Handler(BaseHTTPRequestHandler):
         self._json(status, {"error": f"nookku chat: {reason}"})
 
     def _route(self) -> str | None:
+        """The part of the path after the token, or None after a refusal. Count a request of the
+        tester for the idle stop."""
+        rest = self._check()
+        # Only a request with the page key counts. A file of the page loads with the cookie only,
+        # and a page on another port of 127.0.0.1 can make the browser send that cookie. A poll of
+        # the page does not count.
+        if rest is not None and self._has_key() and not self.headers.get_all(POLL_HEADER):
+            self.server.used()
+        return rest
+
+    def _check(self) -> str | None:
         """The part of the path after the token, or None after a refusal. Check the Host, the
         Origin and the token of each request."""
         hosts = self.headers.get_all("Host") or []
@@ -719,6 +777,9 @@ class _Handler(BaseHTTPRequestHandler):
         """Give the browser the session cookie, and send it to SESSION_PATH. The fragment of the
         Location gives the page key to the script of the page. The browser sends no fragment to a
         server, and the page removes it from the address bar and the history."""
+        # Record the request before the response goes out. Else the browser can have the response
+        # before the idle time starts again.
+        self.server.used()
         self.send_response(303)
         self.send_header("Set-Cookie", self.server.set_cookie())
         self.send_header("Location", f"{SESSION_PATH}#k={self.server.page_key}")
@@ -931,13 +992,16 @@ class _Handler(BaseHTTPRequestHandler):
             pass
 
 
-# The wait of a page server for the page lock, if another process holds it. A check of the lock
-# holds it for much less than this time.
-CLAIM_WAIT = 0.2
-
-
 class PageRunning(Exception):
     """Another page server of the project runs."""
+
+
+# The refusal when a page server of 0.5.4 or older holds the `flock` of page.lock (#454).
+LEGACY_RUNNING = (
+    "a page server of an older version of this project runs. Stop it first with Ctrl-C in its "
+    "terminal, or with: lsof .nookku/page.lock (macOS) or fuser .nookku/page.lock (Linux), "
+    "then kill <pid>"
+)
 
 
 def claim_page_file(root: Path, port: int, test: str | None = None) -> tuple[Path, int]:
@@ -945,35 +1009,44 @@ def claim_page_file(root: Path, port: int, test: str | None = None) -> tuple[Pat
     token (SPEC.md section 5). A server that `start` started also writes its test (#328). Return
     its path and the descriptor of the page lock. The server holds the lock for its whole life,
     so a second server cannot take it. Raise PageRunning if another server holds it. A page file
-    with no holder of the lock is stale, and this server takes it over."""
+    with no holder of the lock is stale, and this server takes it over.
+
+    The lock is a POSIX record lock (`fcntl.lockf`). A check of the lock (`lock_holder`) reads its
+    holder with F_GETLK and does not take it, so a check never stops a start (#454). A close of
+    any descriptor of page.lock in this process ends the lock, so the server opens it only here."""
     import fcntl
 
     folder = state.state(root)
     folder.mkdir(parents=True, exist_ok=True)
     lock = os.open(folder / state.PAGE_LOCK, os.O_RDWR | os.O_CREAT, 0o600)
-    # A check of the lock (page_auto._held, for example from `nookku status --json`) takes it for
-    # a short time. Try again for CLAIM_WAIT, so that such a check does not stop the start.
-    deadline = time.monotonic() + CLAIM_WAIT
-    while True:
+    try:
+        fcntl.lockf(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        os.close(lock)
+        info = state.page_info(root)
+        pid = info.get("pid") if info else None
+        # The OS can give the pid of a stale page file to a new process, and a person can write
+        # the page file. Name the pid only if it holds the lock and its start time is pid_start
+        # (#397, #454).
+        if pid != lock_holder(root) or not state.same_process(
+            pid, info.get("pid_start") if info else None
+        ):
+            raise PageRunning("a page server of this project runs. Stop it first") from None
+        # The pid and pid_start identify the server, so `nookku chat --stop` can stop it (#439).
+        raise PageRunning(
+            f"a page server of this project runs (pid {pid}). Stop it first with: "
+            "nookku chat --stop"
+        ) from None
+    # A page server of 0.5.4 or older holds a `flock` on page.lock. On Linux, `flock` and `lockf`
+    # are separate locks, so also take the `flock`: a start must not replace page.json while an
+    # old server runs. On macOS and the BSDs, the 2 locks are one lock, and a `flock` would fail
+    # on the `lockf` of this process. There, the `lockf` above already refuses an old server.
+    if not _FLOCK_BSD:
         try:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            break
         except OSError:
-            if time.monotonic() < deadline:
-                time.sleep(0.02)
-                continue
             os.close(lock)
-            info = state.page_info(root)
-            pid = info.get("pid") if info else None
-            # The OS can give the pid of a stale page file to a new process. Name the pid only if
-            # its start time is pid_start (#397).
-            if not state.same_process(pid, info.get("pid_start") if info else None):
-                raise PageRunning("a page server of this project runs. Stop it first") from None
-            # The pid and pid_start identify the server, so `nookku chat --stop` can stop it (#439).
-            raise PageRunning(
-                f"a page server of this project runs (pid {pid}). Stop it first with: "
-                "nookku chat --stop"
-            ) from None
+            raise PageRunning(LEGACY_RUNNING) from None
     path = folder / state.PAGE_FILE
     try:
         new = folder / f".{state.PAGE_FILE}.{os.getpid()}"
@@ -993,6 +1066,40 @@ def claim_page_file(root: Path, port: int, test: str | None = None) -> tuple[Pat
     return path, lock
 
 
+# The layout of `struct flock` for F_GETLK. macOS and the BSDs put the offsets first.
+_FLOCK_BSD = sys.platform == "darwin" or "bsd" in sys.platform
+_FLOCK = "@qqihh" if _FLOCK_BSD else "@hhqqi4x"
+
+
+def lock_holder(root: Path) -> int | None:
+    """The pid of the process that holds page.lock, or None if no process holds it. Read the
+    holder with F_GETLK: this check does not take the lock, so a page server can start at the
+    same time (#454). A pid of 0 or less: a process holds the lock, but the OS gives no pid, for
+    example for a `flock` of an older version on macOS. The process that holds the lock gets None
+    for its own lock."""
+    import fcntl
+    import struct
+
+    try:
+        fd = os.open(state.state(root) / state.PAGE_LOCK, os.O_RDWR)
+    except OSError:
+        return None
+    try:
+        if _FLOCK_BSD:
+            ask = struct.pack(_FLOCK, 0, 0, 0, fcntl.F_WRLCK, os.SEEK_SET)
+            got = fcntl.fcntl(fd, fcntl.F_GETLK, ask)
+            _, _, pid, kind, _ = struct.unpack(_FLOCK, got)
+        else:
+            ask = struct.pack(_FLOCK, fcntl.F_WRLCK, os.SEEK_SET, 0, 0, 0)
+            got = fcntl.fcntl(fd, fcntl.F_GETLK, ask)
+            kind, _, _, _, pid = struct.unpack(_FLOCK, got)
+    except OSError:
+        return None
+    finally:
+        os.close(fd)
+    return None if kind == fcntl.F_UNLCK else int(pid)
+
+
 HARNESS_SHELL = ("CLAUDECODE", "CODEX_THREAD_ID", "CODEX_SANDBOX", "CODEX_SANDBOX_NETWORK_DISABLED")
 IN_HARNESS = (
     "nookku: nookku chat runs in a shell of a coding harness ({name} is set). The harness can "
@@ -1001,9 +1108,17 @@ IN_HARNESS = (
 )
 
 
-def serve(root: Path, port: int = 0, out: TextIO | None = None) -> int:
-    """Run the page server until it gets a signal. Print the page URL only to this terminal.
-    Never print the tap token."""
+IDLE_ON = (
+    "Open this URL one time, in one browser. Stop the page with Ctrl-C. The page also stops "
+    "after 15 minutes with no use and no test."
+)
+IDLE_OFF = "Open this URL one time, in one browser. Stop the page with Ctrl-C."
+IDLE_STOPPED = "The chat page stopped after 15 minutes with no use and no test."
+
+
+def serve(root: Path, port: int = 0, out: TextIO | None = None, idle_stop: bool = True) -> int:
+    """Run the page server until it gets a signal, or with idle_stop, until it is idle (#454).
+    Print the page URL only to this terminal. Never print the tap token."""
     out = out or sys.stdout
     # The URL must never go into a text that the model sees (SPEC.md section 5, "The page URL").
     shell = next((name for name in HARNESS_SHELL if os.environ.get(name)), None)
@@ -1029,20 +1144,23 @@ def serve(root: Path, port: int = 0, out: TextIO | None = None) -> int:
     # file goes away.
     for sig in (signal.SIGTERM, signal.SIGHUP):
         signal.signal(sig, signal.default_int_handler)
+    serving = threading.Thread(target=server.serve_forever, daemon=True)
+    serving.start()
     try:
         print(f"Chat page: {server.url}", file=out, flush=True)
-        print(
-            "Open this URL one time, in one browser. Stop the page with Ctrl-C.",
-            file=out,
-            flush=True,
-        )
-        server.serve_forever()
+        print(IDLE_ON if idle_stop else IDLE_OFF, file=out, flush=True)
+        # The main thread gets the signals, so it waits in short steps.
+        while serving.is_alive() and not (idle_stop and server.idle()):
+            serving.join(0.5)
+        if serving.is_alive():
+            print(IDLE_STOPPED, file=out, flush=True)
     except KeyboardInterrupt:
         pass
     finally:
         # A second signal, for example from a wrapper that forwards it, must not stop the cleanup.
         for sig in (signal.SIGTERM, signal.SIGHUP, signal.SIGINT):
             signal.signal(sig, signal.SIG_IGN)
+        server.shutdown()
         server.server_close()
         # This server holds the page lock, so the page file is its own file.
         path.unlink(missing_ok=True)
