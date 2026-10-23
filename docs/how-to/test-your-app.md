@@ -45,18 +45,26 @@ Follow the nookku setup guide, and connect a test to this app.
 
 Do not type only `nookku setup` as a prompt. In my first test of a real app, the model did not know the tool. It searched the project for the term, did not run the command, and asked what I meant. If the Claude Code [plugin](../reference/glossary.md#plugin) is installed, its `setup` skill also runs the command.
 
-The model reads your app and writes 2 files in `.nookku/`:
+The model does the steps of the guide in this order. It writes no file before you say yes to its plan:
 
-- `entry.<ext>`: the [entry](../reference/glossary.md#entry). It is a thin wrapper that starts your app and speaks the [agent contract](../reference/glossary.md#agent-contract).
-- `config.json`: the configuration. The key `entry` holds the command that starts the entry.
+1. **Understand.** The model reads your app and gives you a summary: how a message goes in and out, the model harnesses, the backends, the store, and the rules and docs that it found. It also names each problem of the isolation of an Agent SDK session ([isolate-agent-sdk.md](isolate-agent-sdk.md)).
+2. **Interview.** The model asks only about the gaps, in one numbered list. For example, it asks about the persona, the boundaries and the user goals of the [app spec](../reference/app-spec.md), the test data, and how the state of your app goes back to the start between 2 tests. Each question has a proposed answer. Answer each question.
+3. **Confirm.** The model shows the plan: the [entry](../reference/glossary.md#entry) and each action of the entry, the config keys, the app spec draft and the list of files. By default, the entry is a thin wrapper. If you agree, the entry can do more, for example load the test data or reset the state when the test starts. Read the plan. Say yes, or tell the model what to change.
+4. **Build.** The model writes the files of the plan. It does not change the code of your app.
+5. **Check.** The model runs `nookku check` (step 4 of this page).
+6. **Hand over.** The model shows you the files and asks you to review them (step 3 of this page).
 
-If your app already speaks the agent contract, the entry can be the start command of the app. The toy shop agent does this, so its only new file is `config.json`:
+The files are:
+
+- `.nookku/entry.<ext>`: the entry. It starts your app and speaks the [agent contract](../reference/glossary.md#agent-contract).
+- `.nookku/config.json`: the configuration. The key `entry` holds the command that starts the entry, and the key `spec` names the app spec.
+- `APP_SPEC.md`: the draft of the [app spec](../reference/app-spec.md), from your answers. The model writes it only if your project has no app spec. Read each line of it before the first test. The [evaluation](../reference/glossary.md#evaluation) reads it as the rules of your app.
+
+If your app already speaks the agent contract, the entry can be the start command of the app. The toy shop agent does this, so it has no entry file. Its `config.json` is:
 
 ```json
 {"entry": ["python3", "agent.py"], "models": []}
 ```
-
-At the end, the model runs `nookku check` (step 4).
 
 ## 3. Review the entry
 

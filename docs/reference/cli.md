@@ -480,7 +480,7 @@ Print each key of the [policy file](glossary.md#policy-file) `.nookku/policy.jso
 
 ### `nookku setup`
 
-Print the guide that connects a test to the app ([setup.md](../../src/nookku/setup.md)). A [harness model](glossary.md#harness-model) reads it and writes the entry ([how-to/connect-your-agent.md](../how-to/connect-your-agent.md)).
+Print the guide that connects a test to the app ([setup.md](../../src/nookku/setup.md)). A [harness model](glossary.md#harness-model) reads it. The model gives a summary of the app, asks the tester about the gaps and shows its plan. After the tester says yes, it writes the entry, the config and a draft of the [app spec](app-spec.md) ([how-to/test-your-app.md](../how-to/test-your-app.md#2-run-the-setup-in-the-harness), [how-to/connect-your-agent.md](../how-to/connect-your-agent.md)).
 
 | Exit code | Meaning |
 |---|---|

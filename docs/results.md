@@ -318,6 +318,21 @@ The discovery in Claude Code runs in its Bash sandbox, which can write each file
 
 The Codex egress proofs were run again for [#456](https://github.com/mohanraj00/nookku/issues/456). Both [plugin](../proofs/egress/plugin-codex.json) and [project hooks](../proofs/egress/hooks-codex.json) pass the stricter discovery and project-file checks. Their `versions`, `date`, `answer`, `E2_files_before` and `E2_files_after` fields give the data. The [method](../scripts/proof_egress.py) uses the discovery answer of the harness model.
 
+### The setup asks before it builds
+
+[scripts/proof_setup.py](../scripts/proof_setup.py) runs the setup guide ([setup.md](../src/nookku/setup.md)) in Claude Code on a copy of the [full toy shop](../examples/toy-shop-full/README.md) with no `entry.py`, no `APP_SPEC.md` and no `README.md`. It gives 3 prompts in one session: the guide with the prompt of [test-your-app.md](how-to/test-your-app.md#2-run-the-setup-in-the-harness), the answers of the tester, and a yes. The model can read and write files with no question. Claude Code denies each shell command that it does not take as read-only, also `nookku check`. Thus the proof does not cover step 5 of the guide.
+
+- **S1:** after prompts 1 and 2, no project file changed, and the model called no Write or Edit tool.
+- **S2:** answer 1 has the 5 parts of the summary and a question.
+- **S3:** after the yes, `.nookku/config.json` passes the config reader, and its `spec` names a draft with the sections `Persona`, `Boundaries` and `User goals`.
+- **S4:** the setup changed no file of the app. It added only files in `.nookku/` and the draft.
+
+| Harness | Questions in answer 1 | Files after the yes | S1 | S2 | S3 | S4 | Result | Data |
+|---|---|---|---|---|---|---|---|---|
+| Claude Code 2.1.302 | 8 | `.nookku/config.json`, `.nookku/entry.py`, `APP_SPEC.md` | pass | pass | pass | pass | pass | [results](../proofs/setup/results.json) |
+
+The `turns` field of the results gives each answer, each tool call and the changed files of each prompt. The `new_files` field gives each file of the build. The model asked about the reset of the state, and the tester said no reset. Thus the entry is a thin wrapper.
+
 ## 2. Benchmark under pressure
 
 The question: does the mechanism stay exact in long, messy conversations with the agent?
@@ -362,6 +377,7 @@ uv run python scripts/proof_backend.py
 uv run python scripts/proof_model_api.py
 uv run python scripts/proof_driver_trace.py
 uv run python scripts/proof_api_hello.py
+uv run python scripts/proof_setup.py
 uv run python scripts/proof_codex_otel.py
 uv run python scripts/proof_report.py plugin-claude-code
 uv run python scripts/proof_report.py plugin-codex
