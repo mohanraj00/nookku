@@ -10,6 +10,7 @@ model_api.jsonl. Nookku sends nothing to the gateway except the read of its logs
 from __future__ import annotations
 
 import datetime
+import ipaddress
 import os
 import re
 import time
@@ -246,11 +247,28 @@ def fetch(base: str, start: float, end: float, key: str) -> bytes:
     return data
 
 
+def _loopback(url: str) -> bool:
+    """True if the host of the URL is this computer: localhost or a loopback address."""
+    host = (urllib.parse.urlsplit(url).hostname or "").lower()
+    if host == "localhost" or host.endswith(".localhost"):
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
+
+
 def read(source: str, start: float, end: float, environ: dict[str, str] | None = None) -> bytes:
     """The bytes of the logs: a GET of the gateway API for an http or https URL, else a file."""
     if source.startswith(("http://", "https://")):
         if not is_http_url(source) or urllib.parse.urlsplit(source).query:
             raise GatewayError(f"the gateway URL is not valid: {source!r}.")
+        if source.startswith("http://") and not _loopback(source):
+            # The key goes in a header, so it must not go over plain text on a network.
+            raise GatewayError(
+                f"the gateway URL {source_name(source)} is not https. Nookku sends "
+                f"{KEY_VARIABLE} only over https, or over http to this computer."
+            )
         key = (environ if environ is not None else dict(os.environ)).get(KEY_VARIABLE)
         if not key:
             raise GatewayError(

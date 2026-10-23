@@ -874,7 +874,12 @@ def _call_items(
         )
         items.append(it)
         # A tool call id is unique only in one API format, so a result must have the same format.
-        later = [_results(f, r) for _, _, f, r in calls[i + 1 :] if f == form]
+        # Gateway keys are independent apps, so a gateway result must also have the same key alias.
+        later = [
+            _results(f, r)
+            for j, (_, _, f, r) in enumerate(calls[i + 1 :], i + 1)
+            if f == form and (harness != "gateway" or sessions[j] == api)
+        ]
         for call in result.get("tool_calls") or []:
             it = _item(harness, api, file, n, row.get("ts"))
             it.update(kind="tool_call", name=call.get("name"), input=call.get("input"))

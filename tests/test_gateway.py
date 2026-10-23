@@ -9,7 +9,7 @@ from typing import Any, ClassVar
 
 import pytest
 
-from nookku import gateway, seal
+from nookku import gateway, seal, trace
 from nookku.cli import main
 
 CASES = sorted((Path(__file__).resolve().parent.parent / "conformance" / "gateway").iterdir())
@@ -231,4 +231,84 @@ def test_a_log_that_cannot_be_read_stops_the_trace_with_no_change(
     args = ["trace", "--root", str(tmp_path), "--gateway", str(tmp_path / "none.json")]
     assert main([*args, "--key-alias", ALIAS]) == 2
     assert "the gateway logs were not read: cannot read the gateway log" in capsys.readouterr().err
+    assert seal.hashes(folder) == before
+
+
+def _chat_row(alias: str, t: float, messages: list[Any], calls: list[Any]) -> dict[str, Any]:
+    return {
+        "v": 1,
+        "type": "call",
+        "gateway": "litellm",
+        "call_type": "acompletion",
+        "api": "openai",
+        "path": "/v1/chat/completions",
+        "key_alias": alias,
+        "started": t,
+        "ts": t + 0.5,
+        "status": None,
+        "error": None,
+        "request": {"model": "toy", "messages": messages},
+        "request_cut": False,
+        "response_cut": False,
+        "result": {"text": "", "tool_calls": calls},
+    }
+
+
+def test_a_tool_result_matches_only_a_call_of_the_same_key_alias(tmp_path: Path) -> None:
+    """Two apps with two keys reuse the tool call id call_1. Each result stays with its key."""
+    other = "ws-shop-toy-ab12cd34"
+    ask = [{"role": "user", "content": "Is the teapot set in stock?"}]
+    call = [{"id": "call_1", "name": "check_stock", "input": {"sku": "teapot-set"}}]
+
+    def answer(text: str) -> list[Any]:
+        said = {"role": "assistant", "tool_calls": [{"id": "call_1"}]}
+        return [*ask, said, {"role": "tool", "tool_call_id": "call_1", "content": text}]
+
+    found = [
+        _chat_row(ALIAS, 1.0, ask, call),
+        _chat_row(other, 2.0, ask, call),
+        _chat_row(other, 3.0, answer("other key: 0 in stock"), []),
+        _chat_row(ALIAS, 4.0, answer("agent key: 3 in stock"), []),
+    ]
+    path = tmp_path / gateway.FILE
+    path.write_text("".join(json.dumps(r) + "\n" for r in found))
+    items, _ = trace.read_gateway(path)
+    outputs = {it["session"]: it["output"] for it in items if it["kind"] == "tool_call"}
+    assert outputs == {ALIAS: "agent key: 3 in stock", other: "other key: 0 in stock"}
+
+
+@pytest.mark.parametrize("url", ["http://gw.toy:4000", "http://10.0.0.5:4000/litellm"])
+def test_the_key_goes_to_no_plain_http_url_on_a_network(url: str, tmp_path: Path) -> None:
+    environ = {gateway.KEY_VARIABLE: KEY}
+    with pytest.raises(gateway.GatewayError, match="is not https"):
+        gateway.load(tmp_path, {"started": 1.0, "ended": 2.0}, url, [ALIAS], None, environ)
+    assert not (tmp_path / gateway.FILE).exists()
+
+
+@pytest.mark.parametrize(
+    ("url", "loopback"),
+    [
+        ("http://127.0.0.1:4000", True),
+        ("http://127.8.0.1", True),
+        ("http://localhost:4000", True),
+        ("http://[::1]:4000", True),
+        ("http://gw.toy", False),
+        ("http://127.0.0.1.gw.toy", False),
+        ("http://[::ffff:10.0.0.5]", False),
+    ],
+)
+def test_the_loopback_hosts(url: str, loopback: bool) -> None:
+    assert gateway._loopback(url) is loopback
+
+
+def test_a_plain_http_url_stops_the_trace_with_exit_code_2(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("NOOKKU_HOME", str(tmp_path / "home"))
+    monkeypatch.setenv(gateway.KEY_VARIABLE, KEY)
+    folder = _sealed_test(tmp_path)
+    before = seal.hashes(folder)
+    args = ["trace", "--root", str(tmp_path), "--gateway", "http://gw.toy:4000"]
+    assert main([*args, "--key-alias", ALIAS]) == 2
+    assert "is not https" in capsys.readouterr().err
     assert seal.hashes(folder) == before

@@ -357,7 +357,7 @@ Build the trace of a test again, and show its findings ([SPEC.md section 8](../.
 | `TEST` | the latest test | The test id, or the path of the test folder. |
 | `--root PATH` | the current folder | The project. |
 | `--json` | off | Print `findings.json`. |
-| `--gateway SOURCE` | none | Read the model calls of the app from the spend logs of a LiteLLM gateway: a file, or the URL of the gateway API. For a URL, put a key that can read the spend logs in `NOOKKU_GATEWAY_KEY` ([SPEC.md section 8.8](../../SPEC.md#88-gateway-logs)). |
+| `--gateway SOURCE` | none | Read the model calls of the app from the spend logs of a LiteLLM gateway: a file, or the URL of the gateway API. For a URL, put a key that can read the spend logs in `NOOKKU_GATEWAY_KEY`. The URL must be `https`, or `http` to this computer ([SPEC.md section 8.8](../../SPEC.md#88-gateway-logs)). |
 | `--key-alias ALIAS` | none | Keep the logs of this key alias, for example the `kd-<agent uid>` alias of a Koodam Agent. Give it 1 or more times. `--gateway` needs it. |
 | `--gateway-tag TAG` | none | Also keep only the logs with this request tag. |
 

@@ -1120,7 +1120,7 @@ An app can get its model key from a LiteLLM gateway. Then the spend logs of the 
 1. If the test has a seal, the command checks it first (section 7.4). If the seal is broken, it reads no log and changes no file.
 2. The test must have `started` and `ended` in the manifest. Else the command stops with `the test has no start or no end time. End the test first.`
 3. It reads the logs from `SOURCE`:
-   - An `http` or `https` URL is the base URL of the gateway API. The command sends `GET <base>/spend/logs?start_date=<day>&end_date=<day>&summarize=false`, with the UTC day of `started` and the UTC day after `ended`. The header is `Authorization: Bearer <key>`, with the key from the variable `NOOKKU_GATEWAY_KEY`. The command refuses a URL with a query, a URL that is not valid, and an empty key. It does not follow a redirect, so the key goes to no other URL. The wait is 60 seconds.
+   - An `http` or `https` URL is the base URL of the gateway API. The command sends `GET <base>/spend/logs?start_date=<day>&end_date=<day>&summarize=false`, with the UTC day of `started` and the UTC day after `ended`. The header is `Authorization: Bearer <key>`, with the key from the variable `NOOKKU_GATEWAY_KEY`. The command refuses a URL with a query, a URL that is not valid, and an empty key. It sends the key only over `https`, or over `http` to a loopback host: `localhost`, a name that ends with `.localhost`, or a loopback IP address. It refuses each other `http` URL before it sends a request, because the key would go over a network as plain text. It does not follow a redirect, so the key goes to no other URL. The wait is 60 seconds.
    - Any other `SOURCE` is a file: the output of `GET /spend/logs`.
    - The logs are a JSON list, an object with a `data` list (`GET /spend/logs/v2`), or one JSON object on each line. The command reads at most 256 MiB, a chosen limit, because it holds all of the logs in memory.
 4. It keeps a log if all of these are true. Else it counts the log in `skipped` by the first reason that applies:
@@ -1166,6 +1166,7 @@ The request keeps no `metadata`, `litellm_metadata`, `litellm_call_id` or `extra
 
 **Trace.** The trace reads `gateway.jsonl` if it exists, with the reader of `model_api.jsonl` (section 8.4) and these changes:
 
+- The result of a tool call must come from a later call of the same key alias, because 2 keys are 2 apps that can use the same tool call id.
 - `harness` is `gateway`, `source.file` is `gateway.jsonl`, and `session` is the `key_alias` of the call.
 - A row that is not a `call` is counted by its type. A `call` of another `call_type`, for example `aembedding`, is counted in `other_calls`, and gives no item.
 - A request with `request_cut: true` gives no user message and no tool result.
