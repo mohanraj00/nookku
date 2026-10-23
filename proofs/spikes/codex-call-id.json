@@ -1,0 +1,232 @@
+{
+ "date": "2026-10-22",
+ "method": "scripts/spike_codex_call_id.py",
+ "versions": {
+  "nookku": "0.5.4",
+  "codex": "codex-cli 0.162.1"
+ },
+ "prompt": "This is a toy shop tool test. Run these shell commands as two separate tool calls, in this order: `printf 'toy-order-ready\\n'` then `printf 'toy-stock-ready\\n'`. Do not read any files. Then reply with one word: done.",
+ "runs": [
+  {
+   "exporter": "OTEL_* only",
+   "native_overrides": [],
+   "exit_code": 0,
+   "turn_completed": true,
+   "session_file_found": true,
+   "session": "01a16637-7343-7e90-aa81-4cd13ffc5981",
+   "calls": [
+    {
+     "line": 13,
+     "type": "custom_tool_call",
+     "call_id": "call_ab36010cbe204d19bdbab5c3e125ba9b",
+     "name": "exec"
+    },
+    {
+     "line": 18,
+     "type": "custom_tool_call",
+     "call_id": "call_39ab23ee8bd5402a8366557de599d200",
+     "name": "exec"
+    }
+   ],
+   "completed_items": [
+    {
+     "line": 15,
+     "type": "CommandExecution",
+     "id": "exec-140048f4-cd31-4005-a495-c549474be79b"
+    },
+    {
+     "line": 20,
+     "type": "CommandExecution",
+     "id": "exec-b6fec5c8-7411-42aa-8d55-ff355b43ffd3"
+    }
+   ],
+   "tool_result_logs": [],
+   "every_result_matches_one_call": false,
+   "config_error": false
+  },
+  {
+   "exporter": "native otel.exporter",
+   "native_overrides": [
+    "-c",
+    "otel.exporter={otlp-http={endpoint=\"<receiver URL>/v1/logs\",protocol=\"binary\"}}",
+    "-c",
+    "otel.log_user_prompt=false"
+   ],
+   "exit_code": 0,
+   "turn_completed": true,
+   "session_file_found": true,
+   "session": "01a16637-9d3b-7a82-b737-e423e02ad125",
+   "calls": [
+    {
+     "line": 13,
+     "type": "custom_tool_call",
+     "call_id": "call_9b5959058ce649e9a39de8d74b80a97e",
+     "name": "exec"
+    },
+    {
+     "line": 18,
+     "type": "custom_tool_call",
+     "call_id": "call_1ccd02d16b4744afb0cab374bc9550ee",
+     "name": "exec"
+    }
+   ],
+   "completed_items": [
+    {
+     "line": 15,
+     "type": "CommandExecution",
+     "id": "exec-b2b0008e-1874-4ba4-ba57-fff67414fee4"
+    },
+    {
+     "line": 20,
+     "type": "CommandExecution",
+     "id": "exec-b1773c4e-e79c-4590-8e9b-ed04c2f52f0d"
+    }
+   ],
+   "tool_result_logs": [
+    {
+     "line": 3,
+     "event": "codex.tool_result",
+     "attribute_names": [
+      "agent_name",
+      "app.version",
+      "arguments",
+      "auth_mode",
+      "call_id",
+      "conversation.id",
+      "duration_ms",
+      "event.name",
+      "event.timestamp",
+      "mcp_server",
+      "mcp_server_origin",
+      "model",
+      "originator",
+      "output",
+      "output_truncated",
+      "slug",
+      "success",
+      "terminal.type",
+      "tool_name",
+      "tool_namespace",
+      "tool_result_seq"
+     ],
+     "call_id": "exec-b2b0008e-1874-4ba4-ba57-fff67414fee4",
+     "tool_name": "exec_command",
+     "call_lines": [],
+     "item_lines": [
+      15
+     ]
+    },
+    {
+     "line": 4,
+     "event": "codex.tool_result",
+     "attribute_names": [
+      "agent_name",
+      "app.version",
+      "arguments",
+      "auth_mode",
+      "call_id",
+      "conversation.id",
+      "duration_ms",
+      "event.name",
+      "event.timestamp",
+      "mcp_server",
+      "mcp_server_origin",
+      "model",
+      "originator",
+      "output",
+      "output_truncated",
+      "slug",
+      "success",
+      "terminal.type",
+      "tool_name",
+      "tool_namespace",
+      "tool_result_seq"
+     ],
+     "call_id": "call_9b5959058ce649e9a39de8d74b80a97e",
+     "tool_name": "exec",
+     "call_lines": [
+      13
+     ],
+     "item_lines": []
+    },
+    {
+     "line": 6,
+     "event": "codex.tool_result",
+     "attribute_names": [
+      "agent_name",
+      "app.version",
+      "arguments",
+      "auth_mode",
+      "call_id",
+      "conversation.id",
+      "duration_ms",
+      "event.name",
+      "event.timestamp",
+      "mcp_server",
+      "mcp_server_origin",
+      "model",
+      "originator",
+      "output",
+      "output_truncated",
+      "slug",
+      "success",
+      "terminal.type",
+      "tool_name",
+      "tool_namespace",
+      "tool_result_seq"
+     ],
+     "call_id": "exec-b1773c4e-e79c-4590-8e9b-ed04c2f52f0d",
+     "tool_name": "exec_command",
+     "call_lines": [],
+     "item_lines": [
+      20
+     ]
+    },
+    {
+     "line": 7,
+     "event": "codex.tool_result",
+     "attribute_names": [
+      "agent_name",
+      "app.version",
+      "arguments",
+      "auth_mode",
+      "call_id",
+      "conversation.id",
+      "duration_ms",
+      "event.name",
+      "event.timestamp",
+      "mcp_server",
+      "mcp_server_origin",
+      "model",
+      "originator",
+      "output",
+      "output_truncated",
+      "slug",
+      "success",
+      "terminal.type",
+      "tool_name",
+      "tool_namespace",
+      "tool_result_seq"
+     ],
+     "call_id": "call_1ccd02d16b4744afb0cab374bc9550ee",
+     "tool_name": "exec",
+     "call_lines": [
+      18
+     ],
+     "item_lines": []
+    }
+   ],
+   "every_result_matches_one_call": true,
+   "config_error": false
+  }
+ ],
+ "checks": {
+  "both_turns_completed": true,
+  "native_exporter_has_tool_results": true,
+  "native_results_match_by_call_id": true,
+  "multiple_calls_tested": true,
+  "each_response_call_has_a_result": true,
+  "each_completed_item_has_a_result": true
+ },
+ "pass": true
+}
