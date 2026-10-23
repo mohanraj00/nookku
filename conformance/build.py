@@ -839,6 +839,8 @@ def counts(**n: int) -> dict:
         "database_error",
         "unseen_call",
         "driver_without_span",
+        "egress_not_in_discovery",
+        "egress_denied",
         "model_error",
         "turn_without_model",
         "item_between_turns",
@@ -5337,6 +5339,221 @@ EDGE_CASE = {
 }
 
 
+# The Koodam egress spans (SPEC.md section 8.8). The test runs from T0 to T0 + 100. The answer has
+# the backend stock, the model API anthropic with no URL (the host of its default URL) and the
+# database shop-db at db.toy.test. The spans: 2 hosts of the answer, 1 host that is not in the
+# answer with 2 spans (one with no `v`, one of the kind http), 1 ignored host (the config value has
+# capitals), 1 llm span, 1 denied call to a host that is not in the answer, 1 denied TLS call with
+# no host, 1 failed call, 2 spans outside the window, 1 line that is not JSON, 1 span with no time
+# and 1 blank line.
+def span(t: float, kind: str, result: str = "ok", **fields: Any) -> dict:
+    """One span of the Koodam egress span contract v1, with toy shop pod labels."""
+    row: dict[str, Any] = {
+        "v": 1,
+        "time": iso(T0 + t),
+        "durationMs": 120.5,
+        "source": "10.244.1.17",
+        "kind": kind,
+        **fields,
+        "bytesIn": 5120,
+        "bytesOut": 918,
+        "result": result,
+        "namespace": "shop",
+        "pod": "shop-0",
+        "workspace": "shop",
+        "user": "tester",
+    }
+    return row
+
+
+def tunnel(t: float, host: str, port: str = "443", result: str = "ok", **fields: Any) -> dict:
+    """A span of the kind connect: a CONNECT tunnel to host:port."""
+    return span(
+        t, "connect", result, method="CONNECT", host=f"{host}:{port}", sni=host, port=port, **fields
+    )
+
+
+EGRESS_SPAN_ANSWER = {
+    "model_apis": [{"api": "anthropic", "env": "ANTHROPIC_BASE_URL", "url": None}],
+    "backends": [{"name": "stock", "env": "STOCK_URL", "url": "https://stock.toy.test/v2"}],
+    "mcp_servers": [],
+    "databases": [
+        {
+            "name": "shop-db",
+            "kind": "postgres",
+            "env": "DATABASE_URL",
+            "address": "db.toy.test:5432/shop",
+            "record": "proxy",
+        }
+    ],
+    "other": [],
+}
+EGRESS_SPAN_LINES = [
+    tunnel(11, "stock.toy.test", status=200),
+    span(12, "tls", sni="api.anthropic.com", port="443"),
+    {k: v for k, v in tunnel(13, "Mail.Toy.Test").items() if k != "v"},
+    span(32, "http", method="POST", host="mail.toy.test", port="80", path="/send", status=202),
+    tunnel(14, "github.com"),
+    span(15, "llm", method="POST", host="gateway.koodam.test", path="/llm/v1/messages", status=200),
+    tunnel(33, "pay.toy.test", "8443", "denied", reason="port"),
+    span(35, "tls", "denied", port="443", reason="no SNI"),
+    tunnel(150, "stock.toy.test"),
+    tunnel(-5, "old.toy.test"),
+    "this line is not JSON",
+    {"v": 1, "kind": "connect", "host": "stock.toy.test:443", "result": "ok"},
+    "",
+    tunnel(36, "stock.toy.test", result="error", reason="upstream"),
+]
+EGRESS_SPAN_MANIFEST = {
+    "test": "20261023-090000-ks01",
+    "model_sessions": [],
+    "started": T0,
+    "ended": T0 + 100,
+    "trace": {"egress_ignore": ["GitHub.com"]},
+    "egress": {
+        "registered": T0 - 60,
+        "answer": EGRESS_SPAN_ANSWER,
+        "unseen": [],
+        "proxies": {
+            "anthropic": "http://127.0.0.1:41002",
+            "stock": "http://127.0.0.1:41001",
+            "shop-db": "postgresql://127.0.0.1:41003",
+        },
+        "receiver": None,
+    },
+}
+
+
+def egress_where(host: str, line: int) -> dict:
+    return {"harness": "egress", "session": host, "source": {"file": "egress.jsonl", "line": line}}
+
+
+EGRESS_SPANS_CASE = {
+    "tap": [window(10, 20), window(30, 40)],
+    "manifest": EGRESS_SPAN_MANIFEST,
+    "sessions": {},
+    "egress": EGRESS_SPAN_LINES,
+    "trace": [],
+    "findings": {
+        "v": "0.2",
+        "test": "20261023-090000-ks01",
+        "turns": 2,
+        "items": 0,
+        "sessions": [],
+        "otel": None,
+        "backend": None,
+        "model_api": None,
+        "mcp": None,
+        "database": None,
+        "egress": {
+            "file": "egress.jsonl",
+            "rows": 13,
+            "spans": 7,
+            "hosts": ["api.anthropic.com", "mail.toy.test", "pay.toy.test", "stock.toy.test"],
+            "ignored": {
+                "egress_ignore": 1,
+                "llm": 1,
+                "outside_window": 2,
+                "invalid_json": 1,
+                "invalid": 1,
+                "blank": 1,
+            },
+        },
+        "counts": counts(egress_not_in_discovery=2, egress_denied=2),
+        "findings": [
+            {
+                "check": "egress_not_in_discovery",
+                "turn": None,
+                "detail": "mail.toy.test: 2 spans, and the egress answer has no part with this "
+                "host",
+                **egress_where("mail.toy.test", 3),
+            },
+            {
+                "check": "egress_not_in_discovery",
+                "turn": None,
+                "detail": "pay.toy.test: 1 span, and the egress answer has no part with this host",
+                **egress_where("pay.toy.test", 7),
+            },
+            {
+                "check": "egress_denied",
+                "turn": 2,
+                "detail": "connect pay.toy.test port 8443: denied (port)",
+                **egress_where("pay.toy.test", 7),
+            },
+            {
+                "check": "egress_denied",
+                "turn": 2,
+                "detail": "tls no host port 443: denied (no SNI)",
+                **egress_where("", 8),
+            },
+        ],
+    },
+}
+
+# The same spans in a test with no egress answer, as a test of nookku 0.5.1 or earlier. The check
+# egress_not_in_discovery does not run, and the denied calls still give findings. The manifest has
+# no egress_ignore, so the span of github.com counts.
+EGRESS_NO_ANSWER_CASE = {
+    "tap": [window(10, 20), window(30, 40)],
+    "manifest": {
+        "test": "20261023-090000-ks02",
+        "model_sessions": [],
+        "started": T0,
+        "ended": T0 + 100,
+    },
+    "sessions": {},
+    "egress": EGRESS_SPAN_LINES,
+    "trace": [],
+    "findings": {
+        **EGRESS_SPANS_CASE["findings"],
+        "test": "20261023-090000-ks02",
+        "egress": {
+            "file": "egress.jsonl",
+            "rows": 13,
+            "spans": 8,
+            "hosts": [
+                "api.anthropic.com",
+                "github.com",
+                "mail.toy.test",
+                "pay.toy.test",
+                "stock.toy.test",
+            ],
+            "ignored": {"llm": 1, "outside_window": 2, "invalid_json": 1, "invalid": 1, "blank": 1},
+        },
+        "counts": counts(egress_denied=2),
+        "findings": [
+            {
+                "check": "egress_denied",
+                "turn": 2,
+                "detail": "connect pay.toy.test port 8443: denied (port)",
+                **egress_where("pay.toy.test", 7),
+            },
+            {
+                "check": "egress_denied",
+                "turn": 2,
+                "detail": "tls no host port 443: denied (no SNI)",
+                **egress_where("", 8),
+            },
+        ],
+    },
+}
+
+# A span of the contract version 2 stops the trace, also outside the window: its fields can have
+# a new meaning (SPEC.md section 8.8).
+EGRESS_VERSION_CASE = {
+    "tap": [window(10, 20)],
+    "manifest": EGRESS_SPAN_MANIFEST,
+    "sessions": {},
+    "egress": [tunnel(11, "stock.toy.test"), {**tunnel(150, "stock.toy.test"), "v": 2}],
+    "error": {
+        "kind": "record_invalid",
+        "file": "egress.jsonl",
+        "message": "line 2: the span has the contract version 2. This nookku reads version 1 only "
+        "(SPEC.md section 8.8). Use a nookku that reads version 2.",
+    },
+}
+
+
 TRACE_CASES = {
     "claude_code_toy_shop": CLAUDE_CASE,
     "codex_toy_shop": CODEX_CASE,
@@ -5372,6 +5589,9 @@ TRACE_CASES = {
     "database_pipeline": DATABASE_PIPELINE_CASE,
     "trace_points_toy_shop": POINT_CASE,
     "trace_points_edges": EDGE_CASE,
+    "egress_spans": EGRESS_SPANS_CASE,
+    "egress_spans_no_answer": EGRESS_NO_ANSWER_CASE,
+    "egress_spans_version_two": EGRESS_VERSION_CASE,
 }
 
 
@@ -7300,10 +7520,17 @@ def main() -> None:
         write(d / "model_api.jsonl", case.get("model_api"))
         write(d / "mcp.jsonl", case.get("mcp"))
         write(d / "database.jsonl", case.get("database"))
+        write(d / "egress.jsonl", case.get("egress"))
+        if "error" in case:
+            text = json.dumps(case["error"], indent=1, ensure_ascii=False)
+            (d / "expect_error.json").write_text(text + "\n")
+            continue
         write(d / "expect_trace.jsonl", case["trace"])
         # A case with no trace points in its manifest has "trace_points": null.
         findings = dict(case["findings"])
         rest = {k: findings.pop(k) for k in ("trace_points", "counts", "findings") if k in findings}
+        # A case with no egress.jsonl has "egress": null.
+        findings = {**findings, "egress": findings.pop("egress", None)}
         findings = {**findings, "trace_points": rest.pop("trace_points", None), **rest}
         text = json.dumps(findings, indent=1, ensure_ascii=False)
         (d / "expect_findings.json").write_text(text + "\n")

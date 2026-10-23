@@ -14,6 +14,7 @@
  "model_api": null,
  "mcp": null,
  "database": null,
+ "egress": null,
  "trace_points": null,
  "counts": {
   "agent_error": 0,
@@ -28,6 +29,8 @@
   "database_error": 0,
   "unseen_call": 1,
   "driver_without_span": 0,
+  "egress_not_in_discovery": 0,
+  "egress_denied": 0,
   "model_error": 0,
   "turn_without_model": 0,
   "item_between_turns": 0,
