@@ -1,9 +1,6 @@
 import json
 import re
-import socket
 import sys
-from collections.abc import Iterator
-from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
@@ -11,6 +8,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
 import example_evaluation as ex
+from proof_common import held_port
 
 from nookku import __version__, bridge, config
 from nookku.record import Writer
@@ -30,18 +28,6 @@ def test_setup_configures_a_test_of_the_http_agent_with_no_evaluation(tmp_path: 
     assert (tmp_path / ".nookku" / "mode").read_text() == "off\n"
     for name in ex.APP_FILES:
         assert (tmp_path / name).read_bytes() == (ex.EXAMPLE / name).read_bytes()
-
-
-@contextmanager
-def held_port() -> Iterator[int]:
-    """Get a port from the OS, and keep it until the end of the block. The socket binds the
-    wildcard address and does not listen, so the toy shop server can bind 127.0.0.1 on the same
-    port. While the socket is open, the OS gives the port to no other process (#438)."""
-    with socket.socket() as s:
-        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        s.bind(("", 0))
-        port: int = s.getsockname()[1]
-        yield port
 
 
 def test_the_result_comes_from_the_records_of_the_test_folder(

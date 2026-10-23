@@ -1,6 +1,7 @@
 import hashlib
 import json
 import os
+import socket
 import sys
 from pathlib import Path
 
@@ -16,11 +17,14 @@ from proof_common import (
     codex_home,
     copy_hidden,
     foreign_plugins,
+    held_port,
     hide,
     json_lines,
+    new_state,
     nookku_servers,
 )
 
+from nookku import config, kit
 from nookku.audit import audit
 from nookku.mcp import SERVER
 from nookku.record import Writer
@@ -213,3 +217,24 @@ def test_an_mcp_server_of_the_user_stops_the_proof() -> None:
     init["mcp_servers"].append({"name": "toy-memory", "status": "connected"})
     with pytest.raises(SystemExit, match="toy-memory"):
         claude_events(json.dumps(init))
+
+
+def test_a_new_state_removes_the_old_config_and_the_old_mode_file(tmp_path: Path) -> None:
+    # An earlier run stopped in relay mode, with a key that the next run does not give.
+    kit.init(tmp_path, "plugin", {"page": False})
+    kit.set_mode(tmp_path, True)
+    new_state(tmp_path)
+    kit.init(tmp_path, "plugin", {})
+    assert not kit.is_on(tmp_path)
+    assert config.read_config(tmp_path)["page"] is True
+
+
+def test_a_held_port_takes_no_connection_and_lets_the_toy_shop_bind_it() -> None:
+    with held_port() as port:
+        with pytest.raises(OSError):
+            socket.create_connection(("127.0.0.1", port), timeout=1).close()
+        with socket.socket() as server:
+            server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            server.bind(("127.0.0.1", port))
+            server.listen()
+            socket.create_connection(("127.0.0.1", port), timeout=1).close()

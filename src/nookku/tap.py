@@ -15,7 +15,7 @@ from urllib.parse import urlsplit
 
 from nookku.adapters import Adapter, AdapterError, StreamError, is_stream
 from nookku.record import Writer, lone_surrogate
-from nookku.stdio import TIMEOUT, write_failed
+from nookku.stdio import TIMEOUT, bind, write_failed
 
 HOP_BY_HOP = {
     "connection",
@@ -50,6 +50,10 @@ class Tap(ThreadingHTTPServer):
         self.base_path = parts.path.rstrip("/")
         self.writer, self.adapter, self.timeout = Writer(record), adapter, timeout
         super().__init__(listen, _Handler)
+
+    def server_bind(self) -> None:
+        # No host name lookup. On the macOS runners of CI, the lookup took 35 s (#17).
+        bind(self)
 
     def connect(self) -> http.client.HTTPConnection:
         cls = http.client.HTTPSConnection if self.scheme == "https" else http.client.HTTPConnection
