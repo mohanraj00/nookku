@@ -258,12 +258,12 @@ The trace has 21 trace checks ([trace.py](../../src/nookku/trace.py)). `findings
 
 ## 5. Read the report
 
-If the harness model evaluated the test, it wrote `report.md` in the test folder ([SPEC.md section 9.3](../../SPEC.md#93-report)). The report has one table with the columns Class, Turn, Evidence and Issue, and one row for each issue. This row comes from the report of the tutorial test ([getting-started.md](../getting-started.md#9-read-the-report)). That test ran on 2026-10-20 with nookku 0.5.4 ([data](../../proofs/tutorial/output.txt), [method](../../scripts/proof_tutorial.py)):
+If the harness model evaluated the test, it wrote `report.md` in the test folder ([SPEC.md section 9.3](../../SPEC.md#93-report)). The report has one table with the columns Class, Turn, Evidence and Issue, and one row for each issue. This row comes from the report of the tutorial test ([getting-started.md](../getting-started.md#9-read-the-report)). That test ran on 2026-10-23 with nookku 0.5.5 ([data](../../proofs/tutorial/output.txt), [method](../../scripts/proof_tutorial.py)):
 
 ```markdown
 | Class | Turn | Evidence | Issue |
 |---|---|---|---|
-| missing_action | 1 | turn 1, agent.py:23, agent.py:27, agent.py:31 | The tester reported a damaged item: "the mug i ordered came with a crack in the handle". The app's own rule is "1. Damaged items: full refund." (agent.py:23), but the app did not start a refund, acknowledge the damage, or ask for the order. ... |
+| missing_action | 1 | turn 1, agent.py:23, agent.py:27, agent.py:31 | The tester said "the mug i ordered came with a crack in the handle". The app did not act on the damage report. It replied "Which item is this about: the mug or the teapot?", which asks for the item the tester had already named. ... |
 ```
 
 The issue classes:
