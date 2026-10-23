@@ -19,7 +19,7 @@ verbatim-relay 0.3.x and earlier used `.verbatim-relay/`. The first `nookku` com
 | `page.lock` | `nookku chat` | An empty lock file. The page server holds a POSIX record lock on it while it runs, so that only one page server runs for each project. The stop reads the pid of the holder ([SPEC.md section 5](../../SPEC.md#5-relays)). |
 | `send.lock` | `nookku chat`, the end of a test | An empty lock file. A send of the chat page and the end of a test take turns with it, so that the end waits for a send that is in progress ([SPEC.md section 5](../../SPEC.md#5-relays)). |
 | `ending.json` | `nookku end` | The harness session that ends the test, for the bridge. |
-| `runs/<test-id>.json` | The bridge | The test folder and the entry pid of each test. `nookku end` signals only an entry that this file names. |
+| `runs/<test-id>.json` | The bridge | The [test folder](glossary.md#test-folder) and the entry pid of each test. `nookku end` signals only an entry that this file names. |
 | `relay.jsonl` | the relays | With no entry: the [relay record](glossary.md#relay-record) ([how-to/http-tap.md](../how-to/http-tap.md)). |
 | `tests/<test-id>/` | the bridge, the relays, the tap | One folder for each test (see below). With `--tests-dir` or `NOOKKU_TESTS_DIR`, the tests are in that folder, and the other files stay here ([cli.md](cli.md#the-tests-folder)). |
 
@@ -53,6 +53,7 @@ Each test is a new conversation, with a new test id and a new entry process. The
 | `mcp.jsonl` | The calls of your app to its MCP servers. | [SPEC.md section 7.12](../../SPEC.md#712-mcp-proxies) |
 | `database.jsonl` | The messages of your app and its Postgres databases. | [SPEC.md section 7.13](../../SPEC.md#713-postgres-proxies) |
 | `otel.jsonl` | The OpenTelemetry spans and logs of your app, if it sent any. | [SPEC.md section 7.5](../../SPEC.md#75-otlp-receiver) |
+| `egress.jsonl` | The Koodam egress spans of the test, if you gave them to `nookku trace --egress`. | [SPEC.md section 8.8](../../SPEC.md#88-egress-spans) |
 
 The seal does not contain `report.md`, `bridge.log`, `seal.json` and `denied.jsonl`, because these files change after the end.
 

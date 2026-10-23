@@ -230,7 +230,7 @@ Each finding in `findings.json` has `check`, `turn` and `detail`. A finding abou
 
 ### Trace checks
 
-The trace has 21 trace checks ([trace.py](../../src/nookku/trace.py)). `findings.json` sorts the findings in the order of this table.
+The trace has 23 trace checks ([trace.py](../../src/nookku/trace.py)). `findings.json` sorts the findings in the order of this table.
 
 | Check | Finding |
 |---|---|
@@ -246,6 +246,8 @@ The trace has 21 trace checks ([trace.py](../../src/nookku/trace.py)). `findings
 | `database_error` | A query of the app to a Postgres database has an error, or has no result ([SPEC.md section 7.13](../../SPEC.md#713-postgres-proxies)). |
 | `unseen_call` | An OpenTelemetry span of the app names a call to an address that no proxy and no receiver of the test has. The egress answer missed this part, or the app called it with no proxy ([SPEC.md section 7.11](../../SPEC.md#711-egress-discovery)). |
 | `driver_without_span` | A database with `record: driver` in the egress answer has no database span in the trace. Check the OpenTelemetry instrumentation of its driver. |
+| `egress_not_in_discovery` | A Koodam egress span names a host that the egress answer does not have. The app called a service that the answer missed. If the host is not a part of the app, for example a package host, add it to `egress_ignore` ([SPEC.md section 8.8](../../SPEC.md#88-egress-spans)). |
+| `egress_denied` | The Koodam egress proxy refused a call of the pod. `detail` gives the reason of Koodam ([SPEC.md section 8.8](../../SPEC.md#88-egress-spans)). |
 | `model_error` | A Codex turn ended with a model error: the `task_complete` event of the Codex session file has an error, for example `server_overloaded` when the model is at capacity. |
 | `turn_without_model` | A turn has no `message`, `tool_call` or `command` item from a session file. A turn with only an OTLP, backend or model API item still gets this finding. This check runs only if the trace has at least 1 item from a session file. |
 | `item_between_turns` | A model item has no turn, but it occurred at or after the start of turn 1. A driver query and its span give 1 finding. |
