@@ -744,6 +744,11 @@ def _chat_parser(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> No
         help="open the chat page of the running test in the browser; print no URL",
     )
     page.add_argument("--stop", action="store_true", help="stop the page server of this project")
+    page.add_argument(
+        "--no-idle-stop",
+        action="store_true",
+        help="do not stop the page after 15 minutes with no use and no test",
+    )
 
 
 def _chat_command(args: argparse.Namespace) -> int:
@@ -766,7 +771,7 @@ def _chat_command(args: argparse.Namespace) -> int:
         from nookku import page_auto
 
         return page_auto.serve(args.root.resolve(), args.auto_test, args.status_fd, args.print_url)
-    return page.serve(args.root.resolve(), args.port)
+    return page.serve(args.root.resolve(), args.port, idle_stop=not args.no_idle_stop)
 
 
 def _script_parser(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
