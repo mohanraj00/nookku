@@ -643,3 +643,21 @@ def test_a_harness_call_and_another_path_get_no_questions(tmp_path: Path) -> Non
             proxies.stop()
     for row in rows(tmp_path):
         assert "questions" not in row and "questions_count" not in row
+
+
+def test_a_refused_decisions_call_has_no_questions_and_no_lost_questions(tmp_path: Path) -> None:
+    sent = json.dumps({"input": "My teapot broke.", "questions": TOY_QUESTIONS}).encode()
+    with ModelServer() as model:
+        proxies = proxy_for(model, tmp_path, "openai")
+        proxies.proxies[0].body_limit = 100
+        env = proxies.start()
+        try:
+            status, _ = post(env["OPENAI_BASE_URL"], "/v1/decisions", sent, {})
+        finally:
+            proxies.stop()
+    assert status == 413 and model.seen == []
+    [row] = rows(tmp_path)
+    assert row["error"] == "the proxy refused the request: the body is longer than 100 bytes"
+    assert row["request_body"] is None and "questions" not in row
+    items, _ = trace.read_model_api(tmp_path / model_api.FILE)
+    assert "questions_lost" not in items[0]["input"]
