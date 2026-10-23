@@ -350,8 +350,8 @@ def test_the_agent_url_must_be_http(tmp_path):
         Tap(("127.0.0.1", 0), "ftp://x", tmp_path / "t.jsonl", make("json"))
 
 
-def test_the_tap_does_not_look_up_the_host_name(tmp_path, monkeypatch):
-    # On the macOS runners of CI, socket.getfqdn took 70 s at the start of the tap (#17).
+def test_the_tap_and_the_toy_agent_do_not_look_up_the_host_name(tmp_path, monkeypatch):
+    # On the macOS runners of CI, socket.getfqdn took 35 s at the start of the tap (#17).
     def slow(name: str = "") -> str:
         raise AssertionError("getfqdn")
 
@@ -359,3 +359,6 @@ def test_the_tap_does_not_look_up_the_host_name(tmp_path, monkeypatch):
     tap = Tap(("127.0.0.1", 0), "http://127.0.0.1:9", tmp_path / "tap.jsonl", make("json"))
     tap.server_close()
     assert (tap.server_name, tap.server_port) == ("127.0.0.1", tap.server_address[1])
+    agent = ToyAgent()
+    agent.shutdown()
+    agent.server_close()

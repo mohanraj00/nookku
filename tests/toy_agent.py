@@ -7,6 +7,8 @@ import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Literal
 
+from nookku import stdio
+
 
 def shop_reply(text: str) -> str:
     return f"## Toy shop  \nYou wrote: «{text}»\n\n| item | price |\n|---|---|\n| mug | € 8 |\n"
@@ -62,6 +64,10 @@ class ToyAgent(ThreadingHTTPServer):
         self.stream, self.gate = stream, gate
         super().__init__(("127.0.0.1", 0), _Handler)
         threading.Thread(target=self.serve_forever, daemon=True).start()
+
+    def server_bind(self) -> None:
+        # No host name lookup. On the macOS runners of CI, the first lookup took 35 s (#17).
+        stdio.bind(self)
 
     @property
     def url(self) -> str:

@@ -52,7 +52,7 @@ class Tap(ThreadingHTTPServer):
         super().__init__(listen, _Handler)
 
     def server_bind(self) -> None:
-        # No host name lookup. On the macOS runners of CI, the lookup took 70 s (#17).
+        # No host name lookup. On the macOS runners of CI, the lookup took 35 s (#17).
         bind(self)
 
     def connect(self) -> http.client.HTTPConnection:
