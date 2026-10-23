@@ -45,7 +45,7 @@ from typing import Any, BinaryIO, TextIO
 from urllib.parse import parse_qsl, unquote, urlsplit
 
 from nookku import dashboard, kit, notes, page_end, page_trace, replay, script_save, state
-from nookku.record import RecordError, Writer, finite, id_problem, turns
+from nookku.record import RecordError, Writer, finite, id_problem, loads, turns
 
 # The harness of a turn that the page sent (SPEC.md section 2.2).
 HARNESS = "pane"
@@ -167,7 +167,7 @@ def page_file(name: str) -> bytes:
 def _manifest(folder: Path) -> dict[str, Any] | None:
     """The manifest of a test folder, or None if it is missing or not a JSON object."""
     try:
-        data = json.loads((folder / "manifest.json").read_text())
+        data = loads((folder / "manifest.json").read_text())
     except (OSError, ValueError):
         return None
     return data if isinstance(data, dict) else None

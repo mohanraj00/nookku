@@ -13,6 +13,8 @@ import time
 from pathlib import Path
 from typing import Any
 
+from nookku.record import loads
+
 SEAL = "seal.json"
 DENIED = "denied.jsonl"
 # Files that change after the end: the evaluation, the bridge log, the seal and the denies.
@@ -85,7 +87,7 @@ def write(folder: Path, base: Path | None = None) -> str | None:
 
 def _read(path: Path) -> dict[str, Any] | None:
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
+        data = loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
     ok = isinstance(data, dict) and isinstance(data.get("files"), dict)

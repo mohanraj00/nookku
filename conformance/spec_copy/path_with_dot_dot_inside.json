@@ -1,0 +1,12 @@
+{
+ "files": {
+  "docs/APP_SPEC.md": "# Spec\n",
+  "rules/x": ""
+ },
+ "spec": [
+  "rules/../docs/APP_SPEC.md"
+ ],
+ "copies": {
+  "spec/1.md": "# Spec\n"
+ }
+}

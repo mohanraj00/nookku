@@ -1,6 +1,6 @@
 {
- "files": {
-  "APP_SPEC.md": "# Spec\n"
+ "copies": {
+  "spec/1.md": "# Spec\n"
  },
  "manifest_spec": [
   {

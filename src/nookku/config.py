@@ -292,51 +292,73 @@ def spec_file(root: Path, path: str) -> Path:
     return file
 
 
-def spec_sha256(root: Path, path: str) -> str:
-    """The SHA-256 of one spec file (spec_bytes). Raise ConfigError."""
-    import hashlib
-
-    return hashlib.sha256(spec_bytes(root, path)).hexdigest()
-
-
 def spec_bytes(root: Path, path: str) -> bytes:
     """The bytes of one spec file. The file is opened with no follow of a last symlink and
     must be a regular file of SPEC_LIMIT bytes or less, so a file that changes after the check
     cannot make the read follow a symlink, block or take all of the memory. Raise ConfigError."""
+    return _regular_bytes(spec_file(root, path), f"{FILE}: ", f"the spec file {path!r}")
+
+
+def _regular_bytes(file: Path, prefix: str, what: str) -> bytes:
+    """The bytes of a regular file of SPEC_LIMIT bytes or less, read with no follow of a last
+    symlink. Raise ConfigError with `prefix` and `what`, the name of the file in the error."""
     import stat
 
-    file = spec_file(root, path)
     flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
     try:
         checked = os.stat(file)
         fd = os.open(file, flags)
     except OSError as e:
         if e.errno == errno.ELOOP:
-            raise ConfigError(f"{FILE}: the spec file {path!r} is not a file") from None
-        raise ConfigError(f"{FILE}: cannot read the spec file {path!r}: {e.strerror}") from None
+            raise ConfigError(f"{prefix}{what} is not a file") from None
+        raise ConfigError(f"{prefix}cannot read {what}: {e.strerror}") from None
     with os.fdopen(fd, "rb") as f:
         try:
             info = os.fstat(f.fileno())
             if not stat.S_ISREG(info.st_mode):
-                raise ConfigError(f"{FILE}: the spec file {path!r} is not a file")
+                raise ConfigError(f"{prefix}{what} is not a file")
             # A folder of the path can change between the check and the open.
             if (info.st_dev, info.st_ino) != (checked.st_dev, checked.st_ino):
-                raise ConfigError(f"{FILE}: the spec file {path!r} changed during the check")
+                raise ConfigError(f"{prefix}{what} changed during the check")
             if info.st_size > SPEC_LIMIT:
-                raise ConfigError(
-                    f"{FILE}: the spec file {path!r} has more than {SPEC_LIMIT} bytes"
-                )
+                raise ConfigError(f"{prefix}{what} has more than {SPEC_LIMIT} bytes")
             blocks, size = [], 0
             for block in iter(lambda: f.read(1 << 16), b""):
                 size += len(block)
                 if size > SPEC_LIMIT:
-                    raise ConfigError(
-                        f"{FILE}: the spec file {path!r} has more than {SPEC_LIMIT} bytes"
-                    )
+                    raise ConfigError(f"{prefix}{what} has more than {SPEC_LIMIT} bytes")
                 blocks.append(block)
         except OSError as e:
-            raise ConfigError(f"{FILE}: cannot read the spec file {path!r}: {e.strerror}") from None
+            raise ConfigError(f"{prefix}cannot read {what}: {e.strerror}") from None
     return b"".join(blocks)
+
+
+# The folder of the spec copies in a test folder (SPEC.md section 7.2).
+SPEC_COPIES = "spec"
+# The suffix of a spec path that its copy keeps: a dot and 1 to 16 ASCII letters and digits.
+_COPY_SUFFIX = re.compile(r"\.[A-Za-z0-9]{1,16}")
+
+
+def spec_copy(n: int, path: str) -> str:
+    """The path in the test folder of the copy of spec file `n` (from 1) with the config path
+    `path`: `spec/<n>`, with the suffix of the path if it is a plain suffix (SPEC.md 7.2)."""
+    name = path.rsplit("/", 1)[-1]
+    dot = name.rfind(".")
+    suffix = name[dot:] if dot > 0 else ""
+    return f"{SPEC_COPIES}/{n}{suffix if _COPY_SUFFIX.fullmatch(suffix) else ''}"
+
+
+def spec_copy_bytes(folder: Path, n: int, path: str) -> bytes:
+    """The bytes of the copy of spec file `n` in a test folder, with the rule of spec_bytes.
+    The copy and its folder must not be a symlink. Raise ConfigError with the cause (SPEC.md
+    section 9.2)."""
+    name = spec_copy(n, path)
+    copy = folder / name
+    if copy.parent.is_symlink() or copy.is_symlink():
+        raise ConfigError(f"the copy {name} is not a file")
+    if not copy.exists():
+        raise ConfigError(f"the test folder has no copy {name}")
+    return _regular_bytes(copy, "", f"the copy {name}")
 
 
 def spec_hashes(root: Path, spec: list[str]) -> list[dict[str, str]]:

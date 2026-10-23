@@ -1,0 +1,11 @@
+{
+ "files": {
+  "APP_SPEC.md": "# Spec\n"
+ },
+ "spec": [
+  "APP_SPEC.md"
+ ],
+ "copies": {
+  "spec/1.md": "# Spec\n"
+ }
+}

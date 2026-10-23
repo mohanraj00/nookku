@@ -10,7 +10,6 @@ reads only the files of the 2 test folders, and it changes no file.
 
 from __future__ import annotations
 
-import json
 import re
 from array import array
 from math import isqrt
@@ -20,7 +19,7 @@ from urllib.parse import unquote
 
 from nookku import dashboard
 from nookku.audit import _anchors
-from nookku.record import Exchange, RecordError, read_tap, turns
+from nookku.record import Exchange, RecordError, loads, read_tap, turns
 
 # The path of the page request after the token: api/diff/<test id>/<test id>.
 ROUTE = "api/diff"
@@ -278,7 +277,7 @@ def egress(old: Path | None) -> dict[str, Any] | None:
     if old is None:
         return None
     try:
-        recorded = json.loads((old / "manifest.json").read_text(encoding="utf-8"))["egress"]
+        recorded = loads((old / "manifest.json").read_text(encoding="utf-8"))["egress"]
         return {
             "registered": recorded["registered"],
             "answer": discovery.parse(recorded["answer"]),

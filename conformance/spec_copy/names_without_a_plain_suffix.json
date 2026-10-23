@@ -1,0 +1,20 @@
+{
+ "files": {
+  "RULES": "1. A rule.\n",
+  "notes.r&d": "2. A rule.\n",
+  "rules.a2345678901234567": "3. A rule.\n",
+  "Spec.Markdown": "# Spec\n"
+ },
+ "spec": [
+  "RULES",
+  "notes.r&d",
+  "rules.a2345678901234567",
+  "Spec.Markdown"
+ ],
+ "copies": {
+  "spec/1": "1. A rule.\n",
+  "spec/2": "2. A rule.\n",
+  "spec/3": "3. A rule.\n",
+  "spec/4.Markdown": "# Spec\n"
+ }
+}

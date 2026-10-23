@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 from nookku import contract, seal
 from nookku.adapters import History
 from nookku.config import STATE_DIR as STATE_DIR
-from nookku.record import RecordError, turns
+from nookku.record import RecordError, loads, turns
 
 # Longer than the tap's wait for the agent, shorter than the hook deadline (kit.HOOK_DEADLINE).
 TIMEOUT = 270
@@ -184,7 +184,7 @@ def current(root: Path) -> dict[str, Any] | None:
 def _started(folder: Path) -> float:
     """The start time in the manifest. A folder with no manifest yet is a test that starts now."""
     try:
-        return float(json.loads((folder / "manifest.json").read_text())["started"])
+        return float(loads((folder / "manifest.json").read_text())["started"])
     except (OSError, ValueError, KeyError, TypeError):
         return float("inf")
 
@@ -206,7 +206,7 @@ def latest_test(root: Path) -> Path | None:
 def manifest_of(folder: Path) -> dict[str, Any] | None:
     """The manifest of a test, or None if it cannot be read or is not a JSON object."""
     try:
-        manifest = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
+        manifest = loads((folder / "manifest.json").read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
     return manifest if isinstance(manifest, dict) else None

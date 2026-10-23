@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from . import model_api
-from .record import json_text
+from .record import json_text, read_manifest
 from .trace import _exchanges, _lines, _time, _turn, windows
 
 FILE = "performance.json"
@@ -193,7 +193,7 @@ def _unknown(folder: Path, manifest: dict[str, Any]) -> str | None:
 def summarize(folder: Path) -> dict[str, Any]:
     """The summary of each turn of a test folder, from tap.jsonl, the manifest, the session files
     and trace.jsonl. An invalid tap.jsonl raises a RecordError, as in the trace."""
-    manifest = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
+    manifest = read_manifest(folder)
     exchanges = _exchanges(folder / "tap.jsonl")
     spans = windows(exchanges)
     trace = folder / "trace.jsonl"

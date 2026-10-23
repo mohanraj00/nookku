@@ -89,6 +89,6 @@ The [tester](glossary.md#tester) or the model writes the paths, so Nookku does n
 - A file of more than 1 MiB is an error.
 - The list has 20 paths or fewer, and no 2 paths name the same file.
 - `nookku init --spec` and `nookku start` check each path. If a path does not follow these rules, `init` writes nothing, and `start` starts no test.
-- The manifest of each test records each path and the SHA-256 of its file at the start. At the end, the evaluation prompt checks each path and its SHA-256 again. If a file changed or moved out of the project, the prompt tells the model not to read it.
+- The manifest of each test records each path and the SHA-256 of its file at the start. The bridge copies each file into `spec/` in the [test folder](glossary.md#test-folder) at the start, and the [seal](glossary.md#seal) covers the copies. The evaluation prompt names the copies, not the files in the project. At the end, it checks the SHA-256 of each copy again. If a copy changed or is missing, the prompt tells the model not to read it ([SPEC.md section 9.2](../../SPEC.md#92-evaluation-prompt)).
 
 Do not name a file with secrets as a spec file, for example `.env`. The evaluation model reads each spec file, and its text can go into `report.md`.
