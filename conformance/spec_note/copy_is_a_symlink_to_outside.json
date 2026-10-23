@@ -1,0 +1,15 @@
+{
+ "outside": {
+  "secret.md": "x\n"
+ },
+ "copy_links": {
+  "spec/1.md": "../../../../../outside/secret.md"
+ },
+ "manifest_spec": [
+  {
+   "path": "APP_SPEC.md",
+   "sha256": "<sha256>"
+  }
+ ],
+ "note": "Do not read these spec files of the test. Say in the notes of the report that the evaluation did not use them, and give the cause:\n- \"APP_SPEC.md\": the copy spec/1.md is not a file.\n\n"
+}

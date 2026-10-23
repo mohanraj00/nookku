@@ -7,6 +7,7 @@ import datetime
 import hashlib
 import json
 import os
+import re
 import secrets
 import shutil
 import signal
@@ -40,9 +41,9 @@ from nookku.config import FILE as CONFIG_FILE
 from nookku.config import HARNESSES as HARNESSES
 from nookku.config import NO_ENTRY as NO_ENTRY
 from nookku.config import STATE_DIR as STATE_DIR
-from nookku.config import ConfigError, read_config, spec_contents
+from nookku.config import ConfigError, read_config, spec_contents, spec_copy
 from nookku.config import has_entry as has_entry
-from nookku.record import RecordError, Writer, turns
+from nookku.record import RecordError, Writer, loads, turns
 
 # The state functions are in nookku.state. These names keep the imports of bridge working.
 from nookku.state import TIMEOUT as TIMEOUT
@@ -116,6 +117,9 @@ class TestConfig:
     trace_points: list[dict[str, str]] = field(default_factory=list)
     # Each part of a Trace points section that is not a trace point: its file, line and problem.
     trace_points_unread: list[dict[str, Any]] = field(default_factory=list)
+    # The bytes of each spec file, from the read that gave its SHA-256. The bridge copies them
+    # into the test folder (SPEC.md section 7.2).
+    spec_data: list[bytes] = field(default_factory=list)
 
 
 def load_config(root: Path, entry_name: str | None = None) -> TestConfig:
@@ -148,9 +152,20 @@ def load_config(root: Path, entry_name: str | None = None) -> TestConfig:
     message = data.get("check_message", CHECK_MESSAGE)
     keys = {k: data.get(k, default) for k, default in trace.TRACE_KEYS.items()}
     limit = data.get("record_limit", backend.RECORD_LIMIT)
+    copies = [b for _, b in contents]
     return TestConfig(
-        entry, models, otel, rules, message, keys, entry_name, limit, spec, points, unread
+        entry, models, otel, rules, message, keys, entry_name, limit, spec, points, unread, copies
     )
+
+
+def write_spec_copies(folder: Path, files: list[tuple[str, bytes]]) -> None:
+    """Copy the bytes of each spec file into the test folder before the seal, so that the
+    evaluation reads the files of the start of the test (SPEC.md section 7.2). `files` holds
+    the path of each file as the config gives it, and its bytes."""
+    for n, (path, data) in enumerate(files, 1):
+        copy = folder / spec_copy(n, path)
+        copy.parent.mkdir(exist_ok=True)
+        copy.write_bytes(data)
 
 
 # The end of an error of a database proxy at the start. The driver trace is the second path
@@ -300,7 +315,7 @@ def stopped(root: Path) -> Path | None:
     found: list[tuple[float, str, Path]] = []
     for folder in tests.iterdir() if tests.is_dir() else []:
         try:
-            manifest = json.loads((folder / "manifest.json").read_text())
+            manifest = loads((folder / "manifest.json").read_text())
         except (OSError, ValueError):
             continue
         if not isinstance(manifest, dict) or manifest.get("ended") is not None:
@@ -378,7 +393,7 @@ def finish_stopped(folder: Path) -> dict[str, Any]:
     Stop the entry and mark the test as killed. Then write the trace, the audit and the seal from
     the records."""
     path = folder / "manifest.json"
-    manifest: dict[str, Any] = json.loads(path.read_text())
+    manifest: dict[str, Any] = loads(path.read_text())
 
     def log(message: str) -> None:
         with (folder / "bridge.log").open("a", encoding="utf-8") as f:
@@ -462,7 +477,7 @@ def _start_gate(folder: Path) -> dict[str, Any] | None:
     """The gate result that start wrote, or None if start did not write one."""
     path = folder / GATE_FILE
     try:
-        gate: dict[str, Any] = json.loads(path.read_text())
+        gate: dict[str, Any] = loads(path.read_text())
     except (OSError, ValueError):
         return None
     path.unlink(missing_ok=True)
@@ -473,7 +488,7 @@ def _start_egress(folder: Path) -> dict[str, Any] | None:
     """The egress answer that start wrote, or None. The bridge checks it again."""
     path = folder / EGRESS_FILE
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
+        data = loads(path.read_text(encoding="utf-8"))
         answer = discovery.parse(data["answer"])
         registered = data["registered"]
     except (OSError, ValueError, TypeError, KeyError):
@@ -485,7 +500,7 @@ def _start_egress(folder: Path) -> dict[str, Any] | None:
 def egress_text(folder: Path) -> str:
     """The lines of the start text that name each egress part of the test (SPEC.md 7.11)."""
     try:
-        manifest = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
+        manifest = loads((folder / "manifest.json").read_text(encoding="utf-8"))
         answer = discovery.parse(manifest["egress"]["answer"])
     except (OSError, ValueError, TypeError, KeyError):
         return "The manifest has no valid egress answer. See bridge.log in the test folder."
@@ -541,7 +556,7 @@ def summary(manifest: dict[str, Any]) -> str:
             f"a message to the model: {changed}. Do not trust this test."
         )
     with contextlib.suppress(OSError, ValueError, KeyError):
-        lines.append(trace.summary(json.loads((folder / "findings.json").read_text())))
+        lines.append(trace.summary(loads((folder / "findings.json").read_text())))
     lines.append(
         f"Audit: nookku audit --tap {folder / 'tap.jsonl'} --relay {folder / 'relay.jsonl'}"
     )
@@ -614,6 +629,11 @@ def descendants(pid: int) -> set[int]:
     return found
 
 
+# A Claude Code session id that is a plain file name: the session file is <id>.jsonl. A name
+# with `/`, `..` or a glob character can point the copy outside the test folder (#471).
+SESSION_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}")
+
+
 class ClaudeWatcher(threading.Thread):
     """Identify the Claude Code sessions that the entry's processes run (SPEC.md section 7.3)."""
 
@@ -642,14 +662,17 @@ class ClaudeWatcher(threading.Thread):
                 if self._mtimes.get(f.name) == mtime:
                     continue
                 try:
-                    data = json.loads(f.read_text())
+                    data = loads(f.read_text())
                 except (OSError, ValueError):
                     continue  # a file in the middle of a write: read it at the next poll
                 self._mtimes[f.name] = mtime
+                if not isinstance(data, dict):
+                    continue
                 pid, sid = data.get("pid"), data.get("sessionId")
                 if (
                     isinstance(pid, int)
                     and isinstance(sid, str)
+                    and SESSION_ID.fullmatch(sid)
                     and (pid, sid) not in self._checked
                 ):
                     todo.append((pid, sid))
@@ -703,11 +726,11 @@ def codex_sessions(
                 if f.stat().st_mtime < started:
                     continue
                 with f.open(encoding="utf-8") as fh:
-                    meta = json.loads(fh.readline())
+                    meta = loads(fh.readline())
             except (OSError, ValueError):
                 continue
             payload = meta.get("payload") if isinstance(meta, dict) else None
-            if meta.get("type") != "session_meta" or not isinstance(payload, dict):
+            if not isinstance(payload, dict) or meta.get("type") != "session_meta":
                 continue
             sid, cwd = payload.get("id"), payload.get("cwd")
             if not (isinstance(sid, str) and isinstance(cwd, str)) or sid in exclude:
@@ -821,6 +844,8 @@ def run(
             "receiver": None,
         },
     }
+    paths = [h["path"] for h in config.spec]
+    write_spec_copies(folder, list(zip(paths, config.spec_data, strict=True)))
     _write_json(folder / "manifest.json", manifest)
     _log("manifest written")
     # A `--version` call can take seconds. The test must not wait for it to start.
@@ -1043,7 +1068,7 @@ def audit_problems(folder: Path) -> tuple[int | None, list[str]]:
     If the file is missing or invalid, the exit code is None and the check fails (fail closed).
     """
     try:
-        report = json.loads((folder / "audit.json").read_text(encoding="utf-8"))
+        report = loads((folder / "audit.json").read_text(encoding="utf-8"))
         code, breaks, errors = report["exit"], report["breaks"], report["errors"]
         if type(code) is not int or not isinstance(breaks, list) or not isinstance(errors, list):
             raise ValueError("wrong types")
@@ -1150,7 +1175,7 @@ def run_script(
         problems.insert(0, f"The entry sent no reply to message {failed} of the script.")
     lines.append(f"Audit: exit {code}" if code is not None else "Audit: no valid audit.json")
     try:
-        findings = json.loads((folder / "findings.json").read_text(encoding="utf-8"))
+        findings = loads((folder / "findings.json").read_text(encoding="utf-8"))
         lines.append(trace.summary(findings))
     except (OSError, ValueError, KeyError) as e:
         lines.append(f"Trace: no valid findings.json ({e})")

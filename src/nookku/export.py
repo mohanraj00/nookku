@@ -34,7 +34,7 @@ from typing import Any
 from urllib.parse import unquote, urlsplit
 
 from nookku import __version__, dashboard, notes, page, page_trace, seal, state
-from nookku.record import RecordError, finite
+from nookku.record import RecordError, finite, loads
 
 # The route of the page server, after the token: api/export/<test id>.
 ROUTE = "api/export"
@@ -239,7 +239,7 @@ def _step(row: dict[str, Any]) -> dict[str, Any]:
 
 def _json_file(folder: Path, name: str) -> dict[str, Any] | None:
     try:
-        data = json.loads((folder / name).read_text(encoding="utf-8"))
+        data = loads((folder / name).read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
     return data if isinstance(data, dict) else None

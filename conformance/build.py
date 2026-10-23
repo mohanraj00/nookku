@@ -319,6 +319,13 @@ CASES_BY_NAME: dict[str, tuple[list | None, list | None, dict]] = {
         [CLEAN_RELAY[0], '{"v": "0.1", "type": "turn"', *CLEAN_RELAY[1:]],
         {"exit": 2, "errors": ["record_invalid"]},
     ),
+    # JSON that nests too deep makes Python json.loads raise RecursionError, not ValueError. The
+    # reader refuses the line as a line that is not JSON (SPEC.md section 2, #471).
+    "json_nests_too_deep": (
+        [CLEAN_TAP[0], '{"a": ' + "[" * 100_000 + "]" * 100_000 + "}", *CLEAN_TAP[1:]],
+        CLEAN_RELAY,
+        {"exit": 2, "errors": ["record_invalid"]},
+    ),
     "blank_line": (
         CLEAN_TAP,
         [CLEAN_RELAY[0], "", *CLEAN_RELAY[1:]],

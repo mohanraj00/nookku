@@ -21,7 +21,7 @@ from . import app_spec, backend, db_proxy, mcp_proxy, model_api, otlp
 from .adapters import AdapterError, pick
 from .config import MATCHES
 from .discovery import db_system, driver_address
-from .record import VERSION, json_text, read_rows
+from .record import VERSION, json_text, read_manifest, read_rows
 
 # The version of a trace row. 0.3 adds the kinds span and log, and the field service.
 TRACE_VERSION = "0.3"
@@ -1421,7 +1421,7 @@ def check(
 
 def build(folder: Path) -> dict[str, Any]:
     """Build trace.jsonl and findings.json in a test folder from its copied session files."""
-    manifest = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
+    manifest = read_manifest(folder)
     exchanges = _exchanges(folder / "tap.jsonl")
     spans = windows(exchanges)
     items: list[dict[str, Any]] = []

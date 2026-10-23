@@ -25,6 +25,7 @@ from nookku.record import (
     Turn,
     Writer,
     escape_surrogates,
+    loads,
     lone_surrogate,
     read_relay,
 )
@@ -654,7 +655,7 @@ def touches_policy(event: Any, root: Path, tool: str, tool_input: Any, text: str
 def _test_entry(cur: dict[str, Any]) -> list[str]:
     """The entry of the running test, from its manifest. Return [] if the manifest has none."""
     try:
-        entry = json.loads((Path(cur["dir"]) / "manifest.json").read_text()).get("entry")
+        entry = loads((Path(cur["dir"]) / "manifest.json").read_text()).get("entry")
     except (OSError, ValueError, AttributeError):
         return []
     ok = isinstance(entry, list) and all(isinstance(a, str) for a in entry)
@@ -1053,7 +1054,7 @@ def _test_project(folder: Path) -> str | None:
     """The project root of a test folder, from its manifest.json, or None if the folder is not
     a test folder of nookku. A copied test folder also has its manifest."""
     try:
-        data = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
+        data = loads((folder / "manifest.json").read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
     if not isinstance(data, dict) or not isinstance(data.get("versions"), dict):

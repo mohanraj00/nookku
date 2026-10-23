@@ -262,8 +262,8 @@ Each wait on the relay path ends before the wait around it, so that the relay ca
 | 1 | The tap waits for the agent, in HTTP mode and in stdio mode. | [240](../src/nookku/stdio.py#L27) | `stdio.TIMEOUT` |
 | 2 | The tap answers the relay, at most [5 seconds](../tests/test_timeouts.py#L21) after the agent timeout. | [245](../tests/test_timeouts.py#L21) | `stdio.TIMEOUT + ANSWER` |
 | 3 | The relay waits for the tap of a test. | [270](../src/nookku/state.py#L20) | `state.TIMEOUT` |
-| 3 | The relay waits for a tap in HTTP mode, with no test. | [280](../src/nookku/kit.py#L33) | `kit.TIMEOUT` |
-| 4 | The harness stops the `UserPromptSubmit` hook of the relay. | [300](../src/nookku/kit.py#L36) | `kit.HOOK_DEADLINE` |
+| 3 | The relay waits for a tap in HTTP mode, with no test. | [280](../src/nookku/kit.py#L34) | `kit.TIMEOUT` |
+| 4 | The harness stops the `UserPromptSubmit` hook of the relay. | [300](../src/nookku/kit.py#L37) | `kit.HOOK_DEADLINE` |
 
 Each number links to its constant. The [5 seconds](../tests/test_timeouts.py#L21) of order 2 is the `ANSWER` limit of the test. The plugin and the project hooks run the same hook, so they have the same timeouts. [tests/test_docs.py](../tests/test_docs.py) checks that this table matches the constants.
 

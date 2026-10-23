@@ -848,6 +848,39 @@ def test_the_watcher_takes_only_processes_of_the_entry(tmp_path: Path) -> None:
     assert len([r for r in rows if r]) == 1
 
 
+def test_the_watcher_takes_only_a_session_id_that_is_a_plain_file_name(tmp_path: Path) -> None:
+    """The session file is <id>.jsonl, so an id with `/` or `..` can copy a file from outside
+    the session folder, and a glob character can match other files (#471)."""
+    sessions = tmp_path / "sessions"
+    sessions.mkdir()
+    me = os.getpid()
+    bad = ["../../secret", "..", "a/b", "*", "x?", "[a]", "", ".hidden", "a\nb", "a" * 129]
+    for n, sid in enumerate(bad):
+        (sessions / f"bad{n}.json").write_text(json.dumps({"pid": me, "sessionId": sid}))
+    good = ["0c5d6a1e-2b7f-4c1a-9e3d-8f2a6b4c7d10", "app.v2_1-b", "a" * 128]
+    for n, sid in enumerate(good):
+        (sessions / f"good{n}.json").write_text(json.dumps({"pid": me, "sessionId": sid}))
+    (sessions / "list.json").write_text("[1, 2]")
+    (sessions / "deep.json").write_text("[" * 100_000 + "]" * 100_000)
+    watcher = bridge.ClaudeWatcher(me, Writer(tmp_path / "tap.jsonl"), sessions)
+    watcher.poll()
+    assert sorted(watcher.found) == sorted(good)
+
+
+def test_codex_sessions_skip_a_first_line_that_is_not_an_object(tmp_path: Path) -> None:
+    root = tmp_path / "shop"
+    root.mkdir()
+    day = tmp_path / "sessions" / time.strftime("%Y/%m/%d")
+    day.mkdir(parents=True)
+    (day / "rollout-list.jsonl").write_text("[1, 2]\n")
+    (day / "rollout-deep.jsonl").write_text("[" * 100_000 + "]" * 100_000 + "\n")
+    meta = {"type": "session_meta", "payload": {"id": "app", "cwd": str(root)}}
+    (day / "rollout-app.jsonl").write_text(json.dumps(meta) + "\n")
+    now = time.time()
+    found = bridge.codex_sessions(root, now - 60, now + 1, set(), tmp_path / "sessions")
+    assert [m["id"] for _, m in found] == ["app"]
+
+
 def test_codex_sessions_match_project_time_and_tester(tmp_path: Path) -> None:
     root = tmp_path / "shop"
     (root / "api").mkdir(parents=True)

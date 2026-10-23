@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from nookku import seal, state
-from nookku.record import RecordError, turns
+from nookku.record import RecordError, loads, turns
 
 # The values of each filter, in the order of the page. The first value of each is the default.
 STATES = ("all", "running", "ended", "stopped", "unknown")
@@ -41,7 +41,7 @@ def find(root: Path, test_id: str) -> Path | None:
 def _json_object(path: Path) -> tuple[dict[str, Any] | None, str | None]:
     """The JSON object in the file, and an error. A missing file gives no object and no error."""
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
+        data = loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
         return None, None
     except (OSError, ValueError) as e:

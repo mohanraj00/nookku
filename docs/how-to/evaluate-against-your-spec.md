@@ -98,7 +98,7 @@ nookku: .nookku/config.json: the spec file 'RULE.md' is not a file. Nothing was 
 
 Run a test as usual: [with the Claude Code plugin](claude-code-plugin.md#run-a-test), [with the project hooks in Claude Code](claude-code-project-hooks.md), or [in Codex](codex.md#use). Send messages that touch each part of the spec. For example, ask about each user goal, and ask about one topic outside the boundaries.
 
-Type the prompt `nookku end` to start the evaluation. The evaluation prompt names each spec file, and the [harness model](../reference/glossary.md#harness-model) reads them first ([SPEC.md section 9.2](../../SPEC.md#92-evaluation-prompt)). If the config has `"evaluate": false`, no model reads the spec, but the trace still checks the trace points.
+Type the prompt `nookku end` to start the evaluation. The evaluation prompt names the copy of each spec file in the [test folder](../reference/glossary.md#test-folder), from the start of the test, and the [harness model](../reference/glossary.md#harness-model) reads them first ([SPEC.md section 9.2](../../SPEC.md#92-evaluation-prompt)). If the config has `"evaluate": false`, no model reads the spec, but the trace still checks the trace points.
 
 ## 4. Read the results
 

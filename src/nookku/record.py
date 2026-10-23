@@ -88,6 +88,32 @@ def json_text(value: Any, indent: int | None = None) -> str:
     return json.dumps(_escaped(value), indent=indent, ensure_ascii=False)
 
 
+def loads(text: str | bytes, **kwargs: Any) -> Any:
+    """json.loads, but JSON that nests too deep raises json.JSONDecodeError, a ValueError, not
+    RecursionError. Each reader of a test folder or of a harness session file uses it. Thus such
+    a file gives the error of a file that is not JSON, not a traceback (#471)."""
+    try:
+        return json.loads(text, **kwargs)
+    except RecursionError:
+        doc = text if isinstance(text, str) else ""
+        raise json.JSONDecodeError("the JSON nests too deep", doc, 0) from None
+
+
+def read_manifest(folder: Path) -> dict[str, Any]:
+    """The manifest.json of a test folder. Raise RecordError if it is not a JSON object."""
+    path = folder / "manifest.json"
+    try:
+        data = loads(path.read_text(encoding="utf-8"))
+    except OSError as e:
+        raise RecordError("record_missing", path, f"cannot read it: {e.strerror}") from None
+    except ValueError as e:
+        cause = e.msg if isinstance(e, json.JSONDecodeError) else str(e)
+        raise RecordError("record_invalid", path, f"not JSON ({cause})") from None
+    if not isinstance(data, dict):
+        raise RecordError("record_invalid", path, "not a JSON object")
+    return data
+
+
 def sha256(text: str | None) -> str | None:
     import hashlib  # here, so that a hook event that writes no row stays fast (#214)
 
@@ -216,7 +242,7 @@ def _validate(kind: str, path: Path, n: int, raw: str) -> dict[str, Any]:
         return RecordError("record_invalid", path, f"line {n}: {message}")
 
     try:
-        row = json.loads(raw, parse_constant=_no_constant)
+        row = loads(raw, parse_constant=_no_constant)
     except json.JSONDecodeError as e:
         raise bad(f"not JSON ({e.msg})") from None
     except _Constant as e:
