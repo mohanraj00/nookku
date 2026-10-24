@@ -102,8 +102,10 @@ def tool_calls(events: list[Any]) -> list[tuple[str, str]]:
     blocked_call row of the guard gives for it (kit.blocked_detail)."""
     out = []
     for e in events:
-        content = e.get("message", {}).get("content") if isinstance(e, dict) else None
-        if e.get("type") != "assistant" or not isinstance(content, list):
+        # The message of a permission_denied event is a string, not an object.
+        message = e.get("message") if isinstance(e, dict) else None
+        content = message.get("content") if isinstance(message, dict) else None
+        if not isinstance(e, dict) or e.get("type") != "assistant" or not isinstance(content, list):
             continue
         for block in content:
             if isinstance(block, dict) and block.get("type") == "tool_use":
