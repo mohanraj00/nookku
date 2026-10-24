@@ -1,24 +1,32 @@
 {
- "date": "2026-10-23",
+ "date": "2026-10-24",
  "relay": "plugin-codex",
  "discovery_registered": true,
  "discovery_attempts": 1,
- "discovery_answer": "```text\nnookku: the egress answer is registered. The next start uses these parts:\n- model API anthropic: ANTHROPIC_BASE_URL -> the URL in ANTHROPIC_BASE_URL or the default (proxy)\n- MCP server catalog: http CATALOG_MCP_URL -> http://127.0.0.1:9310/mcp (proxy)\n- MCP server notes: stdio NOTES_MCP_COMMAND -> python3 notes_mcp.py (proxy)\n- database shop: postgres, DATABASE_URL (proxy)\n- database returns: sqlite, <project>/returns.db (driver trace)\nShow these parts to the tester. If they are correct, the tester types the prompt nookku start in the next 30 minutes. If a part is wrong, run nookku register again with the correct answer.\n```\n\nSQLite tracing was already configured. No code changed. Driver traces contain no result rows and can hide parameter values.\n\nCheck the parts, then type `nookku start` within 30 minutes. The test has not started.",
+ "discovery_answer": "```text\nnookku: the egress answer is registered. The next start uses these parts:\n- model API anthropic: ANTHROPIC_BASE_URL -> the URL in ANTHROPIC_BASE_URL or the default (proxy)\n- MCP server catalog: http CATALOG_MCP_URL -> http://127.0.0.1:9310/mcp (proxy)\n- MCP server notes: stdio NOTES_MCP_COMMAND -> python3 notes_mcp.py (proxy)\n- database shop: postgres, DATABASE_URL (proxy)\n- database returns: sqlite, <project>/returns.db (driver trace)\nShow these parts to the tester. If they are correct, the tester types the prompt nookku start in the next 30 minutes. If a part is wrong, run nookku register again with the correct answer.\n```\n\nSQLite tracing was already configured. No code changed. Driver traces contain no result rows and may omit parameter values.\n\nCheck the parts, then type `nookku start` within 30 minutes if they are correct. The test has not started.",
  "method": "scripts/proof_egress.py",
  "E2_app_files_changed": [],
+ "E2_guard_rows_added": 0,
+ "E2_relay_rows_refused": [],
+ "E2_tool_calls": 0,
  "E2_files_before": {
   "notes_mcp.py": "7ae0a1a48cdc2cd3905bf7003e0f3605647913d652739bf41514997d7236c4bd",
   "catalog_mcp.py": "d3edd198e29852ea75d398443cea6119f9f5027186973f38aa2a88739b43654c",
   "toy_mcp.py": "8b5dccbae63b88c0b8f8dab863d12c9e2a3f288514af6f894f593074165633a1",
   "entry.py": "5bff925f2bf5c88fd5207f19407ed6741a1951f21109dff5f018f4c8fee89cb3",
   "app.py": "b88b7dd394e04c6ec27649df942e60828045b4683c88211aae08574b58fdf386",
-  "__pycache__/app.cpython-312.pyc": "dcf77ad8bc65cd0f2041a9f7520f14da55b6a8a13f31928c08db3c6f1b35350d",
-  "__pycache__/toy_mcp.cpython-312.pyc": "14042205a036a71df3a2815f713574dc4f1aba1ff1e8a5247751adffb7055003",
-  "__pycache__/services.cpython-312.pyc": "6dbe6f8f1947a4e6108aee6d22e21b7a4f0077d41a1117b860f1b893f056f466",
+  "__pycache__/app.cpython-312.pyc": "f63e1bc2385d03404e91fa26040f97391a5b383d5adb83a830303ca838da042b",
+  "__pycache__/toy_mcp.cpython-312.pyc": "ecaa003ceba3ef499351713b610190717c478854fac347ecc294fcd9de9f21bb",
+  "__pycache__/services.cpython-312.pyc": "a471037d0206aefa53fd3fa4d0ecaddf88c673db7afe9ce3e2ab35eabc14f68f",
   ".nookku/nookku-state": "7865f36f072b094306fd3bfc1a6e26563a2265d1a427ff21bad350fb04ad61d0",
   ".nookku/mode": "b470b84cf0cd3189e10615bffea7d5cbd9f61134ba1c2cfd513ddd45b776a5f6",
   ".nookku/config.json": "4ec9f28c2838c6adfbf97d23f54d9a0e6f8c3226da66f0eae3f097f399b46a82",
-  ".nookku/send.lock": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  ".nookku/send.lock": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  ".nookku/runs/20261024-044400-39e4.json": "6d34dfbd03c532ccc05d439fc960dd08322f2633be34475ca244a13246e70f92",
+  ".nookku/runs/20261024-045043-3467.json": "77da98ccb0069d4a625e87218759fe9b132435cae714570668ea2b3496a904f1",
+  ".nookku/runs/20261024-043805-22f7.json": "8951dacc1ff79965d15f5c218f1e8f38e1edd0a3592b042ab8f848d668572ec3",
+  ".nookku/runs/20261024-044156-77b4.json": "85cfd1591e37811a3b6cb0165e5198f3e65404067006f11db3b1fa35216c1cbc",
+  ".nookku/runs/20261024-044801-228b.json": "9498a4f77953876b7ab7fcc07dd537f7b4463b1824901b8b5102c133c6f418e0"
  },
  "E2_files_after": {
   "notes_mcp.py": "7ae0a1a48cdc2cd3905bf7003e0f3605647913d652739bf41514997d7236c4bd",
@@ -26,16 +34,21 @@
   "toy_mcp.py": "8b5dccbae63b88c0b8f8dab863d12c9e2a3f288514af6f894f593074165633a1",
   "entry.py": "5bff925f2bf5c88fd5207f19407ed6741a1951f21109dff5f018f4c8fee89cb3",
   "app.py": "b88b7dd394e04c6ec27649df942e60828045b4683c88211aae08574b58fdf386",
-  "__pycache__/app.cpython-312.pyc": "dcf77ad8bc65cd0f2041a9f7520f14da55b6a8a13f31928c08db3c6f1b35350d",
-  "__pycache__/toy_mcp.cpython-312.pyc": "14042205a036a71df3a2815f713574dc4f1aba1ff1e8a5247751adffb7055003",
-  "__pycache__/services.cpython-312.pyc": "6dbe6f8f1947a4e6108aee6d22e21b7a4f0077d41a1117b860f1b893f056f466",
+  "__pycache__/app.cpython-312.pyc": "f63e1bc2385d03404e91fa26040f97391a5b383d5adb83a830303ca838da042b",
+  "__pycache__/toy_mcp.cpython-312.pyc": "ecaa003ceba3ef499351713b610190717c478854fac347ecc294fcd9de9f21bb",
+  "__pycache__/services.cpython-312.pyc": "a471037d0206aefa53fd3fa4d0ecaddf88c673db7afe9ce3e2ab35eabc14f68f",
   ".nookku/nookku-state": "7865f36f072b094306fd3bfc1a6e26563a2265d1a427ff21bad350fb04ad61d0",
   ".nookku/mode": "b470b84cf0cd3189e10615bffea7d5cbd9f61134ba1c2cfd513ddd45b776a5f6",
   ".nookku/config.json": "4ec9f28c2838c6adfbf97d23f54d9a0e6f8c3226da66f0eae3f097f399b46a82",
-  ".nookku/send.lock": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  ".nookku/send.lock": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  ".nookku/runs/20261024-044400-39e4.json": "6d34dfbd03c532ccc05d439fc960dd08322f2633be34475ca244a13246e70f92",
+  ".nookku/runs/20261024-045043-3467.json": "77da98ccb0069d4a625e87218759fe9b132435cae714570668ea2b3496a904f1",
+  ".nookku/runs/20261024-043805-22f7.json": "8951dacc1ff79965d15f5c218f1e8f38e1edd0a3592b042ab8f848d668572ec3",
+  ".nookku/runs/20261024-044156-77b4.json": "85cfd1591e37811a3b6cb0165e5198f3e65404067006f11db3b1fa35216c1cbc",
+  ".nookku/runs/20261024-044801-228b.json": "9498a4f77953876b7ab7fcc07dd537f7b4463b1824901b8b5102c133c6f418e0"
  },
  "versions": {
-  "nookku": "0.5.5",
+  "nookku": "0.5.6",
   "claude-code": "2.1.302 (Claude Code)",
   "codex": "codex-cli 0.162.1",
   "agent sdk": "claude-agent-sdk==0.2.168",
@@ -196,9 +209,9 @@
  "E3_each_call_has_a_record": true,
  "postgres_spans": 1,
  "postgres_span_addresses": [
-  "127.0.0.1:64322"
+  "127.0.0.1:63355"
  ],
- "postgres_proxy": "postgresql://127.0.0.1:64322",
+ "postgres_proxy": "postgresql://127.0.0.1:63355",
  "unseen_call": 0,
  "counts": {},
  "seal": {

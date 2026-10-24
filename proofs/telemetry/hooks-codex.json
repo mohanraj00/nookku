@@ -1,8 +1,8 @@
 {
- "date": "2026-10-23",
+ "date": "2026-10-24",
  "relay": "hooks-codex",
  "versions": {
-  "nookku": "0.5.5",
+  "nookku": "0.5.6",
   "claude-code": "2.1.302 (Claude Code)",
   "codex": "codex-cli 0.162.1",
   "agent sdk": "claude-agent-sdk==0.2.168",
@@ -51,17 +51,12 @@
   {
    "class": "business_rule",
    "turn": "2",
-   "evidence": "trace.jsonl:17, trace.jsonl:18; RULES.md:5; services.py:44"
+   "evidence": "trace.jsonl:17–18; RULES.md:5; services.py:44–47; stock.json"
   },
   {
    "class": "missing_action",
    "turn": "2",
-   "evidence": "turn 2; trace.jsonl:15; APP_SPEC.md:21"
-  },
-  {
-   "class": "unsupported_reply",
-   "turn": "3",
-   "evidence": "trace.jsonl:32; trace.jsonl:17; trace.jsonl:18; trace.jsonl:28"
+   "evidence": "Turn 2; trace.jsonl:15–25; APP_SPEC.md:21,35"
   }
  ],
  "T2_cites_both_reserve_calls": true,
@@ -100,7 +95,7 @@
   "ignored": {}
  },
  "counts": {},
- "report": "# Test 20261023-073839-c569: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | trace.jsonl:17, trace.jsonl:18; RULES.md:5; services.py:44 | The customer requested \"reserve 1 teapot set for my order 6210.\" Two `POST /reserve` requests sent `{\"order\": \"6210\", \"sku\": \"teapot-set\", \"qty\": 1}` and succeeded as `RS-95282E` and `RS-122811`, reducing stock to 2 and then 1. This violates \"A reservation holds the number of items that the customer asked for, and no more.\" The retry loop sends twice even after success. |\n| missing_action | 2 | turn 2; trace.jsonl:15; APP_SPEC.md:21 | The reservation turn calls only `shop.reserve` with `{\"order\": \"6210\", \"sku\": \"teapot-set\", \"qty\": 1}`. It omits the stock check required by \"The agent checks the stock, reserves the number of items that the customer asked for, and tells the customer the number that it reserved.\" The previous turn checked stock, but no new check occurred for this reservation. |\n| unsupported_reply | 3 | trace.jsonl:32; trace.jsonl:17; trace.jsonl:18; trace.jsonl:28 | The reply says stock fell \"after your reservation and that of others.\" The stock result only says `{\"sku\": \"teapot-set\", \"left\": 1}`. No result establishes another customer's reservation. Both recorded reservations were for order `6210`. |\n\n## Notes\n\nThe seal is intact. The audit reports no breaks, errors, or blocked calls. Automated findings are empty, but the trace and code establish the issues above.\n\nChecked all three transcript turns, findings.json, audit.json, manifest.json, the app spec and rules, and app.py, services.py, stock.py, entry.py and toy_model.py. Read current stock.json and state.json without changing them. Current stock.json confirms two quantity-1 reservations for order 6210 and one teapot set left. Current project state is corroboration, not a sealed test snapshot. The test has no app-state snapshot or tester notes.\n\nAll recorded turns meet APP_SPEC.md:27-28. Turn durations are 3.149, 3.001 and 3.006 seconds against 30 seconds. Model-session output tokens are 118, 133 and 93 against 2000. Direct model API usage is partly unknown, but the token limit explicitly excludes those calls. No limit was uncheckable. Replies meet the persona's sentence and tone requirements. The observed stock counts match the backend results; the unsupported explanation is reported separately above.\n\n## Tester notes\n\nThe tester wrote no note.\n\n## Coverage\n\nA proxy saw each egress part.\n",
- "answer": "[Evaluation report](.nookku/tests/20261023-073839-c569/report.md) written.\n\nFound three issues: duplicate reservation, skipped stock check, and an unsupported claim about other customers. The seal is intact; all turns passed performance limits.",
+ "report": "# Test 20261024-044259-521e: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | trace.jsonl:17–18; RULES.md:5; services.py:44–47; stock.json | The customer asked to \"reserve 1 teapot set for my order 6210.\" The app sent `{\"order\": \"6210\", \"sku\": \"teapot-set\", \"qty\": 1}` twice. Both requests succeeded, creating `RS-570130` and `RS-E14911` and reducing stock from 3 to 1. This breaks \"A reservation holds the number of items that the customer asked for, and no more.\" The saved stock contains both one-item reservations. The retry loop repeats even after success. |\n| missing_action | 2 | Turn 2; trace.jsonl:15–25; APP_SPEC.md:21,35 | The reservation turn calls `shop.reserve` without calling `shop.check_stock`. The spec requires \"The agent checks the stock, reserves the number of items that the customer asked for\" and specifies `check_stock` for \"Each turn that asks about stock or a reservation.\" The stock check in turn 1 does not satisfy the per-turn requirement. |\n\n## Notes\n\nThe seal is intact. The audit reports no breaks, errors or blocked calls. The automated findings list is empty, but the backend record and saved stock establish the duplicate reservation above.\n\nChecked all three turns, the app spec and business rules, the entry point, agent tools, service client, stock service, note model, and current stock and agent state using read-only commands. The test has no `app-state/` folder. Current `stock.json` agrees with the recorded backend responses: 1 teapot set remains, with two reservations for order 6210. Current `state.json` contains the three case notes.\n\nTurn 2 says \"I've reserved 1 teapot set for order 6210.\" This understates the total held by the app; it is part of the duplicate-reservation defect reported above. Turn 3 accurately reports 1 remaining and flags the unexpected drop of 2. No separate issue is assigned for that supported observation.\n\nAll turns satisfy the limits in APP_SPEC.md:27–28. Turn durations are 3.017, 2.909 and 2.878 seconds against 30 seconds. Model sessions together used 127, 136 and 123 output tokens against 2000. Direct model API usage is partly unknown, but those calls are explicitly excluded from the token limit. Replies satisfy the two-sentence limit.\n\nOnly this report was written. The app was not started or messaged, and its state was not changed.\n\n## Tester notes\n\nThe tester wrote no note.\n\n## Coverage\n\nA proxy saw each egress part.\n",
+ "answer": "[Evaluation report](.nookku/tests/20261024-044259-521e/report.md) written.\n\nFound two issues: a duplicate reservation held two items instead of one, and the reservation turn skipped its required stock check. The record seal is intact; all turns passed performance limits.",
  "pass": true
 }

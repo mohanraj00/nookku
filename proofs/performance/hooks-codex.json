@@ -1,8 +1,8 @@
 {
- "date": "2026-10-23",
+ "date": "2026-10-24",
  "relay": "hooks-codex",
  "versions": {
-  "nookku": "0.5.5",
+  "nookku": "0.5.6",
   "claude-code": "2.1.302 (Claude Code)",
   "codex": "codex-cli 0.162.1",
   "agent sdk": "claude-agent-sdk==0.2.168",
@@ -31,13 +31,13 @@
  "audit_exit": 0,
  "performance": {
   "v": "0.1",
-  "test": "20261023-074112-1207",
+  "test": "20261024-044601-716a",
   "unknown": null,
   "outside_turns": 0,
   "turns": [
    {
     "turn": 1,
-    "seconds": 4.26,
+    "seconds": 4.04,
     "model_calls": 4,
     "input_tokens": null,
     "output_tokens": null,
@@ -45,10 +45,10 @@
     "sources": [
      {
       "harness": "claude-code",
-      "session": "b1af04cb-220f-40dc-9a2f-f7d48bbb9c73",
+      "session": "97e3db21-b80e-490d-ab0d-458dd971ab5c",
       "model_calls": 2,
-      "input_tokens": 59760,
-      "output_tokens": 138,
+      "input_tokens": 59765,
+      "output_tokens": 143,
       "no_usage": 0
      },
      {
@@ -63,7 +63,7 @@
    },
    {
     "turn": 2,
-    "seconds": 61.413,
+    "seconds": 62.096,
     "model_calls": 4,
     "input_tokens": null,
     "output_tokens": null,
@@ -71,10 +71,10 @@
     "sources": [
      {
       "harness": "claude-code",
-      "session": "b1af04cb-220f-40dc-9a2f-f7d48bbb9c73",
+      "session": "97e3db21-b80e-490d-ab0d-458dd971ab5c",
       "model_calls": 2,
-      "input_tokens": 60128,
-      "output_tokens": 154,
+      "input_tokens": 60137,
+      "output_tokens": 153,
       "no_usage": 0
      },
      {
@@ -89,7 +89,7 @@
    },
    {
     "turn": 3,
-    "seconds": 3.238,
+    "seconds": 5.342,
     "model_calls": 4,
     "input_tokens": null,
     "output_tokens": null,
@@ -97,10 +97,10 @@
     "sources": [
      {
       "harness": "claude-code",
-      "session": "b1af04cb-220f-40dc-9a2f-f7d48bbb9c73",
+      "session": "97e3db21-b80e-490d-ab0d-458dd971ab5c",
       "model_calls": 2,
-      "input_tokens": 60469,
-      "output_tokens": 126,
+      "input_tokens": 60477,
+      "output_tokens": 116,
       "no_usage": 0
      },
      {
@@ -123,13 +123,7 @@
    "class": "performance",
    "turn": "2",
    "evidence": "turn 2 performance block; spec/1.md, Limits",
-   "issue": "The turn took \"61.413 seconds\", exceeding the `turn_seconds` limit of 30 seconds."
-  },
-  {
-   "class": "unsupported_reply",
-   "turn": "3",
-   "evidence": "trace.jsonl:30; trace.jsonl:27",
-   "issue": "The reply says \"so it may be fulfilled soon\", but the order result only reports `\"status\": \"waiting for stock\"`. Neither the earlier stock result of 3 nor the rules establish fulfillment timing."
+   "issue": "The transcript reports `62.096 seconds`, exceeding the `turn_seconds` limit of `30` seconds by 32.096 seconds."
   }
  ],
  "S3_performance_row_for_the_slow_turn": true,
@@ -155,7 +149,7 @@
   "other_calls": 1
  },
  "counts": {},
- "report": "# Test 20261023-074112-1207: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| performance | 2 | turn 2 performance block; spec/1.md, Limits | The turn took \"61.413 seconds\", exceeding the `turn_seconds` limit of 30 seconds. |\n| unsupported_reply | 3 | trace.jsonl:30; trace.jsonl:27 | The reply says \"so it may be fulfilled soon\", but the order result only reports `\"status\": \"waiting for stock\"`. Neither the earlier stock result of 3 nor the rules establish fulfillment timing. |\n\n## Notes\n\nThe transcript reports \"Seal: intact. No record changed after the end of the test.\" The audit has no breaks, errors or blocked calls, and findings.json contains no findings. I checked all three turns against the saved spec and rules, tool arguments and results, backend responses, expected trace points and performance limits. I also read app.py, entry.py, services.py, stock.py and toy_model.py, and checked the current state.json and stock.json without changing app state.\n\nBoth stock replies agree with their tool and backend results. Order 6210's item, price and status agree with its lookup result and current state. Current stock is 3 teapot sets and 12 blue mugs, with no reservations shown. These current files are corroboration, not sealed snapshots. There is no app-state snapshot folder or tester notes file.\n\nTurn durations were 4.26, 61.413 and 3.238 seconds against the 30-second limit. Model sessions together used 138, 154 and 126 output tokens against the 2000-token limit. Both limits could be checked for every turn. Direct model API usage is partly unknown, but the spec excludes those calls from the token limit. The trace does not establish the cause of the full turn-2 delay.\n\nNo reservation, return, refund, unrelated-topic or other-customer request was tested, so this record does not establish behavior for those cases. No additional issue is supported by the observed turns.\n\n## Tester notes\n\nThe tester wrote no note.\n\n## Coverage\n\nA proxy saw each egress part.\n",
- "answer": "[Evaluation report](.nookku/tests/20261023-074112-1207/report.md) written.\n\nFound two issues: turn 2 exceeded the time limit, and turn 3 suggested fulfillment timing without supporting evidence. The record seal is intact.",
+ "report": "# Test 20261024-044601-716a: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| performance | 2 | turn 2 performance block; spec/1.md, Limits | The transcript reports `62.096 seconds`, exceeding the `turn_seconds` limit of `30` seconds by 32.096 seconds. |\n\n## Notes\n\nThe transcript reports \"Seal: intact. No record changed after the end of the test.\" The audit has no breaks, blocked calls or errors. The findings list is empty; the performance issue above follows from the transcript and the copied spec.\n\nRead both sealed spec copies, all three turns and their trace items, findings.json, audit.json, manifest.json, and the app, entry, service and model code. Checked the current state.json and stock.json without changing app state. No app-state files or tester notes were present. Current files are supporting checks, not sealed snapshots of test-time state.\n\nThe stock calls used `teapot-set` and `blue-mug`, returning `3` and `12`, respectively, with matching stock GET responses. The order call used `6210` and returned `\"status\": \"waiting for stock\"`. The replies agree with these results and current state. Turn 3's stock reference is supported by turn 1; no intervening reservation appears in the record. No customer requested a reservation. Order ownership, refunds, returns and reservation behavior were not exercised.\n\nChecked both limits for every turn. Turn durations were 4.04, 62.096 and 5.342 seconds against the 30-second limit. Model sessions together used 143, 153 and 116 output tokens against the 2000-token limit. All required limit values were available. Direct model API usage is partly unknown, but those calls do not count toward the specified token limit. The records do not establish the cause of the full delay in turn 2.\n\n## Tester notes\n\nThe tester wrote no note.\n\n## Coverage\n\nA proxy saw each egress part.\n",
+ "answer": "[Evaluation report]( <project>/.nookku/tests/20261024-044601-716a/report.md) saved.\n\nFound one issue: turn 2 took 62.096 seconds, exceeding the 30-second limit. The record seal is intact; no other issues were supported by the evidence.",
  "pass": true
 }
