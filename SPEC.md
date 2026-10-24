@@ -1130,7 +1130,17 @@ The cases in [`conformance/performance/`](conformance/performance/) give the inp
 
 ### 8.8 Egress spans
 
-A test that runs in a Koodam Workspace can also have the egress spans of Koodam. The Koodam egress proxy writes 1 span for each external call of an Agent pod or a Workspace pod. The proxy is outside the pod, so a call that goes around the proxies of nookku (section 7.11) still has a span. The span contract is `docs/egress-spans.md` in Koodam, version 1. The reader is [`src/nookku/egress_spans.py`](src/nookku/egress_spans.py).
+A test that runs in a Koodam Workspace can also have the egress spans of Koodam. The Koodam egress proxy writes 1 span for each external call of an Agent pod or a Workspace pod. The proxy is outside the pod, so a call that goes around the proxies of nookku (section 7.11) still has a span. The span contract is `docs/egress-spans.md` in Koodam. The reader is [`src/nookku/egress_spans.py`](src/nookku/egress_spans.py). It reads version 1 and version 2 of the contract.
+
+**The versions.** A span of version 2 has `"v": 2`. Version 2 changes 3 fields of version 1. The other fields do not change.
+
+| Field | Version 1 | Version 2 |
+|---|---|---|
+| `claimedRun`, `claimedUser` | The values of the `X-Koodam-Run` and `X-Koodam-User` headers that the pod sent. | Not there. |
+| `claimed` | Not there. | A boolean: `true` if the pod sent an `X-Koodam-Run` or an `X-Koodam-User` header. The span does not hold the value. |
+| `path` | The path of an `http` span and of an `llm` span. | The path of an `llm` span only. An `http` span has no `path`. |
+
+The reader and the checks use none of these fields. Thus a span of version 1 and the same span of version 2 give the same counts and the same findings. 1 file can hold spans of both versions.
 
 **The input.** The Workspace pod gets no access to the spans. Thus the tester exports them outside the pod after the test, for the time of the test, and gives the file to the trace:
 
@@ -1144,8 +1154,8 @@ nookku trace [TEST] --egress spans.jsonl
 **The rule.** Each line is 1 JSON object. The reader splits the file on `\n` only. A file that is not UTF-8 stops the read. For each line:
 
 1. A blank line is counted as `blank`. A line that is not a JSON object is counted as `invalid_json`.
-2. The version of the span is its `v`, or 1 if it has no `v`. A number above 1 stops the read with the error `line <n>: the span has the contract version <v>. This nookku reads version 1 only (SPEC.md section 8.8). Use a nookku that reads version <v>.`, also for a span outside the window. A later version can give a field a new meaning.
-3. A span of version 1 needs a `time` (RFC 3339, with a fraction of any length) and a string `result`. Another span, for example a `v` that is a string or `true`, is counted as `invalid`. The reader ignores each field that it does not know.
+2. The version of the span is its `v`, or 1 if it has no `v`. A number above 2 stops the read with the error `line <n>: the span has the contract version <v>. This nookku reads version 1 and version 2 only (SPEC.md section 8.8). Use a nookku that reads version <v>.`, also for a span outside the window. A later version can give a field a new meaning.
+3. A span of version 1 or version 2 needs a `time` (RFC 3339, with a fraction of any length) and a string `result`. Another span, for example a `v` that is a string, `true` or `1.5`, is counted as `invalid`. The reader ignores each field that it does not know.
 4. A span outside the window of the test is counted as `outside_window`. The window is from `started` to `ended` of the manifest, both ends included. A bound that is not a number is open.
 5. A span of the kind `llm` is counted as `llm`. It is a model call of the harness through the gateway of Koodam.
 6. The host of a span is its `host`, else its `sni`, with no port, in lowercase and with no `.` at the end. A span with a host in `egress_ignore` (section 7.1, the value of `trace` in the manifest) is counted as `egress_ignore`. The check of the host uses the same form for each value of `egress_ignore`.
@@ -1153,12 +1163,12 @@ nookku trace [TEST] --egress spans.jsonl
 
 `egress` in `findings.json` has `file` (`egress.jsonl`), `rows` (the count of lines that are not blank), `spans` (the count of kept spans), `hosts` (each host of the kept spans, sorted) and `ignored` (the count of each reason above). The trace writes no item to `trace.jsonl` from a span. 1 span of a `connect` or `tls` connection can hold many requests, and its time is the start of the connection.
 
-**The checks.** The checks read `result`, never `reason`: `reason` is free text, and Koodam can add new reasons in version 1.
+**The checks.** The checks read `result`, never `reason`: `reason` is free text, and Koodam can add new reasons in version 1 and in version 2.
 
 - `egress_not_in_discovery`: 1 finding for each host of the kept spans that the egress answer of the manifest (section 7.11) does not have. The match is by host, not by call. The hosts of the answer are the hosts of each `url` of `model_apis`, `backends` and `mcp_servers`, and of each `address` of `databases` in the form `host:port` or `host:port/database`. A model API with the `url` `null` has the host of the default URL of its API, for example `api.anthropic.com`. A part of `other` has no host. A test with no egress answer gives no finding. The finding has no turn. Its `source` is the first span of the host. `detail` is `<host>: <n> spans, and the egress answer has no part with this host`, or `1 span`.
 - `egress_denied`: 1 finding for each kept span with the result `denied`. The turn is the turn of its `time` (section 8.3). `detail` is `<kind> <host> port <port>: denied (<reason>)`. `<host>` is `no host` for a span with no host. The text ` port <port>` and the text ` (<reason>)` are not there if the span has no such string.
 
-Each finding has `harness` `egress`, `session` (the host, or `""`) and `source` (`egress.jsonl` and the line of the span). The cases [`conformance/trace/egress_spans/`](conformance/trace/egress_spans/), [`egress_spans_no_answer/`](conformance/trace/egress_spans_no_answer/) and [`egress_spans_version_two/`](conformance/trace/egress_spans_version_two/) give each finding, a span outside the window, an ignored host, a span with no `v`, and a span of version 2.
+Each finding has `harness` `egress`, `session` (the host, or `""`) and `source` (`egress.jsonl` and the line of the span). The cases [`conformance/trace/egress_spans/`](conformance/trace/egress_spans/), [`egress_spans_no_answer/`](conformance/trace/egress_spans_no_answer/), [`egress_spans_version_two/`](conformance/trace/egress_spans_version_two/) and [`egress_spans_version_three/`](conformance/trace/egress_spans_version_three/) give each finding, a span outside the window, an ignored host, a span with no `v`, spans of version 1 and version 2 in 1 file, an `http` span of version 2 with no `path`, and a span of version 3.
 
 **The limits.** In a Koodam Workspace, only TLS on port 443 with SNI and HTTP on port 80 reach an external name. A TLS client with no SNI is denied. An external Postgres database, or an app at a private address, needs `workspace.networkPolicy.extraEgress`, and that traffic has no span. A call inside the pod, for example from the app to a proxy of nookku, has no span. Thus the spans show the calls of the proxies of nookku to the upstream hosts, and each call of the app around them.
 

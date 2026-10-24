@@ -3,7 +3,9 @@
 The Koodam egress proxy writes 1 span for each external call of a pod. The proxy is outside the
 pod, so a call that goes around the proxies of nookku still has a span. The tester exports the
 spans with `koodam trace` and gives the file to `nookku trace --egress`. The trace then reads
-`egress.jsonl` in the test folder, with the version rules of the span contract v1.
+`egress.jsonl` in the test folder, with the version rules of the span contracts v1 and v2.
+The reader uses no field that v2 removes or adds: `claimedRun`, `claimedUser`, `claimed`, and the
+`path` of an `http` span.
 """
 
 from __future__ import annotations
@@ -24,8 +26,9 @@ from .model_api import APIS
 from .record import RecordError
 
 FILE = "egress.jsonl"
-# The version of the span contract that this reader knows. A span with no `v` is version 1.
-VERSION = 1
+# The versions of the span contract that this reader knows. A span with no `v` is version 1.
+VERSIONS = (1, 2)
+VERSION = VERSIONS[-1]
 # The kind of a model call of the harness through the gateway. The trace skips it.
 LLM = "llm"
 # An RFC 3339 time, with a fraction of any length. Python 3.10 cannot parse each such fraction.
@@ -64,7 +67,7 @@ def host_name(value: Any) -> str | None:
 
 def _version(span: dict[str, Any]) -> Any:
     """The contract version of a span: 1 if it has no `v`."""
-    return span.get("v", VERSION)
+    return span.get("v", VERSIONS[0])
 
 
 def _number(value: Any) -> bool:
@@ -88,7 +91,7 @@ def parse(
     """The spans of the bytes of an egress file that the checks use, and the counts for
     findings.json.
 
-    A span is kept if it is version 1, has a valid `time` in the window from `start` to `end`
+    A span is kept if it is version 1 or 2, has a valid `time` in the window from `start` to `end`
     (both ends included; a bound that is not a number is open) and a `result`, is not of the kind
     `llm`, and its host is not in `ignore`. Each other line is counted by its reason. A span with
     a higher version stops the read with a RecordError, because its fields can have a new
@@ -121,12 +124,13 @@ def parse(
             raise RecordError(
                 "record_invalid",
                 path,
-                f"line {n}: the span has the contract version {v}. This nookku reads version "
-                f"{VERSION} only (SPEC.md section 8.8). Use a nookku that reads version {v}.",
+                f"line {n}: the span has the contract version {v}. This nookku reads version 1 "
+                f"and version {VERSION} only (SPEC.md section 8.8). Use a nookku that reads "
+                f"version {v}.",
             )
         ts = _time(span.get("time"))
         if (
-            not (_number(v) and v == VERSION)
+            not (_number(v) and v in VERSIONS)
             or ts is None
             or not isinstance(span.get("result"), str)
         ):

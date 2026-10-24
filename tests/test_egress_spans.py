@@ -6,6 +6,7 @@ import pytest
 
 from nookku import config, egress_spans, seal, trace
 from nookku.cli import main
+from nookku.record import RecordError
 
 CASES = Path(__file__).resolve().parent.parent / "conformance" / "trace"
 TEST = "20261023-090000-ks01"
@@ -45,16 +46,16 @@ def test_the_trace_copies_the_spans_checks_them_and_seals_them(
     assert json.loads(capsys.readouterr().out)["counts"]["egress_denied"] == 2
 
 
-def test_a_span_of_version_2_stops_the_trace_and_copies_nothing(
+def test_a_span_of_version_3_stops_the_trace_and_copies_nothing(
     tmp_path: Path, capsys: pytest.CaptureFixture
 ) -> None:
     f = folder(tmp_path)
     before = (f / "findings.json").read_bytes()
-    spans = spans_file(tmp_path, "egress_spans_version_two")
+    spans = spans_file(tmp_path, "egress_spans_version_three")
     assert main(["trace", TEST, "--root", str(tmp_path), "--egress", str(spans)]) == 2
     err = capsys.readouterr().err
     assert "the trace was not rebuilt" in err
-    assert "line 2: the span has the contract version 2" in err
+    assert "line 2: the span has the contract version 3" in err
     assert not (f / egress_spans.FILE).exists()
     assert (f / "findings.json").read_bytes() == before
     assert seal.verify(f)["intact"]
@@ -128,11 +129,53 @@ def test_the_host_of_a_span_has_no_port(value: object, host: str | None) -> None
     assert egress_spans.host_name(value) == host
 
 
-@pytest.mark.parametrize("v", ["1", 0, True, None])
-def test_a_span_with_a_version_that_is_not_a_number_above_1_is_invalid(v: object) -> None:
+@pytest.mark.parametrize("v", ["1", "2", 0, 1.5, True, None])
+def test_a_span_with_a_version_that_is_not_1_2_or_above_2_is_invalid(v: object) -> None:
     line = {"v": v, "time": "2026-10-23T09:14:02Z", "kind": "connect", "result": "ok"}
     spans, info = egress_spans.parse(json.dumps(line).encode(), Path("x"), None, None, [])
     assert (spans, info["ignored"]) == ([], {"invalid": 1})
+
+
+def test_the_trace_reads_spans_of_version_1_and_version_2_in_one_file(
+    tmp_path: Path, capsys: pytest.CaptureFixture
+) -> None:
+    f = folder(tmp_path)
+    spans = spans_file(tmp_path, "egress_spans_version_two")
+    assert main(["trace", TEST, "--root", str(tmp_path), "--egress", str(spans)]) == 0
+    expect = json.loads((CASES / "egress_spans_version_two" / "expect_findings.json").read_text())
+    assert json.loads((f / "findings.json").read_text()) == expect
+    assert seal.verify(f)["intact"]
+
+
+V2 = {"v": 2, "time": "2026-10-23T09:14:02Z", "claimed": True, "result": "ok"}
+
+
+def test_a_span_of_version_2_with_no_claim_values_is_kept() -> None:
+    line = {**V2, "kind": "connect", "host": "stock.toy.test:443", "sni": "stock.toy.test"}
+    spans, info = egress_spans.parse(json.dumps(line).encode(), Path("x"), None, None, [])
+    assert [s["host"] for s in spans] == ["stock.toy.test"]
+    assert spans[0]["span"] == line
+    assert info["ignored"] == {}
+
+
+def test_an_http_span_of_version_2_with_no_path_is_kept_and_checked() -> None:
+    line = {**V2, "kind": "http", "method": "POST", "host": "mail.toy.test", "port": "80"}
+    line["result"] = "denied"
+    spans, _ = egress_spans.parse(json.dumps(line).encode(), Path("x"), None, None, [])
+    assert [s["host"] for s in spans] == ["mail.toy.test"]
+    found = egress_spans.denied(spans, lambda ts: 1)
+    assert [x["detail"] for x in found] == ["http mail.toy.test port 80: denied"]
+    assert egress_spans.not_in_discovery(spans, set())[0]["session"] == "mail.toy.test"
+
+
+@pytest.mark.parametrize("v", [3, 2.5, 10])
+def test_a_span_of_a_version_above_2_is_refused(v: object) -> None:
+    lines = [{**V2, "kind": "connect"}, {**V2, "v": v, "kind": "connect"}]
+    data = "".join(json.dumps(x) + "\n" for x in lines).encode()
+    with pytest.raises(RecordError) as e:
+        egress_spans.parse(data, Path("x"), None, None, [])
+    assert f"line 2: the span has the contract version {v}." in str(e.value)
+    assert "reads version 1 and version 2 only" in str(e.value)
 
 
 def test_the_window_includes_both_ends() -> None:
