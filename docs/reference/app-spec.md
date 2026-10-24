@@ -6,6 +6,8 @@ With no spec, the model finds the business rules in the code, the docs and the t
 
 ## Write a spec
 
+If your project has no spec, `nookku setup` asks you about the `Persona`, the `Boundaries` and the `User goals`, and writes a draft to `APP_SPEC.md` ([test-your-app.md](../how-to/test-your-app.md#2-run-the-setup-in-the-harness)). Review each line of the draft. To write a spec yourself:
+
 1. Write the spec in one or more Markdown files in the project, for example `APP_SPEC.md`.
 2. Give each part below its own `##` section, with the section name of the table.
 3. Name the files in the config: `nookku init <harness> --spec APP_SPEC.md,RULES.md`.

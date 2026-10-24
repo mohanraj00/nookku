@@ -105,6 +105,7 @@ claude plugin validate plugins/nookku && claude plugin test plugins/nookku
 - `scripts/proof_plugin_load.py` checks that the plugin folder loads in Claude Code and in Codex, and writes `proofs/plugin/load.json`.
 - `scripts/proof_codex_gate.py` runs the Codex hook gate against a real Codex, and writes `proofs/codex-gate/gate.json`. Part B runs with `--trusted`, after the maintainer trusts the hooks.
 - `scripts/proof_tutorial.py` runs the commands of `docs/getting-started.md` in a new toy shop project, and writes `proofs/tutorial/`. With `--model`, Claude Code and the model also run.
+- `scripts/proof_setup.py` runs the setup guide in Claude Code on a copy of `examples/toy-shop-full/` with no entry and no app spec. It checks that the setup gives a summary, asks a question and writes no file before a yes, and writes `proofs/setup/`.
 - `scripts/proof_evaluation.py <setup>` runs P5 (the model judges the record, not its memory) and writes `proofs/evaluation/`. Never store a model answer that can quote the harness's own instruction files. Codex runs a hook only after a person trusts it. The maintainer trusts the Codex hooks of the proofs once ([run-the-proofs.md](docs/contributing/run-the-proofs.md#trust-the-codex-hooks-once)). Never try to skip the trust step.
 
 `scripts/example_evaluation.py` runs the worked evaluation in `docs/evaluation-example.md` and writes `examples/toy-shop/evaluation.json`. The model's answer changes on each run, so update the doc with the data.

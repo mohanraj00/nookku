@@ -15,7 +15,7 @@ The proofs show that each [relay](../reference/glossary.md#relay) is exact in a 
 - Run each proof of the setup `hooks-codex` in the main checkout of the repo, not in a git worktree. In a git worktree, Codex reads the project hooks from the main checkout, so the proof does not use the hooks of the worktree.
 - The plugin hooks run `nookku` from `PATH`. The scripts put the `nookku` of this checkout first.
 - Codex runs each command of the model in a login shell, which reads your shell profile again. If the profile puts another `nookku` first on `PATH`, the model runs that one. Remove it before the proofs, for example with `uv tool uninstall nookku`.
-- In Claude Code, `proof_report.py`, `proof_evaluation.py` and `proof_tutorial.py` give each session only the settings of the project and only the nookku MCP server. Thus no hook, plugin, permission rule or MCP server of your user configuration reaches the model ([proof_common.py](../../scripts/proof_common.py)). Claude Code loads a mod from each folder of `CLAUDE_CODE_PLUGIN_DIRS`, also from the user settings. Each proof session gets an empty `CLAUDE_CODE_PLUGIN_DIRS`, so no mod loads. If a plugin that is not built in loads, the proof stops.
+- In Claude Code, `proof_report.py`, `proof_evaluation.py`, `proof_tutorial.py` and `proof_setup.py` give each session only the settings of the project and only the nookku MCP server. Thus no hook, plugin, permission rule or MCP server of your user configuration reaches the model ([proof_common.py](../../scripts/proof_common.py)). Claude Code loads a mod from each folder of `CLAUDE_CODE_PLUGIN_DIRS`, also from the user settings. Each proof session gets an empty `CLAUDE_CODE_PLUGIN_DIRS`, so no mod loads. If a plugin that is not built in loads, the proof stops.
 - In Codex, each setup has its own `CODEX_HOME`, so no MCP server, plugin or `AGENTS.md` of your Codex configuration loads. The plugin setups use `.proof/codex-gate/codex-home`. The setup `hooks-codex` uses `.proof/codex-hooks/codex-home`. Before each Codex run, the proof runs `codex mcp list --json` in the project with that home. If an MCP server other than nookku is in the list, the proof stops ([proof_common.py](../../scripts/proof_common.py)).
 - Some proofs use a real model and cost tokens. The proofs of the proxies and the backend need no model.
 
@@ -65,8 +65,9 @@ If a hook changes, trust it again. A new plugin script also needs a new run of `
 | Worked evaluation | `uv run python scripts/example_evaluation.py` | `examples/toy-shop/evaluation.json` |
 | The output of the tutorial, no model | `uv run python scripts/proof_tutorial.py` | `proofs/tutorial/output.txt`, `proofs/tutorial/run.json`. This run replaces the data of the `--model` run. |
 | The output of the tutorial, with Claude Code and the model | `uv run python scripts/proof_tutorial.py --model` | `proofs/tutorial/output.txt`, `proofs/tutorial/run.json` |
+| The setup asks and confirms before it builds | `uv run python scripts/proof_setup.py` | `proofs/setup/results.json` |
 
-These scripts print `PASS` or `FAIL` and the path of their results file: `proofs_relay.py`, `proof_sessions.py`, `proof_trace.py`, `proof_backend.py`, `proof_model_api.py`, `proof_driver_trace.py`, `proof_report.py`, `proof_telemetry.py`, `proof_performance.py`, `proof_spec_classes.py`, `proof_egress.py` and `proof_cluster_tap.py`. The docstring of each script lists what it checks.
+These scripts print `PASS` or `FAIL` and the path of their results file: `proofs_relay.py`, `proof_sessions.py`, `proof_trace.py`, `proof_backend.py`, `proof_model_api.py`, `proof_driver_trace.py`, `proof_report.py`, `proof_telemetry.py`, `proof_performance.py`, `proof_spec_classes.py`, `proof_egress.py`, `proof_cluster_tap.py` and `proof_setup.py`. The docstring of each script lists what it checks.
 
 ## A new Claude Code release
 
