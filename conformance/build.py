@@ -5820,7 +5820,8 @@ EDGE_CASE = {
 # no host, 1 failed call, 2 spans outside the window, 1 line that is not JSON, 1 span with no time
 # and 1 blank line.
 def span(t: float, kind: str, result: str = "ok", **fields: Any) -> dict:
-    """One span of the Koodam egress span contract v1, with toy shop pod labels."""
+    """One span of the Koodam egress span contract v1, with toy shop pod labels. The v1 fields
+    claimedRun and claimedUser can be there, and the reader does not use them."""
     row: dict[str, Any] = {
         "v": 1,
         "time": iso(T0 + t),
@@ -6011,18 +6012,79 @@ EGRESS_NO_ANSWER_CASE = {
     },
 }
 
-# A span of the contract version 2 stops the trace, also outside the window: its fields can have
+
+# Spans of the contract versions 1 and 2 in one file (SPEC.md section 8.8). Version 2 removes
+# claimedRun and claimedUser, adds the boolean claimed, and gives an http span no path. The reader
+# uses none of these fields, so the v1 span with claimedRun and claimedUser and the v2 spans give
+# the same findings. The spans: 1 v1 span and 1 v2 span to a host of the answer, 1 v2 http span with
+# no path to a host that is not in the answer, 1 v2 llm span with its path, 1 denied v2 span, 1 v2
+# span outside the window and 1 v2 span with no time.
+def v2(row: dict, claimed: bool) -> dict:
+    """A span of the contract v2: `claimed` in place of claimedRun and claimedUser."""
+    out = {k: x for k, x in row.items() if k not in ("claimedRun", "claimedUser")}
+    return {**out, "v": 2, "claimed": claimed}
+
+
+EGRESS_V2_LINES = [
+    tunnel(11, "stock.toy.test", claimedRun="run-7", claimedUser="tester"),
+    v2(tunnel(12, "stock.toy.test", status=200), True),
+    v2(span(13, "http", method="POST", host="mail.toy.test", port="80", status=202), False),
+    v2(span(14, "llm", method="POST", host="gateway.koodam.test", path="/llm/v1/messages"), True),
+    v2(tunnel(33, "pay.toy.test", "8443", "denied", reason="port"), False),
+    v2(tunnel(150, "stock.toy.test"), False),
+    {"v": 2, "kind": "connect", "host": "stock.toy.test:443", "claimed": False, "result": "ok"},
+]
+EGRESS_V2_CASE = {
+    "tap": [window(10, 20), window(30, 40)],
+    "manifest": EGRESS_SPAN_MANIFEST,
+    "sessions": {},
+    "egress": EGRESS_V2_LINES,
+    "trace": [],
+    "findings": {
+        **EGRESS_SPANS_CASE["findings"],
+        "egress": {
+            "file": "egress.jsonl",
+            "rows": 7,
+            "spans": 4,
+            "hosts": ["mail.toy.test", "pay.toy.test", "stock.toy.test"],
+            "ignored": {"llm": 1, "outside_window": 1, "invalid": 1},
+        },
+        "counts": counts(egress_not_in_discovery=2, egress_denied=1),
+        "findings": [
+            {
+                "check": "egress_not_in_discovery",
+                "turn": None,
+                "detail": "mail.toy.test: 1 span, and the egress answer has no part with this host",
+                **egress_where("mail.toy.test", 3),
+            },
+            {
+                "check": "egress_not_in_discovery",
+                "turn": None,
+                "detail": "pay.toy.test: 1 span, and the egress answer has no part with this host",
+                **egress_where("pay.toy.test", 5),
+            },
+            {
+                "check": "egress_denied",
+                "turn": 2,
+                "detail": "connect pay.toy.test port 8443: denied (port)",
+                **egress_where("pay.toy.test", 5),
+            },
+        ],
+    },
+}
+
+# A span of the contract version 3 stops the trace, also outside the window: its fields can have
 # a new meaning (SPEC.md section 8.8).
 EGRESS_VERSION_CASE = {
     "tap": [window(10, 20)],
     "manifest": EGRESS_SPAN_MANIFEST,
     "sessions": {},
-    "egress": [tunnel(11, "stock.toy.test"), {**tunnel(150, "stock.toy.test"), "v": 2}],
+    "egress": [tunnel(11, "stock.toy.test"), {**tunnel(150, "stock.toy.test"), "v": 3}],
     "error": {
         "kind": "record_invalid",
         "file": "egress.jsonl",
-        "message": "line 2: the span has the contract version 2. This nookku reads version 1 only "
-        "(SPEC.md section 8.8). Use a nookku that reads version 2.",
+        "message": "line 2: the span has the contract version 3. This nookku reads version 1 and "
+        "version 2 only (SPEC.md section 8.8). Use a nookku that reads version 3.",
     },
 }
 
@@ -6065,7 +6127,8 @@ TRACE_CASES = {
     "trace_points_edges": EDGE_CASE,
     "egress_spans": EGRESS_SPANS_CASE,
     "egress_spans_no_answer": EGRESS_NO_ANSWER_CASE,
-    "egress_spans_version_two": EGRESS_VERSION_CASE,
+    "egress_spans_version_two": EGRESS_V2_CASE,
+    "egress_spans_version_three": EGRESS_VERSION_CASE,
 }
 
 
