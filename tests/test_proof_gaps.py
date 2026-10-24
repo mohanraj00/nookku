@@ -198,6 +198,9 @@ def test_the_tool_calls_of_a_claude_output_give_the_guard_detail() -> None:
         },
         {"type": "user", "message": {"content": [{"type": "tool_result"}]}},
         {"type": "assistant", "message": {"content": "no list"}},
+        {"type": "system", "subtype": "permission_denied", "message": "Bash denied"},
+        {"type": "assistant", "message": "a string"},
+        "not an object",
     ]
     assert pe.pr.tool_calls(events) == [("Bash", '{"command": "cat app.py"}')]
     long = {"type": "tool_use", "name": "Write", "input": {"content": "x" * 400}}
