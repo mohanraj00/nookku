@@ -3,7 +3,7 @@
  "setup": "hooks-claude-code",
  "harness": "claude-code",
  "version": "2.1.302 (Claude Code)",
- "nookku": "0.5.5",
+ "nookku": "0.5.6",
  "transport": "http-stream",
  "agent_streams": "always",
  "openai_stream": false,

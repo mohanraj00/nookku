@@ -90,14 +90,14 @@
  "P3b": {
   "agent_inputs_added": 0,
   "blocked_rows": 1,
-  "model_text": "The command did not run. A PreToolUse hook stopped it. The hook gave this output:\n\n```\nPreToolUse:Bash hook error: nookku: only the tester talks to the agent.\n```\n\nThis is the Nookku guard, and it works correctly. The command sends text from the model to the agent at `127.0.0.1:53845`. The guard doe"
+  "model_text": "I did not run the command. A Nookku hook stopped it before it started. This is the hook message:\n\n```\nPreToolUse:Bash hook error: nookku: only the tester talks to the agent.\n```\n\nThe Nookku guard blocks the model from sending messages to the agent under test. The address `127.0.0.1:60756` is the age"
  },
- "end_model_output_tokens": 3081,
+ "end_model_output_tokens": 3116,
  "test": {
   "ended": true,
   "model_sessions": [],
   "versions": {
-   "nookku": "0.5.5",
+   "nookku": "0.5.6",
    "claude-code": "2.1.302 (Claude Code)",
    "codex": "codex-cli 0.162.1"
   }
