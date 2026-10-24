@@ -2,7 +2,7 @@
 
 In Codex, you install the [relay](../reference/glossary.md#relay) as the [plugin](../reference/glossary.md#plugin) or as the [project hooks](../reference/glossary.md#project-hooks). Both run `nookku hook`, with the same rules. [choose-a-relay.md](choose-a-relay.md) compares them. Codex has no surface that shows hook text in `codex exec`, so the [chat page](../reference/cli.md#nookku-chat) of the test shows each reply. `nookku view` in a second terminal is optional.
 
-The plugin loads in Codex 0.162.1 with nookku 0.5.4 on 2026-10-20 (the keys `nookku` and `date`): Codex lists its 2 hooks, its MCP tools and its skill ([data](../../proofs/plugin/load.json), [method](../../scripts/proof_plugin_load.py)). The proofs P1 to P4 ran on the project hooks and on the plugin in codex-cli 0.162.1 with nookku 0.5.5 ([project hooks](../../proofs/hooks-codex/results.json), [plugin](../../proofs/plugin-codex/results.json), [method](../../scripts/proofs_relay.py)).
+The plugin loads in Codex 0.162.1 with nookku 0.5.4 on 2026-10-20 (the keys `nookku` and `date`): Codex lists its 2 hooks, its MCP tools and its skill ([data](../../proofs/plugin/load.json), [method](../../scripts/proof_plugin_load.py)). The proofs P1 to P4 ran on the project hooks and on the plugin in codex-cli 0.162.1 with nookku 0.5.6 ([project hooks](../../proofs/hooks-codex/results.json), [plugin](../../proofs/plugin-codex/results.json), [method](../../scripts/proofs_relay.py)).
 
 **Warning:** Do not use the plugin and the project hooks in one project. With both, each message goes to the agent two times. `nookku start` refuses a test if both are on.
 

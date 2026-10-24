@@ -1,8 +1,8 @@
 {
  "date": "2026-10-23",
  "versions": {
-  "nookku": "0.5.5",
-  "nookku_in_pod": "0.5.5",
+  "nookku": "0.5.6",
+  "nookku_in_pod": "0.5.6",
   "python_in_pod": "3.12.15",
   "base_image": "python:3.12-slim sha256:a6e34c598f2467ed0e9a8d349809fcd8b5c603269512df273a0bb1784edc11b1",
   "kind": "v0.33.0",

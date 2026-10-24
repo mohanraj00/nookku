@@ -4,4 +4,4 @@ Talk to your agent app from Claude Code or Codex, as your users do. Nookku recor
 test, byte for byte. Then a model or a person evaluates the agent against your app spec.
 """
 
-__version__ = "0.5.5"
+__version__ = "0.5.6"

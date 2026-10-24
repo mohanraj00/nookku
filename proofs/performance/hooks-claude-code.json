@@ -2,7 +2,7 @@
  "date": "2026-10-23",
  "relay": "hooks-claude-code",
  "versions": {
-  "nookku": "0.5.5",
+  "nookku": "0.5.6",
   "claude-code": "2.1.302 (Claude Code)",
   "codex": "codex-cli 0.162.1",
   "agent sdk": "claude-agent-sdk==0.2.168",
@@ -35,13 +35,13 @@
  "audit_exit": 0,
  "performance": {
   "v": "0.1",
-  "test": "20261023-080743-9377",
+  "test": "20261023-233514-5bd3",
   "unknown": null,
   "outside_turns": 0,
   "turns": [
    {
     "turn": 1,
-    "seconds": 4.066,
+    "seconds": 3.406,
     "model_calls": 4,
     "input_tokens": null,
     "output_tokens": null,
@@ -49,10 +49,10 @@
     "sources": [
      {
       "harness": "claude-code",
-      "session": "8e92630e-9b8c-42c6-b5ba-d3c8f327878f",
+      "session": "320099bf-0dc7-409d-b07a-6ec75fa034e9",
       "model_calls": 2,
-      "input_tokens": 59825,
-      "output_tokens": 147,
+      "input_tokens": 59840,
+      "output_tokens": 154,
       "no_usage": 0
      },
      {
@@ -67,7 +67,7 @@
    },
    {
     "turn": 2,
-    "seconds": 63.434,
+    "seconds": 61.62,
     "model_calls": 4,
     "input_tokens": null,
     "output_tokens": null,
@@ -75,10 +75,10 @@
     "sources": [
      {
       "harness": "claude-code",
-      "session": "8e92630e-9b8c-42c6-b5ba-d3c8f327878f",
+      "session": "320099bf-0dc7-409d-b07a-6ec75fa034e9",
       "model_calls": 2,
-      "input_tokens": 60214,
-      "output_tokens": 177,
+      "input_tokens": 60228,
+      "output_tokens": 158,
       "no_usage": 0
      },
      {
@@ -93,7 +93,7 @@
    },
    {
     "turn": 3,
-    "seconds": 4.207,
+    "seconds": 3.474,
     "model_calls": 4,
     "input_tokens": null,
     "output_tokens": null,
@@ -101,10 +101,10 @@
     "sources": [
      {
       "harness": "claude-code",
-      "session": "8e92630e-9b8c-42c6-b5ba-d3c8f327878f",
+      "session": "320099bf-0dc7-409d-b07a-6ec75fa034e9",
       "model_calls": 2,
-      "input_tokens": 60595,
-      "output_tokens": 177,
+      "input_tokens": 60573,
+      "output_tokens": 111,
       "no_usage": 0
      },
      {
@@ -127,13 +127,7 @@
    "class": "performance",
    "turn": "2",
    "evidence": "turn 2",
-   "issue": "The turn took 63.434 seconds, which is above the `turn_seconds` limit of 30. The agent's reply was ready at 15:08:03.8 (trace.jsonl:20). After that, the case-note call `/chat/completions` finished about 25 s later (ts 1792768108.8) and the `/decisions` call finished about 25 s after that (ts 1792768133.8, model_api.jsonl). `Shop.reply` makes both calls before it returns the reply (app.py:116-119), so the slow note model held up the customer's reply."
-  },
-  {
-   "class": "unsupported_reply",
-   "turn": "3",
-   "evidence": "trace.jsonl:27, trace.jsonl:30",
-   "issue": "The reply says \"Order 6210 (one teapot set, €80)\", but `lookup_order` returned `{\"item\": \"teapot set\", \"price_eur\": 80, \"status\": \"waiting for stock\"}`. The result has no quantity, so nothing supports \"one\"."
+   "issue": "The turn took 61.62 seconds, and the `turn_seconds` limit is 30 (APP_SPEC.md:27). The model reply was done after about 11.6 s (`/v1/messages` at 1792823731.97, turn start 1792823720.38). The rest of the time went to the case-note calls that `Shop.reply` makes before it returns (app.py:117-118). `/chat/completions` ended at 1792823756.99 (about 25 s) and `/decisions` ended at 1792823782.00 (about 25 s more), per model_api.jsonl. The `check_stock` tool call also took `\"duration_ms\": \"8018\"` (trace.jsonl:18)."
   }
  ],
  "S3_performance_row_for_the_slow_turn": true,
@@ -159,7 +153,7 @@
   "other_calls": 1
  },
  "counts": {},
- "report": "# Test 20261023-080743-9377: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| performance | 2 | turn 2 | The turn took 63.434 seconds, which is above the `turn_seconds` limit of 30. The agent's reply was ready at 15:08:03.8 (trace.jsonl:20). After that, the case-note call `/chat/completions` finished about 25 s later (ts 1792768108.8) and the `/decisions` call finished about 25 s after that (ts 1792768133.8, model_api.jsonl). `Shop.reply` makes both calls before it returns the reply (app.py:116-119), so the slow note model held up the customer's reply. |\n| unsupported_reply | 3 | trace.jsonl:27, trace.jsonl:30 | The reply says \"Order 6210 (one teapot set, €80)\", but `lookup_order` returned `{\"item\": \"teapot set\", \"price_eur\": 80, \"status\": \"waiting for stock\"}`. The result has no quantity, so nothing supports \"one\". |\n\n## Notes\n\n- Seal: intact. The audit shows no break: 3 turns, 3 exchanges, no blocked calls. `findings.json` has no findings, and every count is 0.\n- Turn 1: `check_stock` got `{\"sku\": \"teapot-set\"}` (trace.jsonl:3), and the backend returned `{\"left\": 3}` (trace.jsonl:5). The reply \"with 3 left\" matches, and so does `stock.json`.\n- Turn 2: `check_stock` got `{\"sku\": \"blue-mug\"}` (trace.jsonl:15), and the backend returned 12 (trace.jsonl:17). The reply matches `stock.json`. In the same turn the stock call took 8022 ms (trace.jsonl:18). That is slow, but the note-model calls caused most of the 63 s.\n- Turn 3: `lookup_order` got `{\"order\": \"6210\"}` (trace.jsonl:27). The status \"waiting for stock\" and the price €80 match `state.json`. The remark \"even though the teapot set shows 3 in stock\" is supported by turn 1 (trace.jsonl:3). Sending the customer to the shop team is acceptable, because the spec does not let the agent change an order.\n- Rule 5 (another customer's order): the app has no customer identity, and `lookup_order` (app.py:52-55) returns any order by its number. The record does not show that order 6210 belongs to another customer, so I report no issue. Still, the app cannot enforce this rule.\n- Persona: every reply has 2 sentences or fewer and has no slang. No boundary topic came up. User goals 1 and 2 were reached. Goal 3 (reservation) and the `reserve` trace point were not exercised.\n- Trace points: `check_stock` appears in turns 1 and 2, and `lookup_order` in turn 3. `stock GET /stock` appears for each `check_stock` call (2 needed, 2 seen). `openai` appears in each turn (3 needed).\n- Limits: `turn_tokens` (model sessions together) was 147, 177 and 177 output tokens, all under 2000. The `model_api openai` token counts are `not known`, but that limit does not count them.\n- State: `state.json` has the 3 case notes, and `stock.json` is unchanged (teapot-set 3, blue-mug 12). This agrees with the replies. No reservation was made.\n- No `app-state/` folder exists.\n\n## Tester notes\n\nThe tester wrote no note.\n\n## Coverage\n\nA proxy saw each egress part.\n",
- "answer": "I evaluated test 20261023-080743-9377 and found 2 issues. The record's seal is intact, the audit shows no break, and the test produced no automatic findings.\n\n1. **Turn 2 was too slow (performance):** it took 63.4 seconds against a limit of 30. The agent's answer was ready after about 13 seconds. The delay came from the two calls to the note model after the reply, `/chat/completions` and `/decisions`, which took about 25 seconds each. The app makes those calls before it sends the reply (`app.py:116-119`).\n2. **Turn 3 stated an unsupported detail:** the reply said \"one teapot set\", but the order lookup returned no quantity.\n\nThe stock counts and the order status in the replies match the app's data. Reservations were never tried in this test. The app also can't enforce rule 5 (never share another customer's order), because it doesn't know who the customer is and returns any order by its number. The tester left no notes.\n\nThe report is at `<project>/.nookku/tests/20261023-080743-9377/report.md`.",
+ "report": "# Test 20261023-233514-5bd3: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| performance | 2 | turn 2 | The turn took 61.62 seconds, and the `turn_seconds` limit is 30 (APP_SPEC.md:27). The model reply was done after about 11.6 s (`/v1/messages` at 1792823731.97, turn start 1792823720.38). The rest of the time went to the case-note calls that `Shop.reply` makes before it returns (app.py:117-118). `/chat/completions` ended at 1792823756.99 (about 25 s) and `/decisions` ended at 1792823782.00 (about 25 s more), per model_api.jsonl. The `check_stock` tool call also took `\"duration_ms\": \"8018\"` (trace.jsonl:18). |\n\n## Notes\n\n- Seal: intact. Audit: no break, 3 turns, 3 exchanges, no errors. findings.json has no findings, and each count is 0.\n- Turn 1: `check_stock` got `{\"sku\": \"teapot-set\"}` and returned `\"left\": 3`. The backend saw `GET /stock` with the same result (trace.jsonl:3, 5). The reply \"with 3 left\" matches. Goal 2 was met.\n- Turn 2: `check_stock` got `{\"sku\": \"blue-mug\"}` and returned `\"left\": 12` (trace.jsonl:15, 17). The reply \"with 12 left\" matches. Goal 2 was met.\n- Turn 3: `lookup_order` got `{\"order\": \"6210\"}` and returned `{\"item\": \"teapot set\", \"price_eur\": 80, \"status\": \"waiting for stock\"}` (trace.jsonl:27). This matches state.json. The reply gives that status, so goal 1 was met. The phrase \"since 3 are available\" comes from the turn 1 tool result, not a new check. stock.json still shows `\"teapot-set\": {\"left\": 3}`, so this is not a mismatch. The offer to reserve points the user to goal 3, which is valid.\n- Persona: each reply has 2 sentences or fewer, is polite and has no slang. No boundary topic came up. No reservation was asked for, so `reserve` was not needed, and stock.json shows no reservation was made.\n- Rule 5 (other customers' orders): the app does not check who the customer is before `lookup_order` (app.py:52-55). The records cannot show if order 6210 belongs to someone else, so I report no issue.\n- `turn_tokens`: the output tokens of the model sessions together were 154, 158 and 111. All are under 2000.\n- `turn_seconds`: turns 1 and 3 took 3.406 s and 3.474 s. Both are under 30.\n- The openai calls (the direct model calls) have no usage data, but the `turn_tokens` limit does not count them.\n- State checked read-only: state.json (orders, plus 3 case notes, one per turn) and stock.json. The test folder has no `app-state/` folder.\n\n## Tester notes\n\nThe tester wrote no note.\n\n## Coverage\n\nA proxy saw each egress part.\n",
+ "answer": "I found one issue: turn 2 took 61.62 s, and the spec limit for a turn is 30 s.\n- **Cause of the slow turn:** the agent had its reply ready after about 12 s. Then `Shop.reply` waited about 25 s for the case-note call and about 25 s more for the department call before it returned (`app.py:117-118`). The `check_stock` call in that turn also took 8 s.\n- **Rest of the test:** the app chose the right tools with the right arguments in all 3 turns, and each reply matched the tool results and the saved state. Every reply was 2 sentences or fewer and pointed toward a user goal, and output tokens were far under the 2000 limit.\n- **Records:** the seal is intact and the audit shows no break. A proxy saw every outside call the app made, and the tester left no notes.\n\nThe report is at `<project>/.nookku/tests/20261023-233514-5bd3/report.md`.",
  "pass": true
 }

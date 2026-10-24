@@ -2,7 +2,7 @@
  "date": "2026-10-23",
  "relay": "hooks-claude-code",
  "version": "2.1.302 (Claude Code)",
- "nookku": "0.5.5",
+ "nookku": "0.5.6",
  "plugins": [
   "cc-plugin-agents-md@builtin",
   "cc-plugin-plugin-authoring@builtin",
@@ -10,7 +10,7 @@
  ],
  "answers": {
   "memory_sha256": "c627c09c14e58e44bc51622dac392958ec88244e414b508020634f53cfcd1e69",
-  "read": "The order code is `ZX-4471-Q`.\n\nThe tester typed it in turn 1 of the latest session: «My order code is ZX-4471-Q.» That message also has two trailing spaces. The transcript does not say who the tester was. If you ran that test, this is the code that you gave the agent."
+  "read": "In turn 1 of the latest session, you gave the agent this order code:\n\n```\nZX-4471-Q\n```\n\nThe full message in turn 1 was `My order code is ZX-4471-Q.` and it ends with two spaces. The agent quoted that message back exactly, two spaces included."
  },
  "audit_exit": 0,
  "turns": 2,
