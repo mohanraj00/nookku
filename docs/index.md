@@ -90,3 +90,4 @@ Pages for people who change the code of Nookku. You do not need them to test you
 - [ADR 0001: One core, one plugin](contributing/adr/0001-one-core-one-plugin.md): why one Python core and one plugin serve Claude Code and Codex, and what the spikes measured.
 - [Codex display spike](contributing/codex-display.md): the plugin display mechanisms, the CLI measurements and the desktop check.
 - [Run the proofs](contributing/run-the-proofs.md): run the proofs again after a change to a [relay](reference/glossary.md#relay) or for a new [harness](reference/glossary.md#harness) version.
+- [Proof gaps](contributing/proof-gaps.md): the tutorial, plugin load and egress proof fixes and their results.

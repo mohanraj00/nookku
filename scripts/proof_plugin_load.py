@@ -26,6 +26,7 @@ from __future__ import annotations
 import base64
 import json
 import os
+import shlex
 import shutil
 import struct
 import subprocess
@@ -65,6 +66,9 @@ for line in sys.stdin:
     elif m.get("method") == "tools/list":
         result = {"tools": []}
     else:
+        if "id" in m:
+            error = {"code": -32601, "message": "method not found"}
+            print(json.dumps({"jsonrpc": "2.0", "id": m["id"], "error": error}), flush=True)
         continue
     print(json.dumps({"jsonrpc": "2.0", "id": m["id"], "result": result}), flush=True)
 """
@@ -122,14 +126,20 @@ def claude(prompt: str, cwd: Path, plugin: Path, *extra: str) -> str:
     return run([*cmd, "--setting-sources", "project", *extra], cwd, other)
 
 
+def probe_command(seen: Path) -> str:
+    """Record the plugin variable names and block the probe prompt."""
+    names = " ".join(NAMES)
+    return (
+        f'for n in {names}; do eval "v=\\${{$n:-}}"; [ -n "$v" ] && echo $n; '
+        f"done > {shlex.quote(str(seen))}; "
+        'cat >/dev/null; echo \'{"decision": "block", "reason": "probe"}\''
+    )
+
+
 def claude_code(work: Path) -> dict[str, Any]:
     probe = work / "probe"
     seen = work / "names.txt"
-    names = " ".join(NAMES)
-    command = (
-        f'for n in {names}; do eval "v=\\${{$n:-}}"; [ -n "$v" ] && echo $n; done > {seen}; '
-        'cat >/dev/null; echo \'{"decision": "block", "reason": "probe"}\''
-    )
+    command = probe_command(seen)
     hooks = {"hooks": {"UserPromptSubmit": [{"hooks": [{"type": "command", "command": command}]}]}}
     probe_plugin(probe, hooks, work / "claude-mcp.json")
     project = work / "claude-project"

@@ -2,6 +2,8 @@
 
 import copy
 import json
+import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -10,8 +12,55 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
 import proof_egress as pe
+import proof_plugin_load as pl
 import proof_sessions as ps
 import proof_spec_classes as pc
+import proof_tutorial as pt
+
+
+@pytest.mark.parametrize("model", [False, True])
+def test_the_tutorial_records_only_the_harness_that_ran(model: bool) -> None:
+    versions = {"nookku": "0.5.5", "claude-code": "Claude Code", "codex": "Codex"}
+    expected = {"nookku": "0.5.5"}
+    if model:
+        expected["claude-code"] = "Claude Code"
+    assert pt.run_versions(versions, model) == expected
+    assert versions["codex"] == "Codex"
+
+
+def test_the_plugin_probe_accepts_a_scratch_path_with_spaces(tmp_path: Path) -> None:
+    seen = tmp_path / "toy shop" / "names.txt"
+    seen.parent.mkdir()
+    env = {k: v for k, v in os.environ.items() if k not in pl.NAMES}
+    env["CLAUDE_PLUGIN_ROOT"] = "toy shop"
+    done = subprocess.run(
+        ["sh", "-c", pl.probe_command(seen)],
+        input="{}",
+        text=True,
+        capture_output=True,
+        env=env,
+        check=True,
+    )
+    assert seen.read_text().splitlines() == ["CLAUDE_PLUGIN_ROOT"]
+    assert json.loads(done.stdout) == {"decision": "block", "reason": "probe"}
+
+
+def test_the_probe_mcp_server_answers_unknown_requests(tmp_path: Path) -> None:
+    methods = ["initialize", "notifications/initialized", "tools/list", "resources/list"]
+    messages = [{"jsonrpc": "2.0", "id": n, "method": m} for n, m in enumerate(methods)]
+    messages[0]["params"] = {"protocolVersion": "2025-06-18"}
+    messages[1].pop("id")
+    done = subprocess.run(
+        [sys.executable, "-c", pl.PROBE_SERVER, str(tmp_path / "seen.json")],
+        input="".join(json.dumps(m) + "\n" for m in messages),
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=10,
+    )
+    replies = [json.loads(line) for line in done.stdout.splitlines()]
+    assert [r["id"] for r in replies] == [0, 2, 3]
+    assert replies[-1]["error"]["code"] == -32601
 
 
 def test_discovery_checks_new_removed_and_changed_project_files(tmp_path: Path) -> None:
