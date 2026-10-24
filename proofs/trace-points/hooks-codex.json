@@ -1,8 +1,8 @@
 {
- "date": "2026-10-23",
+ "date": "2026-10-24",
  "relay": "hooks-codex",
  "versions": {
-  "nookku": "0.5.5",
+  "nookku": "0.5.6",
   "claude-code": "2.1.302 (Claude Code)",
   "codex": "codex-cli 0.162.1",
   "agent sdk": "claude-agent-sdk==0.2.168",
@@ -100,9 +100,9 @@
    "turn": 2,
    "detail": "check_stock: {\"error\": \"no such item: robot-kit\"}",
    "harness": "claude-code",
-   "session": "af97ed93-022f-41c8-8870-dfa33748bf83",
+   "session": "fdf76874-2548-4b15-8dad-928e42236eeb",
    "source": {
-    "file": "sessions/claude-code/af97ed93-022f-41c8-8870-dfa33748bf83.jsonl",
+    "file": "sessions/claude-code/fdf76874-2548-4b15-8dad-928e42236eeb.jsonl",
     "line": 34,
     "result_line": 35
    }
