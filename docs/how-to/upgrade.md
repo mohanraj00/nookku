@@ -113,6 +113,18 @@ PASS
 
 ## Releases with a special step
 
+### 0.5.6
+
+No special step is necessary. Do the steps above.
+
+Three new options are for a test in a cluster. Each is optional, and with no value a test works as in 0.5.5:
+
+- To keep the tests outside the project, for example on a mounted volume, set `NOOKKU_TESTS_DIR` to an absolute path, or give `--tests-dir PATH` to a command. Set the variable for the [harness](../reference/glossary.md#harness) too, because the [relay](../reference/glossary.md#relay) gets no option ([cli.md](../reference/cli.md#the-tests-folder), [#457](https://github.com/mohanraj00/nookku/issues/457)).
+- To read the egress spans of Koodam, run `nookku trace --egress FILE`. The new config key `egress_ignore` lists the hosts that the checks skip ([config.md](../reference/config.md), [#491](https://github.com/mohanraj00/nookku/issues/491)).
+- To read the spend logs of a LiteLLM gateway, run `nookku trace --gateway SOURCE --key-alias ALIAS` ([cli.md](../reference/cli.md#nookku-trace), [#459](https://github.com/mohanraj00/nookku/issues/459)).
+
+The proxies of a test now share one budget for request bodies, 4 times `body_limit`. If your app sends many large bodies at the same time and gets status 503, set `body_limit` to a larger value ([SPEC.md section 7.6](../../SPEC.md#76-backend-proxies), [#484](https://github.com/mohanraj00/nookku/issues/484)).
+
 ### 0.5.5
 
 Stop each chat page of 0.5.4 before you upgrade. A page server of 0.5.4 holds a `flock` on `page.lock`, and 0.5.5 uses a POSIX record lock:
