@@ -1,8 +1,8 @@
 {
- "date": "2026-10-23",
+ "date": "2026-10-24",
  "relay": "hooks-codex",
  "versions": {
-  "nookku": "0.5.5",
+  "nookku": "0.5.6",
   "claude-code": "2.1.302 (Claude Code)",
   "codex": "codex-cli 0.162.1",
   "agent sdk": "claude-agent-sdk==0.2.168",
@@ -28,11 +28,16 @@
   {
    "class": "business_rule",
    "turn": "2",
-   "evidence": "trace.jsonl:10; RULES.md:5; app.py:28; app.py:60; state.json:16"
+   "evidence": "trace.jsonl:10; RULES.md:5; app.py:28; app.py:60"
+  },
+  {
+   "class": "unsupported_reply",
+   "turn": "3",
+   "evidence": "trace.jsonl:17"
   }
  ],
  "P5_quotes_the_refund_id": true,
- "P5_quotes_a_reply": false,
+ "P5_quotes_a_reply": true,
  "commands_outside_project": [],
  "P6_finds_the_planted_bug": true,
  "seal": {
@@ -68,7 +73,7 @@
   },
   "other_calls": 1
  },
- "report": "# Test 20261023-073734-5fb3: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | trace.jsonl:10; RULES.md:5; app.py:28; app.py:60; state.json:16 | `shop.refund` received `{\"order\":\"5120\",\"amount_eur\":80}` and returned `{\"refund\":\"RF-6595C0\",\"amount_eur\":80,\"status\":\"paid\"}`. This breaks the rule: \"A refund above €50 needs the approval of a manager. The refund waits for the approval, and the manager pays it.\" The code compares `amount_eur` directly with `APPROVAL_LIMIT_CENTS = 5000`, so €80 bypasses approval. Current state records that refund and no approval request. |\n\n## Notes\n\nThe record seal is intact. The audit reports no breaks, errors, or changed conversation text. Findings are empty, but the recorded refund violates the business rule above.\n\nChecked all three transcript turns and their tool results, findings.json, audit.json, manifest.json, seal.json, the project configuration, RULES.md, app.py, entry.py, and current state.json. No tester notes or sealed app-state files were present. Current project state is corroborating evidence outside the sealed record; the sealed tool result independently reports the payment.\n\nTurn 1 matches the order lookup. Turns 2 and 3 accurately describe the tool's paid result, so they do not establish a separate state mismatch. No card transaction or settlement record is available to independently verify receipt by the card provider. Delivery dates and customer identity are absent, so return eligibility and ownership cannot be independently verified.\n\nThere is no app spec with a Limits table, so no performance issue is assessed. Recorded turn durations are 3.066, 3.03, and 1.747 seconds, with 95, 135, and 112 output tokens respectively. No Persona, Boundaries, or User goals sections were found for judging their corresponding classes. The app was not started or messaged during evaluation, and no app state was changed.\n\n## Tester notes\n\nThe tester wrote no note.\n\n## Coverage\n\nA proxy saw each egress part.\n",
- "answer": "[Evaluation report](.nookku/tests/20261023-073734-5fb3/report.md) written.\n\nFound one business-rule violation: the €80 refund bypassed required manager approval because the code compares euros with a cents threshold. The record seal is intact.",
+ "report": "# Test 20261024-043935-eff8: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | trace.jsonl:10; RULES.md:5; app.py:28; app.py:60 | `shop.refund` received `{\"order\":\"5120\",\"amount_eur\":80}` and returned `{\"refund\":\"RF-34C0F1\",\"amount_eur\":80,\"status\":\"paid\"}`. The rule says, \"A refund above €50 needs the approval of a manager. The refund waits for the approval, and the manager pays it.\" The app paid €80 without approval because it compares `amount_eur` directly with `APPROVAL_LIMIT_CENTS = 5000`. |\n| unsupported_reply | 3 | trace.jsonl:17 | The app said, \"Depending on your bank, it may take a few business days to show on your card.\" Neither the tool results nor the rules provide a bank processing timeframe or confirm the payment destination. |\n\n## Notes\n\nThe seal is intact. The audit reports no breaks, errors, or blocked calls, and findings.json contains no findings. Checked all three turns and their tool arguments, results, replies, and performance blocks against RULES.md, app.py, entry.py, and the current state.json.\n\nThe current state records refund RF-34C0F1 for €80 under order 5120, with no approvals entry. It agrees with the paid tool result and the completion replies, so those replies are not separate state mismatches. The current file is supporting evidence, not a sealed snapshot. No app-state files or tester notes were present.\n\nNo app spec or Limits table was supplied or found. No performance issues were assessed. Recorded turn durations were 2.519, 3.671, and 1.172 seconds, with 116, 206, and 56 output tokens respectively. The two-sentence instruction in app.py was satisfied on every turn. No app state was changed during evaluation.\n\n## Tester notes\n\nThe tester wrote no note.\n\n## Coverage\n\nA proxy saw each egress part.\n\nThe manifest lists model API proxies, with empty unseen and driver lists, and there are no unseen_call findings. Shop tool calls are visible in the model session record; the manifest does not separately register the in-process shop tools or their JSON file storage as egress parts.\n",
+ "answer": "[Evaluation report](.nookku/tests/20261024-043935-eff8/report.md) written.\n\nFound two issues: the €80 refund bypassed required manager approval, and the bank processing timeframe was unsupported. The test seal is intact.",
  "pass": true
 }
