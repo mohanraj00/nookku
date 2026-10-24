@@ -2,7 +2,7 @@
 
 The [app spec](../reference/app-spec.md) tells the [evaluation](../reference/glossary.md#evaluation) what your app must do: how the agent speaks, what it must refuse, where it must guide the user, how slow a turn can be, and which tool calls, backend calls and spans must occur. This guide adds a spec to an app that already has a test. Then it reads the results that the spec adds. The reference page gives each rule of the spec, and [read-the-results.md](read-the-results.md) gives each file of a test.
 
-I made the output of step 2 with a copy of the [full toy shop](../../examples/toy-shop-full/README.md) and nookku 0.5.4 ([version](../../src/nookku/__init__.py)), with no model. The copy already had a config from `nookku init plugin --entry "uv run --with claude-agent-sdk --with nookku python3 entry.py" --models claude-code`. I shortened the paths to `.../`. The results of step 4 come from the proofs of 0.5.5, which ran tests with a model on 2026-10-23. Each block names its data and its method.
+I made the output of step 2 with a copy of the [full toy shop](../../examples/toy-shop-full/README.md) and nookku 0.5.4 ([version](../../src/nookku/__init__.py)), with no model. The copy already had a config from `nookku init plugin --entry "uv run --with claude-agent-sdk --with nookku python3 entry.py" --models claude-code`. I shortened the paths to `.../`. The results of step 4 come from the proofs of 0.5.6, which ran tests with a model on 2026-10-23. Each block names its data and its method.
 
 ## Before you start
 
@@ -111,10 +111,11 @@ The proof of the issue classes planted 3 defects in a copy of the toy shop, in t
 ```markdown
 | Class | Turn | Evidence | Issue |
 |---|---|---|---|
-| missing_action | 2 | trace.jsonl:14, app.py:55 | The tester asked "Is the teapot set in stock?", but the app made no `check_stock` call in turn 2 (trace.jsonl:12-19 has no tool call). ... |
-| off_path | 2 | turn 2, APP_SPEC.md:20 | The spec says: "Stock: the customer names a product. The agent checks the stock and tells the customer the number of items left." The reply did not give the number left (3), and sent the customer to a newsletter: ... |
-| boundary | 3 | turn 3, APP_SPEC.md:14 | The spec says: "It does not answer questions that are not about the shop, its orders, its stock or its reservations. It tells the customer what it can help with." The app gave a full answer to "Can you give me a recipe for pancakes?": ... |
-| tone | 4 | turn 4, APP_SPEC.md:8, APP_SPEC.md:9 | The spec says "It is polite and direct. It does not use slang or jokes." and "A reply has 2 sentences or fewer." The reply has 5 sentences of surfer slang and a joke: ... |
+| missing_action | 2 | trace.jsonl:12-14, app.py:55-58 | The tester asked "Is the teapot set in stock?", but the app called no `check_stock` tool: the turn has no tool call and no `GET /stock` call. ... |
+| off_path | 2 | turn 2, APP_SPEC.md:20 | The spec says "2. Stock: the customer names a product. The agent checks the stock and tells the customer the number of items left." The reply sends the customer to a newsletter: ... It does not give the number left (3). |
+| boundary | 3 | turn 3, APP_SPEC.md:14 | The spec says "It does not answer questions that are not about the shop, its orders, its stock or its reservations. It tells the customer what it can help with." The tester asked "Can you give me a recipe for pancakes?", and the app gave a full recipe: ... |
+| tone | 4 | turn 4, APP_SPEC.md:8 | The spec says "It is polite and direct. It does not use slang or jokes." The reply uses surfer slang and a joke: ... |
+| tone | 4 | turn 4, APP_SPEC.md:9 | The spec says "A reply has 2 sentences or fewer." The reply of turn 4 has 5 sentences, ... |
 ```
 
 Check each row. Open the line of the spec that the row cites:
@@ -129,26 +130,26 @@ sed -n 14p APP_SPEC.md
 
 Then read the reply of the turn in the transcript ([read-the-results.md](read-the-results.md#6-read-the-transcript-with-the-trace)). If the line and the reply do not agree with the issue, do not trust the row.
 
-Each issue has one class, and the 6 classes that are older than the spec come first: `business_rule`, `wrong_tool`, `wrong_arguments`, `unsupported_reply`, `missing_action` and `state_mismatch`. If an issue fits one of them, the row has that class ([the issue classes](read-the-results.md#5-read-the-report)). Thus one reply can give 2 rows. In turn 2 above, the missing `check_stock` call is `missing_action`, and the newsletter in place of the stock is `off_path`.
+Each issue has one class, and the 6 classes that are older than the spec come first: `business_rule`, `wrong_tool`, `wrong_arguments`, `unsupported_reply`, `missing_action` and `state_mismatch`. If an issue fits one of them, the row has that class ([the issue classes](read-the-results.md#5-read-the-report)). Thus one reply can give 2 rows. In turn 2 above, the missing `check_stock` call is `missing_action`, and the newsletter in place of the stock is `off_path`. The report also has rows that this block does not show: an `unsupported_reply` row for turn 2 and a `tone` row for turn 3 (the key `issues` of the data).
 
 ### The performance row and performance.json
 
 At the end of a test, the [bridge](../reference/glossary.md#bridge) writes `performance.json`: the seconds, the model calls and the input and output tokens of each turn ([SPEC.md section 8.7](../../SPEC.md#87-performance)). The model compares them with the `Limits`. The proof of the time and the tokens made turn 2 slow. The report of the plugin in Claude Code 2.1.302 has this row ([data](../../proofs/performance/plugin-claude-code.json), [method](../../scripts/proof_performance.py), [results](../results.md#time-and-tokens-of-each-turn)). I shortened the text of the issue to `...`:
 
 ```markdown
-| performance | 2 | turn 2 | Turn 2 took 60.545 seconds, above the `turn_seconds` limit of 30 (APP_SPEC.md:27). The records show where the time went. ... |
+| performance | 2 | turn 2 | The turn took 60.859 seconds, and the `turn_seconds` limit is 30. Per `backend.jsonl` and `model_api.jsonl`, the slow parts were: stock `GET /stock?sku=blue-mug` took 8.0 s ..., the case-note call `openai /chat/completions` took 25.0 s ... and the department call `openai /decisions` took 25.0 s .... The app makes the note and department calls one after another, before it returns the reply (`app.py:117-118`). ... |
 ```
 
-The row cites `APP_SPEC.md:27`, the line of `turn_seconds`. The file of the test has the same SHA-256 as the file in the repo (the key `spec` of the data). The seconds, the limit and the line are correct. In the 0.5.4 run of this proof, the row cited line 28, the line of `turn_tokens` ([report of 0.5.4](https://github.com/mohanraj00/nookku/blob/v0.5.4/proofs/performance/plugin-claude-code.json)). This is why you check each line of the evidence.
+The seconds and the limit are correct. The row also gives the cause: the 3 slow calls that the proof planted, and the lines of `app.py` that make the 2 note calls before the reply. The row cites no line of the spec. The file of the test has the same SHA-256 as the file in the repo (the key `spec` of the data), so you can check the limit at `APP_SPEC.md:27`. In the 0.5.4 run of this proof, the row cited line 28, the line of `turn_tokens` ([report of 0.5.4](https://github.com/mohanraj00/nookku/blob/v0.5.4/proofs/performance/plugin-claude-code.json)). This is why you check each line of the evidence.
 
 The transcript shows the same values under each turn, in a `performance` block. This is the block of turn 2 of that test. I made it with `performance.line()` ([performance.py](../../src/nookku/performance.py)) from the key `performance` of the data, as `nookku transcript --trace` does:
 
 ```text
 ──── performance ────
-60.545 seconds, 4 model calls, input tokens not known, output tokens not known (1 of 4 model calls have no usage)
-  - claude-code 2d8ede00-e2e1-4069-a890-d59fb000d49a: 2 model calls, 60249 input tokens, 159 output tokens
+60.859 seconds, 4 model calls, input tokens not known, output tokens not known (1 of 4 model calls have no usage)
+  - claude-code 3ae697a8-c0db-4620-a0c3-1266207e261a: 2 model calls, 60077 input tokens, 163 output tokens
   - model_api openai: 2 model calls, input tokens not known, output tokens not known
-  - model sessions together: 159 output tokens
+  - model sessions together: 163 output tokens
 ```
 
 `turn_tokens` compares with the line `model sessions together`. A direct model call of the app does not count. In `performance.json`, a value that the records do not hold is `null`, and the transcript shows it as `not known`. `null` is not 0. Here 1 of the 2 `openai` calls has no `usage` (`no_usage` 1 in the data), so the tokens of the `openai` session are `null`, and the totals of the turn are `null` too. If the records do not hold a value, the model does not judge that limit for that turn, and it says so in the notes of the report.
