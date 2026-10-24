@@ -69,6 +69,12 @@ ORIGINAL = "\n\nOriginal prompt: "
 CITE = re.compile(r"agent\.py:(\d+)(?:-(\d+))?")
 
 
+def run_versions(versions: dict[str, Any], model: bool) -> dict[str, Any]:
+    """The versions of Nookku and each harness that ran in this tutorial."""
+    names = ("nookku", "claude-code") if model else ("nookku",)
+    return {name: versions[name] for name in names}
+
+
 def cites(text: str) -> list[dict[str, Any]]:
     """Each line of agent.py that the text cites, with its source."""
     source = AGENT.read_text(encoding="utf-8").splitlines()
@@ -193,7 +199,11 @@ def main() -> int:
         shell("nookku trace")
         shell(f"cat {folder}/findings.json")
         manifest = json.loads((shop / folder / "manifest.json").read_text(encoding="utf-8"))
-        run = {"date": date.today().isoformat(), "tests": tests, **manifest["versions"]}
+        run = {
+            "date": date.today().isoformat(),
+            "tests": tests,
+            **run_versions(manifest["versions"], model),
+        }
     finally:
         shutil.rmtree(work, ignore_errors=True)
     text = "\n".join(lines)

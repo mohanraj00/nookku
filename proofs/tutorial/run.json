@@ -1,12 +1,11 @@
 {
  "date": "2026-10-23",
  "tests": [
-  "20261023-081347-6305",
-  "20261023-081351-44ca"
+  "20261023-172137-5605",
+  "20261023-172140-3491"
  ],
  "nookku": "0.5.5",
  "claude-code": "2.1.302 (Claude Code)",
- "codex": "codex-cli 0.162.1",
  "model": [
   "claude-opus-5-5"
  ],
@@ -18,14 +17,13 @@
  "kept": true,
  "cites": [
   {
-   "cite": "agent.py:22-27",
+   "cite": "agent.py:22-26",
    "source": [
     "REPLIES = {",
     "    \"refund\": \"Our refund policy:\\n\\n1. Damaged items: full refund.\\n2. Change of mind: 30 days.\\n\",",
     "    \"ship\": \"We ship to Chennai and Pune. Delivery takes 3 to 5 days.  \",",
     "    \"price\": \"| item | price |\\n|---|---|\\n| blue mug | € 8 |\\n| teapot | € 24 |\",",
-    "}",
-    "FALLBACK = \"Which item is this about: the mug or the teapot?\""
+    "}"
    ]
   },
   {
@@ -44,6 +42,13 @@
    "cite": "agent.py:27",
    "source": [
     "FALLBACK = \"Which item is this about: the mug or the teapot?\""
+   ]
+  },
+  {
+   "cite": "agent.py:30-31",
+   "source": [
+    "def answer(text: str) -> str:",
+    "    return next((r for k, r in REPLIES.items() if k in text.lower()), FALLBACK)"
    ]
   },
   {
