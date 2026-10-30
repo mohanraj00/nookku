@@ -987,14 +987,22 @@ Thus a test with no limits passes if its `findings.json` is valid. A test with n
 
 **Output.** `nookku run` and `nookku trace` print one line with the verdict and the reason of each `fail` of a class and each problem. They print it if the verdict has a limit, if the verdict is not `pass`, or with `--verdict`. Thus a test with no limits that passes gives the output of Nookku 0.5.6.
 
+**The verdict of an exit code.** Another user can write the tests folder (section 7), for example on shared storage. That user can replace `verdict.json` after the bridge writes or seals it. Thus a process that gives an exit code from the verdict does not trust `verdict.json` as it is. It uses the verdict only if each of these is true, else the verdict is not `pass`:
+
+1. The seal of the test folder is intact, and the copy of the seal outside the folder is `same` (section 7.4). A seal with no copy (`copy` `none`) is not sufficient, because `seal.json` is in the folder.
+2. The process reads `manifest.json`, `findings.json` and `verdict.json` one time each. The SHA-256 of each one is the SHA-256 in the copy of the seal.
+3. The verdict that the process computes again from these bytes of `manifest.json` and `findings.json` is the same as `verdict.json`.
+
+`nookku run --verdict` applies this rule after the end of the test, and `nookku trace --verdict` after the rebuild and the update of the seal. The output gives the reason if a check fails. With `--verdict`, set `NOOKKU_HOME` to a folder that the process can write, so that the bridge can write the copy of the seal.
+
 **Exit codes.** By default, the verdict does not change an exit code. The option `--verdict` of `nookku run` and of `nookku trace` makes a verdict that is not `pass` an exit code that is not 0:
 
 | Command | Code | Meaning |
 |---|---|---|
 | `nookku run --verdict` | 0 | The audit is clean, and the verdict is `pass`. |
-| | 1 | The run fails for a reason of section 7.10, or the verdict is `fail`, or the test folder has no valid `verdict.json`. A `FAIL:` line names the verdict. |
+| | 1 | The run fails for a reason of section 7.10, or the verdict is `fail`, or the verdict breaks the rule above. A `FAIL:` line names the verdict. |
 | `nookku trace --verdict` | 0 | The trace was rebuilt, and the verdict is `pass`. |
-| | 1 | The trace was rebuilt, and the verdict is `fail`, or the command could not write `verdict.json`. |
+| | 1 | The trace was rebuilt, and the verdict is `fail`, or the command could not write `verdict.json`, or the verdict breaks the rule above. |
 | | 2 | The trace was not rebuilt (section 7.4). |
 
 The cases in [`conformance/verdict/`](conformance/verdict/) give the spec files, the counts of `findings.json` and the expected `verdict.json`: a `pass` and a `fail` of the toy shop, rows that are not limits, a section with no table, 2 files, no section, no `findings.json`, and a manifest with no key `verdict`.

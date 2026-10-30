@@ -100,7 +100,7 @@ The toy shop allows 0 `agent_error` and at most 1 `repeated_reply`:
 - If the bridge cannot read a row, the verdict is `fail`, and `problems` in `verdict.json` names the file, the line and the problem. Examples: a class that the trace does not have, a second row for one class, or a `Most` that is not a whole number.
 - The bridge reads the table at the start of the test and records it in the manifest. If you change the table after the start, the verdict of that test does not change.
 
-To make CI fail on a `fail` verdict, give `--verdict` to [`nookku run`](cli.md#nookku-run) or [`nookku trace`](cli.md#nookku-trace). Then the command exits with 1.
+To make CI fail on a `fail` verdict, give `--verdict` to [`nookku run`](cli.md#nookku-run) or [`nookku trace`](cli.md#nookku-trace). Then the command exits with 1. The command uses the verdict only if it agrees with the [seal](glossary.md#seal) and its copy in `~/.nookku/seals/`, so a test with no copy of the seal fails ([SPEC.md section 7.14](../../SPEC.md#714-verdict)).
 
 ## Example: the toy shop
 

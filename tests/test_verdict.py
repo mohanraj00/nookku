@@ -220,3 +220,133 @@ def test_trace_verdict_fails_when_the_rebuild_cannot_write_the_verdict(
     assert "Verdict: fail. The test folder has no valid verdict.json." in out.out
     # The seal keeps the old verdict.json, so the folder stays intact.
     assert seal.verify(folder)["intact"]
+
+
+FAKE_PASS = {"verdict": "pass", "classes": [], "problems": []}
+
+
+def test_a_replaced_verdict_after_the_end_fails_the_run(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Another user can write the tests folder (#532). The user replaces verdict.json after the
+    # bridge seals it and before the run reads it. The run must not trust the file.
+    defect = tmp_path / "defect.py"
+    defect.write_text(REPEAT_DEFECT)
+    root = _shop(tmp_path, [sys.executable, str(defect)])
+    real_end = bridge.end
+
+    def end_and_replace(*args: object, **kwargs: object) -> object:
+        out = real_end(*args, **kwargs)  # type: ignore[arg-type]
+        folder = bridge.latest_test(root)
+        assert folder is not None
+        (folder / verdict.FILE).write_text(json.dumps(FAKE_PASS))
+        return out
+
+    monkeypatch.setattr(bridge, "end", end_and_replace)
+    code, out = _run(root, capsys)
+    assert code == 1, out
+    line = next(x for x in out["report"] if x.startswith("Verdict:"))
+    assert line.startswith("Verdict: fail. The seal is not intact with a copy.")
+    assert "changed: verdict.json" in line
+
+
+def test_a_replaced_verdict_and_seal_fail_the_run(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The user also writes seal.json again. The copy of the seal outside the folder differs.
+    defect = tmp_path / "defect.py"
+    defect.write_text(REPEAT_DEFECT)
+    root = _shop(tmp_path, [sys.executable, str(defect)])
+    real_end = bridge.end
+
+    def end_and_reseal(*args: object, **kwargs: object) -> object:
+        out = real_end(*args, **kwargs)  # type: ignore[arg-type]
+        folder = bridge.latest_test(root)
+        assert folder is not None
+        (folder / verdict.FILE).write_text(json.dumps(FAKE_PASS))
+        data = json.loads((folder / seal.SEAL).read_text())
+        data["files"][verdict.FILE] = seal.sha256_of((folder / verdict.FILE).read_bytes())
+        (folder / seal.SEAL).write_text(json.dumps(data))
+        return out
+
+    monkeypatch.setattr(bridge, "end", end_and_reseal)
+    code, out = _run(root, capsys)
+    assert code == 1, out
+    line = next(x for x in out["report"] if x.startswith("Verdict:"))
+    assert line.startswith("Verdict: fail. The seal is not intact with a copy.")
+
+
+def test_trace_verdict_does_not_trust_a_verdict_replaced_after_the_rebuild(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    defect = tmp_path / "defect.py"
+    defect.write_text(REPEAT_DEFECT)
+    root = _shop(tmp_path, [sys.executable, str(defect)])
+    assert _run(root, capsys)[0] == 1
+    folder = bridge.latest_test(root)
+    assert folder is not None
+    real_update = seal.update
+
+    def update_and_replace(folder: Path, names: list[str], base: Path | None = None) -> None:
+        real_update(folder, names, base)
+        (folder / verdict.FILE).write_text(json.dumps(FAKE_PASS))
+
+    monkeypatch.setattr(seal, "update", update_and_replace)
+    assert main(["trace", str(folder), "--root", str(root), "--verdict", "--json"]) == 1
+    err = capsys.readouterr().err
+    assert "The seal is not intact with a copy." in err and "changed: verdict.json" in err
+
+
+def test_trace_verdict_fails_with_no_copy_of_the_seal(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # With no copy outside the folder, seal.json is in the folder that another user can write.
+    root = _shop(tmp_path, [sys.executable, str(TOY_SHOP)])
+    assert _run(root, capsys)[0] == 0
+    folder = bridge.latest_test(root)
+    assert folder is not None
+    seal.copy_path(folder.name).unlink()
+    data = json.loads((folder / seal.SEAL).read_text())
+    (folder / seal.SEAL).write_text(json.dumps({**data, "copy": False}))
+    assert main(["trace", str(folder), "--root", str(root), "--verdict"]) == 1
+    assert "The seal is not intact with a copy." in capsys.readouterr().err
+    # Without --verdict, the rebuild still works.
+    assert main(["trace", str(folder), "--root", str(root)]) == 0
+
+
+def test_the_checked_verdict_needs_the_verdict_of_the_sealed_records(tmp_path: Path) -> None:
+    # A verdict.json that the seal covers, but that is not the verdict of the manifest and
+    # findings.json, is not used.
+    folder = tmp_path / "20261031-090000-ab12"
+    folder.mkdir()
+    limits = {"limits": {"agent_error": 0}, "unread": []}
+    (folder / "manifest.json").write_text(json.dumps({"test": folder.name, "verdict": limits}))
+    counts = {**dict.fromkeys(trace.CHECKS, 0), "agent_error": 1}
+    (folder / "findings.json").write_text(json.dumps({"counts": counts}))
+    assert verdict.build(folder)["verdict"] == "fail"
+    assert verdict.checked(folder)[0] is None  # no seal yet
+    seal.write(folder)
+    found, why = verdict.checked(folder)
+    assert why is None and found is not None and found["verdict"] == "fail"
+    (folder / verdict.FILE).write_text(json.dumps(FAKE_PASS))
+    seal.write(folder)
+    assert verdict.checked(folder) == (
+        None,
+        "verdict.json is not the verdict of manifest.json and findings.json.",
+    )
+
+
+def test_the_checked_verdict_compares_the_bytes_that_it_reads_with_the_copy(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # A file can change after the check of the seal and before the read. The process compares
+    # the bytes that it reads with the SHA-256 of the copy of the seal.
+    folder = tmp_path / "20261031-090000-cd34"
+    folder.mkdir()
+    (folder / "manifest.json").write_text(json.dumps({"test": folder.name}))
+    (folder / "findings.json").write_text(json.dumps({"counts": {}}))
+    verdict.build(folder)
+    seal.write(folder)
+    (folder / verdict.FILE).write_text(json.dumps(FAKE_PASS))
+    monkeypatch.setattr(seal, "verify", lambda folder, base=None: {"intact": True, "copy": "same"})
+    assert verdict.checked(folder) == (None, "verdict.json is not the file of the seal.")

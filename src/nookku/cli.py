@@ -853,7 +853,15 @@ def _trace_command(
         names.remove(verdict.FILE)
         found = None
     seal.update(folder, names)
-    code = 1 if verdict_gate and (found is None or found["verdict"] != verdict.PASS) else 0
+    code = 0
+    if verdict_gate and found is not None:
+        # The exit code uses only a verdict that agrees with the copy of the seal (SPEC.md
+        # section 7.14), not the file as another user can leave it.
+        found, why = verdict.checked(folder)
+        if found is None:
+            print(f"nookku: the verdict cannot be used. {why}", file=sys.stderr)
+    if verdict_gate:
+        code = 0 if found is not None and found["verdict"] == verdict.PASS else 1
     if as_json:
         print(json.dumps(report, indent=1, ensure_ascii=False))
         return code

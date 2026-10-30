@@ -41,6 +41,12 @@ def copy_path(test: str, base: Path | None = None) -> Path:
     return old if not new.exists() and old.exists() else new
 
 
+def sha256_of(data: bytes) -> str:
+    import hashlib  # here, so that a hook event stays fast (#214)
+
+    return hashlib.sha256(data).hexdigest()
+
+
 def _sha256(path: Path) -> str:
     import hashlib  # here, so that a hook event stays fast (#214)
 
@@ -92,6 +98,13 @@ def _read(path: Path) -> dict[str, Any] | None:
         return None
     ok = isinstance(data, dict) and isinstance(data.get("files"), dict)
     return data if ok else None
+
+
+def copy_files(test: str, base: Path | None = None) -> dict[str, Any] | None:
+    """The files of the seal copy of a test, outside the test folder, or None if no valid copy
+    exists."""
+    copy = _read(copy_path(test, base))
+    return None if copy is None else dict(copy["files"])
 
 
 def _same(a: dict[str, Any], b: dict[str, Any]) -> bool:

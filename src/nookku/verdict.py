@@ -11,11 +11,13 @@ import re
 from pathlib import Path
 from typing import Any
 
-from nookku import app_spec
+from nookku import app_spec, seal
 from nookku.record import RecordError, json_text, loads, read_manifest
 from nookku.trace import CHECKS, one_line
 
 FILE = "verdict.json"
+FINDINGS = "findings.json"
+MANIFEST = "manifest.json"
 VERSION = 1
 SECTION = "verdict"
 COLUMNS = ("finding", "most")
@@ -91,14 +93,15 @@ def limits_of(manifest: dict[str, Any]) -> tuple[dict[str, int], list[str]]:
     return dict(limits), problems
 
 
-def _counts(folder: Path) -> tuple[dict[str, int | None], str | None]:
-    """The count of each finding class of findings.json, and the problem if the file is not
-    valid. A class with no valid count, for example a class that a later trace added, is None."""
+def _counts(data: bytes | None) -> tuple[dict[str, int | None], str | None]:
+    """The count of each finding class of the bytes of findings.json, or None if the file does
+    not exist, and the problem if the file is not valid. A class with no valid count, for
+    example a class that a later trace added, is None."""
     unknown: dict[str, int | None] = dict.fromkeys(CHECKS)
-    try:
-        report = loads((folder / "findings.json").read_text(encoding="utf-8"))
-    except OSError:
+    if data is None:
         return unknown, "findings.json is missing."
+    try:
+        report = loads(data.decode("utf-8"))
     except ValueError:
         return unknown, "findings.json is not valid JSON."
     counts = report.get("counts") if isinstance(report, dict) else None
@@ -118,9 +121,25 @@ def build(folder: Path) -> dict[str, Any]:
     except RecordError as e:
         manifest = {}
         problems.append(str(e))
+    try:
+        findings: bytes | None = (folder / FINDINGS).read_bytes()
+    except OSError:
+        findings = None
+    report = compute(folder.name, manifest, problems, findings)
+    text = json_text(report, indent=1) + "\n"
+    (folder / FILE).write_text(text, encoding="utf-8")
+    return report
+
+
+def compute(
+    name: str, manifest: dict[str, Any], problems: list[str], findings: bytes | None
+) -> dict[str, Any]:
+    """The verdict of a test from its manifest, the problems of the read of the manifest and
+    the bytes of findings.json. `name` is the name of the test folder."""
+    problems = list(problems)
     limits, unread = limits_of(manifest)
     problems += unread
-    counts, problem = _counts(folder)
+    counts, problem = _counts(findings)
     if problem is not None:
         problems.append(problem)
     classes = []
@@ -133,14 +152,12 @@ def build(folder: Path) -> dict[str, Any]:
     test = manifest.get("test")
     report = {
         "v": VERSION,
-        "test": test if isinstance(test, str) else folder.name,
+        "test": test if isinstance(test, str) else name,
         "verdict": _word(passed),
         "limits": {c: limits[c] for c in CHECKS if c in limits},
         "classes": classes,
         "problems": problems,
     }
-    text = json_text(report, indent=1) + "\n"
-    (folder / FILE).write_text(text, encoding="utf-8")
     return report
 
 
@@ -161,6 +178,43 @@ def load(folder: Path) -> dict[str, Any] | None:
         and isinstance(report.get("problems"), list)
     )
     return report if ok else None
+
+
+def checked(folder: Path, base: Path | None = None) -> tuple[dict[str, Any] | None, str | None]:
+    """The verdict of a test folder that a process can use for an exit code, or None and the
+    reason (SPEC.md section 7.14). Another user can write the tests folder, so the process does
+    not trust verdict.json as it is. It reads manifest.json, findings.json and verdict.json one
+    time each, and uses the verdict only if:
+
+    - the seal of the folder is intact, and its copy outside the folder is the same;
+    - the SHA-256 of each of the 3 files is the SHA-256 in the copy of the seal;
+    - the verdict that it computes again from the manifest and findings.json is verdict.json.
+    """
+    result = seal.verify(folder, base)
+    if not result["intact"] or result["copy"] != "same":
+        return None, f"The seal is not intact with a copy. {seal.summary(result)}"
+    files = seal.copy_files(folder.name, base)
+    data: dict[str, bytes] = {}
+    for name in (MANIFEST, FINDINGS, FILE):
+        if files is None or name not in files:
+            return None, f"The copy of the seal does not cover {name}."
+        try:
+            data[name] = (folder / name).read_bytes()
+        except OSError:
+            return None, f"{name} cannot be read."
+        if seal.sha256_of(data[name]) != files[name]:
+            return None, f"{name} is not the file of the seal."
+    try:
+        manifest = loads(data[MANIFEST].decode("utf-8"))
+        stored = loads(data[FILE].decode("utf-8"))
+    except ValueError:
+        return None, f"{MANIFEST} or {FILE} is not valid JSON."
+    if not isinstance(manifest, dict):
+        return None, f"{MANIFEST} is not a JSON object."
+    report = compute(folder.name, manifest, [], data[FINDINGS])
+    if stored != report:
+        return None, f"{FILE} is not the verdict of {MANIFEST} and {FINDINGS}."
+    return report, None
 
 
 def summary(report: dict[str, Any] | None) -> str:

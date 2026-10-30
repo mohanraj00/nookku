@@ -1281,11 +1281,21 @@ def run_script(
         lines.append(trace.summary(findings))
     except (OSError, ValueError, KeyError) as e:
         lines.append(f"Trace: no valid findings.json ({e})")
-    found = verdict.load(folder)
-    if verdict.shown(found, gate):
-        lines.append(verdict.summary(found))
-    if gate and (found is None or found["verdict"] != verdict.PASS):
-        problems.append(f"The verdict is fail. Read {verdict.FILE} in the test folder.")
+    if gate:
+        # The tests folder can be writable by another user, so the exit code uses only a
+        # verdict that agrees with the copy of the seal (SPEC.md section 7.14).
+        found, why = verdict.checked(folder)
+        if found is None:
+            lines.append(f"Verdict: fail. {why}")
+            problems.append(f"The verdict cannot be used. {why}")
+        else:
+            lines.append(verdict.summary(found))
+            if found["verdict"] != verdict.PASS:
+                problems.append(f"The verdict is fail. Read {verdict.FILE} in the test folder.")
+    else:
+        found = verdict.load(folder)
+        if verdict.shown(found, gate):
+            lines.append(verdict.summary(found))
     changed = gate_changed(manifest)
     if changed is not None:
         problems.append(f"The Codex hooks changed during the test: {changed}")
