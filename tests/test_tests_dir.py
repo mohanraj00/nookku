@@ -221,6 +221,7 @@ def test_the_state_file_keeps_each_tests_folder_and_only_nookku_writes_it(
         '{"v": 1, "folders": "/vol/tests"}',
         '{"v": 1, "folders": ["tests"]}',
         '{"v": 1, "folders": [""]}',
+        '{"v": true, "folders": []}',
     ],
 )
 def test_a_broken_state_file_denies_each_call_and_stops_a_start(
@@ -236,6 +237,11 @@ def test_a_broken_state_file_denies_each_call_and_stops_a_start(
     with pytest.raises(bridge.BridgeError, match=state.TESTS_DIRS):
         bridge.start(root, "tester-1")
     assert not (tmp_path / "volume" / "tests").exists()
+    # A test in .nookku/tests also does not start, because the hooks deny each of its calls.
+    monkeypatch.delenv(state.TESTS_ENV)
+    with pytest.raises(bridge.BridgeError, match=state.TESTS_DIRS):
+        bridge.start(root, "tester-1")
+    assert not (root / STATE / "tests").exists() or not any((root / STATE / "tests").iterdir())
 
 
 @pytest.mark.parametrize(
