@@ -5,12 +5,16 @@ model call of that key. `nookku trace --gateway` reads them from a file or from 
 keeps the calls of the key aliases that the tester gives in the time window of the test, and
 writes them to gateway.jsonl in the test folder. The trace reads gateway.jsonl as it reads
 model_api.jsonl. Nookku sends nothing to the gateway except the read of its logs.
+
+The gateway uses its own clock. `--gateway-skew` gives the difference between the clock of the
+gateway and the clock of the test computer, and the read moves each gateway time by it.
 """
 
 from __future__ import annotations
 
 import datetime
 import ipaddress
+import math
 import os
 import re
 import time
@@ -34,6 +38,11 @@ KEY_VARIABLE = "NOOKKU_GATEWAY_KEY"
 READ_LIMIT = 256 * 1024 * 1024
 # The wait for the gateway API, in seconds.
 TIMEOUT = 60.0
+# The largest clock skew that the read accepts, in seconds: 1 day. A chosen value, not a
+# measurement. A larger skew is an error in the option, not a clock that is wrong.
+MOST_SKEW = 86400.0
+# The start of a LiteLLM tag that holds the User-Agent of the request (LiteLLM 1.104.2).
+AGENT_TAG = "User-Agent: "
 # The mark that LiteLLM puts in a string that it cut before it stored the log (LiteLLM 1.104.2).
 TRUNCATED = "(litellm_truncated skipped "
 # The LiteLLM call types that are model calls: the API and the path of the call. The path selects
@@ -111,6 +120,27 @@ def result(api: str, path: str, response: dict[str, Any] | None) -> dict[str, An
     return parse(json_text(response).encode("utf-8"), False)
 
 
+def check_skew(skew: float) -> float:
+    """The clock skew as a float. Raise GatewayError if it is not a finite number of seconds from
+    -MOST_SKEW to MOST_SKEW."""
+    if not math.isfinite(skew) or abs(skew) > MOST_SKEW:
+        raise GatewayError(
+            f"the gateway skew {skew!r} is not valid. Give a number of seconds from "
+            f"-{MOST_SKEW:g} to {MOST_SKEW:g}."
+        )
+    return float(skew)
+
+
+def harness(row: dict[str, Any]) -> str | None:
+    """The harness that made a logged call, from its `User-Agent: <agent>` tag, or None for the
+    app. The rule is the rule of the model API proxies (SPEC.md section 7.7)."""
+    tags = row.get("tags")
+    for tag in tags if isinstance(tags, list) else []:
+        if isinstance(tag, str) and tag.startswith(AGENT_TAG):
+            return model_api.harness([("User-Agent", tag[len(AGENT_TAG) :])])
+    return None
+
+
 def call_row(log: dict[str, Any]) -> dict[str, Any]:
     """The row of gateway.jsonl for one LiteLLM spend log (SPEC.md section 8.9)."""
     given = log.get("metadata")
@@ -185,10 +215,16 @@ def logs(data: bytes) -> list[Any]:
 
 
 def select(
-    found: list[Any], aliases: list[str], tag: str | None, start: float, end: float
+    found: list[Any],
+    aliases: list[str],
+    tag: str | None,
+    start: float,
+    end: float,
+    skew: float = 0.0,
 ) -> tuple[list[dict[str, Any]], dict[str, int]]:
     """The rows of the logs of a key alias in the window from start to end, both ends included,
-    sorted by their start, and the count of the logs that were skipped, by reason."""
+    sorted by their start, and the count of the logs that were skipped, by reason. Each time of a
+    row is on the clock of the test computer: the time of the gateway minus `skew`."""
     rows: list[dict[str, Any]] = []
     skipped: Counter[str] = Counter()
     for log in found:
@@ -196,6 +232,9 @@ def select(
             skipped["not_a_log"] += 1
             continue
         row = call_row(log)
+        for key in ("started", "ts"):
+            if row[key] is not None:
+                row[key] -= skew
         if row["key_alias"] not in aliases:
             skipped["other_key"] += 1
         elif row["started"] is None or not start <= row["started"] <= end:
@@ -221,7 +260,8 @@ def _day(t: float, days: int = 0) -> str:
 
 
 def logs_url(base: str, start: float, end: float) -> str:
-    """The URL of the full spend logs of the days of the window, in UTC (LiteLLM 1.104.2)."""
+    """The URL of the full spend logs of the days of the window, in UTC (LiteLLM 1.104.2). The
+    window is on the clock of the gateway."""
     query = {"start_date": _day(start), "end_date": _day(end, 1), "summarize": "false"}
     return f"{base.rstrip('/')}/spend/logs?{urllib.parse.urlencode(query)}"
 
@@ -304,12 +344,16 @@ def load(
     aliases: list[str],
     tag: str | None,
     environ: dict[str, str] | None = None,
+    skew: float = 0.0,
 ) -> dict[str, Any]:
-    """Read the logs, and write gateway.jsonl in the test folder. Return its source row."""
+    """Read the logs, and write gateway.jsonl in the test folder. Return its source row. `skew` is
+    the clock of the gateway minus the clock of the test computer, in seconds."""
+    skew = check_skew(skew)
     start, end = manifest.get("started"), manifest.get("ended")
     if not isinstance(start, (int, float)) or not isinstance(end, (int, float)):
         raise GatewayError("the test has no start or no end time. End the test first.")
-    rows, skipped = select(logs(read(source, start, end, environ)), aliases, tag, start, end)
+    data = read(source, start + skew, end + skew, environ)
+    rows, skipped = select(logs(data), aliases, tag, start, end, skew)
     head = {
         "v": 1,
         "type": "source",
@@ -318,6 +362,7 @@ def load(
         "key_aliases": aliases,
         "tag": tag,
         "window": [start, end],
+        "skew": skew,
         "read": time.time(),
         "kept": len(rows),
         "skipped": skipped,

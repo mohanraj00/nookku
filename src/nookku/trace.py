@@ -894,9 +894,11 @@ def _call_items(
     return items
 
 
-def read_model_api(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-    """The call rows of model_api.jsonl (SPEC.md section 8.4). The calls of a harness are only
-    counted, because its session file has them."""
+def _model_api_calls(
+    path: Path,
+) -> tuple[list[tuple[int, dict[str, Any], str, dict[str, Any]]], dict[str, Any]]:
+    """The direct model calls of model_api.jsonl, each with its line, its row, its format and its
+    request, and the counts of the read. The calls of a harness are only counted."""
     ignored: Counter[str] = Counter()
     harness_calls: Counter[str] = Counter()
     other_calls = 0
@@ -914,36 +916,120 @@ def read_model_api(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
             other_calls += 1
         else:
             calls.append((n, row, form, _request(row)))
-    sessions = [str(row.get("api") or "") for _, row, _, _ in calls]
-    items = _call_items("model_api", model_api.FILE, calls, sessions)
-    return items, {
+    return calls, {
         "file": model_api.FILE,
         "rows": rows,
-        "items": len(items),
         "ignored": dict(ignored),
         "harness_calls": dict(harness_calls),
         "other_calls": other_calls,
     }
 
 
+def read_model_api(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """The call rows of model_api.jsonl (SPEC.md section 8.4). The calls of a harness are only
+    counted, because its session file has them."""
+    calls, counts = _model_api_calls(path)
+    sessions = [str(row.get("api") or "") for _, row, _, _ in calls]
+    items = _call_items("model_api", model_api.FILE, calls, sessions)
+    return items, {
+        "file": counts["file"],
+        "rows": counts["rows"],
+        "items": len(items),
+        "ignored": counts["ignored"],
+        "harness_calls": counts["harness_calls"],
+        "other_calls": counts["other_calls"],
+    }
+
+
+def direct_calls(path: Path) -> list[tuple[dict[str, Any], str]]:
+    """The row and the format of each direct model call of model_api.jsonl, for the match of the
+    gateway calls (SPEC.md section 8.9)."""
+    return [(row, form) for _, row, form, _ in _model_api_calls(path)[0]]
+
+
 GATEWAY_CUT = "the gateway log holds a cut copy of the response"
+# The margin of the time rule of the match of a gateway call and a direct call, in seconds
+# (SPEC.md section 8.9). A chosen value, not a measurement. The tester gives a larger skew of the
+# 2 clocks with --gateway-skew.
+SAME_CALL_MARGIN = 1.0
 
 
-def read_gateway(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+def _seconds(value: Any) -> float | None:
+    """A time of a record as a float, or None if it is not a number."""
+    ok = isinstance(value, (int, float)) and not isinstance(value, bool)
+    return float(value) if ok else None
+
+
+def _answer(row: dict[str, Any]) -> tuple[str, list[tuple[Any, Any]]] | None:
+    """The text and the tool calls (name and input) of the result of a call, or None if the
+    record holds only a cut copy of the response."""
+    given = row.get("result")
+    result: dict[str, Any] = given if isinstance(given, dict) else {}
+    if result.get("cut") or row.get("response_cut") is True:
+        return None
+    calls = result.get("tool_calls")
+    pairs = [
+        (c.get("name"), c.get("input"))
+        for c in (calls if isinstance(calls, list) else [])
+        if isinstance(c, dict)
+    ]
+    text = result.get("text")
+    return (text if isinstance(text, str) else ""), pairs
+
+
+def same_call(direct: dict[str, Any], direct_form: str, row: dict[str, Any], form: str) -> bool:
+    """True if a gateway call and a direct call of model_api.jsonl are 1 call (SPEC.md section
+    8.9): the same format, the times of the gateway call in the time of the direct call with the
+    margin, and the same text and tool calls in the 2 results."""
+    start, end = _seconds(direct.get("started")), _seconds(direct.get("ts"))
+    if direct_form != form or start is None:
+        return False
+    end = start if end is None else end
+    times = [t for t in (_seconds(row.get("started")), _seconds(row.get("ts"))) if t is not None]
+    margin = SAME_CALL_MARGIN
+    if not times or not all(start - margin <= t <= end + margin for t in times):
+        return False
+    answer = _answer(row)
+    return answer is not None and answer == _answer(direct)
+
+
+def read_gateway(
+    path: Path, direct: list[tuple[dict[str, Any], str]] | None = None
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """The call rows of gateway.jsonl (SPEC.md section 8.9). They give the items of a model API
-    call (section 8.4). The session of an item is the key alias of its call."""
+    call (section 8.4). The session of an item is the key alias of its call. A call of a harness
+    is only counted, because its session file has it. A call that is also a call of `direct`, the
+    direct calls of model_api.jsonl, is only counted, because model_api.jsonl has its bytes."""
     ignored: Counter[str] = Counter()
+    harness_calls: Counter[str] = Counter()
     other_calls = 0
     calls: list[tuple[int, dict[str, Any], str, dict[str, Any]]] = []
     rows = 0
+    matched: set[int] = set()
     for n, row in _lines(path, ignored):
         rows += 1
         if not isinstance(row, dict) or row.get("type") != "call":
             ignored[str(row.get("type")) if isinstance(row, dict) else "invalid_json"] += 1
             continue
         form = model_api.call_format(str(row.get("api")), str(row.get("path")))
+        agent = gateway.harness(row)
+        if agent is not None:
+            harness_calls[agent] += 1
+            continue
         if form is None or form == "decisions":
             other_calls += 1
+            continue
+        # Each direct call matches 1 gateway call at most: the first one in gateway.jsonl.
+        same = next(
+            (
+                j
+                for j, (d, f) in enumerate(direct or [])
+                if j not in matched and same_call(d, f, row, form)
+            ),
+            None,
+        )
+        if same is not None:
+            matched.add(same)
             continue
         given = row.get("request")
         # A request that LiteLLM cut gives no user message and no tool result.
@@ -956,7 +1042,9 @@ def read_gateway(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         "rows": rows,
         "items": len(items),
         "ignored": dict(ignored),
+        "harness_calls": dict(harness_calls),
         "other_calls": other_calls,
+        "same_calls": len(matched),
     }
 
 
@@ -1524,12 +1612,15 @@ def build(folder: Path) -> dict[str, Any]:
         found, calls = read_backend(folder / backend.FILE)
         items += found
     direct = None
+    direct_rows: list[tuple[dict[str, Any], str]] = []
     if (folder / model_api.FILE).exists():
         found, direct = read_model_api(folder / model_api.FILE)
+        direct_rows = direct_calls(folder / model_api.FILE)
         items += found
     gateway_calls = None
     if (folder / gateway.FILE).exists():
-        found, gateway_calls = read_gateway(folder / gateway.FILE)
+        # A call that a model API proxy and the gateway both record gives 1 item (section 8.9).
+        found, gateway_calls = read_gateway(folder / gateway.FILE, direct_rows)
         items += found
     servers_mcp = None
     if (folder / mcp_proxy.FILE).exists():

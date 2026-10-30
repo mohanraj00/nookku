@@ -2,7 +2,7 @@
 
 `build` writes performance.json in a test folder after the trace. The time of a turn comes from
 tap.jsonl. The model calls come from the session files of the app and from the trace items of
-model_api.jsonl. A value that the records do not hold is `null`, never 0.
+model_api.jsonl and gateway.jsonl. A value that the records do not hold is `null`, never 0.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-from . import model_api
+from . import gateway, model_api
 from .record import json_text, read_manifest
 from .trace import _exchanges, _lines, _time, _turn, windows
 
@@ -117,19 +117,31 @@ def read_codex_calls(path: Path) -> list[dict[str, Any]]:
 READERS = {"claude-code": read_claude_calls, "codex": read_codex_calls}
 
 
-def _direct_calls(items: list[dict[str, Any]]) -> list[tuple[str, dict[str, Any]]]:
-    """The direct model calls of the app: one `model_api` assistant item for each call. A cut
-    result can hold the usage of the start of the response only, so its usage is not known."""
+def _anthropic_usage(it: dict[str, Any], info: dict[str, Any]) -> bool:
+    """True if the usage of a call has the form of the Anthropic API. For a direct call, the API
+    is `anthropic`. LiteLLM can store the response of a Messages call in the Chat Completions
+    form, so for a gateway call the path must be the Messages path and the usage must have no
+    `prompt_tokens` and no `completion_tokens`."""
+    if it.get("harness") == "model_api":
+        return it.get("session") == "anthropic"
+    usage = info.get("usage")
+    chat = isinstance(usage, dict) and ("prompt_tokens" in usage or "completion_tokens" in usage)
+    return info.get("path") == gateway.CALL_TYPES["anthropic_messages"][1] and not chat
+
+
+def _direct_calls(items: list[dict[str, Any]]) -> list[tuple[str, str, dict[str, Any]]]:
+    """The direct model calls of the app: one `model_api` or `gateway` assistant item for each
+    call. A cut result can hold the usage of the start of the response only, so its usage is not
+    known."""
     out = []
     for it in items:
-        if it.get("harness") != "model_api" or it.get("role") != "assistant":
+        if it.get("harness") not in ("model_api", "gateway") or it.get("role") != "assistant":
             continue
         info = it["input"] if isinstance(it.get("input"), dict) else {}
-        read = anthropic_tokens if it.get("session") == "anthropic" else openai_tokens
+        read = anthropic_tokens if _anthropic_usage(it, info) else openai_tokens
         tokens = (None, None) if "cut" in info else read(info.get("usage"))
-        out.append(
-            (str(it.get("session")), {**_call(it.get("ts"), tokens), "turn": it.get("turn")})
-        )
+        call = {**_call(it.get("ts"), tokens), "turn": it.get("turn")}
+        out.append((str(it["harness"]), str(it.get("session")), call))
     return out
 
 
@@ -173,20 +185,24 @@ def _unknown(folder: Path, manifest: dict[str, Any]) -> str | None:
         # The model API proxies start only from the egress answer (SPEC.md section 7.11).
         return "the test has no egress answer, so no proxy recorded the direct model calls"
     found = {s.get("harness") for s in sessions}
-    calls_path = folder / model_api.FILE
-    if not sessions and not calls_path.exists():
+    files = [f for f in (model_api.FILE, gateway.FILE) if (folder / f).exists()]
+    if not sessions and not files:
         return f"the test has no model session and no {model_api.FILE}"
-    if calls_path.exists() and not (folder / "trace.jsonl").exists():
-        return f"the test folder has {model_api.FILE} and no trace.jsonl"
-    if calls_path.exists():
+    for file in files:
+        if not (folder / "trace.jsonl").exists():
+            return f"the test folder has {file} and no trace.jsonl"
+    for file in files:
         harness_calls: Counter[str] = Counter()
-        for _, row in _lines(calls_path, Counter()):
-            if isinstance(row, dict) and row.get("type") == "call" and row.get("harness"):
-                harness_calls[str(row["harness"])] += 1
+        for _, row in _lines(folder / file, Counter()):
+            if not isinstance(row, dict) or row.get("type") != "call":
+                continue
+            harness = row.get("harness") if file == model_api.FILE else gateway.harness(row)
+            if harness:
+                harness_calls[str(harness)] += 1
         for harness, n in sorted(harness_calls.items()):
             if harness not in found:
                 calls = "1 call" if n == 1 else f"{n} calls"
-                return f"{model_api.FILE} has {calls} of {harness}, and no session file of it"
+                return f"{file} has {calls} of {_clean(harness)}, and no session file of it"
     return None
 
 
@@ -214,7 +230,7 @@ def summarize(folder: Path) -> dict[str, Any]:
             for c in found:
                 calls.append((s["harness"], session, {**c, "turn": _turn(c["ts"], spans)}))
         else:
-            calls += [("model_api", _clean(api), c) for api, c in _direct_calls(items)]
+            calls += [(h, _clean(api), c) for h, api, c in _direct_calls(items)]
     outside = None if unknown is not None else sum(1 for _, _, c in calls if c["turn"] is None)
     turns = []
     for n, ex in enumerate(exchanges, 1):

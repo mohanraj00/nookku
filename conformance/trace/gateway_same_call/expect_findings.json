@@ -1,0 +1,60 @@
+{
+ "v": "0.2",
+ "test": "20261006-080000-gw03",
+ "turns": 1,
+ "items": 10,
+ "sessions": [],
+ "otel": null,
+ "backend": null,
+ "model_api": {
+  "file": "model_api.jsonl",
+  "rows": 2,
+  "items": 4,
+  "ignored": {},
+  "harness_calls": {},
+  "other_calls": 0
+ },
+ "mcp": null,
+ "database": null,
+ "gateway": {
+  "file": "gateway.jsonl",
+  "rows": 6,
+  "items": 6,
+  "ignored": {
+   "source": 1
+  },
+  "harness_calls": {
+   "claude-code": 1
+  },
+  "other_calls": 0,
+  "same_calls": 1
+ },
+ "egress": null,
+ "trace_points": null,
+ "counts": {
+  "agent_error": 0,
+  "repeated_reply": 0,
+  "reply_not_from_model": 0,
+  "tool_error": 0,
+  "command_failed": 0,
+  "span_error": 0,
+  "backend_error": 0,
+  "model_api_error": 0,
+  "questions_lost": 0,
+  "database_error": 0,
+  "unseen_call": 0,
+  "driver_without_span": 0,
+  "egress_not_in_discovery": 0,
+  "egress_denied": 0,
+  "model_error": 0,
+  "turn_without_model": 0,
+  "item_between_turns": 0,
+  "otel_tool_not_in_session": 0,
+  "server_not_from_app": 0,
+  "session_inferred": 0,
+  "version_untested": 0,
+  "missing_trace_point": 0,
+  "trace_points_unread": 0
+ },
+ "findings": []
+}

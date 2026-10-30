@@ -10,4 +10,5 @@ Each folder is a test folder with the expected `performance.json` (SPEC.md secti
 | `codex_no_token_count` | A session file with model items and no call: the calls and the tokens are not known. A 0.1 exchange has no `started`, so its seconds are not known. |
 | `partial_usage` | A cache key with `null` is 0. A call with input tokens and no output tokens: the turn has its input tokens, and its output tokens are `null`. |
 | `session_id_new_line` | A session id with a new line. `sources` gives the id with the new line as `\u000a`, so the reader accepts the file and the transcript gets no false line. |
+| `gateway_calls` | The calls of `gateway.jsonl` (section 8.9). The gateway call that matches the direct call of `model_api.jsonl` is 1 call, not 2. A Messages call with the usage of Messages has the input tokens of the rule of Claude Code. A Messages call that LiteLLM stored with Chat Completions usage has the tokens of Chat Completions. A call after the turn is in `outside_turns`. |
 | `missing_session_file` | A model session with no session file: the calls and the tokens are not known. |

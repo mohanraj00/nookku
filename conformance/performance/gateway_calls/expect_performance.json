@@ -1,0 +1,34 @@
+{
+ "v": "0.1",
+ "test": "20261020-080000-pf08",
+ "unknown": null,
+ "outside_turns": 1,
+ "turns": [
+  {
+   "turn": 1,
+   "seconds": 10.0,
+   "model_calls": 3,
+   "input_tokens": 125,
+   "output_tokens": 49,
+   "no_usage": 0,
+   "sources": [
+    {
+     "harness": "gateway",
+     "session": "kd-0f3a9c2e-5b7d-4c1e-9a8b-2d4f6e8a0c1b",
+     "model_calls": 2,
+     "input_tokens": 115,
+     "output_tokens": 29,
+     "no_usage": 0
+    },
+    {
+     "harness": "model_api",
+     "session": "openai",
+     "model_calls": 1,
+     "input_tokens": 10,
+     "output_tokens": 20,
+     "no_usage": 0
+    }
+   ]
+  }
+ ]
+}

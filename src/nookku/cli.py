@@ -381,6 +381,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--gateway-tag", metavar="TAG", help="with --gateway: keep only the calls with this tag"
     )
     trc.add_argument(
+        "--gateway-skew",
+        type=float,
+        metavar="SECONDS",
+        help="with --gateway: the clock of the gateway minus the clock of this computer, for "
+        "example 2.5 if the gateway clock is 2.5 seconds ahead (default: 0)",
+    )
+    trc.add_argument(
         "--egress",
         type=Path,
         help="the Koodam egress spans of the test (koodam trace --json): copy them into the test "
@@ -571,11 +578,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _test_command(args)
     if args.command == "trace":
         gate = None
-        if args.gateway is not None or args.key_alias or args.gateway_tag is not None:
+        tag, skew = args.gateway_tag, args.gateway_skew
+        if args.gateway is not None or args.key_alias or tag is not None or skew is not None:
             if args.gateway is None or not args.key_alias:
                 print("nookku: --gateway needs --key-alias, and the opposite.", file=sys.stderr)
                 return 2
-            gate = (args.gateway, list(args.key_alias), args.gateway_tag)
+            gate = (args.gateway, list(args.key_alias), tag, skew or 0.0)
         return _trace_command(args.root.resolve(), args.test, args.json, args.egress, gate)
     if args.command == "verify":
         folder = _test_folder(args.root.resolve(), args.test)
@@ -769,7 +777,7 @@ def _trace_command(
     test: str | None,
     as_json: bool,
     egress: Path | None = None,
-    gate: tuple[str, list[str], str | None] | None = None,
+    gate: tuple[str, list[str], str | None, float] | None = None,
 ) -> int:
     folder = _test_folder(root, test)
     if folder is None:
@@ -804,7 +812,8 @@ def _trace_command(
     if gate is not None:
         # The gateway logs become a source of the trace (SPEC.md section 8.9).
         try:
-            gateway.load(folder, read_manifest(folder), *gate)
+            source, aliases, tag, skew = gate
+            gateway.load(folder, read_manifest(folder), source, aliases, tag, skew=skew)
         except (gateway.GatewayError, RecordError) as e:
             print(f"nookku: the gateway logs were not read: {e}", file=sys.stderr)
             return 2

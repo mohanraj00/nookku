@@ -28,7 +28,7 @@ def test_case(case: Path, tmp_path: Path) -> None:
 
 
 def test_each_case_has_its_expected_file() -> None:
-    assert len(CASES) == 7
+    assert len(CASES) == 8
     assert all((c / "expect_performance.json").is_file() for c in CASES)
 
 
@@ -41,6 +41,26 @@ def test_a_harness_call_with_no_session_file_makes_the_calls_not_known(tmp_path:
     data = performance.build(folder)
     assert data["unknown"] == "model_api.jsonl has 1 call of claude-code, and no session file of it"
     assert data["turns"][0]["model_calls"] is None and data["turns"][0]["seconds"] == 10.0
+
+
+def test_a_gateway_call_of_a_harness_with_no_session_file_makes_the_calls_not_known(
+    tmp_path: Path,
+) -> None:
+    folder = copy(ROOT / "gateway_calls", tmp_path / "test")
+    rows = (folder / "gateway.jsonl").read_text().split("\n")
+    agent = "User-Agent: codex_exec/0.160.0"
+    harness = {**json.loads(rows[1]), "tags": [agent], "started": 1791273622.0}
+    (folder / "gateway.jsonl").write_text("\n".join([*rows[:-1], json.dumps(harness), ""]))
+    trace.build(folder)
+    data = performance.build(folder)
+    assert data["unknown"] == "gateway.jsonl has 1 call of codex, and no session file of it"
+
+
+def test_gateway_calls_with_no_trace_are_not_known(tmp_path: Path) -> None:
+    folder = copy(ROOT / "gateway_calls", tmp_path / "test")
+    (folder / "model_api.jsonl").unlink()
+    data = performance.build(folder)
+    assert data["unknown"] == "the test folder has gateway.jsonl and no trace.jsonl"
 
 
 def test_model_api_calls_with_no_trace_are_not_known(tmp_path: Path) -> None:

@@ -372,7 +372,7 @@ Compare the relay record with the [tap record](glossary.md#tap-record) ([SPEC.md
 ### `nookku trace`
 
 ```text
-nookku trace [TEST] [--root PATH] [--tests-dir PATH] [--json] [--egress FILE] [--gateway SOURCE --key-alias ALIAS [--key-alias ALIAS] [--gateway-tag TAG]]
+nookku trace [TEST] [--root PATH] [--tests-dir PATH] [--json] [--egress FILE] [--gateway SOURCE --key-alias ALIAS [--key-alias ALIAS] [--gateway-tag TAG] [--gateway-skew SECONDS]]
 ```
 
 Build the trace of a test again, and show its findings ([SPEC.md section 8](../../SPEC.md#8-trace)). The findings show in groups by turn, and each control character of a finding shows as its escape ([read the results](../how-to/read-the-results.md#4-read-the-findings)). It also writes `performance.json` again ([SPEC.md section 8.7](../../SPEC.md#87-performance)). If the test has a seal, it rebuilds only from sources that agree with the seal.
@@ -387,6 +387,9 @@ Build the trace of a test again, and show its findings ([SPEC.md section 8](../.
 | `--gateway SOURCE` | none | Read the model calls of the app from the spend logs of a LiteLLM gateway: a file, or the URL of the gateway API. For a URL, put a key that can read the spend logs in `NOOKKU_GATEWAY_KEY`. The URL must be `https`, or `http` to this computer ([SPEC.md section 8.9](../../SPEC.md#89-gateway-logs)). |
 | `--key-alias ALIAS` | none | Keep the logs of this key alias, for example the `kd-<agent uid>` alias of a Koodam Agent. Give it 1 or more times. `--gateway` needs it. |
 | `--gateway-tag TAG` | none | Also keep only the logs with this request tag. |
+| `--gateway-skew SECONDS` | 0 | The clock of the gateway minus the clock of this computer, from -86400 to 86400. For example, if the gateway clock is 2.5 seconds ahead, give `2.5`. The trace moves each gateway time by this value before it keeps the logs of the test window and before it matches a gateway call to a model API call ([SPEC.md section 8.9](../../SPEC.md#89-gateway-logs)). `--gateway` needs it. |
+
+If a model API proxy and the gateway both record a call of the app, the trace keeps 1 item for it, and `performance.json` counts it 1 time. The match rule is in [SPEC.md section 8.9](../../SPEC.md#89-gateway-logs).
 
 | Exit code | Meaning |
 |---|---|
