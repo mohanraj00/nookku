@@ -1,0 +1,12 @@
+{
+ "v": "0.2",
+ "exit": 0,
+ "turns": 3,
+ "exchanges": 3,
+ "blocked_calls": 0,
+ "model_sessions": 0,
+ "breaks": [],
+ "notes": [],
+ "errors": [],
+ "skipped": []
+}

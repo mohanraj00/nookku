@@ -1,0 +1,19 @@
+{
+ "copy": true,
+ "files": {
+  ".mcp-closed": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "app.log": "09236ba6935598ec776e7436c5fe19b9f206568be3b75943ac55e964f5e6528d",
+  "audit.json": "88c2e65f517c0f114cce0dc6293afa915c8756b5b98a79e8397fbab1a88c8e83",
+  "backend.jsonl": "dc1ef9eff94d0798a42cb4eed2ec347b232074ee2e8838feb9e7e291b48936ea",
+  "egress.jsonl": "627f6cef16a6a3da23afe43f5babd260dc2797fb942115ce59690f9de4cba18d",
+  "findings.json": "915260d2cd671c347469e30a7585d335273ea26ca3d0d2358fd5e9a8e9be79fd",
+  "manifest.json": "1f9289f07d522574d24f14af90855342f98c6b4d1ec76afe903aa957db2d0970",
+  "performance.json": "44f3d75042ef6ffe05d38d4754dbb32d69634b2632f255d892b1cab446b7e628",
+  "relay.jsonl": "9a92bb516cbed409e7e3d9e890dc89478cfc5a4fd3eb87ec0361526414a1ccab",
+  "tap.jsonl": "77b24c85ff6b739ac6d11612b2eef8a3a70ae77a46825089c24c8b2773e98654",
+  "trace.jsonl": "b9db980d18c50218f661e393ab8c0f7ac19385bf13eb87d2724a8d8889467e26"
+ },
+ "sealed": 1793384111.2634194,
+ "test": "20261030-181505-0fbe",
+ "v": 1
+}

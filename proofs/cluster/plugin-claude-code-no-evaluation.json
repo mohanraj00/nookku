@@ -1,0 +1,113 @@
+{
+ "date": "2026-10-30",
+ "method": "scripts/proof_cluster.py",
+ "guide": "docs/getting-started-cluster.md",
+ "test": "20261030-181505-0fbe",
+ "versions": {
+  "nookku": "0.5.6",
+  "nookku_in_pod": "0.5.6",
+  "claude-code": "2.1.302 (Claude Code)",
+  "koodam_chart": "0.3.0",
+  "koodam_controller": "ghcr.io/mohanraj00/koodam:0.3.0",
+  "koodam_workspace": "ghcr.io/mohanraj00/koodam-workspace@sha256:93ae73bd2898218af72715d8137a36ac3ac2aad98582a4485e5c9472573134f8",
+  "koodam_cli": "koodam 0.3.0",
+  "uv_in_pod": "uv 0.10.8",
+  "app_image": "python:3.13-alpine",
+  "kind": "v0.33.0",
+  "kubernetes": "v1.37.0",
+  "helm": "v4.2.3+g43e8b7f",
+  "docker": "29.5.2",
+  "os": "Darwin"
+ },
+ "disk_free_mb_after_install": 1507,
+ "W1_workspace": {
+  "phase": "Running",
+  "traced_egress": "True",
+  "plugins": [
+   "cc-plugin-agents-md@builtin",
+   "cc-plugin-plugin-authoring@builtin",
+   "cc-plugin-telemetry@builtin",
+   "nookku@nookku"
+  ],
+  "mcp_servers": [
+   "plugin:nookku:nookku"
+  ],
+  "pass": true
+ },
+ "W2_turns": {
+  "turns": [
+   {
+    "message": 1,
+    "message_same": true,
+    "reply_same": true,
+    "backend_status": 200,
+    "model_output_tokens": 0
+   },
+   {
+    "message": 2,
+    "message_same": true,
+    "reply_same": true,
+    "backend_status": 200,
+    "model_output_tokens": 0
+   },
+   {
+    "message": 3,
+    "message_same": true,
+    "reply_same": true,
+    "backend_status": 200,
+    "model_output_tokens": 0
+   }
+  ],
+  "audit_exit": 0,
+  "breaks": [],
+  "pass": true
+ },
+ "W3_egress": {
+  "export_sha256": "627f6cef16a6a3da23afe43f5babd260dc2797fb942115ce59690f9de4cba18d",
+  "export_rows": 8,
+  "copy_same": true,
+  "sealed": true,
+  "egress": {
+   "file": "egress.jsonl",
+   "rows": 8,
+   "spans": 2,
+   "hosts": [
+    "example.com"
+   ],
+   "ignored": {
+    "egress_ignore": 6
+   }
+  },
+  "harness_hosts_ignored": [
+   "api.anthropic.com"
+  ],
+  "planted_calls": {
+   "http": "HTTP/1.1 200 OK",
+   "connect_port_22": "HTTP/1.1 403 Forbidden"
+  },
+  "egress_not_in_discovery": [
+   "example.com"
+  ],
+  "egress_denied": [
+   "connect example.com port 22: denied (port)"
+  ],
+  "kinds": [
+   "connect",
+   "http",
+   "tls"
+  ],
+  "pass": true
+ },
+ "W4_evaluation": {
+  "report_written": false,
+  "report_table_rows": 0,
+  "verify": "Test 20261030-181505-0fbe. Seal: intact. No record changed after the end of the test.",
+  "answer": null,
+  "pass": null
+ },
+ "counts": {
+  "egress_not_in_discovery": 1,
+  "egress_denied": 1
+ },
+ "pass": true
+}
