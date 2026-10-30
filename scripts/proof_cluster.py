@@ -598,7 +598,11 @@ def prove(c: Cluster, koodam: str, work: Path, login_wait: float | None) -> dict
     w2["pass"] = (
         len(turns) == len(exchanges) == len(calls) == len(MESSAGES)
         and all(
-            m["message_same"] and m["reply_same"] and m["backend_status"] == 200 for m in checks
+            m["message_same"]
+            and m["reply_same"]
+            and m["backend_status"] == 200
+            and m["model_output_tokens"] == 0
+            for m in checks
         )
         and audit["exit"] == 0
     )
