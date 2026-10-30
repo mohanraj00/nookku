@@ -1,0 +1,22 @@
+{
+ "answer": {
+  "hookSpecificOutput": {
+   "hookEventName": "PreToolUse",
+   "permissionDecision": "deny",
+   "permissionDecisionReason": "nookku: {root}/.nookku/tests-dirs.json is a record or a state file of nookku. Only nookku writes it. A command may read it."
+  }
+ },
+ "event": {
+  "cwd": "{root}",
+  "hook_event_name": "PreToolUse",
+  "tool_input": {
+   "content": "{\"v\": 1, \"folders\": [\"/tmp/other\"]}",
+   "file_path": "{root}/.nookku/tests-dirs.json"
+  },
+  "tool_name": "Write"
+ },
+ "links": {},
+ "state": true,
+ "test": false,
+ "tests_dir": "remembered"
+}

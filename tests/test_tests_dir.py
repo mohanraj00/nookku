@@ -176,6 +176,86 @@ def test_a_test_in_the_folder_of_the_option_is_guarded_with_no_variable(
     finally:
         monkeypatch.setenv(state.TESTS_ENV, str(tests))
         bridge.end(root)
+    # After the end, the hook has no variable and no running test. The state file names the
+    # folder, so the guard still protects it (#507).
+    monkeypatch.delenv(state.TESTS_ENV)
+    assert state.known_tests_dirs(root) == [tests]
+    record = f"{tests}/{cur['test']}/tap.jsonl"
+    assert denied(guard(root, bash(f"rm {record}", root)))
+    assert denied(guard(root, bash(f"cd {tests.parent} && rm tests/{cur['test']}/tap.jsonl", root)))
+    assert guard(root, bash(f"cat {record}", root)) is None
+
+
+def test_the_state_file_keeps_each_tests_folder_and_only_nookku_writes_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = project(tmp_path)
+    first, second = tmp_path / "volume" / "tests", tmp_path / "other" / "tests"
+    # A test in .nookku/tests writes no file.
+    state.remember_tests_dir(root, root / STATE / "tests")
+    assert not (root / STATE / state.TESTS_DIRS).exists()
+    state.remember_tests_dir(root, first)
+    state.remember_tests_dir(root, second)
+    state.remember_tests_dir(root, first)
+    # A later test in another folder does not remove the protection of a folder before it.
+    assert state.known_tests_dirs(root) == [second, first]
+    for folder in (first, second):
+        assert denied(guard(root, bash(f"rm -r {folder}", root)))
+    for path in (f"{STATE}/{state.TESTS_DIRS}", f"{root}/{STATE}/{state.TESTS_DIRS}"):
+        assert denied(guard(root, bash(f"echo '{{}}' > {path}", root)))
+    write = {
+        "hook_event_name": "PreToolUse",
+        "cwd": str(root),
+        "tool_name": "Write",
+        "tool_input": {"file_path": f"{root}/{STATE}/{state.TESTS_DIRS}", "content": "{}"},
+    }
+    assert denied(guard(root, write))
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "not json",
+        "[]",
+        '{"v": 2, "folders": []}',
+        '{"v": 1, "folders": "/vol/tests"}',
+        '{"v": 1, "folders": ["tests"]}',
+        '{"v": 1, "folders": [""]}',
+    ],
+)
+def test_a_broken_state_file_denies_each_call_and_stops_a_start(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, text: str
+) -> None:
+    root = project(tmp_path)
+    (root / STATE / state.TESTS_DIRS).write_text(text)
+    answer = guard(root, bash("ls", root))
+    assert denied(answer)
+    assert answer is not None
+    assert state.TESTS_DIRS in answer["hookSpecificOutput"]["permissionDecisionReason"]
+    monkeypatch.setenv(state.TESTS_ENV, str(tmp_path / "volume" / "tests"))
+    with pytest.raises(bridge.BridgeError, match=state.TESTS_DIRS):
+        bridge.start(root, "tester-1")
+    assert not (tmp_path / "volume" / "tests").exists()
+
+
+@pytest.mark.parametrize(
+    ("command", "folders", "unknown"),
+    [
+        ("cd /vol && rm tests/t1/tap.jsonl", ["/vol"], False),
+        ("cd -P /vol; pushd tests", ["/vol", "tests"], False),
+        ("bash -c 'cd /vol && rm x'", ["/vol"], False),
+        ("git -C /vol rm x; make --directory=/srv", ["/vol", "/srv"], False),
+        ('cd "$VOL" && rm x', [], True),
+        ("cd - && rm x", [], True),
+        ("cd ~shop && rm x", [], True),
+        ("cd ~/vol && rm x", ["~/vol"], False),
+        ("rm tests/t1/tap.jsonl", [], False),
+    ],
+)
+def test_the_folders_that_a_command_changes_to(
+    command: str, folders: list[str], unknown: bool
+) -> None:
+    assert commands.changed_folders(command) == (folders, unknown)
 
 
 def test_a_bad_variable_denies_each_tool_call_and_blocks_the_control_prompts(

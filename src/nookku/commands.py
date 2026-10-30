@@ -630,6 +630,41 @@ def write_targets(command: str, extra: frozenset[str] = frozenset()) -> Writes |
     return Writes(targets, folders, writes or next((c for _, c in targets), refused))
 
 
+# The programs and options that run a command in another folder (#507).
+CHANGE_DIRS = {"cd", "pushd"}
+DIR_OPTIONS = {"-C", "--directory"}
+
+
+def changed_folders(command: str) -> tuple[list[str], bool]:
+    """The folders that a command can change to, in their order: the word after `cd` or `pushd`,
+    and the value of `-C` or `--directory`. The check reads the words of the whole text, so it
+    also finds a `cd` in the code of `bash -c` or in brackets. The bool is True if the command
+    changes to a folder that the check cannot know: `cd -`, or a word with `$`, `%` or `~user`.
+    The words have no shell operators, so after a `cd` with no folder, the next word counts as
+    its folder. The caller adds the home folder for this case."""
+    words = path_words(command)
+    out: list[str] = []
+    unknown = False
+    for k, word in enumerate(words):
+        j = k + 1
+        if _program(word) in CHANGE_DIRS:
+            # Skip the options of cd, for example -P.
+            while j < len(words) and words[j].startswith("-") and words[j] != "-":
+                j += 1
+            folder = words[j] if j < len(words) else ""
+        elif word in DIR_OPTIONS:
+            folder = words[j] if j < len(words) else ""
+        elif word.startswith("--directory="):
+            folder = word.split("=", 1)[1]
+        else:
+            continue
+        if folder == "-" or any(c in folder for c in "$%") or re.match(r"~[^/]", folder):
+            unknown = True
+        elif folder:
+            out.append(folder)
+    return out, unknown
+
+
 def state_rest(word: str, tests: Sequence[str] = (), cwd: str | None = None) -> list[str] | None:
     """The parts of a path after the state folder `.nookku`, or None if the word names no path in
     a state folder. The match ignores case. A glob part that starts with a dot matches the state

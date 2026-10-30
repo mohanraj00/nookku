@@ -18,7 +18,8 @@ SED = '"sed" with these arguments can write.'
 
 def _fill(value: Any, root: Path, tests: Path) -> Any:
     if isinstance(value, str):
-        return value.replace("{root}", str(root)).replace("{tests}", str(tests))
+        value = value.replace("{root}", str(root)).replace("{tests}", str(tests))
+        return value.replace("{volume}", str(tests.parent))
     if isinstance(value, dict):
         return {k: _fill(v, root, tests) for k, v in value.items()}
     return value
@@ -35,6 +36,11 @@ def test_conformance(case: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     (root / STATE).mkdir(parents=True, exist_ok=True)
     if data.get("tests_dir") == "variable":
         monkeypatch.setenv("NOOKKU_TESTS_DIR", str(tests))
+    if data.get("tests_dir") == "remembered":
+        # A test that --tests-dir started, and that ended: only the state file names the folder.
+        kit.state.remember_tests_dir(root, tests)
+    if "tests_dirs_text" in data:
+        (root / STATE / kit.state.TESTS_DIRS).write_text(_fill(data["tests_dirs_text"], root, tests))
     if "policy_text" in data:
         (root / STATE / "policy.json").write_text(data["policy_text"])
     if data["test"]:

@@ -1,0 +1,22 @@
+{
+ "answer": {
+  "hookSpecificOutput": {
+   "hookEventName": "PreToolUse",
+   "permissionDecision": "deny",
+   "permissionDecisionReason": "nookku: the hook failed (TestsDirError: {root}/.nookku/tests-dirs.json is not valid: it must be {\"v\": 1, \"folders\": [<absolute path>, ...]}. Only nookku writes this file. A person can remove it. Then the relay protects only the tests folder of NOOKKU_TESTS_DIR and of a running test.). The tool call is denied."
+  }
+ },
+ "event": {
+  "cwd": "{root}",
+  "hook_event_name": "PreToolUse",
+  "tool_input": {
+   "command": "ls"
+  },
+  "tool_name": "Bash"
+ },
+ "links": {},
+ "state": true,
+ "test": false,
+ "tests_dir": "broken",
+ "tests_dirs_text": "{\"v\": 1, \"folders\": [\"tests\"]}\n"
+}
