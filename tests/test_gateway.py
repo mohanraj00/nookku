@@ -422,3 +422,25 @@ def test_the_match_rule_of_a_gateway_call_and_a_direct_call(
 ) -> None:
     gate = {"result": {"text": "ok", "tool_calls": []}, **row}
     assert trace.same_call(direct, "openai", gate, form) is same
+
+
+def test_a_matched_call_still_gives_the_result_of_an_earlier_tool_call(tmp_path: Path) -> None:
+    """Only the gateway logged the check_stock call. The proxy and the gateway both logged the
+    next call, which holds the tool result. The tool call keeps its output."""
+    ask = [{"role": "user", "content": "Is the teapot set in stock?"}]
+    call = [{"id": "call_1", "name": "check_stock", "input": {"sku": "teapot-set"}}]
+    said = {"role": "assistant", "tool_calls": [{"id": "call_1"}]}
+    answered = [*ask, said, {"role": "tool", "tool_call_id": "call_1", "content": "3 in stock"}]
+    reply = {"text": "Yes, 3 teapot sets are in stock.", "tool_calls": []}
+    found = [
+        _chat_row(ALIAS, 1.0, ask, call),
+        {**_chat_row(ALIAS, 3.0, answered, []), "result": reply},
+    ]
+    path = tmp_path / gateway.FILE
+    path.write_text("".join(json.dumps(r) + "\n" for r in found))
+    direct = [({"started": 2.5, "ts": 4.0, "result": reply}, "chat")]
+    items, info = trace.read_gateway(path, direct)
+    assert info["same_calls"] == 1
+    assert [it["source"]["line"] for it in items] == [1, 1, 1]
+    tool = next(it for it in items if it["kind"] == "tool_call")
+    assert (tool["output"], tool["error"]) == ("3 in stock", None)

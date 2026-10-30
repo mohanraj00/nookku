@@ -840,11 +840,16 @@ def _call_items(
     file: str,
     calls: list[tuple[int, dict[str, Any], str, dict[str, Any]]],
     sessions: list[str],
+    hidden: set[int] | None = None,
 ) -> list[dict[str, Any]]:
     """The items of the model calls of model_api.jsonl or gateway.jsonl (SPEC.md sections 8.4
-    and 8.9): the user message, the assistant message and the tool calls of each call."""
+    and 8.9): the user message, the assistant message and the tool calls of each call. A call
+    with its index in `hidden` gives no item, but its request still gives the results of the
+    tool calls of the calls before it."""
     items: list[dict[str, Any]] = []
     for i, (n, row, form, request) in enumerate(calls):
+        if hidden is not None and i in hidden:
+            continue
         api = sessions[i]
         said, asked = _said(form, request), None
         if form == "decisions":
@@ -1006,6 +1011,7 @@ def read_gateway(
     calls: list[tuple[int, dict[str, Any], str, dict[str, Any]]] = []
     rows = 0
     matched: set[int] = set()
+    hidden: set[int] = set()
     for n, row in _lines(path, ignored):
         rows += 1
         if not isinstance(row, dict) or row.get("type") != "call":
@@ -1028,15 +1034,16 @@ def read_gateway(
             ),
             None,
         )
-        if same is not None:
-            matched.add(same)
-            continue
         given = row.get("request")
         # A request that LiteLLM cut gives no user message and no tool result.
         request = given if isinstance(given, dict) and row.get("request_cut") is not True else {}
+        if same is not None:
+            # The call gives no item, but its request can hold the result of an earlier tool call.
+            matched.add(same)
+            hidden.add(len(calls))
         calls.append((n, row, form, request))
     sessions = [str(row.get("key_alias") or "") for _, row, _, _ in calls]
-    items = _call_items("gateway", gateway.FILE, calls, sessions)
+    items = _call_items("gateway", gateway.FILE, calls, sessions, hidden)
     return items, {
         "file": gateway.FILE,
         "rows": rows,
