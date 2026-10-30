@@ -40,7 +40,8 @@ def test_conformance(case: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
         # A test that --tests-dir started, and that ended: only the state file names the folder.
         kit.state.remember_tests_dir(root, tests)
     if "tests_dirs_text" in data:
-        (root / STATE / kit.state.TESTS_DIRS).write_text(_fill(data["tests_dirs_text"], root, tests))
+        text = _fill(data["tests_dirs_text"], root, tests)
+        (root / STATE / kit.state.TESTS_DIRS).write_text(text)
     if "policy_text" in data:
         (root / STATE / "policy.json").write_text(data["policy_text"])
     if data["test"]:
