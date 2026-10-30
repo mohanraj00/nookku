@@ -733,12 +733,14 @@ def _call_folders(command: str | None, cwd: Path, tests: tuple[str, ...]) -> lis
     of the call, and each folder that a shell command changes to (commands.changed_folders),
     also as its real path. Thus `cd /vol && rm tests/t1/tap.jsonl` names the tests folder
     /vol/tests. If the command changes to a folder that the check cannot know, each folder above
-    a tests folder of `tests` counts too, so the guard fails closed. Only a tests folder outside a
-    state folder needs this: a path in a state folder has the part `.nookku` in each form."""
+    a tests folder of `tests` counts too, so the guard fails closed. A cd in a here-document that
+    is data (commands.strip_data_heredocs) does not run, so it does not count. Only a tests folder
+    outside a state folder needs this: a path in a state folder has the part `.nookku` in each
+    form."""
     out = [str(cwd)]
     if command is None or not tests:
         return out
-    folders, unknown = commands.changed_folders(command)
+    folders, unknown = commands.changed_folders(commands.strip_data_heredocs(command))
     if folders or unknown:
         # A cd with no folder goes to the home folder.
         out.append(os.path.expanduser("~"))

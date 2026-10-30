@@ -184,6 +184,11 @@ def test_a_test_in_the_folder_of_the_option_is_guarded_with_no_variable(
     assert denied(guard(root, bash(f"rm {record}", root)))
     assert denied(guard(root, bash(f"cd {tests.parent} && rm tests/{cur['test']}/tap.jsonl", root)))
     assert guard(root, bash(f"cat {record}", root)) is None
+    # The cd in a data here-document is text, not code, so it does not change the folders.
+    note = "cat > setup.sh <<'EOF'\ncd \"$HOME\"\nEOF\npytest tests/test_shop.py"
+    assert guard(root, bash(note, root)) is None
+    code = f"bash <<'EOF'\ncd {tests.parent}\nrm tests/{cur['test']}/tap.jsonl\nEOF"
+    assert denied(guard(root, bash(code, root)))
 
 
 def test_the_state_file_keeps_each_tests_folder_and_only_nookku_writes_it(
