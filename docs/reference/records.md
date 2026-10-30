@@ -44,6 +44,7 @@ Each test is a new conversation, with a new test id and a new entry process. The
 | `trace.jsonl` | Each message, tool call and command of those sessions, and each item of `otel.jsonl`, `backend.jsonl`, `model_api.jsonl`, `mcp.jsonl` and `database.jsonl`, with its result, its turn and its line in the source file. | [SPEC.md section 8.2](../../SPEC.md#82-trace-record) |
 | `findings.json` | The checks of the trace: failed tools and commands, agent errors, turns with no model item, and more. | [SPEC.md section 8.6](../../SPEC.md#86-findings) |
 | `performance.json` | The time, the model calls and the input and output tokens of each turn. A value that the records do not hold is `null`. | [SPEC.md section 8.7](../../SPEC.md#87-performance) |
+| `verdict.json` | `pass` or `fail` for each class of findings, with its count and the limit of the `Verdict` table of the [app spec](app-spec.md#verdict). | [SPEC.md section 7.14](../../SPEC.md#714-verdict) |
 | `audit.json` | The audit of the two records, as `nookku audit --json` prints it. | [SPEC.md section 3](../../SPEC.md#3-audit) |
 | `seal.json` | The SHA-256 of each other file at the end of the test. `nookku verify` shows if a file changed after the end. | [SPEC.md section 7.4](../../SPEC.md#74-seal) |
 | `report.md` | The model's [evaluation](glossary.md#evaluation), if it ran. | [SPEC.md section 9.3](../../SPEC.md#93-report) |

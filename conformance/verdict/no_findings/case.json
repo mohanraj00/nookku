@@ -1,0 +1,9 @@
+{
+ "files": [
+  [
+   "APP_SPEC.md",
+   "# Toy shop app spec\n\n## Verdict\n\n| Finding | Most |\n|---|---|\n| `agent_error` | 0 |\n| `repeated_reply` | 1 |\n"
+  ]
+ ],
+ "counts": null
+}
