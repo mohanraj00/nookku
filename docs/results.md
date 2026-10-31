@@ -320,24 +320,24 @@ The Codex runs used nookku 0.5.6 on 2026-10-24. Both [plugin](../proofs/egress/p
 
 ### The HTTP tap to an agent at a cluster Service URL
 
-[scripts/proof_cluster_tap.py](../scripts/proof_cluster_tap.py) makes a kind cluster. The toy shop agent runs as a Deployment in the namespace `shop`, behind the Service `toy-shop`. A plain pod in the namespace `harness` runs `nookku tap --agent http://toy-shop.shop.svc:8080/` and the project hooks relay of Claude Code with no entry. The proof sends the 5 test messages of P1 as Claude Code hook events to `nookku hook` in the pod. No harness and no model run. The app logs the exact bytes of each request body and each response body.
+[scripts/proof_cluster_tap.py](../scripts/proof_cluster_tap.py) makes a kind cluster and runs the toy shop agent behind its Service. It tests the tap in the harness pod, the tap in its own pod behind a Service, and the separate tap pod with default-deny egress in the harness namespace. No harness and no model run. The proof sends the [P1 messages](../scripts/proof_common.py) as Claude Code hook events. The app logs each request body and reply body as bytes.
 
-| # | Check | Result | Data |
-|---|---|---|---|
-| C1 | The Service name resolves to the ClusterIP of the Service in the harness pod. | pass | [results](../proofs/cluster-tap/results.json) |
-| C2 | Each message reaches the app byte for byte: the relay record, the tap record and the request body at the app agree. | 5/5 | [results](../proofs/cluster-tap/results.json), [app log](../proofs/cluster-tap/app.jsonl) |
-| C3 | Each reply reaches the relay byte for byte: the response body at the app, the tap record, the relay record and the text that the relay shows agree. | 5/5 | [results](../proofs/cluster-tap/results.json) |
-| C4 | The guard denies a `curl` call from the model to the Service URL (the option `agent_url`). | pass | [relay record](../proofs/cluster-tap/relay.jsonl) |
-| C5 | The audit finds 0 breaks, and finds each of the 5 planted faults of P4. | 0 breaks, 5/5 | [tap record](../proofs/cluster-tap/tap.jsonl), [relay record](../proofs/cluster-tap/relay.jsonl) |
+| Form | Messages and replies | Guard | Audit | Data |
+|---|---|---|---|---|
+| `same-pod` | Each message and reply is exact. | Denies the direct `curl` call. | No break. Finds each planted fault. | [results](../proofs/cluster-tap/results.json), [records](../proofs/cluster-tap/same-pod/) |
+| `service` | Each message and reply is exact through the tap Service. | Denies the direct `curl` call. | No break. Finds each planted fault. | [results](../proofs/cluster-tap/results.json), [records](../proofs/cluster-tap/service/) |
+| `default-deny` | Each allowed message and reply is exact. | Denies the direct `curl` call. The policy also blocks the direct app Service and pod IP. | Reports `not_delivered` for each deliberate denied prompt. No break in the allowed exchanges. Finds each planted fault. | [results](../proofs/cluster-tap/results.json), [records and rules](../proofs/cluster-tap/default-deny/) |
 
-The run used nookku 0.5.6, kind v0.33.0 and Kubernetes v1.37.0 on 2026-10-23. The key `versions` of the results file gives each version, also the Claude Code version of the hook events.
+In the policy form, the hook blocks a prompt before the relay rule exists and again after the proof removes it. Each attempt has a failed turn in the [relay record](../proofs/cluster-tap/default-deny/relay.jsonl), and neither attempt adds a request to the [app log](../proofs/cluster-tap/default-deny/app.jsonl). With the rule present, the policy allows the relay to reach the tap and cluster DNS. A separate rule lets the tap reach the toy shop. The policy denies egress only. The [HTTP tap guide](how-to/http-tap.md#an-agent-in-a-cluster) explains the selectors and the ingress limit.
+
+The `forms` of the [results](../proofs/cluster-tap/results.json) give each check, the run date and the tool versions, including kind. `policy.controller` records the digest of the NetworkPolicy controller. The proof uses a pinned upstream manifest and runs the controller only in its own cluster. `docker_free_mb_before` gives the free space before the run. The script checks the free space again before each form. It deletes only its own cluster and does not prune images or volumes.
 
 Limits of this proof:
 
-- The tap and the relay run in the same pod, and the relay calls the tap at `127.0.0.1:8800`. The proof does not put the tap in its own pod or behind its own Service.
-- The pods have no NetworkPolicy. In a cluster with a default-deny policy, the harness pod needs an egress rule to the Service ([#458](https://github.com/mohanraj00/nookku/issues/458)). The proof in a namespace with a default-deny policy is part of [#461](https://github.com/mohanraj00/nookku/issues/461).
-- C4 is the deny of the guard, which is best effort ([section 3](#3-what-this-does-not-prove)). In the cluster, a model can also reach the app by its pod IP or by another Service name. Such a call goes around the tap, and it is in neither record.
-- The proof uses the HTTP tap with no entry, so there is no test folder, no trace and no seal ([how-to/http-tap.md](how-to/http-tap.md)).
+- It uses the project hooks relay with no harness and no model. The denied prompt check shortens the relay timeout in that proof process only.
+- C4 is the best-effort guard check ([section 3](#3-what-this-does-not-prove)). Only the policy form also checks the network route to the app.
+- The policy applies to pods. It does not separate the relay from another process in the same harness pod. It has no ingress restriction on the tap.
+- The proof uses the HTTP tap with no entry, so there is no test folder, trace or seal ([how-to/http-tap.md](how-to/http-tap.md)).
 
 ### The setup asks before it builds
 
