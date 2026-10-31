@@ -840,16 +840,11 @@ def _call_items(
     file: str,
     calls: list[tuple[int, dict[str, Any], str, dict[str, Any]]],
     sessions: list[str],
-    hidden: set[int] | None = None,
 ) -> list[dict[str, Any]]:
     """The items of the model calls of model_api.jsonl or gateway.jsonl (SPEC.md sections 8.4
-    and 8.9): the user message, the assistant message and the tool calls of each call. A call
-    with its index in `hidden` gives no item, but its request still gives the results of the
-    tool calls of the calls before it."""
+    and 8.9): the user message, the assistant message and the tool calls of each call."""
     items: list[dict[str, Any]] = []
     for i, (n, row, form, request) in enumerate(calls):
-        if hidden is not None and i in hidden:
-            continue
         api = sessions[i]
         said, asked = _said(form, request), None
         if form == "decisions":
@@ -946,10 +941,10 @@ def read_model_api(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     }
 
 
-def direct_calls(path: Path) -> list[tuple[dict[str, Any], str]]:
-    """The row and the format of each direct model call of model_api.jsonl, for the match of the
-    gateway calls (SPEC.md section 8.9)."""
-    return [(row, form) for _, row, form, _ in _model_api_calls(path)[0]]
+def direct_calls(path: Path) -> list[tuple[int, dict[str, Any], str]]:
+    """The line, the row and the format of each direct model call of model_api.jsonl, for the
+    match of the gateway calls (SPEC.md section 8.9)."""
+    return [(n, row, form) for n, row, form, _ in _model_api_calls(path)[0]]
 
 
 GATEWAY_CUT = "the gateway log holds a cut copy of the response"
@@ -999,19 +994,26 @@ def same_call(direct: dict[str, Any], direct_form: str, row: dict[str, Any], for
 
 
 def read_gateway(
-    path: Path, direct: list[tuple[dict[str, Any], str]] | None = None
+    path: Path,
+    direct: list[tuple[int, dict[str, Any], str]] | None = None,
+    results: dict[int, list[dict[str, Any]]] | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """The call rows of gateway.jsonl (SPEC.md section 8.9). They give the items of a model API
     call (section 8.4). The session of an item is the key alias of its call. A call of a harness
     is only counted, because its session file has it. A call that is also a call of `direct`, the
-    direct calls of model_api.jsonl, is only counted, because model_api.jsonl has its bytes."""
+    direct calls of model_api.jsonl, is only counted, because model_api.jsonl has its bytes. Its
+    request still gives the results of the tool calls of earlier gateway calls. `results` gets
+    its tool call items, by the line of its direct call in model_api.jsonl, so that the trace
+    can give their results to the tool calls of the direct call (fill_results)."""
     ignored: Counter[str] = Counter()
     harness_calls: Counter[str] = Counter()
     other_calls = 0
     calls: list[tuple[int, dict[str, Any], str, dict[str, Any]]] = []
     rows = 0
     matched: set[int] = set()
-    hidden: set[int] = set()
+    # The line in gateway.jsonl of each gateway call that matches a direct call, and the line of
+    # that direct call in model_api.jsonl.
+    hidden: dict[int, int] = {}
     for n, row in _lines(path, ignored):
         rows += 1
         if not isinstance(row, dict) or row.get("type") != "call":
@@ -1029,7 +1031,7 @@ def read_gateway(
         same = next(
             (
                 j
-                for j, (d, f) in enumerate(direct or [])
+                for j, (_, d, f) in enumerate(direct or [])
                 if j not in matched and same_call(d, f, row, form)
             ),
             None,
@@ -1040,10 +1042,16 @@ def read_gateway(
         if same is not None:
             # The call gives no item, but its request can hold the result of an earlier tool call.
             matched.add(same)
-            hidden.add(len(calls))
+            hidden[n] = (direct or [])[same][0]
         calls.append((n, row, form, request))
     sessions = [str(row.get("key_alias") or "") for _, row, _, _ in calls]
-    items = _call_items("gateway", gateway.FILE, calls, sessions, hidden)
+    items = []
+    for it in _call_items("gateway", gateway.FILE, calls, sessions):
+        line = it["source"]["line"]
+        if line not in hidden:
+            items.append(it)
+        elif results is not None and it["kind"] == "tool_call":
+            results.setdefault(hidden[line], []).append(it)
     return items, {
         "file": gateway.FILE,
         "rows": rows,
@@ -1053,6 +1061,23 @@ def read_gateway(
         "other_calls": other_calls,
         "same_calls": len(matched),
     }
+
+
+def fill_results(items: list[dict[str, Any]], results: dict[int, list[dict[str, Any]]]) -> None:
+    """Give the results of the tool calls of the matched gateway calls to the tool calls of their
+    direct calls (SPEC.md section 8.9). The k-th tool call of a direct call gets the result of
+    the k-th tool call of its gateway call, only if it has no output and no error."""
+    count: Counter[int] = Counter()
+    for it in items:
+        if it["harness"] != "model_api" or it["kind"] != "tool_call":
+            continue
+        line = it["source"]["line"]
+        found = results.get(line, [])
+        k = count[line]
+        count[line] += 1
+        if k >= len(found) or it["output"] is not None or it["error"] is not None:
+            continue
+        it["output"], it["error"] = found[k]["output"], found[k]["error"]
 
 
 def _event_tool(it: dict[str, Any]) -> tuple[str | None, Any]:
@@ -1619,7 +1644,7 @@ def build(folder: Path) -> dict[str, Any]:
         found, calls = read_backend(folder / backend.FILE)
         items += found
     direct = None
-    direct_rows: list[tuple[dict[str, Any], str]] = []
+    direct_rows: list[tuple[int, dict[str, Any], str]] = []
     if (folder / model_api.FILE).exists():
         found, direct = read_model_api(folder / model_api.FILE)
         direct_rows = direct_calls(folder / model_api.FILE)
@@ -1627,7 +1652,9 @@ def build(folder: Path) -> dict[str, Any]:
     gateway_calls = None
     if (folder / gateway.FILE).exists():
         # A call that a model API proxy and the gateway both record gives 1 item (section 8.9).
-        found, gateway_calls = read_gateway(folder / gateway.FILE, direct_rows)
+        results: dict[int, list[dict[str, Any]]] = {}
+        found, gateway_calls = read_gateway(folder / gateway.FILE, direct_rows, results)
+        fill_results(items, results)
         items += found
     servers_mcp = None
     if (folder / mcp_proxy.FILE).exists():

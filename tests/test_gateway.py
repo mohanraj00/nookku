@@ -438,9 +438,59 @@ def test_a_matched_call_still_gives_the_result_of_an_earlier_tool_call(tmp_path:
     ]
     path = tmp_path / gateway.FILE
     path.write_text("".join(json.dumps(r) + "\n" for r in found))
-    direct = [({"started": 2.5, "ts": 4.0, "result": reply}, "chat")]
+    direct = [(1, {"started": 2.5, "ts": 4.0, "result": reply}, "chat")]
     items, info = trace.read_gateway(path, direct)
     assert info["same_calls"] == 1
     assert [it["source"]["line"] for it in items] == [1, 1, 1]
     tool = next(it for it in items if it["kind"] == "tool_call")
     assert (tool["output"], tool["error"]) == ("3 in stock", None)
+
+
+def test_a_matched_tool_call_gets_its_result_from_a_later_gateway_call(tmp_path: Path) -> None:
+    """The proxy and the gateway both logged the check_stock call. Only the gateway logged the
+    next call, which holds the tool result. The tool call of model_api.jsonl gets the output."""
+    ask = [{"role": "user", "content": "Is the teapot set in stock?"}]
+    call = [{"id": "call_1", "name": "check_stock", "input": {"sku": "teapot-set"}}]
+    said = {"role": "assistant", "tool_calls": [{"id": "call_1"}]}
+    answered = [*ask, said, {"role": "tool", "tool_call_id": "call_1", "content": "3 in stock"}]
+    request = json.dumps({"model": "toy", "messages": ask})
+    direct = {
+        "v": 1,
+        "type": "call",
+        "api": "openai",
+        "harness": None,
+        "started": 0.5,
+        "ts": 2.0,
+        "path": "/v1/chat/completions",
+        "request_body": {"cut": False, "text": request},
+        "status": 200,
+        "error": None,
+        "result": {"text": "", "tool_calls": call},
+    }
+    (tmp_path / "model_api.jsonl").write_text(json.dumps(direct) + "\n")
+    found = [_chat_row(ALIAS, 1.0, ask, call), _chat_row(ALIAS, 3.0, answered, [])]
+    path = tmp_path / gateway.FILE
+    path.write_text("".join(json.dumps(r) + "\n" for r in found))
+    items, _ = trace.read_model_api(tmp_path / "model_api.jsonl")
+    results: dict[int, list[dict[str, Any]]] = {}
+    more, info = trace.read_gateway(path, trace.direct_calls(tmp_path / "model_api.jsonl"), results)
+    trace.fill_results(items, results)
+    assert info["same_calls"] == 1
+    assert {it["source"]["line"] for it in more} == {2}
+    tool = next(it for it in items if it["kind"] == "tool_call")
+    assert (tool["output"], tool["error"]) == ("3 in stock", None)
+
+
+def test_a_direct_tool_output_is_never_overwritten() -> None:
+    def tool(output: Any, error: Any = None) -> dict[str, Any]:
+        row = {"harness": "model_api", "kind": "tool_call", "output": output, "error": error}
+        return {**row, "source": {"file": "model_api.jsonl", "line": 1}}
+
+    items = [tool("3 left"), tool(None, "timeout"), tool(None)]
+    given = [{"output": "0 left", "error": None}] * 3
+    trace.fill_results(items, {1: given})
+    assert [(it["output"], it["error"]) for it in items] == [
+        ("3 left", None),
+        (None, "timeout"),
+        ("0 left", None),
+    ]
