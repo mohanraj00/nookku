@@ -56,6 +56,7 @@ If a hook changes, trust it again. A new plugin script also needs a new run of `
 | The Codex app usage rule | `uv run python scripts/proof_codex_performance.py` | `proofs/performance/codex-app.json` |
 | The issue classes of the app spec | `uv run python scripts/proof_spec_classes.py <setup>` | `proofs/spec-classes/<setup>.json` |
 | Egress discovery, the MCP proxies, the Postgres proxy and the driver trace. It needs Docker. | `uv run python scripts/proof_egress.py <setup>` | `proofs/egress/<setup>.json` |
+| Egress [findings](../reference/glossary.md#findings) in the model evaluation. It needs Docker and imports planted Koodam-format spans. | `uv run python scripts/proof_egress.py <setup> --evaluate` | `proofs/egress/<setup>-evaluation.json`, `proofs/egress/evaluation/` |
 | The HTTP [tap](../reference/glossary.md#tap) to an agent at a cluster Service URL, no model. It needs Docker, kind and kubectl. | `uv run python scripts/proof_cluster_tap.py` | `proofs/cluster-tap/` |
 | A test from Claude Code in a Koodam 0.3.0 Workspace, with the egress spans and the evaluation ([getting-started-cluster.md](../getting-started-cluster.md)). It needs Docker, kind, kubectl, helm, the `koodam` CLI 0.3.0 and 1 login step. `--no-evaluation` skips the login and the evaluation. | `uv run python scripts/proof_cluster.py <setup>` | `proofs/cluster/<setup>.json` |
 | P5, the model judges the record | `uv run python scripts/proof_evaluation.py <setup>` | `proofs/evaluation/<setup>.json` |

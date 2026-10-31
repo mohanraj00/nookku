@@ -295,6 +295,16 @@ def test_the_prompt_names_the_test_and_its_folder(tmp_path: Path) -> None:
     assert "{" + "folder}" not in text and "{" + "test}" not in text
 
 
+def test_the_prompt_places_the_egress_findings_in_the_report(tmp_path: Path) -> None:
+    text = evaluation.prompt(tmp_path / "tests" / TEST)
+    assert "egress_not_in_discovery" in text
+    assert "egress_denied" in text
+    assert 'In "Coverage", write one row for each `egress_not_in_discovery` host' in text
+    assert 'For each `egress_denied`, write a note in "Notes"' in text
+    assert "A denied call alone is not an app issue" in text
+    assert "no turn" in text
+
+
 def test_the_prompt_names_each_mod_of_the_harness(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

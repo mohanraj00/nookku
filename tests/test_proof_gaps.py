@@ -224,3 +224,16 @@ def test_a_spec_class_can_cite_its_sealed_spec_copy(path: str) -> None:
 )
 def test_a_spec_class_needs_its_own_file_section_and_turn(evidence: str) -> None:
     assert not pc.cites(evidence, 2, range(18, 25), "spec/1.md")
+
+
+def test_the_egress_report_case_needs_both_findings_in_the_correct_sections() -> None:
+    case = json.loads((pe.pr.ROOT / "conformance/evaluation-egress.json").read_text())
+
+    def check(text: str) -> dict[str, bool]:
+        return pe.report_checks(text, case["host"], case["denied_host"])
+
+    assert all(check(case["report"]).values())
+    assert not all(check(case["report"].replace("## Coverage", "## Other")).values())
+    assert not all(check(case["report"].replace("egress.jsonl:2", "egress.jsonl:1")).values())
+    assert not all(check(case["report"].replace("## Notes", "## Other")).values())
+    assert not all(check(case["report"] + "A proxy saw each egress part.").values())

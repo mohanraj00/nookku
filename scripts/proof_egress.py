@@ -9,8 +9,8 @@ in the code of the app. The harness gets DATABASE_URL, as a developer has it.
 The tester types `nookku start`. The harness model reads the app and runs `nookku register` with
 its egress answer, with no help from the script. If no answer is registered, the tester types
 `nookku start` again, at most 3 times. Then the tester types `nookku start`, sends the toy shop
-messages and types `nookku end`. The test has no evaluation. The results file also records a test
-that did not start, with the last answer of the harness.
+messages and types `nookku end`. By default, the test has no evaluation. The results file also
+records a test that did not start, with the last answer of the harness.
 
 E1  The manifest has the answer of the model: the catalog server over HTTP with its variable and
     URL, the notes server over stdio with its variable, the orders database with `record: proxy`
@@ -26,11 +26,17 @@ E4  The psycopg spans of the app go to the address of the Postgres proxy, and `u
     no break. The audit finds no break, and the seal is intact.
 
 usage: python scripts/proof_egress.py SETUP (plugin-claude-code, plugin-codex, hooks-claude-code
-       or hooks-codex)
+       or hooks-codex) [--evaluate]
+
+With --evaluate, E5 imports planted Koodam-format spans after the real test, then asks the
+harness model to evaluate it. One span has a host absent from discovery, and one is denied.
+These are test inputs, not observed calls of Koodam. E5 checks the Coverage row and the denied
+call note, their source lines, and the seal after the model writes the report.
 """
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import socket
@@ -38,7 +44,7 @@ import subprocess
 import sys
 import threading
 import time
-from datetime import date
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -235,9 +241,11 @@ def matched(
 
 
 def main() -> int:
-    relay = sys.argv[1] if len(sys.argv) > 1 else ""
-    if relay not in pr.SETUPS:
-        sys.exit(f"usage: proof_egress.py {'|'.join(pr.SETUPS)}")
+    parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    parser.add_argument("relay", choices=pr.SETUPS)
+    parser.add_argument("--evaluate", action="store_true")
+    args = parser.parse_args()
+    relay = args.relay
     for port in (catalog_mcp.PORT, PG_PORT):
         if not free(port):
             sys.exit(f"the port {port} is in use. The app has it as its default.")
@@ -290,6 +298,9 @@ def main() -> int:
             catalog.server_close()
         if container is not None:
             subprocess.run(["docker", "stop", container], capture_output=True)
+    evaluation_result = None
+    if args.evaluate and ran is not None:
+        evaluation_result = evaluate_egress(project, ran[0], run, end, end_args, relay)
     hidden = pr.private(found)
     result: dict[str, Any] = {
         "date": date.today().isoformat(),
@@ -309,7 +320,7 @@ def main() -> int:
     if ran is None:
         result["versions"] = {"claude-code": version("claude"), "codex": version("codex")}
         result["pass"] = False
-        return write(relay, result)
+        return write(relay, result, evaluation=args.evaluate)
     folder, _ = ran
 
     manifest = json.loads((folder / "manifest.json").read_text())
@@ -416,7 +427,91 @@ def main() -> int:
         and result["E3_each_call_has_a_record"]
         and result["E4_no_unseen_call"]
     )
-    return write(relay, result)
+    if args.evaluate:
+        result["E5_evaluation"] = evaluation_result
+        result["pass"] = result["pass"] and bool(evaluation_result and evaluation_result["pass"])
+    return write(relay, result, evaluation=args.evaluate)
+
+
+def report_checks(report: str, host: str, denied_host: str) -> dict[str, bool]:
+    """Require each finding in its report section with the line of the planted span."""
+    sections: dict[str, list[str]] = {}
+    section = ""
+    for line in report.splitlines():
+        if line.startswith("## "):
+            section = line[3:].strip().lower()
+        else:
+            sections.setdefault(section, []).append(line)
+    coverage = sections.get("coverage", [])
+    notes = "\n".join(sections.get("notes", []))
+    return {
+        "unknown_host_in_coverage": any(
+            line.startswith("|") and host in line and "egress.jsonl:1" in line for line in coverage
+        ),
+        "denied_in_notes": denied_host in notes
+        and "egress.jsonl:2" in notes
+        and "denied" in notes.lower(),
+        "no_full_coverage_claim": "A proxy saw each egress part." not in report,
+    }
+
+
+def evaluate_egress(
+    project: Path, folder: Path, run: pr.Run, end: str, end_args: list[str], relay: str
+) -> dict[str, Any]:
+    """Import planted spans through the CLI, then run the normal end evaluation prompt."""
+    host, denied_host = "stock.extra.toy.test", "api.anthropic.com"
+    tap = [json.loads(line) for line in (folder / "tap.jsonl").read_text().splitlines()]
+    first = next(row for row in tap if row.get("type") == "exchange")
+    stamp = datetime.fromtimestamp(first["ts"], timezone.utc).isoformat()
+    common = {"v": 1, "time": stamp, "kind": "connect", "port": "443"}
+    spans = [
+        {**common, "host": host, "result": "ok"},
+        {**common, "host": denied_host, "port": "8443", "result": "denied", "reason": "port"},
+    ]
+    source = project / "proof-egress-spans.jsonl"
+    source.write_text("".join(json.dumps(span) + "\n" for span in spans))
+    subprocess.run(
+        [pr.CLI, "trace", folder.name, "--root", str(project), "--egress", str(source)],
+        check=True,
+        capture_output=True,
+        timeout=300,
+    )
+    findings = json.loads((folder / "findings.json").read_text())
+    config = project / ".nookku" / "config.json"
+    data = json.loads(config.read_text())
+    config.write_text(json.dumps({**data, "evaluate": True}))
+    answer = run(end, end_args)
+    path = folder / "report.md"
+    report = path.read_text() if path.is_file() else ""
+    checks = report_checks(report, host, denied_host)
+    intact = seal.verify(folder)["intact"]
+    hidden = pr.private(report) or pr.private(answer)
+    out = pr.ROOT / "proofs" / "egress" / "evaluation" / folder.name
+    out.mkdir(parents=True, exist_ok=True)
+    # Keep the imported input, findings and model report for review. Never store an answer
+    # that can quote the harness instruction files.
+    for name in ("egress.jsonl", "findings.json"):
+        (out / name).write_bytes((folder / name).read_bytes())
+    if not hidden:
+        (out / "report.md").write_text(pr.scrub(report, project))
+    outside = pr.outside(pr.COMMANDS, project) if relay.endswith("codex") else []
+    counts = findings["counts"]
+    return {
+        "input": "planted Koodam-format spans, not observed Koodam calls",
+        "spans": spans,
+        "counts": {name: counts[name] for name in ("egress_not_in_discovery", "egress_denied")},
+        "data": str(out.relative_to(pr.ROOT)),
+        "checks": checks,
+        "seal_intact": intact,
+        "report_withheld": hidden,
+        "commands_outside_project": outside,
+        "pass": all(checks.values())
+        and intact
+        and not hidden
+        and not outside
+        and counts["egress_not_in_discovery"] == 1
+        and counts["egress_denied"] == 1,
+    }
 
 
 def version(cli: str) -> str | None:
@@ -428,9 +523,10 @@ def version(cli: str) -> str | None:
     return p.stdout.strip()
 
 
-def write(relay: str, result: dict[str, Any]) -> int:
+def write(relay: str, result: dict[str, Any], *, evaluation: bool = False) -> int:
     """Write the results file of the setup, also for a test that did not start."""
-    out = pr.ROOT / "proofs" / "egress" / f"{relay}.json"
+    name = f"{relay}-evaluation.json" if evaluation else f"{relay}.json"
+    out = pr.ROOT / "proofs" / "egress" / name
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(result, indent=1, ensure_ascii=False) + "\n")
     print(json.dumps({k: v for k, v in result.items() if k != "discovery_answer"}))

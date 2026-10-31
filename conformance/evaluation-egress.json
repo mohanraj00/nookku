@@ -1,0 +1,8 @@
+{
+  "description": "A toy shop reaches a host that its answer did not name. A separate call is denied. A denied call alone proves no app defect.",
+  "host": "stock.extra.toy.test",
+  "denied_host": "api.anthropic.com",
+  "coverage_source": "egress.jsonl:1",
+  "denied_source": "egress.jsonl:2",
+  "report": "# Test toy-shop: evaluation\n\n## Notes\n\nAn egress_denied finding at egress.jsonl:2 records a denied connection to api.anthropic.com in turn 1 (port). It does not prove that the call completed or that the app broke a rule. Check the policy and the app error path.\n\n## Issues\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n\n## Coverage\n\n| Part | Kind | Seen by | Recommendation |\n|---|---|---|---|\n| stock.extra.toy.test | egress | Koodam egress span | egress_not_in_discovery at egress.jsonl:1 has no turn. Check the discovery answer and add a proxy for this host. |\n"
+}
