@@ -330,7 +330,7 @@ The Codex runs used nookku 0.5.6 on 2026-10-24. Both [plugin](../proofs/egress/p
 
 In the policy form, the hook blocks a prompt before the relay rule exists and again after the proof removes it. Each attempt has a failed turn in the [relay record](../proofs/cluster-tap/default-deny/relay.jsonl), and neither attempt adds a request to the [app log](../proofs/cluster-tap/default-deny/app.jsonl). With the rule present, the policy allows the relay to reach the tap and cluster DNS. A separate rule lets the tap reach the toy shop. The policy denies egress only. The [HTTP tap guide](how-to/http-tap.md#an-agent-in-a-cluster) explains the selectors and the ingress limit.
 
-The `forms` of the [results](../proofs/cluster-tap/results.json) give each check, the run date and the tool versions, including kind. `policy.controller` records the digest of the NetworkPolicy controller. The proof uses a pinned upstream manifest and runs the controller only in its own cluster. `docker_free_mb_before` gives the free space before the run. The script checks the free space again before each form. It deletes only its own cluster and does not prune images or volumes.
+The `forms` of the [results](../proofs/cluster-tap/results.json) give each check, the run date and the tool versions, including kind. `policy.controller` records the digest of the NetworkPolicy controller. `policy.image_matches_manifest` checks its running image against the expected image and repository. The proof uses a pinned upstream manifest and runs the controller only in its own cluster. `docker_free_mb_before` gives the free space before the run. The script checks the free space again before each form. It deletes only its own cluster and does not prune images or volumes.
 
 Limits of this proof:
 

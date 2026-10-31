@@ -249,6 +249,7 @@
     "manifest": "https://raw.githubusercontent.com/kubernetes-sigs/kube-network-policies/d33caa334951debb10babc3238eb3eea4edc1eda/install.yaml",
     "image": "registry.k8s.io/networking/kube-network-policies:v1.1.2",
     "controller": "registry.k8s.io/networking/kube-network-policies@sha256:c671f98e444825d57c590c92da1b5e66070917c4d3dff1f9279775e6b73254fe",
+    "image_matches_manifest": true,
     "after_removal": {
      "decision": "block",
      "reason": "nookku: cannot reach the tap at http://tap.harness.svc:8800/: <urlopen error timed out>",

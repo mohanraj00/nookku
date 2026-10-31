@@ -1,10 +1,10 @@
-"""Proof that the HTTP tap records an app agent at a cluster Service URL (#458).
+"""Proof of the HTTP tap Service and default-deny egress in a kind cluster (#508).
 
 The proof makes a kind cluster. The toy shop agent runs as a Deployment in the namespace `shop`,
 behind the Service `toy-shop` on port 8080. The harness side is a plain pod in the namespace
-`harness`. It runs `nookku tap` in front of http://toy-shop.shop.svc:8080/ and the project hooks
-relay of Claude Code with no entry. The proof sends the hook events of Claude Code to
-`nookku hook` in the pod, so no harness and no model run.
+`harness`. It runs the project hooks relay of Claude Code with no entry. The tap runs in that
+pod or behind its own Service, in front of http://toy-shop.shop.svc:8080/. The proof sends the
+hook events of Claude Code to `nookku hook` in the harness pod. No harness and no model run.
 
 The proof checks:
 
@@ -13,7 +13,8 @@ The proof checks:
   response body. The proof compares them with the relay record and the tap record.
 - C3: each reply reaches the relay byte for byte, and the relay shows it.
 - C4: the guard denies a curl call from the model to the Service URL (the option agent_url).
-- C5: the audit finds 0 breaks in the records, and finds each planted fault (P4).
+- C5: the audit finds no break in the allowed exchanges, reports each deliberately blocked
+  prompt as not_delivered, and finds each planted fault in the allowed exchanges (P4).
 
 It writes proofs/cluster-tap/results.json and the records and manifests of each form. It needs
 Docker, kind and kubectl. It deletes its cluster at the end, also if a step fails.
@@ -453,7 +454,16 @@ def prove(c: Cluster, work: Path, form: str = "same-pod") -> dict[str, Any]:
         policy["direct_service_blocked"] = not route(c, SERVICE_HOST, 8080)
         policy["direct_pod_blocked"] = not route(c, app_ip, 8080)
         policy["manifest"] = POLICY_MANIFEST
-        policy["image"] = POLICY_IMAGE
+        policy["image"] = c.k(
+            "get",
+            "pods",
+            "-n",
+            "kube-system",
+            "-l",
+            "app=kube-network-policies",
+            "-o",
+            "jsonpath={.items[0].spec.containers[0].image}",
+        ).decode()
         policy["controller"] = c.k(
             "get",
             "pods",
@@ -464,6 +474,10 @@ def prove(c: Cluster, work: Path, form: str = "same-pod") -> dict[str, Any]:
             "-o",
             "jsonpath={.items[0].status.containerStatuses[0].imageID}",
         ).decode()
+        repository = POLICY_IMAGE.rsplit(":", 1)[0]
+        policy["image_matches_manifest"] = policy["image"] == POLICY_IMAGE and policy[
+            "controller"
+        ].startswith(repository + "@sha256:")
     shown = []
     for message in MESSAGES:
         answer = hook(c, {"hook_event_name": "UserPromptSubmit", "prompt": message})
@@ -564,6 +578,7 @@ def prove(c: Cluster, work: Path, form: str = "same-pod") -> dict[str, Any]:
             or (
                 policy["before_rule"]["pass"]
                 and policy["after_removal"]["pass"]
+                and policy["image_matches_manifest"]
                 and policy["direct_service_blocked"]
                 and policy["direct_pod_blocked"]
                 and len(all_turns) == len(MESSAGES) + 2
