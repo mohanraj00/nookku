@@ -44,10 +44,19 @@ from nookku.config import STATE_DIR as STATE_DIR
 from nookku.config import ConfigError, read_config, spec_contents, spec_copy
 from nookku.config import has_entry as has_entry
 from nookku.record import RecordError, Writer, loads, turns
+from nookku.state import (
+    TESTS_DIRS,
+    TOKEN_KEY,
+    TestsDirError,
+    is_test_id,
+    lock_sends,
+    manifest_of,
+    remember_tests_dir,
+    tests_dir,
+)
 
 # The state functions are in nookku.state. These names keep the imports of bridge working.
 from nookku.state import TIMEOUT as TIMEOUT
-from nookku.state import TOKEN_KEY, TestsDirError, is_test_id, lock_sends, manifest_of, tests_dir
 from nookku.state import _children as _children
 from nookku.state import _started as _started
 from nookku.state import alive as alive
@@ -76,7 +85,16 @@ POLL = 0.5
 # The harness of the one turn of `nookku check`. A test with only such turns gets no evaluation.
 CHECK_HARNESS = "nookku-check"
 # Files in the state folder that a test writes or that switch a mode. They are not configuration.
-NOT_CONFIG = {"tests", RUNS, "current.json", "mode", "relay.jsonl", "tap.jsonl", ENDING}
+NOT_CONFIG = {
+    "tests",
+    RUNS,
+    "current.json",
+    "mode",
+    "relay.jsonl",
+    "tap.jsonl",
+    ENDING,
+    TESTS_DIRS,
+}
 SKIP_DIRS = {"node_modules", ".venv", "__pycache__", ".git"}
 # The check names the first stray lines, and gives the count of all of them.
 STRAY_SHOWN = 3
@@ -286,8 +304,14 @@ def start(
     test = f"{stamp}-{secrets.token_hex(2)}"
     try:
         tests = tests_dir(root)
+        # The relay in the harness reads this file, so it protects the folder after the test,
+        # also with no NOOKKU_TESTS_DIR (SPEC.md section 7, #507). If the write fails, no test
+        # starts, so no test is in a folder that the relay does not protect.
+        remember_tests_dir(root, tests)
     except TestsDirError as e:
         raise BridgeError(str(e)) from None
+    except OSError as e:
+        raise BridgeError(f"cannot write {STATE_DIR}/{TESTS_DIRS}: {e}") from None
     folder = tests / test
     folder.mkdir(parents=True)
     _mark(state(root))

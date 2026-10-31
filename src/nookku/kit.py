@@ -75,6 +75,7 @@ RECORDS = {
     "relay.jsonl",
     "tap.jsonl",
     "ending.json",
+    state.TESTS_DIRS,
     "seals",
     state.PAGE_FILE,
     state.SEND_LOCK,
@@ -710,11 +711,13 @@ def _in_state(path: Path, tests: tuple[str, ...] = ()) -> bool:
 
 def guard_tests(root: Path, cur: dict[str, Any] | None) -> tuple[str, ...]:
     """The tests folders outside a state folder that the guard protects as `.nookku/tests`
-    (SPEC.md section 5): the folder of NOOKKU_TESTS_DIR, and the folder of the running test's
-    folder. A command can start a test with --tests-dir, and the hook does not see the option.
-    Each folder is given as an absolute path and as its real path. A NOOKKU_TESTS_DIR that
-    breaks the rule raises TestsDirError, and the hook then denies the call (fail closed)."""
-    found = [state.tests_dir(root)]
+    (SPEC.md section 5): the folder of NOOKKU_TESTS_DIR, each folder of the file
+    state.TESTS_DIRS, and the folder of the running test's folder. A command can start a test
+    with --tests-dir, and the hook does not see the option. The file keeps such a folder after
+    the test ends (#507). Each folder is given as an absolute path and as its real path. A
+    NOOKKU_TESTS_DIR or a file that breaks its rule raises TestsDirError, and the hook then
+    denies the call (fail closed)."""
+    found = [state.tests_dir(root), *state.known_tests_dirs(root)]
     if cur is not None and isinstance(cur.get("dir"), str):
         found.append(Path(cur["dir"]).parent)
     out: list[str] = []
@@ -723,6 +726,40 @@ def guard_tests(root: Path, cur: dict[str, Any] | None) -> tuple[str, ...]:
             if commands.state_rest(path) is None and path not in out:
                 out.append(path)
     return tuple(out)
+
+
+def _call_folders(command: str | None, cwd: Path, tests: tuple[str, ...]) -> list[str]:
+    """The folders where a relative word of a call can start (SPEC.md section 5, #507): the `cwd`
+    of the call, and each folder that a shell command changes to (commands.changed_folders),
+    also as its real path. Thus `cd /vol && rm tests/t1/tap.jsonl` names the tests folder
+    /vol/tests. If the command changes to a folder that the check cannot know, each folder above
+    a tests folder of `tests` counts too, so the guard fails closed. A cd in a here-document that
+    is data (commands.strip_data_heredocs) does not run, so it does not count. Only a tests folder
+    outside a state folder needs this: a path in a state folder has the part `.nookku` in each
+    form."""
+    out = [str(cwd)]
+    if command is None or not tests:
+        return out
+    folders, unknown = commands.changed_folders(commands.strip_data_heredocs(command))
+    if folders or unknown:
+        # A cd with no folder goes to the home folder.
+        out.append(os.path.expanduser("~"))
+    last = str(cwd)
+    for folder in folders:
+        name = os.path.expanduser(folder)
+        # A relative folder starts at the folder of the cd before it, or at the cwd of the call.
+        found = [os.path.normpath(os.path.join(base, name)) for base in (last, str(cwd))]
+        last = found[0]
+        for path in found:
+            for form in (path, os.path.realpath(path)):
+                if form not in out:
+                    out.append(form)
+    if unknown:
+        for top in tests:
+            for parent in Path(top).parents:
+                if str(parent) not in out:
+                    out.append(str(parent))
+    return out
 
 
 def state_write(
@@ -746,9 +783,18 @@ def state_write(
     `.nookku/tests`."""
     cwd = _event_cwd(event, tool_input, root)
     here = str(cwd)
+    command = commands.command_of(tool, tool_input)
+    heres = _call_folders(command, cwd, tests)
 
     def rest_of(word: str) -> list[str] | None:
-        return commands.state_rest(word, tests, here)
+        for folder in heres:
+            rest = commands.state_rest(word, tests, folder)
+            if rest is not None:
+                return rest
+        return None
+
+    def named(text: str) -> list[str]:
+        return [w for w in commands.path_words(text) if rest_of(w) is not None]
 
     if tool in WRITE_TOOLS:
         fields = tool_input if isinstance(tool_input, dict) else {}
@@ -762,20 +808,19 @@ def state_write(
         return None
     if tool in FILE_TOOLS:
         return None
-    command = commands.command_of(tool, tool_input)
     if command is None:
         words = commands.state_words(tool_input, tests, here)
-        named = (w for w in words if _protected(rest_of(w) or [], during))
-        return next(((w, "") for w in named), None)
+        hits = (w for w in words if _protected(rest_of(w) or [], during))
+        return next(((w, "") for w in hits), None)
     stripped = commands.strip_data_heredocs(command)
     if during:
         if _in_state(cwd, tests):
             return str(cwd), ""
-        return next(((w, "") for w in commands.state_words(stripped, tests, here)), None)
+        return next(((w, "") for w in named(stripped)), None)
     found = commands.write_targets(command, extra)
     if found is None:
         # The check cannot parse the command, so each word that names the state folder counts.
-        return next(((w, UNPARSED) for w in commands.state_words(stripped, tests, here)), None)
+        return next(((w, UNPARSED) for w in named(stripped)), None)
     for word, cause in found.targets:
         # An argument can be code, for example python3 -c "open('<path>', 'w')". So each path in
         # it counts, not only the whole word.

@@ -1,0 +1,21 @@
+{
+ "answer": {
+  "hookSpecificOutput": {
+   "hookEventName": "PreToolUse",
+   "permissionDecision": "deny",
+   "permissionDecisionReason": "nookku: tests/t1/tap.jsonl is a record or a state file of nookku. Only nookku writes it. A command may read it. \"rm\" is not a read command."
+  }
+ },
+ "event": {
+  "cwd": "{root}",
+  "hook_event_name": "PreToolUse",
+  "tool_input": {
+   "command": "cd \"$VOLUME\" && rm tests/t1/tap.jsonl"
+  },
+  "tool_name": "Bash"
+ },
+ "links": {},
+ "state": true,
+ "test": false,
+ "tests_dir": "variable"
+}
