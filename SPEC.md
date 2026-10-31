@@ -1179,7 +1179,7 @@ Each turn has these fields:
 | `input_tokens` | integer or null | The sum of the input tokens of the calls of the turn, with the cached tokens. `null` if a call of the turn has no input tokens, or if `unknown` is not `null`. |
 | `output_tokens` | integer or null | The sum of the output tokens of the calls of the turn. `null` if a call of the turn has no output tokens, or if `unknown` is not `null`. Thus a turn can have its input tokens and no output tokens, or the opposite. |
 | `no_usage` | integer or null | The count of calls of the turn with no input or no output tokens. `null` if `unknown` is not `null`. |
-| `sources` | list or null | One object for each model session and each model API that has a call in the turn, sorted by `harness` and then `session`: `harness` and `session` as in section 8.2, and `model_calls`, `input_tokens`, `output_tokens` and `no_usage` of its calls. `null` if `unknown` is not `null`. |
+| `sources` | list or null | One object for each model session, each model API and each gateway key alias that has a call in the turn, sorted by `harness` and then `session`: `harness` and `session` as in section 8.2, and `model_calls`, `input_tokens`, `output_tokens` and `no_usage` of its calls. `null` if `unknown` is not `null`. |
 
 A value that the records do not hold is `null`, never 0. A count is an integer from 0 to 2^53 - 1. A token value of a record that is not such an integer is not known. A sum above 2^53 - 1 is not known. A turn with no call has `model_calls` 0, `input_tokens` 0 and `output_tokens` 0: the records show no call.
 
@@ -1188,8 +1188,9 @@ A call is in turn `n` if its time is in the window of turn `n` (section 8.3). Th
 - **Claude Code** session file. Each line of type `assistant` that has a `message` and no `isMeta` belongs to a call. Claude Code writes one line for each content block of a message, and each line has the same `message.id` and `usage`. Thus the lines with one `message.id` are one call, else the lines with one `requestId`, else one line is one call. A message with the `model` `<synthetic>` is not a call: Claude Code writes it itself, for example after an API error. The time of a call is the `timestamp` of its first line. Its usage is the `message.usage` of its last line. The input tokens are `input_tokens` plus `cache_creation_input_tokens` and `cache_read_input_tokens` (0 if a key is not there or is `null`).
 - **Codex** rollout file. Each line of type `event_msg` with a payload of type `token_count` and an object `info.last_token_usage` is one call. A line with the same `info.total_token_usage` as the call before it is a repeat, not a call. Its time is the `timestamp` of the line. The tokens are `input_tokens` and `output_tokens` of `last_token_usage`. Codex counts the cached tokens in `input_tokens`.
 - **Direct calls**: each `model_api` assistant message of `trace.jsonl` (section 8.4) is one call, with the turn and the time of the item. The tokens come from `usage` of its `input`. For the API `anthropic`, the rule of Claude Code applies. For another API, the tokens are `prompt_tokens` and `completion_tokens` (Chat Completions), else `input_tokens` and `output_tokens` (Responses). These include the cached tokens. A call with `cut` in its `input` has no usage: a cut result can hold the usage of the start of the response only. The count of direct calls trusts the egress answer (section 7.11). A proxy records the calls to each API of `model_apis` only. If the app also calls an API that the answer does not name, no record holds that call, and the count is too low. The summary does not read the `unseen_call` findings (section 8.6): such a finding can name a call to a backend or to a database, and a span does not say if its URL is a model API. The evaluation reads these findings.
+- **Gateway calls**: each `gateway` assistant message of `trace.jsonl` (section 8.9) is one call, with the turn and the time of the item. `harness` is `gateway` and `session` is the key alias. The tokens come from `usage` of its `input`, with the rule of direct calls. LiteLLM can store the usage of a Messages call in the Chat Completions form. Thus the rule of Claude Code applies only to a call with the path `/v1/messages` and a usage with no `prompt_tokens` and no `completion_tokens`. A call with `cut` in its `input` has no usage. The trace has no item for a gateway call that is also a direct call, and no item for a gateway call of a harness (section 8.9). Thus no call is counted 2 times.
 
-A call of a harness that the model API proxy saw (section 7.7) is not a second call. It is a call of the harness session, and its session file has it. The performance proof ([docs/results.md](docs/results.md#time-and-tokens-of-each-turn)) measured this for the Agent SDK session of the full toy shop: in each of 2 runs, the proxy saw 6 harness calls, and the session file gave 6 calls ([plugin-claude-code.json](proofs/performance/plugin-claude-code.json), [hooks-claude-code.json](proofs/performance/hooks-claude-code.json), keys `model_api.harness_calls` and `performance`). Nookku does not compare the 2 counts, because a harness can make a call that it does not write in the session file.
+A call of a harness that the model API proxy saw (section 7.7), or that the gateway logged (section 8.9), is not a second call. It is a call of the harness session, and its session file has it. The performance proof ([docs/results.md](docs/results.md#time-and-tokens-of-each-turn)) measured this for the Agent SDK session of the full toy shop: in each of 2 runs, the proxy saw 6 harness calls, and the session file gave 6 calls ([plugin-claude-code.json](proofs/performance/plugin-claude-code.json), [hooks-claude-code.json](proofs/performance/hooks-claude-code.json), keys `model_api.harness_calls` and `performance`). Nookku does not compare the 2 counts, because a harness can make a call that it does not write in the session file.
 
 `unknown` is the first of these reasons, in this order:
 
@@ -1197,9 +1198,9 @@ A call of a harness that the model API proxy saw (section 7.7) is not a second c
 |---|---|
 | A model session of the manifest has no reader or no file in the test folder. | `the model session <session> (<harness>) has no session file` |
 | The manifest has no egress answer with a `model_apis` list (section 7.11). The model API proxies start only from this answer, so no record holds the direct model calls of the app. A test of nookku 0.5.1 or earlier has no egress answer. | `the test has no egress answer, so no proxy recorded the direct model calls` |
-| The manifest has no model session, and the test folder has no `model_api.jsonl`. | `the test has no model session and no model_api.jsonl` |
-| The test folder has `model_api.jsonl` and no `trace.jsonl`. | `the test folder has model_api.jsonl and no trace.jsonl` |
-| `model_api.jsonl` has a harness call of a harness with no model session in the manifest. | `model_api.jsonl has <n> call(s) of <harness>, and no session file of it` (`1 call` or `<n> calls`) |
+| The manifest has no model session, and the test folder has no `model_api.jsonl` and no `gateway.jsonl`. | `the test has no model session and no model_api.jsonl` |
+| The test folder has `model_api.jsonl` or `gateway.jsonl`, and no `trace.jsonl`. `<file>` is the first of the 2 files that the folder has. | `the test folder has <file> and no trace.jsonl` |
+| `model_api.jsonl` or `gateway.jsonl` has a harness call of a harness with no model session in the manifest. A call of `gateway.jsonl` is a harness call by the rule of section 8.9. `model_api.jsonl` comes first. | `<file> has <n> call(s) of <harness>, and no session file of it` (`1 call` or `<n> calls`) |
 | A session file gives no call, but the trace has a reply, a tool call or a command of that session. | `the session file of <session> has model items and no model call` |
 
 The cases in [`conformance/performance/`](conformance/performance/) give the input records and the expected `performance.json`. The Codex rule is checked with a real Codex app session. The [data](proofs/performance/codex-app.json) records the tested Codex version, the usage notifications, the rollout usage and the checks. The [method](scripts/proof_codex_performance.py) compares each turn of `performance.json` with the app-server usage notifications. It records the count of repeated totals; the conformance cases check the repeat rule when the real session has no repeat.
@@ -1252,25 +1253,25 @@ Each finding has `harness` `egress`, `session` (the host, or `""`) and `source` 
 
 An app can get its model key from a LiteLLM gateway. Then the spend logs of the gateway have each model call of that key. In a Koodam cluster, each Agent has 1 gateway key with the alias `kd-<agent uid>`, and a Workspace can have a key with the alias `ws-<namespace>-<name>-<hash8>`. The tester gives the alias to Nookku. Koodam has no key for each test, so the match uses the key alias and the time window of the test.
 
-`nookku trace [TEST] --gateway SOURCE --key-alias ALIAS [--key-alias ALIAS] [--gateway-tag TAG]` reads the logs and writes `gateway.jsonl` in the test folder. Then it builds the trace. `--gateway` needs 1 or more `--key-alias`, and the opposite. Else the command exits with code 2. Nookku sends nothing to the gateway except the read of its logs.
+`nookku trace [TEST] --gateway SOURCE --key-alias ALIAS [--key-alias ALIAS] [--gateway-tag TAG] [--gateway-skew SECONDS]` reads the logs and writes `gateway.jsonl` in the test folder. Then it builds the trace. `--gateway` needs 1 or more `--key-alias`, and the opposite. `--gateway-tag` and `--gateway-skew` need `--gateway`. Else the command exits with code 2. Nookku sends nothing to the gateway except the read of its logs.
 
 1. If the test has a seal, the command checks it first (section 7.4). If the seal is broken, it reads no log and changes no file.
 2. The test must have `started` and `ended` in the manifest. Else the command stops with `the test has no start or no end time. End the test first.`
 3. It reads the logs from `SOURCE`:
-   - An `http` or `https` URL is the base URL of the gateway API. The command sends `GET <base>/spend/logs?start_date=<day>&end_date=<day>&summarize=false`, with the UTC day of `started` and the UTC day after `ended`. The header is `Authorization: Bearer <key>`, with the key from the variable `NOOKKU_GATEWAY_KEY`. The command refuses a URL with a query, a URL that is not valid, and an empty key. It sends the key only over `https`, or over `http` to a loopback host: `localhost`, a name that ends with `.localhost`, or a loopback IP address. It refuses each other `http` URL before it sends a request, because the key would go over a network as plain text. It does not follow a redirect, so the key goes to no other URL. The wait is 60 seconds.
+   - An `http` or `https` URL is the base URL of the gateway API. The command sends `GET <base>/spend/logs?start_date=<day>&end_date=<day>&summarize=false`, with the UTC day of `started` and the UTC day after `ended`, on the clock of the gateway: each time plus the skew (see **Clock**). The header is `Authorization: Bearer <key>`, with the key from the variable `NOOKKU_GATEWAY_KEY`. The command refuses a URL with a query, a URL that is not valid, and an empty key. It sends the key only over `https`, or over `http` to a loopback host: `localhost`, a name that ends with `.localhost`, or a loopback IP address. It refuses each other `http` URL before it sends a request, because the key would go over a network as plain text. It does not follow a redirect, so the key goes to no other URL. The wait is 60 seconds.
    - Any other `SOURCE` is a file: the output of `GET /spend/logs`.
    - The logs are a JSON list, an object with a `data` list (`GET /spend/logs/v2`), or one JSON object on each line. The command reads at most 256 MiB, a chosen limit, because it holds all of the logs in memory.
 4. It keeps a log if all of these are true. Else it counts the log in `skipped` by the first reason that applies:
    - `not_a_log`: the log is a JSON object.
    - `other_key`: `metadata.user_api_key_alias` is one of the `--key-alias` values.
-   - `outside_test`: `startTime` is from `started` to `ended` of the manifest, both ends included. A time with no zone is UTC.
+   - `outside_test`: `startTime` minus the skew is from `started` to `ended` of the manifest, both ends included. A time with no zone is UTC.
    - `no_tag`: with `--gateway-tag`, `request_tags` has the tag.
 5. It writes `gateway.jsonl`: a `source` row, then a `call` row for each kept log, sorted by `started`.
 6. It builds the trace. If the test has a seal, it writes the SHA-256 of `gateway.jsonl`, `trace.jsonl`, `findings.json` and `performance.json` to the seal and to the copy. If the build fails after the read, for example because `tap.jsonl` is not valid, the seal still gets the SHA-256 of `gateway.jsonl`, as for `egress.jsonl` (section 8.8).
 
 If the command cannot read the logs, it prints `nookku: the gateway logs were not read: <reason>`, exits with code 2, and changes no file. A later `nookku trace` with no `--gateway` reads `gateway.jsonl` again.
 
-**Clock.** The window uses the clock of the computer that ran the test. `startTime` uses the clock of the gateway. If the 2 clocks differ by more than the time from the start of the test to the first call, the first call can show as `outside_test`. Compare the `kept` count with the count of model calls that you expect.
+**Clock.** The window uses the clock of the computer that ran the test. `startTime` and `endTime` use the clock of the gateway. `--gateway-skew SECONDS` gives the clock of the gateway minus the clock of the test computer, for example `2.5` if the gateway clock is 2.5 seconds ahead. The default is 0. The command subtracts the skew from each time of a log, so `gateway.jsonl` holds each time on the clock of the test computer. The skew must be a number of seconds from -86400 to 86400, a chosen limit. Else the command stops with `the gateway skew <value> is not valid` and the rule of a log that cannot be read. If the skew is wrong by more than the time from the start of the test to the first call, the first call can show as `outside_test`. Compare the `kept` count with the count of model calls that you expect. The case [`conformance/gateway/skew/`](conformance/gateway/skew/) gives a gateway clock 5 seconds ahead.
 
 **Tags.** LiteLLM 1.104.2 keeps the tags of a request in `request_tags`: the `metadata.tags` of the body, and the `x-litellm-tags` header. It also adds a `User-Agent: <agent>` tag. Thus an app can send a tag, and `--gateway-tag` keeps only its calls. The model API proxies of Nookku (section 7.7) add no tag. They forward each byte. The [data](proofs/gateway/results.json) records the LiteLLM version, the tags, the counts of each read and the checks. The [method](scripts/proof_gateway.py) starts LiteLLM and Postgres in Docker with a toy model, so it uses no model. A toy app makes calls with 2 keys, before the test and in 2 turns. Then the method reads the logs from the API and from a file.
 
@@ -1283,6 +1284,7 @@ If the command cannot read the logs, it prints `nookku: the gateway logs were no
 | `key_aliases` | `source` | The `--key-alias` values. |
 | `tag` | `source` | The `--gateway-tag` value, or `null`. |
 | `window` | `source` | `[started, ended]` of the manifest. |
+| `skew` | `source` | The `--gateway-skew` value in seconds, or `0.0`. |
 | `read` | `source` | The Unix time of the read. |
 | `kept` | `source` | The count of `call` rows. |
 | `skipped` | `source` | The count of the skipped logs, by reason. |
@@ -1291,7 +1293,7 @@ If the command cannot read the logs, it prints `nookku: the gateway logs were no
 | `api`, `path` | `call` | For `completion` and `acompletion`: `openai` and `/v1/chat/completions`. For `anthropic_messages`: `anthropic` and `/v1/messages`. For `responses` and `aresponses`: `openai` and `/v1/responses`. Else `null`. |
 | `key_alias` | `call` | `metadata.user_api_key_alias`. |
 | `tags` | `call` | The strings of `request_tags`. |
-| `started`, `ts` | `call` | The Unix time of `startTime` and of `endTime`, or `null`. |
+| `started`, `ts` | `call` | The Unix time of `startTime` and of `endTime`, minus the skew, or `null`. |
 | `status` | `call` | For a log with a `status` that is not `success`: `metadata.error_information.error_code` as an integer, if it has 1 to 3 digits. Else `null`. |
 | `error` | `call` | For a log with a `status` that is not `success`: `metadata.error_information.error_message`, else `the gateway logged the status <status>`. Else `null`. |
 | `request` | `call` | `proxy_server_request`, with no key that can hold a secret (below), or `null`. |
@@ -1305,16 +1307,30 @@ The request keeps no `metadata`, `litellm_metadata`, `litellm_call_id` or `extra
 
 - The result of a tool call must come from a later call of the same key alias, because 2 keys are 2 apps that can use the same tool call id.
 - `harness` is `gateway`, `source.file` is `gateway.jsonl`, and `session` is the `key_alias` of the call.
+- A call with a tag `User-Agent: <agent>` is a harness call if `<agent>` is the User-Agent of a harness, with the rule of section 7.7. It is counted in `harness_calls` by its harness, and gives no item, because the session file of the harness has the call.
+- A call that is also a direct call of `model_api.jsonl` (below) is counted in `same_calls`, and gives no item. Its request still gives the result of a tool call of an earlier gateway call, for example a `check_stock` call that only the gateway logged. Its tool calls still get their results from later gateway calls. The k-th tool call of the direct call gets the result of the k-th tool call of the gateway call if it has no output and no error. Thus a `check_stock` call that both sources logged gets its result from a later call that only the gateway logged.
 - A row that is not a `call` is counted by its type. A `call` of another `call_type`, for example `aembedding`, is counted in `other_calls`, and gives no item.
 - A request with `request_cut: true` gives no user message and no tool result.
 - If `response_cut` is `true`, the `input` of the assistant message has `cut: "the gateway log holds a cut copy of the response"`.
 
-A `gateway` assistant message counts as a model text for `reply_not_from_model`, and an error or a status of 400 or more gives `model_api_error` (section 8.6). `findings.json` has a `gateway` key only if the test folder has `gateway.jsonl`: `file`, `rows`, `items`, `ignored` and `other_calls`, as for `model_api`. The case [`conformance/trace/gateway_toy_shop/`](conformance/trace/gateway_toy_shop/) gives the trace. The cases in [`conformance/gateway/`](conformance/gateway/) give the spend logs, the manifest, the options and the expected `gateway.jsonl`.
+A `gateway` assistant message counts as a model text for `reply_not_from_model`, and an error or a status of 400 or more gives `model_api_error` (section 8.6).
+
+**One call, 2 records.** A model API proxy (section 7.7) can forward a call of the app to the gateway. Then `model_api.jsonl` and `gateway.jsonl` both have the call. The trace keeps the items of `model_api.jsonl`, because the proxy records the bytes on the wire. A gateway call and a direct call of `model_api.jsonl` (a call with no `harness`) are 1 call if all of these are true:
+
+- They have the same format of section 7.7, for example Chat Completions.
+- Each time of the gateway call that is not `null`, `started` and `ts`, is from `started` minus 1 second to `ts` plus 1 second of the direct call. A direct call with no `ts` uses its `started`. A gateway call with no time matches no call. The margin of 1 second is a chosen value, not a measurement. For a larger difference of the 2 clocks, give `--gateway-skew`.
+- The 2 results have the same `text` and the same tool calls, with the same `name` and `input` in the same order. A missing result has the text `""` and no tool call. The ids of the tool calls are not compared, because LiteLLM can store a response in the form of another API.
+- Neither record holds a cut copy of the response: the direct result has no `cut`, and the gateway call has `response_cut` `false`.
+
+The trace reads the gateway calls in the order of `gateway.jsonl`. Each gateway call matches the first direct call, in the order of `model_api.jsonl`, that matches no earlier gateway call. Thus a direct call matches 1 gateway call at most. The case [`conformance/trace/gateway_same_call/`](conformance/trace/gateway_same_call/) gives a match, a call with the same answer after the match, a call with another answer, a call outside the margin, and a harness call.
+
+`findings.json` has a `gateway` key only if the test folder has `gateway.jsonl`: `file`, `rows`, `items`, `ignored`, `harness_calls` and `other_calls`, as for `model_api`, and `same_calls`, the count of the gateway calls that are also direct calls. The case [`conformance/trace/gateway_toy_shop/`](conformance/trace/gateway_toy_shop/) gives the trace. The cases in [`conformance/gateway/`](conformance/gateway/) give the spend logs, the manifest, the options and the expected `gateway.jsonl`.
 
 **Limits.**
 
-- `performance.json` (section 8.7) does not count the calls of `gateway.jsonl`.
-- If a model API proxy and the gateway both record a call, the trace has 2 items for it.
+- Koodam gives no key for each test ([koodam#192](https://github.com/mohanraj00/koodam/issues/192) is open). Thus the read keeps the calls by the key alias, the time window and the optional tag only. A call of the same key in the window from another app is in the trace.
+- If a model API proxy and the gateway both record a call, and one record holds a cut copy of the response, the trace has 2 items for it, and `performance.json` counts 2 calls.
+- A harness call with no `User-Agent` tag of a harness gives items, as a call of the app.
 
 
 ## 9. Evaluation

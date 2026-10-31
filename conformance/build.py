@@ -2927,6 +2927,7 @@ GATEWAY_SOURCE = {
     "key_aliases": [AGENT_ALIAS, WORKSPACE_ALIAS],
     "tag": None,
     "window": [T0, T0 + 50],
+    "skew": 0.0,
     "read": T0 + 60,
     "kept": 6,
     "skipped": {"other_key": 1},
@@ -3085,7 +3086,159 @@ GATEWAY_CASE = {
             "rows": 7,
             "items": 8,
             "ignored": {"source": 1},
+            "harness_calls": {},
             "other_calls": 1,
+            "same_calls": 0,
+        },
+    },
+}
+
+
+# A call that 2 sources record (SPEC.md section 8.9): the model API proxy and the gateway. The toy
+# shop agent asks the model for a gift note, and the proxy forwards the call to the gateway.
+GIFT_ASK = "Write a gift note for Sam for the teapot set."
+GIFT = "Happy birthday, Sam! Enjoy the teapot set."
+OTHER_GIFT = "Happy birthday, Ana! Enjoy the teapot set."
+CLAUDE_AGENT = "User-Agent: claude-cli/2.1.301 (external, sdk-py)"
+
+
+def gift_call(t: float, alias: str, text: str, ask: str = GIFT_ASK) -> dict:
+    """A gateway call of the toy shop agent with its request and its answer."""
+    return gcall(
+        t,
+        alias,
+        "acompletion",
+        request={"model": "toy", "messages": [{"role": "user", "content": ask}]},
+        response=completion(text),
+        result=result(model="toy", text=text, stop_reason="stop", usage=GATEWAY_USAGE),
+    )
+
+
+# Line 1 of model_api.jsonl is the gift note call from 11 to 13. Line 2 is a call from 15 to 16
+# that the gateway logged at 16.5 to 17.5, outside the margin of 1 second. In gateway.jsonl:
+# line 2 is the gift note call, which matches line 1 of model_api.jsonl and gives no item. Line 3
+# has the same answer in the same time, but line 1 of model_api.jsonl matches 1 gateway call
+# only. Line 4 is a call at the same time with another answer. Line 6 is a call of a harness.
+SAME_CALL_CASE = {
+    "tap": [window(10, 20, reply=GIFT)],
+    "manifest": {"test": "20261006-080000-gw03", "model_sessions": []},
+    "sessions": {},
+    "model_api": [
+        mcall(
+            11,
+            "openai",
+            GATEWAY_COMPLETIONS,
+            200,
+            {"model": "toy", "messages": [{"role": "user", "content": GIFT_ASK}]},
+            took=2,
+            response=json.dumps(completion(GIFT)),
+            result=result(model="toy", text=GIFT, stop_reason="stop", usage=GATEWAY_USAGE),
+        ),
+        mcall(
+            15,
+            "openai",
+            GATEWAY_COMPLETIONS,
+            200,
+            {"model": "toy", "messages": [{"role": "user", "content": WHERE}]},
+            response=json.dumps(completion(SHIPS)),
+            result=result(model="toy", text=SHIPS, stop_reason="stop", usage=GATEWAY_USAGE),
+        ),
+    ],
+    "gateway": [
+        {**GATEWAY_SOURCE, "window": [T0, T0 + 30], "kept": 5, "skipped": {}},
+        gift_call(11.5, AGENT_ALIAS, GIFT),
+        gift_call(11.8, AGENT_ALIAS, GIFT),
+        gift_call(12, AGENT_ALIAS, OTHER_GIFT),
+        gift_call(16.5, AGENT_ALIAS, SHIPS, ask=WHERE),
+        gcall(18, AGENT_ALIAS, "anthropic_messages", tags=[CLAUDE_AGENT]),
+    ],
+    "trace": [
+        mitem(1, "openai", 11, 1, "message", role="user", output=GIFT_ASK),
+        gitem(1, AGENT_ALIAS, 11.8, 3, "message", role="user", output=GIFT_ASK),
+        gitem(1, AGENT_ALIAS, 12, 4, "message", role="user", output=GIFT_ASK),
+        gitem(
+            1,
+            AGENT_ALIAS,
+            12.8,
+            3,
+            "message",
+            role="assistant",
+            input=info(GATEWAY_COMPLETIONS, "toy", "stop", GATEWAY_USAGE),
+            output=GIFT,
+        ),
+        mitem(
+            1,
+            "openai",
+            13,
+            1,
+            "message",
+            role="assistant",
+            input=info(GATEWAY_COMPLETIONS, "toy", "stop", GATEWAY_USAGE),
+            output=GIFT,
+            exit_code=200,
+        ),
+        gitem(
+            1,
+            AGENT_ALIAS,
+            13,
+            4,
+            "message",
+            role="assistant",
+            input=info(GATEWAY_COMPLETIONS, "toy", "stop", GATEWAY_USAGE),
+            output=OTHER_GIFT,
+        ),
+        mitem(1, "openai", 15, 2, "message", role="user", output=WHERE),
+        mitem(
+            1,
+            "openai",
+            16,
+            2,
+            "message",
+            role="assistant",
+            input=info(GATEWAY_COMPLETIONS, "toy", "stop", GATEWAY_USAGE),
+            output=SHIPS,
+            exit_code=200,
+        ),
+        gitem(1, AGENT_ALIAS, 16.5, 5, "message", role="user", output=WHERE),
+        gitem(
+            1,
+            AGENT_ALIAS,
+            17.5,
+            5,
+            "message",
+            role="assistant",
+            input=info(GATEWAY_COMPLETIONS, "toy", "stop", GATEWAY_USAGE),
+            output=SHIPS,
+        ),
+    ],
+    "findings": {
+        "v": "0.2",
+        "test": "20261006-080000-gw03",
+        "turns": 1,
+        "items": 10,
+        "sessions": [],
+        "otel": None,
+        "backend": None,
+        "model_api": {
+            "file": "model_api.jsonl",
+            "rows": 2,
+            "items": 4,
+            "ignored": {},
+            "harness_calls": {},
+            "other_calls": 0,
+        },
+        "mcp": None,
+        "database": None,
+        "counts": counts(),
+        "findings": [],
+        "gateway": {
+            "file": "gateway.jsonl",
+            "rows": 6,
+            "items": 6,
+            "ignored": {"source": 1},
+            "harness_calls": {"claude-code": 1},
+            "other_calls": 0,
+            "same_calls": 1,
         },
     },
 }
@@ -3200,7 +3353,14 @@ TOY_SHOP_LOGS = [
 GATEWAY_MANIFEST = {"test": "20261006-080000-gw02", "started": T0, "ended": T0 + 50}
 
 
-def gsource(source: str, aliases: list[str], tag: str | None, kept: int, skipped: dict) -> dict:
+def gsource(
+    source: str,
+    aliases: list[str],
+    tag: str | None,
+    kept: int,
+    skipped: dict,
+    skew: float = 0.0,
+) -> dict:
     return {
         "v": 1,
         "type": "source",
@@ -3209,6 +3369,7 @@ def gsource(source: str, aliases: list[str], tag: str | None, kept: int, skipped
         "key_aliases": aliases,
         "tag": tag,
         "window": [T0, T0 + 50],
+        "skew": skew,
         "kept": kept,
         "skipped": skipped,
     }
@@ -3310,6 +3471,31 @@ GATEWAY_READ_CASES = {
                 "acompletion",
                 request_id="req-20",
             ),
+        ],
+    },
+    # The clock of the gateway is 5 seconds ahead of the clock of the test computer. With
+    # --gateway-skew 5, the log at 16 on the gateway clock is the call at 11 of the test, the log
+    # at 3 is before the test, and the log at 55 is at the end of the test.
+    "skew": {
+        "source": "spend_logs.json",
+        "logs": [
+            spend_log(
+                16,
+                AGENT_ALIAS,
+                "acompletion",
+                proxy_server_request=SPEND_REQUEST,
+                response=completion(None, [GATEWAY_CALL], "tool_calls"),
+            ),
+            spend_log(3, AGENT_ALIAS, "acompletion"),
+            spend_log(55, AGENT_ALIAS, "acompletion"),
+        ],
+        "key_aliases": [AGENT_ALIAS],
+        "tag": None,
+        "skew": 5.0,
+        "expect": [
+            gsource("spend_logs.json", [AGENT_ALIAS], None, 2, {"outside_test": 1}, skew=5.0),
+            {**TOOL_ROW, "request_id": "req-16"},
+            gcall(50, AGENT_ALIAS, "acompletion", request_id="req-55"),
         ],
     },
 }
@@ -6106,6 +6292,7 @@ TRACE_CASES = {
     "model_api_cut": CUT_CASE,
     "model_api_decisions_cut": DECISIONS_CUT_CASE,
     "gateway_toy_shop": GATEWAY_CASE,
+    "gateway_same_call": SAME_CALL_CASE,
     "repeated_reply": REPEATED_CASE,
     "repeated_reply_three": REPEATED_THREE_CASE,
     "repeated_reply_off": REPEATED_OFF_CASE,
@@ -8259,6 +8446,7 @@ def main() -> None:
         text = json.dumps(case["logs"], indent=1, ensure_ascii=False)
         (d / case["source"]).write_text(text + "\n", encoding="utf-8")
         given = {k: case[k] for k in ("source", "key_aliases", "tag")}
+        given["skew"] = case.get("skew", 0.0)
         (d / "case.json").write_text(json.dumps(given, indent=1) + "\n")
         write(d / "expect_gateway.jsonl", case["expect"])
     shutil.rmtree(OTLP, ignore_errors=True)

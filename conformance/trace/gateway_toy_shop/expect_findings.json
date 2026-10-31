@@ -16,7 +16,9 @@
   "ignored": {
    "source": 1
   },
-  "other_calls": 1
+  "harness_calls": {},
+  "other_calls": 1,
+  "same_calls": 0
  },
  "egress": null,
  "trace_points": null,

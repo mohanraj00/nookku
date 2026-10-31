@@ -27,7 +27,8 @@ def test_case(case: Path, tmp_path: Path) -> None:
     given = json.loads((case / "case.json").read_text())
     manifest = json.loads((case / "manifest.json").read_text())
     source = str(case / given["source"])
-    head = gateway.load(tmp_path, manifest, source, given["key_aliases"], given["tag"])
+    aliases, tag = given["key_aliases"], given["tag"]
+    head = gateway.load(tmp_path, manifest, source, aliases, tag, skew=given["skew"])
     found = rows(tmp_path / gateway.FILE)
     assert found[0] == head
     assert isinstance(found[0].pop("read"), float)
@@ -213,7 +214,12 @@ def test_trace_with_a_broken_seal_reads_no_gateway_log(
 
 @pytest.mark.parametrize(
     "extra",
-    [["--gateway", "spend.json"], ["--key-alias", ALIAS], ["--gateway-tag", "toy-shop"]],
+    [
+        ["--gateway", "spend.json"],
+        ["--key-alias", ALIAS],
+        ["--gateway-tag", "toy-shop"],
+        ["--gateway-skew", "2"],
+    ],
 )
 def test_the_gateway_options_go_together(
     extra: list[str], tmp_path: Path, capsys: pytest.CaptureFixture[str]
@@ -344,3 +350,147 @@ def test_a_failed_rebuild_after_the_gateway_read_keeps_the_seal_intact(
     assert "the trace was not rebuilt" in capsys.readouterr().err
     assert (folder / gateway.FILE).exists()
     assert seal.verify(folder)["intact"]
+
+
+def test_the_api_read_asks_for_the_days_of_the_test_on_the_gateway_clock(
+    toy_gateway: str, tmp_path: Path
+) -> None:
+    """The gateway clock is 9 hours behind: the test of 2026-10-06 08:00 UTC is on 2026-10-05."""
+    manifest = {"started": 1791273600.0, "ended": 1791273650.0}
+    environ = {gateway.KEY_VARIABLE: KEY}
+    gateway.load(tmp_path, manifest, toy_gateway, [ALIAS], None, environ, skew=-9 * 3600.0)
+    assert [s["path"] for s in _Gateway.seen] == [
+        "/spend/logs?start_date=2026-10-05&end_date=2026-10-06&summarize=false"
+    ]
+
+
+@pytest.mark.parametrize("skew", [float("nan"), float("inf"), 86400.5, -86400.5])
+def test_a_skew_that_is_not_valid_reads_no_log(skew: float, tmp_path: Path) -> None:
+    with pytest.raises(gateway.GatewayError, match="skew"):
+        gateway.load(tmp_path, {"started": 1.0, "ended": 2.0}, "x.json", [ALIAS], None, skew=skew)
+    assert not (tmp_path / gateway.FILE).exists()
+
+
+def test_trace_with_a_gateway_skew_moves_the_gateway_times(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("NOOKKU_HOME", str(tmp_path / "home"))
+    folder = _sealed_test(tmp_path)
+    case = next(c for c in CASES if c.name == "skew")
+    args = ["trace", "--root", str(tmp_path), "--gateway", str(case / "spend_logs.json")]
+    assert main([*args, "--key-alias", ALIAS, "--gateway-skew", "5"]) == 0
+    found = rows(folder / gateway.FILE)
+    assert found[0]["skew"] == 5.0 and found[0]["kept"] == 2
+    assert found[1:] == rows(case / "expect_gateway.jsonl")[1:]
+    assert seal.verify(folder)["intact"]
+    assert main([*args, "--key-alias", ALIAS, "--gateway-skew", "nan"]) == 2
+    assert "the gateway skew nan is not valid" in capsys.readouterr().err
+
+
+def test_a_call_of_a_harness_gives_no_item(tmp_path: Path) -> None:
+    """The session file of the harness has the call (SPEC.md section 8.9)."""
+    row = _chat_row(ALIAS, 1.0, [{"role": "user", "content": "Hi"}], [])
+    harness = {**row, "tags": ["toy-shop", "User-Agent: claude-cli/2.1.301 (external, sdk-py)"]}
+    app = {**row, "tags": ["User-Agent: OpenAI/Python 2.8.1"]}
+    path = tmp_path / gateway.FILE
+    path.write_text("".join(json.dumps(r) + "\n" for r in (harness, app)))
+    items, info = trace.read_gateway(path)
+    assert info["harness_calls"] == {"claude-code": 1}
+    assert {it["source"]["line"] for it in items} == {2}
+
+
+def _direct(started: float, ts: float, text: str, **result: Any) -> dict[str, Any]:
+    return {"started": started, "ts": ts, "result": {"text": text, "tool_calls": [], **result}}
+
+
+@pytest.mark.parametrize(
+    ("direct", "form", "row", "same"),
+    [
+        (_direct(10.0, 12.0, "ok"), "openai", {"started": 10.5, "ts": 11.5}, True),
+        (_direct(10.0, 12.0, "ok"), "anthropic", {"started": 10.5, "ts": 11.5}, False),
+        (_direct(10.0, 12.0, "ok"), "openai", {"started": 9.0, "ts": 13.0}, True),
+        (_direct(10.0, 12.0, "ok"), "openai", {"started": 8.9, "ts": 11.5}, False),
+        (_direct(10.0, 12.0, "ok"), "openai", {"started": 10.5, "ts": 13.1}, False),
+        (_direct(10.0, 12.0, "ok"), "openai", {"started": None, "ts": None}, False),
+        (_direct(10.0, 12.0, "other"), "openai", {"started": 10.5, "ts": 11.5}, False),
+        (_direct(10.0, 12.0, "ok", cut=True), "openai", {"started": 10.5, "ts": 11.5}, False),
+        (_direct(10.0, 12.0, "ok"), "openai", {"started": 10.5, "response_cut": True}, False),
+    ],
+)
+def test_the_match_rule_of_a_gateway_call_and_a_direct_call(
+    direct: dict[str, Any], form: str, row: dict[str, Any], same: bool
+) -> None:
+    gate = {"result": {"text": "ok", "tool_calls": []}, **row}
+    assert trace.same_call(direct, "openai", gate, form) is same
+
+
+def test_a_matched_call_still_gives_the_result_of_an_earlier_tool_call(tmp_path: Path) -> None:
+    """Only the gateway logged the check_stock call. The proxy and the gateway both logged the
+    next call, which holds the tool result. The tool call keeps its output."""
+    ask = [{"role": "user", "content": "Is the teapot set in stock?"}]
+    call = [{"id": "call_1", "name": "check_stock", "input": {"sku": "teapot-set"}}]
+    said = {"role": "assistant", "tool_calls": [{"id": "call_1"}]}
+    answered = [*ask, said, {"role": "tool", "tool_call_id": "call_1", "content": "3 in stock"}]
+    reply = {"text": "Yes, 3 teapot sets are in stock.", "tool_calls": []}
+    found = [
+        _chat_row(ALIAS, 1.0, ask, call),
+        {**_chat_row(ALIAS, 3.0, answered, []), "result": reply},
+    ]
+    path = tmp_path / gateway.FILE
+    path.write_text("".join(json.dumps(r) + "\n" for r in found))
+    direct = [(1, {"started": 2.5, "ts": 4.0, "result": reply}, "chat")]
+    items, info = trace.read_gateway(path, direct)
+    assert info["same_calls"] == 1
+    assert [it["source"]["line"] for it in items] == [1, 1, 1]
+    tool = next(it for it in items if it["kind"] == "tool_call")
+    assert (tool["output"], tool["error"]) == ("3 in stock", None)
+
+
+def test_a_matched_tool_call_gets_its_result_from_a_later_gateway_call(tmp_path: Path) -> None:
+    """The proxy and the gateway both logged the check_stock call. Only the gateway logged the
+    next call, which holds the tool result. The tool call of model_api.jsonl gets the output."""
+    ask = [{"role": "user", "content": "Is the teapot set in stock?"}]
+    call = [{"id": "call_1", "name": "check_stock", "input": {"sku": "teapot-set"}}]
+    said = {"role": "assistant", "tool_calls": [{"id": "call_1"}]}
+    answered = [*ask, said, {"role": "tool", "tool_call_id": "call_1", "content": "3 in stock"}]
+    request = json.dumps({"model": "toy", "messages": ask})
+    direct = {
+        "v": 1,
+        "type": "call",
+        "api": "openai",
+        "harness": None,
+        "started": 0.5,
+        "ts": 2.0,
+        "path": "/v1/chat/completions",
+        "request_body": {"cut": False, "text": request},
+        "status": 200,
+        "error": None,
+        "result": {"text": "", "tool_calls": call},
+    }
+    (tmp_path / "model_api.jsonl").write_text(json.dumps(direct) + "\n")
+    found = [_chat_row(ALIAS, 1.0, ask, call), _chat_row(ALIAS, 3.0, answered, [])]
+    path = tmp_path / gateway.FILE
+    path.write_text("".join(json.dumps(r) + "\n" for r in found))
+    items, _ = trace.read_model_api(tmp_path / "model_api.jsonl")
+    results: dict[int, list[dict[str, Any]]] = {}
+    more, info = trace.read_gateway(path, trace.direct_calls(tmp_path / "model_api.jsonl"), results)
+    trace.fill_results(items, results)
+    assert info["same_calls"] == 1
+    assert {it["source"]["line"] for it in more} == {2}
+    tool = next(it for it in items if it["kind"] == "tool_call")
+    assert (tool["output"], tool["error"]) == ("3 in stock", None)
+
+
+def test_a_direct_tool_output_is_never_overwritten() -> None:
+    def tool(output: Any, error: Any = None) -> dict[str, Any]:
+        row = {"harness": "model_api", "kind": "tool_call", "output": output, "error": error}
+        return {**row, "source": {"file": "model_api.jsonl", "line": 1}}
+
+    items = [tool("3 left"), tool(None, "timeout"), tool(None)]
+    given = [{"output": "0 left", "error": None}] * 3
+    trace.fill_results(items, {1: given})
+    assert [(it["output"], it["error"]) for it in items] == [
+        ("3 left", None),
+        (None, "timeout"),
+        ("0 left", None),
+    ]

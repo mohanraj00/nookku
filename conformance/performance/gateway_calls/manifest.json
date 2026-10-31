@@ -1,0 +1,29 @@
+{
+ "test": "20261020-080000-pf08",
+ "model_sessions": [],
+ "egress": {
+  "registered": 1792483200.0,
+  "answer": {
+   "model_apis": [
+    {
+     "api": "anthropic",
+     "env": "ANTHROPIC_BASE_URL",
+     "url": null
+    },
+    {
+     "api": "openai",
+     "env": "OPENAI_BASE_URL",
+     "url": "http://127.0.0.1:9/v1"
+    }
+   ],
+   "backends": [],
+   "mcp_servers": [],
+   "databases": [],
+   "other": []
+  },
+  "unseen": [],
+  "driver": [],
+  "proxies": {},
+  "receiver": null
+ }
+}
