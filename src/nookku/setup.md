@@ -16,7 +16,7 @@ Read the app. Do not write a file.
    - both, or none.
 4. Find the backends of the app: the HTTP services that it calls, for example a stock or payment service. For each one, find the environment variable that holds its URL. Also find each direct call to the Anthropic or the OpenAI API, and the variable that holds its URL.
 5. Find the store of the app: each database and each data file that the app reads or writes, for example the orders of a toy shop.
-6. Find the rules and the docs of the app: business rules, a policy, a README, a system prompt and the tests. Find an app spec, if the project has one: a Markdown file with the sections `Persona`, `Boundaries`, `User goals`, `Limits` or `Trace points`, or the files of the `spec` key in `.nookku/config.json`.
+6. Find the rules and the docs of the app: business rules, a policy, a README, a system prompt and the tests. Find an app spec, if the project has one: a Markdown file with the sections `Persona`, `Boundaries`, `User goals`, `Limits`, `Trace points` or `Verdict`, or the files of the `spec` key in `.nookku/config.json`.
 7. Find an entry and a config of an earlier setup: `.nookku/config.json` and the file of its `entry` key.
 8. Check that the app keeps its session files. If the app sets `persistSession: false` (Agent SDK) or `ephemeral: true` (Codex `thread/start`), the test has no trace of the model sessions.
 9. Check that an Agent SDK session of the app is isolated: `setting_sources=[]`, `strict_mcp_config=True` and `CLAUDE_CODE_PLUGIN_DIRS` set to `""` in `env` (`settingSources` and `strictMcpConfig` in TypeScript). If an option is missing, the app's model can see the tester's plugins and claude.ai connectors.
@@ -113,7 +113,7 @@ The file has no `backends` key and no `model_api` key. These keys are an error. 
 If the project has no app spec, write a draft of it from the answers of step 2, at the path of the plan. The default path is `APP_SPEC.md` in the project root. Do not write it in `.nookku/`. If the project has an app spec, do not change it, and write no draft.
 
 - Start the file with the title `# App spec (draft)`, and one line that tells the tester to review each line.
-- Give each part its own `##` section, with these names exactly: `Persona`, `Boundaries` and `User goals`. Add `Limits` or `Trace points` only if the tester gave them.
+- Give each part its own `##` section, with these names exactly: `Persona`, `Boundaries` and `User goals`. Add `Limits`, `Trace points` or `Verdict` only if the tester gave them.
 - In `Persona`, `Boundaries` and `User goals`, write each rule as a short list item.
 - Write `Limits` as a table with the columns `Limit`, `Value` and `Meaning`. A limit is `turn_seconds` or `turn_tokens`.
 - Write `Trace points` as a table with the columns `Name`, `Source` and `When`, one row for each trace point. `Source` is `session`, `backend`, `model_api` or `otel`. A `When` that the trace checks is `Each turn`, `Turn N` or `Each <tool> tool call`. For example:

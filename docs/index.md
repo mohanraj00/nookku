@@ -9,6 +9,7 @@ The docs have 4 kinds of pages: a tutorial, how-to guides, reference pages and e
 Do each step, and learn how the parts work.
 
 - [Get started](getting-started.md): install Nookku, test the toy shop agent in Claude Code, and read the audit, the [findings](reference/glossary.md#findings) and the report.
+- [Get started in a cluster](getting-started-cluster.md): test the toy shop agent behind a Service from Claude Code in a Koodam Workspace, and give the egress spans of the test to the [trace](reference/glossary.md#trace).
 
 ## Test your app
 

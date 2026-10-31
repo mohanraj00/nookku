@@ -27,7 +27,6 @@ EACH_TURN = re.compile(r"each turn", re.IGNORECASE)
 # 9 digits at most: a longer number is not a turn of a test, and `int` stays fast.
 ONE_TURN = re.compile(r"turn ([1-9][0-9]{0,8})", re.IGNORECASE)
 EACH_CALL = re.compile(r"each (\S+) tool call", re.IGNORECASE)
-NO_TABLE = "The section has no table with the columns Name, Source and When."
 NO_ROWS = "The table of the section has no rows."
 LIMIT = (
     f"The spec has more than {MAX_POINTS} trace points. This row and the next rows are not read."
@@ -72,15 +71,25 @@ def read(files: list[tuple[str, str]]) -> tuple[list[dict[str, str]], list[dict[
     points`. It ends at the next heading or after its first table. The header row must have
     the columns Name, Source and When, in any order, and can have more columns. The reader
     skips the lines of a fenced code block."""
-    reader = _Reader()
+    reader = _PointReader()
     for path, text in files:
         reader.file(path, text)
     return reader.points, reader.records()
 
 
-class _Reader:
-    def __init__(self) -> None:
-        self.points: list[dict[str, str]] = []
+def _names(columns: tuple[str, ...]) -> str:
+    """The column names for a problem text, for example `Name, Source and When`."""
+    names = [c.capitalize() for c in columns]
+    return names[0] if len(names) == 1 else f"{', '.join(names[:-1])} and {names[-1]}"
+
+
+class Reader:
+    """The rows of the tables of one section of the spec files. A subclass takes each row with
+    `take`, and records each part of the section that it cannot read with `note`. `what` names
+    the rows in the problem text of the last record, for example `trace points`."""
+
+    def __init__(self, section: str, columns: tuple[str, ...], what: str) -> None:
+        self.section, self.columns, self.what = section, columns, what
         self.kept: list[dict[str, Any]] = []
         self.more = 0
         self.limit: dict[str, Any] | None = None
@@ -92,14 +101,14 @@ class _Reader:
             self.more += 1
 
     def records(self) -> list[dict[str, Any]]:
-        """The records, 200 at most. The record of the limit of trace points always stays. If
+        """The records, 200 at most. The record of the limit of rows always stays. If
         there are more records, the last kept record gives the count of the others."""
         tail = [self.limit] if self.limit else []
         room = MAX_RECORDS - len(tail)
         kept = self.kept
         if len(kept) + self.more > room:
             first, more = kept[room - 1], len(kept) + self.more - room
-            problem = f"This part and {more} more parts of the sections are not trace points."
+            problem = f"This part and {more} more parts of the sections are not {self.what}."
             kept = [*kept[: room - 1], {**first, "problem": problem}]
         return kept + tail
 
@@ -109,9 +118,11 @@ class _Reader:
         rows = 0
         fence: str | None = None
 
+        no_table = f"The section has no table with the columns {_names(self.columns)}."
+
         def close() -> None:
             if start is not None and (columns is None or rows == 0):
-                self.note(path, start, NO_TABLE if columns is None else NO_ROWS)
+                self.note(path, start, no_table if columns is None else NO_ROWS)
 
         for n, line in enumerate(text.splitlines(), 1):
             if fence is not None:
@@ -131,14 +142,14 @@ class _Reader:
                 close()
                 start, columns = None, None
             if heading is not None:
-                if heading.lower() == SECTION:
+                if heading.lower() == self.section:
                     start, rows = n, 0
                 continue
             if start is None or cells is None:
                 continue
             if columns is None:
                 columns = [_plain(c).lower() for c in cells]
-                if not all(c in columns for c in COLUMNS):
+                if not all(c in columns for c in self.columns):
                     columns = None
                     close()
                     start = None
@@ -150,12 +161,24 @@ class _Reader:
         close()
 
     def row(self, path: str, n: int, columns: list[str], cells: list[str]) -> None:
-        row = dict(zip(columns, cells, strict=False))
         if len(cells) != len(columns):
             self.note(
                 path, n, f"The row has {len(cells)} cells, and the header has {len(columns)}."
             )
-        elif not _plain(row["name"]):
+        else:
+            self.take(path, n, dict(zip(columns, cells, strict=True)))
+
+    def take(self, path: str, n: int, row: dict[str, str]) -> None:
+        raise NotImplementedError
+
+
+class _PointReader(Reader):
+    def __init__(self) -> None:
+        super().__init__(SECTION, COLUMNS, "trace points")
+        self.points: list[dict[str, str]] = []
+
+    def take(self, path: str, n: int, row: dict[str, str]) -> None:
+        if not _plain(row["name"]):
             self.note(path, n, "The row has no Name.")
         elif len(self.points) >= MAX_POINTS:
             if self.limit is None:

@@ -2,7 +2,10 @@
 
 POST {"text": "<message>"} to http://127.0.0.1:8700/ and it answers {"reply": "<text>"}.
 
-usage: python examples/toy-shop/http_agent.py [PORT]
+usage: python examples/toy-shop/http_agent.py [PORT [HOST]]
+
+The default HOST is 127.0.0.1. In a cluster pod, give 0.0.0.0, so that a Service can reach the
+agent (docs/getting-started-cluster.md).
 """
 
 from __future__ import annotations
@@ -40,5 +43,6 @@ class Server(ThreadingHTTPServer):
 
 if __name__ == "__main__":
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8700
-    print(f"toy shop agent on http://127.0.0.1:{port}/", file=sys.stderr)
-    Server(("127.0.0.1", port), Handler).serve_forever()
+    host = sys.argv[2] if len(sys.argv) > 2 else "127.0.0.1"
+    print(f"toy shop agent on http://{host}:{port}/", file=sys.stderr)
+    Server((host, port), Handler).serve_forever()

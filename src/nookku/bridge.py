@@ -34,6 +34,7 @@ from nookku import (
     script,
     seal,
     trace,
+    verdict,
 )
 from nookku.audit import audit
 from nookku.config import CHECK_MESSAGE as CHECK_MESSAGE
@@ -44,10 +45,19 @@ from nookku.config import STATE_DIR as STATE_DIR
 from nookku.config import ConfigError, read_config, spec_contents, spec_copy
 from nookku.config import has_entry as has_entry
 from nookku.record import RecordError, Writer, loads, turns
+from nookku.state import (
+    TESTS_DIRS,
+    TOKEN_KEY,
+    TestsDirError,
+    is_test_id,
+    lock_sends,
+    manifest_of,
+    remember_tests_dir,
+    tests_dir,
+)
 
 # The state functions are in nookku.state. These names keep the imports of bridge working.
 from nookku.state import TIMEOUT as TIMEOUT
-from nookku.state import TOKEN_KEY, TestsDirError, is_test_id, lock_sends, manifest_of, tests_dir
 from nookku.state import _children as _children
 from nookku.state import _started as _started
 from nookku.state import alive as alive
@@ -76,7 +86,16 @@ POLL = 0.5
 # The harness of the one turn of `nookku check`. A test with only such turns gets no evaluation.
 CHECK_HARNESS = "nookku-check"
 # Files in the state folder that a test writes or that switch a mode. They are not configuration.
-NOT_CONFIG = {"tests", RUNS, "current.json", "mode", "relay.jsonl", "tap.jsonl", ENDING}
+NOT_CONFIG = {
+    "tests",
+    RUNS,
+    "current.json",
+    "mode",
+    "relay.jsonl",
+    "tap.jsonl",
+    ENDING,
+    TESTS_DIRS,
+}
 SKIP_DIRS = {"node_modules", ".venv", "__pycache__", ".git"}
 # The check names the first stray lines, and gives the count of all of them.
 STRAY_SHOWN = 3
@@ -127,6 +146,9 @@ class TestConfig:
     # The bytes of each spec file, from the read that gave its SHA-256. The bridge copies them
     # into the test folder (SPEC.md section 7.2).
     spec_data: list[bytes] = field(default_factory=list)
+    # The limits of the Verdict table of the app spec, and each part of the table that is not a
+    # limit (SPEC.md section 7.14).
+    verdict: dict[str, Any] = field(default_factory=lambda: {"limits": {}, "unread": []})
 
 
 def load_config(root: Path, entry_name: str | None = None) -> TestConfig:
@@ -142,6 +164,7 @@ def load_config(root: Path, entry_name: str | None = None) -> TestConfig:
         spec = [h for h, _ in contents]
         files = [(h["path"], b.decode("utf-8", "replace")) for h, b in contents]
         points, unread = app_spec.read(files)
+        limits = verdict.read(files)
     except (ConfigError, policy.PolicyError) as e:
         raise BridgeError(str(e)) from None
     entry, models = data.get("entry") or [], data.get("models") or []
@@ -174,6 +197,7 @@ def load_config(root: Path, entry_name: str | None = None) -> TestConfig:
         unread,
         body_limit=data.get("body_limit", backend.BODY_LIMIT),
         spec_data=copies,
+        verdict=limits,
     )
 
 
@@ -286,8 +310,14 @@ def start(
     test = f"{stamp}-{secrets.token_hex(2)}"
     try:
         tests = tests_dir(root)
+        # The relay in the harness reads this file, so it protects the folder after the test,
+        # also with no NOOKKU_TESTS_DIR (SPEC.md section 7, #507). If the write fails, no test
+        # starts, so no test is in a folder that the relay does not protect.
+        remember_tests_dir(root, tests)
     except TestsDirError as e:
         raise BridgeError(str(e)) from None
+    except OSError as e:
+        raise BridgeError(f"cannot write {STATE_DIR}/{TESTS_DIRS}: {e}") from None
     folder = tests / test
     folder.mkdir(parents=True)
     _mark(state(root))
@@ -901,6 +931,7 @@ def run(
         "spec_copies": True,
         "trace_points": config.trace_points,
         "trace_points_unread": config.trace_points_unread,
+        "verdict": config.verdict,
         "tester_sessions": [tester_session] if tester_session else [],
         "model_sessions": [],
         "codex_gate": {"start": _start_gate(folder), "end": None},
@@ -1140,6 +1171,10 @@ def _collect(folder: Path, copy: Path | None, log: Callable[[str], None] | None 
     except Exception as e:
         log(f"the turn summary failed: {e!r}")
     try:
+        verdict.build(folder)
+    except Exception as e:
+        log(f"the verdict failed: {e!r}")
+    try:
         report = audit(folder / "tap.jsonl", folder / "relay.jsonl", copy).as_dict()
         _write_json(folder / "audit.json", report)
     except Exception as e:
@@ -1229,9 +1264,10 @@ def run_script(
     script_path: Path,
     entry_name: str | None = None,
     egress: dict[str, Any] | None = None,
+    gate: bool = False,
 ) -> tuple[bool, list[str], Path]:
     """Run a scripted test (SPEC.md section 7.10). Return (passed, the report lines, the test
-    folder).
+    folder). With gate, a verdict that is not `pass` also fails the run (SPEC.md section 7.14).
 
     Each message of the script goes to the entry byte for byte, as a relay row with the harness
     script. The lines name the test, the count of turns, the audit and the trace. They do not
@@ -1269,6 +1305,21 @@ def run_script(
         lines.append(trace.summary(findings))
     except (OSError, ValueError, KeyError) as e:
         lines.append(f"Trace: no valid findings.json ({e})")
+    if gate:
+        # The tests folder can be writable by another user, so the exit code uses only a
+        # verdict that agrees with the copy of the seal (SPEC.md section 7.14).
+        found, why = verdict.checked(folder)
+        if found is None:
+            lines.append(f"Verdict: fail. {why}")
+            problems.append(f"The verdict cannot be used. {why}")
+        else:
+            lines.append(verdict.summary(found))
+            if found["verdict"] != verdict.PASS:
+                problems.append(f"The verdict is fail. Read {verdict.FILE} in the test folder.")
+    else:
+        found = verdict.load(folder)
+        if verdict.shown(found, gate):
+            lines.append(verdict.summary(found))
     changed = gate_changed(manifest)
     if changed is not None:
         problems.append(f"The Codex hooks changed during the test: {changed}")

@@ -20,10 +20,11 @@ Write the spec in one or more Markdown files in the project, for example `APP_SP
 | `User goals` | Each goal of a user, and the steps from the first message to the goal. | an `off_path` row |
 | `Limits` | A table of `Limit`, `Value` and `Meaning`, with `turn_seconds`, `turn_tokens` or both. | a `performance` row |
 | `Trace points` | A table of `Name`, `Source` and `When`: each tool call, backend call, model call or span that must occur. | a `missing_trace_point` [finding](../reference/glossary.md#findings) |
+| `Verdict` | A table of `Finding` and `Most`: the most findings of each class that a test can have. | a `fail` in `verdict.json` ([Verdict](../reference/app-spec.md#verdict)) |
 
 Keep the business rules in a different file, for example `RULES.md`. A file with no known section is a list of business rules. An issue with a business rule has the class `business_rule`, also if the `Boundaries` link to the file.
 
-The toy shop spec has each part. These are 3 of its parts, from [APP_SPEC.md](../../examples/toy-shop-full/APP_SPEC.md). The file also has `Boundaries` and `User goals`, and the last table has 5 rows:
+The toy shop spec has each part. These are 3 of its parts, from [APP_SPEC.md](../../examples/toy-shop-full/APP_SPEC.md). The file also has `Boundaries`, `User goals` and `Verdict`, and the last table has 5 rows:
 
 ```markdown
 ## Persona

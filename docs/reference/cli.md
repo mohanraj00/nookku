@@ -23,7 +23,7 @@ Each command that reads or writes a test takes `--tests-dir PATH`: the folder th
 
 Use it to keep the tests on a mounted volume, for example in a pod. The path must be absolute in `NOOKKU_TESTS_DIR`. It must not be in a state folder, and it must not be the project or a folder above it. If the path does not obey these rules, the command prints the cause and exits with 1, and the hook denies each tool call. The state files, for example `current.json`, stay in `.nookku/` ([SPEC.md section 7](../../SPEC.md#7-tests)).
 
-The hooks of the [harness](glossary.md#harness) get no option. They read `NOOKKU_TESTS_DIR` of the harness. During a test, the guard also protects the folder of the running test. Thus, if you use the option, also set `NOOKKU_TESTS_DIR` to the same folder before you start the harness. Then the guard protects the tests after the end of the test too.
+The hooks of the [harness](glossary.md#harness) get no option. They read `NOOKKU_TESTS_DIR` of the harness. During a test, the guard also protects the folder of the running test. At the start of a test in a tests folder that is not `.nookku/tests`, nookku adds the folder to `.nookku/tests-dirs.json`. The hooks read this file, so the guard protects the folder after the end of the test too, also if the harness has no `NOOKKU_TESTS_DIR`. The file keeps each such folder, the newest last. Only nookku writes it, and the guard denies a model write to it. If the file is broken, the hook denies each tool call and no test starts. Remove the file to repair it ([SPEC.md section 7](../../SPEC.md#7-tests), [#507](https://github.com/mohanraj00/nookku/issues/507)).
 
 `NOOKKU_TEST_DIR` is a different variable. The [bridge](glossary.md#bridge) gives it to the [entry](glossary.md#entry), and it is the folder of one test ([config.md](config.md#environment-variables)).
 
@@ -142,12 +142,12 @@ PASS proves the connection, not the reply. PASS means that:
 ### `nookku run`
 
 ```text
-nookku run --script FILE [--entry NAME] [--root PATH] [--tests-dir PATH] [--json] [--evaluate | --no-evaluate]
+nookku run --script FILE [--entry NAME] [--root PATH] [--tests-dir PATH] [--json] [--verdict] [--evaluate | --no-evaluate]
 ```
 
 Run a [scripted test](glossary.md#scripted-test) ([SPEC.md section 7.10](../../SPEC.md#710-scripted-tests)). It starts a test, sends each message of the script to the entry byte for byte, waits for each reply and ends the test. The script is JSONL with one `{"said": "..."}` row for each turn, or one JSON array of strings. The [test folder](glossary.md#test-folder) gets a copy of the script, and each [relay](glossary.md#relay) row has `"harness": "script"`. `run` does not switch relay mode on.
 
-The output gives the test id, the count of turns, the audit and the trace, and then `PASS` or each `FAIL:` line. It does not give the replies. Read them with `nookku transcript`.
+The output gives the test id, the count of turns, the audit and the trace, and the verdict if the [app spec](app-spec.md#verdict) gives limits, and then `PASS` or each `FAIL:` line. It does not give the replies. Read them with `nookku transcript`.
 
 By default, only a person runs `nookku run`: the relay denies it from the model. A person allows the model with `nookku policy set scripts model`.
 
@@ -158,12 +158,13 @@ By default, only a person runs `nookku run`: the relay denies it from the model.
 | `--root PATH` | the current folder | The project. |
 | `--tests-dir PATH` | `$NOOKKU_TESTS_DIR`, else `.nookku/tests` | The [tests folder](#the-tests-folder). |
 | `--json` | off | Print `{"pass": ..., "report": [...], "evaluation": ...}`. |
+| `--verdict` | off | Also fail the run if the verdict of the test is `fail`. Use it in CI. |
 | `--no-evaluate`, `--evaluate` | the config key `evaluate` | Print the evaluation prompt at the end, or not. |
 
 | Exit code | Meaning |
 |---|---|
 | 0 | The audit of the test is clean. |
-| 1 | The test did not start, for example the script breaks a rule or the entry name is unknown. Or a turn has no reply, the audit is not clean, or the Codex hooks changed. |
+| 1 | The test did not start, for example the script breaks a rule or the entry name is unknown. Or a turn has no reply, the audit is not clean, or the Codex hooks changed. With `--verdict`, also if the verdict is `fail` ([SPEC.md section 7.14](../../SPEC.md#714-verdict)). |
 
 ### `nookku script`
 
@@ -372,10 +373,10 @@ Compare the relay record with the [tap record](glossary.md#tap-record) ([SPEC.md
 ### `nookku trace`
 
 ```text
-nookku trace [TEST] [--root PATH] [--tests-dir PATH] [--json] [--egress FILE] [--gateway SOURCE --key-alias ALIAS [--key-alias ALIAS] [--gateway-tag TAG] [--gateway-skew SECONDS]]
+nookku trace [TEST] [--root PATH] [--tests-dir PATH] [--json] [--verdict] [--egress FILE] [--gateway SOURCE --key-alias ALIAS [--key-alias ALIAS] [--gateway-tag TAG] [--gateway-skew SECONDS]]
 ```
 
-Build the trace of a test again, and show its findings ([SPEC.md section 8](../../SPEC.md#8-trace)). The findings show in groups by turn, and each control character of a finding shows as its escape ([read the results](../how-to/read-the-results.md#4-read-the-findings)). It also writes `performance.json` again ([SPEC.md section 8.7](../../SPEC.md#87-performance)). If the test has a seal, it rebuilds only from sources that agree with the seal.
+Build the trace of a test again, and show its findings ([SPEC.md section 8](../../SPEC.md#8-trace)). The findings show in groups by turn, and each control character of a finding shows as its escape ([read the results](../how-to/read-the-results.md#4-read-the-findings)). It also writes `performance.json` ([SPEC.md section 8.7](../../SPEC.md#87-performance)) and `verdict.json` ([SPEC.md section 7.14](../../SPEC.md#714-verdict)) again. It shows the verdict if the app spec gives limits, if the verdict is `fail`, or with `--verdict`. If the test has a seal, it rebuilds only from sources that agree with the seal.
 
 | Argument or flag | Default | Meaning |
 |---|---|---|
@@ -383,6 +384,7 @@ Build the trace of a test again, and show its findings ([SPEC.md section 8](../.
 | `--root PATH` | the current folder | The project. |
 | `--tests-dir PATH` | `$NOOKKU_TESTS_DIR`, else `.nookku/tests` | The [tests folder](#the-tests-folder). |
 | `--json` | off | Print `findings.json`. |
+| `--verdict` | off | Exit with 1 if the verdict is `fail`. Use it in CI. |
 | `--egress FILE` | none | The Koodam egress spans of the test. The trace checks the file, copies it into the test folder as `egress.jsonl`, adds it to the seal and gives the findings `egress_not_in_discovery` and `egress_denied` ([SPEC.md section 8.8](../../SPEC.md#88-egress-spans)). |
 | `--gateway SOURCE` | none | Read the model calls of the app from the spend logs of a LiteLLM gateway: a file, or the URL of the gateway API. For a URL, put a key that can read the spend logs in `NOOKKU_GATEWAY_KEY`. The URL must be `https`, or `http` to this computer ([SPEC.md section 8.9](../../SPEC.md#89-gateway-logs)). |
 | `--key-alias ALIAS` | none | Keep the logs of this key alias, for example the `kd-<agent uid>` alias of a Koodam Agent. Give it 1 or more times. `--gateway` needs it. |
@@ -393,7 +395,8 @@ If a model API proxy and the gateway both record a call of the app, the trace ke
 
 | Exit code | Meaning |
 |---|---|
-| 0 | The trace was built. |
+| 0 | The trace was built. With `--verdict`, the verdict is also `pass`. |
+| 1 | Only with `--verdict`: the trace was built, and the verdict is `fail`, or `verdict.json` was not written. |
 | 2 | No test folder with a manifest, the seal is broken, a record is not valid, or the egress file cannot be read or has a span of a later contract version, or the gateway logs were not read. The trace was not rebuilt. |
 
 If your agent runs in a Koodam Workspace, export the egress spans outside the pod for the time of the test. Then give them to the trace:

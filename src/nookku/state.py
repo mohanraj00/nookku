@@ -136,6 +136,66 @@ def tests_dir(root: Path) -> Path:
     return folder
 
 
+# The file in the state folder that names each tests folder outside the state folder that a test
+# used, the newest last (SPEC.md section 7, #507). The relay in the harness reads it. Thus it
+# protects such a folder after the test ends, also if the harness has no NOOKKU_TESTS_DIR. The
+# list only becomes longer: a later test in another folder does not remove the protection of a
+# folder before it.
+TESTS_DIRS = "tests-dirs.json"
+
+
+def known_tests_dirs(root: Path) -> list[Path]:
+    """The tests folders of the file TESTS_DIRS, or [] if the file does not exist. A file that
+    breaks its rule raises TestsDirError, so that the relay denies each tool call (fail closed)."""
+    path = state(root) / TESTS_DIRS
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return []
+    except (OSError, ValueError) as e:
+        raise TestsDirError(_known_error(path, str(e))) from None
+    folders = data.get("folders") if isinstance(data, dict) else None
+    if (
+        not isinstance(data, dict)
+        or type(data.get("v")) is not int
+        or data.get("v") != 1
+        or not isinstance(folders, list)
+        or not all(isinstance(f, str) and f and os.path.isabs(f) for f in folders)
+    ):
+        raise TestsDirError(
+            _known_error(path, 'it must be {"v": 1, "folders": [<absolute path>, ...]}')
+        )
+    return [Path(os.path.normpath(f)) for f in folders]
+
+
+def _known_error(path: Path, cause: str) -> str:
+    return (
+        f"{path} is not valid: {cause}. Only nookku writes this file. A person can remove it. "
+        "Then the relay protects only the tests folder of NOOKKU_TESTS_DIR and of a running test."
+    )
+
+
+def remember_tests_dir(root: Path, folder: Path) -> None:
+    """Add the tests folder of a new test to the file TESTS_DIRS, as its newest folder, if the
+    folder is not `.nookku/tests`. A file that breaks its rule raises TestsDirError, also for
+    `.nookku/tests`, because the hooks deny each tool call with that file. The write
+    makes a new file and then replaces the old one, so a link that a model makes in the state
+    folder does not get the text."""
+    path = Path(os.path.normpath(folder.absolute()))
+    found = known_tests_dirs(root)
+    if path == Path(os.path.normpath(state(root).absolute() / "tests")):
+        return
+    known = [str(f) for f in found if f != path]
+    text = json.dumps({"v": 1, "folders": [*known, str(path)]}, indent=1) + "\n"
+    target = state(root) / TESTS_DIRS
+    tmp = target.with_name(target.name + ".tmp")
+    tmp.unlink(missing_ok=True)
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        f.write(text)
+    tmp.replace(target)
+
+
 def set_tests_dir(value: str) -> None:
     """Keep the value of --tests-dir in NOOKKU_TESTS_DIR, as an absolute path, so that the
     command and each child process, for example the bridge, use the same folder."""

@@ -7049,7 +7049,8 @@ GUARD_CASES: dict[str, dict] = {
     "tests_dir_shell_changes_to_the_tests_folder": {
         "tests_dir": "variable",
         "event": bash("cd {tests} && rm t1/tap.jsonl"),
-        "answer": records("{tests}", not_read("rm")),
+        # A relative word starts at the folder of the cd before it (#507).
+        "answer": records("t1/tap.jsonl", not_read("rm")),
     },
     "tests_dir_glob_of_records": {
         "tests_dir": "variable",
@@ -7078,6 +7079,117 @@ GUARD_CASES: dict[str, dict] = {
         "tests_dir": "running",
         "event": bash("cat {tests}/t1/tap.jsonl"),
         "answer": during("{tests}/t1/tap.jsonl"),
+    },
+    # #507: a command that changes to a folder above the tests folder. `{volume}` is the folder
+    # that holds the tests folder. A relative word starts at the folder of each cd, pushd, -C or
+    # --directory of the command, and at the cwd of the call.
+    "tests_dir_shell_changes_to_a_folder_above": {
+        "tests_dir": "variable",
+        "event": bash("cd {volume} && rm tests/t1/tap.jsonl"),
+        "answer": records("tests/t1/tap.jsonl", not_read("rm")),
+    },
+    "tests_dir_shell_changes_to_a_folder_above_in_two_steps": {
+        "tests_dir": "variable",
+        "event": bash("cd {volume}; cd tests; rm t1/tap.jsonl"),
+        "answer": records("t1/tap.jsonl", not_read("rm")),
+    },
+    "tests_dir_shell_pushd_to_a_folder_above": {
+        "tests_dir": "variable",
+        "event": bash("pushd {volume} && mv tests/t1/tap.jsonl /tmp/old.jsonl"),
+        "answer": records("tests/t1/tap.jsonl", not_read("mv")),
+    },
+    "tests_dir_shell_directory_option_of_a_folder_above": {
+        "tests_dir": "variable",
+        "event": bash("make -C {volume} clean tests/t1"),
+        "answer": records("tests/t1", not_read("make")),
+    },
+    # The guard cannot know the folder of a variable, so each folder above the tests folder
+    # counts.
+    "tests_dir_shell_changes_to_a_variable_folder": {
+        "tests_dir": "variable",
+        "event": bash('cd "$VOLUME" && rm tests/t1/tap.jsonl'),
+        "answer": records("tests/t1/tap.jsonl", not_read("rm")),
+    },
+    "tests_dir_shell_code_changes_to_a_folder_above": {
+        "tests_dir": "variable",
+        "event": bash("bash -c 'cd {volume} && rm tests/t1/tap.jsonl'"),
+        "answer": records("tests/t1/tap.jsonl", not_read("bash")),
+    },
+    "tests_dir_unparsed_changes_to_a_folder_above": {
+        "tests_dir": "variable",
+        "event": bash("(cd {volume} && rm tests/t1/tap.jsonl)"),
+        "answer": records("tests/t1/tap.jsonl", CANNOT_PARSE),
+    },
+    "tests_dir_shell_read_in_a_folder_above": {
+        "tests_dir": "variable",
+        "event": bash("cd {volume} && cat tests/t1/tap.jsonl"),
+        "answer": None,
+    },
+    # A folder named tests in another folder is an app folder.
+    "tests_dir_shell_changes_to_another_folder": {
+        "tests_dir": "variable",
+        "event": bash("cd {volume}/shop-old && rm -r tests"),
+        "answer": None,
+    },
+    "test_tests_dir_changes_to_a_folder_above": {
+        "test": True,
+        "tests_dir": "running",
+        "event": bash("cd {volume} && cat tests/t1/tap.jsonl"),
+        "answer": during("tests/t1/tap.jsonl"),
+    },
+    # A path in the state folder has the part .nookku, also after a cd to a folder above it.
+    "shell_changes_to_a_folder_above_the_state_folder": {
+        "event": bash(f"cd .. && rm shop/{RECORD}"),
+        "answer": records(f"shop/{RECORD}", not_read("rm")),
+    },
+    # #507: a test that --tests-dir started has ended, and the harness has no NOOKKU_TESTS_DIR.
+    # The file .nookku/tests-dirs.json names the tests folder, so the guard still protects it.
+    "tests_dir_remembered_shell_removes_a_record": {
+        "tests_dir": "remembered",
+        "event": bash("rm {tests}/t1/tap.jsonl"),
+        "answer": records("{tests}/t1/tap.jsonl", not_read("rm")),
+    },
+    "tests_dir_remembered_write_of_a_record": {
+        "tests_dir": "remembered",
+        "event": pevent("Write", file_path="{tests}/t1/relay.jsonl", content="{}"),
+        "answer": records("{tests}/t1/relay.jsonl"),
+    },
+    "tests_dir_remembered_write_of_the_report": {
+        "tests_dir": "remembered",
+        "event": pevent("Write", file_path="{tests}/t1/report.md", content="# Report\n"),
+        "answer": None,
+    },
+    "tests_dir_remembered_shell_changes_to_a_folder_above": {
+        "tests_dir": "remembered",
+        "event": bash("cd {volume} && rm -r tests"),
+        "answer": records("tests", not_read("rm")),
+    },
+    # Only nookku writes the file. A model must not point it at another folder.
+    "tests_dir_remembered_write_of_the_file": {
+        "tests_dir": "remembered",
+        "event": pevent(
+            "Write",
+            file_path=f"{{root}}/{STATE}/tests-dirs.json",
+            content='{"v": 1, "folders": ["/tmp/other"]}',
+        ),
+        "answer": records(f"{{root}}/{STATE}/tests-dirs.json"),
+    },
+    "tests_dir_remembered_shell_writes_the_file": {
+        "tests_dir": "remembered",
+        "event": bash(f"echo '{{}}' > {STATE}/tests-dirs.json"),
+        "answer": records(f"{STATE}/tests-dirs.json", 'The redirect ">" writes it.'),
+    },
+    # A file that breaks its rule denies each tool call, so the guard fails closed.
+    "tests_dir_broken_file_denies_each_call": {
+        "tests_dir": "broken",
+        "tests_dirs_text": '{"v": 1, "folders": ["tests"]}\n',
+        "event": bash("ls"),
+        "answer": deny(
+            f"nookku: the hook failed (TestsDirError: {{root}}/{STATE}/tests-dirs.json is not "
+            'valid: it must be {"v": 1, "folders": [<absolute path>, ...]}. Only nookku writes '
+            "this file. A person can remove it. Then the relay protects only the tests folder "
+            "of NOOKKU_TESTS_DIR and of a running test.). The tool call is denied."
+        ),
     },
 }
 
