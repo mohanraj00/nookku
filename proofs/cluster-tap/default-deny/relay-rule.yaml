@@ -1,0 +1,19 @@
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-relay-to-tap
+  namespace: harness
+spec:
+  podSelector:
+    matchLabels:
+      app: harness
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: tap
+      ports:
+        - protocol: TCP
+          port: 8800

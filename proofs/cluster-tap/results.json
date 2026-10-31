@@ -1,108 +1,378 @@
 {
- "date": "2026-10-23",
- "versions": {
-  "nookku": "0.5.6",
-  "nookku_in_pod": "0.5.6",
-  "python_in_pod": "3.12.15",
-  "base_image": "python:3.12-slim sha256:a6e34c598f2467ed0e9a8d349809fcd8b5c603269512df273a0bb1784edc11b1",
-  "kind": "v0.33.0",
-  "kubernetes": "v1.37.0",
-  "kubectl": "v1.36.2",
-  "docker": "29.5.2",
-  "hook_events": "Claude Code 2.1.302 (Claude Code), sent by the proof with no harness",
-  "os": "Darwin"
- },
- "C1_service": {
-  "url": "http://toy-shop.shop.svc:8080/",
-  "resolves_to_cluster_ip": true
- },
- "C2_C3_messages": [
+ "method": "scripts/proof_cluster_tap.py",
+ "docker_free_mb_before": 3286,
+ "forms": [
   {
-   "message": 1,
-   "request_bytes": 47,
-   "response_bytes": 61,
-   "message_same": true,
-   "reply_same": true
+   "date": "2026-10-31",
+   "form": "same-pod",
+   "policy": {},
+   "versions": {
+    "nookku": "0.5.6",
+    "nookku_in_pod": "0.5.6",
+    "python_in_pod": "3.12.15",
+    "base_image": "python:3.12-slim sha256:a6e34c598f2467ed0e9a8d349809fcd8b5c603269512df273a0bb1784edc11b1",
+    "codex": "codex-cli 0.162.1, not run",
+    "kind": "v0.33.0",
+    "kubernetes": "v1.37.0",
+    "kubectl": "v1.36.2",
+    "docker": "29.5.2",
+    "hook_events": "Claude Code 2.1.302 (Claude Code), sent by the proof with no harness",
+    "os": "Darwin"
+   },
+   "C1_service": {
+    "url": "http://toy-shop.shop.svc:8080/",
+    "resolves_to_cluster_ip": true
+   },
+   "C2_C3_messages": [
+    {
+     "message": 1,
+     "request_bytes": 47,
+     "response_bytes": 61,
+     "message_same": true,
+     "reply_same": true
+    },
+    {
+     "message": 2,
+     "request_bytes": 67,
+     "response_bytes": 61,
+     "message_same": true,
+     "reply_same": true
+    },
+    {
+     "message": 3,
+     "request_bytes": 88,
+     "response_bytes": 71,
+     "message_same": true,
+     "reply_same": true
+    },
+    {
+     "message": 4,
+     "request_bytes": 66,
+     "response_bytes": 61,
+     "message_same": true,
+     "reply_same": true
+    },
+    {
+     "message": 5,
+     "request_bytes": 62,
+     "response_bytes": 96,
+     "message_same": true,
+     "reply_same": true
+    }
+   ],
+   "app_requests": 5,
+   "C4_guard": {
+    "command": "curl -s -d '{\"text\": \"refund my teapot\"}' http://toy-shop.shop.svc:8080/",
+    "decision": "deny"
+   },
+   "C5_audit": {
+    "exit": 0,
+    "breaks": [],
+    "planted": [
+     {
+      "fault": "altered reply",
+      "expected": "altered_reply",
+      "found": [
+       "altered_reply"
+      ],
+      "ok": true
+     },
+     {
+      "fault": "unshown reply",
+      "expected": "unshown_reply",
+      "found": [
+       "unshown_reply"
+      ],
+      "ok": true
+     },
+     {
+      "fault": "altered input",
+      "expected": "altered_input",
+      "found": [
+       "altered_input"
+      ],
+      "ok": true
+     },
+     {
+      "fault": "injected input",
+      "expected": "injected_input",
+      "found": [
+       "injected_input"
+      ],
+      "ok": true
+     },
+     {
+      "fault": "relay record missing",
+      "expected": "record_missing",
+      "found": [
+       "record_missing"
+      ],
+      "ok": true
+     }
+    ],
+    "expected_breaks": [],
+    "successful_exit": 0,
+    "successful_breaks": []
+   },
+   "pass": true
   },
   {
-   "message": 2,
-   "request_bytes": 67,
-   "response_bytes": 61,
-   "message_same": true,
-   "reply_same": true
+   "date": "2026-10-31",
+   "form": "service",
+   "policy": {
+    "tap_service_resolves": true
+   },
+   "versions": {
+    "nookku": "0.5.6",
+    "nookku_in_pod": "0.5.6",
+    "python_in_pod": "3.12.15",
+    "base_image": "python:3.12-slim sha256:a6e34c598f2467ed0e9a8d349809fcd8b5c603269512df273a0bb1784edc11b1",
+    "codex": "codex-cli 0.162.1, not run",
+    "kind": "v0.33.0",
+    "kubernetes": "v1.37.0",
+    "kubectl": "v1.36.2",
+    "docker": "29.5.2",
+    "hook_events": "Claude Code 2.1.302 (Claude Code), sent by the proof with no harness",
+    "os": "Darwin"
+   },
+   "C1_service": {
+    "url": "http://toy-shop.shop.svc:8080/",
+    "resolves_to_cluster_ip": true
+   },
+   "C2_C3_messages": [
+    {
+     "message": 1,
+     "request_bytes": 47,
+     "response_bytes": 61,
+     "message_same": true,
+     "reply_same": true
+    },
+    {
+     "message": 2,
+     "request_bytes": 67,
+     "response_bytes": 61,
+     "message_same": true,
+     "reply_same": true
+    },
+    {
+     "message": 3,
+     "request_bytes": 88,
+     "response_bytes": 71,
+     "message_same": true,
+     "reply_same": true
+    },
+    {
+     "message": 4,
+     "request_bytes": 66,
+     "response_bytes": 61,
+     "message_same": true,
+     "reply_same": true
+    },
+    {
+     "message": 5,
+     "request_bytes": 62,
+     "response_bytes": 96,
+     "message_same": true,
+     "reply_same": true
+    }
+   ],
+   "app_requests": 5,
+   "C4_guard": {
+    "command": "curl -s -d '{\"text\": \"refund my teapot\"}' http://toy-shop.shop.svc:8080/",
+    "decision": "deny"
+   },
+   "C5_audit": {
+    "exit": 0,
+    "breaks": [],
+    "planted": [
+     {
+      "fault": "altered reply",
+      "expected": "altered_reply",
+      "found": [
+       "altered_reply"
+      ],
+      "ok": true
+     },
+     {
+      "fault": "unshown reply",
+      "expected": "unshown_reply",
+      "found": [
+       "unshown_reply"
+      ],
+      "ok": true
+     },
+     {
+      "fault": "altered input",
+      "expected": "altered_input",
+      "found": [
+       "altered_input"
+      ],
+      "ok": true
+     },
+     {
+      "fault": "injected input",
+      "expected": "injected_input",
+      "found": [
+       "injected_input"
+      ],
+      "ok": true
+     },
+     {
+      "fault": "relay record missing",
+      "expected": "record_missing",
+      "found": [
+       "record_missing"
+      ],
+      "ok": true
+     }
+    ],
+    "expected_breaks": [],
+    "successful_exit": 0,
+    "successful_breaks": []
+   },
+   "pass": true
   },
   {
-   "message": 3,
-   "request_bytes": 88,
-   "response_bytes": 71,
-   "message_same": true,
-   "reply_same": true
-  },
-  {
-   "message": 4,
-   "request_bytes": 66,
-   "response_bytes": 61,
-   "message_same": true,
-   "reply_same": true
-  },
-  {
-   "message": 5,
-   "request_bytes": 62,
-   "response_bytes": 96,
-   "message_same": true,
-   "reply_same": true
+   "date": "2026-10-31",
+   "form": "default-deny",
+   "policy": {
+    "tap_service_resolves": true,
+    "before_rule": {
+     "decision": "block",
+     "reason": "nookku: cannot reach the tap at http://tap.harness.svc:8800/: <urlopen error timed out>",
+     "app_unchanged": true,
+     "failed_turn_recorded": true,
+     "pass": true
+    },
+    "direct_service_blocked": true,
+    "direct_pod_blocked": true,
+    "manifest": "https://raw.githubusercontent.com/kubernetes-sigs/kube-network-policies/d33caa334951debb10babc3238eb3eea4edc1eda/install.yaml",
+    "image": "registry.k8s.io/networking/kube-network-policies:v1.1.2",
+    "controller": "registry.k8s.io/networking/kube-network-policies@sha256:c671f98e444825d57c590c92da1b5e66070917c4d3dff1f9279775e6b73254fe",
+    "after_removal": {
+     "decision": "block",
+     "reason": "nookku: cannot reach the tap at http://tap.harness.svc:8800/: <urlopen error timed out>",
+     "app_unchanged": true,
+     "failed_turn_recorded": true,
+     "pass": true
+    }
+   },
+   "versions": {
+    "nookku": "0.5.6",
+    "nookku_in_pod": "0.5.6",
+    "python_in_pod": "3.12.15",
+    "base_image": "python:3.12-slim sha256:a6e34c598f2467ed0e9a8d349809fcd8b5c603269512df273a0bb1784edc11b1",
+    "codex": "codex-cli 0.162.1, not run",
+    "kind": "v0.33.0",
+    "kubernetes": "v1.37.0",
+    "kubectl": "v1.36.2",
+    "docker": "29.5.2",
+    "hook_events": "Claude Code 2.1.302 (Claude Code), sent by the proof with no harness",
+    "os": "Darwin"
+   },
+   "C1_service": {
+    "url": "http://toy-shop.shop.svc:8080/",
+    "resolves_to_cluster_ip": true
+   },
+   "C2_C3_messages": [
+    {
+     "message": 1,
+     "request_bytes": 47,
+     "response_bytes": 61,
+     "message_same": true,
+     "reply_same": true
+    },
+    {
+     "message": 2,
+     "request_bytes": 67,
+     "response_bytes": 61,
+     "message_same": true,
+     "reply_same": true
+    },
+    {
+     "message": 3,
+     "request_bytes": 88,
+     "response_bytes": 71,
+     "message_same": true,
+     "reply_same": true
+    },
+    {
+     "message": 4,
+     "request_bytes": 66,
+     "response_bytes": 61,
+     "message_same": true,
+     "reply_same": true
+    },
+    {
+     "message": 5,
+     "request_bytes": 62,
+     "response_bytes": 96,
+     "message_same": true,
+     "reply_same": true
+    }
+   ],
+   "app_requests": 5,
+   "C4_guard": {
+    "command": "curl -s -d '{\"text\": \"refund my teapot\"}' http://toy-shop.shop.svc:8080/",
+    "decision": "deny"
+   },
+   "C5_audit": {
+    "exit": 1,
+    "breaks": [
+     "not_delivered",
+     "not_delivered"
+    ],
+    "planted": [
+     {
+      "fault": "altered reply",
+      "expected": "altered_reply",
+      "found": [
+       "altered_reply"
+      ],
+      "ok": true
+     },
+     {
+      "fault": "unshown reply",
+      "expected": "unshown_reply",
+      "found": [
+       "unshown_reply"
+      ],
+      "ok": true
+     },
+     {
+      "fault": "altered input",
+      "expected": "altered_input",
+      "found": [
+       "altered_input"
+      ],
+      "ok": true
+     },
+     {
+      "fault": "injected input",
+      "expected": "injected_input",
+      "found": [
+       "injected_input"
+      ],
+      "ok": true
+     },
+     {
+      "fault": "relay record missing",
+      "expected": "record_missing",
+      "found": [
+       "record_missing"
+      ],
+      "ok": true
+     }
+    ],
+    "expected_breaks": [
+     "not_delivered",
+     "not_delivered"
+    ],
+    "successful_exit": 0,
+    "successful_breaks": []
+   },
+   "pass": true
   }
  ],
- "app_requests": 5,
- "C4_guard": {
-  "command": "curl -s -d '{\"text\": \"refund my teapot\"}' http://toy-shop.shop.svc:8080/",
-  "decision": "deny"
- },
- "C5_audit": {
-  "exit": 0,
-  "breaks": [],
-  "planted": [
-   {
-    "fault": "altered reply",
-    "expected": "altered_reply",
-    "found": [
-     "altered_reply"
-    ],
-    "ok": true
-   },
-   {
-    "fault": "unshown reply",
-    "expected": "unshown_reply",
-    "found": [
-     "unshown_reply"
-    ],
-    "ok": true
-   },
-   {
-    "fault": "altered input",
-    "expected": "altered_input",
-    "found": [
-     "altered_input"
-    ],
-    "ok": true
-   },
-   {
-    "fault": "injected input",
-    "expected": "injected_input",
-    "found": [
-     "injected_input"
-    ],
-    "ok": true
-   },
-   {
-    "fault": "relay record missing",
-    "expected": "record_missing",
-    "found": [
-     "record_missing"
-    ],
-    "ok": true
-   }
-  ]
- },
  "pass": true
 }

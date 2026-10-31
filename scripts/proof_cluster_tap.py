@@ -15,10 +15,14 @@ The proof checks:
 - C4: the guard denies a curl call from the model to the Service URL (the option agent_url).
 - C5: the audit finds 0 breaks in the records, and finds each planted fault (P4).
 
-It writes proofs/cluster-tap/: results.json, tap.jsonl, relay.jsonl and app.jsonl. It needs
+It writes proofs/cluster-tap/results.json and the records and manifests of each form. It needs
 Docker, kind and kubectl. It deletes its cluster at the end, also if a step fails.
 
-usage: python scripts/proof_cluster_tap.py [--cluster NAME] [--keep]
+Forms: same-pod, service (a separate tap pod), and default-deny (the separate tap pod with
+egress policy). The policy form checks the hook before the relay rule exists, with the rule,
+and after its removal. The policy controller runs only in the proof cluster.
+
+usage: python scripts/proof_cluster_tap.py [--cluster NAME] [--form FORM]
 """
 
 from __future__ import annotations
@@ -53,6 +57,13 @@ AGENT_URL = f"http://{SERVICE_HOST}:8080/"
 TAP_URL = "http://127.0.0.1:8800/"
 WORK = "/work"
 SESSION = "cluster-tap-proof"
+FORMS = ("same-pod", "service", "default-deny")
+TAP_HOST = "tap.harness.svc"
+POLICY_MANIFEST = (
+    "https://raw.githubusercontent.com/kubernetes-sigs/kube-network-policies/"
+    "d33caa334951debb10babc3238eb3eea4edc1eda/install.yaml"
+)
+POLICY_IMAGE = "registry.k8s.io/networking/kube-network-policies:v1.1.2"
 # The direct call that the model tries in C4. The guard must deny it.
 CURL = f'curl -s -d \'{{"text": "refund my teapot"}}\' {AGENT_URL}'
 
@@ -152,12 +163,122 @@ kind: Pod
 metadata:
   name: harness
   namespace: harness
+  labels:
+    app: harness
 spec:
   containers:
     - name: harness
       image: {IMAGE}
       imagePullPolicy: Never
       command: ["sleep", "infinity"]
+"""
+
+
+TAP_MANIFEST = f"""
+apiVersion: v1
+kind: Pod
+metadata:
+  name: tap
+  namespace: harness
+  labels:
+    app: tap
+spec:
+  containers:
+    - name: tap
+      image: {IMAGE}
+      imagePullPolicy: Never
+      command: ["sleep", "infinity"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tap
+  namespace: harness
+spec:
+  selector:
+    app: tap
+  ports:
+    - port: 8800
+      targetPort: 8800
+"""
+
+# This namespace denies egress. DNS and the tap-to-app hop have separate rules. The
+# harness-to-tap rule is absent at first. No policy in this proof changes the host.
+DENY_MANIFEST = """
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-egress
+  namespace: harness
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress: []
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns
+  namespace: harness
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-tap-to-shop
+  namespace: harness
+spec:
+  podSelector:
+    matchLabels:
+      app: tap
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: shop
+          podSelector:
+            matchLabels:
+              app: toy-shop
+      ports:
+        - protocol: TCP
+          port: 8080
+"""
+
+RELAY_RULE = """
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-relay-to-tap
+  namespace: harness
+spec:
+  podSelector:
+    matchLabels:
+      app: harness
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: tap
+      ports:
+        - protocol: TCP
+          port: 8800
 """
 
 
@@ -219,27 +340,37 @@ def build_image(c: Cluster, work: Path) -> None:
     run([c.kind, "load", "docker-image", IMAGE, "--name", c.name], timeout=600)
 
 
-def start_tap(c: Cluster) -> None:
+def start_tap(c: Cluster, separate: bool = False) -> None:
     """Install the project hooks relay with no entry, start the tap and switch relay mode on."""
     c.harness("mkdir", "-p", WORK)
     init = ["nookku", "init", "claude-code", "--root", WORK]
-    c.harness(*init, "--tap-url", TAP_URL, "--agent-url", AGENT_URL)
-    tap = f"nookku tap --agent {AGENT_URL} --record {WORK}/tap.jsonl"
-    c.harness("sh", "-c", f"cd {WORK} && nohup {tap} >{WORK}/tap.log 2>&1 </dev/null &")
+    url = f"http://{TAP_HOST}:8800/" if separate else TAP_URL
+    c.harness(*init, "--tap-url", url, "--agent-url", AGENT_URL)
+    tap_exec = (
+        (lambda *args: c.k("exec", "-n", "harness", "tap", "--", *args)) if separate else c.harness
+    )
+    tap_exec("mkdir", "-p", WORK)
+    listen = " --listen 0.0.0.0:8800" if separate else ""
+    tap = f"nookku tap --agent {AGENT_URL} --record {WORK}/tap.jsonl{listen}"
+    tap_exec("sh", "-c", f"cd {WORK} && nohup {tap} >{WORK}/tap.log 2>&1 </dev/null &")
     deadline = time.monotonic() + 60
-    while b"listening" not in c.harness("cat", f"{WORK}/tap.log"):
+    while b"listening" not in tap_exec("cat", f"{WORK}/tap.log"):
         if time.monotonic() > deadline:
-            raise SystemExit(f"the tap did not start: {c.harness('cat', f'{WORK}/tap.log')!r}")
+            raise SystemExit(f"the tap did not start: {tap_exec('cat', f'{WORK}/tap.log')!r}")
         time.sleep(0.5)
     c.harness("nookku", "mode", "on", "--root", WORK)
 
 
-def hook(c: Cluster, event: dict[str, Any]) -> dict[str, Any]:
+def hook(c: Cluster, event: dict[str, Any], *, short_timeout: bool = False) -> dict[str, Any]:
     """Send one hook event of Claude Code to `nookku hook` in the harness pod. The entry point of
     the interactive CLI is `cli` (SPEC.md section 5, print mode)."""
     event = {"session_id": SESSION, "cwd": WORK, **event}
     raw = json.dumps(event, ensure_ascii=False).encode()
     args = ["nookku", "hook", "--root", WORK, "--harness", "claude-code"]
+    if short_timeout:
+        # Shorten only this proof process. Use the same hook and fail-closed path.
+        code = "from nookku import kit; kit.TIMEOUT=2; from nookku.__main__ import main; main()"
+        args = ["python", "-c", code, *args[1:]]
     out = c.harness(*args, data=raw, env={"CLAUDE_CODE_ENTRYPOINT": "cli"})
     answer: dict[str, Any] = json.loads(out.decode())
     return answer
@@ -252,11 +383,14 @@ def versions(c: Cluster) -> dict[str, str]:
     base = run([c.docker, "image", "inspect", BASE_IMAGE, "--format", "{{.Id}}"]).decode().strip()
     claude = shutil.which("claude")
     events = run([claude, "--version"]).decode().strip() if claude else "not installed"
+    codex = shutil.which("codex")
+    codex_version = run([codex, "--version"]).decode().strip() if codex else "not installed"
     return {
         "nookku": __version__,
         "nookku_in_pod": c.harness("nookku", "--version").decode().split()[-1],
         "python_in_pod": c.harness("python", "-V").decode().split()[-1],
         "base_image": f"{BASE_IMAGE} {base}",
+        "codex": codex_version + ", not run",
         "kind": run([c.kind, "version"]).decode().split()[1],
         "kubernetes": server,
         "kubectl": client["clientVersion"]["gitVersion"],
@@ -266,7 +400,7 @@ def versions(c: Cluster) -> dict[str, str]:
     }
 
 
-def prove(c: Cluster, work: Path) -> dict[str, Any]:
+def prove(c: Cluster, work: Path, form: str = "same-pod") -> dict[str, Any]:
     c.k("apply", "-f", "-", data=MANIFEST.encode())
     c.k("rollout", "status", "-n", "shop", "deployment/toy-shop", "--timeout=180s", timeout=200)
     c.k(
@@ -279,13 +413,57 @@ def prove(c: Cluster, work: Path) -> dict[str, Any]:
         timeout=200,
     )
 
+    separate = form != "same-pod"
+    if separate:
+        c.k("apply", "-f", "-", data=TAP_MANIFEST.encode())
+        c.k("wait", "-n", "harness", "--for=condition=Ready", "pod/tap", "--timeout=180s")
+
     # C1: the Service URL resolves in the harness pod.
     cluster_ip = c.k("get", "svc", "-n", "shop", "toy-shop", "-o", "jsonpath={.spec.clusterIP}")
     lookup = f"import socket; print(socket.gethostbyname({SERVICE_HOST!r}))"
     resolved = c.harness("python", "-c", lookup).decode().strip()
     c1 = {"url": AGENT_URL, "resolves_to_cluster_ip": resolved == cluster_ip.decode().strip()}
 
-    start_tap(c)
+    start_tap(c, separate)
+    wait_route(c, TAP_HOST if separate else "127.0.0.1", 8800, True)
+    policy: dict[str, Any] = {}
+    if separate:
+        ip = c.k("get", "svc", "-n", "harness", "tap", "-o", "jsonpath={.spec.clusterIP}")
+        lookup = f"import socket; print(socket.gethostbyname({TAP_HOST!r}))"
+        policy["tap_service_resolves"] = (
+            c.harness("python", "-c", lookup).decode().strip() == ip.decode()
+        )
+    if form == "default-deny":
+        c.k("apply", "-f", "-", data=DENY_MANIFEST.encode())
+        wait_route(c, TAP_HOST, 8800, False)
+        policy["before_rule"] = blocked(c, "Hi, can you find my toy order?")
+        c.k("apply", "-f", "-", data=RELAY_RULE.encode())
+        wait_route(c, TAP_HOST, 8800, True)
+        # The relay must have no direct route to the app, by Service or pod IP.
+        app_ip = c.k(
+            "get",
+            "pods",
+            "-n",
+            "shop",
+            "-l",
+            "app=toy-shop",
+            "-o",
+            "jsonpath={.items[0].status.podIP}",
+        ).decode()
+        policy["direct_service_blocked"] = not route(c, SERVICE_HOST, 8080)
+        policy["direct_pod_blocked"] = not route(c, app_ip, 8080)
+        policy["manifest"] = POLICY_MANIFEST
+        policy["image"] = POLICY_IMAGE
+        policy["controller"] = c.k(
+            "get",
+            "pods",
+            "-n",
+            "kube-system",
+            "-l",
+            "app=kube-network-policies",
+            "-o",
+            "jsonpath={.items[0].status.containerStatuses[0].imageID}",
+        ).decode()
     shown = []
     for message in MESSAGES:
         answer = hook(c, {"hook_event_name": "UserPromptSubmit", "prompt": message})
@@ -294,15 +472,25 @@ def prove(c: Cluster, work: Path) -> dict[str, Any]:
     tool_input = {"command": CURL}
     deny = hook(c, {"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": tool_input})
     decision = deny.get("hookSpecificOutput", {}).get("permissionDecision")
+    if form == "default-deny":
+        c.k("delete", "networkpolicy", "-n", "harness", "allow-relay-to-tap")
+        wait_route(c, TAP_HOST, 8800, False)
+        policy["after_removal"] = blocked(c, "Please check my toy order again.")
     c.harness("nookku", "mode", "off", "--root", WORK)
 
     tap_path, relay_path, app_path = work / "tap.jsonl", work / "relay.jsonl", work / "app.jsonl"
-    tap_path.write_bytes(c.harness("cat", f"{WORK}/tap.jsonl"))
+    tap_bytes = (
+        c.k("exec", "-n", "harness", "tap", "--", "cat", f"{WORK}/tap.jsonl")
+        if separate
+        else c.harness("cat", f"{WORK}/tap.jsonl")
+    )
+    tap_path.write_bytes(tap_bytes)
     relay_path.write_bytes(c.harness("cat", f"{WORK}/.nookku/relay.jsonl"))
     app_path.write_bytes(c.k("logs", "-n", "shop", "deployment/toy-shop"))
 
     exchanges = [r for r in json_lines(tap_path.read_text()) if r["type"] == "exchange"]
-    turns = [r for r in json_lines(relay_path.read_text()) if r["type"] == "turn"]
+    all_turns = [r for r in json_lines(relay_path.read_text()) if r["type"] == "turn"]
+    turns = [r for r in all_turns if r.get("ok") is True]
     app = json_lines(app_path.read_text())
     adapter = JsonAdapter()
     checks = []
@@ -330,9 +518,23 @@ def prove(c: Cluster, work: Path) -> dict[str, Any]:
     report = audit(tap_path, relay_path)
     faults = work / "faults"
     faults.mkdir()
-    p4 = planted(tap_path, relay_path, faults)
+    # P4 changes a successful exchange. The policy form also has failed turns, which
+    # have no tap exchange and which the audit excludes from reply matching.
+    successful = work / "successful-relay.jsonl"
+    successful.write_text(
+        "".join(
+            line + "\n"
+            for line in relay_path.read_text().splitlines()
+            if json.loads(line).get("ok") is not False
+        )
+    )
+    p4 = planted(tap_path, successful, faults)
+    successful_audit = audit(tap_path, successful)
+    expected_breaks = ["not_delivered"] * 2 if form == "default-deny" else []
     result: dict[str, Any] = {
         "date": date.today().isoformat(),
+        "form": form,
+        "policy": policy,
         "versions": versions(c),
         "C1_service": c1,
         "C2_C3_messages": checks,
@@ -342,6 +544,9 @@ def prove(c: Cluster, work: Path) -> dict[str, Any]:
             "exit": report.exit,
             "breaks": [b.kind for b in report.breaks],
             "planted": p4,
+            "expected_breaks": expected_breaks,
+            "successful_exit": successful_audit.exit,
+            "successful_breaks": [b.kind for b in successful_audit.breaks],
         },
     }
     result["pass"] = (
@@ -349,30 +554,135 @@ def prove(c: Cluster, work: Path) -> dict[str, Any]:
         and len(checks) == len(MESSAGES) == len(app) == len(exchanges) == len(turns)
         and all(m["message_same"] and m["reply_same"] for m in checks)
         and decision == "deny"
-        and report.exit == 0
+        and report.exit == (1 if expected_breaks else 0)
+        and [b.kind for b in report.breaks] == expected_breaks
+        and successful_audit.exit == 0
         and all(p["ok"] for p in p4)
+        and (not separate or policy["tap_service_resolves"])
+        and (
+            form != "default-deny"
+            or (
+                policy["before_rule"]["pass"]
+                and policy["after_removal"]["pass"]
+                and policy["direct_service_blocked"]
+                and policy["direct_pod_blocked"]
+                and len(all_turns) == len(MESSAGES) + 2
+            )
+        )
     )
-    OUT.mkdir(parents=True, exist_ok=True)
+    out = OUT / form
+    out.mkdir(parents=True, exist_ok=True)
     for p in (tap_path, relay_path, app_path):
-        shutil.copy(p, OUT / p.name)
+        shutil.copy(p, out / p.name)
+    for name, content in (
+        ("pods.yaml", MANIFEST + ("\n---\n" + TAP_MANIFEST if separate else "")),
+        ("deny.yaml", DENY_MANIFEST),
+        ("relay-rule.yaml", RELAY_RULE),
+    ):
+        if name == "pods.yaml" or form == "default-deny":
+            (out / name).write_text(content)
     return result
+
+
+def route(c: Cluster, host: str, port: int) -> bool:
+    code = (
+        "import socket; s=socket.socket(); s.settimeout(1); "
+        f"print(s.connect_ex(({host!r}, {port})) == 0); s.close()"
+    )
+    return c.harness("python", "-c", code).strip() == b"True"
+
+
+def wait_route(c: Cluster, host: str, port: int, reachable: bool) -> None:
+    deadline = time.monotonic() + 60
+    while route(c, host, port) != reachable:
+        if time.monotonic() > deadline:
+            raise SystemExit(f"policy did not set {host}:{port} reachable={reachable}")
+        time.sleep(0.2)
+
+
+def blocked(c: Cluster, message: str) -> dict[str, Any]:
+    before = c.k("logs", "-n", "shop", "deployment/toy-shop")
+    answer = hook(c, {"hook_event_name": "UserPromptSubmit", "prompt": message}, short_timeout=True)
+    after = c.k("logs", "-n", "shop", "deployment/toy-shop")
+    record = json_lines(c.harness("cat", f"{WORK}/.nookku/relay.jsonl").decode())[-1]
+    return {
+        "decision": answer.get("decision"),
+        "reason": answer.get("reason"),
+        "app_unchanged": before == after,
+        "failed_turn_recorded": record.get("type") == "turn"
+        and record.get("ok") is False
+        and record.get("said") == message,
+        "pass": answer.get("decision") == "block"
+        and before == after
+        and record.get("type") == "turn"
+        and record.get("ok") is False
+        and record.get("said") == message,
+    }
+
+
+def free_space(c: Cluster) -> int:
+    """Check the Docker VM, without removing any image or volume."""
+    data = run(
+        [
+            c.docker,
+            "run",
+            "--rm",
+            "--pull=never",
+            "--entrypoint",
+            "df",
+            BASE_IMAGE,
+            "-m",
+            "/var/lib",
+        ]
+    )
+    available = int(data.decode().splitlines()[-1].split()[3])
+    if available < 1200:
+        raise SystemExit(f"Docker has {available} MB free, below 1200 MB. Stop; do not prune.")
+    return available
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument("--cluster", default="nookku-458", help="the name of the kind cluster")
-    parser.add_argument("--keep", action="store_true", help="do not delete the cluster at the end")
+    parser.add_argument("--cluster", default="nookku-508", help="the name of the kind cluster")
+    parser.add_argument("--form", choices=("all", *FORMS), default="all")
     args = parser.parse_args()
     c = Cluster(args.cluster)
     if c.exists():
         raise SystemExit(f"a kind cluster {c.name} exists. Give a new name with --cluster.")
-    work = Path(tempfile.mkdtemp(prefix="nookku-cluster-tap-"))
-    c.create()
-    try:
-        build_image(c, work)
-        result = prove(c, work)
-    finally:
-        if not args.keep:
+    space = free_space(c)
+    forms = FORMS if args.form == "all" else (args.form,)
+    with tempfile.TemporaryDirectory(prefix="nookku-cluster-tap-") as folder:
+        work = Path(folder)
+        try:
+            c.create()
+            free_space(c)
+            build_image(c, work)
+            if "default-deny" in forms:
+                c.k("apply", "-f", POLICY_MANIFEST)
+                c.k(
+                    "rollout",
+                    "status",
+                    "-n",
+                    "kube-system",
+                    "daemonset/kube-network-policies",
+                    "--timeout=180s",
+                    timeout=200,
+                )
+            results = []
+            for form in forms:
+                free_space(c)
+                part = work / form
+                part.mkdir()
+                results.append(prove(c, part, form))
+                print(form, "PASS" if results[-1]["pass"] else "FAIL", flush=True)
+                c.k("delete", "namespace", "harness", "shop", "--wait=true")
+            result = {
+                "method": "scripts/proof_cluster_tap.py",
+                "docker_free_mb_before": space,
+                "forms": results,
+                "pass": all(r["pass"] for r in results),
+            }
+        finally:
             c.delete()
     out = OUT / "results.json"
     out.write_text(json.dumps(result, indent=1, ensure_ascii=False) + "\n")
