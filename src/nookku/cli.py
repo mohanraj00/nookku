@@ -25,6 +25,7 @@ from nookku import (
     state,
     stdio,
     trace,
+    verdict,
 )
 from nookku.adapters import make
 from nookku.audit import audit, render
@@ -350,6 +351,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     run.add_argument("--root", type=Path, default=Path.cwd())
     run.add_argument("--json", action="store_true", help="print the result as JSON")
     run.add_argument(
+        "--verdict",
+        action="store_true",
+        help="exit with 1 if the verdict of the test is fail (for CI)",
+    )
+    run.add_argument(
         "--evaluate",
         action=argparse.BooleanOptionalAction,
         default=None,
@@ -364,6 +370,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     trc.add_argument("--root", type=Path, default=Path.cwd())
     trc.add_argument("--json", action="store_true", help="print findings.json")
+    trc.add_argument(
+        "--verdict",
+        action="store_true",
+        help="exit with 1 if the verdict of the test is fail (for CI)",
+    )
     trc.add_argument(
         "--gateway",
         metavar="SOURCE",
@@ -576,7 +587,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                 print("nookku: --gateway needs --key-alias, and the opposite.", file=sys.stderr)
                 return 2
             gate = (args.gateway, list(args.key_alias), args.gateway_tag)
-        return _trace_command(args.root.resolve(), args.test, args.json, args.egress, gate)
+        return _trace_command(
+            args.root.resolve(), args.test, args.json, args.egress, gate, args.verdict
+        )
     if args.command == "verify":
         folder = _test_folder(args.root.resolve(), args.test)
         if folder is None:
@@ -770,6 +783,7 @@ def _trace_command(
     as_json: bool,
     egress: Path | None = None,
     gate: tuple[str, list[str], str | None] | None = None,
+    verdict_gate: bool = False,
 ) -> int:
     folder = _test_folder(root, test)
     if folder is None:
@@ -778,7 +792,7 @@ def _trace_command(
         print("nookku: no test folder with a manifest.", file=sys.stderr)
         return 2
     check = seal.verify(folder)
-    rebuilt = ("trace.jsonl", "findings.json", performance.FILE)
+    rebuilt = ("trace.jsonl", "findings.json", performance.FILE, verdict.FILE)
     sources = [x for k in ("changed", "missing", "added") for x in check[k] if x not in rebuilt]
     # A rebuild changes only the trace files. It needs sources that agree with an intact seal.
     broken = sources or check["copy"] in ("different", "missing") or not check["sealed"]
@@ -831,15 +845,33 @@ def _trace_command(
         # The seal keeps the hash of the old file, so a changed old file shows as changed.
         print(f"nookku: {performance.FILE} was not rebuilt: {e!r}", file=sys.stderr)
         names.remove(performance.FILE)
+    try:
+        found: dict[str, Any] | None = verdict.build(folder)
+    except Exception as e:
+        # The seal keeps the hash of the old file. With --verdict, the command fails closed.
+        print(f"nookku: {verdict.FILE} was not rebuilt: {e!r}", file=sys.stderr)
+        names.remove(verdict.FILE)
+        found = None
     seal.update(folder, names)
+    code = 0
+    if verdict_gate and found is not None:
+        # The exit code uses only a verdict that agrees with the copy of the seal (SPEC.md
+        # section 7.14), not the file as another user can leave it.
+        found, why = verdict.checked(folder)
+        if found is None:
+            print(f"nookku: the verdict cannot be used. {why}", file=sys.stderr)
+    if verdict_gate:
+        code = 0 if found is not None and found["verdict"] == verdict.PASS else 1
     if as_json:
         print(json.dumps(report, indent=1, ensure_ascii=False))
-        return 0
+        return code
     print(trace.summary(report))
     for line in trace.finding_lines(report):
         print(line)
+    if verdict.shown(found, verdict_gate):
+        print(verdict.summary(found))
     print(f"File: {folder / 'trace.jsonl'}")
-    return 0
+    return code
 
 
 def _chat_parser(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
@@ -965,7 +997,9 @@ def _run_command(
     root = args.root.resolve()
     script_path = args.script if args.script.is_absolute() else Path.cwd() / args.script
     try:
-        passed, lines, folder = bridge.run_script(root, script_path, args.entry, egress)
+        passed, lines, folder = bridge.run_script(
+            root, script_path, args.entry, egress, gate=getattr(args, "verdict", False)
+        )
     except bridge.BridgeError as e:
         print(json.dumps({"error": str(e)}) if args.json else f"nookku: {e}")
         return 1

@@ -34,6 +34,7 @@ from nookku import (
     script,
     seal,
     trace,
+    verdict,
 )
 from nookku.audit import audit
 from nookku.config import CHECK_MESSAGE as CHECK_MESSAGE
@@ -145,6 +146,9 @@ class TestConfig:
     # The bytes of each spec file, from the read that gave its SHA-256. The bridge copies them
     # into the test folder (SPEC.md section 7.2).
     spec_data: list[bytes] = field(default_factory=list)
+    # The limits of the Verdict table of the app spec, and each part of the table that is not a
+    # limit (SPEC.md section 7.14).
+    verdict: dict[str, Any] = field(default_factory=lambda: {"limits": {}, "unread": []})
 
 
 def load_config(root: Path, entry_name: str | None = None) -> TestConfig:
@@ -160,6 +164,7 @@ def load_config(root: Path, entry_name: str | None = None) -> TestConfig:
         spec = [h for h, _ in contents]
         files = [(h["path"], b.decode("utf-8", "replace")) for h, b in contents]
         points, unread = app_spec.read(files)
+        limits = verdict.read(files)
     except (ConfigError, policy.PolicyError) as e:
         raise BridgeError(str(e)) from None
     entry, models = data.get("entry") or [], data.get("models") or []
@@ -192,6 +197,7 @@ def load_config(root: Path, entry_name: str | None = None) -> TestConfig:
         unread,
         body_limit=data.get("body_limit", backend.BODY_LIMIT),
         spec_data=copies,
+        verdict=limits,
     )
 
 
@@ -925,6 +931,7 @@ def run(
         "spec_copies": True,
         "trace_points": config.trace_points,
         "trace_points_unread": config.trace_points_unread,
+        "verdict": config.verdict,
         "tester_sessions": [tester_session] if tester_session else [],
         "model_sessions": [],
         "codex_gate": {"start": _start_gate(folder), "end": None},
@@ -1164,6 +1171,10 @@ def _collect(folder: Path, copy: Path | None, log: Callable[[str], None] | None 
     except Exception as e:
         log(f"the turn summary failed: {e!r}")
     try:
+        verdict.build(folder)
+    except Exception as e:
+        log(f"the verdict failed: {e!r}")
+    try:
         report = audit(folder / "tap.jsonl", folder / "relay.jsonl", copy).as_dict()
         _write_json(folder / "audit.json", report)
     except Exception as e:
@@ -1253,9 +1264,10 @@ def run_script(
     script_path: Path,
     entry_name: str | None = None,
     egress: dict[str, Any] | None = None,
+    gate: bool = False,
 ) -> tuple[bool, list[str], Path]:
     """Run a scripted test (SPEC.md section 7.10). Return (passed, the report lines, the test
-    folder).
+    folder). With gate, a verdict that is not `pass` also fails the run (SPEC.md section 7.14).
 
     Each message of the script goes to the entry byte for byte, as a relay row with the harness
     script. The lines name the test, the count of turns, the audit and the trace. They do not
@@ -1293,6 +1305,21 @@ def run_script(
         lines.append(trace.summary(findings))
     except (OSError, ValueError, KeyError) as e:
         lines.append(f"Trace: no valid findings.json ({e})")
+    if gate:
+        # The tests folder can be writable by another user, so the exit code uses only a
+        # verdict that agrees with the copy of the seal (SPEC.md section 7.14).
+        found, why = verdict.checked(folder)
+        if found is None:
+            lines.append(f"Verdict: fail. {why}")
+            problems.append(f"The verdict cannot be used. {why}")
+        else:
+            lines.append(verdict.summary(found))
+            if found["verdict"] != verdict.PASS:
+                problems.append(f"The verdict is fail. Read {verdict.FILE} in the test folder.")
+    else:
+        found = verdict.load(folder)
+        if verdict.shown(found, gate):
+            lines.append(verdict.summary(found))
     changed = gate_changed(manifest)
     if changed is not None:
         problems.append(f"The Codex hooks changed during the test: {changed}")

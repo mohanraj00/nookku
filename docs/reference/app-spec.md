@@ -27,6 +27,7 @@ Use the section names exactly. The evaluation prompt names the files, and the mo
 | `User goals` | The path that the agent must guide the user to | Each goal of a user, and the steps from the first message to the goal. |
 | `Limits` | The maximum cost of a turn | A table of `Limit`, `Value` and `Meaning`. The names are below. |
 | `Trace points` | The spans or the events that the app must send, as the [trace](glossary.md#trace) shows them | A table of `Name`, `Source` and `When`. The sources are below. |
+| `Verdict` | The most [findings](glossary.md#findings) of each class that a test can have | A table of `Finding` and `Most`. The verdict of a test compares the findings with it ([Verdict](#verdict)). |
 
 Each part is optional.
 
@@ -72,6 +73,34 @@ The case of the words, the backticks and a `.` at the end do not matter. A turn 
 The model of the evaluation reads the spec, but no check of the trace covers these trace points.
 
 The section can have a heading of any level, and the table can have more columns than `Name`, `Source` and `When`, in any order. The `|` at the start and at the end of a row are optional. The [bridge](glossary.md#bridge) does not read a section or a table in a fenced code block. If the bridge cannot read a part of the section, the trace gives the finding `trace_points_unread` with the file and the line: a section with no table, a table with no rows, a row with a different count of cells, or a row with no `Name`. The bridge keeps 200 trace points and 200 of these records at most ([limits](../limits.md)).
+
+### Verdict
+
+At the end of each test, Nookku writes `verdict.json` in the [test folder](glossary.md#test-folder): `pass` or `fail` for each class of [findings](glossary.md#findings), with the count of the class and its limit ([SPEC.md section 7.14](../../SPEC.md#714-verdict)). A CI job reads one result from it, with no model. The `Verdict` table gives the limits:
+
+| Column | Value |
+|---|---|
+| `Finding` | A finding class of the trace, for example `agent_error` or `repeated_reply` ([SPEC.md section 8.6](../../SPEC.md#86-findings)). |
+| `Most` | The most findings of the class that a test can have: a whole number from 0 to 999999999. |
+
+The toy shop allows 0 `agent_error` and at most 1 `repeated_reply`:
+
+```markdown
+## Verdict
+
+| Finding | Most |
+|---|---|
+| `agent_error` | 0 |
+| `repeated_reply` | 1 |
+```
+
+- A class with no row has no limit, so it always passes.
+- The verdict is `fail` if a class has more findings than its `Most`.
+- The section and the table follow the rules of [Trace points](#trace-points): a heading of any level, more columns in any order, and no table in a fenced code block.
+- If the bridge cannot read a row, the verdict is `fail`, and `problems` in `verdict.json` names the file, the line and the problem. Examples: a class that the trace does not have, a second row for one class, or a `Most` that is not a whole number.
+- The bridge reads the table at the start of the test and records it in the manifest. If you change the table after the start, the verdict of that test does not change.
+
+To make CI fail on a `fail` verdict, give `--verdict` to [`nookku run`](cli.md#nookku-run) or [`nookku trace`](cli.md#nookku-trace). Then the command exits with 1. The command uses the verdict only if it agrees with the [seal](glossary.md#seal) and its copy in `~/.nookku/seals/`, so a test with no copy of the seal fails ([SPEC.md section 7.14](../../SPEC.md#714-verdict)).
 
 ## Example: the toy shop
 

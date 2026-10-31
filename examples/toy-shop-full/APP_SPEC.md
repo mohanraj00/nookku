@@ -27,6 +27,13 @@ The spec of the toy shop support agent. The parts are in [docs/reference/app-spe
 | `turn_seconds` | 30 | The most seconds from the message to the reply of one turn. |
 | `turn_tokens` | 2000 | The most output tokens of the model sessions of the app together in one turn. A direct model call of the app does not count. |
 
+## Verdict
+
+| Finding | Most |
+|---|---|
+| `agent_error` | 0 |
+| `repeated_reply` | 1 |
+
 ## Trace points
 
 | Name | Source | When |

@@ -520,7 +520,7 @@ If no process with the pid runs, or if the start time of that process is not `pi
 2. Identifies the Codex sessions (section 7.3). If `relay.jsonl` is invalid, the bridge does not know each tester session, so it identifies no Codex session and writes the error to `bridge.log`.
 3. Copies the session file of each identified model session into `sessions/` in the test folder.
 4. Writes the end time and the tester's harness sessions into the manifest.
-5. Builds the trace (section 8): `trace.jsonl` and `findings.json`. Then it writes `performance.json` (section 8.7). If the trace or `performance.json` fails, the bridge writes the error to `bridge.log`, and the test still ends.
+5. Builds the trace (section 8): `trace.jsonl` and `findings.json`. Then it writes `performance.json` (section 8.7) and `verdict.json` (section 7.14). If the trace, `performance.json` or `verdict.json` fails, the bridge writes the error to `bridge.log`, and the test still ends.
 6. Writes `audit.json`: the audit of `tap.jsonl` against `relay.jsonl` (section 3), in the form of `nookku audit --json`. If the audit fails, the bridge writes the error to `bridge.log`.
 7. Writes the seal (section 7.4). If the seal fails, the bridge writes the error to `bridge.log`.
 8. Removes `current.json`.
@@ -534,7 +534,7 @@ The test folder, in the tests folder (section 7), by default `.nookku/tests/`:
 ```text
 <tests folder>/<test-id>/
   manifest.json  relay.jsonl  tap.jsonl  app.log  bridge.log
-  otel.jsonl  backend.jsonl  model_api.jsonl  mcp.jsonl  .mcp-closed  database.jsonl  trace.jsonl  findings.json  performance.json  audit.json  seal.json  report.md  denied.jsonl
+  otel.jsonl  backend.jsonl  model_api.jsonl  mcp.jsonl  .mcp-closed  database.jsonl  trace.jsonl  findings.json  performance.json  verdict.json  audit.json  seal.json  report.md  denied.jsonl
   sessions/claude-code/<session>.jsonl
   sessions/codex/<rollout file>
   spec/<n><suffix>
@@ -583,7 +583,7 @@ The seal shows if a file of the test folder changed after the end of the test. I
 
 `verify` exits with 0 if `intact` is true, and with 2 if it is false. `nookku transcript --trace` shows the result in its first line, or in its second line if a record is not valid (section 9.2).
 
-`nookku trace` rebuilds `trace.jsonl`, `findings.json` and `performance.json`. If a seal or a copy exists, it rebuilds them only if each other sealed file agrees with the seal, `seal.json` exists, and the copy is not `different` or `missing`. Then it writes the new SHA-256 of the 3 files to the seal and to the copy. A test of Nookku 0.5.3 or earlier has no `performance.json`, so the rebuild adds it to the seal. If `nookku trace --gateway` writes `gateway.jsonl` (section 8.9), the rebuild also writes its SHA-256 to the seal and to the copy.
+`nookku trace` rebuilds `trace.jsonl`, `findings.json`, `performance.json` and `verdict.json`. If a seal or a copy exists, it rebuilds them only if each other sealed file agrees with the seal, `seal.json` exists, and the copy is not `different` or `missing`. Then it writes the new SHA-256 of the 4 files to the seal and to the copy. A test of Nookku 0.5.3 or earlier has no `performance.json`, and a test of Nookku 0.5.6 or earlier has no `verdict.json`, so the rebuild adds them to the seal. If `nookku trace --gateway` writes `gateway.jsonl` (section 8.9), the rebuild also writes its SHA-256 to the seal and to the copy.
 
 The conformance cases in `conformance/seal/` test `verify`.
 
@@ -776,9 +776,9 @@ The script must be UTF-8 and must have at least one message. A message with a lo
 1. Starts a test (section 7.2). It copies the bytes of the script into the test folder as `script.jsonl` or `script.json`, before the bridge starts, so the seal covers the copy. The manifest records `entry_name` and `script`. `run` does not switch relay mode on, so a typed prompt never becomes a turn of a scripted test.
 2. Sends each message to the entry and waits for its reply. For each message, it writes a relay row with `"harness": "script"`. If a turn has no reply, it sends no more messages.
 3. Ends the test. The bridge gives the audit the script copy, so the audit also runs the script check (section 3.2, step 7).
-4. Prints the test id, the count of turns, the exit code of the audit and the trace summary, and with `--evaluate` the evaluation prompt (section 9.2). It does not print the replies: the evaluation reads the records. Without `--evaluate` or `--no-evaluate`, the `evaluate` key decides.
+4. Prints the test id, the count of turns, the exit code of the audit, the trace summary and the verdict (section 7.14), and with `--evaluate` the evaluation prompt (section 9.2). It does not print the replies: the evaluation reads the records. Without `--evaluate` or `--no-evaluate`, the `evaluate` key decides.
 
-`run` exits with 0 if the audit is clean, and with 1 if the test did not start, a turn has no reply, the audit is not clean or the Codex hooks changed (section 7.8).
+`run` exits with 0 if the audit is clean, and with 1 if the test did not start, a turn has no reply, the audit is not clean or the Codex hooks changed (section 7.8). With `--verdict`, `run` also exits with 1 if the verdict is not `pass` (section 7.14).
 
 The policy key `scripts` (section 7.9) decides who runs a scripted test. With `person`, the default, the relay denies `nookku run` from the model (section 5), and the MCP tool `run_script` of `nookku mcp` refuses to run. With `model`, the model can run a scripted test with `nookku run` or with `run_script`, which takes `path` and `entry`. The `path` must name a file in the project folder after symlinks resolve, else `run_script` refuses. If the policy file is not valid, `run_script` refuses.
 
@@ -930,6 +930,82 @@ The `fields` of a message:
 Each other message, and a message longer than 1 MiB, has `fields` `null`. The proxy copies the bytes of a message longer than 1 MiB when they come, and it does not keep them. A `to_server` `p` message (a password or a SASL message) always has `fields` `null`, so the record never holds a password. The query texts and the values are not secret to the record, as the bodies of a backend call (section 7.6).
 
 At the end of the test, the bridge stops the proxies after it stops the entry. A proxy then writes no row and closes each open connection. Thus each row is in `database.jsonl` before the trace and the seal.
+
+### 7.14 Verdict
+
+The verdict gives one result for a test: `pass` or `fail`. A program, for example a CI job, reads it with no model. It compares the count of each finding class of `findings.json` (section 8.6) with the limits of the app spec.
+
+**The limits.** The limits are the rows of the `Verdict` section of the app spec files (section 7.1, key `spec`). The section and its table follow the rules of the `Trace points` section (section 8.6): a heading of any level with the text `Verdict`, in any case, and the first table after it. The header row must have the columns `Finding` and `Most`, in any order, and can have more columns. The reader removes each backtick and the white space at the start and the end of a cell.
+
+- `Finding` is the name of a check of section 8.6, for example `agent_error`.
+- `Most` is the most findings of that class that the test can have: a whole number from 0 to 999999999, with 1 to 9 digits.
+
+A class with no row has no limit. A part of a section that the reader cannot take is a problem: a section with no table, a table with no rows, a row with a different count of cells, a row with no `Finding`, a `Finding` that is not a check of section 8.6, a second row for one class, or a `Most` that is not a whole number of this form. A problem fails the verdict, because the tester wanted a limit that the verdict cannot use.
+
+At the start, the bridge reads the limits and writes them into the manifest, as the key `verdict`: `limits`, an object with the limit of each class, and `unread`, a list with the `file`, the `line` and the `problem` of each problem, 200 at most (section 8.6, `trace_points_unread`). The seal covers the manifest, so a change of the limits after the start breaks the seal. A later change of the app spec does not change the verdict of a test. A manifest with no key `verdict`, from Nookku 0.5.6 or earlier, has no limits.
+
+The toy shop allows 0 `agent_error` and at most 1 `repeated_reply` ([APP_SPEC.md](examples/toy-shop-full/APP_SPEC.md)):
+
+```markdown
+## Verdict
+
+| Finding | Most |
+|---|---|
+| `agent_error` | 0 |
+| `repeated_reply` | 1 |
+```
+
+**`verdict.json`.** Step 5 of section 7.2 writes `verdict.json` after `performance.json`, and `nookku trace` writes it again (section 7.4). The seal covers it. It is one JSON object:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `v` | integer | `1` |
+| `test` | string | The test id from the manifest, else the name of the test folder. |
+| `verdict` | string | `pass` if each class has `verdict` `pass` and `problems` is empty. Else `fail`. |
+| `limits` | object | The limit of each class that has one, in the order of section 8.6. |
+| `classes` | list | One object for each check of section 8.6, in the order of the table: `check`, `count`, `most` and `verdict`. |
+| `problems` | list of strings | Each problem, in this order: the manifest, the limits and `findings.json`. |
+
+In `classes`:
+
+- `count` is the count of the class in `counts` of `findings.json`, or `null` if `findings.json` has no valid count for the class.
+- `most` is the limit of the class, or `null` if it has no limit.
+- `verdict` is `pass` if `most` is `null`, or if `count` is not `null` and is `most` or less. Else it is `fail`. Thus a class with a limit and no valid count fails.
+
+The problems:
+
+| Problem | Text |
+|---|---|
+| The manifest is not a valid JSON object. | The error of the reader of the manifest. |
+| A part of a `Verdict` section is not a limit. | `<file> line <line>: <problem>`, for each record of `unread`. |
+| The key `verdict` of the manifest does not have the form above. | `The key verdict of manifest.json is not valid.` The verdict then uses no limits. |
+| `findings.json` does not exist. | `findings.json is missing.` |
+| `findings.json` is not JSON. | `findings.json is not valid JSON.` |
+| `findings.json` has no object `counts`. | `findings.json has no counts object.` |
+
+Thus a test with no limits passes if its `findings.json` is valid. A test with no valid `findings.json` fails, also with no limits.
+
+**Output.** `nookku run` and `nookku trace` print one line with the verdict and the reason of each `fail` of a class and each problem. They print it if the verdict has a limit, if the verdict is not `pass`, or with `--verdict`. Thus a test with no limits that passes gives the output of Nookku 0.5.6.
+
+**The verdict of an exit code.** Another user can write the tests folder (section 7), for example on shared storage. That user can replace `verdict.json` after the bridge writes or seals it. Thus a process that gives an exit code from the verdict does not trust `verdict.json` as it is. It uses the verdict only if each of these is true, else the verdict is not `pass`:
+
+1. The seal of the test folder is intact, and the copy of the seal outside the folder is `same` (section 7.4). A seal with no copy (`copy` `none`) is not sufficient, because `seal.json` is in the folder.
+2. The process reads `manifest.json`, `findings.json` and `verdict.json` one time each. The SHA-256 of each one is the SHA-256 in the copy of the seal.
+3. The verdict that the process computes again from these bytes of `manifest.json` and `findings.json` is the same as `verdict.json`.
+
+`nookku run --verdict` applies this rule after the end of the test, and `nookku trace --verdict` after the rebuild and the update of the seal. The output gives the reason if a check fails. With `--verdict`, set `NOOKKU_HOME` to a folder that the process can write, so that the bridge can write the copy of the seal.
+
+**Exit codes.** By default, the verdict does not change an exit code. The option `--verdict` of `nookku run` and of `nookku trace` makes a verdict that is not `pass` an exit code that is not 0:
+
+| Command | Code | Meaning |
+|---|---|---|
+| `nookku run --verdict` | 0 | The audit is clean, and the verdict is `pass`. |
+| | 1 | The run fails for a reason of section 7.10, or the verdict is `fail`, or the verdict breaks the rule above. A `FAIL:` line names the verdict. |
+| `nookku trace --verdict` | 0 | The trace was rebuilt, and the verdict is `pass`. |
+| | 1 | The trace was rebuilt, and the verdict is `fail`, or the command could not write `verdict.json`, or the verdict breaks the rule above. |
+| | 2 | The trace was not rebuilt (section 7.4). |
+
+The cases in [`conformance/verdict/`](conformance/verdict/) give the spec files, the counts of `findings.json` and the expected `verdict.json`: a `pass` and a `fail` of the toy shop, rows that are not limits, a section with no table, 2 files, no section, no `findings.json`, and a manifest with no key `verdict`.
 
 ## 8. Trace
 
@@ -1276,7 +1352,7 @@ The evaluation prompt is `src/nookku/evaluate.md`, with the test id and the test
 2. read `findings.json` and `audit.json`, and `egress` in `manifest.json` (section 7.11);
 3. read `notes.jsonl`, the notes of the tester (section 2.3), if the test folder has it;
 4. read the files of `app-state/`, if the test folder has it;
-5. read the code of the app and its business rules. If the prompt names the files of the app spec, the spec holds the rules: a file with no known part, or a section that is not a known part. The 5 known parts of [docs/reference/app-spec.md](docs/reference/app-spec.md) are not business rules;
+5. read the code of the app and its business rules. If the prompt names the files of the app spec, the spec holds the rules: a file with no known part, or a section that is not a known part. The 6 known parts of [docs/reference/app-spec.md](docs/reference/app-spec.md) are not business rules;
 6. check the state of the app with read-only commands only;
 7. write `report.md`, and no other file.
 

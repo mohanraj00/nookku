@@ -1,0 +1,152 @@
+{
+ "v": 1,
+ "test": "no_findings",
+ "verdict": "fail",
+ "limits": {
+  "agent_error": 0,
+  "repeated_reply": 1
+ },
+ "classes": [
+  {
+   "check": "agent_error",
+   "count": null,
+   "most": 0,
+   "verdict": "fail"
+  },
+  {
+   "check": "repeated_reply",
+   "count": null,
+   "most": 1,
+   "verdict": "fail"
+  },
+  {
+   "check": "reply_not_from_model",
+   "count": null,
+   "most": null,
+   "verdict": "pass"
+  },
+  {
+   "check": "tool_error",
+   "count": null,
+   "most": null,
+   "verdict": "pass"
+  },
+  {
+   "check": "command_failed",
+   "count": null,
+   "most": null,
+   "verdict": "pass"
+  },
+  {
+   "check": "span_error",
+   "count": null,
+   "most": null,
+   "verdict": "pass"
+  },
+  {
+   "check": "backend_error",
+   "count": null,
+   "most": null,
+   "verdict": "pass"
+  },
+  {
+   "check": "model_api_error",
+   "count": null,
+   "most": null,
+   "verdict": "pass"
+  },
+  {
+   "check": "questions_lost",
+   "count": null,
+   "most": null,
+   "verdict": "pass"
+  },
+  {
+   "check": "database_error",
+   "count": null,
+   "most": null,
+   "verdict": "pass"
+  },
+  {
+   "check": "unseen_call",
+   "count": null,
+   "most": null,
+   "verdict": "pass"
+  },
+  {
+   "check": "driver_without_span",
+   "count": null,
+   "most": null,
+   "verdict": "pass"
+  },
+  {
+   "check": "egress_not_in_discovery",
+   "count": null,
+   "most": null,
+   "verdict": "pass"
+  },
+  {
+   "check": "egress_denied",
+   "count": null,
+   "most": null,
+   "verdict": "pass"
+  },
+  {
+   "check": "model_error",
+   "count": null,
+   "most": null,
+   "verdict": "pass"
+  },
+  {
+   "check": "turn_without_model",
+   "count": null,
+   "most": null,
+   "verdict": "pass"
+  },
+  {
+   "check": "item_between_turns",
+   "count": null,
+   "most": null,
+   "verdict": "pass"
+  },
+  {
+   "check": "otel_tool_not_in_session",
+   "count": null,
+   "most": null,
+   "verdict": "pass"
+  },
+  {
+   "check": "server_not_from_app",
+   "count": null,
+   "most": null,
+   "verdict": "pass"
+  },
+  {
+   "check": "session_inferred",
+   "count": null,
+   "most": null,
+   "verdict": "pass"
+  },
+  {
+   "check": "version_untested",
+   "count": null,
+   "most": null,
+   "verdict": "pass"
+  },
+  {
+   "check": "missing_trace_point",
+   "count": null,
+   "most": null,
+   "verdict": "pass"
+  },
+  {
+   "check": "trace_points_unread",
+   "count": null,
+   "most": null,
+   "verdict": "pass"
+  }
+ ],
+ "problems": [
+  "findings.json is missing."
+ ]
+}
