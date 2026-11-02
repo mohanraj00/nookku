@@ -86,7 +86,23 @@ nookku tap --agent http://toy-shop.shop.svc:8080/ --record tap.jsonl
 nookku init claude-code --tap-url http://127.0.0.1:8800/ --agent-url http://toy-shop.shop.svc:8080/
 ```
 
-Run the tap in the pod of the harness, so the relay calls it at `127.0.0.1`. Give the Service URL as `agent_url` too, so the guard denies a direct call from the model to the agent. The guard matches the URL text only. A call to the pod IP of the agent or to another Service name goes around the tap. If the namespace of the harness has a default-deny NetworkPolicy, add an egress rule to the Service.
+The tap can run in the harness pod, as above, or in its own pod behind a Service. In a separate tap pod, listen on the pod interface:
+
+```bash
+nookku tap --listen 0.0.0.0:8800 --agent http://toy-shop.shop.svc:8080/ --record /work/tap.jsonl
+```
+
+In the harness pod, use the Service URL of the tap:
+
+```bash
+nookku init claude-code --tap-url http://tap.harness.svc:8800/ --agent-url http://toy-shop.shop.svc:8080/
+```
+
+Give the app Service URL as `agent_url`, so the guard denies a direct call from the model to that URL. The guard matches URL text only. NetworkPolicy can also block the direct route to the app.
+
+The [policy proof](../../scripts/proof_cluster_tap.py) uses default-deny **egress** in the harness namespace. A DNS rule lets the pods reach the cluster DNS service. A separate rule lets the tap reach the toy shop pods. The [relay rule](../../proofs/cluster-tap/default-deny/relay-rule.yaml) lets only the harness pods reach the tap pods on its TCP port. Kubernetes selects pods and namespaces, not a Service name. The [deny rules](../../proofs/cluster-tap/default-deny/deny.yaml) give the full selectors. These rules need a NetworkPolicy controller. Kind's default network alone does not enforce them. The proof runs a pinned controller only in its own cluster and records its image in the results.
+
+With no relay rule, the hook blocks the prompt, records a failed turn, and sends no request to the app. The proof adds the rule, checks the exact bytes, then removes it and checks that the hook blocks again. The relay also has no direct route to the app Service or pod IP. The policy has no ingress rule and does not restrict callers of the tap from other namespaces. Set ingress policy for your cluster. These rules do not separate the relay process from another process in the same harness pod.
 
 [scripts/proof_cluster_tap.py](../../scripts/proof_cluster_tap.py) tests this setup in a kind cluster, with no model. [results.md](../results.md#the-http-tap-to-an-agent-at-a-cluster-service-url) gives the result and the limits.
 

@@ -1,0 +1,63 @@
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: shop
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: harness
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: toy-shop
+  namespace: shop
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: toy-shop
+  template:
+    metadata:
+      labels:
+        app: toy-shop
+    spec:
+      containers:
+        - name: app
+          image: nookku-cluster-tap:0.5.6
+          imagePullPolicy: Never
+          command: ["python", "-u", "/app/app.py"]
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            tcpSocket:
+              port: 8080
+            periodSeconds: 1
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: toy-shop
+  namespace: shop
+spec:
+  selector:
+    app: toy-shop
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: harness
+  namespace: harness
+  labels:
+    app: harness
+spec:
+  containers:
+    - name: harness
+      image: nookku-cluster-tap:0.5.6
+      imagePullPolicy: Never
+      command: ["sleep", "infinity"]
