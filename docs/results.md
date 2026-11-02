@@ -318,6 +318,14 @@ The discovery in Claude Code runs in its Bash sandbox, which can write each file
 
 The Codex runs used nookku 0.5.6 on 2026-10-24. Both [plugin](../proofs/egress/plugin-codex.json) and [project hooks](../proofs/egress/hooks-codex.json) pass the stricter discovery and project-file checks of [#456](https://github.com/mohanraj00/nookku/issues/456). In each Codex run, the guard added 0 rows to `.nookku/relay.jsonl` (`E2_guard_rows_added`). Their `versions`, `date`, `answer`, `E2_files_before` and `E2_files_after` fields give the data. The [method](../scripts/proof_egress.py) uses the discovery answer of the harness model.
 
+### Egress findings in the evaluation
+
+The [model proof](../scripts/proof_egress.py) runs with `--evaluate`. After the toy shop test, it imports planted Koodam-format spans through `nookku trace --egress`, then asks the harness model to evaluate the test. These spans are test inputs. They are not calls observed in a Koodam Workspace.
+
+The [run](../proofs/egress/plugin-claude-code-evaluation.json) passes. Its `E5_evaluation` gives the checks and the data folder. The [report](../proofs/egress/evaluation/20261031-082640-90a9/report.md) has the unknown host `stock.extra.toy.test` in Coverage and the denied attempt to `api.anthropic.com` in Notes, with the source lines of the [spans](../proofs/egress/evaluation/20261031-082640-90a9/egress.jsonl). The [findings](../proofs/egress/evaluation/20261031-082640-90a9/findings.json) give the host with no turn and the denied attempt with its turn. The report says that the denied attempt alone proves no app defect. The seal stayed intact after the evaluation. The `versions` and `date` fields of the run give the package, harness, SDK and app package versions and the run date.
+
+The proof checks placement and source lines in this report. It does not prove that each model evaluation gives the correct judgment. The [hand-written case](../conformance/evaluation-egress.json) and [prompt test](../tests/test_evaluation.py) check the report rule without a model.
+
 ### The HTTP tap to an agent at a cluster Service URL
 
 [scripts/proof_cluster_tap.py](../scripts/proof_cluster_tap.py) makes a kind cluster and runs the toy shop agent behind its Service. It tests the tap in the harness pod, the tap in its own pod behind a Service, and the separate tap pod with default-deny egress in the harness namespace. No harness and no model run. The proof sends the [P1 messages](../scripts/proof_common.py) as Claude Code hook events. The app logs each request body and reply body as bytes.
