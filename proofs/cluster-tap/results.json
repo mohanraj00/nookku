@@ -3,12 +3,12 @@
  "docker_free_mb_before": 3286,
  "forms": [
   {
-   "date": "2026-10-31",
+   "date": "2026-11-03",
    "form": "same-pod",
    "policy": {},
    "versions": {
-    "nookku": "0.5.6",
-    "nookku_in_pod": "0.5.6",
+    "nookku": "0.5.7",
+    "nookku_in_pod": "0.5.7",
     "python_in_pod": "3.12.15",
     "base_image": "python:3.12-slim sha256:a6e34c598f2467ed0e9a8d349809fcd8b5c603269512df273a0bb1784edc11b1",
     "codex": "codex-cli 0.162.1, not run",
@@ -117,14 +117,14 @@
    "pass": true
   },
   {
-   "date": "2026-10-31",
+   "date": "2026-11-03",
    "form": "service",
    "policy": {
     "tap_service_resolves": true
    },
    "versions": {
-    "nookku": "0.5.6",
-    "nookku_in_pod": "0.5.6",
+    "nookku": "0.5.7",
+    "nookku_in_pod": "0.5.7",
     "python_in_pod": "3.12.15",
     "base_image": "python:3.12-slim sha256:a6e34c598f2467ed0e9a8d349809fcd8b5c603269512df273a0bb1784edc11b1",
     "codex": "codex-cli 0.162.1, not run",
@@ -233,7 +233,7 @@
    "pass": true
   },
   {
-   "date": "2026-10-31",
+   "date": "2026-11-03",
    "form": "default-deny",
    "policy": {
     "tap_service_resolves": true,
@@ -259,8 +259,8 @@
     }
    },
    "versions": {
-    "nookku": "0.5.6",
-    "nookku_in_pod": "0.5.6",
+    "nookku": "0.5.7",
+    "nookku_in_pod": "0.5.7",
     "python_in_pod": "3.12.15",
     "base_image": "python:3.12-slim sha256:a6e34c598f2467ed0e9a8d349809fcd8b5c603269512df273a0bb1784edc11b1",
     "codex": "codex-cli 0.162.1, not run",

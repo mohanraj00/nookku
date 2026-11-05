@@ -113,6 +113,19 @@ PASS
 
 ## Releases with a special step
 
+### 0.5.7
+
+No special step is necessary. Do the steps above.
+
+Two new options are for CI and for a gateway. Each is optional, and with no value a test works as in 0.5.6:
+
+- To fail a CI job on the [findings](../reference/glossary.md#findings) of a test, add a `Verdict` table to your [app spec](../reference/app-spec.md#verdict) and give `--verdict` to `nookku run` or `nookku trace`. Then a `fail` verdict gives exit 1. Without `--verdict`, the exit codes do not change ([SPEC.md section 7.14](../../SPEC.md#714-verdict), [#514](https://github.com/mohanraj00/nookku/issues/514)).
+- If the clock of your LiteLLM gateway is different from the clock of the test computer, give `--gateway-skew SECONDS` to `nookku trace --gateway` ([cli.md](../reference/cli.md#nookku-trace), [#509](https://github.com/mohanraj00/nookku/issues/509)).
+
+If your app spec already has a section with the heading `Verdict`, the bridge now reads its first table as limits. If the bridge cannot read that table as limits, the verdict of each test is `fail`, and `nookku run` prints it. Give the section another heading ([app-spec.md](../reference/app-spec.md#verdict)).
+
+The guard now protects a tests folder outside `.nookku/` after the end of its test, also with no `NOOKKU_TESTS_DIR` in the [harness](../reference/glossary.md#harness). It reads the folders from `.nookku/tests-dirs.json`, and the start of a 0.5.7 test writes this file. A test that 0.5.6 started is not in the file. To protect its folder, set `NOOKKU_TESTS_DIR` for the harness, as in 0.5.6 ([cli.md](../reference/cli.md#the-tests-folder), [#507](https://github.com/mohanraj00/nookku/issues/507)).
+
 ### 0.5.6
 
 No special step is necessary. Do the steps above.

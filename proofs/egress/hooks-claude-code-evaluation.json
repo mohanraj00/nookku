@@ -1,0 +1,254 @@
+{
+ "date": "2026-11-03",
+ "relay": "hooks-claude-code",
+ "discovery_registered": true,
+ "discovery_attempts": 1,
+ "discovery_answer": "I registered the services the agent calls. The test hasn't started yet. `nookku register` printed:\n\n```\nnookku: the egress answer is registered. The next start uses these parts:\n- model API anthropic: ANTHROPIC_BASE_URL -> the URL in ANTHROPIC_BASE_URL or the default (proxy)\n- MCP server catalog: http CATALOG_MCP_URL -> http://127.0.0.1:9310/mcp (proxy)\n- MCP server notes: stdio NOTES_MCP_COMMAND -> python3 notes_mcp.py (proxy)\n- database shop: postgres, DATABASE_URL (proxy)\n- database returns: sqlite, returns.db (driver trace)\n```\n\nNotes on these parts:\n- **Model API:** The Claude Agent SDK session in `app.py` doesn't set a URL, so this is `null` and uses `ANTHROPIC_BASE_URL` or the default.\n- **No HTTP backends and no other parts:** The agent doesn't call any.\n- **Not listed:**\n  - The `shop` MCP server runs inside the agent's own process (`create_sdk_mcp_server`), so it isn't an outside service.\n  - `notes.json` is a file the notes MCP server writes itself, so the MCP proxy records those calls.\n- **Driver trace for `returns.db`:** I didn't change any code. `app.py:45-69` already sets up OpenTelemetry for both psycopg and sqlite3 and sends spans over HTTP to the OTLP endpoint when `OTEL_EXPORTER_OTLP_ENDPOINT` is set. The sqlite3 instrumentation includes the statement text by default. A driver trace has no result rows and may hide parameter values. Here that means the `INSERT INTO returns` record may show `?` where the order, SKU and reason would be.\n\nPlease check these parts. If they're right, type `nookku start` within the next 30 minutes. If one is wrong, tell me what to fix and I'll register it again.",
+ "method": "scripts/proof_egress.py",
+ "E2_app_files_changed": [],
+ "E2_guard_rows_added": 0,
+ "E2_relay_rows_refused": [],
+ "E2_tool_calls": 9,
+ "E2_files_before": {
+  "notes_mcp.py": "7ae0a1a48cdc2cd3905bf7003e0f3605647913d652739bf41514997d7236c4bd",
+  "catalog_mcp.py": "d3edd198e29852ea75d398443cea6119f9f5027186973f38aa2a88739b43654c",
+  "toy_mcp.py": "8b5dccbae63b88c0b8f8dab863d12c9e2a3f288514af6f894f593074165633a1",
+  "entry.py": "5bff925f2bf5c88fd5207f19407ed6741a1951f21109dff5f018f4c8fee89cb3",
+  "app.py": "b88b7dd394e04c6ec27649df942e60828045b4683c88211aae08574b58fdf386",
+  ".claude/settings.local.json": "a495985e985c211fe60b16580371dc887216a564ecc9f63e3a03e0ea8e7ad187",
+  ".nookku/nookku-state": "7865f36f072b094306fd3bfc1a6e26563a2265d1a427ff21bad350fb04ad61d0",
+  ".nookku/mode": "b470b84cf0cd3189e10615bffea7d5cbd9f61134ba1c2cfd513ddd45b776a5f6",
+  ".nookku/config.json": "2aba6cf5ebf2d38ada253da66ad52ebf4348f67f71c7a67df5a1b091194e825c"
+ },
+ "E2_files_after": {
+  "notes_mcp.py": "7ae0a1a48cdc2cd3905bf7003e0f3605647913d652739bf41514997d7236c4bd",
+  "catalog_mcp.py": "d3edd198e29852ea75d398443cea6119f9f5027186973f38aa2a88739b43654c",
+  "toy_mcp.py": "8b5dccbae63b88c0b8f8dab863d12c9e2a3f288514af6f894f593074165633a1",
+  "entry.py": "5bff925f2bf5c88fd5207f19407ed6741a1951f21109dff5f018f4c8fee89cb3",
+  "app.py": "b88b7dd394e04c6ec27649df942e60828045b4683c88211aae08574b58fdf386",
+  ".claude/settings.local.json": "a495985e985c211fe60b16580371dc887216a564ecc9f63e3a03e0ea8e7ad187",
+  ".nookku/nookku-state": "7865f36f072b094306fd3bfc1a6e26563a2265d1a427ff21bad350fb04ad61d0",
+  ".nookku/mode": "b470b84cf0cd3189e10615bffea7d5cbd9f61134ba1c2cfd513ddd45b776a5f6",
+  ".nookku/config.json": "2aba6cf5ebf2d38ada253da66ad52ebf4348f67f71c7a67df5a1b091194e825c"
+ },
+ "versions": {
+  "nookku": "0.5.7",
+  "claude-code": "2.1.302 (Claude Code)",
+  "codex": "codex-cli 0.162.1",
+  "agent sdk": "claude-agent-sdk==0.2.168",
+  "app packages": [
+   "psycopg[binary]==3.3.6",
+   "opentelemetry-sdk==1.44.0",
+   "opentelemetry-exporter-otlp-proto-http==1.44.0",
+   "opentelemetry-instrumentation-psycopg==0.65b0",
+   "opentelemetry-instrumentation-sqlite3==0.65b0"
+  ],
+  "postgres": "postgres:16-alpine",
+  "session files": {
+   "claude-code": "2.1.301"
+  }
+ },
+ "plugins": [
+  "cc-plugin-agents-md@builtin",
+  "cc-plugin-plugin-authoring@builtin",
+  "cc-plugin-telemetry@builtin"
+ ],
+ "turns": 3,
+ "audit_exit": 0,
+ "answer": {
+  "model_apis": [
+   {
+    "api": "anthropic",
+    "env": "ANTHROPIC_BASE_URL",
+    "url": null
+   }
+  ],
+  "backends": [],
+  "mcp_servers": [
+   {
+    "name": "catalog",
+    "transport": "http",
+    "env": "CATALOG_MCP_URL",
+    "command": null,
+    "url": "http://127.0.0.1:9310/mcp"
+   },
+   {
+    "name": "notes",
+    "transport": "stdio",
+    "env": "NOTES_MCP_COMMAND",
+    "command": [
+     "python3",
+     "notes_mcp.py"
+    ],
+    "url": null
+   }
+  ],
+  "databases": [
+   {
+    "name": "shop",
+    "kind": "postgres",
+    "env": "DATABASE_URL",
+    "address": "127.0.0.1:55432/shop",
+    "record": "proxy"
+   },
+   {
+    "name": "returns",
+    "kind": "sqlite",
+    "env": null,
+    "address": "returns.db",
+    "record": "driver"
+   }
+  ],
+  "other": []
+ },
+ "unseen": [],
+ "driver": [
+  "returns"
+ ],
+ "proxies": [
+  "anthropic",
+  "catalog",
+  "notes",
+  "shop"
+ ],
+ "sslmode": {
+  "shop": "prefer"
+ },
+ "E1_manifest_has_the_answer": true,
+ "session_calls": {
+  "find_product": [
+   2
+  ],
+  "add_note": [
+   3
+  ],
+  "lookup_order": [
+   1
+  ],
+  "start_return": [
+   3
+  ]
+ },
+ "mcp_calls": [
+  {
+   "turn": 2,
+   "server": "catalog",
+   "name": "find_product"
+  },
+  {
+   "turn": 3,
+   "server": "notes",
+   "name": "add_note"
+  }
+ ],
+ "database_queries": [
+  {
+   "turn": 1,
+   "name": "BEGIN",
+   "input": {
+    "query": "BEGIN",
+    "parameters": null
+   }
+  },
+  {
+   "turn": 1,
+   "name": "SELECT",
+   "input": {
+    "query": "SELECT id, status, items FROM orders WHERE id = $1",
+    "parameters": [
+     "7310"
+    ]
+   }
+  },
+  {
+   "turn": 1,
+   "name": "COMMIT",
+   "input": {
+    "query": "COMMIT",
+    "parameters": null
+   }
+  }
+ ],
+ "driver_queries": [
+  {
+   "turn": 3,
+   "name": "CREATE",
+   "input": {
+    "query": "CREATE TABLE IF NOT EXISTS returns (id TEXT, order_id TEXT, sku TEXT, reason TEXT)",
+    "parameters": null
+   }
+  },
+  {
+   "turn": 3,
+   "name": "INSERT",
+   "input": {
+    "query": "INSERT INTO returns VALUES (?, ?, ?, ?)",
+    "parameters": null
+   }
+  }
+ ],
+ "calls_with_no_record": {
+  "find_product": [],
+  "add_note": [],
+  "lookup_order": [],
+  "start_return": []
+ },
+ "postgres_driver_queries": 0,
+ "E3_each_call_has_a_record": true,
+ "postgres_spans": 1,
+ "postgres_span_addresses": [
+  "127.0.0.1:64231"
+ ],
+ "postgres_proxy": "postgresql://127.0.0.1:64231",
+ "unseen_call": 0,
+ "counts": {
+  "egress_not_in_discovery": 1,
+  "egress_denied": 1
+ },
+ "seal": {
+  "sealed": true,
+  "intact": true,
+  "changed": [],
+  "missing": [],
+  "added": [],
+  "copy": "same"
+ },
+ "E4_no_unseen_call": true,
+ "pass": true,
+ "E5_evaluation": {
+  "input": "planted Koodam-format spans, not observed Koodam calls",
+  "spans": [
+   {
+    "v": 1,
+    "time": "2026-11-03T15:33:09.728215+00:00",
+    "kind": "connect",
+    "port": "443",
+    "host": "stock.extra.toy.test",
+    "result": "ok"
+   },
+   {
+    "v": 1,
+    "time": "2026-11-03T15:33:09.728215+00:00",
+    "kind": "connect",
+    "port": "8443",
+    "host": "api.anthropic.com",
+    "result": "denied",
+    "reason": "port"
+   }
+  ],
+  "counts": {
+   "egress_not_in_discovery": 1,
+   "egress_denied": 1
+  },
+  "data": "proofs/egress/evaluation/20261103-210302-ce29",
+  "checks": {
+   "unknown_host_in_coverage": true,
+   "denied_in_notes": true,
+   "no_full_coverage_claim": true
+  },
+  "seal_intact": true,
+  "report_withheld": false,
+  "commands_outside_project": [],
+  "pass": true
+ }
+}
