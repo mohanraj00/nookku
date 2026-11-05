@@ -1,0 +1,161 @@
+{
+ "date": "2026-11-05",
+ "relay": "hooks-codex",
+ "versions": {
+  "nookku": "0.5.7",
+  "claude-code": "2.1.302 (Claude Code)",
+  "codex": "codex-cli 0.162.1",
+  "agent sdk": "claude-agent-sdk==0.2.168",
+  "session files": {
+   "claude-code": "2.1.301"
+  }
+ },
+ "plugins": null,
+ "planted": {
+  "turn": 2,
+  "stock_wait": 8,
+  "note_wait": 25
+ },
+ "limit_turn_seconds": 30,
+ "spec": [
+  {
+   "path": "APP_SPEC.md",
+   "sha256": "49e15d1ebf6a576d6a54cf5fb7f6a561c896b11b45daf7145cd268262a44ec27"
+  },
+  {
+   "path": "RULES.md",
+   "sha256": "ebccc2c18240a3e55fcfd229b8241ac7312e7f750b85c26e74b74f16b5e357e4"
+  }
+ ],
+ "turns": 3,
+ "audit_exit": 0,
+ "performance": {
+  "v": "0.1",
+  "test": "20261105-172133-5b67",
+  "unknown": null,
+  "outside_turns": 0,
+  "turns": [
+   {
+    "turn": 1,
+    "seconds": 2.834,
+    "model_calls": 4,
+    "input_tokens": null,
+    "output_tokens": null,
+    "no_usage": 1,
+    "sources": [
+     {
+      "harness": "claude-code",
+      "session": "b20e0cc7-ec64-4a40-90c8-3ec94f2f8cf6",
+      "model_calls": 2,
+      "input_tokens": 59347,
+      "output_tokens": 118,
+      "no_usage": 0
+     },
+     {
+      "harness": "model_api",
+      "session": "openai",
+      "model_calls": 2,
+      "input_tokens": null,
+      "output_tokens": null,
+      "no_usage": 1
+     }
+    ]
+   },
+   {
+    "turn": 2,
+    "seconds": 60.874,
+    "model_calls": 4,
+    "input_tokens": null,
+    "output_tokens": null,
+    "no_usage": 1,
+    "sources": [
+     {
+      "harness": "claude-code",
+      "session": "b20e0cc7-ec64-4a40-90c8-3ec94f2f8cf6",
+      "model_calls": 2,
+      "input_tokens": 59667,
+      "output_tokens": 122,
+      "no_usage": 0
+     },
+     {
+      "harness": "model_api",
+      "session": "openai",
+      "model_calls": 2,
+      "input_tokens": null,
+      "output_tokens": null,
+      "no_usage": 1
+     }
+    ]
+   },
+   {
+    "turn": 3,
+    "seconds": 2.799,
+    "model_calls": 4,
+    "input_tokens": null,
+    "output_tokens": null,
+    "no_usage": 1,
+    "sources": [
+     {
+      "harness": "claude-code",
+      "session": "b20e0cc7-ec64-4a40-90c8-3ec94f2f8cf6",
+      "model_calls": 2,
+      "input_tokens": 59959,
+      "output_tokens": 109,
+      "no_usage": 0
+     },
+     {
+      "harness": "model_api",
+      "session": "openai",
+      "model_calls": 2,
+      "input_tokens": null,
+      "output_tokens": null,
+      "no_usage": 1
+     }
+    ]
+   }
+  ]
+ },
+ "S1_each_turn_has_seconds_calls_and_session_tokens": true,
+ "S2_only_the_slow_turn_is_above_the_limit": true,
+ "report_written": true,
+ "issues": [
+  {
+   "class": "performance",
+   "turn": "2",
+   "evidence": "Transcript turn 2 performance; copied APP_SPEC.md, Limits",
+   "issue": "The turn took 60.874 seconds, exceeding the `turn_seconds` limit of 30 seconds by 30.874 seconds."
+  },
+  {
+   "class": "unsupported_reply",
+   "turn": "3",
+   "evidence": "trace.jsonl:27, trace.jsonl:30",
+   "issue": "The reply says \"one teapot set\" and \"so it may ship soon.\" The lookup returns `{\"item\": \"teapot set\", \"price_eur\": 80, \"status\": \"waiting for stock\"}`, with no quantity or shipping estimate. The earlier stock result supports 3 available sets, but no tool result or business rule connects that availability to this order's shipping time."
+  }
+ ],
+ "S3_performance_row_for_the_slow_turn": true,
+ "S4_no_performance_row_for_another_turn": true,
+ "commands_outside_project": [],
+ "seal": {
+  "sealed": true,
+  "intact": true,
+  "changed": [],
+  "missing": [],
+  "added": [],
+  "copy": "same"
+ },
+ "P7_records_unchanged": true,
+ "model_api": {
+  "file": "model_api.jsonl",
+  "rows": 13,
+  "items": 12,
+  "ignored": {},
+  "harness_calls": {
+   "claude-code": 6
+  },
+  "other_calls": 1
+ },
+ "counts": {},
+ "report": "# Test 20261105-172133-5b67: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| performance | 2 | Transcript turn 2 performance; copied APP_SPEC.md, Limits | The turn took 60.874 seconds, exceeding the `turn_seconds` limit of 30 seconds by 30.874 seconds. |\n| unsupported_reply | 3 | trace.jsonl:27, trace.jsonl:30 | The reply says \"one teapot set\" and \"so it may ship soon.\" The lookup returns `{\"item\": \"teapot set\", \"price_eur\": 80, \"status\": \"waiting for stock\"}`, with no quantity or shipping estimate. The earlier stock result supports 3 available sets, but no tool result or business rule connects that availability to this order's shipping time. |\n\n## Notes\n\nThe seal is intact. The audit records 3 exchanges with no breaks, errors or blocked calls. Reviewed both copied spec files, all 3 turns and their traces, findings.json, audit.json, manifest.json and performance.json. The automated findings list is empty; the two issues above follow from the recorded replies and timing.\n\nReviewed app.py, entry.py, services.py, stock.py and toy_model.py. Read the current state.json, stock.json and notes.json without changing app state. Current state agrees with the stock results of 3 teapot sets and 12 blue mugs and with order 6210's status of \"waiting for stock\". It contains the three case notes. Current files are corroboration, not sealed snapshots of state during the test. No app-state files were available, and no tester notes.jsonl exists.\n\nChecked both limits for each turn. Turn durations were 2.834, 60.874 and 2.799 seconds against a 30-second limit. Model sessions together produced 118, 122 and 109 output tokens, all below the 2000-token limit. Direct model API usage is partly unknown but excluded from that token limit by the spec.\n\nBoth stock requests have matching backend GET traces, and the order request has a matching lookup. OpenAI model API traces appear in each turn. Replies meet the two-sentence persona limit. No reservation, return, refund or request for another customer's order was tested, so this record does not establish those behaviors. No app was started or sent a message during evaluation.\n\n## Tester notes\n\nThe tester wrote no note.\n\n## Coverage\n\nA proxy saw each egress part.\n",
+ "answer": "[Evaluation report](.nookku/tests/20261105-172133-5b67/report.md) saved.\n\nFound two issues: turn 2 exceeded the 30-second limit, and turn 3 added an unsupported quantity and shipping prediction. The record seal is intact.",
+ "pass": true
+}

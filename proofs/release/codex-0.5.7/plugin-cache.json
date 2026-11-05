@@ -1,0 +1,17 @@
+{
+ "candidate": "d4ddd04e",
+ "codex": "codex-cli 0.162.1",
+ "method": "Compare the file lists and bytes. Compare the two manifests again without their version fields.",
+ "file_lists_match": true,
+ "differences": {
+  ".claude-plugin/plugin.json": {
+   "candidate_version": "0.5.7",
+   "cached_version": "0.5.6"
+  },
+  ".codex-plugin/plugin.json": {
+   "candidate_version": "0.5.7",
+   "cached_version": "0.5.6"
+  }
+ },
+ "hook_sha256": "f50a064260a464c81c864c5bb5bc760f15c9b04770ff81c42ade03dba7511341"
+}

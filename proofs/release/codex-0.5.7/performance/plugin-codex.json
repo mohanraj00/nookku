@@ -1,0 +1,161 @@
+{
+ "date": "2026-11-05",
+ "relay": "plugin-codex",
+ "versions": {
+  "nookku": "0.5.7",
+  "claude-code": "2.1.302 (Claude Code)",
+  "codex": "codex-cli 0.162.1",
+  "agent sdk": "claude-agent-sdk==0.2.168",
+  "session files": {
+   "claude-code": "2.1.301"
+  }
+ },
+ "plugins": null,
+ "planted": {
+  "turn": 2,
+  "stock_wait": 8,
+  "note_wait": 25
+ },
+ "limit_turn_seconds": 30,
+ "spec": [
+  {
+   "path": "APP_SPEC.md",
+   "sha256": "49e15d1ebf6a576d6a54cf5fb7f6a561c896b11b45daf7145cd268262a44ec27"
+  },
+  {
+   "path": "RULES.md",
+   "sha256": "ebccc2c18240a3e55fcfd229b8241ac7312e7f750b85c26e74b74f16b5e357e4"
+  }
+ ],
+ "turns": 3,
+ "audit_exit": 0,
+ "performance": {
+  "v": "0.1",
+  "test": "20261105-173926-b18c",
+  "unknown": null,
+  "outside_turns": 0,
+  "turns": [
+   {
+    "turn": 1,
+    "seconds": 3.832,
+    "model_calls": 4,
+    "input_tokens": null,
+    "output_tokens": null,
+    "no_usage": 1,
+    "sources": [
+     {
+      "harness": "claude-code",
+      "session": "6b0bed49-fce0-4945-9d19-be59dbafb137",
+      "model_calls": 2,
+      "input_tokens": 59354,
+      "output_tokens": 136,
+      "no_usage": 0
+     },
+     {
+      "harness": "model_api",
+      "session": "openai",
+      "model_calls": 2,
+      "input_tokens": null,
+      "output_tokens": null,
+      "no_usage": 1
+     }
+    ]
+   },
+   {
+    "turn": 2,
+    "seconds": 61.634,
+    "model_calls": 4,
+    "input_tokens": null,
+    "output_tokens": null,
+    "no_usage": 1,
+    "sources": [
+     {
+      "harness": "claude-code",
+      "session": "6b0bed49-fce0-4945-9d19-be59dbafb137",
+      "model_calls": 2,
+      "input_tokens": 59718,
+      "output_tokens": 163,
+      "no_usage": 0
+     },
+     {
+      "harness": "model_api",
+      "session": "openai",
+      "model_calls": 2,
+      "input_tokens": null,
+      "output_tokens": null,
+      "no_usage": 1
+     }
+    ]
+   },
+   {
+    "turn": 3,
+    "seconds": 3.86,
+    "model_calls": 4,
+    "input_tokens": null,
+    "output_tokens": null,
+    "no_usage": 1,
+    "sources": [
+     {
+      "harness": "claude-code",
+      "session": "6b0bed49-fce0-4945-9d19-be59dbafb137",
+      "model_calls": 2,
+      "input_tokens": 60085,
+      "output_tokens": 127,
+      "no_usage": 0
+     },
+     {
+      "harness": "model_api",
+      "session": "openai",
+      "model_calls": 2,
+      "input_tokens": null,
+      "output_tokens": null,
+      "no_usage": 1
+     }
+    ]
+   }
+  ]
+ },
+ "S1_each_turn_has_seconds_calls_and_session_tokens": true,
+ "S2_only_the_slow_turn_is_above_the_limit": true,
+ "report_written": true,
+ "issues": [
+  {
+   "class": "performance",
+   "turn": "2",
+   "evidence": "Turn 2 performance block; APP_SPEC.md:27, saved as spec/1.md",
+   "issue": "The turn took 61.634 seconds, exceeding the `turn_seconds` limit of 30 seconds."
+  },
+  {
+   "class": "unsupported_reply",
+   "turn": "3",
+   "evidence": "trace.jsonl:30: \"it may be assigned soon\"; trace.jsonl:27: `{\"item\": \"teapot set\", \"price_eur\": 80, \"status\": \"waiting for stock\"}",
+   "issue": "The reply suggests near-term allocation without a tool result or business rule supporting that timing. Available stock alone does not establish when the order will receive it."
+  }
+ ],
+ "S3_performance_row_for_the_slow_turn": true,
+ "S4_no_performance_row_for_another_turn": true,
+ "commands_outside_project": [],
+ "seal": {
+  "sealed": true,
+  "intact": true,
+  "changed": [],
+  "missing": [],
+  "added": [],
+  "copy": "same"
+ },
+ "P7_records_unchanged": true,
+ "model_api": {
+  "file": "model_api.jsonl",
+  "rows": 13,
+  "items": 12,
+  "ignored": {},
+  "harness_calls": {
+   "claude-code": 6
+  },
+  "other_calls": 1
+ },
+ "counts": {},
+ "report": "# Test 20261105-173926-b18c: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| performance | 2 | Turn 2 performance block; APP_SPEC.md:27, saved as spec/1.md | The turn took 61.634 seconds, exceeding the `turn_seconds` limit of 30 seconds. |\n| unsupported_reply | 3 | trace.jsonl:30: \"it may be assigned soon\"; trace.jsonl:27: `{\"item\": \"teapot set\", \"price_eur\": 80, \"status\": \"waiting for stock\"}` | The reply suggests near-term allocation without a tool result or business rule supporting that timing. Available stock alone does not establish when the order will receive it. |\n\n## Notes\n\nThe record seal is intact. The audit reports three exchanges and no breaks, blocked calls, or errors. The automated findings list is empty; the issues above come from reviewing the transcript against the saved spec and rules.\n\nRead both saved spec copies, all three transcript turns and their model items, findings.json, audit.json, manifest.json, and seal.json. Reviewed app.py, entry.py, services.py, stock.py, and toy_model.py. Read the current state.json and stock.json without changing state or starting the app. No notes.jsonl or app-state directory exists in the test folder. Project notes.json is unrelated application data, not tester feedback.\n\nThe stock replies agree with the backend responses and current stock.json: teapot-set has 3 left and blue-mug has 12 left. Order 6210's item, price, and status agree with both the lookup result and current state.json. Current files are not sealed historical snapshots, so the recorded tool and backend responses establish what was observed during the test. No reservation was requested or recorded. Return, refund, reservation, and other-customer privacy behavior were not exercised.\n\nChecked both limits for every turn. Durations were 3.832, 61.634, and 3.86 seconds against 30 seconds. Model sessions together produced 136, 163, and 127 output tokens against 2000 tokens. All token limits passed. Direct model API usage is partly unknown but is excluded from the spec's token limit. The records establish the total delay in turn 2, but do not establish its full cause.\n\nThe expected stock checks and backend GETs appear in turns 1 and 2, the order lookup appears in turn 3, and the openai trace point appears in every turn. There are no denied-egress findings.\n\n## Tester notes\n\nThe tester wrote no note.\n\n## Coverage\n\nA proxy saw each egress part.\n",
+ "answer": "Saved the [evaluation report](<project>/.nookku/tests/20261105-173926-b18c/report.md).\n\nFound two issues: turn 2 exceeded the 30-second limit, and turn 3 suggested unsupported allocation timing. The record seal is intact.",
+ "pass": true
+}

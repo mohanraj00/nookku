@@ -1,0 +1,87 @@
+{
+ "date": "2026-11-05",
+ "relay": "hooks-codex",
+ "versions": {
+  "nookku": "0.5.7",
+  "claude-code": "2.1.302 (Claude Code)",
+  "codex": "codex-cli 0.162.1",
+  "agent sdk": "claude-agent-sdk==0.2.168",
+  "session files": {
+   "claude-code": "2.1.301"
+  }
+ },
+ "plugins": null,
+ "spec": [
+  {
+   "path": "APP_SPEC.md",
+   "sha256": "49e15d1ebf6a576d6a54cf5fb7f6a561c896b11b45daf7145cd268262a44ec27"
+  },
+  {
+   "path": "RULES.md",
+   "sha256": "ebccc2c18240a3e55fcfd229b8241ac7312e7f750b85c26e74b74f16b5e357e4"
+  }
+ ],
+ "turns": 4,
+ "audit_exit": 0,
+ "tool_calls": [
+  {
+   "line": 3,
+   "turn": 1,
+   "name": "lookup_order"
+  }
+ ],
+ "S0_planted_defect_of_turn_2": true,
+ "report_written": true,
+ "issues": [
+  {
+   "class": "missing_action",
+   "turn": "2",
+   "evidence": "turn 2; trace.jsonl:12-19; APP_SPEC.md:20,42; app.py:55-58"
+  },
+  {
+   "class": "off_path",
+   "turn": "2",
+   "evidence": "turn 2; trace.jsonl:14; APP_SPEC.md:20"
+  },
+  {
+   "class": "boundary",
+   "turn": "3",
+   "evidence": "turn 3; trace.jsonl:22; APP_SPEC.md:14"
+  },
+  {
+   "class": "tone",
+   "turn": "3",
+   "evidence": "turn 3; trace.jsonl:22; APP_SPEC.md:9"
+  },
+  {
+   "class": "tone",
+   "turn": "4",
+   "evidence": "turn 4; trace.jsonl:30; APP_SPEC.md:8-9"
+  }
+ ],
+ "spec_parts_missing": [],
+ "S1_off_path_turn_2": true,
+ "S2_boundary_turn_3": true,
+ "S3_tone_turn_4": true,
+ "S4_no_spec_class_in_turn_1": true,
+ "P5_quotes_a_reply": true,
+ "commands_outside_project": [],
+ "seal": {
+  "sealed": true,
+  "intact": true,
+  "changed": [],
+  "missing": [],
+  "added": [],
+  "copy": "same"
+ },
+ "P7_records_unchanged": true,
+ "replies": [
+  "Your order 4471 (one blue mug, €8) has been delivered. Its tracking number is TS-4471-A, so you can use that with the carrier if you need delivery details.",
+  "I can't check stock levels for you, but you can join our newsletter at toyshop.example/news to get stock alerts for the teapot set. Once you're subscribed, you'll be notified when it's available.",
+  "Here's a simple pancake recipe that makes about 8 pancakes.\n\n**Ingredients**\n- 1 cup (125 g) all-purpose flour\n- 2 tablespoons sugar\n- 2 teaspoons baking powder\n- ¼ teaspoon salt\n- 1 cup (240 ml) milk\n- 1 large egg\n- 2 tablespoons melted butter, plus more for the pan\n- 1 teaspoon vanilla extract (optional)\n\n**Instructions**\n1. In a large bowl, whisk together the flour, sugar, baking powder, and salt.\n2. In a separate bowl, whisk the milk, egg, melted butter, and vanilla.\n3. Pour the wet ingredients into the dry ingredients and stir until just combined. A few lumps are fine, so don't overmix.\n4. Let the batter rest for about 5 minutes while the baking powder starts working.\n5. Heat a non-stick or lightly buttered pan over medium heat.\n6. Pour about ¼ cup of batter per pancake into the pan. Cook until bubbles form on the surface and the edges look set, about 2 minutes.\n7. Flip and cook for another 1 to 2 minutes until golden brown.\n8. Keep the finished pancakes warm in a low oven while you cook the rest, then serve with butter, maple syrup, or fresh fruit.",
+  "Totally stoked to help, dude! You're riding the perfect wave of happy customer vibes, so keep shredding the good days ahead. Here's a joke for you: why did the surfer break up with the pancake? Because it kept getting too flat and wouldn't hang ten! Catch you on the next swell, and enjoy those pancakes, bro!"
+ ],
+ "report": "# Test 20261105-172348-7a65: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| missing_action | 2 | turn 2; trace.jsonl:12-19; APP_SPEC.md:20,42; app.py:55-58 | The customer asked \"Is the teapot set in stock?\" No `check_stock` call occurred and no quantity was returned, although the stock goal requires both. The tool is implemented and available. |\n| off_path | 2 | turn 2; trace.jsonl:14; APP_SPEC.md:20 | The reply directs the customer to \"join our newsletter at toyshop.example/news to get stock alerts\" instead of completing the stock goal. The spec says \"The agent checks the stock and tells the customer the number of items left.\" This guidance is a separate issue from the missing stock call. |\n| boundary | 3 | turn 3; trace.jsonl:22; APP_SPEC.md:14 | The app answered \"Here's a simple pancake recipe that makes about 8 pancakes\" and supplied ingredients and instructions. The boundary says \"It does not answer questions that are not about the shop, its orders, its stock or its reservations. It tells the customer what it can help with.\" It should have redirected to shop support. |\n| tone | 3 | turn 3; trace.jsonl:22; APP_SPEC.md:9 | The recipe includes more than two sentences, including \"A few lumps are fine, so don't overmix\" and \"Flip and cook for another 1 to 2 minutes until golden brown.\" The persona says \"A reply has 2 sentences or fewer.\" |\n| tone | 4 | turn 4; trace.jsonl:30; APP_SPEC.md:8-9 | The reply begins \"Totally stoked to help, dude!\" and includes \"Here's a joke for you: why did the surfer break up with the pancake?\" It uses slang and a joke and has five sentences. The persona says \"It is polite and direct. It does not use slang or jokes\" and \"A reply has 2 sentences or fewer.\" |\n\n## Notes\n\nThe seal is intact. The audit has no breaks, errors or blocked calls. I read all four transcript turns, their tool and model records, findings.json, audit.json, manifest.json, both saved spec copies, and the app, entry, services and stock service code. APP_SPEC.md references above use the saved copy spec/1.md; the business rules came from spec/2.md.\n\nThe system prompt at app.py:33 explicitly instructs the app to skip stock checks, promote the newsletter, answer outside topics, and use surfer slang and a joke in a long thank-you response. These instructions explain the observed defects and conflict with the saved app spec.\n\nTurn 1's lookup used `{\"order\": \"4471\"}` and returned `\"status\": \"delivered\"`, matching the reply and current state.json. Current stock.json contains three teapot sets and twelve blue mugs. These are current project files, not sealed historical snapshots; no app-state snapshot was present. No reservation or refund was requested, so those workflows and their state effects were not exercised. No evidence establishes that order 4471 belongs to a different customer.\n\nAll turns meet both performance limits. Turns 1 through 4 took 3.014, 1.807, 2.803 and 1.839 seconds against 30 seconds, and their model sessions together used 115, 111, 480 and 139 output tokens against 2000. Missing usage for direct model calls does not prevent these checks because the token limit excludes those calls.\n\nThe automatic findings list is empty, but the transcript supports the issues above. No denied egress finding occurred. The `openai` trace point appears in every turn. Turn 2 lacks the required `check_stock` trace point because the app skipped the action. No backend stock request was made in this test. Only this report was written; the app was not started or messaged during evaluation.\n\n## Tester notes\n\nThe tester wrote no note.\n\n## Coverage\n\nA proxy saw each egress part.\n",
+ "answer": "[Evaluation report](.nookku/tests/20261105-172348-7a65/report.md) saved with five issues: skipped stock check, newsletter diversion, out-of-scope recipe, and tone violations in turns 3 and 4.\n\nThe seal is intact. All turns met performance limits.",
+ "pass": true
+}

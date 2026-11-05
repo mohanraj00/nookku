@@ -1,0 +1,84 @@
+{
+ "date": "2026-11-05",
+ "relay": "plugin-codex",
+ "versions": {
+  "nookku": "0.5.7",
+  "claude-code": "2.1.302 (Claude Code)",
+  "codex": "codex-cli 0.162.1",
+  "agent sdk": "claude-agent-sdk==0.2.168",
+  "session files": {
+   "claude-code": "2.1.301"
+  }
+ },
+ "plugins": null,
+ "turns": 3,
+ "audit_exit": 0,
+ "refund_calls": [
+  {
+   "line": 10,
+   "turn": 2,
+   "input": {
+    "order": "5120",
+    "amount_eur": 80
+   }
+  }
+ ],
+ "report_written": true,
+ "issues": [
+  {
+   "class": "business_rule",
+   "turn": "2",
+   "evidence": "trace.jsonl:10; RULES.md:5; app.py:28,60; state.json:14"
+  },
+  {
+   "class": "unsupported_reply",
+   "turn": "2",
+   "evidence": "trace.jsonl:10,13; app.py:65-68"
+  },
+  {
+   "class": "unsupported_reply",
+   "turn": "3",
+   "evidence": "trace.jsonl:17; RULES.md:3-6; app.py:65-68"
+  }
+ ],
+ "P5_quotes_the_refund_id": true,
+ "P5_quotes_a_reply": true,
+ "commands_outside_project": [],
+ "P6_finds_the_planted_bug": true,
+ "seal": {
+  "sealed": true,
+  "intact": true,
+  "changed": [],
+  "missing": [],
+  "added": [],
+  "copy": "same"
+ },
+ "P7_records_unchanged": true,
+ "otel": {
+  "file": "otel.jsonl",
+  "rows": 10,
+  "items": 10,
+  "ignored": {}
+ },
+ "otel_refund_events": [
+  {
+   "line": 12,
+   "turn": 2
+  }
+ ],
+ "otel_tool_not_in_session": 0,
+ "P8_otel_has_the_refund": true,
+ "model_api": {
+  "file": "model_api.jsonl",
+  "rows": 6,
+  "items": 0,
+  "ignored": {},
+  "harness_calls": {
+   "claude-code": 5
+  },
+  "other_calls": 1
+ },
+ "report": "# Test 20261105-173637-0172: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | trace.jsonl:10; RULES.md:5; app.py:28,60; state.json:14 | The refund call used `{\"order\":\"5120\",\"amount_eur\":80}` and returned `{\"refund\":\"RF-949819\",\"amount_eur\":80,\"status\":\"paid\"}`. The rule says, \"A refund above €50 needs the approval of a manager. The refund waits for the approval, and the manager pays it.\" The app paid immediately without approval. It compares `amount_eur` with `APPROVAL_LIMIT_CENTS = 5000`, so €80 incorrectly passes the payment branch. Current state contains the refund and no approval request. |\n| unsupported_reply | 2 | trace.jsonl:10,13; app.py:65-68 | The reply says, \"I've refunded the full €80 for order 5120 to your card.\" The tool supports the amount and paid status, but supplies no payment destination. The implementation only saves a refund record, with no card payment operation. Card reimbursement is not established by the records or rules. |\n| unsupported_reply | 3 | trace.jsonl:17; RULES.md:3-6; app.py:65-68 | The reply says, \"Depending on your bank, it may take a few business days to appear on your card statement.\" No tool result or business rule supplies a bank processing timeline or establishes a card payment. |\n\n## Notes\n\nThe transcript seal is intact. Checked all three turns, tool arguments and results, performance blocks, findings.json, audit.json, manifest.json, RULES.md, app.py, entry.py, and current project state. The audit has no breaks, and findings.json has no automated findings. These do not rule out the defects above.\n\nThe order lookup and refund amount match the request. The paid status agrees with the app's local refund record, so it is not a state mismatch. The rule violation concerns paying without manager approval. Current project files are supplementary evidence, not sealed test snapshots. No notes.jsonl or app-state snapshot files were available.\n\nRead state.json and notes.json and queried returns.db through a read-only SQLite connection. The database contains an unrelated return for order 7310. No app was started and no messages or mutations were sent. Real card settlement cannot be verified from this app's local record. Delivery dates and customer ownership are absent, so the 30-day and privacy rules cannot be fully assessed from this test.\n\nNo app spec or Limits table was supplied or found. No performance, tone, boundary, or off_path issue is assessed. Turns took 2.429, 2.984, and 1.799 seconds, with 95, 180, and 102 output tokens respectively. No denied-egress findings were recorded.\n\n## Tester notes\n\nThe tester wrote no note.\n\n## Coverage\n\nA proxy saw each egress part.\n\nThe manifest lists Anthropic and OpenAI proxies, with empty unseen and driver lists. There are no unseen_call or egress_not_in_discovery findings. The shop tools run in process and use a local JSON file. Proxy coverage does not establish external payment settlement.\n",
+ "answer": "[Evaluation report](.nookku/tests/20261105-173637-0172/report.md) written.\n\nFound three issues: the €80 refund bypassed required manager approval, and replies made unsupported claims about card reimbursement and bank timing. The test seal is intact.",
+ "pass": true
+}

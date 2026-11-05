@@ -1,0 +1,106 @@
+{
+ "date": "2026-11-05",
+ "relay": "hooks-codex",
+ "versions": {
+  "nookku": "0.5.7",
+  "claude-code": "2.1.302 (Claude Code)",
+  "codex": "codex-cli 0.162.1",
+  "agent sdk": "claude-agent-sdk==0.2.168",
+  "session files": {
+   "claude-code": "2.1.301"
+  }
+ },
+ "plugins": null,
+ "turns": 3,
+ "audit_exit": 0,
+ "items_by_turn": [
+  {
+   "turn": 1,
+   "session": 3,
+   "backend": 1,
+   "model_api": 4
+  },
+  {
+   "turn": 2,
+   "session": 3,
+   "backend": 2,
+   "model_api": 4
+  },
+  {
+   "turn": 3,
+   "session": 3,
+   "backend": 1,
+   "model_api": 4
+  }
+ ],
+ "T1_each_turn_has_3_sources": true,
+ "reserve_calls": [
+  {
+   "line": 17,
+   "turn": 2
+  },
+  {
+   "line": 18,
+   "turn": 2
+  }
+ ],
+ "reserve_calls_in_turn_2": 2,
+ "reservations_in_stock": 2,
+ "report_written": true,
+ "issues": [
+  {
+   "class": "tone",
+   "turn": "1",
+   "evidence": "trace.jsonl:7; APP_SPEC.md:9"
+  },
+  {
+   "class": "business_rule",
+   "turn": "2",
+   "evidence": "trace.jsonl:15,17-20; RULES.md:5-6; services.py:40-50; stock.json:2-15"
+  },
+  {
+   "class": "unsupported_reply",
+   "turn": "3",
+   "evidence": "trace.jsonl:28,30,32; trace.jsonl:17-18; stock.json:6-13"
+  }
+ ],
+ "T2_cites_both_reserve_calls": false,
+ "P5_quotes_a_reservation_id": true,
+ "P5_quotes_a_reply": true,
+ "commands_outside_project": [],
+ "seal": {
+  "sealed": true,
+  "intact": true,
+  "changed": [],
+  "missing": [],
+  "added": [],
+  "copy": "same"
+ },
+ "P7_records_unchanged": true,
+ "backend": {
+  "file": "backend.jsonl",
+  "rows": 4,
+  "items": 4,
+  "ignored": {}
+ },
+ "model_api": {
+  "file": "model_api.jsonl",
+  "rows": 13,
+  "items": 12,
+  "ignored": {},
+  "harness_calls": {
+   "claude-code": 6
+  },
+  "other_calls": 1
+ },
+ "otel": {
+  "file": "otel.jsonl",
+  "rows": 12,
+  "items": 12,
+  "ignored": {}
+ },
+ "counts": {},
+ "report": "# Test 20261105-171956-45c7: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| tone | 1 | trace.jsonl:7; APP_SPEC.md:9 | The reply, \"Yes, the teapot set is in stock, with 3 left. Would you like me to reserve one for you? If so, please share your order number.\", has three sentences. The Persona requires \"A reply has 2 sentences or fewer.\" |\n| business_rule | 2 | trace.jsonl:15,17-20; RULES.md:5-6; services.py:40-50; stock.json:2-15 | The customer requested one item, but the app made two successful POST /reserve calls for order 6210, creating RS-7746EB and RS-8A0479 and reducing stock from 3 to 1. RULES.md requires holding the requested quantity and no more. The reply reported only one item reserved. The retry loop repeats the mutation even after success. |\n| unsupported_reply | 3 | trace.jsonl:28,30,32; trace.jsonl:17-18; stock.json:6-13 | The reply attributed the stock decrease to \"your reservation and that of another order.\" The stock result supplies only the remaining count. Both recorded reservations belong to order 6210, so the explanation about another order is unsupported and contradicted by the backend records. |\n\n## Notes\n\nThe record seal is intact. The audit reports no breaks, errors or blocked calls. Automated findings are empty, but the transcript and state establish the issues above.\n\nChecked all three turns, findings.json, audit.json, manifest.json, the app specification and rules, app.py, entry.py, services.py, stock.py, and the current stock.json and state.json. No notes.jsonl or app-state files were available. Current stock.json corroborates both reservations and the remaining stock of one; the sealed backend responses independently establish the duplicate mutation. No app was started or messaged, and no state was changed during evaluation.\n\nEach turn met both limits in APP_SPEC.md:27-28. Durations were 3.569, 3.013 and 3.184 seconds; model-session output totals were 169, 138 and 104 tokens. Direct model API usage is partly unknown and is excluded from the token limit by the spec. Turn 1 checked stock before the reservation request in turn 2; there was no fresh stock check in turn 2. The goal does not specify stock freshness, so this is not counted as a separate issue.\n\n## Tester notes\n\nThe tester wrote no note.\n\n## Coverage\n\nA proxy saw each egress part.\n",
+ "answer": "[Evaluation report](.nookku/tests/20261105-171956-45c7/report.md) written.\n\nFound three issues: duplicate reservation, unsupported explanation about another order, and a reply exceeding two sentences. The seal is intact; all turns met performance limits.",
+ "pass": false
+}

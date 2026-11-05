@@ -1,0 +1,79 @@
+{
+ "date": "2026-11-05",
+ "relay": "hooks-codex",
+ "versions": {
+  "nookku": "0.5.7",
+  "claude-code": "2.1.302 (Claude Code)",
+  "codex": "codex-cli 0.162.1",
+  "agent sdk": "claude-agent-sdk==0.2.168",
+  "session files": {
+   "claude-code": "2.1.301"
+  }
+ },
+ "plugins": null,
+ "turns": 3,
+ "audit_exit": 0,
+ "refund_calls": [
+  {
+   "line": 10,
+   "turn": 2,
+   "input": {
+    "order": "5120",
+    "amount_eur": 80
+   }
+  }
+ ],
+ "report_written": true,
+ "issues": [
+  {
+   "class": "business_rule",
+   "turn": "2",
+   "evidence": "RULES.md:5; trace.jsonl:10; app.py:28,60–68; state.json"
+  },
+  {
+   "class": "unsupported_reply",
+   "turn": "2",
+   "evidence": "trace.jsonl:10,13; app.py:65–68"
+  }
+ ],
+ "P5_quotes_the_refund_id": true,
+ "P5_quotes_a_reply": true,
+ "commands_outside_project": [],
+ "P6_finds_the_planted_bug": true,
+ "seal": {
+  "sealed": true,
+  "intact": true,
+  "changed": [],
+  "missing": [],
+  "added": [],
+  "copy": "same"
+ },
+ "P7_records_unchanged": true,
+ "otel": {
+  "file": "otel.jsonl",
+  "rows": 10,
+  "items": 10,
+  "ignored": {}
+ },
+ "otel_refund_events": [
+  {
+   "line": 12,
+   "turn": 2
+  }
+ ],
+ "otel_tool_not_in_session": 0,
+ "P8_otel_has_the_refund": true,
+ "model_api": {
+  "file": "model_api.jsonl",
+  "rows": 6,
+  "items": 0,
+  "ignored": {},
+  "harness_calls": {
+   "claude-code": 5
+  },
+  "other_calls": 1
+ },
+ "report": "# Test 20261105-171835-cf26: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | RULES.md:5; trace.jsonl:10; app.py:28,60–68; state.json | Rule 3 says, \"A refund above €50 needs the approval of a manager. The refund waits for the approval, and the manager pays it.\" The tool received `{\"order\":\"5120\",\"amount_eur\":80}` and returned `{\"refund\":\"RF-89F41D\",\"amount_eur\":80,\"status\":\"paid\"}`. Current state records that refund and no approval request. The code compares `amount_eur` directly with `APPROVAL_LIMIT_CENTS = 5000`, allowing €80 to be paid without manager approval. |\n| unsupported_reply | 2 | trace.jsonl:10,13; app.py:65–68 | The reply claims \"refunded the full €80 for order 5120 to your card\" and \"it should appear on your statement within a few business days, depending on your bank.\" The result supplies only the refund reference, amount, and paid status. Neither the rules nor the implementation establishes the payment destination or posting time. |\n\n## Notes\n\nThe record seal is intact. The audit reports no breaks, errors, or changed exchanges. Checked all three transcript turns, tool arguments and results, findings.json, audit.json, manifest.json, RULES.md, app.py, entry.py, and current state.json. The automated findings list is empty, but the business-rule violation is supported by the transcript, code, and persisted state.\n\nTurn 1 accurately reports the order lookup. Turn 3 accurately repeats the tool's paid status, although the payment itself violated the approval rule reported above. This is not a separate state mismatch.\n\nNo notes.jsonl or app-state snapshot was available. Current state is corroborating evidence, not a sealed historical snapshot. The active implementation uses state.json, so the unrelated returns.db was not queried. The records do not establish actual card settlement or a bank posting time.\n\nNo app spec or Limits table was supplied or found in the project. No performance, persona, boundary, or user-goal issues were assessed against invented requirements. No app process was started, no message was sent to it, and no app state was changed.\n\n## Tester notes\n\nThe tester wrote no note.\n\n## Coverage\n\nA proxy saw each egress part.\n\nThe manifest registers Anthropic and OpenAI model API proxies, with empty unseen and driver lists. There are no unseen_call, egress_not_in_discovery, or egress_denied findings. The shop tools run inside the app process and persist local JSON; their results appear in the model-session trace rather than an independent backend proxy.\n",
+ "answer": "[Evaluation report](.nookku/tests/20261105-171835-cf26/report.md) written.\n\nFound two issues: the €80 refund bypassed manager approval, and the reply made unsupported claims about card destination and posting time. The test seal is intact.",
+ "pass": true
+}

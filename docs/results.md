@@ -4,6 +4,32 @@ Two kinds of evidence: proofs that each [relay](reference/glossary.md#relay) is 
 
 ## 1. Proofs
 
+### Codex release candidate
+
+I ran the proofs in the main checkout with nookku 0.5.7. Each result records the version of Codex. I kept the result files in a separate folder so the earlier tables still point to the runs they describe. [Candidate](https://github.com/mohanraj00/nookku/commit/d4ddd04e), [release results](../proofs/release/codex-0.5.7/)
+
+The 2 egress [evaluation](reference/glossary.md#evaluation) run folders are in `proofs/egress/evaluation/`. The project-hook run is [`20261105-172859-6997`](../proofs/egress/evaluation/20261105-172859-6997/). The plugin run is [`20261105-174737-003f`](../proofs/egress/evaluation/20261105-174737-003f/). [Method](../scripts/proof_egress.py)
+
+The plugin proofs use the trusted cache. The cache and the candidate differ only in the version fields of the plugin manifests. The cached hooks run the nookku package from the candidate checkout. [Cache comparison](../proofs/release/codex-0.5.7/plugin-cache.json)
+
+| Proof | [Project hooks](reference/glossary.md#project-hooks) | Plugin |
+|---|---|---|
+| Relay | [Pass](../proofs/release/codex-0.5.7/hooks-codex/results.json) | [Pass](../proofs/release/codex-0.5.7/plugin-codex/results.json) |
+| Relay with a streamed agent | [Pass](../proofs/release/codex-0.5.7/hooks-codex-stream/results.json) | [Pass](../proofs/release/codex-0.5.7/plugin-codex-stream/results.json) |
+| Relay with streaming on request | [Pass](../proofs/release/codex-0.5.7/hooks-codex-stream-on-request/results.json) | [Pass](../proofs/release/codex-0.5.7/plugin-codex-stream-on-request/results.json) |
+| Report | [Pass](../proofs/release/codex-0.5.7/report/hooks-codex.json) | [Pass](../proofs/release/codex-0.5.7/report/plugin-codex.json) |
+| Telemetry | [Fail](../proofs/release/codex-0.5.7/telemetry/hooks-codex.json) | [Pass](../proofs/release/codex-0.5.7/telemetry/plugin-codex.json) |
+| Performance | [Pass](../proofs/release/codex-0.5.7/performance/hooks-codex.json) | [Pass](../proofs/release/codex-0.5.7/performance/plugin-codex.json) |
+| Spec classes | [Pass](../proofs/release/codex-0.5.7/spec-classes/hooks-codex.json) | [Pass](../proofs/release/codex-0.5.7/spec-classes/plugin-codex.json) |
+| [Trace](reference/glossary.md#trace) points | [Pass](../proofs/release/codex-0.5.7/trace-points/hooks-codex.json) | [Pass](../proofs/release/codex-0.5.7/trace-points/plugin-codex.json) |
+| Egress | [Pass](../proofs/release/codex-0.5.7/egress/hooks-codex.json) | [Pass](../proofs/release/codex-0.5.7/egress/plugin-codex.json) |
+| Egress with [evaluation](reference/glossary.md#evaluation) | [Pass](../proofs/release/codex-0.5.7/egress/hooks-codex-evaluation.json) | [Pass](../proofs/release/codex-0.5.7/egress/plugin-codex-evaluation.json) |
+| Transcript evaluation | [Pass](../proofs/release/codex-0.5.7/evaluation/hooks-codex.json) | [Pass](../proofs/release/codex-0.5.7/evaluation/plugin-codex.json) |
+
+The project-hook telemetry report found the duplicate reservation. Its evidence cites `trace.jsonl:15,17-20`, which includes both reserve calls. T2 accepts one line or range after each `trace.jsonl:` prefix. It stopped at the comma and missed the reserve calls. [Data](../proofs/release/codex-0.5.7/telemetry/hooks-codex.json), [method](../scripts/proof_telemetry.py)
+
+### Relay
+
 Each proof runs the [harness](reference/glossary.md#harness) headless in a test (SPEC.md section 7). The [tester](reference/glossary.md#tester) starts the test with the prompt `nookku start`. The [entry](reference/glossary.md#entry) is the toy shop agent of the tests over stdio ([tests/toy_entry.py](../tests/toy_entry.py)), which uses `nookku.agent.serve`. The proofs run in 4 setups: the [plugin](reference/glossary.md#plugin) and the [project hooks](reference/glossary.md#project-hooks), each in Claude Code and in Codex. Each setup runs the same relay, `nookku hook`. Script: [scripts/proofs_relay.py](../scripts/proofs_relay.py).
 
 | # | Proof |
@@ -346,6 +372,10 @@ Limits of this proof:
 - C4 is the best-effort guard check ([section 3](#3-what-this-does-not-prove)). Only the policy form also checks the network route to the app.
 - The policy applies to pods. It does not separate the relay from another process in the same harness pod. It has no ingress restriction on the tap.
 - The proof uses the HTTP tap with no entry, so there is no test folder, trace or seal ([how-to/http-tap.md](how-to/http-tap.md)).
+
+### Codex in a Koodam Workspace
+
+The release candidate run stopped before it made a cluster. The proof script rejects `plugin-codex` because it supports only `plugin-claude-code`. The run ended before the login step. [Result](../proofs/release/codex-0.5.7/cluster.json), [method](../scripts/proof_cluster.py), [#461](https://github.com/mohanraj00/nookku/issues/461)
 
 ### The setup asks before it builds
 
