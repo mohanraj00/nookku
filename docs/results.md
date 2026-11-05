@@ -6,7 +6,9 @@ Two kinds of evidence: proofs that each [relay](reference/glossary.md#relay) is 
 
 ### Codex release candidate
 
-I ran the proofs in the main checkout with nookku 0.5.7. Each result records the version of Codex. I kept these results in a separate folder so the earlier tables still point to the runs they describe. [Candidate](https://github.com/mohanraj00/nookku/commit/d4ddd04e), [release results](../proofs/release/codex-0.5.7/)
+I ran the proofs in the main checkout with nookku 0.5.7. Each result records the version of Codex. I kept the result files in a separate folder so the earlier tables still point to the runs they describe. [Candidate](https://github.com/mohanraj00/nookku/commit/d4ddd04e), [release results](../proofs/release/codex-0.5.7/)
+
+The 2 egress [evaluation](reference/glossary.md#evaluation) run folders are in `proofs/egress/evaluation/`. The project-hook run is [`20261105-172859-6997`](../proofs/egress/evaluation/20261105-172859-6997/). The plugin run is [`20261105-174737-003f`](../proofs/egress/evaluation/20261105-174737-003f/). [Method](../scripts/proof_egress.py)
 
 The plugin proofs use the trusted cache. The cache and the candidate differ only in the version fields of the plugin manifests. The cached hooks run the nookku package from the candidate checkout. [Cache comparison](../proofs/release/codex-0.5.7/plugin-cache.json)
 
