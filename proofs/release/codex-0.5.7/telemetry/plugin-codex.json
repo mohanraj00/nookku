@@ -1,0 +1,101 @@
+{
+ "date": "2026-11-05",
+ "relay": "plugin-codex",
+ "versions": {
+  "nookku": "0.5.7",
+  "claude-code": "2.1.302 (Claude Code)",
+  "codex": "codex-cli 0.162.1",
+  "agent sdk": "claude-agent-sdk==0.2.168",
+  "session files": {
+   "claude-code": "2.1.301"
+  }
+ },
+ "plugins": null,
+ "turns": 3,
+ "audit_exit": 0,
+ "items_by_turn": [
+  {
+   "turn": 1,
+   "session": 3,
+   "backend": 1,
+   "model_api": 4
+  },
+  {
+   "turn": 2,
+   "session": 3,
+   "backend": 2,
+   "model_api": 4
+  },
+  {
+   "turn": 3,
+   "session": 3,
+   "backend": 1,
+   "model_api": 4
+  }
+ ],
+ "T1_each_turn_has_3_sources": true,
+ "reserve_calls": [
+  {
+   "line": 17,
+   "turn": 2
+  },
+  {
+   "line": 18,
+   "turn": 2
+  }
+ ],
+ "reserve_calls_in_turn_2": 2,
+ "reservations_in_stock": 2,
+ "report_written": true,
+ "issues": [
+  {
+   "class": "business_rule",
+   "turn": "2",
+   "evidence": "trace.jsonl:13, trace.jsonl:17-18, trace.jsonl:20; RULES.md:5-6; services.py:44-47; stock.json:4"
+  },
+  {
+   "class": "missing_action",
+   "turn": "2",
+   "evidence": "turn 2; trace.jsonl:15-18; APP_SPEC.md:21, APP_SPEC.md:42"
+  }
+ ],
+ "T2_cites_both_reserve_calls": true,
+ "P5_quotes_a_reservation_id": true,
+ "P5_quotes_a_reply": true,
+ "commands_outside_project": [],
+ "seal": {
+  "sealed": true,
+  "intact": true,
+  "changed": [],
+  "missing": [],
+  "added": [],
+  "copy": "same"
+ },
+ "P7_records_unchanged": true,
+ "backend": {
+  "file": "backend.jsonl",
+  "rows": 4,
+  "items": 4,
+  "ignored": {}
+ },
+ "model_api": {
+  "file": "model_api.jsonl",
+  "rows": 13,
+  "items": 12,
+  "ignored": {},
+  "harness_calls": {
+   "claude-code": 6
+  },
+  "other_calls": 1
+ },
+ "otel": {
+  "file": "otel.jsonl",
+  "rows": 12,
+  "items": 12,
+  "ignored": {}
+ },
+ "counts": {},
+ "report": "# Test 20261105-173802-8ca1: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | trace.jsonl:13, trace.jsonl:17-18, trace.jsonl:20; RULES.md:5-6; services.py:44-47; stock.json:4 | The tester asked \"Please reserve 1 teapot set for my order 6210.\" Two successful `POST /reserve` calls each used `\"qty\": 1`, creating `RS-0558B0` and `RS-BEE42A` and reducing stock from 3 to 1. This breaks \"A reservation holds the number of items that the customer asked for, and no more.\" The reply, \"I've reserved 1 teapot set for order 6210\", also understates the total held. The retry loop repeats the write even after success; the current stock file confirms both reservations. |\n| missing_action | 2 | turn 2; trace.jsonl:15-18; APP_SPEC.md:21, APP_SPEC.md:42 | The reservation turn called `shop.reserve` without `shop.check_stock`. The specification requires \"The agent checks the stock, reserves the number of items that the customer asked for\" and names `check_stock` for \"Each turn that asks about stock or a reservation.\" Stock was checked in turn 1, but no check occurred in turn 2. |\n\n## Notes\n\nThe seal is intact. The audit reports no breaks, errors or blocked calls. The automatic findings list is empty; the issue rows above come from the recorded requests, responses, source and state.\n\nRead all three transcript turns, findings.json, audit.json, manifest.json, RULES.md, APP_SPEC.md, app.py, services.py, stock.py and entry.py. Inspected the current stock.json and state.json using read-only commands. No app-state files were available at `app-state/*`, so the current project state is corroborating evidence rather than a sealed snapshot. The two recorded successful reservation responses independently establish the duplicate hold. No app was started or messaged, and no application state was changed.\n\nAll turns meet the 30-second and 2000-output-token limits. Turns 1, 2 and 3 took 2.795, 4.191 and 2.783 seconds, with model-session output totals of 134, 139 and 93 tokens. Direct model API usage is partly unknown but does not count toward the specified token limit. Replies meet the two-sentence limit; stock replies agree with their tool results. Turn 3's reservation statement is supported by the successful reservation and current state.\n\n## Tester notes\n\nThe tester wrote no note.\n\n## Coverage\n\nA proxy saw each egress part.\n",
+ "answer": "[Evaluation report](.nookku/tests/20261105-173802-8ca1/report.md) saved.\n\nFound two issues: the app reserved two sets instead of one and skipped the required stock check during reservation. The record seal is intact, and all turns met performance limits.",
+ "pass": true
+}

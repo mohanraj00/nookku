@@ -1,0 +1,239 @@
+{
+ "date": "2026-11-05",
+ "relay": "plugin-codex",
+ "discovery_registered": true,
+ "discovery_attempts": 1,
+ "discovery_answer": "```text\nnookku: the egress answer is registered. The next start uses these parts:\n- model API anthropic: ANTHROPIC_BASE_URL -> the URL in ANTHROPIC_BASE_URL or the default (proxy)\n- MCP server catalog: http CATALOG_MCP_URL -> http://127.0.0.1:9310/mcp (proxy)\n- MCP server notes: stdio NOTES_MCP_COMMAND -> python3 notes_mcp.py (proxy)\n- database shop: postgres, DATABASE_URL (proxy)\n- database returns: sqlite, <project>/returns.db (driver trace)\nShow these parts to the tester. If they are correct, the tester types the prompt nookku start in the next 30 minutes. If a part is wrong, run nookku register again with the correct answer.\n```\n\nSQLite driver instrumentation and OTLP export are already configured, so no code changes were needed. Driver traces contain no result rows and can hide parameter values.\n\nCheck these parts, then type `nookku start` within 30 minutes. The test has not started.",
+ "method": "scripts/proof_egress.py",
+ "E2_app_files_changed": [],
+ "E2_guard_rows_added": 0,
+ "E2_relay_rows_refused": [],
+ "E2_tool_calls": 0,
+ "E2_files_before": {
+  "notes_mcp.py": "7ae0a1a48cdc2cd3905bf7003e0f3605647913d652739bf41514997d7236c4bd",
+  "catalog_mcp.py": "d3edd198e29852ea75d398443cea6119f9f5027186973f38aa2a88739b43654c",
+  "toy_mcp.py": "8b5dccbae63b88c0b8f8dab863d12c9e2a3f288514af6f894f593074165633a1",
+  "entry.py": "5bff925f2bf5c88fd5207f19407ed6741a1951f21109dff5f018f4c8fee89cb3",
+  "app.py": "b88b7dd394e04c6ec27649df942e60828045b4683c88211aae08574b58fdf386",
+  "__pycache__/app.cpython-312.pyc": "915e06b64935ecbd1e5cf4b673884745f6ba979625e924b2627f4302124d6c8c",
+  "__pycache__/toy_mcp.cpython-312.pyc": "28bab3a2a2dce6ffbb340245ddac8f523dfadd164b54a8620cfbe1bdc39f5443",
+  "__pycache__/services.cpython-312.pyc": "59110115be5bc9a63acb5a7b0d4b6ea421b90687b5552b2305213d489fd68bc7",
+  ".nookku/nookku-state": "7865f36f072b094306fd3bfc1a6e26563a2265d1a427ff21bad350fb04ad61d0",
+  ".nookku/mode": "b470b84cf0cd3189e10615bffea7d5cbd9f61134ba1c2cfd513ddd45b776a5f6",
+  ".nookku/config.json": "4ec9f28c2838c6adfbf97d23f54d9a0e6f8c3226da66f0eae3f097f399b46a82",
+  ".nookku/send.lock": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  ".nookku/runs/20261024-044400-39e4.json": "6d34dfbd03c532ccc05d439fc960dd08322f2633be34475ca244a13246e70f92",
+  ".nookku/runs/20261105-174157-5665.json": "f87b3fc27f038ec09e610e23ee463d65a096a3299f11c6dba090baabb8926f3f",
+  ".nookku/runs/20261105-173926-b18c.json": "d1f3a05d7ca80f7ffba0d4db87eb26af3180afd09a2055e47cc4de2e95a101ee",
+  ".nookku/runs/20261024-045043-3467.json": "77da98ccb0069d4a625e87218759fe9b132435cae714570668ea2b3496a904f1",
+  ".nookku/runs/20261105-173637-0172.json": "509f1e1b53ce34cdb43426c305b5302afbb1f8d9cb25e8ba025baf4b688c9e06",
+  ".nookku/runs/20261024-043805-22f7.json": "8951dacc1ff79965d15f5c218f1e8f38e1edd0a3592b042ab8f848d668572ec3",
+  ".nookku/runs/20261024-044156-77b4.json": "85cfd1591e37811a3b6cb0165e5198f3e65404067006f11db3b1fa35216c1cbc",
+  ".nookku/runs/20261024-044801-228b.json": "9498a4f77953876b7ab7fcc07dd537f7b4463b1824901b8b5102c133c6f418e0",
+  ".nookku/runs/20261024-045324-daf4.json": "a7b4bd91653586ef4e03df1b158172a6e21096e5b046ea610378054859dd76ea",
+  ".nookku/runs/20261105-173802-8ca1.json": "8d17f406a38e61930af2ffe9a8abac431fccf34b381160a403eee873211eb17c",
+  ".nookku/runs/20261105-174338-9cca.json": "8f91bc2aec19803fd99e88c94c024e5346263842136823a53632df99ca52fa65"
+ },
+ "E2_files_after": {
+  "notes_mcp.py": "7ae0a1a48cdc2cd3905bf7003e0f3605647913d652739bf41514997d7236c4bd",
+  "catalog_mcp.py": "d3edd198e29852ea75d398443cea6119f9f5027186973f38aa2a88739b43654c",
+  "toy_mcp.py": "8b5dccbae63b88c0b8f8dab863d12c9e2a3f288514af6f894f593074165633a1",
+  "entry.py": "5bff925f2bf5c88fd5207f19407ed6741a1951f21109dff5f018f4c8fee89cb3",
+  "app.py": "b88b7dd394e04c6ec27649df942e60828045b4683c88211aae08574b58fdf386",
+  "__pycache__/app.cpython-312.pyc": "915e06b64935ecbd1e5cf4b673884745f6ba979625e924b2627f4302124d6c8c",
+  "__pycache__/toy_mcp.cpython-312.pyc": "28bab3a2a2dce6ffbb340245ddac8f523dfadd164b54a8620cfbe1bdc39f5443",
+  "__pycache__/services.cpython-312.pyc": "59110115be5bc9a63acb5a7b0d4b6ea421b90687b5552b2305213d489fd68bc7",
+  ".nookku/nookku-state": "7865f36f072b094306fd3bfc1a6e26563a2265d1a427ff21bad350fb04ad61d0",
+  ".nookku/mode": "b470b84cf0cd3189e10615bffea7d5cbd9f61134ba1c2cfd513ddd45b776a5f6",
+  ".nookku/config.json": "4ec9f28c2838c6adfbf97d23f54d9a0e6f8c3226da66f0eae3f097f399b46a82",
+  ".nookku/send.lock": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  ".nookku/runs/20261024-044400-39e4.json": "6d34dfbd03c532ccc05d439fc960dd08322f2633be34475ca244a13246e70f92",
+  ".nookku/runs/20261105-174157-5665.json": "f87b3fc27f038ec09e610e23ee463d65a096a3299f11c6dba090baabb8926f3f",
+  ".nookku/runs/20261105-173926-b18c.json": "d1f3a05d7ca80f7ffba0d4db87eb26af3180afd09a2055e47cc4de2e95a101ee",
+  ".nookku/runs/20261024-045043-3467.json": "77da98ccb0069d4a625e87218759fe9b132435cae714570668ea2b3496a904f1",
+  ".nookku/runs/20261105-173637-0172.json": "509f1e1b53ce34cdb43426c305b5302afbb1f8d9cb25e8ba025baf4b688c9e06",
+  ".nookku/runs/20261024-043805-22f7.json": "8951dacc1ff79965d15f5c218f1e8f38e1edd0a3592b042ab8f848d668572ec3",
+  ".nookku/runs/20261024-044156-77b4.json": "85cfd1591e37811a3b6cb0165e5198f3e65404067006f11db3b1fa35216c1cbc",
+  ".nookku/runs/20261024-044801-228b.json": "9498a4f77953876b7ab7fcc07dd537f7b4463b1824901b8b5102c133c6f418e0",
+  ".nookku/runs/20261024-045324-daf4.json": "a7b4bd91653586ef4e03df1b158172a6e21096e5b046ea610378054859dd76ea",
+  ".nookku/runs/20261105-173802-8ca1.json": "8d17f406a38e61930af2ffe9a8abac431fccf34b381160a403eee873211eb17c",
+  ".nookku/runs/20261105-174338-9cca.json": "8f91bc2aec19803fd99e88c94c024e5346263842136823a53632df99ca52fa65"
+ },
+ "versions": {
+  "nookku": "0.5.7",
+  "claude-code": "2.1.302 (Claude Code)",
+  "codex": "codex-cli 0.162.1",
+  "agent sdk": "claude-agent-sdk==0.2.168",
+  "app packages": [
+   "psycopg[binary]==3.3.6",
+   "opentelemetry-sdk==1.44.0",
+   "opentelemetry-exporter-otlp-proto-http==1.44.0",
+   "opentelemetry-instrumentation-psycopg==0.65b0",
+   "opentelemetry-instrumentation-sqlite3==0.65b0"
+  ],
+  "postgres": "postgres:16-alpine",
+  "session files": {
+   "claude-code": "2.1.301"
+  }
+ },
+ "plugins": null,
+ "turns": 3,
+ "audit_exit": 0,
+ "answer": {
+  "model_apis": [
+   {
+    "api": "anthropic",
+    "env": "ANTHROPIC_BASE_URL",
+    "url": null
+   }
+  ],
+  "backends": [],
+  "mcp_servers": [
+   {
+    "name": "catalog",
+    "transport": "http",
+    "env": "CATALOG_MCP_URL",
+    "command": null,
+    "url": "http://127.0.0.1:9310/mcp"
+   },
+   {
+    "name": "notes",
+    "transport": "stdio",
+    "env": "NOTES_MCP_COMMAND",
+    "command": [
+     "python3",
+     "notes_mcp.py"
+    ],
+    "url": null
+   }
+  ],
+  "databases": [
+   {
+    "name": "shop",
+    "kind": "postgres",
+    "env": "DATABASE_URL",
+    "address": "127.0.0.1:55432/shop",
+    "record": "proxy"
+   },
+   {
+    "name": "returns",
+    "kind": "sqlite",
+    "env": null,
+    "address": "<project>/returns.db",
+    "record": "driver"
+   }
+  ],
+  "other": []
+ },
+ "unseen": [],
+ "driver": [
+  "returns"
+ ],
+ "proxies": [
+  "anthropic",
+  "catalog",
+  "notes",
+  "shop"
+ ],
+ "sslmode": {
+  "shop": "prefer"
+ },
+ "E1_manifest_has_the_answer": true,
+ "session_calls": {
+  "find_product": [
+   2
+  ],
+  "add_note": [
+   3
+  ],
+  "lookup_order": [
+   1
+  ],
+  "start_return": [
+   3
+  ]
+ },
+ "mcp_calls": [
+  {
+   "turn": 2,
+   "server": "catalog",
+   "name": "find_product"
+  },
+  {
+   "turn": 3,
+   "server": "notes",
+   "name": "add_note"
+  }
+ ],
+ "database_queries": [
+  {
+   "turn": 1,
+   "name": "BEGIN",
+   "input": {
+    "query": "BEGIN",
+    "parameters": null
+   }
+  },
+  {
+   "turn": 1,
+   "name": "SELECT",
+   "input": {
+    "query": "SELECT id, status, items FROM orders WHERE id = $1",
+    "parameters": [
+     "7310"
+    ]
+   }
+  },
+  {
+   "turn": 1,
+   "name": "COMMIT",
+   "input": {
+    "query": "COMMIT",
+    "parameters": null
+   }
+  }
+ ],
+ "driver_queries": [
+  {
+   "turn": 3,
+   "name": "CREATE",
+   "input": {
+    "query": "CREATE TABLE IF NOT EXISTS returns (id TEXT, order_id TEXT, sku TEXT, reason TEXT)",
+    "parameters": null
+   }
+  },
+  {
+   "turn": 3,
+   "name": "INSERT",
+   "input": {
+    "query": "INSERT INTO returns VALUES (?, ?, ?, ?)",
+    "parameters": null
+   }
+  }
+ ],
+ "calls_with_no_record": {
+  "find_product": [],
+  "add_note": [],
+  "lookup_order": [],
+  "start_return": []
+ },
+ "postgres_driver_queries": 0,
+ "E3_each_call_has_a_record": true,
+ "postgres_spans": 1,
+ "postgres_span_addresses": [
+  "127.0.0.1:60656"
+ ],
+ "postgres_proxy": "postgresql://127.0.0.1:60656",
+ "unseen_call": 0,
+ "counts": {},
+ "seal": {
+  "sealed": true,
+  "intact": true,
+  "changed": [],
+  "missing": [],
+  "added": [],
+  "copy": "same"
+ },
+ "E4_no_unseen_call": true,
+ "pass": true
+}

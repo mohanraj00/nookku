@@ -1,0 +1,2 @@
+{"v": 1, "time": "2026-11-05T12:17:45.604691+00:00", "kind": "connect", "port": "443", "host": "stock.extra.toy.test", "result": "ok"}
+{"v": 1, "time": "2026-11-05T12:17:45.604691+00:00", "kind": "connect", "port": "8443", "host": "api.anthropic.com", "result": "denied", "reason": "port"}
