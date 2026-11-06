@@ -58,7 +58,7 @@ import tarfile
 import tempfile
 import time
 import urllib.request
-from datetime import UTC, date, datetime
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -480,7 +480,7 @@ def wait_for_login(c: Cluster, ws: Workspace, minutes: float, koodam: str, harne
 
 
 def iso(ts: float) -> str:
-    return datetime.fromtimestamp(ts, UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return datetime.fromtimestamp(ts, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def spans(c: Cluster, koodam: str, since: float, until: float) -> bytes:
