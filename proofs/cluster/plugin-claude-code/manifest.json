@@ -1,0 +1,103 @@
+{
+ "v": "0.2",
+ "test": "20261105-113654-8811",
+ "dir": "/tests/20261105-113654-8811",
+ "root": "/home/dev/toy-shop",
+ "entry": [
+  "uv",
+  "run",
+  "--with",
+  "/home/dev/dl/nookku-0.5.7-py3-none-any.whl",
+  "python3",
+  "service_entry.py"
+ ],
+ "entry_name": null,
+ "script": null,
+ "models": [],
+ "started": 1793878614.81892,
+ "ended": 1793878623.8807347,
+ "versions": {
+  "nookku": "0.5.7",
+  "claude-code": "2.1.302 (Claude Code)",
+  "codex": null
+ },
+ "config_sha256": {
+  "config.json": "4c0d447c81dfcb2d680953ff7dee0c47c61cad50eb1d458d01b1b08d3dacd0cd",
+  "discovery.json": "2e6336c6b0094608666b10fea357e7b214793afeaf65315f81d88f3ea50d3e82",
+  "nookku-state": "7865f36f072b094306fd3bfc1a6e26563a2265d1a427ff21bad350fb04ad61d0"
+ },
+ "policy": {
+  "guard_fields": [
+   "path",
+   "file_path",
+   "url",
+   "uri",
+   "command"
+  ],
+  "guard_reads": [],
+  "scripts": "person",
+  "control_distance": 2
+ },
+ "trace": {
+  "repeated_reply": 2,
+  "model_reply_field": "",
+  "model_reply_match": "normalized",
+  "egress_ignore": [
+   "api.anthropic.com",
+   "http-intake.logs.us5.datadoghq.com"
+  ]
+ },
+ "spec": [],
+ "spec_copies": true,
+ "trace_points": [],
+ "trace_points_unread": [],
+ "verdict": {
+  "limits": {},
+  "unread": []
+ },
+ "tester_sessions": [
+  "03137b67-53a7-45f9-a955-1f0e3bd892e6",
+  "5b95a9d1-b2ea-49dd-861a-6b9fbf6409fd",
+  "74214b74-1835-4ce2-96c8-bb48f3d269c0",
+  "7ab5bc66-746a-49fa-85c0-b77d9a9a23b2"
+ ],
+ "model_sessions": [],
+ "codex_gate": {
+  "start": {
+   "codex": false,
+   "hooks": [],
+   "problems": []
+  },
+  "end": {
+   "codex": false,
+   "hooks": [],
+   "problems": []
+  }
+ },
+ "check": false,
+ "egress": {
+  "registered": 1793878613.3192792,
+  "answer": {
+   "model_apis": [],
+   "backends": [
+    {
+     "name": "toy-shop",
+     "env": "TOY_SHOP_URL",
+     "url": "http://toy-shop.shop.svc:8080/"
+    }
+   ],
+   "mcp_servers": [],
+   "databases": [],
+   "other": []
+  },
+  "unseen": [],
+  "driver": [],
+  "proxies": {
+   "toy-shop": "http://127.0.0.1:38413"
+  },
+  "sslmode": {},
+  "receiver": "http://127.0.0.1:45865"
+ },
+ "entry_pid": 505,
+ "entry_pid_start": "proc:101734660"
+}

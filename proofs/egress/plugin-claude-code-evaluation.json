@@ -1,9 +1,9 @@
 {
- "date": "2026-10-31",
+ "date": "2026-11-03",
  "relay": "plugin-claude-code",
  "discovery_registered": true,
  "discovery_attempts": 1,
- "discovery_answer": "I registered the egress answer. `nookku register` printed these lines:\n\n```\nnookku: the egress answer is registered. The next start uses these parts:\n- model API anthropic: ANTHROPIC_BASE_URL -> the URL in ANTHROPIC_BASE_URL or the default (proxy)\n- MCP server catalog: http CATALOG_MCP_URL -> http://127.0.0.1:9310/mcp (proxy)\n- MCP server notes: stdio NOTES_MCP_COMMAND -> python3 notes_mcp.py (proxy)\n- database shop: postgres, DATABASE_URL (proxy)\n- database returns: sqlite, returns.db (driver trace)\n```\n\nNotes on the parts:\n- **Model API:** The Claude Agent SDK session in `app.py:128` starts Claude Code, which calls the Anthropic API. The app does not set a URL.\n- **Not listed:** The `shop` server in `app.py:122` is an MCP server that runs inside the agent process, so it has no egress. The `notes.json` file is inside the notes MCP server, so the MCP proxy records it.\n- **Driver trace:** The `returns` database uses the driver trace. I did not change the agent code, because `app.py:45-69` already has this trace. It uses `SQLite3Instrumentor` and the OTLP HTTP exporter. It starts when `OTEL_EXPORTER_OTLP_ENDPOINT` has a value. The sqlite3 instrumentation records the statement text by default.\n\n**Caution:** A driver trace does not record the rows of an answer, and it can hide the parameter values. The `returns` record therefore shows the SQL text of each `INSERT`, but it can omit the values that the agent wrote.\n\nCheck the parts. If they are correct, type the prompt `nookku start` in the next 30 minutes. If a part is wrong, tell me the correct value, and I will register the answer again.",
+ "discovery_answer": "I found the agent's egress parts and nookku accepted the answer. The test has not started. `nookku register` printed:\n\n```\nnookku: the egress answer is registered. The next start uses these parts:\n- model API anthropic: ANTHROPIC_BASE_URL -> the URL in ANTHROPIC_BASE_URL or the default (proxy)\n- MCP server catalog: http CATALOG_MCP_URL -> http://127.0.0.1:9310/mcp (proxy)\n- MCP server notes: stdio NOTES_MCP_COMMAND -> python3 notes_mcp.py (proxy)\n- database shop: postgres, DATABASE_URL (proxy)\n- database returns: sqlite, returns.db (driver trace)\nShow these parts to the tester. If they are correct, the tester types the prompt nookku start in the next 30 minutes. If a part is wrong, run nookku register again with the correct answer.\n```\n\nHow each part is recorded:\n- **Model API:** this is the Claude Agent SDK session in `app.py`. The app doesn't set a URL, so it's `null`.\n- **MCP servers:** `catalog` (HTTP) and `notes` (stdio). The app reads the `notes` command line from `NOTES_MCP_COMMAND` and splits it into words, so the proxy can sit in front of it. The `notes.json` file it writes is part of that server, so it isn't listed separately.\n- **Not listed:** the `shop` server from `create_sdk_mcp_server` runs inside the agent's own process, so it makes no outside calls. It's how the agent's own `lookup_order` and `start_return` tools are offered.\n- **Postgres `shop`:** recorded by the proxy, because the app connects with the `postgres://` URL in `DATABASE_URL`.\n- **SQLite `returns`:** recorded by a driver trace. `app.py:45-69` already sets this up: the sqlite3 instrumentation with OTLP export over HTTP, configured from the standard `OTEL_*` variables. It's only on when `OTEL_EXPORTER_OTLP_ENDPOINT` has a value. Statement text is recorded by default, so **I didn't change any agent code**.\n\nA driver trace has no rows and can hide parameter values. For `returns.db`, the record will show the SQL statements but not the returned rows, and may not show the bound `?` values.\n\nCheck the parts. If they're right, type `nookku start` within the next 30 minutes. If one is wrong, tell me and I'll fix the answer and register it again.",
  "method": "scripts/proof_egress.py",
  "E2_app_files_changed": [],
  "E2_guard_rows_added": 1,
@@ -16,7 +16,7 @@
   "entry.py": "5bff925f2bf5c88fd5207f19407ed6741a1951f21109dff5f018f4c8fee89cb3",
   "app.py": "b88b7dd394e04c6ec27649df942e60828045b4683c88211aae08574b58fdf386",
   ".nookku/mode": "b470b84cf0cd3189e10615bffea7d5cbd9f61134ba1c2cfd513ddd45b776a5f6",
-  ".nookku/config.json": "3abb6cbf0818a488dc51465f91ce15251f210f252148f76c94b4a57df0d9768e"
+  ".nookku/config.json": "3de1a7a571e83173e5c8faed8bb8e8eec67e4b91f32262452d4b3bc98451d2ac"
  },
  "E2_files_after": {
   "notes_mcp.py": "7ae0a1a48cdc2cd3905bf7003e0f3605647913d652739bf41514997d7236c4bd",
@@ -25,11 +25,11 @@
   "entry.py": "5bff925f2bf5c88fd5207f19407ed6741a1951f21109dff5f018f4c8fee89cb3",
   "app.py": "b88b7dd394e04c6ec27649df942e60828045b4683c88211aae08574b58fdf386",
   ".nookku/mode": "b470b84cf0cd3189e10615bffea7d5cbd9f61134ba1c2cfd513ddd45b776a5f6",
-  ".nookku/config.json": "3abb6cbf0818a488dc51465f91ce15251f210f252148f76c94b4a57df0d9768e",
-  ".nookku/relay.jsonl": "09312b7958e6941bc854a1b3269029b4a59719bd2ce1b704992c779225277acd"
+  ".nookku/config.json": "3de1a7a571e83173e5c8faed8bb8e8eec67e4b91f32262452d4b3bc98451d2ac",
+  ".nookku/relay.jsonl": "594a97d5e9313178ae140a79c7ccbf0f42cfed3c18ef3dd09ab64c02ceaf170b"
  },
  "versions": {
-  "nookku": "0.5.6",
+  "nookku": "0.5.7",
   "claude-code": "2.1.302 (Claude Code)",
   "codex": "codex-cli 0.162.1",
   "agent sdk": "claude-agent-sdk==0.2.168",
@@ -195,9 +195,9 @@
  "E3_each_call_has_a_record": true,
  "postgres_spans": 1,
  "postgres_span_addresses": [
-  "127.0.0.1:64316"
+  "127.0.0.1:64015"
  ],
- "postgres_proxy": "postgresql://127.0.0.1:64316",
+ "postgres_proxy": "postgresql://127.0.0.1:64015",
  "unseen_call": 0,
  "counts": {
   "egress_not_in_discovery": 1,
@@ -218,7 +218,7 @@
   "spans": [
    {
     "v": 1,
-    "time": "2026-10-31T02:56:47.453283+00:00",
+    "time": "2026-11-03T15:31:21.215661+00:00",
     "kind": "connect",
     "port": "443",
     "host": "stock.extra.toy.test",
@@ -226,7 +226,7 @@
    },
    {
     "v": 1,
-    "time": "2026-10-31T02:56:47.453283+00:00",
+    "time": "2026-11-03T15:31:21.215661+00:00",
     "kind": "connect",
     "port": "8443",
     "host": "api.anthropic.com",
@@ -238,7 +238,7 @@
    "egress_not_in_discovery": 1,
    "egress_denied": 1
   },
-  "data": "proofs/egress/evaluation/20261031-082640-90a9",
+  "data": "proofs/egress/evaluation/20261103-210106-438d",
   "checks": {
    "unknown_host_in_coverage": true,
    "denied_in_notes": true,

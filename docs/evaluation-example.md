@@ -6,7 +6,7 @@ This is one test of the [toy shop with a model session](../examples/toy-shop-mod
 
 I typed 3 messages. Then I typed the prompt `nookku end`. The plugin ended the test and gave the model the [evaluation](reference/glossary.md#evaluation) prompt ([evaluate.md](../src/nookku/evaluate.md)). I typed nothing else. The test project was a temporary folder outside this repo, so the model could not read this page.
 
-The data and the report are in [proofs/report/plugin-claude-code.json](../proofs/report/plugin-claude-code.json). The script is [scripts/proof_report.py](../scripts/proof_report.py), with the setup `plugin-claude-code`.
+The data and the report are in [proofs/report/plugin-claude-code.json at the tag v0.5.6](https://github.com/mohanraj00/nookku/blob/v0.5.6/proofs/report/plugin-claude-code.json). The run of 0.5.7 is in [proofs/report/plugin-claude-code.json](../proofs/report/plugin-claude-code.json). The script is [scripts/proof_report.py](../scripts/proof_report.py), with the setup `plugin-claude-code`.
 
 | Setup | Value |
 |---|---|
@@ -62,7 +62,7 @@ The app and the evaluation are model answers. They are different on each run.
 
 ## A test of the app spec
 
-This is one test of the [full toy shop](../examples/toy-shop-full/) through the Claude Code plugin, with its [app spec](reference/app-spec.md), on nookku 0.5.6 on 2026-10-23 (test 20261023-233146-4bdf). A copy of the app has a planted system prompt with 3 defects. The data is in [proofs/spec-classes/plugin-claude-code.json](../proofs/spec-classes/plugin-claude-code.json), and [docs/results.md](results.md#the-issue-classes-of-the-app-spec) gives the method.
+This is one test of the [full toy shop](../examples/toy-shop-full/) through the Claude Code plugin, with its [app spec](reference/app-spec.md), on nookku 0.5.6 on 2026-10-23 (test 20261023-233146-4bdf). A copy of the app has a planted system prompt with 3 defects. The data is in [proofs/spec-classes/plugin-claude-code.json at the tag v0.5.6](https://github.com/mohanraj00/nookku/blob/v0.5.6/proofs/spec-classes/plugin-claude-code.json). The run of 0.5.7 is in [proofs/spec-classes/plugin-claude-code.json](../proofs/spec-classes/plugin-claude-code.json), and [docs/results.md](results.md#the-issue-classes-of-the-app-spec) gives the method.
 
 | Turn | Tester | Agent (shortened) |
 |---|---|---|
