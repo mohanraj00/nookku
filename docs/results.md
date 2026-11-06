@@ -386,7 +386,12 @@ The login of Claude Code in the Workspace is a person step. 2 earlier runs stopp
 
 ### Codex in a Koodam Workspace
 
-The release candidate run stopped before it made a cluster. The proof script rejects `plugin-codex` because it supports only `plugin-claude-code`. The run ended before the login step. [Result](../proofs/release/codex-0.5.7/cluster.json), [method](../scripts/proof_cluster.py), [#461](https://github.com/mohanraj00/nookku/issues/461)
+Nookku 0.5.7 does not support a full test from Codex in a Koodam Workspace. The proof ran on 2026-11-06 with codex-cli 0.162.1 and failed ([data](../proofs/cluster/plugin-codex.json), [method](../scripts/proof_cluster.py), [#461](https://github.com/mohanraj00/nookku/issues/461)):
+
+- **W1 to W3 passed.** The 3 records agree on each message and reply, the audit found 0 breaks, and the trace gave both planted egress findings.
+- **W4 failed.** The Codex shell sandbox could not start in the restricted pod ([Koodam sandbox test](https://github.com/mohanraj00/koodam/blob/v0.3.0/docs/codex-sandbox.md)). The transcript tool could not find the test. Codex wrote no report, and the seal stayed intact.
+
+Thus Codex in a Workspace records a test correctly but gives no evaluation. The Koodam work is [koodam#243](https://github.com/mohanraj00/koodam/issues/243). The earlier release candidate run stopped before it made a cluster, because the script did not yet support `plugin-codex` ([result](../proofs/release/codex-0.5.7/cluster.json)).
 
 ### The setup asks before it builds
 
