@@ -1,0 +1,137 @@
+{
+ "v": "0.2",
+ "test": "20261106-001027-fc4c",
+ "dir": "/tests/20261106-001027-fc4c",
+ "root": "/home/dev/toy-shop",
+ "entry": [
+  "uv",
+  "run",
+  "--with",
+  "/home/dev/dl/nookku-0.5.7-py3-none-any.whl",
+  "python3",
+  "service_entry.py"
+ ],
+ "entry_name": null,
+ "script": null,
+ "models": [],
+ "started": 1793923827.681082,
+ "ended": 1793923837.1048393,
+ "versions": {
+  "nookku": "0.5.7",
+  "claude-code": null,
+  "codex": "codex-cli 0.162.1"
+ },
+ "config_sha256": {
+  "config.json": "b79f9d8fe53f9b08a298233242d637725d18cca5c905e5dd0b243e9a093c00d8",
+  "discovery.json": "a56ce4939237e95dcf59b6dcb7fbc985c88d83ca62da227ea28aa30d7f1d497b",
+  "nookku-state": "7865f36f072b094306fd3bfc1a6e26563a2265d1a427ff21bad350fb04ad61d0"
+ },
+ "policy": {
+  "guard_fields": [
+   "path",
+   "file_path",
+   "url",
+   "uri",
+   "command"
+  ],
+  "guard_reads": [],
+  "scripts": "person",
+  "control_distance": 2
+ },
+ "trace": {
+  "repeated_reply": 2,
+  "model_reply_field": "",
+  "model_reply_match": "normalized",
+  "egress_ignore": [
+   "ab.chatgpt.com",
+   "chatgpt.com"
+  ]
+ },
+ "spec": [],
+ "spec_copies": true,
+ "trace_points": [],
+ "trace_points_unread": [],
+ "verdict": {
+  "limits": {},
+  "unread": []
+ },
+ "tester_sessions": [
+  "01a1ae31-4029-7830-9f7f-ef4737660268",
+  "01a1ae31-4d0c-7b31-bffd-d99aa191ff1e",
+  "01a1ae31-5660-7932-85ea-ed563d1cd864",
+  "01a1ae31-6039-7952-8ed3-4f4dd175e52d"
+ ],
+ "model_sessions": [],
+ "codex_gate": {
+  "start": {
+   "codex": true,
+   "hooks": [
+    {
+     "origin": "plugin",
+     "event": "preToolUse",
+     "enabled": true,
+     "trust": "trusted",
+     "hash": "sha256:b17fd671aff4ea1cf061585881db03115d7812d6ad47cd5bb17ff6dc84d20b17",
+     "script_sha256": "f50a064260a464c81c864c5bb5bc760f15c9b04770ff81c42ade03dba7511341"
+    },
+    {
+     "origin": "plugin",
+     "event": "userPromptSubmit",
+     "enabled": true,
+     "trust": "trusted",
+     "hash": "sha256:cdada78120900a490c84e8a0c483ebb42013e71e767237bb1feda58d19818682",
+     "script_sha256": "f50a064260a464c81c864c5bb5bc760f15c9b04770ff81c42ade03dba7511341"
+    }
+   ],
+   "problems": []
+  },
+  "end": {
+   "codex": true,
+   "hooks": [
+    {
+     "origin": "plugin",
+     "event": "preToolUse",
+     "enabled": true,
+     "trust": "trusted",
+     "hash": "sha256:b17fd671aff4ea1cf061585881db03115d7812d6ad47cd5bb17ff6dc84d20b17",
+     "script_sha256": "f50a064260a464c81c864c5bb5bc760f15c9b04770ff81c42ade03dba7511341"
+    },
+    {
+     "origin": "plugin",
+     "event": "userPromptSubmit",
+     "enabled": true,
+     "trust": "trusted",
+     "hash": "sha256:cdada78120900a490c84e8a0c483ebb42013e71e767237bb1feda58d19818682",
+     "script_sha256": "f50a064260a464c81c864c5bb5bc760f15c9b04770ff81c42ade03dba7511341"
+    }
+   ],
+   "problems": []
+  }
+ },
+ "check": false,
+ "egress": {
+  "registered": 1793923825.5466628,
+  "answer": {
+   "model_apis": [],
+   "backends": [
+    {
+     "name": "toy-shop",
+     "env": "TOY_SHOP_URL",
+     "url": "http://toy-shop.shop.svc:8080/"
+    }
+   ],
+   "mcp_servers": [],
+   "databases": [],
+   "other": []
+  },
+  "unseen": [],
+  "driver": [],
+  "proxies": {
+   "toy-shop": "http://127.0.0.1:36157"
+  },
+  "sslmode": {},
+  "receiver": "http://127.0.0.1:44243"
+ },
+ "entry_pid": 1319,
+ "entry_pid_start": "proc:106255946"
+}

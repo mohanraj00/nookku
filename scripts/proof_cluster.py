@@ -14,7 +14,7 @@ to example.com port 22 through the Koodam proxy, which the proxy denies. The tes
 The proof exports the spans of the test window with `koodam trace` outside the pod, and gives them
 to `nookku trace --egress` in the pod. Then the prompt `nookku end` starts the evaluation.
 
-W1  The Workspace runs with traced egress. Claude Code in the pod loads the plugin of the manual
+W1  The Workspace runs with traced egress. The harness in the pod loads the plugin of the manual
     install (`nookku@nookku`) and only the MCP server of nookku.
 W2  Each message reaches the agent at the Service, and each reply reaches the relay, byte for
     byte: the relay record, the tap record and the backend record agree. The audit finds 0 breaks.
@@ -26,18 +26,19 @@ W4  The harness model writes report.md, and after the evaluation the seal is int
 The hosts of the harness are measured before the test: the proof sends 1 prompt that the plugin
 blocks, and puts each host of its spans in `egress_ignore`.
 
-A person does 1 step: the login of Claude Code in the Workspace
-(docs/getting-started-cluster.md, step 5). The proof waits for it. The proof never reads the token.
+A person logs in to the Workspace (docs/getting-started-cluster.md, step 5). The proof waits for
+the login. It never reads the login value. In Codex, a person also trusts the plugin hooks in the
+Workspace. If a hook needs trust, the proof stops and keeps its cluster. Trust the hooks in
+that Workspace and run the proof again with --resume.
 
-It writes proofs/cluster/SETUP.json and the records of the test in proofs/cluster/SETUP/. With
---no-evaluation, it skips the login and W4, and writes proofs/cluster/SETUP-no-evaluation.json and
-proofs/cluster/SETUP-no-evaluation/. It needs
-Docker, kind, kubectl, helm and the koodam CLI 0.3.0. It deletes its cluster at the end, also if a
-step fails.
+It writes proofs/cluster/SETUP.json and the records of the test in proofs/cluster/SETUP/.
+In Claude Code, --no-evaluation skips the login and W4. It writes the result and records
+with the suffix -no-evaluation. It needs Docker, kind, kubectl, helm and the koodam CLI
+0.3.0. It deletes its cluster at the end. If a resumed proof stops, it keeps the cluster.
 
 usage: python scripts/proof_cluster.py SETUP [--cluster NAME] [--keep] [--koodam PATH]
-       [--login-wait MINUTES] [--no-evaluation]
-       SETUP is plugin-claude-code. The Codex part of #461 adds plugin-codex.
+       [--login-wait MINUTES] [--no-evaluation] [--resume]
+       SETUP is plugin-claude-code or plugin-codex.
 """
 
 from __future__ import annotations
@@ -49,6 +50,7 @@ import io
 import json
 import platform
 import secrets
+import shlex
 import shutil
 import subprocess
 import sys
@@ -60,7 +62,7 @@ from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 
-from proof_cluster_tap import Cluster, run, tool
+from proof_cluster_tap import Cluster, free_space, run, tool
 from proof_common import json_lines, private
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -70,6 +72,7 @@ from nookku import __version__  # noqa: E402
 
 OUT = ROOT / "proofs" / "cluster"
 SETUPS = ("plugin-claude-code", "plugin-codex")
+PLUGIN_ID = "nookku@nookku"
 KOODAM = "0.3.0"
 CHART = "oci://ghcr.io/mohanraj00/charts/koodam"
 NS, WORKSPACE, POD = "dev-shop", "shop", "shop-0"
@@ -105,7 +108,7 @@ EVALUATION = [
 STREAM = ["--output-format", "stream-json", "--verbose"]
 
 
-def manifests(api: tuple[str, str], claude: str) -> tuple[str, str]:
+def manifests(api: tuple[str, str], harness: str, version: str) -> tuple[str, str]:
     """The chart values and the objects of docs/getting-started-cluster.md.
 
     `api` is the address and the port of the API server endpoint, for the NetworkPolicy of the
@@ -209,8 +212,8 @@ metadata:
 spec:
   storage: 5Gi
   harnesses:
-    - name: claude-code
-      version: {claude}
+    - name: {harness}
+      version: {version}
   podTemplate:
     spec:
       containers:
@@ -249,6 +252,47 @@ class Workspace:
         script = f'cd {PROJECT} && claude -p {args} "$(cat)"'
         return json_lines(self.sh(script, data=prompt.encode(), timeout=900))
 
+    def codex(self, prompt: str, *, evaluate: bool = False) -> dict[str, Any]:
+        mode = f"-s workspace-write --add-dir {TESTS}" if evaluate else "-s read-only"
+        script = f"cd {PROJECT} && codex exec --json --skip-git-repo-check {mode} -"
+        events = json_lines(self.sh(script, data=prompt.encode(), timeout=900))
+        usage = next((e["usage"] for e in events if e.get("type") == "turn.completed"), {})
+        texts = [
+            e["item"].get("text", "")
+            for e in events
+            if e.get("type") == "item.completed" and e["item"].get("type") == "agent_message"
+        ]
+        return {"usage": usage, "result": "\n".join(texts)}
+
+
+class HookTrustRequired(SystemExit):
+    """A person must trust a Codex hook in this Workspace."""
+
+
+def codex_setup(ws: Workspace, wheel: str) -> list[str]:
+    """Check the hooks and the MCP servers before giving Codex a prompt."""
+    check = (
+        "import json; from pathlib import Path; from nookku.codex_gate import check; "
+        "print(json.dumps(check(Path.cwd())))"
+    )
+    state = json.loads(
+        ws.sh(f"cd {PROJECT} && uv run --with {shlex.quote(wheel)} python -c {shlex.quote(check)}")
+    )
+    if any(hook["trust"] != "trusted" for hook in state["hooks"]):
+        raise HookTrustRequired(
+            "A Codex hook needs trust. The proof stopped and kept its cluster.\n"
+            f"  kubectl --context kind-{ws.c.name} -n {NS} exec -it {POD} -c workspace "
+            f"-- bash -lc 'cd {PROJECT} && codex --no-daemon'\n"
+            "In Codex, type /hooks, check the 2 nookku hooks and trust them."
+        )
+    if state["problems"] or sorted((h["origin"], h["event"]) for h in state["hooks"]) != [
+        ("plugin", "preToolUse"),
+        ("plugin", "userPromptSubmit"),
+    ]:
+        raise SystemExit(f"Codex did not load both nookku plugin hooks: {state['problems']}")
+    servers = json.loads(ws.sh(f"cd {PROJECT} && codex mcp list --json"))
+    return sorted(str(s["name"]) for s in servers if s.get("enabled") is not False)
+
 
 def uv_binary() -> bytes:
     """The uv binary for Linux on the architecture of this machine, from its GitHub release. The
@@ -273,14 +317,14 @@ def plugin_tar() -> bytes:
     """The marketplace file and the plugin of this checkout, as a tar with no extended headers."""
     out = io.BytesIO()
     with tarfile.open(fileobj=out, mode="w", format=tarfile.USTAR_FORMAT) as t:
-        for top in (".claude-plugin", "plugins/nookku"):
+        for top in (".agents/plugins", ".claude-plugin", "plugins/nookku"):
             for p in sorted((ROOT / top).rglob("*")):
                 if p.is_file() and "node_modules" not in p.parts:
                     t.add(p, arcname=str(p.relative_to(ROOT)), recursive=False)
     return out.getvalue()
 
 
-def install(c: Cluster, claude: str) -> dict[str, Any]:
+def install(c: Cluster, harness: str, version: str) -> dict[str, Any]:
     """Install Koodam, the toy shop and the Workspace (docs/getting-started-cluster.md, 1-3)."""
     for ns in ("koodam-system", "shop", NS):
         c.k("create", "namespace", ns)
@@ -302,7 +346,7 @@ def install(c: Cluster, claude: str) -> dict[str, Any]:
         .decode()
         .split()
     )
-    values, objects = manifests((api[0], api[1]), claude)
+    values, objects = manifests((api[0], api[1]), harness, version)
     # The Workspace uses the subscription login, so it calls no gateway. The chart needs a
     # gateway mode and a URL. The URL is not used (docs/getting-started-cluster.md, step 1).
     helm = [tool("helm"), "--kube-context", f"kind-{c.name}", "install", "koodam", CHART]
@@ -318,6 +362,10 @@ def install(c: Cluster, claude: str) -> dict[str, Any]:
     c.k("-n", "shop", "rollout", "status", "deployment/toy-shop", "--timeout=300s", timeout=320)
     running = "--for=jsonpath={.status.phase}=Running"
     c.k("wait", f"workspace/{WORKSPACE}", "-n", NS, running, "--timeout=600s", timeout=620)
+    return workspace_status(c)
+
+
+def workspace_status(c: Cluster) -> dict[str, Any]:
     status = json.loads(c.k("get", "workspace", WORKSPACE, "-n", NS, "-o", "json"))["status"]
     conditions = {x["type"]: x["status"] for x in status.get("conditions", [])}
     return {"phase": status.get("phase"), "conditions": conditions}
@@ -330,7 +378,14 @@ def free_disk(c: Cluster) -> int:
     return int(out[-1])
 
 
-def setup_project(ws: Workspace, work: Path) -> str:
+def check_disk(c: Cluster) -> int:
+    disk = free_disk(c)
+    if disk < 1200:
+        raise SystemExit(f"the Docker disk has {disk} MB free. The proof needs 1200 MB.")
+    return disk
+
+
+def setup_project(ws: Workspace, work: Path, harness: str) -> str:
     """Install uv, nookku and the plugin in the home, and make the project.
 
     These are steps 4 and 6 of docs/getting-started-cluster.md. Return the path of the nookku
@@ -347,9 +402,14 @@ def setup_project(ws: Workspace, work: Path) -> str:
     ws.sh(
         f"mkdir -p {HOME}/nookku-plugin && tar -xf {HOME}/nookku-plugin.tar -C {HOME}/nookku-plugin"
     )
-    ws.sh(
-        f"claude plugin marketplace add {HOME}/nookku-plugin && claude plugin install nookku@nookku"
-    )
+    if harness == "codex":
+        ws.sh(f"codex plugin marketplace add {HOME}/nookku-plugin --json")
+        ws.sh(f"codex plugin add {PLUGIN_ID} --json")
+    else:
+        ws.sh(
+            f"claude plugin marketplace add {HOME}/nookku-plugin && "
+            f"claude plugin install {PLUGIN_ID}"
+        )
     profile = "export CLAUDE_CODE_DISABLE_TERMINAL_TITLE=1\nexport NOOKKU_TESTS_DIR=/tests\n"
     ws.sh(f"cat >> {HOME}/.profile", data=profile.encode())
     entry = ROOT / "examples" / "toy-shop" / "service_entry.py"
@@ -370,16 +430,21 @@ def write_config(ws: Workspace, wheel: str, ignore: list[str]) -> None:
     ws.put(f"{PROJECT}/.nookku/config.json", (json.dumps(config, indent=1) + "\n").encode())
 
 
-def wait_for_login(c: Cluster, ws: Workspace, minutes: float) -> None:
-    """Wait for the person step: the login of Claude Code in the namespace. The proof reads only
-    the names of the keys of the Secret, never a value."""
-    keys = "go-template={{range $k, $v := .data}}{{$k}} {{end}}"
-    command = f"koodam login claude-code -n {NS} --context kind-{c.name}"
-    print(
-        "\nThe person step: make a token with `claude setup-token`, then store it with:\n"
-        f"  {command}\nThe proof waits for the Secret koodam-login.\n",
-        flush=True,
-    )
+def wait_for_login(c: Cluster, ws: Workspace, minutes: float, koodam: str, harness: str) -> None:
+    """Wait for the Secret and the login in the pod. Never show a Secret value."""
+    context = shlex.quote(f"kind-{c.name}")
+    command = f"{shlex.quote(koodam)} login {harness} -n {NS} --context {context}"
+    if harness == "codex":
+        command = f"{shlex.quote(koodam)} login codex --stdin -n {NS} --context {context}"
+        command += ' < "$HOME/.codex/auth.json"'
+        intro = "The person step: give koodam the Codex login JSON on stdin."
+        secret_output = ["-o", "name"]
+        ready = 'test -s "$HOME/.codex/auth.json"'
+    else:
+        intro = "The person step: make a token with claude setup-token, then store it with:"
+        secret_output = ["-o", "go-template={{range $k, $v := .data}}{{$k}} {{end}}"]
+        ready = 'test -n "$CLAUDE_CODE_OAUTH_TOKEN"'
+    print(f"\n{intro}\n  {command}\nThe proof waits for the Secret koodam-login.\n", flush=True)
     deadline = time.monotonic() + minutes * 60
     while True:
         p = subprocess.run(
@@ -392,22 +457,21 @@ def wait_for_login(c: Cluster, ws: Workspace, minutes: float) -> None:
                 "koodam-login",
                 "-n",
                 NS,
-                "-o",
-                keys,
+                *secret_output,
             ],
             capture_output=True,
             text=True,
         )
-        if p.returncode == 0 and "claude-code" in p.stdout.split():
+        if p.returncode == 0 and (harness == "codex" or harness in p.stdout.split()):
             break
         if time.monotonic() > deadline:
             raise SystemExit(f"no login after {minutes} minutes. Run: {command}")
         time.sleep(10)
-    # Kubernetes updates the mounted Secret in about 1 minute. A login shell reads the file.
+    # Kubernetes updates the mounted Secret. Koodam sets up the login at shell startup.
     deadline = time.monotonic() + 180
-    while ws.sh('test -n "$CLAUDE_CODE_OAUTH_TOKEN" && echo yes || echo no').strip() != "yes":
+    while ws.sh(f"{ready} && echo yes || echo no").strip() != "yes":
         if time.monotonic() > deadline:
-            raise SystemExit("the login shell of the Workspace has no CLAUDE_CODE_OAUTH_TOKEN")
+            raise SystemExit(f"the login shell of the Workspace has no {harness} login")
         time.sleep(5)
 
 
@@ -445,7 +509,7 @@ def planted_calls(ws: Workspace) -> dict[str, str]:
     return {"http": ws.sh(http).strip(), "connect_port_22": ws.sh(connect).strip()}
 
 
-def versions(c: Cluster, ws: Workspace, koodam: str) -> dict[str, str]:
+def versions(c: Cluster, ws: Workspace, koodam: str, harness: str) -> dict[str, str]:
     pod = json.loads(c.k("get", "pod", POD, "-n", NS, "-o", "json"))
     images = {s["name"]: s["imageID"] for s in pod["status"]["containerStatuses"]}
     controller = c.k(
@@ -461,7 +525,7 @@ def versions(c: Cluster, ws: Workspace, koodam: str) -> dict[str, str]:
     return {
         "nookku": __version__,
         "nookku_in_pod": ws.sh("nookku --version").split()[-1],
-        "claude-code": ws.sh("claude --version").strip(),
+        harness: ws.sh(f"{harness_cli(harness)} --version").strip(),
         "koodam_chart": KOODAM,
         "koodam_controller": controller,
         "koodam_workspace": images.get("workspace", ""),
@@ -476,23 +540,71 @@ def versions(c: Cluster, ws: Workspace, koodam: str) -> dict[str, str]:
     }
 
 
-def prove(c: Cluster, koodam: str, work: Path, login_wait: float | None) -> dict[str, Any]:
-    """Run the proof. With no `login_wait`, skip the login and the evaluation (a check of the
-    setup with no model)."""
-    claude = run(["claude", "--version"]).decode().split()[0]
-    workspace = install(c, claude)
-    disk = free_disk(c)
-    if disk < 1200:
-        raise SystemExit(f"the Docker disk has {disk} MB free. The proof needs 1200 MB.")
+def harness_cli(harness: str) -> str:
+    return "codex" if harness == "codex" else "claude"
+
+
+def resume_workspace(ws: Workspace) -> str:
+    """Use the wheel and login in the proof Workspace that waited for hook trust."""
+    config = json.loads(ws.get(f"{PROJECT}/.nookku/config.json"))
+    entry = config.get("entry", [])
+    if (
+        len(entry) != 6
+        or entry[:3] != ["uv", "run", "--with"]
+        or entry[4:] != ["python3", "service_entry.py"]
+        or config.get("agent_url") != SERVICE
+        or config.get("page") is not False
+    ):
+        raise SystemExit("the Workspace has no config from the Codex proof")
+    wheel = entry[3]
+    if Path(wheel).parent != Path(HOME) / "dl" or not Path(wheel).match("nookku-*.whl"):
+        raise SystemExit("the Workspace has no wheel from the Codex proof")
+    if ws.sh('test -s "$HOME/.codex/auth.json" && echo yes || echo no').strip() != "yes":
+        raise SystemExit("the Workspace has no Codex login")
+    current = json.loads(ws.sh(f"cd {PROJECT} && nookku status --json"))["test"]
+    if current is not None:
+        raise SystemExit("a test is already running in the Workspace")
+    return wheel
+
+
+def prove(
+    c: Cluster, koodam: str, work: Path, login_wait: float | None, harness: str, *, resume: bool
+) -> dict[str, Any]:
+    """Run the proof. With no login_wait, skip the login and the evaluation."""
+    codex = harness == "codex"
     ws = Workspace(c)
-    wheel = setup_project(ws, work)
-    write_config(ws, wheel, [])
-    if login_wait is not None:
-        wait_for_login(c, ws, login_wait)
+    if resume:
+        disk = check_disk(c)
+        workspace = workspace_status(c)
+        wheel = resume_workspace(ws)
+    else:
+        version_fields = run([harness_cli(harness), "--version"]).decode().split()
+        version = version_fields[1] if codex else version_fields[0]
+        workspace = install(c, harness, version)
+        check_disk(c)
+        wheel = setup_project(ws, work, harness)
+        write_config(ws, wheel, [])
+        disk = check_disk(c)
+        if login_wait is not None:
+            wait_for_login(c, ws, login_wait, koodam, harness)
 
     # The hosts of the harness: 1 prompt that the plugin blocks, before the test.
+    if codex:
+        servers = codex_setup(ws, wheel)
+        if servers != ["nookku"]:
+            raise SystemExit(f"Codex must load only the nookku MCP server: {servers}")
     before = time.time()
-    init = init_event(ws.claude("nookku status"))
+    if codex:
+        plugins = [PLUGIN_ID]
+        ws.codex("nookku status")
+    else:
+        init = init_event(ws.claude("nookku status"))
+        plugins = sorted(
+            str(p.get("source") or p.get("name"))
+            for p in init.get("plugins", [])
+            if isinstance(p, dict)
+        )
+        servers = sorted(str(s.get("name")) for s in init.get("mcp_servers", []))
     time.sleep(5)
     harness_spans = json_lines(spans(c, koodam, before, time.time()).decode())
     harness_hosts = sorted({s.get("host") or s.get("sni") or "" for s in harness_spans} - {""})
@@ -501,7 +613,8 @@ def prove(c: Cluster, koodam: str, work: Path, login_wait: float | None) -> dict
     ws.sh(f"cd {PROJECT} && nookku register", data=answer)
 
     # The test.
-    ws.claude("nookku start")
+    prompt = ws.codex if codex else ws.claude
+    prompt("nookku start")
     current = json.loads(ws.sh(f"cd {PROJECT} && nookku status --json"))["test"]
     if current is None:
         raise SystemExit("the prompt nookku start started no test")
@@ -509,7 +622,11 @@ def prove(c: Cluster, koodam: str, work: Path, login_wait: float | None) -> dict
     shown = []
     planted: dict[str, str] = {}
     for i, message in enumerate(MESSAGES):
-        result = next((e for e in reversed(ws.claude(message)) if e.get("type") == "result"), {})
+        result = (
+            ws.codex(message)
+            if codex
+            else next((e for e in reversed(ws.claude(message)) if e.get("type") == "result"), {})
+        )
         shown.append(result)
         if i == 1:
             planted = planted_calls(ws)
@@ -533,8 +650,12 @@ def prove(c: Cluster, koodam: str, work: Path, login_wait: float | None) -> dict
     # The evaluation of the ended test.
     end: dict[str, Any] = {}
     if login_wait is not None:
-        evaluation = ws.claude("nookku end", EVALUATION)
-        end = next((e for e in reversed(evaluation) if e.get("type") == "result"), {})
+        if codex:
+            check_disk(c)
+            end = ws.codex("nookku end", evaluate=True)
+        else:
+            evaluation = ws.claude("nookku end", EVALUATION)
+            end = next((e for e in reversed(evaluation) if e.get("type") == "result"), {})
     verify = ws.sh(f"cd {PROJECT} && nookku verify {test}").strip()
 
     records = {}
@@ -559,20 +680,17 @@ def prove(c: Cluster, koodam: str, work: Path, login_wait: float | None) -> dict
     calls = [r for r in json_lines(records["backend.jsonl"].decode()) if r["type"] == "call"]
 
     # W1
-    plugins = [p for p in init.get("plugins", []) if isinstance(p, dict)]
-    servers = sorted(str(s.get("name")) for s in init.get("mcp_servers", []))
     w1 = {
         "phase": workspace["phase"],
         "traced_egress": workspace["conditions"].get("TracedEgress"),
-        "plugins": sorted(str(p.get("source") or p.get("name")) for p in plugins),
+        "plugins": plugins,
         "mcp_servers": servers,
     }
     w1["pass"] = (
         w1["phase"] == "Running"
         and w1["traced_egress"] == "True"
-        and "nookku@nookku" in w1["plugins"]
-        and set(servers) <= {"plugin:nookku:nookku"}
-        and bool(servers)
+        and PLUGIN_ID in plugins
+        and set(servers) == {"nookku" if codex else "plugin:nookku:nookku"}
     )
 
     # W2
@@ -652,7 +770,7 @@ def prove(c: Cluster, koodam: str, work: Path, login_wait: float | None) -> dict
         "method": "scripts/proof_cluster.py",
         "guide": "docs/getting-started-cluster.md",
         "test": test,
-        "versions": versions(c, ws, koodam),
+        "versions": versions(c, ws, koodam, harness),
         "disk_free_mb_after_install": disk,
         "W1_workspace": w1,
         "W2_turns": w2,
@@ -673,6 +791,7 @@ def main() -> int:
     parser.add_argument("setup", choices=SETUPS)
     parser.add_argument("--cluster", default="nookku-461", help="the name of the kind cluster")
     parser.add_argument("--keep", action="store_true", help="do not delete the cluster at the end")
+    parser.add_argument("--resume", action="store_true", help="use the Codex Workspace after trust")
     parser.add_argument("--koodam", default="koodam", help="the koodam CLI 0.3.0")
     parser.add_argument("--login-wait", type=float, default=30, help="minutes for the login step")
     parser.add_argument(
@@ -681,20 +800,41 @@ def main() -> int:
         help="skip the login and the evaluation, and write SETUP-no-evaluation.json",
     )
     args = parser.parse_args()
-    if args.setup != "plugin-claude-code":
-        raise SystemExit(f"{args.setup}: the Codex part of #461 adds this setup.")
+    harness = args.setup.removeprefix("plugin-")
+    if args.resume and harness != "codex":
+        parser.error("--resume needs a plugin-codex proof")
+    if args.no_evaluation and harness == "codex":
+        parser.error("--no-evaluation is for plugin-claude-code")
     koodam = tool(args.koodam) if "/" not in args.koodam else args.koodam
     if run([koodam, "version"]).decode().split()[-1] != KOODAM:
         raise SystemExit(f"the proof needs the koodam CLI {KOODAM}")
     c = Cluster(args.cluster)
-    if c.exists():
+    exists = c.exists()
+    if args.resume and not exists:
+        raise SystemExit(f"the kind cluster {c.name} does not exist")
+    if exists and not args.resume:
         raise SystemExit(f"a kind cluster {c.name} exists. Give a new name with --cluster.")
+    free_space(c)
     work = Path(tempfile.mkdtemp(prefix="nookku-cluster-"))
-    c.create()
+    if not args.resume:
+        c.create()
+    # Keep the Workspace if a resumed proof stops so the person keeps their hook trust.
+    keep = args.keep or args.resume
     try:
-        result = prove(c, koodam, work, None if args.no_evaluation else args.login_wait)
+        result = prove(
+            c,
+            koodam,
+            work,
+            None if args.no_evaluation else args.login_wait,
+            harness,
+            resume=args.resume,
+        )
+        keep = args.keep
+    except HookTrustRequired:
+        keep = True
+        raise
     finally:
-        if not args.keep:
+        if not keep:
             c.delete()
     records = result.pop("_records")
     # A run with no evaluation checks steps 1 to 8 of the guide. It has its own name.
