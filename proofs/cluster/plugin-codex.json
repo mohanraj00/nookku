@@ -1,0 +1,111 @@
+{
+ "date": "2026-11-06",
+ "method": "scripts/proof_cluster.py",
+ "guide": "docs/getting-started-cluster.md",
+ "test": "20261106-001027-fc4c",
+ "versions": {
+  "nookku": "0.5.7",
+  "nookku_in_pod": "0.5.7",
+  "codex": "codex-cli 0.162.1",
+  "koodam_chart": "0.3.0",
+  "koodam_controller": "ghcr.io/mohanraj00/koodam:0.3.0",
+  "koodam_workspace": "ghcr.io/mohanraj00/koodam-workspace@sha256:93ae73bd2898218af72715d8137a36ac3ac2aad98582a4485e5c9472573134f8",
+  "koodam_cli": "koodam 0.3.0",
+  "uv_in_pod": "uv 0.10.8",
+  "app_image": "python:3.13-alpine",
+  "kind": "v0.33.0",
+  "kubernetes": "v1.37.0",
+  "helm": "v4.2.3+g43e8b7f",
+  "docker": "29.5.2",
+  "os": "Darwin"
+ },
+ "disk_free_mb_after_install": 1216,
+ "W1_workspace": {
+  "phase": "Running",
+  "traced_egress": "True",
+  "plugins": [
+   "nookku@nookku"
+  ],
+  "mcp_servers": [
+   "nookku"
+  ],
+  "pass": true
+ },
+ "W2_turns": {
+  "turns": [
+   {
+    "message": 1,
+    "message_same": true,
+    "reply_same": true,
+    "backend_status": 200,
+    "model_output_tokens": 0
+   },
+   {
+    "message": 2,
+    "message_same": true,
+    "reply_same": true,
+    "backend_status": 200,
+    "model_output_tokens": 0
+   },
+   {
+    "message": 3,
+    "message_same": true,
+    "reply_same": true,
+    "backend_status": 200,
+    "model_output_tokens": 0
+   }
+  ],
+  "audit_exit": 0,
+  "breaks": [],
+  "pass": true
+ },
+ "W3_egress": {
+  "export_sha256": "aff102871f5a28947fc5926b2aa8fb56b08833274a6c7cf457cae64ff823420f",
+  "export_rows": 43,
+  "copy_same": true,
+  "sealed": true,
+  "egress": {
+   "file": "egress.jsonl",
+   "rows": 43,
+   "spans": 2,
+   "hosts": [
+    "example.com"
+   ],
+   "ignored": {
+    "egress_ignore": 41
+   }
+  },
+  "harness_hosts_ignored": [
+   "ab.chatgpt.com",
+   "chatgpt.com"
+  ],
+  "planted_calls": {
+   "http": "HTTP/1.1 200 OK",
+   "connect_port_22": "HTTP/1.1 403 Forbidden"
+  },
+  "egress_not_in_discovery": [
+   "example.com"
+  ],
+  "egress_denied": [
+   "connect example.com port 22: denied (port)"
+  ],
+  "kinds": [
+   "connect",
+   "http",
+   "tls"
+  ],
+  "pass": true
+ },
+ "W4_evaluation": {
+  "report_written": false,
+  "report_table_rows": 0,
+  "verify": "Test 20261106-001027-fc4c. Seal: intact. No record changed after the end of the test.",
+  "answer": "I’ll review the test record, app rules, and current state, then write the evaluation report.\nThe shell cannot start because of a sandbox namespace error, and the Nookku transcript tool cannot find this test. I can’t inspect the evidence, so I’ll record the evaluation as blocked without judging the app.\nEvaluation is blocked: shell commands fail with a sandbox namespace error, and the Nookku tool cannot find test `20261106-001027-fc4c`.\n\nI could neither inspect the records nor write `report.md`. No judgment of the app was made. Restore access to `/tests/20261106-001027-fc4c` and rerun the evaluation.",
+  "pass": false
+ },
+ "counts": {
+  "egress_not_in_discovery": 1,
+  "egress_denied": 1
+ },
+ "pass": false
+}
