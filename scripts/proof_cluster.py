@@ -269,8 +269,8 @@ class HookTrustRequired(SystemExit):
     """A person must trust a Codex hook in this Workspace."""
 
 
-def codex_setup(ws: Workspace, wheel: str) -> list[str]:
-    """Check the hooks and the MCP servers before giving Codex a prompt."""
+def codex_setup(ws: Workspace, wheel: str) -> tuple[list[str], list[str]]:
+    """Check the hooks, enabled plugins and MCP servers before giving Codex a prompt."""
     check = (
         "import json; from pathlib import Path; from nookku.codex_gate import check; "
         "print(json.dumps(check(Path.cwd())))"
@@ -280,7 +280,7 @@ def codex_setup(ws: Workspace, wheel: str) -> list[str]:
     )
     if any(hook["trust"] != "trusted" for hook in state["hooks"]):
         raise HookTrustRequired(
-            "A Codex hook needs trust. The proof stopped and kept its cluster.\n"
+            "A Codex hook needs trust. The proof stopped.\n"
             f"  kubectl --context kind-{ws.c.name} -n {NS} exec -it {POD} -c workspace "
             f"-- bash -lc 'cd {PROJECT} && codex --no-daemon'\n"
             "In Codex, type /hooks, check the 2 nookku hooks and trust them."
@@ -290,8 +290,12 @@ def codex_setup(ws: Workspace, wheel: str) -> list[str]:
         ("plugin", "userPromptSubmit"),
     ]:
         raise SystemExit(f"Codex did not load both nookku plugin hooks: {state['problems']}")
+    installed = json.loads(ws.sh(f"cd {PROJECT} && codex plugin list -m nookku --json"))
+    plugins = sorted(p["pluginId"] for p in installed["installed"] if p["enabled"] is True)
+    if PLUGIN_ID not in plugins:
+        raise SystemExit("Codex has no enabled nookku plugin")
     servers = json.loads(ws.sh(f"cd {PROJECT} && codex mcp list --json"))
-    return sorted(str(s["name"]) for s in servers if s.get("enabled") is not False)
+    return plugins, sorted(str(s["name"]) for s in servers if s.get("enabled") is not False)
 
 
 def uv_binary() -> bytes:
@@ -438,13 +442,12 @@ def wait_for_login(c: Cluster, ws: Workspace, minutes: float, koodam: str, harne
         command = f"{shlex.quote(koodam)} login codex --stdin -n {NS} --context {context}"
         command += ' < "$HOME/.codex/auth.json"'
         intro = "The person step: give koodam the Codex login JSON on stdin."
-        secret_output = ["-o", "name"]
         ready = 'test -s "$HOME/.codex/auth.json"'
     else:
         intro = "The person step: make a token with claude setup-token, then store it with:"
-        secret_output = ["-o", "go-template={{range $k, $v := .data}}{{$k}} {{end}}"]
         ready = 'test -n "$CLAUDE_CODE_OAUTH_TOKEN"'
-    print(f"\n{intro}\n  {command}\nThe proof waits for the Secret koodam-login.\n", flush=True)
+    secret_keys = "go-template={{range $k, $v := .data}}{{$k}} {{end}}"
+    print(f"\n{intro}\n  {command}\nThe proof waits for {harness} in koodam-login.\n", flush=True)
     deadline = time.monotonic() + minutes * 60
     while True:
         p = subprocess.run(
@@ -457,12 +460,13 @@ def wait_for_login(c: Cluster, ws: Workspace, minutes: float, koodam: str, harne
                 "koodam-login",
                 "-n",
                 NS,
-                *secret_output,
+                "-o",
+                secret_keys,
             ],
             capture_output=True,
             text=True,
         )
-        if p.returncode == 0 and (harness == "codex" or harness in p.stdout.split()):
+        if p.returncode == 0 and harness in p.stdout.split():
             break
         if time.monotonic() > deadline:
             raise SystemExit(f"no login after {minutes} minutes. Run: {command}")
@@ -590,12 +594,11 @@ def prove(
 
     # The hosts of the harness: 1 prompt that the plugin blocks, before the test.
     if codex:
-        servers = codex_setup(ws, wheel)
+        plugins, servers = codex_setup(ws, wheel)
         if servers != ["nookku"]:
             raise SystemExit(f"Codex must load only the nookku MCP server: {servers}")
     before = time.time()
     if codex:
-        plugins = [PLUGIN_ID]
         ws.codex("nookku status")
     else:
         init = init_event(ws.claude("nookku status"))
@@ -815,26 +818,32 @@ def main() -> int:
     if exists and not args.resume:
         raise SystemExit(f"a kind cluster {c.name} exists. Give a new name with --cluster.")
     free_space(c)
-    work = Path(tempfile.mkdtemp(prefix="nookku-cluster-"))
     if not args.resume:
         c.create()
     # Keep the Workspace if a resumed proof stops so the person keeps their hook trust.
     keep = args.keep or args.resume
     try:
-        result = prove(
-            c,
-            koodam,
-            work,
-            None if args.no_evaluation else args.login_wait,
-            harness,
-            resume=args.resume,
-        )
+        with tempfile.TemporaryDirectory(prefix="nookku-cluster-") as work:
+            result = prove(
+                c,
+                koodam,
+                Path(work),
+                None if args.no_evaluation else args.login_wait,
+                harness,
+                resume=args.resume,
+            )
         keep = args.keep
     except HookTrustRequired:
         keep = True
         raise
     finally:
-        if not keep:
+        if keep:
+            delete = f"kind delete cluster --name {shlex.quote(c.name)}"
+            print(
+                f"The proof kept the kind cluster {c.name}. To delete it, run: {delete}",
+                file=sys.stderr,
+            )
+        else:
             c.delete()
     records = result.pop("_records")
     # A run with no evaluation checks steps 1 to 8 of the guide. It has its own name.
