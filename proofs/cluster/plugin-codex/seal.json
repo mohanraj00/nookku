@@ -1,0 +1,20 @@
+{
+ "copy": true,
+ "files": {
+  ".mcp-closed": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "app.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "audit.json": "88c2e65f517c0f114cce0dc6293afa915c8756b5b98a79e8397fbab1a88c8e83",
+  "backend.jsonl": "76e85050dadd1536530177659639b3e24ae23bb8af696e74659f142c1eddb154",
+  "egress.jsonl": "aff102871f5a28947fc5926b2aa8fb56b08833274a6c7cf457cae64ff823420f",
+  "findings.json": "6c5a8106fa9a57841281b3e3a4fbcbd73b3b7ca3b17a79ee90b64a5550a77122",
+  "manifest.json": "de5dde51e4b430bdb4cbf2e8ed04a24c813efe2f4346c2dcc7fb3720d6b325dd",
+  "performance.json": "0db9dab6f1bba05bd61226b1f23bec4143244a67a8ad5f7583ace744d851be10",
+  "relay.jsonl": "2f0b724c2dbbf542ba7a276eeadbdf18435ff2aaa289e82db43fdbd6b907d9f7",
+  "tap.jsonl": "0b4ec1feaa3b5e6d3e39c6271d24cc07b0c787ea2f226606b3c5df84fb3b5da3",
+  "trace.jsonl": "9b3fd8eb4d80c5f42b91dbde5cf100309f37666e38a4707b9e1bb4f5c878552a",
+  "verdict.json": "e6a3e0e01f42c0c07f1906d5eb19c6215dfd3f42ee6af5864751fd627566de59"
+ },
+ "sealed": 1793923837.208074,
+ "test": "20261106-001027-fc4c",
+ "v": 1
+}

@@ -2,6 +2,8 @@
 
 In this tutorial, you test the toy shop agent in a Kubernetes cluster. The agent runs behind a Service. Claude Code runs in a [Koodam](https://github.com/mohanraj00/koodam) Workspace with traced egress. You install Nookku and the [plugin](reference/glossary.md#plugin) in the Workspace, run a test with 3 messages, give the egress spans of the test to the [trace](reference/glossary.md#trace), and start the [evaluation](reference/glossary.md#evaluation).
 
+Nookku v0.5.7 supports a full test in a Koodam Workspace with Claude Code. Codex in a Workspace gives no full evaluation in this release. The Codex proof passed W1 to W3, but W4 failed and Codex wrote no report. Full support for Codex depends on the Koodam update and a pass from W1 to W4. [Proof](../proofs/cluster/plugin-codex.json), [method](../scripts/proof_cluster.py), [koodam#243](https://github.com/mohanraj00/koodam/issues/243).
+
 The values on this page come from one run of [scripts/proof_cluster.py](../scripts/proof_cluster.py) on 2026-10-30, on macOS, in a kind cluster, with Koodam 0.3.0, nookku 0.5.6 from this checkout and Claude Code 2.1.302 ([data](../proofs/cluster/plugin-claude-code-no-evaluation.json), [records](../proofs/cluster/plugin-claude-code-no-evaluation/)). That run did steps 1 to 8 and no login, so it has no evaluation. The script does each step of this page with `kubectl exec`, and gives each prompt to `claude -p` in the pod. The test id and the times are different on your cluster.
 
 If you do not know Nookku, do [Get started](getting-started.md) first. It explains the [audit](reference/glossary.md#audit), the [findings](reference/glossary.md#findings) and the report.
@@ -10,7 +12,7 @@ If you do not know Nookku, do [Get started](getting-started.md) first. It explai
 
 - A Kubernetes cluster. The proof used kind ([versions](../proofs/cluster/plugin-claude-code-no-evaluation.json)).
 - `kubectl`, `helm` and the `koodam` CLI 0.3.0 ([release](https://github.com/mohanraj00/koodam/releases/tag/v0.3.0)).
-- A Claude subscription for `claude setup-token`. Only the evaluation in step 9 needs it.
+- A Claude subscription for `claude setup-token`.
 - A clone of this repo, for the toy shop agent and its [entry](reference/glossary.md#entry):
 
   ```bash
@@ -77,7 +79,7 @@ helm install koodam oci://ghcr.io/mohanraj00/charts/koodam --version 0.3.0 \
   --set gateway.mode=existing --set gateway.url=http://gateway.invalid:4000
 ```
 
-The Workspace of this page uses the subscription login of Claude Code, so it calls no gateway. The chart 0.3.0 needs a gateway mode and a URL. Thus this page gives the mode `existing` and a URL that nothing uses.
+The Workspace of this page uses a subscription login, so it calls no gateway. The chart 0.3.0 needs a gateway mode and a URL. Thus this page gives the mode `existing` and a URL that nothing uses.
 
 ## 2. Run the toy shop agent behind a Service
 
@@ -222,7 +224,7 @@ echo 'export NOOKKU_TESTS_DIR=/tests' >> ~/.profile
 
 ## 5. Log in to Claude Code
 
-Do this step outside the pod. A person must do it. Make a token, and store it in the namespace of the Workspace:
+Do this step outside the pod. A person must make a token and store it in the namespace of the Workspace:
 
 ```bash
 claude setup-token
@@ -265,7 +267,9 @@ At the start, the test gives `TOY_SHOP_URL` the URL of a recording proxy. Thus `
 
 ## 7. Run the test
 
-In the pod, start `claude` in `~/toy-shop`, and type each prompt:
+In the pod, start `claude` in `~/toy-shop`.
+
+Type each prompt:
 
 ```text
 nookku start
@@ -318,7 +322,7 @@ Then check the seal:
 nookku verify
 ```
 
-The proof run on this page did no login, so it has no evaluation. The run with the login writes `proofs/cluster/plugin-claude-code.json` ([method](../scripts/proof_cluster.py), W4).
+The proof run on this page did no login, so it has no evaluation. The Claude Code proof with login writes `proofs/cluster/plugin-claude-code.json` ([method](../scripts/proof_cluster.py), W4).
 
 ## 10. Clean up
 
@@ -335,4 +339,4 @@ If you made a kind cluster for this tutorial, delete it with `kind delete cluste
 - Koodam 0.3.0 has no Nookku preset, so you install Nookku and the plugin by hand in each Workspace ([koodam#83](https://github.com/mohanraj00/koodam/issues/83)).
 - The egress spans show the hosts of the connections, not each call ([limits.md](limits.md)). The calls to the Service and the calls inside the pod have no span.
 - The export of the spans runs outside the pod, because the Workspace has no access to the logs of the proxy pods.
-- The proof ran on kind only. The proof for Codex in a Workspace is not done yet.
+- The proof uses a kind cluster.
