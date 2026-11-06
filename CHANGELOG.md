@@ -4,7 +4,7 @@ Each date is the day of the upload to PyPI, in UTC ([nookku](https://pypi.org/pr
 
 ## 0.5.7
 
-Released 2026-11-05.
+Released 2026-11-06.
 
 This release gives a verdict that a CI job can read, and runs the first test of Nookku in a Koodam Workspace. In a Workspace, only Claude Code gives the evaluation. Codex records the test but writes no report. The guard closes 2 gaps of a tests folder outside the project. The trace counts the calls of a LiteLLM gateway and removes a call that 2 records hold. The evaluation report uses the egress findings of Koodam. The tap record, the relay record and the audit do not change. A test folder gets `verdict.json`, and the seal covers it. The manifest gets the key `verdict`, and the state folder gets `tests-dirs.json`. In `findings.json`, `gateway` gets `harness_calls` and `same_calls`. `performance.json` gets a source for each gateway key alias, and the source row of `gateway.jsonl` gets `skew`.
 
