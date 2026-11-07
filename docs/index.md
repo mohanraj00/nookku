@@ -84,9 +84,11 @@ Understand why it works as it does.
 
 ## Contribute to Nookku
 
-Pages for people who change the code of Nookku. You do not need them to test your app. Each page after CONTRIBUTING.md is in `docs/contributing/`.
+Pages for people who change the code of Nookku. You do not need them to test your app. Each page after the review rules is in `docs/contributing/`.
 
 - [CONTRIBUTING.md](../CONTRIBUTING.md): how to work on this repo.
+- [Project standard](STANDARD.md): the shared build, review, approval and CI rules. It is an exact copy of version 3.
+- [Review rules](REVIEW.md): the review request texts and the design of the Claude review workflow.
 - [Code quality](contributing/code-quality.md): the rules of the code in this repo, and the check that enforces each rule.
 - [ADR 0001: One core, one plugin](contributing/adr/0001-one-core-one-plugin.md): why one Python core and one plugin serve Claude Code and Codex, and what the spikes measured.
 - [Codex display spike](contributing/codex-display.md): the plugin display mechanisms, the CLI measurements and the desktop check.

@@ -79,6 +79,8 @@ replacement = '](https://github.com/mohanraj00/nookku/blob/v0.5.7/\1)'
 [tool.ruff]
 line-length = 100
 target-version = "py310"
+# These files are copies of the shared standard source. They keep its form, so a later copy gives a small diff.
+extend-exclude = ["tools/claude_review.py", "tests/test_claude_review.py"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
