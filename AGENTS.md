@@ -16,13 +16,13 @@ Nookku is an evaluation harness for vertical AI agents. A person tests a chat ag
 
 ## Two harnesses work on this repo
 
-Claude Code and Codex both work on this repo, at the same time. The label `agent:claude-code` or `agent:codex` names the harness that does the work.
+Claude Code and Codex both work on this repo, at the same time. The label `agent:claude` or `agent:codex` names the harness that does the work.
 
 - Before you start an issue, add the label of your harness to it. Do not start an issue that has the label of the other harness.
 - After you add your label, read the labels of the issue again. If both labels are on it, the label that was added first wins. The issue events show the order: `gh api repos/mohanraj00/nookku/issues/N/events`. If your label was second, remove it and do not start the issue.
 - Add the label of your harness to each PR that you open.
 - No harness reviews a PR by default. You must ask the other harness for the code review in a PR comment:
-  - Claude Code writes `@codex review`. Codex writes `@claude review this PR. Use the Review guidelines in CLAUDE.md.`
+  - Claude Code writes `@codex review`. Codex writes `@claude review this PR. Use the Review guidelines in AGENTS.md.`
   - On the next line of the comment, write `Head: <sha>`, with the short SHA of the head commit of the PR.
   - Ask when CI is green and the PR is ready.
   - Ask one time for each head commit. Before you ask, read the PR comments. If a request names the current head commit, do not ask again.
@@ -79,9 +79,10 @@ Docs, commit messages and issues use the maintainer's voice under ASD-STE100 rul
 ## Before every commit
 
 ```bash
-uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pytest && uv run python scripts/stealth.py check
-claude plugin validate plugins/nookku && claude plugin test plugins/nookku
+make check
 ```
+
+The `check` target of the `Makefile` runs ruff, the format check, mypy, pytest, the stealth gate and the two plugin checks.
 
 ## Proofs (local only)
 

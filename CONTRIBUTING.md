@@ -13,9 +13,7 @@ The plugin tests also need the `claude` CLI.
 ## Before each commit
 
 ```bash
-uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pytest
-uv run python scripts/stealth.py check
-claude plugin validate plugins/nookku && claude plugin test plugins/nookku
+make check
 ```
 
 `uv run pytest` also checks the docs (`tests/test_docs.py`). It checks each relative link and each anchor in the Markdown files, and the counts in the README. It also checks the CLI and configuration reference pages against the code.
@@ -33,7 +31,7 @@ claude plugin validate plugins/nookku && claude plugin test plugins/nookku
 ## Issues and pull requests
 
 - Open an issue first for anything larger than a fix. Use the [bug](.github/ISSUE_TEMPLATE/bug.md) or the [feature](.github/ISSUE_TEMPLATE/feature.md) template.
-- One change for each pull request. The [pull request template](.github/PULL_REQUEST_TEMPLATE.md) has the checks and a short list from the code quality rules.
+- One change for each pull request. The [pull request template](.github/pull_request_template.md) has the sections `Testing`, `Risk` and `How to revert`. In `Testing`, give each command that you ran and its result.
 - Write `Fixes #N` in the pull request body. CI must pass.
 - A pull request does not have to be up to date with `main`. Do not merge `main` into your branch only to update it. Merge `main` only if GitHub shows a merge conflict.
 - CI runs all jobs on `main` after each merge. If a job fails on `main`, fix it before the next merge.

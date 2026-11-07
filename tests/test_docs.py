@@ -850,7 +850,9 @@ def unlinked_first_uses(text: str, page: Path) -> list[str]:
     ]
 
 
-DOCS_PAGES = sorted(p for p in DOCS.rglob("*.md") if p.resolve() != GLOSSARY)
+# docs/STANDARD.md is an exact copy of the shared project standard. I cannot add links to it.
+STANDARD = (DOCS / "STANDARD.md").resolve()
+DOCS_PAGES = sorted(p for p in DOCS.rglob("*.md") if p.resolve() not in (GLOSSARY, STANDARD))
 
 
 @pytest.mark.parametrize("page", DOCS_PAGES, ids=[str(p.relative_to(ROOT)) for p in DOCS_PAGES])
