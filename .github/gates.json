@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "code": [
+    "src/*", "tests/*", "plugins/*", "scripts/*", "tools/*", "conformance/*", "redirect/*", "examples/*",
+    "bench/*", "proofs/*", ".claude-plugin/*", "SPEC.md", "Makefile", "pyproject.toml", "uv.lock"
+  ],
+  "security_sources": [],
+  "not_security": [],
+  "boundaries": [
+    "tools/claude_review.py", "scripts/stealth.py",
+    "src/nookku/hook.py", "src/nookku/kit.py", "src/nookku/state.py", "src/nookku/contract.py",
+    "src/nookku/commands.py", "src/nookku/policy.py", "src/nookku/print_mode.py", "src/nookku/seal.py",
+    "src/nookku/claude_gate.py", "src/nookku/codex_gate.py", "src/nookku/mcp.py",
+    "src/nookku/tap.py", "src/nookku/stdio.py", "src/nookku/adapters.py", "src/nookku/bridge.py",
+    "src/nookku/config.py", "src/nookku/discovery.py", "src/nookku/export.py",
+    "src/nookku/backend.py", "src/nookku/model_api.py", "src/nookku/mcp_proxy.py", "src/nookku/db_proxy.py",
+    "src/nookku/otlp.py", "src/nookku/gateway.py", "src/nookku/page.py", "src/nookku/page_auto.py",
+    "src/nookku/page_end.py",
+    "plugins/nookku/hooks/*", "redirect/verbatim-relay/src/*"
+  ],
+  "level1": [
+    "tools/claude_review.py",
+    "SPEC.md",
+    "src/nookku/hook.py", "src/nookku/kit.py", "src/nookku/state.py", "src/nookku/contract.py",
+    "src/nookku/tap.py", "src/nookku/stdio.py", "src/nookku/adapters.py", "src/nookku/bridge.py",
+    "src/nookku/page.py", "plugins/nookku/hooks/*",
+    "src/nookku/record.py", "src/nookku/audit.py", "conformance/build.py", "conformance/cases/*",
+    "conformance/notes/*"
+  ],
+  "generated": ["conformance/*/*", "proofs/*", "bench/runs/*", "uv.lock"]
+}
