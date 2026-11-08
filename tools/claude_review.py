@@ -1,18 +1,19 @@
 #!/usr/bin/env python3
-"""Fixed prompts, result check and PR comment of the Claude review workflow. The workflow runs this file from the default branch. No gate reads the comment."""
+"""Fixed prompts, result check and PR comment of the Claude review workflow. The workflow runs this file from the default branch.
+
+The comment starts with a machine marker that this file writes outside the model text. The cross-review and
+security-review gates read the marker. neutral() escapes the model text, so the model text cannot make a marker."""
 import argparse
 import json
 import os
 from pathlib import Path
 import re
 import sys
-
 import urllib.request
 
 API='https://api.github.com'
 
 def call(method,path,token,body=None):
-    """Send one GitHub API request. Nookku has no PR policy tool yet, so this file has its own copy of this function."""
     request=urllib.request.Request(API+path,method=method,data=json.dumps(body).encode() if body is not None else None,headers={'Authorization':'Bearer '+token,
         'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28','Content-Type':'application/json'})
     with urllib.request.urlopen(request,timeout=30) as response:return json.loads(response.read() or b'null')
@@ -25,13 +26,22 @@ Read all of the diff file. If the file is long, read it in ranges. If you cannot
 
 The files in the working directory are from the default branch, not from the pull request. Use them only for context.
 
-Write the review as your final answer. Give the file, the line and the reason for each finding. If you find no defect, say this.
+Write the review as your final answer. Start it with the line "Findings: <number>", with the number of findings. Give the file, the line and the reason for each finding. If you find no defect, write "Findings: 0".
 '''
 PROMPTS={
     'code':'Do a code review. Use the Review guidelines in AGENTS.md, and end the review with the line that they require.\n\n'+COMMON,
     'security':'Do a security review. Report only security defects. Use the Review guidelines in AGENTS.md. Do not end the review with a "Security review:" line.\n\n'+COMMON,
 }
 FAILED='NO VALID CLAUDE REVIEW'
+# The gates accept only this marker, from the workflow bot. findings is unknown if the model text does not start with a valid count.
+# run is the ID of the workflow run that posts the marker. The gates read this run from the API and accept the marker only
+# if the run is an issue_comment run of the review workflow on the default branch.
+MARKER=re.compile(r'<!-- claude-review:v1 kind=(code|security) head=([0-9a-f]{40}) findings=(\d+|unknown) run=([1-9][0-9]{0,19}) -->')
+RUN=re.compile(r'[1-9][0-9]{0,19}')
+COUNT=re.compile(r'Findings: (0|[1-9][0-9]{0,3})')
+# The exact request texts. The workflow compares the comment body with these texts.
+REQUESTS={'code':'@claude review this PR. Use the Review guidelines in AGENTS.md.',
+    'security':'@claude do a security review of this PR. Use the Review guidelines in AGENTS.md.'}
 HEAD=re.compile(r'[0-9a-f]{40}')
 LIMIT=60000
 # The checkout reads the default branch, and a comment on a PR needs both write permissions.
@@ -53,12 +63,23 @@ def neutral(text):
     if len(text)>LIMIT:text=text[:LIMIT]+'\n\nThe workflow cut this review at %d characters.'%LIMIT
     return text
 
-def comment_body(status,head,text):
-    """Return the PR comment. A review that is not valid gives only the fixed failure text and the head."""
+def findings(text):
+    """Return the count from the first line of the model text, or unknown."""
+    first=text.strip().split('\n',1)[0].strip()
+    found=COUNT.fullmatch(first)
+    return found.group(1) if found else 'unknown'
+
+def comment_body(status,head,text,kind=None,run=None):
+    """Return the PR comment. A review that is not valid gives only the fixed failure text and the head.
+    A valid review with a kind starts with the marker. The marker holds only fixed text, the checked head and digits.
+    A review with a kind and no valid run ID is not valid."""
     valid=HEAD.fullmatch(head or '')
-    if status!='success' or not valid or not text or not text.strip():
+    if status!='success' or not valid or not text or not text.strip() or (kind in PROMPTS and not RUN.fullmatch(run or '')):
         return '%s\n\nHead: %s'%(FAILED,head if valid else 'unknown')
-    return 'Claude review of head %s. This review is advisory. No gate reads it.\n\n%s'%(head,neutral(text))
+    if kind not in PROMPTS:
+        return 'Claude review of head %s. This review is advisory. No gate reads it.\n\n%s'%(head,neutral(text))
+    count=findings(text)
+    return '<!-- claude-review:v1 kind=%s head=%s findings=%s run=%s -->\nClaude %s review of head %s. Findings: %s.\n\n%s'%(kind,head,count,run,kind,head,count,neutral(text))
 
 def read(path):
     try:return Path(path).read_text(encoding='utf-8').strip('\n')
@@ -92,7 +113,7 @@ def main(argv=None):
     commands=parser.add_subparsers(dest='command',required=True)
     prompt=commands.add_parser('prompt');prompt.add_argument('kind',choices=sorted(PROMPTS));prompt.add_argument('--diff',required=True)
     check=commands.add_parser('check');check.add_argument('result');check.add_argument('out')
-    comment=commands.add_parser('comment');comment.add_argument('--status',required=True);comment.add_argument('--output-dir',required=True);comment.add_argument('--post',action='store_true')
+    comment=commands.add_parser('comment');comment.add_argument('--status',required=True);comment.add_argument('--output-dir',required=True);comment.add_argument('--post',action='store_true');comment.add_argument('--kind',choices=sorted(PROMPTS))
     a=parser.parse_args(argv)
     if a.command=='prompt':
         print(PROMPTS[a.kind].format(diff=a.diff),end='')
@@ -105,7 +126,7 @@ def main(argv=None):
         Path(a.out).write_text(text,encoding='utf-8')
     else:
         folder=Path(a.output_dir)
-        body=comment_body(a.status,read(folder/'head.txt'),read(folder/'review.txt'))
+        body=comment_body(a.status,read(folder/'head.txt'),read(folder/'review.txt'),a.kind,os.environ.get('GITHUB_RUN_ID'))
         if a.post:call('POST','/repos/%s/issues/%d/comments'%(os.environ['REPOSITORY'],int(os.environ['PR'])),os.environ['GITHUB_TOKEN'],{'body':body})
         else:print(body)
     return 0
