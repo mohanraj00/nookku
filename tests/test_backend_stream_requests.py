@@ -70,6 +70,8 @@ class ReceiveUpload(BaseHTTPRequestHandler):
             self.send_header("Content-Length", "0")
             self.end_headers()
 
+    do_PUT = do_PATCH = do_GET = do_POST
+
 
 def proxy_for(stock: StockUpload, root: Path) -> backend.Proxies:
     config = root / bridge.CONFIG_FILE
@@ -84,8 +86,12 @@ def proxy_for(stock: StockUpload, root: Path) -> backend.Proxies:
     )
 
 
-def upload_head(framing: bytes) -> bytes:
-    return b"POST /stock HTTP/1.1\r\nHost: shop\r\nConnection: close\r\n" + framing + b"\r\n"
+def upload_head(framing: bytes, method: str = "POST") -> bytes:
+    return (
+        f"{method} /stock HTTP/1.1\r\nHost: shop\r\nConnection: close\r\n".encode()
+        + framing
+        + b"\r\n"
+    )
 
 
 @pytest.mark.parametrize("chunked", [False, True])
@@ -171,3 +177,18 @@ def test_an_early_end_records_the_body_prefix(tmp_path: Path, chunked: bool) -> 
         "cut": True,
         "text": PREFIX.decode(),
     }
+
+
+@pytest.mark.parametrize("method", ["POST", "PUT", "PATCH", "GET"])
+def test_an_unframed_empty_request_keeps_the_buffered_framing(tmp_path: Path, method: str) -> None:
+    with StockUpload(0, 0) as stock:
+        proxies = proxy_for(stock, tmp_path)
+        proxies.start()
+        try:
+            with socket.create_connection(proxies.proxies[0].server_address, timeout=5) as app:
+                app.sendall(upload_head(b"", method))
+                with app.makefile("rb") as reply:
+                    assert reply.read().startswith(b"HTTP/1.1 200 ")
+        finally:
+            proxies.stop()
+    assert stock.framing == (None if method == "GET" else "0", None, None)

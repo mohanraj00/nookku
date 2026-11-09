@@ -652,6 +652,8 @@ class Handler(BaseHTTPRequestHandler):
                         )
                     elif "Content-Length" in self.headers:
                         conn.putheader("Content-Length", self.headers["Content-Length"].strip())
+                    elif method in ("POST", "PUT", "PATCH"):
+                        conn.putheader("Content-Length", "0")
                     conn.endheaders()
                     self._upload(conn, upload, length)
                     proxy.finish_upload(row)
