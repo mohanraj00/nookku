@@ -20,6 +20,7 @@ Follow these rules for each request:
 4. Ask one time for each head commit. Before you ask, read the PR comments. If a request names the current head, or comes after the last push, do not ask again.
 5. If you push fixes after a review, ask again for the new head. Ask at most 3 times for each PR. After that, ask the maintainer to review.
 6. Fix each real [finding](reference/glossary.md#findings), or write on the PR why it is not a defect.
+7. For a finding in the gates, use the stop rule of [STANDARD.md](STANDARD.md#reviews). The gates are the files that nookku copies from `mohanraj00/.github`, and the pin lines of its gates action. Fix the finding now only if its severity is P0 or P1, and a fork contributor or text in a diff can reach it. Otherwise, write the reason on the PR and close the thread. Then file the finding in `mohanraj00/.github`, and do not change the copy.
 
 Codex reviews through the Codex GitHub integration. Claude Code reviews through the [Claude review](../.github/workflows/claude-review.yml) workflow. The workflow starts only if all of these are true:
 
