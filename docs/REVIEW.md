@@ -31,7 +31,15 @@ A comment or a review with other text does not start the workflow. The comment t
 
 ### Claude review design
 
-An issue comment event reads the workflow from `main`, so a PR cannot change this workflow for its own review. The workflow has two jobs.
+An issue comment event reads the workflow from `main`, so a PR cannot change this workflow for its own review. The workflow has three jobs.
+
+The `gate` job runs first. It has `actions: read`, `contents: read`, `issues: read` and `pull-requests: read` only, with no secret and no environment. It runs the `claude-review` check of the shared gates action, at the same SHA as [.github/workflows/gates.yml](../.github/workflows/gates.yml). The check stops a request for these reasons:
+
+- A fork PR has no stage 2 owner approval of the current head and base.
+- A trusted marker of the same kind names the current head and merge base.
+- The PR has 3 trusted markers of the same kind.
+
+If the check stops a request, the `post` job posts the reason. On a pass, the `review` job gets the head, the base and the merge base from the `gate` job. If one of them changes before the review, the `review` job fails. Then ask again. The requests on one PR run one at a time. A new pending request replaces an older pending request, and the older request posts no comment.
 
 The `review` job has `contents: read` and `pull-requests: read` only. It uses the `claude-review` environment, which holds the `CLAUDE_CODE_OAUTH_TOKEN` secret. Only the CLI step gets the secret. The environment needs a deployment branch rule for `main`. The job does these steps:
 

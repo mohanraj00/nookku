@@ -26,7 +26,7 @@ jobs:
           ref: ${{ github.event.pull_request.base.sha || github.sha }}
           persist-credentials: false
       - id: classify
-        uses: mohanraj00/.github/gates@f0d91a291a6de62fcfaa87601181cf2b4c35c6b5 # main of mohanraj00/.github
+        uses: mohanraj00/.github/gates@b988448e8df869ec210865c02d21affa01dee3f4 # main of mohanraj00/.github
         with:
           check: classify
   # The project check always runs. The jobs lint and test only read the repo. Thus each has no
