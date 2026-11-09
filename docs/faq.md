@@ -59,3 +59,4 @@ Not yet. It is tested on macOS and Linux ([ci.yml](../.github/workflows/ci.yml))
 ## Where do I report a problem?
 
 Open an issue with the bug template. For a security problem, use a private security advisory ([SECURITY.md](../SECURITY.md)).
+
