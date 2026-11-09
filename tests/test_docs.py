@@ -533,8 +533,7 @@ def test_the_readme_gives_the_description_one_time_at_the_top() -> None:
         "plugins/nookku/.claude-plugin/plugin.json",
         "plugins/nookku/.codex-plugin/plugin.json",
         "docs/index.md",
-        "CLAUDE.md",
-        "AGENTS.md",
+        "CONSTITUTION.md",
     ],
 )
 def test_each_description_of_the_project_is_the_readme_description(path: str) -> None:
@@ -934,7 +933,7 @@ def test_the_upgrade_page_has_a_section_for_each_release_with_an_upgrade_step() 
 
 
 def test_ci_pins_the_claude_code_version_of_the_plugin_proofs_and_the_faq_names_it() -> None:
-    """CLAUDE.md says that CI pins the tested version. The tested version is the one in the
+    """AGENTS.md says that CI pins the tested version. The tested version is the one in the
     results of the plugin proofs."""
     ci = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
     pins = re.findall(r"@anthropic-ai/claude-code@(\S+)", ci)

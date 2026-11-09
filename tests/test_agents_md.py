@@ -1,14 +1,16 @@
-"""Codex reads AGENTS.md and Claude Code reads CLAUDE.md. The two must give the same rules."""
+"""CLAUDE.md and GEMINI.md hold imports only. AGENTS.md and CONSTITUTION.md hold the rules."""
 
 from pathlib import Path
 
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
+IMPORTS = b"@CONSTITUTION.md\n@AGENTS.md\n"
 
 
-def test_agents_md_is_a_copy_of_claude_md() -> None:
-    claude, agents = ROOT / "CLAUDE.md", ROOT / "AGENTS.md"
-    if not claude.exists():
+@pytest.mark.parametrize("name", ["CLAUDE.md", "GEMINI.md"])
+def test_the_harness_entry_file_holds_imports_only(name: str) -> None:
+    path = ROOT / name
+    if not path.exists():
         pytest.skip("the sdist has no agent instruction files")
-    assert agents.read_bytes() == claude.read_bytes()
+    assert path.read_bytes() == IMPORTS

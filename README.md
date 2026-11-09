@@ -174,7 +174,7 @@ Under pressure, the mechanism had **0 breaks in 1,000 turns**. The test had 40 s
 - **Local.** Nookku has no hosted service of its own, and the records stay in `.nookku/tests/`. At the end of a test, the harness model reads them, so they go to the model provider of your harness ([FAQ](docs/faq.md#does-nookku-send-my-data-to-a-server)). The package has no runtime dependencies ([pyproject.toml](pyproject.toml)).
 - **The judge reads the record, not its memory.** After a test, the model has no memory of the conversation, and it reads the transcript ([P5](docs/results.md#p5-the-model-judges-the-record-not-its-memory)).
 
-Nookku does not do these: data sets at scale, production monitoring and hosted team review. Each test is one conversation, from your harness or from a script ([SPEC.md section 7](SPEC.md#7-tests)).
+[CONSTITUTION.md](CONSTITUTION.md#boundaries) says what Nookku does not do.
 
 ## Docs
 

@@ -70,7 +70,7 @@ def a_folder(tmp_path: Path) -> Path:
 
 
 def test_an_answer_that_quotes_an_instruction_file_stays_out(tmp_path: Path) -> None:
-    words = re.findall(r"\w+", (ROOT / "CLAUDE.md").read_text(encoding="utf-8"))
+    words = re.findall(r"\w+", (ROOT / "AGENTS.md").read_text(encoding="utf-8"))
     answer = {"result": "The rules say: " + " ".join(words[20:30])}
     session = ex.Session(answer, [ex.TRANSCRIPT], BUILT_IN)
     assert ex.collect(a_folder(tmp_path), session, tmp_path)["evaluation"] is None

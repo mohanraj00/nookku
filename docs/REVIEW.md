@@ -1,10 +1,10 @@
 # Review rules
 
-These rules apply to each change to `main`. [AGENTS.md](../AGENTS.md) owns the general workflow and the review guidelines. [STANDARD.md](STANDARD.md) owns the shared review rules.
+These rules apply to each change to `main`. [AGENTS.md](../AGENTS.md) owns the review guidelines. [STANDARD.md](STANDARD.md) owns the shared review rules, and [CONSTITUTION.md](../CONSTITUTION.md#governance) owns the governance rules.
 
 ## Cross-harness review
 
-A [harness](reference/glossary.md#harness) does not review its own change. The label `agent:claude`, `agent:codex` or `agent:agy` names the harness that wrote the change. The reviews run on GitHub. No harness reviews a PR by default, so the PR author asks in a PR comment.
+Governance rule 1 says that a [harness](reference/glossary.md#harness) does not review its own change. The label `agent:claude`, `agent:codex` or `agent:agy` names the harness that wrote the change. The reviews run on GitHub. No harness reviews a PR by default, so the PR author asks in a PR comment.
 
 | Builder | Code review comment | Security review comment |
 |---|---|---|
@@ -17,10 +17,9 @@ Follow these rules for each request:
 1. Ask when CI is green and the PR is ready.
 2. For a Codex code review request, write `Head: <sha>` on the next line of the comment, with the short SHA of the PR head commit. Do not add this line to a Claude request. The Claude review starts only for the exact text in the table, and its comment names the head that it reviewed.
 3. Write a security review request as the exact text in the table, with no other text in the comment. If the comment has other text, for example a `Head:` line, Codex does a code review and no security review. The Codex result names the commit that it reviewed.
-4. Ask one time for each head commit. Before you ask, read the PR comments. If a request names the current head, or comes after the last push, do not ask again.
-5. If you push fixes after a review, ask again for the new head. Ask at most 3 times for each PR. After that, ask the maintainer to review.
-6. Fix each real [finding](reference/glossary.md#findings), or write on the PR why it is not a defect.
-7. For a finding in the gates, use the stop rule of [STANDARD.md](STANDARD.md#reviews). The gates are the files that nookku copies from `mohanraj00/.github`, and the pin lines of its gates action. Fix the finding now only if its severity is P0 or P1, and a fork contributor or text in a diff can reach it. Otherwise, write the reason on the PR and close the thread. Then file the finding in `mohanraj00/.github`, and do not change the copy.
+4. Before you ask, read the PR comments. If a request names the current head, or comes after the last push, do not ask again.
+
+[STANDARD.md](STANDARD.md#reviews) gives the other request rules: one request for each head, at most 3 for each PR, the answer to each [finding](reference/glossary.md#findings) and the stop rule for a finding in the gates. In nookku, the gates are the files that nookku copies from `mohanraj00/.github`, and the pin lines of its gates action.
 
 Codex reviews through the Codex GitHub integration. Claude Code reviews through the [Claude review](../.github/workflows/claude-review.yml) workflow. The workflow starts only if all of these are true:
 
