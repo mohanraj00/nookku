@@ -23,6 +23,7 @@ sys.path[:0] = [str(ROOT / "src")]
 from proof_common import AGENT_SDK  # noqa: E402
 
 from nookku import bridge, discovery  # noqa: E402
+from nookku.record import loads  # noqa: E402
 
 ENTRY = [
     "uv",
@@ -51,7 +52,7 @@ def codex_answered(folder: Path) -> bool:
     for raw in path.read_text(encoding="utf-8").split("\n"):
         if not raw:
             continue
-        row = json.loads(raw)
+        row = loads(raw)
         if row.get("type") == "exchange":
             reply = row.get("reply")
             unambiguous = isinstance(reply, str) and reply.count(marker) == 1
@@ -72,7 +73,7 @@ def main() -> int:
     print("\n".join(lines))
     folder = bridge.latest_test(project)
     assert folder is not None
-    manifest = json.loads((folder / "manifest.json").read_text())
+    manifest = loads((folder / "manifest.json").read_text())
     sessions = [
         {
             "harness": s["harness"],

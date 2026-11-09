@@ -27,6 +27,7 @@ sys.path[:0] = [str(ROOT / "src")]
 from proof_common import json_lines  # noqa: E402
 
 from nookku import __version__, bridge, discovery, evaluation, seal  # noqa: E402
+from nookku.record import loads  # noqa: E402
 
 # The packages of the app, with the versions that the proof records.
 PACKAGES = [
@@ -95,14 +96,14 @@ def main() -> int:
     finally:
         bridge.end(project)
     folder = Path(cur["dir"])
-    manifest = json.loads((folder / "manifest.json").read_text())
+    manifest = loads((folder / "manifest.json").read_text())
     items = json_lines((folder / "trace.jsonl").read_text())
     queries = [
         {"turn": it["turn"], "session": it["session"], "name": it["name"], "input": it["input"]}
         for it in items
         if it["kind"] == "query" and it["harness"] == "driver"
     ]
-    findings = json.loads((folder / "findings.json").read_text())
+    findings = loads((folder / "findings.json").read_text())
     text = evaluation.transcript(folder)
     lines = [x for x in text.splitlines() if "(driver trace from the app process)" in x]
     result = {

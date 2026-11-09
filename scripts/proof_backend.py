@@ -26,6 +26,7 @@ sys.path[:0] = [str(ROOT / "src")]
 from proof_common import json_lines  # noqa: E402
 
 from nookku import __version__, backend, bridge, discovery, seal, stdio  # noqa: E402
+from nookku.record import loads  # noqa: E402
 
 SEEN: list[dict[str, str]] = []
 
@@ -111,7 +112,7 @@ def main() -> int:
         stock.shutdown()
         stock.server_close()
     folder = Path(cur["dir"])
-    entry = json.loads(shown) if ok else []
+    entry = loads(shown) if ok else []
     rows = json_lines((folder / backend.FILE).read_text())
     calls = []
     for i, (e, s, r) in enumerate(zip(entry, SEEN, rows, strict=True)):

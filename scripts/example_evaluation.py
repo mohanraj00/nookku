@@ -29,7 +29,7 @@ from proof_common import held_port, json_lines, private  # noqa: E402
 from proof_report import ENV, relay_runner, run_test, scrub  # noqa: E402
 
 from nookku import kit, mcp  # noqa: E402
-from nookku.record import turns  # noqa: E402
+from nookku.record import loads, turns  # noqa: E402
 
 EXAMPLE = ROOT / "examples" / "toy-shop"
 APP_FILES = ("agent.py", "http_agent.py", "http_entry.py")
@@ -53,7 +53,7 @@ PROMPT = (
 # no plugin of the user loads, and it runs no hook. ENV gives an empty CLAUDE_CODE_PLUGIN_DIRS, so
 # no mod loads (#424). Claude Code still loads its built-in plugins, so the script stores the
 # plugins of the session and fails if a plugin is not built in.
-SERVER = json.loads((ROOT / "plugins" / "nookku" / ".mcp.json").read_text())["mcpServers"]
+SERVER = loads((ROOT / "plugins" / "nookku" / ".mcp.json").read_text())["mcpServers"]
 SERVERS = {"mcpServers": {mcp.SERVER: {k: SERVER[mcp.SERVER][k] for k in ("command", "args")}}}
 TRANSCRIPT = f"mcp__{mcp.SERVER}__transcript"
 OTHER_TOOLS = [f"mcp__{mcp.SERVER}__{t['name']}" for t in mcp.TOOLS if t["name"] != "transcript"]
@@ -112,8 +112,8 @@ def collect(folder: Path, session: Session, project: Path) -> dict[str, Any]:
     """The result of the run, from the records of the test folder, and the answer, the tools and
     the plugins of the model. An answer that shares 8 words with an instruction file stays out."""
     answer = session.answer
-    audit = json.loads((folder / "audit.json").read_text(encoding="utf-8"))
-    manifest = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
+    audit = loads((folder / "audit.json").read_text(encoding="utf-8"))
+    manifest = loads((folder / "manifest.json").read_text(encoding="utf-8"))
     text = answer.get("result") or ""
     return {
         "date": date.today().isoformat(),

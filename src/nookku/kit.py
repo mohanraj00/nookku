@@ -587,7 +587,7 @@ def _guard_config(root: Path) -> Config | None:
     except (OSError, ValueError, TypeError):
         pass
     try:
-        data = json.loads((root / CONFIG_FILE).read_text(encoding="utf-8"))
+        data = loads((root / CONFIG_FILE).read_text(encoding="utf-8"))
     except FileNotFoundError:
         return None
     except (OSError, ValueError):
@@ -917,7 +917,7 @@ def run_hook(root: Path | None, harness: str, stdin: TextIO, stdout: TextIO) -> 
         print(f"nookku hook: cannot read the event: {e}", file=sys.stderr)
         return 2
     try:
-        event = json.loads(raw)
+        event = loads(raw)
     except ValueError:
         event = None
     if root is None:
@@ -940,7 +940,7 @@ def run_hook(root: Path | None, harness: str, stdin: TextIO, stdout: TextIO) -> 
         return 0
     try:
         if event is None:
-            event = json.loads(raw)
+            event = loads(raw)
         answer = handle(event, root, harness)
     except Exception as e:  # fail closed: a crash must not hand the prompt to the model
         failed = f"nookku: the hook failed ({type(e).__name__}: {e})."
@@ -1080,7 +1080,7 @@ def remove(root: Path, harness: str) -> Removed:
         return Removed(target, 0)
     try:
         before = target.read_text(encoding="utf-8")
-        settings = json.loads(before)
+        settings = loads(before)
         if not isinstance(settings, dict):
             raise ValueError("it is not a JSON object")
         count = _remove_hooks(settings)
@@ -1187,7 +1187,7 @@ def init(root: Path, harness: str, changes: dict[str, Any]) -> Installed:
     settings: dict[str, Any] = {}
     try:
         if target is not None and target.exists():
-            settings = json.loads(target.read_text(encoding="utf-8"))
+            settings = loads(target.read_text(encoding="utf-8"))
         if not isinstance(settings, dict):
             raise ValueError("it is not a JSON object")
         settings = _merge_hooks(settings, hook_command(root, harness))

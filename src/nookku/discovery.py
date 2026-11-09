@@ -19,7 +19,7 @@ from typing import Any
 from urllib.parse import parse_qsl, unquote, urlsplit
 
 from nookku.config import ENV_NAME, STATE_DIR, is_http_url
-from nookku.record import lone_surrogate
+from nookku.record import loads, lone_surrogate
 
 VERSION = 1
 # The pending answer, until the next start takes it.
@@ -360,7 +360,7 @@ def pending(root: Path, now: float | None = None) -> dict[str, Any] | None:
     """The pending answer if it is valid and fresh, else None. A start checks the answer again,
     because a tool call of the model can write the file."""
     try:
-        data = json.loads(path(root).read_text(encoding="utf-8"))
+        data = loads(path(root).read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
     if not isinstance(data, dict) or data.get("v") != VERSION:
