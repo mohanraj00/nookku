@@ -473,7 +473,7 @@ Thus a mounted volume can keep the tests when the project folder is removed, for
 | `transcript_compact` | boolean | Optional. `true` makes `nookku transcript --trace` compact (section 9.2). The default is `false`. |
 | `page` | boolean | Optional. `false` stops the start of the chat page with a test (section 5, "Start with the test"). The default is `true`. |
 | `record_limit` | integer | Optional. The most bytes of a body that a backend proxy or a model API proxy keeps in its row (sections 7.6 and 7.7). It must be 1 or more. The default is 1048576 (1 MiB). The app and the backend always get all of the bytes. |
-| `body_limit` | integer | Optional. The most bytes of a request body that a backend proxy, a model API proxy or an MCP proxy over HTTP reads and forwards (section 7.6). It must be a whole number of 1 or more. The default is 67108864 (64 MiB). Another value, for example a string, stops the start. A later release can add a value that streams a longer body ([#479](https://github.com/mohanraj00/nookku/issues/479)). |
+| `body_limit` | integer or `"stream"` | Optional. A positive number sets the most bytes of a buffered request body (section 7.6). The default is 67108864 (64 MiB). With `"stream"`, backend proxies stream the request with its framing. Model API and HTTP MCP proxies keep the default buffered limit. |
 | `spec` | list of strings | Optional. The files of the app spec, relative to the project root ([docs/reference/app-spec.md](docs/reference/app-spec.md)). The evaluation prompt names them (section 9.2). The default is `[]`. |
 | `egress_ignore` | list of strings | Optional. The hosts that the checks of the egress spans skip, for example the git and package hosts (section 8.8). Each host is a string with at least 1 character, no white space and no lone surrogate. Else the error is `.nookku/config.json: 'egress_ignore' must be a list of host names`. The default is `[]`. |
 
@@ -639,6 +639,10 @@ During a test, the bridge runs one proxy for each backend of the egress answer, 
 - At the end of the test, the bridge stops the proxies after it stops the entry. It waits up to 10 seconds for each call that did not end. For each call that is still open after that time, the proxy writes a row with the error `the test ended before the backend answered`. If the app already has the status of that call, the row has the status, the headers and the bytes that came, with the error `the test ended before the stream ended`. After that, the proxy writes no row and sends status 503 for each new request. Thus each call has its row before the trace and the seal.
 - The proxy speaks HTTP to the app. It speaks HTTP or HTTPS to the backend, as `url` says.
 
+**Streamed requests.** With `body_limit: "stream"`, a backend proxy forwards the request body in bounded reads as the bytes come. A fixed-length body keeps its `Content-Length`. A chunked body keeps its chunk size lines, extensions, payload, ends and trailers. The proxy checks framing before it sends any headers upstream. It refuses a request with both `Content-Length` and `Transfer-Encoding`, or with a transfer coding other than a single `chunked`, with status 400. The chunked path requires CRLF framing and applies the trailer limits above. The buffered path still drops trailer lines. The stream does not use the budget for buffered bodies. The proxy keeps up to `record_limit` bytes of payload and counts `size` and `sha256` of the payload, with no chunk framing in the count or hash.
+
+If the app stops or sends invalid chunk framing, the proxy closes the upstream connection and sends status 400 when it can. The backend can already have the prefix. The row has the error `the request stream stopped: <reason>`. An incomplete upload row has `cut: true` and the size and hash of the payload that the proxy read from the app. If the backend connection fails during the upload or the test ends before the upload finishes, the row keeps the payload read so far with the applicable backend or test error. See the [upload case](conformance/proxy/stream-upload.json).
+
 The proxy writes one row to `backend.jsonl` for each call:
 
 | Field | Meaning |
@@ -672,7 +676,7 @@ An app can call a model API directly with an SDK, with no harness session. Durin
 
 The proxy forwards to the `url` of the answer, else to the value that the bridge has in the variable `env`, else to the URL of the table. A `url` in the answer is necessary if the tester's harness also reads the variable, for example Codex and `OPENAI_BASE_URL`. It gives the entry the URL of the proxy in the variable `env`. A value that is not an `http` or `https` URL with a host, or that has a port that is not valid, stops the start of the test. `nookku register` refuses such a `url` in the answer and writes nothing (section 7.11).
 
-- The proxy forwards each request as a backend proxy does (section 7.6).
+- The proxy forwards each request as a buffered backend proxy does (section 7.6). With `body_limit: "stream"`, the model API proxy still uses the default numeric limit.
 - It removes the values of secret headers and secret query parameters from the row as a backend proxy does (section 7.6).
 - It writes each lone surrogate in a string of a row as its escape text, as a backend proxy does. For example, a JSON response can escape a lone surrogate in the text of `result`.
 - It sends each part of the response to the app when the part comes, also for a streamed (SSE) response, as a backend proxy does. It keeps only the first `record_limit` bytes of a response for its row (section 7.1).
@@ -852,7 +856,7 @@ The error texts are in [`src/nookku/discovery.py`](src/nookku/discovery.py). The
 
 An app can call an MCP server for its tools ([`src/nookku/mcp_proxy.py`](src/nookku/mcp_proxy.py)). The bridge can change how the app finds a server only through a variable. Thus an MCP server of the egress answer (section 7.11) has a proxy only if its `env` is not `null`. A server with no variable is in `unseen`.
 
-**HTTP.** For each `http` server with a variable, the bridge runs one proxy on `127.0.0.1` at a free port, before it starts the entry. It gives the entry the URL of the proxy in the variable `env`, with the path and the query of the `url` of the server, for example `http://127.0.0.1:41002/mcp` for `https://tickets.toy.test/mcp`. The proxy has the rules of a backend proxy (section 7.6), with 5 changes:
+**HTTP.** For each `http` server with a variable, the bridge runs one proxy on `127.0.0.1` at a free port, before it starts the entry. It gives the entry the URL of the proxy in the variable `env`, with the path and the query of the `url` of the server, for example `http://127.0.0.1:41002/mcp` for `https://tickets.toy.test/mcp`. The proxy has the rules of a buffered backend proxy (section 7.6), with 5 changes. With `body_limit: "stream"`, it uses the default numeric limit:
 
 - It sends the path and the query of each request of the app to the server with no change. It adds no base path, so the server gets its own endpoint.
 - It sends each part of the response to the app when the part comes, with the rules of the model API proxy (section 7.7), because an MCP server can answer with an event stream.

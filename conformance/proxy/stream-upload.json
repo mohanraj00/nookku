@@ -1,0 +1,9 @@
+{
+  "body_limit": "stream",
+  "record_limit": 8,
+  "prefix": "teapot",
+  "incomplete_length": 10,
+  "incomplete_status": 400,
+  "incomplete_error": "the request stream stopped: the body stopped before its end",
+  "incomplete_sha256": "33f38545e00a507fba8be0243f5d19ee24dac952e6664422f91c32df2c63ff0b"
+}
