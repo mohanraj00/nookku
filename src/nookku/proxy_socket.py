@@ -13,6 +13,7 @@ _Request = socket.socket | tuple[bytes, socket.socket]
 
 class LimitedServer(socketserver.ThreadingTCPServer):
     daemon_threads = True
+    # A chosen cap on the workers and sockets of each proxy.
     connection_limit = 64
 
     def __init__(
