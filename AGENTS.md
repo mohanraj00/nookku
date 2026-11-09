@@ -1,10 +1,6 @@
 # Work on Nookku
 
-## What this project is
-
-Nookku is an evaluation harness for vertical AI agents. A person tests a chat agent through a coding harness (Claude Code or Codex). The harness extension carries each message and each reply byte for byte, so the model never retypes them. An independent tap proxy records what the agent received and sent. The audit compares the two records and names each break.
-
-`AGENTS.md` is a copy of this file for Codex. Change the two files together. A test checks that they are the same.
+[CONSTITUTION.md](CONSTITUTION.md) gives the purpose, the boundaries, the principles, the evidence rules and the contribution rules of Nookku. `CLAUDE.md` and `GEMINI.md` import the constitution and this file.
 
 ## Work starts from an issue
 
@@ -41,13 +37,7 @@ Claude Code and Codex both work on this repo, at the same time. The label `agent
 
 ## Rules
 
-- **Clean room.** Write all code new in this repo. Do not copy code, data or logs from other projects.
-- **Stealth gate.** `scripts/stealth.py check` must pass. It checks files, paths and commit messages against salted hashes of banned terms. Never write a banned term into the repo to test the gate. To add a term, pipe it into `scripts/stealth.py add`.
-- **Examples.** Use a toy shop or a support agent in examples and test data.
-- **Code quality.** Follow `docs/contributing/code-quality.md`. It gives each rule, its reason and the check that enforces it.
-- **Dependencies.** Use the standard library first. Do not add a GPL or AGPL dependency. Ask the maintainer before you add any runtime dependency.
-- **Claims.** Each number in a doc must link to its data and its method. If the measurement does not exist, do not make the claim.
-- **Harness versions.** Record the tested versions of Claude Code and Codex with each result.
+- **Constitution.** Keep the [principles](CONSTITUTION.md#principles), the [evidence rules](CONSTITUTION.md#evidence) and the [contribution rules](CONSTITUTION.md#contributions) of the constitution.
 - **Plugin API.** The Claude Code plugin uses function hooks, which are early access and can change between releases. CI pins the tested version.
 - **Plugin helpers.** In `plugins/nookku/hooks/register.tsx`, a function that takes `$` must be a top-level function declaration. `claude plugin validate` refuses other forms.
 - **Outward steps.** Do not push, tag, publish or open issues without the maintainer's approval for that step. Tags publish to PyPI and you cannot undo them.
@@ -113,4 +103,4 @@ The `check` target of the `Makefile` runs ruff, the format check, mypy, pytest, 
 
 `scripts/example_evaluation.py` runs the worked evaluation in `docs/evaluation-example.md` and writes `examples/toy-shop/evaluation.json`. The model's answer changes on each run, so update the doc with the data.
 
-Run the proofs after each change to a relay or to a new harness version. Commit the results with the version that they record.
+[CONSTITUTION.md](CONSTITUTION.md#evidence) says when to run the proofs.

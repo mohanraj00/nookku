@@ -2,7 +2,7 @@
 
 This spec says what good code is in this repo. Each rule has a reason, one example from this repo, and the check that enforces it. I wrote the rules from the defects that reviews found: the code review of 0.2 ([#43](https://github.com/mohanraj00/nookku/issues/43) to [#46](https://github.com/mohanraj00/nookku/issues/46), [#63](https://github.com/mohanraj00/nookku/issues/63), [#67](https://github.com/mohanraj00/nookku/issues/67) to [#71](https://github.com/mohanraj00/nookku/issues/71)), and the reviews of the 0.3 PRs (the issues and PRs that each rule names).
 
-A check is a test, a lint rule, a conformance case or a CI step. "Review" means that no automatic check exists yet. Then the reviewer examines the rule by hand, with the [review guidelines](../../CLAUDE.md#review-guidelines). If an open issue adds a check, the rule names that issue.
+A check is a test, a lint rule, a conformance case or a CI step. "Review" means that no automatic check exists yet. Then the reviewer examines the rule by hand, with the [review guidelines](../../AGENTS.md#review-guidelines). If an open issue adds a check, the rule names that issue.
 
 ## Rules
 
@@ -31,7 +31,7 @@ A check is a test, a lint rule, a conformance case or a CI step. "Review" means 
 
 - `tests/test_kit.py`: `test_a_crash_blocks_only_in_relay_mode`, `test_an_unreachable_tap_still_blocks_and_is_recorded`, `test_a_broken_config_blocks_in_relay_mode`.
 - `tests/test_plugin.py`: `test_with_no_nookku_and_relay_mode_on_the_guard_fails_closed`, `test_with_no_nookku_a_running_test_fails_closed`.
-- Review item in CLAUDE.md: "A relay path that fails open."
+- Review item in AGENTS.md: "A relay path that fails open."
 - [#63](https://github.com/mohanraj00/nookku/issues/63) added tests for the `.catch` handlers of the plugin hooks. [#68](https://github.com/mohanraj00/nookku/issues/68) added tests for a PreToolUse deny with a broken config and with relay mode off.
 
 ## 2. Exact bytes
@@ -49,7 +49,7 @@ A check is a test, a lint rule, a conformance case or a CI step. "Review" means 
 - `tests/test_kit.py::test_relay_mode_on_relays_exact_bytes_and_blocks_the_prompt`
 - `register.test.ts`: "relay mode sends the exact bytes, shows the exact reply, and keeps the model out".
 - Proofs P1 and P2 ([docs/results.md](../results.md#1-proofs)), [scripts/proof_backend.py](../../scripts/proof_backend.py) and [scripts/proof_model_api.py](../../scripts/proof_model_api.py).
-- Review item in CLAUDE.md: "A change that lets the relay change a byte".
+- Review item in AGENTS.md: "A change that lets the relay change a byte".
 
 ## 3. One rule, one copy
 
@@ -86,7 +86,7 @@ A check is a test, a lint rule, a conformance case or a CI step. "Review" means 
 
 - `tests/test_conformance.py::test_case` runs each case in `conformance/cases/`.
 - The CI step "Conformance cases are up to date" runs `conformance/build.py` and fails on a diff.
-- Review item in CLAUDE.md: "A change to the record format or to the audit with no SPEC.md change and no hand-written conformance case."
+- Review item in AGENTS.md: "A change to the record format or to the audit with no SPEC.md change and no hand-written conformance case."
 - Unicode: [#43](https://github.com/mohanraj00/nookku/issues/43) and [#65](https://github.com/mohanraj00/nookku/issues/65) added conformance cases and a test for each writer.
 - One reader: `tests/test_conformance.py::test_the_plugin_reads_each_relay_line_like_the_python_reader` checks the shared `RELAY_LINES` table ([#71](https://github.com/mohanraj00/nookku/issues/71)).
 
@@ -152,7 +152,7 @@ A check is a test, a lint rule, a conformance case or a CI step. "Review" means 
 
 **Reason.** A test that passes before the fix does not prove the fix. A real API makes a test slow and costly, and it gives a different result on each run. A fixed sleep passes on a fast machine and hides the race.
 
-**Example.** [tests/toy_model_server.py](../../tests/toy_model_server.py) waits after the first part until the test releases it. `tests/test_otlp.py::test_quiet_waits_for_the_last_request` gives `Receiver.quiet` a sleep function. Defect: `tests/test_contract.py::test_output_before_serve_goes_to_the_log` waits [0.5 s](../../tests/test_contract.py) before its request, so it does not show the race of [#62](https://github.com/mohanraj00/nookku/issues/62). The proofs that use a real harness are local scripts in `scripts/`, not tests (CLAUDE.md "Proofs").
+**Example.** [tests/toy_model_server.py](../../tests/toy_model_server.py) waits after the first part until the test releases it. `tests/test_otlp.py::test_quiet_waits_for_the_last_request` gives `Receiver.quiet` a sleep function. Defect: `tests/test_contract.py::test_output_before_serve_goes_to_the_log` waits [0.5 s](../../tests/test_contract.py) before its request, so it does not show the race of [#62](https://github.com/mohanraj00/nookku/issues/62). The proofs that use a real harness are local scripts in `scripts/`, not tests (AGENTS.md "Proofs").
 
 **Check.** Review. [#62](https://github.com/mohanraj00/nookku/issues/62) removes the fixed sleep from that test.
 
@@ -162,7 +162,7 @@ A check is a test, a lint rule, a conformance case or a CI step. "Review" means 
 
 - Use the standard library first. Ask the maintainer before you add a runtime dependency. Do not add a GPL or AGPL dependency.
 - `mypy` (strict) and `ruff` are clean.
-- In `plugins/nookku/hooks/register.tsx`, a function that takes `$` is a top-level function declaration (CLAUDE.md "Plugin helpers").
+- In `plugins/nookku/hooks/register.tsx`, a function that takes `$` is a top-level function declaration (AGENTS.md "Plugin helpers").
 
 **Reason.** The package installs into the tester's project, so it must not add packages there. Types and lint find defects before review. `claude plugin validate` refuses other forms of a helper.
 
@@ -174,13 +174,13 @@ A check is a test, a lint rule, a conformance case or a CI step. "Review" means 
 - CI job `lint`: `uv run ruff check .`, `uv run ruff format --check .` and `uv run mypy` (`strict = true` in `pyproject.toml`).
 - CI job `claude-code-plugin`: `claude plugin validate plugins/nookku`.
 - Workflow `claude-code-release.yml`: the same check on the latest Claude Code, each day ([run-the-proofs.md](run-the-proofs.md#a-new-claude-code-release)).
-- GPL or AGPL dependency: review item in CLAUDE.md.
+- GPL or AGPL dependency: review item in AGENTS.md.
 
 ## 10. Docs and claims
 
 **Rule.**
 
-- Write docs, comments, commit messages and issues in ASD-STE100 (CLAUDE.md "Writing").
+- Write docs, comments, commit messages and issues in ASD-STE100 (AGENTS.md "Writing").
 - Each number in a doc links to its data and its method. If the measurement does not exist, do not make the claim.
 - No banned term in a file, a path or a commit message.
 
@@ -191,4 +191,4 @@ A check is a test, a lint rule, a conformance case or a CI step. "Review" means 
 **Check.**
 
 - `scripts/stealth.py check` in the CI job `lint`, and `tests/test_stealth.py::test_the_repo_has_no_banned_term`.
-- Numbers and language: review. The review item in CLAUDE.md: "A number in a doc with no link to its data and its method."
+- Numbers and language: review. The review item in AGENTS.md: "A number in a doc with no link to its data and its method."

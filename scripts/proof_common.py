@@ -43,7 +43,7 @@ HOOKS_CODEX_HOME = ROOT / ".proof" / "codex-hooks" / "codex-home"
 INSTRUCTIONS = [
     Path.home() / ".claude" / "CLAUDE.md",
     Path.home() / ".codex" / "AGENTS.md",
-    ROOT / "CLAUDE.md",
+    ROOT / "CONSTITUTION.md",
     ROOT / "AGENTS.md",
 ]
 
