@@ -1,0 +1,26 @@
+{
+  "date": "2026-11-09",
+  "versions": {
+    "nookku": "0.5.7",
+    "claude_code": "2.1.319 (Claude Code)",
+    "codex": "codex-cli 0.162.1"
+  },
+  "method": "scripts/proof_openinference.py",
+  "case": "conformance/openinference/missing-stock-span.json",
+  "model_used": false,
+  "passed": true,
+  "exported_spans": 1,
+  "findings": [
+    {
+      "check": "proxy_call_without_span",
+      "turn": 1,
+      "detail": "POST /reserve: no matching span in the export",
+      "harness": "backend",
+      "session": "stock",
+      "source": {
+        "file": "backend.jsonl",
+        "line": 2
+      }
+    }
+  ]
+}

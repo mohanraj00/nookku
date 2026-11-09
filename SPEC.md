@@ -1027,7 +1027,7 @@ A test has 3 sources. Each one is independent of the others in a different way:
 | `egress.jsonl` | the Koodam egress proxy, from each external call of the pod (section 8.8) | the app's code and the proxies of nookku. The proxy is outside the pod. It records the host of each connection, not each request. |
 | The app's state | the app | nothing. The evaluating session reads it and judges it. |
 
-The trace reads `tap.jsonl`, `sessions/`, `otel.jsonl`, `backend.jsonl`, `model_api.jsonl`, `mcp.jsonl` and `database.jsonl`. It also reads `egress.jsonl` if the test folder has it, for the checks of section 8.8 only. It does not read the app's state. It reads `tap.jsonl` with the reader of section 2. If `tap.jsonl` is not valid, the trace stops with that error: `nookku trace` exits with code 2, and the end of a test writes no trace.
+An optional OpenInference export adds `openinference.jsonl` (section 8.10). The trace reads `tap.jsonl`, `sessions/`, `otel.jsonl`, `backend.jsonl`, `model_api.jsonl`, `mcp.jsonl` and `database.jsonl`. It also reads `egress.jsonl` if the test folder has it, for the checks of section 8.8 only. It does not read the app's state. It reads `tap.jsonl` with the reader of section 2. If `tap.jsonl` is not valid, the trace stops with that error: `nookku trace` exits with code 2, and the end of a test writes no trace.
 
 ### 8.2 Trace record
 
@@ -1141,6 +1141,7 @@ These tools come from the harness, not from the app: `ToolSearch` in Claude Code
 | `model_api_error` | A `model_api` assistant message with an `error`, or with a status of 400 or more. |
 | `questions_lost` | A `model_api` assistant message of a `/decisions` call with `questions_lost` (section 8.4). `detail` is `<API>: <path>: <N> questions of the request are not in the record`, or `1 question of the request is not in the record`. If `questions_lost` is `null`, `detail` ends with `the record does not have the questions of the request`. The case [`conformance/trace/model_api_decisions_cut/`](conformance/trace/model_api_decisions_cut/) gives the 3 forms, and a body with letters that are not ASCII that gives no finding. |
 | `database_error` | A `query` item with an `error`. `detail` is `<database>: <name>: <error>`. |
+| `proxy_call_without_span` | A proxy call in a turn has no matching OpenInference span. See section 8.10. |
 | `unseen_call` | A call of the app that no proxy saw (section 7.11). The check runs only if the manifest has `egress` with `proxies`. A call is a span or a log of the app (`harness` `otel`) with one of these attributes of the OpenTelemetry semantic conventions: `url.full` or `http.url` (an HTTP call), `db.system.name` or `db.system` (a database call), or `mcp.method.name` (an MCP call). A span or a log with `http.route`, `http.target` or `url.path` is a call to the app, not a call of the app, so it is not a call. The address of an HTTP call is the host and the port of its URL, with port 80 for `http` and 443 for `https`. The address of another call is `server.address` and `server.port`, or `server.address` alone if it has no integer port. If a call has no `server.address`, the check reads `net.peer.name` and `net.peer.port` of the old semantic conventions in the same way. Many driver instrumentations write only these by default. The host is in lowercase. A call to the address of a proxy in `proxies`, or of the OTLP receiver in `receiver`, is seen. A database call can also be seen because of a database with `record: driver`, because its span is in the trace as a driver query. A span does not name the database of the answer, so the check compares the system of the span with the `kind` of the database. The system and the kind are in lowercase, and the kind `postgres` is the system `postgresql`, `sqlite3` is `sqlite` and `mongo` is `mongodb` ([`SYSTEMS`](src/nookku/discovery.py)). If no database with `record: proxy` has the same system, each call of that system is seen. Else only a call of that system to the `host:port` of the `address` of the driver database is seen. If the address has a `/database` part, the call is seen only if its `db.namespace` (or `db.name`) is that database. The address of a driver database is not a proxy, so an HTTP call or an MCP call to it is not seen. Thus a call around a Postgres proxy, also to a database on the same server as a driver database, and a call of a system that no driver database has, still give a finding. An MCP call with no network address is seen if the answer has at least 1 `stdio` MCP server, and each `stdio` MCP server of the answer has the value `stdio` in `proxies` (section 7.12). A span does not name its server, so 1 `stdio` server with no wrapper makes each of these calls unseen. Each other call gives a finding, also a call with no address. `detail` is `HTTP <URL with no user, query or fragment>` (or `HTTP (a URL that does not parse)` for a URL with no address that the URL parser can read, for example `http://[`), `database <system>` or `MCP <method>`, then ` at <address>` or ` at no network address`, then `: no proxy saw this call`. |
 | `driver_without_span` | A database with `record: driver` of the egress answer (section 7.11) that covers no database span of the app, with the rule of the driver queries (section 8.4). The instrumentation of its driver sent no span, or the app did not call the database. A span that 2 driver databases cover counts for both. A test with no egress answer gives no finding. The finding has no turn. `detail` is `<name>: no database span of its driver`. The case [`conformance/trace/driver_trace_gaps/`](conformance/trace/driver_trace_gaps/) gives one. |
 | `egress_not_in_discovery` | A host of the egress spans that the egress answer does not have (section 8.8). |
@@ -1332,6 +1333,26 @@ The trace reads the gateway calls in the order of `gateway.jsonl`. Each gateway 
 - If a model API proxy and the gateway both record a call, and one record holds a cut copy of the response, the trace has 2 items for it, and `performance.json` counts 2 calls.
 - A harness call with no `User-Agent` tag of a harness gives items, as a call of the app.
 
+
+
+### 8.10 OpenInference spans
+
+`nookku trace TEST --openinference FILE` compares an export of app spans with the proxy records. It accepts a Phoenix DataFrame export as JSON records or JSONL, a Langfuse observations export as an array or a complete `data` response, and OTLP trace JSON. An input file can have at most [32 MiB](src/nookku/openinference.py). Give only the project and time range of the test. Combine all pages before importing a paged response.
+
+The command checks the export before replacing `openinference.jsonl`. The file has one row for each distinct trace id and span id, in export order. A row has `v` (`1`), `source`, `trace_id`, `span_id`, `name`, `kind`, `start`, `end` and `call`. The times are Unix seconds. `call` is a pair of a call kind and its key, or `null`. The file omits the input and output fields and all attributes that the match does not use. An HTTP key has no query string. The seal covers the file. A later trace rebuild uses the copy without reading the original export.
+
+Each exported span gives a trace item with `harness: "openinference"`, `kind: "span"`, the trace id as its session and the span start as its time. The item has the span kind and id in `input`, and its line in `openinference.jsonl` as its source. The trace assigns a turn by time as in section 8.3. Exported spans do not add calls to the proxy totals.
+
+The check compares calls in the same turn by these keys:
+
+| Proxy call | Span key |
+|---|---|
+| Backend HTTP | HTTP method and URL path, from the HTTP method and URL attributes |
+| MCP tool | Tool name, from an OpenInference `TOOL` span |
+| Postgres query | SQL operation, from the database operation or query attribute |
+| Model API | Model name, from an OpenInference model span with the name recorded |
+
+The proxy time must be within the span interval, with a [1 second margin](src/nookku/openinference.py). For each proxy call, the check takes the available matching span whose start is closest, then the first export row if the distance is the same. A span can cover one call. Each comparable proxy call in a turn with no match gives `proxy_call_without_span`. The trace skips this check when there is no import. A missing span is a difference in the two records. The [toy case](conformance/openinference/missing-stock-span.json) and [proof](proofs/openinference/results.json) show the difference.
 
 ## 9. Evaluation
 

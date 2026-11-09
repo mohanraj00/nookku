@@ -237,14 +237,13 @@ def denied(
     return out
 
 
-def copy_in(data: bytes, folder: Path) -> None:
-    """Write the bytes of an egress file to egress.jsonl in a test folder. The new file replaces
-    the name, so a symlink at egress.jsonl is replaced and its target does not change."""
-    fd, tmp = tempfile.mkstemp(prefix=".egress-", dir=folder)
+def copy_in(data: bytes, folder: Path, name: str = FILE) -> None:
+    """Replace a trace source in the test folder without following a symlink."""
+    fd, tmp = tempfile.mkstemp(prefix=".trace-import-", dir=folder)
     try:
         with os.fdopen(fd, "wb") as f:
             f.write(data)
-        os.replace(tmp, folder / FILE)
+        os.replace(tmp, folder / name)
     except BaseException:
         Path(tmp).unlink(missing_ok=True)
         raise

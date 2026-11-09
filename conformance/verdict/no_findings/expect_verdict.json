@@ -68,6 +68,12 @@
    "verdict": "pass"
   },
   {
+   "check": "proxy_call_without_span",
+   "count": null,
+   "most": null,
+   "verdict": "pass"
+  },
+  {
    "check": "unseen_call",
    "count": null,
    "most": null,
