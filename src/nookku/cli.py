@@ -717,7 +717,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         except kit.TranscriptError as e:
             print(f"nookku: {e}", file=sys.stderr)
             return 2
-        print(text, end="")
+        print(trace.multiline(text) if args.trace else text, end="")
         return 0
     if args.command == "view":
         root = args.root.resolve()
