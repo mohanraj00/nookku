@@ -1773,6 +1773,14 @@ def one_line(value: Any) -> str:
     return str(value).translate(_CONTROL)
 
 
+_MULTILINE_CONTROL = {code: escape for code, escape in _CONTROL.items() if code != ord("\n")}
+
+
+def multiline(text: str) -> str:
+    """Escape terminal controls and keep the line feeds of formatted text."""
+    return text.translate(_MULTILINE_CONTROL)
+
+
 def _item_key(f: dict[str, Any]) -> tuple[str, str, int] | None:
     source = f.get("source")
     if not isinstance(source, dict) or not isinstance(source.get("line"), int):
