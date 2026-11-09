@@ -1,18 +1,39 @@
 name: CI
-
+# The ci-ok skeleton of mohanraj00/.github, with the project jobs of nookku in it.
+# A docs-only PR skips the project jobs, and ci-ok still passes. The lint job always runs.
+# Do not use paths-ignore, because a required check can then stay pending.
 on:
   # A PR does not have to be up to date with main before it merges (#308). Thus each job of
-  # this file, with the full test matrix, runs on main after each merge. Do not add a job
-  # condition that stops a job on main. If a job fails on main, fix it before the next merge.
+  # this file, with the full test matrix, runs on main after each merge. A push has no PR, so
+  # the classify step marks it as code. If a job fails on main, fix it before the next merge.
+  pull_request:
   push:
     branches: [main]
-  pull_request:
-
+permissions: {}
 jobs:
-  # The jobs lint and test only read the repo. Thus each has no token that can write, and its
-  # checkout keeps no token on disk (#438).
+  changes:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      code: ${{ steps.classify.outputs.code }}
+    steps:
+      # The classify step reads .github/gates.json from the base branch, so a PR cannot mark its own change as docs.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+          persist-credentials: false
+      - id: classify
+        uses: mohanraj00/.github/gates@f0d91a291a6de62fcfaa87601181cf2b4c35c6b5 # main of mohanraj00/.github
+        with:
+          check: classify
+  # The project check always runs. The jobs lint and test only read the repo. Thus each has no
+  # token that can write, and its checkout keeps no token on disk (#438).
   lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
     steps:
@@ -29,8 +50,13 @@ jobs:
         run: uv run python conformance/build.py && git diff --exit-code conformance/
       - name: No banned term in files, paths or commit messages
         run: uv run python scripts/stealth.py check
-
+      # A docs-only PR skips the test job. These tests check the links and the numbers of the docs.
+      - name: The docs tests
+        run: uv run pytest tests/test_docs.py
+  # A project job that runs only for a change that is not docs-only.
   test:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -56,11 +82,13 @@ jobs:
       - run: uv sync --python ${{ matrix.python }}
       # The 15 slowest tests show in the log of each job, so a slow test is easy to find (#17).
       - run: uv run pytest --cov --cov-report=term-missing --durations=15
-
   # This job runs the code of the npm package. Thus it has no token that can write, and the
-  # checkout keeps no token on disk.
+  # checkout keeps no token on disk. It runs only for a change that is not docs-only.
   claude-code-plugin:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
     steps:
@@ -71,3 +99,24 @@ jobs:
         run: npm install -g @anthropic-ai/claude-code@2.1.302
       - run: claude plugin validate plugins/nookku
       - run: claude plugin test plugins/nookku
+  # The required check. Add each project job to needs. A skipped job passes. A failed or cancelled job fails.
+  ci-ok:
+    needs: [changes, lint, test, claude-code-plugin]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    permissions: {}
+    steps:
+      - name: Collect the project jobs
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          python3 -B -I -c '
+          import json, os, sys
+          needs = json.loads(os.environ["NEEDS"])
+          bad = sorted(k for k, v in needs.items() if v["result"] not in ("success", "skipped"))
+          if needs.get("changes", {}).get("result") != "success":
+              bad = sorted(set(bad) | {"changes"})
+          print("\n".join("%s: %s" % (k, v["result"]) for k, v in sorted(needs.items())))
+          sys.exit("Failed jobs: " + ", ".join(bad) if bad else 0)
+          '

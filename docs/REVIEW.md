@@ -33,21 +33,21 @@ A comment or a review with other text does not start the workflow. The comment t
 
 An issue comment event reads the workflow from `main`, so a PR cannot change this workflow for its own review. The workflow has two jobs.
 
-The `review` job has `contents: read` only. It uses the `claude-review` environment, which holds the `CLAUDE_CODE_OAUTH_TOKEN` secret. Only the CLI step gets the secret. The environment needs a deployment branch rule for `main`. The job does these steps:
+The `review` job has `contents: read` and `pull-requests: read` only. It uses the `claude-review` environment, which holds the `CLAUDE_CODE_OAUTH_TOKEN` secret. Only the CLI step gets the secret. The environment needs a deployment branch rule for `main`. The job does these steps:
 
 1. It checks out `main` and fetches the PR commits as Git objects only. It never checks out PR files, so the PR cannot supply instructions, settings or code.
-2. It writes the diff with `git diff --no-ext-diff --no-textconv -U20 origin/main...pr/head`. If the diff is empty, the job fails.
+2. It reads the base branch of the PR from the API and fetches it. It writes the diff with `git diff --no-ext-diff --no-textconv -U20 pr/base...pr/head`. If the diff is empty, the job fails.
 3. It installs one exact version of the Claude Code CLI and checks the SHA-512 value of the package.
 4. It runs the CLI in restricted mode with only the `Read`, `Grep` and `Glob` tools, no MCP server, no slash command and a turn limit. These tools cannot read `/proc`. The prompt says that the diff is untrusted data.
 5. It checks the JSON result: `type` is `result`, `subtype` is `success`, `is_error` is false, `result` is not empty and `permission_denials` is empty. If a check fails, the job fails.
 6. It keeps the review text and the head SHA in an artifact.
 
-The `post` job has `contents: read`, `issues: write` and `pull-requests: write` only, with no secret and no environment. A comment on a PR needs `pull-requests: write`. It runs [tools/claude_review.py](../tools/claude_review.py) from the `main` checkout. The first line of the comment names the head SHA and says that the review is advisory. If the `review` job failed, the comment holds only `NO VALID CLAUDE REVIEW` and the head SHA.
+The `post` job has `contents: read`, `issues: write` and `pull-requests: write` only, with no secret and no environment. A comment on a PR needs `pull-requests: write`. It runs [tools/claude_review.py](../tools/claude_review.py) from the `main` checkout. The first line of the comment is a `claude-review:v2` marker with the kind of the review, the head SHA, the merge base of the diff, the number of findings and the run ID. The `--kind` argument gives the kind. If the `review` job failed, the comment holds only `NO VALID CLAUDE REVIEW` and the head SHA.
 
-The `post` job writes as the workflow bot. Nookku has no PR gate yet. The shared gates of a later rollout will trust approval records from this bot. Thus the script treats the model text as untrusted. It escapes `&` and `<`, changes each `@` to a character that makes no mention, and limits the length.
+The `post` job writes as the workflow bot. The shared gates trust the markers and the approval records from this bot. Thus the script treats the model text as untrusted. It escapes `&` and `<`, changes each `@` to a character that makes no mention, and limits the length.
 
 [tests/test_claude_review.py](../tests/test_claude_review.py) checks these limits in the workflow text and in the script.
 
 ### Use of a Claude result
 
-A Claude result is advisory. No gate reads it. A person reads it. The review has no inline comments and no conversation. A push makes a new head, so ask again as the request rules say. The OAuth token is a static secret. If you suspect a leak, revoke it and make a new one.
+The `cross-review` and `security-review` gates read the marker ([.github/workflows/gates.yml](../.github/workflows/gates.yml)). They accept a marker only from an `issue_comment` run of this workflow on `main`, and only for the current merge base. Thus a base change after the review makes a new review necessary. The gates do not accept a `v1` marker. A Claude code review passes `cross-review` only with `Findings: 0` for the current head. The marker gives `findings=unknown` if the text does not agree with the count on the first line. These are 3 examples. `INCOMPLETE REVIEW` is on a later line. A later `Findings: N` line gives a different count. A review with `Findings: 0` has a severity tag P0 to P3 or a `path:line` reference on a later line. A Claude security review is advisory. The `security-review` gate does not accept it. The owner reads the review, then adds the `security-reviewed` label. A person also reads each result. The review has no inline comments and no conversation. A push makes a new head, so ask again as the request rules say. The OAuth token is a static secret. If you suspect a leak, revoke it and make a new one.
