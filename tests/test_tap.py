@@ -1,3 +1,4 @@
+import base64
 import hashlib
 import http.client
 import json
@@ -12,7 +13,8 @@ import pytest
 from toy_agent import ToyAgent, shop_reply
 
 from nookku.adapters import make
-from nookku.record import Exchange, Unparsed, read_tap
+from nookku.audit import audit
+from nookku.record import Exchange, Unparsed, Writer, read_tap, sha256
 from nookku.tap import Tap, start_in_thread
 
 TRICKY = "Hi, I want to return order #4471.  \n\nÜnïcödé € ₹\t| a | b |\n"
@@ -114,10 +116,26 @@ def test_a_stream_passes_unchanged_and_the_row_has_the_joined_reply(tmp_path):
     assert (status, kind, error) == (200, "text/event-stream; charset=utf-8", None)
     assert json.loads(agent.received[0]["body"])["stream"] is True
     assert out == agent.sent[0]
-    assert read_tap(tmp_path / "tap.jsonl") == [Exchange(1, TRICKY, 200, shop_reply(TRICKY))]
-    [row] = raw_rows(tmp_path / "tap.jsonl")
+    *parts, row = raw_rows(tmp_path / "tap.jsonl")
+    assert read_tap(tmp_path / "tap.jsonl") == [
+        Exchange(len(parts) + 1, TRICKY, 200, shop_reply(TRICKY))
+    ]
+    assert b"".join(base64.b64decode(part["base64"]) for part in parts) == out
+    assert all(part["stream_id"] == row["stream_id"] for part in parts)
     assert row["stream"] == {"sha256": hashlib.sha256(out).hexdigest(), "bytes": len(out)}
     assert "error" not in row and row["v"] == "0.2"
+
+    relay = tmp_path / "relay.jsonl"
+    Writer(relay).append(
+        {"type": "turn", "harness": "codex", "said": TRICKY, "shown": shop_reply(TRICKY)}
+    )
+    assert audit(tmp_path / "tap.jsonl", relay).exit == 0
+    row.update(reply="The shelf is empty.", reply_sha256=sha256("The shelf is empty."))
+    (tmp_path / "tap.jsonl").write_text("".join(json.dumps(item) + "\n" for item in [*parts, row]))
+    broken = audit(tmp_path / "tap.jsonl", relay)
+    assert broken.exit == 2
+    assert broken.errors[0]["class"] == "record_invalid"
+    assert "stream reply does not match" in broken.errors[0]["detail"]
 
 
 def test_each_part_of_a_stream_reaches_the_caller_before_the_stream_ends(tmp_path):
@@ -131,15 +149,17 @@ def test_each_part_of_a_stream_reaches_the_caller_before_the_stream_ends(tmp_pat
     early = b""
     while early.count(b"\n\n") < 3:
         early += resp.read1(65536)
-    # The agent waits for the gate. The tap has no row yet.
-    assert not (tmp_path / "tap.jsonl").exists()
+    # The agent waits for the gate. The tap has recorded the bytes that reached the caller.
+    parts = raw_rows(tmp_path / "tap.jsonl")
+    assert parts and all(r["type"] == "stream_part" for r in parts)
     gate.set()
     out = early + resp.read()
     conn.close()
     tap.shutdown()
     agent.shutdown()
     assert out == agent.sent[0]
-    assert read_tap(tmp_path / "tap.jsonl") == [Exchange(1, "hi", 200, shop_reply("hi"))]
+    final = raw_rows(tmp_path / "tap.jsonl")
+    assert read_tap(tmp_path / "tap.jsonl") == [Exchange(len(final), "hi", 200, shop_reply("hi"))]
 
 
 @pytest.mark.parametrize(
@@ -160,8 +180,8 @@ def test_a_failed_stream_is_an_error_exchange_with_no_reply(tmp_path, fault, err
 
     assert (status, got_error) == (200, read_error)
     assert out == agent.sent[0]
-    assert read_tap(tmp_path / "tap.jsonl") == [Exchange(1, TRICKY, 200, None)]
-    [row] = raw_rows(tmp_path / "tap.jsonl")
+    *parts, row = raw_rows(tmp_path / "tap.jsonl")
+    assert read_tap(tmp_path / "tap.jsonl") == [Exchange(len(parts) + 1, TRICKY, 200, None)]
     # A 0.2 reader refuses a failed stream, so the row has version 0.3 (SPEC.md section 2).
     assert row["error"].startswith(error) and row["v"] == "0.3"
     assert row["stream"] == {"sha256": hashlib.sha256(out).hexdigest(), "bytes": len(out)}
@@ -219,8 +239,12 @@ def test_a_record_error_leaves_a_sized_stream_incomplete(tmp_path, capsys):
     agent = ToyAgent(stream=True)
     tap = run_tap(agent.url, tmp_path / "tap.jsonl", "openai")
 
+    write = tap.writer.append
+
     def fail(row: dict) -> None:
-        raise OSError(28, "No space left on device")
+        if row["type"] == "exchange":
+            raise OSError(28, "No space left on device")
+        write(row)
 
     tap.writer.append = fail  # type: ignore[method-assign]
     body = json.dumps({"stream": True, "messages": [{"role": "user", "content": "hi"}]})

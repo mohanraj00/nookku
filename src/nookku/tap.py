@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import contextlib
 import hashlib
 import http.client
@@ -9,11 +10,14 @@ import json
 import socket
 import sys
 import threading
+import time
+import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from nookku.adapters import Adapter, AdapterError, StreamError, is_stream
+from nookku import websocket
+from nookku.adapters import Adapter, AdapterError, JsonAdapter, StreamError, is_stream
 from nookku.record import Writer, lone_surrogate
 from nookku.stdio import TIMEOUT, bind, write_failed
 
@@ -43,8 +47,8 @@ class Tap(ThreadingHTTPServer):
         timeout: float = TIMEOUT,
     ) -> None:
         parts = urlsplit(agent)
-        if parts.scheme not in ("http", "https") or not parts.hostname:
-            raise ValueError(f"the agent URL must be http or https: {agent!r}")
+        if parts.scheme not in ("http", "https", "ws", "wss") or not parts.hostname:
+            raise ValueError(f"the agent URL must be http, https, ws or wss: {agent!r}")
         self.scheme, self.agent_host = parts.scheme, parts.hostname
         self.agent_port = parts.port or (443 if parts.scheme == "https" else 80)
         self.base_path = parts.path.rstrip("/")
@@ -56,7 +60,11 @@ class Tap(ThreadingHTTPServer):
         bind(self)
 
     def connect(self) -> http.client.HTTPConnection:
-        cls = http.client.HTTPSConnection if self.scheme == "https" else http.client.HTTPConnection
+        cls = (
+            http.client.HTTPSConnection
+            if self.scheme in ("https", "wss")
+            else http.client.HTTPConnection
+        )
         return cls(self.agent_host, self.agent_port, timeout=self.timeout)
 
 
@@ -66,6 +74,61 @@ def _expire(conn: http.client.HTTPConnection, expired: threading.Event) -> None:
     if conn.sock is not None:
         with contextlib.suppress(OSError):
             conn.sock.shutdown(socket.SHUT_RDWR)
+
+
+class _Parts:
+    """Write each observed part before the caller receives it."""
+
+    def __init__(self, writer: Writer, started: float, protocol: str) -> None:
+        self.writer = writer
+        self.started = started
+        self.protocol = protocol
+        self.id = uuid.uuid4().hex
+        self.index = 0
+        self.first: float | None = None
+
+    def append(self, data: bytes) -> None:
+        self._part("stream_part", data, True)
+
+    def frame(self, direction: str, part: websocket.Frame) -> None:
+        first = direction == "from_agent" and part.opcode in (
+            websocket.TEXT,
+            websocket.CONTINUATION,
+        )
+        self._part(
+            "websocket_frame",
+            part.wire,
+            first,
+            direction=direction,
+            opcode=part.opcode,
+            final=part.final,
+        )
+
+    def _part(self, kind: str, data: bytes, first: bool, **fields: object) -> None:
+        ts = time.time()
+        self.index += 1
+        if first and self.first is None:
+            self.first = round(max(0.0, ts - self.started), 3)
+        self.writer.append(
+            {
+                "type": kind,
+                "stream_id": self.id,
+                "index": self.index,
+                "ts": ts,
+                "base64": base64.b64encode(data).decode(),
+                "sha256": hashlib.sha256(data).hexdigest(),
+                **fields,
+            }
+        )
+
+    def fields(self, raw: bytes) -> dict[str, object]:
+        return {
+            "started": self.started,
+            "stream_id": self.id,
+            "stream_protocol": self.protocol,
+            "first_part_seconds": self.first,
+            "stream": {"sha256": hashlib.sha256(raw).hexdigest(), "bytes": len(raw)},
+        }
 
 
 class _Handler(BaseHTTPRequestHandler):
@@ -106,8 +169,13 @@ class _Handler(BaseHTTPRequestHandler):
         if "chunked" in self.headers.get("Transfer-Encoding", "").lower():
             self._error(411, "nookku needs a Content-Length request body")
             return
-        body = self.rfile.read(int(self.headers.get("Content-Length") or 0))
         tap, method, path = self.server, self.command, self.path
+        length = int(self.headers.get("Content-Length") or 0)
+        if tap.scheme in ("ws", "wss") and not 0 <= length <= websocket.LIMIT:
+            self.close_connection = True
+            self._error(413, "nookku tap: the WebSocket message is too large")
+            return
+        body = self.rfile.read(length)
         recorded = tap.adapter.accepts(method, path)
         message, parse_error = None, None
         if recorded:
@@ -130,10 +198,84 @@ class _Handler(BaseHTTPRequestHandler):
         timer.daemon = True
         timer.start()
         try:
-            self._exchange(conn, body, headers, recorded, message, parse_error, expired)
+            if tap.scheme in ("ws", "wss"):
+                if not recorded:
+                    self._error(405, "nookku tap: send one WebSocket message as a POST")
+                    return
+                self._websocket(conn, body, headers, message, parse_error, expired)
+            else:
+                self._exchange(conn, body, headers, recorded, message, parse_error, expired)
         finally:
             timer.cancel()
             conn.close()
+
+    def _websocket(
+        self,
+        conn: http.client.HTTPConnection,
+        body: bytes,
+        headers: dict[str, str],
+        message: str | None,
+        parse_error: str | None,
+        expired: threading.Event,
+    ) -> None:
+        tap = self.server
+        parts = _Parts(tap.writer, time.time(), "websocket")
+        unparsed = {"type": "unparsed", "method": self.command, "path": self.path}
+        try:
+            raw = websocket.exchange(conn, tap.base_path + self.path, headers, body, parts.frame)
+            if expired.is_set():
+                raise TimeoutError
+        except (OSError, http.client.HTTPException, websocket.WebSocketError) as error:
+            late = expired.is_set() or isinstance(error, TimeoutError)
+            why = f"the agent sent no full reply in {tap.timeout:g} s" if late else str(error)
+            row: dict[str, object] = {**unparsed, "error": parse_error or why}
+            if message is not None:
+                row = {
+                    "type": "exchange",
+                    "input": message,
+                    "status": None,
+                    "reply": None,
+                    "error": why,
+                }
+            if self._write(row):
+                self._error(504 if late else 502, f"nookku tap: {why}")
+            return
+        try:
+            reply = tap.adapter.reply(raw)
+        except AdapterError as error:
+            if not self._write({**unparsed, "error": parse_error or f"response: {error}"}):
+                return
+        else:
+            found = lone_surrogate(reply)
+            if found is not None:
+                if self._write({**unparsed, "error": f"the agent reply has {found}"}):
+                    self._error(502, f"nookku tap: the agent reply has {found}")
+                return
+            if message is None:
+                if not self._write({**unparsed, "error": parse_error or "unknown"}):
+                    return
+            else:
+                adapter = tap.adapter
+                config = (
+                    {
+                        "name": "json",
+                        "message_field": adapter.message_field,
+                        "reply_field": adapter.reply_field,
+                    }
+                    if isinstance(adapter, JsonAdapter)
+                    else {"name": "openai"}
+                )
+                row = {
+                    "type": "exchange",
+                    "input": message,
+                    "status": 200,
+                    "reply": reply,
+                    "stream_adapter": config,
+                    **parts.fields(raw),
+                }
+                if not self._write(row):
+                    return
+        self._send(200, [("Content-Type", "application/json")], raw)
 
     def _exchange(
         self,
@@ -147,6 +289,7 @@ class _Handler(BaseHTTPRequestHandler):
     ) -> None:
         """Send the request to the agent, then send its response to the caller and write the row."""
         tap, method, path = self.server, self.command, self.path
+        started = time.time()
         try:
             conn.request(method, tap.base_path + path, body=body if body else None, headers=headers)
             resp = conn.getresponse()
@@ -185,7 +328,7 @@ class _Handler(BaseHTTPRequestHandler):
         if streamed:
             # The stream sends the status first, so it runs outside the try above. Thus no handler
             # sends a second status after the headers.
-            self._stream(resp, recorded, message, parse_error, expired)
+            self._stream(resp, recorded, message, parse_error, expired, started)
             return
 
         if recorded:
@@ -233,6 +376,7 @@ class _Handler(BaseHTTPRequestHandler):
         message: str | None,
         parse_error: str | None,
         expired: threading.Event,
+        started: float,
     ) -> None:
         """Send each part of an SSE response to the caller when it comes (SPEC.md section 4.1).
 
@@ -257,6 +401,7 @@ class _Handler(BaseHTTPRequestHandler):
         except OSError:
             caller = False
         raw = bytearray()
+        parts = _Parts(self.server.writer, started, "sse") if recorded else None
         # With a Content-Length, the caller has a full response only with the last byte. The tap
         # holds that byte until the row is in the record, so a failed write leaves it incomplete.
         held = b""
@@ -270,6 +415,13 @@ class _Handler(BaseHTTPRequestHandler):
             if not part:
                 break
             raw += part
+            if parts is not None:
+                try:
+                    parts.append(part)
+                except OSError as e:
+                    print(f"nookku tap: cannot write the record: {e}", file=sys.stderr)
+                    self.close_connection = True
+                    return
             if caller:
                 # The record keeps all of the stream, also if the caller went away.
                 try:
@@ -289,9 +441,9 @@ class _Handler(BaseHTTPRequestHandler):
         elif failure is None and length is not None and resp.length:
             # read1 gives b"" at an early end of a body with a Content-Length. It does not raise.
             failure = f"the stream from the agent stopped after {len(raw)} of {length} bytes"
-        if recorded:
+        if parts is not None:
             try:
-                self._stream_row(resp.status, bytes(raw), message, parse_error, failure)
+                self._stream_row(resp.status, bytes(raw), message, parse_error, failure, parts)
             except OSError as e:
                 print(f"nookku tap: cannot write the record: {e}", file=sys.stderr)
                 self.close_connection = True
@@ -319,6 +471,7 @@ class _Handler(BaseHTTPRequestHandler):
         message: str | None,
         parse_error: str | None,
         failure: str | None,
+        parts: _Parts,
     ) -> None:
         """Write the row of a streamed response. A failed stream gets no reply, only an error."""
         tap, method, path = self.server, self.command, self.path
@@ -340,7 +493,7 @@ class _Handler(BaseHTTPRequestHandler):
             except AdapterError as e:
                 tap.writer.append({**unparsed, "error": f"response: {e}"})
                 return
-        row["stream"] = {"sha256": hashlib.sha256(raw).hexdigest(), "bytes": len(raw)}
+        row.update(parts.fields(raw))
         tap.writer.append(row)
 
     do_GET = do_POST = do_PUT = do_PATCH = do_DELETE = do_HEAD = do_OPTIONS = _forward

@@ -117,6 +117,6 @@ def test_a_stream_that_runs_past_the_deadline_is_not_a_full_reply(tmp_path):
     listener.close()
 
     assert took < 0.5 + ANSWER
-    row = json.loads((tmp_path / "tap.jsonl").read_text())
+    row = json.loads((tmp_path / "tap.jsonl").read_text().splitlines()[-1])
     assert (row["status"], row["reply"]) == (200, None)
     assert row["error"] == "the agent sent no full response in 0.5 s"

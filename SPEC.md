@@ -17,9 +17,9 @@ Two processes write two records. The relay writes the **relay record**: what the
 
 ## 2. Record format
 
-Each record is a UTF-8 JSONL file. Each line is one JSON object. Each object has a version `v` and a `type`. A writer writes `"v": "0.2"`, except for the row of a failed stream (section 2.1), which has `"v": "0.3"`. A reader accepts `"0.1"`, `"0.2"` and `"0.3"`. A type or a field that this section marks as 0.2 is not valid in a `"0.1"` row. A `"0.3"` row can have each type and field of a `"0.2"` row. Each text field has a `<field>_sha256` field: the SHA-256 of the UTF-8 bytes of the text, in lower-case hex. If the text is `null`, its hash is `null`. `ts` is a Unix time in seconds.
+Each record is a UTF-8 JSONL file. Each line is one JSON object. Each object has a version `v` and a `type`. A writer writes `"v": "0.2"`, except for the row of a failed stream (section 2.1), which has `"v": "0.3"`. A reader accepts `"0.1"`, `"0.2"` and `"0.3"`. The tap record also uses `"0.4"` for SSE parts and WebSocket frames. A type or a field that this section marks as 0.2 is not valid in a `"0.1"` row. A `"0.3"` row can have each type and field of a `"0.2"` row. Each text field has a `<field>_sha256` field: the SHA-256 of the UTF-8 bytes of the text, in lower-case hex. If the text is `null`, its hash is `null`. `ts` is a Unix time in seconds.
 
-**Version 0.3.** The row of a failed stream has a 2xx status and `reply: null`. A reader of verbatim-relay 0.2.0 refuses this row as `record_invalid`, because it does not know the rule of a failed stream. Thus this row has version 0.3, and a 0.2.0 reader gives an error that names the version. Each other row keeps version 0.2, so a 0.2.0 reader still reads it. A row of a failed stream with version `"0.1"` or `"0.2"` is not valid.
+**Version 0.3.** The row of a failed stream has a 2xx status and `reply: null`. A reader of verbatim-relay 0.2.0 refuses this row as `record_invalid`, because it does not know the rule of a failed stream. Thus this row has version 0.3, and a 0.2.0 reader gives an error that names the version. The other exchange rows keep version 0.2. A row of a failed stream with version `"0.1"` or `"0.2"` is not valid.
 
 Each string in a row, as a field name or as a value, holds only Unicode scalar values. JSON can escape a lone UTF-16 surrogate, for example `"\ud83d"`, but UTF-8 cannot encode it. A row with a lone surrogate is not valid.
 
@@ -38,13 +38,20 @@ The relays refuse a message with a lone surrogate (section 5). The other writers
 | Field | Type | Meaning |
 |---|---|---|
 | `input` | string | The message that the agent received, as the adapter extracts it. |
-| `status` | integer or null | The HTTP status of the agent's response. `null` if the agent did not respond, or if its reply or its error has a lone surrogate (section 4). |
+| `status` | integer or null | The HTTP status of the agent's response, or 200 for a complete WebSocket reply. `null` if the agent did not respond, or if its reply or its error has a lone surrogate (section 4). |
 | `reply` | string or null | The reply that the agent sent, as the adapter extracts it. It is `null` if, and only if, the status is not 2xx or is `null`, or the stream failed. |
 | `error` | string | Optional. Why `reply` is `null`. |
 | `started` | number | Optional, 0.2. The Unix time when the tap sent the request to the agent. `ts` is the time when the tap wrote the row. |
 | `stream` | object | Optional, 0.2. The tap writes it if the response is a stream (section 4.1). `sha256` is the SHA-256 of the raw response body, as the tap forwarded it, in lower-case hex. `bytes` is the size of that body. |
 
-A streamed reply: the tap writes one `exchange` row when the stream ends. `reply` is the complete reply that the adapter joins from the stream. The audit compares this text, the same as a reply that is not streamed. A row never holds a part of a reply. If the stream failed (section 4.1), the row has the 2xx status, `reply: null`, `stream` and `error`, and `"v": "0.3"`. A row with a 2xx status and `reply: null` must have `stream`, `error` and `"v": "0.3"`.
+A streamed reply: the tap writes one `exchange` row when the stream ends. `reply` is the complete reply that the adapter joins from the stream. For a stream with part rows, the reader checks that the recorded bytes give this reply. The audit then compares it with the relay text. If the stream failed (section 4.1), the row has the 2xx status, `reply: null`, `stream` and `error`, and `"v": "0.3"`. A row with a 2xx status and `reply: null` must have `stream`, `error` and `"v": "0.3"`.
+
+
+`stream_part` and `websocket_frame` (0.4) record the bytes and the Unix time `ts` of each part that the tap observes. Both row types have `stream_id` (the tap's id for this exchange), `index` (from 1 in the order of the stream), `base64` (the exact bytes), and `sha256` (the hash of those bytes). An SSE part is the bytes of one read from the response body. It can hold part of an event, an event or more than one event. A WebSocket row holds one full wire frame, including its header and mask if present. It also has `direction` (`to_agent` or `from_agent`), `opcode` and `final` (the FIN bit).
+
+The exchange has the same `stream_id` as its parts and `stream_protocol` (`sse` or `websocket`). For WebSocket it also has `stream_adapter` with its `name`, and `message_field` and `reply_field` for the JSON adapter. The `stream` size and hash cover the concatenated SSE body or the payload of the reassembled server text message. `first_part_seconds` is the first observed part time minus `started`, rounded to 3 decimal places and at least 0, or `null` when no part came. For WebSocket, only the first server text frame starts this time. For SSE, the first body bytes count, including a comment.
+
+The reader checks part order, hashes, frame fields and exchange links. It assembles the response and checks the reply with the adapter. For WebSocket it also checks the recorded client message. A mismatch makes the tap record invalid. If a stream stopped before an exchange was written, its observed parts remain in the file and give no exchange. Old exchange rows with no `stream_id` still use their stored reply. See the [toy cases](conformance/streams/toy-replies.json) and [proof](proofs/tap-streams/results.json).
 
 In stdio mode, the tap writes these `status` values:
 
@@ -217,6 +224,9 @@ Each adapter maps onto the agent contract (section 6):
 | `session` | not sent | not sent |
 | `reply` | the response field at the reply path | `choices.0.message.content`, or the joined `delta.content` texts of a stream |
 | `error` | a status that is not 2xx | a status that is not 2xx |
+
+
+**WebSocket upstream.** With a `ws://` or `wss://` agent URL, the HTTP tap makes a WebSocket upgrade to the agent on the forwarded path. The relay still sends an HTTP POST. The tap sends that body as one text message, with the [WebSocket frame format](https://www.rfc-editor.org/rfc/rfc6455.html), and waits for one complete server text message. It answers each ping before the reply ends and closes the WebSocket at the end of the turn. The HTTP caller gets the reply payload with no change. The tap checks the upgrade and the frame boundaries. It accepts no extensions or subprotocols. A request or reply text message above [16 MiB](src/nookku/websocket.py) is refused. This path uses a new WebSocket connection per turn.
 
 ### 4.2 Stdio mode
 
@@ -1175,6 +1185,7 @@ Each turn has these fields:
 |---|---|---|
 | `turn` | integer | The number of the turn. |
 | `seconds` | number or null | `ts` minus `started` of the `exchange` row, rounded to 3 decimals: the time from the message to the reply that the tap measured. `null` for a row with no `started` (0.1). |
+| `first_part_seconds` | number or null | Present when the tap records streamed parts (section 2.1). The time to the first observed part. |
 | `model_calls` | integer or null | The count of model calls in the turn. `null` if `unknown` is not `null`. |
 | `input_tokens` | integer or null | The sum of the input tokens of the calls of the turn, with the cached tokens. `null` if a call of the turn has no input tokens, or if `unknown` is not `null`. |
 | `output_tokens` | integer or null | The sum of the output tokens of the calls of the turn. `null` if a call of the turn has no output tokens, or if `unknown` is not `null`. Thus a turn can have its input tokens and no output tokens, or the opposite. |
