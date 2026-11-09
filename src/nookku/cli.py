@@ -405,6 +405,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         "folder as egress.jsonl and check them",
     )
 
+    trc.add_argument("--otlp-file", type=Path, metavar="FILE", help="write OTLP trace JSON")
+    trc.add_argument("--otlp-endpoint", metavar="URL", help="send the trace as OTLP/HTTP protobuf")
+
     sub.add_parser("setup", help="print the guide that connects a test to the app")
 
     # An internal command has no help: argparse then leaves it out of the command list of
@@ -596,7 +599,14 @@ def main(argv: Sequence[str] | None = None) -> int:
                 return 2
             gate = (args.gateway, list(args.key_alias), tag, skew or 0.0)
         return _trace_command(
-            args.root.resolve(), args.test, args.json, args.egress, gate, args.verdict
+            args.root.resolve(),
+            args.test,
+            args.json,
+            args.egress,
+            gate,
+            args.verdict,
+            args.otlp_file,
+            args.otlp_endpoint,
         )
     if args.command == "verify":
         folder = _test_folder(args.root.resolve(), args.test)
@@ -792,6 +802,8 @@ def _trace_command(
     egress: Path | None = None,
     gate: tuple[str, list[str], str | None, float] | None = None,
     verdict_gate: bool = False,
+    otlp_file: Path | None = None,
+    otlp_endpoint: str | None = None,
 ) -> int:
     folder = _test_folder(root, test)
     if folder is None:
@@ -862,6 +874,18 @@ def _trace_command(
         names.remove(verdict.FILE)
         found = None
     seal.update(folder, names)
+    if otlp_file is not None or otlp_endpoint is not None:
+        from nookku import genai_export
+
+        try:
+            exported = genai_export.build(folder, report)
+            if otlp_file is not None:
+                genai_export.write(otlp_file, folder, exported)
+            if otlp_endpoint is not None:
+                genai_export.send(otlp_endpoint, exported)
+        except (OSError, RecordError, genai_export.ExportError) as e:
+            print(f"nookku: the OTLP trace was not exported. {e}", file=sys.stderr)
+            return 2
     code = 0
     if verdict_gate and found is not None:
         # The exit code uses only a verdict that agrees with the copy of the seal (SPEC.md

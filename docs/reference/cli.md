@@ -386,6 +386,8 @@ Build the trace of a test again, and show its findings ([SPEC.md section 8](../.
 | `--json` | off | Print `findings.json`. |
 | `--verdict` | off | Exit with 1 if the verdict is `fail`. Use it in CI. |
 | `--egress FILE` | none | The Koodam egress spans of the test. The trace checks the file, copies it into the test folder as `egress.jsonl`, adds it to the seal and gives the findings `egress_not_in_discovery` and `egress_denied` ([SPEC.md section 8.8](../../SPEC.md#88-egress-spans)). |
+| `--otlp-file FILE` | none | Write the test as OTLP trace JSON outside the test folder. |
+| `--otlp-endpoint URL` | none | Send the test to an OTLP/HTTP trace endpoint as protobuf. |
 | `--gateway SOURCE` | none | Read the model calls of the app from the spend logs of a LiteLLM gateway: a file, or the URL of the gateway API. For a URL, put a key that can read the spend logs in `NOOKKU_GATEWAY_KEY`. The URL must be `https`, or `http` to this computer ([SPEC.md section 8.9](../../SPEC.md#89-gateway-logs)). |
 | `--key-alias ALIAS` | none | Keep the logs of this key alias, for example the `kd-<agent uid>` alias of a Koodam Agent. Give it 1 or more times. `--gateway` needs it. |
 | `--gateway-tag TAG` | none | Also keep only the logs with this request tag. |
@@ -407,6 +409,24 @@ nookku trace --egress spans.jsonl
 ```
 
 The trace uses only the spans from `started` to `ended` of the manifest, so a wider export window is not a problem.
+
+
+#### Export to an OTLP collector
+
+Use the test of a toy shop to try the export.
+
+```bash
+nookku trace TEST --otlp-file toy-shop-traces.json
+nookku trace TEST --otlp-endpoint http://127.0.0.1:6006/v1/traces
+```
+
+The second command sends the test to a local Phoenix server. For a local Langfuse server, set `OTEL_EXPORTER_OTLP_TRACES_HEADERS` to the authorization header for the test project, then run:
+
+```bash
+nookku trace TEST --otlp-endpoint http://127.0.0.1:3000/api/public/otel/v1/traces
+```
+
+Use the full trace endpoint URL for a hosted service. The header variable is a comma-separated list of `name=value` entries. Put credentials in the environment. [Phoenix trace setup](https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-tracing), [Langfuse OTLP setup](https://langfuse.com/docs/opentelemetry/get-started).
 
 ### `nookku export`
 
