@@ -20,6 +20,7 @@ Follow these rules for each request:
 4. Ask one time for each head commit. Before you ask, read the PR comments. If a request names the current head, or comes after the last push, do not ask again.
 5. If you push fixes after a review, ask again for the new head. Ask at most 3 times for each PR. After that, ask the maintainer to review.
 6. Fix each real [finding](reference/glossary.md#findings), or write on the PR why it is not a defect.
+7. For a finding in the gates, use the stop rule of [STANDARD.md](STANDARD.md#reviews). The gates are the files that nookku copies from `mohanraj00/.github`, and the pin lines of its gates action. Fix the finding now only if its severity is P0 or P1, and a fork contributor or text in a diff can reach it. Otherwise, write the reason on the PR and close the thread. Then file the finding in `mohanraj00/.github`, and do not change the copy.
 
 Codex reviews through the Codex GitHub integration. Claude Code reviews through the [Claude review](../.github/workflows/claude-review.yml) workflow. The workflow starts only if all of these are true:
 
@@ -31,7 +32,15 @@ A comment or a review with other text does not start the workflow. The comment t
 
 ### Claude review design
 
-An issue comment event reads the workflow from `main`, so a PR cannot change this workflow for its own review. The workflow has two jobs.
+An issue comment event reads the workflow from `main`, so a PR cannot change this workflow for its own review. The workflow has three jobs.
+
+The `gate` job runs first. It has `actions: read`, `contents: read`, `issues: read` and `pull-requests: read` only, with no secret and no environment. It runs the `claude-review` check of the shared gates action, at the same SHA as [.github/workflows/gates.yml](../.github/workflows/gates.yml). The check stops a request for these reasons:
+
+- A fork PR has no stage 2 owner approval of the current head and base.
+- A trusted marker of the same kind names the current head and merge base.
+- The PR has 3 trusted markers of the same kind.
+
+If the check stops a request, the `post` job posts the reason. On a pass, the `review` job gets the head, the base and the merge base from the `gate` job. If one of them changes before the review, the `review` job fails. Then ask again. The requests on one PR run one at a time. A new pending request replaces an older pending request, and the older request posts no comment.
 
 The `review` job has `contents: read` and `pull-requests: read` only. It uses the `claude-review` environment, which holds the `CLAUDE_CODE_OAUTH_TOKEN` secret. Only the CLI step gets the secret. The environment needs a deployment branch rule for `main`. The job does these steps:
 
