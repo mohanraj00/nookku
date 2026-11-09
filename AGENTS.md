@@ -4,35 +4,19 @@
 
 ## Work starts from an issue
 
+[docs/STANDARD.md](docs/STANDARD.md#builds) gives the build rules: the issue, the label, the branch name and the PR template. [docs/STANDARD.md](docs/STANDARD.md#approvals) gives the approval levels and who merges.
+
 - Find work with `gh issue list` and `gh issue view N`.
-- Use one branch for each issue, with the name `N-short-slug`. The PR body says `Fixes #N`.
-- Make CI green before you mark a PR as ready. The maintainer reviews and merges.
-- `main` does not require an up-to-date branch. Merge `main` into a PR only if GitHub shows a merge conflict. CI runs each test job on `main` after each merge. If a job fails on `main`, fix it before the next merge.
-- If you find work outside the scope of the issue, propose a new issue to the maintainer. Do not make the PR larger.
+- Merge `main` into a PR only if GitHub shows a merge conflict. CI runs each test job on `main` after each merge. If a job fails on `main`, fix it before the next merge.
+- If you find work outside the scope of the issue, do not make the PR larger.
 
 ## Two harnesses work on this repo
 
 Claude Code and Codex both work on this repo, at the same time. The label `agent:claude` or `agent:codex` names the harness that does the work.
 
-- Before you start an issue, add the label of your harness to it. Do not start an issue that has the label of the other harness.
-- After you add your label, read the labels of the issue again. If both labels are on it, the label that was added first wins. The issue events show the order: `gh api repos/mohanraj00/nookku/issues/N/events`. If your label was second, remove it and do not start the issue.
+- The issue events show the order of the labels: `gh api repos/mohanraj00/nookku/issues/N/events`.
 - Add the label of your harness to each PR that you open.
-- No harness reviews a PR by default. You must ask the other harness for the code review in a PR comment:
-  - Claude Code writes `@codex review`. Codex writes `@claude review this PR. Use the Review guidelines in AGENTS.md.`
-  - In a Codex request, write `Head: <sha>` on the next line of the comment, with the short SHA of the head commit of the PR.
-  - Write a Claude request as the exact text above, with no other text. The Claude review starts only for the exact text, and its comment names the head that it reviewed. `docs/REVIEW.md` gives the rules.
-  - Ask when CI is green and the PR is ready.
-  - Ask one time for each head commit. Before you ask, read the PR comments. If a request or a Claude review names the current head commit, do not ask again.
-  - If you push fixes after a code review, the head commit changes. When CI is green again, ask for a new code review.
-  - Ask for a code review at most 3 times for each PR. After that, ask the maintainer to review.
-- Decide if the PR needs a security review:
-  - If the code review ends with `Security review: needed` or `Security review: not needed`, use that line.
-  - A Codex code review gives only findings, so it cannot add this line. If the line is not there, use the list in "Review guidelines" to decide.
-- If the PR needs a security review, post `@codex security review` on the PR, one time for each PR:
-  - Before you post, read the PR comments. If a security review was already asked for or done, do not ask again.
-  - Do not ask again after you fix a finding. Only the maintainer can ask for a second security review.
-- Answer each finding of the code review and of the security review in the PR: fix it, or say why it is not a defect. Then ask the maintainer to review.
-- Turn on auto-merge only after you answer each finding of the code review and of the security review, and only if the maintainer agrees. `main` requires no approving review, so auto-merge can merge a PR before its review arrives.
+- [docs/REVIEW.md](docs/REVIEW.md) gives the exact review request texts of this repo. [docs/STANDARD.md](docs/STANDARD.md#reviews) gives the review rules, and [docs/STANDARD.md](docs/STANDARD.md#security-review-trigger) says when a PR needs a security review.
 - Work in your own worktree and on your own branch. Do not push to the branch of the other harness.
 
 ## Rules
@@ -40,7 +24,7 @@ Claude Code and Codex both work on this repo, at the same time. The label `agent
 - **Constitution.** Keep the [principles](CONSTITUTION.md#principles), the [evidence rules](CONSTITUTION.md#evidence) and the [contribution rules](CONSTITUTION.md#contributions) of the constitution.
 - **Plugin API.** The Claude Code plugin uses function hooks, which are early access and can change between releases. CI pins the tested version.
 - **Plugin helpers.** In `plugins/nookku/hooks/register.tsx`, a function that takes `$` must be a top-level function declaration. `claude plugin validate` refuses other forms.
-- **Outward steps.** Do not push, tag, publish or open issues without the maintainer's approval for that step. Tags publish to PyPI and you cannot undo them.
+- **Outward steps.** [CONSTITUTION.md](CONSTITUTION.md#governance) gives the steps that need an owner approval. Tags publish to PyPI and you cannot undo them.
 
 ## Review guidelines
 
