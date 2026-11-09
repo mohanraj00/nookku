@@ -420,11 +420,17 @@ nookku trace TEST --otlp-file toy-shop-traces.json
 nookku trace TEST --otlp-endpoint http://127.0.0.1:6006/v1/traces
 ```
 
-The second command sends the test to a local Phoenix server. For a local Langfuse server, set `OTEL_EXPORTER_OTLP_TRACES_HEADERS` to the authorization header for the test project, then run:
+The second command sends the test to a local Phoenix server. In Phoenix, open the default project and select the test trace. If the server requires an API key, set `OTEL_EXPORTER_OTLP_TRACES_HEADERS` to `Authorization=Bearer%20<key>`. For an isolated local container, set `PHOENIX_ENABLE_AUTH=false` and publish the port on loopback.
+
+For a local Langfuse server, set `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` to the keys for the test project. Run:
 
 ```bash
-nookku trace TEST --otlp-endpoint http://127.0.0.1:3000/api/public/otel/v1/traces
+token=$(printf '%s:%s' "$LANGFUSE_PUBLIC_KEY" "$LANGFUSE_SECRET_KEY" | base64 | tr -d '\n')
+OTEL_EXPORTER_OTLP_TRACES_HEADERS="Authorization=Basic%20$token" \
+  nookku trace TEST --otlp-endpoint http://127.0.0.1:3000/api/public/otel/v1/traces
 ```
+
+Open the test trace in the Langfuse project. The trace ID is in `traceId` of the spans in the OTLP JSON file.
 
 Use the full trace endpoint URL for a hosted service. The header variable is a comma-separated list of `name=value` entries. Put credentials in the environment. [Phoenix trace setup](https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-tracing), [Langfuse OTLP setup](https://langfuse.com/docs/opentelemetry/get-started).
 
