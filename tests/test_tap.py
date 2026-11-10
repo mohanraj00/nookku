@@ -1,6 +1,7 @@
 import base64
 import hashlib
 import http.client
+import io
 import json
 import re
 import socket
@@ -105,6 +106,39 @@ def stream_post(tap: Tap, path: str, message: str) -> tuple[int, str, bytes, str
 
 def raw_rows(path: Path) -> list[dict]:
     return [json.loads(x) for x in path.read_text(encoding="utf-8").split("\n") if x]
+
+
+@pytest.mark.parametrize("sized", [False, True])
+def test_an_sse_stream_over_the_part_byte_budget_fails_closed(tmp_path, monkeypatch, sized):
+    path = tmp_path / "tap.jsonl"
+    first = b'data: {"choices":[{"delta":{"content":"In stock."}}]}\n\n'
+    last = b"data: [DONE]\n\n"
+    monkeypatch.setattr("nookku.tap.PART_BYTES", len(first), raising=False)
+    handler = object.__new__(_Handler)
+    handler.command, handler.path = "POST", "/chat/completions"
+    handler.server = Mock(writer=Writer(path), adapter=make("openai"))
+    handler.send_response_only, handler.send_header, handler.end_headers = Mock(), Mock(), Mock()
+    handler.wfile = io.BytesIO()
+    handler.close_connection = False
+    length = str(len(first + last)) if sized else None
+    response = Mock(status=200, length=0)
+    response.getheader.return_value = length
+    response.getheaders.return_value = [("Content-Type", "text/event-stream")]
+    response.read1.side_effect = [first, last, b""]
+
+    handler._stream(response, True, "Stock?", None, threading.Event(), 1.0)
+
+    assert handler.close_connection
+    handler.send_response_only.assert_called_once_with(200)
+    sent = handler.wfile.getvalue()
+    assert sent == (first if sized else b"%x\r\n%s\r\n" % (len(first), first))
+    assert response.read1.call_count == 2
+    (_, part), (_, row) = read_rows("tap", path)
+    assert base64.b64decode(part["base64"]) == first
+    assert row["stream_id"] == part["stream_id"] and row["stream_protocol"] == "sse"
+    assert row["v"] == "0.3" and row["status"] == 200 and row["reply"] is None
+    assert row["error"] == "the stream exceeds the recorded part budget"
+    assert row["stream"] == {"bytes": len(first), "sha256": hashlib.sha256(first).hexdigest()}
 
 
 def test_a_stream_passes_unchanged_and_the_row_has_the_joined_reply(tmp_path):

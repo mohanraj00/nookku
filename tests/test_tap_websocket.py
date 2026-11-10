@@ -67,6 +67,56 @@ def test_the_guard_covers_the_default_wss_port() -> None:
     assert pattern is not None and pattern.search("wss://stock.toy.test:443/")
 
 
+@pytest.mark.parametrize("after_reply", [False, True])
+def test_a_websocket_peer_over_the_part_count_budget_fails_closed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, after_reply: bool
+) -> None:
+    # Parse the peer's wire frames without a socket or a timing race.
+    monkeypatch.setattr("nookku.tap.PART_COUNT", 4, raising=False)
+    path = tmp_path / "tap.jsonl"
+    handler = object.__new__(_Handler)
+    handler.command, handler.path = "POST", "/"
+    handler.server = Mock(writer=Writer(path), adapter=JsonAdapter(), base_path="", timeout=5)
+    handler._send, handler._error = Mock(), Mock()
+    pong = websocket.frame(websocket.PONG, b"", masked=False)
+    reply = websocket.frame(websocket.TEXT, b'{"reply":"In stock."}', masked=False)
+    close = websocket.frame(websocket.CLOSE, b"\x03\xe8", masked=False)
+    conn = Mock(spec=http.client.HTTPConnection)
+    conn.sock = Mock()
+    response = conn.getresponse.return_value
+    response.status = 101
+    response.fp = io.BytesIO(
+        (reply.wire if after_reply else b"")
+        + pong.wire * 8
+        + (b"" if after_reply else reply.wire)
+        + close.wire
+    )
+
+    def header(name: str) -> str | None:
+        sent = conn.request.call_args.kwargs["headers"]
+        return {
+            "Connection": "Upgrade",
+            "Upgrade": "websocket",
+            "Sec-WebSocket-Accept": websocket.accept(sent["Sec-WebSocket-Key"]),
+        }.get(name)
+
+    response.getheader.side_effect = header
+    handler._websocket(conn, b'{"text":"Stock?"}', {}, "Stock?", None, threading.Event())
+
+    handler._send.assert_not_called()
+    handler._error.assert_called_once_with(
+        502, "nookku tap: the stream exceeds the recorded part budget"
+    )
+    *parts, row = [row for _, row in read_rows("tap", path)]
+    assert len(parts) == 4
+    assert parts[-1]["opcode"] == websocket.PONG
+    assert base64.b64decode(parts[-1]["base64"]) == pong.wire
+    assert all(part["stream_id"] == row["stream_id"] for part in parts)
+    assert row["stream_protocol"] == "websocket"
+    assert row["status"] is None and row["reply"] is None
+    assert row["error"] == "the stream exceeds the recorded part budget"
+
+
 @pytest.mark.parametrize("scheme, port", [("ws", 80), ("wss", 443)])
 def test_the_tap_uses_the_default_websocket_port(tmp_path: Path, scheme: str, port: int) -> None:
     with patch("nookku.tap.ThreadingHTTPServer.__init__", return_value=None):

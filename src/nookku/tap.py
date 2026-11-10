@@ -33,6 +33,9 @@ HOP_BY_HOP = {
 }
 NOT_FORWARDED = HOP_BY_HOP | {"host", "accept-encoding", "content-length"}
 NOT_RETURNED = HOP_BY_HOP | {"content-length"}
+# Each stream budget is a chosen value, not a measurement.
+PART_COUNT = 65536
+PART_BYTES = 64 * 1024 * 1024
 
 
 class Tap(ThreadingHTTPServer):
@@ -85,6 +88,7 @@ class _Parts:
         self.protocol = protocol
         self.id = uuid.uuid4().hex
         self.index = 0
+        self.bytes = 0
         self.first: float | None = None
 
     def append(self, data: bytes) -> None:
@@ -105,8 +109,11 @@ class _Parts:
         )
 
     def _part(self, kind: str, data: bytes, first: bool, **fields: object) -> None:
+        if self.index >= PART_COUNT or self.bytes + len(data) > PART_BYTES:
+            raise StreamError("the stream exceeds the recorded part budget")
         ts = time.time()
         self.index += 1
+        self.bytes += len(data)
         if first and self.first is None:
             self.first = round(max(0.0, ts - self.started), 3)
         self.writer.append(
@@ -231,7 +238,7 @@ class _Handler(BaseHTTPRequestHandler):
             raw = websocket.exchange(conn, tap.base_path + self.path, headers, body, parts.frame)
             if expired.is_set():
                 raise TimeoutError
-        except (OSError, http.client.HTTPException, websocket.WebSocketError) as error:
+        except (OSError, http.client.HTTPException, websocket.WebSocketError, StreamError) as error:
             late = expired.is_set() or isinstance(error, TimeoutError)
             why = f"the agent sent no full reply in {tap.timeout:g} s" if late else str(error)
             row: dict[str, object] = {**unparsed, "error": parse_error or why}
@@ -422,14 +429,17 @@ class _Handler(BaseHTTPRequestHandler):
                 break
             if not part:
                 break
-            raw += part
             if parts is not None:
                 try:
                     parts.append(part)
+                except StreamError as e:
+                    failure = str(e)
+                    break
                 except OSError as e:
                     print(f"nookku tap: cannot write the record: {e}", file=sys.stderr)
                     self.close_connection = True
                     return
+            raw += part
             if caller:
                 # The record keeps all of the stream, also if the caller went away.
                 try:

@@ -421,6 +421,30 @@ CASES_BY_NAME: dict[str, tuple[list | None, list | None, dict]] = {
         [turn("Stock?", None), turn(M1, R1)],
         {"exit": 0, "breaks": [], "notes": [["agent_error", 1, 4]]},
     ),
+    # Only the parts that fit remain. The linked failure is an agent error, not a bad record.
+    "websocket_part_count_budget": (
+        [
+            WS_CLIENT,
+            ws_part(b"\x8a\x00", 2, "from_agent", opcode=10),
+            {**WS_FAILURE, "error": "the stream exceeds the recorded part budget"},
+        ],
+        [turn("Stock?", None)],
+        {"exit": 0, "breaks": [], "notes": [["agent_error", 1, 3]]},
+    ),
+    "sse_part_byte_budget": (
+        [
+            PART_ROW,
+            {
+                **PART_EXCHANGE,
+                "v": "0.3",
+                "reply": None,
+                "reply_sha256": None,
+                "error": "the stream exceeds the recorded part budget",
+            },
+        ],
+        [turn("Stock?", None)],
+        {"exit": 0, "breaks": [], "notes": [["agent_error", 1, 2]]},
+    ),
     "websocket_linked_unparsed": (
         [
             WS_CLIENT,
