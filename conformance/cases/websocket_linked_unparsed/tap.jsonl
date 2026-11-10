@@ -1,0 +1,4 @@
+{"v": "0.4", "type": "websocket_frame", "ts": 1.0, "stream_id": "ws-stock", "index": 1, "base64": "gZEAAAAAeyJ0ZXh0IjoiU3RvY2s/In0=", "sha256": "0e5b2d7452a9323c65ec112e086510943433947dab66625ef6716385fb63ead7", "direction": "to_agent", "opcode": 1, "final": true}
+{"v": "0.4", "type": "websocket_frame", "ts": 1.0, "stream_id": "ws-stock", "index": 2, "base64": "AQp7InJlcGx5Ijoi", "sha256": "d4710349564c9afe60db5f5675aa8a548a4920b7a5709eeca11dd50122fd9b60", "direction": "from_agent", "opcode": 1, "final": false}
+{"v": "0.4", "type": "websocket_frame", "ts": 1.0, "stream_id": "ws-stock", "index": 3, "base64": "iAID6A==", "sha256": "65b3ad9d667d74c69019fc7f9f135460c01eb550f7690e301df3e0f9b2714399", "direction": "from_agent", "opcode": 8, "final": true}
+{"v": "0.1", "type": "unparsed", "ts": 1.0, "method": "POST", "path": "/", "error": "the request body is not JSON", "stream_id": "ws-stock", "stream_protocol": "websocket"}

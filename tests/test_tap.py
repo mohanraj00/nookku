@@ -8,14 +8,15 @@ import threading
 import urllib.error
 import urllib.request
 from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
 from toy_agent import ToyAgent, shop_reply
 
 from nookku.adapters import make
 from nookku.audit import audit
-from nookku.record import Exchange, RecordError, Unparsed, Writer, read_tap, sha256
-from nookku.tap import Tap, start_in_thread
+from nookku.record import Exchange, Unparsed, Writer, read_rows, read_tap, sha256
+from nookku.tap import Tap, _Handler, _Parts, start_in_thread
 
 TRICKY = "Hi, I want to return order #4471.  \n\nÜnïcödé € ₹\t| a | b |\n"
 
@@ -198,8 +199,17 @@ def test_the_json_adapter_marks_a_stream_unparsed(tmp_path):
     *parts, row = raw_rows(tmp_path / "tap.jsonl")
     assert parts and row["type"] == "unparsed"
     assert "does not read a streamed response" in row["error"]
-    with pytest.raises(RecordError, match="the stream part has no exchange"):
-        read_tap(tmp_path / "tap.jsonl")
+    assert row["stream_protocol"] == "sse"
+    assert all(p["stream_id"] == row["stream_id"] for p in parts)
+    assert read_rows("tap", tmp_path / "tap.jsonl") == list(enumerate([*parts, row], 1))
+    assert read_tap(tmp_path / "tap.jsonl") == [
+        Unparsed(len(parts) + 1, "POST", "/v1/chat/completions", row["error"])
+    ]
+    relay_path = tmp_path / "relay.jsonl"
+    Writer(relay_path).append({"type": "turn", "harness": "codex", "said": "hi", "shown": None})
+    report = audit(tmp_path / "tap.jsonl", relay_path)
+    assert report.exit == 2
+    assert [e["class"] for e in report.errors] == ["tap_unparsed"]
 
 
 def test_a_record_error_during_a_stream_sends_no_second_status_and_no_second_row(tmp_path, capsys):
@@ -389,3 +399,22 @@ def test_the_tap_and_the_toy_agent_do_not_look_up_the_host_name(tmp_path, monkey
     agent = ToyAgent()
     agent.shutdown()
     agent.server_close()
+
+
+@pytest.mark.parametrize("message", ["Stock?", None])
+def test_an_unparsed_sse_row_keeps_its_part_links_without_a_socket(tmp_path, message):
+    path = tmp_path / "tap.jsonl"
+    handler = object.__new__(_Handler)
+    handler.command, handler.path = "POST", "/"
+    handler.server = Mock(writer=Writer(path), adapter=make("json"))
+    parts = _Parts(handler.server.writer, 1.0, "sse")
+    raw = b'data: {"reply":"In stock."}\n\n'
+    parts.append(raw)
+    handler._stream_row(200, raw, message, "request: no message", None, parts)
+    (_, part), (_, row) = read_rows("tap", path)
+    assert row["type"] == "unparsed"
+    assert row["stream_id"] == part["stream_id"] and row["stream_protocol"] == "sse"
+    relay = tmp_path / "relay.jsonl"
+    relay.write_text("")
+    report = audit(path, relay)
+    assert report.exit == 2 and [e["class"] for e in report.errors] == ["tap_unparsed"]

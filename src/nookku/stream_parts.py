@@ -53,9 +53,18 @@ def _websocket_messages(group: list[_Part]) -> tuple[bytes, bytes, float | None]
 
 def _check(group: list[_Part], row: dict[str, Any]) -> None:
     protocol = row.get("stream_protocol")
+    if protocol not in ("sse", "websocket"):
+        raise ValueError("the stream protocol is not valid")
+    if protocol == "sse" and any(not isinstance(part.data, bytes) for part in group):
+        raise ValueError("the SSE stream has a WebSocket frame")
+    if protocol == "websocket" and any(
+        not isinstance(part.data, websocket.Frame) for part in group
+    ):
+        raise ValueError("the WebSocket session has a part that is not a frame")
+    # Failed turns can have incomplete or unparseable messages. Their part evidence stays valid.
+    if row["type"] == "unparsed" or row["reply"] is None:
+        return
     if protocol == "sse":
-        if any(not isinstance(part.data, bytes) for part in group):
-            raise ValueError("the SSE stream has a WebSocket frame")
         raw = b"".join(part.data for part in group if isinstance(part.data, bytes))
         first = group[0].ts if group else None
         if row["reply"] is not None and OpenAIAdapter().stream_reply(raw) != row["reply"]:
@@ -77,8 +86,6 @@ def _check(group: list[_Part], row: dict[str, Any]) -> None:
         adapter = make(name, message_field, reply_field)
         if adapter.message(sent) != row["input"] or adapter.reply(raw) != row["reply"]:
             raise ValueError("the WebSocket messages do not match the exchange")
-    else:
-        raise ValueError("the stream protocol is not valid")
     stream = row.get("stream")
     started = row.get("started")
     if not isinstance(started, (int, float)) or not 0 <= started < 1e15:
@@ -104,7 +111,7 @@ def validate(rows: list[tuple[int, dict[str, Any]]], path: Path) -> None:
                 if not key or key in ended or row["index"] != len(group) + 1:
                     raise ValueError("the stream part is out of order")
                 group.append(_part(row))
-            elif row["type"] == "exchange" and (
+            elif row["type"] in ("exchange", "unparsed") and (
                 {"stream_id", "stream_protocol", "stream_adapter", "first_part_seconds"}
                 & row.keys()
             ):
@@ -116,8 +123,9 @@ def validate(rows: list[tuple[int, dict[str, Any]]], path: Path) -> None:
         except (ValueError, RecursionError) as error:
             raise RecordError("record_invalid", path, f"line {n}: {error}") from None
     if groups:
+        last_row = max((n for n, row in rows if row["type"] not in STREAM_PARTS), default=0)
         for n, row in rows:
-            if row["type"] in STREAM_PARTS and row["stream_id"] in groups:
+            if n < last_row and row["type"] in STREAM_PARTS and row["stream_id"] in groups:
                 raise RecordError(
                     "record_invalid", path, f"line {n}: the stream part has no exchange"
                 )

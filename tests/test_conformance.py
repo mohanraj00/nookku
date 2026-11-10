@@ -62,3 +62,35 @@ def test_the_reader_refuses_a_constant_that_is_not_json(tmp_path: Path, constant
     path.write_text(row % constant + "\n", encoding="utf-8")
     with pytest.raises(RecordError, match=f"line 1: {constant} is not a JSON value"):
         read_rows("tap", path)
+
+
+@pytest.mark.parametrize("unparsed", [False, True])
+@pytest.mark.parametrize(
+    "field, value, reason",
+    [
+        ("index", 3, "out of order"),
+        ("sha256", "0" * 64, "hash does not match"),
+        ("opcode", 0, "frame header does not match"),
+        ("final", True, "frame header does not match"),
+        ("direction", "sideways", "direction is not valid"),
+    ],
+)
+def test_a_linked_failure_still_checks_each_part(tmp_path, unparsed, field, value, reason):
+    case = ROOT / "conformance" / "cases" / "websocket_linked_failure_then_clean" / "tap.jsonl"
+    rows = [json.loads(line) for line in case.read_text().splitlines()]
+    rows[1][field] = value
+    if unparsed:
+        rows[3] = {
+            "v": "0.2",
+            "type": "unparsed",
+            "ts": 1.0,
+            "method": "POST",
+            "path": "/",
+            "error": "no full reply",
+            "stream_id": "ws-stock",
+            "stream_protocol": "websocket",
+        }
+    path = tmp_path / "tap.jsonl"
+    path.write_text("".join(json.dumps(row) + "\n" for row in rows))
+    with pytest.raises(RecordError, match=reason):
+        read_rows("tap", path)

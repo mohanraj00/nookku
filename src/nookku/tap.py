@@ -220,7 +220,13 @@ class _Handler(BaseHTTPRequestHandler):
     ) -> None:
         tap = self.server
         parts = _Parts(tap.writer, time.time(), "websocket")
-        unparsed = {"type": "unparsed", "method": self.command, "path": self.path}
+        unparsed = {
+            "type": "unparsed",
+            "method": self.command,
+            "path": self.path,
+            "stream_id": parts.id,
+            "stream_protocol": parts.protocol,
+        }
         try:
             raw = websocket.exchange(conn, tap.base_path + self.path, headers, body, parts.frame)
             if expired.is_set():
@@ -236,6 +242,8 @@ class _Handler(BaseHTTPRequestHandler):
                     "status": None,
                     "reply": None,
                     "error": why,
+                    "stream_id": parts.id,
+                    "stream_protocol": parts.protocol,
                 }
             if self._write(row):
                 self._error(504 if late else 502, f"nookku tap: {why}")
@@ -475,7 +483,13 @@ class _Handler(BaseHTTPRequestHandler):
     ) -> None:
         """Write the row of a streamed response. A failed stream gets no reply, only an error."""
         tap, method, path = self.server, self.command, self.path
-        unparsed = {"type": "unparsed", "method": method, "path": path}
+        unparsed = {
+            "type": "unparsed",
+            "method": method,
+            "path": path,
+            "stream_id": parts.id,
+            "stream_protocol": parts.protocol,
+        }
         if message is None:
             tap.writer.append({**unparsed, "error": parse_error or "unknown"})
             return

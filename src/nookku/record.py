@@ -226,6 +226,8 @@ _OPTIONAL: dict[tuple[str, str], tuple[type, ...]] = {
     ("exchange", "first_part_seconds"): (*_NUM, type(None)),
     ("exchange", "stream_protocol"): _STR,
     ("exchange", "stream_adapter"): (dict,),
+    ("unparsed", "stream_id"): _STR,
+    ("unparsed", "stream_protocol"): _STR,
     ("model_session", "originator"): _STR,
     ("turn", "ok"): _BOOL,
     ("turn", "session"): _STR,

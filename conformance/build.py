@@ -186,6 +186,42 @@ PART_EXCHANGE = {
     "stream": stream_info(PART_BODY),
 }
 
+# Fixed wire bytes, with a zero mask for the client frame. No tap code builds these rows.
+WS_INPUT = b'{"text":"Stock?"}'
+WS_REPLY = b'{"reply":"In stock."}'
+
+
+def ws_part(wire: bytes, index: int, direction: str, opcode: int = 1, final: bool = True) -> dict:
+    return {
+        **PART_ROW,
+        "type": "websocket_frame",
+        "stream_id": "ws-stock",
+        "index": index,
+        "base64": base64.b64encode(wire).decode(),
+        "sha256": hashlib.sha256(wire).hexdigest(),
+        "direction": direction,
+        "opcode": opcode,
+        "final": final,
+    }
+
+
+WS_CLIENT = ws_part(b"\x81" + bytes([0x80 | len(WS_INPUT)]) + b"\0" * 4 + WS_INPUT, 1, "to_agent")
+WS_SERVER = ws_part(b"\x81" + bytes([len(WS_REPLY)]) + WS_REPLY, 2, "from_agent")
+WS_EXCHANGE = {
+    **PART_EXCHANGE,
+    "stream_id": "ws-stock",
+    "stream_protocol": "websocket",
+    "stream_adapter": {"name": "json"},
+    "stream": stream_info(WS_REPLY),
+}
+WS_INCOMPLETE = ws_part(b'\x01\x0a{"reply":"', 2, "from_agent", final=False)
+WS_CLOSE = ws_part(b"\x88\x02\x03\xe8", 3, "from_agent", opcode=8)
+WS_FAILURE = {
+    **ex("Stock?", None, status=None, error="the WebSocket closed before a full reply", v="0.2"),
+    "stream_id": "ws-stock",
+    "stream_protocol": "websocket",
+}
+
 # name: (tap rows or None for a missing file, relay rows or None, expectation)
 # A row can be a raw string, written as the line itself.
 CASES_BY_NAME: dict[str, tuple[list | None, list | None, dict]] = {
@@ -260,13 +296,145 @@ CASES_BY_NAME: dict[str, tuple[list | None, list | None, dict]] = {
         },
     ),
     "stream_part_orphan": (
-        [PART_ROW],
+        [PART_ROW, ex(M1, R1)],
         [],
         {
             "exit": 2,
             "errors": ["record_invalid"],
             "reader_error": "line 1: the stream part has no exchange",
         },
+    ),
+    "stream_part_unfinished_at_end": (
+        [ex(M1, R1), PART_ROW],
+        [turn(M1, R1)],
+        {"exit": 0, "breaks": []},
+    ),
+    "websocket_clean": (
+        [WS_CLIENT, WS_SERVER, WS_EXCHANGE],
+        [turn("Stock?", "In stock.")],
+        {"exit": 0, "breaks": []},
+    ),
+    "websocket_opcode_mismatch": (
+        [WS_CLIENT, {**WS_SERVER, "opcode": 0}, WS_EXCHANGE],
+        [],
+        {
+            "exit": 2,
+            "errors": ["record_invalid"],
+            "reader_error": "line 2: the frame header does not match the recorded opcode and final flag",
+        },
+    ),
+    "websocket_final_mismatch": (
+        [WS_CLIENT, {**WS_SERVER, "final": False}, WS_EXCHANGE],
+        [],
+        {
+            "exit": 2,
+            "errors": ["record_invalid"],
+            "reader_error": "line 2: the frame header does not match the recorded opcode and final flag",
+        },
+    ),
+    "websocket_direction_invalid": (
+        [{**WS_CLIENT, "direction": "sideways"}, WS_SERVER, WS_EXCHANGE],
+        [],
+        {
+            "exit": 2,
+            "errors": ["record_invalid"],
+            "reader_error": "line 1: the frame direction is not valid",
+        },
+    ),
+    "websocket_direction_reversed": (
+        [{**WS_CLIENT, "direction": "from_agent"}, WS_SERVER, WS_EXCHANGE],
+        [],
+        {
+            "exit": 2,
+            "errors": ["record_invalid"],
+            "reader_error": "line 1: the frame header is not valid",
+        },
+    ),
+    "websocket_input_mismatch": (
+        [WS_CLIENT, WS_SERVER, {**WS_EXCHANGE, "input": "Mugs?", "input_sha256": sha("Mugs?")}],
+        [],
+        {
+            "exit": 2,
+            "errors": ["record_invalid"],
+            "reader_error": "line 3: the WebSocket messages do not match the exchange",
+        },
+    ),
+    "websocket_adapter_missing": (
+        [WS_CLIENT, WS_SERVER, {k: v for k, v in WS_EXCHANGE.items() if k != "stream_adapter"}],
+        [],
+        {
+            "exit": 2,
+            "errors": ["record_invalid"],
+            "reader_error": "line 3: the WebSocket exchange has no adapter",
+        },
+    ),
+    "websocket_adapter_invalid": (
+        [WS_CLIENT, WS_SERVER, {**WS_EXCHANGE, "stream_adapter": {"name": 7}}],
+        [],
+        {
+            "exit": 2,
+            "errors": ["record_invalid"],
+            "reader_error": "line 3: the WebSocket exchange has an invalid adapter field",
+        },
+    ),
+    "stream_protocol_invalid": (
+        [PART_ROW, {**PART_EXCHANGE, "stream_protocol": "unknown"}],
+        [],
+        {
+            "exit": 2,
+            "errors": ["record_invalid"],
+            "reader_error": "line 2: the stream protocol is not valid",
+        },
+    ),
+    "stream_first_part_seconds_mismatch": (
+        [PART_ROW, {**PART_EXCHANGE, "first_part_seconds": 0.6}],
+        [],
+        {
+            "exit": 2,
+            "errors": ["record_invalid"],
+            "reader_error": "line 2: the stream parts do not match the exchange",
+        },
+    ),
+    "stream_size_mismatch": (
+        [
+            PART_ROW,
+            {**PART_EXCHANGE, "stream": {**stream_info(PART_BODY), "bytes": len(PART_BODY) + 1}},
+        ],
+        [],
+        {
+            "exit": 2,
+            "errors": ["record_invalid"],
+            "reader_error": "line 2: the stream parts do not match the exchange",
+        },
+    ),
+    "stream_hash_mismatch": (
+        [PART_ROW, {**PART_EXCHANGE, "stream": {**stream_info(PART_BODY), "sha256": "0" * 64}}],
+        [],
+        {
+            "exit": 2,
+            "errors": ["record_invalid"],
+            "reader_error": "line 2: the stream parts do not match the exchange",
+        },
+    ),
+    "websocket_linked_failure_then_clean": (
+        [WS_CLIENT, WS_INCOMPLETE, WS_CLOSE, WS_FAILURE, ex(M1, R1)],
+        [turn("Stock?", None), turn(M1, R1)],
+        {"exit": 0, "breaks": [], "notes": [["agent_error", 1, 4]]},
+    ),
+    "websocket_linked_unparsed": (
+        [
+            WS_CLIENT,
+            WS_INCOMPLETE,
+            WS_CLOSE,
+            {**UNPARSED, "stream_id": "ws-stock", "stream_protocol": "websocket"},
+        ],
+        [],
+        {"exit": 2, "errors": ["tap_unparsed"]},
+    ),
+    "sse_linked_unparsed": (
+        [PART_ROW, {**UNPARSED, "stream_id": "stock", "stream_protocol": "sse"}],
+        [],
+        {"exit": 2, "errors": ["tap_unparsed"]},
     ),
     "clean": (CLEAN_TAP, CLEAN_RELAY, {"exit": 0, "breaks": []}),
     "clean_repeated_message": (

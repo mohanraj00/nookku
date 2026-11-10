@@ -2,6 +2,7 @@ import base64
 import http.client
 import io
 import json
+import threading
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -12,7 +13,7 @@ from nookku import kit, performance, websocket
 from nookku.adapters import JsonAdapter
 from nookku.audit import audit
 from nookku.record import Writer, read_rows, sha256
-from nookku.tap import Tap, start_in_thread
+from nookku.tap import Tap, _Handler, start_in_thread
 
 
 def test_the_websocket_upgrade_uses_the_protocol_accept_value() -> None:
@@ -138,3 +139,92 @@ def test_the_tap_answers_a_ping_during_the_close_handshake(tmp_path: Path) -> No
     assert pong.payload == b"closing"
     assert frames[-1]["opcode"] == websocket.CLOSE
     assert base64.b64decode(frames[-2]["base64"]) == pong.wire
+
+
+def test_a_websocket_close_before_a_full_reply_keeps_the_next_turn_readable(tmp_path: Path) -> None:
+    # Run real frame parsing and tap writes with wire transcripts, without a network socket.
+    tap_path = tmp_path / "tap.jsonl"
+    relay_path = tmp_path / "relay.jsonl"
+    handler = object.__new__(_Handler)
+    handler.server = Mock(writer=Writer(tap_path), adapter=JsonAdapter(), base_path="", timeout=5)
+    handler.command, handler.path = "POST", "/"
+    handler._send = Mock()
+    handler._error = Mock()
+    close = websocket.frame(websocket.CLOSE, b"\x03\xe8", masked=False)
+    for final in (False, True):
+        frame = websocket.frame(websocket.TEXT, b'{"reply":"In stock."}', final=final, masked=False)
+        conn = Mock(spec=http.client.HTTPConnection)
+        conn.sock = Mock()
+        response = conn.getresponse.return_value
+        response.status = 101
+        response.fp = io.BytesIO(frame.wire + close.wire)
+
+        def header(name: str, connection: Mock = conn) -> str | None:
+            sent = connection.request.call_args.kwargs["headers"]
+            return {
+                "Connection": "Upgrade",
+                "Upgrade": "websocket",
+                "Sec-WebSocket-Accept": websocket.accept(sent["Sec-WebSocket-Key"]),
+            }.get(name)
+
+        response.getheader.side_effect = header
+        handler._websocket(conn, b'{"text":"Stock?"}', {}, "Stock?", None, threading.Event())
+        Writer(relay_path).append(
+            {
+                "type": "turn",
+                "harness": "codex",
+                "said": "Stock?",
+                "shown": "In stock." if final else None,
+                "ok": final,
+            }
+        )
+    handler._error.assert_called_once_with(502, "nookku tap: the agent closed before a full reply")
+    handler._send.assert_called_once_with(
+        200, [("Content-Type", "application/json")], b'{"reply":"In stock."}'
+    )
+    rows = read_rows("tap", tap_path)
+    exchanges = [(n, r) for n, r in rows if r["type"] == "exchange"]
+    failed_line, failed = exchanges[0]
+    assert failed["status"] is None and failed["reply"] is None
+    assert failed["stream_protocol"] == "websocket"
+    assert all(r["stream_id"] == failed["stream_id"] for n, r in rows if n < failed_line)
+    assert exchanges[1][1]["reply"] == "In stock."
+    report = audit(tap_path, relay_path)
+    assert report.exit == 0 and report.turns == report.exchanges == 2
+    assert not report.errors and not report.breaks
+    assert [(n.kind, n.relay_line, n.tap_line) for n in report.notes] == [
+        ("agent_error", 1, failed_line)
+    ]
+
+
+@pytest.mark.parametrize("failure", ["close", "request", "reply", "surrogate"])
+def test_an_unparsed_websocket_row_keeps_its_frame_links(tmp_path: Path, failure: str) -> None:
+    path = tmp_path / "tap.jsonl"
+    handler = object.__new__(_Handler)
+    handler.command, handler.path = "POST", "/"
+    handler.server = Mock(writer=Writer(path), adapter=JsonAdapter(), base_path="", timeout=5)
+    handler._send, handler._error = Mock(), Mock()
+    payload = {
+        "close": b"partial",
+        "request": b'{"reply":"In stock."}',
+        "reply": b'{"stock":3}',
+        "surrogate": b'{"reply":"\\ud83d"}',
+    }[failure]
+    frame = websocket.frame(websocket.TEXT, payload, final=failure != "close", masked=False)
+
+    def exchange(conn, path, headers, body, observe):
+        observe("from_agent", frame)
+        if failure == "close":
+            raise websocket.WebSocketError("the agent closed before a full reply")
+        return payload
+
+    with patch("nookku.tap.websocket.exchange", side_effect=exchange):
+        message = None if failure in ("close", "request") else "Stock?"
+        handler._websocket(Mock(), b"{}", {}, message, "request: no message", threading.Event())
+    (_, part), (_, row) = read_rows("tap", path)
+    assert row["type"] == "unparsed"
+    assert row["stream_id"] == part["stream_id"] and row["stream_protocol"] == "websocket"
+    relay = tmp_path / "relay.jsonl"
+    relay.write_text("")
+    report = audit(path, relay)
+    assert report.exit == 2 and [e["class"] for e in report.errors] == ["tap_unparsed"]

@@ -1,0 +1,7 @@
+{
+ "exit": 2,
+ "errors": [
+  "record_invalid"
+ ],
+ "reader_error": "line 3: the WebSocket exchange has an invalid adapter field"
+}
