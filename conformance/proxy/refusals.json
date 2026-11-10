@@ -1,5 +1,6 @@
 {
   "http_connections": {
+    "type": "connection_refused",
     "status": 503,
     "error": "the proxy has too many open connections (at most 1)"
   },

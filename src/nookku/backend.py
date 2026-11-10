@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import base64
 import codecs
+import contextlib
 import hashlib
 import http.client
 import json
@@ -418,17 +419,18 @@ class Proxy(LimitedServer, HTTPServer):
             "error": reason,
         }
         data = json.dumps({"error": reason}).encode()
-        try:
-            with self.lock:
-                if not self.closed:
-                    self._write(row)
-        finally:
-            send_refusal(
-                request,
-                b"HTTP/1.1 503 Service Unavailable\r\nConnection: close\r\n"
-                b"Content-Type: application/json\r\nContent-Length: %d\r\n\r\n%s"
-                % (len(data), data),
-            )
+        send_refusal(
+            request,
+            b"HTTP/1.1 503 Service Unavailable\r\nConnection: close\r\n"
+            b"Content-Type: application/json\r\nContent-Length: %d\r\n\r\n%s" % (len(data), data),
+        )
+        with self.lock:
+            if self.closed:
+                return
+        # The listener writes this row. Do not hold up other proxies or fail the accept loop.
+        # stop() waits for the listener before it closes the record.
+        with contextlib.suppress(OSError):
+            self._write(row)
 
     def describe(self, row: dict[str, Any], headers: list[tuple[str, str]], body: bytes) -> None:
         """Add to the row of a new call. A subclass can change it."""

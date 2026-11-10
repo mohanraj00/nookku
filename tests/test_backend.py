@@ -9,13 +9,15 @@ import socket
 import socketserver
 import threading
 import time
+from collections.abc import Iterator
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
 from toy_model_server import ModelServer
 from toy_stock_server import StockServer
 
-from nookku import backend, bridge, mcp_proxy, model_api
+from nookku import backend, bridge, mcp_proxy, model_api, trace
 
 
 def proxy_for(stock: StockServer, tmp_path: Path, url: str | None = None) -> backend.Proxies:
@@ -805,6 +807,84 @@ REFUSALS = json.loads(
 EXPECT = b"POST /stock HTTP/1.1\r\nHost: shop\r\nExpect: 100-continue\r\nConnection: close\r\n"
 
 
+@pytest.fixture(params=[backend.Proxy, model_api.ModelProxy, mcp_proxy.HttpProxy])
+def refusal_proxy(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest
+) -> Iterator[backend.Proxy]:
+    # These tests call the refusal directly, with no listener or upstream.
+    monkeypatch.setattr(backend.Proxy, "server_bind", lambda self: None)
+    monkeypatch.setattr(backend.Proxy, "server_activate", lambda self: None)
+    with request.param(
+        backend.Backend("stock", "STOCK_URL", "http://127.0.0.1:9"),
+        tmp_path / backend.FILE,
+        threading.Condition(),
+    ) as proxy:
+        yield proxy
+
+
+def test_a_failed_connection_refusal_record_does_not_raise(
+    refusal_proxy: backend.Proxy, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    case = REFUSALS["http_connections"]
+    app, connection = socket.socketpair()
+    with app, connection:
+
+        def failed_write(row: dict) -> None:
+            raise OSError("the record is not writable")
+
+        monkeypatch.setattr(refusal_proxy, "_write", failed_write)
+        refusal_proxy.refuse_connection(connection, case["error"])
+        app.settimeout(3)
+        refused = app.recv(65536)
+    assert refused.startswith(f"HTTP/1.1 {case['status']} ".encode())
+    assert json.loads(refused.partition(b"\r\n\r\n")[2]) == {"error": case["error"]}
+
+
+def test_a_connection_refusal_sends_first_and_writes_without_the_shared_lock(
+    tmp_path: Path, refusal_proxy: backend.Proxy, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    case = REFUSALS["http_connections"]
+    writing, release = threading.Event(), threading.Event()
+    app, connection = socket.socketpair()
+    proxy = refusal_proxy
+    with app, connection, ThreadPoolExecutor(max_workers=1) as pool:
+        write = proxy._write
+
+        def paused_write(row: dict) -> None:
+            writing.set()
+            assert release.wait(3)
+            write(row)
+
+        monkeypatch.setattr(proxy, "_write", paused_write)
+        app.settimeout(3)
+        try:
+            with proxy.lock:
+                pending = pool.submit(proxy.refuse_connection, connection, case["error"])
+                # The app gets its refusal even while another proxy holds the shared lock.
+                refused = app.recv(65536)
+                assert refused.startswith(f"HTTP/1.1 {case['status']} ".encode())
+            assert writing.wait(3)
+            # Other proxies can use the shared lock while this file write waits.
+            acquired = proxy.lock.acquire(blocking=False)
+            if acquired:
+                proxy.lock.release()
+            assert acquired
+        finally:
+            release.set()
+        pending.result(timeout=3)
+    first = rows(tmp_path)[0]
+    field = proxy.target_field
+    assert first == {"v": 1, "ts": first["ts"], field: "stock", **case}
+    reader = {
+        "backend": trace.read_backend,
+        "api": trace.read_model_api,
+        "server": trace.read_mcp,
+    }[field]
+    items, info = reader(tmp_path / backend.FILE)
+    assert items == []
+    assert info["ignored"] == {case["type"]: 1}
+
+
 @pytest.mark.parametrize(
     ("kind", "field"),
     [(backend.Proxy, "backend"), (model_api.ModelProxy, "api"), (mcp_proxy.HttpProxy, "server")],
@@ -848,7 +928,7 @@ def test_the_connection_cap_refuses_and_records_before_reading(
     assert status == 200
     first = rows(tmp_path)[0]
     assert (first["type"], first[field], first["status"], first["error"]) == (
-        "connection_refused",
+        case["type"],
         "stock",
         case["status"],
         case["error"],
