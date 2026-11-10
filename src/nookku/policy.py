@@ -17,6 +17,7 @@ from typing import Any
 
 from nookku import commands
 from nookku.commands import SHELL_TOOLS
+from nookku.record import loads
 
 STATE_DIR = ".nookku"
 NAME = "policy.json"
@@ -151,7 +152,7 @@ def read(root: Path) -> dict[str, Any]:
         raise PolicyError(f"cannot read {FILE}: {e}") from None
     else:
         try:
-            data = json.loads(text)
+            data = loads(text)
         except ValueError as e:
             raise PolicyError(f"cannot read {FILE}: {e}") from None
     if not isinstance(data, dict):
@@ -176,7 +177,7 @@ def set_key(root: Path, name: str, text: str) -> dict[str, Any]:
         raise PolicyError(f"{name!r}: {e}") from None
     read(root)
     try:
-        data = json.loads(path(root).read_text(encoding="utf-8"))
+        data = loads(path(root).read_text(encoding="utf-8"))
     except FileNotFoundError:
         data = {}
     data[name] = value

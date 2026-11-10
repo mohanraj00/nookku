@@ -49,6 +49,7 @@ from proof_common import new_state  # noqa: E402
 
 from nookku import __version__, codex_gate, discovery, state  # noqa: E402
 from nookku.config import STATE_DIR  # noqa: E402
+from nookku.record import loads  # noqa: E402
 
 PLUGIN = ROOT / "plugins" / "nookku"
 WORK = ROOT / ".proof" / "codex-gate"
@@ -158,14 +159,14 @@ def install() -> Path:
     if MARKET.exists():
         shutil.rmtree(MARKET)
     shutil.copytree(PLUGIN, MARKET / "plugins" / "nookku")
-    listing = json.loads((ROOT / ".agents" / "plugins" / "marketplace.json").read_text())
+    listing = loads((ROOT / ".agents" / "plugins" / "marketplace.json").read_text())
     listing["plugins"][0]["policy"]["installation"] = "AVAILABLE"
     (MARKET / ".agents" / "plugins").mkdir(parents=True)
     (MARKET / ".agents" / "plugins" / "marketplace.json").write_text(json.dumps(listing))
     HOME.mkdir(parents=True, exist_ok=True)
     run(["codex", "plugin", "marketplace", "add", str(MARKET), "--json"])
     run(["codex", "plugin", "remove", "nookku@nookku", "--json"])
-    added = json.loads(run(["codex", "plugin", "add", "nookku@nookku", "--json"]).stdout)
+    added = loads(run(["codex", "plugin", "add", "nookku@nookku", "--json"]).stdout)
     return Path(added["installedPath"])
 
 
@@ -175,7 +176,7 @@ def project() -> None:
     path = PROJECT / STATE_DIR / "config.json"
     run(["nookku", "init", "plugin", "--entry", f"{sys.executable} {TOY_SHOP}"], PROJECT)
     # A proof opens no browser tab.
-    path.write_text(json.dumps(json.loads(path.read_text()) | {"page": False}, indent=2) + "\n")
+    path.write_text(json.dumps(loads(path.read_text()) | {"page": False}, indent=2) + "\n")
 
 
 def gate() -> dict[str, Any]:
@@ -217,7 +218,7 @@ def part_a(installed: Path) -> dict[str, Any]:
     try:
         script.write_bytes(original + b"echo changed\n")
         after_script = gate()
-        hooks = json.loads(original_hooks)
+        hooks = loads(original_hooks)
         hooks["hooks"]["PreToolUse"][0]["hooks"][0]["timeout"] += 1
         hooks_file.write_text(json.dumps(hooks))
         after_timeout = gate()
@@ -255,8 +256,8 @@ def part_b(installed: Path) -> dict[str, Any]:
     ended = run(["nookku", "end"], PROJECT)
     manifest: dict[str, Any] = {}
     try:
-        folder = Path(json.loads(started.stdout)["dir"])
-        manifest = json.loads((folder / "manifest.json").read_text())
+        folder = Path(loads(started.stdout)["dir"])
+        manifest = loads((folder / "manifest.json").read_text())
     except (ValueError, KeyError, OSError):
         pass
     recorded = manifest.get("codex_gate") or {}
@@ -290,7 +291,7 @@ def main() -> int:
         shutil.rmtree(HOME)
     installed = install()
     project()
-    old = json.loads(OUT.read_text()) if OUT.exists() else {}
+    old = loads(OUT.read_text()) if OUT.exists() else {}
     result: dict[str, Any] = {
         "date": date.today().isoformat(),
         "nookku": __version__,

@@ -54,6 +54,7 @@ from proof_common import (  # noqa: E402
 )
 
 from nookku import bridge, discovery, kit, seal  # noqa: E402
+from nookku.record import loads  # noqa: E402
 
 EXAMPLE = ROOT / "examples" / "toy-shop-models"
 CLI = str(ROOT / ".venv" / "bin" / "nookku")
@@ -305,7 +306,7 @@ def main() -> int:
         return 1
     folder, answer = ran
 
-    trace = [json.loads(x) for x in (folder / "trace.jsonl").read_text().split("\n") if x]
+    trace = [loads(x) for x in (folder / "trace.jsonl").read_text().split("\n") if x]
     calls = [
         (n, it)
         for n, it in enumerate(trace, 1)
@@ -318,7 +319,7 @@ def main() -> int:
         and it["name"] == "tool_result"
         and "refund" in str(it["input"].get("tool_parameters"))
     ]
-    exchanges = [json.loads(x) for x in (folder / "tap.jsonl").read_text().split("\n") if x]
+    exchanges = [loads(x) for x in (folder / "tap.jsonl").read_text().split("\n") if x]
     replies = [r["reply"] for r in exchanges if r.get("type") == "exchange" and r.get("reply")]
     refund_ids = re.findall(r"RF-[0-9A-F]{6}", json.dumps([it["output"] for _, it in calls]))
     report_path = folder / "report.md"
@@ -331,10 +332,10 @@ def main() -> int:
         and any(x in r["evidence"] for x in lines)
         for r in issues
     )
-    audit = json.loads((folder / "audit.json").read_text())
-    manifest = json.loads((folder / "manifest.json").read_text())
+    audit = loads((folder / "audit.json").read_text())
+    manifest = loads((folder / "manifest.json").read_text())
     hidden = private(report) or private(answer)
-    findings = json.loads((folder / "findings.json").read_text())
+    findings = loads((folder / "findings.json").read_text())
     sealed = seal.verify(folder)
     result = {
         "date": date.today().isoformat(),
@@ -344,7 +345,7 @@ def main() -> int:
             "agent sdk": AGENT_SDK,
             "session files": {
                 s["harness"]: s["version"]
-                for s in json.loads((folder / "findings.json").read_text())["sessions"]
+                for s in loads((folder / "findings.json").read_text())["sessions"]
             },
         },
         # The plugins of the Claude Code sessions: only built-in plugins and nookku.
