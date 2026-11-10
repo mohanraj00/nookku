@@ -53,6 +53,8 @@ The exchange or unparsed row has the same `stream_id` as its parts and `stream_p
 
 The reader checks part order, hashes, frame fields and links to the exchange or unparsed row. Each part must match the linked row's protocol. For an exchange with a non-null reply, it assembles the response and checks the reply with the adapter. For WebSocket it also checks the recorded client message. For an exchange with `reply: null` or an unparsed row, it does not assemble the messages or check the reply, stream size, stream hash or first part time. The audit still treats the row as an agent error or an unparsed turn. A mismatch makes the tap record invalid. A `stream_part` or `websocket_frame` row must have version `"0.4"`. No other row type can have that version. If a stream stopped before an exchange was written, its observed parts remain in the file. Parts at the end of the file with no linked exchange or unparsed row stay in the record and give no exchange. An orphan part before a later row that is not a part makes the tap record invalid. The reader reports the first such orphan part's line. Old exchange rows with no `stream_id` still use their stored reply. See the [reader cases](conformance/cases/), [toy cases](conformance/streams/toy-replies.json) and [proof](proofs/tap-streams/results.json).
 
+The optional fields `stream_id`, `stream_protocol`, `stream_adapter` and `first_part_seconds` are valid in `exchange` and `unparsed` rows of each version.
+
 In stdio mode, the tap writes these `status` values:
 
 | Agent output | `status` |
