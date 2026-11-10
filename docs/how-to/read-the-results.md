@@ -244,7 +244,7 @@ The trace has 24 trace checks ([trace.py](../../src/nookku/trace.py)). `findings
 | `model_api_error` | A direct call to a model API has an error, or a status of 400 or more. |
 | `questions_lost` | The record does not have each question of a direct call to the OpenAI Decisions API. |
 | `database_error` | A query of the app to a Postgres database has an error, or has no result ([SPEC.md section 7.13](../../SPEC.md#713-postgres-proxies)). |
-| `mcp_task_unfinished` | The trace saw a task state and no terminal state. | Check the last task state and its source line in `mcp.jsonl`. |
+| `mcp_task_unfinished` | The trace saw a task state and no terminal state. Check the last task state and its source line in `mcp.jsonl`. |
 | `unseen_call` | An OpenTelemetry span of the app names a call to an address that no proxy and no receiver of the test has. The egress answer missed this part, or the app called it with no proxy ([SPEC.md section 7.11](../../SPEC.md#711-egress-discovery)). |
 | `driver_without_span` | A database with `record: driver` in the egress answer has no database span in the trace. Check the OpenTelemetry instrumentation of its driver. |
 | `egress_not_in_discovery` | A Koodam egress span names a host that the egress answer does not have. The app called a service that the answer missed. If the host is not a part of the app, for example a package host, add it to `egress_ignore` ([SPEC.md section 8.8](../../SPEC.md#88-egress-spans)). |
