@@ -201,5 +201,7 @@ def exchange(
         observe("from_agent", part)
         if part.opcode == CLOSE:
             break
+        if part.opcode == PING:
+            write(PONG, part.payload)
         reply.add(part)
     return data

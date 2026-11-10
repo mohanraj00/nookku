@@ -50,7 +50,7 @@ class Tap(ThreadingHTTPServer):
         if parts.scheme not in ("http", "https", "ws", "wss") or not parts.hostname:
             raise ValueError(f"the agent URL must be http, https, ws or wss: {agent!r}")
         self.scheme, self.agent_host = parts.scheme, parts.hostname
-        self.agent_port = parts.port or (443 if parts.scheme == "https" else 80)
+        self.agent_port = parts.port or (443 if parts.scheme in ("https", "wss") else 80)
         self.base_path = parts.path.rstrip("/")
         self.writer, self.adapter, self.timeout = Writer(record), adapter, timeout
         super().__init__(listen, _Handler)

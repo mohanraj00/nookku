@@ -1,7 +1,11 @@
 import base64
+import http.client
+import io
 import json
 from pathlib import Path
+from unittest.mock import Mock, patch
 
+import pytest
 from toy_websocket import CASE, ToyWebSocket
 
 from nookku import kit, performance, websocket
@@ -60,3 +64,77 @@ def test_the_tap_records_each_frame_of_a_websocket_turn(tmp_path: Path) -> None:
 def test_the_guard_covers_the_default_wss_port() -> None:
     pattern = kit.deny_pattern(["wss://stock.toy.test"])
     assert pattern is not None and pattern.search("wss://stock.toy.test:443/")
+
+
+@pytest.mark.parametrize("scheme, port", [("ws", 80), ("wss", 443)])
+def test_the_tap_uses_the_default_websocket_port(tmp_path: Path, scheme: str, port: int) -> None:
+    with patch("nookku.tap.ThreadingHTTPServer.__init__", return_value=None):
+        tap = Tap(
+            ("127.0.0.1", 0), f"{scheme}://stock.toy.test", tmp_path / "tap.jsonl", JsonAdapter()
+        )
+    conn = tap.connect()
+    assert conn.port == port
+    assert isinstance(conn, http.client.HTTPSConnection) == (scheme == "wss")
+
+
+@pytest.mark.parametrize("opcode", [websocket.PING, websocket.TEXT])
+def test_the_close_handshake_checks_frames_after_a_full_reply(opcode: int) -> None:
+    # A wire transcript tests the close loop without a socket or a timing race.
+    reply = websocket.frame(websocket.TEXT, b'{"reply":"In stock."}', masked=False)
+    extra = websocket.frame(opcode, b"closing", masked=False)
+    close = websocket.frame(websocket.CLOSE, b"\x03\xe8", masked=False)
+    conn = Mock(spec=http.client.HTTPConnection)
+    conn.sock = Mock()
+    response = conn.getresponse.return_value
+    response.status = 101
+    response.fp = io.BytesIO(reply.wire + extra.wire + close.wire)
+
+    def header(name: str) -> str | None:
+        sent = conn.request.call_args.kwargs["headers"]
+        return {
+            "Connection": "Upgrade",
+            "Upgrade": "websocket",
+            "Sec-WebSocket-Accept": websocket.accept(sent["Sec-WebSocket-Key"]),
+        }.get(name)
+
+    response.getheader.side_effect = header
+    observed = []
+    if opcode == websocket.TEXT:
+        with pytest.raises(websocket.WebSocketError, match="expected one text message"):
+            websocket.exchange(conn, "/", {}, b'{"text":"Stock?"}', lambda *p: observed.append(p))
+        assert observed[-1] == ("from_agent", extra)
+    else:
+        result = websocket.exchange(
+            conn, "/", {}, b'{"text":"Stock?"}', lambda *p: observed.append(p)
+        )
+        assert result == reply.payload
+        sent = [
+            websocket.from_wire(call.args[0], masked=True)
+            for call in conn.sock.sendall.call_args_list
+        ]
+        assert [part.opcode for part in sent] == [websocket.TEXT, websocket.CLOSE, websocket.PONG]
+        assert sent[-1].payload == extra.payload
+        assert observed[-2] == ("to_agent", sent[-1])
+        assert observed[-1] == ("from_agent", close)
+
+
+def test_the_tap_answers_a_ping_during_the_close_handshake(tmp_path: Path) -> None:
+    case = json.loads(CASE.read_text())
+    tap_path = tmp_path / "tap.jsonl"
+    with (
+        ToyWebSocket(close_ping=True) as agent,
+        Tap(("127.0.0.1", 0), agent.url, tap_path, JsonAdapter()) as tap,
+    ):
+        start_in_thread(tap)
+        try:
+            config = kit.Config(tap_url=f"http://127.0.0.1:{tap.server_port}/")
+            reply, ok = kit.relay(config, case["message"], [])
+        finally:
+            tap.shutdown()
+    assert ok and reply == agent.reply
+    frames = [row for _, row in read_rows("tap", tap_path) if row["type"] == "websocket_frame"]
+    assert [part.opcode for part in agent.seen][-2:] == [websocket.CLOSE, websocket.PONG]
+    pong = agent.seen[-1]
+    assert pong.payload == b"closing"
+    assert frames[-1]["opcode"] == websocket.CLOSE
+    assert base64.b64decode(frames[-2]["base64"]) == pong.wire

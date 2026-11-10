@@ -115,3 +115,9 @@ def validate(rows: list[tuple[int, dict[str, Any]]], path: Path) -> None:
                 ended.add(key)
         except (ValueError, RecursionError) as error:
             raise RecordError("record_invalid", path, f"line {n}: {error}") from None
+    if groups:
+        for n, row in rows:
+            if row["type"] in STREAM_PARTS and row["stream_id"] in groups:
+                raise RecordError(
+                    "record_invalid", path, f"line {n}: the stream part has no exchange"
+                )

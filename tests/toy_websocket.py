@@ -15,12 +15,13 @@ CASE = Path(__file__).resolve().parents[1] / "conformance" / "streams" / "toy-re
 class ToyWebSocket(ThreadingHTTPServer):
     daemon_threads = True
 
-    def __init__(self) -> None:
+    def __init__(self, *, close_ping: bool = False) -> None:
         super().__init__(("127.0.0.1", 0), _Handler)
         self.case = loads(CASE.read_bytes())
         self.reply = self.case["websocket"]["reply"]
         self.seen: list[websocket.Frame] = []
         self.sent: list[websocket.Frame] = []
+        self.close_ping = close_ping
 
     def server_bind(self) -> None:
         stdio.bind(self)
@@ -78,4 +79,8 @@ class _Handler(BaseHTTPRequestHandler):
         send(websocket.CONTINUATION, raw[split:])
         close = read()
         assert close.opcode == websocket.CLOSE
+        if self.server.close_ping:
+            send(websocket.PING, b"closing")
+            pong = read()
+            assert pong.opcode == websocket.PONG and pong.payload == b"closing"
         send(websocket.CLOSE, close.payload)

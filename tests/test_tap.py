@@ -14,7 +14,7 @@ from toy_agent import ToyAgent, shop_reply
 
 from nookku.adapters import make
 from nookku.audit import audit
-from nookku.record import Exchange, Unparsed, Writer, read_tap, sha256
+from nookku.record import Exchange, RecordError, Unparsed, Writer, read_tap, sha256
 from nookku.tap import Tap, start_in_thread
 
 TRICKY = "Hi, I want to return order #4471.  \n\nÜnïcödé € ₹\t| a | b |\n"
@@ -195,8 +195,11 @@ def test_the_json_adapter_marks_a_stream_unparsed(tmp_path):
     tap.shutdown()
     agent.shutdown()
     assert (status, out) == (200, agent.sent[0])
-    [row] = read_tap(tmp_path / "tap.jsonl")
-    assert isinstance(row, Unparsed) and "does not read a streamed response" in row.error
+    *parts, row = raw_rows(tmp_path / "tap.jsonl")
+    assert parts and row["type"] == "unparsed"
+    assert "does not read a streamed response" in row["error"]
+    with pytest.raises(RecordError, match="the stream part has no exchange"):
+        read_tap(tmp_path / "tap.jsonl")
 
 
 def test_a_record_error_during_a_stream_sends_no_second_status_and_no_second_row(tmp_path, capsys):

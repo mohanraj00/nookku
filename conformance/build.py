@@ -166,9 +166,108 @@ FAILED_STREAM = {
     "stream": stream_info(sse_body(R2, False)),
 }
 
+# Hand-written stream evidence (section 2.1). Each refusal breaks the named rule.
+PART_BODY = b'data: {"choices":[{"delta":{"content":"In stock."}}]}\n\ndata: [DONE]\n\n'
+PART_ROW = {
+    "v": "0.4",
+    "type": "stream_part",
+    "ts": 1.0,
+    "stream_id": "stock",
+    "index": 1,
+    "base64": base64.b64encode(PART_BODY).decode(),
+    "sha256": hashlib.sha256(PART_BODY).hexdigest(),
+}
+PART_EXCHANGE = {
+    **ex("Stock?", "In stock.", v="0.2"),
+    "started": 0.5,
+    "stream_id": "stock",
+    "stream_protocol": "sse",
+    "first_part_seconds": 0.5,
+    "stream": stream_info(PART_BODY),
+}
+
 # name: (tap rows or None for a missing file, relay rows or None, expectation)
 # A row can be a raw string, written as the line itself.
 CASES_BY_NAME: dict[str, tuple[list | None, list | None, dict]] = {
+    "stream_parts_clean": (
+        [PART_ROW, PART_EXCHANGE],
+        [turn("Stock?", "In stock.")],
+        {"exit": 0, "breaks": []},
+    ),
+    "stream_part_out_of_order": (
+        [{**PART_ROW, "index": 2}, PART_EXCHANGE],
+        [],
+        {
+            "exit": 2,
+            "errors": ["record_invalid"],
+            "reader_error": "line 1: the stream part is out of order",
+        },
+    ),
+    "stream_part_hash_mismatch": (
+        [{**PART_ROW, "sha256": "0" * 64}, PART_EXCHANGE],
+        [],
+        {
+            "exit": 2,
+            "errors": ["record_invalid"],
+            "reader_error": "line 1: the part hash does not match its bytes",
+        },
+    ),
+    "stream_parts_reply_mismatch": (
+        [PART_ROW, {**PART_EXCHANGE, "reply": "Sold out.", "reply_sha256": sha("Sold out.")}],
+        [],
+        {
+            "exit": 2,
+            "errors": ["record_invalid"],
+            "reader_error": "line 2: the stream reply does not match",
+        },
+    ),
+    "stream_part_wrong_version": (
+        [{**PART_ROW, "v": "0.2"}, PART_EXCHANGE],
+        [],
+        {
+            "exit": 2,
+            "errors": ["record_invalid"],
+            "reader_error": "line 1: version 0.4 is for stream part rows",
+        },
+    ),
+    "websocket_frame_wrong_version": (
+        [
+            {
+                **PART_ROW,
+                "v": "0.3",
+                "type": "websocket_frame",
+                "base64": "gQA=",
+                "sha256": hashlib.sha256(b"\x81\x00").hexdigest(),
+                "direction": "from_agent",
+                "opcode": 1,
+                "final": True,
+            }
+        ],
+        [],
+        {
+            "exit": 2,
+            "errors": ["record_invalid"],
+            "reader_error": "line 1: version 0.4 is for stream part rows",
+        },
+    ),
+    "stream_exchange_wrong_version": (
+        [PART_ROW, {**PART_EXCHANGE, "v": "0.4"}],
+        [],
+        {
+            "exit": 2,
+            "errors": ["record_invalid"],
+            "reader_error": "line 2: version 0.4 is for stream part rows",
+        },
+    ),
+    "stream_part_orphan": (
+        [PART_ROW],
+        [],
+        {
+            "exit": 2,
+            "errors": ["record_invalid"],
+            "reader_error": "line 1: the stream part has no exchange",
+        },
+    ),
     "clean": (CLEAN_TAP, CLEAN_RELAY, {"exit": 0, "breaks": []}),
     "clean_repeated_message": (
         [ex(M1, R1), ex(M1, R1)],

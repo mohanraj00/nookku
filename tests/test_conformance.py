@@ -18,6 +18,11 @@ def test_case(case: Path) -> None:
     assert report.exit == expect["exit"]
     if report.exit == 2:
         assert sorted({e["class"] for e in report.errors}) == expect["errors"]
+        if "reader_error" in expect:
+            with pytest.raises(RecordError) as caught:
+                read_rows("tap", case / "tap.jsonl")
+            assert caught.value.kind == "record_invalid"
+            assert str(caught.value) == f"{case / 'tap.jsonl'}: {expect['reader_error']}"
         return
     got = [[b.kind, b.relay_line, b.tap_line] for b in report.breaks]
     assert sorted(got, key=str) == sorted(expect["breaks"], key=str)
