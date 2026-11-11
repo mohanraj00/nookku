@@ -406,6 +406,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         "folder as egress.jsonl and check them",
     )
 
+    trc.add_argument("--otlp-file", type=Path, metavar="FILE", help="write OTLP trace JSON")
+    trc.add_argument("--otlp-endpoint", metavar="URL", help="send the trace as OTLP/HTTP protobuf")
     trc.add_argument(
         "--openinference",
         type=Path,
@@ -610,6 +612,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             args.egress,
             gate,
             args.verdict,
+            args.otlp_file,
+            args.otlp_endpoint,
             args.openinference,
         )
     if args.command == "verify":
@@ -806,6 +810,8 @@ def _trace_command(
     egress: Path | None = None,
     gate: tuple[str, list[str], str | None, float] | None = None,
     verdict_gate: bool = False,
+    otlp_file: Path | None = None,
+    otlp_endpoint: str | None = None,
     inference: Path | None = None,
 ) -> int:
     folder = _test_folder(root, test)
@@ -903,13 +909,26 @@ def _trace_command(
         code = 0 if found is not None and found["verdict"] == verdict.PASS else 1
     if as_json:
         print(json.dumps(report, indent=1, ensure_ascii=False))
-        return code
-    print(trace.summary(report))
-    for line in trace.finding_lines(report):
-        print(line)
-    if verdict.shown(found, verdict_gate):
-        print(verdict.summary(found))
-    print(f"File: {folder / 'trace.jsonl'}")
+    else:
+        print(trace.summary(report))
+        for line in trace.finding_lines(report):
+            print(line)
+        if verdict.shown(found, verdict_gate):
+            print(verdict.summary(found))
+        print(f"File: {folder / 'trace.jsonl'}")
+    # The export runs after the output, so a failed export still shows the trace and the verdict.
+    if otlp_file is not None or otlp_endpoint is not None:
+        from nookku import genai_export
+
+        try:
+            exported = genai_export.build(folder, report)
+            if otlp_file is not None:
+                genai_export.write(otlp_file, folder, exported)
+            if otlp_endpoint is not None:
+                genai_export.send(otlp_endpoint, exported)
+        except (OSError, RecordError, genai_export.ExportError) as e:
+            print(f"nookku: the OTLP trace was not exported. {e}", file=sys.stderr)
+            return 2
     return code
 
 
