@@ -677,3 +677,31 @@ def test_the_reader_ends_one_batch_at_each_ready(tmp_path: Path) -> None:
         (None, "stock is locked"),
         ('["12"]\nSELECT 1', None),
     ]
+
+
+def test_the_database_connection_cap_returns_a_protocol_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    case = json.loads((ROOT / "conformance/proxy/refusals.json").read_text())[
+        "database_connections"
+    ]
+    monkeypatch.setattr(db_proxy.Proxy, "connection_limit", 1, raising=False)
+    with PgServer() as pg:
+        path = tmp_path / db_proxy.FILE
+        proxy, _ = start(pg, tmp_path, "disable")
+        try:
+            with socket.create_connection(proxy.server_address, timeout=3) as held:
+                held.sendall(SSL)
+                assert held.recv(1) == b"N"
+                with socket.create_connection(proxy.server_address, timeout=3) as overflow:
+                    tag = overflow.recv(1)
+                    assert tag == b"E"
+                    with overflow.makefile("rb") as response:
+                        size = int.from_bytes(response.read(4), "big")
+                        fields = response.read(size - 4).split(b"\0")
+                assert f"C{case['sqlstate']}".encode() in fields
+                assert f"M{case['error']}".encode() in fields
+        finally:
+            proxy.stop()
+    refusal = next(row for row in rows(path) if row["error"] == f"no connection: {case['error']}")
+    assert refusal["type"] == "connect" and refusal["parameters"] is None

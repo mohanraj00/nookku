@@ -1,0 +1,24 @@
+{
+  "http_connections": {
+    "type": "connection_refused",
+    "status": 503,
+    "error": "the proxy has too many open connections (at most 1)"
+  },
+  "database_connections": {
+    "sqlstate": "53300",
+    "error": "the proxy has too many open connections (at most 1)"
+  },
+  "expect_budget": {
+    "budget": 10,
+    "first_length": 6,
+    "second_length": 5,
+    "status": 503,
+    "error": "the proxies hold too many bytes of request bodies (at most 10)"
+  },
+  "chunk_extensions": {
+    "first_length": 32768,
+    "second_length": 32769,
+    "status": 400,
+    "error": "the body has more than 65536 bytes of chunk extensions"
+  }
+}
