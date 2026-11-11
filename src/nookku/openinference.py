@@ -123,7 +123,8 @@ def _input(data: bytes) -> tuple[list[Any], str]:
     if isinstance(value, list):
         return value, "auto"
     if isinstance(value, dict) and isinstance(value.get("resourceSpans"), list):
-        return otlp.rows(value, 0.0), "otlp"
+        # The OTLP reader also gives log rows. The import reads only spans.
+        return [r for r in otlp.rows(value, 0.0) if r.get("type") == "span"], "otlp"
     if isinstance(value, dict) and isinstance(value.get("data"), list):
         if _object(value.get("meta")).get("cursor"):
             raise ValueError("the export has more pages; combine the observations into one array")

@@ -1709,7 +1709,8 @@ def check(
         first = spans[0][0] if spans else None
         late = it["turn"] is None and first is not None and it["ts"] is not None
         # A driver query and its span are one call: the span gives the finding.
-        if late and it["harness"] != "driver" and it["ts"] >= first:
+        # An export of app spans can cover the whole test, so its spans give no finding.
+        if late and it["harness"] not in ("driver", "openinference") and it["ts"] >= first:
             out.append(_finding("item_between_turns", None, f"a {it['kind']} item", **where))
     if seen is not None:
         out += unseen_calls(items, seen)
