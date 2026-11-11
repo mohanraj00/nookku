@@ -257,7 +257,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="run the tap proxy in front of the agent",
         usage="%(prog)s (--agent URL | --cmd -- COMMAND...) --record FILE [options]",
     )
-    tap.add_argument("--agent", help="HTTP mode: the agent's base URL")
+    tap.add_argument("--agent", help="HTTP mode: the agent's base URL (http, https, ws or wss)")
     tap.add_argument(
         "--cmd", action="store_true", help="stdio mode: start the COMMAND after -- as the agent"
     )

@@ -543,7 +543,7 @@ Run the tap proxy in front of the agent ([SPEC.md section 4](../../SPEC.md#4-tap
 
 | Flag | Default | Meaning |
 |---|---|---|
-| `--agent URL` | none | HTTP mode: the agent's base URL. |
+| `--agent URL` | none | HTTP mode: the agent's base URL (http, https, ws or wss). |
 | `--cmd` | off | Stdio mode: start the command after `--` as the agent. |
 | `--record FILE` | required | The tap record (JSONL). The tap adds rows to it. |
 | `--listen HOST:PORT` | `127.0.0.1:8800` | The address of the tap. |

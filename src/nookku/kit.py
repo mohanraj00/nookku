@@ -140,7 +140,7 @@ def deny_pattern(urls: list[str]) -> re.Pattern[str] | None:
         host = u.hostname or ""
         if ":" in host:
             host = f"[{host}]"
-        port = str(u.port or (443 if u.scheme == "https" else 80))
+        port = str(u.port or (443 if u.scheme in ("https", "wss") else 80))
         hosts = LOOPBACK if host in LOOPBACK or host == "::1" else [host]
         for h in hosts:
             # A port can have leading zeros: a shell and curl read 08800 as 8800.

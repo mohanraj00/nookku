@@ -1,0 +1,64 @@
+{
+  "date": "2026-11-09",
+  "versions": {
+    "nookku": "0.5.7",
+    "claude_code": "2.1.319 (Claude Code)",
+    "codex": "codex-cli 0.162.1"
+  },
+  "method": "scripts/proof_tap_streams.py",
+  "case": "conformance/streams/toy-replies.json",
+  "model_used": false,
+  "passed": true,
+  "sse": {
+    "reply_matches": true,
+    "audit_exit": 0,
+    "exchanges": 1,
+    "parts": 3,
+    "first_part_seconds": 0.001,
+    "frames": null
+  },
+  "websocket": {
+    "reply_matches": true,
+    "audit_exit": 0,
+    "exchanges": 1,
+    "parts": 7,
+    "first_part_seconds": 0.001,
+    "frames": [
+      [
+        "to_agent",
+        1,
+        true
+      ],
+      [
+        "from_agent",
+        1,
+        false
+      ],
+      [
+        "from_agent",
+        9,
+        true
+      ],
+      [
+        "to_agent",
+        10,
+        true
+      ],
+      [
+        "from_agent",
+        0,
+        true
+      ],
+      [
+        "to_agent",
+        8,
+        true
+      ],
+      [
+        "from_agent",
+        8,
+        true
+      ]
+    ]
+  }
+}

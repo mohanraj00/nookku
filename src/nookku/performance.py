@@ -239,6 +239,8 @@ def summarize(folder: Path) -> dict[str, Any]:
         if isinstance(started, (int, float)) and isinstance(ex.get("ts"), (int, float)):
             seconds = round(ex["ts"] - started, 3)
         row: dict[str, Any] = {"turn": n, "seconds": seconds}
+        if "first_part_seconds" in ex:
+            row["first_part_seconds"] = ex["first_part_seconds"]
         if unknown is not None:
             row.update(model_calls=None, input_tokens=None, output_tokens=None, no_usage=None)
             row["sources"] = None
@@ -292,6 +294,11 @@ def _valid(row: Any, n: int, unknown: Any) -> bool:
     seconds = row.get("seconds")
     if seconds is not None and (not isinstance(seconds, (int, float)) or seconds < 0):
         return False
+    first_part = row.get("first_part_seconds")
+    if first_part is not None and (
+        type(first_part) not in (int, float) or not 0 <= first_part < float("inf")
+    ):
+        return False
     if unknown is not None:
         counts = ("model_calls", "input_tokens", "output_tokens", "no_usage", "sources")
         return _text(unknown) and all(row.get(k) is None for k in counts)
@@ -333,6 +340,8 @@ def line(data: dict[str, Any], n: int) -> str:
     the model sessions together. Each record string is escaped with _clean."""
     turn, unknown = data["turns"][n - 1], data["unknown"]
     parts = [_value(turn["seconds"], "seconds")]
+    if "first_part_seconds" in turn:
+        parts[0] += ", " + _value(turn["first_part_seconds"], "seconds to first part")
     if unknown is not None:
         return f"{parts[0]}. The model calls and the tokens are not known: {_clean(unknown)}."
     parts.append(f"{turn['model_calls']} model calls")

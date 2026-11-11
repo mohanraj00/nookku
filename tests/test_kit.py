@@ -684,7 +684,10 @@ def test_openai_stream_asks_an_agent_that_streams_only_on_request(tmp_path, open
     bodies = [json.loads(r["body"]) for r in agent.received]
     assert [b["stream"] for b in bodies] == [openai_stream, openai_stream]
     rows = [json.loads(x) for x in (tmp_path / "tap.jsonl").read_text().split("\n") if x]
-    assert ["stream" in r for r in rows] == [openai_stream, openai_stream]
+    assert ["stream" in r for r in rows if r["type"] == "exchange"] == [
+        openai_stream,
+        openai_stream,
+    ]
     shown = [(t.ok, t.shown) for t in read_relay(record(root)) if isinstance(t, Turn)]
     assert shown == [(True, shop_reply(TRICKY)), (True, shop_reply("second"))]
     assert audit(tmp_path / "tap.jsonl", record(root)).exit == 0

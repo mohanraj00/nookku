@@ -1,0 +1,1 @@
+{"v": "0.3", "type": "websocket_frame", "ts": 1.0, "stream_id": "stock", "index": 1, "base64": "gQA=", "sha256": "9037f92bc91fdcc764a89d9144c341d887ffc83351cc8cf0530555c89920a47d", "direction": "from_agent", "opcode": 1, "final": true}

@@ -1,5 +1,7 @@
+import base64
 import hashlib
 import http.client
+import io
 import json
 import re
 import socket
@@ -7,13 +9,15 @@ import threading
 import urllib.error
 import urllib.request
 from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
 from toy_agent import ToyAgent, shop_reply
 
 from nookku.adapters import make
-from nookku.record import Exchange, Unparsed, read_tap
-from nookku.tap import Tap, start_in_thread
+from nookku.audit import audit
+from nookku.record import Exchange, Unparsed, Writer, read_rows, read_tap, sha256
+from nookku.tap import Tap, _Handler, _Parts, start_in_thread
 
 TRICKY = "Hi, I want to return order #4471.  \n\nÜnïcödé € ₹\t| a | b |\n"
 
@@ -104,6 +108,39 @@ def raw_rows(path: Path) -> list[dict]:
     return [json.loads(x) for x in path.read_text(encoding="utf-8").split("\n") if x]
 
 
+@pytest.mark.parametrize("sized", [False, True])
+def test_an_sse_stream_over_the_part_byte_budget_fails_closed(tmp_path, monkeypatch, sized):
+    path = tmp_path / "tap.jsonl"
+    first = b'data: {"choices":[{"delta":{"content":"In stock."}}]}\n\n'
+    last = b"data: [DONE]\n\n"
+    monkeypatch.setattr("nookku.tap.PART_BYTES", len(first), raising=False)
+    handler = object.__new__(_Handler)
+    handler.command, handler.path = "POST", "/chat/completions"
+    handler.server = Mock(writer=Writer(path), adapter=make("openai"))
+    handler.send_response_only, handler.send_header, handler.end_headers = Mock(), Mock(), Mock()
+    handler.wfile = io.BytesIO()
+    handler.close_connection = False
+    length = str(len(first + last)) if sized else None
+    response = Mock(status=200, length=0)
+    response.getheader.return_value = length
+    response.getheaders.return_value = [("Content-Type", "text/event-stream")]
+    response.read1.side_effect = [first, last, b""]
+
+    handler._stream(response, True, "Stock?", None, threading.Event(), 1.0)
+
+    assert handler.close_connection
+    handler.send_response_only.assert_called_once_with(200)
+    sent = handler.wfile.getvalue()
+    assert sent == (first if sized else b"%x\r\n%s\r\n" % (len(first), first))
+    assert response.read1.call_count == 2
+    (_, part), (_, row) = read_rows("tap", path)
+    assert base64.b64decode(part["base64"]) == first
+    assert row["stream_id"] == part["stream_id"] and row["stream_protocol"] == "sse"
+    assert row["v"] == "0.3" and row["status"] == 200 and row["reply"] is None
+    assert row["error"] == "the stream exceeds the recorded part budget"
+    assert row["stream"] == {"bytes": len(first), "sha256": hashlib.sha256(first).hexdigest()}
+
+
 def test_a_stream_passes_unchanged_and_the_row_has_the_joined_reply(tmp_path):
     agent = ToyAgent(stream=True)
     tap = run_tap(agent.url, tmp_path / "tap.jsonl", "openai")
@@ -114,10 +151,26 @@ def test_a_stream_passes_unchanged_and_the_row_has_the_joined_reply(tmp_path):
     assert (status, kind, error) == (200, "text/event-stream; charset=utf-8", None)
     assert json.loads(agent.received[0]["body"])["stream"] is True
     assert out == agent.sent[0]
-    assert read_tap(tmp_path / "tap.jsonl") == [Exchange(1, TRICKY, 200, shop_reply(TRICKY))]
-    [row] = raw_rows(tmp_path / "tap.jsonl")
+    *parts, row = raw_rows(tmp_path / "tap.jsonl")
+    assert read_tap(tmp_path / "tap.jsonl") == [
+        Exchange(len(parts) + 1, TRICKY, 200, shop_reply(TRICKY))
+    ]
+    assert b"".join(base64.b64decode(part["base64"]) for part in parts) == out
+    assert all(part["stream_id"] == row["stream_id"] for part in parts)
     assert row["stream"] == {"sha256": hashlib.sha256(out).hexdigest(), "bytes": len(out)}
     assert "error" not in row and row["v"] == "0.2"
+
+    relay = tmp_path / "relay.jsonl"
+    Writer(relay).append(
+        {"type": "turn", "harness": "codex", "said": TRICKY, "shown": shop_reply(TRICKY)}
+    )
+    assert audit(tmp_path / "tap.jsonl", relay).exit == 0
+    row.update(reply="The shelf is empty.", reply_sha256=sha256("The shelf is empty."))
+    (tmp_path / "tap.jsonl").write_text("".join(json.dumps(item) + "\n" for item in [*parts, row]))
+    broken = audit(tmp_path / "tap.jsonl", relay)
+    assert broken.exit == 2
+    assert broken.errors[0]["class"] == "record_invalid"
+    assert "stream reply does not match" in broken.errors[0]["detail"]
 
 
 def test_each_part_of_a_stream_reaches_the_caller_before_the_stream_ends(tmp_path):
@@ -131,15 +184,17 @@ def test_each_part_of_a_stream_reaches_the_caller_before_the_stream_ends(tmp_pat
     early = b""
     while early.count(b"\n\n") < 3:
         early += resp.read1(65536)
-    # The agent waits for the gate. The tap has no row yet.
-    assert not (tmp_path / "tap.jsonl").exists()
+    # The agent waits for the gate. The tap has recorded the bytes that reached the caller.
+    parts = raw_rows(tmp_path / "tap.jsonl")
+    assert parts and all(r["type"] == "stream_part" for r in parts)
     gate.set()
     out = early + resp.read()
     conn.close()
     tap.shutdown()
     agent.shutdown()
     assert out == agent.sent[0]
-    assert read_tap(tmp_path / "tap.jsonl") == [Exchange(1, "hi", 200, shop_reply("hi"))]
+    final = raw_rows(tmp_path / "tap.jsonl")
+    assert read_tap(tmp_path / "tap.jsonl") == [Exchange(len(final), "hi", 200, shop_reply("hi"))]
 
 
 @pytest.mark.parametrize(
@@ -160,8 +215,8 @@ def test_a_failed_stream_is_an_error_exchange_with_no_reply(tmp_path, fault, err
 
     assert (status, got_error) == (200, read_error)
     assert out == agent.sent[0]
-    assert read_tap(tmp_path / "tap.jsonl") == [Exchange(1, TRICKY, 200, None)]
-    [row] = raw_rows(tmp_path / "tap.jsonl")
+    *parts, row = raw_rows(tmp_path / "tap.jsonl")
+    assert read_tap(tmp_path / "tap.jsonl") == [Exchange(len(parts) + 1, TRICKY, 200, None)]
     # A 0.2 reader refuses a failed stream, so the row has version 0.3 (SPEC.md section 2).
     assert row["error"].startswith(error) and row["v"] == "0.3"
     assert row["stream"] == {"sha256": hashlib.sha256(out).hexdigest(), "bytes": len(out)}
@@ -175,8 +230,20 @@ def test_the_json_adapter_marks_a_stream_unparsed(tmp_path):
     tap.shutdown()
     agent.shutdown()
     assert (status, out) == (200, agent.sent[0])
-    [row] = read_tap(tmp_path / "tap.jsonl")
-    assert isinstance(row, Unparsed) and "does not read a streamed response" in row.error
+    *parts, row = raw_rows(tmp_path / "tap.jsonl")
+    assert parts and row["type"] == "unparsed"
+    assert "does not read a streamed response" in row["error"]
+    assert row["stream_protocol"] == "sse"
+    assert all(p["stream_id"] == row["stream_id"] for p in parts)
+    assert read_rows("tap", tmp_path / "tap.jsonl") == list(enumerate([*parts, row], 1))
+    assert read_tap(tmp_path / "tap.jsonl") == [
+        Unparsed(len(parts) + 1, "POST", "/v1/chat/completions", row["error"])
+    ]
+    relay_path = tmp_path / "relay.jsonl"
+    Writer(relay_path).append({"type": "turn", "harness": "codex", "said": "hi", "shown": None})
+    report = audit(tmp_path / "tap.jsonl", relay_path)
+    assert report.exit == 2
+    assert [e["class"] for e in report.errors] == ["tap_unparsed"]
 
 
 def test_a_record_error_during_a_stream_sends_no_second_status_and_no_second_row(tmp_path, capsys):
@@ -219,8 +286,12 @@ def test_a_record_error_leaves_a_sized_stream_incomplete(tmp_path, capsys):
     agent = ToyAgent(stream=True)
     tap = run_tap(agent.url, tmp_path / "tap.jsonl", "openai")
 
+    write = tap.writer.append
+
     def fail(row: dict) -> None:
-        raise OSError(28, "No space left on device")
+        if row["type"] == "exchange":
+            raise OSError(28, "No space left on device")
+        write(row)
 
     tap.writer.append = fail  # type: ignore[method-assign]
     body = json.dumps({"stream": True, "messages": [{"role": "user", "content": "hi"}]})
@@ -362,3 +433,22 @@ def test_the_tap_and_the_toy_agent_do_not_look_up_the_host_name(tmp_path, monkey
     agent = ToyAgent()
     agent.shutdown()
     agent.server_close()
+
+
+@pytest.mark.parametrize("message", ["Stock?", None])
+def test_an_unparsed_sse_row_keeps_its_part_links_without_a_socket(tmp_path, message):
+    path = tmp_path / "tap.jsonl"
+    handler = object.__new__(_Handler)
+    handler.command, handler.path = "POST", "/"
+    handler.server = Mock(writer=Writer(path), adapter=make("json"))
+    parts = _Parts(handler.server.writer, 1.0, "sse")
+    raw = b'data: {"reply":"In stock."}\n\n'
+    parts.append(raw)
+    handler._stream_row(200, raw, message, "request: no message", None, parts)
+    (_, part), (_, row) = read_rows("tap", path)
+    assert row["type"] == "unparsed"
+    assert row["stream_id"] == part["stream_id"] and row["stream_protocol"] == "sse"
+    relay = tmp_path / "relay.jsonl"
+    relay.write_text("")
+    report = audit(path, relay)
+    assert report.exit == 2 and [e["class"] for e in report.errors] == ["tap_unparsed"]
