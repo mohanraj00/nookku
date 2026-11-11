@@ -252,7 +252,7 @@ The trace has 25 trace checks ([trace.py](../../src/nookku/trace.py)). `findings
 | `egress_denied` | The Koodam egress proxy refused a call of the pod. `detail` gives the reason of Koodam ([SPEC.md section 8.8](../../SPEC.md#88-egress-spans)). |
 | `model_error` | A Codex turn ended with a model error: the `task_complete` event of the Codex session file has an error, for example `server_overloaded` when the model is at capacity. |
 | `turn_without_model` | A turn has no `message`, `tool_call` or `command` item from a session file. A turn with only an OTLP, backend or model API item still gets this finding. This check runs only if the trace has at least 1 item from a session file. |
-| `item_between_turns` | A model item has no turn, but it occurred at or after the start of turn 1. A driver query and its span give 1 finding. |
+| `item_between_turns` | A model item has no turn, but it occurred at or after the start of turn 1. A driver query and its span give 1 finding. A span of an OpenInference export gives no finding, because an export can cover the full time of the test. |
 | `otel_tool_not_in_session` | A harness log says that a tool ran, but the session file of that harness has no call with its tool use id. If the log has no id, the session file has no call of that tool in that turn. |
 | `server_not_from_app` | A Claude Code session used an MCP server that the app's configuration cannot give: a claude.ai connector or a plugin server. |
 | `session_inferred` | The tap found a Codex session from its folder and its time, not from its process. |

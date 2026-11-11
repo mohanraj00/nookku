@@ -409,7 +409,6 @@ nookku trace --egress spans.jsonl
 
 The trace uses only the spans from `started` to `ended` of the manifest, so a wider export window is not a problem.
 
-
 To compare app spans with the independent proxy records, export the test window and run:
 
 ```bash

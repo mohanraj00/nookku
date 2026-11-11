@@ -1171,7 +1171,7 @@ These tools come from the harness, not from the app: `ToolSearch` in Claude Code
 
 ### 8.6 Findings
 
-`findings.json` holds the test id, the number of turns and items, one entry for each model session (its version, its item count and its counts of lines not kept), `otel`, `backend`, `model_api`, `mcp` and `database` (the file, its row count, its item count and its counts of rows not kept, or `null` if the test has no such file; `model_api` also has `harness_calls`, the count of harness calls by harness, and `other_calls`), `egress` (section 8.8, or `null` if the test folder has no `egress.jsonl`), `trace_points` (each valid trace point of the manifest with `checked` and `needed`, or `null` if the manifest has no valid trace point), a count for each check, and the findings. The findings do not change the exit code of the audit. The audit measures the words only.
+`findings.json` holds the test id, the number of turns and items, one entry for each model session (its version, its item count and its counts of lines not kept), `otel`, `backend`, `model_api`, `mcp` and `database` (the file, its row count, its item count and its counts of rows not kept, or `null` if the test has no such file; `model_api` also has `harness_calls`, the count of harness calls by harness, and `other_calls`), `egress` (section 8.8, or `null` if the test folder has no `egress.jsonl`), `openinference` (the file and its span count, only if the test folder has `openinference.jsonl`, section 8.10), `trace_points` (each valid trace point of the manifest with `checked` and `needed`, or `null` if the manifest has no valid trace point), a count for each check, and the findings. The findings do not change the exit code of the audit. The audit measures the words only.
 
 | Check | Finding |
 |---|---|
@@ -1389,7 +1389,7 @@ The command checks the export before replacing `openinference.jsonl`. The file h
 
 Each exported span gives a trace item with `harness: "openinference"`, `kind: "span"`, the trace id as its session and the span start as its time. The item has the span kind and id in `input`, and its line in `openinference.jsonl` as its source. The trace assigns a turn by time as in section 8.3. Exported spans do not add calls to the proxy totals.
 
-The check compares calls in the same turn by these keys:
+The check compares the calls of the proxies with the spans by these keys:
 
 | Proxy call | Span key |
 |---|---|
@@ -1398,7 +1398,7 @@ The check compares calls in the same turn by these keys:
 | Postgres query | SQL operation, from the database operation or query attribute |
 | Model API | Model name, from an OpenInference model span with the name recorded |
 
-The proxy time must be within the span interval, with a [1 second margin](src/nookku/openinference.py). For each proxy call, the check takes the available matching span whose start is closest, then the first export row if the distance is the same. A span can cover one call. Each comparable proxy call in a turn with no match gives `proxy_call_without_span`. The trace skips this check when there is no import. A missing span is a difference in the two records. The [toy case](conformance/openinference/missing-stock-span.json) and [proof](proofs/openinference/results.json) show the difference.
+The proxy time must be within the span interval, with a [1 second margin](src/nookku/openinference.py). The turn of a span is not a part of the match, so a span that starts before the turn of a call, or before turn 1, can cover the call. For each proxy call, the check takes the available matching span whose start is closest, then the first export row if the distance is the same. A span can cover one call. Each comparable proxy call in a turn with no match gives `proxy_call_without_span`. The trace skips this check when there is no import. A missing span is a difference in the two records. The [toy case](conformance/openinference/missing-stock-span.json) and [proof](proofs/openinference/results.json) show the difference.
 
 ## 9. Evaluation
 

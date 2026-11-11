@@ -200,21 +200,18 @@ def _proxy_call(item: dict[str, Any]) -> tuple[str, str] | None:
 
 
 def missing(items: list[dict[str, Any]], spans: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Match calls once by key, turn and time. Give one finding per uncovered proxy call."""
-    by_line = {span["line"]: span for span in spans}
-    candidates: dict[tuple[int, tuple[str, str]], list[dict[str, Any]]] = {}
-    for item in items:
-        if item["harness"] != "openinference" or item["turn"] is None:
-            continue
-        span = by_line[item["source"]["line"]]
+    """Match calls once by key and time. Give one finding per uncovered proxy call in a turn."""
+    # A span covers a call by its interval, so a span can start before the turn of the call.
+    candidates: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    for span in spans:
         if span.get("call") is not None:
-            candidates.setdefault((item["turn"], tuple(span["call"])), []).append(span)
+            candidates.setdefault(tuple(span["call"]), []).append(span)
     out: list[dict[str, Any]] = []
     for item in items:
         key, ts, turn = _proxy_call(item), item["ts"], item["turn"]
         if key is None or turn is None or not isinstance(ts, (int, float)) or not 0 <= ts < 1e15:
             continue
-        pool = candidates.get((turn, key), [])
+        pool = candidates.get(key, [])
         best = min(
             (s for s in pool if s["start"] - SKEW <= ts <= s["end"] + SKEW),
             key=lambda s: (abs(s["start"] - ts), s["line"]),

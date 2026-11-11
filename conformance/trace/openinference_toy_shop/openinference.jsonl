@@ -1,0 +1,2 @@
+{"v": 1, "source": "phoenix", "trace_id": "00000000000000000000000000000001", "span_id": "0000000000000001", "name": "read stock", "kind": "CHAIN", "start": 1791273609.5, "end": 1791273612.5, "call": ["http", "GET /stock"]}
+{"v": 1, "source": "phoenix", "trace_id": "00000000000000000000000000000001", "span_id": "0000000000000002", "name": "close", "kind": "CHAIN", "start": 1791273645.0, "end": 1791273645.5, "call": null}
