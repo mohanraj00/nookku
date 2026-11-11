@@ -40,7 +40,7 @@ from nookku.config import (
     read_config,
     spec_hashes,
 )
-from nookku.record import RecordError, read_manifest
+from nookku.record import RecordError, loads, read_manifest
 from nookku.tap import Tap, serve
 
 # Config keys that are not a plain string flag of init.
@@ -120,7 +120,7 @@ def _register(args: argparse.Namespace) -> int:
     root = args.root.resolve()
     try:
         text = args.file.read_text(encoding="utf-8") if args.file else sys.stdin.read()
-        data = discovery.register(root, json.loads(text))
+        data = discovery.register(root, loads(text))
     except (OSError, UnicodeDecodeError, ValueError) as e:
         error = f"the answer is not valid, so nothing was written: {e}"
         print(json.dumps({"error": error}) if args.json else f"nookku: {error}")
@@ -717,7 +717,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         except kit.TranscriptError as e:
             print(f"nookku: {e}", file=sys.stderr)
             return 2
-        print(text, end="")
+        print(trace.multiline(text) if args.trace else text, end="")
         return 0
     if args.command == "view":
         root = args.root.resolve()

@@ -43,6 +43,7 @@ import stock  # noqa: E402
 import toy_model  # noqa: E402
 
 from nookku import discovery, seal  # noqa: E402
+from nookku.record import loads  # noqa: E402
 
 MESSAGES = [
     "Hi, is the teapot set in stock?",
@@ -93,8 +94,8 @@ def main() -> int:
         return 1
     folder, answer = ran
 
-    trace = [json.loads(x) for x in (folder / "trace.jsonl").read_text().split("\n") if x]
-    exchanges = [json.loads(x) for x in (folder / "tap.jsonl").read_text().split("\n") if x]
+    trace = [loads(x) for x in (folder / "trace.jsonl").read_text().split("\n") if x]
+    exchanges = [loads(x) for x in (folder / "tap.jsonl").read_text().split("\n") if x]
     replies = [r["reply"] for r in exchanges if r.get("type") == "exchange" and r.get("reply")]
     sources = {"session": ("claude-code",), "backend": ("backend",), "model_api": ("model_api",)}
     turns = []
@@ -125,12 +126,12 @@ def main() -> int:
         for r in issues
         if r["turn"] == str(BUG_TURN) and len(bug_lines) >= 2 and bug_lines <= cited(r["evidence"])
     ]
-    audit = json.loads((folder / "audit.json").read_text())
-    manifest = json.loads((folder / "manifest.json").read_text())
-    findings = json.loads((folder / "findings.json").read_text())
+    audit = loads((folder / "audit.json").read_text())
+    manifest = loads((folder / "manifest.json").read_text())
+    findings = loads((folder / "findings.json").read_text())
     sealed = seal.verify(folder)
     hidden = pr.private(report) or pr.private(answer)
-    stock_now = json.loads((project / "stock.json").read_text())["teapot-set"]
+    stock_now = loads((project / "stock.json").read_text())["teapot-set"]
     result = {
         "date": date.today().isoformat(),
         "relay": relay,

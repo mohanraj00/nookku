@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any, Literal
 from urllib.parse import urlsplit
 
-from nookku.record import lone_surrogate
+from nookku.record import loads, lone_surrogate
 
 STATE_DIR = ".nookku"
 NAME = "config.json"
@@ -68,7 +68,7 @@ def _move_record_key(path: Path) -> str | None:
     change, the first prompt writes the record into the old folder again, and then both folders
     exist. A record path outside the old folder stays as it is."""
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
+        data = loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
         return None
     except (OSError, ValueError) as error:
@@ -409,7 +409,7 @@ def _load(root: Path) -> Any:
     """The JSON value of config.json, with no check of its keys. Raise ConfigError if the file
     cannot be read or is not JSON."""
     try:
-        return json.loads((root / FILE).read_text(encoding="utf-8"))
+        return loads((root / FILE).read_text(encoding="utf-8"))
     except (OSError, ValueError) as e:
         raise ConfigError(f"cannot read {FILE}: {e}") from None
 

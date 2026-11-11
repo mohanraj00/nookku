@@ -25,12 +25,13 @@ from proof_common import codex_home  # noqa: E402
 from proof_sessions import ENTRY  # noqa: E402
 
 from nookku import bridge, discovery, seal  # noqa: E402
+from nookku.record import loads  # noqa: E402
 
 MESSAGES = ["Where is my order 4471?", "Where is my order 9999?"]
 
 
 def read(path: Path) -> list[dict[str, Any]]:
-    return [json.loads(line) for line in path.read_text().split("\n") if line]
+    return [loads(line) for line in path.read_text().split("\n") if line]
 
 
 def main() -> int:
@@ -53,7 +54,7 @@ def main() -> int:
         manifest = bridge.end(project)
     assert manifest is not None
     folder = Path(cur["dir"])
-    data = json.loads((folder / "performance.json").read_text())
+    data = loads((folder / "performance.json").read_text())
     sessions = [s for s in manifest["model_sessions"] if s["harness"] == "codex"]
     events = []
     for session in sessions:

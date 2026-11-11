@@ -4,14 +4,31 @@ json.loads raises RecursionError for such a text, not ValueError. Each reader of
 must give the error of a file that is not JSON, not a traceback.
 """
 
+import io
 import json
 import shutil
+import sys
 from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 
-from nookku import evaluation, seal, trace
+from nookku import (
+    bridge,
+    claude_gate,
+    codex_gate,
+    config,
+    dashboard,
+    discovery,
+    evaluation,
+    kit,
+    page,
+    page_auto,
+    policy,
+    seal,
+    state,
+    trace,
+)
 from nookku.cli import main
 from nookku.record import RecordError, loads, read_manifest
 
@@ -106,3 +123,109 @@ def test_loads_raises_a_value_error_for_json_that_nests_too_deep() -> None:
     with pytest.raises(json.JSONDecodeError):
         loads(DEEP.encode())
     assert loads('{"a": [[1]]}') == {"a": [[1]]}
+
+
+def test_deep_project_config_is_invalid_for_the_relay_and_guard(tmp_path: Path) -> None:
+    path = tmp_path / config.FILE
+    path.parent.mkdir()
+    path.write_text(DEEP)
+    with pytest.raises(config.ConfigError, match=r"config\.json.*the JSON nests too deep"):
+        config.read_config(tmp_path)
+    assert kit._guard_config(tmp_path) == kit.Config()
+
+
+def test_deep_legacy_config_stops_the_move(tmp_path: Path) -> None:
+    path = tmp_path / config.OLD_STATE_DIR / config.NAME
+    path.parent.mkdir()
+    path.write_text(DEEP)
+    assert "the JSON nests too deep" in (config.move_old_state(tmp_path) or "")
+    assert path.is_file()
+
+
+def test_deep_current_json_means_no_active_test(tmp_path: Path) -> None:
+    path = state.state(tmp_path) / "current.json"
+    path.parent.mkdir()
+    path.write_text(DEEP)
+    assert state.current(tmp_path) is None
+    assert dashboard.running_id(tmp_path) is None
+    assert not page._active(tmp_path)
+    assert not page_auto._runs(tmp_path, TEST)
+    assert path.read_text() == DEEP
+
+
+def test_deep_page_json_is_invalid(tmp_path: Path) -> None:
+    path = state.state(tmp_path) / state.PAGE_FILE
+    path.parent.mkdir()
+    path.write_text(DEEP)
+    assert state.page_info(tmp_path) is None
+
+
+def test_deep_tests_dirs_json_is_refused(tmp_path: Path) -> None:
+    path = state.state(tmp_path) / state.TESTS_DIRS
+    path.parent.mkdir()
+    path.write_text(DEEP)
+    with pytest.raises(state.TestsDirError, match="the JSON nests too deep"):
+        state.known_tests_dirs(tmp_path)
+
+
+def test_deep_policy_json_is_refused(tmp_path: Path) -> None:
+    path = policy.path(tmp_path)
+    path.parent.mkdir()
+    path.write_text(DEEP)
+    with pytest.raises(policy.PolicyError, match="the JSON nests too deep"):
+        policy.read(tmp_path)
+
+
+@pytest.mark.real_discovery
+def test_deep_egress_json_is_invalid(tmp_path: Path) -> None:
+    path = discovery.path(tmp_path)
+    path.parent.mkdir()
+    path.write_text(DEEP)
+    assert discovery.pending(tmp_path) is None
+
+
+@pytest.mark.parametrize("harness", ["claude-code", "codex"])
+def test_deep_hook_settings_are_refused_before_edit(tmp_path: Path, harness: str) -> None:
+    target = kit.hook_file(tmp_path, harness)
+    assert target is not None
+    target.parent.mkdir()
+    target.write_text(DEEP)
+    with pytest.raises(ValueError, match="the JSON nests too deep"):
+        kit.init(tmp_path, harness, {})
+    with pytest.raises(ValueError, match="the JSON nests too deep"):
+        kit.remove(tmp_path, harness)
+    assert target.read_text() == DEEP
+    assert not (tmp_path / config.FILE).exists()
+    if harness == "codex":
+        assert codex_gate._project_events(tmp_path) == set()
+    else:
+        assert claude_gate._read(target) == {}
+
+
+def test_deep_hook_input_still_blocks_in_relay_mode(tmp_path: Path) -> None:
+    kit.init(tmp_path, "codex", {})
+    kit.set_mode(tmp_path, True)
+    output = io.StringIO()
+    assert kit.run_hook(tmp_path, "codex", io.StringIO(DEEP), output) == 0
+    result = json.loads(output.getvalue())
+    assert result["decision"] == "block"
+    assert "the JSON nests too deep" in result["reason"]
+
+
+def test_a_deep_ending_file_does_not_stop_the_bridge_from_finishing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("NOOKKU_HOME", str(tmp_path / "home"))
+    path = tmp_path / config.FILE
+    path.parent.mkdir()
+    app = CASE.parents[2] / "examples" / "toy-shop" / "agent.py"
+    path.write_text(json.dumps({"entry": [sys.executable, str(app)], "otel": False, "page": False}))
+    cur = bridge.start(tmp_path)
+    ending = state.state(tmp_path) / bridge.ENDING
+    try:
+        ending.write_text(DEEP)
+    finally:
+        result = bridge.end(tmp_path)
+    assert result is not None and result.get("ended") is not None
+    assert not ending.exists()
+    assert (Path(cur["dir"]) / seal.SEAL).is_file()

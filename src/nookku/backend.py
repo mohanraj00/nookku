@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import base64
 import codecs
+import contextlib
 import hashlib
 import http.client
 import json
@@ -21,13 +22,14 @@ import time
 import zlib
 from collections.abc import Iterator
 from dataclasses import dataclass
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from typing import Any
 from urllib.parse import unquote_plus, urlsplit
 
 from . import stdio
 from .config import DEFAULT_BODY_LIMIT, BodyLimit, Config
+from .proxy_socket import LimitedServer, send_refusal
 from .record import json_text
 from .tap import HOP_BY_HOP
 
@@ -59,6 +61,8 @@ BODIES_TIMES = 4
 # The most trailer lines after the last chunk of a request body. This is the count of header lines
 # that http.server accepts. The proxy drops the trailer lines (SPEC.md section 7.6).
 TRAILERS = 100
+# The most bytes of chunk extensions in one request, including their semicolons.
+CHUNK_EXTENSIONS = 65536
 # The most bytes of one line of a chunked body, with its line end.
 LINE = 65537
 DIGITS = re.compile(r"[0-9]+")
@@ -261,9 +265,11 @@ def read_chunked(rfile: Any, limit: int, budget: Budget | None = None) -> bytes:
     out = bytearray()
     part = b""
     taken = 0
+    extensions = 0
     try:
         while True:
-            _, size = chunk_head(rfile)
+            line, size = chunk_head(rfile)
+            extensions = add_extensions(line, extensions)
             if size == 0:
                 for _ in trailer_lines(rfile):
                     pass  # The buffered path drops the trailers.
@@ -297,6 +303,15 @@ def chunk_head(rfile: Any, *, strict: bool = False) -> tuple[bytes, int]:
     if not HEX.fullmatch(size) or (strict and not line.endswith(b"\r\n")):
         raise Refused(400, "a chunk size is not valid")
     return line, int(size, 16)
+
+
+def add_extensions(line: bytes, total: int) -> int:
+    """Add the chunk extension bytes of a size line to `total`. Raise Refused above the cap."""
+    _, sep, extension = line.rstrip(b"\n").removesuffix(b"\r").partition(b";")
+    total += len(sep) + len(extension)
+    if total > CHUNK_EXTENSIONS:
+        raise Refused(400, f"the body has more than {CHUNK_EXTENSIONS} bytes of chunk extensions")
+    return total
 
 
 def chunk_end(rfile: Any, *, strict: bool = False) -> bytes:
@@ -401,8 +416,10 @@ def upload_parts(rfile: Any, length: int | None) -> Iterator[tuple[bytes, bool]]
         if length is not None:
             yield from payload_parts(rfile, length)
             return
+        extensions = 0
         while True:
             line, size = chunk_head(rfile, strict=True)
+            extensions = add_extensions(line, extensions)
             yield line, False
             if not size:
                 break
@@ -414,10 +431,10 @@ def upload_parts(rfile: Any, length: int | None) -> Iterator[tuple[bytes, bool]]
         raise stopped() from None
 
 
-class Proxy(ThreadingHTTPServer):
+class Proxy(LimitedServer, HTTPServer):
     """One recording proxy for one backend."""
 
-    daemon_threads = True
+    target_field = "backend"
     # The most bytes of a body that the record keeps, or None for RECORD_LIMIT. The proxy keeps
     # no more bytes of a response. The row still has the size and the SHA-256 of all of them.
     keep: int | None = None
@@ -464,6 +481,29 @@ class Proxy(ThreadingHTTPServer):
         if self.scheme == "https":
             return http.client.HTTPSConnection(self.host, self.port, timeout=TIMEOUT)
         return http.client.HTTPConnection(self.host, self.port, timeout=TIMEOUT)
+
+    def refuse_connection(self, request: socket.socket, reason: str) -> None:
+        row = {
+            "v": VERSION,
+            "type": "connection_refused",
+            self.target_field: self.backend.name,
+            "ts": time.time(),
+            "status": 503,
+            "error": reason,
+        }
+        data = json.dumps({"error": reason}).encode()
+        send_refusal(
+            request,
+            b"HTTP/1.1 503 Service Unavailable\r\nConnection: close\r\n"
+            b"Content-Type: application/json\r\nContent-Length: %d\r\n\r\n%s" % (len(data), data),
+        )
+        with self.lock:
+            if self.closed:
+                return
+        # The listener writes this row. Do not hold up other proxies or fail the accept loop.
+        # stop() waits for the listener before it closes the record.
+        with contextlib.suppress(OSError):
+            self._write(row)
 
     def describe(self, row: dict[str, Any], headers: list[tuple[str, str]], body: bytes) -> None:
         """Add to the row of a new call. A subclass can change it."""
@@ -556,22 +596,26 @@ class Handler(BaseHTTPRequestHandler):
             if self.server.stream_requests:
                 stream_length(self.headers)
             elif not chunked(self.headers):
-                declared(self.headers, self.server.body_limit)
+                size = declared(self.headers, self.server.body_limit)
+                if not self.server.budget.take(size):
+                    raise busy(self.server.budget)
+                self.held = size
         except Refused as e:
             self.early = e
             return True
         return super().handle_expect_100()
 
+    def handle_one_request(self) -> None:
+        try:
+            super().handle_one_request()
+        finally:
+            # A reservation can precede a failed write of 100 Continue or an unknown method.
+            self._give_back()
+
     def do_GET(self) -> None:
-        self._forward()
+        self._call()
 
     do_POST = do_PUT = do_PATCH = do_DELETE = do_HEAD = do_OPTIONS = do_GET
-
-    def _forward(self) -> None:
-        try:
-            self._call()
-        finally:
-            self._give_back()
 
     def _give_back(self) -> None:
         """Give the bytes of the request body back to the budget of the proxy."""
@@ -593,7 +637,8 @@ class Handler(BaseHTTPRequestHandler):
                 length = stream_length(self.headers)
                 upload = StreamBody(proxy.limit, self.headers.get("Content-Encoding"))
             else:
-                body = read_body(self.headers, self.rfile, proxy.body_limit, proxy.budget)
+                budget = None if self.held else proxy.budget
+                body = read_body(self.headers, self.rfile, proxy.body_limit, budget)
                 self.held = len(body)
         except Refused as e:
             # The proxy did not read all of the body, so the connection cannot take one more

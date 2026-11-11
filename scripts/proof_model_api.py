@@ -34,6 +34,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path[:0] = [str(ROOT / "src")]
 
 from nookku import __version__, bridge, discovery, model_api, seal, stdio  # noqa: E402
+from nookku.record import loads  # noqa: E402
 
 KEY = "sk-toy-proof-k3y"
 SEEN: list[dict[str, object]] = []
@@ -240,7 +241,7 @@ class ToyApi(BaseHTTPRequestHandler):
             self.send_response_only(204)
             self.end_headers()
             return
-        stream = json.loads(body).get("stream") is True
+        stream = loads(body).get("stream") is True
         answer = DECISION if self.path.endswith("/decisions") else JSON
         if not stream:
             parts = [answer]
@@ -306,9 +307,9 @@ def main() -> int:
         toy.shutdown()
         toy.server_close()
     folder = Path(cur["dir"])
-    entry = json.loads(shown) if ok else []
+    entry = loads(shown) if ok else []
     record = (folder / model_api.FILE).read_text(encoding="utf-8")
-    rows = [json.loads(x) for x in record.split("\n") if x]
+    rows = [loads(x) for x in record.split("\n") if x]
     texts = [
         "".join(f"Teapot set {n}: 3 left at €80. " for n in range(40)),
         "".join(f"Mug {n}. " for n in range(40)),
@@ -339,8 +340,8 @@ def main() -> int:
         if r["path"].endswith("/decisions"):
             calls[-1]["questions_in_record"] = r.get("questions")
             calls[-1]["questions_count"] = r.get("questions_count")
-    findings = json.loads((folder / "findings.json").read_text())
-    items = [json.loads(x) for x in (folder / "trace.jsonl").read_text().split("\n") if x]
+    findings = loads((folder / "findings.json").read_text())
+    items = [loads(x) for x in (folder / "trace.jsonl").read_text().split("\n") if x]
     asked = [
         it["input"]["questions"]
         for it in items

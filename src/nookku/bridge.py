@@ -1096,8 +1096,12 @@ def run(
     tester = set(manifest["tester_sessions"])
     ending = state(root) / ENDING
     with contextlib.suppress(OSError, ValueError):
-        data = json.loads(ending.read_text())
-        if data.get("test") == test and isinstance(data.get("tester_session"), str):
+        data = loads(ending.read_text())
+        if (
+            isinstance(data, dict)
+            and data.get("test") == test
+            and isinstance(data.get("tester_session"), str)
+        ):
             tester.add(data["tester_session"])
     ending.unlink(missing_ok=True)
     infer = True

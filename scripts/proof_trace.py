@@ -32,6 +32,7 @@ sys.path[:0] = [str(ROOT / "src"), str(ROOT / "scripts")]
 from proof_sessions import ENTRY  # noqa: E402
 
 from nookku import bridge, discovery  # noqa: E402
+from nookku.record import loads  # noqa: E402
 
 MESSAGES = [
     "Where is my order 4471?",
@@ -51,7 +52,7 @@ EXPECT = [
 
 
 def rows(path: Path) -> list[dict]:
-    return [json.loads(x) for x in path.read_text(encoding="utf-8").split("\n") if x]
+    return [loads(x) for x in path.read_text(encoding="utf-8").split("\n") if x]
 
 
 def found(items: list[dict], harness, turn, kind, name, args, result) -> bool:
@@ -126,7 +127,7 @@ def main() -> int:
         manifest = bridge.end(project)
     assert manifest is not None
     folder = Path(cur["dir"])
-    findings = json.loads((folder / "findings.json").read_text())
+    findings = loads((folder / "findings.json").read_text())
     items = rows(folder / "trace.jsonl")
     checks = [
         {"expect": [h, t, k, n, a, list(r)], "found": found(items, h, t, k, n, a, r)}

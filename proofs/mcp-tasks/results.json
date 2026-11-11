@@ -1,0 +1,62 @@
+{
+  "date": "2026-11-09",
+  "versions": {
+    "nookku": "0.5.7",
+    "claude_code": "2.1.319 (Claude Code)",
+    "codex": "codex-cli 0.162.1"
+  },
+  "method": "scripts/proof_mcp_tasks.py",
+  "case": "conformance/mcp/task-auth.json",
+  "model_used": false,
+  "passed": true,
+  "auth": [
+    {
+      "line": 1,
+      "status": 401,
+      "scope": "stock:read",
+      "error": null
+    },
+    {
+      "line": 2,
+      "status": 403,
+      "scope": "stock:read stock:reserve",
+      "error": "insufficient_scope"
+    }
+  ],
+  "tasks": [
+    {
+      "line": 3,
+      "task_id": "reservation",
+      "status": "working"
+    },
+    {
+      "line": 4,
+      "task_id": "reservation",
+      "status": "input_required"
+    },
+    {
+      "line": 5,
+      "task_id": "reservation",
+      "status": "completed"
+    },
+    {
+      "line": 6,
+      "task_id": "waitlist",
+      "status": "working"
+    }
+  ],
+  "unfinished": [
+    {
+      "check": "mcp_task_unfinished",
+      "turn": null,
+      "detail": "stock: task waitlist was working at the end of the record",
+      "harness": "mcp",
+      "session": "stock",
+      "source": {
+        "file": "mcp.jsonl",
+        "line": 6
+      }
+    }
+  ],
+  "credential_absent": true
+}

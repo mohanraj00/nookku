@@ -839,6 +839,7 @@ def counts(**n: int) -> dict:
         "model_api_error",
         "questions_lost",
         "database_error",
+        "mcp_task_unfinished",
         "unseen_call",
         "driver_without_span",
         "egress_not_in_discovery",

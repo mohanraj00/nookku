@@ -192,3 +192,27 @@ def test_an_unframed_empty_request_keeps_the_buffered_framing(tmp_path: Path, me
         finally:
             proxies.stop()
     assert stock.framing == (None if method == "GET" else "0", None, None)
+
+
+def test_a_streamed_upload_keeps_the_total_limit_of_chunk_extensions(tmp_path: Path) -> None:
+    refusals = json.loads(
+        (Path(__file__).resolve().parents[1] / "conformance/proxy/refusals.json").read_text()
+    )["chunk_extensions"]
+    first = b"3;" + b"x" * (refusals["first_length"] - 1) + b"\r\ntea\r\n"
+    second = b"3;" + b"y" * (refusals["second_length"] - 1) + b"\r\npot\r\n0\r\n\r\n"
+    with StockUpload(len(first) + len(second), len(first)) as stock:
+        proxies = proxy_for(stock, tmp_path)
+        proxies.start()
+        try:
+            with socket.create_connection(proxies.proxies[0].server_address, timeout=5) as app:
+                app.sendall(upload_head(b"Transfer-Encoding: chunked\r\n") + first + second)
+                with app.makefile("rb") as reply:
+                    status = reply.readline()
+                assert stock.complete.wait(3)
+        finally:
+            proxies.stop()
+    assert status.startswith(b"HTTP/1.1 ")
+    # The size line over the limit does not reach the stock service.
+    assert stock.size == len(first)
+    row = json.loads((tmp_path / backend.FILE).read_text())
+    assert refusals["error"] in row["error"]

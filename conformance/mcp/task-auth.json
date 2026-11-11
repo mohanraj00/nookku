@@ -1,0 +1,49 @@
+{
+  "steps": [
+    {
+      "request": {"jsonrpc": "2.0", "id": 1, "method": "tools/list"},
+      "status": 401,
+      "challenge": "Bearer realm=\"shop, test\", scope=\"stock:read\", resource_metadata=\"https://toy.test/metadata?token=toy-credential\"",
+      "response": null
+    },
+    {
+      "request": {"jsonrpc": "2.0", "id": 2, "method": "tools/list"},
+      "status": 403,
+      "challenge": "Basic realm=\"shop\", Bearer error=\"insufficient_scope\", scope=\"stock:read stock:reserve\", error_description=\"toy-credential\"",
+      "response": null
+    },
+    {
+      "request": {"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {"name": "reserve", "arguments": {"item": "teapot"}, "task": {}}},
+      "status": 200,
+      "response": {"jsonrpc": "2.0", "id": 3, "result": {"task": {"taskId": "reservation", "status": "working"}}}
+    },
+    {
+      "request": {"jsonrpc": "2.0", "id": 4, "method": "tasks/get", "params": {"taskId": "reservation"}},
+      "status": 200,
+      "response": {"jsonrpc": "2.0", "id": 4, "result": {"taskId": "reservation", "status": "input_required"}}
+    },
+    {
+      "request": null,
+      "status": 200,
+      "response": {"jsonrpc": "2.0", "method": "notifications/tasks/status", "params": {"taskId": "reservation", "status": "completed"}}
+    },
+    {
+      "request": {"jsonrpc": "2.0", "id": 5, "method": "tools/call", "params": {"name": "reserve", "arguments": {"item": "mug"}, "task": {}}},
+      "status": 200,
+      "response": {"jsonrpc": "2.0", "id": 5, "result": {"task": {"taskId": "waitlist", "status": "working"}}}
+    }
+  ],
+  "auth": [
+    {"line": 1, "status": 401, "scope": "stock:read", "error": null},
+    {"line": 2, "status": 403, "scope": "stock:read stock:reserve", "error": "insufficient_scope"}
+  ],
+  "tasks": [
+    {"line": 3, "task_id": "reservation", "status": "working"},
+    {"line": 4, "task_id": "reservation", "status": "input_required"},
+    {"line": 5, "task_id": "reservation", "status": "completed"},
+    {"line": 6, "task_id": "waitlist", "status": "working"}
+  ],
+  "unfinished": [
+    {"check": "mcp_task_unfinished", "turn": null, "detail": "stock: task waitlist was working at the end of the record", "harness": "mcp", "session": "stock", "source": {"file": "mcp.jsonl", "line": 6}}
+  ]
+}

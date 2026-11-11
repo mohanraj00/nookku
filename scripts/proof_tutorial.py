@@ -42,6 +42,7 @@ sys.path[:0] = [str(ROOT / "src")]
 from proof_common import NO_MODS, NO_TITLE, claude_events, claude_isolated, private  # noqa: E402
 
 from nookku import __version__  # noqa: E402
+from nookku.record import loads  # noqa: E402
 
 OUT = ROOT / "proofs" / "tutorial" / "output.txt"
 RUN = ROOT / "proofs" / "tutorial" / "run.json"
@@ -139,7 +140,7 @@ def main() -> int:
             text=True,
             timeout=300,
         )
-        answer = json.loads(done.stdout) if done.stdout.strip() else {}
+        answer = loads(done.stdout) if done.stdout.strip() else {}
         shown = answer.get("reason")
         if shown is None:
             # The prompt goes to the model with this context. Keep the end text, not the prompt.
@@ -198,7 +199,7 @@ def main() -> int:
         shell("nookku verify")
         shell("nookku trace")
         shell(f"cat {folder}/findings.json")
-        manifest = json.loads((shop / folder / "manifest.json").read_text(encoding="utf-8"))
+        manifest = loads((shop / folder / "manifest.json").read_text(encoding="utf-8"))
         run = {
             "date": date.today().isoformat(),
             "tests": tests,

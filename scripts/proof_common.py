@@ -15,6 +15,8 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
+from nookku.record import loads
+
 ROOT = Path(__file__).resolve().parent.parent
 # The toy shop agent of the tests over stdio.
 ENTRY = [sys.executable, str(ROOT / "tests" / "toy_entry.py")]
@@ -62,7 +64,7 @@ def private(text: str) -> bool:
 
 def nookku_servers() -> dict[str, Any]:
     """The MCP servers of the plugin, with only the command and the arguments of each."""
-    servers = json.loads((PLUGIN_DIR / ".mcp.json").read_text())["mcpServers"]
+    servers = loads((PLUGIN_DIR / ".mcp.json").read_text())["mcpServers"]
     return {"mcpServers": {n: {k: s[k] for k in ("command", "args")} for n, s in servers.items()}}
 
 
@@ -134,7 +136,7 @@ def codex_home(plugin: bool, project: Path) -> Path:
         timeout=60,
     )
     try:
-        servers = json.loads(p.stdout)
+        servers = loads(p.stdout)
         names = [str(s["name"]) for s in servers if s.get("enabled") is not False]
     except (ValueError, TypeError, KeyError, AttributeError):
         sys.exit(f"codex mcp list gave no list of servers (exit {p.returncode}): {p.stderr[-300:]}")
@@ -149,7 +151,7 @@ def json_lines(text: str) -> list[Any]:
     Split on \\n only. str.splitlines() also splits at U+2028, U+2029 and U+0085, and a JSON string
     can hold these characters unescaped (#31).
     """
-    return [json.loads(x) for x in text.split("\n") if x.startswith("{")]
+    return [loads(x) for x in text.split("\n") if x.startswith("{")]
 
 
 def hide(text: str, secret: str) -> str:
@@ -173,7 +175,7 @@ def copy_hidden(src: Path, dst: Path, secrets: tuple[str, ...]) -> None:
     for line in src.read_text(encoding="utf-8").split("\n"):
         if not line:
             continue
-        row = json.loads(line)
+        row = loads(line)
         if row.get("type") == "blocked_call":
             detail = row["detail"]
             for s in secrets:
@@ -225,7 +227,7 @@ def new_state(project: Path) -> None:
 def rows(path: Path, kind: str | None = None) -> list[dict]:
     """The rows of a record. Split on \\n only: a text can hold U+2028."""
     text = path.read_text(encoding="utf-8") if path.exists() else ""
-    out = [json.loads(x) for x in text.split("\n") if x]
+    out = [loads(x) for x in text.split("\n") if x]
     return [r for r in out if kind is None or r["type"] == kind]
 
 

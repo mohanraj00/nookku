@@ -45,6 +45,7 @@ import stock  # noqa: E402
 import toy_model  # noqa: E402
 
 from nookku import discovery, performance, seal  # noqa: E402
+from nookku.record import loads  # noqa: E402
 
 MESSAGES = [
     "Hi, is the teapot set in stock?",
@@ -108,16 +109,16 @@ def main() -> int:
         return 1
     folder, answer = ran
 
-    data = json.loads((folder / performance.FILE).read_text())
+    data = loads((folder / performance.FILE).read_text())
     turns = data["turns"]
     sessions = [[s for s in t["sources"] or [] if s["harness"] == "claude-code"] for t in turns]
     report_path = folder / "report.md"
     report = report_path.read_text(encoding="utf-8") if report_path.exists() else ""
     issues = pr.rows(report)
     rows = [r for r in issues if r["class"] == "performance"]
-    audit = json.loads((folder / "audit.json").read_text())
-    manifest = json.loads((folder / "manifest.json").read_text())
-    findings = json.loads((folder / "findings.json").read_text())
+    audit = loads((folder / "audit.json").read_text())
+    manifest = loads((folder / "manifest.json").read_text())
+    findings = loads((folder / "findings.json").read_text())
     sealed = seal.verify(folder)
     hidden = pr.private(report) or pr.private(answer)
     result = {

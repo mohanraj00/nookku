@@ -45,6 +45,7 @@ from proof_common import NO_TITLE  # noqa: E402
 from nookku import __version__, kit  # noqa: E402
 from nookku.config import STATE_DIR  # noqa: E402
 from nookku.mcp import tool_name  # noqa: E402
+from nookku.record import loads  # noqa: E402
 
 PLUGIN = ROOT / "plugins" / "nookku"
 OUT = ROOT / "proofs" / "plugin" / "load.json"
@@ -88,7 +89,7 @@ def probe_plugin(folder: Path, hooks: dict[str, Any], seen: Path) -> None:
 
 
 def mcp_root(seen: Path, project: Path) -> dict[str, bool]:
-    got = json.loads(seen.read_text())
+    got = loads(seen.read_text())
     named = got["CLAUDE_PROJECT_DIR"]
     return {
         "the MCP server starts in the project": Path(got["cwd"]).resolve() == project.resolve(),
@@ -224,7 +225,7 @@ def app_server(home: Path, project: Path, calls: list[tuple[str, dict[str, Any]]
         proc.stdin.write(json.dumps(lines[0]) + "\n" + json.dumps(lines[1]) + "\n")
         proc.stdin.flush()
         for line in proc.stdout:
-            answer = json.loads(line)
+            answer = loads(line)
             if answer.get("id") == 1:
                 proc.stdin.write("".join(json.dumps(x) + "\n" for x in lines[2:]))
                 proc.stdin.flush()
@@ -252,7 +253,7 @@ def codex(work: Path) -> dict[str, Any]:
     market = work / "codex-market"
     shutil.copytree(PLUGIN, market / "plugins" / "nookku")
     probe_plugin(market / "plugins" / "probe", {"hooks": {}}, work / "codex-mcp.json")
-    listing = json.loads((ROOT / ".agents" / "plugins" / "marketplace.json").read_text())
+    listing = loads((ROOT / ".agents" / "plugins" / "marketplace.json").read_text())
     entry = listing["plugins"][0]
     probe = {**entry, "name": "probe", "source": {"source": "local", "path": "./plugins/probe"}}
     listing["plugins"].append(probe)
