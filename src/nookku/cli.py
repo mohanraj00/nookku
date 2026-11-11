@@ -874,6 +874,25 @@ def _trace_command(
         names.remove(verdict.FILE)
         found = None
     seal.update(folder, names)
+    code = 0
+    if verdict_gate and found is not None:
+        # The exit code uses only a verdict that agrees with the copy of the seal (SPEC.md
+        # section 7.14), not the file as another user can leave it.
+        found, why = verdict.checked(folder)
+        if found is None:
+            print(f"nookku: the verdict cannot be used. {why}", file=sys.stderr)
+    if verdict_gate:
+        code = 0 if found is not None and found["verdict"] == verdict.PASS else 1
+    if as_json:
+        print(json.dumps(report, indent=1, ensure_ascii=False))
+    else:
+        print(trace.summary(report))
+        for line in trace.finding_lines(report):
+            print(line)
+        if verdict.shown(found, verdict_gate):
+            print(verdict.summary(found))
+        print(f"File: {folder / 'trace.jsonl'}")
+    # The export runs after the output, so a failed export still shows the trace and the verdict.
     if otlp_file is not None or otlp_endpoint is not None:
         from nookku import genai_export
 
@@ -886,24 +905,6 @@ def _trace_command(
         except (OSError, RecordError, genai_export.ExportError) as e:
             print(f"nookku: the OTLP trace was not exported. {e}", file=sys.stderr)
             return 2
-    code = 0
-    if verdict_gate and found is not None:
-        # The exit code uses only a verdict that agrees with the copy of the seal (SPEC.md
-        # section 7.14), not the file as another user can leave it.
-        found, why = verdict.checked(folder)
-        if found is None:
-            print(f"nookku: the verdict cannot be used. {why}", file=sys.stderr)
-    if verdict_gate:
-        code = 0 if found is not None and found["verdict"] == verdict.PASS else 1
-    if as_json:
-        print(json.dumps(report, indent=1, ensure_ascii=False))
-        return code
-    print(trace.summary(report))
-    for line in trace.finding_lines(report):
-        print(line)
-    if verdict.shown(found, verdict_gate):
-        print(verdict.summary(found))
-    print(f"File: {folder / 'trace.jsonl'}")
     return code
 
 

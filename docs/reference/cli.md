@@ -373,7 +373,7 @@ Compare the relay record with the [tap record](glossary.md#tap-record) ([SPEC.md
 ### `nookku trace`
 
 ```text
-nookku trace [TEST] [--root PATH] [--tests-dir PATH] [--json] [--verdict] [--egress FILE] [--gateway SOURCE --key-alias ALIAS [--key-alias ALIAS] [--gateway-tag TAG] [--gateway-skew SECONDS]]
+nookku trace [TEST] [--root PATH] [--tests-dir PATH] [--json] [--verdict] [--egress FILE] [--otlp-file FILE] [--otlp-endpoint URL] [--gateway SOURCE --key-alias ALIAS [--key-alias ALIAS] [--gateway-tag TAG] [--gateway-skew SECONDS]]
 ```
 
 Build the trace of a test again, and show its findings ([SPEC.md section 8](../../SPEC.md#8-trace)). The findings show in groups by turn, and each control character of a finding shows as its escape ([read the results](../how-to/read-the-results.md#4-read-the-findings)). It also writes `performance.json` ([SPEC.md section 8.7](../../SPEC.md#87-performance)) and `verdict.json` ([SPEC.md section 7.14](../../SPEC.md#714-verdict)) again. It shows the verdict if the app spec gives limits, if the verdict is `fail`, or with `--verdict`. If the test has a seal, it rebuilds only from sources that agree with the seal.
@@ -399,7 +399,7 @@ If a model API proxy and the gateway both record a call of the app, the trace ke
 |---|---|
 | 0 | The trace was built. With `--verdict`, the verdict is also `pass`. |
 | 1 | Only with `--verdict`: the trace was built, and the verdict is `fail`, or `verdict.json` was not written. |
-| 2 | No test folder with a manifest, the seal is broken, a record is not valid, or the egress file cannot be read or has a span of a later contract version, or the gateway logs were not read. The trace was not rebuilt. |
+| 2 | No test folder with a manifest, the seal is broken, a record is not valid, or the egress file cannot be read or has a span of a later contract version, or the gateway logs were not read. The trace was not rebuilt. Also, the OTLP export failed: then the trace was rebuilt, and the command printed it and the verdict before the error. |
 
 If your agent runs in a Koodam Workspace, export the egress spans outside the pod for the time of the test. Then give them to the trace:
 

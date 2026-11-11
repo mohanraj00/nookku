@@ -1,4 +1,5 @@
 import json
+import os
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
@@ -197,3 +198,47 @@ def test_an_output_file_in_the_test_folder_is_refused(tmp_path: Path) -> None:
     with pytest.raises(genai_export.ExportError, match="outside the test folder"):
         genai_export.write(folder / "traces.json", folder, SPANS)
     assert list(folder.iterdir()) == []
+
+
+@pytest.mark.parametrize(
+    ("item", "error"),
+    [
+        ({"harness": "backend", "kind": "http", "exit_code": 404}, False),
+        ({"harness": "backend", "kind": "http", "exit_code": 500}, True),
+        ({"harness": "model_api", "role": "assistant", "kind": "message", "exit_code": 429}, True),
+        ({"harness": "model_api", "role": "assistant", "kind": "message", "exit_code": 200}, False),
+        ({"harness": "mcp", "kind": "tool_call", "exit_code": 404}, False),
+        ({"harness": "mcp", "kind": "tool_call", "error": "toy error"}, True),
+    ],
+)
+def test_a_span_is_an_error_at_the_limits_of_the_error_findings(
+    item: dict[str, Any], error: bool
+) -> None:
+    export = genai_export._Export(TEST, 1)
+    root = export.add("nookku test", 1, 1, "tap")
+    genai_export._item_span(export, root, {"ts": 1, "name": "GET /stock", **item})
+    assert ("status" in export.spans[-1]) is error
+
+
+def test_the_output_file_has_the_mode_of_a_new_file(tmp_path: Path) -> None:
+    mask = os.umask(0o022)
+    try:
+        genai_export.write(tmp_path / "traces.json", tmp_path / TEST, SPANS)
+    finally:
+        os.umask(mask)
+    assert (tmp_path / "traces.json").stat().st_mode & 0o777 == 0o644
+
+
+def test_a_failed_export_prints_the_trace_and_exits_with_2(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    folder = tmp_path / ".nookku" / "tests" / TEST
+    folder.mkdir(parents=True)
+    (folder / "manifest.json").write_text(json.dumps({"test": TEST}), encoding="utf-8")
+    Writer(folder / "tap.jsonl").append(loads(CASE.read_bytes())["turn"])
+    inside = folder / "traces.json"
+    assert main(["trace", "--root", str(tmp_path), TEST, "--otlp-file", str(inside)]) == 2
+    out = capsys.readouterr()
+    assert "trace.jsonl" in out.out
+    assert "the OTLP trace was not exported" in out.err
+    assert not inside.exists()

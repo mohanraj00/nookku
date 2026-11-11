@@ -218,8 +218,11 @@ def _item_span(export: _Export, parent: dict[str, Any], item: dict[str, Any]) ->
         )
     else:
         return
+    # Use the status limits of the error findings of the trace (SPEC.md section 8.6).
     status = item.get("exit_code")
-    if item.get("error") is not None or (type(status) is int and status >= 400):
+    limit = 400 if harness in ("model_api", "gateway") else 500 if kind == "http" else None
+    over = limit is not None and type(status) is int and status >= limit
+    if item.get("error") is not None or over:
         span["status"] = {"code": 2}
 
 
@@ -389,6 +392,10 @@ def write(path: Path, folder: Path, data: dict[str, Any]) -> None:
         raise ExportError("choose an OTLP output file outside the test folder")
     fd, temporary = tempfile.mkstemp(prefix=".nookku-otlp-", dir=path.parent)
     try:
+        # mkstemp gives mode 0600. Give the file the mode of a normal new file.
+        mask = os.umask(0)
+        os.umask(mask)
+        os.chmod(temporary, 0o666 & ~mask)
         with os.fdopen(fd, "w", encoding="utf-8") as fh:
             json.dump(data, fh, indent=2, ensure_ascii=False)
             fh.write("\n")
