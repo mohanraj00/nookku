@@ -216,3 +216,27 @@ def test_a_streamed_upload_keeps_the_total_limit_of_chunk_extensions(tmp_path: P
     assert stock.size == len(first)
     row = json.loads((tmp_path / backend.FILE).read_text())
     assert refusals["error"] in row["error"]
+
+
+@pytest.mark.parametrize("case", CASE["framing_refusals"], ids=lambda case: repr(case["line"]))
+def test_a_streamed_chunk_size_line_with_two_meanings_is_refused(
+    tmp_path: Path, case: dict
+) -> None:
+    line = case["line"].encode()
+    with StockUpload(1 << 20, 0) as stock:
+        proxies = proxy_for(stock, tmp_path)
+        proxies.start()
+        try:
+            with socket.create_connection(proxies.proxies[0].server_address, timeout=5) as app:
+                app.sendall(
+                    upload_head(b"Transfer-Encoding: chunked\r\n") + line + b"teapo\r\n0\r\n\r\n"
+                )
+                with app.makefile("rb") as reply:
+                    status = reply.readline()
+        finally:
+            proxies.stop()
+    assert status.startswith(f"HTTP/1.1 {case['status']} ".encode())
+    # The proxy does not forward the size line, so the stock service gets no body byte.
+    assert stock.size == 0
+    row = json.loads((tmp_path / backend.FILE).read_text())
+    assert row["error"] == case["error"]

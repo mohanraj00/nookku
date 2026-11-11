@@ -5,5 +5,37 @@
   "incomplete_length": 10,
   "incomplete_status": 400,
   "incomplete_error": "the request stream stopped: the body stopped before its end",
-  "incomplete_sha256": "33f38545e00a507fba8be0243f5d19ee24dac952e6664422f91c32df2c63ff0b"
+  "incomplete_sha256": "33f38545e00a507fba8be0243f5d19ee24dac952e6664422f91c32df2c63ff0b",
+  "framing_refusals": [
+    {
+      "line": " 5\r\n",
+      "status": 400,
+      "error": "the request stream stopped: a chunk size is not valid"
+    },
+    {
+      "line": "5 \r\n",
+      "status": 400,
+      "error": "the request stream stopped: a chunk size is not valid"
+    },
+    {
+      "line": "\u000b5\r\n",
+      "status": 400,
+      "error": "the request stream stopped: a chunk size is not valid"
+    },
+    {
+      "line": "5\n",
+      "status": 400,
+      "error": "the request stream stopped: a chunk size is not valid"
+    },
+    {
+      "line": "5;kind=to\ry\r\n",
+      "status": 400,
+      "error": "the request stream stopped: a chunk extension is not valid"
+    },
+    {
+      "line": "5;kind=to\u0000y\r\n",
+      "status": 400,
+      "error": "the request stream stopped: a chunk extension is not valid"
+    }
+  ]
 }

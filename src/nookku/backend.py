@@ -67,6 +67,8 @@ CHUNK_EXTENSIONS = 65536
 LINE = 65537
 DIGITS = re.compile(r"[0-9]+")
 HEX = re.compile(rb"[0-9A-Fa-f]+")
+# A control byte other than a tab, which a chunk extension cannot have.
+CONTROL = re.compile(rb"[\x00-\x08\x0a-\x1f\x7f]")
 REFUSED = "the proxy refused the request"
 # After a refusal, the proxy reads and drops the rest of the body while the app still sends it.
 # Thus the close does not reset the connection before the app reads the refusal. The drain ends at
@@ -299,8 +301,16 @@ def chunk_head(rfile: Any, *, strict: bool = False) -> tuple[bytes, int]:
     line: bytes = rfile.readline(LINE)
     if not line.endswith(b"\n"):
         raise stopped() if len(line) < LINE else Refused(400, "a chunk size is not valid")
-    size = line.split(b";", 1)[0].strip()
-    if not HEX.fullmatch(size) or (strict and not line.endswith(b"\r\n")):
+    if strict:
+        # The streamed path forwards this line as it came, so the line must have one meaning only.
+        if not line.endswith(b"\r\n"):
+            raise Refused(400, "a chunk size is not valid")
+        size, _, extension = line[:-2].partition(b";")
+        if CONTROL.search(extension):
+            raise Refused(400, "a chunk extension is not valid")
+    else:
+        size = line.split(b";", 1)[0].strip()
+    if not HEX.fullmatch(size):
         raise Refused(400, "a chunk size is not valid")
     return line, int(size, 16)
 
