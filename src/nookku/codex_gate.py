@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Any
 
 from nookku import __version__, kit
+from nookku.record import loads
 
 # The SHA-256 of plugins/nookku/hooks/nookku-hook.sh of this version (tests/test_codex_gate.py).
 PLUGIN_SCRIPT_SHA256 = "f50a064260a464c81c864c5bb5bc760f15c9b04770ff81c42ade03dba7511341"
@@ -92,7 +93,7 @@ def read_hooks(root: Path, timeout: float | None = None) -> tuple[list[dict[str,
         proc.stdin.flush()
         for raw in proc.stdout:
             try:
-                message = json.loads(raw)
+                message = loads(raw)
             except ValueError:
                 continue
             if message.get("id") == 2:
@@ -129,7 +130,7 @@ def _project_events(root: Path) -> set[str]:
     """The events of the nookku hooks in the project hook file of Codex."""
     target = root / ".codex" / "hooks.json"
     try:
-        hooks = json.loads(target.read_text(encoding="utf-8")).get("hooks", {})
+        hooks = loads(target.read_text(encoding="utf-8")).get("hooks", {})
     except (OSError, ValueError, AttributeError):
         return set()
     found = set()

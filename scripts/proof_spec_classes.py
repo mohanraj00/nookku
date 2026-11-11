@@ -51,6 +51,7 @@ import toy_model  # noqa: E402
 
 from nookku import discovery, seal  # noqa: E402
 from nookku.config import spec_copy  # noqa: E402
+from nookku.record import loads  # noqa: E402
 
 PLANTED = (
     "You are the support agent of a toy shop. Use the tools for orders and reservations. "
@@ -139,10 +140,10 @@ def main() -> int:
     folder, answer = ran
 
     trace = [
-        json.loads(x) for x in (folder / "trace.jsonl").read_text(encoding="utf-8").split("\n") if x
+        loads(x) for x in (folder / "trace.jsonl").read_text(encoding="utf-8").split("\n") if x
     ]
     exchanges = [
-        json.loads(x) for x in (folder / "tap.jsonl").read_text(encoding="utf-8").split("\n") if x
+        loads(x) for x in (folder / "tap.jsonl").read_text(encoding="utf-8").split("\n") if x
     ]
     replies = [r["reply"] for r in exchanges if r.get("type") == "exchange" and r.get("reply")]
     # The app is an Agent SDK session in each setup, so its session items are of claude-code.
@@ -155,7 +156,7 @@ def main() -> int:
     report = report_path.read_text(encoding="utf-8") if report_path.exists() else ""
     issues = pr.rows(report)
 
-    manifest = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
+    manifest = loads((folder / "manifest.json").read_text(encoding="utf-8"))
     spec_path = "APP_SPEC.md"
     spec_root = project
     if manifest.get("spec_copies") is True:
@@ -176,8 +177,8 @@ def main() -> int:
             for r in issues
         )
 
-    audit = json.loads((folder / "audit.json").read_text(encoding="utf-8"))
-    findings = json.loads((folder / "findings.json").read_text(encoding="utf-8"))
+    audit = loads((folder / "audit.json").read_text(encoding="utf-8"))
+    findings = loads((folder / "findings.json").read_text(encoding="utf-8"))
     sealed = seal.verify(folder)
     hidden = pr.private(report) or pr.private(answer) or any(pr.private(r) for r in replies)
     result = {

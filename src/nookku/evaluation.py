@@ -110,10 +110,6 @@ def _items(path: Path) -> list[dict[str, Any]]:
     return out
 
 
-# The characters that can end a line: the control characters, and the line ends of str.splitlines.
-LINE_END = re.compile("[\x00-\x1f\x7f\x85\u2028\u2029]")
-
-
 def _cut(text: str, line: int) -> str:
     if len(text) <= CUT:
         return text
@@ -127,11 +123,11 @@ def _value(value: Any) -> str:
 def decision(answer: dict[str, Any]) -> str:
     """One answer of a call to the Decisions API on one line, for example
     `department: billing (0.95), confidence 0.93`. For a choice, the number in brackets is the
-    probability of the chosen value. Each character that can end a line shows as its escape."""
+    probability of the chosen value. Control characters show as their escapes."""
     name = answer.get("name") if answer.get("name") is not None else "(no name)"
     kind, value = answer.get("type"), answer.get("value")
     if kind == "refusal":
-        return _one_line(f"{name}: refusal (the model did not answer this question)")
+        return trace.one_line(f"{name}: refusal (the model did not answer this question)")
     if kind == "predicate":
         out = f"{name}: probability {_value(value)}"
     elif kind == "score":
@@ -145,13 +141,7 @@ def decision(answer: dict[str, Any]) -> str:
                 break
     if answer.get("confidence") is not None:
         out += f", confidence {_value(answer['confidence'])}"
-    return _one_line(out)
-
-
-def _one_line(text: str) -> str:
-    """A text with each character that can end a line as its JSON escape, so that the text of a
-    question stays on its line."""
-    return LINE_END.sub(lambda m: f"\\u{ord(m.group()):04x}", text)
+    return trace.one_line(out)
 
 
 def _asked(asked: Any, line: int) -> str:
@@ -163,7 +153,7 @@ def _asked(asked: Any, line: int) -> str:
     more = f" (cut at {CUT} characters: the full text is in trace.jsonl:{line})"
 
     def short(text: str) -> str:
-        return _one_line(text[:CUT]) + (more if len(text) > CUT else "")
+        return trace.one_line(text[:CUT]) + (more if len(text) > CUT else "")
 
     for q in asked.get("questions") or []:
         options = q.get("options")
@@ -172,13 +162,13 @@ def _asked(asked: Any, line: int) -> str:
         told = ""
         if said:
             said = said if isinstance(said, str) else _value(said)
-            text = _one_line(json.dumps(said[:CUT], ensure_ascii=False))
+            text = trace.one_line(json.dumps(said[:CUT], ensure_ascii=False))
             told = f"; instructions: {text}{more if len(said) > CUT else ''}"
         name = short(_value(q.get("name") or "(no name)"))
         out += f"question {name} ({short(str(q.get('type')))}){shown}{told}\n"
     for i in asked.get("images") or []:
         size = f"{i['size']} bytes" if i.get("size") is not None else "not base64"
-        kind, digest = short(str(i.get("media_type"))), _one_line(str(i.get("sha256")))
+        kind, digest = short(str(i.get("media_type"))), trace.one_line(str(i.get("sha256")))
         out += f"image: {kind}, {size}, sha256 {digest}\n"
     return out
 
@@ -200,8 +190,8 @@ def render_item(it: dict[str, Any], line: int) -> str:
                 out += f"{_cut(it['output'] or '', line)}\n"
         if it["harness"] == "gateway" and it["role"] == "assistant":
             # The gateway log gives no status for a call that it logged as a success.
-            path = _one_line(str(it["input"].get("path")))
-            out = f"{head}, assistant: key {_one_line(str(it['session']))} {path}:\n"
+            path = trace.one_line(str(it["input"].get("path")))
+            out = f"{head}, assistant: key {trace.one_line(str(it['session']))} {path}:\n"
             out += f"{_cut(it['output'] or '', line)}\n"
         if it.get("error") is not None:
             out += f"error:\n{_cut(it['error'], line)}\n"

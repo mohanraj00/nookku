@@ -1,0 +1,7 @@
+{
+ "exit": 2,
+ "errors": [
+  "record_invalid"
+ ],
+ "reader_error": "line 2: the frame header does not match the recorded opcode and final flag"
+}

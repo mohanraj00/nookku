@@ -258,3 +258,15 @@ def test_a_stdio_wrapper_sees_the_mcp_calls_with_no_address() -> None:
     answer["mcp_servers"].pop()
     egress["proxies"] = {}
     assert len(found()) == 1
+
+
+def test_a_task_and_scope_changes_appear_in_the_trace(tmp_path: Path) -> None:
+    from toy_mcp_tasks import CASE, observe
+
+    case = json.loads(CASE.read_text())
+    assert observe(tmp_path) == {
+        "auth": case["auth"],
+        "tasks": case["tasks"],
+        "unfinished": case["unfinished"],
+        "credential_absent": True,
+    }

@@ -19,6 +19,7 @@ from nookku import (
     evaluation,
     gateway,
     kit,
+    openinference,
     performance,
     print_mode,
     seal,
@@ -40,7 +41,7 @@ from nookku.config import (
     read_config,
     spec_hashes,
 )
-from nookku.record import RecordError, read_manifest
+from nookku.record import RecordError, loads, read_manifest
 from nookku.tap import Tap, serve
 
 # Config keys that are not a plain string flag of init.
@@ -120,7 +121,7 @@ def _register(args: argparse.Namespace) -> int:
     root = args.root.resolve()
     try:
         text = args.file.read_text(encoding="utf-8") if args.file else sys.stdin.read()
-        data = discovery.register(root, json.loads(text))
+        data = discovery.register(root, loads(text))
     except (OSError, UnicodeDecodeError, ValueError) as e:
         error = f"the answer is not valid, so nothing was written: {e}"
         print(json.dumps({"error": error}) if args.json else f"nookku: {error}")
@@ -257,7 +258,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="run the tap proxy in front of the agent",
         usage="%(prog)s (--agent URL | --cmd -- COMMAND...) --record FILE [options]",
     )
-    tap.add_argument("--agent", help="HTTP mode: the agent's base URL")
+    tap.add_argument("--agent", help="HTTP mode: the agent's base URL (http, https, ws or wss)")
     tap.add_argument(
         "--cmd", action="store_true", help="stdio mode: start the COMMAND after -- as the agent"
     )
@@ -407,6 +408,12 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     trc.add_argument("--otlp-file", type=Path, metavar="FILE", help="write OTLP trace JSON")
     trc.add_argument("--otlp-endpoint", metavar="URL", help="send the trace as OTLP/HTTP protobuf")
+    trc.add_argument(
+        "--openinference",
+        type=Path,
+        metavar="FILE",
+        help="read OpenInference spans from an export and compare them with the proxy records",
+    )
 
     sub.add_parser("setup", help="print the guide that connects a test to the app")
 
@@ -607,6 +614,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             args.verdict,
             args.otlp_file,
             args.otlp_endpoint,
+            args.openinference,
         )
     if args.command == "verify":
         folder = _test_folder(args.root.resolve(), args.test)
@@ -727,7 +735,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         except kit.TranscriptError as e:
             print(f"nookku: {e}", file=sys.stderr)
             return 2
-        print(text, end="")
+        print(trace.multiline(text) if args.trace else text, end="")
         return 0
     if args.command == "view":
         root = args.root.resolve()
@@ -804,6 +812,7 @@ def _trace_command(
     verdict_gate: bool = False,
     otlp_file: Path | None = None,
     otlp_endpoint: str | None = None,
+    inference: Path | None = None,
 ) -> int:
     folder = _test_folder(root, test)
     if folder is None:
@@ -820,6 +829,13 @@ def _trace_command(
         print(f"nookku: the trace was not rebuilt. {seal.summary(check)}", file=sys.stderr)
         return 2
     names = list(rebuilt)
+    inferred = None
+    if inference is not None:
+        try:
+            inferred = openinference.import_bytes(inference)
+        except RecordError as e:
+            print(f"nookku: the trace was not rebuilt. {e}", file=sys.stderr)
+            return 2
     if egress is not None:
         # Check the spans before the copy, so a file that the trace cannot read does not go into
         # the test folder (SPEC.md section 8.8).
@@ -852,12 +868,20 @@ def _trace_command(
             print(f"nookku: the trace was not rebuilt. {egress}: {e.strerror}", file=sys.stderr)
             return 2
         names.append(egress_spans.FILE)
+    if inferred is not None:
+        try:
+            egress_spans.copy_in(inferred, folder, openinference.FILE)
+        except OSError as e:
+            seal.update(folder, [n for n in names if n not in rebuilt])
+            print(f"nookku: the trace was not rebuilt. {inference}: {e.strerror}", file=sys.stderr)
+            return 2
+        names.append(openinference.FILE)
     try:
         report = trace.build(folder)
     except RecordError as e:
         # The copied spans and the gateway logs passed their checks, so the seal takes them, and
         # the next rebuild does not see them as files that were added after the end.
-        seal.update(folder, [n for n in names if n in (egress_spans.FILE, gateway.FILE)])
+        seal.update(folder, [n for n in names if n not in rebuilt])
         print(f"nookku: the trace was not rebuilt. {e}", file=sys.stderr)
         return 2
     try:

@@ -27,6 +27,7 @@ from typing import Any, NamedTuple
 from urllib.parse import unquote, urlsplit, urlunsplit
 
 from nookku import backend
+from nookku.proxy_socket import LimitedServer, send_refusal
 from nookku.record import json_text
 
 FILE = "database.jsonl"
@@ -466,10 +467,8 @@ def _read(sock: socket.socket, size: int) -> bytes:
     return out
 
 
-class Proxy(socketserver.ThreadingTCPServer):
+class Proxy(LimitedServer):
     """One recording proxy for one Postgres database."""
-
-    daemon_threads = True
 
     def __init__(self, database: Database, record: Path, lock: threading.Lock) -> None:
         super().__init__(("127.0.0.1", 0), Handler)
@@ -499,6 +498,18 @@ class Proxy(socketserver.ThreadingTCPServer):
             # The recording must never stop the copy.
             with contextlib.suppress(OSError), self.record.open("a", encoding="utf-8") as fh:
                 fh.write(json_text(row) + "\n")
+
+    def refuse_connection(self, request: socket.socket, reason: str) -> None:
+        self.row(
+            next(self.ids),
+            "connect",
+            parameters=None,
+            declined=[],
+            error=f"no connection: {reason}",
+        )
+        # Postgres ErrorResponse: severity, SQLSTATE, message, then the end of the fields.
+        data = b"SFATAL\0C53300\0M" + reason.encode() + b"\0\0"
+        send_refusal(request, b"E" + (len(data) + 4).to_bytes(4, "big") + data)
 
     def stop(self) -> None:
         """Stop the proxy after the entry stopped. Write no more rows, and close each open

@@ -8,10 +8,9 @@ row for each turn, or one JSON array of strings.
 from __future__ import annotations
 
 import hashlib
-import json
 from pathlib import Path
 
-from nookku.record import lone_surrogate
+from nookku.record import loads, lone_surrogate
 
 # The name of the copy in the test folder, for each form. The seal covers the copy.
 COPIES = {"json": "script.json", "jsonl": "script.jsonl"}
@@ -45,7 +44,7 @@ def parse(data: bytes) -> tuple[list[str], str]:
     if text.lstrip().startswith("["):
         form = "json"
         try:
-            values = json.loads(text)
+            values = loads(text)
         except ValueError as e:
             raise ScriptError(f"the script is not a JSON array: {e}") from None
         if not isinstance(values, list):
@@ -59,7 +58,7 @@ def parse(data: bytes) -> tuple[list[str], str]:
         messages = []
         for n, line in enumerate(lines, 1):
             try:
-                row = json.loads(line)
+                row = loads(line)
             except ValueError as e:
                 raise ScriptError(f"line {n}: not a JSON object: {e}") from None
             if not isinstance(row, dict) or set(row) != {"said"}:

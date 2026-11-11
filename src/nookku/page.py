@@ -537,7 +537,7 @@ def open_answer(
 def _active(root: Path) -> bool:
     """True if a test of the project runs. Read current.json and change nothing."""
     try:
-        cur = json.loads((state.state(root) / "current.json").read_text())
+        cur = loads((state.state(root) / "current.json").read_text())
     except (OSError, ValueError):
         return False
     return isinstance(cur, dict) and state.is_bridge(cur)

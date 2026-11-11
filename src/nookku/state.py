@@ -39,7 +39,7 @@ PAGE_FILE = "page.json"
 def page_info(root: Path) -> dict[str, Any] | None:
     """The page file of the project, or None if it does not exist or is not valid."""
     try:
-        data = json.loads((state(root) / PAGE_FILE).read_text())
+        data = loads((state(root) / PAGE_FILE).read_text())
     except (OSError, ValueError):
         return None
     if not isinstance(data, dict) or type(data.get("port")) is not int:
@@ -149,7 +149,7 @@ def known_tests_dirs(root: Path) -> list[Path]:
     breaks its rule raises TestsDirError, so that the relay denies each tool call (fail closed)."""
     path = state(root) / TESTS_DIRS
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
+        data = loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
         return []
     except (OSError, ValueError) as e:
@@ -284,7 +284,7 @@ def current(root: Path) -> dict[str, Any] | None:
     """The running test, from current.json. Remove the file if its bridge does not run."""
     path = state(root) / "current.json"
     try:
-        cur = json.loads(path.read_text())
+        cur = loads(path.read_text())
     except (OSError, ValueError):
         return None
     if not isinstance(cur, dict) or not is_bridge(cur):
@@ -398,7 +398,7 @@ def send(cur: dict[str, Any], said: str, timeout: float = TIMEOUT) -> tuple[str,
             except contract.ContractError:
                 pass
         try:
-            message = json.loads(text)["error"]
+            message = loads(text)["error"]
         except (ValueError, KeyError, TypeError):
             message = text.decode("utf-8", errors="replace")
         return f"nookku: HTTP {e.code}: {message}", False

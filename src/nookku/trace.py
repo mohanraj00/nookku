@@ -14,10 +14,20 @@ import json
 from collections import Counter
 from collections.abc import Iterator
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, NamedTuple
 from urllib.parse import urlsplit
 
-from . import app_spec, backend, db_proxy, egress_spans, gateway, mcp_proxy, model_api, otlp
+from . import (
+    app_spec,
+    backend,
+    db_proxy,
+    egress_spans,
+    gateway,
+    mcp_proxy,
+    model_api,
+    openinference,
+    otlp,
+)
 from .adapters import AdapterError, pick
 from .config import MATCHES, is_host_list
 from .discovery import db_system, driver_address
@@ -54,6 +64,8 @@ CHECKS = (
     "model_api_error",
     "questions_lost",
     "database_error",
+    "proxy_call_without_span",
+    "mcp_task_unfinished",
     "unseen_call",
     "driver_without_span",
     "egress_not_in_discovery",
@@ -507,12 +519,142 @@ def _mcp_result(message: dict[str, Any]) -> tuple[str | None, str | None]:
     return (None, text or "error") if result.get("isError") is True else (text, None)
 
 
+class _McpMessage(NamedTuple):
+    line: int
+    ts: Any
+    server: str
+    up: bool
+    body: dict[str, Any]
+    channel: int | None
+
+
+_MCP_TERMINAL = {"completed", "failed", "cancelled"}
+_MCP_STATES = _MCP_TERMINAL | {"working", "input_required"}
+_MCP_RELATED_TASK = "io.modelcontextprotocol/related-task"
+_MCP_TASK_CALLS = {"tools/call", "sampling/createMessage", "elicitation/create"}
+_MCP_TASK_READS = {"tasks/get", "tasks/cancel", "tasks/list", "tasks/result"}
+
+
+def _header_values(headers: Any, name: str) -> Iterator[str]:
+    for pair in headers if isinstance(headers, list) else []:
+        if (
+            isinstance(pair, list)
+            and len(pair) == 2
+            and isinstance(pair[0], str)
+            and pair[0].lower() == name
+            and isinstance(pair[1], str)
+        ):
+            yield pair[1]
+
+
+def _object(value: Any) -> dict[str, Any]:
+    return value if isinstance(value, dict) else {}
+
+
+def _mcp_auth(row: dict[str, Any], server: str, line: int) -> Iterator[dict[str, Any]]:
+    for value in _header_values(row.get("response_headers"), "www-authenticate"):
+        for challenge in mcp_proxy.bearer_challenges(value):
+            it = _item("mcp", server, mcp_proxy.FILE, line, row.get("ts"))
+            it.update(kind="mcp_auth", server=server, name="Bearer", input=challenge)
+            it["exit_code"] = row.get("status")
+            yield it
+
+
+def _task_snapshots(request: dict[str, Any], result: dict[str, Any]) -> list[Any]:
+    method = request.get("method")
+    params = _object(request.get("params"))
+    if method in _MCP_TASK_CALLS and isinstance(params.get("task"), dict):
+        return [result.get("task")]
+    if method in ("tasks/get", "tasks/cancel") and params.get("taskId") == result.get("taskId"):
+        return [result]
+    listed = result.get("tasks")
+    if method == "tasks/list" and isinstance(listed, list):
+        return listed
+    if method == "tasks/result":
+        task_id = params.get("taskId")
+        related = _object(_object(result.get("_meta")).get(_MCP_RELATED_TASK))
+        if isinstance(task_id, str) and related.get("taskId") == task_id:
+            status = "failed" if result.get("isError") is True else "completed"
+            return [{"taskId": task_id, "status": status}]
+    return []
+
+
+def _mcp_tasks(messages: list[_McpMessage]) -> Iterator[dict[str, Any]]:
+    pending: dict[tuple[str, int | None, bool, int | str], dict[str, Any]] = {}
+    states: dict[tuple[str, int | None, bool, str], str] = {}
+    for msg in messages:
+        method = msg.body.get("method")
+        call_id = msg.body.get("id")
+        if method == "notifications/tasks/status":
+            snapshots = [msg.body.get("params")]
+        elif not isinstance(call_id, (int, str)) or isinstance(call_id, bool):
+            continue
+        elif isinstance(method, str):
+            if method in _MCP_TASK_READS or (
+                method in _MCP_TASK_CALLS
+                and isinstance(_object(msg.body.get("params")).get("task"), dict)
+            ):
+                pending[msg.server, msg.channel, msg.up, call_id] = msg.body
+            continue
+        else:
+            request = pending.pop((msg.server, msg.channel, not msg.up, call_id), None)
+            if request is None:
+                continue
+            snapshots = _task_snapshots(request, _object(msg.body.get("result")))
+        for snapshot in snapshots:
+            task = _object(snapshot)
+            task_id, status = task.get("taskId"), task.get("status")
+            if not isinstance(task_id, str) or not task_id or not isinstance(status, str):
+                continue
+            key = (msg.server, msg.channel, msg.up, task_id)
+            if status not in _MCP_STATES or states.get(key) in (_MCP_TERMINAL | {status}):
+                continue
+            states[key] = status
+            it = _item("mcp", msg.server, mcp_proxy.FILE, msg.line, msg.ts)
+            peer = "app" if msg.up else "server"
+            it.update(
+                kind="mcp_task",
+                server=msg.server,
+                name=task_id,
+                input={"task_id": task_id, "peer": peer, "session_index": msg.channel},
+                output=status,
+            )
+            yield it
+
+
+def _unfinished_mcp_tasks(items: list[dict[str, Any]]) -> Iterator[dict[str, Any]]:
+    last: dict[tuple[str, int | None, str, str], dict[str, Any]] = {}
+    for it in items:
+        if it["kind"] != "mcp_task":
+            continue
+        task = it["input"]
+        key = (it["session"], task["session_index"], task["peer"], task["task_id"])
+        previous = last.get(key)
+        if previous is None or previous["output"] not in _MCP_TERMINAL:
+            last[key] = it
+    for it in last.values():
+        if it["output"] not in _MCP_TERMINAL:
+            detail = (
+                f"{it['session']}: task {it['name']} was {it['output']} at the end of the record"
+            )
+            yield _finding(
+                "mcp_task_unfinished",
+                it["turn"],
+                detail,
+                harness="mcp",
+                session=it["session"],
+                source=it["source"],
+            )
+
+
 def read_mcp(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-    """The tool calls of mcp.jsonl (SPEC.md section 8.4)."""
+    """The tool calls, task states and scope steps of mcp.jsonl (SPEC.md section 8.4)."""
     ignored: Counter[str] = Counter()
     rows = 0
     # Each JSON-RPC message, in the order of the record: line, ts, server, to the server.
-    messages: list[tuple[int, Any, str, bool, dict[str, Any]]] = []
+    messages: list[_McpMessage] = []
+    channels: dict[tuple[str, str], int] = {}
+    items: list[dict[str, Any]] = []
     failed: dict[int, str] = {}
     for n, row in _lines(path, ignored):
         rows += 1
@@ -523,16 +665,29 @@ def read_mcp(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         server = str(row.get("server") or "")
         if kind == "message":
             up = row.get("direction") == "to_server"
-            messages += [(n, row.get("ts"), server, up, m) for m in _rpc(row.get("body"))]
+            messages += [
+                _McpMessage(n, row.get("ts"), server, up, m, None) for m in _rpc(row.get("body"))
+            ]
             continue
+        session_id = next(_header_values(row.get("request_headers"), "mcp-session-id"), None)
+        if session_id is None:
+            session_id = next(_header_values(row.get("response_headers"), "mcp-session-id"), None)
+        channel = (
+            channels.setdefault((server, session_id), len(channels) + 1) if session_id else None
+        )
+        items.extend(_mcp_auth(row, server, n))
         messages += [
-            (n, row.get("started"), server, True, m) for m in _rpc(row.get("request_body"))
+            _McpMessage(n, row.get("started"), server, True, m, channel)
+            for m in _rpc(row.get("request_body"))
         ]
-        messages += [(n, row.get("ts"), server, False, m) for m in _rpc(row.get("response_body"))]
+        messages += [
+            _McpMessage(n, row.get("ts"), server, False, m, channel)
+            for m in _rpc(row.get("response_body"))
+        ]
         if row.get("error") is not None:
             failed[n] = str(row["error"])
-    items: list[dict[str, Any]] = []
-    for i, (n, ts, server, up, m) in enumerate(messages):
+    items.extend(_mcp_tasks(messages))
+    for i, (n, ts, server, up, m, _) in enumerate(messages):
         if not up or m.get("method") != "tools/call" or "id" not in m:
             continue
         params = m["params"] if isinstance(m.get("params"), dict) else {}
@@ -542,7 +697,7 @@ def read_mcp(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         answer = next(
             (
                 (ln, r)
-                for ln, _, srv, to, r in messages[i + 1 :]
+                for ln, _, srv, to, r, _ in messages[i + 1 :]
                 if not to and srv == server and r.get("id") == m["id"] and "method" not in r
             ),
             None,
@@ -1554,11 +1709,13 @@ def check(
         first = spans[0][0] if spans else None
         late = it["turn"] is None and first is not None and it["ts"] is not None
         # A driver query and its span are one call: the span gives the finding.
-        if late and it["harness"] != "driver" and it["ts"] >= first:
+        # An export of app spans can cover the whole test, so its spans give no finding.
+        if late and it["harness"] not in ("driver", "openinference") and it["ts"] >= first:
             out.append(_finding("item_between_turns", None, f"a {it['kind']} item", **where))
     if seen is not None:
         out += unseen_calls(items, seen)
     out += drivers_without_span(items, drivers or [])
+    out.extend(_unfinished_mcp_tasks(items))
     out += egress or []
     for e in errors or []:
         turn = _turn(e["ts"], spans)
@@ -1666,8 +1823,23 @@ def build(folder: Path) -> dict[str, Any]:
         items += found
     keys = trace_keys(manifest)
     egress_info, egress_found = egress_findings(folder, manifest, keys, spans)
+    exported = None
+    if (folder / openinference.FILE).exists():
+        exported = openinference.read(folder / openinference.FILE)
+        for span in exported:
+            it = _item(
+                "openinference", span["trace_id"], openinference.FILE, span["line"], span["start"]
+            )
+            it.update(
+                kind="span",
+                name=span["name"],
+                input={"openinference.span.kind": span["kind"], "span_id": span["span_id"]},
+            )
+            items.append(it)
     items.sort(key=lambda it: it["ts"] if it["ts"] is not None else float("inf"))
     assign(items, spans)
+    if exported is not None:
+        egress_found += openinference.missing(items, exported)
     seen = egress_seen(manifest)
     drivers = driver_marks(answer)
     points = app_spec.valid(manifest.get("trace_points"))
@@ -1709,6 +1881,8 @@ def build(folder: Path) -> dict[str, Any]:
         "counts": {c: counts[c] for c in CHECKS},
         "findings": findings,
     }
+    if exported is not None:
+        report["openinference"] = {"file": openinference.FILE, "spans": len(exported)}
     if gateway_calls is not None:
         # Only a test with gateway logs has the key (SPEC.md section 8.9).
         report["gateway"] = gateway_calls
@@ -1771,6 +1945,14 @@ def one_line(value: Any) -> str:
     A finding detail can hold text of the app, the model or a tester, so the text output of the
     trace shows each value of a finding with this function."""
     return str(value).translate(_CONTROL)
+
+
+_MULTILINE_CONTROL = {code: escape for code, escape in _CONTROL.items() if code != ord("\n")}
+
+
+def multiline(text: str) -> str:
+    """Escape terminal controls and keep the line feeds of formatted text."""
+    return text.translate(_MULTILINE_CONTROL)
 
 
 def _item_key(f: dict[str, Any]) -> tuple[str, str, int] | None:

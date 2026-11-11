@@ -13,10 +13,10 @@ import re
 import sys
 from dataclasses import dataclass, field, fields
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 from urllib.parse import urlsplit
 
-from nookku.record import lone_surrogate
+from nookku.record import loads, lone_surrogate
 
 STATE_DIR = ".nookku"
 NAME = "config.json"
@@ -27,6 +27,8 @@ OLD_STATE_DIR = ".verbatim-relay"
 CHECK_MESSAGE = "Hello from nookku check. What can you help me with?"
 # The values of model_reply_match (SPEC.md section 8.6).
 MATCHES = ("exact", "normalized", "off")
+DEFAULT_BODY_LIMIT = 64 * 1024 * 1024
+BodyLimit = int | Literal["stream"]
 
 
 class ConfigError(ValueError):
@@ -66,7 +68,7 @@ def _move_record_key(path: Path) -> str | None:
     change, the first prompt writes the record into the old folder again, and then both folders
     exist. A record path outside the old folder stays as it is."""
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
+        data = loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
         return None
     except (OSError, ValueError) as error:
@@ -123,8 +125,8 @@ class Config:
     # section 7.6). The app always gets all of the bytes.
     record_limit: int = 1024 * 1024
     # The most bytes of a request body that a backend, model API or MCP proxy reads and forwards
-    # (SPEC.md section 7.6). The proxy refuses a longer body. #479 can add a value that streams.
-    body_limit: int = 64 * 1024 * 1024
+    # (SPEC.md section 7.6). With "stream", only the backend proxy streams the body.
+    body_limit: BodyLimit = DEFAULT_BODY_LIMIT
     # The files of the app spec, relative to the project root. The evaluation reads them first
     # (SPEC.md section 9.2, docs/reference/app-spec.md).
     spec: list[str] = field(default_factory=list)
@@ -253,10 +255,11 @@ def check(data: Any) -> dict[str, Any]:
     limit = data.get("record_limit", 1)
     if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1:
         raise ConfigError(f"{FILE}: 'record_limit' must be a whole number of bytes, 1 or more")
-    # Only a count is valid now, so a value of a later release does not start a test (#479).
     limit = data.get("body_limit", 1)
-    if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1:
-        raise ConfigError(f"{FILE}: 'body_limit' must be a whole number of bytes, 1 or more")
+    if limit != "stream" and (type(limit) is not int or limit < 1):
+        raise ConfigError(
+            f"{FILE}: 'body_limit' must be a whole number of bytes, 1 or more, or 'stream'"
+        )
     path = data.get("model_reply_field", "")
     if not isinstance(path, str) or (path and not all(path.split("."))):
         raise ConfigError(
@@ -406,7 +409,7 @@ def _load(root: Path) -> Any:
     """The JSON value of config.json, with no check of its keys. Raise ConfigError if the file
     cannot be read or is not JSON."""
     try:
-        return json.loads((root / FILE).read_text(encoding="utf-8"))
+        return loads((root / FILE).read_text(encoding="utf-8"))
     except (OSError, ValueError) as e:
         raise ConfigError(f"cannot read {FILE}: {e}") from None
 

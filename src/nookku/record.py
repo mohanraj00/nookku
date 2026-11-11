@@ -17,6 +17,8 @@ VERSION = "0.2"
 # its reply (SPEC.md section 2). Each other row keeps VERSION.
 FAILED_STREAM_VERSION = "0.3"
 VERSIONS = ("0.1", "0.2", "0.3")
+STREAM_PART_VERSION = "0.4"
+STREAM_PARTS = {"stream_part", "websocket_frame"}
 # A surrogate code point. In a decoded Python string, each one is a lone surrogate.
 _SURROGATE = re.compile("[\ud800-\udfff]")
 
@@ -178,6 +180,23 @@ _SCHEMA: dict[str, dict[str, dict[str, tuple[type, ...]]]] = {
     "tap": {
         "exchange": {"ts": _NUM, "input": _STR, "status": _INT_OR_NONE, "reply": _STR_OR_NONE},
         "unparsed": {"ts": _NUM, "method": _STR, "path": _STR, "error": _STR},
+        "stream_part": {
+            "ts": _NUM,
+            "stream_id": _STR,
+            "index": (int,),
+            "base64": _STR,
+            "sha256": _STR,
+        },
+        "websocket_frame": {
+            "ts": _NUM,
+            "stream_id": _STR,
+            "index": (int,),
+            "base64": _STR,
+            "sha256": _STR,
+            "direction": _STR,
+            "opcode": (int,),
+            "final": _BOOL,
+        },
         "model_session": {
             "ts": _NUM,
             "harness": _STR,
@@ -203,6 +222,12 @@ _HEX64 = re.compile(r"[0-9a-f]{64}")
 # Optional fields: (row type, field) -> allowed types
 _OPTIONAL: dict[tuple[str, str], tuple[type, ...]] = {
     ("exchange", "started"): _NUM,
+    ("exchange", "stream_id"): _STR,
+    ("exchange", "first_part_seconds"): (*_NUM, type(None)),
+    ("exchange", "stream_protocol"): _STR,
+    ("exchange", "stream_adapter"): (dict,),
+    ("unparsed", "stream_id"): _STR,
+    ("unparsed", "stream_protocol"): _STR,
     ("model_session", "originator"): _STR,
     ("turn", "ok"): _BOOL,
     ("turn", "session"): _STR,
@@ -254,11 +279,15 @@ def _validate(kind: str, path: Path, n: int, raw: str) -> dict[str, Any]:
         found = lone_surrogate(name) or lone_surrogate(text)
         if found:
             raise bad(f"field {name!r} has {found}, which is not a Unicode scalar value")
-    if row.get("v") not in VERSIONS:
-        raise bad(f"version {row.get('v')!r}, expected one of {', '.join(VERSIONS)}")
-    fields = _SCHEMA[kind].get(row.get("type"))  # type: ignore[arg-type]
+    versions = (*VERSIONS, STREAM_PART_VERSION) if kind == "tap" else VERSIONS
+    if row.get("v") not in versions:
+        raise bad(f"version {row.get('v')!r}, expected one of {', '.join(versions)}")
+    row_type = row.get("type")
+    fields = _SCHEMA[kind].get(row_type) if isinstance(row_type, str) else None
     if fields is None:
-        raise bad(f"unknown type {row.get('type')!r} in a {kind} record")
+        raise bad(f"unknown type {row_type!r} in a {kind} record")
+    if (row.get("v") == STREAM_PART_VERSION) != (row_type in STREAM_PARTS):
+        raise bad("version 0.4 is for stream part rows")
     for name, types in fields.items():
         if name not in row:
             raise bad(f"missing field {name!r}")
@@ -334,7 +363,16 @@ def read_rows(kind: str, path: Path, missing_ok: bool = False) -> list[tuple[int
     lines = text.split("\n")
     if lines and lines[-1] == "":
         lines.pop()
-    return [(n, _validate(kind, path, n, raw)) for n, raw in enumerate(lines, 1)]
+    rows = [(n, _validate(kind, path, n, raw)) for n, raw in enumerate(lines, 1)]
+    if kind == "tap" and any(
+        row["type"] in STREAM_PARTS
+        or {"stream_id", "stream_protocol", "stream_adapter", "first_part_seconds"} & row.keys()
+        for _, row in rows
+    ):
+        from nookku.stream_parts import validate
+
+        validate(rows, path)
+    return rows
 
 
 def read_tap(path: Path, missing_ok: bool = False) -> list[Exchange | Unparsed | ModelSession]:
@@ -344,7 +382,7 @@ def read_tap(path: Path, missing_ok: bool = False) -> list[Exchange | Unparsed |
             rows.append(Exchange(n, r["input"], r["status"], r["reply"]))
         elif r["type"] == "model_session":
             rows.append(ModelSession(n, r["harness"], r["session"], r["pid"], r["inferred"]))
-        else:
+        elif r["type"] == "unparsed":
             rows.append(Unparsed(n, r["method"], r["path"], r["error"]))
     return rows
 
@@ -365,7 +403,13 @@ def turns(path: Path, missing_ok: bool = False) -> list[Turn]:
 
 
 def _hashed(row: dict[str, Any]) -> dict[str, Any]:
-    version = FAILED_STREAM_VERSION if _failed_stream(row) else VERSION
+    version = (
+        STREAM_PART_VERSION
+        if row.get("type") in STREAM_PARTS
+        else FAILED_STREAM_VERSION
+        if _failed_stream(row)
+        else VERSION
+    )
     out: dict[str, Any] = {"v": version, "ts": time.time()}
     for key, value in row.items():
         out[key] = value

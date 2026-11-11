@@ -1,0 +1,15 @@
+{
+  "message": "Is the teapot in stock?\n€",
+  "websocket": {
+    "reply": "There are 3 teapots. €\n",
+    "frames": [
+      ["to_agent", 1, true],
+      ["from_agent", 1, false],
+      ["from_agent", 9, true],
+      ["to_agent", 10, true],
+      ["from_agent", 0, true],
+      ["to_agent", 8, true],
+      ["from_agent", 8, true]
+    ]
+  }
+}
