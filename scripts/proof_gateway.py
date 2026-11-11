@@ -42,6 +42,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path[:0] = [str(ROOT / "src")]
 
 from nookku import __version__, gateway, seal  # noqa: E402
+from nookku.record import loads  # noqa: E402
 
 LITELLM_IMAGE = "ghcr.io/berriai/litellm-database:v1.104.2"
 POSTGRES_IMAGE = "postgres:16-alpine"
@@ -69,7 +70,7 @@ class ToyModel(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         size = int(self.headers.get("Content-Length") or 0)
-        request = json.loads(self.rfile.read(size))
+        request = loads(self.rfile.read(size))
         if self.path.rstrip("/").endswith("/responses"):
             # LiteLLM 1.104.2 sends an Anthropic Messages call to an OpenAI model as a Responses
             # call.
@@ -152,7 +153,7 @@ def call(url: str, key: str, path: str, body: dict[str, Any], **headers: str) ->
 def get(url: str, key: str) -> Any:
     req = urllib.request.Request(url, headers={"Authorization": f"Bearer {key}"})
     with urllib.request.urlopen(req, timeout=60) as resp:
-        return json.loads(resp.read())
+        return loads(resp.read())
 
 
 def start_litellm(name: str, upstream: int, master: str) -> tuple[str, str]:
@@ -231,7 +232,7 @@ def stop(name: str) -> None:
 
 def new_key(url: str, master: str, alias: str) -> str:
     body = {"key_alias": alias, "models": ["toy"]}
-    return str(json.loads(call(url, master, "/key/generate", body))["key"])
+    return str(loads(call(url, master, "/key/generate", body))["key"])
 
 
 def exchange(started: float, ts: float, text: str, reply: str) -> dict[str, Any]:
@@ -302,13 +303,13 @@ def trace(project: Path, test: str, *args: str, key: str = "") -> tuple[int, Any
     env["PYTHONPATH"] = str(ROOT / "src")
     command = [sys.executable, "-m", "nookku", "trace", test, "--root", str(project), "--json"]
     done = subprocess.run([*command, *args], capture_output=True, text=True, env=env, check=False)
-    report = json.loads(done.stdout) if done.returncode == 0 else None
+    report = loads(done.stdout) if done.returncode == 0 else None
     return done.returncode, report, done.stderr
 
 
 def items(folder: Path) -> list[dict[str, Any]]:
     lines = (folder / "trace.jsonl").read_text(encoding="utf-8").splitlines()
-    return [json.loads(x) for x in lines if x]
+    return [loads(x) for x in lines if x]
 
 
 def summary(found: list[dict[str, Any]]) -> list[list[Any]]:
@@ -391,7 +392,7 @@ def check(
     if code != 0:
         raise RuntimeError(f"nookku trace --gateway <url> failed: {error}")
     by_url = summary(items(folder))
-    head = json.loads((folder / gateway.FILE).read_text().splitlines()[0])
+    head = loads((folder / gateway.FILE).read_text().splitlines()[0])
     intact = seal.verify(folder, project / "home")["intact"]
     tags = {str(t) for log in logs if isinstance(log, dict) for t in log.get("request_tags") or []}
     saved = tmp / "spend_logs.json"
@@ -400,7 +401,7 @@ def check(
     code_file, report_file, error = trace(project, test, *args)
     if code_file != 0:
         raise RuntimeError(f"nookku trace --gateway <file> failed: {error}")
-    head_file = json.loads((folder / gateway.FILE).read_text().splitlines()[0])
+    head_file = loads((folder / gateway.FILE).read_text().splitlines()[0])
     expected = [
         [1, "message", "user", "Is the teapot set in stock?"],
         [1, "message", "assistant", None],
@@ -428,7 +429,7 @@ def check(
     forms: dict[str, list[str]] = {}
     for log in logs:
         response = log.get("response") if isinstance(log, dict) else None
-        response = json.loads(response) if isinstance(response, str) else response
+        response = loads(response) if isinstance(response, str) else response
         if isinstance(response, dict) and response:
             form = next((k for k in ("choices", "output", "content") if k in response), "other")
             forms.setdefault(str(log.get("call_type")), [])

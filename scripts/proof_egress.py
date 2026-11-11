@@ -51,6 +51,7 @@ from typing import Any
 import proof_report as pr
 
 from nookku import discovery, seal
+from nookku.record import loads
 
 EGRESS = pr.ROOT / "examples" / "toy-shop-egress"
 sys.path[:0] = [str(EGRESS)]
@@ -161,7 +162,7 @@ def guard_rows(
     left = list(calls)
     for row in rows:
         try:
-            item = json.loads(row)
+            item = loads(row)
         except ValueError:
             return None
         if not isinstance(item, dict) or set(item) != GUARD_KEYS:
@@ -323,10 +324,10 @@ def main() -> int:
         return write(relay, result, evaluation=args.evaluate)
     folder, _ = ran
 
-    manifest = json.loads((folder / "manifest.json").read_text())
-    findings = json.loads((folder / "findings.json").read_text())
-    audit = json.loads((folder / "audit.json").read_text())
-    trace = [json.loads(x) for x in (folder / "trace.jsonl").read_text().split("\n") if x]
+    manifest = loads((folder / "manifest.json").read_text())
+    findings = loads((folder / "findings.json").read_text())
+    audit = loads((folder / "audit.json").read_text())
+    trace = [loads(x) for x in (folder / "trace.jsonl").read_text().split("\n") if x]
     egress = manifest["egress"]
     answer = egress["answer"]
     parts = by_kind(answer)
@@ -384,7 +385,7 @@ def main() -> int:
             "turns": audit["turns"],
             "audit_exit": audit["exit"],
             # The address of a SQLite file can name the project folder of this machine.
-            "answer": json.loads(pr.scrub(json.dumps(answer), project)),
+            "answer": loads(pr.scrub(json.dumps(answer), project)),
             "unseen": egress["unseen"],
             "driver": egress["driver"],
             "proxies": sorted(egress["proxies"]),
@@ -460,7 +461,7 @@ def evaluate_egress(
 ) -> dict[str, Any]:
     """Import planted spans through the CLI, then run the normal end evaluation prompt."""
     host, denied_host = "stock.extra.toy.test", "api.anthropic.com"
-    tap = [json.loads(line) for line in (folder / "tap.jsonl").read_text().splitlines()]
+    tap = [loads(line) for line in (folder / "tap.jsonl").read_text().splitlines()]
     first = next(row for row in tap if row.get("type") == "exchange")
     stamp = datetime.fromtimestamp(first["ts"], timezone.utc).isoformat()
     common = {"v": 1, "time": stamp, "kind": "connect", "port": "443"}
@@ -476,9 +477,9 @@ def evaluate_egress(
         capture_output=True,
         timeout=300,
     )
-    findings = json.loads((folder / "findings.json").read_text())
+    findings = loads((folder / "findings.json").read_text())
     config = project / ".nookku" / "config.json"
-    data = json.loads(config.read_text())
+    data = loads(config.read_text())
     config.write_text(json.dumps({**data, "evaluate": True}))
     answer = run(end, end_args)
     path = folder / "report.md"

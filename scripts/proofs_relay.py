@@ -84,7 +84,7 @@ from proof_common import (  # noqa: E402
 
 from nookku import __version__, bridge, discovery, kit, page  # noqa: E402
 from nookku.audit import audit  # noqa: E402
-from nookku.record import Turn, read_relay  # noqa: E402
+from nookku.record import Turn, loads, read_relay  # noqa: E402
 
 CODEX_MODEL = "gpt-5.6-luna"
 PLUGIN = ROOT / "plugins" / "nookku"
@@ -444,11 +444,11 @@ def main_page(out: Path) -> int:
                 # A page turn must not reach the harness: no prompt, no hook call and no model
                 # answer, so the session files get no row.
                 harness_rows = session_lines(project) - h0
-                answer = json.loads(body)
+                answer = loads(body)
                 new_tap = rows(tap_rec, "exchange")[t0:]
                 new_turns = rows(relay_rec, "turn")[r0:]
                 _, _, listed = page_request(session_url, "api/turns", cookie=cookie, key=key)
-                on_page = json.loads(listed)["turns"]
+                on_page = loads(listed)["turns"]
                 view = viewer_text(project)
                 n = sum(isinstance(r, Turn) for r in read_relay(relay_rec))
                 block = f"──── tester, turn {n} ────\n{m}\n──── agent ────\n"
@@ -523,7 +523,7 @@ def main_page(out: Path) -> int:
         "tap_token_printed": bool(token) and token in first + rest + err,
         "page_file_removed": not (project / kit.STATE_DIR / "page.json").exists(),
     }
-    manifest = json.loads((folder / "manifest.json").read_text())
+    manifest = loads((folder / "manifest.json").read_text())
     report["test"] = {
         "ended": manifest["ended"] is not None,
         "model_sessions": manifest["model_sessions"],
@@ -647,7 +647,7 @@ def main() -> int:
         ]
         if bridge.current(project) is not None:
             kit.end_test(project)
-    manifest = json.loads((folder / "manifest.json").read_text())
+    manifest = loads((folder / "manifest.json").read_text())
     report["test"] = {
         "ended": manifest["ended"] is not None,
         "model_sessions": manifest["model_sessions"],

@@ -623,3 +623,24 @@ def test_a_finding_detail_shows_on_one_line_with_each_control_character_escaped(
     # The transcript shows the tool result itself as text of the record, on more lines.
     text = evaluation.transcript(folder)
     assert f"- tool_error: lookup_order: {shown} [trace.jsonl:8]\n" in text
+
+
+def test_transcript_trace_escapes_terminal_controls_and_keeps_line_feeds(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root = project(tmp_path)
+    folder = root / ".nookku" / "tests" / TEST
+    path = folder / "trace.jsonl"
+    items = [json.loads(line) for line in path.read_text().splitlines()]
+    items[4]["output"] = "teapot\x1b[2J\nstock\x9b1A\rready"
+    path.write_text("".join(json.dumps(item) + "\n" for item in items))
+
+    assert main(["transcript", "--trace", "--root", str(root)]) == 0
+    text = capsys.readouterr().out
+    assert "result:\nteapot\\u001b[2J\nstock\\u009b1A\\u000dready\n" in text
+    assert all(c not in text for c in "\x1b\x9b\r")
+
+
+def test_a_decision_line_escapes_c0_and_c1_controls() -> None:
+    answer = {"name": "teapot\x1b[2J", "type": "choice", "value": "stock\x9b1A"}
+    assert evaluation.decision(answer) == "teapot\\u001b[2J: stock\\u009b1A"

@@ -69,6 +69,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path[:0] = [str(ROOT / "src")]
 
 from nookku import __version__  # noqa: E402
+from nookku.record import loads  # noqa: E402
 
 OUT = ROOT / "proofs" / "cluster"
 SETUPS = ("plugin-claude-code", "plugin-codex")
@@ -275,7 +276,7 @@ def codex_setup(ws: Workspace, wheel: str) -> tuple[list[str], list[str]]:
         "import json; from pathlib import Path; from nookku.codex_gate import check; "
         "print(json.dumps(check(Path.cwd())))"
     )
-    state = json.loads(
+    state = loads(
         ws.sh(f"cd {PROJECT} && uv run --with {shlex.quote(wheel)} python -c {shlex.quote(check)}")
     )
     if any(hook["trust"] != "trusted" for hook in state["hooks"]):
@@ -290,11 +291,11 @@ def codex_setup(ws: Workspace, wheel: str) -> tuple[list[str], list[str]]:
         ("plugin", "userPromptSubmit"),
     ]:
         raise SystemExit(f"Codex did not load both nookku plugin hooks: {state['problems']}")
-    installed = json.loads(ws.sh(f"cd {PROJECT} && codex plugin list -m nookku --json"))
+    installed = loads(ws.sh(f"cd {PROJECT} && codex plugin list -m nookku --json"))
     plugins = sorted(p["pluginId"] for p in installed["installed"] if p["enabled"] is True)
     if PLUGIN_ID not in plugins:
         raise SystemExit("Codex has no enabled nookku plugin")
-    servers = json.loads(ws.sh(f"cd {PROJECT} && codex mcp list --json"))
+    servers = loads(ws.sh(f"cd {PROJECT} && codex mcp list --json"))
     return plugins, sorted(str(s["name"]) for s in servers if s.get("enabled") is not False)
 
 
@@ -370,7 +371,7 @@ def install(c: Cluster, harness: str, version: str) -> dict[str, Any]:
 
 
 def workspace_status(c: Cluster) -> dict[str, Any]:
-    status = json.loads(c.k("get", "workspace", WORKSPACE, "-n", NS, "-o", "json"))["status"]
+    status = loads(c.k("get", "workspace", WORKSPACE, "-n", NS, "-o", "json"))["status"]
     conditions = {x["type"]: x["status"] for x in status.get("conditions", [])}
     return {"phase": status.get("phase"), "conditions": conditions}
 
@@ -514,7 +515,7 @@ def planted_calls(ws: Workspace) -> dict[str, str]:
 
 
 def versions(c: Cluster, ws: Workspace, koodam: str, harness: str) -> dict[str, str]:
-    pod = json.loads(c.k("get", "pod", POD, "-n", NS, "-o", "json"))
+    pod = loads(c.k("get", "pod", POD, "-n", NS, "-o", "json"))
     images = {s["name"]: s["imageID"] for s in pod["status"]["containerStatuses"]}
     controller = c.k(
         "get",
@@ -525,7 +526,7 @@ def versions(c: Cluster, ws: Workspace, koodam: str, harness: str) -> dict[str, 
         "-o",
         "jsonpath={.spec.template.spec.containers[0].image}",
     ).decode()
-    server = json.loads(c.k("version", "-o", "json"))["serverVersion"]["gitVersion"]
+    server = loads(c.k("version", "-o", "json"))["serverVersion"]["gitVersion"]
     return {
         "nookku": __version__,
         "nookku_in_pod": ws.sh("nookku --version").split()[-1],
@@ -550,7 +551,7 @@ def harness_cli(harness: str) -> str:
 
 def resume_workspace(ws: Workspace) -> str:
     """Use the wheel and login in the proof Workspace that waited for hook trust."""
-    config = json.loads(ws.get(f"{PROJECT}/.nookku/config.json"))
+    config = loads(ws.get(f"{PROJECT}/.nookku/config.json"))
     entry = config.get("entry", [])
     if (
         len(entry) != 6
@@ -565,7 +566,7 @@ def resume_workspace(ws: Workspace) -> str:
         raise SystemExit("the Workspace has no wheel from the Codex proof")
     if ws.sh('test -s "$HOME/.codex/auth.json" && echo yes || echo no').strip() != "yes":
         raise SystemExit("the Workspace has no Codex login")
-    current = json.loads(ws.sh(f"cd {PROJECT} && nookku status --json"))["test"]
+    current = loads(ws.sh(f"cd {PROJECT} && nookku status --json"))["test"]
     if current is not None:
         raise SystemExit("a test is already running in the Workspace")
     return wheel
@@ -618,7 +619,7 @@ def prove(
     # The test.
     prompt = ws.codex if codex else ws.claude
     prompt("nookku start")
-    current = json.loads(ws.sh(f"cd {PROJECT} && nookku status --json"))["test"]
+    current = loads(ws.sh(f"cd {PROJECT} && nookku status --json"))["test"]
     if current is None:
         raise SystemExit("the prompt nookku start started no test")
     test, folder = current["test"], current["dir"]
@@ -634,7 +635,7 @@ def prove(
         if i == 1:
             planted = planted_calls(ws)
     ws.sh(f"cd {PROJECT} && nookku end")
-    manifest = json.loads(ws.get(f"{folder}/manifest.json"))
+    manifest = loads(ws.get(f"{folder}/manifest.json"))
 
     # The egress spans of the test window, exported outside the pod, as a tester does it. The
     # proxy writes a span when a connection closes, so wait for the planted spans.
@@ -675,9 +676,9 @@ def prove(
     report_md = ws.sh(f"cat {folder}/report.md 2>/dev/null || true")
     for name in names:
         records[name] = ws.get(f"{folder}/{name}")
-    findings = json.loads(records["findings.json"])
-    audit = json.loads(records["audit.json"])
-    seal = json.loads(records["seal.json"])
+    findings = loads(records["findings.json"])
+    audit = loads(records["audit.json"])
+    seal = loads(records["seal.json"])
     turns = [r for r in json_lines(records["relay.jsonl"].decode()) if r["type"] == "turn"]
     exchanges = [r for r in json_lines(records["tap.jsonl"].decode()) if r["type"] == "exchange"]
     calls = [r for r in json_lines(records["backend.jsonl"].decode()) if r["type"] == "call"]
@@ -702,8 +703,8 @@ def prove(
         t = turns[i] if i < len(turns) else {}
         x = exchanges[i] if i < len(exchanges) else {}
         b = calls[i] if i < len(calls) else {}
-        request = json.loads(b["request_body"]["text"]) if b else {}
-        response = json.loads(b["response_body"]["text"]) if b else {}
+        request = loads(b["request_body"]["text"]) if b else {}
+        response = loads(b["response_body"]["text"]) if b else {}
         checks.append(
             {
                 "message": i + 1,

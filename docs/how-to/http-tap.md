@@ -51,6 +51,13 @@ The relay record is `.nookku/relay.jsonl` by default (the option `record`). Afte
 nookku audit --tap tap.jsonl --relay .nookku/relay.jsonl
 ```
 
+
+## Streamed replies
+
+For an OpenAI-style event stream, use the `openai` adapter. The tap writes the response bytes as they come and checks the joined reply in the audit.
+
+For a WebSocket agent, give `nookku tap --agent ws://127.0.0.1:8700 --record tap.jsonl`. The relay still posts to the HTTP tap. The tap opens a WebSocket for each turn, sends the request as one text message and returns the server's text reply. The default adapter expects the reply in the `reply` field. The record keeps the wire frames in both directions. [Spec and limits](../../SPEC.md#41-http-mode)
+
 ## Options
 
 | Option | Default | Meaning |

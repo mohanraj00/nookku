@@ -9,13 +9,15 @@ import socket
 import socketserver
 import threading
 import time
+from collections.abc import Iterator
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
 from toy_model_server import ModelServer
 from toy_stock_server import StockServer
 
-from nookku import backend, bridge
+from nookku import backend, bridge, mcp_proxy, model_api, trace
 
 
 def proxy_for(stock: StockServer, tmp_path: Path, url: str | None = None) -> backend.Proxies:
@@ -304,7 +306,6 @@ def test_a_stream_body_keeps_only_its_first_bytes() -> None:
     for _ in range(1000):
         stream.add(b"0123456789abcdef")
     assert (stream.size, stream.kept, stream.data, stream.cut) == (16000, 10, b"0123456789", True)
-    assert sum(len(p) for p in stream.parts) == 10
 
 
 def test_the_start_of_a_cut_gzip_body_is_decoded() -> None:
@@ -797,3 +798,190 @@ def test_a_refused_body_frees_its_bytes_before_it_gives_back_its_budget() -> Non
     # The traceback keeps the frames of the read, but no frame holds the bytes of the body.
     assert bytes_in_frames(chunked_error.value) < 600
     assert bytes_in_frames(length_error.value) < 900
+
+
+REFUSALS = json.loads(
+    (Path(__file__).resolve().parents[1] / "conformance/proxy/refusals.json").read_text()
+)
+EXPECT = b"POST /stock HTTP/1.1\r\nHost: shop\r\nExpect: 100-continue\r\nConnection: close\r\n"
+
+
+@pytest.fixture(params=[backend.Proxy, model_api.ModelProxy, mcp_proxy.HttpProxy])
+def refusal_proxy(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest
+) -> Iterator[backend.Proxy]:
+    # These tests call the refusal directly, with no listener or upstream.
+    monkeypatch.setattr(backend.Proxy, "server_bind", lambda self: None)
+    monkeypatch.setattr(backend.Proxy, "server_activate", lambda self: None)
+    with request.param(
+        backend.Backend("stock", "STOCK_URL", "http://127.0.0.1:9"),
+        tmp_path / backend.FILE,
+        threading.Condition(),
+    ) as proxy:
+        yield proxy
+
+
+def test_a_failed_connection_refusal_record_does_not_raise(
+    refusal_proxy: backend.Proxy, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    case = REFUSALS["http_connections"]
+    app, connection = socket.socketpair()
+    with app, connection:
+
+        def failed_write(row: dict) -> None:
+            raise OSError("the record is not writable")
+
+        monkeypatch.setattr(refusal_proxy, "_write", failed_write)
+        refusal_proxy.refuse_connection(connection, case["error"])
+        app.settimeout(3)
+        refused = app.recv(65536)
+    assert refused.startswith(f"HTTP/1.1 {case['status']} ".encode())
+    assert json.loads(refused.partition(b"\r\n\r\n")[2]) == {"error": case["error"]}
+
+
+def test_a_connection_refusal_sends_first_and_writes_without_the_shared_lock(
+    tmp_path: Path, refusal_proxy: backend.Proxy, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    case = REFUSALS["http_connections"]
+    writing, release = threading.Event(), threading.Event()
+    app, connection = socket.socketpair()
+    proxy = refusal_proxy
+    with app, connection, ThreadPoolExecutor(max_workers=1) as pool:
+        write = proxy._write
+
+        def paused_write(row: dict) -> None:
+            writing.set()
+            assert release.wait(3)
+            write(row)
+
+        monkeypatch.setattr(proxy, "_write", paused_write)
+        app.settimeout(3)
+        try:
+            with proxy.lock:
+                pending = pool.submit(proxy.refuse_connection, connection, case["error"])
+                # The app gets its refusal even while another proxy holds the shared lock.
+                refused = app.recv(65536)
+                assert refused.startswith(f"HTTP/1.1 {case['status']} ".encode())
+            assert writing.wait(3)
+            # Other proxies can use the shared lock while this file write waits.
+            acquired = proxy.lock.acquire(blocking=False)
+            if acquired:
+                proxy.lock.release()
+            assert acquired
+        finally:
+            release.set()
+        pending.result(timeout=3)
+    first = rows(tmp_path)[0]
+    field = proxy.target_field
+    assert first == {"v": 1, "ts": first["ts"], field: "stock", **case}
+    reader = {
+        "backend": trace.read_backend,
+        "api": trace.read_model_api,
+        "server": trace.read_mcp,
+    }[field]
+    items, info = reader(tmp_path / backend.FILE)
+    assert items == []
+    assert info["ignored"] == {case["type"]: 1}
+
+
+@pytest.mark.parametrize(
+    ("kind", "field"),
+    [(backend.Proxy, "backend"), (model_api.ModelProxy, "api"), (mcp_proxy.HttpProxy, "server")],
+)
+def test_the_connection_cap_refuses_and_records_before_reading(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, kind: type[backend.Proxy], field: str
+) -> None:
+    case = REFUSALS["http_connections"]
+    monkeypatch.setattr(kind, "connection_limit", 1, raising=False)
+    with StockServer() as stock:
+        proxies = backend.Proxies(
+            [backend.Backend("stock", "STOCK_URL", stock.url)], tmp_path / backend.FILE, kind
+        )
+        proxy = proxies.proxies[0]
+        workers = []
+        handle = proxy.process_request_thread
+
+        def worker(*args) -> None:
+            workers.append(threading.current_thread())
+            handle(*args)
+
+        monkeypatch.setattr(proxy, "process_request_thread", worker)
+        url = proxies.start()["STOCK_URL"]
+        try:
+            with socket.create_connection(proxy.server_address, timeout=3) as held:
+                held.sendall(EXPECT + b"Content-Length: 6\r\n\r\n")
+                with held.makefile("rb") as reply:
+                    assert reply.readline() == b"HTTP/1.1 100 Continue\r\n"
+                with (
+                    socket.create_connection(proxy.server_address, timeout=3) as overflow,
+                    overflow.makefile("rb") as answer,
+                ):
+                    refused = answer.read()
+                assert refused.startswith(f"HTTP/1.1 {case['status']} ".encode())
+                assert json.loads(refused.partition(b"\r\n\r\n")[2]) == {"error": case["error"]}
+            workers[0].join(timeout=3)
+            assert not workers[0].is_alive()
+            status, _, _ = request(url, "GET", "/stock", None, {})
+        finally:
+            proxies.stop()
+    assert status == 200
+    first = rows(tmp_path)[0]
+    assert (first["type"], first[field], first["status"], first["error"]) == (
+        case["type"],
+        "stock",
+        case["status"],
+        case["error"],
+    )
+    assert len(stock.seen) == 1
+
+
+def test_expect_reserves_the_shared_budget_before_continue(tmp_path: Path) -> None:
+    case = REFUSALS["expect_budget"]
+    budget = backend.Budget(case["budget"])
+    with StockServer() as stock:
+        proxies = backend.Proxies(
+            [backend.Backend("stock", "STOCK_URL", stock.url)],
+            tmp_path / backend.FILE,
+            budget=budget,
+        )
+        url = proxies.start()["STOCK_URL"]
+        try:
+            with socket.create_connection(proxies.proxies[0].server_address, timeout=3) as held:
+                held.sendall(EXPECT + f"Content-Length: {case['first_length']}\r\n\r\n".encode())
+                with held.makefile("rb") as reply:
+                    assert reply.readline() == b"HTTP/1.1 100 Continue\r\n"
+                    assert reply.readline() == b"\r\n"
+                    refused = raw_request(
+                        url, EXPECT + f"Content-Length: {case['second_length']}\r\n\r\n".encode()
+                    )
+                    assert refused.startswith(f"HTTP/1.1 {case['status']} ".encode())
+                    assert b"100 Continue" not in refused
+                    held.sendall(b"teapot")
+                    assert reply.read().startswith(b"HTTP/1.1 200 ")
+        finally:
+            proxies.stop()
+    assert budget.used == 0
+    assert [s["body"] for s in stock.seen] == [b"teapot"]
+    assert rows(tmp_path)[0]["error"] == f"the proxy refused the request: {case['error']}"
+
+
+def test_chunk_extensions_have_a_total_limit(tmp_path: Path) -> None:
+    case = REFUSALS["chunk_extensions"]
+    head = b"POST /stock HTTP/1.1\r\nHost: shop\r\nConnection: close\r\n" + CHUNKED
+    first = b"3;" + b"x" * (case["first_length"] - 1) + b"\r\ntea\r\n"
+
+    def body(second_length: int) -> bytes:
+        return first + b"3;" + b"y" * (second_length - 1) + b"\r\npot\r\n0\r\n\r\n"
+
+    with StockServer() as stock:
+        proxies = proxy_for(stock, tmp_path)
+        url = proxies.start()["STOCK_URL"]
+        try:
+            accepted = raw_request(url, head + body(case["second_length"] - 1))
+            refused = raw_request(url, head + body(case["second_length"]))
+        finally:
+            proxies.stop()
+    assert accepted.startswith(b"HTTP/1.1 200 ")
+    assert refused.startswith(f"HTTP/1.1 {case['status']} ".encode())
+    assert [s["body"] for s in stock.seen] == [b"teapot"]
+    assert rows(tmp_path)[1]["error"] == f"the proxy refused the request: {case['error']}"

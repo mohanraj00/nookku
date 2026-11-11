@@ -7,12 +7,12 @@ the project file, and the project file wins over the user file.
 
 from __future__ import annotations
 
-import json
 import os
 from pathlib import Path
 from typing import Any
 
 from nookku import kit
+from nookku.record import loads
 
 PLUGIN = "nookku@"
 # The command that turns off the plugin in this project only. Without --scope local, it can
@@ -67,7 +67,7 @@ def settings_files(root: Path) -> list[Path]:
 
 def _read(path: Path) -> dict[str, Any]:
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
+        data = loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return {}
     return data if isinstance(data, dict) else {}

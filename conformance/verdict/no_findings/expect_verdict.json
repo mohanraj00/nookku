@@ -74,6 +74,12 @@
    "verdict": "pass"
   },
   {
+   "check": "mcp_task_unfinished",
+   "count": null,
+   "most": null,
+   "verdict": "pass"
+  },
+  {
    "check": "unseen_call",
    "count": null,
    "most": null,

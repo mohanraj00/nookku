@@ -44,6 +44,7 @@ from typing import Any, TextIO
 from urllib.parse import urlsplit
 
 from nookku import page, state
+from nookku.record import loads
 
 # The wait of `nookku start` for the page server to say if the browser opened.
 START_WAIT = 15.0
@@ -169,7 +170,7 @@ def _start(root: Path, test: str, print_url: bool) -> str:
     finally:
         os.close(read)
     try:
-        status = json.loads(line) if line else None
+        status = loads(line) if line else None
     except ValueError:
         status = None
     if not isinstance(status, dict):
@@ -315,7 +316,7 @@ def _runs(root: Path, test: str) -> bool:
     """True if the test runs. Read current.json and change nothing: `state.current` removes a
     stale file, but the page server only reads the state of a test."""
     try:
-        cur = json.loads((state.state(root) / "current.json").read_text())
+        cur = loads((state.state(root) / "current.json").read_text())
     except (OSError, ValueError):
         return False
     return isinstance(cur, dict) and cur.get("test") == test and state.is_bridge(cur)

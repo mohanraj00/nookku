@@ -459,6 +459,8 @@ def _omit(body: Any) -> None:
 class ModelProxy(backend.Proxy):
     """One recording proxy for one model API."""
 
+    target_field = "api"
+
     def describe(self, row: dict[str, Any], headers: list[tuple[str, str]], body: bytes) -> None:
         name = row.pop("backend")
         old = dict(row)

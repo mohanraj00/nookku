@@ -49,6 +49,7 @@ from proof_common import MESSAGES, json_lines, planted  # noqa: E402
 from nookku import __version__  # noqa: E402
 from nookku.adapters import JsonAdapter  # noqa: E402
 from nookku.audit import audit  # noqa: E402
+from nookku.record import loads  # noqa: E402
 
 OUT = ROOT / "proofs" / "cluster-tap"
 BASE_IMAGE = "python:3.12-slim"
@@ -373,13 +374,13 @@ def hook(c: Cluster, event: dict[str, Any], *, short_timeout: bool = False) -> d
         code = "from nookku import kit; kit.TIMEOUT=2; from nookku.__main__ import main; main()"
         args = ["python", "-c", code, *args[1:]]
     out = c.harness(*args, data=raw, env={"CLAUDE_CODE_ENTRYPOINT": "cli"})
-    answer: dict[str, Any] = json.loads(out.decode())
+    answer: dict[str, Any] = loads(out.decode())
     return answer
 
 
 def versions(c: Cluster) -> dict[str, str]:
-    server = json.loads(c.k("version", "-o", "json"))["serverVersion"]["gitVersion"]
-    client = json.loads(run([c.kubectl, "version", "--client", "-o", "json"]))
+    server = loads(c.k("version", "-o", "json"))["serverVersion"]["gitVersion"]
+    client = loads(run([c.kubectl, "version", "--client", "-o", "json"]))
     docker = run([c.docker, "version", "--format", "{{.Server.Version}}"]).decode().strip()
     base = run([c.docker, "image", "inspect", BASE_IMAGE, "--format", "{{.Id}}"]).decode().strip()
     claude = shutil.which("claude")
@@ -514,7 +515,7 @@ def prove(c: Cluster, work: Path, form: str = "same-pod") -> dict[str, Any]:
         a = app[i] if i < len(app) else {}
         request = base64.b64decode(a.get("request_b64", ""))
         response = base64.b64decode(a.get("response_b64", ""))
-        reply = json.loads(response)["reply"] if response else None
+        reply = loads(response)["reply"] if response else None
         checks.append(
             {
                 "message": i + 1,
@@ -539,7 +540,7 @@ def prove(c: Cluster, work: Path, form: str = "same-pod") -> dict[str, Any]:
         "".join(
             line + "\n"
             for line in relay_path.read_text().splitlines()
-            if json.loads(line).get("ok") is not False
+            if loads(line).get("ok") is not False
         )
     )
     p4 = planted(tap_path, successful, faults)

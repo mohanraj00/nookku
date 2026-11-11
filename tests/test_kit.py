@@ -684,7 +684,10 @@ def test_openai_stream_asks_an_agent_that_streams_only_on_request(tmp_path, open
     bodies = [json.loads(r["body"]) for r in agent.received]
     assert [b["stream"] for b in bodies] == [openai_stream, openai_stream]
     rows = [json.loads(x) for x in (tmp_path / "tap.jsonl").read_text().split("\n") if x]
-    assert ["stream" in r for r in rows] == [openai_stream, openai_stream]
+    assert ["stream" in r for r in rows if r["type"] == "exchange"] == [
+        openai_stream,
+        openai_stream,
+    ]
     shown = [(t.ok, t.shown) for t in read_relay(record(root)) if isinstance(t, Turn)]
     assert shown == [(True, shop_reply(TRICKY)), (True, shop_reply("second"))]
     assert audit(tmp_path / "tap.jsonl", record(root)).exit == 0
@@ -1140,9 +1143,8 @@ def test_record_limit_must_be_a_count_of_1_or_more(tmp_path, value):
         kit.Config.load(tmp_path)
 
 
-@pytest.mark.parametrize("value", [0, -1, True, 2.0, "2", "stream", None])
+@pytest.mark.parametrize("value", [0, -1, True, 2.0, "2", "other", None])
 def test_body_limit_must_be_a_count_of_1_or_more(tmp_path, value):
-    # A value of a later release, for example "stream" or -1 (#479), stops the start now.
     kit.init(tmp_path, "codex", {})
     path = tmp_path / ".nookku" / "config.json"
     path.write_text(json.dumps({**json.loads(path.read_text()), "body_limit": value}))

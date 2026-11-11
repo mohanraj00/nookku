@@ -14,6 +14,7 @@ from __future__ import annotations
 import contextlib
 import hashlib
 import os
+import re
 import shlex
 import signal
 import subprocess
@@ -23,6 +24,7 @@ import time
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
+from urllib.request import parse_http_list
 
 from nookku import backend
 from nookku.record import json_text
@@ -37,12 +39,54 @@ CHUNK = 65536
 STDIO = "stdio"
 
 
+_AUTH_PARAM = re.compile(r"([a-z][a-z0-9_-]*)[ \t]*=[ \t]*(.*)", re.I)
+_SCOPE = re.compile(r"[\x21\x23-\x5b\x5d-\x7e]+")
+_AUTH_ERRORS = {"invalid_request", "invalid_token", "insufficient_scope"}
+
+
+def bearer_challenges(value: str) -> list[dict[str, str | None]]:
+    """Read the Bearer challenges without retaining tokens or arbitrary parameters."""
+    out: list[dict[str, str | None]] = []
+    current: dict[str, str | None] | None = None
+    for part in parse_http_list(value):
+        param = _AUTH_PARAM.fullmatch(part)
+        if param is None:
+            words = part.split(None, 1)
+            current = None
+            if not words or words[0].lower() != "bearer":
+                continue
+            current = {"scope": None, "error": None}
+            out.append(current)
+            param = _AUTH_PARAM.fullmatch(words[1]) if len(words) == 2 else None
+        if current is None or param is None:
+            continue
+        name, text = param.groups()
+        name = name.lower()
+        text = text[1:-1] if text.startswith('"') and text.endswith('"') else text
+        if name == "scope" and text and all(_SCOPE.fullmatch(token) for token in text.split(" ")):
+            current["scope"] = text
+        elif name == "error" and text in _AUTH_ERRORS:
+            current["error"] = text
+    return out
+
+
+def _safe_challenge(value: str) -> str:
+    challenges = bearer_challenges(value)
+    shown = []
+    for challenge in challenges:
+        params = [f'{key}="{val}"' for key, val in challenge.items() if val is not None]
+        shown.append("Bearer " + ", ".join(params) if params else "Bearer")
+    return ", ".join(shown) or backend.REMOVED
+
+
 class HttpProxy(backend.Proxy):
     """A recording proxy for one MCP server over HTTP. Its rows go to mcp.jsonl.
 
     The variable of the app gets the URL of the proxy with the path and the query of the MCP URL.
     The proxy sends each path of the app with no change, so the server gets its own endpoint.
     """
+
+    target_field = "server"
 
     # An MCP server can send a stream with no end. The proxy keeps only the bytes that the record
     # shows (SPEC.md section 7.12).
@@ -61,6 +105,14 @@ class HttpProxy(backend.Proxy):
     def describe(self, row: dict[str, Any], headers: list[tuple[str, str]], body: bytes) -> None:
         row["server"] = row.pop("backend")
         row["transport"] = "http"
+
+    def complete(
+        self, row: dict[str, Any], body: bytes, encoding: str | None, cut: bool = False
+    ) -> None:
+        row["response_headers"] = [
+            [k, _safe_challenge(v) if k.lower() == "www-authenticate" else v]
+            for k, v in row["response_headers"]
+        ]
 
 
 def http_servers(parts: list[dict[str, Any]]) -> list[backend.Backend]:

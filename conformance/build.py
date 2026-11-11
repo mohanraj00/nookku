@@ -166,9 +166,300 @@ FAILED_STREAM = {
     "stream": stream_info(sse_body(R2, False)),
 }
 
+# Hand-written stream evidence (section 2.1). Each refusal breaks the named rule.
+PART_BODY = b'data: {"choices":[{"delta":{"content":"In stock."}}]}\n\ndata: [DONE]\n\n'
+PART_ROW = {
+    "v": "0.4",
+    "type": "stream_part",
+    "ts": 1.0,
+    "stream_id": "stock",
+    "index": 1,
+    "base64": base64.b64encode(PART_BODY).decode(),
+    "sha256": hashlib.sha256(PART_BODY).hexdigest(),
+}
+PART_EXCHANGE = {
+    **ex("Stock?", "In stock.", v="0.2"),
+    "started": 0.5,
+    "stream_id": "stock",
+    "stream_protocol": "sse",
+    "first_part_seconds": 0.5,
+    "stream": stream_info(PART_BODY),
+}
+
+# Fixed wire bytes, with a zero mask for the client frame. No tap code builds these rows.
+WS_INPUT = b'{"text":"Stock?"}'
+WS_REPLY = b'{"reply":"In stock."}'
+
+
+def ws_part(wire: bytes, index: int, direction: str, opcode: int = 1, final: bool = True) -> dict:
+    return {
+        **PART_ROW,
+        "type": "websocket_frame",
+        "stream_id": "ws-stock",
+        "index": index,
+        "base64": base64.b64encode(wire).decode(),
+        "sha256": hashlib.sha256(wire).hexdigest(),
+        "direction": direction,
+        "opcode": opcode,
+        "final": final,
+    }
+
+
+WS_CLIENT = ws_part(b"\x81" + bytes([0x80 | len(WS_INPUT)]) + b"\0" * 4 + WS_INPUT, 1, "to_agent")
+WS_SERVER = ws_part(b"\x81" + bytes([len(WS_REPLY)]) + WS_REPLY, 2, "from_agent")
+WS_EXCHANGE = {
+    **PART_EXCHANGE,
+    "stream_id": "ws-stock",
+    "stream_protocol": "websocket",
+    "stream_adapter": {"name": "json"},
+    "stream": stream_info(WS_REPLY),
+}
+WS_INCOMPLETE = ws_part(b'\x01\x0a{"reply":"', 2, "from_agent", final=False)
+WS_CLOSE = ws_part(b"\x88\x02\x03\xe8", 3, "from_agent", opcode=8)
+WS_FAILURE = {
+    **ex("Stock?", None, status=None, error="the WebSocket closed before a full reply", v="0.2"),
+    "stream_id": "ws-stock",
+    "stream_protocol": "websocket",
+}
+
 # name: (tap rows or None for a missing file, relay rows or None, expectation)
 # A row can be a raw string, written as the line itself.
 CASES_BY_NAME: dict[str, tuple[list | None, list | None, dict]] = {
+    "stream_parts_clean": (
+        [PART_ROW, PART_EXCHANGE],
+        [turn("Stock?", "In stock.")],
+        {"exit": 0, "breaks": []},
+    ),
+    "stream_part_out_of_order": (
+        [{**PART_ROW, "index": 2}, PART_EXCHANGE],
+        [],
+        {
+            "exit": 2,
+            "errors": ["record_invalid"],
+            "reader_error": "line 1: the stream part is out of order",
+        },
+    ),
+    "stream_part_hash_mismatch": (
+        [{**PART_ROW, "sha256": "0" * 64}, PART_EXCHANGE],
+        [],
+        {
+            "exit": 2,
+            "errors": ["record_invalid"],
+            "reader_error": "line 1: the part hash does not match its bytes",
+        },
+    ),
+    "stream_parts_reply_mismatch": (
+        [PART_ROW, {**PART_EXCHANGE, "reply": "Sold out.", "reply_sha256": sha("Sold out.")}],
+        [],
+        {
+            "exit": 2,
+            "errors": ["record_invalid"],
+            "reader_error": "line 2: the stream reply does not match",
+        },
+    ),
+    "stream_part_wrong_version": (
+        [{**PART_ROW, "v": "0.2"}, PART_EXCHANGE],
+        [],
+        {
+            "exit": 2,
+            "errors": ["record_invalid"],
+            "reader_error": "line 1: version 0.4 is for stream part rows",
+        },
+    ),
+    "websocket_frame_wrong_version": (
+        [
+            {
+                **PART_ROW,
+                "v": "0.3",
+                "type": "websocket_frame",
+                "base64": "gQA=",
+                "sha256": hashlib.sha256(b"\x81\x00").hexdigest(),
+                "direction": "from_agent",
+                "opcode": 1,
+                "final": True,
+            }
+        ],
+        [],
+        {
+            "exit": 2,
+            "errors": ["record_invalid"],
+            "reader_error": "line 1: version 0.4 is for stream part rows",
+        },
+    ),
+    "stream_exchange_wrong_version": (
+        [PART_ROW, {**PART_EXCHANGE, "v": "0.4"}],
+        [],
+        {
+            "exit": 2,
+            "errors": ["record_invalid"],
+            "reader_error": "line 2: version 0.4 is for stream part rows",
+        },
+    ),
+    "stream_part_orphan": (
+        [PART_ROW, ex(M1, R1)],
+        [],
+        {
+            "exit": 2,
+            "errors": ["record_invalid"],
+            "reader_error": "line 1: the stream part has no exchange",
+        },
+    ),
+    "stream_part_unfinished_at_end": (
+        [ex(M1, R1), PART_ROW],
+        [turn(M1, R1)],
+        {"exit": 0, "breaks": []},
+    ),
+    "websocket_clean": (
+        [WS_CLIENT, WS_SERVER, WS_EXCHANGE],
+        [turn("Stock?", "In stock.")],
+        {"exit": 0, "breaks": []},
+    ),
+    "websocket_opcode_mismatch": (
+        [WS_CLIENT, {**WS_SERVER, "opcode": 0}, WS_EXCHANGE],
+        [],
+        {
+            "exit": 2,
+            "errors": ["record_invalid"],
+            "reader_error": "line 2: the frame header does not match the recorded opcode and final flag",
+        },
+    ),
+    "websocket_final_mismatch": (
+        [WS_CLIENT, {**WS_SERVER, "final": False}, WS_EXCHANGE],
+        [],
+        {
+            "exit": 2,
+            "errors": ["record_invalid"],
+            "reader_error": "line 2: the frame header does not match the recorded opcode and final flag",
+        },
+    ),
+    "websocket_direction_invalid": (
+        [{**WS_CLIENT, "direction": "sideways"}, WS_SERVER, WS_EXCHANGE],
+        [],
+        {
+            "exit": 2,
+            "errors": ["record_invalid"],
+            "reader_error": "line 1: the frame direction is not valid",
+        },
+    ),
+    "websocket_direction_reversed": (
+        [{**WS_CLIENT, "direction": "from_agent"}, WS_SERVER, WS_EXCHANGE],
+        [],
+        {
+            "exit": 2,
+            "errors": ["record_invalid"],
+            "reader_error": "line 1: the frame header is not valid",
+        },
+    ),
+    "websocket_input_mismatch": (
+        [WS_CLIENT, WS_SERVER, {**WS_EXCHANGE, "input": "Mugs?", "input_sha256": sha("Mugs?")}],
+        [],
+        {
+            "exit": 2,
+            "errors": ["record_invalid"],
+            "reader_error": "line 3: the WebSocket messages do not match the exchange",
+        },
+    ),
+    "websocket_adapter_missing": (
+        [WS_CLIENT, WS_SERVER, {k: v for k, v in WS_EXCHANGE.items() if k != "stream_adapter"}],
+        [],
+        {
+            "exit": 2,
+            "errors": ["record_invalid"],
+            "reader_error": "line 3: the WebSocket exchange has no adapter",
+        },
+    ),
+    "websocket_adapter_invalid": (
+        [WS_CLIENT, WS_SERVER, {**WS_EXCHANGE, "stream_adapter": {"name": 7}}],
+        [],
+        {
+            "exit": 2,
+            "errors": ["record_invalid"],
+            "reader_error": "line 3: the WebSocket exchange has an invalid adapter field",
+        },
+    ),
+    "stream_protocol_invalid": (
+        [PART_ROW, {**PART_EXCHANGE, "stream_protocol": "unknown"}],
+        [],
+        {
+            "exit": 2,
+            "errors": ["record_invalid"],
+            "reader_error": "line 2: the stream protocol is not valid",
+        },
+    ),
+    "stream_first_part_seconds_mismatch": (
+        [PART_ROW, {**PART_EXCHANGE, "first_part_seconds": 0.6}],
+        [],
+        {
+            "exit": 2,
+            "errors": ["record_invalid"],
+            "reader_error": "line 2: the stream parts do not match the exchange",
+        },
+    ),
+    "stream_size_mismatch": (
+        [
+            PART_ROW,
+            {**PART_EXCHANGE, "stream": {**stream_info(PART_BODY), "bytes": len(PART_BODY) + 1}},
+        ],
+        [],
+        {
+            "exit": 2,
+            "errors": ["record_invalid"],
+            "reader_error": "line 2: the stream parts do not match the exchange",
+        },
+    ),
+    "stream_hash_mismatch": (
+        [PART_ROW, {**PART_EXCHANGE, "stream": {**stream_info(PART_BODY), "sha256": "0" * 64}}],
+        [],
+        {
+            "exit": 2,
+            "errors": ["record_invalid"],
+            "reader_error": "line 2: the stream parts do not match the exchange",
+        },
+    ),
+    "websocket_linked_failure_then_clean": (
+        [WS_CLIENT, WS_INCOMPLETE, WS_CLOSE, WS_FAILURE, ex(M1, R1)],
+        [turn("Stock?", None), turn(M1, R1)],
+        {"exit": 0, "breaks": [], "notes": [["agent_error", 1, 4]]},
+    ),
+    # Only the parts that fit remain. The linked failure is an agent error, not a bad record.
+    "websocket_part_count_budget": (
+        [
+            WS_CLIENT,
+            ws_part(b"\x8a\x00", 2, "from_agent", opcode=10),
+            {**WS_FAILURE, "error": "the stream exceeds the recorded part budget"},
+        ],
+        [turn("Stock?", None)],
+        {"exit": 0, "breaks": [], "notes": [["agent_error", 1, 3]]},
+    ),
+    "sse_part_byte_budget": (
+        [
+            PART_ROW,
+            {
+                **PART_EXCHANGE,
+                "v": "0.3",
+                "reply": None,
+                "reply_sha256": None,
+                "error": "the stream exceeds the recorded part budget",
+            },
+        ],
+        [turn("Stock?", None)],
+        {"exit": 0, "breaks": [], "notes": [["agent_error", 1, 2]]},
+    ),
+    "websocket_linked_unparsed": (
+        [
+            WS_CLIENT,
+            WS_INCOMPLETE,
+            WS_CLOSE,
+            {**UNPARSED, "stream_id": "ws-stock", "stream_protocol": "websocket"},
+        ],
+        [],
+        {"exit": 2, "errors": ["tap_unparsed"]},
+    ),
+    "sse_linked_unparsed": (
+        [PART_ROW, {**UNPARSED, "stream_id": "stock", "stream_protocol": "sse"}],
+        [],
+        {"exit": 2, "errors": ["tap_unparsed"]},
+    ),
     "clean": (CLEAN_TAP, CLEAN_RELAY, {"exit": 0, "breaks": []}),
     "clean_repeated_message": (
         [ex(M1, R1), ex(M1, R1)],
@@ -840,6 +1131,7 @@ def counts(**n: int) -> dict:
         "questions_lost",
         "database_error",
         "proxy_call_without_span",
+        "mcp_task_unfinished",
         "unseen_call",
         "driver_without_span",
         "egress_not_in_discovery",

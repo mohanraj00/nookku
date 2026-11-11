@@ -38,6 +38,7 @@ import stock  # noqa: E402
 import toy_model  # noqa: E402
 
 from nookku import discovery, seal  # noqa: E402
+from nookku.record import loads  # noqa: E402
 
 MESSAGES = [
     "Hi, is the teapot set in stock?",
@@ -100,10 +101,10 @@ def main() -> int:
         return 1
     folder, _ = ran
 
-    trace = [json.loads(x) for x in (folder / "trace.jsonl").read_text().split("\n") if x]
-    audit = json.loads((folder / "audit.json").read_text())
-    manifest = json.loads((folder / "manifest.json").read_text())
-    findings = json.loads((folder / "findings.json").read_text())
+    trace = [loads(x) for x in (folder / "trace.jsonl").read_text().split("\n") if x]
+    audit = loads((folder / "audit.json").read_text())
+    manifest = loads((folder / "manifest.json").read_text())
+    findings = loads((folder / "findings.json").read_text())
     sealed = seal.verify(folder)
     missing = [f for f in findings["findings"] if f["check"] == "missing_trace_point"]
     turns = range(1, audit["turns"] + 1)

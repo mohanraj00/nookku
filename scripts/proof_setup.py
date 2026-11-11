@@ -57,6 +57,7 @@ from proof_common import (  # noqa: E402
 )
 
 from nookku import __version__, config  # noqa: E402
+from nookku.record import loads  # noqa: E402
 
 OUT = ROOT / "proofs" / "setup" / "results.json"
 SHOP = ROOT / "examples" / "toy-shop-full"
@@ -167,7 +168,7 @@ def main() -> int:
     s3 = False
     spec: list[str] = []
     try:
-        data = config.check(json.loads(made.get(".nookku/config.json", "")))
+        data = config.check(loads(made.get(".nookku/config.json", "")))
         spec = list(data.get("spec") or [])
         drafts = [made.get(p, "") for p in spec]
         s3 = (

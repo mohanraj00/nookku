@@ -7,7 +7,6 @@ same token, `Host` and `Origin` checks as the chat page (SPEC.md section 5, "Das
 
 from __future__ import annotations
 
-import json
 import math
 from pathlib import Path
 from typing import Any
@@ -24,7 +23,7 @@ ORDERS = ("newest", "oldest")
 def running_id(root: Path) -> str | None:
     """The id of the running test, from current.json, or None. Change no file."""
     try:
-        cur = json.loads((state.state(root) / "current.json").read_text(encoding="utf-8"))
+        cur = loads((state.state(root) / "current.json").read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
     if not isinstance(cur, dict) or not isinstance(cur.get("dir"), str) or not state.is_bridge(cur):

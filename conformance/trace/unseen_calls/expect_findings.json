@@ -28,6 +28,7 @@
   "questions_lost": 0,
   "database_error": 0,
   "proxy_call_without_span": 0,
+  "mcp_task_unfinished": 0,
   "unseen_call": 4,
   "driver_without_span": 0,
   "egress_not_in_discovery": 0,
