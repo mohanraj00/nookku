@@ -14,6 +14,8 @@ from .record import RecordError, json_text, loads
 FILE = "openinference.jsonl"
 LIMIT = 32 * 1024 * 1024
 SKEW = 1.0
+# Unix seconds below 1e11 end in the year 5138. Milliseconds of a time after 1973 are 1e11 or more.
+SECONDS_LIMIT = 1e11
 _MODEL = {"LLM", "DECISION", "GENERATION", "EMBEDDING"}
 
 
@@ -21,12 +23,16 @@ def _object(value: Any) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
 
 
+def _printable(value: str) -> bool:
+    return value.translate({9: None, 10: None, 13: None}).isprintable()
+
+
 def _text(*values: Any) -> str | None:
-    return next((v for v in values if isinstance(v, str) and v.strip() and v.isprintable()), None)
+    return next((v for v in values if isinstance(v, str) and v.strip() and _printable(v)), None)
 
 
 def _seconds(value: Any) -> float | None:
-    if type(value) in (int, float) and 0 <= value < 1e15:
+    if type(value) in (int, float) and 0 <= value < SECONDS_LIMIT:
         return float(value)
     return _time(value)
 

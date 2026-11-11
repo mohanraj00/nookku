@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from nookku import seal
+from nookku import openinference, seal
 from nookku.cli import main
 from nookku.record import Writer, loads
 
@@ -141,3 +141,28 @@ def test_an_otlp_export_reads_only_app_spans_and_a_late_span_gives_no_finding(
     trace = [loads(line) for line in (folder / "trace.jsonl").read_text().splitlines()]
     late = [it for it in trace if it["harness"] == "openinference" and it["name"] == "close"]
     assert len(late) == 1 and late[0]["turn"] is None
+
+
+def _phoenix_row(name: str, start: float, end: float, attrs: dict[str, str]) -> dict:
+    return {
+        "name": name,
+        "span_kind": "CHAIN",
+        "context.trace_id": "t1",
+        "context.span_id": "s1",
+        "start_time": start,
+        "end_time": end,
+        "attributes": attrs,
+    }
+
+
+def test_a_span_with_multi_line_sql_and_a_tab_in_its_name_is_read() -> None:
+    sql = "SELECT name,\n\tstock\nFROM toys\r\nWHERE id = 1"
+    span = openinference._span(_phoenix_row("read\tstock", 1.0, 1.2, {"db.statement": sql}), "")
+    assert span["name"] == "read\tstock"
+    assert span["call"] == ["query", "SELECT"]
+
+
+@pytest.mark.parametrize("start", [1.79e12, 1.79e18, openinference.SECONDS_LIMIT])
+def test_a_number_time_that_is_not_unix_seconds_is_refused(start: float) -> None:
+    with pytest.raises(ValueError, match="invalid ids, name or times"):
+        openinference._span(_phoenix_row("read stock", start, start + 1, {}), "")
