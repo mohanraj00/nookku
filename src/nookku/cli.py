@@ -19,6 +19,7 @@ from nookku import (
     evaluation,
     gateway,
     kit,
+    openinference,
     performance,
     print_mode,
     seal,
@@ -405,6 +406,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         "folder as egress.jsonl and check them",
     )
 
+    trc.add_argument(
+        "--openinference",
+        type=Path,
+        metavar="FILE",
+        help="read OpenInference spans from an export and compare them with the proxy records",
+    )
+
     sub.add_parser("setup", help="print the guide that connects a test to the app")
 
     # An internal command has no help: argparse then leaves it out of the command list of
@@ -596,7 +604,13 @@ def main(argv: Sequence[str] | None = None) -> int:
                 return 2
             gate = (args.gateway, list(args.key_alias), tag, skew or 0.0)
         return _trace_command(
-            args.root.resolve(), args.test, args.json, args.egress, gate, args.verdict
+            args.root.resolve(),
+            args.test,
+            args.json,
+            args.egress,
+            gate,
+            args.verdict,
+            args.openinference,
         )
     if args.command == "verify":
         folder = _test_folder(args.root.resolve(), args.test)
@@ -792,6 +806,7 @@ def _trace_command(
     egress: Path | None = None,
     gate: tuple[str, list[str], str | None, float] | None = None,
     verdict_gate: bool = False,
+    inference: Path | None = None,
 ) -> int:
     folder = _test_folder(root, test)
     if folder is None:
@@ -808,6 +823,13 @@ def _trace_command(
         print(f"nookku: the trace was not rebuilt. {seal.summary(check)}", file=sys.stderr)
         return 2
     names = list(rebuilt)
+    inferred = None
+    if inference is not None:
+        try:
+            inferred = openinference.import_bytes(inference)
+        except RecordError as e:
+            print(f"nookku: the trace was not rebuilt. {e}", file=sys.stderr)
+            return 2
     if egress is not None:
         # Check the spans before the copy, so a file that the trace cannot read does not go into
         # the test folder (SPEC.md section 8.8).
@@ -840,12 +862,20 @@ def _trace_command(
             print(f"nookku: the trace was not rebuilt. {egress}: {e.strerror}", file=sys.stderr)
             return 2
         names.append(egress_spans.FILE)
+    if inferred is not None:
+        try:
+            egress_spans.copy_in(inferred, folder, openinference.FILE)
+        except OSError as e:
+            seal.update(folder, [n for n in names if n not in rebuilt])
+            print(f"nookku: the trace was not rebuilt. {inference}: {e.strerror}", file=sys.stderr)
+            return 2
+        names.append(openinference.FILE)
     try:
         report = trace.build(folder)
     except RecordError as e:
         # The copied spans and the gateway logs passed their checks, so the seal takes them, and
         # the next rebuild does not see them as files that were added after the end.
-        seal.update(folder, [n for n in names if n in (egress_spans.FILE, gateway.FILE)])
+        seal.update(folder, [n for n in names if n not in rebuilt])
         print(f"nookku: the trace was not rebuilt. {e}", file=sys.stderr)
         return 2
     try:

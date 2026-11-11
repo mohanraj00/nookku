@@ -65,6 +65,12 @@
    "verdict": "pass"
   },
   {
+   "check": "proxy_call_without_span",
+   "count": null,
+   "most": null,
+   "verdict": "pass"
+  },
+  {
    "check": "mcp_task_unfinished",
    "count": null,
    "most": null,

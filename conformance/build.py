@@ -1130,6 +1130,7 @@ def counts(**n: int) -> dict:
         "model_api_error",
         "questions_lost",
         "database_error",
+        "proxy_call_without_span",
         "mcp_task_unfinished",
         "unseen_call",
         "driver_without_span",
@@ -6567,6 +6568,102 @@ EGRESS_VERSION_CASE = {
 }
 
 
+# OpenInference spans (SPEC.md section 8.10): an export of the app spans in openinference.jsonl.
+# The span of GET /stock starts before turn 1 and covers the call, so the call has a match. No
+# span covers POST /reserve in turn 2. The span after turn 2 has no turn and gives no finding.
+OI_TRACE = "00000000000000000000000000000001"
+
+
+def ispan(line: int, name: str, start: float, end: float, call: list[str] | None) -> dict:
+    return {
+        "v": 1,
+        "source": "phoenix",
+        "trace_id": OI_TRACE,
+        "span_id": f"{line:016x}",
+        "name": name,
+        "kind": "CHAIN",
+        "start": T0 + start,
+        "end": T0 + end,
+        "call": call,
+    }
+
+
+def iitem(turn: int | None, line: int, name: str, ts: float) -> dict:
+    """An expected trace row from openinference.jsonl."""
+    row = item(turn, "claude-code", ts, "span", line)
+    row.update(
+        harness="openinference",
+        session=OI_TRACE,
+        name=name,
+        input={"openinference.span.kind": "CHAIN", "span_id": f"{line:016x}"},
+        source={"file": "openinference.jsonl", "line": line},
+    )
+    return row
+
+
+OPENINFERENCE_CASE = {
+    "tap": [window(10, 20), window(30, 40)],
+    "manifest": {"test": "20261111-090000-oi01", "model_sessions": []},
+    "sessions": {},
+    "backend": [
+        call(12, "stock", "GET", "/stock", 200, response=body('{"left": 3}')),
+        call(32, "stock", "POST", "/reserve", 200, response=body('{"ok": true}')),
+    ],
+    "openinference": [
+        ispan(1, "read stock", 9.5, 12.5, ["http", "GET /stock"]),
+        ispan(2, "close", 45, 45.5, None),
+    ],
+    "trace": [
+        iitem(None, 1, "read stock", 9.5),
+        bitem(
+            1,
+            "stock",
+            12,
+            1,
+            "GET /stock",
+            input={"query": None, "headers": SENT, "body": None},
+            output='{"left": 3}',
+            exit_code=200,
+        ),
+        bitem(
+            2,
+            "stock",
+            32,
+            2,
+            "POST /reserve",
+            input={"query": None, "headers": SENT, "body": None},
+            output='{"ok": true}',
+            exit_code=200,
+        ),
+        iitem(None, 2, "close", 45),
+    ],
+    "findings": {
+        "v": "0.2",
+        "test": "20261111-090000-oi01",
+        "turns": 2,
+        "items": 4,
+        "sessions": [],
+        "otel": None,
+        "backend": {"file": "backend.jsonl", "rows": 2, "items": 2, "ignored": {}},
+        "model_api": None,
+        "mcp": None,
+        "database": None,
+        "openinference": {"file": "openinference.jsonl", "spans": 2},
+        "counts": counts(proxy_call_without_span=1),
+        "findings": [
+            {
+                "check": "proxy_call_without_span",
+                "turn": 2,
+                "detail": "POST /reserve: no matching span in the export",
+                "harness": "backend",
+                "session": "stock",
+                "source": {"file": "backend.jsonl", "line": 2},
+            }
+        ],
+    },
+}
+
+
 TRACE_CASES = {
     "claude_code_toy_shop": CLAUDE_CASE,
     "codex_toy_shop": CODEX_CASE,
@@ -6608,6 +6705,7 @@ TRACE_CASES = {
     "egress_spans_no_answer": EGRESS_NO_ANSWER_CASE,
     "egress_spans_version_two": EGRESS_V2_CASE,
     "egress_spans_version_three": EGRESS_VERSION_CASE,
+    "openinference_toy_shop": OPENINFERENCE_CASE,
 }
 
 
@@ -8717,6 +8815,7 @@ def main() -> None:
         write(d / "database.jsonl", case.get("database"))
         write(d / "gateway.jsonl", case.get("gateway"))
         write(d / "egress.jsonl", case.get("egress"))
+        write(d / "openinference.jsonl", case.get("openinference"))
         if "error" in case:
             text = json.dumps(case["error"], indent=1, ensure_ascii=False)
             (d / "expect_error.json").write_text(text + "\n")

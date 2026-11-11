@@ -386,6 +386,7 @@ Build the trace of a test again, and show its findings ([SPEC.md section 8](../.
 | `--json` | off | Print `findings.json`. |
 | `--verdict` | off | Exit with 1 if the verdict is `fail`. Use it in CI. |
 | `--egress FILE` | none | The Koodam egress spans of the test. The trace checks the file, copies it into the test folder as `egress.jsonl`, adds it to the seal and gives the findings `egress_not_in_discovery` and `egress_denied` ([SPEC.md section 8.8](../../SPEC.md#88-egress-spans)). |
+| `--openinference FILE` | none | Compare app spans in an export with the proxy records ([SPEC.md section 8.10](../../SPEC.md#810-openinference-spans)). |
 | `--gateway SOURCE` | none | Read the model calls of the app from the spend logs of a LiteLLM gateway: a file, or the URL of the gateway API. For a URL, put a key that can read the spend logs in `NOOKKU_GATEWAY_KEY`. The URL must be `https`, or `http` to this computer ([SPEC.md section 8.9](../../SPEC.md#89-gateway-logs)). |
 | `--key-alias ALIAS` | none | Keep the logs of this key alias, for example the `kd-<agent uid>` alias of a Koodam Agent. Give it 1 or more times. `--gateway` needs it. |
 | `--gateway-tag TAG` | none | Also keep only the logs with this request tag. |
@@ -407,6 +408,14 @@ nookku trace --egress spans.jsonl
 ```
 
 The trace uses only the spans from `started` to `ended` of the manifest, so a wider export window is not a problem.
+
+To compare app spans with the independent proxy records, export the test window and run:
+
+```bash
+nookku trace TEST --openinference spans.json
+```
+
+In Phoenix, use `client.spans.get_spans_dataframe(project_name=..., start_time=..., end_time=...)` and write the result with `to_json(orient="records", date_format="iso")`. For Langfuse, request the observations of the test window with the `core,basic,metadata,model` fields and combine all pages into one JSON array. OTLP trace JSON is also accepted. [Phoenix export](https://arize.com/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans), [Langfuse observations](https://langfuse.com/docs/api-and-data-platform/features/observations-api), [match rule](../../SPEC.md#810-openinference-spans).
 
 ### `nookku export`
 

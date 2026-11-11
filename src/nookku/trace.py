@@ -17,7 +17,17 @@ from pathlib import Path
 from typing import Any, Literal, NamedTuple
 from urllib.parse import urlsplit
 
-from . import app_spec, backend, db_proxy, egress_spans, gateway, mcp_proxy, model_api, otlp
+from . import (
+    app_spec,
+    backend,
+    db_proxy,
+    egress_spans,
+    gateway,
+    mcp_proxy,
+    model_api,
+    openinference,
+    otlp,
+)
 from .adapters import AdapterError, pick
 from .config import MATCHES, is_host_list
 from .discovery import db_system, driver_address
@@ -54,6 +64,7 @@ CHECKS = (
     "model_api_error",
     "questions_lost",
     "database_error",
+    "proxy_call_without_span",
     "mcp_task_unfinished",
     "unseen_call",
     "driver_without_span",
@@ -1698,7 +1709,8 @@ def check(
         first = spans[0][0] if spans else None
         late = it["turn"] is None and first is not None and it["ts"] is not None
         # A driver query and its span are one call: the span gives the finding.
-        if late and it["harness"] != "driver" and it["ts"] >= first:
+        # An export of app spans can cover the whole test, so its spans give no finding.
+        if late and it["harness"] not in ("driver", "openinference") and it["ts"] >= first:
             out.append(_finding("item_between_turns", None, f"a {it['kind']} item", **where))
     if seen is not None:
         out += unseen_calls(items, seen)
@@ -1811,8 +1823,23 @@ def build(folder: Path) -> dict[str, Any]:
         items += found
     keys = trace_keys(manifest)
     egress_info, egress_found = egress_findings(folder, manifest, keys, spans)
+    exported = None
+    if (folder / openinference.FILE).exists():
+        exported = openinference.read(folder / openinference.FILE)
+        for span in exported:
+            it = _item(
+                "openinference", span["trace_id"], openinference.FILE, span["line"], span["start"]
+            )
+            it.update(
+                kind="span",
+                name=span["name"],
+                input={"openinference.span.kind": span["kind"], "span_id": span["span_id"]},
+            )
+            items.append(it)
     items.sort(key=lambda it: it["ts"] if it["ts"] is not None else float("inf"))
     assign(items, spans)
+    if exported is not None:
+        egress_found += openinference.missing(items, exported)
     seen = egress_seen(manifest)
     drivers = driver_marks(answer)
     points = app_spec.valid(manifest.get("trace_points"))
@@ -1854,6 +1881,8 @@ def build(folder: Path) -> dict[str, Any]:
         "counts": {c: counts[c] for c in CHECKS},
         "findings": findings,
     }
+    if exported is not None:
+        report["openinference"] = {"file": openinference.FILE, "spans": len(exported)}
     if gateway_calls is not None:
         # Only a test with gateway logs has the key (SPEC.md section 8.9).
         report["gateway"] = gateway_calls
