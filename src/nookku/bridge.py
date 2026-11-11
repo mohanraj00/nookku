@@ -42,7 +42,7 @@ from nookku.config import FILE as CONFIG_FILE
 from nookku.config import HARNESSES as HARNESSES
 from nookku.config import NO_ENTRY as NO_ENTRY
 from nookku.config import STATE_DIR as STATE_DIR
-from nookku.config import ConfigError, read_config, spec_contents, spec_copy
+from nookku.config import BodyLimit, ConfigError, read_config, spec_contents, spec_copy
 from nookku.config import has_entry as has_entry
 from nookku.record import RecordError, Writer, loads, turns
 from nookku.state import (
@@ -142,7 +142,7 @@ class TestConfig:
     # Each part of a Trace points section that is not a trace point: its file, line and problem.
     trace_points_unread: list[dict[str, Any]] = field(default_factory=list)
     # The most bytes of a request body that a proxy reads and forwards (SPEC.md section 7.6).
-    body_limit: int = backend.BODY_LIMIT
+    body_limit: BodyLimit = backend.BODY_LIMIT
     # The bytes of each spec file, from the read that gave its SHA-256. The bridge copies them
     # into the test folder (SPEC.md section 7.2).
     spec_data: list[bytes] = field(default_factory=list)
@@ -966,7 +966,8 @@ def run(
         # The coverage check skips the calls to the receiver (SPEC.md section 8.6).
         manifest["egress"]["receiver"] = receiver.url
     # The backend, model API and MCP proxies share one budget for the request bodies.
-    budget = backend.Budget(backend.BODIES_TIMES * config.body_limit)
+    buffered_limit = backend.BODY_LIMIT if config.body_limit == "stream" else config.body_limit
+    budget = backend.Budget(backend.BODIES_TIMES * buffered_limit)
     proxies = backend.Proxies(
         backends,
         folder / backend.FILE,
@@ -982,7 +983,7 @@ def run(
         folder / model_api.FILE,
         model_api.ModelProxy,
         config.record_limit,
-        config.body_limit,
+        buffered_limit,
         budget,
     )
     env.update(apis.start())
@@ -997,7 +998,7 @@ def run(
         mcp_proxy.http_servers(servers),
         folder / mcp_proxy.FILE,
         mcp_proxy.HttpProxy,
-        body_limit=config.body_limit,
+        body_limit=buffered_limit,
         budget=budget,
     )
     env.update(mcp.start())

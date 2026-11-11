@@ -1143,9 +1143,8 @@ def test_record_limit_must_be_a_count_of_1_or_more(tmp_path, value):
         kit.Config.load(tmp_path)
 
 
-@pytest.mark.parametrize("value", [0, -1, True, 2.0, "2", "stream", None])
+@pytest.mark.parametrize("value", [0, -1, True, 2.0, "2", "other", None])
 def test_body_limit_must_be_a_count_of_1_or_more(tmp_path, value):
-    # A value of a later release, for example "stream" or -1 (#479), stops the start now.
     kit.init(tmp_path, "codex", {})
     path = tmp_path / ".nookku" / "config.json"
     path.write_text(json.dumps({**json.loads(path.read_text()), "body_limit": value}))

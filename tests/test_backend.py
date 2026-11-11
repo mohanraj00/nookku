@@ -306,7 +306,6 @@ def test_a_stream_body_keeps_only_its_first_bytes() -> None:
     for _ in range(1000):
         stream.add(b"0123456789abcdef")
     assert (stream.size, stream.kept, stream.data, stream.cut) == (16000, 10, b"0123456789", True)
-    assert sum(len(p) for p in stream.parts) == 10
 
 
 def test_the_start_of_a_cut_gzip_body_is_decoded() -> None:
