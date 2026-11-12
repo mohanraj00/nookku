@@ -358,7 +358,8 @@ def _turns(data: bytes | None) -> list[tuple[Any, Any]] | None:
         return None
     rows = []
     try:
-        for line in data.decode("utf-8").splitlines():
+        # Split only at "\n", as the record reader does. U+2028 can be in a JSON string.
+        for line in data.decode("utf-8").split("\n"):
             if line.strip():
                 row = loads(line)
                 if isinstance(row, dict) and row.get("type") == "turn":

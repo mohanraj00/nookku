@@ -400,3 +400,11 @@ def test_each_case_gives_its_result(case: Path, tmp_path: Path) -> None:
 
 def test_the_cases_cover_a_pass_a_fail_and_a_missing_test() -> None:
     assert {c.name for c in CASES} >= {"pass", "fail", "missing_test"}
+
+
+def test_a_turn_with_a_unicode_line_separator_is_one_turn() -> None:
+    text = "Hello\u2028world \u2029 and \u0085"
+    data = (
+        json.dumps({"type": "turn", "said": text, "ok": True}, ensure_ascii=False) + "\n"
+    ).encode()
+    assert gate._turns(data) == [(text, True)]
