@@ -1145,6 +1145,8 @@ A declared test with no row fails `missing_test` with the text `The ledger has n
 
 **Read a result with no Nookku.** `result.json` is plain JSON. A reader takes `verdict` and `subject`, and compares `subject` with the digest that it expects, because the subject is only what the caller gave. A compare of the SHA-256 of `result.json` with the copy of the seal shows that `result.json` did not change. It does not check the test folders: only `nookku gate verify` does. [docs/how-to/gate-a-release.md](docs/how-to/gate-a-release.md) gives the commands.
 
+**Known limit: the gate trusts the tested code.** The run pins the argv of each entry, the policy, the spec and the config files of `.nookku/`. It does not pin the bytes of the program that an entry starts, or of its imports. A tested entry runs with the permissions of the account. Thus an earlier test of a gate run can change the code of a later test, and the later test can then pass. The deny of the relay does not stop the tested entry. Run a gate only on code that you trust, for example in a new CI checkout of the subject, and put the digest of that code in `--subject`.
+
 **The relay.** A gate run runs scripted tests, so the relay denies a model command that runs `nookku gate`, with each policy (section 5, "Drive commands"). `nookku gate verify` passes, because it only reads. The relay also denies a model write to `gates/` (section 5).
 
 The cases in [`conformance/gate/`](conformance/gate/) give the gate file, the records of each test and the expected `result.json`: a `pass`, a `fail` and a missing test.
