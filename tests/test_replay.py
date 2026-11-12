@@ -10,7 +10,6 @@ import shutil
 import subprocess
 import sys
 import threading
-import time
 import tracemalloc
 from collections.abc import Iterator
 from pathlib import Path
@@ -151,16 +150,27 @@ def test_each_diff_gives_the_two_replies_and_deletes_before_inserts() -> None:
             assert ("insert", "delete") not in set(itertools.pairwise(ops))
 
 
-def test_a_worst_case_diff_of_many_turns_ends_fast(tmp_path: Path) -> None:
+def test_a_worst_case_diff_of_many_turns_ends_at_the_step_budget(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     # Each turn has 2000 distinct words, and each word changed. A matcher with no budget can need
-    # many seconds for one such turn. The budget is for all 30 turns together.
+    # many seconds for one such turn. The budget is for all 30 turns together. The test counts
+    # steps and does not measure time, so the speed of the machine does not change the result.
+    budgets: list[replay.Budget] = []
+
+    class Spy(replay.Budget):
+        def __init__(self) -> None:
+            super().__init__(100_000)
+            budgets.append(self)
+
+    monkeypatch.setattr(replay, "Budget", Spy)
     old_turns = [(f"Ask {n}", " ".join(f"mug{n}x{i}" for i in range(2000)), "-") for n in range(30)]
     new_turns = [(s, r.replace("mug", "pot"), r) for s, r, _ in old_turns]
     old = make_test(tmp_path, OLD, old_turns, 1_800_000_000.0)
     new = make_test(tmp_path, NEW, new_turns, 1_800_000_600.0)
-    started = time.monotonic()
     result = replay.diff(tmp_path, old, new)
-    assert time.monotonic() - started < 5
+    # The budget stopped the matcher: no step is left, and one budget served all turns.
+    assert [b.left for b in budgets] == [0]
     assert result["changed"] == 30
     for row in result["turns"]:
         assert joined(row["words"], "delete") == row["reply_old"]
