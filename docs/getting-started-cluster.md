@@ -334,6 +334,28 @@ kubectl delete namespace koodam-system
 
 If you made a kind cluster for this tutorial, delete it with `kind delete cluster --name <name>`.
 
+## The Koodam tag of the CI job
+
+The tutorial on this page uses Koodam 0.3.0. The CI job `kind-testkey` uses a later tag, because a gateway key for each test came with Koodam `v0.4.0-alpha.1` ([koodam#192](https://github.com/mohanraj00/koodam/issues/192)). The job runs [scripts/kind_testkey.py](../scripts/kind_testkey.py). It installs the chart with `gateway.mode: bundled` and the mock model of the bundled gateway, so it needs no model key. It makes a TestKey for each of 2 tests, and runs each test in the Workspace with the key of the TestKey ([SPEC.md section 7.16](../SPEC.md#716-gateway-key-of-a-test)).
+
+The job pins these values:
+
+| Value | Where |
+|---|---|
+| The git tag `v0.4.0-alpha.1` | `KOODAM_TAG` in [scripts/kind_testkey.py](../scripts/kind_testkey.py) |
+| The commit `74920bed1d5c4575dbe3dc60c33ba6e07b73d44c` of the tag | `KOODAM_COMMIT` in the same file |
+| The chart `oci://ghcr.io/mohanraj00/charts/koodam` version `0.4.0-alpha.1` | The script removes the `v` of the tag. |
+| The images `ghcr.io/mohanraj00/koodam:0.4.0-alpha.1` and `ghcr.io/mohanraj00/koodam-workspace:0.4.0-alpha.1` | The chart uses its own version as the image tag. |
+
+To change the tag:
+
+1. Use only a tag of a Koodam release. Do not use a branch or a commit with no tag.
+2. Set `KOODAM_TAG` to the new tag, and `KOODAM_COMMIT` to its commit (`git rev-parse <tag>^{commit}` in a Koodam checkout).
+3. Change the tag in this section and in [SPEC.md section 7.16](../SPEC.md#716-gateway-key-of-a-test).
+4. Run `python scripts/kind_testkey.py` on a computer with Docker, kind, kubectl, helm and uv. Then open a PR. The CI job runs the script again.
+
+The job writes its result to the artifact `kind-testkey`. The result has no key value.
+
 ## Limits
 
 - Koodam 0.3.0 has no Nookku preset, so you install Nookku and the plugin by hand in each Workspace ([koodam#83](https://github.com/mohanraj00/koodam/issues/83)).

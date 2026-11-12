@@ -33,6 +33,7 @@ from nookku import (
     policy,
     script,
     seal,
+    testkey,
     trace,
     verdict,
 )
@@ -221,20 +222,47 @@ DRIVER_HINT = (
 )
 
 
+def gateway_key() -> testkey.GatewayKey | None:
+    """The gateway key of a Koodam TestKey, or None (SPEC.md section 7.16). Raise BridgeError if
+    the folder has a key that cannot be used. The text of the error never holds the key."""
+    try:
+        return testkey.read(testkey.folder(os.environ))
+    except testkey.GatewayKeyError as e:
+        raise BridgeError(f"the test gateway key of Koodam: {e}") from None
+
+
+def _key_parts(parts: list[dict[str, Any]], key: testkey.GatewayKey) -> list[dict[str, Any]]:
+    """The model APIs with the base URL of the gateway key as their URL. A model API with another
+    URL in the answer stops the start, because the key must go only to its gateway."""
+    for p in parts:
+        if p["url"] is not None and p["url"].rstrip("/") != key.base_url:
+            raise BridgeError(
+                f"the egress answer: the model API {p['api']} has the URL {p['url']}, but the "
+                f"test gateway key of Koodam is for {key.base_url}. Remove the URL from the "
+                "answer, or give the base URL of the key (SPEC.md section 7.16)."
+            )
+    return [{**p, "url": key.base_url} for p in parts]
+
+
 def egress_proxies(
-    answer: dict[str, Any], environ: dict[str, str] | os._Environ[str], otel: bool = True
+    answer: dict[str, Any],
+    environ: dict[str, str] | os._Environ[str],
+    otel: bool = True,
+    key: testkey.GatewayKey | None = None,
 ) -> tuple[list[backend.Backend], list[backend.Backend]]:
     """The backend proxies and the model API proxies of a discovery answer (SPEC.md section
-    7.11). Raise BridgeError if the URL of a model API is not valid, or if a database has a
-    driver trace and the config stops the OTLP receiver."""
+    7.11). With a gateway key, each model API proxy sends the calls to the base URL of the key
+    (SPEC.md section 7.16). Raise BridgeError if the URL of a model API is not valid, or if a
+    database has a driver trace and the config stops the OTLP receiver."""
     drivers = discovery.drivers(answer)
     if drivers and not otel:
         raise BridgeError(
             f"the egress answer: the database {drivers[0]} has 'record' driver, but the config "
             "has otel: false. The driver trace needs the OTLP receiver (SPEC.md section 7.11)."
         )
+    parts = answer["model_apis"] if key is None else _key_parts(answer["model_apis"], key)
     try:
-        apis = model_api.backends(answer["model_apis"], environ)
+        apis = model_api.backends(parts, environ)
     except ValueError as e:
         raise BridgeError(f"the egress answer: {e}") from None
     try:
@@ -307,7 +335,7 @@ def start(
         egress = {"registered": egress["registered"], "answer": discovery.parse(egress["answer"])}
     except (discovery.AnswerError, KeyError, TypeError) as e:
         raise BridgeError(f"the egress answer: {e}") from None
-    egress_proxies(egress["answer"], os.environ, config.otel)
+    egress_proxies(egress["answer"], os.environ, config.otel, gateway_key())
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     test = f"{stamp}-{secrets.token_hex(2)}"
     try:
@@ -902,7 +930,8 @@ def run(
         print("nookku bridge: the test folder has no valid egress answer", file=sys.stderr)
         return 1
     try:
-        backends, model_apis = egress_proxies(egress["answer"], os.environ, config.otel)
+        key = gateway_key()
+        backends, model_apis = egress_proxies(egress["answer"], os.environ, config.otel, key)
     except BridgeError as e:
         print(f"nookku bridge: {e}", file=sys.stderr)
         return 1
@@ -947,6 +976,8 @@ def run(
             "sslmode": {},
             "receiver": None,
         },
+        # The alias, the base URL and the model of the gateway key, never the key (section 7.16).
+        "test_key": None if key is None else key.record(),
     }
     paths = [h["path"] for h in config.spec]
     write_spec_copies(folder, list(zip(paths, config.spec_data, strict=True)))
@@ -992,6 +1023,10 @@ def run(
     # The app can keep its state in the test folder, for example in app-state/, so that the seal
     # covers it (SPEC.md section 6.1).
     env.update({TEST_DIR: str(folder.resolve()), TEST_ID: test})
+    if key is not None:
+        # The key goes only to the entry, and only for its model APIs (SPEC.md section 7.16).
+        env.update(key.environment([p.backend.name for p in apis.proxies]))
+        _log(f"test gateway key {key.alias}: {key.base_url}, model {key.model}")
     for p in apis.proxies:
         _log(f"model API {p.backend.name}: {p.backend.env}={p.url} -> {p.backend.url}")
     # The MCP servers that have a variable (SPEC.md section 7.12).

@@ -1,0 +1,64 @@
+{
+ "date": "2026-11-12",
+ "versions": {
+  "koodam_tag": "v0.4.0-alpha.1",
+  "koodam_commit": "74920bed1d5c4575dbe3dc60c33ba6e07b73d44c",
+  "nookku": "nookku 0.5.8",
+  "kind": "v0.33.0",
+  "kubectl": "v1.36.2",
+  "helm": "v4.2.3+g43e8b7f",
+  "host": "Darwin arm64"
+ },
+ "tests": [
+  {
+   "test": "20261112-185915-ee47",
+   "alias": "tk-shop-test-1-fca9ef1f",
+   "test_id": "shop-test-1",
+   "manifest_test_key": {
+    "alias": "tk-shop-test-1-fca9ef1f",
+    "base_url": "http://koodam-litellm.koodam-system.svc:4000",
+    "model": "mock-1"
+   },
+   "run_pass": true,
+   "replies": [
+    "Toy shop: mock answer",
+    "Toy shop: mock answer",
+    "Toy shop: mock answer"
+   ],
+   "gateway_calls": 3,
+   "gateway_kept": 3,
+   "checks": {
+    "K1": true,
+    "K2": true,
+    "K3": true,
+    "K4": true
+   }
+  },
+  {
+   "test": "20261112-190209-1b29",
+   "alias": "tk-shop-test-2-594fcc42",
+   "test_id": "shop-test-2",
+   "manifest_test_key": {
+    "alias": "tk-shop-test-2-594fcc42",
+    "base_url": "http://koodam-litellm.koodam-system.svc:4000",
+    "model": "mock-1"
+   },
+   "run_pass": true,
+   "replies": [
+    "Toy shop: mock answer",
+    "Toy shop: mock answer",
+    "Toy shop: mock answer"
+   ],
+   "gateway_calls": 3,
+   "gateway_kept": 3,
+   "checks": {
+    "K1": true,
+    "K2": true,
+    "K3": true,
+    "K4": true
+   }
+  }
+ ],
+ "distinct_aliases": true,
+ "pass": true
+}
