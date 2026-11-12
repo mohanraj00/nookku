@@ -36,6 +36,10 @@ from pathlib import Path
 from typing import Any, ClassVar
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path[:0] = [str(ROOT / "src")]
+
+from nookku import stdio  # noqa: E402
+
 PROOF = ROOT / "proofs/spikes/codex-display.json"
 WORK = ROOT / ".proof/codex-display-205"
 PLUGIN = WORK / "plugin"
@@ -388,6 +392,11 @@ def overrides() -> list[str]:
         *[arg for key, value in values.items() for arg in ("-c", f"{key}={value}")],
         *INVOCATION_OVERRIDES,
     ]
+
+
+class _ModelServer(ThreadingHTTPServer):
+    def server_bind(self) -> None:
+        stdio.bind(self)  # no host name lookup, which can take seconds on macOS
 
 
 class AppServer:
@@ -886,7 +895,7 @@ def measure(surface: str | None = None, only_case: str | None = None) -> None:
                 len(rows(PROJECT / "mcp.jsonl")),
             )
             Model.observations, Model.case = [], case
-            server = ThreadingHTTPServer(("127.0.0.1", 0), Model)
+            server = _ModelServer(("127.0.0.1", 0), Model)
             worker = threading.Thread(target=server.serve_forever, daemon=True)
             worker.start()
             values = {
