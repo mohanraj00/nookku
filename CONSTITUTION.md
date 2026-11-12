@@ -1,6 +1,6 @@
 # Nookku constitution
 
-Version 1, 2026-11-09.
+Version 2, 2026-11-12.
 
 ## Purpose
 
@@ -8,12 +8,19 @@ Nookku is an evaluation harness for vertical AI agents. A person tests a chat ag
 
 ## Boundaries
 
-Nookku does not do these: data sets at scale, production monitoring and hosted team review. Each test is one conversation, from your harness or from a script ([SPEC.md section 7](SPEC.md#7-tests)).
+Nookku does not do these: production monitoring and hosted team review. Nookku does not store or host the data sets of a user at scale.
+
+A test is one conversation, from your harness or from a script ([SPEC.md section 7](SPEC.md#7-tests)). A gate run is a declared set of tests. It gives one aggregate verdict and names its subject with a digest that the caller supplies, for example an image digest, a commit or a snapshot. The declared set, the aggregate verdict and the subject digest are in scope.
 
 ## Principles
 
 - **Code quality.** Follow `docs/contributing/code-quality.md`. It gives each rule, its reason and the check that enforces it.
 - **Dependencies.** Use the standard library first. Do not add a GPL or AGPL dependency. Ask the maintainer before you add any runtime dependency.
+
+## Verdicts
+
+- **Deterministic checks.** A deterministic check can fail a verdict. Answer key, citation and replay checks are deterministic checks.
+- **Model judgments.** A model issue class fails a verdict only when the app spec opts in. The default verdict is reproducible.
 
 ## Evidence
 
@@ -58,3 +65,7 @@ Change the governance block only with a new version of the template in `mohanraj
 ### Version 1, 2026-11-09
 
 The first constitution, with the sections of the template v1 of `mohanraj00/.github`. It holds text from `AGENTS.md` and `README.md`, with no new rule. Reason: the project standard version 6 requires a constitution in each project.
+
+### Version 2, 2026-11-12
+
+The boundary changes. A declared set of tests (a gate run), an aggregate verdict and a subject digest are in scope. A test stays one conversation. Production monitoring and hosted team review stay out of scope. A new section "Verdicts" says that deterministic checks fail a verdict, and that a model issue class fails it only when the app spec opts in. Reason: a release gate needs one result for a set of tests, and the one-conversation limit blocked it. The default verdict must stay reproducible.
