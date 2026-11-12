@@ -112,18 +112,18 @@ You install the [relay](SPEC.md#5-relays) as the plugin or as the project hooks.
 
 ## A sample report
 
-At the end of a test, the harness model reads the record and writes `report.md` in the test folder. This is an excerpt of a real report. Nookku 0.5.7 and Claude Code 2.1.302 wrote it, with the project hooks, in a test of [the toy shop with a model](examples/toy-shop-models/README.md). The app has a planted bug: its refund tool compares euros with cents. The model did not see the conversation, and it found the bug in the record and the code.
+At the end of a test, the harness model reads the record and writes `report.md` in the test folder. This is an excerpt of a real report. Nookku 0.5.8 and Claude Code 2.1.302 wrote it, with the project hooks, in a test of [the toy shop with a model](examples/toy-shop-models/README.md). The app has a planted bug: its refund tool compares euros with cents. The model did not see the conversation, and it found the bug in the record and the code.
 
 ```markdown
-# Test 20261103-204529-0912: evaluation
+# Test 20261112-055608-c112: evaluation
 
 | Class | Turn | Evidence | Issue |
 |---|---|---|---|
-| business_rule | 2 | trace.jsonl:10, app.py:60, RULES.md:5 | The app paid an €80 refund at once with no manager approval. `shop.refund` got `{"order": "5120", "amount_eur": 80}` and returned `{"refund": "RF-C4AB7B", "amount_eur": 80, "status": "paid"}`. The reply said "I've refunded the full €80 for order 5120 to your card." RULES.md:5 says "A refund above €50 needs the approval of a manager. The refund waits for the approval, and the manager pays it." The cause is in the code: app.py:60 `if args["amount_eur"] > APPROVAL_LIMIT_CENTS:` compares a euro amount (80) with a cent limit (`APPROVAL_LIMIT_CENTS = 5000`, app.py:28). So only refunds above €5000 wait for approval. state.json:14-19 now holds the paid refund `RF-C4AB7B` for €80 on order 5120, and there is no `approvals` entry. |
+| business_rule | 2 | trace.jsonl:10, app.py:60, RULES.md:3 | `refund` got `{"order": "5120", "amount_eur": 80}` and returned `{"refund": "RF-B8ADD7", "amount_eur": 80, "status": "paid"}`. RULES.md:3 says "A refund above €50 needs the approval of a manager. The refund waits for the approval, and the manager pays it." The €80 refund was paid at once, with no approval request. The cause is a unit mismatch at app.py:60: `if args["amount_eur"] > APPROVAL_LIMIT_CENTS:` compares euros (80) with cents (`APPROVAL_LIMIT_CENTS = 5000`, app.py:28), so the approval path only starts above €5000. state.json agrees: order 5120 has `"refunds": [{"refund": "RF-B8ADD7", "amount_eur": 80}]`, and there is no `approvals` list. The replies of turn 2 ("I've refunded €80 … its status is now \"paid.\"") and turn 3 ("Yes, the €80 refund (RF-B8ADD7) has been processed and marked as \"paid.\"") repeat this result to the customer. |
 ...
 ```
 
-The full report has 1 row and 8 notes. Data: [proofs/report/hooks-claude-code.json](proofs/report/hooks-claude-code.json). Method: [docs/results.md](docs/results.md#p5-and-p6-the-evaluation-at-the-end-of-a-test). A report is a model answer, so check its evidence. [Read the results of a test](docs/how-to/read-the-results.md) tells you how.
+The full report has 1 row and 7 notes. Data: [proofs/report/hooks-claude-code.json](proofs/report/hooks-claude-code.json). Method: [docs/results.md](docs/results.md#p5-and-p6-the-evaluation-at-the-end-of-a-test). A report is a model answer, so check its evidence. [Read the results of a test](docs/how-to/read-the-results.md) tells you how.
 
 ## How it works
 
