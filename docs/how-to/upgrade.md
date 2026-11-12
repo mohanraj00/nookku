@@ -113,6 +113,19 @@ PASS
 
 ## Releases with a special step
 
+### 0.5.8
+
+This release changes the record format of the [tap](../reference/glossary.md#tap). If an HTTP tap gets a streamed reply, `tap.jsonl` has `stream_part` or `websocket_frame` rows with the version `"0.4"`. Nookku 0.5.7 and older read only the versions 0.1 to 0.3, so they cannot [audit](../reference/glossary.md#audit) such a record. Upgrade each computer that reads your [tap records](../reference/glossary.md#tap-record), for example a CI job, before you read a record of 0.5.8. Nookku 0.5.8 reads each older record ([SPEC.md section 2](../../SPEC.md#2-record-format), [#517](https://github.com/mohanraj00/nookku/issues/517)).
+
+Do the steps above. These new options are optional, and with no value a test works as in 0.5.7:
+
+- To test a WebSocket agent, give a `ws://` or `wss://` URL to `nookku tap --agent` ([http-tap.md](http-tap.md), [cli.md](../reference/cli.md)).
+- To compare the proxy calls with the spans of your app, give `--openinference FILE` to `nookku trace` ([cli.md](../reference/cli.md#nookku-trace), [#516](https://github.com/mohanraj00/nookku/issues/516)).
+- To send a test to an OpenTelemetry collector, give `--otlp-file FILE` or `--otlp-endpoint URL` to `nookku trace` ([cli.md](../reference/cli.md#nookku-trace), [#515](https://github.com/mohanraj00/nookku/issues/515)).
+- To stream large uploads through a backend proxy, set `body_limit` to `"stream"` ([config.md](../reference/config.md), [#479](https://github.com/mohanraj00/nookku/issues/479)).
+
+Each proxy now accepts 64 open app connections. If your app keeps more connections open at the same time, it gets status 503 or SQLSTATE `53300`, and the record has the refusal ([limits.md](../limits.md), [#506](https://github.com/mohanraj00/nookku/issues/506)).
+
 ### 0.5.7
 
 No special step is necessary. Do the steps above.
