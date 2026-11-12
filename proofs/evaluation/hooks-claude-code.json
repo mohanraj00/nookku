@@ -1,8 +1,8 @@
 {
- "date": "2026-11-03",
+ "date": "2026-11-12",
  "relay": "hooks-claude-code",
  "version": "2.1.302 (Claude Code)",
- "nookku": "0.5.7",
+ "nookku": "0.5.8",
  "plugins": [
   "cc-plugin-agents-md@builtin",
   "cc-plugin-plugin-authoring@builtin",
@@ -10,7 +10,7 @@
  ],
  "answers": {
   "memory_sha256": "c627c09c14e58e44bc51622dac392958ec88244e414b508020634f53cfcd1e69",
-  "read": "The order code is `ZX-4471-Q`. It is in turn 1 of the latest session in the `nookku transcript` output:\n\n> My order code is ZX-4471-Q.\n\nThe agent's reply quoted the same message back exactly, with the same order code.\n\nThe same turn has two spaces after the period, and the agent's quote also kept them. The relay did not change these bytes."
+  "read": "The order code is `ZX-4471-Q`.\n\nThe `nookku transcript` output shows the latest session, which has 2 turns. In turn 1, the tester block contains this text:\n\n> My order code is ZX-4471-Q.\n\nThe agent's reply repeats the code in its \"You wrote\" line."
  },
  "audit_exit": 0,
  "turns": 2,

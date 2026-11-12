@@ -1,8 +1,8 @@
 {
- "date": "2026-11-03",
+ "date": "2026-11-12",
  "versions": {
-  "nookku": "0.5.7",
-  "python": "3.13.12",
+  "nookku": "0.5.8",
+  "python": "3.12.13",
   "os": "Darwin",
   "app_packages": [
    "opentelemetry-sdk==1.44.0",
