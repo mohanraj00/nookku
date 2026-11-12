@@ -83,6 +83,32 @@ def test_a_gate_with_2_passing_tests_passes_and_names_the_subject(
     assert main(["gate", "verify", "--root", str(root)]) == 0
 
 
+def test_a_test_that_changes_a_later_script_does_not_change_the_gate(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root, path = _shop(tmp_path, TWO)
+    price = root / "gates" / "scripts" / "price.jsonl"
+    declared = price.read_bytes()
+    real = gate.bridge.run_script
+    seen: list[bytes] = []
+
+    def run_script(*args: object, **kwargs: object) -> object:
+        seen.append(Path(str(args[1])).read_bytes())
+        price.write_text(json.dumps({"said": "a changed message"}) + "\n")
+        return real(*args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(gate.bridge, "run_script", run_script)
+    code, out = _run(root, path, capsys)
+    assert code == 0, out
+    assert seen[1] == declared
+    folder = (
+        Path(out["gate"])
+        if Path(out["gate"]).is_dir()
+        else root / ".nookku" / "gates" / out["gate"]
+    )
+    assert (folder / "inputs" / "price" / "script.jsonl").read_bytes() == declared
+
+
 def test_a_test_that_breaks_a_gate_limit_fails_the_gate(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -179,6 +205,16 @@ def test_a_broken_seal_of_the_gate_cannot_be_used(
 
 
 ONE = b'{"v": 1, "tests": [%s]}'
+
+
+def test_2_projects_in_the_same_second_get_different_gate_ids(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Both projects share NOOKKU_HOME, so the seal copies share one folder.
+    monkeypatch.setenv("NOOKKU_HOME", str(tmp_path / "home"))
+    names = {gate._new_folder(tmp_path / p).name for p in ("a", "b", "a")}
+    assert len(names) == 3
+    assert all(name.startswith(gate.PREFIX) for name in names)
 
 
 @pytest.mark.parametrize(

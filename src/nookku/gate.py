@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import datetime
 import os
+import secrets
 from pathlib import Path
 from typing import Any
 
@@ -133,8 +134,12 @@ def _new_folder(root: Path) -> Path:
     parent = folder_of(root)
     parent.mkdir(parents=True, exist_ok=True)
     stamp = PREFIX + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-    for n in range(1, 1000):
-        folder = parent / (stamp if n == 1 else f"{stamp}-{n}")
+    # The seal copy is $NOOKKU_HOME/seals/<gate id>.json, and other projects
+    # can share NOOKKU_HOME. Thus the id has a random part, as a test id has.
+    for _ in range(100):
+        folder = parent / f"{stamp}-{secrets.token_hex(4)}"
+        if seal.copy_path(folder.name).exists():
+            continue
         try:
             folder.mkdir()
         except FileExistsError:
@@ -185,28 +190,33 @@ def run(root: Path, gate_path: Path, subject: str) -> tuple[Path, list[str]]:
     base = gate_path.absolute().parent
     folder = _new_folder(root)
     (folder / GATE_FILE).write_bytes(data)
+    # Snapshot each input of each test before the first test starts. A test can change a
+    # project file, so a later read could give bytes that the gate did not declare.
+    planned: list[tuple[dict[str, Any], Path | None, str | None]] = []
+    for test in tests:
+        inputs = folder / INPUTS / test["name"]
+        inputs.mkdir(parents=True)
+        error, form = None, None
+        for key in FILE_KEYS:
+            if test[key] is None:
+                continue
+            try:
+                body = (base / test[key]).read_bytes()
+                if key == "script":
+                    form = script.parse(body)[1]
+            except (OSError, script.ScriptError) as e:
+                error = error or f"{key} {test[key]}: {e}"
+                continue
+            (inputs / _input_name(key, form)).write_bytes(body)
+        snapshot = None if error else inputs / _input_name("script", form)
+        planned.append((test, snapshot, error))
     rows, lines = [], []
     try:
-        for test in tests:
-            inputs = folder / INPUTS / test["name"]
-            inputs.mkdir(parents=True)
-            error, form = None, None
-            for key in FILE_KEYS:
-                if test[key] is None:
-                    continue
-                try:
-                    body = (base / test[key]).read_bytes()
-                    if key == "script":
-                        form = script.parse(body)[1]
-                except (OSError, script.ScriptError) as e:
-                    error = error or f"{key} {test[key]}: {e}"
-                    continue
-                (inputs / _input_name(key, form)).write_bytes(body)
-            if error is not None:
+        for test, snapshot, error in planned:
+            if snapshot is None:
                 rows.append(ledger_row(test["name"], None, error))
                 lines.append(f"Test {test['name']}: did not run. {error}")
                 continue
-            snapshot = inputs / _input_name("script", form)
             try:
                 _, out, test_folder = bridge.run_script(
                     root, snapshot, test["entry"], egress, gate=True
@@ -502,8 +512,8 @@ def find(root: Path, gate: str | None) -> Path | None:
         found = folder_of(root) / gate
         return found if state.is_test_id(gate) and found.is_dir() else None
     top = folder_of(root)
-    names = sorted(p.name for p in top.iterdir() if p.is_dir()) if top.is_dir() else []
-    return top / names[-1] if names else None
+    folders = [p for p in top.iterdir() if p.is_dir()] if top.is_dir() else []
+    return max(folders, key=lambda p: (p.stat().st_mtime_ns, p.name)) if folders else None
 
 
 def summary(report: dict[str, Any]) -> list[str]:
