@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import os
 import secrets
+import socket
 import sys
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -28,6 +29,8 @@ class StockService(ThreadingHTTPServer):
 
     def server_bind(self) -> None:
         # Bind without the name lookup of HTTPServer, which can take seconds on macOS.
+        # Set SO_REUSEADDR, so a restart on the same port works in TIME_WAIT.
+        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.socket.bind(self.server_address)
         self.server_address = self.socket.getsockname()
         self.server_name, self.server_port = "127.0.0.1", self.server_address[1]
