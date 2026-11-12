@@ -1,8 +1,8 @@
 {
- "date": "2026-11-03",
+ "date": "2026-11-12",
  "versions": {
   "claude-code": "2.1.302 (Claude Code)",
-  "python": "3.13.12",
+  "python": "3.12.13",
   "os": "Darwin"
  },
  "method": "scripts/proof_api_hello.py",
@@ -30,9 +30,9 @@
    "method": "POST",
    "path": "/v1/messages",
    "user_agent": "claude-cli/2.1.302",
-   "content_length": "86533",
+   "content_length": "85285",
    "transfer_encoding": null,
-   "body_size": 86533
+   "body_size": 85285
   }
  ],
  "key_in_record": false,

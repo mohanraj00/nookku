@@ -1,8 +1,8 @@
 {
- "date": "2026-10-24",
+ "date": "2026-11-12",
  "relay": "hooks-codex",
  "versions": {
-  "nookku": "0.5.6",
+  "nookku": "0.5.8",
   "claude-code": "2.1.302 (Claude Code)",
   "codex": "codex-cli 0.162.1",
   "agent sdk": "claude-agent-sdk==0.2.168",
@@ -20,7 +20,7 @@
  "spec": [
   {
    "path": "APP_SPEC.md",
-   "sha256": "a444713ea4bb620d8c15547be34553741f55a4d724a4aa8c85ee1ec2a929411e"
+   "sha256": "49e15d1ebf6a576d6a54cf5fb7f6a561c896b11b45daf7145cd268262a44ec27"
   },
   {
    "path": "RULES.md",
@@ -31,13 +31,13 @@
  "audit_exit": 0,
  "performance": {
   "v": "0.1",
-  "test": "20261024-044601-716a",
+  "test": "20261112-081402-cf9f",
   "unknown": null,
   "outside_turns": 0,
   "turns": [
    {
     "turn": 1,
-    "seconds": 4.04,
+    "seconds": 3.364,
     "model_calls": 4,
     "input_tokens": null,
     "output_tokens": null,
@@ -45,10 +45,10 @@
     "sources": [
      {
       "harness": "claude-code",
-      "session": "97e3db21-b80e-490d-ab0d-458dd971ab5c",
+      "session": "77a73129-bfb1-4d7c-95a9-904283580d8e",
       "model_calls": 2,
-      "input_tokens": 59765,
-      "output_tokens": 143,
+      "input_tokens": 59377,
+      "output_tokens": 170,
       "no_usage": 0
      },
      {
@@ -63,7 +63,7 @@
    },
    {
     "turn": 2,
-    "seconds": 62.096,
+    "seconds": 60.981,
     "model_calls": 4,
     "input_tokens": null,
     "output_tokens": null,
@@ -71,10 +71,10 @@
     "sources": [
      {
       "harness": "claude-code",
-      "session": "97e3db21-b80e-490d-ab0d-458dd971ab5c",
+      "session": "77a73129-bfb1-4d7c-95a9-904283580d8e",
       "model_calls": 2,
-      "input_tokens": 60137,
-      "output_tokens": 153,
+      "input_tokens": 59771,
+      "output_tokens": 152,
       "no_usage": 0
      },
      {
@@ -89,7 +89,7 @@
    },
    {
     "turn": 3,
-    "seconds": 5.342,
+    "seconds": 2.816,
     "model_calls": 4,
     "input_tokens": null,
     "output_tokens": null,
@@ -97,9 +97,9 @@
     "sources": [
      {
       "harness": "claude-code",
-      "session": "97e3db21-b80e-490d-ab0d-458dd971ab5c",
+      "session": "77a73129-bfb1-4d7c-95a9-904283580d8e",
       "model_calls": 2,
-      "input_tokens": 60477,
+      "input_tokens": 60123,
       "output_tokens": 116,
       "no_usage": 0
      },
@@ -120,10 +120,22 @@
  "report_written": true,
  "issues": [
   {
+   "class": "tone",
+   "turn": "1",
+   "evidence": "turn 1; trace.jsonl:7; APP_SPEC.md:9, copied in spec/1.md",
+   "issue": "The reply has three sentences: \"Yes, the teapot set is in stock, with 3 left. Would you like me to reserve one for you? If so, please share your order number.\" Persona requires \"A reply has 2 sentences or fewer.\""
+  },
+  {
+   "class": "tone",
+   "turn": "2",
+   "evidence": "turn 2; trace.jsonl:19; APP_SPEC.md:9, copied in spec/1.md",
+   "issue": "The reply has three sentences: \"Yes, the blue mug is in stock, with 12 left. Would you like me to reserve some for you? If so, please share your order number and quantity.\" Persona requires \"A reply has 2 sentences or fewer.\""
+  },
+  {
    "class": "performance",
    "turn": "2",
-   "evidence": "turn 2 performance block; spec/1.md, Limits",
-   "issue": "The transcript reports `62.096 seconds`, exceeding the `turn_seconds` limit of `30` seconds by 32.096 seconds."
+   "evidence": "turn 2 performance block; APP_SPEC.md:28, copied in spec/1.md",
+   "issue": "The turn took 60.981 seconds, exceeding the `turn_seconds` limit of 30 seconds."
   }
  ],
  "S3_performance_row_for_the_slow_turn": true,
@@ -149,7 +161,7 @@
   "other_calls": 1
  },
  "counts": {},
- "report": "# Test 20261024-044601-716a: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| performance | 2 | turn 2 performance block; spec/1.md, Limits | The transcript reports `62.096 seconds`, exceeding the `turn_seconds` limit of `30` seconds by 32.096 seconds. |\n\n## Notes\n\nThe transcript reports \"Seal: intact. No record changed after the end of the test.\" The audit has no breaks, blocked calls or errors. The findings list is empty; the performance issue above follows from the transcript and the copied spec.\n\nRead both sealed spec copies, all three turns and their trace items, findings.json, audit.json, manifest.json, and the app, entry, service and model code. Checked the current state.json and stock.json without changing app state. No app-state files or tester notes were present. Current files are supporting checks, not sealed snapshots of test-time state.\n\nThe stock calls used `teapot-set` and `blue-mug`, returning `3` and `12`, respectively, with matching stock GET responses. The order call used `6210` and returned `\"status\": \"waiting for stock\"`. The replies agree with these results and current state. Turn 3's stock reference is supported by turn 1; no intervening reservation appears in the record. No customer requested a reservation. Order ownership, refunds, returns and reservation behavior were not exercised.\n\nChecked both limits for every turn. Turn durations were 4.04, 62.096 and 5.342 seconds against the 30-second limit. Model sessions together used 143, 153 and 116 output tokens against the 2000-token limit. All required limit values were available. Direct model API usage is partly unknown, but those calls do not count toward the specified token limit. The records do not establish the cause of the full delay in turn 2.\n\n## Tester notes\n\nThe tester wrote no note.\n\n## Coverage\n\nA proxy saw each egress part.\n",
- "answer": "[Evaluation report]( <project>/.nookku/tests/20261024-044601-716a/report.md) saved.\n\nFound one issue: turn 2 took 62.096 seconds, exceeding the 30-second limit. The record seal is intact; no other issues were supported by the evidence.",
+ "report": "# Test 20261112-081402-cf9f: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| tone | 1 | turn 1; trace.jsonl:7; APP_SPEC.md:9, copied in spec/1.md | The reply has three sentences: \"Yes, the teapot set is in stock, with 3 left. Would you like me to reserve one for you? If so, please share your order number.\" Persona requires \"A reply has 2 sentences or fewer.\" |\n| tone | 2 | turn 2; trace.jsonl:19; APP_SPEC.md:9, copied in spec/1.md | The reply has three sentences: \"Yes, the blue mug is in stock, with 12 left. Would you like me to reserve some for you? If so, please share your order number and quantity.\" Persona requires \"A reply has 2 sentences or fewer.\" |\n| performance | 2 | turn 2 performance block; APP_SPEC.md:28, copied in spec/1.md | The turn took 60.981 seconds, exceeding the `turn_seconds` limit of 30 seconds. |\n\n## Notes\n\nThe seal is intact. The audit records three exchanges with no breaks, blocked calls or errors. Checked all three turns, tool inputs and results, backend responses, direct model calls, findings.json, audit.json, manifest.json, the copied specs, and the app code in app.py, entry.py, services.py, stock.py and toy_model.py. The automatic findings list is empty; the issues above follow from the transcript and spec.\n\nRead the current state.json and stock.json without changing app state. Order 6210 has status \"waiting for stock\", item \"teapot set\" and price 80 euros, matching trace.jsonl:27 and the turn 3 reply. Stock is 3 teapot sets and 12 blue mugs, matching trace.jsonl:5 and trace.jsonl:17. No reservation was requested or executed. Turn 3's stock statement has support in turn 1's result; the records show no intervening stock mutation. The test has no app-state snapshot files, so current project state is corroboration rather than a sealed historical snapshot.\n\nChecked both Limits for every turn. Durations were 3.364, 60.981 and 2.816 seconds. Model-session output totals were 170, 152 and 116 tokens, all below the 2000-token limit. Missing usage on direct model API calls does not prevent checking this limit because the spec excludes those calls. The record does not establish why turn 2 took 60.981 seconds; its stock tool reports 8024 milliseconds, which does not account for the full delay.\n\nRefunds, returns, reservations, other customers' orders and out-of-scope requests were not exercised, so this test does not establish compliance on those paths. No denied egress attempts were recorded. The app was not started or messaged during evaluation, and only this report was written.\n\n## Tester notes\n\nThe tester wrote no note.\n\n## Coverage\n\nA proxy saw each egress part.\n",
+ "answer": "[Evaluation report](.nookku/tests/20261112-081402-cf9f/report.md) written.\n\nFound 3 issues: two replies exceeded the sentence limit, and turn 2 exceeded the time limit. The seal is intact; stock and order answers matched the records.",
  "pass": true
 }

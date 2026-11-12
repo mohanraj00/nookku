@@ -26,7 +26,7 @@ spec:
     spec:
       containers:
         - name: app
-          image: nookku-cluster-tap:0.5.7
+          image: nookku-cluster-tap:0.5.8
           imagePullPolicy: Never
           command: ["python", "-u", "/app/app.py"]
           ports:
@@ -58,6 +58,6 @@ metadata:
 spec:
   containers:
     - name: harness
-      image: nookku-cluster-tap:0.5.7
+      image: nookku-cluster-tap:0.5.8
       imagePullPolicy: Never
       command: ["sleep", "infinity"]
