@@ -109,6 +109,30 @@ def test_a_test_that_changes_a_later_script_does_not_change_the_gate(
     assert (folder / "inputs" / "price" / "script.jsonl").read_bytes() == declared
 
 
+def test_a_test_that_changes_the_config_fails_the_later_test(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root, path = _shop(tmp_path, TWO)
+    config = root / ".nookku" / "config.json"
+    real = gate.bridge.run_script
+    calls: list[int] = []
+
+    def run_script(*args: object, **kwargs: object) -> object:
+        out = real(*args, **kwargs)  # type: ignore[arg-type]
+        if not calls:
+            # The first entry puts another start into the config for the next test.
+            data = json.loads(config.read_text())
+            data["entry"] = [*data["entry"], "--other"]
+            config.write_text(json.dumps(data))
+        calls.append(1)
+        return out
+
+    monkeypatch.setattr(gate.bridge, "run_script", run_script)
+    code, out = _run(root, path, capsys)
+    assert code == 1, out
+    assert out["result"]["reasons"] == [{"test": "price", "check": "entry"}]
+
+
 def test_a_test_that_breaks_a_gate_limit_fails_the_gate(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -275,6 +299,9 @@ def _case_test(folder: Path, given: dict) -> bytes:
         "test": folder.name,
         "entry": given["entry"],
         "entry_name": given["entry_name"],
+        "policy": {},
+        "config_sha256": {},
+        "spec": [],
         "script": {"source": None, "file": "script.jsonl", "sha256": script.sha256(body)},
         "verdict": {"limits": given["limits"], "unread": []},
     }
@@ -305,7 +332,9 @@ def test_each_case_gives_its_result(case: Path, tmp_path: Path) -> None:
             continue
         folder = tests_dir / f"t-{name}"
         inputs[name] = {"script.jsonl": _case_test(folder, given["tests"][name])}
-        rows.append(gate.ledger_row(name, folder, None))
+        pinned = {"entry": given["tests"][name]["entry"], "policy": {}, "spec": []}
+        pinned["config_sha256"] = {}
+        rows.append(gate.ledger_row(name, folder, None, pinned))
     ledger = {
         "v": 1,
         "gate": "gate-case",

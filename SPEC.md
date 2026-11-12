@@ -1093,7 +1093,7 @@ The exit code is 0 if the verified aggregate verdict is `pass`, and 1 if it is `
 | `tests_dir` | string | The absolute path of the tests folder of the run. |
 | `tests` | list | One row for each declared test, in the order of the gate file. |
 
-Each row has `name`, `test` (the test id, or `null` if the test did not run), `error` (why the test did not run, or `null`), `entry` (the `entry` of the manifest of the test, or `null`) and `files`. `files` pins the SHA-256 of each file of the test folder that the checks read, from the copy of the test seal: `manifest.json`, `findings.json`, `verdict.json`, `audit.json`, `relay.jsonl` and the script copy. A later `nookku trace` of the test changes the test seal (section 7.4), so it breaks the gate result.
+Each row has `name`, `test` (the test id, or `null` if the test did not run), `error` (why the test did not run, or `null`), `entry`, `policy`, `spec`, `config_sha256` and `files`. The run reads `entry`, `policy`, `spec` and `config_sha256` from the project before the first test starts, as a test start does (sections 7.1 and 7.9). They are `null` if the test did not start. A tested entry can change a project file, so the run does not read them again between tests. `files` pins the SHA-256 of each file of the test folder that the checks read, from the copy of the test seal: `manifest.json`, `findings.json`, `verdict.json`, `audit.json`, `relay.jsonl` and the script copy. A later `nookku trace` of the test changes the test seal (section 7.4), so it breaks the gate result.
 
 **`result.json`.** The result. Each field comes from the other files of the gate folder and the pinned files of the tests:
 
@@ -1115,7 +1115,7 @@ A test has the verdict `pass` if each of its checks passes. Each check is an obj
 | `missing_test` | The test ran: its row has a test id and no error. If this check fails, the test has no other check. |
 | `evidence` | The seal of the test folder is intact, its copy is `same`, and each pinned file has its SHA-256 in the copy of the seal and in the bytes that the check reads. If this check fails, the test has no later check. |
 | `script` | The script copy of the test folder and the `script` of the manifest have the SHA-256 of the script in `inputs/`. |
-| `entry` | The `entry_name` of the manifest is the declared `entry`, or `null` if the test declares none, and the `entry` of the manifest is the `entry` of the row. |
+| `entry` | The `entry_name` of the manifest is the declared `entry`, or `null` if the test declares none, The `entry`, `policy` and `spec` of the manifest are the ones of the row. Each file of the `config_sha256` of the row has the same SHA-256 in the `config_sha256` of the manifest. A test start adds state files, so the manifest can have more files. |
 | `verdict` | `verdict.json` is the verdict that section 7.14 computes again from `manifest.json` and `findings.json`, and it is `pass`. |
 | `limits` | Each gate limit is the count of its class in the verdict, or more. A class with no valid count fails. |
 | `audit` | `audit.json` has `exit` 0, no break and no error (section 3). |

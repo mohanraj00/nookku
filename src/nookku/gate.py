@@ -152,20 +152,42 @@ def _input_name(key: str, form: str | None) -> str:
     return script.COPIES[form] if key == "script" and form else key
 
 
-def ledger_row(name: str, folder: Path | None, error: str | None) -> dict[str, Any]:
-    """The ledger row of a test: the test id, the entry of its manifest, and the SHA-256 of
-    each file that the checks read, from the copy of the test seal."""
-    row: dict[str, Any] = {"name": name, "test": None, "error": error, "entry": None, "files": {}}
+# The keys of the test start that the gate pins before the first test, and the
+# entry check compares with the manifest of each test.
+PINNED = ("entry", "policy", "spec", "config_sha256")
+
+
+def pin(root: Path, entry_name: str | None) -> dict[str, Any]:
+    """The resolved entry, the config hashes and the spec of a test start. Raise
+    bridge.BridgeError if the config gives no start for the entry."""
+    conf = bridge.load_config(root, entry_name)
+    hashes = bridge.config_hashes(root)
+    return {"entry": conf.entry, "policy": conf.policy, "spec": conf.spec, "config_sha256": hashes}
+
+
+def _same_start(manifest: dict[str, Any], row: dict[str, Any]) -> bool:
+    """True if the start keys of a manifest are the ones that the gate pinned. A test start
+    adds state files to the config hashes, so only the pinned files must be the same."""
+    if any(manifest.get(k) != row.get(k) for k in ("entry", "policy", "spec")):
+        return False
+    hashes, pinned = manifest.get("config_sha256"), row.get("config_sha256")
+    if not isinstance(hashes, dict) or not isinstance(pinned, dict):
+        return False
+    return all(hashes.get(name) == sha for name, sha in pinned.items())
+
+
+def ledger_row(
+    name: str, folder: Path | None, error: str | None, pinned: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    """The ledger row of a test: the test id, the start keys that the gate pinned before the
+    first test, and the SHA-256 of each file that the checks read, from the copy of the test
+    seal."""
+    row: dict[str, Any] = {"name": name, "test": None, "error": error, "files": {}}
+    row.update({k: (pinned or {}).get(k) for k in PINNED})
     if folder is None:
         return row
     row["test"] = folder.name
     copy = seal.copy_files(folder.name) or {}
-    try:
-        manifest = loads((folder / verdict.MANIFEST).read_bytes().decode("utf-8"))
-    except (OSError, ValueError):
-        manifest = None
-    if isinstance(manifest, dict):
-        row["entry"] = manifest.get("entry")
     names = [*EVIDENCE, *script.COPIES.values()]
     row["files"] = {n: copy[n] for n in names if isinstance(copy.get(n), str)}
     return row
@@ -192,7 +214,7 @@ def run(root: Path, gate_path: Path, subject: str) -> tuple[Path, list[str]]:
     (folder / GATE_FILE).write_bytes(data)
     # Snapshot each input of each test before the first test starts. A test can change a
     # project file, so a later read could give bytes that the gate did not declare.
-    planned: list[tuple[dict[str, Any], Path | None, str | None]] = []
+    planned: list[tuple[dict[str, Any], Path | None, str | None, dict[str, Any] | None]] = []
     for test in tests:
         inputs = folder / INPUTS / test["name"]
         inputs.mkdir(parents=True)
@@ -208,11 +230,18 @@ def run(root: Path, gate_path: Path, subject: str) -> tuple[Path, list[str]]:
                 error = error or f"{key} {test[key]}: {e}"
                 continue
             (inputs / _input_name(key, form)).write_bytes(body)
+        pinned = None
+        if error is None:
+            # A tested entry can change the config, so the gate reads it before test 1.
+            try:
+                pinned = pin(root, test["entry"])
+            except bridge.BridgeError as e:
+                error = f"the test did not start: {e}"
         snapshot = None if error else inputs / _input_name("script", form)
-        planned.append((test, snapshot, error))
+        planned.append((test, snapshot, error, pinned))
     rows, lines = [], []
     try:
-        for test, snapshot, error in planned:
+        for test, snapshot, error, pinned in planned:
             if snapshot is None:
                 rows.append(ledger_row(test["name"], None, error))
                 lines.append(f"Test {test['name']}: did not run. {error}")
@@ -222,10 +251,10 @@ def run(root: Path, gate_path: Path, subject: str) -> tuple[Path, list[str]]:
                     root, snapshot, test["entry"], egress, gate=True
                 )
             except bridge.BridgeError as e:
-                rows.append(ledger_row(test["name"], None, f"the test did not start: {e}"))
+                rows.append(ledger_row(test["name"], None, f"the test did not start: {e}", pinned))
                 lines.append(f"Test {test['name']}: did not run. {e}")
                 continue
-            rows.append(ledger_row(test["name"], test_folder, None))
+            rows.append(ledger_row(test["name"], test_folder, None, pinned))
             lines += [f"Test {test['name']}: {line}" for line in out]
     finally:
         # The run used the answer for each test. The next run needs a new answer.
@@ -361,8 +390,9 @@ def _test_checks(
         and seal.sha256_of(data.get(form) or b"") == sha
     )
     checks.append(_check("script", ok, "The script copy of the test is not the declared script."))
-    ok = manifest.get("entry_name") == declared["entry"] and manifest.get("entry") == row["entry"]
-    checks.append(_check("entry", ok, "The entry of the test is not the declared entry."))
+    ok = manifest.get("entry_name") == declared["entry"] and _same_start(manifest, row)
+    text = "The entry, the config or the spec of the test is not the one that the gate pinned."
+    checks.append(_check("entry", ok, text))
     report = verdict.compute(row["test"], manifest, [], data[verdict.FINDINGS])
     stored = _json(data[verdict.FILE])
     if stored != report:
