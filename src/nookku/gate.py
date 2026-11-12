@@ -12,6 +12,7 @@ from __future__ import annotations
 import datetime
 import os
 import secrets
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -215,6 +216,9 @@ def run(root: Path, gate_path: Path, subject: str) -> tuple[Path, list[str]]:
     # Snapshot each input of each test before the first test starts. A test can change a
     # project file, so a later read could give bytes that the gate did not declare.
     planned: list[tuple[dict[str, Any], Path | None, str | None, dict[str, Any] | None]] = []
+    # The gate keeps the bytes of each snapshot. A tested entry can write to the result
+    # folder, so the gate compares the files to these bytes and seals only these bytes.
+    held: dict[str, dict[str, bytes]] = {}
     for test in tests:
         inputs = folder / INPUTS / test["name"]
         inputs.mkdir(parents=True)
@@ -230,6 +234,7 @@ def run(root: Path, gate_path: Path, subject: str) -> tuple[Path, list[str]]:
                 error = error or f"{key} {test[key]}: {e}"
                 continue
             (inputs / _input_name(key, form)).write_bytes(body)
+            held.setdefault(test["name"], {})[_input_name(key, form)] = body
         pinned = None
         if error is None:
             # A tested entry can change the config, so the gate reads it before test 1.
@@ -244,6 +249,11 @@ def run(root: Path, gate_path: Path, subject: str) -> tuple[Path, list[str]]:
         for test, snapshot, error, pinned in planned:
             if snapshot is None:
                 rows.append(ledger_row(test["name"], None, error))
+                lines.append(f"Test {test['name']}: did not run. {error}")
+                continue
+            if _read_inputs(folder / INPUTS / test["name"]) != held.get(test["name"], {}):
+                error = "the snapshot of the test inputs changed before the test started"
+                rows.append(ledger_row(test["name"], None, error, pinned))
                 lines.append(f"Test {test['name']}: did not run. {error}")
                 continue
             try:
@@ -266,20 +276,42 @@ def run(root: Path, gate_path: Path, subject: str) -> tuple[Path, list[str]]:
         "tests_dir": str(tests_dir),
         "tests": rows,
     }
+    _restore(folder, data, held, [test["name"] for test in tests])
     (folder / RUN).write_text(json_text(ledger, indent=1) + "\n", encoding="utf-8")
-    result = compute(folder.name, data, _inputs(folder), ledger, read_evidence(ledger))
+    result = compute(folder.name, data, held, ledger, read_evidence(ledger))
     (folder / RESULT).write_text(json_text(result, indent=1) + "\n", encoding="utf-8")
     seal.write(folder)
     return folder, lines
 
 
-def _inputs(folder: Path) -> dict[str, dict[str, bytes]]:
-    out: dict[str, dict[str, bytes]] = {}
-    top = folder / INPUTS
-    if top.is_dir():
-        for sub in sorted(top.iterdir()):
-            out[sub.name] = {f.name: f.read_bytes() for f in sorted(sub.iterdir()) if f.is_file()}
-    return out
+def _read_inputs(path: Path) -> dict[str, bytes] | None:
+    if path.is_symlink() or not path.is_dir():
+        return None
+    try:
+        return {f.name: f.read_bytes() for f in sorted(path.iterdir()) if f.is_file()}
+    except OSError:
+        return None
+
+
+def _remove(path: Path) -> None:
+    if path.is_symlink() or path.is_file():
+        path.unlink()
+    elif path.exists():
+        shutil.rmtree(path)
+
+
+def _restore(
+    folder: Path, data: bytes, held: dict[str, dict[str, bytes]], names: list[str]
+) -> None:
+    """Write the gate file and each snapshot again from the bytes that the gate read, so
+    that the seal covers only those bytes."""
+    _remove(folder / GATE_FILE)
+    (folder / GATE_FILE).write_bytes(data)
+    _remove(folder / INPUTS)
+    for name in names:
+        (folder / INPUTS / name).mkdir(parents=True)
+        for file, body in held.get(name, {}).items():
+            (folder / INPUTS / name / file).write_bytes(body)
 
 
 def read_evidence(ledger: dict[str, Any]) -> dict[str, dict[str, Any]]:

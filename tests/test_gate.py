@@ -133,6 +133,57 @@ def test_a_test_that_changes_the_config_fails_the_later_test(
     assert out["result"]["reasons"] == [{"test": "price", "check": "entry"}]
 
 
+def _folder(root: Path, out: dict) -> Path:
+    gate_id = Path(out["gate"])
+    return gate_id if gate_id.is_dir() else root / ".nookku" / "gates" / out["gate"]
+
+
+def test_a_test_that_changes_a_later_snapshot_stops_the_later_test(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root, path = _shop(tmp_path, TWO)
+    declared = (root / "gates" / "scripts" / "price.jsonl").read_bytes()
+    real = gate.bridge.run_script
+
+    def run_script(*args: object, **kwargs: object) -> object:
+        out = real(*args, **kwargs)  # type: ignore[arg-type]
+        # The first entry writes another script into the snapshot of the next test.
+        later = Path(str(args[1])).parent.parent / "price" / "script.jsonl"
+        later.write_text(json.dumps({"said": "a changed message"}) + "\n")
+        return out
+
+    monkeypatch.setattr(gate.bridge, "run_script", run_script)
+    code, out = _run(root, path, capsys)
+    assert code == 1, out
+    assert out["result"]["reasons"] == [{"test": "price", "check": "missing_test"}]
+    folder = _folder(root, out)
+    assert (folder / "inputs" / "price" / "script.jsonl").read_bytes() == declared
+    assert gate.verify(folder)[1] is None
+
+
+def test_a_snapshot_change_after_the_check_fails_the_script_check(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root, path = _shop(tmp_path, TWO)
+    declared = (root / "gates" / "scripts" / "price.jsonl").read_bytes()
+    real = gate.bridge.run_script
+
+    def run_script(*args: object, **kwargs: object) -> object:
+        snapshot = Path(str(args[1]))
+        if snapshot.parent.name == "price":
+            # A process of the first entry changes the snapshot after the gate compared it.
+            snapshot.write_text(json.dumps({"said": "a changed message"}) + "\n")
+        return real(*args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(gate.bridge, "run_script", run_script)
+    code, out = _run(root, path, capsys)
+    assert code == 1, out
+    assert {"test": "price", "check": "script"} in out["result"]["reasons"]
+    folder = _folder(root, out)
+    assert (folder / "inputs" / "price" / "script.jsonl").read_bytes() == declared
+    assert gate.verify(folder)[1] is None
+
+
 def test_a_test_that_breaks_a_gate_limit_fails_the_gate(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
