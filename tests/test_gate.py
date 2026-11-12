@@ -1,0 +1,286 @@
+from __future__ import annotations
+
+import json
+import shutil
+import sys
+from pathlib import Path
+
+import pytest
+
+from nookku import commands, gate, script, seal, verdict
+from nookku.cli import main
+
+ROOT = Path(__file__).resolve().parent.parent
+TOY_SHOP = ROOT / "examples" / "toy-shop" / "agent.py"
+TOY_SPEC = ROOT / "examples" / "toy-shop-full" / "APP_SPEC.md"
+REFUND = ["What is your refund policy?", "Do you ship to Pune?"]
+PRICE = ["What is the price of the blue mug?", "Is the teapot in stock?"]
+SUBJECT = "sha256:ab12cd34"
+CASES = sorted(p for p in (ROOT / "conformance" / "gate").iterdir() if p.is_dir())
+
+
+def _shop(tmp_path: Path, tests: list[dict]) -> tuple[Path, Path]:
+    """A toy shop project with 2 scripts and a gate file with the given tests."""
+    root = tmp_path / "shop"
+    (root / ".nookku").mkdir(parents=True)
+    shutil.copy(TOY_SPEC, root / "APP_SPEC.md")
+    conf = {
+        "entry": [sys.executable, str(TOY_SHOP)],
+        "entries": {"shop": [sys.executable, str(TOY_SHOP)]},
+        "models": [],
+        "spec": ["APP_SPEC.md"],
+    }
+    (root / ".nookku" / "config.json").write_text(json.dumps(conf))
+    (root / "gates" / "scripts").mkdir(parents=True)
+    for name, messages in (("refund", REFUND), ("price", PRICE)):
+        text = "".join(json.dumps({"said": m}) + "\n" for m in messages)
+        (root / "gates" / "scripts" / f"{name}.jsonl").write_text(text)
+    path = root / "gates" / "gate.json"
+    path.write_text(json.dumps({"v": 1, "tests": tests}))
+    return root, path
+
+
+def _run(root: Path, path: Path, capsys: pytest.CaptureFixture[str]) -> tuple[int, dict]:
+    argv = ["gate", "run", str(path), "--subject", SUBJECT, "--root", str(root), "--json"]
+    code = main(argv)
+    return code, json.loads(capsys.readouterr().out)
+
+
+TWO = [
+    {"name": "refund", "script": "scripts/refund.jsonl", "entry": "shop"},
+    {"name": "price", "script": "scripts/price.jsonl", "limits": {"agent_error": 0}},
+]
+
+
+def test_a_gate_with_2_passing_tests_passes_and_names_the_subject(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root, path = _shop(tmp_path, TWO)
+    code, out = _run(root, path, capsys)
+    assert code == 0, out
+    result = out["result"]
+    assert result["verdict"] == "pass"
+    assert result["subject"] == SUBJECT
+    assert [t["name"] for t in result["tests"]] == ["refund", "price"]
+    checks = [c["check"] for c in result["tests"][0]["checks"]]
+    assert checks == [
+        "missing_test",
+        "evidence",
+        "script",
+        "entry",
+        "verdict",
+        "limits",
+        "audit",
+        "turns",
+        "codex_hooks",
+    ]
+    folder = Path(out["gate"])
+    assert folder.parent == root / ".nookku" / "gates"
+    # The result is plain JSON, and the seal covers each file of the folder.
+    assert json.loads((folder / gate.RESULT).read_text()) == result
+    sealed = json.loads((folder / seal.SEAL).read_text())["files"]
+    assert {gate.GATE_FILE, gate.RUN, gate.RESULT, "inputs/refund/script.jsonl"} <= set(sealed)
+    assert main(["gate", "verify", "--root", str(root)]) == 0
+
+
+def test_a_test_that_breaks_a_gate_limit_fails_the_gate(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # The toy shop gives the fallback reply 2 times, and the gate allows 0 repeated replies.
+    tests = [{"name": "refund", "script": "scripts/refund.jsonl"}]
+    root, path = _shop(tmp_path, tests)
+    text = "".join(json.dumps({"said": m}) + "\n" for m in ["Hello", "Hello again"])
+    (root / "gates" / "scripts" / "refund.jsonl").write_text(text)
+    tests[0]["limits"] = {"repeated_reply": 0}
+    path.write_text(json.dumps({"v": 1, "tests": tests}))
+    code, out = _run(root, path, capsys)
+    assert code == 1, out
+    result = out["result"]
+    assert result["verdict"] == "fail"
+    assert result["reasons"] == [{"test": "refund", "check": "limits"}]
+    limits = next(c for c in result["tests"][0]["checks"] if c["check"] == "limits")
+    assert limits["text"] == "repeated_reply: 1, the limit is 0."
+    assert main(["gate", "verify", "--root", str(root)]) == 1
+
+
+def test_a_missing_script_fails_the_gate_with_missing_test(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    tests = [*TWO, {"name": "returns", "script": "scripts/returns.jsonl"}]
+    root, path = _shop(tmp_path, tests)
+    code, out = _run(root, path, capsys)
+    assert code == 1, out
+    result = out["result"]
+    assert result["reasons"] == [{"test": "returns", "check": "missing_test"}]
+    assert [t["verdict"] for t in result["tests"]] == ["pass", "pass", "fail"]
+    assert result["tests"][2]["test"] is None
+
+
+def test_a_declared_answer_key_fails_until_a_check_exists(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    tests = [{"name": "refund", "script": "scripts/refund.jsonl", "answer_key": "key.json"}]
+    root, path = _shop(tmp_path, tests)
+    (path.parent / "key.json").write_text("{}")
+    code, out = _run(root, path, capsys)
+    assert code == 1, out
+    assert out["result"]["reasons"] == [{"test": "refund", "check": "answer_key"}]
+    # The run copies the key into the result folder, so the seal covers it.
+    assert (Path(out["gate"]) / "inputs" / "refund" / "answer_key").read_text() == "{}"
+
+
+def test_a_change_after_the_run_breaks_the_verify(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root, path = _shop(tmp_path, TWO)
+    code, out = _run(root, path, capsys)
+    assert code == 0, out
+    folder = Path(out["gate"])
+    result = folder / gate.RESULT
+    original = result.read_bytes()
+    result.write_text(original.decode().replace('"fail"', '"pass"'))
+    # A change of the folder and of both seals: the verify computes the result again.
+    data = json.loads(original)
+    data["tests"][0]["checks"][0]["text"] = "changed"
+    result.write_text(json.dumps(data))
+    seal.write(folder)
+    report, why = gate.verify(folder)
+    assert report is None
+    assert why == f"{gate.RESULT} is not the result of the sealed files and the test folders."
+    # The verify of a changed result.json is not a pass, so the exit code is 2.
+    assert main(["gate", "verify", folder.name, "--root", str(root)]) == 2
+    result.write_bytes(original)
+    seal.write(folder)
+    assert gate.verify(folder)[0] is not None
+    # A rebuild of a test changes its seal, and the gate pins the old files.
+    test = root / ".nookku" / "tests" / data["tests"][0]["test"]
+    (test / "verdict.json").write_text((test / "verdict.json").read_text() + " ")
+    seal.update(test, ["verdict.json"])
+    report, why = gate.verify(folder)
+    assert report is None
+    assert "The new result has refund evidence: verdict.json in the copy of the test seal" in why
+    capsys.readouterr()
+    assert main(["gate", "verify", folder.name, "--root", str(root)]) == 2
+
+
+def test_a_broken_seal_of_the_gate_cannot_be_used(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root, path = _shop(tmp_path, TWO[:1])
+    _run(root, path, capsys)
+    folder = gate.find(root, None)
+    assert folder is not None
+    (folder / gate.RUN).write_text("{}")
+    assert main(["gate", "verify", str(folder), "--root", str(root)]) == 2
+    assert "cannot be used" in capsys.readouterr().out
+    shutil.rmtree(seal.home() / "seals")
+    (folder / gate.RUN).unlink()
+    assert gate.verify(folder)[0] is None
+
+
+ONE = b'{"v": 1, "tests": [%s]}'
+
+
+@pytest.mark.parametrize(
+    "data, error",
+    [
+        (b"[]", 'only the keys "v" and "tests"'),
+        (b'{"v": 2, "tests": []}', "version must be 1"),
+        (b'{"v": true, "tests": []}', "version must be 1"),
+        (b'{"v": 1, "tests": []}', "1 to 200 tests"),
+        (b'{"v": 1, "v": 1, "tests": []}', "occurs 2 times"),
+        (b'{"v": 1, "tests": [{"name": "a"}]}', "has no script"),
+        (b'{"v": 1, "tests": [{"name": "a/b", "script": "s"}]}', "form of a test id"),
+        (b'{"v": 1, "tests": [{"name": "a", "script": "/s"}]}', "relative"),
+        (b'{"v": 1, "tests": [{"name": "a", "script": "s", "proofs": []}]}', "proofs"),
+        (ONE % b'{"name": "a", "script": "s"}, {"name": "a", "script": "s"}', "earlier"),
+        (ONE % b'{"name": "a", "script": "s", "limits": {"tone": 0}}', "not a check"),
+        (ONE % b'{"name": "a", "script": "s", "limits": {"agent_error": -1}}', "whole"),
+        (b"\xff", "not UTF-8"),
+    ],
+)
+def test_a_gate_file_that_breaks_a_rule_is_refused(data: bytes, error: str) -> None:
+    with pytest.raises(gate.GateError, match=error):
+        gate.parse(data)
+
+
+def test_a_bad_gate_file_or_subject_runs_no_test(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root, path = _shop(tmp_path, TWO)
+    for subject in ("", "a\nb", "x" * 513):
+        argv = ["gate", "run", str(path), "--subject", subject, "--root", str(root)]
+        assert main(argv) == 2
+    path.write_text("{}")
+    assert main(["gate", "run", str(path), "--subject", SUBJECT, "--root", str(root)]) == 2
+    assert not (root / ".nookku" / "gates").exists()
+    assert not (root / ".nookku" / "tests").exists()
+    capsys.readouterr()
+
+
+@pytest.mark.parametrize(
+    "command, denied",
+    [
+        ("nookku gate run gate.json --subject x", True),
+        ("nookku gate --root . run gate.json --subject x", True),
+        ("nookku gate verify", False),
+        ("nookku gate verify gate-20261112-101010 --json", False),
+    ],
+)
+def test_the_relay_denies_a_gate_run_of_the_model(command: str, denied: bool) -> None:
+    assert (commands.drive(command) is not None) == denied
+
+
+def _case_test(folder: Path, given: dict) -> bytes:
+    """A sealed test folder with the records of a case, and the bytes of its script."""
+    folder.mkdir(parents=True)
+    body = "".join(json.dumps({"said": m}) + "\n" for m in given["messages"]).encode()
+    manifest = {
+        "test": folder.name,
+        "entry": given["entry"],
+        "entry_name": given["entry_name"],
+        "script": {"source": None, "file": "script.jsonl", "sha256": script.sha256(body)},
+        "verdict": {"limits": given["limits"], "unread": []},
+    }
+    (folder / "manifest.json").write_text(json.dumps(manifest))
+    (folder / "findings.json").write_text(json.dumps({"counts": given["counts"]}))
+    verdict.build(folder)
+    (folder / "audit.json").write_text(json.dumps(given["audit"]))
+    rows = [
+        {"type": "turn", "harness": "script", "said": m, "shown": "", "ok": ok}
+        for m, ok in zip(given["messages"], given["replies"], strict=True)
+    ]
+    (folder / "relay.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
+    (folder / "script.jsonl").write_bytes(body)
+    seal.write(folder)
+    return body
+
+
+@pytest.mark.parametrize("case", CASES, ids=[c.name for c in CASES])
+def test_each_case_gives_its_result(case: Path, tmp_path: Path) -> None:
+    given = json.loads((case / "case.json").read_text(encoding="utf-8"))
+    data = (case / "gate.json").read_bytes()
+    tests_dir = tmp_path / "tests"
+    inputs, rows = {}, []
+    for test in gate.parse(data):
+        name = test["name"]
+        if name not in given["tests"]:
+            rows.append(gate.ledger_row(name, None, given["errors"][name]))
+            continue
+        folder = tests_dir / f"t-{name}"
+        inputs[name] = {"script.jsonl": _case_test(folder, given["tests"][name])}
+        rows.append(gate.ledger_row(name, folder, None))
+    ledger = {
+        "v": 1,
+        "gate": "gate-case",
+        "subject": given["subject"],
+        "tests_dir": str(tests_dir),
+        "tests": rows,
+    }
+    expect = json.loads((case / "expect_result.json").read_text(encoding="utf-8"))
+    expect["gate_sha256"] = seal.sha256_of(data)
+    assert gate.compute("gate-case", data, inputs, ledger, gate.read_evidence(ledger)) == expect
+
+
+def test_the_cases_cover_a_pass_a_fail_and_a_missing_test() -> None:
+    assert {c.name for c in CASES} >= {"pass", "fail", "missing_test"}

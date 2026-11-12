@@ -7229,6 +7229,21 @@ GUARD_CASES: dict[str, dict] = {
         "event": bash("nookku run --script refunds.jsonl"),
         "answer": drives("nookku run"),
     },
+    "shell_runs_a_gate": {
+        "policy_text": '{"scripts": "model"}\n',
+        "event": bash("nookku gate run gate.json --subject sha256:ab12"),
+        "answer": drives("nookku gate"),
+    },
+    "shell_verifies_a_gate": {
+        "event": bash("nookku gate verify --json"),
+        "answer": None,
+    },
+    "other_tool_writes_a_gate_result": {
+        "event": pevent(
+            "mcp__files__write", path=f"{STATE}/gates/gate-1/result.json", content="{}"
+        ),
+        "answer": records(f"{STATE}/gates/gate-1/result.json"),
+    },
     "shell_runs_a_script_with_scripts_model": {
         "policy_text": '{"scripts": "model"}\n',
         "event": bash("nookku run --script refunds.jsonl"),

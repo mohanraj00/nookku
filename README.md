@@ -186,6 +186,7 @@ The how-to rows are in the order of the tasks of a test: choose, connect, run, r
 | How-to: choose | [Choose a relay](docs/how-to/choose-a-relay.md) |
 | How-to: connect your app | [Test your own app](docs/how-to/test-your-app.md), [Connect your agent](docs/how-to/connect-your-agent.md), [HTTP tap](docs/how-to/http-tap.md), [Test a streaming agent](docs/how-to/test-a-streaming-agent.md), [Isolate an Agent SDK session](docs/how-to/isolate-agent-sdk.md), [Add a backend](docs/how-to/add-a-backend.md), [Model calls and OpenTelemetry](docs/how-to/record-model-calls.md) |
 | How-to: run a test | [Claude Code plugin](docs/how-to/claude-code-plugin.md), [Claude Code project hooks](docs/how-to/claude-code-project-hooks.md), [Codex](docs/how-to/codex.md) |
+| How-to: gate a release | [Gate a release with a set of tests](docs/how-to/gate-a-release.md) |
 | How-to: read the results | [Read the results of a test](docs/how-to/read-the-results.md) |
 | How-to: evaluate against a spec | [Evaluate your app against its spec](docs/how-to/evaluate-against-your-spec.md) |
 | How-to: fix | [Troubleshooting](docs/troubleshooting.md), [Recover a stuck test](docs/how-to/recover-a-stuck-test.md) |
