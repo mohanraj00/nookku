@@ -1,0 +1,9 @@
+{
+  "source": "the store of the toy shop docs example",
+  "version": "1",
+  "answers": [
+    {"question": "My teapot came damaged. What can I do?", "answer": "store/returns.md#damaged"},
+    {"question": "Do you ship to Pune?", "answer": "store/shipping.md#cities"},
+    {"question": "How long does delivery take?", "answer": "store/shipping.md#time"}
+  ]
+}

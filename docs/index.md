@@ -34,7 +34,8 @@ How-to guides. Each guide does one task. The guides are in the order of the task
 - [Test an agent with the Claude Code plugin](how-to/claude-code-plugin.md): install the [plugin](reference/glossary.md#plugin), run a test, and read the [evaluation](reference/glossary.md#evaluation) at the end.
 - [Test an agent with the project hooks in Claude Code](how-to/claude-code-project-hooks.md): write the [project hooks](reference/glossary.md#project-hooks), and see each reply in the chat and on the [chat page](reference/cli.md#nookku-chat).
 - [Test an agent in Codex](how-to/codex.md): the plugin, the project hooks and the trust step.
-- [Gate a release with a set of tests](how-to/gate-a-release.md): run a declared set of [scripted tests](reference/glossary.md#scripted-test), and read one sealed result with the subject digest in CI.
+- [Gate a CI job on a verdict](how-to/gate-a-ci-job.md): a GitHub Actions job that runs a [scripted test](reference/glossary.md#scripted-test) with no model and fails on a `fail` verdict, with an example agent that cites its source.
+- [Gate a release with a set of tests](how-to/gate-a-release.md): run a declared set of scripted tests, and read one sealed result with the subject digest in CI.
 
 ### Read the results
 
