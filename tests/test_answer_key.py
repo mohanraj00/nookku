@@ -231,6 +231,7 @@ def test_a_long_value_is_cut_in_the_detail() -> None:
         ('{"count": 0.1234567890123456789}', Decimal("0.1234567890123456789"), True),
         ('{"count": 0.1234567890123456789}', Decimal("0.12345678901234568"), False),
         ('{"count": {"nested": 1.5}}', 1, False),
+        ('{"count": 1e9999999999999999999}', 1, False),
     ],
 )
 def test_a_number_field_of_a_reply_keeps_each_digit(reply: str, answer: object, ok: bool) -> None:

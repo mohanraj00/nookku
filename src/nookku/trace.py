@@ -1373,14 +1373,15 @@ def _normal(text: str) -> str:
 def _structured(text: str, exact: bool = False) -> Any:
     """The JSON value of a model text: the full text, or else the part from its first `{` to its
     last `}`, for a JSON object in a code fence. None if neither part is JSON. If `exact` is
-    True, a JSON number with a point or an exponent is a Decimal, so no digit is lost."""
+    True, a JSON number with a point or an exponent is a Decimal, so no digit is lost. A number
+    out of the range of Decimal makes the part not JSON."""
     parts = [text]
     if "{" in text:
         parts.append(text[text.index("{") : text.rindex("}") + 1] if "}" in text else "")
     for part in parts:
         try:
             return json.loads(part, parse_float=Decimal) if exact else json.loads(part)
-        except (ValueError, RecursionError):
+        except (ValueError, RecursionError, ArithmeticError):
             continue
     return None
 
