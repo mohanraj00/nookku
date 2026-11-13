@@ -139,6 +139,30 @@ def test_a_locator_resolves_only_in_a_tool_result_of_its_turn() -> None:
     assert trace.citations_not_read([{"reply": reply}], items, "sources", "kb:") == []
 
 
+@pytest.mark.parametrize(
+    "failed",
+    [
+        {"kind": "command", "exit_code": 1, "error": None},
+        {"kind": "command", "exit_code": None, "error": "status failed"},
+        {"kind": "http", "exit_code": 404, "error": None},
+        {"kind": "query", "exit_code": None, "error": "no such table"},
+        {"kind": "tool_call", "exit_code": None, "error": None, "output": None},
+    ],
+)
+def test_the_output_of_a_failed_call_does_not_resolve_a_locator(failed: dict) -> None:
+    reply = json.dumps({"sources": ["returns.txt"]})
+    text = "cat: returns.txt: No such file or directory"
+    item = {**_result(1, text), **failed}
+    found = trace.citations_not_read([{"reply": reply}], [item], "sources", "")
+    assert [f["detail"] for f in found] == [
+        '"returns.txt": no tool result of this turn contains it'
+    ]
+    ok = {**item, "exit_code": 0 if item["kind"] == "command" else 200, "error": None}
+    assert (
+        trace.citations_not_read([{"reply": reply}], [{**ok, "output": text}], "sources", "") == []
+    )
+
+
 @pytest.mark.parametrize("locator", ["kb:", "kb: "])
 def test_a_locator_that_is_only_the_prefix_does_not_resolve(locator: str) -> None:
     reply = json.dumps({"sources": [locator]})

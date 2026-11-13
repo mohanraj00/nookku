@@ -1447,6 +1447,20 @@ def locators(reply: str, field: str) -> list[str] | None:
     return list(dict.fromkeys(v for v in values if v.strip()))
 
 
+def _succeeded(it: dict[str, Any]) -> bool:
+    """True if a call has no error, a command has the exit code 0 or none, and an HTTP call has
+    a status below 400. The output of a failed call can repeat its input, for example the file
+    name in the error of `cat`, so it does not resolve a locator."""
+    code = it.get("exit_code")
+    if it.get("error") is not None:
+        return False
+    if it["kind"] == "command":
+        return code in (0, None)
+    if it["kind"] == "http":
+        return not isinstance(code, int) or code < 400
+    return True
+
+
 def citations_not_read(
     exchanges: list[dict[str, Any]], items: list[dict[str, Any]], field: str, prefix: str
 ) -> list[dict[str, Any]]:
@@ -1472,6 +1486,7 @@ def citations_not_read(
             and it["kind"] in RESULT_KINDS
             and not it["harness_internal"]
             and isinstance(it["output"], str)
+            and _succeeded(it)
         ]
         for locator in found:
             key = locator[len(prefix) :] if prefix and locator.startswith(prefix) else locator
