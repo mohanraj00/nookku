@@ -13,7 +13,7 @@ from typing import Any
 
 from nookku import app_spec, seal
 from nookku.record import RecordError, json_text, loads, read_manifest
-from nookku.trace import CHECKS, one_line
+from nookku.trace import CHECKS, KEY_UNUSABLE, one_line
 
 FILE = "verdict.json"
 FINDINGS = "findings.json"
@@ -110,6 +110,27 @@ def _counts(data: bytes | None) -> tuple[dict[str, int | None], str | None]:
     return {c: counts[c] if _is_count(counts.get(c)) else None for c in CHECKS}, None
 
 
+def _key_problems(data: bytes | None) -> list[str]:
+    """The reason of each answer_key_missing finding of the bytes of findings.json for a key
+    that the check cannot use (SPEC.md section 7.17). Such a finding fails the verdict with any
+    limits, so a test that declares a key cannot pass with no key."""
+    try:
+        report = loads((data or b"").decode("utf-8"))
+    except ValueError:
+        return []
+    found = report.get("findings") if isinstance(report, dict) else None
+    out: list[str] = []
+    for f in found if isinstance(found, list) else []:
+        detail = f.get("detail") if isinstance(f, dict) else None
+        if (
+            f.get("check") == "answer_key_missing"
+            and isinstance(detail, str)
+            and detail.startswith(KEY_UNUSABLE)
+        ):
+            out.append(one_line(detail))
+    return out
+
+
 def build(folder: Path) -> dict[str, Any]:
     """Write verdict.json in a test folder from the manifest and findings.json, and return it.
 
@@ -142,6 +163,8 @@ def compute(
     counts, problem = _counts(findings)
     if problem is not None:
         problems.append(problem)
+    if manifest.get("answer_key") is not None:
+        problems += _key_problems(findings)
     classes = []
     for check in CHECKS:
         count = counts[check]

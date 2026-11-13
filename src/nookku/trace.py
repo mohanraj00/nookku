@@ -55,6 +55,9 @@ TESTED = {
 }
 # Tools that the harness itself gives to the model. They are not tools of the app.
 HARNESS_INTERNAL = {"claude-code": {"ToolSearch"}, "codex": set()}
+# The start of the detail of the answer_key_missing finding for a key that the check cannot
+# use (SPEC.md section 7.17).
+KEY_UNUSABLE = "the answer key cannot be used: "
 CHECKS = (
     "agent_error",
     "repeated_reply",
@@ -1512,7 +1515,7 @@ def answers_not_in_key(
     if key is None:
         return []
     if isinstance(key, str):
-        return [_finding("answer_key_missing", None, f"the answer key cannot be used: {key}")]
+        return [_finding("answer_key_missing", None, KEY_UNUSABLE + key)]
     out: list[dict[str, Any]] = []
     answers, field = key["answers"], key["field"]
     asked: set[str] = set()

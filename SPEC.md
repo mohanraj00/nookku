@@ -982,6 +982,8 @@ The verdict gives one result for a test: `pass` or `fail`. A program, for exampl
 
 A class with no row has no limit. A part of a section that the reader cannot take is a problem: a section with no table, a table with no rows, a row with a different count of cells, a row with no `Finding`, a `Finding` that is not a check of section 8.6, a second row for one class, or a `Most` that is not a whole number of this form. A problem fails the verdict, because the tester wanted a limit that the verdict cannot use.
 
+If the manifest has the key `answer_key` (section 7.17) and `findings.json` has an `answer_key_missing` finding with the `detail` `the answer key cannot be used: <reason>`, the problem is `the answer key cannot be used: <reason>`. Thus a test that declares a key fails if the check cannot use the key, for example if the entry deletes `answer_key.json`, with any limits.
+
 At the start, the bridge reads the limits and writes them into the manifest, as the key `verdict`: `limits`, an object with the limit of each class, and `unread`, a list with the `file`, the `line` and the `problem` of each problem, 200 at most (section 8.6, `trace_points_unread`). The seal covers the manifest, so a change of the limits after the start breaks the seal. A later change of the app spec does not change the verdict of a test. A manifest with no key `verdict`, from Nookku 0.5.6 or earlier, has no limits.
 
 The toy shop allows 0 `agent_error` and at most 1 `repeated_reply` ([APP_SPEC.md](examples/toy-shop-full/APP_SPEC.md)):
@@ -1004,7 +1006,7 @@ The toy shop allows 0 `agent_error` and at most 1 `repeated_reply` ([APP_SPEC.md
 | `verdict` | string | `pass` if each class has `verdict` `pass` and `problems` is empty. Else `fail`. |
 | `limits` | object | The limit of each class that has one, in the order of section 8.6. |
 | `classes` | list | One object for each check of section 8.6, in the order of the table: `check`, `count`, `most` and `verdict`. |
-| `problems` | list of strings | Each problem, in this order: the manifest, the limits and `findings.json`. |
+| `problems` | list of strings | Each problem, in this order: the manifest, the limits, `findings.json` and the answer key. |
 
 In `classes`:
 
@@ -1229,7 +1231,7 @@ The spec files have 1 row at most. If a part of a section is not valid, or the k
 - `number`: the value is a JSON number, or a string that is a decimal number (an optional `-`, 1 to 30 digits, and an optional point with 1 to 30 digits) after the check removes the white space at its start and its end. A boolean is not a number. The check compares decimal values, with no binary float error. The value matches if the difference from `answer` is `Tolerance` or less.
 - No value, or a value of a different type, does not match.
 
-**The findings.** The check gives the findings `answer_key_mismatch` and `answer_key_missing` (section 8.6). If the manifest key `answer_key` does not have the form above, if the test folder has no `answer_key.json`, if its SHA-256 is not `sha256`, or if it breaks the rules of the key file, the check gives 1 `answer_key_missing` finding with no turn and the `detail` `the answer key cannot be used: <reason>`. Thus the check fails closed.
+**The findings.** The check gives the findings `answer_key_mismatch` and `answer_key_missing` (section 8.6). If the manifest key `answer_key` does not have the form above, if the test folder has no `answer_key.json`, if its SHA-256 is not `sha256`, or if it breaks the rules of the key file, the check gives 1 `answer_key_missing` finding with no turn and the `detail` `the answer key cannot be used: <reason>`. This finding fails the verdict, with any limits (section 7.14). Thus the check fails closed.
 
 The cases [`conformance/trace/answer_key/`](conformance/trace/answer_key/) (a match, a number in the tolerance, a mismatch, a reply with no value and a question that no turn asked), [`conformance/trace/answer_key_text/`](conformance/trace/answer_key_text/) (a key with no `Field`) and [`conformance/trace/answer_key_changed/`](conformance/trace/answer_key_changed/) (a copy that is not the key of the manifest) give the forms. The test `test_a_seeded_answer_key_mismatch_fails_the_scripted_test` of [`tests/test_verdict.py`](tests/test_verdict.py) is the seeded fault: an agent that gives a wrong count fails `nookku run --verdict`.
 
