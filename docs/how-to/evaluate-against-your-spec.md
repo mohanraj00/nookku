@@ -64,7 +64,7 @@ nookku init plugin --spec APP_SPEC.md,RULES.md
 ```text
 Project root: .../toy-shop-full
 wrote .../toy-shop-full/.nookku/config.json
-  Keys changed: spec. Keys kept: tap_url, agent_url, adapter, message_field, reply_field, openai_model, openai_stream, record, entry, models, evaluate, otel, check_message, repeated_reply, model_reply_field, model_reply_match, transcript_compact, page, entries, record_limit.
+  Keys changed: spec. Keys kept: tap_url, agent_url, adapter, message_field, reply_field, openai_model, openai_stream, record, entry, models, evaluate, otel, check_message, repeated_reply, model_reply_field, model_reply_match, citation_field, citation_prefix, transcript_compact, page, entries, record_limit.
 Relay mode is off. Switch it with: nookku mode on
 The nookku plugin runs the hooks. Do not also run nookku init codex or nookku init claude-code in this project, or each message is sent two times.
 ```

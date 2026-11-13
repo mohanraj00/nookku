@@ -752,6 +752,22 @@ def test_model_reply_field_must_be_empty_or_a_dot_path(tmp_path, value):
         kit.Config.load(tmp_path)
 
 
+@pytest.mark.parametrize(
+    ("key", "value", "error"),
+    [
+        ("citation_field", "a..b", "'citation_field' must be empty or a dot path"),
+        ("citation_field", ["sources"], "'citation_field' must be empty or a dot path"),
+        ("citation_prefix", 7, "'citation_prefix'"),
+    ],
+)
+def test_the_citation_keys_have_a_type(tmp_path, key, value, error):
+    kit.init(tmp_path, "codex", {})
+    path = tmp_path / ".nookku" / "config.json"
+    path.write_text(json.dumps({**json.loads(path.read_text()), key: value}))
+    with pytest.raises(ValueError, match=error):
+        kit.Config.load(tmp_path)
+
+
 @pytest.mark.parametrize("value", ["Exact", "normal", "", None, True])
 def test_model_reply_match_must_be_exact_normalized_or_off(tmp_path, value):
     kit.init(tmp_path, "codex", {})

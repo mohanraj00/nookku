@@ -57,6 +57,7 @@ CHECKS = (
     "agent_error",
     "repeated_reply",
     "reply_not_from_model",
+    "citation_not_read",
     "tool_error",
     "command_failed",
     "span_error",
@@ -88,6 +89,10 @@ TRACE_KEYS: dict[str, Any] = {
     "repeated_reply": REPEATED_REPLY,
     "model_reply_field": "",
     "model_reply_match": "normalized",
+    # The dot path of the source locators in the JSON of a reply, and the prefix that the
+    # citation_not_read check removes from a locator (SPEC.md section 8.6). Empty: no check.
+    "citation_field": "",
+    "citation_prefix": "",
     # The hosts that the checks of the egress spans skip (SPEC.md section 8.8).
     "egress_ignore": [],
 }
@@ -1423,6 +1428,75 @@ def not_from_model(
     return out
 
 
+# The kinds of the items whose output is a tool result for the citation_not_read check.
+RESULT_KINDS = ("tool_call", "command", "http", "query")
+
+
+def locators(reply: str, field: str) -> list[str] | None:
+    """The source locators at the dot path `field` in the JSON of a reply (SPEC.md section 8.6),
+    each one time, in their order. A string is one locator, and a list gives each string in it. A
+    locator with only white space does not count. No JSON or no value at the path gives no
+    locators. None if the value is not a string or a list of strings, also a JSON null."""
+    try:
+        value = pick(_structured(reply), field)
+    except AdapterError:
+        return []
+    values = [value] if isinstance(value, str) else value
+    if not isinstance(values, list) or not all(isinstance(v, str) for v in values):
+        return None
+    return list(dict.fromkeys(v for v in values if v.strip()))
+
+
+def _succeeded(it: dict[str, Any]) -> bool:
+    """True if a call has no error, a command has the exit code 0 or none, and an HTTP call has
+    a status below 400. The output of a failed call can repeat its input, for example the file
+    name in the error of `cat`, so it does not resolve a locator."""
+    code = it.get("exit_code")
+    if it.get("error") is not None:
+        return False
+    if it["kind"] == "command":
+        return code in (0, None)
+    if it["kind"] == "http":
+        return not isinstance(code, int) or code < 400
+    return True
+
+
+def citations_not_read(
+    exchanges: list[dict[str, Any]], items: list[dict[str, Any]], field: str, prefix: str
+) -> list[dict[str, Any]]:
+    """One citation_not_read finding for each locator of a reply that no tool result of its
+    turn contains, byte for byte. A locator loses `prefix` at its start before the match. An
+    empty field turns the check off."""
+    out: list[dict[str, Any]] = []
+    if not field:
+        return out
+    for i, r in enumerate(exchanges, 1):
+        reply = r.get("reply")
+        if not isinstance(reply, str):
+            continue
+        found = locators(reply, field)
+        if found is None:
+            detail = f"the value of {field} in the reply is not a locator or a list of locators"
+            out.append(_finding("citation_not_read", i, detail))
+            continue
+        results = [
+            it["output"]
+            for it in items
+            if it["turn"] == i
+            and it["kind"] in RESULT_KINDS
+            and not it["harness_internal"]
+            and isinstance(it["output"], str)
+            and _succeeded(it)
+        ]
+        for locator in found:
+            key = locator[len(prefix) :] if prefix and locator.startswith(prefix) else locator
+            # A locator that is only the prefix resolves in no result.
+            if not key.strip() or not any(key in text for text in results):
+                detail = f"{json.dumps(locator)}: no tool result of this turn contains it"
+                out.append(_finding("citation_not_read", i, detail))
+    return out
+
+
 # The attributes of an OpenTelemetry span or log that name a call of the app (the semantic
 # conventions of OpenTelemetry): the URL of an HTTP client call, the system of a database call,
 # and the method of an MCP call. A span with a server attribute is a call to the app, not a call
@@ -1663,6 +1737,7 @@ def check(
             out.append(_finding("agent_error", i, f"the agent gave {what}"))
     out += repeated(exchanges, keys["repeated_reply"])
     out += not_from_model(exchanges, items, keys["model_reply_field"], keys["model_reply_match"])
+    out += citations_not_read(exchanges, items, keys["citation_field"], keys["citation_prefix"])
     # The lines of otel.jsonl with a driver query (with_driver_queries).
     driven = {it["source"]["line"] for it in items if it["harness"] == "driver"}
     for it in items:
@@ -1924,6 +1999,11 @@ def trace_keys(manifest: dict[str, Any]) -> dict[str, Any]:
         out["model_reply_field"] = field
     if keys.get("model_reply_match") in MATCHES:
         out["model_reply_match"] = keys["model_reply_match"]
+    field = keys.get("citation_field")
+    if isinstance(field, str) and (field == "" or all(field.split("."))):
+        out["citation_field"] = field
+    if isinstance(keys.get("citation_prefix"), str):
+        out["citation_prefix"] = keys["citation_prefix"]
     ignore = keys.get("egress_ignore")
     if is_host_list(ignore):
         out["egress_ignore"] = ignore
