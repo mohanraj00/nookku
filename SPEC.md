@@ -1068,12 +1068,14 @@ Each test is an object with these keys. A key that is not in this table is refus
 | `limits` | object | Optional. The most findings of a class: each key is a check of section 8.6, and each value is a whole number from 0 to 999999999. |
 | `answer_key` | string | Optional. An answer key file. |
 | `persona` | string | Optional. A persona file. |
+| `replay` | object | Optional. A replay check: an object with only the keys `base` (the test id of the old test) and `changed` (the most changed turns, a whole number from 0 to 999999999). |
 
 - A path is relative to the folder of the gate file. An absolute path is refused.
 - A gate limit is added to the limits of the app spec (section 7.14). It does not replace them.
 - Each check of section 8.6 is deterministic. A model issue class, for example `tone` (section 9.3), is not a check of section 8.6, so a gate limit for it is refused. Thus no model judgment changes the verdict of a gate run of version 1.
 - Version 1 has no answer key check. A test with `answer_key` fails with the check `answer_key`, so a declared key never passes with no check.
 - `persona` is a record only. A scripted test sends the messages of its script.
+- A replay check compares the new test with its base test, with the rule of `nookku replay` (section 7.10): the replies of the tap records, turn n with turn n, byte for byte. It uses no model. The base test is a test folder in the tests folder of the run. It does not run again.
 
 **Run.** `nookku gate run <file> --subject <digest> [--root DIR] [--tests-dir PATH] [--json]`:
 
@@ -1095,7 +1097,7 @@ The exit code is 0 if the verified aggregate verdict is `pass`, and 1 if it is `
 | `tests_dir` | string | The absolute path of the tests folder of the run. |
 | `tests` | list | One row for each declared test, in the order of the gate file. |
 
-Each row has `name`, `test` (the test id, or `null` if the test did not run), `error` (why the test did not run, or `null`), `entry`, `policy`, `spec`, `config_sha256` and `files`. The run reads `entry`, `policy`, `spec` and `config_sha256` from the project before the first test starts, as a test start does (sections 7.1 and 7.9). They are `null` if the test did not start. A tested entry can change a project file, so the run does not read them again between tests. `files` pins the SHA-256 of each file of the test folder that the checks read, from the copy of the test seal: `manifest.json`, `findings.json`, `verdict.json`, `audit.json`, `relay.jsonl` and the script copy. A later `nookku trace` of the test changes the test seal (section 7.4), so it breaks the gate result.
+Each row has `name`, `test` (the test id, or `null` if the test did not run), `error` (why the test did not run, or `null`), `entry`, `policy`, `spec`, `config_sha256` and `files`. The run reads `entry`, `policy`, `spec` and `config_sha256` from the project before the first test starts, as a test start does (sections 7.1 and 7.9). They are `null` if the test did not start. A tested entry can change a project file, so the run does not read them again between tests. `files` pins the SHA-256 of each file of the test folder that the checks read, from the copy of the test seal: `manifest.json`, `findings.json`, `verdict.json`, `audit.json`, `relay.jsonl` and the script copy. For a test with `replay`, `files` also pins `tap.jsonl`, and the row has `replay`: an object with `base` and `files`. Before the first test starts, `files` pins the SHA-256 of `relay.jsonl` and `tap.jsonl` of the base test, from the copy of its seal. Thus a test of the run cannot change the base. If the base test has no folder or no seal copy, `files` is empty. A later `nookku trace` of the test changes the test seal (section 7.4), so it breaks the gate result.
 
 **`result.json`.** The result. Each field comes from the other files of the gate folder and the pinned files of the tests:
 
@@ -1108,7 +1110,7 @@ Each row has `name`, `test` (the test id, or `null` if the test did not run), `e
 | `verdict` | string | `pass` if `problems` and `reasons` are empty. Else `fail`. |
 | `problems` | list of strings | Each problem of `run.json` (below). |
 | `reasons` | list | One object `{"test", "check"}` for each check that fails, in the order of `tests`. |
-| `tests` | list | One object for each declared test, in the order of the gate file: `name`, `test`, `verdict` and `checks`. |
+| `tests` | list | One object for each declared test, in the order of the gate file: `name`, `test`, `verdict` and `checks`. A test with `replay` also has `replay`: `base` (the base test id), `test` (the new test id), `most` (the declared limit), `changed` (the count of changed turns) and `turns` (the number of each changed turn, from 1). `changed` and `turns` are `null` if the check `changed_turns` did not compute them. |
 
 A test has the verdict `pass` if each of its checks passes. Each check is an object `{"check", "verdict", "text"}`. `text` is `null` for a pass, else the reason. The checks of a test, in this order:
 
@@ -1124,6 +1126,8 @@ A test has the verdict `pass` if each of its checks passes. Each check is an obj
 | `turns` | The `turn` rows of `relay.jsonl` are one row for each message of the script, in order, each with the same `said` and `ok` true. |
 | `codex_hooks` | The Codex hooks did not change during the test (section 7.8). |
 | `answer_key` | Only for a test with `answer_key`. It always fails in version 1. |
+| `missing_base` | Only for a test with `replay`. The row pins the declared base, the base folder exists, its seal is intact with a `same` copy, and `relay.jsonl` and `tap.jsonl` of the base have the pinned SHA-256 in the copy of its seal and in the bytes that the check reads. If this check fails, the test has no check `changed_turns`. |
+| `changed_turns` | Only for a test with `replay`. The count of changed turns of the base test and the new test is `changed` or less. The text gives the count, the limit and the number of each changed turn. If a record is not valid, the check fails. |
 
 The problems of `run.json`:
 
@@ -1140,7 +1144,7 @@ A declared test with no row fails `missing_test` with the text `The ledger has n
 
 1. The seal of the gate folder is intact, and its copy is `same` (section 7.4).
 2. The process reads each file of the copy of the seal one time, and its SHA-256 is the SHA-256 in the copy. The copy covers `gate.json`, `run.json` and `result.json`.
-3. For each test of `run.json`, the process reads each pinned file one time, for the check `evidence`.
+3. For each test of `run.json`, the process reads each pinned file one time, for the check `evidence`. For a test with `replay`, it also reads each pinned file of the base test one time, for the check `missing_base`.
 4. The result that the process computes again from these bytes is the same as `result.json`.
 
 `gate verify` exits with 0 if the result can be used and its verdict is `pass`, with 1 if it can be used and its verdict is `fail`, and with 2 if no gate folder is found or the result cannot be used. If the result cannot be used, the output gives the reason, and the failed checks of the new computation, 3 at most.
@@ -1151,7 +1155,7 @@ A declared test with no row fails `missing_test` with the text `The ledger has n
 
 **The relay.** A gate run runs scripted tests, so the relay denies a model command that runs `nookku gate`, with each policy (section 5, "Drive commands"). `nookku gate verify` passes, because it only reads. The relay also denies a model write to `gates/` (section 5).
 
-The cases in [`conformance/gate/`](conformance/gate/) give the gate file, the records of each test and the expected `result.json`: a `pass`, a `fail` and a missing test.
+The cases in [`conformance/gate/`](conformance/gate/) give the gate file, the records of each test and the expected `result.json`: a `pass`, a `fail`, a missing test, and a replay check that passes, that has a changed turn, and that has no base.
 
 ### 7.16 Gateway key of a test
 

@@ -1,0 +1,13 @@
+{
+ "v": 1,
+ "tests": [
+  {
+   "name": "refund",
+   "script": "scripts/refund.jsonl",
+   "replay": {
+    "base": "t-old",
+    "changed": 0
+   }
+  }
+ ]
+}

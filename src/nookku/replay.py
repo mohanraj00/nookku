@@ -47,15 +47,37 @@ class ReplayError(ValueError):
     """The replay cannot find the test to compare with."""
 
 
-def replies(folder: Path) -> list[tuple[str, str | None]]:
+def replies(
+    folder: Path, relay: bytes | None = None, tap_data: bytes | None = None
+) -> list[tuple[str, str | None]]:
     """The said text and the tap reply of each turn of a test. A turn with no tap exchange, or an
     exchange with a null reply (an agent error), has the reply None. The turns pair with the
-    exchanges as in step 1 of the audit (SPEC.md section 3.2). Raise RecordError if a record is
-    not valid."""
-    found = turns(folder / "relay.jsonl", missing_ok=True)
-    tap = [r for r in read_tap(folder / "tap.jsonl", missing_ok=True) if isinstance(r, Exchange)]
+    exchanges as in step 1 of the audit (SPEC.md section 3.2). With `relay` and `tap_data`, the
+    reader uses these bytes of relay.jsonl and tap.jsonl. Raise RecordError if a record is not
+    valid."""
+    found = turns(folder / "relay.jsonl", missing_ok=True, data=relay)
+    rows = read_tap(folder / "tap.jsonl", missing_ok=True, data=tap_data)
+    tap = [r for r in rows if isinstance(r, Exchange)]
     pairs = dict(_anchors(found, tap))
     return [(t.said, tap[pairs[i]].reply if i in pairs else None) for i, t in enumerate(found)]
+
+
+def changed(a: tuple[str | None, str | None], b: tuple[str | None, str | None]) -> bool:
+    """True if turn n of the old test (`a`) and of the new test (`b`) is a changed turn: a turn
+    that only one test has, or a reply that is not the same, byte for byte (SPEC.md 7.10)."""
+    return a[0] is None or b[0] is None or a[1] != b[1]
+
+
+def changed_turns(
+    old: list[tuple[str, str | None]], new: list[tuple[str, str | None]]
+) -> list[int]:
+    """The number (from 1) of each changed turn of 2 tests, with the rule of `changed`."""
+    none: tuple[str | None, str | None] = (None, None)
+    return [
+        n + 1
+        for n in range(max(len(old), len(new)))
+        if changed(old[n] if n < len(old) else none, new[n] if n < len(new) else none)
+    ]
 
 
 class Budget:
@@ -234,7 +256,7 @@ def diff(root: Path, old: Path, new: Path) -> dict[str, Any]:
                 "reply_old": reply_a,
                 "reply_new": reply_b,
                 # A turn that only one test has is a changed turn.
-                "changed": said_a is None or said_b is None or reply_a != reply_b,
+                "changed": changed((said_a, reply_a), (said_b, reply_b)),
                 "said_changed": said_a != said_b,
                 "words": words(reply_a or "", reply_b or "", budget),
             }

@@ -342,20 +342,24 @@ def note_problem(turn: Any, rating: Any, comment: Any) -> str | None:
     return None
 
 
-def read_rows(kind: str, path: Path, missing_ok: bool = False) -> list[tuple[int, dict[str, Any]]]:
+def read_rows(
+    kind: str, path: Path, missing_ok: bool = False, data: bytes | None = None
+) -> list[tuple[int, dict[str, Any]]]:
     """Each row of a tap record (kind `tap`), a relay record (kind `relay`) or a notes record
     (kind `notes`), with its line.
 
     This is the one reader of the records. An invalid line or a wrong hash stops the read with
     a RecordError that names the file and the line. With missing_ok, a file that does not exist
-    gives no rows.
+    gives no rows. With data, the reader uses these bytes of the file and does not read it, for
+    example the bytes that a seal covers.
     """
-    try:
-        data = path.read_bytes()
-    except OSError as e:
-        if missing_ok and isinstance(e, FileNotFoundError):
-            return []
-        raise RecordError("record_missing", path, e.strerror or "cannot read") from None
+    if data is None:
+        try:
+            data = path.read_bytes()
+        except OSError as e:
+            if missing_ok and isinstance(e, FileNotFoundError):
+                return []
+            raise RecordError("record_missing", path, e.strerror or "cannot read") from None
     try:
         text = data.decode("utf-8")
     except UnicodeDecodeError:
@@ -375,9 +379,11 @@ def read_rows(kind: str, path: Path, missing_ok: bool = False) -> list[tuple[int
     return rows
 
 
-def read_tap(path: Path, missing_ok: bool = False) -> list[Exchange | Unparsed | ModelSession]:
+def read_tap(
+    path: Path, missing_ok: bool = False, data: bytes | None = None
+) -> list[Exchange | Unparsed | ModelSession]:
     rows: list[Exchange | Unparsed | ModelSession] = []
-    for n, r in read_rows("tap", path, missing_ok):
+    for n, r in read_rows("tap", path, missing_ok, data):
         if r["type"] == "exchange":
             rows.append(Exchange(n, r["input"], r["status"], r["reply"]))
         elif r["type"] == "model_session":
@@ -387,9 +393,11 @@ def read_tap(path: Path, missing_ok: bool = False) -> list[Exchange | Unparsed |
     return rows
 
 
-def read_relay(path: Path, missing_ok: bool = False) -> list[Turn | BlockedCall]:
+def read_relay(
+    path: Path, missing_ok: bool = False, data: bytes | None = None
+) -> list[Turn | BlockedCall]:
     rows: list[Turn | BlockedCall] = []
-    for n, r in read_rows("relay", path, missing_ok):
+    for n, r in read_rows("relay", path, missing_ok, data):
         if r["type"] == "turn":
             rows.append(Turn(n, r["said"], r["shown"], r.get("ok"), r.get("session"), r["harness"]))
         else:
@@ -397,9 +405,9 @@ def read_relay(path: Path, missing_ok: bool = False) -> list[Turn | BlockedCall]
     return rows
 
 
-def turns(path: Path, missing_ok: bool = False) -> list[Turn]:
+def turns(path: Path, missing_ok: bool = False, data: bytes | None = None) -> list[Turn]:
     """The turns of a relay record, with the error rule of read_rows."""
-    return [r for r in read_relay(path, missing_ok) if isinstance(r, Turn)]
+    return [r for r in read_relay(path, missing_ok, data) if isinstance(r, Turn)]
 
 
 def _hashed(row: dict[str, Any]) -> dict[str, Any]:
