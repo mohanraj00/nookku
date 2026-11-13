@@ -133,7 +133,8 @@ The key file is JSON, with a `source`, a `version` and the `answers`:
 - A turn is checked if its message is a question of the key, byte for byte.
 - A turn with no match gives the finding `answer_key_mismatch`. A question that no turn asked gives `answer_key_missing`. A `Verdict` row can limit each class.
 - The spec files have 1 `Answer key` row at most. If the bridge cannot read the row or the key file, the test does not start.
-- The bridge copies the key file into the test folder as `answer_key.json` and records its SHA-256 in the manifest, so the [seal](glossary.md#seal) covers the key. If you change the key after the start, the result of that test does not change.
+- The bridge records the SHA-256 of the key file in the manifest. After the [entry](glossary.md#entry) stops, it copies the key file into the test folder as `answer_key.json`, so the entry cannot read the copy and the [seal](glossary.md#seal) covers the key. If you change the key after the start, the result of that test does not change.
+- The key file is in the project folder. If the entry can read it, the entry can give each keyed answer. Run the entry with no read access to the key file, for example as another user or in a sandbox.
 
 To make CI fail on a `fail` verdict, give `--verdict` to [`nookku run`](cli.md#nookku-run) or [`nookku trace`](cli.md#nookku-trace). Then the command exits with 1. The command uses the verdict only if it agrees with the [seal](glossary.md#seal) and its copy in `~/.nookku/seals/`, so a test with no copy of the seal fails ([SPEC.md section 7.14](../../SPEC.md#714-verdict)).
 

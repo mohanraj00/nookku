@@ -239,3 +239,34 @@ def test_a_number_field_of_a_reply_keeps_each_digit(reply: str, answer: object, 
     found = trace.answers_not_in_key([{"input": "Q?", "reply": reply}], key)
     assert (found == []) is ok
     assert all(f["check"] == "answer_key_mismatch" for f in found)
+
+
+def test_the_copy_replaces_a_file_or_a_symlink_of_the_entry(tmp_path: Path) -> None:
+    target = tmp_path / "target.txt"
+    target.write_text("not the key")
+    folder = tmp_path / "t"
+    folder.mkdir()
+    (folder / answer_key.COPY).symlink_to(target)
+    answer_key.place(folder, b"key")
+    assert not (folder / answer_key.COPY).is_symlink()
+    assert (folder / answer_key.COPY).read_bytes() == b"key"
+    assert target.read_text() == "not the key"
+    answer_key.place(folder, b"new")
+    assert (folder / answer_key.COPY).read_bytes() == b"new"
+
+
+def test_a_stopped_test_gets_the_copy_only_from_the_sealed_key(tmp_path: Path) -> None:
+    (tmp_path / "p").mkdir()
+    root = _root(tmp_path / "p")
+    data = (root / "keys" / "stock.json").read_bytes()
+    record = {"file": "keys/stock.json", "sha256": hashlib.sha256(data).hexdigest()}
+    folder = tmp_path / "t"
+    folder.mkdir()
+    assert answer_key.place_from_project(root, folder, record) is None
+    assert (folder / answer_key.COPY).read_bytes() == data
+    (folder / answer_key.COPY).unlink()
+    (root / "keys" / "stock.json").write_bytes(data + b" ")
+    reason = answer_key.place_from_project(root, folder, record)
+    assert reason == "the SHA-256 of the key file is not the SHA-256 of the manifest"
+    assert not (folder / answer_key.COPY).exists()
+    assert answer_key.place_from_project(root, folder, []) is not None
