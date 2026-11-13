@@ -135,7 +135,7 @@ def load(folder: Path, record: Any) -> dict[str, Any]:
         and (not record["field"] or all(record["field"].split(".")))
         and record.get("match") in MATCHES
         and (
-            TOLERANCE.fullmatch(record.get("tolerance") or "")
+            isinstance(record.get("tolerance"), str) and TOLERANCE.fullmatch(record["tolerance"])
             if record.get("match") == "number"
             else record.get("tolerance") is None
         )

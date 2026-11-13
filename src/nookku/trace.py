@@ -13,6 +13,7 @@ import hashlib
 import json
 from collections import Counter
 from collections.abc import Iterator
+from decimal import Decimal
 from pathlib import Path
 from typing import Any, Literal, NamedTuple
 from urllib.parse import urlsplit
@@ -1366,15 +1367,16 @@ def _normal(text: str) -> str:
     return " ".join(text.split()).casefold()
 
 
-def _structured(text: str) -> Any:
+def _structured(text: str, exact: bool = False) -> Any:
     """The JSON value of a model text: the full text, or else the part from its first `{` to its
-    last `}`, for a JSON object in a code fence. None if neither part is JSON."""
+    last `}`, for a JSON object in a code fence. None if neither part is JSON. If `exact` is
+    True, a JSON number with a point or an exponent is a Decimal, so no digit is lost."""
     parts = [text]
     if "{" in text:
         parts.append(text[text.index("{") : text.rindex("}") + 1] if "}" in text else "")
     for part in parts:
         try:
-            return json.loads(part)
+            return json.loads(part, parse_float=Decimal) if exact else json.loads(part)
         except (ValueError, RecursionError):
             continue
     return None
@@ -1522,7 +1524,7 @@ def answers_not_in_key(
         reply = r.get("reply")
         value = reply if isinstance(reply, str) else None
         if value is not None and field:
-            value = _at(_structured(value), field)
+            value = _at(_structured(value, exact=True), field)
         expected = answers[question]
         if answer_key.matches(value, expected, key["match"], key["tolerance"]):
             continue

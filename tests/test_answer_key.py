@@ -177,7 +177,12 @@ def test_a_copy_that_is_not_the_sealed_key_cannot_be_used(tmp_path: Path) -> Non
     (folder / answer_key.COPY).unlink()
     assert trace.answer_key_of(folder, manifest) == "the test folder has no file answer_key.json"
     bad = "the key answer_key of manifest.json is not valid"
-    for wrong in ({**record, "match": "close"}, {**record, "tolerance": None}, [], "x"):
+    wrongs = (
+        {**record, "match": "close"},
+        {**record, "tolerance": None},
+        {**record, "tolerance": 1},
+    )
+    for wrong in (*wrongs, [], "x"):
         assert trace.answer_key_of(folder, {"answer_key": wrong}) == bad
     assert trace.answer_key_of(folder, {}) is None
     found = trace.answers_not_in_key([], bad)
@@ -209,3 +214,18 @@ def test_a_question_asked_2_times_is_checked_2_times() -> None:
 def test_a_long_value_is_cut_in_the_detail() -> None:
     text = answer_key.shown("x" * 500)
     assert len(text) == answer_key.SHOWN + 3 and text.endswith("...")
+
+
+@pytest.mark.parametrize(
+    ("reply", "answer", "ok"),
+    [
+        ('{"count": 100000000000000000001.0}', 100000000000000000000, False),
+        ('{"count": 100000000000000000000.0}', 100000000000000000000, True),
+        ('{"count": 0.1234567890123456789}', Decimal("0.1234567890123456789"), True),
+        ('{"count": 0.1234567890123456789}', Decimal("0.12345678901234568"), False),
+    ],
+)
+def test_a_number_field_of_a_reply_keeps_each_digit(reply: str, answer: object, ok: bool) -> None:
+    key = {"field": "count", "match": "number", "tolerance": Decimal(0), "answers": {"Q?": answer}}
+    found = trace.answers_not_in_key([{"input": "Q?", "reply": reply}], key)
+    assert (found == []) is ok
