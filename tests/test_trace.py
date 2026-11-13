@@ -139,6 +139,15 @@ def test_a_locator_resolves_only_in_a_tool_result_of_its_turn() -> None:
     assert trace.citations_not_read([{"reply": reply}], items, "sources", "kb:") == []
 
 
+@pytest.mark.parametrize("locator", ["kb:", "kb: "])
+def test_a_locator_that_is_only_the_prefix_does_not_resolve(locator: str) -> None:
+    reply = json.dumps({"sources": [locator]})
+    found = trace.citations_not_read([{"reply": reply}], [_result(1, "any page")], "sources", "kb:")
+    assert [f["detail"] for f in found] == [
+        f"{json.dumps(locator)}: no tool result of this turn contains it"
+    ]
+
+
 @pytest.mark.parametrize(
     ("reply", "expect"),
     [
@@ -148,6 +157,8 @@ def test_a_locator_resolves_only_in_a_tool_result_of_its_turn() -> None:
         ('{"reply": "No sources."}', []),
         ('{"sources": ["a", 7]}', None),
         ('{"sources": {"a": 1}}', None),
+        ('{"sources": null}', None),
+        ("null", []),
     ],
 )
 def test_the_locators_of_a_reply(reply: str, expect: list[str] | None) -> None:

@@ -1436,9 +1436,10 @@ def locators(reply: str, field: str) -> list[str] | None:
     """The source locators at the dot path `field` in the JSON of a reply (SPEC.md section 8.6),
     each one time, in their order. A string is one locator, and a list gives each string in it. A
     locator with only white space does not count. No JSON or no value at the path gives no
-    locators. None if the value is not a string or a list of strings."""
-    value = _at(_structured(reply), field)
-    if value is None:
+    locators. None if the value is not a string or a list of strings, also a JSON null."""
+    try:
+        value = pick(_structured(reply), field)
+    except AdapterError:
         return []
     values = [value] if isinstance(value, str) else value
     if not isinstance(values, list) or not all(isinstance(v, str) for v in values):
@@ -1474,7 +1475,8 @@ def citations_not_read(
         ]
         for locator in found:
             key = locator[len(prefix) :] if prefix and locator.startswith(prefix) else locator
-            if not any(key in text for text in results):
+            # A locator that is only the prefix resolves in no result.
+            if not key.strip() or not any(key in text for text in results):
                 detail = f"{json.dumps(locator)}: no tool result of this turn contains it"
                 out.append(_finding("citation_not_read", i, detail))
     return out
