@@ -116,6 +116,57 @@ def test_a_manifest_with_wrong_model_reply_keys_gives_the_defaults(keys: dict) -
     assert trace.trace_keys({"trace": keys}) == trace.TRACE_KEYS
 
 
+def _result(turn: int, output: str | None, kind: str = "tool_call", internal: bool = False) -> dict:
+    return {"turn": turn, "kind": kind, "output": output, "harness_internal": internal}
+
+
+def test_a_locator_resolves_only_in_a_tool_result_of_its_turn() -> None:
+    reply = '{"reply": "Free returns.", "sources": ["policy/returns#4", "kb:policy/fees#1"]}'
+    items = [
+        _result(1, "policy/returns#4 says that returns are free.", kind="http"),
+        _result(1, "policy/fees#1", internal=True),
+        _result(2, "policy/fees#1"),
+        _message(1, "kb:policy/fees#1"),
+    ]
+    found = trace.citations_not_read([{"reply": reply}], items, "sources", "")
+    assert [f["detail"] for f in found] == [
+        '"kb:policy/fees#1": no tool result of this turn contains it'
+    ]
+    # The prefix comes off before the match, but the result of turn 2 and the harness tool
+    # still do not count.
+    assert trace.citations_not_read([{"reply": reply}], items, "sources", "kb:") != []
+    items.append(_result(1, "the page policy/fees#1", kind="command"))
+    assert trace.citations_not_read([{"reply": reply}], items, "sources", "kb:") == []
+
+
+@pytest.mark.parametrize(
+    ("reply", "expect"),
+    [
+        ('{"sources": "policy/returns#4"}', ["policy/returns#4"]),
+        ('```json\n{"sources": ["a", " ", "a", "b"]}\n```', ["a", "b"]),
+        ("We sell mugs.", []),
+        ('{"reply": "No sources."}', []),
+        ('{"sources": ["a", 7]}', None),
+        ('{"sources": {"a": 1}}', None),
+    ],
+)
+def test_the_locators_of_a_reply(reply: str, expect: list[str] | None) -> None:
+    assert trace.locators(reply, "sources") == expect
+
+
+def test_no_citation_field_turns_the_citation_check_off() -> None:
+    exchanges = [{"reply": '{"sources": ["policy/returns#4"]}'}, {"reply": None}]
+    assert trace.citations_not_read(exchanges, [], "", "") == []
+    assert [f["turn"] for f in trace.citations_not_read(exchanges, [], "sources", "")] == [1]
+
+
+@pytest.mark.parametrize(
+    "keys", [{"citation_field": "a..b", "citation_prefix": 7}, {"citation_field": None}]
+)
+def test_a_manifest_with_wrong_citation_keys_gives_the_defaults(keys: dict) -> None:
+    assert trace.trace_keys({"trace": keys}) == trace.TRACE_KEYS
+
+
 def test_summary() -> None:
     report = {"items": 3, "turns": 2, "counts": dict.fromkeys(trace.CHECKS, 0)}
     assert trace.summary(report) == "Trace: 3 model items in 2 turns, no findings."

@@ -115,6 +115,10 @@ class Config:
     # model_reply_match: exact, normalized or off (SPEC.md section 8.6).
     model_reply_field: str = ""
     model_reply_match: str = "normalized"
+    # The dot path of the source locators in the JSON of a reply, or empty for no check, and the
+    # prefix that the check removes from a locator (SPEC.md section 8.6, citation_not_read).
+    citation_field: str = ""
+    citation_prefix: str = ""
     # True: nookku transcript --trace shows a repeated text one time (SPEC.md section 9.2).
     transcript_compact: bool = False
     # False: start does not start the chat page with the test (SPEC.md section 5, #328).
@@ -170,6 +174,7 @@ STRING_KEYS = (
     "reply_field",
     "openai_model",
     "record",
+    "citation_prefix",
 )
 BOOLEAN_KEYS = ("openai_stream", "evaluate", "otel", "transcript_compact", "page")
 
@@ -265,6 +270,9 @@ def check(data: Any) -> dict[str, Any]:
         raise ConfigError(
             f"{FILE}: 'model_reply_field' must be empty or a dot path such as output.client_text"
         )
+    path = data.get("citation_field", "")
+    if not isinstance(path, str) or (path and not all(path.split("."))):
+        raise ConfigError(f"{FILE}: 'citation_field' must be empty or a dot path such as sources")
     if not is_host_list(data.get("egress_ignore", [])):
         raise ConfigError(f"{FILE}: 'egress_ignore' must be a list of host names")
     if data.get("model_reply_match", "normalized") not in MATCHES:

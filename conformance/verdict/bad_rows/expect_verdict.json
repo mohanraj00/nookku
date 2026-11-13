@@ -25,6 +25,12 @@
    "verdict": "pass"
   },
   {
+   "check": "citation_not_read",
+   "count": null,
+   "most": null,
+   "verdict": "pass"
+  },
+  {
    "check": "tool_error",
    "count": 0,
    "most": null,

@@ -1123,6 +1123,7 @@ def counts(**n: int) -> dict:
         "agent_error",
         "repeated_reply",
         "reply_not_from_model",
+        "citation_not_read",
         "tool_error",
         "command_failed",
         "span_error",
@@ -2116,6 +2117,103 @@ REPLY_OFF_CASE = reply_case("20261006-080000-rm03", {"model_reply_match": "off"}
 REPLY_FIELD_CASE = reply_case(
     "20261006-080000-rm04", {"model_reply_field": "reply"}, True, [DECLINED_FIELD]
 )
+
+# Source locators of a reply (SPEC.md section 8.6, citation_not_read), with citation_field
+# `sources`. Turn 1 cites the one page that it read. Turn 2 cites 2 pages and read only 1, and it
+# cites the page that it read 2 times. Turn 3 has a reply with no locators. Turn 4 has a value
+# that is not a list of strings. With no citation_field, the same turns give no finding.
+KB_PAGE = "policy/returns#4: You can return a mug in 30 days."
+CITE_TURNS: list[tuple[str, str | None]] = [
+    ('{"reply": "You can return it in 30 days.", "sources": ["policy/returns#4"]}', KB_PAGE),
+    (
+        '{"reply": "Returns are free and shipping is 2 days.", '
+        '"sources": ["policy/returns#4", "policy/shipping#2", "policy/returns#4"]}',
+        KB_PAGE,
+    ),
+    ("We sell teapots and mugs.", None),
+    ('{"reply": "See the policy.", "sources": 7}', None),
+]
+CITE_QUESTIONS = ["Can I return a mug?", "Are returns free?", "What do you sell?", "Policy?"]
+CITED_SHIPPING = {
+    "check": "citation_not_read",
+    "turn": 2,
+    "detail": '"policy/shipping#2": no tool result of this turn contains it',
+}
+CITED_BAD_VALUE = {
+    "check": "citation_not_read",
+    "turn": 4,
+    "detail": "the value of sources in the reply is not a locator or a list of locators",
+}
+
+
+def citation_case(test: str, keys: dict | None, found: list[dict]) -> dict:
+    tap, lines, rows = [], [], []
+    for n, (question, (text, page)) in enumerate(zip(CITE_QUESTIONS, CITE_TURNS, strict=True), 1):
+        t = 20.0 * n - 9
+        tap.append(window(20 * n - 10, 20 * n, reply=text))
+        lines.append(cc_line("user", t, question))
+        rows.append(item(n, "claude-code", t, "message", len(lines), role="user", output=question))
+        if page is not None:
+            args = {"page": "policy/returns"}
+            lines.append(cc_line("assistant", t + 1, [use(f"k{n}", "mcp__kb__read", args)]))
+            lines.append(cc_line("user", t + 2, [cc_result(f"k{n}", page)]))
+            rows.append(
+                item(
+                    n,
+                    "claude-code",
+                    t + 1,
+                    "tool_call",
+                    len(lines) - 1,
+                    server="kb",
+                    name="read",
+                    input=args,
+                    output=page,
+                    result_line=len(lines),
+                )
+            )
+        lines.append(cc_line("assistant", t + 3, [cc_text(text)]))
+        rows.append(
+            item(n, "claude-code", t + 3, "message", len(lines), role="assistant", output=text)
+        )
+    manifest: dict[str, Any] = {"test": test, "model_sessions": [CC_SESSION]}
+    if keys is not None:
+        manifest["trace"] = keys
+    return {
+        "tap": tap,
+        "manifest": manifest,
+        "sessions": {CC_FILE: lines},
+        "trace": rows,
+        "findings": {
+            "v": "0.2",
+            "test": test,
+            "turns": 4,
+            "items": len(rows),
+            "sessions": [
+                {
+                    "harness": "claude-code",
+                    "session": CC,
+                    "file": CC_FILE,
+                    "inferred": False,
+                    "version": "2.1.286",
+                    "items": len(rows),
+                    "ignored": {},
+                }
+            ],
+            "otel": None,
+            "backend": None,
+            "model_api": None,
+            "mcp": None,
+            "database": None,
+            "counts": counts(citation_not_read=len(found)),
+            "findings": found,
+        },
+    }
+
+
+CITATION_CASE = citation_case(
+    "20261113-080000-ci01", {"citation_field": "sources"}, [CITED_SHIPPING, CITED_BAD_VALUE]
+)
+CITATION_OFF_CASE = citation_case("20261113-080000-ci02", None, [])
 
 # OpenTelemetry (SPEC.md sections 7.5 and 8.4): the rows of otel.jsonl as the receiver writes them.
 # A harness tool_result that the session file has, one that it does not have, app spans with and
@@ -6689,6 +6787,8 @@ TRACE_CASES = {
     "reply_not_from_model_exact": REPLY_EXACT_CASE,
     "reply_not_from_model_off": REPLY_OFF_CASE,
     "reply_not_from_model_field": REPLY_FIELD_CASE,
+    "citation_not_read": CITATION_CASE,
+    "citation_not_read_off": CITATION_OFF_CASE,
     "unseen_calls": UNSEEN_CASE,
     "unseen_calls_stdio": UNSEEN_STDIO_CASE,
     "driver_trace": DRIVER_CASE,

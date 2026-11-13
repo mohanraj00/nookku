@@ -183,6 +183,52 @@ def test_a_planted_defect_that_breaks_a_limit_fails_the_scripted_test(
     assert seal.verify(folder)["intact"]
 
 
+# A planted bad citation: the toy shop agent gives its reply as JSON, with a source locator that
+# the agent did not read. The test has no model and no tool result, so no locator resolves.
+CITATION_DEFECT = f"""
+import json, runpy, sys
+answer = runpy.run_path({str(TOY_SHOP)!r})["answer"]
+for raw in sys.stdin.buffer:
+    request = json.loads(raw)
+    text = json.dumps({{"reply": answer(request["message"]), "sources": ["policy/shipping#2"]}})
+    out = {{"v": 1, "id": request["id"], "reply": text}}
+    sys.stdout.write(json.dumps(out) + "\\n")
+    sys.stdout.flush()
+"""
+CITATION_SPEC = """# Toy shop
+
+## Verdict
+
+| Finding | Most |
+|---|---|
+| `citation_not_read` | 0 |
+"""
+
+
+def test_a_planted_bad_citation_fails_the_scripted_test(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    defect = tmp_path / "defect.py"
+    defect.write_text(CITATION_DEFECT)
+    root = _shop(tmp_path, [sys.executable, str(defect)])
+    (root / "APP_SPEC.md").write_text(CITATION_SPEC)
+    conf_path = root / ".nookku" / "config.json"
+    conf = json.loads(conf_path.read_text())
+    conf_path.write_text(json.dumps({**conf, "citation_field": "sources"}))
+    code, out = _run(root, capsys)
+    assert code == 1, out
+    assert "Audit: exit 0" in out["report"]
+    assert "Verdict: fail. citation_not_read: 4, the limit is 0." in out["report"]
+    folder = bridge.latest_test(root)
+    assert folder is not None
+    manifest = json.loads((folder / "manifest.json").read_text())
+    assert manifest["trace"]["citation_field"] == "sources"
+    findings = json.loads((folder / "findings.json").read_text())["findings"]
+    cited = [f for f in findings if f["check"] == "citation_not_read"]
+    assert [f["turn"] for f in cited] == [1, 2, 3, 4]
+    assert cited[0]["detail"] == '"policy/shipping#2": no tool result of this turn contains it'
+
+
 def test_trace_verdict_rebuilds_a_missing_verdict_and_adds_it_to_the_seal(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
