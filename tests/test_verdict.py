@@ -313,6 +313,46 @@ def test_a_seeded_answer_key_mismatch_fails_the_scripted_test(
     ]
 
 
+# The entry cannot read the answer key in the test folder (SPEC.md section 7.17). This agent
+# gives the keyed answer of each question if it can read the copy, and it puts a symlink at the
+# path of the copy. The bridge writes the copy after the entry stops, and follows no symlink.
+READ_AGENT = COUNT_AGENT.replace(
+    "for raw in sys.stdin.buffer:",
+    "import os, pathlib\n"
+    "copy = pathlib.Path(os.environ['NOOKKU_TEST_DIR'], 'answer_key.json')\n"
+    "key = {}\n"
+    "if copy.is_file():\n"
+    "    key = {a['question']: a['answer'] for a in json.loads(copy.read_text())['answers']}\n"
+    "copy.symlink_to(os.environ['TARGET'])\n"
+    "for raw in sys.stdin.buffer:",
+).replace('"count": 12}', '"count": key.get(request["message"], 12)}')
+
+
+def test_the_entry_cannot_read_the_answer_key(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    agent = tmp_path / "read.py"
+    agent.write_text(READ_AGENT)
+    target = tmp_path / "target.txt"
+    target.write_text("not the key")
+    monkeypatch.setenv("TARGET", str(target))
+    root = _shop(tmp_path, [sys.executable, str(agent)])
+    (root / "APP_SPEC.md").write_text(KEY_SPEC)
+    (root / "keys").mkdir()
+    key = json.dumps(STOCK_KEY).encode()
+    (root / "keys" / "stock.json").write_bytes(key)
+    code, out = _run(root, capsys)
+    assert code == 1, out
+    assert "Verdict: fail. answer_key_mismatch: 1, the limit is 0." in out["report"]
+    folder = bridge.latest_test(root)
+    assert folder is not None
+    copy = folder / "answer_key.json"
+    assert not copy.is_symlink() and copy.read_bytes() == key
+    assert target.read_text() == "not the key"
+    seal = json.loads((folder / "seal.json").read_text())
+    assert seal["files"]["answer_key.json"] == hashlib.sha256(key).hexdigest()
+
+
 def test_trace_verdict_rebuilds_a_missing_verdict_and_adds_it_to_the_seal(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:

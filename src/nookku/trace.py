@@ -13,6 +13,7 @@ import hashlib
 import json
 from collections import Counter
 from collections.abc import Iterator
+from decimal import Decimal
 from pathlib import Path
 from typing import Any, Literal, NamedTuple
 from urllib.parse import urlsplit
@@ -54,6 +55,9 @@ TESTED = {
 }
 # Tools that the harness itself gives to the model. They are not tools of the app.
 HARNESS_INTERNAL = {"claude-code": {"ToolSearch"}, "codex": set()}
+# The start of the detail of the answer_key_missing finding for a key that the check cannot
+# use (SPEC.md section 7.17).
+KEY_UNUSABLE = "the answer key cannot be used: "
 CHECKS = (
     "agent_error",
     "repeated_reply",
@@ -1366,16 +1370,18 @@ def _normal(text: str) -> str:
     return " ".join(text.split()).casefold()
 
 
-def _structured(text: str) -> Any:
+def _structured(text: str, exact: bool = False) -> Any:
     """The JSON value of a model text: the full text, or else the part from its first `{` to its
-    last `}`, for a JSON object in a code fence. None if neither part is JSON."""
+    last `}`, for a JSON object in a code fence. None if neither part is JSON. If `exact` is
+    True, a JSON number with a point or an exponent is a Decimal, so no digit is lost. A number
+    out of the range of Decimal makes the part not JSON."""
     parts = [text]
     if "{" in text:
         parts.append(text[text.index("{") : text.rindex("}") + 1] if "}" in text else "")
     for part in parts:
         try:
-            return json.loads(part)
-        except (ValueError, RecursionError):
+            return json.loads(part, parse_float=Decimal) if exact else json.loads(part)
+        except (ValueError, RecursionError, ArithmeticError):
             continue
     return None
 
@@ -1510,7 +1516,7 @@ def answers_not_in_key(
     if key is None:
         return []
     if isinstance(key, str):
-        return [_finding("answer_key_missing", None, f"the answer key cannot be used: {key}")]
+        return [_finding("answer_key_missing", None, KEY_UNUSABLE + key)]
     out: list[dict[str, Any]] = []
     answers, field = key["answers"], key["field"]
     asked: set[str] = set()
@@ -1522,7 +1528,7 @@ def answers_not_in_key(
         reply = r.get("reply")
         value = reply if isinstance(reply, str) else None
         if value is not None and field:
-            value = _at(_structured(value), field)
+            value = _at(_structured(value, exact=True), field)
         expected = answers[question]
         if answer_key.matches(value, expected, key["match"], key["tolerance"]):
             continue

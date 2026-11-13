@@ -5,8 +5,20 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
-from decimal import Decimal, InvalidOperation
+from decimal import (
+    MAX_EMAX,
+    MIN_EMIN,
+    Context,
+    Decimal,
+    DecimalException,
+    Inexact,
+    InvalidOperation,
+    Overflow,
+    Underflow,
+    localcontext,
+)
 from pathlib import Path
 from typing import Any
 
@@ -24,6 +36,9 @@ TOLERANCE = re.compile(r"[0-9]{1,9}(\.[0-9]{1,9})?")
 DECIMAL = re.compile(r"-?[0-9]{1,30}(\.[0-9]{1,30})?")
 # The most characters of a value in the detail of a finding.
 SHOWN = 200
+# The most digits of the exact difference of a number match. If the difference needs more
+# digits, the match fails.
+DIGITS = 100_000
 
 
 class _KeyReader(app_spec.Reader):
@@ -135,7 +150,7 @@ def load(folder: Path, record: Any) -> dict[str, Any]:
         and (not record["field"] or all(record["field"].split(".")))
         and record.get("match") in MATCHES
         and (
-            TOLERANCE.fullmatch(record.get("tolerance") or "")
+            isinstance(record.get("tolerance"), str) and TOLERANCE.fullmatch(record["tolerance"])
             if record.get("match") == "number"
             else record.get("tolerance") is None
         )
@@ -158,6 +173,35 @@ def load(folder: Path, record: Any) -> dict[str, Any]:
     }
 
 
+def place(folder: Path, data: bytes) -> None:
+    """Write the copy of the key file into the test folder after the entry stops (SPEC.md
+    section 7.17), so that the entry cannot read the copy. The bridge removes a file or a
+    symlink of the entry at the path first, and the write follows no symlink. Raise OSError."""
+    copy = folder / COPY
+    if copy.is_symlink() or copy.is_file():
+        copy.unlink()
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+    fd = os.open(copy, flags, 0o644)
+    with os.fdopen(fd, "wb") as f:
+        f.write(data)
+
+
+def place_from_project(root: Path, folder: Path, record: Any) -> str | None:
+    """Write the copy for a test whose bridge stopped with no end: the bytes of the key file
+    of the project, only if their SHA-256 is the SHA-256 of the manifest. Return the reason if
+    the bridge writes no copy, else None. With no copy, the check fails closed."""
+    if not isinstance(record, dict) or not isinstance(record.get("file"), str):
+        return "the key answer_key of manifest.json is not valid"
+    try:
+        data = spec_bytes(root, record["file"], "answer key")
+    except ConfigError as e:
+        return str(e)
+    if hashlib.sha256(data).hexdigest() != record.get("sha256"):
+        return "the SHA-256 of the key file is not the SHA-256 of the manifest"
+    place(folder, data)
+    return None
+
+
 def matches(value: Any, answer: Any, match: str, tolerance: Decimal | None) -> bool:
     """True if a reply value matches an answer of the key (SPEC.md section 7.17)."""
     if match == "exact":
@@ -169,14 +213,42 @@ def matches(value: Any, answer: Any, match: str, tolerance: Decimal | None) -> b
     if not _number(value):
         return False
     assert tolerance is not None
-    try:
-        return abs(Decimal(value) - Decimal(answer)) <= tolerance
-    except InvalidOperation:
+    return _within(Decimal(value), Decimal(answer), tolerance)
+
+
+def _within(value: Decimal, answer: Decimal, tolerance: Decimal) -> bool:
+    """True if the difference of value and answer is not more than tolerance. The context has
+    the digits and the exponent range of the exact difference. If a step rounds, the match
+    fails."""
+    parts = (value, answer, tolerance)
+    if not all(p.is_finite() for p in parts):
         return False
+    if value == answer:
+        return True
+    low = min(int(p.as_tuple().exponent) for p in parts)
+    digits = max(p.adjusted() for p in parts) - low + 2
+    if digits > DIGITS:
+        return False
+    traps = [InvalidOperation, Inexact, Overflow, Underflow]
+    exact = Context(prec=max(digits, 1), Emin=MIN_EMIN, Emax=MAX_EMAX, traps=traps)
+    with localcontext(exact):
+        try:
+            return abs(value - answer) <= tolerance
+        except DecimalException:
+            return False
+
+
+def _json(value: Any) -> Any:
+    if isinstance(value, Decimal):
+        return float(value)
+    raise TypeError(f"{type(value).__name__} is not JSON")
 
 
 def shown(value: Any) -> str:
     """A value of a reply or of the key for the detail of a finding, as JSON text, with
     SHOWN characters at most."""
-    text = str(value) if isinstance(value, Decimal) else json.dumps(value, ensure_ascii=False)
+    if isinstance(value, Decimal):
+        text = str(value)
+    else:
+        text = json.dumps(value, ensure_ascii=False, default=_json)
     return text if len(text) <= SHOWN else text[:SHOWN] + "..."

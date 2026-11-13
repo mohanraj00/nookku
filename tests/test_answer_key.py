@@ -143,6 +143,13 @@ def test_a_key_file_that_is_not_valid_stops_the_start(
         ([12], 12, "number", "0", False),
         (float("nan"), 12, "number", "0", False),
         (float("inf"), 12, "number", "0", False),
+        (Decimal("1.00000000000000000000000000001"), 0, "number", "1", False),
+        (Decimal("1E+40"), Decimal("1E+40"), "number", "0", True),
+        (Decimal("1E+200000"), Decimal("1E+200000"), "number", "0", True),
+        (Decimal("1E+200000"), 0, "number", "1", False),
+        (Decimal("1E-1000027"), 0, "number", "0", False),
+        (Decimal("2E-1000027"), Decimal("1E-1000027"), "number", "0", False),
+        (Decimal("2E-1000027"), Decimal("1E-1000027"), "number", "1E-1000027", True),
     ],
 )
 def test_the_match_rules(
@@ -177,7 +184,12 @@ def test_a_copy_that_is_not_the_sealed_key_cannot_be_used(tmp_path: Path) -> Non
     (folder / answer_key.COPY).unlink()
     assert trace.answer_key_of(folder, manifest) == "the test folder has no file answer_key.json"
     bad = "the key answer_key of manifest.json is not valid"
-    for wrong in ({**record, "match": "close"}, {**record, "tolerance": None}, [], "x"):
+    wrongs = (
+        {**record, "match": "close"},
+        {**record, "tolerance": None},
+        {**record, "tolerance": 1},
+    )
+    for wrong in (*wrongs, [], "x"):
         assert trace.answer_key_of(folder, {"answer_key": wrong}) == bad
     assert trace.answer_key_of(folder, {}) is None
     found = trace.answers_not_in_key([], bad)
@@ -209,3 +221,52 @@ def test_a_question_asked_2_times_is_checked_2_times() -> None:
 def test_a_long_value_is_cut_in_the_detail() -> None:
     text = answer_key.shown("x" * 500)
     assert len(text) == answer_key.SHOWN + 3 and text.endswith("...")
+
+
+@pytest.mark.parametrize(
+    ("reply", "answer", "ok"),
+    [
+        ('{"count": 100000000000000000001.0}', 100000000000000000000, False),
+        ('{"count": 100000000000000000000.0}', 100000000000000000000, True),
+        ('{"count": 0.1234567890123456789}', Decimal("0.1234567890123456789"), True),
+        ('{"count": 0.1234567890123456789}', Decimal("0.12345678901234568"), False),
+        ('{"count": {"nested": 1.5}}', 1, False),
+        ('{"count": 1e9999999999999999999}', 1, False),
+    ],
+)
+def test_a_number_field_of_a_reply_keeps_each_digit(reply: str, answer: object, ok: bool) -> None:
+    key = {"field": "count", "match": "number", "tolerance": Decimal(0), "answers": {"Q?": answer}}
+    found = trace.answers_not_in_key([{"input": "Q?", "reply": reply}], key)
+    assert (found == []) is ok
+    assert all(f["check"] == "answer_key_mismatch" for f in found)
+
+
+def test_the_copy_replaces_a_file_or_a_symlink_of_the_entry(tmp_path: Path) -> None:
+    target = tmp_path / "target.txt"
+    target.write_text("not the key")
+    folder = tmp_path / "t"
+    folder.mkdir()
+    (folder / answer_key.COPY).symlink_to(target)
+    answer_key.place(folder, b"key")
+    assert not (folder / answer_key.COPY).is_symlink()
+    assert (folder / answer_key.COPY).read_bytes() == b"key"
+    assert target.read_text() == "not the key"
+    answer_key.place(folder, b"new")
+    assert (folder / answer_key.COPY).read_bytes() == b"new"
+
+
+def test_a_stopped_test_gets_the_copy_only_from_the_sealed_key(tmp_path: Path) -> None:
+    (tmp_path / "p").mkdir()
+    root = _root(tmp_path / "p")
+    data = (root / "keys" / "stock.json").read_bytes()
+    record = {"file": "keys/stock.json", "sha256": hashlib.sha256(data).hexdigest()}
+    folder = tmp_path / "t"
+    folder.mkdir()
+    assert answer_key.place_from_project(root, folder, record) is None
+    assert (folder / answer_key.COPY).read_bytes() == data
+    (folder / answer_key.COPY).unlink()
+    (root / "keys" / "stock.json").write_bytes(data + b" ")
+    reason = answer_key.place_from_project(root, folder, record)
+    assert reason == "the SHA-256 of the key file is not the SHA-256 of the manifest"
+    assert not (folder / answer_key.COPY).exists()
+    assert answer_key.place_from_project(root, folder, []) is not None
