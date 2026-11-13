@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 from decimal import (
     MAX_EMAX,
@@ -170,6 +171,35 @@ def load(folder: Path, record: Any) -> dict[str, Any]:
         "tolerance": tolerance,
         "answers": key["answers"],
     }
+
+
+def place(folder: Path, data: bytes) -> None:
+    """Write the copy of the key file into the test folder after the entry stops (SPEC.md
+    section 7.17), so that the entry cannot read the copy. The bridge removes a file or a
+    symlink of the entry at the path first, and the write follows no symlink. Raise OSError."""
+    copy = folder / COPY
+    if copy.is_symlink() or copy.is_file():
+        copy.unlink()
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+    fd = os.open(copy, flags, 0o644)
+    with os.fdopen(fd, "wb") as f:
+        f.write(data)
+
+
+def place_from_project(root: Path, folder: Path, record: Any) -> str | None:
+    """Write the copy for a test whose bridge stopped with no end: the bytes of the key file
+    of the project, only if their SHA-256 is the SHA-256 of the manifest. Return the reason if
+    the bridge writes no copy, else None. With no copy, the check fails closed."""
+    if not isinstance(record, dict) or not isinstance(record.get("file"), str):
+        return "the key answer_key of manifest.json is not valid"
+    try:
+        data = spec_bytes(root, record["file"], "answer key")
+    except ConfigError as e:
+        return str(e)
+    if hashlib.sha256(data).hexdigest() != record.get("sha256"):
+        return "the SHA-256 of the key file is not the SHA-256 of the manifest"
+    place(folder, data)
+    return None
 
 
 def matches(value: Any, answer: Any, match: str, tolerance: Decimal | None) -> bool:

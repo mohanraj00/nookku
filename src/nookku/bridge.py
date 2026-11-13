@@ -154,7 +154,7 @@ class TestConfig:
     # limit (SPEC.md section 7.14).
     verdict: dict[str, Any] = field(default_factory=lambda: {"limits": {}, "unread": []})
     # The manifest key answer_key, or None, and the bytes of the key file. The bridge copies the
-    # bytes into the test folder (SPEC.md section 7.17).
+    # bytes into the test folder after the entry stops (SPEC.md section 7.17).
     answer_key: dict[str, Any] | None = None
     answer_key_data: bytes = b""
 
@@ -553,6 +553,13 @@ def finish_stopped(root: Path, folder: Path) -> dict[str, Any]:
     try:
         manifest.update(ended=time.time(), killed=True)
         _write_json(path, manifest)
+        if manifest.get("answer_key") is not None:
+            try:
+                reason = answer_key.place_from_project(root, folder, manifest["answer_key"])
+            except OSError as e:
+                reason = repr(e)
+            if reason is not None:
+                log(f"no copy of the answer key: {reason}")
         _collect(folder, script.copy_in(folder), log)
     finally:
         os.close(sends)
@@ -971,7 +978,8 @@ def run(
         "trace_points": config.trace_points,
         "trace_points_unread": config.trace_points_unread,
         "verdict": config.verdict,
-        # The bridge copies the key file into answer_key.json (SPEC.md section 7.17).
+        # After the entry stops, the bridge copies the key file into answer_key.json (SPEC.md
+        # section 7.17).
         "answer_key": config.answer_key,
         "tester_sessions": [tester_session] if tester_session else [],
         "model_sessions": [],
@@ -991,8 +999,6 @@ def run(
     }
     paths = [h["path"] for h in config.spec]
     write_spec_copies(folder, list(zip(paths, config.spec_data, strict=True)))
-    if config.answer_key is not None:
-        (folder / answer_key.COPY).write_bytes(config.answer_key_data)
     _write_json(folder / "manifest.json", manifest)
     _log("manifest written")
     # A `--version` call can take seconds. The test must not wait for it to start.
@@ -1204,6 +1210,12 @@ def run(
     except Exception as e:  # the test must still end
         manifest["codex_gate"]["end"] = {"codex": None, "hooks": [], "problems": [repr(e)]}
     _write_json(folder / "manifest.json", manifest)
+    if config.answer_key is not None:
+        # The entry stopped, so it cannot read the copy (SPEC.md section 7.17).
+        try:
+            answer_key.place(folder, config.answer_key_data)
+        except OSError as e:  # the test must still end, and the check fails closed
+            _log(f"the copy of the answer key failed: {e!r}")
     _collect(folder, copy)
     (state(root) / "current.json").unlink(missing_ok=True)
     os.close(sends)
