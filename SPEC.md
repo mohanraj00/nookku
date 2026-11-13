@@ -371,6 +371,7 @@ The follow-up capture records a title-description schema match, without request 
   - the state folder itself;
   - `tests/`, except `report.md` in a test folder;
   - `scripts/`, the saved scripts (section 7.10);
+  - `gates/`, the gate results (section 7.15);
   - `current.json`, `mode`, `relay.jsonl`, `tap.jsonl`, `ending.json`, `page.json`, `page.lock`, `send.lock`, `tests-dirs.json` and `runs/`;
   - `seals/`, the seal copies in the nookku home.
 
@@ -391,7 +392,7 @@ The follow-up capture records a title-description schema match, without request 
 
   Each match ignores case, because the file system of macOS and Windows ignores case. If the project has no `.nookku/` folder, the relay applies only this deny and writes no record, so that the model cannot write a weak policy before the first test. Like each deny, it is best effort: a command can change the file with a name that the relay does not see. The manifest records the policy of each test.
 - **Entry.** During a test, the relay denies a model tool call, except file tools, that names the entry and does not pass the read check. The names of the entry are the base name of each entry argument with the file type `.py`, `.js`, `.mjs`, `.cjs`, `.ts`, `.sh` or `.rb`, and the argument after `-m`. The relay looks for each name in the input, and in each word of a shell command after it removes the quotes and escapes. A word with `*`, `?` or `[` matches a name as a glob. An entry with no such argument, for example `npm run agent`, has no names.
-- **Drive commands.** Only a person starts, ends or drives a test. The relay denies a model shell command, or the text of `write_stdin`, that runs `nookku start`, `nookku end`, `nookku hook`, `nookku run`, `nookku chat` (also with its old name `page`), `nookku script`, `nookku replay`, `nookku mode` with `on`, `off`, `start` or `end`, or `nookku init --remove`, also with a short form of the flag such as `--rem`. `init --remove` removes the project hooks, so the next message would go to the model. `nookku chat` prints the page URL with its token, so a model that runs it could send messages as the tester. `nookku script save` writes a saved script (section 7.10), so a model that runs it could change the messages of the next scripted test. `nookku replay` runs a scripted test, so the relay denies it with each policy, also with the policy key `scripts` set to `model`. It also denies a command that imports the package: `import nookku`, `from nookku`, `import_module("nookku...")`, `__import__("nookku...")` or `python -m nookku.<module>`. The deny applies with a test, with no test, and in a project with no state folder.
+- **Drive commands.** Only a person starts, ends or drives a test. The relay denies a model shell command, or the text of `write_stdin`, that runs `nookku start`, `nookku end`, `nookku hook`, `nookku run`, `nookku chat` (also with its old name `page`), `nookku script`, `nookku replay`, `nookku gate` (except `nookku gate verify`), `nookku mode` with `on`, `off`, `start` or `end`, or `nookku init --remove`, also with a short form of the flag such as `--rem`. `init --remove` removes the project hooks, so the next message would go to the model. `nookku chat` prints the page URL with its token, so a model that runs it could send messages as the tester. `nookku script save` writes a saved script (section 7.10), so a model that runs it could change the messages of the next scripted test. `nookku replay` runs a scripted test, so the relay denies it with each policy, also with the policy key `scripts` set to `model`. `nookku gate` runs a set of scripted tests (section 7.15), so the relay denies it the same way. Only `gate verify` as the first word after `gate` passes. It also denies a command that imports the package: `import nookku`, `from nookku`, `import_module("nookku...")`, `__import__("nookku...")` or `python -m nookku.<module>`. The deny applies with a test, with no test, and in a project with no state folder.
   - The relay finds the program after variable assignments, after the launchers `env`, `exec`, `nohup`, `time`, `command`, `sudo`, `uvx`, `uv run` and `pipx run`, in `python -m nookku`, and in the code of `sh -c` or `bash -lc`. If the check cannot parse the command, the relay reads its text. A command that passes the read check does not import the package, for example `grep "import nookku"`. The body of a here-document that is data does not count.
   - A launcher option can take a value, for example `uv run --python python3 nookku start`. After a launcher, the relay reads each later word that runs `nookku`, `python` or a shell. The `env` option `-S` or `--split-string` holds a command, for example `env -S 'nookku start'`, so the relay reads the text from that option. The text of a variable value, for example `env NOTE='nookku start' echo ok`, does not drive a test.
   - The module of `python -m` can be attached, as in `-mnookku`, or follow a group of flags, as in `-Im nookku`. The value of `-W`, `-X` or `--check-hash-based-pycs` is not the script. The code of `sh -c` can follow `--`.
@@ -1043,6 +1044,112 @@ Thus a test with no limits passes if its `findings.json` is valid. A test with n
 | | 2 | The trace was not rebuilt (section 7.4). |
 
 The cases in [`conformance/verdict/`](conformance/verdict/) give the spec files, the counts of `findings.json` and the expected `verdict.json`: a `pass` and a `fail` of the toy shop, rows that are not limits, a section with no table, 2 files, no section, no `findings.json`, and a manifest with no key `verdict`.
+
+### 7.15 Gate run
+
+A gate run is one declared set of scripted tests (section 7.10). One command runs the set and writes one sealed result. The result holds the verdict of each test, one aggregate verdict and a subject digest from the caller. A program, for example a CI job or a rollout controller, reads it with no model. The checks of a gate run are deterministic: each one reads only records that a seal covers.
+
+**The gate file.** The gate file is UTF-8 JSON: an object with only the keys `v` and `tests`. A key that occurs 2 times in one object is refused.
+
+| Key | Type | Meaning |
+|---|---|---|
+| `v` | integer | The gate file version, `1`. |
+| `tests` | list | 1 to 200 tests, in the order of the run. |
+
+Each test is an object with these keys. A key that is not in this table is refused, so an older Nookku does not ignore a check that a later version adds.
+
+| Key | Type | Meaning |
+|---|---|---|
+| `name` | string | The name of the test. It has the form of a test id (section 7) and is unique in the file. |
+| `script` | string | The script file (section 7.10). |
+| `entry` | string | Optional. The name of an entry in `entries` (section 7.1). Without it, the test uses `entry`. |
+| `limits` | object | Optional. The most findings of a class: each key is a check of section 8.6, and each value is a whole number from 0 to 999999999. |
+| `answer_key` | string | Optional. An answer key file. |
+| `persona` | string | Optional. A persona file. |
+
+- A path is relative to the folder of the gate file. An absolute path is refused.
+- A gate limit is added to the limits of the app spec (section 7.14). It does not replace them.
+- Each check of section 8.6 is deterministic. A model issue class, for example `tone` (section 9.3), is not a check of section 8.6, so a gate limit for it is refused. Thus no model judgment changes the verdict of a gate run of version 1.
+- Version 1 has no answer key check. A test with `answer_key` fails with the check `answer_key`, so a declared key never passes with no check.
+- `persona` is a record only. A scripted test sends the messages of its script.
+
+**Run.** `nookku gate run <file> --subject <digest> [--root DIR] [--tests-dir PATH] [--json]`:
+
+1. It reads the gate file and checks the subject: 1 to 512 characters with no control character. Nookku does not interpret the subject. It reads the egress answer (section 7.11). If one of these is not valid, it runs no test, writes no folder and exits with 2.
+2. It makes the gate folder `.nookku/gates/<gate id>/`. The gate id is `gate-<date>-<time>-<8 hex digits>`. The random part keeps 2 gate ids different when 2 projects share `NOOKKU_HOME`, because the seal copies of all projects are in one folder. The folder is not in the tests folder, so a gate folder never looks like a test. It writes the bytes of the gate file as `gate.json`.
+3. Before the first test starts, it copies the bytes of each declared file of each test into `inputs/<name>/`: the script as `script.jsonl` or `script.json` (the form of section 7.10), and the other files as `answer_key` and `persona`. If a file cannot be read, or the script breaks a rule of section 7.10, that test does not run. Then each other test runs in order from the copy of its script, with the steps of `nookku run --script --verdict` (section 7.10). Thus a change of a source file during the run has no effect, also when an earlier test makes the change. The run also keeps the bytes of each copy. Before each test starts, the files in `inputs/<name>/` must be these bytes, or that test does not run. Before the run seals the folder, it writes `gate.json` and each copy again from these bytes, and the checks use these bytes. Thus a test that changes a later copy cannot change the result. Each test uses the same egress answer. After the last test, the run removes the answer, as a test start does.
+4. It writes `run.json`, then `result.json`, and seals the gate folder (section 7.4). The copy of the seal is `~/.nookku/seals/<gate id>.json`.
+5. It verifies the result with the rule of "Verify" below, and prints the lines of each test, one line for each test, and the aggregate verdict.
+
+The exit code is 0 if the verified aggregate verdict is `pass`, and 1 if it is `fail` or the result cannot be verified.
+
+**`run.json`.** The ledger of the run:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `v` | integer | `1` |
+| `gate` | string | The gate id. |
+| `subject` | string | The subject digest. |
+| `tests_dir` | string | The absolute path of the tests folder of the run. |
+| `tests` | list | One row for each declared test, in the order of the gate file. |
+
+Each row has `name`, `test` (the test id, or `null` if the test did not run), `error` (why the test did not run, or `null`), `entry`, `policy`, `spec`, `config_sha256` and `files`. The run reads `entry`, `policy`, `spec` and `config_sha256` from the project before the first test starts, as a test start does (sections 7.1 and 7.9). They are `null` if the test did not start. A tested entry can change a project file, so the run does not read them again between tests. `files` pins the SHA-256 of each file of the test folder that the checks read, from the copy of the test seal: `manifest.json`, `findings.json`, `verdict.json`, `audit.json`, `relay.jsonl` and the script copy. A later `nookku trace` of the test changes the test seal (section 7.4), so it breaks the gate result.
+
+**`result.json`.** The result. Each field comes from the other files of the gate folder and the pinned files of the tests:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `v` | integer | `1` |
+| `gate` | string | The gate id. |
+| `subject` | string | The subject digest of `run.json`. |
+| `gate_sha256` | string | The SHA-256 of `gate.json`. |
+| `verdict` | string | `pass` if `problems` and `reasons` are empty. Else `fail`. |
+| `problems` | list of strings | Each problem of `run.json` (below). |
+| `reasons` | list | One object `{"test", "check"}` for each check that fails, in the order of `tests`. |
+| `tests` | list | One object for each declared test, in the order of the gate file: `name`, `test`, `verdict` and `checks`. |
+
+A test has the verdict `pass` if each of its checks passes. Each check is an object `{"check", "verdict", "text"}`. `text` is `null` for a pass, else the reason. The checks of a test, in this order:
+
+| Check | It passes if |
+|---|---|
+| `missing_test` | The test ran: its row has a test id and no error. If this check fails, the test has no other check. |
+| `evidence` | The seal of the test folder is intact, its copy is `same`, and each pinned file has its SHA-256 in the copy of the seal and in the bytes that the check reads. If this check fails, the test has no later check. |
+| `script` | The script copy of the test folder and the `script` of the manifest have the SHA-256 of the script in `inputs/`. |
+| `entry` | The `entry_name` of the manifest is the declared `entry`, or `null` if the test declares none, The `entry`, `policy` and `spec` of the manifest are the ones of the row. Each file of the `config_sha256` of the row has the same SHA-256 in the `config_sha256` of the manifest. A test start adds state files, so the manifest can have more files. |
+| `verdict` | `verdict.json` is the verdict that section 7.14 computes again from `manifest.json` and `findings.json`, and it is `pass`. |
+| `limits` | Each gate limit is the count of its class in the verdict, or more. A class with no valid count fails. |
+| `audit` | `audit.json` has `exit` 0, no break and no error (section 3). |
+| `turns` | The `turn` rows of `relay.jsonl` are one row for each message of the script, in order, each with the same `said` and `ok` true. |
+| `codex_hooks` | The Codex hooks did not change during the test (section 7.8). |
+| `answer_key` | Only for a test with `answer_key`. It always fails in version 1. |
+
+The problems of `run.json`:
+
+| Problem | Text |
+|---|---|
+| `v` is not 1, or `gate` is not the gate id. | `run.json does not name this gate run.` |
+| The subject is not valid. | `run.json has no valid subject.` |
+| The count of rows is not the count of declared tests. | `run.json does not have one row for each declared test.` |
+| 2 rows name one test id. | `run.json names one test for 2 declared tests.` |
+
+A declared test with no row fails `missing_test` with the text `The ledger has no row for the test.`
+
+**Verify.** `nookku gate verify [GATE] [--root DIR] [--tests-dir PATH] [--json]` checks a gate result. `GATE` is a gate id or the path of a gate folder. Without it, the command checks the newest gate folder. A process uses the result only if each of these is true, else the result cannot be used:
+
+1. The seal of the gate folder is intact, and its copy is `same` (section 7.4).
+2. The process reads each file of the copy of the seal one time, and its SHA-256 is the SHA-256 in the copy. The copy covers `gate.json`, `run.json` and `result.json`.
+3. For each test of `run.json`, the process reads each pinned file one time, for the check `evidence`.
+4. The result that the process computes again from these bytes is the same as `result.json`.
+
+`gate verify` exits with 0 if the result can be used and its verdict is `pass`, with 1 if it can be used and its verdict is `fail`, and with 2 if no gate folder is found or the result cannot be used. If the result cannot be used, the output gives the reason, and the failed checks of the new computation, 3 at most.
+
+**Read a result with no Nookku.** `result.json` is plain JSON. A reader takes `verdict` and `subject`, and compares `subject` with the digest that it expects, because the subject is only what the caller gave. A compare of the SHA-256 of `result.json` with the copy of the seal shows that `result.json` did not change. It does not check the test folders: only `nookku gate verify` does. [docs/how-to/gate-a-release.md](docs/how-to/gate-a-release.md) gives the commands.
+
+**Known limit: the gate trusts the tested code.** The run pins the argv of each entry, the policy, the spec and the config files of `.nookku/`. It does not pin the bytes of the program that an entry starts, or of its imports. A tested entry runs with the permissions of the account. Thus an earlier test of a gate run can change the code of a later test, and the later test can then pass. The deny of the relay does not stop the tested entry. Run a gate only on code that you trust, for example in a new CI checkout of the subject, and put the digest of that code in `--subject`.
+
+**The relay.** A gate run runs scripted tests, so the relay denies a model command that runs `nookku gate`, with each policy (section 5, "Drive commands"). `nookku gate verify` passes, because it only reads. The relay also denies a model write to `gates/` (section 5).
+
+The cases in [`conformance/gate/`](conformance/gate/) give the gate file, the records of each test and the expected `result.json`: a `pass`, a `fail` and a missing test.
 
 ## 8. Trace
 

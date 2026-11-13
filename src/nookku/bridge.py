@@ -95,6 +95,8 @@ NOT_CONFIG = {
     "tap.jsonl",
     ENDING,
     TESTS_DIRS,
+    # The gate results (#574) are records, not config.
+    "gates",
 }
 SKIP_DIRS = {"node_modules", ".venv", "__pycache__", ".git"}
 # The check names the first stray lines, and gives the count of all of them.

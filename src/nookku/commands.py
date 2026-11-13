@@ -46,8 +46,9 @@ PATCH_FILE = re.compile(r"^\*\*\* (?:(?:Add|Update|Delete) File|Move to): (.+)$"
 # URL of the chat page with its token, and with the token a model could send as the tester (#327).
 # `page` is the old name of `chat`, and it works the same for one release (#394).
 # `script` writes a saved script, which the guard protects from a model write (#350). `replay`
-# runs a scripted test, with each policy (#351).
-DRIVES = {"start", "end", "hook", "run", "chat", "page", "script", "replay"}
+# runs a scripted test, with each policy (#351). `gate` runs a set of scripted tests, with each
+# policy. Only `gate verify` as the first word after `gate` passes, because it only reads (#574).
+DRIVES = {"start", "end", "hook", "run", "chat", "page", "script", "replay", "gate"}
 MODE_DRIVES = {"on", "off", "start", "end"}
 # `init --remove` removes the project hooks, so the next message would reach the model (#163).
 # argparse also takes a unique prefix of the flag, from --rem.
@@ -61,7 +62,8 @@ IMPORTS = re.compile(
     r"\b(?:import|from)\s+nookku\b|\b(?:import_module|__import__)\s*\(\s*['\"]nookku\b"
 )
 DRIVE_TEXT = re.compile(
-    r"\bnookku\s+(?:-\S+\s+)*(start|end|hook|run|chat|page|script|replay|mode\s+(?:on|off|start|end)"
+    r"\bnookku\s+(?:-\S+\s+)*(start|end|hook|run|chat|page|script|replay|gate\b(?!\s+verify\b)"
+    r"|mode\s+(?:on|off|start|end)"
     r"|init\b[^;&|\n]*?\s--rem(?:o|ov|ove)?\b)"
 )
 # The same text with no word boundary before nookku, for text that an option holds, for example
@@ -386,6 +388,8 @@ def _parts(toks: list[tuple[str, bool]]) -> list[list[str]] | None:
 def _subcommand(args: list[str]) -> str | None:
     """The drive command of the arguments of nookku, for example "nookku start", or None."""
     words = [a for a in args if not a.startswith("-")]
+    if words[:2] == ["gate", "verify"]:
+        return None
     if words and words[0] in DRIVES:
         return f"nookku {words[0]}"
     state = next((w for w in words[1:] if w in MODE_DRIVES), None)

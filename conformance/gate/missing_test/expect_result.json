@@ -1,0 +1,80 @@
+{
+ "v": 1,
+ "gate": "gate-case",
+ "subject": "registry.example/shop@sha256:ab12cd34",
+ "gate_sha256": "<the SHA-256 of gate.json>",
+ "verdict": "fail",
+ "problems": [],
+ "reasons": [
+  {
+   "test": "returns",
+   "check": "missing_test"
+  }
+ ],
+ "tests": [
+  {
+   "name": "refund",
+   "test": "t-refund",
+   "verdict": "pass",
+   "checks": [
+    {
+     "check": "missing_test",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "evidence",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "script",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "entry",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "verdict",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "limits",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "audit",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "turns",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "codex_hooks",
+     "verdict": "pass",
+     "text": null
+    }
+   ]
+  },
+  {
+   "name": "returns",
+   "test": null,
+   "verdict": "fail",
+   "checks": [
+    {
+     "check": "missing_test",
+     "verdict": "fail",
+     "text": "script scripts/returns.jsonl: the file does not exist"
+    }
+   ]
+  }
+ ]
+}

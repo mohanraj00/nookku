@@ -1,0 +1,17 @@
+{
+ "v": 1,
+ "tests": [
+  {
+   "name": "refund",
+   "script": "scripts/refund.jsonl",
+   "entry": "shop"
+  },
+  {
+   "name": "price",
+   "script": "scripts/price.jsonl",
+   "limits": {
+    "agent_error": 0
+   }
+  }
+ ]
+}

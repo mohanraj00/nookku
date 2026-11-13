@@ -64,12 +64,14 @@ DENY_REASON = "nookku: only the tester talks to the agent."
 # (SPEC.md section 5). In a test folder, only report.md may change (SPEC.md section 9). `seals`
 # is the folder of the seal copies in the nookku home. `runs` holds the pid data of each entry
 # (SPEC.md section 7.2). `scripts` holds the saved scripts (SPEC.md section 7.10): a model write
-# would change the messages of the next scripted test.
+# would change the messages of the next scripted test. `gates` holds the gate results (SPEC.md
+# section 7.15).
 SCRIPTS = "scripts"
 RECORDS = {
     "tests",
     "runs",
     SCRIPTS,
+    "gates",
     "current.json",
     "mode",
     "relay.jsonl",

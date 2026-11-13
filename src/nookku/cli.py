@@ -448,6 +448,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     _script_parser(sub)
     _export_parser(sub)
     _replay_parser(sub)
+    _gate_parser(sub)
 
     ver = sub.add_parser("verify", help="check that no record of a test changed after its end")
     ver.add_argument(
@@ -595,6 +596,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _export_command(args)
     if args.command == "replay":
         return _replay_command(args)
+    if args.command == "gate":
+        return _gate_command(args)
     if args.command in ("start", "end", "status", "check"):
         return _test_command(args)
     if args.command == "trace":
@@ -1109,6 +1112,58 @@ def _replay_command(args: argparse.Namespace) -> int:
     return _run_command(
         args, lambda root, new: replay.report(root, old, new, color), replay.egress(old)
     )
+
+
+def _gate_parser(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+    top = sub.add_parser("gate", help="run a declared set of scripted tests, or verify a result")
+    kinds = top.add_subparsers(dest="gate_command", metavar="COMMAND", required=True)
+    run = kinds.add_parser("run", help="run each test of a gate file and write one result")
+    run.add_argument("file", type=Path, help="the gate file (SPEC.md section 7.15)")
+    run.add_argument("--subject", required=True, help="the digest of the tested thing")
+    verify = kinds.add_parser("verify", help="check a gate result against its seal")
+    verify.add_argument("gate", nargs="?", help="a gate id or folder (default: the newest)")
+    for cmd in (run, verify):
+        cmd.add_argument("--root", type=Path, default=Path.cwd())
+        cmd.add_argument("--json", action="store_true", help="print the result as JSON")
+        cmd.add_argument("--tests-dir", metavar="PATH", help=TESTS_DIR_HELP)
+
+
+def _gate_command(args: argparse.Namespace) -> int:
+    """nookku gate run and nookku gate verify (SPEC.md section 7.15). The exit code uses only
+    a result that `verify` accepts."""
+    from nookku import gate
+
+    def say(text: str, data: dict[str, Any]) -> None:
+        print(json.dumps(data) if args.json else text)
+
+    error = _tests_dir_error(args)
+    if error is not None:
+        say(f"nookku: {error}", {"error": error})
+        return 2
+    root = args.root.resolve()
+    lines: list[str] = []
+    if args.gate_command == "run":
+        path = args.file if args.file.is_absolute() else Path.cwd() / args.file
+        try:
+            folder, lines = gate.run(root, path, args.subject)
+        except (gate.GateError, bridge.BridgeError) as e:
+            say(f"nookku: {e}", {"error": str(e)})
+            return 2
+    else:
+        found = gate.find(root, args.gate)
+        if found is None:
+            text = "no gate folder" if args.gate is None else f"no gate folder {args.gate}"
+            say(f"nookku: {text}", {"error": text})
+            return 2
+        folder = found
+    report, why = gate.verify(folder)
+    head = [*lines, f"Gate {folder.name}: {folder}"]
+    if report is None:
+        text = f"The gate result cannot be used. {why}"
+        say("\n".join([*head, f"FAIL: {text}"]), {"gate": str(folder), "error": text})
+        return 1 if args.gate_command == "run" else 2
+    say("\n".join([*head, *gate.summary(report)]), {"gate": str(folder), "result": report})
+    return 0 if report["verdict"] == gate.PASS else 1
 
 
 def _waiting(test: str) -> str:
