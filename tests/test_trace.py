@@ -35,6 +35,17 @@ def test_case(case: Path, tmp_path: Path) -> None:
     assert report == expect
 
 
+def test_each_check_has_a_seeded_fault() -> None:
+    """Each check of SPEC.md section 8.6 has a trace case that expects one of its findings.
+    test_case then fails if the check misses that fault (#546)."""
+    seeded = set()
+    for case in CASES:
+        if (case / "expect_findings.json").exists():
+            expect = json.loads((case / "expect_findings.json").read_text())
+            seeded.update(f["check"] for f in expect["findings"])
+    assert [c for c in trace.CHECKS if c not in seeded] == []
+
+
 def test_a_missing_session_file_is_not_an_error(tmp_path: Path) -> None:
     session = {"harness": "codex", "session": "s", "inferred": True, "file": "sessions/codex/x"}
     (tmp_path / "manifest.json").write_text(json.dumps({"test": "t", "model_sessions": [session]}))

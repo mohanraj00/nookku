@@ -77,6 +77,7 @@ A check is a test, a lint rule, a conformance case or a CI step. "Review" means 
 - Each writer accepts only Unicode scalar values. A lone surrogate never makes a write raise.
 - Each record has one reader with one error rule. An invalid line or a wrong hash stops the read with a clear error.
 - A change to the record format needs a SPEC.md change and a conformance case that a person writes by hand.
+- Each check of the [trace](../reference/glossary.md#trace) (SPEC.md section 8.6) has a seeded fault: a trace case in `conformance/trace/` that expects one or more of its [findings](../reference/glossary.md#findings).
 
 **Reason.** The records are the evidence. If a writer raises, the record loses an exchange, and the audit names the wrong break. If a reader skips a bad line, a changed record looks exact.
 
@@ -85,6 +86,7 @@ A check is a test, a lint rule, a conformance case or a CI step. "Review" means 
 **Check.**
 
 - `tests/test_conformance.py::test_case` runs each case in `conformance/cases/`.
+- Seeded faults: `tests/test_trace.py::test_case` runs each trace case, and `tests/test_trace.py::test_each_check_has_a_seeded_fault` fails if a check of `trace.CHECKS` has no expected finding in a case ([#546](https://github.com/mohanraj00/nookku/issues/546)).
 - The CI step "Conformance cases are up to date" runs `conformance/build.py` and fails on a diff.
 - Review item in AGENTS.md: "A change to the record format or to the audit with no SPEC.md change and no hand-written conformance case."
 - Unicode: [#43](https://github.com/mohanraj00/nookku/issues/43) and [#65](https://github.com/mohanraj00/nookku/issues/65) added conformance cases and a test for each writer.

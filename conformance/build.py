@@ -5877,6 +5877,68 @@ MCP_CASE = {
 }
 
 
+# A task with no terminal state (SPEC.md sections 8.4 and 8.6, `mcp_task_unfinished`): the stdio
+# server stock sends task states in turn 1. The task reservation ends with completed, and a later
+# state does not change it. The task waitlist ends with input_required, so it gives the finding
+# with its last state and the line of that state.
+def task_status(t: float, task_id: str, status: str) -> dict:
+    params = {"taskId": task_id, "status": status}
+    message = {"jsonrpc": "2.0", "method": "notifications/tasks/status", "params": params}
+    return mcp_message(t, "from_server", message)
+
+
+def titem(ts: float, line: int, task_id: str, status: str) -> dict:
+    """An expected mcp_task row of the server stock."""
+    row = item(1, "claude-code", ts, "mcp_task", line)
+    row.update(harness="mcp", session="stock", server="stock", name=task_id, output=status)
+    row["input"] = {"task_id": task_id, "peer": "server", "session_index": None}
+    row["source"]["file"] = "mcp.jsonl"
+    return row
+
+
+MCP_TASK_CASE = {
+    "tap": [window(10, 20)],
+    "manifest": {"test": "20261113-090000-mt01", "model_sessions": []},
+    "sessions": {},
+    "mcp": [
+        task_status(12, "reservation", "working"),
+        task_status(13, "reservation", "completed"),
+        task_status(14, "waitlist", "working"),
+        task_status(15, "waitlist", "input_required"),
+        task_status(16, "reservation", "working"),
+    ],
+    "trace": [
+        titem(12, 1, "reservation", "working"),
+        titem(13, 2, "reservation", "completed"),
+        titem(14, 3, "waitlist", "working"),
+        titem(15, 4, "waitlist", "input_required"),
+    ],
+    "findings": {
+        "v": "0.2",
+        "test": "20261113-090000-mt01",
+        "turns": 1,
+        "items": 4,
+        "sessions": [],
+        "otel": None,
+        "backend": None,
+        "model_api": None,
+        "mcp": {"file": "mcp.jsonl", "rows": 5, "items": 4, "ignored": {}},
+        "database": None,
+        "counts": counts(mcp_task_unfinished=1),
+        "findings": [
+            {
+                "check": "mcp_task_unfinished",
+                "turn": 1,
+                "detail": "stock: task waitlist was input_required at the end of the record",
+                "harness": "mcp",
+                "session": "stock",
+                "source": {"file": "mcp.jsonl", "line": 4},
+            },
+        ],
+    },
+}
+
+
 # Database queries (SPEC.md sections 7.13 and 8.4): the rows of database.jsonl as the Postgres
 # proxy writes them. In turn 1, a password message and a simple query. In turn 2, an extended
 # query and a query that fails. Between the turns, a query with no result at the end of the file.
@@ -6951,6 +7013,7 @@ TRACE_CASES = {
     "driver_trace_proxy": PROXY_DRIVER_CASE,
     "driver_trace_gaps": DRIVER_GAPS_CASE,
     "mcp_toy_shop": MCP_CASE,
+    "mcp_task_unfinished": MCP_TASK_CASE,
     "database_toy_shop": DATABASE_CASE,
     "database_formats": DATABASE_FORMATS_CASE,
     "database_pipeline": DATABASE_PIPELINE_CASE,
