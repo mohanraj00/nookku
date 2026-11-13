@@ -143,6 +143,13 @@ def test_a_key_file_that_is_not_valid_stops_the_start(
         ([12], 12, "number", "0", False),
         (float("nan"), 12, "number", "0", False),
         (float("inf"), 12, "number", "0", False),
+        (Decimal("1.00000000000000000000000000001"), 0, "number", "1", False),
+        (Decimal("1E+40"), Decimal("1E+40"), "number", "0", True),
+        (Decimal("1E+200000"), Decimal("1E+200000"), "number", "0", True),
+        (Decimal("1E+200000"), 0, "number", "1", False),
+        (Decimal("1E-1000027"), 0, "number", "0", False),
+        (Decimal("2E-1000027"), Decimal("1E-1000027"), "number", "0", False),
+        (Decimal("2E-1000027"), Decimal("1E-1000027"), "number", "1E-1000027", True),
     ],
 )
 def test_the_match_rules(
@@ -223,9 +230,11 @@ def test_a_long_value_is_cut_in_the_detail() -> None:
         ('{"count": 100000000000000000000.0}', 100000000000000000000, True),
         ('{"count": 0.1234567890123456789}', Decimal("0.1234567890123456789"), True),
         ('{"count": 0.1234567890123456789}', Decimal("0.12345678901234568"), False),
+        ('{"count": {"nested": 1.5}}', 1, False),
     ],
 )
 def test_a_number_field_of_a_reply_keeps_each_digit(reply: str, answer: object, ok: bool) -> None:
     key = {"field": "count", "match": "number", "tolerance": Decimal(0), "answers": {"Q?": answer}}
     found = trace.answers_not_in_key([{"input": "Q?", "reply": reply}], key)
     assert (found == []) is ok
+    assert all(f["check"] == "answer_key_mismatch" for f in found)
