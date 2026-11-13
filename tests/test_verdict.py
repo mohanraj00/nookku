@@ -313,6 +313,39 @@ def test_a_seeded_answer_key_mismatch_fails_the_scripted_test(
     ]
 
 
+# The entry can write in the test folder. An agent that deletes the copy of the key must fail
+# the verdict, also with a limit for answer_key_mismatch only (SPEC.md section 7.14).
+DELETE_AGENT = COUNT_AGENT.replace(
+    "for raw in sys.stdin.buffer:",
+    "import os, pathlib\n"
+    "pathlib.Path(os.environ['NOOKKU_TEST_DIR'], 'answer_key.json').unlink()\n"
+    "for raw in sys.stdin.buffer:",
+)
+
+
+def test_an_agent_that_deletes_the_answer_key_fails_the_verdict(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    agent = tmp_path / "delete.py"
+    agent.write_text(DELETE_AGENT)
+    root = _shop(tmp_path, [sys.executable, str(agent)])
+    (root / "APP_SPEC.md").write_text(KEY_SPEC)
+    (root / "keys").mkdir()
+    (root / "keys" / "stock.json").write_text(json.dumps(STOCK_KEY))
+    code, out = _run(root, capsys)
+    assert code == 1, out
+    folder = bridge.latest_test(root)
+    assert folder is not None
+    assert not (folder / "answer_key.json").exists()
+    report = json.loads((folder / "verdict.json").read_text())
+    assert report["verdict"] == "fail"
+    assert report["problems"] == [
+        "the answer key cannot be used: the test folder has no file answer_key.json"
+    ]
+    mismatch = [c for c in report["classes"] if c["check"] == "answer_key_mismatch"]
+    assert mismatch == [{"check": "answer_key_mismatch", "count": 0, "most": 0, "verdict": "pass"}]
+
+
 def test_trace_verdict_rebuilds_a_missing_verdict_and_adds_it_to_the_seal(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
