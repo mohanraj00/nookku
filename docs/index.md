@@ -92,6 +92,7 @@ Pages for people who change the code of Nookku. You do not need them to test you
 - [Review rules](REVIEW.md): the review request texts and the design of the Claude review workflow.
 - [Code quality](contributing/code-quality.md): the rules of the code in this repo, and the check that enforces each rule.
 - [ADR 0001: One core, one plugin](contributing/adr/0001-one-core-one-plugin.md): why one Python core and one plugin serve Claude Code and Codex, and what the spikes measured.
+- [ADR 0002: Seeded faults, persona sets, answer keys and verifiers](contributing/adr/0002-seeded-faults-personas-answer-keys-verifiers.md): the proposed design of #546 to #549, for the owner to decide.
 - [Codex display spike](contributing/codex-display.md): the plugin display mechanisms, the CLI measurements and the desktop check.
 - [Run the proofs](contributing/run-the-proofs.md): run the proofs again after a change to a [relay](reference/glossary.md#relay) or for a new [harness](reference/glossary.md#harness) version.
 - [Proof gaps](contributing/proof-gaps.md): the tutorial, plugin load and egress proof fixes and their results.
