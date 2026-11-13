@@ -28,6 +28,7 @@ Use the section names exactly. The evaluation prompt names the files, and the mo
 | `Limits` | The maximum cost of a turn | A table of `Limit`, `Value` and `Meaning`. The names are below. |
 | `Trace points` | The spans or the events that the app must send, as the [trace](glossary.md#trace) shows them | A table of `Name`, `Source` and `When`. The sources are below. |
 | `Verdict` | The most [findings](glossary.md#findings) of each class that a test can have | A table of `Finding` and `Most`. The verdict of a test compares the findings with it ([Verdict](#verdict)). |
+| `Answer key` | The key file of the expected reply values, with no model | A table of `File`, `Field`, `Match` and `Tolerance` ([Answer key](#answer-key)). |
 
 Each part is optional.
 
@@ -99,6 +100,40 @@ The toy shop allows 0 `agent_error` and at most 1 `repeated_reply`:
 - The section and the table follow the rules of [Trace points](#trace-points): a heading of any level, more columns in any order, and no table in a fenced code block.
 - If the bridge cannot read a row, the verdict is `fail`, and `problems` in `verdict.json` names the file, the line and the problem. Examples: a class that the trace does not have, a second row for one class, or a `Most` that is not a whole number.
 - The bridge reads the table at the start of the test and records it in the manifest. If you change the table after the start, the verdict of that test does not change.
+
+### Answer key
+
+An answer key gives the expected value of a reply field for each question of a test. The trace compares each value with the key, with no model ([SPEC.md section 7.17](../../SPEC.md#717-answer-key)). The `Answer key` table declares the key:
+
+| Column | Value |
+|---|---|
+| `File` | The path of the key file in the project. |
+| `Field` | Optional. The dot path of the value in the JSON of the reply, for example `count`. With no `Field`, the value is the full reply text. |
+| `Match` | `exact` (the same string) or `number` (a number in the tolerance). |
+| `Tolerance` | The most difference for `number`, for example `0.5`. `exact` takes no tolerance. |
+
+```markdown
+## Answer key
+
+| File | Field | Match | Tolerance |
+|---|---|---|---|
+| `keys/stock.json` | `count` | number | 0.5 |
+```
+
+The key file is JSON, with a `source`, a `version` and the `answers`:
+
+```json
+{
+ "source": "the stock list of the toy shop, 2026-11-01",
+ "version": "3",
+ "answers": [{"question": "How many blue mugs?", "answer": 12}]
+}
+```
+
+- A turn is checked if its message is a question of the key, byte for byte.
+- A turn with no match gives the finding `answer_key_mismatch`. A question that no turn asked gives `answer_key_missing`. A `Verdict` row can limit each class.
+- The spec files have 1 `Answer key` row at most. If the bridge cannot read the row or the key file, the test does not start.
+- The bridge copies the key file into the test folder as `answer_key.json` and records its SHA-256 in the manifest, so the [seal](glossary.md#seal) covers the key. If you change the key after the start, the result of that test does not change.
 
 To make CI fail on a `fail` verdict, give `--verdict` to [`nookku run`](cli.md#nookku-run) or [`nookku trace`](cli.md#nookku-trace). Then the command exits with 1. The command uses the verdict only if it agrees with the [seal](glossary.md#seal) and its copy in `~/.nookku/seals/`, so a test with no copy of the seal fails ([SPEC.md section 7.14](../../SPEC.md#714-verdict)).
 

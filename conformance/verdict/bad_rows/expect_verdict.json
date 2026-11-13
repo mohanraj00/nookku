@@ -31,6 +31,18 @@
    "verdict": "pass"
   },
   {
+   "check": "answer_key_mismatch",
+   "count": null,
+   "most": null,
+   "verdict": "pass"
+  },
+  {
+   "check": "answer_key_missing",
+   "count": null,
+   "most": null,
+   "verdict": "pass"
+  },
+  {
    "check": "tool_error",
    "count": 0,
    "most": null,

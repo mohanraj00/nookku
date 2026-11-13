@@ -16,6 +16,8 @@
   "repeated_reply": 2,
   "reply_not_from_model": 0,
   "citation_not_read": 0,
+  "answer_key_mismatch": 0,
+  "answer_key_missing": 0,
   "tool_error": 0,
   "command_failed": 0,
   "span_error": 0,

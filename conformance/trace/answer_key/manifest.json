@@ -1,0 +1,13 @@
+{
+ "test": "20261113-090000-ak01",
+ "model_sessions": [],
+ "answer_key": {
+  "file": "keys/stock.json",
+  "sha256": "9d2cd60c007863ad8cb03376b7458b9feb96dd282c9315cb117318a5fd4cc2b4",
+  "source": "the stock list of the toy shop, 2026-11-01",
+  "version": "3",
+  "field": "count",
+  "match": "number",
+  "tolerance": "0.5"
+ }
+}

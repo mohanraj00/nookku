@@ -25,6 +25,7 @@ import json
 import shutil
 import struct
 import unicodedata
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -1124,6 +1125,8 @@ def counts(**n: int) -> dict:
         "repeated_reply",
         "reply_not_from_model",
         "citation_not_read",
+        "answer_key_mismatch",
+        "answer_key_missing",
         "tool_error",
         "command_failed",
         "span_error",
@@ -2214,6 +2217,155 @@ CITATION_CASE = citation_case(
     "20261113-080000-ci01", {"citation_field": "sources"}, [CITED_SHIPPING, CITED_BAD_VALUE]
 )
 CITATION_OFF_CASE = citation_case("20261113-080000-ci02", None, [])
+
+# The answer key (SPEC.md section 7.17). In the case answer_key, the key has 5 questions with
+# the match number and the tolerance 0.5. Turn 1 gives the answer, turn 2 a number in the
+# tolerance as a string, turn 3 a number out of the tolerance and turn 4 a reply with no field.
+# No turn asks the fifth question. The case answer_key_text has no field, so the value is the
+# full reply text with the match exact. In the case answer_key_changed, the copy of the key is
+# not the key of the manifest.
+STOCK_KEY = {
+    "source": "the stock list of the toy shop, 2026-11-01",
+    "version": "3",
+    "answers": [
+        {"question": "How many blue mugs?", "answer": 12},
+        {"question": "How many teapots?", "answer": 4.5},
+        {"question": "How many red mugs?", "answer": 3},
+        {"question": "How many cups?", "answer": 7},
+        {"question": "How many spoons?", "answer": 0},
+    ],
+}
+STOCK_TURNS = [
+    ("How many blue mugs?", '{"reply": "We have 12.", "count": 12}'),
+    ("How many teapots?", '{"reply": "About 5.", "count": "4.9"}'),
+    ("How many red mugs?", '{"reply": "We have 5.", "count": 5}'),
+    ("How many cups?", "We have some cups."),
+]
+TEXT_KEY = {
+    "source": "the replies of the toy shop FAQ",
+    "version": "2026.11",
+    "answers": [
+        {"question": "Do you ship to Pune?", "answer": "Yes, we ship to Pune in 3 days."},
+        {"question": "What do you sell?", "answer": "We sell teapots and mugs."},
+    ],
+}
+TEXT_TURNS = [
+    ("Do you ship to Pune?", "Yes, we ship to Pune in 3 days."),
+    ("What do you sell?", "We sell teapots, mugs and cups."),
+]
+
+
+def key_text(key: dict) -> str:
+    return json.dumps(key, indent=1) + "\n"
+
+
+def answer_case(
+    test: str,
+    key: dict,
+    turns: list,
+    field: str,
+    match: str,
+    tolerance: str | None,
+    found: list[dict],
+    copy: str | None = None,
+) -> dict:
+    tap = []
+    for n, (question, reply) in enumerate(turns, 1):
+        row = ex(question, reply, v="0.2")
+        row["ts"], row["started"] = T0 + 20 * n, T0 + 20 * n - 10
+        tap.append(row)
+    text = key_text(key)
+    record = {
+        "file": "keys/stock.json",
+        "sha256": sha(text),
+        "source": key["source"],
+        "version": key["version"],
+        "field": field,
+        "match": match,
+        "tolerance": tolerance,
+    }
+    n = Counter(f["check"] for f in found)
+    return {
+        "tap": tap,
+        "manifest": {"test": test, "model_sessions": [], "answer_key": record},
+        "sessions": {},
+        "files": {"answer_key.json": text if copy is None else copy},
+        "trace": [],
+        "findings": {
+            "v": "0.2",
+            "test": test,
+            "turns": len(turns),
+            "items": 0,
+            "sessions": [],
+            "otel": None,
+            "backend": None,
+            "model_api": None,
+            "mcp": None,
+            "database": None,
+            "counts": counts(**n),
+            "findings": found,
+        },
+    }
+
+
+ANSWER_KEY_CASE = answer_case(
+    "20261113-090000-ak01",
+    STOCK_KEY,
+    STOCK_TURNS,
+    "count",
+    "number",
+    "0.5",
+    [
+        {
+            "check": "answer_key_mismatch",
+            "turn": 3,
+            "detail": '"How many red mugs?": the key gives 3, and the reply gives 5',
+        },
+        {
+            "check": "answer_key_mismatch",
+            "turn": 4,
+            "detail": '"How many cups?": the key gives 7, and the reply gives no value',
+        },
+        {
+            "check": "answer_key_missing",
+            "turn": None,
+            "detail": '"How many spoons?": no turn asked it',
+        },
+    ],
+)
+ANSWER_KEY_TEXT_CASE = answer_case(
+    "20261113-090000-ak02",
+    TEXT_KEY,
+    TEXT_TURNS,
+    "",
+    "exact",
+    None,
+    [
+        {
+            "check": "answer_key_mismatch",
+            "turn": 2,
+            "detail": '"What do you sell?": the key gives "We sell teapots and mugs.", and the '
+            'reply gives "We sell teapots, mugs and cups."',
+        }
+    ],
+)
+ANSWER_KEY_CHANGED_CASE = answer_case(
+    "20261113-090000-ak03",
+    STOCK_KEY,
+    STOCK_TURNS,
+    "count",
+    "number",
+    "0.5",
+    [
+        {
+            "check": "answer_key_missing",
+            "turn": None,
+            "detail": "the answer key cannot be used: the SHA-256 of answer_key.json is not the "
+            "SHA-256 of the manifest",
+        }
+    ],
+    copy=key_text({**STOCK_KEY, "version": "4"}),
+)
 
 # OpenTelemetry (SPEC.md sections 7.5 and 8.4): the rows of otel.jsonl as the receiver writes them.
 # A harness tool_result that the session file has, one that it does not have, app spans with and
@@ -6789,6 +6941,9 @@ TRACE_CASES = {
     "reply_not_from_model_field": REPLY_FIELD_CASE,
     "citation_not_read": CITATION_CASE,
     "citation_not_read_off": CITATION_OFF_CASE,
+    "answer_key": ANSWER_KEY_CASE,
+    "answer_key_text": ANSWER_KEY_TEXT_CASE,
+    "answer_key_changed": ANSWER_KEY_CHANGED_CASE,
     "unseen_calls": UNSEEN_CASE,
     "unseen_calls_stdio": UNSEEN_STDIO_CASE,
     "driver_trace": DRIVER_CASE,
@@ -8923,6 +9078,8 @@ def main() -> None:
         for rel, lines in case["sessions"].items():
             (d / rel).parent.mkdir(parents=True, exist_ok=True)
             write(d / rel, lines)
+        for rel, text in case.get("files", {}).items():
+            (d / rel).write_text(text, encoding="utf-8")
         write(d / "otel.jsonl", case.get("otel"))
         write(d / "backend.jsonl", case.get("backend"))
         write(d / "model_api.jsonl", case.get("model_api"))

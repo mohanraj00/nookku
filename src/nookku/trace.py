@@ -18,6 +18,7 @@ from typing import Any, Literal, NamedTuple
 from urllib.parse import urlsplit
 
 from . import (
+    answer_key,
     app_spec,
     backend,
     db_proxy,
@@ -58,6 +59,8 @@ CHECKS = (
     "repeated_reply",
     "reply_not_from_model",
     "citation_not_read",
+    "answer_key_mismatch",
+    "answer_key_missing",
     "tool_error",
     "command_failed",
     "span_error",
@@ -1497,6 +1500,43 @@ def citations_not_read(
     return out
 
 
+def answers_not_in_key(
+    exchanges: list[dict[str, Any]], key: dict[str, Any] | str | None
+) -> list[dict[str, Any]]:
+    """The findings of the answer key (SPEC.md section 7.17). One answer_key_mismatch finding
+    for each turn with a question of the key and a reply value that does not match its answer.
+    One answer_key_missing finding, with no turn, for each question that no turn asked. A key
+    that cannot be used gives one answer_key_missing finding with the reason."""
+    if key is None:
+        return []
+    if isinstance(key, str):
+        return [_finding("answer_key_missing", None, f"the answer key cannot be used: {key}")]
+    out: list[dict[str, Any]] = []
+    answers, field = key["answers"], key["field"]
+    asked: set[str] = set()
+    for i, r in enumerate(exchanges, 1):
+        question = r.get("input")
+        if not isinstance(question, str) or question not in answers:
+            continue
+        asked.add(question)
+        reply = r.get("reply")
+        value = reply if isinstance(reply, str) else None
+        if value is not None and field:
+            value = _at(_structured(value), field)
+        expected = answers[question]
+        if answer_key.matches(value, expected, key["match"], key["tolerance"]):
+            continue
+        got = "no value" if value is None else answer_key.shown(value)
+        given = answer_key.shown(expected)
+        detail = f"{json.dumps(question)}: the key gives {given}, and the reply gives {got}"
+        out.append(_finding("answer_key_mismatch", i, detail))
+    for question in answers:
+        if question not in asked:
+            detail = f"{json.dumps(question)}: no turn asked it"
+            out.append(_finding("answer_key_missing", None, detail))
+    return out
+
+
 # The attributes of an OpenTelemetry span or log that name a call of the app (the semantic
 # conventions of OpenTelemetry): the URL of an HTTP client call, the system of a database call,
 # and the method of an MCP call. A span with a server attribute is a call to the app, not a call
@@ -1715,6 +1755,7 @@ def check(
     unread: list[str] | None = None,
     drivers: list[tuple[str, set[str]]] | None = None,
     egress: list[dict[str, Any]] | None = None,
+    key: dict[str, Any] | str | None = None,
 ) -> list[dict[str, Any]]:
     """The findings of SPEC.md section 8.6. They do not change the audit's exit code. `seen`
     holds the addresses of the proxies (egress_seen), or None if the test has no egress answer.
@@ -1726,7 +1767,9 @@ def check(
     `unread` holds the details of the parts of the app spec that the trace does not check
     (app_spec.unread).
     `drivers` holds the name and the marks of each database with a driver trace (driver_marks).
-    `egress` holds the findings of the egress spans (egress_findings)."""
+    `egress` holds the findings of the egress spans (egress_findings).
+    `key` holds the answer key of the test (answer_key.load), the reason that the key cannot be
+    used, or None if the test has no answer key."""
     keys = {**TRACE_KEYS, **(keys or {})}
     out: list[dict[str, Any]] = []
     # A call to an MCP server is a call of the app, not an item of the model.
@@ -1738,6 +1781,7 @@ def check(
     out += repeated(exchanges, keys["repeated_reply"])
     out += not_from_model(exchanges, items, keys["model_reply_field"], keys["model_reply_match"])
     out += citations_not_read(exchanges, items, keys["citation_field"], keys["citation_prefix"])
+    out += answers_not_in_key(exchanges, key)
     # The lines of otel.jsonl with a driver query (with_driver_queries).
     driven = {it["source"]["line"] for it in items if it["harness"] == "driver"}
     for it in items:
@@ -1932,6 +1976,7 @@ def build(folder: Path) -> dict[str, Any]:
         unread,
         drivers,
         egress_found,
+        answer_key_of(folder, manifest),
     )
     try:
         point_summary = app_spec.summary(manifest.get("trace_points"), items, len(exchanges))
@@ -1965,6 +2010,17 @@ def build(folder: Path) -> dict[str, Any]:
     (folder / "findings.json").write_text(text, encoding="utf-8")
     # The caller prints the report, so it gets the escaped text of findings.json.
     return dict(json.loads(text))
+
+
+def answer_key_of(folder: Path, manifest: dict[str, Any]) -> dict[str, Any] | str | None:
+    """The answer key of a test folder for check(): the loaded key, the reason that it cannot be
+    used, or None if the manifest has no key `answer_key`."""
+    if manifest.get("answer_key") is None:
+        return None
+    try:
+        return answer_key.load(folder, manifest["answer_key"])
+    except (OSError, ValueError) as e:
+        return str(e)
 
 
 def egress_findings(

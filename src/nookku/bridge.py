@@ -22,6 +22,7 @@ from typing import Any
 
 from nookku import (
     __version__,
+    answer_key,
     app_spec,
     backend,
     db_proxy,
@@ -152,6 +153,10 @@ class TestConfig:
     # The limits of the Verdict table of the app spec, and each part of the table that is not a
     # limit (SPEC.md section 7.14).
     verdict: dict[str, Any] = field(default_factory=lambda: {"limits": {}, "unread": []})
+    # The manifest key answer_key, or None, and the bytes of the key file. The bridge copies the
+    # bytes into the test folder (SPEC.md section 7.17).
+    answer_key: dict[str, Any] | None = None
+    answer_key_data: bytes = b""
 
 
 def load_config(root: Path, entry_name: str | None = None) -> TestConfig:
@@ -168,6 +173,7 @@ def load_config(root: Path, entry_name: str | None = None) -> TestConfig:
         files = [(h["path"], b.decode("utf-8", "replace")) for h, b in contents]
         points, unread = app_spec.read(files)
         limits = verdict.read(files)
+        key, key_data = answer_key.read(root, files)
     except (ConfigError, policy.PolicyError) as e:
         raise BridgeError(str(e)) from None
     entry, models = data.get("entry") or [], data.get("models") or []
@@ -201,6 +207,8 @@ def load_config(root: Path, entry_name: str | None = None) -> TestConfig:
         body_limit=data.get("body_limit", backend.BODY_LIMIT),
         spec_data=copies,
         verdict=limits,
+        answer_key=key,
+        answer_key_data=key_data,
     )
 
 
@@ -963,6 +971,8 @@ def run(
         "trace_points": config.trace_points,
         "trace_points_unread": config.trace_points_unread,
         "verdict": config.verdict,
+        # The bridge copies the key file into answer_key.json (SPEC.md section 7.17).
+        "answer_key": config.answer_key,
         "tester_sessions": [tester_session] if tester_session else [],
         "model_sessions": [],
         "codex_gate": {"start": _start_gate(folder), "end": None},
@@ -981,6 +991,8 @@ def run(
     }
     paths = [h["path"] for h in config.spec]
     write_spec_copies(folder, list(zip(paths, config.spec_data, strict=True)))
+    if config.answer_key is not None:
+        (folder / answer_key.COPY).write_bytes(config.answer_key_data)
     _write_json(folder / "manifest.json", manifest)
     _log("manifest written")
     # A `--version` call can take seconds. The test must not wait for it to start.

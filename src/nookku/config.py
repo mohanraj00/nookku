@@ -297,31 +297,32 @@ SPEC_LIMIT = 1024 * 1024
 SPEC_COUNT = 20
 
 
-def spec_file(root: Path, path: str) -> Path:
+def spec_file(root: Path, path: str, what: str = "spec file") -> Path:
     """The resolved file of one path of the config key spec. The tester or the model writes the
     path, so it must be a file in the project after symlinks resolve, and not in the state
-    folder (SPEC.md section 7.1). Raise ConfigError if it breaks this rule."""
+    folder (SPEC.md section 7.1). `what` names the file in the error, for example `answer key`.
+    Raise ConfigError if it breaks this rule."""
     top = root.resolve()
     try:
         file = (top / path).resolve()
     # Python 3.10 to 3.12 raise RuntimeError for a symlink loop.
     except (OSError, ValueError, RuntimeError):
-        raise ConfigError(f"{FILE}: the spec file {path!r} is not a file") from None
+        raise ConfigError(f"{FILE}: the {what} {path!r} is not a file") from None
     if not file.is_relative_to(top):
-        raise ConfigError(f"{FILE}: the spec file {path!r} is not in the project folder")
+        raise ConfigError(f"{FILE}: the {what} {path!r} is not in the project folder")
     parts = file.relative_to(top).parts
     if parts and parts[0].casefold() in (STATE_DIR, OLD_STATE_DIR):
-        raise ConfigError(f"{FILE}: the spec file {path!r} is in the state folder {STATE_DIR}")
+        raise ConfigError(f"{FILE}: the {what} {path!r} is in the state folder {STATE_DIR}")
     if not file.is_file():
-        raise ConfigError(f"{FILE}: the spec file {path!r} is not a file")
+        raise ConfigError(f"{FILE}: the {what} {path!r} is not a file")
     return file
 
 
-def spec_bytes(root: Path, path: str) -> bytes:
+def spec_bytes(root: Path, path: str, what: str = "spec file") -> bytes:
     """The bytes of one spec file. The file is opened with no follow of a last symlink and
     must be a regular file of SPEC_LIMIT bytes or less, so a file that changes after the check
     cannot make the read follow a symlink, block or take all of the memory. Raise ConfigError."""
-    return _regular_bytes(spec_file(root, path), f"{FILE}: ", f"the spec file {path!r}")
+    return _regular_bytes(spec_file(root, path, what), f"{FILE}: ", f"the {what} {path!r}")
 
 
 def _regular_bytes(file: Path, prefix: str, what: str) -> bytes:
