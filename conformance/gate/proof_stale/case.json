@@ -1,0 +1,39 @@
+{
+ "subject": "sha256:ab12cd34",
+ "errors": {},
+ "tests": {
+  "price": {
+   "messages": [
+    "What is the price of the blue mug?",
+    "Is the teapot in stock?"
+   ],
+   "replies": [
+    true,
+    true
+   ],
+   "entry": [
+    "python",
+    "agent.py"
+   ],
+   "entry_name": null,
+   "limits": {},
+   "counts": {
+    "agent_error": 0,
+    "repeated_reply": 1
+   },
+   "audit": {
+    "exit": 0,
+    "breaks": [],
+    "errors": []
+   }
+  }
+ },
+ "proofs": {
+  "reports/measure.json": {
+   "text": "{\"error_bound\": 0.03}\n",
+   "modified": 1794000000,
+   "checked": 1794259200,
+   "error": null
+  }
+ }
+}

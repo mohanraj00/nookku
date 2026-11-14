@@ -34,6 +34,19 @@ A replay check compares the replies of a new test with the replies of an older t
 - The check `changed_turns` fails if more turns changed than `changed`. The text names each changed turn, and `result.json` records the base test id, the new test id and the count.
 - To see the words that changed, run `nookku replay` with the same script and `--base`.
 
+## Check a proof file
+
+A gate run can also check a file that a test or an analysis made, for example a measure report. Add the list `proofs` next to `tests`:
+
+```json
+"proofs": [{"path": "reports/measure.json", "max_age": 86400, "bound": {"field": ["error_bound"], "most": 0.05}}]
+```
+
+- `path` is relative to the folder of the gate file. The run reads the file after the last test, and the seal covers its copy.
+- `max_age` is the most age of the file in seconds. An older file fails with the reason `stale`.
+- `bound` is optional. `field` gives the keys of a number in the JSON file. A value above `most` fails with the reason `above_limit`.
+- A file that the run cannot read fails with the reason `missing`.
+
 ## Run the set
 
 1. Register the egress answer of the app, as for each test (`nookku register`). The gate run uses one answer for all of its tests.

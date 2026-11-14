@@ -1,0 +1,83 @@
+{
+ "v": 1,
+ "gate": "gate-case",
+ "subject": "sha256:ab12cd34",
+ "gate_sha256": "",
+ "verdict": "fail",
+ "problems": [],
+ "reasons": [
+  {
+   "proof": "reports/measure.json",
+   "check": "missing"
+  }
+ ],
+ "tests": [
+  {
+   "name": "price",
+   "test": "t-price",
+   "verdict": "pass",
+   "checks": [
+    {
+     "check": "missing_test",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "evidence",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "script",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "entry",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "verdict",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "limits",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "audit",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "turns",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "codex_hooks",
+     "verdict": "pass",
+     "text": null
+    }
+   ]
+  }
+ ],
+ "proofs": [
+  {
+   "path": "reports/measure.json",
+   "sha256": null,
+   "age": null,
+   "value": null,
+   "verdict": "fail",
+   "failures": [
+    {
+     "reason": "missing",
+     "text": "The file is missing: cannot read the file: No such file or directory."
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,24 @@
+{
+ "v": 1,
+ "tests": [
+  {
+   "name": "price",
+   "script": "scripts/price.jsonl",
+   "limits": {
+    "agent_error": 0
+   }
+  }
+ ],
+ "proofs": [
+  {
+   "path": "reports/measure.json",
+   "max_age": 86400,
+   "bound": {
+    "field": [
+     "error_bound"
+    ],
+    "most": 0.05
+   }
+  }
+ ]
+}

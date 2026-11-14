@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import shutil
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -349,6 +351,7 @@ def test_a_broken_seal_of_the_gate_cannot_be_used(
 
 
 ONE = b'{"v": 1, "tests": [%s]}'
+PROOF = b'{"v": 1, "tests": [{"name": "a", "script": "s"}], "proofs": [%s]}'
 
 
 def test_2_projects_in_the_same_second_get_different_gate_ids(
@@ -364,7 +367,7 @@ def test_2_projects_in_the_same_second_get_different_gate_ids(
 @pytest.mark.parametrize(
     "data, error",
     [
-        (b"[]", 'only the keys "v" and "tests"'),
+        (b"[]", 'the keys "v" and "tests"'),
         (b'{"v": 2, "tests": []}', "version must be 1"),
         (b'{"v": true, "tests": []}', "version must be 1"),
         (b'{"v": 1, "tests": []}', "1 to 200 tests"),
@@ -377,6 +380,17 @@ def test_2_projects_in_the_same_second_get_different_gate_ids(
         (ONE % b'{"name": "a", "script": "s", "limits": {"tone": 0}}', "not a check"),
         (ONE % b'{"name": "a", "script": "s", "limits": {"agent_error": -1}}', "whole"),
         (b"\xff", "not UTF-8"),
+        (b'{"v": 1, "tests": [], "more": 1}', 'optional "proofs"'),
+        (PROOF % b'{"path": "a"}', '"max_age"'),
+        (PROOF % b'{"path": "/a", "max_age": 1}', "relative"),
+        (PROOF % b'{"path": "a", "max_age": 0}', "from 1"),
+        (PROOF % b'{"path": "a", "max_age": true}', "from 1"),
+        (PROOF % b'{"path": "a", "max_age": 1}, {"path": "a", "max_age": 1}', "earlier"),
+        (PROOF % b'{"path": "a", "max_age": 1, "bound": {"field": []}}', '"field" and "most"'),
+        (PROOF % b'{"path": "a", "max_age": 1, "bound": {"field": [], "most": 1}}', "1 to 32"),
+        (PROOF % b'{"path": "a", "max_age": 1, "bound": {"field": [1], "most": 1}}', "keys"),
+        (PROOF % b'{"path": "a", "max_age": 1, "bound": {"field": ["e"], "most": "1"}}', "number"),
+        (PROOF % b'{"path": "a", "max_age": 1, "bound": {"field": ["e"], "most": NaN}}', "number"),
     ],
 )
 def test_a_gate_file_that_breaks_a_rule_is_refused(data: bytes, error: str) -> None:
@@ -474,20 +488,34 @@ def test_each_case_gives_its_result(case: Path, tmp_path: Path) -> None:
         pinned = {"entry": given["tests"][name]["entry"], "policy": {}, "spec": []}
         pinned["config_sha256"] = {}
         rows.append(gate.ledger_row(name, folder, None, pinned, pin))
+    proof_rows, copies = [], {}
+    for n, proof in enumerate(gate.parse_proofs(data), 1):
+        found = given["proofs"][proof["path"]]
+        body = None if found["text"] is None else found["text"].encode("utf-8")
+        row = gate.proof_row(
+            proof["path"], body, found["modified"], found["checked"], found["error"]
+        )
+        proof_rows.append(row)
+        if body is not None:
+            copies[n] = body
     ledger = {
         "v": 1,
         "gate": "gate-case",
         "subject": given["subject"],
         "tests_dir": str(tests_dir),
         "tests": rows,
+        "proofs": proof_rows,
     }
     expect = json.loads((case / "expect_result.json").read_text(encoding="utf-8"))
     expect["gate_sha256"] = seal.sha256_of(data)
-    assert gate.compute("gate-case", data, inputs, ledger, gate.read_evidence(ledger)) == expect
+    evidence = gate.read_evidence(ledger)
+    assert gate.compute("gate-case", data, inputs, ledger, evidence, copies) == expect
 
 
 def test_the_cases_cover_a_pass_a_fail_and_a_missing_test() -> None:
     assert {c.name for c in CASES} >= {"pass", "fail", "missing_test"}
+    proofs = {"proof_pass", "proof_missing", "proof_stale", "proof_above_limit"}
+    assert {c.name for c in CASES} >= proofs
 
 
 def test_a_turn_with_a_unicode_line_separator_is_one_turn() -> None:
@@ -496,3 +524,150 @@ def test_a_turn_with_a_unicode_line_separator_is_one_turn() -> None:
         json.dumps({"type": "turn", "said": text, "ok": True}, ensure_ascii=False) + "\n"
     ).encode()
     assert gate._turns(data) == [(text, True)]
+
+
+MEASURE = "reports/measure.json"
+
+
+def _proofs(path: Path, proofs: list[dict]) -> None:
+    """Add proof files to the gate file of _shop."""
+    data = json.loads(path.read_text())
+    path.write_text(json.dumps({**data, "proofs": proofs}))
+
+
+def _measure(root: Path, name: str, bound: float, age: int = 0) -> dict:
+    """A proof file in the gates folder with the field error_bound, and its declaration."""
+    file = root / "gates" / name
+    file.parent.mkdir(parents=True, exist_ok=True)
+    file.write_text(json.dumps({"run": {"error_bound": bound}}))
+    if age:
+        old = time.time() - age
+        os.utime(file, (old, old))
+    return {
+        "path": name,
+        "max_age": 86400,
+        "bound": {"field": ["run", "error_bound"], "most": 0.05},
+    }
+
+
+def test_a_fresh_proof_file_in_its_bound_passes_and_the_seal_covers_its_copy(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root, path = _shop(tmp_path, TWO[1:])
+    _proofs(path, [_measure(root, MEASURE, 0.03)])
+    code, out = _run(root, path, capsys)
+    assert code == 0, out
+    body = (root / "gates" / MEASURE).read_bytes()
+    [proof] = out["result"]["proofs"]
+    assert proof["path"] == MEASURE and proof["value"] == 0.03
+    assert (proof["verdict"], proof["failures"]) == ("pass", [])
+    assert proof["sha256"] == seal.sha256_of(body) and 0 <= proof["age"] <= 86400
+    folder = Path(out["gate"])
+    assert (folder / gate.PROOFS / "1").read_bytes() == body
+    assert "proofs/1" in json.loads((folder / seal.SEAL).read_text())["files"]
+    [row] = json.loads((folder / gate.RUN).read_text())["proofs"]
+    assert row["sha256"] == proof["sha256"] and row["error"] is None
+    assert row["checked"] - row["modified"] == proof["age"]
+    assert main(["gate", "verify", folder.name, "--root", str(root)]) == 0
+    assert f"Proof file {MEASURE}: pass." in capsys.readouterr().out
+
+
+def test_a_missing_stale_or_above_limit_proof_file_fails_the_gate(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root, path = _shop(tmp_path, TWO[1:])
+    declared = [
+        {"path": "reports/none.json", "max_age": 86400},
+        _measure(root, "reports/old.json", 0.03, age=3 * 86400),
+        _measure(root, "reports/wide.json", 0.08),
+        {**_measure(root, "reports/text.json", 0.03), "bound": {"field": ["x"], "most": 1}},
+    ]
+    _proofs(path, declared)
+    code, out = _run(root, path, capsys)
+    assert code == 1, out
+    result = out["result"]
+    assert result["verdict"] == "fail"
+    assert all(t["verdict"] == "pass" for t in result["tests"])
+    assert result["reasons"] == [
+        {"proof": "reports/none.json", "check": "missing"},
+        {"proof": "reports/old.json", "check": "stale"},
+        {"proof": "reports/wide.json", "check": "above_limit"},
+        {"proof": "reports/text.json", "check": "above_limit"},
+    ]
+    none, old, wide, text = result["proofs"]
+    assert none["sha256"] is None and none["failures"][0]["text"].startswith("The file is missing")
+    assert old["failures"][0]["text"].endswith("seconds old, the limit is 86400.")
+    assert wide["failures"] == [
+        {"reason": "above_limit", "text": "The value is 0.08, the limit is 0.05."}
+    ]
+    assert text["failures"][0]["text"] == 'The file has no field ["x"].'
+    assert main(["gate", "verify", "--root", str(root)]) == 1
+
+
+def test_a_change_of_a_proof_copy_breaks_the_verify(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root, path = _shop(tmp_path, TWO[1:])
+    _proofs(path, [_measure(root, MEASURE, 0.03)])
+    _, out = _run(root, path, capsys)
+    folder = Path(out["gate"])
+    (folder / gate.PROOFS / "1").write_text(json.dumps({"run": {"error_bound": 0.01}}))
+    seal.write(folder)
+    report, why = gate.verify(folder)
+    assert report is None
+    assert why is not None and why.startswith(f"{gate.RESULT} is not the result")
+    # The copy of a later read of the project file does not count: the run pinned its bytes.
+    (folder / gate.PROOFS / "1").unlink()
+    seal.write(folder)
+    assert gate.verify(folder)[0] is None
+
+
+def test_a_proof_file_that_is_a_pipe_is_missing_and_the_read_does_not_wait(
+    tmp_path: Path,
+) -> None:
+    pipe = tmp_path / "measure.json"
+    os.mkfifo(pipe)
+    assert gate.read_proof(pipe) == (None, None, "the path is not a regular file")
+    assert gate.read_proof(tmp_path / "none")[2].startswith("cannot read the file")
+    assert gate.read_proof(tmp_path)[2] is not None
+
+
+def test_a_gate_with_no_proof_files_keeps_the_result_format_of_0_5_7(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root, path = _shop(tmp_path, TWO[1:])
+    code, out = _run(root, path, capsys)
+    assert code == 0, out
+    folder = Path(out["gate"])
+    # A gate folder of Nookku 0.5.7 has no key "proofs" in run.json and in result.json.
+    assert "proofs" not in json.loads((folder / gate.RUN).read_text())
+    assert "proofs" not in json.loads((folder / gate.RESULT).read_text())
+    assert not (folder / gate.PROOFS).exists()
+    assert gate.verify(folder)[0] is not None
+    # An empty list is a declaration: the result then has an empty list.
+    _proofs(path, [])
+    _, out = _run(root, path, capsys)
+    assert out["result"]["proofs"] == []
+
+
+def test_a_very_large_integer_gives_a_compare_and_not_an_error(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    big = 10**400
+    assert gate._field(json.dumps({"e": big}).encode(), ["e"]) == (big, None)
+    root, path = _shop(tmp_path, TWO[1:])
+    file = root / "gates" / MEASURE
+    file.parent.mkdir(parents=True)
+    file.write_text(json.dumps({"e": big}))
+    declared = [
+        {"path": MEASURE, "max_age": 86400, "bound": {"field": ["e"], "most": 0.05}},
+        {"path": MEASURE + "x", "max_age": 86400, "bound": {"field": ["e"], "most": big}},
+    ]
+    shutil.copy(file, root / "gates" / (MEASURE + "x"))
+    _proofs(path, declared)
+    code, out = _run(root, path, capsys)
+    assert code == 1, out
+    above, same = out["result"]["proofs"]
+    assert above["value"] == big and above["failures"][0]["reason"] == "above_limit"
+    assert (same["verdict"], same["value"]) == ("pass", big)
+    assert main(["gate", "verify", "--root", str(root)]) == 1

@@ -1,0 +1,83 @@
+{
+ "v": 1,
+ "gate": "gate-case",
+ "subject": "sha256:ab12cd34",
+ "gate_sha256": "",
+ "verdict": "fail",
+ "problems": [],
+ "reasons": [
+  {
+   "proof": "reports/measure.json",
+   "check": "above_limit"
+  }
+ ],
+ "tests": [
+  {
+   "name": "price",
+   "test": "t-price",
+   "verdict": "pass",
+   "checks": [
+    {
+     "check": "missing_test",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "evidence",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "script",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "entry",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "verdict",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "limits",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "audit",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "turns",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "codex_hooks",
+     "verdict": "pass",
+     "text": null
+    }
+   ]
+  }
+ ],
+ "proofs": [
+  {
+   "path": "reports/measure.json",
+   "sha256": "21e537431116d70d0bcc95ac8856c0422e2068ccaff698087871ae9b6062d526",
+   "age": 3600,
+   "value": 0.08,
+   "verdict": "fail",
+   "failures": [
+    {
+     "reason": "above_limit",
+     "text": "The value is 0.08, the limit is 0.05."
+    }
+   ]
+  }
+ ]
+}
