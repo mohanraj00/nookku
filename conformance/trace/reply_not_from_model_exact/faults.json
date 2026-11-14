@@ -1,0 +1,16 @@
+{
+ "faults": [
+  {
+   "check": "reply_not_from_model",
+   "turn": 2
+  },
+  {
+   "check": "reply_not_from_model",
+   "turn": 3
+  },
+  {
+   "check": "turn_without_model",
+   "turn": 4
+  }
+ ]
+}

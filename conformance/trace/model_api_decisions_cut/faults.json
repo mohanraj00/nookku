@@ -1,0 +1,20 @@
+{
+ "faults": [
+  {
+   "check": "questions_lost",
+   "turn": 2
+  },
+  {
+   "check": "questions_lost",
+   "turn": 3
+  },
+  {
+   "check": "questions_lost",
+   "turn": 4
+  },
+  {
+   "check": "questions_lost",
+   "turn": 5
+  }
+ ]
+}

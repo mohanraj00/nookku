@@ -1,0 +1,12 @@
+{
+ "faults": [
+  {
+   "check": "agent_error",
+   "turn": 4
+  },
+  {
+   "check": "repeated_reply",
+   "turn": 5
+  }
+ ]
+}

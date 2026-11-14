@@ -1,0 +1,24 @@
+{
+ "faults": [
+  {
+   "check": "tool_error",
+   "turn": 2
+  },
+  {
+   "check": "command_failed",
+   "turn": 2
+  },
+  {
+   "check": "turn_without_model",
+   "turn": 3
+  },
+  {
+   "check": "item_between_turns",
+   "turn": null
+  },
+  {
+   "check": "session_inferred",
+   "turn": null
+  }
+ ]
+}

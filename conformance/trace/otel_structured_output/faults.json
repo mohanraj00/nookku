@@ -1,0 +1,12 @@
+{
+ "faults": [
+  {
+   "check": "tool_error",
+   "turn": 1
+  },
+  {
+   "check": "otel_tool_not_in_session",
+   "turn": 1
+  }
+ ]
+}

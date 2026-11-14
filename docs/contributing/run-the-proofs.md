@@ -46,6 +46,7 @@ If a hook changes, trust it again. A new plugin script also needs a new run of `
 | The trace with the Claude Code of a different Agent SDK | `uv run python scripts/proof_trace.py <out-dir> claude-agent-sdk==<version>` | `<out-dir>/results.json` |
 | The trace with a Claude Code that no Agent SDK bundles | `uv run python scripts/proof_trace.py <out-dir> claude-agent-sdk==<version> <path of claude>` | `<out-dir>/results.json` |
 | The Claude Code version of each Agent SDK release, no model | `uv run python scripts/proof_sdk_bundles.py <version>...` | `proofs/trace/sdk-bundles.json` |
+| The seeded faults of the trace checks, no model | `uv run nookku faults --json > proofs/release/faults-<version>.json` | `proofs/release/faults-<version>.json` |
 | Backend proxy, no model | `uv run python scripts/proof_backend.py` | `proofs/backend/` |
 | Model API proxy, no model | `uv run python scripts/proof_model_api.py` | `proofs/model-api/` |
 | Driver trace of a database, no model | `uv run python scripts/proof_driver_trace.py` | `proofs/driver-trace/` |

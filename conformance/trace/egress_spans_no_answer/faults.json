@@ -1,0 +1,8 @@
+{
+ "faults": [
+  {
+   "check": "egress_denied",
+   "turn": 2
+  }
+ ]
+}

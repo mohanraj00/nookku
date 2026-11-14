@@ -1,0 +1,8 @@
+{
+ "faults": [
+  {
+   "check": "server_not_from_app",
+   "turn": null
+  }
+ ]
+}

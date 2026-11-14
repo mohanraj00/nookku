@@ -1,0 +1,12 @@
+{
+ "faults": [
+  {
+   "check": "driver_without_span",
+   "turn": null
+  },
+  {
+   "check": "item_between_turns",
+   "turn": null
+  }
+ ]
+}

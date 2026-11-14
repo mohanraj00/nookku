@@ -1,0 +1,8 @@
+{
+ "faults": [
+  {
+   "check": "span_error",
+   "turn": 1
+  }
+ ]
+}

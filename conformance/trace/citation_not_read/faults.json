@@ -1,0 +1,12 @@
+{
+ "faults": [
+  {
+   "check": "citation_not_read",
+   "turn": 2
+  },
+  {
+   "check": "citation_not_read",
+   "turn": 4
+  }
+ ]
+}

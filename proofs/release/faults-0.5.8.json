@@ -1,0 +1,542 @@
+{
+ "nookku": "0.5.8",
+ "cases": 40,
+ "checks": 28,
+ "faults": [
+  {
+   "case": "answer_key",
+   "check": "answer_key_mismatch",
+   "turn": 3,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "answer_key",
+   "check": "answer_key_mismatch",
+   "turn": 4,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "answer_key",
+   "check": "answer_key_missing",
+   "turn": null,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "answer_key_changed",
+   "check": "answer_key_missing",
+   "turn": null,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "answer_key_text",
+   "check": "answer_key_mismatch",
+   "turn": 2,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "backend_toy_shop",
+   "check": "backend_error",
+   "turn": 2,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "backend_toy_shop",
+   "check": "item_between_turns",
+   "turn": null,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "citation_not_read",
+   "check": "citation_not_read",
+   "turn": 2,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "citation_not_read",
+   "check": "citation_not_read",
+   "turn": 4,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "claude_code_toy_shop",
+   "check": "agent_error",
+   "turn": 2,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "claude_code_toy_shop",
+   "check": "tool_error",
+   "turn": 2,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "claude_code_toy_shop",
+   "check": "tool_error",
+   "turn": null,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "claude_code_toy_shop",
+   "check": "turn_without_model",
+   "turn": 3,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "claude_code_toy_shop",
+   "check": "item_between_turns",
+   "turn": null,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "codex_model_error",
+   "check": "model_error",
+   "turn": 1,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "codex_model_error",
+   "check": "model_error",
+   "turn": null,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "codex_toy_shop",
+   "check": "tool_error",
+   "turn": 2,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "codex_toy_shop",
+   "check": "command_failed",
+   "turn": 2,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "codex_toy_shop",
+   "check": "turn_without_model",
+   "turn": 3,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "codex_toy_shop",
+   "check": "item_between_turns",
+   "turn": null,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "codex_toy_shop",
+   "check": "session_inferred",
+   "turn": null,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "database_pipeline",
+   "check": "database_error",
+   "turn": 1,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "database_toy_shop",
+   "check": "database_error",
+   "turn": 2,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "database_toy_shop",
+   "check": "database_error",
+   "turn": null,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "database_toy_shop",
+   "check": "item_between_turns",
+   "turn": null,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "driver_trace",
+   "check": "span_error",
+   "turn": 2,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "driver_trace",
+   "check": "database_error",
+   "turn": 2,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "driver_trace_gaps",
+   "check": "driver_without_span",
+   "turn": null,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "driver_trace_gaps",
+   "check": "item_between_turns",
+   "turn": null,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "driver_trace_proxy",
+   "check": "span_error",
+   "turn": 1,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "egress_spans",
+   "check": "egress_not_in_discovery",
+   "turn": null,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "egress_spans",
+   "check": "egress_denied",
+   "turn": 2,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "egress_spans_no_answer",
+   "check": "egress_denied",
+   "turn": 2,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "egress_spans_version_two",
+   "check": "egress_not_in_discovery",
+   "turn": null,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "egress_spans_version_two",
+   "check": "egress_denied",
+   "turn": 2,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "gateway_toy_shop",
+   "check": "model_api_error",
+   "turn": 2,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "mcp_task_unfinished",
+   "check": "mcp_task_unfinished",
+   "turn": 1,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "mcp_toy_shop",
+   "check": "tool_error",
+   "turn": 2,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "model_api_cut",
+   "check": "model_api_error",
+   "turn": 3,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "model_api_decisions_cut",
+   "check": "questions_lost",
+   "turn": 2,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "model_api_decisions_cut",
+   "check": "questions_lost",
+   "turn": 3,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "model_api_decisions_cut",
+   "check": "questions_lost",
+   "turn": 4,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "model_api_decisions_cut",
+   "check": "questions_lost",
+   "turn": 5,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "model_api_responses",
+   "check": "model_api_error",
+   "turn": 2,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "model_api_toy_shop",
+   "check": "model_api_error",
+   "turn": 2,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "openinference_toy_shop",
+   "check": "proxy_call_without_span",
+   "turn": 2,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "otel_structured_output",
+   "check": "tool_error",
+   "turn": 1,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "otel_structured_output",
+   "check": "otel_tool_not_in_session",
+   "turn": 1,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "otel_toy_shop",
+   "check": "span_error",
+   "turn": 2,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "otel_toy_shop",
+   "check": "span_error",
+   "turn": null,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "otel_toy_shop",
+   "check": "item_between_turns",
+   "turn": null,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "otel_toy_shop",
+   "check": "otel_tool_not_in_session",
+   "turn": 2,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "repeated_reply",
+   "check": "agent_error",
+   "turn": 4,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "repeated_reply",
+   "check": "repeated_reply",
+   "turn": 2,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "repeated_reply",
+   "check": "repeated_reply",
+   "turn": 5,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "repeated_reply_off",
+   "check": "agent_error",
+   "turn": 4,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "repeated_reply_three",
+   "check": "agent_error",
+   "turn": 4,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "repeated_reply_three",
+   "check": "repeated_reply",
+   "turn": 5,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "reply_not_from_model",
+   "check": "reply_not_from_model",
+   "turn": 3,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "reply_not_from_model",
+   "check": "turn_without_model",
+   "turn": 4,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "reply_not_from_model_exact",
+   "check": "reply_not_from_model",
+   "turn": 2,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "reply_not_from_model_exact",
+   "check": "reply_not_from_model",
+   "turn": 3,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "reply_not_from_model_exact",
+   "check": "turn_without_model",
+   "turn": 4,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "reply_not_from_model_field",
+   "check": "reply_not_from_model",
+   "turn": 3,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "reply_not_from_model_off",
+   "check": "turn_without_model",
+   "turn": 4,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "servers_not_from_app",
+   "check": "server_not_from_app",
+   "turn": null,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "trace_points_edges",
+   "check": "missing_trace_point",
+   "turn": 1,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "trace_points_edges",
+   "check": "trace_points_unread",
+   "turn": null,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "trace_points_toy_shop",
+   "check": "missing_trace_point",
+   "turn": 2,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "trace_points_toy_shop",
+   "check": "missing_trace_point",
+   "turn": 3,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "unseen_calls",
+   "check": "unseen_call",
+   "turn": 1,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "unseen_calls",
+   "check": "unseen_call",
+   "turn": 2,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "unseen_calls_driver",
+   "check": "unseen_call",
+   "turn": 1,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "unseen_calls_driver",
+   "check": "unseen_call",
+   "turn": 2,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "unseen_calls_stdio",
+   "check": "unseen_call",
+   "turn": 1,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "untested_versions",
+   "check": "version_untested",
+   "turn": null,
+   "found": true,
+   "error": null
+  }
+ ],
+ "missed": 0,
+ "unseeded": [],
+ "ok": true
+}

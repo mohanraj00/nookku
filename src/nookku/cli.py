@@ -17,6 +17,7 @@ from nookku import (
     bridge,
     egress_spans,
     evaluation,
+    faults,
     gateway,
     kit,
     openinference,
@@ -459,6 +460,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     ver.add_argument("--root", type=Path, default=Path.cwd())
     ver.add_argument("--json", action="store_true")
 
+    flt = sub.add_parser("faults", help="run each check of the trace on its seeded faults")
+    flt.add_argument(
+        "--cases",
+        type=Path,
+        default=faults.CASES,
+        help="the folder of the trace cases (default: conformance/trace)",
+    )
+    flt.add_argument("--json", action="store_true", help="print the report as JSON")
+
     tr = sub.add_parser("transcript", help="print the exact conversation for the model to evaluate")
     tr.add_argument("--root", type=Path, default=Path.cwd())
     tr.add_argument("--all", action="store_true", help="all sessions, not only the latest one")
@@ -628,6 +638,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         text = f"Test {folder.name}. {seal.summary(result)}"
         print(json.dumps(result, indent=1) if args.json else text)
         return 0 if result["intact"] else 2
+    if args.command == "faults":
+        try:
+            result = faults.run(args.cases)
+        except (OSError, ValueError) as e:
+            print(f"nookku: {e}", file=sys.stderr)
+            return 2
+        print(json.dumps(result, indent=1) if args.json else faults.render(result))
+        return 0 if result["ok"] else 1
     if args.command == "audit":
         report = audit(args.tap, args.relay, args.script)
         if args.json:
