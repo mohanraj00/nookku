@@ -142,10 +142,18 @@ PASS proves the connection, not the reply. PASS means that:
 ### `nookku run`
 
 ```text
-nookku run --script FILE [--entry NAME] [--root PATH] [--tests-dir PATH] [--json] [--verdict] [--evaluate | --no-evaluate]
+nookku run (--script FILE | --persona FILE) [--entry NAME] [--root PATH] [--tests-dir PATH] [--json] [--verdict] [--evaluate | --no-evaluate]
 ```
 
 Run a [scripted test](glossary.md#scripted-test) ([SPEC.md section 7.10](../../SPEC.md#710-scripted-tests)). It starts a test, sends each message of the script to the entry byte for byte, waits for each reply and ends the test. The script is JSONL with one `{"said": "..."}` row for each turn, or one JSON array of strings. The [test folder](glossary.md#test-folder) gets a copy of the script, and each [relay](glossary.md#relay) row has `"harness": "script"`. `run` does not switch relay mode on.
+
+With `--persona FILE`, a simulated user writes each message in place of a script ([SPEC.md section 7.10](../../SPEC.md#710-scripted-tests), [#520](https://github.com/mohanraj00/nookku/issues/520)). The file is a JSON object with only `persona`, `goal` and `turns`, the turn limit from 1 to 50:
+
+```json
+{"persona": "A customer whose teapot came broken.", "goal": "Get a return label for the teapot.", "turns": 8}
+```
+
+For each turn, `run` starts `claude -p` in a new session, with no settings, no `CLAUDE.md`, no plugin, no hook, no MCP server and no tool. The session gets only the persona, the goal and the turns so far. The relay row of each message has `"harness": "simulated-user"`. The run stops when the simulated user writes `GOAL MET`, at the turn limit, at a turn with no reply, or when the session fails. The test folder gets `persona.json`, a copy of the file, and `simulated_user.json` with the result. The messages are not deterministic, so a [gate run](#nookku-gate) does not start a simulated user. To send the same messages again, save the test with [`nookku script save`](#nookku-script) and run the script.
 
 The output gives the test id, the count of turns, the audit and the trace, and the verdict if the [app spec](app-spec.md#verdict) gives limits, and then `PASS` or each `FAIL:` line. It does not give the replies. Read them with `nookku transcript`.
 
@@ -153,7 +161,8 @@ By default, only a person runs `nookku run`: the relay denies it from the model.
 
 | Flag | Default | Meaning |
 |---|---|---|
-| `--script FILE` | required | The script file. |
+| `--script FILE` | `--script` or `--persona` | The script file. |
+| `--persona FILE` | `--script` or `--persona` | The persona file of a simulated user. It needs Claude Code. |
 | `--entry NAME` | the key `entry` | A name in the config key `entries`. It does not take a command line. |
 | `--root PATH` | the current folder | The project. |
 | `--tests-dir PATH` | `$NOOKKU_TESTS_DIR`, else `.nookku/tests` | The [tests folder](#the-tests-folder). |
@@ -163,8 +172,8 @@ By default, only a person runs `nookku run`: the relay denies it from the model.
 
 | Exit code | Meaning |
 |---|---|
-| 0 | The audit of the test is clean. |
-| 1 | The test did not start, for example the script breaks a rule or the entry name is unknown. Or a turn has no reply, the audit is not clean, or the Codex hooks changed. With `--verdict`, also if the verdict is `fail` ([SPEC.md section 7.14](../../SPEC.md#714-verdict)). |
+| 0 | The audit of the test is clean. With `--persona`, the run also sent a message and stopped at the goal or the turn limit. |
+| 1 | The test did not start, for example a rule of the script or of the persona file is broken, or the entry name is unknown. With `--persona`, the session of the simulated user failed or sent no message. Or a turn has no reply, the audit is not clean, or the Codex hooks changed. With `--verdict`, also if the verdict is `fail` ([SPEC.md section 7.14](../../SPEC.md#714-verdict)). |
 
 ### `nookku script`
 
@@ -709,6 +718,7 @@ The background process of a test ([architecture.md](../architecture.md#the-bridg
 | `--test ID` | required | The test id. |
 | `--tester-session ID` | none | The tester's harness session id. |
 | `--entry-name NAME` | none | The name of the entry in `entries`, from `nookku run --entry`. |
+| `--persona-source FILE` | none | The absolute path of the persona file of a simulated user, for the manifest. `run` copies the file into the test folder before it starts the bridge. |
 | `--script-source FILE` | none | The absolute path of the script of a scripted test, for the manifest. `run` copies the script into the test folder before it starts the bridge. |
 | `--check` | off | The test is a test of `nookku check`. The manifest records `"check": true`, so the model does not evaluate the test ([SPEC.md section 9.1](../../SPEC.md#91-start)). |
 

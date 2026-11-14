@@ -87,7 +87,10 @@ def test_the_help_lists_no_internal_command_and_each_command_still_runs(
     monkeypatch.setattr(bridge, "run", lambda *args, **kw: calls.append((args, kw)) or 0)
     assert main(["bridge", "--root", str(tmp_path), "--test", "t-1"]) == 0
     assert calls == [
-        ((tmp_path, "t-1", None), {"entry_name": None, "script_source": None, "check": False})
+        (
+            (tmp_path, "t-1", None),
+            {"entry_name": None, "script_source": None, "check": False, "persona_source": None},
+        )
     ]
     served: list[Path] = []
     monkeypatch.setattr(mcp, "serve", lambda root: served.append(root) or 0)

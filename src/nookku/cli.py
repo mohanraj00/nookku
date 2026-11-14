@@ -348,7 +348,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
 
     run = sub.add_parser("run", help="run a scripted test: send each message of a script file")
-    run.add_argument("--script", required=True, type=Path, help="the script file (JSONL or JSON)")
+    source = run.add_mutually_exclusive_group(required=True)
+    source.add_argument("--script", type=Path, help="the script file (JSONL or JSON)")
+    source.add_argument(
+        "--persona",
+        type=Path,
+        help="a persona file: a simulated user writes each message (not for a gate run)",
+    )
     run.add_argument("--entry", help="the name of an entry in the config key entries")
     run.add_argument("--root", type=Path, default=Path.cwd())
     run.add_argument("--json", action="store_true", help="print the result as JSON")
@@ -427,6 +433,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     br.add_argument("--tester-session")
     br.add_argument("--entry-name")
     br.add_argument("--script-source")
+    br.add_argument("--persona-source")
     br.add_argument("--check", action="store_true")
 
     mode = sub.add_parser("mode", help="switch relay mode on or off (with an entry: start or end)")
@@ -595,6 +602,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             entry_name=args.entry_name,
             script_source=args.script_source,
             check=args.check,
+            persona_source=args.persona_source,
         )
     if args.command == "run":
         return _run_command(args)
@@ -1074,11 +1082,16 @@ def _run_command(
     the test folder, and gives more lines and more JSON keys. `egress` is the recorded egress
     answer of a replay, else the test uses the pending answer (SPEC.md section 7.11)."""
     root = args.root.resolve()
-    script_path = args.script if args.script.is_absolute() else Path.cwd() / args.script
+    persona = getattr(args, "persona", None)
+    given = args.script if persona is None else persona
+    path = given if given.is_absolute() else Path.cwd() / given
     try:
-        passed, lines, folder = bridge.run_script(
-            root, script_path, args.entry, egress, gate=getattr(args, "verdict", False)
-        )
+        if persona is not None:
+            passed, lines, folder = bridge.run_persona(root, path, args.entry)
+        else:
+            passed, lines, folder = bridge.run_script(
+                root, path, args.entry, egress, gate=getattr(args, "verdict", False)
+            )
     except bridge.BridgeError as e:
         print(json.dumps({"error": str(e)}) if args.json else f"nookku: {e}")
         return 1
