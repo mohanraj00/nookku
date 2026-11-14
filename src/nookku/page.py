@@ -221,7 +221,8 @@ def _send_locked(root: Path, said: str, test_id: str | None = None) -> dict[str,
     # `nookku end` switches relay mode off before it stops the test.
     if not kit.is_on(root) or state.closed(folder):
         return {"sent": False, "shown": RELAY_OFF, "ok": False}
-    if manifest.get("script") is not None:
+    # A test of a simulated user is a scripted test too (SPEC.md section 7.10).
+    if manifest.get("script") is not None or manifest.get("persona") is not None:
         return {"sent": False, "shown": SCRIPTED, "ok": False}
     shown, ok = kit.checked(*state.send(cur, said))
     if state.closed(folder):

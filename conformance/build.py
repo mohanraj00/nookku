@@ -596,6 +596,25 @@ CASES_BY_NAME: dict[str, tuple[list | None, list | None, dict]] = {
         ],
         {"exit": 1, "breaks": [["altered_reply", 2, 2]]},
     ),
+    # A simulated user writes turns with the harness "simulated-user" (SPEC.md sections 2.2 and
+    # 7.10). The test has no script, so the audit has no script check and matches them the same.
+    "simulated_user_turns_clean": (
+        CLEAN_TAP,
+        [
+            {**turn(m, r, v="0.2"), "harness": "simulated-user", "ok": True}
+            for m, r in ((M1, R1), (M2, R2), (M3, R3))
+        ],
+        {"exit": 0, "breaks": []},
+    ),
+    "simulated_user_turn_altered_input": (
+        CLEAN_TAP,
+        [
+            {**turn(M1, R1, v="0.2"), "harness": "simulated-user", "ok": True},
+            {**turn(M2 + " ", R2, v="0.2"), "harness": "simulated-user", "ok": True},
+            {**turn(M3, R3, v="0.2"), "harness": "simulated-user", "ok": True},
+        ],
+        {"exit": 1, "breaks": [["altered_input", 2, 2]]},
+    ),
     "optional_turn_fields": (
         CLEAN_TAP,
         [{**t, "ok": True, "session": "s1"} for t in CLEAN_RELAY],

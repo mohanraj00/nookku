@@ -514,7 +514,18 @@ def scripted_note(folder: Path) -> str:
         manifest = loads((folder / "manifest.json").read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return ""
-    found = manifest.get("script") if isinstance(manifest, dict) else None
+    if not isinstance(manifest, dict):
+        return ""
+    persona = manifest.get("persona")
+    if isinstance(persona, dict):
+        return (
+            "In this test, a simulated user wrote each message: the harness model in a new "
+            f"session, with only the persona and the goal of {persona.get('source')} (copy: "
+            f"{persona.get('file')}, SHA-256 {persona.get('sha256')}) and the turns so far. Each "
+            "message has the harness simulated-user in relay.jsonl. The messages are not "
+            "deterministic. Judge the replies of the agent, not the messages.\n\n"
+        )
+    found = manifest.get("script")
     if not isinstance(found, dict):
         return ""
     name = manifest.get("entry_name") or "the default entry"

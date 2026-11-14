@@ -34,6 +34,7 @@ from nookku import (
     policy,
     script,
     seal,
+    simulated_user,
     testkey,
     trace,
     verdict,
@@ -304,6 +305,7 @@ def start(
     script_path: Path | None = None,
     check: bool = False,
     egress: dict[str, Any] | None = None,
+    persona_path: Path | None = None,
 ) -> dict[str, Any]:
     """Start a test in a background bridge process. Return the contents of current.json.
 
@@ -314,6 +316,8 @@ def start(
     bytes are copied into the test folder, so that the seal covers them (SPEC.md section 7.10).
     With check, the test is a test of `nookku check`: the first manifest records this, so that no
     evaluation starts, also if the check stops before its turn (SPEC.md section 9.1).
+    With persona_path, a simulated user writes the messages: the persona file is read before
+    the test starts, and its bytes are copied into the test folder (SPEC.md section 7.10).
     """
     config = load_config(root, entry_name)
     copy: tuple[str, bytes] | None = None
@@ -323,6 +327,12 @@ def start(
         except script.ScriptError as e:
             raise BridgeError(str(e)) from None
         copy = (script.COPIES[form], data)
+    if persona_path is not None:
+        try:
+            data = simulated_user.read(persona_path)[1]
+        except simulated_user.PersonaError as e:
+            raise BridgeError(str(e)) from None
+        copy = (simulated_user.COPY, data)
     cur = current(root)
     if cur is not None:
         raise BridgeError(f"test {cur['test']} runs already. End it first.")
@@ -373,6 +383,9 @@ def start(
     if copy is not None and script_path is not None:
         (folder / copy[0]).write_bytes(copy[1])
         argv += ["--script-source", str(script_path.resolve())]
+    if copy is not None and persona_path is not None:
+        (folder / copy[0]).write_bytes(copy[1])
+        argv += ["--persona-source", str(persona_path.resolve())]
     with (folder / "bridge.log").open("ab") as log:
         proc = subprocess.Popen(
             argv,
@@ -930,12 +943,14 @@ def run(
     entry_name: str | None = None,
     script_source: str | None = None,
     check: bool = False,
+    persona_source: str | None = None,
 ) -> int:
     """The bridge process: run the tap and the entry until SIGTERM, then collect."""
     root = root.resolve()
     folder = tests_dir(root) / test
     config = load_config(root, entry_name)
     copy = script.copy_in(folder)
+    persona = folder / simulated_user.COPY
     pid_start = process_start(os.getpid())
     if pid_start is None:
         print("nookku bridge: cannot read the start time of its process", file=sys.stderr)
@@ -964,6 +979,13 @@ def run(
             "source": script_source,
             "file": copy.name,
             "sha256": script.sha256(copy.read_bytes()),
+        },
+        "persona": None
+        if persona_source is None or not persona.is_file()
+        else {
+            "source": persona_source,
+            "file": persona.name,
+            "sha256": script.sha256(persona.read_bytes()),
         },
         "models": config.models,
         "started": started,
@@ -1361,10 +1383,21 @@ def run_script(
     finally:
         manifest = end(root, find_stopped=False) or {}
     lines = [f"Test {cur['test']}: {cur['dir']}", f"Turns: {sent} of {len(messages)} messages"]
+    # The audit can be clean when the last message got no reply, so name the turn here.
+    first = (
+        None if failed is None else f"The entry sent no reply to message {failed} of the script."
+    )
+    return _report(folder, manifest, lines, first, gate)
+
+
+def _report(
+    folder: Path, manifest: dict[str, Any], lines: list[str], first: str | None, gate: bool
+) -> tuple[bool, list[str], Path]:
+    """The result of a test that `run` drove: the lines of the audit, the trace, the verdict and
+    the problems after `lines`. `first` is a problem that comes before the problems of the audit."""
     code, problems = audit_problems(folder)
-    if failed is not None:
-        # The audit can be clean when the last message got no reply, so name the turn here.
-        problems.insert(0, f"The entry sent no reply to message {failed} of the script.")
+    if first is not None:
+        problems.insert(0, first)
     lines.append(f"Audit: exit {code}" if code is not None else "Audit: no valid audit.json")
     try:
         findings = loads((folder / "findings.json").read_text(encoding="utf-8"))
@@ -1391,6 +1424,70 @@ def run_script(
         problems.append(f"The Codex hooks changed during the test: {changed}")
     lines += [f"FAIL: {p}" for p in _hint_once(problems)] or ["PASS"]
     return not problems, lines, folder
+
+
+def run_persona(
+    root: Path, persona_path: Path, entry_name: str | None = None
+) -> tuple[bool, list[str], Path]:
+    """Run a test with a simulated user (SPEC.md section 7.10, #520). Return (passed, the report
+    lines, the test folder).
+
+    The harness model writes each message in a new session, from the persona, the goal and the
+    turns so far. Each message goes to the entry byte for byte, as a relay row with the harness
+    simulated-user. The run stops when the simulated user writes that the goal is met, at the
+    turn limit, at a turn with no reply, or when the session fails. Before the end, the run
+    writes the result to simulated_user.json, so the seal covers it."""
+    try:
+        persona = simulated_user.read(persona_path)[0]
+    except simulated_user.PersonaError as e:
+        raise BridgeError(str(e)) from None
+    cur = start(root, entry_name=entry_name, persona_path=persona_path)
+    folder = Path(cur["dir"])
+    relay = folder / "relay.jsonl"
+    turns: list[tuple[str, str | None]] = []
+    ended, error = "limit", None
+    try:
+        version = simulated_user.version()
+        while len(turns) < persona["turns"]:
+            try:
+                said = simulated_user.next_message(persona, turns)
+            except (OSError, simulated_user.PersonaError) as e:
+                ended, error = "error", str(e)
+                break
+            if said is None:
+                ended = "goal"
+                break
+            shown, ok = send(cur, said)
+            row = {"type": "turn", "harness": simulated_user.HARNESS, "said": said}
+            Writer(relay).append({**row, "shown": shown, "ok": ok})
+            turns.append((said, shown))
+            if not ok:
+                ended = "no_reply"
+                break
+        result = {
+            "harness": "claude-code",
+            "version": version,
+            "turns": len(turns),
+            "limit": persona["turns"],
+            "ended": ended,
+            "error": error,
+        }
+        _write_json(folder / simulated_user.RESULT, result)
+        time.sleep(2 * POLL)
+    finally:
+        manifest = end(root, find_stopped=False) or {}
+    lines = [
+        f"Test {cur['test']}: {cur['dir']}",
+        f"Turns: {len(turns)} of {persona['turns']}. {simulated_user.ENDED[ended]}",
+    ]
+    first = None
+    if ended == "error":
+        first = f"The simulated user stopped: {error}"
+    elif ended == "no_reply":
+        first = f"The entry sent no reply to message {len(turns)} of the simulated user."
+    elif not turns:
+        first = "The simulated user sent no message."
+    return _report(folder, manifest, lines, first, False)
 
 
 def check(root: Path) -> tuple[bool, list[str]]:

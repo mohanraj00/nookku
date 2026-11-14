@@ -413,6 +413,17 @@ Thus the proof of 0.5.7 recorded a test in a Workspace with each harness, and on
 
 The current run used nookku 0.5.8 on 2026-11-12, and the earlier run used nookku 0.5.6 on 2026-10-23 (the keys `nookku` and `date`). The earlier run failed S2: answer 1 named the backends as "Backends" and the stores as "Data files". S2 looks for the words `backend` and `store`, so it did not find 2 of the 5 parts. The next run, with no change, passed. The table keeps the failed run ([proofs/release/claude-code-0.5.6.md](../proofs/release/claude-code-0.5.6.md)). The `turns` field of the results gives each answer, each tool call and the changed files of each prompt. The `new_files` field gives each file of the build. The tester said no reset of the state. Thus the entry is a thin wrapper.
 
+### A test with a simulated user
+
+I ran the toy shop agent with 1 persona on 2026-11-14, with nookku 0.5.8 and Claude Code 2.1.319 as the simulated user ([data](../proofs/simulated-user/results.json), [method](../scripts/proof_simulated_user.py)). The persona is a customer whose teapot came broken. The goal is the refund for a damaged item, and the limit is 8 turns. The toy shop answers only a few keywords, so I chose a goal that it can answer. The return label of #520 is not a goal that the toy shop can reach.
+
+- U1: the test has 1 turn, with the harness `simulated-user`.
+- U2: after the reply, the simulated user wrote `GOAL MET`. The run ended with `goal`, the audit gave exit 0 and the seal is intact.
+- U3: the message has no planted word of a project file, and it shares no 8 words in a row with an instruction file of this machine.
+- U4: `nookku script save` kept the message byte for byte. The run of the script sent the same message, and its audit gave exit 0.
+
+This is 1 run with 1 turn. It does not show how the simulated user acts in a long conversation, or with an agent that does not reach the goal. The tests with no model cover the turn limit and a failed session ([test_simulated_user.py](../tests/test_simulated_user.py)).
+
 ## 2. Benchmark under pressure
 
 The question: does the mechanism stay exact in long, messy conversations with the agent?

@@ -50,7 +50,8 @@ def end(root: Path, test_id: str) -> dict[str, Any]:
     if cur["test"] != test_id:
         return {"ended": False, "error": OTHER_TEST.format(shown=test_id, running=cur["test"])}
     manifest = state.manifest_of(Path(cur["dir"])) or {}
-    if manifest.get("script") is not None:
+    # A test of a simulated user is a scripted test too (SPEC.md section 7.10).
+    if manifest.get("script") is not None or manifest.get("persona") is not None:
         return {"ended": False, "error": SCRIPTED}
     if manifest.get("check") is True:
         return {"ended": False, "error": CHECK}

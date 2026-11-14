@@ -1220,11 +1220,15 @@ LEGEND = (
 )
 
 
+# The sender of a turn that no person typed (SPEC.md section 7.10).
+SENDERS = {"script": "script", "simulated-user": "simulated user"}
+
+
 def render_turn(turn: Turn, n: int) -> str:
     shown = "(no reply shown)" if turn.shown is None else turn.shown
     who = "relay error, not an agent reply" if turn.ok is False else "agent"
     # A scripted turn is never shown as a typed turn (SPEC.md section 7.10).
-    sender = "script" if turn.harness == "script" else "tester"
+    sender = SENDERS.get(turn.harness or "", "tester")
     return f"──── {sender}, turn {n} ────\n{turn.said}\n──── {who} ────\n{shown}\n"
 
 
