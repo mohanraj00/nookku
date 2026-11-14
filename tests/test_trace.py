@@ -20,7 +20,7 @@ def rows(path: Path) -> list[dict]:
 @pytest.mark.parametrize("case", CASES, ids=[c.name for c in CASES])
 def test_case(case: Path, tmp_path: Path) -> None:
     folder = tmp_path / "test"
-    shutil.copytree(case, folder, ignore=shutil.ignore_patterns("expect_*"))
+    shutil.copytree(case, folder, ignore=shutil.ignore_patterns("expect_*", "faults.json"))
     if (case / "expect_error.json").exists():
         error = json.loads((case / "expect_error.json").read_text())
         with pytest.raises(RecordError) as caught:
@@ -493,7 +493,9 @@ SESSION = "sessions/claude-code/4f1c2a7e-0d3b-4c55-9a61-2b8e5d7c9f10.jsonl"
 
 
 def test_the_finding_lines_show_in_groups_by_turn_and_by_item(tmp_path: Path) -> None:
-    shutil.copytree(CLAUDE_CASE, tmp_path / "t", ignore=shutil.ignore_patterns("expect_*"))
+    shutil.copytree(
+        CLAUDE_CASE, tmp_path / "t", ignore=shutil.ignore_patterns("expect_*", "faults.json")
+    )
     assert trace.finding_lines(trace.build(tmp_path / "t")) == [
         "Turn 2:",
         "  agent_error: the agent gave status 500",

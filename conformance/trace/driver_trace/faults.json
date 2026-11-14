@@ -1,0 +1,12 @@
+{
+ "faults": [
+  {
+   "check": "span_error",
+   "turn": 2
+  },
+  {
+   "check": "database_error",
+   "turn": 2
+  }
+ ]
+}

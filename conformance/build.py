@@ -9164,6 +9164,11 @@ def main() -> None:
         findings = {**findings, "trace_points": rest.pop("trace_points", None), **rest}
         text = json.dumps(findings, indent=1, ensure_ascii=False)
         (d / "expect_findings.json").write_text(text + "\n")
+        # The seeded faults of the case: the check and the turn of each expected finding (#546).
+        seeded = list(dict.fromkeys((f["check"], f["turn"]) for f in findings["findings"]))
+        if seeded:
+            faults = [{"check": c, "turn": t} for c, t in seeded]
+            (d / "faults.json").write_text(json.dumps({"faults": faults}, indent=1) + "\n")
     shutil.rmtree(GATEWAY, ignore_errors=True)
     for name, case in GATEWAY_READ_CASES.items():
         d = GATEWAY / name

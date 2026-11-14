@@ -1,0 +1,12 @@
+{
+ "faults": [
+  {
+   "check": "missing_trace_point",
+   "turn": 2
+  },
+  {
+   "check": "missing_trace_point",
+   "turn": 3
+  }
+ ]
+}

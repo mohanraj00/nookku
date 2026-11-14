@@ -1,0 +1,12 @@
+{
+ "faults": [
+  {
+   "check": "egress_not_in_discovery",
+   "turn": null
+  },
+  {
+   "check": "egress_denied",
+   "turn": 2
+  }
+ ]
+}

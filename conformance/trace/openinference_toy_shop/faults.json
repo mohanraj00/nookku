@@ -1,0 +1,8 @@
+{
+ "faults": [
+  {
+   "check": "proxy_call_without_span",
+   "turn": 2
+  }
+ ]
+}

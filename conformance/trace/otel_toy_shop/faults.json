@@ -1,0 +1,20 @@
+{
+ "faults": [
+  {
+   "check": "span_error",
+   "turn": 2
+  },
+  {
+   "check": "span_error",
+   "turn": null
+  },
+  {
+   "check": "item_between_turns",
+   "turn": null
+  },
+  {
+   "check": "otel_tool_not_in_session",
+   "turn": 2
+  }
+ ]
+}

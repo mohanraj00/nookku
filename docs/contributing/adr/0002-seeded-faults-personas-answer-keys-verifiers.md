@@ -1,6 +1,6 @@
 # ADR 0002: Seeded faults, persona sets, answer keys and verifiers
 
-Status: proposed. Date: 2026-11-13. Issues: [#546](https://github.com/mohanraj00/nookku/issues/546), [#547](https://github.com/mohanraj00/nookku/issues/547), [#548](https://github.com/mohanraj00/nookku/issues/548) and [#549](https://github.com/mohanraj00/nookku/issues/549).
+Status: accepted on 2026-11-14. Date: 2026-11-13. Issues: [#546](https://github.com/mohanraj00/nookku/issues/546), [#547](https://github.com/mohanraj00/nookku/issues/547), [#548](https://github.com/mohanraj00/nookku/issues/548) and [#549](https://github.com/mohanraj00/nookku/issues/549).
 
 ## Context
 
@@ -74,7 +74,9 @@ Some parts exist now, in PRs that the owner did not merge yet:
 - **An adjudication in the gate file.** The gate file declares tests before they run, so it cannot hold an adjudication of a mismatch that a later test finds.
 - **A verifier inside Nookku.** Nookku then calls a model, and it has no model call today.
 
-## What the owner decides
+## What the owner decided
+
+The owner accepted this record on 2026-11-14, with the command name `nookku faults`. Thus each decision of this record applies:
 
 - The 4 command names.
 - That a gate run does not start a simulated user.
