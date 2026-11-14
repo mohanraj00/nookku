@@ -1,0 +1,13 @@
+{
+ "test": "20261113-090000-ak02",
+ "model_sessions": [],
+ "answer_key": {
+  "file": "keys/stock.json",
+  "sha256": "2742279ec8f0c7f94a3192a3b431bc4293e79e7041d0979800934a472725f527",
+  "source": "the replies of the toy shop FAQ",
+  "version": "2026.11",
+  "field": "",
+  "match": "exact",
+  "tolerance": null
+ }
+}

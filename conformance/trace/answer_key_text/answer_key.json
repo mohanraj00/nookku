@@ -1,0 +1,14 @@
+{
+ "source": "the replies of the toy shop FAQ",
+ "version": "2026.11",
+ "answers": [
+  {
+   "question": "Do you ship to Pune?",
+   "answer": "Yes, we ship to Pune in 3 days."
+  },
+  {
+   "question": "What do you sell?",
+   "answer": "We sell teapots and mugs."
+  }
+ ]
+}

@@ -230,7 +230,7 @@ Each finding in `findings.json` has `check`, `turn` and `detail`. A finding abou
 
 ### Trace checks
 
-The trace has 26 trace checks ([trace.py](../../src/nookku/trace.py)). `findings.json` sorts the findings in the order of this table.
+The trace has 28 trace checks ([trace.py](../../src/nookku/trace.py)). `findings.json` sorts the findings in the order of this table.
 
 | Check | Finding |
 |---|---|
@@ -238,6 +238,8 @@ The trace has 26 trace checks ([trace.py](../../src/nookku/trace.py)). `findings
 | `repeated_reply` | 2 or more consecutive turns have the same reply bytes, for example a fixed fallback text. The finding names each turn of the run in `turns`. The config key [`repeated_reply`](../reference/config.md#test-keys) sets the count, and 0 turns the check off. |
 | `reply_not_from_model` | The reply of a turn does not contain the text of a model output of that turn, for example because the app replaced the model text with a fixed decline text. A turn with no model output gives no finding. The config keys [`model_reply_field`](../reference/config.md#test-keys) and `model_reply_match` set the text to compare and the match, and `model_reply_match` `off` turns the check off. |
 | `citation_not_read` | A reply cites a source locator that no tool result of its turn contains, for example a policy page that the agent did not read. The config key [`citation_field`](../reference/config.md#test-keys) names the locators in the JSON of the reply, and the check runs only if it is set. |
+| `answer_key_mismatch` | A reply value that does not match the answer of the [answer key](../reference/app-spec.md#answer-key) for its question. |
+| `answer_key_missing` | A question of the answer key that no turn asked, or a key that the check cannot use. |
 | `tool_error` | A tool call of the app's model has an error. |
 | `command_failed` | A command of the app's model has an exit code that is not 0, or an error. |
 | `span_error` | An OpenTelemetry span of the app has an error. |

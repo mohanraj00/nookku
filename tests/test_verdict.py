@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import shutil
 import sys
@@ -227,6 +228,129 @@ def test_a_planted_bad_citation_fails_the_scripted_test(
     cited = [f for f in findings if f["check"] == "citation_not_read"]
     assert [f["turn"] for f in cited] == [1, 2, 3, 4]
     assert cited[0]["detail"] == '"policy/shipping#2": no tool result of this turn contains it'
+
+
+# A seeded fault of the answer key (SPEC.md section 7.17): the agent gives the count 12 for
+# each message, and the key gives 3 for the teapot. The key also has a question that the
+# script does not ask.
+COUNT_AGENT = f"""
+import json, runpy, sys
+answer = runpy.run_path({str(TOY_SHOP)!r})["answer"]
+for raw in sys.stdin.buffer:
+    request = json.loads(raw)
+    text = json.dumps({{"reply": answer(request["message"]), "count": 12}})
+    out = {{"v": 1, "id": request["id"], "reply": text}}
+    sys.stdout.write(json.dumps(out) + "\\n")
+    sys.stdout.flush()
+"""
+KEY_SPEC = """# Toy shop
+
+## Answer key
+
+| File | Field | Match | Tolerance |
+|---|---|---|---|
+| `keys/stock.json` | `count` | number | 0.5 |
+
+## Verdict
+
+| Finding | Most |
+|---|---|
+| `answer_key_mismatch` | 0 |
+"""
+STOCK_KEY = {
+    "source": "the stock list of the toy shop",
+    "version": "1",
+    "answers": [
+        {"question": "What is the price of the blue mug?", "answer": 12.4},
+        {"question": "Is the teapot in stock?", "answer": 3},
+        {"question": "Do you sell spoons?", "answer": 0},
+    ],
+}
+
+
+def test_a_seeded_answer_key_mismatch_fails_the_scripted_test(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    agent = tmp_path / "count.py"
+    agent.write_text(COUNT_AGENT)
+    root = _shop(tmp_path, [sys.executable, str(agent)])
+    (root / "APP_SPEC.md").write_text(KEY_SPEC)
+    (root / "keys").mkdir()
+    key = json.dumps(STOCK_KEY).encode()
+    (root / "keys" / "stock.json").write_bytes(key)
+    code, out = _run(root, capsys)
+    assert code == 1, out
+    assert "Audit: exit 0" in out["report"]
+    assert "Verdict: fail. answer_key_mismatch: 1, the limit is 0." in out["report"]
+    folder = bridge.latest_test(root)
+    assert folder is not None
+    manifest = json.loads((folder / "manifest.json").read_text())
+    assert manifest["answer_key"] == {
+        "file": "keys/stock.json",
+        "sha256": hashlib.sha256(key).hexdigest(),
+        "source": "the stock list of the toy shop",
+        "version": "1",
+        "field": "count",
+        "match": "number",
+        "tolerance": "0.5",
+    }
+    assert (folder / "answer_key.json").read_bytes() == key
+    seal = json.loads((folder / "seal.json").read_text())
+    assert seal["files"]["answer_key.json"] == hashlib.sha256(key).hexdigest()
+    findings = json.loads((folder / "findings.json").read_text())["findings"]
+    keyed = [f for f in findings if f["check"].startswith("answer_key")]
+    assert keyed == [
+        {
+            "check": "answer_key_mismatch",
+            "turn": 4,
+            "detail": '"Is the teapot in stock?": the key gives 3, and the reply gives 12',
+        },
+        {
+            "check": "answer_key_missing",
+            "turn": None,
+            "detail": '"Do you sell spoons?": no turn asked it',
+        },
+    ]
+
+
+# The entry cannot read the answer key in the test folder (SPEC.md section 7.17). This agent
+# gives the keyed answer of each question if it can read the copy, and it puts a symlink at the
+# path of the copy. The bridge writes the copy after the entry stops, and follows no symlink.
+READ_AGENT = COUNT_AGENT.replace(
+    "for raw in sys.stdin.buffer:",
+    "import os, pathlib\n"
+    "copy = pathlib.Path(os.environ['NOOKKU_TEST_DIR'], 'answer_key.json')\n"
+    "key = {}\n"
+    "if copy.is_file():\n"
+    "    key = {a['question']: a['answer'] for a in json.loads(copy.read_text())['answers']}\n"
+    "copy.symlink_to(os.environ['TARGET'])\n"
+    "for raw in sys.stdin.buffer:",
+).replace('"count": 12}', '"count": key.get(request["message"], 12)}')
+
+
+def test_the_entry_cannot_read_the_answer_key(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    agent = tmp_path / "read.py"
+    agent.write_text(READ_AGENT)
+    target = tmp_path / "target.txt"
+    target.write_text("not the key")
+    monkeypatch.setenv("TARGET", str(target))
+    root = _shop(tmp_path, [sys.executable, str(agent)])
+    (root / "APP_SPEC.md").write_text(KEY_SPEC)
+    (root / "keys").mkdir()
+    key = json.dumps(STOCK_KEY).encode()
+    (root / "keys" / "stock.json").write_bytes(key)
+    code, out = _run(root, capsys)
+    assert code == 1, out
+    assert "Verdict: fail. answer_key_mismatch: 1, the limit is 0." in out["report"]
+    folder = bridge.latest_test(root)
+    assert folder is not None
+    copy = folder / "answer_key.json"
+    assert not copy.is_symlink() and copy.read_bytes() == key
+    assert target.read_text() == "not the key"
+    seal = json.loads((folder / "seal.json").read_text())
+    assert seal["files"]["answer_key.json"] == hashlib.sha256(key).hexdigest()
 
 
 def test_trace_verdict_rebuilds_a_missing_verdict_and_adds_it_to_the_seal(
