@@ -630,3 +630,44 @@ def test_a_proof_file_that_is_a_pipe_is_missing_and_the_read_does_not_wait(
     assert gate.read_proof(pipe) == (None, None, "the path is not a regular file")
     assert gate.read_proof(tmp_path / "none")[2].startswith("cannot read the file")
     assert gate.read_proof(tmp_path)[2] is not None
+
+
+def test_a_gate_with_no_proof_files_keeps_the_result_format_of_0_5_7(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root, path = _shop(tmp_path, TWO[1:])
+    code, out = _run(root, path, capsys)
+    assert code == 0, out
+    folder = Path(out["gate"])
+    # A gate folder of Nookku 0.5.7 has no key "proofs" in run.json and in result.json.
+    assert "proofs" not in json.loads((folder / gate.RUN).read_text())
+    assert "proofs" not in json.loads((folder / gate.RESULT).read_text())
+    assert not (folder / gate.PROOFS).exists()
+    assert gate.verify(folder)[0] is not None
+    # An empty list is a declaration: the result then has an empty list.
+    _proofs(path, [])
+    _, out = _run(root, path, capsys)
+    assert out["result"]["proofs"] == []
+
+
+def test_a_very_large_integer_gives_a_compare_and_not_an_error(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    big = 10**400
+    assert gate._field(json.dumps({"e": big}).encode(), ["e"]) == (big, None)
+    root, path = _shop(tmp_path, TWO[1:])
+    file = root / "gates" / MEASURE
+    file.parent.mkdir(parents=True)
+    file.write_text(json.dumps({"e": big}))
+    declared = [
+        {"path": MEASURE, "max_age": 86400, "bound": {"field": ["e"], "most": 0.05}},
+        {"path": MEASURE + "x", "max_age": 86400, "bound": {"field": ["e"], "most": big}},
+    ]
+    shutil.copy(file, root / "gates" / (MEASURE + "x"))
+    _proofs(path, declared)
+    code, out = _run(root, path, capsys)
+    assert code == 1, out
+    above, same = out["result"]["proofs"]
+    assert above["value"] == big and above["failures"][0]["reason"] == "above_limit"
+    assert (same["verdict"], same["value"]) == ("pass", big)
+    assert main(["gate", "verify", "--root", str(root)]) == 1

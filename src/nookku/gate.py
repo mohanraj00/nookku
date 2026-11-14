@@ -184,7 +184,10 @@ def _bound(value: Any, where: str) -> dict[str, Any] | None:
 
 
 def _is_number(value: Any) -> bool:
-    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+    # A JSON integer can be too large for a float, so only a float gets the finite check.
+    if isinstance(value, float):
+        return math.isfinite(value)
+    return isinstance(value, int) and not isinstance(value, bool)
 
 
 def read_proof(path: Path) -> tuple[bytes | None, int | None, str | None]:
@@ -422,8 +425,11 @@ def run(root: Path, gate_path: Path, subject: str) -> tuple[Path, list[str]]:
         "subject": subject,
         "tests_dir": str(tests_dir),
         "tests": rows,
-        "proofs": proof_rows,
     }
+    # A gate file with no key "proofs" gives the result format of Nookku 0.5.7, so a gate
+    # folder of that version still verifies.
+    if "proofs" in _top(data):
+        ledger["proofs"] = proof_rows
     _restore(folder, data, held, [test["name"] for test in tests], proof_bytes)
     (folder / RUN).write_text(json_text(ledger, indent=1) + "\n", encoding="utf-8")
     result = compute(folder.name, data, held, ledger, read_evidence(ledger), proof_bytes)
@@ -755,7 +761,7 @@ def compute(
     checked = _proof_results(parse_proofs(data), ledger, proofs or {}, problems)
     reasons += [{"proof": p["path"], "check": f["reason"]} for p in checked for f in p["failures"]]
     passed = not problems and not reasons
-    return {
+    result = {
         "v": VERSION,
         "gate": gate,
         "subject": subject if isinstance(subject, str) else None,
@@ -764,8 +770,12 @@ def compute(
         "problems": problems,
         "reasons": reasons,
         "tests": tests,
-        "proofs": checked,
     }
+    # Only a gate file with the key "proofs" gets the key in the result. Thus a result of a
+    # gate file with no proof files is the same as before #572, and an older folder verifies.
+    if "proofs" in _top(data):
+        result["proofs"] = checked
+    return result
 
 
 def _proof_results(
@@ -897,7 +907,7 @@ def verify(folder: Path) -> tuple[dict[str, Any] | None, str | None]:
             if c["verdict"] == FAIL
         ] + [
             f"{p['path']} {f['reason']}: {f['text']}"
-            for p in report["proofs"]
+            for p in report.get("proofs", [])
             for f in p["failures"]
         ]
         return None, " ".join([why, *(f"The new result has {f}" for f in failed[:3])])
