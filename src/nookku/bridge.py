@@ -1427,7 +1427,7 @@ def _report(
 
 
 def run_persona(
-    root: Path, persona_path: Path, entry_name: str | None = None
+    root: Path, persona_path: Path, entry_name: str | None = None, gate: bool = False
 ) -> tuple[bool, list[str], Path]:
     """Run a test with a simulated user (SPEC.md section 7.10, #520). Return (passed, the report
     lines, the test folder).
@@ -1436,7 +1436,8 @@ def run_persona(
     turns so far. Each message goes to the entry byte for byte, as a relay row with the harness
     simulated-user. The run stops when the simulated user writes that the goal is met, at the
     turn limit, at a turn with no reply, or when the session fails. Before the end, the run
-    writes the result to simulated_user.json, so the seal covers it."""
+    writes the result to simulated_user.json, so the seal covers it. With gate, a verdict that is
+    not `pass` also fails the run (SPEC.md section 7.14)."""
     try:
         persona = simulated_user.read(persona_path)[0]
     except simulated_user.PersonaError as e:
@@ -1487,7 +1488,7 @@ def run_persona(
         first = f"The entry sent no reply to message {len(turns)} of the simulated user."
     elif not turns:
         first = "The simulated user sent no message."
-    return _report(folder, manifest, lines, first, False)
+    return _report(folder, manifest, lines, first, gate)
 
 
 def check(root: Path) -> tuple[bool, list[str]]:

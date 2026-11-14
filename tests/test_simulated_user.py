@@ -32,7 +32,8 @@ prompt = sys.stdin.read()
 plan = json.loads(open(os.environ["FAKE_PLAN"]).read())
 with open(os.environ["FAKE_LOG"], "a") as log:
     log.write(json.dumps({{"argv": sys.argv[1:], "cwd": os.getcwd(), "prompt": prompt,
-        "nookku": sorted(k for k in os.environ if k.startswith("NOOKKU_"))}}) + "\\n")
+        "nookku": sorted(k for k in os.environ if k.startswith("NOOKKU_")),
+        "mods": os.environ.get("CLAUDE_CODE_PLUGIN_DIRS")}}) + "\\n")
 said = plan[min(prompt.count("\\nYou: "), len(plan) - 1)]
 if said == "exit 3":
     sys.exit(3)
@@ -77,6 +78,8 @@ def test_the_simulated_user_writes_each_message_up_to_the_goal(
     fake: Path, homes: tuple, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv("NOOKKU_TEST_ID", "the tester's test")
+    # A mod folder of the tester. The session of the simulated user must not load it.
+    monkeypatch.setenv("CLAUDE_CODE_PLUGIN_DIRS", str(fake / "mods"))
     plan = ["My teapot came broken.\u2028What now?  ", "Can I get a label?", "GOAL MET"]
     root, path = _setup(fake, plan)
     passed, lines, folder = bridge.run_persona(root, path)
@@ -120,6 +123,7 @@ def test_the_simulated_user_writes_each_message_up_to_the_goal(
         assert "--no-session-persistence" in call["argv"]
         assert Path(call["cwd"]).name.startswith("nookku-simulated-user-")
         assert call["nookku"] == []
+        assert call["mods"] == ""
         assert PERSONA["persona"] in call["prompt"] and PERSONA["goal"] in call["prompt"]
     assert "no message yet" in calls[0]["prompt"]
     assert f"You: {said[0]}\nAgent: Toy shop: {said[0]}" in calls[1]["prompt"]
@@ -191,3 +195,37 @@ def test_run_takes_a_script_or_a_persona_file(
     assert (
         "Turns: 1 of 8. The simulated user wrote that the goal is met." in capsys.readouterr().out
     )
+
+
+# A Verdict table with a Finding that is not a check. The problem fails the verdict.
+BAD_VERDICT = "# Toy shop\n\n## Verdict\n\n| Finding | Most |\n|---|---|\n| `no_such_check` | 0 |\n"
+
+
+def _bad_verdict(root: Path) -> None:
+    (root / "APP_SPEC.md").write_text(BAD_VERDICT)
+    conf = json.loads((root / ".nookku" / "config.json").read_text())
+    (root / ".nookku" / "config.json").write_text(json.dumps({**conf, "spec": ["APP_SPEC.md"]}))
+
+
+def test_a_gate_persona_run_fails_on_a_verdict_that_is_not_pass(fake: Path, homes: tuple) -> None:
+    root, path = _setup(fake, ["Hello.", "GOAL MET"])
+    _bad_verdict(root)
+    passed, lines, _ = bridge.run_persona(root, path)
+    assert passed, lines
+    passed, lines, folder = bridge.run_persona(root, path, gate=True)
+    assert not passed
+    assert "Audit: exit 0" in lines
+    assert any(x.startswith("FAIL: The verdict is fail.") for x in lines), lines
+    assert json.loads((folder / "verdict.json").read_text())["verdict"] == "fail"
+
+
+def test_run_persona_obeys_verdict(
+    fake: Path, homes: tuple, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root, path = _setup(fake, ["Hello.", "GOAL MET"])
+    _bad_verdict(root)
+    argv = ["run", "--root", str(root), "--persona", str(path), "--no-evaluate"]
+    assert main(argv) == 0
+    capsys.readouterr()
+    assert main([*argv, "--verdict"]) == 1
+    assert "FAIL: The verdict is fail." in capsys.readouterr().out

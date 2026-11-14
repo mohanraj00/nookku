@@ -1085,13 +1085,12 @@ def _run_command(
     persona = getattr(args, "persona", None)
     given = args.script if persona is None else persona
     path = given if given.is_absolute() else Path.cwd() / given
+    gate = getattr(args, "verdict", False)
     try:
         if persona is not None:
-            passed, lines, folder = bridge.run_persona(root, path, args.entry)
+            passed, lines, folder = bridge.run_persona(root, path, args.entry, gate=gate)
         else:
-            passed, lines, folder = bridge.run_script(
-                root, path, args.entry, egress, gate=getattr(args, "verdict", False)
-            )
+            passed, lines, folder = bridge.run_script(root, path, args.entry, egress, gate=gate)
     except bridge.BridgeError as e:
         print(json.dumps({"error": str(e)}) if args.json else f"nookku: {e}")
         return 1

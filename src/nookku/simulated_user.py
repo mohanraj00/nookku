@@ -117,8 +117,10 @@ def command() -> list[str]:
 
 def environment() -> dict[str, str]:
     env = {k: v for k, v in os.environ.items() if not k.startswith("NOOKKU_") and k not in HIDDEN}
-    # Print mode can send the first prompt in a title request (src/nookku/print_mode.py).
-    return env | {"CLAUDE_CODE_DISABLE_TERMINAL_TITLE": "1"}
+    # Print mode can send the first prompt in a title request (src/nookku/print_mode.py). Claude
+    # Code loads a mod from each folder of CLAUDE_CODE_PLUGIN_DIRS, also with no setting sources,
+    # so an empty value keeps the mods of the tester out of the session.
+    return env | {"CLAUDE_CODE_DISABLE_TERMINAL_TITLE": "1", "CLAUDE_CODE_PLUGIN_DIRS": ""}
 
 
 def next_message(persona: dict[str, Any], turns: list[tuple[str, str | None]]) -> str | None:
