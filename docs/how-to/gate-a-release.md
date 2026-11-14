@@ -21,6 +21,19 @@ Put the gate file and the scripts in the project. The paths are relative to the 
 - `entry` is optional, a name of the config key `entries`.
 - `limits` is optional. It adds limits to the `Verdict` table of the app spec. Only the checks of the [trace](../reference/glossary.md#trace) can have a limit. A model issue class, for example `tone`, cannot.
 
+## Compare a test with a base test
+
+A replay check compares the replies of a new test with the replies of an older test, turn by turn, byte for byte. It uses no model. Give the test id of the older test and the most changed turns:
+
+```json
+{"name": "refund", "script": "scripts/refund.jsonl", "replay": {"base": "20261101-101500-3f2a", "changed": 0}}
+```
+
+- `base` is a [test folder](../reference/glossary.md#test-folder) in the tests folder. The gate run does not run it again. Before the first test starts, the run pins the SHA-256 of its [relay](../reference/glossary.md#relay) and [tap records](../reference/glossary.md#tap-record).
+- The check `missing_base` fails if the base test does not exist or its [seal](../reference/glossary.md#seal) is not intact.
+- The check `changed_turns` fails if more turns changed than `changed`. The text names each changed turn, and `result.json` records the base test id, the new test id and the count.
+- To see the words that changed, run `nookku replay` with the same script and `--base`.
+
 ## Run the set
 
 1. Register the egress answer of the app, as for each test (`nookku register`). The gate run uses one answer for all of its tests.
@@ -32,7 +45,7 @@ Put the gate file and the scripts in the project. The paths are relative to the 
 
 The command prints the lines of each test, one line for each test and the aggregate verdict. It exits with 0 if the aggregate verdict is `pass`, with 1 if it is `fail`, and with 2 if no test ran.
 
-The result folder is `.nookku/gates/<gate id>/`. In CI, set `NOOKKU_HOME` to a folder that the job can write, because the copy of the [seal](../reference/glossary.md#seal) goes there.
+The result folder is `.nookku/gates/<gate id>/`. In CI, set `NOOKKU_HOME` to a folder that the job can write, because the copy of the seal goes there.
 
 ## Read the result in a CI job or a rollout controller
 
@@ -52,7 +65,7 @@ The result folder is `.nookku/gates/<gate id>/`. In CI, set `NOOKKU_HOME` to a f
    jq -r '.files["result.json"]' "$NOOKKU_HOME/seals/<gate id>.json"
    ```
 
-Step 3 shows only that `result.json` did not change. It does not check the [test folders](../reference/glossary.md#test-folder). For a full check, run `nookku gate verify` on a machine that has the gate folder, the tests folder and the copies of the seals:
+Step 3 shows only that `result.json` did not change. It does not check the test folders. For a full check, run `nookku gate verify` on a machine that has the gate folder, the tests folder and the copies of the seals:
 
 ```bash
 nookku gate verify <gate id>
@@ -62,5 +75,5 @@ It exits with 0 if the result can be used and its verdict is `pass`, with 1 for 
 
 ## Limits
 
-- Only a person or CI runs `nookku gate run`. The [relay](../reference/glossary.md#relay) denies it from the model, with each policy.
+- Only a person or CI runs `nookku gate run`. The relay denies it from the model, with each policy.
 - Version 1 has no answer key check. A test with `answer_key` fails, so a declared key never passes with no check.

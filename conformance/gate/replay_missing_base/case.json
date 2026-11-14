@@ -1,0 +1,35 @@
+{
+ "subject": "sha256:ab12cd34",
+ "errors": {},
+ "bases": {},
+ "tests": {
+  "refund": {
+   "messages": [
+    "What is your refund policy?",
+    "Do you ship to Pune?"
+   ],
+   "replies": [
+    true,
+    true
+   ],
+   "tap": [
+    "Refunds take 5 days.",
+    "Yes, we ship to Pune."
+   ],
+   "entry": [
+    "python",
+    "agent.py"
+   ],
+   "entry_name": null,
+   "limits": {},
+   "counts": {
+    "agent_error": 0
+   },
+   "audit": {
+    "exit": 0,
+    "breaks": [],
+    "errors": []
+   }
+  }
+ }
+}

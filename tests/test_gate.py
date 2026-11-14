@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import sys
 from pathlib import Path
 
 import pytest
 
-from nookku import commands, gate, script, seal, verdict
+from nookku import commands, gate, record, script, seal, verdict
 from nookku.cli import main
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -230,6 +231,74 @@ def test_a_declared_answer_key_fails_until_a_check_exists(
     assert (Path(out["gate"]) / "inputs" / "refund" / "answer_key").read_text() == "{}"
 
 
+def test_a_replay_of_the_same_agent_passes_and_a_changed_reply_fails(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root, path = _shop(tmp_path, TWO[:1])
+    code, out = _run(root, path, capsys)
+    assert code == 0, out
+    base = out["result"]["tests"][0]["test"]
+    # The seeded fault: a second entry of the toy shop changes the reply of turn 2.
+    changed = root / "changed_agent.py"
+    changed.write_text(TOY_SHOP.read_text().replace("Chennai and Pune.", "Chennai only."))
+    conf = json.loads((root / ".nookku" / "config.json").read_text())
+    conf["entries"]["changed"] = [sys.executable, str(changed)]
+    (root / ".nookku" / "config.json").write_text(json.dumps(conf))
+    replay = {"base": base, "changed": 0}
+    tests = [
+        {"name": "same", "script": "scripts/refund.jsonl", "entry": "shop", "replay": replay},
+        {"name": "fault", "script": "scripts/refund.jsonl", "entry": "changed", "replay": replay},
+    ]
+    path.write_text(json.dumps({"v": 1, "tests": tests}))
+    code, out = _run(root, path, capsys)
+    assert code == 1, out
+    result = out["result"]
+    assert result["reasons"] == [{"test": "fault", "check": "changed_turns"}]
+    same, fault = result["tests"]
+    assert same["verdict"] == "pass"
+    assert same["replay"] == {
+        "base": base,
+        "test": same["test"],
+        "most": 0,
+        "changed": 0,
+        "turns": [],
+    }
+    assert fault["replay"]["turns"] == [2]
+    assert fault["checks"][-1]["text"] == "1 changed turns, the limit is 0. The turns: 2."
+    # The ledger pins the base records before test 1, and the verify of the gate still passes.
+    ledger = json.loads((Path(out["gate"]) / gate.RUN).read_text())
+    assert set(ledger["tests"][0]["replay"]["files"]) == {"relay.jsonl", "tap.jsonl"}
+    assert gate.verify(_folder(root, out))[1] is None
+
+
+def test_a_base_that_changes_after_the_run_fails_missing_base(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root, path = _shop(tmp_path, TWO[:1])
+    _, out = _run(root, path, capsys)
+    base = out["result"]["tests"][0]["test"]
+    replay = {"base": base, "changed": 0}
+    path.write_text(json.dumps({"v": 1, "tests": [{**TWO[0], "replay": replay}]}))
+    code, out = _run(root, path, capsys)
+    assert code == 0, out
+    with (root / ".nookku" / "tests" / base / "tap.jsonl").open("a") as fh:
+        fh.write("\n")
+    folder = _folder(root, out)
+    _, problem = gate.verify(folder)
+    assert problem is not None and "missing_base" in problem
+
+
+def test_a_replay_that_breaks_a_rule_is_refused() -> None:
+    for replay, error in (
+        ({"base": "t-1"}, 'only the keys "base" and "changed"'),
+        ({"base": "../t", "changed": 0}, "the replay base must be a test id"),
+        ({"base": "t-1", "changed": -1}, "the replay changed must be a whole number"),
+    ):
+        test = {"name": "a", "script": "s.jsonl", "replay": replay}
+        with pytest.raises(gate.GateError, match=re.escape(error)):
+            gate.parse(json.dumps({"v": 1, "tests": [test]}).encode())
+
+
 def test_a_change_after_the_run_breaks_the_verify(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -360,14 +429,30 @@ def _case_test(folder: Path, given: dict) -> bytes:
     (folder / "findings.json").write_text(json.dumps({"counts": given["counts"]}))
     verdict.build(folder)
     (folder / "audit.json").write_text(json.dumps(given["audit"]))
-    rows = [
-        {"type": "turn", "harness": "script", "said": m, "shown": "", "ok": ok}
-        for m, ok in zip(given["messages"], given["replies"], strict=True)
-    ]
-    (folder / "relay.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
+    _records(folder, given["messages"], given["replies"], given.get("tap"))
     (folder / "script.jsonl").write_bytes(body)
     seal.write(folder)
     return body
+
+
+def _records(folder: Path, messages: list, oks: list, tap: list | None) -> None:
+    """The relay record of a case test and, if the case gives the reply of each turn, the tap
+    record."""
+    relay = record.Writer(folder / "relay.jsonl")
+    for m, ok in zip(messages, oks, strict=True):
+        relay.append({"type": "turn", "harness": "script", "said": m, "shown": "", "ok": ok})
+    if tap is None:
+        return
+    exchanges = record.Writer(folder / "tap.jsonl")
+    for m, reply in zip(messages, tap, strict=True):
+        exchanges.append({"type": "exchange", "input": m, "status": 200, "reply": reply})
+
+
+def _case_base(folder: Path, given: dict) -> None:
+    """A sealed base test of a replay check, with only its relay and tap records."""
+    folder.mkdir(parents=True)
+    _records(folder, given["messages"], [True] * len(given["messages"]), given["tap"])
+    seal.write(folder)
 
 
 @pytest.mark.parametrize("case", CASES, ids=[c.name for c in CASES])
@@ -375,17 +460,20 @@ def test_each_case_gives_its_result(case: Path, tmp_path: Path) -> None:
     given = json.loads((case / "case.json").read_text(encoding="utf-8"))
     data = (case / "gate.json").read_bytes()
     tests_dir = tmp_path / "tests"
+    for base, records in given.get("bases", {}).items():
+        _case_base(tests_dir / base, records)
     inputs, rows = {}, []
     for test in gate.parse(data):
         name = test["name"]
+        pin = None if test["replay"] is None else gate.base_pin(tests_dir, test["replay"]["base"])
         if name not in given["tests"]:
-            rows.append(gate.ledger_row(name, None, given["errors"][name]))
+            rows.append(gate.ledger_row(name, None, given["errors"][name], None, pin))
             continue
         folder = tests_dir / f"t-{name}"
         inputs[name] = {"script.jsonl": _case_test(folder, given["tests"][name])}
         pinned = {"entry": given["tests"][name]["entry"], "policy": {}, "spec": []}
         pinned["config_sha256"] = {}
-        rows.append(gate.ledger_row(name, folder, None, pinned))
+        rows.append(gate.ledger_row(name, folder, None, pinned, pin))
     ledger = {
         "v": 1,
         "gate": "gate-case",

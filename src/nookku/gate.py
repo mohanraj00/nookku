@@ -16,8 +16,8 @@ import shutil
 from pathlib import Path
 from typing import Any
 
-from nookku import bridge, discovery, script, seal, state, verdict
-from nookku.record import json_text, loads
+from nookku import bridge, discovery, replay, script, seal, state, verdict
+from nookku.record import RecordError, json_text, loads
 from nookku.trace import CHECKS
 
 VERSION = 1
@@ -29,11 +29,13 @@ INPUTS = "inputs"
 PREFIX = "gate-"
 MAX_TESTS = 200
 SUBJECT_MAX = 512
-KEYS = {"name", "script", "entry", "limits", "answer_key", "persona"}
+KEYS = {"name", "script", "entry", "limits", "answer_key", "persona", "replay"}
 # The declared files of a test, and their names in inputs/<test name>/. The script name gets
 # the extension of its form, as the copy in the test folder (SPEC.md section 7.10).
 FILE_KEYS = ("script", "answer_key", "persona")
-AUDIT, RELAY = "audit.json", "relay.jsonl"
+AUDIT, RELAY, TAP = "audit.json", "relay.jsonl", "tap.jsonl"
+# The files of the base test and of the new test that the replay check reads (SPEC.md 7.15).
+REPLAY_FILES = (RELAY, TAP)
 # The files of a test folder that the checks read, with the script copy of the test.
 EVIDENCE = (verdict.MANIFEST, verdict.FINDINGS, verdict.FILE, AUDIT, RELAY)
 PASS, FAIL = verdict.PASS, verdict.FAIL
@@ -114,8 +116,32 @@ def parse(data: bytes) -> list[dict[str, Any]]:
             if not _is_count(most):
                 raise GateError(f"{where}: the limit of {check} is not a whole number")
         row["limits"] = dict(limits)
+        row["replay"] = _replay(test["replay"], where) if "replay" in test else None
         out.append(row)
     return out
+
+
+def _replay(value: Any, where: str) -> dict[str, Any]:
+    """The replay check of a test: the id of the base test and the most changed turns."""
+    if not isinstance(value, dict) or set(value) != {"base", "changed"}:
+        raise GateError(
+            f'{where}: replay must be an object with only the keys "base" and "changed"'
+        )
+    if not isinstance(value["base"], str) or not state.is_test_id(value["base"]):
+        raise GateError(f"{where}: the replay base must be a test id")
+    if not _is_count(value["changed"]):
+        raise GateError(f"{where}: the replay changed must be a whole number")
+    return {"base": value["base"], "changed": value["changed"]}
+
+
+def base_pin(tests_dir: Path, base: str) -> dict[str, Any]:
+    """The ledger record of the base test of a replay check: its id and the SHA-256 of its
+    relay and tap records in the copy of its seal. A base with no seal copy pins no file."""
+    copy = (seal.copy_files(base) or {}) if (tests_dir / base).is_dir() else {}
+    return {
+        "base": base,
+        "files": {n: copy[n] for n in REPLAY_FILES if isinstance(copy.get(n), str)},
+    }
 
 
 def subject_problem(subject: str) -> str | None:
@@ -178,18 +204,25 @@ def _same_start(manifest: dict[str, Any], row: dict[str, Any]) -> bool:
 
 
 def ledger_row(
-    name: str, folder: Path | None, error: str | None, pinned: dict[str, Any] | None = None
+    name: str,
+    folder: Path | None,
+    error: str | None,
+    pinned: dict[str, Any] | None = None,
+    base: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """The ledger row of a test: the test id, the start keys that the gate pinned before the
     first test, and the SHA-256 of each file that the checks read, from the copy of the test
-    seal."""
+    seal. A test with a replay check also has `replay`, the base pin (base_pin), and pins
+    tap.jsonl."""
     row: dict[str, Any] = {"name": name, "test": None, "error": error, "files": {}}
     row.update({k: (pinned or {}).get(k) for k in PINNED})
+    if base is not None:
+        row["replay"] = base
     if folder is None:
         return row
     row["test"] = folder.name
     copy = seal.copy_files(folder.name) or {}
-    names = [*EVIDENCE, *script.COPIES.values()]
+    names = [*EVIDENCE, *script.COPIES.values(), *([TAP] if base is not None else [])]
     row["files"] = {n: copy[n] for n in names if isinstance(copy.get(n), str)}
     return row
 
@@ -215,7 +248,9 @@ def run(root: Path, gate_path: Path, subject: str) -> tuple[Path, list[str]]:
     (folder / GATE_FILE).write_bytes(data)
     # Snapshot each input of each test before the first test starts. A test can change a
     # project file, so a later read could give bytes that the gate did not declare.
-    planned: list[tuple[dict[str, Any], Path | None, str | None, dict[str, Any] | None]] = []
+    planned: list[
+        tuple[dict[str, Any], Path | None, str | None, dict[str, Any] | None, dict[str, Any] | None]
+    ] = []
     # The gate keeps the bytes of each snapshot. A tested entry can write to the result
     # folder, so the gate compares the files to these bytes and seals only these bytes.
     held: dict[str, dict[str, bytes]] = {}
@@ -243,17 +278,19 @@ def run(root: Path, gate_path: Path, subject: str) -> tuple[Path, list[str]]:
             except bridge.BridgeError as e:
                 error = f"the test did not start: {e}"
         snapshot = None if error else inputs / _input_name("script", form)
-        planned.append((test, snapshot, error, pinned))
+        # The base of a replay check is pinned before test 1, so a test cannot change it.
+        replay_pin = None if test["replay"] is None else base_pin(tests_dir, test["replay"]["base"])
+        planned.append((test, snapshot, error, pinned, replay_pin))
     rows, lines = [], []
     try:
-        for test, snapshot, error, pinned in planned:
+        for test, snapshot, error, pinned, replay_pin in planned:
             if snapshot is None:
-                rows.append(ledger_row(test["name"], None, error))
+                rows.append(ledger_row(test["name"], None, error, None, replay_pin))
                 lines.append(f"Test {test['name']}: did not run. {error}")
                 continue
             if _read_inputs(folder / INPUTS / test["name"]) != held.get(test["name"], {}):
                 error = "the snapshot of the test inputs changed before the test started"
-                rows.append(ledger_row(test["name"], None, error, pinned))
+                rows.append(ledger_row(test["name"], None, error, pinned, replay_pin))
                 lines.append(f"Test {test['name']}: did not run. {error}")
                 continue
             try:
@@ -261,10 +298,11 @@ def run(root: Path, gate_path: Path, subject: str) -> tuple[Path, list[str]]:
                     root, snapshot, test["entry"], egress, gate=True
                 )
             except bridge.BridgeError as e:
-                rows.append(ledger_row(test["name"], None, f"the test did not start: {e}", pinned))
+                why = f"the test did not start: {e}"
+                rows.append(ledger_row(test["name"], None, why, pinned, replay_pin))
                 lines.append(f"Test {test['name']}: did not run. {e}")
                 continue
-            rows.append(ledger_row(test["name"], test_folder, None, pinned))
+            rows.append(ledger_row(test["name"], test_folder, None, pinned, replay_pin))
             lines += [f"Test {test['name']}: {line}" for line in out]
     finally:
         # The run used the answer for each test. The next run needs a new answer.
@@ -331,13 +369,50 @@ def read_evidence(ledger: dict[str, Any]) -> dict[str, dict[str, Any]]:
         data: dict[str, bytes | None] = {}
         files = row.get("files") if isinstance(row.get("files"), dict) else {}
         # Only the names of the evidence: run.json cannot make the process read another file.
-        for name in (n for n in files if n in (*EVIDENCE, *script.COPIES.values())):
-            try:
-                data[name] = (folder / name).read_bytes()
-            except OSError:
-                data[name] = None
+        for name in (n for n in files if n in (*EVIDENCE, TAP, *script.COPIES.values())):
+            data[name] = _bytes(folder / name)
         out[test] = {"seal": problem, "copy": seal.copy_files(test), "files": data}
+        pin = row.get("replay")
+        base = pin.get("base") if isinstance(pin, dict) else None
+        if isinstance(base, str) and state.is_test_id(base):
+            out[test]["base"] = _base_evidence(tests_dir / base, pin.get("files"))
     return out
+
+
+def _bytes(path: Path) -> bytes | None:
+    try:
+        return path.read_bytes()
+    except OSError:
+        return None
+
+
+def _base_evidence(folder: Path, files: Any) -> dict[str, Any]:
+    """The evidence of the base test of a replay check: if its folder exists, the problem of
+    its seal or None, the files of the copy of its seal, and the bytes of each pinned file."""
+    if not folder.is_dir():
+        return {"exists": False}
+    result = seal.verify(folder)
+    problem = None
+    if not result["intact"] or result["copy"] != "same":
+        problem = f"The seal of the base test is not intact with a copy. {seal.summary(result)}"
+    names = [n for n in (files if isinstance(files, dict) else {}) if n in REPLAY_FILES]
+    data = {n: _bytes(folder / n) for n in names}
+    return {"exists": True, "seal": problem, "copy": seal.copy_files(folder.name), "files": data}
+
+
+def _pin_problem(
+    file: str, pinned: dict[str, Any], copy: dict[str, Any], data: dict[str, bytes | None]
+) -> str | None:
+    """Why a pinned file of a test cannot be used, or None."""
+    if file not in pinned:
+        return f"The ledger pins no SHA-256 of {file}."
+    if copy.get(file) != pinned[file]:
+        return f"{file} in the copy of the test seal is not the file of the gate run."
+    if data.get(file) is None:
+        return f"{file} cannot be read."
+    if seal.sha256_of(data[file] or b"") != pinned[file]:
+        return f"{file} is not the file of the gate run."
+    return None
 
 
 def _check(name: str, ok: bool, text: str | None = None) -> dict[str, Any]:
@@ -374,9 +449,11 @@ def _test_checks(
     row: dict[str, Any] | None,
     inputs: dict[str, bytes],
     proof: dict[str, Any] | None,
+    record: dict[str, Any],
 ) -> list[dict[str, Any]]:
     """The checks of one declared test. The first check that cannot use its records stops the
-    list, so that no later check reads bytes that the seal does not cover."""
+    list, so that no later check reads bytes that the seal does not cover. `record` gets the
+    changed turns of a replay check."""
     name = declared["name"]
     if row is None or row.get("name") != name:
         return [_check("missing_test", False, "The ledger has no row for the test.")]
@@ -393,18 +470,12 @@ def _test_checks(
         if key in script.COPIES.values():
             snapshot, form = body, key
     problem = proof.get("seal")
-    needed = [*EVIDENCE, *([form] if form else [])]
+    tap = [TAP] if declared["replay"] is not None else []
+    needed = [*EVIDENCE, *tap, *([form] if form else [])]
     for file in needed:
         if problem:
             break
-        if file not in pinned:
-            problem = f"The ledger pins no SHA-256 of {file}."
-        elif copy.get(file) != pinned[file]:
-            problem = f"{file} in the copy of the test seal is not the file of the gate run."
-        elif data.get(file) is None:
-            problem = f"{file} cannot be read."
-        elif seal.sha256_of(data[file] or b"") != pinned[file]:
-            problem = f"{file} is not the file of the gate run."
+        problem = _pin_problem(file, pinned, copy, data)
     checks.append(_check("evidence", problem is None, problem))
     if problem is not None:
         return checks
@@ -462,7 +533,52 @@ def _test_checks(
     if declared["answer_key"] is not None:
         text = "This version of Nookku has no answer key check, so a declared key fails."
         checks.append(_check("answer_key", False, text))
+    if declared["replay"] is not None:
+        checks += _replay_checks(declared["replay"], row, proof, data, record)
     return checks
+
+
+def _replay_checks(
+    want: dict[str, Any],
+    row: dict[str, Any],
+    proof: dict[str, Any],
+    data: dict[str, bytes | None],
+    record: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """The checks missing_base and changed_turns of a replay check. They compare the sealed
+    relay and tap records of the base test and of the new test with the rule of `nookku
+    replay` (SPEC.md section 7.10). `record` gets the count and the number of each changed
+    turn."""
+    base = want["base"]
+    value = row.get("replay")
+    pin: dict[str, Any] = value if isinstance(value, dict) else {}
+    found = proof.get("base")
+    info: dict[str, Any] = found if isinstance(found, dict) else {}
+    problem = None
+    if pin.get("base") != base:
+        problem = "The ledger does not pin the declared base test."
+    elif not info.get("exists"):
+        problem = f"The base test {base} does not exist."
+    elif info.get("seal"):
+        problem = info["seal"]
+    else:
+        value = pin.get("files")
+        files: dict[str, Any] = value if isinstance(value, dict) else {}
+        for file in REPLAY_FILES:
+            problem = problem or _pin_problem(file, files, info.get("copy") or {}, info["files"])
+    if problem is not None:
+        return [_check("missing_base", False, problem)]
+    out = [_check("missing_base", True)]
+    try:
+        old = replay.replies(Path(base), info["files"][RELAY], info["files"][TAP])
+        new = replay.replies(Path(str(row["test"])), data[RELAY], data[TAP])
+    except RecordError as e:
+        return [*out, _check("changed_turns", False, f"A record is not valid: {e}")]
+    turns = replay.changed_turns(old, new)
+    record.update(changed=len(turns), turns=turns)
+    numbers = ", ".join(str(n) for n in turns)
+    text = f"{len(turns)} changed turns, the limit is {want['changed']}. The turns: {numbers}."
+    return [*out, _check("changed_turns", len(turns) <= want["changed"], text)]
 
 
 def compute(
@@ -491,16 +607,24 @@ def compute(
     for n, test in enumerate(declared):
         row = rows[n] if n < len(rows) and isinstance(rows[n], dict) else None
         proof = evidence.get(row["test"]) if row and isinstance(row.get("test"), str) else None
-        checks = _test_checks(test, row, inputs.get(test["name"], {}), proof)
+        record: dict[str, Any] = {"changed": None, "turns": None}
+        checks = _test_checks(test, row, inputs.get(test["name"], {}), proof, record)
         ok = all(c["verdict"] == PASS for c in checks)
-        tests.append(
-            {
-                "name": test["name"],
-                "test": row.get("test") if row else None,
-                "verdict": PASS if ok else FAIL,
-                "checks": checks,
+        out: dict[str, Any] = {
+            "name": test["name"],
+            "test": row.get("test") if row else None,
+            "verdict": PASS if ok else FAIL,
+            "checks": checks,
+        }
+        if test["replay"] is not None:
+            # The base test, the new test and the changed turns of the replay (SPEC.md 7.15).
+            out["replay"] = {
+                "base": test["replay"]["base"],
+                "test": out["test"],
+                "most": test["replay"]["changed"],
+                **record,
             }
-        )
+        tests.append(out)
     reasons = [
         {"test": t["name"], "check": c["check"]}
         for t in tests
