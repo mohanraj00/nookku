@@ -1062,14 +1062,15 @@ The cases in [`conformance/verdict/`](conformance/verdict/) give the spec files,
 
 ### 7.15 Gate run
 
-A gate run is one declared set of scripted tests (section 7.10). One command runs the set and writes one sealed result. The result holds the verdict of each test, one aggregate verdict and a subject digest from the caller. A program, for example a CI job or a rollout controller, reads it with no model. The checks of a gate run are deterministic: each one reads only records that a seal covers.
+A gate run is one declared set of scripted tests (section 7.10), with optional proof files. One command runs the set and writes one sealed result. The result holds the verdict of each test, the result of each proof file, one aggregate verdict and a subject digest from the caller. A program, for example a CI job or a rollout controller, reads it with no model. The checks of a gate run are deterministic: each one reads only records that a seal covers.
 
-**The gate file.** The gate file is UTF-8 JSON: an object with only the keys `v` and `tests`. A key that occurs 2 times in one object is refused.
+**The gate file.** The gate file is UTF-8 JSON: an object with the keys `v` and `tests`, and the optional key `proofs`. Another key is refused. A key that occurs 2 times in one object is refused.
 
 | Key | Type | Meaning |
 |---|---|---|
 | `v` | integer | The gate file version, `1`. |
 | `tests` | list | 1 to 200 tests, in the order of the run. |
+| `proofs` | list | Optional. 0 to 200 proof files (below, #572). |
 
 Each test is an object with these keys. A key that is not in this table is refused, so an older Nookku does not ignore a check that a later version adds.
 
@@ -1090,13 +1091,34 @@ Each test is an object with these keys. A key that is not in this table is refus
 - `persona` is a record only. A scripted test sends the messages of its script. A gate run never starts a simulated user (section 7.10), because its messages are not deterministic.
 - A replay check compares the new test with its base test, with the rule of `nookku replay` (section 7.10): the replies of the tap records, turn n with turn n, byte for byte. It uses no model. The base test is a test folder in the tests folder of the run. It does not run again.
 
+**Proof files.** A proof file is a file that a test or an analysis made, for example a measure report. Each proof file is an object with these keys. Another key is refused.
+
+| Key | Type | Meaning |
+|---|---|---|
+| `path` | string | The path of the file. It is relative to the folder of the gate file, and unique in the list. |
+| `max_age` | integer | The most age of the file in seconds, a whole number from 1 to 999999999. |
+| `bound` | object | Optional. An object with only the keys `field` and `most`. `field` is a list of 1 to 32 strings: the keys of the field, from the top object of the file. `most` is the most value of the field, a JSON number. |
+
+- The check reads only the declared file. It does not depend on the tool that made the file, and it uses no model.
+- The run reads each proof file after the last test, because a test can make the file. It opens the path for read without a wait, and reads it only if it is a regular file.
+- The age is the time of the read minus the modified time of the file, both in whole Unix seconds. The run records both times. Thus `nookku gate verify` gives the same result at a later time.
+
+The result of each proof file names each failure with one of these reasons:
+
+| Reason | The proof file fails if |
+|---|---|
+| `missing` | The run cannot read the file, or the path is not a regular file. If this reason occurs, the proof file has no other reason. |
+| `stale` | The age is less than 0 or more than `max_age`. |
+| `above_limit` | Only for a proof file with `bound`. The value of the field is more than `most`. The reason also occurs if the file is not UTF-8 JSON, has a key 2 times in one object, has no such field, or the value is not a number, because then the run cannot show that the value is in the bound. |
+
 **Run.** `nookku gate run <file> --subject <digest> [--root DIR] [--tests-dir PATH] [--json]`:
 
 1. It reads the gate file and checks the subject: 1 to 512 characters with no control character. Nookku does not interpret the subject. It reads the egress answer (section 7.11). If one of these is not valid, it runs no test, writes no folder and exits with 2.
 2. It makes the gate folder `.nookku/gates/<gate id>/`. The gate id is `gate-<date>-<time>-<8 hex digits>`. The random part keeps 2 gate ids different when 2 projects share `NOOKKU_HOME`, because the seal copies of all projects are in one folder. The folder is not in the tests folder, so a gate folder never looks like a test. It writes the bytes of the gate file as `gate.json`.
 3. Before the first test starts, it copies the bytes of each declared file of each test into `inputs/<name>/`: the script as `script.jsonl` or `script.json` (the form of section 7.10), and the other files as `answer_key` and `persona`. If a file cannot be read, or the script breaks a rule of section 7.10, that test does not run. Then each other test runs in order from the copy of its script, with the steps of `nookku run --script --verdict` (section 7.10). Thus a change of a source file during the run has no effect, also when an earlier test makes the change. The run also keeps the bytes of each copy. Before each test starts, the files in `inputs/<name>/` must be these bytes, or that test does not run. Before the run seals the folder, it writes `gate.json` and each copy again from these bytes, and the checks use these bytes. Thus a test that changes a later copy cannot change the result. Each test uses the same egress answer. After the last test, the run removes the answer, as a test start does.
-4. It writes `run.json`, then `result.json`, and seals the gate folder (section 7.4). The copy of the seal is `~/.nookku/seals/<gate id>.json`.
-5. It verifies the result with the rule of "Verify" below, and prints the lines of each test, one line for each test, and the aggregate verdict.
+4. After the last test, it reads each proof file, and keeps its bytes. It writes each copy as `proofs/<n>`, where `<n>` is the number of the proof file in `proofs`, from 1. Before the run seals the folder, it writes each copy again from these bytes.
+5. It writes `run.json`, then `result.json`, and seals the gate folder (section 7.4). The copy of the seal is `~/.nookku/seals/<gate id>.json`.
+6. It verifies the result with the rule of "Verify" below, and prints the lines of each test, one line for each test, and the aggregate verdict.
 
 The exit code is 0 if the verified aggregate verdict is `pass`, and 1 if it is `fail` or the result cannot be verified.
 
@@ -1109,6 +1131,7 @@ The exit code is 0 if the verified aggregate verdict is `pass`, and 1 if it is `
 | `subject` | string | The subject digest. |
 | `tests_dir` | string | The absolute path of the tests folder of the run. |
 | `tests` | list | One row for each declared test, in the order of the gate file. |
+| `proofs` | list | One row for each declared proof file, in the order of the gate file: `path`, `sha256` (the SHA-256 of the bytes that the run read, or `null`), `modified` (the modified time of the file in whole Unix seconds, or `null`), `checked` (the time of the read in whole Unix seconds) and `error` (why the run could not read the file, or `null`). |
 
 Each row has `name`, `test` (the test id, or `null` if the test did not run), `error` (why the test did not run, or `null`), `entry`, `policy`, `spec`, `config_sha256` and `files`. The run reads `entry`, `policy`, `spec` and `config_sha256` from the project before the first test starts, as a test start does (sections 7.1 and 7.9). They are `null` if the test did not start. A tested entry can change a project file, so the run does not read them again between tests. `files` pins the SHA-256 of each file of the test folder that the checks read, from the copy of the test seal: `manifest.json`, `findings.json`, `verdict.json`, `audit.json`, `relay.jsonl` and the script copy. For a test with `replay`, `files` also pins `tap.jsonl`, and the row has `replay`: an object with `base` and `files`. Before the first test starts, `files` pins the SHA-256 of `relay.jsonl` and `tap.jsonl` of the base test, from the copy of its seal. Thus a test of the run cannot change the base. If the base test has no folder or no seal copy, `files` is empty. A later `nookku trace` of the test changes the test seal (section 7.4), so it breaks the gate result.
 
@@ -1122,8 +1145,9 @@ Each row has `name`, `test` (the test id, or `null` if the test did not run), `e
 | `gate_sha256` | string | The SHA-256 of `gate.json`. |
 | `verdict` | string | `pass` if `problems` and `reasons` are empty. Else `fail`. |
 | `problems` | list of strings | Each problem of `run.json` (below). |
-| `reasons` | list | One object `{"test", "check"}` for each check that fails, in the order of `tests`. |
+| `reasons` | list | One object `{"test", "check"}` for each check that fails, in the order of `tests`. Then one object `{"proof", "check"}` for each failure of a proof file, in the order of `proofs`: `proof` is the path, and `check` is the reason. |
 | `tests` | list | One object for each declared test, in the order of the gate file: `name`, `test`, `verdict` and `checks`. A test with `replay` also has `replay`: `base` (the base test id), `test` (the new test id), `most` (the declared limit), `changed` (the count of changed turns) and `turns` (the number of each changed turn, from 1). `changed` and `turns` are `null` if the check `changed_turns` did not compute them. |
+| `proofs` | list | One object for each declared proof file, in the order of the gate file: `path`, `sha256` (the SHA-256 of the copy, or `null`), `age` (in seconds, or `null` if the file is missing), `value` (the number of the field of `bound`, or `null`), `verdict` (`pass` if `failures` is empty, else `fail`) and `failures`: one object `{"reason", "text"}` for each failure, in the order of the table of reasons. The list is empty if the gate file declares no proof file. |
 
 A test has the verdict `pass` if each of its checks passes. Each check is an object `{"check", "verdict", "text"}`. `text` is `null` for a pass, else the reason. The checks of a test, in this order:
 
@@ -1150,13 +1174,15 @@ The problems of `run.json`:
 | The subject is not valid. | `run.json has no valid subject.` |
 | The count of rows is not the count of declared tests. | `run.json does not have one row for each declared test.` |
 | 2 rows name one test id. | `run.json names one test for 2 declared tests.` |
+| The count of proof rows is not the count of declared proof files. | `run.json does not have one row for each declared proof file.` |
+| A proof row has another path, a SHA-256 that is not the SHA-256 of the copy, or times that are not whole numbers. | `run.json does not pin the copy of the proof file <path>.` |
 
 A declared test with no row fails `missing_test` with the text `The ledger has no row for the test.`
 
 **Verify.** `nookku gate verify [GATE] [--root DIR] [--tests-dir PATH] [--json]` checks a gate result. `GATE` is a gate id or the path of a gate folder. Without it, the command checks the newest gate folder. A process uses the result only if each of these is true, else the result cannot be used:
 
 1. The seal of the gate folder is intact, and its copy is `same` (section 7.4).
-2. The process reads each file of the copy of the seal one time, and its SHA-256 is the SHA-256 in the copy. The copy covers `gate.json`, `run.json` and `result.json`.
+2. The process reads each file of the copy of the seal one time, and its SHA-256 is the SHA-256 in the copy. The copy covers `gate.json`, `run.json`, `result.json` and each copy of a proof file.
 3. For each test of `run.json`, the process reads each pinned file one time, for the check `evidence`. For a test with `replay`, it also reads each pinned file of the base test one time, for the check `missing_base`.
 4. The result that the process computes again from these bytes is the same as `result.json`.
 
@@ -1168,7 +1194,7 @@ A declared test with no row fails `missing_test` with the text `The ledger has n
 
 **The relay.** A gate run runs scripted tests, so the relay denies a model command that runs `nookku gate`, with each policy (section 5, "Drive commands"). `nookku gate verify` passes, because it only reads. The relay also denies a model write to `gates/` (section 5).
 
-The cases in [`conformance/gate/`](conformance/gate/) give the gate file, the records of each test and the expected `result.json`: a `pass`, a `fail`, a missing test, and a replay check that passes, that has a changed turn, and that has no base.
+The cases in [`conformance/gate/`](conformance/gate/) give the gate file, the records of each test and the expected `result.json`: a `pass`, a `fail`, a missing test, a replay check that passes, that has a changed turn, and that has no base, and a proof file that passes, that is missing, that is stale, and that has a value above its limit.
 
 ### 7.16 Gateway key of a test
 

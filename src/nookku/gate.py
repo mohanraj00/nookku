@@ -1,20 +1,24 @@
 """The gate run: one declared set of scripted tests and one sealed result (SPEC.md section 7.15).
 
-A gate file declares the tests. `run` runs each test as `nookku run --script --verdict` does,
-and writes one result folder: the gate file, a copy of each declared file, the ledger of the
-run (run.json), the result (result.json) and a seal. The caller gives the subject digest, and
-Nookku does not interpret it. `verify` reads each file one time, checks it against the copy of
-the seal, and computes the result again. Each check is deterministic and needs no model.
+A gate file declares the tests and the proof files. `run` runs each test as `nookku run
+--script --verdict` does, and writes one result folder: the gate file, a copy of each declared
+file, the ledger of the run (run.json), the result (result.json) and a seal. The caller gives
+the subject digest, and Nookku does not interpret it. `verify` reads each file one time, checks
+it against the copy of the seal, and computes the result again. Each check is deterministic
+and needs no model.
 """
 
 from __future__ import annotations
 
 import datetime
+import math
 import os
 import secrets
 import shutil
+import stat
+import time
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeGuard
 
 from nookku import bridge, discovery, replay, script, seal, state, verdict
 from nookku.record import RecordError, json_text, loads
@@ -26,6 +30,14 @@ GATE_FILE = "gate.json"
 RUN = "run.json"
 RESULT = "result.json"
 INPUTS = "inputs"
+# The copies of the declared proof files in the gate folder: proofs/<n>, from 1 (#572).
+PROOFS = "proofs"
+MAX_PROOFS = 200
+# The most keys in the field path of a bound. This is a chosen value.
+MAX_FIELD = 32
+PROOF_KEYS = {"path", "max_age", "bound"}
+# The reasons of a proof file that fails (SPEC.md section 7.15).
+MISSING, STALE, ABOVE_LIMIT = "missing", "stale", "above_limit"
 PREFIX = "gate-"
 MAX_TESTS = 200
 SUBJECT_MAX = 512
@@ -66,8 +78,8 @@ def _is_count(value: Any) -> bool:
     return isinstance(value, int) and not isinstance(value, bool) and 0 <= value <= verdict.MOST
 
 
-def parse(data: bytes) -> list[dict[str, Any]]:
-    """The declared tests of the bytes of a gate file, in order. Raise GateError."""
+def _top(data: bytes) -> dict[str, Any]:
+    """The top object of the bytes of a gate file. Raise GateError."""
     try:
         top = loads(data.decode("utf-8"), object_pairs_hook=_no_duplicates)
     except UnicodeDecodeError as e:
@@ -76,10 +88,19 @@ def parse(data: bytes) -> list[dict[str, Any]]:
         raise
     except ValueError as e:
         raise GateError(f"the gate file is not JSON: {e}") from None
-    if not isinstance(top, dict) or set(top) != {"v", "tests"}:
-        raise GateError('the gate file must be an object with only the keys "v" and "tests"')
+    if not isinstance(top, dict) or not {"v", "tests"} <= set(top) <= {"v", "tests", "proofs"}:
+        raise GateError(
+            'the gate file must be an object with the keys "v" and "tests", and optional "proofs"'
+        )
     if type(top["v"]) is not int or top["v"] != VERSION:
         raise GateError(f"the gate file version must be {VERSION}")
+    return top
+
+
+def parse(data: bytes) -> list[dict[str, Any]]:
+    """The declared tests of the bytes of a gate file, in order. Raise GateError."""
+    top = _top(data)
+    parse_proofs(data)
     tests = top["tests"]
     if not isinstance(tests, list) or not 1 <= len(tests) <= MAX_TESTS:
         raise GateError(f'"tests" must be a list of 1 to {MAX_TESTS} tests')
@@ -119,6 +140,85 @@ def parse(data: bytes) -> list[dict[str, Any]]:
         row["replay"] = _replay(test["replay"], where) if "replay" in test else None
         out.append(row)
     return out
+
+
+def parse_proofs(data: bytes) -> list[dict[str, Any]]:
+    """The declared proof files of the bytes of a gate file, in order: the path, the most age
+    in seconds, and the bound (the field path and its most value) or None. Raise GateError."""
+    proofs = _top(data).get("proofs", [])
+    if not isinstance(proofs, list) or len(proofs) > MAX_PROOFS:
+        raise GateError(f'"proofs" must be a list of 0 to {MAX_PROOFS} proof files')
+    out: list[dict[str, Any]] = []
+    for n, proof in enumerate(proofs, 1):
+        where = f"proof file {n}"
+        if not isinstance(proof, dict) or not {"path", "max_age"} <= set(proof) <= PROOF_KEYS:
+            raise GateError(
+                f'{where} must be an object with the keys "path" and "max_age", and optional '
+                '"bound"'
+            )
+        path = _path(proof["path"], f"{where}: path")
+        if any(p["path"] == path for p in out):
+            raise GateError(f"{where}: the path {path} occurs in an earlier proof file")
+        age = proof["max_age"]
+        if not _is_count(age) or age < 1:
+            raise GateError(f"{where}: max_age must be a whole number of seconds from 1")
+        out.append({"path": path, "max_age": age, "bound": _bound(proof.get("bound"), where)})
+    return out
+
+
+def _bound(value: Any, where: str) -> dict[str, Any] | None:
+    if value is None:
+        return None
+    if not isinstance(value, dict) or set(value) != {"field", "most"}:
+        raise GateError(f'{where}: bound must be an object with only the keys "field" and "most"')
+    field = value["field"]
+    if (
+        not isinstance(field, list)
+        or not 1 <= len(field) <= MAX_FIELD
+        or not all(isinstance(k, str) for k in field)
+    ):
+        raise GateError(f"{where}: the bound field must be a list of 1 to {MAX_FIELD} keys")
+    if not _is_number(value["most"]):
+        raise GateError(f"{where}: the bound most must be a number")
+    return {"field": list(field), "most": value["most"]}
+
+
+def _is_number(value: Any) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+
+
+def read_proof(path: Path) -> tuple[bytes | None, int | None, str | None]:
+    """The bytes and the modified time (whole Unix seconds) of a proof file, or the error.
+    It reads only a regular file, and it does not wait on a pipe."""
+    try:
+        fd = os.open(path, os.O_RDONLY | getattr(os, "O_NONBLOCK", 0))
+    except OSError as e:
+        return None, None, f"cannot read the file: {e.strerror or e}"
+    try:
+        info = os.fstat(fd)
+        if not stat.S_ISREG(info.st_mode):
+            return None, None, "the path is not a regular file"
+        with os.fdopen(fd, "rb", closefd=False) as f:
+            body = f.read()
+    except OSError as e:
+        return None, None, f"cannot read the file: {e.strerror or e}"
+    finally:
+        os.close(fd)
+    return body, info.st_mtime_ns // 1_000_000_000, None
+
+
+def proof_row(
+    path: str, body: bytes | None, modified: int | None, checked: int, error: str | None
+) -> dict[str, Any]:
+    """The ledger row of a proof file: its SHA-256 and its modified time when the run read it,
+    the time of the read, and why the read failed, or None."""
+    return {
+        "path": path,
+        "sha256": None if body is None else seal.sha256_of(body),
+        "modified": modified,
+        "checked": checked,
+        "error": error,
+    }
 
 
 def _replay(value: Any, where: str) -> dict[str, Any]:
@@ -239,6 +339,7 @@ def run(root: Path, gate_path: Path, subject: str) -> tuple[Path, list[str]]:
     except OSError as e:
         raise GateError(f"cannot read the gate file {gate_path}: {e}") from None
     tests = parse(data)
+    declared_proofs = parse_proofs(data)
     egress = discovery.pending(root)
     if egress is None:
         raise GateError(discovery.no_answer())
@@ -307,16 +408,25 @@ def run(root: Path, gate_path: Path, subject: str) -> tuple[Path, list[str]]:
     finally:
         # The run used the answer for each test. The next run needs a new answer.
         discovery.take(root)
+    # A test can make a proof file, so the run reads each one after the last test. The gate
+    # keeps the bytes and seals only these bytes.
+    proof_rows, proof_bytes = [], {}
+    for n, proof in enumerate(declared_proofs, 1):
+        body, modified, error = read_proof(base / proof["path"])
+        proof_rows.append(proof_row(proof["path"], body, modified, int(time.time()), error))
+        if body is not None:
+            proof_bytes[n] = body
     ledger = {
         "v": VERSION,
         "gate": folder.name,
         "subject": subject,
         "tests_dir": str(tests_dir),
         "tests": rows,
+        "proofs": proof_rows,
     }
-    _restore(folder, data, held, [test["name"] for test in tests])
+    _restore(folder, data, held, [test["name"] for test in tests], proof_bytes)
     (folder / RUN).write_text(json_text(ledger, indent=1) + "\n", encoding="utf-8")
-    result = compute(folder.name, data, held, ledger, read_evidence(ledger))
+    result = compute(folder.name, data, held, ledger, read_evidence(ledger), proof_bytes)
     (folder / RESULT).write_text(json_text(result, indent=1) + "\n", encoding="utf-8")
     seal.write(folder)
     return folder, lines
@@ -339,10 +449,14 @@ def _remove(path: Path) -> None:
 
 
 def _restore(
-    folder: Path, data: bytes, held: dict[str, dict[str, bytes]], names: list[str]
+    folder: Path,
+    data: bytes,
+    held: dict[str, dict[str, bytes]],
+    names: list[str],
+    proofs: dict[int, bytes],
 ) -> None:
-    """Write the gate file and each snapshot again from the bytes that the gate read, so
-    that the seal covers only those bytes."""
+    """Write the gate file, each snapshot and each proof copy again from the bytes that the
+    gate read, so that the seal covers only those bytes."""
     _remove(folder / GATE_FILE)
     (folder / GATE_FILE).write_bytes(data)
     _remove(folder / INPUTS)
@@ -350,6 +464,11 @@ def _restore(
         (folder / INPUTS / name).mkdir(parents=True)
         for file, body in held.get(name, {}).items():
             (folder / INPUTS / name / file).write_bytes(body)
+    _remove(folder / PROOFS)
+    if proofs:
+        (folder / PROOFS).mkdir()
+    for n, body in proofs.items():
+        (folder / PROOFS / str(n)).write_bytes(body)
 
 
 def read_evidence(ledger: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -587,9 +706,11 @@ def compute(
     inputs: dict[str, dict[str, bytes]],
     ledger: dict[str, Any],
     evidence: dict[str, dict[str, Any]],
+    proofs: dict[int, bytes] | None = None,
 ) -> dict[str, Any]:
     """The result of a gate run from the bytes of the gate file, the bytes of the inputs of each
-    test, the ledger and the evidence of each test. It reads no file."""
+    test, the ledger, the evidence of each test and the copy of each proof file, by its number
+    from 1. It reads no file."""
     declared = parse(data)
     rows: list[Any] = ledger["tests"] if isinstance(ledger.get("tests"), list) else []
     subject = ledger.get("subject")
@@ -625,12 +746,14 @@ def compute(
                 **record,
             }
         tests.append(out)
-    reasons = [
+    reasons: list[dict[str, Any]] = [
         {"test": t["name"], "check": c["check"]}
         for t in tests
         for c in t["checks"]
         if c["verdict"] == FAIL
     ]
+    checked = _proof_results(parse_proofs(data), ledger, proofs or {}, problems)
+    reasons += [{"proof": p["path"], "check": f["reason"]} for p in checked for f in p["failures"]]
     passed = not problems and not reasons
     return {
         "v": VERSION,
@@ -641,7 +764,89 @@ def compute(
         "problems": problems,
         "reasons": reasons,
         "tests": tests,
+        "proofs": checked,
     }
+
+
+def _proof_results(
+    declared: list[dict[str, Any]],
+    ledger: dict[str, Any],
+    copies: dict[int, bytes],
+    problems: list[str],
+) -> list[dict[str, Any]]:
+    """The result of each declared proof file, from its ledger row and its copy. A ledger that
+    does not pin each copy adds a problem."""
+    rows = ledger.get("proofs", [])
+    if not isinstance(rows, list) or len(rows) != len(declared):
+        problems.append("run.json does not have one row for each declared proof file.")
+        rows = []
+    out = []
+    for n, proof in enumerate(declared, 1):
+        row = rows[n - 1] if n <= len(rows) and isinstance(rows[n - 1], dict) else {}
+        body = copies.get(n)
+        sha = None if body is None else seal.sha256_of(body)
+        checked, modified = row.get("checked"), row.get("modified")
+        if (
+            row.get("path") != proof["path"]
+            or row.get("sha256") != sha
+            or not _is_whole(checked)
+            or (body is None) != (modified is None)
+            or (modified is not None and not _is_whole(modified))
+        ):
+            problems.append(f"run.json does not pin the copy of the proof file {proof['path']}.")
+        result: dict[str, Any] = {
+            "path": proof["path"],
+            "sha256": sha,
+            "age": None,
+            "value": None,
+            "verdict": FAIL,
+            "failures": [],
+        }
+        if body is None or not _is_whole(checked) or not _is_whole(modified):
+            error = row.get("error") if isinstance(row.get("error"), str) else "no copy"
+            result["failures"].append({"reason": MISSING, "text": f"The file is missing: {error}."})
+            out.append(result)
+            continue
+        age = checked - modified
+        result["age"] = age
+        if not 0 <= age <= proof["max_age"]:
+            result["failures"].append(
+                {
+                    "reason": STALE,
+                    "text": f"The file is {age} seconds old, the limit is {proof['max_age']}.",
+                }
+            )
+        if proof["bound"] is not None:
+            value, why = _field(body, proof["bound"]["field"])
+            result["value"] = value
+            most = proof["bound"]["most"]
+            if why is None and value is not None and value > most:
+                why = f"The value is {json_text(value)}, the limit is {json_text(most)}."
+            if why is not None:
+                result["failures"].append({"reason": ABOVE_LIMIT, "text": why})
+        result["verdict"] = FAIL if result["failures"] else PASS
+        out.append(result)
+    return out
+
+
+def _is_whole(value: Any) -> TypeGuard[int]:
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def _field(body: bytes, field: list[str]) -> tuple[Any, str | None]:
+    """The number at the field path of a JSON proof file, or None and why the bound cannot be
+    shown to hold."""
+    try:
+        value = loads(body.decode("utf-8"), object_pairs_hook=_no_duplicates)
+    except (UnicodeDecodeError, ValueError):
+        return None, "The file is not UTF-8 JSON with no repeated key."
+    for key in field:
+        if not isinstance(value, dict) or key not in value:
+            return None, f"The file has no field {json_text(field)}."
+        value = value[key]
+    if not _is_number(value):
+        return None, f"The field {json_text(field)} is not a number."
+    return value, None
 
 
 def verify(folder: Path) -> tuple[dict[str, Any] | None, str | None]:
@@ -670,12 +875,17 @@ def verify(folder: Path) -> tuple[dict[str, Any] | None, str | None]:
     if not isinstance(ledger, dict):
         return None, f"{RUN} is not a JSON object."
     inputs: dict[str, dict[str, bytes]] = {}
+    proofs: dict[int, bytes] = {}
     for name, body in data.items():
         parts = name.split("/")
         if len(parts) == 3 and parts[0] == INPUTS:
             inputs.setdefault(parts[1], {})[parts[2]] = body
+        if len(parts) == 2 and parts[0] == PROOFS and parts[1].isdigit():
+            proofs[int(parts[1])] = body
     try:
-        report = compute(folder.name, data[GATE_FILE], inputs, ledger, read_evidence(ledger))
+        report = compute(
+            folder.name, data[GATE_FILE], inputs, ledger, read_evidence(ledger), proofs
+        )
     except GateError as e:
         return None, f"{GATE_FILE} is not valid: {e}"
     if stored != report:
@@ -685,6 +895,10 @@ def verify(folder: Path) -> tuple[dict[str, Any] | None, str | None]:
             for t in report["tests"]
             for c in t["checks"]
             if c["verdict"] == FAIL
+        ] + [
+            f"{p['path']} {f['reason']}: {f['text']}"
+            for p in report["proofs"]
+            for f in p["failures"]
         ]
         return None, " ".join([why, *(f"The new result has {f}" for f in failed[:3])])
     return report, None
@@ -710,6 +924,9 @@ def summary(report: dict[str, Any]) -> list[str]:
         failed = [c for c in test["checks"] if c["verdict"] == FAIL]
         text = "; ".join(f"{c['check']}: {c['text']}" for c in failed)
         lines.append(f"{test['name']} ({test['test'] or 'no test'}): {test['verdict']}. {text}")
+    for proof in report.get("proofs", []):
+        text = "; ".join(f"{f['reason']}: {f['text']}" for f in proof["failures"])
+        lines.append(f"Proof file {proof['path']}: {proof['verdict']}. {text}")
     lines += [f"Problem: {p}" for p in report["problems"]]
     lines.append(f"Gate verdict: {report['verdict']}. Subject: {report['subject']}")
     return [line.rstrip() for line in lines]
