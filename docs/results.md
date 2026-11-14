@@ -395,7 +395,7 @@ Nookku 0.5.7 does not support a full test from Codex in a Koodam Workspace. The 
 - **W1 to W3 passed.** The 3 records agree on each message and reply, the audit found 0 breaks, and the trace gave both planted egress findings.
 - **W4 failed.** The Codex shell sandbox could not start in the restricted pod ([Koodam sandbox test](https://github.com/mohanraj00/koodam/blob/v0.3.0/docs/codex-sandbox.md)). The transcript tool could not find the test. Codex wrote no report, and the seal stayed intact.
 
-Thus Codex in a Workspace records a test correctly but gives no evaluation. The Koodam work is [koodam#243](https://github.com/mohanraj00/koodam/issues/243). The earlier release candidate run stopped before it made a cluster, because the script did not yet support `plugin-codex` ([result](../proofs/release/codex-0.5.7/cluster.json)).
+Thus the proof of 0.5.7 recorded a test in a Workspace with each harness, and only Claude Code gave an evaluation. The Koodam work is [koodam#243](https://github.com/mohanraj00/koodam/issues/243). The evaluation in a restricted Workspace stays open in [#555](https://github.com/mohanraj00/nookku/issues/555).
 
 ### The setup asks before it builds
 

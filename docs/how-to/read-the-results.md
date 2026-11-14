@@ -166,19 +166,25 @@ For each error of exit 2, [troubleshooting.md](../troubleshooting.md#audit-verif
 `findings.json` holds the checks of the trace ([SPEC.md section 8.6](../../SPEC.md#86-findings)):
 
 ```bash
-cat .nookku/tests/20261011-184952-8a8d/findings.json
+cat .nookku/tests/20261112-060531-7c0f/findings.json
 ```
+
+This output is from the test of the tutorial proof of nookku 0.5.8 ([data](../../proofs/tutorial/output.txt), [method](../../scripts/proof_tutorial.py)):
 
 ```json
 {
  "v": "0.2",
- "test": "20261011-184952-8a8d",
+ "test": "20261112-060531-7c0f",
  "turns": 3,
  "items": 0,
  "sessions": [],
  "otel": null,
  "backend": null,
  "model_api": null,
+ "mcp": null,
+ "database": null,
+ "egress": null,
+ "trace_points": null,
  "counts": {
   "agent_error": 0,
   "repeated_reply": 0,
@@ -190,20 +196,27 @@ cat .nookku/tests/20261011-184952-8a8d/findings.json
   "model_api_error": 0,
   "questions_lost": 0,
   "database_error": 0,
+  "proxy_call_without_span": 0,
+  "mcp_task_unfinished": 0,
   "unseen_call": 0,
+  "driver_without_span": 0,
+  "egress_not_in_discovery": 0,
+  "egress_denied": 0,
   "model_error": 0,
   "turn_without_model": 0,
   "item_between_turns": 0,
   "otel_tool_not_in_session": 0,
   "server_not_from_app": 0,
   "session_inferred": 0,
-  "version_untested": 0
+  "version_untested": 0,
+  "missing_trace_point": 0,
+  "trace_points_unread": 0
  },
  "findings": []
 }
 ```
 
-`items` is the number of model items in `trace.jsonl`. `counts` has one number for each check. The toy shop has no model, so the trace has no item and no finding.
+`items` is the number of model items in `trace.jsonl`. `counts` has one number for each check. Nookku 0.5.8 has 25 checks. The later checks `citation_not_read`, `answer_key_mismatch` and `answer_key_missing` also have a number in `counts` ([trace.py](../../src/nookku/trace.py)). The toy shop has no model, so the trace has no item and no finding.
 
 A finding is a fact, not yet an issue. For example, a tool error can be the correct result of a request for an order that does not exist. The findings do not change the exit code of the audit.
 

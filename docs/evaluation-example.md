@@ -104,7 +104,7 @@ uv run python scripts/proof_spec_classes.py hooks-codex
 
 ## An evaluation of the words only
 
-This is one test of the [toy shop agent](../examples/toy-shop/agent.py) through the Claude Code plugin, with nookku 0.5.4. The agent is the HTTP server [http_agent.py](../examples/toy-shop/http_agent.py), and the [entry](reference/glossary.md#entry) [http_entry.py](../examples/toy-shop/http_entry.py) sends each message to it. I typed `nookku start`, played a customer with a cracked mug, and typed `nookku end`. The config turns the automatic evaluation off (`"evaluate": false`). Then I asked the model to evaluate the agent from the transcript.
+This is one test of the [toy shop agent](../examples/toy-shop/agent.py) through the Claude Code plugin, with nookku 0.5.8. The agent is the HTTP server [http_agent.py](../examples/toy-shop/http_agent.py), and the [entry](reference/glossary.md#entry) [http_entry.py](../examples/toy-shop/http_entry.py) sends each message to it. I typed `nookku start`, played a customer with a cracked mug, and typed `nookku end`. The config turns the automatic evaluation off (`"evaluate": false`). Then I asked the model to evaluate the agent from the transcript.
 
 The evaluation got only the transcript tool of the nookku MCP server, and no other tool. The test project was a temporary folder outside this repo. The script makes these limits for 2 reasons:
 
@@ -112,15 +112,15 @@ The evaluation got only the transcript tool of the nookku MCP server, and no oth
 - `--tools ""` removes only the built-in tools. In a second run, the MCP servers of my user settings were also in the context of the model. So the script now uses `--strict-mcp-config` with the nookku server only. It stores the tools of the session, and it fails if the session has a different tool.
 - The plugins and the hooks of my user settings also loaded in the evaluation session, and the mods of `~/.claude/mods` too. A hook can add text to the context of the model. So the script now reads no user settings (`--setting-sources project,local`), turns all hooks off (`disableAllHooks`), and fails if a plugin of the session is not built into Claude Code. If the check fails, the script writes no result.
 
-Claude Code loads the mods also with no user settings. So the script gives the session an empty `CLAUDE_CODE_PLUGIN_DIRS`, and no mod loads ([#424](https://github.com/mohanraj00/nookku/issues/424)). The session loaded only the 3 plugins that are built into Claude Code (the key `plugins` of the results file).
+Claude Code loads the mods also with no user settings. So the script gives the session an empty `CLAUDE_CODE_PLUGIN_DIRS`, and no mod loads ([#424](https://github.com/mohanraj00/nookku/issues/424)). The session loaded only the 4 plugins that are built into Claude Code (the key `plugins` of the results file).
 
-The full transcript and the model's answer are in [examples/toy-shop/evaluation.json](../examples/toy-shop/evaluation.json). The script is [scripts/example_evaluation.py](../scripts/example_evaluation.py). It reads the records of the [test folder](reference/glossary.md#test-folder) `.nookku/tests/20261020-190200-e0ea/`.
+The full transcript and the model's answer are in [examples/toy-shop/evaluation.json](../examples/toy-shop/evaluation.json). The script is [scripts/example_evaluation.py](../scripts/example_evaluation.py). It reads the records of the [test folder](reference/glossary.md#test-folder) `.nookku/tests/20261114-075002-5689/`.
 
 | Setup | Value |
 |---|---|
-| Date | 2026-10-20 |
-| Harness | Claude Code 2.1.302, default model `claude-opus-5-5` |
-| Relay | the plugin in this repo, nookku 0.5.4 on the base commit `415ced3` |
+| Date | 2026-11-14 |
+| Harness | Claude Code 2.1.319, default model `claude-fable-5-2` |
+| Relay | the plugin in this repo, nookku 0.5.8 on the base commit `1102f8e` |
 | Audit | exit 0, 7 turns, no breaks |
 | Tools of the evaluation | `mcp__nookku__transcript` only |
 
@@ -149,23 +149,22 @@ is the tone right, is each answer accurate? Quote the turns that you judge.
 
 ### What the model found
 
-- **A failed agent.** The model says that the agent answers 2 of 7 turns, and that 5 of 7 replies ignore the message of the customer (turns 1 to 4 and 7).
-- **A loop.** Turns 1 to 4 and turn 7 have the same text. In turn 4, the customer wrote in capitals, and the agent did not react.
-- **The agent did not apply its own policy.** The customer reported a damaged mug and asked for the money in turn 3. Rule 1 of turn 5 says "Damaged items: full refund", but the agent did not start a refund or offer one.
-- **Tone.** The agent did not apologize for the cracked mug. Turn 6 does not say "no" to Delhi.
-- **A vague rule.** "Change of mind: 30 days" does not say from which day the 30 days start, or if the refund is full.
-- **A keyword bot.** The trace shows 0 model calls, and the replies took a few milliseconds. So the model says that the agent is a hard-coded or keyword bot, not a language model.
-- **Limits.** The record has no policy, no catalog and no list of cities to compare with. So the model judged each reply only against the question and against the statements of the agent.
+- **A failed agent.** The model says that 5 of 7 replies are the same question (turns 1 to 4 and 7), also when the customer already named the item.
+- **The agent did not apply its own policy.** The customer reported a damaged mug in turn 1 and asked for the money in turn 3. Rule 1 of turn 5 says "Damaged items: full refund", but the agent did not offer a refund. Turn 5 gives the policy, but does not apply it to the mug.
+- **Tone.** The agent did not apologize for the cracked mug. In turn 4, the customer wrote in capitals, and the agent gave the same question again. Turn 6 does not say "no" to Delhi.
+- **Each turn.** The model gives a table: turns 1 to 4 and 7 are wrong, turn 5 answers the question, and turn 6 answers a part of it.
+- **Limits.** The record has no copy of the policy, the cities or the prices. So the model judged the policy against the text of turn 5, and it could not check the facts of turns 5 and 6.
+- **A cause.** The model says that the agent answered only the messages that did not name an item (turns 5 and 6). It says that it did not read the trace, so this cause comes from the replies only.
 
-The count of the model is correct: 5 of 7 replies ignore the message. The keyword bot is also correct ([agent.py](../examples/toy-shop/agent.py)). The model got the cause of the loop wrong:
+The count of the model is correct: 5 of 7 replies are the question. The refund fault is also correct. The model got the cause wrong:
 
-- **The cause.** The model says that the word "teapot" causes the question in turn 7, and that the agent asks for the item also when the message names it. But the agent has no step that finds the item. It looks for the words "refund", "ship" and "price" in the message, and it sends the question for each other message. So turn 3 ("money back") and turn 7 ("how much") get the question, although the agent has a price table. Turns 5 and 6 got an answer because they have the words "refund" and "ship".
+- **The cause.** The agent has no step that finds the item. It looks for the words "refund", "ship" and "price" in the message, and it sends the question for each other message ([agent.py](../examples/toy-shop/agent.py)). Turn 3 ("can i get my money back?") names no item, but it got the question. The model saw this turn as an exception to its rule. Turn 7 ("how much is the teapot") got the question because it does not have the word "price", although the agent has a price table.
 
 Before the script stores the answer, it checks that the answer shares no 8 words in a row with an instruction file, and it removes the local paths.
 
-### What changed since the run of 2026-10-07
+### What changed since the run of 2026-10-20
 
-The run of 2026-10-07 used the TypeScript plugin of 0.3 and Claude Code 2.1.290. That run had no test folder, so the transcript tool answered "no test folder", and the model had no trace. This run has a test folder, so the transcript tool gives the trace, the findings and the performance block of each turn. The model used the model calls and the times of the trace to find the keyword bot. It did not name the `repeated_reply` [finding](reference/glossary.md#findings), but it found the loop from the replies.
+The run of 2026-10-20 used nookku 0.5.4, Claude Code 2.1.302 and the model `claude-opus-5-5` ([results of that run](https://github.com/mohanraj00/nookku/blob/v0.5.8/examples/toy-shop/evaluation.json)). The test and the 7 replies are the same in the 2 runs. In the run of 2026-10-20, the model read the trace. It used the model calls and the times of the trace to find that the agent is a keyword bot. In this run, the model did not read the trace, and it did not find the keyword bot. Its cause of the loop came from the replies only, and it is wrong. So the result of an evaluation can change between runs, also with the same records.
 
 The model judges from the transcript and the trace only. It cannot see the agent's code, so it can find a fault but not always its cause.
 
