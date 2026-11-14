@@ -47,12 +47,13 @@ jobs:
         with:
           name: nookku-tests
           path: .nookku/tests/
+          include-hidden-files: true
 ```
 
 - `nookku init plugin` writes `.nookku/config.json`. The job does not use a [harness](../reference/glossary.md#harness), so the [relay](../reference/glossary.md#relay) form has no effect here.
 - `nookku register` gives the egress answer. A test start needs an answer from the last 30 minutes ([SPEC.md section 7.11](../../SPEC.md#711-egress-discovery)).
 - `--no-evaluate` stops the [evaluation](../reference/glossary.md#evaluation) prompt, because no model runs in the job.
-- The last step keeps the [test folder](../reference/glossary.md#test-folder), so you can read `verdict.json` and `findings.json` after a failure.
+- The last step keeps the [test folder](../reference/glossary.md#test-folder), so you can read `verdict.json` and `findings.json` after a failure. The folder is in `.nookku/`, and `upload-artifact` does not upload a hidden folder by default. Thus the step sets `include-hidden-files: true`.
 
 ## The exit codes
 
