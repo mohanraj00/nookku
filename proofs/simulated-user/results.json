@@ -1,0 +1,39 @@
+{
+ "date": "2026-11-14",
+ "versions": {
+  "nookku": "0.5.8",
+  "claude-code": "2.1.319"
+ },
+ "persona": {
+  "persona": "A customer of a small toy shop. The teapot that you ordered came broken.",
+  "goal": "Find out what refund the shop gives for a damaged item.",
+  "turns": 8
+ },
+ "result": {
+  "turns": 1,
+  "limit": 8,
+  "ended": "goal",
+  "error": null
+ },
+ "turns": [
+  [
+   "Hi, I ordered a toy teapot from your shop and it arrived broken — the spout is snapped off. What kind of refund do you give for damaged items?",
+   "Our refund policy:\n\n1. Damaged items: full refund.\n2. Change of mind: 30 days.\n"
+  ]
+ ],
+ "first_run": {
+  "exit": 0,
+  "audit_exit": 0
+ },
+ "script_run": {
+  "exit": 0,
+  "audit_exit": 0
+ },
+ "checks": {
+  "U1": true,
+  "U2": true,
+  "U3": true,
+  "U4": true
+ },
+ "pass": true
+}
