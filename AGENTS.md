@@ -33,7 +33,7 @@ Flag these as high priority in a PR review:
 - A change that lets the relay change a byte of a message or a reply, or that lets a relayed message reach the model.
 - A relay path that fails open. If the relay cannot send a message, the message must still not go to the model.
 - A change to the record format or to the audit with no SPEC.md change and no hand-written conformance case.
-- A banned term, or a client or product name, in a file, a path or a commit message.
+- A banned term, or a client or product name, in a file, a path or a commit message. Do not flag the name Koodam. Koodam is a project of the maintainer, and the repo can name it.
 - A new runtime dependency, or a GPL or AGPL dependency.
 - A number in a doc with no link to its data and its method.
 - A plugin helper that takes `$` and is not a top-level function declaration.
@@ -55,9 +55,10 @@ Docs, commit messages and issues use the maintainer's voice under ASD-STE100 rul
 
 ```bash
 make check
+uv run python conformance/build.py && git diff --exit-code conformance/
 ```
 
-The `check` target of the `Makefile` runs ruff, the format check, mypy, pytest, the stealth gate and the two plugin checks.
+The `check` target of the `Makefile` runs ruff, the format check, mypy, pytest, the stealth gate and the two plugin checks. The second command is the conformance check of the CI job `lint` ([ci.yml](.github/workflows/ci.yml)). It writes the conformance cases again and fails if a file changes.
 
 ## Proofs (local only)
 
