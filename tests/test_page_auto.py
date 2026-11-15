@@ -791,6 +791,18 @@ def test_chat_stop_says_no_stop_if_it_sent_no_signal_and_the_lock_is_held(
         holder.wait()
 
 
+@pytest.mark.parametrize("holder", [0, -1])
+def test_chat_stop_names_no_pid_if_the_os_gives_none_and_the_lock_is_released(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, holder: int
+) -> None:
+    folder = state.state(tmp_path)
+    folder.mkdir()
+    (folder / state.PAGE_FILE).write_text(json.dumps({"port": 1}))
+    holders = iter([holder, None])
+    monkeypatch.setattr(page, "lock_holder", lambda root: next(holders))
+    assert page_auto.stop(tmp_path) == (0, "The chat page of this project stopped.")
+
+
 def test_the_stop_sends_no_signal_to_a_pid_that_does_not_hold_the_lock(
     running: Any, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -852,6 +864,104 @@ def test_chat_stop_names_the_true_holder_and_stops_only_a_page_server(
         for proc in (holder, other):
             proc.kill()
             proc.wait()
+
+
+@pytest.mark.parametrize("link", ["lock", "folder", "hard"])
+def test_chat_stop_sends_no_signal_through_a_link_to_another_project(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+    link: str,
+) -> None:
+    mine, other = tmp_path / "mine", tmp_path / "other"
+    for root in (mine, other):
+        state.state(root).mkdir(parents=True)
+    holder = locker(other, "t-1")
+    (state.state(other) / state.PAGE_FILE).unlink()
+    mine_lock = state.state(mine) / state.PAGE_LOCK
+    other_lock = state.state(other) / state.PAGE_LOCK
+    if link == "folder":
+        state.state(mine).rmdir()
+        state.state(mine).symlink_to(state.state(other), target_is_directory=True)
+    elif link == "lock":
+        mine_lock.symlink_to(other_lock)
+    else:
+        os.link(other_lock, mine_lock)
+    monkeypatch.setattr(state, "process_start", lambda pid: f"start:{pid}")
+    monkeypatch.setattr(
+        page_auto, "_process_args", lambda pid: [sys.executable, "-m", "nookku", "chat"]
+    )
+    signals: list[tuple[int, int]] = []
+    try:
+        assert page.lock_holder(mine) == holder.pid
+        with monkeypatch.context() as patch:
+            patch.setattr(page_auto, "_pidfd", lambda pid: None)
+            patch.setattr(page_auto, "STOP_WAIT", 0)
+            patch.setattr(os, "kill", lambda pid, sig: signals.append((pid, sig)))
+            code = main(["chat", "--stop", "--root", str(mine)])
+        assert signals == []
+        assert code == 1
+        assert capsys.readouterr().err.strip() == page_auto.NOT_CONFIRMED.format(pid=holder.pid)
+        assert holder.poll() is None
+    finally:
+        holder.kill()
+        holder.wait()
+
+
+@pytest.mark.parametrize("change", ["lock", "folder", "hard", "replace", "remove"])
+def test_chat_stop_checks_the_lock_path_again_after_the_second_holder_read(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+    change: str,
+) -> None:
+    folder = state.state(tmp_path)
+    folder.mkdir()
+    holder = locker(tmp_path, "t-1")
+    (folder / state.PAGE_FILE).unlink()
+    lock = folder / state.PAGE_LOCK
+    saved = tmp_path / "saved"
+    saved.mkdir()
+    original = page.lock_holder
+    reads = 0
+
+    def lock_holder(root: Path) -> int | None:
+        nonlocal reads
+        pid = original(root)
+        reads += 1
+        if reads == 2:
+            if change == "folder":
+                folder.rename(tmp_path / "old")
+                folder.symlink_to(tmp_path / "old", target_is_directory=True)
+            elif change == "hard":
+                os.link(lock, saved / state.PAGE_LOCK)
+            else:
+                lock.rename(saved / state.PAGE_LOCK)
+                if change == "lock":
+                    lock.symlink_to(saved / state.PAGE_LOCK)
+                elif change == "replace":
+                    lock.touch()
+        return pid
+
+    monkeypatch.setattr(page, "lock_holder", lock_holder)
+    monkeypatch.setattr(state, "process_start", lambda pid: f"start:{pid}")
+    monkeypatch.setattr(
+        page_auto, "_process_args", lambda pid: [sys.executable, "-m", "nookku", "chat"]
+    )
+    signals: list[tuple[int, int]] = []
+    try:
+        with monkeypatch.context() as patch:
+            patch.setattr(page_auto, "_pidfd", lambda pid: None)
+            patch.setattr(page_auto, "STOP_WAIT", 0)
+            patch.setattr(os, "kill", lambda pid, sig: signals.append((pid, sig)))
+            code = main(["chat", "--stop", "--root", str(tmp_path)])
+        assert signals == []
+        assert code == 1
+        assert capsys.readouterr().err.strip() == page_auto.NOT_CONFIRMED.format(pid=holder.pid)
+        assert reads == 2 and holder.poll() is None
+    finally:
+        holder.kill()
+        holder.wait()
 
 
 @pytest.mark.parametrize("platform", ["linux", "darwin", "unknown"])

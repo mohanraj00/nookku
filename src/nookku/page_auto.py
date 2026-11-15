@@ -34,6 +34,7 @@ import secrets
 import select
 import shlex
 import signal
+import stat
 import subprocess
 import sys
 import threading
@@ -283,10 +284,17 @@ def stop(root: Path) -> tuple[int, str]:
         not_known = NOT_CONFIRMED.format(pid=holder)
     info = state.page_info(root)
     if holder > 0 and (info is None or info.get("pid") != holder):
+        # A link can name the lock of another project. Check the paths without following links.
+        identity = _lock_identity(root)
+        if identity is None:
+            return 1, not_known
         # The lock identifies the project. Check the holder's command and start time when the
         # page file cannot identify it (#487). Never trust the pid in that file alone.
         start = state.process_start(holder)
         if start is None or not _is_page_server(holder) or page.lock_holder(root) != holder:
+            return 1, not_known
+        # The lock path must still name the same file after the second holder check.
+        if _lock_identity(root) != identity:
             return 1, not_known
         error = None if _stop(holder, start) else NOT_STOPPED.format(pid=holder)
     else:
@@ -295,7 +303,22 @@ def stop(root: Path) -> tuple[int, str]:
         return 1, error
     # _stop_server also sends no signal if the page file names no running pid, or if it changed.
     # Then a process still holds the lock, and "stopped" is not true.
-    return (1, not_known) if _held(root) else (0, STOPPED.format(pid=holder))
+    stopped = STOPPED.format(pid=holder) if holder > 0 else "The chat page of this project stopped."
+    return (1, not_known) if _held(root) else (0, stopped)
+
+
+def _lock_identity(root: Path) -> tuple[int, int] | None:
+    """The device and inode of the lock, or None if a path is a link or cannot be read."""
+    folder = state.state(root)
+    try:
+        if stat.S_ISLNK(os.lstat(folder).st_mode):
+            return None
+        lock = os.lstat(folder / state.PAGE_LOCK)
+    except OSError:
+        return None
+    if stat.S_ISLNK(lock.st_mode) or lock.st_nlink > 1:
+        return None
+    return lock.st_dev, lock.st_ino
 
 
 def _is_page_server(pid: int) -> bool:
