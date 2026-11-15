@@ -15,6 +15,7 @@ import time
 import urllib.request
 from collections.abc import Iterator
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -706,7 +707,7 @@ def test_chat_stop_stops_the_page_server_of_this_project_only(
         assert proc.poll() is None
         mine_proc = locker(mine, "t-2")
         assert main(["chat", "--stop", "--root", str(mine)]) == 0
-        assert capsys.readouterr().out.strip() == page_auto.STOPPED
+        assert capsys.readouterr().out.strip() == page_auto.STOPPED.format(pid=mine_proc.pid)
         assert mine_proc.wait(10) == -signal.SIGTERM
         assert proc.poll() is None
     finally:
@@ -764,6 +765,8 @@ def test_chat_stop_says_no_stop_if_it_sent_no_signal_and_the_lock_is_held(
 ) -> None:
     (tmp_path / ".nookku").mkdir()
     holder = sleeper(tmp_path, "t-1")
+    # Some platforms report a lock with no holder pid. Keep the manual steps there.
+    monkeypatch.setattr(page, "lock_holder", lambda root: 0)
     # The text gives the absolute path of the lock, also for a --root from another folder.
     lock_path = str((tmp_path / ".nookku" / state.PAGE_LOCK).resolve())
     assert os.path.isabs(lock_path)
@@ -801,13 +804,91 @@ def test_the_stop_sends_no_signal_to_a_pid_that_does_not_hold_the_lock(
     try:
         assert page_auto.after_end(root, True) is None
         assert main(["chat", "--stop", "--root", str(root)]) == 1
-        lock = str((root / ".nookku" / state.PAGE_LOCK).resolve())
-        assert capsys.readouterr().err.strip() == page_auto.NOT_KNOWN.format(lock=lock)
+        assert capsys.readouterr().err.strip() == page_auto.NOT_CONFIRMED.format(pid=holder.pid)
         assert other.poll() is None and holder.poll() is None
     finally:
         for proc in (holder, other):
             proc.kill()
             proc.wait()
+
+
+@pytest.mark.parametrize("command", ["module", "script", "other", "space", "unknown"])
+def test_chat_stop_names_the_true_holder_and_stops_only_a_page_server(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+    command: str,
+) -> None:
+    root = tmp_path / "toy shop"
+    (root / ".nookku").mkdir(parents=True)
+    # Use real locks and signals. Supply the OS identity reads so this test also runs in a
+    # sandbox that cannot read process data or bind a socket for a page server.
+    monkeypatch.setattr(state, "process_start", lambda pid: f"start:{pid}")
+    holder = locker(root, "t-1")
+    script = str(Path(sys.executable).with_name("nookku"))
+    commands = {
+        "module": [sys.executable, "-m", "nookku", "chat", "--root", str(root)],
+        "script": [sys.executable, script, "chat", "--root", str(root)],
+        "other": [sys.executable, "-c", "nookku chat"],
+        "space": [sys.executable, script + " chat", "--root", str(root)],
+        "unknown": None,
+    }
+    monkeypatch.setattr(page_auto, "_process_args", lambda pid: commands[command])
+    # Replace page.json with another live pid and its real start time (#487).
+    other = sleeper(root, "t-1", hold=False)
+    try:
+        assert page.lock_holder(root) == holder.pid
+        code = main(["chat", "--stop", "--root", str(root)])
+        shown = capsys.readouterr()
+        assert f"pid {holder.pid}" in shown.out + shown.err
+        assert other.poll() is None
+        if command not in ("module", "script"):
+            assert code == 1 and "sent no signal" in shown.err
+            assert holder.poll() is None
+        else:
+            assert code == 0 and "stopped" in shown.out
+            assert holder.wait(10) == -signal.SIGTERM
+    finally:
+        for proc in (holder, other):
+            proc.kill()
+            proc.wait()
+
+
+@pytest.mark.parametrize("platform", ["linux", "darwin", "unknown"])
+def test_the_process_arguments_keep_spaces_and_exclude_the_environment(
+    monkeypatch: pytest.MonkeyPatch, platform: str
+) -> None:
+    import ctypes
+    import struct
+
+    args = ["python", "-m", "nookku", "chat", "--root", "/toy shop"]
+    encoded = b"\0".join(os.fsencode(arg) for arg in args) + b"\0"
+
+    def read(path: Path) -> bytes:
+        assert str(path) == "/proc/123/cmdline"
+        if platform != "linux":
+            raise FileNotFoundError
+        return encoded
+
+    def sysctl(keys: Any, count: int, data: Any, size: Any, new: Any, length: int) -> int:
+        assert list(keys) == [1, 49, 123] and count == 3
+        payload = (
+            struct.pack("@i", len(args))
+            + os.fsencode(sys.executable)
+            + b"\0\0\0"
+            + encoded
+            + b"PRIVATE=not an argument\0"
+        )
+        ctypes.memmove(data, payload, len(payload))
+        ctypes.cast(size, ctypes.POINTER(ctypes.c_size_t)).contents.value = len(payload)
+        return 0
+
+    monkeypatch.setattr(Path, "read_bytes", read)
+    monkeypatch.setattr(os, "readlink", lambda path: sys.executable)
+    monkeypatch.setattr(sys, "platform", platform)
+    monkeypatch.setattr(ctypes, "CDLL", lambda name: SimpleNamespace(sysctl=sysctl))
+    expected = [sys.executable, *args[1:]] if platform != "unknown" else None
+    assert page_auto._process_args(123) == expected
 
 
 def test_the_page_server_of_nookku_chat_stops_itself_when_idle(
