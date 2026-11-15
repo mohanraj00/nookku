@@ -1329,16 +1329,19 @@ def _in_session(
     items are those of the session of the event, or of each session of its harness if the event
     names no session of the test. `calls` holds the response item calls of the Codex sessions
     (read_codex_calls), with the same rule. If the event has a tool use id or a call id and the
-    session has ids, only the id must agree."""
+    session has ids, only the id must agree. The scope is one for the items and the calls: the
+    session of the event if the items or the calls have it, else each session of the harness."""
     name, args = _event_tool(event)
     given = event["input"].get("tool_use_id") if event["harness"] == "claude-code" else None
     own = [it for it in items if it["harness"] == event["harness"]]
-    own = [it for it in own if it["session"] == event["session"]] or own
+    mine = list(calls or []) if event["harness"] == "codex" else []
+    if any(x["session"] == event["session"] for x in own + mine):
+        own = [it for it in own if it["session"] == event["session"]]
+        mine = [c for c in mine if c["session"] == event["session"]]
     known = [it for it in own if it.get(CALL_ID)]
     if isinstance(given, str) and given and known:
         return any(it[CALL_ID] == given for it in known)
     if event["harness"] == "codex":
-        mine = [c for c in calls or [] if c["session"] == event["session"]] or calls or []
         by_id = _codex_id(event, own, mine)
         if by_id is not None:
             return by_id

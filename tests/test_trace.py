@@ -4,6 +4,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -552,3 +553,17 @@ def test_a_finding_cannot_move_the_cursor_or_forge_a_line() -> None:
         "No turn:",
         "  agent_error: status\\u2028500",
     ]
+
+
+def test_the_codex_id_rule_keeps_to_the_session_of_the_event() -> None:
+    def event(tool: str, call_id: str) -> dict[str, Any]:
+        args = {"tool_name": tool, "arguments": "{}", "call_id": call_id}
+        return {"harness": "codex", "session": "A", "turn": 1, "input": args}
+
+    command = {"harness": "codex", "session": "A", "turn": 1, "kind": "command", "input": {}}
+    other = [{"harness": "codex", "session": "B", "call_id": "call_B", "name": "exec"}]
+    result = event("exec_command", "item_A")
+    assert trace._in_session(result, [command], [])
+    assert trace._in_session(result, [command], other)
+    assert not trace._in_session(event("exec", "call_B"), [command], other)
+    assert trace._in_session(event("exec", "call_B"), [], other)
