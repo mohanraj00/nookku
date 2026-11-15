@@ -30,6 +30,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -208,7 +209,18 @@ def outside(commands: list[str], project: Path) -> list[str]:
     """The commands that name a parent folder or a path of the repo outside the project."""
     out = []
     for c in commands:
-        paths = re.findall(r"/[^\s'\"]+", c)
+        try:
+            words = shlex.split(c)
+            if (
+                len(words) == 3
+                and words[1] in ("-c", "-lc")
+                and Path(words[0]).name in ("sh", "bash", "dash", "zsh")
+            ):
+                words = shlex.split(words[2])
+        except ValueError:
+            out.append(c)
+            continue
+        paths = [word[word.index("/") :] for word in words if "/" in word]
         repo = [x for x in paths if x.startswith(str(ROOT)) and not x.startswith(str(project))]
         if ".." in c or repo:
             out.append(c)

@@ -3,6 +3,7 @@
 import copy
 import json
 import os
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -13,9 +14,25 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
 import proof_egress as pe
 import proof_plugin_load as pl
+import proof_report as pr
 import proof_sessions as ps
 import proof_spec_classes as pc
 import proof_tutorial as pt
+
+
+@pytest.mark.parametrize("shell", [False, True])
+def test_the_report_checks_quoted_paths_with_spaces(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, shell: bool
+) -> None:
+    repo = tmp_path / "Toy Shop"
+    project = repo / "Test Shop"
+    monkeypatch.setattr(pr, "ROOT", repo)
+    inside = shlex.join(["cat", str(project / "agent.py")])
+    outside = shlex.join(["cat", str(repo / "scripts" / "proof_report.py")])
+    if shell:
+        inside = shlex.join(["/bin/sh", "-lc", inside])
+        outside = shlex.join(["/bin/sh", "-lc", outside])
+    assert pr.outside([inside, outside], project) == [outside]
 
 
 @pytest.mark.parametrize("model", [False, True])

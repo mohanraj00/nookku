@@ -3,6 +3,7 @@ import hashlib
 import io
 import json
 import os
+import shlex
 import signal
 import subprocess
 import sys
@@ -315,7 +316,7 @@ def test_end_stops_the_group_of_an_entry_that_stopped(
     tmp_path: Path, homes: tuple, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
 ) -> None:
     # The entry starts a helper in its group, then stops at the end of its stdin.
-    shell = f"sleep 600 & exec {sys.executable} -c 'import sys; sys.stdin.read()'"
+    shell = f"sleep 600 & exec {shlex.quote(sys.executable)} -c 'import sys; sys.stdin.read()'"
     root = project(tmp_path, ["sh", "-c", shell])
     cur = bridge.start(root)
     folder = Path(cur["dir"])

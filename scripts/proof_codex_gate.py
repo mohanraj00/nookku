@@ -32,6 +32,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shlex
 import shutil
 import signal
 import subprocess
@@ -174,7 +175,10 @@ def project() -> None:
     PROJECT.mkdir(parents=True, exist_ok=True)
     new_state(PROJECT)
     path = PROJECT / STATE_DIR / "config.json"
-    run(["nookku", "init", "plugin", "--entry", f"{sys.executable} {TOY_SHOP}"], PROJECT)
+    run(
+        ["nookku", "init", "plugin", "--entry", shlex.join([sys.executable, str(TOY_SHOP)])],
+        PROJECT,
+    )
     # A proof opens no browser tab.
     path.write_text(json.dumps(loads(path.read_text()) | {"page": False}, indent=2) + "\n")
 
@@ -308,7 +312,7 @@ def main() -> int:
         result["part_b"] = part_b(installed)
     else:
         result["part_a"] = part_a(installed)
-        print(f"Part B: CODEX_HOME={HOME} codex -C {PROJECT}")
+        print(f"Part B: CODEX_HOME={shlex.quote(str(HOME))} codex -C {shlex.quote(str(PROJECT))}")
         print("Type /hooks, trust the 2 nookku hooks, quit, then run this script with --trusted.")
     OUT.parent.mkdir(parents=True, exist_ok=True)
     text = json.dumps(result, indent=1, ensure_ascii=False) + "\n"

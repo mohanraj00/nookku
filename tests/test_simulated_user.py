@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import shlex
 import sys
 from pathlib import Path
 
@@ -23,17 +24,16 @@ PERSONA = {
 }
 # A claude -p of the test. It logs each call, and gives message n of the plan, where n is the
 # count of earlier turns in the prompt. The plan item "exit 3" exits with 3.
-FAKE = """#!{python}
-import json, os, sys
+FAKE = """import json, os, sys
 if sys.argv[1:] == ["--version"]:
     print("2.1.319 (Claude Code)")
     sys.exit(0)
 prompt = sys.stdin.read()
 plan = json.loads(open(os.environ["FAKE_PLAN"]).read())
 with open(os.environ["FAKE_LOG"], "a") as log:
-    log.write(json.dumps({{"argv": sys.argv[1:], "cwd": os.getcwd(), "prompt": prompt,
+    log.write(json.dumps({"argv": sys.argv[1:], "cwd": os.getcwd(), "prompt": prompt,
         "nookku": sorted(k for k in os.environ if k.startswith("NOOKKU_")),
-        "mods": os.environ.get("CLAUDE_CODE_PLUGIN_DIRS")}}) + "\\n")
+        "mods": os.environ.get("CLAUDE_CODE_PLUGIN_DIRS")}) + "\\n")
 said = plan[min(prompt.count("\\nYou: "), len(plan) - 1)]
 if said == "exit 3":
     sys.exit(3)
@@ -46,7 +46,9 @@ def fake(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     claude = bin_dir / "claude"
-    claude.write_text(FAKE.format(python=sys.executable))
+    script = bin_dir / "claude.py"
+    script.write_text(FAKE)
+    claude.write_text(f'#!/bin/sh\nexec {shlex.join([sys.executable, str(script)])} "$@"\n')
     claude.chmod(0o755)
     monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ['PATH']}")
     monkeypatch.setenv("FAKE_LOG", str(tmp_path / "calls.jsonl"))

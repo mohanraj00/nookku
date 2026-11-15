@@ -6,6 +6,7 @@ import io
 import json
 import os
 import re
+import shlex
 import signal
 import socket
 import subprocess
@@ -518,7 +519,7 @@ def test_a_browser_that_gets_the_page_opens_it(
     root, folder = running
     script = root / "fetch.py"
     script.write_text(FETCH)
-    monkeypatch.setenv("BROWSER", f"{sys.executable} {script} {browser} %s")
+    monkeypatch.setenv("BROWSER", shlex.join([sys.executable, str(script), str(browser), "%s"]))
     assert page_auto.after_start(root, folder.name, sys.stdout) == page_auto.OPENED
     info = state.page_info(root)
     assert info is not None
@@ -535,7 +536,7 @@ def test_a_second_use_of_the_launch_url_stops_the_page_and_the_start_says_so(
     root, folder = running
     script = root / "first.py"
     script.write_text(FIRST)
-    monkeypatch.setenv("BROWSER", f"{sys.executable} {script} {browser} %s")
+    monkeypatch.setenv("BROWSER", shlex.join([sys.executable, str(script), str(browser), "%s"]))
     text = page_auto.after_start(root, folder.name, sys.stdout)
     assert text == page_auto.FAILED.format(reason=page_auto.REUSED)
     assert state.page_info(root) is None
