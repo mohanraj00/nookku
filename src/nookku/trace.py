@@ -110,9 +110,12 @@ MODEL_HARNESSES = ("claude-code", "codex", "model_api", "gateway")
 EXCERPT = 60
 # The kinds that a model session file gives.
 SESSION_KINDS = ("message", "tool_call", "command")
-# The key of the tool use id of a Claude Code tool call. The check of section 8.6 uses it. The
-# trace does not write it to trace.jsonl.
+# The key of the tool use id of a Claude Code tool call, and of the item id of a Codex command or
+# tool call. The check of section 8.6 uses it. The trace does not write it to trace.jsonl.
 CALL_ID = "_tool_use_id"
+# The response items of a Codex rollout that are tool calls of the model. A tool_result event of
+# the outer `exec` tool has the `call_id` of its call (SPEC.md section 8.6).
+CODEX_CALLS = ("function_call", "custom_tool_call", "local_shell_call")
 # The marks at the end of a cut string of a tool_result event.
 CUT_MARKS = ("...", "\u2026")
 # Codex tools that run a command. The session file has a command item for them.
@@ -311,6 +314,8 @@ def _codex_item(it: dict[str, Any], item: dict[str, Any]) -> bool:
             it["output"] = out
     else:
         return False
+    if isinstance(item.get("id"), str) and item["id"]:
+        it[CALL_ID] = item["id"]
     it["harness_internal"] = it["name"] in HARNESS_INTERNAL["codex"]
     return True
 
@@ -382,6 +387,20 @@ def read_codex_errors(path: Path) -> list[dict[str, Any]]:
         else:
             detail = json_text(error)
         found.append({"line": n, "ts": _time(row.get("timestamp")), "detail": detail})
+    return found
+
+
+def read_codex_calls(path: Path) -> list[dict[str, Any]]:
+    """The tool calls of the response items of a Codex rollout file: the `call_id` and the name
+    of each. They are not trace items, because a completed item gives the same call."""
+    found: list[dict[str, Any]] = []
+    for _, row in _lines(path, Counter()):
+        payload = row.get("payload") if isinstance(row, dict) else None
+        if row.get("type") != "response_item" or not isinstance(payload, dict):
+            continue
+        call_id = payload.get("call_id")
+        if payload.get("type") in CODEX_CALLS and isinstance(call_id, str) and call_id:
+            found.append({"call_id": call_id, "name": payload.get("name")})
     return found
 
 
@@ -1274,11 +1293,41 @@ def _cut_equal(event: Any, session: Any) -> bool:
     return bool(event == session)
 
 
-def _in_session(event: dict[str, Any], items: list[dict[str, Any]]) -> bool:
+def _codex_id(
+    event: dict[str, Any], own: list[dict[str, Any]], calls: list[dict[str, Any]]
+) -> bool | None:
+    """The id rule of a Codex event (SPEC.md section 8.6), or None if the event has no
+    `call_id` or the session has no id. An id has a layer: the outer `exec` tool has the
+    `call_id` of a response item, and a command, MCP or dynamic tool has the `id` of its
+    completed item. Thus the id must agree with a call of the same tool."""
+    given = event["input"].get("call_id")
+    if not isinstance(given, str) or not given:
+        return None
+    if not calls and not any(it.get(CALL_ID) for it in own):
+        return None
+    name = _event_tool(event)[0]
+    if any(c["call_id"] == given and c["name"] == name for c in calls):
+        return True
+    for it in own:
+        if it.get(CALL_ID) != given:
+            continue
+        if name in CODEX_COMMANDS and it["kind"] == "command":
+            return True
+        if it["kind"] == "tool_call" and it["name"] == name:
+            return True
+    return False
+
+
+def _in_session(
+    event: dict[str, Any],
+    items: list[dict[str, Any]],
+    calls: list[dict[str, Any]] | None = None,
+) -> bool:
     """True if the session items have the tool call of the event (SPEC.md section 8.6). The
     items are those of the session of the event, or of each session of its harness if the event
-    names no session of the test. If the event has a tool use id and an item has one, only the id
-    must agree."""
+    names no session of the test. `calls` holds the response item calls of the Codex sessions
+    (read_codex_calls), with the same rule. If the event has a tool use id or a call id and the
+    session has ids, only the id must agree."""
     name, args = _event_tool(event)
     given = event["input"].get("tool_use_id") if event["harness"] == "claude-code" else None
     own = [it for it in items if it["harness"] == event["harness"]]
@@ -1286,6 +1335,11 @@ def _in_session(event: dict[str, Any], items: list[dict[str, Any]]) -> bool:
     known = [it for it in own if it.get(CALL_ID)]
     if isinstance(given, str) and given and known:
         return any(it[CALL_ID] == given for it in known)
+    if event["harness"] == "codex":
+        mine = [c for c in calls or [] if c["session"] == event["session"]] or calls or []
+        by_id = _codex_id(event, own, mine)
+        if by_id is not None:
+            return by_id
     command = event["harness"] == "codex" and name in CODEX_COMMANDS
     for it in own:
         if it["turn"] != event["turn"]:
@@ -1806,6 +1860,7 @@ def check(
     clients: list[tuple[str, str]] | None = None,
     egress: list[dict[str, Any]] | None = None,
     key: dict[str, Any] | str | None = None,
+    calls: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     """The findings of SPEC.md section 8.6. They do not change the audit's exit code. `seen`
     holds the addresses of the proxies (egress_seen), or None if the test has no egress answer.
@@ -1818,6 +1873,7 @@ def check(
     (app_spec.unread).
     `drivers` holds the name and the marks of each database with a driver trace (driver_marks).
     `clients` holds the name and the kind of each other part with a client trace (client_parts).
+    `calls` holds the response item calls of the Codex sessions, with their session.
     `egress` holds the findings of the egress spans (egress_findings).
     `key` holds the answer key of the test (answer_key.load), the reason that the key cannot be
     used, or None if the test has no answer key."""
@@ -1872,7 +1928,11 @@ def check(
             detail = f"{it['service'] or 'a service'}: {it['name']}: {it['error']}"
             out.append(_finding("span_error", it["turn"], detail, **where))
         harness_event = it["kind"] == "log" and it["harness"] in ("claude-code", "codex")
-        if harness_event and it["name"] == "tool_result" and not _in_session(it, session_items):
+        if (
+            harness_event
+            and it["name"] == "tool_result"
+            and not _in_session(it, session_items, calls)
+        ):
             name = _event_tool(it)[0]
             detail = f"{name}: a tool_result event with no tool call in the session file"
             out.append(_finding("otel_tool_not_in_session", it["turn"], detail, **where))
@@ -1938,6 +1998,7 @@ def build(folder: Path) -> dict[str, Any]:
     sessions: list[dict[str, Any]] = []
     servers: list[dict[str, Any]] = []
     errors: list[dict[str, Any]] = []
+    codex_calls: list[dict[str, Any]] = []
     for s in manifest.get("model_sessions", []):
         info: dict[str, Any] = {
             "harness": s["harness"],
@@ -1960,6 +2021,7 @@ def build(folder: Path) -> dict[str, Any]:
             if s["harness"] == "codex":
                 where = {"harness": s["harness"], "session": s["session"], "file": s["file"]}
                 errors += [{**where, **x} for x in read_codex_errors(folder / s["file"])]
+                codex_calls += [{**where, **x} for x in read_codex_calls(folder / s["file"])]
         sessions.append(info)
     egress = manifest.get("egress")
     answer = egress.get("answer") if isinstance(egress, dict) else None
@@ -2030,6 +2092,7 @@ def build(folder: Path) -> dict[str, Any]:
         client_parts(answer),
         egress_found,
         answer_key_of(folder, manifest),
+        calls=codex_calls,
     )
     try:
         point_summary = app_spec.summary(manifest.get("trace_points"), items, len(exchanges))

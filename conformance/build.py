@@ -2866,6 +2866,235 @@ STRUCTURED_CASE = {
 }
 
 
+# Codex tool results with call ids (SPEC.md section 8.6). The id of a result has a layer: the
+# outer `exec` tool has the call_id of a response item, and a dynamic, MCP or command tool has
+# the id of its completed item (proofs/spikes/codex-tool-ids.json). The results of the 2 MCP
+# calls come in the reverse order. A command result with the call_id of the outer `exec` call
+# and an MCP result with an unknown id give a finding each, though the name rule accepts them.
+def cx_tool_event(t: float, tool: str, call_id: str, args: Any) -> dict:
+    """A tool_result log of Codex, as otel.jsonl holds it."""
+    attrs = {
+        "event.name": "codex.tool_result",
+        "conversation.id": CX,
+        "tool_name": tool,
+        "call_id": call_id,
+        "arguments": json.dumps(args),
+        "success": "true",
+    }
+    return {
+        "v": 1,
+        "type": "log",
+        "received": T0 + t + 0.4,
+        "service": "codex_app_server",
+        "resource": {"service.name": "codex_app_server"},
+        "scope": None,
+        "time": T0 + t,
+        "event_name": "codex.tool_result",
+        "severity": None,
+        "body": "codex.tool_result",
+        "attributes": attrs,
+        "trace_id": None,
+        "span_id": None,
+    }
+
+
+CALL_REPLY = "Delivered. Mugs and kites are in stock."
+RETURNS = ["/bin/zsh", "-lc", "cat returns.txt"]
+CALL_EVENTS = [
+    cx_tool_event(12.1, "exec", "call_A", {"code": "lookup_order"}),
+    cx_tool_event(12.2, "lookup_order", "d1", {"order": "4471"}),
+    cx_tool_event(13.6, "check_stock", "m2", {"product": "kite"}),
+    cx_tool_event(13.7, "check_stock", "m1", {"product": "mug"}),
+    cx_tool_event(14.1, "exec_command", "c1", {"cmd": "cat returns.txt"}),
+    cx_tool_event(14.2, "exec_command", "call_A", {"cmd": "cat returns.txt"}),
+    cx_tool_event(14.3, "check_stock", "exec-unknown", {"product": "mug"}),
+]
+
+
+def call_log(line: int) -> dict:
+    """The expected trace row of line `line` of CALL_EVENTS."""
+    row = CALL_EVENTS[line - 1]
+    return oitem(
+        1,
+        "codex",
+        CX,
+        row["time"] - T0,
+        "log",
+        line,
+        name="tool_result",
+        input=row["attributes"],
+        service="codex_app_server",
+    )
+
+
+def stock_call(t: float, call_id: str, product: str) -> dict:
+    """A completed McpToolCall line of the stock server."""
+    return cx_line(
+        t,
+        {
+            "type": "McpToolCall",
+            "id": call_id,
+            "server": "stock",
+            "tool": "check_stock",
+            "arguments": {"product": product},
+            "status": "completed",
+            "result": {"content": [{"type": "text", "text": '{"in_stock": 12}'}]},
+        },
+    )
+
+
+CALL_ID_CASE = {
+    "tap": [window(10, 20, reply=CALL_REPLY)],
+    "manifest": {
+        "test": "20261115-080000-id01",
+        "model_sessions": [{**CX_SESSION, "inferred": False}],
+    },
+    "sessions": {
+        CX_FILE: [
+            {
+                "timestamp": iso(T0 + 1),
+                "type": "session_meta",
+                "payload": {
+                    "id": CX,
+                    "cwd": "/toy-shop",
+                    "originator": "toy-shop",
+                    "cli_version": "0.160.0",
+                },
+            },
+            cx_line(
+                11,
+                {
+                    "type": "UserMessage",
+                    "id": "u1",
+                    "content": [
+                        {"type": "text", "text": "Is my order 4471 here?", "text_elements": []}
+                    ],
+                },
+            ),
+            {
+                "timestamp": iso(T0 + 11.5),
+                "type": "response_item",
+                "payload": {"type": "custom_tool_call", "call_id": "call_A", "name": "exec"},
+            },
+            cx_line(
+                12,
+                {
+                    "type": "DynamicToolCall",
+                    "id": "d1",
+                    "tool": "lookup_order",
+                    "arguments": {"order": "4471"},
+                    "status": "completed",
+                    "content_items": [{"type": "inputText", "text": '{"status": "delivered"}'}],
+                    "success": True,
+                },
+            ),
+            stock_call(13, "m1", "mug"),
+            stock_call(13.5, "m2", "kite"),
+            cx_line(
+                14,
+                {
+                    "type": "CommandExecution",
+                    "id": "c1",
+                    "command": RETURNS,
+                    "status": "completed",
+                    "aggregated_output": "Returns are free for 30 days.\n",
+                    "exit_code": 0,
+                },
+            ),
+            cx_line(
+                15,
+                {
+                    "type": "AgentMessage",
+                    "id": "a1",
+                    "content": [{"type": "Text", "text": CALL_REPLY}],
+                    "phase": "final_answer",
+                },
+            ),
+        ]
+    },
+    "otel": CALL_EVENTS,
+    "trace": [
+        item(1, "codex", 11, "message", 2, role="user", output="Is my order 4471 here?"),
+        item(
+            1,
+            "codex",
+            12,
+            "tool_call",
+            4,
+            name="lookup_order",
+            input={"order": "4471"},
+            output='{"status": "delivered"}',
+        ),
+        call_log(1),
+        call_log(2),
+        *(
+            item(
+                1,
+                "codex",
+                t,
+                "tool_call",
+                line,
+                server="stock",
+                name="check_stock",
+                input={"product": product},
+                output='{"in_stock": 12}',
+            )
+            for t, line, product in ((13, 5, "mug"), (13.5, 6, "kite"))
+        ),
+        call_log(3),
+        call_log(4),
+        item(
+            1,
+            "codex",
+            14,
+            "command",
+            7,
+            input=RETURNS,
+            output="Returns are free for 30 days.\n",
+            exit_code=0,
+        ),
+        call_log(5),
+        call_log(6),
+        call_log(7),
+        item(1, "codex", 15, "message", 8, role="assistant", output=CALL_REPLY),
+    ],
+    "findings": {
+        "v": "0.2",
+        "test": "20261115-080000-id01",
+        "turns": 1,
+        "items": 13,
+        "sessions": [
+            {
+                "harness": "codex",
+                "session": CX,
+                "file": CX_FILE,
+                "inferred": False,
+                "version": "0.160.0",
+                "items": 6,
+                "ignored": {"response_item.custom_tool_call": 1, "session_meta": 1},
+            }
+        ],
+        "otel": {"file": "otel.jsonl", "rows": 7, "items": 7, "ignored": {}},
+        "backend": None,
+        "model_api": None,
+        "mcp": None,
+        "database": None,
+        "counts": counts(otel_tool_not_in_session=2),
+        "findings": [
+            {
+                "check": "otel_tool_not_in_session",
+                "turn": 1,
+                "detail": f"{tool}: a tool_result event with no tool call in the session file",
+                "harness": "codex",
+                "session": CX,
+                "source": {"file": "otel.jsonl", "line": line},
+            }
+            for tool, line in (("exec_command", 6), ("check_stock", 7))
+        ],
+    },
+}
+
+
 # Backend calls (SPEC.md sections 7.6 and 8.4): the rows of backend.jsonl as the proxy writes them.
 # A call in turn 1, a 500 status and a call with no answer in turn 2, a binary response between
 # the turns, and a row that is not a call.
@@ -7075,6 +7304,7 @@ TRACE_CASES = {
     "no_model_sessions": NO_MODEL_CASE,
     "otel_toy_shop": OTEL_CASE,
     "otel_structured_output": STRUCTURED_CASE,
+    "codex_call_ids": CALL_ID_CASE,
     "backend_toy_shop": BACKEND_CASE,
     "model_api_toy_shop": MODEL_API_CASE,
     "model_api_responses": RESPONSES_CASE,

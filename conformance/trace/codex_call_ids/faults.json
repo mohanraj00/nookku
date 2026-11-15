@@ -1,0 +1,8 @@
+{
+ "faults": [
+  {
+   "check": "otel_tool_not_in_session",
+   "turn": 1
+  }
+ ]
+}
