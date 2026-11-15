@@ -37,6 +37,9 @@ MCP_TRANSPORTS = ("stdio", "http")
 # How the test records the calls of a database (SPEC.md section 7.11): the Postgres proxy, or the
 # OpenTelemetry spans of the driver in the app process.
 RECORDS = ("proxy", "driver")
+# How the test records the calls of an other part (SPEC.md section 7.11): the OpenTelemetry spans
+# of its client in the app process, or not at all.
+OTHER_RECORDS = ("driver", "none")
 # The database system of the semantic conventions for a `kind` that is not the same word.
 # A kind of the answer that is not the system name of OpenTelemetry, for example the name of a
 # Python module.
@@ -71,7 +74,7 @@ PART_KEYS = {
     "backends": ("name", "env", "url"),
     "mcp_servers": ("name", "transport", "env", "command", "url"),
     "databases": ("name", "kind", "env", "address", "record"),
-    "other": ("name", "kind", "detail"),
+    "other": ("name", "kind", "detail", "record"),
 }
 
 NO_ANSWER = (
@@ -93,7 +96,8 @@ class Part:
     name: str
     line: str
     proxy: bool
-    # True for a database with `record: driver`: its driver spans record its calls.
+    # True for a database or an other part with `record: driver`: the spans of its driver or its
+    # client record its calls.
     driver: bool = False
 
     @property
@@ -241,8 +245,10 @@ def _part(kind: str, n: int, raw: Any) -> dict[str, Any]:
                 "Give 'record' driver."
             )
     else:
-        for key in keys:
+        for key in ("name", "kind", "detail"):
             _string(f"{where} '{key}'", raw[key])
+        if raw["record"] not in OTHER_RECORDS:
+            raise AnswerError(f"{where} 'record' must be one of: {', '.join(OTHER_RECORDS)}")
     return dict(raw)
 
 
@@ -322,7 +328,8 @@ def parts(answer: dict[str, list[dict[str, Any]]]) -> list[Part]:
         proxy = p["record"] == "proxy"
         out.append(Part("database", p["name"], f"{p['kind']}, {where}", proxy, not proxy))
     for p in answer["other"]:
-        out.append(Part("other", p["name"], f"{p['kind']}, {p['detail']}", False))
+        driver = p["record"] == "driver"
+        out.append(Part("other", p["name"], f"{p['kind']}, {p['detail']}", False, driver))
     return out
 
 
@@ -342,6 +349,17 @@ def unseen(answer: dict[str, list[dict[str, Any]]]) -> list[str]:
 def drivers(answer: dict[str, list[dict[str, Any]]]) -> list[str]:
     """The names of the databases that the driver trace records (SPEC.md section 7.11)."""
     return [p["name"] for p in answer["databases"] if p["record"] == "driver"]
+
+
+def clients(answer: dict[str, list[dict[str, Any]]]) -> list[str]:
+    """The names of the other parts that the spans of their client record (SPEC.md section
+    7.11)."""
+    return [p["name"] for p in answer["other"] if p["record"] == "driver"]
+
+
+def unrecorded(answer: dict[str, list[dict[str, Any]]]) -> list[str]:
+    """The names of the other parts with `record: none`: the test does not record their calls."""
+    return [p["name"] for p in answer["other"] if p["record"] == "none"]
 
 
 def register(root: Path, raw: Any, now: float | None = None) -> dict[str, Any]:

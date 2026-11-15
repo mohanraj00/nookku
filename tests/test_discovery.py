@@ -295,6 +295,36 @@ def test_the_example_of_the_task_obeys_the_rule() -> None:
     block = text.split("```json\n", 1)[1].split("```", 1)[0]
     answer = discovery.parse(json.loads(block))
     assert [d["address"] for d in answer["databases"]] == ["127.0.0.1:5432/shop", "returns.db"]
+    assert [(o["name"], o["record"]) for o in answer["other"]] == [
+        ("orders", "driver"),
+        ("mail", "none"),
+    ]
+
+
+def test_the_task_gives_the_record_rule_of_the_other_parts() -> None:
+    # #513: the other parts got no instrumentation, and no finding said that the test did not
+    # record them. The task gives `record` for each other part, as for a database.
+    text = (Path(discovery.__file__).parent / "discover.md").read_text(encoding="utf-8")
+    find = text.split("## Find", 1)[1].split("## ", 1)[0]
+    other = find.split("5. Each other part", 1)[1]
+    for client in ("kafka-python", "confluent-kafka", "aiokafka", "pika", "aio-pika", "celery"):
+        assert client in other
+    assert "boto3sqs" in other and "amqplib" in other and "kafkajs" in other
+    assert '`"record": "driver"`' in other and '`"record": "none"`' in other
+    assert "`messaging.system`" in other and "smtplib" in other
+    # A vendor SDK with a variable for its base URL is a backend, so that a proxy records it.
+    assert "list it as a backend" in other and "the kind `http`" in other
+    trace = text.split("## Driver trace", 1)[1].split("## ", 1)[0]
+    assert 'each other part with `"record": "driver"`' in trace
+    assert "not each byte of the message" in trace
+
+
+def test_the_setup_guide_names_the_other_services() -> None:
+    # #513: the setup finds the other services and says which of them a test does not record.
+    text = (Path(discovery.__file__).parent / "setup.md").read_text(encoding="utf-8")
+    understand = text.split("## 1. Understand", 1)[1].split("## 2.", 1)[0]
+    assert "each other service that the app calls" in understand
+    assert "OpenTelemetry instrumentation" in understand and "smtplib" in understand
 
 
 def test_the_answer_file_is_used_once(

@@ -1,7 +1,7 @@
 {
  "nookku": "0.5.8",
- "cases": 40,
- "checks": 28,
+ "cases": 41,
+ "checks": 29,
  "faults": [
   {
    "case": "answer_key",
@@ -364,6 +364,13 @@
    "case": "otel_toy_shop",
    "check": "otel_tool_not_in_session",
    "turn": 2,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "other_trace",
+   "check": "other_without_span",
+   "turn": null,
    "found": true,
    "error": null
   },

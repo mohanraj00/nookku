@@ -12,7 +12,11 @@ Read the code of the agent, its configuration and its `.env` example files. The 
 4. Each database: a name, its kind (for example `postgres` or `sqlite`), the variable that holds its address (or `null`), its address (`host:port/database`, the path of its file, or `null`), and how the test records its calls (`record`). For a `postgres` database, give the variable only if it holds the `postgres://` URL that the agent connects with. Nookku puts its proxy into that URL.
    - Give `"record": "proxy"` for a `postgres` database with that variable. The proxy is the first choice: it is outside the agent, and it records the rows of each answer.
    - Give `"record": "driver"` for each other database: a database that is not `postgres`, or a `postgres` database to which the proxy cannot connect, for example an agent that does not read a `postgres://` URL from a variable.
-5. Each other part that the agent calls, for example a queue or a file share: a name, its kind and a short detail.
+5. Each other part that the agent calls, for example a queue, a mail service or a file share: a name, its kind, a short detail, and how the test records its calls (`record`).
+   - Give `"record": "driver"` if an OpenTelemetry instrumentation exists for its client, for example kafka-python, confluent-kafka, aiokafka, pika, aio-pika, celery or boto3sqs in Python, or amqplib or kafkajs in Node. The kind is the `messaging.system` value of its spans, for example `kafka`, `rabbitmq` or `aws_sqs`.
+   - For a vendor SDK that sends HTTP calls, first check if a variable gives its base URL. If yes, list it as a backend, so that the backend proxy records it. If no, give the kind `http` and `"record": "driver"`. The instrumentation of the HTTP client, for example httpx, requests or urllib3, then gives a span for each call.
+   - Give `"record": "none"` if no standard instrumentation exists for its client, for example a mail service that the agent calls with smtplib. The test does not record its calls.
+   - A Redis store or queue is a database with the kind `redis` and `"record": "driver"`, not an other part.
 
 A file that an MCP server reads or writes as part of a tool is inside that server. Do not list it again as a database or an `other` part. The MCP proxy records the tool call. List a database separately if the agent connects to it itself.
 
@@ -20,7 +24,7 @@ The developer configured the authentication of each part. Do not change it. Neve
 
 ## Driver trace
 
-For each database with `"record": "driver"`, add the OpenTelemetry instrumentation of its driver to the agent before you register the answer. Examples are the instrumentations of psycopg, asyncpg, SQLAlchemy and node-postgres. Turn on the statement text of the instrumentation. Configure the OpenTelemetry SDK of the agent with the standard `OTEL_*` variables and the OTLP exporter over HTTP. Nookku gives the agent these variables during the test, and its OTLP receiver records the spans. Do not change other code of the agent. Tell the tester the change, and tell the tester that a driver trace has no rows and can hide parameter values.
+For each database and each other part with `"record": "driver"`, add the OpenTelemetry instrumentation of its driver or its client to the agent before you register the answer. Examples are the instrumentations of psycopg, asyncpg, SQLAlchemy and node-postgres. Turn on the statement text of the instrumentation. Configure the OpenTelemetry SDK of the agent with the standard `OTEL_*` variables and the OTLP exporter over HTTP. Nookku gives the agent these variables during the test, and its OTLP receiver records the spans. Do not change other code of the agent. Tell the tester the change, and tell the tester that a driver trace has no rows and can hide parameter values. For an other part, tell the tester that a span records the call (topic, queue, operation and status), but not each byte of the message. For each other part with `"record": "none"`, tell the tester that the test does not record its calls.
 
 ## Answer
 
@@ -35,7 +39,10 @@ Write the answer as JSON to the file `{root}/.nookku/egress.json` with your file
     {"name": "shop", "kind": "postgres", "env": "DATABASE_URL", "address": "127.0.0.1:5432/shop", "record": "proxy"},
     {"name": "returns", "kind": "sqlite", "env": null, "address": "returns.db", "record": "driver"}
   ],
-  "other": []
+  "other": [
+    {"name": "orders", "kind": "rabbitmq", "detail": "the order queue", "record": "driver"},
+    {"name": "mail", "kind": "smtp", "detail": "sends the order mail", "record": "none"}
+  ]
 }
 ```
 

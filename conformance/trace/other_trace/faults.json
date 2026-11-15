@@ -1,0 +1,8 @@
+{
+ "faults": [
+  {
+   "check": "other_without_span",
+   "turn": null
+  }
+ ]
+}

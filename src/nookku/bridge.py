@@ -262,11 +262,13 @@ def egress_proxies(
     """The backend proxies and the model API proxies of a discovery answer (SPEC.md section
     7.11). With a gateway key, each model API proxy sends the calls to the base URL of the key
     (SPEC.md section 7.16). Raise BridgeError if the URL of a model API is not valid, or if a
-    database has a driver trace and the config stops the OTLP receiver."""
-    drivers = discovery.drivers(answer)
-    if drivers and not otel:
+    database or an other part has a driver trace and the config stops the OTLP receiver."""
+    traced = [("database", n) for n in discovery.drivers(answer)]
+    traced += [("other part", n) for n in discovery.clients(answer)]
+    if traced and not otel:
+        kind, name = traced[0]
         raise BridgeError(
-            f"the egress answer: the database {drivers[0]} has 'record' driver, but the config "
+            f"the egress answer: the {kind} {name} has 'record' driver, but the config "
             "has otel: false. The driver trace needs the OTLP receiver (SPEC.md section 7.11)."
         )
     parts = answer["model_apis"] if key is None else _key_parts(answer["model_apis"], key)
@@ -672,6 +674,18 @@ def egress_text(folder: Path) -> str:
             "\nThe OpenTelemetry spans of its driver record each database with a driver trace. "
             "A driver trace has no rows and can hide parameter values."
         )
+    if discovery.clients(answer):
+        text += (
+            "\nThe OpenTelemetry spans of its client record each other part with a driver trace. "
+            "A span records the call (topic, queue, operation and status), but not each byte of "
+            "the message. A proxy records each byte."
+        )
+    if discovery.unrecorded(answer):
+        text += (
+            "\nThe test does not record the calls of these other parts: "
+            + ", ".join(discovery.unrecorded(answer))
+            + "."
+        )
     return text
 
 
@@ -1012,6 +1026,7 @@ def run(
             **egress,
             "unseen": discovery.unseen(egress["answer"]),
             "driver": discovery.drivers(egress["answer"]),
+            "client_trace": discovery.clients(egress["answer"]),
             "proxies": {},
             "sslmode": {},
             "receiver": None,

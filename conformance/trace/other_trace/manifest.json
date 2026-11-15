@@ -1,0 +1,51 @@
+{
+ "test": "20261115-090000-ot01",
+ "model_sessions": [],
+ "egress": {
+  "registered": 1791273600.0,
+  "answer": {
+   "model_apis": [],
+   "backends": [],
+   "mcp_servers": [],
+   "databases": [
+    {
+     "name": "shop-db",
+     "kind": "postgres",
+     "env": "DATABASE_URL",
+     "address": null,
+     "record": "proxy"
+    }
+   ],
+   "other": [
+    {
+     "name": "orders",
+     "kind": "rabbitmq",
+     "detail": "the order queue",
+     "record": "driver"
+    },
+    {
+     "name": "events",
+     "kind": "kafka",
+     "detail": "the shop events",
+     "record": "driver"
+    },
+    {
+     "name": "mail",
+     "kind": "smtp",
+     "detail": "sends the order mail",
+     "record": "none"
+    }
+   ]
+  },
+  "unseen": [
+   "mail"
+  ],
+  "driver": [],
+  "client_trace": [
+   "orders",
+   "events"
+  ],
+  "proxies": {},
+  "receiver": "http://127.0.0.1:41000"
+ }
+}

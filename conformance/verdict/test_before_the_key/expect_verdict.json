@@ -107,6 +107,12 @@
    "verdict": "pass"
   },
   {
+   "check": "other_without_span",
+   "count": 0,
+   "most": null,
+   "verdict": "pass"
+  },
+  {
    "check": "egress_not_in_discovery",
    "count": 0,
    "most": null,

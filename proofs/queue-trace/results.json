@@ -1,0 +1,129 @@
+{
+ "date": "2026-11-15",
+ "versions": {
+  "nookku": "0.5.8",
+  "python": "3.13.12",
+  "os": "Darwin",
+  "rabbitmq": "rabbitmq@sha256:cd4009416f83d7e5895020cd71b0963f3b8a4dfc3de74bbb6fb3bfe5f81f01e0",
+  "app_packages": [
+   "pika==1.3.2",
+   "opentelemetry-sdk==1.44.0",
+   "opentelemetry-exporter-otlp-proto-http==1.44.0",
+   "opentelemetry-instrumentation-pika==0.65b0"
+  ]
+ },
+ "answer_other": [
+  {
+   "name": "orders",
+   "kind": "rabbitmq",
+   "detail": "the order queue",
+   "record": "driver"
+  },
+  {
+   "name": "mail",
+   "kind": "smtp",
+   "detail": "sends the order mail",
+   "record": "none"
+  }
+ ],
+ "traced": {
+  "ok": true,
+  "reply": "Your order of the teapot set is on the queue. A mail is on its way.",
+  "unseen": [
+   "mail"
+  ],
+  "client_trace": [
+   "orders"
+  ],
+  "start_text": [
+   "Egress of the agent:",
+   "- other orders: rabbitmq, the order queue (driver trace)",
+   "- other mail: smtp, sends the order mail (no proxy)",
+   "No proxy sees a part with no proxy. The report recommends a way to see its calls, for example logs or OpenTelemetry spans.",
+   "The OpenTelemetry spans of its client record each other part with a driver trace. A span records the call (topic, queue, operation and status), but not each byte of the message. A proxy records each byte.",
+   "The test does not record the calls of these other parts: mail."
+  ],
+  "queue_spans": [
+   {
+    "turn": 1,
+    "name": "orders send",
+    "input": {
+     "messaging.system": "rabbitmq",
+     "messaging.temp_destination": true,
+     "messaging.destination": "orders",
+     "net.peer.name": "127.0.0.1",
+     "net.peer.port": 32770
+    }
+   },
+   {
+    "turn": 1,
+    "name": "orders send",
+    "input": {
+     "messaging.system": "rabbitmq",
+     "messaging.temp_destination": true,
+     "messaging.destination": "orders",
+     "net.peer.name": "127.0.0.1",
+     "net.peer.port": 32770
+    }
+   }
+  ],
+  "counts": {
+   "other_without_span": 0,
+   "unseen_call": 0,
+   "span_error": 0
+  },
+  "findings": [],
+  "transcript_lines": [
+   "attributes: {\"messaging.system\": \"rabbitmq\", \"messaging.temp_destination\": true, \"messaging.destination\": \"orders\", \"net.peer.name\": \"127.0.0.1\", \"net.peer.port\": 32770}",
+   "attributes: {\"messaging.system\": \"rabbitmq\", \"messaging.temp_destination\": true, \"messaging.destination\": \"orders\", \"net.peer.name\": \"127.0.0.1\", \"net.peer.port\": 32770}"
+  ],
+  "prompt_has_client_rows": true,
+  "seal_intact": true
+ },
+ "untraced": {
+  "ok": true,
+  "reply": "Your order of the teapot set is on the queue. A mail is on its way.",
+  "unseen": [
+   "mail"
+  ],
+  "client_trace": [
+   "orders"
+  ],
+  "start_text": [
+   "Egress of the agent:",
+   "- other orders: rabbitmq, the order queue (driver trace)",
+   "- other mail: smtp, sends the order mail (no proxy)",
+   "No proxy sees a part with no proxy. The report recommends a way to see its calls, for example logs or OpenTelemetry spans.",
+   "The OpenTelemetry spans of its client record each other part with a driver trace. A span records the call (topic, queue, operation and status), but not each byte of the message. A proxy records each byte.",
+   "The test does not record the calls of these other parts: mail."
+  ],
+  "queue_spans": [],
+  "counts": {
+   "other_without_span": 1,
+   "unseen_call": 0,
+   "span_error": 0
+  },
+  "findings": [
+   {
+    "check": "other_without_span",
+    "turn": null,
+    "detail": "orders: no span of its client"
+   }
+  ],
+  "transcript_lines": [
+   "- other_without_span: orders: no span of its client"
+  ],
+  "prompt_has_client_rows": true,
+  "seal_intact": true
+ },
+ "checks": {
+  "start_text": true,
+  "manifest": true,
+  "replies": true,
+  "span": true,
+  "finding": true,
+  "report": true,
+  "seal": true
+ },
+ "pass": true
+}
