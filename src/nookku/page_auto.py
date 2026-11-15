@@ -34,6 +34,7 @@ import secrets
 import select
 import shlex
 import signal
+import stat
 import subprocess
 import sys
 import threading
@@ -88,7 +89,8 @@ NOT_CONFIRMED = (
     "nookku: nookku cannot confirm that pid {pid} is the chat page, so it sent no signal. If "
     "ps -p {pid} shows a nookku chat page, stop it with: kill {pid}"
 )
-STOPPED = "The chat page of this project stopped."
+STOPPED = "The chat page of this project (pid {pid}) stopped."
+STOPPED_NO_PID = "The chat page of this project stopped."
 NONE_RUNS = "No chat page of this project runs."
 NOT_KNOWN = (
     "nookku: a process holds the page lock of this project, but nookku cannot confirm that it is "
@@ -272,19 +274,102 @@ def stop(root: Path) -> tuple[int, str]:
     """`nookku chat --stop`: stop the page server of this project, with the checks of the stop at
     the end of a test. It also stops a page server that `nookku chat` started, and the page server
     of a running test. The test continues. Return the exit code and the text."""
-    if not _held(root):
+    holder = page.lock_holder(root)
+    if holder is None:
         return 0, NONE_RUNS
     # The absolute path of the lock, so that the command of the text works from each folder.
     not_known = NOT_KNOWN.format(
         lock=shlex.quote(str(state.state(root).resolve() / state.PAGE_LOCK))
     )
+    if holder > 0:
+        not_known = NOT_CONFIRMED.format(pid=holder)
     info = state.page_info(root)
-    error = not_known if info is None else _stop_server(root, info)
+    if holder > 0 and (info is None or info.get("pid") != holder):
+        # A link can name the lock of another project. Check the paths without following links.
+        identity = _lock_identity(root)
+        if identity is None:
+            return 1, not_known
+        # The lock identifies the project. Check the holder's command and start time when the
+        # page file cannot identify it (#487). Never trust the pid in that file alone.
+        start = state.process_start(holder)
+        if start is None or not _is_page_server(holder) or page.lock_holder(root) != holder:
+            return 1, not_known
+        # The lock path must still name the same file after the second holder check.
+        if _lock_identity(root) != identity:
+            return 1, not_known
+        error = None if _stop(holder, start) else NOT_STOPPED.format(pid=holder)
+    else:
+        error = not_known if info is None else _stop_server(root, info)
     if error is not None:
         return 1, error
     # _stop_server also sends no signal if the page file names no running pid, or if it changed.
     # Then a process still holds the lock, and "stopped" is not true.
-    return (1, not_known) if _held(root) else (0, STOPPED)
+    stopped = STOPPED.format(pid=holder) if holder > 0 else STOPPED_NO_PID
+    return (1, not_known) if _held(root) else (0, stopped)
+
+
+def _lock_identity(root: Path) -> tuple[int, int] | None:
+    """The device and inode of the lock, or None if a path is a link or cannot be read."""
+    folder = state.state(root)
+    try:
+        if stat.S_ISLNK(os.lstat(folder).st_mode):
+            return None
+        lock = os.lstat(folder / state.PAGE_LOCK)
+    except OSError:
+        return None
+    if stat.S_ISLNK(lock.st_mode) or lock.st_nlink > 1:
+        return None
+    return lock.st_dev, lock.st_ino
+
+
+def _is_page_server(pid: int) -> bool:
+    """Confirm a Python nookku chat command. Refuse an unknown command.
+    The caller also checks the project lock and the process start time before the signal."""
+    args = _process_args(pid)
+    if not args or Path(args[0]).resolve() != Path(sys.executable).resolve():
+        return False
+    script = Path(sys.executable).with_name("nookku")
+    return args[1:4] == ["-m", "nookku", "chat"] or args[1:3] == [str(script), "chat"]
+
+
+def _process_args(pid: int) -> list[str] | None:
+    """The executable and arguments from the OS, with their boundaries intact. ps joins them
+    with spaces, so it cannot tell a script named 'nookku chat' from the nookku chat command."""
+    try:
+        args = Path(f"/proc/{pid}/cmdline").read_bytes().split(b"\0")[:-1]
+        return [os.readlink(f"/proc/{pid}/exe"), *map(os.fsdecode, args[1:])] if args else None
+    except OSError:
+        if sys.platform != "darwin":
+            return None
+    import ctypes
+    import struct
+
+    # macOS: CTL_KERN, KERN_PROCARGS2. The buffer has argc, the executable path, padding,
+    # then argc null-terminated arguments. Do not read the environment after those arguments.
+    try:
+        sysctl = ctypes.CDLL(None).sysctl
+        sysctl.argtypes = [
+            ctypes.POINTER(ctypes.c_int),
+            ctypes.c_uint,
+            ctypes.c_void_p,
+            ctypes.POINTER(ctypes.c_size_t),
+            ctypes.c_void_p,
+            ctypes.c_size_t,
+        ]
+        keys = (ctypes.c_int * 3)(1, 49, pid)
+        size = ctypes.c_size_t(os.sysconf("SC_ARG_MAX"))
+        data = ctypes.create_string_buffer(size.value)
+        if sysctl(keys, 3, data, ctypes.byref(size), None, 0) != 0:
+            return None
+        raw = data.raw[: size.value]
+        count = struct.unpack_from("@i", raw)[0]
+        executable, _, tail = raw[struct.calcsize("@i") :].partition(b"\0")
+        parts = tail.lstrip(b"\0").split(b"\0")
+        if count <= 0 or len(parts) <= count:
+            return None
+        return [os.fsdecode(executable), *map(os.fsdecode, parts[1:count])]
+    except (OSError, ValueError, AttributeError, struct.error):
+        return None
 
 
 def _stop_server(root: Path, info: dict[str, Any]) -> str | None:
