@@ -26,6 +26,7 @@ gives only a line of text, and the test continues.
 
 from __future__ import annotations
 
+import argparse
 import contextlib
 import hmac
 import json
@@ -289,10 +290,10 @@ def stop(root: Path) -> tuple[int, str]:
         identity = _lock_identity(root)
         if identity is None:
             return 1, not_known
-        # The lock identifies the project. Check the holder's command and start time when the
-        # page file cannot identify it (#487). Never trust the pid in that file alone.
+        # Check the holder's command, project root and start time when the page file cannot
+        # identify it. A lock with one name can still come from another project (#609).
         start = state.process_start(holder)
-        if start is None or not _is_page_server(holder) or page.lock_holder(root) != holder:
+        if start is None or not _is_page_server(holder, root) or page.lock_holder(root) != holder:
             return 1, not_known
         # The lock path must still name the same file after the second holder check.
         if _lock_identity(root) != identity:
@@ -322,14 +323,67 @@ def _lock_identity(root: Path) -> tuple[int, int] | None:
     return lock.st_dev, lock.st_ino
 
 
-def _is_page_server(pid: int) -> bool:
-    """Confirm a Python nookku chat command. Refuse an unknown command.
+def _is_page_server(pid: int, root: Path) -> bool:
+    """Confirm a Python nookku chat command for this project. Refuse an unknown root or command.
     The caller also checks the project lock and the process start time before the signal."""
     args = _process_args(pid)
     if not args or Path(args[0]).resolve() != Path(sys.executable).resolve():
         return False
     script = Path(sys.executable).with_name("nookku")
-    return args[1:4] == ["-m", "nookku", "chat"] or args[1:3] == [str(script), "chat"]
+    if args[1:4] == ["-m", "nookku", "chat"]:
+        options = args[4:]
+    elif args[1:3] == [str(script), "chat"]:
+        options = args[3:]
+    else:
+        return False
+    # Use the option rules of argparse, also for --root=PATH and short forms of --root.
+    parser = argparse.ArgumentParser(add_help=False, exit_on_error=False)
+    parser.add_argument("--root", type=Path)
+    try:
+        parsed, _ = parser.parse_known_args(options)
+        project = parsed.root
+        if project is None or not project.is_absolute():
+            cwd = _process_cwd(pid)
+            if cwd is None:
+                return False
+            project = cwd if project is None else cwd / project
+        return bool(project.resolve() == root.resolve())
+    except (argparse.ArgumentError, OSError, ValueError, RuntimeError):
+        return False
+
+
+def _process_cwd(pid: int) -> Path | None:
+    """The working folder of the process from the OS, or None if it cannot be read."""
+    try:
+        if sys.platform == "linux":
+            path = os.readlink(f"/proc/{pid}/cwd")
+        elif sys.platform == "darwin":
+            import ctypes
+
+            # PROC_PIDVNODEPATHINFO has the current and root vnode_info_path structures.
+            # Each has a vnode_info (152 bytes), then a MAXPATHLEN path (1024 bytes).
+            size = 2 * (152 + 1024)
+            data = ctypes.create_string_buffer(size)
+            proc_pidinfo = ctypes.CDLL("/usr/lib/libproc.dylib").proc_pidinfo
+            proc_pidinfo.argtypes = [
+                ctypes.c_int,
+                ctypes.c_int,
+                ctypes.c_uint64,
+                ctypes.c_void_p,
+                ctypes.c_int,
+            ]
+            proc_pidinfo.restype = ctypes.c_int
+            if proc_pidinfo(pid, 9, 0, data, size) != size:
+                return None
+            raw = data.raw[152 : 152 + 1024]
+            if b"\0" not in raw:
+                return None
+            path = os.fsdecode(raw.split(b"\0", 1)[0])
+        else:
+            return None
+        return Path(path) if os.path.isabs(path) else None
+    except (OSError, ValueError, AttributeError):
+        return None
 
 
 def _process_args(pid: int) -> list[str] | None:

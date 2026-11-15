@@ -867,7 +867,7 @@ def test_chat_stop_names_the_true_holder_and_stops_only_a_page_server(
             proc.wait()
 
 
-@pytest.mark.parametrize("link", ["lock", "folder", "hard"])
+@pytest.mark.parametrize("link", ["lock", "folder", "hard", "hard-unlink"])
 def test_chat_stop_sends_no_signal_through_a_link_to_another_project(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
@@ -888,10 +888,14 @@ def test_chat_stop_sends_no_signal_through_a_link_to_another_project(
         mine_lock.symlink_to(other_lock)
     else:
         os.link(other_lock, mine_lock)
+        if link == "hard-unlink":
+            other_lock.unlink()
+            assert mine_lock.stat().st_nlink == 1
     monkeypatch.setattr(state, "process_start", lambda pid: f"start:{pid}")
     monkeypatch.setattr(
         page_auto, "_process_args", lambda pid: [sys.executable, "-m", "nookku", "chat"]
     )
+    monkeypatch.setattr(page_auto, "_process_cwd", lambda pid: other)
     signals: list[tuple[int, int]] = []
     try:
         assert page.lock_holder(mine) == holder.pid
@@ -904,6 +908,52 @@ def test_chat_stop_sends_no_signal_through_a_link_to_another_project(
         assert code == 1
         assert capsys.readouterr().err.strip() == page_auto.NOT_CONFIRMED.format(pid=holder.pid)
         assert holder.poll() is None
+    finally:
+        holder.kill()
+        holder.wait()
+
+
+@pytest.mark.parametrize(
+    "mode",
+    [
+        "different-root",
+        "different-cwd",
+        "same-root",
+        "same-cwd",
+        "same-relative",
+        "different-relative",
+        "unknown-cwd",
+    ],
+)
+def test_chat_stop_checks_the_project_root_of_the_holder(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mode: str
+) -> None:
+    mine, other = tmp_path / "shop-a", tmp_path / "shop-b"
+    for root in (mine, other):
+        state.state(root).mkdir(parents=True)
+    holder = locker(mine, "t-1")
+    (state.state(mine) / state.PAGE_FILE).unlink()
+    args = [sys.executable, "-m", "nookku", "chat"]
+    same = mode.startswith("same")
+    project = mine if same else other
+    if mode.endswith("root"):
+        args += ["--root", str(project)]
+    if mode.endswith("relative"):
+        args += ["--root", project.name]
+    cwd = tmp_path if mode.endswith("relative") else project
+    monkeypatch.setattr(page_auto, "_process_args", lambda pid: args)
+    monkeypatch.setattr(
+        page_auto, "_process_cwd", lambda pid: None if mode == "unknown-cwd" else cwd
+    )
+    monkeypatch.setattr(state, "process_start", lambda pid: f"start:{pid}")
+    try:
+        code, text = page_auto.stop(mine)
+        if same:
+            assert code == 0 and text == page_auto.STOPPED.format(pid=holder.pid)
+            assert holder.wait(10) == -signal.SIGTERM
+        else:
+            assert code == 1 and text == page_auto.NOT_CONFIRMED.format(pid=holder.pid)
+            assert holder.poll() is None
     finally:
         holder.kill()
         holder.wait()
@@ -949,6 +999,7 @@ def test_chat_stop_checks_the_lock_path_again_after_the_second_holder_read(
     monkeypatch.setattr(
         page_auto, "_process_args", lambda pid: [sys.executable, "-m", "nookku", "chat"]
     )
+    monkeypatch.setattr(page_auto, "_process_cwd", lambda pid: tmp_path)
     signals: list[tuple[int, int]] = []
     try:
         with monkeypatch.context() as patch:
@@ -963,6 +1014,68 @@ def test_chat_stop_checks_the_lock_path_again_after_the_second_holder_read(
     finally:
         holder.kill()
         holder.wait()
+
+
+@pytest.mark.parametrize("platform", ["linux", "darwin", "unknown"])
+@pytest.mark.parametrize("result", ["ok", "denied", "short", "empty", "relative", "no-null"])
+def test_the_process_working_folder_comes_from_the_os(
+    monkeypatch: pytest.MonkeyPatch, platform: str, result: str
+) -> None:
+    import ctypes
+
+    path = b"/toy shop" if result != "relative" else b"toy shop"
+    if result == "empty":
+        path = b""
+
+    def readlink(name: str) -> str:
+        assert name == "/proc/123/cwd"
+        if result == "denied":
+            raise PermissionError
+        return os.fsdecode(path)
+
+    def proc_pidinfo(pid: int, flavor: int, arg: int, data: Any, size: int) -> int:
+        assert (pid, flavor, arg, size) == (123, 9, 0, 2352)
+        if result == "denied":
+            return 0
+        if result == "short":
+            return size - 1
+        raw = b"x" * 1024 if result == "no-null" else path + b"\0"
+        ctypes.memmove(ctypes.addressof(data) + 152, raw, len(raw))
+        return size
+
+    monkeypatch.setattr(sys, "platform", platform)
+    monkeypatch.setattr(os, "readlink", readlink)
+
+    # A callable object permits the ctypes argument and result type attributes.
+    class ProcInfo:
+        def __call__(self, *args: Any) -> int:
+            return proc_pidinfo(*args)
+
+    monkeypatch.setattr(ctypes, "CDLL", lambda name: SimpleNamespace(proc_pidinfo=ProcInfo()))
+    expected = Path("/toy shop")
+    if (
+        platform == "unknown"
+        or result in ("denied", "empty", "relative")
+        or (platform == "darwin" and result in ("short", "no-null"))
+    ):
+        assert page_auto._process_cwd(123) is None
+    else:
+        assert page_auto._process_cwd(123) == expected
+
+
+@pytest.mark.parametrize("option", ["--root", "--root=", "--roo"])
+def test_the_holder_root_resolves_paths_and_needs_no_cwd_for_an_absolute_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, option: str
+) -> None:
+    project = tmp_path / "toy shop"
+    project.mkdir()
+    alias = tmp_path / "alias"
+    alias.symlink_to(project, target_is_directory=True)
+    args = [sys.executable, "-m", "nookku", "chat"]
+    args += [option + str(alias)] if option.endswith("=") else [option, str(alias)]
+    monkeypatch.setattr(page_auto, "_process_args", lambda pid: args)
+    monkeypatch.setattr(page_auto, "_process_cwd", lambda pid: None)
+    assert page_auto._is_page_server(123, project)
 
 
 @pytest.mark.parametrize("platform", ["linux", "darwin", "unknown"])
