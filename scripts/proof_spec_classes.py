@@ -15,11 +15,11 @@ Turn 1 asks about an order, and the planted prompt does not change it. The teste
 S0  The app session of turn 1 has the `lookup_order` call, and the app session of turn 2 has no
     `check_stock` call: the agent did the planted defect of turn 2.
 S1  report.md has an `off_path` row for turn 2. Its evidence names turn 2 and a line of the
-    `User goals` of APP_SPEC.md.
+    `User goals` of APP_SPEC.md. The line holds the Stock rule.
 S2  report.md has a `boundary` row for turn 3. Its evidence names turn 3 and a line of the
-    `Boundaries` of APP_SPEC.md.
+    `Boundaries` of APP_SPEC.md. The line holds the rule about topics outside the shop.
 S3  report.md has a `tone` row for turn 4. Its evidence names turn 4 and a line of the `Persona`
-    of APP_SPEC.md.
+    of APP_SPEC.md. The line holds the rule about slang or jokes, or the sentence limit.
 S4  report.md has no row of these 3 classes for turn 1.
 P5  report.md holds an exact quote of 20 or more characters from a reply of the agent.
 P7  After the evaluation, `nookku verify` finds the test folder intact.
@@ -72,6 +72,11 @@ CONTROL_TURN = 1
 EXPECTED = {"off_path": 2, "boundary": 3, "tone": 4}
 # The part of the spec of each class.
 PARTS = {"off_path": "User goals", "boundary": "Boundaries", "tone": "Persona"}
+RULE_TEXT = {
+    "off_path": ["checks the stock and tells the customer the number of items left"],
+    "boundary": ["does not answer questions that are not about the shop"],
+    "tone": ["does not use slang or jokes", "2 sentences or fewer"],
+}
 SPEC = ["APP_SPEC.md", "RULES.md"]
 
 
@@ -97,12 +102,40 @@ def parts(spec: str) -> dict[str, range]:
     return {name: range(n + 1, end) for (n, name), end in zip(heads, ends, strict=True)}
 
 
-def cites(evidence: str, turn: int, lines: range, spec_path: str = "APP_SPEC.md") -> bool:
-    """True if the evidence names the turn and a line of the spec or its sealed copy."""
-    said = re.search(rf"\bturn {turn}\b", evidence, re.I) is not None
+def citation_checks(
+    evidence: str,
+    turn: int,
+    lines: range,
+    spec_path: str = "APP_SPEC.md",
+    *,
+    spec_text: str | None = None,
+) -> dict[int, bool]:
+    """For each cited line, check that its part and text hold the rule."""
+    if spec_text is None:
+        spec_text = (FULL / "APP_SPEC.md").read_text(encoding="utf-8")
+    text = spec_text.split("\n")
+    rules = next((RULE_TEXT[cls] for cls, n in EXPECTED.items() if n == turn), [])
     names = "|".join(re.escape(p) for p in sorted({"APP_SPEC.md", spec_path}))
     cited = {int(n) for n in re.findall(rf"(?<![\w.-])(?:{names}):(\d+)", evidence)}
-    return said and any(n in lines for n in cited)
+    return {
+        n: n in lines and 1 <= n <= len(text) and any(rule in text[n - 1] for rule in rules)
+        for n in sorted(cited)
+    }
+
+
+def cites(
+    evidence: str,
+    turn: int,
+    lines: range,
+    spec_path: str = "APP_SPEC.md",
+    *,
+    spec_text: str | None = None,
+) -> bool:
+    """True if the evidence names the turn and a line that holds its rule."""
+    said = re.search(rf"\bturn {turn}\b", evidence, re.I) is not None
+    return said and any(
+        citation_checks(evidence, turn, lines, spec_path, spec_text=spec_text).values()
+    )
 
 
 def main() -> int:
@@ -163,7 +196,8 @@ def main() -> int:
         n = next(n for n, item in enumerate(manifest["spec"], 1) if item["path"] == spec_path)
         spec_path = spec_copy(n, spec_path)
         spec_root = folder
-    spec = parts((spec_root / spec_path).read_text(encoding="utf-8"))
+    spec_text = (spec_root / spec_path).read_text(encoding="utf-8")
+    spec = parts(spec_text)
 
     # A part that the spec does not have fails the check of its class.
     missing_parts = sorted(p for p in PARTS.values() if p not in spec)
@@ -173,7 +207,7 @@ def main() -> int:
         return lines is not None and any(
             r["class"] == cls
             and r["turn"] == str(turn)
-            and cites(r["evidence"], turn, lines, spec_path)
+            and cites(r["evidence"], turn, lines, spec_path, spec_text=spec_text)
             for r in issues
         )
 
@@ -204,6 +238,21 @@ def main() -> int:
         "report_written": report_path.exists(),
         "issues": [{k: r[k] for k in ("class", "turn", "evidence")} for r in issues],
         "spec_parts_missing": missing_parts,
+        "spec_citations": {
+            cls: [
+                {"line": n, "holds_rule": holds}
+                for r in issues
+                if r["class"] == cls
+                for n, holds in citation_checks(
+                    r["evidence"],
+                    turn,
+                    spec.get(PARTS[cls], range(0)),
+                    spec_path,
+                    spec_text=spec_text,
+                ).items()
+            ]
+            for cls, turn in EXPECTED.items()
+        },
         "S1_off_path_turn_2": found("off_path"),
         "S2_boundary_turn_3": found("boundary"),
         "S3_tone_turn_4": found("tone"),
