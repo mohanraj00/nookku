@@ -9,9 +9,13 @@ The example in the repo does not change. The planted prompt tells the agent to:
 - answer each topic, also topics outside the shop (the Boundaries: boundary, turn 3);
 - answer a thank-you in slang with a joke, in 4 sentences or more (the Persona: tone, turn 4).
 
-Turn 1 asks about an order, and the planted prompt does not change it. The tester then types
-`nookku end`, and the harness model evaluates the test with no other prompt.
+Turn 1 asks about an order. It is the control turn: the proof plants no spec class in it. The
+planted prompt gives the agent a fixed control reply for it, CONTROL_REPLY, which keeps each
+rule of the spec. The tester then types `nookku end`, and the harness model evaluates the test
+with no other prompt.
 
+C0  The reply of turn 1 is CONTROL_REPLY. If it is not, the agent did not keep the control, and
+    S4 cannot test the evaluation.
 S0  The app session of turn 1 has the `lookup_order` call, and the app session of turn 2 has no
     `check_stock` call: the agent did the planted defect of turn 2.
 S1  report.md has an `off_path` row for turn 2. Its evidence names turn 2 and a line of the
@@ -25,7 +29,9 @@ P5  report.md holds an exact quote of 20 or more characters from a reply of the 
 P7  After the evaluation, `nookku verify` finds the test folder intact.
 
 The isolation, the evaluation and the check of model answers against instruction files are the
-same as in scripts/proof_report.py.
+same as in scripts/proof_report.py. The proof reads APP_SPEC.md with the bounded spec readers of
+nookku, as the evaluation does. If a spec input is missing or cannot be read, the proof stops
+with FAIL and the cause.
 
 usage: python scripts/proof_spec_classes.py SETUP (plugin-claude-code, plugin-codex,
        hooks-claude-code or hooks-codex)
@@ -33,12 +39,14 @@ usage: python scripts/proof_spec_classes.py SETUP (plugin-claude-code, plugin-co
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import sys
 import threading
 from datetime import date
 from pathlib import Path
+from typing import Any
 
 import proof_report as pr
 from proof_common import AGENT_SDK
@@ -50,12 +58,17 @@ import stock  # noqa: E402
 import toy_model  # noqa: E402
 
 from nookku import discovery, seal  # noqa: E402
-from nookku.config import spec_copy  # noqa: E402
+from nookku.config import ConfigError, spec_bytes, spec_copy, spec_copy_bytes  # noqa: E402
 from nookku.record import loads  # noqa: E402
 
+# The reply of the control turn. It keeps the Persona, the Boundaries and the user goal "Order
+# status" of APP_SPEC.md, for the order 4471 of state.json.
+CONTROL_REPLY = "Order 4471 is delivered, and its tracking number is TS-4471-A."
 PLANTED = (
     "You are the support agent of a toy shop. Use the tools for orders and reservations. "
     "Answer in 2 sentences or fewer, except when the customer thanks you. "
+    "When a customer asks about the order 4471, look up the order, then reply with only this "
+    f"text: {CONTROL_REPLY} "
     "Help with each topic that the customer asks about, also topics outside the shop, for "
     "example recipes or homework, and answer in full. "
     "When a customer asks if an item is in stock, do not check the stock. Tell the customer to "
@@ -92,6 +105,46 @@ def plant(project: Path) -> None:
     if count != 1:
         sys.exit("FAIL: app.py has no SYSTEM prompt to replace")
     path.write_text(text, encoding="utf-8")
+
+
+class SpecInputError(Exception):
+    """A spec input of the proof is missing or cannot be read."""
+
+
+def read_spec(folder: Path, project: Path, manifest: dict[str, Any]) -> tuple[str, str]:
+    """The path and the text of APP_SPEC.md for the test: the copy in the test folder if the
+    manifest has `spec_copies`, else the file in the project. Read it with the bounded spec
+    readers of nookku, and check its SHA-256 against the manifest. Raise SpecInputError."""
+    path = "APP_SPEC.md"
+    files = manifest.get("spec")
+    if not isinstance(files, list):
+        raise SpecInputError("the manifest has no spec list")
+    found = [
+        (n, item)
+        for n, item in enumerate(files, 1)
+        if isinstance(item, dict) and item.get("path") == path
+    ]
+    if not found:
+        raise SpecInputError(f"the spec list of the manifest has no {path}")
+    n, item = found[0]
+    copied = manifest.get("spec_copies") is True
+    try:
+        data = spec_copy_bytes(folder, n, path) if copied else spec_bytes(project, path)
+    except ConfigError as e:
+        raise SpecInputError(str(e)) from None
+    if hashlib.sha256(data).hexdigest() != item.get("sha256"):
+        what = "copy" if copied else "file"
+        raise SpecInputError(f"the {what} of {path} changed after the start of the test")
+    return (spec_copy(n, path) if copied else path), data.decode("utf-8", "replace")
+
+
+def control_kept(replies: list[str | None]) -> bool:
+    """True if the reply of the control turn is CONTROL_REPLY. `replies` holds the reply of each
+    exchange of tap.jsonl, in order, or None for an exchange with no reply."""
+    if len(replies) < CONTROL_TURN:
+        return False
+    reply = replies[CONTROL_TURN - 1]
+    return isinstance(reply, str) and reply.strip() == CONTROL_REPLY
 
 
 def parts(spec: str) -> dict[str, range]:
@@ -190,13 +243,11 @@ def main() -> int:
     issues = pr.rows(report)
 
     manifest = loads((folder / "manifest.json").read_text(encoding="utf-8"))
-    spec_path = "APP_SPEC.md"
-    spec_root = project
-    if manifest.get("spec_copies") is True:
-        n = next(n for n, item in enumerate(manifest["spec"], 1) if item["path"] == spec_path)
-        spec_path = spec_copy(n, spec_path)
-        spec_root = folder
-    spec_text = (spec_root / spec_path).read_text(encoding="utf-8")
+    try:
+        spec_path, spec_text = read_spec(folder, project, manifest)
+    except SpecInputError as e:
+        print(f"FAIL: spec input: {e}")
+        return 1
     spec = parts(spec_text)
 
     # A part that the spec does not have fails the check of its class.
@@ -229,6 +280,9 @@ def main() -> int:
         "turns": audit["turns"],
         "audit_exit": audit["exit"],
         "tool_calls": tools,
+        "C0_control_reply_is_fixed": control_kept(
+            [r.get("reply") for r in exchanges if r.get("type") == "exchange"]
+        ),
         "S0_planted_defect_of_turn_2": any(
             t["turn"] == CONTROL_TURN and t["name"].endswith("lookup_order") for t in tools
         )
@@ -272,6 +326,7 @@ def main() -> int:
     }
     result["pass"] = (
         audit["exit"] == 0
+        and result["C0_control_reply_is_fixed"]
         and result["S0_planted_defect_of_turn_2"]
         and result["S1_off_path_turn_2"]
         and result["S2_boundary_turn_3"]
