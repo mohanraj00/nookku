@@ -399,19 +399,20 @@ Thus the proof of 0.5.7 recorded a test in a Workspace with each harness, and on
 
 ### The setup asks before it builds
 
-[scripts/proof_setup.py](../scripts/proof_setup.py) runs the setup guide ([setup.md](../src/nookku/setup.md)) in Claude Code on a copy of the [full toy shop](../examples/toy-shop-full/README.md) with no `entry.py`, no `APP_SPEC.md` and no `README.md`. It gives 3 prompts in one session: the guide with the prompt of [test-your-app.md](how-to/test-your-app.md#2-run-the-setup-in-the-harness), the answers of the tester, and a yes. The model can read and write files with no question. Claude Code denies each shell command that it does not take as read-only, also `nookku check`. Thus the proof does not cover step 5 of the guide.
+[scripts/proof_setup.py](../scripts/proof_setup.py) runs the setup guide ([setup.md](../src/nookku/setup.md)) in Claude Code on a copy of the [full toy shop](../examples/toy-shop-full/README.md) with no `entry.py`, no `APP_SPEC.md` and no `README.md`. It gives 3 prompts in one session: the guide with the prompt of [test-your-app.md](how-to/test-your-app.md#2-run-the-setup-in-the-harness), the answers of the tester, and a yes. The model can read and write files and run `nookku check` with no question. Claude Code denies each other shell command that it does not take as read-only. The first prompt goes to the model. Thus a probe session first checks the plugins and the MCP servers, with a prompt that a hook blocks before the model ([proof_common.py](../scripts/proof_common.py)). Step 5 (check) needs a fresh egress answer, and the discovery of `nookku start` needs the plugin. Thus before the yes, the script registers the egress answer of the toy shop: the stock service and the note model, which the script starts. The app writes its state to a copy outside the project (`TOY_SHOP_STATE`), so S4 sees only the files of the setup.
 
-- **S1:** after prompts 1 and 2, no project file changed, and the model called no Write or Edit tool.
-- **S2:** answer 1 has the 5 parts of the summary and a question.
+- **S1:** after prompts 1 and 2, no project file changed, and the model called no Write or Edit tool and no `nookku check`.
+- **S2:** answer 1 has the 5 parts of the summary and a question. Each part has a short list of words (`PARTS` in the script), for example `store`, `data file` and `database` for the store. [tests/test_proof_setup.py](../tests/test_proof_setup.py) covers the list.
 - **S3:** after the yes, `.nookku/config.json` passes the config reader, and its `spec` names a draft with the sections `Persona`, `Boundaries` and `User goals`.
 - **S4:** the setup changed no file of the app. It added only files in `.nookku/` and the draft.
+- **S5:** after the yes, the model ran `nookku check`, and the output of its last check has the line `PASS`.
 
-| Harness | Questions in answer 1 | Files after the yes | S1 | S2 | S3 | S4 | Result | Data |
-|---|---|---|---|---|---|---|---|---|
-| Claude Code 2.1.302 | 8 | `.nookku/config.json`, `.nookku/entry.py`, `APP_SPEC.md` | pass | pass | pass | pass | pass | [results](../proofs/setup/results.json) |
-| Claude Code 2.1.302 | 8 | `.nookku/config.json`, `.nookku/entry.py`, `APP_SPEC.md` | pass | **fail** | pass | pass | **fail** (earlier run, 2026-10-23) | [results](../proofs/setup/results-run1.json) |
+| Harness | Questions in answer 1 | Files of the build | S1 | S2 | S3 | S4 | S5 | Result | Data |
+|---|---|---|---|---|---|---|---|---|---|
+| Claude Code 2.1.319 | 8 | `.nookku/config.json`, `.nookku/entry.py`, `APP_SPEC.md` | pass | pass | pass | pass | pass | pass | [results](../proofs/setup/results.json) |
+| Claude Code 2.1.302 | 8 | `.nookku/config.json`, `.nookku/entry.py`, `APP_SPEC.md` | pass | **fail** | pass | pass | no check | **fail** (earlier run, 2026-10-23) | [results](../proofs/setup/results-run1.json) |
 
-The current run used nookku 0.5.8 on 2026-11-12, and the earlier run used nookku 0.5.6 on 2026-10-23 (the keys `nookku` and `date`). The earlier run failed S2: answer 1 named the backends as "Backends" and the stores as "Data files". S2 looks for the words `backend` and `store`, so it did not find 2 of the 5 parts. The next run, with no change, passed. The table keeps the failed run ([proofs/release/claude-code-0.5.6.md](../proofs/release/claude-code-0.5.6.md)). The `turns` field of the results gives each answer, each tool call and the changed files of each prompt. The `new_files` field gives each file of the build. The tester said no reset of the state. Thus the entry is a thin wrapper.
+The current run used nookku 0.5.8 and the branch of [#511](https://github.com/mohanraj00/nookku/issues/511) on 2026-11-15, and the earlier run used nookku 0.5.6 on 2026-10-23 (the keys `nookku` and `date`). In the current run, the model ran `nookku check` one time after the build, and the check gave `PASS` with a reply of the shop (the `checks` field of turn 3). The check test also wrote its own files in `.nookku/`. The earlier run failed S2: answer 1 named the stores as "Data files". The S2 of that version looked for the word `store` only, so it did not find the part. The next run, with no change, passed. The words of S2 now include `data file`, and with them, answer 1 of the earlier run passes S2. The table keeps the failed run ([proofs/release/claude-code-0.5.6.md](../proofs/release/claude-code-0.5.6.md)). The `turns` field of the results gives each answer, each tool call and the changed files of each prompt. The `new_files` field gives each file of the build. The tester said no reset of the state. Thus the entry is a thin wrapper.
 
 ### A test with a simulated user
 
