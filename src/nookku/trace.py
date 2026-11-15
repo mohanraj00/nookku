@@ -395,8 +395,10 @@ def read_codex_calls(path: Path) -> list[dict[str, Any]]:
     of each. They are not trace items, because a completed item gives the same call."""
     found: list[dict[str, Any]] = []
     for _, row in _lines(path, Counter()):
-        payload = row.get("payload") if isinstance(row, dict) else None
-        if row.get("type") != "response_item" or not isinstance(payload, dict):
+        if not isinstance(row, dict) or row.get("type") != "response_item":
+            continue
+        payload = row.get("payload")
+        if not isinstance(payload, dict):
             continue
         call_id = payload.get("call_id")
         if payload.get("type") in CODEX_CALLS and isinstance(call_id, str) and call_id:

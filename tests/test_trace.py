@@ -486,6 +486,19 @@ def test_a_row_that_nests_too_deep_counts_as_invalid_json(tmp_path: Path) -> Non
     assert items == [] and info["ignored"] == {"invalid_json": 1}
 
 
+def test_the_codex_calls_skip_a_line_that_is_not_an_object(tmp_path: Path) -> None:
+    path = tmp_path / "rollout.jsonl"
+    call = {"type": "custom_tool_call", "call_id": "call_A", "name": "exec"}
+    rows = [
+        "null",
+        "[1, 2]",
+        json.dumps({"type": "response_item", "payload": call}),
+        '{"type": "resp',
+    ]
+    path.write_text("\n".join(rows) + "\n")
+    assert trace.read_codex_calls(path) == [{"call_id": "call_A", "name": "exec"}]
+
+
 CLAUDE_CASE = (
     Path(__file__).resolve().parent.parent / "conformance" / "trace" / "claude_code_toy_shop"
 )
