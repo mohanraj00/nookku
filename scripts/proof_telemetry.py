@@ -54,10 +54,12 @@ BUG_TURN = 2
 
 
 def cited(evidence: str) -> set[int]:
-    """The trace lines that an evidence cell names: trace.jsonl:N, or a range such as N-M."""
+    """Read trace line numbers and ranges from each comma-separated list."""
     out: set[int] = set()
-    for first, last in re.findall(r"trace\.jsonl:(\d+)(?:\s*[-\u2013]\s*(\d+))?", evidence):
-        out.update(range(int(first), int(last or first) + 1))
+    line = r"\d+(?:\s*[-\u2013]\s*\d+)?"
+    for lines in re.findall(rf"trace\.jsonl:({line}(?:,\s*{line})*)", evidence):
+        for first, last in re.findall(r"(\d+)(?:\s*[-\u2013]\s*(\d+))?", lines):
+            out.update(range(int(first), int(last or first) + 1))
     return out
 
 
