@@ -67,6 +67,7 @@ The `check` target of the `Makefile` runs ruff, the format check, mypy, pytest, 
 - `scripts/proof_backend.py` checks that the backend proxy forwards each byte, with no model, and writes `proofs/backend/`.
 - `scripts/proof_model_api.py` checks that the model API proxy forwards each byte and each stream part when it comes, with no model, and writes `proofs/model-api/`.
 - `scripts/proof_driver_trace.py` runs a test of a toy shop app with the OpenTelemetry instrumentation of its SQLite driver, with no model. It checks the driver queries of the trace and the transcript, and writes `proofs/driver-trace/`.
+- `scripts/proof_queue_trace.py` runs a test of a toy shop app with a RabbitMQ queue in Docker and a mail part with `record: none`, with no model. The app uses the OpenTelemetry instrumentation of pika in one test and not in a second test. It checks the spans of the queue, the finding `other_without_span`, the start text and the transcript, and writes `proofs/queue-trace/`.
 - `scripts/proof_api_hello.py` runs `claude -p` with a toy model API, with no model, and records the `HEAD /api/hello` call of Claude Code. It writes `proofs/model-api/hello.json`.
 - `scripts/proof_report.py <setup>` runs a test of `examples/toy-shop-models/` and the evaluation at its end (P5 extended, P6, P7 and P8), and writes `proofs/report/`.
 - `scripts/proof_telemetry.py <setup>` runs a test of `examples/toy-shop-full/` with all telemetry sources and the evaluation at its end, and writes `proofs/telemetry/`.

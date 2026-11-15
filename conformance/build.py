@@ -1157,6 +1157,7 @@ def counts(**n: int) -> dict:
         "mcp_task_unfinished",
         "unseen_call",
         "driver_without_span",
+        "other_without_span",
         "egress_not_in_discovery",
         "egress_denied",
         "model_error",
@@ -5784,6 +5785,76 @@ DRIVER_GAPS_CASE = {
 }
 
 
+# The client trace of the other parts (SPEC.md sections 7.11 and 8.6, #513). orders is a RabbitMQ
+# queue and events is a Kafka topic, both with `record: driver`. mail has `record: none`, so it
+# gives no finding. The span at 12 is a publish of the pika instrumentation, so it covers orders.
+# The span at 32 names kafka, but it has http.route: it is a call to the app, so it covers no
+# part. Thus events gives other_without_span.
+OTHER_PARTS = [
+    {"name": "orders", "kind": "rabbitmq", "detail": "the order queue", "record": "driver"},
+    {"name": "events", "kind": "kafka", "detail": "the shop events", "record": "driver"},
+    {"name": "mail", "kind": "smtp", "detail": "sends the order mail", "record": "none"},
+]
+OTHER_SPANS = [
+    (
+        12,
+        "orders publish",
+        {
+            "messaging.system": "rabbitmq",
+            "messaging.operation.name": "publish",
+            "messaging.destination.name": "orders",
+        },
+    ),
+    (32, "POST /events", {"messaging.system": "kafka", "http.route": "/events"}),
+]
+
+
+def other_span(n: int, turn: int | None) -> dict:
+    t, name, attrs = OTHER_SPANS[n - 1]
+    return oitem(turn, "otel", TRACE_ID, t, "span", n, name=name, input=attrs, service="toy-shop")
+
+
+OTHER_TRACE_CASE = {
+    "tap": [window(10, 20), window(30, 40)],
+    "manifest": {
+        "test": "20261115-090000-ot01",
+        "model_sessions": [],
+        "egress": {
+            "registered": T0,
+            "answer": {**EGRESS_ANSWER, "backends": [], "other": OTHER_PARTS},
+            "unseen": ["mail"],
+            "driver": [],
+            "client_trace": ["orders", "events"],
+            "proxies": {},
+            "receiver": "http://127.0.0.1:41000",
+        },
+    },
+    "sessions": {},
+    "otel": [app_span(*span) for span in OTHER_SPANS],
+    "trace": [other_span(1, 1), other_span(2, 2)],
+    "findings": {
+        "v": "0.2",
+        "test": "20261115-090000-ot01",
+        "turns": 2,
+        "items": 2,
+        "sessions": [],
+        "otel": {"file": "otel.jsonl", "rows": 2, "items": 2, "ignored": {}},
+        "backend": None,
+        "model_api": None,
+        "mcp": None,
+        "database": None,
+        "counts": counts(other_without_span=1),
+        "findings": [
+            {
+                "check": "other_without_span",
+                "turn": None,
+                "detail": "events: no span of its client",
+            },
+        ],
+    },
+}
+
+
 # MCP calls (SPEC.md sections 7.12 and 8.4): the rows of mcp.jsonl as the proxies write them. In
 # turn 1, an HTTP call with an event stream. In turn 2, a stdio tool call with an error result, a
 # notification, a tool call with no response, and a row that is not a call or a message.
@@ -7031,6 +7102,7 @@ TRACE_CASES = {
     "unseen_calls_driver": UNSEEN_DRIVER_CASE,
     "driver_trace_proxy": PROXY_DRIVER_CASE,
     "driver_trace_gaps": DRIVER_GAPS_CASE,
+    "other_trace": OTHER_TRACE_CASE,
     "mcp_toy_shop": MCP_CASE,
     "mcp_task_unfinished": MCP_TASK_CASE,
     "database_toy_shop": DATABASE_CASE,
@@ -8694,7 +8766,7 @@ TOY_ANSWER = {
             "record": "driver",
         },
     ],
-    "other": [{"name": "mail", "kind": "smtp", "detail": "sends the order mail"}],
+    "other": [{"name": "mail", "kind": "smtp", "detail": "sends the order mail", "record": "none"}],
 }
 EMPTY_ANSWER = {k: [] for k in ("model_apis", "backends", "mcp_servers", "databases", "other")}
 
@@ -8711,6 +8783,8 @@ LISTS_ERROR = (
     "the answer must have the lists model_apis, backends, mcp_servers, databases, other, "
     "and no other key"
 )
+MAIL = {"name": "mail", "kind": "smtp", "detail": "sends the order mail", "record": "none"}
+QUEUE = {"name": "orders", "kind": "rabbitmq", "detail": "the order queue", "record": "driver"}
 DISCOVERY_CASES: dict[str, dict] = {
     "toy_shop": {
         "answer": TOY_ANSWER,
@@ -8989,8 +9063,36 @@ DISCOVERY_CASES: dict[str, dict] = {
         "expect": {"error": "backends[0] 'url' must be an http or https URL with a host"},
     },
     "empty_name": {
-        "answer": answer_with("other", {"name": " ", "kind": "smtp", "detail": "mail"}),
+        "answer": answer_with("other", {**MAIL, "name": " "}),
         "expect": {"error": "other[0] 'name' must be a text"},
+    },
+    # #513: each other part says how the test records it. A queue with an instrumentation of its
+    # client gets `record: driver`, so its spans record its calls and it is not unseen.
+    "other_record_driver": {
+        "answer": answer_with("other", QUEUE),
+        "expect": {
+            "lines": ["- other orders: rabbitmq, the order queue (driver trace)"],
+            "unseen": [],
+        },
+    },
+    # A part with no standard instrumentation, for example smtplib, gets `record: none`.
+    "other_record_none": {
+        "answer": answer_with("other", MAIL),
+        "expect": {
+            "lines": ["- other mail: smtp, sends the order mail (no proxy)"],
+            "unseen": ["mail"],
+        },
+    },
+    # The answer of nookku 0.5.8 has no `record` key for an other part.
+    "other_with_no_record": {
+        "answer": answer_with("other", {k: v for k, v in MAIL.items() if k != "record"}),
+        "expect": {
+            "error": "other[0] must have the keys name, kind, detail, record, and no other key"
+        },
+    },
+    "other_record_that_is_not_known": {
+        "answer": answer_with("other", {**QUEUE, "record": "proxy"}),
+        "expect": {"error": "other[0] 'record' must be one of: driver, none"},
     },
 }
 

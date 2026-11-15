@@ -164,6 +164,15 @@ The record cuts the third request body at 1 MiB, but the stock service got all o
 
 [scripts/proof_driver_trace.py](../scripts/proof_driver_trace.py) runs a test of a toy shop app that reads its stock from a SQLite file. The app uses the OpenTelemetry instrumentation of the sqlite3 driver, and the egress answer gives the database `record: driver`. It needs no model. In the run with nookku 0.5.8 on 2026-11-12 and opentelemetry-instrumentation-sqlite3 0.65b0, the 1 query of the turn is 1 driver query in the trace, with its statement text and no parameter values. The span has no `db.name`, so the query has the name of the database in the answer, `stock`. The trace has no `driver_without_span` finding. The transcript names its source as the driver trace from the app process, and the seal is intact ([results](../proofs/driver-trace/results.json)).
 
+### Queue calls from the client trace
+
+[scripts/proof_queue_trace.py](../scripts/proof_queue_trace.py) runs a toy shop app that puts each order on a RabbitMQ queue in Docker and sends a mail through smtplib to a toy SMTP server. The egress answer gives the queue `record: driver` and the mail `record: none`. It needs no model. The proof runs 2 tests of 1 message each. In test A, the app uses the OpenTelemetry instrumentation of pika. In test B, it does not. In the run with nookku 0.5.8 on 2026-11-15, pika 1.3.2 and opentelemetry-instrumentation-pika 0.65b0, these results came ([results](../proofs/queue-trace/results.json)):
+
+- In both tests, the start text names the queue as `(driver trace)`, the mail as `(no proxy)`, and says that the test does not record the calls of `mail`. The manifest names the queue in `client_trace` and the mail in `unseen`.
+- In test A, the trace has 2 `orders send` spans in turn 1, with `messaging.system` `rabbitmq`, and no `other_without_span` finding.
+- In test B, the trace has no span of the queue and 1 finding `other_without_span` with the detail `orders: no span of its client`. The transcript that the report reads has the finding.
+- The evaluation prompt has the Coverage rule of `client_trace`, and the seal of each test is intact.
+
 ### Direct model calls
 
 [scripts/proof_model_api.py](../scripts/proof_model_api.py) runs a test with an entry that makes 7 calls to a toy model API through the model API proxies: a streamed Anthropic call, a streamed OpenAI Chat Completions call, an Anthropic call with a JSON answer, a streamed OpenAI Responses call and an OpenAI Decisions call with a JSON answer. For a streamed call, the toy API sends the first event and then waits until the entry says that it has that event. The proof compares the SHA-256 of each body at 3 places: the entry, the toy API and `model_api.jsonl`. It also compares the result in the record with the result that the toy API sent: the text, or for a Decisions call its 3 answers (a choice, a predicate and a refusal). Then the entry makes 2 more Decisions calls: the `department` call of the full toy shop app ([services.py](../examples/toy-shop-full/services.py)), and a call with a photo. The photo makes the request body 1,493,915 bytes, more than the record limit of 1 MiB. The record kept each question of the 3 Decisions calls with its instructions, also after the cut, and the audit gave 0 `questions_lost` findings. It needs no model.
@@ -468,6 +477,7 @@ uv run python scripts/proof_trace.py
 uv run python scripts/proof_backend.py
 uv run python scripts/proof_model_api.py
 uv run python scripts/proof_driver_trace.py
+uv run python scripts/proof_queue_trace.py
 uv run python scripts/proof_api_hello.py
 uv run python scripts/proof_setup.py
 uv run python scripts/proof_codex_otel.py

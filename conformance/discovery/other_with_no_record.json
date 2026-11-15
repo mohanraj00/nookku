@@ -1,0 +1,18 @@
+{
+ "answer": {
+  "model_apis": [],
+  "backends": [],
+  "mcp_servers": [],
+  "databases": [],
+  "other": [
+   {
+    "name": "mail",
+    "kind": "smtp",
+    "detail": "sends the order mail"
+   }
+  ]
+ },
+ "expect": {
+  "error": "other[0] must have the keys name, kind, detail, record, and no other key"
+ }
+}

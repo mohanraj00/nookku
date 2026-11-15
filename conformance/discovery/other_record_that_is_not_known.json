@@ -1,0 +1,19 @@
+{
+ "answer": {
+  "model_apis": [],
+  "backends": [],
+  "mcp_servers": [],
+  "databases": [],
+  "other": [
+   {
+    "name": "orders",
+    "kind": "rabbitmq",
+    "detail": "the order queue",
+    "record": "proxy"
+   }
+  ]
+ },
+ "expect": {
+  "error": "other[0] 'record' must be one of: driver, none"
+ }
+}

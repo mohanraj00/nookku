@@ -14,7 +14,7 @@ Read the app. Do not write a file.
    - the Claude Agent SDK, `claude -p` or another use of Claude Code: `claude-code`;
    - the Codex SDK, `codex app-server` or `codex exec`: `codex`;
    - both, or none.
-4. Find the backends of the app: the HTTP services that it calls, for example a stock or payment service. For each one, find the environment variable that holds its URL. Also find each direct call to the Anthropic or the OpenAI API, and the variable that holds its URL.
+4. Find the backends of the app: the HTTP services that it calls, for example a stock or payment service. For each one, find the environment variable that holds its URL. Also find each direct call to the Anthropic or the OpenAI API, and the variable that holds its URL. Also find each other service that the app calls, for example a queue or a mail service, and its client library.
 5. Find the store of the app: each database and each data file that the app reads or writes, for example the orders of a toy shop.
 6. Find the rules and the docs of the app: business rules, a policy, a README, a system prompt and the tests. Find an app spec, if the project has one: a Markdown file with the sections `Persona`, `Boundaries`, `User goals`, `Limits`, `Trace points` or `Verdict`, or the files of the `spec` key in `.nookku/config.json`.
 7. Find an entry and a config of an earlier setup: `.nookku/config.json` and the file of its `entry` key.
@@ -25,12 +25,12 @@ Then give the tester a short summary, with one line or a short list for each ite
 
 - **In and out:** how a message goes into the app and how the reply comes out, with the file and the function.
 - **Model harnesses:** `claude-code`, `codex`, both or none, with the file that shows it.
-- **Backends:** each backend and each model API, with its variable.
+- **Backends:** each backend and each model API, with its variable, and each other service, with its client library.
 - **Store:** each database and data file.
 - **Rules and docs:** each file with rules, and the app spec, if the project has one.
 - **Warnings:** each problem of items 8 and 9. Do not correct it. The app's code does not change.
 
-At each `nookku start`, the harness model finds the backends, the model APIs, the MCP servers and the databases again, and the tester checks them. The summary does not register them.
+At each `nookku start`, the harness model finds the backends, the model APIs, the MCP servers, the databases and the other services again, and the tester checks them. The summary does not register them. For a database or another service whose client has an OpenTelemetry instrumentation, the harness model then asks to add it. The test does not record the calls of another service with no instrumentation, for example a mail service that the app calls with smtplib.
 
 ## 2. Interview
 

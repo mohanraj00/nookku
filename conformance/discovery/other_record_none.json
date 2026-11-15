@@ -1,0 +1,24 @@
+{
+ "answer": {
+  "model_apis": [],
+  "backends": [],
+  "mcp_servers": [],
+  "databases": [],
+  "other": [
+   {
+    "name": "mail",
+    "kind": "smtp",
+    "detail": "sends the order mail",
+    "record": "none"
+   }
+  ]
+ },
+ "expect": {
+  "lines": [
+   "- other mail: smtp, sends the order mail (no proxy)"
+  ],
+  "unseen": [
+   "mail"
+  ]
+ }
+}

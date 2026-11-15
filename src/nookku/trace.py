@@ -76,6 +76,7 @@ CHECKS = (
     "mcp_task_unfinished",
     "unseen_call",
     "driver_without_span",
+    "other_without_span",
     "egress_not_in_discovery",
     "egress_denied",
     "model_error",
@@ -1564,6 +1565,10 @@ DB_PARAMETER = "db.query.parameter."
 # The start of the marks in `seen` of the databases with a driver trace (egress_seen). A mark is
 # not an address, because it has a space, so only a database span can match it.
 DRIVER_SEEN = "driver trace "
+# The attribute of a messaging span that names its system, for example `kafka` or `rabbitmq`.
+CALL_MESSAGING = "messaging.system"
+# The kind of an `other` part whose client trace is the instrumentation of an HTTP client.
+HTTP_KIND = "http"
 
 
 def _first(attrs: dict[str, Any], keys: tuple[str, ...]) -> str | None:
@@ -1690,6 +1695,44 @@ def drivers_without_span(
     ]
 
 
+def client_parts(answer: Any) -> list[tuple[str, str]]:
+    """The name and the kind, in lowercase, of each `other` part of the egress answer with
+    `record: driver` (SPEC.md section 7.11)."""
+    others = answer.get("other") if isinstance(answer, dict) else None
+    parts = [o for o in others if isinstance(o, dict)] if isinstance(others, list) else []
+    return [
+        (str(o.get("name")), o["kind"].lower())
+        for o in parts
+        if o.get("record") == "driver" and isinstance(o.get("kind"), str)
+    ]
+
+
+def _client_covers(it: dict[str, Any], kind: str) -> bool:
+    """True if the item is a span of a client of the app for an `other` part of this kind: a
+    messaging span of the same system, or an HTTP client span for the kind `http`."""
+    if it["harness"] != "otel" or it["kind"] != "span" or not isinstance(it["input"], dict):
+        return False
+    attrs = it["input"]
+    if any(k in attrs for k in SERVER_KEYS):
+        return False
+    if kind == HTTP_KIND:
+        return _first(attrs, CALL_URL) is not None
+    system = attrs.get(CALL_MESSAGING)
+    return isinstance(system, str) and system.lower() == kind
+
+
+def others_without_span(
+    items: list[dict[str, Any]], clients: list[tuple[str, str]]
+) -> list[dict[str, Any]]:
+    """The `other_without_span` findings: each `other` part with `record: driver` that no span
+    of its client covers (SPEC.md section 8.6)."""
+    return [
+        _finding("other_without_span", None, f"{name}: no span of its client")
+        for name, kind in clients
+        if not any(_client_covers(it, kind) for it in items)
+    ]
+
+
 def _driver_mark(system: str, address: str, database: str | None) -> str:
     return DRIVER_SEEN + " ".join([system, address] + ([database] if database else []))
 
@@ -1760,6 +1803,7 @@ def check(
     points: list[dict[str, Any]] | None = None,
     unread: list[str] | None = None,
     drivers: list[tuple[str, set[str]]] | None = None,
+    clients: list[tuple[str, str]] | None = None,
     egress: list[dict[str, Any]] | None = None,
     key: dict[str, Any] | str | None = None,
 ) -> list[dict[str, Any]]:
@@ -1773,6 +1817,7 @@ def check(
     `unread` holds the details of the parts of the app spec that the trace does not check
     (app_spec.unread).
     `drivers` holds the name and the marks of each database with a driver trace (driver_marks).
+    `clients` holds the name and the kind of each other part with a client trace (client_parts).
     `egress` holds the findings of the egress spans (egress_findings).
     `key` holds the answer key of the test (answer_key.load), the reason that the key cannot be
     used, or None if the test has no answer key."""
@@ -1840,6 +1885,7 @@ def check(
     if seen is not None:
         out += unseen_calls(items, seen)
     out += drivers_without_span(items, drivers or [])
+    out += others_without_span(items, clients or [])
     out.extend(_unfinished_mcp_tasks(items))
     out += egress or []
     for e in errors or []:
@@ -1981,6 +2027,7 @@ def build(folder: Path) -> dict[str, Any]:
         points,
         unread,
         drivers,
+        client_parts(answer),
         egress_found,
         answer_key_of(folder, manifest),
     )

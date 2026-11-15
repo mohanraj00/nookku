@@ -1,0 +1,22 @@
+{
+ "answer": {
+  "model_apis": [],
+  "backends": [],
+  "mcp_servers": [],
+  "databases": [],
+  "other": [
+   {
+    "name": "orders",
+    "kind": "rabbitmq",
+    "detail": "the order queue",
+    "record": "driver"
+   }
+  ]
+ },
+ "expect": {
+  "lines": [
+   "- other orders: rabbitmq, the order queue (driver trace)"
+  ],
+  "unseen": []
+ }
+}

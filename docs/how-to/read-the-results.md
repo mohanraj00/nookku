@@ -200,6 +200,7 @@ This output is from the test of the tutorial proof of nookku 0.5.8 ([data](../..
   "mcp_task_unfinished": 0,
   "unseen_call": 0,
   "driver_without_span": 0,
+  "other_without_span": 0,
   "egress_not_in_discovery": 0,
   "egress_denied": 0,
   "model_error": 0,
@@ -243,7 +244,7 @@ Each finding in `findings.json` has `check`, `turn` and `detail`. A finding abou
 
 ### Trace checks
 
-The trace has 28 trace checks ([trace.py](../../src/nookku/trace.py)). `findings.json` sorts the findings in the order of this table.
+The trace has 29 trace checks ([trace.py](../../src/nookku/trace.py)). `findings.json` sorts the findings in the order of this table.
 
 | Check | Finding |
 |---|---|
@@ -264,6 +265,7 @@ The trace has 28 trace checks ([trace.py](../../src/nookku/trace.py)). `findings
 | `mcp_task_unfinished` | The trace saw a task state and no terminal state. Check the last task state and its source line in `mcp.jsonl`. |
 | `unseen_call` | An OpenTelemetry span of the app names a call to an address that no proxy and no receiver of the test has. The egress answer missed this part, or the app called it with no proxy ([SPEC.md section 7.11](../../SPEC.md#711-egress-discovery)). |
 | `driver_without_span` | A database with `record: driver` in the egress answer has no database span in the trace. Check the OpenTelemetry instrumentation of its driver. |
+| `other_without_span` | An other part with `record: driver` in the egress answer, for example a queue, has no span of its client in the trace. Check the OpenTelemetry instrumentation of its client. |
 | `egress_not_in_discovery` | A Koodam egress span names a host that the egress answer does not have. The app called a service that the answer missed. If the host is not a part of the app, for example a package host, add it to `egress_ignore` ([SPEC.md section 8.8](../../SPEC.md#88-egress-spans)). |
 | `egress_denied` | The Koodam egress proxy refused a call of the pod. `detail` gives the reason of Koodam ([SPEC.md section 8.8](../../SPEC.md#88-egress-spans)). |
 | `model_error` | A Codex turn ended with a model error: the `task_complete` event of the Codex session file has an error, for example `server_overloaded` when the model is at capacity. |
