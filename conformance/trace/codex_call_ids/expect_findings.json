@@ -1,0 +1,87 @@
+{
+ "v": "0.2",
+ "test": "20261115-080000-id01",
+ "turns": 1,
+ "items": 13,
+ "sessions": [
+  {
+   "harness": "codex",
+   "session": "019a0b1c-2d3e-7f40-8a5b-6c7d8e9f0a1b",
+   "file": "sessions/codex/rollout-2026-10-06T08-00-00-019a0b1c-2d3e-7f40-8a5b-6c7d8e9f0a1b.jsonl",
+   "inferred": false,
+   "version": "0.160.0",
+   "items": 6,
+   "ignored": {
+    "response_item.custom_tool_call": 1,
+    "session_meta": 1
+   }
+  }
+ ],
+ "otel": {
+  "file": "otel.jsonl",
+  "rows": 7,
+  "items": 7,
+  "ignored": {}
+ },
+ "backend": null,
+ "model_api": null,
+ "mcp": null,
+ "database": null,
+ "egress": null,
+ "trace_points": null,
+ "counts": {
+  "agent_error": 0,
+  "repeated_reply": 0,
+  "reply_not_from_model": 0,
+  "citation_not_read": 0,
+  "answer_key_mismatch": 0,
+  "answer_key_missing": 0,
+  "tool_error": 0,
+  "command_failed": 0,
+  "span_error": 0,
+  "backend_error": 0,
+  "model_api_error": 0,
+  "questions_lost": 0,
+  "database_error": 0,
+  "proxy_call_without_span": 0,
+  "mcp_task_unfinished": 0,
+  "unseen_call": 0,
+  "driver_without_span": 0,
+  "other_without_span": 0,
+  "egress_not_in_discovery": 0,
+  "egress_denied": 0,
+  "model_error": 0,
+  "turn_without_model": 0,
+  "item_between_turns": 0,
+  "otel_tool_not_in_session": 2,
+  "server_not_from_app": 0,
+  "session_inferred": 0,
+  "version_untested": 0,
+  "missing_trace_point": 0,
+  "trace_points_unread": 0
+ },
+ "findings": [
+  {
+   "check": "otel_tool_not_in_session",
+   "turn": 1,
+   "detail": "exec_command: a tool_result event with no tool call in the session file",
+   "harness": "codex",
+   "session": "019a0b1c-2d3e-7f40-8a5b-6c7d8e9f0a1b",
+   "source": {
+    "file": "otel.jsonl",
+    "line": 6
+   }
+  },
+  {
+   "check": "otel_tool_not_in_session",
+   "turn": 1,
+   "detail": "check_stock: a tool_result event with no tool call in the session file",
+   "harness": "codex",
+   "session": "019a0b1c-2d3e-7f40-8a5b-6c7d8e9f0a1b",
+   "source": {
+    "file": "otel.jsonl",
+    "line": 7
+   }
+  }
+ ]
+}

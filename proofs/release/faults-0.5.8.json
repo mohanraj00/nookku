@@ -1,6 +1,6 @@
 {
  "nookku": "0.5.8",
- "cases": 41,
+ "cases": 42,
  "checks": 29,
  "faults": [
   {
@@ -98,6 +98,13 @@
    "case": "claude_code_toy_shop",
    "check": "item_between_turns",
    "turn": null,
+   "found": true,
+   "error": null
+  },
+  {
+   "case": "codex_call_ids",
+   "check": "otel_tool_not_in_session",
+   "turn": 1,
    "found": true,
    "error": null
   },

@@ -4,6 +4,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -486,6 +487,19 @@ def test_a_row_that_nests_too_deep_counts_as_invalid_json(tmp_path: Path) -> Non
     assert items == [] and info["ignored"] == {"invalid_json": 1}
 
 
+def test_the_codex_calls_skip_a_line_that_is_not_an_object(tmp_path: Path) -> None:
+    path = tmp_path / "rollout.jsonl"
+    call = {"type": "custom_tool_call", "call_id": "call_A", "name": "exec"}
+    rows = [
+        "null",
+        "[1, 2]",
+        json.dumps({"type": "response_item", "payload": call}),
+        '{"type": "resp',
+    ]
+    path.write_text("\n".join(rows) + "\n")
+    assert trace.read_codex_calls(path) == [{"call_id": "call_A", "name": "exec"}]
+
+
 CLAUDE_CASE = (
     Path(__file__).resolve().parent.parent / "conformance" / "trace" / "claude_code_toy_shop"
 )
@@ -539,3 +553,17 @@ def test_a_finding_cannot_move_the_cursor_or_forge_a_line() -> None:
         "No turn:",
         "  agent_error: status\\u2028500",
     ]
+
+
+def test_the_codex_id_rule_keeps_to_the_session_of_the_event() -> None:
+    def event(tool: str, call_id: str) -> dict[str, Any]:
+        args = {"tool_name": tool, "arguments": "{}", "call_id": call_id}
+        return {"harness": "codex", "session": "A", "turn": 1, "input": args}
+
+    command = {"harness": "codex", "session": "A", "turn": 1, "kind": "command", "input": {}}
+    other = [{"harness": "codex", "session": "B", "call_id": "call_B", "name": "exec"}]
+    result = event("exec_command", "item_A")
+    assert trace._in_session(result, [command], [])
+    assert trace._in_session(result, [command], other)
+    assert not trace._in_session(event("exec", "call_B"), [command], other)
+    assert trace._in_session(event("exec", "call_B"), [], other)
