@@ -800,7 +800,7 @@ def test_chat_stop_names_no_pid_if_the_os_gives_none_and_the_lock_is_released(
     (folder / state.PAGE_FILE).write_text(json.dumps({"port": 1}))
     holders = iter([holder, None])
     monkeypatch.setattr(page, "lock_holder", lambda root: next(holders))
-    assert page_auto.stop(tmp_path) == (0, "The chat page of this project stopped.")
+    assert page_auto.stop(tmp_path) == (0, page_auto.STOPPED_NO_PID)
 
 
 def test_the_stop_sends_no_signal_to_a_pid_that_does_not_hold_the_lock(

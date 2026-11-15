@@ -90,6 +90,7 @@ NOT_CONFIRMED = (
     "ps -p {pid} shows a nookku chat page, stop it with: kill {pid}"
 )
 STOPPED = "The chat page of this project (pid {pid}) stopped."
+STOPPED_NO_PID = "The chat page of this project stopped."
 NONE_RUNS = "No chat page of this project runs."
 NOT_KNOWN = (
     "nookku: a process holds the page lock of this project, but nookku cannot confirm that it is "
@@ -303,7 +304,7 @@ def stop(root: Path) -> tuple[int, str]:
         return 1, error
     # _stop_server also sends no signal if the page file names no running pid, or if it changed.
     # Then a process still holds the lock, and "stopped" is not true.
-    stopped = STOPPED.format(pid=holder) if holder > 0 else "The chat page of this project stopped."
+    stopped = STOPPED.format(pid=holder) if holder > 0 else STOPPED_NO_PID
     return (1, not_known) if _held(root) else (0, stopped)
 
 
