@@ -90,9 +90,10 @@ def claude_events(stdout: str) -> tuple[dict[str, Any], list[str]]:
     a mod loaded, or if an MCP server other than nookku loaded. The text of such a plugin or
     server can reach the model.
 
-    The check reads the output after the session ends. The first prompt of each proof is a
-    relayed message or `nookku start`, and the hook blocks it before the model. Thus no model
-    turn of a session with a mod occurs before the check stops the proof."""
+    The check reads the output after the session ends. The first prompt of each relay proof is a
+    relayed message or `nookku start`, and the hook blocks it before the model. A proof whose
+    first prompt goes to the model runs claude_probe first. Thus no model turn of a session with
+    a mod occurs before the check stops the proof."""
     events = json_lines(stdout)
     init = next((e for e in events if e.get("subtype") == "init"), None)
     result = next((e for e in reversed(events) if e.get("type") == "result"), {})
@@ -115,6 +116,34 @@ def claude_events(stdout: str) -> tuple[dict[str, Any], list[str]]:
             "CLAUDE_CODE_PLUGIN_DIRS (NO_MODS)."
         )
     return result, sorted(str(p.get("source")) for p in init.get("plugins", []))
+
+
+# A UserPromptSubmit hook that blocks each prompt before the model. --settings adds it to the
+# settings of the project.
+BLOCK_PROMPT = json.dumps(
+    {"hooks": {"UserPromptSubmit": [{"hooks": [{"type": "command", "command": "exit 2"}]}]}}
+)
+
+
+def claude_probe(cmd: list[str], cwd: Path, env: dict[str, str]) -> list[str]:
+    """Run the claude -p command `cmd` with a prompt that a hook blocks before the model, and
+    check its init event with claude_events. Return the plugins of the init event.
+
+    Use it before the first session of a proof whose first prompt goes to the model. Stop the
+    proof if the model ran a turn."""
+    done = subprocess.run(
+        [*cmd, "--settings", BLOCK_PROMPT, "nookku probe"],
+        cwd=cwd,
+        env=env,
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        timeout=300,
+    )
+    result, plugins = claude_events(done.stdout)
+    if result.get("num_turns") != 0 or result.get("modelUsage"):
+        sys.exit(f"the probe prompt reached the model: {str(result)[-300:]}")
+    return plugins
 
 
 def codex_home(plugin: bool, project: Path) -> Path:
