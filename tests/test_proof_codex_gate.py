@@ -3,14 +3,36 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
+import proof_codex_gate as proof
 from proof_codex_gate import home_pids, home_start, signal_same, stop_home
 
 from nookku import state
+from nookku.cli import main
 
 HOME = Path("/work/.proof/codex-gate/codex-home")
 DAEMON = f"{HOME}/packages/app-server-daemon/bin/codex app-server --listen unix:// --managed-daemon"
+
+
+def test_the_proof_sets_up_a_toy_shop_in_a_path_with_a_space(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    shop = tmp_path / "Toy Shop"
+    entry = shop / "agent.py"
+    monkeypatch.setattr(proof, "PROJECT", shop)
+    monkeypatch.setattr(proof, "TOY_SHOP", entry)
+
+    def run(cmd: list[str], cwd: Path) -> None:
+        assert main([*cmd[1:], "--root", str(cwd)]) == 0
+
+    monkeypatch.setattr(proof, "run", run)
+    proof.project()
+    config = proof.loads((shop / ".nookku" / "config.json").read_text())
+    assert config["entry"] == [sys.executable, str(entry)]
+    assert config["page"] is False
 
 
 def test_only_a_process_with_a_path_in_the_home_matches() -> None:

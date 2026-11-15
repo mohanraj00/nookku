@@ -645,7 +645,8 @@ def test_init_writes_nothing_if_a_file_cannot_be_kept(
 def test_an_unknown_key_stops_start_check_and_the_project_hooks_with_one_message(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    assert main(["init", "codex", "--root", str(tmp_path), "--entry", f"python3 {TOY_SHOP}"]) == 0
+    entry = shlex.join(["python3", str(TOY_SHOP)])
+    assert main(["init", "codex", "--root", str(tmp_path), "--entry", entry]) == 0
     path = tmp_path / ".nookku" / "config.json"
     path.write_text(json.dumps({**json.loads(path.read_text()), "tpa_url": "x"}))
     cause = ".nookku/config.json has unknown keys: ['tpa_url']. Correct or remove them."
@@ -685,7 +686,8 @@ def test_a_wrong_type_stops_init_start_check_mode_on_and_the_project_hooks_with_
     tmp_path: Path, capsys: pytest.CaptureFixture[str], key: str, value: Any, rule: str
 ) -> None:
     # The one reader checks the type of each value (#121), so each command gives one error.
-    assert main(["init", "codex", "--root", str(tmp_path), "--entry", f"python3 {TOY_SHOP}"]) == 0
+    entry = shlex.join(["python3", str(TOY_SHOP)])
+    assert main(["init", "codex", "--root", str(tmp_path), "--entry", entry]) == 0
     path = tmp_path / ".nookku" / "config.json"
     path.write_text(json.dumps({**json.loads(path.read_text()), key: value}))
     text = path.read_text()
@@ -896,7 +898,7 @@ def test_the_shell_start_text_gives_the_same_ways_to_end_a_test(
 
 
 def test_init_start_and_end_a_test(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    entry = f"{sys.executable} {TOY_SHOP}"
+    entry = shlex.join([sys.executable, str(TOY_SHOP)])
     assert (
         main(["init", "codex", "--root", str(tmp_path), "--entry", entry, "--models", "codex"]) == 0
     )

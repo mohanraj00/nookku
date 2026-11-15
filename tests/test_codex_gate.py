@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shlex
 import shutil
 import sys
 from pathlib import Path
@@ -151,7 +152,9 @@ def fake_codex(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, body: str) -> No
     folder = tmp_path / "bin"
     folder.mkdir(exist_ok=True)
     fake = folder / "codex"
-    fake.write_text(f"#!{sys.executable}\nimport json, sys, time\n{body}\n")
+    script = folder / "codex.py"
+    script.write_text(f"import json, sys, time\n{body}\n")
+    fake.write_text(f'#!/bin/sh\nexec {shlex.join([sys.executable, str(script)])} "$@"\n')
     fake.chmod(0o755)
     monkeypatch.setenv("NOOKKU_CODEX", str(fake))
 

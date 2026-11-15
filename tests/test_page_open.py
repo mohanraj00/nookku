@@ -8,7 +8,9 @@ import json
 import os
 import re
 import secrets
+import shlex
 import signal
+import subprocess
 import sys
 import threading
 from collections.abc import Iterator
@@ -56,11 +58,21 @@ def browser(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     monkeypatch.delenv("SSH_CONNECTION")
     monkeypatch.delenv("SSH_TTY", raising=False)
     monkeypatch.setenv("DISPLAY", ":0")
-    out = tmp_path / "browser.txt"
-    script = tmp_path / "fetch.py"
+    folder = tmp_path / "Toy Shop"
+    folder.mkdir()
+    out = folder / "browser.txt"
+    script = folder / "fetch.py"
     script.write_text(FETCH)
-    monkeypatch.setenv("BROWSER", f"{sys.executable} {script} {out} %s")
+    monkeypatch.setenv("BROWSER", shlex.join([sys.executable, str(script), str(out), "%s"]))
     return out
+
+
+def test_the_browser_fixture_runs_from_a_folder_with_a_space(browser: Path) -> None:
+    source = browser.parent / "page #1.html"
+    source.write_text("Toy shop")
+    command = shlex.split(os.environ["BROWSER"])
+    subprocess.run([*command[:-1], source.as_uri()], cwd=browser.parent, check=True, timeout=10)
+    assert browser.read_text() == f"None {source.as_uri()}"
 
 
 def add_turn(folder: Path, said: str) -> None:
