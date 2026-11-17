@@ -1,7 +1,7 @@
 {
- "date": "2026-11-15",
+ "date": "2026-11-17",
  "versions": {
-  "nookku": "0.5.8",
+  "nookku": "0.5.9",
   "python": "3.13.12",
   "os": "Darwin",
   "rabbitmq": "rabbitmq@sha256:cd4009416f83d7e5895020cd71b0963f3b8a4dfc3de74bbb6fb3bfe5f81f01e0",
@@ -52,7 +52,7 @@
      "messaging.temp_destination": true,
      "messaging.destination": "orders",
      "net.peer.name": "127.0.0.1",
-     "net.peer.port": 32770
+     "net.peer.port": 32771
     }
    },
    {
@@ -63,7 +63,7 @@
      "messaging.temp_destination": true,
      "messaging.destination": "orders",
      "net.peer.name": "127.0.0.1",
-     "net.peer.port": 32770
+     "net.peer.port": 32771
     }
    }
   ],
@@ -74,8 +74,8 @@
   },
   "findings": [],
   "transcript_lines": [
-   "attributes: {\"messaging.system\": \"rabbitmq\", \"messaging.temp_destination\": true, \"messaging.destination\": \"orders\", \"net.peer.name\": \"127.0.0.1\", \"net.peer.port\": 32770}",
-   "attributes: {\"messaging.system\": \"rabbitmq\", \"messaging.temp_destination\": true, \"messaging.destination\": \"orders\", \"net.peer.name\": \"127.0.0.1\", \"net.peer.port\": 32770}"
+   "attributes: {\"messaging.system\": \"rabbitmq\", \"messaging.temp_destination\": true, \"messaging.destination\": \"orders\", \"net.peer.name\": \"127.0.0.1\", \"net.peer.port\": 32771}",
+   "attributes: {\"messaging.system\": \"rabbitmq\", \"messaging.temp_destination\": true, \"messaging.destination\": \"orders\", \"net.peer.name\": \"127.0.0.1\", \"net.peer.port\": 32771}"
   ],
   "prompt_has_client_rows": true,
   "seal_intact": true

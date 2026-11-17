@@ -1,8 +1,8 @@
 {
- "date": "2026-11-14",
+ "date": "2026-11-17",
  "versions": {
-  "nookku": "0.5.8",
-  "claude-code": "2.1.319"
+  "nookku": "0.5.9",
+  "claude-code": "2.1.302"
  },
  "persona": {
   "persona": "A customer of a small toy shop. The teapot that you ordered came broken.",
@@ -17,7 +17,7 @@
  },
  "turns": [
   [
-   "Hi, I ordered a toy teapot from your shop and it arrived broken — the spout is snapped off. What kind of refund do you give for damaged items?",
+   "Hi, I just got the toy teapot I ordered from you and it arrived broken. The spout is snapped off and there's a crack down the side. What kind of refund do you offer for damaged items?",
    "Our refund policy:\n\n1. Damaged items: full refund.\n2. Change of mind: 30 days.\n"
   ]
  ],
