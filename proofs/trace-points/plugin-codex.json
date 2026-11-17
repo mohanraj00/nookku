@@ -1,10 +1,10 @@
 {
- "date": "2026-11-12",
+ "date": "2026-11-17",
  "relay": "plugin-codex",
  "versions": {
-  "nookku": "0.5.8",
-  "claude-code": "2.1.302 (Claude Code)",
-  "codex": "codex-cli 0.162.1",
+  "nookku": "0.5.9",
+  "claude-code": "2.1.319 (Claude Code)",
+  "codex": "codex-cli 0.169.0",
   "agent sdk": "claude-agent-sdk==0.2.168",
   "session files": {
    "claude-code": "2.1.301"
@@ -100,9 +100,9 @@
    "turn": 2,
    "detail": "check_stock: {\"error\": \"no such item: robot-kit\"}",
    "harness": "claude-code",
-   "session": "d004f1a3-85d6-4d39-8042-61b5bb743f7d",
+   "session": "12e15bb7-53c9-4cf1-b74f-0c21f842b16b",
    "source": {
-    "file": "sessions/claude-code/d004f1a3-85d6-4d39-8042-61b5bb743f7d.jsonl",
+    "file": "sessions/claude-code/12e15bb7-53c9-4cf1-b74f-0c21f842b16b.jsonl",
     "line": 36,
     "result_line": 37
    }

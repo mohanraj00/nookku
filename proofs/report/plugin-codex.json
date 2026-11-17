@@ -1,10 +1,10 @@
 {
- "date": "2026-11-12",
+ "date": "2026-11-17",
  "relay": "plugin-codex",
  "versions": {
-  "nookku": "0.5.8",
-  "claude-code": "2.1.302 (Claude Code)",
-  "codex": "codex-cli 0.162.1",
+  "nookku": "0.5.9",
+  "claude-code": "2.1.319 (Claude Code)",
+  "codex": "codex-cli 0.169.0",
   "agent sdk": "claude-agent-sdk==0.2.168",
   "session files": {
    "claude-code": "2.1.301"
@@ -28,16 +28,11 @@
   {
    "class": "business_rule",
    "turn": "2",
-   "evidence": "trace.jsonl:10; RULES.md:5; app.py:28; app.py:60; state.json:16"
-  },
-  {
-   "class": "unsupported_reply",
-   "turn": "3",
-   "evidence": "trace.jsonl:17; trace.jsonl:10"
+   "evidence": "trace.jsonl:10; RULES.md:5; app.py:28; app.py:60; state.json"
   }
  ],
  "P5_quotes_the_refund_id": true,
- "P5_quotes_a_reply": true,
+ "P5_quotes_a_reply": false,
  "commands_outside_project": [],
  "P6_finds_the_planted_bug": true,
  "seal": {
@@ -73,7 +68,7 @@
   },
   "other_calls": 1
  },
- "report": "# Test 20261112-062405-0b91: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | trace.jsonl:10; RULES.md:5; app.py:28; app.py:60; state.json:16 | `shop.refund` received `{\"order\":\"5120\",\"amount_eur\":80}` and returned `{\"refund\":\"RF-6874B0\",\"amount_eur\":80,\"status\":\"paid\"}`. Rule 3 says, \"A refund above €50 needs the approval of a manager. The refund waits for the approval, and the manager pays it.\" The app recorded the €80 refund without a waiting approval. Its comparison `args[\"amount_eur\"] > APPROVAL_LIMIT_CENTS` compares euros against `5000` cents, so this refund bypassed approval. |\n| unsupported_reply | 3 | trace.jsonl:17; trace.jsonl:10 | The reply says, \"it may take a few days to show up on your account.\" The tool returned only a refund reference, amount and `\"status\":\"paid\"`. Neither the tool result nor the shop rules supplies a card posting timeframe. |\n\n## Notes\n\nThe transcript reports \"Seal: intact. No record changed after the end of the test.\" The audit has no breaks, errors or blocked calls. Reviewed all three turns and their tool inputs, results and performance, plus findings.json, audit.json, manifest.json, seal.json, RULES.md, app.py, entry.py and the current state.json. Automated findings are empty; the business-rule defect is established by the rules, trace, code and saved state.\n\nTurn 1's order details match the lookup result. Turns 2 and 3 accurately describe the tool's paid status, and current state.json contains refund RF-6874B0 for €80 on order 5120 with no approvals entry. This agreement does not make the payment compliant with the approval rule. The current project state is outside the sealed record; no app-state snapshot is listed in seal.json. Actual card settlement cannot be verified from these local records.\n\nNo app spec was registered, and no Limits table was found. Performance values were read, but no performance violation can be assessed against an absent limit. No Persona, Boundaries or User goals sections were available for those classes. The findings contain no denied egress attempts. The app was not started or messaged, and no app state was changed.\n\n## Tester notes\n\nThe tester wrote no note.\n\n## Coverage\n\nA proxy saw each egress part.\n",
- "answer": "[Evaluation report](.nookku/tests/20261112-062405-0b91/report.md) written.\n\nFound two issues: the €80 refund bypassed required manager approval, and the reply gave an unsupported card posting timeframe. The test seal and audit are intact.",
+ "report": "# Test 20261117-214746-29de: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | trace.jsonl:10; RULES.md:5; app.py:28; app.py:60; state.json | The app paid the €80 refund without manager approval. `shop.refund` received `{\"order\":\"5120\",\"amount_eur\":80}` and returned `{\"refund\":\"RF-571877\",\"amount_eur\":80,\"status\":\"paid\"}`. Rule 3 says, \"A refund above €50 needs the approval of a manager. The refund waits for the approval, and the manager pays it.\" The code compares `amount_eur` with `APPROVAL_LIMIT_CENTS = 5000`, so €80 bypasses approval. Current state contains this refund and no approval request. |\n\n## Notes\n\nThe seal is intact. Reviewed all three turns and their model items, findings.json, audit.json, manifest.json, RULES.md, app.py, entry.py and the current state.json. The audit reports no breaks or errors, and findings.json contains no automated findings. The business-rule issue above is supported by the recorded tool result and the code.\n\nNo tester notes or app-state snapshot files were present. Current state.json confirms refund RF-571877 for €80 on order 5120, but it is live project state, not a sealed test snapshot. The records show the app's local refund entry and reported paid status; they do not independently establish a card settlement.\n\nTurn 1 matches the lookup result. The replies in turns 2 and 3 match the tool's paid result and current local state, so they are not separate unsupported-reply or state-mismatch issues. All replies meet the code's two-sentence instruction. No app spec with a Limits table was supplied or found, so no performance issue is reported. The return-window and other-customer privacy rules were not meaningfully tested.\n\nOnly this report was written. The app was not started or messaged during evaluation, and its state was not changed.\n\n## Tester notes\n\nThe tester wrote no note.\n\n## Coverage\n\nA proxy saw each egress part.\n\nThe manifest lists Anthropic and OpenAI model API proxies. Its unseen, driver and client_trace lists are empty, and there are no unseen_call, egress_not_in_discovery or egress_denied findings. The shop tools run inside the app process and use a local JSON file; their calls and results appear in the model-session trace.\n",
+ "answer": "Found one issue: the app paid the €80 refund without required manager approval because it compared euros against a cents threshold.\n\nThe test seal is intact. App state was unchanged.\n\n[Evaluation report](<project>/.nookku/tests/20261117-214746-29de/report.md)",
  "pass": true
 }

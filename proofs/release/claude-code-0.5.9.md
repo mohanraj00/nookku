@@ -1,6 +1,6 @@
 # Claude Code release proofs of 0.5.9
 
-I ran the Claude Code proofs of the 0.5.9 release candidate on 2026-11-17, on macOS. The base is main at bad1f74d, plus the commit that sets the version to 0.5.9 (7a71d976). The tools were Claude Code 2.1.302, Docker 29.6.1 (client) and 29.5.2 (server), kind v0.33.0, kubectl v1.36.2, Kubernetes v1.37.0 and Python 3.13.12. CI pins Claude Code 2.1.302 ([ci.yml](../../.github/workflows/ci.yml)). The Claude Code on my machine is newer, so I installed 2.1.302 from npm in a separate folder and put it first on `PATH`. Each result file records its tested versions. I ran the 30 proofs of the table one time each, in sequence. Each run exited with 0, and each results file passes. No run failed.
+I ran the Claude Code proofs of the 0.5.9 release candidate on 2026-11-17, on macOS. The base is main at bad1f74d, plus the commit that sets the version to 0.5.9 (7a71d976). The tools were Claude Code 2.1.302, Docker 29.6.1 (client) and 29.5.2 (server), kind v0.33.0, kubectl v1.36.2, Kubernetes v1.37.0 and Python 3.13.12. CI pins Claude Code 2.1.302 ([ci.yml](../../.github/workflows/ci.yml)). The Claude Code on my machine is newer, so I installed 2.1.302 from npm in a separate folder and put it first on `PATH`. Each result file records its tested versions. I ran the 30 proofs of the table in sequence. 29 passed at run 1. The tutorial proof passed at run 1 and I ran it again, as [The tutorial runs](#the-tutorial-runs) says. Each results file passes.
 
 ## Runs
 
@@ -32,7 +32,7 @@ I ran the Claude Code proofs of the 0.5.9 release candidate on 2026-11-17, on ma
 | `proof_driver_trace.py` | | pass | [results](../driver-trace/results.json) |
 | `proof_queue_trace.py` | | pass | [results](../queue-trace/results.json) |
 | `proof_api_hello.py` | | pass | [results](../model-api/hello.json) |
-| `proof_tutorial.py --model` | | pass | [run](../tutorial/run.json), [output](../tutorial/output.txt) |
+| `proof_tutorial.py --model` | | pass, run 2 | [run](../tutorial/run.json), [output](../tutorial/output.txt) |
 | `proof_setup.py` | | pass | [results](../setup/results.json) |
 | `proof_simulated_user.py` | | pass | [results](../simulated-user/results.json) |
 | `proof_cluster_tap.py` | | pass | [results](../cluster-tap/results.json) |
@@ -40,6 +40,10 @@ I ran the Claude Code proofs of the 0.5.9 release candidate on 2026-11-17, on ma
 The 2 runs with `--evaluate` made new test folders. I kept the folders of 0.5.8, because [the 0.5.8 notes](claude-code-0.5.8.md) link them. `proof_cluster_tap.py` ran its 3 forms: `same-pod`, `service` and `default-deny` ([records](../cluster-tap/)). `proof_queue_trace.py` and `proof_simulated_user.py` are new in the table. `proof_queue_trace.py` ran the app with and without the instrumentation of pika, and it needs Docker for RabbitMQ. `proof_simulated_user.py` ran 1 turn and ended at the goal.
 
 Some result files have the key `"session files": "2.1.301"`. This key gives the newest Claude Code version that the trace reader of the session files covers. It is not the version that ran. The setup proof answer in [results.json](../setup/results.json) names Claude Code 2.1.326. That is the Claude Code that the Agent SDK of the toy shop app bundles, not the harness. The harness recorded 2.1.302.
+
+## The tutorial runs
+
+`proof_tutorial.py --model` ran 2 times. Run 1 passed its checks. In its report, the model cited wrong lines of `agent.py` (24, 29 and 33, where lines 29 and 33 are blank). The docs would have shown those lines, so I ran the proof again. Run 2 cites the correct lines. The result files in `proofs/tutorial/`, the tutorial and the README are from run 2, test ids `20261117-155444-f1f3` and `20261117-155448-c94c`. A model answer changes on each run, and I did not change the script.
 
 ## The scripted verdict test
 

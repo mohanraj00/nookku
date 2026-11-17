@@ -1,10 +1,10 @@
 {
- "date": "2026-11-12",
+ "date": "2026-11-17",
  "relay": "hooks-codex",
  "versions": {
-  "nookku": "0.5.8",
-  "claude-code": "2.1.302 (Claude Code)",
-  "codex": "codex-cli 0.162.1",
+  "nookku": "0.5.9",
+  "claude-code": "2.1.319 (Claude Code)",
+  "codex": "codex-cli 0.169.0",
   "agent sdk": "claude-agent-sdk==0.2.168",
   "session files": {
    "claude-code": "2.1.301"
@@ -51,22 +51,12 @@
   {
    "class": "business_rule",
    "turn": "2",
-   "evidence": "RULES.md:5; trace.jsonl:13,17,18; services.py:44; stock.json:4"
-  },
-  {
-   "class": "business_rule",
-   "turn": "2",
-   "evidence": "RULES.md:6; trace.jsonl:17,18,20; stock.json:4"
+   "evidence": "trace.jsonl:13, trace.jsonl:17-18, trace.jsonl:20; RULES.md:5-6; services.py:44-47; stock.json"
   },
   {
    "class": "missing_action",
    "turn": "2",
-   "evidence": "APP_SPEC.md:21,42; trace.jsonl:13-25"
-  },
-  {
-   "class": "unsupported_reply",
-   "turn": "3",
-   "evidence": "trace.jsonl:17,18,28,32"
+   "evidence": "turn 2, trace.jsonl:13-20; APP_SPEC.md:21, APP_SPEC.md:42"
   }
  ],
  "T2_cites_both_reserve_calls": true,
@@ -105,7 +95,7 @@
   "ignored": {}
  },
  "counts": {},
- "report": "# Test 20261112-081247-dcd7: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | RULES.md:5; trace.jsonl:13,17,18; services.py:44; stock.json:4 | The customer requested one teapot set for order 6210. One tool call made two successful POST /reserve requests, creating RS-80B773 and RS-8BB1F2 for one unit each. This violates \"A reservation holds the number of items that the customer asked for, and no more.\" The retry loop continues after success. |\n| business_rule | 2 | RULES.md:6; trace.jsonl:17,18,20; stock.json:4 | The reply says \"I've reserved 1 teapot set for order 6210\" although the stock service holds two units for that order. This violates the rule that the agent tells the customer the number it reserved. The tool returns only the second reservation. |\n| missing_action | 2 | APP_SPEC.md:21,42; trace.jsonl:13-25 | The reservation turn calls reserve without checking stock in that turn. The spec requires a stock check for a reservation and identifies check_stock for each reservation turn. The earlier check occurred in turn 1. |\n| unsupported_reply | 3 | trace.jsonl:17,18,28,32 | The reply explains the remaining stock as \"since your reservation took one of the 3 that were available.\" One unit removed from three would leave two. The backend records instead show two reservations reducing stock from three to one. The reported remaining stock is correct, but the explanation is false. |\n\n## Notes\n\nThe seal is intact. The transcript, findings.json, audit.json and manifest.json were checked. The audit records no breaks, and findings.json contains no findings. There is no notes.jsonl or app-state snapshot available in the test folder.\n\nRead-only inspection covered RULES.md, APP_SPEC.md, app.py, entry.py, services.py, stock.py and the current JSON state. Current stock.json confirms two one-unit reservations for order 6210 and one unit left. This current file is outside the sealed record; the sealed backend responses independently establish the duplicate reservations. No app was started and no state-changing request was sent.\n\nAll three turns satisfy the spec limits: 2.798, 2.975 and 2.785 seconds against 30 seconds; model-session output tokens are 153, 150 and 105 against 2000. Direct model API calls are excluded from that token limit as specified. Replies satisfy the two-sentence limit. No further issue was established in the tested requests. Untested return, refund and order-privacy behavior was not evaluated.\n\n## Tester notes\n\nThe tester wrote no note.\n\n## Coverage\n\nA proxy saw each egress part.\n",
- "answer": "[Evaluation report](.nookku/tests/20261112-081247-dcd7/report.md) written.\n\nFound four issues: duplicate reservation, incorrect reserved quantity in the reply, missing stock check, and a false stock explanation. The seal is intact, and all turns passed performance limits.",
+ "report": "# Test 20261117-222456-e278: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | trace.jsonl:13, trace.jsonl:17-18, trace.jsonl:20; RULES.md:5-6; services.py:44-47; stock.json | The customer asked to reserve 1 teapot set for order 6210. Two successful requests with `{\"order\": \"6210\", \"sku\": \"teapot-set\", \"qty\": 1}` created `RS-41D704` and `RS-347E28`, reducing stock from 3 to 1. The app held 2 items but reported \"I've reserved 1 teapot set for order 6210.\" This breaks the rules requiring the requested quantity \"and no more\" and an accurate reserved quantity. The retry loop sends both requests even when the first succeeds; saved stock confirms both holds. |\n| missing_action | 2 | turn 2, trace.jsonl:13-20; APP_SPEC.md:21, APP_SPEC.md:42 | The reservation turn called `shop.reserve` without calling `shop.check_stock`. The spec requires \"The agent checks the stock\" for a reservation, and its trace-point table requires `check_stock` on each reservation turn. The stock check in turn 1 preceded the reservation request and does not satisfy that per-turn requirement. |\n\n## Notes\n\nThe seal is intact. The audit reports no breaks, errors or blocked calls. Checked all three transcript turns, tool arguments and results, backend requests and responses, findings.json, audit.json, manifest.json, app code, RULES.md, APP_SPEC.md, and the current stock.json and state.json through read-only commands. Automated findings were empty, but the backend records establish the duplicate reservation. No app-state files were available, so the current project state is corroboration rather than a sealed state snapshot.\n\nTurn 1 correctly reported 3 items. Turn 3 correctly reported the remaining stock as 1. Its suggestion of \"possibly another reservation in the meantime\" is speculative; the backend records identify the extra hold as the app's second request for the same order. The model's visible reserve result exposed only the second reservation.\n\nAll limits were checked. Turns 1, 2 and 3 took 1.87, 2.025 and 1.714 seconds respectively, below 30 seconds. Their model-session output counts were 121, 136 and 105 tokens, below 2000. Missing usage for a direct model API call does not prevent checking this limit, which excludes direct model calls. No performance issue was found. Replies satisfy the persona's two-sentence limit. No denied-egress findings were present. The app was not started or messaged, and its state was not changed during evaluation.\n\n## Tester notes\n\nThe tester wrote no note.\n\n## Coverage\n\nA proxy saw each egress part.\n",
+ "answer": "[Evaluation report](.nookku/tests/20261117-222456-e278/report.md) saved.\n\nFound two issues: the app reserved 2 items when asked for 1, and skipped the required stock check on the reservation turn. The record seal is intact; all performance limits passed.",
  "pass": true
 }
