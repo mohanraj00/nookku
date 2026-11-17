@@ -166,15 +166,15 @@ For each error of exit 2, [troubleshooting.md](../troubleshooting.md#audit-verif
 `findings.json` holds the checks of the trace ([SPEC.md section 8.6](../../SPEC.md#86-findings)):
 
 ```bash
-cat .nookku/tests/20261112-060531-7c0f/findings.json
+cat .nookku/tests/20261117-155448-c94c/findings.json
 ```
 
-This output is from the test of the tutorial proof of nookku 0.5.8 ([data](../../proofs/tutorial/output.txt), [method](../../scripts/proof_tutorial.py)):
+This output is from the test of the tutorial proof of nookku 0.5.9 ([data](../../proofs/tutorial/output.txt), [method](../../scripts/proof_tutorial.py)):
 
 ```json
 {
  "v": "0.2",
- "test": "20261112-060531-7c0f",
+ "test": "20261117-155448-c94c",
  "turns": 3,
  "items": 0,
  "sessions": [],
@@ -189,6 +189,9 @@ This output is from the test of the tutorial proof of nookku 0.5.8 ([data](../..
   "agent_error": 0,
   "repeated_reply": 0,
   "reply_not_from_model": 0,
+  "citation_not_read": 0,
+  "answer_key_mismatch": 0,
+  "answer_key_missing": 0,
   "tool_error": 0,
   "command_failed": 0,
   "span_error": 0,
@@ -217,7 +220,7 @@ This output is from the test of the tutorial proof of nookku 0.5.8 ([data](../..
 }
 ```
 
-`items` is the number of model items in `trace.jsonl`. `counts` has one number for each check. Nookku 0.5.8 has 25 checks. The later checks `citation_not_read`, `answer_key_mismatch` and `answer_key_missing` also have a number in `counts` ([trace.py](../../src/nookku/trace.py)). The toy shop has no model, so the trace has no item and no finding.
+`items` is the number of model items in `trace.jsonl`. `counts` has one number for each check. Nookku 0.5.9 has 29 checks ([trace.py](../../src/nookku/trace.py)). The toy shop has no model, so the trace has no item and no finding.
 
 A finding is a fact, not yet an issue. For example, a tool error can be the correct result of a request for an order that does not exist. The findings do not change the exit code of the audit.
 
