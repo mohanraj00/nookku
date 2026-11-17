@@ -1,8 +1,8 @@
 {
- "date": "2026-11-12",
+ "date": "2026-11-17",
  "setup": "plugin-codex",
  "harness": "codex",
- "version": "codex-cli 0.162.1",
+ "version": "codex-cli 0.169.0",
  "transport": "stdio",
  "turns": [
   {
@@ -90,16 +90,16 @@
  "P3b": {
   "agent_inputs_added": 0,
   "blocked_rows": 1,
-  "model_text": "I’ll run the requested local `curl` command and show its response.\nThe command was blocked by the Nookku hook:\n\n```text\nnookku: only the tester talks to the agent\n```\n\nNo output was returned."
+  "model_text": "I’ll run the requested local `curl` command and show its response.\nThe command was blocked by the Nookku hook:\n\n```text\nnookku: only the tester talks to the agent.\n```"
  },
- "end_model_output_tokens": 1799,
+ "end_model_output_tokens": 2240,
  "test": {
   "ended": true,
   "model_sessions": [],
   "versions": {
-   "nookku": "0.5.8",
-   "claude-code": "2.1.302 (Claude Code)",
-   "codex": "codex-cli 0.162.1"
+   "nookku": "0.5.9",
+   "claude-code": "2.1.319 (Claude Code)",
+   "codex": "codex-cli 0.169.0"
   }
  },
  "P4": {

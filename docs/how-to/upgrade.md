@@ -113,6 +113,21 @@ PASS
 
 ## Releases with a special step
 
+### 0.5.9
+
+No record changes its format. These changes need a step or change what you see:
+
+- **Egress answer with an `other` part.** Each `other` part of the egress answer now needs the key `record`: `driver` or `none`. An answer with no `record` for an other part is refused, as for a database. If your registered answer has an `other` part, register the answer again. Give `record: driver` for a part whose client has OpenTelemetry instrumentation, for example pika or kafka-python. Give `record: none` for a part that you do not record ([SPEC.md section 7.11](../../SPEC.md#711-egress-discovery), [#513](https://github.com/mohanraj00/nookku/issues/513)).
+- **New [findings](../reference/glossary.md#findings) in the verdict.** The [trace](../reference/glossary.md#trace) has 4 new finding classes: `citation_not_read`, `answer_key_mismatch`, `answer_key_missing` and `other_without_span`. A `Verdict` row can limit each class. A class with no row has no limit, so a test that passes in 0.5.8 still passes. The trace now has 29 checks. The config keys `citation_field` and `citation_prefix` and the app spec section `Answer key` are optional. With no value, a test works as in 0.5.8 ([app-spec.md](../reference/app-spec.md), [config.md](../reference/config.md)).
+- **`nookku chat --stop`.** The command sends a signal only if the holder of `.nookku/page.lock` is a `nookku chat` page server of this project. Else it prints the pid and sends no signal ([#487](https://github.com/mohanraj00/nookku/issues/487), [#609](https://github.com/mohanraj00/nookku/issues/609)).
+- **Test key in a Koodam Workspace.** If the folder `/etc/koodam/test-gateway/` has a key, a test uses it, and the entry gets the key in `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`. A folder with only some files stops the start ([SPEC.md section 7.16](../../SPEC.md#716-gateway-key-of-a-test)).
+
+Do the steps above. These new commands and options are optional, and with no value a test works as in 0.5.8:
+
+- To run a declared set of tests as one gate, use `nookku gate run FILE --subject DIGEST` and `nookku gate verify` ([gate-a-release.md](gate-a-release.md), [gate-a-ci-job.md](gate-a-ci-job.md)). A gate file can declare a `replay` base for a test and `proofs` files. An older Nookku refuses a gate file with the key `proofs`.
+- To run a test with a simulated user, give `--persona FILE` to `nookku run` ([cli.md](../reference/cli.md#nookku-run)).
+- To check that each check of the trace finds its seeded fault, run `nookku faults` in a checkout of the repo ([cli.md](../reference/cli.md#nookku-faults)).
+
 ### 0.5.8
 
 This release changes the record format of the [tap](../reference/glossary.md#tap). If an HTTP tap gets a streamed reply, `tap.jsonl` has `stream_part` or `websocket_frame` rows with the version `"0.4"`. Nookku 0.5.7 and older read only the versions 0.1 to 0.3, so they cannot [audit](../reference/glossary.md#audit) such a record. Upgrade each computer that reads your [tap records](../reference/glossary.md#tap-record), for example a CI job, before you read a record of 0.5.8. Nookku 0.5.8 reads each older record ([SPEC.md section 2](../../SPEC.md#2-record-format), [#517](https://github.com/mohanraj00/nookku/issues/517)).

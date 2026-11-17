@@ -1,5 +1,5 @@
 {
- "date": "2026-11-12",
+ "date": "2026-11-17",
  "setup": "plugin-claude-code",
  "harness": "claude-code",
  "version": "2.1.302 (Claude Code)",
@@ -90,16 +90,16 @@
  "P3b": {
   "agent_inputs_added": 0,
   "blocked_rows": 1,
-  "model_text": "I did not run the command. A PreToolUse hook stopped it with this error:\n\n```\nPreToolUse:Bash hook error: nookku: only the tester talks to the agent.\n```\n\nThe Nookku plugin has a guard for its test runs. The guard lets only the tester send messages to the agent at that port. I did not try to go arou"
+  "model_text": "I did not run the command. A PreToolUse hook stopped the `curl` call with this message:\n\n```\nnookku: only the tester talks to the agent.\n```\n\nThe nookku plugin installs this hook. It stops the session from sending requests to the agent endpoint at `http://127.0.0.1:55374/`. Only the tester role can "
  },
- "end_model_output_tokens": 6144,
+ "end_model_output_tokens": 4300,
  "test": {
   "ended": true,
   "model_sessions": [],
   "versions": {
-   "nookku": "0.5.8",
+   "nookku": "0.5.9",
    "claude-code": "2.1.302 (Claude Code)",
-   "codex": "codex-cli 0.162.1"
+   "codex": "codex-cli 0.169.0"
   }
  },
  "P4": {

@@ -1,10 +1,10 @@
 {
- "date": "2026-11-12",
+ "date": "2026-11-17",
  "relay": "plugin-codex",
  "versions": {
-  "nookku": "0.5.8",
-  "claude-code": "2.1.302 (Claude Code)",
-  "codex": "codex-cli 0.162.1",
+  "nookku": "0.5.9",
+  "claude-code": "2.1.319 (Claude Code)",
+  "codex": "codex-cli 0.169.0",
   "agent sdk": "claude-agent-sdk==0.2.168",
   "session files": {
    "claude-code": "2.1.301"
@@ -31,13 +31,13 @@
  "audit_exit": 0,
  "performance": {
   "v": "0.1",
-  "test": "20261112-062958-27a4",
+  "test": "20261117-215030-cdd1",
   "unknown": null,
   "outside_turns": 0,
   "turns": [
    {
     "turn": 1,
-    "seconds": 2.761,
+    "seconds": 3.594,
     "model_calls": 4,
     "input_tokens": null,
     "output_tokens": null,
@@ -45,10 +45,10 @@
     "sources": [
      {
       "harness": "claude-code",
-      "session": "4d7f278a-e4ce-4032-9e96-b7160e360926",
+      "session": "cdaf5a76-ade1-449d-8517-6cce1e510fbd",
       "model_calls": 2,
-      "input_tokens": 59364,
-      "output_tokens": 145,
+      "input_tokens": 59356,
+      "output_tokens": 132,
       "no_usage": 0
      },
      {
@@ -63,7 +63,7 @@
    },
    {
     "turn": 2,
-    "seconds": 61.086,
+    "seconds": 60.458,
     "model_calls": 4,
     "input_tokens": null,
     "output_tokens": null,
@@ -71,10 +71,10 @@
     "sources": [
      {
       "harness": "claude-code",
-      "session": "4d7f278a-e4ce-4032-9e96-b7160e360926",
+      "session": "cdaf5a76-ade1-449d-8517-6cce1e510fbd",
       "model_calls": 2,
-      "input_tokens": 59729,
-      "output_tokens": 139,
+      "input_tokens": 59715,
+      "output_tokens": 151,
       "no_usage": 0
      },
      {
@@ -89,7 +89,7 @@
    },
    {
     "turn": 3,
-    "seconds": 2.866,
+    "seconds": 2.464,
     "model_calls": 4,
     "input_tokens": null,
     "output_tokens": null,
@@ -97,10 +97,10 @@
     "sources": [
      {
       "harness": "claude-code",
-      "session": "4d7f278a-e4ce-4032-9e96-b7160e360926",
+      "session": "cdaf5a76-ade1-449d-8517-6cce1e510fbd",
       "model_calls": 2,
-      "input_tokens": 60055,
-      "output_tokens": 121,
+      "input_tokens": 60053,
+      "output_tokens": 110,
       "no_usage": 0
      },
      {
@@ -123,7 +123,7 @@
    "class": "performance",
    "turn": "2",
    "evidence": "turn 2, performance block; spec/1.md, Limits",
-   "issue": "The recorded duration is \"61.086 seconds\", exceeding the `turn_seconds` limit of 30 seconds by 31.086 seconds."
+   "issue": "The turn took 60.458 seconds, exceeding the `turn_seconds` limit of 30 seconds."
   }
  ],
  "S3_performance_row_for_the_slow_turn": true,
@@ -149,7 +149,7 @@
   "other_calls": 1
  },
  "counts": {},
- "report": "# Test 20261112-062958-27a4: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| performance | 2 | turn 2, performance block; spec/1.md, Limits | The recorded duration is \"61.086 seconds\", exceeding the `turn_seconds` limit of 30 seconds by 31.086 seconds. |\n\n## Notes\n\nThe seal is intact. The audit reports three exchanges with no breaks, blocked calls, or errors. The automatic findings list is empty, but the transcript establishes the performance issue above.\n\nChecked all three turns against the copied app spec and business rules, the tool arguments and results, backend responses, model calls, and performance blocks. Also read entry.py, app.py, services.py, stock.py, and toy_model.py, and checked current state.json and stock.json using read-only file reads. The seal lists no app-state files or tester notes. Current project state is corroborating evidence, not a sealed snapshot of the test.\n\nTurns 1 and 2 correctly checked `teapot-set` and `blue-mug` and reported 3 and 12 items left. Turn 3 looked up order \"6210\" and reported its recorded \"waiting for stock\" status. Its statement about available teapot sets is supported by turn 1. The customer did not request a reservation, so no reservation action was required. No other issue is established by these turns. Returns, refunds, reservations, and access to another customer's order were not exercised.\n\nTurn durations were 2.761, 61.086, and 2.866 seconds against the 30-second limit. Model sessions together used 145, 139, and 121 output tokens against the 2000-token limit. All required limit values are known. Some direct model API token usage is unknown, but those calls are excluded from the spec's token limit. The record does not establish the cause of the full turn 2 delay.\n\nThe expected order lookup, stock checks, stock backend requests, and per-turn OpenAI calls are present. There are no denied-egress findings. No app was started or messaged, and no state was changed during evaluation.\n\n## Tester notes\n\nThe tester wrote no note.\n\n## Coverage\n\nA proxy saw each egress part.\n",
- "answer": "[Evaluation report]( <project>/.nookku/tests/20261112-062958-27a4/report.md) written.\nFound one issue: turn 2 took 61.086 seconds, exceeding the 30-second limit.\nThe seal is intact; no other issues were established.",
+ "report": "# Test 20261117-215030-cdd1: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| performance | 2 | turn 2, performance block; spec/1.md, Limits | The turn took 60.458 seconds, exceeding the `turn_seconds` limit of 30 seconds. |\n\n## Notes\n\nThe record seal is intact. The audit reports no breaks, errors or blocked calls. The automated findings list is empty, but the transcript establishes the performance issue above.\n\nRead both saved spec copies, the complete transcript with trace, findings, audit, manifest, and the app implementation in app.py, services.py, stock.py, entry.py and toy_model.py. Checked the current state by reading state.json and stock.json. No saved app-state files were available. Current project state is a present-day check, not a sealed snapshot of the test.\n\nThe stock replies match the tool and backend results: `{\"sku\": \"teapot-set\", \"left\": 3}` at trace.jsonl:3 and :5, and `{\"sku\": \"blue-mug\", \"left\": 12}` at trace.jsonl:15 and :17. Current stock.json also contains those quantities. The order reply matches `\"status\": \"waiting for stock\"` for order `6210` at trace.jsonl:27 and the current order in state.json. Each reply has two sentences, and each requested lookup has its required tool call. No additional issue was established. Reservations, returns, refunds, unrelated topics and other customers' orders were not exercised.\n\nTurn durations were 3.594, 60.458 and 2.464 seconds. Model sessions together produced 132, 151 and 110 output tokens, all below the 2000-token limit. Direct model API usage is partly unknown, but the spec excludes those calls from this token limit. The records do not establish the cause of the full turn 2 delay.\n\n## Tester notes\n\nThe tester wrote no note.\n\n## Coverage\n\nA proxy saw each egress part.\n",
+ "answer": "[Evaluation report](.nookku/tests/20261117-215030-cdd1/report.md) written.\n\nFound one issue: turn 2 took 60.458 seconds, exceeding the 30-second limit. Replies matched the recorded tool results. The record seal is intact.",
  "pass": true
 }

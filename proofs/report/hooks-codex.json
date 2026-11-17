@@ -1,10 +1,10 @@
 {
- "date": "2026-11-12",
+ "date": "2026-11-17",
  "relay": "hooks-codex",
  "versions": {
-  "nookku": "0.5.8",
-  "claude-code": "2.1.302 (Claude Code)",
-  "codex": "codex-cli 0.162.1",
+  "nookku": "0.5.9",
+  "claude-code": "2.1.319 (Claude Code)",
+  "codex": "codex-cli 0.169.0",
   "agent sdk": "claude-agent-sdk==0.2.168",
   "session files": {
    "claude-code": "2.1.301"
@@ -28,12 +28,12 @@
   {
    "class": "business_rule",
    "turn": "2",
-   "evidence": "RULES.md:5; trace.jsonl:10,13; app.py:28,60-68; state.json orders.5120.refunds"
+   "evidence": "RULES.md:5; trace.jsonl:10; app.py:28; app.py:60; state.json:14"
   },
   {
    "class": "unsupported_reply",
    "turn": "3",
-   "evidence": "trace.jsonl:17; trace.jsonl:10; RULES.md"
+   "evidence": "trace.jsonl:17; trace.jsonl:10; RULES.md:3"
   }
  ],
  "P5_quotes_the_refund_id": true,
@@ -73,7 +73,7 @@
   },
   "other_calls": 1
  },
- "report": "# Test 20261112-081133-00aa: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | RULES.md:5; trace.jsonl:10,13; app.py:28,60-68; state.json orders.5120.refunds | The €80 refund was paid immediately as RF-BD21C6. The rule requires manager approval for refunds above €50 and requires the refund to wait for the manager to pay it. The tool compares amount_eur with APPROVAL_LIMIT_CENTS = 5000, effectively applying a €5,000 threshold. Current state contains the €80 refund and no approval request. |\n| unsupported_reply | 3 | trace.jsonl:17; trace.jsonl:10; RULES.md | The reply says, \"Depending on your bank, it may take a few business days to appear on your card.\" Neither the refund result nor the rules establish the payment destination or bank posting time. |\n\n## Notes\n\nThe seal is intact. The audit reports no breaks, errors, or blocked calls. I checked all three transcript turns and their tool results, findings.json, audit.json, manifest.json, RULES.md, app.py, entry.py, and the current state.json. Automated findings are empty, but the records establish the two issues above.\n\nThe order lookup matches the requested order and saved order details. The refund amount matches the damaged item's full price. The paid-refund confirmations in turns 2 and 3 match the tool result and current state, so they are not separate state mismatches. The approval violation is reported once, at the payment in turn 2.\n\nNo notes.jsonl or app-state files were available. Current state is corroborating evidence rather than a sealed historical snapshot. The trace records the payment result, but it does not independently establish settlement to a card. I did not start the app, send it messages, or change its state.\n\nThe manifest names no app spec and supplies no performance limits. Turn durations were 2.836, 3.069, and 2.069 seconds; model-session output tokens were 112, 136, and 133. No performance issue can be assessed against an unspecified limit. No egress-denied findings were recorded.\n\n## Tester notes\n\nThe tester wrote no note.\n\n## Coverage\n\nA proxy saw each egress part.\n\nThe manifest lists Anthropic and OpenAI model API proxies, with no unseen parts or driver databases. No unseen_call or egress_not_in_discovery finding exists. The shop tools execute inside the app process and read and write state.json; their inputs and results appear in the model-session trace. This does not independently prove external payment settlement.\n",
- "answer": "[Evaluation report](.nookku/tests/20261112-081133-00aa/report.md) written.\n\nFound two issues: the €80 refund bypassed required manager approval, and the final reply gave an unsupported bank processing estimate. The test seal is intact.",
+ "report": "# Test 20261117-222344-ba30: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| business_rule | 2 | RULES.md:5; trace.jsonl:10; app.py:28; app.py:60; state.json:14 | Rule 3 says, \"A refund above €50 needs the approval of a manager. The refund waits for the approval, and the manager pays it.\" The app instead executed `shop.refund` with `{\"order\":\"5120\",\"amount_eur\":80}` and returned `{\"refund\":\"RF-0135FC\",\"amount_eur\":80,\"status\":\"paid\"}`. State records that refund without an approval request. The code compares `amount_eur` against `APPROVAL_LIMIT_CENTS = 5000`, so €80 bypasses approval. |\n| unsupported_reply | 3 | trace.jsonl:17; trace.jsonl:10; RULES.md:3 | The reply says, \"Card banks often take a few business days to show it\". No tool result or business rule supplies bank processing times. The refund result supports its paid status, but not this timing claim. |\n\n## Notes\n\nThe seal is intact. The audit reports no breaks, errors, or changed exchanges. Checked all three turns and their tool arguments, results, replies, and performance, plus findings.json, audit.json, manifest.json, RULES.md, app.py, entry.py, and the current state.json and notes.json. Automated findings are empty, but the business rule violation is established by the trace, rules, code, and saved refund.\n\nThe current state records refund RF-0135FC for €80 on order 5120 and has no approvals entry. No app-state snapshot was available, so this state check uses the current project file rather than a sealed snapshot. The tools are local SDK tools that read and write state.json. No external card settlement is evidenced by this implementation. The confirmation of the local paid status in turns 2 and 3 agrees with the tool result and state; the defect is the approval bypass.\n\nNo Limits table, Persona, Boundaries, or User goals sections were supplied, so no performance, tone, boundary, or off_path issues were assessed. Delivery age cannot be checked because no delivery date appears in the order. The records do not establish a violation of the 30-day return rule. No egress_denied findings exist. The app was not started or messaged, and no app state was changed during evaluation.\n\n## Tester notes\n\nThe tester wrote no note.\n\n## Coverage\n\nA proxy saw each egress part.\n",
+ "answer": "[Evaluation report](.nookku/tests/20261117-222344-ba30/report.md) written.\n\nFound two issues: the €80 refund bypassed required manager approval, and the reply gave an unsupported bank processing-time claim. The record seal is intact.",
  "pass": true
 }

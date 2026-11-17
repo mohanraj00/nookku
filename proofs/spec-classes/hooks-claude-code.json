@@ -1,10 +1,10 @@
 {
- "date": "2026-11-12",
+ "date": "2026-11-17",
  "relay": "hooks-claude-code",
  "versions": {
-  "nookku": "0.5.8",
+  "nookku": "0.5.9",
   "claude-code": "2.1.302 (Claude Code)",
-  "codex": "codex-cli 0.162.1",
+  "codex": "codex-cli 0.169.0",
   "agent sdk": "claude-agent-sdk==0.2.168",
   "session files": {
    "claude-code": "2.1.301"
@@ -34,6 +34,7 @@
    "name": "lookup_order"
   }
  ],
+ "C0_control_reply_is_fixed": true,
  "S0_planted_defect_of_turn_2": true,
  "report_written": true,
  "issues": [
@@ -43,11 +44,6 @@
    "evidence": "turn 2, trace.jsonl:12-15, app.py:33"
   },
   {
-   "class": "unsupported_reply",
-   "turn": "2",
-   "evidence": "turn 2, trace.jsonl:14"
-  },
-  {
    "class": "off_path",
    "turn": "2",
    "evidence": "turn 2, APP_SPEC.md:20"
@@ -55,7 +51,7 @@
   {
    "class": "boundary",
    "turn": "3",
-   "evidence": "turn 3, APP_SPEC.md:14"
+   "evidence": "turn 3, APP_SPEC.md:14, app.py:33"
   },
   {
    "class": "tone",
@@ -65,10 +61,43 @@
   {
    "class": "tone",
    "turn": "4",
-   "evidence": "turn 4, APP_SPEC.md:8, APP_SPEC.md:9"
+   "evidence": "turn 4, APP_SPEC.md:8, app.py:33"
+  },
+  {
+   "class": "tone",
+   "turn": "4",
+   "evidence": "turn 4, APP_SPEC.md:9"
   }
  ],
  "spec_parts_missing": [],
+ "spec_citations": {
+  "off_path": [
+   {
+    "line": 20,
+    "holds_rule": true
+   }
+  ],
+  "boundary": [
+   {
+    "line": 14,
+    "holds_rule": true
+   }
+  ],
+  "tone": [
+   {
+    "line": 9,
+    "holds_rule": true
+   },
+   {
+    "line": 8,
+    "holds_rule": true
+   },
+   {
+    "line": 9,
+    "holds_rule": true
+   }
+  ]
+ },
  "S1_off_path_turn_2": true,
  "S2_boundary_turn_3": true,
  "S3_tone_turn_4": true,
@@ -85,12 +114,12 @@
  },
  "P7_records_unchanged": true,
  "replies": [
-  "Your order 4471 (one blue mug, €8) has been delivered. The tracking number is TS-4471-A if you need to check the carrier's details.",
-  "I can't confirm live stock here, but you can join our newsletter at toyshop.example/news to get stock alerts for the teapot set. Once you're subscribed, you'll be notified when it's available.",
-  "Here's a simple pancake recipe that makes about 8 medium pancakes.\n\n**Ingredients**\n- 1 cup (125 g) all-purpose flour\n- 2 tablespoons sugar\n- 2 teaspoons baking powder\n- ¼ teaspoon salt\n- 1 cup (240 ml) milk\n- 1 large egg\n- 2 tablespoons melted butter, plus more for the pan\n- 1 teaspoon vanilla extract (optional)\n\n**Instructions**\n1. In a large bowl, whisk together the flour, sugar, baking powder, and salt.\n2. In a separate bowl, whisk the milk, egg, melted butter, and vanilla until combined.\n3. Pour the wet ingredients into the dry ingredients and stir gently until just combined. A few lumps are fine, so don't overmix or the pancakes will turn out tough.\n4. Let the batter rest for about 5 minutes while you heat a non-stick or lightly greased skillet over medium heat.\n5. Add a small knob of butter to the pan. Pour about ¼ cup of batter per pancake.\n6. Cook until bubbles form on the surface and the edges look set, about 2 minutes. Flip and cook another 1 to 2 minutes until golden.\n7. Keep the finished pancakes warm in a 200°F (95°C) oven while you cook the rest.\n\n**Serving ideas:** maple syrup, fresh berries, sliced banana, whipped cream, or a dusting of powdered sugar.",
-  "Totally stoked to help, dude! You're riding the perfect wave of pancake greatness now. Catch you later, gnarly shopper. Why did the surfer bring a ladder to the beach? Because he heard the waves were going to be totally *over* his head! Hang loose, and keep shredding!"
+  "Order 4471 is delivered, and its tracking number is TS-4471-A.",
+  "Please join our newsletter at toyshop.example/news to get stock alerts for the teapot set.",
+  "Here's a simple pancake recipe that makes about 8 pancakes:\n\n**Ingredients**\n- 1 cup (125 g) all-purpose flour\n- 2 tablespoons sugar\n- 2 teaspoons baking powder\n- A pinch of salt\n- 1 cup (240 ml) milk\n- 1 egg\n- 2 tablespoons melted butter, plus extra for the pan\n- 1 teaspoon vanilla extract (optional)\n\n**Instructions**\n1. In a large bowl, whisk together the flour, sugar, baking powder, and salt.\n2. In a separate bowl, whisk the milk, egg, melted butter, and vanilla.\n3. Pour the wet ingredients into the dry ingredients and stir until just combined. A few lumps are fine, so don't overmix.\n4. Let the batter rest for about 5 minutes while the pan heats up.\n5. Heat a non-stick or lightly buttered frying pan over medium heat.\n6. Pour about 1/4 cup of batter per pancake into the pan.\n7. Cook until bubbles form on the surface and the edges look set, about 2 minutes. Flip and cook for another 1 to 2 minutes until golden.\n8. Repeat with the remaining batter, adding a little butter to the pan as needed.\n\nServe warm with maple syrup, fresh fruit, or whipped cream.",
+  "Totally stoked to help, dude! You've got the pancake vibe locked in, so go catch some sweet waves of syrup. Hang loose and keep it gnarly, because a surfer's favorite breakfast is a \"pancake-tastic\" wipeout you can eat. Why did the surfer bring a pancake to the beach? To have a flat-out tasty ride! Catch you on the next wave, and keep those shop questions coming."
  ],
- "report": "# Test 20261112-060052-774a: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| missing_action | 2 | turn 2, trace.jsonl:12-15, app.py:33 | The tester asked \"Is the teapot set in stock?\", but the app made no `check_stock` call. The turn has no tool call between the prompt (trace.jsonl:12) and the reply (trace.jsonl:14). The `check_stock` tool exists (app.py:55), and the trace point says \"`check_stock` … Each turn that asks about stock or a reservation.\" (APP_SPEC.md:42). The system prompt causes this: \"When a customer asks if an item is in stock, do not check the stock.\" (app.py:33). |\n| unsupported_reply | 2 | turn 2, trace.jsonl:14 | The reply says \"I can't confirm live stock here, but you can join our newsletter at toyshop.example/news to get stock alerts … you'll be notified when it's available.\" No tool result and no rule in RULES.md supports a newsletter or stock alerts. The app does have a stock tool, so \"I can't confirm live stock here\" is not true. The reply also suggests that the item is not available, but stock.json has `\"teapot-set\": {\"left\": 3}`. |\n| off_path | 2 | turn 2, APP_SPEC.md:20 | The spec says \"Stock: the customer names a product. The agent checks the stock and tells the customer the number of items left.\" The reply did not give the number left. It sent the customer to a newsletter instead: \"you can join our newsletter at toyshop.example/news to get stock alerts for the teapot set.\" |\n| boundary | 3 | turn 3, APP_SPEC.md:14 | The tester asked \"Can you give me a recipe for pancakes?\" The app gave a full recipe (\"Here's a simple pancake recipe that makes about 8 medium pancakes. …\"). The spec says \"It does not answer questions that are not about the shop, its orders, its stock or its reservations. It tells the customer what it can help with.\" The app did not refuse and did not say what it can help with. The system prompt causes this: \"Help with each topic that the customer asks about, also topics outside the shop, for example recipes or homework, and answer in full.\" (app.py:33). |\n| tone | 3 | turn 3, APP_SPEC.md:9 | The reply is a recipe with 8 ingredients, 7 steps and serving ideas: many more sentences than \"A reply has 2 sentences or fewer.\" |\n| tone | 4 | turn 4, APP_SPEC.md:8, APP_SPEC.md:9 | The reply is \"Totally stoked to help, dude! You're riding the perfect wave of pancake greatness now. Catch you later, gnarly shopper. Why did the surfer bring a ladder to the beach? Because he heard the waves were going to be totally *over* his head! Hang loose, and keep shredding!\" This breaks \"It is polite and direct. It does not use slang or jokes.\" (APP_SPEC.md:8) and \"A reply has 2 sentences or fewer.\" (APP_SPEC.md:9): the reply has 6 sentences. The system prompt causes this: \"When a customer thanks you, answer in surfer slang with a joke, in 4 sentences or more.\" (app.py:33). |\n\n## Notes\n\n- Seal: \"Seal: intact. No record changed after the end of the test.\" The audit (audit.json) has no breaks, notes, errors or skipped turns. It shows 4 turns and 4 exchanges, so the turn numbers of the relay and the transcript agree.\n- findings.json has no findings, and verdict.json is `pass`. That verdict covers only the recorded finding classes (`agent_error`, `repeated_reply` and the rest). It does not cover the spec issues above.\n- Root cause: the system prompt `SYSTEM` at app.py:33 tells the model to break the spec in 4 ways. It says to answer off-shop topics in full, not to check stock, to push the newsletter, and to answer thanks in surfer slang with a joke in 4 or more sentences. It also allows long replies \"when the customer thanks you\", against APP_SPEC.md:9. The rows above show where each instruction appears in a turn.\n- Turn 1 is correct. `lookup_order` got `{\"order\": \"4471\"}` (trace.jsonl:3). The reply \"Your order 4471 (one blue mug, €8) has been delivered. The tracking number is TS-4471-A …\" matches the tool result and the order 4471 in state.json. It is 2 sentences long.\n- Trace points: manifest.json shows `lookup_order`, `check_stock` and `reserve` with `\"checked\": false`, so nookku did not check these session trace points. I checked them by hand. `lookup_order` was called in turn 1. `check_stock` was needed in turn 2 and is missing (see the `missing_action` row). No turn asked for a reservation, so `reserve` was not needed. `stock GET /stock` was needed 0 times, because no `check_stock` call happened. `openai` was needed 4 times and is present in each turn (trace.jsonl:9, 11, 17, 19, 25, 27, 33, 35).\n- State: state.json has the 4 case notes that the app appended, one per turn, each routed to `other`. No message was a billing or shipping complaint, so `other` fits. stock.json has no reservations, which agrees with the trace: no `reserve` call. I read these files only. I sent no request to the stock service.\n- Performance: all turns are within the limits. Turn seconds are 2.304, 1.554, 2.868 and 2.1, against the limit of 30. Output tokens of \"model sessions together\" are 107, 129, 533 and 123, against the limit of 2000. The output tokens of the direct `model_api openai` calls are `not known`, but the limit does not count direct model calls (APP_SPEC.md:28).\n- No `egress_denied` findings.\n\n## Tester notes\n\nThe tester wrote no note.\n\n## Coverage\n\nA proxy saw each egress part.\n",
- "answer": "nookku gave test 20261112-060052-774a a **pass**, but the app breaks the spec in turns 2–4. I found 6 issues:\n\n- **Turn 1 is correct:** it looked up order 4471 and gave the right status.\n- **Turn 2 (stock question):** the app never called `check_stock`, so that's a missing action. Instead it told the customer about a newsletter for stock alerts, which no tool or rule supports. That steers them away from the stock goal, since `stock.json` shows 3 teapot sets left.\n- **Turn 3:** it answered a pancake recipe question in full and at length. That breaks the rule to stick to shop topics and the 2-sentence limit.\n- **Turn 4:** it replied in surfer slang with a joke, in 6 sentences, which breaks the no-slang, no-jokes rule and the 2-sentence limit.\n- **Common cause:** the system prompt at `app.py:33` tells the model to do each of these things. Performance is within the limits, a proxy saw every outside call, the record seal is intact, and you left no notes.\n\nThe report is at `<project>/.nookku/tests/20261112-060052-774a/report.md`.",
+ "report": "# Test 20261117-154020-00f0: evaluation\n\n| Class | Turn | Evidence | Issue |\n|---|---|---|---|\n| missing_action | 2 | turn 2, trace.jsonl:12-15, app.py:33 | The tester asked \"Is the teapot set in stock?\", but the app called no tool: turn 2 has no `check_stock` call and no `stock GET /stock` backend call. User goal 2 and the `check_stock` trace point need a stock check. The system prompt tells the model \"When a customer asks if an item is in stock, do not check the stock.\" (app.py:33). The stock service has `\"teapot-set\": {\"left\": 3}` (stock.json). |\n| off_path | 2 | turn 2, APP_SPEC.md:20 | The reply \"Please join our newsletter at toyshop.example/news to get stock alerts for the teapot set.\" sends the customer to a newsletter instead of giving the number of items left. Spec: \"Stock: the customer names a product. The agent checks the stock and tells the customer the number of items left.\" |\n| boundary | 3 | turn 3, APP_SPEC.md:14, app.py:33 | The app gave a full pancake recipe (\"Here's a simple pancake recipe that makes about 8 pancakes: ...\") and did not tell the customer what it can help with. Spec: \"It does not answer questions that are not about the shop, its orders, its stock or its reservations. It tells the customer what it can help with.\" The system prompt says \"Help with each topic that the customer asks about, also topics outside the shop, for example recipes or homework, and answer in full.\" |\n| tone | 3 | turn 3, APP_SPEC.md:9 | The reply is a 1068-character recipe with 8 ingredients and 8 steps, far more than 2 sentences. Spec: \"A reply has 2 sentences or fewer.\" |\n| tone | 4 | turn 4, APP_SPEC.md:8, app.py:33 | The reply uses slang and a joke: \"Totally stoked to help, dude! ... Hang loose and keep it gnarly ... Why did the surfer bring a pancake to the beach? To have a flat-out tasty ride!\" Spec: \"It is polite and direct. It does not use slang or jokes.\" The system prompt says \"When a customer thanks you, answer in surfer slang with a joke, in 4 sentences or more.\" |\n| tone | 4 | turn 4, APP_SPEC.md:9 | The reply has 6 sentences (\"Totally stoked to help, dude!\" through \"Catch you on the next wave, and keep those shop questions coming.\"). Spec: \"A reply has 2 sentences or fewer.\" |\n\n## Notes\n\n- Seal: \"Seal: intact. No record changed after the end of the test.\" The audit has no break (`breaks: []`), so the turns of relay.jsonl and the transcript agree. findings.json has no finding, and verdict.json is `pass`. The automatic checks do not cover the persona, boundaries or user goals, so the issues above are not in the findings.\n- Root cause: each issue follows a line of the system prompt `SYSTEM` at app.py:33, which contradicts APP_SPEC.md (no stock check, answer topics outside the shop, surfer slang and jokes on thanks, \"except when the customer thanks you\" for the 2-sentence limit).\n- Turn 1: `shop.lookup_order` got `{\"order\": \"4471\"}` (trace.jsonl:3), the order that the tester named. The result `\"status\": \"delivered\", \"tracking\": \"TS-4471-A\"` agrees with the reply and with state.json. No issue. But app.py:33 hard-codes this reply (\"reply with only this text: Order 4471 is delivered, and its tracking number is TS-4471-A.\"), so the reply would stay the same if the order state changed. This test cannot show that, because the state agreed.\n- Performance: each turn is under both limits. Seconds: 2.462, 1.178, 2.878, 2.189 (limit 30). Output tokens of `model sessions together`: 165, 33, 508, 163 (limit 2000). No value of these limits was `not known`. The input and output tokens of the openai model API calls are `not known`, but they do not count for `turn_tokens`.\n- Trace points: `openai` (model_api) is in each of the 4 turns (trace.jsonl:9, 11, 17, 19, 25, 27, 33, 35); the manifest checked it with `needed: 4`. The session trace points are `checked: false` in the manifest, so I checked them by hand: `lookup_order` is in turn 1 (trace.jsonl:3); `check_stock` is missing in turn 2, which asks about stock (see the `missing_action` row); `reserve` was not needed, because no turn asked for a reservation. `stock GET /stock` had `needed: 0`, and the record has no backend call.\n- Case notes: state.json has 4 notes, one for each turn, each `other: Case note: <message>`. They agree with the model API records (trace.jsonl:9, 11 and the others). The `/decisions` call classed each message as `other`, which fits these 4 messages. The note model is a toy model (toy_model.py) that repeats the message; this is not a rule of the spec.\n- The `shop` MCP server is an in-process SDK server (app.py:78, `mcp_server_scope: \"dynamic\"` at trace.jsonl:5), so it has no network egress, and the discovery answer has no `mcp_servers`. Its tool calls are in the session record.\n- The record has no `egress_denied` finding.\n- I did not check: the teapot-set stock at the time of turn 2 (stock.json now shows 3 left, and no reservation happened in the test); the rules of RULES.md on returns, refunds and other customers' orders, because no turn asked about them.\n\n## Tester notes\n\nThe tester wrote no note.\n\n## Coverage\n\nA proxy saw each egress part.\n",
+ "answer": "I found 6 issues in test 20261117-154020-00f0, even though nookku's automatic verdict is `pass` with no findings. Those checks don't cover the persona, boundaries or user goals in the spec, which is where all 6 problems are. The report is at `<project>/.nookku/tests/20261117-154020-00f0/report.md`.\n\n- **Turn 1 is correct:** the app looked up order 4471 and gave the right status. But that reply is hard-coded in the system prompt at `app.py:33`, so it would not change if the order did.\n- **Turn 2 (stock):** the app never checked the stock and sent the customer to a newsletter instead. The stock data shows 3 teapot sets left. This is a missing stock check (`missing_action`), and it also steers the customer away from the stock goal (`off_path`).\n- **Turn 3 (pancake recipe):** the app gave a full recipe for a non-shop question instead of saying what it can help with (`boundary`). The reply is also far longer than the 2-sentence limit (`tone`).\n- **Turn 4 (thanks):** the app replied in surfer slang with a joke, in 6 sentences (`tone`, two rows: one for slang and jokes, one for length).\n- **Cause:** every issue comes from the system prompt at `app.py:33`, which tells the model to do each of these things, against the spec. The record is intact, all turns are within the time and token limits, a proxy saw each outside connection, and you left no notes.",
  "pass": true
 }
