@@ -399,6 +399,38 @@ Serve the chat page: a local web page where you talk to the agent of the running
 
 ## Commands that read a test
 
+### `nookku dashboard`
+
+```text
+nookku dashboard [--root PATH] [--tests-dir PATH] [--host HOST] [--port PORT] [--site DIR] [--allow-host NAME:PORT ...]
+```
+
+Serve the read-only API of the runs and the gate runs of the project, and with `--site`, the static files of a dashboard ([api.md](api.md)). The command prints one JSON line with `url`, `api`, `token` and `open`, then serves until Ctrl-C. `token` is new each time the server starts, and each API request must send it as `Authorization: Bearer <token>`. `open` is the address of the page with the token in the fragment (`#token=...`), which a browser does not send to a server. The API reads the test folders and the gate folders, and it changes no file. Each answer says if the seal of the run is intact.
+
+The dashboard of [examples/evaluation-dashboard/](../../examples/evaluation-dashboard/) is static files that use only this API. Build it once, then serve it:
+
+```bash
+python examples/evaluation-dashboard/build.py --out dashboard-site
+nookku dashboard --site dashboard-site
+```
+
+The server listens on `127.0.0.1` by default, and it has no login and no TLS. Read [api.md](api.md#expose-the-api) before you give a different `--host`.
+
+| Flag | Default | Meaning |
+|---|---|---|
+| `--root PATH` | the current folder | The project. |
+| `--tests-dir PATH` | `$NOOKKU_TESTS_DIR`, else `.nookku/tests` | The [tests folder](#the-tests-folder). |
+| `--host HOST` | `127.0.0.1` | The address to listen on. A different address prints a warning on stderr. |
+| `--port PORT` | `8765` | The port. `0` takes a free port. |
+| `--site DIR` | none | The folder of the static files of a dashboard. It must have `index.html`. With no site, a page path gets status 404 and the API still works. |
+| `--allow-host NAME:PORT` | none | Also accept this `Host` header, for example the name of a reverse proxy. Give it one time for each name. The server refuses each other `Host` header with status 403. |
+
+| Exit code | Meaning |
+|---|---|
+| 0 | The server stopped with Ctrl-C. |
+| 2 | The tests folder is not valid, the site has no `index.html`, or the server cannot listen on the address. |
+
+
 ### `nookku view`
 
 Print each relayed turn. Both forms of the relay use it to show each reply in a second terminal. With an entry, it shows the turns of the latest test, and it follows to the next test. With no entry and no `--record`, it shows the configured record, and it reads the config again before each poll. If the config gives a different record, the view prints `════ record <path> ════` and follows that record. When the config gets an entry, the view follows each test from that time. You can start the view before `nookku init`.
