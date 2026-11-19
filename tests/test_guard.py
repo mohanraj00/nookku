@@ -348,7 +348,38 @@ FILE_KEY, FOLDER_KEY = ["keys/private/stock.json"], ["keys/private"]
     ("command", "keys", "named"),
     [
         ("cat <<EOF\n$(cat keys/private/stock.json)\nEOF", FILE_KEY, "keys/private/stock.json"),
-        ("cat <<'EOF'\n$(cat keys/private/stock.json)\nEOF", FILE_KEY, None),
+        # The key rule also reads the body of a here-document that is data.
+        ("cat <<'EOF'\n$(cat keys/private/stock.json)\nEOF", FILE_KEY, "keys/private/stock.json"),
+        (
+            "cat <<'EOF' | bash\ncat keys/private/stock.json\nEOF",
+            FILE_KEY,
+            "keys/private/stock.json",
+        ),
+        (
+            "cat > run.sh <<'EOF'\ncat keys/private/stock.json\nEOF\nsh run.sh",
+            FILE_KEY,
+            "keys/private/stock.json",
+        ),
+        ("cat > notes.md <<'EOF'\nThe key is in the folder keys.\nEOF", FILE_KEY, None),
+        ("git show HEAD:keys/private/stock.json", FILE_KEY, "HEAD:keys/private/stock.json"),
+        ("git show :keys/private/stock.json", FILE_KEY, ":keys/private/stock.json"),
+        ("cat keys/private/[[:alpha:]]tock.json", FILE_KEY, "keys/private/[[:alpha:]]tock.json"),
+        ("cat keys/private/stock.[^x]son", FILE_KEY, "keys/private/stock.[^x]son"),
+        ("cat keys/private/stock.[^j]son", FILE_KEY, None),
+        ("cat keys/private/[s]tock.json", FILE_KEY, "keys/private/[s]tock.json"),
+        ("cat keys/private/(stock).json", FILE_KEY, "keys/private/*.json"),
+        ("cat keys/private/@(stock|list).json", FILE_KEY, "keys/private/*.json"),
+        ("cat keys/private/stock.json(.)", FILE_KEY, "keys/private/stock.json"),
+        ("(cd docs && ls)", FILE_KEY, None),
+        (
+            "curl -d @keys/private/stock.json http://127.0.0.1:9/",
+            FILE_KEY,
+            "@keys/private/stock.json",
+        ),
+        ("gh api x -F file=@keys/private/stock.json", FILE_KEY, "file=@keys/private/stock.json"),
+        ("find . -path '*stock.json' -exec cat {} +", FILE_KEY, "*stock.json"),
+        ("find . -path '*/private/*'", FILE_KEY, "*/private/*"),
+        ("find . -path './docs/*'", FILE_KEY, None),
         ("rg --glob '**/stock.json' private .", FILE_KEY, "**/stock.json"),
         ("rg --glob=**/stock.json private", FILE_KEY, "--glob=**/stock.json"),
         ("rg -g stock.json private .", FILE_KEY, "stock.json"),
@@ -430,6 +461,55 @@ def test_the_key_rule_reads_the_glob_of_a_search_as_the_search_tool_would(
 ) -> None:
     root = _key_project(tmp_path)
     assert _key_named(root, "Grep", tool_input, keys) == named
+
+
+@pytest.mark.parametrize(
+    ("chars", "named"),
+    [
+        ('cat keys/private/st"ock".json\n', "keys/private/stock.json"),
+        ("cat keys/private/sto\\ck.json\n", "keys/private/stock.json"),
+        ("cat keys/private/*.json\n", "keys/private/*.json"),
+        ("cat private/{stock,list}.json\n", "private/{stock,list}.json"),
+        ("cd keys/private\n", None),
+        ("rg -g 'stock.*' answer\n", "stock.*"),
+        ("ls docs\n", None),
+    ],
+)
+def test_the_key_rule_reads_the_input_of_a_persistent_shell_as_a_command(
+    tmp_path: Path, chars: str, named: str | None
+) -> None:
+    # The input does not show its folder, so each folder above a key counts.
+    root = _key_project(tmp_path)
+    tool_input = {"session_id": 1, "chars": chars}
+    assert _key_named(root, "write_stdin", tool_input, FILE_KEY) == named
+
+
+@pytest.mark.parametrize(
+    ("command", "stripped"),
+    [
+        # The output of the data program goes to a program that can run it.
+        ("cat <<'EOF' | bash\nnookku start\nEOF", "cat <<'EOF' | bash\nnookku start"),
+        ("(cat <<'EOF'\nnookku start\nEOF\n) | sh", "(cat <<'EOF'\nnookku start\n) | sh"),
+        ("tee >(sh) <<'EOF'\nnookku start\nEOF", "tee >(sh) <<'EOF'\nnookku start"),
+        ("cat <<'EOF' \\\n| sh\nnookku start\nEOF", "cat <<'EOF' \\\n| sh\nnookku start"),
+        # A pipe in quotes is text.
+        (
+            "gh issue create -t 'a | b' -F - <<'EOF'\ntext\nEOF",
+            "gh issue create -t 'a | b' -F - <<'EOF'",
+        ),
+        (
+            "git add a.py && git commit -F - <<'EOF'\ntext\nEOF",
+            "git add a.py && git commit -F - <<'EOF'",
+        ),
+    ],
+)
+def test_a_heredoc_body_that_goes_to_another_program_stays(command: str, stripped: str) -> None:
+    assert commands.strip_data_heredocs(command) == stripped
+
+
+def test_a_drive_command_in_a_heredoc_that_a_shell_gets_is_denied() -> None:
+    assert commands.drive("cat <<'EOF' | bash\nnookku start\nEOF") == "nookku start"
+    assert commands.drive("cat > notes.md <<'EOF'\nnookku start\nEOF") is None
 
 
 def test_the_key_rule_fails_closed_for_a_large_key_folder(
