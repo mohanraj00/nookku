@@ -59,6 +59,9 @@ WRITE_TOOLS = {"Write", "Edit", "MultiEdit", "NotebookEdit", "apply_patch"}
 PATH_FIELDS = ("file_path", "notebook_path", "path")
 # The input fields of a search tool that hold a glob, for example the pattern of Glob.
 SEARCH_FIELDS = ("pattern", "glob")
+# The most names that the answer key rule reads in a key folder for a glob with `**`. This is a
+# chosen value.
+KEY_WALK_LIMIT = 10000
 # The prefix of each text that nookku shows to the person.
 PREFIX = "nookku: "
 DENY_REASON = "nookku: only the tester talks to the agent."
@@ -865,11 +868,12 @@ def key_named(
     None (SPEC.md section 5). `paths` holds the value of the key. The rule denies a read and a
     write, with a test and with no test.
 
-    The rule checks paths, not text. A file tool has its target path and the glob of a search.
-    A shell command has each of its words, without the bodies of its here-documents that are
-    data. Another tool has each word of its input. A word names a key if its path is the path
-    of a key or a path in it (commands.key_word), also through a symlink that exists. A parent
-    folder does not name a key, so a search of a parent folder is not denied."""
+    The rule checks paths, not text. A file tool has its target path and the glob of a search,
+    with each path that the glob names (commands.search_globs). A shell command has each of its
+    words (commands.key_candidates), without the bodies of its here-documents that are data.
+    Another tool has each word of its input. A word names a key if its path is the path of a
+    key or a path in it (commands.key_word), also through a symlink that exists. A parent folder
+    does not name a key, so a search of a parent folder is not denied."""
     if not paths:
         return None
     keys: list[str] = []
@@ -880,26 +884,36 @@ def key_named(
     cwd = _event_cwd(event, tool_input, root)
     command = commands.command_of(tool, tool_input)
     bases = [str(cwd)]
+    # Each word that can name a key, with the word of the call that gives it.
+    words: list[tuple[str, str]]
     if tool in FILE_TOOLS:
         fields = tool_input if isinstance(tool_input, dict) else {}
         names = (*PATH_FIELDS, *SEARCH_FIELDS)
-        words = [v for f in names if isinstance(v := fields.get(f), str) and v]
-        words += commands.patch_targets(tool, tool_input)
+        words = [(v, v) for f in names if isinstance(v := fields.get(f), str) and v]
+        words += [(v, v) for v in commands.patch_targets(tool, tool_input)]
         # The glob of a search starts at its path.
-        bases += [str(cwd / v) for f in PATH_FIELDS if isinstance(v := fields.get(f), str) and v]
+        starts = [str(cwd / v) for f in PATH_FIELDS if isinstance(v := fields.get(f), str) and v]
+        for glob in [v for f in SEARCH_FIELDS if isinstance(v := fields.get(f), str) and v]:
+            globs = commands.search_globs(glob)
+            if globs is None:
+                words.append((commands.EACH_PATH, glob))
+                continue
+            # A path that the glob names starts only at the path of the search.
+            words += [(os.path.join(b, g), glob) for b in starts or [str(cwd)] for g in globs]
+        bases += starts
     elif command is not None:
-        words = commands.path_words(commands.strip_data_heredocs(command))
+        words = commands.key_candidates(command)
         bases = _call_folders(command, cwd, tuple(keys))
     else:
-        words = commands.input_words(tool_input)
+        words = [(w, w) for w in commands.input_words(tool_input)]
     if tool in SESSION_TOOLS:
         # The input of a persistent shell does not show the folder where it runs. Each folder
         # above a key counts, so the rule fails closed.
         bases += [str(parent) for key in keys for parent in Path(key).parents]
-    for word in words:
+    for word, shown in words:
         for base in bases:
-            if commands.key_word(word, keys, base, paths):
-                return word
+            if commands.key_word(word, keys, base, paths, _in_key_folder):
+                return shown
             if any(c in word for c in "*?[$"):
                 continue
             try:
@@ -907,8 +921,24 @@ def key_named(
             except (OSError, ValueError):
                 continue
             if commands.key_word(real, keys, None):
-                return word
+                return shown
     return None
+
+
+def _in_key_folder(key: str, rest: list[str]) -> bool:
+    """True if a file or a folder in the key folder `key` has the path `rest`, which starts with
+    a `**` part (commands.glob_rests). A key that is a file has no path in it. After
+    KEY_WALK_LIMIT names, the answer is True, so the rule fails closed."""
+    count = 0
+    for folder, folders, files in os.walk(key):
+        below = Path(folder).relative_to(key).parts
+        for name in (*folders, *files):
+            count += 1
+            if count > KEY_WALK_LIMIT:
+                return True
+            if any(commands.exact(r) for r in commands.glob_rests(rest, (*below, name))):
+                return True
+    return False
 
 
 def blocked_detail(text: str) -> str:

@@ -8317,6 +8317,10 @@ GUARD_CASES: dict[str, dict] = {
         "event": bash("cat > /tmp/notes.md <<'EOF'\nimport nookku\nEOF"),
         "answer": None,
     },
+    "shell_heredoc_data_runs_a_drive_command": {
+        "event": bash("cat > /tmp/notes.md <<EOF\n$(nookku start)\nEOF"),
+        "answer": drives("nookku start"),
+    },
     "shell_searches_for_an_import": {
         "event": bash('grep -rn "import nookku" shop'),
         "answer": None,
@@ -8460,6 +8464,74 @@ GUARD_CASES: dict[str, dict] = {
     "key_shell_search_of_a_parent_folder": {
         "policy_text": KEY_POLICY,
         "event": bash("grep -rn answer ."),
+        "answer": None,
+    },
+    "key_shell_heredoc_runs_a_read_of_the_key": {
+        "policy_text": KEY_POLICY,
+        "event": bash("cat <<EOF\n$(cat keys/stock.json)\nEOF"),
+        "answer": key_deny("keys/stock.json"),
+    },
+    "key_shell_read_with_braces": {
+        "policy_text": KEY_POLICY,
+        "event": bash("cat keys/{stock.json,list.json}"),
+        "answer": key_deny("keys/{stock.json,list.json}"),
+    },
+    "key_shell_read_with_a_quote_in_the_word": {
+        "policy_text": KEY_POLICY,
+        "event": bash('cat keys/"stock.json"'),
+        "answer": key_deny("keys/stock.json"),
+    },
+    "key_shell_read_with_a_backslash_in_the_word": {
+        "policy_text": KEY_POLICY,
+        "event": bash("cat keys/sto\\ck.json"),
+        "answer": key_deny("keys/stock.json"),
+    },
+    "key_shell_search_with_a_glob_of_each_folder": {
+        "policy_text": KEY_POLICY,
+        "event": bash("rg --glob '**/stock.json' answer ."),
+        "answer": key_deny("**/stock.json"),
+    },
+    "key_shell_search_with_a_glob_with_no_folder": {
+        "policy_text": KEY_POLICY,
+        "event": bash("grep -rn --include='*.json' answer ."),
+        "answer": key_deny("*.json"),
+    },
+    "key_shell_search_with_a_glob_of_other_files": {
+        "policy_text": KEY_POLICY,
+        "event": bash("rg -g '*.{md,txt}' answer ."),
+        "answer": None,
+    },
+    "key_search_with_a_glob_of_each_folder": {
+        "policy_text": KEY_POLICY,
+        "event": pevent("Grep", pattern="answer", glob="**/stock.json"),
+        "answer": key_deny("**/stock.json"),
+    },
+    "key_search_with_a_glob_with_no_folder": {
+        "policy_text": KEY_POLICY,
+        "event": pevent("Grep", pattern="answer", glob="*.{json,md}"),
+        "answer": key_deny("*.{json,md}"),
+    },
+    "key_search_with_a_glob_of_other_files": {
+        "policy_text": KEY_POLICY,
+        "event": pevent("Glob", pattern="**/*.md"),
+        "answer": None,
+    },
+    "key_search_with_a_glob_below_another_path": {
+        "policy_text": KEY_POLICY,
+        "event": pevent("Grep", pattern="answer", glob="*.json", path="shop"),
+        "answer": None,
+    },
+    # The link is a name in the key folder. The rule reads the names, not the files.
+    "key_folder_search_with_a_glob_of_each_folder": {
+        "policy_text": '{"answer_keys": ["keys"]}\n',
+        "links": {"keys/2026/stock.json": "shop/stock.json"},
+        "event": pevent("Glob", pattern="**/*.json"),
+        "answer": key_deny("**/*.json"),
+    },
+    "key_folder_search_with_a_glob_of_other_files": {
+        "policy_text": '{"answer_keys": ["keys"]}\n',
+        "links": {"keys/2026/stock.json": "shop/stock.json"},
+        "event": pevent("Glob", pattern="**/*.md"),
         "answer": None,
     },
     "key_shell_read_of_another_file": {
