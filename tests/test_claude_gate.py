@@ -179,6 +179,12 @@ def _hook(data: dict[str, Any], event: str) -> dict[str, Any]:
             command=_hook(d, "UserPromptSubmit")["command"].replace("claude-code", "codex")
         ),
         lambda d: _hook(d, "PreToolUse").update(type="prompt"),
+        # Claude Code does not wait for an async hook, so the hook cannot block the prompt.
+        lambda d: _hook(d, "UserPromptSubmit").update({"async": True}),
+        # The shell runs the Python with no arguments, then -m as a second command.
+        lambda d: _hook(d, "UserPromptSubmit").update(
+            command=_hook(d, "UserPromptSubmit")["command"].replace(" -m ", "\n-m ", 1)
+        ),
     ],
 )
 def test_a_changed_project_hook_is_refused(tmp_path: Path, claude_home: Path, change: Any) -> None:
@@ -330,6 +336,11 @@ def _no_quotes(d: dict[str, Any]) -> None:
     )
 
 
+def _async_hook(d: dict[str, Any]) -> None:
+    # Claude Code does not wait for an async hook, so the hook cannot block the prompt.
+    d["hooks"]["UserPromptSubmit"][0]["hooks"][0]["async"] = True
+
+
 def _event_on_new_line(d: dict[str, Any]) -> None:
     # The shell runs the script with no event, then runs the event name as a second command.
     d["hooks"]["PreToolUse"][0]["hooks"][0]["command"] = (
@@ -344,6 +355,7 @@ def _event_on_new_line(d: dict[str, Any]) -> None:
         (_single_quotes, "UserPromptSubmit"),
         (_no_quotes, "PreToolUse"),
         (_event_on_new_line, "PreToolUse"),
+        (_async_hook, "UserPromptSubmit"),
         (_narrow_matcher, "PreToolUse"),
         (_other_command, "UserPromptSubmit"),
         (_script_not_run, "UserPromptSubmit"),

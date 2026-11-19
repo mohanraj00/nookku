@@ -39,6 +39,9 @@ PLUGIN_COMMAND = re.compile(
     + re.escape(PLUGIN_SCRIPT)
     + r'"[ \t]+(\w+)[ \t]*'
 )
+# The keys of a required hook. Another key can change how Claude Code runs the hook: with
+# "async": true, Claude Code does not wait for the hook, so the hook cannot block the prompt.
+HOOK_KEYS = frozenset({"type", "command", "timeout"})
 # The file of the refusals of a start (SPEC.md section 7.8). It is a log for a person, with no
 # seal.
 REFUSALS = "refusals.jsonl"
@@ -159,7 +162,7 @@ def _plugin_hook_ok(group: Any, event: str) -> bool:
         return False
     hooks = group.get("hooks")
     for hook in hooks if isinstance(hooks, list) else []:
-        if not isinstance(hook, dict) or hook.get("type") != "command":
+        if not isinstance(hook, dict) or hook.get("type") != "command" or set(hook) - HOOK_KEYS:
             continue
         match = PLUGIN_COMMAND.fullmatch(str(hook.get("command", "")))
         if match and match.group(1) == event:
@@ -255,7 +258,11 @@ def _ours_by_event(order: list[Path]) -> dict[str, list[tuple[Path, Any, dict[st
 
 
 def _argv(command: str) -> list[str]:
-    """The words of a hook command, with the path after --root resolved."""
+    """The words of a hook command, with the path after --root resolved. A command with a new
+    line has no words: shlex reads a new line as a space, but the shell starts a second
+    command, so the hook does not run the command of nookku."""
+    if "\n" in command:
+        return []
     try:
         argv = shlex.split(command)
     except ValueError:
@@ -271,6 +278,12 @@ def _changed(root: Path, event: str, matcher: Any, hook: dict[str, Any]) -> str 
     want_matcher, timeout = kit.HOOK_EVENTS[event]
     if matcher != want_matcher.get("matcher") or hook.get("timeout") != timeout:
         return "its matcher or its timeout differs from this version of nookku"
+    if set(hook) - HOOK_KEYS:
+        return (
+            f"it has a key that nookku init claude-code does not write: "
+            f"{', '.join(sorted(set(hook) - HOOK_KEYS))}. A key such as async can stop the "
+            "block of the prompt"
+        )
     command = str(hook.get("command", ""))
     # The full command, with the Python of this nookku: another executable can exit 0 and not
     # block the prompt.
