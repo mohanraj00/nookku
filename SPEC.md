@@ -372,7 +372,7 @@ The follow-up capture records a title-description schema match, without request 
   - `tests/`, except `report.md` in a test folder;
   - `scripts/`, the saved scripts (section 7.10);
   - `gates/`, the gate results (section 7.15);
-  - `current.json`, `mode`, `relay.jsonl`, `tap.jsonl`, `ending.json`, `page.json`, `page.lock`, `send.lock`, `tests-dirs.json` and `runs/`;
+  - `current.json`, `mode`, `relay.jsonl`, `tap.jsonl`, `ending.json`, `page.json`, `page.lock`, `send.lock`, `tests-dirs.json`, `refusals.jsonl` (section 7.8) and `runs/`;
   - `seals/`, the seal copies in the nookku home.
 
   It also denies a shell command that does not pass the read check and changes to the state folder or to a tests folder of the rule above with `cd`, or has a `cwd` or a Codex `workdir` in it. The reason is `nookku: <name> is a record or a state file of nookku. Only nookku writes it. A command may read it.` `<name>` is the path as the call gives it. For a shell command, one more sentence gives the cause:
@@ -786,12 +786,12 @@ The same check also refuses a test, and does not change relay mode, in these cas
   - **there 2 or more times**: then each message would go to the agent 2 or more times;
   - **modified**: its type is not `command`, or its matcher, its timeout or its command differs from this version of nookku. The command includes the Python of this nookku, and the check compares the path after `--root` after it resolves it.
 - **All hooks off.** The plugin is on, or a file has a nookku hook, and the file of the highest precedence with a `disableAllHooks` value gives `true`. Then Claude Code runs no nookku hook.
-- **Plugin files.** A nookku plugin is on, and `plugins/installed_plugins.json` in the user folder has no install of it with the scope `user` or with the `projectPath` of the project. Or an install folder of the plugin has no `hooks/nookku-hook.sh`, or its `hooks/hooks.json` has no group for the `UserPromptSubmit` or the `PreToolUse` event with the matcher of this version and a `command` hook that runs `hooks/nookku-hook.sh` with the name of the event. The check reads what the hooks run, not the bytes of the files, so a plugin from a newer commit with the required hooks passes.
+- **Plugin files.** A nookku plugin is on, and `plugins/installed_plugins.json` in the user folder has no install of it with the scope `user` or with the `projectPath` of the project. Or an install folder of the plugin has no `hooks/nookku-hook.sh`, or its `hooks/hooks.json` has no group for the `UserPromptSubmit` or the `PreToolUse` event with the matcher of this version and a `command` hook whose command is `sh` or `bash`, then `"${CLAUDE_PLUGIN_ROOT}/hooks/nookku-hook.sh"`, then the name of the event, with no other word. The check reads what the hooks run, not the bytes of the files, so a plugin from a newer commit with the required hooks passes.
 - **Plugin version.** If the version in `.claude-plugin/plugin.json` of an install is not the version of nookku, `nookku start` prints a warning on stderr and starts the test. The marketplace installs the plugin from `main`, so a version skew between 2 releases is normal.
 
 In a linked git worktree, the check reads each order of the files that Claude Code can read, and refuses if one order has a problem. The check does not read a plugin of `--plugin-dir`.
 
-**Refusal log.** Each refusal of the Claude Code check and of the Codex hook gate adds one JSON row to `.nookku/refusals.jsonl`: `ts`, the Unix time, `command`, `start` or `mode on`, `harness`, `claude-code` or `codex`, `nookku`, the version, and `problems`, each reason of the refusal. A refused start writes no test folder. The log is for a person: it has no seal, and the relay does not protect it. If the row cannot be written, the start is still refused.
+**Refusal log.** Each refusal of the Claude Code check and of the Codex hook gate adds one JSON row to `.nookku/refusals.jsonl`: `ts`, the Unix time, `command`, `start` or `mode on`, `harness`, `claude-code` or `codex`, `nookku`, the version, and `problems`, each reason of the refusal. A refused start writes no test folder. The log is for a person: it has no seal. The relay denies a model write to it (section 5). Nookku does not write the row if `.nookku` or the log is a symlink or if the log is not a regular file. If the row cannot be written, the start is still refused.
 
 ### 7.9 Policy file
 

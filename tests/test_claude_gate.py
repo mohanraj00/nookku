@@ -299,12 +299,32 @@ def _other_command(d: dict[str, Any]) -> None:
     d["hooks"]["UserPromptSubmit"][0]["hooks"][0]["command"] = "true"
 
 
+def _script_not_run(d: dict[str, Any]) -> None:
+    # The last 2 words are the script and the event, but the command does not run the script.
+    d["hooks"]["UserPromptSubmit"][0]["hooks"][0]["command"] = (
+        'true "${CLAUDE_PLUGIN_ROOT}/hooks/nookku-hook.sh" UserPromptSubmit'
+    )
+
+
+def _other_script(d: dict[str, Any]) -> None:
+    d["hooks"]["PreToolUse"][0]["hooks"][0]["command"] = 'sh "/tmp/hooks/nookku-hook.sh" PreToolUse'
+
+
+def _more_words(d: dict[str, Any]) -> None:
+    d["hooks"]["PreToolUse"][0]["hooks"][0]["command"] = (
+        'sh -c true "${CLAUDE_PLUGIN_ROOT}/hooks/nookku-hook.sh" PreToolUse'
+    )
+
+
 @pytest.mark.parametrize(
     ("change", "event"),
     [
         (_drop_prompt_hook, "UserPromptSubmit"),
         (_narrow_matcher, "PreToolUse"),
         (_other_command, "UserPromptSubmit"),
+        (_script_not_run, "UserPromptSubmit"),
+        (_other_script, "PreToolUse"),
+        (_more_words, "PreToolUse"),
     ],
 )
 def test_a_plugin_install_with_a_required_hook_missing_is_refused(
@@ -362,3 +382,34 @@ def test_a_codex_refusal_adds_a_row_to_the_refusal_log(
     assert [(r["harness"], r["problems"]) for r in _refusals(tmp_path)] == [
         ("codex", gate["problems"])
     ]
+
+
+def test_the_refusal_log_does_not_follow_a_symlink(tmp_path: Path) -> None:
+    kit.init(tmp_path, "claude-code", ENTRY)
+    target = tmp_path / "target.txt"
+    target.write_text("keep\n")
+    log = tmp_path / ".nookku" / claude_gate.REFUSALS
+    log.symlink_to(target)
+    claude_gate.log_refusal(tmp_path, "start", "claude-code", ["a problem"])
+    assert target.read_text() == "keep\n"
+    log.unlink()
+    log.mkdir()
+    claude_gate.log_refusal(tmp_path, "start", "claude-code", ["a problem"])
+    assert log.is_dir() and not any(log.iterdir())
+
+
+def test_the_refusal_log_is_not_written_through_a_symlinked_state_folder(tmp_path: Path) -> None:
+    other = tmp_path / "other"
+    other.mkdir()
+    (tmp_path / "shop").mkdir()
+    (tmp_path / "shop" / ".nookku").symlink_to(other)
+    claude_gate.log_refusal(tmp_path / "shop", "start", "claude-code", ["a problem"])
+    assert not any(other.iterdir())
+
+
+def test_a_model_write_to_the_refusal_log_is_denied(tmp_path: Path) -> None:
+    kit.init(tmp_path, "claude-code", ENTRY)
+    path = str(tmp_path / ".nookku" / claude_gate.REFUSALS)
+    event = {"cwd": str(tmp_path)}
+    found = kit.state_write(event, tmp_path, "Write", {"file_path": path}, False)
+    assert found is not None and found[0] == path

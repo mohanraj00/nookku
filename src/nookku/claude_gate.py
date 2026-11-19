@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import os
 import shlex
+import stat
 import time
 from pathlib import Path
 from typing import Any
@@ -28,6 +29,11 @@ PLUGIN = "nookku@"
 # The hooks file and the hook script of an install of the plugin.
 PLUGIN_HOOKS = "hooks/hooks.json"
 PLUGIN_SCRIPT = "hooks/nookku-hook.sh"
+# The shells that can run the hook script of the plugin, and the path of the script in a hook
+# command. A required hook must run one of these shells with this path and its event, and no
+# other word.
+PLUGIN_SHELLS = ("sh", "bash")
+PLUGIN_SCRIPT_ARG = "${CLAUDE_PLUGIN_ROOT}/" + PLUGIN_SCRIPT
 # The file of the refusals of a start (SPEC.md section 7.8). It is a log for a person, with no
 # seal.
 REFUSALS = "refusals.jsonl"
@@ -151,7 +157,7 @@ def _plugin_hook_ok(group: Any, event: str) -> bool:
         if not isinstance(hook, dict) or hook.get("type") != "command":
             continue
         argv = _argv(str(hook.get("command", "")))
-        if len(argv) >= 2 and argv[-1] == event and argv[-2].endswith("/" + PLUGIN_SCRIPT):
+        if argv[:1] in ([x] for x in PLUGIN_SHELLS) and argv[1:] == [PLUGIN_SCRIPT_ARG, event]:
             return True
     return False
 
@@ -343,8 +349,28 @@ def log_refusal(root: Path, command: str, harness: str, found: list[str]) -> Non
         "nookku": __version__,
         "problems": found,
     }
+    nofollow = getattr(os, "O_NOFOLLOW", 0)
+    data = (json.dumps(row, ensure_ascii=False) + "\n").encode("utf-8")
     try:
-        with (root / kit.STATE_DIR / REFUSALS).open("a", encoding="utf-8") as f:
-            f.write(json.dumps(row, ensure_ascii=False) + "\n")
+        # The state folder and the log must not be symlinks, and the log must be a regular file.
+        # A model can write project files before a test, so a symlink could send the row to
+        # another file of the user.
+        folder = os.open(
+            root / kit.STATE_DIR, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | nofollow
+        )
+    except OSError:
+        return
+    try:
+        flags = os.O_WRONLY | os.O_APPEND | os.O_CREAT | nofollow | getattr(os, "O_NONBLOCK", 0)
+        fd = os.open(REFUSALS, flags, 0o600, dir_fd=folder)
+    except OSError:
+        os.close(folder)
+        return
+    try:
+        if stat.S_ISREG(os.fstat(fd).st_mode):
+            os.write(fd, data)
     except OSError:
         pass
+    finally:
+        os.close(fd)
+        os.close(folder)
