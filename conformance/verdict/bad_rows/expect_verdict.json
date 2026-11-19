@@ -182,7 +182,7 @@
   }
  ],
  "problems": [
-  "APP_SPEC.md line 7: \"reply_error\" is not a finding class of the trace.",
+  "APP_SPEC.md line 7: \"reply_error\" is not a finding class of the trace or an issue class of the evaluation.",
   "APP_SPEC.md line 8: The Most of the row is not a whole number from 0 to 999999999.",
   "APP_SPEC.md line 10: The finding agent_error has a limit in an earlier row.",
   "APP_SPEC.md line 11: The row has no Finding.",

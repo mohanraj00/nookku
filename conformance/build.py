@@ -7457,6 +7457,12 @@ SEAL_FILES = {
 }
 UNSEALED_FILES = {"report.md", "bridge.log"}
 SEAL_NOTE = '{"v": "0.2", "type": "note", "turn": 1, "rating": "down", "comment": null}\n'
+# An evaluation.json with one model row (SPEC.md section 9.4).
+SEAL_EVALUATION = (
+    '{\n "v": 1,\n "test": "20261119-090000-ev01",\n "report": null,\n "issues": [\n  {\n'
+    '   "class": "tone",\n   "turn": 2,\n   "evidence": "APP_SPEC.md line 9",\n'
+    '   "text": "The reply uses slang.",\n   "author": "model",\n   "name": null\n  }\n ]\n}\n'
+)
 
 
 def seal_of(files: dict[str, str], copy: bool) -> dict:
@@ -7510,6 +7516,19 @@ SEAL_CASES: dict[str, dict] = {
     "seal_missing": {"no_seal_file": True, "verify": verified(False, "same", sealed=False)},
     # The notes of the tester (SPEC.md section 2.3) are in the seal. A note changed after the end
     # breaks it.
+    "changed_evaluation": {
+        # A change of an issue row that nookku evaluation did not make breaks the seal (#576).
+        "after": {"evaluation.json": SEAL_EVALUATION.replace('"model"', '"human"')},
+        "seal_files": {"evaluation.json": SEAL_EVALUATION},
+        "copy_files": {"evaluation.json": SEAL_EVALUATION},
+        "verify": verified(False, "same", changed=["evaluation.json"]),
+    },
+    "evaluation_intact": {
+        "after": {"evaluation.json": SEAL_EVALUATION},
+        "seal_files": {"evaluation.json": SEAL_EVALUATION},
+        "copy_files": {"evaluation.json": SEAL_EVALUATION},
+        "verify": verified(True, "same"),
+    },
     "notes_intact": {
         "after": {"notes.jsonl": SEAL_NOTE},
         "seal_files": {"notes.jsonl": SEAL_NOTE},
@@ -7977,6 +7996,16 @@ GUARD_CASES: dict[str, dict] = {
             "nookku adjudicate t1 --turn 3 --outcome key_wrong --reason 'The key is old.'"
         ),
         "answer": drives("nookku adjudicate"),
+    },
+    "shell_writes_an_issue_row": {
+        # Only a person writes a human issue row, and the command sets the author type (#576).
+        "policy_text": '{"scripts": "model"}\n',
+        "event": bash("nookku evaluation add t1 --class tone --evidence x --text y --author Asha"),
+        "answer": drives("nookku evaluation"),
+    },
+    "shell_imports_the_model_rows": {
+        "event": bash("nookku evaluation import t1"),
+        "answer": drives("nookku evaluation"),
     },
     # The shell expands a word that can be the subcommand, so the relay cannot know it (#548).
     "shell_adjudicates_with_a_variable_as_the_subcommand": {
