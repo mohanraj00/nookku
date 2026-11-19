@@ -416,3 +416,29 @@ def test_a_run_or_a_gate_run_with_a_file_that_cannot_be_read_does_not_stop_the_l
     assert verdict["verdict"] is None and "cannot be read" in verdict["problem"]
     assert gates[0]["verdict"] is None and gates[0]["problem"]
     assert one["result"] is None and "cannot be read" in one["problem"]
+
+
+def test_a_partial_request_times_out_and_a_connection_above_the_limit_gets_503(
+    server: api.Server, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    port = server.server_address[1]
+    monkeypatch.setattr(api.Handler, "timeout", 0.5)
+    partial = socket.create_connection(("127.0.0.1", port), timeout=5)
+    try:
+        partial.sendall(b"GET /api/v1/runs HTTP/1.1\r\n")
+        # The server closes the connection after its read timeout, with no answer.
+        assert partial.recv(65536) == b""
+    finally:
+        partial.close()
+    monkeypatch.setattr(api.Handler, "timeout", 30)
+    held = [socket.create_connection(("127.0.0.1", port), timeout=5)]
+    try:
+        for _ in range(server.connection_limit - 1):
+            held.append(socket.create_connection(("127.0.0.1", port), timeout=5))
+        extra = socket.create_connection(("127.0.0.1", port), timeout=5)
+        held.append(extra)
+        answer = extra.recv(65536)
+        assert answer.startswith(b"HTTP/1.1 503 ")
+    finally:
+        for s in held:
+            s.close()

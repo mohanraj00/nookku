@@ -18,12 +18,13 @@ import json
 import mimetypes
 import secrets
 import socket
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from typing import Any
 from urllib.parse import unquote, urlsplit
 
 from nookku import dashboard, gate, seal, state, verdict
+from nookku.proxy_socket import LimitedServer, send_refusal
 from nookku.record import loads
 
 VERSION = 1
@@ -275,8 +276,15 @@ def hosts_for(host: str, port: int, allowed: list[str]) -> set[str]:
     return out | {a.lower() for a in allowed}
 
 
-class Server(ThreadingHTTPServer):
-    daemon_threads = True
+# The most seconds that a connection can wait for the next part of a request. Then a client that
+# sends a part of a request and stops does not keep its thread.
+READ_TIMEOUT = 10
+
+
+class Server(LimitedServer, HTTPServer):
+    """The dashboard server. LimitedServer gives each connection a thread, up to its limit, and
+    refuses a connection above the limit with status 503 before it reads a byte."""
+
     # A page of the kit loads many modules at the same time. With the default queue of 5, the
     # system resets some of these connections.
     request_queue_size = 128
@@ -302,6 +310,14 @@ class Server(ThreadingHTTPServer):
         super().__init__((bare, port), Handler)
         self.hosts = hosts_for(host, self.server_address[1], self.allowed)
 
+    def refuse_connection(self, request: socket.socket, reason: str) -> None:
+        data = json.dumps({"api": VERSION, "error": reason}).encode()
+        send_refusal(
+            request,
+            b"HTTP/1.1 503 Service Unavailable\r\nConnection: close\r\n"
+            b"Content-Type: application/json\r\nContent-Length: %d\r\n\r\n%s" % (len(data), data),
+        )
+
     @property
     def url(self) -> str:
         host = self.server_address[0]
@@ -313,6 +329,7 @@ class Server(ThreadingHTTPServer):
 
 class Handler(BaseHTTPRequestHandler):
     server: Server
+    timeout = READ_TIMEOUT
     server_version = "nookku-dashboard"
     sys_version = ""
 
