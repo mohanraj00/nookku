@@ -655,6 +655,14 @@ def _test_checks(
     ok = messages is not None and turns == [(m, True) for m in messages]
     text = "The relay record does not have one turn with a reply for each message of the script."
     checks.append(_check("turns", ok, text))
+    late = _late_messages(snapshot, data[verdict.FINDINGS])
+    if late is not None:
+        text = "; ".join(
+            f"Message {n} of the script has `during`, but {verdict.FINDINGS} does not show "
+            f"that the entry got it during turn {n - 1}"
+            for n in late
+        )
+        checks.append(_check("second_message", not late, text + "."))
     changed = bridge.gate_changed(manifest)
     checks.append(_check("codex_hooks", changed is None, f"The Codex hooks changed: {changed}"))
     if declared["answer_key"] is not None:
@@ -663,6 +671,24 @@ def _test_checks(
     if declared["replay"] is not None:
         checks += _replay_checks(declared["replay"], row, proof, data, record)
     return checks
+
+
+def _late_messages(snapshot: bytes | None, findings: bytes | None) -> list[int] | None:
+    """The number of each message of a script with `during` (SPEC.md section 7.10) that the entry
+    did not get during the turn before it: `second_messages` of findings.json has no row with
+    its number as `turn` (section 8.3). None for a script with no `during`, or for a script that
+    is not valid, because the check `turns` then fails."""
+    try:
+        during = script.timing(snapshot or b"")
+    except script.ScriptError:
+        return None
+    wanted = [n for n, after in enumerate(during, 1) if after is not None]
+    if not wanted:
+        return None
+    found = _json(findings)
+    rows = found.get("second_messages") if isinstance(found, dict) else None
+    got = [r.get("turn") for r in rows if isinstance(r, dict)] if isinstance(rows, list) else []
+    return [n for n in wanted if n not in got]
 
 
 def _replay_checks(

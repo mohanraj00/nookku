@@ -1,0 +1,9 @@
+{
+ "v": 1,
+ "tests": [
+  {
+   "name": "refund",
+   "script": "scripts/refund.jsonl"
+  }
+ ]
+}

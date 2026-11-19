@@ -1216,6 +1216,7 @@ A test has the verdict `pass` if each of its checks passes. Each check is an obj
 | `limits` | Each gate limit is the count of its class in the verdict, or more. A class with no valid count fails. |
 | `audit` | `audit.json` has `exit` 0, no break and no error (section 3). |
 | `turns` | The `turn` rows of `relay.jsonl` are one row for each message of the script, in order, each with the same `said` and `ok` true. |
+| `second_message` | Only for a test whose script has a message with `during` (section 7.10). `second_messages` of `findings.json` has a row for each such message, with the number of the message as `turn` (section 8.3). Thus the test fails if the entry got such a message after the reply of the turn before it. |
 | `codex_hooks` | The Codex hooks did not change during the test (section 7.8). |
 | `answer_key` | Only for a test with `answer_key`. It always fails in version 1. |
 | `missing_base` | Only for a test with `replay`. The row pins the declared base, the base folder exists, its seal is intact with a `same` copy, and `relay.jsonl` and `tap.jsonl` of the base have the pinned SHA-256 in the copy of its seal and in the bytes that the check reads. If this check fails, the test has no check `changed_turns`. |

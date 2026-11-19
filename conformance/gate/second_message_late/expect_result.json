@@ -1,0 +1,73 @@
+{
+ "v": 1,
+ "gate": "gate-case",
+ "subject": "sha256:ab12cd34",
+ "gate_sha256": "<the SHA-256 of gate.json>",
+ "verdict": "fail",
+ "problems": [],
+ "reasons": [
+  {
+   "test": "refund",
+   "check": "second_message"
+  }
+ ],
+ "tests": [
+  {
+   "name": "refund",
+   "test": "t-refund",
+   "verdict": "fail",
+   "checks": [
+    {
+     "check": "missing_test",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "evidence",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "script",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "entry",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "verdict",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "limits",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "audit",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "turns",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "second_message",
+     "verdict": "fail",
+     "text": "Message 2 of the script has `during`, but findings.json does not show that the entry got it during turn 1."
+    },
+    {
+     "check": "codex_hooks",
+     "verdict": "pass",
+     "text": null
+    }
+   ]
+  }
+ ]
+}
