@@ -186,7 +186,7 @@ def test_https_uses_tls_and_the_config_is_checked() -> None:
         backend.Backend("pay", "PAY_URL", "https://pay.example.com:8443"), Path("x"), lock
     )
     try:
-        assert isinstance(p.connect(), http.client.HTTPSConnection)
+        assert isinstance(p.connect({}), http.client.HTTPSConnection)
         assert p.host_header == "pay.example.com:8443"
     finally:
         p.server_close()

@@ -31,7 +31,9 @@ from nookku import (
     model_api,
     otlp,
     performance,
+    player,
     policy,
+    replay,
     script,
     seal,
     simulated_user,
@@ -308,6 +310,7 @@ def start(
     check: bool = False,
     egress: dict[str, Any] | None = None,
     persona_path: Path | None = None,
+    play: Path | None = None,
 ) -> dict[str, Any]:
     """Start a test in a background bridge process. Return the contents of current.json.
 
@@ -320,6 +323,8 @@ def start(
     evaluation starts, also if the check stops before its turn (SPEC.md section 9.1).
     With persona_path, a simulated user writes the messages: the persona file is read before
     the test starts, and its bytes are copied into the test folder (SPEC.md section 7.10).
+    With play, the test is a replay with the recorded backends: the HTTP proxies answer from the
+    records of the base test folder `play`, which the start copies into the test folder.
     """
     config = load_config(root, entry_name)
     copy: tuple[str, bytes] | None = None
@@ -346,6 +351,13 @@ def start(
     gate = codex_gate.check(root)
     if gate["problems"]:
         raise BridgeError(codex_gate.refusal(gate))
+    if play is not None:
+        # The seal check of the base and the egress answer come from the same bytes of its
+        # manifest, so a manifest that changes during the start cannot remove a player.
+        try:
+            egress = replay.held_egress(play)
+        except replay.ReplayError as e:
+            raise BridgeError(str(e)) from None
     pending = egress is None
     egress = discovery.pending(root) if egress is None else egress
     if egress is None:
@@ -356,6 +368,16 @@ def start(
     except (discovery.AnswerError, KeyError, TypeError) as e:
         raise BridgeError(f"the egress answer: {e}") from None
     egress_proxies(egress["answer"], os.environ, config.otel, gateway_key())
+    if play is not None:
+        problem = replay.recorded_problem(play, egress["answer"])
+        if problem is not None:
+            raise BridgeError(problem)
+        # One read of each base file, checked against the seal copy. The bridge copies only
+        # these bytes, so a file that changes after the seal check cannot go in.
+        try:
+            held = replay.held_base(play)
+        except replay.ReplayError as e:
+            raise BridgeError(str(e)) from None
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     test = f"{stamp}-{secrets.token_hex(2)}"
     try:
@@ -388,6 +410,9 @@ def start(
     if copy is not None and persona_path is not None:
         (folder / copy[0]).write_bytes(copy[1])
         argv += ["--persona-source", str(persona_path.resolve())]
+    if play is not None:
+        replay.copy_base(held, folder)
+        argv += ["--play-base", play.name]
     with (folder / "bridge.log").open("ab") as log:
         proc = subprocess.Popen(
             argv,
@@ -939,6 +964,14 @@ def _write_json(path: Path, data: dict[str, Any], mode: int | None = None) -> No
     tmp.replace(path)
 
 
+def _play(folder: Path, group: backend.Proxies, file: str) -> None:
+    """Make each proxy of `group` a player with its calls of the copied base record `file`
+    (SPEC.md section 7.10, "Recorded backends")."""
+    for p in group.proxies:
+        p.player = player.Player.load(folder / replay.BASE / file, p.target_field, p.backend.name)
+        _log(f"player {p.backend.name}: {len(p.player.recorded)} recorded calls")
+
+
 def _start_failed(folder: Path, manifest: dict[str, Any]) -> int:
     """Mark a test whose entry did not start, and return the exit code of the bridge.
 
@@ -958,8 +991,10 @@ def run(
     script_source: str | None = None,
     check: bool = False,
     persona_source: str | None = None,
+    play_base: str | None = None,
 ) -> int:
-    """The bridge process: run the tap and the entry until SIGTERM, then collect."""
+    """The bridge process: run the tap and the entry until SIGTERM, then collect. With
+    play_base, the HTTP proxies are players with the base records that the start copied."""
     root = root.resolve()
     folder = tests_dir(root) / test
     config = load_config(root, entry_name)
@@ -1013,7 +1048,14 @@ def run(
         "spec_copies": True,
         "trace_points": config.trace_points,
         "trace_points_unread": config.trace_points_unread,
-        "verdict": config.verdict,
+        "verdict": config.verdict
+        if play_base is None
+        else {**config.verdict, "limits": {**replay.LIMITS, **config.verdict["limits"]}},
+        # A replay with the recorded backends: the base test and the SHA-256 of each copied base
+        # record (SPEC.md section 7.10).
+        "replay": None
+        if play_base is None
+        else {"base": play_base, "files": replay.base_files(folder)},
         # After the entry stops, the bridge copies the key file into answer_key.json (SPEC.md
         # section 7.17).
         "answer_key": config.answer_key,
@@ -1063,6 +1105,8 @@ def run(
         body_limit=config.body_limit,
         budget=budget,
     )
+    if play_base is not None:
+        _play(folder, proxies, backend.FILE)
     env.update(proxies.start())
     for p in proxies.proxies:
         _log(f"backend {p.backend.name}: {p.backend.env}={p.url} -> {p.backend.url}")
@@ -1074,6 +1118,8 @@ def run(
         buffered_limit,
         budget,
     )
+    if play_base is not None:
+        _play(folder, apis, model_api.FILE)
     env.update(apis.start())
     # The app can keep its state in the test folder, for example in app-state/, so that the seal
     # covers it (SPEC.md section 6.1).
@@ -1093,6 +1139,8 @@ def run(
         body_limit=buffered_limit,
         budget=budget,
     )
+    if play_base is not None:
+        _play(folder, mcp, mcp_proxy.FILE)
     env.update(mcp.start())
     for p in mcp.proxies:
         _log(f"MCP server {p.backend.name}: {p.backend.env}={p.url} -> {p.backend.url}")
@@ -1381,8 +1429,10 @@ def run_script(
     entry_name: str | None = None,
     egress: dict[str, Any] | None = None,
     gate: bool = False,
+    play: Path | None = None,
 ) -> tuple[bool, list[str], Path]:
-    """Run a scripted test (SPEC.md section 7.10). Return (passed, the report lines, the test
+    """Run a scripted test (SPEC.md section 7.10). With `play`, the test is a replay with the
+    recorded backends of that base test folder. Return (passed, the report lines, the test
     folder). With gate, a verdict that is not `pass` also fails the run (SPEC.md section 7.14).
 
     Each message of the script goes to the entry byte for byte, as a relay row with the harness
@@ -1393,7 +1443,7 @@ def run_script(
         messages = script.read(script_path)[0]
     except script.ScriptError as e:
         raise BridgeError(str(e)) from None
-    cur = start(root, entry_name=entry_name, script_path=script_path, egress=egress)
+    cur = start(root, entry_name=entry_name, script_path=script_path, egress=egress, play=play)
     folder = Path(cur["dir"])
     relay = folder / "relay.jsonl"
     sent, failed = 0, None
