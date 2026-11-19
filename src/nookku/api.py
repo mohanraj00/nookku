@@ -56,21 +56,29 @@ class NotFound(Exception):
     """A route, a run or a gate run that does not exist."""
 
 
-def _sealed(folder: Path, name: str, data: bytes | None, base: Path | None = None) -> bool:
+def _sealed(
+    folder: Path, name: str, data: bytes | None, base: Path | None = None
+) -> tuple[bool, str | None]:
     """True if `data` is the file `name` of the seal of `folder`: the seal is intact, its copy is
-    the same, and the copy has the SHA-256 of `data`."""
+    the same, and the copy has the SHA-256 of `data`. The check reads each sealed file, so a file
+    that the process cannot read gives False and the problem. Then the API still gives the
+    content of `name`."""
     if data is None:
-        return False
-    result = seal.verify(folder, base)
-    if not result["intact"] or result["copy"] != "same":
-        return False
-    files = seal.copy_files(folder.name, base)
-    return files is not None and files.get(name) == seal.sha256_of(data)
+        return False, None
+    try:
+        result = seal.verify(folder, base)
+        if not result["intact"] or result["copy"] != "same":
+            return False, None
+        files = seal.copy_files(folder.name, base)
+    except OSError as e:
+        return False, f"A file of the run cannot be read: {e.strerror or e}."
+    return files is not None and files.get(name) == seal.sha256_of(data), None
 
 
 def _read(path: Path) -> bytes | None:
+    """The bytes of a file of a run, or None. A symlink gives None (dashboard.read_file)."""
     try:
-        return path.read_bytes()
+        return dashboard.read_file(path)
     except OSError:
         return None
 
@@ -87,7 +95,9 @@ def _json(data: bytes | None) -> tuple[Any, str | None]:
 
 def _run_folder(root: Path, run: str) -> Path:
     folder = dashboard.find(root, run)
-    if folder is None:
+    # A symlink is not a run folder: another user of a shared tests folder can link it to a
+    # private folder.
+    if folder is None or folder.is_symlink():
         raise NotFound(f"no run {run}")
     return folder
 
@@ -150,12 +160,13 @@ def run_findings(root: Path, run_id: str) -> dict[str, Any]:
     value, error = _json(data)
     if value is not None and not isinstance(value, dict):
         value, error = None, "not a JSON object"
+    sealed, problem = _sealed(folder, verdict.FINDINGS, data)
     return {
         "api": VERSION,
         "run": folder.name,
         "findings": value,
-        "sealed": _sealed(folder, verdict.FINDINGS, data),
-        "error": f"{verdict.FINDINGS}: {error}" if error else None,
+        "sealed": sealed,
+        "error": f"{verdict.FINDINGS}: {error}" if error else problem,
     }
 
 
@@ -171,12 +182,13 @@ def run_evaluation(root: Path, run_id: str) -> dict[str, Any]:
             text = data.decode("utf-8")
         except UnicodeDecodeError:
             error = f"{REPORT}: not UTF-8"
+    sealed, problem = _sealed(folder, REPORT, data)
     return {
         "api": VERSION,
         "run": folder.name,
         "report": text,
-        "sealed": _sealed(folder, REPORT, data),
-        "error": error,
+        "sealed": sealed,
+        "error": error or problem,
     }
 
 

@@ -418,6 +418,42 @@ def test_a_run_or_a_gate_run_with_a_file_that_cannot_be_read_does_not_stop_the_l
     assert one["result"] is None and "cannot be read" in one["problem"]
 
 
+def test_the_findings_and_the_report_of_a_run_with_an_unreadable_sealed_file_still_answer(
+    project: Path, server: api.Server
+) -> None:
+    run = get_json(server, "/api/v1/runs")["runs"][0]["id"]
+    folder = project / ".nookku" / "tests" / run
+    (folder / "report.md").write_text("# Report\n", encoding="utf-8")
+    manifest = folder / "manifest.json"
+    manifest.chmod(0)
+    try:
+        findings = get_json(server, f"/api/v1/runs/{run}/findings")
+        report = get_json(server, f"/api/v1/runs/{run}/evaluation")
+    finally:
+        manifest.chmod(0o644)
+    assert findings["findings"] is not None
+    assert findings["sealed"] is False and "cannot be read" in findings["error"]
+    assert report["report"] == "# Report\n"
+    assert report["sealed"] is False and "cannot be read" in report["error"]
+
+
+def test_the_api_gives_no_bytes_of_a_symlinked_run_file_or_run_folder(
+    project: Path, server: api.Server, tmp_path: Path
+) -> None:
+    run = get_json(server, "/api/v1/runs")["runs"][0]["id"]
+    tests = project / ".nookku" / "tests"
+    private = tmp_path / "private.txt"
+    private.write_text("a private line\n", encoding="utf-8")
+    (tests / run / "report.md").symlink_to(private)
+    report = get_json(server, f"/api/v1/runs/{run}/evaluation")
+    assert report["report"] is None and report["sealed"] is False
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "findings.json").write_text('{"counts": {}, "findings": []}', encoding="utf-8")
+    (tests / "20991231-235959-link").symlink_to(outside, target_is_directory=True)
+    get_json(server, "/api/v1/runs/20991231-235959-link/findings", status=404)
+
+
 def test_a_partial_request_times_out_and_a_connection_above_the_limit_gets_503(
     server: api.Server, monkeypatch: pytest.MonkeyPatch
 ) -> None:
