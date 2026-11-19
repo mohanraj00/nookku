@@ -1,0 +1,16 @@
+{
+ "faults": [
+  {
+   "check": "tool_error",
+   "turn": 1
+  },
+  {
+   "check": "backend_error",
+   "turn": 1
+  },
+  {
+   "check": "call_cut",
+   "turn": 1
+  }
+ ]
+}

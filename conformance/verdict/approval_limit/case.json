@@ -35,6 +35,7 @@
   "version_untested": 0,
   "missing_trace_point": 0,
   "trace_points_unread": 0,
-  "action_without_approval": 1
+  "action_without_approval": 1,
+  "call_cut": 0
  }
 }

@@ -20,7 +20,7 @@ from pathlib import Path
 
 from nookku import contract
 from nookku.record import Writer, lone_surrogate
-from nookku.state import TOKEN_HEADER
+from nookku.state import DURING_HEADER, TOKEN_HEADER
 
 # The agent timeout of both taps, HTTP and stdio. Each tap answers well before the relay
 # timeouts (kit.TIMEOUT, state.TIMEOUT), and these end before kit.HOOK_DEADLINE.
@@ -35,7 +35,9 @@ TOKEN_MIN = 43
 
 
 class Agent:
-    """The agent process. One request at a time, one line in and one line out."""
+    """The agent process. One line in and one line out for each request. The tap reads the
+    reply of one request at a time. It can write the line of a second request during the turn
+    of the first one (SPEC.md section 4.2)."""
 
     def __init__(
         self,
@@ -50,6 +52,11 @@ class Agent:
         self.env = env or {}
         self.failed: str | None = None
         self._lines: queue.Queue[bytes | None] = queue.Queue()
+        # The requests whose line the tap wrote during the turn of another request: the request
+        # id, and the reply line with its time, or None before the line comes.
+        self._early: dict[str, tuple[bytes, float] | None] = {}
+        self._early_lock = threading.Lock()
+        self._stdin_lock = threading.Lock()
         self.proc: subprocess.Popen[bytes] | None = None
         self._reader: threading.Thread | None = None
 
@@ -83,6 +90,42 @@ class Agent:
         self.failed = f"the agent exited (code {code})"
         return self.failed
 
+    def _write(self, line: bytes) -> bool:
+        """Write one input line. Return False if the agent does not take it."""
+        assert self.proc is not None and self.proc.stdin is not None
+        try:
+            with self._stdin_lock:
+                self.proc.stdin.write(line + b"\n")
+                self.proc.stdin.flush()
+        except (OSError, ValueError):
+            return False
+        return True
+
+    def send_early(self, line: bytes, rid: str) -> None:
+        """Write the input line of a request now, during the turn of another request. The
+        reader of that turn keeps the reply line for `rid`, so it is not a stray line. Then
+        ask(..., sent=<time>) gives the reply when the turn of this request comes."""
+        with self._early_lock:
+            self._early[rid] = None
+        if not self.failed:
+            self._write(line)
+
+    def early_reply(self, rid: str) -> tuple[bytes, float] | None:
+        """The reply line of a request of send_early and the time when it came, or None if it
+        did not come yet. The request then waits for its line as each other request."""
+        with self._early_lock:
+            return self._early.pop(rid, None)
+
+    def _keep(self, line: bytes) -> bool:
+        """True if the line is the reply line of a request of send_early. The agent keeps the
+        first such line of each request, with its time."""
+        with self._early_lock:
+            for rid, got in self._early.items():
+                if got is None and _is_for(line, rid):
+                    self._early[rid] = (line, time.time())
+                    return True
+        return False
+
     def stray(self) -> list[bytes]:
         """The lines that wait on stdout with no request. Call it before each request."""
         out: list[bytes] = []
@@ -94,7 +137,8 @@ class Agent:
             if line is None:
                 self._exited()
                 return out
-            out.append(line)
+            if not self._keep(line):
+                out.append(line)
 
     def rest(self, wait: float = 1.0) -> list[bytes]:
         """The lines that the agent wrote after its last reply. Call it after stop()."""
@@ -109,21 +153,24 @@ class Agent:
             if line is not None:
                 out.append(line)
 
-    def ask(self, line: bytes, rid: str, stray: Callable[[bytes], None]) -> tuple[str, bytes | str]:
+    def ask(
+        self, line: bytes, rid: str, stray: Callable[[bytes], None], sent: float | None = None
+    ) -> tuple[str, bytes | str]:
         """Send one input line. Return ("line", output) or ("exited" | "timeout", reason).
 
-        The output is the first line for the request id `rid`. Each other line is a stray line,
-        and `stray` gets it. The timeout is one deadline for the full request.
+        The output is the first line for the request id `rid`. A line for a request of
+        send_early stays for that request. Each other line is a stray line, and `stray` gets it.
+        The timeout is one deadline for the full request. With `sent`, send_early wrote the line
+        at that Unix time, and the deadline counts from it.
         """
         if self.failed:
             return "exited", self.failed
-        assert self.proc is not None and self.proc.stdin is not None
-        try:
-            self.proc.stdin.write(line + b"\n")
-            self.proc.stdin.flush()
-        except OSError:
-            return "exited", self._exited()
-        deadline = time.monotonic() + self.timeout
+        if sent is None:
+            if not self._write(line):
+                return "exited", self._exited()
+            deadline = time.monotonic() + self.timeout
+        else:
+            deadline = time.monotonic() + self.timeout - max(0.0, time.time() - sent)
         strays: list[bytes] = []
         while True:
             left = deadline - time.monotonic()
@@ -140,6 +187,8 @@ class Agent:
                 return "exited", self._exited()
             if _is_for(out, rid):
                 return "line", out
+            if self._keep(out):
+                continue
             strays.append(out)
             stray(out)
 
@@ -364,21 +413,39 @@ class _Handler(BaseHTTPRequestHandler):
             if self._unparsed("POST", path, f"request: the message has {found}"):
                 self._error(400, f"nookku tap: the message has {found}")
             return
+        early: float | None = None
+        if self.headers.get(DURING_HEADER) == "1" and tap.lock.locked():
+            # A second message: the agent gets it now, during the turn of the message before
+            # it. Its row comes after the row of that message (SPEC.md section 4.2).
+            early = time.time()
+            tap.agent.send_early(body, rid)
         with tap.lock:
             self.lost = None
-            for line in tap.agent.stray():
-                self._stray(line)
-            if self.lost is not None:
-                # The record is not complete, so the agent does not get the message.
-                self._error(502, write_failed(tap.writer.path, self.lost))
-                return
-            started = time.time()
-            kind, out = tap.agent.ask(body, rid, self._stray)
+            replied: float | None = None
+            if early is None:
+                for line in tap.agent.stray():
+                    self._stray(line)
+                if self.lost is not None:
+                    # The record is not complete, so the agent does not get the message.
+                    self._error(502, write_failed(tap.writer.path, self.lost))
+                    return
+                started = time.time()
+                kind, out = tap.agent.ask(body, rid, self._stray)
+            else:
+                started = early
+                got = tap.agent.early_reply(rid)
+                if got is not None:
+                    # The reply came during the turn of the message before it.
+                    kind, out, replied = "line", got[0], got[1]
+                else:
+                    kind, out = tap.agent.ask(body, rid, self._stray, sent=early)
             if self.lost is not None:
                 # The agent got the message, but the caller does not get the reply.
                 self._error(502, write_failed(tap.writer.path, self.lost))
                 return
-            row = {"type": "exchange", "input": message, "started": started}
+            row: dict[str, object] = {"type": "exchange", "input": message, "started": started}
+            if replied is not None:
+                row["replied"] = replied
             if isinstance(out, str):
                 if not self._write({**row, "status": None, "reply": None, "error": out}):
                     return

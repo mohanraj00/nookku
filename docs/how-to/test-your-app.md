@@ -281,6 +281,20 @@ If your app has fixed conversations in its own tests, run them through the relay
 
 4. Read the output. It gives the test id, the count of turns, the audit and the trace, then `PASS` or each `FAIL:` line. Read the replies with `nookku transcript --test <test-id>`.
 
+### Send a second message during a turn
+
+A user can send a second message while the agent still works on the first one. An app can refuse it, put it in a queue, stop the first run or do both. To test this, give a row of a JSONL script the key `during`:
+
+```text
+{"said": "Refund order 5120."}
+{"said": "Stop. Do not refund it.", "during": 0.5}
+```
+
+- `nookku run` sends the second message 0.5 seconds after the first one, and does not wait for the first reply. `during` is from 0 to 60 seconds. The first row cannot have it, and 2 rows in sequence cannot have it.
+- The [entry](../reference/glossary.md#entry) gets the second line on its stdin during the first turn. An entry that reads one line at a time gets it after its reply, as a queue. An entry that reads its stdin during a turn can react at once. It writes 1 reply line for each message, with the `id` of that message, in any order ([SPEC.md section 6](../../SPEC.md#6-agent-contract-version-1)).
+- `findings.json` records each second message in `second_messages`: the 2 turns, the seconds between them, and `reply_first`, which is `true` if the reply of the second message came first. A call that started before the second message and has no result gives the [finding](../reference/glossary.md#findings) `call_cut`. A `Verdict` row can limit it.
+- If the first reply came before `nookku run` sent the second message, the test did not test a second message. Then `nookku run` fails and says so. Make the turn slower or the number smaller.
+
 By default, only a person runs `nookku run`. To let the harness model run a script, run `nookku policy set scripts model` in a shell. Then the model can also use the `run_script` tool of the plugin. A [scripted test](../reference/glossary.md#scripted-test) always shows the turns as `script`, not as typed turns ([SPEC.md section 7.10](../../SPEC.md#710-scripted-tests)).
 
 ## Next

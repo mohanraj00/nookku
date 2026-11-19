@@ -691,6 +691,22 @@ CASES_BY_NAME: dict[str, tuple[list | None, list | None, dict]] = {
         CLEAN_RELAY,
         {"exit": 2, "errors": ["record_invalid"]},
     ),
+    # The reply of a second message came before the tap wrote its row (SPEC.md section 2.1).
+    "replied": (
+        [TAP_02[0], {**TAP_02[1], "replied": 0.8}, TAP_02[2]],
+        RELAY_02,
+        {"exit": 0, "breaks": []},
+    ),
+    "replied_wrong_type": (
+        [TAP_02[0], {**TAP_02[1], "replied": "0.8"}, TAP_02[2]],
+        RELAY_02,
+        {"exit": 2, "errors": ["record_invalid"]},
+    ),
+    "replied_in_a_v01_row": (
+        [{**CLEAN_TAP[0], "replied": 0.8}, *CLEAN_TAP[1:]],
+        CLEAN_RELAY,
+        {"exit": 2, "errors": ["record_invalid"]},
+    ),
     "model_session_wrong_field_type": (
         [*TAP_02, {**SESSION_A, "inferred": "no"}],
         RELAY_02,
@@ -1170,6 +1186,7 @@ def counts(**n: int) -> dict:
         "missing_trace_point",
         "trace_points_unread",
         "action_without_approval",
+        "call_cut",
     )
     return {c: n.get(c, 0) for c in checks}
 
@@ -7731,6 +7748,143 @@ APPROVALS_NOT_VALID_CASE = {
 }
 
 
+# A second message during a turn (SPEC.md sections 4.2 and 8.3). Each expected row and each
+# finding is hand-written.
+#
+# Turn 2 starts 2 seconds after turn 1, during turn 1, and its reply comes after the reply of
+# turn 1. 2 calls of turn 1 started before the message of turn 2 and have no result: a backend
+# call and an MCP tool call. A tool call with a result gives no finding, and a call with no
+# result that started after the message gives no call_cut finding. Turn 4 starts during turn 3,
+# and its reply came first: the row has `replied`. An item at a time in both windows is in turn
+# 3. Turn 6 starts at the end of turn 5, so it is not a second message.
+NO_ANSWER = "the test ended before the backend answered"
+SECOND_MESSAGE_CASE = {
+    "tap": [
+        window(10, 20),
+        window(12, 26),
+        window(30, 40),
+        {**window(32, 41), "replied": T0 + 33},
+        window(50, 60),
+        window(60, 70),
+    ],
+    "manifest": {"test": "20261119-090000-sm01", "model_sessions": []},
+    "sessions": {},
+    "backend": [
+        call(11, "shop", "POST", "/refund", None, request=body(REFUND_80), error=NO_ANSWER),
+        call(13, "shop", "POST", "/refund", None, request=body(REFUND_80), error=NO_ANSWER),
+        shop_call(22, "/refund", REFUND_80),
+        shop_call(32.5, "/refund", REFUND_80),
+    ],
+    "mcp": [
+        mcp_message(11.2, "to_server", rpc_call(1, "check_stock", {"product": "mug"})),
+        mcp_message(11.4, "from_server", rpc_result(1, "12 mugs")),
+        mcp_message(11.5, "to_server", rpc_call(2, "reserve", {"product": "mug"})),
+    ],
+    "trace": [
+        bitem(
+            1,
+            "shop",
+            11,
+            1,
+            "POST /refund",
+            input={"query": None, "headers": SENT, "body": REFUND_80},
+            error=NO_ANSWER,
+        ),
+        mitem(
+            1,
+            "stock",
+            11.2,
+            1,
+            "check_stock",
+            input={"product": "mug"},
+            output="12 mugs",
+            result_line=2,
+        ),
+        mitem(
+            1,
+            "stock",
+            11.5,
+            3,
+            "reserve",
+            input={"product": "mug"},
+            error="no response in mcp.jsonl",
+        ),
+        bitem(
+            1,
+            "shop",
+            13,
+            2,
+            "POST /refund",
+            input={"query": None, "headers": SENT, "body": REFUND_80},
+            error=NO_ANSWER,
+        ),
+        shop_item(2, 22, 3, "/refund", REFUND_80),
+        shop_item(3, 32.5, 4, "/refund", REFUND_80),
+    ],
+    "findings": {
+        "v": "0.2",
+        "test": "20261119-090000-sm01",
+        "turns": 6,
+        "items": 6,
+        "sessions": [],
+        "otel": None,
+        "backend": {"file": "backend.jsonl", "rows": 4, "items": 4, "ignored": {}},
+        "model_api": None,
+        "mcp": {"file": "mcp.jsonl", "rows": 3, "items": 2, "ignored": {}},
+        "database": None,
+        "counts": counts(tool_error=1, backend_error=2, call_cut=2),
+        "findings": [
+            {
+                "check": "tool_error",
+                "turn": 1,
+                "detail": "reserve: no response in mcp.jsonl",
+                "harness": "mcp",
+                "session": "stock",
+                "source": {"file": "mcp.jsonl", "line": 3},
+            },
+            {
+                "check": "backend_error",
+                "turn": 1,
+                "detail": f"shop: POST /refund: {NO_ANSWER}",
+                "harness": "backend",
+                "session": "shop",
+                "source": {"file": "backend.jsonl", "line": 1},
+            },
+            {
+                "check": "backend_error",
+                "turn": 1,
+                "detail": f"shop: POST /refund: {NO_ANSWER}",
+                "harness": "backend",
+                "session": "shop",
+                "source": {"file": "backend.jsonl", "line": 2},
+            },
+            {
+                "check": "call_cut",
+                "turn": 1,
+                "detail": "shop: POST /refund: no result. The call started before the message "
+                "of turn 2, which came during this turn",
+                "harness": "backend",
+                "session": "shop",
+                "source": {"file": "backend.jsonl", "line": 1},
+            },
+            {
+                "check": "call_cut",
+                "turn": 1,
+                "detail": "reserve: no result. The call started before the message of turn 2, "
+                "which came during this turn",
+                "harness": "mcp",
+                "session": "stock",
+                "source": {"file": "mcp.jsonl", "line": 3},
+            },
+        ],
+        "second_messages": [
+            {"turn": 2, "during": 1, "after": 2.0, "reply_first": False, "calls_cut": 2},
+            {"turn": 4, "during": 3, "after": 2.0, "reply_first": True, "calls_cut": 0},
+        ],
+    },
+}
+
+
 TRACE_CASES = {
     "claude_code_toy_shop": CLAUDE_CASE,
     "codex_toy_shop": CODEX_CASE,
@@ -7764,6 +7918,7 @@ TRACE_CASES = {
     "approvals_elicitation": APPROVALS_ELICITATION_CASE,
     "approvals_interrupt": APPROVALS_INTERRUPT_CASE,
     "approvals_not_valid": APPROVALS_NOT_VALID_CASE,
+    "second_message": SECOND_MESSAGE_CASE,
     "answer_key_text": ANSWER_KEY_TEXT_CASE,
     "answer_key_changed": ANSWER_KEY_CHANGED_CASE,
     "unseen_calls": UNSEEN_CASE,

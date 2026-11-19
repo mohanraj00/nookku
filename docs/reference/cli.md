@@ -145,7 +145,7 @@ PASS proves the connection, not the reply. PASS means that:
 nookku run (--script FILE | --persona FILE) [--entry NAME] [--root PATH] [--tests-dir PATH] [--json] [--verdict] [--evaluate | --no-evaluate]
 ```
 
-Run a [scripted test](glossary.md#scripted-test) ([SPEC.md section 7.10](../../SPEC.md#710-scripted-tests)). It starts a test, sends each message of the script to the entry byte for byte, waits for each reply and ends the test. The script is JSONL with one `{"said": "..."}` row for each turn, or one JSON array of strings. The [test folder](glossary.md#test-folder) gets a copy of the script, and each [relay](glossary.md#relay) row has `"harness": "script"`. `run` does not switch relay mode on.
+Run a [scripted test](glossary.md#scripted-test) ([SPEC.md section 7.10](../../SPEC.md#710-scripted-tests)). It starts a test, sends each message of the script to the entry byte for byte, waits for each reply and ends the test. The script is JSONL with one `{"said": "..."}` row for each turn, or one JSON array of strings. A JSONL row can have the key `during`, a number of seconds: `run` then sends the message during the turn of the message before it ([a second message](../how-to/test-your-app.md#send-a-second-message-during-a-turn)). The [test folder](glossary.md#test-folder) gets a copy of the script, and each [relay](glossary.md#relay) row has `"harness": "script"`. `run` does not switch relay mode on.
 
 With `--persona FILE`, a simulated user writes each message in place of a script ([SPEC.md section 7.10](../../SPEC.md#710-scripted-tests), [#520](https://github.com/mohanraj00/nookku/issues/520)). The file is a JSON object with only `persona`, `goal` and `turns`, the turn limit from 1 to 50:
 
