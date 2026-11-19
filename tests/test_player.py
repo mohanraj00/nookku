@@ -10,6 +10,7 @@ import sys
 import time
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 import pytest
 from toy_model_server import ModelServer
@@ -25,9 +26,11 @@ NOWHERE = "http://127.0.0.1:9"
 def request(
     url: str, method: str, path: str, body: bytes | None, headers: dict[str, str]
 ) -> tuple[int, list[tuple[str, str]], bytes]:
-    host, port = url.removeprefix("http://").split(":")
-    conn = http.client.HTTPConnection(host, int(port), timeout=10)
-    conn.request(method, path, body=body, headers=headers)
+    """Send a request to the proxy at `url`. The path of `url` (the token of a player) comes
+    before `path`."""
+    parts = urlsplit(url)
+    conn = http.client.HTTPConnection(parts.hostname, parts.port, timeout=10)
+    conn.request(method, parts.path + path, body=body, headers=headers)
     resp = conn.getresponse()
     out = (resp.status, resp.getheaders(), resp.read())
     conn.close()
@@ -217,9 +220,9 @@ def test_a_stopped_stream_stops_again_after_its_bytes(tmp_path: Path) -> None:
     proxies, path = played(base, tmp_path)
     env = proxies.start()
     try:
-        host, port = env["STOCK_URL"].removeprefix("http://").split(":")
-        conn = http.client.HTTPConnection(host, int(port), timeout=10)
-        conn.request("GET", "/feed")
+        url = urlsplit(env["STOCK_URL"])
+        conn = http.client.HTTPConnection(url.hostname, url.port, timeout=10)
+        conn.request("GET", url.path + "/feed")
         resp = conn.getresponse()
         with pytest.raises(http.client.IncompleteRead) as e:
             resp.read()
@@ -426,3 +429,40 @@ def test_a_miss_and_records_that_cannot_be_compared_give_findings(tmp_path: Path
     assert got[0]["detail"].startswith(
         "the replies cannot be compared with the base test 20261119-090000-aa11: "
     )
+
+
+@pytest.mark.parametrize("prefix", ["", "/wrong-token", "/{token}x"])
+def test_a_request_to_a_player_with_no_token_gets_403_and_no_recorded_body(
+    tmp_path: Path, prefix: str
+) -> None:
+    with StockServer() as stock:
+        stock.answer_body = b'{"sku": "teapot-set", "secret": "tenant-1"}'
+        base = record(tmp_path, stock, [("GET", "/me", b"")])
+        proxies, path = played(base, tmp_path)
+        env = proxies.start()
+        token = proxies.proxies[0].player.token  # type: ignore[union-attr]
+        origin = proxies.proxies[0].url
+        try:
+            status, _, body = request(origin, "GET", prefix.format(token=token) + "/me", None, {})
+            # The app gets the URL with the token, and its call still plays.
+            again = request(env["STOCK_URL"], "GET", "/me", None, {})
+        finally:
+            proxies.stop()
+    assert status == 403 and b"tenant-1" not in body
+    assert json.loads(body) == {"error": player.NO_TOKEN}
+    assert env["STOCK_URL"] == f"{origin}/{token}"
+    assert again[0] == 200 and again[2] == b'{"sku": "teapot-set", "secret": "tenant-1"}'
+    # The refused request writes no row, and the call of the app keeps its path with no token.
+    assert [(r["path"], r["replay"]) for r in rows(path)] == [("/me", {"line": 1, "miss": None})]
+
+
+def test_each_player_has_a_new_token_and_a_live_proxy_has_none(tmp_path: Path) -> None:
+    a = player.Player([])
+    b = player.Player([])
+    assert a.token != b.token and len(a.token) >= 43
+    assert a.strip(f"/{a.token}") == "/"
+    assert a.strip(f"/{a.token}?q=1") == "/?q=1"
+    assert a.strip(f"/{a.token}/stock?q=1") == "/stock?q=1"
+    assert a.strip(f"/{b.token}/stock") is None
+    proxies = backend.Proxies([backend.Backend("stock", "STOCK_URL", NOWHERE)], tmp_path / "r")
+    assert proxies.proxies[0].app_url == proxies.proxies[0].url

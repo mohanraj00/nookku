@@ -10,13 +10,19 @@ response to the app as it does for a live backend.
 A request matches the first unused call of the base record of its proxy with the same method,
 path, query and SHA-256 of the request body, in the order of `started`. A request with no such
 call, or with a call that the record cannot give again, is a miss: the app gets status 502.
+
+Each player has a new random token. The URL that the app gets has the token as the first part of
+its path, and the proxy refuses a request with no token with status 403. Thus another local
+process that finds the port of a player does not get the recorded responses.
 """
 
 from __future__ import annotations
 
 import base64
 import hashlib
+import hmac
 import json
+import secrets
 import threading
 from pathlib import Path
 from typing import Any
@@ -44,6 +50,8 @@ NOT_SAME = "the recorded body does not have its SHA-256"
 MISS = "the replay has no recorded response"
 REMOVED = "a recorded response header has a removed secret value"
 NO_LENGTH = "the record has no length of a response with no body"
+# The error of a request to a player with no token in its path.
+NO_TOKEN = "nookku player: the request path has no token of this test"
 # The value that backend.headers_row writes for a secret header (SPEC.md section 7.6).
 REMOVED_VALUE = "<removed>"
 
@@ -199,6 +207,19 @@ class Player:
         self.recorded = recorded
         self.used: set[int] = set()
         self.lock = threading.Lock()
+        # The first part of the path of each request to the player (SPEC.md section 7.10).
+        self.token = secrets.token_urlsafe(32)
+
+    def strip(self, target: str) -> str | None:
+        """The request target with no token prefix, or None if it does not start with the
+        token of the player."""
+        prefix = "/" + self.token
+        if not hmac.compare_digest(target[: len(prefix)].encode(), prefix.encode()):
+            return None
+        rest = target[len(prefix) :]
+        if rest[:1] not in ("", "/", "?"):
+            return None
+        return rest if rest.startswith("/") else "/" + rest
 
     @classmethod
     def load(cls, path: Path, field: str, name: str) -> Player:

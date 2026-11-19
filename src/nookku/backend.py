@@ -488,6 +488,15 @@ class Proxy(LimitedServer, HTTPServer):
         return f"http://{host!s}:{port}"
 
     @property
+    def app_url(self) -> str:
+        """The URL that the entry gets. The path of the URL of a player starts with its token."""
+        if self.player is None:
+            return self.url
+        host, port = self.server_address[:2]
+        origin = f"http://{host!s}:{port}"
+        return origin + "/" + self.player.token + self.url[len(origin) :]
+
+    @property
     def limit(self) -> int:
         return RECORD_LIMIT if self.keep is None else self.keep
 
@@ -609,6 +618,10 @@ class Handler(BaseHTTPRequestHandler):
     def handle_expect_100(self) -> bool:
         """Send 100 Continue, except for a request that the proxy refuses from its headers. Such a
         request gets the refusal at once, with no 100 Continue, so that the app sends no body."""
+        player = self.server.player
+        if player is not None and player.strip(self.path) is None:
+            # _call refuses a request to a player with no token, with no 100 Continue.
+            return True
         try:
             if self.server.stream_requests:
                 stream_length(self.headers)
@@ -643,6 +656,17 @@ class Handler(BaseHTTPRequestHandler):
     def _call(self) -> None:
         started = time.time()
         proxy, method = self.server, self.command
+        if proxy.player is not None:
+            # A player answers only a request with its token. The refusal writes no row, and the
+            # proxy does not read the body.
+            target = proxy.player.strip(self.path)
+            if target is None:
+                self.early = None
+                self.close_connection = True
+                data = json.dumps({"error": player_mod.NO_TOKEN}).encode()
+                self._send(403, [("Content-Type", "application/json")], data)
+                return
+            self.path = target
         refused, self.early = self.early, None
         upload = None
         length = None
@@ -912,7 +936,7 @@ class Proxies:
         """Start each proxy. Return the variables that give the entry the proxy URLs."""
         for p in self.proxies:
             stdio.start_in_thread(p)
-        return {p.backend.env: p.url for p in self.proxies}
+        return {p.backend.env: p.app_url for p in self.proxies}
 
     def stop(self) -> None:
         """Stop each proxy. Wait up to DRAIN seconds for the open calls, so that each call has
