@@ -29,6 +29,8 @@ Before you start, connect a test to your app: [connect-your-agent.md](connect-yo
    claude plugin install nookku@nookku
    ```
 
+   The hook files of the plugin must be the files of the version of the `nookku` command. Else `nookku start` refuses the test ([SPEC.md section 7.8](../../SPEC.md#78-codex-hook-gate)). If you update one of them, update the other.
+
 3. Write `.nookku/config.json` with your [entry](../reference/glossary.md#entry) (see above). `nookku init plugin` writes it, and writes no project hooks:
 
    ```bash

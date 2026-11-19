@@ -763,10 +763,11 @@ def test_a_refusal_of_mode_on_has_the_prefix_one_time(
     monkeypatch.setattr(bridge, "start", refuse)
     assert main(["mode", "on", "--root", str(tmp_path)]) == 1
     assert capsys.readouterr().out == "nookku: the test cannot start.\n"
-    monkeypatch.setattr("nookku.claude_gate.problem", lambda root: "nookku: both are on.")
+    both = "both the nookku plugin and the project hooks are on."
+    monkeypatch.setattr("nookku.claude_gate.problems", lambda root: [both])
     (tmp_path / ".nookku" / "config.json").write_text("{}")
     assert main(["mode", "on", "--root", str(tmp_path)]) == 1
-    assert capsys.readouterr().out == "nookku: both are on.\n"
+    assert capsys.readouterr().out == f"nookku: {both}\n"
     assert kit.prefixed("relay mode is on.") == "nookku: relay mode is on."
 
 

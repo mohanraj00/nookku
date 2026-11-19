@@ -779,6 +779,19 @@ The gate does not stop a person who starts Codex with other hooks after the star
 
 Claude Code has no list of hooks for a program, so `start` and `mode on` read its settings files ([`src/nookku/claude_gate.py`](src/nookku/claude_gate.py), [#151](https://github.com/mohanraj00/nookku/issues/151)). The files are the user file (`$CLAUDE_CONFIG_DIR/settings.json`, else `~/.claude/settings.json`), `.claude/settings.json` and `.claude/settings.local.json`, with the last file first in precedence. If `enabledPlugins` gives `true` to a plugin with an id that starts with `nookku@`, and a project file has a hook with the command of `nookku init claude-code`, the test is refused and relay mode does not change. `init claude-code` warns if the plugin is on, and `init plugin` warns if the project hooks are on. In a linked git worktree, Claude Code reads the local file of the main checkout, so the check also reads that file. The check does not read managed settings or a `--plugin-dir` of the session. A running session keeps a plugin that it loaded until `/reload-plugins` or a restart, and no program can read that state, so the refusal tells the person to reload.
 
+The same check also refuses a test, and does not change relay mode, in these cases ([#554](https://github.com/mohanraj00/nookku/issues/554)):
+
+- **Project hooks.** A settings file has a hook with the command of `nookku init claude-code`, and the `UserPromptSubmit` or the `PreToolUse` hook is:
+  - **missing**: no file has it;
+  - **there 2 or more times**: then each message would go to the agent 2 or more times;
+  - **modified**: its type is not `command`, or its matcher, its timeout or its command differs from this version of nookku. The command includes the Python of this nookku, and the check compares the path after `--root` after it resolves it.
+- **All hooks off.** The plugin is on, or a file has a nookku hook, and the file of the highest precedence with a `disableAllHooks` value gives `true`. Then Claude Code runs no nookku hook.
+- **Plugin files.** A nookku plugin is on, and `plugins/installed_plugins.json` in the user folder has no install of it with the scope `user` or with the `projectPath` of the project. Or an install folder of the plugin has a file that is **missing** or **modified**. The files are `.claude-plugin/plugin.json`, `hooks/hooks.json`, `hooks/nookku-hook.sh`, `hooks/display.json` and `hooks/register.tsx`, and each one must have the SHA-256 of the file of this version of nookku (`PLUGIN_FILES_SHA256` in [`src/nookku/claude_gate.py`](src/nookku/claude_gate.py)). A plugin of another version is thus refused.
+
+In a linked git worktree, the check reads each order of the files that Claude Code can read, and refuses if one order has a problem. The check does not read a plugin of `--plugin-dir`.
+
+**Refusal log.** Each refusal of the Claude Code check and of the Codex hook gate adds one JSON row to `.nookku/refusals.jsonl`: `ts`, the Unix time, `command`, `start` or `mode on`, `harness`, `claude-code` or `codex`, `nookku`, the version, and `problems`, each reason of the refusal. A refused start writes no test folder. The log is for a person: it has no seal, and the relay does not protect it. If the row cannot be written, the start is still refused.
+
 ### 7.9 Policy file
 
 `.nookku/policy.json` holds the keys that control the guard. The model can change `config.json` for normal app work, so a check of single keys in a shell edit of `config.json` is not reliable. Thus these keys are in a separate file that the model never writes ([`src/nookku/policy.py`](src/nookku/policy.py)).

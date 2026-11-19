@@ -215,11 +215,14 @@ def _mode_on_refusal(root: Path) -> str | None:
         return str(e)
     from nookku import claude_gate, codex_gate
 
-    both = claude_gate.problem(root)
-    if both is not None:
-        return both
+    # A refusal adds a row to the refusal log of the state folder (SPEC.md section 7.8).
+    found = claude_gate.problems(root)
+    if found:
+        claude_gate.log_refusal(root, "mode on", "claude-code", found)
+        return claude_gate.refusal(found)
     gate = codex_gate.check(root)
     if gate["problems"]:
+        claude_gate.log_refusal(root, "mode on", "codex", gate["problems"])
         return codex_gate.refusal(gate)
     return None
 
