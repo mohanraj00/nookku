@@ -20,7 +20,7 @@ import time
 from pathlib import Path
 from typing import Any, TypeGuard
 
-from nookku import bridge, discovery, replay, script, seal, state, verdict
+from nookku import bridge, discovery, replay, script, seal, simulated_user, state, verdict
 from nookku.record import RecordError, json_text, loads
 from nookku.trace import CHECKS
 
@@ -369,7 +369,9 @@ def run(root: Path, gate_path: Path, subject: str) -> tuple[Path, list[str]]:
                 body = (base / test[key]).read_bytes()
                 if key == "script":
                     form = script.parse(body)[1]
-            except (OSError, script.ScriptError) as e:
+                if key == "persona":
+                    simulated_user.parse(body)
+            except (OSError, script.ScriptError, simulated_user.PersonaError) as e:
                 error = error or f"{key} {test[key]}: {e}"
                 continue
             (inputs / _input_name(key, form)).write_bytes(body)
@@ -706,6 +708,24 @@ def _replay_checks(
     return [*out, _check("changed_turns", len(turns) <= want["changed"], text)]
 
 
+def persona_of(body: bytes | None) -> dict[str, Any] | None:
+    """The persona of a test in the result: the persona, the goal and the SHA-256 of the copy
+    in inputs/ (SPEC.md section 7.15), or None if the copy is missing or not valid."""
+    if body is None:
+        return None
+    try:
+        found = simulated_user.parse(body)
+    except simulated_user.PersonaError:
+        return None
+    return {"persona": found["persona"], "goal": found["goal"], "sha256": seal.sha256_of(body)}
+
+
+def _older(report: dict[str, Any]) -> dict[str, Any]:
+    """The result with no key persona in a test, as Nookku 0.5.9 and older wrote it."""
+    tests = [{k: v for k, v in t.items() if k != "persona"} for t in report["tests"]]
+    return {**report, "tests": tests}
+
+
 def compute(
     gate: str,
     data: bytes,
@@ -743,6 +763,8 @@ def compute(
             "verdict": PASS if ok else FAIL,
             "checks": checks,
         }
+        if test["persona"] is not None:
+            out["persona"] = persona_of(inputs.get(test["name"], {}).get("persona"))
         if test["replay"] is not None:
             # The base test, the new test and the changed turns of the replay (SPEC.md 7.15).
             out["replay"] = {
@@ -898,6 +920,9 @@ def verify(folder: Path) -> tuple[dict[str, Any] | None, str | None]:
         )
     except GateError as e:
         return None, f"{GATE_FILE} is not valid: {e}"
+    if stored != report and stored == _older(report):
+        # A result of Nookku 0.5.9 or older has no persona. Its other fields are the same.
+        return stored, None
     if stored != report:
         why = f"{RESULT} is not the result of the sealed files and the test folders."
         failed = [
@@ -927,13 +952,23 @@ def find(root: Path, gate: str | None) -> Path | None:
     return max(folders, key=lambda p: (p.stat().st_mtime_ns, p.name)) if folders else None
 
 
+def _short(text: str, most: int = 60) -> str:
+    """The text on one line, with at most `most` characters."""
+    line = " ".join(text.split())
+    return line if len(line) <= most else line[: most - 3] + "..."
+
+
 def summary(report: dict[str, Any]) -> list[str]:
     """The lines of a result: one line for each test and one line with the verdict."""
     lines = []
     for test in report["tests"]:
         failed = [c for c in test["checks"] if c["verdict"] == FAIL]
         text = "; ".join(f"{c['check']}: {c['text']}" for c in failed)
-        lines.append(f"{test['name']} ({test['test'] or 'no test'}): {test['verdict']}. {text}")
+        about = test["test"] or "no test"
+        if "persona" in test:
+            found = test["persona"]
+            about += f", persona: {_short(found['persona']) if found else 'not valid'}"
+        lines.append(f"{test['name']} ({about}): {test['verdict']}. {text}")
     for proof in report.get("proofs", []):
         text = "; ".join(f"{f['reason']}: {f['text']}" for f in proof["failures"])
         lines.append(f"Proof file {proof['path']}: {proof['verdict']}. {text}")

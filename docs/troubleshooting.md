@@ -294,6 +294,12 @@ If the entry returns an error, crashes or does not answer in [240 seconds](../sr
 
 **Fix.** Type the control word as a prompt. To let the model run a [scripted test](reference/glossary.md#scripted-test), set `nookku policy set scripts model` in a shell ([config.md](reference/config.md)).
 
+### `nookku: the shell expands a word of this nookku command, so the relay cannot know its subcommand. Only a person drives a test. Write each word of the command as plain text.`
+
+(kit.py) **Cause.** The model ran `nookku` with a subcommand that the shell can change, for example `nookku "$C"`, `` nookku `cat word.txt` `` or `nookku adjudicat*`. The same applies to a word after `nookku mode` and to an argument of `nookku init`. The relay cannot know the subcommand, so it denies the command ([SPEC.md section 5](../SPEC.md#5-relays)).
+
+**Fix.** Write the subcommand as a plain word, for example `nookku audit "$TEST"`. A word after a subcommand that only reads can come from a variable. If the command only names `nookku` in a text, remove each `$(...)` and backquote from the command: the relay reads the text of a command that it cannot parse.
+
 ### `nookku: a model command may not import nookku, because a script can drive a test with it. To run a scenario, use nookku run --script, if the policy key scripts is model.`
 
 (kit.py) **Cause.** A model command imports the `nookku` package, for example `python3 -c "import nookku.kit"`. A script that imports the package can relay turns that look like typed turns.

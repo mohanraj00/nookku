@@ -1,0 +1,26 @@
+{
+ "source": "the stock list of the toy shop, 2026-11-01",
+ "version": "3",
+ "answers": [
+  {
+   "question": "How many blue mugs?",
+   "answer": 12
+  },
+  {
+   "question": "How many teapots?",
+   "answer": 4,
+   "match": "number",
+   "tolerance": "0"
+  },
+  {
+   "question": "Do you have spoons?",
+   "answer": "none",
+   "match": "exact"
+  },
+  {
+   "question": "Do you have forks?",
+   "answer": "none",
+   "match": "exact"
+  }
+ ]
+}

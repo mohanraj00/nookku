@@ -263,6 +263,50 @@ The flags of `run` and `verify`:
 | | 1 | The result can be used, and its verdict is `fail`. |
 | | 2 | No gate folder is found, or the result cannot be used. The output gives the reason. |
 
+### `nookku adjudicate`
+
+```text
+nookku adjudicate TEST --turn N --outcome OUTCOME --reason TEXT [--author NAME] [--root PATH] [--tests-dir PATH]
+```
+
+Record your decision about one mismatch of the [answer key](app-spec.md#answer-key) ([SPEC.md section 7.17](../../SPEC.md#717-answer-key)). A mismatch does not say which side is wrong. You decide it for each mismatch:
+
+| Outcome | Meaning | Counts against the limit of `answer_key_mismatch` |
+|---|---|---|
+| `agent_wrong` | The reply is wrong. | Yes |
+| `key_wrong` | The key is wrong. | No |
+| `both_acceptable` | The reply and the key are both correct. | No |
+
+- The command adds 1 row to `adjudications.jsonl` in the [test folder](glossary.md#test-folder): the turn, the question, the outcome, the reason, the author and the time. `findings.json` keeps the mismatch.
+- A later row for the same turn replaces the earlier decision. The earlier row stays in the file.
+- The command writes `verdict.json` again and updates the [seal](glossary.md#seal). It prints the verdict line with the counts before and after the adjudications.
+- The command reads each record one time and uses only bytes that the seal covers. If a sealed file changes during the command, the command does not update the seal and exits with 1. The seal is then broken.
+- A mismatch with no adjudication is open, and it counts against the limit.
+- Only a person runs this command. The [relay](glossary.md#relay) denies it from the model.
+- A gate result that pinned the test cannot be used after an adjudication. Run the gate again.
+
+```text
+$ nookku adjudicate 20261113-090000-ak01 --turn 3 --outcome key_wrong --reason "The stock list of 2026-11-01 is old."
+Test 20261113-090000-ak01, turn 3: key_wrong, by asha.
+Verdict: fail. answer_key_mismatch: 1, the limit is 0. Adjudications: 2 answer_key_mismatch before, 1 after (1 open, 0 agent_wrong, 1 key_wrong, 0 both_acceptable).
+```
+
+| Argument or flag | Default | Meaning |
+|---|---|---|
+| `TEST` | none | The test id, or the path of the test folder. |
+| `--turn N` | none | The turn of the mismatch, from `answers` of `findings.json` or from the `answer_key_mismatch` [finding](glossary.md#findings). |
+| `--outcome OUTCOME` | none | `agent_wrong`, `key_wrong` or `both_acceptable`. |
+| `--reason TEXT` | none | Why the outcome is correct. |
+| `--author NAME` | the login name of the OS user | Your name. Nookku records it and does not check it. |
+| `--root PATH` | the current folder | The project. |
+| `--tests-dir PATH` | `$NOOKKU_TESTS_DIR`, else `.nookku/tests` | The [tests folder](#the-tests-folder). |
+
+| Exit code | Meaning |
+|---|---|
+| 0 | The row was written, and the seal covers it. |
+| 1 | The row was written, and `verdict.json` was not written again. |
+| 2 | No row was written: no test folder, a seal that is not intact, a turn with no mismatch, or a value that is not valid. |
+
 ### `nookku mode`
 
 ```text
@@ -354,6 +398,38 @@ Serve the chat page: a local web page where you talk to the agent of the running
 | 1 | The port is not valid, the server cannot listen on the port, a page server of this project runs, or the command runs in a harness shell. |
 
 ## Commands that read a test
+
+### `nookku dashboard`
+
+```text
+nookku dashboard [--root PATH] [--tests-dir PATH] [--host HOST] [--port PORT] [--site DIR] [--allow-host NAME:PORT ...]
+```
+
+Serve the read-only API of the runs and the gate runs of the project, and with `--site`, the static files of a dashboard ([api.md](api.md)). The command prints one JSON line with `url`, `api`, `token` and `open`, then serves until Ctrl-C. `token` is new each time the server starts, and each API request must send it as `Authorization: Bearer <token>`. `open` is the address of the page with the token in the fragment (`#token=...`), which a browser does not send to a server. The API reads the test folders and the gate folders, and it changes no file. Each answer says if the seal of the run is intact.
+
+The dashboard of [examples/evaluation-dashboard/](../../examples/evaluation-dashboard/) is static files that use only this API. Build it once, then serve it:
+
+```bash
+python examples/evaluation-dashboard/build.py --out dashboard-site
+nookku dashboard --site dashboard-site
+```
+
+The server listens on `127.0.0.1` by default, and it has no login and no TLS. Read [api.md](api.md#expose-the-api) before you give a different `--host`.
+
+| Flag | Default | Meaning |
+|---|---|---|
+| `--root PATH` | the current folder | The project. |
+| `--tests-dir PATH` | `$NOOKKU_TESTS_DIR`, else `.nookku/tests` | The [tests folder](#the-tests-folder). |
+| `--host HOST` | `127.0.0.1` | The address to listen on. A different address prints a warning on stderr. |
+| `--port PORT` | `8765` | The port. `0` takes a free port. |
+| `--site DIR` | none | The folder of the static files of a dashboard. It must have `index.html`. With no site, a page path gets status 404 and the API still works. |
+| `--allow-host NAME:PORT` | none | Also accept this `Host` header, for example the name of a reverse proxy. Give it one time for each name. The server refuses each other `Host` header with status 403. |
+
+| Exit code | Meaning |
+|---|---|
+| 0 | The server stopped with Ctrl-C. |
+| 2 | The tests folder is not valid, the site has no `index.html`, or the server cannot listen on the address. |
+
 
 ### `nookku view`
 

@@ -100,6 +100,10 @@ SCENARIO = "To run a scenario, use nookku run --script, if the policy key script
 DRIVE_REASON = (
     "nookku: only a person runs {what}. A model command may not drive a test. " + SCENARIO
 )
+EXPANDED_REASON = (
+    "nookku: the shell expands a word of this nookku command, so the relay cannot know its "
+    "subcommand. Only a person drives a test. Write each word of the command as plain text."
+)
 IMPORT_REASON = (
     "nookku: a model command may not import nookku, because a script can drive a test with it. "
     + SCENARIO
@@ -650,6 +654,8 @@ def drive_reason(tool: str, tool_input: Any, rules: dict[str, Any] | None) -> st
     what = commands.drive(command, frozenset({"nookku run"} if scripts == "model" else ()))
     if what is None:
         return None
+    if what == commands.EXPANDED:
+        return EXPANDED_REASON
     return IMPORT_REASON if what == commands.IMPORT else DRIVE_REASON.format(what=what)
 
 

@@ -130,7 +130,15 @@ The key file is JSON, with a `source`, a `version` and the `answers`:
 }
 ```
 
+An answer can have its own rule. Give it `match`, and for `number` a `tolerance` string. An answer with no `match` uses the rule of the table row:
+
+```json
+{"question": "How many teapots?", "answer": 4, "match": "number", "tolerance": "0"}
+```
+
 - A turn is checked if its message is a question of the key, byte for byte.
+- `findings.json` records each checked turn in `answers`, a match and a mismatch.
+- A mismatch does not say which side is wrong. Record your decision with [`nookku adjudicate`](cli.md#nookku-adjudicate): `agent_wrong`, `key_wrong` or `both_acceptable`. A mismatch with `key_wrong` or `both_acceptable` does not count against the limit of `answer_key_mismatch`. An open mismatch counts.
 - A turn with no match gives the finding `answer_key_mismatch`. A question that no turn asked gives `answer_key_missing`. A `Verdict` row can limit each class.
 - The spec files have 1 `Answer key` row at most. If the bridge cannot read the row or the key file, the test does not start.
 - The bridge records the SHA-256 of the key file in the manifest. After the [entry](glossary.md#entry) stops, it copies the key file into the test folder as `answer_key.json`, so the entry cannot read the copy and the [seal](glossary.md#seal) covers the key. If you change the key after the start, the result of that test does not change.
