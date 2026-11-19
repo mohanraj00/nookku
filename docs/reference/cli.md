@@ -201,7 +201,7 @@ Only a person runs `nookku script`: the relay denies it from the model, with eac
 ### `nookku replay`
 
 ```text
-nookku replay SCRIPT [--base TEST] [--entry NAME] [--root PATH] [--tests-dir PATH] [--json] [--evaluate | --no-evaluate]
+nookku replay SCRIPT [--base TEST] [--recorded] [--verdict] [--entry NAME] [--root PATH] [--tests-dir PATH] [--json] [--evaluate | --no-evaluate]
 ```
 
 Run a saved script again after a fix, and see which replies changed ([SPEC.md section 7.10](../../SPEC.md#710-scripted-tests)). `replay` runs the script as `nookku run --script` does. Then it compares the new test with the source test of the script, turn by turn. The source test is the test id in the name of the script file, as `nookku script save` names it. The diff uses the reply that the [tap](glossary.md#tap) recorded, not the reply that the harness showed.
@@ -214,6 +214,10 @@ The output has the lines of `nookku run`, and then:
 
 A changed reply does not change the exit code. Only a person runs `nookku replay`: the relay denies it from the model, with each policy.
 
+With `--recorded`, the backends, the model APIs and the MCP servers over HTTP of the test give the responses of the base test, and the replay calls none of them ([SPEC.md section 7.10](../../SPEC.md#710-scripted-tests), "Recorded backends"). Then a changed reply comes from the agent, not from a backend. A request that the base test did not make gets status 502, and the trace gives the [finding](glossary.md#findings) `replay_miss`. Each changed turn gives the finding `replay_changed`. The default limit of each of these 2 classes is 0, so with `--verdict`, a changed reply or a miss gives exit code 1.
+
+`--recorded` needs a base test with an intact seal. It does not start if the test has a stdio MCP server or a database with a proxy, because the replay has no player for these parts.
+
 | Flag | Default | Meaning |
 |---|---|---|
 | `SCRIPT` | required | The script file, for example `.nookku/scripts/<test id>.jsonl`. |
@@ -223,6 +227,8 @@ A changed reply does not change the exit code. Only a person runs `nookku replay
 | `--tests-dir PATH` | `$NOOKKU_TESTS_DIR`, else `.nookku/tests` | The [tests folder](#the-tests-folder). |
 | `--json` | off | Print `{"pass": ..., "report": [...], "evaluation": ..., "diff": ...}`. |
 | `--no-evaluate`, `--evaluate` | the config key `evaluate` | Print the evaluation prompt at the end, or not. |
+| `--recorded` | off | Give the recorded responses of the base test to the app, and call no backend, model API or MCP server over HTTP. It needs `--base` or a script file name that names the base test. |
+| `--verdict` | off | Give exit code 1 if the verdict of the new test is not `pass`, or if the verdict cannot be used ([SPEC.md section 7.14](../../SPEC.md#714-verdict)). |
 
 | Exit code | Meaning |
 |---|---|
@@ -795,6 +801,7 @@ The background process of a test ([architecture.md](../architecture.md#the-bridg
 | `--tester-session ID` | none | The tester's harness session id. |
 | `--entry-name NAME` | none | The name of the entry in `entries`, from `nookku run --entry`. |
 | `--persona-source FILE` | none | The absolute path of the persona file of a simulated user, for the manifest. `run` copies the file into the test folder before it starts the bridge. |
+| `--play-base ID` | none | The base test of a replay with `--recorded`. The proxies of the test answer from the copied records of this test ([SPEC.md section 7.10](../../SPEC.md#710-scripted-tests)). |
 | `--script-source FILE` | none | The absolute path of the script of a scripted test, for the manifest. `run` copies the script into the test folder before it starts the bridge. |
 | `--check` | off | The test is a test of `nookku check`. The manifest records `"check": true`, so the model does not evaluate the test ([SPEC.md section 9.1](../../SPEC.md#91-start)). |
 

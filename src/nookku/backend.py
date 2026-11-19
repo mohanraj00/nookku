@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import unquote_plus, urlsplit
 
+from . import player as player_mod
 from . import stdio
 from .config import DEFAULT_BODY_LIMIT, BodyLimit, Config
 from .proxy_socket import LimitedServer, send_refusal
@@ -451,6 +452,9 @@ class Proxy(LimitedServer, HTTPServer):
     # The most bytes of a request body that the proxy reads and forwards.
     body_limit = BODY_LIMIT
     stream_requests = False
+    # In a replay with the recorded backends, the player of the proxy. It answers each request
+    # from the base record, and the proxy makes no outside call (SPEC.md section 7.10).
+    player: player_mod.Player | None = None
 
     def __init__(self, backend: Backend, record: Path, lock: threading.Condition) -> None:
         super().__init__(("127.0.0.1", 0), Handler)
@@ -484,10 +488,35 @@ class Proxy(LimitedServer, HTTPServer):
         return f"http://{host!s}:{port}"
 
     @property
+    def app_url(self) -> str:
+        """The URL that the entry gets. The path of the URL of a player starts with its token."""
+        if self.player is None:
+            return self.url
+        host, port = self.server_address[:2]
+        origin = f"http://{host!s}:{port}"
+        return origin + "/" + self.player.token + self.url[len(origin) :]
+
+    def app_header(self, name: str, value: str) -> str:
+        """The value of a response header that the app gets. A player adds its token to a
+        redirect to a path of the same server, so that the app follows it through the player.
+        The row keeps the recorded value."""
+        if (
+            self.player is not None
+            and name.lower() == "location"
+            and value.startswith("/")
+            and not value.startswith("//")
+        ):
+            return "/" + self.player.token + value
+        return value
+
+    @property
     def limit(self) -> int:
         return RECORD_LIMIT if self.keep is None else self.keep
 
-    def connect(self) -> http.client.HTTPConnection:
+    def connect(self, row: dict[str, Any]) -> http.client.HTTPConnection | player_mod.Connection:
+        """The connection for the call of `row`: to the backend, or to the player."""
+        if self.player is not None:
+            return player_mod.Connection(self.player, row, self.lock)
         if self.scheme == "https":
             return http.client.HTTPSConnection(self.host, self.port, timeout=TIMEOUT)
         return http.client.HTTPConnection(self.host, self.port, timeout=TIMEOUT)
@@ -602,6 +631,10 @@ class Handler(BaseHTTPRequestHandler):
     def handle_expect_100(self) -> bool:
         """Send 100 Continue, except for a request that the proxy refuses from its headers. Such a
         request gets the refusal at once, with no 100 Continue, so that the app sends no body."""
+        player = self.server.player
+        if player is not None and player.strip(self.path) is None:
+            # _call refuses a request to a player with no token, with no 100 Continue.
+            return True
         try:
             if self.server.stream_requests:
                 stream_length(self.headers)
@@ -636,6 +669,17 @@ class Handler(BaseHTTPRequestHandler):
     def _call(self) -> None:
         started = time.time()
         proxy, method = self.server, self.command
+        if proxy.player is not None:
+            # A player answers only a request with its token. The refusal writes no row, and the
+            # proxy does not read the body.
+            target = proxy.player.strip(self.path)
+            if target is None:
+                self.early = None
+                self.close_connection = True
+                data = json.dumps({"error": player_mod.NO_TOKEN}).encode()
+                self._send(403, [("Content-Type", "application/json")], data)
+                return
+            self.path = target
         refused, self.early = self.early, None
         upload = None
         length = None
@@ -689,7 +733,7 @@ class Handler(BaseHTTPRequestHandler):
             proxy.end(row, {"ts": time.time(), "error": f"{REFUSED}: {refused}"})
             self._refuse(refused)
             return
-        conn = proxy.connect()
+        conn = proxy.connect(row)
         try:
             try:
                 # The low-level calls send each header of the app once, in its order, and add no
@@ -738,7 +782,10 @@ class Handler(BaseHTTPRequestHandler):
             conn.close()
 
     def _upload(
-        self, conn: http.client.HTTPConnection, upload: StreamBody, length: int | None
+        self,
+        conn: http.client.HTTPConnection | player_mod.Connection,
+        upload: StreamBody,
+        length: int | None,
     ) -> None:
         proxy = self.server
         for part, payload in upload_parts(self.rfile, length):
@@ -749,7 +796,9 @@ class Handler(BaseHTTPRequestHandler):
                     upload.add(part)
             conn.send(part)
 
-    def _stream(self, resp: http.client.HTTPResponse, row: dict[str, Any]) -> None:
+    def _stream(
+        self, resp: http.client.HTTPResponse | player_mod.Response, row: dict[str, Any]
+    ) -> None:
         """Send each part of the response to the app when it comes, then write the row.
 
         This function catches each error itself, because the app already has the status.
@@ -775,7 +824,7 @@ class Handler(BaseHTTPRequestHandler):
         try:
             self.send_response_only(resp.status)
             for name, value in returned:
-                self.send_header(name, value)
+                self.send_header(name, proxy.app_header(name, value))
             if chunked:
                 self.send_header("Transfer-Encoding", "chunked")
             elif length is not None:
@@ -826,6 +875,9 @@ class Handler(BaseHTTPRequestHandler):
             "response_body": stream.row(),
             "error": error,
         }
+        if bodyless:
+            # The record keeps the length of a response with no body, so a replay can give it.
+            fields["response_length"] = length
         proxy.end(row, fields, stream.data, encoding, stream.cut)
 
     def _refuse(self, refused: Refused) -> None:
@@ -897,7 +949,7 @@ class Proxies:
         """Start each proxy. Return the variables that give the entry the proxy URLs."""
         for p in self.proxies:
             stdio.start_in_thread(p)
-        return {p.backend.env: p.url for p in self.proxies}
+        return {p.backend.env: p.app_url for p in self.proxies}
 
     def stop(self) -> None:
         """Stop each proxy. Wait up to DRAIN seconds for the open calls, so that each call has
