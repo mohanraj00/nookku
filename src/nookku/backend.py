@@ -496,6 +496,19 @@ class Proxy(LimitedServer, HTTPServer):
         origin = f"http://{host!s}:{port}"
         return origin + "/" + self.player.token + self.url[len(origin) :]
 
+    def app_header(self, name: str, value: str) -> str:
+        """The value of a response header that the app gets. A player adds its token to a
+        redirect to a path of the same server, so that the app follows it through the player.
+        The row keeps the recorded value."""
+        if (
+            self.player is not None
+            and name.lower() == "location"
+            and value.startswith("/")
+            and not value.startswith("//")
+        ):
+            return "/" + self.player.token + value
+        return value
+
     @property
     def limit(self) -> int:
         return RECORD_LIMIT if self.keep is None else self.keep
@@ -811,7 +824,7 @@ class Handler(BaseHTTPRequestHandler):
         try:
             self.send_response_only(resp.status)
             for name, value in returned:
-                self.send_header(name, value)
+                self.send_header(name, proxy.app_header(name, value))
             if chunked:
                 self.send_header("Transfer-Encoding", "chunked")
             elif length is not None:

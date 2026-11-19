@@ -351,6 +351,13 @@ def start(
     gate = codex_gate.check(root)
     if gate["problems"]:
         raise BridgeError(codex_gate.refusal(gate))
+    if play is not None:
+        # The seal check of the base and the egress answer come from the same bytes of its
+        # manifest, so a manifest that changes during the start cannot remove a player.
+        try:
+            egress = replay.held_egress(play)
+        except replay.ReplayError as e:
+            raise BridgeError(str(e)) from None
     pending = egress is None
     egress = discovery.pending(root) if egress is None else egress
     if egress is None:

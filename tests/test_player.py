@@ -8,6 +8,7 @@ import http.client
 import json
 import sys
 import time
+import urllib.request
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
@@ -333,6 +334,29 @@ def test_the_base_copy_holds_only_the_sealed_bytes(tmp_path: Path) -> None:
         replay.held_base(old)
 
 
+def test_the_replay_egress_comes_only_from_the_sealed_manifest(tmp_path: Path) -> None:
+    old = tmp_path / "20261119-090000-cc33"
+    old.mkdir()
+    backends = [{"name": "stock", "env": "STOCK_URL", "url": "http://127.0.0.1:9"}]
+    sealed = {"registered": 1.0, "answer": discovery.make(backends=backends)}
+    (old / "manifest.json").write_text(json.dumps({"egress": sealed}))
+    seal.write(old)
+    assert replay.held_egress(old) == sealed
+    # A manifest that changes after the seal cannot remove a player of the replay.
+    (old / "manifest.json").write_text(
+        json.dumps({"egress": {**sealed, "answer": discovery.make()}})
+    )
+    with pytest.raises(replay.ReplayError, match="SHA-256 of its seal copy"):
+        replay.held_egress(old)
+    (old / "manifest.json").unlink()
+    with pytest.raises(replay.ReplayError, match="missing"):
+        replay.held_egress(old)
+    (old / "manifest.json").write_text(json.dumps({"egress": {"registered": 1.0}}))
+    seal.write(old)
+    with pytest.raises(replay.ReplayError, match="no valid egress answer"):
+        replay.held_egress(old)
+
+
 # A toy shop app that asks its stock service for each message, as in test_bridge.py. With
 # TOY_WORD set, the app uses that word in its reply: the planted change of an answer.
 STOCK_APP = """
@@ -466,3 +490,35 @@ def test_each_player_has_a_new_token_and_a_live_proxy_has_none(tmp_path: Path) -
     assert a.strip(f"/{b.token}/stock") is None
     proxies = backend.Proxies([backend.Backend("stock", "STOCK_URL", NOWHERE)], tmp_path / "r")
     assert proxies.proxies[0].app_url == proxies.proxies[0].url
+
+
+def test_a_recorded_redirect_to_a_path_goes_through_the_player(tmp_path: Path) -> None:
+    def call(path: str, status: int, headers: list[list[str]], body: bytes) -> dict[str, Any]:
+        return {"v": 1, "type": "call", "backend": "stock", "started": 1.0, "method": "GET",
+                "path": path, "query": None, "request_body": backend.body_row(b""),
+                "status": status, "response_headers": headers, "response_length": None,
+                "response_body": backend.body_row(body), "error": None}  # fmt: skip
+
+    base = tmp_path / "base.jsonl"
+    rows_in = [
+        call("/order", 302, [["Location", "/result"], ["Content-Length", "0"]], b""),
+        call("/result", 200, [["Content-Type", "text/plain"]], b"ok"),
+    ]
+    base.write_text("".join(json.dumps(r) + "\n" for r in rows_in))
+    proxies, path = played(base, tmp_path)
+    env = proxies.start()
+    try:
+        # urllib follows the redirect as an app does.
+        with urllib.request.urlopen(env["STOCK_URL"] + "/order", timeout=10) as r:
+            got = (r.status, r.read())
+    finally:
+        proxies.stop()
+    assert got == (200, b"ok")
+    played_rows = rows(path)
+    assert [r["replay"]["line"] for r in played_rows] == [1, 2]
+    assert all(r["replay"]["miss"] is None for r in played_rows)
+    # The row keeps the recorded Location, with no token.
+    assert ["Location", "/result"] in played_rows[0]["response_headers"]
+    proxy = proxies.proxies[0]
+    assert proxy.app_header("Location", "//other/x") == "//other/x"
+    assert proxy.app_header("Location", "https://example.test/x") == "https://example.test/x"

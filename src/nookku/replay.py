@@ -83,6 +83,43 @@ def recorded_problem(old: Path, answer: dict[str, Any]) -> str | None:
     return None
 
 
+def _held(old: Path, name: str, files: dict[str, Any]) -> bytes | None:
+    """The bytes of the file `name` of the base test `old` from one read, or None if the file
+    and its entry in the seal copy `files` do not exist. The read does not follow a symlink, and
+    the bytes must have the SHA-256 of the seal copy. Raise ReplayError if a rule breaks."""
+    from nookku import seal
+
+    want = files.get(name)
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
+    try:
+        fd = os.open(old / name, flags)
+    except FileNotFoundError:
+        if want is None:
+            return None
+        raise ReplayError(f"the base file {name} is missing after the seal check") from None
+    except OSError as e:
+        raise ReplayError(f"cannot read the base file {name}: {e.strerror}") from None
+    try:
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            raise ReplayError(f"the base file {name} is not a regular file")
+        with os.fdopen(fd, "rb", closefd=False) as f:
+            data = f.read()
+    finally:
+        os.close(fd)
+    if want is None or seal.sha256_of(data) != want:
+        raise ReplayError(f"the base file {name} does not have the SHA-256 of its seal copy")
+    return data
+
+
+def _seal_files(old: Path) -> dict[str, Any]:
+    from nookku import seal
+
+    files = seal.copy_files(old.name)
+    if files is None:
+        raise ReplayError(f"the base test {old.name} has no seal copy (SPEC.md section 7.4)")
+    return files
+
+
 def held_base(old: Path) -> dict[str, bytes]:
     """The bytes of each file of COPIED in the base test `old`, from one read of each file.
 
@@ -90,34 +127,32 @@ def held_base(old: Path) -> dict[str, bytes]:
     outside the test folder (SPEC.md section 7.4). Thus a file that changes after the check of
     `recorded_problem` cannot go into the new test. A file that the seal copy names must exist,
     and a file that it does not name must not exist. Raise ReplayError if a file breaks a rule."""
-    from nookku import seal
-
-    files = seal.copy_files(old.name)
-    if files is None:
-        raise ReplayError(f"the base test {old.name} has no seal copy (SPEC.md section 7.4)")
-    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
+    files = _seal_files(old)
     out: dict[str, bytes] = {}
     for name in COPIED:
-        want = files.get(name)
-        try:
-            fd = os.open(old / name, flags)
-        except FileNotFoundError:
-            if want is None:
-                continue
-            raise ReplayError(f"the base file {name} is missing after the seal check") from None
-        except OSError as e:
-            raise ReplayError(f"cannot read the base file {name}: {e.strerror}") from None
-        try:
-            if not stat.S_ISREG(os.fstat(fd).st_mode):
-                raise ReplayError(f"the base file {name} is not a regular file")
-            with os.fdopen(fd, "rb", closefd=False) as f:
-                data = f.read()
-        finally:
-            os.close(fd)
-        if want is None or seal.sha256_of(data) != want:
-            raise ReplayError(f"the base file {name} does not have the SHA-256 of its seal copy")
-        out[name] = data
+        data = _held(old, name, files)
+        if data is not None:
+            out[name] = data
     return out
+
+
+def held_egress(old: Path) -> dict[str, Any]:
+    """The egress answer of the manifest of the base test `old`, from one read of manifest.json
+    with the SHA-256 of the seal copy. A replay with the recorded backends uses only this answer,
+    so a manifest that changes during the start cannot remove a proxy. Raise ReplayError if the
+    manifest breaks a rule or has no valid answer."""
+    from nookku import discovery
+
+    data = _held(old, "manifest.json", _seal_files(old))
+    if data is None:
+        raise ReplayError(f"the base test {old.name} has no manifest.json")
+    try:
+        recorded = loads(data.decode("utf-8"))["egress"]
+        return {"registered": recorded["registered"], "answer": discovery.parse(recorded["answer"])}
+    except (UnicodeDecodeError, ValueError, TypeError, KeyError, discovery.AnswerError) as e:
+        raise ReplayError(
+            f"the manifest of the base test {old.name} has no valid egress answer: {e}"
+        ) from None
 
 
 def copy_base(held: dict[str, bytes], folder: Path) -> None:
