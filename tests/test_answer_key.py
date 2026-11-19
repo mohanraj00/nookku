@@ -497,37 +497,33 @@ def test_a_test_with_no_row_has_each_mismatch_open() -> None:
 def test_a_new_row_is_added_with_no_symlink(tmp_path: Path) -> None:
     row = answer_key.adjudication(2, "How many mugs?", "key_wrong", "The list is old.", "Asha")
     assert answer_key.adjudication_problem(row) is None
-    answer_key.add_adjudication(tmp_path, row)
-    answer_key.add_adjudication(tmp_path, {**row, "outcome": "agent_wrong"})
-    data = (tmp_path / answer_key.ADJUDICATIONS).read_bytes()
+    data = answer_key.with_adjudication(b"", row)
+    data = answer_key.with_adjudication(data, {**row, "outcome": "agent_wrong"})
     rows, problem = answer_key.read_adjudications(data)
     assert problem is None and [r["outcome"] for r in rows] == ["key_wrong", "agent_wrong"]
     with pytest.raises(ValueError, match="its outcome is not"):
         answer_key.adjudication(2, "How many mugs?", "fine", "x", "Asha")
+    # The write makes a new file. It follows no symlink at the path or at the path of its
+    # temporary file.
     target = tmp_path / "target.txt"
     target.write_text("")
-    folder = tmp_path / "t"
-    folder.mkdir()
-    (folder / answer_key.ADJUDICATIONS).symlink_to(target)
-    with pytest.raises(OSError):
-        answer_key.add_adjudication(folder, row)
-    assert target.read_text() == ""
+    path = tmp_path / answer_key.ADJUDICATIONS
+    path.symlink_to(target)
+    path.with_name(path.name + ".tmp").symlink_to(target)
+    seal.replace_file(path, data)
+    assert target.read_text() == "" and not path.is_symlink() and path.read_bytes() == data
+    assert not path.with_name(path.name + ".tmp").exists()
 
 
-def test_a_new_row_starts_on_its_own_line_after_a_last_line_with_no_line_feed(
-    tmp_path: Path,
-) -> None:
+def test_a_new_row_starts_on_its_own_line_after_a_last_line_with_no_line_feed() -> None:
     first = answer_key.adjudication(1, "How many mugs?", "key_wrong", "The list is old.", "ann")
-    (tmp_path / answer_key.ADJUDICATIONS).write_bytes(json.dumps(first).encode())
     second = answer_key.adjudication(1, "How many mugs?", "agent_wrong", "I read it again.", "ann")
-    answer_key.add_adjudication(tmp_path, second)
-    data = (tmp_path / answer_key.ADJUDICATIONS).read_bytes()
+    data = answer_key.with_adjudication(json.dumps(first).encode(), second)
     assert data.count(b"\n") == 2
     rows, problem = answer_key.read_adjudications(data)
     assert problem is None and [r["outcome"] for r in rows] == ["key_wrong", "agent_wrong"]
     # A file that ends with a line feed gets no empty line.
-    answer_key.add_adjudication(tmp_path, second)
-    assert b"\n\n" not in (tmp_path / answer_key.ADJUDICATIONS).read_bytes()
+    assert b"\n\n" not in answer_key.with_adjudication(data, second)
 
 
 def test_the_end_of_a_test_removes_the_adjudications_of_the_entry(tmp_path: Path) -> None:
