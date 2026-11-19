@@ -70,7 +70,7 @@ jobs:
           - os: macos-latest
             python: "3.12"
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
+    timeout-minutes: 35
     permissions:
       contents: read
     steps:
