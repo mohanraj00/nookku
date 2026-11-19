@@ -82,6 +82,7 @@ TESTS_COMMANDS = frozenset(
         "bridge",
         "mode",
         "view",
+        "dashboard",
         "chat",
         "script",
         "export",
@@ -461,6 +462,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     _export_parser(sub)
     _replay_parser(sub)
     _gate_parser(sub)
+    _dashboard_parser(sub)
     _adjudicate_parser(sub)
     _evaluation_parser(sub)
 
@@ -622,6 +624,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _replay_command(args)
     if args.command == "gate":
         return _gate_command(args)
+    if args.command == "dashboard":
+        return _dashboard_command(args)
     if args.command in ("start", "end", "status", "check"):
         return _test_command(args)
     if args.command == "trace":
@@ -1445,6 +1449,69 @@ def _gate_command(args: argparse.Namespace) -> int:
         return 1 if args.gate_command == "run" else 2
     say("\n".join([*head, *gate.summary(report)]), {"gate": str(folder), "result": report})
     return 0 if report["verdict"] == gate.PASS else 1
+
+
+def _dashboard_parser(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+    from nookku import api
+
+    top = sub.add_parser(
+        "dashboard", help="serve the read-only API and a dashboard of the runs and gate runs"
+    )
+    top.add_argument("--root", type=Path, default=Path.cwd())
+    top.add_argument("--host", default=api.DEFAULT_HOST, help="the address (default: 127.0.0.1)")
+    top.add_argument(
+        "--port", type=int, default=api.DEFAULT_PORT, help="the port, or 0 for a free port"
+    )
+    top.add_argument("--site", type=Path, help="the folder of the static files of a dashboard")
+    top.add_argument(
+        "--allow-host",
+        action="append",
+        default=[],
+        metavar="NAME:PORT",
+        help="also accept this Host header, for a server that is not on 127.0.0.1",
+    )
+
+
+def _dashboard_command(args: argparse.Namespace) -> int:
+    """nookku dashboard: serve the read-only API (docs/reference/api.md) and the files of
+    --site, until Ctrl-C."""
+    from nookku import api
+
+    error = _tests_dir_error(args)
+    if error is not None:
+        print(f"nookku: {error}", file=sys.stderr)
+        return 2
+    if args.site is not None and not (args.site / "index.html").is_file():
+        print(f"nookku: {args.site} has no index.html", file=sys.stderr)
+        return 2
+    try:
+        server = api.Server(args.root.resolve(), args.host, args.port, args.site, args.allow_host)
+    except OSError as e:
+        print(f"nookku: cannot listen on {args.host}:{args.port}: {e}", file=sys.stderr)
+        return 2
+    if args.host not in ("127.0.0.1", "::1", "localhost"):
+        print(
+            "nookku: the dashboard has no TLS. Each person who can reach "
+            f"{server.url} can read the token and the records on the network "
+            "(docs/reference/api.md).",
+            file=sys.stderr,
+        )
+    # The token goes only to this terminal. The `open` address has it in the fragment, which a
+    # browser does not send to a server.
+    shown = {
+        "url": server.url,
+        "api": server.url + api.PREFIX[1:],
+        "token": server.token,
+        "open": f"{server.url}#token={server.token}",
+    }
+    print(json.dumps(shown), flush=True)
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        server.server_close()
+    return 0
 
 
 def _waiting(test: str) -> str:
