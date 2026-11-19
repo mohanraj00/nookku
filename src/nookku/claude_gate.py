@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shlex
 import stat
 import time
@@ -29,11 +30,15 @@ PLUGIN = "nookku@"
 # The hooks file and the hook script of an install of the plugin.
 PLUGIN_HOOKS = "hooks/hooks.json"
 PLUGIN_SCRIPT = "hooks/nookku-hook.sh"
-# The shells that can run the hook script of the plugin, and the path of the script in a hook
-# command. A required hook must run one of these shells with this path and its event, and no
-# other word.
-PLUGIN_SHELLS = ("sh", "bash")
-PLUGIN_SCRIPT_ARG = "${CLAUDE_PLUGIN_ROOT}/" + PLUGIN_SCRIPT
+# A required hook command of the plugin: `sh` or `bash`, then the path of the script in double
+# quotes, then its event, and no other word. The check reads the command text, not its words
+# after shlex: in single quotes the shell does not expand the variable, so the script does not
+# run. Only a space or a tab separates the words: a new line starts a second shell command.
+PLUGIN_COMMAND = re.compile(
+    r'[ \t]*(?:sh|bash)[ \t]+"\$\{CLAUDE_PLUGIN_ROOT\}/'
+    + re.escape(PLUGIN_SCRIPT)
+    + r'"[ \t]+(\w+)[ \t]*'
+)
 # The file of the refusals of a start (SPEC.md section 7.8). It is a log for a person, with no
 # seal.
 REFUSALS = "refusals.jsonl"
@@ -156,8 +161,8 @@ def _plugin_hook_ok(group: Any, event: str) -> bool:
     for hook in hooks if isinstance(hooks, list) else []:
         if not isinstance(hook, dict) or hook.get("type") != "command":
             continue
-        argv = _argv(str(hook.get("command", "")))
-        if argv[:1] in ([x] for x in PLUGIN_SHELLS) and argv[1:] == [PLUGIN_SCRIPT_ARG, event]:
+        match = PLUGIN_COMMAND.fullmatch(str(hook.get("command", "")))
+        if match and match.group(1) == event:
             return True
     return False
 

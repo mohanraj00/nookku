@@ -316,10 +316,34 @@ def _more_words(d: dict[str, Any]) -> None:
     )
 
 
+def _single_quotes(d: dict[str, Any]) -> None:
+    # In single quotes the shell does not expand the variable, so the script does not run.
+    d["hooks"]["UserPromptSubmit"][0]["hooks"][0]["command"] = (
+        "sh '${CLAUDE_PLUGIN_ROOT}/hooks/nookku-hook.sh' UserPromptSubmit"
+    )
+
+
+def _no_quotes(d: dict[str, Any]) -> None:
+    # With no quotes, a plugin folder with a space splits into 2 words.
+    d["hooks"]["PreToolUse"][0]["hooks"][0]["command"] = (
+        "sh ${CLAUDE_PLUGIN_ROOT}/hooks/nookku-hook.sh PreToolUse"
+    )
+
+
+def _event_on_new_line(d: dict[str, Any]) -> None:
+    # The shell runs the script with no event, then runs the event name as a second command.
+    d["hooks"]["PreToolUse"][0]["hooks"][0]["command"] = (
+        'sh "${CLAUDE_PLUGIN_ROOT}/hooks/nookku-hook.sh"\nPreToolUse'
+    )
+
+
 @pytest.mark.parametrize(
     ("change", "event"),
     [
         (_drop_prompt_hook, "UserPromptSubmit"),
+        (_single_quotes, "UserPromptSubmit"),
+        (_no_quotes, "PreToolUse"),
+        (_event_on_new_line, "PreToolUse"),
         (_narrow_matcher, "PreToolUse"),
         (_other_command, "UserPromptSubmit"),
         (_script_not_run, "UserPromptSubmit"),
