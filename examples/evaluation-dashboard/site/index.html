@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Nookku runs</title>
+  <link rel="stylesheet" href="mugham/src/tokens/tokens.css">
+  <link rel="stylesheet" href="mugham/src/styles/page.css">
+  <link rel="stylesheet" href="dashboard.css">
+  <script type="module" src="dashboard.js"></script>
+</head>
+<body>
+  <main id="main" data-state="loading">
+    <h1>Nookku runs</h1>
+    <p id="note" class="note">The page reads the API of this server.</p>
+    <section id="gates" aria-labelledby="gates-title">
+      <h2 id="gates-title">Gate runs</h2>
+    </section>
+    <section id="runs" aria-labelledby="runs-title">
+      <h2 id="runs-title">Runs</h2>
+    </section>
+    <section id="detail" aria-labelledby="detail-title" aria-live="polite">
+      <h2 id="detail-title">Run details</h2>
+      <p class="note">Select Open on a run to show its findings and its evaluation.</p>
+    </section>
+  </main>
+</body>
+</html>

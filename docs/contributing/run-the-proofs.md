@@ -55,6 +55,7 @@ If a hook changes, trust it again. A new plugin script also needs a new run of `
 | Model API proxy, no model | `uv run python scripts/proof_model_api.py` | `proofs/model-api/` |
 | Driver trace of a database, no model | `uv run python scripts/proof_driver_trace.py` | `proofs/driver-trace/` |
 | Client trace of a queue, no model, Docker | `uv run python scripts/proof_queue_trace.py` | `proofs/queue-trace/` |
+| A call that the in-app trace does not show, no model, Phoenix | `uv run python scripts/proof_inapp_trace.py` | `proofs/inapp-trace/` |
 | The `HEAD /api/hello` call of Claude Code, no model | `uv run python scripts/proof_api_hello.py` | `proofs/model-api/hello.json` |
 | P5 to P8, evaluation at the end of a test | `uv run python scripts/proof_report.py <setup>` | `proofs/report/<setup>.json` |
 | Full telemetry | `uv run python scripts/proof_telemetry.py <setup>` | `proofs/telemetry/<setup>.json` |
@@ -79,7 +80,7 @@ For the Codex Workspace proof, run `uv run python scripts/proof_cluster.py plugi
 
 The `plugin-codex` cluster proof passed W1 to W3 and failed W4. The Codex shell sandbox could not start in the restricted Workspace, and the MCP transcript tool could not find the test. Codex wrote no `report.md`. The [seal](../reference/glossary.md#seal) stayed intact. [Proof](../../proofs/cluster/plugin-codex.json), [method](../../scripts/proof_cluster.py), [koodam#243](https://github.com/mohanraj00/koodam/issues/243).
 
-These scripts print `PASS` or `FAIL` and the path of their results file: `proofs_relay.py`, `proof_sessions.py`, `proof_trace.py`, `proof_backend.py`, `proof_model_api.py`, `proof_driver_trace.py`, `proof_queue_trace.py`, `proof_report.py`, `proof_telemetry.py`, `proof_performance.py`, `proof_spec_classes.py`, `proof_egress.py`, `proof_cluster_tap.py`, `proof_cluster.py` and `proof_setup.py`. The docstring of each script lists what it checks.
+These scripts print `PASS` or `FAIL` and the path of their results file: `proofs_relay.py`, `proof_sessions.py`, `proof_trace.py`, `proof_backend.py`, `proof_model_api.py`, `proof_driver_trace.py`, `proof_queue_trace.py`, `proof_inapp_trace.py`, `proof_report.py`, `proof_telemetry.py`, `proof_performance.py`, `proof_spec_classes.py`, `proof_egress.py`, `proof_cluster_tap.py`, `proof_cluster.py` and `proof_setup.py`. The docstring of each script lists what it checks.
 
 ## A new Claude Code release
 

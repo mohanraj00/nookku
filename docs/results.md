@@ -173,6 +173,15 @@ The record cuts the third request body at 1 MiB, but the stock service got all o
 - In test B, the trace has no span of the queue and 1 finding `other_without_span` with the detail `orders: no span of its client`. The transcript that the report reads has the finding.
 - The evaluation prompt has the Coverage rule of `client_trace`, and the seal of each test is intact.
 
+### A call that the in-app trace does not show
+
+[scripts/proof_inapp_trace.py](../scripts/proof_inapp_trace.py) runs a toy shop app that reads the stock of a teapot set and then reserves it, at a toy stock service. The app sends its spans to a local Phoenix with the OpenTelemetry SDK. It makes a span for the stock read and no span for the reserve call: that is the planted call. It needs no model. After the test, the proof reads the spans back from the REST API of Phoenix and runs `nookku trace --openinference` with them ([SPEC.md section 8.10](../SPEC.md#810-openinference-spans)). In the run with nookku 0.5.9 on 2026-11-19, arize-phoenix 21.0.0 and opentelemetry-sdk 1.44.0, these results came ([results](../proofs/inapp-trace/results.json)):
+
+- The stock service got 2 calls, `GET /stock` and `POST /reserve`, and the backend proxy recorded both.
+- Phoenix had 1 span, for `GET /stock`, and no span for `POST /reserve`.
+- The trace gave 1 finding `proxy_call_without_span` in turn 1, with the detail `POST /reserve: no matching span in the export`, and no other finding of this check.
+- The seal of the test folder was intact.
+
 ### Direct model calls
 
 [scripts/proof_model_api.py](../scripts/proof_model_api.py) runs a test with an entry that makes 7 calls to a toy model API through the model API proxies: a streamed Anthropic call, a streamed OpenAI Chat Completions call, an Anthropic call with a JSON answer, a streamed OpenAI Responses call and an OpenAI Decisions call with a JSON answer. For a streamed call, the toy API sends the first event and then waits until the entry says that it has that event. The proof compares the SHA-256 of each body at 3 places: the entry, the toy API and `model_api.jsonl`. It also compares the result in the record with the result that the toy API sent: the text, or for a Decisions call its 3 answers (a choice, a predicate and a refusal). Then the entry makes 2 more Decisions calls: the `department` call of the full toy shop app ([services.py](../examples/toy-shop-full/services.py)), and a call with a photo. The photo makes the request body 1,493,915 bytes, more than the record limit of 1 MiB. The record kept each question of the 3 Decisions calls with its instructions, also after the cut, and the audit gave 0 `questions_lost` findings. It needs no model.
@@ -514,6 +523,7 @@ uv run python scripts/proof_backend.py
 uv run python scripts/proof_model_api.py
 uv run python scripts/proof_driver_trace.py
 uv run python scripts/proof_queue_trace.py
+uv run python scripts/proof_inapp_trace.py
 uv run python scripts/proof_api_hello.py
 uv run python scripts/proof_setup.py
 uv run python scripts/proof_codex_otel.py
