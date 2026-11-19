@@ -34,6 +34,24 @@ A replay check compares the replies of a new test with the replies of an older t
 - The check `changed_turns` fails if more turns changed than `changed`. The text names each changed turn, and `result.json` records the base test id, the new test id and the count.
 - To see the words that changed, run `nookku replay` with the same script and `--base`.
 
+## Test a set of personas
+
+A persona set is a gate file with one test for each persona ([ADR 0002](../contributing/adr/0002-seeded-faults-personas-answer-keys-verifiers.md#decision-2-persona-sets-547-and-the-simulated-user-520)). The `name` of the test names the persona, and `persona` gives a persona file with the form of `nookku run --persona` ([cli.md](../reference/cli.md#nookku-run)):
+
+```json
+{"v": 1, "tests": [
+ {"name": "new_customer", "script": "scripts/new_customer.jsonl", "persona": "personas/new_customer.json"},
+ {"name": "return_customer", "script": "scripts/return_customer.jsonl", "persona": "personas/return_customer.json", "replay": {"base": "20261101-101500-3f2a", "changed": 0}},
+ {"name": "short_sentences", "script": "scripts/short_sentences.jsonl", "persona": "personas/short_sentences.json"}
+]}
+```
+
+1. Run each persona one time with a simulated user: `nookku run --persona personas/return_customer.json`.
+2. Save the test as a script: `nookku script save <test id>`. The command writes `.nookku/scripts/<test id>.jsonl`. Copy the file to `gates/scripts/return_customer.jsonl`.
+3. Add the test of the persona to the gate file. The gate run sends the messages of the script, so the result is the same on each run. The gate run never starts a simulated user.
+
+`result.json` gives the verdict and the checks of each test, and `persona` gives the persona, the goal and the SHA-256 of the copy. The output line of each test names its persona. If a persona file is not valid, its test does not run, and the check `missing_test` fails. To compare each persona with an earlier run, give each test a replay check.
+
 ## Check a proof file
 
 A gate run can also check a file that a test or an analysis made, for example a measure report. Add the list `proofs` next to `tests`:

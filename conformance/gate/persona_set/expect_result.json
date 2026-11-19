@@ -1,0 +1,206 @@
+{
+ "v": 1,
+ "gate": "gate-case",
+ "subject": "sha256:ab12cd34",
+ "gate_sha256": "<the SHA-256 of gate.json>",
+ "verdict": "fail",
+ "problems": [],
+ "reasons": [
+  {
+   "test": "return_customer",
+   "check": "changed_turns"
+  }
+ ],
+ "tests": [
+  {
+   "name": "new_customer",
+   "test": "t-new_customer",
+   "verdict": "pass",
+   "checks": [
+    {
+     "check": "missing_test",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "evidence",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "script",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "entry",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "verdict",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "limits",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "audit",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "turns",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "codex_hooks",
+     "verdict": "pass",
+     "text": null
+    }
+   ],
+   "persona": {
+    "persona": "A new customer who has not ordered from the shop.",
+    "goal": "Find the shipping cost to Pune.",
+    "sha256": "6385b365e405afb462380c86fb20cb1909c3f316a113f619d3dd74fed4f6567b"
+   }
+  },
+  {
+   "name": "return_customer",
+   "test": "t-return_customer",
+   "verdict": "fail",
+   "checks": [
+    {
+     "check": "missing_test",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "evidence",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "script",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "entry",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "verdict",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "limits",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "audit",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "turns",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "codex_hooks",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "missing_base",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "changed_turns",
+     "verdict": "fail",
+     "text": "1 changed turns, the limit is 0. The turns: 2."
+    }
+   ],
+   "persona": {
+    "persona": "A customer with a return of a damaged mug.",
+    "goal": "Get a refund for the mug.",
+    "sha256": "5516fed882008a05d2af4a5d84ad0f3795b5f79c8e770dbaf3d6daa932e9f297"
+   },
+   "replay": {
+    "base": "t-base",
+    "test": "t-return_customer",
+    "most": 0,
+    "changed": 1,
+    "turns": [
+     2
+    ]
+   }
+  },
+  {
+   "name": "short_sentences",
+   "test": "t-short_sentences",
+   "verdict": "pass",
+   "checks": [
+    {
+     "check": "missing_test",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "evidence",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "script",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "entry",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "verdict",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "limits",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "audit",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "turns",
+     "verdict": "pass",
+     "text": null
+    },
+    {
+     "check": "codex_hooks",
+     "verdict": "pass",
+     "text": null
+    }
+   ],
+   "persona": {
+    "persona": "A customer who writes in short sentences.",
+    "goal": "Ask if the shop has a blue mug.",
+    "sha256": "e804d382cecb704614b8a3da0ae09d2eba81583c418d3042544c08d29bbb4ead"
+   }
+  }
+ ]
+}
