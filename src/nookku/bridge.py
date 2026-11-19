@@ -1300,6 +1300,14 @@ def _collect(folder: Path, copy: Path | None, log: Callable[[str], None] | None 
     """Write the trace, the audit and the seal of a test folder (SPEC.md section 7.2, steps 5
     to 7). Each step writes its error to the log, and the test still ends."""
     log = log or _log
+    decided = folder / answer_key.ADJUDICATIONS
+    try:
+        # A new test has no adjudication: only a person adds one, after the seal (SPEC.md
+        # section 7.17). A file at the path comes from the entry.
+        if answer_key.clear_adjudications(folder):
+            log(f"removed {decided.name} of the entry: only nookku adjudicate writes it")
+    except OSError as e:
+        log(f"{decided.name} of the entry was not removed: {e!r}")
     try:
         log(trace.summary(trace.build(folder)))
     except Exception as e:
@@ -1309,7 +1317,7 @@ def _collect(folder: Path, copy: Path | None, log: Callable[[str], None] | None 
     except Exception as e:
         log(f"the turn summary failed: {e!r}")
     try:
-        verdict.build(folder)
+        verdict.build(folder, new=True)
     except Exception as e:
         log(f"the verdict failed: {e!r}")
     try:
@@ -1317,6 +1325,11 @@ def _collect(folder: Path, copy: Path | None, log: Callable[[str], None] | None 
         _write_json(folder / "audit.json", report)
     except Exception as e:
         log(f"the audit failed: {e!r}")
+    if decided.is_symlink() or decided.exists():
+        # The bridge could not remove it. With no seal, no command uses a verdict of this test
+        # (SPEC.md section 7.14), and nookku adjudicate adds no row.
+        log(f"no seal: {decided.name} is in the test folder at the end of the test")
+        return
     try:
         error = seal.write(folder)
         if error:

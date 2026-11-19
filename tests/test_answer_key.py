@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from nookku import answer_key, bridge, trace
+from nookku import answer_key, bridge, seal, trace, verdict
 from nookku.config import ConfigError
 
 KEY = {
@@ -544,3 +544,55 @@ def test_the_start_text_names_a_key_that_the_harness_model_can_read(tmp_path: Pa
     assert bridge.key_text(folder) == ""
     (folder / "manifest.json").write_text("[")
     assert bridge.key_text(folder) == ""
+
+
+def test_a_new_row_starts_on_its_own_line_after_a_last_line_with_no_line_feed(
+    tmp_path: Path,
+) -> None:
+    first = answer_key.adjudication(1, "How many mugs?", "key_wrong", "The list is old.", "ann")
+    (tmp_path / answer_key.ADJUDICATIONS).write_bytes(json.dumps(first).encode())
+    second = answer_key.adjudication(1, "How many mugs?", "agent_wrong", "I read it again.", "ann")
+    answer_key.add_adjudication(tmp_path, second)
+    data = (tmp_path / answer_key.ADJUDICATIONS).read_bytes()
+    assert data.count(b"\n") == 2
+    rows, problem = answer_key.read_adjudications(data)
+    assert problem is None and [r["outcome"] for r in rows] == ["key_wrong", "agent_wrong"]
+    # A file that ends with a line feed gets no empty line.
+    answer_key.add_adjudication(tmp_path, second)
+    assert b"\n\n" not in (tmp_path / answer_key.ADJUDICATIONS).read_bytes()
+
+
+def test_the_end_of_a_test_removes_the_adjudications_of_the_entry(tmp_path: Path) -> None:
+    row = answer_key.adjudication(1, "How many mugs?", "key_wrong", "The entry wrote it.", "ann")
+    path = tmp_path / answer_key.ADJUDICATIONS
+    path.write_text(json.dumps(row) + "\n")
+    lines: list[str] = []
+    bridge._collect(tmp_path, None, lines.append)
+    assert not path.exists()
+    assert "removed adjudications.jsonl of the entry: only nookku adjudicate writes it" in lines
+    # A symlink of the entry goes too, and the file that it names stays.
+    (tmp_path / "rows.jsonl").write_text(json.dumps(row) + "\n")
+    path.symlink_to(tmp_path / "rows.jsonl")
+    assert answer_key.clear_adjudications(tmp_path) is True
+    assert not path.is_symlink() and (tmp_path / "rows.jsonl").exists()
+    assert answer_key.clear_adjudications(tmp_path) is False
+
+
+def test_a_thing_that_the_bridge_cannot_remove_gives_a_problem_and_no_seal(tmp_path: Path) -> None:
+    folder = tmp_path / "t1"
+    (folder / answer_key.ADJUDICATIONS).mkdir(parents=True)
+    lines: list[str] = []
+    bridge._collect(folder, None, lines.append)
+    report = json.loads((folder / verdict.FILE).read_text())
+    assert report["verdict"] == "fail" and verdict.PLANTED in report["problems"]
+    assert "adjudications" not in report
+    assert not (folder / seal.SEAL).exists()
+    assert "no seal: adjudications.jsonl is in the test folder at the end of the test" in lines
+
+
+def test_the_verdict_of_a_new_test_reads_no_row(tmp_path: Path) -> None:
+    row = answer_key.adjudication(1, "How many mugs?", "key_wrong", "The entry wrote it.", "ann")
+    (tmp_path / answer_key.ADJUDICATIONS).write_text(json.dumps(row) + "\n")
+    report = verdict.build(tmp_path, new=True)
+    assert "adjudications" not in report and verdict.PLANTED in report["problems"]
+    assert "adjudications" in verdict.build(tmp_path)
