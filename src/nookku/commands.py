@@ -99,12 +99,22 @@ STATE_WORD = re.compile(r"[^\s\"'`;|&<>(),{}]+")
 RAW_WORD = re.compile(r"[^\s\"'`;|&<>()]+")
 # A quote, a backslash, and a backslash with the line feed that it removes.
 UNQUOTE = re.compile(r"""\\\n|["'\\]""")
+# The innermost group in brackets of a glob, with its extglob prefix.
+GROUP = re.compile(r"[@+?*!]?\([^()]*\)")
+# The most levels of groups in brackets that the rule reads. This is a chosen value.
+GROUP_DEPTH = 8
+# A bracket expression of a glob, for example [a-z], [!a] or [[:alpha:]].
+BRACKET = re.compile(r"\[[!^]?\]?(?:\[[:.=][^\]]*\]|[^\]])*\]")
 # The innermost brace group of a word, for example {json,txt}.
 BRACES = re.compile(r"\{([^{}]*,[^{}]*)\}")
 # The most words that the brace expansion of one word gives. This is a chosen value.
 BRACE_LIMIT = 64
 # The options of rg, grep and find whose value is the glob of a search.
 GLOB_OPTIONS = {"-g", "--glob", "--iglob", "--include", "-name", "-iname"}
+# The options of find whose value is a glob of the whole path.
+PATH_OPTIONS = {"-path", "-ipath", "-wholename", "-iwholename"}
+# The characters that come before a path in a word: `if=PATH`, `HEAD:PATH` and `@PATH`.
+PATH_STARTS = re.compile(r"[=:@]")
 # A path that names each file: the candidate for a word that the rule cannot expand.
 EACH_PATH = "/**"
 # The entry gets the test folder in NOOKKU_TEST_DIR, and a child process of the app, for example
@@ -411,9 +421,24 @@ def _split(words: list[str]) -> tuple[str, list[str]]:
 
 def _data_heredoc(line: str, at: int) -> bool:
     """True if the here-document that starts at `at` in the line is data, not code: its program
-    only stores or shows it, like `cat > file` or `gh issue create --body-file -`."""
-    toks = tokens(re.split(r"[;&|]", line[:at])[-1]) or []
-    program, args = _split([w for w, op in toks if not op])
+    only stores or shows it, like `cat > file` or `gh issue create --body-file -`.
+
+    The output of such a program can go to a program that runs it, for example `cat <<EOF | sh`.
+    So the here-document is data only if the check can parse the line, and the line has no pipe,
+    no bracket and no backslash at its end, which continues the line."""
+    whole = tokens(line)
+    if whole is None or line.rstrip(" \t").endswith("\\"):
+        return False
+    if any(op and set(text) & set("|()") for text, op in whole):
+        return False
+    # The words of the command with the here-document: the words after the last `;` or `&`.
+    words: list[str] = []
+    for text, op in tokens(line[:at]) or []:
+        if not op:
+            words.append(text)
+        elif set(text) <= set(";&"):
+            words = []
+    program, args = _split(words)
     if program in DATA_PROGRAMS:
         return True
     return program == "git" and args[:1] != [] and args[0] in GIT_DATA
@@ -815,10 +840,11 @@ def key_word(
     `cwd`, `~` is the home folder, the match ignores case, and a glob part matches as the shell
     would. A part `**` matches 0 or more folders. If a `**` matches the last part of a key and
     more parts come after it, the word names a path in the key only if `deep` says so for the key
-    and these parts. The part after `=` of a word like `if=PATH` is a path too. `tails` holds the
-    path of each key in the project. The shell can expand a word with `$` to any path, so such a
-    word names a key if consecutive parts of its path are the parts of a tail."""
-    for piece in [word, *word.split("=")[1:]]:
+    and these parts. The part after `=`, `:` or `@` of a word like `if=PATH`, `HEAD:PATH` or
+    `@PATH` is a path too. `tails` holds the path of each key in the project. The shell can
+    expand a word with `$` to any path, so such a word names a key if consecutive parts of its
+    path are the parts of a tail."""
+    for piece in [word, *PATH_STARTS.split(word)[1:]]:
         if not piece:
             continue
         given = _path_parts(piece, cwd)
@@ -843,7 +869,18 @@ def key_word(
 
 def _same_part(given: str, real: str) -> bool:
     given, real = given.casefold(), real.casefold()
-    return given == real or (any(c in given for c in "*?[") and fnmatch.fnmatchcase(real, given))
+    if given == real or not any(c in given for c in "*?["):
+        return given == real
+    return fnmatch.fnmatchcase(real, BRACKET.sub(_bracket, given))
+
+
+def _bracket(m: re.Match[str]) -> str:
+    """A bracket expression of a shell glob in the form that fnmatch knows. fnmatch does not know
+    a class such as `[[:alpha:]]`, so `?` replaces an expression with one. `[^a]` is `[!a]`."""
+    text = m.group(0)
+    if any(mark in text for mark in ("[:", "[.", "[=")):
+        return "?"
+    return "[!" + text[2:] if text.startswith("[^") else text
 
 
 def patch_targets(tool: str, tool_input: Any) -> list[str]:
@@ -912,8 +949,11 @@ def key_candidates(command: str) -> list[tuple[str, str]]:
     the word of the command that gives it. The words are: each word of path_words, each word of
     the shell without its quotes and backslashes, each word that a brace expansion gives, and
     each path that the glob of a search option names (search_globs), from each word of the
-    command. A word that the rule cannot expand gives EACH_PATH, so the rule fails closed."""
-    text = strip_data_heredocs(command)
+    command. A word that the rule cannot expand gives EACH_PATH, so the rule fails closed.
+
+    The rule also reads the body of each here-document, because a command can run the body or
+    store it as a script: `cat <<'EOF' | sh`."""
+    text = command
     out = [(w, w) for w in path_words(text)]
     toks = tokens(text)
     if toks is None:
@@ -922,10 +962,28 @@ def key_candidates(command: str) -> list[tuple[str, str]]:
         whole = RAW_WORD.findall(UNQUOTE.sub("", text))
     else:
         whole = [w for w, op in toks if not op]
+    # A group in brackets is a part of a glob in zsh and with extglob: (stock) or @(stock|list).
+    # The rule reads each group as `*`.
+    wild = text
+    for _ in range(GROUP_DEPTH):
+        wild, count = GROUP.subn("*", wild)
+        if not count:
+            break
+    out += [(w, w) for w in RAW_WORD.findall(UNQUOTE.sub("", wild)) if "*" in w]
     for k, word in enumerate(whole):
         forms = braces(word)
         out += [(EACH_PATH, word)] if forms is None else [(form, word) for form in forms]
         option, _, value = word.partition("=")
+        if word in PATH_OPTIONS and k + 1 < len(whole):
+            # A `*` of find -path also matches `/`, so the glob can name a path at each depth.
+            path = whole[k + 1]
+            out += [
+                (posixpath.join(start, "**", path, tail), path)
+                for start in ("", *whole)
+                for tail in ("", "**")
+                if not start.startswith("-")
+            ]
+            continue
         if word in GLOB_OPTIONS:
             glob = whole[k + 1] if k + 1 < len(whole) else ""
         elif option in GLOB_OPTIONS:
@@ -943,6 +1001,13 @@ def key_candidates(command: str) -> list[tuple[str, str]]:
         starts = ["", *(w for w in whole if not w.startswith("-") and w != glob)]
         out += [(posixpath.join(start, g), glob) for start in starts for g in globs]
     return list(dict.fromkeys(out))
+
+
+def input_candidates(tool_input: Any) -> list[tuple[str, str]]:
+    """The words of each text of a tool input that can name an answer key (key_candidates). The
+    text of a tool that is not a shell can be a command, for example the input of a persistent
+    shell, so the rule reads each text as a command."""
+    return [pair for s in _strings(tool_input) for pair in key_candidates(s)]
 
 
 def input_words(tool_input: Any) -> list[str]:

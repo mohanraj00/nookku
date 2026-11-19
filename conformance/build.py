@@ -8317,6 +8317,10 @@ GUARD_CASES: dict[str, dict] = {
         "event": bash("cat > /tmp/notes.md <<'EOF'\nimport nookku\nEOF"),
         "answer": None,
     },
+    "shell_heredoc_data_goes_to_a_shell": {
+        "event": bash("cat <<'EOF' | bash\nnookku start\nEOF"),
+        "answer": drives("nookku start"),
+    },
     "shell_heredoc_data_runs_a_drive_command": {
         "event": bash("cat > /tmp/notes.md <<EOF\n$(nookku start)\nEOF"),
         "answer": drives("nookku start"),
@@ -8458,8 +8462,43 @@ GUARD_CASES: dict[str, dict] = {
     },
     "key_shell_heredoc_data_names_the_key": {
         "policy_text": KEY_POLICY,
-        "event": bash("cat > notes.md <<'EOF'\nThe key is keys/stock.json.\nEOF"),
-        "answer": None,
+        "event": bash("cat > notes.md <<'EOF'\nThe key is the file keys/stock.json\nEOF"),
+        "answer": key_deny("keys/stock.json"),
+    },
+    "key_shell_heredoc_goes_to_a_shell": {
+        "policy_text": KEY_POLICY,
+        "event": bash("cat <<'EOF' | bash\ncat keys/stock.json\nEOF"),
+        "answer": key_deny("keys/stock.json"),
+    },
+    "key_shell_read_from_the_index": {
+        "policy_text": KEY_POLICY,
+        "event": bash("git show :keys/stock.json"),
+        "answer": key_deny(":keys/stock.json"),
+    },
+    "key_shell_read_with_a_character_class": {
+        "policy_text": KEY_POLICY,
+        "event": bash("cat keys/[[:alpha:]]tock.json"),
+        "answer": key_deny("keys/[[:alpha:]]tock.json"),
+    },
+    "key_shell_read_with_a_group_in_brackets": {
+        "policy_text": KEY_POLICY,
+        "event": bash("cat keys/(stock).json"),
+        "answer": key_deny("keys/*.json"),
+    },
+    "key_shell_read_from_a_commit": {
+        "policy_text": KEY_POLICY,
+        "event": bash("git show HEAD:keys/stock.json"),
+        "answer": key_deny("HEAD:keys/stock.json"),
+    },
+    "key_shell_search_with_a_glob_of_the_path": {
+        "policy_text": KEY_POLICY,
+        "event": bash("find . -path '*stock.json'"),
+        "answer": key_deny("*stock.json"),
+    },
+    "key_session_input_with_a_quote_in_the_word": {
+        "policy_text": KEY_POLICY,
+        "event": pevent("write_stdin", session_id=1, chars='cat keys/st"ock".json\n'),
+        "answer": key_deny("keys/stock.json"),
     },
     "key_shell_search_of_a_parent_folder": {
         "policy_text": KEY_POLICY,

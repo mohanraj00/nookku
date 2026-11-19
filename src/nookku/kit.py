@@ -870,8 +870,8 @@ def key_named(
 
     The rule checks paths, not text. A file tool has its target path and the glob of a search,
     with each path that the glob names (commands.search_globs). A shell command has each of its
-    words (commands.key_candidates), without the bodies of its here-documents that are data.
-    Another tool has each word of its input. A word names a key if its path is the path of a
+    words (commands.key_candidates), also in the body of each here-document. Another tool has
+    each word of its input, read as a command too. A word names a key if its path is the path of a
     key or a path in it (commands.key_word), also through a symlink that exists. A parent folder
     does not name a key, so a search of a parent folder is not denied."""
     if not paths:
@@ -905,7 +905,7 @@ def key_named(
         words = commands.key_candidates(command)
         bases = _call_folders(command, cwd, tuple(keys))
     else:
-        words = [(w, w) for w in commands.input_words(tool_input)]
+        words = commands.input_candidates(tool_input)
     if tool in SESSION_TOOLS:
         # The input of a persistent shell does not show the folder where it runs. Each folder
         # above a key counts, so the rule fails closed.
