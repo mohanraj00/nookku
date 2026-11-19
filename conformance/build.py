@@ -1155,6 +1155,8 @@ def counts(**n: int) -> dict:
         "database_error",
         "proxy_call_without_span",
         "mcp_task_unfinished",
+        "replay_changed",
+        "replay_miss",
         "unseen_call",
         "driver_without_span",
         "other_without_span",
@@ -6349,6 +6351,116 @@ MCP_TASK_CASE = {
 }
 
 
+# A replay with the recorded backends (SPEC.md sections 7.10 and 8.6, #523). The test folder has
+# a copy of the base records in base/. The reply of turn 2 is not the reply of the base test, and
+# the second backend call has no recorded response: the player sent status 502.
+def relay_turn(t: float) -> dict:
+    said = "toy shop message"
+    row = {"v": "0.1", "type": "turn", "ts": T0 + t, "harness": "script", "said": said}
+    return {**row, "said_sha256": sha(said), "shown": None, "shown_sha256": sha(None), "ok": True}
+
+
+def lines(rows: list[dict]) -> str:
+    return "".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows)
+
+
+REPLAY_MISS = (
+    "the replay has no recorded response: "
+    "the base test has no unused call with this method, path, query and body"
+)
+REPLAY_FOUND = call(
+    12,
+    "stock",
+    "GET",
+    "/stock",
+    200,
+    query="sku=teapot-set",
+    response=body('{"sku": "teapot-set", "left": 3}'),
+)
+REPLAY_FOUND["replay"] = {"line": 1, "miss": None}
+REPLAY_LOST = call(
+    32,
+    "stock",
+    "GET",
+    "/stock",
+    None,
+    query="sku=blue-mug",
+    error=f"the backend did not answer: {REPLAY_MISS}",
+)
+REPLAY_LOST["replay"] = {"line": None, "miss": REPLAY_MISS}
+REPLAY_RELAY = lines([relay_turn(10), relay_turn(30)])
+REPLAY_CASE = {
+    "tap": [window(10, 20), window(30, 40)],
+    "manifest": {
+        "test": "20261119-090000-rp01",
+        "model_sessions": [],
+        "replay": {"base": "20261119-080000-rp00", "files": {}},
+    },
+    "sessions": {},
+    "files": {
+        "relay.jsonl": REPLAY_RELAY,
+        "base/relay.jsonl": REPLAY_RELAY,
+        "base/tap.jsonl": lines([window(10, 20), window(30, 40, reply="the reply of the base")]),
+    },
+    "backend": [REPLAY_FOUND, REPLAY_LOST],
+    "trace": [
+        bitem(
+            1,
+            "stock",
+            12,
+            1,
+            "GET /stock",
+            input={"query": "sku=teapot-set", "headers": SENT, "body": None},
+            output='{"sku": "teapot-set", "left": 3}',
+            exit_code=200,
+        ),
+        bitem(
+            2,
+            "stock",
+            32,
+            2,
+            "GET /stock",
+            input={"query": "sku=blue-mug", "headers": SENT, "body": None},
+            error=f"the backend did not answer: {REPLAY_MISS}",
+        ),
+    ],
+    "findings": {
+        "v": "0.2",
+        "test": "20261119-090000-rp01",
+        "turns": 2,
+        "items": 2,
+        "sessions": [],
+        "otel": None,
+        "backend": {"file": "backend.jsonl", "rows": 2, "items": 2, "ignored": {}},
+        "model_api": None,
+        "mcp": None,
+        "database": None,
+        "counts": counts(backend_error=1, replay_changed=1, replay_miss=1),
+        "findings": [
+            {
+                "check": "backend_error",
+                "turn": 2,
+                "detail": f"stock: GET /stock: the backend did not answer: {REPLAY_MISS}",
+                "harness": "backend",
+                "session": "stock",
+                "source": {"file": "backend.jsonl", "line": 2},
+            },
+            {
+                "check": "replay_changed",
+                "turn": 2,
+                "detail": "the reply is not the same as the reply of the base test "
+                "20261119-080000-rp00",
+            },
+            {
+                "check": "replay_miss",
+                "turn": 2,
+                "detail": f"backend.jsonl: stock: GET /stock: {REPLAY_MISS}",
+            },
+        ],
+    },
+}
+
+
 # Database queries (SPEC.md sections 7.13 and 8.4): the rows of database.jsonl as the Postgres
 # proxy writes them. In turn 1, a password message and a simple query. In turn 2, an extended
 # query and a query that fails. Between the turns, a query with no result at the end of the file.
@@ -7427,6 +7539,7 @@ TRACE_CASES = {
     "other_trace": OTHER_TRACE_CASE,
     "mcp_toy_shop": MCP_CASE,
     "mcp_task_unfinished": MCP_TASK_CASE,
+    "replay_recorded": REPLAY_CASE,
     "database_toy_shop": DATABASE_CASE,
     "database_formats": DATABASE_FORMATS_CASE,
     "database_pipeline": DATABASE_PIPELINE_CASE,
@@ -9887,6 +10000,7 @@ def main() -> None:
             (d / rel).parent.mkdir(parents=True, exist_ok=True)
             write(d / rel, lines)
         for rel, text in case.get("files", {}).items():
+            (d / rel).parent.mkdir(parents=True, exist_ok=True)
             (d / rel).write_text(text, encoding="utf-8")
         write(d / "otel.jsonl", case.get("otel"))
         write(d / "backend.jsonl", case.get("backend"))
