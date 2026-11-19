@@ -8107,6 +8107,12 @@ GUARD_CASES: dict[str, dict] = {
         "event": bash("cat notes/list.json"),
         "answer": key_deny("notes/list.json"),
     },
+    "key_shell_read_through_a_link_with_a_glob": {
+        "policy_text": KEY_POLICY,
+        "links": {"notes": "keys"},
+        "event": bash("cat notes/*.json"),
+        "answer": key_deny("notes/*.json"),
+    },
     "key_shell_read_with_an_option_value": {
         "policy_text": KEY_POLICY,
         "event": bash("dd if=keys/stock.json of=/dev/stdout"),
