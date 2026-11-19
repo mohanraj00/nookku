@@ -75,12 +75,16 @@ def _sealed(
     return files is not None and files.get(name) == seal.sha256_of(data), None
 
 
-def _read(path: Path) -> bytes | None:
-    """The bytes of a file of a run, or None. A symlink gives None (dashboard.read_file)."""
+def _read(path: Path) -> tuple[bytes | None, str | None]:
+    """The bytes of a file of a run, and an error. A missing file gives no bytes and no error. A
+    symlink or a file that the process cannot read gives no bytes and the error
+    (dashboard.read_file)."""
     try:
-        return dashboard.read_file(path)
-    except OSError:
-        return None
+        return dashboard.read_file(path), None
+    except FileNotFoundError:
+        return None, None
+    except OSError as e:
+        return None, f"{path.name} cannot be read: {e.strerror or e}."
 
 
 def _json(data: bytes | None) -> tuple[Any, str | None]:
@@ -136,7 +140,12 @@ def _run(folder: Path, running: str | None) -> dict[str, Any]:
 def runs(root: Path) -> dict[str, Any]:
     """`GET /api/v1/runs`: each run, the newest first."""
     running = dashboard.running_id(root)
-    folders = [f for f in state.tests_newest_first(root) if dashboard._is_text(f.name)]
+    # A symlink is not a run folder (_run_folder).
+    folders = [
+        f
+        for f in state.tests_newest_first(root)
+        if dashboard._is_text(f.name) and not f.is_symlink()
+    ]
     return {"api": VERSION, "runs": [_run(f, running) for f in folders]}
 
 
@@ -156,7 +165,7 @@ def run_verdict(root: Path, run_id: str) -> dict[str, Any]:
 def run_findings(root: Path, run_id: str) -> dict[str, Any]:
     """`GET /api/v1/runs/<run>/findings`: findings.json as the API read it."""
     folder = _run_folder(root, run_id)
-    data = _read(folder / verdict.FINDINGS)
+    data, unread = _read(folder / verdict.FINDINGS)
     value, error = _json(data)
     if value is not None and not isinstance(value, dict):
         value, error = None, "not a JSON object"
@@ -166,7 +175,7 @@ def run_findings(root: Path, run_id: str) -> dict[str, Any]:
         "run": folder.name,
         "findings": value,
         "sealed": sealed,
-        "error": f"{verdict.FINDINGS}: {error}" if error else problem,
+        "error": unread or (f"{verdict.FINDINGS}: {error}" if error else problem),
     }
 
 
@@ -174,9 +183,8 @@ def run_evaluation(root: Path, run_id: str) -> dict[str, Any]:
     """`GET /api/v1/runs/<run>/evaluation`: the text of report.md, the report of the evaluation
     (SPEC.md section 9.3). A model writes it, so it is text and no code reads it."""
     folder = _run_folder(root, run_id)
-    data = _read(folder / REPORT)
+    data, error = _read(folder / REPORT)
     text = None
-    error = None
     if data is not None:
         try:
             text = data.decode("utf-8")

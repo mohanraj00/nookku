@@ -23,7 +23,7 @@ The seal of a test is in its folder and a copy is outside the folder ([SPEC.md s
 
 - `seal` of a run is `intact`, `broken`, `none` (the run has no seal) or `unknown` (a file cannot be read), with the rule of `nookku verify`.
 - `sealed` of a file is `true` only if the seal of the folder is intact, its copy is the same, and the SHA-256 of the bytes that the API read is the SHA-256 in the copy. A file that changed after the seal, or that the seal does not cover, gives `false`. The API still gives its content, so a person can see what changed. Do not use a file with `"sealed": false` as evidence.
-- The API follows no symlink. A run folder that is a symlink is not a run, and a file of a run that is a symlink or not a regular file gives no content. Another user of a shared tests folder can plant a symlink to a private file.
+- The API follows no symlink. A run folder that is a symlink is not a run, and a file of a run that is a symlink or not a regular file gives no content and an error. A run folder that is a symlink is not in the list of runs. If the platform cannot open a file with no symlink, the API gives no file content. Another user of a shared tests folder can plant a symlink to a private file.
 
 A verdict is in an answer only if a process can use it: the verdict agrees with the copy of the seal ([SPEC.md section 7.14](../../SPEC.md#714-verdict), "The verdict of an exit code"). Else the verdict is `null`, and a problem gives the reason.
 
@@ -101,7 +101,7 @@ The content of `findings.json` ([SPEC.md section 8.6](../../SPEC.md#86-findings)
 {"api": 1, "run": "20261119-124100-f583", "findings": {"counts": {"agent_error": 0}, "findings": []}, "sealed": true, "error": null}
 ```
 
-`findings` is the JSON object of the file, or null if the file is missing or not valid. `error` is null, or the reason why the file is not valid. If the seal check cannot read a file of the run, `sealed` is `false` and `error` gives the reason. The API still gives `findings`.
+`findings` is the JSON object of the file, or null if the file is missing or not valid. `error` is null, or the reason why the file cannot be read or is not valid. If the seal check cannot read a file of the run, `sealed` is `false` and `error` gives the reason. The API still gives `findings`.
 
 ### `GET /api/v1/runs/<run>/evaluation`
 
@@ -111,7 +111,7 @@ The text of `report.md`, the report of the [evaluation](glossary.md#evaluation) 
 {"api": 1, "run": "20261119-124100-f583", "report": "# Report\n...", "sealed": false, "error": null}
 ```
 
-`report` is null if the run has no report. `error` is set if the file is not UTF-8. If the seal check cannot read a file of the run, `sealed` is `false` and `error` gives the reason. The API still gives `report`.
+`report` is null if the run has no report. `error` is set if the file cannot be read or is not UTF-8. If the seal check cannot read a file of the run, `sealed` is `false` and `error` gives the reason. The API still gives `report`.
 
 ### `GET /api/v1/gates`
 

@@ -15,7 +15,7 @@ from typing import Any
 
 import pytest
 
-from nookku import api, bridge, gate, seal
+from nookku import api, bridge, gate, seal, state
 from nookku.cli import main
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -447,11 +447,48 @@ def test_the_api_gives_no_bytes_of_a_symlinked_run_file_or_run_folder(
     (tests / run / "report.md").symlink_to(private)
     report = get_json(server, f"/api/v1/runs/{run}/evaluation")
     assert report["report"] is None and report["sealed"] is False
+    assert "report.md cannot be read" in report["error"]
     outside = tmp_path / "outside"
     outside.mkdir()
     (outside / "findings.json").write_text('{"counts": {}, "findings": []}', encoding="utf-8")
     (tests / "20991231-235959-link").symlink_to(outside, target_is_directory=True)
     get_json(server, "/api/v1/runs/20991231-235959-link/findings", status=404)
+    assert "20991231-235959-link" not in [r["id"] for r in get_json(server, "/api/v1/runs")["runs"]]
+
+
+def test_a_run_folder_that_changes_to_a_symlink_before_the_read_gives_no_bytes(
+    project: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    folder = state.tests_newest_first(project)[0]
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "report.md").write_text("a private line\n", encoding="utf-8")
+    real = api._run_folder
+
+    def check_then_swap(root: Path, run: str) -> Path:
+        checked = real(root, run)
+        moved = tmp_path / "moved"
+        checked.rename(moved)
+        checked.symlink_to(outside, target_is_directory=True)
+        return checked
+
+    monkeypatch.setattr(api, "_run_folder", check_then_swap)
+    report = api.run_evaluation(project, folder.name)
+    assert report["report"] is None and "cannot be read" in report["error"]
+
+
+def test_an_unreadable_findings_file_gives_an_error_and_no_findings(
+    project: Path, server: api.Server
+) -> None:
+    run = get_json(server, "/api/v1/runs")["runs"][0]["id"]
+    findings = project / ".nookku" / "tests" / run / "findings.json"
+    findings.chmod(0)
+    try:
+        answer = get_json(server, f"/api/v1/runs/{run}/findings")
+    finally:
+        findings.chmod(0o644)
+    assert answer["findings"] is None and answer["sealed"] is False
+    assert "findings.json cannot be read" in answer["error"]
 
 
 def test_a_partial_request_times_out_and_a_connection_above_the_limit_gets_503(

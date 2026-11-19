@@ -42,11 +42,20 @@ def find(root: Path, test_id: str) -> Path | None:
 def read_file(path: Path) -> bytes:
     """The bytes of a file of a test folder from one read. The read follows no symlink, and the
     file must be a regular file. Another user of a shared tests folder can plant a symlink to a
-    private file, and the dashboard must not give its bytes. Raise OSError."""
-    if path.parent.is_symlink():
-        raise OSError(f"{path.parent.name} is a symlink")
-    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
-    fd = os.open(path, flags)
+    private file, and the dashboard must not give its bytes. The read opens the folder with no
+    symlink and then the file in that folder, so a folder that changes to a symlink after a check
+    cannot redirect the read. Raise OSError."""
+    nofollow = getattr(os, "O_NOFOLLOW", 0)
+    if not nofollow or os.open not in os.supports_dir_fd:
+        # This platform cannot open with no symlink, so the read refuses the file.
+        raise OSError(f"{path.name}: this platform cannot open a file with no symlink")
+    folder = os.open(path.parent, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | nofollow)
+    try:
+        fd = os.open(
+            path.name, os.O_RDONLY | nofollow | getattr(os, "O_NONBLOCK", 0), dir_fd=folder
+        )
+    finally:
+        os.close(folder)
     try:
         if not stat.S_ISREG(os.fstat(fd).st_mode):
             raise OSError(f"{path.name} is not a regular file")
