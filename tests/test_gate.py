@@ -485,6 +485,8 @@ def test_each_case_gives_its_result(case: Path, tmp_path: Path) -> None:
             continue
         folder = tests_dir / f"t-{name}"
         inputs[name] = {"script.jsonl": _case_test(folder, given["tests"][name])}
+        if "persona" in given["tests"][name]:
+            inputs[name]["persona"] = given["tests"][name]["persona"].encode("utf-8")
         pinned = {"entry": given["tests"][name]["entry"], "policy": {}, "spec": []}
         pinned["config_sha256"] = {}
         rows.append(gate.ledger_row(name, folder, None, pinned, pin))
@@ -630,6 +632,101 @@ def test_a_proof_file_that_is_a_pipe_is_missing_and_the_read_does_not_wait(
     assert gate.read_proof(pipe) == (None, None, "the path is not a regular file")
     assert gate.read_proof(tmp_path / "none")[2].startswith("cannot read the file")
     assert gate.read_proof(tmp_path)[2] is not None
+
+
+PERSONA = {"persona": "A customer with a return of a damaged mug.", "goal": "Get a refund."}
+
+
+def _persona(path: Path, name: str, value: object) -> str:
+    """Write a persona file next to the gate file and give its path in the gate file."""
+    (path.parent / "personas").mkdir(exist_ok=True)
+    body = value if isinstance(value, str) else json.dumps(value)
+    (path.parent / "personas" / f"{name}.json").write_text(body)
+    return f"personas/{name}.json"
+
+
+def test_a_persona_set_names_the_persona_of_each_test_in_the_result(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root, path = _shop(tmp_path, [])
+    tests = [
+        {**TWO[0], "persona": _persona(path, "refund", {**PERSONA, "turns": 2})},
+        {
+            **TWO[1],
+            "persona": _persona(
+                path, "price", {"persona": "A new customer.", "goal": "Get the price.", "turns": 1}
+            ),
+        },
+    ]
+    path.write_text(json.dumps({"v": 1, "tests": tests}))
+    code, out = _run(root, path, capsys)
+    assert code == 0, out
+    first = out["result"]["tests"][0]["persona"]
+    body = (path.parent / "personas" / "refund.json").read_bytes()
+    assert first == {**PERSONA, "sha256": seal.sha256_of(body)}
+    assert out["result"]["tests"][1]["persona"]["persona"] == "A new customer."
+    folder = Path(out["gate"])
+    assert (folder / "inputs" / "refund" / "persona").read_bytes() == body
+    assert gate.verify(folder) == (out["result"], None)
+    lines = gate.summary(out["result"])
+    assert lines[0].startswith("refund (") and ", persona: A customer with a return" in lines[0]
+
+
+def test_a_test_with_no_persona_has_no_persona_key(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root, path = _shop(tmp_path, TWO[1:])
+    _, out = _run(root, path, capsys)
+    assert "persona" not in out["result"]["tests"][0]
+    assert "persona" not in gate.summary(out["result"])[0]
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        "not json",
+        json.dumps({"persona": "A customer.", "goal": "Get a refund."}),
+        json.dumps({**PERSONA, "turns": 2, "name": "extra"}),
+        json.dumps({**PERSONA, "persona": " ", "turns": 2}),
+    ],
+)
+def test_a_persona_file_that_breaks_the_rule_stops_its_test(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], body: str
+) -> None:
+    root, path = _shop(tmp_path, [])
+    tests = [{**TWO[1], "persona": _persona(path, "price", body)}]
+    path.write_text(json.dumps({"v": 1, "tests": tests}))
+    code, out = _run(root, path, capsys)
+    assert code == 1, out
+    result = out["result"]
+    assert result["reasons"] == [{"test": "price", "check": "missing_test"}]
+    assert result["tests"][0]["test"] is None
+    # The copy of a file that breaks the rule is not in inputs/, so the result has no persona.
+    assert result["tests"][0]["persona"] is None
+    row = json.loads((Path(out["gate"]) / gate.RUN).read_text())["tests"][0]
+    assert row["error"].startswith("persona personas/price.json: ")
+
+
+def test_an_older_result_with_no_persona_still_verifies(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root, path = _shop(tmp_path, [])
+    tests = [{**TWO[1], "persona": _persona(path, "price", {**PERSONA, "turns": 1})}]
+    path.write_text(json.dumps({"v": 1, "tests": tests}))
+    _, out = _run(root, path, capsys)
+    folder = Path(out["gate"])
+    # Nookku 0.5.9 and older wrote no key persona in result.json.
+    older = json.loads((folder / gate.RESULT).read_text())
+    del older["tests"][0]["persona"]
+    (folder / gate.RESULT).write_text(json.dumps(older, indent=1) + "\n")
+    seal.write(folder)
+    assert gate.verify(folder) == (older, None)
+    # A persona that is not the persona of the copy is not an older result.
+    older["tests"][0]["persona"] = {**PERSONA, "sha256": "0" * 64}
+    (folder / gate.RESULT).write_text(json.dumps(older, indent=1) + "\n")
+    seal.write(folder)
+    report, problem = gate.verify(folder)
+    assert report is None and problem and problem.startswith("result.json is not the result")
 
 
 def test_a_gate_with_no_proof_files_keeps_the_result_format_of_0_5_7(
