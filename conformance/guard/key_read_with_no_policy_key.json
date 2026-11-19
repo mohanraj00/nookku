@@ -1,0 +1,14 @@
+{
+ "answer": null,
+ "event": {
+  "cwd": "{root}",
+  "hook_event_name": "PreToolUse",
+  "tool_input": {
+   "file_path": "keys/stock.json"
+  },
+  "tool_name": "Read"
+ },
+ "links": {},
+ "state": true,
+ "test": false
+}

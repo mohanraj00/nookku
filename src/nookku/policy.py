@@ -92,6 +92,70 @@ def _distance(text: str) -> int:
     return int(text)
 
 
+# The most paths of the key answer_keys. This is a chosen value.
+MAX_KEYS = 100
+# The characters that a path of answer_keys must not have. The guard reads the words of a
+# command, and a word ends at white space, at a quote and at a shell operator. A glob or an
+# expansion character can make a path match other words.
+KEY_BAD = re.compile(r"[\s\x00-\x1f\x7f\"'`;|&<>(),{}*?\[\]\\:~$=#!]")
+
+
+def key_problem(value: Any) -> str | None:
+    """The reason that a value is not a path of the key answer_keys, or None. A path is relative
+    to the project, with `/` between its parts. It names a file, or a folder with each file in
+    it."""
+    if not isinstance(value, str) or not value:
+        return "a path is not a text"
+    found = KEY_BAD.search(value)
+    if found is not None:
+        return f"{value!r} has the character {found.group()!r}, which a path must not have"
+    if value.startswith("/"):
+        return f"{value!r} is not a relative path"
+    if any(part in ("", ".", "..") for part in value.split("/")):
+        return f"{value!r} has an empty part, or a part . or .."
+    if value.split("/")[0].casefold() == STATE_DIR:
+        return f"{value!r} is in the state folder, which the guard protects with other rules"
+    return None
+
+
+def _key_paths(text: str) -> list[str]:
+    """The paths of `nookku policy set answer_keys`: names separated by commas. An empty text
+    clears the list. A `./` at the start and a `/` at the end of a path are removed."""
+    if not text.strip():
+        return []
+    paths = []
+    for raw in text.split(","):
+        path = raw.strip().removeprefix("./").rstrip("/")
+        problem = key_problem(path)
+        if problem is not None:
+            raise ValueError(f"{problem}. Give paths in the project, for example keys/stock.json")
+        if path not in paths:
+            paths.append(path)
+    if len(paths) > MAX_KEYS:
+        raise ValueError(f"give {MAX_KEYS} paths at most")
+    return paths
+
+
+def _is_key_paths(value: Any) -> bool:
+    return (
+        isinstance(value, list)
+        and len(value) <= MAX_KEYS
+        and all(key_problem(v) is None for v in value)
+    )
+
+
+def protects(paths: Any, file: str) -> bool:
+    """True if a path of the key answer_keys is the project path `file`, or a folder above it.
+    The match ignores case, as the guard does."""
+    if not _is_key_paths(paths):
+        return False
+    parts = [p for p in file.replace("\\", "/").split("/") if p not in ("", ".")]
+    low = [p.casefold() for p in parts]
+    return any(
+        low[: len(top)] == top for top in ([q.casefold() for q in p.split("/")] for p in paths)
+    )
+
+
 def _who(text: str) -> str:
     if text not in ("person", "model"):
         raise ValueError("give person or model")
@@ -134,6 +198,13 @@ KEYS: dict[str, Key] = {
         "the edit distance at which nookku refuses a message near a control prompt; 0 turns "
         "off the rule",
     ),
+    # The answer keys that a model tool call may not name (#577): files or folders in the project.
+    "answer_keys": Key(
+        [],
+        _key_paths,
+        _is_key_paths,
+        "the answer key files or folders in the project that a model tool call may not name",
+    ),
 }
 
 
@@ -164,6 +235,18 @@ def read(root: Path) -> dict[str, Any]:
         if not KEYS[name].valid(value):
             raise PolicyError(f"{FILE}: {name!r} has a value that is not valid: {value!r}")
     return {name: data.get(name, key.default) for name, key in KEYS.items()}
+
+
+def answer_keys(root: Path) -> list[str]:
+    """The paths of the key answer_keys for the guard. If the file is not valid because of
+    another key, the guard still takes a valid answer_keys value, so a wrong value of another
+    key does not open the answer keys. A file that the guard cannot read gives no paths."""
+    try:
+        data = loads(path(root).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    value = data.get("answer_keys") if isinstance(data, dict) else None
+    return list(value) if value is not None and _is_key_paths(value) else []
 
 
 def set_key(root: Path, name: str, text: str) -> dict[str, Any]:

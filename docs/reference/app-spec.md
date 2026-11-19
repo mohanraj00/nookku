@@ -143,6 +143,7 @@ An answer can have its own rule. Give it `match`, and for `number` a `tolerance`
 - The spec files have 1 `Answer key` row at most. If the bridge cannot read the row or the key file, the test does not start.
 - The bridge records the SHA-256 of the key file in the manifest. After the [entry](glossary.md#entry) stops, it copies the key file into the test folder as `answer_key.json`, so the entry cannot read the copy and the [seal](glossary.md#seal) covers the key. If you change the key after the start, the result of that test does not change.
 - The key file is in the project folder. If the entry can read it, the entry can give each keyed answer. Run the entry with no read access to the key file, for example as another user or in a sandbox.
+- The [harness model](glossary.md#harness-model) that builds the app can also read the key file. To deny its tool calls that name the key, add the path to the policy key [`answer_keys`](config.md#nookkupolicyjson): `nookku policy set answer_keys keys/stock.json`. If the policy key does not protect the key file, the start text of the test says so.
 
 To make CI fail on a `fail` verdict, give `--verdict` to [`nookku run`](cli.md#nookku-run) or [`nookku trace`](cli.md#nookku-trace). Then the command exits with 1. The command uses the verdict only if it agrees with the [seal](glossary.md#seal) and its copy in `~/.nookku/seals/`, so a test with no copy of the seal fails ([SPEC.md section 7.14](../../SPEC.md#714-verdict)).
 

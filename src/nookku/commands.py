@@ -722,6 +722,32 @@ def _tests_rest(piece: str, tests: Sequence[str], cwd: str | None) -> list[str] 
     return None
 
 
+def key_word(word: str, keys: Sequence[str], cwd: str | None, tails: Sequence[str] = ()) -> bool:
+    """True if a word names an answer key of the policy key answer_keys (SPEC.md section 5).
+
+    `keys` holds the absolute path of each key: a file, or a folder with each file in it. A word
+    names a key if its path is the path of a key or a path in it. A relative word starts at
+    `cwd`, `~` is the home folder, the match ignores case, and a glob part matches as the shell
+    would. The part after `=` of a word like `if=PATH` is a path too. `tails` holds the path of
+    each key in the project. The shell can expand a word with `$` to any path, so such a word
+    names a key if consecutive parts of its path are the parts of a tail."""
+    for piece in [word, *word.split("=")[1:]]:
+        if not piece:
+            continue
+        if _tests_rest(piece, keys, cwd) is not None:
+            return True
+        if "$" not in piece:
+            continue
+        parts = posixpath.normpath(piece.replace("\\", "/")).split("/")
+        for tail in tails:
+            top = tail.split("/")
+            for k in range(len(parts) - len(top) + 1):
+                pairs = zip(parts[k : k + len(top)], top, strict=True)
+                if all(_same_part(given, real) for given, real in pairs):
+                    return True
+    return False
+
+
 def _same_part(given: str, real: str) -> bool:
     given, real = given.casefold(), real.casefold()
     return given == real or (any(c in given for c in "*?[") and fnmatch.fnmatchcase(real, given))
@@ -751,6 +777,11 @@ def _strings(value: Any) -> list[str]:
 def path_words(text: str) -> list[str]:
     """The words of a text, split at spaces, quotes, brackets, commas and shell operators."""
     return STATE_WORD.findall(text)
+
+
+def input_words(tool_input: Any) -> list[str]:
+    """Each word of each text of a tool input (path_words)."""
+    return [m.group(0) for s in _strings(tool_input) for m in STATE_WORD.finditer(s)]
 
 
 def state_words(tool_input: Any, tests: Sequence[str] = (), cwd: str | None = None) -> list[str]:

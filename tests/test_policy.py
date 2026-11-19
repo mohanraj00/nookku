@@ -132,7 +132,7 @@ def test_policy_set_names_the_known_keys(
 ) -> None:
     assert main(["policy", "--root", str(tmp_path), "set", "players", "model"]) == 1
     assert (
-        "The keys are: guard_fields, guard_reads, scripts, control_distance."
+        "The keys are: guard_fields, guard_reads, scripts, control_distance, answer_keys."
         in capsys.readouterr().err
     )
 
@@ -164,6 +164,7 @@ def test_guard_fields_takes_names_separated_by_commas(
         "guard_reads": [],
         "scripts": "person",
         "control_distance": 2,
+        "answer_keys": [],
     }
     assert main(["policy", "--root", str(tmp_path), "set", "guard_fields", "path,,url"]) == 1
 
@@ -200,3 +201,108 @@ def test_start_reads_the_policy_for_the_manifest(tmp_path: Path, keys: None) -> 
     (tmp_path / STATE / "policy.json").write_text('{"scripts": "anyone"}')
     with pytest.raises(bridge.BridgeError, match=r"policy\.json"):
         bridge.load_config(tmp_path)
+
+
+# The policy key answer_keys (#577, SPEC.md section 7.9).
+@pytest.mark.parametrize(
+    ("text", "value"),
+    [
+        ("keys/stock.json", ["keys/stock.json"]),
+        ("./keys/ , keys/stock.json,keys", ["keys", "keys/stock.json"]),
+        ("clés/réponses.json", ["clés/réponses.json"]),
+        ("", []),
+        ("/tmp/keys.json", None),
+        ("~/keys.json", None),
+        ("keys/../keys.json", None),
+        ("keys//stock.json", None),
+        ("keys/*.json", None),
+        ("keys/stock list.json", None),
+        ("$KEYS/stock.json", None),
+        ("keys\\stock.json", None),
+        ("C:/keys.json", None),
+        (".nookku/tests", None),
+        (".NOOKKU/keys.json", None),
+        ("keys,,more", None),
+        (",".join(f"keys/{n}.json" for n in range(101)), None),
+    ],
+)
+def test_answer_keys_takes_project_paths(tmp_path: Path, text: str, value: list | None) -> None:
+    code = main(["policy", "--root", str(tmp_path), "set", "answer_keys", text])
+    assert code == (0 if value is not None else 1)
+    assert policy.read(tmp_path)["answer_keys"] == (value or [])
+
+
+@pytest.mark.parametrize(
+    "value",
+    ["keys", [1], ["/keys"], ["keys/"], ["keys/*"], [""], ["a b"], ["../keys"], ["k"] * 101],
+)
+def test_an_answer_keys_value_that_is_not_valid_stops_the_read(
+    tmp_path: Path, value: object
+) -> None:
+    (tmp_path / ".nookku").mkdir()
+    (tmp_path / ".nookku" / "policy.json").write_text(json.dumps({"answer_keys": value}))
+    with pytest.raises(policy.PolicyError, match="answer_keys"):
+        policy.read(tmp_path)
+    # The guard gets no path from a value that is not valid.
+    assert policy.answer_keys(tmp_path) == []
+
+
+def test_the_guard_reads_the_answer_keys_of_a_file_with_another_wrong_key(tmp_path: Path) -> None:
+    assert policy.answer_keys(tmp_path) == []
+    (tmp_path / ".nookku").mkdir()
+    file = tmp_path / ".nookku" / "policy.json"
+    file.write_text('{"answer_keys": ["keys"], "scripts": "robot", "more": 1}')
+    with pytest.raises(policy.PolicyError):
+        policy.read(tmp_path)
+    assert policy.answer_keys(tmp_path) == ["keys"]
+    for text in ("[", "[1]", '{"scripts": "model"}'):
+        file.write_text(text)
+        assert policy.answer_keys(tmp_path) == []
+
+
+@pytest.mark.parametrize(
+    ("paths", "file", "ok"),
+    [
+        (["keys/stock.json"], "keys/stock.json", True),
+        (["keys/stock.json"], "./keys//Stock.JSON", True),
+        (["keys"], "keys/2026/stock.json", True),
+        (["keys/stock.json"], "keys/stock.json.bak", False),
+        (["keys/stock.json"], "keys", False),
+        (["key"], "keys/stock.json", False),
+        ([], "keys/stock.json", False),
+        (None, "keys/stock.json", False),
+        (["/keys"], "keys/stock.json", False),
+    ],
+)
+def test_protects(paths: object, file: str, ok: bool) -> None:
+    assert policy.protects(paths, file) is ok
+
+
+def test_a_denied_key_read_is_a_blocked_call_row(tmp_path: Path) -> None:
+    root = tmp_path.resolve()
+    (root / ".nookku").mkdir()
+    assert main(["policy", "--root", str(root), "set", "answer_keys", "keys/stock.json"]) == 0
+    event = {
+        "hook_event_name": "PreToolUse",
+        "cwd": str(root),
+        "tool_name": "Bash",
+        "tool_input": {"command": "cat keys/stock.json"},
+    }
+    answer = hook(root, event)
+    assert answer is not None
+    reason = answer["hookSpecificOutput"]["permissionDecisionReason"]
+    assert reason == (
+        "nookku: keys/stock.json names an answer key of the policy key answer_keys. A model "
+        "tool call may not read it or change it. Only a person and a test read it."
+    )
+    rows = [
+        json.loads(line) for line in (root / ".nookku" / "relay.jsonl").read_text().splitlines()
+    ]
+    assert [(r["type"], r["tool"], r["detail"]) for r in rows] == [
+        ("blocked_call", "Bash", '{"command": "cat keys/stock.json"}')
+    ]
+    # A person can read the key, and the model cannot change the policy key.
+    event["tool_input"] = {"command": "nookku policy set answer_keys ''"}
+    answer = hook(root, event)
+    assert answer is not None
+    assert answer["hookSpecificOutput"]["permissionDecisionReason"] == policy.REASON
