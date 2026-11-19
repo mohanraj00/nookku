@@ -48,6 +48,7 @@ If a hook changes, trust it again. A new plugin script also needs a new run of `
 | The Claude Code version of each Agent SDK release, no model | `uv run python scripts/proof_sdk_bundles.py <version>...` | `proofs/trace/sdk-bundles.json` |
 | The seeded faults of the trace checks, no model | `uv run nookku faults --json > proofs/release/faults-<version>.json` | `proofs/release/faults-<version>.json` |
 | The simulated user of a test, 1 persona | `uv run python scripts/proof_simulated_user.py` | `proofs/simulated-user/results.json` |
+| A replay with the recorded backends, no model | `uv run python scripts/proof_replay.py` | `proofs/replay/results.json` |
 | Backend proxy, no model | `uv run python scripts/proof_backend.py` | `proofs/backend/` |
 | Model API proxy, no model | `uv run python scripts/proof_model_api.py` | `proofs/model-api/` |
 | Driver trace of a database, no model | `uv run python scripts/proof_driver_trace.py` | `proofs/driver-trace/` |

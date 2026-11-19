@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import re
 from array import array
+from collections.abc import Callable
 from math import isqrt
 from pathlib import Path
 from typing import Any
@@ -43,8 +44,114 @@ KEEP = 1_000_000
 DEPTH = isqrt(2 * KEEP) + 2
 
 
+# The folder of a replay test with the recorded backends that holds the copies of the base
+# records (SPEC.md section 7.10, "Recorded backends"). The seal of the new test covers them.
+BASE = "base"
+# The files of the base test that such a replay copies, if they exist: the relay and tap records
+# for the check replay_changed, and the records of the HTTP proxies for the players.
+COPIED = ("relay.jsonl", "tap.jsonl", "backend.jsonl", "model_api.jsonl", "mcp.jsonl")
+# The default limit of the replay checks in a replay with the recorded backends (SPEC.md section
+# 7.14). A row of the Verdict section of the app spec replaces it.
+LIMITS = {"replay_changed": 0, "replay_miss": 0}
+
+
 class ReplayError(ValueError):
     """The replay cannot find the test to compare with."""
+
+
+def recorded_problem(old: Path, answer: dict[str, Any]) -> str | None:
+    """Why a replay with the recorded backends cannot play the records of the base test `old`
+    with the egress answer `answer`, or None. The seal of the base must be intact with a `same`
+    copy, so that the players answer only with the records of the base test. A stdio MCP server
+    and a Postgres database with a proxy have no player, so their calls would go out."""
+    from nookku import seal
+
+    result = seal.verify(old)
+    if not result["intact"] or result["copy"] != "same":
+        return (
+            f"the seal of the base test {old.name} is not intact with a same copy (SPEC.md "
+            "section 7.4), so the replay cannot trust its records"
+        )
+    for p in answer.get("mcp_servers", []):
+        if p.get("transport") == "stdio" and p.get("env") is not None:
+            return f"the replay has no player for the stdio MCP server {p['name']}"
+    for d in answer.get("databases", []):
+        if d.get("env") is not None and d.get("record") == "proxy":
+            return f"the replay has no player for the database {d['name']} with a proxy"
+    return None
+
+
+def copy_base(old: Path, folder: Path) -> None:
+    """Copy the records of the base test that a replay with the recorded backends reads into
+    the folder BASE of the new test."""
+    (folder / BASE).mkdir()
+    for name in COPIED:
+        if (old / name).is_file():
+            (folder / BASE / name).write_bytes((old / name).read_bytes())
+
+
+# The record files of the HTTP proxies, with the field that names the proxy of a row.
+PLAYED = (("backend.jsonl", "backend"), ("model_api.jsonl", "api"), ("mcp.jsonl", "server"))
+
+
+def findings(
+    folder: Path, manifest: dict[str, Any], turn_of: Callable[[float | None], int | None]
+) -> list[dict[str, Any]]:
+    """The findings replay_changed and replay_miss of a replay with the recorded backends
+    (SPEC.md section 8.6). A test with no manifest key `replay` has none. `turn_of` gives the
+    turn of a time."""
+    play = manifest.get("replay")
+    if not isinstance(play, dict):
+        return []
+    base = play.get("base")
+    out: list[dict[str, Any]] = []
+    try:
+        old = replies(folder / BASE)
+        new = replies(folder)
+    except RecordError as e:
+        detail = f"the replies cannot be compared with the base test {base}: {e}"
+        out.append({"check": "replay_changed", "turn": None, "detail": detail})
+    else:
+        for n in changed_turns(old, new):
+            if n > len(new):
+                turn, detail = None, f"the base test {base} has turn {n}, and this test does not"
+            elif n > len(old):
+                turn, detail = n, f"the base test {base} has no turn {n}"
+            else:
+                turn, detail = n, f"the reply is not the same as the reply of the base test {base}"
+            out.append({"check": "replay_changed", "turn": turn, "detail": detail})
+    for file, field in PLAYED:
+        try:
+            lines = (folder / file).read_bytes().split(b"\n")
+        except FileNotFoundError:
+            continue
+        for line in lines:
+            try:
+                row = loads(line) if line.strip() else None
+            except ValueError:
+                continue
+            got = row.get("replay") if isinstance(row, dict) else None
+            miss = got.get("miss") if isinstance(got, dict) else None
+            if not isinstance(row, dict) or not isinstance(miss, str):
+                continue
+            started = row.get("started")
+            when = None
+            if isinstance(started, (int, float)) and not isinstance(started, bool):
+                when = float(started)
+            detail = f"{file}: {row.get(field)}: {row.get('method')} {row.get('path')}: {miss}"
+            out.append({"check": "replay_miss", "turn": turn_of(when), "detail": detail})
+    return out
+
+
+def base_files(folder: Path) -> dict[str, str]:
+    """The SHA-256 of each copied base record of a new test, for the manifest key `replay`."""
+    from nookku import seal
+
+    return {
+        name: seal.sha256_of((folder / BASE / name).read_bytes())
+        for name in COPIED
+        if (folder / BASE / name).is_file()
+    }
 
 
 def replies(

@@ -1,0 +1,40 @@
+{
+ "about": "A replay with the recorded backends (SPEC.md section 7.10). Each row of recorded is one line of a base backend.jsonl, from line 1. Each request gets the expected outcome at the same index. Written by hand from SPEC.md.",
+ "recorded": [
+  {"v": 1, "type": "call", "backend": "stock", "started": 2.0, "ts": "2026-11-19T09:00:02Z", "method": "GET", "path": "/stock", "query": "sku=teapot-set", "request_headers": [], "request_body": {"size": 0, "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "cut": false, "text": ""}, "status": 200, "response_headers": [["Content-Type", "text/plain"]], "response_body": {"size": 19, "sha256": "44a2ea4ef7d23cc20f12c43ee5f54e3f6c13d36ac81f93c17bce93c48cc1d840", "cut": false, "text": "3 teapot sets left."}, "error": null},
+  {"v": 1, "type": "call", "backend": "stock", "started": 1.0, "ts": "2026-11-19T09:00:01Z", "method": "GET", "path": "/stock", "query": "sku=teapot-set", "request_headers": [], "request_body": {"size": 0, "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "cut": false, "text": ""}, "status": 200, "response_headers": [["Content-Type", "text/plain"]], "response_body": {"size": 19, "sha256": "756ae7f939ec78bd9dc50dcf102bcb451a339ca9204de624bb9b93311c881888", "cut": false, "text": "9 teapot sets left."}, "error": null},
+  {"v": 1, "type": "call", "backend": "orders", "started": 0.5, "ts": "2026-11-19T09:00:00Z", "method": "GET", "path": "/stock", "query": "sku=teapot-set", "request_headers": [], "request_body": {"size": 0, "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "cut": false, "text": ""}, "status": 200, "response_headers": [], "response_body": {"size": 9, "sha256": "8d7a4d3b7a1ca5b040814562e4722e9af383ca70c875bdbbc0bbf956c7c0c927", "cut": false, "text": "In stock."}, "error": null},
+  {"v": 1, "type": "call", "backend": "stock", "started": 3.0, "ts": "2026-11-19T09:00:03Z", "method": "POST", "path": "/stock", "query": null, "request_headers": [], "request_body": {"size": 8, "sha256": "e5d5f7c1d225fd6b13623ebb1b5b9d075c705659f81868b1e37005a0923b0346", "cut": false, "text": "{\"n\": 1}"}, "status": 200, "response_headers": [], "response_body": {"size": 20, "sha256": "0000000000000000000000000000000000000000000000000000000000000000", "cut": true, "text": "3 teapot"}, "error": null},
+  {"v": 1, "type": "call", "backend": "stock", "started": 4.0, "ts": "2026-11-19T09:00:04Z", "method": "GET", "path": "/feed", "query": null, "request_headers": [], "request_body": {"size": 0, "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "cut": false, "text": ""}, "status": 200, "response_headers": [["Content-Type", "text/event-stream"]], "response_body": {"size": 9, "sha256": "c144dd73322f64257a0fed669edd66f6b72bce48fe89cada78259be0ad065296", "cut": false, "text": "data: one"}, "error": "the stream stopped: the backend closed the connection"},
+  {"v": 1, "type": "call", "backend": "stock", "started": 5.0, "ts": "2026-11-19T09:00:05Z", "method": "GET", "path": "/down", "query": null, "request_headers": [], "request_body": {"size": 0, "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "cut": false, "text": ""}, "status": null, "response_headers": null, "response_body": null, "error": "the backend did not answer: [Errno 61] Connection refused"},
+  {"v": 1, "type": "call", "backend": "stock", "started": 6.0, "ts": "2026-11-19T09:00:06Z", "method": "GET", "path": "/slow", "query": null, "request_headers": [], "request_body": {"size": 0, "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "cut": false, "text": ""}, "status": null, "response_headers": null, "response_body": null, "error": "the test ended before the backend answered"},
+  {"v": 1, "type": "call", "backend": "stock", "started": 6.5, "ts": "2026-11-19T09:00:06Z", "method": "GET", "path": "/watch", "query": null, "request_headers": [], "request_body": {"size": 0, "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "cut": false, "text": ""}, "status": 200, "response_headers": [["Content-Type", "text/event-stream"]], "response_body": {"size": 9, "sha256": "c144dd73322f64257a0fed669edd66f6b72bce48fe89cada78259be0ad065296", "cut": true, "text": "data: one"}, "error": "the test ended before the stream ended"},
+  {"v": 1, "type": "call", "backend": "stock", "started": 7.0, "ts": "2026-11-19T09:00:07Z", "method": "GET", "path": "/refused", "query": null, "request_headers": [], "request_body": null, "status": 413, "response_headers": [], "response_body": null, "error": "the proxy refused the request"}
+ ],
+ "requests": [
+  {"backend": "stock", "method": "GET", "path": "/stock", "query": "sku=teapot-set", "request_body": {"sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}},
+  {"backend": "stock", "method": "GET", "path": "/stock", "query": "sku=teapot-set", "request_body": {"sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}},
+  {"backend": "stock", "method": "GET", "path": "/stock", "query": "sku=teapot-set", "request_body": {"sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}},
+  {"backend": "orders", "method": "GET", "path": "/stock", "query": "sku=teapot-set", "request_body": {"sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}},
+  {"backend": "stock", "method": "GET", "path": "/stock", "query": "sku=teapot-set", "request_body": {"sha256": "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881"}},
+  {"backend": "stock", "method": "POST", "path": "/stock", "query": null, "request_body": {"sha256": "e5d5f7c1d225fd6b13623ebb1b5b9d075c705659f81868b1e37005a0923b0346"}},
+  {"backend": "stock", "method": "GET", "path": "/feed", "query": null, "request_body": {"sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}},
+  {"backend": "stock", "method": "GET", "path": "/down", "query": null, "request_body": {"sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}},
+  {"backend": "stock", "method": "GET", "path": "/slow", "query": null, "request_body": {"sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}},
+  {"backend": "stock", "method": "GET", "path": "/watch", "query": null, "request_body": {"sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}},
+  {"backend": "stock", "method": "GET", "path": "/refused", "query": null, "request_body": {"sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}}
+ ],
+ "expected": [
+  {"line": 2, "miss": null, "status": 200, "body": "9 teapot sets left.", "stopped": null},
+  {"line": 1, "miss": null, "status": 200, "body": "3 teapot sets left.", "stopped": null},
+  {"line": null, "miss": "the replay has no recorded response: the base test has no unused call with this method, path, query and body", "status": 502, "body": null, "stopped": null},
+  {"line": 3, "miss": null, "status": 200, "body": "In stock.", "stopped": null},
+  {"line": null, "miss": "the replay has no recorded response: the base test has no unused call with this method, path, query and body", "status": 502, "body": null, "stopped": null},
+  {"line": 4, "miss": "the replay has no recorded response: the recorded response is cut at record_limit", "status": 502, "body": null, "stopped": null},
+  {"line": 5, "miss": null, "status": 200, "body": "data: one", "stopped": "the backend closed the connection"},
+  {"line": 6, "miss": null, "status": 502, "body": null, "stopped": null},
+  {"line": 7, "miss": "the replay has no recorded response: the base test ended before this call ended", "status": 502, "body": null, "stopped": null},
+  {"line": 8, "miss": "the replay has no recorded response: the base test ended before this call ended", "status": 502, "body": null, "stopped": null},
+  {"line": null, "miss": "the replay has no recorded response: the base test has no unused call with this method, path, query and body", "status": 502, "body": null, "stopped": null}
+ ]
+}

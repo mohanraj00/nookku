@@ -436,6 +436,16 @@ I ran the toy shop agent with 1 persona on 2026-11-17, with nookku 0.5.9 and Cla
 
 This is 1 run with 1 turn. It does not show how the simulated user acts in a long conversation, or with an agent that does not reach the goal. The tests with no model cover the turn limit and a failed session ([test_simulated_user.py](../tests/test_simulated_user.py)).
 
+### A replay with the recorded backends
+
+I replayed the toy shop script 10 times with `nookku replay --recorded --verdict` on 2026-11-19, with nookku 0.5.9 and no model ([data](../proofs/replay/results.json), [method](../scripts/proof_replay.py)). The toy entry asks a toy stock service and a toy model API for each of the 3 messages. The toy model puts a call counter in each answer, and the stock service answers 1 call of each turn with status 503. Thus the base test has 3 `backend_error` findings.
+
+- R1: a live replay, as a control, changed 3 of 3 turns, because the toy model gave new answers.
+- R2: after the 2 toy servers stopped, 10 of 10 recorded replays had no changed turn, no miss, exit code 0, an intact seal and the findings of the base test. The servers got 0 calls in these replays.
+- R3: a planted change of the entry gave 3 `replay_changed` findings, and `--verdict` gave exit code 1.
+
+This proof uses 1 script and HTTP parts only. A stdio MCP server and a Postgres proxy have no player yet ([#621](https://github.com/mohanraj00/nookku/issues/621)), so a recorded replay of a test with these parts does not start.
+
 ## 2. Benchmark under pressure
 
 The question: does the mechanism stay exact in long, messy conversations with the agent?

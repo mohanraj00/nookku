@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import unquote_plus, urlsplit
 
+from . import player as player_mod
 from . import stdio
 from .config import DEFAULT_BODY_LIMIT, BodyLimit, Config
 from .proxy_socket import LimitedServer, send_refusal
@@ -451,6 +452,9 @@ class Proxy(LimitedServer, HTTPServer):
     # The most bytes of a request body that the proxy reads and forwards.
     body_limit = BODY_LIMIT
     stream_requests = False
+    # In a replay with the recorded backends, the player of the proxy. It answers each request
+    # from the base record, and the proxy makes no outside call (SPEC.md section 7.10).
+    player: player_mod.Player | None = None
 
     def __init__(self, backend: Backend, record: Path, lock: threading.Condition) -> None:
         super().__init__(("127.0.0.1", 0), Handler)
@@ -487,7 +491,10 @@ class Proxy(LimitedServer, HTTPServer):
     def limit(self) -> int:
         return RECORD_LIMIT if self.keep is None else self.keep
 
-    def connect(self) -> http.client.HTTPConnection:
+    def connect(self, row: dict[str, Any]) -> http.client.HTTPConnection | player_mod.Connection:
+        """The connection for the call of `row`: to the backend, or to the player."""
+        if self.player is not None:
+            return player_mod.Connection(self.player, row, self.lock)
         if self.scheme == "https":
             return http.client.HTTPSConnection(self.host, self.port, timeout=TIMEOUT)
         return http.client.HTTPConnection(self.host, self.port, timeout=TIMEOUT)
@@ -689,7 +696,7 @@ class Handler(BaseHTTPRequestHandler):
             proxy.end(row, {"ts": time.time(), "error": f"{REFUSED}: {refused}"})
             self._refuse(refused)
             return
-        conn = proxy.connect()
+        conn = proxy.connect(row)
         try:
             try:
                 # The low-level calls send each header of the app once, in its order, and add no
@@ -738,7 +745,10 @@ class Handler(BaseHTTPRequestHandler):
             conn.close()
 
     def _upload(
-        self, conn: http.client.HTTPConnection, upload: StreamBody, length: int | None
+        self,
+        conn: http.client.HTTPConnection | player_mod.Connection,
+        upload: StreamBody,
+        length: int | None,
     ) -> None:
         proxy = self.server
         for part, payload in upload_parts(self.rfile, length):
@@ -749,7 +759,9 @@ class Handler(BaseHTTPRequestHandler):
                     upload.add(part)
             conn.send(part)
 
-    def _stream(self, resp: http.client.HTTPResponse, row: dict[str, Any]) -> None:
+    def _stream(
+        self, resp: http.client.HTTPResponse | player_mod.Response, row: dict[str, Any]
+    ) -> None:
         """Send each part of the response to the app when it comes, then write the row.
 
         This function catches each error itself, because the app already has the status.

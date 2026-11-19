@@ -1,0 +1,16 @@
+{
+ "faults": [
+  {
+   "check": "backend_error",
+   "turn": 2
+  },
+  {
+   "check": "replay_changed",
+   "turn": 2
+  },
+  {
+   "check": "replay_miss",
+   "turn": 2
+  }
+ ]
+}
