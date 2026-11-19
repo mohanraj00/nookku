@@ -389,3 +389,30 @@ def test_hosts_for_a_loopback_and_a_named_address() -> None:
     assert "localhost:8765" in api.hosts_for("127.0.0.1", 8765, [])
     assert api.hosts_for("10.0.0.5", 80, []) == {"10.0.0.5:80"}
     assert api.hosts_for("::1", 80, []) >= {"[::1]:80", "127.0.0.1:80"}
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="root can read a file with mode 000")
+def test_a_run_or_a_gate_run_with_a_file_that_cannot_be_read_does_not_stop_the_lists(
+    project: Path, server: api.Server
+) -> None:
+    runs = get_json(server, "/api/v1/runs")["runs"]
+    bad = project / ".nookku" / "tests" / runs[0]["id"] / "findings.json"
+    folder = gate.find(project, None)
+    assert folder is not None
+    result = folder / gate.RUN
+    bad.chmod(0)
+    result.chmod(0)
+    try:
+        rows = get_json(server, "/api/v1/runs")["runs"]
+        verdict = get_json(server, f"/api/v1/runs/{runs[0]['id']}/verdict")
+        gates = get_json(server, "/api/v1/gates")["gates"]
+        one = get_json(server, f"/api/v1/gates/{folder.name}")
+    finally:
+        bad.chmod(0o644)
+        result.chmod(0o644)
+    assert len(rows) == 2
+    assert rows[0]["verdict"] is None and "cannot be read" in rows[0]["verdict_problem"]
+    assert rows[1]["verdict"] == "pass"
+    assert verdict["verdict"] is None and "cannot be read" in verdict["problem"]
+    assert gates[0]["verdict"] is None and gates[0]["problem"]
+    assert one["result"] is None and "cannot be read" in one["problem"]

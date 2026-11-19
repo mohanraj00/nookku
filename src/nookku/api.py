@@ -91,6 +91,23 @@ def _run_folder(root: Path, run: str) -> Path:
     return folder
 
 
+def _checked(folder: Path) -> tuple[dict[str, Any] | None, str | None]:
+    """verdict.checked, with a file that the process cannot read as a problem. Then one run that
+    cannot be read does not stop the answer for the other runs."""
+    try:
+        return verdict.checked(folder)
+    except OSError as e:
+        return None, f"A file of the run cannot be read: {e.strerror or e}."
+
+
+def _verified(folder: Path) -> tuple[dict[str, Any] | None, str | None]:
+    """gate.verify, with a file that the process cannot read as a problem."""
+    try:
+        return gate.verify(folder)
+    except OSError as e:
+        return None, f"A file of the gate run cannot be read: {e.strerror or e}."
+
+
 def _run(folder: Path, running: str | None) -> dict[str, Any]:
     """The row of a run: the row of the chat dashboard, with the verdict that a process can use."""
     row: dict[str, Any] = dict(dashboard.row(folder, running))
@@ -99,7 +116,7 @@ def _run(folder: Path, running: str | None) -> dict[str, Any]:
     if row["state"] == "running":
         report, problem = None, "The run has not ended."
     else:
-        report, problem = verdict.checked(folder)
+        report, problem = _checked(folder)
     row["verdict"] = report["verdict"] if report is not None else None
     row["verdict_problem"] = problem
     return row
@@ -121,7 +138,7 @@ def run_verdict(root: Path, run_id: str) -> dict[str, Any]:
     """`GET /api/v1/runs/<run>/verdict`: the verdict, only if a process can use it (SPEC.md
     section 7.14, "The verdict of an exit code")."""
     folder = _run_folder(root, run_id)
-    report, problem = verdict.checked(folder)
+    report, problem = _checked(folder)
     return {"api": VERSION, "run": folder.name, "verdict": report, "problem": problem}
 
 
@@ -182,7 +199,7 @@ def _gate_folder(root: Path, gate_id: str) -> Path:
 def _gate_row(folder: Path) -> dict[str, Any]:
     """The row of a gate run: its id, its verdict and its subject if a process can use them, and
     the state of its seal."""
-    result, problem = gate.verify(folder)
+    result, problem = _verified(folder)
     seal_state, error = dashboard._seal_state(folder)
     return {
         "id": folder.name,
@@ -203,7 +220,7 @@ def gate_result(root: Path, gate_id: str) -> dict[str, Any]:
     """`GET /api/v1/gates/<gate>`: result.json of a gate run, only if a process can use it
     (SPEC.md section 7.15)."""
     folder = _gate_folder(root, gate_id)
-    result, problem = gate.verify(folder)
+    result, problem = _verified(folder)
     return {"api": VERSION, "gate": folder.name, "result": result, "problem": problem}
 
 
