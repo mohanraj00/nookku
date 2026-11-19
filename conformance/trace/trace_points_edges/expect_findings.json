@@ -79,7 +79,8 @@
   "session_inferred": 0,
   "version_untested": 0,
   "missing_trace_point": 1,
-  "trace_points_unread": 2
+  "trace_points_unread": 2,
+  "action_without_approval": 0
  },
  "findings": [
   {

@@ -24,6 +24,7 @@ from nookku import (
     __version__,
     answer_key,
     app_spec,
+    approvals,
     backend,
     db_proxy,
     discovery,
@@ -158,6 +159,8 @@ class TestConfig:
     # bytes into the test folder after the entry stops (SPEC.md section 7.17).
     answer_key: dict[str, Any] | None = None
     answer_key_data: bytes = b""
+    # The rows of the Approvals sections of the app spec (SPEC.md section 7.18).
+    approvals: list[dict[str, str]] = field(default_factory=list)
 
 
 def load_config(root: Path, entry_name: str | None = None) -> TestConfig:
@@ -175,6 +178,7 @@ def load_config(root: Path, entry_name: str | None = None) -> TestConfig:
         points, unread = app_spec.read(files)
         limits = verdict.read(files)
         key, key_data = answer_key.read(root, files)
+        approved = approvals.read(files)
     except (ConfigError, policy.PolicyError) as e:
         raise BridgeError(str(e)) from None
     entry, models = data.get("entry") or [], data.get("models") or []
@@ -210,6 +214,7 @@ def load_config(root: Path, entry_name: str | None = None) -> TestConfig:
         verdict=limits,
         answer_key=key,
         answer_key_data=key_data,
+        approvals=approved,
     )
 
 
@@ -1045,6 +1050,8 @@ def run(
         # After the entry stops, the bridge copies the key file into answer_key.json (SPEC.md
         # section 7.17).
         "answer_key": config.answer_key,
+        # The actions that need an approval (SPEC.md section 7.18).
+        "approvals": config.approvals,
         "tester_sessions": [tester_session] if tester_session else [],
         "model_sessions": [],
         "codex_gate": {"start": _start_gate(folder), "end": None},

@@ -448,6 +448,17 @@ I asked Claude Code 2.1.319 to read an answer key of a toy shop project on 2026-
 
 This is 1 run of 3 prompts for each setup. Each prompt names the tool to use, so it does not show what a model tries after a deny. It has no Codex run. The guard does not stop a search of a folder above the key or a program that builds the path ([limits.md](limits.md)). The 26 conformance cases with a name that starts with `key_` or `test_key_` cover more calls with no model ([conformance/guard/](../conformance/guard/)).
 
+### An action with no approval
+
+[scripts/proof_approvals.py](../scripts/proof_approvals.py) runs a test of a toy shop app with a backend `shop` and a stdio MCP server `payments`, with no model. The server asks for the approval of a refund with an MCP elicitation. The [app spec](reference/app-spec.md#approvals) says that a refund needs an accepted elicitation of `payments`, and that the cancel of an order needs the message `yes` after an interrupt. The proof plants 1 defect: in turn 2, the app calls the refund backend and asks nobody. In the run of 2026-11-19 with the code of [#521](https://github.com/mohanraj00/nookku/issues/521) on nookku 0.5.9 ([data](../proofs/approvals/results.json)):
+
+- The [trace](reference/glossary.md#trace) has 2 `elicitation` items from the record of the MCP proxy: an `accept` in turn 1 and a `decline` in turn 3. It has 1 `interrupt` item in turn 4 and 1 `resume` item in turn 5 from the tap record.
+- The refund of turn 1 follows the `accept`, and the cancel of turn 5 follows the message `yes`. They give no [finding](reference/glossary.md#findings).
+- The planted refund of turn 2 gives 1 `action_without_approval` finding. No other finding class has a count.
+- The `Verdict` table permits 0 `action_without_approval`, so the verdict is `fail`. The [seal](reference/glossary.md#seal) is intact.
+
+This is 1 run of 5 turns, with 1 planted defect and 2 rows of the `Approvals` table. The toy app answers the elicitation itself, so the run does not show a real user. It has no HTTP MCP server and no approval of the `By` `session`, `backend`, `otel` or `mcp`. The 3 conformance cases with a name that starts with `approvals_` cover these forms with no model ([conformance/trace/](../conformance/trace/)).
+
 ## 2. Benchmark under pressure
 
 The question: does the mechanism stay exact in long, messy conversations with the agent?
