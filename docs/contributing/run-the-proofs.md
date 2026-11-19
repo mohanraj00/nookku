@@ -49,6 +49,7 @@ If a hook changes, trust it again. A new plugin script also needs a new run of `
 | The seeded faults of the trace checks, no model | `uv run nookku faults --json > proofs/release/faults-<version>.json` | `proofs/release/faults-<version>.json` |
 | The simulated user of a test, 1 persona | `uv run python scripts/proof_simulated_user.py` | `proofs/simulated-user/results.json` |
 | A replay with the recorded backends, no model | `uv run python scripts/proof_replay.py` | `proofs/replay/results.json` |
+| A rollout gate on a gate result, no model | `uv run python scripts/proof_rollout_gate.py` | `proofs/rollout-gate/results.json` |
 | Backend proxy, no model | `uv run python scripts/proof_backend.py` | `proofs/backend/` |
 | Model API proxy, no model | `uv run python scripts/proof_model_api.py` | `proofs/model-api/` |
 | Driver trace of a database, no model | `uv run python scripts/proof_driver_trace.py` | `proofs/driver-trace/` |
