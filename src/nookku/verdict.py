@@ -178,9 +178,13 @@ def build(folder: Path, new: bool = False) -> dict[str, Any]:
     if planted:
         report["problems"].append(PLANTED)
         report["verdict"] = FAIL
-    text = json_text(report, indent=1) + "\n"
-    (folder / FILE).write_text(text, encoding="utf-8")
+    (folder / FILE).write_text(file_text(report), encoding="utf-8")
     return report
+
+
+def file_text(report: dict[str, Any]) -> str:
+    """The text of verdict.json for a verdict."""
+    return json_text(report, indent=1) + "\n"
 
 
 def compute(

@@ -280,6 +280,7 @@ Record your decision about one mismatch of the [answer key](app-spec.md#answer-k
 - The command adds 1 row to `adjudications.jsonl` in the [test folder](glossary.md#test-folder): the turn, the question, the outcome, the reason, the author and the time. `findings.json` keeps the mismatch.
 - A later row for the same turn replaces the earlier decision. The earlier row stays in the file.
 - The command writes `verdict.json` again and updates the [seal](glossary.md#seal). It prints the verdict line with the counts before and after the adjudications.
+- The command reads each record one time and uses only bytes that the seal covers. If a sealed file changes during the command, the command does not update the seal and exits with 1. The seal is then broken.
 - A mismatch with no adjudication is open, and it counts against the limit.
 - Only a person runs this command. The [relay](glossary.md#relay) denies it from the model.
 - A gate result that pinned the test cannot be used after an adjudication. Run the gate again.

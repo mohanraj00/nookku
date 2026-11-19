@@ -55,6 +55,13 @@ MODE_DRIVES = {"on", "off", "start", "end"}
 # `init --remove` removes the project hooks, so the next message would reach the model (#163).
 # argparse also takes a unique prefix of the flag, from --rem.
 REMOVE = "--remove"
+# The shell can change a word with one of these characters before nookku gets it: a variable, a
+# command substitution, a glob or a brace list. Thus the rule cannot know the subcommand, for
+# example in C=adjudicate; nookku "$C" (#548).
+EXPANDS = re.compile(r"[$`*?\[{]")
+# The same word in the text of a command that the check cannot parse. The text keeps its quotes
+# and its backslashes, so a word with one of them is also not a known subcommand.
+WORD = r"""[^\s;&|]*[$`*?\[{'"\\][^\s;&|]*"""
 # Programs that run their arguments as a command.
 LAUNCHERS = {"env", "exec", "nohup", "time", "command", "sudo", "uvx"}
 PYTHON = re.compile(r"python[0-9.]*")
@@ -67,7 +74,8 @@ DRIVE_TEXT = re.compile(
     r"\bnookku\s+(?:-\S+\s+)*(start|end|hook|run|chat|page|script|replay|adjudicate"
     r"|gate\b(?!\s+verify\b)"
     r"|mode\s+(?:on|off|start|end)"
-    r"|init\b[^;&|\n]*?\s--rem(?:o|ov|ove)?\b)"
+    r"|init\b[^;&|\n]*?\s--rem(?:o|ov|ove)?\b"
+    rf"|(?P<word>{WORD})|mode\s+(?P<state>{WORD})|init\b[^;&|\n]*?\s(?P<flag>{WORD}))"
 )
 # The same text with no word boundary before nookku, for text that an option holds, for example
 # env -S'nookku start'.
@@ -77,6 +85,8 @@ SPLIT = re.compile(r"-[a-zA-Z]*S|--split-string")
 # The python long option that takes the next word as its value.
 PYTHON_LONG_VALUES = {"--check-hash-based-pycs"}
 IMPORT = "import nookku"
+# The result of the drive rule for a nookku command with a word that the shell expands.
+EXPANDED = "nookku with a word that the shell expands"
 SHELL_CODE = re.compile(r"-[a-zA-Z]*c[a-zA-Z]*")
 # A word of a text that can name a path in a state folder.
 STATE_WORD = re.compile(r"[^\s\"'`;|&<>(),{}]+")
@@ -395,11 +405,18 @@ def _subcommand(args: list[str]) -> str | None:
         return None
     if words and words[0] in DRIVES:
         return f"nookku {words[0]}"
+    if words and EXPANDS.search(words[0]):
+        return EXPANDED
     state = next((w for w in words[1:] if w in MODE_DRIVES), None)
     if words[:1] == ["mode"] and state is not None:
         return f"nookku mode {state}"
     if words[:1] == ["init"] and any(len(a) >= 5 and REMOVE.startswith(a) for a in args):
         return "nookku init --remove"
+    # The state of `mode` or a flag of `init` can come from a word that the shell expands.
+    if words[:1] == ["mode"] and any(EXPANDS.search(w) for w in words[1:]):
+        return EXPANDED
+    if words[:1] == ["init"] and any(EXPANDS.search(a) for a in args):
+        return EXPANDED
     return None
 
 
@@ -511,6 +528,8 @@ def _drive_text(text: str, allowed: frozenset[str], pattern: re.Pattern[str]) ->
     for m in pattern.finditer(text):
         what = "nookku " + " ".join(m.group(1).split())
         what = "nookku init --remove" if what.startswith("nookku init") else what
+        if m.group("word") or m.group("state") or m.group("flag"):
+            what = EXPANDED
         if what not in allowed:
             return what
     return None
@@ -518,7 +537,8 @@ def _drive_text(text: str, allowed: frozenset[str], pattern: re.Pattern[str]) ->
 
 def drive(command: str, allowed: frozenset[str] = frozenset()) -> str | None:
     """The nookku command that a shell command runs to drive a test, for example "nookku start",
-    or IMPORT if the command imports the package. None if it does neither (SPEC.md section 5).
+    EXPANDED if the shell expands a word that can be the subcommand, or IMPORT if the command
+    imports the package. None if it does none of these (SPEC.md section 5).
 
     The rule finds the program after assignments, launchers such as env and uv run, python -m
     and sh -c. If the check cannot parse the command, the rule reads its text. A command that

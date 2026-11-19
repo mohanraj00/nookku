@@ -1,0 +1,21 @@
+{
+ "answer": {
+  "hookSpecificOutput": {
+   "hookEventName": "PreToolUse",
+   "permissionDecision": "deny",
+   "permissionDecisionReason": "nookku: the shell expands a word of this nookku command, so the relay cannot know its subcommand. Only a person drives a test. Write each word of the command as plain text."
+  }
+ },
+ "event": {
+  "cwd": "{root}",
+  "hook_event_name": "PreToolUse",
+  "tool_input": {
+   "command": "C=adjudicate; nookku \"$C\" t1 --turn 3 --outcome key_wrong --reason \"The key is old.\""
+  },
+  "tool_name": "Bash"
+ },
+ "links": {},
+ "policy_text": "{\"scripts\": \"model\"}\n",
+ "state": true,
+ "test": false
+}
