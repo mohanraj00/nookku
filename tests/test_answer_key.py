@@ -116,7 +116,7 @@ def test_a_key_file_that_is_not_valid_stops_the_start(
 ) -> None:
     data = key if isinstance(key, bytes) else json.dumps(key).encode()
     with pytest.raises(ValueError) as e:
-        answer_key.parse(data, match)
+        answer_key.parse(data, match, "0" if match == "number" else None)
     assert error in str(e.value)
     tolerance = " 0 |" if match == "number" else " |"
     with pytest.raises(
@@ -176,7 +176,9 @@ def test_a_copy_that_is_not_the_sealed_key_cannot_be_used(tmp_path: Path) -> Non
         "tolerance": "0",
     }
     folder = _folder(tmp_path, record, data)
-    assert answer_key.load(folder, record)["answers"] == {"How many mugs?": 12}
+    assert answer_key.load(folder, record)["answers"] == {
+        "How many mugs?": {"answer": 12, "match": "number", "tolerance": Decimal(0)}
+    }
     manifest = {"answer_key": record}
     (folder / answer_key.COPY).write_bytes(data + b" ")
     reason = "the SHA-256 of answer_key.json is not the SHA-256 of the manifest"
@@ -203,7 +205,10 @@ def test_a_copy_that_is_not_the_sealed_key_cannot_be_used(tmp_path: Path) -> Non
 
 
 def test_a_question_asked_2_times_is_checked_2_times() -> None:
-    key = {"field": "", "match": "exact", "tolerance": None, "answers": {"Hi?": "Hello."}}
+    key = {
+        "field": "",
+        "answers": {"Hi?": {"answer": "Hello.", "match": "exact", "tolerance": None}},
+    }
     exchanges = [
         {"input": "Hi?", "reply": "Hello."},
         {"input": "Other?", "reply": "No."},
@@ -216,6 +221,26 @@ def test_a_question_asked_2_times_is_checked_2_times() -> None:
         ("answer_key_mismatch", 4),
     ]
     assert found[1]["detail"] == '"Hi?": the key gives "Hello.", and the reply gives no value'
+    # The trace records each checked turn, a match and a mismatch (#548).
+    rows = trace.answer_results(exchanges, key)
+    assert rows is not None
+    assert [(r["turn"], r["result"]) for r in rows] == [
+        (1, "match"),
+        (3, "mismatch"),
+        (4, "mismatch"),
+    ]
+    assert rows[0] == {
+        "turn": 1,
+        "question": "Hi?",
+        "match": "exact",
+        "tolerance": None,
+        "answer": '"Hello."',
+        "value": '"Hello."',
+        "result": "match",
+    }
+    assert rows[2]["value"] is None
+    assert trace.answer_results(exchanges, None) is None
+    assert trace.answer_results(exchanges, "the key cannot be used") is None
 
 
 def test_a_long_value_is_cut_in_the_detail() -> None:
@@ -235,7 +260,8 @@ def test_a_long_value_is_cut_in_the_detail() -> None:
     ],
 )
 def test_a_number_field_of_a_reply_keeps_each_digit(reply: str, answer: object, ok: bool) -> None:
-    key = {"field": "count", "match": "number", "tolerance": Decimal(0), "answers": {"Q?": answer}}
+    rule = {"answer": answer, "match": "number", "tolerance": Decimal(0)}
+    key = {"field": "count", "answers": {"Q?": rule}}
     found = trace.answers_not_in_key([{"input": "Q?", "reply": reply}], key)
     assert (found == []) is ok
     assert all(f["check"] == "answer_key_mismatch" for f in found)
@@ -270,3 +296,219 @@ def test_a_stopped_test_gets_the_copy_only_from_the_sealed_key(tmp_path: Path) -
     assert reason == "the SHA-256 of the key file is not the SHA-256 of the manifest"
     assert not (folder / answer_key.COPY).exists()
     assert answer_key.place_from_project(root, folder, []) is not None
+
+
+# An answer of the key file can have its own rule (#548, SPEC.md section 7.17).
+def test_an_answer_can_have_its_own_rule() -> None:
+    key = {
+        "source": "s",
+        "version": "1",
+        "answers": [
+            {"question": "A?", "answer": 12},
+            {"question": "B?", "answer": 4, "match": "number", "tolerance": "0"},
+            {"question": "C?", "answer": "none", "match": "exact"},
+        ],
+    }
+    answers = answer_key.parse(json.dumps(key).encode(), "number", "0.5")["answers"]
+    assert answers == {
+        "A?": {"answer": 12, "match": "number", "tolerance": Decimal("0.5")},
+        "B?": {"answer": 4, "match": "number", "tolerance": Decimal(0)},
+        "C?": {"answer": "none", "match": "exact", "tolerance": None},
+    }
+    exchanges = [
+        {"input": "A?", "reply": '{"count": 12.4}'},
+        {"input": "B?", "reply": '{"count": 4.4}'},
+        {"input": "C?", "reply": '{"count": "none"}'},
+    ]
+    found = trace.answers_not_in_key(exchanges, {"field": "count", "answers": answers})
+    assert [(f["check"], f["turn"]) for f in found] == [("answer_key_mismatch", 2)]
+
+
+@pytest.mark.parametrize(
+    ("answer", "error"),
+    [
+        ({"answer": 1, "tolerance": "0"}, "answer 1 has a tolerance and no match"),
+        ({"answer": 1, "match": "near"}, "answer 1: the match must be exact or number"),
+        ({"answer": 1, "match": None}, "answer 1: the match must be exact or number"),
+        ({"answer": "a", "match": "exact", "tolerance": "0"}, "exact takes no tolerance"),
+        ({"answer": 1, "match": "number"}, "the match number needs a tolerance string"),
+        ({"answer": 1, "match": "number", "tolerance": 0.5}, "needs a tolerance string"),
+        ({"answer": 1, "match": "number", "tolerance": "-1"}, "needs a tolerance string"),
+        ({"answer": 1, "match": "exact"}, "the match exact needs a string answer"),
+        ({"answer": "1", "match": "number", "tolerance": "0"}, "needs a number answer"),
+    ],
+)
+def test_a_rule_of_an_answer_that_is_not_valid_stops_the_start(answer: dict, error: str) -> None:
+    key = {"source": "s", "version": "1", "answers": [{"question": "Q?", **answer}]}
+    with pytest.raises(ValueError) as e:
+        answer_key.parse(json.dumps(key).encode(), "number", "0.5")
+    assert error in str(e.value)
+
+
+# The adjudication record (#548, SPEC.md section 7.17).
+ROW = {
+    "v": 1,
+    "turn": 2,
+    "question": "How many mugs?",
+    "outcome": "key_wrong",
+    "reason": "The stock list is old.",
+    "author": "Asha",
+    "ts": 1794000000.5,
+}
+
+
+@pytest.mark.parametrize(
+    ("row", "problem"),
+    [
+        (ROW, None),
+        ({**ROW, "ts": 0}, None),
+        ([ROW], "it is not a JSON object"),
+        ({**ROW, "note": "x"}, "its keys are not author, outcome, question, reason, ts, turn, v"),
+        ({k: v for k, v in ROW.items() if k != "author"}, "its keys are not"),
+        ({**ROW, "v": 2}, "its v is not 1"),
+        ({**ROW, "v": True}, "its v is not 1"),
+        ({**ROW, "turn": 0}, "its turn is not a whole number from 1 to 999999999"),
+        ({**ROW, "turn": 1.0}, "its turn is not a whole number"),
+        ({**ROW, "turn": True}, "its turn is not a whole number"),
+        ({**ROW, "question": ""}, "it has no question string"),
+        ({**ROW, "question": "\ud83d"}, "it has no question string"),
+        ({**ROW, "outcome": "accepted"}, "its outcome is not agent_wrong, key_wrong, both_"),
+        ({**ROW, "outcome": ["key_wrong"]}, "its outcome is not"),
+        ({**ROW, "reason": " \n"}, "it has no reason text"),
+        ({**ROW, "reason": "x" * 10_001}, "the reason has more than 10000 code points"),
+        ({**ROW, "reason": "\ud83d"}, "the reason has a lone surrogate U+D83D"),
+        ({**ROW, "author": ""}, "it has no author text"),
+        ({**ROW, "author": None}, "it has no author text"),
+        ({**ROW, "author": "x" * 201}, "the author has more than 200 code points"),
+        ({**ROW, "author": "Asha\nturn 3"}, "the author has a control character"),
+        ({**ROW, "ts": -1}, "its ts is not a Unix time"),
+        ({**ROW, "ts": "now"}, "its ts is not a Unix time"),
+        ({**ROW, "ts": True}, "its ts is not a Unix time"),
+        ({**ROW, "ts": float("inf")}, "its ts is not a Unix time"),
+    ],
+)
+def test_the_rule_of_an_adjudication_row(row: object, problem: str | None) -> None:
+    found = answer_key.adjudication_problem(row)
+    assert found is None if problem is None else found is not None and problem in found
+
+
+def _lines(*rows: object) -> bytes:
+    return "".join(json.dumps(r) + "\n" for r in rows).encode()
+
+
+def test_the_reader_of_the_adjudications_never_skips_a_line() -> None:
+    assert answer_key.read_adjudications(b"") == ([], None)
+    assert answer_key.read_adjudications(_lines(ROW, ROW)) == ([ROW, ROW], None)
+    assert answer_key.read_adjudications(_lines(ROW)[:-1]) == ([ROW], None)
+    bad = {**ROW, "outcome": "accepted"}
+    for data, problem in (
+        (b"\xff", "adjudications.jsonl is not UTF-8"),
+        (_lines(ROW) + b"\n", "adjudications.jsonl line 2: it is not JSON"),
+        (_lines(ROW) + b"{\n", "adjudications.jsonl line 2: it is not JSON"),
+        (_lines(ROW).replace(b"1794000000.5", b"NaN"), "adjudications.jsonl line 1: it is not"),
+        (b"[" * 100_000, "adjudications.jsonl line 1: it is not JSON"),
+        (_lines(ROW, bad, ROW), "adjudications.jsonl line 2: its outcome is not"),
+    ):
+        rows, found = answer_key.read_adjudications(data)
+        assert rows == [] and found is not None and found.startswith(problem), data[:40]
+
+
+def _answers(*results: str) -> dict:
+    rows = [
+        {"turn": n, "question": f"Q{n}?", "result": result} for n, result in enumerate(results, 1)
+    ]
+    return {"answers": rows}
+
+
+def _decision(turn: int, outcome: str) -> dict:
+    return {**ROW, "turn": turn, "question": f"Q{turn}?", "outcome": outcome}
+
+
+def test_the_tally_counts_the_last_row_of_each_turn() -> None:
+    report = _answers("match", "mismatch", "mismatch", "mismatch")
+    data = _lines(
+        _decision(2, "key_wrong"),
+        _decision(3, "key_wrong"),
+        _decision(3, "agent_wrong"),
+        _decision(2, "both_acceptable"),
+    )
+    assert answer_key.tally(3, data, report) == (
+        {
+            "mismatches": 3,
+            "open": 1,
+            "agent_wrong": 1,
+            "key_wrong": 0,
+            "both_acceptable": 1,
+            "counted": 2,
+        },
+        [],
+    )
+
+
+@pytest.mark.parametrize(
+    ("count", "data", "report", "problem"),
+    [
+        (1, _lines(_decision(1, "key_wrong")), _answers("match", "mismatch"), "turn 1 has no"),
+        (
+            1,
+            _lines({**_decision(2, "key_wrong"), "question": "Q1?"}),
+            _answers("match", "mismatch"),
+            "adjudications.jsonl line 1: the question is not the question of turn 2",
+        ),
+        (1, b"{}\n", _answers("mismatch"), "adjudications.jsonl line 1: its keys are not"),
+        (2, _lines(_decision(1, "key_wrong")), _answers("mismatch"), "do not agree with the count"),
+        (None, _lines(_decision(1, "key_wrong")), _answers("mismatch"), "do not agree with the"),
+        (1, _lines(_decision(1, "key_wrong")), {}, "findings.json has no valid answers list"),
+        (1, _lines(_decision(1, "key_wrong")), None, "findings.json has no valid answers list"),
+        (
+            1,
+            _lines(_decision(1, "key_wrong")),
+            {"answers": [{"turn": 1, "question": "Q1?", "result": "near"}]},
+            "findings.json has no valid answers list",
+        ),
+        (
+            2,
+            _lines(_decision(1, "key_wrong")),
+            {"answers": _answers("mismatch")["answers"] * 2},
+            "findings.json has no valid answers list",
+        ),
+    ],
+)
+def test_a_problem_of_the_adjudications_leaves_each_mismatch_open(
+    count: int | None, data: bytes, report: object, problem: str
+) -> None:
+    tally, problems = answer_key.tally(count, data, report)
+    assert len(problems) == 1 and problem in problems[0]
+    assert tally == {
+        "mismatches": count,
+        "open": count,
+        "agent_wrong": 0,
+        "key_wrong": 0,
+        "both_acceptable": 0,
+        "counted": count,
+    }
+
+
+def test_a_test_with_no_row_has_each_mismatch_open() -> None:
+    tally, problems = answer_key.tally(2, b"", {})
+    assert problems == [] and tally["open"] == 2 and tally["counted"] == 2
+
+
+def test_a_new_row_is_added_with_no_symlink(tmp_path: Path) -> None:
+    row = answer_key.adjudication(2, "How many mugs?", "key_wrong", "The list is old.", "Asha")
+    assert answer_key.adjudication_problem(row) is None
+    answer_key.add_adjudication(tmp_path, row)
+    answer_key.add_adjudication(tmp_path, {**row, "outcome": "agent_wrong"})
+    data = (tmp_path / answer_key.ADJUDICATIONS).read_bytes()
+    rows, problem = answer_key.read_adjudications(data)
+    assert problem is None and [r["outcome"] for r in rows] == ["key_wrong", "agent_wrong"]
+    with pytest.raises(ValueError, match="its outcome is not"):
+        answer_key.adjudication(2, "How many mugs?", "fine", "x", "Asha")
+    target = tmp_path / "target.txt"
+    target.write_text("")
+    folder = tmp_path / "t"
+    folder.mkdir()
+    (folder / answer_key.ADJUDICATIONS).symlink_to(target)
+    with pytest.raises(OSError):
+        answer_key.add_adjudication(folder, row)
+    assert target.read_text() == ""

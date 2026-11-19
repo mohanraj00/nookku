@@ -1,5 +1,6 @@
 """The answer key of a test (SPEC.md section 7.17): the `Answer key` section of the app spec,
-the key file, its copy in the test folder and the match rules. The check uses no model."""
+the key file, its copy in the test folder, the match rules and the adjudications of a person.
+The check uses no model."""
 
 from __future__ import annotations
 
@@ -7,6 +8,7 @@ import hashlib
 import json
 import os
 import re
+import time
 from decimal import (
     MAX_EMAX,
     MIN_EMIN,
@@ -24,6 +26,7 @@ from typing import Any
 
 from . import app_spec
 from .config import ConfigError, spec_bytes
+from .record import loads, lone_surrogate
 
 SECTION = "answer key"
 COLUMNS = ("file", "match")
@@ -39,6 +42,20 @@ SHOWN = 200
 # The most digits of the exact difference of a number match. If the difference needs more
 # digits, the match fails.
 DIGITS = 100_000
+# The adjudications of a test (SPEC.md section 7.17): one row for each decision of a person
+# about a mismatch.
+ADJUDICATIONS = "adjudications.jsonl"
+ADJUDICATION_VERSION = 1
+ADJUDICATION_KEYS = {"v", "turn", "question", "outcome", "reason", "author", "ts"}
+# The closed set of outcomes. A mismatch with an outcome of ACCEPTED does not count against the
+# limit of answer_key_mismatch.
+OUTCOMES = ("agent_wrong", "key_wrong", "both_acceptable")
+ACCEPTED = ("key_wrong", "both_acceptable")
+# The most code points of a reason and of an author. These are chosen values.
+MAX_REASON = 10_000
+MAX_AUTHOR = 200
+# The largest turn number: 9 digits, as the turn number of a trace point.
+MAX_TURN = 999_999_999
 
 
 class _KeyReader(app_spec.Reader):
@@ -85,7 +102,7 @@ def read(root: Path, files: list[tuple[str, str]]) -> tuple[dict[str, Any] | Non
         raise ConfigError(where + "the match exact takes no Tolerance")
     data = spec_bytes(root, file, "answer key")
     try:
-        key = parse(data, match)
+        key = parse(data, match, tolerance or None)
     except ValueError as e:
         raise ConfigError(f"the answer key {file!r} is not valid: {e}") from None
     record = {
@@ -108,9 +125,30 @@ def _number(value: Any) -> bool:
     return isinstance(value, (int, Decimal)) and not isinstance(value, bool)
 
 
-def parse(data: bytes, match: str) -> dict[str, Any]:
+def _rule(a: dict[str, Any], n: int, match: str, tolerance: str | None) -> tuple[str, str | None]:
+    """The match and the tolerance of answer n of a key file: its own rule, or the rule of the
+    app spec if the answer has no `match`. Raise ValueError if the rule is not valid."""
+    if "match" not in a:
+        if "tolerance" in a:
+            raise ValueError(f"answer {n} has a tolerance and no match")
+        return match, tolerance
+    own, own_tolerance = a["match"], a.get("tolerance")
+    if own not in MATCHES:
+        raise ValueError(f"answer {n}: the match must be exact or number")
+    if own == "exact" and "tolerance" in a:
+        raise ValueError(f"answer {n}: the match exact takes no tolerance")
+    if own == "number" and not (
+        isinstance(own_tolerance, str) and TOLERANCE.fullmatch(own_tolerance)
+    ):
+        raise ValueError(f"answer {n}: the match number needs a tolerance string such as 0.5")
+    return own, own_tolerance
+
+
+def parse(data: bytes, match: str, tolerance: str | None) -> dict[str, Any]:
     """The source, the version and the answers of a key file: a dict from each question to its
-    answer. Raise ValueError with the reason if the file breaks the rule of SPEC.md 7.17."""
+    `answer`, its `match` and its `tolerance` (a Decimal, or None for exact). `match` and
+    `tolerance` are the rule of the app spec, for an answer with no rule of its own. Raise
+    ValueError with the reason if the file breaks the rule of SPEC.md 7.17."""
     try:
         key = json.loads(data.decode("utf-8"), parse_float=Decimal, parse_constant=_no_constant)
     except (UnicodeDecodeError, RecursionError) as e:
@@ -130,17 +168,23 @@ def parse(data: bytes, match: str) -> dict[str, Any]:
             raise ValueError(f"answer {n} has no question string")
         if question in out:
             raise ValueError(f"answer {n} has the question of an earlier answer")
+        rule, limit = _rule(a, n, match, tolerance)
         answer = a.get("answer")
-        if match == "exact" and not isinstance(answer, str):
+        if rule == "exact" and not isinstance(answer, str):
             raise ValueError(f"answer {n}: the match exact needs a string answer")
-        if match == "number" and not _number(answer):
+        if rule == "number" and not _number(answer):
             raise ValueError(f"answer {n}: the match number needs a number answer")
-        out[question] = answer
+        out[question] = {
+            "answer": answer,
+            "match": rule,
+            "tolerance": None if limit is None else Decimal(limit),
+        }
     return {"source": key["source"], "version": key["version"], "answers": out}
 
 
 def load(folder: Path, record: Any) -> dict[str, Any]:
-    """The rule of the manifest key `answer_key` and the answers of the copy in the test folder.
+    """The field of the manifest key `answer_key` and the answers of the copy in the test folder,
+    each with its rule (parse).
     Raise ValueError with the reason if the record or the copy is not valid, or if the SHA-256
     of the copy is not the SHA-256 of the record."""
     ok = (
@@ -163,14 +207,8 @@ def load(folder: Path, record: Any) -> dict[str, Any]:
     data = copy.read_bytes()
     if hashlib.sha256(data).hexdigest() != record["sha256"]:
         raise ValueError(f"the SHA-256 of {COPY} is not the SHA-256 of the manifest")
-    key = parse(data, record["match"])
-    tolerance = Decimal(record["tolerance"]) if record["match"] == "number" else None
-    return {
-        "field": record["field"],
-        "match": record["match"],
-        "tolerance": tolerance,
-        "answers": key["answers"],
-    }
+    key = parse(data, record["match"], record["tolerance"])
+    return {"field": record["field"], "answers": key["answers"]}
 
 
 def place(folder: Path, data: bytes) -> None:
@@ -252,3 +290,162 @@ def shown(value: Any) -> str:
     else:
         text = json.dumps(value, ensure_ascii=False, default=_json)
     return text if len(text) <= SHOWN else text[:SHOWN] + "..."
+
+
+def _whole(value: Any) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def _text_problem(value: Any, name: str, most: int) -> str | None:
+    if not isinstance(value, str) or not value.strip():
+        return f"it has no {name} text"
+    if len(value) > most:
+        return f"the {name} has more than {most} code points"
+    found = lone_surrogate(value)
+    return None if found is None else f"the {name} has {found}"
+
+
+def adjudication_problem(row: Any) -> str | None:
+    """The reason that a value is not an adjudication row (SPEC.md section 7.17), or None."""
+    if not isinstance(row, dict):
+        return "it is not a JSON object"
+    if set(row) != ADJUDICATION_KEYS:
+        return "its keys are not " + ", ".join(sorted(ADJUDICATION_KEYS))
+    if not _whole(row["v"]) or row["v"] != ADJUDICATION_VERSION:
+        return f"its v is not {ADJUDICATION_VERSION}"
+    if not _whole(row["turn"]) or not 1 <= row["turn"] <= MAX_TURN:
+        return f"its turn is not a whole number from 1 to {MAX_TURN}"
+    question = row["question"]
+    if not isinstance(question, str) or not question or lone_surrogate(question):
+        return "it has no question string"
+    if row["outcome"] not in OUTCOMES:
+        return "its outcome is not " + ", ".join(OUTCOMES)
+    problem = _text_problem(row["reason"], "reason", MAX_REASON)
+    problem = problem or _text_problem(row["author"], "author", MAX_AUTHOR)
+    if problem is not None:
+        return problem
+    if any(ord(c) < 32 or ord(c) == 127 for c in row["author"]):
+        return "the author has a control character"
+    ts = row["ts"]
+    if isinstance(ts, bool) or not isinstance(ts, (int, float)) or not 0 <= ts < float("inf"):
+        return "its ts is not a Unix time"
+    return None
+
+
+def read_adjudications(data: bytes) -> tuple[list[dict[str, Any]], str | None]:
+    """The rows of the bytes of adjudications.jsonl, or no rows and the problem of the first
+    line that is not valid. The reader never skips a line, so a file with a line that is not
+    valid gives no adjudication."""
+    try:
+        lines = data.decode("utf-8").split("\n")
+    except UnicodeDecodeError:
+        return [], f"{ADJUDICATIONS} is not UTF-8"
+    if lines[-1] == "":
+        lines.pop()
+    rows: list[dict[str, Any]] = []
+    for n, line in enumerate(lines, 1):
+        try:
+            row = loads(line, parse_constant=_no_constant)
+        except ValueError:
+            return [], f"{ADJUDICATIONS} line {n}: it is not JSON"
+        problem = adjudication_problem(row)
+        if problem is not None:
+            return [], f"{ADJUDICATIONS} line {n}: {problem}"
+        rows.append(row)
+    return rows, None
+
+
+def mismatches_of(report: Any) -> dict[int, str] | None:
+    """The question of each turn with a mismatch, from the `answers` of findings.json (SPEC.md
+    section 8.6), or None if the report has no valid `answers` list."""
+    answers = report.get("answers") if isinstance(report, dict) else None
+    if not isinstance(answers, list):
+        return None
+    out: dict[int, str] = {}
+    for a in answers:
+        ok = (
+            isinstance(a, dict)
+            and _whole(a.get("turn"))
+            and isinstance(a.get("question"), str)
+            and a.get("result") in ("match", "mismatch")
+            and a["turn"] not in out
+        )
+        if not ok:
+            return None
+        if a["result"] == "mismatch":
+            out[a["turn"]] = a["question"]
+    return out
+
+
+def outcomes_of(
+    rows: list[dict[str, Any]], mismatches: dict[int, str]
+) -> tuple[dict[int, str], str | None]:
+    """The current outcome of each adjudicated mismatch: the outcome of the last row of its
+    turn. A row that names a turn with no mismatch, or another question than the question of
+    its turn, gives no outcomes and the problem."""
+    out: dict[int, str] = {}
+    for n, row in enumerate(rows, 1):
+        turn = row["turn"]
+        if turn not in mismatches:
+            return {}, f"{ADJUDICATIONS} line {n}: turn {turn} has no answer key mismatch"
+        if row["question"] != mismatches[turn]:
+            return {}, f"{ADJUDICATIONS} line {n}: the question is not the question of turn {turn}"
+        out[turn] = row["outcome"]
+    return out, None
+
+
+def tally(count: int | None, data: bytes, report: Any) -> tuple[dict[str, Any], list[str]]:
+    """The counts of the adjudications of a test, for verdict.json, and each problem. `count`
+    is the count of answer_key_mismatch in findings.json, `data` holds the bytes of
+    adjudications.jsonl, and `report` is findings.json. With a problem, no adjudication applies:
+    each mismatch is open, so the verdict fails closed."""
+    problems: list[str] = []
+    rows, problem = read_adjudications(data)
+    mismatches = mismatches_of(report)
+    if problem is None and mismatches is None and rows:
+        problem = f"{ADJUDICATIONS}: findings.json has no valid answers list"
+    outcomes: dict[int, str] = {}
+    if problem is None and mismatches is not None:
+        outcomes, problem = outcomes_of(rows, mismatches)
+    if problem is None and mismatches is not None and len(mismatches) != count:
+        outcomes = {}
+        problem = "findings.json: the answers do not agree with the count of answer_key_mismatch"
+    if problem is not None:
+        problems.append(problem)
+    by = {o: sum(1 for v in outcomes.values() if v == o) for o in OUTCOMES}
+    accepted = sum(by[o] for o in ACCEPTED)
+    return {
+        "mismatches": count,
+        "open": None if count is None else count - len(outcomes),
+        **by,
+        "counted": None if count is None else count - accepted,
+    }, problems
+
+
+def adjudication(
+    turn: int, question: str, outcome: str, reason: str, author: str
+) -> dict[str, Any]:
+    """A new adjudication row, with the time now. Raise ValueError if a value is not valid."""
+    row = {
+        "v": ADJUDICATION_VERSION,
+        "turn": turn,
+        "question": question,
+        "outcome": outcome,
+        "reason": reason,
+        "author": author,
+        "ts": round(time.time(), 3),
+    }
+    problem = adjudication_problem(row)
+    if problem is not None:
+        raise ValueError(problem)
+    return row
+
+
+def add_adjudication(folder: Path, row: dict[str, Any]) -> None:
+    """Add one row to adjudications.jsonl of a test folder. The write follows no symlink.
+    Raise OSError."""
+    line = json.dumps(row, ensure_ascii=False) + "\n"
+    flags = os.O_WRONLY | os.O_CREAT | os.O_APPEND | getattr(os, "O_NOFOLLOW", 0)
+    fd = os.open(folder / ADJUDICATIONS, flags, 0o644)
+    with os.fdopen(fd, "ab") as f:
+        f.write(line.encode("utf-8"))

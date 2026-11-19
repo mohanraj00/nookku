@@ -69,6 +69,7 @@ INTERNAL_COMMANDS = frozenset({"hook", "mcp", "mcp-stdio", "bridge"})
 # The commands that read or write a test. Each one takes --tests-dir (SPEC.md section 7).
 TESTS_COMMANDS = frozenset(
     {
+        "adjudicate",
         "start",
         "end",
         "status",
@@ -457,6 +458,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     _export_parser(sub)
     _replay_parser(sub)
     _gate_parser(sub)
+    _adjudicate_parser(sub)
 
     ver = sub.add_parser("verify", help="check that no record of a test changed after its end")
     ver.add_argument(
@@ -637,6 +639,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             args.otlp_endpoint,
             args.openinference,
         )
+    if args.command == "adjudicate":
+        return _adjudicate_command(args)
     if args.command == "verify":
         folder = _test_folder(args.root.resolve(), args.test)
         if folder is None:
@@ -1007,6 +1011,80 @@ def _chat_command(args: argparse.Namespace) -> int:
 
         return page_auto.serve(args.root.resolve(), args.auto_test, args.status_fd, args.print_url)
     return page.serve(args.root.resolve(), args.port, idle_stop=not args.no_idle_stop)
+
+
+def _adjudicate_parser(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+    adj = sub.add_parser(
+        "adjudicate", help="record the decision of a person about an answer key mismatch"
+    )
+    adj.add_argument("test", help="the test id or the path of the test folder")
+    adj.add_argument("--turn", type=int, required=True, help="the turn of the mismatch")
+    adj.add_argument("--outcome", required=True, help="agent_wrong, key_wrong or both_acceptable")
+    adj.add_argument("--reason", required=True, help="why the outcome is correct")
+    adj.add_argument("--author", help="your name (default: the login name of the OS user)")
+    adj.add_argument("--root", type=Path, default=Path.cwd())
+
+
+def _adjudicate_command(args: argparse.Namespace) -> int:
+    """nookku adjudicate: add one row to adjudications.jsonl of a test, build the verdict again
+    and update the seal (SPEC.md section 7.17). Exit 2 if the command writes no row."""
+    import getpass
+
+    from nookku import answer_key
+
+    if args.outcome not in answer_key.OUTCOMES:
+        text = "The outcome must be " + ", ".join(answer_key.OUTCOMES) + "."
+        print(f"nookku: no adjudication was written. {text}", file=sys.stderr)
+        return 2
+    folder = _test_folder(args.root.resolve(), args.test)
+    if folder is None:
+        return 2
+    check = seal.verify(folder)
+    if not check["intact"]:
+        # An adjudication is a decision about sealed records, so the seal must be intact first.
+        print(f"nookku: no adjudication was written. {seal.summary(check)}", file=sys.stderr)
+        return 2
+    author = args.author
+    if author is None:
+        try:
+            author = getpass.getuser()
+        except (OSError, KeyError, ImportError):
+            text = "Give your name with --author."
+            print(f"nookku: no adjudication was written. {text}", file=sys.stderr)
+            return 2
+    try:
+        report = loads((folder / verdict.FINDINGS).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        report = None
+    mismatches = answer_key.mismatches_of(report)
+    if mismatches is None:
+        text = "findings.json has no answers list. Build the trace again with nookku trace."
+        print(f"nookku: no adjudication was written. {text}", file=sys.stderr)
+        return 2
+    if args.turn not in mismatches:
+        text = f"Turn {args.turn} has no answer key mismatch."
+        print(f"nookku: no adjudication was written. {text}", file=sys.stderr)
+        return 2
+    try:
+        row = answer_key.adjudication(
+            args.turn, mismatches[args.turn], args.outcome, args.reason, author
+        )
+        answer_key.add_adjudication(folder, row)
+    except (OSError, ValueError) as e:
+        print(f"nookku: no adjudication was written. {e}", file=sys.stderr)
+        return 2
+    names = [answer_key.ADJUDICATIONS, verdict.FILE]
+    try:
+        found: dict[str, Any] | None = verdict.build(folder)
+    except Exception as e:
+        # The seal keeps the hash of the old verdict, so the test fails closed with --verdict.
+        print(f"nookku: {verdict.FILE} was not rebuilt: {e!r}", file=sys.stderr)
+        names.remove(verdict.FILE)
+        found = None
+    seal.update(folder, names)
+    print(f"Test {folder.name}, turn {args.turn}: {args.outcome}, by {author}.")
+    print(verdict.summary(found))
+    return 0 if found is not None else 1
 
 
 def _script_parser(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:

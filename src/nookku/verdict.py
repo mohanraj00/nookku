@@ -11,13 +11,15 @@ import re
 from pathlib import Path
 from typing import Any
 
-from nookku import app_spec, seal
+from nookku import answer_key, app_spec, seal
 from nookku.record import RecordError, json_text, loads, read_manifest
 from nookku.trace import CHECKS, KEY_UNUSABLE, one_line
 
 FILE = "verdict.json"
 FINDINGS = "findings.json"
 MANIFEST = "manifest.json"
+ADJUDICATIONS = answer_key.ADJUDICATIONS
+MISMATCH = "answer_key_mismatch"
 VERSION = 1
 SECTION = "verdict"
 COLUMNS = ("finding", "most")
@@ -146,17 +148,36 @@ def build(folder: Path) -> dict[str, Any]:
         findings: bytes | None = (folder / FINDINGS).read_bytes()
     except OSError:
         findings = None
-    report = compute(folder.name, manifest, problems, findings)
+    path = folder / ADJUDICATIONS
+    decided: bytes | None = None
+    unread = False
+    if path.is_symlink() or path.exists():
+        try:
+            if path.is_symlink() or not path.is_file():
+                raise OSError
+            decided = path.read_bytes()
+        except OSError:
+            # Each mismatch stays open, and the problem fails the verdict.
+            decided, unread = b"", True
+    report = compute(folder.name, manifest, problems, findings, decided)
+    if unread:
+        report["problems"].append(f"{ADJUDICATIONS} is not a file that the verdict can read.")
+        report["verdict"] = FAIL
     text = json_text(report, indent=1) + "\n"
     (folder / FILE).write_text(text, encoding="utf-8")
     return report
 
 
 def compute(
-    name: str, manifest: dict[str, Any], problems: list[str], findings: bytes | None
+    name: str,
+    manifest: dict[str, Any],
+    problems: list[str],
+    findings: bytes | None,
+    adjudications: bytes | None = None,
 ) -> dict[str, Any]:
-    """The verdict of a test from its manifest, the problems of the read of the manifest and
-    the bytes of findings.json. `name` is the name of the test folder."""
+    """The verdict of a test from its manifest, the problems of the read of the manifest, the
+    bytes of findings.json and the bytes of adjudications.jsonl, or None for a test folder with
+    no such file. `name` is the name of the test folder."""
     problems = list(problems)
     limits, unread = limits_of(manifest)
     problems += unread
@@ -165,11 +186,18 @@ def compute(
         problems.append(problem)
     if manifest.get("answer_key") is not None:
         problems += _key_problems(findings)
+    counted = dict(counts)
+    tally = None
+    if adjudications is not None:
+        # A mismatch that a person accepted does not count against the limit (SPEC.md 7.17).
+        tally, unused = answer_key.tally(counts[MISMATCH], adjudications, _report(findings))
+        problems += unused
+        counted[MISMATCH] = tally["counted"]
     classes = []
     for check in CHECKS:
-        count = counts[check]
+        count, after = counts[check], counted[check]
         most = limits.get(check)
-        ok = most is None or (count is not None and count <= most)
+        ok = most is None or (after is not None and after <= most)
         classes.append({"check": check, "count": count, "most": most, "verdict": _word(ok)})
     passed = not problems and all(c["verdict"] == PASS for c in classes)
     test = manifest.get("test")
@@ -181,7 +209,17 @@ def compute(
         "classes": classes,
         "problems": problems,
     }
+    if tally is not None:
+        # Only a test with adjudications has the key.
+        report["adjudications"] = tally
     return report
+
+
+def _report(findings: bytes | None) -> Any:
+    try:
+        return loads((findings or b"").decode("utf-8"))
+    except ValueError:
+        return None
 
 
 def _word(ok: bool) -> str:
@@ -210,8 +248,9 @@ def checked(folder: Path, base: Path | None = None) -> tuple[dict[str, Any] | No
     time each, and uses the verdict only if:
 
     - the seal of the folder is intact, and its copy outside the folder is the same;
-    - the SHA-256 of each of the 3 files is the SHA-256 in the copy of the seal;
-    - the verdict that it computes again from the manifest and findings.json is verdict.json.
+    - the SHA-256 of each of the 3 files is the SHA-256 in the copy of the seal, and also of
+      adjudications.jsonl if the copy of the seal covers it;
+    - the verdict that it computes again from these bytes is verdict.json.
     """
     result = seal.verify(folder, base)
     if not result["intact"] or result["copy"] != "same":
@@ -234,7 +273,16 @@ def checked(folder: Path, base: Path | None = None) -> tuple[dict[str, Any] | No
         return None, f"{MANIFEST} or {FILE} is not valid JSON."
     if not isinstance(manifest, dict):
         return None, f"{MANIFEST} is not a JSON object."
-    report = compute(folder.name, manifest, [], data[FINDINGS])
+    decided: bytes | None = None
+    if files is not None and ADJUDICATIONS in files:
+        # The seal covers the adjudications of a person (SPEC.md section 7.17).
+        try:
+            decided = (folder / ADJUDICATIONS).read_bytes()
+        except OSError:
+            return None, f"{ADJUDICATIONS} cannot be read."
+        if seal.sha256_of(decided) != files[ADJUDICATIONS]:
+            return None, f"{ADJUDICATIONS} is not the file of the seal."
+    report = compute(folder.name, manifest, [], data[FINDINGS], decided)
     if stored != report:
         return None, f"{FILE} is not the verdict of {MANIFEST} and {FINDINGS}."
     return report, None
@@ -244,21 +292,46 @@ def summary(report: dict[str, Any] | None) -> str:
     """One line for the CLI: the verdict and each reason of a fail."""
     if report is None:
         return f"Verdict: fail. The test folder has no valid {FILE}."
+    decided = _decided(report.get("adjudications"))
     if report["verdict"] == PASS:
         count = len(report.get("limits") or {})
-        return f"Verdict: pass ({count} {'limit' if count == 1 else 'limits'})."
-    reasons = [
-        f"{c['check']}: {'no valid count' if c['count'] is None else c['count']}, the limit is "
-        f"{c['most']}"
-        for c in report["classes"]
-        if isinstance(c, dict) and c.get("verdict") == FAIL
-    ]
+        return f"Verdict: pass ({count} {'limit' if count == 1 else 'limits'}).{decided}"
+    tally = report.get("adjudications")
+    reasons = []
+    for c in report["classes"]:
+        if not isinstance(c, dict) or c.get("verdict") != FAIL:
+            continue
+        # With adjudications, the limit of the mismatches uses the count after them.
+        number: Any = c["count"]
+        if isinstance(tally, dict) and c.get("check") == MISMATCH:
+            number = tally.get("counted")
+        text = "no valid count" if number is None else number
+        reasons.append(f"{c['check']}: {text}, the limit is {c['most']}")
     reasons += [str(p) for p in report["problems"]]
     # A part of the app spec can hold any text, so each reason shows on one line.
-    return f"Verdict: fail. {'; '.join(one_line(r).rstrip('.') for r in reasons)}."
+    return f"Verdict: fail. {'; '.join(one_line(r).rstrip('.') for r in reasons)}.{decided}"
+
+
+def _decided(tally: Any) -> str:
+    """The sentence of the verdict line for a test with adjudications: the count of mismatches
+    before and after the adjudications, and the count of each outcome."""
+    if not isinstance(tally, dict):
+        return ""
+
+    def n(key: str) -> str:
+        return "no valid count" if tally.get(key) is None else str(tally[key])
+
+    parts = ", ".join(f"{n(o)} {o}" for o in answer_key.OUTCOMES)
+    return (
+        f" Adjudications: {n('mismatches')} answer_key_mismatch before, {n('counted')} after "
+        f"({n('open')} open, {parts})."
+    )
 
 
 def shown(report: dict[str, Any] | None, gate: bool) -> bool:
-    """True if the CLI shows the verdict line: with `--verdict`, or if the verdict uses a limit
-    or is not `pass`. A test with no limits that passes keeps the output of Nookku 0.5.6."""
-    return gate or report is None or report["verdict"] != PASS or bool(report.get("limits"))
+    """True if the CLI shows the verdict line: with `--verdict`, or if the verdict uses a limit,
+    has adjudications or is not `pass`. A test with no limits and no adjudications that passes
+    keeps the output of Nookku 0.5.6."""
+    if gate or report is None or report["verdict"] != PASS:
+        return True
+    return bool(report.get("limits")) or "adjudications" in report

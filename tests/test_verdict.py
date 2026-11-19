@@ -51,7 +51,12 @@ def test_each_case_gives_its_verdict(case: Path, tmp_path: Path) -> None:
         manifest = {"test": case.name, "verdict": verdict.read(files)}
     (folder / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
     if given["counts"] is not None:
-        (folder / "findings.json").write_text(json.dumps({"counts": given["counts"]}))
+        report = {"counts": given["counts"]}
+        if "answers" in given:
+            report["answers"] = given["answers"]
+        (folder / "findings.json").write_text(json.dumps(report))
+    if "adjudications" in given:
+        (folder / verdict.ADJUDICATIONS).write_text(given["adjudications"], encoding="utf-8")
     expect = json.loads((case / "expect_verdict.json").read_text(encoding="utf-8"))
     assert verdict.build(folder) == expect
     assert json.loads((folder / verdict.FILE).read_text(encoding="utf-8")) == expect
@@ -117,6 +122,34 @@ def test_the_summary_names_each_reason_on_one_line() -> None:
     )
     assert verdict.summary({**report, "verdict": "pass"}) == "Verdict: pass (1 limit)."
     assert verdict.summary(None) == "Verdict: fail. The test folder has no valid verdict.json."
+    # A test with adjudications shows the line, also with no limit, with the counts (#548).
+    passed = {"verdict": "pass", "limits": {}, "classes": [], "problems": []}
+    assert not verdict.shown(passed, False)
+    tally = {
+        "mismatches": 3,
+        "open": 0,
+        "agent_wrong": 1,
+        "key_wrong": 1,
+        "both_acceptable": 1,
+        "counted": 1,
+    }
+    assert verdict.shown({**passed, "adjudications": tally}, False)
+    assert verdict.summary({**passed, "adjudications": tally}) == (
+        "Verdict: pass (0 limits). Adjudications: 3 answer_key_mismatch before, 1 after "
+        "(0 open, 1 agent_wrong, 1 key_wrong, 1 both_acceptable)."
+    )
+    failed = {
+        "verdict": "fail",
+        "limits": {"answer_key_mismatch": 0},
+        "classes": [{"check": "answer_key_mismatch", "count": 3, "most": 0, "verdict": "fail"}],
+        "problems": [],
+        "adjudications": {**tally, "mismatches": None, "open": None, "counted": None},
+    }
+    assert verdict.summary(failed) == (
+        "Verdict: fail. answer_key_mismatch: no valid count, the limit is 0. Adjudications: "
+        "no valid count answer_key_mismatch before, no valid count after (no valid count open, "
+        "1 agent_wrong, 1 key_wrong, 1 both_acceptable)."
+    )
 
 
 def _shop(tmp_path: Path, entry: list[str]) -> Path:
@@ -311,6 +344,131 @@ def test_a_seeded_answer_key_mismatch_fails_the_scripted_test(
             "detail": '"Do you sell spoons?": no turn asked it',
         },
     ]
+
+
+# An adjudication of a person (SPEC.md section 7.17, #548): the mismatch of the seeded fault
+# stays in findings.json, and a `key_wrong` outcome takes it out of the count of the limit.
+def _adjudicate(root: Path, folder: Path, *words: str) -> int:
+    base = ["adjudicate", folder.name, "--root", str(root), "--author", "Asha"]
+    return main([*base, *words])
+
+
+def test_an_adjudication_changes_the_count_of_the_limit(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    agent = tmp_path / "count.py"
+    agent.write_text(COUNT_AGENT)
+    root = _shop(tmp_path, [sys.executable, str(agent)])
+    (root / "APP_SPEC.md").write_text(KEY_SPEC)
+    (root / "keys").mkdir()
+    (root / "keys" / "stock.json").write_bytes(json.dumps(STOCK_KEY).encode())
+    assert _run(root, capsys)[0] == 1
+    folder = bridge.latest_test(root)
+    assert folder is not None
+    report = json.loads((folder / "findings.json").read_text())
+    assert [(a["turn"], a["result"]) for a in report["answers"]] == [(3, "match"), (4, "mismatch")]
+    assert "adjudications" not in json.loads((folder / verdict.FILE).read_text())
+    findings = (folder / "findings.json").read_bytes()
+    file = folder / verdict.ADJUDICATIONS
+
+    # A command that names no mismatch, or has a value that is not valid, writes no row.
+    for words in (
+        ("--turn", "3", "--outcome", "key_wrong", "--reason", "The key is old."),
+        ("--turn", "9", "--outcome", "key_wrong", "--reason", "The key is old."),
+        ("--turn", "4", "--outcome", "accepted", "--reason", "The key is old."),
+        ("--turn", "4", "--outcome", "key_wrong", "--reason", " "),
+    ):
+        assert _adjudicate(root, folder, *words) == 2
+        assert "no adjudication was written" in capsys.readouterr().err
+        assert not file.exists()
+
+    words = ("--turn", "4", "--outcome", "key_wrong", "--reason", "The shop has 12 teapots.")
+    assert _adjudicate(root, folder, *words) == 0
+    out = capsys.readouterr().out
+    assert f"Test {folder.name}, turn 4: key_wrong, by Asha." in out
+    assert (
+        "Verdict: pass (1 limit). Adjudications: 1 answer_key_mismatch before, 0 after "
+        "(0 open, 0 agent_wrong, 1 key_wrong, 0 both_acceptable)." in out
+    )
+    (row,) = [json.loads(line) for line in file.read_text().splitlines()]
+    assert {k: v for k, v in row.items() if k != "ts"} == {
+        "v": 1,
+        "turn": 4,
+        "question": "Is the teapot in stock?",
+        "outcome": "key_wrong",
+        "reason": "The shop has 12 teapots.",
+        "author": "Asha",
+    }
+    # findings.json keeps the mismatch, and the seal covers the new row and the new verdict.
+    assert (folder / "findings.json").read_bytes() == findings
+    assert seal.verify(folder)["intact"]
+    found, why = verdict.checked(folder)
+    assert why is None and found is not None and found["verdict"] == "pass"
+    assert found["classes"][4] == {
+        "check": "answer_key_mismatch",
+        "count": 1,
+        "most": 0,
+        "verdict": "pass",
+    }
+    assert main(["trace", str(folder), "--root", str(root), "--verdict"]) == 0
+    assert "Adjudications: 1 answer_key_mismatch before, 0 after" in capsys.readouterr().out
+    assert seal.verify(folder)["intact"]
+
+    # A later row for the same turn is the current decision of the person.
+    words = ("--turn", "4", "--outcome", "agent_wrong", "--reason", "The shelf has 3 teapots.")
+    assert _adjudicate(root, folder, *words) == 0
+    out = capsys.readouterr().out
+    assert "Verdict: fail. answer_key_mismatch: 1, the limit is 0. Adjudications: 1 " in out
+    assert "1 after (0 open, 1 agent_wrong, 0 key_wrong, 0 both_acceptable)." in out
+    assert main(["trace", str(folder), "--root", str(root), "--verdict"]) == 1
+    capsys.readouterr()
+
+    # A row that the command did not write breaks the seal, so the verdict is not used.
+    text = file.read_text().splitlines()[0] + "\n"
+    file.write_text(text)
+    assert verdict.checked(folder)[0] is None
+    words = ("--turn", "4", "--outcome", "key_wrong", "--reason", "The key is old.")
+    assert _adjudicate(root, folder, *words) == 2
+    assert "no adjudication was written. " in capsys.readouterr().err
+    assert file.read_text() == text
+
+
+def test_the_checked_verdict_reads_the_adjudications_of_the_seal(tmp_path: Path) -> None:
+    case = ROOT / "conformance" / "verdict" / "adjudications_pass"
+    given = json.loads((case / "case.json").read_text(encoding="utf-8"))
+    folder = tmp_path / "home" / "t1"
+    folder.mkdir(parents=True)
+    files = [(path, text) for path, text in given["files"]]
+    manifest = {"test": "t1", "verdict": verdict.read(files)}
+    (folder / "manifest.json").write_text(json.dumps(manifest))
+    report = {"counts": given["counts"], "answers": given["answers"]}
+    (folder / "findings.json").write_text(json.dumps(report))
+    (folder / verdict.ADJUDICATIONS).write_text(given["adjudications"])
+    assert verdict.build(folder)["verdict"] == "pass"
+    base = tmp_path / "home"
+    assert seal.write(folder, base) is None
+    found, why = verdict.checked(folder, base)
+    assert why is None and found is not None and found["verdict"] == "pass"
+    # Without the rows, the verdict of the same records is fail: 2 open mismatches.
+    assert (
+        verdict.compute("t1", manifest, [], (folder / "findings.json").read_bytes())["verdict"]
+        == "fail"
+    )
+    (folder / verdict.ADJUDICATIONS).write_text(given["adjudications"] * 2)
+    assert verdict.checked(folder, base) == (
+        None,
+        "The seal is not intact with a copy. " + seal.summary(seal.verify(folder, base)),
+    )
+
+
+def test_a_path_of_the_adjudications_that_is_not_a_file_fails_the_verdict(tmp_path: Path) -> None:
+    (tmp_path / "manifest.json").write_text(json.dumps({"test": "t1"}))
+    (tmp_path / "findings.json").write_text(json.dumps({"counts": {}}))
+    (tmp_path / verdict.ADJUDICATIONS).mkdir()
+    report = verdict.build(tmp_path)
+    assert report["verdict"] == "fail"
+    assert report["problems"] == ["adjudications.jsonl is not a file that the verdict can read."]
+    assert report["adjudications"]["open"] is None
 
 
 # The entry cannot read the answer key in the test folder (SPEC.md section 7.17). This agent

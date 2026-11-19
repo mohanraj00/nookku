@@ -9,6 +9,26 @@
  "model_api": null,
  "mcp": null,
  "database": null,
+ "answers": [
+  {
+   "turn": 1,
+   "question": "Do you ship to Pune?",
+   "match": "exact",
+   "tolerance": null,
+   "answer": "\"Yes, we ship to Pune in 3 days.\"",
+   "value": "\"Yes, we ship to Pune in 3 days.\"",
+   "result": "match"
+  },
+  {
+   "turn": 2,
+   "question": "What do you sell?",
+   "match": "exact",
+   "tolerance": null,
+   "answer": "\"We sell teapots and mugs.\"",
+   "value": "\"We sell teapots, mugs and cups.\"",
+   "result": "mismatch"
+  }
+ ],
  "egress": null,
  "trace_points": null,
  "counts": {

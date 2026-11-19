@@ -163,6 +163,13 @@ def test_state_rest(word: str, rest: list[str] | None) -> None:
         ("python -m nookku.kit", commands.IMPORT),
         ("python3 -c 'from nookku import kit'", commands.IMPORT),
         ("python3 -c \"__import__('nookku')\"", commands.IMPORT),
+        # Only a person writes an adjudication (#548).
+        ("nookku adjudicate t1 --turn 2 --outcome key_wrong --reason x", "nookku adjudicate"),
+        ("uv run nookku adjudicate --root . t1 --turn 2", "nookku adjudicate"),
+        ("bash -c 'nookku adjudicate t1'", "nookku adjudicate"),
+        ("nookku adjudicate 'no end", "nookku adjudicate"),
+        ("env -S'nookku adjudicate t1'", "nookku adjudicate"),
+        ("echo nookku adjudicate", None),
         ("nookku mode", None),
         ("nookku mode status", None),
         ("nookku check", None),
