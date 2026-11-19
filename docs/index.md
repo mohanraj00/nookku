@@ -60,11 +60,13 @@ How-to guides. Each guide does one task. The guides are in the order of the task
 Look up a fact.
 
 - [CLI](reference/cli.md): each command, flag and exit code.
+- [API](reference/api.md): each route of the read-only API of `nookku dashboard`, with its JSON keys.
 - [Configuration](reference/config.md): each key of `.nookku/config.json` and each environment variable.
 - [App spec](reference/app-spec.md): the parts of the spec that the evaluation reads, with the toy shop as the example.
 - [Records and files](reference/records.md): each file of a test, with links to its format in SPEC.md.
 - [Glossary](reference/glossary.md): each term of the docs, with a link to its section in SPEC.md.
 - [SPEC.md](../SPEC.md): the specification of the records, the audit, the tap, the relays, the [agent contract](reference/glossary.md#agent-contract), the tests, the [trace](reference/glossary.md#trace) and the evaluation.
+- [Provenance](PROVENANCE.md): the code from other projects that a part of the repo uses, with its pin and its license.
 - [Method and results](results.md): the proofs and the benchmark, with links to the data.
 
 ## Explanation
