@@ -15,8 +15,8 @@ Governance rule 1 says that a [harness](reference/glossary.md#harness) does not 
 Follow these rules for each request:
 
 1. Ask when CI is green and the PR is ready.
-2. For a Codex code review request, write `Head: <sha>` on the next line of the comment, with the short SHA of the PR head commit. Do not add this line to a Claude request. The Claude review starts only for the exact text in the table, and its comment names the head that it reviewed.
-3. Write a security review request as the exact text in the table, with no other text in the comment. If the comment has other text, for example a `Head:` line, Codex does a code review and no security review. The Codex result names the commit that it reviewed.
+2. For a Codex code review request, write `Head: <sha>` on the next line of the comment, with the short SHA of the PR head commit. Do the same for a Claude request. The Claude workflow reads only the first line, and its comment names the head that it reviewed.
+3. Write a Codex security review request as the exact text in the table, with no other text in the comment. If the comment has other text, for example a `Head:` line, Codex does a code review and no security review. The Codex result names the commit that it reviewed.
 4. Before you ask, read the PR comments. If a request names the current head, or comes after the last push, do not ask again.
 
 [STANDARD.md](STANDARD.md#reviews) gives the other request rules: one request for each head, at most 3 for each PR, the answer to each [finding](reference/glossary.md#findings) and the stop rule for a finding in the gates. In nookku, the gates are the files that nookku copies from `mohanraj00/.github`, and the pin lines of its gates action.
@@ -24,10 +24,10 @@ Follow these rules for each request:
 Codex reviews through the Codex GitHub integration. Claude Code reviews through the [Claude review](../.github/workflows/claude-review.yml) workflow. The workflow starts only if all of these are true:
 
 - The comment is on a PR.
-- The comment body is exactly one of the two Claude request texts in the table. GitHub compares these texts with no regard to letter case.
+- The comment names `@claude`, and its first line is one of the two Claude request texts in the table. The `gate` job compares the first line with no regard to letter case, the white space at the two ends, or the length of each run of white space.
 - The commenter is an owner, a member or a collaborator.
 
-A comment or a review with other text does not start the workflow. The comment text selects one of two fixed prompts, and it never goes into a prompt.
+If the first line has other text, the `gate` job gives no kind, and the `review` and `post` jobs skip. The first line selects one of two fixed prompts. The comment text never goes into a prompt.
 
 ### Claude review design
 

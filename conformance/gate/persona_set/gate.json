@@ -1,0 +1,24 @@
+{
+ "v": 1,
+ "tests": [
+  {
+   "name": "new_customer",
+   "script": "scripts/new_customer.jsonl",
+   "persona": "personas/new_customer.json"
+  },
+  {
+   "name": "return_customer",
+   "script": "scripts/return_customer.jsonl",
+   "persona": "personas/return_customer.json",
+   "replay": {
+    "base": "t-base",
+    "changed": 0
+   }
+  },
+  {
+   "name": "short_sentences",
+   "script": "scripts/short_sentences.jsonl",
+   "persona": "personas/short_sentences.json"
+  }
+ ]
+}
