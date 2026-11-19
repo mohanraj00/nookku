@@ -2243,7 +2243,9 @@ CITATION_OFF_CASE = citation_case("20261113-080000-ci02", None, [])
 # tolerance as a string, turn 3 a number out of the tolerance and turn 4 a reply with no field.
 # No turn asks the fifth question. The case answer_key_text has no field, so the value is the
 # full reply text with the match exact. In the case answer_key_changed, the copy of the key is
-# not the key of the manifest.
+# not the key of the manifest. In the case answer_key_rules, 3 answers have their own rule: a
+# number with the tolerance 0, and 2 exact strings. The findings.json of each case has the key
+# `answers`: one row for each checked turn, or null for a key that the check cannot use.
 STOCK_KEY = {
     "source": "the stock list of the toy shop, 2026-11-01",
     "version": "3",
@@ -2275,8 +2277,41 @@ TEXT_TURNS = [
 ]
 
 
+RULES_KEY = {
+    "source": "the stock list of the toy shop, 2026-11-01",
+    "version": "3",
+    "answers": [
+        {"question": "How many blue mugs?", "answer": 12},
+        {"question": "How many teapots?", "answer": 4, "match": "number", "tolerance": "0"},
+        {"question": "Do you have spoons?", "answer": "none", "match": "exact"},
+        {"question": "Do you have forks?", "answer": "none", "match": "exact"},
+    ],
+}
+RULES_TURNS = [
+    ("How many blue mugs?", '{"reply": "We have 12.", "count": 12.4}'),
+    ("How many teapots?", '{"reply": "We have 4.", "count": 4.4}'),
+    ("Do you have spoons?", '{"reply": "No.", "count": "none"}'),
+    ("Do you have forks?", '{"reply": "No.", "count": 0}'),
+]
+
+
 def key_text(key: dict) -> str:
     return json.dumps(key, indent=1) + "\n"
+
+
+def answer_row(
+    turn: int, turns: list, match: str, tolerance: str | None, answer: str, value: str | None
+) -> dict:
+    """One row of `answers` in findings.json. The result is not a field of this helper: each
+    case names its mismatch turns."""
+    return {
+        "turn": turn,
+        "question": turns[turn - 1][0],
+        "match": match,
+        "tolerance": tolerance,
+        "answer": answer,
+        "value": value,
+    }
 
 
 def answer_case(
@@ -2287,6 +2322,7 @@ def answer_case(
     match: str,
     tolerance: str | None,
     found: list[dict],
+    answers: list[dict] | None,
     copy: str | None = None,
 ) -> dict:
     tap = []
@@ -2305,6 +2341,9 @@ def answer_case(
         "tolerance": tolerance,
     }
     n = Counter(f["check"] for f in found)
+    wrong = {f["turn"] for f in found if f["check"] == "answer_key_mismatch"}
+    if answers is not None:
+        answers = [{**a, "result": "mismatch" if a["turn"] in wrong else "match"} for a in answers]
     return {
         "tap": tap,
         "manifest": {"test": test, "model_sessions": [], "answer_key": record},
@@ -2324,6 +2363,7 @@ def answer_case(
             "database": None,
             "counts": counts(**n),
             "findings": found,
+            "answers": answers,
         },
     }
 
@@ -2352,6 +2392,38 @@ ANSWER_KEY_CASE = answer_case(
             "detail": '"How many spoons?": no turn asked it',
         },
     ],
+    [
+        answer_row(1, STOCK_TURNS, "number", "0.5", "12", "12"),
+        answer_row(2, STOCK_TURNS, "number", "0.5", "4.5", '"4.9"'),
+        answer_row(3, STOCK_TURNS, "number", "0.5", "3", "5"),
+        answer_row(4, STOCK_TURNS, "number", "0.5", "7", None),
+    ],
+)
+ANSWER_KEY_RULES_CASE = answer_case(
+    "20261113-090000-ak04",
+    RULES_KEY,
+    RULES_TURNS,
+    "count",
+    "number",
+    "0.5",
+    [
+        {
+            "check": "answer_key_mismatch",
+            "turn": 2,
+            "detail": '"How many teapots?": the key gives 4, and the reply gives 4.4',
+        },
+        {
+            "check": "answer_key_mismatch",
+            "turn": 4,
+            "detail": '"Do you have forks?": the key gives "none", and the reply gives 0',
+        },
+    ],
+    [
+        answer_row(1, RULES_TURNS, "number", "0.5", "12", "12.4"),
+        answer_row(2, RULES_TURNS, "number", "0", "4", "4.4"),
+        answer_row(3, RULES_TURNS, "exact", None, '"none"', '"none"'),
+        answer_row(4, RULES_TURNS, "exact", None, '"none"', "0"),
+    ],
 )
 ANSWER_KEY_TEXT_CASE = answer_case(
     "20261113-090000-ak02",
@@ -2367,6 +2439,24 @@ ANSWER_KEY_TEXT_CASE = answer_case(
             "detail": '"What do you sell?": the key gives "We sell teapots and mugs.", and the '
             'reply gives "We sell teapots, mugs and cups."',
         }
+    ],
+    [
+        answer_row(
+            1,
+            TEXT_TURNS,
+            "exact",
+            None,
+            '"Yes, we ship to Pune in 3 days."',
+            '"Yes, we ship to Pune in 3 days."',
+        ),
+        answer_row(
+            2,
+            TEXT_TURNS,
+            "exact",
+            None,
+            '"We sell teapots and mugs."',
+            '"We sell teapots, mugs and cups."',
+        ),
     ],
 )
 ANSWER_KEY_CHANGED_CASE = answer_case(
@@ -2384,6 +2474,7 @@ ANSWER_KEY_CHANGED_CASE = answer_case(
             "SHA-256 of the manifest",
         }
     ],
+    None,
     copy=key_text({**STOCK_KEY, "version": "4"}),
 )
 
@@ -7324,6 +7415,7 @@ TRACE_CASES = {
     "citation_not_read": CITATION_CASE,
     "citation_not_read_off": CITATION_OFF_CASE,
     "answer_key": ANSWER_KEY_CASE,
+    "answer_key_rules": ANSWER_KEY_RULES_CASE,
     "answer_key_text": ANSWER_KEY_TEXT_CASE,
     "answer_key_changed": ANSWER_KEY_CHANGED_CASE,
     "unseen_calls": UNSEEN_CASE,
@@ -7625,6 +7717,12 @@ IMPORT_REASON = (
 )
 
 
+EXPANDED_REASON = (
+    "nookku: the shell expands a word of this nookku command, so the relay cannot know its "
+    "subcommand. Only a person drives a test. Write each word of the command as plain text."
+)
+
+
 def drives(what: str) -> dict:
     """The deny of a model command that drives a test (#173)."""
     return deny(
@@ -7872,6 +7970,41 @@ GUARD_CASES: dict[str, dict] = {
         "policy_text": '{"scripts": "model"}\n',
         "event": bash("nookku gate run gate.json --subject sha256:ab12"),
         "answer": drives("nookku gate"),
+    },
+    "shell_adjudicates_a_mismatch": {
+        "policy_text": '{"scripts": "model"}\n',
+        "event": bash(
+            "nookku adjudicate t1 --turn 3 --outcome key_wrong --reason 'The key is old.'"
+        ),
+        "answer": drives("nookku adjudicate"),
+    },
+    # The shell expands a word that can be the subcommand, so the relay cannot know it (#548).
+    "shell_adjudicates_with_a_variable_as_the_subcommand": {
+        "policy_text": '{"scripts": "model"}\n',
+        "event": bash(
+            'C=adjudicate; nookku "$C" t1 --turn 3 --outcome key_wrong --reason "The key is old."'
+        ),
+        "answer": deny(EXPANDED_REASON),
+    },
+    "shell_adjudicates_with_a_command_substitution_as_the_subcommand": {
+        "event": bash('nookku "$(echo adjudicate)" t1 --turn 3 --outcome key_wrong --reason old'),
+        "answer": deny(EXPANDED_REASON),
+    },
+    "shell_adjudicates_with_a_glob_as_the_subcommand": {
+        "event": bash("nookku adjudicat* t1 --turn 3 --outcome key_wrong --reason old"),
+        "answer": deny(EXPANDED_REASON),
+    },
+    "shell_mode_with_a_variable_as_the_state": {
+        "event": bash("nookku mode $STATE"),
+        "answer": deny(EXPANDED_REASON),
+    },
+    "shell_check_with_a_variable_after_the_subcommand": {
+        "event": bash('nookku check --root "$ROOT"'),
+        "answer": None,
+    },
+    "write_of_the_adjudications": {
+        "event": pevent("Write", file_path=f"{T1}/adjudications.jsonl", content="{}"),
+        "answer": records(f"{T1}/adjudications.jsonl"),
     },
     "shell_verifies_a_gate": {
         "event": bash("nookku gate verify --json"),
