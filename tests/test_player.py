@@ -86,6 +86,44 @@ def test_a_player_gives_the_recorded_response_and_calls_no_backend(tmp_path: Pat
     assert row["query"] == "sku=teapot&api_key="
 
 
+def test_a_head_response_replays_with_its_recorded_length(tmp_path: Path) -> None:
+    with StockServer() as stock:
+        stock.answer_body = b"x" * 9876
+        base = record(tmp_path, stock, [("HEAD", "/image", b"")])
+        assert rows(base)[0]["response_length"] == "9876"
+        proxies, path = played(base, tmp_path)
+        env = proxies.start()
+        try:
+            status, headers, body = request(env["STOCK_URL"], "HEAD", "/image", None, {})
+        finally:
+            proxies.stop()
+    assert (status, body) == (200, b"")
+    assert ("Content-Length", "9876") in headers
+    assert rows(path)[0]["replay"] == {"line": 1, "miss": None}
+    # A row of an older Nookku has no length. The player cannot give the same response.
+    old = {**rows(base)[0]}
+    del old["response_length"]
+    assert str(player.response(old)) == f"{player.MISS}: {player.NO_LENGTH}"
+
+
+def test_a_response_with_a_removed_secret_header_is_a_miss(tmp_path: Path) -> None:
+    with StockServer() as stock:
+        stock.answer_headers = [("Content-Type", "text/plain"), ("Set-Cookie", "session=toy")]
+        base = record(tmp_path, stock, [("GET", "/login", b"")])
+        assert ["Set-Cookie", backend.REMOVED] in rows(base)[0]["response_headers"]
+        proxies, path = played(base, tmp_path)
+        env = proxies.start()
+        try:
+            status, headers, _ = request(env["STOCK_URL"], "GET", "/login", None, {})
+        finally:
+            proxies.stop()
+    # The app never gets the placeholder in place of the true value.
+    assert status == 502 and not any(k.lower() == "set-cookie" for k, _ in headers)
+    miss = f"{player.MISS}: {player.REMOVED}"
+    assert rows(path)[0]["replay"] == {"line": 1, "miss": miss}
+    assert player.REMOVED_VALUE == backend.REMOVED
+
+
 def test_a_request_with_no_unused_recorded_call_is_a_miss_with_status_502(
     tmp_path: Path,
 ) -> None:
@@ -258,6 +296,38 @@ def test_no_player_for_a_stdio_mcp_server_or_a_postgres_proxy_and_a_broken_seal(
         replay.recorded_problem(old, {"mcp_servers": [stdio]}) or ""
     )
     assert "database orders" in (replay.recorded_problem(old, {"databases": [db]}) or "")
+
+
+def test_the_base_copy_holds_only_the_sealed_bytes(tmp_path: Path) -> None:
+    old = tmp_path / "20261119-090000-bb22"
+    old.mkdir()
+    (old / "tap.jsonl").write_text("{}\n")
+    (old / "backend.jsonl").write_text("{}\n")
+    seal.write(old)
+    held = replay.held_base(old)
+    assert held == {"tap.jsonl": b"{}\n", "backend.jsonl": b"{}\n"}
+    new = tmp_path / "new"
+    new.mkdir()
+    replay.copy_base(held, new)
+    assert (new / replay.BASE / "backend.jsonl").read_bytes() == b"{}\n"
+    # A file that changes after the seal check, a symlink and a new file do not go in.
+    secret = tmp_path / "secret.txt"
+    secret.write_text("{}\n")
+    (old / "backend.jsonl").unlink()
+    (old / "backend.jsonl").symlink_to(secret)
+    with pytest.raises(replay.ReplayError, match=r"backend\.jsonl"):
+        replay.held_base(old)
+    (old / "backend.jsonl").unlink()
+    (old / "backend.jsonl").write_text('{"status": 200}\n')
+    with pytest.raises(replay.ReplayError, match="SHA-256 of its seal copy"):
+        replay.held_base(old)
+    (old / "backend.jsonl").unlink()
+    with pytest.raises(replay.ReplayError, match="missing"):
+        replay.held_base(old)
+    (old / "backend.jsonl").write_text("{}\n")
+    (old / "mcp.jsonl").write_text("{}\n")
+    with pytest.raises(replay.ReplayError, match=r"mcp\.jsonl"):
+        replay.held_base(old)
 
 
 # A toy shop app that asks its stock service for each message, as in test_bridge.py. With

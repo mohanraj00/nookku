@@ -838,6 +838,9 @@ class Handler(BaseHTTPRequestHandler):
             "response_body": stream.row(),
             "error": error,
         }
+        if bodyless:
+            # The record keeps the length of a response with no body, so a replay can give it.
+            fields["response_length"] = length
         proxy.end(row, fields, stream.data, encoding, stream.cut)
 
     def _refuse(self, refused: Refused) -> None:

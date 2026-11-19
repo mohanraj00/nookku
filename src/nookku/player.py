@@ -42,6 +42,10 @@ OMITTED = "the record of a harness call keeps no body"
 OPEN = "the base test ended before this call ended"
 NOT_SAME = "the recorded body does not have its SHA-256"
 MISS = "the replay has no recorded response"
+REMOVED = "a recorded response header has a removed secret value"
+NO_LENGTH = "the record has no length of a response with no body"
+# The value that backend.headers_row writes for a secret header (SPEC.md section 7.6).
+REMOVED_VALUE = "<removed>"
 
 
 class Miss(OSError):
@@ -169,6 +173,16 @@ def response(row: dict[str, Any]) -> Response | Miss | OSError:
     if data is None:
         return Miss(f"{MISS}: {reason}")
     pairs = [(str(h[0]), str(h[1])) for h in headers if isinstance(h, list) and len(h) == 2]
+    if any(v == REMOVED_VALUE for _, v in pairs):
+        # The record has no true value, and a placeholder would change the input of the app.
+        return Miss(f"{MISS}: {REMOVED}")
+    if row.get("method") == "HEAD" or status in (204, 304):
+        # The proxy gives the length of a response with no body from the record. A row of an
+        # older Nookku has no length, so the player cannot give the same response.
+        if "response_length" not in row:
+            return Miss(f"{MISS}: {NO_LENGTH}")
+        if isinstance(row["response_length"], str):
+            pairs.append(("Content-Length", row["response_length"]))
     if isinstance(row["response_body"], dict) and row["response_body"].get("decoded"):
         # The record keeps the decoded body, so the app gets it with no Content-Encoding.
         pairs = [(k, v) for k, v in pairs if k.lower() != "content-encoding"]
@@ -245,7 +259,8 @@ class Connection:
 
 def case(recorded: list[dict[str, Any]], requests: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """The outcome of each request of a conformance case (conformance/replay/): the line of the
-    matched call and the miss, or the status and the body that the app gets."""
+    matched call and the miss, or the status, the body and the Content-Length that the app
+    gets."""
     data = b"".join(json.dumps(r).encode() + b"\n" for r in recorded)
     names = {r.get("backend") for r in requests}
     players = {n: Player(calls(data, "backend", str(n))) for n in names}
@@ -266,9 +281,19 @@ def case(recorded: list[dict[str, Any]], requests: list[dict[str, Any]]) -> list
                     "status": got.status,
                     "body": body.decode(),
                     "stopped": stopped,
+                    "length": got.getheader("Content-Length"),
                 }
             )
         else:
             miss = str(got) if isinstance(got, Miss) else None
-            out.append({"line": line, "miss": miss, "status": 502, "body": None, "stopped": None})
+            out.append(
+                {
+                    "line": line,
+                    "miss": miss,
+                    "status": 502,
+                    "body": None,
+                    "stopped": None,
+                    "length": None,
+                }
+            )
     return out

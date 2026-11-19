@@ -9,7 +9,10 @@
   {"v": 1, "type": "call", "backend": "stock", "started": 5.0, "ts": "2026-11-19T09:00:05Z", "method": "GET", "path": "/down", "query": null, "request_headers": [], "request_body": {"size": 0, "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "cut": false, "text": ""}, "status": null, "response_headers": null, "response_body": null, "error": "the backend did not answer: [Errno 61] Connection refused"},
   {"v": 1, "type": "call", "backend": "stock", "started": 6.0, "ts": "2026-11-19T09:00:06Z", "method": "GET", "path": "/slow", "query": null, "request_headers": [], "request_body": {"size": 0, "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "cut": false, "text": ""}, "status": null, "response_headers": null, "response_body": null, "error": "the test ended before the backend answered"},
   {"v": 1, "type": "call", "backend": "stock", "started": 6.5, "ts": "2026-11-19T09:00:06Z", "method": "GET", "path": "/watch", "query": null, "request_headers": [], "request_body": {"size": 0, "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "cut": false, "text": ""}, "status": 200, "response_headers": [["Content-Type", "text/event-stream"]], "response_body": {"size": 9, "sha256": "c144dd73322f64257a0fed669edd66f6b72bce48fe89cada78259be0ad065296", "cut": true, "text": "data: one"}, "error": "the test ended before the stream ended"},
-  {"v": 1, "type": "call", "backend": "stock", "started": 7.0, "ts": "2026-11-19T09:00:07Z", "method": "GET", "path": "/refused", "query": null, "request_headers": [], "request_body": null, "status": 413, "response_headers": [], "response_body": null, "error": "the proxy refused the request"}
+  {"v": 1, "type": "call", "backend": "stock", "started": 7.0, "ts": "2026-11-19T09:00:07Z", "method": "GET", "path": "/refused", "query": null, "request_headers": [], "request_body": null, "status": 413, "response_headers": [], "response_body": null, "error": "the proxy refused the request"},
+  {"v": 1, "type": "call", "backend": "stock", "started": 8.0, "ts": "2026-11-19T09:00:08Z", "method": "HEAD", "path": "/image", "query": null, "request_headers": [], "request_body": {"size": 0, "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "cut": false, "text": ""}, "status": 200, "response_headers": [["Content-Type", "image/png"]], "response_body": {"size": 0, "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "cut": false, "text": ""}, "error": null, "response_length": "9876"},
+  {"v": 1, "type": "call", "backend": "stock", "started": 9.0, "ts": "2026-11-19T09:00:08Z", "method": "HEAD", "path": "/old", "query": null, "request_headers": [], "request_body": {"size": 0, "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "cut": false, "text": ""}, "status": 200, "response_headers": [["Content-Type", "image/png"]], "response_body": {"size": 0, "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "cut": false, "text": ""}, "error": null},
+  {"v": 1, "type": "call", "backend": "stock", "started": 10.0, "ts": "2026-11-19T09:00:08Z", "method": "GET", "path": "/login", "query": null, "request_headers": [], "request_body": {"size": 0, "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "cut": false, "text": ""}, "status": 200, "response_headers": [["Set-Cookie", "<removed>"]], "response_body": {"size": 0, "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "cut": false, "text": ""}, "error": null}
  ],
  "requests": [
   {"backend": "stock", "method": "GET", "path": "/stock", "query": "sku=teapot-set", "request_body": {"sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}},
@@ -22,19 +25,25 @@
   {"backend": "stock", "method": "GET", "path": "/down", "query": null, "request_body": {"sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}},
   {"backend": "stock", "method": "GET", "path": "/slow", "query": null, "request_body": {"sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}},
   {"backend": "stock", "method": "GET", "path": "/watch", "query": null, "request_body": {"sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}},
-  {"backend": "stock", "method": "GET", "path": "/refused", "query": null, "request_body": {"sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}}
+  {"backend": "stock", "method": "GET", "path": "/refused", "query": null, "request_body": {"sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}},
+  {"backend": "stock", "method": "HEAD", "path": "/image", "query": null, "request_body": {"sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}},
+  {"backend": "stock", "method": "HEAD", "path": "/old", "query": null, "request_body": {"sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}},
+  {"backend": "stock", "method": "GET", "path": "/login", "query": null, "request_body": {"sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}}
  ],
  "expected": [
-  {"line": 2, "miss": null, "status": 200, "body": "9 teapot sets left.", "stopped": null},
-  {"line": 1, "miss": null, "status": 200, "body": "3 teapot sets left.", "stopped": null},
-  {"line": null, "miss": "the replay has no recorded response: the base test has no unused call with this method, path, query and body", "status": 502, "body": null, "stopped": null},
-  {"line": 3, "miss": null, "status": 200, "body": "In stock.", "stopped": null},
-  {"line": null, "miss": "the replay has no recorded response: the base test has no unused call with this method, path, query and body", "status": 502, "body": null, "stopped": null},
-  {"line": 4, "miss": "the replay has no recorded response: the recorded response is cut at record_limit", "status": 502, "body": null, "stopped": null},
-  {"line": 5, "miss": null, "status": 200, "body": "data: one", "stopped": "the backend closed the connection"},
-  {"line": 6, "miss": null, "status": 502, "body": null, "stopped": null},
-  {"line": 7, "miss": "the replay has no recorded response: the base test ended before this call ended", "status": 502, "body": null, "stopped": null},
-  {"line": 8, "miss": "the replay has no recorded response: the base test ended before this call ended", "status": 502, "body": null, "stopped": null},
-  {"line": null, "miss": "the replay has no recorded response: the base test has no unused call with this method, path, query and body", "status": 502, "body": null, "stopped": null}
+  {"line": 2, "miss": null, "status": 200, "body": "9 teapot sets left.", "stopped": null, "length": null},
+  {"line": 1, "miss": null, "status": 200, "body": "3 teapot sets left.", "stopped": null, "length": null},
+  {"line": null, "miss": "the replay has no recorded response: the base test has no unused call with this method, path, query and body", "status": 502, "body": null, "stopped": null, "length": null},
+  {"line": 3, "miss": null, "status": 200, "body": "In stock.", "stopped": null, "length": null},
+  {"line": null, "miss": "the replay has no recorded response: the base test has no unused call with this method, path, query and body", "status": 502, "body": null, "stopped": null, "length": null},
+  {"line": 4, "miss": "the replay has no recorded response: the recorded response is cut at record_limit", "status": 502, "body": null, "stopped": null, "length": null},
+  {"line": 5, "miss": null, "status": 200, "body": "data: one", "stopped": "the backend closed the connection", "length": null},
+  {"line": 6, "miss": null, "status": 502, "body": null, "stopped": null, "length": null},
+  {"line": 7, "miss": "the replay has no recorded response: the base test ended before this call ended", "status": 502, "body": null, "stopped": null, "length": null},
+  {"line": 8, "miss": "the replay has no recorded response: the base test ended before this call ended", "status": 502, "body": null, "stopped": null, "length": null},
+  {"line": null, "miss": "the replay has no recorded response: the base test has no unused call with this method, path, query and body", "status": 502, "body": null, "stopped": null, "length": null},
+  {"line": 10, "miss": null, "status": 200, "body": "", "stopped": null, "length": "9876"},
+  {"line": 11, "miss": "the replay has no recorded response: the record has no length of a response with no body", "status": 502, "body": null, "stopped": null, "length": null},
+  {"line": 12, "miss": "the replay has no recorded response: a recorded response header has a removed secret value", "status": 502, "body": null, "stopped": null, "length": null}
  ]
 }

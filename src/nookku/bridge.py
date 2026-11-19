@@ -365,6 +365,12 @@ def start(
         problem = replay.recorded_problem(play, egress["answer"])
         if problem is not None:
             raise BridgeError(problem)
+        # One read of each base file, checked against the seal copy. The bridge copies only
+        # these bytes, so a file that changes after the seal check cannot go in.
+        try:
+            held = replay.held_base(play)
+        except replay.ReplayError as e:
+            raise BridgeError(str(e)) from None
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     test = f"{stamp}-{secrets.token_hex(2)}"
     try:
@@ -398,7 +404,7 @@ def start(
         (folder / copy[0]).write_bytes(copy[1])
         argv += ["--persona-source", str(persona_path.resolve())]
     if play is not None:
-        replay.copy_base(play, folder)
+        replay.copy_base(held, folder)
         argv += ["--play-base", play.name]
     with (folder / "bridge.log").open("ab") as log:
         proc = subprocess.Popen(

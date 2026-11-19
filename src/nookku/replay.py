@@ -10,7 +10,9 @@ reads only the files of the 2 test folders, and it changes no file.
 
 from __future__ import annotations
 
+import os
 import re
+import stat
 from array import array
 from collections.abc import Callable
 from math import isqrt
@@ -81,13 +83,48 @@ def recorded_problem(old: Path, answer: dict[str, Any]) -> str | None:
     return None
 
 
-def copy_base(old: Path, folder: Path) -> None:
-    """Copy the records of the base test that a replay with the recorded backends reads into
-    the folder BASE of the new test."""
-    (folder / BASE).mkdir()
+def held_base(old: Path) -> dict[str, bytes]:
+    """The bytes of each file of COPIED in the base test `old`, from one read of each file.
+
+    The read does not follow a symlink, and each file must have the SHA-256 of the seal copy
+    outside the test folder (SPEC.md section 7.4). Thus a file that changes after the check of
+    `recorded_problem` cannot go into the new test. A file that the seal copy names must exist,
+    and a file that it does not name must not exist. Raise ReplayError if a file breaks a rule."""
+    from nookku import seal
+
+    files = seal.copy_files(old.name)
+    if files is None:
+        raise ReplayError(f"the base test {old.name} has no seal copy (SPEC.md section 7.4)")
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
+    out: dict[str, bytes] = {}
     for name in COPIED:
-        if (old / name).is_file():
-            (folder / BASE / name).write_bytes((old / name).read_bytes())
+        want = files.get(name)
+        try:
+            fd = os.open(old / name, flags)
+        except FileNotFoundError:
+            if want is None:
+                continue
+            raise ReplayError(f"the base file {name} is missing after the seal check") from None
+        except OSError as e:
+            raise ReplayError(f"cannot read the base file {name}: {e.strerror}") from None
+        try:
+            if not stat.S_ISREG(os.fstat(fd).st_mode):
+                raise ReplayError(f"the base file {name} is not a regular file")
+            with os.fdopen(fd, "rb", closefd=False) as f:
+                data = f.read()
+        finally:
+            os.close(fd)
+        if want is None or seal.sha256_of(data) != want:
+            raise ReplayError(f"the base file {name} does not have the SHA-256 of its seal copy")
+        out[name] = data
+    return out
+
+
+def copy_base(held: dict[str, bytes], folder: Path) -> None:
+    """Write the bytes of `held_base` into the folder BASE of the new test."""
+    (folder / BASE).mkdir()
+    for name, data in held.items():
+        (folder / BASE / name).write_bytes(data)
 
 
 # The record files of the HTTP proxies, with the field that names the proxy of a row.
