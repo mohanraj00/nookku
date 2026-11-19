@@ -51,6 +51,7 @@ If a hook changes, trust it again. A new plugin script also needs a new run of `
 | The guard of the answer keys | `uv run python scripts/proof_key_guard.py <hooks-claude-code or plugin-claude-code>` | `proofs/key-guard/<setup>.json` |
 | An action with no approval, no model | `uv run python scripts/proof_approvals.py` | `proofs/approvals/results.json` |
 | A second message during a slow turn, no model | `uv run python scripts/proof_second_message.py` | `proofs/second-message/results.json` |
+| A replay with the recorded backends, no model | `uv run python scripts/proof_replay.py` | `proofs/replay/results.json` |
 | Backend proxy, no model | `uv run python scripts/proof_backend.py` | `proofs/backend/` |
 | Model API proxy, no model | `uv run python scripts/proof_model_api.py` | `proofs/model-api/` |
 | Driver trace of a database, no model | `uv run python scripts/proof_driver_trace.py` | `proofs/driver-trace/` |

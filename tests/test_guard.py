@@ -519,3 +519,23 @@ def test_the_key_rule_fails_closed_for_a_large_key_folder(
     assert _key_named(root, "Glob", {"pattern": "**/*.py"}, FOLDER_KEY) is None
     monkeypatch.setattr(kit, "KEY_WALK_LIMIT", 1)
     assert _key_named(root, "Glob", {"pattern": "**/*.py"}, FOLDER_KEY) == "**/*.py"
+
+
+@pytest.mark.parametrize(
+    ("command", "named"),
+    [
+        ("cat alias/stock.json", "alias/stock.json"),
+        ("cat alias/*.json", "alias/*.json"),
+        ("cat alias/st[a-z]ck.json", "alias/st[a-z]ck.json"),
+        ("cat alias/*.md", None),
+        ("cat docs/*.json", None),
+    ],
+)
+def test_the_key_rule_resolves_the_symlinks_before_a_glob(
+    tmp_path: Path, command: str, named: str | None
+) -> None:
+    root = _key_project(tmp_path)
+    (root / "alias").symlink_to(root / "keys" / "private")
+    assert _key_named(root, "Bash", {"command": command}, FILE_KEY) == named
+    tool_input = {"pattern": "answer", "glob": "*.json", "path": "alias"}
+    assert _key_named(root, "Grep", tool_input, FILE_KEY) == "*.json"

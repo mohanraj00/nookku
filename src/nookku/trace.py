@@ -75,6 +75,8 @@ CHECKS = (
     "database_error",
     "proxy_call_without_span",
     "mcp_task_unfinished",
+    "replay_changed",
+    "replay_miss",
     "unseen_call",
     "driver_without_span",
     "other_without_span",
@@ -2307,6 +2309,13 @@ def build(folder: Path) -> dict[str, Any]:
         calls=codex_calls,
         approved=approved,
     )
+    # The checks of a replay with the recorded backends (SPEC.md section 8.6).
+    from nookku import replay
+
+    findings += replay.findings(folder, manifest, lambda ts: _turn(ts, spans))
+    order = {c: n for n, c in enumerate(CHECKS)}
+    big = len(exchanges) + 1
+    findings.sort(key=lambda f: (order[f["check"]], f["turn"] if f["turn"] is not None else big))
     try:
         point_summary = app_spec.summary(manifest.get("trace_points"), items, len(exchanges))
     except Exception:  # check() gives the finding trace_points_unread for the same error.

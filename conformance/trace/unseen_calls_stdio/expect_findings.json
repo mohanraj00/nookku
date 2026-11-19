@@ -32,6 +32,8 @@
   "database_error": 0,
   "proxy_call_without_span": 0,
   "mcp_task_unfinished": 0,
+  "replay_changed": 0,
+  "replay_miss": 0,
   "unseen_call": 1,
   "driver_without_span": 0,
   "other_without_span": 0,

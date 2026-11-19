@@ -455,7 +455,17 @@ I asked Claude Code 2.1.319 to read an answer key of a toy shop project on 2026-
 - K4: the 4 session files of the project did not hold the planted word of the key.
 - K5: a [scripted test](reference/glossary.md#scripted-test) read the key and gave 1 match. Its manifest has the SHA-256 of the key file and the policy key.
 
-This is 1 run of 3 prompts for each setup. Each prompt names the tool to use, so it does not show what a model tries after a deny. It has no Codex run. The guard does not stop a search of a folder above the key or a program that builds the path ([limits.md](limits.md)). The 26 conformance cases with a name that starts with `key_` or `test_key_` cover more calls with no model ([conformance/guard/](../conformance/guard/)).
+This is 1 run of 3 prompts for each setup. Each prompt names the tool to use, so it does not show what a model tries after a deny. It has no Codex run. The guard does not stop a search of a folder above the key or a program that builds the path ([limits.md](limits.md)). The 47 conformance cases with a name that starts with `key_` or `test_key_` cover more calls with no model ([conformance/guard/](../conformance/guard/)).
+
+### A replay with the recorded backends
+
+I replayed the toy shop script 10 times with `nookku replay --recorded --verdict` on 2026-11-19, with nookku 0.5.9 and no model ([data](../proofs/replay/results.json), [method](../scripts/proof_replay.py)). The toy entry asks a toy stock service and a toy model API for each of the 3 messages. The toy model puts a call counter in each answer, and the stock service answers 1 call of each turn with status 503. Thus the base test has 3 `backend_error` findings.
+
+- R1: a live replay, as a control, changed 3 of 3 turns, because the toy model gave new answers.
+- R2: after the 2 toy servers stopped, 10 of 10 recorded replays had no changed turn, no miss, exit code 0, an intact seal and the findings of the base test. The servers got 0 calls in these replays.
+- R3: a planted change of the entry gave 3 `replay_changed` findings, and `--verdict` gave exit code 1.
+
+This proof uses 1 script and HTTP parts only. A stdio MCP server and a Postgres proxy have no player yet ([#621](https://github.com/mohanraj00/nookku/issues/621)), so a recorded replay of a test with these parts does not start.
 
 ### An action with no approval
 

@@ -201,6 +201,8 @@ This output is from the test of the tutorial proof of nookku 0.5.9 ([data](../..
   "database_error": 0,
   "proxy_call_without_span": 0,
   "mcp_task_unfinished": 0,
+  "replay_changed": 0,
+  "replay_miss": 0,
   "unseen_call": 0,
   "driver_without_span": 0,
   "other_without_span": 0,
@@ -249,7 +251,7 @@ Each finding in `findings.json` has `check`, `turn` and `detail`. A finding abou
 
 ### Trace checks
 
-The trace has 31 trace checks ([trace.py](../../src/nookku/trace.py)). `findings.json` sorts the findings in the order of this table.
+The trace has 33 trace checks ([trace.py](../../src/nookku/trace.py)). `findings.json` sorts the findings in the order of this table.
 
 | Check | Finding |
 |---|---|
@@ -268,6 +270,8 @@ The trace has 31 trace checks ([trace.py](../../src/nookku/trace.py)). `findings
 | `database_error` | A query of the app to a Postgres database has an error, or has no result ([SPEC.md section 7.13](../../SPEC.md#713-postgres-proxies)). |
 | `proxy_call_without_span` | The proxy saw a call that has no matching span in the import. See [the match rule](../../SPEC.md#810-openinference-spans). |
 | `mcp_task_unfinished` | The trace saw a task state and no terminal state. Check the last task state and its source line in `mcp.jsonl`. |
+| `replay_changed` | In a replay with `--recorded`, the reply of a turn is not the reply of the same turn of the base test, or one of the 2 tests has a turn that the other does not have. The backends gave the recorded responses, so the change comes from the agent ([SPEC.md section 7.10](../../SPEC.md#710-scripted-tests)). |
+| `replay_miss` | In a replay with `--recorded`, the app sent a request that the base test did not make, or the record of the base test cannot give the response again. The app got status 502. The finding names the record file, the proxy, the method, the path and the reason. |
 | `unseen_call` | An OpenTelemetry span of the app names a call to an address that no proxy and no receiver of the test has. The egress answer missed this part, or the app called it with no proxy ([SPEC.md section 7.11](../../SPEC.md#711-egress-discovery)). |
 | `driver_without_span` | A database with `record: driver` in the egress answer has no database span in the trace. Check the OpenTelemetry instrumentation of its driver. |
 | `other_without_span` | An other part with `record: driver` in the egress answer, for example a queue, has no span of its client in the trace. Check the OpenTelemetry instrumentation of its client. |

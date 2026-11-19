@@ -914,15 +914,24 @@ def key_named(
         for base in bases:
             if commands.key_word(word, keys, base, paths, _in_key_folder):
                 return shown
-            if any(c in word for c in "*?[$"):
+            if "$" in word:
                 continue
             try:
-                real = os.path.realpath(os.path.join(base, os.path.expanduser(word)))
+                real = _real_start(os.path.join(base, os.path.expanduser(word)))
             except (OSError, ValueError):
                 continue
-            if commands.key_word(real, keys, None):
+            if commands.key_word(real, keys, None, (), _in_key_folder):
                 return shown
     return None
+
+
+def _real_start(path: str) -> str:
+    """The path with its symlinks resolved, up to its first part with a glob. The parts from
+    this part stay as they are."""
+    parts = Path(path).parts
+    stop = next((k for k, part in enumerate(parts) if any(c in part for c in "*?[")), len(parts))
+    real = os.path.realpath(os.path.join(*parts[:stop])) if stop else ""
+    return os.path.join(real, *parts[stop:])
 
 
 def _in_key_folder(key: str, rest: list[str]) -> bool:
