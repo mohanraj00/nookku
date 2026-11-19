@@ -1,0 +1,105 @@
+{
+ "subject": "sha256:ab12cd34",
+ "errors": {},
+ "bases": {
+  "t-base": {
+   "messages": [
+    "My mug came broken.",
+    "Can I get a refund?"
+   ],
+   "tap": [
+    "I am sorry to hear that.",
+    "Yes. Refunds take 5 days."
+   ]
+  }
+ },
+ "tests": {
+  "new_customer": {
+   "messages": [
+    "Hello, I am new here.",
+    "What does shipping to Pune cost?"
+   ],
+   "replies": [
+    true,
+    true
+   ],
+   "tap": [
+    "Welcome to the shop.",
+    "Shipping to Pune is 50 rupees."
+   ],
+   "entry": [
+    "python",
+    "agent.py"
+   ],
+   "entry_name": null,
+   "limits": {},
+   "counts": {
+    "agent_error": 0
+   },
+   "audit": {
+    "exit": 0,
+    "breaks": [],
+    "errors": []
+   },
+   "persona": "{\"persona\": \"A new customer who has not ordered from the shop.\", \"goal\": \"Find the shipping cost to Pune.\", \"turns\": 2}\n"
+  },
+  "return_customer": {
+   "messages": [
+    "My mug came broken.",
+    "Can I get a refund?"
+   ],
+   "replies": [
+    true,
+    true
+   ],
+   "tap": [
+    "I am sorry to hear that.",
+    "Refunds are not possible."
+   ],
+   "entry": [
+    "python",
+    "agent.py"
+   ],
+   "entry_name": null,
+   "limits": {},
+   "counts": {
+    "agent_error": 0
+   },
+   "audit": {
+    "exit": 0,
+    "breaks": [],
+    "errors": []
+   },
+   "persona": "{\"persona\": \"A customer with a return of a damaged mug.\", \"goal\": \"Get a refund for the mug.\", \"turns\": 2}\n"
+  },
+  "short_sentences": {
+   "messages": [
+    "Blue mug?",
+    "Price?"
+   ],
+   "replies": [
+    true,
+    true
+   ],
+   "tap": [
+    "Yes, we have a blue mug.",
+    "It is 300 rupees."
+   ],
+   "entry": [
+    "python",
+    "agent.py"
+   ],
+   "entry_name": null,
+   "limits": {},
+   "counts": {
+    "agent_error": 0
+   },
+   "audit": {
+    "exit": 0,
+    "breaks": [],
+    "errors": []
+   },
+   "persona": "{\"persona\": \"A customer who writes in short sentences.\", \"goal\": \"Ask if the shop has a blue mug.\", \"turns\": 2}\n"
+  }
+ }
+}

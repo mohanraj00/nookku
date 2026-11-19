@@ -163,6 +163,41 @@ def test_state_rest(word: str, rest: list[str] | None) -> None:
         ("python -m nookku.kit", commands.IMPORT),
         ("python3 -c 'from nookku import kit'", commands.IMPORT),
         ("python3 -c \"__import__('nookku')\"", commands.IMPORT),
+        # Only a person writes an adjudication (#548).
+        ("nookku adjudicate t1 --turn 2 --outcome key_wrong --reason x", "nookku adjudicate"),
+        ("uv run nookku adjudicate --root . t1 --turn 2", "nookku adjudicate"),
+        ("bash -c 'nookku adjudicate t1'", "nookku adjudicate"),
+        ("nookku adjudicate 'no end", "nookku adjudicate"),
+        ("env -S'nookku adjudicate t1'", "nookku adjudicate"),
+        ("echo nookku adjudicate", None),
+        # The shell expands a word that can be the subcommand (#548).
+        ('C=adjudicate; nookku "$C" t1 --turn 2', commands.EXPANDED),
+        ("nookku ${C} t1", commands.EXPANDED),
+        ("nookku $(echo adjudicate) t1", commands.EXPANDED),
+        ("nookku `echo adjudicate` t1", commands.EXPANDED),
+        ('nookku "$(echo adjudicate)" t1', commands.EXPANDED),
+        ("nookku $'adjudicate' t1", commands.EXPANDED),
+        ("nookku adjudicat* t1", commands.EXPANDED),
+        ("nookku {adjudicate,t1}", commands.EXPANDED),
+        ("nookku $EMPTY adjudicate t1", commands.EXPANDED),
+        ('nookku "adjudicate" "$(echo t1)"', commands.EXPANDED),
+        ('python3 -m nookku "$C" t1', commands.EXPANDED),
+        ("uv run nookku $C t1", commands.EXPANDED),
+        ("env -S'nookku $C t1'", commands.EXPANDED),
+        ('bash -c "nookku $C t1"', commands.EXPANDED),
+        ("echo 'nookku $C' | sh", commands.EXPANDED),
+        ("nookku mode $STATE", commands.EXPANDED),
+        ('nookku mode "$(echo on)"', commands.EXPANDED),
+        ("nookku init $FLAG", commands.EXPANDED),
+        ('nookku gate "$WORD"', "nookku gate"),
+        # A word after a plain subcommand that only reads can come from the shell.
+        ('nookku audit "$T"', None),
+        ('nookku audit "$(cat test.txt)"', None),
+        ('nookku check --root "$R"', None),
+        ('nookku gate verify "$T"', None),
+        ('nookku trace "$T" --verdict; echo "$(date)"', None),
+        ('for f in *.py; do grep -c nookku "$f"; done', None),
+        ('echo "$(date)"; grep -rn nookku src/', None),
         ("nookku mode", None),
         ("nookku mode status", None),
         ("nookku check", None),
@@ -203,3 +238,17 @@ def test_the_drive_deny_applies_with_no_state_folder(tmp_path: Path) -> None:
     reason = json.loads(out.getvalue())["hookSpecificOutput"]["permissionDecisionReason"]
     assert reason == kit.DRIVE_REASON.format(what="nookku start")
     assert not (tmp_path / STATE).exists()
+
+
+def test_a_nookku_command_with_an_expanded_subcommand_is_denied(tmp_path: Path) -> None:
+    # The relay cannot know the subcommand of nookku "$C", so it denies the command (#548).
+    event = {
+        "hook_event_name": "PreToolUse",
+        "cwd": str(tmp_path),
+        "tool_name": "Bash",
+        "tool_input": {"command": 'C=adjudicate; nookku "$C" t1 --turn 2 --outcome key_wrong'},
+    }
+    out = io.StringIO()
+    assert kit.run_hook(tmp_path, "claude-code", io.StringIO(json.dumps(event)), out) == 0
+    reason = json.loads(out.getvalue())["hookSpecificOutput"]["permissionDecisionReason"]
+    assert reason == kit.EXPANDED_REASON

@@ -9,6 +9,44 @@
  "model_api": null,
  "mcp": null,
  "database": null,
+ "answers": [
+  {
+   "turn": 1,
+   "question": "How many blue mugs?",
+   "match": "number",
+   "tolerance": "0.5",
+   "answer": "12",
+   "value": "12",
+   "result": "match"
+  },
+  {
+   "turn": 2,
+   "question": "How many teapots?",
+   "match": "number",
+   "tolerance": "0.5",
+   "answer": "4.5",
+   "value": "\"4.9\"",
+   "result": "match"
+  },
+  {
+   "turn": 3,
+   "question": "How many red mugs?",
+   "match": "number",
+   "tolerance": "0.5",
+   "answer": "3",
+   "value": "5",
+   "result": "mismatch"
+  },
+  {
+   "turn": 4,
+   "question": "How many cups?",
+   "match": "number",
+   "tolerance": "0.5",
+   "answer": "7",
+   "value": null,
+   "result": "mismatch"
+  }
+ ],
  "egress": null,
  "trace_points": null,
  "counts": {

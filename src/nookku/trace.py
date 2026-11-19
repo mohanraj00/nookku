@@ -1568,6 +1568,41 @@ def citations_not_read(
     return out
 
 
+def answer_results(
+    exchanges: list[dict[str, Any]], key: dict[str, Any] | str | None
+) -> list[dict[str, Any]] | None:
+    """One row for each turn with a question of the answer key (SPEC.md section 7.17): the
+    `turn`, the `question`, the `match` and the `tolerance` of its rule, the `answer` of the
+    key, the `value` of the reply and the `result`, `match` or `mismatch`. None if the test has
+    no key, or a key that the check cannot use."""
+    if not isinstance(key, dict):
+        return None
+    out: list[dict[str, Any]] = []
+    answers, field = key["answers"], key["field"]
+    for i, r in enumerate(exchanges, 1):
+        question = r.get("input")
+        if not isinstance(question, str) or question not in answers:
+            continue
+        reply = r.get("reply")
+        value = reply if isinstance(reply, str) else None
+        if value is not None and field:
+            value = _at(_structured(value, exact=True), field)
+        rule = answers[question]
+        ok = answer_key.matches(value, rule["answer"], rule["match"], rule["tolerance"])
+        out.append(
+            {
+                "turn": i,
+                "question": question,
+                "match": rule["match"],
+                "tolerance": None if rule["tolerance"] is None else str(rule["tolerance"]),
+                "answer": answer_key.shown(rule["answer"]),
+                "value": None if value is None else answer_key.shown(value),
+                "result": "match" if ok else "mismatch",
+            }
+        )
+    return out
+
+
 def answers_not_in_key(
     exchanges: list[dict[str, Any]], key: dict[str, Any] | str | None
 ) -> list[dict[str, Any]]:
@@ -1580,26 +1615,17 @@ def answers_not_in_key(
     if isinstance(key, str):
         return [_finding("answer_key_missing", None, KEY_UNUSABLE + key)]
     out: list[dict[str, Any]] = []
-    answers, field = key["answers"], key["field"]
-    asked: set[str] = set()
-    for i, r in enumerate(exchanges, 1):
-        question = r.get("input")
-        if not isinstance(question, str) or question not in answers:
+    results = answer_results(exchanges, key) or []
+    for r in results:
+        if r["result"] == "match":
             continue
-        asked.add(question)
-        reply = r.get("reply")
-        value = reply if isinstance(reply, str) else None
-        if value is not None and field:
-            value = _at(_structured(value, exact=True), field)
-        expected = answers[question]
-        if answer_key.matches(value, expected, key["match"], key["tolerance"]):
-            continue
-        got = "no value" if value is None else answer_key.shown(value)
-        given = answer_key.shown(expected)
-        detail = f"{json.dumps(question)}: the key gives {given}, and the reply gives {got}"
-        out.append(_finding("answer_key_mismatch", i, detail))
-    for question in answers:
-        if question not in asked:
+        got = "no value" if r["value"] is None else r["value"]
+        asked = json.dumps(r["question"])
+        detail = f"{asked}: the key gives {r['answer']}, and the reply gives {got}"
+        out.append(_finding("answer_key_mismatch", r["turn"], detail))
+    seen = {r["question"] for r in results}
+    for question in key["answers"]:
+        if question not in seen:
             detail = f"{json.dumps(question)}: no turn asked it"
             out.append(_finding("answer_key_missing", None, detail))
     return out
@@ -2084,6 +2110,7 @@ def build(folder: Path) -> dict[str, Any]:
     drivers = driver_marks(answer)
     points = app_spec.valid(manifest.get("trace_points"))
     unread = app_spec.unread(manifest.get("trace_points_unread"))
+    key = answer_key_of(folder, manifest)
     findings = check(
         exchanges,
         spans,
@@ -2098,7 +2125,7 @@ def build(folder: Path) -> dict[str, Any]:
         drivers,
         client_parts(answer),
         egress_found,
-        answer_key_of(folder, manifest),
+        key,
         calls=codex_calls,
     )
     # The checks of a replay with the recorded backends (SPEC.md section 8.6).
@@ -2131,6 +2158,9 @@ def build(folder: Path) -> dict[str, Any]:
         "counts": {c: counts[c] for c in CHECKS},
         "findings": findings,
     }
+    if key is not None:
+        # Only a test with an answer key has the key (SPEC.md section 7.17).
+        report["answers"] = answer_results(exchanges, key)
     if exported is not None:
         report["openinference"] = {"file": openinference.FILE, "spans": len(exported)}
     if gateway_calls is not None:

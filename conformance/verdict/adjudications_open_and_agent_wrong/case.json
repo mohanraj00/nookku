@@ -1,0 +1,78 @@
+{
+ "files": [
+  [
+   "APP_SPEC.md",
+   "# Toy shop app spec\n\n## Verdict\n\n| Finding | Most |\n|---|---|\n| `answer_key_mismatch` | 1 |\n"
+  ]
+ ],
+ "counts": {
+  "agent_error": 0,
+  "repeated_reply": 0,
+  "reply_not_from_model": 0,
+  "citation_not_read": 0,
+  "answer_key_mismatch": 3,
+  "answer_key_missing": 0,
+  "tool_error": 0,
+  "command_failed": 0,
+  "span_error": 0,
+  "backend_error": 0,
+  "model_api_error": 0,
+  "questions_lost": 0,
+  "database_error": 0,
+  "proxy_call_without_span": 0,
+  "mcp_task_unfinished": 0,
+  "unseen_call": 0,
+  "driver_without_span": 0,
+  "other_without_span": 0,
+  "egress_not_in_discovery": 0,
+  "egress_denied": 0,
+  "model_error": 0,
+  "turn_without_model": 0,
+  "item_between_turns": 0,
+  "otel_tool_not_in_session": 0,
+  "server_not_from_app": 0,
+  "session_inferred": 0,
+  "version_untested": 0,
+  "missing_trace_point": 0,
+  "trace_points_unread": 0
+ },
+ "answers": [
+  {
+   "turn": 1,
+   "question": "How many blue mugs?",
+   "match": "number",
+   "tolerance": "0.5",
+   "answer": "11",
+   "value": "16",
+   "result": "mismatch"
+  },
+  {
+   "turn": 2,
+   "question": "How many teapots?",
+   "match": "number",
+   "tolerance": "0.5",
+   "answer": "12",
+   "value": "17",
+   "result": "mismatch"
+  },
+  {
+   "turn": 3,
+   "question": "How many red mugs?",
+   "match": "number",
+   "tolerance": "0.5",
+   "answer": "13",
+   "value": "18",
+   "result": "mismatch"
+  },
+  {
+   "turn": 4,
+   "question": "How many cups?",
+   "match": "number",
+   "tolerance": "0.5",
+   "answer": "14",
+   "value": "14",
+   "result": "match"
+  }
+ ],
+ "adjudications": "{\"v\": 1, \"turn\": 1, \"question\": \"How many blue mugs?\", \"outcome\": \"key_wrong\", \"reason\": \"The key has the count of the last year.\", \"author\": \"Asha\", \"ts\": 1794000000}\n{\"v\": 1, \"turn\": 3, \"question\": \"How many red mugs?\", \"outcome\": \"agent_wrong\", \"reason\": \"The agent read the row of the blue mugs.\", \"author\": \"Asha\", \"ts\": 1794000000}\n"
+}
