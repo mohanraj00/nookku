@@ -13,8 +13,11 @@ page of another site cannot read it through a DNS name that points to 127.0.0.1.
 
 from __future__ import annotations
 
+import hmac
 import json
 import mimetypes
+import secrets
+import socket
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
@@ -268,11 +271,18 @@ class Server(ThreadingHTTPServer):
         port: int = DEFAULT_PORT,
         site: Path | None = None,
         allowed: list[str] | None = None,
+        token: str | None = None,
     ) -> None:
         self.root = root
         self.site = site.resolve() if site is not None else None
         self.allowed = list(allowed or [])
-        super().__init__((host.strip("[]"), port), Handler)
+        # Each API request must send this token. A new server gets a new token, so a process of
+        # another user on the same computer cannot read the records through the port.
+        self.token = token or secrets.token_urlsafe(32)
+        bare = host.strip("[]")
+        # The default family is IPv4, which cannot bind an IPv6 address such as ::1.
+        self.address_family = socket.AF_INET6 if ":" in bare else socket.AF_INET
+        super().__init__((bare, port), Handler)
         self.hosts = hosts_for(host, self.server_address[1], self.allowed)
 
     @property
@@ -292,8 +302,12 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, format: str, *args: object) -> None:
         pass
 
-    def _send(self, status: int, body: bytes, content_type: str) -> None:
+    def _send(
+        self, status: int, body: bytes, content_type: str, extra: dict[str, str] | None = None
+    ) -> None:
         self.send_response(status)
+        for name, value in (extra or {}).items():
+            self.send_header(name, value)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
@@ -304,9 +318,9 @@ class Handler(BaseHTTPRequestHandler):
         if self.command != "HEAD":
             self.wfile.write(body)
 
-    def _json(self, status: int, data: dict[str, Any]) -> None:
+    def _json(self, status: int, data: dict[str, Any], extra: dict[str, str] | None = None) -> None:
         body = json.dumps(data, ensure_ascii=False).encode("utf-8")
-        self._send(status, body, "application/json; charset=utf-8")
+        self._send(status, body, "application/json; charset=utf-8", extra)
 
     def _host_ok(self) -> bool:
         hosts = self.headers.get_all("Host") or []
@@ -315,11 +329,22 @@ class Handler(BaseHTTPRequestHandler):
             return False
         return True
 
+    def _token_ok(self) -> bool:
+        got = self.headers.get_all("Authorization") or []
+        want = f"Bearer {self.server.token}".encode()
+        if len(got) != 1 or not hmac.compare_digest(got[0].encode("utf-8", "replace"), want):
+            extra = {"WWW-Authenticate": "Bearer"}
+            self._json(401, {"api": VERSION, "error": "no valid token"}, extra)
+            return False
+        return True
+
     def do_GET(self) -> None:
         if not self._host_ok():
             return
         path = urlsplit(self.path).path
         if path == PREFIX or path.startswith(PREFIX + "/"):
+            if not self._token_ok():
+                return
             status, data = answer(self.server.root, path)
             self._json(status, data)
             return
@@ -343,7 +368,8 @@ class Handler(BaseHTTPRequestHandler):
         rel = unquote(path).lstrip("/")
         target = (site / rel).resolve() if rel else site
         if target.is_dir():
-            target = target / "index.html"
+            # Resolve the index file too, because it can be a symlink to a file outside the site.
+            target = (target / "index.html").resolve()
         if site not in target.parents or not target.is_file():
             self._json(404, {"api": VERSION, "error": NOT_FOUND})
             return

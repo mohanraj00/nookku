@@ -11,6 +11,7 @@ The API version is 1. Each route starts with `/api/v1`, and each JSON answer has
 - The API answers only `GET` and `HEAD`. `POST`, `PUT`, `DELETE` and `PATCH` get status 405 with `{"api": 1, "error": "the API is read-only"}`.
 - The API reads the files of the [test folders](glossary.md#test-folder) and of the gate folders. It changes no file, and it writes no [seal](glossary.md#seal) copy.
 - A run or a gate run that does not exist, and a path that is not a route, get status 404 with `{"api": 1, "error": "..."}`. An id must be the name of a folder, so a path cannot leave the tests folder or the gates folder.
+- Each request to `/api/v1` must send the header `Authorization: Bearer <token>`. The server makes a new random token each time it starts, and `nookku dashboard` prints it ([cli.md](cli.md#nookku-dashboard)). A request with no token or a wrong token gets status 401 with `{"api": 1, "error": "no valid token"}`. Thus a process of another user on the same computer cannot read the records through the port. The static files of `--site` need no token, so the site folder must hold no record.
 - A request with a `Host` header that is not the address of the server gets status 403 with `{"api": 1, "error": "wrong Host header"}`. With `127.0.0.1`, the server also accepts `localhost` and `[::1]` at the same port. This stops a page of another site that reaches the server through a DNS name that points to `127.0.0.1`.
 - Each answer has `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer` and a Content Security Policy that lets a page load only files of the same server. The server sends no CORS header, so a page of another origin cannot read an answer.
 - A time is a number of seconds since 1970-01-01 UTC, as in `manifest.json`.
@@ -144,11 +145,13 @@ The object of `result.json` of a gate run, with the verdict of each test, only i
 
 The server listens on `127.0.0.1` by default. Only a process on the same computer can reach it.
 
-The server has no login and no TLS. Each person who can reach the port can read each record of the project: each message, each reply and each finding. The records can hold personal data or secrets that the agent got. If you give `--host 0.0.0.0` or another address, you choose to give all the records to each person on that network. The command prints a warning on stderr.
+The server has no TLS. The token goes over the network as plain text. The records can hold personal data or secrets that the agent got. If you give `--host 0.0.0.0` or another address, each person who can read the traffic on that network can read the token and the records. The command prints a warning on stderr.
+
+Give the token only to the persons who can read all the records. Each person with the token can read each record of the project: each message, each reply and each finding.
 
 To give the dashboard to other people, keep the server on `127.0.0.1` and use one of these:
 
-- An SSH tunnel: `ssh -L 8765:127.0.0.1:8765 <host>`. Each person needs an SSH login.
+- An SSH tunnel: `ssh -L 8765:127.0.0.1:8765 <host>`. Each person needs an SSH login and the token.
 - A reverse proxy with TLS and a login, on the same computer. Give the name of the proxy with `--allow-host`, for example `--allow-host dashboard.example.com:443`. The proxy must send that `Host` header.
 
 Do not put the server behind a proxy that has no login.

@@ -117,7 +117,7 @@ def build_site(work: Path, mugham: Path | None) -> Path:
 
 def start_dashboard(
     root: Path, site: Path, env: dict[str, str]
-) -> tuple[subprocess.Popen[str], str]:
+) -> tuple[subprocess.Popen[str], str, str]:
     args = [sys.executable, "-m", "nookku", "dashboard", "--root", str(root), "--port", "0"]
     proc = subprocess.Popen(
         [*args, "--site", str(site)],
@@ -132,11 +132,16 @@ def start_dashboard(
         proc.kill()
         error = proc.stderr.read() if proc.stderr else ""
         raise SystemExit(f"nookku dashboard did not start: {error}")
-    return proc, json.loads(line)["url"]
+    shown = json.loads(line)
+    return proc, shown["url"], shown["token"]
 
 
-def fetch(url: str, method: str = "GET", host: str | None = None) -> tuple[int, Any]:
+def fetch(
+    url: str, token: str | None, method: str = "GET", host: str | None = None
+) -> tuple[int, Any]:
     request = urllib.request.Request(url, method=method)
+    if token is not None:
+        request.add_header("Authorization", f"Bearer {token}")
     if host is not None:
         request.add_header("Host", host)
     try:
@@ -146,17 +151,19 @@ def fetch(url: str, method: str = "GET", host: str | None = None) -> tuple[int, 
         return e.code, json.loads(e.read())
 
 
-def api_checks(url: str, ids: dict[str, Any]) -> dict[str, bool]:
+def api_checks(url: str, token: str, ids: dict[str, Any]) -> dict[str, bool]:
     base = url + "api/v1"
-    _, runs = fetch(base + "/runs")
+    _, runs = fetch(base + "/runs", token)
     rows = {r["id"]: r for r in runs["runs"]}
-    _, gates = fetch(base + "/gates")
+    _, gates = fetch(base + "/gates", token)
     gate = gates["gates"][0] if gates["gates"] else {}
-    _, found = fetch(f"{base}/runs/{ids['broken']}/findings")
-    _, verdict = fetch(f"{base}/runs/{ids['intact']}/verdict")
-    status_post, _ = fetch(base + "/runs", method="POST")
-    status_host, _ = fetch(base + "/runs", host="evil.example")
-    status_none, _ = fetch(base + "/runs/no-such-run")
+    _, found = fetch(f"{base}/runs/{ids['broken']}/findings", token)
+    _, verdict = fetch(f"{base}/runs/{ids['intact']}/verdict", token)
+    status_post, _ = fetch(base + "/runs", token, method="POST")
+    status_host, _ = fetch(base + "/runs", token, host="evil.example")
+    status_none, _ = fetch(base + "/runs/no-such-run", token)
+    status_no_token, _ = fetch(base + "/runs", None)
+    status_bad_token, _ = fetch(base + "/runs", "not-the-token")
     return {
         "runs": len(rows) == 4,
         "intact_seal": rows.get(ids["intact"], {}).get("seal") == "intact",
@@ -169,6 +176,8 @@ def api_checks(url: str, ids: dict[str, Any]) -> dict[str, bool]:
         "post_refused": status_post == 405,
         "wrong_host_refused": status_host == 403,
         "no_such_run": status_none == 404,
+        "no_token_refused": status_no_token == 401,
+        "wrong_token_refused": status_bad_token == 401,
     }
 
 
@@ -215,11 +224,11 @@ def chrome() -> str:
     return found
 
 
-def browser_checks(url: str, broken: str, work: Path) -> tuple[dict[str, Any], str]:
+def browser_checks(url: str, token: str, broken: str, work: Path) -> tuple[dict[str, Any], str]:
     collector = Collector()
     threading.Thread(target=collector.serve_forever, daemon=True).start()
     port = collector.server_address[1]
-    page = f"{url}test/harness.html?collector={port}&broken={broken}"
+    page = f"{url}test/harness.html?collector={port}&broken={broken}#token={token}"
     profile = work / "chrome-profile"
     args = [
         chrome(),
@@ -273,12 +282,12 @@ def main(argv: list[str] | None = None) -> int:
     env.pop("NOOKKU_TESTS_DIR", None)
     ids = make_project(work, env)
     site = build_site(work, args.mugham)
-    proc, url = start_dashboard(ids["root"], site, env)
+    proc, url, token = start_dashboard(ids["root"], site, env)
     try:
-        api = api_checks(url, ids)
-        browser, path = browser_checks(url, ids["broken"], work)
+        api = api_checks(url, token, ids)
+        browser, path = browser_checks(url, token, ids["broken"], work)
         if args.serve:
-            print(f"the dashboard is at {url}. Stop it with Ctrl-C.", file=sys.stderr)
+            print(f"the dashboard is at {url}#token={token}. Stop it with Ctrl-C.", file=sys.stderr)
             with contextlib.suppress(KeyboardInterrupt):
                 proc.wait()
     finally:

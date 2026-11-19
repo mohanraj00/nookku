@@ -361,7 +361,7 @@ Serve the chat page: a local web page where you talk to the agent of the running
 nookku dashboard [--root PATH] [--tests-dir PATH] [--host HOST] [--port PORT] [--site DIR] [--allow-host NAME:PORT ...]
 ```
 
-Serve the read-only API of the runs and the gate runs of the project, and with `--site`, the static files of a dashboard ([api.md](api.md)). The command prints one JSON line with `url` and `api`, then serves until Ctrl-C. The API reads the test folders and the gate folders, and it changes no file. Each answer says if the seal of the run is intact.
+Serve the read-only API of the runs and the gate runs of the project, and with `--site`, the static files of a dashboard ([api.md](api.md)). The command prints one JSON line with `url`, `api`, `token` and `open`, then serves until Ctrl-C. `token` is new each time the server starts, and each API request must send it as `Authorization: Bearer <token>`. `open` is the address of the page with the token in the fragment (`#token=...`), which a browser does not send to a server. The API reads the test folders and the gate folders, and it changes no file. Each answer says if the seal of the run is intact.
 
 The dashboard of [examples/evaluation-dashboard/](../../examples/evaluation-dashboard/) is static files that use only this API. Build it once, then serve it:
 

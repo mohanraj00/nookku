@@ -6,6 +6,8 @@ const params = new URLSearchParams(location.search);
 const collector = Number(params.get('collector'));
 const broken = params.get('broken');
 const WAIT_MS = 20000;
+// The token of the server, from the fragment of the address that run.py opens.
+const TOKEN = new URLSearchParams(location.hash.slice(1)).get('token') ?? '';
 const WIDTHS = [['phone', 360], ['desktop', 1280]];
 
 function send(result) {
@@ -17,7 +19,7 @@ window.addEventListener('error', (event) => send({ pass: false, error: String(ev
 window.addEventListener('unhandledrejection', (event) => send({ pass: false, error: String(event.reason) }));
 
 async function api(path) {
-  const response = await fetch(`/api/v1${path}`);
+  const response = await fetch(`/api/v1${path}`, { headers: { Authorization: `Bearer ${TOKEN}` } });
   return response.json();
 }
 
@@ -64,7 +66,7 @@ function load(name, width) {
   const frame = document.createElement('iframe');
   frame.className = name;
   frame.title = `Dashboard at ${width} px`;
-  frame.src = '/';
+  frame.src = `/#token=${encodeURIComponent(TOKEN)}`;
   document.getElementById('frames').append(frame);
   return frame;
 }
@@ -115,6 +117,16 @@ async function check(name, width, runs, gates) {
     && detail.dataset.tests === String(result.tests.length)
     && result.tests.every((t) => text.includes(t.name) && text.includes(t.test));
   checks.no_side_scroll_after_open = doc.documentElement.scrollWidth <= doc.documentElement.clientWidth;
+
+  // Open the run and then at once the gate run: a late answer for the run does not change the
+  // panel of the gate run.
+  const children = detail.children.length;
+  press(doc.querySelector(`[data-run="${CSS.escape(run.id)}"]`));
+  press(gateBox);
+  await until(() => detail.dataset.gate === gate.id && detail.dataset.state !== 'loading', 'gate details');
+  await new Promise((resolve) => setTimeout(resolve, 1500));
+  checks.late_answer_dropped = detail.dataset.gate === gate.id && detail.dataset.run === undefined
+    && detail.dataset.state === 'ready' && detail.children.length === children;
   checks.no_refusal_after_open = refusals(doc) === 0;
   return { width, checks, pass: Object.values(checks).every(Boolean) };
 }

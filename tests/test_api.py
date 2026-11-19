@@ -6,6 +6,7 @@ import http.client
 import json
 import os
 import shutil
+import socket
 import sys
 import threading
 from collections.abc import Iterator
@@ -67,13 +68,22 @@ def server(project: Path, tmp_path: Path) -> Iterator[api.Server]:
 
 
 def call(
-    srv: api.Server, path: str, method: str = "GET", host: str | None = None
+    srv: api.Server,
+    path: str,
+    method: str = "GET",
+    host: str | None = None,
+    auth: str | None = "",
 ) -> tuple[int, dict[str, str], bytes]:
+    """One request. With `auth` "", the request sends the token of the server. With None, it
+    sends no Authorization header. Else `auth` is the value of the header."""
     port = srv.server_address[1]
-    conn = http.client.HTTPConnection("127.0.0.1", port, timeout=10)
+    address = "::1" if srv.address_family == socket.AF_INET6 else "127.0.0.1"
+    conn = http.client.HTTPConnection(address, port, timeout=10)
     try:
         conn.putrequest(method, path, skip_host=True)
         conn.putheader("Host", host if host is not None else f"127.0.0.1:{port}")
+        if auth is not None:
+            conn.putheader("Authorization", auth or f"Bearer {srv.token}")
         conn.endheaders()
         r = conn.getresponse()
         return r.status, {k.lower(): v for k, v in r.getheaders()}, r.read()
@@ -247,6 +257,78 @@ def test_a_site_path_outside_the_site_gets_404(server: api.Server, path: str) ->
     status, _, body = call(server, path)
     assert status == 404
     assert b"not a site file" not in body
+
+
+def test_an_index_symlink_to_a_file_outside_the_site_gets_404(server: api.Server) -> None:
+    assert server.site is not None
+    sub = server.site / "sub2"
+    sub.mkdir()
+    os.symlink(server.site.parent / "secret.txt", sub / "index.html")
+    status, _, body = call(server, "/sub2/")
+    assert status == 404
+    assert b"not a site file" not in body
+
+
+def test_a_site_index_that_is_a_symlink_outside_gets_404(project: Path, tmp_path: Path) -> None:
+    site = tmp_path / "linked-site"
+    site.mkdir()
+    (tmp_path / "outside.html").write_text("not a site file")
+    os.symlink(tmp_path / "outside.html", site / "index.html")
+    srv = api.Server(project, "127.0.0.1", 0, site)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        status, _, body = call(srv, "/")
+        assert status == 404
+        assert b"not a site file" not in body
+    finally:
+        srv.shutdown()
+        srv.server_close()
+
+
+@pytest.mark.parametrize("kind", ["none", "wrong", "basic", "longer"])
+def test_an_api_request_with_no_valid_token_gets_401(server: api.Server, kind: str) -> None:
+    auth = {
+        "none": None,
+        "wrong": "Bearer not-the-token",
+        "basic": f"Basic {server.token}",
+        "longer": f"Bearer {server.token}x",
+    }[kind]
+    for path in ("/api/v1", "/api/v1/runs", "/api/v1/runs/no-such-run"):
+        status, headers, body = call(server, path, auth=auth)
+        assert status == 401
+        assert headers["www-authenticate"] == "Bearer"
+        assert json.loads(body) == {"api": api.VERSION, "error": "no valid token"}
+
+
+def test_a_site_file_needs_no_token(server: api.Server) -> None:
+    status, _, body = call(server, "/", auth=None)
+    assert status == 200 and b"<title>Runs</title>" in body
+
+
+def test_each_server_has_a_new_token(project: Path) -> None:
+    one = api.Server(project, "127.0.0.1", 0)
+    two = api.Server(project, "127.0.0.1", 0)
+    try:
+        assert one.token != two.token
+        assert len(one.token) >= 40
+    finally:
+        one.server_close()
+        two.server_close()
+
+
+def test_the_server_listens_on_an_ipv6_address(project: Path) -> None:
+    try:
+        srv = api.Server(project, "::1", 0)
+    except OSError as e:
+        pytest.skip(f"this computer has no IPv6 loopback: {e}")
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        port = srv.server_address[1]
+        assert srv.url == f"http://[::1]:{port}/"
+        assert call(srv, "/api/v1/runs", host=f"[::1]:{port}")[0] == 200
+    finally:
+        srv.shutdown()
+        srv.server_close()
 
 
 def test_with_no_site_a_page_path_gets_a_short_404(project: Path) -> None:

@@ -18,6 +18,11 @@ const SUMMARY = 200;
 const CELL = 500;
 const TEXT = 10000;
 const NO_VERDICT = 'cannot be used';
+// `nookku dashboard` prints the address of the page with its token in the fragment (#token=...).
+// A browser does not send the fragment to a server. Each API request sends the token.
+const TOKEN = new URLSearchParams(location.hash.slice(1)).get('token') ?? '';
+// The number of the current selection. A response of an older selection does not change the panel.
+let selection = 0;
 
 const main = document.getElementById('main');
 const note = document.getElementById('note');
@@ -40,7 +45,8 @@ function stateOf(verdict) {
 }
 
 async function get(path) {
-  const response = await fetch(API + path, { headers: { Accept: 'application/json' } });
+  const headers = { Accept: 'application/json', Authorization: `Bearer ${TOKEN}` };
+  const response = await fetch(API + path, { headers });
   const data = await response.json();
   if (!response.ok) throw new Error(`${path}: ${data.error ?? response.status}`);
   return data;
@@ -133,10 +139,12 @@ function showGates(gates) {
 }
 
 function clearDetail(keys) {
+  selection += 1;
   detail.replaceChildren(document.getElementById('detail-title'));
   detail.dataset.state = 'loading';
   for (const key of ['run', 'gate']) delete detail.dataset[key];
   Object.assign(detail.dataset, keys);
+  return selection;
 }
 
 function sealedText(name, sealed) {
@@ -146,13 +154,14 @@ function sealedText(name, sealed) {
 }
 
 async function openRun(id) {
-  clearDetail({ run: id });
+  const mine = clearDetail({ run: id });
   try {
     const [verdict, found, evaluation] = await Promise.all([
       get(`/runs/${encodeURIComponent(id)}/verdict`),
       get(`/runs/${encodeURIComponent(id)}/findings`),
       get(`/runs/${encodeURIComponent(id)}/evaluation`),
     ]);
+    if (mine !== selection) return;
     const stack = kit.mount('stack', { label: clip(`Run ${id}`, LINE), gap: 'medium' }, { parent: detail });
     const report = verdict.verdict;
     kit.mount('status', {
@@ -179,15 +188,17 @@ async function openRun(id) {
     detail.dataset.findings = String(findings.length);
     detail.dataset.state = 'ready';
   } catch (error) {
+    if (mine !== selection) return;
     kit.mount('status', { state: 'unknown', text: clip(String(error.message), SUMMARY) }, { parent: detail });
     detail.dataset.state = 'error';
   }
 }
 
 async function openGate(id) {
-  clearDetail({ gate: id });
+  const mine = clearDetail({ gate: id });
   try {
     const data = await get(`/gates/${encodeURIComponent(id)}`);
+    if (mine !== selection) return;
     const stack = kit.mount('stack', { label: clip(`Gate run ${id}`, LINE), gap: 'medium' }, { parent: detail });
     const result = data.result;
     kit.mount('status', {
@@ -207,6 +218,7 @@ async function openGate(id) {
     detail.dataset.tests = String(tests.length);
     detail.dataset.state = 'ready';
   } catch (error) {
+    if (mine !== selection) return;
     kit.mount('status', { state: 'unknown', text: clip(String(error.message), SUMMARY) }, { parent: detail });
     detail.dataset.state = 'error';
   }

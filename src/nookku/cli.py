@@ -1240,11 +1240,20 @@ def _dashboard_command(args: argparse.Namespace) -> int:
         return 2
     if args.host not in ("127.0.0.1", "::1", "localhost"):
         print(
-            "nookku: the dashboard has no login and no TLS. Each person who can reach "
-            f"{server.url} can read each record (docs/reference/api.md).",
+            "nookku: the dashboard has no TLS. Each person who can reach "
+            f"{server.url} can read the token and the records on the network "
+            "(docs/reference/api.md).",
             file=sys.stderr,
         )
-    print(json.dumps({"url": server.url, "api": server.url + api.PREFIX[1:]}), flush=True)
+    # The token goes only to this terminal. The `open` address has it in the fragment, which a
+    # browser does not send to a server.
+    shown = {
+        "url": server.url,
+        "api": server.url + api.PREFIX[1:],
+        "token": server.token,
+        "open": f"{server.url}#token={server.token}",
+    }
+    print(json.dumps(shown), flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

@@ -18,7 +18,7 @@ The kit is a build-time choice. The Python package of Nookku has no dependency o
    nookku dashboard --site dashboard-site
    ```
 
-3. Open the URL that the command prints, for example `http://127.0.0.1:8765/`.
+3. Open the `open` address that the command prints, for example `http://127.0.0.1:8765/#token=...`. The token is new each time the server starts, and each API request must send it.
 
 The page lists the gate runs and the runs. Each gate run shows its aggregate verdict, its subject digest and the state of its seal. "Open" on a gate run shows the verdict of each test. Each run shows its verdict, its counts and the state of its seal. "Open" on a run shows its findings and the report of its evaluation. A run with a broken seal shows `broken`, and its verdict shows `cannot be used`.
 
