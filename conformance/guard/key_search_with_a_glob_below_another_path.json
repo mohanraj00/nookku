@@ -1,0 +1,17 @@
+{
+ "answer": null,
+ "event": {
+  "cwd": "{root}",
+  "hook_event_name": "PreToolUse",
+  "tool_input": {
+   "glob": "*.json",
+   "path": "shop",
+   "pattern": "answer"
+  },
+  "tool_name": "Grep"
+ },
+ "links": {},
+ "policy_text": "{\"answer_keys\": [\"keys/stock.json\"]}\n",
+ "state": true,
+ "test": false
+}

@@ -17,7 +17,12 @@ from typing import Any, NamedTuple
 SHELL_TOOLS = {"Bash", "shell", "local_shell", "exec_command"}
 SHELLS = {"bash", "sh", "zsh"}
 OPS = set("();<>|&")
-HEREDOC = re.compile(r"(?<!<)<<(?!<)(-?)\s*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\2")
+# The start of a here-document: the dash, the quote and the end word. An end word with another
+# form, for example E"O"F, does not match, so its body stays in the text of the command.
+HEREDOC = re.compile(r"(?<!<)<<(?!<)(-?)\s*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\2(?![^\s;&|<>()])")
+# A command substitution. The shell runs it in the body of a here-document whose end word has
+# no quote.
+SUBSTITUTION = re.compile(r"\$\(|`")
 # A sed script reads only if, without its /regex/ addresses, it has only these characters: line
 # addresses and the commands p, P, =, q, Q, d and n. So s, w, W, e and r fail.
 SED_ADDRESS = re.compile(r"/(?:\\.|[^/\\])*/I?")
@@ -90,6 +95,18 @@ EXPANDED = "nookku with a word that the shell expands"
 SHELL_CODE = re.compile(r"-[a-zA-Z]*c[a-zA-Z]*")
 # A word of a text that can name a path in a state folder.
 STATE_WORD = re.compile(r"[^\s\"'`;|&<>(),{}]+")
+# A word of a command with its braces and commas, for the brace expansion of the shell.
+RAW_WORD = re.compile(r"[^\s\"'`;|&<>()]+")
+# A quote, a backslash, and a backslash with the line feed that it removes.
+UNQUOTE = re.compile(r"""\\\n|["'\\]""")
+# The innermost brace group of a word, for example {json,txt}.
+BRACES = re.compile(r"\{([^{}]*,[^{}]*)\}")
+# The most words that the brace expansion of one word gives. This is a chosen value.
+BRACE_LIMIT = 64
+# The options of rg, grep and find whose value is the glob of a search.
+GLOB_OPTIONS = {"-g", "--glob", "--iglob", "--include", "-name", "-iname"}
+# A path that names each file: the candidate for a word that the rule cannot expand.
+EACH_PATH = "/**"
 # The entry gets the test folder in NOOKKU_TEST_DIR, and a child process of the app, for example
 # its model harness, can inherit it (#145). A word that names the variable names the test folder.
 TEST_DIR_NAME = re.compile(r"[$%]?\{?NOOKKU_TEST_DIR\}?%?", re.IGNORECASE)
@@ -188,19 +205,41 @@ def failure(program: str, args: list[str], extra: frozenset[str] = frozenset()) 
     return None if check(args) else f'"{program}" with these arguments can write.'
 
 
-def _strip_heredocs(text: str) -> str:
-    """The command without the bodies of its here-documents."""
+def _without_heredocs(text: str, code: bool) -> str:
+    """The command without the bodies of its here-documents. With `code`, the body of a
+    here-document that is code stays. The shell runs each command substitution in a body whose
+    end word has no quote, so a body with one always stays."""
     out: list[str] = []
-    ends: list[tuple[str, bool]] = []
+    body: list[str] = []
+    # The end word, the dash, True if the body is code that stays, True if the shell expands it.
+    ends: list[tuple[str, bool, bool, bool]] = []
+
+    def close() -> None:
+        _, _, stays, expands = ends.pop(0)
+        if stays or (expands and any(SUBSTITUTION.search(line) for line in body)):
+            out.extend(body)
+        body.clear()
+
     for line in text.split("\n"):
         if ends:
-            end, dash = ends[0]
-            if (line.lstrip("\t") if dash else line) == end:
-                ends.pop(0)
+            if (line.lstrip("\t") if ends[0][1] else line) == ends[0][0]:
+                close()
+            else:
+                body.append(line)
             continue
         out.append(line)
-        ends += [(m.group(3), m.group(1) == "-") for m in HEREDOC.finditer(line)]
+        for m in HEREDOC.finditer(line):
+            stays = code and not _data_heredoc(line, m.start())
+            ends.append((m.group(3), m.group(1) == "-", stays, not m.group(2)))
+    if ends:
+        close()
     return "\n".join(out)
+
+
+def _strip_heredocs(text: str) -> str:
+    """The command without the bodies of its here-documents. A body with a command substitution
+    that the shell runs stays."""
+    return _without_heredocs(text, False)
 
 
 def tokens(text: str) -> list[tuple[str, bool]] | None:
@@ -566,21 +605,9 @@ def drive(command: str, allowed: frozenset[str] = frozenset()) -> str | None:
 def strip_data_heredocs(text: str) -> str:
     """The command without the bodies of the here-documents that are data (SPEC.md section 5).
     The body of a here-document for each other program, for example `python -`, is code, so it
-    stays."""
-    out: list[str] = []
-    ends: list[tuple[str, bool, bool]] = []
-    for line in text.split("\n"):
-        if ends:
-            end, dash, data = ends[0]
-            if (line.lstrip("\t") if dash else line) == end:
-                ends.pop(0)
-            elif not data:
-                out.append(line)
-            continue
-        out.append(line)
-        for m in HEREDOC.finditer(line):
-            ends.append((m.group(3), m.group(1) == "-", _data_heredoc(line, m.start())))
-    return "\n".join(out)
+    stays. A body of data with a command substitution that the shell runs stays too, for example
+    `$(cat keys/stock.json)` below `cat <<EOF`."""
+    return _without_heredocs(text, True)
 
 
 class Writes(NamedTuple):
@@ -722,16 +749,9 @@ def _tests_rest(piece: str, tests: Sequence[str], cwd: str | None) -> list[str] 
     """`tests` and the parts after a tests folder of `tests`, or None. A relative piece starts
     at `cwd`, and `~` is the home folder. The match ignores case, and a glob part matches as the
     shell would."""
-    if not tests:
+    parts = _path_parts(piece, cwd) if tests else None
+    if parts is None:
         return None
-    path = piece.replace("\\", "/")
-    if path.startswith("~"):
-        path = posixpath.expanduser(path)
-    if not path.startswith("/"):
-        if cwd is None:
-            return None
-        path = posixpath.join(cwd.replace("\\", "/"), path)
-    parts = posixpath.normpath(path).split("/")
     for folder in tests:
         top = posixpath.normpath(folder.replace("\\", "/")).split("/")
         if len(parts) < len(top):
@@ -742,20 +762,73 @@ def _tests_rest(piece: str, tests: Sequence[str], cwd: str | None) -> list[str] 
     return None
 
 
-def key_word(word: str, keys: Sequence[str], cwd: str | None, tails: Sequence[str] = ()) -> bool:
+def _path_parts(piece: str, cwd: str | None) -> list[str] | None:
+    """The parts of the absolute path of a piece, or None. A relative piece starts at `cwd`, and
+    `~` is the home folder."""
+    path = piece.replace("\\", "/")
+    if path.startswith("~"):
+        path = posixpath.expanduser(path)
+    if not path.startswith("/"):
+        if cwd is None:
+            return None
+        path = posixpath.join(cwd.replace("\\", "/"), path)
+    return posixpath.normpath(path).split("/")
+
+
+def glob_rests(parts: Sequence[str], top: Sequence[str]) -> list[list[str]]:
+    """The parts of a path after the path `top`, for each way that its first parts are `top`.
+    A part `**` matches 0 or more parts. If a `**` matches the last part of `top`, it can also
+    match parts after `top`, so it is the first part of the result."""
+    at = {0}
+    for real in top:
+        # A `**` can match no part.
+        for i in sorted(at):
+            while i < len(parts) and parts[i] == "**":
+                i += 1
+                at.add(i)
+        step: set[int] = set()
+        for i in at:
+            if i < len(parts) and parts[i] == "**":
+                step.add(i)
+            elif i < len(parts) and _same_part(parts[i], real):
+                step.add(i + 1)
+        at = step
+    return [list(parts[i:]) for i in sorted(at)]
+
+
+def exact(rest: Sequence[str]) -> bool:
+    """True if the result of glob_rests names the path itself, and no path after it."""
+    return all(part == "**" for part in rest)
+
+
+def key_word(
+    word: str,
+    keys: Sequence[str],
+    cwd: str | None,
+    tails: Sequence[str] = (),
+    deep: Callable[[str, list[str]], bool] | None = None,
+) -> bool:
     """True if a word names an answer key of the policy key answer_keys (SPEC.md section 5).
 
     `keys` holds the absolute path of each key: a file, or a folder with each file in it. A word
     names a key if its path is the path of a key or a path in it. A relative word starts at
     `cwd`, `~` is the home folder, the match ignores case, and a glob part matches as the shell
-    would. The part after `=` of a word like `if=PATH` is a path too. `tails` holds the path of
-    each key in the project. The shell can expand a word with `$` to any path, so such a word
-    names a key if consecutive parts of its path are the parts of a tail."""
+    would. A part `**` matches 0 or more folders. If a `**` matches the last part of a key and
+    more parts come after it, the word names a path in the key only if `deep` says so for the key
+    and these parts. The part after `=` of a word like `if=PATH` is a path too. `tails` holds the
+    path of each key in the project. The shell can expand a word with `$` to any path, so such a
+    word names a key if consecutive parts of its path are the parts of a tail."""
     for piece in [word, *word.split("=")[1:]]:
         if not piece:
             continue
-        if _tests_rest(piece, keys, cwd) is not None:
-            return True
+        given = _path_parts(piece, cwd)
+        for key in keys if given is not None else ():
+            top = posixpath.normpath(key.replace("\\", "/")).split("/")
+            for rest in glob_rests(given or [], top):
+                if exact(rest) or rest[0] != "**":
+                    return True
+                if deep is not None and deep(key, rest):
+                    return True
         if "$" not in piece:
             continue
         parts = posixpath.normpath(piece.replace("\\", "/")).split("/")
@@ -797,6 +870,79 @@ def _strings(value: Any) -> list[str]:
 def path_words(text: str) -> list[str]:
     """The words of a text, split at spaces, quotes, brackets, commas and shell operators."""
     return STATE_WORD.findall(text)
+
+
+def braces(word: str) -> list[str] | None:
+    """Each word that the brace expansion of a word gives: `st.{json,txt}` gives `st.json` and
+    `st.txt`. None if the word gives more than BRACE_LIMIT words."""
+    out = [word]
+    k = 0
+    while k < len(out):
+        m = BRACES.search(out[k])
+        if m is None:
+            k += 1
+            continue
+        if len(out) >= BRACE_LIMIT:
+            return None
+        w = out[k]
+        out[k : k + 1] = [w[: m.start()] + part + w[m.end() :] for part in m.group(1).split(",")]
+    return list(dict.fromkeys(out))
+
+
+def search_globs(glob: str) -> list[str] | None:
+    """The paths that the glob of a search names, relative to the path of the search. A search
+    tool reads a glob as a line of .gitignore: `{a,b}` gives each alternative, a `/` at the
+    start means the path of the search, and a glob with no other `/` before its last part
+    matches in each folder. None if the glob gives more than BRACE_LIMIT words."""
+    forms = braces(glob)
+    if forms is None:
+        return None
+    out: list[str] = []
+    for form in forms:
+        rel = form.lstrip("/")
+        if "/" not in rel.rstrip("/") and not form.startswith("/") and rel not in ("", ".", ".."):
+            rel = "**/" + rel
+        if rel:
+            out.append(rel)
+    return out
+
+
+def key_candidates(command: str) -> list[tuple[str, str]]:
+    """The words of a shell command that can name an answer key (SPEC.md section 5), each with
+    the word of the command that gives it. The words are: each word of path_words, each word of
+    the shell without its quotes and backslashes, each word that a brace expansion gives, and
+    each path that the glob of a search option names (search_globs), from each word of the
+    command. A word that the rule cannot expand gives EACH_PATH, so the rule fails closed."""
+    text = strip_data_heredocs(command)
+    out = [(w, w) for w in path_words(text)]
+    toks = tokens(text)
+    if toks is None:
+        # The check cannot parse the command. The shell removes each quote and each backslash
+        # of a word, so the rule reads the text without them.
+        whole = RAW_WORD.findall(UNQUOTE.sub("", text))
+    else:
+        whole = [w for w, op in toks if not op]
+    for k, word in enumerate(whole):
+        forms = braces(word)
+        out += [(EACH_PATH, word)] if forms is None else [(form, word) for form in forms]
+        option, _, value = word.partition("=")
+        if word in GLOB_OPTIONS:
+            glob = whole[k + 1] if k + 1 < len(whole) else ""
+        elif option in GLOB_OPTIONS:
+            glob = value
+        elif word.startswith("-g"):
+            glob = word[2:]
+        else:
+            continue
+        globs = search_globs(glob) if glob else []
+        if globs is None:
+            out.append((EACH_PATH, glob))
+            continue
+        # The command does not show which word is the path of the search. So the glob starts at
+        # the folder of the command and at each word that is not an option.
+        starts = ["", *(w for w in whole if not w.startswith("-") and w != glob)]
+        out += [(posixpath.join(start, g), glob) for start in starts for g in globs]
+    return list(dict.fromkeys(out))
 
 
 def input_words(tool_input: Any) -> list[str]:
