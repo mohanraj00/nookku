@@ -1027,7 +1027,11 @@ def _adjudicate_parser(sub: argparse._SubParsersAction[argparse.ArgumentParser])
 
 def _adjudicate_command(args: argparse.Namespace) -> int:
     """nookku adjudicate: add one row to adjudications.jsonl of a test, build the verdict again
-    and update the seal (SPEC.md section 7.17). Exit 2 if the command writes no row."""
+    and update the seal (SPEC.md section 7.17). Exit 2 if the command writes no row.
+
+    Another user can write the tests folder. Thus the command reads each record one time, uses
+    only bytes that have the SHA-256 of the seal, and gives the seal the SHA-256 of the bytes
+    that it wrote, not of a file that it reads again."""
     import getpass
 
     from nookku import answer_key
@@ -1052,9 +1056,30 @@ def _adjudicate_command(args: argparse.Namespace) -> int:
             text = "Give your name with --author."
             print(f"nookku: no adjudication was written. {text}", file=sys.stderr)
             return 2
+    before = seal.trusted(folder)
+    path = folder / answer_key.ADJUDICATIONS
     try:
-        report = loads((folder / verdict.FINDINGS).read_text(encoding="utf-8"))
-    except (OSError, ValueError):
+        if before is None:
+            raise ValueError("The test folder has no valid seal.")
+        files = before["files"]
+        records = verdict.MANIFEST, verdict.FINDINGS
+        data = {name: seal.sealed_bytes(folder, files, name) for name in records}
+        old = b""
+        if path.is_symlink():
+            raise ValueError(f"{answer_key.ADJUDICATIONS} is a symlink.")
+        if answer_key.ADJUDICATIONS in files:
+            old = seal.sealed_bytes(folder, files, answer_key.ADJUDICATIONS)
+        elif path.exists():
+            raise ValueError(f"{answer_key.ADJUDICATIONS} is not a file of the seal.")
+        manifest = loads(data[verdict.MANIFEST].decode("utf-8"))
+        if not isinstance(manifest, dict):
+            raise ValueError(f"{verdict.MANIFEST} is not a JSON object.")
+    except ValueError as e:
+        print(f"nookku: no adjudication was written. {e}", file=sys.stderr)
+        return 2
+    try:
+        report = loads(data[verdict.FINDINGS].decode("utf-8"))
+    except ValueError:
         report = None
     mismatches = answer_key.mismatches_of(report)
     if mismatches is None:
@@ -1069,19 +1094,33 @@ def _adjudicate_command(args: argparse.Namespace) -> int:
         row = answer_key.adjudication(
             args.turn, mismatches[args.turn], args.outcome, args.reason, author
         )
-        answer_key.add_adjudication(folder, row)
+        rows = answer_key.with_adjudication(old, row)
+        seal.replace_file(path, rows)
     except (OSError, ValueError) as e:
         print(f"nookku: no adjudication was written. {e}", file=sys.stderr)
         return 2
-    names = [answer_key.ADJUDICATIONS, verdict.FILE]
+    new = {answer_key.ADJUDICATIONS: seal.sha256_of(rows)}
+    found: dict[str, Any] | None
     try:
-        found: dict[str, Any] | None = verdict.build(folder)
+        # The verdict of the bytes that the seal covered, and of the rows of the command.
+        found = verdict.compute(folder.name, manifest, [], data[verdict.FINDINGS], rows)
+        built = verdict.file_text(found).encode("utf-8")
+        seal.replace_file(folder / verdict.FILE, built)
+        new[verdict.FILE] = seal.sha256_of(built)
     except Exception as e:
         # The seal keeps the hash of the old verdict, so the test fails closed with --verdict.
         print(f"nookku: {verdict.FILE} was not rebuilt: {e!r}", file=sys.stderr)
-        names.remove(verdict.FILE)
         found = None
-    seal.update(folder, names)
+    try:
+        sealed = seal.change(folder, before, new)
+    except OSError as e:
+        print(f"nookku: the seal was not updated: {e!r}", file=sys.stderr)
+        return 1
+    if not sealed:
+        # The seal breaks, so no command uses the verdict of the test (section 7.14).
+        text = "A sealed file of the test folder changed during the command."
+        print(f"nookku: the seal was not updated. {text}", file=sys.stderr)
+        return 1
     print(f"Test {folder.name}, turn {args.turn}: {args.outcome}, by {author}.")
     print(verdict.summary(found))
     return 0 if found is not None else 1
