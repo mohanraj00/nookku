@@ -1,0 +1,54 @@
+{
+ "date": "2026-11-19",
+ "versions": {
+  "nookku": "0.5.9",
+  "python": "3.13.12",
+  "os": "Darwin",
+  "phoenix": "arize-phoenix==21.0.0",
+  "app_packages": [
+   "opentelemetry-sdk==1.44.0",
+   "opentelemetry-exporter-otlp-proto-http==1.44.0"
+  ]
+ },
+ "model_used": false,
+ "method": "scripts/proof_inapp_trace.py",
+ "stock_service_calls": [
+  "GET /stock",
+  "POST /reserve"
+ ],
+ "backend_calls": [
+  "GET /stock",
+  "POST /reserve"
+ ],
+ "phoenix_spans": [
+  {
+   "name": "read stock",
+   "span_kind": "CHAIN",
+   "attributes": {
+    "http.request.method": "GET",
+    "url.full": "http://127.0.0.1:58472/stock"
+   }
+  }
+ ],
+ "phoenix_calls": [
+  "GET /stock"
+ ],
+ "findings": [
+  {
+   "check": "proxy_call_without_span",
+   "turn": 1,
+   "detail": "POST /reserve: no matching span in the export",
+   "harness": "backend",
+   "session": "stock"
+  }
+ ],
+ "checks": {
+  "reply": true,
+  "proxy": true,
+  "phoenix": true,
+  "trace_rebuilt": true,
+  "finding": true,
+  "seal": true
+ },
+ "pass": true
+}
