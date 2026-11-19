@@ -133,11 +133,22 @@ def _key_problems(data: bytes | None) -> list[str]:
     return out
 
 
-def build(folder: Path) -> dict[str, Any]:
+# The problem of a new test with a thing at the path of the adjudications.
+PLANTED = (
+    f"{ADJUDICATIONS} is in the test folder at the end of the test. Only nookku adjudicate "
+    "writes it."
+)
+
+
+def build(folder: Path, new: bool = False) -> dict[str, Any]:
     """Write verdict.json in a test folder from the manifest and findings.json, and return it.
 
     The verdict is `fail` if a class has more findings than its limit, if a part of a `Verdict`
-    section is not a limit, or if a record that the verdict needs is not valid."""
+    section is not a limit, or if a record that the verdict needs is not valid.
+
+    `new` is True at the end of a test. Only `nookku adjudicate` writes adjudications.jsonl,
+    after the seal, so a new test has no adjudication (SPEC.md section 7.17). The verdict of a
+    new test reads no row, and a thing at the path is a problem."""
     problems: list[str] = []
     try:
         manifest = read_manifest(folder)
@@ -151,7 +162,8 @@ def build(folder: Path) -> dict[str, Any]:
     path = folder / ADJUDICATIONS
     decided: bytes | None = None
     unread = False
-    if path.is_symlink() or path.exists():
+    planted = new and (path.is_symlink() or path.exists())
+    if not new and (path.is_symlink() or path.exists()):
         try:
             if path.is_symlink() or not path.is_file():
                 raise OSError
@@ -162,6 +174,9 @@ def build(folder: Path) -> dict[str, Any]:
     report = compute(folder.name, manifest, problems, findings, decided)
     if unread:
         report["problems"].append(f"{ADJUDICATIONS} is not a file that the verdict can read.")
+        report["verdict"] = FAIL
+    if planted:
+        report["problems"].append(PLANTED)
         report["verdict"] = FAIL
     text = json_text(report, indent=1) + "\n"
     (folder / FILE).write_text(text, encoding="utf-8")

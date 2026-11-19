@@ -443,9 +443,27 @@ def adjudication(
 
 def add_adjudication(folder: Path, row: dict[str, Any]) -> None:
     """Add one row to adjudications.jsonl of a test folder. The write follows no symlink.
-    Raise OSError."""
+    The reader accepts a last line with no line feed. The new row then starts on its own
+    line, so 2 rows never share a line. Raise OSError."""
     line = json.dumps(row, ensure_ascii=False) + "\n"
-    flags = os.O_WRONLY | os.O_CREAT | os.O_APPEND | getattr(os, "O_NOFOLLOW", 0)
+    flags = os.O_RDWR | os.O_CREAT | os.O_APPEND | getattr(os, "O_NOFOLLOW", 0)
     fd = os.open(folder / ADJUDICATIONS, flags, 0o644)
-    with os.fdopen(fd, "ab") as f:
+    with os.fdopen(fd, "a+b") as f:
+        size = f.seek(0, os.SEEK_END)
+        if size:
+            f.seek(size - 1)
+            if f.read(1) != b"\n":
+                line = "\n" + line
         f.write(line.encode("utf-8"))
+
+
+def clear_adjudications(folder: Path) -> bool:
+    """Remove adjudications.jsonl at the end of a test (SPEC.md section 7.17). Only
+    `nookku adjudicate` writes the file, and only after the seal. Thus a file at the end of a
+    test comes from the entry, and its rows are not decisions of a person. Return True if the
+    bridge removed a file or a symlink. Raise OSError."""
+    path = folder / ADJUDICATIONS
+    if path.is_symlink() or path.is_file():
+        path.unlink()
+        return True
+    return False
