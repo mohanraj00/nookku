@@ -1,0 +1,14 @@
+iframe {
+  display: block;
+  height: 900px;
+  border: 1px solid;
+  margin-bottom: 1rem;
+}
+
+iframe.phone {
+  width: 360px;
+}
+
+iframe.desktop {
+  width: 1280px;
+}
