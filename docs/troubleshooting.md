@@ -93,7 +93,7 @@ First, look in the [test folder](reference/glossary.md#test-folder) `.nookku/tes
 
 ### `nookku: the Claude Code hooks of nookku are not ready, so nookku refuses the test and does not change relay mode.`
 
-(claude_gate.py) **Cause.** A project hook of `nookku init claude-code` is missing, is there 2 times or is modified, a file of the installed plugin is missing or is not the file of this version, or a settings file has `disableAllHooks: true`. The lines after the error name each problem. Without the prompt hook, a message goes to the model ([SPEC.md section 7.8](../SPEC.md#78-codex-hook-gate)).
+(claude_gate.py) **Cause.** A project hook of `nookku init claude-code` is missing, is there 2 times or is modified, a required hook of the installed plugin is missing or runs another command, or a settings file has `disableAllHooks: true`. The lines after the error name each problem. Without the prompt hook, a message goes to the model ([SPEC.md section 7.8](../SPEC.md#78-codex-hook-gate)).
 
 **Fix.** Run `nookku init claude-code` again, update the plugin to the version of `nookku --version`, or remove `disableAllHooks` from the file that the error names. Then start the test again. `.nookku/refusals.jsonl` keeps a row for each refused start.
 

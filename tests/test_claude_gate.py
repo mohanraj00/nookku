@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import shutil
 from pathlib import Path
@@ -232,18 +231,10 @@ def test_no_nookku_setup_passes_with_all_hooks_off(tmp_path: Path, claude_home: 
 PLUGIN_DIR = Path(__file__).resolve().parent.parent / "plugins" / "nookku"
 
 
-def test_the_plugin_file_hashes_are_the_hashes_of_this_version() -> None:
-    # A change of a hook file of the plugin must also change PLUGIN_FILES_SHA256.
-    for name, want in claude_gate.PLUGIN_FILES_SHA256.items():
-        assert hashlib.sha256((PLUGIN_DIR / name).read_bytes()).hexdigest() == want, name
-
-
 def _install(claude_home: Path, root: Path, scope: str = "user") -> Path:
     """A copy of the plugin files in the cache, and installed_plugins.json for it."""
     folder = claude_home / "plugins" / "cache" / "nookku" / "nookku" / "0.5.9"
-    for name in claude_gate.PLUGIN_FILES_SHA256:
-        (folder / name).parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy(PLUGIN_DIR / name, folder / name)
+    shutil.copytree(PLUGIN_DIR, folder)
     entry: dict[str, Any] = {"scope": scope, "installPath": str(folder), "version": "0.5.9"}
     if scope != "user":
         entry["projectPath"] = str(root)
@@ -269,18 +260,76 @@ def test_an_enabled_plugin_with_no_install_is_refused(tmp_path: Path, claude_hom
     assert "has no install of it" in claude_gate.problems(tmp_path)[0]
 
 
-def test_a_changed_or_missing_plugin_file_is_refused(tmp_path: Path, claude_home: Path) -> None:
+def test_a_newer_plugin_with_the_required_hooks_passes(
+    tmp_path: Path, claude_home: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # The marketplace installs from main, so the hook files can differ from this version.
     kit.init(tmp_path, "plugin", ENTRY)
     _enable(claude_home / "settings.json", True)
     folder = _install(claude_home, tmp_path)
     with (folder / "hooks" / "register.tsx").open("a") as f:
-        f.write("// changed\n")
-    (folder / "hooks" / "hooks.json").unlink()
+        f.write("// a change on main\n")
+    _edit(
+        folder / "hooks" / "hooks.json",
+        lambda d: d["hooks"]["UserPromptSubmit"][0]["hooks"][0].update(timeout=600),
+    )
+    _edit(folder / ".claude-plugin" / "plugin.json", lambda d: d.update(version="9.9.9"))
+    assert claude_gate.problems(tmp_path) == []
+    # A version skew gives a warning only.
+    [warning] = claude_gate.plugin_warnings(tmp_path)
+    assert "version 9.9.9" in warning and __version__ in warning
+
+
+def test_the_plugin_of_this_version_gives_no_warning(tmp_path: Path, claude_home: Path) -> None:
+    kit.init(tmp_path, "plugin", ENTRY)
+    _enable(claude_home / "settings.json", True)
+    _install(claude_home, tmp_path)
+    assert claude_gate.plugin_warnings(tmp_path) == []
+
+
+def _drop_prompt_hook(d: dict[str, Any]) -> None:
+    d["hooks"].pop("UserPromptSubmit")
+
+
+def _narrow_matcher(d: dict[str, Any]) -> None:
+    d["hooks"]["PreToolUse"][0]["matcher"] = "Bash"
+
+
+def _other_command(d: dict[str, Any]) -> None:
+    d["hooks"]["UserPromptSubmit"][0]["hooks"][0]["command"] = "true"
+
+
+@pytest.mark.parametrize(
+    ("change", "event"),
+    [
+        (_drop_prompt_hook, "UserPromptSubmit"),
+        (_narrow_matcher, "PreToolUse"),
+        (_other_command, "UserPromptSubmit"),
+    ],
+)
+def test_a_plugin_install_with_a_required_hook_missing_is_refused(
+    tmp_path: Path, claude_home: Path, change: Any, event: str
+) -> None:
+    kit.init(tmp_path, "plugin", ENTRY)
+    _enable(claude_home / "settings.json", True)
+    folder = _install(claude_home, tmp_path)
+    _edit(folder / "hooks" / "hooks.json", change)
     assert claude_gate.problems(tmp_path) == [
-        f"the plugin file {folder / 'hooks' / 'hooks.json'} is missing.",
-        f"the plugin file {folder / 'hooks' / 'register.tsx'} is modified: it differs from the "
-        f"file of nookku {__version__}.",
+        f"the plugin hook {event} is missing in {folder / 'hooks' / 'hooks.json'}, or its "
+        "matcher or its command differs from the hook of nookku."
     ]
+
+
+def test_a_plugin_install_with_no_hook_script_or_hooks_file_is_refused(
+    tmp_path: Path, claude_home: Path
+) -> None:
+    kit.init(tmp_path, "plugin", ENTRY)
+    _enable(claude_home / "settings.json", True)
+    folder = _install(claude_home, tmp_path)
+    (folder / "hooks" / "hooks.json").unlink()
+    assert "has no hooks" in claude_gate.problems(tmp_path)[0]
+    (folder / "hooks" / "nookku-hook.sh").unlink()
+    assert "hook script" in claude_gate.problems(tmp_path)[0]
 
 
 def _refusals(root: Path) -> list[dict[str, Any]]:

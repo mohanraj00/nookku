@@ -14,7 +14,6 @@ runs the hooks of each file.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import shlex
@@ -26,17 +25,9 @@ from nookku import __version__, kit
 from nookku.record import loads
 
 PLUGIN = "nookku@"
-# The SHA-256 of each file of plugins/nookku that decides what the plugin hooks run, in this
-# version (tests/test_claude_gate.py). A change of one of these files changes this table too.
-PLUGIN_FILES_SHA256 = {
-    ".claude-plugin/plugin.json": (
-        "81b2ebdef6abcf02e64c1c24d7894b62ca14780eec300834c6581c818a7481c4"
-    ),
-    "hooks/hooks.json": "432e1c534a36f7e42ff5b41b8786026606ef8e4b94f342e69912bd5e9541ca2b",
-    "hooks/nookku-hook.sh": "f50a064260a464c81c864c5bb5bc760f15c9b04770ff81c42ade03dba7511341",
-    "hooks/display.json": "0efd04916f0b3d09f9a875bc24a74b8fa9aea81608c7dff5e70801bd99ea395b",
-    "hooks/register.tsx": "4dadfb4469c3a36f4dd3474bde094105b47690b06b2bfe9235b9024f54a3203e",
-}
+# The hooks file and the hook script of an install of the plugin.
+PLUGIN_HOOKS = "hooks/hooks.json"
+PLUGIN_SCRIPT = "hooks/nookku-hook.sh"
 # The file of the refusals of a start (SPEC.md section 7.8). It is a log for a person, with no
 # seal.
 REFUSALS = "refusals.jsonl"
@@ -148,16 +139,45 @@ def _installs(plugin: str, root: Path) -> list[Path] | None:
     return out
 
 
-def _file_sha256(path: Path) -> str | None:
-    try:
-        return hashlib.sha256(path.read_bytes()).hexdigest()
-    except OSError:
-        return None
+def _plugin_hook_ok(group: Any, event: str) -> bool:
+    """True if a group of the hooks file of the plugin runs the hook script for `event`, with
+    the matcher of this version."""
+    if not isinstance(group, dict):
+        return False
+    if group.get("matcher") != kit.HOOK_EVENTS[event][0].get("matcher"):
+        return False
+    hooks = group.get("hooks")
+    for hook in hooks if isinstance(hooks, list) else []:
+        if not isinstance(hook, dict) or hook.get("type") != "command":
+            continue
+        argv = _argv(str(hook.get("command", "")))
+        if len(argv) >= 2 and argv[-1] == event and argv[-2].endswith("/" + PLUGIN_SCRIPT):
+            return True
+    return False
+
+
+def _install_problems(folder: Path) -> list[str]:
+    """Each required hook that an install of the plugin does not have. The check reads what the
+    hooks run, not the bytes of the files, so an install of a newer plugin passes."""
+    if not (folder / PLUGIN_SCRIPT).is_file():
+        return [f"the plugin hook script {folder / PLUGIN_SCRIPT} is missing."]
+    hooks = _read(folder / PLUGIN_HOOKS).get("hooks")
+    if not isinstance(hooks, dict):
+        return [f"the plugin hooks file {folder / PLUGIN_HOOKS} is missing or has no hooks."]
+    out = []
+    for event in kit.HOOK_EVENTS:
+        groups = hooks.get(event)
+        if not any(_plugin_hook_ok(g, event) for g in (groups if isinstance(groups, list) else [])):
+            out.append(
+                f"the plugin hook {event} is missing in {folder / PLUGIN_HOOKS}, or its matcher "
+                "or its command differs from the hook of nookku."
+            )
+    return out
 
 
 def plugin_problems(root: Path) -> list[str]:
-    """Each reason to refuse a test for the files of an enabled nookku plugin. Empty if no
-    nookku plugin is on, or if each install has the files of this version."""
+    """Each reason to refuse a test for an enabled nookku plugin: no install for the project,
+    or an install with a required hook missing. Empty if no nookku plugin is on."""
     out: list[str] = []
     for plugin in enabled_plugins(root):
         installs = _installs(plugin, root)
@@ -168,15 +188,24 @@ def plugin_problems(root: Path) -> list[str]:
             )
             continue
         for folder in installs:
-            for name, want in PLUGIN_FILES_SHA256.items():
-                got = _file_sha256(folder / name)
-                if got is None:
-                    out.append(f"the plugin file {folder / name} is missing.")
-                elif got != want:
-                    out.append(
-                        f"the plugin file {folder / name} is modified: it differs from the "
-                        f"file of nookku {__version__}."
-                    )
+            out += _install_problems(folder)
+    return out
+
+
+def plugin_warnings(root: Path) -> list[str]:
+    """A warning for each install of an enabled nookku plugin with another version than this
+    nookku. A version skew does not refuse a test, because the marketplace installs the plugin
+    from main."""
+    out: list[str] = []
+    for plugin in enabled_plugins(root):
+        for folder in _installs(plugin, root) or []:
+            version = _read(folder / ".claude-plugin" / "plugin.json").get("version")
+            if version != __version__:
+                out.append(
+                    f"nookku: warning: the plugin in {folder} has version {version}, and nookku "
+                    f"has version {__version__}. Install the plugin of this version if a hook "
+                    "does not work."
+                )
     return out
 
 

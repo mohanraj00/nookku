@@ -349,6 +349,9 @@ def start(
     if gate["problems"]:
         claude_gate.log_refusal(root, "start", "codex", gate["problems"])
         raise BridgeError(codex_gate.refusal(gate))
+    # A version skew of the plugin is a warning only (SPEC.md section 7.8).
+    for warning in claude_gate.plugin_warnings(root):
+        print(warning, file=sys.stderr)
     pending = egress is None
     egress = discovery.pending(root) if egress is None else egress
     if egress is None:
