@@ -1,0 +1,202 @@
+{
+ "date": "2026-11-19",
+ "versions": {
+  "nookku": "0.5.9",
+  "python": "3.13.12",
+  "os": "Darwin"
+ },
+ "script": "examples/toy-shop/script.jsonl",
+ "turns": 3,
+ "base": {
+  "test": "20261119-161159-930c",
+  "passed": true,
+  "findings": 3,
+  "server_calls": 18
+ },
+ "control": {
+  "exit": 0,
+  "changed": 3
+ },
+ "server_calls_after_stop": 0,
+ "runs": [
+  {
+   "run": 1,
+   "test": "20261119-161206-1ef1",
+   "exit": 0,
+   "changed": 0,
+   "replay_changed": 0,
+   "replay_miss": 0,
+   "findings_same": true,
+   "base_files": [
+    "backend.jsonl",
+    "model_api.jsonl",
+    "relay.jsonl",
+    "tap.jsonl"
+   ],
+   "seal_intact": true,
+   "no_diff": true
+  },
+  {
+   "run": 2,
+   "test": "20261119-161210-b573",
+   "exit": 0,
+   "changed": 0,
+   "replay_changed": 0,
+   "replay_miss": 0,
+   "findings_same": true,
+   "base_files": [
+    "backend.jsonl",
+    "model_api.jsonl",
+    "relay.jsonl",
+    "tap.jsonl"
+   ],
+   "seal_intact": true,
+   "no_diff": true
+  },
+  {
+   "run": 3,
+   "test": "20261119-161213-4423",
+   "exit": 0,
+   "changed": 0,
+   "replay_changed": 0,
+   "replay_miss": 0,
+   "findings_same": true,
+   "base_files": [
+    "backend.jsonl",
+    "model_api.jsonl",
+    "relay.jsonl",
+    "tap.jsonl"
+   ],
+   "seal_intact": true,
+   "no_diff": true
+  },
+  {
+   "run": 4,
+   "test": "20261119-161216-8a0a",
+   "exit": 0,
+   "changed": 0,
+   "replay_changed": 0,
+   "replay_miss": 0,
+   "findings_same": true,
+   "base_files": [
+    "backend.jsonl",
+    "model_api.jsonl",
+    "relay.jsonl",
+    "tap.jsonl"
+   ],
+   "seal_intact": true,
+   "no_diff": true
+  },
+  {
+   "run": 5,
+   "test": "20261119-161220-e036",
+   "exit": 0,
+   "changed": 0,
+   "replay_changed": 0,
+   "replay_miss": 0,
+   "findings_same": true,
+   "base_files": [
+    "backend.jsonl",
+    "model_api.jsonl",
+    "relay.jsonl",
+    "tap.jsonl"
+   ],
+   "seal_intact": true,
+   "no_diff": true
+  },
+  {
+   "run": 6,
+   "test": "20261119-161223-d4b0",
+   "exit": 0,
+   "changed": 0,
+   "replay_changed": 0,
+   "replay_miss": 0,
+   "findings_same": true,
+   "base_files": [
+    "backend.jsonl",
+    "model_api.jsonl",
+    "relay.jsonl",
+    "tap.jsonl"
+   ],
+   "seal_intact": true,
+   "no_diff": true
+  },
+  {
+   "run": 7,
+   "test": "20261119-161227-1f29",
+   "exit": 0,
+   "changed": 0,
+   "replay_changed": 0,
+   "replay_miss": 0,
+   "findings_same": true,
+   "base_files": [
+    "backend.jsonl",
+    "model_api.jsonl",
+    "relay.jsonl",
+    "tap.jsonl"
+   ],
+   "seal_intact": true,
+   "no_diff": true
+  },
+  {
+   "run": 8,
+   "test": "20261119-161230-db85",
+   "exit": 0,
+   "changed": 0,
+   "replay_changed": 0,
+   "replay_miss": 0,
+   "findings_same": true,
+   "base_files": [
+    "backend.jsonl",
+    "model_api.jsonl",
+    "relay.jsonl",
+    "tap.jsonl"
+   ],
+   "seal_intact": true,
+   "no_diff": true
+  },
+  {
+   "run": 9,
+   "test": "20261119-161234-fc90",
+   "exit": 0,
+   "changed": 0,
+   "replay_changed": 0,
+   "replay_miss": 0,
+   "findings_same": true,
+   "base_files": [
+    "backend.jsonl",
+    "model_api.jsonl",
+    "relay.jsonl",
+    "tap.jsonl"
+   ],
+   "seal_intact": true,
+   "no_diff": true
+  },
+  {
+   "run": 10,
+   "test": "20261119-161237-ab47",
+   "exit": 0,
+   "changed": 0,
+   "replay_changed": 0,
+   "replay_miss": 0,
+   "findings_same": true,
+   "base_files": [
+    "backend.jsonl",
+    "model_api.jsonl",
+    "relay.jsonl",
+    "tap.jsonl"
+   ],
+   "seal_intact": true,
+   "no_diff": true
+  }
+ ],
+ "replays_with_no_diff": 10,
+ "share_with_no_diff": 1.0,
+ "planted": {
+  "exit": 1,
+  "changed": 3,
+  "replay_changed": 3,
+  "replay_miss": 0
+ },
+ "pass": true
+}

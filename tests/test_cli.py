@@ -89,7 +89,13 @@ def test_the_help_lists_no_internal_command_and_each_command_still_runs(
     assert calls == [
         (
             (tmp_path, "t-1", None),
-            {"entry_name": None, "script_source": None, "check": False, "persona_source": None},
+            {
+                "entry_name": None,
+                "script_source": None,
+                "check": False,
+                "persona_source": None,
+                "play_base": None,
+            },
         )
     ]
     served: list[Path] = []

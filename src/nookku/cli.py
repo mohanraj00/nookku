@@ -439,6 +439,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     br.add_argument("--entry-name")
     br.add_argument("--script-source")
     br.add_argument("--persona-source")
+    br.add_argument("--play-base")
     br.add_argument("--check", action="store_true")
 
     mode = sub.add_parser("mode", help="switch relay mode on or off (with an entry: start or end)")
@@ -611,6 +612,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             script_source=args.script_source,
             check=args.check,
             persona_source=args.persona_source,
+            play_base=args.play_base,
         )
     if args.command == "run":
         return _run_command(args)
@@ -1332,10 +1334,12 @@ def _run_command(
     args: argparse.Namespace,
     after: AfterRun | None = None,
     egress: dict[str, Any] | None = None,
+    play: Path | None = None,
 ) -> int:
     """nookku run --script: a scripted test (SPEC.md section 7.10). `after` gets the root and
     the test folder, and gives more lines and more JSON keys. `egress` is the recorded egress
-    answer of a replay, else the test uses the pending answer (SPEC.md section 7.11)."""
+    answer of a replay, else the test uses the pending answer (SPEC.md section 7.11). With
+    `play`, the HTTP proxies answer from the records of that base test folder."""
     root = args.root.resolve()
     persona = getattr(args, "persona", None)
     given = args.script if persona is None else persona
@@ -1345,7 +1349,9 @@ def _run_command(
         if persona is not None:
             passed, lines, folder = bridge.run_persona(root, path, args.entry, gate=gate)
         else:
-            passed, lines, folder = bridge.run_script(root, path, args.entry, egress, gate=gate)
+            passed, lines, folder = bridge.run_script(
+                root, path, args.entry, egress, gate=gate, play=play
+            )
     except bridge.BridgeError as e:
         print(json.dumps({"error": str(e)}) if args.json else f"nookku: {e}")
         return 1
@@ -1371,6 +1377,16 @@ def _replay_parser(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> 
         "--base", help="the test id to compare with (default: the name of the script file)"
     )
     rep.add_argument("--entry", help="the name of an entry in the config key entries")
+    rep.add_argument(
+        "--recorded",
+        action="store_true",
+        help="answer each HTTP call of the app with the recorded response of the base test",
+    )
+    rep.add_argument(
+        "--verdict",
+        action="store_true",
+        help="exit with 1 if the verdict is not pass (SPEC.md section 7.14)",
+    )
     rep.add_argument("--root", type=Path, default=Path.cwd())
     rep.add_argument("--json", action="store_true", help="print the result as JSON")
     rep.add_argument(
@@ -1392,10 +1408,17 @@ def _replay_command(args: argparse.Namespace) -> int:
     except replay.ReplayError as e:
         print(json.dumps({"error": str(e)}) if args.json else f"nookku: {e}")
         return 2
+    if args.recorded and old is None:
+        need = "--recorded needs a base test: give --base, or a script of nookku script save."
+        print(json.dumps({"error": need}) if args.json else f"nookku: {need}")
+        return 2
     # Color only for a person at a terminal (https://no-color.org).
     color = not args.json and sys.stdout.isatty() and "NO_COLOR" not in os.environ
     return _run_command(
-        args, lambda root, new: replay.report(root, old, new, color), replay.egress(old)
+        args,
+        lambda root, new: replay.report(root, old, new, color),
+        replay.egress(old),
+        play=old if args.recorded else None,
     )
 
 

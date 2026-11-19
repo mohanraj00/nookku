@@ -95,6 +95,18 @@
    "verdict": "pass"
   },
   {
+   "check": "replay_changed",
+   "count": null,
+   "most": null,
+   "verdict": "pass"
+  },
+  {
+   "check": "replay_miss",
+   "count": null,
+   "most": null,
+   "verdict": "pass"
+  },
+  {
    "check": "unseen_call",
    "count": 0,
    "most": null,
