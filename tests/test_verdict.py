@@ -6,11 +6,13 @@ import hashlib
 import json
 import shutil
 import sys
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 import pytest
 
-from nookku import bridge, seal, trace, verdict
+from nookku import answer_key, bridge, seal, trace, verdict
 from nookku.cli import main
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -431,6 +433,152 @@ def test_an_adjudication_changes_the_count_of_the_limit(
     assert _adjudicate(root, folder, *words) == 2
     assert "no adjudication was written. " in capsys.readouterr().err
     assert file.read_text() == text
+
+
+def _mismatch(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> tuple[Path, Path]:
+    """A sealed test with 1 answer key mismatch, in turn 4, and a limit of 0."""
+    agent = tmp_path / "count.py"
+    agent.write_text(COUNT_AGENT)
+    root = _shop(tmp_path, [sys.executable, str(agent)])
+    (root / "APP_SPEC.md").write_text(KEY_SPEC)
+    (root / "keys").mkdir()
+    (root / "keys" / "stock.json").write_bytes(json.dumps(STOCK_KEY).encode())
+    assert _run(root, capsys)[0] == 1
+    folder = bridge.latest_test(root)
+    assert folder is not None
+    return root, folder
+
+
+KEY_WRONG = ("--turn", "4", "--outcome", "key_wrong", "--reason", "The shop has 12 teapots.")
+AGENT_WRONG = ("--turn", "4", "--outcome", "agent_wrong", "--reason", "The shelf has 3 teapots.")
+
+
+def _after_the_seal_check(monkeypatch: pytest.MonkeyPatch, change: Callable[[], None]) -> None:
+    """Another user changes the test folder after the command checks the seal (#548)."""
+    real = seal.verify
+
+    def verify(folder: Path, base: Path | None = None) -> dict:
+        out = real(folder, base)
+        change()
+        return out
+
+    monkeypatch.setattr(seal, "verify", verify)
+
+
+def test_an_adjudication_does_not_seal_a_row_that_another_user_adds(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root, folder = _mismatch(tmp_path, capsys)
+    file = folder / verdict.ADJUDICATIONS
+    copy = seal.copy_path(folder.name)
+    planted = answer_key.adjudication(
+        4, "Is the teapot in stock?", "key_wrong", "Another user wrote this.", "Asha"
+    )
+
+    def plant() -> None:
+        old = file.read_bytes() if file.exists() else b""
+        file.write_bytes(answer_key.with_adjudication(old, planted))
+
+    # The first adjudication: the seal covers no adjudications file, so a file is not sealed.
+    before = copy.read_bytes()
+    with monkeypatch.context() as m:
+        _after_the_seal_check(m, plant)
+        assert _adjudicate(root, folder, *AGENT_WRONG) == 2
+    err = capsys.readouterr().err
+    assert "no adjudication was written. adjudications.jsonl is not a file of the seal." in err
+    assert copy.read_bytes() == before and verdict.checked(folder)[0] is None
+    file.unlink()
+
+    # A later adjudication: the rows are not the rows of the seal.
+    assert _adjudicate(root, folder, *AGENT_WRONG) == 0
+    capsys.readouterr()
+    before, rows = copy.read_bytes(), file.read_bytes()
+    with monkeypatch.context() as m:
+        _after_the_seal_check(m, plant)
+        assert _adjudicate(root, folder, *AGENT_WRONG) == 2
+    err = capsys.readouterr().err
+    assert "no adjudication was written. adjudications.jsonl is not the file of the seal." in err
+    assert copy.read_bytes() == before and verdict.checked(folder)[0] is None
+    # With the rows of the seal again, the verdict is the verdict of the person: fail.
+    file.write_bytes(rows)
+    found, why = verdict.checked(folder)
+    assert why is None and found is not None and found["verdict"] == "fail"
+
+
+def test_an_adjudication_does_not_seal_a_file_that_changes_during_the_command(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root, folder = _mismatch(tmp_path, capsys)
+    file = folder / verdict.ADJUDICATIONS
+    copy = seal.copy_path(folder.name)
+    before = copy.read_bytes()
+    planted = answer_key.adjudication(
+        4, "Is the teapot in stock?", "key_wrong", "Another user wrote this.", "Asha"
+    )
+    real = verdict.compute
+
+    def compute(*args: Any) -> dict:
+        # The command wrote its row. Another user adds a later row before the seal update.
+        out = real(*args)
+        file.write_bytes(answer_key.with_adjudication(file.read_bytes(), planted))
+        return out
+
+    with monkeypatch.context() as m:
+        m.setattr(verdict, "compute", compute)
+        assert _adjudicate(root, folder, *AGENT_WRONG) == 1
+    err = capsys.readouterr().err
+    assert "the seal was not updated. A sealed file of the test folder changed" in err
+    # The copy of the seal has no hash of the changed file, so no command uses the verdict.
+    assert copy.read_bytes() == before
+    assert not seal.verify(folder)["intact"] and verdict.checked(folder)[0] is None
+
+
+def test_an_adjudication_with_no_new_verdict_keeps_the_seal_of_the_old_verdict(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root, folder = _mismatch(tmp_path, capsys)
+    old = (folder / verdict.FILE).read_bytes()
+
+    def broken(*args: Any) -> dict:
+        raise ValueError("too many digits")
+
+    with monkeypatch.context() as m:
+        m.setattr(verdict, "compute", broken)
+        assert _adjudicate(root, folder, *KEY_WRONG) == 1
+    out = capsys.readouterr()
+    assert "verdict.json was not rebuilt: ValueError('too many digits')" in out.err
+    assert "Verdict: fail. The test folder has no valid verdict.json." in out.out
+    # The row and the old verdict are in the seal. The old verdict is not the verdict of the
+    # row, so no command uses it.
+    assert (folder / verdict.FILE).read_bytes() == old and seal.verify(folder)["intact"]
+    assert len((folder / verdict.ADJUDICATIONS).read_text().splitlines()) == 1
+    assert verdict.checked(folder) == (
+        None,
+        "verdict.json is not the verdict of manifest.json and findings.json.",
+    )
+
+
+def test_an_adjudication_starts_from_the_copy_of_the_seal(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root, folder = _mismatch(tmp_path, capsys)
+    copy = seal.copy_path(folder.name)
+    before = copy.read_bytes()
+
+    def replace_findings() -> None:
+        # Another user writes other findings, and their SHA-256 in seal.json of the folder.
+        report = json.loads((folder / "findings.json").read_text())
+        report["answers"][1]["question"] = "Is the mug in stock?"
+        (folder / "findings.json").write_text(json.dumps(report))
+        data = json.loads((folder / seal.SEAL).read_text())
+        data["files"]["findings.json"] = seal.sha256_of((folder / "findings.json").read_bytes())
+        (folder / seal.SEAL).write_text(json.dumps(data))
+
+    _after_the_seal_check(monkeypatch, replace_findings)
+    assert _adjudicate(root, folder, *KEY_WRONG) == 2
+    err = capsys.readouterr().err
+    assert "no adjudication was written. findings.json is not the file of the seal." in err
+    assert copy.read_bytes() == before and not (folder / verdict.ADJUDICATIONS).exists()
 
 
 def test_the_checked_verdict_reads_the_adjudications_of_the_seal(tmp_path: Path) -> None:

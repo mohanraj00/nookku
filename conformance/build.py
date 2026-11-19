@@ -7717,6 +7717,12 @@ IMPORT_REASON = (
 )
 
 
+EXPANDED_REASON = (
+    "nookku: the shell expands a word of this nookku command, so the relay cannot know its "
+    "subcommand. Only a person drives a test. Write each word of the command as plain text."
+)
+
+
 def drives(what: str) -> dict:
     """The deny of a model command that drives a test (#173)."""
     return deny(
@@ -7982,6 +7988,30 @@ GUARD_CASES: dict[str, dict] = {
             "nookku adjudicate t1 --turn 3 --outcome key_wrong --reason 'The key is old.'"
         ),
         "answer": drives("nookku adjudicate"),
+    },
+    # The shell expands a word that can be the subcommand, so the relay cannot know it (#548).
+    "shell_adjudicates_with_a_variable_as_the_subcommand": {
+        "policy_text": '{"scripts": "model"}\n',
+        "event": bash(
+            'C=adjudicate; nookku "$C" t1 --turn 3 --outcome key_wrong --reason "The key is old."'
+        ),
+        "answer": deny(EXPANDED_REASON),
+    },
+    "shell_adjudicates_with_a_command_substitution_as_the_subcommand": {
+        "event": bash('nookku "$(echo adjudicate)" t1 --turn 3 --outcome key_wrong --reason old'),
+        "answer": deny(EXPANDED_REASON),
+    },
+    "shell_adjudicates_with_a_glob_as_the_subcommand": {
+        "event": bash("nookku adjudicat* t1 --turn 3 --outcome key_wrong --reason old"),
+        "answer": deny(EXPANDED_REASON),
+    },
+    "shell_mode_with_a_variable_as_the_state": {
+        "event": bash("nookku mode $STATE"),
+        "answer": deny(EXPANDED_REASON),
+    },
+    "shell_check_with_a_variable_after_the_subcommand": {
+        "event": bash('nookku check --root "$ROOT"'),
+        "answer": None,
     },
     "write_of_the_adjudications": {
         "event": pevent("Write", file_path=f"{T1}/adjudications.jsonl", content="{}"),

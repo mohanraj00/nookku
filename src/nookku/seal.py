@@ -69,9 +69,7 @@ def hashes(folder: Path) -> dict[str, str]:
 
 def _write(path: Path, data: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_name(path.name + ".tmp")
-    tmp.write_text(json.dumps(data, indent=1, sort_keys=True) + "\n", encoding="utf-8")
-    tmp.replace(path)
+    replace_file(path, (json.dumps(data, indent=1, sort_keys=True) + "\n").encode("utf-8"))
 
 
 def write(folder: Path, base: Path | None = None) -> str | None:
@@ -145,6 +143,56 @@ def verify(folder: Path, base: Path | None = None) -> dict[str, Any]:
     broken = out["changed"] or out["missing"] or out["added"]
     out["intact"] = seal is not None and not broken and out["copy"] in ("same", "none")
     return out
+
+
+def trusted(folder: Path, base: Path | None = None) -> dict[str, Any] | None:
+    """The seal that a command starts a change of sealed files from: the copy outside the
+    folder, or seal.json if no copy exists. Another user can write the tests folder, so a command
+    does not start from seal.json if a copy exists. None if no valid seal exists."""
+    return _read(copy_path(folder.name, base)) or _read(folder / SEAL)
+
+
+def sealed_bytes(folder: Path, files: dict[str, Any], name: str) -> bytes:
+    """The bytes of a file of the folder, from 1 read, if their SHA-256 is the SHA-256 in the
+    files of a seal. Raise ValueError with the reason."""
+    try:
+        data = (folder / name).read_bytes()
+    except OSError:
+        raise ValueError(f"{name} cannot be read.") from None
+    if sha256_of(data) != files.get(name):
+        raise ValueError(f"{name} is not the file of the seal.")
+    return data
+
+
+def replace_file(path: Path, data: bytes) -> None:
+    """Write a file again with new bytes. The write follows no symlink: it makes a new file and
+    moves it to the path. Raise OSError."""
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.unlink(missing_ok=True)
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
+    with os.fdopen(fd, "wb") as f:
+        f.write(data)
+    tmp.replace(path)
+
+
+def change(
+    folder: Path, before: dict[str, Any], new: dict[str, str], base: Path | None = None
+) -> bool:
+    """Put the SHA-256 of files that a command wrote into both seals. `before` is the seal that
+    the command read before the change (see `trusted`), and `new` has the SHA-256 of the bytes
+    that the command wrote, by file name. The seals get no hash that the command reads from the
+    folder after the change. Return False, and write no seal, if a sealed file of the folder is
+    not the file of `before` or of `new`: the folder changed during the command."""
+    files = {**before["files"], **new}
+    if hashes(folder) != files:
+        return False
+    data = {**before, "files": files}
+    path = copy_path(folder.name, base)
+    copy = bool(before.get("copy")) or path.exists()
+    if copy:
+        _write(path, {**data, "copy": True})
+    _write(folder / SEAL, {**data, "copy": copy})
+    return True
 
 
 def update(folder: Path, names: list[str], base: Path | None = None) -> None:
