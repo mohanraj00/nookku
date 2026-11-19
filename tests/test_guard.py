@@ -255,3 +255,187 @@ def test_a_nookku_command_with_an_expanded_subcommand_is_denied(tmp_path: Path) 
     assert kit.run_hook(tmp_path, "claude-code", io.StringIO(json.dumps(event)), out) == 0
     reason = json.loads(out.getvalue())["hookSpecificOutput"]["permissionDecisionReason"]
     assert reason == kit.EXPANDED_REASON
+
+
+@pytest.mark.parametrize(
+    ("command", "stripped"),
+    [
+        # The shell runs a command substitution in a body whose end word has no quote.
+        ("cat <<EOF\n$(cat keys/stock.json)\nEOF", "cat <<EOF\n$(cat keys/stock.json)"),
+        ("cat <<-EOF\n\t`cat keys/stock.json`\n\tEOF", "cat <<-EOF\n\t`cat keys/stock.json`"),
+        ("cat <<EOF\n$(cat \\\nkeys/stock.json)\nEOF", "cat <<EOF\n$(cat \\\nkeys/stock.json)"),
+        ("cat <<EOF\nno end $(date)", "cat <<EOF\nno end $(date)"),
+        # A quote on the end word, or no command substitution: the body is data.
+        ("cat <<'EOF'\n$(cat keys/stock.json)\nEOF", "cat <<'EOF'"),
+        ('cat <<"EOF"\n`date`\nEOF', 'cat <<"EOF"'),
+        ("cat <<EOF\n$HOME/keys/stock.json\nEOF", "cat <<EOF"),
+        # An end word in a form that the rule does not know: each line stays.
+        ('cat <<E"O"F\ndata\nEOF\nnookku start', 'cat <<E"O"F\ndata\nEOF\nnookku start'),
+        ("cat <<\\EOF\ndata\nEOF", "cat <<\\EOF\ndata\nEOF"),
+    ],
+)
+def test_a_heredoc_body_that_the_shell_runs_stays(command: str, stripped: str) -> None:
+    assert commands.strip_data_heredocs(command) == stripped
+
+
+def test_a_command_substitution_in_a_heredoc_does_not_pass_the_checks() -> None:
+    assert not commands.reads_only("cat <<EOF\n$(date)\nEOF")
+    assert commands.reads_only("cat <<'EOF'\n$(date)\nEOF")
+    assert commands.reads_only("cat <<EOF\n$HOME\nEOF")
+    assert commands.drive("cat > notes.md <<EOF\n$(nookku start)\nEOF") == "nookku start"
+    assert commands.drive("cat > notes.md <<'EOF'\n$(nookku start)\nEOF") is None
+    assert commands.drive('cat <<E"O"F\ndata\nEOF\nnookku start') == "nookku start"
+
+
+def test_braces() -> None:
+    assert commands.braces("keys/st.{json,txt}") == ["keys/st.json", "keys/st.txt"]
+    assert commands.braces("{a,b{c,d}}") == ["a", "bc", "bd"]
+    assert commands.braces("a{b}c") == ["a{b}c"]
+    assert commands.braces("{a,b}" * 6) is not None
+    assert commands.braces("{a,b}" * 7) is None
+
+
+def test_search_globs() -> None:
+    assert commands.search_globs("*.{json,md}") == ["**/*.json", "**/*.md"]
+    assert commands.search_globs("stock.json") == ["**/stock.json"]
+    assert commands.search_globs("keys/*.json") == ["keys/*.json"]
+    assert commands.search_globs("/stock.json") == ["stock.json"]
+    assert commands.search_globs("**/stock.json") == ["**/stock.json"]
+    assert commands.search_globs(".") == ["."]
+    assert commands.search_globs("{a,b}" * 7) is None
+
+
+@pytest.mark.parametrize(
+    ("parts", "rests"),
+    [
+        ("/shop/keys/stock.json", [[]]),
+        ("/shop/keys/stock.json/more", [["more"]]),
+        ("/shop/**/stock.json", [["**", "stock.json"], []]),
+        ("/**/stock.json", [["**", "stock.json"], []]),
+        ("/shop/keys/**/stock.json", [["**", "stock.json"], []]),
+        ("/shop/**", [["**"]]),
+        ("/shop/**/*.md", [["**", "*.md"]]),
+        ("/shop/**/**/STOCK.json", [["**", "**", "STOCK.json"], ["**", "STOCK.json"], []]),
+        ("/shop/*/stock.json", [[]]),
+        ("/shop/stock.json", []),
+        ("/shop/**/list.json", [["**", "list.json"]]),
+        ("/shop/keys", []),
+    ],
+)
+def test_glob_rests(parts: str, rests: list[list[str]]) -> None:
+    top = ["", "shop", "keys", "stock.json"]
+    assert commands.glob_rests(parts.split("/"), top) == rests
+
+
+def _key_project(tmp_path: Path) -> Path:
+    root = tmp_path.resolve()
+    (root / "keys" / "private").mkdir(parents=True)
+    (root / "keys" / "private" / "stock.json").write_text("{}")
+    (root / "keys" / "private" / "notes.md").write_text("notes")
+    (root / "docs").mkdir()
+    return root
+
+
+def _key_named(root: Path, tool: str, tool_input: dict, keys: list[str]) -> str | None:
+    event = {"hook_event_name": "PreToolUse", "cwd": str(root)}
+    return kit.key_named(event, root, tool, tool_input, keys)
+
+
+FILE_KEY, FOLDER_KEY = ["keys/private/stock.json"], ["keys/private"]
+
+
+@pytest.mark.parametrize(
+    ("command", "keys", "named"),
+    [
+        ("cat <<EOF\n$(cat keys/private/stock.json)\nEOF", FILE_KEY, "keys/private/stock.json"),
+        ("cat <<'EOF'\n$(cat keys/private/stock.json)\nEOF", FILE_KEY, None),
+        ("rg --glob '**/stock.json' private .", FILE_KEY, "**/stock.json"),
+        ("rg --glob=**/stock.json private", FILE_KEY, "--glob=**/stock.json"),
+        ("rg -g stock.json private .", FILE_KEY, "stock.json"),
+        ("rg -g'*.json' private", FILE_KEY, "*.json"),
+        ("rg --iglob '*.{md,JSON}' private", FILE_KEY, "*.{md,JSON}"),
+        ("grep -r --include=stock.json private .", FILE_KEY, "stock.json"),
+        ("find . -name 'stock.*' -exec cat {} +", FILE_KEY, "stock.*"),
+        ("cd docs && rg -g '*.json' private ..", FILE_KEY, "*.json"),
+        ("rg -g '*.md' private .", FILE_KEY, None),
+        ("rg -g '*.{md,txt}' private .", FILE_KEY, None),
+        ("cat **/stock.json", FILE_KEY, "**/stock.json"),
+        ("cat keys/**", FILE_KEY, "keys/**"),
+        ("ls **/*.py", FILE_KEY, None),
+        ("ls *.json", FILE_KEY, None),
+        (
+            "cat keys/private/{stock.json,list.json}",
+            FILE_KEY,
+            "keys/private/{stock.json,list.json}",
+        ),
+        ("cat keys/private/stock.{json,txt}", FILE_KEY, "keys/private/stock.{json,txt}"),
+        ("cat " + "{a,b}" * 7, FILE_KEY, "{a,b}" * 7),
+        ("echo {a,b}", FILE_KEY, None),
+        ('cat keys/private/"stock.json"', FILE_KEY, "keys/private/stock.json"),
+        ("cat keys/private/st''ock.json", FILE_KEY, "keys/private/stock.json"),
+        ('cat "$SHOP"/keys/private/stock.json', FILE_KEY, "$SHOP/keys/private/stock.json"),
+        ("cat keys/private/sto\\ck.json", FILE_KEY, "keys/private/stock.json"),
+        ("cat keys/pri\\\nvate/stock.json", FILE_KEY, "keys/private/stock.json"),
+        # The check cannot parse a command substitution in double quotes.
+        ("cat keys/private/'stock'.json; echo \"$(date)\"", FILE_KEY, "keys/private/stock.json"),
+        ('cat keys/private/sto\\ck.json; echo "$(date)"', FILE_KEY, "keys/private/stock.json"),
+        ('cat keys/pri\\\nvate/stock.json; echo "$(date)"', FILE_KEY, "keys/private/stock.json"),
+        ("ls **/*.md", FOLDER_KEY, "**/*.md"),
+        ("ls **/*.py", FOLDER_KEY, None),
+        ("rg -g '*.md' private", FOLDER_KEY, "*.md"),
+        ("rg -g '*.py' private", FOLDER_KEY, None),
+    ],
+)
+def test_the_key_rule_reads_a_shell_command_as_the_shell_and_a_search_would(
+    tmp_path: Path, command: str, keys: list[str], named: str | None
+) -> None:
+    # #577: a here-document that the shell runs, a glob of a search, braces and quotes.
+    root = _key_project(tmp_path)
+    assert _key_named(root, "Bash", {"command": command}, keys) == named
+
+
+@pytest.mark.parametrize(
+    ("tool_input", "keys", "named"),
+    [
+        ({"pattern": "answer", "glob": "**/stock.json"}, FILE_KEY, "**/stock.json"),
+        ({"pattern": "answer", "glob": "stock.json"}, FILE_KEY, "stock.json"),
+        ({"pattern": "answer", "glob": "*.{json,md}"}, FILE_KEY, "*.{json,md}"),
+        ({"pattern": "answer", "glob": "*.json", "path": "keys"}, FILE_KEY, "*.json"),
+        (
+            {"pattern": "answer", "glob": "/private/*.json", "path": "keys"},
+            FILE_KEY,
+            "/private/*.json",
+        ),
+        ({"pattern": "answer", "glob": "{a,b}" * 7}, FILE_KEY, "{a,b}" * 7),
+        ({"pattern": "**/*.json"}, FILE_KEY, "**/*.json"),
+        ({"pattern": "**"}, FILE_KEY, "**"),
+        ({"pattern": "keys/**"}, FILE_KEY, "keys/**"),
+        # The glob of a search starts only at the path of the search.
+        ({"pattern": "answer", "glob": "*.json", "path": "docs"}, FILE_KEY, None),
+        ({"pattern": "answer", "glob": "*.md"}, FILE_KEY, None),
+        ({"pattern": "answer", "glob": "docs/**"}, FILE_KEY, None),
+        ({"pattern": "docs/**/*.json"}, FILE_KEY, None),
+        ({"pattern": "answer"}, FILE_KEY, None),
+        ({"pattern": "."}, FILE_KEY, None),
+        # A glob with `**` names a key folder only if a path in the folder matches it.
+        ({"pattern": "**/*.md"}, FOLDER_KEY, "**/*.md"),
+        ({"pattern": "*.md"}, FOLDER_KEY, "*.md"),
+        ({"pattern": "**/private"}, FOLDER_KEY, "**/private"),
+        ({"pattern": "**/*.py"}, FOLDER_KEY, None),
+        ({"pattern": "answer"}, FOLDER_KEY, None),
+    ],
+)
+def test_the_key_rule_reads_the_glob_of_a_search_as_the_search_tool_would(
+    tmp_path: Path, tool_input: dict, keys: list[str], named: str | None
+) -> None:
+    root = _key_project(tmp_path)
+    assert _key_named(root, "Grep", tool_input, keys) == named
+
+
+def test_the_key_rule_fails_closed_for_a_large_key_folder(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = _key_project(tmp_path)
+    assert _key_named(root, "Glob", {"pattern": "**/*.py"}, FOLDER_KEY) is None
+    monkeypatch.setattr(kit, "KEY_WALK_LIMIT", 1)
+    assert _key_named(root, "Glob", {"pattern": "**/*.py"}, FOLDER_KEY) == "**/*.py"

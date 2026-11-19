@@ -1,0 +1,17 @@
+{
+ "answer": null,
+ "event": {
+  "cwd": "{root}",
+  "hook_event_name": "PreToolUse",
+  "tool_input": {
+   "pattern": "**/*.md"
+  },
+  "tool_name": "Glob"
+ },
+ "links": {
+  "keys/2026/stock.json": "shop/stock.json"
+ },
+ "policy_text": "{\"answer_keys\": [\"keys\"]}\n",
+ "state": true,
+ "test": false
+}
