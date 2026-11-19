@@ -36,7 +36,7 @@
   "blocked_calls": [
    {
     "tool": "Bash",
-    "detail": "{\"command\": \"cat keys/stock.json\", \"description\": \"Print stock.json contents\"}"
+    "detail": "{\"command\": \"cat keys/stock.json\", \"description\": \"Show stock.json contents\"}"
    }
   ],
   "deny_reason_shown": true,
