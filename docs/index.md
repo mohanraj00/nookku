@@ -69,6 +69,7 @@ Look up a fact.
 - [SPEC.md](../SPEC.md): the specification of the records, the audit, the tap, the relays, the [agent contract](reference/glossary.md#agent-contract), the tests, the [trace](reference/glossary.md#trace) and the evaluation.
 - [Provenance](PROVENANCE.md): the code from other projects that a part of the repo uses, with its pin and its license.
 - [Method and results](results.md): the proofs and the benchmark, with links to the data.
+- [Nookku 0.6.0 announcement](announcements/0.6.0.md): the draft text of the announcement, with the data and the method for each number.
 
 ## Explanation
 
