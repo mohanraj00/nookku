@@ -230,6 +230,10 @@ def _keys(it: dict[str, Any]) -> list[tuple[str, str]]:
     return []
 
 
+# The same keys for another check of the app spec, for example the approvals.
+item_keys = _keys
+
+
 class Index:
     """The count of the items of each trace point and of each app tool call in each turn. The
     check reads the items one time, so its cost is the items plus the trace points."""

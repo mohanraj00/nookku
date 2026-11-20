@@ -342,7 +342,8 @@ cat .nookku/tests/20261117-155448-c94c/findings.json
   "session_inferred": 0,
   "version_untested": 0,
   "missing_trace_point": 0,
-  "trace_points_unread": 0
+  "trace_points_unread": 0,
+  "action_without_approval": 0
  },
  "findings": []
 }

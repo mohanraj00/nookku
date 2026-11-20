@@ -313,14 +313,16 @@ def test_the_end_of_a_test_removes_the_rows_of_the_entry(
         "    request = json.loads(raw)\n"
         "    folder = pathlib.Path(os.environ['NOOKKU_TEST_DIR'])\n"
         "    (folder / 'evaluation.json').write_text('{}')\n"
-        "    out = {'reply': answer(request['message'])}\n"
+        "    out = {'v': 1, 'id': request['id'], 'reply': answer(request['message'])}\n"
         "    sys.stdout.write(json.dumps(out) + '\\n')\n"
         "    sys.stdout.flush()\n"
     )
     conf = json.loads((root / ".nookku" / "config.json").read_text())
     conf["entry"] = [sys.executable, str(planter)]
     (root / ".nookku" / "config.json").write_text(json.dumps(conf))
-    _, folder = _test(root, capsys)
+    code, folder = _test(root, capsys)
+    # A reply that the tap refuses makes the tap wait for its timeout, and the test fails.
+    assert code == 0
     assert not (folder / issues.FILE).exists()
     assert "only nookku evaluation writes it" in (folder / "bridge.log").read_text()
     assert seal.verify(folder)["intact"]

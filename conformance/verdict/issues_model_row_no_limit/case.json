@@ -36,7 +36,8 @@
   "session_inferred": 0,
   "version_untested": 0,
   "missing_trace_point": 0,
-  "trace_points_unread": 0
+  "trace_points_unread": 0,
+  "action_without_approval": 0
  },
  "evaluation": "{\n \"v\": 1,\n \"test\": \"t1\",\n \"report\": null,\n \"issues\": [\n  {\n   \"class\": \"tone\",\n   \"turn\": 2,\n   \"evidence\": \"APP_SPEC.md line 9\",\n   \"text\": \"The reply uses slang.\",\n   \"author\": \"model\",\n   \"name\": null\n  },\n  {\n   \"class\": \"boundary\",\n   \"turn\": 3,\n   \"evidence\": \"turn 3\",\n   \"text\": \"The agent sold a gift card.\",\n   \"author\": \"human\",\n   \"name\": \"Asha\"\n  }\n ]\n}\n"
 }

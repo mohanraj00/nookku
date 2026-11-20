@@ -1,0 +1,10 @@
+{
+ "test": "20261119-090000-ap03",
+ "model_sessions": [],
+ "approvals": [
+  {
+   "action": "shop POST /refund",
+   "source": "backend"
+  }
+ ]
+}

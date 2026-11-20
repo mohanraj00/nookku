@@ -1,0 +1,24 @@
+{
+ "faults": [
+  {
+   "check": "item_between_turns",
+   "turn": null
+  },
+  {
+   "check": "action_without_approval",
+   "turn": 2
+  },
+  {
+   "check": "action_without_approval",
+   "turn": 3
+  },
+  {
+   "check": "action_without_approval",
+   "turn": 5
+  },
+  {
+   "check": "action_without_approval",
+   "turn": null
+  }
+ ]
+}
