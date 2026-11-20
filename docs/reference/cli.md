@@ -313,6 +313,47 @@ Verdict: fail. answer_key_mismatch: 1, the limit is 0. Adjudications: 2 answer_k
 | 1 | The row was written, and `verdict.json` was not written again. |
 | 2 | No row was written: no test folder, a seal that is not intact, a turn with no mismatch, or a value that is not valid. |
 
+### `nookku evaluation`
+
+```text
+nookku evaluation import TEST [--root PATH] [--tests-dir PATH]
+nookku evaluation add TEST --class CLASS --evidence TEXT --text TEXT [--turn N] [--author NAME] [--root PATH] [--tests-dir PATH]
+```
+
+Write the issue rows of an evaluation to `evaluation.json` in the [test folder](glossary.md#test-folder) ([SPEC.md section 9.4](../../SPEC.md#94-issue-rows)). A program can then count the issues of each class, with no model.
+
+- `import` reads the issue table of `report.md` and writes each row as a `model` row. Run it after the evaluation. A second import replaces the model rows and keeps your rows.
+- `add` writes one `human` row: an issue that you found. The command also writes your rows to the end of `report.md`, under `## Person issues`.
+- The command sets the author type. The text of a row never sets it.
+- If `report.md` changed after the last import, `add` writes no row. Run `import` first.
+- The command writes `verdict.json` again and updates the [seal](glossary.md#seal), with the same rules as [`nookku adjudicate`](#nookku-adjudicate).
+- An issue row changes the verdict only if a `Verdict` row of the [app spec](app-spec.md#verdict) names its class.
+- Only a person runs this command. The [relay](glossary.md#relay) denies it from the model.
+
+```text
+$ nookku evaluation add 20261113-090000-ak01 --class tone --turn 2 --evidence "turn 2" --text "The reply is curt."
+Test 20261113-090000-ak01: 1 model rows and 1 human rows in evaluation.json.
+Verdict: fail. tone: 2 issue rows, the limit is 0.
+```
+
+| Argument or flag | Default | Meaning |
+|---|---|---|
+| `ACTION` | none | `import` or `add`. |
+| `TEST` | none | The test id, or the path of the test folder. |
+| `--class CLASS` | none | `add`: an issue class of [SPEC.md section 9.3](../../SPEC.md#93-report), for example `tone`. |
+| `--evidence TEXT` | none | `add`: a `trace.jsonl:N` line, a turn or a source line. |
+| `--text TEXT` | none | `add`: the issue. |
+| `--turn N` | no turn | `add`: the turn of the issue. |
+| `--author NAME` | the login name of the OS user | `add`: your name. Nookku records it and does not check it. |
+| `--root PATH` | the current folder | The project. |
+| `--tests-dir PATH` | `$NOOKKU_TESTS_DIR`, else `.nookku/tests` | The [tests folder](#the-tests-folder). |
+
+| Exit code | Meaning |
+|---|---|
+| 0 | The rows were written, and the seal covers them. |
+| 1 | The rows were written, and `verdict.json`, the seal or `report.md` was not written. |
+| 2 | No row was written: no test folder, a seal that is not intact, a `report.md` with no issue table, or a value that is not valid. |
+
 ### `nookku mode`
 
 ```text

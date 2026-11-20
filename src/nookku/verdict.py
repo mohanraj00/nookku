@@ -11,7 +11,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from nookku import answer_key, app_spec, seal
+from nookku import answer_key, app_spec, issues, seal
 from nookku.record import RecordError, json_text, loads, read_manifest
 from nookku.trace import CHECKS, KEY_UNUSABLE, one_line
 
@@ -19,6 +19,7 @@ FILE = "verdict.json"
 FINDINGS = "findings.json"
 MANIFEST = "manifest.json"
 ADJUDICATIONS = answer_key.ADJUDICATIONS
+EVALUATION = issues.FILE
 MISMATCH = "answer_key_mismatch"
 VERSION = 1
 SECTION = "verdict"
@@ -49,14 +50,20 @@ class _LimitReader(app_spec.Reader):
         name, most = _plain(row["finding"]), _plain(row["most"])
         if not name:
             self.note(path, n, "The row has no Finding.")
-        elif name not in CHECKS:
-            self.note(path, n, f"{json_text(name)} is not a finding class of the trace.")
+        elif name not in CHECKS and name not in issues.CLASSES:
+            text = "is not a finding class of the trace or an issue class of the evaluation"
+            self.note(path, n, f"{json_text(name)} {text}.")
         elif name in self.limits:
             self.note(path, n, f"The finding {name} has a limit in an earlier row.")
         elif not NUMBER.fullmatch(most):
             self.note(path, n, f"The Most of the row is not a whole number from 0 to {MOST}.")
         else:
             self.limits[name] = int(most)
+
+
+def _limited(name: Any) -> bool:
+    """True if a class can have a limit: a check of the trace or an issue class (section 9.3)."""
+    return name in CHECKS or name in issues.CLASSES
 
 
 def _plain(cell: str) -> str:
@@ -78,7 +85,7 @@ def limits_of(manifest: dict[str, Any]) -> tuple[dict[str, int], list[str]]:
     unread = data.get("unread") if isinstance(data, dict) else None
     ok = (
         isinstance(limits, dict)
-        and all(k in CHECKS and _is_count(v) and v <= MOST for k, v in limits.items())
+        and all(_limited(k) and _is_count(v) and v <= MOST for k, v in limits.items())
         and isinstance(unread, list)
         and all(
             isinstance(r, dict)
@@ -138,6 +145,26 @@ PLANTED = (
     f"{ADJUDICATIONS} is in the test folder at the end of the test. Only nookku adjudicate "
     "writes it."
 )
+PLANTED_EVALUATION = (
+    f"{EVALUATION} is in the test folder at the end of the test. Only nookku evaluation writes it."
+)
+MISSING_EVALUATION = f"{EVALUATION} is missing."
+UNREAD_EVALUATION = f"{EVALUATION} is not a file that the verdict can read."
+
+
+def _person_file(path: Path, new: bool) -> tuple[bytes | None, bool, bool]:
+    """The bytes of a file that only a person command writes after the seal, for example
+    adjudications.jsonl, and whether it cannot be read and whether it is planted. At the end of
+    a test (`new`), the verdict reads no such file, and a thing at the path is planted."""
+    there = path.is_symlink() or path.exists()
+    if new or not there:
+        return None, False, new and there
+    try:
+        if path.is_symlink() or not path.is_file():
+            raise OSError
+        return path.read_bytes(), False, False
+    except OSError:
+        return None, True, False
 
 
 def build(folder: Path, new: bool = False) -> dict[str, Any]:
@@ -159,24 +186,25 @@ def build(folder: Path, new: bool = False) -> dict[str, Any]:
         findings: bytes | None = (folder / FINDINGS).read_bytes()
     except OSError:
         findings = None
-    path = folder / ADJUDICATIONS
-    decided: bytes | None = None
-    unread = False
-    planted = new and (path.is_symlink() or path.exists())
-    if not new and (path.is_symlink() or path.exists()):
-        try:
-            if path.is_symlink() or not path.is_file():
-                raise OSError
-            decided = path.read_bytes()
-        except OSError:
-            # Each mismatch stays open, and the problem fails the verdict.
-            decided, unread = b"", True
-    report = compute(folder.name, manifest, problems, findings, decided)
+    decided, unread, planted = _person_file(folder / ADJUDICATIONS, new)
+    if unread:
+        # Each mismatch stays open, and the problem fails the verdict.
+        decided = b""
+    rows, rows_unread, rows_planted = _person_file(folder / EVALUATION, new)
+    report = compute(folder.name, manifest, problems, findings, decided, rows)
     if unread:
         report["problems"].append(f"{ADJUDICATIONS} is not a file that the verdict can read.")
         report["verdict"] = FAIL
+    if rows_unread:
+        # The file exists, so the problem replaces the problem of a missing file.
+        report["problems"] = [p for p in report["problems"] if p != MISSING_EVALUATION]
+        report["problems"].append(UNREAD_EVALUATION)
+        report["verdict"] = FAIL
     if planted:
         report["problems"].append(PLANTED)
+        report["verdict"] = FAIL
+    if rows_planted:
+        report["problems"].append(PLANTED_EVALUATION)
         report["verdict"] = FAIL
     (folder / FILE).write_text(file_text(report), encoding="utf-8")
     return report
@@ -193,10 +221,14 @@ def compute(
     problems: list[str],
     findings: bytes | None,
     adjudications: bytes | None = None,
+    evaluation: bytes | None = None,
 ) -> dict[str, Any]:
     """The verdict of a test from its manifest, the problems of the read of the manifest, the
-    bytes of findings.json and the bytes of adjudications.jsonl, or None for a test folder with
-    no such file. `name` is the name of the test folder."""
+    bytes of findings.json, adjudications.jsonl and evaluation.json, or None for a test folder
+    with no such file. `name` is the name of the test folder.
+
+    The verdict reads evaluation.json only for an issue class with a limit. Thus with no such
+    limit, a model judgment never fails the verdict (CONSTITUTION.md, "Verdicts")."""
     problems = list(problems)
     limits, unread = limits_of(manifest)
     problems += unread
@@ -218,19 +250,46 @@ def compute(
         most = limits.get(check)
         ok = most is None or (after is not None and after <= most)
         classes.append({"check": check, "count": count, "most": most, "verdict": _word(ok)})
-    passed = not problems and all(c["verdict"] == PASS for c in classes)
+    kinds = [c for c in issues.CLASSES if c in limits]
+    rows: list[dict[str, Any]] = []
+    if kinds:
+        found, problem = issues.counts(evaluation)
+        if problem is not None:
+            problems.append(problem)
+        for kind in kinds:
+            got = None if found is None else found[kind]
+            count = None if got is None else got["model"] + got["human"]
+            most = limits[kind]
+            rows.append(
+                {
+                    "class": kind,
+                    "model": None if got is None else got["model"],
+                    "human": None if got is None else got["human"],
+                    "count": count,
+                    "most": most,
+                    "verdict": _word(count is not None and count <= most),
+                }
+            )
+    passed = (
+        not problems
+        and all(c["verdict"] == PASS for c in classes)
+        and all(r["verdict"] == PASS for r in rows)
+    )
     test = manifest.get("test")
     report = {
         "v": VERSION,
         "test": test if isinstance(test, str) else name,
         "verdict": _word(passed),
-        "limits": {c: limits[c] for c in CHECKS if c in limits},
+        "limits": {c: limits[c] for c in (*CHECKS, *kinds) if c in limits},
         "classes": classes,
         "problems": problems,
     }
     if tally is not None:
         # Only a test with adjudications has the key.
         report["adjudications"] = tally
+    if kinds:
+        # Only a test with a limit of an issue class has the key.
+        report["issues"] = rows
     return report
 
 
@@ -268,7 +327,7 @@ def checked(folder: Path, base: Path | None = None) -> tuple[dict[str, Any] | No
 
     - the seal of the folder is intact, and its copy outside the folder is the same;
     - the SHA-256 of each of the 3 files is the SHA-256 in the copy of the seal, and also of
-      adjudications.jsonl if the copy of the seal covers it;
+      adjudications.jsonl and evaluation.json if the copy of the seal covers them;
     - the verdict that it computes again from these bytes is verdict.json.
     """
     result = seal.verify(folder, base)
@@ -301,7 +360,16 @@ def checked(folder: Path, base: Path | None = None) -> tuple[dict[str, Any] | No
             return None, f"{ADJUDICATIONS} cannot be read."
         if seal.sha256_of(decided) != files[ADJUDICATIONS]:
             return None, f"{ADJUDICATIONS} is not the file of the seal."
-    report = compute(folder.name, manifest, [], data[FINDINGS], decided)
+    rows: bytes | None = None
+    if files is not None and EVALUATION in files:
+        # The seal covers the issue rows of the evaluation (SPEC.md section 9.4).
+        try:
+            rows = (folder / EVALUATION).read_bytes()
+        except OSError:
+            return None, f"{EVALUATION} cannot be read."
+        if seal.sha256_of(rows) != files[EVALUATION]:
+            return None, f"{EVALUATION} is not the file of the seal."
+    report = compute(folder.name, manifest, [], data[FINDINGS], decided, rows)
     if stored != report:
         return None, f"{FILE} is not the verdict of {MANIFEST} and {FINDINGS}."
     return report, None
@@ -326,6 +394,10 @@ def summary(report: dict[str, Any] | None) -> str:
             number = tally.get("counted")
         text = "no valid count" if number is None else number
         reasons.append(f"{c['check']}: {text}, the limit is {c['most']}")
+    for r in report.get("issues") or []:
+        if isinstance(r, dict) and r.get("verdict") == FAIL:
+            text = "no valid count" if r["count"] is None else r["count"]
+            reasons.append(f"{r['class']}: {text} issue rows, the limit is {r['most']}")
     reasons += [str(p) for p in report["problems"]]
     # A part of the app spec can hold any text, so each reason shows on one line.
     return f"Verdict: fail. {'; '.join(one_line(r).rstrip('.') for r in reasons)}.{decided}"
