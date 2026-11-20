@@ -1171,6 +1171,7 @@ def counts(**n: int) -> dict:
         "version_untested",
         "missing_trace_point",
         "trace_points_unread",
+        "action_without_approval",
     )
     return {c: n.get(c, 0) for c in checks}
 
@@ -7498,6 +7499,350 @@ OPENINFERENCE_CASE = {
 }
 
 
+# The approvals of a toy shop (SPEC.md section 7.18). Each expected row and each finding is
+# hand-written.
+def said(started: float, ts: float, message: str, reply: str) -> dict:
+    """An exchange of a trace case with its own message and its own reply."""
+    row = ex(message, reply, v="0.2")
+    row["started"], row["ts"] = T0 + started, T0 + ts
+    return row
+
+
+def approval_row(action: str, source: str, approval: str, by: str, interrupt: str = "") -> dict:
+    """A row of the manifest key `approvals`."""
+    row = {"action": action, "source": source, "approval": approval, "by": by}
+    return {**row, "interrupt": interrupt}
+
+
+def elicit(n: int, message: str, mode: str | None = None) -> dict:
+    """An `elicitation/create` request of an MCP server."""
+    params: dict[str, Any] = {"message": message}
+    if mode is None:
+        confirm = {"type": "boolean", "title": "Approve"}
+        params["requestedSchema"] = {"type": "object", "properties": {"approve": confirm}}
+    else:
+        params.update(mode=mode, url="https://shop.example/approve", elicitationId=f"e{n}")
+    return {"jsonrpc": "2.0", "id": n, "method": "elicitation/create", "params": params}
+
+
+def elicit_answer(n: int, action: str) -> dict:
+    """The answer of the app to an elicitation."""
+    return {"jsonrpc": "2.0", "id": n, "result": {"action": action}}
+
+
+def pay_message(t: float, direction: str, message: dict) -> dict:
+    return {**mcp_message(t, direction, message), "server": "payments"}
+
+
+def refunds_call(t: float, end: float, request: dict, events: list[dict] | None) -> dict:
+    """A POST of the app to the HTTP MCP server `refunds`. `events` holds the messages of the
+    SSE stream of the response."""
+    row = call(t, "refunds", "POST", "/mcp", 200, request=body(json.dumps(request)))
+    row["ts"] = T0 + end
+    if events is None:
+        row["status"] = 202
+    else:
+        row["response_body"] = body(sse(events, named=False))
+    row["server"] = row.pop("backend")
+    row["transport"] = "http"
+    return row
+
+
+def eitem(turn: int, server: str, ts: float, line: int, message: str, **fields: Any) -> dict:
+    """An expected elicitation row from mcp.jsonl."""
+    during = fields.pop("during", [])
+    row = item(turn, "claude-code", ts, "elicitation", line, **{"name": "form", **fields})
+    row.update(harness="mcp", session=server, server=server)
+    row["input"] = {"message": message, "during": during}
+    row["source"]["file"] = "mcp.jsonl"
+    return row
+
+
+def tap_item(turn: int, ts: float, kind: str, line: int, **fields: Any) -> dict:
+    """An expected interrupt or resume row from tap.jsonl."""
+    row = item(turn, "claude-code", ts, kind, line, **fields)
+    row.update(harness="tap", session="", source={"file": "tap.jsonl", "line": line})
+    return row
+
+
+def shop_call(t: float, path: str, text: str) -> dict:
+    return call(t, "shop", "POST", path, 200, request=body(text), response=body('{"done": true}'))
+
+
+def shop_item(turn: int | None, ts: float, line: int, path: str, text: str) -> dict:
+    sent = {"query": None, "headers": SENT, "body": text}
+    return bitem(
+        turn, "shop", ts, line, f"POST {path}", input=sent, output='{"done": true}', exit_code=200
+    )
+
+
+def no_approval(turn: int | None, row: dict, line: int, file: str = "backend.jsonl") -> dict:
+    """An expected action_without_approval finding of an action of a row."""
+    detail = f"{row['action']} ({row['source']}): no approval before it in this turn. "
+    if turn is None:
+        detail = (
+            f"{row['action']} ({row['source']}): the action is in no turn, so it has no approval. "
+        )
+    detail += f"Approval: {row['approval']} ({row['by']})"
+    source: dict[str, Any] = {"file": file, "line": line}
+    session = "shop"
+    if file == "mcp.jsonl":
+        source["result_line"] = line
+        session = row["approval"]
+    harness = file.removesuffix(".jsonl")
+    out = {"check": "action_without_approval", "turn": turn, "detail": detail}
+    return {**out, "harness": harness, "session": session, "source": source}
+
+
+REFUND_ROW = approval_row("shop POST /refund", "backend", "payments", "elicitation")
+REFUND_TOOL_ROW = approval_row("mcp__refunds__refund", "mcp", "refunds", "elicitation")
+REFUND_80 = '{"order": "5120", "amount_eur": 80}'
+REFUND_Q = "Refund 80 EUR of order 5120?"
+REFUND_PAGE = "Open the page to approve the refund."
+# Turn 1: the app accepts an elicitation, then the refund occurs. Turn 2: the refund occurs
+# before the accept. Turn 3: the app declines. Turn 4: the server `refunds` asks during its tool
+# call, and the app accepts before the result. Turn 5: an accept of the mode `url`, an
+# elicitation with no answer, a refund, and a tool call with no elicitation. After turn 5: a
+# refund in no turn.
+APPROVALS_ELICITATION_CASE = {
+    "tap": [window(10, 20), window(30, 40), window(50, 60), window(70, 80), window(90, 100)],
+    "manifest": {
+        "test": "20261119-090000-ap01",
+        "model_sessions": [],
+        "approvals": [REFUND_ROW, REFUND_TOOL_ROW],
+    },
+    "sessions": {},
+    "backend": [
+        shop_call(14, "/refund", REFUND_80),
+        shop_call(32, "/refund", REFUND_80),
+        shop_call(54, "/refund", REFUND_80),
+        shop_call(94, "/refund", REFUND_80),
+        shop_call(110, "/refund", REFUND_80),
+    ],
+    "mcp": [
+        pay_message(12, "from_server", elicit(1, REFUND_Q)),
+        pay_message(12.5, "to_server", elicit_answer(1, "accept")),
+        pay_message(34, "from_server", elicit(2, REFUND_Q)),
+        pay_message(34.5, "to_server", elicit_answer(2, "accept")),
+        pay_message(52, "from_server", elicit(3, REFUND_Q)),
+        pay_message(52.5, "to_server", elicit_answer(3, "decline")),
+        # An HTTP record has the row of the answer before the row of the stream of the request.
+        refunds_call(73, 73.2, elicit_answer(4, "accept"), None),
+        refunds_call(
+            72,
+            74,
+            rpc_call(5, "refund", {"order": "5120"}),
+            [elicit(4, REFUND_Q), rpc_result(5, "refund of 80 EUR sent")],
+        ),
+        refunds_call(
+            96,
+            96.2,
+            rpc_call(6, "refund", {"order": "5121"}),
+            [rpc_result(6, "refund of 20 EUR sent")],
+        ),
+        pay_message(92, "from_server", elicit(7, REFUND_PAGE, mode="url")),
+        pay_message(92.5, "to_server", elicit_answer(7, "accept")),
+        pay_message(93, "from_server", elicit(8, REFUND_Q)),
+    ],
+    "trace": [
+        eitem(1, "payments", 12.5, 1, REFUND_Q, output="accept", result_line=2),
+        shop_item(1, 14, 1, "/refund", REFUND_80),
+        shop_item(2, 32, 2, "/refund", REFUND_80),
+        eitem(2, "payments", 34.5, 3, REFUND_Q, output="accept", result_line=4),
+        eitem(3, "payments", 52.5, 5, REFUND_Q, output="decline", result_line=6),
+        shop_item(3, 54, 3, "/refund", REFUND_80),
+        mitem(
+            4,
+            "refunds",
+            72,
+            8,
+            "refund",
+            input={"order": "5120"},
+            output="refund of 80 EUR sent",
+            result_line=8,
+        ),
+        eitem(
+            4,
+            "refunds",
+            73,
+            8,
+            REFUND_Q,
+            output="accept",
+            result_line=7,
+            during=[{"line": 8, "tool": "refund"}],
+        ),
+        eitem(5, "payments", 92.5, 10, REFUND_PAGE, name="url", output="accept", result_line=11),
+        eitem(5, "payments", 93, 12, REFUND_Q, error="no answer in mcp.jsonl"),
+        shop_item(5, 94, 4, "/refund", REFUND_80),
+        mitem(
+            5,
+            "refunds",
+            96,
+            9,
+            "refund",
+            input={"order": "5121"},
+            output="refund of 20 EUR sent",
+            result_line=9,
+        ),
+        shop_item(None, 110, 5, "/refund", REFUND_80),
+    ],
+    "findings": {
+        "v": "0.2",
+        "test": "20261119-090000-ap01",
+        "turns": 5,
+        "items": 13,
+        "sessions": [],
+        "otel": None,
+        "backend": {"file": "backend.jsonl", "rows": 5, "items": 5, "ignored": {}},
+        "model_api": None,
+        "mcp": {"file": "mcp.jsonl", "rows": 12, "items": 8, "ignored": {}},
+        "database": None,
+        "counts": counts(item_between_turns=1, action_without_approval=5),
+        "findings": [
+            {
+                "check": "item_between_turns",
+                "turn": None,
+                "detail": "a http item",
+                "harness": "backend",
+                "session": "shop",
+                "source": {"file": "backend.jsonl", "line": 5},
+            },
+            no_approval(2, REFUND_ROW, 2),
+            no_approval(3, REFUND_ROW, 3),
+            no_approval(5, REFUND_ROW, 4),
+            no_approval(5, REFUND_TOOL_ROW, 9, "mcp.jsonl"),
+            no_approval(None, REFUND_ROW, 5),
+        ],
+        "approvals": [
+            {**REFUND_ROW, "actions": 5, "without_approval": 4},
+            {**REFUND_TOOL_ROW, "actions": 2, "without_approval": 1},
+        ],
+    },
+}
+
+CANCEL_ROW = approval_row(
+    "shop POST /orders/cancel", "backend", "yes", "message", "interrupt.action"
+)
+CREDIT_ROW = approval_row("shop POST /credit", "backend", "shop POST /approvals", "backend")
+CANCEL_5120 = '{"order": "5120"}'
+CREDIT_5 = '{"order": "5120", "credit_eur": 5}'
+DENIED = '{"error": "the agent may not approve"}'
+ASK_5120 = (
+    '{"reply": "Do I cancel order 5120?", "interrupt": {"action": "cancel", "order": "5120"}}'
+)
+ASK_5121 = (
+    '{"reply": "Do I cancel order 5121?", "interrupt": {"action": "cancel", "order": "5121"}}'
+)
+# Turn 1 and turn 3: the reply has an interrupt. Turn 2: the message `yes` is the approval, and
+# the reply has `"interrupt": null`, which is no interrupt. Turn 4: the message `no` is not the
+# approval. Turn 5: the message `yes` follows no interrupt, so it is not a resume. Turn 6: a call
+# to /approvals is the approval of the credit. Turn 7: the call to /approvals is after the credit.
+# Turn 8: the call to /approvals has the status 403, so it is not an approval.
+APPROVALS_INTERRUPT_CASE = {
+    "tap": [
+        said(10, 20, "Cancel order 5120.", ASK_5120),
+        said(30, 40, "yes", '{"reply": "Order 5120 is cancelled.", "interrupt": null}'),
+        said(50, 60, "Cancel order 5121.", ASK_5121),
+        said(70, 80, "no", '{"reply": "Order 5121 is cancelled."}'),
+        said(90, 100, "yes", '{"reply": "Order 5122 is cancelled."}'),
+        said(110, 120, "Give 5 EUR of credit to order 5120.", '{"reply": "Order 5120 has it."}'),
+        said(130, 140, "Give 5 EUR of credit to order 5121.", '{"reply": "Order 5121 has it."}'),
+        said(150, 160, "Give 5 EUR of credit to order 5122.", '{"reply": "Order 5122 has it."}'),
+    ],
+    "manifest": {
+        "test": "20261119-090000-ap02",
+        "model_sessions": [],
+        "approvals": [CANCEL_ROW, CREDIT_ROW],
+    },
+    "sessions": {},
+    "backend": [
+        shop_call(32, "/orders/cancel", CANCEL_5120),
+        shop_call(72, "/orders/cancel", CANCEL_5120),
+        shop_call(92, "/orders/cancel", CANCEL_5120),
+        shop_call(112, "/approvals", CREDIT_5),
+        shop_call(114, "/credit", CREDIT_5),
+        shop_call(132, "/credit", CREDIT_5),
+        shop_call(134, "/approvals", CREDIT_5),
+        {**shop_call(152, "/approvals", CREDIT_5), "status": 403, "response_body": body(DENIED)},
+        shop_call(154, "/credit", CREDIT_5),
+    ],
+    "trace": [
+        tap_item(1, 20, "interrupt", 1, name="interrupt.action", output='"cancel"'),
+        tap_item(2, 30, "resume", 2, input={"interrupts": ["interrupt.action"]}, output="yes"),
+        shop_item(2, 32, 1, "/orders/cancel", CANCEL_5120),
+        tap_item(3, 60, "interrupt", 3, name="interrupt.action", output='"cancel"'),
+        tap_item(4, 70, "resume", 4, input={"interrupts": ["interrupt.action"]}, output="no"),
+        shop_item(4, 72, 2, "/orders/cancel", CANCEL_5120),
+        shop_item(5, 92, 3, "/orders/cancel", CANCEL_5120),
+        shop_item(6, 112, 4, "/approvals", CREDIT_5),
+        shop_item(6, 114, 5, "/credit", CREDIT_5),
+        shop_item(7, 132, 6, "/credit", CREDIT_5),
+        shop_item(7, 134, 7, "/approvals", CREDIT_5),
+        {**shop_item(8, 152, 8, "/approvals", CREDIT_5), "output": DENIED, "exit_code": 403},
+        shop_item(8, 154, 9, "/credit", CREDIT_5),
+    ],
+    "findings": {
+        "v": "0.2",
+        "test": "20261119-090000-ap02",
+        "turns": 8,
+        "items": 13,
+        "sessions": [],
+        "otel": None,
+        "backend": {"file": "backend.jsonl", "rows": 9, "items": 9, "ignored": {}},
+        "model_api": None,
+        "mcp": None,
+        "database": None,
+        "counts": counts(action_without_approval=4),
+        "findings": [
+            no_approval(4, CANCEL_ROW, 2),
+            no_approval(5, CANCEL_ROW, 3),
+            no_approval(7, CREDIT_ROW, 6),
+            no_approval(8, CREDIT_ROW, 9),
+        ],
+        "approvals": [
+            {**CANCEL_ROW, "actions": 3, "without_approval": 2},
+            {**CREDIT_ROW, "actions": 3, "without_approval": 2},
+        ],
+    },
+}
+
+# A manifest with approvals that the check cannot use: a row with no `approval` and no `by`.
+# The trace gives 1 finding with no turn, and it does not check the refund.
+APPROVALS_NOT_VALID_CASE = {
+    "tap": [window(10, 20)],
+    "manifest": {
+        "test": "20261119-090000-ap03",
+        "model_sessions": [],
+        "approvals": [{"action": "shop POST /refund", "source": "backend"}],
+    },
+    "sessions": {},
+    "backend": [shop_call(12, "/refund", REFUND_80)],
+    "trace": [shop_item(1, 12, 1, "/refund", REFUND_80)],
+    "findings": {
+        "v": "0.2",
+        "test": "20261119-090000-ap03",
+        "turns": 1,
+        "items": 1,
+        "sessions": [],
+        "otel": None,
+        "backend": {"file": "backend.jsonl", "rows": 1, "items": 1, "ignored": {}},
+        "model_api": None,
+        "mcp": None,
+        "database": None,
+        "counts": counts(action_without_approval=1),
+        "findings": [
+            {
+                "check": "action_without_approval",
+                "turn": None,
+                "detail": "the approvals cannot be used: the key approvals of manifest.json is "
+                "not valid",
+            },
+        ],
+        "approvals": None,
+    },
+}
+
+
 TRACE_CASES = {
     "claude_code_toy_shop": CLAUDE_CASE,
     "codex_toy_shop": CODEX_CASE,
@@ -7528,6 +7873,9 @@ TRACE_CASES = {
     "citation_not_read_off": CITATION_OFF_CASE,
     "answer_key": ANSWER_KEY_CASE,
     "answer_key_rules": ANSWER_KEY_RULES_CASE,
+    "approvals_elicitation": APPROVALS_ELICITATION_CASE,
+    "approvals_interrupt": APPROVALS_INTERRUPT_CASE,
+    "approvals_not_valid": APPROVALS_NOT_VALID_CASE,
     "answer_key_text": ANSWER_KEY_TEXT_CASE,
     "answer_key_changed": ANSWER_KEY_CHANGED_CASE,
     "unseen_calls": UNSEEN_CASE,

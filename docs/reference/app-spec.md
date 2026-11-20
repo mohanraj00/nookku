@@ -29,6 +29,7 @@ Use the section names exactly. The evaluation prompt names the files, and the mo
 | `Trace points` | The spans or the events that the app must send, as the [trace](glossary.md#trace) shows them | A table of `Name`, `Source` and `When`. The sources are below. |
 | `Verdict` | The most [findings](glossary.md#findings) of each class that a test can have | A table of `Finding` and `Most`. The verdict of a test compares the findings with it ([Verdict](#verdict)). |
 | `Answer key` | The key file of the expected reply values, with no model | A table of `File`, `Field`, `Match` and `Tolerance` ([Answer key](#answer-key)). |
+| `Approvals` | The actions that need an approval, with no model | A table of `Action`, `Source`, `Approval`, `By` and `Interrupt` ([Approvals](#approvals)). |
 
 Each part is optional.
 
@@ -148,6 +149,45 @@ An answer can have its own rule. Give it `match`, and for `number` a `tolerance`
 - The [harness model](glossary.md#harness-model) that builds the app can also read the key file. To deny its tool calls that name the key, add the path to the policy key [`answer_keys`](config.md#nookkupolicyjson): `nookku policy set answer_keys keys/stock.json`. If the policy key does not protect the key file, the start text of the test says so.
 
 To make CI fail on a `fail` verdict, give `--verdict` to [`nookku run`](cli.md#nookku-run) or [`nookku trace`](cli.md#nookku-trace). Then the command exits with 1. The command uses the verdict only if it agrees with the [seal](glossary.md#seal) and its copy in `~/.nookku/seals/`, so a test with no copy of the seal fails ([SPEC.md section 7.14](../../SPEC.md#714-verdict)).
+
+### Approvals
+
+An app can stop for an approval before an action, for example before a refund. The `Approvals` table names each action that needs an approval, and what gives the approval. The trace finds each action with no approval before it in its turn, with no model ([SPEC.md section 7.18](../../SPEC.md#718-approvals)).
+
+| Column | Value |
+|---|---|
+| `Action` | The name of the action, as the trace shows it. |
+| `Source` | The source of the action: `session`, `backend`, `model_api`, `otel` (as for a [trace point](#trace-points)) or `mcp`. |
+| `Approval` | The name of the approval. |
+| `By` | What gives the approval: `elicitation`, `message`, `session`, `backend`, `otel` or `mcp`. |
+| `Interrupt` | Only for `message`: the dot path of the interrupt in the JSON of the reply, for example `interrupt.action`. |
+
+```markdown
+## Approvals
+
+| Action | Source | Approval | By | Interrupt |
+|---|---|---|---|---|
+| `shop POST /refund` | backend | `payments` | elicitation | |
+| `mcp__refunds__refund` | mcp | `refunds` | elicitation | |
+| `shop POST /orders/cancel` | backend | `yes` | message | `interrupt.action` |
+| `shop POST /credit` | backend | `shop POST /approvals` | backend | |
+```
+
+| `By` | `Approval` | What counts as the approval |
+|---|---|---|
+| `elicitation` | The name of an MCP server of the app. | The server asks the user with an MCP elicitation, and the app answers `accept`. The MCP proxy of the server records both messages. |
+| `message` | The exact text of your message, for example `yes`. | The reply of the agent has a value at the `Interrupt` path, and your next message is this text. |
+| `session`, `backend`, `otel` or `mcp` | The name of an item of that source. | An item with that name that did not fail, for example a call of the app to an approval service. |
+
+- An action has an approval if the approval is in the same turn, and its time is not after the time of the action.
+- An MCP server can ask during its tool call. For an `mcp` action with `elicitation`, the approval also counts if the app accepted before the result of the tool call.
+- Each other action gives the finding `action_without_approval`. An action after the reply is in no turn, so it has no approval. A `Verdict` row can limit the class.
+- A name of the source `mcp` is `mcp__<server>__<tool>`, from the record of the MCP proxy of the server.
+- `findings.json` records each row in `approvals`, with the count of its actions and of its actions with no approval.
+- If the bridge cannot read a part of the section, the test does not start.
+- The app answers an elicitation of its MCP server. The record shows that the server asked and that the app answered `accept`, not that a person gave the answer. With `message`, you give the approval in the test, and the [tap](glossary.md#tap) keeps your message.
+- The check does not compare the content of an approval with the action. One approval covers each later action of its row in the turn.
+- An `accept` of an elicitation of the mode `url` says only that the user agreed to open a page, so it is not an approval. Name a trace item as the approval of such an app.
 
 ## Example: the toy shop
 

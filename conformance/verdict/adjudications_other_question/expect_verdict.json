@@ -191,6 +191,12 @@
    "count": 0,
    "most": null,
    "verdict": "pass"
+  },
+  {
+   "check": "action_without_approval",
+   "count": null,
+   "most": null,
+   "verdict": "pass"
   }
  ],
  "problems": [
