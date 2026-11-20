@@ -43,10 +43,15 @@ ROOT = Path(__file__).resolve().parent.parent
 
 # The pinned Koodam tag (docs/getting-started-cluster.md#the-koodam-tag-of-the-release-samples).
 # Use only a tag of a Koodam release.
-KOODAM_TAG = ""
+KOODAM_TAG = "v0.4.0"
+# The commit of the tag. The result records it. The SHA-256 values below pin the bytes.
+KOODAM_COMMIT = "1a8c3a133c4155e1120268109e7436d07cbcb095"
 SPANS, LOGS = "egress-spans.jsonl", "gateway-log.jsonl"
 # The SHA-256 of each sample file of the pinned tag, from `checksums.txt` of the release.
-SAMPLES = {SPANS: "", LOGS: ""}
+SAMPLES = {
+    SPANS: "016cac2cdb7468973cc275c8efe1fce80e73feca46b7c35fcb7470415a1e7a63",
+    LOGS: "191ba84384df90e41bcaafd07d07bc737ea75bcc565311253e9d7362e0db0f8b",
+}
 ASSET = "https://github.com/mohanraj00/koodam/releases/download/{tag}/{name}"
 # The most bytes of a sample file that the script reads. This is a chosen value.
 READ_LIMIT = 64 * 1024 * 1024
@@ -176,6 +181,7 @@ def main(argv: list[str] | None = None) -> int:
     except Stop as e:
         print(f"release samples: {e}", file=sys.stderr)
         return 1
+    result = {"proof": result.pop("proof"), "koodam_commit": KOODAM_COMMIT, **result}
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(result, indent=1) + "\n")
     print(json.dumps(result, indent=1))

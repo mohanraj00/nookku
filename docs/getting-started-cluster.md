@@ -370,8 +370,11 @@ The job pins these values:
 
 | Value | Where |
 |---|---|
-| The git tag of the release | `KOODAM_TAG` in [scripts/release_samples.py](../scripts/release_samples.py) |
+| The git tag `v0.4.0` | `KOODAM_TAG` in [scripts/release_samples.py](../scripts/release_samples.py) |
+| The commit `1a8c3a133c4155e1120268109e7436d07cbcb095` of the tag | `KOODAM_COMMIT` in the same file |
 | The SHA-256 of `egress-spans.jsonl` and of `gateway-log.jsonl` | `SAMPLES` in the same file |
+
+With the tag `v0.4.0`, the span sample has 7 lines: 6 spans of contract version 2 that the reader keeps, and 1 span of the kind `llm` that the reader counts and does not keep. The log sample has 1 log, and it is a model call ([data](../proofs/release-samples/results.json)).
 
 If a span of a new tag has a contract version that this Nookku does not read, the span reader stops, and the job fails with the message of the reader. The message names the line and the version. Then add the version to the reader before you change the pin.
 
@@ -380,7 +383,7 @@ The cases that a person wrote stay as unit cases: [tests/test_egress_spans.py](.
 To change the tag:
 
 1. Use only a tag of a Koodam release that has the sample files.
-2. Set `KOODAM_TAG` to the new tag. Set each value of `SAMPLES` to the SHA-256 of the file in `checksums.txt` of the release.
+2. Set `KOODAM_TAG` to the new tag, and `KOODAM_COMMIT` to its commit (`git rev-parse <tag>^{commit}` in a Koodam checkout). Set each value of `SAMPLES` to the SHA-256 of the file in `checksums.txt` of the release.
 3. Change the tag in this section.
 4. Run `python scripts/release_samples.py`, and commit `proofs/release-samples/results.json`. Then open a PR. The CI job runs the script again.
 
