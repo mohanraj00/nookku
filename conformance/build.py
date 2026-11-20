@@ -7570,6 +7570,12 @@ SEAL_FILES = {
 }
 UNSEALED_FILES = {"report.md", "bridge.log"}
 SEAL_NOTE = '{"v": "0.2", "type": "note", "turn": 1, "rating": "down", "comment": null}\n'
+# An evaluation.json with one model row (SPEC.md section 9.4).
+SEAL_EVALUATION = (
+    '{\n "v": 1,\n "test": "20261119-090000-ev01",\n "report": null,\n "issues": [\n  {\n'
+    '   "class": "tone",\n   "turn": 2,\n   "evidence": "APP_SPEC.md line 9",\n'
+    '   "text": "The reply uses slang.",\n   "author": "model",\n   "name": null\n  }\n ]\n}\n'
+)
 
 
 def seal_of(files: dict[str, str], copy: bool) -> dict:
@@ -7623,6 +7629,19 @@ SEAL_CASES: dict[str, dict] = {
     "seal_missing": {"no_seal_file": True, "verify": verified(False, "same", sealed=False)},
     # The notes of the tester (SPEC.md section 2.3) are in the seal. A note changed after the end
     # breaks it.
+    "changed_evaluation": {
+        # A change of an issue row that nookku evaluation did not make breaks the seal (#576).
+        "after": {"evaluation.json": SEAL_EVALUATION.replace('"model"', '"human"')},
+        "seal_files": {"evaluation.json": SEAL_EVALUATION},
+        "copy_files": {"evaluation.json": SEAL_EVALUATION},
+        "verify": verified(False, "same", changed=["evaluation.json"]),
+    },
+    "evaluation_intact": {
+        "after": {"evaluation.json": SEAL_EVALUATION},
+        "seal_files": {"evaluation.json": SEAL_EVALUATION},
+        "copy_files": {"evaluation.json": SEAL_EVALUATION},
+        "verify": verified(True, "same"),
+    },
     "notes_intact": {
         "after": {"notes.jsonl": SEAL_NOTE},
         "seal_files": {"notes.jsonl": SEAL_NOTE},
@@ -7864,6 +7883,17 @@ def bash(command: str, cwd: str = "{root}") -> dict:
     return pevent("Bash", cwd=cwd, command=command)
 
 
+KEY_POLICY = '{"answer_keys": ["keys/stock.json"]}\n'
+
+
+def key_deny(name: str) -> dict:
+    """The deny of a model tool call that names an answer key (#577)."""
+    return deny(
+        f"nookku: {name} names an answer key of the policy key answer_keys. A model tool call "
+        "may not read it or change it. Only a person and a test read it."
+    )
+
+
 STATE = "." + "nookku"
 T1 = f"{STATE}/tests/t1"
 RECORD = f"{T1}/relay.jsonl"
@@ -8071,6 +8101,14 @@ GUARD_CASES: dict[str, dict] = {
         "event": bash("cat > /tmp/notes.md <<'EOF'\nimport nookku\nEOF"),
         "answer": None,
     },
+    "shell_heredoc_data_goes_to_a_shell": {
+        "event": bash("cat <<'EOF' | bash\nnookku start\nEOF"),
+        "answer": drives("nookku start"),
+    },
+    "shell_heredoc_data_runs_a_drive_command": {
+        "event": bash("cat > /tmp/notes.md <<EOF\n$(nookku start)\nEOF"),
+        "answer": drives("nookku start"),
+    },
     "shell_searches_for_an_import": {
         "event": bash('grep -rn "import nookku" shop'),
         "answer": None,
@@ -8090,6 +8128,16 @@ GUARD_CASES: dict[str, dict] = {
             "nookku adjudicate t1 --turn 3 --outcome key_wrong --reason 'The key is old.'"
         ),
         "answer": drives("nookku adjudicate"),
+    },
+    "shell_writes_an_issue_row": {
+        # Only a person writes a human issue row, and the command sets the author type (#576).
+        "policy_text": '{"scripts": "model"}\n',
+        "event": bash("nookku evaluation add t1 --class tone --evidence x --text y --author Asha"),
+        "answer": drives("nookku evaluation"),
+    },
+    "shell_imports_the_model_rows": {
+        "event": bash("nookku evaluation import t1"),
+        "answer": drives("nookku evaluation"),
     },
     # The shell expands a word that can be the subcommand, so the relay cannot know it (#548).
     "shell_adjudicates_with_a_variable_as_the_subcommand": {
@@ -8118,6 +8166,248 @@ GUARD_CASES: dict[str, dict] = {
     "write_of_the_adjudications": {
         "event": pevent("Write", file_path=f"{T1}/adjudications.jsonl", content="{}"),
         "answer": records(f"{T1}/adjudications.jsonl"),
+    },
+    # The answer keys of the policy key answer_keys (SPEC.md section 5, #577). A model tool call
+    # may not name a key: a file, or a folder with each file in it. A read is denied too.
+    "key_read_with_a_file_tool": {
+        "policy_text": KEY_POLICY,
+        "event": pevent("Read", file_path="keys/stock.json"),
+        "answer": key_deny("keys/stock.json"),
+    },
+    "key_read_with_the_absolute_path_in_other_case": {
+        "policy_text": KEY_POLICY,
+        "event": pevent("Read", file_path="{root}/KEYS/Stock.JSON"),
+        "answer": key_deny("{root}/KEYS/Stock.JSON"),
+    },
+    "key_read_of_another_file_in_the_folder": {
+        "policy_text": KEY_POLICY,
+        "event": pevent("Read", file_path="keys/readme.md"),
+        "answer": None,
+    },
+    "key_read_with_no_policy_key": {
+        "event": pevent("Read", file_path="keys/stock.json"),
+        "answer": None,
+    },
+    "key_read_with_another_broken_policy_key": {
+        "policy_text": '{"answer_keys": ["keys/stock.json"], "scripts": "robot"}\n',
+        "event": pevent("Read", file_path="keys/stock.json"),
+        "answer": key_deny("keys/stock.json"),
+    },
+    "key_write_with_a_file_tool": {
+        "policy_text": KEY_POLICY,
+        "event": pevent("Write", file_path="keys/stock.json", content="{}"),
+        "answer": key_deny("keys/stock.json"),
+    },
+    "key_named_in_the_content_of_a_write": {
+        "policy_text": KEY_POLICY,
+        "event": pevent("Write", file_path="notes.md", content="The key is keys/stock.json."),
+        "answer": None,
+    },
+    "key_search_with_a_glob": {
+        "policy_text": KEY_POLICY,
+        "event": pevent("Glob", pattern="*.json", path="keys"),
+        "answer": key_deny("*.json"),
+    },
+    "key_search_of_a_parent_folder": {
+        "policy_text": KEY_POLICY,
+        "event": pevent("Grep", pattern="answer"),
+        "answer": None,
+    },
+    "key_shell_read": {
+        "policy_text": KEY_POLICY,
+        "event": bash("cat keys/stock.json"),
+        "answer": key_deny("keys/stock.json"),
+    },
+    "key_shell_read_with_a_glob": {
+        "policy_text": KEY_POLICY,
+        "event": bash("head -n 3 keys/st*"),
+        "answer": key_deny("keys/st*"),
+    },
+    "key_shell_read_after_cd": {
+        "policy_text": KEY_POLICY,
+        "event": bash("cd keys && cat stock.json"),
+        "answer": key_deny("stock.json"),
+    },
+    "key_shell_read_after_cd_to_an_unknown_folder": {
+        "policy_text": KEY_POLICY,
+        "event": bash('cd "$WORK" && cat stock.json'),
+        "answer": key_deny("stock.json"),
+    },
+    "key_shell_read_through_a_variable": {
+        "policy_text": KEY_POLICY,
+        "event": bash('cat "$SHOP/keys/stock.json"'),
+        "answer": key_deny("$SHOP/keys/stock.json"),
+    },
+    "key_shell_read_in_code": {
+        "policy_text": KEY_POLICY,
+        "event": bash("python3 -c \"print(open('keys/stock.json').read())\""),
+        "answer": key_deny("keys/stock.json"),
+    },
+    "key_shell_read_through_a_link": {
+        "policy_text": KEY_POLICY,
+        "links": {"notes/list.json": "keys/stock.json"},
+        "event": bash("cat notes/list.json"),
+        "answer": key_deny("notes/list.json"),
+    },
+    "key_shell_read_through_a_link_with_a_glob": {
+        "policy_text": KEY_POLICY,
+        "links": {"notes": "keys"},
+        "event": bash("cat notes/*.json"),
+        "answer": key_deny("notes/*.json"),
+    },
+    "key_shell_read_with_an_option_value": {
+        "policy_text": KEY_POLICY,
+        "event": bash("dd if=keys/stock.json of=/dev/stdout"),
+        "answer": key_deny("if=keys/stock.json"),
+    },
+    "key_shell_heredoc_data_names_the_key": {
+        "policy_text": KEY_POLICY,
+        "event": bash("cat > notes.md <<'EOF'\nThe key is the file keys/stock.json\nEOF"),
+        "answer": key_deny("keys/stock.json"),
+    },
+    "key_shell_heredoc_goes_to_a_shell": {
+        "policy_text": KEY_POLICY,
+        "event": bash("cat <<'EOF' | bash\ncat keys/stock.json\nEOF"),
+        "answer": key_deny("keys/stock.json"),
+    },
+    "key_shell_read_from_the_index": {
+        "policy_text": KEY_POLICY,
+        "event": bash("git show :keys/stock.json"),
+        "answer": key_deny(":keys/stock.json"),
+    },
+    "key_shell_read_with_a_character_class": {
+        "policy_text": KEY_POLICY,
+        "event": bash("cat keys/[[:alpha:]]tock.json"),
+        "answer": key_deny("keys/[[:alpha:]]tock.json"),
+    },
+    "key_shell_read_with_a_group_in_brackets": {
+        "policy_text": KEY_POLICY,
+        "event": bash("cat keys/(stock).json"),
+        "answer": key_deny("keys/*.json"),
+    },
+    "key_shell_read_from_a_commit": {
+        "policy_text": KEY_POLICY,
+        "event": bash("git show HEAD:keys/stock.json"),
+        "answer": key_deny("HEAD:keys/stock.json"),
+    },
+    "key_shell_search_with_a_glob_of_the_path": {
+        "policy_text": KEY_POLICY,
+        "event": bash("find . -path '*stock.json'"),
+        "answer": key_deny("*stock.json"),
+    },
+    "key_session_input_with_a_quote_in_the_word": {
+        "policy_text": KEY_POLICY,
+        "event": pevent("write_stdin", session_id=1, chars='cat keys/st"ock".json\n'),
+        "answer": key_deny("keys/stock.json"),
+    },
+    "key_shell_search_of_a_parent_folder": {
+        "policy_text": KEY_POLICY,
+        "event": bash("grep -rn answer ."),
+        "answer": None,
+    },
+    "key_shell_heredoc_runs_a_read_of_the_key": {
+        "policy_text": KEY_POLICY,
+        "event": bash("cat <<EOF\n$(cat keys/stock.json)\nEOF"),
+        "answer": key_deny("keys/stock.json"),
+    },
+    "key_shell_read_with_braces": {
+        "policy_text": KEY_POLICY,
+        "event": bash("cat keys/{stock.json,list.json}"),
+        "answer": key_deny("keys/{stock.json,list.json}"),
+    },
+    "key_shell_read_with_a_quote_in_the_word": {
+        "policy_text": KEY_POLICY,
+        "event": bash('cat keys/"stock.json"'),
+        "answer": key_deny("keys/stock.json"),
+    },
+    "key_shell_read_with_a_backslash_in_the_word": {
+        "policy_text": KEY_POLICY,
+        "event": bash("cat keys/sto\\ck.json"),
+        "answer": key_deny("keys/stock.json"),
+    },
+    "key_shell_search_with_a_glob_of_each_folder": {
+        "policy_text": KEY_POLICY,
+        "event": bash("rg --glob '**/stock.json' answer ."),
+        "answer": key_deny("**/stock.json"),
+    },
+    "key_shell_search_with_a_glob_with_no_folder": {
+        "policy_text": KEY_POLICY,
+        "event": bash("grep -rn --include='*.json' answer ."),
+        "answer": key_deny("*.json"),
+    },
+    "key_shell_search_with_a_glob_of_other_files": {
+        "policy_text": KEY_POLICY,
+        "event": bash("rg -g '*.{md,txt}' answer ."),
+        "answer": None,
+    },
+    "key_search_with_a_glob_of_each_folder": {
+        "policy_text": KEY_POLICY,
+        "event": pevent("Grep", pattern="answer", glob="**/stock.json"),
+        "answer": key_deny("**/stock.json"),
+    },
+    "key_search_with_a_glob_with_no_folder": {
+        "policy_text": KEY_POLICY,
+        "event": pevent("Grep", pattern="answer", glob="*.{json,md}"),
+        "answer": key_deny("*.{json,md}"),
+    },
+    "key_search_with_a_glob_of_other_files": {
+        "policy_text": KEY_POLICY,
+        "event": pevent("Glob", pattern="**/*.md"),
+        "answer": None,
+    },
+    "key_search_with_a_glob_below_another_path": {
+        "policy_text": KEY_POLICY,
+        "event": pevent("Grep", pattern="answer", glob="*.json", path="shop"),
+        "answer": None,
+    },
+    # The link is a name in the key folder. The rule reads the names, not the files.
+    "key_folder_search_with_a_glob_of_each_folder": {
+        "policy_text": '{"answer_keys": ["keys"]}\n',
+        "links": {"keys/2026/stock.json": "shop/stock.json"},
+        "event": pevent("Glob", pattern="**/*.json"),
+        "answer": key_deny("**/*.json"),
+    },
+    "key_folder_search_with_a_glob_of_other_files": {
+        "policy_text": '{"answer_keys": ["keys"]}\n',
+        "links": {"keys/2026/stock.json": "shop/stock.json"},
+        "event": pevent("Glob", pattern="**/*.md"),
+        "answer": None,
+    },
+    "key_shell_read_of_another_file": {
+        "policy_text": KEY_POLICY,
+        "event": bash("cat shop/stock.json"),
+        "answer": None,
+    },
+    "key_folder_shell_list": {
+        "policy_text": '{"answer_keys": ["keys"]}\n',
+        "event": bash("ls keys"),
+        "answer": key_deny("keys"),
+    },
+    "key_folder_read_of_a_file_in_it": {
+        "policy_text": '{"answer_keys": ["keys"]}\n',
+        "event": pevent("Read", file_path="keys/2026/stock.json"),
+        "answer": key_deny("keys/2026/stock.json"),
+    },
+    "key_other_tool_path": {
+        "policy_text": KEY_POLICY,
+        "event": pevent("mcp__files__read", path="keys/stock.json"),
+        "answer": key_deny("keys/stock.json"),
+    },
+    "key_other_tool_free_text": {
+        "policy_text": KEY_POLICY,
+        "event": pevent("mcp__docs__create", body="The key is keys/stock.json."),
+        "answer": None,
+    },
+    "key_session_input_names_the_file": {
+        "policy_text": KEY_POLICY,
+        "event": pevent("write_stdin", session_id=3, chars="cat stock.json\n"),
+        "answer": key_deny("stock.json"),
+    },
+    "test_key_shell_read": {
+        "policy_text": KEY_POLICY,
+        "test": True,
+        "event": bash("cat keys/stock.json"),
+        "answer": key_deny("keys/stock.json"),
     },
     "shell_verifies_a_gate": {
         "event": bash("nookku gate verify --json"),

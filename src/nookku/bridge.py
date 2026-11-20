@@ -27,6 +27,7 @@ from nookku import (
     backend,
     db_proxy,
     discovery,
+    issues,
     mcp_proxy,
     model_api,
     otlp,
@@ -345,12 +346,18 @@ def start(
         raise BridgeError(f"test {cur['test']} runs already. End it first.")
     from nookku import claude_gate, codex_gate
 
-    both = claude_gate.problem(root)
-    if both is not None:
-        raise BridgeError(both)
+    # A refusal adds a row to the refusal log of the state folder (SPEC.md section 7.8).
+    found = claude_gate.problems(root)
+    if found:
+        claude_gate.log_refusal(root, "start", "claude-code", found)
+        raise BridgeError(claude_gate.refusal(found))
     gate = codex_gate.check(root)
     if gate["problems"]:
+        claude_gate.log_refusal(root, "start", "codex", gate["problems"])
         raise BridgeError(codex_gate.refusal(gate))
+    # A version skew of the plugin is a warning only (SPEC.md section 7.8).
+    for warning in claude_gate.plugin_warnings(root):
+        print(warning, file=sys.stderr)
     if play is not None:
         # The seal check of the base and the egress answer come from the same bytes of its
         # manifest, so a manifest that changes during the start cannot remove a player.
@@ -679,6 +686,34 @@ def _start_egress(folder: Path) -> dict[str, Any] | None:
         return None
     path.unlink(missing_ok=True)
     return {"registered": registered, "answer": answer}
+
+
+KEY_OPEN = (
+    "The harness model can read the answer key {file}. To deny it, a person runs: "
+    "nookku policy set answer_keys {file}"
+)
+
+
+def key_text(folder: Path) -> str:
+    """The line of the start text for an answer key that the policy key answer_keys does not
+    protect from the harness model (SPEC.md section 7.17), or an empty text."""
+    try:
+        manifest = loads((folder / "manifest.json").read_text(encoding="utf-8"))
+        file, rules = manifest["answer_key"]["file"], manifest["policy"]
+    except (OSError, ValueError, TypeError, KeyError):
+        return ""
+    if not isinstance(file, str) or not isinstance(rules, dict):
+        return ""
+    # The path of the file in the project, after symlinks resolve, as the guard compares it.
+    try:
+        top = Path(manifest["root"]).resolve()
+        inside = (top / file).resolve().relative_to(top).as_posix()
+    except (OSError, ValueError, TypeError, KeyError, RuntimeError):
+        inside = file
+    paths = rules.get("answer_keys")
+    if policy.protects(paths, inside) or policy.protects(paths, file):
+        return ""
+    return KEY_OPEN.format(file=inside)
 
 
 def egress_text(folder: Path) -> str:
@@ -1321,6 +1356,13 @@ def _collect(folder: Path, copy: Path | None, log: Callable[[str], None] | None 
             log(f"removed {decided.name} of the entry: only nookku adjudicate writes it")
     except OSError as e:
         log(f"{decided.name} of the entry was not removed: {e!r}")
+    rows = folder / issues.FILE
+    try:
+        # The same rule for the issue rows of an evaluation (SPEC.md section 9.4).
+        if issues.clear(folder):
+            log(f"removed {rows.name} of the entry: only nookku evaluation writes it")
+    except OSError as e:
+        log(f"{rows.name} of the entry was not removed: {e!r}")
     try:
         log(trace.summary(trace.build(folder)))
     except Exception as e:
@@ -1338,11 +1380,12 @@ def _collect(folder: Path, copy: Path | None, log: Callable[[str], None] | None 
         _write_json(folder / "audit.json", report)
     except Exception as e:
         log(f"the audit failed: {e!r}")
-    if decided.is_symlink() or decided.exists():
-        # The bridge could not remove it. With no seal, no command uses a verdict of this test
-        # (SPEC.md section 7.14), and nookku adjudicate adds no row.
-        log(f"no seal: {decided.name} is in the test folder at the end of the test")
-        return
+    for left in (decided, rows):
+        if left.is_symlink() or left.exists():
+            # The bridge could not remove it. With no seal, no command uses a verdict of this
+            # test (SPEC.md section 7.14), and no person command adds a row.
+            log(f"no seal: {left.name} is in the test folder at the end of the test")
+            return
     try:
         error = seal.write(folder)
         if error:
