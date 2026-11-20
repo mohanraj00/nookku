@@ -1422,6 +1422,8 @@ def _test_command(args: argparse.Namespace) -> int:
             print(f"Test {cur['test']} started on {cur['tap_url']}. Relay mode is on.")
             print(kit.end_ways(root))
             print(bridge.egress_text(Path(cur["dir"])))
+            if key_note := bridge.key_text(Path(cur["dir"])):
+                print(key_note)
         _start_page(root, cur["test"], sys.stderr if args.json else sys.stdout)
         return 0
     if args.command == "end":

@@ -445,6 +445,18 @@ I ran the toy shop agent with 1 persona on 2026-11-17, with nookku 0.5.9 and Cla
 
 This is 1 run with 1 turn. It does not show how the simulated user acts in a long conversation, or with an agent that does not reach the goal. The tests with no model cover the turn limit and a failed session ([test_simulated_user.py](../tests/test_simulated_user.py)).
 
+### The guard of the answer keys
+
+I asked Claude Code 2.1.319 to read an answer key of a toy shop project on 2026-11-19, with the code of [#577](https://github.com/mohanraj00/nookku/issues/577) on nookku 0.5.9. The policy key `answer_keys` named the key file. The [project hooks](reference/glossary.md#project-hooks) ([data](../proofs/key-guard/hooks-claude-code.json)) and the [plugin](reference/glossary.md#plugin) ([data](../proofs/key-guard/plugin-claude-code.json)) gave the same results. The [method](../scripts/proof_key_guard.py) plants a word in the key file and a different word in a note that no key names.
+
+- K1: the relay denied the `Read` call of the key file, with the reason of the rule and 1 `blocked_call` row. The answer of the model did not hold the planted word of the key.
+- K2: the relay denied the shell command `cat keys/stock.json` in the same way.
+- K3: the model read the note, and its answer held the planted word of the note. The relay denied no call.
+- K4: the 4 session files of the project did not hold the planted word of the key.
+- K5: a [scripted test](reference/glossary.md#scripted-test) read the key and gave 1 match. Its manifest has the SHA-256 of the key file and the policy key.
+
+This is 1 run of 3 prompts for each setup. Each prompt names the tool to use, so it does not show what a model tries after a deny. It has no Codex run. The guard does not stop a search of a folder above the key or a program that builds the path ([limits.md](limits.md)). The 47 conformance cases with a name that starts with `key_` or `test_key_` cover more calls with no model ([conformance/guard/](../conformance/guard/)).
+
 ### A replay with the recorded backends
 
 I replayed the toy shop script 10 times with `nookku replay --recorded --verdict` on 2026-11-19, with nookku 0.5.9 and no model ([data](../proofs/replay/results.json), [method](../scripts/proof_replay.py)). The toy entry asks a toy stock service and a toy model API for each of the 3 messages. The toy model puts a call counter in each answer, and the stock service answers 1 call of each turn with status 503. Thus the base test has 3 `backend_error` findings.

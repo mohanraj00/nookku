@@ -681,6 +681,34 @@ def _start_egress(folder: Path) -> dict[str, Any] | None:
     return {"registered": registered, "answer": answer}
 
 
+KEY_OPEN = (
+    "The harness model can read the answer key {file}. To deny it, a person runs: "
+    "nookku policy set answer_keys {file}"
+)
+
+
+def key_text(folder: Path) -> str:
+    """The line of the start text for an answer key that the policy key answer_keys does not
+    protect from the harness model (SPEC.md section 7.17), or an empty text."""
+    try:
+        manifest = loads((folder / "manifest.json").read_text(encoding="utf-8"))
+        file, rules = manifest["answer_key"]["file"], manifest["policy"]
+    except (OSError, ValueError, TypeError, KeyError):
+        return ""
+    if not isinstance(file, str) or not isinstance(rules, dict):
+        return ""
+    # The path of the file in the project, after symlinks resolve, as the guard compares it.
+    try:
+        top = Path(manifest["root"]).resolve()
+        inside = (top / file).resolve().relative_to(top).as_posix()
+    except (OSError, ValueError, TypeError, KeyError, RuntimeError):
+        inside = file
+    paths = rules.get("answer_keys")
+    if policy.protects(paths, inside) or policy.protects(paths, file):
+        return ""
+    return KEY_OPEN.format(file=inside)
+
+
 def egress_text(folder: Path) -> str:
     """The lines of the start text that name each egress part of the test (SPEC.md 7.11)."""
     try:
