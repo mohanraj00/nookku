@@ -1,0 +1,12 @@
+{"v": 1, "time": "2026-10-06T08:00:11.000Z", "kind": "app-ingress", "app": "shop", "version": "shop-v1", "method": "POST", "status": 200, "outcome": "ok", "caller": "tester", "tenant": "toy-shop", "durationMs": 3.412}
+{"time": "2026-10-06T08:00:12.000Z", "kind": "app-ingress", "app": "shop", "version": "shop-v1", "method": "POST", "status": 200, "outcome": "ok", "caller": "tester", "durationMs": 3.412}
+{"v": 1, "time": "2026-10-06T08:00:25.000Z", "kind": "app-ingress", "app": "shop", "version": "shop-v1", "method": "POST", "status": 401, "outcome": "signature", "durationMs": 3.412}
+{"v": 1, "time": "2026-10-06T08:00:31.000Z", "kind": "app-ingress", "app": "shop", "version": "shop-v1", "method": "POST", "status": 200, "outcome": "ok", "caller": "tester", "tenant": "toy-shop", "durationMs": 3.412}
+{"v": 1, "time": "2026-10-06T08:00:32.000Z", "kind": "app-ingress", "app": "shop", "version": "shop-v1", "method": "POST", "status": 200, "outcome": "ok", "caller": "other-client", "durationMs": 3.412}
+{"v": 1, "time": "2026-10-06T08:02:30.000Z", "kind": "app-ingress", "app": "shop", "version": "shop-v1", "method": "POST", "status": 200, "outcome": "ok", "caller": "tester", "durationMs": 3.412}
+{"v": 1, "time": "2026-10-06T07:59:55.000Z", "kind": "app-ingress", "app": "shop", "version": "shop-v1", "method": "POST", "status": 200, "outcome": "ok", "caller": "tester", "durationMs": 3.412}
+this line is not JSON
+{"v": 1, "kind": "app-ingress", "method": "POST", "status": 200, "outcome": "ok"}
+{"v": 1, "time": "2026-10-06T08:00:13.000Z", "kind": "app-ingress", "app": "shop", "version": "shop-v1", "method": "POST", "status": "200", "outcome": "ok", "caller": "tester", "durationMs": 3.412}
+
+{"v": 1, "time": "2026-10-06T08:00:33.000Z", "kind": "app-ingress", "app": "shop", "version": "shop-v1", "method": "POST", "status": 502, "outcome": "ok", "caller": "tester", "durationMs": 3.412}

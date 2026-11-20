@@ -365,6 +365,7 @@ The script does these checks:
 - S1: each sample file has the SHA-256 of the pin.
 - S2: the span reader reads `egress-spans.jsonl` ([SPEC.md section 8.8](../SPEC.md#88-egress-spans)). The file has 1 span or more, and no line is invalid.
 - S3: the gateway reader reads `gateway-log.jsonl` ([SPEC.md section 8.9](../SPEC.md#89-gateway-logs)). Each line is a log with a start time and a key alias, and 1 log or more is a model call that the reader knows.
+- S4: the ingress span reader reads `app-ingress-spans.jsonl` ([SPEC.md section 8.12](../SPEC.md#812-ingress-spans)). The file has 1 span or more, and no line is invalid.
 
 The job pins these values:
 
@@ -372,13 +373,13 @@ The job pins these values:
 |---|---|
 | The git tag `v0.4.0` | `KOODAM_TAG` in [scripts/release_samples.py](../scripts/release_samples.py) |
 | The commit `1a8c3a133c4155e1120268109e7436d07cbcb095` of the tag | `KOODAM_COMMIT` in the same file |
-| The SHA-256 of `egress-spans.jsonl` and of `gateway-log.jsonl` | `SAMPLES` in the same file |
+| The SHA-256 of `egress-spans.jsonl`, of `gateway-log.jsonl` and of `app-ingress-spans.jsonl` | `SAMPLES` in the same file |
 
-With the tag `v0.4.0`, the span sample has 7 lines: 6 spans of contract version 2 that the reader keeps, and 1 span of the kind `llm` that the reader counts and does not keep. The log sample has 1 log, and it is a model call ([data](../proofs/release-samples/results.json)).
+With the tag `v0.4.0`, the span sample has 7 lines: 6 spans of contract version 2 that the reader keeps, and 1 span of the kind `llm` that the reader counts and does not keep. The log sample has 1 log, and it is a model call. The ingress sample has 305 spans of version 1: 295 with the outcome `ok`, 5 with `syntax` and 5 with `signature` ([data](../proofs/release-samples/results.json)).
 
-If a span of a new tag has a contract version that this Nookku does not read, the span reader stops, and the job fails with the message of the reader. The message names the line and the version. Then add the version to the reader before you change the pin.
+If a span of a new tag has a version that this Nookku does not read, its reader stops, and the job fails with the message of the reader. The message names the line and the version. Then add the version to the reader before you change the pin.
 
-The cases that a person wrote stay as unit cases: [tests/test_egress_spans.py](../tests/test_egress_spans.py), [tests/test_gateway.py](../tests/test_gateway.py) and [conformance/gateway/](../conformance/gateway/).
+The cases that a person wrote stay as unit cases: [tests/test_egress_spans.py](../tests/test_egress_spans.py), [tests/test_gateway.py](../tests/test_gateway.py), [tests/test_ingress_spans.py](../tests/test_ingress_spans.py), [conformance/gateway/](../conformance/gateway/) and the cases `ingress_spans*` in [conformance/trace/](../conformance/trace/).
 
 To change the tag:
 
