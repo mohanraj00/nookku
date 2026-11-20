@@ -205,6 +205,17 @@ def rows(report: str) -> list[dict[str, str]]:
     return out
 
 
+def names_repo_outside(text: str, project: Path) -> bool:
+    """True if the text holds a path of the repo that is not a path of the project."""
+    root, inner = str(ROOT), str(project)
+    at = text.find(root)
+    while at != -1:
+        if not text.startswith(inner, at):
+            return True
+        at = text.find(root, at + 1)
+    return False
+
+
 def outside(commands: list[str], project: Path) -> list[str]:
     """The commands that name a parent folder or a path of the repo outside the project."""
     out = []
@@ -218,7 +229,10 @@ def outside(commands: list[str], project: Path) -> list[str]:
             ):
                 words = shlex.split(words[2])
         except ValueError:
-            out.append(c)
+            # A here-document body is not shell words, so an apostrophe in it stops shlex.
+            # Then read the full text: each path of the repo in it must be in the project.
+            if ".." in c or names_repo_outside(c, project):
+                out.append(c)
             continue
         paths = [word[word.index("/") :] for word in words if "/" in word]
         repo = [x for x in paths if x.startswith(str(ROOT)) and not x.startswith(str(project))]
