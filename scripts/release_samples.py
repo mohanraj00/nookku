@@ -13,6 +13,9 @@ S2  The span reader (SPEC.md section 8.8) reads egress-spans.jsonl: the file has
     the script with the message of the reader.
 S3  The gateway reader (SPEC.md section 8.9) reads gateway-log.jsonl: each line is a log with a
     start time and a key alias, and 1 log or more is a model call that the reader knows.
+S4  The ingress span reader (SPEC.md section 8.12) reads app-ingress-spans.jsonl: the file has 1
+    span or more, and no line is invalid. A span with a format version that this nookku does not
+    read stops the script with the message of the reader.
 
 The script writes the result to OUT (default proofs/release-samples/results.json). The result has
 the tag, and the SHA-256 and the size of each sample file.
@@ -36,7 +39,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from nookku import __version__, egress_spans, gateway
+from nookku import __version__, egress_spans, gateway, ingress_spans
 from nookku.record import RecordError
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -46,11 +49,12 @@ ROOT = Path(__file__).resolve().parent.parent
 KOODAM_TAG = "v0.4.0"
 # The commit of the tag. The result records it. The SHA-256 values below pin the bytes.
 KOODAM_COMMIT = "1a8c3a133c4155e1120268109e7436d07cbcb095"
-SPANS, LOGS = "egress-spans.jsonl", "gateway-log.jsonl"
+SPANS, LOGS, INGRESS = "egress-spans.jsonl", "gateway-log.jsonl", "app-ingress-spans.jsonl"
 # The SHA-256 of each sample file of the pinned tag, from `checksums.txt` of the release.
 SAMPLES = {
     SPANS: "016cac2cdb7468973cc275c8efe1fce80e73feca46b7c35fcb7470415a1e7a63",
     LOGS: "191ba84384df90e41bcaafd07d07bc737ea75bcc565311253e9d7362e0db0f8b",
+    INGRESS: "1282eb24a1010ceddadd445e838964b1c131653297d73c6daf7a07d2c62bed80",
 }
 ASSET = "https://github.com/mohanraj00/koodam/releases/download/{tag}/{name}"
 # The most bytes of a sample file that the script reads. This is a chosen value.
@@ -125,8 +129,30 @@ def logs(tag: str, data: bytes) -> dict[str, Any]:
     return {"logs": len(found), "model_calls": calls, "call_types": dict(sorted(types.items()))}
 
 
+def ingress(tag: str, data: bytes) -> dict[str, Any]:
+    """S4: the counts of the ingress span reader for the App ingress span sample."""
+    try:
+        counts = ingress_spans.parse(data, Path(INGRESS), None, None, lambda ts: None, 0)
+    except RecordError as e:
+        raise Stop(
+            f"S4: the ingress span reader cannot read the sample of the release {tag}. {e}"
+        ) from None
+    ignored = counts["ignored"]
+    bad = {k: n for k, n in ignored.items() if k in ("invalid", "invalid_json")}
+    if bad:
+        raise Stop(f"S4: {INGRESS} of the release {tag} has lines that the reader refuses: {bad}.")
+    if not counts["spans"]:
+        raise Stop(f"S4: {INGRESS} of the release {tag} has no span that the reader keeps.")
+    return {
+        "rows": counts["rows"],
+        "spans": counts["spans"],
+        "ignored": ignored,
+        "outcomes": counts["outcomes"],
+    }
+
+
 def check(tag: str, pins: dict[str, str], fetch: Callable[[str], bytes]) -> dict[str, Any]:
-    """The result of the checks S1 to S3 for the samples of the release `tag`. `pins` has the
+    """The result of the checks S1 to S4 for the samples of the release `tag`. `pins` has the
     SHA-256 of each sample file, and `fetch` gives the bytes of a sample file."""
     if (
         not tag
@@ -151,9 +177,11 @@ def check(tag: str, pins: dict[str, str], fetch: Callable[[str], bytes]) -> dict
         "koodam": tag,
         "nookku": __version__,
         "contract_versions": list(egress_spans.VERSIONS),
+        "ingress_versions": list(ingress_spans.VERSIONS),
         "files": files,
         "spans": spans(tag, data[SPANS]),
         "gateway": logs(tag, data[LOGS]),
+        "ingress": ingress(tag, data[INGRESS]),
         "pass": True,
     }
 

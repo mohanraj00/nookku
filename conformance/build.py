@@ -7403,6 +7403,81 @@ EGRESS_VERSION_CASE = {
 }
 
 
+# Ingress spans (SPEC.md section 8.12). The test runs from T0 to T0 + 100, with 2 turns: 10 to
+# 20 and 30 to 40. The spans: 2 requests in turn 1 (one with no `v`), 3 requests in turn 2 (one
+# from another caller, one with the status 502), 1 refused request between the turns, 2 spans
+# outside the window, 1 line that is not JSON, 1 span with no time, 1 span with a status that is a
+# string and 1 blank line. The spans add no finding and no item.
+def ingress_span(t: float, status: int = 200, outcome: str = "ok", **fields: Any) -> dict:
+    """One ingress span, with the fields of the App ingress span of Koodam (contract v1) and toy
+    shop labels. The reader uses `v`, `time`, `status` and `outcome` only."""
+    return {
+        "v": 1,
+        "time": iso(T0 + t),
+        "kind": "app-ingress",
+        "app": "shop",
+        "version": "shop-v1",
+        "method": "POST",
+        "status": status,
+        "outcome": outcome,
+        **fields,
+        "durationMs": 3.412,
+    }
+
+
+INGRESS_SPAN_LINES = [
+    ingress_span(11, caller="tester", tenant="toy-shop"),
+    {k: v for k, v in ingress_span(12, caller="tester").items() if k != "v"},
+    ingress_span(25, 401, "signature"),
+    ingress_span(31, caller="tester", tenant="toy-shop"),
+    ingress_span(32, caller="other-client"),
+    ingress_span(150, caller="tester"),
+    ingress_span(-5, caller="tester"),
+    "this line is not JSON",
+    {"v": 1, "kind": "app-ingress", "method": "POST", "status": 200, "outcome": "ok"},
+    {**ingress_span(13, caller="tester"), "status": "200"},
+    "",
+    ingress_span(33, 502, caller="tester"),
+]
+INGRESS_SPANS_CASE = {
+    "tap": [window(10, 20), window(30, 40)],
+    "manifest": EGRESS_SPAN_MANIFEST,
+    "sessions": {},
+    "ingress": INGRESS_SPAN_LINES,
+    "trace": [],
+    "findings": {
+        **EGRESS_SPANS_CASE["findings"],
+        "egress": None,
+        "counts": counts(),
+        "findings": [],
+        "ingress": {
+            "file": "ingress.jsonl",
+            "rows": 11,
+            "spans": 6,
+            "outcomes": {"ok": 5, "signature": 1},
+            "turns": [2, 3],
+            "no_turn": 1,
+            "ignored": {"outside_window": 2, "invalid_json": 1, "invalid": 2, "blank": 1},
+        },
+    },
+}
+
+# A span of the format version 2 stops the trace, also outside the window: its fields can have a
+# new meaning (SPEC.md section 8.12).
+INGRESS_VERSION_CASE = {
+    "tap": [window(10, 20)],
+    "manifest": EGRESS_SPAN_MANIFEST,
+    "sessions": {},
+    "ingress": [ingress_span(11), {**ingress_span(150), "v": 2}],
+    "error": {
+        "kind": "record_invalid",
+        "file": "ingress.jsonl",
+        "message": "line 2: the span has the format version 2. This nookku reads version 1 only "
+        "(SPEC.md section 8.12). Use a nookku that reads version 2.",
+    },
+}
+
+
 # OpenInference spans (SPEC.md section 8.10): an export of the app spans in openinference.jsonl.
 # The span of GET /stock starts before turn 1 and covers the call, so the call has a match. No
 # span covers POST /reserve in turn 2. The span after turn 2 has no turn and gives no finding.
@@ -7897,6 +7972,8 @@ TRACE_CASES = {
     "egress_spans_no_answer": EGRESS_NO_ANSWER_CASE,
     "egress_spans_version_two": EGRESS_V2_CASE,
     "egress_spans_version_three": EGRESS_VERSION_CASE,
+    "ingress_spans": INGRESS_SPANS_CASE,
+    "ingress_spans_version_two": INGRESS_VERSION_CASE,
     "openinference_toy_shop": OPENINFERENCE_CASE,
 }
 
@@ -10386,6 +10463,7 @@ def main() -> None:
         write(d / "database.jsonl", case.get("database"))
         write(d / "gateway.jsonl", case.get("gateway"))
         write(d / "egress.jsonl", case.get("egress"))
+        write(d / "ingress.jsonl", case.get("ingress"))
         write(d / "openinference.jsonl", case.get("openinference"))
         if "error" in case:
             text = json.dumps(case["error"], indent=1, ensure_ascii=False)

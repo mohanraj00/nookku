@@ -20,6 +20,7 @@ from nookku import (
     evaluation,
     faults,
     gateway,
+    ingress_spans,
     issues,
     kit,
     openinference,
@@ -420,6 +421,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="the Koodam egress spans of the test (koodam trace --json): copy them into the test "
         "folder as egress.jsonl and check them",
     )
+    trc.add_argument(
+        "--ingress",
+        type=Path,
+        metavar="FILE",
+        help="the ingress spans of the app for the test, 1 JSON line for each request: copy them "
+        "into the test folder as ingress.jsonl and count them",
+    )
 
     trc.add_argument("--otlp-file", type=Path, metavar="FILE", help="write OTLP trace JSON")
     trc.add_argument("--otlp-endpoint", metavar="URL", help="send the trace as OTLP/HTTP protobuf")
@@ -651,6 +659,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             args.otlp_file,
             args.otlp_endpoint,
             args.openinference,
+            args.ingress,
         )
     if args.command == "adjudicate":
         return _adjudicate_command(args)
@@ -861,6 +870,7 @@ def _trace_command(
     otlp_file: Path | None = None,
     otlp_endpoint: str | None = None,
     inference: Path | None = None,
+    ingress: Path | None = None,
 ) -> int:
     folder = _test_folder(root, test)
     if folder is None:
@@ -899,6 +909,19 @@ def _trace_command(
         except RecordError as e:
             print(f"nookku: the trace was not rebuilt. {e}", file=sys.stderr)
             return 2
+    if ingress is not None:
+        # The same check before the copy, for the ingress spans (SPEC.md section 8.12).
+        try:
+            spans = ingress.read_bytes()
+            manifest = read_manifest(folder)
+            start, end = manifest.get("started"), manifest.get("ended")
+            ingress_spans.parse(spans, ingress, start, end, lambda ts: None, 0)
+        except OSError as e:
+            print(f"nookku: the trace was not rebuilt. {ingress}: {e.strerror}", file=sys.stderr)
+            return 2
+        except RecordError as e:
+            print(f"nookku: the trace was not rebuilt. {e}", file=sys.stderr)
+            return 2
     if gate is not None:
         # The gateway logs become a source of the trace (SPEC.md section 8.9).
         try:
@@ -916,6 +939,14 @@ def _trace_command(
             print(f"nookku: the trace was not rebuilt. {egress}: {e.strerror}", file=sys.stderr)
             return 2
         names.append(egress_spans.FILE)
+    if ingress is not None:
+        try:
+            egress_spans.copy_in(spans, folder, ingress_spans.FILE)
+        except OSError as e:
+            seal.update(folder, [n for n in names if n not in rebuilt])
+            print(f"nookku: the trace was not rebuilt. {ingress}: {e.strerror}", file=sys.stderr)
+            return 2
+        names.append(ingress_spans.FILE)
     if inferred is not None:
         try:
             egress_spans.copy_in(inferred, folder, openinference.FILE)

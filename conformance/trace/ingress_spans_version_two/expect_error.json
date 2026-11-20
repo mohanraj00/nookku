@@ -1,0 +1,5 @@
+{
+ "kind": "record_invalid",
+ "file": "ingress.jsonl",
+ "message": "line 2: the span has the format version 2. This nookku reads version 1 only (SPEC.md section 8.12). Use a nookku that reads version 2."
+}
