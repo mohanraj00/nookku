@@ -91,6 +91,12 @@ First, look in the [test folder](reference/glossary.md#test-folder) `.nookku/tes
 
 **Fix.** End it with the prompt `nookku end` or with `nookku end` in a shell.
 
+### `nookku: the Claude Code hooks of nookku are not ready, so nookku refuses the test and does not change relay mode.`
+
+(claude_gate.py) **Cause.** A project hook of `nookku init claude-code` is missing, is there 2 times or is modified, a required hook of the installed plugin is missing or runs another command, or a settings file has `disableAllHooks: true`. The lines after the error name each problem. Without the prompt hook, a message goes to the model ([SPEC.md section 7.8](../SPEC.md#78-codex-hook-gate)).
+
+**Fix.** Run `nookku init claude-code` again, update the plugin to the version of `nookku --version`, or remove `disableAllHooks` from the file that the error names. Then start the test again. `.nookku/refusals.jsonl` keeps a row for each refused start.
+
 ### `nookku: the test did not start:` and `cannot start the entry ['python', 'agent.py']: [Errno 2] No such file or directory: 'python'`
 
 (bridge.py) **Cause.** The first word of the entry is not a program on `PATH`. On macOS, `python` often does not exist.

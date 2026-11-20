@@ -1,20 +1,50 @@
-"""The check that the nookku plugin and the project hooks are not both on in Claude Code (#151).
+"""The checks of the nookku hooks in the settings files of Claude Code (SPEC.md section 7.8).
 
-With both on, each message goes to the agent two times. The Codex hook gate does the same check
-for Codex (SPEC.md section 7.8). Claude Code merges the settings files: the local file wins over
-the project file, and the project file wins over the user file.
+1. The nookku plugin and the project hooks are not both on (#151). With both on, each message
+   goes to the agent two times.
+2. The project hooks of `nookku init claude-code` are complete and not changed (#554). Without
+   the prompt hook, a relayed message goes to the model.
+3. No settings file turns off all hooks while a nookku setup is on (#554).
+4. Each install of an enabled nookku plugin has the hook files of this version (#554).
+
+The Codex hook gate does the same checks for Codex. Claude Code merges the settings files: the
+local file wins over the project file, and the project file wins over the user file. Claude Code
+runs the hooks of each file.
 """
 
 from __future__ import annotations
 
+import json
 import os
+import re
+import shlex
+import stat
+import time
 from pathlib import Path
 from typing import Any
 
-from nookku import kit
+from nookku import __version__, kit
 from nookku.record import loads
 
 PLUGIN = "nookku@"
+# The hooks file and the hook script of an install of the plugin.
+PLUGIN_HOOKS = "hooks/hooks.json"
+PLUGIN_SCRIPT = "hooks/nookku-hook.sh"
+# A required hook command of the plugin: `sh` or `bash`, then the path of the script in double
+# quotes, then its event, and no other word. The check reads the command text, not its words
+# after shlex: in single quotes the shell does not expand the variable, so the script does not
+# run. Only a space or a tab separates the words: a new line starts a second shell command.
+PLUGIN_COMMAND = re.compile(
+    r'[ \t]*(?:sh|bash)[ \t]+"\$\{CLAUDE_PLUGIN_ROOT\}/'
+    + re.escape(PLUGIN_SCRIPT)
+    + r'"[ \t]+(\w+)[ \t]*'
+)
+# The keys of a required hook. Another key can change how Claude Code runs the hook: with
+# "async": true, Claude Code does not wait for the hook, so the hook cannot block the prompt.
+HOOK_KEYS = frozenset({"type", "command", "timeout"})
+# The file of the refusals of a start (SPEC.md section 7.8). It is a log for a person, with no
+# seal.
+REFUSALS = "refusals.jsonl"
 # The command that turns off the plugin in this project only. Without --scope local, it can
 # turn off the plugin of the user, and a test in another project then loses its prompt hook.
 DISABLE = "claude plugin disable --scope local nookku@nookku"
@@ -73,21 +103,124 @@ def _read(path: Path) -> dict[str, Any]:
     return data if isinstance(data, dict) else {}
 
 
-def plugin_on(root: Path) -> bool:
-    """True if a settings file enables a nookku plugin and no file of higher precedence turns
-    it off."""
+def _orders(root: Path) -> list[list[Path]]:
+    """The settings files that Claude Code can read, from the lowest to the highest precedence.
+    In a linked worktree, each local file can be the one that Claude Code reads, so each order
+    counts."""
     files = settings_files(root)
-    # In a linked worktree, each local file can be the one that Claude Code reads.
-    orders = [files[:3], files[:2] + files[3:]] if len(files) > 3 else [files]
-    for order in orders:
+    return [files[:3], files[:2] + files[3:]] if len(files) > 3 else [files]
+
+
+def enabled_plugins(root: Path) -> list[str]:
+    """The ids of the nookku plugins that a settings file enables and no file of higher
+    precedence turns off, in any order of the files."""
+    out: list[str] = []
+    for order in _orders(root):
         enabled: dict[str, Any] = {}
         for path in order:
             plugins = _read(path).get("enabledPlugins")
             if isinstance(plugins, dict):
                 enabled.update(plugins)
-        if any(k.startswith(PLUGIN) and v is True for k, v in enabled.items()):
+        out += [k for k, v in enabled.items() if k.startswith(PLUGIN) and v is True]
+    return list(dict.fromkeys(out))
+
+
+def plugin_on(root: Path) -> bool:
+    """True if a settings file enables a nookku plugin and no file of higher precedence turns
+    it off."""
+    return bool(enabled_plugins(root))
+
+
+def _installs(plugin: str, root: Path) -> list[Path] | None:
+    """The install folders of a plugin that Claude Code can load in the project, from
+    plugins/installed_plugins.json of the user folder. An install with the scope user counts,
+    and an install of another scope counts if its projectPath is the project. None if the file
+    cannot be read."""
+    data = _read(_user_dir() / "plugins" / "installed_plugins.json")
+    plugins = data.get("plugins")
+    if not isinstance(plugins, dict):
+        return None
+    entries = plugins.get(plugin)
+    out = []
+    for entry in entries if isinstance(entries, list) else []:
+        if not isinstance(entry, dict) or not isinstance(entry.get("installPath"), str):
+            continue
+        project = entry.get("projectPath")
+        if entry.get("scope") == "user" or (
+            isinstance(project, str) and Path(project).resolve() == root.resolve()
+        ):
+            out.append(Path(entry["installPath"]))
+    return out
+
+
+def _plugin_hook_ok(group: Any, event: str) -> bool:
+    """True if a group of the hooks file of the plugin runs the hook script for `event`, with
+    the matcher of this version."""
+    if not isinstance(group, dict):
+        return False
+    if group.get("matcher") != kit.HOOK_EVENTS[event][0].get("matcher"):
+        return False
+    hooks = group.get("hooks")
+    for hook in hooks if isinstance(hooks, list) else []:
+        if not isinstance(hook, dict) or hook.get("type") != "command" or set(hook) - HOOK_KEYS:
+            continue
+        match = PLUGIN_COMMAND.fullmatch(str(hook.get("command", "")))
+        if match and match.group(1) == event:
             return True
     return False
+
+
+def _install_problems(folder: Path) -> list[str]:
+    """Each required hook that an install of the plugin does not have. The check reads what the
+    hooks run, not the bytes of the files, so an install of a newer plugin passes."""
+    if not (folder / PLUGIN_SCRIPT).is_file():
+        return [f"the plugin hook script {folder / PLUGIN_SCRIPT} is missing."]
+    hooks = _read(folder / PLUGIN_HOOKS).get("hooks")
+    if not isinstance(hooks, dict):
+        return [f"the plugin hooks file {folder / PLUGIN_HOOKS} is missing or has no hooks."]
+    out = []
+    for event in kit.HOOK_EVENTS:
+        groups = hooks.get(event)
+        if not any(_plugin_hook_ok(g, event) for g in (groups if isinstance(groups, list) else [])):
+            out.append(
+                f"the plugin hook {event} is missing in {folder / PLUGIN_HOOKS}, or its matcher "
+                "or its command differs from the hook of nookku."
+            )
+    return out
+
+
+def plugin_problems(root: Path) -> list[str]:
+    """Each reason to refuse a test for an enabled nookku plugin: no install for the project,
+    or an install with a required hook missing. Empty if no nookku plugin is on."""
+    out: list[str] = []
+    for plugin in enabled_plugins(root):
+        installs = _installs(plugin, root)
+        if not installs:
+            out.append(
+                f"the plugin {plugin} is on, but plugins/installed_plugins.json of Claude Code "
+                "has no install of it for this project."
+            )
+            continue
+        for folder in installs:
+            out += _install_problems(folder)
+    return out
+
+
+def plugin_warnings(root: Path) -> list[str]:
+    """A warning for each install of an enabled nookku plugin with another version than this
+    nookku. A version skew does not refuse a test, because the marketplace installs the plugin
+    from main."""
+    out: list[str] = []
+    for plugin in enabled_plugins(root):
+        for folder in _installs(plugin, root) or []:
+            version = _read(folder / ".claude-plugin" / "plugin.json").get("version")
+            if version != __version__:
+                out.append(
+                    f"nookku: warning: the plugin in {folder} has version {version}, and nookku "
+                    f"has version {__version__}. Install the plugin of this version if a hook "
+                    "does not work."
+                )
+    return out
 
 
 def project_hooks_file(root: Path) -> Path | None:
@@ -109,7 +242,153 @@ def project_hooks_on(root: Path) -> bool:
     return project_hooks_file(root) is not None
 
 
-def problem(root: Path) -> str | None:
-    """The refusal of a test if the plugin and the project hooks are both on, else None."""
+def _ours_by_event(order: list[Path]) -> dict[str, list[tuple[Path, Any, dict[str, Any]]]]:
+    """Each hook of nookku init claude-code in the files, by its event: the file, the matcher of
+    its group and the hook."""
+    out: dict[str, list[tuple[Path, Any, dict[str, Any]]]] = {}
+    for path in order:
+        hooks = _read(path).get("hooks")
+        for event, groups in hooks.items() if isinstance(hooks, dict) else []:
+            for group in groups if isinstance(groups, list) else []:
+                inner = group.get("hooks") if isinstance(group, dict) else None
+                for hook in inner if isinstance(inner, list) else []:
+                    if kit._ours(hook):
+                        out.setdefault(str(event), []).append((path, group.get("matcher"), hook))
+    return out
+
+
+def _argv(command: str) -> list[str]:
+    """The words of a hook command, with the path after --root resolved. A command with a new
+    line has no words: shlex reads a new line as a space, but the shell starts a second
+    command, so the hook does not run the command of nookku."""
+    if "\n" in command:
+        return []
+    try:
+        argv = shlex.split(command)
+    except ValueError:
+        return []
+    for i, word in enumerate(argv[:-1]):
+        if word == "--root":
+            argv[i + 1] = str(Path(argv[i + 1]).resolve())
+    return argv
+
+
+def _changed(root: Path, event: str, matcher: Any, hook: dict[str, Any]) -> str | None:
+    """Why a project hook differs from the hook of nookku init claude-code, or None."""
+    want_matcher, timeout = kit.HOOK_EVENTS[event]
+    if matcher != want_matcher.get("matcher") or hook.get("timeout") != timeout:
+        return "its matcher or its timeout differs from this version of nookku"
+    if set(hook) - HOOK_KEYS:
+        return (
+            f"it has a key that nookku init claude-code does not write: "
+            f"{', '.join(sorted(set(hook) - HOOK_KEYS))}. A key such as async can stop the "
+            "block of the prompt"
+        )
+    command = str(hook.get("command", ""))
+    # The full command, with the Python of this nookku: another executable can exit 0 and not
+    # block the prompt.
+    if hook.get("type") != "command" or _argv(command) != _argv(
+        kit.hook_command(root, "claude-code")
+    ):
+        return (
+            f"its command is not the command of nookku init claude-code: {command}. If you "
+            "installed nookku again, run nookku init claude-code again"
+        )
+    return None
+
+
+def hook_problems(root: Path) -> list[str]:
+    """Each reason to refuse a test for the project hooks of nookku init claude-code and for a
+    file that turns off all hooks. Empty if the check passes. If no file has a nookku hook and
+    the plugin is off, Claude Code has no nookku setup, and the check passes."""
+    out: list[str] = []
+    plugin = plugin_on(root)
+    for order in _orders(root):
+        found = _ours_by_event(order)
+        off = None
+        for path in order:
+            value = _read(path).get("disableAllHooks")
+            if isinstance(value, bool):
+                off = path if value else None
+        if off is not None and (plugin or found):
+            out.append(f"{off} has disableAllHooks: true, so Claude Code runs no nookku hook.")
+        if not found:
+            continue
+        for event in kit.HOOK_EVENTS:
+            listed = found.get(event, [])
+            if not listed:
+                out.append(f"the project hook {event} is missing.")
+                continue
+            if len(listed) > 1:
+                out.append(f"the project hook {event} is there {len(listed)} times.")
+            for path, matcher, hook in listed:
+                wrong = _changed(root, event, matcher, hook)
+                if wrong:
+                    out.append(f"the project hook {event} in {path} is modified: {wrong}.")
+    return list(dict.fromkeys(out))
+
+
+def problems(root: Path) -> list[str]:
+    """Each reason to refuse a test for the nookku hooks of Claude Code. Empty if the check
+    passes."""
     found = project_hooks_file(root)
-    return PROBLEM.format(file=found) if found is not None and plugin_on(root) else None
+    if found is not None and plugin_on(root):
+        return [PROBLEM.format(file=found)]
+    return hook_problems(root) + plugin_problems(root)
+
+
+def refusal(found: list[str]) -> str:
+    """The text that refuses a test, for the reasons of `problems`."""
+    if len(found) == 1 and found[0].startswith("both the nookku plugin"):
+        return found[0]
+    lines = "\n".join(f"- {p}" for p in found)
+    return (
+        "the Claude Code hooks of nookku are not ready, so nookku refuses the test and does not "
+        "change relay mode. Without the prompt hook, a message goes to the model.\n"
+        f"{lines}\n"
+        "Run nookku init claude-code again, or install the plugin of this version of nookku, or "
+        "remove disableAllHooks. Then start the test again."
+    )
+
+
+def problem(root: Path) -> str | None:
+    """The refusal of a test for the nookku hooks of Claude Code, or None."""
+    found = problems(root)
+    return refusal(found) if found else None
+
+
+def log_refusal(root: Path, command: str, harness: str, found: list[str]) -> None:
+    """Add a row for a refused start to the file REFUSALS of the state folder. The row is a log
+    for a person: it has no seal, and a failed write does not change the refusal."""
+    row = {
+        "ts": time.time(),
+        "command": command,
+        "harness": harness,
+        "nookku": __version__,
+        "problems": found,
+    }
+    nofollow = getattr(os, "O_NOFOLLOW", 0)
+    data = (json.dumps(row, ensure_ascii=False) + "\n").encode("utf-8")
+    try:
+        # The state folder and the log must not be symlinks, and the log must be a regular file.
+        # A model can write project files before a test, so a symlink could send the row to
+        # another file of the user.
+        folder = os.open(
+            root / kit.STATE_DIR, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | nofollow
+        )
+    except OSError:
+        return
+    try:
+        flags = os.O_WRONLY | os.O_APPEND | os.O_CREAT | nofollow | getattr(os, "O_NONBLOCK", 0)
+        fd = os.open(REFUSALS, flags, 0o600, dir_fd=folder)
+    except OSError:
+        os.close(folder)
+        return
+    try:
+        if stat.S_ISREG(os.fstat(fd).st_mode):
+            os.write(fd, data)
+    except OSError:
+        pass
+    finally:
+        os.close(fd)
+        os.close(folder)
