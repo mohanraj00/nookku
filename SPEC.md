@@ -397,7 +397,7 @@ The follow-up capture records a title-description schema match, without request 
 
   Each match ignores case, because the file system of macOS and Windows ignores case. If the project has no `.nookku/` folder, the relay applies only this deny and writes no record, so that the model cannot write a weak policy before the first test. Like each deny, it is best effort: a command can change the file with a name that the relay does not see. The manifest records the policy of each test.
 - **Entry.** During a test, the relay denies a model tool call, except file tools, that names the entry and does not pass the read check. The names of the entry are the base name of each entry argument with the file type `.py`, `.js`, `.mjs`, `.cjs`, `.ts`, `.sh` or `.rb`, and the argument after `-m`. The relay looks for each name in the input, and in each word of a shell command after it removes the quotes and escapes. A word with `*`, `?` or `[` matches a name as a glob. An entry with no such argument, for example `npm run agent`, has no names.
-- **Drive commands.** Only a person starts, ends or drives a test. The relay denies a model shell command, or the text of `write_stdin`, that runs `nookku start`, `nookku end`, `nookku hook`, `nookku run`, `nookku chat` (also with its old name `page`), `nookku script`, `nookku replay`, `nookku gate` (except `nookku gate verify`), `nookku adjudicate`, `nookku mode` with `on`, `off`, `start` or `end`, or `nookku init --remove`, also with a short form of the flag such as `--rem`. `init --remove` removes the project hooks, so the next message would go to the model. `nookku chat` prints the page URL with its token, so a model that runs it could send messages as the tester. `nookku script save` writes a saved script (section 7.10), so a model that runs it could change the messages of the next scripted test. `nookku replay` runs a scripted test, so the relay denies it with each policy, also with the policy key `scripts` set to `model`. `nookku gate` runs a set of scripted tests (section 7.15), so the relay denies it the same way. Only `gate verify` as the first word after `gate` passes. `nookku adjudicate` writes the decision of a person about an answer key mismatch (section 7.17), and it can change a verdict from `fail` to `pass`, so the relay denies it with each policy. The shell can change a word before `nookku` gets it, for example in `C=adjudicate; nookku "$C"`. A word is an expanded word if it has `$`, a backquote, `*`, `?`, `[` or `{`. The relay cannot know the subcommand of an expanded word, so it denies a `nookku` command, also as `python -m nookku`, if the first word that is not an option is an expanded word, if a word after `mode` is an expanded word, or if an argument of `init` is an expanded word. The deny reason is `nookku: the shell expands a word of this nookku command, so the relay cannot know its subcommand. Only a person drives a test. Write each word of the command as plain text.` An expanded word after a subcommand that is a plain word and not `mode` or `init` passes, for example `nookku audit "$TEST"`. In the text of a command that the relay cannot parse, a word with a quote or a backslash is also an expanded word. The relay knows a `nookku` command only by its program name as a plain word. It does not know a program name that comes from a variable, as SECURITY.md says: the deny is best effort. It also denies a command that imports the package: `import nookku`, `from nookku`, `import_module("nookku...")`, `__import__("nookku...")` or `python -m nookku.<module>`. The deny applies with a test, with no test, and in a project with no state folder.
+- **Drive commands.** Only a person starts, ends or drives a test. The relay denies a model shell command, or the text of `write_stdin`, that runs `nookku start`, `nookku end`, `nookku hook`, `nookku run`, `nookku chat` (also with its old name `page`), `nookku script`, `nookku replay`, `nookku gate` (except `nookku gate verify`), `nookku adjudicate`, `nookku evaluation`, `nookku mode` with `on`, `off`, `start` or `end`, or `nookku init --remove`, also with a short form of the flag such as `--rem`. `init --remove` removes the project hooks, so the next message would go to the model. `nookku chat` prints the page URL with its token, so a model that runs it could send messages as the tester. `nookku script save` writes a saved script (section 7.10), so a model that runs it could change the messages of the next scripted test. `nookku replay` runs a scripted test, so the relay denies it with each policy, also with the policy key `scripts` set to `model`. `nookku gate` runs a set of scripted tests (section 7.15), so the relay denies it the same way. Only `gate verify` as the first word after `gate` passes. `nookku adjudicate` writes the decision of a person about an answer key mismatch (section 7.17), and it can change a verdict from `fail` to `pass`, so the relay denies it with each policy. `nookku evaluation` writes the issue rows of an evaluation and sets their author type (section 9.4), so the relay denies it the same way. The shell can change a word before `nookku` gets it, for example in `C=adjudicate; nookku "$C"`. A word is an expanded word if it has `$`, a backquote, `*`, `?`, `[` or `{`. The relay cannot know the subcommand of an expanded word, so it denies a `nookku` command, also as `python -m nookku`, if the first word that is not an option is an expanded word, if a word after `mode` is an expanded word, or if an argument of `init` is an expanded word. The deny reason is `nookku: the shell expands a word of this nookku command, so the relay cannot know its subcommand. Only a person drives a test. Write each word of the command as plain text.` An expanded word after a subcommand that is a plain word and not `mode` or `init` passes, for example `nookku audit "$TEST"`. In the text of a command that the relay cannot parse, a word with a quote or a backslash is also an expanded word. The relay knows a `nookku` command only by its program name as a plain word. It does not know a program name that comes from a variable, as SECURITY.md says: the deny is best effort. It also denies a command that imports the package: `import nookku`, `from nookku`, `import_module("nookku...")`, `__import__("nookku...")` or `python -m nookku.<module>`. The deny applies with a test, with no test, and in a project with no state folder.
   - The relay finds the program after variable assignments, after the launchers `env`, `exec`, `nohup`, `time`, `command`, `sudo`, `uvx`, `uv run` and `pipx run`, in `python -m nookku`, and in the code of `sh -c` or `bash -lc`. If the check cannot parse the command, the relay reads its text. A command that passes the read check does not import the package, for example `grep "import nookku"`. The body of a here-document that is data does not count.
   - A launcher option can take a value, for example `uv run --python python3 nookku start`. After a launcher, the relay reads each later word that runs `nookku`, `python` or a shell. The `env` option `-S` or `--split-string` holds a command, for example `env -S 'nookku start'`, so the relay reads the text from that option. The text of a variable value, for example `env NOTE='nookku start' echo ok`, does not drive a test.
   - The module of `python -m` can be attached, as in `-mnookku`, or follow a group of flags, as in `-Im nookku`. The value of `-W`, `-X` or `--check-hash-based-pycs` is not the script. The code of `sh -c` can follow `--`.
@@ -624,6 +624,8 @@ The seal shows if a file of the test folder changed after the end of the test. I
 `nookku trace` rebuilds `trace.jsonl`, `findings.json`, `performance.json` and `verdict.json`. If a seal or a copy exists, it rebuilds them only if each other sealed file agrees with the seal, `seal.json` exists, and the copy is not `different` or `missing`. Then it writes the new SHA-256 of the 4 files to the seal and to the copy. A test of Nookku 0.5.3 or earlier has no `performance.json`, and a test of Nookku 0.5.6 or earlier has no `verdict.json`, so the rebuild adds them to the seal. If `nookku trace --gateway` writes `gateway.jsonl` (section 8.9), the rebuild also writes its SHA-256 to the seal and to the copy.
 
 `nookku adjudicate` adds a row to `adjudications.jsonl` and writes `verdict.json` again (section 7.17). It does this only if the seal is intact. Then it writes the SHA-256 of the bytes that it wrote for the 2 files to the seal and to the copy. It writes no seal if a sealed file of the folder changed during the command.
+
+`nookku evaluation` writes `evaluation.json` and `verdict.json` again (section 9.4), with the same rules and the same code as `nookku adjudicate`.
 
 The conformance cases in `conformance/seal/` test `verify`.
 
@@ -1052,10 +1054,10 @@ The verdict gives one result for a test: `pass` or `fail`. A program, for exampl
 
 **The limits.** The limits are the rows of the `Verdict` section of the app spec files (section 7.1, key `spec`). The section and its table follow the rules of the `Trace points` section (section 8.6): a heading of any level with the text `Verdict`, in any case, and the first table after it. The header row must have the columns `Finding` and `Most`, in any order, and can have more columns. The reader removes each backtick and the white space at the start and the end of a cell.
 
-- `Finding` is the name of a check of section 8.6, for example `agent_error`.
+- `Finding` is the name of a check of section 8.6, for example `agent_error`, or of an issue class of section 9.3, for example `tone`. A row of an issue class is the opt-in for the issue rows of that class (section 9.4).
 - `Most` is the most findings of that class that the test can have: a whole number from 0 to 999999999, with 1 to 9 digits.
 
-A class with no row has no limit. A part of a section that the reader cannot take is a problem: a section with no table, a table with no rows, a row with a different count of cells, a row with no `Finding`, a `Finding` that is not a check of section 8.6, a second row for one class, or a `Most` that is not a whole number of this form. A problem fails the verdict, because the tester wanted a limit that the verdict cannot use.
+A class with no row has no limit. A part of a section that the reader cannot take is a problem: a section with no table, a table with no rows, a row with a different count of cells, a row with no `Finding`, a `Finding` that is not a check of section 8.6 or an issue class of section 9.3, a second row for one class, or a `Most` that is not a whole number of this form. A problem fails the verdict, because the tester wanted a limit that the verdict cannot use.
 
 If the manifest has the key `answer_key` (section 7.17) and `findings.json` has an `answer_key_missing` finding with the `detail` `the answer key cannot be used: <reason>`, the problem is `the answer key cannot be used: <reason>`. Thus a test that declares a key fails if the check cannot use the key, for example if the bridge cannot write `answer_key.json`, with any limits.
 
@@ -1079,10 +1081,11 @@ The toy shop allows 0 `agent_error` and at most 1 `repeated_reply` ([APP_SPEC.md
 | `v` | integer | `1` |
 | `test` | string | The test id from the manifest, else the name of the test folder. |
 | `verdict` | string | `pass` if each class has `verdict` `pass` and `problems` is empty. Else `fail`. |
-| `limits` | object | The limit of each class that has one, in the order of section 8.6. |
+| `limits` | object | The limit of each class that has one: first the checks, in the order of section 8.6, then the issue classes, in the order of section 9.3. |
 | `classes` | list | One object for each check of section 8.6, in the order of the table: `check`, `count`, `most` and `verdict`. |
-| `problems` | list of strings | Each problem, in this order: the manifest, the limits, `findings.json`, the answer key and the adjudications. |
+| `problems` | list of strings | Each problem, in this order: the manifest, the limits, `findings.json`, the answer key, the adjudications and the issue rows. |
 | `adjudications` | object | Only for a test folder with `adjudications.jsonl` (section 7.17). `mismatches`: the `count` of `answer_key_mismatch`. `open`: the mismatches with no adjudication. `agent_wrong`, `key_wrong` and `both_acceptable`: the mismatches with that current outcome. `counted`: `open` plus `agent_wrong`, the count after the adjudications. `mismatches`, `open` and `counted` are `null` if `findings.json` has no valid count for the class. With a problem of the adjudications, each mismatch is open. |
+| `issues` | list | Only if a limit names an issue class. One object for each issue class with a limit, in the order of section 9.3: `class`, `model` and `human` (the count of the rows of each author type in `evaluation.json`), `count` (`model` plus `human`), `most` and `verdict`. `model`, `human` and `count` are `null` if `evaluation.json` has a problem. `verdict` is `pass` if `count` is not `null` and is `most` or less. |
 
 In `classes`:
 
@@ -1103,6 +1106,11 @@ The problems:
 | `findings.json` has no object `counts`. | `findings.json has no counts object.` |
 | `adjudications.jsonl` breaks a rule of section 7.17. | The text of that section. |
 | `adjudications.jsonl` is not a file that the verdict can read, for example a symlink or a folder. | `adjudications.jsonl is not a file that the verdict can read.` |
+| A limit names an issue class, and the test folder has no `evaluation.json`. | `evaluation.json is missing.` |
+| A limit names an issue class, and `evaluation.json` breaks a rule of section 9.4. | The text of that section, for example `evaluation.json issue 2: its class is not an issue class of SPEC.md section 9.3.` |
+| A limit names an issue class, and `evaluation.json` is not a file that the verdict can read. | `evaluation.json is not a file that the verdict can read.` |
+
+**Issue classes.** The verdict reads `evaluation.json` only if a limit names an issue class. Each row counts, of each author type. With no limit of an issue class, no issue row fails a verdict, and the verdict is the same with and without `evaluation.json` (CONSTITUTION.md, "Verdicts"). At the end of a test, no `evaluation.json` exists, so a limit of an issue class fails the verdict until a person runs `nookku evaluation import`.
 
 Thus a test with no limits passes if its `findings.json` is valid. A test with no valid `findings.json` fails, also with no limits.
 
@@ -1111,8 +1119,8 @@ Thus a test with no limits passes if its `findings.json` is valid. A test with n
 **The verdict of an exit code.** Another user can write the tests folder (section 7), for example on shared storage. That user can replace `verdict.json` after the bridge writes or seals it. Thus a process that gives an exit code from the verdict does not trust `verdict.json` as it is. It uses the verdict only if each of these is true, else the verdict is not `pass`:
 
 1. The seal of the test folder is intact, and the copy of the seal outside the folder is `same` (section 7.4). A seal with no copy (`copy` `none`) is not sufficient, because `seal.json` is in the folder.
-2. The process reads `manifest.json`, `findings.json` and `verdict.json` one time each. The SHA-256 of each one is the SHA-256 in the copy of the seal. If the copy of the seal covers `adjudications.jsonl` (section 7.17), the same is true for that file.
-3. The verdict that the process computes again from these bytes of `manifest.json` and `findings.json`, and of `adjudications.jsonl` if the copy of the seal covers it, is the same as `verdict.json`.
+2. The process reads `manifest.json`, `findings.json` and `verdict.json` one time each. The SHA-256 of each one is the SHA-256 in the copy of the seal. If the copy of the seal covers `adjudications.jsonl` (section 7.17) or `evaluation.json` (section 9.4), the same is true for that file.
+3. The verdict that the process computes again from these bytes of `manifest.json` and `findings.json`, and of `adjudications.jsonl` and `evaluation.json` if the copy of the seal covers them, is the same as `verdict.json`.
 
 `nookku run --verdict` applies this rule after the end of the test, and `nookku trace --verdict` after the rebuild and the update of the seal. The output gives the reason if a check fails. With `--verdict`, set `NOOKKU_HOME` to a folder that the process can write, so that the bridge can write the copy of the seal.
 
@@ -1126,7 +1134,7 @@ Thus a test with no limits passes if its `findings.json` is valid. A test with n
 | | 1 | The trace was rebuilt, and the verdict is `fail`, or the command could not write `verdict.json`, or the verdict breaks the rule above. |
 | | 2 | The trace was not rebuilt (section 7.4). |
 
-The cases in [`conformance/verdict/`](conformance/verdict/) give the spec files, the counts of `findings.json` and the expected `verdict.json`: a `pass` and a `fail` of the toy shop, rows that are not limits, a section with no table, 2 files, no section, no `findings.json`, and a manifest with no key `verdict`.
+The cases in [`conformance/verdict/`](conformance/verdict/) give the spec files, the counts of `findings.json` and the expected `verdict.json`: a `pass` and a `fail` of the toy shop, rows that are not limits, a section with no table, 2 files, no section, no `findings.json`, and a manifest with no key `verdict`. The cases with a name that starts with `issues_` give the issue classes (section 9.4).
 
 ### 7.15 Gate run
 
@@ -1226,7 +1234,7 @@ A test has the verdict `pass` if each of its checks passes. Each check is an obj
 | `evidence` | The seal of the test folder is intact, its copy is `same`, and each pinned file has its SHA-256 in the copy of the seal and in the bytes that the check reads. If this check fails, the test has no later check. |
 | `script` | The script copy of the test folder and the `script` of the manifest have the SHA-256 of the script in `inputs/`. |
 | `entry` | The `entry_name` of the manifest is the declared `entry`, or `null` if the test declares none, The `entry`, `policy` and `spec` of the manifest are the ones of the row. Each file of the `config_sha256` of the row has the same SHA-256 in the `config_sha256` of the manifest. A test start adds state files, so the manifest can have more files. |
-| `verdict` | `verdict.json` is the verdict that section 7.14 computes again from `manifest.json` and `findings.json`, and it is `pass`. |
+| `verdict` | `verdict.json` is the verdict that section 7.14 computes again from `manifest.json` and `findings.json`, and it is `pass`. A gate run has no evaluation, so a limit of an issue class (section 9.4) fails this check for each test. |
 | `limits` | Each gate limit is the count of its class in the verdict, or more. A class with no valid count fails. |
 | `audit` | `audit.json` has `exit` 0, no break and no error (section 3). |
 | `turns` | The `turn` rows of `relay.jsonl` are one row for each message of the script, in order, each with the same `said` and `ok` true. |
@@ -1948,4 +1956,53 @@ Each `egress_denied` adds a note with the host (or `no host`), reason if present
 
 The transcript names the source of each query: `(proxy)` for a query of `database.jsonl`, and `(driver trace from the app process)` for a driver query. The result of a driver query is the line `result: none. A driver trace has no rows, and it can hide parameter values. Check the state with a read-only query.`
 
-The report is a model answer: the proofs check it, but no code reads it.
+The report is a model answer, and no code trusts it. The proofs check it. `nookku evaluation import` reads its issue table (section 9.4).
+
+### 9.4 Issue rows
+
+`evaluation.json` holds the issue rows of an evaluation as a record. Each row has an author type: `model` or `human`. A program can count the rows of each author type, and the verdict can use them (section 7.14).
+
+**The file.** It is one JSON object:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `v` | integer | `1` |
+| `test` | string | The test id from the manifest, else the name of the test folder. |
+| `report` | string or null | The SHA-256 of the bytes of `report.md` that the command wrote last, or `null` if the test folder has no `report.md`. |
+| `issues` | list | One object for each issue row, 1000 at most. |
+
+Each row has these keys and no other key:
+
+| Key | Type | Meaning |
+|---|---|---|
+| `class` | string | An issue class of section 9.3. |
+| `turn` | integer or null | The turn, from 1 to 999999999, or `null` for the Turn `-`. |
+| `evidence` | string | The evidence, with 1 to 1000 code points. |
+| `text` | string | The issue, with 1 to 10000 code points. |
+| `author` | string | `model` or `human`. |
+| `name` | string or null | `null` for a model row. For a human row, the name that the person gives, with 1 to 200 code points. |
+
+A string of a row is not only white space. It has no control character (U+0000 to U+001F, and U+007F) and no lone surrogate. If one row breaks a rule, the file has no valid row, so the verdict fails closed. The limits are chosen values, as for an adjudication (section 7.17).
+
+**The author type.** The command that writes a row sets its author type. The text of a row never sets it.
+
+- `nookku evaluation import <test>` reads `report.md` one time. It writes each row of the issue table as a `model` row with the `name` `null`. The issue table is the first table outside a code fence with the columns Class, Turn, Evidence and Issue, in any case and order, before the line `## Person issues`. A table with no rows gives no row. The new model rows replace the earlier model rows, and the human rows stay.
+- The import writes no row if `report.md` has no issue table, if a row has a problem, or if `report.md` is a symlink, is not a regular file or has more than 1048576 bytes. The problem names the line of the row.
+- `nookku evaluation add <test> --class <class> --evidence <text> --text <text> [--turn <n>] [--author <name>]` adds one `human` row. Without `--author`, the name is the login name of the OS user. Without `--turn`, the turn is `null`.
+- If `report.md` exists, its SHA-256 must be the `report` of `evaluation.json`. Else `add` writes no row and tells the person to run `nookku evaluation import`. Thus `evaluation.json` has each row of `report.md`.
+
+**The Markdown report.** The command writes `evaluation.json` and `report.md` from the same rows. The issue table of the model in `report.md` does not change. The command writes the human rows at the end of `report.md`, after the line `## Person issues`, in a table with the columns Class, Turn, Evidence, Issue and Author. This part replaces an earlier part. If no row is human and the file has no such part, the bytes of the file do not change. In a test folder with no `report.md`, the command writes no `report.md`, because such a test needs an evaluation (section 9.1). The seal does not cover `report.md`, so `report` keeps the SHA-256 of the bytes that the command wrote.
+
+**The seal.** The command uses the rules and the code of `nookku adjudicate` (section 7.17, "The command" and "The bytes of the command"):
+
+1. It writes only if the seal of the test folder is intact.
+2. It reads each sealed record one time, and it uses only bytes with the SHA-256 of the seal.
+3. It writes the SHA-256 of the bytes that it wrote for `evaluation.json` and `verdict.json` to the seal and to its copy.
+
+The seal covers `evaluation.json`, so a change that the command did not make breaks the seal. The command exits with 0 after a write. It exits with 1 if it wrote the row and could not write the verdict, the seal or `report.md`. It exits with 2 if it wrote no row.
+
+**Only a person.** The relay denies a model command that runs `nookku evaluation`, with each policy (section 5, "Drive commands"). The guard denies a model write to a file of a test folder other than `report.md` (section 5), so it denies a write to `evaluation.json`. The deny is best effort, as for `nookku adjudicate` ([section 7.17](#717-answer-key), "Only a person"). At the end of a test, before the trace and the verdict, the bridge removes a file or a symlink `evaluation.json` of the test folder, and writes a line to the log of the bridge. If a thing is still at the path, the verdict has the problem `evaluation.json is in the test folder at the end of the test. Only nookku evaluation writes it.`, and the bridge writes no seal.
+
+**After a write.** A write changes `verdict.json` only if a limit names an issue class. A gate result pins the SHA-256 of `verdict.json` (section 7.15). Thus after such a write, `nookku gate verify` fails for a gate result that pinned the test.
+
+The cases in [`conformance/verdict/`](conformance/verdict/) with a name that starts with `issues_` give a model row with no limit of its class, which passes, a model row and a human row with a limit, a test with no `evaluation.json`, and a row that is not valid. [`conformance/seal/changed_evaluation/`](conformance/seal/changed_evaluation/) and [`conformance/seal/evaluation_intact/`](conformance/seal/evaluation_intact/) give a changed file and an intact file. [`conformance/guard/shell_writes_an_issue_row.json`](conformance/guard/shell_writes_an_issue_row.json) and [`conformance/guard/shell_imports_the_model_rows.json`](conformance/guard/shell_imports_the_model_rows.json) give the deny.

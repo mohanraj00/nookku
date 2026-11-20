@@ -326,3 +326,8 @@ def unread(records: Any) -> list[str]:
         more = len(out) - MAX_RECORDS + 1
         out = [*out[: MAX_RECORDS - 1], f"{more} more records of trace_points_unread."]
     return out
+
+
+# The Markdown parts for another reader of a Markdown table, for example the issue table of
+# report.md (nookku.issues).
+heading, cells, plain = _heading, _cells, _plain

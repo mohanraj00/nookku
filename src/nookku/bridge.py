@@ -28,6 +28,7 @@ from nookku import (
     backend,
     db_proxy,
     discovery,
+    issues,
     mcp_proxy,
     model_api,
     otlp,
@@ -1362,6 +1363,13 @@ def _collect(folder: Path, copy: Path | None, log: Callable[[str], None] | None 
             log(f"removed {decided.name} of the entry: only nookku adjudicate writes it")
     except OSError as e:
         log(f"{decided.name} of the entry was not removed: {e!r}")
+    rows = folder / issues.FILE
+    try:
+        # The same rule for the issue rows of an evaluation (SPEC.md section 9.4).
+        if issues.clear(folder):
+            log(f"removed {rows.name} of the entry: only nookku evaluation writes it")
+    except OSError as e:
+        log(f"{rows.name} of the entry was not removed: {e!r}")
     try:
         log(trace.summary(trace.build(folder)))
     except Exception as e:
@@ -1379,11 +1387,12 @@ def _collect(folder: Path, copy: Path | None, log: Callable[[str], None] | None 
         _write_json(folder / "audit.json", report)
     except Exception as e:
         log(f"the audit failed: {e!r}")
-    if decided.is_symlink() or decided.exists():
-        # The bridge could not remove it. With no seal, no command uses a verdict of this test
-        # (SPEC.md section 7.14), and nookku adjudicate adds no row.
-        log(f"no seal: {decided.name} is in the test folder at the end of the test")
-        return
+    for left in (decided, rows):
+        if left.is_symlink() or left.exists():
+            # The bridge could not remove it. With no seal, no command uses a verdict of this
+            # test (SPEC.md section 7.14), and no person command adds a row.
+            log(f"no seal: {left.name} is in the test folder at the end of the test")
+            return
     try:
         error = seal.write(folder)
         if error:
