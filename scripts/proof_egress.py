@@ -39,6 +39,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import socket
 import subprocess
 import sys
@@ -434,8 +435,15 @@ def main() -> int:
     return write(relay, result, evaluation=args.evaluate)
 
 
-def report_checks(report: str, host: str, denied_host: str) -> dict[str, bool]:
-    """Require each finding in its report section with the line of the planted span."""
+def report_checks(
+    report: str, host: str, denied_host: str, reason: str = "port"
+) -> dict[str, bool]:
+    """Require each finding in its report section with the line of the planted span.
+
+    The note of a denied attempt has the fields of the report format (evaluate.md): the host,
+    the reason and the source line, in one paragraph. The format sets no word for the denial,
+    so the check does not require one.
+    """
     sections: dict[str, list[str]] = {}
     section = ""
     for line in report.splitlines():
@@ -445,13 +453,14 @@ def report_checks(report: str, host: str, denied_host: str) -> dict[str, bool]:
             sections.setdefault(section, []).append(line)
     coverage = sections.get("coverage", [])
     notes = "\n".join(sections.get("notes", []))
+    paragraphs = [p for p in re.split(r"\n\s*\n", notes) if p.strip()]
     return {
         "unknown_host_in_coverage": any(
             line.startswith("|") and host in line and "egress.jsonl:1" in line for line in coverage
         ),
-        "denied_in_notes": denied_host in notes
-        and "egress.jsonl:2" in notes
-        and "denied" in notes.lower(),
+        "denied_in_notes": any(
+            denied_host in p and "egress.jsonl:2" in p and reason in p for p in paragraphs
+        ),
         "no_full_coverage_claim": "A proxy saw each egress part." not in report,
     }
 
@@ -484,7 +493,7 @@ def evaluate_egress(
     answer = run(end, end_args)
     path = folder / "report.md"
     report = path.read_text() if path.is_file() else ""
-    checks = report_checks(report, host, denied_host)
+    checks = report_checks(report, host, denied_host, spans[1]["reason"])
     intact = seal.verify(folder)["intact"]
     hidden = pr.private(report) or pr.private(answer)
     out = pr.ROOT / "proofs" / "egress" / "evaluation" / folder.name

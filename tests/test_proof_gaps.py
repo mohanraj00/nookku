@@ -274,3 +274,27 @@ def test_the_egress_report_case_needs_both_findings_in_the_correct_sections() ->
     assert not all(check(case["report"].replace("egress.jsonl:2", "egress.jsonl:1")).values())
     assert not all(check(case["report"].replace("## Notes", "## Other")).values())
     assert not all(check(case["report"] + "A proxy saw each egress part.").values())
+
+
+@pytest.mark.parametrize(
+    "folder", ["20261112-063637-0d30", "20261117-215654-9ee1", "20261117-221505-6138"]
+)
+def test_a_note_of_a_blocked_attempt_with_its_fields_passes(folder: str) -> None:
+    # These Codex reports of run 1 gave the fields of the note, but not the word "denied" (#615).
+    report = (pe.pr.ROOT / "proofs/egress/evaluation" / folder / "report.md").read_text()
+    assert "denied" not in report.split("## Coverage")[0].lower()
+    assert pe.report_checks(report, "stock.extra.toy.test", "api.anthropic.com")["denied_in_notes"]
+
+
+def test_the_note_of_a_denied_attempt_needs_its_fields_in_one_paragraph() -> None:
+    def denied(notes: str) -> bool:
+        report = f"## Notes\n\n{notes}\n\n## Coverage\n"
+        return pe.report_checks(report, "stock.extra.toy.test", "api.anthropic.com")[
+            "denied_in_notes"
+        ]
+
+    assert denied("The policy blocked api.anthropic.com, reason port, at egress.jsonl:2.")
+    assert not denied("The policy blocked api.anthropic.com at egress.jsonl:2.")
+    assert not denied("The policy blocked api.anthropic.com, reason port, at egress.jsonl:1.")
+    assert not denied("The policy blocked a call, reason port, at egress.jsonl:2.")
+    assert not denied("The policy blocked api.anthropic.com, reason port.\n\nSee egress.jsonl:2.")
