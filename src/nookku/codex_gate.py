@@ -7,9 +7,11 @@ missing, disabled, untrusted or modified. `end` runs it again, and the manifest 
 results.
 
 The check reads the hook state with `codex app-server` and `hooks/list`. It never changes the
-trust of a hook: a person does the trust step. The trust hash of Codex covers the hook
-definition, but not the script that a plugin hook runs (proofs/codex-gate/gate.json). Thus the
-check also compares the SHA-256 of the plugin script with the script of this package.
+trust of a hook: a person does the trust step. The hook part of the trust hash of Codex covers
+the hook definition, but not the script that a plugin hook runs (proofs/codex-gate/gate.json).
+Since codex-cli 0.169.0, a second part of the hash changes with the files of the plugin, but an
+older Codex has no second part. Thus the check also compares the SHA-256 of the plugin script
+with the script of this package.
 """
 
 from __future__ import annotations
