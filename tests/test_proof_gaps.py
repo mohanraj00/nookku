@@ -35,6 +35,26 @@ def test_the_report_checks_quoted_paths_with_spaces(
     assert pr.outside([inside, outside], project) == [outside]
 
 
+def test_a_here_document_with_an_apostrophe_is_outside_only_with_a_path_outside(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = tmp_path / "Toy Shop"
+    project = repo / "Test Shop"
+    monkeypatch.setattr(pr, "ROOT", repo)
+    body = "# Report\n\nThe agent didn't name the order.\nEOF"
+    inside = shlex.join(
+        ["/bin/bash", "-lc", f"cat > {shlex.quote(str(project / 'report.md'))} <<'EOF'\n{body}"]
+    )
+    repo_path = shlex.join(
+        ["/bin/bash", "-lc", f"cat > {shlex.quote(str(repo / 'report.md'))} <<'EOF'\n{body}"]
+    )
+    parent = shlex.join(["/bin/bash", "-lc", f"cat > ../report.md <<'EOF'\n{body}"])
+    for command in (inside, repo_path, parent):
+        with pytest.raises(ValueError):
+            shlex.split(shlex.split(command)[2])
+    assert pr.outside([inside, repo_path, parent], project) == [repo_path, parent]
+
+
 @pytest.mark.parametrize("model", [False, True])
 def test_the_tutorial_records_only_the_harness_that_ran(model: bool) -> None:
     versions = {"nookku": "0.5.5", "claude-code": "Claude Code", "codex": "Codex"}
