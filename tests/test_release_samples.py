@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 TAG = "v9.9.9"
+NAMES = ("egress-spans.jsonl", "gateway-log.jsonl", "app-ingress-spans.jsonl")
 SPAN = {
     "v": 2,
     "time": "2026-10-23T09:14:02Z",
@@ -24,6 +25,16 @@ LOG = {
     "metadata": {"user_api_key_alias": "toy-shop-key"},
     "status": "success",
 }
+REQUEST = {
+    "v": 1,
+    "time": "2026-10-06T08:00:11.118Z",
+    "kind": "app-ingress",
+    "app": "shop",
+    "method": "POST",
+    "status": 200,
+    "outcome": "ok",
+    "durationMs": 3.412,
+}
 
 
 @pytest.fixture
@@ -36,8 +47,15 @@ def _lines(*rows: object) -> bytes:
     return "".join(json.dumps(r) + "\n" for r in rows).encode()
 
 
-def _run(samples, spans: bytes, logs: bytes, pins: dict[str, str] | None = None) -> dict:
-    files = {samples.SPANS: spans, samples.LOGS: logs}
+def _run(
+    samples,
+    spans: bytes,
+    logs: bytes,
+    pins: dict[str, str] | None = None,
+    ingress: bytes | None = None,
+) -> dict:
+    ingress = _lines(REQUEST) if ingress is None else ingress
+    files = {samples.SPANS: spans, samples.LOGS: logs, samples.INGRESS: ingress}
     pins = pins or {name: hashlib.sha256(data).hexdigest() for name, data in files.items()}
     return samples.check(TAG, pins, files.__getitem__)
 
@@ -63,10 +81,42 @@ def test_the_readers_read_the_samples_of_the_pinned_release(samples) -> None:
         "model_calls": 1,
         "call_types": {"acompletion": 1, "health": 1},
     }
+    assert result["ingress"] == {"rows": 1, "spans": 1, "ignored": {}, "outcomes": {"ok": 1}}
+
+
+def test_the_ingress_reader_counts_each_outcome_of_the_sample(samples) -> None:
+    refused = dict(REQUEST, status=401, outcome="signature")
+    result = _run(samples, _lines(SPAN), _lines(LOG), ingress=_lines(REQUEST, REQUEST, refused))
+    assert result["ingress"]["spans"] == 3
+    assert result["ingress"]["outcomes"] == {"ok": 2, "signature": 1}
+    assert result["ingress_versions"] == [1]
+
+
+@pytest.mark.parametrize(
+    ("rows", "text"),
+    [
+        ((dict(REQUEST, v=2),), "S4: the ingress span reader cannot read the sample"),
+        ((REQUEST, dict(REQUEST, status="200")), "has lines that the reader refuses"),
+        ((REQUEST, "not a span"), "has lines that the reader refuses"),
+        ((), "has no span that the reader keeps"),
+    ],
+)
+def test_an_ingress_sample_that_the_reader_refuses_stops_the_check(
+    samples, rows: tuple, text: str
+) -> None:
+    with pytest.raises(samples.Stop) as stop:
+        _run(samples, _lines(SPAN), _lines(LOG), ingress=_lines(*rows))
+    assert text in str(stop.value)
+    if rows and isinstance(rows[0], dict) and rows[0]["v"] == 2:
+        assert "line 1: the span has the format version 2" in str(stop.value)
 
 
 def test_a_file_with_another_sha256_stops_the_check(samples) -> None:
-    pins = {samples.SPANS: "0" * 64, samples.LOGS: hashlib.sha256(_lines(LOG)).hexdigest()}
+    pins = {
+        samples.SPANS: "0" * 64,
+        samples.LOGS: hashlib.sha256(_lines(LOG)).hexdigest(),
+        samples.INGRESS: hashlib.sha256(_lines(REQUEST)).hexdigest(),
+    }
     with pytest.raises(
         samples.Stop, match=rf"S1: {samples.SPANS} of the release {TAG} has the SHA-256"
     ):
@@ -124,8 +174,9 @@ def test_a_log_sample_that_the_reader_refuses_stops_the_check(
 @pytest.mark.parametrize(
     ("tag", "pins"),
     [
-        ("", {"egress-spans.jsonl": "0" * 64, "gateway-log.jsonl": "0" * 64}),
-        (TAG, {"egress-spans.jsonl": "", "gateway-log.jsonl": "0" * 64}),
+        ("", dict.fromkeys(NAMES, "0" * 64)),
+        (TAG, {**dict.fromkeys(NAMES, "0" * 64), "egress-spans.jsonl": ""}),
+        (TAG, dict.fromkeys(NAMES[:2], "0" * 64)),
         (TAG, {"egress-spans.jsonl": "0" * 64}),
     ],
 )
@@ -139,7 +190,11 @@ def test_a_pin_with_no_tag_or_no_sha256_stops_the_check(
 def test_the_script_reads_a_folder_and_writes_the_result(
     samples, tmp_path: Path, monkeypatch, capsys
 ) -> None:
-    files = {samples.SPANS: _lines(SPAN), samples.LOGS: _lines(LOG)}
+    files = {
+        samples.SPANS: _lines(SPAN),
+        samples.LOGS: _lines(LOG),
+        samples.INGRESS: _lines(REQUEST),
+    }
     for name, data in files.items():
         (tmp_path / name).write_bytes(data)
     monkeypatch.setattr(samples, "KOODAM_TAG", TAG)

@@ -25,6 +25,7 @@ from . import (
     db_proxy,
     egress_spans,
     gateway,
+    ingress_spans,
     mcp_proxy,
     model_api,
     openinference,
@@ -2089,6 +2090,7 @@ def build(folder: Path) -> dict[str, Any]:
         items += found
     keys = trace_keys(manifest)
     egress_info, egress_found = egress_findings(folder, manifest, keys, spans)
+    ingress_info = ingress_counts(folder, manifest, spans)
     exported = None
     if (folder / openinference.FILE).exists():
         exported = openinference.read(folder / openinference.FILE)
@@ -2166,6 +2168,9 @@ def build(folder: Path) -> dict[str, Any]:
     if gateway_calls is not None:
         # Only a test with gateway logs has the key (SPEC.md section 8.9).
         report["gateway"] = gateway_calls
+    if ingress_info is not None:
+        # Only a test with ingress spans has the key (SPEC.md section 8.12).
+        report["ingress"] = ingress_info
     text = json_text(report, indent=1) + "\n"
     (folder / "findings.json").write_text(text, encoding="utf-8")
     # The caller prints the report, so it gets the escaped text of findings.json.
@@ -2199,6 +2204,18 @@ def egress_findings(
     out = egress_spans.not_in_discovery(found, egress_spans.answer_hosts(answer))
     out += egress_spans.denied(found, lambda ts: _turn(ts, spans))
     return info, out
+
+
+def ingress_counts(
+    folder: Path, manifest: dict[str, Any], spans: list[tuple[float, float]]
+) -> dict[str, Any] | None:
+    """The counts of ingress.jsonl in a test folder (SPEC.md section 8.12), or None if the folder
+    has no such file. A span of a later format version raises RecordError."""
+    path = folder / ingress_spans.FILE
+    if not path.exists():
+        return None
+    start, end = manifest.get("started"), manifest.get("ended")
+    return ingress_spans.read(path, start, end, lambda ts: _turn(ts, spans), len(spans))
 
 
 def trace_keys(manifest: dict[str, Any]) -> dict[str, Any]:

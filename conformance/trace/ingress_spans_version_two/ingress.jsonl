@@ -1,0 +1,2 @@
+{"v": 1, "time": "2026-10-06T08:00:11.000Z", "kind": "app-ingress", "app": "shop", "version": "shop-v1", "method": "POST", "status": 200, "outcome": "ok", "durationMs": 3.412}
+{"v": 2, "time": "2026-10-06T08:02:30.000Z", "kind": "app-ingress", "app": "shop", "version": "shop-v1", "method": "POST", "status": 200, "outcome": "ok", "durationMs": 3.412}

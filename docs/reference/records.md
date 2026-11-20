@@ -57,6 +57,7 @@ Each test is a new conversation, with a new test id and a new entry process. The
 | `gateway.jsonl` | The model calls of your app that a LiteLLM gateway logged, if you gave `nookku trace --gateway`. | [SPEC.md section 8.9](../../SPEC.md#89-gateway-logs) |
 | `otel.jsonl` | The OpenTelemetry spans and logs of your app, if it sent any. | [SPEC.md section 7.5](../../SPEC.md#75-otlp-receiver) |
 | `egress.jsonl` | The Koodam egress spans of the test, if you gave them to `nookku trace --egress`. | [SPEC.md section 8.8](../../SPEC.md#88-egress-spans) |
+| `ingress.jsonl` | The ingress spans of your app for the test, if you gave them to `nookku trace --ingress`. | [SPEC.md section 8.12](../../SPEC.md#812-ingress-spans) |
 
 The seal does not contain `report.md`, `bridge.log`, `seal.json` and `denied.jsonl`, because these files change after the end.
 

@@ -7,7 +7,14 @@
   1,
   2
  ],
+ "ingress_versions": [
+  1
+ ],
  "files": {
+  "app-ingress-spans.jsonl": {
+   "sha256": "1282eb24a1010ceddadd445e838964b1c131653297d73c6daf7a07d2c62bed80",
+   "bytes": 62447
+  },
   "egress-spans.jsonl": {
    "sha256": "016cac2cdb7468973cc275c8efe1fce80e73feca46b7c35fcb7470415a1e7a63",
    "bytes": 2436
@@ -33,6 +40,16 @@
   "model_calls": 1,
   "call_types": {
    "acompletion": 1
+  }
+ },
+ "ingress": {
+  "rows": 305,
+  "spans": 305,
+  "ignored": {},
+  "outcomes": {
+   "ok": 295,
+   "signature": 5,
+   "syntax": 5
   }
  },
  "pass": true

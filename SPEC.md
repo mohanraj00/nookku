@@ -1406,9 +1406,10 @@ A test has 3 sources. Each one is independent of the others in a different way:
 | `otel.jsonl` | the OTLP receiver, from the spans and logs that the app and its harness send | the session files. It is not independent of the app's code, because the app sends it. |
 | `openinference.jsonl` | `nookku trace --openinference`, from an export of the app spans in Phoenix or Langfuse (section 8.10) | the proxies of nookku. It is not independent of the app's code, because the app sends the spans. |
 | `egress.jsonl` | the Koodam egress proxy, from each external call of the pod (section 8.8) | the app's code and the proxies of nookku. The proxy is outside the pod. It records the host of each connection, not each request. |
+| `ingress.jsonl` | an ingress proxy in front of the app, from each request to the app (section 8.12) | the app's code and the tap. It records the time, the status and the outcome of each request. It has no body and no path, so it cannot replace `tap.jsonl`. |
 | The app's state | the app | nothing. The evaluating session reads it and judges it. |
 
-An optional OpenInference export adds `openinference.jsonl` (section 8.10). The trace reads `tap.jsonl`, `sessions/`, `otel.jsonl`, `backend.jsonl`, `model_api.jsonl`, `mcp.jsonl` and `database.jsonl`. It also reads `egress.jsonl` if the test folder has it, for the checks of section 8.8 only, and `openinference.jsonl` if the test folder has it (section 8.10). It does not read the app's state. It reads `tap.jsonl` with the reader of section 2. If `tap.jsonl` is not valid, the trace stops with that error: `nookku trace` exits with code 2, and the end of a test writes no trace.
+An optional OpenInference export adds `openinference.jsonl` (section 8.10). The trace reads `tap.jsonl`, `sessions/`, `otel.jsonl`, `backend.jsonl`, `model_api.jsonl`, `mcp.jsonl` and `database.jsonl`. It also reads `egress.jsonl` if the test folder has it, for the checks of section 8.8 only, and `openinference.jsonl` if the test folder has it (section 8.10). It reads `ingress.jsonl` if the test folder has it, for the counts of section 8.12 only. It does not read the app's state. It reads `tap.jsonl` with the reader of section 2. If `tap.jsonl` is not valid, the trace stops with that error: `nookku trace` exits with code 2, and the end of a test writes no trace.
 
 ### 8.2 Trace record
 
@@ -1758,6 +1759,57 @@ The export has one trace per test. A test root span holds spans and findings out
 The span attribute `nookku.source` identifies the tap, proxy, session, gateway or app OTel record. A span can also have `nookku.source.file` and `nookku.source.line`. Each finding gives a [`gen_ai.evaluation.result` event](https://github.com/open-telemetry/semantic-conventions/blob/v1.38.0/docs/gen-ai/gen-ai-events.md) on its turn or on the test root. The event has the check name in `gen_ai.evaluation.name` and `fail` in `gen_ai.evaluation.score.label`. The export does not include the text of prompts, replies, tool arguments or finding details. The `gen_ai.tool.name` of a backend call is its method and URL path with no query, for example `GET /stock`. A path can hold an ID, so read the paths of the app before you send a test to a shared collector. The command runs after it prints the trace and the verdict. If the export fails, the command exits with 2.
 
 For an endpoint, the URL uses HTTPS or HTTP on this computer. The command reads authentication headers from `OTEL_EXPORTER_OTLP_TRACES_HEADERS` or `OTEL_EXPORTER_OTLP_HEADERS`. It does not follow redirects. It reports an HTTP refusal or rejected spans as an export error. See the [toy case](conformance/genai/toy-export.json) and [CLI commands](docs/reference/cli.md#nookku-trace).
+
+### 8.12 Ingress spans
+
+An ingress proxy in front of an app can write 1 span for each request to the app. The trace reads a file of such spans as a source of counts. The reader is [`src/nookku/ingress_spans.py`](src/nookku/ingress_spans.py). It adds no check.
+
+**The format.** A file has 1 JSON object on each line. The reader uses 4 fields:
+
+| Field | Type | Value |
+|---|---|---|
+| `v` | number | The version of the format. It is `1`. A span with no `v` is version 1. |
+| `time` | string | The start of the request, RFC 3339, with a fraction of any length. |
+| `status` | integer | The HTTP status that the caller got. |
+| `outcome` | string | `ok`, or a word for the reason of a refusal. The reader accepts each word. |
+
+One source of this format is the App ingress span of Koodam, contract v1 (`docs/app-ingress-spans.md` in Koodam). Its other fields, for example `kind`, `method`, `caller` and `durationMs`, are permitted, and the reader ignores them.
+
+**A span cannot replace a row of `tap.jsonl`.** A span has no body and no path. Thus it does not hold the message of the tester or the reply of the agent, and the audit (section 3) cannot use it. The tap stays the only source of the words. A span gives only counts and the turn of its time.
+
+**The input.** The tester exports the spans after the test and gives the file to the trace:
+
+```sh
+nookku trace [TEST] --ingress spans.jsonl
+```
+
+`nookku trace` first checks the seal (section 7.4). Then it reads the file with the rule below. If the rule stops the read, `nookku trace` copies nothing, prints the error and exits with 2. Else it copies the bytes of the file to `ingress.jsonl` in the test folder, builds the trace, and writes the SHA-256 of `ingress.jsonl` to the seal and to the copy. The new file replaces the name `ingress.jsonl`, so a symlink at that name is not followed. A later `nookku trace` with no `--ingress` reads the copy.
+
+**The rule.** The reader splits the file on `\n` only. A file that is not UTF-8 stops the read. For each line:
+
+1. A blank line is counted as `blank`. A line that is not a JSON object is counted as `invalid_json`.
+2. A span with a `v` that is a number above 1 stops the read with the error `line <n>: the span has the format version <v>. This nookku reads version 1 only (SPEC.md section 8.12). Use a nookku that reads version <v>.`, also for a span outside the window. A later version can give a field a new meaning.
+3. A span of version 1 needs a `time`, a `status` that is an integer and an `outcome` that is a string. Another span, for example a `v` that is a string or a `status` of `"200"`, is counted as `invalid`. The reader ignores each field that it does not know.
+4. A span outside the window of the test is counted as `outside_window`. The window is from `started` to `ended` of the manifest, both ends included. A bound that is not a number is open.
+5. The reader keeps each other span.
+
+**The match by time.** A kept span is in turn `n` if its `time` is in the window of turn `n` (section 8.3), both ends included. Else it is in no turn. The match uses no other field.
+
+**The counts.** A test folder with `ingress.jsonl` has the key `ingress` in `findings.json`. A test folder with no such file does not have the key.
+
+| Key | Value |
+|---|---|
+| `file` | `ingress.jsonl`. |
+| `rows` | The count of the lines that are not blank. |
+| `spans` | The count of the kept spans. |
+| `outcomes` | An object: the count of the kept spans for each `outcome`, with the words in sorted order. |
+| `turns` | An array with 1 number for each turn: the count of the kept spans in that turn. |
+| `no_turn` | The count of the kept spans in no turn. |
+| `ignored` | An object: the count of each reason of the rule. |
+
+The trace writes no item to `trace.jsonl` from a span. A span adds no finding, and it does not change `counts`, `verdict.json` or `performance.json`. The cases [`conformance/trace/ingress_spans/`](conformance/trace/ingress_spans/) and [`ingress_spans_version_two/`](conformance/trace/ingress_spans_version_two/) show the rule.
+
+**The limits.** The ingress proxy and the tap use the clocks of 2 computers. If the clocks differ, a span can be in the wrong turn or in no turn. A span does not name the test, so a request of another caller in the window of a turn is in the count of that turn. Thus a count that is larger than 1 for a turn is not a finding.
 
 ## 9. Evaluation
 
