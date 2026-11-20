@@ -12,7 +12,7 @@ The 2 egress [evaluation](reference/glossary.md#evaluation) [test folders](refer
 
 The current record of the hook gate proof is a run of part A on 2026-11-20, with nookku 0.5.9 and codex-cli 0.169.0. It found the plugin folder of 0.5.9 in the cache (`plugin_folder_is_this_version`) and passed 6 of 6 checks ([data](../proofs/codex-gate/gate.json), [method](../scripts/proof_codex_gate.py)). Part A needs a new Codex home with no trusted hooks, so the record has no part B. Part B waits for the owner step: the maintainer trusts the 2 hooks, then runs the script with `--trusted`.
 
-Since codex-cli 0.169.0, the trust hash has 2 parts (`sha256:A/sha256:B`), and a change to the plugin script changes the second part. The check now compares only the first part, the hook part (#613). History: on 2026-11-17, the old check compared the full hash, so part A passed 5 of 6 checks. Part B passed 5 of 5 ([data](https://github.com/mohanraj00/nookku/blob/11285711/proofs/codex-gate/gate.json)).
+Since codex-cli 0.169.0, the trust hash has 2 parts (`sha256:A/sha256:B`), and a change to the plugin script changes the second part. The check now compares only the first part, the hook part (#613). History: on 2026-11-17, the old check compared the full hash, so part A passed 5 of 6 checks, and part B passed 5 of 5 ([data](https://github.com/mohanraj00/nookku/blob/11285711/proofs/codex-gate/gate.json), [method](https://github.com/mohanraj00/nookku/blob/11285711/scripts/proof_codex_gate.py)).
 
 | Proof | [Project hooks](reference/glossary.md#project-hooks) | Plugin |
 |---|---|---|
