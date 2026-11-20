@@ -149,9 +149,33 @@ jobs:
           name: dashboard
           path: dashboard.json
           if-no-files-found: ignore
+  # The seam test of the release samples of Koodam (#578). It downloads the sample files of the
+  # pinned release, checks their SHA-256, and runs the span reader and the gateway reader on them.
+  # It needs no cluster and no model. It runs only for a change that is not docs-only.
+  release-samples:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - run: uv sync --python 3.12
+      - name: Read the samples of the pinned Koodam release
+        run: uv run python scripts/release_samples.py --out release-samples.json
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-samples
+          path: release-samples.json
+          if-no-files-found: ignore
   # The required check. Add each project job to needs. A skipped job passes. A failed or cancelled job fails.
   ci-ok:
-    needs: [changes, lint, test, claude-code-plugin, kind-testkey, dashboard]
+    needs: [changes, lint, test, claude-code-plugin, kind-testkey, dashboard, release-samples]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 2
