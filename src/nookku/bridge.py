@@ -345,12 +345,18 @@ def start(
         raise BridgeError(f"test {cur['test']} runs already. End it first.")
     from nookku import claude_gate, codex_gate
 
-    both = claude_gate.problem(root)
-    if both is not None:
-        raise BridgeError(both)
+    # A refusal adds a row to the refusal log of the state folder (SPEC.md section 7.8).
+    found = claude_gate.problems(root)
+    if found:
+        claude_gate.log_refusal(root, "start", "claude-code", found)
+        raise BridgeError(claude_gate.refusal(found))
     gate = codex_gate.check(root)
     if gate["problems"]:
+        claude_gate.log_refusal(root, "start", "codex", gate["problems"])
         raise BridgeError(codex_gate.refusal(gate))
+    # A version skew of the plugin is a warning only (SPEC.md section 7.8).
+    for warning in claude_gate.plugin_warnings(root):
+        print(warning, file=sys.stderr)
     if play is not None:
         # The seal check of the base and the egress answer come from the same bytes of its
         # manifest, so a manifest that changes during the start cannot remove a player.
