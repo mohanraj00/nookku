@@ -59,6 +59,8 @@ def test_each_case_gives_its_verdict(case: Path, tmp_path: Path) -> None:
         (folder / "findings.json").write_text(json.dumps(report))
     if "adjudications" in given:
         (folder / verdict.ADJUDICATIONS).write_text(given["adjudications"], encoding="utf-8")
+    if "evaluation" in given:
+        (folder / verdict.EVALUATION).write_text(given["evaluation"], encoding="utf-8")
     expect = json.loads((case / "expect_verdict.json").read_text(encoding="utf-8"))
     assert verdict.build(folder) == expect
     assert json.loads((folder / verdict.FILE).read_text(encoding="utf-8")) == expect
@@ -116,11 +118,15 @@ def test_the_summary_names_each_reason_on_one_line() -> None:
             {"check": "tool_error", "count": None, "most": 1, "verdict": "fail"},
             {"check": "span_error", "count": 9, "most": None, "verdict": "pass"},
         ],
-        "problems": ['APP_SPEC.md line 7: "a\\nb" is not a finding class of the trace.'],
+        "problems": [
+            'APP_SPEC.md line 7: "a\\nb" is not a finding class of the trace or an issue class '
+            "of the evaluation."
+        ],
     }
     assert verdict.summary(report) == (
         "Verdict: fail. agent_error: 2, the limit is 0; tool_error: no valid count, the limit "
-        'is 1; APP_SPEC.md line 7: "a\\nb" is not a finding class of the trace.'
+        'is 1; APP_SPEC.md line 7: "a\\nb" is not a finding class of the trace or an issue class '
+        "of the evaluation."
     )
     assert verdict.summary({**report, "verdict": "pass"}) == "Verdict: pass (1 limit)."
     assert verdict.summary(None) == "Verdict: fail. The test folder has no valid verdict.json."

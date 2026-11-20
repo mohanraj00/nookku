@@ -1,0 +1,15 @@
+{
+ "v": 1,
+ "test": "20261119-090000-ev01",
+ "report": null,
+ "issues": [
+  {
+   "class": "tone",
+   "turn": 2,
+   "evidence": "APP_SPEC.md line 9",
+   "text": "The reply uses slang.",
+   "author": "human",
+   "name": null
+  }
+ ]
+}

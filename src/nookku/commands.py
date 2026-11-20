@@ -54,8 +54,21 @@ PATCH_FILE = re.compile(r"^\*\*\* (?:(?:Add|Update|Delete) File|Move to): (.+)$"
 # runs a scripted test, with each policy (#351). `gate` runs a set of scripted tests, with each
 # policy. Only `gate verify` as the first word after `gate` passes, because it only reads (#574).
 # `adjudicate` writes the decision of a person about an answer key mismatch, and it can change
-# a verdict from fail to pass (#548).
-DRIVES = {"start", "end", "hook", "run", "chat", "page", "script", "replay", "gate", "adjudicate"}
+# a verdict from fail to pass (#548). `evaluation` writes the issue rows of an evaluation with
+# the author type of the command, and it can change a verdict (#576).
+DRIVES = {
+    "start",
+    "end",
+    "hook",
+    "run",
+    "chat",
+    "page",
+    "script",
+    "replay",
+    "gate",
+    "adjudicate",
+    "evaluation",
+}
 MODE_DRIVES = {"on", "off", "start", "end"}
 # `init --remove` removes the project hooks, so the next message would reach the model (#163).
 # argparse also takes a unique prefix of the flag, from --rem.
@@ -76,7 +89,7 @@ IMPORTS = re.compile(
     r"\b(?:import|from)\s+nookku\b|\b(?:import_module|__import__)\s*\(\s*['\"]nookku\b"
 )
 DRIVE_TEXT = re.compile(
-    r"\bnookku\s+(?:-\S+\s+)*(start|end|hook|run|chat|page|script|replay|adjudicate"
+    r"\bnookku\s+(?:-\S+\s+)*(start|end|hook|run|chat|page|script|replay|adjudicate|evaluation"
     r"|gate\b(?!\s+verify\b)"
     r"|mode\s+(?:on|off|start|end)"
     r"|init\b[^;&|\n]*?\s--rem(?:o|ov|ove)?\b"

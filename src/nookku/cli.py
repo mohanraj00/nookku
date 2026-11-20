@@ -14,11 +14,13 @@ from typing import Any, TextIO
 
 from nookku import (
     __version__,
+    answer_key,
     bridge,
     egress_spans,
     evaluation,
     faults,
     gateway,
+    issues,
     kit,
     openinference,
     performance,
@@ -70,6 +72,7 @@ INTERNAL_COMMANDS = frozenset({"hook", "mcp", "mcp-stdio", "bridge"})
 TESTS_COMMANDS = frozenset(
     {
         "adjudicate",
+        "evaluation",
         "start",
         "end",
         "status",
@@ -465,6 +468,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     _gate_parser(sub)
     _dashboard_parser(sub)
     _adjudicate_parser(sub)
+    _evaluation_parser(sub)
 
     ver = sub.add_parser("verify", help="check that no record of a test changed after its end")
     ver.add_argument(
@@ -650,6 +654,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
     if args.command == "adjudicate":
         return _adjudicate_command(args)
+    if args.command == "evaluation":
+        return _evaluation_command(args)
     if args.command == "verify":
         folder = _test_folder(args.root.resolve(), args.test)
         if folder is None:
@@ -1034,105 +1040,233 @@ def _adjudicate_parser(sub: argparse._SubParsersAction[argparse.ArgumentParser])
     adj.add_argument("--root", type=Path, default=Path.cwd())
 
 
-def _adjudicate_command(args: argparse.Namespace) -> int:
-    """nookku adjudicate: add one row to adjudications.jsonl of a test, build the verdict again
-    and update the seal (SPEC.md section 7.17). Exit 2 if the command writes no row.
+class _Sealed:
+    """The records of a test folder for a command of a person that writes a file after the
+    seal: `nookku adjudicate` and `nookku evaluation` (SPEC.md sections 7.17 and 9.4).
 
     Another user can write the tests folder. Thus the command reads each record one time, uses
     only bytes that have the SHA-256 of the seal, and gives the seal the SHA-256 of the bytes
     that it wrote, not of a file that it reads again."""
+
+    PERSON = (answer_key.ADJUDICATIONS, issues.FILE)
+
+    def __init__(self, folder: Path) -> None:
+        """Raise ValueError if the seal is not intact or a record is not the record of the seal."""
+        check = seal.verify(folder)
+        if not check["intact"]:
+            # A person row is a decision about sealed records, so the seal must be intact first.
+            raise ValueError(seal.summary(check))
+        before = seal.trusted(folder)
+        if before is None:
+            raise ValueError("The test folder has no valid seal.")
+        self.folder, self.before = folder, before
+        files = before["files"]
+        records = verdict.MANIFEST, verdict.FINDINGS
+        self.data: dict[str, bytes | None] = {
+            name: seal.sealed_bytes(folder, files, name) for name in records
+        }
+        for name in self.PERSON:
+            path = folder / name
+            if path.is_symlink():
+                raise ValueError(f"{name} is a symlink.")
+            if name in files:
+                self.data[name] = seal.sealed_bytes(folder, files, name)
+            elif path.exists():
+                raise ValueError(f"{name} is not a file of the seal.")
+            else:
+                self.data[name] = None
+        manifest = loads((self.data[verdict.MANIFEST] or b"").decode("utf-8"))
+        if not isinstance(manifest, dict):
+            raise ValueError(f"{verdict.MANIFEST} is not a JSON object.")
+        self.manifest: dict[str, Any] = manifest
+
+    def write(self, name: str, data: bytes) -> tuple[dict[str, Any] | None, bool]:
+        """Write the person file `name`, build the verdict again from the bytes of the seal and
+        the new bytes, and update the seal and its copy. Return the verdict, or None if it was
+        not written, and False if the seal was not updated. Raise OSError if the command could
+        not write the file."""
+        seal.replace_file(self.folder / name, data)
+        self.data[name] = data
+        new = {name: seal.sha256_of(data)}
+        found: dict[str, Any] | None
+        try:
+            found = verdict.compute(
+                self.folder.name,
+                self.manifest,
+                [],
+                self.data[verdict.FINDINGS],
+                self.data[answer_key.ADJUDICATIONS],
+                self.data[issues.FILE],
+            )
+            built = verdict.file_text(found).encode("utf-8")
+            seal.replace_file(self.folder / verdict.FILE, built)
+            new[verdict.FILE] = seal.sha256_of(built)
+        except Exception as e:
+            # The seal keeps the hash of the old verdict, so the test fails closed with --verdict.
+            print(f"nookku: {verdict.FILE} was not rebuilt: {e!r}", file=sys.stderr)
+            found = None
+        try:
+            sealed = seal.change(self.folder, self.before, new)
+        except OSError as e:
+            print(f"nookku: the seal was not updated: {e!r}", file=sys.stderr)
+            return found, False
+        if not sealed:
+            # The seal breaks, so no command uses the verdict of the test (section 7.14).
+            text = "A sealed file of the test folder changed during the command."
+            print(f"nookku: the seal was not updated. {text}", file=sys.stderr)
+            return found, False
+        return found, True
+
+
+def _person_name(given: str | None) -> str | None:
+    """The name of the person of a command: `--author`, else the login name of the OS user."""
     import getpass
 
-    from nookku import answer_key
+    if given is not None:
+        return given
+    try:
+        return getpass.getuser()
+    except (OSError, KeyError, ImportError):
+        return None
 
+
+def _adjudicate_command(args: argparse.Namespace) -> int:
+    """nookku adjudicate: add one row to adjudications.jsonl of a test, build the verdict again
+    and update the seal (SPEC.md section 7.17). Exit 2 if the command writes no row."""
+    no = "nookku: no adjudication was written."
     if args.outcome not in answer_key.OUTCOMES:
         text = "The outcome must be " + ", ".join(answer_key.OUTCOMES) + "."
-        print(f"nookku: no adjudication was written. {text}", file=sys.stderr)
+        print(f"{no} {text}", file=sys.stderr)
         return 2
     folder = _test_folder(args.root.resolve(), args.test)
     if folder is None:
         return 2
-    check = seal.verify(folder)
-    if not check["intact"]:
-        # An adjudication is a decision about sealed records, so the seal must be intact first.
-        print(f"nookku: no adjudication was written. {seal.summary(check)}", file=sys.stderr)
-        return 2
-    author = args.author
-    if author is None:
-        try:
-            author = getpass.getuser()
-        except (OSError, KeyError, ImportError):
-            text = "Give your name with --author."
-            print(f"nookku: no adjudication was written. {text}", file=sys.stderr)
-            return 2
-    before = seal.trusted(folder)
-    path = folder / answer_key.ADJUDICATIONS
     try:
-        if before is None:
-            raise ValueError("The test folder has no valid seal.")
-        files = before["files"]
-        records = verdict.MANIFEST, verdict.FINDINGS
-        data = {name: seal.sealed_bytes(folder, files, name) for name in records}
-        old = b""
-        if path.is_symlink():
-            raise ValueError(f"{answer_key.ADJUDICATIONS} is a symlink.")
-        if answer_key.ADJUDICATIONS in files:
-            old = seal.sealed_bytes(folder, files, answer_key.ADJUDICATIONS)
-        elif path.exists():
-            raise ValueError(f"{answer_key.ADJUDICATIONS} is not a file of the seal.")
-        manifest = loads(data[verdict.MANIFEST].decode("utf-8"))
-        if not isinstance(manifest, dict):
-            raise ValueError(f"{verdict.MANIFEST} is not a JSON object.")
+        records = _Sealed(folder)
     except ValueError as e:
-        print(f"nookku: no adjudication was written. {e}", file=sys.stderr)
+        print(f"{no} {e}", file=sys.stderr)
+        return 2
+    author = _person_name(args.author)
+    if author is None:
+        print(f"{no} Give your name with --author.", file=sys.stderr)
         return 2
     try:
-        report = loads(data[verdict.FINDINGS].decode("utf-8"))
+        report = loads((records.data[verdict.FINDINGS] or b"").decode("utf-8"))
     except ValueError:
         report = None
     mismatches = answer_key.mismatches_of(report)
     if mismatches is None:
         text = "findings.json has no answers list. Build the trace again with nookku trace."
-        print(f"nookku: no adjudication was written. {text}", file=sys.stderr)
+        print(f"{no} {text}", file=sys.stderr)
         return 2
     if args.turn not in mismatches:
-        text = f"Turn {args.turn} has no answer key mismatch."
-        print(f"nookku: no adjudication was written. {text}", file=sys.stderr)
+        print(f"{no} Turn {args.turn} has no answer key mismatch.", file=sys.stderr)
         return 2
     try:
         row = answer_key.adjudication(
             args.turn, mismatches[args.turn], args.outcome, args.reason, author
         )
-        rows = answer_key.with_adjudication(old, row)
-        seal.replace_file(path, rows)
+        old = records.data[answer_key.ADJUDICATIONS] or b""
+        found, sealed = records.write(
+            answer_key.ADJUDICATIONS, answer_key.with_adjudication(old, row)
+        )
     except (OSError, ValueError) as e:
-        print(f"nookku: no adjudication was written. {e}", file=sys.stderr)
+        print(f"{no} {e}", file=sys.stderr)
         return 2
-    new = {answer_key.ADJUDICATIONS: seal.sha256_of(rows)}
-    found: dict[str, Any] | None
-    try:
-        # The verdict of the bytes that the seal covered, and of the rows of the command.
-        found = verdict.compute(folder.name, manifest, [], data[verdict.FINDINGS], rows)
-        built = verdict.file_text(found).encode("utf-8")
-        seal.replace_file(folder / verdict.FILE, built)
-        new[verdict.FILE] = seal.sha256_of(built)
-    except Exception as e:
-        # The seal keeps the hash of the old verdict, so the test fails closed with --verdict.
-        print(f"nookku: {verdict.FILE} was not rebuilt: {e!r}", file=sys.stderr)
-        found = None
-    try:
-        sealed = seal.change(folder, before, new)
-    except OSError as e:
-        print(f"nookku: the seal was not updated: {e!r}", file=sys.stderr)
-        return 1
     if not sealed:
-        # The seal breaks, so no command uses the verdict of the test (section 7.14).
-        text = "A sealed file of the test folder changed during the command."
-        print(f"nookku: the seal was not updated. {text}", file=sys.stderr)
         return 1
     print(f"Test {folder.name}, turn {args.turn}: {args.outcome}, by {author}.")
     print(verdict.summary(found))
     return 0 if found is not None else 1
+
+
+def _evaluation_parser(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+    ev = sub.add_parser(
+        "evaluation", help="write the issue rows of an evaluation to evaluation.json"
+    )
+    ev.add_argument(
+        "action",
+        choices=["import", "add"],
+        help="import: the rows of the issue table of report.md, as model rows. "
+        "add: one row of a person",
+    )
+    ev.add_argument("test", help="the test id or the path of the test folder")
+    ev.add_argument("--class", dest="cls", help="add: the issue class (SPEC.md section 9.3)")
+    ev.add_argument("--turn", type=int, help="add: the turn of the issue (default: no turn)")
+    ev.add_argument("--evidence", help="add: a trace.jsonl:N line, a turn or a source line")
+    ev.add_argument("--text", help="add: the issue")
+    ev.add_argument("--author", help="add: your name (default: the login name of the OS user)")
+    ev.add_argument("--root", type=Path, default=Path.cwd())
+
+
+def _evaluation_command(args: argparse.Namespace) -> int:
+    """nookku evaluation: write evaluation.json of a test, build the verdict again and update
+    the seal (SPEC.md section 9.4). `import` writes the rows of the issue table of report.md as
+    model rows, and `add` writes one human row. The command sets the author type, and the text
+    of a row never sets it. Exit 2 if the command writes no row."""
+    no = "nookku: no issue row was written."
+    folder = _test_folder(args.root.resolve(), args.test)
+    if folder is None:
+        return 2
+    try:
+        records = _Sealed(folder)
+        old = records.data[issues.FILE]
+        record: dict[str, Any] | None = None
+        if old is not None:
+            record, problem = issues.read(old)
+            if record is None:
+                raise ValueError(f"{problem}.")
+        rows = record["issues"] if record is not None else []
+        report = issues.read_report(folder)
+        if args.action == "import":
+            if report is None:
+                raise ValueError(f"The test folder has no {issues.REPORT}. Run the evaluation.")
+            # The model rows of report.md replace the model rows, and the human rows stay.
+            people = [r for r in rows if r["author"] == "human"]
+            rows = issues.model_rows(report) + people
+        else:
+            name = _person_name(args.author)
+            if name is None:
+                raise ValueError("Give your name with --author.")
+            if args.cls is None or args.evidence is None or args.text is None:
+                raise ValueError("Give --class, --evidence and --text.")
+            known = record["report"] if record is not None else None
+            if report is not None and (known is None or seal.sha256_of(report) != known):
+                raise ValueError(
+                    f"{issues.REPORT} has rows that evaluation.json does not have. "
+                    f"Run: nookku evaluation import {folder.name}"
+                )
+            rows = [*rows, issues.row(args.cls, args.turn, args.evidence, args.text, name)]
+        if len(rows) > issues.MAX_ROWS:
+            raise ValueError(f"evaluation.json can have {issues.MAX_ROWS} rows at most.")
+        shown = None if report is None else issues.with_person_part(report, rows)
+        test = records.manifest.get("test")
+        data = issues.file_bytes(
+            test if isinstance(test, str) else folder.name,
+            None if shown is None else seal.sha256_of(shown),
+            rows,
+        )
+        found, sealed = records.write(issues.FILE, data)
+    except (OSError, ValueError) as e:
+        print(f"{no} {e}", file=sys.stderr)
+        return 2
+    if not sealed:
+        return 1
+    code = 0 if found is not None else 1
+    if shown is not None and shown != report:
+        try:
+            # report.md is not sealed. evaluation.json keeps the SHA-256 of these bytes.
+            seal.replace_file(folder / issues.REPORT, shown)
+        except OSError as e:
+            print(f"nookku: {issues.REPORT} was not written: {e!r}", file=sys.stderr)
+            code = 1
+    model = sum(1 for r in rows if r["author"] == "model")
+    print(
+        f"Test {folder.name}: {model} model rows and {len(rows) - model} human rows "
+        f"in {issues.FILE}."
+    )
+    print(verdict.summary(found))
+    return code
 
 
 def _script_parser(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
